@@ -61,11 +61,11 @@ TEST_F(SessionTest, testLoadSession) {
 
         sessionList.push_back(SessionRepoItem("/file1", "sessionID1",
                                 12345, SessionStatus::kSessionOK ,
-                                123456, "127.0.0.1"));
+                                123456, "127.0.0.1", ""));
 
         sessionList.push_back(SessionRepoItem("/file1", "sessionID2",
                                 12345, SessionStatus::kSessionOK ,
-                                123456, "127.0.0.1"));
+                                123456, "127.0.0.1", ""));
 
         EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
         .Times(1)
@@ -85,15 +85,15 @@ TEST_F(SessionTest, testLoadSession) {
 
         sessionList.push_back(SessionRepoItem("/file1", "sessionID1",
                                 12345, SessionStatus::kSessionOK ,
-                                123456, "127.0.0.1"));
+                                123456, "127.0.0.1", ""));
 
         sessionList.push_back(SessionRepoItem("/file1", "sessionID2",
                                 12345, SessionStatus::kSessionOK ,
-                                1234567, "127.0.0.1"));
+                                1234567, "127.0.0.1", ""));
 
         sessionList.push_back(SessionRepoItem("/file1", "sessionID3",
                                 12345, SessionStatus::kSessionOK ,
-                                12345, "127.0.0.1"));
+                                12345, "127.0.0.1", ""));
 
         EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
         .Times(1)
@@ -111,7 +111,7 @@ TEST_F(SessionTest, testLoadSession) {
 
         SessionRepoItem sessionRepo("/file1", "sessionID2",
                         sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
-                                    111, "127.0.0.1");
+                                    111, "127.0.0.1", "");
         EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),
@@ -132,7 +132,7 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
         sessionList.push_back(SessionRepoItem("/file1", "sessionID1",
                                 12345, SessionStatus::kSessionOK,
                                 ::curve::common::TimeUtility::GetTimeofDayUs(),
-                                "127.0.0.1"));
+                                "127.0.0.1", ""));
 
         EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
         .Times(1)
@@ -148,7 +148,8 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
 
         ProtoSession protoSession;
         ASSERT_EQ(sessionManager_.InsertSession("/file1", "127.0.0.1",
-                                                    &protoSession),
+                                                "",
+                                                &protoSession),
                     StatusCode::kFileOccupied);
 
         EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
@@ -162,14 +163,15 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
         // 等session过期，再次open，open成功
         usleep(sessionOptions_.leaseTimeUs);
         ASSERT_EQ(sessionManager_.InsertSession("/file1", "127.0.0.1",
-                                                    &protoSession),
+                                                "",
+                                                &protoSession),
                     StatusCode::kOK);
 
         ASSERT_EQ(1, sessionManager_.GetOpenFileNum());
 
         SessionRepoItem sessionRepo("/file1", "sessionID1",
                         sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
-                                    111, "127.0.0.1");
+                                    111, "127.0.0.1", "");
         EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),
@@ -186,7 +188,7 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
         sessionList.push_back(SessionRepoItem("/file1", "sessionID1",
                                 12345, SessionStatus::kSessionStaled,
                                 ::curve::common::TimeUtility::GetTimeofDayUs(),
-                                "127.0.0.1"));
+                                "127.0.0.1", ""));
 
         EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
         .Times(1)
@@ -210,14 +212,15 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
         // open成功
         ProtoSession protoSession;
         ASSERT_EQ(sessionManager_.InsertSession("/file1", "127.0.0.1",
-                                                    &protoSession),
+                                                "",
+                                                &protoSession),
                     StatusCode::kOK);
 
         ASSERT_EQ(1, sessionManager_.GetOpenFileNum());
 
         SessionRepoItem sessionRepo("/file1", "sessionID1",
                         sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
-                                    111, "127.0.0.1");
+                                    111, "127.0.0.1", "");
         EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),
@@ -248,14 +251,16 @@ TEST_F(SessionTest, insert_session_test) {
         .WillOnce(Return(repo::OperationOK));
 
         ASSERT_EQ(sessionManager_.InsertSession("/file1", "127.0.0.1",
-                                                    &protoSession1),
+                                                "",
+                                                &protoSession1),
                     StatusCode::kOK);
         ASSERT_EQ(1, sessionManager_.GetOpenFileNum());
 
         // 在session有效期内，再次openfile，返回kFileOccupied
         ProtoSession protoSession2;
         ASSERT_EQ(sessionManager_.InsertSession("/file1", "127.0.0.1",
-                                                    &protoSession2),
+                                                "",
+                                                &protoSession2),
                     StatusCode::kFileOccupied);
 
         // 等session过期，再open file, 返回新的session
@@ -271,14 +276,15 @@ TEST_F(SessionTest, insert_session_test) {
         .WillOnce(Return(repo::OperationOK));
 
         ASSERT_EQ(sessionManager_.InsertSession("/file1", "127.0.0.1",
-                                                    &protoSession3),
+                                                "",
+                                                &protoSession3),
                     StatusCode::kOK);
         ASSERT_NE(protoSession3.sessionid(), protoSession1.sessionid());
         ASSERT_EQ(1, sessionManager_.GetOpenFileNum());
 
         SessionRepoItem sessionRepo("/file1", "sessionid",
                         sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
-                                    111, "127.0.0.1");
+                                    111, "127.0.0.1", "");
         EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),
@@ -305,7 +311,8 @@ TEST_F(SessionTest, insert_session_test) {
         .WillOnce(Return(repo::OperationOK));
 
         ASSERT_EQ(sessionManager_.InsertSession("/file1", "127.0.0.1",
-                                                    &protoSession1),
+                                                "",
+                                                &protoSession1),
                     StatusCode::kOK);
         ASSERT_EQ(1, sessionManager_.GetOpenFileNum());
 
@@ -319,6 +326,7 @@ TEST_F(SessionTest, insert_session_test) {
         .WillOnce(Return(repo::SqlException));
 
         ASSERT_EQ(sessionManager_.InsertSession("/file1", "127.0.0.1",
+                                            "",
                                             &protoSession2),
             StatusCode::KInternalError);
 
@@ -332,7 +340,8 @@ TEST_F(SessionTest, insert_session_test) {
         .WillOnce(Return(repo::OperationOK));
 
         ASSERT_EQ(sessionManager_.InsertSession("/file1", "127.0.0.1",
-                                                    &protoSession2),
+                                                "",
+                                                &protoSession2),
                     StatusCode::KInternalError);
 
         sessionManager_.Stop();
@@ -358,7 +367,8 @@ TEST_F(SessionTest, refresh_session_test) {
     .WillOnce(Return(repo::OperationOK));
 
     ASSERT_EQ(sessionManager_.InsertSession("/file1", "127.0.0.1",
-                                                &protoSession1),
+                                            "",
+                                            &protoSession1),
                 StatusCode::kOK);
 
     // 等session过期
@@ -370,7 +380,7 @@ TEST_F(SessionTest, refresh_session_test) {
 
     SessionRepoItem sessionRepo("/file1", "sessionid",
                     sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
-                                111, "127.0.0.1");
+                                111, "127.0.0.1", "");
     EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),

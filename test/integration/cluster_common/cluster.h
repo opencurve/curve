@@ -98,7 +98,8 @@ class CurveCluster {
      */
     void StartSingleMDS(int id, const std::string &ipPort,
                         const std::vector<std::string> &mdsConf,
-                        bool expectLeader, bool expectAssert = true);
+                        bool expectLeader, bool expectAssert = true,
+                        bool* startsuccess = nullptr);
 
     /**
      * StopMDS 停止指定id的mds

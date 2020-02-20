@@ -81,6 +81,7 @@ create table if not exists `curve_session` (
     `createTime`    BIGINT                 NOT NULL   COMMENT '创建时间',
     `updateTime`    timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE  CURRENT_TIMESTAMP COMMENT '记录修改时间',
     `clientIP`      VARCHAR(16)            NOT NULL   COMMENT '挂载客户端IP',
+    `clientVersion` VARCHAR(64) NOT NULL COMMENT '挂载的客户端的版本号',
     PRIMARY KEY (`entryID`),
     UNIQUE KEY (`sessionID`)
 )COMMENT='session';

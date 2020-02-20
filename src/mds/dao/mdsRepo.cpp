@@ -84,17 +84,17 @@ ChunkServerRepoItem::ChunkServerRepoItem(uint32_t id) {
 }
 
 ChunkServerRepoItem::ChunkServerRepoItem(uint32_t id,
-                                 const std::string &token,
-                                 const std::string &diskType,
-                                 const std::string &ip,
-                                 uint32_t port,
-                                 uint32_t serverID,
-                                 uint8_t status,
-                                 uint8_t diskState,
-                                 uint8_t onlineState,
-                                 const std::string &mountPoint,
-                                 int64_t diskCapacity,
-                                 int64_t diskUsed) {
+        const std::string &token,
+        const std::string &diskType,
+        const std::string &ip,
+        uint32_t port,
+        uint32_t serverID,
+        uint8_t status,
+        uint8_t diskState,
+        uint8_t onlineState,
+        const std::string &mountPoint,
+        int64_t diskCapacity,
+        int64_t diskUsed) {
     this->chunkServerID = id;
     this->token = token;
     this->diskType = diskType;
@@ -111,13 +111,13 @@ ChunkServerRepoItem::ChunkServerRepoItem(uint32_t id,
 
 bool ChunkServerRepoItem::operator==(const ChunkServerRepoItem &r) {
     return chunkServerID == r.chunkServerID &&
-        serverID == r.serverID &&
-        token == r.token &&
-        diskType == r.diskType;
+           serverID == r.serverID &&
+           token == r.token &&
+           diskType == r.diskType;
 }
 
 void ChunkServerRepoItem::getKV(std::map<std::string,
-                              std::string> (*kv)) const {
+                                std::string> (*kv)) const {
     ((*kv))["chunkServerID"] = std::to_string(chunkServerID);
     ((*kv))["token"] = convertToSqlValue(token);
     ((*kv))["diskType"] = convertToSqlValue(diskType);
@@ -133,7 +133,7 @@ void ChunkServerRepoItem::getKV(std::map<std::string,
 }
 
 void ChunkServerRepoItem::getPrimaryKV(std::map<std::string,
-                                            std::string> *primary) const {
+                                       std::string> *primary) const {
     (*primary)["chunkServerID"] = std::to_string(chunkServerID);
 }
 
@@ -147,14 +147,14 @@ ServerRepoItem::ServerRepoItem(uint32_t id) {
 }
 
 ServerRepoItem::ServerRepoItem(uint32_t id,
-                       const std::string &host,
-                       const std::string &inIp,
-                       uint32_t inPort,
-                       const std::string &exIp,
-                       uint32_t exPort,
-                       uint16_t zoneID,
-                       uint16_t poolID,
-                       const std::string &desc) {
+                               const std::string &host,
+                               const std::string &inIp,
+                               uint32_t inPort,
+                               const std::string &exIp,
+                               uint32_t exPort,
+                               uint16_t zoneID,
+                               uint16_t poolID,
+                               const std::string &desc) {
     this->serverID = id;
     this->hostName = host;
     this->internalHostIP = inIp;
@@ -168,11 +168,11 @@ ServerRepoItem::ServerRepoItem(uint32_t id,
 
 bool ServerRepoItem::operator==(const ServerRepoItem &s) {
     return serverID == s.serverID &&
-        hostName == s.hostName &&
-        internalHostIP == s.internalHostIP &&
-        externalHostIP == s.externalHostIP &&
-        zoneID == s.zoneID &&
-        poolID == s.poolID;
+           hostName == s.hostName &&
+           internalHostIP == s.internalHostIP &&
+           externalHostIP == s.externalHostIP &&
+           zoneID == s.zoneID &&
+           poolID == s.poolID;
 }
 
 void ServerRepoItem::getKV(std::map<std::string, std::string> (*kv)) const {
@@ -188,7 +188,7 @@ void ServerRepoItem::getKV(std::map<std::string, std::string> (*kv)) const {
 }
 
 void ServerRepoItem::getPrimaryKV(std::map<std::string,
-                                       std::string> *primary) const {
+                                  std::string> *primary) const {
     (*primary)["serverID"] = std::to_string(serverID);
 }
 
@@ -202,9 +202,9 @@ ZoneRepoItem::ZoneRepoItem(uint32_t id) {
 }
 
 ZoneRepoItem::ZoneRepoItem(uint32_t zoneID,
-                   const std::string &name,
-                   uint16_t poolID,
-                   const std::string &desc) {
+                           const std::string &name,
+                           uint16_t poolID,
+                           const std::string &desc) {
     this->zoneID = zoneID;
     this->zoneName = name;
     this->poolID = poolID;
@@ -213,8 +213,8 @@ ZoneRepoItem::ZoneRepoItem(uint32_t zoneID,
 
 bool ZoneRepoItem::operator==(const ZoneRepoItem &r) {
     return zoneID == r.zoneID &&
-        zoneName == r.zoneName &&
-        poolID == r.poolID;
+           zoneName == r.zoneName &&
+           poolID == r.poolID;
 }
 
 void ZoneRepoItem::getKV(std::map<std::string, std::string> (*kv)) const {
@@ -239,15 +239,15 @@ LogicalPoolRepoItem::LogicalPoolRepoItem(uint16_t id) {
 }
 
 LogicalPoolRepoItem::LogicalPoolRepoItem(uint16_t logicalID,
-                                 const std::string &logicalName,
-                                 uint16_t physicalID,
-                                 uint8_t type,
-                                 uint32_t initialScatterWidth,
-                                 int64_t createTime,
-                                 uint8_t status,
-                                 const std::string &reduancePolicy,
-                                 const std::string &userPolicy,
-                                 bool availFlag) {
+        const std::string &logicalName,
+        uint16_t physicalID,
+        uint8_t type,
+        uint32_t initialScatterWidth,
+        int64_t createTime,
+        uint8_t status,
+        const std::string &reduancePolicy,
+        const std::string &userPolicy,
+        bool availFlag) {
     this->logicalPoolID = logicalID;
     this->logicalPoolName = logicalName;
     this->physicalPoolID = physicalID;
@@ -263,10 +263,10 @@ LogicalPoolRepoItem::LogicalPoolRepoItem(uint16_t logicalID,
 // TODO(lixiaocui): 复制操作符的这种重载是不合适的
 bool LogicalPoolRepoItem::operator==(const LogicalPoolRepoItem &r) {
     return logicalPoolID == r.logicalPoolID &&
-        logicalPoolName == r.logicalPoolName &&
-        physicalPoolID == r.physicalPoolID &&
-        type == r.type &&
-        createTime == r.createTime;
+           logicalPoolName == r.logicalPoolName &&
+           physicalPoolID == r.physicalPoolID &&
+           type == r.type &&
+           createTime == r.createTime;
 }
 
 void LogicalPoolRepoItem::getKV(
@@ -285,7 +285,7 @@ void LogicalPoolRepoItem::getKV(
 }
 
 void LogicalPoolRepoItem::getPrimaryKV(std::map<std::string,
-                                            std::string> *primay) const {
+                                       std::string> *primay) const {
     (*primay)["logicalPoolID"] = std::to_string(logicalPoolID);
 }
 
@@ -299,8 +299,8 @@ PhysicalPoolRepoItem::PhysicalPoolRepoItem(uint16_t id) {
 }
 
 PhysicalPoolRepoItem::PhysicalPoolRepoItem(uint16_t id,
-                                   const std::string &name,
-                                   const std::string &desc) {
+        const std::string &name,
+        const std::string &desc) {
     this->physicalPoolID = id;
     this->physicalPoolName = name;
     this->desc = desc;
@@ -308,7 +308,7 @@ PhysicalPoolRepoItem::PhysicalPoolRepoItem(uint16_t id,
 
 bool PhysicalPoolRepoItem::operator==(const PhysicalPoolRepoItem &r) {
     return physicalPoolID == r.physicalPoolID &&
-        physicalPoolName == r.physicalPoolName;
+           physicalPoolName == r.physicalPoolName;
 }
 
 void PhysicalPoolRepoItem::getKV(std::map<std::string, std::string> *kv) const {
@@ -318,7 +318,7 @@ void PhysicalPoolRepoItem::getKV(std::map<std::string, std::string> *kv) const {
 }
 
 void PhysicalPoolRepoItem::getPrimaryKV(std::map<std::string,
-                                             std::string> *primary) const {
+                                        std::string> *primary) const {
     (*primary)["physicalPoolID"] = std::to_string(physicalPoolID);
 }
 
@@ -334,8 +334,8 @@ CopySetRepoItem::CopySetRepoItem(uint32_t id, uint16_t logicalPoolID) {
 }
 
 CopySetRepoItem::CopySetRepoItem(uint32_t id,
-                         uint16_t poolID,
-                         const std::string &chunkServerList) {
+                                 uint16_t poolID,
+                                 const std::string &chunkServerList) {
     this->copySetID = id;
     this->logicalPoolID = poolID;
     this->epoch = 0;
@@ -343,9 +343,9 @@ CopySetRepoItem::CopySetRepoItem(uint32_t id,
 }
 
 CopySetRepoItem::CopySetRepoItem(uint32_t id,
-                         uint16_t poolID,
-                         uint64_t epoch,
-                         const std::string &chunkServerList) {
+                                 uint16_t poolID,
+                                 uint64_t epoch,
+                                 const std::string &chunkServerList) {
     this->copySetID = id;
     this->logicalPoolID = poolID;
     this->epoch = epoch;
@@ -354,7 +354,7 @@ CopySetRepoItem::CopySetRepoItem(uint32_t id,
 
 bool CopySetRepoItem::operator==(const CopySetRepoItem &r) {
     return copySetID == r.copySetID &&
-        logicalPoolID == r.logicalPoolID;
+           logicalPoolID == r.logicalPoolID;
 }
 
 void CopySetRepoItem::getKV(std::map<std::string, std::string> *kv) const {
@@ -365,7 +365,7 @@ void CopySetRepoItem::getKV(std::map<std::string, std::string> *kv) const {
 }
 
 void CopySetRepoItem::getPrimaryKV(std::map<std::string,
-                                        std::string> *primary) const {
+                                   std::string> *primary) const {
     (*primary)["copySetID"] = std::to_string(copySetID);
     (*primary)["logicalPoolID"] = std::to_string(logicalPoolID);
 }
@@ -375,221 +375,227 @@ std::string CopySetRepoItem::getTable() const {
 }
 
 // session
-SessionRepoItem::SessionRepoItem(std::string fileName, std::string sessionID,
-                         uint32_t leaseTime,
-                         uint16_t sessionStatus, uint64_t createTime,
-                         std::string clientIP) {
-  this->fileName = fileName;
-  this->sessionID = sessionID;
-  this->leaseTime = leaseTime;
-  this->sessionStatus = sessionStatus;
-  this->createTime = createTime;
-  this->clientIP = clientIP;
+SessionRepoItem::SessionRepoItem(const std::string &fileName,
+                                 const std::string &sessionID,
+                                 uint32_t leaseTime,
+                                 uint16_t sessionStatus, uint64_t createTime,
+                                 const std::string &clientIP,
+                                 const std::string &clientVersion) {
+    this->fileName = fileName;
+    this->sessionID = sessionID;
+    this->leaseTime = leaseTime;
+    this->sessionStatus = sessionStatus;
+    this->createTime = createTime;
+    this->clientIP = clientIP;
+    this->clientVersion = clientVersion;
 }
 
 SessionRepoItem::SessionRepoItem(std::string sessionID) {
-  this->sessionID = sessionID;
+    this->sessionID = sessionID;
 }
 
 bool SessionRepoItem::operator==(const SessionRepoItem &r) {
-  return sessionID == r.sessionID && fileName == r.fileName;
+    return sessionID == r.sessionID && fileName == r.fileName;
 }
 
 
 void SessionRepoItem::getKV(std::map<std::string, std::string> *kv) const {
-  (*kv)["fileName"] = convertToSqlValue(fileName);
-  (*kv)["sessionID"] = convertToSqlValue(sessionID);
-  (*kv)["leaseTime"] = std::to_string(leaseTime);
-  (*kv)["sessionStatus"] = std::to_string(sessionStatus);
-  (*kv)["createTime"] = std::to_string(createTime);
-  (*kv)["clientIP"] = convertToSqlValue(clientIP);
+    (*kv)["fileName"] = convertToSqlValue(fileName);
+    (*kv)["sessionID"] = convertToSqlValue(sessionID);
+    (*kv)["leaseTime"] = std::to_string(leaseTime);
+    (*kv)["sessionStatus"] = std::to_string(sessionStatus);
+    (*kv)["createTime"] = std::to_string(createTime);
+    (*kv)["clientIP"] = convertToSqlValue(clientIP);
+    (*kv)["clientVersion"] = convertToSqlValue(clientVersion);
 }
 
 void SessionRepoItem::getPrimaryKV(std::map<std::string,
-                               std::string> *primary) const {
-  (*primary)["sessionID"] = convertToSqlValue(sessionID);
-  return;
+                                   std::string> *primary) const {
+    (*primary)["sessionID"] = convertToSqlValue(sessionID);
+    return;
 }
 
 std::string SessionRepoItem::getTable() const {
-  return SessionTable;
+    return SessionTable;
 }
 
 uint16_t SessionRepoItem::GetSessionStatus() {
-  return sessionStatus;
+    return sessionStatus;
 }
 
 void SessionRepoItem::SetSessionStatus(uint16_t status) {
-  sessionStatus = status;
+    sessionStatus = status;
 }
 
 // client info
 ClientInfoRepoItem::ClientInfoRepoItem(const std::string &clientIp,
-                                      uint32_t clientPort) {
-  this->clientIp = clientIp;
-  this->clientPort = clientPort;
+                                       uint32_t clientPort) {
+    this->clientIp = clientIp;
+    this->clientPort = clientPort;
 }
 
 bool ClientInfoRepoItem::operator==(const ClientInfoRepoItem &r) {
-  return clientIp == r.clientIp && clientPort == r.clientPort;
+    return clientIp == r.clientIp && clientPort == r.clientPort;
 }
 
 
 void ClientInfoRepoItem::getKV(std::map<std::string, std::string> *kv) const {
-  (*kv)["clientIp"] = convertToSqlValue(clientIp);
-  (*kv)["clientPort"] = std::to_string(clientPort);
+    (*kv)["clientIp"] = convertToSqlValue(clientIp);
+    (*kv)["clientPort"] = std::to_string(clientPort);
 }
 
 void ClientInfoRepoItem::getPrimaryKV(std::map<std::string,
-                               std::string> *primary) const {
-  (*primary)["clientIp"] = convertToSqlValue(clientIp);
-  (*primary)["clientPort"] = std::to_string(clientPort);
-  return;
+                                      std::string> *primary) const {
+    (*primary)["clientIp"] = convertToSqlValue(clientIp);
+    (*primary)["clientPort"] = std::to_string(clientPort);
+    return;
 }
 
 std::string ClientInfoRepoItem::getTable() const {
-  return ClientInfoTable;
+    return ClientInfoTable;
 }
 
 std::string ClientInfoRepoItem::GetClientIp() {
-  return clientIp;
+    return clientIp;
 }
 
 uint32_t ClientInfoRepoItem::GetClientPort() {
-  return clientPort;
+    return clientPort;
 }
 
 int MdsRepo::InsertChunkServerRepoItem(const ChunkServerRepoItem &cr) {
-  return db_->ExecUpdate(makeSql.makeInsert(cr));
+    return db_->ExecUpdate(makeSql.makeInsert(cr));
 }
 
 int MdsRepo::LoadChunkServerRepoItems(
     std::vector<curve::mds::ChunkServerRepoItem> *chunkServerRepoList) {
-  assert(chunkServerRepoList != nullptr);
+    assert(chunkServerRepoList != nullptr);
 
-  sql::ResultSet *res;
-  int resCode =
-      db_->QueryRows(makeSql.makeQueryRows(ChunkServerRepoItem{}), &res);
-  if (resCode != OperationOK) {
+    sql::ResultSet *res;
+    int resCode =
+        db_->QueryRows(makeSql.makeQueryRows(ChunkServerRepoItem{}), &res);
+    if (resCode != OperationOK) {
+        return resCode;
+    }
+
+    while (res->next()) {
+        chunkServerRepoList->push_back(
+            ChunkServerRepoItem(res->getUInt("chunkServerID"),
+                                res->getString("token"),
+                                res->getString("diskType"),
+                                res->getString("internalHostIP"),
+                                res->getUInt("port"),
+                                res->getUInt("serverID"),
+                                static_cast<uint8_t>(res->getUInt("rwstatus")),
+                                static_cast<uint8_t>(res->getUInt("diskState")),
+                                static_cast<uint8_t>(
+                                    res->getUInt("onlineState")),
+                                res->getString("mountPoint"),
+                                res->getInt64("capacity"),
+                                res->getInt64("used")));
+    }
+    delete (res);
     return resCode;
-  }
-
-  while (res->next()) {
-    chunkServerRepoList->push_back(
-        ChunkServerRepoItem(res->getUInt("chunkServerID"),
-                        res->getString("token"),
-                        res->getString("diskType"),
-                        res->getString("internalHostIP"),
-                        res->getUInt("port"),
-                        res->getUInt("serverID"),
-                        static_cast<uint8_t>(res->getUInt("rwstatus")),
-                        static_cast<uint8_t>(res->getUInt("diskState")),
-                        static_cast<uint8_t>(res->getUInt("onlineState")),
-                        res->getString("mountPoint"),
-                        res->getInt64("capacity"),
-                        res->getInt64("used")));
-  }
-  delete (res);
-  return resCode;
 }
 
 int MdsRepo::DeleteChunkServerRepoItem(ChunkServerIDType id) {
-  return db_->ExecUpdate(makeSql.makeDelete(ChunkServerRepoItem(id)));
+    return db_->ExecUpdate(makeSql.makeDelete(ChunkServerRepoItem(id)));
 }
 
 int MdsRepo::UpdateChunkServerRepoItem(const ChunkServerRepoItem &cr) {
-  return db_->ExecUpdate(makeSql.makeUpdate(cr));
+    return db_->ExecUpdate(makeSql.makeUpdate(cr));
 }
 
 int MdsRepo::QueryChunkServerRepoItem(ChunkServerIDType id,
-                               ChunkServerRepoItem *repo) {
-  assert(repo != nullptr);
+                                      ChunkServerRepoItem *repo) {
+    assert(repo != nullptr);
 
-  sql::ResultSet *res;
-  int resCode =
-      db_->QueryRows(makeSql.makeQueryRow(ChunkServerRepoItem{id}), &res);
-  if (resCode != OperationOK) {
+    sql::ResultSet *res;
+    int resCode =
+        db_->QueryRows(makeSql.makeQueryRow(ChunkServerRepoItem{id}), &res);
+    if (resCode != OperationOK) {
+        return resCode;
+    }
+
+    while (res->next()) {
+        repo->chunkServerID = res->getUInt("chunkServerID");
+        repo->token = res->getString("token");
+        repo->diskType = res->getString("diskType");
+        repo->internalHostIP = res->getString("internalHostIP");
+        repo->port = res->getUInt("port");
+        repo->serverID = res->getUInt("serverID");
+        repo->rwstatus = static_cast<uint8_t>(res->getUInt("rwstatus"));
+        repo->diskState = static_cast<uint8_t>(res->getUInt("diskState"));
+        repo->onlineState = static_cast<uint8_t>(res->getUInt("onlineState"));
+        repo->mountPoint = res->getString("mountPoint");
+        repo->capacity = res->getInt64("capacity");
+        repo->used = res->getInt64("used");
+    }
+
+    delete (res);
     return resCode;
-  }
-
-  while (res->next()) {
-    repo->chunkServerID = res->getUInt("chunkServerID");
-    repo->token = res->getString("token");
-    repo->diskType = res->getString("diskType");
-    repo->internalHostIP = res->getString("internalHostIP");
-    repo->port = res->getUInt("port");
-    repo->serverID = res->getUInt("serverID");
-    repo->rwstatus = static_cast<uint8_t>(res->getUInt("rwstatus"));
-    repo->diskState = static_cast<uint8_t>(res->getUInt("diskState"));
-    repo->onlineState = static_cast<uint8_t>(res->getUInt("onlineState"));
-    repo->mountPoint = res->getString("mountPoint");
-    repo->capacity = res->getInt64("capacity");
-    repo->used = res->getInt64("used");
-  }
-
-  delete (res);
-  return resCode;
 }
 
 int MdsRepo::InsertServerRepoItem(const ServerRepoItem &sr) {
-  return db_->ExecUpdate(makeSql.makeInsert(sr));
+    return db_->ExecUpdate(makeSql.makeInsert(sr));
 }
 
 int MdsRepo::LoadServerRepoItems(std::vector<ServerRepoItem> *serverList) {
-  assert(serverList != nullptr);
+    assert(serverList != nullptr);
 
-  sql::ResultSet *res;
-  int resCode = db_->QueryRows(makeSql.makeQueryRows(ServerRepoItem{}), &res);
-  if (OperationOK != resCode) {
+    sql::ResultSet *res;
+    int resCode = db_->QueryRows(makeSql.makeQueryRows(ServerRepoItem{}), &res);
+    if (OperationOK != resCode) {
+        return resCode;
+    }
+
+    while (res->next()) {
+        serverList->push_back(ServerRepoItem(
+                                  res->getUInt("serverID"),
+                                  res->getString("hostName"),
+                                  res->getString("internalHostIP"),
+                                  res->getUInt("internalPort"),
+                                  res->getString("externalHostIP"),
+                                  res->getUInt("externalPort"),
+                                  static_cast<uint16_t>(res->getUInt("zoneID")),
+                                  static_cast<uint16_t>(res->getUInt("poolID")),
+                                  res->getString("desc")));
+    }
+    delete (res);
     return resCode;
-  }
-
-  while (res->next()) {
-    serverList->push_back(ServerRepoItem(
-        res->getUInt("serverID"),
-        res->getString("hostName"),
-        res->getString("internalHostIP"),
-        res->getUInt("internalPort"),
-        res->getString("externalHostIP"),
-        res->getUInt("externalPort"),
-        static_cast<uint16_t>(res->getUInt("zoneID")),
-        static_cast<uint16_t>(res->getUInt("poolID")),
-        res->getString("desc")));
-  }
-  delete (res);
-  return resCode;
 }
 
 int MdsRepo::DeleteServerRepoItem(ServerIDType id) {
-  return db_->ExecUpdate(makeSql.makeDelete(ServerRepoItem(id)));
+    return db_->ExecUpdate(makeSql.makeDelete(ServerRepoItem(id)));
 }
 
 int MdsRepo::UpdateServerRepoItem(const ServerRepoItem &sr) {
-  return db_->ExecUpdate(makeSql.makeUpdate(sr));
+    return db_->ExecUpdate(makeSql.makeUpdate(sr));
 }
 
 int MdsRepo::QueryServerRepoItem(ServerIDType id,
-                          ServerRepoItem *repo) {
-  assert(repo != nullptr);
+                                 ServerRepoItem *repo) {
+    assert(repo != nullptr);
 
-  sql::ResultSet *res;
-  int resCode = db_->QueryRows(makeSql.makeQueryRow(ServerRepoItem(id)), &res);
-  if (OperationOK != resCode) {
+    sql::ResultSet *res;
+    int resCode = db_->QueryRows(
+        makeSql.makeQueryRow(ServerRepoItem(id)), &res);
+    if (OperationOK != resCode) {
+        return resCode;
+    }
+
+    while (res->next()) {
+        repo->serverID = res->getUInt("serverID");
+        repo->hostName = res->getString("hostName");
+        repo->internalHostIP = res->getString("internalHostIP");
+        repo->externalHostIP = res->getString("externalHostIP");
+        repo->zoneID = static_cast<uint16_t>(res->getInt("zoneID"));
+        repo->poolID = static_cast<uint16_t>(res->getInt("poolID"));
+        repo->desc = res->getString("desc");
+    }
+
+    delete (res);
     return resCode;
-  }
-
-  while (res->next()) {
-    repo->serverID = res->getUInt("serverID");
-    repo->hostName = res->getString("hostName");
-    repo->internalHostIP = res->getString("internalHostIP");
-    repo->externalHostIP = res->getString("externalHostIP");
-    repo->zoneID = static_cast<uint16_t>(res->getInt("zoneID"));
-    repo->poolID = static_cast<uint16_t>(res->getInt("poolID"));
-    repo->desc = res->getString("desc");
-  }
-
-  delete (res);
-  return resCode;
 }
 
 int MdsRepo::InsertCopySetRepoItem(const CopySetRepoItem &cr) {
@@ -609,9 +615,10 @@ int MdsRepo::LoadCopySetRepoItems(std::vector<CopySetRepoItem> *copySetList) {
     while (res->next()) {
         copySetList->push_back(
             CopySetRepoItem(res->getUInt("copySetID"),
-                        static_cast<uint16_t>(res->getUInt("logicalPoolID")),
-                        static_cast<uint64_t >(res->getUInt64("epoch")),
-                        res->getString("chunkServerIDList")));
+                            static_cast<uint16_t>(
+                                res->getUInt("logicalPoolID")),
+                            static_cast<uint64_t >(res->getUInt64("epoch")),
+                            res->getString("chunkServerIDList")));
     }
     delete (res);
     return resCode;
@@ -626,8 +633,8 @@ int MdsRepo::UpdateCopySetRepoItem(const CopySetRepoItem &cr) {
 }
 
 int MdsRepo::QueryCopySetRepoItem(CopySetIDType id,
-                           LogicalPoolIDType lid,
-                           CopySetRepoItem *repo) {
+                                  LogicalPoolIDType lid,
+                                  CopySetRepoItem *repo) {
     assert(repo != nullptr);
 
     sql::ResultSet *res;
@@ -649,124 +656,125 @@ int MdsRepo::QueryCopySetRepoItem(CopySetIDType id,
 }
 
 int MdsRepo::InsertLogicalPoolRepoItem(const LogicalPoolRepoItem &lr) {
-  return db_->ExecUpdate(makeSql.makeInsert(lr));
+    return db_->ExecUpdate(makeSql.makeInsert(lr));
 }
 
 int MdsRepo::LoadLogicalPoolRepoItems(
     std::vector<LogicalPoolRepoItem> *logicalPoolList) {
-  assert(logicalPoolList != nullptr);
+    assert(logicalPoolList != nullptr);
 
-  sql::ResultSet *res;
-  int resCode = db_->QueryRows(makeSql.makeQueryRows(
-      LogicalPoolRepoItem{}), &res);
-  if (resCode != OperationOK) {
+    sql::ResultSet *res;
+    int resCode = db_->QueryRows(makeSql.makeQueryRows(
+                                     LogicalPoolRepoItem{}), &res);
+    if (resCode != OperationOK) {
+        return resCode;
+    }
+    while (res->next()) {
+        logicalPoolList->push_back(LogicalPoolRepoItem(
+            static_cast<uint16_t>(res->getInt("logicalPoolID")),
+            res->getString("logicalPoolName"),
+            static_cast<uint16_t>(res->getInt("physicalPoolID")),
+            static_cast<uint8_t>(res->getInt("type")),
+            res->getUInt("initialScatterWidth"),
+            res->getInt64("createTime"),
+            static_cast<uint8_t>(res->getInt("status")),
+            res->getString("redundanceAndPlacementPolicy"),
+            res->getString("userPolicy"),
+            res->getBoolean("availFlag")));
+    }
+
+    delete (res);
     return resCode;
-  }
-  while (res->next()) {
-    logicalPoolList->push_back(LogicalPoolRepoItem(
-        static_cast<uint16_t>(res->getInt("logicalPoolID")),
-        res->getString("logicalPoolName"),
-        static_cast<uint16_t>(res->getInt("physicalPoolID")),
-        static_cast<uint8_t>(res->getInt("type")),
-        res->getUInt("initialScatterWidth"),
-        res->getInt64("createTime"),
-        static_cast<uint8_t>(res->getInt("status")),
-        res->getString("redundanceAndPlacementPolicy"),
-        res->getString("userPolicy"),
-        res->getBoolean("availFlag")));
-  }
-
-  delete (res);
-  return resCode;
 }
 
 int MdsRepo::DeleteLogicalPoolRepoItem(LogicalPoolIDType id) {
-  return db_->ExecUpdate(makeSql.makeDelete(LogicalPoolRepoItem(id)));
+    return db_->ExecUpdate(makeSql.makeDelete(LogicalPoolRepoItem(id)));
 }
 
 int MdsRepo::UpdateLogicalPoolRepoItem(const LogicalPoolRepoItem &lr) {
-  return db_->ExecUpdate(makeSql.makeUpdate(lr));
+    return db_->ExecUpdate(makeSql.makeUpdate(lr));
 }
 
 int MdsRepo::QueryLogicalPoolRepoItem(LogicalPoolIDType id,
-                               LogicalPoolRepoItem *repo) {
-  assert(repo != nullptr);
+                                      LogicalPoolRepoItem *repo) {
+    assert(repo != nullptr);
 
-  sql::ResultSet *res;
-  int resCode =
-      db_->QueryRows(makeSql.makeQueryRow(LogicalPoolRepoItem(id)), &res);
-  if (resCode != OperationOK) {
+    sql::ResultSet *res;
+    int resCode =
+        db_->QueryRows(makeSql.makeQueryRow(LogicalPoolRepoItem(id)), &res);
+    if (resCode != OperationOK) {
+        return resCode;
+    }
+    while (res->next()) {
+        repo->logicalPoolID =
+            static_cast<uint16_t>(res->getUInt("logicalPoolID"));
+        repo->logicalPoolName = res->getString("logicalPoolName");
+        repo->physicalPoolID =
+            static_cast<uint16_t>(res->getUInt("physicalPoolID"));
+        repo->type = static_cast<uint8_t>(res->getUInt("type"));
+        repo->initialScatterWidth = res->getUInt("initialScatterWidth");
+        repo->createTime = res->getInt64("createTime");
+        repo->status = static_cast<uint8_t>(res->getUInt("status"));
+        repo->redundanceAndPlacementPolicy =
+            res->getString("redundanceAndPlacementPolicy");
+        repo->userPolicy = res->getString("userPolicy");
+    }
+
+    delete (res);
     return resCode;
-  }
-  while (res->next()) {
-    repo->logicalPoolID = static_cast<uint16_t>(res->getUInt("logicalPoolID"));
-    repo->logicalPoolName = res->getString("logicalPoolName");
-    repo->physicalPoolID =
-        static_cast<uint16_t>(res->getUInt("physicalPoolID"));
-    repo->type = static_cast<uint8_t>(res->getUInt("type"));
-    repo->initialScatterWidth = res->getUInt("initialScatterWidth");
-    repo->createTime = res->getInt64("createTime");
-    repo->status = static_cast<uint8_t>(res->getUInt("status"));
-    repo->redundanceAndPlacementPolicy =
-        res->getString("redundanceAndPlacementPolicy");
-    repo->userPolicy = res->getString("userPolicy");
-  }
-
-  delete (res);
-  return resCode;
 }
 
 int MdsRepo::InsertPhysicalPoolRepoItem(const PhysicalPoolRepoItem &pr) {
-  return db_->ExecUpdate(makeSql.makeInsert(pr));
+    return db_->ExecUpdate(makeSql.makeInsert(pr));
 }
 
 int MdsRepo::LoadPhysicalPoolRepoItems(
     std::vector<PhysicalPoolRepoItem> *physicalPoollist) {
-  assert(physicalPoollist != nullptr);
+    assert(physicalPoollist != nullptr);
 
-  sql::ResultSet *res;
-  int resCode =
-      db_->QueryRows(makeSql.makeQueryRows(PhysicalPoolRepoItem{}), &res);
-  if (resCode != OperationOK) {
+    sql::ResultSet *res;
+    int resCode =
+        db_->QueryRows(makeSql.makeQueryRows(PhysicalPoolRepoItem{}), &res);
+    if (resCode != OperationOK) {
+        return resCode;
+    }
+    while (res->next()) {
+        physicalPoollist->push_back(PhysicalPoolRepoItem(
+            static_cast<uint16_t>(res->getUInt("physicalPoolID")),
+            res->getString("physicalPoolName"),
+            res->getString("desc")));
+    }
+    delete (res);
     return resCode;
-  }
-  while (res->next()) {
-    physicalPoollist->push_back(PhysicalPoolRepoItem(
-        static_cast<uint16_t>(res->getUInt("physicalPoolID")),
-        res->getString("physicalPoolName"),
-        res->getString("desc")));
-  }
-  delete (res);
-  return resCode;
 }
 
 int MdsRepo::DeletePhysicalPoolRepoItem(PhysicalPoolIDType id) {
-  return db_->ExecUpdate(makeSql.makeDelete(PhysicalPoolRepoItem(id)));
+    return db_->ExecUpdate(makeSql.makeDelete(PhysicalPoolRepoItem(id)));
 }
 
 int MdsRepo::UpdatePhysicalPoolRepoItem(const PhysicalPoolRepoItem &pr) {
-  return db_->ExecUpdate(makeSql.makeUpdate(pr));
+    return db_->ExecUpdate(makeSql.makeUpdate(pr));
 }
 
 int MdsRepo::QueryPhysicalPoolRepoItem(PhysicalPoolIDType id,
-                                PhysicalPoolRepoItem *repo) {
-  assert(repo != nullptr);
+                                       PhysicalPoolRepoItem *repo) {
+    assert(repo != nullptr);
 
-  sql::ResultSet *res;
-  int resCode =
-      db_->QueryRows(makeSql.makeQueryRow(PhysicalPoolRepoItem(id)), &res);
-  if (resCode != OperationOK) {
+    sql::ResultSet *res;
+    int resCode =
+        db_->QueryRows(makeSql.makeQueryRow(PhysicalPoolRepoItem(id)), &res);
+    if (resCode != OperationOK) {
+        return resCode;
+    }
+    while (res->next()) {
+        repo->physicalPoolID =
+            static_cast<uint16_t>(res->getUInt("physicalPoolID"));
+        repo->physicalPoolName = res->getString("physicalPoolName");
+        repo->desc = res->getString("desc");
+    }
+
+    delete (res);
     return resCode;
-  }
-  while (res->next()) {
-    repo->physicalPoolID =
-        static_cast<uint16_t>(res->getUInt("physicalPoolID"));
-    repo->physicalPoolName = res->getString("physicalPoolName");
-    repo->desc = res->getString("desc");
-  }
-
-  delete (res);
-  return resCode;
 }
 
 int MdsRepo::InsertZoneRepoItem(const ZoneRepoItem &zr) {
@@ -783,10 +791,10 @@ int MdsRepo::LoadZoneRepoItems(std::vector<ZoneRepoItem> *zonelist) {
     }
     while (res->next()) {
         zonelist->push_back(*new ZoneRepoItem(
-            static_cast<uint32_t>(res->getInt("zoneID")),
-            res->getString("zoneName"),
-            static_cast<uint16_t>(res->getInt("poolID")),
-            res->getString("desc")));
+                                static_cast<uint32_t>(res->getInt("zoneID")),
+                                res->getString("zoneName"),
+                                static_cast<uint16_t>(res->getInt("poolID")),
+                                res->getString("desc")));
     }
 
     delete (res);
@@ -802,7 +810,7 @@ int MdsRepo::UpdateZoneRepoItem(const ZoneRepoItem &zr) {
 }
 
 int MdsRepo::QueryZoneRepoItem(ZoneIDType id,
-                        ZoneRepoItem *repo) {
+                               ZoneRepoItem *repo) {
     assert(repo != nullptr);
 
     sql::ResultSet *res;
@@ -839,11 +847,12 @@ int MdsRepo::LoadSessionRepoItems(std::vector<SessionRepoItem> *sessionList) {
     while (res->next()) {
         sessionList->push_back(
             SessionRepoItem(res->getString("fileName"),
-                        res->getString("sessionID"),
-                        res->getUInt("leaseTime"),
-                        static_cast<uint8_t>(res->getUInt("sessionStatus")),
-                        res->getUInt64("createTime"),
-                        res->getString("clientIP")));
+                            res->getString("sessionID"),
+                            res->getUInt("leaseTime"),
+                            static_cast<uint8_t>(res->getUInt("sessionStatus")),
+                            res->getUInt64("createTime"),
+                            res->getString("clientIP"),
+                            res->getString("clientVersion")));
     }
 
     delete (res);
@@ -865,7 +874,7 @@ int MdsRepo::QuerySessionRepoItem(const std::string &sessionID,
     sql::ResultSet *res;
     int resCode =
         db_->QueryRows(makeSql.makeQueryRow(SessionRepoItem(sessionID)),
-                                 &res);
+                       &res);
     if (OperationOK != resCode) {
         return resCode;
     }
@@ -875,9 +884,10 @@ int MdsRepo::QuerySessionRepoItem(const std::string &sessionID,
         repo->sessionID = res->getString("sessionID");
         repo->leaseTime = res->getUInt("leaseTime");
         repo->sessionStatus =
-                        static_cast<uint8_t>(res->getUInt("sessionStatus"));
+            static_cast<uint8_t>(res->getUInt("sessionStatus"));
         repo->createTime = res->getUInt64("createTime");
         repo->clientIP = res->getString("clientIP");
+        repo->clientVersion = res->getString("clientVersion");
     }
 
     delete (res);
@@ -889,7 +899,7 @@ int MdsRepo::InsertClientInfoRepoItem(const ClientInfoRepoItem &r) {
 }
 
 int MdsRepo::LoadClientInfoRepoItems(
-                        std::vector<ClientInfoRepoItem> *clientList) {
+    std::vector<ClientInfoRepoItem> *clientList) {
     sql::ResultSet *res;
     int resCode =
         db_->QueryRows(makeSql.makeQueryRows(ClientInfoRepoItem{}), &res);
@@ -900,7 +910,7 @@ int MdsRepo::LoadClientInfoRepoItems(
     while (res->next()) {
         clientList->push_back(
             ClientInfoRepoItem(res->getString("clientIp"),
-                        res->getUInt("clientPort")));
+                               res->getUInt("clientPort")));
     }
 
     delete (res);
@@ -910,17 +920,17 @@ int MdsRepo::LoadClientInfoRepoItems(
 int MdsRepo::DeleteClientInfoRepoItem(const std::string &clientIp,
                                       uint32_t clientPort) {
     return db_->ExecUpdate(makeSql.makeDelete(
-                                ClientInfoRepoItem(clientIp, clientPort)));
+                               ClientInfoRepoItem(clientIp, clientPort)));
 }
 
 int MdsRepo::QueryClientInfoRepoItem(const std::string &clientIp,
-                                      uint32_t clientPort,
-                                      ClientInfoRepoItem *repo) {
+                                     uint32_t clientPort,
+                                     ClientInfoRepoItem *repo) {
     assert(repo != nullptr);
 
     sql::ResultSet *res;
     int resCode = db_->QueryRows(makeSql.makeQueryRow(
-                            ClientInfoRepoItem(clientIp, clientPort)), &res);
+        ClientInfoRepoItem(clientIp, clientPort)), &res);
     if (OperationOK != resCode) {
         return resCode;
     }

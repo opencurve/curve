@@ -56,10 +56,12 @@ class Session {
                   const uint64_t createtime,
                   const uint32_t toleranceTime,
                   const SessionStatus status,
-                  const std::string& clientIP);
+                  const std::string& clientIP,
+                  const std::string& clientVersion);
 
     Session(uint32_t leaseTime, const uint32_t toleranceTime,
-                     const std::string& clientIP);
+                 const std::string& clientIP,
+                 const std::string& clientVersion);
 
     void UpdateLeaseTime();
     void SetStatus(SessionStatus status);
@@ -70,6 +72,10 @@ class Session {
     uint32_t GetLeaseTime();
     SessionStatus GetSessionStatus();
     ProtoSession GetProtoSession();
+
+    std::string GetClientVersion() {
+        return clientVersion_;
+    }
 
     void Lock();
     void Unlock();
@@ -86,6 +92,8 @@ class Session {
     ProtoSession protoSession_;
     // client的ip
     std::string clientIP_;
+    // client的版本号
+    std::string clientVersion_;
 };
 
 class SessionManager {
@@ -120,11 +128,13 @@ class SessionManager {
      *         如果持久化失败，返回StatusCode::KInternalError
      *  @param fileName: 文件名
      *         clientIP：clientIP
+     *         clientVersion: clientVersion
      *         protoSession：返回生成的session
      *  @return 是否成功，成功返回StatusCode::kOK
      */
     StatusCode InsertSession(const std::string &fileName,
                            const std::string &clientIP,
+                           const std::string &clientVersion,
                            ProtoSession *protoSession);
 
     /**
@@ -158,6 +168,16 @@ class SessionManager {
      *  @return 文件存在有效的session返回true，否则返回false
      */
     bool isFileHasValidSession(const std::string &fileName);
+
+
+    /**
+     * @brief 检查当前打开文件的client版本是否支持快照
+     *
+     * @param fileName 文件名
+     *
+     * @return client版本小于等于最小支持快照的client版本返回false，否则返回true
+     */
+    bool IsClientVersionSnapshotCompatible(const std::string &fileName);
 
     /**
      *  @brief 获取已经open的文件个数
@@ -206,7 +226,8 @@ class SessionManager {
      *  @return 是否成功，成功返回StatusCode::kOK
      */
     StatusCode InsertNewSessionUnlocked(const std::string &fileName,
-                                 const std::string &clientIP);
+                                 const std::string &clientIP,
+                                 const std::string &clientVersion);
 
     /**
      *  @brief 从内存和数据库删除一条旧的session记录，数据库操作失败，返回
