@@ -45,7 +45,7 @@ class HeartbeatManager {
     virtual int Fini();
     // part2收到心跳后，会通过该接口更新心跳中包含的文件在内存中记录的时间戳
     // 心跳检测线程会根据该时间戳判断是否需要关闭文件
-    virtual int UpdateFileTimestamp(int fd, uint64_t timestamp);
+    virtual bool UpdateFileTimestamp(int fd, uint64_t timestamp);
 
  private:
     // 心跳检测线程的函数执行体

@@ -38,7 +38,7 @@ int HeartbeatManager::Fini() {
     return 0;
 }
 
-int HeartbeatManager::UpdateFileTimestamp(int fd, uint64_t timestamp) {
+bool HeartbeatManager::UpdateFileTimestamp(int fd, uint64_t timestamp) {
     return fileManager_->GetRecordManager()->UpdateFileTimestamp(fd, timestamp);
 }
 

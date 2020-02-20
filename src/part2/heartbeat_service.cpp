@@ -23,8 +23,8 @@ void NebdHeartbeatServiceImpl::KeepAlive(
     uint64_t curTime = TimeUtility::GetTimeofDayMs();
     for (int i = 0; i < request->info_size(); ++i) {
         const auto& info = request->info(i);
-        int res = heartbeatManager_->UpdateFileTimestamp(info.fd(), curTime);
-        if (res != 0) {
+        bool res = heartbeatManager_->UpdateFileTimestamp(info.fd(), curTime);
+        if (!res) {
             LOG(WARNING) << "Update file timestamp fail, fd: "
                          << info.fd() << ", name: " << info.name();
             ok = false;

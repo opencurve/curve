@@ -98,6 +98,15 @@ TEST_F(HeartbeatManagerTest, CheckTimeoutTest) {
     ASSERT_EQ(heartbeatManager_->Fini(), 0);
 }
 
+TEST_F(HeartbeatManagerTest, UpdateTimeStampTest) {
+    EXPECT_CALL(*fileRecordManager_, UpdateFileTimestamp(_, _))
+    .WillOnce(Return(true));
+    ASSERT_TRUE(heartbeatManager_->UpdateFileTimestamp(1, 100));
+
+    EXPECT_CALL(*fileRecordManager_, UpdateFileTimestamp(_, _))
+    .WillOnce(Return(false));
+    ASSERT_FALSE(heartbeatManager_->UpdateFileTimestamp(1, 100));
+}
 
 }  // namespace server
 }  // namespace nebd

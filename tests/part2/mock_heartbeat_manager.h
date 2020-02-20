@@ -19,7 +19,7 @@ class MockHeartbeatManager : public HeartbeatManager {
     ~MockHeartbeatManager() {}
     MOCK_METHOD0(Init, int());
     MOCK_METHOD0(Fini, int());
-    MOCK_METHOD2(UpdateFileTimestamp, int(int, uint64_t));
+    MOCK_METHOD2(UpdateFileTimestamp, bool(int, uint64_t));
 };
 
 }  // namespace server

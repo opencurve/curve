@@ -54,7 +54,7 @@ TEST_F(HeartbeatServiceTest, KeepAlive) {
     // 正常情况
     EXPECT_CALL(*heartbeatManager_, UpdateFileTimestamp(_, _))
         .Times(3)
-        .WillRepeatedly(Return(0));
+        .WillRepeatedly(Return(true));
     stub.KeepAlive(&cntl, &request, &response, nullptr);
     ASSERT_FALSE(cntl.Failed());
     ASSERT_EQ(nebd::client::RetCode::kOK, response.retcode());
@@ -62,8 +62,8 @@ TEST_F(HeartbeatServiceTest, KeepAlive) {
     // 有文件更新时间戳失败
     EXPECT_CALL(*heartbeatManager_, UpdateFileTimestamp(_, _))
         .Times(3)
-        .WillOnce(Return(-1))
-        .WillRepeatedly(Return(0));
+        .WillOnce(Return(false))
+        .WillRepeatedly(Return(true));
     cntl.Reset();
     stub.KeepAlive(&cntl, &request, &response, nullptr);
     ASSERT_FALSE(cntl.Failed());
