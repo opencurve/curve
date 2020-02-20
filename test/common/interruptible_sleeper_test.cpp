@@ -31,7 +31,7 @@ TEST(InterruptibleSleeperTest, test_interruptible_sleeper) {
         sigaction(SIGTERM, &action, NULL);
 
         while (sleeper.wait_for(std::chrono::seconds(10))) {}
-        return;
+        exit(0);
     }
 
     usleep(50 * 1000);
