@@ -21,6 +21,13 @@ namespace server {
 
 const char metaPath[] = "/tmp/nebd-test-metafilemanager.meta";
 
+void FillCrc(Json::Value* root) {
+    std::string jsonString = root->toStyledString();
+    uint32_t crc = nebd::common::CRC32(jsonString.c_str(),
+                                       jsonString.size());
+    (*root)[kCRC] = crc;
+}
+
 class MetaFileManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
@@ -90,10 +97,12 @@ TEST_F(MetaFileManagerTest, error) {
     ASSERT_EQ(-1, metaFileManager.UpdateMetaFile(records));
 
     // rename失败
+    NebdMetaFileParser parser;
+    Json::Value root = parser.ConvertFileRecordsToJson(records);
     EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(1));
     EXPECT_CALL(*wrapper_, pwrite(_, _, _, _))
-        .WillOnce(Return(77));
+        .WillOnce(Return(root.toStyledString().size()));
     EXPECT_CALL(*wrapper_, close(_))
     .Times(1);
     EXPECT_CALL(*wrapper_, rename(_, _))
@@ -115,15 +124,32 @@ TEST(MetaFileParserTest, Parse) {
     volume[kFileName] = "cbd:volume2";
     volume[kFd] = 2;
     root[kVolumes] = volumes;
+    FillCrc(&root);
     ASSERT_EQ(0, parser.Parse(root, &records));
 
-    // 文件格式不正确
-    root.clear();
+    // 空指针
+    ASSERT_EQ(-1, parser.Parse(root, nullptr));
+
+    // crc校验不正确
+    root[kCRC] = root[kCRC].asUInt() + 1;
     ASSERT_EQ(-1, parser.Parse(root, &records));
 
-    // 没有volume字段
-    root["key"] = "value";
+     // 没有crc字段
+    root.removeMember(kCRC);
     ASSERT_EQ(-1, parser.Parse(root, &records));
+
+    // 没有volumes字段或volumes字段是null,不应该报错
+    root.clear();
+    root["key"] = "value";
+    FillCrc(&root);
+    ASSERT_EQ(0, parser.Parse(root, &records));
+    ASSERT_TRUE(records.empty());
+    root.clear();
+    Json::Value value;
+    root[kVolumes] = value;
+    FillCrc(&root);
+    ASSERT_EQ(0, parser.Parse(root, &records));
+    ASSERT_TRUE(records.empty());
 
     // 记录中没有filename
     volume.clear();
@@ -132,6 +158,7 @@ TEST(MetaFileParserTest, Parse) {
     volume[kFd] = 1234;
     volumes.append(volume);
     root[kVolumes] = volumes;
+    FillCrc(&root);
     ASSERT_EQ(-1, parser.Parse(root, &records));
 
     // 记录中没有fd
@@ -141,6 +168,7 @@ TEST(MetaFileParserTest, Parse) {
     volume[kFileName] = "cbd:volume2";
     volumes.append(volume);
     root[kVolumes] = volumes;
+    FillCrc(&root);
     ASSERT_EQ(-1, parser.Parse(root, &records));
 
     // 文件名格式不对
@@ -151,6 +179,7 @@ TEST(MetaFileParserTest, Parse) {
     volume[kFd] = 1234;
     volumes.append(volume);
     root[kVolumes] = volumes;
+    FillCrc(&root);
     ASSERT_EQ(-1, parser.Parse(root, &records));
 }
 

@@ -17,6 +17,7 @@
 #include <mutex>   // NOLINT
 
 #include "src/common/posix_wrapper.h"
+#include "src/common/crc32.h"
 #include "src/part2/define.h"
 
 namespace nebd {
@@ -28,11 +29,13 @@ using FileRecordMap = std::unordered_map<int, NebdFileRecord>;
 const char kVolumes[] = "volumes";
 const char kFileName[] = "filename";
 const char kFd[] = "fd";
+const char kCRC[] = "crc";
 
 class NebdMetaFileParser {
  public:
-    int Parse(const Json::Value& root,
+    int Parse(Json::Value root,
               FileRecordMap* fileRecords);
+    Json::Value ConvertFileRecordsToJson(const FileRecordMap& fileRecords);
 };
 
 class NebdMetaFileManager {

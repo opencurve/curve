@@ -25,21 +25,7 @@ NebdMetaFileManager::NebdMetaFileManager(
 NebdMetaFileManager::~NebdMetaFileManager() {}
 
 int NebdMetaFileManager::UpdateMetaFile(const FileRecordMap& fileRecords) {
-    // 构建json
-    Json::Value volumes;
-    for (const auto& record : fileRecords) {
-        Json::Value volume;
-        volume[kFileName] = record.second.fileName;
-        volume[kFd] = record.second.fd;
-        if (record.second.fileInstance) {
-            for (const auto item : record.second.fileInstance->addition) {
-                volume[item.first] = item.second;
-            }
-        }
-        volumes.append(volume);
-    }
-    Json::Value root;
-    root[kVolumes] = volumes;
+    Json::Value root = parser_->ConvertFileRecordsToJson(fileRecords);
 
     int res = AtomicWriteFile(root);
     if (res != 0) {
@@ -107,13 +93,36 @@ int NebdMetaFileManager::ListFileRecord(FileRecordMap* fileRecords) {
     return 0;
 }
 
-int NebdMetaFileParser::Parse(const Json::Value& root,
+int NebdMetaFileParser::Parse(Json::Value root,
                               FileRecordMap* fileRecords) {
+    if (!fileRecords) {
+        LOG(ERROR) << "the argument fileRecords is null pointer";
+        return -1;
+    }
+    fileRecords->clear();
+    // 检验crc
+    if (root[kCRC].isNull()) {
+        LOG(ERROR) << "Parse json: " << root
+                   << " fail, no crc";
+        return -1;
+    }
+    uint32_t crcValue = root[kCRC].asUInt();
+    root.removeMember(kCRC);
+    std::string jsonString = root.toStyledString();
+    uint32_t crcCalc = nebd::common::CRC32(jsonString.c_str(),
+                                           jsonString.size());
+    if (crcValue != crcCalc) {
+        LOG(ERROR) << "Parse json: " << root
+                   << " fail, crc not match";
+        return -1;
+    }
+
+
     // 没有volume字段
     const auto& volumes = root[kVolumes];
     if (volumes.isNull()) {
-        LOG(ERROR) << "No volumes in json: " << root;
-        return -1;
+        LOG(WARNING) << "No volumes in json: " << root;
+        return 0;
     }
 
     for (const auto& volume : volumes) {
@@ -157,6 +166,30 @@ int NebdMetaFileParser::Parse(const Json::Value& root,
         fileRecords->emplace(record.fd, record);
     }
     return 0;
+}
+
+Json::Value NebdMetaFileParser::ConvertFileRecordsToJson(
+                        const FileRecordMap& fileRecords) {
+    Json::Value volumes;
+    for (const auto& record : fileRecords) {
+        Json::Value volume;
+        volume[kFileName] = record.second.fileName;
+        volume[kFd] = record.second.fd;
+        if (record.second.fileInstance) {
+            for (const auto item : record.second.fileInstance->addition) {
+                volume[item.first] = item.second;
+            }
+        }
+        volumes.append(volume);
+    }
+    Json::Value root;
+    root[kVolumes] = volumes;
+
+    // 计算crc
+    std::string jsonString = root.toStyledString();
+    uint32_t crc = nebd::common::CRC32(jsonString.c_str(), jsonString.size());
+    root[kCRC] = crc;
+    return root;
 }
 
 }  // namespace server

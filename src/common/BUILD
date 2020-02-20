@@ -8,6 +8,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//external:glog",
+        "//external:butil",
     ],
 )
 
