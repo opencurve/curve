@@ -32,6 +32,7 @@ Session::Session(const Session &a) {
     this->updateTime_ = a.updateTime_;
     this->toleranceTime_ = a.toleranceTime_;
     this->clientIP_ = a.clientIP_;
+    this->clientVersion_ = a.clientVersion_;
 }
 
 Session& Session::operator = (const Session& a) {
@@ -39,15 +40,17 @@ Session& Session::operator = (const Session& a) {
     this->updateTime_ =  a.updateTime_;
     this->toleranceTime_ = a.toleranceTime_;
     this->clientIP_ = a.clientIP_;
+    this->clientVersion_ = a.clientVersion_;
     return *this;
 }
 
 Session::Session(const std::string& sessionid,
-                                const uint32_t leasetime,
-                                const uint64_t createtime,
-                                const uint32_t toleranceTime,
-                                const SessionStatus status,
-                                const std::string& clientIP) {
+                const uint32_t leasetime,
+                const uint64_t createtime,
+                const uint32_t toleranceTime,
+                const SessionStatus status,
+                const std::string& clientIP,
+                const std::string& clientVersion) {
     protoSession_.set_sessionid(sessionid);
     protoSession_.set_leasetime(leasetime);
     protoSession_.set_createtime(createtime);
@@ -55,11 +58,13 @@ Session::Session(const std::string& sessionid,
     updateTime_ = ::curve::common::TimeUtility::GetTimeofDayUs();
     toleranceTime_ = toleranceTime;
     clientIP_ = clientIP;
+    clientVersion_ = clientVersion;
 }
 
 Session::Session(uint32_t leaseTime,
-                            const uint32_t toleranceTime,
-                            const std::string& clientIP) {
+                const uint32_t toleranceTime,
+                const std::string& clientIP,
+                const std::string& clientVersion) {
     uint64_t createTime = ::curve::common::TimeUtility::GetTimeofDayUs();
     protoSession_.set_sessionid(GenSessionId());
     protoSession_.set_leasetime(leaseTime);
@@ -68,6 +73,7 @@ Session::Session(uint32_t leaseTime,
     updateTime_ = createTime;
     toleranceTime_ = toleranceTime;
     clientIP_ = clientIP;
+    clientVersion_ = clientVersion;
     return;
 }
 
@@ -113,6 +119,7 @@ void Session::Unlock() {
 
 StatusCode SessionManager::InsertSession(const std::string &fileName,
                             const std::string &clientIP,
+                            const std::string &clientVersion,
                             ProtoSession *protoSession) {
     // 对sessionmap上写锁
     common::WriteLockGuard wl(rwLock_);
@@ -121,7 +128,8 @@ StatusCode SessionManager::InsertSession(const std::string &fileName,
     auto iter = sessionMap_.find(fileName);
     if (iter == sessionMap_.end()) {
         // session不存在，生成并插入新的session
-        StatusCode ret = InsertNewSessionUnlocked(fileName, clientIP);
+        StatusCode ret = InsertNewSessionUnlocked(
+            fileName, clientIP, clientVersion);
         if (ret != StatusCode::kOK) {
             LOG(ERROR) << "insert new session error, fileName = " << fileName
                        << ", clientIP = " << clientIP
@@ -155,7 +163,7 @@ StatusCode SessionManager::InsertSession(const std::string &fileName,
             return ret;
         }
 
-        ret = InsertNewSessionUnlocked(fileName, clientIP);
+        ret = InsertNewSessionUnlocked(fileName, clientIP, clientVersion);
         if (ret != StatusCode::kOK) {
             LOG(ERROR) << "insert new sessioni error, fileName = " << fileName
                        << ", clientIP = " << clientIP
@@ -285,6 +293,29 @@ bool SessionManager::isFileHasValidSession(const std::string &fileName) {
     return true;
 }
 
+bool SessionManager::IsClientVersionSnapshotCompatible(
+    const std::string &fileName) {
+    common::ReadLockGuard rl(rwLock_);
+
+    // 检查session是否存在
+    auto iter = sessionMap_.find(fileName);
+    if (iter == sessionMap_.end()) {
+        return true;
+    }
+
+    // 如果file有session存在，检查client的版本号
+    Session *session = &(iter->second);
+    if (session->GetClientVersion() < kLeastSupportSnapshotClientVersion) {
+        LOG(ERROR) << "ValidClientVersion Fail, client version In session is "
+                   << session->GetClientVersion()
+                   << ", and least client version is "
+                   << kLeastSupportSnapshotClientVersion;
+        return false;
+    }
+
+    return true;
+}
+
 uint64_t SessionManager::GetOpenFileNum() {
     return openFileNum_.load(std::memory_order_acquire);
 }
@@ -365,8 +396,9 @@ void SessionManager::UpdateRepoSesssions() {
 }
 
 StatusCode SessionManager::InsertNewSessionUnlocked(const std::string &fileName,
-                                            const std::string &clientIP) {
-    Session session(leaseTime_, toleranceTime_, clientIP);
+                                            const std::string &clientIP,
+                                            const std::string &clientVersion) {
+    Session session(leaseTime_, toleranceTime_, clientIP, clientVersion);
 
     std::string sessionId = session.GetSessionId();
     uint64_t createTime = session.GetCreateTime();
@@ -375,7 +407,7 @@ StatusCode SessionManager::InsertNewSessionUnlocked(const std::string &fileName,
     // 持久化
     SessionRepoItem sessionRepo(fileName, sessionId, leaseTime,
                             SessionStatus::kSessionOK,
-                            createTime, clientIP);
+                            createTime, clientIP, clientVersion);
     auto ret = repo_->InsertSessionRepoItem(sessionRepo);
     if (ret != repo::OperationOK) {
         LOG(ERROR) << "insert session to repo fail, sessionId = " << sessionId
@@ -482,7 +514,8 @@ bool SessionManager::LoadSession() {
                                     repoIter->createTime,
                                     toleranceTime_,
                                     SessionStatus(repoIter->sessionStatus),
-                                    repoIter->clientIP);
+                                    repoIter->clientIP,
+                                    repoIter->clientVersion);
             sessionMap_.emplace(std::pair<const std::string, Session>
                                     (repoIter->fileName, session));
         } else if (sessionMapIter->second.GetCreateTime() >
@@ -492,7 +525,8 @@ bool SessionManager::LoadSession() {
                                     repoIter->createTime,
                                     toleranceTime_,
                                     SessionStatus(repoIter->sessionStatus),
-                                    repoIter->clientIP);
+                                    repoIter->clientIP,
+                                    repoIter->clientVersion);
             deleteSessionList_.push_back(session);
         } else if (sessionMapIter->second.GetCreateTime()
                     < repoIter->createTime) {
@@ -503,7 +537,8 @@ bool SessionManager::LoadSession() {
                                     repoIter->createTime,
                                     toleranceTime_,
                                     SessionStatus(repoIter->sessionStatus),
-                                    repoIter->clientIP);
+                                    repoIter->clientIP,
+                                    repoIter->clientVersion);
             sessionMap_.emplace(std::pair<const std::string, Session>
                                     (repoIter->fileName, session));
         } else {

@@ -506,7 +506,15 @@ int SnapshotCoreImpl::CreateSnapshotOnCurvefs(
     uint64_t seqNum = 0;
     int ret =
         client_->CreateSnapshot(fileName, info->GetUser(), &seqNum);
-    if (ret != LIBCURVE_ERROR::OK && ret != -LIBCURVE_ERROR::UNDER_SNAPSHOT) {
+    if (LIBCURVE_ERROR::OK == ret ||
+        -LIBCURVE_ERROR::UNDER_SNAPSHOT == ret) {
+        // ok
+    } else if (-LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT == ret) {
+        LOG(ERROR) << "CreateSnapshot on curvefs fail, "
+                   << "because the client which open file is not support snap,"
+                   << " ret = " << ret;
+        return kErrCodeNotSupport;
+    } else {
         LOG(ERROR) << "CreateSnapshot on curvefs fail, "
                    << " ret = " << ret
                    << ", uuid = " << task->GetUuid();
