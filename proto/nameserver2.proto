@@ -103,6 +103,8 @@ enum  StatusCode {
     kFileLengthNotSupported = 132;
     // 文件正在被克隆
     kDeleteFileBeingCloned = 133;
+    // client版本不匹配
+    kVersionNotMatch = 134;
 
     // 元数据存储错误
     kStorageError = 501;
@@ -320,9 +322,10 @@ message ProtoSession {
 
 message OpenFileRequest {
     required string fileName = 1;
-    required string     owner = 2;
-    optional string     signature = 3;
-    required uint64     date = 4;
+    required string owner = 2;
+    optional string signature = 3;
+    required uint64 date = 4;
+    optional string clientVersion = 5;
 };
 
 // statusCode返回值，详见StatusCode定义:

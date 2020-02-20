@@ -729,7 +729,12 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     ASSERT_TRUE(createOrOpenFailed);
 
     // 6. 拉起被kill的进程
-    cluster->StartSingleMDS(0, "127.0.0.1:22222", mdsConf, true);
+    bool startsuccess = false;
+    while (!startsuccess) {
+        cluster->StartSingleMDS(0, "127.0.0.1:22222",
+                 mdsConf, true, true, &startsuccess);
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+    }
 
     // 7. 检测上次IO是否返回
     std::this_thread::sleep_for(std::chrono::seconds(20));
@@ -796,7 +801,12 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     //    这样保证集群中至少有一个mds在提供服务
     cluster->RecoverHangMDS(1);
     cluster->StopMDS(1);
-    cluster->StartSingleMDS(1, "127.0.0.1:22223", mdsConf, false);
+    startsuccess = false;
+    while (!startsuccess) {
+        cluster->StartSingleMDS(1, "127.0.0.1:22223",
+                 mdsConf, true, true, &startsuccess);
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+    }
 
     // 检测上次IO是否返回
     std::this_thread::sleep_for(std::chrono::seconds(20));

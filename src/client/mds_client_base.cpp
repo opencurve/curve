@@ -6,6 +6,7 @@
  */
 
 #include "src/client/mds_client_base.h"
+#include "src/common/curve_version.h"
 
 const char* kRootUserName = "root";
 
@@ -23,6 +24,7 @@ void MDSClientBase::OpenFile(const std::string& filename,
                             brpc::Channel* channel) {
     OpenFileRequest request;
     request.set_filename(filename);
+    request.set_clientversion(curve::common::CurveVersion());
     FillUserInfo<OpenFileRequest>(&request, userinfo);
 
     LOG(INFO) << "OpenFile: filename = " << filename.c_str()

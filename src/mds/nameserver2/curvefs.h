@@ -255,12 +255,14 @@ class CurveFS {
      *  @brief 打开文件
      *  @param filename：文件名
      *         clientIP：clientIP
+     *         clientVersion: clientVersion
      *         session：返回创建的session信息
      *         fileInfo：返回打开的文件信息
      *  @return 是否成功，成功返回StatusCode::kOK
      */
     StatusCode OpenFile(const std::string &fileName,
                         const std::string &clientIP,
+                        const std::string &clientVersion,
                         ProtoSession *protoSession,
                         FileInfo  *fileInfo);
 
@@ -468,6 +470,15 @@ class CurveFS {
      *  @return: true表示文件有有效session，false表示文件无有效session
      */
     bool isFileHasValidSession(const std::string &fileName);
+
+    /**
+     * @brief 验证打开文件的Client版本是否支持快照
+     *
+     * @param fileName 文件名
+     *
+     * @return true表示client版本合法，false表示client版本不合法
+     */
+    bool IsClientVersionSnapshotCompatible(const std::string &fileName);
 
     /**
      *  @brief 判断文件是否进行更改，目前删除、rename、changeowner时需要判断
