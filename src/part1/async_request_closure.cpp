@@ -19,7 +19,8 @@ namespace client {
 void AsyncRequestClosure::Run() {
     std::unique_ptr<AsyncRequestClosure> selfGuard(this);
 
-    if (cntl.Failed()) {
+    bool isCntlFailed = cntl.Failed();
+    if (isCntlFailed) {
         ++aioCtx->retryCount;
         int64_t sleepUs = GetRpcRetryIntervalUs(aioCtx->retryCount);
         LOG(WARNING) << OpTypeToString(aioCtx->op) << " rpc failed"
@@ -57,14 +58,14 @@ void AsyncRequestClosure::Run() {
 }
 
 int64_t AsyncRequestClosure::GetRpcRetryIntervalUs(int64_t retryCount) const {
-    if (retryCount == 0) {
-        return requestOption_.rpcRetryIntervalUs;
-    }
-
     // EHOSTDOWN: 找不到可用的server。
     // server可能停止服务了，也可能正在退出中(返回了ELOGOFF)
     if (cntl.ErrorCode() == EHOSTDOWN) {
         return requestOption_.rpcHostDownRetryIntervalUs;
+    }
+
+    if (retryCount <= 1) {
+        return requestOption_.rpcRetryIntervalUs;
     }
 
     return std::max(

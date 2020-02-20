@@ -54,6 +54,9 @@ int NebdClient::Init(const char* confpath) {
         return -1;
     }
 
+    // init glog
+    static LoggerGuard logger(option_.logOption);
+
     HeartbeatOption heartbeatOption;
     ret = InitHeartBeatOption(&conf, &heartbeatOption);
     if (ret != 0) {
@@ -455,6 +458,13 @@ int NebdClient::InitNebdClientOption(Configuration* conf) {
         return -1;
     }
     option_.requestOption = requestOption;
+
+    ret = conf->GetStringValue("log.path", &option_.logOption.logPath);
+    if (!ret) {
+        LOG(ERROR) << "Load log.path failed";
+        return -1;
+    }
+
     return 0;
 }
 
@@ -532,6 +542,21 @@ std::string NebdClient::ReplaceSlash(const std::string& str) {
     }
 
     return ret;
+}
+
+LoggerGuard::LoggerGuard(const LogOption& logOption) {
+    InitLogger(logOption);
+}
+
+LoggerGuard::~LoggerGuard() {
+    google::ShutdownGoogleLogging();
+}
+
+void LoggerGuard::InitLogger(const LogOption& logOption) {
+    static const char* kProcessName = "nebd-client";
+
+    FLAGS_log_dir = logOption.logPath;
+    google::InitGoogleLogging(kProcessName);
 }
 
 }  // namespace client

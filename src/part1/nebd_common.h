@@ -24,6 +24,12 @@ struct RequestOption {
     int64_t rpcHealthCheckIntervalS;
 };
 
+// 日志配置项
+struct LogOption {
+    // 日志存放目录
+    std::string logPath;
+};
+
 // nebd client配置项
 struct NebdClientOption {
     // part2 socket file address
@@ -32,8 +38,9 @@ struct NebdClientOption {
     std::string fileLockPath;
     // rpc request配置项
     RequestOption requestOption;
+    // 日志配置项
+    LogOption logOption;
 };
-
 
 // heartbeat配置项
 struct HeartbeatOption {

@@ -29,6 +29,15 @@ using RpcTask = std::function<int64_t (brpc::Controller* cntl,
                                        bool* rpcFailed)>;
 using nebd::common::Configuration;
 
+class LoggerGuard {
+ public:
+    explicit LoggerGuard(const LogOption& logOption);
+    ~LoggerGuard();
+
+ private:
+    void InitLogger(const LogOption& logOption);
+};
+
 class NebdClient {
  public:
     static NebdClient &GetInstance() {

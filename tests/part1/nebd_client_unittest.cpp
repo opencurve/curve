@@ -24,7 +24,8 @@ namespace nebd {
 namespace client {
 
 const char* kFileName = "nebd-test-filename";
-const char* kNebdServerTestAddress = "/tmp/nebd-client-test.sock";
+const char* kFileNameWithSlash = "nebd-test-filenae//filename";
+const char* kNebdServerTestAddress = "./nebd-client-test.sock";
 const char* kNebdClientConf = "tests/part1/nebd-client.conf";
 const int64_t kFileSize = 10LL * 1024 * 1024 * 1024;
 const int64_t kBufSize = 1024;
@@ -268,6 +269,10 @@ TEST_F(NebdFileClientTest, CommonTest) {
     int fd = Open4Nebd(kFileName);
     ASSERT_GE(fd, 0);
 
+    int fd2 = Open4Nebd(kFileNameWithSlash);
+    ASSERT_GE(fd2, 0);
+    ASSERT_EQ(0, Close4Nebd(fd2));
+
     ASSERT_EQ(0, Extend4Nebd(fd, kFileSize));
     ASSERT_EQ(kFileSize, GetFileSize4Nebd(fd));
     ASSERT_EQ(kFileSize, GetInfo4Nebd(fd));
@@ -387,6 +392,17 @@ TEST_F(NebdFileClientTest, ResponseFailTest) {
                 SetArgPointee<2>(response),
                 Invoke(MockClientFunc<OpenFileRequest, OpenFileResponse>)));  // NOLINT
         ASSERT_EQ(-1, Open4Nebd(kFileName));
+    }
+
+    {
+        CloseFileResponse response;
+        response.set_retcode(RetCode::kNoOK);
+        EXPECT_CALL(mockService, CloseFile(_, _, _, _))
+            .Times(1)
+            .WillOnce(DoAll(
+                SetArgPointee<2>(response),
+                Invoke(MockClientFunc<CloseFileRequest, CloseFileResponse>)));  // NOLINT
+        ASSERT_EQ(0, Close4Nebd(0));
     }
 
     {

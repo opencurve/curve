@@ -91,7 +91,8 @@ void HeartbeatManager::SendHeartBeat() {
 
     stub.KeepAlive(&cntl, &request, &response, nullptr);
 
-    if (cntl.Failed()) {
+    bool isCntlFailed = cntl.Failed();
+    if (isCntlFailed) {
         LOG(WARNING) << "Heartbeat request failed, error = "
                      << cntl.ErrorText()
                      << ", log id = " << cntl.log_id();
