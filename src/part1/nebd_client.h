@@ -45,7 +45,7 @@ class NebdClient {
         return client;
     }
 
-    ~NebdClient() = default;
+    ~NebdClient();
 
     /**
      *  @brief 初始化nebd，仅在第一次调用的时候真正执行初始化逻辑

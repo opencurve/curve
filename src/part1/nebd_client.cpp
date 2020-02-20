@@ -92,6 +92,10 @@ void NebdClient::Uninit() {
     LOG(INFO) << "NebdClient uninit success.";
 }
 
+NebdClient::~NebdClient() {
+    Uninit();
+}
+
 int NebdClient::Open(const char* filename) {
     // 加文件锁
     std::string fileLockName =

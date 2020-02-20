@@ -57,7 +57,10 @@ void HeartbeatManager::Run() {
 void HeartbeatManager::Stop() {
     running_ = false;
     sleeper_.interrupt();
-    heartbeatThread_.join();
+
+    if (heartbeatThread_.joinable()) {
+        heartbeatThread_.join();
+    }
 
     LOG(INFO) << "Connection Manager stopped success";
 }
