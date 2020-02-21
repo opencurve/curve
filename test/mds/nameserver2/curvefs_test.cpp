@@ -554,6 +554,108 @@ TEST_F(CurveFSTest, testDeleteFile) {
     }
 }
 
+TEST_F(CurveFSTest, testGetAllocatedSize) {
+    uint64_t allocSize;
+    FileInfo  fileInfo;
+    uint64_t segmentSize = 1 * 1024 * 1024 * 1024ul;
+    fileInfo.set_id(0);
+    fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+    fileInfo.set_segmentsize(segmentSize);
+    std::vector<PageFileSegment> segments;
+    for (int i = 0; i < 5; ++i) {
+        PageFileSegment segment;
+        segment.set_logicalpoolid(1);
+        segment.set_segmentsize(segmentSize);
+        segment.set_chunksize(curvefs_->GetDefaultChunkSize());
+        segment.set_startoffset(i);
+        segments.emplace_back(segment);
+    }
+
+    // test page file normal
+    {
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, ListSegment(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(segments),
+            Return(StoreStatus::OK)));
+        ASSERT_EQ(StatusCode::kOK,
+                    curvefs_->GetAllocatedSize("/tests", &allocSize));
+        ASSERT_EQ(5 * segmentSize, allocSize);
+    }
+    // test directory normal
+    {
+        FileInfo dirInfo;
+        dirInfo.set_filetype(FileType::INODE_DIRECTORY);
+        std::vector<FileInfo> files;
+        for (int i = 0; i < 3; ++i) {
+            files.emplace_back(fileInfo);
+        }
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(dirInfo),
+            Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(files),
+                        Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, ListSegment(_, _))
+        .Times(3)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(segments),
+            Return(StoreStatus::OK)));
+        ASSERT_EQ(StatusCode::kOK,
+                    curvefs_->GetAllocatedSize("/tests", &allocSize));
+        ASSERT_EQ(15 * segmentSize, allocSize);
+    }
+    // test GetFile fail
+    {
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+        ASSERT_EQ(StatusCode::kFileNotExists,
+                    curvefs_->GetAllocatedSize("/tests", &allocSize));
+    }
+    // test file type not supported
+    {
+        FileInfo appendFileInfo;
+        appendFileInfo.set_filetype(INODE_APPENDFILE);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(appendFileInfo),
+            Return(StoreStatus::OK)));
+        ASSERT_EQ(StatusCode::kNotSupported,
+                    curvefs_->GetAllocatedSize("/tests", &allocSize));
+    }
+    // test list segment fail
+    {
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, ListSegment(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+        ASSERT_EQ(StatusCode::kStorageError,
+                    curvefs_->GetAllocatedSize("/tests", &allocSize));
+    }
+    // test list directory fail
+    {
+        FileInfo dirInfo;
+        dirInfo.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(dirInfo),
+            Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+        ASSERT_EQ(StatusCode::kStorageError,
+                    curvefs_->GetAllocatedSize("/tests", &allocSize));
+    }
+}
+
 TEST_F(CurveFSTest, testReadDir) {
     FileInfo fileInfo;
     std::vector<FileInfo> items;

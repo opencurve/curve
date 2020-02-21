@@ -1595,6 +1595,38 @@ void NameSpaceService::RegistClient(
     return;
 }
 
+void NameSpaceService::GetAllocatedSize(
+                        ::google::protobuf::RpcController* controller,
+                       const ::curve::mds::GetAllocatedSizeRequest* request,
+                       ::curve::mds::GetAllocatedSizeResponse* response,
+                       ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", GetAllocatedSize request, fileName = " << request->filename();
+
+    StatusCode retCode;
+    uint64_t allocatedSize;
+    retCode = kCurveFS.GetAllocatedSize(request->filename(), &allocatedSize);
+    if (retCode != StatusCode::kOK)  {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", GetAllocatedSize fail, fileName = " << request->filename()
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        return;
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        response->set_allocatedsize(allocatedSize);
+        LOG(INFO) << "logid = " << cntl->log_id()
+            << ", GetAllocatedSize ok, fileName = " << request->filename()
+            << ", allocatedSize = " << response->allocatedsize() / kGB << "GB";
+    }
+    return;
+}
+
 uint32_t GetMdsLogLevel(StatusCode code) {
     switch (code) {
         case StatusCode::kSegmentNotAllocated:

@@ -138,17 +138,6 @@ class NameSpaceToolCore {
     virtual int CleanRecycleBin(const std::string& dirName = "");
 
  private:
-    /**
-     *  @brief 计算文件或目录实际分配的空间，这是为了避免重复获取fileInfo
-     *  @param fileName,文件的绝对路径
-     *  @param fileInfo 文件的fileInfo
-     *  @param[out] allocSize 文件或目录已分配大小，返回值为0是有效
-     *  @return 成功返回0，失败返回-1
-     */
-    int GetAllocatedSize(const std::string& fileName,
-                         const FileInfo& fileInfo,
-                         uint64_t* allocSize);
-
    /**
      *  @brief 返回文件或目录的中的文件的用户申请的大小
      *  @param fileName,文件的绝对路径
