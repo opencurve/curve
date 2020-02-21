@@ -232,98 +232,12 @@ TEST_F(NameSpaceToolCoreTest, CleanRecycleBin) {
 
 TEST_F(NameSpaceToolCoreTest, GetAllocatedSize) {
     curve::tool::NameSpaceToolCore namespaceTool(client_);
-    uint64_t expectedSize = 50 * chunkSize;
-    std::string fileName = "/testdir/";
-    uint64_t size;
-    FileInfo fileInfo1;
-    GetFileInfoForTest(&fileInfo1);
-    PageFileSegment segment;
-    GetSegmentForTest(&segment);
-    std::vector<FileInfo> files;
-    for (uint64_t i = 0; i < 3; ++i) {
-        files.emplace_back(fileInfo1);
-    }
-
-    // 1、计算pageFile的大小
-    EXPECT_CALL(*client_, GetFileInfo(_, _))
+    // 1、正常情况
+    uint64_t allocSize;
+    EXPECT_CALL(*client_, GetAllocatedSize(_, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
-                        Return(0)));
-    EXPECT_CALL(*client_, GetSegmentInfo(_, _, _))
-        .Times(5)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(segment),
-                        Return(GetSegmentRes::kOK)));
-    ASSERT_EQ(0, namespaceTool.GetAllocatedSize(fileName, &size));
-    ASSERT_EQ(expectedSize, size);
-    // GetFileInfo失败
-    EXPECT_CALL(*client_, GetFileInfo(_, _))
-        .Times(1)
-        .WillOnce(Return(-1));
-    ASSERT_EQ(-1, namespaceTool.GetAllocatedSize(fileName, &size));
-    // 获取segment失败
-    EXPECT_CALL(*client_, GetFileInfo(_, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
-                        Return(0)));
-    EXPECT_CALL(*client_, GetSegmentInfo(_, _, _))
-        .Times(1)
-        .WillOnce(Return(GetSegmentRes::kOtherError));
-    ASSERT_EQ(-1, namespaceTool.GetAllocatedSize(fileName, &size));
-    // 获取segment的时候文件被删掉了，不报错，size应该为0
-    EXPECT_CALL(*client_, GetFileInfo(_, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
-                        Return(0)));
-    EXPECT_CALL(*client_, GetSegmentInfo(_, _, _))
-        .Times(1)
-        .WillOnce(Return(GetSegmentRes::kFileNotExists));
-    ASSERT_EQ(0, namespaceTool.GetAllocatedSize(fileName, &size));
-    ASSERT_EQ(0, size);
-
-    // 2、计算目录的大小，计算过程中一个文件不存在了，不应该报错
-    FileInfo fileInfo2;
-    GetFileInfoForTest(&fileInfo2);
-    fileInfo2.set_filetype(curve::mds::FileType::INODE_DIRECTORY);
-    EXPECT_CALL(*client_, GetFileInfo(_, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
-                        Return(0)));
-    EXPECT_CALL(*client_, ListDir(_, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(files),
-                        Return(0)));
-    EXPECT_CALL(*client_, GetSegmentInfo(_, _, _))
-        .Times(11)
-        .WillOnce(Return(GetSegmentRes::kFileNotExists))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(segment),
-                        Return(GetSegmentRes::kOK)));
-    ASSERT_EQ(0, namespaceTool.GetAllocatedSize(fileName, &size));
-    ASSERT_EQ(expectedSize * 2, size);
-    // 获取根目录大小
-    EXPECT_CALL(*client_, GetFileInfo(_, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
-                        Return(0)));
-    EXPECT_CALL(*client_, ListDir(_, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(files),
-                        Return(0)));
-    EXPECT_CALL(*client_, GetSegmentInfo(_, _, _))
-        .Times(15)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(segment),
-                        Return(GetSegmentRes::kOK)));
-    ASSERT_EQ(0, namespaceTool.GetAllocatedSize("/", &size));
-    ASSERT_EQ(expectedSize * 3, size);
-
-    // ListDir失败的情况
-    EXPECT_CALL(*client_, GetFileInfo(_, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
-                        Return(0)));
-    EXPECT_CALL(*client_, ListDir(_, _))
-        .Times(1)
-        .WillOnce(Return(-1));
-    ASSERT_EQ(-1, namespaceTool.GetAllocatedSize(fileName, &size));
+        .WillOnce(Return(0));
+    ASSERT_EQ(0, namespaceTool.GetAllocatedSize("/test", &allocSize));
 }
 
 TEST_F(NameSpaceToolCoreTest, QueryChunkCopyset) {
