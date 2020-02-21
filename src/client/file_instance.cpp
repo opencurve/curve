@@ -152,6 +152,10 @@ int FileInstance::ReOpen(const std::string& filename,
     }
 
     if (response.status == LeaseRefreshResult::Status::OK) {
+        // refresh session传回的finfo缺少userinfo和fullPathName
+        response.finfo.userinfo = finfo_.userinfo;
+        response.finfo.fullPathName = finfo_.fullPathName;
+
         finfo_ = response.finfo;
 
         newSessionId->assign(lease.sessionID);
