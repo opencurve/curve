@@ -374,7 +374,7 @@ int NebdFileManager::ProcessRequest(int fd, ProcessTask task) {
     NebdFileRecord fileRecord;
     bool getSuccess = fileRecordManager_->GetRecord(fd, &fileRecord);
     if (!getSuccess) {
-        LOG(WARNING) << "File record not exist, fd: " << fd;
+        LOG(ERROR) << "File record not exist, fd: " << fd;
         return -1;
     }
 
@@ -385,12 +385,19 @@ int NebdFileManager::ProcessRequest(int fd, ProcessTask task) {
     if (fileRecord.status != NebdFileStatus::OPENED) {
         int ret = OpenInternal(fileRecord.fileName);
         if (ret != fd) {
-            LOG(WARNING) << "Get opened file failed. "
+            LOG(ERROR) << "Get opened file failed. "
                         << "filename: " << fileRecord.fileName
                         << ", fd: " << fd
                         << ", ret: " << ret;
             return -1;
         }
+        // 重新open后要获取新的record
+        getSuccess = fileRecordManager_->GetRecord(fd, &fileRecord);
+        if (!getSuccess) {
+            LOG(ERROR) << "File record not exist, fd: " << fd;
+            return -1;
+        }
+        done->SetFileRecord(fileRecord);
     }
 
     int ret = task(dynamic_cast<NebdProcessClosure*>(doneGuard.release()));

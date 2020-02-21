@@ -63,6 +63,10 @@ class NebdProcessClosure : public Closure {
         return fileRecord_;
     }
 
+    void SetFileRecord(const NebdFileRecord& fileRecord) {
+        fileRecord_ = fileRecord;
+    }
+
  private:
     NebdFileRecord fileRecord_;
     Closure* done_;
