@@ -196,6 +196,37 @@ TEST_F(ToolMDSClientTest, GetFileInfo) {
     ASSERT_EQ(info->DebugString(), outFileInfo.DebugString());
 }
 
+TEST_F(ToolMDSClientTest, GetAllocatedSize) {
+    uint64_t allocSize;
+    std::string filename = "/test";
+    curve::tool::MDSClient mdsClient;
+    ASSERT_EQ(0, mdsClient.Init(mdsAddr));
+    std::unique_ptr<curve::mds::GetAllocatedSizeResponse> response(
+                            new curve::mds::GetAllocatedSizeResponse());
+    brpc::Controller cntl;
+    std::unique_ptr<FakeReturn> fakeret(
+        new FakeReturn(&cntl, static_cast<void*>(response.get())));
+    FakeMDSCurveFSService* curvefsservice = fakemds.GetMDSService();
+    curvefsservice->SetGetAllocatedSizeReturn(fakeret.get());
+    // 参数为空指针
+    ASSERT_EQ(-1, mdsClient.GetAllocatedSize(filename, nullptr));
+
+    // 发送RPC失败
+    cntl.SetFailed("fail for test");
+    ASSERT_EQ(-1, mdsClient.GetAllocatedSize(filename, &allocSize));
+    cntl.Reset();
+
+    // 返回码不为OK
+    response->set_statuscode(curve::mds::StatusCode::kParaError);
+    ASSERT_EQ(-1, mdsClient.GetAllocatedSize(filename, &allocSize));
+
+    // 正常情况
+    response->set_allocatedsize(1073741824);
+    response->set_statuscode(curve::mds::StatusCode::kOK);
+    ASSERT_EQ(0, mdsClient.GetAllocatedSize(filename, &allocSize));
+    ASSERT_EQ(1073741824, allocSize);
+}
+
 TEST_F(ToolMDSClientTest, ListDir) {
     curve::tool::MDSClient mdsClient;
     ASSERT_EQ(0, mdsClient.Init(mdsAddr));

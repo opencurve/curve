@@ -125,6 +125,36 @@ int MDSClient::GetFileInfo(const std::string &fileName,
     return -1;
 }
 
+int MDSClient::GetAllocatedSize(const std::string& fileName,
+                                 uint64_t* allocSize) {
+    if (!allocSize) {
+        std::cout << "The argument is a null pointer!" << std::endl;
+        return -1;
+    }
+    curve::mds::GetAllocatedSizeRequest request;
+    curve::mds::GetAllocatedSizeResponse response;
+    request.set_filename(fileName);
+    curve::mds::CurveFSService_Stub stub(&channel_);
+
+    void (curve::mds::CurveFSService_Stub::*fp)(
+                            google::protobuf::RpcController*,
+                            const curve::mds::GetAllocatedSizeRequest*,
+                            curve::mds::GetAllocatedSizeResponse*,
+                            google::protobuf::Closure*);
+    fp = &curve::mds::CurveFSService_Stub::GetAllocatedSize;
+    if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
+        std::cout << "GetAllocatedSize info from all mds fail!" << std::endl;
+        return -1;
+    }
+    if (response.statuscode() == StatusCode::kOK) {
+        *allocSize = response.allocatedsize();
+        return 0;
+    }
+    std::cout << "GetAllocatedSize fail with errCode: "
+              << response.statuscode() << std::endl;
+    return -1;
+}
+
 int MDSClient::ListDir(const std::string& dirName,
                        std::vector<FileInfo>* files) {
     if (!files) {
