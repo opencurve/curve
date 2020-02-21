@@ -112,6 +112,15 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
 
     int GetFileInfo(const std::string& filename, FInfo_t* fi);
 
+    /**
+     * @brief 获取当前instance对应的文件信息
+     *
+     * @return 当前instance对应文件的信息
+     */
+    FInfo GetCurrentFileInfo() const {
+       return finfo_;
+    }
+
  private:
     // 保存当前file的文件信息
     FInfo_t                 finfo_;
