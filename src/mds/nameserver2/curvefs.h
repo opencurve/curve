@@ -114,6 +114,15 @@ class CurveFS {
     StatusCode GetFileInfo(const std::string & filename,
                            FileInfo * inode) const;
 
+     /**
+     *  @brief 获取分配大小
+     *  @param: fileName：文件名
+     *  @param[out]: allocatedSize： 文件或目录的分配大小
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
+    StatusCode GetAllocatedSize(const std::string& fileName,
+                                uint64_t* allocatedSize);
+
     /**
      *  @brief 删除文件
      *  @param[in] filename:文件名
@@ -486,6 +495,39 @@ class CurveFS {
      *  @return: 正常返回kOK，否则返回错误码
      */
     StatusCode CheckFileCanChange(const std::string &fileName);
+
+    /**
+     *  @brief 获取分配大小
+     *  @param: fileName：文件名
+     *  @param: fileInfo 文件信息
+     *  @param[out]: allocSize： 文件或目录的分配大小
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
+    StatusCode GetAllocatedSize(const std::string& fileName,
+                                const FileInfo& fileInfo,
+                                uint64_t* allocSize);
+
+    /**
+     *  @brief 获取文件分配大小
+     *  @param: fileName：文件名
+     *  @param: fileInfo 文件信息
+     *  @param[out]: allocSize： 文件的分配大小
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
+    StatusCode GetFileAllocSize(const std::string& fileName,
+                                const FileInfo& fileInfo,
+                                uint64_t* allocSize);
+
+    /**
+     *  @brief 获取目录分配大小
+     *  @param: dirName：目录名
+     *  @param: fileInfo 文件信息
+     *  @param[out]: allocSize： 目录的分配大小
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
+    StatusCode GetDirAllocSize(const std::string& fileName,
+                                const FileInfo& fileInfo,
+                                uint64_t* allocSize);
 
  private:
     FileInfo rootFileInfo_;

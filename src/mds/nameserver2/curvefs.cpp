@@ -268,6 +268,76 @@ StatusCode CurveFS::GetFileInfo(const std::string & filename,
     }
 }
 
+StatusCode CurveFS::GetAllocatedSize(const std::string& fileName,
+                                     uint64_t* allocatedSize) {
+    assert(allocatedSize != nullptr);
+    FileInfo fileInfo;
+    auto ret = GetFileInfo(fileName, &fileInfo);
+    if (ret != StatusCode::kOK) {
+        return ret;
+    }
+
+    if (fileInfo.filetype() != curve::mds::FileType::INODE_DIRECTORY &&
+                fileInfo.filetype() != curve::mds::FileType::INODE_PAGEFILE) {
+        LOG(ERROR) << "GetAllocatedSize not support file type : "
+                   << fileInfo.filetype() << ", fileName = " << fileName;
+        return StatusCode::kNotSupported;
+    }
+
+    return GetAllocatedSize(fileName, fileInfo, allocatedSize);
+}
+
+StatusCode CurveFS::GetAllocatedSize(const std::string& fileName,
+                                     const FileInfo& fileInfo,
+                                     uint64_t* allocSize) {
+    *allocSize = 0;
+    if (fileInfo.filetype() != curve::mds::FileType::INODE_DIRECTORY) {
+        return GetFileAllocSize(fileName, fileInfo, allocSize);
+    } else {  // 如果是目录，则list dir，并递归计算每个文件的大小最后加起来
+        return GetDirAllocSize(fileName, fileInfo, allocSize);
+    }
+}
+
+StatusCode CurveFS::GetFileAllocSize(const std::string& fileName,
+                                     const FileInfo& fileInfo,
+                                     uint64_t* allocSize) {
+    std::vector<PageFileSegment> segments;
+    auto listSegmentRet = storage_->ListSegment(fileInfo.id(), &segments);
+
+    if (listSegmentRet != StoreStatus::OK) {
+        return StatusCode::kStorageError;
+    }
+    *allocSize = fileInfo.segmentsize() * segments.size();
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::GetDirAllocSize(const std::string& fileName,
+                                    const FileInfo& fileInfo,
+                                    uint64_t* allocSize) {
+    std::vector<FileInfo> files;
+    StatusCode ret = ReadDir(fileName, &files);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "ReadDir Fail, fileName: " << fileName;
+        return ret;
+    }
+    for (const auto& file : files) {
+        std::string fullPathName;
+        if (fileName == "/") {
+            fullPathName = fileName + file.filename();
+        } else {
+            fullPathName = fileName + "/" + file.filename();
+        }
+        uint64_t size;
+        if (GetAllocatedSize(fullPathName, file, &size) != 0) {
+            std::cout << "Get allocated size of " << fullPathName
+                      << " fail!" << std::endl;
+            continue;
+        }
+        *allocSize += size;
+    }
+    return StatusCode::kOK;
+}
+
 StatusCode CurveFS::isDirectoryEmpty(const FileInfo &fileInfo, bool *result) {
     assert(fileInfo.filetype() == FileType::INODE_DIRECTORY);
     std::vector<FileInfo> fileInfoList;

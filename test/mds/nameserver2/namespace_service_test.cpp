@@ -488,6 +488,26 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
+    // test get allocated size
+    {
+        cntl.Reset();
+        // file not exist
+        GetAllocatedSizeRequest request;
+        GetAllocatedSizeResponse response;
+        request.set_filename("/file-not-exist");
+        stub.GetAllocatedSize(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kFileNotExists, response.statuscode());
+
+        // normal
+        cntl.Reset();
+        request.set_filename("/file1");
+        stub.GetAllocatedSize(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kOK, response.statuscode());
+        ASSERT_EQ(DefaultSegmentSize, response.allocatedsize());
+    }
+
     // test change owner
     {
         // 当前有文件 /file1(owner1) , /file2(owner2), /dir/file3(owner3)
