@@ -27,6 +27,8 @@ using ::testing::ReturnArg;
 using ::testing::ElementsAre;
 using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
+using ::testing::SaveArgPointee;
+using ::testing::SaveArg;
 
 using google::protobuf::RpcController;
 using google::protobuf::Closure;
@@ -90,27 +92,40 @@ TEST_F(FileServiceTest, OpenTest) {
 TEST_F(FileServiceTest, WriteTest) {
     int fd = 1;
     uint64_t offset = 0;
-    uint64_t size = 4096;
+    const uint64_t kSize = 2 * 4096;
     brpc::Controller cntl;
-    char buf[4096];
-    cntl.request_attachment().append(buf, 4096);
+    char buf[kSize];
+    memset(buf, 1, kSize);
+    cntl.request_attachment().append(buf, kSize);
     nebd::client::WriteRequest request;
     request.set_fd(fd);
     request.set_offset(offset);
-    request.set_size(size);
+    request.set_size(kSize);
     nebd::client::WriteResponse response;
     FileServiceTestClosure done;
 
+    NebdServerAioContext* aioCtx;
     // write success
     EXPECT_CALL(*fileManager_, AioWrite(fd, NotNull()))
-    .WillOnce(Return(0));
+    .WillOnce(DoAll(SaveArg<1>(&aioCtx), Return(0)));
     fileService_->Write(&cntl, &request, &response, &done);
+    ASSERT_EQ(0, strncmp((char*)aioCtx->buf, buf, kSize));
     ASSERT_FALSE(done.IsRunned());
 
     // write failed
     done.Reset();
     EXPECT_CALL(*fileManager_, AioWrite(fd, NotNull()))
     .WillOnce(Return(-1));
+    fileService_->Write(&cntl, &request, &response, &done);
+    ASSERT_EQ(response.retcode(), RetCode::kNoOK);
+    ASSERT_TRUE(done.IsRunned());
+
+    // attachment size not equal request size
+    done.Reset();
+    cntl.request_attachment().clear();
+    cntl.request_attachment().append(buf, 4096);
+    EXPECT_CALL(*fileManager_, AioWrite(_, _))
+    .Times(0);
     fileService_->Write(&cntl, &request, &response, &done);
     ASSERT_EQ(response.retcode(), RetCode::kNoOK);
     ASSERT_TRUE(done.IsRunned());

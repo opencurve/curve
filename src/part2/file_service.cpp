@@ -49,6 +49,7 @@ void NebdFileServiceCallback(NebdServerAioContext* context) {
             } else {
                 response->set_retcode(RetCode::kOK);
             }
+            delete[] reinterpret_cast<char*>(context->buf);
             break;
         }
         case LIBAIO_OP::LIBAIO_OP_FLUSH:
@@ -115,9 +116,21 @@ void NebdFileServiceImpl::Write(
     aioContext->size = request->size();
     aioContext->op = LIBAIO_OP::LIBAIO_OP_WRITE;
     aioContext->cb = NebdFileServiceCallback;
+
     brpc::Controller* cntl = dynamic_cast<brpc::Controller *>(cntl_base);
-    aioContext->buf =
-        const_cast<char*>(cntl->request_attachment().to_string().c_str());
+    aioContext->buf = new char[aioContext->size];
+    size_t copySize =
+        cntl->request_attachment().copy_to(aioContext->buf, aioContext->size);
+    if (copySize != aioContext->size) {
+        LOG(ERROR) << "Copy attachment failed. "
+                   << "fd: " << request->fd()
+                   << ", offset: " << request->offset()
+                   << ", size: " << request->size()
+                   << ", copy size: " << copySize;
+        delete[] reinterpret_cast<char*>(aioContext->buf);
+        return;
+    }
+
     aioContext->response = response;
     aioContext->done = done;
     aioContext->cntl = cntl_base;
@@ -128,6 +141,7 @@ void NebdFileServiceImpl::Write(
                    << ", offset: " << request->offset()
                    << ", size: " << request->size()
                    << ", return code: " << rc;
+        delete[] reinterpret_cast<char*>(aioContext->buf);
     } else {
         doneGuard.release();
     }
@@ -158,6 +172,7 @@ void NebdFileServiceImpl::Read(
                    << ", offset: " << request->offset()
                    << ", size: " << request->size()
                    << ", return code: " << rc;
+        delete[] reinterpret_cast<char*>(aioContext->buf);
     } else {
         doneGuard.release();
     }
