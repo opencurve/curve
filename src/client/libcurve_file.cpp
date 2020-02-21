@@ -539,6 +539,19 @@ int FileClient::GetClusterId(char* buf, int len) {
     return -LIBCURVE_ERROR::FAILED;
 }
 
+int FileClient::GetFileInfo(int fd, FInfo* finfo) {
+    int ret = -LIBCURVE_ERROR::FAILED;
+    ReadLockGuard lk(rwlock_);
+
+    auto iter = fileserviceMap_.find(fd);
+    if (iter != fileserviceMap_.end()) {
+        *finfo = iter->second->GetCurrentFileInfo();
+        return 0;
+    }
+
+    return ret;
+}
+
 }   // namespace client
 }   // namespace curve
 
