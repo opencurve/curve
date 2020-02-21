@@ -231,6 +231,14 @@ class FileClient {
    */
   int GetClusterId(char* buf, int len);
 
+  /**
+   * @brief 获取文件信息，测试使用
+   * @param fd 文件句柄
+   * @param[out] finfo 文件信息
+   * @return 成功返回0，失败返回-LIBCURVE_ERROR::FAILED
+   */
+  int GetFileInfo(int fd, FInfo* finfo);
+
  private:
   inline bool CheckAligned(off_t offset, size_t length);
 
