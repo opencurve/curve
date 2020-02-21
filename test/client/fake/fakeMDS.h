@@ -127,6 +127,23 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         response->CopyFrom(*resp);
     }
 
+    void GetAllocatedSize(::google::protobuf::RpcController* controller,
+                          const ::curve::mds::GetAllocatedSizeRequest* request,
+                          ::curve::mds::GetAllocatedSizeResponse* response,
+                          ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeGetAllocatedSizeRet_->controller_ != nullptr &&
+             fakeGetAllocatedSizeRet_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::GetAllocatedSizeResponse*>(
+                    fakeGetAllocatedSizeRet_->response_);
+        response->CopyFrom(*resp);
+    }
+
     void GetOrAllocateSegment(::google::protobuf::RpcController* controller,
                        const ::curve::mds::GetOrAllocateSegmentRequest* request,
                        ::curve::mds::GetOrAllocateSegmentResponse* response,
@@ -553,6 +570,10 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         fakeGetFileInforet_ = fakeret;
     }
 
+    void SetGetAllocatedSizeReturn(FakeReturn* fakeret) {
+        fakeGetAllocatedSizeRet_ = fakeret;
+    }
+
     void SetGetOrAllocateSegmentFakeReturn(FakeReturn* fakeret) {
         fakeGetOrAllocateSegmentret_ = fakeret;
     }
@@ -657,6 +678,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
     FakeReturn* fakeCreateCloneFile_;
     FakeReturn* fakeCreateFileret_;
     FakeReturn* fakeGetFileInforet_;
+    FakeReturn* fakeGetAllocatedSizeRet_;
     FakeReturn* fakeGetOrAllocateSegmentret_;
     FakeReturn* fakeopenfile_;
     FakeReturn* fakeclosefile_;
