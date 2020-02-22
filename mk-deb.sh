@@ -1,6 +1,5 @@
 #!/bin/bash
 dir=`pwd`
-set -x
 # step1 清楚生成的目录和文件
 bazel clean
 rm -rf *deb
@@ -20,13 +19,14 @@ then
 else
     bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
         --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
-        -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX 
+        -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX
     if [ $? -ne 0 ]
     then
         echo "build phase1 failed"
         exit
     fi
 fi
+bazel shutdown
 
 # step3 创建临时目录，拷贝二进制、lib库和配置模板
 mkdir build

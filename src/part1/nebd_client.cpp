@@ -55,7 +55,7 @@ int NebdClient::Init(const char* confpath) {
     }
 
     // init glog
-    static LoggerGuard logger(option_.logOption);
+    InitLogger(option_.logOption);
 
     HeartbeatOption heartbeatOption;
     ret = InitHeartBeatOption(&conf, &heartbeatOption);
@@ -90,6 +90,7 @@ int NebdClient::Init(const char* confpath) {
 void NebdClient::Uninit() {
     heartbeatMgr_->Stop();
     LOG(INFO) << "NebdClient uninit success.";
+    google::ShutdownGoogleLogging();
 }
 
 NebdClient::~NebdClient() {
@@ -548,15 +549,8 @@ std::string NebdClient::ReplaceSlash(const std::string& str) {
     return ret;
 }
 
-LoggerGuard::LoggerGuard(const LogOption& logOption) {
-    InitLogger(logOption);
-}
 
-LoggerGuard::~LoggerGuard() {
-    google::ShutdownGoogleLogging();
-}
-
-void LoggerGuard::InitLogger(const LogOption& logOption) {
+void NebdClient::InitLogger(const LogOption& logOption) {
     static const char* kProcessName = "nebd-client";
 
     FLAGS_log_dir = logOption.logPath;

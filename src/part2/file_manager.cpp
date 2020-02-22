@@ -253,11 +253,14 @@ int NebdFileManager::InvalidCache(int fd) {
 int NebdFileManager::OpenInternal(const std::string& fileName,
                                   bool create) {
     // 同名文件open需要互斥
-    NameLockGuard(nameLock_, fileName);
+    NameLockGuard openGuard(nameLock_, fileName);
 
     NebdFileRecord fileRecord;
     bool getSuccess = fileRecordManager_->GetRecord(fileName, &fileRecord);
     if (getSuccess && fileRecord.status == NebdFileStatus::OPENED) {
+        LOG(WARNING) << "File is already opened. "
+                     << "filename: " << fileName
+                     << "fd: " << fileRecord.fd;
         return fileRecord.fd;
     }
 

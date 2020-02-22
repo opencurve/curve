@@ -23,12 +23,13 @@ void AsyncRequestClosure::Run() {
     if (isCntlFailed) {
         ++aioCtx->retryCount;
         int64_t sleepUs = GetRpcRetryIntervalUs(aioCtx->retryCount);
-        LOG(WARNING) << OpTypeToString(aioCtx->op) << " rpc failed"
-                     << ", error = " << cntl.ErrorText()
-                     << ", fd = " << fd
-                     << ", log id = " << cntl.log_id()
-                     << ", retryCount = " << aioCtx->retryCount
-                     << ", sleep " << (sleepUs / 1000) << " ms";
+        LOG_EVERY_SECOND(WARNING)
+            << OpTypeToString(aioCtx->op) << " rpc failed"
+            << ", error = " << cntl.ErrorText()
+            << ", fd = " << fd
+            << ", log id = " << cntl.log_id()
+            << ", retryCount = " << aioCtx->retryCount
+            << ", sleep " << (sleepUs / 1000) << " ms";
         bthread_usleep(sleepUs);
         Retry();
     } else {
@@ -38,9 +39,8 @@ void AsyncRequestClosure::Run() {
 
             // 读请求复制数据
             if (aioCtx->op == LIBAIO_OP::LIBAIO_OP_READ) {
-                memcpy(aioCtx->buf,
-                       cntl.response_attachment().to_string().c_str(),
-                       cntl.response_attachment().size());
+                cntl.response_attachment().copy_to(
+                    aioCtx->buf, cntl.response_attachment().size());
             }
 
             aioCtx->ret = 0;
