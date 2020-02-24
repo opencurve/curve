@@ -15,6 +15,10 @@ namespace server {
 
 using nebd::client::RetCode;
 
+static void AioReadDeleter(void* m) {
+    delete[] reinterpret_cast<char*>(m);
+}
+
 void NebdFileServiceCallback(NebdServerAioContext* context) {
     CHECK(context != nullptr);
     std::unique_ptr<NebdServerAioContext> contextGuard(context);
@@ -24,6 +28,9 @@ void NebdFileServiceCallback(NebdServerAioContext* context) {
         {
             nebd::client::ReadResponse* response =
                 dynamic_cast<nebd::client::ReadResponse*>(context->response);
+            butil::IOBuf readBuf;
+            readBuf.append_user_data(
+                context->buf, context->size, AioReadDeleter);
             if (context->ret < 0) {
                 response->set_retcode(RetCode::kNoOK);
                 LOG(ERROR) << "Read file failed. "
@@ -31,11 +38,9 @@ void NebdFileServiceCallback(NebdServerAioContext* context) {
             } else {
                 brpc::Controller* cntl =
                     dynamic_cast<brpc::Controller *>(context->cntl);
-                cntl->response_attachment().append(context->buf,
-                                                   context->size);
+                cntl->response_attachment().append(readBuf);
                 response->set_retcode(RetCode::kOK);
             }
-            delete[] reinterpret_cast<char*>(context->buf);
             break;
         }
         case LIBAIO_OP::LIBAIO_OP_WRITE:

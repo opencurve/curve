@@ -303,6 +303,8 @@ int NebdClient::AioRead(int fd, NebdClientAioContext* aioctx) {
     return 0;
 }
 
+static void EmptyDeleter(void* m) {}
+
 int NebdClient::AioWrite(int fd, NebdClientAioContext* aioctx) {
     nebd::client::NebdFileService_Stub stub(&channel_);
     nebd::client::WriteRequest request;
@@ -315,7 +317,8 @@ int NebdClient::AioWrite(int fd, NebdClientAioContext* aioctx) {
 
     done->cntl.set_timeout_ms(-1);
     done->cntl.set_log_id(logId_.fetch_add(1, std::memory_order_relaxed));
-    done->cntl.request_attachment().append(aioctx->buf, aioctx->length);
+    done->cntl.request_attachment().append_user_data(
+        aioctx->buf, aioctx->length, EmptyDeleter);
     stub.Write(&done->cntl, &request, &done->response, done);
 
     return 0;
