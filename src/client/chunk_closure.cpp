@@ -484,9 +484,9 @@ void ReadChunkClosure::SendRetryRequest() {
 void ReadChunkClosure::OnSuccess() {
     ClientClosure::OnSuccess();
 
-    memcpy(reqCtx_->readBuffer_,
-           cntl_->response_attachment().to_string().c_str(),
-           cntl_->response_attachment().size());
+    cntl_->response_attachment().copy_to(
+        reqCtx_->readBuffer_,
+        cntl_->response_attachment().size());
 
     metaCache_->UpdateAppliedIndex(
         reqCtx_->idinfo_.lpid_,
@@ -513,9 +513,9 @@ void ReadChunkSnapClosure::SendRetryRequest() {
 void ReadChunkSnapClosure::OnSuccess() {
     ClientClosure::OnSuccess();
 
-    memcpy(reqCtx_->readBuffer_,
-           cntl_->response_attachment().to_string().c_str(),
-           cntl_->response_attachment().size());
+    cntl_->response_attachment().copy_to(
+        reqCtx_->readBuffer_,
+        cntl_->response_attachment().size());
 }
 
 void DeleteChunkSnapClosure::SendRetryRequest() {
