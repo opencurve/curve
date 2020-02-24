@@ -18,6 +18,9 @@ using curve::common::TimeUtility;
 
 namespace curve {
 namespace client {
+
+static void EmptyDeleter(void* ptr) {}
+
 int RequestSender::Init(const IOSenderOption_t& ioSenderOpt) {
     if (0 != channel_.Init(serverEndPoint_, NULL)) {
         LOG(ERROR) << "failed to init channel to server, id: " << chunkServerId_
@@ -100,7 +103,8 @@ int RequestSender::WriteChunk(ChunkIDInfo idinfo,
     request.set_sn(sn);
     request.set_offset(offset);
     request.set_size(length);
-    cntl->request_attachment().append(buf, length);
+    cntl->request_attachment().append_user_data(
+        const_cast<char*>(buf), length, EmptyDeleter);
     ChunkService_Stub stub(&channel_);
     stub.WriteChunk(cntl, &request, response, doneGuard.release());
 
