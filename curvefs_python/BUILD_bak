@@ -41,6 +41,7 @@ cc_library(
     ],
     copts = COPTS,
     linkopts = [
+        "-Wl,-rpath=/usr/lib/curve",
         "-lbraft",
         "-lcbd",
         "-lcurve_client",

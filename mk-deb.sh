@@ -218,6 +218,11 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
+mkdir -p build/curve-sdk/usr/lib/curve
+if [ $? -ne 0 ]
+then
+	exit
+fi
 mkdir -p build/curve-sdk/usr/include
 if [ $? -ne 0 ]
 then
@@ -239,7 +244,7 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
-cp curvefs_python/tmplib/* build/curve-sdk/usr/lib/
+cp curvefs_python/tmplib/* build/curve-sdk/usr/lib/curve
 if [ $? -ne 0 ]
 then
 	exit
