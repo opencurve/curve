@@ -88,12 +88,24 @@ function start() {
         exit 1
     fi
 
+    # 记录运行daemon前的daemonLog的行数
+    line1=`cat ${daemonLog} | wc -l`
+
     LD_PRELOAD=${jemallocpath} daemon --name nebd-server --core --inherit \
-           --respawn --attempts 100 --delay 10 \
+           --respawn --attempts 10 --delay 10 \
            --pidfile ${pidFile} \
            --errlog ${daemonLog} \
            --output ${consoleLog} \
            -- ${bin} -confPath=${confPath} -log_dir=${logPath} -graceful_quit_on_sigterm=true -stderrthreshold=3
+
+    # sleep 1秒检测daemonLog是否有变化，如果有变化，说明启动遇到问题
+    sleep 1
+    line2=`cat ${daemonLog} | wc -l`
+    if [ $line1 != $line2 ]
+    then
+        echo "start nebd-server met error!"
+        stop
+    fi
 }
 
 # 停止daemon进程，且停止nebd-server
