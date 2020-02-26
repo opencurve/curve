@@ -80,7 +80,15 @@ function start() {
         exit 1
     fi
 
-    daemon --name nebd-server --core --inherit \
+    jemallocpath=/usr/lib/x86_64-linux-gnu/libjemalloc.so.1
+    # 检查jemalloc库文件
+    if [ ! -f ${jemallocpath} ]
+    then
+        echo "Not found jemalloc library, Path is ${jemallocpath}"
+        exit 1
+    fi
+
+    LD_PRELOAD=${jemallocpath} daemon --name nebd-server --core --inherit \
            --respawn --attempts 100 --delay 10 \
            --pidfile ${pidFile} \
            --errlog ${daemonLog} \
