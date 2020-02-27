@@ -31,6 +31,20 @@ class IOManager {
     }
 
     /**
+     * @brief 获取rpc发送令牌
+     */
+    virtual void GetInflightRpcToken() {
+        return;
+    }
+
+    /**
+     * @brief 释放rpc发送令牌
+     */
+    virtual void ReleaseInflightRpcToken() {
+        return;
+    }
+
+    /**
      * 处理异步返回的response
      * @param: iotracker是当前reponse的归属
      */
