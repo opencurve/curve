@@ -7,16 +7,17 @@ bin=/usr/bin/nebd-server
 confPath=/etc/nebd/nebd-server.conf
 
 # 日志文件路径
-logPath=${HOME}
+baseLogPath=/data/log/nebd
+logPath=${baseLogPath}/server
 
 # pidfile
-pidFile=${HOME}/nebd-server.pid
+pidFile=${baseLogPath}/nebd-server.pid
 
 # daemon log
-daemonLog=${HOME}/nebd-server-daemon.log
+daemonLog=${baseLogPath}/nebd-server-daemon.log
 
 # console output
-consoleLog=${HOME}/nebd-server-console.log
+consoleLog=${baseLogPath}/nebd-server-console.log
 
 # 启动nebd-server
 function start() {

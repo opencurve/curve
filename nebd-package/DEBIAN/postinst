@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -e
+
+chown -R root:root /data/nebd
+chown -R root:root /data/log/nebd
+
+chmod -R 777 /data/nebd
+chmod -R 777 /data/log/nebd
+
+exit 0
