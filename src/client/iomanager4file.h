@@ -85,6 +85,16 @@ class IOManager4File : public IOManager {
   void UnInitialize();
 
   /**
+   * @brief 获取rpc发送令牌
+   */
+  void GetInflightRpcToken() override;
+
+  /**
+   * @brief 释放rpc发送令牌
+   */
+  void ReleaseInflightRpcToken() override;
+
+  /**
    * 获取metacache，测试代码使用
    */
   MetaCache* GetMetaCache() {return &mc_;}
@@ -198,6 +208,9 @@ class IOManager4File : public IOManager {
 
   // inflight IO控制
   InflightControl  inflightCntl_;
+
+  // inflight rpc控制
+  InflightControl inflightRpcCntl_;
 
   // 是否退出
   bool exit_;

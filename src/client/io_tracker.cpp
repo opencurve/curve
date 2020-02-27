@@ -60,7 +60,7 @@ void IOTracker::StartRead(CurveAioContext* aioctx, char* buf,
         reqcount_.store(reqlist_.size(), std::memory_order_release);
         std::for_each(reqlist_.begin(), reqlist_.end(), [&](RequestContext* r) {
             r->done_->SetFileMetric(fileMetric_);
-            r->done_->SetIOManagerID(iomanager_->ID());
+            r->done_->SetIOManager(iomanager_);
         });
         ret = scheduler_->ScheduleRequest(reqlist_);
     } else {
@@ -91,7 +91,7 @@ void IOTracker::StartWrite(CurveAioContext* aioctx, const char* buf,
         reqcount_.store(reqlist_.size(), std::memory_order_release);
         std::for_each(reqlist_.begin(), reqlist_.end(), [&](RequestContext* r) {
             r->done_->SetFileMetric(fileMetric_);
-            r->done_->SetIOManagerID(iomanager_->ID());
+            r->done_->SetIOManager(iomanager_);
         });
         ret = scheduler_->ScheduleRequest(reqlist_);
     } else {
