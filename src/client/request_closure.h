@@ -26,6 +26,7 @@ namespace curve {
 namespace client {
 class IOTracker;
 class RequestContext;
+class IOManager;
 
 class RequestClosure : public ::google::protobuf::Closure {
  public:
@@ -63,9 +64,9 @@ class RequestClosure : public ::google::protobuf::Closure {
     void SetIOTracker(IOTracker* ioctx);
 
     /**
-     * 设置当前closure属于哪个iomanager
+     * @brief 设置所属的iomanager
      */
-    void SetIOManagerID(IOManagerID id);
+    void SetIOManager(IOManager* ioManager);
 
     /**
      * 设置当前closure重试次数
@@ -97,19 +98,6 @@ class RequestClosure : public ::google::protobuf::Closure {
      * 获取rpc起始时间
      */
     uint64_t GetStartTime();
-
-    /**
-     * 添加inflight控制
-     * @param: id标识对应的iomanager
-     * @param: opt对应的inflight控制配置信息
-     */
-    static int AddInflightCntl(IOManagerID id, InFlightIOCntlInfo_t opt);
-
-    /**
-     * 删除inflight控制
-     * @param: id标识对应待删除的iomanager
-     */
-    static void DeleteInflightCntl(IOManagerID id);
 
     /**
      * 发送rpc之前都需要先获取inflight token
@@ -171,14 +159,11 @@ class RequestClosure : public ::google::protobuf::Closure {
     // 当前closure归属于哪个iomanager
     IOManagerID managerID_;
 
+    // 当前closure属于的iomanager
+    IOManager* ioManager_;
+
     // 下一次rpc超时时间
     uint64_t nextTimeoutMS_;
-
-    // 读写锁用于保护map
-    static RWLock rwLock_;
-
-    // iomanager到inflight controller的映射
-    static std::map<IOManagerID, InflightControl*> inflightCntlMap_;
 };
 }   // namespace client
 }   // namespace curve

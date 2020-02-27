@@ -19,17 +19,24 @@ namespace common {
 
 class RWLock : public Uncopyable {
  public:
-    RWLock() {
-        pthread_rwlockattr_init(&rwlockAttr_);
-        pthread_rwlockattr_setkind_np(
-            &rwlockAttr_,
-            PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
+    explicit RWLock(bool preferWrite = false) : preferWrite_(preferWrite) {
+        if (preferWrite_) {
+            pthread_rwlockattr_init(&rwlockAttr_);
+            pthread_rwlockattr_setkind_np(
+                &rwlockAttr_,
+                PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
 
-        pthread_rwlock_init(&rwlock_, &rwlockAttr_);
+            pthread_rwlock_init(&rwlock_, &rwlockAttr_);
+        } else {
+            pthread_rwlock_init(&rwlock_, nullptr);
+        }
     }
 
     ~RWLock() {
-        pthread_rwlockattr_destroy(&rwlockAttr_);
+        if (preferWrite_) {
+            pthread_rwlockattr_destroy(&rwlockAttr_);
+        }
+
         pthread_rwlock_destroy(&rwlock_);
     }
 
@@ -58,6 +65,9 @@ class RWLock : public Uncopyable {
  private:
     pthread_rwlock_t rwlock_;
     pthread_rwlockattr_t rwlockAttr_;
+
+    // 是否优先加写锁
+    bool preferWrite_;
 };  // RWLock class
 
 class ReadLockGuard : public Uncopyable {
