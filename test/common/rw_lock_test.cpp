@@ -86,7 +86,7 @@ TEST(RWLockTest, basic_test) {
 }
 
 TEST(RWLockTest, WriteLockLatency) {
-    RWLock lock;
+    RWLock lock(true);
     volatile bool running = true;
 
     std::vector<std::thread> ths;
