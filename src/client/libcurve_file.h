@@ -250,7 +250,7 @@ class FileClient {
                                 bool readonly);
 
  private:
-  RWLock rwlock_;
+  RWLock rwlock_{true};
 
   // 向上返回的文件描述符，对于QEMU来说，一个vdisk对应一个文件描述符
   std::atomic<uint64_t>    fdcount_;
