@@ -31,7 +31,9 @@ class SnapshotCloneServerTest : public ::testing::Test {
         options_->maxSnapshotLimit = 64;
         options_->snapshotCoreThreadNum = 8;
         options_->mdsSessionTimeUs = 1000000;
-        options_->clonePoolThreadNum = 8;
+        options_->stage1PoolThreadNum = 8;
+        options_->stage2PoolThreadNum = 8;
+        options_->commonPoolThreadNum = 8;
         options_->cloneTaskManagerScanIntervalMs = 1000;
         options_->cloneChunkSplitSize = 65536;
         options_->cloneTempDir = "/clone";

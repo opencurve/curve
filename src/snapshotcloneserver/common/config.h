@@ -53,8 +53,12 @@ struct SnapshotCloneServerOptions {
     // ReadChunkSnapshot同时进行的异步请求数量
     uint32_t readChunkSnapshotConcurrency;
 
-    // 克隆恢复工作线程数
-    int clonePoolThreadNum;
+    // 用于Lazy克隆元数据部分的线程池线程数
+    int stage1PoolThreadNum;
+    // 用于Lazy克隆数据部分的线程池线程数
+    int stage2PoolThreadNum;
+    // 用于非Lazy克隆和删除克隆等其他管控面的请求的线程池线程数
+    int commonPoolThreadNum;
     // CloneTaskManager 后台线程扫描间隔
     uint32_t cloneTaskManagerScanIntervalMs;
     // clone chunk分片大小

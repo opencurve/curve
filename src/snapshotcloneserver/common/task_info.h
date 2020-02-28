@@ -87,7 +87,6 @@ class TaskInfo {
      * @brief 重置任务
      */
     void Reset() {
-        progress_ = 0;
         isFinish_ = false;
         isCanceled_ = false;
     }

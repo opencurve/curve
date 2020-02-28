@@ -217,6 +217,24 @@ class CloneServiceManager {
         const std::string &user,
         std::vector<TaskCloneInfo> *info);
 
+    /**
+     * @brief 根据克隆任务信息恢复克隆任务
+     *
+     * @param cloneInfo 克隆任务信息
+     *
+     * @return 错误码
+     */
+    int RecoverCloneTaskInternal(const CloneInfo &cloneInfo);
+
+    /**
+     * @brief 根据克隆任务信息恢复清除克隆任务
+     *
+     * @param cloneInfo 克隆任务信息
+     *
+     * @return 错误码
+     */
+    int RecoverCleanTaskInternal(const CloneInfo &cloneInfo);
+
  private:
     std::shared_ptr<CloneTaskManager> cloneTaskMgr_;
     std::shared_ptr<CloneCore> cloneCore_;
