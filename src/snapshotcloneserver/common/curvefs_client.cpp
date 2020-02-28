@@ -225,7 +225,8 @@ int CurveFsClientImpl::CompleteCloneMeta(
         return snapClient_->CompleteCloneMeta(filename, userInfo);
     };
     RetryCondition condition = [] (int ret) {
-        return ret < 0;
+        return ret != LIBCURVE_ERROR::OK &&
+               ret != -LIBCURVE_ERROR::NOTEXIST;
     };
     RetryHelper retryHelper(method, condition);
     return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
@@ -240,7 +241,8 @@ int CurveFsClientImpl::CompleteCloneFile(
         return snapClient_->CompleteCloneFile(filename, userInfo);
     };
     RetryCondition condition = [] (int ret) {
-        return ret < 0;
+        return ret != LIBCURVE_ERROR::OK &&
+               ret != -LIBCURVE_ERROR::NOTEXIST;
     };
     RetryHelper retryHelper(method, condition);
     return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
@@ -256,7 +258,8 @@ int CurveFsClientImpl::SetCloneFileStatus(
         return snapClient_->SetCloneFileStatus(filename, filestatus, userInfo);
     };
     RetryCondition condition = [] (int ret) {
-        return ret < 0;
+        return ret != LIBCURVE_ERROR::OK &&
+               ret != -LIBCURVE_ERROR::NOTEXIST;
     };
     RetryHelper retryHelper(method, condition);
     return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,

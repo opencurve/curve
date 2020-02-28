@@ -461,6 +461,14 @@ class CloneCoreImpl : public CloneCore {
         std::shared_ptr<CloneTaskInfo> task);
 
     /**
+     * @brief 处理Lazy克隆/恢复阶段一结束
+     *
+     * @param task 任务信息
+     */
+    void HandleLazyCloneStage1Finish(
+        std::shared_ptr<CloneTaskInfo> task);
+
+    /**
      * @brief 处理克隆/恢复成功
      *
      * @param task 任务信息
