@@ -278,6 +278,8 @@ void CloneCoreImpl::HandleCloneOrRecoverTask(
                     task->GetClosure()->SetErrCode(ret);
                     task->GetClosure()->Run();
                     doneGuard.release();
+                    HandleLazyCloneStage1Finish(task);
+                    return;
                 }
                 break;
             case CloneStep::kCompleteCloneFile:
@@ -1010,13 +1012,24 @@ int CloneCoreImpl::CompleteCloneFile(
     }
     std::string user = task->GetCloneInfo().GetUser();
     int ret = client_->CompleteCloneFile(fileName, mdsRootUser_);
-    if (ret != LIBCURVE_ERROR::OK) {
-        LOG(ERROR) << "CompleteCloneFile fail"
-                   << ", ret = " << ret
-                   << ", fileName = " << fileName
-                   << ", user = " << user
-                   << ", taskid = " << task->GetTaskId();
-        return kErrCodeInternalError;
+    switch (ret) {
+        case LIBCURVE_ERROR::OK:
+            break;
+        case -LIBCURVE_ERROR::NOTEXIST:
+            LOG(ERROR) << "CompleteCloneFile "
+                       << "find dest file not exist, maybe deleted"
+                       << ", ret = " << ret
+                       << ", destination = " << fileName
+                       << ", user = " << user
+                       << ", taskid = " << task->GetTaskId();
+            return kErrCodeFileNotExist;
+        default:
+            LOG(ERROR) << "CompleteCloneFile fail"
+                       << ", ret = " << ret
+                       << ", fileName = " << fileName
+                       << ", user = " << user
+                       << ", taskid = " << task->GetTaskId();
+            return kErrCodeInternalError;
     }
     if (IsLazy(task)) {
         task->GetCloneInfo().SetNextStep(CloneStep::kEnd);
@@ -1031,6 +1044,16 @@ int CloneCoreImpl::CompleteCloneFile(
         return ret;
     }
     return kErrCodeSuccess;
+}
+
+void CloneCoreImpl::HandleLazyCloneStage1Finish(
+    std::shared_ptr<CloneTaskInfo> task) {
+    LOG(INFO) << "Task Lazy Stage1 Success"
+              << ", taskid = " << task->GetCloneInfo().GetTaskId()
+              << ", source = " << task->GetCloneInfo().GetSrc()
+              << ", dest = " << task->GetCloneInfo().GetDest()
+              << ", IsLazy = " << task->GetCloneInfo().GetIsLazy();
+    task->Finish();
 }
 
 void CloneCoreImpl::HandleCloneSuccess(std::shared_ptr<CloneTaskInfo> task) {

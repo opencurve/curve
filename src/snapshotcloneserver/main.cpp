@@ -95,8 +95,13 @@ void InitSnapshotCloneServerOptions(Configuration *conf,
     LOG_IF(FATAL, !conf->GetUInt32Value("server.readChunkSnapshotConcurrency",
             &serverOption->readChunkSnapshotConcurrency));
 
-    LOG_IF(FATAL, !conf->GetIntValue("server.clonePoolThreadNum",
-                                     &serverOption->clonePoolThreadNum));
+    LOG_IF(FATAL, !conf->GetIntValue("server.stage1PoolThreadNum",
+                                     &serverOption->stage1PoolThreadNum));
+    LOG_IF(FATAL, !conf->GetIntValue("server.stage2PoolThreadNum",
+                                     &serverOption->stage2PoolThreadNum));
+    LOG_IF(FATAL, !conf->GetIntValue("server.commonPoolThreadNum",
+                                     &serverOption->commonPoolThreadNum));
+
     LOG_IF(FATAL, !conf->GetUInt32Value(
                "server.cloneTaskManagerScanIntervalMs",
                &serverOption->cloneTaskManagerScanIntervalMs));

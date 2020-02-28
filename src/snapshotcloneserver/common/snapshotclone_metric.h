@@ -98,6 +98,13 @@ struct CloneMetric {
         recoverDoing(CloneMetricPrefix, "recover_doing"),
         recoverSucceed(CloneMetricPrefix, "recover_succeed"),
         recoverFailed(CloneMetricPrefix, "recover_failed") {}
+
+    void UpdateBeforeTaskBegin(
+        const CloneTaskType &taskType);
+
+    void UpdateAfterTaskFinish(
+        const CloneTaskType &taskType,
+        const CloneStatus &status);
 };
 
 struct CloneInfoMetric {
