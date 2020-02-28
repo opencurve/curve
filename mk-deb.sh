@@ -32,11 +32,11 @@ bazel shutdown
 mkdir build
 cp -r nebd-package build/
 mkdir -p build/nebd-package/usr/bin
-mkdir -p build/nebd-package/usr/lib
+mkdir -p build/nebd-package/usr/lib/nebd
 
 for i in `find bazel-bin/|grep -w so|grep -v solib|grep -v params| grep -v test`
     do
-        cp -f $i build/nebd-package/usr/lib
+        cp -f $i build/nebd-package/usr/lib/nebd
     done
 
 cp bazel-bin/src/part2/nebd-server build/nebd-package/usr/bin

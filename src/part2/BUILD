@@ -32,12 +32,12 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//external:glog",
-	"//external:brpc",
-	"//external:json",
-	"//external:gflags",
-	"//external:curve",
-	"//src/common:nebd_common",
-	"//proto:client_cc_proto"
+        "//external:brpc",
+        "//external:json",
+        "//external:gflags",
+        "//external:curve",
+        "//src/common:nebd_common",
+        "//proto:client_cc_proto"
     ],
     copts = COPTS,
 )
@@ -52,6 +52,7 @@ cc_binary(
         "//src/part2:nebdserver",
     ],
     copts = COPTS,
+    linkopts = ["-Wl,-rpath=/usr/lib/nebd"],
 )
 
 

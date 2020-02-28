@@ -32,11 +32,12 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//external:glog",
-	"//external:brpc",
-	"//src/common:nebd_common",
-	"//proto:client_cc_proto"
+        "//external:brpc",
+        "//src/common:nebd_common",
+        "//proto:client_cc_proto"
     ],
     copts = COPTS,
+    linkopts = ["-Wl,-rpath=/usr/lib/nebd"],
 )
 
 
