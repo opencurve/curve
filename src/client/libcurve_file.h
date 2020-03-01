@@ -21,7 +21,7 @@
 #include "src/client/client_common.h"
 #include "src/client/file_instance.h"
 
-using curve::common::RWLock;
+using curve::common::WritePreferedRWLock;
 
 // TODO(tongguangxun) :添加关键函数trace功能
 namespace curve {
@@ -250,7 +250,7 @@ class FileClient {
                                 bool readonly);
 
  private:
-  RWLock rwlock_{true};
+  WritePreferedRWLock rwlock_;
 
   // 向上返回的文件描述符，对于QEMU来说，一个vdisk对应一个文件描述符
   std::atomic<uint64_t>    fdcount_;
