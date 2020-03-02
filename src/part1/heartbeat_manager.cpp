@@ -55,14 +55,13 @@ void HeartbeatManager::Run() {
 }
 
 void HeartbeatManager::Stop() {
-    running_ = false;
-    sleeper_.interrupt();
-
-    if (heartbeatThread_.joinable()) {
+    if (running_ == true) {
+        running_ = false;
+        sleeper_.interrupt();
         heartbeatThread_.join();
-    }
 
-    LOG(INFO) << "Connection Manager stopped success";
+        LOG(INFO) << "Connection Manager stopped success";
+    }
 }
 
 void HeartbeatManager::SendHeartBeat() {

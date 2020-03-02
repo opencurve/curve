@@ -551,7 +551,18 @@ TEST_F(NebdFileClientTest, ResponseFailTest) {
     StopServer();
 }
 
+TEST_F(NebdFileClientTest, InitAndUninitTest) {
+    ASSERT_NO_FATAL_FAILURE(nebdClient.Uninit());
 
+    AddFakeService();
+    StartServer();
+
+    ASSERT_NO_FATAL_FAILURE(nebdClient.Init(kNebdClientConf));
+    ASSERT_NO_FATAL_FAILURE(nebdClient.Uninit());
+    ASSERT_NO_FATAL_FAILURE(nebdClient.Uninit());
+
+    StopServer();
+}
 
 }  // namespace client
 }  // namespace nebd

@@ -88,13 +88,11 @@ int NebdClient::Init(const char* confpath) {
 }
 
 void NebdClient::Uninit() {
-    heartbeatMgr_->Stop();
+    if (heartbeatMgr_ != nullptr) {
+        heartbeatMgr_->Stop();
+    }
     LOG(INFO) << "NebdClient uninit success.";
     google::ShutdownGoogleLogging();
-}
-
-NebdClient::~NebdClient() {
-    Uninit();
 }
 
 int NebdClient::Open(const char* filename) {

@@ -27,7 +27,9 @@ class HeartbeatManager {
  public:
     explicit HeartbeatManager(std::shared_ptr<NebdClientMetaCache> metaCache);
 
-    ~HeartbeatManager() = default;
+    ~HeartbeatManager() {
+       Stop();
+    }
 
     /**
      * @brief: 启动心跳线程
