@@ -179,6 +179,12 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
+cp ./bazel-bin/src/tools/curve_chunkserver_tool \
+build/curve-chunkserver/usr/bin/curve_chunkserver_tool
+if [ $? -ne 0 ]
+then
+	exit
+fi
 #cp ./conf/chunkserver.conf.example \
 #build/curve-chunkserver/etc/curve/chunkserver.conf
 #if [ $? -ne 0 ]
