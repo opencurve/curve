@@ -385,6 +385,15 @@ int NebdFileManager::ProcessRequest(int fd, ProcessTask task) {
         new (std::nothrow) NebdProcessClosure(fileRecord);
     brpc::ClosureGuard doneGuard(done);
 
+    // 此时文件可能被close了，与之前获取到的record不一致，因此需要重新获取
+    // TODO(yyk) 这不是一种优雅的实现方法，后续重构
+    getSuccess = fileRecordManager_->GetRecord(fd, &fileRecord);
+    if (!getSuccess) {
+        LOG(ERROR) << "File record not exist, fd: " << fd;
+        return -1;
+    }
+    done->SetFileRecord(fileRecord);
+
     if (fileRecord.status != NebdFileStatus::OPENED) {
         int ret = OpenInternal(fileRecord.fileName);
         if (ret != fd) {

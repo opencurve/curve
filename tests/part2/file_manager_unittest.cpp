@@ -54,6 +54,8 @@ class FileManagerTest : public ::testing::Test {
     NebdServerAioContext* aioContext_;
 };
 
+// TODO(yyk): 后续重构单测，消除重复代码
+
 TEST_F(FileManagerTest, OpenTest) {
     // open一个不存在的文件
     EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
@@ -277,8 +279,8 @@ TEST_F(FileManagerTest, ExtendTest) {
     fileRecord.executor = executor_.get();
     fileRecord.fileInstance = mockInstance_;
     EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord),
-                    Return(true)));
+    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
+                          Return(true)));
     EXPECT_CALL(*executor_, Extend(NotNull(), 4096))
     .WillOnce(Return(0));
     ASSERT_EQ(0, fileManager_->Extend(1, 4096));
@@ -312,8 +314,8 @@ TEST_F(FileManagerTest, ExtendFaileTest) {
     fileRecord.executor = executor_.get();
     fileRecord.fileInstance = mockInstance_;
     EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord),
-                    Return(true)));
+    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
+                          Return(true)));
     EXPECT_CALL(*executor_, Extend(NotNull(), 4096))
     .WillOnce(Return(-1));
     ASSERT_EQ(-1, fileManager_->Extend(1, 4096));
@@ -356,8 +358,8 @@ TEST_F(FileManagerTest, GetInfoTest) {
     fileRecord.executor = executor_.get();
     fileRecord.fileInstance = mockInstance_;
     EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord),
-                    Return(true)));
+    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
+                          Return(true)));
     EXPECT_CALL(*executor_, GetInfo(NotNull(), &fileInfo))
     .WillOnce(Return(0));
     ASSERT_EQ(0, fileManager_->GetInfo(1, &fileInfo));
@@ -392,8 +394,8 @@ TEST_F(FileManagerTest, GetInfoFaileTest) {
     fileRecord.executor = executor_.get();
     fileRecord.fileInstance = mockInstance_;
     EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord),
-                    Return(true)));
+    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
+                          Return(true)));
     EXPECT_CALL(*executor_, GetInfo(NotNull(), &fileInfo))
     .WillOnce(Return(-1));
     ASSERT_EQ(-1, fileManager_->GetInfo(1, &fileInfo));
@@ -435,8 +437,8 @@ TEST_F(FileManagerTest, InvalidCacheTest) {
     fileRecord.executor = executor_.get();
     fileRecord.fileInstance = mockInstance_;
     EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord),
-                    Return(true)));
+    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
+                          Return(true)));
     EXPECT_CALL(*executor_, InvalidCache(NotNull()))
     .WillOnce(Return(0));
     ASSERT_EQ(0, fileManager_->InvalidCache(1));
@@ -470,8 +472,8 @@ TEST_F(FileManagerTest, InvalidCacheFaileTest) {
     fileRecord.executor = executor_.get();
     fileRecord.fileInstance = mockInstance_;
     EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord),
-                    Return(true)));
+    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
+                          Return(true)));
     EXPECT_CALL(*executor_, InvalidCache(NotNull()))
     .WillOnce(Return(-1));
     ASSERT_EQ(-1, fileManager_->InvalidCache(1));
@@ -513,8 +515,8 @@ TEST_F(FileManagerTest, AioReadTest) {
     fileRecord.executor = executor_.get();
     fileRecord.fileInstance = mockInstance_;
     EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord),
-                    Return(true)));
+    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
+                          Return(true)));
     EXPECT_CALL(*executor_, AioRead(NotNull(), aioContext_))
     .WillOnce(Return(0));
     ASSERT_EQ(0, fileManager_->AioRead(1, aioContext_));
@@ -555,8 +557,13 @@ TEST_F(FileManagerTest, AioReadFaileTest) {
     fileRecord.executor = executor_.get();
     fileRecord.fileInstance = mockInstance_;
     EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord),
-                    Return(true)));
+    .WillOnce(DoAll(SetArgPointee<1>(fileRecord), Return(true)))
+    .WillOnce(Return(false));
+    ASSERT_EQ(-1, fileManager_->AioRead(1, aioContext_));
+
+    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
+    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
+                          Return(true)));
     EXPECT_CALL(*executor_, AioRead(NotNull(), aioContext_))
     .WillOnce(Return(-1));
     ASSERT_EQ(-1, fileManager_->AioRead(1, aioContext_));
@@ -598,8 +605,8 @@ TEST_F(FileManagerTest, AioWriteTest) {
     fileRecord.executor = executor_.get();
     fileRecord.fileInstance = mockInstance_;
     EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord),
-                    Return(true)));
+    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
+                          Return(true)));
     EXPECT_CALL(*executor_, AioWrite(NotNull(), aioContext_))
     .WillOnce(Return(0));
     ASSERT_EQ(0, fileManager_->AioWrite(1, aioContext_));
@@ -640,8 +647,8 @@ TEST_F(FileManagerTest, AioWriteFaileTest) {
     fileRecord.executor = executor_.get();
     fileRecord.fileInstance = mockInstance_;
     EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord),
-                    Return(true)));
+    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
+                          Return(true)));
     EXPECT_CALL(*executor_, AioWrite(NotNull(), aioContext_))
     .WillOnce(Return(-1));
     ASSERT_EQ(-1, fileManager_->AioWrite(1, aioContext_));
@@ -683,8 +690,8 @@ TEST_F(FileManagerTest, DiscardTest) {
     fileRecord.executor = executor_.get();
     fileRecord.fileInstance = mockInstance_;
     EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord),
-                    Return(true)));
+    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
+                          Return(true)));
     EXPECT_CALL(*executor_, Discard(NotNull(), aioContext_))
     .WillOnce(Return(0));
     ASSERT_EQ(0, fileManager_->Discard(1, aioContext_));
@@ -725,8 +732,8 @@ TEST_F(FileManagerTest, DiscardFaileTest) {
     fileRecord.executor = executor_.get();
     fileRecord.fileInstance = mockInstance_;
     EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord),
-                    Return(true)));
+    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
+                          Return(true)));
     EXPECT_CALL(*executor_, Discard(NotNull(), aioContext_))
     .WillOnce(Return(-1));
     ASSERT_EQ(-1, fileManager_->Discard(1, aioContext_));
@@ -768,8 +775,8 @@ TEST_F(FileManagerTest, FlushTest) {
     fileRecord.executor = executor_.get();
     fileRecord.fileInstance = mockInstance_;
     EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord),
-                    Return(true)));
+    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
+                          Return(true)));
     EXPECT_CALL(*executor_, Flush(NotNull(), aioContext_))
     .WillOnce(Return(0));
     ASSERT_EQ(0, fileManager_->Flush(1, aioContext_));
@@ -810,8 +817,8 @@ TEST_F(FileManagerTest, FlushFaileTest) {
     fileRecord.executor = executor_.get();
     fileRecord.fileInstance = mockInstance_;
     EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord),
-                    Return(true)));
+    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
+                          Return(true)));
     EXPECT_CALL(*executor_, Flush(NotNull(), aioContext_))
     .WillOnce(Return(-1));
     ASSERT_EQ(-1, fileManager_->Flush(1, aioContext_));
