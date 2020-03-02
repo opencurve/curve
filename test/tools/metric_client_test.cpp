@@ -15,9 +15,6 @@ namespace tool {
 
 const char serverAddr[] = "127.0.0.1:9193";
 
-DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
-DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
-
 class MetricClientTest : public ::testing::Test {
  protected:
     MetricClientTest() {}

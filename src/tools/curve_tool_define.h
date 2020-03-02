@@ -54,6 +54,13 @@ const char kResetPeerCmd[] = "reset-peer";
 // 调度模块命令
 const char kRapidLeaderSchedule[] = "rapid-leader-schedule";
 
+// curve文件meta相关的命令
+const char kChunkMeta[] = "chunk-meta";
+const char kSnapshotMeta[] = "snapshot-meta";
+
+// raft log相关命令
+const char kRaftLogMeta[] = "raft-log-meta";
+
 }  // namespace tool
 }  // namespace curve
 
