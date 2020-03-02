@@ -304,7 +304,7 @@ int StatusTool::PrintEtcdStatus() {
 }
 
 int StatusTool::PrintClientStatus() {
-    std::cout << "client status: " << std::endl;
+    std::cout << "Client status: " << std::endl;
     VersionMapType versionMap;
     std::vector<std::string> offlineList;
     int res = versionTool_->GetClientVersion(&versionMap, &offlineList);
@@ -312,20 +312,17 @@ int StatusTool::PrintClientStatus() {
         std::cout << "GetClientVersion fail" << std::endl;
         return -1;
     }
-    if (!offlineList.empty()) {
-        versionMap[kOffline] = offlineList;
-    }
-    uint64_t total = 0;
+    bool first = true;
     for (const auto& item : versionMap) {
-        if (item.first != kOffline) {
-            std::cout << "version";
+        if (!first) {
+            std::cout << ", ";
         }
-        std::cout << item.first << ": " << item.second.size();
-        total += item.second.size();
-        std::cout << ", ";
+        std::cout << "version" <<  item.first << ": " << item.second.size();
+        first = false;
     }
-    std::cout << "total: " << total <<  std::endl;
+    std::cout << std::endl;
     if (FLAGS_detail) {
+        std::cout << "version map:" << std::endl;
         versionTool_->PrintVersionMap(versionMap);
     }
     return 0;
@@ -477,6 +474,8 @@ int StatusTool::RunCommand(const std::string &cmd) {
         return PrintMdsStatus();
     } else if (cmd == kEtcdStatusCmd) {
         return PrintEtcdStatus();
+    } else if (cmd == kClientStatusCmd) {
+        return PrintClientStatus();
     } else {
         std::cout << "Command not supported!" << std::endl;
         return -1;
