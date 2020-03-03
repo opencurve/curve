@@ -59,6 +59,23 @@ int MetricClient::GetMetric(const std::string& addr,
     return -1;
 }
 
+int MetricClient::GetMetricUint(const std::string& addr,
+                  const std::string& metricName,
+                  uint64_t* value) {
+    std::string str;
+    int res = GetMetric(addr, metricName, &str);
+    if (res != 0) {
+        std::cout << "get metric " << metricName << " from "
+                  << addr << " fail";
+        return -1;
+    }
+    if (!curve::common::StringToUll(str, value)) {
+        std::cout << "parse metric as uint64_t fail!" << std::endl;
+        return -1;
+    }
+    return 0;
+}
+
 int MetricClient::GetValueFromAttachment(const std::string& attachment,
                                        std::string* value) {
     auto pos = attachment.find(":");
