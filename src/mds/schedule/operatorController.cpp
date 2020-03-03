@@ -42,8 +42,8 @@ bool OperatorController::AddOperator(const Operator &op) {
     // replaced-high-pri operator will be executed.
     if (exist->second.priority < op.priority) {
         if (!ReplaceOpInfluencePreJudgeLocked(exist->second, op)) {
-            LOG(ERROR) << "replace operator on copySet(logicalPoolId: "
-                       << op.copysetID.first << ", copySetId: "
+            LOG(ERROR) << "replace operator on copyset("
+                       << op.copysetID.first << ","
                        << op.copysetID.second
                        << ") fail because do new operator "
                           "do not satisfy opInfluence condition";
