@@ -75,8 +75,10 @@ TEST_F(VersionToolTest, GetAndCheckMdsVersion) {
         .WillRepeatedly(DoAll(SetArgPointee<2>("0.0.1"),
                         Return(0)));
     std::string version;
-    ASSERT_EQ(0, versionTool.GetAndCheckMdsVersion(&version));
+    std::vector<std::string> failedList;
+    ASSERT_EQ(0, versionTool.GetAndCheckMdsVersion(&version, &failedList));
     ASSERT_EQ("0.0.1", version);
+    ASSERT_TRUE(failedList.empty());
 
     // 2、获取version失败
     EXPECT_CALL(*mdsClient_, GetDummyServerMap())
@@ -86,8 +88,11 @@ TEST_F(VersionToolTest, GetAndCheckMdsVersion) {
         .Times(3)
         .WillOnce(Return(-1))
         .WillRepeatedly(DoAll(SetArgPointee<2>("0.0.1"),
-                        Return(0)));;
-    ASSERT_EQ(-1, versionTool.GetAndCheckMdsVersion(&version));
+                        Return(0)));
+    ASSERT_EQ(0, versionTool.GetAndCheckMdsVersion(&version, &failedList));
+    ASSERT_EQ("0.0.1", version);
+    std::vector<std::string> expectedList = {"127.0.0.1:6667"};
+    ASSERT_EQ(expectedList, failedList);
 
     // 3、dummyServerMap为空
     std::map<std::string, std::string> dummyServerMap2;
@@ -96,7 +101,8 @@ TEST_F(VersionToolTest, GetAndCheckMdsVersion) {
         .WillOnce(ReturnRef(dummyServerMap2));
     EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
         .Times(0);
-    ASSERT_EQ(-1, versionTool.GetAndCheckMdsVersion(&version));
+    ASSERT_EQ(-1, versionTool.GetAndCheckMdsVersion(&version, &failedList));
+    ASSERT_TRUE(failedList.empty());
 
     // 4、version不一致
     EXPECT_CALL(*mdsClient_, GetDummyServerMap())
@@ -108,7 +114,8 @@ TEST_F(VersionToolTest, GetAndCheckMdsVersion) {
                         Return(0)))
         .WillRepeatedly(DoAll(SetArgPointee<2>("0.0.1"),
                         Return(0)));
-    ASSERT_EQ(-1, versionTool.GetAndCheckMdsVersion(&version));
+    ASSERT_EQ(-1, versionTool.GetAndCheckMdsVersion(&version, &failedList));
+    ASSERT_TRUE(failedList.empty());
 }
 
 TEST_F(VersionToolTest, GetChunkServerVersion) {
@@ -130,14 +137,18 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
         .WillRepeatedly(DoAll(SetArgPointee<2>("0.0.1"),
                         Return(0)));
     std::string version;
-    ASSERT_EQ(0, versionTool.GetAndCheckChunkServerVersion(&version));
+    std::vector<std::string> failedList;
+    ASSERT_EQ(0, versionTool.GetAndCheckChunkServerVersion(&version,
+                                                           &failedList));
     ASSERT_EQ("0.0.1", version);
+    ASSERT_TRUE(failedList.empty());
 
     // 2、ListChunkServersInCluster失败
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
         .Times(1)
         .WillOnce(Return(-1));
-    ASSERT_EQ(-1, versionTool.GetAndCheckChunkServerVersion(&version));
+    ASSERT_EQ(-1, versionTool.GetAndCheckChunkServerVersion(&version,
+                                                            &failedList));
 
     // 3、获取metric失败
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
@@ -149,7 +160,10 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
         .WillOnce(Return(-1))
         .WillRepeatedly(DoAll(SetArgPointee<2>("0.0.1"),
                               Return(0)));
-    ASSERT_EQ(-1, versionTool.GetAndCheckChunkServerVersion(&version));
+    ASSERT_EQ(0, versionTool.GetAndCheckChunkServerVersion(&version,
+                                                            &failedList));
+    std::vector<std::string> expectList = {"127.0.0.1:9191"};
+    ASSERT_EQ(expectList, failedList);
 
     // 4、chunkserverList为空
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
@@ -158,7 +172,9 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
                         Return(0)));
     EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
         .Times(0);
-    ASSERT_EQ(-1, versionTool.GetAndCheckChunkServerVersion(&version));
+    ASSERT_EQ(-1, versionTool.GetAndCheckChunkServerVersion(&version,
+                                                            &failedList));
+    ASSERT_TRUE(failedList.empty());
 
     // 5、version不一致
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
@@ -171,7 +187,9 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
                         Return(0)))
         .WillRepeatedly(DoAll(SetArgPointee<2>("0.0.1"),
                         Return(0)));
-    ASSERT_EQ(-1, versionTool.GetAndCheckChunkServerVersion(&version));
+    ASSERT_EQ(-1, versionTool.GetAndCheckChunkServerVersion(&version,
+                                                            &failedList));
+    ASSERT_TRUE(failedList.empty());
 }
 
 TEST_F(VersionToolTest, GetClientVersion) {

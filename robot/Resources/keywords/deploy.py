@@ -141,6 +141,22 @@ def add_config():
         ori_cmd = "sudo mv s3.conf /etc/curve/conf && sudo mv client.conf /etc/curve/conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"mv %s s3 conf fail"%host
+    # add tools config
+    for host in config.mds_list:
+        ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/tools.conf %s:~/"%\
+            (config.pravie_key_path,host)
+        shell_operator.run_exec2(cmd)
+        ori_cmd = R"sed -i 's/mdsAddr=127.0.0.1:6666/mdsAddr=%s/g' tools.conf"%addrs
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s tools config fail"%host
+        ori_cmd = R"sed -i 's/etcdAddr=127.0.0.1:2379/etcdAddr=%s/g' tools.conf"%etcd_addrs
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s tools config fail"%host
+        ori_cmd = "sudo mv tools.conf /etc/curve/"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"mv %s tools conf fail"%host
 
 def clean_env():
     host_list = config.client_list + config.mds_list + config.chunkserver_list 
