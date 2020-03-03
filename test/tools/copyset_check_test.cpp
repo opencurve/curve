@@ -23,15 +23,21 @@ DECLARE_uint32(chunkserverId);
 DECLARE_string(chunkserverAddr);
 DECLARE_uint32(serverId);
 DECLARE_string(serverIp);
+DECLARE_uint64(leaderOpInterval);
+DECLARE_uint64(opIntervalExceptLeader);
+DECLARE_string(opName);
+
+namespace curve {
+namespace tool {
 
 class CopysetCheckTest : public ::testing::Test {
  protected:
     CopysetCheckTest() {
-        statistics1 = curve::tool::CopysetStatistics(2, 0);
-        statistics2 = curve::tool::CopysetStatistics(6, 5);
+        statistics1 = CopysetStatistics(2, 0);
+        statistics2 = CopysetStatistics(6, 5);
     }
     void SetUp() {
-        core_ = std::make_shared<curve::tool::MockCopysetCheckCore>();
+        core_ = std::make_shared<MockCopysetCheckCore>();
         FLAGS_detail = true;
     }
     void TearDown() {
@@ -101,22 +107,22 @@ class CopysetCheckTest : public ::testing::Test {
     std::set<std::string> serviceExcepCs = {"127.0.0.1:9092"};
     std::set<std::string> emptySet;
 
-    curve::tool::CopysetStatistics statistics1;
-    curve::tool::CopysetStatistics statistics2;
-    std::shared_ptr<curve::tool::MockCopysetCheckCore> core_;
+    CopysetStatistics statistics1;
+    CopysetStatistics statistics2;
+    std::shared_ptr<MockCopysetCheckCore> core_;
 };
 
 TEST_F(CopysetCheckTest, SupportCommand) {
-    curve::tool::CopysetCheck copysetCheck(core_);
+    CopysetCheck copysetCheck(core_);
     ASSERT_TRUE(copysetCheck.SupportCommand("check-copyset"));
     ASSERT_TRUE(copysetCheck.SupportCommand("check-chunkserver"));
     ASSERT_TRUE(copysetCheck.SupportCommand("check-server"));
-    ASSERT_TRUE(copysetCheck.SupportCommand("check-cluster"));
+    ASSERT_TRUE(copysetCheck.SupportCommand("copysets-status"));
     ASSERT_FALSE(copysetCheck.SupportCommand("check-nothing"));
 }
 
 TEST_F(CopysetCheckTest, CheckOneCopyset) {
-    curve::tool::CopysetCheck copysetCheck(core_);
+    CopysetCheck copysetCheck(core_);
     butil::IOBuf iobuf;
     GetIoBufForTest(&iobuf, "4294967396", true);
     std::vector<std::string> peersInCopyset =
@@ -167,7 +173,7 @@ TEST_F(CopysetCheckTest, CheckOneCopyset) {
 }
 
 TEST_F(CopysetCheckTest, testCheckChunkServer) {
-    curve::tool::CopysetCheck copysetCheck(core_);
+    CopysetCheck copysetCheck(core_);
     EXPECT_CALL(*core_, Init(_))
         .Times(1)
         .WillOnce(Return(0));
@@ -227,7 +233,7 @@ TEST_F(CopysetCheckTest, testCheckChunkServer) {
 }
 
 TEST_F(CopysetCheckTest, testCheckServer) {
-    curve::tool::CopysetCheck copysetCheck(core_);
+    CopysetCheck copysetCheck(core_);
     std::vector<std::string> chunkservers =
             {"127.0.0.1:9091", "127.0.0.1:9092", "127.0.0.1:9093"};
     EXPECT_CALL(*core_, Init(_))
@@ -292,7 +298,7 @@ TEST_F(CopysetCheckTest, testCheckServer) {
 }
 
 TEST_F(CopysetCheckTest, testCheckCluster) {
-    curve::tool::CopysetCheck copysetCheck(core_);
+    CopysetCheck copysetCheck(core_);
     EXPECT_CALL(*core_, Init(_))
         .Times(1)
         .WillOnce(Return(0));
@@ -310,7 +316,7 @@ TEST_F(CopysetCheckTest, testCheckCluster) {
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(emptySet));
-    ASSERT_EQ(0, copysetCheck.RunCommand("check-cluster"));
+    ASSERT_EQ(0, copysetCheck.RunCommand(kCopysetsStatusCmd));
 
     // 不健康的情况
     EXPECT_CALL(*core_, CheckCopysetsInCluster())
@@ -325,5 +331,39 @@ TEST_F(CopysetCheckTest, testCheckCluster) {
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(serviceExcepCs));
-    ASSERT_EQ(-1, copysetCheck.RunCommand("check-cluster"));
+    ASSERT_EQ(-1, copysetCheck.RunCommand(kCopysetsStatusCmd));
 }
+
+TEST_F(CopysetCheckTest, testCheckOperator) {
+    CopysetCheck copysetCheck(core_);
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+
+    // 1、不支持的operator
+    FLAGS_opName = "no_operator";
+    ASSERT_EQ(-1, copysetCheck.RunCommand(kCheckOperatorCmd));
+    // 2、transfer leader的operator和total的
+    EXPECT_CALL(*core_, CheckOperator(_, FLAGS_leaderOpInterval))
+        .Times(2)
+        .WillOnce(Return(0))
+        .WillOnce(Return(-1));
+    FLAGS_opName = kTransferOpName;
+    ASSERT_EQ(0, copysetCheck.RunCommand(kCheckOperatorCmd));
+    FLAGS_opName = kTotalOpName;
+    ASSERT_EQ(-1, copysetCheck.RunCommand(kCheckOperatorCmd));
+    // 2、其他operator
+    EXPECT_CALL(*core_, CheckOperator(_, FLAGS_opIntervalExceptLeader))
+        .Times(3)
+        .WillOnce(Return(10))
+        .WillRepeatedly(Return(0));
+    FLAGS_opName = kChangeOpName;
+    ASSERT_EQ(0, copysetCheck.RunCommand(kCheckOperatorCmd));
+    FLAGS_opName = kAddOpName;
+    ASSERT_EQ(0, copysetCheck.RunCommand(kCheckOperatorCmd));
+    FLAGS_opName = kRemoveOpName;
+    ASSERT_EQ(0, copysetCheck.RunCommand(kCheckOperatorCmd));
+}
+
+}  // namespace tool
+}  // namespace curve

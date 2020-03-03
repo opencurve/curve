@@ -150,6 +150,15 @@ class CopysetCheckCore {
     virtual int CheckCopysetsInCluster();
 
     /**
+    * @brief 检查集群中的operator
+    * @param opName operator的名字
+    * @param checkTimeSec 检查时间
+    * @return 检查正常返回0，检查失败或存在operator返回-1
+    */
+    virtual int CheckOperator(const std::string& opName,
+                              uint64_t checkTimeSec);
+
+    /**
      *  @brief 计算不健康的copyset的比例，检查后调用
      *  @return 不健康的copyset的比例
      */
