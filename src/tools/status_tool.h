@@ -27,6 +27,8 @@
 #include "src/tools/version_tool.h"
 #include "src/tools/curve_tool.h"
 #include "src/tools/curve_tool_define.h"
+#include "src/tools/metric_client.h"
+#include "src/tools/metric_name.h"
 
 using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::DiskState;
@@ -53,11 +55,13 @@ class StatusTool : public CurveTool {
                std::shared_ptr<EtcdClient> etcdClient,
                std::shared_ptr<NameSpaceToolCore> nameSpaceToolCore,
                std::shared_ptr<CopysetCheckCore> copysetCheckCore,
-               std::shared_ptr<VersionTool> versionTool) :
+               std::shared_ptr<VersionTool> versionTool,
+               std::shared_ptr<MetricClient> metricClient) :
                   mdsClient_(mdsClient), etcdClient_(etcdClient),
                   nameSpaceToolCore_(nameSpaceToolCore),
                   copysetCheckCore_(copysetCheckCore),
                   versionTool_(versionTool),
+                  metricClient_(metricClient),
                   mdsInited_(false), etcdInited_(false) {}
     ~StatusTool() = default;
 
@@ -81,6 +85,11 @@ class StatusTool : public CurveTool {
      *  @return true / false
      */
     static bool SupportCommand(const std::string& command);
+
+    /**
+     *  @brief 判断集群是否健康
+     */
+    bool IsClusterHeatlhy();
 
  private:
     int Init(const std::string& command);
@@ -133,6 +142,8 @@ class StatusTool : public CurveTool {
     std::shared_ptr<CopysetCheckCore> copysetCheckCore_;
     // etcd client，用于调etcd API获取状态
     std::shared_ptr<EtcdClient> etcdClient_;
+    // 用于获取metric
+    std::shared_ptr<MetricClient> metricClient_;
     // version client，用于获取version信息
     std::shared_ptr<VersionTool> versionTool_;
     // mds是否初始化过

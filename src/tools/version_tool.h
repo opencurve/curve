@@ -39,14 +39,16 @@ class VersionTool {
      *  @param[out] version 版本
      *  @return 成功返回0，失败返回-1
      */
-    virtual int GetAndCheckMdsVersion(std::string* version);
+    virtual int GetAndCheckMdsVersion(std::string* version,
+                                      std::vector<std::string>* failedList);
 
     /**
      *  @brief 获取chunkserver的版本并检查版本一致性
      *  @param[out] version 版本
      *  @return 成功返回0，失败返回-1
      */
-    virtual int GetAndCheckChunkServerVersion(std::string* version);
+    virtual int GetAndCheckChunkServerVersion(std::string* version,
+                                       std::vector<std::string>* failedList);
 
     /**
      *  @brief 获取client的版本
@@ -63,6 +65,12 @@ class VersionTool {
      */
     void PrintVersionMap(const VersionMapType& versionMap);
 
+    /**
+     *  @brief 打印访问失败的地址
+     *  @param failedList 访问失败的地址列表
+     */
+    void PrintFailedList(const std::vector<std::string>& failedList);
+
  private:
     /**
      *  @brief 获取addrVec对应地址的version，并把version和地址对应关系存在map中
@@ -73,12 +81,6 @@ class VersionTool {
     void GetVersionMap(const std::vector<std::string>& addrVec,
                        VersionMapType* versionMap,
                        std::vector<std::string>* failedList);
-
-     /**
-     *  @brief 打印访问失败的地址
-     *  @param failedList 访问失败的地址列表
-     */
-    void PrintFailedList(const std::vector<std::string>& failedList);
 
  private:
     // 向mds发送RPC的client
