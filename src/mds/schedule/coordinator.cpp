@@ -94,8 +94,8 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
     // 将toplogy中copyset转换成schedule中copyset的形式
     CopySetInfo info;
     if (!topo_->CopySetFromTopoToSchedule(originInfo, &info)) {
-        LOG(ERROR) << "coordinator cannot convert copySet(logicalPoolId:"
-                   << originInfo.GetLogicalPoolId() << ", copySetId:"
+        LOG(ERROR) << "coordinator cannot convert copyset("
+                   << originInfo.GetLogicalPoolId() << ","
                    << originInfo.GetId()
                    << ") from heartbeat topo form to schedule form error";
         return ::curve::mds::topology::UNINTIALIZE_ID;
