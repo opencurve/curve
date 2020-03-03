@@ -11,8 +11,9 @@
 #include <memory>
 
 #include "src/part2/file_manager.h"
-#include "tests/part2/mock_filerecord_manager.h"
+#include "src/part2/file_entity.h"
 #include "tests/part2/mock_request_executor.h"
+#include "tests/part2/mock_metafile_manager.h"
 
 namespace nebd {
 namespace server {
@@ -30,6 +31,16 @@ using ::testing::ElementsAre;
 using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
 
+enum class RequestType {
+    EXTEND = 0,
+    GETINFO = 1,
+    DISCARD = 2,
+    AIOREAD = 3,
+    AIOWRITE = 4,
+    FLUSH = 5,
+    INVALIDCACHE = 6,
+};
+
 class FileManagerTest : public ::testing::Test {
  public:
     void SetUp() {
@@ -37,818 +48,464 @@ class FileManagerTest : public ::testing::Test {
         mockInstance_ = std::make_shared<NebdFileInstance>();
         executor_ = std::make_shared<MockRequestExecutor>();
         g_test_executor = executor_.get();
-        filerecordManager_ = std::make_shared<MockFileRecordManager>();
-        fileManager_ = std::make_shared<NebdFileManager>(filerecordManager_);
-        ON_CALL(*filerecordManager_, Exist(_))
-        .WillByDefault(Return(false));
+        metaFileManager_ = std::make_shared<MockMetaFileManager>();
+        fileManager_ = std::make_shared<NebdFileManager>(metaFileManager_);
     }
     void TearDown() {
         delete aioContext_;
     }
 
+    using TestTask = std::function<int(int)>;
+    // 构造初始环境
+    void InitEnv() {
+        NebdFileMeta meta;
+        meta.fd = 1;
+        meta.fileName = testFile1;
+        std::vector<NebdFileMeta> fileMetas;
+        fileMetas.emplace_back(meta);
+
+        EXPECT_CALL(*metaFileManager_, ListFileMeta(_))
+        .WillOnce(DoAll(SetArgPointee<0>(fileMetas),
+                        Return(0)));
+        EXPECT_CALL(*executor_, Reopen(_, _))
+        .WillOnce(Return(mockInstance_));
+        EXPECT_CALL(*metaFileManager_, UpdateFileMeta(_, _))
+        .WillOnce(Return(0));
+        ASSERT_EQ(fileManager_->Run(), 0);
+    }
+
+    void UnInitEnv() {
+        ASSERT_EQ(fileManager_->Fini(), 0);
+    }
+
+    void ExpectCallRequest(RequestType type, int ret) {
+        switch (type) {
+            case RequestType::EXTEND:
+                EXPECT_CALL(*executor_, Extend(_, _)).WillOnce(Return(ret));
+                break;
+            case RequestType::GETINFO:
+                EXPECT_CALL(*executor_, GetInfo(_, _)).WillOnce(Return(ret));
+                break;
+            case RequestType::DISCARD:
+                EXPECT_CALL(*executor_, Discard(_, _)).WillOnce(Return(ret));
+                break;
+            case RequestType::AIOREAD:
+                EXPECT_CALL(*executor_, AioRead(_, _)).WillOnce(Return(ret));
+                break;
+            case RequestType::AIOWRITE:
+                EXPECT_CALL(*executor_, AioWrite(_, _)).WillOnce(Return(ret));
+                break;
+            case RequestType::FLUSH:
+                EXPECT_CALL(*executor_, Flush(_, _)).WillOnce(Return(ret));
+                break;
+            case RequestType::INVALIDCACHE:
+                EXPECT_CALL(*executor_, InvalidCache(_)).WillOnce(Return(ret));
+                break;
+        }
+    }
+
+    void RequestSuccssTest(RequestType type, TestTask task) {
+        InitEnv();
+        NebdFileEntityPtr entity1 = fileManager_->GetFileEntity(1);
+        ASSERT_NE(nullptr, entity1);
+        ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::OPENED);
+
+        // 文件状态为OPENED
+        ExpectCallRequest(type, 0);
+        ASSERT_EQ(0, task(1));
+        ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::OPENED);
+
+        EXPECT_CALL(*executor_, Close(NotNull()))
+        .WillOnce(Return(0));
+        ASSERT_EQ(entity1->Close(false), 0);
+        ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::CLOSED);
+        // 文件状态为CLOSED
+        EXPECT_CALL(*executor_, Open(testFile1))
+        .WillOnce(Return(mockInstance_));
+        EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile1, _))
+        .WillOnce(Return(0));
+        ExpectCallRequest(type, 0);
+        ASSERT_EQ(0, task(1));
+        ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::OPENED);
+        UnInitEnv();
+    }
+
+    void RequestFailTest(RequestType type, TestTask task) {
+        InitEnv();
+        // 将文件close
+        NebdFileEntityPtr entity1 = fileManager_->GetFileEntity(1);
+        ASSERT_NE(nullptr, entity1);
+        EXPECT_CALL(*executor_, Close(NotNull()))
+        .WillOnce(Return(0));
+        ASSERT_EQ(entity1->Close(false), 0);
+        ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::CLOSED);
+
+        // open文件失败
+        EXPECT_CALL(*executor_, Open(testFile1))
+        .WillOnce(Return(nullptr));
+        EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile1, _))
+        .Times(0);
+        ASSERT_EQ(-1, task(1));
+        ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::CLOSED);
+
+        // 更新元数据文件失败
+        EXPECT_CALL(*executor_, Open(testFile1))
+        .WillOnce(Return(mockInstance_));
+        EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile1, _))
+        .WillOnce(Return(-1));
+        EXPECT_CALL(*executor_, Close(NotNull()))
+        .WillOnce(Return(0));
+        ASSERT_EQ(-1, task(1));
+        ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::CLOSED);
+
+        // 执行处理函数失败
+        EXPECT_CALL(*executor_, Open(testFile1))
+        .WillOnce(Return(mockInstance_));
+        EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile1, _))
+        .WillOnce(Return(0));
+        ExpectCallRequest(type, -1);
+        ASSERT_EQ(-1, task(1));
+        ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::OPENED);
+
+        // 将文件状态置为DESTROYED
+        EXPECT_CALL(*executor_, Close(NotNull()))
+        .WillOnce(Return(0));
+        EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile1))
+        .WillOnce(Return(0));
+        ASSERT_EQ(entity1->Close(true), 0);
+        ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::DESTROYED);
+        EXPECT_CALL(*executor_, Open(testFile1))
+        .Times(0);
+        ASSERT_EQ(-1, task(1));
+
+        // 直接将文件删除
+        ASSERT_EQ(0, fileManager_->Close(1, true));
+        ASSERT_EQ(nullptr, fileManager_->GetFileEntity(1));
+        ASSERT_EQ(-1, task(1));
+        UnInitEnv();
+    }
+
  protected:
     std::shared_ptr<NebdFileManager> fileManager_;
-    std::shared_ptr<MockFileRecordManager> filerecordManager_;
+    std::shared_ptr<MockMetaFileManager> metaFileManager_;
     std::shared_ptr<MockRequestExecutor> executor_;
     std::shared_ptr<NebdFileInstance> mockInstance_;
     NebdServerAioContext* aioContext_;
 };
 
-// TODO(yyk): 后续重构单测，消除重复代码
+TEST_F(FileManagerTest, RunTest) {
+    NebdFileMeta meta;
+    meta.fd = 1;
+    meta.fileName = testFile1;
+    std::vector<NebdFileMeta> fileMetas;
+    fileMetas.emplace_back(meta);
+
+    EXPECT_CALL(*metaFileManager_, ListFileMeta(_))
+    .WillOnce(DoAll(SetArgPointee<0>(fileMetas),
+                    Return(0)));
+    EXPECT_CALL(*executor_, Reopen(_, _))
+    .WillOnce(Return(mockInstance_));
+    EXPECT_CALL(*metaFileManager_, UpdateFileMeta(_, _))
+    .WillOnce(Return(0));
+    ASSERT_EQ(fileManager_->Run(), 0);
+    // 重复run返回失败
+    ASSERT_EQ(fileManager_->Run(), -1);
+
+    // 校验结果
+    FileEntityMap entityMap = fileManager_->GetFileEntityMap();
+    ASSERT_EQ(1, entityMap.size());
+    ASSERT_NE(nullptr, entityMap[meta.fd]);
+}
+
+TEST_F(FileManagerTest, RunFailTest) {
+    NebdFileMeta meta;
+    meta.fd = 1;
+    meta.fileName = testFile1;
+    std::vector<NebdFileMeta> fileMetas;
+    fileMetas.emplace_back(meta);
+
+    // list file meta失败
+    EXPECT_CALL(*metaFileManager_, ListFileMeta(_))
+    .WillOnce(Return(-1));
+    ASSERT_EQ(fileManager_->Run(), -1);
+
+    // reopen失败不影响Run成功
+    EXPECT_CALL(*metaFileManager_, ListFileMeta(_))
+    .WillOnce(DoAll(SetArgPointee<0>(fileMetas),
+                    Return(0)));
+    EXPECT_CALL(*executor_, Reopen(_, _))
+    .WillOnce(Return(nullptr));
+    ASSERT_EQ(fileManager_->Run(), 0);
+    ASSERT_EQ(fileManager_->Fini(), 0);
+
+    // 更新metafile失败不影响Run成功
+    EXPECT_CALL(*metaFileManager_, ListFileMeta(_))
+    .WillOnce(DoAll(SetArgPointee<0>(fileMetas),
+                    Return(0)));
+    EXPECT_CALL(*executor_, Reopen(_, _))
+    .WillOnce(Return(mockInstance_));
+    EXPECT_CALL(*metaFileManager_, UpdateFileMeta(_, _))
+    .WillOnce(Return(-1));
+    EXPECT_CALL(*executor_, Close(NotNull()))
+    .Times(1);
+    ASSERT_EQ(fileManager_->Run(), 0);
+}
 
 TEST_F(FileManagerTest, OpenTest) {
+    InitEnv();
     // open一个不存在的文件
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillOnce(Return(false));
-    EXPECT_CALL(*executor_, Open(testFile1))
+    EXPECT_CALL(*executor_, Open(testFile2))
     .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(true));
-    int fd = fileManager_->Open(testFile1);
-    ASSERT_EQ(fd, 1);
+    EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile2, _))
+    .WillOnce(Return(0));
+    int fd = fileManager_->Open(testFile2);
+    ASSERT_EQ(fd, 2);
 
     // 重复open
-    NebdFileRecord fileRecord;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.fd = 1;
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord),
-                    Return(true)));
-    EXPECT_CALL(*executor_, Open(_))
-    .Times(0);
-    fd = fileManager_->Open(testFile1);
-    ASSERT_EQ(fd, 1);
-
-    // open 已经close的文件
-    fileRecord.status = NebdFileStatus::CLOSED;
-    fileRecord.fd = 1;
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord),
-                    Return(true)));
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(true));
-    fd = fileManager_->Open(testFile1);
+    fd = fileManager_->Open(testFile2);
     ASSERT_EQ(fd, 2);
+
+    NebdFileEntityPtr entity2 = fileManager_->GetFileEntity(2);
+    ASSERT_NE(entity2, nullptr);
+    ASSERT_EQ(entity2->GetFileStatus(), NebdFileStatus::OPENED);
+
+    EXPECT_CALL(*executor_, Close(_))
+    .WillOnce(Return(0));
+    ASSERT_EQ(entity2->Close(false), 0);
+    ASSERT_EQ(entity2->GetFileStatus(), NebdFileStatus::CLOSED);
+    // open 已经close的文件, fd不变
+    EXPECT_CALL(*executor_, Open(testFile2))
+    .WillOnce(Return(mockInstance_));
+    EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile2, _))
+    .WillOnce(Return(0));
+    fd = fileManager_->Open(testFile2);
+    ASSERT_EQ(fd, 2);
+    ASSERT_EQ(entity2->GetFileStatus(), NebdFileStatus::OPENED);
 }
 
 TEST_F(FileManagerTest, OpenFailTest) {
+    InitEnv();
     // 调用后端open接口时出错
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillOnce(Return(false));
-    EXPECT_CALL(*executor_, Open(testFile1))
+    EXPECT_CALL(*executor_, Open(testFile2))
     .WillOnce(Return(nullptr));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
+    EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile2, _))
     .Times(0);
-    int fd = fileManager_->Open(testFile1);
+    int fd = fileManager_->Open(testFile2);
     ASSERT_EQ(fd, -1);
 
     // 持久化元数据信息失败
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillOnce(Return(false));
-    EXPECT_CALL(*executor_, Open(testFile1))
+    EXPECT_CALL(*executor_, Open(testFile2))
     .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(false));
-    EXPECT_CALL(*executor_, Close(mockInstance_.get()))
-    .WillOnce(Return(0));
-    fd = fileManager_->Open(testFile1);
+    EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile2, _))
+    .WillOnce(Return(-1));
+    EXPECT_CALL(*executor_, Close(_))
+    .Times(1);
+    fd = fileManager_->Open(testFile2);
     ASSERT_EQ(fd, -1);
 
     // Open一个非法的filename
-    EXPECT_CALL(*filerecordManager_, GetRecord(unknownFile, _))
-    .WillOnce(Return(false));
     EXPECT_CALL(*executor_, Open(_))
-    .Times(0);
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
     .Times(0);
     fd = fileManager_->Open(unknownFile);
     ASSERT_EQ(fd, -1);
 }
 
-TEST_F(FileManagerTest, LoadTest) {
-    // 初始化从metafile返回的元数据
-    FileRecordMap fileRecords;
-    NebdFileRecord record1;
-    record1.fileName = testFile1;
-    record1.fd = 1;
-    record1.fileInstance = mockInstance_;
-    fileRecords.emplace(1, record1);
-
-    EXPECT_CALL(*filerecordManager_, Load())
-    .WillOnce(Return(0));
-    EXPECT_CALL(*filerecordManager_, ListRecords())
-    .WillOnce(Return(fileRecords));
-    EXPECT_CALL(*executor_, Reopen(testFile1, _))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(true));
-    ASSERT_EQ(0, fileManager_->Load());
-}
-
-TEST_F(FileManagerTest, LoadFailTest) {
-    // 初始化从metafile返回的元数据
-    FileRecordMap fileRecords;
-    NebdFileRecord record1;
-    NebdFileRecord record2;
-    NebdFileRecord record3;
-    record1.fileName = testFile1;
-    record1.fd = 1;
-    record1.fileInstance = mockInstance_;
-    record2.fileName = testFile2;
-    record2.fd = 2;
-    record2.fileInstance = mockInstance_;
-    record3.fileName = unknownFile;
-    record3.fd = 3;
-    record3.fileInstance = mockInstance_;
-    fileRecords.emplace(1, record1);
-    fileRecords.emplace(2, record2);
-    fileRecords.emplace(3, record3);
-
-    // load 失败
-    EXPECT_CALL(*filerecordManager_, Load())
-    .WillOnce(Return(-1));
-    ASSERT_EQ(-1, fileManager_->Load());
-
-    // 其他失败都会被忽略，不会导致load失败
-    EXPECT_CALL(*filerecordManager_, Load())
-    .WillOnce(Return(0));
-    EXPECT_CALL(*filerecordManager_, ListRecords())
-    .WillOnce(Return(fileRecords));
-    // uodate record 失败，不会导致load失败
-    EXPECT_CALL(*executor_, Reopen(testFile1, _))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(false));
-    // reopen失败，不会导致load失败
-    EXPECT_CALL(*executor_, Reopen(testFile2, _))
-    .WillOnce(Return(nullptr));
-    // 无法识别的文件不会被打开，但不会导致load失败
-    EXPECT_CALL(*executor_, Reopen(unknownFile, _))
-    .Times(0);
-    ASSERT_EQ(0, fileManager_->Load());
-}
-
 TEST_F(FileManagerTest, CloseTest) {
+    InitEnv();
     // 指定的fd不存在,直接返回成功
-    EXPECT_CALL(*filerecordManager_, GetRecord(3, _))
-    .WillOnce(Return(false));
-    ASSERT_EQ(0, fileManager_->Close(3, true));
+    ASSERT_EQ(nullptr, fileManager_->GetFileEntity(2));
+    ASSERT_EQ(0, fileManager_->Close(2, true));
 
-    // fd存在,文件状态为opened,removerecord为true
-    NebdFileRecord fileRecord;
-    fileRecord.fd = 1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.executor = executor_.get();
-    fileRecord.fileInstance = mockInstance_;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .Times(2)
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
+    NebdFileEntityPtr entity1 = fileManager_->GetFileEntity(1);
+    ASSERT_NE(nullptr, entity1);
+    ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::OPENED);
+    // 文件存在，且文件状态为OPENED，removeRecord为false
     EXPECT_CALL(*executor_, Close(NotNull()))
     .WillOnce(Return(0));
-    EXPECT_CALL(*filerecordManager_, UpdateFileStatus(1, _))
-    .WillOnce(Return(true));
-    EXPECT_CALL(*filerecordManager_, RemoveRecord(1))
-    .WillOnce(Return(true));
-    ASSERT_EQ(0, fileManager_->Close(1, true));
-
-    // fd存在,文件状态为opened,removerecord为false
-    fileRecord.fd = 1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .Times(2)
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*executor_, Close(NotNull()))
-    .WillOnce(Return(0));
-    EXPECT_CALL(*filerecordManager_, UpdateFileStatus(1, _))
-    .WillOnce(Return(true));
-    EXPECT_CALL(*filerecordManager_, RemoveRecord(1))
+    EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile1))
     .Times(0);
     ASSERT_EQ(0, fileManager_->Close(1, false));
+    ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::CLOSED);
 
-    // 文件状态为closed
-    fileRecord.fd = 1;
-    fileRecord.status = NebdFileStatus::CLOSED;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .Times(2)
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
+    // 文件存在，文件状态为CLOSED，removeRecord为false
     EXPECT_CALL(*executor_, Close(NotNull()))
     .Times(0);
-    EXPECT_CALL(*filerecordManager_, UpdateFileStatus(_, _))
+    EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile1))
     .Times(0);
-    EXPECT_CALL(*filerecordManager_, RemoveRecord(1))
-    .WillOnce(Return(true));
+    ASSERT_EQ(0, fileManager_->Close(1, false));
+    ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::CLOSED);
+
+    // 文件存在，文件状态为CLOSED，removeRecord为true
+    EXPECT_CALL(*executor_, Close(NotNull()))
+    .Times(0);
+    EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile1))
+    .WillOnce(Return(0));
     ASSERT_EQ(0, fileManager_->Close(1, true));
+    ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::DESTROYED);
+    ASSERT_EQ(nullptr, fileManager_->GetFileEntity(1));
+
+    EXPECT_CALL(*executor_, Open(testFile2))
+    .WillOnce(Return(mockInstance_));
+    EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile2, _))
+    .WillOnce(Return(0));
+    int fd = fileManager_->Open(testFile2);
+    ASSERT_EQ(fd, 2);
+    NebdFileEntityPtr entity2 = fileManager_->GetFileEntity(2);
+    ASSERT_NE(entity2, nullptr);
+    ASSERT_EQ(entity2->GetFileStatus(), NebdFileStatus::OPENED);
+    // 文件存在，文件状态为OPENED，removeRecord为true
+    EXPECT_CALL(*executor_, Close(NotNull()))
+    .WillOnce(Return(0));
+    EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile2))
+    .WillOnce(Return(0));
+    ASSERT_EQ(0, fileManager_->Close(fd, true));
+    ASSERT_EQ(nullptr, fileManager_->GetFileEntity(1));
 }
 
 TEST_F(FileManagerTest, CloseFailTest) {
-    NebdFileRecord fileRecord;
-    fileRecord.fd = 1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.executor = executor_.get();
-    fileRecord.fileInstance = mockInstance_;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
+    InitEnv();
+    NebdFileEntityPtr entity1 = fileManager_->GetFileEntity(1);
+    ASSERT_NE(nullptr, entity1);
+    ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::OPENED);
 
     // executor close 失败
     EXPECT_CALL(*executor_, Close(NotNull()))
     .WillOnce(Return(-1));
+    EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile1))
+    .Times(0);
     ASSERT_EQ(-1, fileManager_->Close(1, true));
+    ASSERT_NE(nullptr, fileManager_->GetFileEntity(1));
+    ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::OPENED);
 
-    // remove record 失败
+    // remove file meta 失败
     EXPECT_CALL(*executor_, Close(NotNull()))
     .WillOnce(Return(0));
-    EXPECT_CALL(*filerecordManager_, UpdateFileStatus(1, _))
-    .WillOnce(Return(true));
-    EXPECT_CALL(*filerecordManager_, RemoveRecord(1))
-    .WillOnce(Return(false));
+    EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile1))
+    .WillOnce(Return(-1));
     ASSERT_EQ(-1, fileManager_->Close(1, true));
+    ASSERT_NE(nullptr, fileManager_->GetFileEntity(1));
+    ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::CLOSED);
 }
 
 TEST_F(FileManagerTest, ExtendTest) {
-    // 文件是opened状态
-    NebdFileRecord fileRecord;
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.executor = executor_.get();
-    fileRecord.fileInstance = mockInstance_;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*executor_, Extend(NotNull(), 4096))
-    .WillOnce(Return(0));
-    ASSERT_EQ(0, fileManager_->Extend(1, 4096));
-
-    // 文件状态为closed，会重新open文件
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::CLOSED;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    // 重新open该文件，fd不变
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(true));
-    EXPECT_CALL(*executor_, Extend(NotNull(), 4096))
-    .WillOnce(Return(0));
-    ASSERT_EQ(0, fileManager_->Extend(1, 4096));
-}
-
-TEST_F(FileManagerTest, ExtendFaileTest) {
-    // 文件是opened状态
-    NebdFileRecord fileRecord;
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.executor = executor_.get();
-    fileRecord.fileInstance = mockInstance_;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*executor_, Extend(NotNull(), 4096))
-    .WillOnce(Return(-1));
-    ASSERT_EQ(-1, fileManager_->Extend(1, 4096));
-
-    // 文件状态为closed，会重新open文件
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::CLOSED;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    // 重新open文件时，open失败
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(nullptr));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .Times(0);
-    EXPECT_CALL(*executor_, Extend(NotNull(), 4096))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->Extend(1, 4096));
-    // 重新open文件时，更新meta file失败
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(false));
-    EXPECT_CALL(*executor_, Extend(NotNull(), 4096))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->Extend(1, 4096));
+    auto task = [&](int fd)->int {
+        return fileManager_->Extend(fd, 4096);
+    };
+    RequestSuccssTest(RequestType::EXTEND, task);
+    RequestFailTest(RequestType::EXTEND, task);
 }
 
 TEST_F(FileManagerTest, GetInfoTest) {
     NebdFileInfo fileInfo;
-    // 文件是opened状态
-    NebdFileRecord fileRecord;
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.executor = executor_.get();
-    fileRecord.fileInstance = mockInstance_;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*executor_, GetInfo(NotNull(), &fileInfo))
-    .WillOnce(Return(0));
-    ASSERT_EQ(0, fileManager_->GetInfo(1, &fileInfo));
-
-    // 文件状态为closed，会重新open文件
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::CLOSED;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    // 重新open该文件，fd不变
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(true));
-    EXPECT_CALL(*executor_, GetInfo(NotNull(), &fileInfo))
-    .WillOnce(Return(0));
-    ASSERT_EQ(0, fileManager_->GetInfo(1, &fileInfo));
-}
-
-TEST_F(FileManagerTest, GetInfoFaileTest) {
-    NebdFileInfo fileInfo;
-    // 文件是opened状态
-    NebdFileRecord fileRecord;
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.executor = executor_.get();
-    fileRecord.fileInstance = mockInstance_;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*executor_, GetInfo(NotNull(), &fileInfo))
-    .WillOnce(Return(-1));
-    ASSERT_EQ(-1, fileManager_->GetInfo(1, &fileInfo));
-
-    // 文件状态为closed，会重新open文件
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::CLOSED;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    // 重新open文件时，open失败
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(nullptr));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .Times(0);
-    EXPECT_CALL(*executor_, GetInfo(NotNull(), _))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->GetInfo(1, &fileInfo));
-    // 重新open文件时，更新meta file失败
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(false));
-    EXPECT_CALL(*executor_, GetInfo(NotNull(), _))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->GetInfo(1, &fileInfo));
+    auto task = [&](int fd)->int {
+        return fileManager_->GetInfo(fd, &fileInfo);
+    };
+    RequestSuccssTest(RequestType::GETINFO, task);
+    RequestFailTest(RequestType::GETINFO, task);
 }
 
 TEST_F(FileManagerTest, InvalidCacheTest) {
-    // 文件是opened状态
-    NebdFileRecord fileRecord;
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.executor = executor_.get();
-    fileRecord.fileInstance = mockInstance_;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*executor_, InvalidCache(NotNull()))
-    .WillOnce(Return(0));
-    ASSERT_EQ(0, fileManager_->InvalidCache(1));
-
-    // 文件状态为closed，会重新open文件
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::CLOSED;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    // 重新open该文件，fd不变
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(true));
-    EXPECT_CALL(*executor_, InvalidCache(NotNull()))
-    .WillOnce(Return(0));
-    ASSERT_EQ(0, fileManager_->InvalidCache(1));
-}
-
-TEST_F(FileManagerTest, InvalidCacheFaileTest) {
-    // 文件是opened状态
-    NebdFileRecord fileRecord;
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.executor = executor_.get();
-    fileRecord.fileInstance = mockInstance_;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*executor_, InvalidCache(NotNull()))
-    .WillOnce(Return(-1));
-    ASSERT_EQ(-1, fileManager_->InvalidCache(1));
-
-    // 文件状态为closed，会重新open文件
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::CLOSED;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    // 重新open文件时，open失败
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(nullptr));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .Times(0);
-    EXPECT_CALL(*executor_, InvalidCache(NotNull()))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->InvalidCache(1));
-    // 重新open文件时，更新meta file失败
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(false));
-    EXPECT_CALL(*executor_, InvalidCache(NotNull()))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->InvalidCache(1));
+    auto task = [&](int fd)->int {
+        return fileManager_->InvalidCache(fd);
+    };
+    RequestSuccssTest(RequestType::INVALIDCACHE, task);
+    RequestFailTest(RequestType::INVALIDCACHE, task);
 }
 
 TEST_F(FileManagerTest, AioReadTest) {
-    // 文件是opened状态
-    NebdFileRecord fileRecord;
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.executor = executor_.get();
-    fileRecord.fileInstance = mockInstance_;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*executor_, AioRead(NotNull(), aioContext_))
-    .WillOnce(Return(0));
-    ASSERT_EQ(0, fileManager_->AioRead(1, aioContext_));
-
-    // 文件状态为closed，会重新open文件
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::CLOSED;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    // 重新open该文件，fd不变
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(true));
-    EXPECT_CALL(*executor_, AioRead(NotNull(), aioContext_))
-    .WillOnce(Return(0));
-    ASSERT_EQ(0, fileManager_->AioRead(1, aioContext_));
-}
-
-TEST_F(FileManagerTest, AioReadFaileTest) {
-    // 文件不存在
-    EXPECT_CALL(*filerecordManager_, GetRecord(10, _))
-    .WillOnce(Return(false));
-    EXPECT_CALL(*executor_, AioRead(_, _))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->AioRead(10, aioContext_));
-
-    // 文件是opened状态
-    NebdFileRecord fileRecord;
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.executor = executor_.get();
-    fileRecord.fileInstance = mockInstance_;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillOnce(DoAll(SetArgPointee<1>(fileRecord), Return(true)))
-    .WillOnce(Return(false));
-    ASSERT_EQ(-1, fileManager_->AioRead(1, aioContext_));
-
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*executor_, AioRead(NotNull(), aioContext_))
-    .WillOnce(Return(-1));
-    ASSERT_EQ(-1, fileManager_->AioRead(1, aioContext_));
-
-    // 文件状态为closed，会重新open文件
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::CLOSED;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    // 重新open文件时，open失败
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(nullptr));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .Times(0);
-    EXPECT_CALL(*executor_, AioRead(NotNull(), aioContext_))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->AioRead(1, aioContext_));
-    // 重新open文件时，更新meta file失败
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(false));
-    EXPECT_CALL(*executor_, AioRead(NotNull(), aioContext_))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->AioRead(1, aioContext_));
+    NebdServerAioContext aioContext;
+    auto task = [&](int fd)->int {
+        int ret = fileManager_->AioRead(fd, &aioContext);
+        if (ret < 0) {
+            if (aioContext.done != nullptr) {
+                --ret;
+                brpc::ClosureGuard doneGuard(aioContext.done);
+                aioContext.done = nullptr;
+            }
+        } else {
+            if (aioContext.done == nullptr) {
+                --ret;
+            } else {
+                brpc::ClosureGuard doneGuard(aioContext.done);
+                aioContext.done = nullptr;
+            }
+        }
+        return ret;
+    };
+    RequestSuccssTest(RequestType::AIOREAD, task);
+    RequestFailTest(RequestType::AIOREAD, task);
 }
 
 TEST_F(FileManagerTest, AioWriteTest) {
-    // 文件是opened状态
-    NebdFileRecord fileRecord;
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.executor = executor_.get();
-    fileRecord.fileInstance = mockInstance_;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*executor_, AioWrite(NotNull(), aioContext_))
-    .WillOnce(Return(0));
-    ASSERT_EQ(0, fileManager_->AioWrite(1, aioContext_));
-
-    // 文件状态为closed，会重新open文件
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::CLOSED;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    // 重新open该文件，fd不变
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(true));
-    EXPECT_CALL(*executor_, AioWrite(NotNull(), aioContext_))
-    .WillOnce(Return(0));
-    ASSERT_EQ(0, fileManager_->AioWrite(1, aioContext_));
-}
-
-TEST_F(FileManagerTest, AioWriteFaileTest) {
-    // 文件不存在
-    EXPECT_CALL(*filerecordManager_, GetRecord(10, _))
-    .WillOnce(Return(false));
-    EXPECT_CALL(*executor_, AioWrite(_, _))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->AioWrite(10, aioContext_));
-
-    // 文件是opened状态
-    NebdFileRecord fileRecord;
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.executor = executor_.get();
-    fileRecord.fileInstance = mockInstance_;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*executor_, AioWrite(NotNull(), aioContext_))
-    .WillOnce(Return(-1));
-    ASSERT_EQ(-1, fileManager_->AioWrite(1, aioContext_));
-
-    // 文件状态为closed，会重新open文件
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::CLOSED;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    // 重新open文件时，open失败
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(nullptr));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .Times(0);
-    EXPECT_CALL(*executor_, AioWrite(NotNull(), aioContext_))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->AioWrite(1, aioContext_));
-    // 重新open文件时，更新meta file失败
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(false));
-    EXPECT_CALL(*executor_, AioWrite(NotNull(), aioContext_))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->AioWrite(1, aioContext_));
+    NebdServerAioContext aioContext;
+    auto task = [&](int fd)->int {
+        int ret = fileManager_->AioWrite(fd, &aioContext);
+        if (ret < 0) {
+            if (aioContext.done != nullptr) {
+                --ret;
+                brpc::ClosureGuard doneGuard(aioContext.done);
+                aioContext.done = nullptr;
+            }
+        } else {
+            if (aioContext.done == nullptr) {
+                --ret;
+            } else {
+                brpc::ClosureGuard doneGuard(aioContext.done);
+                aioContext.done = nullptr;
+            }
+        }
+        return ret;
+    };
+    RequestSuccssTest(RequestType::AIOWRITE, task);
+    RequestFailTest(RequestType::AIOWRITE, task);
 }
 
 TEST_F(FileManagerTest, DiscardTest) {
-    // 文件是opened状态
-    NebdFileRecord fileRecord;
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.executor = executor_.get();
-    fileRecord.fileInstance = mockInstance_;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*executor_, Discard(NotNull(), aioContext_))
-    .WillOnce(Return(0));
-    ASSERT_EQ(0, fileManager_->Discard(1, aioContext_));
-
-    // 文件状态为closed，会重新open文件
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::CLOSED;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    // 重新open该文件，fd不变
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(true));
-    EXPECT_CALL(*executor_, Discard(NotNull(), aioContext_))
-    .WillOnce(Return(0));
-    ASSERT_EQ(0, fileManager_->Discard(1, aioContext_));
-}
-
-TEST_F(FileManagerTest, DiscardFaileTest) {
-    // 文件不存在
-    EXPECT_CALL(*filerecordManager_, GetRecord(10, _))
-    .WillOnce(Return(false));
-    EXPECT_CALL(*executor_, Discard(_, _))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->Discard(10, aioContext_));
-
-    // 文件是opened状态
-    NebdFileRecord fileRecord;
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.executor = executor_.get();
-    fileRecord.fileInstance = mockInstance_;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*executor_, Discard(NotNull(), aioContext_))
-    .WillOnce(Return(-1));
-    ASSERT_EQ(-1, fileManager_->Discard(1, aioContext_));
-
-    // 文件状态为closed，会重新open文件
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::CLOSED;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    // 重新open文件时，open失败
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(nullptr));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .Times(0);
-    EXPECT_CALL(*executor_, Discard(NotNull(), aioContext_))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->Discard(1, aioContext_));
-    // 重新open文件时，更新meta file失败
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(false));
-    EXPECT_CALL(*executor_, Discard(NotNull(), aioContext_))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->Discard(1, aioContext_));
+    NebdServerAioContext aioContext;
+    auto task = [&](int fd)->int {
+        int ret = fileManager_->Discard(fd, &aioContext);
+        if (ret < 0) {
+            if (aioContext.done != nullptr) {
+                --ret;
+                brpc::ClosureGuard doneGuard(aioContext.done);
+                aioContext.done = nullptr;
+            }
+        } else {
+            if (aioContext.done == nullptr) {
+                --ret;
+            } else {
+                brpc::ClosureGuard doneGuard(aioContext.done);
+                aioContext.done = nullptr;
+            }
+        }
+        return ret;
+    };
+    RequestSuccssTest(RequestType::DISCARD, task);
+    RequestFailTest(RequestType::DISCARD, task);
 }
 
 TEST_F(FileManagerTest, FlushTest) {
-    // 文件是opened状态
-    NebdFileRecord fileRecord;
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.executor = executor_.get();
-    fileRecord.fileInstance = mockInstance_;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*executor_, Flush(NotNull(), aioContext_))
-    .WillOnce(Return(0));
-    ASSERT_EQ(0, fileManager_->Flush(1, aioContext_));
-
-    // 文件状态为closed，会重新open文件
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::CLOSED;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    // 重新open该文件，fd不变
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(true));
-    EXPECT_CALL(*executor_, Flush(NotNull(), aioContext_))
-    .WillOnce(Return(0));
-    ASSERT_EQ(0, fileManager_->Flush(1, aioContext_));
-}
-
-TEST_F(FileManagerTest, FlushFaileTest) {
-    // 文件不存在
-    EXPECT_CALL(*filerecordManager_, GetRecord(10, _))
-    .WillOnce(Return(false));
-    EXPECT_CALL(*executor_, Flush(_, _))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->Flush(10, aioContext_));
-
-    // 文件是opened状态
-    NebdFileRecord fileRecord;
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.executor = executor_.get();
-    fileRecord.fileInstance = mockInstance_;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*executor_, Flush(NotNull(), aioContext_))
-    .WillOnce(Return(-1));
-    ASSERT_EQ(-1, fileManager_->Flush(1, aioContext_));
-
-    // 文件状态为closed，会重新open文件
-    fileRecord.fd = 1;
-    fileRecord.fileName = testFile1;
-    fileRecord.status = NebdFileStatus::CLOSED;
-    EXPECT_CALL(*filerecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    EXPECT_CALL(*filerecordManager_, GetRecord(testFile1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(fileRecord),
-                          Return(true)));
-    // 重新open文件时，open失败
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(nullptr));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .Times(0);
-    EXPECT_CALL(*executor_, Flush(NotNull(), aioContext_))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->Flush(1, aioContext_));
-    // 重新open文件时，更新meta file失败
-    EXPECT_CALL(*executor_, Open(testFile1))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*filerecordManager_, UpdateRecord(_))
-    .WillOnce(Return(false));
-    EXPECT_CALL(*executor_, Flush(NotNull(), aioContext_))
-    .Times(0);
-    ASSERT_EQ(-1, fileManager_->Flush(1, aioContext_));
+    NebdServerAioContext aioContext;
+    auto task = [&](int fd)->int {
+        int ret = fileManager_->Flush(fd, &aioContext);
+        if (ret < 0) {
+            if (aioContext.done != nullptr) {
+                --ret;
+                brpc::ClosureGuard doneGuard(aioContext.done);
+                aioContext.done = nullptr;
+            }
+        } else {
+            if (aioContext.done == nullptr) {
+                --ret;
+            } else {
+                brpc::ClosureGuard doneGuard(aioContext.done);
+                aioContext.done = nullptr;
+            }
+        }
+        return ret;
+    };
+    RequestSuccssTest(RequestType::FLUSH, task);
+    RequestFailTest(RequestType::FLUSH, task);
 }
 
 }  // namespace server

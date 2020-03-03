@@ -9,6 +9,7 @@ cc_library(
     deps = [
         "//external:glog",
         "//external:butil",
+        "//external:bthread",
     ],
 )
 

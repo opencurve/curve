@@ -51,7 +51,7 @@ class HeartbeatManager {
     // 心跳检测线程的函数执行体
     void CheckTimeoutFunc();
     // 判断文件是否需要close
-    bool CheckNeedClosed(int fd);
+    bool CheckNeedClosed(NebdFileEntityPtr entity);
 
  private:
     // 当前heartbeatmanager的运行状态，true表示正在运行，false标为未运行

@@ -17,7 +17,7 @@ CephRequestExecutor::Open(const std::string& filename) {
 
 std::shared_ptr<NebdFileInstance>
 CephRequestExecutor::Reopen(const std::string& filename,
-                            AdditionType addtion) {
+                            const ExtendAttribute& xattr) {
     return nullptr;
 }
 

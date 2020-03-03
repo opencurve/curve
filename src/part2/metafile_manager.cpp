@@ -6,30 +6,84 @@
  */
 
 #include <fstream>
+#include <utility>
 
 #include "src/part2/metafile_manager.h"
-#include "src/part2/util.h"
 #include "src/part2/request_executor.h"
 
 namespace nebd {
 namespace server {
 
-NebdMetaFileManager::NebdMetaFileManager(
-    const std::string& metaFilePath,
-    std::shared_ptr<common::PosixWrapper> wrapper,
-    std::shared_ptr<NebdMetaFileParser> parser)
-    : metaFilePath_(metaFilePath)
-    , wrapper_(wrapper)
-    , parser_(parser) {}
+NebdMetaFileManager::NebdMetaFileManager()
+    : metaFilePath_("")
+    , wrapper_(nullptr)
+    , parser_(nullptr) {}
 
 NebdMetaFileManager::~NebdMetaFileManager() {}
 
-int NebdMetaFileManager::UpdateMetaFile(const FileRecordMap& fileRecords) {
-    Json::Value root = parser_->ConvertFileRecordsToJson(fileRecords);
+int NebdMetaFileManager::Init(const NebdMetaFileManagerOption& option) {
+    metaFilePath_ = option.metaFilePath;
+    wrapper_ = option.wrapper;
+    parser_ = option.parser;
+    int ret = LoadFileMeta();
+    if (ret < 0) {
+        LOG(ERROR) << "Load file meta from " << metaFilePath_ << " failed.";
+        return -1;
+    }
+    LOG(INFO) << "Init metafilemanager success.";
+    return 0;
+}
 
+int NebdMetaFileManager::UpdateFileMeta(const std::string& fileName,
+                                        const NebdFileMeta& fileMeta) {
+    WriteLockGuard writeLock(rwLock_);
+    bool needUpdate = metaCache_.find(fileName) == metaCache_.end()
+                      || fileMeta != metaCache_[fileName];
+    // 如果元数据信息没发生变更，则不需要写文件
+    if (!needUpdate) {
+        return 0;
+    }
+
+    FileMetaMap tempMap = metaCache_;
+    tempMap[fileName] = fileMeta;
+
+    int res = UpdateMetaFile(tempMap);
+    if (res != 0) {
+        LOG(ERROR) << "Update file meta failed, fileName: " << fileName;
+        return -1;
+    }
+    metaCache_ = std::move(tempMap);
+    LOG(INFO) << "Update file meta success. "
+              << "file meta: " << fileMeta;
+    return 0;
+}
+
+int NebdMetaFileManager::RemoveFileMeta(const std::string& fileName) {
+    WriteLockGuard writeLock(rwLock_);
+    bool isExist = metaCache_.find(fileName) != metaCache_.end();
+    if (!isExist) {
+        return 0;
+    }
+
+    FileMetaMap tempMap = metaCache_;
+    tempMap.erase(fileName);
+
+    int res = UpdateMetaFile(tempMap);
+    if (res != 0) {
+        LOG(ERROR) << "Remove file meta failed, fileName: " << fileName;
+        return -1;
+    }
+    metaCache_ = std::move(tempMap);
+    LOG(INFO) << "Remove file meta success. "
+              << "file name: " << fileName;
+    return 0;
+}
+
+int NebdMetaFileManager::UpdateMetaFile(const FileMetaMap& fileMetas) {
+    Json::Value root = parser_->ConvertFileMetasToJson(fileMetas);
     int res = AtomicWriteFile(root);
     if (res != 0) {
-        LOG(ERROR) << "AtomicWriteFile fail";
+        LOG(ERROR) << "AtomicWriteFile fail.";
         return -1;
     }
     return 0;
@@ -64,9 +118,9 @@ int NebdMetaFileManager::AtomicWriteFile(const Json::Value& root) {
     return 0;
 }
 
-int NebdMetaFileManager::ListFileRecord(FileRecordMap* fileRecords) {
-    CHECK(fileRecords != nullptr) << "fileRecords is null.";
-    fileRecords->clear();
+int NebdMetaFileManager::LoadFileMeta() {
+    ReadLockGuard readLock(rwLock_);
+    FileMetaMap tempMetas;
     std::ifstream in(metaFilePath_, std::ios::binary);
     if (!in) {
         // 这里不应该返回错误，第一次初始化的时候文件可能还未创建
@@ -85,21 +139,32 @@ int NebdMetaFileManager::ListFileRecord(FileRecordMap* fileRecords) {
         return -1;
     }
 
-    int res = parser_->Parse(root, fileRecords);
+    int res = parser_->Parse(root, &tempMetas);
     if (res != 0) {
         LOG(ERROR) << "ConvertJsonToFileRecord fail";
         return -1;
+    }
+    metaCache_ = std::move(tempMetas);
+    return 0;
+}
+
+int NebdMetaFileManager::ListFileMeta(std::vector<NebdFileMeta>* fileMetas) {
+    CHECK(fileMetas != nullptr) << "fileMetas is nullptr.";
+    ReadLockGuard readLock(rwLock_);
+    fileMetas->clear();
+    for (const auto& metaPair : metaCache_) {
+        fileMetas->emplace_back(metaPair.second);
     }
     return 0;
 }
 
 int NebdMetaFileParser::Parse(Json::Value root,
-                              FileRecordMap* fileRecords) {
-    if (!fileRecords) {
-        LOG(ERROR) << "the argument fileRecords is null pointer";
+                              FileMetaMap* fileMetas) {
+    if (!fileMetas) {
+        LOG(ERROR) << "the argument fileMetas is null pointer";
         return -1;
     }
-    fileRecords->clear();
+    fileMetas->clear();
     // 检验crc
     if (root[kCRC].isNull()) {
         LOG(ERROR) << "Parse json: " << root
@@ -117,7 +182,6 @@ int NebdMetaFileParser::Parse(Json::Value root,
         return -1;
     }
 
-
     // 没有volume字段
     const auto& volumes = root[kVolumes];
     if (volumes.isNull()) {
@@ -128,14 +192,14 @@ int NebdMetaFileParser::Parse(Json::Value root,
     for (const auto& volume : volumes) {
         std::string fileName;
         int fd;
-        NebdFileRecord record;
+        NebdFileMeta meta;
 
         if (volume[kFileName].isNull()) {
             LOG(ERROR) << "Parse json: " << root
                        << " fail, no filename";
             return -1;
         } else {
-            record.fileName = volume[kFileName].asString();
+            meta.fileName = volume[kFileName].asString();
         }
 
         if (volume[kFd].isNull()) {
@@ -143,42 +207,32 @@ int NebdMetaFileParser::Parse(Json::Value root,
                        << " fail, no fd";
             return -1;
         } else {
-            record.fd = volume[kFd].asInt();
+            meta.fd = volume[kFd].asInt();
         }
 
-        auto fileType = GetFileType(record.fileName);
-        record.fileInstance = NebdFileInstanceFactory::GetInstance(fileType);
-        if (!record.fileInstance) {
-            LOG(ERROR) << "Unknown file type, filename: " << record.fileName;
-            return -1;
-        }
-
-        // 除了filename和fd的部分统一放到fileinstance的addition里面
+        // 除了filename和fd的部分统一放到xattr里面
         Json::Value::Members mem = volume.getMemberNames();
-        AdditionType addition;
+        ExtendAttribute xattr;
         for (auto iter = mem.begin(); iter != mem.end(); iter++) {
             if (*iter == kFileName || *iter == kFd) {
                 continue;
             }
-            record.fileInstance->addition.emplace(
-                *iter, volume[*iter].asString());
+            meta.xattr.emplace(*iter, volume[*iter].asString());
         }
-        fileRecords->emplace(record.fd, record);
+        fileMetas->emplace(meta.fileName, meta);
     }
     return 0;
 }
 
-Json::Value NebdMetaFileParser::ConvertFileRecordsToJson(
-                        const FileRecordMap& fileRecords) {
+Json::Value NebdMetaFileParser::ConvertFileMetasToJson(
+                        const FileMetaMap& fileMetas) {
     Json::Value volumes;
-    for (const auto& record : fileRecords) {
+    for (const auto& meta : fileMetas) {
         Json::Value volume;
-        volume[kFileName] = record.second.fileName;
-        volume[kFd] = record.second.fd;
-        if (record.second.fileInstance) {
-            for (const auto item : record.second.fileInstance->addition) {
-                volume[item.first] = item.second;
-            }
+        volume[kFileName] = meta.second.fileName;
+        volume[kFd] = meta.second.fd;
+        for (const auto item : meta.second.xattr) {
+            volume[item.first] = item.second;
         }
         volumes.append(volume);
     }

@@ -15,9 +15,9 @@
 namespace nebd {
 namespace server {
 
-NebdFileManager::NebdFileManager(FileRecordManagerPtr recordManager)
+NebdFileManager::NebdFileManager(MetaFileManagerPtr metaFileManager)
     : isRunning_(false)
-    , fileRecordManager_(recordManager) {}
+    , metaFileManager_(metaFileManager) {}
 
 NebdFileManager::~NebdFileManager() {}
 
@@ -38,29 +38,32 @@ int NebdFileManager::Run() {
 
 int NebdFileManager::Fini() {
     isRunning_.store(false);
+    fileMap_.clear();
     LOG(INFO) << "Stop file manager success.";
     return 0;
 }
 
 int NebdFileManager::Load() {
     // 从元数据文件中读取持久化的文件信息
-    int ret = fileRecordManager_->Load();
+    std::vector<NebdFileMeta> fileMetas;
+    int ret = metaFileManager_->ListFileMeta(&fileMetas);
     if (ret < 0) {
-        LOG(ERROR) << "Load file record failed.";
+        LOG(ERROR) << "Load file metas failed.";
         return ret;
     }
-    FileRecordMap fileRecords = fileRecordManager_->ListRecords();
     // 根据持久化的信息重新open文件
     int maxFd = 0;
-    for (auto& fileRecord : fileRecords) {
-        maxFd = std::max(maxFd, fileRecord.first);
-        // reopen失败忽略，此时文件状态为closed，下次访问仍然会去open
-        // 这么考虑是为了防止个别文件有问题导致整个part2不可用
-        int ret = Reopen(fileRecord.second);
+    for (auto& fileMeta : fileMetas) {
+        NebdFileEntityPtr entity =
+            GenerateFileEntity(fileMeta.fd, fileMeta.fileName);
+        CHECK(entity != nullptr) << "file entity is null.";
+        int ret = entity->Reopen(fileMeta.xattr);
         if (ret < 0) {
             LOG(WARNING) << "Reopen file failed. "
-                         << "filenam: " << fileRecord.second.fileName;
+                         << "filename: " << fileMeta.fileName
+                         << ", fd: " << fileMeta.fd;
         }
+        maxFd = std::max(maxFd, fileMeta.fd);
     }
     fdAlloc_.InitFd(maxFd);
     LOG(INFO) << "Load file record finished.";
@@ -68,373 +71,184 @@ int NebdFileManager::Load() {
 }
 
 int NebdFileManager::Open(const std::string& filename) {
-    int ret = OpenInternal(filename, true);
-    if (ret < 0) {
-        LOG(ERROR) << "open file failed. "
-                   << "filename: " << filename
-                   << ", ret: " << ret;
+    NebdFileEntityPtr entity = GetOrCreateFileEntity(filename);
+    if (entity == nullptr) {
+        LOG(ERROR) << "Open file failed. filename: " << filename;
         return -1;
+    }
+    return entity->Open();
+}
+
+int NebdFileManager::Close(int fd, bool removeRecord) {
+    NebdFileEntityPtr entity = GetFileEntity(fd);
+    if (entity == nullptr) {
+        LOG(WARNING) << "Close file failed. fd: " << fd;
+        return 0;
+    }
+    int ret = entity->Close(removeRecord);
+    if (ret == 0 && removeRecord) {
+        RemoveEntity(fd);
+        LOG(INFO) << "file entity is removed. fd: " << fd;
     }
     return ret;
 }
 
-int NebdFileManager::Close(int fd, bool removeRecord) {
-    NebdFileRecord fileRecord;
-    bool getSuccess = fileRecordManager_->GetRecord(fd, &fileRecord);
-    if (!getSuccess) {
-        LOG(WARNING) << "File record not exist, fd: " << fd;
-        return 0;
-    }
-
-    // 用于和其他用户请求互斥，避免文件被close后，请求发到后端导致返回失败
-    WriteLockGuard writeLock(*fileRecord.rwLock);
-    int ret = CloseInternal(fd);
-    if (ret < 0) {
-        LOG(ERROR) << "Close file failed. "
-                   << "fd: " << fd
-                   << ", filename: " << fileRecord.fileName;
+int NebdFileManager::Discard(int fd, NebdServerAioContext* aioctx) {
+    NebdFileEntityPtr entity = GetFileEntity(fd);
+    if (entity == nullptr) {
+        LOG(ERROR) << "Discard file failed. fd: " << fd;
         return -1;
     }
-    if (removeRecord) {
-        bool removeSuccess = fileRecordManager_->RemoveRecord(fd);
-        if (!removeSuccess) {
-            LOG(ERROR) << "Remove file record failed. "
-                    << "fd: " << fd
-                    << ", filename: " << fileRecord.fileName;
-            return -1;
-        }
-    }
-    LOG(INFO) << "Close file success. "
-              << "fd: " << fd
-              << ", filename: " << fileRecord.fileName;
-    return 0;
-}
-
-int NebdFileManager::Discard(int fd, NebdServerAioContext* aioctx) {
-    auto task = [&](NebdProcessClosure* done) {
-        const NebdFileRecord& fileRecord = done->GetFileRecord();
-        done->SetClosure(aioctx->done);
-        aioctx->done = done;
-        int ret = fileRecord.executor->Discard(
-            fileRecord.fileInstance.get(), aioctx);
-        if (ret < 0) {
-            brpc::ClosureGuard doneGuard(done);
-            aioctx->done = done->GetClosure();
-            done->SetClosure(nullptr);
-            LOG(ERROR) << "Discard file failed. "
-                       << "fd: " << fd
-                       << ", fileName: " << fileRecord.fileName
-                       << ", context: " << *aioctx;
-            return -1;
-        }
-        return 0;
-    };
-    return ProcessRequest(fd, task);
+    return entity->Discard(aioctx);
 }
 
 int NebdFileManager::AioRead(int fd, NebdServerAioContext* aioctx) {
-    auto task = [&](NebdProcessClosure* done) {
-        const NebdFileRecord& fileRecord = done->GetFileRecord();
-        done->SetClosure(aioctx->done);
-        aioctx->done = done;
-        int ret = fileRecord.executor->AioRead(
-            fileRecord.fileInstance.get(), aioctx);
-        if (ret < 0) {
-            brpc::ClosureGuard doneGuard(done);
-            aioctx->done = done->GetClosure();
-            done->SetClosure(nullptr);
-            LOG(ERROR) << "AioRead file failed. "
-                       << "fd: " << fd
-                       << ", fileName: " << fileRecord.fileName
-                       << ", context: " << *aioctx;
-            return -1;
-        }
-        return 0;
-    };
-    return ProcessRequest(fd, task);
+    NebdFileEntityPtr entity = GetFileEntity(fd);
+    if (entity == nullptr) {
+        LOG(ERROR) << "AioRead file failed. fd: " << fd;
+        return -1;
+    }
+    return entity->AioRead(aioctx);
 }
 
 int NebdFileManager::AioWrite(int fd, NebdServerAioContext* aioctx) {
-    auto task = [&](NebdProcessClosure* done) {
-        const NebdFileRecord& fileRecord = done->GetFileRecord();
-        done->SetClosure(aioctx->done);
-        aioctx->done = done;
-        int ret = fileRecord.executor->AioWrite(
-            fileRecord.fileInstance.get(), aioctx);
-        if (ret < 0) {
-            brpc::ClosureGuard doneGuard(done);
-            aioctx->done = done->GetClosure();
-            done->SetClosure(nullptr);
-            LOG(ERROR) << "AioWrite file failed. "
-                       << "fd: " << fd
-                       << ", fileName: " << fileRecord.fileName
-                       << ", context: " << *aioctx;
-            return -1;
-        }
-        return 0;
-    };
-    return ProcessRequest(fd, task);
+    NebdFileEntityPtr entity = GetFileEntity(fd);
+    if (entity == nullptr) {
+        LOG(ERROR) << "AioWrite file failed. fd: " << fd;
+        return -1;
+    }
+    return entity->AioWrite(aioctx);
 }
 
 int NebdFileManager::Flush(int fd, NebdServerAioContext* aioctx) {
-    auto task = [&](NebdProcessClosure* done) {
-        const NebdFileRecord& fileRecord = done->GetFileRecord();
-        done->SetClosure(aioctx->done);
-        aioctx->done = done;
-        int ret = fileRecord.executor->Flush(
-            fileRecord.fileInstance.get(), aioctx);
-        if (ret < 0) {
-            brpc::ClosureGuard doneGuard(done);
-            aioctx->done = done->GetClosure();
-            done->SetClosure(nullptr);
-            LOG(ERROR) << "Flush file failed. "
-                       << "fd: " << fd
-                       << ", fileName: " << fileRecord.fileName
-                       << ", context: " << *aioctx;
-            return -1;
-        }
-        return 0;
-    };
-    return ProcessRequest(fd, task);
+    NebdFileEntityPtr entity = GetFileEntity(fd);
+    if (entity == nullptr) {
+        LOG(ERROR) << "Flush file failed. fd: " << fd;
+        return -1;
+    }
+    return entity->Flush(aioctx);
 }
 
 int NebdFileManager::Extend(int fd, int64_t newsize) {
-    auto task = [&](NebdProcessClosure* done) {
-        brpc::ClosureGuard doneGuard(done);
-        const NebdFileRecord& fileRecord = done->GetFileRecord();
-        int ret = fileRecord.executor->Extend(
-            fileRecord.fileInstance.get(), newsize);
-        if (ret < 0) {
-            LOG(ERROR) << "Extend file failed. "
-                       << "fd: " << fd
-                       << ", newsize: " << newsize
-                       << ", fileName" << fileRecord.fileName;
-            return -1;
-        }
-        return 0;
-    };
-    return ProcessRequest(fd, task);
+    NebdFileEntityPtr entity = GetFileEntity(fd);
+    if (entity == nullptr) {
+        LOG(ERROR) << "Extend file failed. fd: " << fd;
+        return -1;
+    }
+    return entity->Extend(newsize);
 }
 
 int NebdFileManager::GetInfo(int fd, NebdFileInfo* fileInfo) {
-    auto task = [&](NebdProcessClosure* done) {
-        brpc::ClosureGuard doneGuard(done);
-        const NebdFileRecord& fileRecord = done->GetFileRecord();
-        int ret = fileRecord.executor->GetInfo(
-            fileRecord.fileInstance.get(), fileInfo);
-        if (ret < 0) {
-            LOG(ERROR) << "Get file info failed. "
-                       << "fd: " << fd
-                       << ", fileName" << fileRecord.fileName;
-            return -1;
-        }
-        return 0;
-    };
-    return ProcessRequest(fd, task);
+    NebdFileEntityPtr entity = GetFileEntity(fd);
+    if (entity == nullptr) {
+        LOG(ERROR) << "Get file info failed. fd: " << fd;
+        return -1;
+    }
+    return entity->GetInfo(fileInfo);
 }
 
 int NebdFileManager::InvalidCache(int fd) {
-    auto task = [&](NebdProcessClosure* done) {
-        brpc::ClosureGuard doneGuard(done);
-        const NebdFileRecord& fileRecord = done->GetFileRecord();
-        int ret = fileRecord.executor->InvalidCache(
-            fileRecord.fileInstance.get());
-        if (ret < 0) {
-            LOG(ERROR) << "Invalid cache failed. "
-                       << "fd: " << fd
-                       << ", fileName" << fileRecord.fileName;
-            return -1;
-        }
-        return 0;
-    };
-    return ProcessRequest(fd, task);
+    NebdFileEntityPtr entity = GetFileEntity(fd);
+    if (entity == nullptr) {
+        LOG(ERROR) << "Invalid file cache failed. fd: " << fd;
+        return -1;
+    }
+    return entity->InvalidCache();
 }
 
-int NebdFileManager::OpenInternal(const std::string& fileName,
-                                  bool create) {
-    // 同名文件open需要互斥
-    NameLockGuard openGuard(nameLock_, fileName);
-
-    NebdFileRecord fileRecord;
-    bool getSuccess = fileRecordManager_->GetRecord(fileName, &fileRecord);
-    if (getSuccess && fileRecord.status == NebdFileStatus::OPENED) {
-        LOG(WARNING) << "File is already opened. "
-                     << "filename: " << fileName
-                     << "fd: " << fileRecord.fd;
-        return fileRecord.fd;
+NebdFileEntityPtr
+NebdFileManager::GetFileEntity(int fd) {
+    ReadLockGuard readLock(rwLock_);
+    auto iter = fileMap_.find(fd);
+    if (iter == fileMap_.end()) {
+        return nullptr;
     }
-
-    if (create) {
-        fileRecord.fileName = fileName;
-        fileRecord.fd = GetValidFd();
-    } else {
-        // create为false的情况下，如果record不存在，需要返回错误
-        if (!getSuccess) {
-            LOG(ERROR) << "open file failed: no record. "
-                       << "filename: " << fileName;
-            return -1;
-        }
-    }
-
-    NebdFileType type = GetFileType(fileName);
-    NebdRequestExecutor* executor =
-        NebdRequestExecutorFactory::GetExecutor(type);
-    if (executor == nullptr) {
-        LOG(ERROR) << "open file failed, invalid filename. "
-                   << "filename: " << fileName;
-        return -1;
-    }
-
-    NebdFileInstancePtr fileInstance = executor->Open(fileName);
-    if (fileInstance == nullptr) {
-        LOG(ERROR) << "open file failed. "
-                   << "filename: " << fileName;
-        return -1;
-    }
-
-    fileRecord.executor = executor;
-    fileRecord.fileInstance = fileInstance;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.timeStamp = TimeUtility::GetTimeofDayMs();
-
-    bool updateSuccess = fileRecordManager_->UpdateRecord(fileRecord);
-    if (!updateSuccess) {
-        executor->Close(fileInstance.get());
-        LOG(ERROR) << "Update file record failed. "
-                   << "filename: " << fileName;
-        return -1;
-    }
-    LOG(INFO) << "Open file success. "
-              << "fd: " << fileRecord.fd
-              << ", filename: " << fileRecord.fileName;
-    return fileRecord.fd;
+    return iter->second;
 }
 
-int NebdFileManager::Reopen(NebdFileRecord fileRecord) {
-    NebdFileType type = GetFileType(fileRecord.fileName);
-    NebdRequestExecutor* executor =
-        NebdRequestExecutorFactory::GetExecutor(type);
-    if (executor == nullptr) {
-        LOG(ERROR) << "Reopen file failed, invalid filename. "
-                   << "filename: " << fileRecord.fileName;
-        return -1;
-    }
-    NebdFileInstancePtr fileInstance = executor->Reopen(
-        fileRecord.fileName, fileRecord.fileInstance->addition);
-    if (fileInstance == nullptr) {
-        LOG(ERROR) << "Reopen file failed. "
-                   << "filename: " << fileRecord.fileName;
-        return -1;
-    }
-
-    fileRecord.executor = executor;
-    fileRecord.fileInstance = fileInstance;
-    fileRecord.status = NebdFileStatus::OPENED;
-    fileRecord.timeStamp = TimeUtility::GetTimeofDayMs();
-
-    bool updateSuccess = fileRecordManager_->UpdateRecord(fileRecord);
-    if (!updateSuccess) {
-        executor->Close(fileInstance.get());
-        LOG(ERROR) << "Update file record failed. "
-                   << "filename: " << fileRecord.fileName;
-        return -1;
-    }
-
-    LOG(INFO) << "Reopen file success. "
-              << "fd: " << fileRecord.fd
-              << ", filename: " << fileRecord.fileName;
-    return 0;
-}
-
-int NebdFileManager::CloseInternal(int fd) {
-    NebdFileRecord fileRecord;
-    bool getSuccess = fileRecordManager_->GetRecord(fd, &fileRecord);
-    if (!getSuccess) {
-        LOG(WARNING) << "File record not exist, fd: " << fd;
-        return 0;
-    }
-
-    if (fileRecord.status != NebdFileStatus::OPENED) {
-        LOG(INFO) << "File has been closed. "
-                  << "fd: " << fileRecord.fd
-                  << ", filename: " << fileRecord.fileName;
-        return 0;
-    }
-
-    int ret = fileRecord.executor->Close(fileRecord.fileInstance.get());
-    if (ret < 0) {
-        LOG(ERROR) << "Close file failed. "
-                   << "fd: " << fileRecord.fd
-                   << ", filename: " << fileRecord.fileName;
-        return -1;
-    }
-
-    fileRecordManager_->UpdateFileStatus(fileRecord.fd, NebdFileStatus::CLOSED);
-    return 0;
-}
-
-int NebdFileManager::ProcessRequest(int fd, ProcessTask task) {
-    NebdFileRecord fileRecord;
-    bool getSuccess = fileRecordManager_->GetRecord(fd, &fileRecord);
-    if (!getSuccess) {
-        LOG(ERROR) << "File record not exist, fd: " << fd;
-        return -1;
-    }
-
-    NebdProcessClosure* done =
-        new (std::nothrow) NebdProcessClosure(fileRecord);
-    brpc::ClosureGuard doneGuard(done);
-
-    // 此时文件可能被close了，与之前获取到的record不一致，因此需要重新获取
-    // TODO(yyk) 这不是一种优雅的实现方法，后续重构
-    getSuccess = fileRecordManager_->GetRecord(fd, &fileRecord);
-    if (!getSuccess) {
-        LOG(ERROR) << "File record not exist, fd: " << fd;
-        return -1;
-    }
-    done->SetFileRecord(fileRecord);
-
-    if (fileRecord.status != NebdFileStatus::OPENED) {
-        int ret = OpenInternal(fileRecord.fileName);
-        if (ret != fd) {
-            LOG(ERROR) << "Get opened file failed. "
-                        << "filename: " << fileRecord.fileName
-                        << ", fd: " << fd
-                        << ", ret: " << ret;
-            return -1;
-        }
-        // 重新open后要获取新的record
-        getSuccess = fileRecordManager_->GetRecord(fd, &fileRecord);
-        if (!getSuccess) {
-            LOG(ERROR) << "File record not exist, fd: " << fd;
-            return -1;
-        }
-        done->SetFileRecord(fileRecord);
-    }
-
-    int ret = task(dynamic_cast<NebdProcessClosure*>(doneGuard.release()));
-    if (ret < 0) {
-        LOG(ERROR) << "Process request failed. "
-                   << "fd: " << fd
-                   << ", fileName" << fileRecord.fileName;
-        return -1;
-    }
-    return 0;
-}
-
-FileRecordManagerPtr NebdFileManager::GetRecordManager() {
-    return fileRecordManager_;
-}
-
-int NebdFileManager::GetValidFd() {
+int NebdFileManager::GenerateValidFd() {
     int fd = 0;
     while (true) {
         fd = fdAlloc_.GetNext();
-        if (!fileRecordManager_->Exist(fd)) {
+        if (fileMap_.find(fd) == fileMap_.end()) {
             break;
         }
     }
     return fd;
+}
+
+NebdFileEntityPtr
+NebdFileManager::GetOrCreateFileEntity(const std::string& fileName) {
+    {
+        ReadLockGuard readLock(rwLock_);
+        for (const auto& pair : fileMap_) {
+            std::string curFile = pair.second->GetFileName();
+            if (fileName == curFile) {
+                return pair.second;
+            }
+        }
+    }
+    int fd = GenerateValidFd();
+    return GenerateFileEntity(fd, fileName);
+}
+
+NebdFileEntityPtr
+NebdFileManager::GenerateFileEntity(int fd, const std::string& fileName) {
+    WriteLockGuard writeLock(rwLock_);
+    for (const auto& pair : fileMap_) {
+        std::string curFile = pair.second->GetFileName();
+        if (fileName == curFile) {
+            return pair.second;
+        }
+    }
+
+    // 检测是否存在冲突的文件记录
+    auto iter = fileMap_.find(fd);
+    if (iter != fileMap_.end()) {
+        LOG(ERROR) << "File entity conflict. "
+                   << "Exist filename: " << iter->second->GetFileName()
+                   << ", Exist fd: " << iter->first
+                   << ", Create filename: " << fileName
+                   << ", Create fd: " << fd;
+        return nullptr;
+    }
+
+    NebdFileEntityOption option;
+    option.fd = fd;
+    option.fileName = fileName;
+    option.metaFileManager_ = metaFileManager_;
+    NebdFileEntityPtr entity = std::make_shared<NebdFileEntity>();
+    int ret = entity->Init(option);
+    if (ret != 0) {
+        LOG(ERROR) << "Generate file entity failed.";
+        return nullptr;
+    }
+    fileMap_.emplace(fd, entity);
+    return entity;
+}
+
+void NebdFileManager::RemoveEntity(int fd) {
+    WriteLockGuard writeLock(rwLock_);
+    auto iter = fileMap_.find(fd);
+    if (iter != fileMap_.end()) {
+        fileMap_.erase(iter);
+    }
+}
+
+FileEntityMap NebdFileManager::GetFileEntityMap() {
+    ReadLockGuard readLock(rwLock_);
+    return fileMap_;
+}
+
+std::string NebdFileManager::DumpAllFileStatus() {
+    ReadLockGuard readLock(rwLock_);
+    std::ostringstream os;
+    os << "{";
+    for (const auto& pair : fileMap_) {
+        os << *(pair.second);
+    }
+    os << "}";
+    return os.str();
 }
 
 }  // namespace server

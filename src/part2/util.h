@@ -21,7 +21,13 @@ NebdFileType GetFileType(const std::string& fileName);
 
 std::string NebdFileType2Str(NebdFileType type);
 
+std::string NebdFileStatus2Str(NebdFileStatus status);
+
 std::ostream& operator<<(std::ostream& os, const NebdServerAioContext& c);
+std::ostream& operator<<(std::ostream& os, const NebdFileMeta& meta);
+
+bool operator==(const NebdFileMeta& lMeta, const NebdFileMeta& rMeta);
+bool operator!=(const NebdFileMeta& lMeta, const NebdFileMeta& rMeta);
 
 class FdAllocator {
  public:

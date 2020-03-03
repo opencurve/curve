@@ -33,7 +33,8 @@ class MockFileManager : public NebdFileManager {
     MOCK_METHOD2(AioWrite, int(int, NebdServerAioContext*));
     MOCK_METHOD2(Flush, int(int, NebdServerAioContext*));
     MOCK_METHOD1(InvalidCache, int(int));
-    MOCK_METHOD0(GetRecordManager, FileRecordManagerPtr());
+    MOCK_METHOD1(GetFileEntity, NebdFileEntityPtr(int));
+    MOCK_METHOD0(GetFileEntityMap, FileEntityMap());
 };
 
 }  // namespace server

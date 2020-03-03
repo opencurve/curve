@@ -30,7 +30,7 @@ class CephRequestExecutor : public NebdRequestExecutor {
     ~CephRequestExecutor() {}
     std::shared_ptr<NebdFileInstance> Open(const std::string& filename) override;  // NOLINT
     std::shared_ptr<NebdFileInstance> Reopen(
-        const std::string& filename, AdditionType addtion) override;
+        const std::string& filename, const ExtendAttribute& xattr) override;
     int Close(NebdFileInstance* fd) override;
     int Extend(NebdFileInstance* fd, int64_t newsize) override;
     int GetInfo(NebdFileInstance* fd, NebdFileInfo* fileInfo) override;

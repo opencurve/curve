@@ -39,44 +39,45 @@ int HeartbeatManager::Fini() {
 }
 
 bool HeartbeatManager::UpdateFileTimestamp(int fd, uint64_t timestamp) {
-    return fileManager_->GetRecordManager()->UpdateFileTimestamp(fd, timestamp);
+    NebdFileEntityPtr entity = fileManager_->GetFileEntity(fd);
+    if (entity == nullptr) {
+        LOG(ERROR) << "File not exist, fd: " << fd;
+        return false;
+    }
+    entity->UpdateFileTimeStamp(timestamp);
+    return true;
 }
 
 void HeartbeatManager::CheckTimeoutFunc() {
     while (sleeper_.wait_for(
         std::chrono::milliseconds(checkTimeoutIntervalMs_))) {
-        FileRecordManagerPtr recordManager = fileManager_->GetRecordManager();
-        FileRecordMap fileRecords = recordManager->ListRecords();
         LOG_EVERY_N(INFO, 60 * 1000 / checkTimeoutIntervalMs_)
-            << "Checking timeout, file records num: " << fileRecords.size();
-        for (auto& fileRecord : fileRecords) {
-            bool needClose = CheckNeedClosed(fileRecord.first);
+            << "Checking timeout, file status: "
+            << fileManager_->DumpAllFileStatus();
+        FileEntityMap fileEntityMap = fileManager_->GetFileEntityMap();
+        NebdFileEntityPtr curEntity;
+        for (const auto& entityPair : fileEntityMap) {
+            curEntity = entityPair.second;
+            bool needClose = CheckNeedClosed(curEntity);
             if (!needClose) {
                 continue;
             }
             std::string standardTime;
             TimeUtility::TimeStampToStandard(
-                fileRecord.second.timeStamp / 1000, &standardTime);
+                curEntity->GetFileTimeStamp() / 1000, &standardTime);
             LOG(INFO) << "Close file which has timed out. "
                       << "Last time received heartbeat or request: "
                       << standardTime;
-            fileManager_->Close(fileRecord.first, false);
+            curEntity->Close(false);
         }
     }
 }
 
-bool HeartbeatManager::CheckNeedClosed(int fd) {
-    FileRecordManagerPtr recordManager = fileManager_->GetRecordManager();
-    NebdFileRecord record;
-    bool getTimeSuccess = recordManager->GetRecord(fd, &record);
-    if (!getTimeSuccess) {
-        return false;
-    }
-
+bool HeartbeatManager::CheckNeedClosed(NebdFileEntityPtr entity) {
     uint64_t curTime = TimeUtility::GetTimeofDayMs();
-    uint64_t interval = curTime - record.timeStamp;
+    uint64_t interval = curTime - entity->GetFileTimeStamp();
     // 文件如果是opened状态，并且已经超时，则需要调用close
-    bool needClose = record.status == NebdFileStatus::OPENED
+    bool needClose = entity->GetFileStatus() == NebdFileStatus::OPENED
                      && interval > (uint64_t)1000 * heartbeatTimeoutS_;
     return needClose;
 }

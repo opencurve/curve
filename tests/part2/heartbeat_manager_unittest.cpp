@@ -9,8 +9,7 @@
 #include <string>
 
 #include "src/part2/heartbeat_manager.h"
-#include "src/part2/filerecord_manager.h"
-#include "tests/part2/mock_filerecord_manager.h"
+#include "tests/part2/mock_file_entity.h"
 #include "tests/part2/mock_file_manager.h"
 
 using ::testing::_;
@@ -32,18 +31,14 @@ using ::testing::SetArrayArgument;
 class HeartbeatManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        fileRecordManager_ = std::make_shared<MockFileRecordManager>();
         fileManager_ = std::make_shared<MockFileManager>();
         HeartbeatManagerOption option;
         option.heartbeatTimeoutS = 10;
         option.checkTimeoutIntervalMs = 1000;
         option.fileManager = fileManager_;
         heartbeatManager_ = std::make_shared<HeartbeatManager>(option);
-        EXPECT_CALL(*fileManager_, GetRecordManager())
-        .WillRepeatedly(Return(fileRecordManager_));
     }
     std::shared_ptr<MockFileManager>  fileManager_;
-    std::shared_ptr<MockFileRecordManager>  fileRecordManager_;
     std::shared_ptr<HeartbeatManager> heartbeatManager_;
 };
 
@@ -52,44 +47,41 @@ TEST_F(HeartbeatManagerTest, CheckTimeoutTest) {
     // 已经在run了不允许重复Run或者Init
     ASSERT_EQ(heartbeatManager_->Run(), -1);
 
-    // 校验是否在检查超时
+    // 构造file entity
     uint64_t curTime = TimeUtility::GetTimeofDayMs();
-    FileRecordMap fileRecords;
-    NebdFileRecord record1;
-    NebdFileRecord record2;
-    NebdFileRecord record3;
-    record1.fd = 1;
-    record1.timeStamp = curTime - 2 * 10 * 1000;
-    record1.status = NebdFileStatus::OPENED;
-    record2.fd = 2;
-    record2.timeStamp = curTime - 2 * 10 * 1000;
-    record2.status = NebdFileStatus::CLOSED;
-    record3.fd = 3;
-    record3.timeStamp = curTime;
-    record3.status = NebdFileStatus::OPENED;
-    fileRecords.emplace(1, record1);
-    fileRecords.emplace(2, record2);
-    fileRecords.emplace(3, record3);
+    std::shared_ptr<MockFileEntity> entity1 =
+        std::make_shared<MockFileEntity>();
+    std::shared_ptr<MockFileEntity> entity2 =
+        std::make_shared<MockFileEntity>();
+    std::shared_ptr<MockFileEntity> entity3 =
+        std::make_shared<MockFileEntity>();
+    EXPECT_CALL(*entity1, GetFileTimeStamp())
+    .WillRepeatedly(Return(curTime - 2 * 10 * 1000));
+    EXPECT_CALL(*entity1, GetFileStatus())
+    .WillRepeatedly(Return(NebdFileStatus::OPENED));
+    EXPECT_CALL(*entity2, GetFileTimeStamp())
+    .WillRepeatedly(Return(curTime - 2 * 10 * 1000));
+    EXPECT_CALL(*entity2, GetFileStatus())
+    .WillRepeatedly(Return(NebdFileStatus::CLOSED));
+    EXPECT_CALL(*entity3, GetFileTimeStamp())
+    .WillRepeatedly(Return(curTime));
+    EXPECT_CALL(*entity3, GetFileStatus())
+    .WillRepeatedly(Return(NebdFileStatus::OPENED));
 
-    EXPECT_CALL(*fileRecordManager_, ListRecords())
-    .WillRepeatedly(Return(fileRecords));
+    // 构造file map
+    FileEntityMap entityMap;
+    entityMap.emplace(1, entity1);
+    entityMap.emplace(2, entity2);
+    entityMap.emplace(3, entity3);
+    EXPECT_CALL(*fileManager_, GetFileEntityMap())
+    .WillRepeatedly(Return(entityMap));
 
-    EXPECT_CALL(*fileRecordManager_, GetRecord(1, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(record1),
-                          Return(true)));
-
-    EXPECT_CALL(*fileRecordManager_, GetRecord(2, _))
-    .WillRepeatedly(DoAll(SetArgPointee<1>(record2),
-                          Return(true)));
-
-    EXPECT_CALL(*fileRecordManager_, GetRecord(3, _))
-    .WillRepeatedly(Return(false));
-
-    EXPECT_CALL(*fileManager_, Close(1, false))
+    // 预期结果
+    EXPECT_CALL(*entity1, Close(false))
     .Times(AtLeast(1));
-    EXPECT_CALL(*fileManager_, Close(2, false))
+    EXPECT_CALL(*entity2, Close(false))
     .Times(0);
-    EXPECT_CALL(*fileManager_, Close(3, false))
+    EXPECT_CALL(*entity3, Close(false))
     .Times(0);
 
     ::sleep(2);
@@ -99,12 +91,16 @@ TEST_F(HeartbeatManagerTest, CheckTimeoutTest) {
 }
 
 TEST_F(HeartbeatManagerTest, UpdateTimeStampTest) {
-    EXPECT_CALL(*fileRecordManager_, UpdateFileTimestamp(_, _))
-    .WillOnce(Return(true));
+    std::shared_ptr<MockFileEntity> entity = std::make_shared<MockFileEntity>();
+
+    EXPECT_CALL(*fileManager_, GetFileEntity(1))
+    .WillOnce(Return(entity));
+    EXPECT_CALL(*entity, UpdateFileTimeStamp(100))
+    .Times(1);
     ASSERT_TRUE(heartbeatManager_->UpdateFileTimestamp(1, 100));
 
-    EXPECT_CALL(*fileRecordManager_, UpdateFileTimestamp(_, _))
-    .WillOnce(Return(false));
+    EXPECT_CALL(*fileManager_, GetFileEntity(1))
+    .WillOnce(Return(nullptr));
     ASSERT_FALSE(heartbeatManager_->UpdateFileTimestamp(1, 100));
 }
 

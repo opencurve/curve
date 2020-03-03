@@ -65,14 +65,14 @@ TEST_F(TestReuqestExecutorCurve, test_Open) {
         ASSERT_TRUE(nullptr != curveIns);
         ASSERT_EQ(curveFileName, curveIns->fileName);
         ASSERT_EQ(1, curveIns->fd);
-        ASSERT_EQ("abc", curveIns->addition["session"]);
+        ASSERT_EQ("abc", curveIns->xattr["session"]);
     }
 }
 
 TEST_F(TestReuqestExecutorCurve, test_ReOpen) {
     auto executor = CurveRequestExecutor::GetInstance();
-    AdditionType addtion;
-    addtion["session"] = "abc";
+    ExtendAttribute xattr;
+    xattr["session"] = "abc";
     std::string fileName("cbd:pool1//cinder/volume-1234_cinder_:/client.conf");
     std::string curveFileName("/cinder/volume-1234_cinder_");
 
@@ -81,31 +81,31 @@ TEST_F(TestReuqestExecutorCurve, test_ReOpen) {
         std::string errFileName("cbd:pool1/:");
         EXPECT_CALL(*curveClient_, Open(_, _)).Times(0);
         std::shared_ptr<NebdFileInstance> ret = executor.Reopen(
-            errFileName, addtion);
+            errFileName, xattr);
         ASSERT_TRUE(nullptr == ret);
     }
 
     // 2. repoen失败
     {
-        EXPECT_CALL(*curveClient_, ReOpen(curveFileName, addtion["session"], _))
+        EXPECT_CALL(*curveClient_, ReOpen(curveFileName, xattr["session"], _))
             .WillOnce(DoAll(SetArgPointee<2>(""), Return(-1)));
         std::shared_ptr<NebdFileInstance> ret =
-            executor.Reopen(fileName, addtion);
+            executor.Reopen(fileName, xattr);
         ASSERT_TRUE(nullptr == ret);
     }
 
     // 3. reopen成功
     {
-        EXPECT_CALL(*curveClient_, ReOpen(curveFileName, addtion["session"], _))
+        EXPECT_CALL(*curveClient_, ReOpen(curveFileName, xattr["session"], _))
             .WillOnce(DoAll(SetArgPointee<2>("bcd"), Return(1)));
          std::shared_ptr<NebdFileInstance> ret =
-            executor.Reopen(fileName, addtion);
+            executor.Reopen(fileName, xattr);
         ASSERT_TRUE(nullptr != ret);
         auto *curveIns = dynamic_cast<CurveFileInstance *>(ret.get());
         ASSERT_TRUE(nullptr != curveIns);
         ASSERT_EQ(curveFileName, curveIns->fileName);
         ASSERT_EQ(1, curveIns->fd);
-        ASSERT_EQ("bcd", curveIns->addition["session"]);
+        ASSERT_EQ("bcd", curveIns->xattr["session"]);
     }
 }
 

@@ -102,11 +102,7 @@ bool NebdServer::InitFileManager() {
         return false;
     }
 
-    FileRecordManagerPtr recordmanager =
-        std::make_shared<FileRecordManager>(metaFileManager);
-    CHECK(recordmanager != nullptr) << "Init record manager failed.";
-
-    fileManager_ = std::make_shared<NebdFileManager>(recordmanager);
+    fileManager_ = std::make_shared<NebdFileManager>(metaFileManager);
     CHECK(fileManager_ != nullptr) << "Init file manager failed.";
 
     int runRes = fileManager_->Run();
@@ -137,13 +133,23 @@ bool NebdServer::InitCurveRequestExecutor() {
 }
 
 MetaFileManagerPtr NebdServer::InitMetaFileManager() {
-    std::string metaFilePath;
-    bool getOk = conf_.GetStringValue(METAFILEPATH, &metaFilePath);
+    NebdMetaFileManagerOption option;
+    option.wrapper = std::make_shared<PosixWrapper>();
+    option.parser = std::make_shared<NebdMetaFileParser>();
+    bool getOk = conf_.GetStringValue(METAFILEPATH, &option.metaFilePath);
     if (false == getOk) {
         return nullptr;
     }
 
-    return std::make_shared<NebdMetaFileManager>(metaFilePath);
+    MetaFileManagerPtr metaFileManager =
+        std::make_shared<NebdMetaFileManager>();
+    CHECK(metaFileManager != nullptr) << "meta file manager is nullptr";
+    int ret = metaFileManager->Init(option);
+    if (ret != 0) {
+        LOG(ERROR) << "Init meta file manager failed.";
+        return nullptr;
+    }
+    return metaFileManager;
 }
 
 bool NebdServer::InitHeartbeatManagerOption(HeartbeatManagerOption *opt) {

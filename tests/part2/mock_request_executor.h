@@ -30,8 +30,8 @@ class MockRequestExecutor : public NebdRequestExecutor {
     ~MockRequestExecutor() {}
 
     MOCK_METHOD1(Open, std::shared_ptr<NebdFileInstance>(const std::string&));
-    MOCK_METHOD2(Reopen, std::shared_ptr<NebdFileInstance>(const std::string&,
-                                                           AdditionType));
+    MOCK_METHOD2(Reopen, std::shared_ptr<NebdFileInstance>(
+        const std::string&, const ExtendAttribute&));
     MOCK_METHOD1(Close, int(NebdFileInstance*));
     MOCK_METHOD2(Extend, int(NebdFileInstance*, int64_t));
     MOCK_METHOD2(GetInfo, int(NebdFileInstance*, NebdFileInfo*));

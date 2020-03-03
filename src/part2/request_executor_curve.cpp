@@ -59,7 +59,7 @@ CurveRequestExecutor::Open(const std::string& filename) {
         auto curveFileInstance = std::make_shared<CurveFileInstance>();
         curveFileInstance->fd = fd;
         curveFileInstance->fileName = curveFileName;
-        curveFileInstance->addition["session"] = sessionId;
+        curveFileInstance->xattr["session"] = sessionId;
         return curveFileInstance;
     }
 
@@ -68,20 +68,20 @@ CurveRequestExecutor::Open(const std::string& filename) {
 
 std::shared_ptr<NebdFileInstance>
 CurveRequestExecutor::Reopen(const std::string& filename,
-                             AdditionType addtion) {
+                             const ExtendAttribute& xattr) {
     std::string curveFileName = FileNameParser::Parse(filename);
     if (curveFileName.empty()) {
         return nullptr;
     }
 
     std::string newSessionId;
-    std::string oldSessionId = addtion["session"];
+    std::string oldSessionId = xattr.at("session");
     int fd = client_->ReOpen(curveFileName, oldSessionId, &newSessionId);
     if (fd >= 0) {
         auto curveFileInstance = std::make_shared<CurveFileInstance>();
         curveFileInstance->fd = fd;
         curveFileInstance->fileName = curveFileName;
-        curveFileInstance->addition["session"] = newSessionId;
+        curveFileInstance->xattr["session"] = newSessionId;
         return curveFileInstance;
     }
 

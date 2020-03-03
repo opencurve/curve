@@ -27,6 +27,19 @@ NebdFileType GetFileType(const std::string& fileName) {
     }
 }
 
+std::string NebdFileStatus2Str(NebdFileStatus status) {
+    switch (status) {
+        case NebdFileStatus::CLOSED:
+            return "CLOSED";
+        case NebdFileStatus::OPENED:
+            return "OPENED";
+        case NebdFileStatus::DESTROYED:
+            return "DESTROYED";
+        default:
+            return "UNKWOWN";
+    }
+}
+
 std::string Op2Str(LIBAIO_OP op) {
     switch (op) {
         case LIBAIO_OP::LIBAIO_OP_READ:
@@ -49,6 +62,25 @@ std::ostream& operator<<(std::ostream& os, const NebdServerAioContext& c) {
        << ", ret: " << c.ret
        << "]";
     return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const NebdFileMeta& meta) {
+    os << "[filename: " << meta.fileName << ", fd: " << meta.fd;
+    for (const auto& pair : meta.xattr) {
+        os << ", " << pair.first << ": " << pair.second;
+    }
+    os << "]";
+    return os;
+}
+
+bool operator==(const NebdFileMeta& lMeta, const NebdFileMeta& rMeta) {
+    return lMeta.fd == rMeta.fd &&
+           lMeta.fileName == rMeta.fileName &&
+           lMeta.xattr == rMeta.xattr;
+}
+
+bool operator!=(const NebdFileMeta& lMeta, const NebdFileMeta& rMeta) {
+    return !(lMeta == rMeta);
 }
 
 int FdAllocator::GetNext() {

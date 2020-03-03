@@ -100,6 +100,9 @@ void NebdFileServiceImpl::OpenFile(
     if (fd > 0) {
         response->set_retcode(RetCode::kOK);
         response->set_fd(fd);
+        LOG(INFO) << "Open file success. "
+                  << "filename: " << request->filename()
+                  << ", fd: " << fd;
     } else {
         LOG(ERROR) << "Open file failed. "
                    << "filename: " << request->filename()
@@ -276,6 +279,8 @@ void NebdFileServiceImpl::CloseFile(
                    << ", return code: " << rc;
     } else {
         response->set_retcode(RetCode::kOK);
+        LOG(INFO) << "Close file success. "
+                  << "fd: " << request->fd();
     }
 }
 

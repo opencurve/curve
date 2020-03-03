@@ -11,17 +11,17 @@
 #include <brpc/closure_guard.h>
 #include <limits.h>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <mutex>  // NOLINT
 #include <unordered_map>
 
 #include "src/common/rw_lock.h"
 #include "src/common/name_lock.h"
-#include "src/common/timeutility.h"
 #include "src/part2/define.h"
 #include "src/part2/util.h"
-#include "src/part2/filerecord_manager.h"
-#include "src/part2/request_executor.h"
+#include "src/part2/file_entity.h"
+#include "src/part2/metafile_manager.h"
 #include "proto/client.pb.h"
 
 namespace nebd {
@@ -31,50 +31,11 @@ using nebd::common::NameLock;
 using nebd::common::NameLockGuard;
 using nebd::common::WriteLockGuard;
 using nebd::common::ReadLockGuard;
-using nebd::common::TimeUtility;
 
-// 处理用户请求时需要加读写锁，避免close时仍有用户IO未处理完成
-// 对于异步IO来说，只有返回时才能释放读锁，所以封装成Closure
-// 在发送异步请求前，将closure赋值给NebdServerAioContext
-class NebdProcessClosure : public Closure {
- public:
-    explicit NebdProcessClosure(const NebdFileRecord& fileRecord)
-        : fileRecord_(fileRecord)
-        , done_(nullptr) {
-        fileRecord_.rwLock->RDLock();
-    }
-    NebdProcessClosure() {}
-
-    void Run() {
-        std::unique_ptr<NebdProcessClosure> selfGuard(this);
-        brpc::ClosureGuard doneGuard(done_);
-        fileRecord_.rwLock->Unlock();
-    }
-
-    void SetClosure(Closure* done) {
-        done_ = done;
-    }
-
-    Closure* GetClosure() {
-        return done_;
-    }
-
-    NebdFileRecord GetFileRecord() {
-        return fileRecord_;
-    }
-
-    void SetFileRecord(const NebdFileRecord& fileRecord) {
-        fileRecord_ = fileRecord;
-    }
-
- private:
-    NebdFileRecord fileRecord_;
-    Closure* done_;
-};
-
+using FileEntityMap = std::unordered_map<int, NebdFileEntityPtr>;
 class NebdFileManager {
  public:
-    explicit NebdFileManager(FileRecordManagerPtr recordManager);
+    explicit NebdFileManager(MetaFileManagerPtr metaFileManager);
     virtual ~NebdFileManager();
     /**
      * 停止FileManager并释放FileManager资源
@@ -150,46 +111,33 @@ class NebdFileManager {
      */
     virtual int InvalidCache(int fd);
 
+    // 根据fd从map中获取指定的entity
+    // 如果entity已存在，返回entity指针，否则返回nullptr
+    virtual NebdFileEntityPtr GetFileEntity(int fd);
+
+    virtual FileEntityMap GetFileEntityMap();
+
+    // 将所有文件状态输出到字符串
+    std::string DumpAllFileStatus();
 
     // set public for test
     // 启动时从metafile加载文件记录，并reopen文件
     int Load();
-    // 返回recordmanager
-    virtual FileRecordManagerPtr GetRecordManager();
 
  private:
-    /**
-     * 打开指定文件并更新元数据信息
-     * @param filename: 文件名
-     * @param create: 为true将产生新的filerecord
-     * @return: 成功返回0，失败返回-1
-     */
-    int OpenInternal(const std::string& fileName, bool create = false);
-    /**
-     * 关闭指定文件，并将文件状态变更为CLOSED
-     * @param fd: 文件的内存记录
-     * @return: 成功返回0，失败返回-1
-     */
-    int CloseInternal(int fd);
-    /**
-     * 根据文件内存记录信息重新open文件
-     * @param fileRecord: 文件的内存记录
-     * @return: 成功返回0，失败返回-1
-     */
-    int Reopen(NebdFileRecord fileRecord);
-    /**
-     * 分配新的可用的fd
-     * @return: 成功返回有效的fd，失败返回-1
-     */
-    int GetValidFd();
-    /**
-     * 请求统一处理函数
-     * @param fd: 请求对应文件的fd
-     * @param task: 实际请求执行的函数体
-     * @return: 成功返回0，失败返回-1
-     */
-    using ProcessTask = std::function<int(NebdProcessClosure*)>;
-    int ProcessRequest(int fd, ProcessTask task);
+     // 分配新的可用的fd，fd不允许和已经存在的重复
+     // 成功返回的可用fd，失败返回-1
+    int GenerateValidFd();
+    // 根据文件名获取file entity
+    // 如果entity存在，直接返回entity指针
+    // 如果entity不存在，则创建新的entity，并插入map，然后返回
+    NebdFileEntityPtr GetOrCreateFileEntity(const std::string& fileName);
+    // 根据fd和文件名生成file entity，
+    // 如果fd对于的entity已存在,直接返回entity指针
+    // 如果entity不存在，则生成新的entity，并插入map，然后返回
+    NebdFileEntityPtr GenerateFileEntity(int fd, const std::string& fileName);
+    // 删除指定fd对应的entity
+    void RemoveEntity(int fd);
 
  private:
     // 当前filemanager的运行状态，true表示正在运行，false标为未运行
@@ -199,7 +147,11 @@ class NebdFileManager {
     // fd分配器
     FdAllocator fdAlloc_;
     // nebd server 文件记录管理
-    FileRecordManagerPtr fileRecordManager_;
+    MetaFileManagerPtr metaFileManager_;
+    // file map 读写保护锁
+    RWLock rwLock_;
+    // 文件fd和文件实体的映射
+    FileEntityMap fileMap_;
 };
 using NebdFileManagerPtr = std::shared_ptr<NebdFileManager>;
 

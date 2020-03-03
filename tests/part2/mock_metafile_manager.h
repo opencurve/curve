@@ -19,11 +19,13 @@ namespace server {
 
 class MockMetaFileManager : public NebdMetaFileManager {
  public:
-    MockMetaFileManager() : NebdMetaFileManager("") {}
+    MockMetaFileManager() {}
     ~MockMetaFileManager() {}
 
-    MOCK_METHOD1(UpdateMetaFile, int(const FileRecordMap&));
-    MOCK_METHOD1(ListFileRecord, int(FileRecordMap*));
+    MOCK_METHOD1(Init, int(const NebdMetaFileManagerOption&));
+    MOCK_METHOD1(ListFileMeta, int(std::vector<NebdFileMeta>*));
+    MOCK_METHOD2(UpdateFileMeta, int(const std::string&, const NebdFileMeta&));
+    MOCK_METHOD1(RemoveFileMeta, int(const std::string&));
 };
 
 }  // namespace server

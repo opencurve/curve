@@ -1,17 +1,4 @@
 cc_binary(
-    name = "filerecordmanager_test",
-    srcs = glob([
-        "file_record_manager_unittest.cpp",
-    ]),
-    deps = [
-        "//external:gflags",
-        "//src/part2:nebdserver",
-        "//tests/part2:mock_lib",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_binary(
     name = "filemanager_test",
     srcs = glob([
         "file_manager_unittest.cpp",
