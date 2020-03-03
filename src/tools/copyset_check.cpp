@@ -6,13 +6,19 @@
  */
 #include "src/tools/copyset_check.h"
 #include "src/tools/common.h"
+#include "src/tools/metric_name.h"
 
 DEFINE_bool(detail, false, "list the copyset detail or not");
 DEFINE_uint32(chunkserverId, 0, "chunkserver id");
 DEFINE_string(chunkserverAddr, "", "if specified, chunkserverId is not required");  // NOLINT
 DEFINE_uint32(serverId, 0, "server id");
 DEFINE_string(serverIp, "", "server ip");
+DEFINE_string(opName, curve::tool::kTotalOpName, "operator name");
 DECLARE_string(mdsAddr);
+DEFINE_uint64(opIntervalExceptLeader, 5, "Operator generation interval other "
+                                         "than transfer leader");
+DEFINE_uint64(leaderOpInterval, 30,
+                        "tranfer leader operator generation interval");
 
 namespace curve {
 namespace tool {
@@ -32,7 +38,8 @@ namespace tool {
 
 bool CopysetCheck::SupportCommand(const std::string& command) {
     return (command == kCheckCopysetCmd || command == kCheckChunnkServerCmd
-            || command == kCheckServerCmd || command == kCheckClusterCmd);
+            || command == kCheckServerCmd || command == kCopysetsStatusCmd
+            || command == kCheckOperatorCmd);
 }
 
 int CopysetCheck::Init() {
@@ -67,8 +74,15 @@ int CopysetCheck::RunCommand(const std::string& command) {
     } else if (command == kCheckServerCmd) {
         CHECK_ONLY_ONE_SHOULD_BE_SPECIFIED(serverIp, serverId);
         return CheckServer();
-    } else if (command == kCheckClusterCmd) {
-        return CheckCluster();
+    } else if (command == kCopysetsStatusCmd) {
+        return CheckCopysetsInCluster();
+    } else if (command == kCheckOperatorCmd) {
+        if (!SupportOpName(FLAGS_opName)) {
+            std::cout << "only support opName: ";
+            PrintSupportOpName();
+            return -1;
+        }
+        return CheckOperator(FLAGS_opName);
     } else {
         PrintHelp(command);
         return -1;
@@ -142,16 +156,33 @@ int CopysetCheck::CheckServer() {
     return res;
 }
 
-int CopysetCheck::CheckCluster() {
+int CopysetCheck::CheckCopysetsInCluster() {
     int res = core_->CheckCopysetsInCluster();
     if (res == 0) {
-        std::cout << "Cluster is healthy!" << std::endl;
+        std::cout << "Copysets are healthy!" << std::endl;
     } else {
-        std::cout << "Cluster is not healthy!" << std::endl;
+        std::cout << "Copysets not healthy!" << std::endl;
     }
     PrintStatistic();
     if (FLAGS_detail) {
         PrintDetail();
+    }
+    return res;
+}
+
+int CopysetCheck::CheckOperator(const std::string& opName) {
+    int res;
+    if (opName == kTransferOpName || opName == kTotalOpName) {
+        res = core_->CheckOperator(opName, FLAGS_leaderOpInterval);
+    } else {
+        res = core_->CheckOperator(opName, FLAGS_opIntervalExceptLeader);
+    }
+     if (res < 0) {
+        std::cout << "Check operator fail!" << std::endl;
+    } else {
+        std::cout << "Operator num is "
+                  << res << std::endl;
+        res = 0;
     }
     return res;
 }
@@ -169,8 +200,8 @@ void CopysetCheck::PrintHelp(const std::string& command) {
     } else if (command == kCheckServerCmd) {
         std::cout << "curve_ops_tool check-server -mdsAddr=127.0.0.1:6666 -serverId=1 [-margin=1000]" << std::endl;  // NOLINT
         std::cout << "curve_ops_tool check-server -mdsAddr=127.0.0.1:6666 -serverIp=127.0.0.1 [-margin=1000]" << std::endl;  // NOLINT
-    } else if (command == kCheckClusterCmd) {
-        std::cout << "curve_ops_tool check-cluster -mdsAddr=127.0.0.1:6666 [-margin=1000] [-operatorMaxPeriod=30] [-checkOperator]" << std::endl << std::endl;  // NOLINT
+    } else if (command == kCopysetsStatusCmd) {
+        std::cout << "curve_ops_tool copysets-status -mdsAddr=127.0.0.1:6666 [-margin=1000] [-operatorMaxPeriod=30] [-checkOperator]" << std::endl << std::endl;  // NOLINT
     } else {
         std::cout << "Command not supported!" << std::endl;
     }

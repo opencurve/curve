@@ -23,6 +23,8 @@ class MockMetricClient : public MetricClient {
  public:
     MOCK_METHOD3(GetMetric, int(const std::string&, const std::string&,
                                 std::string*));
+    MOCK_METHOD3(GetMetricUint, int(const std::string&, const std::string&,
+                                uint64_t*));
 };
 }  // namespace tool
 }  // namespace curve

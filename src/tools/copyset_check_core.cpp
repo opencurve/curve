@@ -4,6 +4,7 @@
  * Author: charisu
  * Copyright (c) 2018 netease
  */
+#include <math.h>
 #include "src/tools/copyset_check_core.h"
 
 DEFINE_uint64(margin, 1000, "The threshold of the gap between peers");
@@ -297,24 +298,37 @@ int CopysetCheckCore::CheckCopysetsInCluster() {
     }
     // 默认不检查operator，在测试脚本之类的要求比较严格的地方才检查operator，不然
     // 每次执行命令等待30秒很不方便
-    if (!FLAGS_checkOperator) {
-        return 0;
+    if (FLAGS_checkOperator) {
+        int res = CheckOperator(kTotalOpName, FLAGS_operatorMaxPeriod);
+        if (res != 0) {
+            std::cout << "Exists operators on mds, scheduling!" << std::endl;
+            return -1;
+        }
     }
+    return 0;
+}
+
+int CopysetCheckCore::CheckOperator(const std::string& opName,
+                                    uint64_t checkTimeSec) {
     uint64_t startTime = curve::common::TimeUtility::GetTimeofDaySec();
-    while (curve::common::TimeUtility::GetTimeofDaySec() -
-                        startTime < FLAGS_operatorMaxPeriod) {
+    std::string metricName = GetOpNumMetricName(opName);
+    do {
         uint64_t opNum = 0;
-        int res = mdsClient_->GetMetric(kOperatorNumMetricName, &opNum);
+        int res = mdsClient_->GetMetric(metricName, &opNum);
         if (res != 0) {
             std::cout << "Get oparator num from mds fail!" << std::endl;
             return -1;
         }
         if (opNum != 0) {
-            std::cout << "Exists operators on mds, scheduling!" << std::endl;
-            return -1;
+            return opNum;
+        }
+        if (curve::common::TimeUtility::GetTimeofDaySec() -
+                                        startTime >= checkTimeSec) {
+            break;
         }
         sleep(1);
-    }
+    } while (curve::common::TimeUtility::GetTimeofDaySec() -
+                                        startTime < checkTimeSec);
     return 0;
 }
 

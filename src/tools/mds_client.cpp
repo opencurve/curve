@@ -788,6 +788,9 @@ int MDSClient::GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus) {
 int MDSClient::GetMetric(const std::string& metricName, uint64_t* value) {
     std::string str;
     int res = GetMetric(metricName, &str);
+    if (res != 0) {
+        return -1;
+    }
     if (!curve::common::StringToUll(str, value)) {
         std::cout << "parse metric as uint64_t fail!" << std::endl;
         return -1;
@@ -809,7 +812,7 @@ int MDSClient::GetMetric(const std::string& metricName, std::string* value) {
             changeTimeLeft--;
         }
     }
-    std::cout << "GetMetric from all mds fail!"
+    std::cout << "GetMetric " << metricName << " from all mds fail!"
               << std::endl;
     return -1;
 }
