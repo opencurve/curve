@@ -14,20 +14,16 @@ int VersionTool::Init(const std::string& mdsAddr) {
     return mdsClient_->Init(mdsAddr);
 }
 
-int VersionTool::GetAndCheckMdsVersion(std::string* version) {
+int VersionTool::GetAndCheckMdsVersion(std::string* version,
+                                       std::vector<std::string>* failedList) {
     const auto& dummyServerMap = mdsClient_->GetDummyServerMap();
     std::vector<std::string> dummyServers;
     for (const auto& item : dummyServerMap) {
         dummyServers.emplace_back(item.second);
     }
     VersionMapType versionMap;
-    std::vector<std::string> failedList;
-    GetVersionMap(dummyServers, &versionMap, &failedList);
+    GetVersionMap(dummyServers, &versionMap, failedList);
     int ret = 0;
-    if (!failedList.empty()) {
-        PrintFailedList(failedList);
-        ret = -1;
-    }
     if (versionMap.empty()) {
         std::cout << "no version found!" << std::endl;
         ret = -1;
@@ -41,7 +37,8 @@ int VersionTool::GetAndCheckMdsVersion(std::string* version) {
     return ret;
 }
 
-int VersionTool::GetAndCheckChunkServerVersion(std::string* version) {
+int VersionTool::GetAndCheckChunkServerVersion(std::string* version,
+                                        std::vector<std::string>* failedList) {
     std::vector<ChunkServerInfo> chunkServers;
     int res = mdsClient_->ListChunkServersInCluster(&chunkServers);
     if (res != 0) {
@@ -55,13 +52,8 @@ int VersionTool::GetAndCheckChunkServerVersion(std::string* version) {
     }
 
     VersionMapType versionMap;
-    std::vector<std::string> failedList;
-    GetVersionMap(csAddrs, &versionMap, &failedList);
+    GetVersionMap(csAddrs, &versionMap, failedList);
     int ret = 0;
-    if (!failedList.empty()) {
-        PrintFailedList(failedList);
-        ret = -1;
-    }
     if (versionMap.empty()) {
         std::cout << "no version found!" << std::endl;
         ret = -1;
@@ -90,6 +82,7 @@ int VersionTool::GetClientVersion(VersionMapType* versionMap,
 void VersionTool::GetVersionMap(const std::vector<std::string>& addrVec,
                                 VersionMapType* versionMap,
                                 std::vector<std::string>* failedList) {
+    failedList->clear();
     for (const auto& addr : addrVec) {
         std::string version;
         int res = metricClient_->GetMetric(addr, kCurveVersionMetricName,
@@ -127,7 +120,7 @@ void VersionTool::PrintFailedList(const std::vector<std::string>& failedList) {
         }
         std::cout << failedList[i];
     }
-    std::cout << "} fail";
+    std::cout << "} fail" << std::endl;
 }
 
 }  // namespace tool

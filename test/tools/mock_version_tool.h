@@ -25,8 +25,10 @@ class MockVersionTool : public VersionTool {
     MockVersionTool() : VersionTool(std::make_shared<MDSClient>(),
                                     std::make_shared<MetricClient>()) {}
     MOCK_METHOD1(Init, int(const std::string&));
-    MOCK_METHOD1(GetAndCheckMdsVersion, int(std::string*));
-    MOCK_METHOD1(GetAndCheckChunkServerVersion, int(std::string*));
+    MOCK_METHOD2(GetAndCheckMdsVersion, int(std::string*,
+                                            std::vector<std::string>*));
+    MOCK_METHOD2(GetAndCheckChunkServerVersion, int(std::string*,
+                                                    std::vector<std::string>*));
     MOCK_METHOD2(GetClientVersion, int(VersionMapType*,
                                        std::vector<std::string>*));
 };

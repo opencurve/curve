@@ -41,7 +41,7 @@ std::shared_ptr<StatusTool> CurveToolFactory::GenerateStatusTool() {
     auto versionTool = std::make_shared<VersionTool>(mdsClient, metricClient);
     return std::make_shared<StatusTool>(mdsClient, etcdClient,
                                        nameSpaceTool, copysetCheck,
-                                       versionTool);
+                                       versionTool, metricClient);
 }
 
 std::shared_ptr<NameSpaceTool> CurveToolFactory::GenerateNameSpaceTool() {

@@ -34,7 +34,8 @@ const char kChunkLocatitonCmd[] = "chunk-location";
 const char kCheckCopysetCmd[] = "check-copyset";
 const char kCheckChunnkServerCmd[] = "check-chunkserver";
 const char kCheckServerCmd[] = "check-server";
-const char kCheckClusterCmd[] = "check-cluster";
+const char kCopysetsStatusCmd[] = "copysets-status";
+const char kCheckOperatorCmd[] = "check-operator";
 
 // 一致性检查命令
 const char kCheckConsistencyCmd[] = "check-consistency";
