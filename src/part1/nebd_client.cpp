@@ -19,6 +19,8 @@
 #include "src/part1/async_request_closure.h"
 #include "src/common/configuration.h"
 
+#define RETURN_IF_FALSE(val) if (val == false) { return -1; }
+
 // 修改brpc的health_check_interval参数，这个参数用来控制健康检查的周期
 // ## 健康检查
 // 连接断开的server会被暂时隔离而不会被负载均衡算法选中，brpc会定期连接被隔离的server，以检查他们是否恢复正常，间隔由参数-health_check_interval控制:   // NOLINT
@@ -28,6 +30,7 @@
 // 一旦server被连接上，它会恢复为可用状态。如果在隔离过程中，server从命名服务中删除了，brpc也会停止连接尝试。                                         // NOLINT
 namespace brpc {
     DECLARE_int32(health_check_interval);
+    DECLARE_int32(circuit_breaker_max_isolation_duration_ms);
 }  // namespace brpc
 
 namespace nebd {
@@ -415,61 +418,51 @@ int NebdClient::InitNebdClientOption(Configuration* conf) {
     bool ret = false;
     ret = conf->GetStringValue("nebdserver.serverAddress",
                                &option_.serverAddress);
-    if (!ret) {
-        LOG(ERROR) << "Load nebdserver.serverAddress failed";
-        return -1;
-    }
+    LOG_IF(ERROR, ret != true) << "Load nebdserver.serverAddress failed";
+    RETURN_IF_FALSE(ret);
 
     ret = conf->GetStringValue("metacache.fileLockPath",
                                &option_.fileLockPath);
-    if (!ret) {
-        LOG(ERROR) << "Load metacache.fileLockPath failed";
-        return -1;
-    }
+    LOG_IF(ERROR, ret != true) << "Load metacache.fileLockPath failed";
+    RETURN_IF_FALSE(ret);
 
     RequestOption requestOption;
 
     ret = conf->GetInt64Value("request.syncRpcMaxRetryTimes",
                               &requestOption.syncRpcMaxRetryTimes);
-    if (!ret) {
-        LOG(ERROR) << "Load request.syncRpcMaxRetryTimes failed";
-        return -1;
-    }
+    LOG_IF(ERROR, ret != true) << "Load request.syncRpcMaxRetryTimes failed";
+    RETURN_IF_FALSE(ret);
 
     ret = conf->GetInt64Value("request.rpcRetryIntervalUs",
                               &requestOption.rpcRetryIntervalUs);
-    if (!ret) {
-        LOG(ERROR) << "Load request.rpcRetryIntervalUs failed";
-        return -1;
-    }
+    LOG_IF(ERROR, ret != true) << "Load request.rpcRetryIntervalUs failed";
+    RETURN_IF_FALSE(ret);
 
     ret = conf->GetInt64Value("request.rpcRetryMaxIntervalUs",
                               &requestOption.rpcRetryMaxIntervalUs);
-    if (!ret) {
-        LOG(ERROR) << "Load request.rpcRetryMaxIntervalUs failed";
-        return -1;
-    }
+    LOG_IF(ERROR, ret != true) << "Load request.rpcRetryMaxIntervalUs failed";
+    RETURN_IF_FALSE(ret);
 
     ret = conf->GetInt64Value("request.rpcHostDownRetryIntervalUs",
                               &requestOption.rpcHostDownRetryIntervalUs);
-    if (!ret) {
-        LOG(ERROR) << "Load request.rpcHostDownRetryIntervalUs failed";
-        return -1;
-    }
+    LOG_IF(ERROR, ret != true) << "Load request.rpcHostDownRetryIntervalUs failed";  // NOLINT
+    RETURN_IF_FALSE(ret);
 
     ret = conf->GetInt64Value("request.rpcHealthCheckIntervalS",
                               &requestOption.rpcHealthCheckIntervalS);
-    if (!ret) {
-        LOG(ERROR) << "Load request.rpcHealthCheckIntervalS failed";
-        return -1;
-    }
+    LOG_IF(ERROR, ret != true) << "Load request.rpcHealthCheckIntervalS failed";
+    RETURN_IF_FALSE(ret);
+
+    ret = conf->GetInt64Value("request.rpcMaxDelayHealthCheckIntervalMs",
+                              &requestOption.rpcMaxDelayHealthCheckIntervalMs);
+    LOG_IF(ERROR, ret != true) << "Load request.rpcMaxDelayHealthCheckIntervalMs failed";  // NOLINT
+    RETURN_IF_FALSE(ret);
+
     option_.requestOption = requestOption;
 
     ret = conf->GetStringValue("log.path", &option_.logOption.logPath);
-    if (!ret) {
-        LOG(ERROR) << "Load log.path failed";
-        return -1;
-    }
+    LOG_IF(ERROR, ret != true) << "Load log.path failed";
+    RETURN_IF_FALSE(ret);
 
     return 0;
 }
@@ -478,30 +471,27 @@ int NebdClient::InitHeartBeatOption(Configuration* conf,
                                     HeartbeatOption* heartbeatOption) {
     bool ret = conf->GetInt64Value("heartbeat.intervalS",
                                    &heartbeatOption->intervalS);
-    if (!ret) {
-        LOG(ERROR) << "Load heartbeat.intervalS failed";
-        return -1;
-    }
+    LOG_IF(ERROR, ret != true) << "Load heartbeat.intervalS failed";
+    RETURN_IF_FALSE(ret);
 
     ret = conf->GetInt64Value("heartbeat.rpcTimeoutMs",
                               &heartbeatOption->rpcTimeoutMs);
-    if (!ret) {
-        LOG(ERROR) << "Load heartbeat.rpcTimeoutMs failed";
-        return -1;
-    }
+    LOG_IF(ERROR, ret != true) << "Load heartbeat.rpcTimeoutMs failed";
+    RETURN_IF_FALSE(ret);
 
     ret = conf->GetStringValue("nebdserver.serverAddress",
                                &heartbeatOption->serverAddress);
-    if (!ret) {
-        LOG(ERROR) << "Load nebdserver.serverAddress failed";
-        return -1;
-    }
+    LOG_IF(ERROR, ret != true) << "Load nebdserver.serverAddress failed";
+    RETURN_IF_FALSE(ret);
+
     return 0;
 }
 
 int NebdClient::InitChannel() {
     brpc::FLAGS_health_check_interval =
-            option_.requestOption.rpcHealthCheckIntervalS;
+        option_.requestOption.rpcHealthCheckIntervalS;
+    brpc::FLAGS_circuit_breaker_max_isolation_duration_ms =
+        option_.requestOption.rpcMaxDelayHealthCheckIntervalMs;
     int ret = channel_.InitWithSockFile(
         option_.serverAddress.c_str(), nullptr);
     if (ret != 0) {

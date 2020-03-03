@@ -19,16 +19,17 @@
 
 #include "tests/part1/fake_file_service.h"
 #include "tests/part1/mock_file_service.h"
-
-namespace nebd {
-namespace client {
+#include "tests/utils/config_generator.h"
 
 const char* kFileName = "nebd-test-filename";
 const char* kFileNameWithSlash = "nebd-test-filenae//filename";
 const char* kNebdServerTestAddress = "./nebd-client-test.sock";
-const char* kNebdClientConf = "tests/part1/nebd-client.conf";
+const char* kNebdClientConf = "tests/part1/nebd-client-test.conf";
 const int64_t kFileSize = 10LL * 1024 * 1024 * 1024;
 const int64_t kBufSize = 1024;
+
+namespace nebd {
+namespace client {
 
 std::mutex mtx;
 std::condition_variable cond;
@@ -569,6 +570,18 @@ TEST_F(NebdFileClientTest, InitAndUninitTest) {
 
 
 int main(int argc, char* argv[]) {
+    std::vector<std::string> nebdConfig {
+        std::string("nebdserver.serverAddress=") + kNebdServerTestAddress,
+        std::string("metacache.fileLockPath=/tmp"),
+        std::string("request.syncRpcMaxRetryTimes=10"),
+        std::string("log.path=.")
+    };
+
+    nebd::common::NebdClientConfigGenerator generator;
+    generator.SetConfigPath(kNebdClientConf);
+    generator.SetConfigOptions(nebdConfig);
+    generator.Generate();
+
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

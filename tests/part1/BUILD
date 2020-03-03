@@ -32,6 +32,22 @@ cc_binary(
         "//external:gflags",
         "//src/part1:nebdclient",
         "//tests/part1:fake_lib",
+        "//tests/utils:test_utils_lib",
+        "@com_google_googletest//:gtest_main",
+    ],
+    linkstatic = False,
+)
+
+cc_binary(
+    name = "nebd_lib_unittest",
+    srcs = glob([
+        "nebd_lib_unittest.cpp",
+    ]),
+    deps = [
+        "//external:gflags",
+        "//src/part1:nebdclient",
+        "//tests/part1:fake_lib",
+        "//tests/utils:test_utils_lib",
         "@com_google_googletest//:gtest_main",
     ],
     linkstatic = False,

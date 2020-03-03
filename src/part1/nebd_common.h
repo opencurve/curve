@@ -22,6 +22,8 @@ struct RequestOption {
     int64_t rpcHostDownRetryIntervalUs;
     // brpc的健康检查周期时间
     int64_t rpcHealthCheckIntervalS;
+    // brpc从rpc失败到进行健康检查的最大时间间隔
+    int64_t rpcMaxDelayHealthCheckIntervalMs;
 };
 
 // 日志配置项
