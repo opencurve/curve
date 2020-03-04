@@ -91,6 +91,7 @@ function start_mds() {
         prefix=`echo $subnet|awk -F/ '{print $1}'|awk -F. '{printf "%d", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
         mod=`echo $subnet|awk -F/ '{print $2}'`
         mask=$((2**32-2**(32-$mod)))
+        ip=
         echo "subnet: $subnet"
         echo "base port: $port"
         # 对prefix再取一次模，为了支持10.182.26.50/22这种格式
@@ -101,15 +102,16 @@ function start_mds() {
                 ip_int=`echo $i|awk -F. '{printf "%d\n", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
                 if [ $(($ip_int&$mask)) -eq $prefix ]
                 then
-                    mdsAddr=$i
+                    ip=$i
                     break
                 fi
         done
-        if [ -z "$mdsAddr" ]
+        if [ -z "$ip" ]
         then
                 echo "no ip matched!\n"
                 return 1
         fi
+        mdsAddr=${ip}:${port}
     fi
 
   daemon --name curve-mds --core --inherit \
@@ -117,7 +119,7 @@ function start_mds() {
     --pidfile ${pidFile} \
     --errlog ${daemonLog} \
     --output ${consoleLog} \
-    -- ${curveBin} -confPath=${confPath} -mdsAddr=${mdsAddr}:${port} -log_dir=${logPath} -graceful_quit_on_sigterm=true -stderrthreshold=3
+    -- ${curveBin} -confPath=${confPath} -mdsAddr=${mdsAddr} -log_dir=${logPath} -graceful_quit_on_sigterm=true -stderrthreshold=3
 
   sleep 1
   show_status
@@ -167,7 +169,7 @@ function show_status() {
   fi
 
   # 查询leader的IP
-  leaderAddr=`tac ${consoleLog}|grep -m 1 -B 1000000 "load mds configuration"|grep "leader"|grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}"|head -n1`
+  leaderAddr=`tac ${consoleLog}|grep -m 1 -B 1000000 "Logging before InitGoogleLogging()"|grep "leader"|grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}"|head -n1`
 
   # 如果load mds configuration之后的日志，没有leader相关日志
   # 那么leaderAddr为空, mds应该没有起来
