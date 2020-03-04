@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -e
+
+logdir=/data/log/curve
+
+mkdir -p ${logdir}
+
+chown -R root:root ${logdir}
+chmod -R 777 ${logdir}
+
+exit 0
