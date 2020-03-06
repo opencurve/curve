@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include <assert.h>
 #include <glog/logging.h>
+#include <bthread/bthread.h>
 
 #include "src/common/uncopyable.h"
 
@@ -19,37 +20,50 @@ namespace common {
 
 class RWLockBase : public Uncopyable {
  public:
-    void WRLock() {
-        int ret = pthread_rwlock_wrlock(&rwlock_);
-        CHECK(0 == ret) << "wlock failed: " << ret << ", " << strerror(ret);
-    }
-
-    int TryWRLock() {
-        return pthread_rwlock_trywrlock(&rwlock_);
-    }
-
-    void RDLock() {
-        int ret = pthread_rwlock_rdlock(&rwlock_);
-        CHECK(0 == ret) << "rlock failed: " << ret << ", " << strerror(ret);
-    }
-
-    int TryRDLock() {
-        return pthread_rwlock_tryrdlock(&rwlock_);
-    }
-
-    void Unlock() {
-        pthread_rwlock_unlock(&rwlock_);
-    }
+    virtual void WRLock() = 0;
+    virtual int TryWRLock() = 0;
+    virtual void RDLock() = 0;
+    virtual int TryRDLock() = 0;
+    virtual void Unlock() = 0;
 
  protected:
     RWLockBase() = default;
     virtual ~RWLockBase() = default;
+};
+
+class PthreadRWLockBase : public RWLockBase {
+ public:
+    void WRLock() override {
+        int ret = pthread_rwlock_wrlock(&rwlock_);
+        CHECK(0 == ret) << "wlock failed: " << ret << ", " << strerror(ret);
+    }
+
+    int TryWRLock() override {
+        return pthread_rwlock_trywrlock(&rwlock_);
+    }
+
+    void RDLock() override {
+        int ret = pthread_rwlock_rdlock(&rwlock_);
+        CHECK(0 == ret) << "rlock failed: " << ret << ", " << strerror(ret);
+    }
+
+    int TryRDLock() override {
+        return pthread_rwlock_tryrdlock(&rwlock_);
+    }
+
+    void Unlock() override {
+        pthread_rwlock_unlock(&rwlock_);
+    }
+
+ protected:
+    PthreadRWLockBase() = default;
+    virtual ~PthreadRWLockBase() = default;
 
     pthread_rwlock_t rwlock_;
     pthread_rwlockattr_t rwlockAttr_;
 };
 
-class RWLock : public RWLockBase {
+class RWLock : public PthreadRWLockBase {
  public:
     RWLock() {
         pthread_rwlock_init(&rwlock_, nullptr);
@@ -60,7 +74,7 @@ class RWLock : public RWLockBase {
     }
 };  // RWLock class
 
-class WritePreferedRWLock : public RWLockBase {
+class WritePreferedRWLock : public PthreadRWLockBase {
  public:
     WritePreferedRWLock() {
         pthread_rwlockattr_init(&rwlockAttr_);
@@ -76,6 +90,44 @@ class WritePreferedRWLock : public RWLockBase {
         pthread_rwlock_destroy(&rwlock_);
     }
 };
+
+class BthreadRWLock : public RWLockBase {
+ public:
+    BthreadRWLock() {
+        bthread_rwlock_init(&rwlock_, nullptr);
+    }
+
+    ~BthreadRWLock() {
+        bthread_rwlock_destroy(&rwlock_);
+    }
+
+    void WRLock() override {
+        int ret = bthread_rwlock_wrlock(&rwlock_);
+        CHECK(0 == ret) << "wlock failed: " << ret << ", " << strerror(ret);
+    }
+
+    int TryWRLock() override {
+        // not support yet
+        return EINVAL;
+    }
+
+    void RDLock() override {
+        int ret = bthread_rwlock_rdlock(&rwlock_);
+        CHECK(0 == ret) << "rlock failed: " << ret << ", " << strerror(ret);
+    }
+
+    int TryRDLock() override {
+        // not support yet
+        return EINVAL;
+    }
+
+    void Unlock() override {
+        bthread_rwlock_unlock(&rwlock_);
+    }
+
+ private:
+    bthread_rwlock_t rwlock_;
+};  // BthreadRWLock
 
 class ReadLockGuard : public Uncopyable {
  public:
