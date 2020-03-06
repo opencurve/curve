@@ -783,7 +783,7 @@ def wait_health_ok():
     addrs = ",".join(mds_addrs)
     host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-    ori_cmd = "curve_ops_tool check-cluster -checkOperator -mdsAddr=%s | grep \"Cluster is\""%addrs
+    ori_cmd = "curve_ops_tool check-cluster -mdsAddr=%s | grep \"Cluster is\""%addrs
     starttime = time.time()
     check = 0
     while time.time() - starttime < config.recover_time:
@@ -809,7 +809,7 @@ def wait_cluster_healthy(limit_iops=8000):
     addrs = ",".join(mds_addrs)
     host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-    ori_cmd = "curve_ops_tool check-cluster -checkOperator -mdsAddr=%s | grep \"Cluster is\""%addrs
+    ori_cmd = "curve_ops_tool check-cluster  -mdsAddr=%s | grep \"Cluster is\""%addrs
     starttime = time.time()
     check = 0
     while time.time() - starttime < config.recover_time:
