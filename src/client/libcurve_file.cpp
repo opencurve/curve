@@ -464,31 +464,18 @@ int FileClient::ChangeOwner(const std::string& filename,
 }
 
 int FileClient::Close(int fd) {
-    // TODO(wuhanqing): 原来整个Close过程会先获取写锁。
-    // 在热升级场景下，可能会在bthread中调用Close关闭文件
-    // fileserviceMap_[fd]->Close() 中会发送rpc，导致bthread切出
-    // 其余读写线程由于获取不到锁而卡住
-    // 如果读写线程也被调度到之前Close的pthread中，则会出现同一个pthread加了写锁，又去获取读锁的行为
-    // 所以fileserviceMap_[fd]->Close()暂时不加锁，如果rpc成功，后续的删除加写锁进行
-    int ret = 0;
-    {
-        ReadLockGuard lk(rwlock_);
-        auto iter = fileserviceMap_.find(fd);
-        if (iter == fileserviceMap_.end()) {
-            LOG(ERROR) << "can not find " << fd;
-            return -LIBCURVE_ERROR::FAILED;
-        }
+    WriteLockGuard lk(rwlock_);
+    auto iter = fileserviceMap_.find(fd);
+    if (iter == fileserviceMap_.end()) {
+        LOG(ERROR) << "can not find " << fd;
+        return -LIBCURVE_ERROR::FAILED;
     }
 
-    ret = fileserviceMap_[fd]->Close();
+    int ret = fileserviceMap_[fd]->Close();
     if (ret == LIBCURVE_ERROR::OK || ret == -LIBCURVE_ERROR::SESSION_NOT_EXIST) {   //  NOLINT
         fileserviceMap_[fd]->UnInitialize();
-
-        {
-            WriteLockGuard lk(rwlock_);
-            delete fileserviceMap_[fd];
-            fileserviceMap_.erase(fd);
-        }
+        delete fileserviceMap_[fd];
+        fileserviceMap_.erase(iter);
         LOG(INFO) << "uninitialize " << fd;
         return LIBCURVE_ERROR::OK;
     } else {
