@@ -763,7 +763,7 @@ def check_chunkserver_online(num=120):
         else:
             break
     if int(online_num[0]) != num:
-        ori_cmd = "curve_ops_tool chunkserver-list -checkHealth=false | grep OFFLINE"
+        ori_cmd = "curve_ops_tool chunkserver-list -checkHealth=false -checkCSAlive | grep OFFLINE"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         logger.error("chunkserver offline list is %s"%rs[1])
         assert int(online_num[0]) == num,"chunkserver online num is %s"%online_num
