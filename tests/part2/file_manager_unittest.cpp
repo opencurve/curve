@@ -508,6 +508,20 @@ TEST_F(FileManagerTest, FlushTest) {
     RequestFailTest(RequestType::FLUSH, task);
 }
 
+TEST_F(FileManagerTest, UpdateTimestampTest) {
+    InitEnv();
+    NebdFileEntityPtr entity = fileManager_->GetFileEntity(1);
+    ASSERT_NE(nullptr, entity);
+    ASSERT_EQ(1, entity->GetFd());
+
+    ::usleep(1000);
+    uint64_t curTime = TimeUtility::GetTimeofDayMs();
+    ASSERT_NE(curTime, entity->GetFileTimeStamp());
+    entity->UpdateFileTimeStamp(curTime);
+    ASSERT_EQ(curTime, entity->GetFileTimeStamp());
+    std::cout << fileManager_->DumpAllFileStatus();
+}
+
 }  // namespace server
 }  // namespace nebd
 

@@ -333,8 +333,12 @@ bool NebdFileEntity::GuaranteeFileOpened() {
 }
 
 std::ostream& operator<<(std::ostream& os, const NebdFileEntity& entity) {
+    std::string standardTime;
+    TimeUtility::TimeStampToStandard(
+        entity.GetFileTimeStamp() / 1000, &standardTime);
     os << "[filename: " << entity.GetFileName() << ", fd: " << entity.GetFd()
-       << ", status: " << NebdFileStatus2Str(entity.GetFileStatus()) << "]";
+       << ", status: " << NebdFileStatus2Str(entity.GetFileStatus())
+       << ", timestamp: " << standardTime << "]";
     return os;
 }
 

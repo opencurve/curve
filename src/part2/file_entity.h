@@ -154,7 +154,7 @@ class NebdFileEntity : public std::enable_shared_from_this<NebdFileEntity> {
     }
 
     virtual void UpdateFileTimeStamp(uint64_t timestamp) {
-        timeStamp_.store(timeStamp_);
+        timeStamp_.store(timestamp);
     }
 
     virtual const uint64_t GetFileTimeStamp() const {
