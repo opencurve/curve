@@ -12,6 +12,8 @@ DEFINE_bool(unhealthy, false, "if true, only list chunkserver that unhealthy "
                               "ratio greater than 0");
 DEFINE_bool(checkHealth, true, "if true, it will check the health "
                                 "state of chunkserver in chunkserver-list");
+DEFINE_bool(checkCSAlive, false, "if true, it will check the online state of "
+                                "chunkservers with rpc in chunkserver-list");
 DEFINE_uint64(chunkSize, 16777216, "chunk size");
 DECLARE_string(mdsAddr);
 DECLARE_string(etcdAddr);
@@ -78,7 +80,8 @@ void StatusTool::PrintHelp(const std::string& cmd) {
         std::cout << " -etcdAddr=127.0.0.1:6666";
     }
     if (cmd == kChunkserverListCmd) {
-        std::cout << " [-offline] [-unhealthy] [-checkHealth=false]";
+        std::cout << " [-offline] [-unhealthy] [-checkHealth=false]"
+                     " [-checkCSAlive]";
     }
     if (cmd == kClientStatusCmd) {
         std::cout << " [-detail]";
@@ -115,9 +118,20 @@ int StatusTool::ChunkServerListCmd() {
     uint64_t online = 0;
     uint64_t offline = 0;
     uint64_t unstable = 0;
-    for (const auto& chunkserver : chunkservers) {
+    for (auto& chunkserver : chunkservers) {
         auto csId = chunkserver.chunkserverid();
         double unhealthyRatio;
+        if (FLAGS_checkCSAlive) {
+            // 发RPC重置online状态
+            std::string csAddr = chunkserver.hostip()
+                        + ":" + std::to_string(chunkserver.port());
+            bool isOnline = copysetCheckCore_->CheckChunkServerOnline(csAddr);
+            if (isOnline) {
+                chunkserver.set_onlinestate(OnlineState::ONLINE);
+            } else {
+                chunkserver.set_onlinestate(OnlineState::OFFLINE);
+            }
+        }
         if (chunkserver.onlinestate() != OnlineState::ONLINE) {
             if (chunkserver.onlinestate() == OnlineState::OFFLINE) {
                 offline++;
@@ -164,8 +178,11 @@ int StatusTool::ChunkServerListCmd() {
         }
         std::cout << std::endl;
     }
-    std::cout << "total: " << total << ", online: " << online
-        <<", unstable: " << unstable << ", offline: " << offline << std::endl;
+    std::cout << "total: " << total << ", online: " << online;
+    if (!FLAGS_checkCSAlive) {
+        std::cout <<", unstable: " << unstable;
+    }
+    std::cout << ", offline: " << offline << std::endl;
     return 0;
 }
 
@@ -173,31 +190,26 @@ int StatusTool::StatusCmd() {
     int res = PrintClusterStatus();
     bool success = true;
     if (res != 0) {
-        std::cout << "PrintClusterStatus fail!" << std::endl;
         success = false;
     }
     std::cout << std::endl;
     res = PrintClientStatus();
     if (res != 0) {
-        std::cout << "PrintClientStatus fail!" << std::endl;
         success = false;
     }
     std::cout << std::endl;
     res = PrintMdsStatus();
     if (res != 0) {
-        std::cout << "PrintMdsStatus fail!" << std::endl;
         success = false;
     }
     std::cout << std::endl;
     res = PrintEtcdStatus();
     if (res != 0) {
-        std::cout << "PrintEtcdStatus fail!" << std::endl;
         success = false;
     }
     std::cout << std::endl;
     res = PrintChunkserverStatus();
     if (res != 0) {
-        std::cout << "PrintChunkserverStatus fail!" << std::endl;
         success = false;
     }
     if (success) {
@@ -405,22 +417,19 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     uint64_t total = 0;
     uint64_t online = 0;
     uint64_t offline = 0;
-    uint64_t unstable = 0;
     std::map<uint64_t, int> leftSizeNum;
     for (const auto& chunkserver : chunkservers) {
-        if (chunkserver.onlinestate() == OnlineState::ONLINE) {
+        total++;
+        std::string csAddr = chunkserver.hostip()
+                        + ":" + std::to_string(chunkserver.port());
+        if (copysetCheckCore_->CheckChunkServerOnline(csAddr)) {
             online++;
-        } else if (chunkserver.onlinestate() == OnlineState::UNSTABLE) {
-            unstable++;
         } else {
             offline++;
         }
-        total++;
         if (!checkLeftSize) {
             continue;
         }
-        std::string csAddr = chunkserver.hostip()
-                        + ":" + std::to_string(chunkserver.port());
         std::string metricName = GetCSLeftChunkName(csAddr);
         uint64_t chunkNum;
         int res = metricClient_->GetMetricUint(csAddr, metricName, &chunkNum);
@@ -439,7 +448,6 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     }
     std::cout << "chunkserver: total num = " << total
             << ", online = " << online
-            << ", unstable = " << unstable
             << ", offline = " << offline << std::endl;
     if (!checkLeftSize) {
         return ret;

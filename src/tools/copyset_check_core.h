@@ -190,6 +190,15 @@ class CopysetCheckCore {
         return serviceExceptionChunkServers_;
     }
 
+    /**
+    * @brief 通过发送RPC检查chunkserver是否在线
+    *
+    * @param chunkserverAddr chunkserver的地址
+    *
+    * @return 在线返回true，不在线返回false
+    */
+    virtual bool CheckChunkServerOnline(const std::string& chunkserverAddr);
+
  private:
     /**
     * @brief 将逻辑池Id和copyset Id转换成groupId
@@ -276,15 +285,6 @@ class CopysetCheckCore {
     */
     int QueryChunkServer(const std::string& chunkserverAddr,
                          butil::IOBuf* iobuf);
-
-    /**
-    * @brief 通过发送RPC检查chunkserver是否在线
-    *
-    * @param chunkserverAddr chunkserver的地址
-    *
-    * @return 在线返回true，不在线返回false
-    */
-    bool CheckChunkServerOnline(const std::string& chunkserverAddr);
 
     /**
     * @brief 把chunkserver上所有的copyset更新到peerNotOnline里面
