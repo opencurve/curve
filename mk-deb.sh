@@ -5,12 +5,20 @@ bazel clean
 rm -rf *deb
 rm -rf build
 
+#获取curve tag版本
+curve_tag_version=`cat WORKSPACE | grep -m 1 -A 10 "http://gerrit.storage.netease.com/curve\"" | grep "tag" | awk -F "[\"\"]" '{print $2}' | awk -F"v" '{print $2}'`
+if [ -z ${curve_tag_version} ]
+then
+    echo "not found curve version info, set curve tag version to 9.9.9"
+    curve_tag_version=9.9.9
+fi
+
 # step2 编译
 if [ "$1" = "debug" ]
 then
     bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true \
         --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
-        -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX
+        -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_tag_version}
     if [ $? -ne 0 ]
     then
         echo "build phase1 failed"
@@ -19,7 +27,7 @@ then
 else
     bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
         --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
-        -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX
+        -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_tag_version}
     if [ $? -ne 0 ]
     then
         echo "build phase1 failed"
