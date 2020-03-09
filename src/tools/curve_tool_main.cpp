@@ -30,8 +30,8 @@ const char* kHelpStr = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
         "transfer-leader : transfer the leader of the copyset to the peer\n"  //NOLINT
         "reset-peer : reset the configuration of copyset, only reset to one peer is supported\n" //NOLINT
         "check-chunkserver : check the health state of the chunkserver\n"
+        "check-copyset : check the health state of one copyset\n"
         "check-server : check the health state of the server\n"
-        "check-cluster : check the health state of the cluster\n"
         "check-operator : check the operators\n"
         "rapid-leader-schedule: rapid leader schedule in cluster in logicalpool\n\n"  //NOLINT
         "You can specify the config path by -confPath to avoid typing too many options\n";  //NOLINT
