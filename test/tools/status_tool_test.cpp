@@ -24,6 +24,8 @@ using curve::mds::topology::AllocateStatus;
 
 DECLARE_bool(offline);
 DECLARE_bool(unhealthy);
+DECLARE_bool(checkHealth);
+DECLARE_bool(checkCSAlive);
 
 namespace curve {
 namespace tool {
@@ -362,6 +364,19 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("chunkserver-list"));
+
+    // FLAGS_checkCSAlive为true的时候，会发送rpc检查chunkserver在线状态
+    FLAGS_checkHealth = false;
+    FLAGS_checkCSAlive = true;
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
+                        Return(0)));
+    EXPECT_CALL(*copysetCheck_, CheckChunkServerOnline(_))
+        .Times(5)
+        .WillOnce(Return(false))
+        .WillRepeatedly(Return(true));
+    ASSERT_EQ(0, statusTool.RunCommand("chunkserver-list"));
 }
 
 TEST_F(StatusToolTest, StatusCmdCommon) {
@@ -484,6 +499,9 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
         .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<2>(1000),
                         Return(0)));
+    EXPECT_CALL(*copysetCheck_, CheckChunkServerOnline(_))
+        .Times(3)
+        .WillRepeatedly(Return(true));
     ASSERT_EQ(0, statusTool.RunCommand("status"));
 
     // 5、设置chunkserver status的输出
@@ -494,6 +512,9 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
     EXPECT_CALL(*versionTool_, GetAndCheckChunkServerVersion(_, _))
         .WillOnce(DoAll(SetArgPointee<0>("0.0.1"),
                   Return(0)));
+    EXPECT_CALL(*copysetCheck_, CheckChunkServerOnline(_))
+        .Times(3)
+        .WillRepeatedly(Return(true));
     ASSERT_EQ(0, statusTool.RunCommand("chunkserver-status"));
 
     // 6、设置mds status的输出
