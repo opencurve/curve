@@ -56,6 +56,13 @@ class LeaderElection {
      */
     int LeaderResign();
 
+    /**
+     * @brief 返回leader name
+     */
+    const std::string& GetLeaderName() {
+        return leaderName_;
+    }
+
  public:
     /**
      * @brief ObserveLeader 监测在etcd中创建的leader节点，正常情况下一直block，

@@ -24,6 +24,8 @@ std::shared_ptr<CurveTool> CurveToolFactory::GenerateCurveTool(
         return GenerateCopysetCheck();
     } else if (SnapshotCheck::SupportCommand(command)) {
         return GenerateSnapshotCheck();
+    } else if (ScheduleTool::SupportCommand(command)) {
+        return GenerateScheduleTool();
     } else {
         return nullptr;
     }
@@ -37,8 +39,11 @@ std::shared_ptr<StatusTool> CurveToolFactory::GenerateStatusTool() {
     auto csClient = std::make_shared<ChunkServerClient>();
     auto copysetCheck =
         std::make_shared<CopysetCheckCore>(mdsClient, csClient);
+    auto metricClient = std::make_shared<MetricClient>();
+    auto versionTool = std::make_shared<VersionTool>(mdsClient, metricClient);
     return std::make_shared<StatusTool>(mdsClient, etcdClient,
-                                       nameSpaceTool, copysetCheck);
+                                       nameSpaceTool, copysetCheck,
+                                       versionTool, metricClient);
 }
 
 std::shared_ptr<NameSpaceTool> CurveToolFactory::GenerateNameSpaceTool() {
@@ -74,6 +79,11 @@ std::shared_ptr<SnapshotCheck> CurveToolFactory::GenerateSnapshotCheck() {
                     std::make_shared<curve::common::S3Adapter>());
     return std::make_shared<SnapshotCheck>(
             std::make_shared<curve::client::FileClient>(), snapshotRead);
+}
+
+std::shared_ptr<ScheduleTool> CurveToolFactory::GenerateScheduleTool() {
+    auto mdsClient = std::make_shared<MDSClient>();
+    return std::make_shared<ScheduleTool>(mdsClient);
 }
 
 }  // namespace tool

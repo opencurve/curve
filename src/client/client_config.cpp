@@ -67,9 +67,19 @@ int ClientConfig::Init(const char* configpath) {
         &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS);   // NOLINT
     LOG_IF(ERROR, ret == false) << "config no chunkserver.maxRPCTimeoutMS info";
 
-    ret = conf_.GetUInt64Value("chunkserver.maxStableTimeoutTimes",
-        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxStableTimeoutTimes);  // NOLINT
+    ret = conf_.GetUInt32Value("chunkserver.maxStableTimeoutTimes",
+        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverUnstableOption.maxStableChunkServerTimeoutTimes);  // NOLINT
     LOG_IF(ERROR, ret == false) << "config no chunkserver.maxStableTimeoutTimes info";   //  NOLINT
+    RETURN_IF_FALSE(ret)
+
+    ret = conf_.GetUInt32Value("chunkserver.checkHealthTimeoutMs",
+        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverUnstableOption.checkHealthTimeoutMS);  // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no chunkserver.checkHealthTimeoutMs info";  // NOLINT
+    RETURN_IF_FALSE(ret)
+
+    ret = conf_.GetUInt32Value("chunkserver.serverStableThreshold",
+        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverUnstableOption.serverUnstableThreshold);  // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no chunkserver.serverStableThreshold info";  // NOLINT
     RETURN_IF_FALSE(ret)
 
     ret = conf_.GetUInt64Value("chunkserver.minRetryTimesForceTimeoutBackoff",

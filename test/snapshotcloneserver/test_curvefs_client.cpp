@@ -10,8 +10,11 @@
 #include <gmock/gmock.h>
 
 #include "src/snapshotcloneserver/common/curvefs_client.h"
+#include "test/util/config_generator.h"
 
 using ::curve::client::SnapCloneClosure;
+
+const char* kClientConfigPath = "test/snapshotcloneserver/test_client.conf";
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -20,13 +23,36 @@ class TestCurveFsClientImpl : public ::testing::Test {
  public:
     TestCurveFsClientImpl() {}
 
+    static void SetUpTestCase() {
+        ClientConfigGenerator gentor(kClientConfigPath);
+        // 把超时时间和重试次数改小，已使得测试尽快完成
+        std::vector<std::string> options = {
+            {"mds.listen.addr=127.0.0.1:8888",
+             "mds.registerToMDS=false",
+             "mds.rpcTimeoutMS=1",
+             "mds.maxRPCTimeoutMS=1",
+             "mds.maxRetryMS=1",
+             "mds.rpcRetryIntervalUS=1",
+             "metacache.getLeaderTimeOutMS=1",
+             "metacache.getLeaderRetry=1",
+             "metacache.rpcRetryIntervalUS=1",
+             "chunkserver.opRetryIntervalUS=1",
+             "chunkserver.opMaxRetry=1",
+             "chunkserver.rpcTimeoutMS=1",
+             "chunkserver.maxRetrySleepIntervalUS=1",
+             "chunkserver.maxRPCTimeoutMS=1"},
+        };
+        gentor.SetConfigOptions(options);
+        gentor.Generate();
+    }
+
     virtual void SetUp() {
         std::shared_ptr<SnapshotClient> snapClient =
             std::make_shared<SnapshotClient>();
         std::shared_ptr<FileClient> fileClient =
             std::make_shared<FileClient>();
         client_ = std::make_shared<CurveFsClientImpl>(snapClient, fileClient);
-        clientOption_.configPath = "test/snapshotcloneserver/client_test.conf";
+        clientOption_.configPath = kClientConfigPath;
         clientOption_.mdsRootUser = "root";
         clientOption_.mdsRootPassword = "1234";
         clientOption_.clientMethodRetryTimeSec = 1;

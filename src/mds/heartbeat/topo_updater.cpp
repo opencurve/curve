@@ -15,9 +15,9 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
     CopySetInfo recordCopySetInfo;
     if (!topo_->GetCopySet(
         reportCopySetInfo.GetCopySetKey(), &recordCopySetInfo)) {
-        LOG(ERROR) << "topoUpdater receive copySet(logicalPoolId: "
+        LOG(ERROR) << "topoUpdater receive copyset("
                    << reportCopySetInfo.GetLogicalPoolId()
-                   << ", copySetId: " << reportCopySetInfo.GetId()
+                   << "," << reportCopySetInfo.GetId()
                    << ") information, but can not get info from topology";
         return;
     }
@@ -34,9 +34,9 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
     // mds epoch落后，需要更新.
     bool needUpdate = false;
     if (recordCopySetInfo.GetEpoch() < reportCopySetInfo.GetEpoch()) {
-        LOG(INFO) << "topoUpdater find report CopySet(logicalPoolId: "
+        LOG(INFO) << "topoUpdater find report copyset("
                   << reportCopySetInfo.GetLogicalPoolId()
-                  << ", copySetId: " << reportCopySetInfo.GetId()
+                  << "," << reportCopySetInfo.GetId()
                   << ") epoch:" << reportCopySetInfo.GetEpoch()
                   << " > recordEpoch:"
                   << recordCopySetInfo.GetEpoch() << " need to update";
@@ -54,9 +54,9 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
         // 因此，member list不一样的情况epoch一定不同
         if (reportCopySetInfo.GetCopySetMembers() !=
             recordCopySetInfo.GetCopySetMembers()) {
-            LOG(ERROR) << "topoUpdater find report copySet(logicalPoolId: "
+            LOG(ERROR) << "topoUpdater find report copyset("
                        << reportCopySetInfo.GetLogicalPoolId()
-                       << ", copySetId: " << reportCopySetInfo.GetId()
+                       << "," << reportCopySetInfo.GetId()
                        << ") member list: "
                        << reportCopySetInfo.GetCopySetMembersStr()
                        << " is not same as record one: "
@@ -71,9 +71,9 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
             // report信息中不含变更项，但mds上有
             if (recordCopySetInfo.HasCandidate()) {
                 LOG(WARNING) << "topoUpdater find report"
-                             " CopySet(logicalPoolId: "
+                             " copyset("
                              << reportCopySetInfo.GetLogicalPoolId()
-                             << ", copySetId: " << reportCopySetInfo.GetId()
+                             << "," << reportCopySetInfo.GetId()
                              << ") no candidate but record has candidate: "
                              << recordCopySetInfo.GetCandidate();
                 needUpdate = true;
@@ -88,18 +88,18 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
                          << reportCopySetInfo.GetCandidate()
                          << ", record candidate: "
                          << recordCopySetInfo.GetCandidate()
-                         << " on copySet(logicalPoolId: "
+                         << " on copyset("
                          << reportCopySetInfo.GetLogicalPoolId()
-                         << ", copySetId: " << reportCopySetInfo.GetId()
+                         << "," << reportCopySetInfo.GetId()
                          << ") not same";
             needUpdate = true;
         }
     } else if (recordCopySetInfo.GetEpoch() > reportCopySetInfo.GetEpoch()) {
         // report epoch小于 mds记录的epoch，报警
         // leader上的epoch应该永远大于等于mds记录的epoch
-        LOG(ERROR) << "topoUpdater find copySet(logicalPoolId: "
-                   << reportCopySetInfo.GetCandidate()
-                   << ", copySetId: " << reportCopySetInfo.GetId()
+        LOG(ERROR) << "topoUpdater find copyset("
+                   << reportCopySetInfo.GetLogicalPoolId()
+                   << "," << reportCopySetInfo.GetId()
                    << "), record epoch:" << recordCopySetInfo.GetEpoch()
                    << " bigger than report epoch:"
                    << reportCopySetInfo.GetEpoch();
@@ -108,16 +108,16 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
 
     // 更新到数据库和内存
     if (needUpdate) {
-        LOG(INFO) << "topoUpdater find copySet("
+        LOG(INFO) << "topoUpdater find copyset("
                   << reportCopySetInfo.GetLogicalPoolId() << ","
                   << reportCopySetInfo.GetId() << ") need to update";
 
         int updateCode =
             topo_->UpdateCopySetTopo(reportCopySetInfo);
         if (::curve::mds::topology::kTopoErrCodeSuccess != updateCode) {
-            LOG(ERROR) << "topoUpdater update copySet(logicalPoolId:"
+            LOG(ERROR) << "topoUpdater update copyset("
                        << reportCopySetInfo.GetLogicalPoolId()
-                       << ", copySetId:" << reportCopySetInfo.GetId()
+                       << "," << reportCopySetInfo.GetId()
                        << ") got error code: " << updateCode;
             return;
         }

@@ -47,8 +47,10 @@ enum class CheckResult {
     kLogIndexGapTooBig = -3,
     // 有副本在安装快照
     kInstallingSnapshot = -4,
-    // 有副本不在线
-    kPeerNotOnline = -5
+    // 少数副本不在线
+    kMinorityPeerNotOnline = -5,
+    // 大多数副本不在线
+    kMajorityPeerNotOnline = -6
 };
 
 enum class ChunkServerHealthStatus {
@@ -71,7 +73,8 @@ const char kInstallingSnapshot[] = "installing snapshot";
 const char kNoLeader[] = "no leader";
 const char kLogIndexGapTooBig[] = "index gap too big";
 const char kPeersNoSufficient[] = "peers not sufficient";
-const char kPeerNotOnline[] = "peer not online";
+const char kMinorityPeerNotOnline[] = "minority peer not online";
+const char kMajorityPeerNotOnline[] = "majority peer not online";
 
 class CopysetCheckCore {
  public:
@@ -147,6 +150,15 @@ class CopysetCheckCore {
     virtual int CheckCopysetsInCluster();
 
     /**
+    * @brief 检查集群中的operator
+    * @param opName operator的名字
+    * @param checkTimeSec 检查时间
+    * @return 检查正常返回0，检查失败或存在operator返回-1
+    */
+    virtual int CheckOperator(const std::string& opName,
+                              uint64_t checkTimeSec);
+
+    /**
      *  @brief 计算不健康的copyset的比例，检查后调用
      *  @return 不健康的copyset的比例
      */
@@ -177,6 +189,15 @@ class CopysetCheckCore {
                                         const {
         return serviceExceptionChunkServers_;
     }
+
+    /**
+    * @brief 通过发送RPC检查chunkserver是否在线
+    *
+    * @param chunkserverAddr chunkserver的地址
+    *
+    * @return 在线返回true，不在线返回false
+    */
+    virtual bool CheckChunkServerOnline(const std::string& chunkserverAddr);
 
  private:
     /**
@@ -266,15 +287,6 @@ class CopysetCheckCore {
                          butil::IOBuf* iobuf);
 
     /**
-    * @brief 通过发送RPC检查chunkserver是否在线
-    *
-    * @param chunkserverAddr chunkserver的地址
-    *
-    * @return 在线返回true，不在线返回false
-    */
-    bool CheckChunkServerOnline(const std::string& chunkserverAddr);
-
-    /**
     * @brief 把chunkserver上所有的copyset更新到peerNotOnline里面
     *
     * @param csAddr chunkserver的地址
@@ -307,8 +319,6 @@ class CopysetCheckCore {
     // 查询单个copyset的时候，保存复制组的详细信息
     std::string copysetsDetail_;
 
-    const std::string kOperatorMetricName_ =
-                    "mds_scheduler_metric_operator_num";
     const std::string kEmptyAddr = "0.0.0.0:0:0";
 };
 

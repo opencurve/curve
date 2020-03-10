@@ -14,17 +14,11 @@ using ::testing::Return;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
 
-uint64_t segmentSize = 1 * 1024 * 1024 * 1024ul;   // NOLINT
-uint64_t chunkSize = 16 * 1024 * 1024;   // NOLINT
-
 DECLARE_bool(isTest);
 DECLARE_string(fileName);
 DECLARE_uint64(offset);
-DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
-DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
 DECLARE_bool(showAllocSize);
 DECLARE_bool(showFileSize);
-DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds addr");
 
 class NameSpaceToolTest : public ::testing::Test {
  protected:
@@ -68,6 +62,8 @@ class NameSpaceToolTest : public ::testing::Test {
             chunk->set_chunkid(2000 + i);
         }
     }
+    uint64_t segmentSize = 1 * 1024 * 1024 * 1024ul;
+    uint64_t chunkSize = 16 * 1024 * 1024;
     std::shared_ptr<curve::tool::MockNameSpaceToolCore> core_;
 };
 
@@ -354,7 +350,7 @@ TEST_F(NameSpaceToolTest, PrintChunkLocation) {
         .WillOnce(DoAll(SetArgPointee<2>(chunkId),
                         SetArgPointee<3>(copyset),
                         Return(0)));
-    EXPECT_CALL(*core_, GetChunkServerListInCopySets(_, _, _))
+    EXPECT_CALL(*core_, GetChunkServerListInCopySet(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(csLocs),
                         Return(0)));
@@ -366,13 +362,13 @@ TEST_F(NameSpaceToolTest, PrintChunkLocation) {
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.RunCommand("chunk-location"));
 
-    // 3、GetChunkServerListInCopySets失败
+    // 3、GetChunkServerListInCopySet失败
     EXPECT_CALL(*core_, QueryChunkCopyset(_, _, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(chunkId),
                         SetArgPointee<3>(copyset),
                         Return(0)));
-    EXPECT_CALL(*core_, GetChunkServerListInCopySets(_, _, _))
+    EXPECT_CALL(*core_, GetChunkServerListInCopySet(_, _, _))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.RunCommand("chunk-location"));

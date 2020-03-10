@@ -58,8 +58,8 @@ const std::vector<std::string> clientConfigOpts{
     std::string("mds.listen.addr=") + kMdsIpPort,
     std::string("maxInFlightRPCNum=") + kClientInflightNum,
     std::string("global.logPath=") + kLogPath,
-    std::string("isolation.taskQueueCapacity=5000"),
-    std::string("schedule.queueCapacity=5000"),
+    std::string("isolation.taskQueueCapacity=128"),
+    std::string("schedule.queueCapacity=128"),
 };
 
 const std::vector<std::string> mdsConf{
@@ -181,7 +181,7 @@ class UnstableCSModuleException : public ::testing::Test {
                 " --name module_exception_curve_unstable_cs"});
 
         // 2. 启动一个mds
-        cluster->StartSingleMDS(1, kMdsIpPort, mdsConf, true);
+        cluster->StartSingleMDS(1, kMdsIpPort, 30013, mdsConf, true);
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
         // 3. 创建物理池

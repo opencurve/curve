@@ -22,6 +22,7 @@
 #include "test/client/fake/fakeMDS.h"
 #include "src/client/libcurve_file.h"
 #include "src/client/client_common.h"
+#include "src/client/chunk_closure.h"
 
 using curve::client::MetaCacheErrorType;
 using curve::client::ChunkIDInfo_t;
@@ -35,6 +36,7 @@ using curve::client::FileInstance;
 using curve::client::CopysetInfo_t;
 using curve::client::CopysetIDInfo;
 using curve::client::FileClient;
+using curve::client::FInfo;
 
 extern std::string configpath;
 extern uint32_t chunk_size;
@@ -309,6 +311,43 @@ TEST(TestLibcurveInterface, FileClientTest) {
 
     fc.Close(fd);
     fc.Close(fd2);
+
+    // 测试reopen接口
+    FakeMDSCurveFSService* curvefs = mds.GetMDSService();
+    std::unique_ptr<curve::mds::ReFreshSessionResponse> response(
+                            new curve::mds::ReFreshSessionResponse());
+    brpc::Controller cntl;
+    std::unique_ptr<FakeReturn> fakeret(
+        new FakeReturn(&cntl, static_cast<void*>(response.get())));
+    curvefs->SetRefreshSession(fakeret.get(), nullptr);
+    // 1、正常情况
+    response->set_statuscode(curve::mds::StatusCode::kOK);
+    response->set_sessionid("1234");
+    std::string sessionId;
+    fd = fc.Open(filename, userinfo, &sessionId);
+    ASSERT_GE(fd, 0);
+    std::string newSessionId;
+    fd2 = fc.ReOpen(filename, sessionId, userinfo, &newSessionId);
+    ASSERT_GE(fd2, 0);
+    FInfo finfo;
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, fc.GetFileInfo(-100, &finfo));
+    ASSERT_EQ(0, fc.GetFileInfo(fd2, &finfo));
+    ASSERT_EQ(finfo.fullPathName, filename);
+    ASSERT_EQ(finfo.userinfo.owner, userinfo.owner);
+    ASSERT_NE(finfo.seqnum, 0);
+    // 2、newSessionId为nullptr
+    ASSERT_LT(fc.ReOpen(filename, sessionId, userinfo, nullptr), 0);
+    // 3、发送RPC失败
+    cntl.SetFailed("test");
+    ASSERT_LT(fc.ReOpen(filename, sessionId, UserInfo_t{}, &newSessionId), 0);
+    // 4、返回session不存在
+    cntl.Reset();
+    response->set_statuscode(curve::mds::StatusCode::kSessionNotExist);
+    ASSERT_GE(fc.ReOpen(filename, sessionId, userinfo, &newSessionId), 0);
+    // 5、返回其他错误
+    response->set_statuscode(curve::mds::StatusCode::kParaError);
+    ASSERT_LT(fc.ReOpen(filename, sessionId, userinfo, &newSessionId), 0);
+
     mds.UnInitialize();
     delete[] buffer;
     delete[] readbuffer;
@@ -662,7 +701,12 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
     fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
-    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxStableTimeoutTimes = 10;  // NOLINT
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt.chunkserverUnstableOption.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
+
+    LOG(INFO) << "fopt size " << sizeof(fopt);
+    // curve::client::ClientClosure::SetFailureRequestOption(
+    //     fopt.ioOpt.ioSenderOpt.failRequestOpt);
+    LOG(INFO) << "here";
 
     mdsclient_.Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize(
@@ -850,7 +894,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
     fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
-    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxStableTimeoutTimes = 10;  // NOLINT
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt.chunkserverUnstableOption.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
 
     mdsclient_.Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize(

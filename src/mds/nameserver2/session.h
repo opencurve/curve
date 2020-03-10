@@ -155,12 +155,14 @@ class SessionManager {
      *         sessionid：sessionid
      *         signature：用来验证client的身份
      *         clientIP：clientIP
+     *         protosession: 返回sessionid对应的protosession
      *  @return 是否成功，成功返回StatusCode::kOK
      */
     StatusCode UpdateSession(const std::string &filename,
                            const std::string &sessionid,
                            const std::string &signature,
-                           const std::string &clientIP);
+                           const std::string &clientIP,
+                           ProtoSession *protoSession);
 
     /**
      *  @brief 文件是否有在有效期内的session

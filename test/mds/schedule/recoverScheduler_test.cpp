@@ -37,10 +37,17 @@ class TestRecoverSheduler : public ::testing::Test {
         auto metric = std::make_shared<ScheduleMetrics>(topo);
         opController_ = std::make_shared<OperatorController>(2, metric);
         topoAdapter_ = std::make_shared<MockTopoAdapter>();
-        int64_t runInterval = 1;
-        recoverScheduler_ =
-            std::make_shared<RecoverScheduler>(opController_, runInterval,
-                10, 100, 1000, 1000, 0.2, 3, topoAdapter_);
+
+        ScheduleOption opt;
+        opt.transferLeaderTimeLimitSec = 10;
+        opt.removePeerTimeLimitSec = 100;
+        opt.addPeerTimeLimitSec = 1000;
+        opt.changePeerTimeLimitSec = 1000;
+        opt.recoverSchedulerIntervalSec = 1;
+        opt.scatterWithRangePerent = 0.2;
+        opt.chunkserverFailureTolerance = 3;
+        recoverScheduler_ = std::make_shared<RecoverScheduler>(
+                opt, topoAdapter_, opController_);
     }
     void TearDown() override {
         opController_ = nullptr;
@@ -112,7 +119,7 @@ TEST_F(TestRecoverSheduler, test_server_has_more_offline_chunkserver) {
     ChunkServerInfo csInfo4(peer4, OnlineState::OFFLINE, DiskState::DISKNORMAL,
             ChunkServerStatus::READWRITE, 2, 100, 100,
             ChunkServerStatisticInfo{});
-    ChunkServerInfo csInfo5(peer5, OnlineState::OFFLINE, DiskState::DISKNORMAL,
+    ChunkServerInfo csInfo5(peer5, OnlineState::UNSTABLE, DiskState::DISKNORMAL,
             ChunkServerStatus::READWRITE, 2, 100, 100,
             ChunkServerStatisticInfo{});
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfos())

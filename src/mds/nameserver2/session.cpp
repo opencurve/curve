@@ -232,7 +232,8 @@ StatusCode SessionManager::DeleteSession(const std::string &fileName,
 StatusCode SessionManager::UpdateSession(const std::string &fileName,
                         const std::string &sessionid,
                         const std::string &signature,
-                        const std::string &clientIP) {
+                        const std::string &clientIP,
+                        ProtoSession *protoSession) {
     // 对sessionmap上读锁，本操作不会对session map进行插入或者删除操作
     common::ReadLockGuard rl(rwLock_);
 
@@ -269,6 +270,7 @@ StatusCode SessionManager::UpdateSession(const std::string &fileName,
             openFileNum_++;
         }
         session->UpdateLeaseTime();
+        *protoSession = session->GetProtoSession();
     } while (0);
 
     session->Unlock();

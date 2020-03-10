@@ -95,6 +95,7 @@ void CurveCluster::StopCluster() {
 }
 
 void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
+                                int dummyPort,
                                 const std::vector<std::string> &mdsConf,
                                 bool expectLeader, bool expectAssert,
                                 bool* startsuccess) {
@@ -108,7 +109,7 @@ void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
         // ./bazel-bin/src/mds/main/curvemds
         std::string cmd_dir =
             std::string("./bazel-bin/src/mds/main/curvemds --mdsAddr=") +
-            ipPort;
+            ipPort + " --dummyPort=" + std::to_string(dummyPort);
         for (auto &item : mdsConf) {
             cmd_dir += item;
         }
@@ -137,8 +138,6 @@ void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
         }
     }
 
-    ASSERT_EQ(0, ProbePort(ipPort, 20000, expectLeader))
-        << "probe mds port: " << ipPort << " expect " << expectLeader;
     LOG(INFO) << "start mds " << ipPort << " success";
     mdsPidMap_[id] = pid;
     mdsIpPort_[id] = ipPort;

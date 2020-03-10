@@ -24,7 +24,7 @@ namespace mds {
 
 class CleanCore {
  public:
-    CleanCore(NameServerStorage * storage,
+    CleanCore(std::shared_ptr<NameServerStorage> storage,
         std::shared_ptr<CopysetClient> copysetClient,
         std::shared_ptr<AllocStatistic> allocStatistic)
         : storage_(storage),
@@ -51,7 +51,7 @@ class CleanCore {
                         TaskProgress* progress);
 
  private:
-    NameServerStorage *storage_;
+    std::shared_ptr<NameServerStorage> storage_;
     std::shared_ptr<CopysetClient> copysetClient_;
     std::shared_ptr<AllocStatistic> allocStatistic_;
 };

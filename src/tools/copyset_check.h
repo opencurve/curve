@@ -97,7 +97,13 @@ class CopysetCheck : public CurveTool {
      *  @brief 检查集群所有copyset
      *  @return 健康返回0，其他情况返回-1
      */
-    int CheckCluster();
+    int CheckCopysetsInCluster();
+
+    /**
+     *  @brief 检查mds端的operator
+     *  @return 无operator返回0，其他情况返回-1
+     */
+    int CheckOperator(const std::string& opName);
 
     // 打印copyset检查的详细结果
     void PrintDetail();

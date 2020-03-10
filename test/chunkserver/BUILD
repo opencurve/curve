@@ -213,7 +213,17 @@ cc_test(
 cc_test(
     name = "heartbeat_helper_test",
     srcs = [
+        "mock_copyset_node_manager.h",
         "heartbeat_helper_test.cpp",
+    ],
+    deps = DEPS,
+)
+
+cc_test(
+    name = "chunkserver_service_test",
+    srcs = [
+        "mock_copyset_node_manager.h",
+        "chunkserver_service_test.cpp",
     ],
     deps = DEPS,
 )

@@ -133,6 +133,17 @@ class NameServerStorage {
                                 std::vector<FileInfo> * files) = 0;
 
     /**
+     * @brief ListSegment 获取[startid, endid)之间的所有segment
+     *
+     * @param[in] id 文件的inode id
+     * @param[out] segments segment列表
+     *
+     * @return StoreStatus 错误码
+     */
+    virtual StoreStatus ListSegment(InodeID id,
+                                    std::vector<PageFileSegment> *segments) = 0;
+
+    /**
      * @brief ListSnapshotFile 获取[startid, endid)之间的所有快照文件
      *
      * @param[in] startidid为起始id
@@ -239,6 +250,9 @@ class NameServerStorageImp : public NameServerStorage {
     StoreStatus ListFile(InodeID startid,
                         InodeID endid,
                         std::vector<FileInfo> * files) override;
+
+    StoreStatus ListSegment(InodeID id,
+                            std::vector<PageFileSegment> *segments) override;
 
     StoreStatus ListSnapshotFile(InodeID startid,
                         InodeID endid,

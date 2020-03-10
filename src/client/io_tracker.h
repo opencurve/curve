@@ -16,7 +16,7 @@
 #include "src/client/mds_client.h"
 #include "src/client/client_common.h"
 #include "src/client/request_context.h"
-#include "src/client/libcurve_define.h"
+#include "include/client/libcurve.h"
 #include "src/client/request_scheduler.h"
 #include "include/curve_compiler_specific.h"
 #include "src/client/io_condition_varaiable.h"

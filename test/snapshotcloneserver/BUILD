@@ -10,7 +10,11 @@ cc_test(
             "*.cpp","*.h"
         ],
         ),
-        deps = ["//src/common/concurrent:curve_concurrent", "//external:gtest", "//src/snapshotcloneserver:snapshot_server_lib"],
+        deps = ["//src/common/concurrent:curve_concurrent", 
+                "//external:gtest",
+                "//src/snapshotcloneserver:snapshot_server_lib",
+                "//test/util:test_util", 
+                ],
         copts = GCC_TEST_FLAGS
         )
 

@@ -8,11 +8,6 @@
 #include <gtest/gtest.h>
 #include "src/tools/curve_tool_factory.h"
 
-DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds addr");
-DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd addr");
-DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
-DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
-
 namespace curve {
 namespace tool {
 
@@ -28,6 +23,8 @@ TEST(CurveToolFactoryTest, GetStatusTool) {
     curveTool = CurveToolFactory::GenerateCurveTool("mds-status");
     ASSERT_TRUE(dynamic_cast<StatusTool *>(curveTool.get()) != nullptr);
     curveTool = CurveToolFactory::GenerateCurveTool("etcd-status");
+    ASSERT_TRUE(dynamic_cast<StatusTool *>(curveTool.get()) != nullptr);
+    curveTool = CurveToolFactory::GenerateCurveTool("client-status");
     ASSERT_TRUE(dynamic_cast<StatusTool *>(curveTool.get()) != nullptr);
     curveTool = CurveToolFactory::GenerateCurveTool("nothing");
     ASSERT_TRUE(curveTool.get() == nullptr);
@@ -71,7 +68,9 @@ TEST(CurveToolFactoryTest, GetCopysetCheck) {
     ASSERT_TRUE(dynamic_cast<CopysetCheck *>(curveTool.get()) != nullptr);
     curveTool = CurveToolFactory::GenerateCurveTool("check-server");
     ASSERT_TRUE(dynamic_cast<CopysetCheck *>(curveTool.get()) != nullptr);
-    curveTool = CurveToolFactory::GenerateCurveTool("check-cluster");
+    curveTool = CurveToolFactory::GenerateCurveTool("copysets-status");
+    ASSERT_TRUE(dynamic_cast<CopysetCheck *>(curveTool.get()) != nullptr);
+    curveTool = CurveToolFactory::GenerateCurveTool("check-operator");
     ASSERT_TRUE(dynamic_cast<CopysetCheck *>(curveTool.get()) != nullptr);
 }
 

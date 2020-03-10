@@ -230,5 +230,37 @@ bool ServiceHelper::GetUserInfoFromFilename(const std::string& filename,
     LOG(INFO) << "user info [" << *user << "]";
     return true;
 }
+
+int ServiceHelper::CheckChunkServerHealth(
+    const butil::EndPoint& endPoint, int32_t requestTimeoutMs) {
+    brpc::Controller cntl;
+    brpc::Channel httpChannel;
+    brpc::ChannelOptions options;
+    options.protocol = brpc::PROTOCOL_HTTP;
+
+    std::string ipPort = butil::endpoint2str(endPoint).c_str();
+    int res = httpChannel.Init(ipPort.c_str(), &options);
+    if (res != 0) {
+        LOG(WARNING) << "init http channel failed, address = " << ipPort;
+        return -1;
+    }
+
+    // 访问 ip:port/health
+    cntl.http_request().uri() = ipPort + "/health";
+    cntl.set_timeout_ms(requestTimeoutMs);
+    httpChannel.CallMethod(nullptr, &cntl, nullptr, nullptr, nullptr);
+
+    if (cntl.Failed()) {
+        LOG(WARNING) << "CheckChunkServerHealth failed, " << cntl.ErrorText()
+            << ", url = " << cntl.http_request().uri();
+        return -1;
+    } else {
+        LOG(INFO) << "CheckChunkServerHealth success, "
+            << cntl.response_attachment()
+            << ", url = " << cntl.http_request().uri();
+        return 0;
+    }
+}
+
 }   // namespace client
 }   // namespace curve
