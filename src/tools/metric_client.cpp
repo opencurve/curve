@@ -13,7 +13,7 @@ DECLARE_uint64(rpcRetryTimes);
 namespace curve {
 namespace tool {
 
-int MetricClient::GetMetric(const std::string& addr,
+MetricRet MetricClient::GetMetric(const std::string& addr,
                          const std::string& metricName,
                          std::string* value) {
     brpc::Channel httpChannel;
@@ -24,7 +24,7 @@ int MetricClient::GetMetric(const std::string& addr,
     if (res != 0) {
         std::cout << "Init httpChannel to " << addr << " fail!"
                   << std::endl;
-        return -1;
+        return MetricRet::kOtherErr;
     }
 
     cntl.http_request().uri() = addr + "/vars/" + metricName;
@@ -33,7 +33,8 @@ int MetricClient::GetMetric(const std::string& addr,
     if (!cntl.Failed()) {
         std::string attachment =
                 cntl.response_attachment().to_string();
-        return GetValueFromAttachment(attachment, value);
+        res = GetValueFromAttachment(attachment, value);
+        return (res == 0) ? MetricRet::kOK : MetricRet::kOtherErr;
     }
 
     bool needRetry = (cntl.Failed() &&
@@ -53,27 +54,30 @@ int MetricClient::GetMetric(const std::string& addr,
         }
         std::string attachment =
                 cntl.response_attachment().to_string();
-        return GetValueFromAttachment(attachment, value);
+        res = GetValueFromAttachment(attachment, value);
+        return (res == 0) ? MetricRet::kOK : MetricRet::kOtherErr;
     }
     // 这里不输出错误，因为对mds有切换的可能，把打印的处理交给外部
-    return -1;
+    bool notExist = cntl.ErrorCode() == brpc::EHTTP &&
+                    cntl.http_response().status_code() == kHttpCodeNotFound;
+    return notExist ? MetricRet::kNotFound : MetricRet::kOtherErr;
 }
 
-int MetricClient::GetMetricUint(const std::string& addr,
+MetricRet MetricClient::GetMetricUint(const std::string& addr,
                   const std::string& metricName,
                   uint64_t* value) {
     std::string str;
-    int res = GetMetric(addr, metricName, &str);
-    if (res != 0) {
+    MetricRet res = GetMetric(addr, metricName, &str);
+    if (res != MetricRet::kOK) {
         std::cout << "get metric " << metricName << " from "
                   << addr << " fail";
-        return -1;
+        return res;
     }
     if (!curve::common::StringToUll(str, value)) {
         std::cout << "parse metric as uint64_t fail!" << std::endl;
-        return -1;
+        return MetricRet::kOtherErr;
     }
-    return 0;
+    return MetricRet::kOK;
 }
 
 int MetricClient::GetValueFromAttachment(const std::string& attachment,
