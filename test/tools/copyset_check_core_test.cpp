@@ -181,14 +181,11 @@ TEST_F(CopysetCheckCoreTest, CheckOneCopysetNormal) {
         .Times(5)
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, GetRaftStatus(_))
-        .Times(3)
+        .Times(5)
         .WillOnce(DoAll(SetArgPointee<0>(leaderBuf),
                         Return(0)))
         .WillRepeatedly(DoAll(SetArgPointee<0>(followerBuf),
                         Return(0)));
-    EXPECT_CALL(*csClient_, CheckChunkServerOnline())
-        .Times(2)
-        .WillRepeatedly(Return(true));
     CopysetCheckCore copysetCheck(mdsClient_, csClient_);
     ASSERT_EQ(0, copysetCheck.CheckOneCopyset(1, 100));
     butil::IOBuf iobuf;
@@ -241,7 +238,8 @@ TEST_F(CopysetCheckCoreTest, CheckOneCopysetError) {
     CopysetCheckCore copysetCheck2(mdsClient_, csClient_);
     ASSERT_EQ(-1, copysetCheck2.CheckOneCopyset(1, 100));
 
-    // 3、第一个peer不在线
+    // 3、有peer不在线，一个是chunkserver不在线，一个是copyset不在线
+    GetIoBufForTest(&followerBuf, "4294967397");
     EXPECT_CALL(*mdsClient_, GetChunkServerListInCopySet(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(csLocs),
@@ -250,14 +248,11 @@ TEST_F(CopysetCheckCoreTest, CheckOneCopysetError) {
         .Times(4)
         .WillOnce(Return(-1))
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*csClient_, CheckChunkServerOnline())
-        .Times(1)
-        .WillOnce(Return(true));
     EXPECT_CALL(*csClient_, GetRaftStatus(_))
-        .Times(2)
+        .Times(3)
         .WillOnce(DoAll(SetArgPointee<0>(leaderBuf),
                         Return(0)))
-        .WillOnce(DoAll(SetArgPointee<0>(followerBuf),
+        .WillRepeatedly(DoAll(SetArgPointee<0>(followerBuf),
                         Return(0)));
     CopysetCheckCore copysetCheck3(mdsClient_, csClient_);
     ASSERT_EQ(-1, copysetCheck3.CheckOneCopyset(1, 100));
@@ -299,14 +294,13 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerHealthy) {
         .Times(3)
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, GetRaftStatus(_))
-        .Times(2)
+        .Times(3)
         .WillOnce(DoAll(SetArgPointee<0>(followerBuf),
                         Return(0)))
         .WillOnce(DoAll(SetArgPointee<0>(leaderBuf),
+                        Return(0)))
+        .WillOnce(DoAll(SetArgPointee<0>(followerBuf),
                         Return(0)));
-    EXPECT_CALL(*csClient_, CheckChunkServerOnline())
-        .Times(1)
-        .WillRepeatedly(Return(true));
     CopysetCheckCore copysetCheck2(mdsClient_, csClient_);
     ASSERT_EQ(0, copysetCheck2.CheckCopysetsOnChunkServer(csId));
     ASSERT_DOUBLE_EQ(0, copysetCheck2.GetCopysetStatistics().unhealthyRatio);
@@ -321,14 +315,13 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerHealthy) {
         .Times(3)
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, GetRaftStatus(_))
-        .Times(2)
+        .Times(3)
         .WillOnce(DoAll(SetArgPointee<0>(followerBuf),
                         Return(0)))
         .WillOnce(DoAll(SetArgPointee<0>(leaderBuf),
+                        Return(0)))
+        .WillOnce(DoAll(SetArgPointee<0>(followerBuf),
                         Return(0)));
-    EXPECT_CALL(*csClient_, CheckChunkServerOnline())
-        .Times(1)
-        .WillRepeatedly(Return(true));
     CopysetCheckCore copysetCheck3(mdsClient_, csClient_);
     ASSERT_EQ(0, copysetCheck3.CheckCopysetsOnChunkServer(csAddr));
     ASSERT_DOUBLE_EQ(0, copysetCheck3.GetCopysetStatistics().unhealthyRatio);
@@ -351,6 +344,9 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerError) {
         uint64_t gId = (static_cast<uint64_t>(1) << 32) | (100 + i);
         gIds.emplace(std::to_string(gId));
     }
+    std::string gId = "4294967397";
+    butil::IOBuf followerBuf;
+    GetIoBufForTest(&followerBuf, gId);
     std::map<std::string, std::set<std::string>> expectedRes;
 
     // 1、GetChunkServerInfo失败的情况
@@ -361,8 +357,6 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerError) {
     ASSERT_EQ(-1, copysetCheck1.CheckCopysetsOnChunkServer(csId));
     ASSERT_DOUBLE_EQ(0, copysetCheck1.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedRes, copysetCheck1.GetCopysetsRes());
-
-    std::set<std::string> expectedExcepCs = {csAddr};
 
     // 2、chunkserver发送RPC失败的情况
     std::vector<CopySetServerInfo> csServerInfos;
@@ -383,11 +377,16 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerError) {
         .Times(10)
         .WillOnce(Return(-1))
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*csClient_, CheckChunkServerOnline())
+    EXPECT_CALL(*csClient_, GetRaftStatus(_))
         .Times(9)
-        .WillOnce(Return(true))
-        .WillOnce(Return(true))
-        .WillRepeatedly(Return(false));
+        .WillOnce(DoAll(SetArgPointee<0>(followerBuf),
+                        Return(0)))
+        .WillOnce(DoAll(SetArgPointee<0>(followerBuf),
+                        Return(0)))
+        .WillOnce(Return(-1))
+        .WillOnce(DoAll(SetArgPointee<0>(followerBuf),
+                        Return(0)))
+        .WillRepeatedly(Return(-1));
     EXPECT_CALL(*mdsClient_, GetCopySetsInChunkServer(csAddr, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(copysets),
@@ -399,7 +398,14 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerError) {
     CopysetCheckCore copysetCheck2(mdsClient_, csClient_);
     ASSERT_EQ(-1, copysetCheck2.CheckCopysetsOnChunkServer(csId));
     ASSERT_DOUBLE_EQ(1, copysetCheck2.GetCopysetStatistics().unhealthyRatio);
+    std::set<std::string> expectedExcepCs = {csAddr, "127.0.0.1:9493",
+                                        "127.0.0.1:9394", "127.0.0.1:9496",
+                                        "127.0.0.1:9293", "127.0.0.1:9396",
+                                        "127.0.0.1:9499"};
     ASSERT_EQ(expectedExcepCs, copysetCheck2.GetServiceExceptionChunkServer());
+    std::set<std::string> expectedCopysetExcepCs = {"127.0.0.1:9292"};
+    ASSERT_EQ(expectedCopysetExcepCs,
+                copysetCheck2.GetCopysetLoadExceptionChunkServer());
     ASSERT_EQ(expectedRes, copysetCheck2.GetCopysetsRes());
     expectedRes.clear();
 
@@ -418,6 +424,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerError) {
     CopysetCheckCore copysetCheck3(mdsClient_, csClient_);
     ASSERT_EQ(-1, copysetCheck3.CheckCopysetsOnChunkServer(csId));
     ASSERT_DOUBLE_EQ(0, copysetCheck3.GetCopysetStatistics().unhealthyRatio);
+    expectedExcepCs = {csAddr};
     ASSERT_EQ(expectedExcepCs, copysetCheck3.GetServiceExceptionChunkServer());
     ASSERT_EQ(expectedRes, copysetCheck3.GetCopysetsRes());
 
@@ -518,7 +525,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerUnhealthy) {
 
     // 7.2、加入大多数peer不在线的copyset
     groupId = std::to_string(gId++);
-    GetIoBufForTest(&temp, groupId, "LEADER", false, false, false,
+    GetIoBufForTest(&temp, groupId, "FOLLOWER", true, false, false,
                             false, false, false, true);
     expectedRes[kTotal].emplace(groupId);
     expectedRes[kMajorityPeerNotOnline].emplace(groupId);
@@ -565,12 +572,9 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerUnhealthy) {
     EXPECT_CALL(*csClient_, Init(csAddr2))
         .WillOnce(Return(-1));
     EXPECT_CALL(*csClient_, GetRaftStatus(_))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<0>(iobuf),
+        .Times(3)
+        .WillRepeatedly(DoAll(SetArgPointee<0>(iobuf),
                         Return(0)));
-    EXPECT_CALL(*csClient_, CheckChunkServerOnline())
-        .Times(2)
-        .WillRepeatedly(Return(true));
 
     // 检查结果
     std::set<std::string> expectedExcepCs = {csAddr1, csAddr2};
@@ -587,23 +591,16 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnServerNormal) {
     std::string serverIp = "127.0.0.1";
     std::vector<ChunkServerInfo> chunkservers;
     std::vector<std::string> unhealthyCs;
-    for (uint64_t i = 1; i <= 2; ++i) {
-        ChunkServerInfo csInfo;
-        GetCsInfoForTest(&csInfo, i);
-        chunkservers.emplace_back(csInfo);
-    }
+    ChunkServerInfo csInfo;
+    GetCsInfoForTest(&csInfo, 1);
+    chunkservers.emplace_back(csInfo);
     std::map<std::string, std::set<std::string>> expectedRes;
     uint64_t gId = 4294967396;
-    butil::IOBuf iobuf1;
+    butil::IOBuf iobuf;
     std::string groupId;
     groupId = std::to_string(gId++);
     expectedRes[kTotal].emplace(groupId);
-    GetIoBufForTest(&iobuf1, groupId, "LEADER", false, false, false,
-                                                    false, false, false);
-    butil::IOBuf iobuf2;
-    groupId = std::to_string(gId++);
-    expectedRes[kTotal].emplace(groupId);
-    GetIoBufForTest(&iobuf2, groupId, "LEADER", false, false, false,
+    GetIoBufForTest(&iobuf, groupId, "LEADER", false, false, false,
                                                     false, false, false);
 
     // 通过id查询
@@ -612,17 +609,13 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnServerNormal) {
         .WillOnce(DoAll(SetArgPointee<1>(chunkservers),
                         Return(0)));
     EXPECT_CALL(*csClient_, Init(_))
-        .Times(4)
+        .Times(3)
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, GetRaftStatus(_))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<0>(iobuf1),
-                        Return(0)))
-        .WillOnce(DoAll(SetArgPointee<0>(iobuf2),
+        .Times(3)
+        .WillRepeatedly(DoAll(SetArgPointee<0>(iobuf),
                         Return(0)));
-    EXPECT_CALL(*csClient_, CheckChunkServerOnline())
-        .Times(2)
-        .WillRepeatedly(Return(true));
+
     CopysetCheckCore copysetCheck1(mdsClient_, csClient_);
     ASSERT_EQ(0, copysetCheck1.CheckCopysetsOnServer(serverId, &unhealthyCs));
     ASSERT_EQ(0, unhealthyCs.size());
@@ -635,17 +628,12 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnServerNormal) {
         .WillOnce(DoAll(SetArgPointee<1>(chunkservers),
                         Return(0)));
     EXPECT_CALL(*csClient_, Init(_))
-        .Times(4)
+        .Times(3)
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, GetRaftStatus(_))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<0>(iobuf1),
-                        Return(0)))
-        .WillOnce(DoAll(SetArgPointee<0>(iobuf2),
+        .Times(3)
+        .WillRepeatedly(DoAll(SetArgPointee<0>(iobuf),
                         Return(0)));
-    EXPECT_CALL(*csClient_, CheckChunkServerOnline())
-        .Times(2)
-        .WillRepeatedly(Return(true));
     // 通过ip查询
     CopysetCheckCore copysetCheck2(mdsClient_, csClient_);
     ASSERT_EQ(0, copysetCheck2.CheckCopysetsOnServer(serverIp, &unhealthyCs));
@@ -698,11 +686,11 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnServerError) {
         .WillOnce(DoAll(SetArgPointee<1>(chunkservers),
                         Return(0)));
     EXPECT_CALL(*csClient_, Init(_))
-        .Times(2)
+        .Times(3)
         .WillOnce(Return(-1))
-        .WillOnce(Return(0));
+        .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, GetRaftStatus(_))
-        .Times(1)
+        .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<0>(iobuf),
                         Return(0)));
     EXPECT_CALL(*mdsClient_,
@@ -710,6 +698,9 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnServerError) {
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(copysets),
                         Return(0)));
+    EXPECT_CALL(*mdsClient_, GetChunkServerListInCopySets(_, _, _))
+        .Times(1)
+        .WillOnce(Return(-1));
     std::vector<std::string> unhealthyCs;
     CopysetCheckCore copysetCheck2(mdsClient_, csClient_);
     ASSERT_EQ(-1, copysetCheck2.CheckCopysetsOnServer(serverId, &unhealthyCs));
@@ -747,12 +738,9 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterNormal) {
         .Times(3)
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, GetRaftStatus(_))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<0>(iobuf),
+        .Times(3)
+        .WillRepeatedly(DoAll(SetArgPointee<0>(iobuf),
                         Return(0)));
-    EXPECT_CALL(*csClient_, CheckChunkServerOnline())
-        .Times(2)
-        .WillRepeatedly(Return(true));
     EXPECT_CALL(*mdsClient_, GetMetric(_, _))
         .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<1>(0),
@@ -810,12 +798,9 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterError) {
         .Times(6)
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, GetRaftStatus(_))
-        .Times(2)
+        .Times(6)
         .WillRepeatedly(DoAll(SetArgPointee<0>(iobuf),
                         Return(0)));
-    EXPECT_CALL(*csClient_, CheckChunkServerOnline())
-        .Times(4)
-        .WillRepeatedly(Return(true));
     EXPECT_CALL(*mdsClient_, GetMetric(_, _))
         .Times(2)
         .WillOnce(Return(-1))
