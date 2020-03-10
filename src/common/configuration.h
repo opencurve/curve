@@ -109,6 +109,22 @@ class Configuration {
     bool GetValue(const std::string &key, std::string *out);
     void SetValue(const std::string &key, const std::string &value);
 
+    /*
+    * @brief GetValueFatalIfFail 获取指定配置项的值,失败打FATAL日志
+    *
+    * @param[in] key 配置项名称
+    * @param[out] value 获取的值
+    *
+    * @return 无
+    */
+    void GetValueFatalIfFail(const std::string& key, int* value);
+    void GetValueFatalIfFail(const std::string& key, std::string* value);
+    void GetValueFatalIfFail(const std::string& key, bool* value);
+    void GetValueFatalIfFail(const std::string& key, uint32_t* value);
+    void GetValueFatalIfFail(const std::string& key, uint64_t* value);
+    void GetValueFatalIfFail(const std::string& key, float* value);
+    void GetValueFatalIfFail(const std::string& key, double* value);
+
  private:
     /**
      * 更新新的配置到metric

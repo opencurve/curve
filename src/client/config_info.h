@@ -81,6 +81,23 @@ typedef struct LeaseOption {
 } LeaseOption_t;
 
 /**
+ * rpc超时，判断是否unstable的参数
+ * @maxStableChunkServerTimeoutTimes:
+ *     一个chunkserver连续超时请求的阈值, 超过之后会检查健康状态，
+ *     如果不健康，则标记为unstable
+ * @checkHealthTimeoutMS:
+ *     检查chunkserver是否健康的http请求超时时间
+ * @serverUnstableThreashold:
+ *     一个server上超过serverUnstableThreashold个chunkserver都标记为unstable，
+ *     整个server上的所有chunkserver都标记为unstable
+ */
+struct ChunkServerUnstableOption {
+    uint32_t maxStableChunkServerTimeoutTimes{64};
+    uint32_t checkHealthTimeoutMS{100};
+    uint32_t serverUnstableThreshold{3};
+};
+
+/**
  * 发送失败的chunk request处理
  * @chunkserverOPMaxRetry: 最大重试次数，一个RPC下发到底层chunkserver，最大允许的失败
  *                         次数，超限之后会向上返回用户。
@@ -118,17 +135,17 @@ typedef struct FailureRequestOption {
     uint64_t chunkserverRPCTimeoutMS;
     uint64_t chunkserverMaxRPCTimeoutMS;
     uint64_t chunkserverMaxRetrySleepIntervalUS;
-    uint64_t chunkserverMaxStableTimeoutTimes;
     uint64_t chunkserverMinRetryTimesForceTimeoutBackoff;
     uint64_t chunkserverMaxRetryTimesBeforeConsiderSuspend;
+    ChunkServerUnstableOption chunkserverUnstableOption;
+
     FailureRequestOption() {
         chunkserverOPMaxRetry = 3;
         chunkserverOPRetryIntervalUS = 200;
         chunkserverRPCTimeoutMS = 1000;
         chunkserverMaxRPCTimeoutMS = 64000;
         chunkserverMaxRetrySleepIntervalUS = 64 * 1000 * 1000;
-        chunkserverMaxStableTimeoutTimes = 10;
-        chunkserverMinRetryTimesForceTimeoutBackoff = 5,
+        chunkserverMinRetryTimesForceTimeoutBackoff = 5;
         chunkserverMaxRetryTimesBeforeConsiderSuspend = 20;
     }
 } FailureRequestOption_t;

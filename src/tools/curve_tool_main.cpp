@@ -14,7 +14,9 @@ const char* kHelpStr = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
         "status : show the total status of the cluster\n"
         "chunkserver-status : show the chunkserver online status\n"
         "mds-status : show the mds status\n"
+        "client-status : show the client status\n"
         "etcd-status : show the etcd status\n"
+        "copysets-status : check the health state of all copysets\n"
         "chunkserver-list : show curve chunkserver-list, list all chunkserver infomation\n"  //NOLINT
         "get : show the file info and the actual space of file\n"
         "list : list the file info of files in the directory\n"
@@ -27,16 +29,21 @@ const char* kHelpStr = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
         "remove-peer : remove the peer from the copyset\n"
         "transfer-leader : transfer the leader of the copyset to the peer\n"  //NOLINT
         "reset-peer : reset the configuration of copyset, only reset to one peer is supported\n" //NOLINT
-        "check-copyset : check the health state of copyset\n"
         "check-chunkserver : check the health state of the chunkserver\n"
+        "check-copyset : check the health state of one copyset\n"
         "check-server : check the health state of the server\n"
-        "check-cluster : check the health state of the cluster\n\n"
         "snapshot-check : check the consistency of the snapshot and the file\n"  //NOLINT
+        "check-operator : check the operators\n"
+        "rapid-leader-schedule: rapid leader schedule in cluster in logicalpool\n\n"  //NOLINT
         "You can specify the config path by -confPath to avoid typing too many options\n";  //NOLINT
 
 
 DEFINE_bool(example, false, "print the example of usage");
 DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds addr");
+DEFINE_string(mdsDummyPort, "6667", "dummy port of mds, "
+                                    "can specify one or several."
+                                    "if specify several, the order "
+                                    "should be the same as mds addr");
 DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd addr");
 DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
 DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");

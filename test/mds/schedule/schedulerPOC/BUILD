@@ -5,9 +5,9 @@ load(
 )
 
 cc_test(
-    name = "copyset_scheduler_poc",
+    name = "scheduler_poc",
     srcs = [
-        "copyset_scheduler_poc.cpp",
+        "scheduler_poc.cpp",
         "mock_topology.h"],
     deps = ["//external:gtest",
             "//src/mds/copyset:copyset",

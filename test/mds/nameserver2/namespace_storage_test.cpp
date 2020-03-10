@@ -400,5 +400,27 @@ TEST_F(TestNameServerStorageImp, test_Snapshotfile) {
         storage_->SnapShotFile(&fileinfo, &fileinfo));
 }
 
+TEST_F(TestNameServerStorageImp, test_ListSegment) {
+    // 1. list err
+    std::vector<PageFileSegment> segments;
+    EXPECT_CALL(*client_, List(_, _, _))
+        .WillOnce(Return(EtcdErrCode::Canceled));
+    ASSERT_EQ(StoreStatus::InternalError, storage_->ListSegment(0, &segments));
+
+    // 2. list ok
+    segments.clear();
+    std::string key, encodeSegment;
+    PageFileSegment segment;
+    GetPageFileSegmentForTest(&key, &segment);
+    ASSERT_TRUE(NameSpaceStorageCodec::EncodeSegment(segment, &encodeSegment));
+    EXPECT_CALL(*client_, List(_, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(std::vector<std::string>{encodeSegment}),
+            Return(EtcdErrCode::OK)));
+    ASSERT_EQ(StoreStatus::OK, storage_->ListSegment(0, &segments));
+    ASSERT_EQ(1, segments.size());
+    ASSERT_EQ(segment.DebugString(), segments[0].DebugString());
+}
+
 }  // namespace mds
 }  // namespace curve

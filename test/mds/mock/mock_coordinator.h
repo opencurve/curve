@@ -5,16 +5,15 @@
  * Copyright (c) 2018 netease
  */
 
-
-#ifndef TEST_MDS_HEARTBEAT_MOCK_COORDINATOR_H_
-#define TEST_MDS_HEARTBEAT_MOCK_COORDINATOR_H_
+#ifndef TEST_MDS_MOCK_MOCK_COORDINATOR_H_
+#define TEST_MDS_MOCK_MOCK_COORDINATOR_H_
 
 #include <gmock/gmock.h>
+#include <vector>
 #include "src/mds/schedule/coordinator.h"
 
 namespace curve {
 namespace mds {
-namespace heartbeat {
 class MockCoordinator : public ::curve::mds::schedule::Coordinator {
  public:
     MockCoordinator() {}
@@ -26,9 +25,10 @@ class MockCoordinator : public ::curve::mds::schedule::Coordinator {
                 ::curve::mds::heartbeat::CopySetConf *newConf));
 
     MOCK_METHOD2(ChunkserverGoingToAdd, bool(ChunkServerIDType, CopySetKey));
+
+    MOCK_METHOD1(RapidLeaderSchedule, int(PoolIdType));
 };
-}  // namespace heartbeat
 }  // namespace mds
 }  // namespace curve
-#endif  // TEST_MDS_HEARTBEAT_MOCK_COORDINATOR_H_
+#endif  // TEST_MDS_MOCK_MOCK_COORDINATOR_H_
 

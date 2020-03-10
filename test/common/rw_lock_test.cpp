@@ -9,6 +9,7 @@
 #include <errno.h>
 
 #include <thread>   // NOLINT
+#include <vector>
 
 #include "src/common/concurrent/rw_lock.h"
 
@@ -81,6 +82,37 @@ TEST(RWLockTest, basic_test) {
         t6.join();
 
         ASSERT_EQ(4 * 10000, writeCnt);
+    }
+}
+
+TEST(WriterPreferedRWLockTest, WriteLockLatency) {
+    WritePreferedRWLock lock;
+    volatile bool running = true;
+
+    std::vector<std::thread> ths;
+
+    for (int i = 0; i < 10; ++i) {
+        ths.emplace_back([&]() {
+            while (running) {
+                ReadLockGuard guard(lock);
+                std::this_thread::sleep_for(std::chrono::microseconds(1));
+            }
+        });
+    }
+
+    {
+        auto start = std::chrono::system_clock::now();
+        WriteLockGuard guard(lock);
+        auto end = std::chrono::system_clock::now();
+        auto elpased =  std::chrono::duration_cast<std::chrono::microseconds>(
+            end - start).count();
+
+        ASSERT_GE(1000, elpased);
+    }
+
+    running = false;
+    for (auto& th : ths) {
+        th.join();
     }
 }
 

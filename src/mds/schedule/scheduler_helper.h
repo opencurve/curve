@@ -132,6 +132,18 @@ class SchedulerHelper {
     static void SortChunkServerByCopySetNumAsc(
         std::vector<ChunkServerInfo> *chunkserverList,
         const std::shared_ptr<TopoAdapter> &topo);
+
+    /**
+     * @brief CopySetDistribution 统计online状态chunkserver上的copyset
+     *
+     * @param[in] copysetList topology中所有copyset
+     * @param[in] chunkserverList topology中所有chunkserver
+     * @param[out] out chunkserver对应的copyset列表
+     */
+    static void CopySetDistributionInOnlineChunkServer(
+        const std::vector<CopySetInfo> &copysetList,
+        const std::vector<ChunkServerInfo> &chunkserverList,
+        std::map<ChunkServerIdType, std::vector<CopySetInfo>> *out);
 };
 }  // namespace schedule
 }  // namespace mds

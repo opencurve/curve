@@ -25,6 +25,8 @@ Used port list:
     9141: metric测试
     9142: metric测试
     9150/9151 ChunkserverUnstableTest
+    19151/19110/19111/19112 curveClient测试
+
 
 
 # mds & snapshotcloneserver
@@ -34,6 +36,8 @@ Used port list:
                           2301~2312
     snapshotcloneserver integration test: 10001~10030
     fakes3 : 9999
+    use port(charisu) : 10031~10034
+    use port(schedule service):5900~5999
 
 # chunkserver
 
@@ -59,3 +63,5 @@ Used port list:
     data check:             9160 9161 9162 9163
     mds client:             9180
     chunkserver client:     9191
+    curve cli:              9192
+    http client:            9193

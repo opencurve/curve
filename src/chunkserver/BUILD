@@ -52,6 +52,7 @@ cc_library(
         "//src/common:curve_common",
         "//src/fs:lfs",
         "//src/client:curve_client",
+	"//include/client:include_client",
     ],
 )
 

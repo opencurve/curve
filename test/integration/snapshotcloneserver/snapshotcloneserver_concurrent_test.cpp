@@ -34,6 +34,7 @@ const char* kChunkServerIpPort1 = "127.0.0.1:10014";
 const char* kChunkServerIpPort2 = "127.0.0.1:10015";
 const char* kChunkServerIpPort3 = "127.0.0.1:10016";
 const char* kSnapshotCloneServerIpPort = "127.0.0.1:10017";
+const int kMdsDummyPort = 10018;
 
 const char* kLogPath = "./runlog/ConSCSTestLog";
 const char* kMdsDbName = "ConSCSTestDB";
@@ -185,7 +186,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
             mdsConfigOptions);
 
         // 启动一个mds
-        cluster_->StartSingleMDS(1, kMdsIpPort, mdsConf1, true);
+        cluster_->StartSingleMDS(1, kMdsIpPort, kMdsDummyPort, mdsConf1, true);
 
         // 创建物理池
         cluster_->PreparePhysicalPool(

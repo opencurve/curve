@@ -30,12 +30,8 @@ bool IOManager4File::Initialize(const std::string& filename,
     mc_.Init(ioopt_.metaCacheOpt, mdsclient);
     Splitor::Init(ioopt_.ioSplitOpt);
 
-    int ret = RequestClosure::AddInflightCntl(id_,
-              ioopt_.ioSenderOpt.inflightOpt);
-    if (ret != 0) {
-        LOG(ERROR) << "add inflight control for rpc failed!";
-        return false;
-    }
+    inflightRpcCntl_.SetMaxInflightNum(
+        ioopt_.ioSenderOpt.inflightOpt.fileMaxInFlightRPCNum);
 
     fileMetric_ = new (std::nothrow) FileMetric(filename);
     if (fileMetric_ == nullptr) {
@@ -52,7 +48,7 @@ bool IOManager4File::Initialize(const std::string& filename,
         return false;
     }
 
-    ret = scheduler_->Init(ioopt_.reqSchdulerOpt, &mc_, fileMetric_);
+    int ret = scheduler_->Init(ioopt_.reqSchdulerOpt, &mc_, fileMetric_);
     if (-1 == ret) {
         LOG(ERROR) << "Init scheduler_ failed!";
         delete scheduler_;
@@ -100,8 +96,6 @@ void IOManager4File::UnInitialize() {
         inflightCntl_.WaitInflightAllComeBack();
         scheduler_->Fini();
     }
-
-    RequestClosure::DeleteInflightCntl(id_);
 
     {
         // 这个锁保证设置exit_和delete scheduler_是原子的
@@ -215,5 +209,14 @@ void IOManager4File::RefeshSuccAndResumeIO() {
         LOG(WARNING) << "io manager already exit, no need resume io!";
     }
 }
+
+void IOManager4File::ReleaseInflightRpcToken() {
+    inflightRpcCntl_.ReleaseInflightToken();
+}
+
+void IOManager4File::GetInflightRpcToken() {
+    inflightRpcCntl_.GetInflightToken();
+}
+
 }   // namespace client
 }   // namespace curve

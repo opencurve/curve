@@ -281,6 +281,23 @@ void MetaCache::UpdateChunkInfoByID(ChunkID cid, ChunkIDInfo cidinfo) {
     chunkid2chunkInfoMap_[cid] = cidinfo;
 }
 
+int MetaCache::SetServerUnstable(const std::string& serverIp) {
+    LOG(WARNING) << "Server unstable, ip = " << serverIp << "";
+
+    std::vector<ChunkServerID> csIds;
+    int ret = mdsclient_->ListChunkServerInServer(serverIp, &csIds);
+    if (ret != LIBCURVE_ERROR::OK) {
+        LOG(WARNING) << "ListChunkServer failed";
+        return -1;
+    }
+
+    for (auto id : csIds) {
+        SetChunkserverUnstable(id);
+    }
+
+    return 0;
+}
+
 void MetaCache::SetChunkserverUnstable(ChunkServerID csid) {
     LOG(WARNING) << "chunkserver " << csid << " unstable!";
     std::set<CopysetIDInfo> copysetIDSet;

@@ -272,6 +272,27 @@ class FakeNameServerStorage : public NameServerStorage {
         return StoreStatus::OK;
     }
 
+    StoreStatus ListSegment(InodeID id,
+                            std::vector<PageFileSegment> *segments) {
+        std::lock_guard<std::mutex> guard(lock_);
+        std::string startStoreKey =
+                NameSpaceStorageCodec::EncodeSegmentStoreKey(id, 0);
+        std::string endStoreKey =
+                NameSpaceStorageCodec::EncodeSegmentStoreKey(id + 1, 0);
+
+        for (auto iter = memKvMap_.begin(); iter != memKvMap_.end(); iter++) {
+            if (iter->first.compare(startStoreKey) >= 0) {
+                if (iter->first.compare(endStoreKey) < 0) {
+                    PageFileSegment segment;
+                    segment.ParseFromString(iter->second);
+                    segments->push_back(segment);
+                }
+            }
+        }
+
+        return StoreStatus::OK;
+    }
+
     StoreStatus ListSnapshotFile(InodeID startid,
                          InodeID endid,
                          std::vector<FileInfo> * files) override {

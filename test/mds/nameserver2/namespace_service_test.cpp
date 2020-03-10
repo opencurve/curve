@@ -37,8 +37,8 @@ class NameSpaceServiceTest : public ::testing::Test {
  protected:
     void SetUp() override {
         // init the kcurvefs, use the fake element
-        storage_ =  new FakeNameServerStorage();
-        inodeGenerator_ = new FakeInodeIDGenerator(0);
+        storage_ =  std::make_shared<FakeNameServerStorage>();
+        inodeGenerator_ = std::make_shared<FakeInodeIDGenerator>(0);
 
         topology_ = std::make_shared<MockTopology>();
         ChunkServerClientOption option;
@@ -63,12 +63,12 @@ class NameSpaceServiceTest : public ::testing::Test {
         std::shared_ptr<FackChunkIDGenerator> chunkIdGenerator =
                             std::make_shared<FackChunkIDGenerator>();
         chunkSegmentAllocate_ =
-                new ChunkSegmentAllocatorImpl(topologyChunkAllocator,
-                        chunkIdGenerator);
+                std::make_shared<ChunkSegmentAllocatorImpl>(
+                        topologyChunkAllocator, chunkIdGenerator);
 
         std::shared_ptr<FakeRepoInterface> repo =
                                     std::make_shared<FakeRepoInterface>();
-        sessionManager_ = new SessionManager(repo);
+        sessionManager_ = std::make_shared<SessionManager>(repo);
 
         sessionOptions.leaseTimeUs = 5000000;
         sessionOptions.toleranceTimeUs = 500000;
@@ -78,6 +78,8 @@ class NameSpaceServiceTest : public ::testing::Test {
         authOptions.rootPassword = "root_password";
 
         curveFSOptions.defaultChunkSize = 16 * kMB;
+        curveFSOptions.sessionOptions = sessionOptions;
+        curveFSOptions.authOptions = authOptions;
 
         InitRecycleBinDir(storage_);
 
@@ -85,8 +87,8 @@ class NameSpaceServiceTest : public ::testing::Test {
                         cleanManager_,
                         sessionManager_,
                         allocStatistic_,
-                        sessionOptions, authOptions,
                         curveFSOptions, repo);
+        kCurveFS.Run();
     }
 
     void TearDown() override {
@@ -95,30 +97,12 @@ class NameSpaceServiceTest : public ::testing::Test {
         if (cleanManager_ != nullptr) {
             ASSERT_EQ(cleanManager_->Stop(), true);
         }
-
-        if (storage_ != nullptr) {
-            delete storage_;
-            storage_ = nullptr;
-        }
-        if (inodeGenerator_ != nullptr) {
-            delete inodeGenerator_;
-            inodeGenerator_ = nullptr;
-        }
-        if (chunkSegmentAllocate_ != nullptr) {
-            delete chunkSegmentAllocate_;
-            chunkSegmentAllocate_ = nullptr;
-        }
-        if (sessionManager_ != nullptr) {
-            delete sessionManager_;
-            sessionManager_ = nullptr;
-        }
-        allocStatistic_ = nullptr;
     }
 
  public:
-    NameServerStorage *storage_;
-    InodeIDGenerator *inodeGenerator_;
-    ChunkSegmentAllocator *chunkSegmentAllocate_;
+    std::shared_ptr<NameServerStorage> storage_;
+    std::shared_ptr<InodeIDGenerator> inodeGenerator_;
+    std::shared_ptr<ChunkSegmentAllocator> chunkSegmentAllocate_;
 
     std::shared_ptr<CleanCore> cleanCore_;
     std::shared_ptr<CleanTaskManager> cleanTaskManager_;
@@ -126,7 +110,7 @@ class NameSpaceServiceTest : public ::testing::Test {
     std::shared_ptr<MockTopology> topology_;
     std::shared_ptr<AllocStatistic> allocStatistic_;
 
-    SessionManager *sessionManager_;
+    std::shared_ptr<SessionManager> sessionManager_;
     struct SessionOptions sessionOptions;
     struct RootAuthOption authOptions;
     struct CurveFSOption curveFSOptions;
@@ -502,6 +486,26 @@ TEST_F(NameSpaceServiceTest, test1) {
             response2.pagefilesegment().SerializeAsString());
     } else {
         ASSERT_TRUE(false);
+    }
+
+    // test get allocated size
+    {
+        cntl.Reset();
+        // file not exist
+        GetAllocatedSizeRequest request;
+        GetAllocatedSizeResponse response;
+        request.set_filename("/file-not-exist");
+        stub.GetAllocatedSize(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kFileNotExists, response.statuscode());
+
+        // normal
+        cntl.Reset();
+        request.set_filename("/file1");
+        stub.GetAllocatedSize(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kOK, response.statuscode());
+        ASSERT_EQ(DefaultSegmentSize, response.allocatedsize());
     }
 
     // test change owner
@@ -2007,6 +2011,41 @@ TEST_F(NameSpaceServiceTest, registClientTest) {
     request.set_port(11);
     cntl.Reset();
     stub.RegistClient(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    server.Stop(10);
+    server.Join();
+}
+
+TEST_F(NameSpaceServiceTest, listClientTest) {
+    brpc::Server server;
+
+    // start server
+    NameSpaceService namespaceService(new FileLockManager(8));
+    ASSERT_EQ(server.AddService(&namespaceService,
+            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+
+    brpc::ServerOptions option;
+    option.idle_timeout_sec = -1;
+    ASSERT_EQ(0, server.Start("127.0.0.1", {8900, 8999}, &option));
+
+    // init client
+    brpc::Channel channel;
+    ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
+
+    CurveFSService_Stub stub(&channel);
+
+    ListClientRequest request;
+    ListClientResponse response;
+    brpc::Controller cntl;
+
+    cntl.set_log_id(1);
+
+    stub.ListClient(&cntl, &request, &response, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response.statuscode(), StatusCode::kOK);
     } else {

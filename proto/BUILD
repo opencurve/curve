@@ -53,4 +53,14 @@ proto_library(
     srcs = ["snapshotcloneserver.proto"],
 )
 
+cc_proto_library(
+    name = "schedule_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":schedule_proto"],
+)
+
+proto_library(
+    name = "schedule_proto",
+    srcs = ["schedule.proto"],
+)
 

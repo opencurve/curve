@@ -14,14 +14,14 @@
 #include <unordered_map>
 #include <vector>
 
+#include "include/client/libcurve.h"
 #include "src/common/uuid.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/client/config_info.h"
 #include "src/client/client_common.h"
-#include "src/client/libcurve_define.h"
 #include "src/client/file_instance.h"
 
-using curve::common::RWLock;
+using curve::common::WritePreferedRWLock;
 
 // TODO(tongguangxun) :添加关键函数trace功能
 namespace curve {
@@ -61,7 +61,22 @@ class FileClient {
    * @param: userinfo是操作文件的用户信息
    * @return: 返回文件fd
    */
-  virtual int Open(const std::string& filename, const UserInfo_t& userinfo);
+  virtual int Open(const std::string& filename,
+                   const UserInfo_t& userinfo,
+                   std::string* sessionId = nullptr);
+
+  /**
+   * 重新打开文件
+   * @param: filename文件名
+   * @param: sessionId是上次打开该文件时返回的sessionId
+   * @param: userInfo是操作文件的用户信息
+   * @return: 返回文件fd
+   */
+
+  virtual int ReOpen(const std::string& filename,
+                     const std::string& sessionId,
+                     const UserInfo& userInfo,
+                     std::string* newSessionId);
 
   /**
    * 打开文件，这个打开只是创建了一个fd，并不与mds交互，没有session续约
@@ -217,6 +232,14 @@ class FileClient {
    */
   int GetClusterId(char* buf, int len);
 
+  /**
+   * @brief 获取文件信息，测试使用
+   * @param fd 文件句柄
+   * @param[out] finfo 文件信息
+   * @return 成功返回0，失败返回-LIBCURVE_ERROR::FAILED
+   */
+  int GetFileInfo(int fd, FInfo* finfo);
+
  private:
   inline bool CheckAligned(off_t offset, size_t length);
 
@@ -227,7 +250,7 @@ class FileClient {
                                 bool readonly);
 
  private:
-  RWLock rwlock_;
+  WritePreferedRWLock rwlock_;
 
   // 向上返回的文件描述符，对于QEMU来说，一个vdisk对应一个文件描述符
   std::atomic<uint64_t>    fdcount_;
