@@ -17,6 +17,17 @@
 namespace curve {
 namespace tool {
 
+enum class MetricRet {
+    // 成功
+    kOK = 0,
+    // metric未找到
+    kNotFound = -1,
+    // 其他错误
+    kOtherErr  = -2,
+};
+
+const int kHttpCodeNotFound = 404;
+
 class MetricClient {
  public:
      virtual ~MetricClient() {}
@@ -26,22 +37,22 @@ class MetricClient {
      *  @param addr 要访问的地址
      *  @param metricName 要获取的metric name
      *  @param[out] value metric的值
-     *  @return 成功返回0，失败返回-1
+     *  @return 错误码
      */
-    virtual int GetMetric(const std::string& addr,
-                  const std::string& metricName,
-                  std::string* value);
+    virtual MetricRet GetMetric(const std::string& addr,
+                                const std::string& metricName,
+                                std::string* value);
 
      /**
      *  @brief 从指定地址获取metric,并转换成uint
      *  @param addr 要访问的地址
      *  @param metricName 要获取的metric name
      *  @param[out] value metric的值
-     *  @return 成功返回0，失败返回-1
+     *  @return 错误码
      */
-    virtual int GetMetricUint(const std::string& addr,
-                  const std::string& metricName,
-                  uint64_t* value);
+    virtual MetricRet GetMetricUint(const std::string& addr,
+                                    const std::string& metricName,
+                                    uint64_t* value);
 
  private:
     // 从response attachment解析出metric值
