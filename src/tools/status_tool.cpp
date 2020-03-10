@@ -380,7 +380,7 @@ int StatusTool::PrintClientStatus() {
         if (!first) {
             std::cout << ", ";
         }
-        std::cout << "version" <<  item.first << ": " << item.second.size();
+        std::cout << "version-" <<  item.first << ": " << item.second.size();
         first = false;
     }
     std::cout << std::endl;
@@ -432,8 +432,9 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
         }
         std::string metricName = GetCSLeftChunkName(csAddr);
         uint64_t chunkNum;
-        int res = metricClient_->GetMetricUint(csAddr, metricName, &chunkNum);
-        if (res != 0) {
+        MetricRet res = metricClient_->GetMetricUint(csAddr,
+                                                     metricName, &chunkNum);
+        if (res != MetricRet::kOK) {
             std::cout << "Get left chunk size of chunkserver " << csAddr
                       << " fail!" << std::endl;
             ret = -1;
