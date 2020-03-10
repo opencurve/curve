@@ -98,16 +98,7 @@ int CopysetCheck::CheckCopyset() {
     }
     if (FLAGS_detail) {
         std::cout << core_->GetCopysetDetail() << std::endl;
-        auto serviceExceptionChunkServers =
-                        core_->GetServiceExceptionChunkServer();
-        if (!serviceExceptionChunkServers.empty()) {
-            std::ostream_iterator<std::string> out(std::cout, ", ");
-            std::cout << "service-exception chunkservers (total: "
-                      << serviceExceptionChunkServers.size() << "): {";
-            std::copy(serviceExceptionChunkServers.begin(),
-                            serviceExceptionChunkServers.end(), out);
-            std::cout << "}" << std::endl;
-        }
+        PrintExcepChunkservers();
     }
     return res;
 }
@@ -255,15 +246,8 @@ void CopysetCheck::PrintDetail() {
         PrintCopySet(item.second);
     }
     std::cout << std::endl;
-    // 打印offline的chunkserver，这里不能严格说它offline，
-    // 有可能是chunkserver起来了但无法提供服务,所以叫Service-exception
-    auto serviceExceptionChunkServers =
-                        core_->GetServiceExceptionChunkServer();
-    std::cout << "service-exception chunkserver list (total: "
-              << serviceExceptionChunkServers.size() <<"): {";
-    std::copy(serviceExceptionChunkServers.begin(),
-                        serviceExceptionChunkServers.end(), out);
-    std::cout << "}" << std::endl << std::endl;
+    // 打印有问题的chunkserver
+    PrintExcepChunkservers();
 }
 
 void CopysetCheck::PrintCopySet(const std::set<std::string>& set) {
@@ -285,6 +269,29 @@ void CopysetCheck::PrintCopySet(const std::set<std::string>& set) {
                   << std::to_string(csId) << ")";
     }
     std::cout << "}" << std::endl;
+}
+
+void CopysetCheck::PrintExcepChunkservers() {
+    auto serviceExceptionChunkServers =
+                        core_->GetServiceExceptionChunkServer();
+    if (!serviceExceptionChunkServers.empty()) {
+        std::ostream_iterator<std::string> out(std::cout, ", ");
+        std::cout << "service-exception chunkservers (total: "
+                  << serviceExceptionChunkServers.size() << "): {";
+        std::copy(serviceExceptionChunkServers.begin(),
+                        serviceExceptionChunkServers.end(), out);
+        std::cout << "}" << std::endl;
+    }
+    auto copysetLoadExceptionCS =
+                    core_->GetCopysetLoadExceptionChunkServer();
+    if (!copysetLoadExceptionCS.empty()) {
+        std::ostream_iterator<std::string> out(std::cout, ", ");
+        std::cout << "copyset-load-exception chunkservers (total: "
+                  << copysetLoadExceptionCS.size() << "): {";
+        std::copy(copysetLoadExceptionCS.begin(),
+                        copysetLoadExceptionCS.end(), out);
+        std::cout << "}" << std::endl;
+    }
 }
 }  // namespace tool
 }  // namespace curve

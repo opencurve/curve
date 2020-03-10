@@ -112,6 +112,9 @@ class CopysetCheck : public CurveTool {
     // 打印检查的结果，一共多少copyset，有多少不健康
     void PrintStatistic();
 
+    // 打印有问题的chunkserver列表
+    void PrintExcepChunkservers();
+
  private:
     // 检查copyset的核心逻辑
     std::shared_ptr<CopysetCheckCore> core_;

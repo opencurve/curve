@@ -753,9 +753,9 @@ int MDSClient::GetMdsListenAddr(const std::string& dummyAddr,
                                 std::string* listenAddr) {
     std::string jsonString;
     brpc::Controller cntl;
-    int res = metricClient_.GetMetric(dummyAddr, kMdsListenAddrMetricName,
+    MetricRet res = metricClient_.GetMetric(dummyAddr, kMdsListenAddrMetricName,
                         &jsonString);
-    if (res != 0) {
+    if (res != MetricRet::kOK) {
         std::cout << "Get mds listen addr from " << dummyAddr
                   << " fail" << std::endl;
         return -1;
@@ -802,9 +802,9 @@ int MDSClient::GetMetric(const std::string& metricName, std::string* value) {
     int changeTimeLeft = mdsAddrVec_.size() - 1;
     while (changeTimeLeft >= 0) {
         brpc::Controller cntl;
-        int res = metricClient_.GetMetric(mdsAddrVec_[currentMdsIndex_],
+        MetricRet res = metricClient_.GetMetric(mdsAddrVec_[currentMdsIndex_],
                                          metricName, value);
-        if (res == 0) {
+        if (res == MetricRet::kOK) {
             return 0;
         }
         changeTimeLeft--;
