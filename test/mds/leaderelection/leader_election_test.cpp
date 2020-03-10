@@ -10,6 +10,7 @@
 #include <memory>
 #include "src/mds/leader_election/leader_election.h"
 #include "test/mds/mock/mock_etcdclient.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -24,6 +25,7 @@ TEST(TestLeaderElection, test_leader_election) {
     opts.leaderUniqueName = "leader1";
     opts.sessionInterSec = 1;
     opts.electionTimeoutMs = 0;
+    opts.campaginPrefix = MDSLEADERCAMPAIGNNPFX;
     auto leaderElection = std::make_shared<LeaderElection>(opts);
     fiu_init(0);
     fiu_enable("src/mds/leaderElection/observeLeader", 1, nullptr, 0);
