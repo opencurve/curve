@@ -20,23 +20,23 @@ struct LeaderElectionOptions {
     // etcd客户端
     std::shared_ptr<EtcdClientImp> etcdCli;
 
-    // leader名称，建议使用ip+port以示区分
-    std::string leaderUniqueName;
-
     // 带ttl的session，ttl超时时间内
     uint32_t sessionInterSec;
 
     // 竞选leader的超时时间
     uint32_t electionTimeoutMs;
+
+    // leader名称，建议使用ip+port以示区分
+    std::string leaderUniqueName;
+
+    // 需要竞选的key
+    std::string campaginPrefix;
 };
 
 class LeaderElection {
  public:
     explicit LeaderElection(LeaderElectionOptions opt) {
-        this->etcdCli_ = opt.etcdCli;
-        this->leaderName_ = opt.leaderUniqueName;
-        this->sessionInterSec_ = opt.sessionInterSec;
-        this->electionTimeoutMs_ = opt.electionTimeoutMs;
+        opt_ = opt;
     }
 
     /**
@@ -60,7 +60,7 @@ class LeaderElection {
      * @brief 返回leader name
      */
     const std::string& GetLeaderName() {
-        return leaderName_;
+        return opt_.leaderUniqueName;
     }
 
  public:
@@ -71,15 +71,9 @@ class LeaderElection {
     int ObserveLeader();
 
  private:
-    // 在LeaderElectionOptions中已说明
-    // etcd客户端
-    std::shared_ptr<EtcdClientImp> etcdCli_;
-    // leader名称，建议使用ip+port以示区分
-    std::string leaderName_;
-    // 带ttl的session，ttl超时时间内
-    uint32_t sessionInterSec_;
-    // 竞选leader的超时时间
-    uint32_t electionTimeoutMs_;
+    // option
+    LeaderElectionOptions opt_;
+
     // 竞选leader之后记录在objectManager中的id号
     uint64_t leaderOid_;
 };

@@ -26,7 +26,7 @@ extern const char INODESTOREKEY[];
 extern const char INODESTOREKEYEND[];
 extern const char CHUNKSTOREKEY[];
 extern const char CHUNKSTOREKEYEND[];
-extern const char LEADERCAMPAIGNNPFX[];
+extern const char MDSLEADERCAMPAIGNNPFX[];
 extern const char SEGMENTALLOCSIZEKEY[];
 extern const char SEGMENTALLOCSIZEKEYEND[];
 

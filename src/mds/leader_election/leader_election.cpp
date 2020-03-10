@@ -17,47 +17,60 @@ using ::curve::common::Thread;
 namespace curve {
 namespace mds {
 int LeaderElection::CampaginLeader() {
-    LOG(INFO) << leaderName_ << " start campaign leader";
-    int resCode = etcdCli_->CampaignLeader(
-        LEADERCAMPAIGNNPFX, leaderName_, sessionInterSec_,
-        electionTimeoutMs_, &leaderOid_);
+    LOG(INFO) << opt_.leaderUniqueName << " start campaign leader prefix: "
+        << opt_.campaginPrefix;
+
+    int resCode = opt_.etcdCli->CampaignLeader(
+        opt_.campaginPrefix,
+        opt_.leaderUniqueName,
+        opt_.sessionInterSec,
+        opt_.electionTimeoutMs,
+        &leaderOid_);
     if (resCode == EtcdErrCode::CampaignLeaderSuccess) {
-        LOG(INFO) << leaderName_ << " campaign leader success";
+        LOG(INFO) << opt_.leaderUniqueName << " campaign leader prefix:"
+            << opt_.campaginPrefix << " success";
         return 0;
     }
 
-    LOG(WARNING) << leaderName_ << " campaign leader err: " << resCode;
+    LOG(WARNING) << opt_.leaderUniqueName << " campaign leader prefix:"
+        << opt_.campaginPrefix << " err: " << resCode;
     return -1;
 }
 
 void LeaderElection::StartObserverLeader() {
     Thread t(&LeaderElection::ObserveLeader, this);
     t.detach();
-    LOG(INFO) << "Leader Start Observer Self";
 }
 
 int LeaderElection::LeaderResign() {
-    int res = etcdCli_->LeaderResign(leaderOid_, 1000 * sessionInterSec_);
+    int res =
+        opt_.etcdCli->LeaderResign(leaderOid_, 1000 * opt_.sessionInterSec);
     if (EtcdErrCode::LeaderResiginSuccess == res) {
-        LOG(INFO) << leaderName_ << " resign leader ok";
+        LOG(INFO) << opt_.leaderUniqueName << " resign leader prefix:"
+            << opt_.campaginPrefix << " ok";
         return 0;
     }
 
-    LOG(WARNING) << leaderName_ << " resign leader err: " << res;
+    LOG(WARNING) << opt_.leaderUniqueName << " resign leader prefix:"
+        << opt_.campaginPrefix << " err: " << res;
     return -1;
 }
 
 int LeaderElection::ObserveLeader() {
-    LOG(INFO) << leaderName_ << " start observe.";
-    int resCode = etcdCli_->LeaderObserve(leaderOid_, leaderName_);
-    LOG(ERROR) << leaderName_
-               << " mds session occur error, errcode: " << resCode;
+    LOG(INFO) << opt_.leaderUniqueName << " start observe for prefix:"
+        << opt_.campaginPrefix;
+    int resCode =
+        opt_.etcdCli->LeaderObserve(leaderOid_, opt_.leaderUniqueName);
+    LOG(ERROR) << opt_.leaderUniqueName << " leader observe for prefix:"
+        << opt_.campaginPrefix << " occur error, errcode: " << resCode;
 
     // for test
     fiu_return_on("src/mds/leaderElection/observeLeader", -1);
 
     // 退出当前进程
-    CHECK(false) << leaderName_ << " Observer encounter error, mds exit";
+    CHECK(false) << opt_.leaderUniqueName
+        << " observer encounter error, leader exit for prefix:"
+        << opt_.campaginPrefix;
 }
 }  // namespace mds
 }  // namespace curve
