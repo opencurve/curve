@@ -22,7 +22,7 @@ const char INODESTOREKEY[] = "04";
 const char INODESTOREKEYEND[] = "05";
 const char CHUNKSTOREKEY[] = "05";
 const char CHUNKSTOREKEYEND[] = "06";
-const char LEADERCAMPAIGNNPFX[] = "07leader";
+const char MDSLEADERCAMPAIGNNPFX[] = "07leader";
 const char SEGMENTALLOCSIZEKEY[] = "08";
 const char SEGMENTALLOCSIZEKEYEND[] = "09";
 
