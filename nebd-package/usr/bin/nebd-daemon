@@ -100,7 +100,7 @@ function start() {
     line1=`cat ${daemonLog} | wc -l`
 
     LD_PRELOAD=${jemallocpath} daemon --name nebd-server --core --inherit \
-           --respawn --attempts 10 --delay 10 \
+           --respawn --attempts 10 --delay 10 --acceptable 5\
            --pidfile ${pidFile} \
            --errlog ${daemonLog} \
            --output ${consoleLog} \
