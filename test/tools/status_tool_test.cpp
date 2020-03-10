@@ -498,7 +498,7 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
     EXPECT_CALL(*metricClient_, GetMetricUint(_, _, _))
         .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<2>(1000),
-                        Return(0)));
+                        Return(MetricRet::kOK)));
     EXPECT_CALL(*copysetCheck_, CheckChunkServerOnline(_))
         .Times(3)
         .WillRepeatedly(Return(true));
