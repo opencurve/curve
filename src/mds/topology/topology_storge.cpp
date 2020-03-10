@@ -208,7 +208,7 @@ bool DefaultTopologyStorage::LoadChunkServer(
                        rp.port,
                        rp.mountPoint,
                        static_cast<ChunkServerStatus>(rp.rwstatus),
-                       OnlineState::ONLINE);
+                       OnlineState::UNSTABLE);
         ChunkServerState csState;
         csState.SetDiskState(static_cast<DiskState>(rp.diskState));
         csState.SetDiskCapacity(rp.capacity);

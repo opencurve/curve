@@ -26,9 +26,9 @@ bool CopysetConfGenerator::GenCopysetConf(
     ::curve::mds::topology::CopySetInfo recordCopySetInfo;
     if (!topo_->GetCopySet(
         reportCopySetInfo.GetCopySetKey(), &recordCopySetInfo)) {
-        LOG(ERROR) << "heartbeatManager receive copySet(logicalPoolId: "
+        LOG(ERROR) << "heartbeatManager receive copyset("
                    << reportCopySetInfo.GetLogicalPoolId()
-                   << ", copySetId: " << reportCopySetInfo.GetId()
+                   << "," << reportCopySetInfo.GetId()
                    << ") information, but can not get info from topology";
         copysetConf->set_logicalpoolid(reportCopySetInfo.GetLogicalPoolId());
         copysetConf->set_copysetid(reportCopySetInfo.GetId());
@@ -46,9 +46,9 @@ bool CopysetConfGenerator::GenCopysetConf(
             int updateCode = topo_->UpdateCopySetTopo(newCopySetInfo);
             if (::curve::mds::topology::kTopoErrCodeSuccess != updateCode) {
                 // 更新到内存失败
-                LOG(WARNING) << "topoUpdater update copySet(logicalPoolId:"
+                LOG(WARNING) << "topoUpdater update copyset("
                         << reportCopySetInfo.GetLogicalPoolId()
-                        << ", copySetId:" << reportCopySetInfo.GetId()
+                        << "," << reportCopySetInfo.GetId()
                         << ") got error code: " << updateCode;
                 return false;
             } else {

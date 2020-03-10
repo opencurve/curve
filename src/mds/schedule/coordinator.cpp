@@ -39,67 +39,37 @@ Coordinator::~Coordinator() {
 
 void Coordinator::InitScheduler(
     const ScheduleOption &conf, std::shared_ptr<ScheduleMetrics> metrics) {
+    conf_ = conf;
+
     opController_ =
         std::make_shared<OperatorController>(conf.operatorConcurrent, metrics);
 
     if (conf.enableLeaderScheduler) {
         schedulerController_[SchedulerType::LeaderSchedulerType] =
-            std::make_shared<LeaderScheduler>(opController_,
-                                              conf.leaderSchedulerIntervalSec,
-                                              conf.chunkserverCoolingTimeSec,
-                                              conf.transferLeaderTimeLimitSec,
-                                              conf.removePeerTimeLimitSec,
-                                              conf.addPeerTimeLimitSec,
-                                              conf.changePeerTimeLimitSec,
-                                              conf.scatterWithRangePerent,
-                                              topo_);
+            std::make_shared<LeaderScheduler>(conf, topo_, opController_);
         LOG(INFO) << "init leader scheduler ok!";
     }
 
     if (conf.enableCopysetScheduler) {
         schedulerController_[SchedulerType::CopySetSchedulerType] =
-            std::make_shared<CopySetScheduler>(opController_,
-                                               conf.copysetSchedulerIntervalSec,
-                                               conf.transferLeaderTimeLimitSec,
-                                               conf.removePeerTimeLimitSec,
-                                               conf.addPeerTimeLimitSec,
-                                               conf.changePeerTimeLimitSec,
-                                               conf.copysetNumRangePercent,
-                                               conf.scatterWithRangePerent,
-                                               topo_);
+            std::make_shared<CopySetScheduler>(conf, topo_, opController_);
         LOG(INFO) << "init copySet scheduler ok!";
     }
 
     if (conf.enableRecoverScheduler) {
         schedulerController_[SchedulerType::RecoverSchedulerType] =
-            std::make_shared<RecoverScheduler>(opController_,
-                                               conf.recoverSchedulerIntervalSec,
-                                               conf.transferLeaderTimeLimitSec,
-                                               conf.removePeerTimeLimitSec,
-                                               conf.addPeerTimeLimitSec,
-                                               conf.changePeerTimeLimitSec,
-                                               conf.scatterWithRangePerent,
-                                               conf.chunkserverFailureTolerance,
-                                               topo_);
+            std::make_shared<RecoverScheduler>(conf, topo_, opController_);
         LOG(INFO) << "init recover scheduler ok!";
     }
 
     if (conf.enableReplicaScheduler) {
         schedulerController_[SchedulerType::ReplicaSchedulerType] =
-            std::make_shared<ReplicaScheduler>(opController_,
-                                               conf.replicaSchedulerIntervalSec,
-                                               conf.transferLeaderTimeLimitSec,
-                                               conf.removePeerTimeLimitSec,
-                                               conf.addPeerTimeLimitSec,
-                                               conf.changePeerTimeLimitSec,
-                                               conf.scatterWithRangePerent,
-                                               topo_);
+            std::make_shared<ReplicaScheduler>(conf, topo_, opController_);
         LOG(INFO) << "init replica scheduler ok!";
     }
 }
 
 void Coordinator::Run() {
-    // run different scheduler at interval in different threads
     for (auto &v : schedulerController_) {
         runSchedulerThreads_[v.first] = common::Thread(
             &Coordinator::RunScheduler, this, v.second, v.first);
@@ -124,8 +94,8 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
     // 将toplogy中copyset转换成schedule中copyset的形式
     CopySetInfo info;
     if (!topo_->CopySetFromTopoToSchedule(originInfo, &info)) {
-        LOG(ERROR) << "coordinator cannot convert copySet(logicalPoolId:"
-                   << originInfo.GetLogicalPoolId() << ", copySetId:"
+        LOG(ERROR) << "coordinator cannot convert copyset("
+                   << originInfo.GetLogicalPoolId() << ","
                    << originInfo.GetId()
                    << ") from heartbeat topo form to schedule form error";
         return ::curve::mds::topology::UNINTIALIZE_ID;
@@ -189,6 +159,12 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
     }
 
     return ::curve::mds::topology::UNINTIALIZE_ID;
+}
+
+int Coordinator::RapidLeaderSchedule(PoolIdType lpid) {
+    auto rapidLeaderScheduler = std::make_shared<RapidLeaderScheduler>(
+                                    conf_, topo_, opController_, lpid);
+    return rapidLeaderScheduler->Schedule();
 }
 
 void Coordinator::RunScheduler(

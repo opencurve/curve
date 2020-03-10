@@ -1300,12 +1300,14 @@ void NameSpaceService::RefreshSession(
     }
 
     FileInfo *fileInfo = new FileInfo();
+    ProtoSession *protoSession = new ProtoSession();
     retCode = kCurveFS.RefreshSession(request->filename(),
                                       request->sessionid(),
                                       request->date(),
                                       request->signature(),
                                       clientIP,
-                                      fileInfo);
+                                      fileInfo,
+                                      protoSession);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         response->set_sessionid(request->sessionid());
@@ -1331,10 +1333,12 @@ void NameSpaceService::RefreshSession(
                 << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
         delete fileInfo;
+        delete protoSession;
         return;
     } else {
         response->set_sessionid(request->sessionid());
         response->set_allocated_fileinfo(fileInfo);
+        response->set_allocated_protosession(protoSession);
         response->set_statuscode(StatusCode::kOK);
         DVLOG(6) << "logid = " << cntl->log_id()
             << ", RefreshSession ok, filename = " << request->filename()
@@ -1594,6 +1598,69 @@ void NameSpaceService::RegistClient(
             << ", port = " << request->port();
     }
     return;
+}
+
+void NameSpaceService::GetAllocatedSize(
+                        ::google::protobuf::RpcController* controller,
+                       const ::curve::mds::GetAllocatedSizeRequest* request,
+                       ::curve::mds::GetAllocatedSizeResponse* response,
+                       ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", GetAllocatedSize request, fileName = " << request->filename();
+
+    StatusCode retCode;
+    uint64_t allocatedSize;
+    retCode = kCurveFS.GetAllocatedSize(request->filename(), &allocatedSize);
+    if (retCode != StatusCode::kOK)  {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", GetAllocatedSize fail, fileName = " << request->filename()
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        return;
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        response->set_allocatedsize(allocatedSize);
+        LOG(INFO) << "logid = " << cntl->log_id()
+            << ", GetAllocatedSize ok, fileName = " << request->filename()
+            << ", allocatedSize = " << response->allocatedsize() / kGB << "GB";
+    }
+    return;
+}
+
+void NameSpaceService::ListClient(
+                        ::google::protobuf::RpcController* controller,
+                        const ::curve::mds::ListClientRequest* request,
+                        ::curve::mds::ListClientResponse* response,
+                        ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+    LOG(INFO) << "logid = " << cntl->log_id() << ", ListClient request";
+
+    StatusCode retCode;
+    std::vector<ClientInfo> clientInfos;
+    retCode = kCurveFS.ListClient(&clientInfos);
+    if (retCode != StatusCode::kOK)  {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", ListClient fail, "
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        return;
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        for (const auto& info : clientInfos) {
+            ClientInfo* clientInfo = response->add_clientinfos();
+            *clientInfo = info;
+        }
+        LOG(INFO) << "logid = " << cntl->log_id()
+                  << ", ListClient ok";
+    }
 }
 
 uint32_t GetMdsLogLevel(StatusCode code) {

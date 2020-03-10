@@ -97,6 +97,7 @@ class CurveCluster {
      * @pram[in] expectLeader 是否希望成为leader
      */
     void StartSingleMDS(int id, const std::string &ipPort,
+                        int dummyPort,
                         const std::vector<std::string> &mdsConf,
                         bool expectLeader, bool expectAssert = true,
                         bool* startsuccess = nullptr);

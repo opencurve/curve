@@ -24,7 +24,7 @@
 #include "src/client/libcurve_snapshot.h"
 #include "src/client/iomanager4chunk.h"
 #include "src/client/client_common.h"
-#include "src/client/libcurve_define.h"
+#include "include/client/libcurve.h"
 
 extern std::string mdsMetaServerAddr;
 

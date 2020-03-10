@@ -19,6 +19,7 @@ const char kChunkserverStatusCmd[] = "chunkserver-status";
 const char kMdsStatusCmd[] = "mds-status";
 const char kEtcdStatusCmd[] = "etcd-status";
 const char kChunkserverListCmd[] = "chunkserver-list";
+const char kClientStatusCmd[] = "client-status";
 
 // NamesPaceTool相关命令
 const char kGetCmd[] = "get";
@@ -33,7 +34,8 @@ const char kChunkLocatitonCmd[] = "chunk-location";
 const char kCheckCopysetCmd[] = "check-copyset";
 const char kCheckChunnkServerCmd[] = "check-chunkserver";
 const char kCheckServerCmd[] = "check-server";
-const char kCheckClusterCmd[] = "check-cluster";
+const char kCopysetsStatusCmd[] = "copysets-status";
+const char kCheckOperatorCmd[] = "check-operator";
 
 // 一致性检查命令
 const char kCheckConsistencyCmd[] = "check-consistency";
@@ -45,6 +47,15 @@ const char kResetPeerCmd[] = "reset-peer";
 
 // 快照检查命令
 const char kSnapshotCheckCmd[] = "snapshot-check";
+// 调度模块命令
+const char kRapidLeaderSchedule[] = "rapid-leader-schedule";
+
+// curve文件meta相关的命令
+const char kChunkMeta[] = "chunk-meta";
+const char kSnapshotMeta[] = "snapshot-meta";
+
+// raft log相关命令
+const char kRaftLogMeta[] = "raft-log-meta";
 
 }  // namespace tool
 }  // namespace curve

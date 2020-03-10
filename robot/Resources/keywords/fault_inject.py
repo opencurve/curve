@@ -208,17 +208,13 @@ def detach_vol():
     ssh.close()
 
 def clear_RecycleBin():
-    mds_addrs = []
-    for host in config.mds_list:
-        mds_addrs.append(host + ":6666")
-    addrs = ",".join(mds_addrs)
     host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-    ori_cmd = "curve_ops_tool clean-recycle  -mdsAddr=%s --isTest"%addrs
+    ori_cmd = "curve_ops_tool clean-recycle --isTest"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[3] == 0,"clean RecyclenBin失败，msg is %s"%rs[1]
     starttime = time.time()
-    ori_cmd = "curve_ops_tool list  -mdsAddr=%s -fileName=/RecycleBin |grep fileName"%addrs
+    ori_cmd = "curve_ops_tool list -fileName=/RecycleBin |grep fileName"
     while time.time() - starttime < 180:
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         if rs[1] == [] and rs[3] == 0:
@@ -749,13 +745,9 @@ def check_vm_iops(limit_iops=3000):
     assert iops >= limit_iops,"vm iops not ok,is %d"%iops
 
 def check_chunkserver_online(num=120):
-    mds_addrs = []
-    for host in config.mds_list:
-        mds_addrs.append(host + ":6666")
-    addrs = ",".join(mds_addrs)
     host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-    ori_cmd = "curve_ops_tool chunkserver-status -mdsAddr=%s |grep chunkserver"%addrs
+    ori_cmd = "curve_ops_tool chunkserver-status | grep chunkserver"
     
     starttime = time.time()
     i = 0
@@ -771,60 +763,86 @@ def check_chunkserver_online(num=120):
         else:
             break
     if int(online_num[0]) != num:
-        ori_cmd = "curve_ops_tool chunkserver-list -mdsAddr=%s -checkHealth=false |grep OFFLINE"%addrs
+        ori_cmd = "curve_ops_tool chunkserver-list -checkHealth=false -checkCSAlive | grep OFFLINE"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         logger.error("chunkserver offline list is %s"%rs[1])
         assert int(online_num[0]) == num,"chunkserver online num is %s"%online_num
 
 def wait_health_ok():
-    mds_addrs = []
-    for host in config.mds_list:
-        mds_addrs.append(host + ":6666")
-    addrs = ",".join(mds_addrs)
     host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-    ori_cmd = "curve_ops_tool check-cluster -mdsAddr=%s | grep \"Cluster is\""%addrs
+    ori_cmd = "curve_ops_tool status | grep \"cluster is\""
     starttime = time.time()
     check = 0
     while time.time() - starttime < config.recover_time:
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         health = "".join(rs[1]).strip()
-        if health == "Cluster is healthy!" and rs[3] == 0:
+        if health == "cluster is healthy" and rs[3] == 0:
             check = 1
             break
         else:
-            ori_cmd2 = "curve_ops_tool check-cluster -mdsAddr=%s -detail |grep \"unhealthy copysets statistic\""%addrs
+            ori_cmd2 = "curve_ops_tool copysets-status -detail | grep \"unhealthy copysets statistic\""
             rs2 = shell_operator.ssh_exec(ssh, ori_cmd2)
             health = rs2[1]
-            logger.debug("cluster status is %s"%health)
+            logger.debug("copysets status is %s"%health)
             time.sleep(10)
     assert check == 1,"cluster is not healthy in %d s"%config.recover_time
+
+def rapid_leader_schedule():
+    host = random.choice(config.mds_list)
+    ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+    ori_cmd = "curve_ops_tool check-operator -opName=change_peer | grep \"Operator num is\""
+    starttime = time.time()
+    check = 0
+    while time.time() - starttime < config.recover_time:
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        operatorNum = "".join(rs[1]).strip()
+        if operatorNum == "Operator num is 0" and rs[3] == 0:
+            check = 1
+            break
+        else:
+            ori_cmd2 = "curve_ops_tool check-operator -opName=change_peer"
+            rs2 = shell_operator.ssh_exec(ssh, ori_cmd2)
+            logger.debug("operator status is %s"%rs2[1])
+            time.sleep(10)
+    assert check == 1,"change operator num is not 0 in %d s"%config.recover_time
+    ori_cmd = "curve_ops_tool rapid-leader-schedule"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    assert rs[3] == 0,"rapid leader schedule not ok"
+    # 等待rapid leader schedule执行完成
+    ori_cmd = "curve_ops_tool check-operator -opName=transfer_leader -leaderOpInterval=1| grep \"Operator num is\""
+    starttime = time.time()
+    while time.time() - starttime < 60:
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        operatorNum = "".join(rs[1]).strip()
+        if operatorNum == "Operator num is 0" and rs[3] == 0:
+            break
+        else:
+            time.sleep(1)
 
 def wait_cluster_healthy(limit_iops=8000):
     check_chunkserver_online()
     #检测集群整体状态
-    mds_addrs = []
-    for host in config.mds_list:
-        mds_addrs.append(host + ":6666")
-    addrs = ",".join(mds_addrs)
     host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-    ori_cmd = "curve_ops_tool check-cluster -mdsAddr=%s | grep \"Cluster is\""%addrs
+    ori_cmd = "curve_ops_tool status | grep \"cluster is\""
     starttime = time.time()
     check = 0
     while time.time() - starttime < config.recover_time:
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         health = "".join(rs[1]).strip()
-        if health == "Cluster is healthy!" and rs[3] == 0:
+        if health == "cluster is healthy" and rs[3] == 0:
             check = 1
             break
         else:
-            ori_cmd2 = "curve_ops_tool check-cluster -mdsAddr=%s -detail | grep \"unhealthy copysets statistic\""%addrs
+            ori_cmd2 = "curve_ops_tool copysets-status -detail | grep \"unhealthy copysets statistic\""
             rs2 = shell_operator.ssh_exec(ssh, ori_cmd2)
             health = "".join(rs2[1]).strip()
-            logger.debug("cluster is %s"%health)
+            logger.debug("copysets status is %s"%health)
             time.sleep(30)
     assert check == 1,"cluster is not healthy in %d s"%config.recover_time
+    # 快速leader均衡
+    rapid_leader_schedule()
 #检测云主机iops    
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
     i = 0
@@ -849,17 +867,13 @@ def check_io_error():
     ssh.close()
 
 def check_copies_consistency():
-    host = random.choice(config.client_list)
-    mds_addrs = []
-    for host in config.mds_list:
-        mds_addrs.append(host + ":6666")
-    addrs = ",".join(mds_addrs)
+    host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     if config.vol_uuid == "":
         assert False,"not get vol uuid"
     filename = "volume-" + config.vol_uuid
     ori_cmdpri = "curve_ops_tool check-consistency -filename=/cinder/%s \
-                  -mdsAddr=%s -check_hash="%(filename, addrs)
+                  -check_hash="%(filename)
     check_hash = "false"
     ori_cmd = ori_cmdpri + check_hash
     i = 0
@@ -889,7 +903,7 @@ def check_copies_consistency():
 def check_data_consistency():
     try:
         #wait run 60s io
-        time.sleep(60)
+        #time.sleep(60)
         ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
         ori_cmd = "grep \"Data Validation error\" /root/output/ -R  && \
                 grep \"Data Validation error\" /root/nohup.out"

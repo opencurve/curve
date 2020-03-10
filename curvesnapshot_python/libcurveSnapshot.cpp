@@ -13,7 +13,7 @@
 #include "curvesnapshot_python/libcurveSnapshot.h"
 #include "src/client/libcurve_snapshot.h"
 #include "src/client/client_config.h"
-#include "src/client/libcurve_define.h"
+#include "include/client/libcurve.h"
 #include "src/client/client_common.h"
 
 using curve::client::UserInfo;

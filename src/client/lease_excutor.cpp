@@ -36,7 +36,7 @@ bool LeaseExcutor::Start(const FInfo_t& fi, const LeaseSession_t&  lease) {
         return false;
     }
     if (leaseoption_.mdsRefreshTimesPerLease == 0) {
-        LOG(ERROR) << "invalid mdsRefreshTimesPerLease";
+        LOG(ERROR) << "invalid refreshTimesPerLease";
         return false;
     }
 

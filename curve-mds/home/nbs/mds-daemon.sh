@@ -83,11 +83,36 @@ function start_mds() {
     exit 1
   fi
 
-  # 未指定mdsAddr, 从配置文件中读取
+  # 未指定mdsAddr, 从配置文件中解析出网段
   if [ -z ${mdsAddr} ]
   then
-    mdsAddr=`cat ${confPath} | grep "mds.listen.addr" | awk -F "=" '{print $2}'`
-  fi
+        subnet=`cat $confPath|grep global.subnet|awk -F"=" '{print $2}'`
+        port=`cat $confPath|grep global.port|awk -F"=" '{print $2}'`
+        prefix=`echo $subnet|awk -F/ '{print $1}'|awk -F. '{printf "%d", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
+        mod=`echo $subnet|awk -F/ '{print $2}'`
+        mask=$((2**32-2**(32-$mod)))
+        ip=
+        echo "subnet: $subnet"
+        echo "base port: $port"
+        # 对prefix再取一次模，为了支持10.182.26.50/22这种格式
+        prefix=$(($prefix&$mask))
+        for i in `/sbin/ifconfig -a|grep inet|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
+        do
+                # 把ip转换成整数
+                ip_int=`echo $i|awk -F. '{printf "%d\n", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
+                if [ $(($ip_int&$mask)) -eq $prefix ]
+                then
+                    ip=$i
+                    break
+                fi
+        done
+        if [ -z "$ip" ]
+        then
+                echo "no ip matched!\n"
+                return 1
+        fi
+        mdsAddr=${ip}:${port}
+    fi
 
   daemon --name curve-mds --core --inherit \
     --respawn --attempts 100 --delay 10 \
@@ -144,7 +169,7 @@ function show_status() {
   fi
 
   # 查询leader的IP
-  leaderAddr=`tac ${consoleLog}|grep -m 1 -B 1000000 "load mds configuration"|grep "leader"|grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}"|head -n1`
+  leaderAddr=`tac ${consoleLog}|grep -m 1 -B 1000000 "Logging before InitGoogleLogging()"|grep "leader"|grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}"|head -n1`
 
   # 如果load mds configuration之后的日志，没有leader相关日志
   # 那么leaderAddr为空, mds应该没有起来

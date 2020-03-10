@@ -17,7 +17,7 @@
 #include <atomic>
 #include <vector>
 
-#include "src/client/libcurve_define.h"
+#include "include/client/libcurve.h"
 
 namespace curve {
 namespace client {
@@ -120,28 +120,6 @@ typedef struct SegmentInfo {
     std::vector<ChunkIDInfo> chunkvec;
     LogicalPoolCopysetIDInfo lpcpIDInfo;
 } SegmentInfo_t;
-
-// 存储用户信息
-typedef struct UserInfo {
-    // 当前执行的owner信息
-    std::string owner;
-    // 当owner=root的时候，需要提供password作为计算signature的key
-    std::string password;
-
-    UserInfo() {
-        owner = "";
-        password = "";
-    }
-
-    UserInfo(std::string own, std::string pwd) {
-        owner = own;
-        password = pwd;
-    }
-
-    bool Valid() const {
-        return owner != "";
-    }
-} UserInfo_t;
 
 typedef struct FInfo {
     uint64_t        id;

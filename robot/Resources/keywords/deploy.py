@@ -146,14 +146,6 @@ def add_config():
         assert rs[3] == 0,"mv %s s3 conf fail"%host
     for host in config.snap_server_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/s3.conf client.conf %s:~/"%\
-                            (config.pravie_key_path,host)
-        shell_operator.run_exec2(cmd)
-        ori_cmd = "sudo mv s3.conf /etc/curve/conf && sudo mv client.conf /etc/curve/conf"
-        rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[3] == 0,"mv %s s3 conf fail"%host
-    for host in config.snap_server_list:
-        ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
         cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/s3.conf client.conf conf/snapshot_clone_server.conf conf/snap_client.conf %s:~/"%\
                   (config.pravie_key_path,host)
         shell_operator.run_exec2(cmd)
@@ -170,6 +162,22 @@ def add_config():
         ori_cmd = "sed -i \"s/mds.listen.addr=\S*/mds.listen.addr=%s/g\" snap_client.conf"%(addrs)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s snapshot config fail"%host
+    # add tools config
+    for host in config.mds_list:
+        ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/tools.conf %s:~/"%\
+            (config.pravie_key_path,host)
+        shell_operator.run_exec2(cmd)
+        ori_cmd = R"sed -i 's/mdsAddr=127.0.0.1:6666/mdsAddr=%s/g' tools.conf"%addrs
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s tools config fail"%host
+        ori_cmd = R"sed -i 's/etcdAddr=127.0.0.1:2379/etcdAddr=%s/g' tools.conf"%etcd_addrs
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s tools config fail"%host
+        ori_cmd = "sudo mv tools.conf /etc/curve/"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"mv %s tools conf fail"%host
 
         ori_cmd = "sudo mv s3.conf /etc/curve/ && sudo mv client.conf /etc/curve/ && sudo mv snapshot_clone_server.conf /etc/curve/ && sudo mv snap_client.conf /etc/curve/"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
@@ -382,7 +390,7 @@ def create_pool():
         ssh2 = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
         ori_cmd = "sudo nohup ./chunkserver_ctl.sh start all &"
         shell_operator.ssh_background_exec2(ssh2, ori_cmd)
-    time.sleep(120)
+    time.sleep(60)
     logical_pool = "curve-tool -copyset_num=4000  -mds_addr=%s\
      -physicalpool_name=pool1 -op=create_logicalpool"%(mds_addrs)
     rs = shell_operator.ssh_exec(ssh, logical_pool)
@@ -421,7 +429,7 @@ def wait_cinder_server_up():
        time.sleep(5)
     assert status == "up","up curve2 cinder service fail,please check"
     if status == "up":
-       time.sleep(60)
+       time.sleep(10)
 
 
 

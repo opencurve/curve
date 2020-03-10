@@ -14,17 +14,14 @@
 #include "test/tools/mock_chunkserver_client.h"
 
 DECLARE_bool(check_hash);
-DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds addr");
 
 using ::testing::_;
 using ::testing::Return;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
 
-uint64_t segmentSize = 1 * 1024 * 1024 * 1024ul;   // NOLINT
-uint64_t chunkSize = 16 * 1024 * 1024;   // NOLINT
-DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
-DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
+extern uint32_t segment_size;
+extern uint32_t chunk_size;
 
 class ConsistencyCheckTest : public ::testing::Test {
  public:
@@ -41,8 +38,8 @@ class ConsistencyCheckTest : public ::testing::Test {
 
     void GetSegmentForTest(PageFileSegment* segment) {
         segment->set_logicalpoolid(1);
-        segment->set_segmentsize(segmentSize);
-        segment->set_chunksize(chunkSize);
+        segment->set_segmentsize(segment_size);
+        segment->set_chunksize(chunk_size);
         segment->set_startoffset(0);
         for (int i = 0; i < 10; ++i) {
             auto chunk = segment->add_chunks();
@@ -108,7 +105,7 @@ TEST_F(ConsistencyCheckTest, Consistency) {
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<1>(segments),
                         Return(0)));
-    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySets(_, _, _))
+    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySet(_, _, _))
         .Times(20)
         .WillRepeatedly(DoAll(SetArgPointee<2>(csLocs),
                         Return(0)));
@@ -136,7 +133,7 @@ TEST_F(ConsistencyCheckTest, Consistency) {
         .Times(1)
         .WillRepeatedly(DoAll(SetArgPointee<1>(segments),
                         Return(0)));
-    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySets(_, _, _))
+    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySet(_, _, _))
         .Times(10)
         .WillRepeatedly(DoAll(SetArgPointee<2>(
                         std::vector<ChunkServerLocation>()),
@@ -172,7 +169,7 @@ TEST_F(ConsistencyCheckTest, NotConsistency) {
         .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<1>(segments),
                         Return(0)));
-    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySets(_, _, _))
+    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySet(_, _, _))
         .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<2>(csLocs),
                         Return(0)));
@@ -247,13 +244,13 @@ TEST_F(ConsistencyCheckTest, CheckError) {
         .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<1>(segments),
                         Return(0)));
-    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySets(_, _, _))
+    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySet(_, _, _))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, cfc.RunCommand("check-consistency"));
 
     // 3、init 向chunkserverclient init失败
-    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySets(_, _, _))
+    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySet(_, _, _))
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<2>(csLocs),
                         Return(0)));
