@@ -85,11 +85,16 @@ void VersionTool::GetVersionMap(const std::vector<std::string>& addrVec,
     failedList->clear();
     for (const auto& addr : addrVec) {
         std::string version;
-        int res = metricClient_->GetMetric(addr, kCurveVersionMetricName,
+        MetricRet res = metricClient_->GetMetric(addr, kCurveVersionMetricName,
                                            &version);
-        if (res != 0) {
-            failedList->emplace_back(addr);
-            continue;
+        if (res != MetricRet::kOK) {
+            // 0.0.5.2版本之前没有curve_version的metric，因此再判断一下
+            if (res == MetricRet::kNotFound) {
+                version = kOldVersion;
+            } else {
+                failedList->emplace_back(addr);
+                continue;
+            }
         }
         if (versionMap->find(version) == versionMap->end()) {
             (*versionMap)[version] = {addr};
