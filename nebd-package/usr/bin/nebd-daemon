@@ -1,5 +1,15 @@
 #!/bin/bash
 
+### BEGIN INIT INFO
+# Provides:          nebd-daemon
+# Required-Start:    $local_fs $remote_fs $network $syslog $named
+# Required-Stop:     $local_fs $remote_fs $network $syslog $named
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: nebd-daemon service
+# Description:       Start the nebd-daemon service and associated helpers
+### END INIT INFO
+
 # 检查脚本执行是否具有root权限
 if [[ $(id -u) -ne 0 ]]
 then
@@ -100,7 +110,7 @@ function start() {
     line1=`cat ${daemonLog} | wc -l`
 
     LD_PRELOAD=${jemallocpath} daemon --name nebd-server --core --inherit \
-           --respawn --attempts 10 --delay 10 --acceptable 5\
+           --respawn --attempts 10 --delay 10 --acceptable 10\
            --pidfile ${pidFile} \
            --errlog ${daemonLog} \
            --output ${consoleLog} \

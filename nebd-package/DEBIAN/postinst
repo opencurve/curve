@@ -8,4 +8,7 @@ chown -R root:root /data/log/nebd
 chmod -R 777 /data/nebd
 chmod -R 777 /data/log/nebd
 
+cp /usr/bin/nebd-daemon /etc/init.d
+update-rc.d nebd-daemon defaults
+
 exit 0
