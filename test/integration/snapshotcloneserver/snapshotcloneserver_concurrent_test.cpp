@@ -36,6 +36,10 @@ const char* kChunkServerIpPort3 = "127.0.0.1:10016";
 const char* kSnapshotCloneServerIpPort = "127.0.0.1:10017";
 const int kMdsDummyPort = 10018;
 
+const char* kSnapshotCloneServerDummyServerPort = "12001";
+const char* kLeaderCampaginPrefix = "snapshotcloneserverleaderlock2";
+
+
 const char* kLogPath = "./runlog/ConSCSTestLog";
 const char* kMdsDbName = "ConSCSTestDB";
 const char* kMdsConfigPath = "./test/integration/snapshotcloneserver/config/ConSCSTest_mds.conf";   // NOLINT
@@ -137,6 +141,11 @@ const std::vector<std::string> snapshotcloneserverConfigOptions {
     std::string("server.maxSnapshotLimit=3"),  // 最大快照数修改为3，以测试快照达到上限的用例  // NOLINT
     std::string("client.methodRetryTimeSec=1"),
     std::string("server.clientAsyncMethodRetryTimeSec=1"),
+    std::string("etcd.endpoint=") + kEtcdClientIpPort,
+    std::string("server.dummy.listen.port=") +
+        kSnapshotCloneServerDummyServerPort,
+    std::string("leader.campagin.prefix=") +
+        kLeaderCampaginPrefix,
 };
 
 const std::vector<std::string> snapshotcloneConf{
