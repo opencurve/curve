@@ -21,9 +21,10 @@ namespace curve {
 namespace tool {
 class MockMetricClient : public MetricClient {
  public:
-    MOCK_METHOD3(GetMetric, int(const std::string&, const std::string&,
+    MOCK_METHOD3(GetMetric, MetricRet(const std::string&, const std::string&,
                                 std::string*));
-    MOCK_METHOD3(GetMetricUint, int(const std::string&, const std::string&,
+    MOCK_METHOD3(GetMetricUint, MetricRet(const std::string&,
+                                const std::string&,
                                 uint64_t*));
 };
 }  // namespace tool

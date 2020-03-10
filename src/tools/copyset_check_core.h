@@ -18,6 +18,7 @@
 #include <set>
 #include <memory>
 #include <iterator>
+#include <utility>
 
 #include "proto/topology.pb.h"
 #include "src/mds/common/mds_define.h"
@@ -36,6 +37,23 @@ using curve::mds::topology::ChunkServerStatus;
 
 namespace curve {
 namespace tool {
+
+using CopySet = std::pair<PoolIdType, CopySetIdType>;
+using CopySetInfosType = std::vector<std::map<std::string, std::string>>;
+
+const char kState[] = "state";
+const char kStateLeader[] = "LEADER";
+const char kStateFollower[] = "FOLLOWER";
+const char kStateTransferring[] = "TRANSFERRING";
+const char kStateCandidate[] = "CANDIDATE";
+const char kLeader[] = "leader";
+const char kGroupId[] = "groupId";
+const char kPeers[] = "peers";
+const char kReplicator[] = "replicator";
+const char kStorage[] = "storage";
+const char kSnapshot[] = "snapshot";
+const char kNextIndex[] = "next_index";
+
 enum class CheckResult {
     // copyset健康
     kHealthy = 0,
@@ -191,7 +209,16 @@ class CopysetCheckCore {
     }
 
     /**
-    * @brief 通过发送RPC检查chunkserver是否在线
+     *  @brief 获取检查过程中copyset寻找失败的chunkserver列表，通常检查后会调用，然后打印出来
+     *  @return copyset加载异常的chunkserver的列表
+     */
+    virtual const std::set<std::string>& GetCopysetLoadExceptionChunkServer()
+                                        const {
+        return copysetLoacExceptionChunkServers_;
+    }
+
+    /**
+    * @brief 通过发送RPC检查chunkserver是否在线，如果访问过，就直接返回结果
     *
     * @param chunkserverAddr chunkserver的地址
     *
@@ -218,11 +245,13 @@ class CopysetCheckCore {
     * @param gIds 要查询的复制组的groupId，为空的话全部查询
     * @param iobuf 要分析的iobuf
     * @param[out] maps copyset信息的列表，每个copyset的信息都是一个map
+    * @param saveIobufStr 是否要把iobuf里的详细内容存下来
     *
     */
     void ParseResponseAttachment(const std::set<std::string>& gIds,
                         butil::IOBuf* iobuf,
-                        std::vector<std::map<std::string, std::string>>* maps);
+                        CopySetInfosType* copysetInfos,
+                        bool saveIobufStr = false);
 
     /**
     * @brief 检查某个chunkserver上的所有copyset的健康状态
@@ -302,6 +331,38 @@ class CopysetCheckCore {
     */
     void Clear();
 
+    /**
+    * @brief 获取chunkserver上的copyset的在线状态
+    *
+    * @param csAddr chunkserver地址
+    * @param groupId copyset的groupId
+    *
+    * @return 在线返回true
+    */
+    bool CheckCopySetOnline(const std::string& csAddr,
+                            const std::string& groupId);
+
+    /**
+    * @brief 获取不在线的peer的数量
+    *
+    *
+    * @param peers 副本peer的列表ip:port:id的形式
+    *
+    * @return 返回错误码
+    */
+    CheckResult CheckPeerOnlineStatus(const std::string& groupId,
+                                      const std::vector<std::string>& peers);
+
+    /**
+    * @brief 更新chunkserver上的copyset的groupId列表
+    *
+    * @param csAddr chunkserver地址
+    * @param copysetInfos copyset信息列表
+    */
+    void UpdateChunkServerCopysets(const std::string& csAddr,
+                            const CopySetInfosType& copysetInfos);
+
+ private:
     // 向mds发送RPC的client
     std::shared_ptr<MDSClient> mdsClient_;
 
@@ -313,8 +374,10 @@ class CopysetCheckCore {
 
     // 用来保存发送RPC失败的那些chunkserver
     std::set<std::string> serviceExceptionChunkServers_;
-    // 用来存放访问过的chunkserver的在线状态，避免重复RPC
-    std::map<std::string, bool> chunkserverStatus_;
+    // 用来保存一些copyset加载有问题的chunkserver
+    std::set<std::string> copysetLoacExceptionChunkServers_;
+    // 用来存放访问过的chunkserver上的copyset列表，避免重复RPC
+    std::map<std::string, std::set<std::string>> chunkserverCopysets_;
 
     // 查询单个copyset的时候，保存复制组的详细信息
     std::string copysetsDetail_;

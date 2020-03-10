@@ -19,6 +19,7 @@ namespace curve {
 namespace tool {
 
 using VersionMapType = std::map<std::string, std::vector<std::string>>;
+const char kOldVersion[] = "before0.0.5.2";
 
 class VersionTool {
  public:

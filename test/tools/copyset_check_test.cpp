@@ -105,6 +105,7 @@ class CopysetCheckTest : public ::testing::Test {
                      {"peers not sufficient", {"4294967400"}},
                      {"peer not online", {"4294967401"}}};
     std::set<std::string> serviceExcepCs = {"127.0.0.1:9092"};
+    std::set<std::string> copysetExcepCs = {"127.0.0.1:9093"};
     std::set<std::string> emptySet;
 
     CopysetStatistics statistics1;
@@ -157,6 +158,9 @@ TEST_F(CopysetCheckTest, CheckOneCopyset) {
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(emptySet));
+    EXPECT_CALL(*core_, GetCopysetLoadExceptionChunkServer())
+        .Times(1)
+        .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand("check-copyset"));
 
     // copyset不健康的情况
@@ -169,6 +173,9 @@ TEST_F(CopysetCheckTest, CheckOneCopyset) {
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(serviceExcepCs));
+    EXPECT_CALL(*core_, GetCopysetLoadExceptionChunkServer())
+        .Times(1)
+        .WillOnce(ReturnRef(copysetExcepCs));
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-copyset"));
 }
 
@@ -196,6 +203,9 @@ TEST_F(CopysetCheckTest, testCheckChunkServer) {
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(emptySet));
+    EXPECT_CALL(*core_, GetCopysetLoadExceptionChunkServer())
+        .Times(1)
+        .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand("check-chunkserver"));
     // id和地址同时指定，报错
     FLAGS_chunkserverAddr = "127.0.0.1:8200";
@@ -214,6 +224,9 @@ TEST_F(CopysetCheckTest, testCheckChunkServer) {
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(emptySet));
+    EXPECT_CALL(*core_, GetCopysetLoadExceptionChunkServer())
+        .Times(1)
+        .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand("check-chunkserver"));
 
     // 不健康的情况
@@ -229,6 +242,9 @@ TEST_F(CopysetCheckTest, testCheckChunkServer) {
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(serviceExcepCs));
+    EXPECT_CALL(*core_, GetCopysetLoadExceptionChunkServer())
+        .Times(1)
+        .WillOnce(ReturnRef(copysetExcepCs));
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
 }
 
@@ -260,6 +276,9 @@ TEST_F(CopysetCheckTest, testCheckServer) {
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(emptySet));
+    EXPECT_CALL(*core_, GetCopysetLoadExceptionChunkServer())
+        .Times(1)
+        .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand("check-server"));
     // id和ip同时指定，报错
     FLAGS_serverIp = "127.0.0.1";
@@ -279,6 +298,9 @@ TEST_F(CopysetCheckTest, testCheckServer) {
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(emptySet));
+    EXPECT_CALL(*core_, GetCopysetLoadExceptionChunkServer())
+        .Times(1)
+        .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand("check-server"));
 
     // 不健康的情况
@@ -294,6 +316,9 @@ TEST_F(CopysetCheckTest, testCheckServer) {
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(serviceExcepCs));
+    EXPECT_CALL(*core_, GetCopysetLoadExceptionChunkServer())
+        .Times(1)
+        .WillOnce(ReturnRef(copysetExcepCs));
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-server"));
 }
 
@@ -316,6 +341,9 @@ TEST_F(CopysetCheckTest, testCheckCluster) {
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(emptySet));
+    EXPECT_CALL(*core_, GetCopysetLoadExceptionChunkServer())
+        .Times(1)
+        .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand(kCopysetsStatusCmd));
 
     // 不健康的情况
@@ -331,6 +359,9 @@ TEST_F(CopysetCheckTest, testCheckCluster) {
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(serviceExcepCs));
+    EXPECT_CALL(*core_, GetCopysetLoadExceptionChunkServer())
+        .Times(1)
+        .WillOnce(ReturnRef(copysetExcepCs));
     ASSERT_EQ(-1, copysetCheck.RunCommand(kCopysetsStatusCmd));
 }
 
