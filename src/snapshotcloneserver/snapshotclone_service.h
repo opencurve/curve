@@ -80,7 +80,6 @@ class SnapshotCloneServiceImpl : public SnapshotCloneService {
     std::shared_ptr<SnapshotServiceManager> snapshotManager_;
     std::shared_ptr<CloneServiceManager> cloneManager_;
 };
-
 }  // namespace snapshotcloneserver
 }  // namespace curve
 

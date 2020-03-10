@@ -37,6 +37,10 @@ const char* kChunkServerIpPort3 = "127.0.0.1:10006";
 const char* kSnapshotCloneServerIpPort = "127.0.0.1:10007";
 const int kMdsDummyPort = 10008;
 
+const char* kSnapshotCloneServerDummyServerPort = "12000";
+const char* kLeaderCampaginPrefix = "snapshotcloneserverleaderlock3";
+
+
 const char* kLogPath = "./runlog/SCSTestLog";
 const char* kMdsDbName = "SCSTestDB";
 const char* kMdsConfigPath = "./test/integration/snapshotcloneserver/config/SCSTest_mds.conf";   // NOLINT
@@ -137,6 +141,11 @@ const std::vector<std::string> snapshotcloneserverConfigOptions {
     std::string("server.recoverChunkConcurrency=2"),
     std::string("client.methodRetryTimeSec=1"),
     std::string("server.clientAsyncMethodRetryTimeSec=1"),
+    std::string("etcd.endpoint=") + kEtcdClientIpPort,
+    std::string("server.dummy.listen.port=") +
+        kSnapshotCloneServerDummyServerPort,
+    std::string("leader.campagin.prefix=") +
+        kLeaderCampaginPrefix,
 };
 
 const std::vector<std::string> snapshotcloneConf{
