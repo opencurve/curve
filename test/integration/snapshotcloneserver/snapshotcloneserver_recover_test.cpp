@@ -50,6 +50,9 @@ const char* kChunkServerIpPort1 = "127.0.0.1:10024";
 const char* kChunkServerIpPort2 = "127.0.0.1:10025";
 const char* kChunkServerIpPort3 = "127.0.0.1:10026";
 const char* kSnapshotCloneServerIpPort = "127.0.0.1:10027";
+const char* kSnapshotCloneServerDummyServerPort = "12002";
+const char* kLeaderCampaginPrefix = "snapshotcloneserverleaderlock1";
+
 const int kMdsDummyPort = 10028;
 
 const char* kLogPath = "./runlog/RcvSCSTestLog";
@@ -163,6 +166,11 @@ const std::vector<std::string> snapshotcloneserverConfigOptions {
     std::string("mds.rootPassword=") + mdsRootPassword_,
     std::string("client.methodRetryTimeSec=1"),
     std::string("server.clientAsyncMethodRetryTimeSec=1"),
+    std::string("etcd.endpoint=") + kEtcdClientIpPort,
+    std::string("server.dummy.listen.port=") +
+        kSnapshotCloneServerDummyServerPort,
+    std::string("leader.campagin.prefix=") +
+        kLeaderCampaginPrefix,
 };
 
 const std::vector<std::string> snapshotcloneConf{
