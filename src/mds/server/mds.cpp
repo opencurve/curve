@@ -7,6 +7,7 @@
 
 #include <glog/logging.h>
 #include "src/mds/server/mds.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
 
 namespace curve {
 namespace mds {
@@ -80,8 +81,9 @@ void MDS::StartCompaginLeader() {
 
     // 进行leader选举
     LeaderElectionOptions leaderElectionOp;
-    InitLeaderElectionOption(&leaderElectionOp);
+    InitMdsLeaderElectionOption(&leaderElectionOp);
     leaderElectionOp.etcdCli = etcdClient_;
+    leaderElectionOp.campaginPrefix = MDSLEADERCAMPAIGNNPFX;
     InitLeaderElection(leaderElectionOp);
     while (0 != leaderElection_->CampaginLeader()) {
         LOG(INFO) << leaderElection_->GetLeaderName()
@@ -262,7 +264,7 @@ void MDS::InitLeaderElection(const LeaderElectionOptions& leaderElectionOp) {
     leaderElection_ = std::make_shared<LeaderElection>(leaderElectionOp);
 }
 
-void MDS::InitLeaderElectionOption(LeaderElectionOptions *electionOp) {
+void MDS::InitMdsLeaderElectionOption(LeaderElectionOptions *electionOp) {
     conf_->GetValueFatalIfFail("mds.listen.addr",
         &electionOp->leaderUniqueName);
     conf_->GetValueFatalIfFail("mds.leader.sessionInterSec",
