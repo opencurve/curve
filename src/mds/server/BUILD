@@ -16,6 +16,7 @@ cc_library(
         "//src/common:curve_common",
         "//src/mds/heartbeat",
         "//src/mds/nameserver2",
+        "//src/mds/nameserver2/helper:helper",
         "//src/mds/leader_election",
         "//src/mds/schedule",
         "//src/mds/schedule/scheduleService:scheduleservice",

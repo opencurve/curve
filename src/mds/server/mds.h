@@ -170,7 +170,7 @@ class MDS {
      * @brief 初始化leader选举option
      * @[out] electionOp leader选举选项
      */
-    void InitLeaderElectionOption(LeaderElectionOptions* electionOp);
+    void InitMdsLeaderElectionOption(LeaderElectionOptions* electionOp);
 
     /**
      * @brief 初始化数据库option

@@ -28,6 +28,7 @@ cc_library(
     deps = [
         "//external:glog",
         "//src/common:curve_uncopy",
-        "//include:include-common"
+        "//include:include-common",
+        "//external:bthread"
     ],
 )
