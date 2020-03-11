@@ -418,27 +418,6 @@ TEST_F(MDSClientTest, Openfile) {
     ASSERT_EQ(LIBCURVE_ERROR::OK, Write(fd, nullptr, 0, 0));
     ASSERT_EQ(LIBCURVE_ERROR::OK, Read(fd, nullptr, 0, 0));
 
-    // 打开一个文件, 如果返回的是occupied，那么会重试到重试次数用完
-    uint64_t starttime = TimeUtility::GetTimeofDayUs();
-    ::curve::mds::ProtoSession* socupied1 = new ::curve::mds::ProtoSession;
-    socupied1->set_sessionid("1");
-    socupied1->set_createtime(12345);
-    socupied1->set_leasetime(5000000);
-    socupied1->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);
-
-    ::curve::mds::OpenFileResponse responseOccupied1;
-    responseOccupied1.set_statuscode(::curve::mds::StatusCode::kFileOccupied);
-    responseOccupied1.set_allocated_protosession(socupied1);
-
-    FakeReturn* r1
-     = new FakeReturn(nullptr, static_cast<void*>(&responseOccupied1));
-    curvefsservice.SetOpenFile(r1);
-
-    int retcode = globalclient->Open(filename + "test", userinfo);
-    uint64_t end = TimeUtility::GetTimeofDayUs();
-    ASSERT_EQ(retcode, -LIBCURVE_ERROR::FILE_OCCUPIED);
-    ASSERT_GT(end - starttime, 200 * 3);
-
     // 测试关闭文件
     ::curve::mds::CloseFileResponse closeresp;
     closeresp.set_statuscode(::curve::mds::StatusCode::kOK);

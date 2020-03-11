@@ -68,24 +68,22 @@ class NameSpaceServiceTest : public ::testing::Test {
 
         std::shared_ptr<FakeRepoInterface> repo =
                                     std::make_shared<FakeRepoInterface>();
-        sessionManager_ = std::make_shared<SessionManager>(repo);
-
-        sessionOptions.leaseTimeUs = 5000000;
-        sessionOptions.toleranceTimeUs = 500000;
-        sessionOptions.intevalTimeUs = 100000;
+        fileRecordManager_ = std::make_shared<FileRecordManager>();
+        fileRecordOptions.fileRecordExpiredTimeUs = 5000000;
+        fileRecordOptions.scanIntervalTimeUs = 100000;
 
         authOptions.rootOwner = "root";
         authOptions.rootPassword = "root_password";
 
         curveFSOptions.defaultChunkSize = 16 * kMB;
-        curveFSOptions.sessionOptions = sessionOptions;
+        curveFSOptions.fileRecordOptions = fileRecordOptions;
         curveFSOptions.authOptions = authOptions;
 
         InitRecycleBinDir(storage_);
 
         kCurveFS.Init(storage_, inodeGenerator_, chunkSegmentAllocate_,
                         cleanManager_,
-                        sessionManager_,
+                        fileRecordManager_,
                         allocStatistic_,
                         curveFSOptions, repo);
         kCurveFS.Run();
@@ -109,9 +107,8 @@ class NameSpaceServiceTest : public ::testing::Test {
     std::shared_ptr<CleanManager> cleanManager_;
     std::shared_ptr<MockTopology> topology_;
     std::shared_ptr<AllocStatistic> allocStatistic_;
-
-    std::shared_ptr<SessionManager> sessionManager_;
-    struct SessionOptions sessionOptions;
+    std::shared_ptr<FileRecordManager> fileRecordManager_;
+    struct FileRecordOptions fileRecordOptions;
     struct RootAuthOption authOptions;
     struct CurveFSOption curveFSOptions;
 };
@@ -871,25 +868,9 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    ASSERT_EQ(2, kCurveFS.GetOpenFileNum());
-
-    // OpenFile case3. 文件存在，open过，返回session被占用
-    cntl.Reset();
+    // openFile case3, 文件名不符合规范
     OpenFileRequest request11;
     OpenFileResponse response11;
-    request11.set_filename("/file2");
-    request11.set_owner("owner2");
-    request11.set_date(TimeUtility::GetTimeofDayUs());
-
-    stub.OpenFile(&cntl, &request11, &response11, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response11.statuscode(), StatusCode::kFileOccupied);
-    } else {
-        LOG(ERROR) << "error :" << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // openFile case4, 文件名不符合规范
     cntl.Reset();
     request11.set_filename("/file2/");
     request11.set_owner("owner2");
@@ -918,24 +899,9 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-
-    // CloseFile case2. 文件存在，session不存在，返回kSessionNotExist
-    cntl.Reset();
+    // CloseFile case2. 文件存在，session存在，返回成功
     CloseFileRequest request13;
     CloseFileResponse response13;
-    request13.set_filename("/file2");
-    request13.set_owner("owner2");
-    request13.set_date(TimeUtility::GetTimeofDayUs());
-    request13.set_sessionid("test_session");
-
-    stub.CloseFile(&cntl, &request13, &response13, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response13.statuscode(), StatusCode::kSessionNotExist);
-    } else {
-        ASSERT_TRUE(false);
-    }
-
-    // CloseFile case3. 文件存在，session存在，返回成功
     cntl.Reset();
     CloseFileRequest request14;
     CloseFileResponse response14;
@@ -951,21 +917,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // CloseFile case4. 文件存在，session不存在，返回成功
-    cntl.Reset();
-    request14.set_filename("/file2");
-    request14.set_owner("owner2");
-    request14.set_date(TimeUtility::GetTimeofDayUs());
-    request14.set_sessionid(response9.protosession().sessionid());
-
-    stub.CloseFile(&cntl, &request14, &response14, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response14.statuscode(), StatusCode::kSessionNotExist);
-    } else {
-        ASSERT_TRUE(false);
-    }
-
-    // CloseFile case5. 文件名不符合规范
+    // CloseFile case3. 文件名不符合规范
     cntl.Reset();
     request14.set_filename("/file2/");
     request14.set_owner("owner2");
@@ -997,42 +949,9 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // RefreshSession case2. 文件存在，session没有open过，返回kSessionNotExist
-    cntl.Reset();
-    ReFreshSessionRequest request16;
-    ReFreshSessionResponse response16;
-    request16.set_filename("/file1");
-    request16.set_owner("owner1");
-    request16.set_date(TimeUtility::GetTimeofDayUs());
-    request16.set_sessionid("test_session");
-    request16.set_date(common::TimeUtility::GetTimeofDayUs());
-
-    stub.RefreshSession(&cntl, &request16, &response16, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response16.statuscode(), StatusCode::kSessionNotExist);
-    } else {
-        ASSERT_TRUE(false);
-    }
-
-    // RefreshSession case3. 文件存在，session存在，session没有过期，返回成功
-    cntl.Reset();
+    // RefreshSession case2. 文件名不符合规范
     ReFreshSessionRequest request18;
     ReFreshSessionResponse response18;
-    request18.set_filename("/file1");
-    request18.set_owner("owner1");
-    request18.set_date(TimeUtility::GetTimeofDayUs());
-    request18.set_sessionid(response10.protosession().sessionid());
-    request18.set_date(common::TimeUtility::GetTimeofDayUs());
-
-    stub.RefreshSession(&cntl, &request18, &response18, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response18.statuscode(), StatusCode::kOK);
-    } else {
-        std::cout << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // RefreshSession case5. 文件名不符合规范
     cntl.Reset();
 
     request18.set_filename("/file1/");
@@ -1458,55 +1377,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     }
 
     // 开始测试删除文件逻辑
-    // 1 如果文件有被session占用，那么返回kFileOccupied
-    cntl.Reset();
-    OpenFileRequest request2;
-    OpenFileResponse response2;
-    request2.set_filename("/file1");
-    request2.set_owner("owner");
-    request2.set_date(TimeUtility::GetTimeofDayUs());
-
-    stub.OpenFile(&cntl, &request2, &response2, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response2.statuscode(), StatusCode::kOK);
-        ASSERT_EQ(response2.protosession().sessionstatus(),
-                                    SessionStatus::kSessionOK);
-        ASSERT_EQ(response2.fileinfo().filename(), "file1");
-    } else {
-        ASSERT_TRUE(false);
-    }
-
-    cntl.Reset();
-    DeleteFileRequest request3;
-    DeleteFileResponse response3;
-    request3.set_filename("/file1");
-    request3.set_owner("owner");
-    request3.set_date(TimeUtility::GetTimeofDayUs());
-
-    stub.DeleteFile(&cntl, &request3, &response3, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response3.statuscode(), StatusCode::kFileOccupied);
-    } else {
-        std::cout << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    cntl.Reset();
-    CloseFileRequest request4;
-    CloseFileResponse response4;
-    request4.set_filename("/file1");
-    request4.set_owner("owner");
-    request4.set_date(TimeUtility::GetTimeofDayUs());
-    request4.set_sessionid(response2.protosession().sessionid());
-
-    stub.CloseFile(&cntl, &request4, &response4, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response4.statuscode(), StatusCode::kOK);
-    } else {
-        ASSERT_TRUE(false);
-    }
-
-    // 2 如果文件有快照，那么删除文件返回kFileUnderSnapShot
+    // 1 如果文件有快照，那么删除文件返回kFileUnderSnapShot
     cntl.Reset();
     CreateSnapShotRequest snapshotRequest;
     CreateSnapShotResponse snapshotResponses;
@@ -1529,6 +1400,8 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     }
 
     cntl.Reset();
+    DeleteFileRequest request3;
+    DeleteFileResponse response3;
     request3.set_filename("/file1");
     request3.set_owner("owner");
     request3.set_date(TimeUtility::GetTimeofDayUs());
@@ -1580,7 +1453,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     }
 
 
-    // 3 如果目录下有文件，那么删除目录返回kDirNotEmpty
+    // 2 如果目录下有文件，那么删除目录返回kDirNotEmpty
     cntl.Reset();
     request3.set_filename("/dir1");
     request3.set_owner("owner");
@@ -1594,7 +1467,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
-    // 4 如果传入的fileid不匹配，删除文件失败
+    // 3 如果传入的fileid不匹配，删除文件失败
     cntl.Reset();
     DeleteFileRequest request5;
     DeleteFileResponse response5;
@@ -1611,7 +1484,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
-    // 5 删除文件/file1成功，查询文件已经删除
+    // 4 删除文件/file1成功，查询文件已经删除
     cntl.Reset();
     request3.set_filename("/file1");
     request3.set_owner("owner");
@@ -1660,7 +1533,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
-    // 6 删除文件/dir1/file2成功，删除目录/dir1成功，查询目录和文件均已经删除
+    // 删除文件/dir1/file2成功，删除目录/dir1成功，查询目录和文件均已经删除
     using ::curve::mds::topology::ChunkServerStatus;
     using ::curve::mds::topology::OnlineState;
     using ::curve::chunkserver::ChunkRequest;

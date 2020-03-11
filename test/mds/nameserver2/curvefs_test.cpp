@@ -9,7 +9,6 @@
 #include "src/mds/nameserver2/curvefs.h"
 #include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
 #include "src/mds/nameserver2/namespace_storage.h"
-#include "src/mds/nameserver2/session.h"
 #include "src/common/timeutility.h"
 #include "src/mds/common/mds_define.h"
 
@@ -46,30 +45,25 @@ class CurveFSTest: public ::testing::Test {
         mockcleanManager_ = std::make_shared<MockCleanManager>();
 
         mockRepo_ = std::make_shared<MockRepo>();
-        sessionManager_ = std::make_shared<SessionManager>(mockRepo_);
+        fileRecordManager_ = std::make_shared<FileRecordManager>();
 
         // session repo已经mock，数据库相关参数不需要
-        sessionOptions_.leaseTimeUs = 5000000;
-        sessionOptions_.toleranceTimeUs = 500000;
-        sessionOptions_.intevalTimeUs = 100000;
+        fileRecordOptions_.fileRecordExpiredTimeUs = 5000000;
+        fileRecordOptions_.scanIntervalTimeUs = 100000;
 
         authOptions_.rootOwner = "root";
         authOptions_.rootPassword = "root_password";
 
         curveFSOptions_.defaultChunkSize = 16 * kMB;
         curveFSOptions_.authOptions = authOptions_;
-        curveFSOptions_.sessionOptions = sessionOptions_;
-
-        EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
+        curveFSOptions_.fileRecordOptions = fileRecordOptions_;
 
         curvefs_ =  &kCurveFS;
 
         allocStatistic_ = std::make_shared<MockAllocStatistic>();
         curvefs_->Init(storage_, inodeIdGenerator_, mockChunkAllocator_,
                         mockcleanManager_,
-                        sessionManager_,
+                        fileRecordManager_,
                         allocStatistic_,
                         curveFSOptions_,
                         mockRepo_);
@@ -86,11 +80,10 @@ class CurveFSTest: public ::testing::Test {
     std::shared_ptr<MockChunkAllocator> mockChunkAllocator_;
 
     std::shared_ptr<MockCleanManager> mockcleanManager_;
-
-    std::shared_ptr<SessionManager> sessionManager_;
+    std::shared_ptr<FileRecordManager> fileRecordManager_;
     std::shared_ptr<MockAllocStatistic> allocStatistic_;
     std::shared_ptr<MockRepo> mockRepo_;
-    struct SessionOptions sessionOptions_;
+    struct FileRecordOptions fileRecordOptions_;
     struct RootAuthOption authOptions_;
     struct CurveFSOption curveFSOptions_;
 };
@@ -2341,25 +2334,6 @@ TEST_F(CurveFSTest, testOpenFile) {
         ASSERT_EQ(curvefs_->GetOpenFileNum(), 0);
     }
 
-    // 插入session失败
-    {
-        ProtoSession protoSession;
-        FileInfo  fileInfo;
-        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
-
-        EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
-        .Times(1)
-        .WillOnce(Return(repo::SqlException));
-
-        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
-                                     &protoSession, &fileInfo),
-                  StatusCode::KInternalError);
-        ASSERT_EQ(curvefs_->GetOpenFileNum(), 0);
-    }
-
     // 执行成功
     {
         ProtoSession protoSession;
@@ -2369,23 +2343,10 @@ TEST_F(CurveFSTest, testOpenFile) {
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
-        EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
         ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
                                      &protoSession, &fileInfo),
                   StatusCode::kOK);
-        ASSERT_EQ(curvefs_->GetOpenFileNum(), 1);
     }
-
-    SessionRepoItem sessionRepo("/file1", "sessionid",
-                    sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
-                                111, "127.0.0.1");
-    EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),
-                        Return(repo::OperationOK)));
 }
 
 TEST_F(CurveFSTest, testCloseFile) {
@@ -2397,10 +2358,6 @@ TEST_F(CurveFSTest, testCloseFile) {
     EXPECT_CALL(*storage_, GetFile(_, _, _))
     .Times(1)
     .WillOnce(Return(StoreStatus::OK));
-
-    EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
-    .Times(1)
-    .WillOnce(Return(repo::OperationOK));
 
     ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
                                     &protoSession, &fileInfo),
@@ -2415,30 +2372,11 @@ TEST_F(CurveFSTest, testCloseFile) {
                   StatusCode::kFileNotExists);
     }
 
-    // 从数据库删除session失败
-    {
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
-
-        // 再进行删除
-        EXPECT_CALL(*mockRepo_, DeleteSessionRepoItem(_))
-        .Times(1)
-        .WillOnce(Return(repo::SqlException));
-
-        ASSERT_EQ(curvefs_->CloseFile("/file1", protoSession.sessionid()),
-                  StatusCode::KInternalError);
-    }
-
     // 执行成功
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
-
-        EXPECT_CALL(*mockRepo_, DeleteSessionRepoItem(_))
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->CloseFile("/file1", protoSession.sessionid()),
                   StatusCode::kOK);
@@ -2455,10 +2393,6 @@ TEST_F(CurveFSTest, testRefreshSession) {
     .Times(1)
     .WillOnce(Return(StoreStatus::OK));
 
-    EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
-    .Times(1)
-    .WillOnce(Return(repo::OperationOK));
-
     ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
                                     &protoSession, &fileInfo),
                 StatusCode::kOK);
@@ -2466,54 +2400,27 @@ TEST_F(CurveFSTest, testRefreshSession) {
     // 文件不存在
     {
         FileInfo  fileInfo1;
-        ProtoSession protoSession1;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
         ASSERT_EQ(curvefs_->RefreshSession("/file1", "sessionidxxxxx", 12345,
-                                    "signaturexxxx", "127.0.0.1",
-                                    &fileInfo1,
-                                    &protoSession1),
+                    "signaturexxxx", "127.0.0.1", &fileInfo1),
                   StatusCode::kFileNotExists);
-    }
-
-    // 更新session失败
-    {
-        FileInfo  fileInfo1;
-        ProtoSession protoSession1;
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
-
-        ASSERT_EQ(curvefs_->RefreshSession("/file1", "sessionidxxxxx", 12345,
-                                    "signaturexxxx", "127.0.0.1",
-                                    &fileInfo1,
-                                    &protoSession1),
-                  StatusCode::kSessionNotExist);
     }
 
     // 执行成功
     {
         FileInfo  fileInfo1;
-        ProtoSession protoSession1;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
         uint64_t date = ::curve::common::TimeUtility::GetTimeofDayUs();
         ASSERT_EQ(curvefs_->RefreshSession("/file1", protoSession.sessionid(),
-                                date, "signaturexxxx", "127.0.0.1",
-                                    &fileInfo1, &protoSession1),
+                    date, "signaturexxxx", "127.0.0.1", &fileInfo1),
                   StatusCode::kOK);
+        ASSERT_EQ(1, curvefs_->GetOpenFileNum());
     }
-
-    SessionRepoItem sessionRepo("/file1", "sessionid",
-                    sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
-                                111, "127.0.0.1");
-    EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),
-                        Return(repo::OperationOK)));
 }
 
 TEST_F(CurveFSTest, testCheckRenameNewfilePathOwner) {

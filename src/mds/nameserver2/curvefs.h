@@ -19,12 +19,11 @@
 #include "src/mds/nameserver2/chunk_allocator.h"
 #include "src/mds/nameserver2/clean_manager.h"
 #include "src/mds/nameserver2/async_delete_snapshot_entity.h"
-#include "src/mds/nameserver2/session.h"
+#include "src/mds/nameserver2/file_record.h"
 #include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
 #include "src/mds/dao/mdsRepo.h"
 #include "src/common/authenticator.h"
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
-
 using curve::common::Authenticator;
 
 namespace curve {
@@ -38,7 +37,7 @@ struct RootAuthOption {
 struct CurveFSOption {
     uint64_t defaultChunkSize;
     RootAuthOption authOptions;
-    SessionOptions sessionOptions;
+    FileRecordOptions fileRecordOptions;
 };
 
 using ::curve::mds::DeleteSnapShotResponse;
@@ -59,10 +58,8 @@ class CurveFS {
      *         InodeIDGenerator：
      *         ChunkSegmentAllocator：
      *         CleanManagerInterface:
-     *         sessionManager：
+     *         fileRecordManager
      *         allocStatistic: 分配统计模块
-     *         sessionOptions ：初始化所session需要的参数
-     *         authOptions : 对root用户进行认认证的参数
      *         CurveFSOption : 对curvefs进行初始化需要的参数
      *         repo : curvefs持久化数据所用的数据库，目前保存client注册信息使用
      *  @return 初始化是否成功
@@ -71,7 +68,7 @@ class CurveFS {
               std::shared_ptr<InodeIDGenerator>,
               std::shared_ptr<ChunkSegmentAllocator>,
               std::shared_ptr<CleanManagerInterface>,
-              std::shared_ptr<SessionManager> sessionManager,
+              std::shared_ptr<FileRecordManager> fileRecordManager,
               std::shared_ptr<AllocStatistic> allocStatistic,
               const struct CurveFSOption &curveFSOptions,
               std::shared_ptr<MdsRepo> repo);
@@ -299,7 +296,6 @@ class CurveFS {
      *         signature: 用来进行请求的身份验证
      *         clientIP: clientIP
      *         fileInfo: 返回打开的文件信息
-     *         protoSession: 返回session详细信息
      *  @return 是否成功，成功返回StatusCode::kOK
      */
     StatusCode RefreshSession(const std::string &filename,
@@ -307,8 +303,7 @@ class CurveFS {
                               const uint64_t date,
                               const std::string &signature,
                               const std::string &clientIP,
-                              FileInfo  *fileInfo,
-                              ProtoSession *protoSession);
+                              FileInfo  *fileInfo);
 
     /**
      * @breif 创建克隆文件，当前克隆文件的创建只有root用户能够创建
@@ -491,13 +486,6 @@ class CurveFS {
     StatusCode isDirectoryEmpty(const FileInfo &fileInfo, bool *result);
 
     /**
-     *  @brief 判断文件是否有有效的session
-     *  @param: fileName
-     *  @return: true表示文件有有效session，false表示文件无有效session
-     */
-    bool isFileHasValidSession(const std::string &fileName);
-
-    /**
      *  @brief 判断文件是否进行更改，目前删除、rename、changeowner时需要判断
      *  @param: fileName
      *  @return: 正常返回kOK，否则返回错误码
@@ -542,10 +530,11 @@ class CurveFS {
     std::shared_ptr<NameServerStorage> storage_;
     std::shared_ptr<InodeIDGenerator> InodeIDGenerator_;
     std::shared_ptr<ChunkSegmentAllocator> chunkSegAllocator_;
-    std::shared_ptr<SessionManager> sessionManager_;
+    std::shared_ptr<FileRecordManager> fileRecordManager_;
     std::shared_ptr<CleanManagerInterface> cleanManager_;
     std::shared_ptr<AllocStatistic> allocStatistic_;
     struct RootAuthOption       rootAuthOptions_;
+
     uint64_t defaultChunkSize_;
     std::shared_ptr<MdsRepo> repo_;
 };
