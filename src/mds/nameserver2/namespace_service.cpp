@@ -1295,14 +1295,12 @@ void NameSpaceService::RefreshSession(
     }
 
     FileInfo *fileInfo = new FileInfo();
-    ProtoSession *protoSession = new ProtoSession();
     retCode = kCurveFS.RefreshSession(request->filename(),
                                       request->sessionid(),
                                       request->date(),
                                       request->signature(),
                                       clientIP,
-                                      fileInfo,
-                                      protoSession);
+                                      fileInfo);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         response->set_sessionid(request->sessionid());
@@ -1328,12 +1326,10 @@ void NameSpaceService::RefreshSession(
                 << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
         delete fileInfo;
-        delete protoSession;
         return;
     } else {
         response->set_sessionid(request->sessionid());
         response->set_allocated_fileinfo(fileInfo);
-        response->set_allocated_protosession(protoSession);
         response->set_statuscode(StatusCode::kOK);
         DVLOG(6) << "logid = " << cntl->log_id()
             << ", RefreshSession ok, filename = " << request->filename()

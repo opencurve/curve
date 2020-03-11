@@ -278,15 +278,6 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
             << ", error msg = " << StatusCode_Name(stcode)
             << ", log id = " << cntl->log_id();
 
-        // 如果当前文件返回值为被占用，那么就继续重试。
-        // 为什么需要重试：
-        //      发起第一open请求之后因为网络抖动，导致rpc超时，但是这个rpc在
-        //      mds一侧已经生效了，所以下一次重试会返回occupied，所以需要重试
-        //      这个请求，避免是因为自己的rpc超时导致的occupied。
-        if (retcode == LIBCURVE_ERROR::FILE_OCCUPIED) {
-            return -retcode;
-        }
-
         bool flag = response.has_protosession() && response.has_fileinfo();
         if (flag) {
             ProtoSession leasesession = response.protosession();

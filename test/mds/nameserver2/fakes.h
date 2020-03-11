@@ -18,7 +18,6 @@
 #include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/idgenerator/chunk_id_generator.h"
-#include "src/mds/nameserver2/session.h"
 #include "src/mds/dao/mdsRepo.h"
 #include "src/mds/topology/topology_chunk_allocator.h"
 
