@@ -985,18 +985,6 @@ close when file is not exsit
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
-open file when file is already opened
-    [Tags]    P0    base    first release
-    ${origin_file}    evaluate     str("/1")
-    ${expect_rc}    evaluate    int(0)
-    ${rc}   create libcurve file
-    should be equal      ${rc}       ${expect_rc}
-    ${rc_first}   open libcurve file    ${origin_file}
-    ${rc}   open libcurve file    ${origin_file}
-    ${expect_rc}    evaluate    int(-15)
-    should be equal      ${rc}       ${expect_rc}
-    [Teardown]	    file clean      ${rc_first}
-
 close file when file is already closed
     [Tags]    P0    base    first release
     ${origin_file}    evaluate     str("/1")
@@ -1197,36 +1185,6 @@ extend file when file is open
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      ${rc_first}
 
-rename file when file is open
-    [Tags]    P0    base    first release
-    ${origin_file}    evaluate     str("/1")
-    ${expect_rc}    evaluate    int(0)
-    ${rc}   create libcurve file
-    should be equal      ${rc}       ${expect_rc}
-    ${rc_first}   open libcurve file    ${origin_file}
-    ${rc}       rename libcurve file
-    ${expect_rc}    evaluate    int(-15)
-    should be equal      ${rc}       ${expect_rc}
-    ${rc}       close libcurve file     ${rc_first}
-    ${expect_rc}    evaluate    int(0)
-    should be equal      ${rc}       ${expect_rc}
-    [Teardown]	    file clean      ${rc_first}
-
-delete file when file is open
-    [Tags]    P0    base    first release
-    ${origin_file}    evaluate     str("/1")
-    ${expect_rc}    evaluate    int(0)
-    ${rc}   create libcurve file
-    should be equal      ${rc}       ${expect_rc}
-    ${rc_first}   open libcurve file    ${origin_file}
-    ${rc}       delete libcurve file
-    ${expect_rc}    evaluate    int(-15)
-    should be equal      ${rc}       ${expect_rc}
-    ${rc}       close libcurve file     ${rc_first}
-    ${expect_rc}    evaluate    int(0)
-    should be equal      ${rc}       ${expect_rc}
-    [Teardown]	    file clean      ${rc_first}
-
 delete file when file is not exsit
     [Tags]    P0    base    first release
     ${rc}       delete libcurve file
@@ -1349,66 +1307,6 @@ rename file when dest file has data
     should be equal     ${rc.parentid}     ${rc_base.id}
     ${rc}   delete libcurve file    ${new_file}
     [Teardown]	    file clean      none
-
-rename file when dest file is open
-    [Tags]    P0    base    first release
-    ${origin_dir}    evaluate     str("/lzw")
-    ${rc}   create libcurve dir
-    ${expect_rc}    evaluate    int(0)
-    should be equal      ${rc}       ${expect_rc}
-    ${rc_base}   statfs libcurve dir
-    ${origin_file}    evaluate     str("/lzw/1")
-    ${new_file}     evaluate    str("/lzw/2")
-    ${rc}   create libcurve file        ${origin_file}
-    ${expect_rc}    evaluate    int(0)
-    should be equal      ${rc}       ${expect_rc}
-    ${rc}   create libcurve file        ${new_file}
-    ${expect_rc}    evaluate    int(0)
-    should be equal      ${rc}       ${expect_rc}
-    ${fd}   open libcurve file      ${new_file}
-    ${new_fd}       Convert To Integer    ${fd}
-    ${rc}   rename libcurve file    ${origin_file}      ${new_file}
-    ${expect_rc}    evaluate    int(-15)
-    should be equal      ${rc}       ${expect_rc}
-    ${rc}   statfs libcurve file    ${origin_file}
-    ${expect_rc}    evaluate    int(10737418240)
-    should be equal      ${rc.length}       ${expect_rc}
-    ${expect_filetype}    evaluate    int(1)
-    should be equal     ${rc.filetype}     ${expect_filetype}
-    should be equal     ${rc.parentid}     ${rc_base.id}
-    ${rc}   close libcurve file     ${new_fd}
-    ${rc}   delete libcurve file    ${origin_file}
-    [Teardown]	    file clean      ${new_fd}
-
-rename file when origin file is open
-    [Tags]    P0    base    first release
-    ${origin_dir}    evaluate     str("/lzw")
-    ${rc}   create libcurve dir
-    ${expect_rc}    evaluate    int(0)
-    should be equal      ${rc}       ${expect_rc}
-    ${rc_base}   statfs libcurve dir
-    ${origin_file}    evaluate     str("/lzw/1")
-    ${new_file}     evaluate    str("/lzw/2")
-    ${rc}   create libcurve file        ${origin_file}
-    ${expect_rc}    evaluate    int(0)
-    should be equal      ${rc}       ${expect_rc}
-    ${rc}   create libcurve file        ${new_file}
-    ${expect_rc}    evaluate    int(0)
-    should be equal      ${rc}       ${expect_rc}
-    ${fd}   open libcurve file      ${origin_file}
-    ${new_fd}       Convert To Integer    ${fd}
-    ${rc}   rename libcurve file    ${origin_file}      ${new_file}
-    ${expect_rc}    evaluate    int(-15)
-    should be equal      ${rc}       ${expect_rc}
-    ${rc}   statfs libcurve file    ${origin_file}
-    ${expect_rc}    evaluate    int(10737418240)
-    should be equal      ${rc.length}       ${expect_rc}
-    ${expect_filetype}    evaluate    int(1)
-    should be equal     ${rc.filetype}     ${expect_filetype}
-    should be equal     ${rc.parentid}     ${rc_base.id}
-    ${rc}   close libcurve file     ${new_fd}
-    ${rc}   delete libcurve file    ${origin_file}
-    [Teardown]	    file clean      ${new_fd}
 
 rename file when origin file is not exsit
     [Tags]    P0    base    first release
@@ -1570,23 +1468,6 @@ read write with create same file
     ${expect_rc}    evaluate    int(-1)
     should be equal    ${rc}   ${expect_rc}
     sleep  3
-    stop write
-    wait thread  ${thread}
-    check loop read   ${new_fd}
-    [Teardown]	    file clean      ${new_fd}
-
-read write with delete file
-    [Tags]    P0    base    first release
-    [Setup]	file init
-    ${fd}   open libcurve file
-    ${new_fd}       Convert To Integer    ${fd}
-    ${thread}   background loop write file   ${new_fd}
-    sleep  1
-    check write isalive    ${thread}
-    ${rc}   delete libcurve file
-    ${expect_rc}    evaluate    int(-15)
-    should be equal    ${rc}   ${expect_rc}
-    sleep   3
     stop write
     wait thread  ${thread}
     check loop read   ${new_fd}

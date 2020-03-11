@@ -312,42 +312,6 @@ TEST(TestLibcurveInterface, FileClientTest) {
     fc.Close(fd);
     fc.Close(fd2);
 
-    // 测试reopen接口
-    FakeMDSCurveFSService* curvefs = mds.GetMDSService();
-    std::unique_ptr<curve::mds::ReFreshSessionResponse> response(
-                            new curve::mds::ReFreshSessionResponse());
-    brpc::Controller cntl;
-    std::unique_ptr<FakeReturn> fakeret(
-        new FakeReturn(&cntl, static_cast<void*>(response.get())));
-    curvefs->SetRefreshSession(fakeret.get(), nullptr);
-    // 1、正常情况
-    response->set_statuscode(curve::mds::StatusCode::kOK);
-    response->set_sessionid("1234");
-    std::string sessionId;
-    fd = fc.Open(filename, userinfo, &sessionId);
-    ASSERT_GE(fd, 0);
-    std::string newSessionId;
-    fd2 = fc.ReOpen(filename, sessionId, userinfo, &newSessionId);
-    ASSERT_GE(fd2, 0);
-    FInfo finfo;
-    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, fc.GetFileInfo(-100, &finfo));
-    ASSERT_EQ(0, fc.GetFileInfo(fd2, &finfo));
-    ASSERT_EQ(finfo.fullPathName, filename);
-    ASSERT_EQ(finfo.userinfo.owner, userinfo.owner);
-    ASSERT_NE(finfo.seqnum, 0);
-    // 2、newSessionId为nullptr
-    ASSERT_LT(fc.ReOpen(filename, sessionId, userinfo, nullptr), 0);
-    // 3、发送RPC失败
-    cntl.SetFailed("test");
-    ASSERT_LT(fc.ReOpen(filename, sessionId, UserInfo_t{}, &newSessionId), 0);
-    // 4、返回session不存在
-    cntl.Reset();
-    response->set_statuscode(curve::mds::StatusCode::kSessionNotExist);
-    ASSERT_GE(fc.ReOpen(filename, sessionId, userinfo, &newSessionId), 0);
-    // 5、返回其他错误
-    response->set_statuscode(curve::mds::StatusCode::kParaError);
-    ASSERT_LT(fc.ReOpen(filename, sessionId, userinfo, &newSessionId), 0);
-
     mds.UnInitialize();
     delete[] buffer;
     delete[] readbuffer;

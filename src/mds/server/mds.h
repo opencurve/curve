@@ -21,7 +21,6 @@
 #include "src/mds/nameserver2/clean_manager.h"
 #include "src/mds/nameserver2/clean_core.h"
 #include "src/mds/nameserver2/clean_task_manager.h"
-#include "src/mds/nameserver2/session.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
 #include "src/mds/leader_election/leader_election.h"
 #include "src/mds/topology/topology_chunk_allocator.h"
@@ -80,7 +79,7 @@ struct MDSOptions {
     // mds的文件锁桶大小
     int mdsFilelockBucketNum;
 
-    SessionOptions sessionOptions;
+    FileRecordOptions fileRecordOptions;
     RootAuthOption authOptions;
     CurveFSOption curveFSOptions;
     ScheduleOption scheduleOption;
@@ -134,7 +133,7 @@ class MDS {
      * @brief 初始化session相关选项
      * @param session相关选项
      */
-    void InitSessionOptions(SessionOptions *sessionOptions);
+    void InitFileRecordOptions(FileRecordOptions *fileRecordOptions);
 
     /**
      * @brief 初始化认证选项
