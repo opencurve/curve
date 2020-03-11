@@ -836,7 +836,7 @@ def wait_cluster_healthy(limit_iops=8000):
             break
         else:
             time.sleep(30)
-    if check == 1:
+    if check != 1:
         ori_cmd2 = "curve_ops_tool status"
         rs2 = shell_operator.ssh_exec(ssh, ori_cmd2)
         health = "".join(rs2[1]).strip()
