@@ -239,7 +239,7 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
                          int retryTimes) {
     etcdClient_ = std::make_shared<EtcdClientImp>();
     auto res = etcdClient_->Init(etcdConf, etcdTimeout, retryTimes);
-    LOG_IF(FATAL, res != EtcdErrCode::OK)
+    LOG_IF(FATAL, res != EtcdErrCode::EtcdOK)
         << "init etcd client err! "
         << "etcdaddr: " << etcdConf.Endpoints
         << ", etcdaddr len: " << etcdConf.len
@@ -250,7 +250,7 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
 
     std::string out;
     res = etcdClient_->Get("test", &out);
-    LOG_IF(FATAL, res != EtcdErrCode::OK && res != EtcdErrCode::KeyNotExist)
+    LOG_IF(FATAL, res != EtcdErrCode::EtcdOK && res != EtcdErrCode::KeyNotExist)
         << "Run mds err. Check if etcd is running.";
 
     LOG(INFO) << "init etcd client ok! "
