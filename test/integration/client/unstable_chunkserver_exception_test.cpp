@@ -171,6 +171,9 @@ class UnstableCSModuleException : public ::testing::Test {
         // 0. 初始化db
         cluster->InitDB(kDbName);
         cluster->mdsRepo_->dropDataBase();
+        cluster->mdsRepo_->createDatabase();
+        cluster->mdsRepo_->useDataBase();
+        cluster->mdsRepo_->createAllTables();
 
         // 1. 启动etcd
         cluster->StartSingleEtcd(
