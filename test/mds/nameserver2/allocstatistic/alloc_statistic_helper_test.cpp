@@ -36,7 +36,8 @@ TEST(TestAllocStatisticHelper, test_GetExistSegmentAllocValues) {
         std::vector<std::string> values{"hello"};
         EXPECT_CALL(*mockEtcdClient, List(
             SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND, _))
-            .WillOnce(DoAll(SetArgPointee<2>(values), Return(EtcdErrCode::OK)));
+            .WillOnce(
+                DoAll(SetArgPointee<2>(values), Return(EtcdErrCode::EtcdOK)));
         std::map<PoolIdType, int64_t> out;
         ASSERT_EQ(0, AllocStatisticHelper::GetExistSegmentAllocValues(
             &out, mockEtcdClient));
@@ -47,7 +48,8 @@ TEST(TestAllocStatisticHelper, test_GetExistSegmentAllocValues) {
             NameSpaceStorageCodec::EncodeSegmentAllocValue(1, 1024)};
         EXPECT_CALL(*mockEtcdClient, List(
             SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND, _))
-            .WillOnce(DoAll(SetArgPointee<2>(values), Return(EtcdErrCode::OK)));
+            .WillOnce(
+                DoAll(SetArgPointee<2>(values), Return(EtcdErrCode::EtcdOK)));
         std::map<PoolIdType, int64_t> out;
         ASSERT_EQ(0, AllocStatisticHelper::GetExistSegmentAllocValues(
             &out, mockEtcdClient));
@@ -75,7 +77,8 @@ TEST(TestAllocStatisticHelper, test_CalculateSegmentAlloc) {
         std::string lastKey = "021";
         EXPECT_CALL(*mockEtcdClient, ListWithLimitAndRevision(
             SEGMENTINFOKEYPREFIX, SEGMENTINFOKEYEND, GETBUNDLE, 2, _, _))
-            .WillOnce(DoAll(SetArgPointee<4>(values), Return(EtcdErrCode::OK)));
+            .WillOnce(
+                DoAll(SetArgPointee<4>(values), Return(EtcdErrCode::EtcdOK)));
         std::map<PoolIdType, int64_t> out;
         ASSERT_EQ(-1, AllocStatisticHelper::CalculateSegmentAlloc(
             2, mockEtcdClient, &out));
@@ -97,7 +100,7 @@ TEST(TestAllocStatisticHelper, test_CalculateSegmentAlloc) {
         EXPECT_CALL(*mockEtcdClient, ListWithLimitAndRevision(
             SEGMENTINFOKEYPREFIX, SEGMENTINFOKEYEND, GETBUNDLE, 2, _, _))
             .WillOnce(DoAll(SetArgPointee<4>(values), SetArgPointee<5>(lastKey),
-                Return(EtcdErrCode::OK)));
+                Return(EtcdErrCode::EtcdOK)));
         std::map<PoolIdType, int64_t> out;
         ASSERT_EQ(0, AllocStatisticHelper::CalculateSegmentAlloc(
             2, mockEtcdClient, &out));
@@ -135,13 +138,13 @@ TEST(TestAllocStatisticHelper, test_CalculateSegmentAlloc) {
             SEGMENTINFOKEYPREFIX, SEGMENTINFOKEYEND, GETBUNDLE, 2, _, _))
             .WillOnce(DoAll(SetArgPointee<4>(values),
                             SetArgPointee<5>(lastKey1),
-                            Return(EtcdErrCode::OK)));
+                            Return(EtcdErrCode::EtcdOK)));
         EXPECT_CALL(*mockEtcdClient, ListWithLimitAndRevision(
             lastKey1, SEGMENTINFOKEYEND, GETBUNDLE, 2, _, _))
             .WillOnce(DoAll(SetArgPointee<4>(
                 std::vector<std::string>{encodeSegment, encodeSegment}),
                             SetArgPointee<5>(lastKey2),
-                            Return(EtcdErrCode::OK)));
+                            Return(EtcdErrCode::EtcdOK)));
 
         std::map<PoolIdType, int64_t> out;
         ASSERT_EQ(0, AllocStatisticHelper::CalculateSegmentAlloc(
