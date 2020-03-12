@@ -1753,6 +1753,7 @@ file clean
 
 init cluster
      Run Keyword And Ignore Error   drop mds table
+     create db table
      #drop snap clone table
      Run Keyword And Ignore Error   clean cs data
      Run Keyword And Ignore Error   clean etcd data
