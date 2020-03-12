@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "src/mds/server/mds.h"
+#include "src/mds/dao/mdsRepo.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/timeutility.h"
 #include "src/common/string_util.h"
@@ -28,6 +29,14 @@ class MDSTest : public ::testing::Test {
  protected:
     void SetUp() {
         system("rm -fr testMds.etcd");
+        // 创建数据库
+        mdsRepo = new MdsRepo();
+        ASSERT_EQ(0, mdsRepo->connectDB(
+            "curve_mds", "root", "localhost", "qwer", 16));
+        ASSERT_EQ(0, mdsRepo->dropDataBase());
+        ASSERT_EQ(0, mdsRepo->createDatabase());
+        ASSERT_EQ(0, mdsRepo->useDataBase());
+        ASSERT_EQ(0, mdsRepo->createAllTables());
 
         etcdPid = ::fork();
         if (0 > etcdPid) {
@@ -75,6 +84,7 @@ class MDSTest : public ::testing::Test {
     const std::string kMdsAddr = "127.0.0.1:10001";
     char kEtcdAddr[20] = {"127.0.0.1:10002"};
     const int kDummyPort = 10004;
+    MdsRepo *mdsRepo;
 };
 
 TEST_F(MDSTest, common) {
