@@ -33,6 +33,16 @@ def clean_db():
         logger.error("clean db fail.")
         raise
 
+def create_db_table():
+    conn = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
+    try:
+        db_operator.exec_sql_file(conn, config.curve_sql)
+
+    except Exception:
+        logger.error("创建表失败.")
+        raise
+
+
 def drop_mds_table():
     try:
         cmd_list = ["DROP TABLE curve_logicalpool;", "DROP TABLE curve_copyset;", \

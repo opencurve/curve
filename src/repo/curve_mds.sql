@@ -1,9 +1,11 @@
 create database if not exists curve_mds;
 use curve_mds;
 
+
 create table if not exists `curve_clusterInfo` (
     `clusterId`        varchar(128)    NOT NULL PRIMARY KEY COMMENT 'clusterId'
 )COMMENT='clusterInfo';
+
 
 create table if not exists `curve_chunkserver` (
     `chunkServerID`     int            NOT NULL PRIMARY KEY COMMENT 'chunk server id',
@@ -11,8 +13,8 @@ create table if not exists `curve_chunkserver` (
     `diskType`          varchar(8)     NOT NULL COMMENT 'disk type',
     `internalHostIP`    varchar(16)    NOT NULL COMMENT 'internal ip',
     `port`              int            NOT NULL COMMENT 'port',
-    `rwstatus`          tinyint        NOT NULL COMMENT 'chunk server status: readwrite/readonly/writeonly/pending/retired',
-    `serverID`          int            NOT NULL COMMENT 'server where chunkserver in',
+    `rwstatus`          tinyint        NOT NULL COMMENT 'chunk server status: rw/ro/wo/pending/retired',
+    `serverID`          int            NOT NULL COMMENT 'server where chunk server in',
     `onlineState`       tinyint        NOT NULL COMMENT 'chunk server state: online/offline',
     `diskState`         tinyint        NOT NULL COMMENT 'disk state: DiskError, DiskNormal',
     `mountPoint`        varchar(32)    NOT NULL COMMENT 'disk mount point, e.g /mnt/ssd1',
@@ -21,16 +23,15 @@ create table if not exists `curve_chunkserver` (
 )COMMENT='chunk server';
 
 create table if not exists `curve_server` (
-    `logicalPoolID`      smallint     NOT NULL PRIMARY KEY COMMENT 'logical pool id',
-    `logicalPoolName`    char(32)     NOT NULL COMMENT 'logical pool name',
-    `physicalPoolID`     int          NOT NULL COMMENT 'physical pool id',
-    `type`               tinyint      NOT NULL COMMENT 'pool type',
-    `createTime`         bigint       NOT NULL COMMENT 'create time',
-    `status`             tinyint      NOT NULL COMMENT 'status',
-    `redundanceAndPlacementPolicy`    json     NOT NULL COMMENT 'policy of redundance and placement',
-    `userPolicy`         json         NOT NULL COMMENT 'user policy',
-    `availFlag`          BOOLEAN      NOT NULL COMMENT 'available flag'
-
+    `serverID`          int           NOT NULL PRIMARY KEY COMMENT 'server id',
+    `hostName`          varchar(32)   NOT NULL COMMENT 'host name',
+    `internalHostIP`    varchar(16)   NOT NULL COMMENT 'internal host ip',
+    `internalPort`      int           NOT NULL COMMENT 'internal port',
+    `externalHostIP`    varchar(16)   NOT NULL COMMENT 'external host ip',
+    `externalPort`      int           NOT NULL COMMENT 'external port',
+    `zoneID`            int           NOT NULL COMMENT 'zone id it belongs to',
+    `poolID`            int           NOT NULL COMMENT 'pool id it belongs to',
+    `desc`              varchar(128)  NOT NULL COMMENT 'description of server',
     unique key (`hostName`)
 )COMMENT='server';
 
@@ -43,13 +44,12 @@ create table if not exists `curve_zone` (
 
 create table if not exists `curve_physicalpool` (
     `physicalPoolID`      smallint        NOT NULL PRIMARY KEY COMMENT 'physical pool id',
-    `physicalPoolName`    varchar(32)     NOT NULL COMMENT 'physical pool name',
+    `physicalPoolName`    varchar(32)        NOT NULL COMMENT 'physical pool name',
     `desc`                varchar(128)             COMMENT 'description',
-
     unique key (`physicalPoolName`)
 )COMMENT='physical pool';
 
- create table if not exists `curve_logicalpool` (
+create table if not exists `curve_logicalpool` (
     `logicalPoolID`      smallint     NOT NULL PRIMARY KEY COMMENT 'logical pool id',
     `logicalPoolName`    char(32)     NOT NULL COMMENT 'logical pool name',
     `physicalPoolID`     int          NOT NULL COMMENT 'physical pool id',
@@ -59,16 +59,14 @@ create table if not exists `curve_physicalpool` (
     `status`             tinyint      NOT NULL COMMENT 'status',
     `redundanceAndPlacementPolicy`    json     NOT NULL COMMENT 'policy of redundance and placement',
     `userPolicy`         json         NOT NULL COMMENT 'user policy',
-    `availFlag`          BOOLEAN      NOT NULL COMMENT 'available flag'
+    `availFlag`          boolean      NOT NULL COMMENT 'available flag'
 )COMMENT='logical pool';
-
 
 create table if not exists `curve_copyset` (
     `copySetID`          int            NOT NULL COMMENT 'copyset id',
     `logicalPoolID`      smallint       NOT NULL COMMENT 'logical pool it belongs to',
     `epoch`              bigint         NOT NULL COMMENT 'copyset epoch',
     `chunkServerIDList`  varchar(32)    NOT NULL COMMENT 'list chunk server id the copyset has',
-
     primary key (`logicalPoolID`,`copySetID`)
 )COMMENT='copyset';
 

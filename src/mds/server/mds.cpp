@@ -290,14 +290,9 @@ void MDS::InitMdsRepo(const MdsRepoOption& option) {
                                      option.dbPassword, option.dbPoolSize);
     LOG_IF(FATAL, res != OperationOK) << "connectDB fail";
 
-    res = mdsRepo_->createDatabase();
-    LOG_IF(FATAL, res != OperationOK) << "createDatabase fail";
-
     res = mdsRepo_->useDataBase();
     LOG_IF(FATAL, res != OperationOK) << "useDataBase fail";
 
-    res = mdsRepo_->createAllTables();
-    LOG_IF(FATAL, res != OperationOK) << "createAllTables fail";
     LOG(INFO) << "init mdsRepo success.";
 }
 
