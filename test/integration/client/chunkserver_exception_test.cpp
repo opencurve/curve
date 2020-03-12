@@ -115,6 +115,9 @@ class CSModuleException : public ::testing::Test {
         // 0. 初始化db
         cluster->InitDB("module_exception_curve_chunkserver");
         cluster->mdsRepo_->dropDataBase();
+        cluster->mdsRepo_->createDatabase();
+        cluster->mdsRepo_->useDataBase();
+        cluster->mdsRepo_->createAllTables();
 
         // 1. 启动etcd
         cluster->StartSingleEtcd(1, "127.0.0.1:22233", "127.0.0.1:22234",
