@@ -23,7 +23,7 @@
 #include "src/mds/nameserver2/clean_task_manager.h"
 #include "src/mds/nameserver2/session.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
-#include "src/mds/leader_election/leader_election.h"
+#include "src/leader_election/leader_election.h"
 #include "src/mds/topology/topology_chunk_allocator.h"
 #include "src/mds/topology/topology_service.h"
 #include "src/mds/topology/topology_id_generator.h"
@@ -62,6 +62,8 @@ using ::curve::mds::schedule::ScheduleOption;
 using ::curve::mds::schedule::ScheduleMetrics;
 using ::curve::mds::schedule::ScheduleServiceImpl;
 using ::curve::mds::chunkserverclient::ChunkServerClientOption;
+using ::curve::election::LeaderElectionOptions;
+using ::curve::election::LeaderElection;
 using ::curve::common::Configuration;
 
 namespace curve {

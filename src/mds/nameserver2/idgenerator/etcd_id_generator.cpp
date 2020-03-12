@@ -31,11 +31,12 @@ bool EtcdIdGenerator::AllocateBundleIds(int requiredNum) {
     uint64_t alloc;
     int errCode = client_->Get(storeKey_, &out);
     // 获取失败
-    if (EtcdErrCode::EtcdOK != errCode && EtcdErrCode::KeyNotExist != errCode) {
+    if (EtcdErrCode::EtcdOK != errCode &&
+        EtcdErrCode::EtcdKeyNotExist != errCode) {
         LOG(ERROR) << "get store key: " << storeKey_
                    << " err, errCode: " << errCode;
         return false;
-    } else if (EtcdErrCode::KeyNotExist == errCode) {
+    } else if (EtcdErrCode::EtcdKeyNotExist == errCode) {
         // key尚未存在，说明是初次分配
         alloc = initialize_;
     } else if (!NameSpaceStorageCodec::DecodeID(out, &alloc)) {

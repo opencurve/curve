@@ -76,7 +76,7 @@ TEST_F(TestEtcdIdGenerator, test_all) {
     uint64_t alloc2 = alloc1 + bundle_;
     std::string strAlloc1 = NameSpaceStorageCodec::EncodeID(alloc1);
     EXPECT_CALL(*client_, Get(storeKey_, _))
-        .WillOnce(Return(EtcdErrCode::KeyNotExist))
+        .WillOnce(Return(EtcdErrCode::EtcdKeyNotExist))
         .WillOnce(DoAll(
             SetArgPointee<1>(strAlloc1), Return(EtcdErrCode::EtcdOK)));
     EXPECT_CALL(*client_, CompareAndSwap(
@@ -109,7 +109,7 @@ TEST_F(TestEtcdIdGenerator, test_all) {
 
     // 3. kill etcd, gen id ok
     EXPECT_CALL(*client_, Get(storeKey_, _))
-        .WillOnce(Return(EtcdErrCode::PermissionDenied));
+        .WillOnce(Return(EtcdErrCode::EtcdPermissionDenied));
     ASSERT_FALSE(etcdIdGen_->GenID(&res));
 }
 
@@ -120,7 +120,7 @@ TEST_F(TestEtcdIdGenerator, test_multiclient) {
     std::string strAlloc1 = NameSpaceStorageCodec::EncodeID(alloc1);
     std::string strAlloc2 = NameSpaceStorageCodec::EncodeID(alloc2);
     EXPECT_CALL(*client_, Get(storeKey_, _))
-        .WillOnce(Return(EtcdErrCode::KeyNotExist))
+        .WillOnce(Return(EtcdErrCode::EtcdKeyNotExist))
         .WillOnce(
             DoAll(SetArgPointee<1>(strAlloc1), Return(EtcdErrCode::EtcdOK)))
         .WillOnce(
