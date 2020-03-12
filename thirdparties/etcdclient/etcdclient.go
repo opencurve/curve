@@ -8,39 +8,39 @@ enum EtcdErrCode
     // grpc errCode, 具体的含义见:
     // https://godoc.org/go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes#ErrGRPCNoSpace
     // https://godoc.org/google.golang.org/grpc/codes#Code
-    OK = 0,
-    Canceled = 1,
-    Unknown = 2,
-    InvalidArgument = 3,
-    DeadlineExceeded = 4,
-    NotFound = 5,
-    AlreadyExists = 6,
-    PermissionDenied = 7,
-    ResourceExhausted = 8,
-    FailedPrecondition = 9,
-    Aborted = 10,
-    OutOfRange = 11,
-    Unimplemented = 12,
-    Internal = 13,
-    Unavailable = 14,
-    DataLoss = 15,
-    Unauthenticated = 16,
+    EtcdOK = 0,
+    EtcdCanceled = 1,
+    EtcdUnknown = 2,
+    EtcdInvalidArgument = 3,
+    EtcdDeadlineExceeded = 4,
+    EtcdNotFound = 5,
+    EtcdAlreadyExists = 6,
+    EtcdPermissionDenied = 7,
+    EtcdResourceExhausted = 8,
+    EtcdFailedPrecondition = 9,
+    EtcdAborted = 10,
+    EtcdOutOfRange = 11,
+    EtcdUnimplemented = 12,
+    EtcdInternal = 13,
+    EtcdUnavailable = 14,
+    EtcdDataLoss = 15,
+    EtcdUnauthenticated = 16,
 
     // 自定义错误码
-    TxnUnkownOp = 17,
-    ObjectNotExist = 18,
-    ErrObjectType = 19,
-    KeyNotExist = 20,
-    CampaignInternalErr = 21,
-    CampaignLeaderSuccess = 22,
-    ObserverLeaderInternal = 23,
-    ObserverLeaderChange = 24,
-    LeaderResignErr = 25,
-    LeaderResiginSuccess = 26,
-    GetLeaderKeyErr = 27,
-    GetLeaderKeyOK = 28,
-    ObserverLeaderNotExist = 29,
-    ObjectLenNotEnough = 30,
+    EtcdTxnUnkownOp = 17,
+    EtcdObjectNotExist = 18,
+    EtcdErrObjectType = 19,
+    EtcdKeyNotExist = 20,
+    EtcdCampaignInternalErr = 21,
+    EtcdCampaignLeaderSuccess = 22,
+    EtcdObserverLeaderInternal = 23,
+    EtcdObserverLeaderChange = 24,
+    EtcdLeaderResignErr = 25,
+    EtcdLeaderResiginSuccess = 26,
+    EtcdGetLeaderKeyErr = 27,
+    EtcdGetLeaderKeyOK = 28,
+    EtcdObserverLeaderNotExist = 29,
+    EtcdObjectLenNotEnough = 30,
 };
 
 enum OpType {
@@ -140,40 +140,40 @@ func GetErrCode(op string, err error) C.enum_EtcdErrCode {
     case codes.OK:
         return C.EtcdOK
     case codes.Canceled:
-        return C.Canceled
+        return C.EtcdCannceled
     case codes.Unknown:
-        return C.Unknown
+        return C.EtcdUnknown
     case codes.InvalidArgument:
-        return C.InvalidArgument
+        return C.EtcdInvalidArgument
     case codes.DeadlineExceeded:
-        return C.DeadlineExceeded
+        return C.EtcdDeadlineExceeded
     case codes.NotFound:
-        return C.NotFound
+        return C.EtcdNotFound
     case codes.AlreadyExists:
-        return C.AlreadyExists
+        return C.EtcdAlreadyExists
     case codes.PermissionDenied:
-        return C.PermissionDenied
+        return C.EtcdPermissionDenied
     case codes.ResourceExhausted:
-        return C.ResourceExhausted
+        return C.EtcdResourceExhausted
     case codes.FailedPrecondition:
-        return C.FailedPrecondition
+        return C.EtcdFailedPrecondition
     case codes.Aborted:
-        return C.Aborted
+        return C.EtcdAborted
     case codes.OutOfRange:
-        return C.OutOfRange
+        return C.EtcdOutOfRange
     case codes.Unimplemented:
-        return C.Unimplemented
+        return C.EtcdUnimplemented
     case codes.Internal:
-        return C.Internal
+        return C.EtcdInternal
     case codes.Unavailable:
-        return C.Unavailable
+        return C.EtcdUnavailable
     case codes.DataLoss:
-        return C.DataLoss
+        return C.EtcdDataLoss
     case codes.Unauthenticated:
-        return C.Unauthenticated
+        return C.EtcdUnauthenticated
     }
 
-    return C.Unknown
+    return C.EtcdUnknown
 }
 
 // TODO(lixiaocui): 日志打印看是否需要glog
@@ -240,7 +240,7 @@ func EtcdClientGet(timeout C.int, key *C.char,
     }
 
     if resp.Count <= 0 {
-        return C.KeyNotExist, nil, 0, resp.Header.Revision
+        return C.EtcdKeyNotExist, nil, 0, resp.Header.Revision
     }
 
     return errCode,
@@ -344,7 +344,7 @@ func EtcdClientTxn2(
     etcdOps, err := GenOpList(ops)
     if err != nil {
         log.Printf("unknown op types, err: %v", err)
-        return C.TxnUnkownOp
+        return C.EtcdTxnUnkownOp
     }
 
     ctx, cancel := context.WithTimeout(context.Background(),
@@ -362,7 +362,7 @@ func EtcdClientTxn3(
     etcdOps, err := GenOpList(ops)
     if (err != nil) {
         log.Printf("unknown op types, err: %v", err)
-        return C.TxnUnkownOp
+        return C.EtcdTxnUnkownOp
     }
 
     ctx, cancel := context.WithTimeout(context.Background(),
@@ -410,7 +410,7 @@ func EtcdElectionCampaign(pfx *C.char, pfxLen C.int,
     session, err := concurrency.NewSession(globalClient, sessionOpts)
     if err != nil {
         log.Printf("%v new session err: %v", goLeaderName, err)
-        return C.CampaignInternalErr, 0
+        return C.EtcdCampaignInternalErr, 0
     }
 
     // 创建election和超时context
@@ -478,12 +478,12 @@ func EtcdElectionCampaign(pfx *C.char, pfxLen C.int,
         exitSignal <- struct{}{}
         close(exitSignal)
         cancel()
-        return C.CampaignLeaderSuccess, AddManagedObject(election)
+        return C.EtcdCampaignLeaderSuccess, AddManagedObject(election)
     } else {
         log.Printf("[%s/%x] campaign err: %v",
             goLeaderName, session.Lease(), err)
         session.Close()
-        return C.CampaignInternalErr, 0
+        return C.EtcdCampaignInternalErr, 0
     }
 }
 
@@ -495,7 +495,7 @@ func EtcdLeaderObserve(
     election := GetLeaderElection(leaderOid)
     if election == nil {
         log.Printf("can not get leader object: %v", leaderOid)
-        return C.ObjectNotExist
+        return C.EtcdObjectNotExist
     }
 
     for {
@@ -503,7 +503,7 @@ func EtcdLeaderObserve(
         case <- election.Session().Done():
             election.Session().Close()
             log.Printf("session of current mds(%v) occur error", goLeaderName)
-            return C.ObserverLeaderInternal
+            return C.EtcdObserverLeaderInternal
 
         }
     }
@@ -514,7 +514,7 @@ func EtcdLeaderResign(leaderOid uint64, timeout uint64) C.enum_EtcdErrCode {
     election := GetLeaderElection(leaderOid)
     if election == nil {
         log.Printf("can not get leader object: %v", leaderOid)
-        return C.ObjectNotExist
+        return C.EtcdObjectNotExist
     }
 
     ctx, cancel := context.WithTimeout(context.Background(),
@@ -526,19 +526,19 @@ func EtcdLeaderResign(leaderOid uint64, timeout uint64) C.enum_EtcdErrCode {
     if leader, err = election.Leader(ctx);
         err != nil && err != concurrency.ErrElectionNoLeader{
         log.Printf("Leader() returned non nil err: %s", err)
-        return C.LeaderResignErr
+        return C.EtcdLeaderResignErr
     } else if err == concurrency.ErrElectionNoLeader {
-        return C.LeaderResignErr
+        return C.EtcdLeaderResignErr
     }
 
     if err := election.Resign(ctx); err != nil {
         log.Printf("%v resign leader err: %v",
             string(leader.Kvs[0].Value), err)
-        return C.LeaderResignErr
+        return C.EtcdLeaderResignErr
     }
 
     log.Printf("%v resign leader success", string(leader.Kvs[0].Value))
-    return C.LeaderResiginSuccess
+    return C.EtcdLeaderResiginSuccess
 }
 
 //export EtcdClientGetSingleObject
@@ -546,12 +546,12 @@ func EtcdClientGetSingleObject(
     oid uint64) (C.enum_EtcdErrCode, *C.char, int) {
     if value, exist := GetManagedObject(oid); !exist {
         log.Printf("can not get object: %v", oid)
-        return C.ObjectNotExist, nil, 0
+        return C.EtcdObjectNotExist, nil, 0
     } else if res, ok := value.([]*mvccpb.KeyValue); ok {
         return C.EtcdOK, C.CString(string(res[0].Value)), len(res[0].Value)
     } else {
         log.Printf("object type err")
-        return C.ErrObjectType, nil, 0
+        return C.EtcdErrObjectType, nil, 0
     }
 }
 
@@ -559,10 +559,10 @@ func EtcdClientGetSingleObject(
 func EtcdClientGetMultiObject(
     oid uint64, serial int) (C.enum_EtcdErrCode, *C.char, int, *C.char, int) {
     if value, exist := GetManagedObject(oid); !exist {
-        return C.ObjectNotExist, nil, 0, nil, 0
+        return C.EtcdObjectNotExist, nil, 0, nil, 0
     } else if res, ok := value.([]*mvccpb.KeyValue); ok {
         if serial >= len(res) {
-            return C.ObjectLenNotEnough, nil, 0, nil, 0
+            return C.EtcdObjectLenNotEnough, nil, 0, nil, 0
         }
         return C.EtcdOK,
             C.CString(string(res[serial].Value)),
@@ -570,7 +570,7 @@ func EtcdClientGetMultiObject(
             C.CString(string(res[serial].Key)),
             len(res[serial].Key)
     } else {
-        return C.ErrObjectType, nil, 0, nil, 0
+        return C.EtcdErrObjectType, nil, 0, nil, 0
     }
 }
 

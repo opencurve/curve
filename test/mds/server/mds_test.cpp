@@ -65,8 +65,8 @@ class MDSTest : public ::testing::Test {
         }
         ASSERT_TRUE(initSuccess);
         ASSERT_EQ(
-            EtcdErrCode::DeadlineExceeded, client->Put("05", "hello word"));
-        ASSERT_EQ(EtcdErrCode::DeadlineExceeded,
+            EtcdErrCode::EtcdDeadlineExceeded, client->Put("05", "hello word"));
+        ASSERT_EQ(EtcdErrCode::EtcdDeadlineExceeded,
             client->CompareAndSwap("04", "10", "110"));
         client->CloseClient();
         fiu_init(0);

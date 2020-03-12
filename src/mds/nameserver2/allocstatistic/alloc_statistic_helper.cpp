@@ -11,9 +11,16 @@
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "proto/nameserver2.pb.h"
 #include "src/common/timeutility.h"
+#include "src/common/namespace_define.h"
 
 namespace curve {
 namespace mds {
+
+using ::curve::common::SEGMENTALLOCSIZEKEYEND;
+using ::curve::common::SEGMENTALLOCSIZEKEY;
+using ::curve::common::SEGMENTINFOKEYPREFIX;
+using ::curve::common::SEGMENTINFOKEYEND;
+
 const int GETBUNDLE = 1000;
 
 int AllocStatisticHelper::GetExistSegmentAllocValues(

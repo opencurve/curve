@@ -4,7 +4,7 @@ cc_test(
     copts = ["-g","-DHAVE_ZLIB=1"],
     deps = [
             "//src/mds/nameserver2:nameserver2",
-            "//src/mds/leader_election:leader_election",
+            "//src/leader_election:leader_election",
             "@com_google_googletest//:gtest_main",
             "@com_google_googletest//:gtest",
             "//external:brpc",
