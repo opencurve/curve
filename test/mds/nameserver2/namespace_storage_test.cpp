@@ -80,7 +80,7 @@ TEST_F(TestNameServerStorageImp, test_PutFile) {
     FileInfo fileinfo;
     GetFileInfoForTest(&fileinfo);
     EXPECT_CALL(*client_, Put(_, _))
-        .WillOnce(Return(EtcdErrCode::OK))
+        .WillOnce(Return(EtcdErrCode::EtcdOK))
         .WillOnce(Return(EtcdErrCode::Unknown))
         .WillOnce(Return(EtcdErrCode::InvalidArgument))
         .WillOnce(Return(EtcdErrCode::AlreadyExists))
@@ -164,7 +164,7 @@ TEST_F(TestNameServerStorageImp, test_GetFile) {
     EXPECT_CALL(*cache_, Get(_, _)).WillOnce(Return(false));
     EXPECT_CALL(*client_, Get(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(encodeFileinfo),
-                  Return(EtcdErrCode::OK)));
+                  Return(EtcdErrCode::EtcdOK)));
     ASSERT_EQ(StoreStatus::OK, storage_->GetFile(fileinfo.parentid(),
                                                  fileinfo.filename(),
                                                  &getInfo));
@@ -183,7 +183,7 @@ TEST_F(TestNameServerStorageImp, test_GetFile) {
 
 TEST_F(TestNameServerStorageImp, test_DeleteFile) {
     EXPECT_CALL(*client_, Delete(_))
-        .WillOnce(Return(EtcdErrCode::OK))
+        .WillOnce(Return(EtcdErrCode::EtcdOK))
         .WillOnce(Return(EtcdErrCode::DeadlineExceeded));
     ASSERT_EQ(StoreStatus::OK, storage_->DeleteFile(1234, ""));
     ASSERT_EQ(StoreStatus::InternalError, storage_->DeleteFile(1234, ""));
@@ -192,7 +192,7 @@ TEST_F(TestNameServerStorageImp, test_DeleteFile) {
 
 TEST_F(TestNameServerStorageImp, test_DeleteSnapshotFile) {
     EXPECT_CALL(*client_, Delete(_))
-        .WillOnce(Return(EtcdErrCode::OK))
+        .WillOnce(Return(EtcdErrCode::EtcdOK))
         .WillOnce(Return(EtcdErrCode::DeadlineExceeded));
     ASSERT_EQ(StoreStatus::OK,
         storage_->DeleteSnapshotFile(1234, ""));
@@ -202,7 +202,7 @@ TEST_F(TestNameServerStorageImp, test_DeleteSnapshotFile) {
 
 TEST_F(TestNameServerStorageImp, test_RenameFile) {
     EXPECT_CALL(*client_, TxnN(_))
-        .WillOnce(Return(EtcdErrCode::OK))
+        .WillOnce(Return(EtcdErrCode::EtcdOK))
         .WillOnce(Return(EtcdErrCode::Aborted));
     ASSERT_EQ(StoreStatus::OK,
         storage_->RenameFile(FileInfo{}, FileInfo{}));
@@ -243,7 +243,7 @@ TEST_F(TestNameServerStorageImp, test_ReplaceFileAndRecycleOldFile) {
     ASSERT_TRUE(recycleFileInfo.SerializeToString(&encoderecycleFileInfo));
 
     EXPECT_CALL(*client_, TxnN(_))
-        .WillOnce(Return(EtcdErrCode::OK))
+        .WillOnce(Return(EtcdErrCode::EtcdOK))
         .WillOnce(Return(EtcdErrCode::Aborted));
     ASSERT_EQ(StoreStatus::OK,
         storage_->ReplaceFileAndRecycleOldFile(
@@ -270,7 +270,7 @@ TEST_F(TestNameServerStorageImp, test_MoveFileToRecycle) {
     ASSERT_TRUE(recycleFileInfo.SerializeToString(&encoderecycleFileInfo));
 
     EXPECT_CALL(*client_, TxnN(_))
-        .WillOnce(Return(EtcdErrCode::OK))
+        .WillOnce(Return(EtcdErrCode::EtcdOK))
         .WillOnce(Return(EtcdErrCode::Aborted));
     ASSERT_EQ(StoreStatus::OK,
         storage_->MoveFileToRecycle(originFileInfo, recycleFileInfo));
@@ -295,7 +295,7 @@ TEST_F(TestNameServerStorageImp, test_ListFile) {
     EXPECT_CALL(*client_, List(_, _, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(std::vector<std::string>{encodeFileinfo}),
-            Return(EtcdErrCode::OK)));
+            Return(EtcdErrCode::EtcdOK)));
     ASSERT_EQ(StoreStatus::OK, storage_->ListFile(0, 0, &listRes));
     ASSERT_EQ(1, listRes.size());
     ASSERT_EQ(fileinfo.filename(), listRes[0].filename());
@@ -325,7 +325,7 @@ TEST_F(TestNameServerStorageImp, test_ListSnapshotFile) {
     EXPECT_CALL(*client_, List(startStoreKey, endStoreKey, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(std::vector<std::string>{encodeFileinfo}),
-            Return(EtcdErrCode::OK)));
+            Return(EtcdErrCode::EtcdOK)));
     ASSERT_EQ(StoreStatus::OK, storage_->ListSnapshotFile(1, 2, &listRes));
     ASSERT_EQ(1, listRes.size());
     ASSERT_EQ(fileinfo.filename(), listRes[0].filename());
@@ -339,7 +339,7 @@ TEST_F(TestNameServerStorageImp, test_putsegment) {
     segment.set_startoffset(0);
     segment.set_logicalpoolid(1);
     EXPECT_CALL(*client_, PutRewithRevision(_, _, _))
-        .WillOnce(Return(EtcdErrCode::OK))
+        .WillOnce(Return(EtcdErrCode::EtcdOK))
         .WillOnce(Return(EtcdErrCode::Canceled));
     int64_t revision;
     ASSERT_EQ(StoreStatus::OK, storage_->PutSegment(0, 0, &segment, &revision));
@@ -365,7 +365,7 @@ TEST_F(TestNameServerStorageImp, test_getSegment) {
     EXPECT_CALL(*cache_, Get(_, _)).WillOnce(Return(false));
     EXPECT_CALL(*client_, Get(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(encodeSegment),
-                        Return(EtcdErrCode::OK)));
+                        Return(EtcdErrCode::EtcdOK)));
     ASSERT_EQ(StoreStatus::OK, storage_->GetSegment(0, 0, &getSegment));
     ASSERT_EQ(segment.chunksize(), getSegment.chunksize());
     ASSERT_EQ(segment.chunks_size(), getSegment.chunks_size());
@@ -380,7 +380,7 @@ TEST_F(TestNameServerStorageImp, test_getSegment) {
 
 TEST_F(TestNameServerStorageImp, test_deleteSegment) {
     EXPECT_CALL(*client_, DeleteRewithRevision(_, _))
-        .WillOnce(Return(EtcdErrCode::OK))
+        .WillOnce(Return(EtcdErrCode::EtcdOK))
         .WillOnce(Return(EtcdErrCode::Aborted));
     int64_t revision;
     ASSERT_EQ(StoreStatus::OK, storage_->DeleteSegment(0, 0, &revision));
@@ -390,7 +390,7 @@ TEST_F(TestNameServerStorageImp, test_deleteSegment) {
 
 TEST_F(TestNameServerStorageImp, test_Snapshotfile) {
     EXPECT_CALL(*client_, TxnN(_))
-        .WillOnce(Return(EtcdErrCode::OK))
+        .WillOnce(Return(EtcdErrCode::EtcdOK))
         .WillOnce(Return(EtcdErrCode::Aborted));
     FileInfo fileinfo;
     fileinfo.set_filetype(FileType::INODE_PAGEFILE);
@@ -416,7 +416,7 @@ TEST_F(TestNameServerStorageImp, test_ListSegment) {
     EXPECT_CALL(*client_, List(_, _, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(std::vector<std::string>{encodeSegment}),
-            Return(EtcdErrCode::OK)));
+            Return(EtcdErrCode::EtcdOK)));
     ASSERT_EQ(StoreStatus::OK, storage_->ListSegment(0, &segments));
     ASSERT_EQ(1, segments.size());
     ASSERT_EQ(segment.DebugString(), segments[0].DebugString());

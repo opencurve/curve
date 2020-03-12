@@ -28,7 +28,7 @@ enum EtcdErrCode
     // grpc errCode, 具体的含义见:
     // https://godoc.org/go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes#ErrGRPCNoSpace
     // https://godoc.org/google.golang.org/grpc/codes#Code
-    OK = 0,
+    EtcdOK = 0,
     Canceled = 1,
     Unknown = 2,
     InvalidArgument = 3,
