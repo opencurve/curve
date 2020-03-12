@@ -250,7 +250,8 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
 
     std::string out;
     res = etcdClient_->Get("test", &out);
-    LOG_IF(FATAL, res != EtcdErrCode::EtcdOK && res != EtcdErrCode::KeyNotExist)
+    LOG_IF(FATAL, res != EtcdErrCode::EtcdOK &&
+        res != EtcdErrCode::EtcdKeyNotExist)
         << "Run mds err. Check if etcd is running.";
 
     LOG(INFO) << "init etcd client ok! "
