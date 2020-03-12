@@ -84,7 +84,7 @@ void MDS::StartCompaginLeader() {
     LeaderElectionOptions leaderElectionOp;
     InitMdsLeaderElectionOption(&leaderElectionOp);
     leaderElectionOp.etcdCli = etcdClient_;
-    leaderElectionOp.campaginPrefix = MDSLEADERCAMPAIGNNPFX;
+    leaderElectionOp.campaginPrefix = "";
     InitLeaderElection(leaderElectionOp);
     while (0 != leaderElection_->CampaginLeader()) {
         LOG(INFO) << leaderElection_->GetLeaderName()
