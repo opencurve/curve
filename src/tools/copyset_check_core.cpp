@@ -160,6 +160,8 @@ ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
     // 存储需要发送消息的chunkserver的地址和对应的groupId
     // key是chunkserver地址，value是groupId的列表
     std::map<std::string, std::set<std::string>> csAddrMap;
+    // 存储没有leader的copyset对应的peers，key为groupId，value为配置
+    std::map<std::string, std::vector<std::string>> noLeaderCopysetsPeers;
     for (auto& copysetInfo : copysetInfos) {
         std::string groupId = copysetInfo[kGroupId];
         std::string state = copysetInfo[kState];
@@ -200,13 +202,7 @@ ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
                         copysetInfo[kLeader] == kEmptyAddr) {
                 std::vector<std::string> peers;
                 curve::common::SplitString(copysetInfo[kPeers], " ", &peers);
-                CheckResult checkRes = CheckPeerOnlineStatus(groupId, peers);
-                if (checkRes == CheckResult::kMajorityPeerNotOnline) {
-                    copysets_[kMajorityPeerNotOnline].emplace(groupId);
-                    continue;
-                }
-                copysets_[kNoLeader].emplace(groupId);
-                isHealthy = false;
+                noLeaderCopysetsPeers[groupId] = peers;
                 continue;
             }
             if (queryLeader) {
@@ -226,6 +222,12 @@ ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
             isHealthy = false;
         }
     }
+    // 遍历没有leader的copyset
+    bool health = CheckCopysetsNoLeader(chunkserverAddr,
+                                        noLeaderCopysetsPeers);
+    if (!health) {
+        isHealthy = false;
+    }
     // 遍历chunkserver发送请求
     for (const auto& item : csAddrMap) {
         ChunkServerHealthStatus res = CheckCopysetsOnChunkServer(item.first,
@@ -239,6 +241,80 @@ ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
     } else {
         return ChunkServerHealthStatus::kNotHealthy;
     }
+}
+
+bool CopysetCheckCore::CheckCopysetsNoLeader(const std::string& csAddr,
+                            const std::map<std::string,
+                                           std::vector<std::string>>&
+                                                copysetsPeers) {
+    if (copysetsPeers.empty()) {
+        return true;
+    }
+    std::set<std::string> groupIds;
+    for (const auto& item : copysetsPeers) {
+        groupIds.emplace(item.first);
+    }
+    bool isHealthy = true;
+    std::map<std::string, bool> result;
+    int res = CheckIfChunkServerInCopysets(csAddr, groupIds, &result);
+    if (res != 0) {
+        std::cout << "CheckIfChunkServerInCopysets fail!" << std::endl;
+        return false;
+    }
+    for (const auto& item : result) {
+        // 如果在配置组中，检查是否是majority offline
+        if (item.second) {
+            isHealthy = false;
+            std::string groupId = item.first;
+            CheckResult checkRes = CheckPeerOnlineStatus(
+                                        groupId,
+                                        copysetsPeers.at(item.first));
+            if (checkRes == CheckResult::kMajorityPeerNotOnline) {
+                copysets_[kMajorityPeerNotOnline].emplace(groupId);
+                continue;
+            }
+            copysets_[kNoLeader].emplace(groupId);
+        }
+    }
+    return isHealthy;
+}
+
+int CopysetCheckCore::CheckIfChunkServerInCopysets(const std::string& csAddr,
+                                    const std::set<std::string> copysets,
+                                    std::map<std::string, bool>* result) {
+    PoolIdType logicPoolId;
+    std::vector<CopySetIdType> copysetIds;
+    for (const auto& gId : copysets) {
+        uint64_t groupId;
+        if (!curve::common::StringToUll(gId, &groupId)) {
+            std::cout << "parse group id fail: " << groupId << std::endl;
+            continue;
+        }
+        logicPoolId = groupId >> 32;
+        CopySetIdType copysetId = groupId & (((uint64_t)1 << 32) - 1);
+        copysetIds.push_back(copysetId);
+    }
+
+    std::vector<CopySetServerInfo> csServerInfos;
+    int res = mdsClient_->GetChunkServerListInCopySets(logicPoolId,
+                                                copysetIds, &csServerInfos);
+    if (res != 0) {
+        std::cout << "GetChunkServerListInCopySets fail!" << std::endl;
+        return res;
+    }
+    for (const auto& info : csServerInfos) {
+        CopySetIdType copysetId = info.copysetid();
+        std::string groupId = ToGroupId(logicPoolId, copysetId);
+        for (const auto& csLoc : info.cslocs()) {
+            std::string addr = csLoc.hostip() + ":"
+                               + std::to_string(csLoc.port());
+            if (addr == csAddr) {
+                (*result)[groupId] = true;
+                break;
+            }
+        }
+    }
+    return 0;
 }
 
 int CopysetCheckCore::CheckCopysetsOnServer(const ServerIdType& serverId,
