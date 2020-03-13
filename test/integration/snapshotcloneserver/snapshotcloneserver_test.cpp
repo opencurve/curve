@@ -18,6 +18,8 @@
 #include "test/integration/snapshotcloneserver/test_snapshotcloneserver_helpler.h"
 #include "test/util/config_generator.h"
 
+const std::string kTestPrefix = "MainSCSTest"; //NOLINT
+
 // 一些常数定义
 const char* cloneTempDir_ = "/clone";
 const char* mdsRootUser_ = "root";
@@ -34,13 +36,13 @@ const int kMdsDummyPort = 10048;
 const char* kSnapshotCloneServerDummyServerPort = "12004";
 const char* kLeaderCampaginPrefix = "snapshotcloneserverleaderlock4";
 
-const char* kLogPath = "./runlog/MainSCSTestLog";
-const char* kMdsDbName = "MainSCSTestDB";
-const char* kEtcdName = "MainRcvSCSTest";
-const char* kMdsConfigPath = "./test/integration/snapshotcloneserver/config/MainSCSTest_mds.conf";   // NOLINT
-const char* kSnapClientConfigPath = "./test/integration/snapshotcloneserver/config/MainSCSTest_snap_client.conf";  // NOLINT
-const char* kS3ConfigPath = "./test/integration/snapshotcloneserver/config/MainSCSTest_s3.conf";  // NOLINT
-const char* kSCSConfigPath = "./test/integration/snapshotcloneserver/config/MainSCSTest_scs.conf";  // NOLINT
+const std::string kLogPath = "./runlog/" + kTestPrefix + "Log"; //NOLINT
+const std::string kMdsDbName = kTestPrefix + "DB"; //NOLINT
+const std::string kEtcdName = kTestPrefix;  //NOLINT
+const std::string kMdsConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_mds.conf";   // NOLINT
+const std::string kSnapClientConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_snap_client.conf";  // NOLINT
+const std::string kS3ConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_s3.conf";  // NOLINT
+const std::string kSCSConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_scs.conf";  // NOLINT
 
 const std::vector<std::string> mdsConfigOptions {
     std::string("mds.listen.addr=") + kMdsIpPort,

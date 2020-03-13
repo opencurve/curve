@@ -91,19 +91,34 @@ struct CloneMetric {
     // 累计失败的恢复任务数量
     bvar::Adder<uint32_t> recoverFailed;
 
+    // 正在执行的Flatten任务数量
+    bvar::Adder<uint32_t> flattenDoing;
+    // 累计成功的Flatten任务数量
+    bvar::Adder<uint32_t> flattenSucceed;
+    // 累计失败的Flatten任务数量
+    bvar::Adder<uint32_t> flattenFailed;
+
     CloneMetric() :
         cloneDoing(CloneMetricPrefix, "clone_doing"),
         cloneSucceed(CloneMetricPrefix, "clone_succeed"),
         cloneFailed(CloneMetricPrefix, "clone_failed"),
         recoverDoing(CloneMetricPrefix, "recover_doing"),
         recoverSucceed(CloneMetricPrefix, "recover_succeed"),
-        recoverFailed(CloneMetricPrefix, "recover_failed") {}
+        recoverFailed(CloneMetricPrefix, "recover_failed"),
+        flattenDoing(CloneMetricPrefix, "flatten_doing"),
+        flattenSucceed(CloneMetricPrefix, "flatten_succeed"),
+        flattenFailed(CloneMetricPrefix, "flatten_failed") {}
 
     void UpdateBeforeTaskBegin(
         const CloneTaskType &taskType);
 
     void UpdateAfterTaskFinish(
         const CloneTaskType &taskType,
+        const CloneStatus &status);
+
+    void UpdateFlattenTaskBegin();
+
+    void UpdateAfterFlattenTaskFinish(
         const CloneStatus &status);
 };
 

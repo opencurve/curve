@@ -82,6 +82,23 @@ class CloneCore {
         std::shared_ptr<CloneTaskInfo> task) = 0;
 
     /**
+     * @brief 安装克隆文件数据的前置工作
+     * - 进行一些必要的检查
+     * - 获取并返回克隆信息
+     * - 更新数据库状态
+     *
+     * @param user 用户名
+     * @param taskId 任务Id
+     * @param[out] cloneInfo 克隆信息
+     *
+     * @return 错误码
+     */
+    virtual int FlattenPre(
+        const std::string &user,
+        const TaskIdType &taskId,
+        CloneInfo *cloneInfo) = 0;
+
+    /**
      * @brief 获取全部克隆/恢复任务列表，用于重启后恢复执行
      *
      * @param[out] cloneInfos 克隆/恢复任务列表
@@ -203,6 +220,11 @@ class CloneCoreImpl : public CloneCore {
 
     void HandleCleanCloneOrRecoverTask(
         std::shared_ptr<CloneTaskInfo> task) override;
+
+    int FlattenPre(
+        const std::string &user,
+        const std::string &fileName,
+        CloneInfo *cloneInfo) override;
 
     int GetCloneInfoList(std::vector<CloneInfo> *taskList) override;
     int GetCloneInfo(TaskIdType taskId, CloneInfo *cloneInfo) override;

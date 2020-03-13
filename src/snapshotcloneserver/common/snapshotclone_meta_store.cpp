@@ -15,6 +15,25 @@ using ::curve::snapshotcloneserver::CloneRepoItem;
 namespace curve {
 namespace snapshotcloneserver {
 
+std::ostream& operator<<(std::ostream& os, const CloneInfo &cloneInfo) {
+    os << "{ taskId : " << cloneInfo.GetTaskId();
+    os << ", user : " << cloneInfo.GetUser();
+    os << ", cloneTaskType : "
+       << static_cast<int> (cloneInfo.GetTaskType());
+    os << ", source : " << cloneInfo.GetSrc();
+    os << ", destination : " << cloneInfo.GetDest();
+    os << ", originId : " << cloneInfo.GetOriginId();
+    os << ", destId : " << cloneInfo.GetDestId();
+    os << ", time : " << cloneInfo.GetTime();
+    os << ", fileType : " << static_cast<int>(cloneInfo.GetFileType());
+    os << ", isLazy : " << cloneInfo.GetIsLazy();
+    os << ", nextStep : " << static_cast<int>(cloneInfo.GetNextStep());
+    os << ", status : " << static_cast<int>(cloneInfo.GetStatus());
+    os << " }";
+    return os;
+}
+
+
 int DBSnapshotCloneMetaStore::Init(
         const SnapshotCloneMetaStoreOptions &options) {
     std::string dbname = options.dbName;

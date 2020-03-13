@@ -28,6 +28,8 @@ using curve::client::FileClient;
 using curve::client::SnapshotClient;
 using curve::client::UserInfo_t;
 
+const std::string kTestPrefix = "RcvSCSTest"; //NOLINT
+
 const uint64_t testFile1Length = 10ULL * 1024 * 1024 * 1024;
 const uint64_t chunkSize = 16ULL * 1024 * 1024;
 const uint64_t segmentSize = 32ULL * 1024 * 1024;
@@ -55,21 +57,21 @@ const char* kLeaderCampaginPrefix = "snapshotcloneserverleaderlock1";
 
 const int kMdsDummyPort = 10028;
 
-const char* kLogPath = "./runlog/RcvSCSTestLog";
-const char* kMdsDbName = "RcvSCSTestDB";
-const char* kMdsConfigPath = "./test/integration/snapshotcloneserver/config/RcvSCSTest_mds.conf";   // NOLINT
+const std::string kLogPath = "./runlog/" + kTestPrefix + "Log"; //NOLINT
+const std::string kMdsDbName = kTestPrefix + "DB"; //NOLINT
+const std::string kMdsConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_mds.conf";   // NOLINT
 
-const char* kCSConfigPath = "./test/integration/snapshotcloneserver/config/RcvSCSTest_chunkserver.conf";  // NOLINT
+const std::string kCSConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_chunkserver.conf";  // NOLINT
 
-const char* kCsClientConfigPath = "./test/integration/snapshotcloneserver/config/RcvSCSTest_cs_client.conf"; // NOLINT
+const std::string kCsClientConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_cs_client.conf"; // NOLINT
 
-const char* kSnapClientConfigPath = "./test/integration/snapshotcloneserver/config/RcvSCSTest_snap_client.conf";  // NOLINT
+const std::string kSnapClientConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_snap_client.conf";  // NOLINT
 
-const char* kS3ConfigPath = "./test/integration/snapshotcloneserver/config/RcvSCSTest_s3.conf";  // NOLINT
+const std::string kS3ConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_s3.conf";  // NOLINT
 
-const char* kSCSConfigPath = "./test/integration/snapshotcloneserver/config/RcvSCSTest_scs.conf";  // NOLINT
+const std::string kSCSConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_scs.conf";  // NOLINT
 
-const char* kClientConfigPath = "./test/integration/snapshotcloneserver/config/RcvSCSTest_client.conf";  // NOLINT
+const std::string kClientConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_client.conf";  // NOLINT
 
 const std::vector<std::string> mdsConfigOptions {
     std::string("mds.listen.addr=") + kMdsIpPort,
@@ -115,12 +117,12 @@ const std::vector<std::string> s3ConfigOptions {
 
 const std::vector<std::string> chunkserverConf1{
     {" --graceful_quit_on_sigterm"},
-    {" -chunkServerStoreUri=local://./RcvSCSTest1/"},
-    {" -chunkServerMetaUri=local://./RcvSCSTest1/chunkserver.dat"},  // NOLINT
-    {" -copySetUri=local://./RcvSCSTest1/copysets"},
-    {" -recycleUri=local://./RcvSCSTest1/recycler"},
-    {" -chunkFilePoolDir=./RcvSCSTest1/chunkfilepool/"},
-    {" -chunkFilePoolMetaPath=./RcvSCSTest1/chunkfilepool.meta"},  // NOLINT
+    {" -chunkServerStoreUri=local://./" + kTestPrefix + "1/"},
+    {" -chunkServerMetaUri=local://./" + kTestPrefix + "1/chunkserver.dat"},  // NOLINT
+    {" -copySetUri=local://./" + kTestPrefix + "1/copysets"},
+    {" -recycleUri=local://./" + kTestPrefix + "1/recycler"},
+    {" -chunkFilePoolDir=./" + kTestPrefix + "1/chunkfilepool/"},
+    {" -chunkFilePoolMetaPath=./" + kTestPrefix + "1/chunkfilepool.meta"},  // NOLINT
     std::string(" -conf=") + kCSConfigPath,
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
@@ -129,12 +131,12 @@ const std::vector<std::string> chunkserverConf1{
 
 const std::vector<std::string> chunkserverConf2{
     {" --graceful_quit_on_sigterm"},
-    {" -chunkServerStoreUri=local://./RcvSCSTest2/"},
-    {" -chunkServerMetaUri=local://./RcvSCSTest2/chunkserver.dat"},  // NOLINT
-    {" -copySetUri=local://./RcvSCSTest2/copysets"},
-    {" -recycleUri=local://./RcvSCSTest2/recycler"},
-    {" -chunkFilePoolDir=./RcvSCSTest2/chunkfilepool/"},
-    {" -chunkFilePoolMetaPath=./RcvSCSTest2/chunkfilepool.meta"},  // NOLINT
+    {" -chunkServerStoreUri=local://./" + kTestPrefix + "2/"},
+    {" -chunkServerMetaUri=local://./" + kTestPrefix + "2/chunkserver.dat"},  // NOLINT
+    {" -copySetUri=local://./" + kTestPrefix + "2/copysets"},
+    {" -recycleUri=local://./" + kTestPrefix + "2/recycler"},
+    {" -chunkFilePoolDir=./" + kTestPrefix + "2/chunkfilepool/"},
+    {" -chunkFilePoolMetaPath=./" + kTestPrefix + "2/chunkfilepool.meta"},  // NOLINT
     std::string(" -conf=") + kCSConfigPath,
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
@@ -143,12 +145,12 @@ const std::vector<std::string> chunkserverConf2{
 
 const std::vector<std::string> chunkserverConf3{
     {" --graceful_quit_on_sigterm"},
-    {" -chunkServerStoreUri=local://./RcvSCSTest3/"},
-    {" -chunkServerMetaUri=local://./RcvSCSTest3/chunkserver.dat"},  // NOLINT
-    {" -copySetUri=local://./RcvSCSTest3/copysets"},
-    {" -recycleUri=local://./RcvSCSTest3/recycler"},
-    {" -chunkFilePoolDir=./RcvSCSTest3/chunkfilepool/"},
-    {" -chunkFilePoolMetaPath=./RcvSCSTest3/chunkfilepool.meta"},  // NOLINT
+    {" -chunkServerStoreUri=local://./" + kTestPrefix + "3/"},
+    {" -chunkServerMetaUri=local://./" + kTestPrefix + "3/chunkserver.dat"},  // NOLINT
+    {" -copySetUri=local://./" + kTestPrefix + "3/copysets"},
+    {" -recycleUri=local://./" + kTestPrefix + "3/recycler"},
+    {" -chunkFilePoolDir=./" + kTestPrefix + "3/chunkfilepool/"},
+    {" -chunkFilePoolMetaPath=./" + kTestPrefix + "3/chunkfilepool.meta"},  // NOLINT
     std::string(" -conf=") + kCSConfigPath,
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
@@ -208,14 +210,14 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_->mdsRepo_->createDatabase();
         cluster_->mdsRepo_->useDataBase();
         cluster_->mdsRepo_->createAllTables();
-        system("rm -rf RcvSCSTest.etcd");
-        system("rm -rf RcvSCSTest1");
-        system("rm -rf RcvSCSTest2");
-        system("rm -rf RcvSCSTest3");
+        system(std::string("rm -rf " + kTestPrefix + "t.etcd").c_str());
+        system(std::string("rm -rf " + kTestPrefix + "1").c_str());
+        system(std::string("rm -rf " + kTestPrefix + "2").c_str());
+        system(std::string("rm -rf " + kTestPrefix + "3").c_str());
 
         // 启动etcd
         cluster_->StartSingleEtcd(1, kEtcdClientIpPort, kEtcdPeerIpPort,
-        std::vector<std::string>{" --name RcvSCSTest"});
+        std::vector<std::string>{" --name " + kTestPrefix});
 
         cluster_->PrepareConfig<MDSConfigGenerator>(
             kMdsConfigPath,
@@ -234,21 +236,21 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
         threadpool[0] = std::thread(&CurveCluster::FormatChunkFilePool,
             cluster_,
-            "./RcvSCSTest1/chunkfilepool/",
-            "./RcvSCSTest1/chunkfilepool.meta",
-            "./RcvSCSTest1/",
+            "./" + kTestPrefix + "1/chunkfilepool/",
+            "./" + kTestPrefix + "1/chunkfilepool.meta",
+            "./" + kTestPrefix + "1/",
             2);
         threadpool[1] = std::thread(&CurveCluster::FormatChunkFilePool,
             cluster_,
-            "./RcvSCSTest2/chunkfilepool/",
-            "./RcvSCSTest2/chunkfilepool.meta",
-            "./RcvSCSTest2/",
+            "./" + kTestPrefix + "2/chunkfilepool/",
+            "./" + kTestPrefix + "2/chunkfilepool.meta",
+            "./" + kTestPrefix + "2/",
             2);
         threadpool[2] = std::thread(&CurveCluster::FormatChunkFilePool,
             cluster_,
-            "./RcvSCSTest3/chunkfilepool/",
-            "./RcvSCSTest3/chunkfilepool.meta",
-            "./RcvSCSTest3/",
+            "./" + kTestPrefix + "3/chunkfilepool/",
+            "./" + kTestPrefix + "3/chunkfilepool.meta",
+            "./" + kTestPrefix + "3/",
             2);
 
         for (int i = 0; i < 3; i++) {
@@ -1572,6 +1574,11 @@ TEST_F(SnapshotCloneServerTest,
 
     cluster_->RestartSnapshotCloneServer(1);
 
+    ASSERT_TRUE(WaitMetaInstalledSuccess(testUser1_, uuid1, false));
+    // Flatten
+    int ret = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret);
+
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
@@ -1608,6 +1615,11 @@ TEST_F(SnapshotCloneServerTest,
 
     cluster_->RestartSnapshotCloneServer(1);
 
+    ASSERT_TRUE(WaitMetaInstalledSuccess(testUser1_, uuid1, false));
+    // Flatten
+    int ret = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret);
+
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
@@ -1643,6 +1655,11 @@ TEST_F(SnapshotCloneServerTest,
     cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
 
     cluster_->RestartSnapshotCloneServer(1);
+
+    ASSERT_TRUE(WaitMetaInstalledSuccess(testUser1_, uuid1, false));
+    // Flatten
+    int ret = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret);
 
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
@@ -1684,6 +1701,11 @@ TEST_F(SnapshotCloneServerTest,
 
     cluster_->RestartSnapshotCloneServer(1);
 
+    ASSERT_TRUE(WaitMetaInstalledSuccess(testUser1_, uuid1, false));
+    // Flatten
+    int ret = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret);
+
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
@@ -1723,6 +1745,11 @@ TEST_F(SnapshotCloneServerTest,
     cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
 
     cluster_->RestartSnapshotCloneServer(1);
+
+    ASSERT_TRUE(WaitMetaInstalledSuccess(testUser1_, uuid1, false));
+    // Flatten
+    int ret = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret);
 
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
@@ -1767,6 +1794,11 @@ TEST_F(SnapshotCloneServerTest,
 
     cluster_->RestartSnapshotCloneServer(1);
 
+    ASSERT_TRUE(WaitMetaInstalledSuccess(testUser1_, uuid1, false));
+    // Flatten
+    int ret = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret);
+
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
@@ -1809,6 +1841,11 @@ TEST_F(SnapshotCloneServerTest,
     cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
 
     cluster_->RestartSnapshotCloneServer(1);
+
+    ASSERT_TRUE(WaitMetaInstalledSuccess(testUser1_, uuid1, false));
+    // Flatten
+    int ret = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret);
 
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
@@ -1856,6 +1893,11 @@ TEST_F(SnapshotCloneServerTest,
 
     cluster_->RestartSnapshotCloneServer(1);
 
+    ASSERT_TRUE(WaitMetaInstalledSuccess(testUser1_, uuid1, false));
+    // Flatten
+    int ret = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret);
+
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
@@ -1901,6 +1943,11 @@ TEST_F(SnapshotCloneServerTest,
     cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
 
     cluster_->RestartSnapshotCloneServer(1);
+
+    ASSERT_TRUE(WaitMetaInstalledSuccess(testUser1_, uuid1, false));
+    // Flatten
+    int ret = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret);
 
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
@@ -1951,6 +1998,11 @@ TEST_F(SnapshotCloneServerTest,
 
     cluster_->RestartSnapshotCloneServer(1);
 
+    ASSERT_TRUE(WaitMetaInstalledSuccess(testUser1_, uuid1, false));
+    // Flatten
+    int ret = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret);
+
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
@@ -1999,6 +2051,11 @@ TEST_F(SnapshotCloneServerTest,
     cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
 
     cluster_->RestartSnapshotCloneServer(1);
+
+    ASSERT_TRUE(WaitMetaInstalledSuccess(testUser1_, uuid1, false));
+    // Flatten
+    int ret = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret);
 
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
@@ -2053,6 +2110,11 @@ TEST_F(SnapshotCloneServerTest,
     cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
 
     cluster_->RestartSnapshotCloneServer(1);
+
+    ASSERT_TRUE(WaitMetaInstalledSuccess(testUser1_, uuid1, false));
+    // Flatten
+    int ret = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret);
 
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);

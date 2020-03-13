@@ -23,6 +23,8 @@ using curve::CurveCluster;
 using curve::client::FileClient;
 using curve::client::UserInfo_t;
 
+const std::string kTestPrefix = "SCSTest"; //NOLINT
+
 const uint64_t chunkSize = 16ULL * 1024 * 1024;
 const uint64_t segmentSize = 32ULL * 1024 * 1024;
 const uint64_t chunkGap = 1;
@@ -41,21 +43,21 @@ const char* kSnapshotCloneServerDummyServerPort = "12000";
 const char* kLeaderCampaginPrefix = "snapshotcloneserverleaderlock3";
 
 
-const char* kLogPath = "./runlog/SCSTestLog";
-const char* kMdsDbName = "SCSTestDB";
-const char* kMdsConfigPath = "./test/integration/snapshotcloneserver/config/SCSTest_mds.conf";   // NOLINT
+const std::string kLogPath = "./runlog/" + kTestPrefix + "Log"; //NOLINT
+const std::string kMdsDbName = kTestPrefix + "DB"; //NOLINT
+const std::string kMdsConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_mds.conf";   // NOLINT
 
-const char* kCSConfigPath = "./test/integration/snapshotcloneserver/config/SCSTest_chunkserver.conf";  // NOLINT
+const std::string kCSConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_chunkserver.conf";  // NOLINT
 
-const char* kCsClientConfigPath = "./test/integration/snapshotcloneserver/config/SCSTest_cs_client.conf"; // NOLINT
+const std::string kCsClientConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_cs_client.conf"; // NOLINT
 
-const char* kSnapClientConfigPath = "./test/integration/snapshotcloneserver/config/SCSTest_snap_client.conf";  // NOLINT
+const std::string kSnapClientConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_snap_client.conf";  // NOLINT
 
-const char* kS3ConfigPath = "./test/integration/snapshotcloneserver/config/SCSTest_s3.conf";  // NOLINT
+const std::string kS3ConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_s3.conf";  // NOLINT
 
-const char* kSCSConfigPath = "./test/integration/snapshotcloneserver/config/SCSTest_scs.conf";  // NOLINT
+const std::string kSCSConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_scs.conf";  // NOLINT
 
-const char* kClientConfigPath = "./test/integration/snapshotcloneserver/config/SCSTest_client.conf";  // NOLINT
+const std::string kClientConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_client.conf";  // NOLINT
 
 const std::vector<std::string> mdsConfigOptions {
     std::string("mds.listen.addr=") + kMdsIpPort,
@@ -92,12 +94,12 @@ const std::vector<std::string> s3ConfigOptions {
 
 const std::vector<std::string> chunkserverConf1{
     {" --graceful_quit_on_sigterm"},
-    {" -chunkServerStoreUri=local://./SCSTest1/"},
-    {" -chunkServerMetaUri=local://./SCSTest1/chunkserver.dat"},  // NOLINT
-    {" -copySetUri=local://./SCSTest1/copysets"},
-    {" -recycleUri=local://./SCSTest1/recycler"},
-    {" -chunkFilePoolDir=./SCSTest1/chunkfilepool/"},
-    {" -chunkFilePoolMetaPath=./SCSTest1/chunkfilepool.meta"},  // NOLINT
+    {" -chunkServerStoreUri=local://./" + kTestPrefix + "1/"},
+    {" -chunkServerMetaUri=local://./" + kTestPrefix + "1/chunkserver.dat"},  // NOLINT
+    {" -copySetUri=local://./" + kTestPrefix + "1/copysets"},
+    {" -recycleUri=local://./" + kTestPrefix + "1/recycler"},
+    {" -chunkFilePoolDir=./" + kTestPrefix + "1/chunkfilepool/"},
+    {" -chunkFilePoolMetaPath=./" + kTestPrefix + "1/chunkfilepool.meta"},  // NOLINT
     std::string(" -conf=") + kCSConfigPath,
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
@@ -106,12 +108,12 @@ const std::vector<std::string> chunkserverConf1{
 
 const std::vector<std::string> chunkserverConf2{
     {" --graceful_quit_on_sigterm"},
-    {" -chunkServerStoreUri=local://./SCSTest2/"},
-    {" -chunkServerMetaUri=local://./SCSTest2/chunkserver.dat"},  // NOLINT
-    {" -copySetUri=local://./SCSTest2/copysets"},
-    {" -recycleUri=local://./SCSTest2/recycler"},
-    {" -chunkFilePoolDir=./SCSTest2/chunkfilepool/"},
-    {" -chunkFilePoolMetaPath=./SCSTest2/chunkfilepool.meta"},  // NOLINT
+    {" -chunkServerStoreUri=local://./" + kTestPrefix + "2/"},
+    {" -chunkServerMetaUri=local://./" + kTestPrefix + "2/chunkserver.dat"},  // NOLINT
+    {" -copySetUri=local://./" + kTestPrefix + "2/copysets"},
+    {" -recycleUri=local://./" + kTestPrefix + "2/recycler"},
+    {" -chunkFilePoolDir=./" + kTestPrefix + "2/chunkfilepool/"},
+    {" -chunkFilePoolMetaPath=./" + kTestPrefix + "2/chunkfilepool.meta"},  // NOLINT
     std::string(" -conf=") + kCSConfigPath,
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
@@ -120,12 +122,12 @@ const std::vector<std::string> chunkserverConf2{
 
 const std::vector<std::string> chunkserverConf3{
     {" --graceful_quit_on_sigterm"},
-    {" -chunkServerStoreUri=local://./SCSTest3/"},
-    {" -chunkServerMetaUri=local://./SCSTest3/chunkserver.dat"},  // NOLINT
-    {" -copySetUri=local://./SCSTest3/copysets"},
-    {" -recycleUri=local://./SCSTest3/recycler"},
-    {" -chunkFilePoolDir=./SCSTest3/chunkfilepool/"},
-    {" -chunkFilePoolMetaPath=./SCSTest3/chunkfilepool.meta"},  // NOLINT
+    {" -chunkServerStoreUri=local://./" + kTestPrefix + "3/"},
+    {" -chunkServerMetaUri=local://./" + kTestPrefix + "3/chunkserver.dat"},  // NOLINT
+    {" -copySetUri=local://./" + kTestPrefix + "3/copysets"},
+    {" -recycleUri=local://./" + kTestPrefix + "3/recycler"},
+    {" -chunkFilePoolDir=./" + kTestPrefix + "3/chunkfilepool/"},
+    {" -chunkFilePoolMetaPath=./" + kTestPrefix + "3/chunkfilepool.meta"},  // NOLINT
     std::string(" -conf=") + kCSConfigPath,
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
@@ -186,14 +188,14 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_->mdsRepo_->createDatabase();
         cluster_->mdsRepo_->useDataBase();
         cluster_->mdsRepo_->createAllTables();
-        system("rm -rf SCSTest.etcd");
-        system("rm -rf SCSTest1");
-        system("rm -rf SCSTest2");
-        system("rm -rf SCSTest3");
+        system(std::string("rm -rf " + kTestPrefix + "t.etcd").c_str());
+        system(std::string("rm -rf " + kTestPrefix + "1").c_str());
+        system(std::string("rm -rf " + kTestPrefix + "2").c_str());
+        system(std::string("rm -rf " + kTestPrefix + "3").c_str());
 
         // 启动etcd
         cluster_->StartSingleEtcd(1, kEtcdClientIpPort, kEtcdPeerIpPort,
-        std::vector<std::string>{" --name SCSTest"});
+        std::vector<std::string>{" --name " + kTestPrefix});
 
         cluster_->PrepareConfig<MDSConfigGenerator>(
             kMdsConfigPath,
@@ -212,21 +214,21 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
         threadpool[0] = std::thread(&CurveCluster::FormatChunkFilePool,
             cluster_,
-            "./SCSTest1/chunkfilepool/",
-            "./SCSTest1/chunkfilepool.meta",
-            "./SCSTest1/",
+            "./" + kTestPrefix + "1/chunkfilepool/",
+            "./" + kTestPrefix + "1/chunkfilepool.meta",
+            "./" + kTestPrefix + "1/",
             1);
         threadpool[1] = std::thread(&CurveCluster::FormatChunkFilePool,
             cluster_,
-            "./SCSTest2/chunkfilepool/",
-            "./SCSTest2/chunkfilepool.meta",
-            "./SCSTest2/",
+            "./" + kTestPrefix + "2/chunkfilepool/",
+            "./" + kTestPrefix + "2/chunkfilepool.meta",
+            "./" + kTestPrefix + "2/",
             1);
         threadpool[2] = std::thread(&CurveCluster::FormatChunkFilePool,
             cluster_,
-            "./SCSTest3/chunkfilepool/",
-            "./SCSTest3/chunkfilepool.meta",
-            "./SCSTest3/",
+            "./" + kTestPrefix + "3/chunkfilepool/",
+            "./" + kTestPrefix + "3/chunkfilepool.meta",
+            "./" + kTestPrefix + "3/",
             1);
 
         for (int i = 0; i < 3; i++) {
@@ -396,10 +398,10 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_->mdsRepo_->dropDataBase();
         delete cluster_;
         cluster_ = nullptr;
-        system("rm -rf SCSTest.etcd");
-        system("rm -rf SCSTest1");
-        system("rm -rf SCSTest2");
-        system("rm -rf SCSTest3");
+        system(std::string("rm -rf " + kTestPrefix + "t.etcd").c_str());
+        system(std::string("rm -rf " + kTestPrefix + "1").c_str());
+        system(std::string("rm -rf " + kTestPrefix + "2").c_str());
+        system(std::string("rm -rf " + kTestPrefix + "3").c_str());
     }
 
     void SetUp() {
@@ -614,6 +616,10 @@ TEST_F(SnapshotCloneServerTest, TestSnapLazyClone) {
         &uuid4);
     ASSERT_EQ(kErrCodeFileExist, ret);
 
+    // Flatten
+    ret = Flatten(testUser1_, uuid3);
+    ASSERT_EQ(0, ret);
+
     // 操作5： ItUser1 GetCloneTask
     // 预期5：返回clone1的clone 任务
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid3, true);
@@ -729,6 +735,10 @@ TEST_F(SnapshotCloneServerTest, TestSnapLazyRecover) {
         &uuid1);
     ASSERT_EQ(0, ret);
 
+    // Flatten
+    ret = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret);
+
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
@@ -821,6 +831,10 @@ TEST_F(SnapshotCloneServerTest, TestImageLazyClone) {
     int retCode = GetSnapshotInfo(
         testUser1_, testFile1_, uuid4, &info2);
     ASSERT_EQ(kErrCodeFileNotExist, retCode);
+
+    // Flatten
+    ret = Flatten(testUser1_, uuid2);
+    ASSERT_EQ(0, ret);
 
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid2, true);
     ASSERT_TRUE(success1);

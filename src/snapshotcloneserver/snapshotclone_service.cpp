@@ -29,7 +29,8 @@ void SnapshotCloneServiceImpl::default_method(RpcController* cntl,
     brpc::ClosureGuard done_guard(done);
     brpc::Controller* bcntl =
         static_cast<brpc::Controller*>(cntl);
-    const std::string *action = bcntl->http_request().uri().GetQuery("Action");
+    const std::string *action =
+        bcntl->http_request().uri().GetQuery(kActionStr);
 
     std::string requestId = UUIDGenerator().GenerateUUID();
     if (action == nullptr) {
@@ -44,26 +45,28 @@ void SnapshotCloneServiceImpl::default_method(RpcController* cntl,
                   << ", context = " << bcntl->response_attachment();
         return;
     }
-    if (*action == "CreateSnapshot") {
+    if (*action == kCreateSnapshotAction) {
         HandleCreateSnapshotAction(bcntl, requestId);
-    } else if (*action == "DeleteSnapshot") {
+    } else if (*action == kDeleteSnapshotAction) {
         HandleDeleteSnapshotAction(bcntl, requestId);
-    } else if (*action == "CancelSnapshot") {
+    } else if (*action == kCancelSnapshotAction) {
         HandleCancelSnapshotAction(bcntl, requestId);
-    } else if (*action == "GetFileSnapshotInfo") {
+    } else if (*action == kGetFileSnapshotInfoAction) {
         HandleGetFileSnapshotInfoAction(bcntl, requestId);
-    } else if (*action == "Clone") {
+    } else if (*action == kCloneAction) {
         HandleCloneAction(bcntl, requestId, done);
         done_guard.release();
         return;
-    } else if (*action == "Recover") {
+    } else if (*action == kRecoverAction) {
         HandleRecoverAction(bcntl, requestId, done);
         done_guard.release();
         return;
-    } else if (*action == "GetCloneTasks") {
+    } else if (*action == kGetCloneTasksAction) {
         HandleGetCloneTasksAction(bcntl, requestId);
-    } else if (*action == "CleanCloneTask") {
+    } else if (*action == kCleanCloneTaskAction) {
         HandleCleanCloneTaskAction(bcntl, requestId);
+    } else if (*action == kFlattenAction) {
+        HandleFlattenAction(bcntl, requestId);
     } else {
         bcntl->http_response().set_status_code(brpc::HTTP_STATUS_BAD_REQUEST);
         butil::IOBufBuilder os;
@@ -84,13 +87,13 @@ void SnapshotCloneServiceImpl::HandleCreateSnapshotAction(
     brpc::Controller* bcntl,
     const std::string &requestId) {
     const std::string *version =
-        bcntl->http_request().uri().GetQuery("Version");
+        bcntl->http_request().uri().GetQuery(kVersionStr);
     const std::string *user =
-        bcntl->http_request().uri().GetQuery("User");
+        bcntl->http_request().uri().GetQuery(kUserStr);
     const std::string *file =
-        bcntl->http_request().uri().GetQuery("File");
+        bcntl->http_request().uri().GetQuery(kFileStr);
     const std::string *name =
-        bcntl->http_request().uri().GetQuery("Name");
+        bcntl->http_request().uri().GetQuery(kNameStr);
     if ((version == nullptr) ||
         (user == nullptr) ||
         (file == nullptr) ||
@@ -130,10 +133,10 @@ void SnapshotCloneServiceImpl::HandleCreateSnapshotAction(
     bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
     butil::IOBufBuilder os;
     Json::Value mainObj;
-    mainObj["Code"] = std::to_string(kErrCodeSuccess);
-    mainObj["Message"] = code2Msg[kErrCodeSuccess];
-    mainObj["RequestId"] = requestId;
-    mainObj["UUID"] = uuid;
+    mainObj[kCodeStr] = std::to_string(kErrCodeSuccess);
+    mainObj[kMessageStr] = code2Msg[kErrCodeSuccess];
+    mainObj[kRequestIdStr] = requestId;
+    mainObj[kUUIDStr] = uuid;
     os << mainObj.toStyledString();
     os.move_to(bcntl->response_attachment());
     return;
@@ -143,13 +146,13 @@ void SnapshotCloneServiceImpl::HandleDeleteSnapshotAction(
     brpc::Controller* bcntl,
     const std::string &requestId) {
     const std::string *version =
-        bcntl->http_request().uri().GetQuery("Version");
+        bcntl->http_request().uri().GetQuery(kVersionStr);
     const std::string *user =
-        bcntl->http_request().uri().GetQuery("User");
+        bcntl->http_request().uri().GetQuery(kUserStr);
     const std::string *uuid =
-        bcntl->http_request().uri().GetQuery("UUID");
+        bcntl->http_request().uri().GetQuery(kUUIDStr);
     const std::string *file =
-        bcntl->http_request().uri().GetQuery("File");
+        bcntl->http_request().uri().GetQuery(kFileStr);
     if ((version == nullptr) ||
         (user == nullptr) ||
         (uuid == nullptr) ||
@@ -191,9 +194,9 @@ void SnapshotCloneServiceImpl::HandleDeleteSnapshotAction(
     bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
     butil::IOBufBuilder os;
     Json::Value mainObj;
-    mainObj["Code"] = std::to_string(kErrCodeSuccess);
-    mainObj["Message"] = code2Msg[kErrCodeSuccess];
-    mainObj["RequestId"] = requestId;
+    mainObj[kCodeStr] = std::to_string(kErrCodeSuccess);
+    mainObj[kMessageStr] = code2Msg[kErrCodeSuccess];
+    mainObj[kRequestIdStr] = requestId;
     os << mainObj.toStyledString();
     os.move_to(bcntl->response_attachment());
     return;
@@ -203,13 +206,13 @@ void SnapshotCloneServiceImpl::HandleCancelSnapshotAction(
     brpc::Controller* bcntl,
     const std::string &requestId) {
     const std::string *version =
-        bcntl->http_request().uri().GetQuery("Version");
+        bcntl->http_request().uri().GetQuery(kVersionStr);
     const std::string *user =
-        bcntl->http_request().uri().GetQuery("User");
+        bcntl->http_request().uri().GetQuery(kUserStr);
     const std::string *uuid =
-        bcntl->http_request().uri().GetQuery("UUID");
+        bcntl->http_request().uri().GetQuery(kUUIDStr);
     const std::string *file =
-        bcntl->http_request().uri().GetQuery("File");
+        bcntl->http_request().uri().GetQuery(kFileStr);
     if ((version == nullptr) ||
         (user == nullptr) ||
         (uuid == nullptr) ||
@@ -247,9 +250,9 @@ void SnapshotCloneServiceImpl::HandleCancelSnapshotAction(
     bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
     butil::IOBufBuilder os;
     Json::Value mainObj;
-    mainObj["Code"] = std::to_string(kErrCodeSuccess);
-    mainObj["Message"] = code2Msg[kErrCodeSuccess];
-    mainObj["RequestId"] = requestId;
+    mainObj[kCodeStr] = std::to_string(kErrCodeSuccess);
+    mainObj[kMessageStr] = code2Msg[kErrCodeSuccess];
+    mainObj[kRequestIdStr] = requestId;
     os << mainObj.toStyledString();
     os.move_to(bcntl->response_attachment());
     return;
@@ -259,17 +262,17 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotInfoAction(
     brpc::Controller* bcntl,
     const std::string &requestId) {
     const std::string *version =
-        bcntl->http_request().uri().GetQuery("Version");
+        bcntl->http_request().uri().GetQuery(kVersionStr);
     const std::string *user =
-        bcntl->http_request().uri().GetQuery("User");
+        bcntl->http_request().uri().GetQuery(kUserStr);
     const std::string *file =
-        bcntl->http_request().uri().GetQuery("File");
+        bcntl->http_request().uri().GetQuery(kFileStr);
     const std::string *limit =
-        bcntl->http_request().uri().GetQuery("Limit");
+        bcntl->http_request().uri().GetQuery(kLimitStr);
     const std::string *offset =
-        bcntl->http_request().uri().GetQuery("Offset");
+        bcntl->http_request().uri().GetQuery(kOffsetStr);
     const std::string *uuid =
-        bcntl->http_request().uri().GetQuery("UUID");
+        bcntl->http_request().uri().GetQuery(kUUIDStr);
     if ((version == nullptr) ||
         (user == nullptr) ||
         (version->empty()) ||
@@ -353,10 +356,10 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotInfoAction(
     bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
     butil::IOBufBuilder os;
     Json::Value mainObj;
-    mainObj["Code"] = std::to_string(kErrCodeSuccess);
-    mainObj["Message"] = code2Msg[kErrCodeSuccess];
-    mainObj["RequestId"] = requestId;
-    mainObj["TotalCount"] = info.size();
+    mainObj[kCodeStr] = std::to_string(kErrCodeSuccess);
+    mainObj[kMessageStr] = code2Msg[kErrCodeSuccess];
+    mainObj[kRequestIdStr] = requestId;
+    mainObj[kTotalCountStr] = info.size();
     Json::Value listSnapObj;
     for (std::vector<FileSnapshotInfo>::size_type i = offsetNum;
         i < info.size() && i < limitNum;
@@ -364,7 +367,7 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotInfoAction(
         Json::Value fileSnapObj = info[i].ToJsonObj();
         listSnapObj.append(fileSnapObj);
     }
-    mainObj["Snapshots"] = listSnapObj;
+    mainObj[kSnapshotsStr] = listSnapObj;
     os << mainObj.toStyledString();
     os.move_to(bcntl->response_attachment());
     return;
@@ -376,15 +379,15 @@ void SnapshotCloneServiceImpl::HandleCloneAction(
     Closure* done) {
     brpc::ClosureGuard done_guard(done);
     const std::string *version =
-        bcntl->http_request().uri().GetQuery("Version");
+        bcntl->http_request().uri().GetQuery(kVersionStr);
     const std::string *user =
-        bcntl->http_request().uri().GetQuery("User");
+        bcntl->http_request().uri().GetQuery(kUserStr);
     const std::string *source =
-        bcntl->http_request().uri().GetQuery("Source");
+        bcntl->http_request().uri().GetQuery(kSourceStr);
     const std::string *destination =
-        bcntl->http_request().uri().GetQuery("Destination");
+        bcntl->http_request().uri().GetQuery(kDestinationStr);
     const std::string *lazy =
-        bcntl->http_request().uri().GetQuery("Lazy");
+        bcntl->http_request().uri().GetQuery(kLazyStr);
     if ((version == nullptr) ||
         (user == nullptr) ||
         (source == nullptr) ||
@@ -448,15 +451,15 @@ void SnapshotCloneServiceImpl::HandleRecoverAction(
     Closure* done) {
     brpc::ClosureGuard done_guard(done);
     const std::string *version =
-        bcntl->http_request().uri().GetQuery("Version");
+        bcntl->http_request().uri().GetQuery(kVersionStr);
     const std::string *user =
-        bcntl->http_request().uri().GetQuery("User");
+        bcntl->http_request().uri().GetQuery(kUserStr);
     const std::string *source =
-        bcntl->http_request().uri().GetQuery("Source");
+        bcntl->http_request().uri().GetQuery(kSourceStr);
     const std::string *destination =
-        bcntl->http_request().uri().GetQuery("Destination");
+        bcntl->http_request().uri().GetQuery(kDestinationStr);
     const std::string *lazy =
-        bcntl->http_request().uri().GetQuery("Lazy");
+        bcntl->http_request().uri().GetQuery(kLazyStr);
     if ((version == nullptr) ||
         (user == nullptr) ||
         (source == nullptr) ||
@@ -513,21 +516,76 @@ void SnapshotCloneServiceImpl::HandleRecoverAction(
     return;
 }
 
+void SnapshotCloneServiceImpl::HandleFlattenAction(
+    brpc::Controller* bcntl,
+    const std::string &requestId) {
+    const std::string *version =
+        bcntl->http_request().uri().GetQuery(kVersionStr);
+    const std::string *user =
+        bcntl->http_request().uri().GetQuery(kUserStr);
+    const std::string *taskId =
+        bcntl->http_request().uri().GetQuery(kUUIDStr);
+    if ((version == nullptr) ||
+        (user == nullptr) ||
+        (taskId == nullptr) ||
+        (version->empty()) ||
+        (user->empty()) ||
+        (taskId->empty())) {
+        bcntl->http_response().set_status_code(
+            brpc::HTTP_STATUS_BAD_REQUEST);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
+        LOG(INFO) << "SnapshotCloneServiceImpl Return : "
+                  << "action = Flatten"
+                  << ", requestId = " << requestId
+                  << ", context = " << bcntl->response_attachment();
+        return;
+    }
+    LOG(INFO) << "Flatten:"
+              << " Version = " << *version
+              << ", User = " << *user
+              << ", UUID = " << *taskId
+              << ", requestId = " << requestId;
+    int ret = cloneManager_->Flatten(*user, *taskId);
+    if (ret < 0) {
+        bcntl->http_response().set_status_code(
+            brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(ret,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
+        return;
+    }
+    bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
+    butil::IOBufBuilder os;
+    Json::Value mainObj;
+    mainObj[kCodeStr] = std::to_string(kErrCodeSuccess);
+    mainObj[kMessageStr] = code2Msg[kErrCodeSuccess];
+    mainObj[kRequestIdStr] = requestId;
+    os << mainObj.toStyledString();
+    os.move_to(bcntl->response_attachment());
+    return;
+}
+
 void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
     brpc::Controller* bcntl,
     const std::string &requestId) {
     const std::string *version =
-        bcntl->http_request().uri().GetQuery("Version");
+        bcntl->http_request().uri().GetQuery(kVersionStr);
     const std::string *user =
-        bcntl->http_request().uri().GetQuery("User");
+        bcntl->http_request().uri().GetQuery(kUserStr);
     const std::string *limit =
-        bcntl->http_request().uri().GetQuery("Limit");
+        bcntl->http_request().uri().GetQuery(kLimitStr);
     const std::string *offset =
-        bcntl->http_request().uri().GetQuery("Offset");
+        bcntl->http_request().uri().GetQuery(kOffsetStr);
     const std::string *uuid =
-        bcntl->http_request().uri().GetQuery("UUID");
+        bcntl->http_request().uri().GetQuery(kUUIDStr);
     const std::string *file =
-        bcntl->http_request().uri().GetQuery("File");
+        bcntl->http_request().uri().GetQuery(kFileStr);
     if ((version == nullptr) ||
         (user == nullptr) ||
         (version->empty()) ||
@@ -614,10 +672,10 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
     bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
     butil::IOBufBuilder os;
     Json::Value mainObj;
-    mainObj["Code"] = std::to_string(kErrCodeSuccess);
-    mainObj["Message"] = code2Msg[kErrCodeSuccess];
-    mainObj["RequestId"] = requestId;
-    mainObj["TotalCount"] = cloneTaskInfos.size();
+    mainObj[kCodeStr] = std::to_string(kErrCodeSuccess);
+    mainObj[kMessageStr] = code2Msg[kErrCodeSuccess];
+    mainObj[kRequestIdStr] = requestId;
+    mainObj[kTotalCountStr] = cloneTaskInfos.size();
     Json::Value listObj;
     for (std::vector<TaskCloneInfo>::size_type i = offsetNum;
         i < cloneTaskInfos.size() && i < limitNum;
@@ -625,7 +683,7 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
         Json::Value cloneTaskObj = cloneTaskInfos[i].ToJsonObj();
         listObj.append(cloneTaskObj);
     }
-    mainObj["TaskInfos"] = listObj;
+    mainObj[kTaskInfosStr] = listObj;
 
     os << mainObj.toStyledString();
     os.move_to(bcntl->response_attachment());
@@ -654,11 +712,11 @@ void SnapshotCloneServiceImpl::HandleCleanCloneTaskAction(
     brpc::Controller* bcntl,
     const std::string &requestId) {
     const std::string *version =
-        bcntl->http_request().uri().GetQuery("Version");
+        bcntl->http_request().uri().GetQuery(kVersionStr);
     const std::string *user =
-        bcntl->http_request().uri().GetQuery("User");
+        bcntl->http_request().uri().GetQuery(kUserStr);
     const std::string *taskId =
-        bcntl->http_request().uri().GetQuery("UUID");
+        bcntl->http_request().uri().GetQuery(kUUIDStr);
     if ((version == nullptr) ||
         (user == nullptr) ||
         (taskId == nullptr) ||
@@ -696,9 +754,9 @@ void SnapshotCloneServiceImpl::HandleCleanCloneTaskAction(
     bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
     butil::IOBufBuilder os;
     Json::Value mainObj;
-    mainObj["Code"] = std::to_string(kErrCodeSuccess);
-    mainObj["Message"] = code2Msg[kErrCodeSuccess];
-    mainObj["RequestId"] = requestId;
+    mainObj[kCodeStr] = std::to_string(kErrCodeSuccess);
+    mainObj[kMessageStr] = code2Msg[kErrCodeSuccess];
+    mainObj[kRequestIdStr] = requestId;
     os << mainObj.toStyledString();
     os.move_to(bcntl->response_attachment());
     return;
