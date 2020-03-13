@@ -30,7 +30,7 @@ class MockEtcdClient : public EtcdClientImp {
         const std::string&));
     MOCK_METHOD5(CampaignLeader, int(const std::string&, const std::string&,
         uint32_t, uint32_t, uint64_t*));
-    MOCK_METHOD3(LeaderObserve, int(uint64_t, uint64_t, const std::string&));
+    MOCK_METHOD2(LeaderObserve, int(uint64_t, const std::string&));
     MOCK_METHOD2(LeaderKeyExist, bool(uint64_t, uint64_t));
     MOCK_METHOD2(LeaderResign, int(uint64_t, uint64_t));
     MOCK_METHOD1(GetCurrentRevision, int(int64_t *));
