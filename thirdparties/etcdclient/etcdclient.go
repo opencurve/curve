@@ -138,7 +138,7 @@ func GetErrCode(op string, err error) C.enum_EtcdErrCode {
 
     switch errCode {
     case codes.OK:
-        return C.OK
+        return C.EtcdOK
     case codes.Canceled:
         return C.Canceled
     case codes.Unknown:
@@ -235,7 +235,7 @@ func EtcdClientGet(timeout C.int, key *C.char,
 
     resp, err := globalClient.Get(ctx, goKey)
     errCode := GetErrCode(EtcdGet, err)
-    if errCode != C.OK {
+    if errCode != C.EtcdOK {
         return errCode, nil, 0, 0
     }
 
@@ -273,7 +273,7 @@ func EtcdClientList(timeout C.int, startKey, endKey *C.char,
     }
 
     errCode := GetErrCode(EtcdList, err)
-    if errCode != C.OK {
+    if errCode != C.EtcdOK {
         return errCode, 0, 0
     }
     return  errCode, AddManagedObject(resp.Kvs), resp.Count
@@ -304,7 +304,7 @@ func EtcdClientListWithLimitAndRevision(timeout C.uint, startKey, endKey *C.char
 
     resp, err = globalClient.Get(ctx, goStartKey, ops...)
     errCode := GetErrCode(EtcdList, err)
-    if errCode != C.OK {
+    if errCode != C.EtcdOK {
         return errCode, 0, 0, 0
     }
     return errCode, AddManagedObject(resp.Kvs), len(resp.Kvs), resp.Header.Revision
@@ -548,7 +548,7 @@ func EtcdClientGetSingleObject(
         log.Printf("can not get object: %v", oid)
         return C.ObjectNotExist, nil, 0
     } else if res, ok := value.([]*mvccpb.KeyValue); ok {
-        return C.OK, C.CString(string(res[0].Value)), len(res[0].Value)
+        return C.EtcdOK, C.CString(string(res[0].Value)), len(res[0].Value)
     } else {
         log.Printf("object type err")
         return C.ErrObjectType, nil, 0
@@ -564,7 +564,7 @@ func EtcdClientGetMultiObject(
         if serial >= len(res) {
             return C.ObjectLenNotEnough, nil, 0, nil, 0
         }
-        return C.OK,
+        return C.EtcdOK,
             C.CString(string(res[serial].Value)),
             len(res[serial].Value),
             C.CString(string(res[serial].Key)),

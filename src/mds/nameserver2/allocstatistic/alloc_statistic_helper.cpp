@@ -23,7 +23,7 @@ int AllocStatisticHelper::GetExistSegmentAllocValues(
     std::vector<std::string> allocVec;
     int res = client->List(
         SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND, &allocVec);
-    if (res != EtcdErrCode::OK) {
+    if (res != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "list [" << SEGMENTALLOCSIZEKEY << ","
                    << SEGMENTALLOCSIZEKEYEND << ") fail, errorCode: "
                    << res;
@@ -63,7 +63,7 @@ int AllocStatisticHelper::CalculateSegmentAlloc(
         // 从etcd中批量获取segment
         int res = client->ListWithLimitAndRevision(
            startKey, SEGMENTINFOKEYEND, GETBUNDLE, revision, &values, &lastKey);
-        if (res != EtcdErrCode::OK) {
+        if (res != EtcdErrCode::EtcdOK) {
             LOG(ERROR) << "list [" << startKey << "," << SEGMENTINFOKEYEND
                        << ") at revision: " << revision
                        << " with bundle: " << GETBUNDLE

@@ -104,7 +104,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
         std::string encodeKey =
             NameSpaceStorageCodec::EncodeFileStoreKey(i << 8, filename);
         if (i <= 9) {
-            ASSERT_EQ(EtcdErrCode::OK,
+            ASSERT_EQ(EtcdErrCode::EtcdOK,
                 client_->Put(encodeKey, encodeFileInfo));
             keyMap[i] = encodeKey;
             fileName[i] = filename;
@@ -147,7 +147,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     for (int i = 0; i < keyMap.size(); i++) {
         std::string out;
         int errCode = client_->Get(keyMap[i], &out);
-        ASSERT_EQ(EtcdErrCode::OK, errCode);
+        ASSERT_EQ(EtcdErrCode::EtcdOK, errCode);
         FileInfo fileinfo;
         ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
         ASSERT_EQ(fileName[i], fileinfo.filename());
@@ -156,7 +156,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     // 3. list file, 可以list到file0~file9
     std::vector<std::string> listRes;
     int errCode = client_->List("01", "02", &listRes);
-    ASSERT_EQ(EtcdErrCode::OK, errCode);
+    ASSERT_EQ(EtcdErrCode::EtcdOK, errCode);
     ASSERT_EQ(keyMap.size(), listRes.size());
     for (int i = 0; i < listRes.size(); i++) {
         FileInfo finfo;
@@ -166,7 +166,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
 
     // 4. delete file, 删除file0~file4，这部分文件不能再获取到
     for (int i = 0; i < keyMap.size()/2; i++) {
-        ASSERT_EQ(EtcdErrCode::OK, client_->Delete(keyMap[i]));
+        ASSERT_EQ(EtcdErrCode::EtcdOK, client_->Delete(keyMap[i]));
         // can not get delete file
         std::string out;
         ASSERT_EQ(
@@ -185,13 +185,13 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
         const_cast<char*>(fileInfo10.c_str()),
         fileKey10.size(), fileInfo10.size()};
     std::vector<Operation> ops{op1, op2};
-    ASSERT_EQ(EtcdErrCode::OK, client_->TxnN(ops));
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->TxnN(ops));
     // cannot get file9
     std::string out;
     ASSERT_EQ(EtcdErrCode::KeyNotExist,
         client_->Get(keyMap[9], &out));
     // get file10 ok
-    ASSERT_EQ(EtcdErrCode::OK, client_->Get(fileKey10, &out));
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->Get(fileKey10, &out));
     FileInfo fileinfo;
     ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
     ASSERT_EQ(fileName10, fileinfo.filename());
@@ -210,30 +210,30 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     ops.clear();
     ops.emplace_back(op3);
     ops.emplace_back(op4);
-    ASSERT_EQ(EtcdErrCode::OK, client_->TxnN(ops));
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->TxnN(ops));
     // get file6
-    ASSERT_EQ(EtcdErrCode::OK, client_->Get(keyMap[6], &out));
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->Get(keyMap[6], &out));
     ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
     ASSERT_EQ(2, fileinfo.seqnum());
     ASSERT_EQ(fileName[6], fileinfo.filename());
     // get snapshot6
-    ASSERT_EQ(EtcdErrCode::OK, client_->Get(snapshotKey6, &out));
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->Get(snapshotKey6, &out));
     ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
     ASSERT_EQ(1, fileinfo.seqnum());
     ASSERT_EQ(snapshotName6, fileinfo.filename());
     // list snapshotfile
-    ASSERT_EQ(EtcdErrCode::OK, client_->List("03", "04", &listRes));
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->List("03", "04", &listRes));
     ASSERT_EQ(1, listRes.size());
 
     // 7. test CompareAndSwap
-    ASSERT_EQ(EtcdErrCode::OK,
+    ASSERT_EQ(EtcdErrCode::EtcdOK,
         client_->CompareAndSwap("04", "", "100"));
-    ASSERT_EQ(EtcdErrCode::OK, client_->Get("04", &out));
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->Get("04", &out));
     ASSERT_EQ("100", out);
 
-    ASSERT_EQ(EtcdErrCode::OK,
+    ASSERT_EQ(EtcdErrCode::EtcdOK,
         client_->CompareAndSwap("04", "100", "200"));
-    ASSERT_EQ(EtcdErrCode::OK, client_->Get("04", &out));
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->Get("04", &out));
     ASSERT_EQ("200", out);
 
     // 8. rename file: rename file7 ~ file8
@@ -258,12 +258,12 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     ops.clear();
     ops.emplace_back(op8);
     ops.emplace_back(op9);
-    ASSERT_EQ(EtcdErrCode::OK, client_->TxnN(ops));
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->TxnN(ops));
     // 不能获取 file7
     ASSERT_EQ(EtcdErrCode::KeyNotExist,
         client_->Get(keyMap[7], &out));
     // 成功获取rename以后的file7
-    ASSERT_EQ(EtcdErrCode::OK, client_->Get(keyMap[8], &out));
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->Get(keyMap[8], &out));
     ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
     ASSERT_EQ(newFileInfo7.filename(), fileinfo.filename());
     ASSERT_EQ(newFileInfo7.filetype(), fileinfo.filetype());
@@ -298,7 +298,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     client_->CloseClient();
     ASSERT_EQ(EtcdErrCode::Canceled, client_->Put(fileKey10, fileInfo10));
     ASSERT_FALSE(
-        EtcdErrCode::OK == client_->CompareAndSwap("04", "300", "400"));
+        EtcdErrCode::EtcdOK == client_->CompareAndSwap("04", "300", "400"));
 }
 
 TEST_F(TestEtcdClinetImp, test_ListWithLimitAndRevision) {
@@ -307,20 +307,20 @@ TEST_F(TestEtcdClinetImp, test_ListWithLimitAndRevision) {
     for (int i = 1; i <= 9; i += 2) {
         std::string key = std::string("01") + std::to_string(i);
         std::string value = std::string("test") + std::to_string(i);
-        ASSERT_EQ(EtcdErrCode::OK, client_->Put(key, value));
+        ASSERT_EQ(EtcdErrCode::EtcdOK, client_->Put(key, value));
     }
 
     // "012" "014" "016" "018"
     for (int i = 2; i <= 9; i += 2) {
         std::string key = std::string("01") + std::to_string(i);
         std::string value = std::string("test") + std::to_string(i);
-        ASSERT_EQ(EtcdErrCode::OK, client_->Put(key, value));
+        ASSERT_EQ(EtcdErrCode::EtcdOK, client_->Put(key, value));
     }
 
     // 获取当前revision
     // 通过GetCurrentRevision获取
     int64_t curRevision;
-    ASSERT_EQ(EtcdErrCode::OK, client_->GetCurrentRevision(&curRevision));
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->GetCurrentRevision(&curRevision));
     LOG(INFO) << "get current revision: " << curRevision;
 
     // 根据当前revision获取前5个key-value
@@ -328,7 +328,7 @@ TEST_F(TestEtcdClinetImp, test_ListWithLimitAndRevision) {
     std::string lastKey;
     int res = client_->ListWithLimitAndRevision(
         "01", "", 5, curRevision, &out, &lastKey);
-    ASSERT_EQ(EtcdErrCode::OK, res);
+    ASSERT_EQ(EtcdErrCode::EtcdOK, res);
     ASSERT_EQ(5, out.size());
     ASSERT_EQ("015", lastKey);
     for (int i = 1; i <= 5; i++) {
@@ -341,7 +341,7 @@ TEST_F(TestEtcdClinetImp, test_ListWithLimitAndRevision) {
     res = client_->ListWithLimitAndRevision(
         lastKey, "", 5, curRevision, &out, &lastKey);
     ASSERT_EQ(5, out.size());
-    ASSERT_EQ(EtcdErrCode::OK, res);
+    ASSERT_EQ(EtcdErrCode::EtcdOK, res);
     ASSERT_EQ("019", lastKey);
     for (int i = 5; i <= 9; i++) {
         std::string value = std::string("test") + std::to_string(i);
@@ -352,15 +352,15 @@ TEST_F(TestEtcdClinetImp, test_ListWithLimitAndRevision) {
 TEST_F(TestEtcdClinetImp, test_return_with_revision) {
     int64_t startRevision;
     int res = client_->GetCurrentRevision(&startRevision);
-    ASSERT_EQ(EtcdErrCode::OK, res);
+    ASSERT_EQ(EtcdErrCode::EtcdOK, res);
 
     int64_t revision;
     res = client_->PutRewithRevision("hello", "everyOne", &revision);
-    ASSERT_EQ(EtcdErrCode::OK, res);
+    ASSERT_EQ(EtcdErrCode::EtcdOK, res);
     ASSERT_EQ(startRevision + 1, revision);
 
     res = client_->DeleteRewithRevision("hello", &revision);
-    ASSERT_EQ(EtcdErrCode::OK, res);
+    ASSERT_EQ(EtcdErrCode::EtcdOK, res);
     ASSERT_EQ(startRevision + 2, revision);
 }
 
@@ -484,7 +484,7 @@ TEST_F(TestEtcdClinetImp, test_ListSegment) {
         }
         std::string encodeSegment;
         ASSERT_TRUE(segment.SerializeToString(&encodeSegment));
-        ASSERT_EQ(EtcdErrCode::OK, client_->Put(key, encodeSegment));
+        ASSERT_EQ(EtcdErrCode::EtcdOK, client_->Put(key, encodeSegment));
         LOG(INFO) << "offset: " << offset;
         LOG(INFO) << segment.startoffset();
     }
@@ -495,7 +495,7 @@ TEST_F(TestEtcdClinetImp, test_ListSegment) {
     std::string endKey =
                 NameSpaceStorageCodec::EncodeSegmentStoreKey(id1 + 1, 0);
     std::vector<std::string> out;
-    ASSERT_EQ(EtcdErrCode::OK, client_->List(startKey, endKey, &out));
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->List(startKey, endKey, &out));
     ASSERT_EQ(3, out.size());
     for (int i = 0; i < out.size(); i++) {
         PageFileSegment segment2;
@@ -507,7 +507,7 @@ TEST_F(TestEtcdClinetImp, test_ListSegment) {
     startKey = NameSpaceStorageCodec::EncodeSegmentStoreKey(id2, 0);
     endKey = NameSpaceStorageCodec::EncodeSegmentStoreKey(id2 + 1, 0);
     out.clear();
-    ASSERT_EQ(EtcdErrCode::OK, client_->List(startKey, endKey, &out));
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->List(startKey, endKey, &out));
     ASSERT_EQ(4, out.size());
     for (int i = 0; i < out.size(); i++) {
         PageFileSegment segment2;

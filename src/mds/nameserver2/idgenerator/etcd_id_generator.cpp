@@ -31,7 +31,7 @@ bool EtcdIdGenerator::AllocateBundleIds(int requiredNum) {
     uint64_t alloc;
     int errCode = client_->Get(storeKey_, &out);
     // 获取失败
-    if (EtcdErrCode::OK != errCode && EtcdErrCode::KeyNotExist != errCode) {
+    if (EtcdErrCode::EtcdOK != errCode && EtcdErrCode::KeyNotExist != errCode) {
         LOG(ERROR) << "get store key: " << storeKey_
                    << " err, errCode: " << errCode;
         return false;
@@ -47,7 +47,7 @@ bool EtcdIdGenerator::AllocateBundleIds(int requiredNum) {
     uint64_t target = alloc + requiredNum;
     errCode = client_->CompareAndSwap(storeKey_, out,
         NameSpaceStorageCodec::EncodeID(target));
-    if (EtcdErrCode::OK != errCode) {
+    if (EtcdErrCode::EtcdOK != errCode) {
         LOG(ERROR) << "do CAS {preV: " << out << ", target: " << target
                    << "err, errCode: " << errCode;
         return false;
