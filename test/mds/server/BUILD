@@ -8,7 +8,7 @@ cc_binary(
     deps = [
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
-        "//src/mds/server:mds",
+        "//src/mds/server:mds_for_test",
     ],
     linkopts = ["-lfiu"],
 )
