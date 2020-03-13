@@ -325,6 +325,32 @@ class CopysetCheckCore {
     void UpdatePeerNotOnlineCopysets(const std::string& csAddr);
 
     /**
+    * @brief 以mds中的copyset配置组为参照，检查chunkserver是否在copyset的配置组中
+    *
+    * @param csAddr chunkserver的地址
+    * @param copysets copyset列表
+    * @param[out] result 检查结果，copyset到存在与否的映射
+    *
+    * @return 包含返回true，否则返回false
+    */
+    int CheckIfChunkServerInCopysets(const std::string& csAddr,
+                                     const std::set<std::string> copysets,
+                                     std::map<std::string, bool>* result);
+
+    /**
+    * @brief 检查没有leader的copyset是否健康
+    *
+    * @param csAddr chunkserver 地址
+    * @param copysetsPeers copyset的groupId到peers的映射
+    *
+    * @return 健康返回true，不健康返回false
+    */
+    bool CheckCopysetsNoLeader(const std::string& csAddr,
+                            const std::map<std::string,
+                                           std::vector<std::string>>&
+                                                copysetsPeers);
+
+    /**
     * @brief 清空统计信息
     *
     * @return 无
