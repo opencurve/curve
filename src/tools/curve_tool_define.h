@@ -10,6 +10,12 @@
 
 #include <string>
 
+DECLARE_string(mdsAddr);
+DECLARE_string(mdsDummyPort);
+DECLARE_string(etcdAddr);
+DECLARE_uint64(rpcTimeout);
+DECLARE_uint64(rpcRetryTimes);
+
 namespace curve {
 namespace tool {
 // StatusTool相关命令
