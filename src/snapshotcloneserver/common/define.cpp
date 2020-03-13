@@ -12,6 +12,37 @@
 namespace curve {
 namespace snapshotcloneserver {
 
+// 字符串常量定义
+const char* kServiceName = "SnapshotCloneService";
+const char* kCreateSnapshotAction = "CreateSnapshot";
+const char* kDeleteSnapshotAction = "DeleteSnapshot";
+const char* kCancelSnapshotAction = "CancelSnapshot";
+const char* kGetFileSnapshotInfoAction = "GetFileSnapshotInfo";
+const char* kCloneAction = "Clone";
+const char* kRecoverAction = "Recover";
+const char* kGetCloneTasksAction = "GetCloneTasks";
+const char* kCleanCloneTaskAction = "CleanCloneTask";
+const char* kFlattenAction = "Flatten";
+
+const char* kActionStr = "Action";
+const char* kVersionStr = "Version";
+const char* kUserStr = "User";
+const char* kFileStr = "File";
+const char* kNameStr = "Name";
+const char* kUUIDStr = "UUID";
+const char* kLimitStr = "Limit";
+const char* kOffsetStr = "Offset";
+const char* kSourceStr = "Source";
+const char* kDestinationStr = "Destination";
+const char* kLazyStr = "Lazy";
+
+const char* kCodeStr = "Code";
+const char* kMessageStr = "Message";
+const char* kRequestIdStr = "RequestId";
+const char* kTotalCountStr = "TotalCount";
+const char* kSnapshotsStr = "Snapshots";
+const char* kTaskInfosStr = "TaskInfos";
+
 std::map<int, std::string> code2Msg = {
     {kErrCodeSuccess, "Exec success."},
     {kErrCodeInternalError, "Internal error."},
@@ -41,10 +72,10 @@ std::string BuildErrorMessage(
     const std::string &requestId,
     const std::string &uuid) {
     Json::Value mainObj;
-    mainObj["Code"] = std::to_string(errCode);
-    mainObj["Message"] = code2Msg[errCode];
-    mainObj["RequestId"] = requestId;
-    mainObj["UUID"] = uuid;
+    mainObj[kCodeStr] = std::to_string(errCode);
+    mainObj[kMessageStr] = code2Msg[errCode];
+    mainObj[kRequestIdStr] = requestId;
+    mainObj[kUUIDStr] = uuid;
     return mainObj.toStyledString();
 }
 

@@ -177,12 +177,48 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     return kErrCodeSuccess;
 }
 
-constexpr uint32_t kProgressCreateCloneFile = 1;
-constexpr uint32_t kProgressCreateCloneMeta = 2;
-constexpr uint32_t kProgressCreateCloneChunk = 5;
-constexpr uint32_t kProgressRecoverChunkBegin = kProgressCreateCloneChunk;
-constexpr uint32_t kProgressRecoverChunkEnd = 95;
-constexpr uint32_t kProgressCloneComplete = 100;
+int CloneCoreImpl::FlattenPre(
+    const std::string &user,
+    const TaskIdType &taskId,
+    CloneInfo *cloneInfo) {
+    int ret = metaStore_->GetCloneInfo(taskId, cloneInfo);
+    if (ret < 0) {
+        return kErrCodeFileNotExist;
+    }
+    switch (cloneInfo->GetStatus()) {
+        case CloneStatus::done:
+        case CloneStatus::cloning:
+        case CloneStatus::recovering: {
+            // 已经完成的或正在进行中返回task exist, 表示不需要处理
+            return kErrCodeTaskExist;
+        }
+        case CloneStatus::metaInstalled: {
+            if (CloneTaskType::kClone == cloneInfo->GetTaskType()) {
+                cloneInfo->SetStatus(CloneStatus::cloning);
+            } else {
+                cloneInfo->SetStatus(CloneStatus::recovering);
+            }
+            break;
+        }
+        case CloneStatus::cleaning:
+        case CloneStatus::errorCleaning:
+        case CloneStatus::error:
+        default: {
+            LOG(ERROR) << "FlattenPre find clone task status Invalid"
+                       << ", status = "
+                       << static_cast<int>(cloneInfo->GetStatus());
+            return kErrCodeFileStatusInvalid;
+        }
+    }
+    ret = metaStore_->UpdateCloneInfo(*cloneInfo);
+    if (ret < 0) {
+        LOG(ERROR) << "UpdateCloneInfo fail"
+                   << ", ret = " << ret
+                   << ", taskId = " << cloneInfo->GetTaskId();
+        return ret;
+    }
+    return kErrCodeSuccess;
+}
 
 void CloneCoreImpl::HandleCloneOrRecoverTask(
     std::shared_ptr<CloneTaskInfo> task) {
@@ -245,7 +281,6 @@ void CloneCoreImpl::HandleCloneOrRecoverTask(
                     HandleCloneError(task, ret);
                     return;
                 }
-                task->SetProgress(kProgressCreateCloneChunk);
                 break;
             case CloneStep::kCompleteCloneMeta:
                 ret = CompleteCloneMeta(task, newFileInfo, segInfos);
@@ -253,6 +288,7 @@ void CloneCoreImpl::HandleCloneOrRecoverTask(
                     HandleCloneError(task, ret);
                     return;
                 }
+                task->SetProgress(kProgressMetaInstalled);
                 break;
             case CloneStep::kRecoverChunk:
                 ret = RecoverChunk(task, newFileInfo, segInfos);
@@ -275,10 +311,8 @@ void CloneCoreImpl::HandleCloneOrRecoverTask(
                     return;
                 }
                 if (IsLazy(task)) {
-                    task->GetClosure()->SetErrCode(ret);
-                    task->GetClosure()->Run();
-                    doneGuard.release();
                     HandleLazyCloneStage1Finish(task);
+                    doneGuard.release();
                     return;
                 }
                 break;
@@ -1048,12 +1082,19 @@ int CloneCoreImpl::CompleteCloneFile(
 
 void CloneCoreImpl::HandleLazyCloneStage1Finish(
     std::shared_ptr<CloneTaskInfo> task) {
+    task->GetCloneInfo().SetStatus(CloneStatus::metaInstalled);
+    int ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
+    if (ret < 0) {
+        LOG(ERROR) << "UpdateCloneInfo Task Success Fail!"
+                   << " ret = " << ret
+                   << ", uuid = " << task->GetTaskId();
+    }
     LOG(INFO) << "Task Lazy Stage1 Success"
-              << ", taskid = " << task->GetCloneInfo().GetTaskId()
-              << ", source = " << task->GetCloneInfo().GetSrc()
-              << ", dest = " << task->GetCloneInfo().GetDest()
-              << ", IsLazy = " << task->GetCloneInfo().GetIsLazy();
+              << ", TaskInfo : " << *task;
+    task->GetClosure()->SetErrCode(ret);
+    task->GetClosure()->Run();
     task->Finish();
+    return;
 }
 
 void CloneCoreImpl::HandleCloneSuccess(std::shared_ptr<CloneTaskInfo> task) {
@@ -1077,13 +1118,7 @@ void CloneCoreImpl::HandleCloneSuccess(std::shared_ptr<CloneTaskInfo> task) {
                 }
                 LOG(ERROR) << "Task Fail cause by SetCloneFileStatus fail"
                            << ", ret = " << ret
-                           << ", taskid = " << task->GetCloneInfo().GetTaskId()
-                           << ", source = " << task->GetCloneInfo().GetSrc()
-                           << ", dest = " << task->GetCloneInfo().GetDest()
-                           << ", IsLazy = " << task->GetCloneInfo().GetIsLazy()
-                           << ", step = "
-                           << static_cast<int>(
-                                   task->GetCloneInfo().GetNextStep());
+                           << ", TaskInfo : " << *task;
                 task->Finish();
                 return;
             }
@@ -1099,10 +1134,7 @@ void CloneCoreImpl::HandleCloneSuccess(std::shared_ptr<CloneTaskInfo> task) {
     task->SetProgress(kProgressCloneComplete);
 
     LOG(INFO) << "Task Success"
-              << ", taskid = " << task->GetCloneInfo().GetTaskId()
-              << ", source = " << task->GetCloneInfo().GetSrc()
-              << ", dest = " << task->GetCloneInfo().GetDest()
-              << ", IsLazy = " << task->GetCloneInfo().GetIsLazy();
+              << ", TaskInfo : " << *task;
     task->Finish();
     return;
 }
@@ -1139,13 +1171,7 @@ void CloneCoreImpl::HandleCloneError(std::shared_ptr<CloneTaskInfo> task,
                    << ", uuid = " << task->GetTaskId();
     }
     LOG(ERROR) << "Task Fail"
-               << ", taskid = " << task->GetCloneInfo().GetTaskId()
-               << ", source = " << task->GetCloneInfo().GetSrc()
-               << ", dest = " << task->GetCloneInfo().GetDest()
-               << ", IsLazy = " << task->GetCloneInfo().GetIsLazy()
-               << ", step = "
-               << static_cast<int>(
-                       task->GetCloneInfo().GetNextStep());
+               << ", TaskInfo : " << *task;
     task->Finish();
     return;
 }
@@ -1159,13 +1185,7 @@ void CloneCoreImpl::HandleCloneToRetry(std::shared_ptr<CloneTaskInfo> task) {
                    << ", uuid = " << task->GetTaskId();
     }
     LOG(WARNING) << "Task Fail, Retrying"
-               << ", taskid = " << task->GetCloneInfo().GetTaskId()
-               << ", source = " << task->GetCloneInfo().GetSrc()
-               << ", dest = " << task->GetCloneInfo().GetDest()
-               << ", IsLazy = " << task->GetCloneInfo().GetIsLazy()
-               << ", step = "
-               << static_cast<int>(
-                       task->GetCloneInfo().GetNextStep());
+                 << ", TaskInfo : " << *task;
     task->Finish();
     return;
 }
@@ -1179,10 +1199,7 @@ void CloneCoreImpl::HandleCleanSuccess(std::shared_ptr<CloneTaskInfo> task) {
                    << ", taskId = " << taskId;
     } else {
         LOG(INFO) << "Clean Task Success"
-                  << ", taskid = " << task->GetCloneInfo().GetTaskId()
-                  << ", source = " << task->GetCloneInfo().GetSrc()
-                  << ", dest = " << task->GetCloneInfo().GetDest()
-                  << ", IsLazy = " << task->GetCloneInfo().GetIsLazy();
+                  << ", TaskInfo : " << *task;
     }
     task->SetProgress(kProgressCloneComplete);
     task->GetCloneInfo().SetStatus(CloneStatus::done);
@@ -1200,13 +1217,7 @@ void CloneCoreImpl::HandleCleanError(std::shared_ptr<CloneTaskInfo> task) {
                    << ", uuid = " << task->GetTaskId();
     }
     LOG(ERROR) << "Clean Task Fail"
-               << ", taskid = " << task->GetCloneInfo().GetTaskId()
-               << ", source = " << task->GetCloneInfo().GetSrc()
-               << ", dest = " << task->GetCloneInfo().GetDest()
-               << ", IsLazy = " << task->GetCloneInfo().GetIsLazy()
-               << ", step = "
-               << static_cast<int>(
-                       task->GetCloneInfo().GetNextStep());
+               << ", TaskInfo : " << *task;
     task->Finish();
     return;
 }
@@ -1408,7 +1419,8 @@ void CloneCoreImpl::HandleCleanCloneOrRecoverTask(
             if (cloneRef_->GetRef(source) == 0) {
                 int ret = client_->SetCloneFileStatus(source,
                         FileStatus::Created, mdsRootUser_);
-                if (ret < 0) {
+                if (ret != LIBCURVE_ERROR::OK &&
+                    ret != -LIBCURVE_ERROR::NOTEXIST) {
                     LOG(ERROR) << "SetCloneFileStatus fail, ret = " << ret
                                << ", taskid = " << task->GetTaskId();
                     HandleCleanError(task);

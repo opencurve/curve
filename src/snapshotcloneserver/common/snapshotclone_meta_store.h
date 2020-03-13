@@ -30,6 +30,7 @@ enum class CloneStatus {
     errorCleaning = 4,
     error = 5,
     retrying = 6,
+    metaInstalled = 7,
 };
 
 enum class CloneFileType {
@@ -228,6 +229,8 @@ class CloneInfo {
     // 处理的状态
     CloneStatus status_;
 };
+
+std::ostream& operator<<(std::ostream& os, const CloneInfo &cloneInfo);
 
 //快照处理状态
 enum class Status{

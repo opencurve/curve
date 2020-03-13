@@ -295,6 +295,10 @@ class MockCloneServiceManager : public CloneServiceManager {
         std::shared_ptr<CloneClosure> entity,
         TaskIdType *taskId));
 
+    MOCK_METHOD2(Flatten,
+        int(const std::string &user,
+        const TaskIdType &taskId));
+
     MOCK_METHOD2(GetCloneTaskInfo,
         int(const std::string &user,
         std::vector<TaskCloneInfo> *info));
@@ -334,6 +338,11 @@ class MockCloneCore : public CloneCore {
 
     MOCK_METHOD1(HandleCleanCloneOrRecoverTask,
         void(std::shared_ptr<CloneTaskInfo> task));
+
+    MOCK_METHOD3(FlattenPre,
+        int(const std::string &user,
+        const TaskIdType &taskId,
+        CloneInfo *cloneInfo));
 
     MOCK_METHOD1(GetCloneInfoList,
         int(std::vector<CloneInfo> *cloneInfos));

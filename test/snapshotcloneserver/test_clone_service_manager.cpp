@@ -105,6 +105,13 @@ TEST_F(TestCloneServiceManager,
         &taskId);
     ASSERT_EQ(kErrCodeSuccess, ret);
 
+    EXPECT_CALL(*cloneCore_, FlattenPre(user, taskId, _))
+        .WillOnce(Return(kErrCodeSuccess));
+
+    // Flatten
+    ret = manager_->Flatten(user, taskId);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+
     cond1.Wait();
 
     std::this_thread::sleep_for(
@@ -112,6 +119,9 @@ TEST_F(TestCloneServiceManager,
     ASSERT_EQ(0, cloneMetric_->cloneDoing.get_value());
     ASSERT_EQ(1, cloneMetric_->cloneSucceed.get_value());
     ASSERT_EQ(0, cloneMetric_->cloneFailed.get_value());
+    ASSERT_EQ(0, cloneMetric_->flattenDoing.get_value());
+    ASSERT_EQ(1, cloneMetric_->flattenSucceed.get_value());
+    ASSERT_EQ(0, cloneMetric_->flattenFailed.get_value());
 }
 
 TEST_F(TestCloneServiceManager,
@@ -229,6 +239,13 @@ TEST_F(TestCloneServiceManager,
         lazyFlag,
         closure,
         &taskId);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+
+    EXPECT_CALL(*cloneCore_, FlattenPre(user, taskId, _))
+        .WillOnce(Return(kErrCodeSuccess));
+
+    // Flatten
+    ret = manager_->Flatten(user, taskId);
     ASSERT_EQ(kErrCodeSuccess, ret);
 
     cond1.Wait();
@@ -547,8 +564,14 @@ TEST_F(TestCloneServiceManager, TestRecoverCloneTaskSuccess) {
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
         source, destination, CloneFileType::kSnapshot, lazyFlag);
 
+    // for Flatten
+    CloneInfo cloneInfo2("uuid2", user, CloneTaskType::kClone,
+        source, destination, 1, 1, 1, CloneFileType::kSnapshot, lazyFlag,
+        CloneStep::kRecoverChunk, CloneStatus::cloning);
+
     std::vector<CloneInfo> cloneInfos;
     cloneInfos.push_back(cloneInfo);
+    cloneInfos.push_back(cloneInfo2);
     EXPECT_CALL(*cloneCore_, GetCloneInfoList(_))
         .WillOnce(DoAll(SetArgPointee<0>(cloneInfos),
             Return(kErrCodeSuccess)));
@@ -556,7 +579,8 @@ TEST_F(TestCloneServiceManager, TestRecoverCloneTaskSuccess) {
     std::shared_ptr<SnapshotReference> snapRef =
         std::make_shared<SnapshotReference>();
     EXPECT_CALL(*cloneCore_, GetSnapshotRef())
-        .WillOnce(Return(snapRef));
+        .Times(2)
+        .WillRepeatedly(Return(snapRef));
 
     CountDownEvent cond1(2);
     EXPECT_CALL(*cloneCore_, HandleCloneOrRecoverTask(_))
@@ -570,6 +594,7 @@ TEST_F(TestCloneServiceManager, TestRecoverCloneTaskSuccess) {
 
     int ret = manager_->RecoverCloneTask();
     ASSERT_EQ(kErrCodeSuccess, ret);
+
     cond1.Wait();
 
     std::this_thread::sleep_for(
