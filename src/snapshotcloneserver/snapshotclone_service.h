@@ -67,6 +67,8 @@ class SnapshotCloneServiceImpl : public SnapshotCloneService {
     void HandleRecoverAction(brpc::Controller* bcntl,
         const std::string &requestId,
         Closure* done);
+    void HandleFlattenAction(brpc::Controller* bcntl,
+        const std::string &requestId);
     void HandleGetCloneTasksAction(brpc::Controller* bcntl,
         const std::string &requestId);
     void HandleCleanCloneTaskAction(brpc::Controller* bcntl,

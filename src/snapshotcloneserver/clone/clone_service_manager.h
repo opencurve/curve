@@ -146,6 +146,18 @@ class CloneServiceManager {
         TaskIdType *taskId);
 
     /**
+     * @brief 安装克隆文件的数据，用于Lazy克隆
+     *
+     * @param user 用户
+     * @param taskId 任务ID
+     *
+     * @return 错误码
+     */
+    virtual int Flatten(
+        const std::string &user,
+        const TaskIdType &taskId);
+
+    /**
      * @brief 查询某个用户的克隆/恢复任务信息
      *
      * @param user 用户名
@@ -206,9 +218,10 @@ class CloneServiceManager {
 
  private:
     /**
-     * @brief 根据指定克隆/恢复信息获取克隆/恢复任务信息
+     * @brief 从给定的任务列表中获取指定用户的任务集
      *
      * @param cloneInfos 克隆/恢复信息
+     * @param user 用户信息
      * @param[out] info 克隆/恢复任务信息
      *
      * @return 错误码
@@ -216,6 +229,18 @@ class CloneServiceManager {
     int GetCloneTaskInfoInner(std::vector<CloneInfo> cloneInfos,
         const std::string &user,
         std::vector<TaskCloneInfo> *info);
+
+    /**
+     * @brief 获取已经完成任务信息
+     *
+     * @param taskId 任务ID
+     * @param taskCloneInfoOut 克隆任务信息
+     *
+     * @return 错误码
+     */
+    int GetFinishedCloneTask(
+        const TaskIdType &taskId,
+        TaskCloneInfo *taskCloneInfoOut);
 
     /**
      * @brief 根据克隆任务信息恢复克隆任务

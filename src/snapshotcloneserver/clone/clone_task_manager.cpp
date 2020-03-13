@@ -51,25 +51,50 @@ void CloneTaskManager::Stop() {
 }
 
 int CloneTaskManager::PushCommonTask(std::shared_ptr<CloneTaskBase> task) {
-    return PushTaskInternal(task,
+    int ret =  PushTaskInternal(task,
         &commonTaskMap_,
         &commonTasksLock_,
         commonPool_);
+    if (ret >= 0) {
+        cloneMetric_->UpdateBeforeTaskBegin(
+            task->GetTaskInfo()->GetCloneInfo().GetTaskType());
+    }
+    LOG(INFO) << "Push Task Into Common Pool success,"
+              << " TaskInfo : " << *(task->GetTaskInfo());
+    return ret;
 }
 
 int CloneTaskManager::PushStage1Task(std::shared_ptr<CloneTaskBase> task) {
-    return PushTaskInternal(task,
+    int ret = PushTaskInternal(task,
         &stage1TaskMap_,
         &stage1TasksLock_,
         stage1Pool_);
+    if (ret >= 0) {
+        cloneMetric_->UpdateBeforeTaskBegin(
+            task->GetTaskInfo()->GetCloneInfo().GetTaskType());
+    }
+    LOG(INFO) << "Push Task Into Stage1 Pool for meta install success,"
+              << " TaskInfo : " << *(task->GetTaskInfo());
+    return ret;
 }
 
 int CloneTaskManager::PushStage2Task(
     std::shared_ptr<CloneTaskBase> task) {
-    return PushTaskInternal(task,
+    // 同一个clone的Stage1的Task和Stage2的Task的任务ID是一样的，
+    // 这里触发一次扫描，防止stage1中的同一个克隆的task已完成但是还没移除，
+    // 导致UUID冲突
+    ScanStage1Tasks();
+
+    int ret = PushTaskInternal(task,
         &stage2TaskMap_,
         &stage2TasksLock_,
         stage2Pool_);
+    if (ret >= 0) {
+        cloneMetric_->UpdateFlattenTaskBegin();
+    }
+    LOG(INFO) << "Push Task Into Stage2 Pool for data install success,"
+              << " TaskInfo : " << *(task->GetTaskInfo());
+    return ret;
 }
 
 int CloneTaskManager::PushTaskInternal(std::shared_ptr<CloneTaskBase> task,
@@ -95,9 +120,13 @@ int CloneTaskManager::PushTaskInternal(std::shared_ptr<CloneTaskBase> task,
         return kErrCodeTaskExist;
     }
     taskPool->PushTask(task);
-    cloneTaskMap_.emplace(task->GetTaskId(), task);
-    cloneMetric_->UpdateBeforeTaskBegin(
-        task->GetTaskInfo()->GetCloneInfo().GetTaskType());
+    auto ret2 = cloneTaskMap_.emplace(task->GetTaskId(), task);
+    if (!ret2.second) {
+        LOG(ERROR) << "CloneTaskManager::PushTaskInternal fail, "
+                   << " same taskid exist."
+                   << " taskId = " << task->GetTaskId();
+        return kErrCodeTaskExist;
+    }
     return kErrCodeSuccess;
 }
 
@@ -135,6 +164,9 @@ void CloneTaskManager::ScanCommonTasks() {
                 taskInfo->GetCloneInfo().GetStatus();
             // 移除任务并更新metric
             cloneMetric_->UpdateAfterTaskFinish(taskType, status);
+            LOG(INFO) << "common task {"
+                      << " TaskInfo : " << *taskInfo
+                      << "} finish, going to remove.";
             cloneTaskMap_.erase(it->second->GetTaskId());
             it = commonTaskMap_.erase(it);
         } else {
@@ -156,20 +188,12 @@ void CloneTaskManager::ScanStage1Tasks() {
                 taskInfo->GetCloneInfo().GetTaskType();
             CloneStatus status =
                 taskInfo->GetCloneInfo().GetStatus();
-            // 状态正常的任务需要放在第二个线程池中继续执行
-            if (status == CloneStatus::done ||
-                status == CloneStatus::cloning ||
-                status == CloneStatus::recovering) {
-                taskInfo->Reset();
-                stage2TaskMap_.emplace(*it);
-                stage2Pool_->PushTask(it->second);
-                it = stage1TaskMap_.erase(it);
-            // 失败任务移除并更新metric
-            } else {
-                cloneMetric_->UpdateAfterTaskFinish(taskType, status);
-                cloneTaskMap_.erase(it->second->GetTaskId());
-                it = stage1TaskMap_.erase(it);
-            }
+            cloneMetric_->UpdateAfterTaskFinish(taskType, status);
+            LOG(INFO) << "stage1 task {"
+                      << " TaskInfo : " << *taskInfo
+                      << "} finish, going to remove.";
+            cloneTaskMap_.erase(it->second->GetTaskId());
+            it = stage1TaskMap_.erase(it);
         } else {
             it++;
         }
@@ -201,7 +225,10 @@ void CloneTaskManager::ScanStage2Tasks() {
                 stage2Pool_->PushTask(it->second);
             // 其他任务结束更新metric
             } else {
-                cloneMetric_->UpdateAfterTaskFinish(taskType, status);
+                cloneMetric_->UpdateAfterFlattenTaskFinish(status);
+                LOG(INFO) << "stage2 task {"
+                          << " TaskInfo : " << *taskInfo
+                          << "} finish, going to remove.";
                 cloneTaskMap_.erase(it->second->GetTaskId());
                 it = stage2TaskMap_.erase(it);
             }

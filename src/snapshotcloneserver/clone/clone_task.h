@@ -36,6 +36,10 @@ class CloneTaskInfo : public TaskInfo {
         return cloneInfo_;
     }
 
+    const CloneInfo& GetCloneInfo() const {
+        return cloneInfo_;
+    }
+
     TaskIdType GetTaskId() const {
         return cloneInfo_.GetTaskId();
     }
@@ -54,7 +58,7 @@ class CloneTaskInfo : public TaskInfo {
     std::shared_ptr<CloneClosure> closure_;
 };
 
-
+std::ostream& operator<<(std::ostream& os, const CloneTaskInfo &taskInfo);
 
 class CloneTaskBase : public Task {
  public:
