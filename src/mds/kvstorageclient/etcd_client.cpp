@@ -45,7 +45,7 @@ int EtcdClientImp::PutRewithRevision(
         EtcdClientPutRewtihRevision_return res = EtcdClientPutRewtihRevision(
             timeout_, const_cast<char*>(key.c_str()),
             const_cast<char*>(value.c_str()), key.size(), value.size());
-        if (res.r0 == EtcdErrCode::OK) {
+        if (res.r0 == EtcdErrCode::EtcdOK) {
             *revision = res.r1;
         }
         errCode = res.r0;
@@ -67,7 +67,7 @@ int EtcdClientImp::Get(const std::string &key, std::string *out) {
             timeout_, const_cast<char*>(key.c_str()), key.size());
         errCode = res.r0;
         needRetry = NeedRetry(errCode);
-        if (res.r0 == EtcdErrCode::OK) {
+        if (res.r0 == EtcdErrCode::EtcdOK) {
             *out = std::string(res.r1, res.r1 + res.r2);
             free(res.r1);
         } else if (res.r0 == EtcdErrCode::KeyNotExist) {
@@ -96,7 +96,7 @@ int EtcdClientImp::List(const std::string &startKey, const std::string &endKey,
             startKey.size(), endKey.size());
         errCode = res.r0;
         needRetry = NeedRetry(errCode);
-        if (res.r0 != EtcdErrCode::OK) {
+        if (res.r0 != EtcdErrCode::EtcdOK) {
             LOG(WARNING) << "list file of [start:" << startKey
                        << ", end:" << endKey << "] err: " << res.r0
                        << ", retry: " << retry << ", needRetry: " << needRetry;
@@ -104,7 +104,7 @@ int EtcdClientImp::List(const std::string &startKey, const std::string &endKey,
             for (int i = 0; i < res.r2; i++) {
                 EtcdClientGetMultiObject_return objRes =
                     EtcdClientGetMultiObject(res.r1, i);
-                if (objRes.r0 != EtcdErrCode::OK) {
+                if (objRes.r0 != EtcdErrCode::EtcdOK) {
                     LOG(ERROR) << "get object:" << res.r1 << " index: " << i
                                << "err: " << objRes.r0;
                     EtcdClientRemoveObject(res.r1);
@@ -143,7 +143,7 @@ int EtcdClientImp::DeleteRewithRevision(
         EtcdClientDeleteRewithRevision_return res =
             EtcdClientDeleteRewithRevision(
             timeout_, const_cast<char*>(key.c_str()), key.size());
-        if (res.r0 == EtcdErrCode::OK) {
+        if (res.r0 == EtcdErrCode::EtcdOK) {
             *revision = res.r1;
         }
         errCode = res.r0;
@@ -181,9 +181,10 @@ int EtcdClientImp::GetCurrentRevision(int64_t *revision) {
             timeout_, const_cast<char*>(key.c_str()), key.size());
         errCode = res.r0;
         needRetry = NeedRetry(errCode);
-        if (res.r0 == EtcdErrCode::OK || res.r0 == EtcdErrCode::KeyNotExist) {
+        if (res.r0 == EtcdErrCode::EtcdOK ||
+        res.r0 == EtcdErrCode::KeyNotExist) {
             *revision = res.r3;
-            errCode = EtcdErrCode::OK;
+            errCode = EtcdErrCode::EtcdOK;
         } else {
             LOG(WARNING) << "get current revision fail, errcode: " << res.r0
                          << ", retry: " << retry
@@ -209,7 +210,7 @@ int EtcdClientImp::ListWithLimitAndRevision(const std::string &startKey,
 
         errCode = res.r0;
         needRetry = NeedRetry(errCode);
-        if (res.r0 != EtcdErrCode::OK) {
+        if (res.r0 != EtcdErrCode::EtcdOK) {
             LOG(WARNING) << "ListByLimitAndRevision [start:" << startKey
                        << ", end:" << endKey << "] err: " << res.r0
                        << ", retry: " << retry << ", needRetry: " << needRetry;
@@ -218,7 +219,7 @@ int EtcdClientImp::ListWithLimitAndRevision(const std::string &startKey,
                 EtcdClientGetMultiObject_return objRes =
                     EtcdClientGetMultiObject(res.r1, i);
 
-                if (objRes.r0 != EtcdErrCode::OK) {
+                if (objRes.r0 != EtcdErrCode::EtcdOK) {
                     LOG(ERROR) << "get object:" << res.r1 << " index:" << i
                                << ", count:" << res.r2 << " err: " << objRes.r0;
                     EtcdClientRemoveObject(res.r1);
@@ -287,7 +288,7 @@ void EtcdClientImp::SetTimeout(int timeout) {
 
 bool EtcdClientImp::NeedRetry(int errCode) {
     switch (errCode) {
-        case EtcdErrCode::OK:
+        case EtcdErrCode::EtcdOK:
         case EtcdErrCode::Canceled:
         case EtcdErrCode::Unknown:
         case EtcdErrCode::InvalidArgument:
