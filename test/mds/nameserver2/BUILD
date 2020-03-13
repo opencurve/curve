@@ -2,7 +2,6 @@ cc_test(
     name = "curvefs_test",
     srcs = glob(["*.cpp", "*.h"]),
     copts = ["-g","-DHAVE_ZLIB=1"],
-    linkopts = ["-lfiu"],
     deps = [
             "//src/mds/nameserver2:nameserver2",
             "//src/mds/leader_election:leader_election",
