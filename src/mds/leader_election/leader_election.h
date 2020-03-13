@@ -13,6 +13,7 @@
 #include <string>
 
 #include "src/mds/kvstorageclient/etcd_client.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
 
 namespace curve {
 namespace mds {
@@ -37,6 +38,7 @@ class LeaderElection {
  public:
     explicit LeaderElection(LeaderElectionOptions opt) {
         opt_ = opt;
+        realPrefix_ = LEADERCAMPAIGNNPFX + opt.campaginPrefix;
     }
 
     /**
@@ -73,6 +75,9 @@ class LeaderElection {
  private:
     // option
     LeaderElectionOptions opt_;
+
+    // realPrefix_ = leader竞选公共prefix + 自定义prefix
+    std::string realPrefix_;
 
     // 竞选leader之后记录在objectManager中的id号
     uint64_t leaderOid_;

@@ -25,7 +25,7 @@ TEST(TestLeaderElection, test_leader_election) {
     opts.leaderUniqueName = "leader1";
     opts.sessionInterSec = 1;
     opts.electionTimeoutMs = 0;
-    opts.campaginPrefix = MDSLEADERCAMPAIGNNPFX;
+    opts.campaginPrefix = "";
     auto leaderElection = std::make_shared<LeaderElection>(opts);
     fiu_init(0);
     fiu_enable("src/mds/leaderElection/observeLeader", 1, nullptr, 0);
