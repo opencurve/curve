@@ -21,7 +21,7 @@ int LeaderElection::CampaginLeader() {
         << realPrefix_;
 
     int resCode = opt_.etcdCli->CampaignLeader(
-        opt_.campaginPrefix,
+        realPrefix_,
         opt_.leaderUniqueName,
         opt_.sessionInterSec,
         opt_.electionTimeoutMs,
