@@ -163,6 +163,10 @@ def add_config():
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s snapshot config fail"%host
     # add tools config
+    snap_addrs_list = []
+    for host in config.snap_server_list:
+        snap_addrs_list.append(host + ":5555")
+    snap_addrs = ",".join(snap_addrs_list)
     for host in config.mds_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
@@ -173,6 +177,9 @@ def add_config():
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s tools config fail"%host
         ori_cmd = R"sed -i 's/etcdAddr=127.0.0.1:2379/etcdAddr=%s/g' tools.conf"%etcd_addrs
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s tools config fail"%host
+        ori_cmd = R"sed -i 's/snapshotCloneAddr=127.0.0.1:5555/snapshotCloneAddr=%s/g' tools.conf"%snap_addrs
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s tools config fail"%host
         ori_cmd = "sudo mv tools.conf /etc/curve/"

@@ -15,6 +15,8 @@ DECLARE_string(mdsDummyPort);
 DECLARE_string(etcdAddr);
 DECLARE_uint64(rpcTimeout);
 DECLARE_uint64(rpcRetryTimes);
+DECLARE_string(snapshotCloneAddr);
+DECLARE_string(snapshotCloneDummyPort);
 
 namespace curve {
 namespace tool {
@@ -26,6 +28,7 @@ const char kMdsStatusCmd[] = "mds-status";
 const char kEtcdStatusCmd[] = "etcd-status";
 const char kChunkserverListCmd[] = "chunkserver-list";
 const char kClientStatusCmd[] = "client-status";
+const char kSnapshotCloneStatusCmd[] = "snapshot-clone-status";
 
 // NamesPaceTool相关命令
 const char kGetCmd[] = "get";
@@ -62,6 +65,27 @@ const char kSnapshotMeta[] = "snapshot-meta";
 
 // raft log相关命令
 const char kRaftLogMeta[] = "raft-log-meta";
+
+const char kOldVersion[] = "before0.0.5.2";
+const char kOffline[] = "offline";
+const char kVars[] = "/vars/";
+const char kConfValue[] = "conf_value";
+
+// raft state 相关常量
+const char kState[] = "state";
+const char kStateLeader[] = "LEADER";
+const char kStateFollower[] = "FOLLOWER";
+const char kStateTransferring[] = "TRANSFERRING";
+const char kStateCandidate[] = "CANDIDATE";
+const char kLeader[] = "leader";
+const char kGroupId[] = "groupId";
+const char kPeers[] = "peers";
+const char kReplicator[] = "replicator";
+const char kStorage[] = "storage";
+const char kSnapshot[] = "snapshot";
+const char kNextIndex[] = "next_index";
+
+const int kDefaultMdsDummyPort = 6667;
 
 }  // namespace tool
 }  // namespace curve
