@@ -538,7 +538,7 @@ init abnormal test env
      destroy snapshotclone server
      drop all chunkserver dat
      drop abnormal test db
-     create db table
+     create abnormal db table
      install deb
      add config 
      start abnormal test services

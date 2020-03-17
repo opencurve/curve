@@ -264,7 +264,7 @@ def drop_abnormal_test_db():
         logger.error("drop db fail.")
         raise
 
-def create_db_table():
+def create_abnormal_db_table():
     conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
     try:
        db_operator.exec_sql_file(conn, config.curve_sql)
