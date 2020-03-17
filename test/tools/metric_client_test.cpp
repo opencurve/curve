@@ -76,5 +76,35 @@ TEST_F(MetricClientTest, GetMetricUint) {
                                       &value));
 }
 
+TEST_F(MetricClientTest, GetConfValue) {
+    MetricClient client;
+    // 正常情况
+    std::string metricName = "conf_metric";
+    bvar::Status<std::string> conf_metric(metricName, "");
+    conf_metric.set_value("{\"conf_name\":\"key\","
+                          "\"conf_value\":\"value\"}");
+    std::string value;
+    ASSERT_EQ(MetricRet::kOK, client.GetConfValueFromMetric(serverAddr,
+                                                            metricName,
+                                                            &value));
+    ASSERT_EQ("value", value);
+    // bvar不存在
+    ASSERT_EQ(MetricRet::kNotFound, client.GetConfValueFromMetric(
+                                                        serverAddr,
+                                                        "not-exist-metric",
+                                                        &value));
+    // 其他错误
+    ASSERT_EQ(MetricRet::kOtherErr, client.GetConfValueFromMetric(
+                                                        "127.0.0.1:9191",
+                                                        "not-exist-metric",
+                                                        &value));
+    // 解析失败
+    conf_metric.set_value("string");
+    ASSERT_EQ(MetricRet::kOtherErr, client.GetConfValueFromMetric(
+                                                        serverAddr,
+                                                        metricName,
+                                                        &value));
+}
+
 }  // namespace tool
 }  // namespace curve

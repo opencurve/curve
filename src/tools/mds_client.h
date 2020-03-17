@@ -30,6 +30,7 @@
 #include "src/tools/metric_name.h"
 #include "src/tools/metric_client.h"
 #include "src/tools/common.h"
+#include "src/tools/curve_tool_define.h"
 
 using curve::mds::FileInfo;
 using curve::mds::PageFileSegment;
@@ -329,7 +330,7 @@ class MDSClient {
     /**
      *  @brief 获取当前mds的地址
      */
-    virtual std::string GetCurrentMds();
+    virtual std::vector<std::string> GetCurrentMds();
 
     /**
      * @brief 向mds发送rpc触发快速leader均衡
@@ -337,11 +338,13 @@ class MDSClient {
     virtual int RapidLeaderSchedule(PoolIdType lpid);
 
     /**
-     *  @brief 获取mds在线状态
+     *  @brief 获取mds在线状态,
+     *          dummyserver在线且dummyserver记录的listen addr
+     *          与mds地址一致才认为在线
      *  @param[out] onlineStatus mds在线状态，返回0时有效
      *  @return 成功返回0,失败返回-1
      */
-    virtual int GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus);
+    virtual void GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus);
 
  private:
     /**
@@ -402,8 +405,8 @@ class MDSClient {
      *  @param[out] listenAddr mds的监听地址
      *  @return 成功返回0，失败返回-1
      */
-    int GetMdsListenAddr(const std::string& dummyAddr,
-                         std::string* listenAddr);
+    int GetListenAddrFromDummyPort(const std::string& dummyAddr,
+                                   std::string* listenAddr);
 
     // 填充signature
     template <class T>

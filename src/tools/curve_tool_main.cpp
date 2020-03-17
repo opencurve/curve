@@ -16,6 +16,7 @@ const char* kHelpStr = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
         "mds-status : show the mds status\n"
         "client-status : show the client status\n"
         "etcd-status : show the etcd status\n"
+        "snapshot-clone-status : show the snapshot clone server status\n"
         "copysets-status : check the health state of all copysets\n"
         "chunkserver-list : show curve chunkserver-list, list all chunkserver infomation\n"  //NOLINT
         "get : show the file info and the actual space of file\n"
@@ -60,6 +61,15 @@ void UpdateFlagsFromConf(curve::common::Configuration* conf) {
         }
         if (GetCommandLineFlagInfo("rpcRetryTimes", &info) && info.is_default) {
             conf->GetUInt64Value("rpcRetryTimes", &FLAGS_rpcRetryTimes);
+        }
+        if (GetCommandLineFlagInfo("snapshotCloneAddr", &info) &&
+                                                            info.is_default) {
+            conf->GetStringValue("snapshotCloneAddr", &FLAGS_snapshotCloneAddr);
+        }
+        if (GetCommandLineFlagInfo("snapshotCloneDummyPort", &info) &&
+                                                            info.is_default) {
+            conf->GetStringValue("snapshotCloneDummyPort",
+                                            &FLAGS_snapshotCloneDummyPort);
         }
     }
 }
