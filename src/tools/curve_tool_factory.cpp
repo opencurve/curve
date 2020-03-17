@@ -40,10 +40,14 @@ std::shared_ptr<StatusTool> CurveToolFactory::GenerateStatusTool() {
     auto copysetCheck =
         std::make_shared<CopysetCheckCore>(mdsClient, csClient);
     auto metricClient = std::make_shared<MetricClient>();
-    auto versionTool = std::make_shared<VersionTool>(mdsClient, metricClient);
+    auto snapshotCloneClient =
+                std::make_shared<SnapshotCloneClient>(metricClient);
+    auto versionTool = std::make_shared<VersionTool>(mdsClient, metricClient,
+                                                     snapshotCloneClient);
     return std::make_shared<StatusTool>(mdsClient, etcdClient,
                                        nameSpaceTool, copysetCheck,
-                                       versionTool, metricClient);
+                                       versionTool, metricClient,
+                                       snapshotCloneClient);
 }
 
 std::shared_ptr<NameSpaceTool> CurveToolFactory::GenerateNameSpaceTool() {
