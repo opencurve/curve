@@ -103,7 +103,8 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
                   << ", " << *reqCtx
                   << ", reteied times = " << reqDone->GetRetriedTimes()
                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
-                  << ", request id = " << reqCtx->id_;
+                  << ", request id = " << reqCtx->id_
+                  << ", remote side = " << remoteAddress_;
         return;
     }
 
@@ -113,14 +114,16 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
                   << ", " << *reqCtx
                   << ", reteied times = " << reqDone->GetRetriedTimes()
                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
-                  << ", request id = " << reqCtx->id_;
+                  << ", request id = " << reqCtx->id_
+                  << ", remote side = " << remoteAddress_;
         bthread_usleep(nextsleeptime);
         return;
     } else if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED) {
         LOG(WARNING) << "leader redirect, retry directly, " << *reqCtx
                      << ", reteied times = " << reqDone->GetRetriedTimes()
                      << ", IO id = " << reqDone->GetIOTracker()->GetID()
-                     << ", request id = " << reqCtx->id_;
+                     << ", request id = " << reqCtx->id_
+                     << ", remote side = " << remoteAddress_;
         return;
     }
 
@@ -130,7 +133,8 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
                 << ", response status = " << rpcstatus
                 << ", reteied times = " << reqDone->GetRetriedTimes()
                 << ", IO id = " << reqDone->GetIOTracker()->GetID()
-                << ", request id = " << reqCtx->id_;
+                << ", request id = " << reqCtx->id_
+                << ", remote side = " << remoteAddress_;
     bthread_usleep(failReqOpt_.chunkserverOPRetryIntervalUS);
 }
 
