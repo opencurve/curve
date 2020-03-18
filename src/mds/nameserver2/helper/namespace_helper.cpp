@@ -8,34 +8,24 @@
 #include <vector>
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/common/string_util.h"
+#include "src/common/namespace_define.h"
+
+using ::curve::common::COMMON_PREFIX_LENGTH;
+using ::curve::common::FILEINFOKEYPREFIX;
+using ::curve::common::SNAPSHOTFILEINFOKEYPREFIX;
+using ::curve::common::SEGMENTKEYLEN;
+using ::curve::common::SEGMENTINFOKEYPREFIX;
+using ::curve::common::SEGMENTALLOCSIZEKEY;
 
 namespace curve {
 namespace mds {
-
-const char FILEINFOKEYPREFIX[] = "01";
-const char FILEINFOKEYEND[] = "02";
-const char SEGMENTINFOKEYPREFIX[] = "02";
-const char SEGMENTINFOKEYEND[] = "03";
-const char SNAPSHOTFILEINFOKEYPREFIX[] = "03";
-const char SNAPSHOTFILEINFOKEYEND[] = "04";
-const char INODESTOREKEY[] = "04";
-const char INODESTOREKEYEND[] = "05";
-const char CHUNKSTOREKEY[] = "05";
-const char CHUNKSTOREKEYEND[] = "06";
-const char LEADERCAMPAIGNNPFX[] = "07leader";
-const char SEGMENTALLOCSIZEKEY[] = "08";
-const char SEGMENTALLOCSIZEKEYEND[] = "09";
-
-// TODO(hzsunjianliang): if use single prefix for snapshot file?
-const int PREFIX_LENGTH = 2;
-const int SEGMENTKEYLEN = 18;
-
 std::string NameSpaceStorageCodec::EncodeFileStoreKey(uint64_t parentID,
                                                 const std::string &fileName) {
     std::string storeKey;
-    storeKey.resize(PREFIX_LENGTH + sizeof(parentID) + fileName.length());
+    storeKey.resize(
+        COMMON_PREFIX_LENGTH + sizeof(parentID) + fileName.length());
 
-    memcpy(&(storeKey[0]), FILEINFOKEYPREFIX,  PREFIX_LENGTH);
+    memcpy(&(storeKey[0]), FILEINFOKEYPREFIX,  COMMON_PREFIX_LENGTH);
     ::curve::common::EncodeBigEndian(&(storeKey[2]), parentID);
     memcpy(&(storeKey[10]), fileName.data(), fileName.length());
     return storeKey;
@@ -44,9 +34,10 @@ std::string NameSpaceStorageCodec::EncodeFileStoreKey(uint64_t parentID,
 std::string NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(uint64_t parentID,
                                                 const std::string &fileName) {
     std::string storeKey;
-    storeKey.resize(PREFIX_LENGTH + sizeof(parentID) + fileName.length());
+    storeKey.resize(
+        COMMON_PREFIX_LENGTH + sizeof(parentID) + fileName.length());
 
-    memcpy(&(storeKey[0]), SNAPSHOTFILEINFOKEYPREFIX, PREFIX_LENGTH);
+    memcpy(&(storeKey[0]), SNAPSHOTFILEINFOKEYPREFIX, COMMON_PREFIX_LENGTH);
     ::curve::common::EncodeBigEndian(&(storeKey[2]), parentID);
     memcpy(&(storeKey[10]), fileName.data(), fileName.length());
     return storeKey;
@@ -56,7 +47,7 @@ std::string NameSpaceStorageCodec::EncodeSegmentStoreKey(uint64_t inodeID,
                                                    offset_t offset) {
     std::string storeKey;
     storeKey.resize(SEGMENTKEYLEN);
-    memcpy(&(storeKey[0]), SEGMENTINFOKEYPREFIX,  PREFIX_LENGTH);
+    memcpy(&(storeKey[0]), SEGMENTINFOKEYPREFIX,  COMMON_PREFIX_LENGTH);
     ::curve::common::EncodeBigEndian(&(storeKey[2]), inodeID);
     ::curve::common::EncodeBigEndian(&(storeKey[10]), offset);
     return storeKey;

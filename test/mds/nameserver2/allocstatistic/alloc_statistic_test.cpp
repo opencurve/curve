@@ -10,11 +10,17 @@
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic_helper.h"
 #include "test/mds/mock/mock_etcdclient.h"
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
+#include "src/common/namespace_define.h"
 
 using ::testing::_;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
+
+using ::curve::common::SEGMENTALLOCSIZEKEYEND;
+using ::curve::common::SEGMENTALLOCSIZEKEY;
+using ::curve::common::SEGMENTINFOKEYEND;
+using ::curve::common::SEGMENTINFOKEYPREFIX;
 
 namespace curve {
 namespace mds {
@@ -41,7 +47,7 @@ TEST_F(AllocStatisticTest, test_Init) {
         // 1. 从etcd中获取当前revision失败
         LOG(INFO) << "test1......";
         EXPECT_CALL(*mockEtcdClient_, GetCurrentRevision(_)).
-            WillOnce(Return(EtcdErrCode::Canceled));
+            WillOnce(Return(EtcdErrCode::EtcdCanceled));
         ASSERT_EQ(-1, allocStatistic_->Init());
     }
     {
@@ -51,7 +57,7 @@ TEST_F(AllocStatisticTest, test_Init) {
             WillOnce(Return(EtcdErrCode::EtcdOK));
         EXPECT_CALL(*mockEtcdClient_, List(
             SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND, _))
-            .WillOnce(Return(EtcdErrCode::Canceled));
+            .WillOnce(Return(EtcdErrCode::EtcdCanceled));
         ASSERT_EQ(-1, allocStatistic_->Init());
         int64_t alloc;
         ASSERT_FALSE(allocStatistic_->GetAllocByLogicalPool(1, &alloc));
@@ -127,7 +133,7 @@ TEST_F(AllocStatisticTest, test_PeriodicPersist_CalculateSegmentAlloc) {
     EXPECT_CALL(*mockEtcdClient_, ListWithLimitAndRevision(
         SEGMENTINFOKEYPREFIX, SEGMENTINFOKEYEND, GETBUNDLE, 2, _, _))
         .Times(2)
-        .WillOnce(Return(EtcdErrCode::Canceled))
+        .WillOnce(Return(EtcdErrCode::EtcdCanceled))
         .WillOnce(DoAll(SetArgPointee<4>(values),
                         SetArgPointee<5>(lastKey1),
                         Return(EtcdErrCode::EtcdOK)));
@@ -139,7 +145,7 @@ TEST_F(AllocStatisticTest, test_PeriodicPersist_CalculateSegmentAlloc) {
                         Return(EtcdErrCode::EtcdOK)));
      EXPECT_CALL(*mockEtcdClient_, GetCurrentRevision(_))
         .Times(2)
-        .WillOnce(Return(EtcdErrCode::Canceled))
+        .WillOnce(Return(EtcdErrCode::EtcdCanceled))
         .WillOnce(DoAll(SetArgPointee<0>(2), Return(EtcdErrCode::EtcdOK)));
 
     // 设置mock的Put结果

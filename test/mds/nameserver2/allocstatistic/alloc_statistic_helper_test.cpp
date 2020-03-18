@@ -9,12 +9,18 @@
 #include <memory>
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic_helper.h"
+#include "src/common/namespace_define.h"
 #include "test/mds/mock/mock_etcdclient.h"
 
 using ::testing::_;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
+
+using ::curve::common::SEGMENTALLOCSIZEKEYEND;
+using ::curve::common::SEGMENTALLOCSIZEKEY;
+using ::curve::common::SEGMENTINFOKEYPREFIX;
+using ::curve::common::SEGMENTINFOKEYEND;
 
 namespace curve {
 namespace mds {
@@ -25,7 +31,7 @@ TEST(TestAllocStatisticHelper, test_GetExistSegmentAllocValues) {
         // 1. list失败
         EXPECT_CALL(*mockEtcdClient, List(
             SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND, _))
-            .WillOnce(Return(EtcdErrCode::Canceled));
+            .WillOnce(Return(EtcdErrCode::EtcdCanceled));
         std::map<PoolIdType, int64_t> out;
         ASSERT_EQ(-1, AllocStatisticHelper::GetExistSegmentAllocValues(
             &out, mockEtcdClient));
@@ -65,7 +71,7 @@ TEST(TestAllocStatisticHelper, test_CalculateSegmentAlloc) {
         LOG(INFO) << "start test1......";
         EXPECT_CALL(*mockEtcdClient, ListWithLimitAndRevision(
             SEGMENTINFOKEYPREFIX, SEGMENTINFOKEYEND, GETBUNDLE, 2, _, _))
-            .WillOnce(Return(EtcdErrCode::Unknown));
+            .WillOnce(Return(EtcdErrCode::EtcdUnknown));
         std::map<PoolIdType, int64_t> out;
         ASSERT_EQ(-1, AllocStatisticHelper::CalculateSegmentAlloc(
             2, mockEtcdClient, &out));

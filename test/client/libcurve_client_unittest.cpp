@@ -79,28 +79,17 @@ TEST_F(CurveClientTest, OpenTest) {
     int fd = client_.Open(kWrongFileName, nullptr);
     ASSERT_LT(fd, 0);
 
+    // 第一次open
     std::string sessionId;
     fd = client_.Open(kFileName, &sessionId);
     ASSERT_GE(fd, 0);
-    ASSERT_GE(sessionId.size(), 0);
-    LOG(INFO) << sessionId;
-    ASSERT_EQ(0, client_.Close(fd));
-}
 
-TEST_F(CurveClientTest, ReOpenTest) {
-    // filename invalid
-    std::string sessionId = "1234";
-    std::string newSessionId;
-    int fd = client_.Open(kFileName, nullptr);
-    ASSERT_GE(fd, 0);
-    fd = client_.ReOpen(kWrongFileName, sessionId, &newSessionId);
-    ASSERT_LT(fd, 0);
-    fd = client_.ReOpen(kFileName, sessionId, &newSessionId);
-    ASSERT_GE(fd, 0);
+    // 第二次open
+    int fd2 = client_.Open(kFileName, &sessionId);
+    ASSERT_GT(fd2, fd);
+
     ASSERT_EQ(0, client_.Close(fd));
-    // close之后再reopen应该返回正常
-    fd = client_.ReOpen(kFileName, sessionId, &newSessionId);
-    ASSERT_GE(fd, 0);
+    ASSERT_EQ(0, client_.Close(fd2));
 }
 
 TEST_F(CurveClientTest, StatFileTest) {

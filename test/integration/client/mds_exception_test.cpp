@@ -119,6 +119,9 @@ class MDSModuleException : public ::testing::Test {
         // 0. 初始化db
         cluster->InitDB("module_exception_curve_mds");
         cluster->mdsRepo_->dropDataBase();
+        cluster->mdsRepo_->createDatabase();
+        cluster->mdsRepo_->useDataBase();
+        cluster->mdsRepo_->createAllTables();
 
         // 1. 启动etcd
         cluster->StartSingleEtcd(1, "127.0.0.1:22230", "127.0.0.1:22231",

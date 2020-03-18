@@ -17,11 +17,14 @@
 
 #include "src/common/encode.h"
 #include "src/mds/common/mds_define.h"
-#include "src/mds/kvstorageclient/etcd_client.h"
+#include "src/kvstorageclient/etcd_client.h"
 #include "src/mds/nameserver2/namespace_storage_cache.h"
 
 namespace curve {
 namespace mds {
+
+using ::curve::kvstorage::EtcdClientImp;
+using ::curve::kvstorage::KVStorageClient;
 
 enum class StoreStatus {
     OK = 0,

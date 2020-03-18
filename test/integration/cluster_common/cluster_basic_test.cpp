@@ -72,6 +72,9 @@ class ClusterBasicTest : public ::testing::Test {
 
         // 清理DB数据和文件
         curveCluster_->mdsRepo_->dropDataBase();
+        curveCluster_->mdsRepo_->createDatabase();
+        curveCluster_->mdsRepo_->useDataBase();
+        curveCluster_->mdsRepo_->createAllTables();
     }
 
     void TearDown() {

@@ -82,6 +82,8 @@ const std::vector<std::string> mdsConfigOptions {
     "mds.enable.replica.scheduler=false",
     "mds.heartbeat.misstimeoutMs=10000",
     "mds.topology.TopologyUpdateToRepoSec=5",
+    std::string("mds.file.expiredTimeUs=50000"),
+    std::string("mds.file.expiredTimeUs=10000"),
 };
 
 const std::vector<std::string> mdsConf1{
@@ -201,8 +203,11 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
         // 初始化db
         cluster_->InitDB(kMdsDbName);
-        //在一开始清理数据库和文件
+        // 在一开始清理数据库和文件
         cluster_->mdsRepo_->dropDataBase();
+        cluster_->mdsRepo_->createDatabase();
+        cluster_->mdsRepo_->useDataBase();
+        cluster_->mdsRepo_->createAllTables();
         system("rm -rf RcvSCSTest.etcd");
         system("rm -rf RcvSCSTest1");
         system("rm -rf RcvSCSTest2");

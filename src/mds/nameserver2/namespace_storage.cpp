@@ -8,6 +8,10 @@
 #include <glog/logging.h>
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
+#include "src/common/namespace_define.h"
+
+using ::curve::common::SNAPSHOTFILEINFOKEYPREFIX;
+using ::curve::common::SNAPSHOTFILEINFOKEYEND;
 
 namespace curve {
 namespace mds {
@@ -76,7 +80,7 @@ StoreStatus NameServerStorageImp::GetFile(InodeID parentid,
                        << ", filename: " << filename;
             return StoreStatus::InternalError;
         }
-    } else if (errCode == EtcdErrCode::KeyNotExist) {
+    } else if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         LOG(INFO) << "file not exist. parentid: " << parentid
                   << ", filename: " << filename;
     } else {
@@ -478,7 +482,7 @@ StoreStatus NameServerStorageImp::GetSegment(InodeID id,
                        << ", off: " << off <<" err";
             return StoreStatus::InternalError;
         }
-    } else if (errCode == EtcdErrCode::KeyNotExist) {
+    } else if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         LOG(INFO) << "segment not exist. inodeid: " << id << ", off: " << off;
     } else {
         LOG(ERROR) << "get segment inodeid: " << id
@@ -578,28 +582,28 @@ StoreStatus NameServerStorageImp::getErrorCode(int errCode) {
         case EtcdErrCode::EtcdOK:
             return StoreStatus::OK;
 
-        case EtcdErrCode::KeyNotExist:
+        case EtcdErrCode::EtcdKeyNotExist:
             return StoreStatus::KeyNotExist;
 
-        case EtcdErrCode::Unknown:
-        case EtcdErrCode::InvalidArgument:
-        case EtcdErrCode::AlreadyExists:
-        case EtcdErrCode::PermissionDenied:
-        case EtcdErrCode::OutOfRange:
-        case EtcdErrCode::Unimplemented:
-        case EtcdErrCode::Internal:
-        case EtcdErrCode::NotFound:
-        case EtcdErrCode::DataLoss:
-        case EtcdErrCode::Unauthenticated:
-        case EtcdErrCode::Canceled:
-        case EtcdErrCode::DeadlineExceeded:
-        case EtcdErrCode::ResourceExhausted:
-        case EtcdErrCode::FailedPrecondition:
-        case EtcdErrCode::Aborted:
-        case EtcdErrCode::Unavailable:
-        case EtcdErrCode::TxnUnkownOp:
-        case EtcdErrCode::ObjectNotExist:
-        case EtcdErrCode::ErrObjectType:
+        case EtcdErrCode::EtcdUnknown:
+        case EtcdErrCode::EtcdInvalidArgument:
+        case EtcdErrCode::EtcdAlreadyExists:
+        case EtcdErrCode::EtcdPermissionDenied:
+        case EtcdErrCode::EtcdOutOfRange:
+        case EtcdErrCode::EtcdUnimplemented:
+        case EtcdErrCode::EtcdInternal:
+        case EtcdErrCode::EtcdNotFound:
+        case EtcdErrCode::EtcdDataLoss:
+        case EtcdErrCode::EtcdUnauthenticated:
+        case EtcdErrCode::EtcdCanceled:
+        case EtcdErrCode::EtcdDeadlineExceeded:
+        case EtcdErrCode::EtcdResourceExhausted:
+        case EtcdErrCode::EtcdFailedPrecondition:
+        case EtcdErrCode::EtcdAborted:
+        case EtcdErrCode::EtcdUnavailable:
+        case EtcdErrCode::EtcdTxnUnkownOp:
+        case EtcdErrCode::EtcdObjectNotExist:
+        case EtcdErrCode::EtcdErrObjectType:
             return StoreStatus::InternalError;
 
         default:

@@ -85,6 +85,8 @@ enum LIBCURVE_ERROR {
     DELETE_BEING_CLONED     = 27,
     // client版本不支持快照
     CLIENT_NOT_SUPPORT_SNAPSHOT = 28,
+    // snapshot功能禁用中
+    SNAPSTHO_FROZEN = 29,
     // 未知错误
     UNKNOWN                 = 100
 };
