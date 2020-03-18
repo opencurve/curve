@@ -81,25 +81,25 @@ TEST_F(TestNameServerStorageImp, test_PutFile) {
     GetFileInfoForTest(&fileinfo);
     EXPECT_CALL(*client_, Put(_, _))
         .WillOnce(Return(EtcdErrCode::EtcdOK))
-        .WillOnce(Return(EtcdErrCode::Unknown))
-        .WillOnce(Return(EtcdErrCode::InvalidArgument))
-        .WillOnce(Return(EtcdErrCode::AlreadyExists))
-        .WillOnce(Return(EtcdErrCode::PermissionDenied))
-        .WillOnce(Return(EtcdErrCode::OutOfRange))
-        .WillOnce(Return(EtcdErrCode::Unimplemented))
-        .WillOnce(Return(EtcdErrCode::Internal))
-        .WillOnce(Return(EtcdErrCode::NotFound))
-        .WillOnce(Return(EtcdErrCode::DataLoss))
-        .WillOnce(Return(EtcdErrCode::Unauthenticated))
-        .WillOnce(Return(EtcdErrCode::Canceled))
-        .WillOnce(Return(EtcdErrCode::DeadlineExceeded))
-        .WillOnce(Return(EtcdErrCode::ResourceExhausted))
-        .WillOnce(Return(EtcdErrCode::FailedPrecondition))
-        .WillOnce(Return(EtcdErrCode::Aborted))
-        .WillOnce(Return(EtcdErrCode::Unavailable))
-        .WillOnce(Return(EtcdErrCode::TxnUnkownOp))
-        .WillOnce(Return(EtcdErrCode::ObjectNotExist))
-        .WillOnce(Return(EtcdErrCode::ErrObjectType));
+        .WillOnce(Return(EtcdErrCode::EtcdUnknown))
+        .WillOnce(Return(EtcdErrCode::EtcdInvalidArgument))
+        .WillOnce(Return(EtcdErrCode::EtcdAlreadyExists))
+        .WillOnce(Return(EtcdErrCode::EtcdPermissionDenied))
+        .WillOnce(Return(EtcdErrCode::EtcdOutOfRange))
+        .WillOnce(Return(EtcdErrCode::EtcdUnimplemented))
+        .WillOnce(Return(EtcdErrCode::EtcdInternal))
+        .WillOnce(Return(EtcdErrCode::EtcdNotFound))
+        .WillOnce(Return(EtcdErrCode::EtcdDataLoss))
+        .WillOnce(Return(EtcdErrCode::EtcdUnauthenticated))
+        .WillOnce(Return(EtcdErrCode::EtcdCanceled))
+        .WillOnce(Return(EtcdErrCode::EtcdDeadlineExceeded))
+        .WillOnce(Return(EtcdErrCode::EtcdResourceExhausted))
+        .WillOnce(Return(EtcdErrCode::EtcdFailedPrecondition))
+        .WillOnce(Return(EtcdErrCode::EtcdAborted))
+        .WillOnce(Return(EtcdErrCode::EtcdUnavailable))
+        .WillOnce(Return(EtcdErrCode::EtcdTxnUnkownOp))
+        .WillOnce(Return(EtcdErrCode::EtcdObjectNotExist))
+        .WillOnce(Return(EtcdErrCode::EtcdErrObjectType));
     ASSERT_EQ(StoreStatus::OK, storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
         storage_->PutFile(fileinfo));
@@ -146,8 +146,8 @@ TEST_F(TestNameServerStorageImp, test_GetFile) {
     FileInfo fileinfo;
     EXPECT_CALL(*cache_, Get(_, _)).Times(2).WillRepeatedly(Return(false));
     EXPECT_CALL(*client_, Get(_, _))
-        .WillOnce(Return(EtcdErrCode::DeadlineExceeded))
-        .WillOnce(Return(EtcdErrCode::KeyNotExist));
+        .WillOnce(Return(EtcdErrCode::EtcdDeadlineExceeded))
+        .WillOnce(Return(EtcdErrCode::EtcdKeyNotExist));
     ASSERT_EQ(StoreStatus::InternalError, storage_->GetFile(fileinfo.parentid(),
                                                             fileinfo.filename(),
                                                             &fileinfo));
@@ -184,7 +184,7 @@ TEST_F(TestNameServerStorageImp, test_GetFile) {
 TEST_F(TestNameServerStorageImp, test_DeleteFile) {
     EXPECT_CALL(*client_, Delete(_))
         .WillOnce(Return(EtcdErrCode::EtcdOK))
-        .WillOnce(Return(EtcdErrCode::DeadlineExceeded));
+        .WillOnce(Return(EtcdErrCode::EtcdDeadlineExceeded));
     ASSERT_EQ(StoreStatus::OK, storage_->DeleteFile(1234, ""));
     ASSERT_EQ(StoreStatus::InternalError, storage_->DeleteFile(1234, ""));
 }
@@ -193,7 +193,7 @@ TEST_F(TestNameServerStorageImp, test_DeleteFile) {
 TEST_F(TestNameServerStorageImp, test_DeleteSnapshotFile) {
     EXPECT_CALL(*client_, Delete(_))
         .WillOnce(Return(EtcdErrCode::EtcdOK))
-        .WillOnce(Return(EtcdErrCode::DeadlineExceeded));
+        .WillOnce(Return(EtcdErrCode::EtcdDeadlineExceeded));
     ASSERT_EQ(StoreStatus::OK,
         storage_->DeleteSnapshotFile(1234, ""));
     ASSERT_EQ(StoreStatus::InternalError,
@@ -203,7 +203,7 @@ TEST_F(TestNameServerStorageImp, test_DeleteSnapshotFile) {
 TEST_F(TestNameServerStorageImp, test_RenameFile) {
     EXPECT_CALL(*client_, TxnN(_))
         .WillOnce(Return(EtcdErrCode::EtcdOK))
-        .WillOnce(Return(EtcdErrCode::Aborted));
+        .WillOnce(Return(EtcdErrCode::EtcdAborted));
     ASSERT_EQ(StoreStatus::OK,
         storage_->RenameFile(FileInfo{}, FileInfo{}));
     ASSERT_EQ(StoreStatus::InternalError,
@@ -244,7 +244,7 @@ TEST_F(TestNameServerStorageImp, test_ReplaceFileAndRecycleOldFile) {
 
     EXPECT_CALL(*client_, TxnN(_))
         .WillOnce(Return(EtcdErrCode::EtcdOK))
-        .WillOnce(Return(EtcdErrCode::Aborted));
+        .WillOnce(Return(EtcdErrCode::EtcdAborted));
     ASSERT_EQ(StoreStatus::OK,
         storage_->ReplaceFileAndRecycleOldFile(
             oldFileInfo, newFileInfo, existFileInfo, recycleFileInfo));
@@ -271,7 +271,7 @@ TEST_F(TestNameServerStorageImp, test_MoveFileToRecycle) {
 
     EXPECT_CALL(*client_, TxnN(_))
         .WillOnce(Return(EtcdErrCode::EtcdOK))
-        .WillOnce(Return(EtcdErrCode::Aborted));
+        .WillOnce(Return(EtcdErrCode::EtcdAborted));
     ASSERT_EQ(StoreStatus::OK,
         storage_->MoveFileToRecycle(originFileInfo, recycleFileInfo));
     ASSERT_EQ(StoreStatus::InternalError,
@@ -282,7 +282,7 @@ TEST_F(TestNameServerStorageImp, test_ListFile) {
     // 1. list err
     std::vector<FileInfo> listRes;
     EXPECT_CALL(*client_, List(_, _, _))
-        .WillOnce(Return(EtcdErrCode::Canceled));
+        .WillOnce(Return(EtcdErrCode::EtcdCanceled));
     ASSERT_EQ(StoreStatus::InternalError, storage_->ListFile(0, 0, &listRes));
 
     // 2. list ok
@@ -306,7 +306,7 @@ TEST_F(TestNameServerStorageImp, test_ListSnapshotFile) {
     // 1. list err
     std::vector<FileInfo> listRes;
     EXPECT_CALL(*client_, List(_, _, _))
-        .WillOnce(Return(EtcdErrCode::Canceled));
+        .WillOnce(Return(EtcdErrCode::EtcdCanceled));
     ASSERT_EQ(
         StoreStatus::InternalError, storage_->ListSnapshotFile(1, 2, &listRes));
 
@@ -340,7 +340,7 @@ TEST_F(TestNameServerStorageImp, test_putsegment) {
     segment.set_logicalpoolid(1);
     EXPECT_CALL(*client_, PutRewithRevision(_, _, _))
         .WillOnce(Return(EtcdErrCode::EtcdOK))
-        .WillOnce(Return(EtcdErrCode::Canceled));
+        .WillOnce(Return(EtcdErrCode::EtcdCanceled));
     int64_t revision;
     ASSERT_EQ(StoreStatus::OK, storage_->PutSegment(0, 0, &segment, &revision));
     ASSERT_EQ(StoreStatus::InternalError,
@@ -352,8 +352,8 @@ TEST_F(TestNameServerStorageImp, test_getSegment) {
     PageFileSegment segment;
     EXPECT_CALL(*cache_, Get(_, _)).Times(2).WillRepeatedly(Return(false));
     EXPECT_CALL(*client_, Get(_, _))
-        .WillOnce(Return(EtcdErrCode::Canceled))
-        .WillOnce(Return(EtcdErrCode::KeyNotExist));
+        .WillOnce(Return(EtcdErrCode::EtcdCanceled))
+        .WillOnce(Return(EtcdErrCode::EtcdKeyNotExist));
     ASSERT_EQ(StoreStatus::InternalError, storage_->GetSegment(0, 0, &segment));
     ASSERT_EQ(StoreStatus::KeyNotExist, storage_->GetSegment(0, 0, &segment));
 
@@ -381,7 +381,7 @@ TEST_F(TestNameServerStorageImp, test_getSegment) {
 TEST_F(TestNameServerStorageImp, test_deleteSegment) {
     EXPECT_CALL(*client_, DeleteRewithRevision(_, _))
         .WillOnce(Return(EtcdErrCode::EtcdOK))
-        .WillOnce(Return(EtcdErrCode::Aborted));
+        .WillOnce(Return(EtcdErrCode::EtcdAborted));
     int64_t revision;
     ASSERT_EQ(StoreStatus::OK, storage_->DeleteSegment(0, 0, &revision));
     ASSERT_EQ(StoreStatus::InternalError,
@@ -391,7 +391,7 @@ TEST_F(TestNameServerStorageImp, test_deleteSegment) {
 TEST_F(TestNameServerStorageImp, test_Snapshotfile) {
     EXPECT_CALL(*client_, TxnN(_))
         .WillOnce(Return(EtcdErrCode::EtcdOK))
-        .WillOnce(Return(EtcdErrCode::Aborted));
+        .WillOnce(Return(EtcdErrCode::EtcdAborted));
     FileInfo fileinfo;
     fileinfo.set_filetype(FileType::INODE_PAGEFILE);
     ASSERT_EQ(StoreStatus::OK,
@@ -404,7 +404,7 @@ TEST_F(TestNameServerStorageImp, test_ListSegment) {
     // 1. list err
     std::vector<PageFileSegment> segments;
     EXPECT_CALL(*client_, List(_, _, _))
-        .WillOnce(Return(EtcdErrCode::Canceled));
+        .WillOnce(Return(EtcdErrCode::EtcdCanceled));
     ASSERT_EQ(StoreStatus::InternalError, storage_->ListSegment(0, &segments));
 
     // 2. list ok

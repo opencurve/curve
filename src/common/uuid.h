@@ -62,7 +62,6 @@ class UUIDGenerator {
      *  @brief 生成uuid
      *  强制完全使用随机数，优先使用（/dev/urandom），备用（伪随机数生成器）。
      *  在使用伪随机数生成器的情况下，uuid有重复的风险。
-     *  @param sessionOptions: 初始化所需参数
      *  @return 生成的uuid
      */
     std::string GenerateUUIDRandom() {

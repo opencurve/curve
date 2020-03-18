@@ -11,9 +11,10 @@
 #include <map>
 #include <memory>
 #include "src/mds/common/mds_define.h"
-#include "src/mds/kvstorageclient/etcd_client.h"
+#include "src/kvstorageclient/etcd_client.h"
 
 using ::curve::mds::topology::PoolIdType;
+using ::curve::kvstorage::EtcdClientImp;
 
 namespace curve {
 namespace mds {

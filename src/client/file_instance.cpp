@@ -145,45 +145,7 @@ int FileInstance::ReOpen(const std::string& filename,
                          const std::string& sessionId,
                          const UserInfo& userInfo,
                          std::string* newSessionId) {
-    if (!newSessionId) {
-        LOG(ERROR) << "The argument newSessionId is nullptr";
-        return -1;
-    }
-    LeaseRefreshResult response;
-    LeaseSession_t lease;
-    LIBCURVE_ERROR ret = mdsclient_->RefreshSession(finfo_.fullPathName,
-                                                    userInfo,
-                                                    sessionId,
-                                                    &response,
-                                                    &lease);
-    if (LIBCURVE_ERROR::OK != ret) {
-        LOG(ERROR) << "ReOpen file " << filename
-                   << " fail, RefreshSession from mds fail";
-        return -ret;
-    }
-
-    if (response.status == LeaseRefreshResult::Status::OK) {
-        // refresh session传回的finfo缺少userinfo和fullPathName
-        response.finfo.userinfo = finfo_.userinfo;
-        response.finfo.fullPathName = finfo_.fullPathName;
-
-        finfo_ = response.finfo;
-
-        newSessionId->assign(lease.sessionID);
-        ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
-                                                  : LIBCURVE_ERROR::FAILED;
-        LOG(INFO) << "ReOpen success, filename = "
-                  << filename
-                  << ", owner = " << userInfo.owner;
-        return -ret;
-    } else if (response.status == LeaseRefreshResult::Status::NOT_EXIST) {
-        LOG(WARNING) << "ReOpen " << filename
-            << " failed for session not exist, try Open directly";
-        return Open(filename, userInfo, newSessionId);
-    } else {
-        LOG(ERROR) << "ReOpen " << filename << " failed";
-        return -LIBCURVE_ERROR::FAILED;
-    }
+    return Open(filename, userInfo, newSessionId);
 }
 
 int FileInstance::GetFileInfo(const std::string& filename, FInfo_t* fi) {

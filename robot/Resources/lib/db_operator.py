@@ -41,6 +41,24 @@ def exec_sql(conn, sql):
         conn.rollback()
     conn.close()
 
+def exec_sql_file(conn, filepath):
+    cursor = conn.cursor()
+    with open(filepath) as f:
+        # 读取整个sql文件，以分号切割。[:-1]删除最后一个元素，也就是空字符串
+        sql_list = f.read().split(';')[:-1]
+        for x in sql_list:
+            # 判断包含空行的
+            if '\n' in x:
+                # 替换空行为1个空格
+                x = x.replace('\n', ' ')
+
+            # sql语句添加分号结尾
+            sql_item = x+';'
+            # print(sql_item)
+            cursor.execute(sql_item)
+            conn.commit()
+    conn.close()
+
 
 def get_db_info(table, *select_key_info, **condition_info):
     '''
