@@ -14,7 +14,7 @@
 #include "src/snapshotcloneserver/snapshotclone_server.h"
 #include "src/common/curve_version.h"
 
-using LeaderElectionOptions = ::curve::mds::LeaderElectionOptions;
+using LeaderElectionOptions = ::curve::election::LeaderElectionOptions;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -179,7 +179,7 @@ bool SnapShotCloneServer::InitEtcdClient(void) {
 
     std::string out;
     res = etcdClient_->Get("test", &out);
-    if (res != EtcdErrCode::EtcdOK && res != EtcdErrCode::KeyNotExist) {
+    if (res != EtcdErrCode::EtcdOK && res != EtcdErrCode::EtcdKeyNotExist) {
         LOG(ERROR) <<
             "Run snapsthotcloneserver err. Check if etcd is running.";
         return false;
