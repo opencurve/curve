@@ -11,4 +11,7 @@ chmod -R 777 /data/log/nebd
 cp /usr/bin/nebd-daemon /etc/init.d
 update-rc.d nebd-daemon defaults
 
+cp /usr/bin/nebd-tcpcheck-daemon /etc/init.d
+update-rc.d nebd-tcpcheck-daemon defaults
+
 exit 0

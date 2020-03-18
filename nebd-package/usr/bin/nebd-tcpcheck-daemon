@@ -1,0 +1,174 @@
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides:          nebd-tcpcheck-daemon
+# Required-Start:    $all
+# Required-Stop:     $all
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: nebd-tcpcheck-daemon service
+# Description:       Start the nebd-tcpcheck-daemon service and associated helpers
+### END INIT INFO
+
+# 检查脚本执行是否通过root权限执行
+if [[ $(id -u) -ne 0 ]]
+then
+    echo "Please run with sudo"
+    exit 1
+fi
+
+# nebd-tcpcheck路径
+bin=/usr/bin/nebd-check-tcp.sh
+
+# 日志文件路径
+baseLogPath=/data/log/nebd
+
+# pidfile
+pidFile=${baseLogPath}/nebd-tcpcheck.pid
+
+# daemon log
+daemonLog=${baseLogPath}/nebd-tcpcheck-daemon.log
+
+# console output
+consoleLog=${baseLogPath}/nebd-tcpcheck-console.log
+
+# 启动nebd-tcpcheck
+function start() {
+    # 检查daemon
+    if ! type daemon &> /dev/null
+    then
+        echo "No daemon installed"
+        exit 1
+    fi
+
+    # 检查nebd-tcpcheck
+    if [ ! -f ${bin} ]
+    then
+        echo "No nebd-tcpcheck installed"
+        exit 1
+    fi
+
+    # 判断是否已经通过daemon启动了nebd-tcpcheck
+    daemon --name nebd-tcpcheck --pidfile ${pidFile} --running
+    if [ $? -eq 0 ]
+    then
+        echo "Already started nebd-tcpcheck by daemon"
+        exit 1
+    fi
+
+    # 检查consoleLog是否可写或者是否能够创建
+    touch ${consoleLog} > /dev/null 2>&1
+    if [ $? -ne 0 ]
+    then
+        echo "Can't Write or Create console Log: ${consoleLog}"
+        exit 1
+    fi
+
+    # 检查daemonLog是否可写或者是否能够创建
+    touch ${daemonLog} > /dev/null 2>&1
+    if [ $? -ne 0 ]
+    then
+        echo "Can't Write or Create daemon logfile: ${daemonLog}"
+        exit 1
+    fi
+
+    # 记录运行daemon前的daemonLog的行数
+    line1=`cat ${daemonLog} | wc -l`
+
+    daemon --name nebd-tcpcheck --core --inherit \
+           --respawn --attempts 10 --delay 10 --acceptable 10\
+           --pidfile ${pidFile} \
+           --errlog ${daemonLog} \
+           --output ${consoleLog} \
+           -- sh ${bin}
+
+    # sleep 1秒检测daemonLog是否有变化，如果有变化，说明启动遇到问题
+    sleep 1
+    line2=`cat ${daemonLog} | wc -l`
+    if [ $line1 != $line2 ]
+    then
+        echo "start nebd-tcpcheck met error!"
+        stop
+    fi
+}
+
+# 停止daemon进程，且停止nebd-tcpcheck
+function stop() {
+    # 判断是否已经通过daemon启动了nebd-tcpcheck
+    daemon --name nebd-tcpcheck --pidfile ${pidFile} --running
+    if [ $? -ne 0 ]
+    then
+        echo "Didn't start nebd-tcpcheck by daemon"
+        exit 1
+    fi
+
+    daemon --name nebd-tcpcheck --pidfile ${pidFile} --stop
+    if [ $? -ne 0 ]
+    then
+        echo "stop may not success!"
+    else
+        echo "nebd-tcpcheck exit success!"
+        echo "daemon exit success!"
+    fi
+}
+
+# restart
+function restart() {
+    # 判断是否已经通过daemon启动了nebd-tcpcheck
+    daemon --name nebd-tcpcheck --pidfile ${pidFile} --running
+    if [ $? -ne 0 ]
+    then
+        echo "Didn't start nebd-tcpcheck by daemon"
+        exit 1
+    fi
+
+    daemon --name nebd-tcpcheck --pidfile ${pidFile} --restart
+}
+
+# status
+function status() {
+    daemon --name nebd-tcpcheck --pidfile ${pidFile} --running
+    if [ $? -ne 0 ]
+    then
+        echo "Didn't start nebd-tcpcheck by daemon"
+    else
+        echo "nebd-tcpcheck is running by daemon"
+    fi
+}
+
+# 使用方式
+function usage() {
+    echo "Usage:"
+    echo "  nebd-tcpcheck-daemon start -- start deamon process and watch on nebd-tcpcheck process"
+    echo "  nebd-tcpcheck-daemon stop  -- stop daemon process and nebd-tcpcheck"
+    echo "  nebd-tcpcheck-daemon restart -- restart nebd-tcpcheck"
+    echo "  nebd-tcpcheck-daemon status -- show if the nebd-tcpcheck is running by daemon"
+    echo "Examples:"
+    echo "  nebd-tcpcheck-daemon start"
+}
+
+# 检查参数启动参数，最少1个
+if [ $# -lt 1 ]
+then
+    usage
+    exit
+fi
+
+case $1 in
+"start")
+    start
+    ;;
+"stop")
+    stop
+    ;;
+"restart")
+    restart
+    ;;
+"status")
+    status
+    ;;
+*)
+    usage
+    ;;
+esac
+
