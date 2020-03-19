@@ -522,15 +522,23 @@ TEST(TestChunkServerInfo, test_onlineState) {
                        1,
                        2,
                        ChunkServerStatisticInfo());
+    ASSERT_TRUE(cs.IsOnline());
     ASSERT_FALSE(cs.IsOffline());
     ASSERT_TRUE(cs.IsHealthy());
+
     cs.state = OnlineState::OFFLINE;
     ASSERT_TRUE(cs.IsOffline());
     ASSERT_FALSE(cs.IsHealthy());
+
+    cs.state = OnlineState::UNSTABLE;
+    ASSERT_TRUE(cs.IsUnstable());
+    ASSERT_FALSE(cs.IsHealthy());
+
     cs.state = OnlineState::ONLINE;
     cs.diskState = DiskState::DISKERROR;
     ASSERT_FALSE(cs.IsHealthy());
     ASSERT_FALSE(cs.IsPendding());
+
     cs.status = ChunkServerStatus::PENDDING;
     ASSERT_TRUE(cs.IsPendding());
 }

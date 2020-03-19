@@ -206,8 +206,8 @@ void HeartbeatManager::ChunkServerHeartbeat(
         ::curve::mds::topology::CopySetInfo reportCopySetInfo;
         if (!FromHeartbeatCopySetInfoToTopologyOne(value,
                 &reportCopySetInfo)) {
-            LOG(ERROR) << "heartbeatManager receive copySet(logicalPoolId: "
-                       << value.logicalpoolid() << ", copySetId: "
+            LOG(ERROR) << "heartbeatManager receive copyset("
+                       << value.logicalpoolid() << ","
                        << value.copysetid()
                        << ") information, but can not transfer to topology one";
             response->set_statuscode(

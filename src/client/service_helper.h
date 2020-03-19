@@ -122,6 +122,17 @@ class ServiceHelper {
      */
     static std::string BuildChannelUrl(
       const std::unordered_set<std::string>& chunkserverIpPorts);
+
+    /**
+     * @brief: 发送http请求，判断chunkserver是否健康
+     *
+     * @param: endPoint chunkserver的ip:port
+     * @param: http请求的超时时间
+     *
+     * @return: 0 表示健康，-1表示不健康
+     */
+    static int CheckChunkServerHealth(
+      const butil::EndPoint& endPoint, int32_t requestTimeoutMs);
 };
 
 }   // namespace client

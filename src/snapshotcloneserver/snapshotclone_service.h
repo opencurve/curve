@@ -67,6 +67,8 @@ class SnapshotCloneServiceImpl : public SnapshotCloneService {
     void HandleRecoverAction(brpc::Controller* bcntl,
         const std::string &requestId,
         Closure* done);
+    void HandleFlattenAction(brpc::Controller* bcntl,
+        const std::string &requestId);
     void HandleGetCloneTasksAction(brpc::Controller* bcntl,
         const std::string &requestId);
     void HandleCleanCloneTaskAction(brpc::Controller* bcntl,
@@ -80,7 +82,6 @@ class SnapshotCloneServiceImpl : public SnapshotCloneService {
     std::shared_ptr<SnapshotServiceManager> snapshotManager_;
     std::shared_ptr<CloneServiceManager> cloneManager_;
 };
-
 }  // namespace snapshotcloneserver
 }  // namespace curve
 

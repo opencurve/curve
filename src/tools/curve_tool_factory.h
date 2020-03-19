@@ -19,6 +19,7 @@
 #include "src/tools/curve_cli.h"
 #include "src/tools/copyset_check.h"
 #include "src/tools/snapshot_check.h"
+#include "src/tools/schedule_tool.h"
 
 namespace curve {
 namespace tool {
@@ -63,6 +64,10 @@ class CurveToolFactory {
      *  @brief 获取SnapshotCheck实例
      */
     static std::shared_ptr<SnapshotCheck> GenerateSnapshotCheck();
+    /**
+     *  @brief 获取ScheduleTool实例
+     */
+    static std::shared_ptr<ScheduleTool> GenerateScheduleTool();
 };
 }  // namespace tool
 }  // namespace curve

@@ -104,7 +104,9 @@ enum  StatusCode {
     // 文件正在被克隆
     kDeleteFileBeingCloned = 133;
     // client版本不匹配
-    kVersionNotMatch = 134;
+    kClientVersionNotMatch = 134;
+    // snapshot功能禁用中
+    kSnapshotFrozen = 135;
 
     // 元数据存储错误
     kStorageError = 501;
@@ -366,6 +368,7 @@ message ReFreshSessionRequest {
     required string     owner = 3;
     required uint64     date = 4; //current time
     optional string     signature = 5;
+    optional string     clientVersion = 6;
 }
 
 // statusCode返回值，详见StatusCode定义:
@@ -377,6 +380,7 @@ message ReFreshSessionResponse {
     required StatusCode statusCode = 1;
     required string     sessionID = 2;
     optional FileInfo   fileInfo = 3;
+    optional ProtoSession protoSession = 4;
 };
 
 
@@ -420,6 +424,28 @@ message RegistClientResponse {
     required StatusCode statusCode = 1;
 }
 
+message GetAllocatedSizeRequest {
+    required string fileName = 1;
+}
+
+message GetAllocatedSizeResponse {
+    required StatusCode statusCode = 1;
+    optional uint64 allocatedSize = 2;
+}
+
+message ClientInfo {
+    required string ip = 1;
+    required uint32 port = 2;
+}
+
+message ListClientRequest {
+}
+
+message ListClientResponse {
+    required StatusCode statusCode = 1;
+    repeated ClientInfo clientInfos = 2;
+}
+
 service CurveFSService {
     // basic rpcs
     rpc     CreateFile(CreateFileRequest) returns (CreateFileResponse);
@@ -456,4 +482,6 @@ service CurveFSService {
 
     // curve status
     rpc     RegistClient(RegistClientRequest) returns (RegistClientResponse);
+    rpc     GetAllocatedSize(GetAllocatedSizeRequest) returns (GetAllocatedSizeResponse);
+    rpc     ListClient(ListClientRequest) returns (ListClientResponse);
 }

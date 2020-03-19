@@ -24,7 +24,7 @@
 #include "src/client/libcurve_snapshot.h"
 #include "src/client/iomanager4chunk.h"
 #include "src/client/client_common.h"
-#include "src/client/libcurve_define.h"
+#include "include/client/libcurve.h"
 
 extern std::string mdsMetaServerAddr;
 
@@ -142,10 +142,10 @@ TEST(SnapInstance, SnapShotTest) {
                                                         userinfo,
                                                         &seq));
 
-    // set return kVersionNotMatch
+    // set return kClientVersionNotMatch
     ::curve::mds::CreateSnapShotResponse versionNotMatchResponse;
     versionNotMatchResponse.set_statuscode(
-        curve::mds::StatusCode::kVersionNotMatch);
+        curve::mds::StatusCode::kClientVersionNotMatch);
     std::unique_ptr<FakeReturn> versionNotMatchFakeRetrun(
         new FakeReturn(nullptr, static_cast<void*>(&versionNotMatchResponse)));
 

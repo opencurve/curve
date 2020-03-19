@@ -15,14 +15,15 @@
 #include <map>
 #include <string>
 #include "src/mds/common/mds_define.h"
+#include "src/common/namespace_define.h"
 #include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/idgenerator/chunk_id_generator.h"
-#include "src/mds/nameserver2/session.h"
 #include "src/mds/dao/mdsRepo.h"
 #include "src/mds/topology/topology_chunk_allocator.h"
 
 using ::curve::mds::topology::TopologyChunkAllocator;
+using ::curve::common::SNAPSHOTFILEINFOKEYPREFIX;
 
 const uint64_t FACK_INODE_INITIALIZE = 0;
 const uint64_t FACK_CHUNKID_INITIALIZE = 0;
@@ -265,6 +266,27 @@ class FakeNameServerStorage : public NameServerStorage {
                     FileInfo  validFile;
                     validFile.ParseFromString(iter->second);
                     files->push_back(validFile);
+                }
+            }
+        }
+
+        return StoreStatus::OK;
+    }
+
+    StoreStatus ListSegment(InodeID id,
+                            std::vector<PageFileSegment> *segments) {
+        std::lock_guard<std::mutex> guard(lock_);
+        std::string startStoreKey =
+                NameSpaceStorageCodec::EncodeSegmentStoreKey(id, 0);
+        std::string endStoreKey =
+                NameSpaceStorageCodec::EncodeSegmentStoreKey(id + 1, 0);
+
+        for (auto iter = memKvMap_.begin(); iter != memKvMap_.end(); iter++) {
+            if (iter->first.compare(startStoreKey) >= 0) {
+                if (iter->first.compare(endStoreKey) < 0) {
+                    PageFileSegment segment;
+                    segment.ParseFromString(iter->second);
+                    segments->push_back(segment);
                 }
             }
         }

@@ -15,6 +15,25 @@ using ::curve::snapshotcloneserver::CloneRepoItem;
 namespace curve {
 namespace snapshotcloneserver {
 
+std::ostream& operator<<(std::ostream& os, const CloneInfo &cloneInfo) {
+    os << "{ taskId : " << cloneInfo.GetTaskId();
+    os << ", user : " << cloneInfo.GetUser();
+    os << ", cloneTaskType : "
+       << static_cast<int> (cloneInfo.GetTaskType());
+    os << ", source : " << cloneInfo.GetSrc();
+    os << ", destination : " << cloneInfo.GetDest();
+    os << ", originId : " << cloneInfo.GetOriginId();
+    os << ", destId : " << cloneInfo.GetDestId();
+    os << ", time : " << cloneInfo.GetTime();
+    os << ", fileType : " << static_cast<int>(cloneInfo.GetFileType());
+    os << ", isLazy : " << cloneInfo.GetIsLazy();
+    os << ", nextStep : " << static_cast<int>(cloneInfo.GetNextStep());
+    os << ", status : " << static_cast<int>(cloneInfo.GetStatus());
+    os << " }";
+    return os;
+}
+
+
 int DBSnapshotCloneMetaStore::Init(
         const SnapshotCloneMetaStoreOptions &options) {
     std::string dbname = options.dbName;
@@ -28,19 +47,9 @@ int DBSnapshotCloneMetaStore::Init(
         LOG(ERROR) << "ConnectDB failed";
         return -1;
     }
-    ret = repo_->createDatabase();
-    if (ret < 0) {
-        LOG(ERROR) << "create Database failed";
-        return -1;
-    }
     ret = repo_->useDataBase();
     if (ret < 0) {
         LOG(ERROR) << "use DataBase failed";
-        return -1;
-    }
-    ret = repo_->createAllTables();
-    if (ret < 0) {
-        LOG(ERROR) << "create table failed";
         return -1;
     }
     ret = LoadSnapshotInfos();
