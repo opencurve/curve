@@ -384,7 +384,7 @@ def check_vm_vd(ip,nova_ssh,uuid):
         except:
             i = i + 5
             time.sleep(5)
-    assert rs[3] == 0,"start vm fail,ori_cmd is %s"%rs[2]
+    assert rs[3] == 0,"start vm fail,ori_cmd is %s" % rs[1]
 
 def init_vm():
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
@@ -825,7 +825,7 @@ def wait_cluster_healthy(limit_iops=8000):
     #检测集群整体状态
     host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-    ori_cmd = "curve_ops_tool check-cluster  -mdsAddr=%s | grep \"Cluster is\""%addrs
+    ori_cmd = "curve_ops_tool status | grep \"cluster is\""
     starttime = time.time()
     check = 0
     while time.time() - starttime < config.recover_time:
@@ -1224,6 +1224,33 @@ def test_start_mds():
                 raise Exception("client io is slow, = %d more than 5s" % (end_iops))
     except Exception as e:
         raise 
+
+def test_start_snap():
+    start_iops = get_cluster_iops()
+    try:
+        logger.info("snap list is %s"%config.snap_server_list)
+        for snap_host in config.snap_server_list:
+            start_snap_process(snap_host)
+            end_iops = get_cluster_iops()
+            if float(end_iops) / float(start_iops) < 0.9:
+                raise Exception("client io is slow, = %d more than 5s" % (end_iops))
+    except Exception as e:
+        raise 
+
+def start_snap_process(host):
+    ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+    ori_cmd = "ps -ef|grep -v grep | grep curve-snapshotcloneserver | awk '{print $2}'"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    if rs[1] != []:
+        logger.debug("snap already up")
+        return
+    up_cmd = "cd snapshot/temp && sudo nohup curve-snapshotcloneserver -conf=/etc/curve/snapshot_clone_server.conf &"
+    shell_operator.ssh_background_exec2(ssh, up_cmd)
+    logger.debug("exec %s"%(up_cmd))
+    time.sleep(2)
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    if rs[1] == []:
+        assert False, "snap up fail"
 
 def test_round_restart_mds():
     logger.info("|------begin test round restart mds------|")
@@ -1701,10 +1728,10 @@ def clean_last_data():
 def analysis_data(ssh):
     ori_cmd = "cd /root/perf/ && python gen_randrw_data.py"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    assert rs[3] == 0,"gen randrw data fail,error is %s"%rs[2]
+    assert rs[3] == 0,"gen randrw data fail,error is %s"%rs[1]
     ori_cmd = "cat /root/perf/test.csv"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    assert rs[3] == 0,"get data fail,error is %s"%rs[2]
+    assert rs[3] == 0,"get data fail,error is %s"%rs[1]
     for line in rs[1]:
         if 'randread,4k' in line:
             randr_4k_iops = line.split(',')[4]
@@ -1764,14 +1791,14 @@ def perf_test():
     assert final == 1,"io test have not finall"
     ori_cmd = "cp -r /root/perf/test-ssd/fiodata /root/perf"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    assert rs[3] == 0,"cp fiodata fail,error is %s"%rs[2]
+    assert rs[3] == 0,"cp fiodata fail,error is %s"%rs[1]
     analysis_data(ssh)
 
 def stress_test():
     ori_cmd = "bash attach_thrash.sh"
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     rs = shell_operator.ssh_exec(ssh,ori_cmd)
-    assert rs[3] == 0,"attach thrash vol fail,rs is %s"%rs[2]
+    assert rs[3] == 0,"attach thrash vol fail,rs is %s"%rs[1]
     ori_cmd = "cat thrash_vm"
     rs = shell_operator.ssh_exec(ssh,ori_cmd)
     logger.info("rs is %s"%rs[1])
@@ -1799,7 +1826,7 @@ def stress_test():
         ori_cmd = "ssh %s -o StrictHostKeyChecking=no "%ip + "\"" + " supervisorctl reload && supervisorctl start all " + "\""
         logger.info("exec cmd %s" % ori_cmd)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[3] == 0,"start supervisor fail,rs is %s"%rs[2]
+        assert rs[3] == 0,"start supervisor fail,rs is %s"%rs[1]
     start_time = time.time()
     while time.time() - start_time < 70000:
         num = random.randint(1,5)

@@ -152,6 +152,14 @@ def add_config():
         ori_cmd = "sed -i \"s/client.config_path=\S*/client.config_path=\/etc\/curve\/snap_client.conf/\" snapshot_clone_server.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s snapshot config fail"%host
+        #修改snapshot_clone_server.conf etcd配置
+        ori_cmd = "sed -i \"s/etcd.endpoint=\S*/etcd.endpoint=%s/g\" snapshot_clone_server.conf"%(etcd_addrs)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s snapshot config fail"%host
+        #修改数据库配置项
+        ori_cmd = R"sed -i 's/metastore.db_address=\S*/metastore.db_address=%s/g' snapshot_clone_server.conf"%(config.abnormal_db_host)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s snapshot clone server config fail"%host
         ori_cmd = "sed -i \"s/s3.config_path=\S*/s3.config_path=\/etc\/curve\/s3.conf/\" snapshot_clone_server.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s snapshot config fail"%host
@@ -162,6 +170,12 @@ def add_config():
         ori_cmd = "sed -i \"s/mds.listen.addr=\S*/mds.listen.addr=%s/g\" snap_client.conf"%(addrs)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s snapshot config fail"%host
+        ori_cmd = "sudo mv snapshot_clone_server.conf /etc/curve/ && sudo mv snap_client.conf /etc/curve/"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"mv %s snapshot_clone_server conf fail"%host
+        ori_cmd = "sudo mv s3.conf /etc/curve/ && sudo mv client.conf /etc/curve/"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+
     # add tools config
     snap_addrs_list = []
     for host in config.snap_server_list:
@@ -186,10 +200,6 @@ def add_config():
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"mv %s tools conf fail"%host
 
-        ori_cmd = "sudo mv s3.conf /etc/curve/ && sudo mv client.conf /etc/curve/ && sudo mv snapshot_clone_server.conf /etc/curve/ && sudo mv snap_client.conf /etc/curve/"
-        rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[3] == 0,"mv %s snapshot_clone_server conf fail"%host
-        
 def clean_env():
     host_list = config.client_list + config.mds_list + config.chunkserver_list 
     host_list = list(set(host_list))
