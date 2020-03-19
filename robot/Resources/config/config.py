@@ -83,6 +83,7 @@ db_pass = "qwer"
 mds_db_name = "curve_mds"
 snap_db_name = "curve_snapshot"
 curve_sql = "./src/repo/curve_mds.sql"
+snap_sql = "./src/repo/curve_snapshot.sql"
 
 # chunkserver mount point
 cs_0 = curve_workspace + "0"
