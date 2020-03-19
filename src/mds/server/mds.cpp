@@ -22,7 +22,7 @@ MDS::~MDS() {
 
 void MDS::InitMdsOptions(std::shared_ptr<Configuration> conf) {
     conf_ = conf;
-    InitSessionOptions(&options_.sessionOptions);
+    InitFileRecordOptions(&options_.fileRecordOptions);
     InitAuthOptions(&options_.authOptions);
     InitCurveFSOptions(&options_.curveFSOptions);
     InitScheduleOption(&options_.scheduleOption);
@@ -249,7 +249,8 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
 
     std::string out;
     res = etcdClient_->Get("test", &out);
-    LOG_IF(FATAL, res != EtcdErrCode::EtcdOK && res != EtcdErrCode::KeyNotExist)
+    LOG_IF(FATAL, res != EtcdErrCode::EtcdOK &&
+        res != EtcdErrCode::EtcdKeyNotExist)
         << "Run mds err. Check if etcd is running.";
 
     LOG(INFO) << "init etcd client ok! "
@@ -289,14 +290,9 @@ void MDS::InitMdsRepo(const MdsRepoOption& option) {
                                      option.dbPassword, option.dbPoolSize);
     LOG_IF(FATAL, res != OperationOK) << "connectDB fail";
 
-    res = mdsRepo_->createDatabase();
-    LOG_IF(FATAL, res != OperationOK) << "createDatabase fail";
-
     res = mdsRepo_->useDataBase();
     LOG_IF(FATAL, res != OperationOK) << "useDataBase fail";
 
-    res = mdsRepo_->createAllTables();
-    LOG_IF(FATAL, res != OperationOK) << "createAllTables fail";
     LOG(INFO) << "init mdsRepo success.";
 }
 
@@ -444,26 +440,24 @@ void MDS::InitCurveFS(const CurveFSOption& curveFSOptions) {
     // init clean manager
     InitCleanManager();
 
-    // init SessionManager
-    auto sessionManager = std::make_shared<SessionManager>(mdsRepo_);
+    // init FileRecordManager
+    auto fileRecordManager = std::make_shared<FileRecordManager>();
     LOG_IF(FATAL, !kCurveFS.Init(nameServerStorage_, inodeIdGenerator,
                   chunkSegmentAllocate, cleanManager_,
-                  sessionManager,
+                  fileRecordManager,
                   segmentAllocStatistic_,
                   curveFSOptions, mdsRepo_))
-        << "init session manager fail";
-    LOG(INFO) << "init SessionManager success.";
+        << "init FileRecordManager fail";
+    LOG(INFO) << "init FileRecordManager success.";
 
     LOG(INFO) << "RecoverCleanTasks success.";
 }
 
-void MDS::InitSessionOptions(SessionOptions *sessionOptions) {
+void MDS::InitFileRecordOptions(FileRecordOptions *fileRecordOptions) {
     conf_->GetValueFatalIfFail(
-        "mds.session.leaseTimeUs", &sessionOptions->leaseTimeUs);
+        "mds.file.expiredTimeUs", &fileRecordOptions->fileRecordExpiredTimeUs);
     conf_->GetValueFatalIfFail(
-        "mds.session.toleranceTimeUs", &sessionOptions->toleranceTimeUs);
-    conf_->GetValueFatalIfFail(
-        "mds.session.intevalTimeUs", &sessionOptions->intevalTimeUs);
+        "mds.file.scanIntevalTimeUs", &fileRecordOptions->scanIntervalTimeUs);
 }
 
 void MDS::InitAuthOptions(RootAuthOption *authOptions) {
@@ -475,8 +469,8 @@ void MDS::InitAuthOptions(RootAuthOption *authOptions) {
 void MDS::InitCurveFSOptions(CurveFSOption *curveFSOptions) {
     conf_->GetValueFatalIfFail(
         "mds.curvefs.defaultChunkSize", &curveFSOptions->defaultChunkSize);
-    SessionOptions sessionOptions;
-    InitSessionOptions(&curveFSOptions->sessionOptions);
+    FileRecordOptions fileRecordOptions;
+    InitFileRecordOptions(&curveFSOptions->fileRecordOptions);
 
     RootAuthOption authOptions;
     InitAuthOptions(&curveFSOptions->authOptions);

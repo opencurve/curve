@@ -12,7 +12,7 @@
 #include <memory>
 
 #include "src/common/configuration.h"
-#include "src/mds/leader_election/leader_election.h"
+#include "src/leader_election/leader_election.h"
 
 #include "src/client/libcurve_snapshot.h"
 #include "src/client/libcurve_file.h"
@@ -42,9 +42,9 @@ extern const char ACTIVE[];
 extern const char STANDBY[];
 
 
-using EtcdClientImp = ::curve::mds::EtcdClientImp;
+using EtcdClientImp = ::curve::kvstorage::EtcdClientImp;
 using Configuration = ::curve::common::Configuration;
-using LeaderElection = ::curve::mds::LeaderElection;
+using LeaderElection = ::curve::election::LeaderElection;
 
 struct SnapShotCloneServerOptions {
     CurveClientOptions clientOptions;

@@ -199,6 +199,8 @@ void MDSClientBase::RefreshSession(const std::string& filename,
     ReFreshSessionRequest request;
     request.set_filename(filename);
     request.set_sessionid(sessionid);
+    request.set_clientversion(curve::common::CurveVersion());
+
     FillUserInfo<ReFreshSessionRequest>(&request, userinfo);
 
     LOG_EVERY_N(INFO, 10) << "RefreshSession: filename = " << filename.c_str()

@@ -57,7 +57,7 @@ cc_library(
         "//proto:chunkserver-cc-protos",
         "//src/snapshotcloneserver/dao:snapshotrepo",
         "//src/client:curve_client",
-        "//src/mds/leader_election:leader_election"
+        "//src/leader_election:leader_election"
     ],
 )
 
@@ -101,6 +101,6 @@ cc_binary(
         "//proto:chunkserver-cc-protos",
         "//src/snapshotcloneserver/dao:snapshotrepo",
         "//src/client:curve_client",
-        "//src/mds/leader_election:leader_election"
+        "//src/leader_election:leader_election"
     ],
 )

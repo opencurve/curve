@@ -1066,10 +1066,6 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
 
     std::string clientIP = butil::ip2str(cntl->remote_side().ip).c_str();
     uint32_t clientPort = cntl->remote_side().port;
-    std::string clientVersion = "";
-    if (request->has_clientversion()) {
-        clientVersion = request->clientversion();
-    }
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -1116,7 +1112,6 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
     FileInfo *fileInfo = new FileInfo();
     retCode = kCurveFS.OpenFile(request->filename(),
                                 clientIP,
-                                clientVersion,
                                 protoSession,
                                 fileInfo);
     if (retCode != StatusCode::kOK)  {
@@ -1248,6 +1243,10 @@ void NameSpaceService::RefreshSession(
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
     std::string clientIP = butil::ip2str(cntl->remote_side().ip).c_str();
+    std::string clientVersion;
+    if (request->has_clientversion()) {
+        clientVersion = request->clientversion();
+    }
     uint32_t clientPort = cntl->remote_side().port;
 
     if (!isPathValid(request->filename())) {
@@ -1300,14 +1299,13 @@ void NameSpaceService::RefreshSession(
     }
 
     FileInfo *fileInfo = new FileInfo();
-    ProtoSession *protoSession = new ProtoSession();
     retCode = kCurveFS.RefreshSession(request->filename(),
                                       request->sessionid(),
                                       request->date(),
                                       request->signature(),
                                       clientIP,
-                                      fileInfo,
-                                      protoSession);
+                                      clientVersion,
+                                      fileInfo);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         response->set_sessionid(request->sessionid());
@@ -1333,12 +1331,10 @@ void NameSpaceService::RefreshSession(
                 << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
         delete fileInfo;
-        delete protoSession;
         return;
     } else {
         response->set_sessionid(request->sessionid());
         response->set_allocated_fileinfo(fileInfo);
-        response->set_allocated_protosession(protoSession);
         response->set_statuscode(StatusCode::kOK);
         DVLOG(6) << "logid = " << cntl->log_id()
             << ", RefreshSession ok, filename = " << request->filename()
