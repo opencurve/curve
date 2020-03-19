@@ -34,9 +34,11 @@ def clean_db():
         raise
 
 def create_db_table():
-    conn = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
     try:
+        conn = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
         db_operator.exec_sql_file(conn, config.curve_sql)
+        conn2 = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
+        db_operator.exec_sql_file(conn2, config.snap_sql)
 
     except Exception:
         logger.error("创建表失败.")
