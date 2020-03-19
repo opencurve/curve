@@ -62,7 +62,7 @@ mds_reset_list = ["10.182.26.16","10.182.26.17"]
 abnormal_user = "nbs"
 pravie_key_path = "/home/nbs/rsa/id_rsa"
 abnormal_db_host = "10.182.2.252"
-recover_time = 10800
+recover_time = 3600
 offline_timeout = 100
 vol_uuid = ""
 thrash_attach = True
@@ -82,6 +82,8 @@ db_user = "root"
 db_pass = "qwer"
 mds_db_name = "curve_mds"
 snap_db_name = "curve_snapshot"
+curve_sql = "./src/repo/curve_mds.sql"
+snap_sql = "./src/repo/curve_snapshot.sql"
 
 # chunkserver mount point
 cs_0 = curve_workspace + "0"

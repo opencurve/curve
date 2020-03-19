@@ -41,7 +41,7 @@ class RequestSender {
           channel_() {}
     virtual ~RequestSender() {}
 
-    int Init(IOSenderOption_t ioSenderOpt);
+    int Init(const IOSenderOption_t& ioSenderOpt);
 
     /**
      * 读Chunk

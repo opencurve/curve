@@ -67,8 +67,11 @@ class TestSnapshotCloneServiceImpl : public ::testing::Test {
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotSuccess) {
     UUID uuid = "uuid1";
+    std::string user = "user";
+    std::string file = "test";
+    std::string snapName = "snap1";
 
-    EXPECT_CALL(*snapshotManager_, CreateSnapshot(_, _, _, _))
+    EXPECT_CALL(*snapshotManager_, CreateSnapshot(file, user, snapName, _))
         .WillOnce(DoAll(
                     SetArgPointee<3>(uuid),
                     Return(kErrCodeSuccess)));
@@ -79,7 +82,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotSuccess) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=CreateSnapshot&Version=1&User=test&File=test&Name=test"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr+ "=" + kCreateSnapshotAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + file + "&"
+                    + kNameStr + "=" + snapName;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -110,7 +118,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestDeleteSnapShotSuccess) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=DeleteSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kDeleteSnapshotAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + file + "&"
+                    + kUUIDStr + "=" + uuid;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -141,7 +154,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCancelSnapShotSuccess) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=CancelSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kCancelSnapshotAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + file + "&"
+                    + kUUIDStr + "=" + uuid;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -188,7 +206,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoSuccess) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=GetFileSnapshotInfo&Version=1&User=test&File=test&Limit=10"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kGetFileSnapshotInfoAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + file + "&"
+                    + kLimitStr + "=10";
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -255,7 +278,13 @@ TEST_F(TestSnapshotCloneServiceImpl,
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=GetFileSnapshotInfo&Version=1&User=test&File=test&Limit=10&Offset=1"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kGetFileSnapshotInfoAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + file + "&"
+                    + kLimitStr + "=10&"
+                    + kOffsetStr + "=1";
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -296,7 +325,11 @@ TEST_F(TestSnapshotCloneServiceImpl, TestActionIsNull) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Version=1&User=test&File=test&Limit=10"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kVersionStr + "=1&"
+                    + kUserStr + user + "&"
+                    + kFileStr + file + "&"
+                    + kLimitStr + "10";
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -315,6 +348,8 @@ TEST_F(TestSnapshotCloneServiceImpl, TestActionIsNull) {
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotMissingParam) {
     UUID uuid = "uuid1";
+    std::string user = "user1";
+    std::string snapName = "snap1";
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -322,7 +357,11 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotMissingParam) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=CreateSnapshot&Version=1&User=test&Name=test"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kCreateSnapshotAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kNameStr + "=" + snapName;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -350,7 +389,11 @@ TEST_F(TestSnapshotCloneServiceImpl, TestDeleteSnapShotMissingParam) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=DeleteSnapshot&Version=1&User=test&File=test"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kDeleteSnapshotAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + file;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -379,7 +422,11 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCancelSnapShotMissingParam) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=CancelSnapshot&Version=1&User=test&File=test"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kCancelSnapshotAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + file;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -408,7 +455,11 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoMissingParam) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=GetFileSnapshotInfo&Version=1&User=test&Limit=10"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kGetFileSnapshotInfoAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kLimitStr + "=10";
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -427,8 +478,11 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoMissingParam) {
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotFail) {
     UUID uuid = "uuid1";
+    std::string user = "user";
+    std::string file = "test";
+    std::string snapName = "snap1";
 
-    EXPECT_CALL(*snapshotManager_, CreateSnapshot(_, _, _, _))
+    EXPECT_CALL(*snapshotManager_, CreateSnapshot(file, user, snapName, _))
         .WillOnce(DoAll(
                     SetArgPointee<3>(uuid),
                     Return(kErrCodeInternalError)));
@@ -439,7 +493,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotFail) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=CreateSnapshot&Version=1&User=test&File=test&Name=test"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr+ "=" + kCreateSnapshotAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + file + "&"
+                    + kNameStr + "=" + snapName;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -470,7 +529,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestDeleteSnapShotFail) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=DeleteSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kDeleteSnapshotAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + file + "&"
+                    + kUUIDStr + "=" + uuid;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -501,7 +565,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCancelSnapShotFail) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=CancelSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kCancelSnapshotAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + file + "&"
+                    + kUUIDStr + "=" + uuid;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -534,7 +603,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoFail) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=GetFileSnapshotInfo&Version=1&User=test&File=test&Limit=10"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kGetFileSnapshotInfoAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + file + "&"
+                    + kLimitStr + "=10";
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -551,7 +625,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoFail) {
     LOG(ERROR) << cntl.response_attachment();
 }
 
-TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotBadRequest) {
+TEST_F(TestSnapshotCloneServiceImpl, TestBadRequest) {
     UUID uuid = "uuid1";
 
     brpc::Channel channel;
@@ -560,7 +634,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotBadRequest) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=xxx&Version=1&User=test&File=test&Name=test"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + "&"
+                    + kVersionStr + "=1";
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -579,8 +655,13 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotBadRequest) {
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileSuccess) {
     UUID uuid = "uuid1";
+    std::string user = "user1";
+    std::string source = "abc";
+    std::string destination = "file1";
+    bool lazyFlag = false;
 
-    EXPECT_CALL(*cloneManager_, CloneFile(_, _, _, _, _, _))
+    EXPECT_CALL(*cloneManager_, CloneFile(
+        source, user, destination, lazyFlag, _, _))
         .WillOnce(Invoke([](const UUID &source,
         const std::string &user,
         const std::string &destination,
@@ -597,7 +678,13 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileSuccess) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1&Lazy=false"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kCloneAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kSourceStr + "=" + source + "&"
+                    + kDestinationStr + "=" + destination + "&"
+                    + kLazyStr + "=" + (lazyFlag ? "True" : "False");
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -616,8 +703,13 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileSuccess) {
 
 TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileSuccess) {
     UUID uuid = "uuid1";
+    std::string user = "user1";
+    std::string source = "abc";
+    std::string destination = "file1";
+    bool lazyFlag = false;
 
-    EXPECT_CALL(*cloneManager_, RecoverFile(_, _, _, _, _, _))
+    EXPECT_CALL(*cloneManager_, RecoverFile(
+        source, user, destination, lazyFlag, _, _))
         .WillOnce(Invoke([](const UUID &source,
         const std::string &user,
         const std::string &destination,
@@ -634,7 +726,13 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileSuccess) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1&Lazy=false"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kRecoverAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kSourceStr + "=" + source + "&"
+                    + kDestinationStr + "=" + destination + "&"
+                    + kLazyStr + "=" + (lazyFlag ? "True" : "False");
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -653,6 +751,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileSuccess) {
 
 TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskSuccess) {
     UUID uuid = "uuid1";
+    std::string user = "user1";
 
     std::vector<TaskCloneInfo> infoVec;
     TaskCloneInfo info;
@@ -671,7 +770,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskSuccess) {
     info.SetCloneInfo(cinfo);
     info.SetCloneProgress(50);
     infoVec.push_back(info);
-    EXPECT_CALL(*cloneManager_, GetCloneTaskInfo(_, _))
+    EXPECT_CALL(*cloneManager_, GetCloneTaskInfo(user, _))
         .WillOnce(DoAll(
                 SetArgPointee<1>(infoVec),
                 Return(kErrCodeSuccess)));
@@ -682,7 +781,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskSuccess) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=GetCloneTasks&Version=1&User=test"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kGetCloneTasksAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -721,6 +823,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskSuccess) {
 TEST_F(TestSnapshotCloneServiceImpl,
     TestGetCloneTaskUseLimitOffsetSuccess) {
     UUID uuid = "uuid1";
+    std::string user = "user1";
 
     std::vector<TaskCloneInfo> infoVec;
     TaskCloneInfo info1, info2 , info3;
@@ -745,7 +848,12 @@ TEST_F(TestSnapshotCloneServiceImpl,
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=GetCloneTasks&Version=1&User=test&Limit=10&Offset=1"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kGetCloneTasksAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kLimitStr + "=10&"
+                    + kOffsetStr + "=1";
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -777,6 +885,9 @@ TEST_F(TestSnapshotCloneServiceImpl,
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileMissingParam) {
     UUID uuid = "uuid1";
+    std::string user = "user1";
+    std::string source = "abc";
+    std::string destination = "file1";
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -784,7 +895,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileMissingParam) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kCloneAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kSourceStr + "=" + source + "&"
+                    + kDestinationStr + "=" + destination;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -803,6 +919,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileMissingParam) {
 
 TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileMissingParam) {
     UUID uuid = "uuid1";
+    std::string user = "user1";
+    std::string source = "abc";
+    std::string destination = "file1";
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -810,7 +929,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileMissingParam) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kRecoverAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kSourceStr + "=" + source + "&"
+                    + kDestinationStr + "=" + destination;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -836,7 +960,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskMissingParam) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=GetCloneTasks&User=test"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kGetCloneTasksAction + "&"
+                    + kVersionStr + "=1";
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -855,8 +981,13 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskMissingParam) {
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileFail) {
     UUID uuid = "uuid1";
+    std::string user = "user1";
+    std::string source = "abc";
+    std::string destination = "file1";
+    bool lazyFlag = false;
 
-    EXPECT_CALL(*cloneManager_, CloneFile(_, _, _, _, _, _))
+    EXPECT_CALL(*cloneManager_, CloneFile(
+        source, user, destination, lazyFlag, _, _))
         .WillOnce(Invoke([](const UUID &source,
         const std::string &user,
         const std::string &destination,
@@ -873,7 +1004,13 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileFail) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1&Lazy=false"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kCloneAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kSourceStr + "=" + source + "&"
+                    + kDestinationStr + "=" + destination + "&"
+                    + kLazyStr + "=" + (lazyFlag ? "True" : "False");
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -892,8 +1029,13 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileFail) {
 
 TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileFail) {
     UUID uuid = "uuid1";
+    std::string user = "user1";
+    std::string source = "abc";
+    std::string destination = "file1";
+    bool lazyFlag = false;
 
-    EXPECT_CALL(*cloneManager_, RecoverFile(_, _, _, _, _, _))
+    EXPECT_CALL(*cloneManager_, RecoverFile(
+        source, user, destination, lazyFlag, _, _))
         .WillOnce(Invoke([](const UUID &source,
         const std::string &user,
         const std::string &destination,
@@ -910,7 +1052,13 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileFail) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1&Lazy=false"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kRecoverAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kSourceStr + "=" + source + "&"
+                    + kDestinationStr + "=" + destination + "&"
+                    + kLazyStr + "=" + (lazyFlag ? "True" : "False");
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -929,8 +1077,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileFail) {
 
 TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskFail) {
     UUID uuid = "uuid1";
+    std::string user = "user1";
 
-    EXPECT_CALL(*cloneManager_, GetCloneTaskInfo(_, _))
+    EXPECT_CALL(*cloneManager_, GetCloneTaskInfo(user, _))
         .WillOnce(Return(kErrCodeInternalError));
 
     brpc::Channel channel;
@@ -939,7 +1088,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskFail) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=GetCloneTasks&Version=1&User=test"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kGetCloneTasksAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -958,6 +1110,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskFail) {
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileInvalidParam) {
     UUID uuid = "uuid1";
+    std::string user = "user1";
+    std::string source = "abc";
+    std::string destination = "file1";
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -965,7 +1120,13 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileInvalidParam) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1&Lazy=tru"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kCloneAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kSourceStr + "=" + source + "&"
+                    + kDestinationStr + "=" + destination + "&"
+                    + kLazyStr + "=tru";
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -984,6 +1145,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileInvalidParam) {
 
 TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileInvalidParam) {
     UUID uuid = "uuid1";
+    std::string user = "user1";
+    std::string source = "abc";
+    std::string destination = "file1";
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -991,7 +1155,13 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileInvalidParam) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1&Lazy=fal"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kRecoverAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kSourceStr + "=" + source + "&"
+                    + kDestinationStr + "=" + destination + "&"
+                    + kLazyStr + "=fal";
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -1010,8 +1180,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileInvalidParam) {
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksSuccess) {
     UUID uuid = "uuid1";
+    std::string user = "user1";
 
-    EXPECT_CALL(*cloneManager_, CleanCloneTask(_, _))
+    EXPECT_CALL(*cloneManager_, CleanCloneTask(user, uuid))
         .WillOnce(Return(kErrCodeSuccess));
 
     brpc::Channel channel;
@@ -1020,7 +1191,11 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksSuccess) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=CleanCloneTask&Version=1&User=test&UUID=aaa"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kCleanCloneTaskAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kUUIDStr + "=" + uuid;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -1046,7 +1221,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksMissingParam) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=CleanCloneTask&Version=1&User=test"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kCleanCloneTaskAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUUIDStr + "=" + uuid;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -1065,8 +1243,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksMissingParam) {
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksFail) {
     UUID uuid = "uuid1";
+    std::string user = "user1";
 
-    EXPECT_CALL(*cloneManager_, CleanCloneTask(_, _))
+    EXPECT_CALL(*cloneManager_, CleanCloneTask(user, uuid))
         .WillOnce(Return(kErrCodeInternalError));
 
     brpc::Channel channel;
@@ -1075,7 +1254,11 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksFail) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=CleanCloneTask&Version=1&User=test&UUID=aaa"; //NOLINT
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kCleanCloneTaskAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kUUIDStr + "=" + uuid;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -1091,6 +1274,102 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksFail) {
     }
     LOG(ERROR) << cntl.response_attachment();
 }
+
+TEST_F(TestSnapshotCloneServiceImpl, TestFlattenSuccess) {
+    UUID uuid = "uuid1";
+    std::string user = "user1";
+
+    EXPECT_CALL(*cloneManager_, Flatten(user, uuid))
+        .WillOnce(Return(kErrCodeSuccess));
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kFlattenAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kUUIDStr + "=" + uuid;
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestFlattenMissingParam) {
+    UUID uuid = "uuid1";
+    std::string user = "user1";
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kFlattenAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUUIDStr + "=" + uuid;
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestFlattenFail) {
+    UUID uuid = "uuid1";
+    std::string user = "user1";
+
+    EXPECT_CALL(*cloneManager_, Flatten(user, uuid))
+        .WillOnce(Return(kErrCodeInternalError));
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kFlattenAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kUUIDStr + "=" + uuid;
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
+
 }  // namespace snapshotcloneserver
 }  // namespace curve
 

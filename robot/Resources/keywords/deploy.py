@@ -146,14 +146,6 @@ def add_config():
         assert rs[3] == 0,"mv %s s3 conf fail"%host
     for host in config.snap_server_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/s3.conf client.conf %s:~/"%\
-                            (config.pravie_key_path,host)
-        shell_operator.run_exec2(cmd)
-        ori_cmd = "sudo mv s3.conf /etc/curve/conf && sudo mv client.conf /etc/curve/conf"
-        rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[3] == 0,"mv %s s3 conf fail"%host
-    for host in config.snap_server_list:
-        ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
         cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/s3.conf client.conf conf/snapshot_clone_server.conf conf/snap_client.conf %s:~/"%\
                   (config.pravie_key_path,host)
         shell_operator.run_exec2(cmd)
@@ -170,6 +162,29 @@ def add_config():
         ori_cmd = "sed -i \"s/mds.listen.addr=\S*/mds.listen.addr=%s/g\" snap_client.conf"%(addrs)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s snapshot config fail"%host
+    # add tools config
+    snap_addrs_list = []
+    for host in config.snap_server_list:
+        snap_addrs_list.append(host + ":5555")
+    snap_addrs = ",".join(snap_addrs_list)
+    for host in config.mds_list:
+        ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/tools.conf %s:~/"%\
+            (config.pravie_key_path,host)
+        shell_operator.run_exec2(cmd)
+        ori_cmd = R"sed -i 's/mdsAddr=127.0.0.1:6666/mdsAddr=%s/g' tools.conf"%addrs
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s tools config fail"%host
+        ori_cmd = R"sed -i 's/etcdAddr=127.0.0.1:2379/etcdAddr=%s/g' tools.conf"%etcd_addrs
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s tools config fail"%host
+        ori_cmd = R"sed -i 's/snapshotCloneAddr=127.0.0.1:5555/snapshotCloneAddr=%s/g' tools.conf"%snap_addrs
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s tools config fail"%host
+        ori_cmd = "sudo mv tools.conf /etc/curve/"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"mv %s tools conf fail"%host
 
         ori_cmd = "sudo mv s3.conf /etc/curve/ && sudo mv client.conf /etc/curve/ && sudo mv snapshot_clone_server.conf /etc/curve/ && sudo mv snap_client.conf /etc/curve/"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
@@ -279,6 +294,16 @@ def drop_abnormal_test_db():
             logger.debug("drop table %s" %cmd)
     except Exception:
         logger.error("drop db fail.")
+        raise
+
+def create_abnormal_db_table():
+    try:
+       conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
+       db_operator.exec_sql_file(conn, config.curve_sql)
+       conn2 = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
+       db_operator.exec_sql_file(conn2, config.snap_sql)
+    except Exception:
+        logger.error("创建表失败.")
         raise
 
 def install_deb():

@@ -32,6 +32,60 @@ void SnapshotInfoMetric::Update(SnapshotTaskInfo *taskInfo) {
     metric.Update();
 }
 
+void CloneMetric::UpdateBeforeTaskBegin(
+    const CloneTaskType &taskType) {
+    if (CloneTaskType::kClone == taskType) {
+        cloneDoing << 1;
+    } else {
+        recoverDoing << 1;
+    }
+}
+
+void CloneMetric::UpdateAfterTaskFinish(
+    const CloneTaskType &taskType,
+    const CloneStatus &status) {
+    if (CloneStatus::done == status ||
+        CloneStatus::metaInstalled == status) {
+        if (CloneTaskType::kClone == taskType) {
+            cloneDoing << -1;
+            cloneSucceed << 1;
+        } else {
+            recoverDoing << -1;
+            recoverSucceed << 1;
+        }
+    } else if (CloneStatus::error == status) {
+        if (CloneTaskType::kClone == taskType) {
+            cloneDoing << -1;
+            cloneFailed << 1;
+        } else {
+            recoverDoing << -1;
+            recoverFailed << 1;
+        }
+    } else {
+        LOG(ERROR) << "CloneMetric::UpdateAfterTaskFinish when not finish! "
+                   << "status = " << static_cast<int>(status);
+    }
+}
+
+void CloneMetric::UpdateFlattenTaskBegin() {
+    flattenDoing << 1;
+}
+
+void CloneMetric::UpdateAfterFlattenTaskFinish(
+    const CloneStatus &status) {
+    if (CloneStatus::done == status) {
+        flattenDoing << -1;
+        flattenSucceed << 1;
+    } else if (CloneStatus::error == status) {
+        flattenDoing << -1;
+        flattenFailed << 1;
+    } else {
+        LOG(ERROR) << "CloneMetric::UpdateAfterFlattenTaskFinish "
+                   << "when not finish! "
+                   << "status = " << static_cast<int>(status);
+    }
+}
+
 void CloneInfoMetric::Update(CloneTaskInfo *taskInfo) {
     CloneInfo &cloneInfo = taskInfo->GetCloneInfo();
     metric.Set("UUID", cloneInfo.GetTaskId());

@@ -9,7 +9,7 @@
 #include <gmock/gmock.h>
 #include <glog/logging.h>
 
-#include "src/client/libcurve_define.h"
+#include "include/client/libcurve.h"
 #include "src/chunkserver/clone_copyer.h"
 #include "test/chunkserver/clone/clone_test_util.h"
 #include "test/client/mock_file_client.h"

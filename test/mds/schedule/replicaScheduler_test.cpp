@@ -24,16 +24,25 @@ namespace mds {
 namespace schedule {
 class TestReplicaSchedule : public ::testing::Test {
  protected:
-  TestReplicaSchedule() {}
-  ~TestReplicaSchedule() {}
+    TestReplicaSchedule() {}
+    ~TestReplicaSchedule() {}
 
-  void SetUp() override {
-      auto topo = std::make_shared<MockTopology>();
-      auto metric = std::make_shared<ScheduleMetrics>(topo);
-      opController_ = std::make_shared<OperatorController>(2, metric);
-      topoAdapter_ = std::make_shared<MockTopoAdapter>();
-      replicaScheduler_ = std::make_shared<ReplicaScheduler>(
-          opController_, 1, 10, 100, 1000, 1000, 0.2, topoAdapter_);
+    void SetUp() override {
+        auto topo = std::make_shared<MockTopology>();
+        auto metric = std::make_shared<ScheduleMetrics>(topo);
+        opController_ = std::make_shared<OperatorController>(2, metric);
+        topoAdapter_ = std::make_shared<MockTopoAdapter>();
+
+        ScheduleOption opt;
+        opt.transferLeaderTimeLimitSec = 10;
+        opt.removePeerTimeLimitSec = 100;
+        opt.addPeerTimeLimitSec = 1000;
+        opt.changePeerTimeLimitSec = 1000;
+        opt.recoverSchedulerIntervalSec = 1;
+        opt.scatterWithRangePerent = 0.2;
+        opt.replicaSchedulerIntervalSec = 1;
+        replicaScheduler_ = std::make_shared<ReplicaScheduler>(
+            opt, topoAdapter_, opController_);
   }
 
   void TearDown() override {

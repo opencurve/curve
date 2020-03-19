@@ -169,6 +169,7 @@ TEST(ClientSession, LeaseTaskTest) {
     std::condition_variable refreshcv;
     auto refresht = [&mtx, &refreshcv]() {
         LOG(INFO) << "get refresh session request!";
+        std::unique_lock<std::mutex> lk(mtx);
         refreshcv.notify_one();
     };
     curve::mds::FileInfo * info = new curve::mds::FileInfo;
@@ -353,22 +354,7 @@ TEST(ClientSession, LeaseTaskTest) {
     }
     ASSERT_TRUE(lease->LeaseValid());
 
-    // 12. set refresh kSessionNotExists
-    refreshresp.set_statuscode(::curve::mds::kSessionNotExist);
-    FakeReturn* refreshFakeRetSessionNotExists =
-        new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
-    curvefsservice->SetRefreshSession(refreshFakeRetSessionNotExists, refresht);
-
-    {
-        std::unique_lock<std::mutex> lk(mtx);
-        refreshcv.wait(lk);
-    }
-
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    lease = fileinstance.GetLeaseExcutor();
-    ASSERT_FALSE(lease->LeaseValid());
-
-    // 13. set refresh success
+    // 12. set refresh success
     refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* refreshfakeretOK4 =
         new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
@@ -387,14 +373,14 @@ TEST(ClientSession, LeaseTaskTest) {
     std::unique_lock<std::mutex> lk(sessionMtx);
     sessionCV.wait(lk, [&]() { return sessionFlag; });
 
-    // 14. set fake close return
+    // 13. set fake close return
     ::curve::mds::CloseFileResponse closeresp;
     closeresp.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* closefileret
      = new FakeReturn(nullptr, static_cast<void*>(&closeresp));
     curvefsservice->SetCloseFile(closefileret);
 
-    // 15. set refresh success
+    // 14. set refresh success
     // 如果lease续约失败后又重新续约成功了，这时候Lease是可用的了，leasevalid为true
     // 这时候IO被恢复了。
     sessionFlag = false;

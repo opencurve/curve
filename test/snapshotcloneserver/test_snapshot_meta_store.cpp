@@ -39,37 +39,7 @@ TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_ConnectDB) {
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
-    EXPECT_CALL(*repo, createDatabase())
-        .Times(1)
-        .WillOnce(Return(0));
     EXPECT_CALL(*repo, useDataBase())
-        .Times(1)
-        .WillOnce(Return(0));
-    EXPECT_CALL(*repo, createAllTables())
-        .Times(1)
-        .WillOnce(Return(0));
-    EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
-        .Times(1)
-        .WillOnce(Return(0));
-    EXPECT_CALL(*repo, LoadCloneRepoItems(_))
-        .Times(1)
-        .WillOnce(Return(0));
-    ASSERT_EQ(0, metastore_->Init(options));
-    ASSERT_EQ(-1, metastore_->Init(options));
-}
-TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_CreateDB) {
-    EXPECT_CALL(*repo, connectDB(_, _, _, _, _))
-        .Times(2)
-        .WillOnce(Return(0))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*repo, createDatabase())
-        .Times(2)
-        .WillOnce(Return(0))
-        .WillOnce(Return(-1));
-    EXPECT_CALL(*repo, useDataBase())
-        .Times(1)
-        .WillOnce(Return(0));
-    EXPECT_CALL(*repo, createAllTables())
         .Times(1)
         .WillOnce(Return(0));
     EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
@@ -86,40 +56,7 @@ TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_UseDB) {
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
-    EXPECT_CALL(*repo, createDatabase())
-        .Times(2)
-        .WillOnce(Return(0))
-        .WillOnce(Return(0));
     EXPECT_CALL(*repo, useDataBase())
-        .Times(2)
-        .WillOnce(Return(0))
-        .WillOnce(Return(-1));
-    EXPECT_CALL(*repo, createAllTables())
-        .Times(1)
-        .WillOnce(Return(0));
-    EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
-        .Times(1)
-        .WillOnce(Return(0));
-    EXPECT_CALL(*repo, LoadCloneRepoItems(_))
-        .Times(1)
-        .WillOnce(Return(0));
-    ASSERT_EQ(0, metastore_->Init(options));
-    ASSERT_EQ(-1, metastore_->Init(options));
-}
-TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_CreateTable) {
-    EXPECT_CALL(*repo, connectDB(_, _, _, _, _))
-        .Times(2)
-        .WillOnce(Return(0))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*repo, createDatabase())
-        .Times(2)
-        .WillOnce(Return(0))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*repo, useDataBase())
-        .Times(2)
-        .WillOnce(Return(0))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*repo, createAllTables())
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
@@ -137,15 +74,7 @@ TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_LoadSnapshotInfo) {
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
-    EXPECT_CALL(*repo, createDatabase())
-        .Times(2)
-        .WillOnce(Return(0))
-        .WillOnce(Return(0));
     EXPECT_CALL(*repo, useDataBase())
-        .Times(2)
-        .WillOnce(Return(0))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*repo, createAllTables())
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
@@ -164,15 +93,7 @@ TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_LoadCloneInfo) {
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
-    EXPECT_CALL(*repo, createDatabase())
-        .Times(2)
-        .WillOnce(Return(0))
-        .WillOnce(Return(0));
     EXPECT_CALL(*repo, useDataBase())
-        .Times(2)
-        .WillOnce(Return(0))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*repo, createAllTables())
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));

@@ -24,8 +24,12 @@
 #include "src/tools/namespace_tool_core.h"
 #include "src/tools/copyset_check_core.h"
 #include "src/tools/etcd_client.h"
+#include "src/tools/version_tool.h"
 #include "src/tools/curve_tool.h"
 #include "src/tools/curve_tool_define.h"
+#include "src/tools/metric_client.h"
+#include "src/tools/metric_name.h"
+#include "src/tools/snapshot_clone_client.h"
 
 using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::DiskState;
@@ -49,10 +53,16 @@ class StatusTool : public CurveTool {
     StatusTool(std::shared_ptr<MDSClient> mdsClient,
                std::shared_ptr<EtcdClient> etcdClient,
                std::shared_ptr<NameSpaceToolCore> nameSpaceToolCore,
-               std::shared_ptr<CopysetCheckCore> copysetCheckCore) :
+               std::shared_ptr<CopysetCheckCore> copysetCheckCore,
+               std::shared_ptr<VersionTool> versionTool,
+               std::shared_ptr<MetricClient> metricClient,
+               std::shared_ptr<SnapshotCloneClient> snapshotClient) :
                   mdsClient_(mdsClient), etcdClient_(etcdClient),
                   nameSpaceToolCore_(nameSpaceToolCore),
                   copysetCheckCore_(copysetCheckCore),
+                  versionTool_(versionTool),
+                  metricClient_(metricClient),
+                  snapshotClient_(snapshotClient),
                   mdsInited_(false), etcdInited_(false) {}
     ~StatusTool() = default;
 
@@ -77,6 +87,11 @@ class StatusTool : public CurveTool {
      */
     static bool SupportCommand(const std::string& command);
 
+    /**
+     *  @brief 判断集群是否健康
+     */
+    bool IsClusterHeatlhy();
+
  private:
     int Init(const std::string& command);
     int SpaceCmd();
@@ -90,6 +105,9 @@ class StatusTool : public CurveTool {
     int PrintMdsStatus();
     int PrintEtcdStatus();
     int PrintChunkserverStatus(bool checkLeftSize = true);
+    int PrintClientStatus();
+    int PrintSnapshotCloneStatus();
+
     /**
      *  @brief 判断命令是否需要和etcd交互
      *  @param command：执行的命令
@@ -99,11 +117,31 @@ class StatusTool : public CurveTool {
 
 
     /**
-     *  @brief 判断命令是否需要和mds
+     *  @brief 判断命令是否需要mds
      *  @param command：执行的命令
      *  @return 需要返回true，否则返回false
      */
     bool CommandNeedMds(const std::string& command);
+
+    /**
+     *  @brief 判断命令是否需要snapshot clone server
+     *  @param command：执行的命令
+     *  @return 需要返回true，否则返回false
+     */
+    bool CommandNeedSnapshotClone(const std::string& command);
+
+    /**
+     *  @brief 打印在线状态
+     *  @param name : 在线状态对应的名字
+     *  @param onlineStatus 在线状态的map
+     */
+    void PrintOnlineStatus(const std::string& name,
+                           const std::map<std::string, bool>& onlineStatus);
+
+    /**
+     *  @brief 获取并打印mds version信息
+     */
+    int GetAndPrintMdsVersion();
 
  private:
     // 向mds发送RPC的client
@@ -114,6 +152,12 @@ class StatusTool : public CurveTool {
     std::shared_ptr<CopysetCheckCore> copysetCheckCore_;
     // etcd client，用于调etcd API获取状态
     std::shared_ptr<EtcdClient> etcdClient_;
+    // 用于获取metric
+    std::shared_ptr<MetricClient> metricClient_;
+    // 用于获取snapshot clone的状态
+    std::shared_ptr<SnapshotCloneClient> snapshotClient_;
+    // version client，用于获取version信息
+    std::shared_ptr<VersionTool> versionTool_;
     // mds是否初始化过
     bool mdsInited_;
     // etcd是否初始化过

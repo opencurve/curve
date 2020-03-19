@@ -199,6 +199,8 @@ void MDSClientBase::RefreshSession(const std::string& filename,
     ReFreshSessionRequest request;
     request.set_filename(filename);
     request.set_sessionid(sessionid);
+    request.set_clientversion(curve::common::CurveVersion());
+
     FillUserInfo<ReFreshSessionRequest>(&request, userinfo);
 
     LOG_EVERY_N(INFO, 10) << "RefreshSession: filename = " << filename.c_str()
@@ -477,6 +479,19 @@ void MDSClientBase::GetChunkServerInfo(const std::string& ip,
 
     curve::mds::topology::TopologyService_Stub stub(channel);
     stub.GetChunkServer(cntl, &request, response, NULL);
+}
+
+void MDSClientBase::ListChunkServerInServer(
+    const std::string& ip, ListChunkServerResponse* response,
+    brpc::Controller* cntl, brpc::Channel* channel) {
+    curve::mds::topology::ListChunkServerRequest request;
+    request.set_ip(ip);
+    LOG(INFO) << "ListChunkServerInServer from mds: "
+        << "ip = " << ip
+        << ", log id = " << cntl->log_id();
+
+    curve::mds::topology::TopologyService_Stub stub(channel);
+    stub.ListChunkServer(cntl, &request, response, NULL);
 }
 
 std::string MDSClientBase::CalcSignature(const UserInfo& userinfo,

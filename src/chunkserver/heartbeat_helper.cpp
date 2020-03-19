@@ -5,9 +5,13 @@
  * Copyright (c) 2018 netease
  */
 
+#include <butil/endpoint.h>
+#include <brpc/channel.h>
+#include <brpc/controller.h>
 #include <string>
 #include "src/chunkserver/heartbeat_helper.h"
 #include "include/chunkserver/chunkserver_common.h"
+#include "proto/chunkserver.pb.h"
 
 namespace curve {
 namespace chunkserver {
@@ -88,6 +92,38 @@ bool HeartbeatHelper::NeedPurge(const butil::EndPoint &csEp,
     }
     return true;
 }
+
+bool HeartbeatHelper::ChunkServerLoadCopySetFin(const std::string peerId) {
+    if (!PeerVaild(peerId)) {
+        LOG(WARNING) << peerId << " is invalid";
+        return false;
+    }
+
+    PeerId peer;
+    peer.parse(peerId);
+    const char *ip = butil::ip2str(peer.addr.ip).c_str();
+    int port = peer.addr.port;
+    brpc::Channel channel;
+    if (channel.Init(ip, port, NULL) != 0) {
+        LOG(ERROR) << "Fail to init channel to ip:" << ip << " port:" << port;
+        return false;
+    }
+    ChunkServerService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(500);
+    ChunkServerStatusRequest req;
+    ChunkServerStatusResponse rep;
+    stub.ChunkServerStatus(&cntl, &req, &rep, nullptr);
+    if (cntl.Failed()) {
+        LOG(WARNING) << "Send ChunkServerStatusRequest failed, cntl.errorText ="
+            << cntl.ErrorText();
+        return false;
+    }
+
+    return rep.copysetloadfin();
+}
+
 }  // namespace chunkserver
 }  // namespace curve
 

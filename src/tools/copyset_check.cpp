@@ -5,15 +5,20 @@
  * Copyright (c) 2018 netease
  */
 #include "src/tools/copyset_check.h"
+#include "src/tools/common.h"
+#include "src/tools/metric_name.h"
 
 DEFINE_bool(detail, false, "list the copyset detail or not");
-DEFINE_uint32(logicalPoolId, 0, "logical pool id of copyset");
-DEFINE_uint32(copysetId, 0, "copyset id");
 DEFINE_uint32(chunkserverId, 0, "chunkserver id");
 DEFINE_string(chunkserverAddr, "", "if specified, chunkserverId is not required");  // NOLINT
 DEFINE_uint32(serverId, 0, "server id");
 DEFINE_string(serverIp, "", "server ip");
+DEFINE_string(opName, curve::tool::kTotalOpName, "operator name");
 DECLARE_string(mdsAddr);
+DEFINE_uint64(opIntervalExceptLeader, 5, "Operator generation interval other "
+                                         "than transfer leader");
+DEFINE_uint64(leaderOpInterval, 30,
+                        "tranfer leader operator generation interval");
 
 namespace curve {
 namespace tool {
@@ -33,7 +38,8 @@ namespace tool {
 
 bool CopysetCheck::SupportCommand(const std::string& command) {
     return (command == kCheckCopysetCmd || command == kCheckChunnkServerCmd
-            || command == kCheckServerCmd || command == kCheckClusterCmd);
+            || command == kCheckServerCmd || command == kCopysetsStatusCmd
+            || command == kCheckOperatorCmd);
 }
 
 int CopysetCheck::Init() {
@@ -68,8 +74,15 @@ int CopysetCheck::RunCommand(const std::string& command) {
     } else if (command == kCheckServerCmd) {
         CHECK_ONLY_ONE_SHOULD_BE_SPECIFIED(serverIp, serverId);
         return CheckServer();
-    } else if (command == kCheckClusterCmd) {
-        return CheckCluster();
+    } else if (command == kCopysetsStatusCmd) {
+        return CheckCopysetsInCluster();
+    } else if (command == kCheckOperatorCmd) {
+        if (!SupportOpName(FLAGS_opName)) {
+            std::cout << "only support opName: ";
+            PrintSupportOpName();
+            return -1;
+        }
+        return CheckOperator(FLAGS_opName);
     } else {
         PrintHelp(command);
         return -1;
@@ -85,16 +98,7 @@ int CopysetCheck::CheckCopyset() {
     }
     if (FLAGS_detail) {
         std::cout << core_->GetCopysetDetail() << std::endl;
-        auto serviceExceptionChunkServers =
-                        core_->GetServiceExceptionChunkServer();
-        if (!serviceExceptionChunkServers.empty()) {
-            std::ostream_iterator<std::string> out(std::cout, ", ");
-            std::cout << "service-exception chunkservers (total: "
-                      << serviceExceptionChunkServers.size() << "): {";
-            std::copy(serviceExceptionChunkServers.begin(),
-                            serviceExceptionChunkServers.end(), out);
-            std::cout << "}" << std::endl;
-        }
+        PrintExcepChunkservers();
     }
     return res;
 }
@@ -143,16 +147,33 @@ int CopysetCheck::CheckServer() {
     return res;
 }
 
-int CopysetCheck::CheckCluster() {
+int CopysetCheck::CheckCopysetsInCluster() {
     int res = core_->CheckCopysetsInCluster();
     if (res == 0) {
-        std::cout << "Cluster is healthy!" << std::endl;
+        std::cout << "Copysets are healthy!" << std::endl;
     } else {
-        std::cout << "Cluster is not healthy!" << std::endl;
+        std::cout << "Copysets not healthy!" << std::endl;
     }
     PrintStatistic();
     if (FLAGS_detail) {
         PrintDetail();
+    }
+    return res;
+}
+
+int CopysetCheck::CheckOperator(const std::string& opName) {
+    int res;
+    if (opName == kTransferOpName || opName == kTotalOpName) {
+        res = core_->CheckOperator(opName, FLAGS_leaderOpInterval);
+    } else {
+        res = core_->CheckOperator(opName, FLAGS_opIntervalExceptLeader);
+    }
+     if (res < 0) {
+        std::cout << "Check operator fail!" << std::endl;
+    } else {
+        std::cout << "Operator num is "
+                  << res << std::endl;
+        res = 0;
     }
     return res;
 }
@@ -170,8 +191,8 @@ void CopysetCheck::PrintHelp(const std::string& command) {
     } else if (command == kCheckServerCmd) {
         std::cout << "curve_ops_tool check-server -mdsAddr=127.0.0.1:6666 -serverId=1 [-margin=1000]" << std::endl;  // NOLINT
         std::cout << "curve_ops_tool check-server -mdsAddr=127.0.0.1:6666 -serverIp=127.0.0.1 [-margin=1000]" << std::endl;  // NOLINT
-    } else if (command == kCheckClusterCmd) {
-        std::cout << "curve_ops_tool check-cluster -mdsAddr=127.0.0.1:6666 [-margin=1000] [-operatorMaxPeriod=30] [-checkOperator]" << std::endl << std::endl;  // NOLINT
+    } else if (command == kCopysetsStatusCmd) {
+        std::cout << "curve_ops_tool copysets-status -mdsAddr=127.0.0.1:6666 [-margin=1000] [-operatorMaxPeriod=30] [-checkOperator]" << std::endl << std::endl;  // NOLINT
     } else {
         std::cout << "Command not supported!" << std::endl;
     }
@@ -225,15 +246,8 @@ void CopysetCheck::PrintDetail() {
         PrintCopySet(item.second);
     }
     std::cout << std::endl;
-    // 打印offline的chunkserver，这里不能严格说它offline，
-    // 有可能是chunkserver起来了但无法提供服务,所以叫Service-exception
-    auto serviceExceptionChunkServers =
-                        core_->GetServiceExceptionChunkServer();
-    std::cout << "service-exception chunkserver list (total: "
-              << serviceExceptionChunkServers.size() <<"): {";
-    std::copy(serviceExceptionChunkServers.begin(),
-                        serviceExceptionChunkServers.end(), out);
-    std::cout << "}" << std::endl << std::endl;
+    // 打印有问题的chunkserver
+    PrintExcepChunkservers();
 }
 
 void CopysetCheck::PrintCopySet(const std::set<std::string>& set) {
@@ -255,6 +269,29 @@ void CopysetCheck::PrintCopySet(const std::set<std::string>& set) {
                   << std::to_string(csId) << ")";
     }
     std::cout << "}" << std::endl;
+}
+
+void CopysetCheck::PrintExcepChunkservers() {
+    auto serviceExceptionChunkServers =
+                        core_->GetServiceExceptionChunkServer();
+    if (!serviceExceptionChunkServers.empty()) {
+        std::ostream_iterator<std::string> out(std::cout, ", ");
+        std::cout << "service-exception chunkservers (total: "
+                  << serviceExceptionChunkServers.size() << "): {";
+        std::copy(serviceExceptionChunkServers.begin(),
+                        serviceExceptionChunkServers.end(), out);
+        std::cout << "}" << std::endl;
+    }
+    auto copysetLoadExceptionCS =
+                    core_->GetCopysetLoadExceptionChunkServer();
+    if (!copysetLoadExceptionCS.empty()) {
+        std::ostream_iterator<std::string> out(std::cout, ", ");
+        std::cout << "copyset-load-exception chunkservers (total: "
+                  << copysetLoadExceptionCS.size() << "): {";
+        std::copy(copysetLoadExceptionCS.begin(),
+                        copysetLoadExceptionCS.end(), out);
+        std::cout << "}" << std::endl;
+    }
 }
 }  // namespace tool
 }  // namespace curve

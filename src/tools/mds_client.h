@@ -10,18 +10,27 @@
 
 #include <gflags/gflags.h>
 #include <brpc/channel.h>
+#include <json/json.h>
 
 #include <vector>
 #include <iostream>
 #include <string>
+#include <map>
+#include <memory>
+#include <unordered_map>
 
 #include "proto/nameserver2.pb.h"
 #include "proto/topology.pb.h"
+#include "proto/schedule.pb.h"
 #include "src/common/authenticator.h"
 #include "src/mds/common/mds_define.h"
 #include "src/common/string_util.h"
 #include "src/common/timeutility.h"
 #include "src/common/net_common.h"
+#include "src/tools/metric_name.h"
+#include "src/tools/metric_client.h"
+#include "src/tools/common.h"
+#include "src/tools/curve_tool_define.h"
 
 using curve::mds::FileInfo;
 using curve::mds::PageFileSegment;
@@ -30,6 +39,7 @@ using curve::mds::PageFileChunkInfo;
 using curve::mds::topology::kTopoErrCodeSuccess;
 using curve::mds::topology::ChunkServerInfo;
 using curve::mds::topology::ChunkServerLocation;
+using curve::mds::topology::CopySetServerInfo;
 using curve::mds::topology::ServerInfo;
 using curve::mds::topology::ZoneInfo;
 using curve::mds::topology::PhysicalPoolInfo;
@@ -44,6 +54,8 @@ using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::ListChunkServerRequest;
 using curve::mds::topology::GetChunkServerInfoRequest;
 using curve::mds::topology::GetCopySetsInChunkServerRequest;
+using curve::mds::schedule::RapidLeaderScheduleRequst;
+using curve::mds::schedule::RapidLeaderScheduleResponse;
 using curve::common::Authenticator;
 
 namespace curve {
@@ -56,10 +68,12 @@ enum class GetSegmentRes {
     kOtherError = -3  // 其他错误
 };
 
+
+
 class MDSClient {
  public:
     MDSClient() : currentMdsIndex_(0), userName_(""),
-                         password_(""), isInited_(false) {}
+                  password_(""), isInited_(false) {}
     virtual ~MDSClient() = default;
 
     /**
@@ -70,12 +84,32 @@ class MDSClient {
     virtual int Init(const std::string& mdsAddr);
 
     /**
+     *  @brief 初始化channel
+     *  @param mdsAddr mds的地址，支持多地址，用","分隔
+     *  @param dummyPort dummy port列表，只输入一个的话
+     *         所有mds用同样的dummy port，用字符串分隔有多个的话
+     *         为每个mds设置不同的dummy port
+     *  @return 成功返回0，失败返回-1
+     */
+    virtual int Init(const std::string& mdsAddr,
+                     const std::string& dummyPort);
+
+    /**
      *  @brief 获取文件fileInfo
      *  @param fileName 文件名
      *  @param[out] fileInfo 文件fileInfo，返回值为0时有效
      *  @return 成功返回0，失败返回-1
      */
-    virtual int GetFileInfo(const std::string &fileName, FileInfo* fileInfo);
+    virtual int GetFileInfo(const std::string& fileName, FileInfo* fileInfo);
+
+    /**
+     *  @brief 获取文件或目录分配大小
+     *  @param fileName 文件名
+     *  @param[out] allocSize 文件或目录分配大小，返回值为0时有效
+     *  @return 成功返回0，失败返回-1
+     */
+    virtual int GetAllocatedSize(const std::string& fileName,
+                                 uint64_t* allocSize);
 
     /**
      *  @brief 将目录下所有的fileInfo列出来
@@ -115,15 +149,33 @@ class MDSClient {
     virtual int CreateFile(const std::string& fileName, uint64_t length);
 
     /**
+     *  @brief 列出client的dummyserver的地址
+     *  @param[out] clientAddrs client地址列表，返回0时有效
+     *  @return 成功返回0,失败返回-1
+     */
+    virtual int ListClient(std::vector<std::string>* clientAddrs);
+
+    /**
      *  @brief 获取copyset中的chunkserver列表
      *  @param logicalPoolId 逻辑池id
      *  @param copysetId copyset id
      *  @param[out] csLocs chunkserver位置的列表，返回值为0时有效
      *  @return 成功返回0，失败返回-1
      */
-    virtual int GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
+    virtual int GetChunkServerListInCopySet(const PoolIdType& logicalPoolId,
                                      const CopySetIdType& copysetId,
                                      std::vector<ChunkServerLocation>* csLocs);
+
+    /**
+     *  @brief 获取copyset中的chunkserver列表
+     *  @param logicalPoolId 逻辑池id
+     *  @param copysetIds 要查询的copysetId的列表
+     *  @param[out] csServerInfos copyset成员的列表，返回值为0时有效
+     *  @return 成功返回0，失败返回-1
+     */
+    virtual int GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
+                            const std::vector<CopySetIdType>& copysetIds,
+                            std::vector<CopySetServerInfo>* csServerInfos);
 
     /**
      *  @brief 获取集群中的物理池列表
@@ -232,11 +284,19 @@ class MDSClient {
 
     /**
      *  @brief 获取mds的某个metric的值
-     *  @param metricName metric的名子
+     *  @param metricName metric的名字
      *  @param[out] value metric的值，返回值为0时有效
      *  @return 成功返回0，失败返回-1
      */
     virtual int GetMetric(const std::string& metricName, uint64_t* value);
+
+    /**
+     *  @brief 获取mds的某个metric的值
+     *  @param metricName metric的名子
+     *  @param[out] value metric的值，返回值为0时有效
+     *  @return 成功返回0，失败返回-1
+     */
+    virtual int GetMetric(const std::string& metricName, std::string* value);
 
     /**
      *  @brief 设置userName，访问namespace接口的时候调用
@@ -262,10 +322,29 @@ class MDSClient {
         return mdsAddrVec_;
     }
 
+    virtual const std::map<std::string, std::string>& GetDummyServerMap()
+                                                        const {
+        return dummyServerMap_;
+    }
+
     /**
      *  @brief 获取当前mds的地址
      */
-    virtual std::string GetCurrentMds();
+    virtual std::vector<std::string> GetCurrentMds();
+
+    /**
+     * @brief 向mds发送rpc触发快速leader均衡
+     */
+    virtual int RapidLeaderSchedule(PoolIdType lpid);
+
+    /**
+     *  @brief 获取mds在线状态,
+     *          dummyserver在线且dummyserver记录的listen addr
+     *          与mds地址一致才认为在线
+     *  @param[out] onlineStatus mds在线状态，返回0时有效
+     *  @return 成功返回0,失败返回-1
+     */
+    virtual void GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus);
 
  private:
     /**
@@ -313,14 +392,34 @@ class MDSClient {
                             GetCopySetsInChunkServerRequest* request,
                             std::vector<CopysetInfo>* copysets);
 
+    /**
+     *  @brief 初始化dummy server地址
+     *  @param dummyPort dummy server端口列表
+     *  @return 成功返回0，失败返回-1
+     */
+    int InitDummyServerMap(const std::string& dummyPort);
+
+    /**
+     *  @brief 通过dummyServer获取mds的监听地址
+     *  @param dummyAddr dummyServer的地址
+     *  @param[out] listenAddr mds的监听地址
+     *  @return 成功返回0，失败返回-1
+     */
+    int GetListenAddrFromDummyPort(const std::string& dummyAddr,
+                                   std::string* listenAddr);
+
     // 填充signature
     template <class T>
     void FillUserInfo(T* request);
 
+    // 用于发送http请求的client
+    MetricClient metricClient_;
     // 向mds发送RPC的channel
     brpc::Channel channel_;
     // 保存mds地址的vector
     std::vector<std::string> mdsAddrVec_;
+    // 保存mds地址对应的dummy server的地址
+    std::map<std::string, std::string> dummyServerMap_;
     // 保存当前mds在mdsAddrVec_中的索引
     int currentMdsIndex_;
     // 用户名

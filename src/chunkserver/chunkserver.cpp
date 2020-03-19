@@ -16,6 +16,7 @@
 
 #include "src/chunkserver/chunkserver.h"
 #include "src/chunkserver/chunkserver_metrics.h"
+#include "src/chunkserver/chunkserver_service.h"
 #include "src/chunkserver/copyset_service.h"
 #include "src/chunkserver/chunk_service.h"
 #include "src/chunkserver/braft_cli_service.h"
@@ -272,6 +273,11 @@ int ChunkServer::Run(int argc, char** argv) {
         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add FileService";
 
+    // chunkserver service
+    ChunkServerServiceImpl chunkserverService(copysetNodeManager_);
+    ret = server.AddService(&chunkserverService,
+        brpc::SERVER_DOESNT_OWN_SERVICE);
+    CHECK(0 == ret) << "Fail to add ChunkServerService";
 
     // 启动rpc service
     LOG(INFO) << "RPC server is going to serve on: "
