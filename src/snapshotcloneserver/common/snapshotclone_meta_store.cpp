@@ -47,19 +47,9 @@ int DBSnapshotCloneMetaStore::Init(
         LOG(ERROR) << "ConnectDB failed";
         return -1;
     }
-    ret = repo_->createDatabase();
-    if (ret < 0) {
-        LOG(ERROR) << "create Database failed";
-        return -1;
-    }
     ret = repo_->useDataBase();
     if (ret < 0) {
         LOG(ERROR) << "use DataBase failed";
-        return -1;
-    }
-    ret = repo_->createAllTables();
-    if (ret < 0) {
-        LOG(ERROR) << "create table failed";
         return -1;
     }
     ret = LoadSnapshotInfos();
