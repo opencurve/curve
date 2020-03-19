@@ -8,6 +8,7 @@
 #include "src/mds/nameserver2/curvefs.h"
 #include <glog/logging.h>
 #include <memory>
+#include <chrono>
 #include "src/common/string_util.h"
 #include "src/common/encode.h"
 #include "src/common/timeutility.h"
@@ -15,6 +16,8 @@
 #include "src/mds/common/mds_define.h"
 
 using curve::common::TimeUtility;
+using ::std::chrono::steady_clock;
+using ::std::chrono::microseconds;
 
 namespace curve {
 namespace mds {
@@ -65,40 +68,41 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
                 std::shared_ptr<InodeIDGenerator> InodeIDGenerator,
                 std::shared_ptr<ChunkSegmentAllocator> chunkSegAllocator,
                 std::shared_ptr<CleanManagerInterface> cleanManager,
-                std::shared_ptr<SessionManager> sessionManager,
+                std::shared_ptr<FileRecordManager> fileRecordManager,
                 std::shared_ptr<AllocStatistic> allocStatistic,
                 const struct CurveFSOption &curveFSOptions,
                 std::shared_ptr<MdsRepo> repo) {
+    startTime_ = steady_clock::now();
     storage_ = storage;
     InodeIDGenerator_ = InodeIDGenerator;
     chunkSegAllocator_ = chunkSegAllocator;
     cleanManager_ = cleanManager;
     allocStatistic_ = allocStatistic;
-    sessionManager_ = sessionManager;
+    fileRecordManager_ = fileRecordManager;
     rootAuthOptions_ = curveFSOptions.authOptions;
+
     defaultChunkSize_ = curveFSOptions.defaultChunkSize;
     repo_ = repo;
 
     InitRootFile();
 
-    if (!sessionManager_->Init(curveFSOptions.sessionOptions)) {
-        return false;
-    }
+    fileRecordManager_->Init(curveFSOptions.fileRecordOptions);
+
     return true;
 }
 
 void CurveFS::Run() {
-    sessionManager_->Start();
+    fileRecordManager_->Start();
 }
 
 void CurveFS::Uninit() {
-    sessionManager_->Stop();
+    fileRecordManager_->Stop();
     storage_ = nullptr;
     InodeIDGenerator_ = nullptr;
     chunkSegAllocator_ = nullptr;
     cleanManager_ = nullptr;
     allocStatistic_ = nullptr;
-    sessionManager_ = nullptr;
+    fileRecordManager_ = nullptr;
     repo_ = nullptr;
 }
 
@@ -363,12 +367,27 @@ StatusCode CurveFS::isDirectoryEmpty(const FileInfo &fileInfo, bool *result) {
     return StatusCode::kOK;
 }
 
-bool CurveFS::isFileHasValidSession(const std::string &fileName) {
-    return sessionManager_->isFileHasValidSession(fileName);
-}
+StatusCode CurveFS::IsSnapshotAllowed(const std::string &fileName) {
+    // 启动时间是否足够client至少进行一次refresh session
+    steady_clock::duration timePass = steady_clock::now() - startTime_;
+    int32_t expiredUs = fileRecordManager_->GetFileRecordExpiredTimeUs();
+    if (timePass < 10 * microseconds(expiredUs)) {
+        return StatusCode::kSnapshotFrozen;
+    }
 
-bool CurveFS::IsClientVersionSnapshotCompatible(const std::string &fileName) {
-    return sessionManager_->IsClientVersionSnapshotCompatible(fileName);
+    // client version的版本符合条件
+    std::string clientVersion;
+    bool exist = fileRecordManager_->GetFileClientVersion(
+        fileName, &clientVersion);
+    if (!exist) {
+        return StatusCode::kOK;
+    }
+
+    if (clientVersion < kLeastSupportSnapshotClientVersion) {
+        return StatusCode::kClientVersionNotMatch;
+    }
+
+    return StatusCode::kOK;
 }
 
 StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
@@ -556,13 +575,6 @@ StatusCode CurveFS::CheckFileCanChange(const std::string &fileName,
         LOG(ERROR) << "CheckFileCanChange, file is being Cloned, "
                    << "cannot delete or rename, fileName = " << fileName;
         return StatusCode::kDeleteFileBeingCloned;
-    }
-
-    // 检查文件是否有分配出去的可用session
-    if (isFileHasValidSession(fileName)) {
-        LOG(WARNING) << "CheckFileCanChange, file has valid session, "
-                     << "cannot delete or rename, fileName = " << fileName;
-        return StatusCode::kFileOccupied;
     }
 
     return StatusCode::kOK;
@@ -895,9 +907,9 @@ StatusCode CurveFS::CreateSnapShotFile(const std::string &fileName,
     }
 
     // 兼容性设计，当client版本不存在或小于0.0.6时，不允许打快照
-    if (!IsClientVersionSnapshotCompatible(fileName)) {
-        LOG(ERROR) << fileName << " Valid Client Version fail";
-        return StatusCode::kVersionNotMatch;
+    ret = IsSnapshotAllowed(fileName);
+    if (ret != kOK) {
+        return ret;
     }
 
     // check  if snapshot exist
@@ -1176,7 +1188,6 @@ StatusCode CurveFS::GetSnapShotFileSegment(
 
 StatusCode CurveFS::OpenFile(const std::string &fileName,
                              const std::string &clientIP,
-                             const std::string &clientVersion,
                              ProtoSession *protoSession,
                              FileInfo  *fileInfo) {
     // 检查文件是否存在
@@ -1203,21 +1214,7 @@ StatusCode CurveFS::OpenFile(const std::string &fileName,
         return StatusCode::kNotSupported;
     }
 
-    ret = sessionManager_->InsertSession(
-        fileName, clientIP, clientVersion, protoSession);
-    if (ret == StatusCode::kFileOccupied) {
-        LOG(WARNING) << "OpenFile file occupied, fileName = " << fileName
-                   << ", clientIP = " << clientIP
-                   << ", errCode = " << ret
-                   << ", errName = " << StatusCode_Name(ret);
-        return ret;
-    } else if (ret != StatusCode::kOK) {
-        LOG(ERROR) << "OpenFile insert session fail, fileName = " << fileName
-                   << ", clientIP = " << clientIP
-                   << ", errCode = " << ret
-                   << ", errName = " << StatusCode_Name(ret);
-        return ret;
-    }
+    fileRecordManager_->GetRecordParam(protoSession);
 
     return StatusCode::kOK;
 }
@@ -1242,21 +1239,6 @@ StatusCode CurveFS::CloseFile(const std::string &fileName,
         return  ret;
     }
 
-    ret = sessionManager_->DeleteSession(fileName, sessionID);
-    if (ret == StatusCode::kSessionNotExist) {
-        LOG(WARNING) << "CloseFile session not exit, fileName = " << fileName
-                   << ", sessionID = " << sessionID
-                   << ", errCode = " << ret
-                   << ", errName = " << StatusCode_Name(ret);
-        return ret;
-    } else if (ret != StatusCode::kOK) {
-        LOG(ERROR) << "CloseFile delete session fail, fileName = " << fileName
-                   << ", sessionID = " << sessionID
-                   << ", errCode = " << ret
-                   << ", errName = " << StatusCode_Name(ret);
-        return ret;
-    }
-
     return StatusCode::kOK;
 }
 
@@ -1265,8 +1247,8 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
                             const uint64_t date,
                             const std::string &signature,
                             const std::string &clientIP,
-                            FileInfo  *fileInfo,
-                            ProtoSession *protoSession) {
+                            const std::string &clientVersion,
+                            FileInfo  *fileInfo) {
     // 检查文件是否存在
     StatusCode ret;
     ret = GetFileInfo(fileName, fileInfo);
@@ -1292,20 +1274,8 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
         return  ret;
     }
 
-    ret = sessionManager_->UpdateSession(fileName, sessionid,
-                                         signature, clientIP, protoSession);
-    // 目前UpdateSession只有一种异常情况StatusCode::kSessionNotExist
-    if (ret != StatusCode::kOK) {
-        LOG(WARNING) << "RefreshSession update session fail, fileName = "
-                   << fileName
-                   << ", sessionid = " << sessionid
-                   << ", date = " << date
-                   << ", signature = " << signature
-                   << ", clientIP = " << clientIP
-                   << ", errCode = " << ret
-                   << ", errName = " << StatusCode_Name(ret);
-        return ret;
-    }
+    // 更新文件记录
+    fileRecordManager_->UpdateFileRecord(fileName, clientVersion);
 
     return StatusCode::kOK;
 }
@@ -1743,10 +1713,11 @@ StatusCode CurveFS::ListClient(std::vector<ClientInfo>* clientInfos) {
 }
 
 uint64_t CurveFS::GetOpenFileNum() {
-    if (sessionManager_ == nullptr) {
+    if (fileRecordManager_ == nullptr) {
         return 0;
     }
-    return sessionManager_->GetOpenFileNum();
+
+    return fileRecordManager_->GetOpenFileNum();
 }
 
 uint64_t CurveFS::GetDefaultChunkSize() {

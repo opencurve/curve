@@ -12,11 +12,14 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include <string>
-#include "src/mds/kvstorageclient/etcd_client.h"
+#include "src/kvstorageclient/etcd_client.h"
 #include "src/mds/nameserver2/namespace_storage_cache.h"
 
 namespace curve {
 namespace mds {
+
+using ::curve::kvstorage::EtcdClientImp;
+
 class MockEtcdClient : public EtcdClientImp {
  public:
     virtual ~MockEtcdClient() {}
