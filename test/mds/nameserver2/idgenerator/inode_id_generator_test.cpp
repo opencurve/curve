@@ -46,7 +46,7 @@ TEST_F(TestInodeIdGenerator, test_all) {
     uint64_t alloc2 = alloc1 + INODEBUNDLEALLOCATED;
     std::string strAlloc1 = NameSpaceStorageCodec::EncodeID(alloc1);
     EXPECT_CALL(*client_, Get(INODESTOREKEY, _))
-        .WillOnce(Return(EtcdErrCode::KeyNotExist))
+        .WillOnce(Return(EtcdErrCode::EtcdKeyNotExist))
         .WillOnce(
             DoAll(SetArgPointee<1>(strAlloc1), Return(EtcdErrCode::EtcdOK)));
     EXPECT_CALL(*client_, CompareAndSwap(

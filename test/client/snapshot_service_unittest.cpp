@@ -142,10 +142,10 @@ TEST(SnapInstance, SnapShotTest) {
                                                         userinfo,
                                                         &seq));
 
-    // set return kVersionNotMatch
+    // set return kClientVersionNotMatch
     ::curve::mds::CreateSnapShotResponse versionNotMatchResponse;
     versionNotMatchResponse.set_statuscode(
-        curve::mds::StatusCode::kVersionNotMatch);
+        curve::mds::StatusCode::kClientVersionNotMatch);
     std::unique_ptr<FakeReturn> versionNotMatchFakeRetrun(
         new FakeReturn(nullptr, static_cast<void*>(&versionNotMatchResponse)));
 
