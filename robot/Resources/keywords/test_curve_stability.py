@@ -128,7 +128,7 @@ def vol_write_data():
         assert False,"get vd fail"
 
 def create_vol_snapshot(vol_uuid):
-    snap_server = random.choice(config.snap_server_list)
+    snap_server = config.snapshot_vip
     payload = {}
     payload['Action'] = 'CreateSnapshot'
     payload['Version'] = config.snap_version
@@ -136,7 +136,7 @@ def create_vol_snapshot(vol_uuid):
     payload['File'] = R'/cinder/volume-' + vol_uuid
     payload['Name'] = 'test'
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = R'http://%s:5555/SnapshotCloneService'%snap_server
+    http = R'http://%s:5000/SnapshotCloneService'%snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http,params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
@@ -147,7 +147,7 @@ def create_vol_snapshot(vol_uuid):
     return snapshot_uuid
 
 def delete_vol_snapshot(voluuid,snapshot_uuid):
-    snap_server = random.choice(config.snap_server_list)
+    snap_server = config.snapshot_vip
     payload = {}
     payload['Action'] = 'DeleteSnapshot'
     payload['Version'] = config.snap_version
@@ -155,7 +155,7 @@ def delete_vol_snapshot(voluuid,snapshot_uuid):
     payload['File'] = R'/cinder/volume-' + voluuid
     payload['UUID'] = snapshot_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = R'http://%s:5555/SnapshotCloneService' % snap_server
+    http = R'http://%s:5000/SnapshotCloneService' % snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
@@ -163,7 +163,7 @@ def delete_vol_snapshot(voluuid,snapshot_uuid):
     assert r.status_code == 200, "delete snapshot fail,return code is %d,return msg is %s" % (r.status_code, r.text)
 
 def clone_vol_snapshot(snapshot_uuid,lazy="true"):
-    snap_server = random.choice(config.snap_server_list)
+    snap_server = config.snapshot_vip
     payload = {}
     payload['Action'] = 'Clone'
     payload['Version'] = config.snap_version
@@ -172,7 +172,7 @@ def clone_vol_snapshot(snapshot_uuid,lazy="true"):
     payload['Destination'] = R'/cinder/volume-%s'%snapshot_uuid
     payload['Lazy']  = lazy
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = R'http://%s:5555/SnapshotCloneService' % snap_server
+    http = R'http://%s:5000/SnapshotCloneService' % snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
@@ -182,15 +182,30 @@ def clone_vol_snapshot(snapshot_uuid,lazy="true"):
     clone_vol_uuid = ref["UUID"]
     return clone_vol_uuid
 
+def flatten_clone_vol(clone_uuid):
+    snap_server = config.snapshot_vip
+    payload = {}
+    payload['Action'] = 'Flatten'
+    payload['Version'] = config.snap_version
+    payload['User'] = 'cinder'
+    payload['UUID'] = clone_uuid
+    payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
+    http = R'http://%s:5000/SnapshotCloneService' % snap_server
+    logger2.info("exec requests:%s %s"%(http,payload))
+    r = requests.get(http, params=payload_str)
+    logger2.info("exec requests url:%s"%(r.url))
+    assert r.status_code == 200, "flatten clone vol fail,return code is %d,return msg is %s" % (r.status_code, r.text)
+    logger2.info("requests ret is %s"%r.text)
+
 def clean_vol_clone(clone_uuid):
-    snap_server = random.choice(config.snap_server_list)
+    snap_server = config.snapshot_vip
     payload = {}
     payload['Action'] = 'CleanCloneTask'
     payload['Version'] = config.snap_version
     payload['User'] = 'cinder'
     payload['UUID'] = clone_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = R'http://%s:5555/SnapshotCloneService' % snap_server
+    http = R'http://%s:5000/SnapshotCloneService' % snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
@@ -208,7 +223,7 @@ def unlink_clone_vol(vol_uuid):
     curvefs.Unlink(str(filename), user) 
 
 def cancel_vol_snapshot(voluuid,snapshot_uuid):
-    snap_server = random.choice(config.snap_server_list)
+    snap_server = config.snapshot_vip
     payload = {}
     payload['Action'] = 'CancelSnapshot'
     payload['Version'] = config.snap_version
@@ -216,7 +231,7 @@ def cancel_vol_snapshot(voluuid,snapshot_uuid):
     payload['File'] = R'/cinder/volume-' + voluuid
     payload['UUID'] = snapshot_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = R'http://%s:5555/SnapshotCloneService' % snap_server
+    http = R'http://%s:5000/SnapshotCloneService' % snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
@@ -224,7 +239,7 @@ def cancel_vol_snapshot(voluuid,snapshot_uuid):
     assert r.status_code == 200, "cancel snapshot fail,return code is %d,return msg is %s" % (r.status_code, r.text)
 
 def recover_snapshot(vol_uuid,snapshot_uuid,lazy='true'):
-    snap_server = random.choice(config.snap_server_list)
+    snap_server = config.snapshot_vip
     payload = {}
     payload['Action'] = 'Recover'
     payload['Version'] = config.snap_version
@@ -233,7 +248,7 @@ def recover_snapshot(vol_uuid,snapshot_uuid,lazy='true'):
     payload['Destination'] = R'/cinder/volume-%s'%vol_uuid
     payload['Lazy']  = lazy
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = R'http://%s:5555/SnapshotCloneService' % snap_server
+    http = R'http://%s:5000/SnapshotCloneService' % snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
@@ -268,7 +283,7 @@ def attach_snapshot_vol(vol_uuid):
     ssh.close()
   
 def get_snapshot_status(voluuid,snapshot_uuid):
-    snap_server = random.choice(config.snap_server_list)
+    snap_server = config.snapshot_vip
     payload = {}
     payload['Action'] = 'GetFileSnapshotInfo'
     payload['Version'] = config.snap_version
@@ -276,7 +291,7 @@ def get_snapshot_status(voluuid,snapshot_uuid):
     payload['File'] = '/cinder/volume-' + voluuid
     payload['UUID'] = snapshot_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = 'http://%s:5555/SnapshotCloneService' % snap_server
+    http = 'http://%s:5000/SnapshotCloneService' % snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
@@ -294,14 +309,14 @@ def get_snapshot_status(voluuid,snapshot_uuid):
     return False
 
 def get_clone_status(clone_vol_uuid):
-    snap_server = random.choice(config.snap_server_list)
+    snap_server = config.snapshot_vip
     payload = {}
     payload['Action'] = 'GetCloneTasks'
     payload['Version'] = config.snap_version
     payload['User'] = 'cinder'
     payload['UUID'] = clone_vol_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = 'http://%s:5555/SnapshotCloneService' % snap_server
+    http = 'http://%s:5000/SnapshotCloneService' % snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
@@ -434,6 +449,7 @@ def test_clone_iovol_consistency(lazy):
             final = True
             break
         else:
+           random_kill_snapshot()
            time.sleep(60)
     if final == True:
         clone_vol_uuid = clone_vol_snapshot(snapshot_uuid,lazy)
@@ -446,12 +462,16 @@ def test_clone_iovol_consistency(lazy):
     final = False
     time.sleep(5)
     starttime = time.time()
+    status = 0 
+    if lazy == "true":
+        status = 7
     while time.time() - starttime < config.snapshot_timeout:
         rc = get_clone_status(clone_vol_uuid)
-        if rc["TaskStatus"] == 0 and rc["TaskType"] == 0:
+        if rc["TaskStatus"] == status and rc["TaskType"] == 0:
             final = True
             break
         else:
+           random_kill_snapshot()
            time.sleep(60)
     if final == True:
         time.sleep(3)
@@ -459,6 +479,18 @@ def test_clone_iovol_consistency(lazy):
            nova_vol_detach(ssh,vm_id, vol_id)
            wait_vol_status(ssh,vol_id, 'available')
            diff_vol_consistency(vol_id,snapshot_uuid)
+           if lazy == "true":
+               flatten_clone_vol(clone_vol_uuid)
+               starttime = time.time()
+               final = False
+               while time.time() - starttime < config.snapshot_timeout:
+                   rc = get_clone_status(clone_vol_uuid)
+                   if rc["TaskStatus"] == 0 and rc["TaskType"] == 0:
+                       final = True
+                       break
+                   else:
+                      random_kill_snapshot()
+                      time.sleep(60)
         except:
            raise
         finally:
@@ -501,6 +533,7 @@ def test_recover_snapshot(lazy="true"):
             final = True
             break
         else:
+           random_kill_snapshot()
            time.sleep(60)
     if final == True:
         try:
@@ -516,13 +549,32 @@ def test_recover_snapshot(lazy="true"):
             final_recover = False
             time.sleep(5)
             starttime = time.time()
-            while time.time() - starttime < config.snapshot_timeout:
-                rc = get_clone_status(recover_task)
-                if rc["TaskStatus"] == 0 and rc["TaskType"] == 1:
-                    final_recover = True
-                    break
-                else:
-                    time.sleep(60)
+            status = 0
+            if lazy == "true":
+               second_md5 = get_vol_md5(vol_id)
+               assert first_md5 == second_md5,"vol md5 not same after lazy recover,fisrt is %s,recovered is %s"(first_md5,second_md5)
+               flatten_clone_vol(recover_task)
+               starttime = time.time()
+               final = False
+               while time.time() - starttime < config.snapshot_timeout:
+                   rc = get_clone_status(recover_task)
+                   if rc["TaskStatus"] == 0 and rc["TaskType"] == 1:
+                       final_recover = True
+                       break
+                   else:
+                      random_kill_snapshot()
+                      time.sleep(60)
+            else:
+               final_recover = False
+               starttime = time.time()
+               while time.time() - starttime < config.snapshot_timeout:
+                   rc = get_clone_status(recover_task)
+                   if rc["TaskStatus"] == 0 and rc["TaskType"] == 1:
+                      final_recover = True
+                      break
+                   else:
+                      random_kill_snapshot()
+                      time.sleep(60)
             if final_recover == True:
                 second_md5 = get_vol_md5(vol_id)
             else:
@@ -535,6 +587,25 @@ def test_recover_snapshot(lazy="true"):
             wait_vol_status(ssh,vol_id, 'in-use')
     delete_vol_snapshot(vol_id,snapshot_uuid)
     check_snapshot_delete(vol_id,snapshot_uuid)
+
+def kill_snapshotclone_server(host):
+    ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+    ori_cmd = "ps -ef|grep -v grep |grep -v sudo | grep snapshotcloneserver | awk '{print $2}' | sudo xargs kill -9"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    cmd = "ps -ef|grep -v grep |grep snapshotcloneserver"
+    rs = shell_operator.ssh_exec(ssh,cmd)
+    logger2.debug("exec %s,stdout is %s"%(cmd,"".join(rs[1])))
+    if rs[1] != []:
+        assert False,"kill snapshotcloneserver fail"   
+
+def random_kill_snapshot():
+    snap_server = random.choice(config.snap_server_list)
+    logger2.info("begin to kill snapshotserver %s"%(snap_server))
+    kill_snapshotclone_server(snap_server)
+    time.sleep(60)
+    ssh = shell_operator.create_ssh_connect(snap_server, 1046, config.abnormal_user)
+    ori_cmd = "cd snapshot/temp && sudo nohup curve-snapshotcloneserver -conf=/etc/curve/snapshot_clone_server.conf &"
+    shell_operator.ssh_background_exec2(ssh, ori_cmd)
 
 def test_snapshot_all(vol_uuid):
     lazy="true"
@@ -549,6 +620,15 @@ def test_snapshot_all(vol_uuid):
 def begin_snapshot_test():
     t = mythread.runThread(test_snapshot_all,config.snapshot_volid)
     config.snapshot_thread = t
+    t.start()
+
+def loop_kill_snapshotserver():
+    thread = config.snapshot_thread
+    while thread.isAlive():
+        random_kill_snapshot()
+
+def begin_kill_snapshotserver():
+    t = mythread.runThread(loop_kill_snapshotserver)
     t.start()
 
 def stop_snapshot_test():
