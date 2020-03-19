@@ -35,7 +35,18 @@ FailureRequestOption_t  ClientClosure::failReqOpt_;
 UnstableState UnstableHelper::GetCurrentUnstableState(
     ChunkServerID csId,
     const butil::EndPoint& csEndPoint) {
+
+    std::string ip = butil::ip2str(csEndPoint.ip).c_str();
+
     lock_.Lock();
+    // 如果当前ip已经超过阈值，则直接返回chunkserver unstable
+    int unstabled = serverUnstabledChunkservers_[ip].size();
+    if (unstabled >= option_.serverUnstableThreshold) {
+        serverUnstabledChunkservers_[ip].emplace(csId);
+        lock_.UnLock();
+        return UnstableState::ChunkServerUnstable;
+    }
+
     bool exceed =
         timeoutTimes_[csId] > option_.maxStableChunkServerTimeoutTimes;
     lock_.UnLock();
@@ -50,14 +61,12 @@ UnstableState UnstableHelper::GetCurrentUnstableState(
         return UnstableState::NoUnstable;
     }
 
-    std::string ip = butil::ip2str(csEndPoint.ip).c_str();
-
     lock_.Lock();
-    serverUnstabledChunkservers_[ip].emplace(csId);
-    int unstabled = serverUnstabledChunkservers_[ip].size();
+    auto ret = serverUnstabledChunkservers_[ip].emplace(csId);
+    unstabled = serverUnstabledChunkservers_[ip].size();
     lock_.UnLock();
 
-    if (unstabled > option_.serverUnstableThreshold) {
+    if (ret.second && unstabled == option_.serverUnstableThreshold) {
         return UnstableState::ServerUnstable;
     } else {
         return UnstableState::ChunkServerUnstable;
@@ -101,7 +110,7 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
         reqDone->SetNextTimeOutMS(nextTimeout);
         LOG(WARNING) << "rpc timeout, next timeout = " << nextTimeout
                   << ", " << *reqCtx
-                  << ", reteied times = " << reqDone->GetRetriedTimes()
+                  << ", retried times = " << reqDone->GetRetriedTimes()
                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
                   << ", request id = " << reqCtx->id_
                   << ", remote side = " << remoteAddress_;
@@ -112,7 +121,7 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
         uint64_t nextsleeptime = OverLoadBackOff(reqDone->GetRetriedTimes());
         LOG(WARNING) << "chunkserver overload, sleep(us) = " << nextsleeptime
                   << ", " << *reqCtx
-                  << ", reteied times = " << reqDone->GetRetriedTimes()
+                  << ", retried times = " << reqDone->GetRetriedTimes()
                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
                   << ", request id = " << reqCtx->id_
                   << ", remote side = " << remoteAddress_;
@@ -120,7 +129,7 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
         return;
     } else if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED) {
         LOG(WARNING) << "leader redirect, retry directly, " << *reqCtx
-                     << ", reteied times = " << reqDone->GetRetriedTimes()
+                     << ", retried times = " << reqDone->GetRetriedTimes()
                      << ", IO id = " << reqDone->GetIOTracker()->GetID()
                      << ", request id = " << reqCtx->id_
                      << ", remote side = " << remoteAddress_;
@@ -131,7 +140,7 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
                 << failReqOpt_.chunkserverOPRetryIntervalUS << ", " << *reqCtx
                 << ", cntl status = " << cntlstatus
                 << ", response status = " << rpcstatus
-                << ", reteied times = " << reqDone->GetRetriedTimes()
+                << ", retried times = " << reqDone->GetRetriedTimes()
                 << ", IO id = " << reqDone->GetIOTracker()->GetID()
                 << ", request id = " << reqCtx->id_
                 << ", remote side = " << remoteAddress_;
