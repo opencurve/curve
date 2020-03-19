@@ -27,6 +27,14 @@ typedef uint16_t LogicalPoolIDType;
 typedef uint16_t PhysicalPoolIDType;
 typedef uint32_t CopySetIDType;
 
+struct MdsRepoOption {
+    std::string dbName;
+    std::string dbUser;
+    std::string dbUrl;
+    std::string dbPassword;
+    int dbPoolSize;
+};
+
 struct ClusterInfoRepoItem : public RepoItem {
     std::string clusterId;
 

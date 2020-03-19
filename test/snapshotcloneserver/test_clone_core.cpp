@@ -479,7 +479,8 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileSetCloneFileStatusReturnNotExist) {
     ASSERT_EQ(1, core_->GetCloneRef()->GetRef(source));
 }
 
-TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskSuccessForCloneBySnapshot) {
+TEST_F(TestCloneCoreImpl,
+    HandleCloneOrRecoverTaskStage1SuccessForCloneBySnapshot) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kSnapshot, true);
     info.SetStatus(CloneStatus::cloning);
@@ -498,6 +499,25 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskSuccessForCloneBySnapshot) {
     MockCompleteCloneMetaSuccess(task);
     MockChangeOwnerSuccess(task);
     MockRenameCloneFileSuccess(task);
+    core_->HandleCloneOrRecoverTask(task);
+}
+
+TEST_F(TestCloneCoreImpl,
+    HandleCloneOrRecoverTaskStage2SuccessForCloneBySnapshot) {
+    CloneInfo info("id1", "user1", CloneTaskType::kClone,
+    "snapid1", "file1", 1, 2, 100, CloneFileType::kSnapshot, true,
+    CloneStep::kRecoverChunk, CloneStatus::cloning);
+    info.SetStatus(CloneStatus::cloning);
+    auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
+    auto cloneClosure = std::make_shared<CloneClosure>();
+    std::shared_ptr<CloneTaskInfo> task =
+        std::make_shared<CloneTaskInfo>(info, cloneMetric, cloneClosure);
+
+    EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
+        .WillRepeatedly(Return(kErrCodeSuccess));
+
+    MockBuildFileInfoFromSnapshotSuccess(task);
+    MockCloneMetaSuccess(task);
     MockRecoverChunkSuccess(task);
     MockCompleteCloneFileSuccess(task);
     core_->HandleCloneOrRecoverTask(task);
@@ -581,8 +601,9 @@ TEST_F(TestCloneCoreImpl,
     core_->HandleCloneOrRecoverTask(task);
 }
 
-TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskSuccessForRecoverBySnapshot) {
-    CloneInfo info("id1", "user1", CloneTaskType::kClone,
+TEST_F(TestCloneCoreImpl,
+    HandleCloneOrRecoverTaskStage1SuccessForRecoverBySnapshot) {
+    CloneInfo info("id1", "user1", CloneTaskType::kRecover,
     "snapid1", "file1", CloneFileType::kSnapshot, true);
     info.SetStatus(CloneStatus::recovering);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
@@ -599,6 +620,25 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskSuccessForRecoverBySnapshot) {
     MockCreateCloneChunkSuccess(task);
     MockCompleteCloneMetaSuccess(task);
     MockRenameCloneFileSuccess(task);
+    core_->HandleCloneOrRecoverTask(task);
+}
+
+TEST_F(TestCloneCoreImpl,
+    HandleCloneOrRecoverTaskStage2SuccessForRecoverBySnapshot) {
+    CloneInfo info("id1", "user1", CloneTaskType::kRecover,
+    "snapid1", "file1", 1, 2, 100, CloneFileType::kSnapshot, true,
+    CloneStep::kRecoverChunk, CloneStatus::recovering);
+    info.SetStatus(CloneStatus::recovering);
+    auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
+    auto cloneClosure = std::make_shared<CloneClosure>();
+    std::shared_ptr<CloneTaskInfo> task =
+        std::make_shared<CloneTaskInfo>(info, cloneMetric, cloneClosure);
+
+    EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
+        .WillRepeatedly(Return(kErrCodeSuccess));
+
+    MockBuildFileInfoFromSnapshotSuccess(task);
+    MockCloneMetaSuccess(task);
     MockRecoverChunkSuccess(task);
     MockCompleteCloneFileSuccess(task);
     core_->HandleCloneOrRecoverTask(task);
@@ -729,7 +769,8 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFileOnRenameCloneFile) {
 
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFileOnRecoverChunk) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, true);
+    "snapid1", "file1", 1, 2, 100, CloneFileType::kSnapshot, true,
+    CloneStep::kRecoverChunk, CloneStatus::cloning);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -740,11 +781,7 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFileOnRecoverChunk) {
         .WillRepeatedly(Return(kErrCodeSuccess));
 
     MockBuildFileInfoFromSnapshotSuccess(task);
-    MockCreateCloneFileSuccess(task);
     MockCloneMetaSuccess(task);
-    MockCreateCloneChunkSuccess(task);
-    MockCompleteCloneMetaSuccess(task);
-    MockRenameCloneFileSuccess(task);
     MockRecoverChunkFail(task);
 
     core_->HandleCloneOrRecoverTask(task);
@@ -752,7 +789,8 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFileOnRecoverChunk) {
 
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCompleteCloneFail) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, true);
+    "snapid1", "file1", 1, 2, 100, CloneFileType::kSnapshot, true,
+    CloneStep::kRecoverChunk, CloneStatus::cloning);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -763,18 +801,15 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCompleteCloneFail) {
         .WillRepeatedly(Return(kErrCodeSuccess));
 
     MockBuildFileInfoFromSnapshotSuccess(task);
-    MockCreateCloneFileSuccess(task);
     MockCloneMetaSuccess(task);
-    MockCreateCloneChunkSuccess(task);
-    MockCompleteCloneMetaSuccess(task);
-    MockRenameCloneFileSuccess(task);
     MockRecoverChunkSuccess(task);
     MockCompleteCloneFileFail(task);
 
     core_->HandleCloneOrRecoverTask(task);
 }
 
-TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskSuccessForCloneByFile) {
+TEST_F(TestCloneCoreImpl,
+    HandleCloneOrRecoverTaskStage1SuccessForCloneByFile) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kFile, true);
     info.SetStatus(CloneStatus::cloning);
@@ -792,6 +827,25 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskSuccessForCloneByFile) {
     MockCreateCloneChunkSuccess(task);
     MockCompleteCloneMetaSuccess(task);
     MockRenameCloneFileSuccess(task);
+
+    core_->HandleCloneOrRecoverTask(task);
+}
+
+TEST_F(TestCloneCoreImpl,
+    HandleCloneOrRecoverTaskStage2SuccessForCloneByFile) {
+    CloneInfo info("id1", "user1", CloneTaskType::kClone,
+    "snapid1", "file1", 1, 2, 100, CloneFileType::kFile, true,
+    CloneStep::kRecoverChunk, CloneStatus::cloning);
+    info.SetStatus(CloneStatus::cloning);
+    auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
+    auto cloneClosure = std::make_shared<CloneClosure>();
+    std::shared_ptr<CloneTaskInfo> task =
+        std::make_shared<CloneTaskInfo>(info, cloneMetric, cloneClosure);
+
+    EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
+        .WillRepeatedly(Return(kErrCodeSuccess));
+
+    MockBuildFileInfoFromFileSuccess(task);
     MockRecoverChunkSuccess(task);
     MockCompleteCloneFileSuccess(task);
 
@@ -1012,7 +1066,7 @@ void TestCloneCoreImpl::MockCreateCloneChunkSuccess(
     if (CloneTaskType::kClone == task->GetCloneInfo().GetTaskType()) {
         correctSn = 0;
     } else {
-        correctSn = 101;
+        correctSn = 100;
     }
     EXPECT_CALL(*client_, CreateCloneChunk(
          AnyOf(location1, location2), _, _, correctSn, _, _))

@@ -34,8 +34,17 @@ class TestLeaderSchedule : public ::testing::Test {
         auto metric = std::make_shared<ScheduleMetrics>(topo);
         opController_ = std::make_shared<OperatorController>(2, metric);
         topoAdapter_ = std::make_shared<MockTopoAdapter>();
+
+        ScheduleOption opt;
+        opt.transferLeaderTimeLimitSec = 10;
+        opt.removePeerTimeLimitSec = 100;
+        opt.addPeerTimeLimitSec = 1000;
+        opt.changePeerTimeLimitSec = 1000;
+        opt.scatterWithRangePerent = 0.2;
+        opt.leaderSchedulerIntervalSec = 1;
+        opt.chunkserverCoolingTimeSec = 0;
         leaderScheduler_ = std::make_shared<LeaderScheduler>(
-            opController_, 1, 0, 10, 100, 1000, 1000, 0.2, topoAdapter_);
+            opt, topoAdapter_, opController_);
     }
 
     void TearDown() override {

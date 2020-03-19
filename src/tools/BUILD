@@ -79,6 +79,21 @@ cc_binary(
     ],
 )
 
+cc_binary(
+    name = "curve_chunkserver_tool",
+    srcs = ["chunkserver_tool_main.cpp"],
+
+    copts = COPTS,
+    linkopts = [
+        "-lmysqlcppconn",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:gflags",
+        "//external:braft",
+        "//src/tools:curve_tool_lib",
+    ],
+)
 
 cc_library(
     name = "curve_tool_lib",
@@ -88,6 +103,7 @@ cc_library(
             "curve_tool_main.cpp",
             "curve_format_main.cpp",
             "createtool.cpp",
+            "chunkserver_tool_main.cpp",
         ],
     ),
     hdrs = glob([
@@ -107,6 +123,7 @@ cc_library(
         "//external:leveldb",
         "//proto:nameserver2_cc_proto",
         "//proto:topology_cc_proto",
+        "//proto:schedule_cc_proto",
         "//proto:chunkserver-cc-protos",
         "//src/common:curve_common",
         "//src/mds/common:mds_common",

@@ -23,6 +23,8 @@ using curve::CurveCluster;
 using curve::client::FileClient;
 using curve::client::UserInfo_t;
 
+const std::string kTestPrefix = "ConSCSTest"; //NOLINT
+
 const uint64_t chunkSize = 16ULL * 1024 * 1024;
 const uint64_t segmentSize = 32ULL * 1024 * 1024;
 const uint64_t chunkGap = 1;
@@ -34,27 +36,34 @@ const char* kChunkServerIpPort1 = "127.0.0.1:10014";
 const char* kChunkServerIpPort2 = "127.0.0.1:10015";
 const char* kChunkServerIpPort3 = "127.0.0.1:10016";
 const char* kSnapshotCloneServerIpPort = "127.0.0.1:10017";
+const int kMdsDummyPort = 10018;
 
-const char* kLogPath = "./runlog/ConSCSTestLog";
-const char* kMdsDbName = "ConSCSTestDB";
-const char* kMdsConfigPath = "./test/integration/snapshotcloneserver/config/ConSCSTest_mds.conf";   // NOLINT
+const char* kSnapshotCloneServerDummyServerPort = "12001";
+const char* kLeaderCampaginPrefix = "snapshotcloneserverleaderlock2";
 
-const char* kCSConfigPath = "./test/integration/snapshotcloneserver/config/ConSCSTest_chunkserver.conf";  // NOLINT
 
-const char* kCsClientConfigPath = "./test/integration/snapshotcloneserver/config/ConSCSTest_cs_client.conf"; // NOLINT
+const std::string kLogPath = "./runlog/" + kTestPrefix + "Log"; //NOLINT
+const std::string kMdsDbName = kTestPrefix + "DB"; //NOLINT
+const std::string kMdsConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_mds.conf";   // NOLINT
 
-const char* kSnapClientConfigPath = "./test/integration/snapshotcloneserver/config/ConSCSTest_snap_client.conf";  // NOLINT
+const std::string kCSConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_chunkserver.conf";  // NOLINT
 
-const char* kS3ConfigPath = "./test/integration/snapshotcloneserver/config/ConSCSTest_s3.conf";  // NOLINT
+const std::string kCsClientConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_cs_client.conf"; // NOLINT
 
-const char* kSCSConfigPath = "./test/integration/snapshotcloneserver/config/ConSCSTest_scs.conf";  // NOLINT
+const std::string kSnapClientConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_snap_client.conf";  // NOLINT
 
-const char* kClientConfigPath = "./test/integration/snapshotcloneserver/config/ConSCSTest_client.conf";  // NOLINT
+const std::string kS3ConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_s3.conf";  // NOLINT
+
+const std::string kSCSConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_scs.conf";  // NOLINT
+
+const std::string kClientConfigPath = "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_client.conf";  // NOLINT
 
 const std::vector<std::string> mdsConfigOptions {
     std::string("mds.listen.addr=") + kMdsIpPort,
     std::string("mds.etcd.endpoint=") + kEtcdClientIpPort,
-    std::string("mds.DbName=") + kMdsDbName
+    std::string("mds.DbName=") + kMdsDbName,
+    std::string("mds.file.expiredTimeUs=50000"),
+    std::string("mds.file.expiredTimeUs=10000"),
 };
 
 const std::vector<std::string> mdsConf1{
@@ -84,12 +93,12 @@ const std::vector<std::string> s3ConfigOptions {
 
 const std::vector<std::string> chunkserverConf1{
     {" --graceful_quit_on_sigterm"},
-    {" -chunkServerStoreUri=local://./ConSCSTest1/"},
-    {" -chunkServerMetaUri=local://./ConSCSTest1/chunkserver.dat"},  // NOLINT
-    {" -copySetUri=local://./ConSCSTest1/copysets"},
-    {" -recycleUri=local://./ConSCSTest1/recycler"},
-    {" -chunkFilePoolDir=./ConSCSTest1/chunkfilepool/"},
-    {" -chunkFilePoolMetaPath=./ConSCSTest1/chunkfilepool.meta"},  // NOLINT
+    {" -chunkServerStoreUri=local://./" + kTestPrefix + "1/"},
+    {" -chunkServerMetaUri=local://./" + kTestPrefix + "1/chunkserver.dat"},  // NOLINT
+    {" -copySetUri=local://./" + kTestPrefix + "1/copysets"},
+    {" -recycleUri=local://./" + kTestPrefix + "1/recycler"},
+    {" -chunkFilePoolDir=./" + kTestPrefix + "1/chunkfilepool/"},
+    {" -chunkFilePoolMetaPath=./" + kTestPrefix + "1/chunkfilepool.meta"},  // NOLINT
     std::string(" -conf=") + kCSConfigPath,
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
@@ -98,12 +107,12 @@ const std::vector<std::string> chunkserverConf1{
 
 const std::vector<std::string> chunkserverConf2{
     {" --graceful_quit_on_sigterm"},
-    {" -chunkServerStoreUri=local://./ConSCSTest2/"},
-    {" -chunkServerMetaUri=local://./ConSCSTest2/chunkserver.dat"},  // NOLINT
-    {" -copySetUri=local://./ConSCSTest2/copysets"},
-    {" -recycleUri=local://./ConSCSTest2/recycler"},
-    {" -chunkFilePoolDir=./ConSCSTest2/chunkfilepool/"},
-    {" -chunkFilePoolMetaPath=./ConSCSTest2/chunkfilepool.meta"},  // NOLINT
+    {" -chunkServerStoreUri=local://./" + kTestPrefix + "2/"},
+    {" -chunkServerMetaUri=local://./" + kTestPrefix + "2/chunkserver.dat"},  // NOLINT
+    {" -copySetUri=local://./" + kTestPrefix + "2/copysets"},
+    {" -recycleUri=local://./" + kTestPrefix + "2/recycler"},
+    {" -chunkFilePoolDir=./" + kTestPrefix + "2/chunkfilepool/"},
+    {" -chunkFilePoolMetaPath=./" + kTestPrefix + "2/chunkfilepool.meta"},  // NOLINT
     std::string(" -conf=") + kCSConfigPath,
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
@@ -112,12 +121,12 @@ const std::vector<std::string> chunkserverConf2{
 
 const std::vector<std::string> chunkserverConf3{
     {" --graceful_quit_on_sigterm"},
-    {" -chunkServerStoreUri=local://./ConSCSTest3/"},
-    {" -chunkServerMetaUri=local://./ConSCSTest3/chunkserver.dat"},  // NOLINT
-    {" -copySetUri=local://./ConSCSTest3/copysets"},
-    {" -recycleUri=local://./ConSCSTest3/recycler"},
-    {" -chunkFilePoolDir=./ConSCSTest3/chunkfilepool/"},
-    {" -chunkFilePoolMetaPath=./ConSCSTest3/chunkfilepool.meta"},  // NOLINT
+    {" -chunkServerStoreUri=local://./" + kTestPrefix + "3/"},
+    {" -chunkServerMetaUri=local://./" + kTestPrefix + "3/chunkserver.dat"},  // NOLINT
+    {" -copySetUri=local://./" + kTestPrefix + "3/copysets"},
+    {" -recycleUri=local://./" + kTestPrefix + "3/recycler"},
+    {" -chunkFilePoolDir=./" + kTestPrefix + "3/chunkfilepool/"},
+    {" -chunkFilePoolMetaPath=./" + kTestPrefix + "3/chunkfilepool.meta"},  // NOLINT
     std::string(" -conf=") + kCSConfigPath,
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
@@ -136,6 +145,11 @@ const std::vector<std::string> snapshotcloneserverConfigOptions {
     std::string("server.maxSnapshotLimit=3"),  // 最大快照数修改为3，以测试快照达到上限的用例  // NOLINT
     std::string("client.methodRetryTimeSec=1"),
     std::string("server.clientAsyncMethodRetryTimeSec=1"),
+    std::string("etcd.endpoint=") + kEtcdClientIpPort,
+    std::string("server.dummy.listen.port=") +
+        kSnapshotCloneServerDummyServerPort,
+    std::string("leader.campagin.prefix=") +
+        kLeaderCampaginPrefix,
 };
 
 const std::vector<std::string> snapshotcloneConf{
@@ -169,23 +183,28 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
         // 初始化db
         cluster_->InitDB(kMdsDbName);
-        //在一开始清理数据库和文件
+        // 在一开始清理数据库和文件
         cluster_->mdsRepo_->dropDataBase();
-        system("rm -rf ConSCSTest.etcd");
-        system("rm -rf ConSCSTest1");
-        system("rm -rf ConSCSTest2");
-        system("rm -rf ConSCSTest3");
+        cluster_->mdsRepo_->createDatabase();
+        cluster_->mdsRepo_->useDataBase();
+        cluster_->mdsRepo_->createAllTables();
+        cluster_->snapshotcloneRepo_->useDataBase();
+        cluster_->snapshotcloneRepo_->createAllTables();
+        system(std::string("rm -rf " + kTestPrefix + "t.etcd").c_str());
+        system(std::string("rm -rf " + kTestPrefix + "1").c_str());
+        system(std::string("rm -rf " + kTestPrefix + "2").c_str());
+        system(std::string("rm -rf " + kTestPrefix + "3").c_str());
 
         // 启动etcd
         cluster_->StartSingleEtcd(1, kEtcdClientIpPort, kEtcdPeerIpPort,
-        std::vector<std::string>{" --name ConSCSTest"});
+        std::vector<std::string>{" --name " + kTestPrefix});
 
         cluster_->PrepareConfig<MDSConfigGenerator>(
             kMdsConfigPath,
             mdsConfigOptions);
 
         // 启动一个mds
-        cluster_->StartSingleMDS(1, kMdsIpPort, mdsConf1, true);
+        cluster_->StartSingleMDS(1, kMdsIpPort, kMdsDummyPort, mdsConf1, true);
 
         // 创建物理池
         cluster_->PreparePhysicalPool(
@@ -197,21 +216,21 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
         threadpool[0] = std::thread(&CurveCluster::FormatChunkFilePool,
             cluster_,
-            "./ConSCSTest1/chunkfilepool/",
-            "./ConSCSTest1/chunkfilepool.meta",
-            "./ConSCSTest1/",
+            "./" + kTestPrefix + "1/chunkfilepool/",
+            "./" + kTestPrefix + "1/chunkfilepool.meta",
+            "./" + kTestPrefix + "1/",
             1);
         threadpool[1] = std::thread(&CurveCluster::FormatChunkFilePool,
             cluster_,
-            "./ConSCSTest2/chunkfilepool/",
-            "./ConSCSTest2/chunkfilepool.meta",
-            "./ConSCSTest2/",
+            "./" + kTestPrefix + "2/chunkfilepool/",
+            "./" + kTestPrefix + "2/chunkfilepool.meta",
+            "./" + kTestPrefix + "2/",
             1);
         threadpool[2] = std::thread(&CurveCluster::FormatChunkFilePool,
             cluster_,
-            "./ConSCSTest3/chunkfilepool/",
-            "./ConSCSTest3/chunkfilepool.meta",
-            "./ConSCSTest3/",
+            "./" + kTestPrefix + "3/chunkfilepool/",
+            "./" + kTestPrefix + "3/chunkfilepool.meta",
+            "./" + kTestPrefix + "3/",
             1);
 
         for (int i = 0; i < 3; i++) {
@@ -381,10 +400,10 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_->mdsRepo_->dropDataBase();
         delete cluster_;
         cluster_ = nullptr;
-        system("rm -rf ConSCSTest.etcd");
-        system("rm -rf ConSCSTest1");
-        system("rm -rf ConSCSTest2");
-        system("rm -rf ConSCSTest3");
+        system(std::string("rm -rf " + kTestPrefix + "t.etcd").c_str());
+        system(std::string("rm -rf " + kTestPrefix + "1").c_str());
+        system(std::string("rm -rf " + kTestPrefix + "2").c_str());
+        system(std::string("rm -rf " + kTestPrefix + "3").c_str());
     }
 
     void SetUp() {
@@ -531,15 +550,21 @@ TEST_F(SnapshotCloneServerTest, TestSnapSameClone1Success) {
     std::string snapId;
     PrepareSnapshotForTestFile1(&snapId);
 
+    std::string dstFile = "/clone1";
+
     std::string uuid1, uuid2;
     int ret1, ret2;
-    ret1 = CloneOrRecover("Clone", testUser1_, snapId, "/clone1", true,
+    ret1 = CloneOrRecover("Clone", testUser1_, snapId, dstFile, true,
         &uuid1);
     ASSERT_EQ(0, ret1);
 
-    ret2 = CloneOrRecover("Clone", testUser1_, snapId, "/clone1", true,
+    ret2 = CloneOrRecover("Clone", testUser1_, snapId, dstFile, true,
         &uuid2);
     ASSERT_EQ(kErrCodeFileExist, ret2);
+
+    // Flatten
+    ret1 = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret1);
 
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
@@ -554,14 +579,22 @@ TEST_F(SnapshotCloneServerTest, TestSnap2Clone2Success) {
     std::string snapId;
     PrepareSnapshotForTestFile1(&snapId);
 
+    std::string dstFile1 = "/clone1_1";
+    std::string dstFile2 = "/clone1_2";
     std::string uuid1, uuid2;
     int ret1, ret2;
-    ret1 = CloneOrRecover("Clone", testUser1_, snapId, "/clone1_1", true,
+    ret1 = CloneOrRecover("Clone", testUser1_, snapId, dstFile1, true,
         &uuid1);
     ASSERT_EQ(0, ret1);
 
-    ret2 = CloneOrRecover("Clone", testUser1_, snapId, "/clone1_2", true,
+    ret2 = CloneOrRecover("Clone", testUser1_, snapId, dstFile2, true,
         &uuid2);
+    ASSERT_EQ(0, ret2);
+
+    // Flatten
+    ret1 = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret1);
+    ret2 = Flatten(testUser1_, uuid2);
     ASSERT_EQ(0, ret2);
 
     bool success1 = false;
@@ -603,14 +636,22 @@ TEST_F(SnapshotCloneServerTest, TestSnap2Clone2Success) {
 }
 
 TEST_F(SnapshotCloneServerTest, TestImage2Clone2Success) {
+    std::string dstFile1 = "/clone2_1";
+    std::string dstFile2 = "/clone2_2";
     std::string uuid1, uuid2;
     int ret1, ret2;
-    ret1 = CloneOrRecover("Clone", testUser1_, testFile2_, "/clone2_1", true,
+    ret1 = CloneOrRecover("Clone", testUser1_, testFile2_, dstFile1, true,
         &uuid1);
     ASSERT_EQ(0, ret1);
 
-    ret2 = CloneOrRecover("Clone", testUser1_, testFile2_, "/clone2_2", true,
+    ret2 = CloneOrRecover("Clone", testUser1_, testFile2_, dstFile2, true,
         &uuid2);
+    ASSERT_EQ(0, ret2);
+
+    // Flatten
+    ret1 = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret1);
+    ret2 = Flatten(testUser1_, uuid2);
     ASSERT_EQ(0, ret2);
 
     UserInfo_t userinfo;
@@ -664,6 +705,10 @@ TEST_F(SnapshotCloneServerTest, TestReadWriteWhenLazyCloneSnap) {
         &uuid1);
     ASSERT_EQ(0, ret);
 
+    // Flatten
+    ret = Flatten(testUser1_, uuid1);
+    ASSERT_EQ(0, ret);
+
     std::string fackData(4096, 'y');
     ASSERT_TRUE(WriteFile(dstFile, testUser1_, fackData));
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
@@ -679,6 +724,10 @@ TEST_F(SnapshotCloneServerTest, TestReadWriteWhenLazyCloneImage) {
     int ret = CloneOrRecover("Clone", testUser1_,
         testFile1_, dstFile, true,
         &uuid1);
+    ASSERT_EQ(0, ret);
+
+    // Flatten
+    ret = Flatten(testUser1_, uuid1);
     ASSERT_EQ(0, ret);
 
     std::string fackData(4096, 'y');
@@ -699,6 +748,10 @@ TEST_F(SnapshotCloneServerTest, TestReadWriteWhenLazyRecoverSnap) {
     int ret = CloneOrRecover("Recover", testUser1_,
         snapId, dstFile, true,
         &uuid1);
+    ASSERT_EQ(0, ret);
+
+    // Flatten
+    ret = Flatten(testUser1_, uuid1);
     ASSERT_EQ(0, ret);
 
     std::string fackData(4096, 'y');

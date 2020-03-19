@@ -21,7 +21,7 @@ namespace mds {
 int AllocStatistic::Init() {
     // 获取当前的revision
     int res = client_->GetCurrentRevision(&curRevision_);
-    if (EtcdErrCode::OK != res) {
+    if (EtcdErrCode::EtcdOK != res) {
         LOG(ERROR) << "get current revision fail, errCode: " << res;
         return -1;
     }
@@ -135,10 +135,10 @@ bool AllocStatistic::HandleResult(int res) {
         return false;
     } else {
         // 获取当前的revision, 如果获取失败，过段时间再尝试
-        int errCode = EtcdErrCode::OK;
+        int errCode = EtcdErrCode::EtcdOK;
         do {
             // 如果出错，睡眠一段时间内再做尝试
-            if (errCode != EtcdErrCode::OK) {
+            if (errCode != EtcdErrCode::EtcdOK) {
                 LOG(INFO) << "calculateSegmentAlloc"
                           << " occur error, sleep and retry later";
                 std::this_thread::sleep_for(
@@ -149,10 +149,10 @@ bool AllocStatistic::HandleResult(int res) {
             // 2. 重新获取当前的revision
             segmentAlloc_.clear();
             errCode = client_->GetCurrentRevision(&curRevision_);
-            if (EtcdErrCode::OK != errCode) {
+            if (EtcdErrCode::EtcdOK != errCode) {
                 LOG(ERROR) << "get current revision error";
             }
-        } while (EtcdErrCode::OK != errCode);
+        } while (EtcdErrCode::EtcdOK != errCode);
         return true;
     }
 }
@@ -185,7 +185,7 @@ void AllocStatistic::PeriodicPersist() {
                 NameSpaceStorageCodec::EncodeSegmentAllocValue(
                     item.first, item.second));
 
-            if (EtcdErrCode::OK != errCode) {
+            if (EtcdErrCode::EtcdOK != errCode) {
                 LOG(INFO) << "periodic persist logicalPool"
                           << item.first << " size: " << item.second
                           << " to etcd fail, errCode: " << errCode;

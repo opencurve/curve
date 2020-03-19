@@ -17,11 +17,14 @@
 
 #include "src/common/encode.h"
 #include "src/mds/common/mds_define.h"
-#include "src/mds/kvstorageclient/etcd_client.h"
+#include "src/kvstorageclient/etcd_client.h"
 #include "src/mds/nameserver2/namespace_storage_cache.h"
 
 namespace curve {
 namespace mds {
+
+using ::curve::kvstorage::EtcdClientImp;
+using ::curve::kvstorage::KVStorageClient;
 
 enum class StoreStatus {
     OK = 0,
@@ -133,6 +136,17 @@ class NameServerStorage {
                                 std::vector<FileInfo> * files) = 0;
 
     /**
+     * @brief ListSegment 获取[startid, endid)之间的所有segment
+     *
+     * @param[in] id 文件的inode id
+     * @param[out] segments segment列表
+     *
+     * @return StoreStatus 错误码
+     */
+    virtual StoreStatus ListSegment(InodeID id,
+                                    std::vector<PageFileSegment> *segments) = 0;
+
+    /**
      * @brief ListSnapshotFile 获取[startid, endid)之间的所有快照文件
      *
      * @param[in] startidid为起始id
@@ -239,6 +253,9 @@ class NameServerStorageImp : public NameServerStorage {
     StoreStatus ListFile(InodeID startid,
                         InodeID endid,
                         std::vector<FileInfo> * files) override;
+
+    StoreStatus ListSegment(InodeID id,
+                            std::vector<PageFileSegment> *segments) override;
 
     StoreStatus ListSnapshotFile(InodeID startid,
                         InodeID endid,

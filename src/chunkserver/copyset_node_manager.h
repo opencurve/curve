@@ -143,12 +143,19 @@ class CopysetNodeManager : public curve::common::Uncopyable {
      */
     bool CheckCopysetUntilLoadFinished(std::shared_ptr<CopysetNode> node);
 
- private:
+    /**
+     * 获取copysetNodeManager加载copyset的状态
+     * @return false-copyset未加载完成 true-copyset已加载完成
+     */
+    virtual bool LoadFinished();
+
+ protected:
     CopysetNodeManager()
         : copysetLoader_(nullptr)
         , running_(false)
         , loadFinished_(false) {}
 
+ private:
     /**
      * 如果指定copyset不存在，则将copyset插入到map当中（线程安全）
      * @param logicPoolId:逻辑池id

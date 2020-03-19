@@ -14,6 +14,41 @@
 namespace curve {
 namespace snapshotcloneserver {
 
+// snapshotcloneservice字符串常量定义
+extern const char* kServiceName;
+// action
+extern const char* kCreateSnapshotAction;
+extern const char* kDeleteSnapshotAction;
+extern const char* kCancelSnapshotAction;
+extern const char* kGetFileSnapshotInfoAction;
+extern const char* kCloneAction;
+extern const char* kRecoverAction;
+extern const char* kGetCloneTasksAction;
+extern const char* kCleanCloneTaskAction;
+extern const char* kFlattenAction;
+
+// param
+extern const char* kActionStr;
+extern const char* kVersionStr;
+extern const char* kUserStr;
+extern const char* kFileStr;
+extern const char* kNameStr;
+extern const char* kUUIDStr;
+extern const char* kLimitStr;
+extern const char* kOffsetStr;
+extern const char* kSourceStr;
+extern const char* kDestinationStr;
+extern const char* kLazyStr;
+
+// json key
+extern const char* kCodeStr;
+extern const char* kMessageStr;
+extern const char* kRequestIdStr;
+extern const char* kTotalCountStr;
+extern const char* kSnapshotsStr;
+extern const char* kTaskInfosStr;
+
+
 typedef std::string UUID;
 using TaskIdType = UUID;
 
@@ -78,6 +113,19 @@ std::string BuildErrorMessage(
     int errCode,
     const std::string &requestId,
     const std::string &uuid = "");
+
+
+// clone progress
+constexpr uint32_t kProgressCloneStart = 0;
+constexpr uint32_t kProgressCloneError = kProgressCloneStart;
+constexpr uint32_t kProgressCreateCloneFile = 1;
+constexpr uint32_t kProgressCreateCloneMeta = 2;
+constexpr uint32_t kProgressMetaInstalled = 5;
+constexpr uint32_t kProgressRecoverChunkBegin = kProgressMetaInstalled;
+constexpr uint32_t kProgressRecoverChunkEnd = 95;
+constexpr uint32_t kProgressCloneComplete = 100;
+
+
 
 }  // namespace snapshotcloneserver
 }  // namespace curve

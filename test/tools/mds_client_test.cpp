@@ -6,6 +6,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <string>
 #include "src/tools/mds_client.h"
 #include "test/client/fake/mockMDS.h"
 #include "test/client/fake/fakeMDS.h"
@@ -26,15 +27,15 @@ using curve::mds::topology::GetChunkServerInfoResponse;
 using curve::mds::topology::GetCopySetsInChunkServerResponse;
 using curve::mds::GetOrAllocateSegmentResponse;
 using curve::tool::GetSegmentRes;
+using curve::mds::topology::CopySetServerInfo;
 
-uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
-uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
-std::string mdsMetaServerAddr = "127.0.0.1:9180";   // NOLINT
 std::string mdsAddr = "127.0.0.1:9999,127.0.0.1:9180";   // NOLINT
 
 DECLARE_uint64(test_disk_size);
-DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
-DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
+extern uint32_t segment_size;
+extern uint32_t chunk_size;
+extern std::string mdsMetaServerAddr;
+
 namespace brpc {
 DECLARE_int32(health_check_interval);
 }
@@ -64,8 +65,9 @@ class ToolMDSClientTest : public ::testing::Test {
         fileInfo->set_ctime(1573546993000000);
     }
 
-    void GetCopysetInfoForTest(curve::mds::topology::CopySetServerInfo* info,
-                                int num) {
+    void GetCopysetInfoForTest(CopySetServerInfo* info,
+                                int num, uint32_t copysetId = 1) {
+        info->Clear();
         for (int i = 0; i < num; ++i) {
             curve::mds::topology::ChunkServerLocation *csLoc =
                                                 info->add_cslocs();
@@ -73,7 +75,7 @@ class ToolMDSClientTest : public ::testing::Test {
             csLoc->set_hostip("127.0.0.1");
             csLoc->set_port(9191 + i);
         }
-        info->set_copysetid(1);
+        info->set_copysetid(copysetId);
     }
 
     void GetSegmentForTest(PageFileSegment* segment) {
@@ -149,7 +151,11 @@ TEST_F(ToolMDSClientTest, Init) {
     curve::tool::MDSClient mdsClient;
     ASSERT_EQ(-1, mdsClient.Init(""));
     ASSERT_EQ(-1, mdsClient.Init("127.0.0.1"));
-    ASSERT_EQ(-1, mdsClient.Init("127.0.0.1:9999"));
+    ASSERT_EQ(-1, mdsClient.Init("127.0.0.1:65536"));
+    // dummy server非法
+    ASSERT_EQ(-1, mdsClient.Init(mdsAddr, ""));
+    // dummy server与mds不匹配
+    ASSERT_EQ(-1, mdsClient.Init(mdsAddr, "9091,9092,9093"));
     ASSERT_EQ(0, mdsClient.Init(mdsAddr));
 }
 
@@ -187,6 +193,37 @@ TEST_F(ToolMDSClientTest, GetFileInfo) {
     response->set_statuscode(curve::mds::StatusCode::kOK);
     ASSERT_EQ(0, mdsClient.GetFileInfo(filename, &outFileInfo));
     ASSERT_EQ(info->DebugString(), outFileInfo.DebugString());
+}
+
+TEST_F(ToolMDSClientTest, GetAllocatedSize) {
+    uint64_t allocSize;
+    std::string filename = "/test";
+    curve::tool::MDSClient mdsClient;
+    ASSERT_EQ(0, mdsClient.Init(mdsAddr));
+    std::unique_ptr<curve::mds::GetAllocatedSizeResponse> response(
+                            new curve::mds::GetAllocatedSizeResponse());
+    brpc::Controller cntl;
+    std::unique_ptr<FakeReturn> fakeret(
+        new FakeReturn(&cntl, static_cast<void*>(response.get())));
+    FakeMDSCurveFSService* curvefsservice = fakemds.GetMDSService();
+    curvefsservice->SetGetAllocatedSizeReturn(fakeret.get());
+    // 参数为空指针
+    ASSERT_EQ(-1, mdsClient.GetAllocatedSize(filename, nullptr));
+
+    // 发送RPC失败
+    cntl.SetFailed("fail for test");
+    ASSERT_EQ(-1, mdsClient.GetAllocatedSize(filename, &allocSize));
+    cntl.Reset();
+
+    // 返回码不为OK
+    response->set_statuscode(curve::mds::StatusCode::kParaError);
+    ASSERT_EQ(-1, mdsClient.GetAllocatedSize(filename, &allocSize));
+
+    // 正常情况
+    response->set_allocatedsize(1073741824);
+    response->set_statuscode(curve::mds::StatusCode::kOK);
+    ASSERT_EQ(0, mdsClient.GetAllocatedSize(filename, &allocSize));
+    ASSERT_EQ(1073741824, allocSize);
 }
 
 TEST_F(ToolMDSClientTest, ListDir) {
@@ -347,31 +384,53 @@ TEST_F(ToolMDSClientTest, GetChunkServerListInCopySets) {
     std::vector<ChunkServerLocation> csLocs;
 
     // 参数为空指针
-    ASSERT_EQ(-1, mdsClient.GetChunkServerListInCopySets(
+    ASSERT_EQ(-1, mdsClient.GetChunkServerListInCopySet(
                                 logicalPoolId, copysetId, nullptr));
 
     // 发送rpc失败
     cntl.SetFailed("error for test");
-    ASSERT_EQ(-1, mdsClient.GetChunkServerListInCopySets(
+    ASSERT_EQ(-1, mdsClient.GetChunkServerListInCopySet(
                                 logicalPoolId, copysetId, &csLocs));
     cntl.Reset();
 
     // 返回码不为OK
     response->set_statuscode(curve::mds::topology::kTopoErrCodeInitFail);
-    ASSERT_EQ(-1, mdsClient.GetChunkServerListInCopySets(
+    ASSERT_EQ(-1, mdsClient.GetChunkServerListInCopySet(
                                 logicalPoolId, copysetId, &csLocs));
 
     // 正常情况
     response->set_statuscode(kTopoErrCodeSuccess);
-    curve::mds::topology::CopySetServerInfo csInfo;
-    GetCopysetInfoForTest(&csInfo, 3);
+    CopySetServerInfo csInfo;
+    GetCopysetInfoForTest(&csInfo, 3, copysetId);
     auto infoPtr = response->add_csinfo();
     infoPtr->CopyFrom(csInfo);
-    ASSERT_EQ(0, mdsClient.GetChunkServerListInCopySets(
+    ASSERT_EQ(0, mdsClient.GetChunkServerListInCopySet(
                                 logicalPoolId, copysetId, &csLocs));
     ASSERT_EQ(csInfo.cslocs_size(), csLocs.size());
     for (uint32_t i = 0; i < csLocs.size(); ++i) {
         ASSERT_EQ(csInfo.cslocs(i).DebugString(), csLocs[i].DebugString());
+    }
+
+    // 测试获取多个copyset
+    std::vector<CopySetServerInfo> expected;
+    response->Clear();
+    response->set_statuscode(kTopoErrCodeSuccess);
+    for (int i = 0; i < 3; ++i) {
+        CopySetServerInfo csInfo;
+        GetCopysetInfoForTest(&csInfo, 3, 100 + i);
+        auto infoPtr = response->add_csinfo();
+        infoPtr->CopyFrom(csInfo);
+        expected.emplace_back(csInfo);
+    }
+    std::vector<CopySetIdType> copysets = {100, 101, 102};
+    std::vector<CopySetServerInfo> csServerInfos;
+    ASSERT_EQ(-1, mdsClient.GetChunkServerListInCopySets(
+                                logicalPoolId, copysets, nullptr));
+    ASSERT_EQ(0, mdsClient.GetChunkServerListInCopySets(
+                                logicalPoolId, copysets, &csServerInfos));
+    ASSERT_EQ(expected.size(), csServerInfos.size());
+    for (uint32_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i].DebugString(), csServerInfos[i].DebugString());
     }
 }
 
@@ -768,30 +827,109 @@ TEST_F(ToolMDSClientTest, GetServerOrChunkserverInCluster) {
 TEST_F(ToolMDSClientTest, GetMetric) {
     curve::tool::MDSClient mdsClient;
     ASSERT_EQ(0, mdsClient.Init(mdsAddr));
-    std::string  metricName = "mds_scheduler_metric_operator_num";
+    std::string metricName = "mds_scheduler_metric_operator_num";
     uint64_t metricValue;
     ASSERT_EQ(-1, mdsClient.GetMetric(metricName, &metricValue));
-    std::unique_ptr<bvar::Adder<uint32_t>> value(new bvar::Adder<uint32_t>());
-    (*value) << 10;
-    fakemds.SetMetric(metricName, value.get());
+    std::string metricName2 = "mds_status";
+    std::unique_ptr<bvar::Adder<uint32_t>> value1(new bvar::Adder<uint32_t>());
+    std::unique_ptr<bvar::Status<std::string>>
+        value2(new bvar::Status<std::string>());
+    (*value1) << 10;
+    value2->set_value("leader");
+    fakemds.SetMetric(metricName, value1.get());
+    fakemds.SetMetric(metricName2, value2.get());
     fakemds.ExposeMetric();
     ASSERT_EQ(0, mdsClient.GetMetric(metricName, &metricValue));
     ASSERT_EQ(10, metricValue);
+    std::string metricValue2;
+    ASSERT_EQ(0, mdsClient.GetMetric(metricName2, &metricValue2));
+    ASSERT_EQ("leader", metricValue2);
 }
 
 TEST_F(ToolMDSClientTest, GetCurrentMds) {
+    std::unique_ptr<bvar::Status<std::string>>
+        value(new bvar::Status<std::string>());
+    fakemds.SetMetric("mds_status", value.get());
+    fakemds.ExposeMetric();
     curve::tool::MDSClient mdsClient;
-    ASSERT_EQ(0, mdsClient.Init(mdsAddr));
-    // 有mds存活
-    ASSERT_EQ(mdsMetaServerAddr, mdsClient.GetCurrentMds());
-    // 没有mds存活
+    ASSERT_EQ(0, mdsClient.Init(mdsAddr, "9999,9180"));
+    // 有leader
+    value->set_value("leader");
+    std::vector<std::string> curMds = mdsClient.GetCurrentMds();
+    ASSERT_EQ(1, curMds.size());
+    ASSERT_EQ("127.0.0.1:9180", curMds[0]);
+    // 没有leader
+    value->set_value("follower");
+    ASSERT_TRUE(mdsClient.GetCurrentMds().empty());
+}
+
+TEST_F(ToolMDSClientTest, GetMdsOnlineStatus) {
+    curve::tool::MDSClient mdsClient;
+    ASSERT_EQ(0, mdsClient.Init(mdsAddr, "9999,9180"));
+    std::unique_ptr<bvar::Status<std::string>>
+        value(new bvar::Status<std::string>());
+    fakemds.SetMetric("mds_config_mds_listen_addr", value.get());
+    fakemds.ExposeMetric();
+    std::map<std::string, bool> onlineStatus;
+    // 9180在线，9999不在线
+    value->set_value("{\"conf_name\":\"mds.listen.addr\","
+                        "\"conf_value\":\"127.0.0.1:9180\"}");
+    mdsClient.GetMdsOnlineStatus(&onlineStatus);
+    std::map<std::string, bool> expected = {{"127.0.0.1:9180", true},
+                                            {"127.0.0.1:9999", false}};
+    ASSERT_EQ(expected, onlineStatus);
+    // 9180的服务端口不一致
+    value->set_value("{\"conf_name\":\"mds.listen.addr\","
+                        "\"conf_value\":\"127.0.0.1:9188\"}");
+    mdsClient.GetMdsOnlineStatus(&onlineStatus);
+    expected = {{"127.0.0.1:9180", false}, {"127.0.0.1:9999", false}};
+    ASSERT_EQ(expected, onlineStatus);
+    // 非json格式
+    value->set_value("127.0.0.1::9180");
+    mdsClient.GetMdsOnlineStatus(&onlineStatus);
+    expected = {{"127.0.0.1:9180", false}, {"127.0.0.1:9999", false}};
+    ASSERT_EQ(expected, onlineStatus);
+}
+
+TEST_F(ToolMDSClientTest, ListClient) {
+    curve::tool::MDSClient mdsClient;
+    ASSERT_EQ(0, mdsClient.Init(mdsAddr, "9999,9180"));
     FakeMDSCurveFSService* curvefsservice = fakemds.GetMDSService();
-    std::unique_ptr<curve::mds::GetFileInfoResponse> response(
-                            new curve::mds::GetFileInfoResponse());
+    std::string filename = "/test";
+    std::unique_ptr<curve::mds::ListClientResponse> response(
+                            new curve::mds::ListClientResponse());
+
     brpc::Controller cntl;
-    cntl.SetFailed("fail for test");
     std::unique_ptr<FakeReturn> fakeret(
         new FakeReturn(&cntl, static_cast<void*>(response.get())));
-    curvefsservice->SetGetFileInfoFakeReturn(fakeret.get());
-    ASSERT_EQ("", mdsClient.GetCurrentMds());
+    curvefsservice->SetListClient(fakeret.get());
+    std::vector<std::string> clientAddrs;
+
+    // 参数为空指针
+    ASSERT_EQ(-1, mdsClient.ListClient(nullptr));
+
+    // 发送RPC失败
+    cntl.SetFailed("fail for test");
+    ASSERT_EQ(-1, mdsClient.ListClient(&clientAddrs));
+    cntl.Reset();
+
+    // 返回码不为OK
+    response->set_statuscode(curve::mds::StatusCode::kParaError);
+    ASSERT_EQ(-1, mdsClient.ListClient(&clientAddrs));
+
+    // 正常情况
+    response->set_statuscode(curve::mds::StatusCode::kOK);
+    for (int i = 0; i < 5; i++) {
+        auto clientInfo = response->add_clientinfos();
+        clientInfo->set_ip("127.0.0.1");
+        clientInfo->set_port(8888 + i);
+    }
+    ASSERT_EQ(0, mdsClient.ListClient(&clientAddrs));
+    ASSERT_EQ(response->clientinfos_size(), clientAddrs.size());
+    for (int i = 0; i < 5; i++) {
+        const auto& clientInfo = response->clientinfos(i);
+        std::string expected = clientInfo.ip() + ":" +
+                               std::to_string(clientInfo.port());
+        ASSERT_EQ(expected, clientAddrs[i]);
+    }
 }

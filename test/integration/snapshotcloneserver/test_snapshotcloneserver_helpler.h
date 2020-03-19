@@ -58,6 +58,10 @@ int CloneOrRecover(
     bool lazy,
     std::string *uuidOut);
 
+int Flatten(
+    const std::string &user,
+    const std::string &uuid);
+
 int GetCloneTaskInfo(
     const std::string &user,
     const std::string &uuid,
@@ -84,6 +88,11 @@ int DeleteAndCheckSnapshotSuccess(
     const std::string &uuid);
 
 bool CheckCloneOrRecoverSuccess(
+    const std::string &user,
+    const std::string &uuid,
+    bool isClone);
+
+bool WaitMetaInstalledSuccess(
     const std::string &user,
     const std::string &uuid,
     bool isClone);

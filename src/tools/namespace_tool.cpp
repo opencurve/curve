@@ -273,7 +273,7 @@ int NameSpaceTool::PrintChunkLocation(const std::string& fileName,
               << ", copysetId: " << copysetId
               << ", groupId: " << groupId << std::endl;
     std::vector<ChunkServerLocation> csLocs;
-    int res = core_->GetChunkServerListInCopySets(logicPoolId,
+    int res = core_->GetChunkServerListInCopySet(logicPoolId,
                                     copysetId, &csLocs);
     if (res != 0) {
         std::cout << "GetChunkServerListInCopySet fail!" << std::endl;

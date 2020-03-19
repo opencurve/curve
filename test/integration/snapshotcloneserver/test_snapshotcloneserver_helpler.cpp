@@ -55,10 +55,12 @@ int MakeSnapshot(
     std::string *uuidOut) {
     std::string url = std::string("http://")
                     + kSnapshotCloneServerIpPort
-                    + "/SnapshotCloneService?Action=CreateSnapshot"
-                    + "&Version=1&User=" + user
-                    + "&File=" + fileName
-                    + "&Name=" + snapName;
+                    + "/" + kServiceName + "?"
+                    + kActionStr+ "=" + kCreateSnapshotAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + fileName + "&"
+                    + kNameStr + "=" + snapName;
     LOG(INFO) << "Make snapshot, url = " << url;
     Json::Value jsonObj;
     int ret = SendRequest(url, &jsonObj);
@@ -66,9 +68,9 @@ int MakeSnapshot(
         return ret;
     }
 
-    ret = std::stoi(jsonObj["Code"].asString());
+    ret = std::stoi(jsonObj[kCodeStr].asString());
     if (ret == 0) {
-        *uuidOut =  jsonObj["UUID"].asString();
+        *uuidOut =  jsonObj[kUUIDStr].asString();
     }
     return ret;
 }
@@ -79,10 +81,13 @@ int CancelSnapshot(
     const std::string &uuid) {
     std::string url = std::string("http://")
                     + kSnapshotCloneServerIpPort
-                    + "/SnapshotCloneService?Action=CancelSnapshot"
-                    + "&Version=1&User=" + user
-                    + "&File=" + fileName
-                    + "&UUID=" + uuid;
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kCancelSnapshotAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + fileName + "&"
+                    + kUUIDStr + "=" + uuid;
+
     LOG(INFO) << "CancelSnapshot, url = " << url;
     Json::Value jsonObj;
     int ret = SendRequest(url, &jsonObj);
@@ -90,7 +95,7 @@ int CancelSnapshot(
         return ret;
     }
 
-    ret = std::stoi(jsonObj["Code"].asString());
+    ret = std::stoi(jsonObj[kCodeStr].asString());
     return ret;
 }
 
@@ -101,25 +106,27 @@ int GetSnapshotInfo(
     FileSnapshotInfo *info) {
     std::string url = std::string("http://")
                     + kSnapshotCloneServerIpPort
-                    + "/SnapshotCloneService?Action=GetFileSnapshotInfo"
-                    + "&Version=1&User=" + user
-                    + "&File=" + fileName
-                    + "&UUID=" + uuid;
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kGetFileSnapshotInfoAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + fileName + "&"
+                    + kUUIDStr + "=" + uuid;
     LOG(INFO) << "GetSnapshotInfo, url = " << url;
     Json::Value jsonObj;
     int ret = SendRequest(url, &jsonObj);
     if (ret < 0) {
         return ret;
     }
-    ret = std::stoi(jsonObj["Code"].asString());
+    ret = std::stoi(jsonObj[kCodeStr].asString());
     if (ret == 0) {
-        if (jsonObj["TotalCount"].asUInt() != 1) {
+        if (jsonObj[kTotalCountStr].asUInt() != 1) {
             return -1;
         }
-        if (jsonObj["Snapshots"].size() != 1) {
+        if (jsonObj[kSnapshotsStr].size() != 1) {
             return -1;
         }
-        info->LoadFromJsonObj(jsonObj["Snapshots"][0]);
+        info->LoadFromJsonObj(jsonObj[kSnapshotsStr][0]);
     }
     return ret;
 }
@@ -132,11 +139,13 @@ int ListFileSnapshotInfo(
     std::vector<FileSnapshotInfo> *infoVec) {
     std::string url = std::string("http://")
                     + kSnapshotCloneServerIpPort
-                    + "/SnapshotCloneService?Action=GetFileSnapshotInfo"
-                    + "&Version=1&User=" + user
-                    + "&File=" + fileName
-                    + "&Limit=" + std::to_string(limit);
-                    + "&Offset=" + std::to_string(offset);
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kGetFileSnapshotInfoAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + fileName + "&"
+                    + kLimitStr + "=" + std::to_string(limit)
+                    + kOffsetStr + "=" + std::to_string(offset);
     LOG(INFO) << "GetFileSnapshotInfo, url = " << url;
     Json::Value jsonObj;
     int ret = SendRequest(url, &jsonObj);
@@ -144,11 +153,11 @@ int ListFileSnapshotInfo(
         return ret;
     }
 
-    ret = std::stoi(jsonObj["Code"].asString());
+    ret = std::stoi(jsonObj[kCodeStr].asString());
 
-    for (int i = 0; i < jsonObj["Snapshots"].size(); i++) {
+    for (int i = 0; i < jsonObj[kSnapshotsStr].size(); i++) {
         FileSnapshotInfo info;
-        info.LoadFromJsonObj(jsonObj["Snapshots"][i]);
+        info.LoadFromJsonObj(jsonObj[kSnapshotsStr][i]);
         infoVec->push_back(info);
     }
 
@@ -161,10 +170,12 @@ int DeleteSnapshot(
     const std::string &uuid) {
     std::string url = std::string("http://")
                     + kSnapshotCloneServerIpPort
-                    + "/SnapshotCloneService?Action=DeleteSnapshot"
-                    + "&Version=1&User=" + user
-                    + "&File=" + fileName
-                    + "&UUID=" + uuid;
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kDeleteSnapshotAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + fileName + "&"
+                    + kUUIDStr + "=" + uuid;
     LOG(INFO) << "DeleteSnapshot, url = " << url;
     Json::Value jsonObj;
     int ret = SendRequest(url, &jsonObj);
@@ -172,7 +183,7 @@ int DeleteSnapshot(
         return ret;
     }
 
-    ret = std::stoi(jsonObj["Code"].asString());
+    ret = std::stoi(jsonObj[kCodeStr].asString());
     return ret;
 }
 
@@ -185,11 +196,13 @@ int CloneOrRecover(
     std::string *uuidOut) {
     std::string url = std::string("http://")
                     + kSnapshotCloneServerIpPort
-                    + "/SnapshotCloneService?Action=" + action
-                    + "&Version=1&User=" + user
-                    + "&Source=" + src
-                    + "&Destination=" + dst
-                    + "&Lazy=" + (lazy ? "1" : "0");
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + action + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kSourceStr + "=" + src + "&"
+                    + kDestinationStr + "=" + dst + "&"
+                    + kLazyStr + "=" + (lazy ? "1" : "0");
 
     LOG(INFO) << "request, url = " << url;
     Json::Value jsonObj;
@@ -198,8 +211,29 @@ int CloneOrRecover(
         return ret;
     }
 
-    ret = std::stoi(jsonObj["Code"].asString());
-    *uuidOut =  jsonObj["UUID"].asString();
+    ret = std::stoi(jsonObj[kCodeStr].asString());
+    *uuidOut =  jsonObj[kUUIDStr].asString();
+    return ret;
+}
+
+int Flatten(
+    const std::string &user,
+    const std::string &uuid) {
+    std::string url = std::string("http://")
+                    + kSnapshotCloneServerIpPort
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kFlattenAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kUUIDStr + "=" + uuid;
+    LOG(INFO) << "request, url = " << url;
+    Json::Value jsonObj;
+    int ret = SendRequest(url, &jsonObj);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = std::stoi(jsonObj[kCodeStr].asString());
     return ret;
 }
 
@@ -209,9 +243,11 @@ int GetCloneTaskInfo(
     TaskCloneInfo *info) {
     std::string url = std::string("http://")
                     + kSnapshotCloneServerIpPort
-                    + "/SnapshotCloneService?Action=GetCloneTasks"
-                    + "&Version=1&User=" + user
-                    + "&UUID=" + uuid;
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kGetCloneTasksAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kUUIDStr + "=" + uuid;
     LOG(INFO) << "GetCloneTasks, url = " << url;
 
     Json::Value jsonObj;
@@ -219,15 +255,15 @@ int GetCloneTaskInfo(
     if (ret < 0) {
         return ret;
     }
-    ret = std::stoi(jsonObj["Code"].asString());
+    ret = std::stoi(jsonObj[kCodeStr].asString());
     if (ret == 0) {
-        if (jsonObj["TotalCount"].asUInt() != 1) {
+        if (jsonObj[kTotalCountStr].asUInt() != 1) {
             return -1;
         }
-        if (jsonObj["TaskInfos"].size() != 1) {
+        if (jsonObj[kTaskInfosStr].size() != 1) {
             return -1;
         }
-        info->LoadFromJsonObj(jsonObj["TaskInfos"][0]);
+        info->LoadFromJsonObj(jsonObj[kTaskInfosStr][0]);
     }
     return ret;
 }
@@ -239,10 +275,12 @@ int ListCloneTaskInfo(
     std::vector<TaskCloneInfo> *infoVec) {
     std::string url = std::string("http://")
                     + kSnapshotCloneServerIpPort
-                    + "/SnapshotCloneService?Action=GetCloneTasks"
-                    + "&Version=1&User=" + user
-                    + "&Limit=" + std::to_string(limit)
-                    + "&Offset=" + std::to_string(offset);
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kGetCloneTasksAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kLimitStr + "=" + std::to_string(limit)
+                    + kOffsetStr + "=" + std::to_string(offset);
     LOG(INFO) << "GetCloneTasks, url = " << url;
 
     Json::Value jsonObj;
@@ -250,11 +288,11 @@ int ListCloneTaskInfo(
     if (ret < 0) {
         return ret;
     }
-    ret = std::stoi(jsonObj["Code"].asString());
+    ret = std::stoi(jsonObj[kCodeStr].asString());
 
-    for (int i = 0; i < jsonObj["TaskInfos"].size(); i++) {
+    for (int i = 0; i < jsonObj[kTaskInfosStr].size(); i++) {
         TaskCloneInfo info;
-        info.LoadFromJsonObj(jsonObj["TaskInfos"][i]);
+        info.LoadFromJsonObj(jsonObj[kTaskInfosStr][i]);
         infoVec->push_back(info);
     }
     return ret;
@@ -265,9 +303,11 @@ int CleanCloneTask(
     const std::string &uuid) {
     std::string url = std::string("http://")
                     + kSnapshotCloneServerIpPort
-                    + "/SnapshotCloneService?Action=CleanCloneTask"
-                    + "&Version=1&User=" + user
-                    + "&UUID=" + uuid;
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kCleanCloneTaskAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kUUIDStr + "=" + uuid;
     LOG(INFO) << "CleanCloneTask, url = " << url;
     Json::Value jsonObj;
     int ret = SendRequest(url, &jsonObj);
@@ -275,7 +315,7 @@ int CleanCloneTask(
         return ret;
     }
 
-    ret = std::stoi(jsonObj["Code"].asString());
+    ret = std::stoi(jsonObj[kCodeStr].asString());
     return ret;
 }
 
@@ -289,6 +329,7 @@ bool CheckSnapshotSuccess(
         int retCode = GetSnapshotInfo(
             user, file, uuid, &info1);
         if (retCode != 0) {
+            LOG(INFO) << "GetSnapshotInfo fail, retCode = " << retCode;
             break;
         }
         if (info1.GetSnapshotInfo().GetStatus() == Status::pending) {
@@ -355,6 +396,40 @@ bool CheckCloneOrRecoverSuccess(
             std::this_thread::sleep_for(std::chrono::milliseconds(3000));
             continue;
         } else if (info1.GetCloneInfo().GetStatus() == CloneStatus::done) {
+            success = true;
+            break;
+        } else {
+            LOG(ERROR) << "Clone Fail On status = "
+                   << static_cast<int>(info1.GetCloneInfo().GetStatus());
+            break;
+        }
+    }
+    return success;
+}
+
+bool WaitMetaInstalledSuccess(
+    const std::string &user,
+    const std::string &uuid,
+    bool isClone) {
+    bool success = false;
+    for (int i = 0; i < 600; i++) {
+        TaskCloneInfo info1;
+        int retCode = GetCloneTaskInfo(
+            user, uuid, &info1);
+        if (retCode != 0) {
+            break;
+        }
+        CloneStatus st;
+        if (isClone) {
+            st = CloneStatus::cloning;
+        } else {
+            st = CloneStatus::recovering;
+        }
+        if (info1.GetCloneInfo().GetStatus() == st) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            continue;
+        } else if (info1.GetCloneInfo().GetStatus() ==
+            CloneStatus::metaInstalled) {
             success = true;
             break;
         } else {

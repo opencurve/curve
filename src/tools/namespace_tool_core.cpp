@@ -32,11 +32,11 @@ int NameSpaceToolCore::ListDir(const std::string& dirName,
     return client_->ListDir(dirName, files);
 }
 
-int NameSpaceToolCore::GetChunkServerListInCopySets(
+int NameSpaceToolCore::GetChunkServerListInCopySet(
                                     const PoolIdType& logicalPoolId,
                                     const CopySetIdType& copysetId,
                                     std::vector<ChunkServerLocation>* csLocs) {
-    return client_->GetChunkServerListInCopySets(logicalPoolId,
+    return client_->GetChunkServerListInCopySet(logicalPoolId,
                                                 copysetId, csLocs);
 }
 
@@ -52,57 +52,7 @@ int NameSpaceToolCore::CreateFile(const std::string& fileName,
 
 int NameSpaceToolCore::GetAllocatedSize(const std::string& fileName,
                                         uint64_t* size) {
-    FileInfo fileInfo;
-    if (GetFileInfo(fileName, &fileInfo) != 0) {
-        std::cout << "GetFileInfo fail!" << std::endl;
-        return -1;
-    }
-    return GetAllocatedSize(fileName, fileInfo, size);
-}
-
-int NameSpaceToolCore::GetAllocatedSize(const std::string& fileName,
-                                        const FileInfo& fileInfo,
-                                        uint64_t* allocSize) {
-    // 如果是文件的话，直接获取segment信息，然后计算空间即可
-    *allocSize = 0;
-    if (fileInfo.filetype() != curve::mds::FileType::INODE_DIRECTORY) {
-        std::vector<PageFileSegment> segments;
-        if (GetFileSegments(fileName, fileInfo, &segments) != 0) {
-            std::cout << "Get segment info fail, parent id: "
-                      << fileInfo.parentid()
-                      << " filename: " << fileInfo.filename()
-                      << std::endl;
-            return -1;
-        }
-        for (auto& segment : segments) {
-            int64_t chunkSize = segment.chunksize();
-            int64_t chunkNum = segment.chunks().size();
-            *allocSize += chunkNum * chunkSize;
-        }
-        return 0;
-    } else {  // 如果是目录，则list dir，并递归计算每个文件的大小最后加起来
-        std::vector<FileInfo> files;
-        if (client_->ListDir(fileName, &files) != 0) {
-            std::cout << "List directory failed!" << std::endl;
-            return -1;
-        }
-        for (auto& file : files) {
-            std::string fullPathName;
-            if (fileName == "/") {
-                fullPathName = fileName + file.filename();
-            } else {
-                fullPathName = fileName + "/" + file.filename();
-            }
-            uint64_t size;
-            if (GetAllocatedSize(fullPathName, file, &size) != 0) {
-                std::cout << "Get allocated size of " << fullPathName
-                          << " fail!" << std::endl;
-                continue;
-            }
-            *allocSize += size;
-        }
-        return 0;
-    }
+    return client_->GetAllocatedSize(fileName, size);
 }
 
 int NameSpaceToolCore::GetFileSize(const std::string& fileName,
