@@ -37,14 +37,15 @@ int DataBase::InitDB() {
 }
 
 int DataBase::Execute(const std::string &sql) {
-    sql::Connection *conn;
-    sql::Statement *statement;
+    sql::Connection *conn = nullptr;
+    sql::Statement *statement = nullptr;
     conn = connPool_->GetConnection();
     if (conn) {
         try {
               statement = conn->createStatement();
               statement->execute(sql);
               delete statement;
+              statement = nullptr;
               connPool_->PutConnection(conn);
               return OperationOK;
         } catch (sql::SQLException &e) {
@@ -52,12 +53,14 @@ int DataBase::Execute(const std::string &sql) {
                          << "error code: " << e.getErrorCode() << ", "
                          << "error message: " << e.what();
               delete statement;
+              statement = nullptr;
               connPool_->PutConnection(conn);
               return SqlException;
         } catch (std::runtime_error &e) {
               LOG(ERROR) << "execute sql: " << sql << "get runtime_error, "
                          << "error message: " << e.what();
               delete statement;
+              statement = nullptr;
               connPool_->PutConnection(conn);
               return RuntimeExecption;
         }
@@ -72,8 +75,8 @@ int DataBase::Execute(const std::string &sql) {
 
 // retrun value: rows affected
 int DataBase::ExecUpdate(const std::string &sql) {
-    sql::Connection *conn;
-    sql::Statement *statement;
+    sql::Connection *conn = nullptr;
+    sql::Statement *statement = nullptr;
     conn = connPool_->GetConnection();
     if (conn) {
         try {
@@ -81,6 +84,7 @@ int DataBase::ExecUpdate(const std::string &sql) {
               statement = conn->createStatement();
               statement->executeUpdate(sql);
               delete statement;
+              statement = nullptr;
               connPool_->PutConnection(conn);
               return OperationOK;
         } catch (sql::SQLException &e) {
@@ -88,12 +92,14 @@ int DataBase::ExecUpdate(const std::string &sql) {
                          << "error code: " << e.getErrorCode() << ", "
                          << "error message: " << e.what();
               delete statement;
+              statement = nullptr;
               connPool_->PutConnection(conn);
               return SqlException;
         } catch (std::runtime_error &e) {
               LOG(ERROR) << "execUpdate sql: " << sql << "get runtime_error, "
                          << "error message: " << e.what();
               delete statement;
+              statement = nullptr;
               connPool_->PutConnection(conn);
               return RuntimeExecption;
         }
@@ -108,8 +114,8 @@ int DataBase::ExecUpdate(const std::string &sql) {
 // return queryResult
 int DataBase::QueryRows(const std::string &sql, sql::ResultSet **res) {
     assert(res != nullptr);
-    sql::Connection *conn;
-    sql::Statement *statement;
+    sql::Connection *conn = nullptr;
+    sql::Statement *statement = nullptr;
     conn = connPool_->GetConnection();
     if (conn) {
         try {
@@ -117,6 +123,7 @@ int DataBase::QueryRows(const std::string &sql, sql::ResultSet **res) {
               statement = conn->createStatement();
               *res = statement->executeQuery(sql);
               delete statement;
+              statement = nullptr;
               connPool_->PutConnection(conn);
               return OperationOK;
         } catch (sql::SQLException &e) {
@@ -124,12 +131,14 @@ int DataBase::QueryRows(const std::string &sql, sql::ResultSet **res) {
                          << "error code: " << e.getErrorCode() << ", "
                          << "error message: " << e.what();
               delete statement;
+              statement = nullptr;
               connPool_->PutConnection(conn);
               return SqlException;
         } catch (std::runtime_error &e) {
               LOG(ERROR) << "queryRows sql: " << sql << "get runtime_error, "
                          << "error message: " << e.what();
               delete statement;
+              statement = nullptr;
               connPool_->PutConnection(conn);
               return RuntimeExecption;
         }
