@@ -839,9 +839,15 @@ TEST_F(CopysetClientTest, write_error_test) {
                             Invoke(WriteChunkFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(WriteChunkFunc)));
+        auto startTimeUs = curve::common::TimeUtility::GetTimeofDayUs();
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
                                  buff1, offset, len, reqDone);
         cond.Wait();
+        auto elpased = curve::common::TimeUtility::GetTimeofDayUs()
+                     - startTimeUs;
+        // chunkserverOPRetryIntervalUS = 5000
+        // 每次redirect睡眠500us，共重试3次，所以总共耗费时间大于1500us
+        ASSERT_GE(elpased, 1500);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
     }

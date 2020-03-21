@@ -274,15 +274,6 @@ typedef struct ClientConfigOption {
 } ClientConfigOption_t;
 
 /**
- * session id file option
- * session文件用于存储当前打开文件的session信息
- * @sessionmap_path: session文件的路径
- */
-typedef struct SessionIDMapOption {
-    std::string sessionmap_path;
-} SessionIDMapOption_t;
-
-/**
  * FileServiceOption是QEMU侧总体配置信息
  */
 typedef struct FileServiceOption {
@@ -291,7 +282,6 @@ typedef struct FileServiceOption {
     LeaseOption_t             leaseOpt;
     CommonConfigOpt_t         commonOpt;
     MetaServerOption_t        metaServerOpt;
-    SessionIDMapOption_t      sessionmapOpt;
 } FileServiceOption_t;
 
 #endif  // SRC_CLIENT_CONFIG_INFO_H_

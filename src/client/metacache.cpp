@@ -112,7 +112,7 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
                     UpdateChunkserverCopysetInfo(logicPoolId, cpinfoVec[0]);
                     // 更新logicpool和copysetid到copysetinfo的映射
                     UpdateCopysetInfo(logicPoolId, copysetId, cpinfoVec[0]);
-                    break;
+                    continue;
                 } else {
                     LOG(WARNING) << "get copyset server list from mds "
                         << "return empty server list"

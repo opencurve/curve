@@ -128,11 +128,14 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
         bthread_usleep(nextsleeptime);
         return;
     } else if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED) {
-        LOG(WARNING) << "leader redirect, retry directly, " << *reqCtx
+        auto nextsleeptime = failReqOpt_.chunkserverOPRetryIntervalUS / 10;
+        LOG(WARNING) << "leader redirect, sleep(us) = " << nextsleeptime
+                     << ", " << *reqCtx
                      << ", retried times = " << reqDone->GetRetriedTimes()
                      << ", IO id = " << reqDone->GetIOTracker()->GetID()
                      << ", request id = " << reqCtx->id_
                      << ", remote side = " << remoteAddress_;
+        bthread_usleep(nextsleeptime);
         return;
     }
 
