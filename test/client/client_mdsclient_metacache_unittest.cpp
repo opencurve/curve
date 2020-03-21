@@ -1315,7 +1315,8 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     ASSERT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, true));
 
     // 从1,2获取leader, 但是controller返回错误, 所以会去mds获取新的server list
-    ASSERT_EQ(1, cliservice1.GetInvokeTimes() + cliservice2.GetInvokeTimes());
+    // get server list后继续从1,2上获取leader, 结果还是失败。总共重试3次
+    ASSERT_EQ(3, cliservice1.GetInvokeTimes() + cliservice2.GetInvokeTimes());
     ASSERT_EQ(0, cliservice3.GetInvokeTimes());
 
     // 因为从mds获取新的copyset信息了，所以其leader信息被重置了，需要重新获取新leader
