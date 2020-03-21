@@ -326,6 +326,20 @@ TEST(MetricTest, MetricHelperTest) {
     ASSERT_NO_THROW(MetricHelper::IncremIOSuspendNum(&fm2));
     ASSERT_NO_THROW(MetricHelper::DecremIOSuspendNum(&fm2));
     ASSERT_NO_THROW(MetricHelper::LatencyRecord(&fm2, 0, OpType::READ));
+
+    ASSERT_NO_THROW(MetricHelper::IncremGetLeaderRetryTime(nullptr));
+    ASSERT_NO_THROW(MetricHelper::IncremUserQPSCount(nullptr, 0, OpType::READ));
+    ASSERT_NO_THROW(MetricHelper::IncremUserEPSCount(nullptr, OpType::READ));
+    ASSERT_NO_THROW(MetricHelper::IncremUserRPSCount(nullptr, OpType::READ));
+    ASSERT_NO_THROW(MetricHelper::IncremFailRPCCount(nullptr, OpType::READ));
+    ASSERT_NO_THROW(MetricHelper::IncremTimeOutRPCCount(nullptr, OpType::READ));
+    ASSERT_NO_THROW(MetricHelper::IncremRPCQPSCount(nullptr, 0, OpType::READ));
+    ASSERT_NO_THROW(MetricHelper::IncremRPCRPSCount(nullptr, OpType::READ));
+    ASSERT_NO_THROW(MetricHelper::LatencyRecord(nullptr, 0, OpType::READ));
+    ASSERT_NO_THROW(MetricHelper::IncremInflightRPC(nullptr));
+    ASSERT_NO_THROW(MetricHelper::DecremInflightRPC(nullptr));
+    ASSERT_NO_THROW(MetricHelper::IncremIOSuspendNum(nullptr));
+    ASSERT_NO_THROW(MetricHelper::DecremIOSuspendNum(nullptr));
 }
 
 }   //  namespace client

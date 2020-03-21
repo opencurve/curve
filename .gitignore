@@ -72,3 +72,5 @@ bazel-testlogs
 
 #log
 *.log
+
+.clang-format
