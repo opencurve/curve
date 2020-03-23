@@ -104,6 +104,20 @@ TEST_F(HeartbeatManagerTest, UpdateTimeStampTest) {
     ASSERT_FALSE(heartbeatManager_->UpdateFileTimestamp(1, 100));
 }
 
+TEST_F(HeartbeatManagerTest, UpdateNebdClientInfo) {
+    int pid = 12345;
+    uint64_t timeStamp = TimeUtility::GetTimeofDayMs() - 2 * 10 * 1000;
+    heartbeatManager_->UpdateNebdClientInfo(pid, "0.0.1", timeStamp);
+    const auto& clients = heartbeatManager_->GetNebdClients();
+    ASSERT_EQ(1, clients.size());
+    ASSERT_NE(clients.end(), clients.find(pid));
+
+    ASSERT_EQ(heartbeatManager_->Run(), 0);
+    ::sleep(2);
+    ASSERT_TRUE(heartbeatManager_->GetNebdClients().empty());
+    ASSERT_EQ(heartbeatManager_->Fini(), 0);
+}
+
 }  // namespace server
 }  // namespace nebd
 

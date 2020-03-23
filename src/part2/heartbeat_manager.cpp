@@ -48,6 +48,20 @@ bool HeartbeatManager::UpdateFileTimestamp(int fd, uint64_t timestamp) {
     return true;
 }
 
+void HeartbeatManager::UpdateNebdClientInfo(int pid, const std::string& version,
+                                            uint64_t timestamp) {
+    WriteLockGuard writeLock(rwLock_);
+    const auto& iter = nebdClients_.find(pid);
+    if (iter == nebdClients_.end()) {
+        nebdClients_[pid] =
+                std::make_shared<NebdClientInfo>(pid, version, timestamp);
+    } else {
+        nebdClients_[pid]->timeStamp = timestamp;
+        nebdClients_[pid]->version.Set(kVersion, version);
+        nebdClients_[pid]->version.Update();
+    }
+}
+
 void HeartbeatManager::CheckTimeoutFunc() {
     while (sleeper_.wait_for(
         std::chrono::milliseconds(checkTimeoutIntervalMs_))) {
@@ -70,6 +84,7 @@ void HeartbeatManager::CheckTimeoutFunc() {
                       << standardTime;
             curEntity->Close(false);
         }
+        RemoveTimeoutNebdClient();
     }
 }
 
@@ -80,6 +95,31 @@ bool HeartbeatManager::CheckNeedClosed(NebdFileEntityPtr entity) {
     bool needClose = entity->GetFileStatus() == NebdFileStatus::OPENED
                      && interval > (uint64_t)1000 * heartbeatTimeoutS_;
     return needClose;
+}
+
+std::ostream& operator<<(std::ostream& os, NebdClientInfo* info) {
+    std::string standardTime;
+    TimeUtility::TimeStampToStandard(info->timeStamp / 1000, &standardTime);
+    os << "pid: " << info->pid << ", version: "
+       << info->version.GetValueByKey(kVersion)
+       << ", last time received heartbeat: " << standardTime;
+    return os;
+}
+
+void HeartbeatManager::RemoveTimeoutNebdClient() {
+    WriteLockGuard writeLock(rwLock_);
+    auto iter =  nebdClients_.begin();
+    while (iter != nebdClients_.end()) {
+        uint64_t curTime = TimeUtility::GetTimeofDayMs();
+        uint64_t interval = curTime - iter->second->timeStamp;
+        if (interval > (uint64_t)1000 * heartbeatTimeoutS_) {
+            LOG(INFO) << "Delete nebd client info which has timed out. "
+                      << "client info: " << iter->second;
+            iter = nebdClients_.erase(iter);
+        } else {
+            iter++;
+        }
+    }
 }
 
 }  // namespace server

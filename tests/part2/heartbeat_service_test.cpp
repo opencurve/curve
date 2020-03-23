@@ -40,6 +40,8 @@ TEST_F(HeartbeatServiceTest, KeepAlive) {
     ASSERT_EQ(0, server.StartAtSockFile(kSockFile_.c_str(), &option));
 
     nebd::client::HeartbeatRequest request;
+    request.set_pid(12345);
+    request.set_nebdversion("0.0.1");
     nebd::client::HeartbeatResponse response;
     for (int i = 0; i < 3; ++i) {
         auto* info = request.add_info();

@@ -7,6 +7,7 @@
 
 #include "src/common/timeutility.h"
 #include "src/part2/heartbeat_service.h"
+#include "src/part2/define.h"
 
 namespace nebd {
 namespace server {
@@ -21,6 +22,8 @@ void NebdHeartbeatServiceImpl::KeepAlive(
     brpc::ClosureGuard doneGuard(done);
     bool ok = true;
     uint64_t curTime = TimeUtility::GetTimeofDayMs();
+    heartbeatManager_->UpdateNebdClientInfo(request->pid(),
+                                            request->nebdversion(), curTime);
     for (int i = 0; i < request->info_size(); ++i) {
         const auto& info = request->info(i);
         bool res = heartbeatManager_->UpdateFileTimestamp(info.fd(), curTime);

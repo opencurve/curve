@@ -11,7 +11,9 @@ message HeartbeatFileInfo {
 }
 
 message HeartbeatRequest {
-   repeated HeartbeatFileInfo info = 1;
+   required int32 pid = 1;
+   required string nebdVersion = 2;
+   repeated HeartbeatFileInfo info = 3;
 }
 
 message HeartbeatResponse {

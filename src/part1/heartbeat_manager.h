@@ -71,6 +71,10 @@ class HeartbeatManager {
 
     std::atomic<bool> running_;
     std::atomic<uint64_t> logId_;
+    // nebd version
+    std::string nebdVersion_;
+    // process id
+    int pid_;
 };
 
 }  // namespace client

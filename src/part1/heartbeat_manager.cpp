@@ -7,11 +7,13 @@
 
 #include "src/part1/heartbeat_manager.h"
 
+#include <unistd.h>
 #include <ostream>
 #include <vector>
 #include <string>
 
 #include "proto/heartbeat.pb.h"
+#include "src/common/nebd_version.h"
 
 namespace nebd {
 namespace client {
@@ -32,6 +34,9 @@ int HeartbeatManager::Init(const HeartbeatOption& option) {
         LOG(ERROR) << "Connection Manager channel init failed";
         return -1;
     }
+
+    pid_ = getpid();
+    nebdVersion_ = nebd::common::NebdVersion();
 
     return 0;
 }
@@ -79,6 +84,9 @@ void HeartbeatManager::SendHeartBeat() {
 
     NebdHeartbeatService_Stub stub(&channel_);
 
+    request.set_pid(pid_);
+    request.set_nebdversion(nebdVersion_);
+
     std::ostringstream oss;
     for (const auto& fileInfo : fileInfos) {
         nebd::client::HeartbeatFileInfo* info = request.add_info();
@@ -89,6 +97,8 @@ void HeartbeatManager::SendHeartBeat() {
     }
 
     LOG(INFO) << "Send Heartbeat request, log id = " << cntl.log_id()
+              << ", pid = " << request.pid()
+              << ", nebd version = " << request.nebdversion()
               << ", files [" << oss.str() << ']';
 
     stub.KeepAlive(&cntl, &request, &response, nullptr);

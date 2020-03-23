@@ -10,6 +10,7 @@ cc_library(
         "//external:glog",
         "//external:butil",
         "//external:bthread",
+        "//external:bvar",
     ],
 )
 

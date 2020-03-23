@@ -13,12 +13,21 @@ then
     curve_tag_version=9.9.9
 fi
 
+#获取tag版本
+tag_version=`git status | grep -w "HEAD detached at" | awk '{print $NF}' | awk -F"v" '{print $2}'`
+if [ -z ${tag_version} ]
+then
+    echo "not found version info, set version to 9.9.9"
+	tag_version=9.9.9
+fi
+
 # step2 编译
 if [ "$1" = "debug" ]
 then
     bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true \
         --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
-        -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_tag_version}
+        -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_tag_version} \
+        --copt -DNEBDVERSION=${tag_version}
     if [ $? -ne 0 ]
     then
         echo "build phase1 failed"
@@ -27,7 +36,8 @@ then
 else
     bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
         --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
-        -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_tag_version}
+        -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_tag_version} \
+        --copt -DNEBDVERSION=${tag_version}
     if [ $? -ne 0 ]
     then
         echo "build phase1 failed"
@@ -57,7 +67,7 @@ then
 else
 	debug=""
 fi
-version="Version: 0.0.1+${commit_id}${debug}"
+version="Version: ${tag_version}+${commit_id}${debug}"
 echo $version >> build/nebd-package/DEBIAN/control
 
 # step5 打包debian包

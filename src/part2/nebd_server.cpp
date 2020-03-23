@@ -8,6 +8,7 @@
 #include <glog/logging.h>
 #include <memory>
 #include "src/common/file_lock.h"
+#include "src/common/nebd_version.h"
 #include "src/part2/nebd_server.h"
 #include "src/part2/file_service.h"
 #include "src/part2/heartbeat_service.h"
@@ -58,6 +59,9 @@ int NebdServer::Init(const std::string &confPath,
     LOG(INFO) << "NebdServer init heartbeatManager ok";
 
     LOG(INFO) << "NebdServer init ok";
+    // 暴露版本信息
+    LOG(INFO) << "nebd version: " << nebd::common::NebdVersion();
+    nebd::common::ExposeNebdVersion();
     return 0;
 }
 
