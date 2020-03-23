@@ -139,7 +139,7 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     ASSERT_EQ(fm->userWrite.eps.count.get_value(), 2);
     ASSERT_EQ(fm->userWrite.rps.count.get_value(), 4);
     ASSERT_EQ(fm->userRead.rps.count.get_value(), 4);
-    ASSERT_EQ(fm->getLeaderRetryQPS.count.get_value(), 13);
+    ASSERT_EQ(fm->getLeaderRetryQPS.count.get_value(), 12);
     ASSERT_EQ(fm->readRPC.qps.count.get_value(), 2);
     ASSERT_EQ(fm->writeRPC.qps.count.get_value(), 2);
     ASSERT_EQ(fm->readRPC.rps.count.get_value(), 8);
