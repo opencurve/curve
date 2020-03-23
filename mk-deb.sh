@@ -1,6 +1,6 @@
 #!/bin/bash
 dir=`pwd`
-# step1 清楚生成的目录和文件
+# step1 清除生成的目录和文件
 bazel clean
 rm -rf *deb
 rm -rf build
@@ -48,7 +48,6 @@ for i in `find bazel-bin/|grep -w so|grep -v solib|grep -v params| grep -v test`
     done
 
 cp bazel-bin/src/part2/nebd-server build/nebd-package/usr/bin
-cp -r etc build/nebd-package/
 
 # step4 获取git提交版本信息，记录到debian包的配置文件
 commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
