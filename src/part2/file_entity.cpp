@@ -45,7 +45,7 @@ int NebdFileEntity::Init(const NebdFileEntityOption& option) {
 int NebdFileEntity::Open() {
     CHECK(executor_ != nullptr) << "file entity is not inited. "
                                 << "filename: " << fileName_;
-    std::unique_lock<butil::Mutex> lock(fileStatusMtx_);
+    std::unique_lock<bthread::Mutex> lock(fileStatusMtx_);
     if (status_ == NebdFileStatus::OPENED) {
         LOG(WARNING) << "File is already opened. "
                      << "filename: " << fileName_
@@ -76,7 +76,7 @@ int NebdFileEntity::Open() {
 int NebdFileEntity::Reopen(const ExtendAttribute& xattr) {
     CHECK(executor_ != nullptr) << "file entity is not inited. "
                                 << "filename: " << fileName_;
-    std::unique_lock<butil::Mutex> lock(fileStatusMtx_);
+    std::unique_lock<bthread::Mutex> lock(fileStatusMtx_);
     NebdFileInstancePtr fileInstance = executor_->Reopen(fileName_, xattr);
     if (fileInstance == nullptr) {
         LOG(ERROR) << "Reopen file failed. "
@@ -105,7 +105,7 @@ int NebdFileEntity::Close(bool removeMeta) {
     // 这里的互斥锁是为了跟open请求互斥，以下情况可能导致close和open并发
     // part2重启，导致文件被reopen，然后由于超时，文件准备被close
     // 此时用户发送了挂载卷请求对文件进行open
-    std::unique_lock<butil::Mutex> lock(fileStatusMtx_);
+    std::unique_lock<bthread::Mutex> lock(fileStatusMtx_);
     if (status_ == NebdFileStatus::OPENED) {
         int ret = executor_->Close(fileInstance_.get());
         if (ret < 0) {

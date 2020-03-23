@@ -191,7 +191,7 @@ class NebdFileEntity : public std::enable_shared_from_this<NebdFileEntity> {
     // 避免close时还有请求未处理完
     BthreadRWLock rwLock_;
     // 互斥锁，用于open、close之间的互斥
-    butil::Mutex fileStatusMtx_;
+    bthread::Mutex fileStatusMtx_;
     // nebd server为该文件分配的唯一标识符
     int fd_;
     // 文件名称
