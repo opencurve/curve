@@ -43,6 +43,10 @@ function check_rtt()
 
     for rttline in $connection_rtt_str;do
         rtt=`echo $rttline|awk '{print $(NF-1)}' |sed 's/|\(.*\)\/.*/\1/g'`
+        if [[ $rtt -eq "|-" ]];then
+            echo "skip this line: $rttline"
+            continue
+        fi
         localport=`echo $rttline|awk '{print $2}' |sed 's/|\(.*\)|.*/\1/g'`
         isslowtcp=`echo "$rtt $slowrtt"|awk '{print ($1 > $2)}'`
         if [[ $isslowtcp -eq 1 ]];then
