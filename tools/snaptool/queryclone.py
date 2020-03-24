@@ -5,7 +5,7 @@ import database
 import curltool
 import common
 
-status = ['done', 'in-progress', 'recovering', 'cleaning', 'errorCleaning', 'error']
+status = ['done', 'cloning', 'recovering', 'cleaning', 'errorCleaning', 'error', 'retrying', 'metaInstalled']
 filetype = ['file', 'snapshot']
 clonestep = ['createCloneFile', 'createCloneMeta', 'createCloneChunk', 'completeCloneMeta',
                 'recoverChunk', 'changeOwner', 'renameCloneFile', 'completeCloneFile', 'end']
@@ -30,8 +30,9 @@ def __get_sql(args):
         sql += " and status=%d" % code
 
     if args.inprogress:
-        code = status.index('in-progress')
-        sql += " and status=%d" % code
+        code1 = status.index('cloning')
+        code2 = status.index('recovering')
+        sql += " and (status=%d or status=%d)" % (code1, code2)
 
     if args.done:
         code = status.index('done')
