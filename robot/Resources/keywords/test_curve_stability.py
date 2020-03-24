@@ -449,7 +449,6 @@ def test_clone_iovol_consistency(lazy):
             final = True
             break
         else:
-           random_kill_snapshot()
            time.sleep(60)
     if final == True:
         clone_vol_uuid = clone_vol_snapshot(snapshot_uuid,lazy)
@@ -471,7 +470,6 @@ def test_clone_iovol_consistency(lazy):
             final = True
             break
         else:
-           random_kill_snapshot()
            time.sleep(60)
     if final == True:
         time.sleep(3)
@@ -489,7 +487,6 @@ def test_clone_iovol_consistency(lazy):
                        final = True
                        break
                    else:
-                      random_kill_snapshot()
                       time.sleep(60)
         except:
            raise
@@ -533,7 +530,6 @@ def test_recover_snapshot(lazy="true"):
             final = True
             break
         else:
-           random_kill_snapshot()
            time.sleep(60)
     if final == True:
         try:
@@ -562,7 +558,6 @@ def test_recover_snapshot(lazy="true"):
                        final_recover = True
                        break
                    else:
-                      random_kill_snapshot()
                       time.sleep(60)
             else:
                final_recover = False
@@ -573,7 +568,6 @@ def test_recover_snapshot(lazy="true"):
                       final_recover = True
                       break
                    else:
-                      random_kill_snapshot()
                       time.sleep(60)
             if final_recover == True:
                 second_md5 = get_vol_md5(vol_id)
@@ -592,17 +586,12 @@ def kill_snapshotclone_server(host):
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     ori_cmd = "ps -ef|grep -v grep |grep -v sudo | grep snapshotcloneserver | awk '{print $2}' | sudo xargs kill -9"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    cmd = "ps -ef|grep -v grep |grep snapshotcloneserver"
-    rs = shell_operator.ssh_exec(ssh,cmd)
-    logger2.debug("exec %s,stdout is %s"%(cmd,"".join(rs[1])))
-    if rs[1] != []:
-        assert False,"kill snapshotcloneserver fail"   
 
 def random_kill_snapshot():
     snap_server = random.choice(config.snap_server_list)
     logger2.info("begin to kill snapshotserver %s"%(snap_server))
     kill_snapshotclone_server(snap_server)
-    time.sleep(60)
+    time.sleep(10)
     ssh = shell_operator.create_ssh_connect(snap_server, 1046, config.abnormal_user)
     ori_cmd = "cd snapshot/temp && sudo nohup curve-snapshotcloneserver -conf=/etc/curve/snapshot_clone_server.conf &"
     shell_operator.ssh_background_exec2(ssh, ori_cmd)
@@ -626,6 +615,7 @@ def loop_kill_snapshotserver():
     thread = config.snapshot_thread
     while thread.isAlive():
         random_kill_snapshot()
+        time.sleep(120)
 
 def begin_kill_snapshotserver():
     t = mythread.runThread(loop_kill_snapshotserver)
