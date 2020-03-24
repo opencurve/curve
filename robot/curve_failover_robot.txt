@@ -167,6 +167,45 @@ inject loop restart one mds
     [Teardown]    test start mds
 
 
+inject kill one etcd     
+    [Tags]    P1    base    first release   failover   
+    ${host}  test kill etcd
+    sleep  5
+    check vm iops
+    sleep  3
+    test start etcd 
+    test start mds
+    test start snap
+#    sleep  3
+    check vm iops
+    check data consistency
+#    check copies consistency
+    [Teardown]     start etcd process  ${host}
+
+test round restart etcd
+    [Tags]    P1    base    first release   failover   
+    test round restart etcd
+    sleep  3
+    check vm iops
+    check data consistency
+    test start mds
+    test start snap
+    [Teardown]    test start etcd
+
+inject loop restart one etcd
+    [Tags]    P1    base    first release   failover  
+    ${etcd_ip}    evaluate    str("10.182.26.16")
+    :FOR   ${i}   IN RANGE   10
+          kill etcd process   ${etcd_ip}
+          start etcd process  ${etcd_ip}
+          sleep  2
+          check vm iops
+    END
+    check data consistency
+    test start mds
+    test start snap
+    [Teardown]    test start etcd
+
 inject kill mysql
     [Tags]    P1    base    first release   failover   no-need 
     ${host}  test kill mysql
@@ -368,10 +407,6 @@ test pendding host all cs
 #   check copies consistency
    [Teardown]	  check chunkserver online
 
-stop snapshot test
-    [Tags]    P1    base    first release   failover  
-    stop snapshot test
-
 test mds loss package 5%   
     [Tags]    P1    base    first release   failover  
     ${percent}  evaluate  int(5)
@@ -384,44 +419,6 @@ test mds loss package 5%
     test start snap
     [Teardown]	   wait cluster healthy   ${vm_iops_limit}
 
-inject kill one etcd     
-    [Tags]    P1    base    first release   failover   
-    ${host}  test kill etcd
-    sleep  5
-    check vm iops
-    sleep  3
-    test start etcd 
-    test start mds
-    test start snap
-#    sleep  3
-    check vm iops
-    check data consistency
-#    check copies consistency
-    [Teardown]     start etcd process  ${host}
-
-test round restart etcd
-    [Tags]    P1    base    first release   failover   
-    test round restart etcd
-    sleep  3
-    check vm iops
-    check data consistency
-    test start mds
-    test start snap
-    [Teardown]    test start etcd
-
-inject loop restart one etcd
-    [Tags]    P1    base    first release   failover  
-    ${etcd_ip}    evaluate    str("10.182.26.16")
-    :FOR   ${i}   IN RANGE   10
-          kill etcd process   ${etcd_ip}
-          start etcd process  ${etcd_ip}
-          sleep  2
-          check vm iops
-    END
-    check data consistency
-    test start mds
-    test start snap
-    [Teardown]    test start etcd
 
 test ipmitool restart mds node
    [Tags]    P1    base    first release   failover  ipmitool
@@ -445,6 +442,9 @@ stop attach detach thread
     stop attach detach
 #    [Teardown]   wait cluster healthy    ${vm_iops_limit}
 
+stop snapshot test
+    [Tags]    P1    base    first release   failover  
+    stop snapshot test
 
 test mds delay package 50ms
     [Tags]    P1    base    first release   failover   
@@ -543,6 +543,7 @@ init failover cluster
      init vol
      test get all chunk num
      begin snapshot test
+     begin kill snapshotserver
      loop attach detach vol
      init rw cloud disk
 
