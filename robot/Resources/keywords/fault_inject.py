@@ -839,9 +839,14 @@ def wait_cluster_healthy(limit_iops=8000):
     if check != 1:
         ori_cmd2 = "curve_ops_tool status"
         rs2 = shell_operator.ssh_exec(ssh, ori_cmd2)
-        health = "".join(rs2[1]).strip()
-        logger.debug("cluster status is %s"%health)
-        assert check == 1,"cluster is not healthy in %d s,cluster status is %s"%(config.recover_time,health)
+        cluster_status = "".join(rs2[1]).strip()
+        logger.debug("cluster status is %s"%cluster_status)
+        ori_cmd2 = "curve_ops_tool copysets-status -detail"
+        rs2 = shell_operator.ssh_exec(ssh, ori_cmd2)
+        copysets_status = "".join(rs2[1]).strip()
+        logger.debug("copysets status is %s"%copysets_status)
+        assert check == 1,"cluster is not healthy in %d s,cluster status is:\n %s,copysets status is:\n %s"%(config.recover_time,cluster_status,copysets_status)
+
     # 快速leader均衡
     rapid_leader_schedule()
 #检测云主机iops    
