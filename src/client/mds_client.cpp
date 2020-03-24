@@ -150,6 +150,14 @@ int MDSClient::MDSRPCExcutor::PreProcessBeforeRetry(
         status == -ECONNREFUSED || status == -brpc::ELOGOFF ||
         *curMDSRetryCount >= metaServerOpt_.mdsMaxFailedTimesBeforeChangeMDS) {
         needChangeMDS = true;
+
+        // 在开启健康检查的情况下，在底层tcp连接失败时
+        // rpc请求会本地直接返回 EHOSTSOWN
+        // 这种情况下，增加一些睡眠时间，避免大量的重试请求占满bthread
+        // TODO(wuhanqing): 关闭健康检查
+        if (status == -EHOSTDOWN) {
+            bthread_usleep(metaServerOpt_.mdsRPCRetryIntervalUS);
+        }
     } else if (status == -brpc::ERPCTIMEDOUT || status == -ETIMEDOUT) {
         rpcTimeout = true;
         needChangeMDS = false;
