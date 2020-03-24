@@ -47,7 +47,7 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     metaopt.metaaddrvec.push_back("127.0.0.1:9905");
 
     metaopt.mdsRPCTimeoutMs = 1000;
-    metaopt.mdsRPCRetryIntervalUS = 200;
+    metaopt.mdsRPCRetryIntervalUS = 10000;  // 10ms
     metaopt.mdsMaxFailedTimesBeforeChangeMDS = 2;
     metaopt.mdsRPCTimeoutMs = 1500;
 
@@ -208,6 +208,45 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     ASSERT_EQ(0, mdsd.rpcexcutor.GetCurrentWorkIndex());
     // 本次重试为轮询重试，每个mds的重试次数应该接近，不超过总的mds数量
     ASSERT_GT(mds0RetryTimes, mds1RetryTimes + mds2RetryTimes);
+
+    // 场景5：mds0、1、2，currentWorkIndex = 0
+    //       但是rpc请求前10次全部返回EHOSTDOWN
+    //       mds重试睡眠10ms，所以总共耗时100ms时间
+    mdsd.rpcexcutor.SetCurrentWorkIndex(0);
+    int hostDownTimes = 10;
+    auto task5 = [&](int mdsindex, uint64_t rpctimeoutMs,
+                     brpc::Channel* channel,
+                     brpc::Controller* cntl) {
+        static int count = 0;
+        if (++count <= hostDownTimes) {
+            return -EHOSTDOWN;
+        }
+
+        return 0;
+    };
+    startMS = TimeUtility::GetTimeofDayMs();
+    mdsd.rpcexcutor.DoRPCTask(task5, 10000);  // 总重试时间10s
+    endMS = TimeUtility::GetTimeofDayMs();
+    ASSERT_GE(endMS - startMS, 100);
+
+    // 场景6： mds在重试过程中一直返回EHOSTDOWN，总共重试5s
+    mdsd.rpcexcutor.SetCurrentWorkIndex(0);
+    int calledTimes = 0;
+    auto task6 = [&](int mdsindex, uint64_t rpctimeoutMs,
+                     brpc::Channel* channel,
+                     brpc::Controller* cntl) {
+        ++calledTimes;
+        return -EHOSTDOWN;
+    };
+
+    startMS = TimeUtility::GetTimeofDayMs();
+    mdsd.rpcexcutor.DoRPCTask(task6, 5 * 1000);  // 总重试时间5s
+    endMS = TimeUtility::GetTimeofDayMs();
+    ASSERT_GE(endMS - startMS, 5 * 1000 - 1);
+
+    // 每次hostdown情况下，睡眠10ms，总重试时间5s，所以总共重试500次
+    LOG(INFO) << "called times " << calledTimes;
+    ASSERT_TRUE(calledTimes >= 490 && calledTimes <= 510);
 }
 
 const std::vector<std::string> registConfOff {
