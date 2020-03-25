@@ -22,6 +22,18 @@ TEST(Common, NetCommon) {
     ASSERT_FALSE(NetCommon::CheckAddressValid(addr));
     addr = "123.0.0.1:657";
     ASSERT_TRUE(NetCommon::CheckAddressValid(addr));
+    std::string ip;
+    uint32_t port;
+    addr = "123.0.0.1";
+    ASSERT_FALSE(NetCommon::SplitAddrToIpPort(addr, &ip, &port));
+    addr = "123.0.0.1:65537";
+    ASSERT_FALSE(NetCommon::SplitAddrToIpPort(addr, &ip, &port));
+    addr = "123.0.q.1:65537";
+    ASSERT_FALSE(NetCommon::SplitAddrToIpPort(addr, &ip, &port));
+    addr = "123.0.0.1:657";
+    ASSERT_TRUE(NetCommon::SplitAddrToIpPort(addr, &ip, &port));
+    ASSERT_EQ("123.0.0.1", ip);
+    ASSERT_EQ(657, port);
 }
 
 TEST(Common, GetLocalIP) {

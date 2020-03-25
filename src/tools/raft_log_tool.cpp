@@ -89,7 +89,7 @@ int RaftLogTool::PrintHeaders(const std::string& fileName) {
     int64_t curIndex = firstIndex;
     while (parser_->GetNextEntryHeader(&header)) {
         std::cout << "index = " << curIndex++
-                  << "Entry Header = " << header << std::endl;
+                  << ", Entry Header = " << header << std::endl;
     }
     parser_->UnInit();
     if (!parser_->SuccessfullyFinished()) {
@@ -129,7 +129,7 @@ bool SegmentParser::GetNextEntryHeader(EntryHeader* head) {
         return false;
     }
     char buf[ENTRY_HEADER_SIZE];
-    const ssize_t n = localFS_->Read(fd_, buf, ENTRY_HEADER_SIZE, off_);
+    const ssize_t n = localFS_->Read(fd_, buf, off_, ENTRY_HEADER_SIZE);
     if (n != (ssize_t)ENTRY_HEADER_SIZE) {
         if (n < 0) {
             std::cout << "read header from file, fd: " << fd_ << ", offset: "
