@@ -15,6 +15,7 @@ DECLARE_string(mdsDummyPort);
 DECLARE_string(etcdAddr);
 DECLARE_uint64(rpcTimeout);
 DECLARE_uint64(rpcRetryTimes);
+DECLARE_uint64(chunkSize);
 
 namespace curve {
 namespace tool {

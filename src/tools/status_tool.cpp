@@ -14,7 +14,6 @@ DEFINE_bool(checkHealth, true, "if true, it will check the health "
                                 "state of chunkserver in chunkserver-list");
 DEFINE_bool(checkCSAlive, false, "if true, it will check the online state of "
                                 "chunkservers with rpc in chunkserver-list");
-DEFINE_uint64(chunkSize, 16777216, "chunk size");
 DECLARE_string(mdsAddr);
 DECLARE_string(etcdAddr);
 DECLARE_string(mdsDummyPort);
