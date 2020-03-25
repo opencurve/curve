@@ -24,6 +24,7 @@
 #include "proto/nameserver2.pb.h"
 #include "proto/topology.pb.h"
 #include "proto/copyset.pb.h"
+#include "proto/schedule.pb.h"
 #include "src/common/timeutility.h"
 #include "src/common/authenticator.h"
 #include "proto/heartbeat.pb.h"
@@ -55,6 +56,10 @@ using ::curve::mds::topology::ListLogicalPoolRequest;
 using ::curve::mds::topology::ListLogicalPoolResponse;
 using ::curve::mds::topology::GetClusterInfoRequest;
 using ::curve::mds::topology::GetClusterInfoResponse;
+using ::curve::mds::schedule::RapidLeaderScheduleRequst;
+using ::curve::mds::schedule::RapidLeaderScheduleResponse;
+using ::curve::mds::schedule::QueryChunkServerRecoverStatusRequest;
+using ::curve::mds::schedule::QueryChunkServerRecoverStatusResponse;
 
 using HeartbeatRequest  = curve::mds::heartbeat::ChunkServerHeartbeatRequest;
 using HeartbeatResponse = curve::mds::heartbeat::ChunkServerHeartbeatResponse;
@@ -992,6 +997,47 @@ class FakeCreateCopysetService : public curve::chunkserver::CopysetService {
     FakeReturn* fakeret_;
 };
 
+class FakeScheduleService : public ::curve::mds::schedule::ScheduleService {
+ public:
+    void RapidLeaderSchedule(
+        google::protobuf::RpcController* cntl_base,
+        const RapidLeaderScheduleRequst* request,
+        RapidLeaderScheduleResponse* response,
+        google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeret_->controller_ != nullptr
+            && fakeret_->controller_->Failed()) {
+            cntl_base->SetFailed("failed");
+            return;
+        }
+        auto resp = static_cast<RapidLeaderScheduleResponse*>(
+            fakeret_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void QueryChunkServerRecoverStatus(
+        google::protobuf::RpcController* cntl_base,
+        const QueryChunkServerRecoverStatusRequest *request,
+        QueryChunkServerRecoverStatusResponse *response,
+        google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeret_->controller_ != nullptr
+            && fakeret_->controller_->Failed()) {
+            cntl_base->SetFailed("failed");
+            return;
+        }
+        auto resp = static_cast<QueryChunkServerRecoverStatusResponse*>(
+            fakeret_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void SetFakeReturn(FakeReturn* fakeret) {
+        fakeret_ = fakeret;
+    }
+
+    FakeReturn* fakeret_;
+};
+
 class FakeMDS {
  public:
     explicit FakeMDS(std::string filename);
@@ -1016,6 +1062,10 @@ class FakeMDS {
         PeerId leaderid;
         std::vector<PeerId> conf;
     };
+
+    FakeScheduleService* GetScheduleService() {
+        return &fakeScheduleService_;
+    }
 
     FakeMDSCurveFSService* GetMDSService() {
         return &fakecurvefsservice_;
@@ -1060,6 +1110,7 @@ class FakeMDS {
     std::vector<FakeChunkService *> chunkServices_;
     std::vector<FakeCreateCopysetService *> copysetServices_;
     std::vector<FakeRaftStateService *> raftStateServices_;
+    std::vector<FakeChunkServerService *> fakeChunkServerServices_;
     std::string filename_;
 
     uint64_t size_;
@@ -1067,6 +1118,7 @@ class FakeMDS {
     FakeMDSCurveFSService fakecurvefsservice_;
     FakeMDSTopologyService faketopologyservice_;
     FakeMDSHeartbeatService fakeHeartbeatService_;
+    FakeScheduleService fakeScheduleService_;
 
     std::map<std::string, bvar::Variable*>  metrics_;
 };

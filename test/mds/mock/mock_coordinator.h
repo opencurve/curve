@@ -10,6 +10,7 @@
 
 #include <gmock/gmock.h>
 #include <vector>
+#include <map>
 #include "src/mds/schedule/coordinator.h"
 
 namespace curve {
@@ -27,6 +28,10 @@ class MockCoordinator : public ::curve::mds::schedule::Coordinator {
     MOCK_METHOD2(ChunkserverGoingToAdd, bool(ChunkServerIDType, CopySetKey));
 
     MOCK_METHOD1(RapidLeaderSchedule, int(PoolIdType));
+
+    MOCK_METHOD2(QueryChunkServerRecoverStatus,
+        int(const std::vector<ChunkServerIdType> &,
+            std::map<ChunkServerIdType, bool> *));
 };
 }  // namespace mds
 }  // namespace curve

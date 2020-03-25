@@ -18,6 +18,17 @@ message RapidLeaderScheduleResponse {
     required sint32 statusCode = 1;
 }
 
+// 如果chunkServerID为空，则返回所有chunkserver的恢复状态
+message QueryChunkServerRecoverStatusRequest {
+    repeated uint32 chunkServerID = 1;
+}
+
+message QueryChunkServerRecoverStatusResponse {
+    required sint32 statusCode = 1;
+    map<uint32, bool> recoverStatusMap = 2;
+}
+
 service ScheduleService {
     rpc RapidLeaderSchedule(RapidLeaderScheduleRequst) returns (RapidLeaderScheduleResponse);
+    rpc QueryChunkServerRecoverStatus(QueryChunkServerRecoverStatusRequest) returns (QueryChunkServerRecoverStatusResponse);
 }

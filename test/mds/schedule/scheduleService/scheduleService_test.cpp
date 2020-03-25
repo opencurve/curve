@@ -21,6 +21,8 @@ namespace schedule {
 
 using ::testing::Return;
 using ::testing::_;
+using ::testing::SetArgPointee;
+using ::testing::DoAll;
 
 class TestScheduleService : public ::testing::Test {
  protected:
@@ -76,6 +78,44 @@ TEST_F(TestScheduleService, test_RapidLeaderSchedule) {
         stub.RapidLeaderSchedule(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(kScheduleErrCodeInvalidLogicalPool, response.statuscode());
+    }
+}
+
+TEST_F(TestScheduleService, test_QueryChunkServerRecoverStatus) {
+    brpc::Channel channel;
+    ASSERT_EQ(0, channel.Init(listenAddr_, NULL));
+
+    ScheduleService_Stub stub(&channel);
+    QueryChunkServerRecoverStatusRequest request;
+    request.add_chunkserverid(1);
+    QueryChunkServerRecoverStatusResponse response;
+
+    // 1. 查询chunkserver恢复状态返回成功
+    {
+        std::map<ChunkServerIdType, bool> expectRes{{1, 1}};
+        EXPECT_CALL(*coordinator_, QueryChunkServerRecoverStatus(
+            std::vector<ChunkServerIdType>{1}, _))
+            .WillOnce(DoAll(SetArgPointee<1>(expectRes),
+                Return(kScheduleErrCodeSuccess)));
+
+        brpc::Controller cntl;
+        stub.QueryChunkServerRecoverStatus(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(kScheduleErrCodeSuccess, response.statuscode());
+        ASSERT_EQ(1, response.recoverstatusmap_size());
+        ASSERT_TRUE(response.recoverstatusmap().begin()->second);
+    }
+
+    // 2. 传入的chunkserverid不合法
+    {
+        std::map<ChunkServerIdType, bool> expectRes{{1, 1}};
+        EXPECT_CALL(*coordinator_, QueryChunkServerRecoverStatus(
+            std::vector<ChunkServerIdType>{1}, _))
+            .WillOnce(Return(kScheduleErrInvalidQueryChunkserverID));
+        brpc::Controller cntl;
+        stub.QueryChunkServerRecoverStatus(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(kScheduleErrInvalidQueryChunkserverID, response.statuscode());
     }
 }
 

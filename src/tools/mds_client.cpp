@@ -878,6 +878,42 @@ int MDSClient::RapidLeaderSchedule(PoolIdType lpoolId) {
     return -1;
 }
 
+int MDSClient::QueryChunkServerRecoverStatus(
+    const std::vector<ChunkServerIdType>& cs,
+    std::map<ChunkServerIdType, bool> *statusMap) {
+    ::curve::mds::schedule::QueryChunkServerRecoverStatusRequest request;
+    ::curve::mds::schedule::QueryChunkServerRecoverStatusResponse response;
+    ::curve::mds::schedule::ScheduleService_Stub stub(&channel_);
+
+    for (auto id : cs) {
+        request.add_chunkserverid(id);
+    }
+
+    void (curve::mds::schedule::ScheduleService_Stub::*fp)(
+        google::protobuf::RpcController*,
+        const ::curve::mds::schedule::QueryChunkServerRecoverStatusRequest*,
+        ::curve::mds::schedule::QueryChunkServerRecoverStatusResponse*,
+        google::protobuf::Closure*);
+    fp = &::curve::mds::schedule::ScheduleService_Stub::QueryChunkServerRecoverStatus; // NOLINT
+    if (0 != SendRpcToMds(&request, &response, &stub, fp)) {
+        std::cout << "QueryChunkServerRecoverStatus fail" << std::endl;
+        return -1;
+    }
+
+    if (response.statuscode() ==
+        ::curve::mds::schedule::kScheduleErrCodeSuccess) {
+        for (auto it = response.recoverstatusmap().begin();
+            it != response.recoverstatusmap().end(); ++it) {
+            (*statusMap)[it->first] = it->second;
+        }
+        return 0;
+    }
+    std::cout << "QueryChunkServerRecoverStatus fail with errCode: "
+        << response.statuscode() << std::endl;
+    return -1;
+}
+
+
 template <typename T, typename Request, typename Response>
 int MDSClient::SendRpcToMds(Request* request, Response* response, T* obp,
                 void (T::*func)(google::protobuf::RpcController*,

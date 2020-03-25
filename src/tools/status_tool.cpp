@@ -443,6 +443,8 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     uint64_t online = 0;
     uint64_t offline = 0;
     std::vector<uint64_t> leftSize;
+    std::vector<ChunkServerIdType> offlineCs;
+    // 获取chunkserver的online状态
     for (const auto& chunkserver : chunkservers) {
         total++;
         std::string csAddr = chunkserver.hostip()
@@ -451,6 +453,7 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
             online++;
         } else {
             offline++;
+            offlineCs.emplace_back(chunkserver.chunkserverid());
         }
         if (!checkLeftSize) {
             continue;
@@ -468,9 +471,30 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
         uint64_t size = chunkNum * FLAGS_chunkSize;
         leftSize.emplace_back(size / mds::kGB);
     }
+    // 获取offline chunkserver的恢复状态
+    std::vector<ChunkServerIdType> offlineRecover;
+    if (offlineCs.size() > 0) {
+        // 获取offline中的chunkserver恢复状态
+        std::map<ChunkServerIdType, bool> statusMap;
+        int res = mdsClient_->QueryChunkServerRecoverStatus(
+            offlineCs, &statusMap);
+        if (res != 0) {
+            std::cout << "query offlinne chunkserver recover status fail";
+        } else {
+            // 区分正在恢复的和未恢复的
+            for (auto it = statusMap.begin(); it != statusMap.end(); ++it) {
+                if (it->second) {
+                    offlineRecover.emplace_back(it->first);
+                }
+            }
+        }
+    }
+
     std::cout << "chunkserver: total num = " << total
             << ", online = " << online
-            << ", offline = " << offline << std::endl;
+            << ", offline = " << offline
+            << "(recovering = " << offlineRecover.size()
+            << ")" << std::endl;
     if (!checkLeftSize) {
         return ret;
     }
