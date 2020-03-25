@@ -19,8 +19,10 @@
 #include <memory>
 #include <set>
 #include <utility>
+#include <map>
 
 #include "proto/copyset.pb.h"
+#include "src/common/net_common.h"
 #include "src/tools/namespace_tool_core.h"
 #include "src/tools/chunkserver_client.h"
 #include "src/tools/curve_tool.h"
@@ -32,6 +34,10 @@ DECLARE_bool(check_hash);
 namespace curve {
 namespace tool {
 using CopySet = std::pair<PoolIdType, CopySetIdType>;
+using CsAddrsType = std::vector<std::string>;
+
+std::ostream& operator<<(std::ostream& os, const CopySet& copyset);
+std::ostream& operator<<(std::ostream& os, const CsAddrsType& csAddrs);
 
 class ConsistencyCheck : public CurveTool {
  public:
@@ -109,27 +115,31 @@ class ConsistencyCheck : public CurveTool {
                                  CopysetStatusResponse* response);
 
     /**
-     *  @brief 检查副本间hash的一致性
+     *  @brief 检查copyset中指定chunk的hash的一致性
      *  @param copysetId 要检查的copysetId
-     *  @param copysetHash 副本的hash值的列表
+     *  @param csAddrs copyset对应的chunkserver的地址
      *  @return 一致返回0，否则返回-1
      */
-    int CheckHash(const CopySet copyset,
-                        const std::vector<std::string>& copysetHash);
+    int CheckCopysetHash(const CopySet& copyset,
+                         const CsAddrsType& csAddrs);
+
+    /**
+     *  @brief chunk在三个副本的hash的一致性
+     *  @param chunk 要检查的chunk
+     *  @param csAddrs copyset对应的chunkserver的地址
+     *  @return 一致返回0，否则返回-1
+     */
+    int CheckChunkHash(const Chunk& chunk,
+                       const CsAddrsType& csAddrs);
 
     /**
      *  @brief 检查副本间applyindex的一致性
      *  @param copysetId 要检查的copysetId
-     *  @param applyIndexVec 副本的apply index的列表
+     *  @param csAddrs copyset对应的chunkserver的地址
      *  @return 一致返回0，否则返回-1
      */
     int CheckApplyIndex(const CopySet copyset,
-                        const std::vector<uint64_t>& applyIndexVec);
-
-    int FetchApplyIndexOrHash(const CopySet& copyset,
-                              const std::vector<ChunkServerLocation>& csLocs,
-                              std::vector<uint64_t>* applyIndexVec,
-                              std::vector<std::string>* copysetHash);
+                        const CsAddrsType& csAddrs);
 
  private:
     // 文件所在的逻辑池id
@@ -138,6 +148,8 @@ class ConsistencyCheck : public CurveTool {
     std::shared_ptr<NameSpaceToolCore> nameSpaceToolCore_;
     // 向chunkserver发送RPC的client
     std::shared_ptr<ChunkServerClient> csClient_;
+    // copyset中需要检查hash的chunk
+    std::map<CopySet, std::set<uint64_t>> chunksInCopyset_;
     // 是否初始化成功过
     bool inited_;
 };

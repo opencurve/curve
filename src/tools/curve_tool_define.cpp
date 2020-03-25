@@ -16,3 +16,4 @@ DEFINE_string(mdsDummyPort, "6667", "dummy port of mds, "
 DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd addr");
 DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
 DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
+DEFINE_uint64(chunkSize, 16777216, "chunk size");
