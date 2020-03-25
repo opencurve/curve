@@ -12,6 +12,16 @@ DECLARE_uint64(rpcRetryTimes);
 namespace curve {
 namespace tool {
 
+std::ostream& operator<<(std::ostream& os, const Chunk& chunk) {
+    uint64_t groupId = (static_cast<uint64_t>(chunk.logicPoolId) << 32) |
+                                                    chunk.copysetId;
+    os << "logicalPoolId = " << chunk.logicPoolId << "\n"
+       << "copysetId = " << chunk.copysetId << "\n"
+       << "groupId = " << groupId << "\n"
+       << "chunkId = " << chunk.chunkId << "\n";
+    return os;
+}
+
 int ChunkServerClient::Init(const std::string& csAddr) {
     csAddr_ = csAddr;
     if (channel_.Init(csAddr.c_str(), nullptr) != 0) {
@@ -102,5 +112,43 @@ int ChunkServerClient::GetCopysetStatus(
               << cntl.ErrorText() << std::endl;
     return -1;
 }
+
+int ChunkServerClient::GetChunkHash(const Chunk& chunk,
+                                    std::string* chunkHash) {
+    brpc::Controller cntl;
+    curve::chunkserver::ChunkService_Stub stub(&channel_);
+    uint64_t retryTimes = 0;
+    while (retryTimes < FLAGS_rpcRetryTimes) {
+        cntl.Reset();
+        cntl.set_timeout_ms(FLAGS_rpcTimeout);
+        GetChunkHashRequest request;
+        request.set_logicpoolid(chunk.logicPoolId);
+        request.set_copysetid(chunk.copysetId);
+        request.set_chunkid(chunk.chunkId);
+        request.set_offset(0);
+        request.set_length(FLAGS_chunkSize);
+        GetChunkHashResponse response;
+        stub.GetChunkHash(&cntl, &request, &response, nullptr);
+        if (cntl.Failed()) {
+            retryTimes++;
+            continue;
+        }
+        if (response.status() != CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS) {
+            std::cout << "GetCopysetStatus fail, request: "
+                      << request.DebugString()
+                      << ", errCode: "
+                      << response.status() << std::endl;
+            return -1;
+        } else {
+            *chunkHash = response.hash();
+            return 0;
+        }
+    }
+    // 只打最后一次失败的原因
+    std::cout << "Send RPC to chunkserver fail, error content: "
+              << cntl.ErrorText() << std::endl;
+    return -1;
+}
+
 }  // namespace tool
 }  // namespace curve
