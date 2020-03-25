@@ -167,6 +167,39 @@ int Coordinator::RapidLeaderSchedule(PoolIdType lpid) {
     return rapidLeaderScheduler->Schedule();
 }
 
+int Coordinator::QueryChunkServerRecoverStatus(
+    const std::vector<ChunkServerIdType> &idList,
+    std::map<ChunkServerIdType, bool> *statusMap) {
+    std::vector<ChunkServerInfo> infos;
+
+    // 获取指定的chunkserver
+    if (idList.empty()) {
+        infos = topo_->GetChunkServerInfos();
+    }
+    for (auto id : idList) {
+        ChunkServerInfo info;
+        bool getOk = topo_->GetChunkServerInfo(id, &info);
+        if (!getOk) {
+            LOG(ERROR) << "invalid chunkserver id: " << id;
+            return kScheduleErrInvalidQueryChunkserverID;
+        }
+        infos.emplace_back(info);
+    }
+
+    // 查询每个chunkserver是否正在恢复
+    // 正在恢复：offline且有恢复任务；其他均为未在恢复
+    for (const ChunkServerInfo &info : infos) {
+        bool recover = IsChunkServerRecover(info);
+        if (recover) {
+            (*statusMap)[info.info.id] = true;
+        } else {
+            (*statusMap)[info.info.id] = false;
+        }
+    }
+
+    return kScheduleErrCodeSuccess;
+}
+
 void Coordinator::RunScheduler(
     const std::shared_ptr<Scheduler> &s, SchedulerType type) {
     while (sleeper_.wait_for(std::chrono::seconds(s->GetRunningInterval()))) {
@@ -288,6 +321,41 @@ std::string Coordinator::ScheduleName(SchedulerType type) {
 
 std::shared_ptr<OperatorController> Coordinator::GetOpController() {
     return opController_;
+}
+
+bool Coordinator::IsChunkServerRecover(const ChunkServerInfo &info) {
+    // 非offline状态，一定不会恢复
+    if (!info.IsOffline()) {
+        return false;
+    }
+
+    // offline状态，查看是否有对应的高优先级changepeer任务
+    std::vector<Operator> opList = opController_->GetOperators();
+    for (Operator &op : opList) {
+        if (op.priority != OperatorPriority::HighPriority) {
+            continue;
+        }
+
+        auto instance = dynamic_cast<ChangePeer *>(op.step.get());
+        if (instance == nullptr) {
+            continue;
+        }
+
+        if (instance->GetOldPeer() == info.info.id) {
+            return true;
+        }
+    }
+
+    // 查看chunkserver上的copyset是否有正在迁移的
+    std::vector<CopySetInfo> copysetInfos =
+        topo_->GetCopySetInfosInChunkServer(info.info.id);
+    for (CopySetInfo &csInfo : copysetInfos) {
+        if (csInfo.configChangeInfo.type() == ConfigChangeType::CHANGE_PEER) {
+            return true;
+        }
+    }
+
+    return false;
 }
 }  // namespace schedule
 }  // namespace mds

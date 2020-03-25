@@ -111,23 +111,23 @@ ChunkServerInfo::ChunkServerInfo(const PeerInfo &info,
     this->startUpTime = 0;
 }
 
-bool ChunkServerInfo::IsOnline() {
+bool ChunkServerInfo::IsOnline() const {
     return state == OnlineState::ONLINE;
 }
 
-bool ChunkServerInfo::IsOffline() {
+bool ChunkServerInfo::IsOffline() const {
     return state == OnlineState::OFFLINE;
 }
 
-bool ChunkServerInfo::IsUnstable() {
+bool ChunkServerInfo::IsUnstable() const {
     return state == OnlineState::UNSTABLE;
 }
 
-bool ChunkServerInfo::IsPendding() {
+bool ChunkServerInfo::IsPendding() const {
     return status == ChunkServerStatus::PENDDING;
 }
 
-bool ChunkServerInfo::IsHealthy() {
+bool ChunkServerInfo::IsHealthy() const {
     return state == OnlineState::ONLINE &&
            diskState == DiskState::DISKNORMAL &&
            status == ChunkServerStatus::READWRITE;
