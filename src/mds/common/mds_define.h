@@ -84,9 +84,12 @@ namespace curve {
 namespace mds {
 namespace schedule {
 
-// RapidLeaderSchedule Error Code
+
 const int kScheduleErrCodeSuccess = 0;
+// RapidLeaderSchedule Error Code
 const int kScheduleErrCodeInvalidLogicalPool = -1;
+// QueryChunkServerRecoverStatus Error Code
+const int kScheduleErrInvalidQueryChunkserverID = -2;
 
 }  // namespace schedule
 }  // namespace mds

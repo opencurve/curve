@@ -31,6 +31,12 @@ class ScheduleServiceImpl : public ScheduleService {
         RapidLeaderScheduleResponse* response,
         google::protobuf::Closure* done);
 
+    virtual void QueryChunkServerRecoverStatus(
+        google::protobuf::RpcController* cntl_base,
+        const QueryChunkServerRecoverStatusRequest *request,
+        QueryChunkServerRecoverStatusResponse *response,
+        google::protobuf::Closure* done);
+
  private:
     std::shared_ptr<Coordinator> coordinator_;
 };

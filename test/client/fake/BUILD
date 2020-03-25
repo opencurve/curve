@@ -38,6 +38,7 @@ cc_binary(
         "//include/client:include_client",
         "//proto:nameserver2_cc_proto",
         "//proto:chunkserver-cc-protos",
+        "//proto:schedule_cc_proto",
         "//src/client:curve_client"
     ],
     copts = COPTS
@@ -68,6 +69,7 @@ cc_library(
         "//include/client:include_client",
         "//proto:nameserver2_cc_proto",
         "//proto:chunkserver-cc-protos",
+        "//proto:schedule_cc_proto",
         "//src/client:curve_client"
     ],
     visibility = ["//visibility:public"],
@@ -94,6 +96,7 @@ cc_binary(
         "//include/client:include_client",
         "//proto:nameserver2_cc_proto",
         "//proto:chunkserver-cc-protos",
+        "//proto:schedule_cc_proto",
         "//src/client:curve_client"
     ],
     copts = COPTS
