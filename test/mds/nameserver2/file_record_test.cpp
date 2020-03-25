@@ -45,13 +45,13 @@ TEST(FileRecordManagerTest, normal_test) {
         fileRecordManager.GetFileRecordExpiredTimeUs());
 
     fileRecordManager.UpdateFileRecord("file1", "");
-    fileRecordManager.UpdateFileRecord("file2", "");
+    fileRecordManager.UpdateFileRecord("file2", "0.0.5");
     ASSERT_EQ(2, fileRecordManager.GetOpenFileNum());
     std::string v;
     ASSERT_TRUE(fileRecordManager.GetFileClientVersion("file1", &v));
     ASSERT_EQ("", v);
     ASSERT_TRUE(fileRecordManager.GetFileClientVersion("file2", &v));
-    ASSERT_EQ("", v);
+    ASSERT_EQ("0.0.5", v);
     ASSERT_FALSE(fileRecordManager.GetFileClientVersion("file3", &v));
 
     fileRecordManager.UpdateFileRecord("file2", "0.0.6");
