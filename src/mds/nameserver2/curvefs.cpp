@@ -372,6 +372,8 @@ StatusCode CurveFS::IsSnapshotAllowed(const std::string &fileName) {
     steady_clock::duration timePass = steady_clock::now() - startTime_;
     int32_t expiredUs = fileRecordManager_->GetFileRecordExpiredTimeUs();
     if (timePass < 10 * microseconds(expiredUs)) {
+        LOG(INFO) << "snapshot is not allowed now, fileName = " << fileName
+                  << ", time pass = " << timePass.count();
         return StatusCode::kSnapshotFrozen;
     }
 
@@ -384,6 +386,11 @@ StatusCode CurveFS::IsSnapshotAllowed(const std::string &fileName) {
     }
 
     if (clientVersion < kLeastSupportSnapshotClientVersion) {
+        LOG(INFO) << "current client version is not support snapshot"
+                  << ", fileName = " << fileName
+                  << ", clientVersion = " << clientVersion
+                  << ", leastSupportSnapshotClientVersion = "
+                  << kLeastSupportSnapshotClientVersion;
         return StatusCode::kClientVersionNotMatch;
     }
 
