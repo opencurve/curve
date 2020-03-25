@@ -18,7 +18,10 @@ using curve::common::TimeUtility;
 
 namespace curve {
 namespace client {
-int RequestSender::Init(IOSenderOption_t ioSenderOpt) {
+
+static void EmptyDeleter(void* ptr) {}
+
+int RequestSender::Init(const IOSenderOption_t& ioSenderOpt) {
     if (0 != channel_.Init(serverEndPoint_, NULL)) {
         LOG(ERROR) << "failed to init channel to server, id: " << chunkServerId_
                    << ", "<< serverEndPoint_.ip << ":" << serverEndPoint_.port;
@@ -50,6 +53,7 @@ int RequestSender::ReadChunk(ChunkIDInfo idinfo,
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
     done->SetChunkServerID(chunkServerId_);
+    done->SetChunkServerEndPoint(serverEndPoint_);
 
     ChunkRequest request;
     request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_READ);
@@ -89,6 +93,7 @@ int RequestSender::WriteChunk(ChunkIDInfo idinfo,
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
     done->SetChunkServerID(chunkServerId_);
+    done->SetChunkServerEndPoint(serverEndPoint_);
 
     ChunkRequest request;
     request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_WRITE);
@@ -98,7 +103,8 @@ int RequestSender::WriteChunk(ChunkIDInfo idinfo,
     request.set_sn(sn);
     request.set_offset(offset);
     request.set_size(length);
-    cntl->request_attachment().append(buf, length);
+    cntl->request_attachment().append_user_data(
+        const_cast<char*>(buf), length, EmptyDeleter);
     ChunkService_Stub stub(&channel_);
     stub.WriteChunk(cntl, &request, response, doneGuard.release());
 

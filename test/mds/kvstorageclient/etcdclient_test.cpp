@@ -457,5 +457,63 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
     }
 }
 
+TEST_F(TestEtcdClinetImp, test_ListSegment) {
+    PageFileSegment segment;
+    segment.set_chunksize(16 << 20);
+    segment.set_segmentsize(1 << 30);
+    segment.set_startoffset(0);
+    segment.set_logicalpoolid(11);
+    int size = segment.segmentsize() / segment.chunksize();
+    for (uint32_t i = 0; i < size; i++) {
+        PageFileChunkInfo *chunkinfo = segment.add_chunks();
+        chunkinfo->set_chunkid(i + 1);
+        chunkinfo->set_copysetid(i + 1);
+    }
+
+    // 放入segment，前三个属于文件1，后四个属于文件2
+    uint64_t id1 = 101;
+    uint64_t id2 = 100001;
+    for (uint32_t i = 0; i < 7; ++i) {
+        uint64_t offset = i * 1024;
+        segment.set_startoffset(offset);
+        std::string key;
+        if (i < 3) {
+            key = NameSpaceStorageCodec::EncodeSegmentStoreKey(id1, offset);
+        } else {
+            key = NameSpaceStorageCodec::EncodeSegmentStoreKey(id2, offset);
+        }
+        std::string encodeSegment;
+        ASSERT_TRUE(segment.SerializeToString(&encodeSegment));
+        ASSERT_EQ(EtcdErrCode::OK, client_->Put(key, encodeSegment));
+        LOG(INFO) << "offset: " << offset;
+        LOG(INFO) << segment.startoffset();
+    }
+
+    // 获取文件1的segment
+    std::string startKey =
+                NameSpaceStorageCodec::EncodeSegmentStoreKey(id1, 0);
+    std::string endKey =
+                NameSpaceStorageCodec::EncodeSegmentStoreKey(id1 + 1, 0);
+    std::vector<std::string> out;
+    ASSERT_EQ(EtcdErrCode::OK, client_->List(startKey, endKey, &out));
+    ASSERT_EQ(3, out.size());
+    for (int i = 0; i < out.size(); i++) {
+        PageFileSegment segment2;
+        ASSERT_TRUE(NameSpaceStorageCodec::DecodeSegment(out[i], &segment2));
+        ASSERT_EQ(i * 1024, segment2.startoffset());
+    }
+
+    // 获取文件2的segment
+    startKey = NameSpaceStorageCodec::EncodeSegmentStoreKey(id2, 0);
+    endKey = NameSpaceStorageCodec::EncodeSegmentStoreKey(id2 + 1, 0);
+    out.clear();
+    ASSERT_EQ(EtcdErrCode::OK, client_->List(startKey, endKey, &out));
+    ASSERT_EQ(4, out.size());
+    for (int i = 0; i < out.size(); i++) {
+        PageFileSegment segment2;
+        ASSERT_TRUE(NameSpaceStorageCodec::DecodeSegment(out[i], &segment2));
+        ASSERT_EQ((i + 3) * 1024, segment2.startoffset());
+    }
+}
 }  // namespace mds
 }  // namespace curve

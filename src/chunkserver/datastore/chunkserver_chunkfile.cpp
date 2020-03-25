@@ -162,6 +162,7 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
         int rc = chunkfilePool_->GetChunk(chunkFilePath, buf);
         // 并发创建文件时，可能前面线程已经创建成功，那么这里会返回-EEXIST
         // 此时可以继续open已经生成的文件
+        // 不过当前同一个chunk的操作是串行的，不会出现这个问题
         if (rc != 0  && rc != -EEXIST) {
             LOG(ERROR) << "Error occured when create file."
                    << " filepath = " << chunkFilePath;
@@ -242,11 +243,11 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
     // 用户快照以后会保证之前的请求全部到达或者超时以后才会下发新的请求
     // 因此此处只可能是日志恢复的请求，且一定已经执行，此处可返回错误码
     if (sn < metaPage_.sn || sn < metaPage_.correctedSn) {
-        LOG(ERROR) << "Backward write request."
-                   << "ChunkID: " << chunkId_
-                   << ",request sn: " << sn
-                   << ",chunk sn: " << metaPage_.sn
-                   << ",correctedSn: " << metaPage_.correctedSn;
+        LOG(WARNING) << "Backward write request."
+                     << "ChunkID: " << chunkId_
+                     << ",request sn: " << sn
+                     << ",chunk sn: " << metaPage_.sn
+                     << ",correctedSn: " << metaPage_.correctedSn;
         return CSErrorCode::BackwardRequestError;
     }
     // 判断是否需要创建快照文件
@@ -512,10 +513,10 @@ CSErrorCode CSChunkFile::Delete(SequenceNum sn)  {
     WriteLockGuard writeGuard(rwLock_);
     // 如果 sn 小于当前chunk的版本号，不允许删除
     if (sn < metaPage_.sn) {
-        LOG(ERROR) << "Delete chunk failed, backward request."
-                   << "ChunkID: " << chunkId_
-                   << ", request sn: " << sn
-                   << ", chunk sn: " << metaPage_.sn;
+        LOG(WARNING) << "Delete chunk failed, backward request."
+                     << "ChunkID: " << chunkId_
+                     << ", request sn: " << sn
+                     << ", chunk sn: " << metaPage_.sn;
         return CSErrorCode::BackwardRequestError;
     }
 
@@ -565,11 +566,11 @@ CSErrorCode CSChunkFile::DeleteSnapshotOrCorrectSn(SequenceNum correctedSn)  {
     // 如果correctedSn小于当前chunk的sn或者correctedSn
     // 那么该请求要么是游离请求，要么是已经执行过了然后日志恢复时重放了
     if (correctedSn < metaPage_.sn || correctedSn < metaPage_.correctedSn) {
-        LOG(ERROR) << "Backward delete snapshot request."
-                   << "ChunkID: " << chunkId_
-                   << ", correctedSn: " << correctedSn
-                   << ", chunk.sn: " << metaPage_.sn
-                   << ", chunk.correctedSn: " << metaPage_.correctedSn;
+        LOG(WARNING) << "Backward delete snapshot request."
+                     << "ChunkID: " << chunkId_
+                     << ", correctedSn: " << correctedSn
+                     << ", chunk.sn: " << metaPage_.sn
+                     << ", chunk.correctedSn: " << metaPage_.correctedSn;
         return CSErrorCode::BackwardRequestError;
     }
 

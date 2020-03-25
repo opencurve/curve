@@ -121,7 +121,9 @@ struct ChunkServerInfo {
                     uint32_t leaderCount, uint64_t capacity, uint64_t used,
                     const ChunkServerStatisticInfo &statisticInfo);
 
+    bool IsOnline();
     bool IsOffline();
+    bool IsUnstable();
     bool IsPendding();
     bool IsHealthy();
 

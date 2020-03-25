@@ -23,12 +23,15 @@ namespace curve {
 namespace mds {
 
 TEST(CleanCore, testcleansnapshotfile) {
-    auto storage = new MockNameServerStorage();
+    auto storage = std::make_shared<MockNameServerStorage>();
     auto topology = std::make_shared<MockTopology>();
     ChunkServerClientOption option;
-    auto client = std::make_shared<CopysetClient>(topology, option);
+    auto channelPool = std::make_shared<ChannelPool>();
+    auto client = std::make_shared<CopysetClient>(topology,
+                                            option, channelPool);
     auto allocStatistic = std::make_shared<MockAllocStatistic>();
-    auto cleanCore = new CleanCore(storage, client, allocStatistic);
+    auto cleanCore = std::make_shared<CleanCore>(storage,
+                                                    client, allocStatistic);
 
     {
         // segment size = 0
@@ -146,16 +149,18 @@ TEST(CleanCore, testcleansnapshotfile) {
         ASSERT_EQ(progress.GetStatus(), TaskStatus::SUCCESS);
         ASSERT_EQ(progress.GetProgress(), 100);
     }
-    delete storage;
 }
 
 TEST(CleanCore, testcleanfile) {
-    auto storage = new MockNameServerStorage();
+    auto storage = std::make_shared<MockNameServerStorage>();
     auto topology = std::make_shared<MockTopology>();
     ChunkServerClientOption option;
-    auto client = std::make_shared<CopysetClient>(topology, option);
+    auto channelPool = std::make_shared<ChannelPool>();
+    auto client = std::make_shared<CopysetClient>(topology,
+                                                    option, channelPool);
     auto allocStatistic = std::make_shared<MockAllocStatistic>();
-    auto cleanCore = new CleanCore(storage, client, allocStatistic);
+    auto cleanCore = std::make_shared<CleanCore>(storage,
+                                                    client, allocStatistic);
 
     {
         // segmentsize = 0
@@ -243,7 +248,6 @@ TEST(CleanCore, testcleanfile) {
             StatusCode::kCommonFileDeleteError);
         ASSERT_EQ(progress.GetStatus(), TaskStatus::FAILED);
     }
-    delete storage;
 }
 }  // namespace mds
 }  // namespace curve

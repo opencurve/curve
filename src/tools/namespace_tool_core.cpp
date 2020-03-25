@@ -18,6 +18,10 @@ NameSpaceToolCore::NameSpaceToolCore(std::shared_ptr<MDSClient> client) :
     client_->SetPassword(FLAGS_password);
 }
 
+int NameSpaceToolCore::Init(const std::string& mdsAddr) {
+    return client_->Init(mdsAddr);
+}
+
 int NameSpaceToolCore::GetFileInfo(const std::string &fileName,
                                    FileInfo* fileInfo) {
     return client_->GetFileInfo(fileName, fileInfo);
@@ -28,11 +32,11 @@ int NameSpaceToolCore::ListDir(const std::string& dirName,
     return client_->ListDir(dirName, files);
 }
 
-int NameSpaceToolCore::GetChunkServerListInCopySets(
+int NameSpaceToolCore::GetChunkServerListInCopySet(
                                     const PoolIdType& logicalPoolId,
                                     const CopySetIdType& copysetId,
                                     std::vector<ChunkServerLocation>* csLocs) {
-    return client_->GetChunkServerListInCopySets(logicalPoolId,
+    return client_->GetChunkServerListInCopySet(logicalPoolId,
                                                 copysetId, csLocs);
 }
 
@@ -46,40 +50,30 @@ int NameSpaceToolCore::CreateFile(const std::string& fileName,
     return client_->CreateFile(fileName, length);
 }
 
-int NameSpaceToolCore::GetAllocatedSize(std::string fileName, uint64_t* size) {
-    // 如果最后面有/，去掉
-    if (fileName.size() > 1 && fileName.back() == '/') {
-        fileName.pop_back();
-    }
+int NameSpaceToolCore::GetAllocatedSize(const std::string& fileName,
+                                        uint64_t* size) {
+    return client_->GetAllocatedSize(fileName, size);
+}
+
+int NameSpaceToolCore::GetFileSize(const std::string& fileName,
+                                   uint64_t* fileSize) {
     FileInfo fileInfo;
     if (GetFileInfo(fileName, &fileInfo) != 0) {
         std::cout << "GetFileInfo fail!" << std::endl;
         return -1;
     }
-    return GetAllocatedSize(fileName, fileInfo, size);
+    return GetFileSize(fileName, fileInfo, fileSize);
 }
 
-int NameSpaceToolCore::GetAllocatedSize(const std::string& fileName,
-                                        const FileInfo& fileInfo,
-                                        uint64_t* size) {
-    // 如果是文件的话，直接获取segment信息，然后计算空间即可
-    *size = 0;
+int NameSpaceToolCore::GetFileSize(const std::string& fileName,
+                                   const FileInfo& fileInfo,
+                                   uint64_t* fileSize) {
+    // 如果是文件的话直接返回file size
+    *fileSize = 0;
     if (fileInfo.filetype() != curve::mds::FileType::INODE_DIRECTORY) {
-        std::vector<PageFileSegment> segments;
-        if (GetFileSegments(fileName, fileInfo, &segments) != 0) {
-            std::cout << "Get segment info fail, parent id: "
-                      << fileInfo.parentid()
-                      << " filename: " << fileInfo.filename()
-                      << std::endl;
-            return -1;
-        }
-        for (auto& segment : segments) {
-            int64_t chunkSize = segment.chunksize();
-            int64_t chunkNum = segment.chunks().size();
-            *size += chunkNum * chunkSize;
-        }
+        *fileSize = fileInfo.length();
         return 0;
-    } else {  // 如果是目录，则list dir，并递归计算每个文件的大小最后加起来
+    } else {  // 如果是目录，则list dir，并递归计算file size
         std::vector<FileInfo> files;
         if (client_->ListDir(fileName, &files) != 0) {
             std::cout << "List directory failed!" << std::endl;
@@ -92,13 +86,13 @@ int NameSpaceToolCore::GetAllocatedSize(const std::string& fileName,
             } else {
                 fullPathName = fileName + "/" + file.filename();
             }
-            uint64_t tmp;
-            if (GetAllocatedSize(fullPathName, file, &tmp) != 0) {
-                std::cout << "Get allocated size of " << fullPathName
+            uint64_t size;
+            if (GetFileSize(fullPathName, file, &size) != 0) {
+                std::cout << "Get file size of " << fullPathName
                           << " fail!" << std::endl;
                 continue;
             }
-            *size += tmp;
+            *fileSize += size;
         }
         return 0;
     }

@@ -9,7 +9,7 @@
 #include <gmock/gmock.h>
 #include <glog/logging.h>
 
-#include "src/client/libcurve_define.h"
+#include "include/client/libcurve.h"
 #include "src/chunkserver/clone_copyer.h"
 #include "test/chunkserver/clone/clone_test_util.h"
 #include "test/client/mock_file_client.h"
@@ -75,7 +75,7 @@ TEST_F(CloneCopyerTest, BasicTest) {
          * 预期:调用Open和Read读取数据
          */
         location = "test:0@cs";
-        EXPECT_CALL(*curveClient_, Open("test", _))
+        EXPECT_CALL(*curveClient_, Open("test", _, _))
             .WillOnce(Return(1));
         EXPECT_CALL(*curveClient_, Read(1, _, off, size))
             .WillOnce(Return(LIBCURVE_ERROR::OK));
@@ -85,7 +85,7 @@ TEST_F(CloneCopyerTest, BasicTest) {
          * 预期:直接Read
          */
         location = "test:0@cs";
-        EXPECT_CALL(*curveClient_, Open(_, _))
+        EXPECT_CALL(*curveClient_, Open(_, _, _))
             .Times(0);
         EXPECT_CALL(*curveClient_, Read(1, _, off, size))
             .WillOnce(Return(LIBCURVE_ERROR::OK));
@@ -95,7 +95,7 @@ TEST_F(CloneCopyerTest, BasicTest) {
          * 预期:返回-1
          */
         location = "test2:0@cs";
-        EXPECT_CALL(*curveClient_, Open("test2", _))
+        EXPECT_CALL(*curveClient_, Open("test2", _, _))
             .WillOnce(Return(-1));
         EXPECT_CALL(*curveClient_, Read(_, _, _, _))
             .Times(0);
@@ -105,7 +105,7 @@ TEST_F(CloneCopyerTest, BasicTest) {
          * 预期:返回-1
          */
         location = "test2:0@cs";
-        EXPECT_CALL(*curveClient_, Open("test2", _))
+        EXPECT_CALL(*curveClient_, Open("test2", _, _))
             .WillOnce(Return(2));
         EXPECT_CALL(*curveClient_, Read(2, _, off, size))
             .WillOnce(Return(-1 * LIBCURVE_ERROR::FAILED));
@@ -169,7 +169,7 @@ TEST_F(CloneCopyerTest, DisableTest) {
         /* 用例:读curve上的数据，读取失败
          */
         location = "test:0@cs";
-        EXPECT_CALL(*curveClient_, Open(_, _))
+        EXPECT_CALL(*curveClient_, Open(_, _, _))
             .Times(0);
         EXPECT_CALL(*curveClient_, Read(_, _, _, _))
             .Times(0);

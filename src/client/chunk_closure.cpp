@@ -32,16 +32,37 @@ namespace client {
 ClientClosure::BackoffParam  ClientClosure::backoffParam_;
 FailureRequestOption_t  ClientClosure::failReqOpt_;
 
-// 如果chunkserver宕机或者网络不可达, 发往对应chunkserver的rpc会超时
-// 返回之后, 回去refresh leader然后再去发送请求
-// 这种情况下不同copyset上的请求，总会先rpc timedout然后重新refresh leader
-// 为了避免一次多余的rpc timedout
-// 记录一下发往同一个chunkserver上超时请求的次数
-// 如果超过一定的阈值，则通知所有leader在这台chunkserver上的copyset
-// 主动去refresh leader，而不是根据缓存的leader信息直接发送rpc
-uint64_t UnstableChunkServerHelper::maxStableChunkServerTimeoutTimes_ = 0;
-SpinLock UnstableChunkServerHelper::timeoutLock_;
-std::unordered_map<ChunkServerID, uint64_t> UnstableChunkServerHelper::timeoutTimes_;  // NOLINT
+UnstableState UnstableHelper::GetCurrentUnstableState(
+    ChunkServerID csId,
+    const butil::EndPoint& csEndPoint) {
+    lock_.Lock();
+    bool exceed =
+        timeoutTimes_[csId] > option_.maxStableChunkServerTimeoutTimes;
+    lock_.UnLock();
+
+    if (exceed == false) {
+        return UnstableState::NoUnstable;
+    }
+
+    bool health = CheckChunkServerHealth(csEndPoint);
+    if (health) {
+        ClearTimeout(csId, csEndPoint);
+        return UnstableState::NoUnstable;
+    }
+
+    std::string ip = butil::ip2str(csEndPoint.ip).c_str();
+
+    lock_.Lock();
+    serverUnstabledChunkservers_[ip].emplace(csId);
+    int unstabled = serverUnstabledChunkservers_[ip].size();
+    lock_.UnLock();
+
+    if (unstabled > option_.serverUnstableThreshold) {
+        return UnstableState::ServerUnstable;
+    } else {
+        return UnstableState::ChunkServerUnstable;
+    }
+}
 
 void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
     RequestClosure *reqDone = dynamic_cast<RequestClosure *>(done_);
@@ -97,9 +118,9 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
         return;
     } else if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED) {
         LOG(WARNING) << "leader redirect, retry directly, " << *reqCtx
-                  << ", reteied times = " << reqDone->GetRetriedTimes()
-                  << ", IO id = " << reqDone->GetIOTracker()->GetID()
-                  << ", request id = " << reqCtx->id_;
+                     << ", reteied times = " << reqDone->GetRetriedTimes()
+                     << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                     << ", request id = " << reqCtx->id_;
         return;
     }
 
@@ -158,6 +179,7 @@ void ClientClosure::Run() {
     chunkIdInfo_ = reqCtx_->idinfo_;
     status_ = -1;
     cntlstatus_ = cntl_->ErrorCode();
+    remoteAddress_ = butil::endpoint2str(cntl_->remote_side()).c_str();
 
     bool needRetry = false;
 
@@ -166,7 +188,8 @@ void ClientClosure::Run() {
         OnRpcFailed();
     } else {
         // 只要rpc正常返回，就清空超时计数器
-        UnstableChunkServerHelper::ClearTimeout(chunkserverID_);
+        UnstableHelper::GetInstance().ClearTimeout(
+            chunkserverID_, chunkserverEndPoint_);
 
         status_ = GetResponseStatus();
 
@@ -198,6 +221,26 @@ void ClientClosure::Run() {
             OnInvalidRequest();
             break;
 
+        // 2.5 返回backward
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_BACKWARD:
+            if (reqCtx_->optype_ == OpType::WRITE) {
+                needRetry = true;
+                OnBackward();
+            } else {
+                LOG(ERROR) << OpTypeToString(reqCtx_->optype_)
+                    << " return backward, op info: "
+                    << "<" << chunkIdInfo_.lpid_ << ", " << chunkIdInfo_.cpid_
+                    << ">, " << chunkIdInfo_.cid_
+                    << ", sn=" << reqCtx_->seq_
+                    << ", offset=" << reqCtx_->offset_
+                    << ", length=" << reqCtx_->rawlength_
+                    << ", status=" << status_
+                    << ", IO id = " << reqDone_->GetIOTracker()->GetID()
+                    << ", request id = " << reqCtx_->id_
+                    << ", remote side = " << remoteAddress_;
+            }
+            break;
+
         default:
             needRetry = true;
             LOG_EVERY_N(ERROR, 10) << OpTypeToString(reqCtx_->optype_)
@@ -206,7 +249,8 @@ void ClientClosure::Run() {
                 << curve::chunkserver::CHUNK_OP_STATUS_Name(
                         static_cast<CHUNK_OP_STATUS>(status_))
                 << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-                << ", request id = " << reqCtx_->id_;
+                << ", request id = " << reqCtx_->id_
+                << ", remote side = " << remoteAddress_;
         }
     }
 
@@ -222,7 +266,7 @@ void ClientClosure::OnRpcFailed() {
     // 如果连接失败，再等一定时间再重试
     if (cntlstatus_ == brpc::ERPCTIMEDOUT) {
         // 如果RPC超时, 对应的chunkserver超时请求次数+1
-        UnstableChunkServerHelper::IncreTimeout(chunkserverID_);
+        UnstableHelper::GetInstance().IncreTimeout(chunkserverID_);
         MetricHelper::IncremTimeOutRPCCount(fileMetric_, reqCtx_->optype_);
     }
 
@@ -232,7 +276,8 @@ void ClientClosure::OnRpcFailed() {
         << ", error: " << cntl_->ErrorText()
         << ", " << *reqCtx_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = " << remoteAddress_;
 
     // it will be invoked in brpc's bthread
     if (reqCtx_->optype_ == OpType::WRITE) {
@@ -240,16 +285,34 @@ void ClientClosure::OnRpcFailed() {
             chunkIdInfo_.lpid_, chunkIdInfo_.cpid_, 0);
     }
 
-    if (UnstableChunkServerHelper::IsTimeoutExceed(chunkserverID_)) {
-        // chunkserver上RPC超时次数超过上限(由于宕机或网络原因导致RPC超时)
-        // 此时发往这一台chunkserver的其余RPC大概率也会超时
-        // 为了避免无效的超时请求和重试, 将这台shunkserver标记为unstable
-        // unstable chunkserver上leader所在的copyset会标记为leaderMayChange  // NOLINT
-        // 当这些copyset再有IO请求时会先进行refresh leader
-        // 避免一次无效的RPC请求
+    ProcessUnstableState();
+}
+
+void ClientClosure::ProcessUnstableState() {
+    UnstableState state = UnstableHelper::GetInstance().GetCurrentUnstableState(
+        chunkserverID_, chunkserverEndPoint_);
+
+    switch (state) {
+    case UnstableState::ServerUnstable: {
+        std::string ip = butil::ip2str(chunkserverEndPoint_.ip).c_str();
+        int ret = metaCache_->SetServerUnstable(ip);
+        if (ret != 0) {
+            LOG(WARNING) << "Set server(" << ip << ") unstable failed, "
+                << "now set chunkserver(" << chunkserverID_ <<  ") unstable";
+            metaCache_->SetChunkserverUnstable(chunkserverID_);
+        }
+        break;
+    }
+    case UnstableState::ChunkServerUnstable: {
         metaCache_->SetChunkserverUnstable(chunkserverID_);
-    } else {
+        break;
+    }
+    case UnstableState::NoUnstable: {
         RefreshLeader();
+        break;
+    }
+    default:
+        break;
     }
 }
 
@@ -269,7 +332,8 @@ void ClientClosure::OnChunkNotExist() {
         << " not exists, " << *reqCtx_
         << ", status=" << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = " << remoteAddress_;
 
     auto duration = TimeUtility::GetTimeofDayUs() - reqDone_->GetStartTime();
     MetricHelper::LatencyRecord(fileMetric_, duration, reqCtx_->optype_);
@@ -282,18 +346,24 @@ void ClientClosure::OnRedirected() {
         << *reqCtx_
         << ", status = " << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", redirect leader is "
+        << (response_->has_redirect() ? response_->redirect() : "empty")
+        << ", remote side = " << remoteAddress_;
 
-    ChunkServerID leaderId;
+    ChunkServerID leaderId = 0;
     butil::EndPoint leaderAddr;
 
     if (response_->has_redirect()) {
         braft::PeerId leader;
         int ret = leader.parse(response_->redirect());
         if (0 == ret) {
-            metaCache_->UpdateLeader(chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
-                                    &leaderId, leader.addr);
-            return;
+            ret = metaCache_->UpdateLeader(
+                chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
+                &leaderId, leader.addr);
+            if (ret == 0) {
+                return;
+            }
         }
     }
 
@@ -305,7 +375,8 @@ void ClientClosure::OnCopysetNotExist() {
         << *reqCtx_
         << ", status = " << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = " << remoteAddress_;
 
     RefreshLeader();
 }
@@ -355,13 +426,33 @@ void ClientClosure::RefreshLeader() const {
     }
 }
 
+void ClientClosure::OnBackward() {
+    const auto latestSn = metaCache_->GetLatestFileSn();
+    LOG(WARNING) << OpTypeToString(reqCtx_->optype_)
+        << " return BACKWARD"
+        << ", logicpool id = " << chunkIdInfo_.lpid_
+        << ", copyset id = " << chunkIdInfo_.cpid_
+        << ", chunk id = " << chunkIdInfo_.cid_
+        << ", sn = " << reqCtx_->seq_
+        << ", set sn = " << latestSn
+        << ", offset = " << reqCtx_->offset_
+        << ", length = " << reqCtx_->rawlength_
+        << ", status = " << status_
+        << ", IO id = " << reqDone_->GetIOTracker()->GetID()
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = " << remoteAddress_;
+
+    reqCtx_->seq_ = latestSn;
+}
+
 void ClientClosure::OnInvalidRequest() {
     reqDone_->SetFailed(status_);
     LOG(ERROR) << OpTypeToString(reqCtx_->optype_)
         << " failed for invalid format, " << *reqCtx_
         << ", status=" << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = " << remoteAddress_;
     MetricHelper::IncremFailRPCCount(fileMetric_, reqCtx_->optype_);
 }
 
@@ -393,9 +484,9 @@ void ReadChunkClosure::SendRetryRequest() {
 void ReadChunkClosure::OnSuccess() {
     ClientClosure::OnSuccess();
 
-    memcpy(reqCtx_->readBuffer_,
-           cntl_->response_attachment().to_string().c_str(),
-           cntl_->response_attachment().size());
+    cntl_->response_attachment().copy_to(
+        reqCtx_->readBuffer_,
+        cntl_->response_attachment().size());
 
     metaCache_->UpdateAppliedIndex(
         reqCtx_->idinfo_.lpid_,
@@ -422,9 +513,9 @@ void ReadChunkSnapClosure::SendRetryRequest() {
 void ReadChunkSnapClosure::OnSuccess() {
     ClientClosure::OnSuccess();
 
-    memcpy(reqCtx_->readBuffer_,
-           cntl_->response_attachment().to_string().c_str(),
-           cntl_->response_attachment().size());
+    cntl_->response_attachment().copy_to(
+        reqCtx_->readBuffer_,
+        cntl_->response_attachment().size());
 }
 
 void DeleteChunkSnapClosure::SendRetryRequest() {
@@ -452,18 +543,25 @@ void GetChunkInfoClosure::OnRedirected() {
         << " redirected, " << *reqCtx_
         << ", status = " << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", redirect leader is "
+        << (chunkinforesponse_->has_redirect() ? chunkinforesponse_->redirect()
+                                               : "empty")
+        << ", remote side = " << remoteAddress_;
 
-    ChunkServerID leaderId;
+    ChunkServerID leaderId = 0;
     butil::EndPoint leaderAddr;
 
     if (chunkinforesponse_->has_redirect()) {
         braft::PeerId leader;
         int ret = leader.parse(chunkinforesponse_->redirect());
         if (0 == ret) {
-            metaCache_->UpdateLeader(chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
-                                     &leaderId, leader.addr);
-            return;
+            ret = metaCache_->UpdateLeader(
+                chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
+                &leaderId, leader.addr);
+            if (ret == 0) {
+                return;
+            }
         }
     }
 

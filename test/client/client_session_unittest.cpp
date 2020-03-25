@@ -30,6 +30,8 @@
 #include "src/client/iomanager4file.h"
 #include "src/client/libcurve_file.h"
 #include "test/client/fake/fakeChunkserver.h"
+#include "test/integration/cluster_common/cluster.h"
+#include "test/util/config_generator.h"
 
 extern std::string mdsMetaServerAddr;
 extern std::string configpath;
@@ -167,6 +169,7 @@ TEST(ClientSession, LeaseTaskTest) {
     std::condition_variable refreshcv;
     auto refresht = [&mtx, &refreshcv]() {
         LOG(INFO) << "get refresh session request!";
+        std::unique_lock<std::mutex> lk(mtx);
         refreshcv.notify_one();
     };
     curve::mds::FileInfo * info = new curve::mds::FileInfo;
@@ -351,22 +354,7 @@ TEST(ClientSession, LeaseTaskTest) {
     }
     ASSERT_TRUE(lease->LeaseValid());
 
-    // 12. set refresh kSessionNotExists
-    refreshresp.set_statuscode(::curve::mds::kSessionNotExist);
-    FakeReturn* refreshFakeRetSessionNotExists =
-        new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
-    curvefsservice->SetRefreshSession(refreshFakeRetSessionNotExists, refresht);
-
-    {
-        std::unique_lock<std::mutex> lk(mtx);
-        refreshcv.wait(lk);
-    }
-
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    lease = fileinstance.GetLeaseExcutor();
-    ASSERT_FALSE(lease->LeaseValid());
-
-    // 13. set refresh success
+    // 12. set refresh success
     refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* refreshfakeretOK4 =
         new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
@@ -385,14 +373,14 @@ TEST(ClientSession, LeaseTaskTest) {
     std::unique_lock<std::mutex> lk(sessionMtx);
     sessionCV.wait(lk, [&]() { return sessionFlag; });
 
-    // 14. set fake close return
+    // 13. set fake close return
     ::curve::mds::CloseFileResponse closeresp;
     closeresp.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* closefileret
      = new FakeReturn(nullptr, static_cast<void*>(&closeresp));
     curvefsservice->SetCloseFile(closefileret);
 
-    // 15. set refresh success
+    // 14. set refresh success
     // 如果lease续约失败后又重新续约成功了，这时候Lease是可用的了，leasevalid为true
     // 这时候IO被恢复了。
     sessionFlag = false;
@@ -427,7 +415,7 @@ TEST(ClientSession, LeaseTaskTest) {
     curvefsservice2.CleanRetryTimes();
 
     ASSERT_TRUE(lease->LeaseValid());
-    std::this_thread::sleep_for(std::chrono::seconds(12));
+    std::this_thread::sleep_for(std::chrono::seconds(60));
     ASSERT_FALSE(lease->LeaseValid());
 
     fileinstance.UnInitialize();
@@ -575,10 +563,28 @@ uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
 std::string configpath = "./test/client/testConfig/client_session.conf";   // NOLINT
 
+const std::vector<std::string> clientConf {
+    std::string("mds.listen.addr=127.0.0.1:9101,127.0.0.1:9102"),
+    std::string("global.logPath=./runlog/"),
+    std::string("chunkserver.rpcTimeoutMS=1000"),
+    std::string("chunkserver.opMaxRetry=3"),
+    std::string("metacache.getLeaderRetry=3"),
+    std::string("metacache.getLeaderTimeOutMS=1000"),
+    std::string("global.fileMaxInFlightRPCNum=2048"),
+    std::string("metacache.rpcRetryIntervalUS=500"),
+    std::string("mds.rpcRetryIntervalUS=500"),
+    std::string("schedule.threadpoolSize=2"),
+};
+
 int main(int argc, char ** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
+
+    curve::CurveCluster* cluster = new curve::CurveCluster();
+
+    cluster->PrepareConfig<curve::ClientConfigGenerator>(
+        configpath, clientConf);
 
     int ret = RUN_ALL_TESTS();
     return ret;

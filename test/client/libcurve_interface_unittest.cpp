@@ -8,7 +8,7 @@
 #include <gtest/gtest.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-
+#include <fiu-control.h>
 #include <string>
 #include <iostream>
 #include <thread>   //NOLINT
@@ -22,6 +22,7 @@
 #include "test/client/fake/fakeMDS.h"
 #include "src/client/libcurve_file.h"
 #include "src/client/client_common.h"
+#include "src/client/chunk_closure.h"
 
 using curve::client::MetaCacheErrorType;
 using curve::client::ChunkIDInfo_t;
@@ -35,6 +36,7 @@ using curve::client::FileInstance;
 using curve::client::CopysetInfo_t;
 using curve::client::CopysetIDInfo;
 using curve::client::FileClient;
+using curve::client::FInfo;
 
 extern std::string configpath;
 extern uint32_t chunk_size;
@@ -214,6 +216,109 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     delete[] buffer;
     delete[] readbuffer;
     UnInit();
+}
+
+TEST(TestLibcurveInterface, FileClientTest) {
+    fiu_init(0);
+    FLAGS_chunkserver_list =
+         "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
+
+    std::string filename = "/1";
+    UserInfo_t userinfo;
+    userinfo.owner = "userinfo";
+
+    FileClient fc;
+
+    // 设置leaderid
+    EndPoint ep;
+    butil::str2endpoint("127.0.0.1", 9115, &ep);
+    PeerId pd(ep);
+
+    // init mds service
+    FakeMDS mds(filename);
+    mds.Initialize();
+    mds.StartCliService(pd);
+    mds.StartService();
+    mds.CreateCopysetNode(true);
+
+    ASSERT_EQ(0, fc.Init(configpath));
+
+    // init twice also return 0
+    ASSERT_EQ(0, fc.Init(configpath));
+
+    int fd = fc.Open4ReadOnly(filename, userinfo);
+    int fd2 = fc.Open(filename, userinfo);
+    int fd3 = fc.Open(filename, UserInfo_t{});
+    int fd4 = fc.Open4ReadOnly(filename, UserInfo_t{});
+
+    ASSERT_NE(fd, -1);
+    ASSERT_NE(fd2, -1);
+
+    // user info invalid
+    ASSERT_EQ(-1, fd3);
+    ASSERT_EQ(-1, fd4);
+
+    fiu_enable("test/client/fake/fakeMDS.GetOrAllocateSegment", 1, nullptr, 0);
+
+    char* buffer = new char[8 * 1024];
+    memset(buffer, 'a', 1024);
+    memset(buffer + 1024, 'b', 1024);
+    memset(buffer + 2 * 1024, 'c', 1024);
+    memset(buffer + 3 * 1024, 'd', 1024);
+    memset(buffer + 4 * 1024, 'e', 1024);
+    memset(buffer + 5 * 1024, 'f', 1024);
+    memset(buffer + 6 * 1024, 'g', 1024);
+    memset(buffer + 7 * 1024, 'h', 1024);
+
+    CurveAioContext writeaioctx;
+    writeaioctx.buf = buffer;
+    writeaioctx.offset = 0;
+    writeaioctx.length = 8 * 1024;
+    writeaioctx.cb = writecallbacktest;
+
+    // ASSERT_EQ(-1, fc.AioWrite(fd, &writeaioctx));
+
+    writeflag = false;
+    ASSERT_EQ(0, fc.AioWrite(fd2, &writeaioctx));
+    {
+        std::unique_lock<std::mutex> lk(writeinterfacemtx);
+        writeinterfacecv.wait(lk, []()->bool{return writeflag;});
+    }
+    char* readbuffer = new char[8 * 1024];
+    CurveAioContext readaioctx;
+    readaioctx.buf = readbuffer;
+    readaioctx.offset = 0;
+    readaioctx.length = 8 * 1024;
+    readaioctx.cb = readcallbacktest;
+
+    readflag = false;
+    fc.AioRead(fd, &readaioctx);
+    {
+        std::unique_lock<std::mutex> lk(interfacemtx);
+        interfacecv.wait(lk, []()->bool{return readflag;});
+    }
+
+    for (int i = 0; i < 1024; i++) {
+        ASSERT_EQ(readbuffer[i], 'a');
+        ASSERT_EQ(readbuffer[i +  1024], 'b');
+        ASSERT_EQ(readbuffer[i +  2 * 1024], 'c');
+        ASSERT_EQ(readbuffer[i +  3 * 1024], 'd');
+        ASSERT_EQ(readbuffer[i +  4 * 1024], 'e');
+        ASSERT_EQ(readbuffer[i +  5 * 1024], 'f');
+        ASSERT_EQ(readbuffer[i +  6 * 1024], 'g');
+        ASSERT_EQ(readbuffer[i +  7 * 1024], 'h');
+    }
+
+    fc.Close(fd);
+    fc.Close(fd2);
+
+    mds.UnInitialize();
+    delete[] buffer;
+    delete[] readbuffer;
+    fc.UnInit();
+
+    // uninit twice
+    fc.UnInit();
 }
 
 /*
@@ -545,7 +650,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
          "127.0.0.1:9151:0,127.0.0.1:9152:0,127.0.0.1:9153:0";
 
     userinfo.owner = "userinfo";
-    userinfo.password = "12345";
+    userinfo.password = "UnstableChunkserverTest";
     fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
     fopt.metaServerOpt.mdsRPCTimeoutMs = 500;
     fopt.loginfo.logLevel = 0;
@@ -560,10 +665,16 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
     fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
-    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxStableTimeoutTimes = 10;  // NOLINT
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt.chunkserverUnstableOption.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
+
+    LOG(INFO) << "fopt size " << sizeof(fopt);
+    // curve::client::ClientClosure::SetFailureRequestOption(
+    //     fopt.ioOpt.ioSenderOpt.failRequestOpt);
+    LOG(INFO) << "here";
 
     mdsclient_.Initialize(fopt.metaServerOpt);
-    fileinstance_.Initialize("/test", &mdsclient_, userinfo, fopt);
+    fileinstance_.Initialize(
+        "/UnstableChunkserverTest", &mdsclient_, userinfo, fopt);
 
     // 设置leaderid
     EndPoint ep;
@@ -620,7 +731,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
         }
     }
 
-    mds.EnableNetUnstable(8000);
+    mds.EnableNetUnstable(10000);
 
     // 写2次，读2次，每次请求重试3次
     // 因为在chunkserver端设置了延迟，导致每次请求都会超时
@@ -731,7 +842,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
          "127.0.0.1:9151:0,127.0.0.1:9152:0,127.0.0.1:9153:0";
 
     userinfo.owner = "userinfo";
-    userinfo.password = "12345";
+    userinfo.password = "ResumeTimeoutBackoff";
     fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
     fopt.metaServerOpt.mdsRPCTimeoutMs = 500;
     fopt.loginfo.logLevel = 0;
@@ -747,10 +858,11 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
     fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
-    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxStableTimeoutTimes = 10;  // NOLINT
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt.chunkserverUnstableOption.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
 
     mdsclient_.Initialize(fopt.metaServerOpt);
-    fileinstance_.Initialize("/test", &mdsclient_, userinfo, fopt);
+    fileinstance_.Initialize(
+        "/ResumeTimeoutBackoff", &mdsclient_, userinfo, fopt);
 
     // 设置leaderid
     EndPoint ep;
@@ -831,3 +943,4 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     mds.UnInitialize();
     delete[] buffer;
 }
+

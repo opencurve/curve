@@ -21,6 +21,8 @@
 
 #include "src/mds/common/mds_define.h"
 #include "src/tools/copyset_check_core.h"
+#include "src/tools/curve_tool.h"
+#include "src/tools/curve_tool_define.h"
 
 using curve::mds::topology::PoolIdType;
 using curve::mds::topology::CopySetIdType;
@@ -30,10 +32,10 @@ using curve::mds::topology::ServerIdType;
 namespace curve {
 namespace tool {
 
-class CopysetCheck {
+class CopysetCheck : public CurveTool {
  public:
     explicit CopysetCheck(std::shared_ptr<CopysetCheckCore> core) :
-                        core_(core) {}
+                        core_(core), inited_(false) {}
     ~CopysetCheck() = default;
 
     /**
@@ -51,16 +53,28 @@ class CopysetCheck {
      *                 check-server，check-cluster等
      *  @return 成功返回0，失败返回-1
      */
-    int RunCommand(const std::string& command);
+    int RunCommand(const std::string& command) override;
 
     /**
      *  @brief 打印帮助信息
      *  @param command 要执行的命令，目前有check-copyset，check-chunkserver，
      *                 check-server，check-cluster等
      */
-    void PrintHelp(const std::string& command);
+    void PrintHelp(const std::string& command) override;
+
+    /**
+     *  @brief 返回是否支持该命令
+     *  @param command：执行的命令
+     *  @return true / false
+     */
+    static bool SupportCommand(const std::string& command);
 
  private:
+   /**
+     *  @brief 初始化
+     */
+    int Init();
+
     /**
      *  @brief 检查单个copyset
      *  @return 健康返回0，其他情况返回-1
@@ -83,7 +97,13 @@ class CopysetCheck {
      *  @brief 检查集群所有copyset
      *  @return 健康返回0，其他情况返回-1
      */
-    int CheckCluster();
+    int CheckCopysetsInCluster();
+
+    /**
+     *  @brief 检查mds端的operator
+     *  @return 无operator返回0，其他情况返回-1
+     */
+    int CheckOperator(const std::string& opName);
 
     // 打印copyset检查的详细结果
     void PrintDetail();
@@ -92,8 +112,14 @@ class CopysetCheck {
     // 打印检查的结果，一共多少copyset，有多少不健康
     void PrintStatistic();
 
+    // 打印有问题的chunkserver列表
+    void PrintExcepChunkservers();
+
+ private:
     // 检查copyset的核心逻辑
     std::shared_ptr<CopysetCheckCore> core_;
+    // 是否初始化成功过
+    bool inited_;
 };
 }  // namespace tool
 }  // namespace curve

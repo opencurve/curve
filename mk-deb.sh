@@ -217,6 +217,11 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
+mkdir -p build/curve-sdk/usr/include
+if [ $? -ne 0 ]
+then
+    exit
+fi
 cp ./bazel-bin/curvefs_python/libcurvefs.so \
 build/curve-sdk/usr/curvefs/_curvefs.so
 if [ $? -ne 0 ]
@@ -237,6 +242,12 @@ cp curvefs_python/tmplib/* build/curve-sdk/usr/lib/
 if [ $? -ne 0 ]
 then
 	exit
+fi
+cp ./bazel-bin/src/client/libcurve.so build/curve-sdk/usr/lib
+cp include/client/libcurve.h build/curve-sdk/usr/include
+if [ $? -ne 0 ]
+then
+    exit
 fi
 #cp ./conf/client.conf build/curve-sdk/etc/curve/client.conf
 #if [ $? -ne 0 ]

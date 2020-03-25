@@ -12,37 +12,66 @@ DEFINE_uint64(fileLength, 20*1024*1024*1024ull, "file length");
 DEFINE_bool(isTest, false, "is unit test or not");
 DEFINE_uint64(offset, 0, "offset to query chunk location");
 DEFINE_uint64(rpc_timeout, 3000, "millisecond for rpc timeout");
-DEFINE_bool(noSize, false, "If specified, the allocated size will not be computed");  // NOLINT
+DEFINE_bool(showAllocSize, true, "If specified, the allocated size will not be computed");  // NOLINT
+DEFINE_bool(showFileSize, true, "If specified, the file size will not be computed");  // NOLINT
+DECLARE_string(mdsAddr);
 
 namespace curve {
 namespace tool {
 
+int NameSpaceTool::Init() {
+    if (!inited_) {
+        int res = core_->Init(FLAGS_mdsAddr);
+        if (res != 0) {
+            std::cout << "Init nameSpaceToolCore fail!" << std::endl;
+            return -1;
+        }
+        inited_ = true;
+    }
+    return 0;
+}
+
+bool NameSpaceTool::SupportCommand(const std::string& command) {
+    return (command == kGetCmd || command == kListCmd
+                               || command == kSegInfoCmd
+                               || command == kDeleteCmd
+                               || command == kCreateCmd
+                               || command == kCleanRecycleCmd
+                               || command == kChunkLocatitonCmd);
+}
+
 // 根据命令行参数选择对应的操作
 int NameSpaceTool::RunCommand(const std::string &cmd) {
-    if (cmd == "get") {
-        return PrintFileInfoAndActualSize(FLAGS_fileName);
-    } else if (cmd == "list") {
-        return PrintListDir(FLAGS_fileName);
-    } else if (cmd == "seginfo") {
-        return PrintSegmentInfo(FLAGS_fileName);
-    } else if (cmd == "delete") {
+    if (Init() != 0) {
+        std::cout << "Init NameSpaceTool failed" << std::endl;
+        return -1;
+    }
+    std::string fileName = FLAGS_fileName;
+    TrimEndingSlash(&fileName);
+    if (cmd == kGetCmd) {
+        return PrintFileInfoAndActualSize(fileName);
+    } else if (cmd == kListCmd) {
+        return PrintListDir(fileName);
+    } else if (cmd == kSegInfoCmd) {
+        return PrintSegmentInfo(fileName);
+    } else if (cmd == kDeleteCmd) {
         // 单元测试不判断输入
         if (FLAGS_isTest) {
-            return core_->DeleteFile(FLAGS_fileName, FLAGS_forcedelete);
+            return core_->DeleteFile(fileName, FLAGS_forcedelete);
         }
         std::cout << "Are you sure you want to delete "
-                  << FLAGS_fileName << "?" << "(yes/no)" << std::endl;
+                  << fileName << "?" << "(yes/no)" << std::endl;
         std::string str;
         std::cin >> str;
         if (str == "yes") {
-            return core_->DeleteFile(FLAGS_fileName, FLAGS_forcedelete);
+            return core_->DeleteFile(fileName, FLAGS_forcedelete);
         } else {
             std::cout << "Delete cancled!" << std::endl;
             return 0;
         }
-    } else if (cmd == "clean-recycle") {
+    } else if (cmd == kCleanRecycleCmd) {
         if (FLAGS_isTest) {
-            return core_->CleanRecycleBin(FLAGS_fileName);
+            return core_->CleanRecycleBin(fileName);
         }
         std::cout << "Are you sure you want to clean the RecycleBin?"
                   << "(yes/no)" << std::endl;
@@ -54,65 +83,84 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
             std::cout << "Clean RecycleBin cancled!" << std::endl;
             return 0;
         }
-    } else if (cmd == "create") {
-        return core_->CreateFile(FLAGS_fileName, FLAGS_fileLength);
-    } else if (cmd == "chunk-location") {
-        return PrintChunkLocation(FLAGS_fileName, FLAGS_offset);
+    } else if (cmd == kCreateCmd) {
+        return core_->CreateFile(fileName, FLAGS_fileLength);
+    } else if (cmd == kChunkLocatitonCmd) {
+        return PrintChunkLocation(fileName, FLAGS_offset);
     } else {
         std::cout << "Command not support!" << std::endl;
-        PrintHelp("get");
-        PrintHelp("list");
-        PrintHelp("seginfo");
-        PrintHelp("delete");
-        PrintHelp("clean-recycle");
-        PrintHelp("create");
-        PrintHelp("chunk-location");
         return -1;
     }
 }
 
 void NameSpaceTool::PrintHelp(const std::string &cmd) {
     std::cout << "Example: " << std::endl;
-    if (cmd == "get" || cmd == "list") {
-        std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test [-noSize]" << std::endl;  // NOLINT
-    } else if (cmd == "seginfo") {
+    if (cmd == kGetCmd || cmd == kListCmd) {
+        std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test"  // NOLINT
+                            " [-showAllocSize=false] [-showFileSize=false]" << std::endl;  // NOLINT
+    } else if (cmd == kSegInfoCmd) {
         std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test" << std::endl;  // NOLINT
-    } else if (cmd == "clean-recycle") {
+    } else if (cmd == kCleanRecycleCmd) {
         std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 [-fileName=/cinder]" << std::endl;  // NOLINT
         std::cout << "If -fileName is specified, delete the files in recyclebin that the original directory is fileName" << std::endl;  // NOLINT
-    } else if (cmd == "create") {
+    } else if (cmd == kCreateCmd) {
         std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test -userName=test -password=123 -fileLength=21474836480‬" << std::endl;  // NOLINT
-    } else if (cmd == "delete") {
+    } else if (cmd == kDeleteCmd) {
         std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test -userName=test -password=123 -forcedelete=true" << std::endl;  // NOLINT
-    } else if (cmd == "chunk-location") {
+    } else if (cmd == kChunkLocatitonCmd) {
         std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test -offset=16777216" << std::endl;  // NOLINT
     } else {
         std::cout << "command not found!" << std::endl;
     }
 }
 
-int NameSpaceTool::PrintFileInfoAndActualSize(std::string fileName) {
-    // 如果最后面有/，去掉
-    if (fileName.size() > 1 && fileName.back() == '/') {
-        fileName.pop_back();
-    }
+int NameSpaceTool::PrintFileInfoAndActualSize(const std::string& fileName) {
     FileInfo fileInfo;
-    auto ret = core_->GetFileInfo(fileName, &fileInfo);
+    int ret = core_->GetFileInfo(fileName, &fileInfo);
     if (ret != 0) {
         return -1;
     }
-    std::cout << "File info:" << std::endl;
+    return PrintFileInfoAndActualSize(fileName, fileInfo);
+}
+
+int NameSpaceTool::PrintFileInfoAndActualSize(const std::string& fullName,
+                                              const FileInfo& fileInfo) {
     PrintFileInfo(fileInfo);
-    if (FLAGS_noSize) {
+    int ret = GetAndPrintAllocSize(fullName);
+    // 如果是目录的话，计算目录中的文件大小(用户创建时指定的)
+    if (fileInfo.filetype() == curve::mds::FileType::INODE_DIRECTORY) {
+        ret = GetAndPrintFileSize(fullName);
+    }
+    return ret;
+}
+
+int NameSpaceTool::GetAndPrintFileSize(const std::string& fileName) {
+    if (!FLAGS_showFileSize) {
         return 0;
     }
     uint64_t size;
-    if (core_->GetAllocatedSize(fileName, &size) != 0) {
+    int res = core_->GetFileSize(fileName, &size);
+    if (res != 0) {
+        std::cout << "Get file size fail!" << std::endl;
+        return -1;
+    }
+    double fileSize = static_cast<double>(size) / curve::mds::kGB;
+    std::cout << "file size: " << fileSize << "GB" << std::endl;
+    return 0;
+}
+
+int NameSpaceTool::GetAndPrintAllocSize(const std::string& fileName) {
+    if (!FLAGS_showAllocSize) {
+        return 0;
+    }
+    uint64_t size;
+    int res = core_->GetAllocatedSize(fileName, &size);
+    if (res != 0) {
         std::cout << "Get allocated size fail!" << std::endl;
         return -1;
     }
-    double res = static_cast<double>(size) / (1024 * 1024 * 1024);
-    std::cout << "allocated size: " << res << "GB" << std::endl;
+    double allocSize = static_cast<double>(size) / curve::mds::kGB;
+    std::cout << "allocated size: " << allocSize << "GB" << std::endl;
     return 0;
 }
 
@@ -129,17 +177,21 @@ void NameSpaceTool::PrintFileInfo(const FileInfo& fileInfo) {
             std::cout << "ctime: " << standard << std::endl;
             continue;
         }
+        // 把length转换成GB
+        if (item.compare(0, 6, "length") == 0) {
+            uint64_t length = fileInfo.length();
+            double fileSize = static_cast<double>(length) / curve::mds::kGB;
+            std::cout << "length: " << fileSize << "GB" << std::endl;
+            continue;
+        }
         std::cout << item << std::endl;
     }
 }
 
-int NameSpaceTool::PrintListDir(std::string dirName) {
-    // 如果最后面有/，去掉
-    if (dirName.size() > 1 && dirName.back() == '/') {
-        dirName.pop_back();
-    }
+int NameSpaceTool::PrintListDir(const std::string& dirName) {
     std::vector<FileInfo> files;
-    if (core_->ListDir(dirName, &files) != 0) {
+    int ret = core_->ListDir(dirName, &files);
+    if (ret != 0) {
         std::cout << "List directory failed!" << std::endl;
         return -1;
     }
@@ -147,31 +199,21 @@ int NameSpaceTool::PrintListDir(std::string dirName) {
         if (i != 0) {
             std::cout << std::endl;
         }
-        PrintFileInfo(files[i]);
-        if (FLAGS_noSize) {
-            continue;
-        }
         std::string fullPathName;
         if (dirName == "/") {
             fullPathName = dirName + files[i].filename();
         } else {
             fullPathName = dirName + "/" + files[i].filename();
         }
-        uint64_t size;
-        int res = core_->GetAllocatedSize(fullPathName, &size);
-        if (res != 0) {
-            std::cout << "Get allocated size of " << fullPathName
-                      <<" fail!" << std::endl;
-            continue;
+        if (PrintFileInfoAndActualSize(fullPathName, files[i]) != 0) {
+            ret = -1;
         }
-        double allocSize = static_cast<double>(size) / mds::kGB;
-        std::cout << "allocated size: " << allocSize << "GB" << std::endl;
     }
     if (!files.empty()) {
         std::cout << std::endl;
     }
     std::cout << "Total file number: " << files.size() << std::endl;
-    return 0;
+    return ret;
 }
 
 int NameSpaceTool::PrintSegmentInfo(const std::string &fileName) {
@@ -231,7 +273,7 @@ int NameSpaceTool::PrintChunkLocation(const std::string& fileName,
               << ", copysetId: " << copysetId
               << ", groupId: " << groupId << std::endl;
     std::vector<ChunkServerLocation> csLocs;
-    int res = core_->GetChunkServerListInCopySets(logicPoolId,
+    int res = core_->GetChunkServerListInCopySet(logicPoolId,
                                     copysetId, &csLocs);
     if (res != 0) {
         std::cout << "GetChunkServerListInCopySet fail!" << std::endl;
@@ -248,6 +290,13 @@ int NameSpaceTool::PrintChunkLocation(const std::string& fileName,
     }
     std::cout << "}" << std::endl;
     return 0;
+}
+
+void NameSpaceTool::TrimEndingSlash(std::string* fileName) {
+    // 如果最后面有/，去掉
+    if (fileName->size() > 1 && fileName->back() == '/') {
+        fileName->pop_back();
+    }
 }
 }  // namespace tool
 }  // namespace curve

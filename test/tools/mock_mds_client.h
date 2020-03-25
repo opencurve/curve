@@ -13,6 +13,7 @@
 #include <gmock/gmock.h>
 #include <string>
 #include <vector>
+#include <map>
 #include "src/tools/mds_client.h"
 
 using ::testing::Return;
@@ -22,15 +23,20 @@ class MockMDSClient : public MDSClient {
  public:
     MockMDSClient() {}
     ~MockMDSClient() {}
-    MOCK_METHOD1(Init, int(const std::string &));
+    MOCK_METHOD1(Init, int(const std::string&));
+    MOCK_METHOD2(Init, int(const std::string&, const std::string&));
     MOCK_METHOD2(GetFileInfo, int(const std::string&, FileInfo*));
+    MOCK_METHOD2(GetAllocatedSize, int(const std::string&, uint64_t*));
     MOCK_METHOD2(ListDir, int(const std::string&, std::vector<FileInfo>*));
     MOCK_METHOD3(GetSegmentInfo, GetSegmentRes(const std::string&,
                                         uint64_t, PageFileSegment*));
     MOCK_METHOD2(DeleteFile, int(const std::string&, bool));
     MOCK_METHOD2(CreateFile, int(const std::string&, uint64_t));
-    MOCK_METHOD3(GetChunkServerListInCopySets, int(const PoolIdType&,
+    MOCK_METHOD3(GetChunkServerListInCopySet, int(const PoolIdType&,
                     const CopySetIdType&, std::vector<ChunkServerLocation>*));
+    MOCK_METHOD3(GetChunkServerListInCopySets, int(const PoolIdType&,
+                                        const std::vector<CopySetIdType>&,
+                                        std::vector<CopySetServerInfo>*));
     MOCK_METHOD1(ListPhysicalPoolsInCluster,
                         int(std::vector<PhysicalPoolInfo>*));
     MOCK_METHOD2(ListLogicalPoolsInPhysicalPool, int(const PoolIdType&,
@@ -57,6 +63,11 @@ class MockMDSClient : public MDSClient {
     MOCK_METHOD2(GetMetric, int(const std::string&, uint64_t*));
     MOCK_CONST_METHOD0(GetMdsAddrVec, const std::vector<std::string>&());
     MOCK_METHOD0(GetCurrentMds, std::string());
+    MOCK_METHOD1(GetMdsOnlineStatus,
+                    int(std::map<std::string, bool>* onlineStatus));
+    MOCK_CONST_METHOD0(GetDummyServerMap,
+                    const std::map<std::string, std::string>&());
+    MOCK_METHOD1(ListClient, int(std::vector<std::string>*));
 };
 }  // namespace tool
 }  // namespace curve
