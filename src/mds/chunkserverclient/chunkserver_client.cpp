@@ -10,6 +10,7 @@
 #include <string>
 #include <chrono>  //NOLINT
 #include <thread>  //NOLINT
+#include <utility>
 
 using ::curve::mds::topology::ChunkServer;
 using ::curve::mds::topology::SplitPeerId;
@@ -38,27 +39,12 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
     CopysetID copysetId,
     ChunkID chunkId,
     uint64_t correctedSn) {
-    ChunkServer chunkServer;
-    if (true != topology_->GetChunkServer(leaderId, &chunkServer)) {
-        LOG(ERROR) << "GetChunkServer for leader fail, leadId = " << leaderId;
-        return kMdsFail;
+    ChannelPtr channelPtr;
+    int res = GetOrInitChannel(leaderId, &channelPtr);
+    if (res != kMdsSuccess) {
+        return res;
     }
-    if (chunkServer.GetOnlineState() != ONLINE) {
-        return kCsClientCSOffline;
-    }
-
-    std::string ip = chunkServer.GetHostIp();
-    int port = chunkServer.GetPort();
-
-    brpc::Channel channel;
-    if (channel.Init(ip.c_str(), port, NULL) != 0) {
-        LOG(ERROR) << "Fail to init channel to ip: "
-                   << ip
-                   << " port "
-                   << port;
-        return kRpcChannelInitFail;
-    }
-    ChunkService_Stub stub(&channel);
+    ChunkService_Stub stub(channelPtr.get());
 
     brpc::Controller cntl;
     cntl.set_timeout_ms(rpcTimeoutMs_);
@@ -74,6 +60,7 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
     uint32_t retry = 0;
     do {
         cntl.Reset();
+        cntl.set_timeout_ms(rpcTimeoutMs_);
         stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
             &request,
             &response,
@@ -143,27 +130,12 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
     CopysetID copysetId,
     ChunkID chunkId,
     uint64_t sn) {
-    ChunkServer chunkServer;
-    if (true != topology_->GetChunkServer(leaderId, &chunkServer)) {
-        LOG(ERROR) << "GetChunkServer for leader fail, leadId = " << leaderId;
-        return kMdsFail;
+    ChannelPtr channelPtr;
+    int res = GetOrInitChannel(leaderId, &channelPtr);
+    if (res != kMdsSuccess) {
+        return res;
     }
-    if (chunkServer.GetOnlineState() != ONLINE) {
-        return kCsClientCSOffline;
-    }
-
-    std::string ip = chunkServer.GetHostIp();
-    int port = chunkServer.GetPort();
-
-    brpc::Channel channel;
-    if (channel.Init(ip.c_str(), port, NULL) != 0) {
-        LOG(ERROR) << "Fail to init channel to ip: "
-                   << ip
-                   << " port "
-                   << port;
-        return kRpcChannelInitFail;
-    }
-    ChunkService_Stub stub(&channel);
+    ChunkService_Stub stub(channelPtr.get());
 
     brpc::Controller cntl;
     cntl.set_timeout_ms(rpcTimeoutMs_);
@@ -179,6 +151,7 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
     uint32_t retry = 0;
     do {
         cntl.Reset();
+        cntl.set_timeout_ms(rpcTimeoutMs_);
         stub.DeleteChunk(&cntl,
             &request,
             &response,
@@ -244,29 +217,12 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
     LogicalPoolID logicalPoolId,
     CopysetID copysetId,
     ChunkServerIdType * leader) {
-    ChunkServer chunkServer;
-    if (true != topology_->GetChunkServer(csId, &chunkServer)) {
-        LOG(ERROR) << "GetChunkServer fail, csId = " << csId;
-        return kMdsFail;
+    ChannelPtr channelPtr;
+    int res = GetOrInitChannel(csId, &channelPtr);
+    if (res != kMdsSuccess) {
+        return res;
     }
-
-    if (chunkServer.GetOnlineState() != ONLINE) {
-        return kCsClientCSOffline;
-    }
-
-    std::string ip = chunkServer.GetHostIp();
-    int port = chunkServer.GetPort();
-
-    brpc::Channel channel;
-    if (channel.Init(ip.c_str(), port, NULL) != 0) {
-        LOG(ERROR) << "Fail to init channel to ip: "
-                   << ip
-                   << " port "
-                   << port;
-        return kRpcChannelInitFail;
-    }
-
-    CliService2_Stub stub(&channel);
+    CliService2_Stub stub(channelPtr.get());
 
     brpc::Controller cntl;
     cntl.set_timeout_ms(rpcTimeoutMs_);
@@ -279,6 +235,7 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
     uint32_t retry = 0;
     do {
         cntl.Reset();
+        cntl.set_timeout_ms(rpcTimeoutMs_);
         stub.GetLeader(&cntl,
             &request,
             &response,
@@ -331,6 +288,38 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
                        << "peerId string = " << leaderPeer;
             return kMdsFail;
         }
+    }
+    return kMdsSuccess;
+}
+
+int ChunkServerClient::GetChunkServerAddress(ChunkServerIdType csId,
+                                             std::string* csAddr) {
+    ChunkServer chunkServer;
+    if (true != topology_->GetChunkServer(csId, &chunkServer)) {
+        LOG(ERROR) << "GetChunkServer from topology fail, csId = " << csId;
+        return kMdsFail;
+    }
+    if (chunkServer.GetOnlineState() != ONLINE) {
+        return kCsClientCSOffline;
+    }
+
+    std::string ip = chunkServer.GetHostIp();
+    int port = chunkServer.GetPort();
+    *csAddr = ip + ":" + std::to_string(port);
+    return kMdsSuccess;
+}
+
+int ChunkServerClient::GetOrInitChannel(ChunkServerIdType csId,
+                                        ChannelPtr* channelPtr) {
+    std::string csAddr;
+    int res = GetChunkServerAddress(csId, &csAddr);
+    if (res != kMdsSuccess) {
+        return res;
+    }
+    res = channelPool_->GetOrInitChannel(csAddr, channelPtr);
+    if (res != 0) {
+        LOG(ERROR) << "Fail to get or init channel to " << csAddr;
+        return kRpcChannelInitFail;
     }
     return kMdsSuccess;
 }

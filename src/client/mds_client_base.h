@@ -16,7 +16,7 @@
 
 #include "proto/topology.pb.h"
 #include "proto/nameserver2.pb.h"
-#include "src/client/libcurve_define.h"
+#include "include/client/libcurve.h"
 #include "src/client/client_common.h"
 #include "src/client/config_info.h"
 #include "src/common/timeutility.h"
@@ -71,6 +71,7 @@ using curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using curve::mds::topology::GetClusterInfoRequest;
 using curve::mds::topology::GetClusterInfoResponse;
 using curve::mds::topology::GetChunkServerInfoResponse;
+using curve::mds::topology::ListChunkServerResponse;
 
 extern const char* kRootUserName;
 
@@ -100,6 +101,7 @@ class MDSClientBase {
                   OpenFileResponse* response,
                   brpc::Controller* cntl,
                   brpc::Channel* channel);
+
     /**
      * 创建文件
      * @param: filename创建文件的文件名
@@ -207,7 +209,7 @@ class MDSClientBase {
                     brpc::Channel* channel);
     /**
      * 文件接口在打开文件的时候需要与mds保持心跳，refresh用来续约
-     * 续约结果将会通过leaseRefreshResult* resp返回给调用层
+     * 续约结果将会通过LeaseRefreshResult* resp返回给调用层
      * @param: filename是要续约的文件名
      * @param: sessionid是文件的session信息
      * @param[out]: response为该rpc的response，提供给外部处理
@@ -417,6 +419,19 @@ class MDSClientBase {
                     GetChunkServerInfoResponse* reponse,
                     brpc::Controller* cntl,
                     brpc::Channel* channel);
+
+    /**
+     * 获取server上的所有chunkserver的id
+     * @param[in]: ip为当前server的地址
+     * @param[out]: response是当前rpc调用的response，返回给外部处理
+     * @param[in|out]: cntl既是入参也是出参
+     * @param[in]: channel是当前与mds建立的通道
+     */
+    void ListChunkServerInServer(
+       const std::string& ip,
+       ListChunkServerResponse* response,
+       brpc::Controller* cntl,
+       brpc::Channel* channel);
 
  private:
     /**

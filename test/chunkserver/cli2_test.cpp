@@ -361,6 +361,21 @@ TEST_F(Cli2Test, basic) {
                   << st.error_code() << ", " << st.error_str();
         ASSERT_TRUE(st.ok());
     }
+    /* reset peer */
+    {
+        // 等待change peer完成，否则用例会失败
+        sleep(3);
+        Peer peer;
+        peer.set_address("127.0.0.1:9033:0");
+        butil::Status status = curve::chunkserver::ResetPeer(logicPoolId,
+                                                             copysetId,
+                                                             conf,
+                                                             peer,
+                                                             opt);
+        LOG(INFO) << "reset peer: "
+                  << status.error_code() << ", " << status.error_str();
+        ASSERT_TRUE(status.ok());
+    }
 
     /* 异常分支测试 */
     /* get leader - conf empty */
@@ -428,6 +443,47 @@ TEST_F(Cli2Test, basic) {
         ASSERT_FALSE(status.ok());
         LOG(INFO) << "change peers: " << status.error_code() << ", "
                   << status.error_str();
+    }
+    /* reset peer - newConf为空 */
+    {
+        Configuration conf;
+        Peer peer;
+        peer.set_address("127.0.0.1:9033:0");
+        butil::Status
+            status = curve::chunkserver::ResetPeer(logicPoolId,
+                                                   copysetId,
+                                                   conf,
+                                                   peer,
+                                                   opt);
+        LOG(INFO) << "reset peer: " << status.error_code() << ", "
+                  << status.error_str();
+        ASSERT_EQ(EINVAL, status.error_code());
+    }
+    /* reset peer peer地址非法  */
+    {
+        Peer peer;
+        peer.set_address("127.0.0.1:65540:0");
+        butil::Status status = curve::chunkserver::ResetPeer(logicPoolId,
+                                                             copysetId,
+                                                             conf,
+                                                             peer,
+                                                             opt);
+        LOG(INFO) << "reset peer: "
+                  << status.error_code() << ", " << status.error_str();
+        ASSERT_EQ(-1, status.error_code());
+    }
+    /* reset peer peer地址不存在  */
+    {
+        Peer peer;
+        peer.set_address("127.0.0.1:9040:0");
+        butil::Status status = curve::chunkserver::ResetPeer(logicPoolId,
+                                                             copysetId,
+                                                             conf,
+                                                             peer,
+                                                             opt);
+        LOG(INFO) << "reset peer: "
+                  << status.error_code() << ", " << status.error_str();
+        ASSERT_EQ(EHOSTDOWN, status.error_code());
     }
 }
 

@@ -51,12 +51,15 @@ bool FileInstance::Initialize(const std::string& filename,
         }
 
         finfo_.userinfo = userinfo;
+        finfo_.fullPathName = filename;
         mdsclient_ = mdsclient;
 
         if (!iomanager4file_.Initialize(filename, fileopt_.ioOpt, mdsclient_)) {
             LOG(ERROR) << "Init io context manager failed!";
             break;
         }
+
+        iomanager4file_.UpdateFileInfo(finfo_);
 
         leaseexcutor_ = new (std::nothrow) LeaseExcutor(fileopt_.leaseOpt,
                                 finfo_.userinfo, mdsclient_, &iomanager4file_);
@@ -110,7 +113,9 @@ int FileInstance::AioWrite(CurveAioContext* aioctx) {
 //    这时候当前还没有成功打开，所以还没有存储该session信息，所以无法通过refresh
 //    再去打开，所以这时候需要获取mds一侧session lease时长，然后在client这一侧
 //    等待一段时间再去Open，如果依然失败，就向上层返回失败。
-int FileInstance::Open(const std::string& filename, UserInfo_t userinfo) {
+int FileInstance::Open(const std::string& filename,
+                       const UserInfo& userinfo,
+                       std::string* sessionId) {
     LeaseSession_t  lease;
     int ret = LIBCURVE_ERROR::FAILED;
 
@@ -119,8 +124,18 @@ int FileInstance::Open(const std::string& filename, UserInfo_t userinfo) {
         finfo_.fullPathName = filename;
         ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
                                                   : LIBCURVE_ERROR::FAILED;
+        if (nullptr != sessionId) {
+            sessionId->assign(lease.sessionID);
+        }
     }
     return -ret;
+}
+
+int FileInstance::ReOpen(const std::string& filename,
+                         const std::string& sessionId,
+                         const UserInfo& userInfo,
+                         std::string* newSessionId) {
+    return Open(filename, userInfo, newSessionId);
 }
 
 int FileInstance::GetFileInfo(const std::string& filename, FInfo_t* fi) {

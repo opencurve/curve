@@ -5,14 +5,22 @@
  * Copyright (c) 2018 netease
  */
 
+#include <gmock/gmock.h>
+#include <brpc/controller.h>
+#include <brpc/channel.h>
+#include <brpc/server.h>
 #include <gtest/gtest.h>
+#include <butil/endpoint.h>
 #include "src/chunkserver/heartbeat_helper.h"
+#include "src/chunkserver/chunkserver_service.h"
 #include "test/chunkserver/mock_copyset_node.h"
+#include "test/chunkserver/mock_copyset_node_manager.h"
 
 using ::testing::_;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
+using ::testing::Mock;
 
 namespace curve {
 namespace chunkserver {
@@ -139,6 +147,50 @@ TEST(HeartbeatHelperTest, test_NeedPurge) {
         butil::str2endpoint("192.0.0.4:8200", &csEp);
         ASSERT_FALSE(HeartbeatHelper::NeedPurge(csEp, conf, copyset));
     }
+}
+
+TEST(HeartbeatHelperTest, test_ChunkServerLoadCopySetFin) {
+    // 1. peerId的格式不对
+    {
+        std::string peerId = "127.0.0:5555:0";
+        ASSERT_FALSE(HeartbeatHelper::ChunkServerLoadCopySetFin(peerId));
+    }
+
+    // 2. 对端的chunkserver_service未起起来
+    {
+        std::string peerId = "127.0.0.1:8888:0";
+        ASSERT_FALSE(HeartbeatHelper::ChunkServerLoadCopySetFin(peerId));
+    }
+
+
+    auto server = new brpc::Server();
+    MockCopysetNodeManager* copysetNodeManager = new MockCopysetNodeManager();
+    ChunkServerServiceImpl* chunkserverService =
+        new ChunkServerServiceImpl(copysetNodeManager);
+    ASSERT_EQ(0,
+        server->AddService(chunkserverService, brpc::SERVER_OWNS_SERVICE));
+    ASSERT_EQ(0, server->Start("127.0.0.1", {5900, 5999}, nullptr));
+    string listenAddr(butil::endpoint2str(server->listen_address()).c_str());
+
+    // 3. 对端copyset未加载完成
+    {
+        EXPECT_CALL(*copysetNodeManager, LoadFinished())
+            .WillOnce(Return(false));
+        ASSERT_FALSE(HeartbeatHelper::ChunkServerLoadCopySetFin(listenAddr));
+    }
+
+    // 4. 对端copyset加载完成
+    {
+        EXPECT_CALL(*copysetNodeManager, LoadFinished())
+            .WillOnce(Return(true));
+        ASSERT_TRUE(HeartbeatHelper::ChunkServerLoadCopySetFin(listenAddr));
+    }
+
+    server->Stop(0);
+    server->Join();
+    delete server;
+    server = nullptr;
+    delete copysetNodeManager;
 }
 
 }  // namespace chunkserver

@@ -21,8 +21,10 @@ class MockChunkServerClient : public ChunkServerClient {
     MockChunkServerClient() {}
     ~MockChunkServerClient() {}
     MOCK_METHOD1(Init, int(const std::string&));
-    MOCK_METHOD1(GetCopysetStatus, int(butil::IOBuf*));
+    MOCK_METHOD1(GetRaftStatus, int(butil::IOBuf*));
     MOCK_METHOD0(CheckChunkServerOnline, bool());
+    MOCK_METHOD2(GetCopysetStatus, int(const CopysetStatusRequest& request,
+                                 CopysetStatusResponse* response));
 };
 }  // namespace tool
 }  // namespace curve

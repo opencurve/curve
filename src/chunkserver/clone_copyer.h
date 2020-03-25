@@ -18,7 +18,7 @@
 #include "src/client/config_info.h"
 #include "src/client/libcurve_file.h"
 #include "src/client/client_common.h"
-#include "src/client/libcurve_define.h"
+#include "include/client/libcurve.h"
 #include "src/common/s3_adapter.h"
 
 namespace curve {

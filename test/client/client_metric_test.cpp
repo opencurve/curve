@@ -22,6 +22,8 @@
 #include "src/client/libcurve_file.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
+#include "test/integration/cluster_common/cluster.h"
+#include "test/util/config_generator.h"
 
 DECLARE_string(chunkserver_list);
 
@@ -31,6 +33,19 @@ std::string mdsMetaServerAddr = "127.0.0.1:9150";                               
 
 namespace curve {
 namespace client {
+
+const std::vector<std::string> clientConf {
+    std::string("mds.listen.addr=127.0.0.1:9150"),
+    std::string("global.logPath=./runlog/"),
+    std::string("chunkserver.rpcTimeoutMS=1000"),
+    std::string("chunkserver.opMaxRetry=3"),
+    std::string("metacache.getLeaderRetry=3"),
+    std::string("metacache.getLeaderTimeOutMS=1000"),
+    std::string("global.fileMaxInFlightRPCNum=2048"),
+    std::string("metacache.rpcRetryIntervalUS=500"),
+    std::string("mds.rpcRetryIntervalUS=500"),
+    std::string("schedule.threadpoolSize=2"),
+};
 
 TEST(MetricTest, ChunkServer_MetricTest) {
     MetaServerOption_t  metaopt;
@@ -42,8 +57,15 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     ASSERT_EQ(0, mdsclient.Initialize(metaopt));
 
     FLAGS_chunkserver_list = "127.0.0.1:9130:0,127.0.0.1:9131:0,127.0.0.1:9132:0";   // NOLINT
+
+    std::string configpath("./test/client/testConfig/client_metric.conf");
+    curve::CurveCluster* cluster = new curve::CurveCluster();
+
+    cluster->PrepareConfig<curve::ClientConfigGenerator>(
+        configpath, clientConf);
+
     ClientConfig cc;
-    ASSERT_EQ(0, cc.Init("./test/client/testConfig/client_metric.conf"));
+    ASSERT_EQ(0, cc.Init(configpath.c_str()));
 
     // filename必须是全路径
     std::string filename = "/1_userinfo_";

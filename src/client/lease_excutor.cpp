@@ -27,24 +27,29 @@ LeaseExcutor::LeaseExcutor(const LeaseOption_t& leaseOpt,
     refreshTask_ = nullptr;
 }
 
-bool LeaseExcutor::Start(FInfo_t fi, LeaseSession_t  lease) {
-    finfo_ = fi;
+bool LeaseExcutor::Start(const FInfo_t& fi, const LeaseSession_t&  lease) {
+    fullFileName_ = fi.fullPathName;
+
     leasesession_ = lease;
     if (leasesession_.leaseTime <= 0) {
         LOG(ERROR) << "invalid lease time";
         return false;
     }
+    if (leaseoption_.mdsRefreshTimesPerLease == 0) {
+        LOG(ERROR) << "invalid refreshTimesPerLease";
+        return false;
+    }
 
-    iomanager_->UpdataFileInfo(finfo_);
+    iomanager_->UpdateFileInfo(fi);
     timerTaskWorker_.Start();
 
     auto refreshleasetask = [this]() {
         this->RefreshLease();
     };
 
-    auto Interval = leasesession_.leaseTime/leaseoption_.mdsRefreshTimesPerLease;  // NOLINT
+    auto interval = leasesession_.leaseTime/leaseoption_.mdsRefreshTimesPerLease;  // NOLINT
 
-    refreshTask_ = new (std::nothrow) TimerTask(Interval);
+    refreshTask_ = new (std::nothrow) TimerTask(interval);
     if (refreshTask_ == nullptr) {
         LOG(ERROR) << "allocate failed!";
         return false;
@@ -62,8 +67,8 @@ void LeaseExcutor::RefreshLease() {
         LOG(INFO) << "lease not valid!";
         iomanager_->LeaseTimeoutBlockIO();
     }
-    leaseRefreshResult response;
-    LIBCURVE_ERROR ret = mdsclient_->RefreshSession(finfo_.fullPathName,
+    LeaseRefreshResult response;
+    LIBCURVE_ERROR ret = mdsclient_->RefreshSession(fullFileName_,
                                                     userinfo_,
                                                     leasesession_.sessionID,
                                                     &response);
@@ -78,12 +83,12 @@ void LeaseExcutor::RefreshLease() {
         return;
     }
 
-    if (response.status == leaseRefreshResult::Status::OK) {
+    if (response.status == LeaseRefreshResult::Status::OK) {
         CheckNeedUpdateVersion(response.finfo.seqnum);
         failedrefreshcount_.store(0);
         isleaseAvaliable_.store(true);
         iomanager_->RefeshSuccAndResumeIO();
-    } else if (response.status == leaseRefreshResult::Status::NOT_EXIST) {
+    } else if (response.status == LeaseRefreshResult::Status::NOT_EXIST) {
         iomanager_->LeaseTimeoutBlockIO();
         refreshTask_->SetDeleteSelf();
         isleaseAvaliable_.store(false);
@@ -123,11 +128,13 @@ void LeaseExcutor::IncremRefreshFailed() {
 }
 
 void LeaseExcutor::CheckNeedUpdateVersion(uint64_t newversion) {
-    DVLOG(9) <<"newversion = " << newversion
-             << ", current seq = " << finfo_.seqnum;
-    if (newversion > finfo_.seqnum) {
-        finfo_.seqnum = newversion;
-        iomanager_->UpdataFileInfo(finfo_);
+    const uint64_t currentFileSn = iomanager_->GetLatestFileSn();
+
+    DVLOG(9) << "new file version = " << newversion
+        << ", current version = " << currentFileSn
+        << ", filename = " << fullFileName_;
+    if (newversion > currentFileSn) {
+        iomanager_->SetLatestFileSn(newversion);
     }
 }
 

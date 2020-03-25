@@ -30,12 +30,8 @@ bool IOManager4File::Initialize(const std::string& filename,
     mc_.Init(ioopt_.metaCacheOpt, mdsclient);
     Splitor::Init(ioopt_.ioSplitOpt);
 
-    int ret = RequestClosure::AddInflightCntl(id_,
-              ioopt_.ioSenderOpt.inflightOpt);
-    if (ret != 0) {
-        LOG(ERROR) << "add inflight control for rpc failed!";
-        return false;
-    }
+    inflightRpcCntl_.SetMaxInflightNum(
+        ioopt_.ioSenderOpt.inflightOpt.fileMaxInFlightRPCNum);
 
     fileMetric_ = new (std::nothrow) FileMetric(filename);
     if (fileMetric_ == nullptr) {
@@ -52,7 +48,7 @@ bool IOManager4File::Initialize(const std::string& filename,
         return false;
     }
 
-    ret = scheduler_->Init(ioopt_.reqSchdulerOpt, &mc_, fileMetric_);
+    int ret = scheduler_->Init(ioopt_.reqSchdulerOpt, &mc_, fileMetric_);
     if (-1 == ret) {
         LOG(ERROR) << "Init scheduler_ failed!";
         delete scheduler_;
@@ -101,8 +97,6 @@ void IOManager4File::UnInitialize() {
         scheduler_->Fini();
     }
 
-    RequestClosure::DeleteInflightCntl(id_);
-
     {
         // 这个锁保证设置exit_和delete scheduler_是原子的
         // 这样保证在scheduler_被析构的时候lease线程不会使用scheduler_
@@ -123,7 +117,8 @@ int IOManager4File::Read(char* buf, off_t offset,
     FlightIOGuard guard(this);
 
     IOTracker temp(this, &mc_, scheduler_, fileMetric_);
-    temp.StartRead(nullptr, buf, offset, length, mdsclient, &fi_);
+    temp.StartRead(nullptr, buf, offset, length, mdsclient,
+                   this->GetFileInfo());
 
     int rc = temp.Wait();
     return rc;
@@ -135,7 +130,8 @@ int IOManager4File::Write(const char* buf, off_t offset,
     FlightIOGuard guard(this);
 
     IOTracker temp(this, &mc_, scheduler_, fileMetric_);
-    temp.StartWrite(nullptr, buf, offset, length, mdsclient, &fi_);
+    temp.StartWrite(nullptr, buf, offset, length, mdsclient,
+                    this->GetFileInfo());
 
     int rc = temp.Wait();
     return rc;
@@ -156,7 +152,8 @@ int IOManager4File::AioRead(CurveAioContext* ctx, MDSClient* mdsclient) {
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
         temp->StartRead(ctx, static_cast<char*>(ctx->buf),
-                        ctx->offset, ctx->length, mdsclient, &this->fi_);
+                        ctx->offset, ctx->length, mdsclient,
+                        this->GetFileInfo());
     };
 
     taskPool_.Enqueue(task);
@@ -178,15 +175,16 @@ int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient) {
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
         temp->StartWrite(ctx, static_cast<const char*>(ctx->buf),
-                         ctx->offset, ctx->length, mdsclient, &this->fi_);
+                         ctx->offset, ctx->length, mdsclient,
+                         this->GetFileInfo());
     };
 
     taskPool_.Enqueue(task);
     return LIBCURVE_ERROR::OK;
 }
 
-void IOManager4File::UpdataFileInfo(const FInfo_t& fi) {
-    fi_ = fi;
+void IOManager4File::UpdateFileInfo(const FInfo_t& fi) {
+    mc_.UpdateFileInfo(fi);
 }
 
 void IOManager4File::HandleAsyncIOResponse(IOTracker* iotracker) {
@@ -211,5 +209,14 @@ void IOManager4File::RefeshSuccAndResumeIO() {
         LOG(WARNING) << "io manager already exit, no need resume io!";
     }
 }
+
+void IOManager4File::ReleaseInflightRpcToken() {
+    inflightRpcCntl_.ReleaseInflightToken();
+}
+
+void IOManager4File::GetInflightRpcToken() {
+    inflightRpcCntl_.GetInflightToken();
+}
+
 }   // namespace client
 }   // namespace curve

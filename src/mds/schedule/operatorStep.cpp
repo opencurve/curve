@@ -286,7 +286,7 @@ ApplyStatus ChangePeer::Apply(
     // 上报上来的变更类型与mds中记录的不同
     if (originInfo.configChangeInfo.type() !=  ConfigChangeType::CHANGE_PEER) {
         LOG(WARNING) << originInfo.CopySetInfoStr()
-            << " apply chane peer from " << old_ << " to " << new_
+            << " apply change peer from " << old_ << " to " << new_
             << " failed, config change type do not match, report type is "
             << originInfo.configChangeInfo.type();
         return ApplyStatus::Failed;
@@ -296,7 +296,7 @@ ApplyStatus ChangePeer::Apply(
     if (!originInfo.configChangeInfo.finished() &&
         originInfo.configChangeInfo.has_err()) {
         LOG(ERROR) << originInfo.CopySetInfoStr()
-                   << " apply chane peer from " << old_ << " to " << new_
+                   << " apply change peer from " << old_ << " to " << new_
                    << " failed, report err: "
                    << originInfo.configChangeInfo.err().errmsg();
         return ApplyStatus::Failed;

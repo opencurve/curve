@@ -13,7 +13,6 @@
 #include <glog/logging.h>
 #include <brpc/channel.h>
 
-#include <cstdio>
 #include <string>
 #include <memory>
 

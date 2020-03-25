@@ -19,9 +19,11 @@
 #include "proto/cli2.pb.h"
 #include "proto/chunk.pb.h"
 #include "src/mds/chunkserverclient/chunkserverclient_config.h"
+#include "src/common/channel_pool.h"
 
 using ::curve::mds::topology::Topology;
 using ::curve::mds::topology::ChunkServerIdType;
+using ::curve::common::ChannelPool;
 
 namespace curve {
 namespace mds {
@@ -30,11 +32,13 @@ namespace chunkserverclient {
 class ChunkServerClient {
  public:
     ChunkServerClient(std::shared_ptr<Topology> topology,
-        const ChunkServerClientOption &option)
+        const ChunkServerClientOption &option,
+        std::shared_ptr<ChannelPool> channelPool)
         : topology_(topology),
           rpcTimeoutMs_(option.rpcTimeoutMs),
           rpcRetryTimes_(option.rpcRetryTimes),
-          rpcRetryIntervalMs_(option.rpcRetryIntervalMs) {}
+          rpcRetryIntervalMs_(option.rpcRetryIntervalMs),
+          channelPool_(channelPool) {}
 
     virtual ~ChunkServerClient() {}
 
@@ -91,10 +95,25 @@ class ChunkServerClient {
         ChunkServerIdType * leader);
 
  private:
+    /**
+     * @brief 从topology获取chunkserver的地址
+     *
+     * @param csId 目标chunkserver的ID
+     * @param[out] csAddr chunkserver的地址，ip:port的形式
+     *
+     * @return 错误码
+     */
+    int GetChunkServerAddress(ChunkServerIdType csId,
+                              std::string* csAddr);
+
+    int GetOrInitChannel(ChunkServerIdType csId,
+                         ChannelPtr* channelPtr);
+
     std::shared_ptr<Topology> topology_;
     uint32_t rpcTimeoutMs_;
     uint32_t rpcRetryTimes_;
     uint32_t rpcRetryIntervalMs_;
+    std::shared_ptr<ChannelPool> channelPool_;
 };
 
 }  // namespace chunkserverclient

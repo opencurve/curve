@@ -97,3 +97,28 @@ cc_library(
         "//external:protobuf",
     ],
 )
+
+cc_library(
+    name = "curve",
+    srcs = glob([
+        "libcurve_client.cpp",
+    ]),
+    deps = [
+        "//external:gflags",
+        "//external:glog",
+        "//external:leveldb",
+        "//external:brpc",
+        "//external:braft",
+        "//external:protobuf",
+        "//src/common:curve_common",
+        "//src/common:curve_auth",
+        "//include/client:include_client",
+        "//include:include-common",
+        "//proto:nameserver2_cc_proto",
+        "//proto:topology_cc_proto",
+        "//proto:chunkserver-cc-protos",
+        "//src/client:curve_client"
+    ],
+    copts = COPTS,
+    visibility = ["//visibility:public"],
+)

@@ -35,6 +35,7 @@ bool Configuration::LoadConfig() {
             config_[key] = value;
         }
     } else {
+        LOG(ERROR) << "Open config file '" << confFile_ << "' failed";
         return false;
     }
 
@@ -248,6 +249,48 @@ bool Configuration::GetValue(const std::string &key, std::string *out) {
 
 void Configuration::SetValue(const std::string &key, const std::string &value) {
     config_[key] = value;
+}
+
+void Configuration::GetValueFatalIfFail(const std::string& key,
+                                        int* value) {
+    LOG_IF(FATAL, !GetIntValue(key, value)) << "Get " << key
+                        << " from " << confFile_ << " fail";
+}
+
+void Configuration::GetValueFatalIfFail(const std::string& key,
+                                        std::string* value) {
+    LOG_IF(FATAL, !GetStringValue(key, value)) << "Get " << key
+                        << " from " << confFile_ << " fail";
+}
+
+void Configuration::GetValueFatalIfFail(const std::string& key,
+                                        bool* value) {
+    LOG_IF(FATAL, !GetBoolValue(key, value)) << "Get " << key
+                        << " from " << confFile_ << " fail";
+}
+
+void Configuration::GetValueFatalIfFail(const std::string& key,
+                                        uint32_t* value) {
+    LOG_IF(FATAL, !GetUInt32Value(key, value)) << "Get " << key
+                        << " from " << confFile_ << " fail";
+}
+
+void Configuration::GetValueFatalIfFail(const std::string& key,
+                                        uint64_t* value) {
+    LOG_IF(FATAL, !GetUInt64Value(key, value)) << "Get " << key
+                        << " from " << confFile_ << " fail";
+}
+
+void Configuration::GetValueFatalIfFail(const std::string& key,
+                                        float* value) {
+    LOG_IF(FATAL, !GetFloatValue(key, value)) << "Get " << key
+                        << " from " << confFile_ << " fail";
+}
+
+void Configuration::GetValueFatalIfFail(const std::string& key,
+                                        double* value) {
+    LOG_IF(FATAL, !GetDoubleValue(key, value)) << "Get " << key
+                        << " from " << confFile_ << " fail";
 }
 
 }  // namespace common

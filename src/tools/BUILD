@@ -107,6 +107,7 @@ cc_library(
         "//external:leveldb",
         "//proto:nameserver2_cc_proto",
         "//proto:topology_cc_proto",
+        "//proto:schedule_cc_proto",
         "//proto:chunkserver-cc-protos",
         "//src/common:curve_common",
         "//src/mds/common:mds_common",

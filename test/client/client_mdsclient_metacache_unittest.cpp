@@ -34,6 +34,8 @@
 #include "test/client/fake/fakeMDS.h"
 #include "src/client/metacache_struct.h"
 #include "src/common/net_common.h"
+#include "test/integration/cluster_common/cluster.h"
+#include "test/util/config_generator.h"
 
 extern std::string mdsMetaServerAddr;
 extern uint32_t chunk_size;
@@ -415,27 +417,6 @@ TEST_F(MDSClientTest, Openfile) {
     ASSERT_EQ(fd, -LIBCURVE_ERROR::FILE_OCCUPIED);
     ASSERT_EQ(LIBCURVE_ERROR::OK, Write(fd, nullptr, 0, 0));
     ASSERT_EQ(LIBCURVE_ERROR::OK, Read(fd, nullptr, 0, 0));
-
-    // 打开一个文件, 如果返回的是occupied，那么会重试到重试次数用完
-    uint64_t starttime = TimeUtility::GetTimeofDayUs();
-    ::curve::mds::ProtoSession* socupied1 = new ::curve::mds::ProtoSession;
-    socupied1->set_sessionid("1");
-    socupied1->set_createtime(12345);
-    socupied1->set_leasetime(5000000);
-    socupied1->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);
-
-    ::curve::mds::OpenFileResponse responseOccupied1;
-    responseOccupied1.set_statuscode(::curve::mds::StatusCode::kFileOccupied);
-    responseOccupied1.set_allocated_protosession(socupied1);
-
-    FakeReturn* r1
-     = new FakeReturn(nullptr, static_cast<void*>(&responseOccupied1));
-    curvefsservice.SetOpenFile(r1);
-
-    int retcode = globalclient->Open(filename + "test", userinfo);
-    uint64_t end = TimeUtility::GetTimeofDayUs();
-    ASSERT_EQ(retcode, -LIBCURVE_ERROR::FILE_OCCUPIED);
-    ASSERT_GT(end - starttime, 200 * 3);
 
     // 测试关闭文件
     ::curve::mds::CloseFileResponse closeresp;
@@ -1812,6 +1793,72 @@ TEST_F(MDSClientTest, ChangeOwner) {
     delete fakeret2;
 }
 
+TEST_F(MDSClientTest, ListChunkServerTest_CntlFailed) {
+    ListChunkServerResponse response;
+    std::vector<ChunkServerID> csIds;
+    std::string ip = "127.0.0.1:6666";
+
+    brpc::Controller cntl;
+    cntl.SetFailed(-1, "Failed");
+
+    std::unique_ptr<FakeReturn> fakeret(
+        new FakeReturn(&cntl, static_cast<void*>(&response)));
+    topologyservice.SetFakeReturn(fakeret.get());
+
+    auto startTime = curve::common::TimeUtility::GetTimeofDayMs();
+    ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+        mdsclient_.ListChunkServerInServer(ip, &csIds));
+    auto endTime = curve::common::TimeUtility::GetTimeofDayMs();
+    ASSERT_GT(endTime - startTime, metaopt.mdsMaxRetryMS - 1);
+}
+
+TEST_F(MDSClientTest, ListChunkServerTest_ResponseError) {
+    ListChunkServerResponse response;
+    response.set_statuscode(-2);
+
+    std::vector<ChunkServerID> csIds;
+    std::string ip = "127.0.0.1:6666";
+
+    std::unique_ptr<FakeReturn> fakeret(
+        new FakeReturn(nullptr, static_cast<void*>(&response)));
+    topologyservice.SetFakeReturn(fakeret.get());
+
+    ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+        mdsclient_.ListChunkServerInServer(ip, &csIds));
+}
+
+TEST_F(MDSClientTest, ListChunkServerTest_ResponseOK) {
+    ListChunkServerResponse response;
+    std::vector<ChunkServerID> csIds{1, 10, 100};
+
+    response.set_statuscode(0);
+    for (auto id : csIds) {
+        auto csInfo = response.add_chunkserverinfos();
+        csInfo->set_chunkserverid(id);
+        csInfo->set_disktype("nvme");
+        csInfo->set_hostip("127.0.0.1:" + std::to_string(id));
+        csInfo->set_port(id);
+        csInfo->set_status(curve::mds::topology::ChunkServerStatus::READWRITE);
+        csInfo->set_diskstatus(curve::mds::topology::DiskState::DISKNORMAL);
+        csInfo->set_onlinestate(curve::mds::topology::OnlineState::ONLINE);
+        csInfo->set_mountpoint("/data/" + std::to_string(id));
+        csInfo->set_diskcapacity(1234);
+        csInfo->set_diskused(100);
+    }
+    std::string ip = "127.0.0.1:6666";
+
+    std::unique_ptr<FakeReturn> fakeret(
+        new FakeReturn(nullptr, static_cast<void*>(&response)));
+    topologyservice.SetFakeReturn(fakeret.get());
+
+    std::vector<ChunkServerID> returnIds;
+    ASSERT_EQ(LIBCURVE_ERROR::OK,
+        mdsclient_.ListChunkServerInServer(ip, &returnIds));
+
+    std::sort(returnIds.begin(), returnIds.end());
+    ASSERT_EQ(csIds, returnIds);
+}
+
 TEST_F(MDSClientTest, ListDir) {
     std::string filename1 = "/1_userinfo_";
     // set response file not exist
@@ -2286,3 +2333,4 @@ TEST_F(ServiceHelperGetLeaderTest, AllChunkServerExceptionTest) {
         ResetAllFakeCliService();
     }
 }
+

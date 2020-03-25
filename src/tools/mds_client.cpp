@@ -5,6 +5,7 @@
  * Copyright (c) 2018 netease
  */
 #include "src/tools/mds_client.h"
+
 DECLARE_uint64(rpcTimeout);
 DECLARE_uint64(rpcRetryTimes);
 
@@ -12,6 +13,11 @@ namespace curve {
 namespace tool {
 
 int MDSClient::Init(const std::string& mdsAddr) {
+    return Init(mdsAddr, std::to_string(kDefaultMdsDummyPort));
+}
+
+int MDSClient::Init(const std::string& mdsAddr,
+                    const std::string& dummyPort) {
     if (isInited_) {
         return 0;
     }
@@ -21,6 +27,13 @@ int MDSClient::Init(const std::string& mdsAddr) {
         std::cout << "Split mds address fail!" << std::endl;
         return -1;
     }
+
+    int res = InitDummyServerMap(dummyPort);
+    if (res != 0) {
+        std::cout << "init dummy server map fail!" << std::endl;
+        return -1;
+    }
+
     for (uint64_t i = 0; i < mdsAddrVec_.size(); ++i) {
         if (channel_.Init(mdsAddrVec_[i].c_str(), nullptr) != 0) {
             std::cout << "Init channel to " << mdsAddr << "fail!" << std::endl;
@@ -45,6 +58,39 @@ int MDSClient::Init(const std::string& mdsAddr) {
     }
     std::cout << "Init channel to all mds fail!" << std::endl;
     return -1;
+}
+
+int MDSClient::InitDummyServerMap(const std::string& dummyPort) {
+    std::vector<std::string> dummyPortVec;
+    curve::common::SplitString(dummyPort, ",", &dummyPortVec);
+    if (dummyPortVec.size() == 0) {
+        std::cout << "split dummy server fail!" << std::endl;
+        return -1;
+    }
+    // 只指定了一个端口，对所有mds采用这个端口
+    if (dummyPortVec.size() == 1) {
+        for (uint64_t i = 0; i < mdsAddrVec_.size() - 1; ++i) {
+            dummyPortVec.emplace_back(dummyPortVec[0]);
+        }
+    }
+
+    if (dummyPortVec.size() != mdsAddrVec_.size()) {
+        std::cout << "mds dummy port list must be correspond as"
+                     " mds addr list" << std::endl;
+        return -1;
+    }
+
+    for (uint64_t i = 0; i < mdsAddrVec_.size(); ++i) {
+        std::vector<std::string> strs;
+        curve::common::SplitString(mdsAddrVec_[i], ":", &strs);
+        if (strs.size() != 2) {
+            std::cout << "split mds addr fail!" << std::endl;
+            return -1;
+        }
+        std::string dummyAddr = strs[0] + ":" + dummyPortVec[i];
+        dummyServerMap_.emplace(mdsAddrVec_[i], dummyAddr);
+    }
+    return 0;
 }
 
 int MDSClient::GetFileInfo(const std::string &fileName,
@@ -75,6 +121,36 @@ int MDSClient::GetFileInfo(const std::string &fileName,
         return 0;
     }
     std::cout << "GetFileInfo fail with errCode: "
+              << response.statuscode() << std::endl;
+    return -1;
+}
+
+int MDSClient::GetAllocatedSize(const std::string& fileName,
+                                 uint64_t* allocSize) {
+    if (!allocSize) {
+        std::cout << "The argument is a null pointer!" << std::endl;
+        return -1;
+    }
+    curve::mds::GetAllocatedSizeRequest request;
+    curve::mds::GetAllocatedSizeResponse response;
+    request.set_filename(fileName);
+    curve::mds::CurveFSService_Stub stub(&channel_);
+
+    void (curve::mds::CurveFSService_Stub::*fp)(
+                            google::protobuf::RpcController*,
+                            const curve::mds::GetAllocatedSizeRequest*,
+                            curve::mds::GetAllocatedSizeResponse*,
+                            google::protobuf::Closure*);
+    fp = &curve::mds::CurveFSService_Stub::GetAllocatedSize;
+    if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
+        std::cout << "GetAllocatedSize info from all mds fail!" << std::endl;
+        return -1;
+    }
+    if (response.statuscode() == StatusCode::kOK) {
+        *allocSize = response.allocatedsize();
+        return 0;
+    }
+    std::cout << "GetAllocatedSize fail with errCode: "
               << response.statuscode() << std::endl;
     return -1;
 }
@@ -182,7 +258,7 @@ int MDSClient::DeleteFile(const std::string& fileName, bool forcedelete) {
 }
 
 int MDSClient::CreateFile(const std::string& fileName, uint64_t length) {
-    curve::mds:: CreateFileRequest request;
+    curve::mds::CreateFileRequest request;
     curve::mds::CreateFileResponse response;
     request.set_filename(fileName);
     request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
@@ -210,17 +286,75 @@ int MDSClient::CreateFile(const std::string& fileName, uint64_t length) {
     return -1;
 }
 
-int MDSClient::GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
+int MDSClient::ListClient(std::vector<std::string>* clientAddrs) {
+    if (!clientAddrs) {
+        std::cout << "The argument is a null pointer!" << std::endl;
+        return -1;
+    }
+    curve::mds::ListClientRequest request;
+    curve::mds::ListClientResponse response;
+    curve::mds::CurveFSService_Stub stub(&channel_);
+
+    void (curve::mds::CurveFSService_Stub::*fp)(
+                            google::protobuf::RpcController*,
+                            const curve::mds::ListClientRequest*,
+                            curve::mds::ListClientResponse*,
+                            google::protobuf::Closure*);
+    fp = &curve::mds::CurveFSService_Stub::ListClient;
+    if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
+        std::cout << "ListClient from all mds fail!" << std::endl;
+        return -1;
+    }
+
+    if (response.has_statuscode() &&
+                response.statuscode() == StatusCode::kOK) {
+        for (int i = 0; i < response.clientinfos_size(); ++i) {
+            const auto& clientInfo = response.clientinfos(i);
+            std::string clientAddr = clientInfo.ip() + ":" +
+                                     std::to_string(clientInfo.port());
+            clientAddrs->emplace_back(clientAddr);
+        }
+        return 0;
+    }
+    std::cout << "ListClient fail with errCode: "
+              << response.statuscode() << std::endl;
+    return -1;
+}
+
+int MDSClient::GetChunkServerListInCopySet(const PoolIdType& logicalPoolId,
                                             const CopySetIdType& copysetId,
                                     std::vector<ChunkServerLocation>* csLocs) {
     if (!csLocs) {
         std::cout << "The argument is a null pointer!" << std::endl;
         return -1;
     }
+    std::vector<CopySetServerInfo> csServerInfos;
+    int res = GetChunkServerListInCopySets(logicalPoolId,
+                                                {copysetId}, &csServerInfos);
+    if (res != 0) {
+        std::cout << "GetChunkServerListInCopySets fail" << std::endl;
+        return -1;
+    }
+    for (int i = 0; i < csServerInfos[0].cslocs_size(); ++i) {
+        auto location = csServerInfos[0].cslocs(i);
+        csLocs->emplace_back(location);
+    }
+    return 0;
+}
+
+int MDSClient::GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
+                            const std::vector<CopySetIdType>& copysetIds,
+                            std::vector<CopySetServerInfo>* csServerInfos) {
+    if (!csServerInfos) {
+        std::cout << "The argument is a null pointer!" << std::endl;
+        return -1;
+    }
     curve::mds::topology::GetChunkServerListInCopySetsRequest request;
     curve::mds::topology::GetChunkServerListInCopySetsResponse response;
     request.set_logicalpoolid(logicalPoolId);
-    request.add_copysetid(copysetId);
+    for (const auto& copysetId : copysetIds) {
+        request.add_copysetid(copysetId);
+    }
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
     void (curve::mds::topology::TopologyService_Stub::*fp)(
@@ -237,9 +371,8 @@ int MDSClient::GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
 
     if (response.has_statuscode() &&
                 response.statuscode() == kTopoErrCodeSuccess) {
-        for (int i = 0; i < response.csinfo(0).cslocs_size(); ++i) {
-            auto location = response.csinfo(0).cslocs(i);
-            csLocs->emplace_back(location);
+        for (int i = 0; i < response.csinfo_size(); ++i) {
+            csServerInfos->emplace_back(response.csinfo(i));
         }
         return 0;
     }
@@ -428,7 +561,12 @@ int MDSClient::ListChunkServersOnServer(ListChunkServerRequest* request,
     if (response.has_statuscode() &&
                 response.statuscode() == kTopoErrCodeSuccess) {
         for (int i = 0; i < response.chunkserverinfos_size(); ++i) {
-            chunkservers->emplace_back(response.chunkserverinfos(i));
+            const auto& chunkserver = response.chunkserverinfos(i);
+            // 跳过retired状态的chunkserver
+            if (chunkserver.status() == ChunkServerStatus::RETIRED) {
+                continue;
+            }
+            chunkservers->emplace_back(chunkserver);
         }
         return 0;
     }
@@ -611,58 +749,70 @@ int MDSClient::ListChunkServersInCluster(
     return 0;
 }
 
+int MDSClient::GetMdsListenAddr(const std::string& dummyAddr,
+                                std::string* listenAddr) {
+    std::string jsonString;
+    brpc::Controller cntl;
+    MetricRet res = metricClient_.GetMetric(dummyAddr, kMdsListenAddrMetricName,
+                        &jsonString);
+    if (res != MetricRet::kOK) {
+        std::cout << "Get mds listen addr from " << dummyAddr
+                  << " fail" << std::endl;
+        return -1;
+    }
+    Json::Reader reader(Json::Features::strictMode());
+    Json::Value value;
+    if (!reader.parse(jsonString, value)) {
+        std::cout << "Parse metric as json fail" << std::endl;
+        return -1;
+    }
+    *listenAddr = value["conf_value"].asString();
+    return 0;
+}
+
+int MDSClient::GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus) {
+    onlineStatus->clear();
+    for (const auto item : dummyServerMap_) {
+        std::string listenAddr;
+        int res = GetMdsListenAddr(item.second, &listenAddr);
+        // 如果获取到的监听地址与记录的mds地址不一致，也认为不在线
+        if (res != 0 || listenAddr != item.first) {
+            onlineStatus->emplace(item.first, false);
+            continue;
+        }
+        onlineStatus->emplace(item.first, true);
+    }
+    return 0;
+}
+
 int MDSClient::GetMetric(const std::string& metricName, uint64_t* value) {
-    brpc::Channel httpChannel;
-    brpc::ChannelOptions options;
-    options.protocol = brpc::PROTOCOL_HTTP;
+    std::string str;
+    int res = GetMetric(metricName, &str);
+    if (res != 0) {
+        return -1;
+    }
+    if (!curve::common::StringToUll(str, value)) {
+        std::cout << "parse metric as uint64_t fail!" << std::endl;
+        return -1;
+    }
+    return 0;
+}
+
+int MDSClient::GetMetric(const std::string& metricName, std::string* value) {
     int changeTimeLeft = mdsAddrVec_.size() - 1;
     while (changeTimeLeft >= 0) {
-        int res = httpChannel.Init(mdsAddrVec_[currentMdsIndex_].c_str(),
-                                                    &options);
-        if (res != 0) {
+        brpc::Controller cntl;
+        MetricRet res = metricClient_.GetMetric(mdsAddrVec_[currentMdsIndex_],
+                                         metricName, value);
+        if (res == MetricRet::kOK) {
+            return 0;
+        }
+        changeTimeLeft--;
+        while (!ChangeMDServer() && changeTimeLeft > 0) {
             changeTimeLeft--;
-            while (!ChangeMDServer() && changeTimeLeft > 0) {
-                changeTimeLeft--;
-            }
-            continue;
-        } else {
-            brpc::Controller cntl;
-            cntl.http_request().uri() = mdsAddrVec_[currentMdsIndex_] +
-                                    "/vars/" + metricName;
-            httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-            if (!cntl.Failed()) {
-                std::vector<std::string> strs;
-                curve::common::SplitString(
-                    cntl.response_attachment().to_string(), ":", &strs);
-                if (!curve::common::StringToUll(strs[1], value)) {
-                    std::cout << "parse operator num fail!" << std::endl;
-                    return -1;
-                }
-                return 0;
-            }
-            bool needRetry = (cntl.ErrorCode() != EHOSTDOWN &&
-                              cntl.ErrorCode() != ETIMEDOUT &&
-                              cntl.ErrorCode() != brpc::ELOGOFF &&
-                              cntl.ErrorCode() != brpc::ERPCTIMEDOUT);
-            uint64_t retryTimes = 0;
-            while (needRetry && retryTimes < FLAGS_rpcRetryTimes) {
-                cntl.Reset();
-                cntl.http_request().uri() = mdsAddrVec_[currentMdsIndex_] +
-                                    "/vars/" + metricName;
-                httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-                if (cntl.Failed()) {
-                    retryTimes++;
-                    continue;
-                }
-            }
-            if (needRetry) {
-                std::cout << "Send RPC to mds fail, error content: "
-                          << cntl.ErrorText() << std::endl;
-                return -1;
-            }
         }
     }
-    std::cout << "GetMetric from all mds fail!"
+    std::cout << "GetMetric " << metricName << " from all mds fail!"
               << std::endl;
     return -1;
 }
@@ -698,6 +848,33 @@ std::string MDSClient::GetCurrentMds() {
     } else {
         return mdsAddrVec_[currentMdsIndex_];
     }
+}
+
+int MDSClient::RapidLeaderSchedule(PoolIdType lpoolId) {
+    ::curve::mds::schedule::RapidLeaderScheduleRequst request;
+    ::curve::mds::schedule::RapidLeaderScheduleResponse response;
+    ::curve::mds::schedule::ScheduleService_Stub stub(&channel_);
+
+    request.set_logicalpoolid(lpoolId);
+
+    void (curve::mds::schedule::ScheduleService_Stub::*fp)(
+        google::protobuf::RpcController*,
+        const ::curve::mds::schedule::RapidLeaderScheduleRequst *,
+        ::curve::mds::schedule::RapidLeaderScheduleResponse*,
+        google::protobuf::Closure*);
+    fp = &::curve::mds::schedule::ScheduleService_Stub::RapidLeaderSchedule;
+    if (0 != SendRpcToMds(&request, &response, &stub, fp)) {
+        std::cout << "RapidLeaderSchedule fail" << std::endl;
+        return -1;
+    }
+    if (response.statuscode() ==
+        ::curve::mds::schedule::kScheduleErrCodeSuccess) {
+        std::cout << "RapidLeaderSchedule success" << std::endl;
+        return 0;
+    }
+    std::cout << "RapidLeaderSchedule fail with errCode: "
+        << response.statuscode() << std::endl;
+    return -1;
 }
 
 template <typename T, typename Request, typename Response>

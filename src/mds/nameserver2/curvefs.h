@@ -19,12 +19,11 @@
 #include "src/mds/nameserver2/chunk_allocator.h"
 #include "src/mds/nameserver2/clean_manager.h"
 #include "src/mds/nameserver2/async_delete_snapshot_entity.h"
-#include "src/mds/nameserver2/session.h"
+#include "src/mds/nameserver2/file_record.h"
 #include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
 #include "src/mds/dao/mdsRepo.h"
 #include "src/common/authenticator.h"
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
-
 using curve::common::Authenticator;
 
 namespace curve {
@@ -37,11 +36,13 @@ struct RootAuthOption {
 
 struct CurveFSOption {
     uint64_t defaultChunkSize;
+    RootAuthOption authOptions;
+    FileRecordOptions fileRecordOptions;
 };
 
 using ::curve::mds::DeleteSnapShotResponse;
 
-bool InitRecycleBinDir(NameServerStorage *storage);
+bool InitRecycleBinDir(std::shared_ptr<NameServerStorage> storage);
 
 class CurveFS {
  public:
@@ -57,22 +58,27 @@ class CurveFS {
      *         InodeIDGenerator：
      *         ChunkSegmentAllocator：
      *         CleanManagerInterface:
-     *         sessionManager：
+     *         fileRecordManager
      *         allocStatistic: 分配统计模块
-     *         sessionOptions ：初始化所session需要的参数
-     *         authOptions : 对root用户进行认认证的参数
      *         CurveFSOption : 对curvefs进行初始化需要的参数
      *         repo : curvefs持久化数据所用的数据库，目前保存client注册信息使用
      *  @return 初始化是否成功
      */
-    bool Init(NameServerStorage*, InodeIDGenerator*, ChunkSegmentAllocator*,
+    bool Init(std::shared_ptr<NameServerStorage>,
+              std::shared_ptr<InodeIDGenerator>,
+              std::shared_ptr<ChunkSegmentAllocator>,
               std::shared_ptr<CleanManagerInterface>,
-              SessionManager *sessionManager,
+              std::shared_ptr<FileRecordManager> fileRecordManager,
               std::shared_ptr<AllocStatistic> allocStatistic,
-              const struct SessionOptions &sessionOptions,
-              const struct RootAuthOption &authOptions,
               const struct CurveFSOption &curveFSOptions,
               std::shared_ptr<MdsRepo> repo);
+
+    /**
+     *  @brief Run session manager
+     *  @param
+     *  @return
+     */
+    void Run();
 
     /**
      *  @brief CurveFS Uninit
@@ -104,6 +110,15 @@ class CurveFS {
      */
     StatusCode GetFileInfo(const std::string & filename,
                            FileInfo * inode) const;
+
+     /**
+     *  @brief 获取分配大小
+     *  @param: fileName：文件名
+     *  @param[out]: allocatedSize： 文件或目录的分配大小
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
+    StatusCode GetAllocatedSize(const std::string& fileName,
+                                uint64_t* allocatedSize);
 
     /**
      *  @brief 删除文件
@@ -391,6 +406,14 @@ class CurveFS {
     StatusCode RegistClient(const std::string &ip, uint32_t port);
 
     /**
+     *  @brief 获取所有client的信息
+     *  @param[out]:  client信息的列表
+     *  @return 是否成功，成功返回StatusCode::kOK
+     *          失败返回StatusCode::KInternalError
+     */
+    StatusCode ListClient(std::vector<ClientInfo>* clientInfos);
+
+    /**
      *  @brief 获取已经open的文件个数
      *  @param:
      *  @return 如果curvefs未初始化，返回0
@@ -463,29 +486,56 @@ class CurveFS {
     StatusCode isDirectoryEmpty(const FileInfo &fileInfo, bool *result);
 
     /**
-     *  @brief 判断文件是否有有效的session
-     *  @param: fileName
-     *  @return: true表示文件有有效session，false表示文件无有效session
-     */
-    bool isFileHasValidSession(const std::string &fileName);
-
-    /**
      *  @brief 判断文件是否进行更改，目前删除、rename、changeowner时需要判断
      *  @param: fileName
      *  @return: 正常返回kOK，否则返回错误码
      */
     StatusCode CheckFileCanChange(const std::string &fileName);
 
+    /**
+     *  @brief 获取分配大小
+     *  @param: fileName：文件名
+     *  @param: fileInfo 文件信息
+     *  @param[out]: allocSize： 文件或目录的分配大小
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
+    StatusCode GetAllocatedSize(const std::string& fileName,
+                                const FileInfo& fileInfo,
+                                uint64_t* allocSize);
+
+    /**
+     *  @brief 获取文件分配大小
+     *  @param: fileName：文件名
+     *  @param: fileInfo 文件信息
+     *  @param[out]: allocSize： 文件的分配大小
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
+    StatusCode GetFileAllocSize(const std::string& fileName,
+                                const FileInfo& fileInfo,
+                                uint64_t* allocSize);
+
+    /**
+     *  @brief 获取目录分配大小
+     *  @param: dirName：目录名
+     *  @param: fileInfo 文件信息
+     *  @param[out]: allocSize： 目录的分配大小
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
+    StatusCode GetDirAllocSize(const std::string& fileName,
+                                const FileInfo& fileInfo,
+                                uint64_t* allocSize);
+
  private:
     FileInfo rootFileInfo_;
-    NameServerStorage*          storage_;
-    InodeIDGenerator*           InodeIDGenerator_;
-    ChunkSegmentAllocator*      chunkSegAllocator_;
-    SessionManager *            sessionManager_;
+    std::shared_ptr<NameServerStorage> storage_;
+    std::shared_ptr<InodeIDGenerator> InodeIDGenerator_;
+    std::shared_ptr<ChunkSegmentAllocator> chunkSegAllocator_;
+    std::shared_ptr<FileRecordManager> fileRecordManager_;
     std::shared_ptr<CleanManagerInterface> cleanManager_;
     std::shared_ptr<AllocStatistic> allocStatistic_;
     struct RootAuthOption       rootAuthOptions_;
-    struct CurveFSOption        curveFSOptions_;
+
+    uint64_t defaultChunkSize_;
     std::shared_ptr<MdsRepo> repo_;
 };
 extern CurveFS &kCurveFS;

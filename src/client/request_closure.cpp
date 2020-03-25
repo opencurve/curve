@@ -9,16 +9,15 @@
 #include "src/client/io_tracker.h"
 #include "src/client/request_context.h"
 #include "src/client/chunk_closure.h"
+#include "src/client/iomanager.h"
 
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
 
 namespace curve {
 namespace client {
-RWLock RequestClosure::rwLock_;
-std::map<IOManagerID, InflightControl*> RequestClosure::inflightCntlMap_;
 
-RequestClosure::RequestClosure(RequestContext* reqctx) {
+RequestClosure::RequestClosure(RequestContext* reqctx) : ioManager_(nullptr) {
     suspendRPC_ = false;
     managerID_ = 0;
     retryTimes_ = 0;
@@ -60,8 +59,8 @@ void RequestClosure::SetFileMetric(FileMetric_t* fm) {
     metric_ = fm;
 }
 
-void RequestClosure::SetIOManagerID(IOManagerID id) {
-    managerID_ = id;
+void RequestClosure::SetIOManager(IOManager* ioManager) {
+    ioManager_ = ioManager;
 }
 
 FileMetric_t* RequestClosure::GetMetric() {
@@ -76,44 +75,16 @@ uint64_t RequestClosure::GetStartTime() {
     return starttime_;
 }
 
-int RequestClosure::AddInflightCntl(IOManagerID id, InFlightIOCntlInfo_t opt) {
-    WriteLockGuard lk(rwLock_);
-    auto it = inflightCntlMap_.find(id);
-    if (it == inflightCntlMap_.end()) {
-        auto cntl = new (std::nothrow) InflightControl();
-        if (cntl == nullptr) {
-            LOG(ERROR) << "InflightControl allocate failed!";
-            return -1;
-        }
-        cntl->SetMaxInflightNum(opt.fileMaxInFlightRPCNum);
-        inflightCntlMap_.emplace(id, cntl);
-    }
-    return 0;
-}
-
-void RequestClosure::DeleteInflightCntl(IOManagerID id) {
-    WriteLockGuard lk(rwLock_);
-    auto it = inflightCntlMap_.find(id);
-    if (it != inflightCntlMap_.end()) {
-        delete it->second;
-        inflightCntlMap_.erase(it);
-    }
-}
-
 void RequestClosure::GetInflightRPCToken() {
-    ReadLockGuard lk(rwLock_);
-    auto it = inflightCntlMap_.find(managerID_);
-    if (it != inflightCntlMap_.end()) {
-        it->second->GetInflightToken();
+    if (ioManager_ != nullptr) {
+        ioManager_->GetInflightRpcToken();
         MetricHelper::IncremInflightRPC(metric_);
     }
 }
 
 void RequestClosure::ReleaseInflightRPCToken() {
-    ReadLockGuard lk(rwLock_);
-    auto it = inflightCntlMap_.find(managerID_);
-    if (it != inflightCntlMap_.end()) {
-        it->second->ReleaseInflightToken();
+    if (ioManager_ != nullptr) {
+        ioManager_->ReleaseInflightRpcToken();
         MetricHelper::DecremInflightRPC(metric_);
     }
 }

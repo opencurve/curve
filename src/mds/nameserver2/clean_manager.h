@@ -35,7 +35,7 @@ class CleanManager : public CleanManagerInterface {
  public:
     explicit CleanManager(std::shared_ptr<CleanCore> core,
                 std::shared_ptr<CleanTaskManager> taskMgr,
-                NameServerStorage *storage);
+                std::shared_ptr<NameServerStorage> storage);
 
     bool Start(void);
 
@@ -51,8 +51,7 @@ class CleanManager : public CleanManagerInterface {
     std::shared_ptr<Task> GetTask(TaskIDType id) override;
 
  private:
-    // TODO(hzsunjianliang): change to std::shared_ptr
-    NameServerStorage *storage_;
+    std::shared_ptr<NameServerStorage> storage_;
     std::shared_ptr<CleanCore> cleanCore_;
     std::shared_ptr<CleanTaskManager> taskMgr_;
 };

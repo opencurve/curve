@@ -95,10 +95,12 @@ TEST_F(CopysetNodeManagerTest, ServiceNotStartTest) {
     CopysetNodeManager *copysetNodeManager = &CopysetNodeManager::GetInstance();
 
     ASSERT_EQ(0, copysetNodeManager->Init(defaultOptions_));
+    ASSERT_FALSE(copysetNodeManager->LoadFinished());
     ASSERT_EQ(0, copysetNodeManager->Run());
     ASSERT_FALSE(copysetNodeManager->CreateCopysetNode(logicPoolId,
                                                        copysetId,
                                                        conf));
+    ASSERT_TRUE(copysetNodeManager->LoadFinished());
 
     /* null server */
     {

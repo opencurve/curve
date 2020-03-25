@@ -23,7 +23,7 @@
 #include "proto/nameserver2.pb.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
-#include "src/client/libcurve_define.h"
+#include "include/client/libcurve.h"
 #include "src/client/metacache_struct.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/concurrent/concurrent.h"
@@ -37,7 +37,7 @@ using curve::common::Authenticator;
 namespace curve {
 namespace client {
 class MetaCache;
-struct leaseRefreshResult;
+struct LeaseRefreshResult;
 
 // MDSClient是client与MDS通信的唯一窗口
 class MDSClient {
@@ -80,6 +80,7 @@ class MDSClient {
                             const UserInfo_t& userinfo,
                             FInfo_t* fi,
                             LeaseSession* lease);
+
     /**
      * 获取copysetid对应的serverlist信息并更新到metacache
      * @param: logicPoolId逻辑池信息
@@ -219,7 +220,7 @@ class MDSClient {
 
     /**
      * 文件接口在打开文件的时候需要与mds保持心跳，refresh用来续约
-     * 续约结果将会通过leaseRefreshResult* resp返回给调用层
+     * 续约结果将会通过LeaseRefreshResult* resp返回给调用层
      * @param: filename是要续约的文件名
      * @param: sessionid是文件的session信息
      * @param: resp是mds端传递过来的lease信息
@@ -230,7 +231,8 @@ class MDSClient {
     LIBCURVE_ERROR RefreshSession(const std::string& filename,
                             const UserInfo_t& userinfo,
                             const std::string& sessionid,
-                            leaseRefreshResult* resp);
+                            LeaseRefreshResult* resp,
+                            LeaseSession* lease = nullptr);
     /**
      * 关闭文件，需要携带sessionid，这样mds端会在数据库删除该session信息
      * @param: filename是要续约的文件名
@@ -357,6 +359,15 @@ class MDSClient {
       */
     LIBCURVE_ERROR GetChunkServerID(const ChunkServerAddr& addr,
                                     ChunkServerID* id);
+
+     /**
+      * 获取server上所有chunkserver的id
+      * @param[in]: ip为server的ip地址
+      * @param[out]: csIds用于保存chunkserver的id
+      * @return: 成功返回LIBCURVE_ERROR::OK，失败返回LIBCURVE_ERROR::FAILED
+      */
+    LIBCURVE_ERROR ListChunkServerInServer(const std::string& ip,
+                                           std::vector<ChunkServerID>* csIds);
 
      /**
       * 析构，回收资源

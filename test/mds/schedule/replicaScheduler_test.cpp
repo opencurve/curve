@@ -24,16 +24,25 @@ namespace mds {
 namespace schedule {
 class TestReplicaSchedule : public ::testing::Test {
  protected:
-  TestReplicaSchedule() {}
-  ~TestReplicaSchedule() {}
+    TestReplicaSchedule() {}
+    ~TestReplicaSchedule() {}
 
-  void SetUp() override {
-      auto topo = std::make_shared<MockTopology>();
-      auto metric = std::make_shared<ScheduleMetrics>(topo);
-      opController_ = std::make_shared<OperatorController>(2, metric);
-      topoAdapter_ = std::make_shared<MockTopoAdapter>();
-      replicaScheduler_ = std::make_shared<ReplicaScheduler>(
-          opController_, 1, 10, 100, 1000, 1000, 0.2, topoAdapter_);
+    void SetUp() override {
+        auto topo = std::make_shared<MockTopology>();
+        auto metric = std::make_shared<ScheduleMetrics>(topo);
+        opController_ = std::make_shared<OperatorController>(2, metric);
+        topoAdapter_ = std::make_shared<MockTopoAdapter>();
+
+        ScheduleOption opt;
+        opt.transferLeaderTimeLimitSec = 10;
+        opt.removePeerTimeLimitSec = 100;
+        opt.addPeerTimeLimitSec = 1000;
+        opt.changePeerTimeLimitSec = 1000;
+        opt.recoverSchedulerIntervalSec = 1;
+        opt.scatterWithRangePerent = 0.2;
+        opt.replicaSchedulerIntervalSec = 1;
+        replicaScheduler_ = std::make_shared<ReplicaScheduler>(
+            opt, topoAdapter_, opController_);
   }
 
   void TearDown() override {
@@ -91,7 +100,8 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectNone) {
         .WillOnce(Return(3));
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillOnce(Return(std::vector<CopySetInfo>({testCopySetInfo})));
-    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(UNINTIALIZE_ID, _))
+        .Times(0);
     EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(_))
             .WillOnce(Return(std::vector<ChunkServerInfo>{}));
     replicaScheduler_->Schedule();
@@ -120,7 +130,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_conExceed) {
 
     std::vector<ChunkServerInfo> chunkserverList(
         {csInfo1, csInfo2, csInfo3});
-    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).Times(0);
     EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(_))
         .WillOnce(Return(chunkserverList));
     EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInLogicalPool(_))
@@ -160,7 +170,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectCorrect) {
 
     std::vector<ChunkServerInfo> chunkserverList(
         {csInfo1, csInfo2, csInfo3});
-    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).Times(0);
     EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(_))
         .WillOnce(Return(chunkserverList));
     EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInLogicalPool(_))
@@ -211,7 +221,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_createErr) {
 
     std::vector<ChunkServerInfo> chunkserverList(
         {csInfo1, csInfo2, csInfo3});
-    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).Times(0);
     EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(_))
         .WillOnce(Return(chunkserverList));
     EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInLogicalPool(_))

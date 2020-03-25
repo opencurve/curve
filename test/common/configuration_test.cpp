@@ -319,5 +319,23 @@ TEST_F(ConfigurationTest, TestMetric) {
                  "{\"conf_name\":\"key3\",\"conf_value\":\"1\"}");
 }
 
+TEST_F(ConfigurationTest, TestGetValueFatalIfFail) {
+    Configuration conf;
+    int value1;
+    std::string value2;
+    bool value3;
+    uint32_t value4;
+    uint64_t value5;
+    float value6;
+    double value7;
+    ASSERT_DEATH(conf.GetValueFatalIfFail("key1", &value1), "");
+    ASSERT_DEATH(conf.GetValueFatalIfFail("key2", &value2), "");
+    ASSERT_DEATH(conf.GetValueFatalIfFail("key3", &value3), "");
+    ASSERT_DEATH(conf.GetValueFatalIfFail("key4", &value4), "");
+    ASSERT_DEATH(conf.GetValueFatalIfFail("key5", &value5), "");
+    ASSERT_DEATH(conf.GetValueFatalIfFail("key6", &value6), "");
+    ASSERT_DEATH(conf.GetValueFatalIfFail("key7", &value7), "");
+}
+
 }  // namespace common
 }  // namespace curve
