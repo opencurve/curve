@@ -33,6 +33,7 @@ int LeaderElection::CampaginLeader() {
 void LeaderElection::StartObserverLeader() {
     Thread t(&LeaderElection::ObserveLeader, this);
     t.detach();
+    LOG(INFO) << "Leader Start Observer Self";
 }
 
 int LeaderElection::LeaderResign() {

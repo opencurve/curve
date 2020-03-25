@@ -278,15 +278,6 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
             << ", error msg = " << StatusCode_Name(stcode)
             << ", log id = " << cntl->log_id();
 
-        // 如果当前文件返回值为被占用，那么就继续重试。
-        // 为什么需要重试：
-        //      发起第一open请求之后因为网络抖动，导致rpc超时，但是这个rpc在
-        //      mds一侧已经生效了，所以下一次重试会返回occupied，所以需要重试
-        //      这个请求，避免是因为自己的rpc超时导致的occupied。
-        if (retcode == LIBCURVE_ERROR::FILE_OCCUPIED) {
-            return -retcode;
-        }
-
         bool flag = response.has_protosession() && response.has_fileinfo();
         if (flag) {
             ProtoSession leasesession = response.protosession();
@@ -631,7 +622,7 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
 
 LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
     const UserInfo_t& userinfo, const std::string& sessionid,
-    leaseRefreshResult* resp) {
+    LeaseRefreshResult* resp, LeaseSession* lease) {
     auto task = RPCTaskDefine {
         ReFreshSessionResponse response;
         mdsClientMetric_.refreshSession.qps.count << 1;
@@ -664,24 +655,34 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
         switch (stcode) {
             case StatusCode::kSessionNotExist:
             case StatusCode::kFileNotExists:
-                resp->status = leaseRefreshResult::Status::NOT_EXIST;
+                resp->status = LeaseRefreshResult::Status::NOT_EXIST;
                 break;
             case StatusCode::kOwnerAuthFail:
-                resp->status = leaseRefreshResult::Status::FAILED;
+                resp->status = LeaseRefreshResult::Status::FAILED;
                 return LIBCURVE_ERROR::AUTHFAIL;
                 break;
             case StatusCode::kOK:
                 if (response.has_fileinfo()) {
                     FileInfo finfo = response.fileinfo();
                     ServiceHelper::ProtoFileInfo2Local(&finfo, &resp->finfo);
-                    resp->status = leaseRefreshResult::Status::OK;
+                    resp->status = LeaseRefreshResult::Status::OK;
                 } else {
                     LOG(WARNING) << "session response has no fileinfo!";
                     return LIBCURVE_ERROR::FAILED;
                 }
+                if (nullptr != lease) {
+                    if (!response.has_protosession()) {
+                        LOG(ERROR) << "session response has no protosession";
+                        return LIBCURVE_ERROR::FAILED;
+                    }
+                    ProtoSession leasesession = response.protosession();
+                    lease->sessionID = leasesession.sessionid();
+                    lease->leaseTime = leasesession.leasetime();
+                    lease->createTime = leasesession.createtime();
+                }
                 break;
             default:
-                resp->status = leaseRefreshResult::Status::FAILED;
+                resp->status = LeaseRefreshResult::Status::FAILED;
                 return LIBCURVE_ERROR::FAILED;
                 break;
         }
@@ -1153,6 +1154,45 @@ LIBCURVE_ERROR MDSClient::GetChunkServerID(const ChunkServerAddr& csAddr,
             return LIBCURVE_ERROR::FAILED;
         }
     };
+    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
+}
+
+LIBCURVE_ERROR MDSClient::ListChunkServerInServer(
+    const std::string& serverIp,
+    std::vector<ChunkServerID>* csIds) {
+    auto task = RPCTaskDefine {
+        curve::mds::topology::ListChunkServerResponse response;
+
+        mdsClientBase_.ListChunkServerInServer(
+            serverIp, &response, cntl, channel);
+
+        if (cntl->Failed()) {
+            LOG(WARNING) << "ListChunkServerInServer failed, "
+                << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        int statusCode = response.statuscode();
+        LOG_IF(ERROR, statusCode != 0)
+            << "ListChunkServerInServer failed, "
+            << "errorcode = " << response.statuscode()
+            << ", chunkserver ip = " << serverIp
+            << ", log id = " << cntl->log_id();
+
+        if (statusCode == 0) {
+            csIds->reserve(response.chunkserverinfos_size());
+            for (int i = 0; i < response.chunkserverinfos_size(); ++i) {
+                csIds->emplace_back(
+                    response.chunkserverinfos(i).chunkserverid());
+            }
+
+            return LIBCURVE_ERROR::OK;
+        } else {
+            return LIBCURVE_ERROR::FAILED;
+        }
+    };
+
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
 }
 

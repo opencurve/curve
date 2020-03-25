@@ -17,7 +17,7 @@
 #include <condition_variable>   // NOLINT
 
 #include "src/client/mds_client.h"
-#include "src/client/libcurve_define.h"
+#include "include/client/libcurve.h"
 #include "include/curve_compiler_specific.h"
 #include "src/client/client_common.h"
 #include "src/client/service_helper.h"
@@ -51,7 +51,21 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
      * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
      */
     int Open(const std::string& filename,
-                        UserInfo_t userinfo);
+             const UserInfo& userinfo,
+             std::string* sessionId = nullptr);
+
+    /**
+     * 重新打开文件
+     * @param filename为文件名
+     * @param sessionId为上次打开文件时返回的sessionid
+     * @param userInfo为user信息
+     * @param[out] newSessionId为ReOpen成功时返回的新sessionid
+     * @return 成功返回LIBCURVE_ERROR::OK, 否则LIBCURVE_ERROR::FAILED
+     */
+    int ReOpen(const std::string& filenam,
+               const std::string& sessionId,
+               const UserInfo& userInfo,
+               std::string* newSessionId);
     /**
      * 同步模式读
      * @param: buf为当前待读取的缓冲区
@@ -95,6 +109,15 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     }
 
     int GetFileInfo(const std::string& filename, FInfo_t* fi);
+
+    /**
+     * @brief 获取当前instance对应的文件信息
+     *
+     * @return 当前instance对应文件的信息
+     */
+    FInfo GetCurrentFileInfo() const {
+       return finfo_;
+    }
 
  private:
     // 保存当前file的文件信息

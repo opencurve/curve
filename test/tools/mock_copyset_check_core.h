@@ -26,6 +26,7 @@ class MockCopysetCheckCore : public CopysetCheckCore {
     MockCopysetCheckCore() : CopysetCheckCore(std::make_shared<MDSClient>(),
                                     std::make_shared<ChunkServerClient>()) {}
     ~MockCopysetCheckCore() {}
+    MOCK_METHOD1(Init, int(const std::string&));
     MOCK_METHOD2(CheckOneCopyset, int(const PoolIdType&,
                                       const CopySetIdType&));
     MOCK_METHOD1(CheckCopysetsOnChunkServer, int(const ChunkServerIdType&));
@@ -41,6 +42,10 @@ class MockCopysetCheckCore : public CopysetCheckCore {
     MOCK_CONST_METHOD0(GetCopysetDetail, const std::string&());
     MOCK_CONST_METHOD0(GetServiceExceptionChunkServer,
                        const std::set<std::string>&());
+    MOCK_CONST_METHOD0(GetCopysetLoadExceptionChunkServer,
+                       const std::set<std::string>&());
+    MOCK_METHOD2(CheckOperator, int(const std::string&, uint64_t));
+    MOCK_METHOD1(CheckChunkServerOnline, bool(const std::string&));
 };
 }  // namespace tool
 }  // namespace curve

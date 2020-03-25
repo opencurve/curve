@@ -36,7 +36,7 @@ class ScheduleMetrics {
     addOpNum(ScheduleMetricsPrefix, "addPeer_num"),
     removeOpNum(ScheduleMetricsPrefix, "removePeer_num"),
     transferOpNum(ScheduleMetricsPrefix, "transferLeader_num"),
-    changeOpNum(ScheduleMetricsPrefix, "chanegPeer_num"),
+    changeOpNum(ScheduleMetricsPrefix, "changePeer_num"),
     normalOpNum(ScheduleMetricsPrefix, "normal_operator_num"),
     highOpNum(ScheduleMetricsPrefix, "high_operator_num"),
     topo_(topo) {}

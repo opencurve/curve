@@ -14,14 +14,11 @@ using ::testing::Return;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
 
-uint64_t segmentSize = 1 * 1024 * 1024 * 1024ul;   // NOLINT
-uint64_t chunkSize = 16 * 1024 * 1024;   // NOLINT
-
 DECLARE_bool(isTest);
 DECLARE_string(fileName);
 DECLARE_uint64(offset);
-DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
-DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
+DECLARE_bool(showAllocSize);
+DECLARE_bool(showFileSize);
 
 class NameSpaceToolTest : public ::testing::Test {
  protected:
@@ -33,6 +30,8 @@ class NameSpaceToolTest : public ::testing::Test {
     }
     void TearDown() {
         core_ = nullptr;
+        FLAGS_showFileSize = true;
+        FLAGS_showAllocSize = true;
     }
 
     void GetFileInfoForTest(FileInfo* fileInfo) {
@@ -63,19 +62,42 @@ class NameSpaceToolTest : public ::testing::Test {
             chunk->set_chunkid(2000 + i);
         }
     }
+    uint64_t segmentSize = 1 * 1024 * 1024 * 1024ul;
+    uint64_t chunkSize = 16 * 1024 * 1024;
     std::shared_ptr<curve::tool::MockNameSpaceToolCore> core_;
 };
+
+TEST_F(NameSpaceToolTest, SupportCommand) {
+    curve::tool::NameSpaceTool namespaceTool(core_);
+    ASSERT_TRUE(namespaceTool.SupportCommand("get"));
+    ASSERT_TRUE(namespaceTool.SupportCommand("list"));
+    ASSERT_TRUE(namespaceTool.SupportCommand("seginfo"));
+    ASSERT_TRUE(namespaceTool.SupportCommand("delete"));
+    ASSERT_TRUE(namespaceTool.SupportCommand("clean-recycle"));
+    ASSERT_TRUE(namespaceTool.SupportCommand("create"));
+    ASSERT_TRUE(namespaceTool.SupportCommand("chunk-location"));
+    ASSERT_FALSE(namespaceTool.SupportCommand("none"));
+}
 
 TEST_F(NameSpaceToolTest, GetFile) {
     curve::tool::NameSpaceTool namespaceTool(core_);
     namespaceTool.PrintHelp("abc");
-    ASSERT_EQ(-1, namespaceTool.RunCommand("abc"));
     namespaceTool.PrintHelp("get");
     FileInfo fileInfo;
     GetFileInfoForTest(&fileInfo);
     PageFileSegment segment;
     GetSegmentForTest(&segment);
     FLAGS_fileName = "/test/";
+    // 0、Init失败
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, namespaceTool.RunCommand("get"));
+
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    ASSERT_EQ(-1, namespaceTool.RunCommand("abc"));
 
     // 1、正常情况
     EXPECT_CALL(*core_, GetFileInfo(_, _))
@@ -103,6 +125,41 @@ TEST_F(NameSpaceToolTest, GetFile) {
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.RunCommand("get"));
+
+    // 4、get的是目录的话还要计算file size
+    FileInfo fileInfo2;
+    GetFileInfoForTest(&fileInfo2);
+    fileInfo2.set_filetype(curve::mds::FileType::INODE_DIRECTORY);
+    EXPECT_CALL(*core_, GetFileInfo(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+                        Return(0)));
+    EXPECT_CALL(*core_, GetAllocatedSize(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(10 * segmentSize),
+                        Return(0)));
+    EXPECT_CALL(*core_, GetFileSize(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(10 * segmentSize),
+                        Return(0)));
+    ASSERT_EQ(0, namespaceTool.RunCommand("get"));
+
+    // 5、指定了-showAllocSize=false的话不计算分配大小
+    FLAGS_showAllocSize = false;
+    EXPECT_CALL(*core_, GetFileInfo(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
+                        Return(0)));
+    ASSERT_EQ(0, namespaceTool.RunCommand("get"));
+
+    // 6、对目录指定了-showFileSize=false的话不计算文件大小
+    FLAGS_showFileSize = false;
+    FLAGS_showAllocSize = false;
+    EXPECT_CALL(*core_, GetFileInfo(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+                        Return(0)));
+    ASSERT_EQ(0, namespaceTool.RunCommand("get"));
 }
 
 TEST_F(NameSpaceToolTest, ListDir) {
@@ -112,6 +169,9 @@ TEST_F(NameSpaceToolTest, ListDir) {
     GetFileInfoForTest(&fileInfo);
     PageFileSegment segment;
     GetSegmentForTest(&segment);
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
 
     // 1、正常情况
     std::vector<FileInfo> files;
@@ -137,7 +197,7 @@ TEST_F(NameSpaceToolTest, ListDir) {
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.RunCommand("list"));
 
-    // 3、计算大小失败,个别的文件计算大小失败不应该返回错误
+    // 3、计算大小失败,个别的文件计算大小失败会继续计算，但是返回-1
     EXPECT_CALL(*core_, ListDir(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(files),
@@ -146,6 +206,37 @@ TEST_F(NameSpaceToolTest, ListDir) {
         .Times(3)
         .WillOnce(Return(-1))
         .WillRepeatedly(DoAll(SetArgPointee<1>(10 * segmentSize),
+                        Return(0)));
+    ASSERT_EQ(-1, namespaceTool.RunCommand("list"));
+
+    // 4、指定了-showAllocSize=false的话不计算分配大小
+    FLAGS_showAllocSize = false;
+    EXPECT_CALL(*core_, ListDir(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(files),
+                        Return(0)));
+    ASSERT_EQ(0, namespaceTool.RunCommand("list"));
+
+    // 4、list的时候有目录的话计算fileSize
+    FileInfo fileInfo2;
+    GetFileInfoForTest(&fileInfo2);
+    fileInfo2.set_filetype(curve::mds::FileType::INODE_DIRECTORY);
+    files.emplace_back(fileInfo2);
+    EXPECT_CALL(*core_, ListDir(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(files),
+                        Return(0)));
+    EXPECT_CALL(*core_, GetFileSize(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(10 * segmentSize),
+                        Return(0)));
+    ASSERT_EQ(0, namespaceTool.RunCommand("list"));
+
+    // 5、指定了-showFileSize=false的话不计算文件大小
+    FLAGS_showFileSize = false;
+    EXPECT_CALL(*core_, ListDir(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(files),
                         Return(0)));
     ASSERT_EQ(0, namespaceTool.RunCommand("list"));
 }
@@ -160,6 +251,9 @@ TEST_F(NameSpaceToolTest, SegInfo) {
         segments.emplace_back(segment);
     }
     FLAGS_fileName = "/test";
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
 
     // 1、正常情况
     EXPECT_CALL(*core_, GetFileSegments(_, _))
@@ -178,6 +272,9 @@ TEST_F(NameSpaceToolTest, SegInfo) {
 TEST_F(NameSpaceToolTest, CreateFile) {
     curve::tool::NameSpaceTool namespaceTool(core_);
     namespaceTool.PrintHelp("create");
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
 
     // 1、正常情况
     EXPECT_CALL(*core_, CreateFile(_, _))
@@ -195,6 +292,9 @@ TEST_F(NameSpaceToolTest, CreateFile) {
 TEST_F(NameSpaceToolTest, DeleteFile) {
     curve::tool::NameSpaceTool namespaceTool(core_);
     namespaceTool.PrintHelp("delete");
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
 
     // 1、正常情况
     EXPECT_CALL(*core_, DeleteFile(_, _))
@@ -212,6 +312,9 @@ TEST_F(NameSpaceToolTest, DeleteFile) {
 TEST_F(NameSpaceToolTest, CleanRecycle) {
     curve::tool::NameSpaceTool namespaceTool(core_);
     namespaceTool.PrintHelp("clean-recycle");
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
 
     // 1、正常情况
     EXPECT_CALL(*core_, CleanRecycleBin(_))
@@ -237,6 +340,9 @@ TEST_F(NameSpaceToolTest, PrintChunkLocation) {
     }
     uint64_t chunkId = 2001;
     std::pair<uint32_t, uint32_t> copyset = {1, 101};
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
 
     // 1、正常情况
     EXPECT_CALL(*core_, QueryChunkCopyset(_, _, _, _))
@@ -244,7 +350,7 @@ TEST_F(NameSpaceToolTest, PrintChunkLocation) {
         .WillOnce(DoAll(SetArgPointee<2>(chunkId),
                         SetArgPointee<3>(copyset),
                         Return(0)));
-    EXPECT_CALL(*core_, GetChunkServerListInCopySets(_, _, _))
+    EXPECT_CALL(*core_, GetChunkServerListInCopySet(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(csLocs),
                         Return(0)));
@@ -256,13 +362,13 @@ TEST_F(NameSpaceToolTest, PrintChunkLocation) {
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.RunCommand("chunk-location"));
 
-    // 3、GetChunkServerListInCopySets失败
+    // 3、GetChunkServerListInCopySet失败
     EXPECT_CALL(*core_, QueryChunkCopyset(_, _, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(chunkId),
                         SetArgPointee<3>(copyset),
                         Return(0)));
-    EXPECT_CALL(*core_, GetChunkServerListInCopySets(_, _, _))
+    EXPECT_CALL(*core_, GetChunkServerListInCopySet(_, _, _))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.RunCommand("chunk-location"));

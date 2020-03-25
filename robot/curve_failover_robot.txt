@@ -538,6 +538,7 @@ init abnormal test env
      destroy snapshotclone server
      drop all chunkserver dat
      drop abnormal test db
+     create abnormal db table
      install deb
      add config 
      start abnormal test services
@@ -549,12 +550,13 @@ init rw cloud disk
      remove vm key
      attach new vol   ${fio_vdsize}   ${vdbench_vdsize} 
      stop rwio
-     write full disk   ${fio_vdsize}
+     write full disk  ${fio_vdsize}
      run rwio
 
 clean failover env
      stop rwio
      check io error
+#     stop scheduler
      check copies consistency
      detach vol
      sleep  10

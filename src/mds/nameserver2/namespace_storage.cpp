@@ -358,6 +358,36 @@ StoreStatus NameServerStorageImp::ListFile(InodeID startid,
     return ListFileInternal(startStoreKey, endStoreKey, files);
 }
 
+StoreStatus NameServerStorageImp::ListSegment(InodeID id,
+                                    std::vector<PageFileSegment> *segments) {
+    std::string startStoreKey =
+                NameSpaceStorageCodec::EncodeSegmentStoreKey(id, 0);
+    std::string endStoreKey =
+                NameSpaceStorageCodec::EncodeSegmentStoreKey(id + 1, 0);
+
+    std::vector<std::string> out;
+    int errCode = client_->List(
+        startStoreKey, endStoreKey, &out);
+
+    if (errCode != EtcdErrCode::OK) {
+        LOG(ERROR) << "list segment err:" << errCode;
+        return getErrorCode(errCode);
+    }
+
+    for (int i = 0; i < out.size(); i++) {
+        PageFileSegment segment;
+        bool decodeOK = NameSpaceStorageCodec::DecodeSegment(out[i],
+                                                             &segment);
+        if (decodeOK) {
+            segments->emplace_back(segment);
+        } else {
+            LOG(ERROR) << "decode one segment err";
+            return StoreStatus::InternalError;
+        }
+    }
+    return StoreStatus::OK;
+}
+
 StoreStatus NameServerStorageImp::ListSnapshotFile(InodeID startid,
                                            InodeID endid,
                                            std::vector<FileInfo> *files) {

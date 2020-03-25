@@ -180,7 +180,7 @@ bool RecoverScheduler::FixOfflinePeer(
 void RecoverScheduler::CalculateExcludesChunkServer(
     std::set<ChunkServerIdType> *excludes) {
     // 统计每个server上offline 以及 pending状态的 chunkserver list
-    std::map<ServerIdType, std::vector<ChunkServerIdType>> offlineCS;
+    std::map<ServerIdType, std::vector<ChunkServerIdType>> unhealthyStateCS;
     std::set<ChunkServerIdType> pendingCS;
     for (auto cs : topo_->GetChunkServerInfos()) {
         // 统计pending状态
@@ -189,20 +189,20 @@ void RecoverScheduler::CalculateExcludesChunkServer(
             pendingCS.emplace(cs.info.id);
         }
 
-        if (!cs.IsOffline()) {
+        if (cs.IsOnline()) {
             continue;
         }
 
-        if (offlineCS.count(cs.info.serverId) <= 0) {
-            offlineCS[cs.info.serverId] =
+        if (unhealthyStateCS.count(cs.info.serverId) <= 0) {
+            unhealthyStateCS[cs.info.serverId] =
                 std::vector<ChunkServerIdType>{cs.info.id};
         } else {
-            offlineCS[cs.info.serverId].emplace_back(cs.info.id);
+            unhealthyStateCS[cs.info.serverId].emplace_back(cs.info.id);
         }
     }
 
-    // 检查server上offline的chunkserver是否超过tolerence
-    for (auto item : offlineCS) {
+    // 检查server上offline和miss状态的chunkserver是否超过tolerence
+    for (auto item : unhealthyStateCS) {
         if (item.second.size() < chunkserverFailureTolerance_) {
             continue;
         }

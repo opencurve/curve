@@ -94,14 +94,7 @@ function start() {
 }
 
 function start_one() {
-    num=`lsblk|grep chunkserver|wc -l`
     if [ $1 -lt 0 ]
-    then
-        echo "chunkserver num $1 is not ok"
-        return 1
-    fi
-
-    if [ $1 -gt $num ]
     then
         echo "chunkserver num $1 is not ok"
         return 1
@@ -238,12 +231,6 @@ function status() {
 function status_one() {
     num=`lsblk|grep chunkserver|wc -l`
     if [ $1 -lt 0 ]
-    then
-        echo "chunkserver num $1 is not ok"
-        return 1
-    fi
-
-    if [ $1 -gt $num ]
     then
         echo "chunkserver num $1 is not ok"
         return 1

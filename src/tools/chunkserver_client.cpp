@@ -22,7 +22,7 @@ int ChunkServerClient::Init(const std::string& csAddr) {
     return 0;
 }
 
-int ChunkServerClient::GetCopysetStatus(butil::IOBuf* iobuf) {
+int ChunkServerClient::GetRaftStatus(butil::IOBuf* iobuf) {
     if (!iobuf) {
         std::cout << "The argument is a null pointer!" << std::endl;
         return -1;
@@ -72,5 +72,35 @@ bool ChunkServerClient::CheckChunkServerOnline() {
     return false;
 }
 
+int ChunkServerClient::GetCopysetStatus(
+                                const CopysetStatusRequest& request,
+                                CopysetStatusResponse* response) {
+    brpc::Controller cntl;
+    curve::chunkserver::CopysetService_Stub stub(&channel_);
+    uint64_t retryTimes = 0;
+    while (retryTimes < FLAGS_rpcRetryTimes) {
+        cntl.Reset();
+        cntl.set_timeout_ms(FLAGS_rpcTimeout);
+        stub.GetCopysetStatus(&cntl, &request, response, nullptr);
+        if (cntl.Failed()) {
+            retryTimes++;
+            continue;
+        }
+        if (response->status() !=
+                        COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS) {
+            std::cout << "GetCopysetStatus fail, request: "
+                      << request.DebugString()
+                      << ", errCode: "
+                      << response->status() << std::endl;
+            return -1;
+        } else {
+            return 0;
+        }
+    }
+    // 只打最后一次失败的原因
+    std::cout << "Send RPC to chunkserver fail, error content: "
+              << cntl.ErrorText() << std::endl;
+    return -1;
+}
 }  // namespace tool
 }  // namespace curve

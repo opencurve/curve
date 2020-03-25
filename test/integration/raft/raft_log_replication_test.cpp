@@ -509,6 +509,7 @@ TEST_F(RaftLogReplicationTest, ThreeNodeLogReplicationToOldFollwer) {
     // 5. 拉起挂掉的follower
     ASSERT_EQ(0, cluster.StartPeer(followerPeers[0],
                                    PeerCluster::PeerToId(followerPeers[0])));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -603,6 +604,7 @@ TEST_F(RaftLogReplicationTest, FourNodeKill) {
     // 3. old leader拉起来
     ASSERT_EQ(0, cluster.StartPeer(leaderPeer,
                                    PeerCluster::PeerToId(leaderPeer)));
+    ASSERT_EQ(0, cluster.WaitLeader(&newLeader));
     WriteThenReadVerify(newLeader,
                         logicPoolId,
                         copysetId,
@@ -627,6 +629,7 @@ TEST_F(RaftLogReplicationTest, FourNodeKill) {
     // 5. follower拉起来
     ASSERT_EQ(0, cluster.StartPeer(followerPeers1[0],
                                    PeerCluster::PeerToId(followerPeers1[0])));
+    ASSERT_EQ(0, cluster.WaitLeader(&newLeader));
     WriteThenReadVerify(newLeader,
                         logicPoolId,
                         copysetId,
@@ -727,6 +730,7 @@ TEST_F(RaftLogReplicationTest, FourNodeKill) {
                         loop);
     ASSERT_EQ(0, cluster.StartPeer(followerPeers2[1],
                                    PeerCluster::PeerToId(followerPeers2[1])));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -776,6 +780,7 @@ TEST_F(RaftLogReplicationTest, FourNodeKill) {
 
     ASSERT_EQ(0, cluster.StartPeer(followerPeers3[2],
                                    PeerCluster::PeerToId(followerPeers3[2])));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1125,6 +1130,7 @@ TEST_F(RaftLogReplicationTest, FiveNodeKill) {
     // 3. old leader拉起来
     ASSERT_EQ(0, cluster.StartPeer(leaderPeer,
                                    PeerCluster::PeerToId(leaderPeer)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     WriteThenReadVerify(newLeader,
                         logicPoolId,
                         copysetId,
@@ -1149,6 +1155,7 @@ TEST_F(RaftLogReplicationTest, FiveNodeKill) {
     // 5. follower拉起来
     ASSERT_EQ(0, cluster.StartPeer(followerPeers1[0],
                                    PeerCluster::PeerToId(followerPeers1[0])));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     WriteThenReadVerify(newLeader,
                         logicPoolId,
                         copysetId,
@@ -1174,6 +1181,7 @@ TEST_F(RaftLogReplicationTest, FiveNodeKill) {
     // 7. 拉起1个follower
     ASSERT_EQ(0, cluster.StartPeer(followerPeers2[0],
                                    PeerCluster::PeerToId(followerPeers2[0])));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     WriteThenReadVerify(newLeader,
                         logicPoolId,
                         copysetId,
@@ -1235,6 +1243,7 @@ TEST_F(RaftLogReplicationTest, FiveNodeKill) {
                         loop);
     ASSERT_EQ(0, cluster.StartPeer(shutdownFollower,
                                    PeerCluster::PeerToId(shutdownFollower)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1244,6 +1253,7 @@ TEST_F(RaftLogReplicationTest, FiveNodeKill) {
                         loop);
     ASSERT_EQ(0, cluster.StartPeer(followerPeers2[1],
                                    PeerCluster::PeerToId(followerPeers2[1])));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1282,6 +1292,7 @@ TEST_F(RaftLogReplicationTest, FiveNodeKill) {
 
     ASSERT_EQ(0, cluster.StartPeer(followerPeers3[1],
                                    PeerCluster::PeerToId(followerPeers3[1])));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1292,6 +1303,7 @@ TEST_F(RaftLogReplicationTest, FiveNodeKill) {
 
     ASSERT_EQ(0, cluster.StartPeer(followerPeers3[2],
                                    PeerCluster::PeerToId(followerPeers3[2])));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,

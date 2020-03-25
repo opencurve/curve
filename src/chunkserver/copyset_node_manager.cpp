@@ -147,6 +147,10 @@ int CopysetNodeManager::ReloadCopysets() {
     return 0;
 }
 
+bool CopysetNodeManager::LoadFinished() {
+    return loadFinished_.load(std::memory_order_acquire);
+}
+
 void CopysetNodeManager::LoadCopyset(const LogicPoolID &logicPoolId,
                                      const CopysetID &copysetId,
                                      bool needCheckLoadFinished) {

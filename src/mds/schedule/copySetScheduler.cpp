@@ -32,7 +32,7 @@ int CopySetScheduler::DoCopySetSchedule(PoolIdType lid) {
     auto copysetList = topo_->GetCopySetInfosInLogicalPool(lid);
     auto chunkserverList = topo_->GetChunkServersInLogicalPool(lid);
     std::map<ChunkServerIdType, std::vector<CopySetInfo>> distribute;
-    CopySetDistributionInOnlineChunkServer(
+    SchedulerHelper::CopySetDistributionInOnlineChunkServer(
         copysetList, chunkserverList, &distribute);
     if (distribute.empty()) {
         LOG(WARNING) << "no not-retired chunkserver in topology";
@@ -132,33 +132,6 @@ void CopySetScheduler::StatsCopysetDistribute(
               << "}, {min:" << min << ",minCsId:" << mincsId
               << "}, range:" << *range << ", stdvariance:" << *stdvariance
               << ", variance:" << variance << ")";
-}
-
-void CopySetScheduler::CopySetDistributionInOnlineChunkServer(
-    const std::vector<CopySetInfo> &copysetList,
-    const std::vector<ChunkServerInfo> &chunkserverList,
-    std::map<ChunkServerIdType, std::vector<CopySetInfo>> *out) {
-    // 跟据copyset统计每个chunkserver上的copysetList
-    for (auto item : copysetList) {
-        for (auto peer : item.peers) {
-            if (out->find(peer.id) == out->end()) {
-                (*out)[peer.id] = std::vector<CopySetInfo>{item};
-            } else {
-                (*out)[peer.id].emplace_back(item);
-            }
-        }
-    }
-
-    // chunkserver上没有copyset的设置为空, 并且移除offline状态下的copyset
-    for (auto item : chunkserverList) {
-        if (item.IsOffline()) {
-            out->erase(item.info.id);
-            continue;
-        }
-        if (out->find(item.info.id) == out->end()) {
-            (*out)[item.info.id] = std::vector<CopySetInfo>{};
-        }
-    }
 }
 
 /**

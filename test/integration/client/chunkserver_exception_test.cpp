@@ -23,6 +23,7 @@
 #include "src/client/inflight_controller.h"
 #include "test/integration/client/common/file_operation.h"
 #include "test/integration/cluster_common/cluster.h"
+#include "test/util/config_generator.h"
 
 bool resumeFlag = false;
 uint64_t ioFailedCount = 0;
@@ -47,9 +48,13 @@ const std::vector<std::string> chunkserverConf4{
     {" -recycleUri=local://./moduleException4/recycler"},
     {" -chunkFilePoolDir=./moduleException4/chunkfilepool/"},
     {" -chunkFilePoolMetaPath=./moduleException4/chunkfilepool.meta"},
-    {" -conf=./test/integration/client/config/chunkserver.conf.3"},
+    {" -conf=./conf/chunkserver.conf.example"},
     {" -raft_sync_segments=true"},
-    {" --log_dir=./runlog/ChunkserverException"}
+    {" --log_dir=./runlog/ChunkserverException"},
+    {" -chunkServerIp=127.0.0.1"},
+    {" -chunkServerPort=22125"},
+    {" -enableChunkfilepool=false"},
+    {" -mdsListenAddr=127.0.0.1:22122,127.0.0.1:22123,127.0.0.1:22124"}
 };
 
 const std::vector<std::string> chunkserverConf5{
@@ -59,9 +64,13 @@ const std::vector<std::string> chunkserverConf5{
     {" -recycleUri=local://./moduleException5/recycler"},
     {" -chunkFilePoolDir=./moduleException5/chunkfilepool/"},
     {" -chunkFilePoolMetaPath=./moduleException5/chunkfilepool.meta"},
-    {" -conf=./test/integration/client/config/chunkserver.conf.4"},
+    {" -conf=./conf/chunkserver.conf.example"},
     {" -raft_sync_segments=true"},
-    {" --log_dir=./runlog/ChunkserverException"}
+    {" --log_dir=./runlog/ChunkserverException"},
+    {" -chunkServerIp=127.0.0.1"},
+    {" -chunkServerPort=22126"},
+    {" -enableChunkfilepool=false"},
+    {" -mdsListenAddr=127.0.0.1:22122,127.0.0.1:22123,127.0.0.1:22124"}
 };
 
 const std::vector<std::string> chunkserverConf6{
@@ -71,14 +80,28 @@ const std::vector<std::string> chunkserverConf6{
     {" -recycleUri=local://./moduleException6/recycler"},
     {" -chunkFilePoolDir=./moduleException6/chunkfilepool/"},
     {" -chunkFilePoolMetaPath=./moduleException6/chunkfilepool.meta"},
-    {" -conf=./test/integration/client/config/chunkserver.conf.5"},
+    {" -conf=./conf/chunkserver.conf.example"},
     {" -raft_sync_segments=true"},
-    {" --log_dir=./runlog/ChunkserverException"}
+    {" --log_dir=./runlog/ChunkserverException"},
+    {" -chunkServerIp=127.0.0.1"},
+    {" -chunkServerPort=22127"},
+    {" -enableChunkfilepool=false"},
+    {" -mdsListenAddr=127.0.0.1:22122,127.0.0.1:22123,127.0.0.1:22124"}
 };
 
+std::string mdsaddr = "127.0.0.1:22122,127.0.0.1:22123,127.0.0.1:22124";    // NOLINT
+std::string logpath = "./runlog/ChunkserverException";    // NOLINT
+
+const std::vector<std::string> clientConf {
+    std::string("mds.listen.addr=") + mdsaddr,
+    std::string("global.logPath=") + logpath,
+    std::string("chunkserver.rpcTimeoutMS=1000"),
+    std::string("chunkserver.opMaxRetry=10"),
+};
 class CSModuleException : public ::testing::Test {
  public:
     void SetUp() {
+        std::string confPath = "./test/integration/client/config/client.conf.1";
         system("mkdir ./runlog/ChunkserverException");
         system("rm -rf module_exception_test_chunkserver.etcd");
         system("rm -rf moduleException4 moduleException5 moduleException6");
@@ -86,20 +109,26 @@ class CSModuleException : public ::testing::Test {
         cluster = new CurveCluster();
         ASSERT_NE(nullptr, cluster);
 
+        cluster->PrepareConfig<curve::ClientConfigGenerator>(
+            confPath, clientConf);
+
         // 0. 初始化db
         cluster->InitDB("module_exception_curve_chunkserver");
         cluster->mdsRepo_->dropDataBase();
+        cluster->mdsRepo_->createDatabase();
+        cluster->mdsRepo_->useDataBase();
+        cluster->mdsRepo_->createAllTables();
 
         // 1. 启动etcd
         cluster->StartSingleEtcd(1, "127.0.0.1:22233", "127.0.0.1:22234",
         std::vector<std::string>{" --name module_exception_test_chunkserver"});
 
         // 2. 先启动一个mds，让其成为leader，然后再启动另外两个mds节点
-        cluster->StartSingleMDS(1, "127.0.0.1:22122", mdsConf, true);
+        cluster->StartSingleMDS(1, "127.0.0.1:22122", 22128, mdsConf, true);
         std::this_thread::sleep_for(std::chrono::seconds(2));
-        cluster->StartSingleMDS(2, "127.0.0.1:22123", mdsConf, false);
+        cluster->StartSingleMDS(2, "127.0.0.1:22123", 22129, mdsConf, false);
         std::this_thread::sleep_for(std::chrono::seconds(2));
-        cluster->StartSingleMDS(3, "127.0.0.1:22124", mdsConf, false);
+        cluster->StartSingleMDS(3, "127.0.0.1:22124", 22130, mdsConf, false);
         std::this_thread::sleep_for(std::chrono::seconds(8));
 
         // 3. 创建物理池
@@ -120,7 +149,7 @@ class CSModuleException : public ::testing::Test {
         300, "pool1");
 
         // 6. 初始化client配置
-        int ret = Init("./test/integration/client/config/client.conf.1");
+        int ret = Init(confPath.c_str());
         ASSERT_EQ(ret, 0);
 
         // 7. 创建一个文件
