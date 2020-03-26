@@ -38,7 +38,7 @@ class FakeSnapshotCloneMetaStore : public SnapshotCloneMetaStore {
     int GetCloneInfo(const std::string &taskID, CloneInfo *info) override;
 
     int GetCloneInfoByFileName(
-        const std::string &fileName, CloneInfo *info) override;
+        const std::string &fileName, std::vector<CloneInfo> *list) override;
 
     int GetCloneInfoList(std::vector<CloneInfo> *list) override;
 

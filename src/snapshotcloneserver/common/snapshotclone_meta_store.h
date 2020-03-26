@@ -483,7 +483,7 @@ class SnapshotCloneMetaStore {
      * @return: 0 获取成功/ -1 获取失败
      */
     virtual int GetCloneInfoByFileName(
-        const std::string &fileName, CloneInfo *info) = 0;
+        const std::string &fileName, std::vector<CloneInfo> *list) = 0;
 
     /**
      * @brief 获取所有clone任务的信息列表
@@ -518,7 +518,7 @@ class DBSnapshotCloneMetaStore : public SnapshotCloneMetaStore{
     int GetCloneInfo(const std::string &taskID, CloneInfo *info) override;
 
     int GetCloneInfoByFileName(
-        const std::string &fileName, CloneInfo *info) override;
+        const std::string &fileName, std::vector<CloneInfo> *list) override;
 
     int GetCloneInfoList(std::vector<CloneInfo> *list) override;
 

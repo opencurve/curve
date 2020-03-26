@@ -58,9 +58,9 @@ int CloneTaskManager::PushCommonTask(std::shared_ptr<CloneTaskBase> task) {
     if (ret >= 0) {
         cloneMetric_->UpdateBeforeTaskBegin(
             task->GetTaskInfo()->GetCloneInfo().GetTaskType());
+        LOG(INFO) << "Push Task Into Common Pool success,"
+                  << " TaskInfo : " << *(task->GetTaskInfo());
     }
-    LOG(INFO) << "Push Task Into Common Pool success,"
-              << " TaskInfo : " << *(task->GetTaskInfo());
     return ret;
 }
 
@@ -72,28 +72,23 @@ int CloneTaskManager::PushStage1Task(std::shared_ptr<CloneTaskBase> task) {
     if (ret >= 0) {
         cloneMetric_->UpdateBeforeTaskBegin(
             task->GetTaskInfo()->GetCloneInfo().GetTaskType());
+        LOG(INFO) << "Push Task Into Stage1 Pool for meta install success,"
+                  << " TaskInfo : " << *(task->GetTaskInfo());
     }
-    LOG(INFO) << "Push Task Into Stage1 Pool for meta install success,"
-              << " TaskInfo : " << *(task->GetTaskInfo());
     return ret;
 }
 
 int CloneTaskManager::PushStage2Task(
     std::shared_ptr<CloneTaskBase> task) {
-    // 同一个clone的Stage1的Task和Stage2的Task的任务ID是一样的，
-    // 这里触发一次扫描，防止stage1中的同一个克隆的task已完成但是还没移除，
-    // 导致UUID冲突
-    ScanStage1Tasks();
-
     int ret = PushTaskInternal(task,
         &stage2TaskMap_,
         &stage2TasksLock_,
         stage2Pool_);
     if (ret >= 0) {
         cloneMetric_->UpdateFlattenTaskBegin();
+        LOG(INFO) << "Push Task Into Stage2 Pool for data install success,"
+                  << " TaskInfo : " << *(task->GetTaskInfo());
     }
-    LOG(INFO) << "Push Task Into Stage2 Pool for data install success,"
-              << " TaskInfo : " << *(task->GetTaskInfo());
     return ret;
 }
 
@@ -101,6 +96,13 @@ int CloneTaskManager::PushTaskInternal(std::shared_ptr<CloneTaskBase> task,
     std::map<std::string, std::shared_ptr<CloneTaskBase> > *taskMap,
     Mutex *taskMapMutex,
     std::shared_ptr<ThreadPool> taskPool) {
+    // 同一个clone的Stage1的Task和Stage2的Task的任务ID是一样的，
+    // clean task的ID也是一样的,
+    // 触发一次扫描，将已完成的任务Flush出去
+    ScanStage2Tasks();
+    ScanStage1Tasks();
+    ScanCommonTasks();
+
     if (isStop_.load()) {
         return kErrCodeServiceIsStop;
     }
@@ -115,16 +117,20 @@ int CloneTaskManager::PushTaskInternal(std::shared_ptr<CloneTaskBase> task,
         task);
     if (!ret.second) {
         LOG(ERROR) << "CloneTaskManager::PushTaskInternal fail, "
-                   << " same destination exist."
-                   << " destination = " << destination;
+                   << "same destination exist, "
+                   << "New TaskInfo : " << *(task->GetTaskInfo())
+                   << ", Exist TaskInfo : "
+                   << *(ret.first->second->GetTaskInfo());
         return kErrCodeTaskExist;
     }
     taskPool->PushTask(task);
     auto ret2 = cloneTaskMap_.emplace(task->GetTaskId(), task);
     if (!ret2.second) {
         LOG(ERROR) << "CloneTaskManager::PushTaskInternal fail, "
-                   << " same taskid exist."
-                   << " taskId = " << task->GetTaskId();
+                   << " same taskid exist, "
+                   << "New TaskInfo : " << *(task->GetTaskInfo())
+                   << ", Exist TaskInfo : "
+                   << *(ret2.first->second->GetTaskInfo());
         return kErrCodeTaskExist;
     }
     return kErrCodeSuccess;
