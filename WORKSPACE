@@ -98,7 +98,7 @@ bind(
 git_repository(
     name = "com_netease_storage_gerrit_curve_curve",
     remote = "http://gerrit.storage.netease.com/curve",
-    commit = "9d8c574da20e53ef0c4cd57c3d742f41135aee99",
+    tag = "v0.0.5.3",
 )
 
 bind(
