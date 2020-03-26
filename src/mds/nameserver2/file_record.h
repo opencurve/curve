@@ -37,13 +37,14 @@ class FileRecord {
       , timeoutUs_(timeoutUs) {}
 
     FileRecord(const FileRecord& fileRecord)
-      : updateTimeUs_(fileRecord.updateTimeUs_)
-      , timeoutUs_(fileRecord.timeoutUs_) {}
+      : updateTimeUs_(fileRecord.updateTimeUs_),
+        timeoutUs_(fileRecord.timeoutUs_),
+        clientVersion_(fileRecord.clientVersion_) {}
 
     FileRecord& operator=(const FileRecord& fileRecord) {
         updateTimeUs_ = fileRecord.updateTimeUs_;
         timeoutUs_ = fileRecord.timeoutUs_;
-
+        clientVersion_ = fileRecord.clientVersion_;
         return *this;
     }
 
