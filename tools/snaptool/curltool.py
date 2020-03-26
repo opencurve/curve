@@ -110,5 +110,14 @@ def clone_or_recover(type, user, src, dest, lazy):
         return
     print("%s success. UUID=%s" % (type, jsonobj['UUID']))
 
-
-
+def flatten(user, taskid):
+    params = None
+    if user is None or taskid is None:
+        print('user, taskid need')
+        return
+    params = {'Action':'Flatten', 'Version':'0.0.6', 'User':user, 'UUID':taskid}
+    jsonobj = query(params)
+    if jsonobj['Code'] != '0':
+        print("%s fail, ecode=%s, etest=%s" % (type, jsonobj['Code'], errcodelist[jsonobj['Code']]))
+        return
+    print("%s success. UUID=%s" % (type, taskid))

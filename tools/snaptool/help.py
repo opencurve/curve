@@ -122,6 +122,11 @@ def get_parser():
     subparser.add_argument("--dest", help='dest file name', type=str)
     subparser.add_argument("--lazy", help='need lazy', type=str, choices=["true", "false"])
 
+    # flatten option
+    subparser =  subparsers.add_parser("flatten", help="do flatten lazy clone/recover")
+    subparser.add_argument("--user", help='user', type=str)
+    subparser.add_argument("--taskid", help='lazy clone/recover task id', type=str)
+
     return parser
 
 def help():

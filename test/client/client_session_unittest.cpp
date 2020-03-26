@@ -204,84 +204,9 @@ TEST(ClientSession, LeaseTaskTest) {
 
     auto iomanager = fileinstance.GetIOManager4File();
 
-    // 5. set refresh failed
-    // 当lease续约失败的时候，会将IO停住，这时候设置LeaseValid为false
-    refreshresp.set_statuscode(::curve::mds::StatusCode::KInternalError);
-    FakeReturn* refreshfakeretnotexits
-     = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
-    curvefsservice->SetRefreshSession(refreshfakeretnotexits, refresht);
-
-    for (int i = 0; i < 5; i++) {
-        {
-            std::unique_lock<std::mutex> lk(mtx);
-            refreshcv.wait(lk);
-        }
-    }
-
     curve::client::LeaseExcutor* lease = fileinstance.GetLeaseExcutor();
-    ASSERT_FALSE(lease->LeaseValid());
 
-    // 6. set refresh success
-    // 如果lease续约失败后又重新续约成功了，这时候Lease是可用的了，leasevalid为true
-    // 这时候IO被恢复了。
-    refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
-    FakeReturn* refreshfakeretOK
-     = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
-    curvefsservice->SetRefreshSession(refreshfakeretOK, refresht);
-
-    for (int i = 0; i < 2; i++) {
-        {
-            std::unique_lock<std::mutex> lk(mtx);
-            refreshcv.wait(lk);
-        }
-    }
-    ASSERT_TRUE(lease->LeaseValid());
-
-    // 7. set refresh failed
-    // 续约失败，IO都是直接返回-LIBCURVE_ERROR::DISABLEIO
-    refreshresp.set_statuscode(::curve::mds::StatusCode::KInternalError);
-    FakeReturn* refreshfakeretfail
-     = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
-    curvefsservice->SetRefreshSession(refreshfakeretfail, refresht);
-
-    for (int i = 0; i < 5; i++) {
-        {
-            std::unique_lock<std::mutex> lk(mtx);
-            refreshcv.wait(lk);
-        }
-    }
-
-    char* buf2 = new char[8 * 1024];
-    CurveAioContext aioctx;
-    aioctx.offset = 0;
-    aioctx.length = 4 * 1024;
-    aioctx.ret = LIBCURVE_ERROR::OK;
-    aioctx.cb = sessioncallback;
-    aioctx.buf = buf2;
-
-    ioSleepTime = TimeUtility::GetTimeofDayUs();
-
-    ASSERT_EQ(0, fileinstance.AioRead(&aioctx));
-
-    std::this_thread::sleep_for(std::chrono::seconds(SLEEP_TIME_S));
-
-    // 8. set refresh success
-    // 如果lease续约失败后又重新续约成功了，这时候Lease是可用的了，leasevalid为true
-    // 这时候IO被恢复了。
-    refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
-    FakeReturn* refreshfakeretOK1
-     = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
-    curvefsservice->SetRefreshSession(refreshfakeretOK1, refresht);
-
-    for (int i = 0; i < 3; i++) {
-        {
-            std::unique_lock<std::mutex> lk(mtx);
-            refreshcv.wait(lk);
-        }
-    }
-    ASSERT_TRUE(lease->LeaseValid());
-
-    // 9. set refresh AuthFail
+    // 5. set refresh AuthFail
     refreshresp.set_statuscode(::curve::mds::kOwnerAuthFail);
     FakeReturn* refreshFakeRetAuthFail =
         new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
@@ -308,7 +233,7 @@ TEST(ClientSession, LeaseTaskTest) {
 
     std::this_thread::sleep_for(std::chrono::seconds(SLEEP_TIME_S));
 
-    // 10. set refresh success
+    // 6. set refresh success
     refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* refreshfakeretOK2 =
         new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
@@ -322,7 +247,7 @@ TEST(ClientSession, LeaseTaskTest) {
     }
     ASSERT_TRUE(lease->LeaseValid());
 
-    // 11. set refresh kFileNotExists
+    // 7. set refresh kFileNotExists
     auto timerTask = fileinstance.GetLeaseExcutor()->GetTimerTask();
     refreshresp.set_statuscode(::curve::mds::kFileNotExists);
     FakeReturn* refreshFakeRetFileNotExists =
@@ -338,7 +263,7 @@ TEST(ClientSession, LeaseTaskTest) {
     lease = fileinstance.GetLeaseExcutor();
     ASSERT_FALSE(lease->LeaseValid());
 
-    // 11. set refresh success
+    // 8. set refresh success
     refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* refreshfakeretOK3 =
         new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
@@ -354,7 +279,7 @@ TEST(ClientSession, LeaseTaskTest) {
     }
     ASSERT_TRUE(lease->LeaseValid());
 
-    // 12. set refresh success
+    // 9. set refresh success
     refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* refreshfakeretOK4 =
         new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
@@ -373,56 +298,16 @@ TEST(ClientSession, LeaseTaskTest) {
     std::unique_lock<std::mutex> lk(sessionMtx);
     sessionCV.wait(lk, [&]() { return sessionFlag; });
 
-    // 13. set fake close return
+    // 10. set fake close return
     ::curve::mds::CloseFileResponse closeresp;
     closeresp.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* closefileret
      = new FakeReturn(nullptr, static_cast<void*>(&closeresp));
     curvefsservice->SetCloseFile(closefileret);
 
-    // 14. set refresh success
-    // 如果lease续约失败后又重新续约成功了，这时候Lease是可用的了，leasevalid为true
-    // 这时候IO被恢复了。
-    sessionFlag = false;
-    brpc::Controller* cntl = new brpc::Controller;
-    cntl->SetFailed(1, "set failed!");
-    refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
-    FakeReturn* refreshfakeretfailed
-     = new FakeReturn(cntl, static_cast<void*>(&refreshresp));
-    curvefsservice->SetRefreshSession(refreshfakeretfailed, refresht);
-
-    curvefsservice->CleanRetryTimes();
-
-
-    brpc::Server server2;
-    FakeMDSCurveFSService curvefsservice2;
-    server2.AddService(&curvefsservice2, brpc::SERVER_DOESNT_OWN_SERVICE);
-
-    brpc::ServerOptions options;
-    options.idle_timeout_sec = -1;
-    if (server2.Start("127.0.0.1:9102", &options) != 0) {
-        LOG(ERROR) << "Fail to start Server";
-    }
-
-    brpc::Controller* cntl2 = new brpc::Controller;
-    cntl2->SetFailed(1, "set failed!");
-    ::curve::mds::ReFreshSessionResponse refreshresp2;
-    refreshresp2.set_statuscode(::curve::mds::StatusCode::kOK);
-    FakeReturn* refreshfakeretfailed2
-     = new FakeReturn(cntl2, static_cast<void*>(&refreshresp2));
-    curvefsservice2.SetRefreshSession(refreshfakeretfailed2, refresht);
-
-    curvefsservice2.CleanRetryTimes();
-
-    ASSERT_TRUE(lease->LeaseValid());
-    std::this_thread::sleep_for(std::chrono::seconds(25));
-    ASSERT_FALSE(lease->LeaseValid());
-
     fileinstance.UnInitialize();
     server.Stop(0);
     server.Join();
-    server2.Stop(0);
-    server2.Join();
     mds.UnInitialize();
 }
 

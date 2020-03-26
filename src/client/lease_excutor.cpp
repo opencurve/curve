@@ -73,8 +73,7 @@ void LeaseExcutor::RefreshLease() {
                                                     leasesession_.sessionID,
                                                     &response);
     if (LIBCURVE_ERROR::FAILED == ret) {
-        LOG(ERROR) << "refresh session rpc failed!";
-        IncremRefreshFailed();
+        LOG(WARNING) << "refresh session rpc failed!";
         return;
     } else if (LIBCURVE_ERROR::AUTHFAIL == ret) {
         iomanager_->LeaseTimeoutBlockIO();
@@ -96,7 +95,6 @@ void LeaseExcutor::RefreshLease() {
                      << ", sessionid = " << leasesession_.sessionID;
     } else {
         LOG(WARNING) << leasesession_.sessionID << " lease refresh failed!";
-        IncremRefreshFailed();
     }
     return;
 }

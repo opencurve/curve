@@ -55,7 +55,6 @@ int snapshotcloneserver_main(std::shared_ptr<Configuration> conf) {
 
 int main(int argc, char **argv) {
     google::ParseCommandLineFlags(&argc, &argv, true);
-    google::InitGoogleLogging(argv[0]);
     std::shared_ptr<Configuration> conf = std::make_shared<Configuration>();
     conf->SetConfigPath(FLAGS_conf);
     if (!conf->LoadConfig()) {
@@ -64,6 +63,7 @@ int main(int argc, char **argv) {
         return -1;
     }
     LoadConfigFromCmdline(conf.get());
+    google::InitGoogleLogging(argv[0]);
     conf->PrintConfig();
     snapshotcloneserver_main(conf);
 }
