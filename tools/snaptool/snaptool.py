@@ -38,5 +38,7 @@ if __name__ == '__main__':
         curltool.create_snapshot(args.user, args.filename, args.snapshotname)
     elif args.optype == "clone" or args.optype == "recover":
         curltool.clone_or_recover(args.optype, args.user, args.src, args.dest, args.lazy)
+    elif args.optype == "flatten" :
+        curltool.flatten(args.user, args.taskid)
 
 
