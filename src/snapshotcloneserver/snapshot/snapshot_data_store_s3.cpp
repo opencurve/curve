@@ -18,10 +18,11 @@ namespace snapshotcloneserver {
 // nos conf
 int S3SnapshotDataStore::Init(const std::string &path) {
     // Init server conf
-    s3Adapter_->Init(path);
+    s3Adapter4Meta_->Init(path);
+    s3Adapter4Data_->Init(path);
     // create bucket if not exist
-    if (!s3Adapter_->BucketExist()) {
-        return s3Adapter_->CreateBucket();
+    if (!s3Adapter4Meta_->BucketExist()) {
+        return s3Adapter4Meta_->CreateBucket();
     } else {
         return 0;
     }
@@ -36,7 +37,7 @@ int S3SnapshotDataStore::PutChunkIndexData(const ChunkIndexDataName &name,
         LOG(ERROR) << "Failed to serialize ChunkIndexData";
         return -1;
     }
-    return s3Adapter_->PutObject(aws_key, data);
+    return s3Adapter4Meta_->PutObject(aws_key, data);
 }
 
 int S3SnapshotDataStore::GetChunkIndexData(const ChunkIndexDataName &name,
@@ -44,7 +45,7 @@ int S3SnapshotDataStore::GetChunkIndexData(const ChunkIndexDataName &name,
     std::string key = name.ToIndexDataChunkKey();
     std::string *data = new std::string();
     const Aws::String aws_key(key.c_str(), key.size());
-    if ((s3Adapter_->GetObject(aws_key, data) == 0)
+    if ((s3Adapter4Meta_->GetObject(aws_key, data) == 0)
             && (indexData->Unserialize(*data))) {
             delete data;
             return 0;
@@ -55,7 +56,7 @@ int S3SnapshotDataStore::GetChunkIndexData(const ChunkIndexDataName &name,
 bool S3SnapshotDataStore::ChunkIndexDataExist(const ChunkIndexDataName &name) {
     std::string key = name.ToIndexDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
-    if (s3Adapter_->ObjectExist(aws_key)) {
+    if (s3Adapter4Meta_->ObjectExist(aws_key)) {
         return true;
     }
     return false;
@@ -66,7 +67,7 @@ int S3SnapshotDataStore::PutChunkData(const ChunkDataName &name,
     std::string key = name.ToDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
     std::string tmpdata = "test";
-    s3Adapter_->PutObject(aws_key, tmpdata);
+    s3Adapter4Data_->PutObject(aws_key, tmpdata);
 }
 
 int S3SnapshotDataStore::GetChunkData(const ChunkDataName &name,
@@ -74,14 +75,14 @@ int S3SnapshotDataStore::GetChunkData(const ChunkDataName &name,
     std::string key = name.ToDataChunkKey();
     std::string tmpdata;
     const Aws::String aws_key(key.c_str(), key.size());
-    s3Adapter_->GetObject(aws_key, &tmpdata);
+    s3Adapter4Data_->GetObject(aws_key, &tmpdata);
     return 0;
 }
 */
 bool S3SnapshotDataStore::ChunkDataExist(const ChunkDataName &name) {
     std::string key = name.ToDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
-    if (s3Adapter_->ObjectExist(aws_key)) {
+    if (s3Adapter4Meta_->ObjectExist(aws_key)) {
         return true;
     }
     return false;
@@ -90,13 +91,13 @@ bool S3SnapshotDataStore::ChunkDataExist(const ChunkDataName &name) {
 int S3SnapshotDataStore::DeleteChunkIndexData(const ChunkIndexDataName &name) {
     std::string key = name.ToIndexDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
-    return s3Adapter_->DeleteObject(aws_key);
+    return s3Adapter4Meta_->DeleteObject(aws_key);
 }
 
 int S3SnapshotDataStore::DeleteChunkData(const ChunkDataName &name) {
     std::string key = name.ToDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
-    return s3Adapter_->DeleteObject(aws_key);
+    return s3Adapter4Meta_->DeleteObject(aws_key);
 }
 /*
 int S3SnapshotDataStore::SetSnapshotFlag(const ChunkIndexDataName &name,
@@ -107,14 +108,14 @@ int S3SnapshotDataStore::SetSnapshotFlag(const ChunkIndexDataName &name,
     Aws::String flagStr = Aws::Utils::StringUtils::to_string(flag);
     meta.insert(std::pair<Aws::String,
                 Aws::String>("status", flagStr));
-    return s3Adapter_->UpdateObjectMeta(aws_key, meta);
+    return s3Adapter4Meta_->UpdateObjectMeta(aws_key, meta);
 }
 
 int S3SnapshotDataStore::GetSnapshotFlag(const ChunkIndexDataName &name) {
     std::string key = name.ToIndexDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
     Aws::Map<Aws::String, Aws::String> meta;
-    if (s3Adapter_->GetObjectMeta(aws_key, &meta) < 0) {
+    if (s3Adapter4Meta_->GetObjectMeta(aws_key, &meta) < 0) {
         return -1;
     }
     auto search = meta.find("status");
@@ -130,7 +131,7 @@ int S3SnapshotDataStore::DataChunkTranferInit(const ChunkDataName &name,
                                     std::shared_ptr<TransferTask> task) {
     std::string key = name.ToDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
-    Aws::String aws_uploadId = s3Adapter_->MultiUploadInit(aws_key);
+    Aws::String aws_uploadId = s3Adapter4Data_->MultiUploadInit(aws_key);
     if (aws_uploadId == "") {
         LOG(ERROR) << "Init multiupload failed";
         return -1;
@@ -149,7 +150,7 @@ int S3SnapshotDataStore::DataChunkTranferAddPart(const ChunkDataName &name,
     const Aws::String aws_key(key.c_str(), key.size());
     const Aws::String uploadId(task->uploadId_.c_str(), task->uploadId_.size());
     Aws::S3::Model::CompletedPart cp =
-        s3Adapter_->UploadOnePart(
+        s3Adapter4Data_->UploadOnePart(
             aws_key, uploadId, partNum + 1, partSize, buf);
     std::string etag(cp.GetETag().c_str(), cp.GetETag().size());
     int tmp_partnum = cp.GetPartNumber();
@@ -173,7 +174,7 @@ int S3SnapshotDataStore::DataChunkTranferComplete(const ChunkDataName &name,
                        .WithETag(str)
                        .WithPartNumber(v.first));
     }
-    return s3Adapter_->CompleteMultiUpload(aws_key, uploadId, cp_v);
+    return s3Adapter4Data_->CompleteMultiUpload(aws_key, uploadId, cp_v);
 }
 
 int S3SnapshotDataStore::DataChunkTranferAbort(const ChunkDataName &name,
@@ -181,7 +182,7 @@ int S3SnapshotDataStore::DataChunkTranferAbort(const ChunkDataName &name,
     std::string key = name.ToDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
     const Aws::String uploadId(task->uploadId_.c_str(), task->uploadId_.size());
-    return s3Adapter_->AbortMultiUpload(aws_key, uploadId);
+    return s3Adapter4Data_->AbortMultiUpload(aws_key, uploadId);
 }
 }  // namespace snapshotcloneserver
 }  // namespace curve
