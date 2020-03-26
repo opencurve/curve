@@ -176,14 +176,16 @@ int DBSnapshotCloneMetaStore::GetCloneInfo(const std::string &taskID,
 }
 
 int DBSnapshotCloneMetaStore::GetCloneInfoByFileName(
-    const std::string &fileName,
-    CloneInfo *info) {
+    const std::string &fileName, std::vector<CloneInfo> *list) {
     curve::common::ReadLockGuard guard(cloneInfos_lock_);
     for (auto it = cloneInfos_.begin(); it != cloneInfos_.end(); it++) {
         if (it->second.GetDest() == fileName) {
-            *info = it->second;
+            list->push_back(it->second);
             return 0;
         }
+    }
+    if (list->size() != 0) {
+        return 0;
     }
     return -1;
 }

@@ -23,8 +23,9 @@ namespace snapshotcloneserver {
 class S3SnapshotDataStore : public SnapshotDataStore {
  public:
      S3SnapshotDataStore() {
-        s3Adapter_ = std::make_shared<S3Adapter>();
-     }
+        s3Adapter4Meta_ = std::make_shared<S3Adapter>();
+        s3Adapter4Data_ = std::make_shared<S3Adapter>();
+    }
     ~S3SnapshotDataStore() {}
     int Init(const std::string &path) override;
     int PutChunkIndexData(const ChunkIndexDataName &name,
@@ -54,15 +55,23 @@ class S3SnapshotDataStore : public SnapshotDataStore {
                                 std::shared_ptr<TransferTask> task) override;
      int DataChunkTranferAbort(const ChunkDataName &name,
                                std::shared_ptr<TransferTask> task) override;
-     void SetAdapter(std::shared_ptr<S3Adapter> adapter) {
-         s3Adapter_ = adapter;
+
+     void SetMetaAdapter(std::shared_ptr<S3Adapter> adapter) {
+         s3Adapter4Meta_ = adapter;
      }
-     std::shared_ptr<S3Adapter> GetAdapter(void) {
-         return s3Adapter_;
+     std::shared_ptr<S3Adapter> GetMetaAdapter(void) {
+         return s3Adapter4Meta_;
+     }
+     void SetDataAdapter(std::shared_ptr<S3Adapter> adapter) {
+         s3Adapter4Data_ = adapter;
+     }
+     std::shared_ptr<S3Adapter> GetDataAdapter(void) {
+         return s3Adapter4Data_;
      }
 
  private:
-    std::shared_ptr<curve::common::S3Adapter> s3Adapter_;
+    std::shared_ptr<curve::common::S3Adapter> s3Adapter4Data_;
+    std::shared_ptr<curve::common::S3Adapter> s3Adapter4Meta_;
 };
 
 }   // namespace snapshotcloneserver
