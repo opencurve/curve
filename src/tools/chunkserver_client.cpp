@@ -15,10 +15,10 @@ namespace tool {
 std::ostream& operator<<(std::ostream& os, const Chunk& chunk) {
     uint64_t groupId = (static_cast<uint64_t>(chunk.logicPoolId) << 32) |
                                                     chunk.copysetId;
-    os << "logicalPoolId = " << chunk.logicPoolId << "\n"
-       << "copysetId = " << chunk.copysetId << "\n"
-       << "groupId = " << groupId << "\n"
-       << "chunkId = " << chunk.chunkId << "\n";
+    os << "logicalPoolId:" << chunk.logicPoolId
+       << ",copysetId:" << chunk.copysetId
+       << ",groupId:" << groupId
+       << ",chunkId:" << chunk.chunkId;
     return os;
 }
 

@@ -22,29 +22,40 @@ namespace curve {
 namespace tool {
 
 std::ostream& operator<<(std::ostream& os, const CopySet& copyset) {
-    os << "logicPoolId = " << copyset.first << "\n"
-       << "copysetId = " << copyset.second << "\n";
+    os << "logicPoolId = " << copyset.first
+       << ",copysetId = " << copyset.second;
     return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const CsAddrsType& csAddrs) {
-    os << "chunkservers: ";
+    std::vector<std::string> ipVec;
+    std::vector<uint32_t> seqVec;
     for (uint32_t i = 0; i < csAddrs.size(); ++i) {
-        if (i != 0) {
-            os << ",";
-        }
-        os << "(";
         std::string ip;
         uint32_t port;
         if (curve::common::NetCommon::SplitAddrToIpPort(csAddrs[i],
                                                         &ip, &port)) {
             uint32_t csSeq = port - FLAGS_chunkServerBasePort;
-            os << ip << ",chunkserver" << csSeq;
-        } else {
-            os << csAddrs[i];
+            ipVec.emplace_back(ip);
+            seqVec.emplace_back(csSeq);
         }
-        os << ")";
     }
+    os << "hosts:[";
+    for (uint32_t i = 0; i < ipVec.size(); ++i) {
+        if (i != 0) {
+            os << ",";
+        }
+        os << ipVec[i];
+    }
+    os << "]";
+    os << ",chunkservers:[";
+    for (uint32_t i = 0; i < seqVec.size(); ++i) {
+        if (i != 0) {
+            os << ",";
+        }
+        os << "chunkserver" << seqVec[i];
+    }
+    os << "]";
     return os;
 }
 
@@ -200,8 +211,8 @@ int ConsistencyCheck::CheckCopysetHash(const CopySet& copyset,
         Chunk chunk(copyset.first, copyset.second, chunkId);
         int res = CheckChunkHash(chunk, csAddrs);
         if (res != 0) {
-            std::cout << "CheckChunkHash fail!" << std::endl;
-            std::cout << chunk << csAddrs << std::endl;
+            std::cout << "{" << chunk
+                      << "," << csAddrs << "}" << std::endl;
             return -1;
         }
     }
@@ -232,8 +243,8 @@ int ConsistencyCheck::CheckChunkHash(const Chunk& chunk,
         }
         if (curHash != preHash) {
             std::cout << "Chunk hash not equal!" << std::endl;
-            std::cout << "previous chunk hash = " << preHash << "\n"
-                      << "current hash = " << curHash << std::endl;
+            std::cout << "previous chunk hash = " << preHash
+                      << ", current hash = " << curHash << std::endl;
             return -1;
         }
     }
@@ -263,15 +274,14 @@ int ConsistencyCheck::CheckApplyIndex(const CopySet copyset,
         }
         if (curIndex != preIndex) {
             std::cout << "Apply index not equal!" << std::endl;
-            std::cout << "previous apply index " << preIndex << "\n"
-                      << "current index = " << curIndex << "\n";
+            std::cout << "previous apply index " << preIndex
+                      << ", current index = " << curIndex << std::endl;
             ret = -1;
             break;
         }
     }
     if (ret != 0) {
-        std::cout << "CheckApplyIndex fail!" << std::endl;
-        std::cout << copyset << csAddrs << std::endl;
+        std::cout << copyset << "," << csAddrs << std::endl;
     }
     return ret;
 }
