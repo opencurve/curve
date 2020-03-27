@@ -899,7 +899,25 @@ def check_copies_consistency():
         ori_cmd = ori_cmdpri + check_hash
         rs = shell_operator.ssh_exec(ssh,ori_cmd)
         logger.debug("exec %s,stdout is %s"%(ori_cmd,"".join(rs[1])))
-        assert rs[1] == [u'consistency check success!\n'],"checkconsistecny fail,error is %s"%("".join(rs[1]).strip())
+        if rs[1] == [u'consistency check success!\n']:
+            print "check consistency ok!"
+        elif rs[1][0] == [u'Chunk hash not equal!\n']:
+            message = eval(rs[1][2])
+            groupId = message["groupId"]
+            chunkID = message["chunkID"]
+            hosts = message["hosts"]
+            chunkservers = message["chunkservers"]
+            for i in range(0,3):
+                host = hosts[i]
+                chunkserver = chunkservers[i]
+                ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+                ori_cmd = "sudo cp /data/%s/copysets/%s/data/chunk_%s /data/log/%s"%(chunkserver,groupId,chunkID,chunkserver)
+                rs = shell_operator.ssh_exec(ssh, ori_cmd)
+                if rs[3] != 0:
+                    logger.error("cp chunk fail,is %s"%rs[1])
+            assert False,"checkconsistecny fail,error is %s"%("".join(rs[1]).strip())
+        else:
+            assert False,"checkconsistecny fail,error is %s"%("".join(rs[1]).strip())
 #        check_data_consistency()
     except:
         logger.error("check consistency error")
