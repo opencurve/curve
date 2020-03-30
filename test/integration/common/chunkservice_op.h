@@ -62,6 +62,20 @@ class ChunkServiceOp {
                          string *data);
 
     /**
+     * @brief 通过chunkService读chunk快照
+     * @param opConf，leaderPeer/copysetid等公共配置参数
+     * @param chunkId
+     * @param sn chunk版本
+     * @param offset
+     * @param len
+     * @param data 读取内容
+     * @return 请求执行失败则返回-1，否则返回错误码
+     */
+    static int ReadChunkSnapshot(struct ChunkServiceOpConf *opConf,
+                                 ChunkID chunkId, SequenceNum sn, off_t offset,
+                                 size_t len, std::string *data);
+
+    /**
      * @brief 通过chunkService删除chunk
      * @param opConf，leaderPeer/copysetid等公共配置参数
      * @param chunkId
@@ -72,12 +86,24 @@ class ChunkServiceOp {
                            SequenceNum sn);
 
     /**
-     * @brief  通过chunkService获取chunk元数据
+     * @brief 通过chunkService删除此次转储时产生的或者历史遗留的快照
+     *        如果转储过程中没有产生快照，则修改chunk的correctedSn
      * @param opConf，leaderPeer/copysetid等公共配置参数
      * @param chunkId
-     * @param curSn 返回的当前chunk版本，未获取到则返回-1
-     * @param snapSn 返回的快照chunk版本，未获取到则返回-1
-     * @param redirectedLeader 返回的重定向主节点
+     * @param correctedSn
+     * @return 请求执行失败则返回-1，否则返回错误码
+     */
+    static int DeleteChunkSnapshotOrCorrectSn(struct ChunkServiceOpConf *opConf,
+                                              ChunkID chunkId,
+                                              SequenceNum correctedSn);
+
+    /**
+     * @brief 通过chunkService获取chunk元数据
+     * @param opConf，leaderPeer/copysetid等公共配置参数
+     * @param chunkId
+     * @param curSn 返回当前chunk版本
+     * @param snapSn 返回快照chunk版本
+     * @param redirectedLeader 返回重定向主节点
      * @return 请求执行失败则返回-1，否则返回错误码
      */
     static int GetChunkInfo(struct ChunkServiceOpConf *opConf, ChunkID chunkId,
@@ -116,7 +142,19 @@ class ChunkServiceVerify {
                         size_t len, string *chunkData);
 
     /**
-     * @brief 通过chunkService删除chunk，并更新
+     * @brief 执行读chunk快照, 并验证读取内容是否与chunkdata对应区域的预期数据吻合。
+     * @param chunkId
+     * @param sn chunk版本
+     * @param offset
+     * @param len
+     * @param chunkData 整个chunk的预期数据
+     * @return 读请求结果符合预期返回0，否则返回-1
+     */
+    int VerifyReadChunkSnapshot(ChunkID chunkId, SequenceNum sn, off_t offset,
+                                size_t len, string *chunkData);
+
+    /**
+     * @brief 删除chunk
      * @param chunkId
      * @param sn chunk版本
      * @return 返回删除操作的错误码
@@ -124,10 +162,19 @@ class ChunkServiceVerify {
     int VerifyDeleteChunk(ChunkID chunkId, SequenceNum sn);
 
     /**
+     * @brief 删除chunk的快照
+     * @param chunkId
+     * @param correctedSn
+     * @return 返回删除操作的错误码
+     */
+    int VerifyDeleteChunkSnapshotOrCorrectSn(ChunkID chunkId,
+                                             SequenceNum correctedSn);
+
+    /**
      * @brief 获取chunk元数据，并检验结果是否符合预期
      * @param chunkId
-     * @param expCurSn 预期chunk版本
-     * @param expSanpSn 预期快照版本
+     * @param expCurSn 预期chunk版本，-1表示不存在
+     * @param expSanpSn 预期快照版本，-1表示不存在
      * @param expLeader 预期redirectedLeader
      * @return 验证成功返回0，否则返回-1
      */
