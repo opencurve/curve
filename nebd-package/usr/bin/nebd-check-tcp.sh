@@ -43,7 +43,7 @@ function check_rtt()
 
     for rttline in $connection_rtt_str;do
         rtt=`echo $rttline|awk '{print $(NF-1)}' |sed 's/|\(.*\)\/.*/\1/g'`
-        if [[ $rtt -eq "|-" ]];then
+        if [[ $rtt == "|-" ]];then
             echo "skip this line: $rttline"
             continue
         fi
