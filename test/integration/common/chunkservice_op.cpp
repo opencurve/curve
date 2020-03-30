@@ -84,6 +84,46 @@ int ChunkServiceOp::ReadChunk(struct ChunkServiceOpConf *opConf,
     return status;
 }
 
+int ChunkServiceOp::ReadChunkSnapshot(struct ChunkServiceOpConf *opConf,
+                                      ChunkID chunkId, SequenceNum sn,
+                                      off_t offset, size_t len,
+                                      std::string *data) {
+    PeerId leaderId(opConf->leaderPeer->address());
+    brpc::Channel channel;
+    channel.Init(leaderId.addr, NULL);
+    ChunkService_Stub stub(&channel);
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(opConf->rpcTimeout);
+
+    ChunkRequest request;
+    ChunkResponse response;
+    request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ_SNAP);
+    request.set_logicpoolid(opConf->logicPoolId);
+    request.set_copysetid(opConf->copysetId);
+    request.set_chunkid(chunkId);
+    request.set_sn(sn);
+    request.set_offset(offset);
+    request.set_size(len);
+
+    stub.ReadChunkSnapshot(&cntl, &request, &response, nullptr);
+    if (cntl.Failed()) {
+        LOG(ERROR) << "readchunksnapshot failed: " << cntl.ErrorText();
+        return -1;
+    }
+
+    CHUNK_OP_STATUS status = response.status();
+    LOG_IF(ERROR, status) << "readchunksnapshot failed: "
+                          << CHUNK_OP_STATUS_Name(status);
+
+    // 读成功，复制内容到data
+    if (status == CHUNK_OP_STATUS_SUCCESS && data != nullptr) {
+        cntl.response_attachment().copy_to(data,
+                                           cntl.response_attachment().size());
+    }
+
+    return status;
+}
+
 int ChunkServiceOp::DeleteChunk(struct ChunkServiceOpConf *opConf,
                                 ChunkID chunkId, SequenceNum sn) {
     PeerId leaderId(opConf->leaderPeer->address());
@@ -109,6 +149,36 @@ int ChunkServiceOp::DeleteChunk(struct ChunkServiceOpConf *opConf,
 
     CHUNK_OP_STATUS status = response.status();
     LOG_IF(ERROR, status) << "delete failed: " << CHUNK_OP_STATUS_Name(status);
+
+    return status;
+}
+
+int ChunkServiceOp::DeleteChunkSnapshotOrCorrectSn(
+    struct ChunkServiceOpConf *opConf, ChunkID chunkId, uint64_t correctedSn) {
+    PeerId leaderId(opConf->leaderPeer->address());
+    brpc::Channel channel;
+    channel.Init(leaderId.addr, NULL);
+    ChunkService_Stub stub(&channel);
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(opConf->rpcTimeout);
+
+    ChunkRequest request;
+    ChunkResponse response;
+    request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP);
+    request.set_logicpoolid(opConf->logicPoolId);
+    request.set_copysetid(opConf->copysetId);
+    request.set_chunkid(chunkId);
+    request.set_correctedsn(correctedSn);
+    stub.DeleteChunkSnapshotOrCorrectSn(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        LOG(ERROR) << "deleteSnapshot failed: " << cntl.ErrorText();
+        return -1;
+    }
+
+    CHUNK_OP_STATUS status = response.status();
+    LOG_IF(ERROR, status) << "deleteSnapshot failed: "
+                          << CHUNK_OP_STATUS_Name(status);
 
     return status;
 }
@@ -227,12 +297,72 @@ int ChunkServiceVerify::VerifyReadChunk(ChunkID chunkId, SequenceNum sn,
     return 0;
 }
 
+int ChunkServiceVerify::VerifyReadChunkSnapshot(ChunkID chunkId, SequenceNum sn,
+                                                off_t offset, size_t len,
+                                                string *chunkData) {
+    std::string data(len, 0);
+    bool chunk_existed = existChunks_.find(chunkId) != std::end(existChunks_);
+
+    int ret = ChunkServiceOp::ReadChunkSnapshot(opConf_, chunkId, sn, offset,
+                                                len, &data);
+    LOG(INFO) << "Read Snapshot for Chunk " << chunkId << ", sn=" << sn
+              << ", offset=" << offset << ", len=" << len << ", ret=" << ret;
+
+    if (ret != CHUNK_OP_STATUS_SUCCESS &&
+        ret != CHUNK_OP_STATUS_CHUNK_NOTEXIST) {
+        return -1;
+    } else if (ret == CHUNK_OP_STATUS_SUCCESS && !chunk_existed) {
+        LOG(ERROR) << "Unexpected read success, chunk " << chunkId
+                   << " should not existed";
+        return -1;
+    } else if (ret == CHUNK_OP_STATUS_CHUNK_NOTEXIST && chunk_existed) {
+        LOG(ERROR) << "Unexpected read missing, chunk " << chunkId
+                   << " must be existed";
+        return -1;
+    }
+
+    // 读成功，则判断内容是否与chunkData吻合
+    if (ret == CHUNK_OP_STATUS_SUCCESS && chunkData != nullptr) {
+        // 查找数据有差异的位置
+        int i = 0;
+        while (i < len && data[i] == (*chunkData)[offset + i]) ++i;
+        // 读取数据与预期相符，返回0
+        if (i == len)
+            return 0;
+
+        LOG(ERROR) << "read data missmatch for chunk " << chunkId
+                   << ", from offset " << offset + i << ", read "
+                   << static_cast<int>(data[i]) << ", expected "
+                   << static_cast<int>((*chunkData)[offset + i]);
+        // 打印每个4KB的第一个字节
+        int j = i / kPageSize * kPageSize;
+        for (; j < len; j += kPageSize) {
+            LOG(ERROR) << "chunk offset " << offset + j << ": read "
+                       << static_cast<int>(data[j]) << ", expected "
+                       << static_cast<int>((*chunkData)[offset + j]);
+        }
+        return -1;
+    }
+
+    return 0;
+}
+
 int ChunkServiceVerify::VerifyDeleteChunk(ChunkID chunkId, SequenceNum sn) {
     int ret = ChunkServiceOp::DeleteChunk(opConf_, chunkId, sn);
     LOG(INFO) << "Delete Chunk " << chunkId << ", sn " << sn << ", ret=" << ret;
 
     if (ret == CHUNK_OP_STATUS_SUCCESS)
         existChunks_.erase(chunkId);
+    return ret;
+}
+
+int ChunkServiceVerify::VerifyDeleteChunkSnapshotOrCorrectSn(
+    ChunkID chunkId, SequenceNum correctedSn) {
+    int ret = ChunkServiceOp::DeleteChunkSnapshotOrCorrectSn(opConf_, chunkId,
+                                                             correctedSn);
+    LOG(INFO) << "DeleteSnapshot for Chunk " << chunkId
+              << ", correctedSn=" << correctedSn << ", ret=" << ret;
+
     return ret;
 }
 
