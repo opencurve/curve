@@ -38,11 +38,13 @@ message ChunkRequest {
     required uint64 chunkId = 4;        // for all
     optional uint64 appliedIndex = 5;   // for read
     optional uint32 offset = 6;         // for read/write
-    optional uint32 size = 7;           // for read/write/clone 创建快照请求中表示请求创建的chunk大小
+    optional uint32 size = 7;           // for read/write/clone 读取数据大小/写入数据大小/创建快照请求中表示请求创建的chunk大小
     optional QosRequestParas deltaRho = 8; // for read/write
     optional uint64 sn = 9;             // for write/read snapshot 写请求中表示文件当前版本号，读快照请求中表示请求的chunk的版本号
     optional uint64 correctedSn = 10;   // for CreateCloneChunk/DeleteChunkSnapshotOrCorrectedSn 用于修改chunk的correctedSn
-    optional string location = 11;      // for clone chunk
+    optional string location = 11;      // for CreateCloneChunk
+    optional string cloneFileSource = 12;   // for write/read
+    optional uint64 cloneFileOffset = 13;   // for write/read
 };
 
 enum CHUNK_OP_STATUS {
@@ -66,7 +68,6 @@ message ChunkResponse {
     optional QosResponseParas phaseCost = 4; // for read/write
     optional uint64 chunkSn = 5;        // for GetChunkInfo 表示chunk文件版本号，0表示不存在
     optional uint64 snapSn = 6;         // for GetChunkInfo 表示chunk文件快照的版本号，0表示不存在
-
 };
 
 message GetChunkInfoRequest {
@@ -94,6 +95,19 @@ message GetChunkHashResponse {
     optional string hash = 2;   // 能标志chunk数据状态的hash值，一般是crc32c
 };
 
+message CreateS3CloneChunkRequest {
+    required uint32 logicPoolId = 1;
+    required uint32 copysetId = 2;
+    required uint64 chunkId = 3;
+    optional uint64 correctedSn = 4;
+    optional string chunkLocationInfo = 5;
+};
+
+message CreateS3CloneChunkResponse {
+    required CHUNK_OP_STATUS status = 1;
+    optional string redirect = 2;       // 自己不是 leader，重定向给 leader
+};
+
 service ChunkService {
     rpc DeleteChunk (ChunkRequest) returns (ChunkResponse);
     rpc ReadChunk (ChunkRequest) returns (ChunkResponse);
@@ -106,5 +120,8 @@ service ChunkService {
     rpc GetChunkHash (GetChunkHashRequest) returns (GetChunkHashResponse);
 
     rpc CreateCloneChunk (ChunkRequest) returns (ChunkResponse);
+
+    rpc CreateS3CloneChunk( CreateS3CloneChunkRequest) returns(CreateS3CloneChunkResponse);
+
     rpc RecoverChunk (ChunkRequest) returns (ChunkResponse);
 };
