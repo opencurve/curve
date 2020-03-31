@@ -238,6 +238,7 @@ class MDSClient {
      *  - 若是clone，sn重置为初始值
      *  - 若是recover，sn不变
      *
+     * @param source 克隆源文件名
      * @param:destination clone目标文件名
      * @param:userinfo 用户信息
      * @param:size 文件大小
@@ -247,12 +248,11 @@ class MDSClient {
      *
      * @return 错误码
      */
-    LIBCURVE_ERROR CreateCloneFile(const std::string &destination,
-                            const UserInfo_t& userinfo,
-                            uint64_t size,
-                            uint64_t sn,
-                            uint32_t chunksize,
-                            FInfo* fileinfo);
+    LIBCURVE_ERROR CreateCloneFile(const std::string& source,
+                                   const std::string& destination,
+                                   const UserInfo_t& userinfo, uint64_t size,
+                                   uint64_t sn, uint32_t chunksize,
+                                   FInfo* fileinfo);
 
     /**
      * @brief 通知mds完成Clone Meta

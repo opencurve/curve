@@ -186,9 +186,10 @@ void IOTracker::GetChunkInfo(const ChunkIDInfo &cinfo,
     }
 }
 
-void IOTracker::CreateCloneChunk(const std::string &location,
-    const ChunkIDInfo &cinfo, uint64_t sn, uint64_t correntSn,
-    uint64_t chunkSize, SnapCloneClosure* scc) {
+void IOTracker::CreateCloneChunk(const std::string& location,
+                                 const ChunkIDInfo& cinfo, uint64_t sn,
+                                 uint64_t correntSn, uint64_t chunkSize,
+                                 SnapCloneClosure* scc) {
     type_ = OpType::CREATE_CLONE;
     scc_ = scc;
 
@@ -218,10 +219,10 @@ void IOTracker::CreateCloneChunk(const std::string &location,
     }
 }
 
-void IOTracker::RecoverChunk(const ChunkIDInfo &cinfo,
-    uint64_t offset, uint64_t len, SnapCloneClosure* scc) {
+void IOTracker::RecoverChunk(const ChunkIDInfo& cinfo, uint64_t offset,
+                             uint64_t len, SnapCloneClosure* scc) {
     type_ = OpType::RECOVER_CHUNK;
-    scc_  = scc;
+    scc_ = scc;
 
     int ret = -1;
     do {

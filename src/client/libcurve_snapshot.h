@@ -142,6 +142,7 @@ class SnapshotClient {
    *  - 若是clone，sn重置为初始值
    *  - 若是recover，sn不变
    *
+   * @param source clone源文件名
    * @param: destination clone目标文件名
    * @param: userinfo 用户信息
    * @param: size 文件大小
@@ -151,20 +152,12 @@ class SnapshotClient {
    *
    * @return 错误码
    */
-  int CreateCloneFile(const std::string &destination,
-                                const UserInfo_t& userinfo,
-                                uint64_t size,
-                                uint64_t sn,
-                                uint32_t chunksize,
-                                FInfo* fileinfo);
+  int CreateCloneFile(const std::string& source, const std::string& destination,
+                      const UserInfo_t& userinfo, uint64_t size, uint64_t sn,
+                      uint32_t chunksize, FInfo* fileinfo);
 
   /**
    * @brief lazy 创建clone chunk
-   * @detail
-   *  - location的格式定义为 A@B的形式。
-   *  - 如果源数据在s3上，则location格式为uri@s3，uri为实际chunk对象的地址；
-   *  - 如果源数据在curvefs上，则location格式为/filename/chunkindex@cs
-   *
    * @param:location 数据源的url
    * @param:chunkidinfo 目标chunk
    * @param:sn chunk的序列号

@@ -474,6 +474,7 @@ void WriteChunkClosure::SendRetryRequest() {
                         reqCtx_->writeBuffer_,
                         reqCtx_->offset_,
                         reqCtx_->rawlength_,
+                        reqCtx_->sourceInfo_,
                         done_);
 }
 
@@ -491,6 +492,7 @@ void ReadChunkClosure::SendRetryRequest() {
                        reqCtx_->offset_,
                        reqCtx_->rawlength_,
                        reqCtx_->appliedindex_,
+                       reqCtx_->sourceInfo_,
                        done_);
 }
 
