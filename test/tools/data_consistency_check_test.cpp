@@ -51,11 +51,10 @@ class ConsistencyCheckTest : public ::testing::Test {
     void GetCsLocForTest(ChunkServerLocation* csLoc, uint64_t csId) {
         csLoc->set_chunkserverid(csId);
         csLoc->set_hostip("127.0.0.1");
-        csLoc->set_port(9190 + csId);
+        csLoc->set_port(8200 + csId);
     }
 
     void GetCopysetStatusForTest(CopysetStatusResponse* response,
-                        const std::string& hash = "1111",
                         int64_t applyingIndex = 1111,
                         bool ok = true) {
         if (ok) {
@@ -65,7 +64,6 @@ class ConsistencyCheckTest : public ::testing::Test {
                 COPYSET_OP_STATUS::COPYSET_OP_STATUS_COPYSET_NOTEXIST);
         }
         if (ok) {
-            response->set_hash(hash);
             response->set_knownappliedindex(applyingIndex);
         }
     }
@@ -110,11 +108,15 @@ TEST_F(ConsistencyCheckTest, Consistency) {
         .WillRepeatedly(DoAll(SetArgPointee<2>(csLocs),
                         Return(0)));
     EXPECT_CALL(*csClient_, Init(_))
-        .Times(60)
+        .Times(90)
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, GetCopysetStatus(_, _))
         .Times(60)
         .WillRepeatedly(DoAll(SetArgPointee<1>(response),
+                        Return(0)));
+    EXPECT_CALL(*csClient_, GetChunkHash(_, _))
+        .Times(30)
+        .WillRepeatedly(DoAll(SetArgPointee<1>("1111"),
                         Return(0)));
     // 1、检查hash
     FLAGS_check_hash = true;
@@ -130,14 +132,16 @@ TEST_F(ConsistencyCheckTest, Consistency) {
 
     // mds返回副本为空的情况
     EXPECT_CALL(*nameSpaceTool_, GetFileSegments(_, _))
-        .Times(1)
+        .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<1>(segments),
                         Return(0)));
     EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySet(_, _, _))
-        .Times(10)
+        .Times(20)
         .WillRepeatedly(DoAll(SetArgPointee<2>(
                         std::vector<ChunkServerLocation>()),
                         Return(0)));
+    ASSERT_EQ(0, cfc2.RunCommand("check-consistency"));
+    FLAGS_check_hash = true;
     ASSERT_EQ(0, cfc2.RunCommand("check-consistency"));
 }
 
@@ -157,9 +161,9 @@ TEST_F(ConsistencyCheckTest, NotConsistency) {
     CopysetStatusResponse response1;
     GetCopysetStatusForTest(&response1);
     CopysetStatusResponse response2;
-    GetCopysetStatusForTest(&response2, "2222", 1111);
+    GetCopysetStatusForTest(&response2, 1111);
     CopysetStatusResponse response3;
-    GetCopysetStatusForTest(&response3, "1111", 2222);
+    GetCopysetStatusForTest(&response3, 2222);
 
     // 设置期望
     EXPECT_CALL(*nameSpaceTool_, Init(_))
@@ -173,38 +177,48 @@ TEST_F(ConsistencyCheckTest, NotConsistency) {
         .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<2>(csLocs),
                         Return(0)));
-    EXPECT_CALL(*csClient_, Init(_))
-        .Times(9)
-        .WillRepeatedly(Return(0));
 
     // 1、检查hash，apply index一致，hash不一致
     FLAGS_check_hash = true;
+    EXPECT_CALL(*csClient_, Init(_))
+        .Times(5)
+        .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, GetCopysetStatus(_, _))
         .Times(3)
-        .WillOnce(DoAll(SetArgPointee<1>(response1),
+        .WillRepeatedly(DoAll(SetArgPointee<1>(response1),
+                        Return(0)));
+    EXPECT_CALL(*csClient_, GetChunkHash(_, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<1>("2222"),
                         Return(0)))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(response2),
+        .WillOnce(DoAll(SetArgPointee<1>("1111"),
                         Return(0)));
     curve::tool::ConsistencyCheck cfc1(nameSpaceTool_, csClient_);
     ASSERT_EQ(-1, cfc1.RunCommand("check-consistency"));
 
-    // 2、检查hash的时候hash一致apply index不一致
+    // 2、检查hash的时候apply index不一致
+    EXPECT_CALL(*csClient_, Init(_))
+        .Times(2)
+        .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, GetCopysetStatus(_, _))
-        .Times(3)
+        .Times(2)
         .WillOnce(DoAll(SetArgPointee<1>(response1),
                         Return(0)))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(response3),
+        .WillOnce(DoAll(SetArgPointee<1>(response3),
                         Return(0)));
     curve::tool::ConsistencyCheck cfc2(nameSpaceTool_, csClient_);
     ASSERT_EQ(-1, cfc2.RunCommand("check-consistency"));
 
     // 3、检查applyIndex
     FLAGS_check_hash = false;
+    EXPECT_CALL(*csClient_, Init(_))
+        .Times(2)
+        .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, GetCopysetStatus(_, _))
-        .Times(3)
+        .Times(2)
         .WillOnce(DoAll(SetArgPointee<1>(response1),
                         Return(0)))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(response3),
+        .WillOnce(DoAll(SetArgPointee<1>(response3),
                         Return(0)));
     curve::tool::ConsistencyCheck cfc3(nameSpaceTool_, csClient_);
     ASSERT_EQ(-1, cfc3.RunCommand("check-consistency"));
@@ -223,7 +237,7 @@ TEST_F(ConsistencyCheckTest, CheckError) {
         GetCsLocForTest(&csLoc, i);
         csLocs.emplace_back(csLoc);
     }
-
+    FLAGS_check_hash = false;
     curve::tool::ConsistencyCheck cfc(nameSpaceTool_, csClient_);
     // 0、Init失败
     EXPECT_CALL(*nameSpaceTool_, Init(_))
@@ -241,7 +255,7 @@ TEST_F(ConsistencyCheckTest, CheckError) {
 
     // 2、获取chunkserver list失败
     EXPECT_CALL(*nameSpaceTool_, GetFileSegments(_, _))
-        .Times(3)
+        .Times(4)
         .WillRepeatedly(DoAll(SetArgPointee<1>(segments),
                         Return(0)));
     EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySet(_, _, _))
@@ -251,7 +265,7 @@ TEST_F(ConsistencyCheckTest, CheckError) {
 
     // 3、init 向chunkserverclient init失败
     EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySet(_, _, _))
-        .Times(2)
+        .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<2>(csLocs),
                         Return(0)));
     EXPECT_CALL(*csClient_, Init(_))
@@ -264,6 +278,22 @@ TEST_F(ConsistencyCheckTest, CheckError) {
         .Times(1)
         .WillOnce(Return(0));
     EXPECT_CALL(*csClient_, GetCopysetStatus(_, _))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, cfc.RunCommand("check-consistency"));
+
+    // 5、从chunkserver获取chunk hash失败
+    FLAGS_check_hash = true;
+    CopysetStatusResponse response1;
+    GetCopysetStatusForTest(&response1);
+    EXPECT_CALL(*csClient_, Init(_))
+        .Times(4)
+        .WillRepeatedly(Return(0));
+    EXPECT_CALL(*csClient_, GetCopysetStatus(_, _))
+        .Times(3)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(response1),
+                        Return(0)));
+    EXPECT_CALL(*csClient_, GetChunkHash(_, _))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, cfc.RunCommand("check-consistency"));

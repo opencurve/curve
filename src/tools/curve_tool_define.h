@@ -17,6 +17,7 @@ DECLARE_uint64(rpcTimeout);
 DECLARE_uint64(rpcRetryTimes);
 DECLARE_string(snapshotCloneAddr);
 DECLARE_string(snapshotCloneDummyPort);
+DECLARE_uint64(chunkSize);
 
 namespace curve {
 namespace tool {
