@@ -72,7 +72,8 @@ class FakeChunkClosure : public ::google::protobuf::Closure {
         isDone_ = true;
         resContent_.appliedindex = response_->appliedindex();
         resContent_.status = response_->status();
-        resContent_.attachment = cntl_->response_attachment();
+        resContent_.attachment.append(
+            cntl_->response_attachment().to_string());
     }
 
     void SetCntl(brpc::Controller* cntl) {

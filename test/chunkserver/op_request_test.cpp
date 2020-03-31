@@ -310,7 +310,7 @@ TEST(ChunkOpRequestTest, encode) {
     }
 }
 
-TEST(ChunkOpContextTest, OnApplyErrorTest) {
+TEST(ChunkOpRequestTest, OnApplyErrorTest) {
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
     uint64_t chunkId = 12345;
@@ -592,7 +592,7 @@ TEST(ChunkOpContextTest, OnApplyErrorTest) {
     }
 }
 
-TEST(ChunkOpContextTest, OnApplyFromLogTest) {
+TEST(ChunkOpRequestTest, OnApplyFromLogTest) {
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
     uint64_t chunkId = 12345;

@@ -41,11 +41,15 @@ class ChunkServiceOp {
      * @param offset
      * @param len
      * @param data 待写数据
+     * @param cloneFileSource clone源的文件路径
+     * @param cloneFileOffset clone chunk在clone源中的相对偏移
      * @return 请求执行失败则返回-1，否则返回错误码
      */
     static int WriteChunk(struct ChunkServiceOpConf *opConf, ChunkID chunkId,
                           SequenceNum sn, off_t offset, size_t len,
-                          const char *data);
+                          const char *data,
+                          const std::string& cloneFileSource = "",
+                          off_t cloneFileOffset = 0);
 
     /**
      * @brief 通过chunkService读chunk
@@ -55,11 +59,15 @@ class ChunkServiceOp {
      * @param offset
      * @param len
      * @param data 读取内容
+     * @param cloneFileSource clone源的文件路径
+     * @param cloneFileOffset clone chunk在clone源中的相对偏移
      * @return 请求执行失败则返回-1，否则返回错误码
      */
     static int ReadChunk(struct ChunkServiceOpConf *opConf, ChunkID chunkId,
                          SequenceNum sn, off_t offset, size_t len,
-                         string *data);
+                         string *data,
+                         const std::string& cloneFileSource = "",
+                         off_t cloneFileOffset = 0);
 
     /**
      * @brief 通过chunkService读chunk快照
@@ -150,10 +158,14 @@ class ChunkServiceVerify {
      * @param len
      * @param data 待写数据
      * @param chunkData 整个chunk的预期数据
+     * @param cloneFileSource clone源的文件路径
+     * @param cloneFileOffset clone chunk在clone源中的相对偏移
      * @return 返回写操作的错误码
      */
     int VerifyWriteChunk(ChunkID chunkId, SequenceNum sn, off_t offset,
-                         size_t len, const char *data, string *chunkData);
+                         size_t len, const char *data, string *chunkData,
+                         const std::string& cloneFileSource = "",
+                         off_t cloneFileOffset = 0);
 
     /**
      * @brief 执行读chunk, 并验证读取内容是否与chunkdata对应区域的预期数据吻合。
@@ -162,10 +174,14 @@ class ChunkServiceVerify {
      * @param offset
      * @param len
      * @param chunkData 整个chunk的预期数据
+     * @param cloneFileSource clone源的文件路径
+     * @param cloneFileOffset clone chunk在clone源中的相对偏移
      * @return 读请求结果符合预期返回0，否则返回-1
      */
     int VerifyReadChunk(ChunkID chunkId, SequenceNum sn, off_t offset,
-                        size_t len, string *chunkData);
+                        size_t len, string *chunkData,
+                        const std::string& cloneFileSource = "",
+                        off_t cloneFileOffset = 0);
 
     /**
      * @brief 执行读chunk快照,

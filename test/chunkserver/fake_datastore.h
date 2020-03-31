@@ -118,7 +118,8 @@ class FakeCSDataStore : public CSDataStore {
                            const char *buf,
                            off_t offset,
                            size_t length,
-                           uint32_t *cost) override {
+                           uint32_t *cost,
+                           const std::string & csl = "") override {
         CSErrorCode errorCode = HasInjectError();
         if (errorCode != CSErrorCode::Success) {
             return errorCode;

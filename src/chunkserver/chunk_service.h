@@ -57,7 +57,10 @@ class ChunkServiceImpl : public ChunkService {
                           const ChunkRequest *request,
                           ChunkResponse *response,
                           Closure *done);
-
+    void CreateS3CloneChunk(RpcController* controller,
+                       const CreateS3CloneChunkRequest* request,
+                       CreateS3CloneChunkResponse* response,
+                       Closure* done);
     void RecoverChunk(RpcController *controller,
                       const ChunkRequest *request,
                       ChunkResponse *response,

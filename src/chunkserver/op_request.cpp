@@ -13,6 +13,7 @@
 #include <brpc/closure_guard.h>
 
 #include <memory>
+#include <string>
 
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/chunk_closure.h"
@@ -287,10 +288,16 @@ void ReadChunkRequest::OnApply(uint64_t index,
     CSErrorCode errorCode = datastore_->GetChunkInfo(request_->chunkid(),
                                                      &chunkInfo);
     do {
+        bool needLazyClone = false;
+        // 如果需要Read的chunk不存在，但是请求包含Clone源信息，则尝试从Clone源读取数据
         if (CSErrorCode::ChunkNotExistError == errorCode) {
-            response_->set_status(
-                CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
-            break;
+            if (existCloneInfo(request_)) {
+                needLazyClone = true;
+            } else {
+                response_->set_status(
+                    CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
+                break;
+            }
         } else if (CSErrorCode::Success != errorCode) {
             LOG(ERROR) << "get chunkinfo failed: "
                        << " logic pool id: " << request_->logicpoolid()
@@ -301,7 +308,7 @@ void ReadChunkRequest::OnApply(uint64_t index,
             break;
         }
         // 如果需要从源端拷贝数据，需要将请求转发给clone manager处理
-        if (NeedClone(chunkInfo)) {
+        if ( needLazyClone || NeedClone(chunkInfo) ) {
             applyIndex = index;
             std::shared_ptr<CloneTask> cloneTask =
             cloneMgr_->GenerateCloneTask(
@@ -381,9 +388,9 @@ void ReadChunkRequest::ReadChunk() {
                                      readBuffer,
                                      request_->offset(),
                                      size);
+    butil::IOBuf wrapper;
+    wrapper.append_user_data(readBuffer, size, ReadBufferDeleter);
     if (CSErrorCode::Success == ret) {
-        butil::IOBuf wrapper;
-        wrapper.append_user_data(readBuffer, size, ReadBufferDeleter);
         cntl_->response_attachment().append(wrapper);
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     } else if (CSErrorCode::ChunkNotExistError == ret) {
@@ -407,12 +414,20 @@ void WriteChunkRequest::OnApply(uint64_t index,
     brpc::ClosureGuard doneGuard(done);
     uint32_t cost;
 
+    std::string  cloneSourceLocation;
+    if (existCloneInfo(request_)) {
+        auto func = ::curve::common::LocationOperator::GenerateCurveLocation;
+        cloneSourceLocation =  func(request_->clonefilesource(),
+                            request_->clonefileoffset());
+    }
+
     auto ret = datastore_->WriteChunk(request_->chunkid(),
                                       request_->sn(),
                                       cntl_->request_attachment().to_string().c_str(),  //NOLINT
                                       request_->offset(),
                                       request_->size(),
-                                      &cost);
+                                      &cost,
+                                      cloneSourceLocation);
 
     if (CSErrorCode::Success == ret) {
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -461,12 +476,21 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                        const ChunkRequest &request,
                                        const butil::IOBuf &data) {
     uint32_t cost;
+    std::string  cloneSourceLocation;
+    if (existCloneInfo(request_)) {
+        auto func = ::curve::common::LocationOperator::GenerateCurveLocation;
+        cloneSourceLocation =  func(request_->clonefilesource(),
+                            request_->clonefileoffset());
+    }
+
+
     auto ret = datastore->WriteChunk(request.chunkid(),
                                      request.sn(),
                                      data.to_string().c_str(),
                                      request.offset(),
                                      request.size(),
-                                     &cost);
+                                     &cost,
+                                     cloneSourceLocation);
      if (CSErrorCode::Success == ret) {
          return;
      } else if (CSErrorCode::BackwardRequestError == ret) {
@@ -508,14 +532,14 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
                                              readBuffer,
                                              request_->offset(),
                                              request_->size());
+    butil::IOBuf wrapper;
+    wrapper.append_user_data(readBuffer, size, ReadBufferDeleter);
 
     do {
         /**
          * 1.成功
          */
         if (CSErrorCode::Success == ret) {
-            butil::IOBuf wrapper;
-            wrapper.append_user_data(readBuffer, size, ReadBufferDeleter);
             cntl_->response_attachment().append(wrapper);
             response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
             node_->UpdateAppliedIndex(index);

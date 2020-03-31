@@ -44,6 +44,13 @@ message FileInfo {
     //用于文件转移到回收站的情况下恢复场景下的使用,
     //RecycleBin（回收站）目录下使用/其他场景下不使用
     optional    string      originalFullPathName = 12;
+
+    // cloneSource 当前用于存放克隆源(当前主要用于curvefs)
+    // 后期可以考虑存放 s3相关信息
+    optional    string      cloneSource   =    13;
+
+    // cloneLength 克隆源文件的长度，用于clone过程中进行extent
+    optional    uint64      cloneLength =  14;
 }
 
 // status code
