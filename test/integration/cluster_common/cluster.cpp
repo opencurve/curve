@@ -26,26 +26,6 @@ using ::curve::client::UserInfo_t;
 
 namespace curve {
 
-#define RETURN_IF_NOT_ZERO(x)                                                  \
-    do {                                                                       \
-        int ret = (x);                                                         \
-        if (ret != 0) {                                                        \
-            LOG(ERROR) << __FILE__ << ":" << __LINE__                          \
-                       << "-> get non-ZERO, return -1";                        \
-            return ret;                                                        \
-        }                                                                      \
-    } while (0)
-
-#define RETURN_IF_FALSE(x)                                                     \
-    do {                                                                       \
-        bool ret = (x);                                                        \
-        if (!ret) {                                                            \
-            LOG(ERROR) << __FILE__ << ":" << __LINE__                          \
-                       << "-> get FALSE, return -1";                           \
-            return -1;                                                         \
-        }                                                                      \
-    } while (0)
-
 int CurveCluster::InitDB(const std::string &mdsTable, const std::string &user,
                          const std::string &url, const std::string &password,
                          int poolSize) {
