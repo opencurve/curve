@@ -1471,7 +1471,9 @@ void NameSpaceService::CreateCloneFile(
                             request->filelength(),
                             request->seq(),
                             request->chunksize(),
-                            response->mutable_fileinfo());
+                            response->mutable_fileinfo(),
+                            request->clonesource(),
+                            request->filelength());
     response->set_statuscode(ret);
     if (ret != StatusCode::kOK) {
         if (google::ERROR != GetMdsLogLevel(ret)) {

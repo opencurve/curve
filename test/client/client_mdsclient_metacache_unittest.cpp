@@ -1557,12 +1557,10 @@ TEST_F(MDSClientTest, CreateCloneFile) {
     curvefsservice.SetCreateCloneFile(fakecreateclone);
     curvefsservice.CleanRetryTimes();
 
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED, mdsclient_.CreateCloneFile("destination",
-                                                            userinfo,
-                                                            10 * 1024 * 1024,
-                                                            0,
-                                                            4*1024*1024,
-                                                            &finfo));
+    ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+              mdsclient_.CreateCloneFile("source", "destination", userinfo,
+                                         10 * 1024 * 1024, 0, 4 * 1024 * 1024,
+                                         &finfo));
     // 认证失败
     curve::mds::CreateCloneFileResponse response1;
     response1.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
@@ -1572,13 +1570,10 @@ TEST_F(MDSClientTest, CreateCloneFile) {
 
     curvefsservice.SetCreateCloneFile(fakecreateclone1);
 
-    ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL, mdsclient_.CreateCloneFile(
-                                                            "destination",
-                                                            userinfo,
-                                                            10 * 1024 * 1024,
-                                                            0,
-                                                            4*1024*1024,
-                                                            &finfo));
+    ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL,
+              mdsclient_.CreateCloneFile("source", "destination", userinfo,
+                                         10 * 1024 * 1024, 0, 4 * 1024 * 1024,
+                                         &finfo));
     // 请求成功
     info->set_id(5);
     curve::mds::CreateCloneFileResponse response2;
@@ -1590,13 +1585,17 @@ TEST_F(MDSClientTest, CreateCloneFile) {
 
     curvefsservice.SetCreateCloneFile(fakecreateclone2);
 
-    ASSERT_EQ(LIBCURVE_ERROR::OK, mdsclient_.CreateCloneFile("destination",
-                                                            userinfo,
-                                                            10 * 1024 * 1024,
-                                                            0,
-                                                            4*1024*1024,
-                                                            &finfo));
+    std::string cloneSource = "/clone/source";
+    uint64_t cloneLength = 1 * 1024 * 1024 * 1024;
+    info->set_clonesource(cloneSource);
+    info->set_clonelength(cloneLength);
+    ASSERT_EQ(LIBCURVE_ERROR::OK,
+              mdsclient_.CreateCloneFile("source", "destination", userinfo,
+                                         10 * 1024 * 1024, 0, 4 * 1024 * 1024,
+                                         &finfo));
     ASSERT_EQ(5, finfo.id);
+    ASSERT_EQ(cloneSource, finfo.cloneSource);
+    ASSERT_EQ(cloneLength, finfo.cloneLength);
 }
 
 TEST_F(MDSClientTest, CompleteCloneMeta) {

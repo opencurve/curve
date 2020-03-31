@@ -100,39 +100,30 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     void GetChunkInfo(const ChunkIDInfo &cinfo,
                      ChunkInfoDetail *chunkInfo);
 
-   /**
-    * @brief lazy 创建clone chunk
-    * @detail
-    *  - location的格式定义为 A@B的形式。
-    *  - 如果源数据在s3上，则location格式为uri@s3，uri为实际chunk对象的地址；
-    *  - 如果源数据在curvefs上，则location格式为/filename/chunkindex@cs
-    *
-    * @param:location 数据源的url
-    * @param:chunkidinfo 目标chunk
-    * @param:sn chunk的序列号
-    * @param:correntSn CreateCloneChunk时候用于修改chunk的correctedSn
-    * @param:chunkSize chunk的大小
-    * @param: scc是异步回调
-    */
-    void CreateCloneChunk(const std::string &location,
-                                const ChunkIDInfo &chunkidinfo,
-                                uint64_t sn,
-                                uint64_t correntSn,
-                                uint64_t chunkSize,
-                                SnapCloneClosure* scc);
+    /**
+     * @brief lazy 创建clone chunk
+     * @param:location 数据源的url
+     * @param:chunkidinfo 目标chunk
+     * @param:sn chunk的序列号
+     * @param:correntSn CreateCloneChunk时候用于修改chunk的correctedSn
+     * @param:chunkSize chunk的大小
+     * @param: scc是异步回调
+     */
+    void CreateCloneChunk(const std::string& location,
+                          const ChunkIDInfo& chunkidinfo, uint64_t sn,
+                          uint64_t correntSn, uint64_t chunkSize,
+                          SnapCloneClosure* scc);
 
-   /**
-    * @brief 实际恢复chunk数据
-    *
-    * @param:chunkidinfo chunkidinfo
-    * @param:offset 偏移
-    * @param:len 长度
-    * @param:chunkSize chunk的大小
-    * @param: scc是异步回调
-    */
-    void RecoverChunk(const ChunkIDInfo &chunkidinfo,
-                      uint64_t offset, uint64_t len,
-                      SnapCloneClosure* scc);
+    /**
+     * @brief 实际恢复chunk数据
+     * @param:chunkidinfo chunkidinfo
+     * @param:offset 偏移
+     * @param:len 长度
+     * @param:chunkSize chunk的大小
+     * @param: scc是异步回调
+     */
+    void RecoverChunk(const ChunkIDInfo& chunkIdInfo, uint64_t offset,
+                      uint64_t len, SnapCloneClosure* scc);
 
     /**
      * Wait用于同步接口等待，因为用户下来的IO被client内部线程接管之后
@@ -147,6 +138,9 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * 每个request都要有自己的OP类型，这里提供接口可以在io拆分的时候获取类型
      */
     OpType Optype() {return type_;}
+
+    // 设置操作类型，测试使用
+    void SetOpType(OpType type) { type_ = type; }
 
     /**
      * 因为client的IO都是异步发送的，且一个IO被拆分成多个Request，因此在异步

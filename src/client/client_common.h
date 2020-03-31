@@ -138,6 +138,8 @@ typedef struct FInfo {
     std::string     filename;
     std::string     fullPathName;
     FileStatus      filestatus;
+    std::string     cloneSource;
+    uint64_t        cloneLength{0};
 
     FInfo() {
         id = 0;

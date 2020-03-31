@@ -13,6 +13,7 @@
 #include "proto/chunk.pb.h"
 #include "src/common/timeutility.h"
 #include "src/client/request_closure.h"
+#include "src/common/location_operator.h"
 
 using curve::common::TimeUtility;
 
@@ -38,6 +39,7 @@ int RequestSender::ReadChunk(ChunkIDInfo idinfo,
                              off_t offset,
                              size_t length,
                              uint64_t appliedindex,
+                             const RequestSourceInfo& sourceInfo,
                              ClientClosure *done) {
     brpc::ClosureGuard doneGuard(done);
 
@@ -62,6 +64,12 @@ int RequestSender::ReadChunk(ChunkIDInfo idinfo,
     request.set_chunkid(idinfo.cid_);
     request.set_offset(offset);
     request.set_size(length);
+
+    if (!sourceInfo.cloneFileSource.empty()) {
+        request.set_clonefilesource(sourceInfo.cloneFileSource);
+        request.set_clonefileoffset(sourceInfo.cloneFileOffset);
+    }
+
     if (iosenderopt_.chunkserverEnableAppliedIndexRead && appliedindex > 0) {
         request.set_appliedindex(appliedindex);
     }
@@ -76,6 +84,7 @@ int RequestSender::WriteChunk(ChunkIDInfo idinfo,
                               const char *buf,
                               off_t offset,
                               size_t length,
+                              const RequestSourceInfo& sourceInfo,
                               ClientClosure *done) {
     brpc::ClosureGuard doneGuard(done);
 
@@ -103,6 +112,12 @@ int RequestSender::WriteChunk(ChunkIDInfo idinfo,
     request.set_sn(sn);
     request.set_offset(offset);
     request.set_size(length);
+
+    if (!sourceInfo.cloneFileSource.empty()) {
+        request.set_clonefilesource(sourceInfo.cloneFileSource);
+        request.set_clonefileoffset(sourceInfo.cloneFileOffset);
+    }
+
     cntl->request_attachment().append_user_data(
         const_cast<char*>(buf), length, EmptyDeleter);
     ChunkService_Stub stub(&channel_);
@@ -209,8 +224,8 @@ int RequestSender::CreateCloneChunk(ChunkIDInfo idinfo,
     done->SetResponse(response);
 
     ChunkRequest request;
-    request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::
-                                        CHUNK_OP_CREATE_CLONE);
+    request.set_optype(
+        curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_CREATE_CLONE);
     request.set_logicpoolid(idinfo.lpid_);
     request.set_copysetid(idinfo.cpid_);
     request.set_chunkid(idinfo.cid_);
@@ -223,7 +238,7 @@ int RequestSender::CreateCloneChunk(ChunkIDInfo idinfo,
     stub.CreateCloneChunk(cntl, &request, response, doneGuard.release());
 }
 
-int RequestSender::RecoverChunk(ChunkIDInfo idinfo,
+int RequestSender::RecoverChunk(const ChunkIDInfo& idinfo,
                                 ClientClosure *done,
                                 uint64_t offset,
                                 uint64_t len) {

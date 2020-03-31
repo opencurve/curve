@@ -399,10 +399,10 @@ message  CreateCloneFileRequest {
     required uint64     fileLength = 3;
     required uint64     seq = 4;
     required uint32     chunksize = 5;
-
     required string     owner = 6;
     optional string     signature = 7;
     required uint64     date =8;
+    required string     cloneSource = 9;
 }
 
 message CreateCloneFileResponse {
