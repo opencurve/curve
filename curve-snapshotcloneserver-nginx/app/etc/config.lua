@@ -29,7 +29,7 @@ _M.snapshot = {
     try_timeout = 30,
 
     --  Connect timeout to upstream servers.
-    timeout = 3,
+    timeout = 15,
 
     -- Retry count. Default is the number of servers.
     try = 100,
