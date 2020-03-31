@@ -98,6 +98,32 @@ class ChunkServiceOp {
                                               SequenceNum correctedSn);
 
     /**
+     * @brief 通过chunkService创建clone chunk
+     * @param opConf，leaderPeer/copysetid等公共配置参数
+     * @param chunkId
+     * @param location 源chunk在源端的位置,可能在curve或S3上
+     * @param correctedSn
+     * @param sn
+     * @param chunkSize
+     * @return 请求执行失败则返回-1，否则返回错误码
+     */
+    static int CreateCloneChunk(struct ChunkServiceOpConf *opConf,
+                                ChunkID chunkId, const std::string &location,
+                                uint64_t correctedSn, uint64_t sn,
+                                uint64_t chunkSize);
+
+    /**
+     * @brief 通过chunkService恢复chunk
+     * @param opConf，leaderPeer/copysetid等公共配置参数
+     * @param chunkId
+     * @param offset
+     * @param len
+     * @return 请求执行失败则返回-1，否则返回错误码
+     */
+    static int RecoverChunk(struct ChunkServiceOpConf *opConf, ChunkID chunkId,
+                            off_t offset, size_t len);
+
+    /**
      * @brief 通过chunkService获取chunk元数据
      * @param opConf，leaderPeer/copysetid等公共配置参数
      * @param chunkId
@@ -142,7 +168,8 @@ class ChunkServiceVerify {
                         size_t len, string *chunkData);
 
     /**
-     * @brief 执行读chunk快照, 并验证读取内容是否与chunkdata对应区域的预期数据吻合。
+     * @brief 执行读chunk快照,
+     * 并验证读取内容是否与chunkdata对应区域的预期数据吻合。
      * @param chunkId
      * @param sn chunk版本
      * @param offset
@@ -169,6 +196,28 @@ class ChunkServiceVerify {
      */
     int VerifyDeleteChunkSnapshotOrCorrectSn(ChunkID chunkId,
                                              SequenceNum correctedSn);
+
+    /**
+     * @brief 创建clone chunk
+     * @param chunkId
+     * @param location 源地址
+     * @param correctedSn
+     * @param sn
+     * @param chunkSize
+     * @return 返回创建操作的错误码
+     */
+    int VerifyCreateCloneChunk(ChunkID chunkId, const std::string &location,
+                               uint64_t correctedSn, uint64_t sn,
+                               uint64_t chunkSize);
+
+    /**
+     * @brief 恢复chunk
+     * @param chunkId
+     * @param offset
+     * @param len
+     * @return 请求执行失败则返回-1，否则返回错误码
+     */
+    int VerifyRecoverChunk(ChunkID chunkId, off_t offset, size_t len);
 
     /**
      * @brief 获取chunk元数据，并检验结果是否符合预期
