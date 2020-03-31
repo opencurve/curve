@@ -8,6 +8,7 @@
 #define SRC_CLIENT_SPLITOR_H_
 
 #include <list>
+#include <string>
 
 #include "src/client/metacache.h"
 #include "src/client/io_tracker.h"
@@ -60,6 +61,17 @@ class Splitor {
                            off_t offset,
                            size_t length,
                            uint64_t seq);
+
+    /**
+     * @brief 计算请求的location信息
+     * @param ioTracker io上下文信息
+     * @param metaCache 文件缓存信息
+     * @param chunkIdx 当前chunk信息
+     * @return source信息
+     */
+    static RequestSourceInfo CalcRequestSourceInfo(IOTracker* ioTracker,
+                                                   MetaCache* metaCache,
+                                                   ChunkIndex chunkIdx);
 
  private:
     /**

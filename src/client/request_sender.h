@@ -17,6 +17,7 @@
 #include "src/client/client_common.h"
 #include "src/client/chunk_closure.h"
 #include "include/curve_compiler_specific.h"
+#include "src/client/request_context.h"
 
 namespace curve {
 namespace client {
@@ -50,6 +51,7 @@ class RequestSender {
      * @param offset:读的偏移
      * @param length:读的长度
      * @param appliedindex:需要读到>=appliedIndex的数据
+     * @param sourceInfo 数据源信息
      * @param done:上一层异步回调的closure
      */
     int ReadChunk(ChunkIDInfo idinfo,
@@ -57,6 +59,7 @@ class RequestSender {
                   off_t offset,
                   size_t length,
                   uint64_t appliedindex,
+                  const RequestSourceInfo& sourceInfo,
                   ClientClosure *done);
 
     /**
@@ -66,6 +69,7 @@ class RequestSender {
    * @param buf:要写入的数据
     *@param offset:写的偏移
    * @param length:写的长度
+   * @param sourceInfo 数据源信息
    * @param done:上一层异步回调的closure
    */
     int WriteChunk(ChunkIDInfo idinfo,
@@ -73,6 +77,7 @@ class RequestSender {
                    const char *buf,
                    off_t offset,
                    size_t length,
+                   const RequestSourceInfo& sourceInfo,
                    ClientClosure *done);
 
     /**
@@ -143,10 +148,8 @@ class RequestSender {
     *
     * @return 错误码
     */
-    int RecoverChunk(ChunkIDInfo idinfo,
-                  ClientClosure *done,
-                  uint64_t offset,
-                  uint64_t len);
+    int RecoverChunk(const ChunkIDInfo& idinfo,
+                     ClientClosure* done, uint64_t offset, uint64_t len);
     /**
      * 重置和Chunk Server的链接
      * @param chunkServerId:Chunk Server唯一标识

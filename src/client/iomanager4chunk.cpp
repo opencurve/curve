@@ -72,11 +72,11 @@ int IOManager4Chunk::CreateCloneChunk(const std::string &location,
     return 0;
 }
 
-int IOManager4Chunk::RecoverChunk(const ChunkIDInfo &chunkidinfo,
-    uint64_t offset, uint64_t len, SnapCloneClosure* scc) {
-
-    IOTracker* temp = new IOTracker(this, &mc_, scheduler_);
-    temp->RecoverChunk(chunkidinfo, offset, len, scc);
+int IOManager4Chunk::RecoverChunk(const ChunkIDInfo& chunkIdInfo,
+                                  uint64_t offset, uint64_t len,
+                                  SnapCloneClosure* scc) {
+    IOTracker* ioTracker = new IOTracker(this, &mc_, scheduler_);
+    ioTracker->RecoverChunk(chunkIdInfo, offset, len, scc);
     return 0;
 }
 

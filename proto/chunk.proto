@@ -121,7 +121,7 @@ service ChunkService {
 
     rpc CreateCloneChunk (ChunkRequest) returns (ChunkResponse);
 
-    rpc CreateS3CloneChunk( CreateS3CloneChunkRequest) returns(CreateS3CloneChunkResponse);
+    rpc CreateS3CloneChunk(CreateS3CloneChunkRequest) returns(CreateS3CloneChunkResponse);
 
     rpc RecoverChunk (ChunkRequest) returns (ChunkResponse);
 };

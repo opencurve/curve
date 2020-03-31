@@ -82,18 +82,16 @@ class IOManager4Chunk : public IOManager {
                                 uint64_t chunkSize,
                                 SnapCloneClosure* scc);
 
-   /**
-    * @brief 实际恢复chunk数据
-    *
-    * @param:chunkidinfo chunkidinfo
-    * @param:offset 偏移
-    * @param:len 长度
-    * @param: scc是异步回调
-    * @return 成功返回0， 否则-1
-    */
-    int RecoverChunk(const ChunkIDInfo &chunkidinfo,
-                     uint64_t offset, uint64_t len,
-                     SnapCloneClosure* scc);
+    /**
+     * @brief 实际恢复chunk数据
+     * @param chunkidinfo chunkidinfo
+     * @param offset 偏移
+     * @param len 长度
+     * @param scc 异步回调
+     * @return 成功返回0， 否则-1
+     */
+    int RecoverChunk(const ChunkIDInfo& chunkIdInfo, uint64_t offset,
+                     uint64_t len, SnapCloneClosure* scc);
 
     /**
      * 因为curve client底层都是异步IO，每个IO会分配一个IOtracker跟踪IO
