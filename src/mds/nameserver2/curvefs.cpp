@@ -1293,7 +1293,9 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
                             uint64_t length,
                             FileSeqType seq,
                             ChunkSizeType chunksize,
-                            FileInfo *retFileInfo) {
+                            FileInfo *retFileInfo,
+                            const std::string & cloneSource,
+                            uint64_t cloneLength) {
     // 检查基本参数
     if (filetype != FileType::INODE_PAGEFILE) {
         LOG(WARNING) << "CreateCloneFile err, filename = " << fileName
@@ -1349,6 +1351,8 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
 
         fileInfo.set_seqnum(seq);
+        fileInfo.set_clonesource(cloneSource);
+        fileInfo.set_clonelength(cloneLength);
 
         fileInfo.set_filestatus(FileStatus::kFileCloning);
 

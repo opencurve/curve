@@ -117,6 +117,24 @@ class CloneCore : public std::enable_shared_from_this<CloneCore> {
 
  protected:
     /**
+     * 本地chunk文件存在情况下，按照本地记录的clone和bitmap信息进行数据读取
+     * 会涉及读取远程文件结合本地文件进行merge返回结果
+     * @param[in/out] readRequest: 用户请求&响应上下文
+     * @param[in] chunkInfo: 对应本地的chunkinfo
+     * @return 成功返回0，失败返回负数
+     */
+    int CloneReadByLocalInfo(std::shared_ptr<ReadChunkRequest> readRequest,
+        const CSChunkInfo &chunkInfo, Closure* done);
+
+    /**
+     * 本地chunk文件不存在情况下，按照用户请求上下文中带的clonesource信息进行数据读取
+     * 不涉及merge本地结果
+     * @param[in/out] readRequest: 用户请求&响应上下文
+     */
+    void CloneReadByRequestInfo(std::shared_ptr<ReadChunkRequest> readRequest,
+        Closure* done);
+
+    /**
      * 从本地chunk中读取请求的区域，然后设置response
      * @param readRequest: 用户的ReadRequest
      * @return: 成功返回0，失败返回-1
@@ -124,14 +142,21 @@ class CloneCore : public std::enable_shared_from_this<CloneCore> {
     int ReadChunk(std::shared_ptr<ReadChunkRequest> readRequest);
 
     /**
+     * 设置read chunk类型的response，包括返回的数据和其他返回参数
      * 从本地chunk中读取已被写过的区域，未写过的区域从克隆下来的数据中获取
      * 然后将数据在内存中merge
      * @param readRequest: 用户的ReadRequest
      * @param cloneData: 从源端拷贝下来的数据，数据起始偏移同请求中的偏移
      * @return: 成功返回0，失败返回-1
      */
+    int SetReadChunkResponse(std::shared_ptr<ReadChunkRequest> readRequest,
+                             const char* cloneData);
+
+    // 从本地chunk中读取已经写过的区域合并到clone data中
     int ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
-                      const char* cloneData);
+                      const CSChunkInfo& chunkInfo,
+                      const char* cloneData,
+                      char* chunkData);
 
     /**
      * 将从源端下载下来的数据paste到本地chunk文件中

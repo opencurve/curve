@@ -177,6 +177,15 @@ void ChunkServiceImpl::CreateCloneChunk(RpcController *controller,
     req->Process();
 }
 
+void ChunkServiceImpl::CreateS3CloneChunk(RpcController* controller,
+                       const CreateS3CloneChunkRequest* request,
+                       CreateS3CloneChunkResponse* response,
+                       Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
+    LOG(INFO) << "Invalid request, serverSide Not implement yet";
+}
+
 void ChunkServiceImpl::ReadChunk(RpcController *controller,
                                  const ChunkRequest *request,
                                  ChunkResponse *response,

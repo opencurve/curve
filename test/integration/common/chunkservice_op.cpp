@@ -15,7 +15,9 @@ const PageSizeType kPageSize = kOpRequestAlignSize;
 
 int ChunkServiceOp::WriteChunk(struct ChunkServiceOpConf *opConf,
                                ChunkID chunkId, SequenceNum sn, off_t offset,
-                               size_t len, const char *data) {
+                               size_t len, const char *data,
+                               const std::string& cloneFileSource,
+                               off_t cloneFileOffset) {
     PeerId leaderId(opConf->leaderPeer->address());
     brpc::Channel channel;
     channel.Init(leaderId.addr, NULL);
@@ -32,6 +34,10 @@ int ChunkServiceOp::WriteChunk(struct ChunkServiceOpConf *opConf,
     request.set_sn(sn);
     request.set_offset(offset);
     request.set_size(len);
+    if (!cloneFileSource.empty()) {
+        request.set_clonefilesource(cloneFileSource);
+        request.set_clonefileoffset(cloneFileOffset);
+    }
     cntl.request_attachment().append(data, len);
     stub.WriteChunk(&cntl, &request, &response, nullptr);
 
@@ -47,7 +53,9 @@ int ChunkServiceOp::WriteChunk(struct ChunkServiceOpConf *opConf,
 
 int ChunkServiceOp::ReadChunk(struct ChunkServiceOpConf *opConf,
                               ChunkID chunkId, SequenceNum sn, off_t offset,
-                              size_t len, std::string *data) {
+                              size_t len, std::string *data,
+                              const std::string& cloneFileSource,
+                              off_t cloneFileOffset) {
     PeerId leaderId(opConf->leaderPeer->address());
     brpc::Channel channel;
     channel.Init(leaderId.addr, NULL);
@@ -65,6 +73,10 @@ int ChunkServiceOp::ReadChunk(struct ChunkServiceOpConf *opConf,
     request.set_offset(offset);
     request.set_size(len);
     request.set_appliedindex(1);
+    if (!cloneFileSource.empty()) {
+        request.set_clonefilesource(cloneFileSource);
+        request.set_clonefileoffset(cloneFileOffset);
+    }
 
     stub.ReadChunk(&cntl, &request, &response, nullptr);
     if (cntl.Failed()) {
@@ -281,7 +293,7 @@ int ChunkServiceOp::GetChunkInfo(struct ChunkServiceOpConf *opConf,
             *curSn = response.chunksn(0);
             break;
         case 0:
-            break;
+            return CHUNK_OP_STATUS_CHUNK_NOTEXIST;
         default:
             LOG(ERROR) << "GetChunkInfo failed, invalid chunkSn size: "
                        << response.chunksn().size();
@@ -300,12 +312,17 @@ int ChunkServiceOp::GetChunkInfo(struct ChunkServiceOpConf *opConf,
 
 int ChunkServiceVerify::VerifyWriteChunk(ChunkID chunkId, SequenceNum sn,
                                          off_t offset, size_t len,
-                                         const char *data, string *chunkData) {
+                                         const char *data, string *chunkData,
+                                         const std::string& cloneFileSource,
+                                         off_t cloneFileOffset) {
     int ret =
-        ChunkServiceOp::WriteChunk(opConf_, chunkId, sn, offset, len, data);
+        ChunkServiceOp::WriteChunk(opConf_, chunkId, sn, offset, len, data,
+                                   cloneFileSource, cloneFileOffset);
 
     LOG(INFO) << "Write Chunk " << chunkId << ", sn=" << sn
-              << ", offset=" << offset << ", len=" << len << ", ret=" << ret;
+              << ", offset=" << offset << ", len=" << len
+              << ", cloneFileSource=" << cloneFileSource
+              << ", cloneFileOffset=" << cloneFileOffset << ", ret=" << ret;
     // chunk写成功，同步更新chunkData内容和existChunks_
     if (ret == CHUNK_OP_STATUS_SUCCESS && chunkData != nullptr)
         chunkData->replace(offset, len, data);
@@ -316,19 +333,26 @@ int ChunkServiceVerify::VerifyWriteChunk(ChunkID chunkId, SequenceNum sn,
 
 int ChunkServiceVerify::VerifyReadChunk(ChunkID chunkId, SequenceNum sn,
                                         off_t offset, size_t len,
-                                        string *chunkData) {
+                                        string *chunkData,
+                                        const std::string& cloneFileSource,
+                                        off_t cloneFileOffset) {
     std::string data(len, 0);
     bool chunk_existed = existChunks_.find(chunkId) != std::end(existChunks_);
 
     int ret =
-        ChunkServiceOp::ReadChunk(opConf_, chunkId, sn, offset, len, &data);
+        ChunkServiceOp::ReadChunk(opConf_, chunkId, sn, offset, len, &data,
+                                  cloneFileSource, cloneFileOffset);
     LOG(INFO) << "Read Chunk " << chunkId << ", sn=" << sn
-              << ", offset=" << offset << ", len=" << len << ", ret=" << ret;
+              << ", offset=" << offset << ", len=" << len
+              << ", cloneFileSource=" << cloneFileSource
+              << ", cloneFileOffset=" << cloneFileOffset << ", ret=" << ret;
 
     if (ret != CHUNK_OP_STATUS_SUCCESS &&
         ret != CHUNK_OP_STATUS_CHUNK_NOTEXIST) {
         return -1;
-    } else if (ret == CHUNK_OP_STATUS_SUCCESS && !chunk_existed) {
+    } else if (ret == CHUNK_OP_STATUS_SUCCESS &&
+               !chunk_existed &&
+               cloneFileSource.empty()) {
         LOG(ERROR) << "Unexpected read success, chunk " << chunkId
                    << " should not existed";
         return -1;

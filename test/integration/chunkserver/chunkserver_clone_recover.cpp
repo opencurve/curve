@@ -647,7 +647,81 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByRecoverChunk) {
     ASSERT_EQ(0, verify.VerifyDeleteChunk(cloneChunk2, sn1));
 }
 
-// 场景三：通过ReadChunk从S3恢复克隆文件
+// 场景三：lazy allocate场景下读克隆文件
+TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunkWhenLazyAlloc) {
+    LOG(INFO) << "current case: CloneFromCurveByReadChunkWhenLazyAlloc";
+
+    // 0. 在curve中写入源数据
+    prepareSourceDataInCurve();
+
+    // 1. chunk文件不存在
+    ChunkServiceVerify verify(&opConf_);
+    ChunkID cloneChunk1 = 331;
+    SequenceNum sn0 = 0;
+    SequenceNum sn1 = 1;
+    SequenceNum sn2 = 2;
+    string sourceFile = CURVEFS_FILENAME;
+    LOG(INFO) << "clone chunk1 from " << sourceFile;
+    std::shared_ptr<string> cloneData1(new string(chunkData1_));
+    ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 8 * KB,
+                                        cloneData1.get(),
+                                        CURVEFS_FILENAME, 0));
+    ASSERT_EQ(0,
+              verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
+
+    string temp(8 * KB, 'a');
+    ASSERT_EQ(0, verify.VerifyWriteChunk(cloneChunk1, sn1, 0, 8 * KB,
+                                         temp.c_str(), cloneData1.get(),
+                                         CURVEFS_FILENAME, 0));
+    ASSERT_EQ(0,
+              verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
+    ASSERT_EQ(CHUNK_OP_STATUS_FAILURE_UNKNOWN,
+              verify.VerifyWriteChunk(cloneChunk1, sn2, 0, 8 * KB, temp.c_str(),
+                                      nullptr));
+
+    // 2. 通过readchunk恢复克隆文件
+    ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 12 * KB,
+                                        cloneData1.get(),
+                                        CURVEFS_FILENAME, 0));
+
+    temp.assign(8 * KB, 'b');
+    ASSERT_EQ(0, verify.VerifyWriteChunk(cloneChunk1, sn1, 4 * KB, 8 * KB,
+                                         temp.c_str(), cloneData1.get(),
+                                         CURVEFS_FILENAME, 0));
+    ASSERT_EQ(0,
+              verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
+    ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 12 * KB,
+                                        cloneData1.get(),
+                                        CURVEFS_FILENAME, 0));
+
+    // 通过ReadChunk读遍clone chunk1的所有pages
+    string ioBuf(kChunkServerMaxIoSize, 'c');
+    for (int offset = 0; offset < kChunkSize; offset += kChunkServerMaxIoSize) {
+        ASSERT_EQ(0, verify.VerifyWriteChunk(cloneChunk1, sn1, offset,
+                                             kChunkServerMaxIoSize,
+                                             ioBuf.c_str(), cloneData1.get(),
+                                             CURVEFS_FILENAME, 0));
+    }
+    ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 12 * KB,
+                                        cloneData1.get(),
+                                        CURVEFS_FILENAME, 0));
+
+    /**
+     * clone文件遍写后会转换为普通chunk1文件
+     * 通过增大版本进行写入，
+     * 如果是clone chunk，写会失败; 如果是普通chunk，则会产生快照文件。
+     */
+    ASSERT_EQ(0,
+              verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
+    ASSERT_EQ(CHUNK_OP_STATUS_SUCCESS,
+              verify.VerifyWriteChunk(cloneChunk1, sn2, 0, 8 * KB, temp.c_str(),
+                                      nullptr));
+
+    // 删除文件
+    ASSERT_EQ(0, verify.VerifyDeleteChunk(cloneChunk1, sn2));
+}
+
+// 场景四：通过ReadChunk从S3恢复克隆文件
 TEST_F(CSCloneRecoverTest, CloneFromS3ByReadChunk) {
     LOG(INFO) << "current case: CloneFromS3ByReadChunk";
 
@@ -723,7 +797,7 @@ TEST_F(CSCloneRecoverTest, CloneFromS3ByReadChunk) {
     ASSERT_EQ(0, verify.VerifyDeleteChunk(cloneChunk2, sn1));
 }
 
-// 场景四：通过RecoverChunk从S3恢复克隆文件
+// 场景五：通过RecoverChunk从S3恢复克隆文件
 TEST_F(CSCloneRecoverTest, CloneFromS3ByRecoverChunk) {
     LOG(INFO) << "current case: CloneFromS3ByRecoverChunk";
 
@@ -804,7 +878,7 @@ TEST_F(CSCloneRecoverTest, CloneFromS3ByRecoverChunk) {
     ASSERT_EQ(0, verify.VerifyDeleteChunk(cloneChunk2, sn1));
 }
 
-// 场景五：通过ReadChunk从S3恢复
+// 场景六：通过ReadChunk从S3恢复
 TEST_F(CSCloneRecoverTest, RecoverFromS3ByReadChunk) {
     LOG(INFO) << "current case: RecoverFromS3ByReadChunk";
 
@@ -872,7 +946,7 @@ TEST_F(CSCloneRecoverTest, RecoverFromS3ByReadChunk) {
     ASSERT_EQ(0, verify.VerifyDeleteChunk(cloneChunk1, sn3));
 }
 
-// 场景六：通过RecoverChunk从S3恢复
+// 场景七：通过RecoverChunk从S3恢复
 TEST_F(CSCloneRecoverTest, RecoverFromS3ByRecoverChunk) {
     LOG(INFO) << "current case: RecoverFromS3ByRecoverChunk";
 

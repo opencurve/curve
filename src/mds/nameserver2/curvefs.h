@@ -315,6 +315,8 @@ class CurveFS {
      * @param length 克隆文件的长度
      * @param seq 版本号
      * @param ChunkSizeType 创建克隆文件的chunk大小
+     * @param cloneSource 克隆源文件地址，当前只支持curvefs
+     * @param cloneLength 克隆源文件长度
      * @param[out] fileInfo 创建成功克隆文件的fileInfo
      * @return 成功返回StatusCode:kOK
      */
@@ -324,7 +326,9 @@ class CurveFS {
                             uint64_t length,
                             FileSeqType seq,
                             ChunkSizeType chunksize,
-                            FileInfo *fileInfo);
+                            FileInfo *fileInfo,
+                            const std::string & cloneSource = "",
+                            uint64_t cloneLength = 0);
 
     /**
      * @brief 设置克隆文件的状态

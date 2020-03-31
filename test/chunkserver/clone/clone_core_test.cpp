@@ -89,6 +89,13 @@ class CloneCoreTest : public testing::Test {
         return req;
     }
 
+    void SetCloneParam(std::shared_ptr<ReadChunkRequest> readRequest) {
+        ChunkRequest* request =
+            const_cast<ChunkRequest*>(readRequest->GetChunkRequest());
+        request->set_clonefilesource("/test");
+        request->set_clonefileoffset(0);
+    }
+
     void CheckTask(const braft::Task& task,
                    off_t offset,
                    size_t length,
@@ -353,6 +360,72 @@ TEST_F(CloneCoreTest, ReadChunkTest2) {
         ASSERT_EQ(LAST_INDEX, closure->resContent_.appliedindex);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   closure->resContent_.status);
+    }
+}
+
+/**
+ * 测试CHUNK_OP_READ类型请求,请求读取的chunk不存在，但是请求中包含源端数据地址
+ * 预期结果：从源端下载数据，产生paste请求
+ */
+TEST_F(CloneCoreTest, ReadChunkTest3) {
+    off_t offset = 0;
+    size_t length = 5 * PAGE_SIZE;
+    CSChunkInfo info;
+    info.isClone = true;
+    info.pageSize = PAGE_SIZE;
+    info.chunkSize = CHUNK_SIZE;
+    info.bitmap = std::make_shared<Bitmap>(CHUNK_SIZE / PAGE_SIZE);
+    std::shared_ptr<CloneCore> core
+        = std::make_shared<CloneCore>(SLICE_SIZE, true, copyer_);
+
+    // case1
+    {
+        info.bitmap->Clear();
+        // 每次调HandleReadRequest后会被closure释放
+        std::shared_ptr<ReadChunkRequest> readRequest
+            = GenerateReadRequest(CHUNK_OP_TYPE::CHUNK_OP_READ, offset, length);
+        SetCloneParam(readRequest);
+        char cloneData[length]= {0};
+        memset(cloneData, 'b', length);
+        EXPECT_CALL(*copyer_, DownloadAsync(_))
+            .WillOnce(Invoke([&](DownloadClosure* closure){
+                brpc::ClosureGuard guard(closure);
+                AsyncDownloadContext* context = closure->GetDownloadContext();
+                memcpy(context->buf, cloneData, length);
+            }));
+        EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
+            .Times(2)
+            .WillRepeatedly(Return(CSErrorCode::ChunkNotExistError));
+        // 读chunk文件
+        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
+            .Times(0);
+        // 更新 applied index
+        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
+            .Times(1);
+        // 产生PasteChunkRequest
+        braft::Task task;
+        butil::IOBuf iobuf;
+        task.data = &iobuf;
+        EXPECT_CALL(*node_, Propose(_))
+            .WillOnce(SaveBraftTask<0>(&task));
+
+        ASSERT_EQ(0, core->HandleReadRequest(readRequest,
+                                             readRequest->Closure()));
+        FakeChunkClosure* closure =
+            reinterpret_cast<FakeChunkClosure*>(readRequest->Closure());
+        ASSERT_TRUE(closure->isDone_);
+        ASSERT_EQ(LAST_INDEX, closure->resContent_.appliedindex);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                closure->resContent_.status);
+
+        CheckTask(task, offset, length, cloneData);
+        // 正常propose后，会将closure交给并发层处理，
+        // 由于这里node是mock的，因此需要主动来执行task.done.Run来释放资源
+        ASSERT_NE(nullptr, task.done);
+        task.done->Run();
+        ASSERT_EQ(memcmp(cloneData,
+                         closure->resContent_.attachment.to_string().c_str(),  //NOLINT
+                         length), 0);
     }
 }
 
