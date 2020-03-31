@@ -21,6 +21,9 @@
 #include "src/snapshotcloneserver/common/snapshot_reference.h"
 #include "src/snapshotcloneserver/clone/clone_reference.h"
 #include "src/snapshotcloneserver/common/thread_pool.h"
+#include "src/common/concurrent/name_lock.h"
+
+using ::curve::common::NameLock;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -122,13 +125,13 @@ class CloneCore {
      * @brief 获取指定文件名的克隆/恢复任务
      *
      * @param fileName  文件名
-     * @param cloneInfo 克隆/恢复任务
+     * @param list 克隆/恢复任务列表
      *
      * @retVal 0  获取成功
      * @retVal -1 获取失败
      */
     virtual int GetCloneInfoByFileName(
-        const std::string &fileName, CloneInfo *cloneInfo) = 0;
+    const std::string &fileName, std::vector<CloneInfo> *list) = 0;
 
     /**
      * @brief 获取快照引用管理模块
@@ -230,7 +233,7 @@ class CloneCoreImpl : public CloneCore {
     int GetCloneInfo(TaskIdType taskId, CloneInfo *cloneInfo) override;
 
     int GetCloneInfoByFileName(
-        const std::string &fileName, CloneInfo *cloneInfo) override;
+        const std::string &fileName, std::vector<CloneInfo> *list) override;
 
     std::shared_ptr<SnapshotReference> GetSnapshotRef() {
         return snapshotRef_;
@@ -540,6 +543,9 @@ class CloneCoreImpl : public CloneCore {
     std::shared_ptr<SnapshotDataStore> dataStore_;
     std::shared_ptr<SnapshotReference> snapshotRef_;
     std::shared_ptr<CloneReference> cloneRef_;
+
+    // 锁住克隆/恢复的文件名，防止并发克隆或恢复
+    NameLock destFileLock_;
 
     // clone chunk分片大小
     uint64_t cloneChunkSplitSize_;

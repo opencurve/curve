@@ -22,26 +22,30 @@ class TestS3SnapshotDataStore : public ::testing::Test {
 
     void SetUp() {
         store_ = new S3SnapshotDataStore();
-        adapter = std::make_shared<MockS3Adapter>();
-        store_->SetAdapter(adapter);
+        adapter4Meta_ = std::make_shared<MockS3Adapter>();
+        adapter4Data_ = std::make_shared<MockS3Adapter>();
+        store_->SetMetaAdapter(adapter4Meta_);
+        store_->SetDataAdapter(adapter4Data_);
     }
     void TearDown() {
         delete store_;
     }
 
     S3SnapshotDataStore *store_;
-    std::shared_ptr<MockS3Adapter> adapter;
+    std::shared_ptr<MockS3Adapter> adapter4Meta_;
+    std::shared_ptr<MockS3Adapter> adapter4Data_;
 };
 
 
 TEST_F(TestS3SnapshotDataStore, testInit) {
-    EXPECT_CALL(*adapter, Init(_)).Times(3);
-    EXPECT_CALL(*adapter, BucketExist())
+    EXPECT_CALL(*adapter4Meta_, Init(_)).Times(3);
+    EXPECT_CALL(*adapter4Data_, Init(_)).Times(3);
+    EXPECT_CALL(*adapter4Meta_, BucketExist())
         .Times(3)
         .WillOnce(Return(true))
         .WillOnce(Return(false))
         .WillOnce(Return(false));
-    EXPECT_CALL(*adapter, CreateBucket())
+    EXPECT_CALL(*adapter4Meta_, CreateBucket())
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
@@ -52,7 +56,7 @@ TEST_F(TestS3SnapshotDataStore, testInit) {
 TEST_F(TestS3SnapshotDataStore, testChunkIndexDataExist) {
     ChunkIndexDataName indexDataName("test", 1);
     Aws::String obj = "test-1";
-    EXPECT_CALL(*adapter, ObjectExist(obj))
+    EXPECT_CALL(*adapter4Meta_, ObjectExist(obj))
         .Times(2)
         .WillOnce(Return(true))
         .WillOnce(Return(false));
@@ -68,7 +72,7 @@ TEST_F(TestS3SnapshotDataStore, testPutIndexChunkData) {
     indexData.PutChunkDataName(cdName);
     std::string cxt;
     indexData.Serialize(&cxt);
-    EXPECT_CALL(*adapter, PutObject(obj, cxt))
+    EXPECT_CALL(*adapter4Meta_, PutObject(obj, cxt))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
@@ -79,7 +83,7 @@ TEST_F(TestS3SnapshotDataStore, testGetIndexChunk) {
     ChunkIndexData indexData;
     Aws::String obj = "test-1";
     ChunkIndexDataName indexDataName("test", 1);
-    EXPECT_CALL(*adapter, GetObject(_, _))
+    EXPECT_CALL(*adapter4Meta_, GetObject(_, _))
         .Times(2)
         .WillOnce(Return(-1))
         .WillOnce(Return(0));
@@ -89,7 +93,7 @@ TEST_F(TestS3SnapshotDataStore, testGetIndexChunk) {
 TEST_F(TestS3SnapshotDataStore, testDeleteIndexChunk) {
     ChunkIndexDataName indexDataName("test", 1);
     Aws::String obj = "test-1";
-    EXPECT_CALL(*adapter, DeleteObject(obj))
+    EXPECT_CALL(*adapter4Meta_, DeleteObject(obj))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
@@ -103,7 +107,7 @@ TEST_F(TestS3SnapshotDataStore, testDataChunkOp) {
     ChunkDataName tmp;
     ToChunkDataName(cdKey, &tmp);
     Aws::String obj = "test-1-1";
-    EXPECT_CALL(*adapter, ObjectExist(obj))
+    EXPECT_CALL(*adapter4Meta_, ObjectExist(obj))
         .Times(2)
         .WillOnce(Return(true))
         .WillOnce(Return(false));
@@ -116,7 +120,7 @@ TEST_F(TestS3SnapshotDataStore, testDataChunkTransferInit) {
     Aws::String uploadID = "test-uploadID";
     Aws::String null_uploadID = "";
     std::shared_ptr<TransferTask> task = std::make_shared<TransferTask>();
-    EXPECT_CALL(*adapter, MultiUploadInit(_))
+    EXPECT_CALL(*adapter4Data_, MultiUploadInit(_))
         .Times(2)
         .WillOnce(Return(uploadID))
         .WillOnce(Return(null_uploadID));
@@ -135,7 +139,7 @@ TEST_F(TestS3SnapshotDataStore, testDataChunkTransferAddPart) {
         Aws::S3::Model::CompletedPart().WithETag("mytest").WithPartNumber(1);
     Aws::S3::Model::CompletedPart cp_err =
         Aws::S3::Model::CompletedPart().WithETag("errorTag").WithPartNumber(-1);
-    EXPECT_CALL(*adapter, UploadOnePart(_, _, _, _, _))
+    EXPECT_CALL(*adapter4Data_, UploadOnePart(_, _, _, _, _))
         .Times(2)
         .WillOnce(Return(cp))
         .WillOnce(Return(cp_err));
@@ -148,7 +152,7 @@ TEST_F(TestS3SnapshotDataStore, testDataChunkTransferAddPart) {
 TEST_F(TestS3SnapshotDataStore, testDataChunkTransferComplete) {
     ChunkDataName cdName("test", 1, 1);
     std::shared_ptr<TransferTask> task = std::make_shared<TransferTask>();
-    EXPECT_CALL(*adapter, CompleteMultiUpload(_, _, _))
+    EXPECT_CALL(*adapter4Data_, CompleteMultiUpload(_, _, _))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
@@ -158,7 +162,7 @@ TEST_F(TestS3SnapshotDataStore, testDataChunkTransferComplete) {
 TEST_F(TestS3SnapshotDataStore, testDataChunkTransferAbort) {
     ChunkDataName cdName("test", 1, 1);
     std::shared_ptr<TransferTask> task = std::make_shared<TransferTask>();
-    EXPECT_CALL(*adapter, AbortMultiUpload(_, _))
+    EXPECT_CALL(*adapter4Data_, AbortMultiUpload(_, _))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
@@ -168,7 +172,7 @@ TEST_F(TestS3SnapshotDataStore, testDataChunkTransferAbort) {
 
 TEST_F(TestS3SnapshotDataStore, testDeleteDataChunk) {
     ChunkDataName cdName("test", 1, 1);
-    EXPECT_CALL(*adapter, DeleteObject(_))
+    EXPECT_CALL(*adapter4Meta_, DeleteObject(_))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));

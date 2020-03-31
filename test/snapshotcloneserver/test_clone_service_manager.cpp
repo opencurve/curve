@@ -497,8 +497,10 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoByFileNameSuccess) {
         &taskId);
     ASSERT_EQ(kErrCodeSuccess, ret);
 
+    std::vector<CloneInfo> list;
+    list.push_back(cloneInfo);
     EXPECT_CALL(*cloneCore_, GetCloneInfoByFileName(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(cloneInfo),
+        .WillOnce(DoAll(SetArgPointee<1>(list),
             Return(kErrCodeSuccess)));
 
     std::vector<TaskCloneInfo> infos;
@@ -528,7 +530,7 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoFailNotExist) {
 
     std::vector<TaskCloneInfo> infos;
     int ret = manager_->GetCloneTaskInfo("user1", &infos);
-    ASSERT_EQ(kErrCodeInternalError, ret);
+    ASSERT_EQ(kErrCodeFileNotExist, ret);
 }
 
 TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoByUUIDFailNotExist) {
@@ -546,8 +548,9 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoByUUIDFailNotExist) {
 TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoByFileNameFailNotExist) {
     const std::string destination = "file1";
     CloneInfo cloneInfo;
+    std::vector<CloneInfo> list;
     EXPECT_CALL(*cloneCore_, GetCloneInfoByFileName(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(cloneInfo),
+        .WillOnce(DoAll(SetArgPointee<1>(list),
             Return(-1)));
 
     std::vector<TaskCloneInfo> infos;

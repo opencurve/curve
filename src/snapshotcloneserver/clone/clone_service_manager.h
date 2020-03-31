@@ -260,6 +260,30 @@ class CloneServiceManager {
      */
     int RecoverCleanTaskInternal(const CloneInfo &cloneInfo);
 
+    /**
+     * @brief 构建和push Lazy的任务
+     *
+     * @param cloneInfo 克隆任务信息
+     * @param closure 异步回调实体
+     *
+     * @return 错误码
+     */
+    int BuildAndPushCloneOrRecoverLazyTask(
+        CloneInfo cloneInfo,
+        std::shared_ptr<CloneClosure> closure);
+
+    /**
+     * @brief 构建和push 非Lazy的任务
+     *
+     * @param cloneInfo 克隆任务信息
+     * @param closure 异步回调实体
+     *
+     * @return 错误码
+     */
+    int BuildAndPushCloneOrRecoverNotLazyTask(
+        CloneInfo cloneInfo,
+        std::shared_ptr<CloneClosure> closure);
+
  private:
     std::shared_ptr<CloneTaskManager> cloneTaskMgr_;
     std::shared_ptr<CloneCore> cloneCore_;

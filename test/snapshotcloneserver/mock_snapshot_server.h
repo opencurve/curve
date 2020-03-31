@@ -82,7 +82,7 @@ class MockSnapshotCloneMetaStore : public SnapshotCloneMetaStore {
     MOCK_METHOD2(GetCloneInfo,
         int(const std::string &taskID, CloneInfo *info));
     MOCK_METHOD2(GetCloneInfoByFileName,
-        int(const std::string &fileName, CloneInfo *info));
+        int(const std::string &fileName, std::vector<CloneInfo> *list));
     MOCK_METHOD1(GetCloneInfoList,
         int(std::vector<CloneInfo> *list));
 };
@@ -351,7 +351,7 @@ class MockCloneCore : public CloneCore {
         int(TaskIdType taskId, CloneInfo *cloneInfo));
 
     MOCK_METHOD2(GetCloneInfoByFileName,
-        int(const std::string &fileName, CloneInfo *cloneInfo));
+        int(const std::string &fileName, std::vector<CloneInfo> *list));
 
     MOCK_METHOD0(GetSnapshotRef,
         std::shared_ptr<SnapshotReference>());

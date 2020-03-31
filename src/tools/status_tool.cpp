@@ -14,7 +14,6 @@ DEFINE_bool(checkHealth, true, "if true, it will check the health "
                                 "state of chunkserver in chunkserver-list");
 DEFINE_bool(checkCSAlive, false, "if true, it will check the online state of "
                                 "chunkservers with rpc in chunkserver-list");
-DEFINE_uint64(chunkSize, 16777216, "chunk size");
 DECLARE_string(mdsAddr);
 DECLARE_string(etcdAddr);
 DECLARE_string(mdsDummyPort);
@@ -24,7 +23,7 @@ namespace curve {
 namespace tool {
 
 std::ostream& operator<<(std::ostream& os,
-                    const std::vector<std::string>& strs) {
+                    std::vector<std::string> strs) {
     for (uint32_t i = 0; i < strs.size(); ++i) {
         if (i != 0) {
             os << ", ";
