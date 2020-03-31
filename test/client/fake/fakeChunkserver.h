@@ -131,6 +131,21 @@ class FakeChunkService : public ChunkService {
         response->CopyFrom(*resp);
     }
 
+    void GetChunkHash(::google::protobuf::RpcController *controller,
+                        const ::curve::chunkserver::GetChunkHashRequest *request,      // NOLINT
+                        ::curve::chunkserver::GetChunkHashResponse *response,
+                        google::protobuf::Closure *done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeGetChunkHashRet_->controller_ != nullptr &&
+             fakeGetChunkHashRet_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        auto resp = static_cast<::curve::chunkserver::GetChunkHashResponse*>(
+                    fakeGetChunkHashRet_->response_);
+        response->CopyFrom(*resp);
+    }
+
     void SetReadChunkSnapshot(FakeReturn* fakeret) {
         fakereadchunksnapret_ = fakeret;
     }
@@ -141,6 +156,10 @@ class FakeChunkService : public ChunkService {
 
     void SetGetChunkInfo(FakeReturn* fakeret) {
         fakeGetChunkInforet_ = fakeret;
+    }
+
+    void SetGetChunkHash(FakeReturn* fakeret) {
+        fakeGetChunkHashRet_ = fakeret;
     }
 
     void SetRPCFailed() {
@@ -154,6 +173,7 @@ class FakeChunkService : public ChunkService {
     FakeReturn* fakedeletesnapchunkret_;
     FakeReturn* fakereadchunksnapret_;
     FakeReturn* fakeGetChunkInforet_;
+    FakeReturn* fakeGetChunkHashRet_;
 
     void EnableNetUnstable(uint64_t waittime) {
         wait4netunstable = true;

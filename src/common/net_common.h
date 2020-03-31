@@ -21,27 +21,35 @@ class NetCommon {
  public:
     // addr形式为"ip:port"
     static bool CheckAddressValid(const std::string& addr) {
+        std::string ip;
+        uint32_t port;
+        return SplitAddrToIpPort(addr, &ip, &port);
+    }
+
+    // addr形式为"ip:port"
+    static bool SplitAddrToIpPort(const std::string& addr,
+                                  std::string* ipstr,
+                                  uint32_t* port) {
         size_t splitpos = addr.find(":");
         if (splitpos == -1) {
             LOG(ERROR) << "address invalid!";
             return false;
         }
 
-        std::string ipstr = addr.substr(0, splitpos);
-        uint32_t port = atol(addr.substr(splitpos + 1, addr.npos).c_str());
+        *ipstr = addr.substr(0, splitpos);
+        *port = atol(addr.substr(splitpos + 1, addr.npos).c_str());
 
-        in_addr ip;
-        int rc = inet_pton(AF_INET, ipstr.c_str(), static_cast<void*>(&ip));
+        in_addr ip1;
+        int rc = inet_pton(AF_INET, ipstr->c_str(), static_cast<void*>(&ip1));
         if (rc <= 0) {
-            LOG(ERROR) << "ip string invlid: " << ipstr.c_str();
+            LOG(ERROR) << "ip string invlid: " << ipstr->c_str();
             return false;
         }
 
-        if (port <= 0 || port >= 65535) {
+        if (*port <= 0 || *port >= 65535) {
             LOG(ERROR) << "Invalid port provided: " << port;
             return false;
         }
-
         return true;
     }
 

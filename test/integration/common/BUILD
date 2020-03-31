@@ -4,6 +4,8 @@ cc_library(
         "config_generator.h",
         "peer_cluster.h",
         "peer_cluster.cpp",
+        "chunkservice_op.h",
+        "chunkservice_op.cpp",
     ]),
     copts = ["-std=c++14"],
     visibility = ["//visibility:public"],
@@ -22,3 +24,4 @@ cc_library(
         "@com_google_googletest//:gtest",
     ],
 )
+

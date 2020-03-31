@@ -136,7 +136,7 @@ int FakeSnapshotCloneMetaStore::GetCloneInfo(
 }
 
 int FakeSnapshotCloneMetaStore::GetCloneInfoByFileName(
-    const std::string &fileName, CloneInfo *info) {
+        const std::string &fileName, std::vector<CloneInfo> *list) {
     return -1;
 }
 

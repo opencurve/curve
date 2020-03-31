@@ -17,13 +17,27 @@
 
 #include "proto/chunk.pb.h"
 #include "proto/copyset.pb.h"
+#include "src/tools/curve_tool_define.h"
 
 using curve::chunkserver::CopysetStatusRequest;
 using curve::chunkserver::CopysetStatusResponse;
 using curve::chunkserver::COPYSET_OP_STATUS;
+using curve::chunkserver::GetChunkHashRequest;
+using curve::chunkserver::GetChunkHashResponse;
+using curve::chunkserver::CHUNK_OP_STATUS;
 
 namespace curve {
 namespace tool {
+
+struct Chunk {
+    Chunk(uint32_t poolId, uint32_t csId, uint64_t chunkId2) :
+        logicPoolId(poolId), copysetId(csId), chunkId(chunkId2) {}
+    uint32_t logicPoolId;
+    uint32_t copysetId;
+    uint64_t chunkId;
+};
+
+std::ostream& operator<<(std::ostream& os, const Chunk& chunk);
 
 class ChunkServerClient {
  public:
@@ -56,6 +70,14 @@ class ChunkServerClient {
     */
     virtual int GetCopysetStatus(const CopysetStatusRequest& request,
                                  CopysetStatusResponse* response);
+
+    /**
+    *  @brief 从chunkserver获取chunk的hash值
+    &  @param chunk 要查询的chunk
+    *  @param[out] chunkHash chunk的hash值，返回值为0时有效
+    *  @return 成功返回0，失败返回-1
+    */
+    virtual int GetChunkHash(const Chunk& chunk, std::string* chunkHash);
 
  private:
     brpc::Channel channel_;
