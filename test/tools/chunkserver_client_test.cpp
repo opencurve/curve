@@ -19,6 +19,9 @@ namespace brpc {
 DECLARE_int32(health_check_interval);
 }
 
+namespace curve {
+namespace tool {
+
 class ChunkServerClientTest : public ::testing::Test {
  protected:
     ChunkServerClientTest() : fakemds("test") {}
@@ -31,7 +34,7 @@ class ChunkServerClientTest : public ::testing::Test {
     void TearDown() {
         fakemds.UnInitialize();
     }
-    curve::tool::ChunkServerClient client;
+    ChunkServerClient client;
     FakeMDS fakemds;
 };
 
@@ -103,3 +106,31 @@ TEST_F(ChunkServerClientTest, GetCopysetStatus2) {
     ASSERT_EQ(-1, client.GetCopysetStatus(request, &response));
 }
 
+TEST_F(ChunkServerClientTest, GetChunkHash) {
+    std::vector<FakeChunkService *> chunkServices = fakemds.GetChunkservice();
+    brpc::Controller cntl;
+    std::unique_ptr<GetChunkHashResponse> response(
+                    new GetChunkHashResponse());
+    response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+    response->set_hash("1234");
+    std::unique_ptr<FakeReturn> fakeret(
+        new FakeReturn(&cntl, static_cast<void*>(response.get())));
+    chunkServices[0]->SetGetChunkHash(fakeret.get());
+    Chunk chunk(1, 100, 1001);
+    // 正常情况
+    ASSERT_EQ(0, client.Init("127.0.0.1:9191"));
+    std::string hash;
+    ASSERT_EQ(0, client.GetChunkHash(chunk, &hash));
+    ASSERT_EQ("1234", hash);
+
+    // RPC失败的情况
+    cntl.SetFailed("fail for test");
+    ASSERT_EQ(-1, client.GetChunkHash(chunk, &hash));
+
+    // 返回码不为ok
+    response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+    ASSERT_EQ(-1, client.GetChunkHash(chunk, &hash));
+}
+
+}  // namespace tool
+}  // namespace curve
