@@ -15,10 +15,49 @@ DEFINE_bool(check_hash, true, R"(用户需要先确认copyset的applyindex一致
                         check_hash = false先检查copyset的applyindex是否一致
                         如果一致了再设置check_hash = true，
                         检查copyset内容是不是一致)");
+DEFINE_uint32(chunkServerBasePort, 8200, "base port of chunkserver");
 DECLARE_string(mdsAddr);
 
 namespace curve {
 namespace tool {
+
+std::ostream& operator<<(std::ostream& os, const CopySet& copyset) {
+    os << "logicPoolId = " << copyset.first
+       << ",copysetId = " << copyset.second;
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const CsAddrsType& csAddrs) {
+    std::vector<std::string> ipVec;
+    std::vector<uint32_t> seqVec;
+    for (uint32_t i = 0; i < csAddrs.size(); ++i) {
+        std::string ip;
+        uint32_t port;
+        if (curve::common::NetCommon::SplitAddrToIpPort(csAddrs[i],
+                                                        &ip, &port)) {
+            uint32_t csSeq = port - FLAGS_chunkServerBasePort;
+            ipVec.emplace_back(ip);
+            seqVec.emplace_back(csSeq);
+        }
+    }
+    os << "hosts:[";
+    for (uint32_t i = 0; i < ipVec.size(); ++i) {
+        if (i != 0) {
+            os << ",";
+        }
+        os << ipVec[i];
+    }
+    os << "]";
+    os << ",chunkservers:[";
+    for (uint32_t i = 0; i < seqVec.size(); ++i) {
+        if (i != 0) {
+            os << ",";
+        }
+        os << "chunkserver" << seqVec[i];
+    }
+    os << "]";
+    return os;
+}
 
 ConsistencyCheck::ConsistencyCheck(
                     std::shared_ptr<NameSpaceToolCore> nameSpaceToolCore,
@@ -98,7 +137,9 @@ int ConsistencyCheck::FetchFileCopyset(const std::string& fileName,
         PoolIdType lpid = segment.logicalpoolid();
         for (int i = 0; i < segment.chunks_size(); ++i) {
             const auto& chunk = segment.chunks(i);
-            copysets->emplace(CopySet(lpid, chunk.copysetid()));
+            CopySet copyset(lpid, chunk.copysetid());
+            copysets->emplace(copyset);
+            chunksInCopyset_[copyset].emplace(chunk.chunkid());
         }
     }
     return 0;
@@ -117,24 +158,24 @@ int ConsistencyCheck::CheckCopysetConsistency(
                   << std::endl;
         return -1;
     }
-    std::vector<std::string> copysetHash;
-    std::vector<uint64_t> applyIndexVec;
-    res = FetchApplyIndexOrHash(copyset, csLocs, &applyIndexVec, &copysetHash);
-    if (res != 0) {
-        std::cout << "FetchApplyIndexOrHash fail!" << std::endl;
-        return -1;
+    std::vector<std::string> csAddrs;
+    for (const auto& csLoc : csLocs) {
+        std::string hostIp = csLoc.hostip();
+        uint64_t port = csLoc.port();
+        std::string csAddr = hostIp + ":" + std::to_string(port);
+        csAddrs.emplace_back(csAddr);
     }
     // 检查当前copyset的chunkserver内容是否一致
     if (checkHash) {
         // 先检查apply index是否一致
-        res = CheckApplyIndex(copyset, applyIndexVec);
+        res = CheckApplyIndex(copyset, csAddrs);
         if (res != 0) {
             std::cout << "Apply index not match when check hash!" << std::endl;
             return -1;
         }
-        return CheckHash(copyset, copysetHash);
+        return CheckCopysetHash(copyset, csAddrs);
     } else {
-        return CheckApplyIndex(copyset, applyIndexVec);
+        return CheckApplyIndex(copyset, csAddrs);
     }
 }
 
@@ -154,7 +195,7 @@ int ConsistencyCheck::GetCopysetStatusResponse(
     request.set_logicpoolid(copyset.first);
     request.set_copysetid(copyset.second);
     request.set_allocated_peer(peer);
-    request.set_queryhash(FLAGS_check_hash);
+    request.set_queryhash(false);
     res = csClient_->GetCopysetStatus(request, response);
     if (res != 0) {
         std::cout << "GetCopysetStatus from " << csAddr
@@ -164,20 +205,46 @@ int ConsistencyCheck::GetCopysetStatusResponse(
     return 0;
 }
 
-int ConsistencyCheck::CheckHash(const CopySet copyset,
-                        const std::vector<std::string>& copysetHash) {
-    if (copysetHash.empty()) {
-        std::cout << "copysetHash is empty!" << std::endl;
-        return 0;
+int ConsistencyCheck::CheckCopysetHash(const CopySet& copyset,
+                                       const CsAddrsType& csAddrs) {
+    for (const auto& chunkId : chunksInCopyset_[copyset]) {
+        Chunk chunk(copyset.first, copyset.second, chunkId);
+        int res = CheckChunkHash(chunk, csAddrs);
+        if (res != 0) {
+            std::cout << "{" << chunk
+                      << "," << csAddrs << "}" << std::endl;
+            return -1;
+        }
     }
-    std::string hash = copysetHash.front();
-    for (auto peerHash : copysetHash) {
-        if (peerHash.compare(hash) != 0) {
-            std::cout << "Hash not equal! previous hash = " << hash
-                      << ", current hash = " << peerHash
-                      << ", copyset id = " << copyset.first
-                      << ", logical pool id = " << copyset.second
-                      << std::endl;
+    return 0;
+}
+
+int ConsistencyCheck::CheckChunkHash(const Chunk& chunk,
+                                     const CsAddrsType& csAddrs) {
+    std::string preHash;
+    std::string curHash;
+    bool first = true;
+    for (const auto& csAddr : csAddrs) {
+        int res = csClient_->Init(csAddr);
+        if (res != 0) {
+            std::cout << "Init chunkserverClient to " << csAddr
+                      << " fail!" << std::endl;
+            return -1;
+        }
+        res = csClient_->GetChunkHash(chunk, &curHash);
+        if (res != 0) {
+            std::cout << "GetChunkHash from " << csAddr << " fail" << std::endl;
+            return -1;
+        }
+        if (first) {
+            preHash = curHash;
+            first = false;
+            continue;
+        }
+        if (curHash != preHash) {
+            std::cout << "Chunk hash not equal!" << std::endl;
+            std::cout << "previous chunk hash = " << preHash
+                      << ", current hash = " << curHash << std::endl;
             return -1;
         }
     }
@@ -185,48 +252,39 @@ int ConsistencyCheck::CheckHash(const CopySet copyset,
 }
 
 int ConsistencyCheck::CheckApplyIndex(const CopySet copyset,
-                        const std::vector<uint64_t>& applyIndexVec) {
-    if (applyIndexVec.empty()) {
-        std::cout << "applyIndexVec is empty!" << std::endl;
-        return 0;
-    }
-    uint64_t index = applyIndexVec.front();
-    for (auto applyIndex : applyIndexVec) {
-        if (index != applyIndex) {
-            std::cout << "Apply index not equal! previous apply index "
-                      << index << ", current index = " << applyIndex
-                      << ", copyset id = " << copyset.first
-                      << ", logical pool id = " << copyset.second
-                      << std::endl;
-            return -1;
-        }
-    }
-    return 0;
-}
-
-int ConsistencyCheck::FetchApplyIndexOrHash(
-                                const CopySet& copyset,
-                                const std::vector<ChunkServerLocation>& csLocs,
-                                std::vector<uint64_t>* applyIndexVec,
-                                std::vector<std::string>* copysetHash) {
-    for (const auto& csLoc : csLocs) {
-        std::string hostIp = csLoc.hostip();
-        uint64_t port = csLoc.port();
-        std::string csAddr = hostIp + ":" + std::to_string(port);
+                                      const CsAddrsType& csAddrs) {
+    uint64_t preIndex;
+    uint64_t curIndex;
+    bool first = true;
+    int ret = 0;
+    for (const auto& csAddr : csAddrs) {
         CopysetStatusResponse response;
         int res = GetCopysetStatusResponse(csAddr, copyset, &response);
         if (res != 0) {
-            std::cout << "GetCopysetStatusResponse from chunkserver fail"
-                      << std::endl;
-            return -1;
+            std::cout << "GetCopysetStatusResponse from " << csAddr
+                      << " fail" << std::endl;
+            ret = -1;
+            break;
         }
-        applyIndexVec->push_back(response.knownappliedindex());
-        // 存储要检查的内容
-        if (FLAGS_check_hash) {
-            copysetHash->push_back(response.hash());
+        curIndex = response.knownappliedindex();
+        if (first) {
+            preIndex = curIndex;
+            first = false;
+            continue;
+        }
+        if (curIndex != preIndex) {
+            std::cout << "Apply index not equal!" << std::endl;
+            std::cout << "previous apply index " << preIndex
+                      << ", current index = " << curIndex << std::endl;
+            ret = -1;
+            break;
         }
     }
-    return 0;
+    if (ret != 0) {
+        std::cout << copyset << "," << csAddrs << std::endl;
+    }
+    return ret;
 }
+
 }  // namespace tool
 }  // namespace curve

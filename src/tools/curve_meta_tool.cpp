@@ -103,7 +103,7 @@ int CurveMetaTool::PrintChunkMeta(const std::string& chunkFileName) {
 
     // 读取chunk头部
     char buf[FLAGS_pageSize] = {0};
-    int rc = localFS_->Read(fd, buf, FLAGS_pageSize, 0);
+    int rc = localFS_->Read(fd, buf, 0, FLAGS_pageSize);
     localFS_->Close(fd);
     if (rc != FLAGS_pageSize) {
         if (rc < 0) {
@@ -111,7 +111,7 @@ int CurveMetaTool::PrintChunkMeta(const std::string& chunkFileName) {
                   << chunkFileName << ", " << berror() << std::endl;
         } else {
             std::cout << "Read size not match, page size: " << FLAGS_pageSize
-                      << ", read size: " << rc << std::endl;
+                      << ", read size: " << rc << ", " << berror() << std::endl;
         }
         return -1;
     }
@@ -138,7 +138,7 @@ int CurveMetaTool::PrintSnapshotMeta(const std::string& snapFileName) {
 
     // 读取快照文件头部
     char buf[FLAGS_pageSize] = {0};
-    int rc = localFS_->Read(fd, buf, FLAGS_pageSize, 0);
+    int rc = localFS_->Read(fd, buf, 0, FLAGS_pageSize);
     localFS_->Close(fd);
     if (rc != FLAGS_pageSize) {
         if (rc < 0) {

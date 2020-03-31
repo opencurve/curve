@@ -21,3 +21,4 @@ DEFINE_string(snapshotCloneDummyPort, "8081", "dummy port of snapshot clone, "
                                     "can specify one or several. "
                                     "if specify several, the order should "
                                     "be the same as snapshot clone addr");
+DEFINE_uint64(chunkSize, 16777216, "chunk size");
