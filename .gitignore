@@ -72,3 +72,4 @@ bazel-testlogs
 
 #log
 *.log
+!curve-snapshotcloneserver-nginx/app/lib

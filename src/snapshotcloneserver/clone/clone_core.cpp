@@ -19,6 +19,7 @@
 
 using ::curve::common::UUIDGenerator;
 using ::curve::common::LocationOperator;
+using ::curve::common::NameLock;
 using ::curve::common::NameLockGuard;
 
 namespace curve {
@@ -41,6 +42,23 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     bool lazyFlag,
     CloneTaskType taskType,
     CloneInfo *cloneInfo) {
+    NameLockGuard lockDestFileGuard(destFileLock_, destination);
+    // 查询数据库中是否有任务正在执行
+    std::vector<CloneInfo> cloneInfoList;
+    metaStore_->GetCloneInfoByFileName(destination, &cloneInfoList);
+    for (auto &info : cloneInfoList) {
+        if (info.GetStatus() != CloneStatus::done &&
+            info.GetStatus() != CloneStatus::error &&
+            info.GetStatus() != CloneStatus::metaInstalled) {
+            LOG(INFO) << "CloneOrRecoverPre find some task in progress"
+                      << ", source = " << source
+                      << ", user = " << user
+                      << ", destination = " << destination
+                      << ", Exist CloneInfo : " << info;
+            return kErrCodeTaskExist;
+        }
+    }
+
     // 目标文件已存在不能clone, 不存在不能recover
     FInfo destFInfo;
     int ret = client_->GetFileInfo(destination, mdsRootUser_, &destFInfo);
@@ -247,13 +265,6 @@ void CloneCoreImpl::HandleCloneOrRecoverTask(
             HandleCloneError(task, ret);
             return;
         }
-    }
-
-    // 非lazy直接返回rpc
-    if (!IsLazy(task)) {
-        task->GetClosure()->SetErrCode(ret);
-        task->GetClosure()->Run();
-        doneGuard.release();
     }
 
     CloneStep step = task->GetCloneInfo().GetNextStep();
@@ -1147,7 +1158,9 @@ void CloneCoreImpl::HandleCloneError(std::shared_ptr<CloneTaskInfo> task,
         return;
     }
 
-    task->GetClosure()->SetErrCode(retCode);
+    if (IsLazy(task)) {
+        task->GetClosure()->SetErrCode(retCode);
+    }
     if (IsSnapshot(task)) {
         snapshotRef_->DecrementSnapshotRef(task->GetCloneInfo().GetSrc());
     } else {
@@ -1232,8 +1245,8 @@ int CloneCoreImpl::GetCloneInfo(TaskIdType taskId, CloneInfo *cloneInfo) {
 }
 
 int CloneCoreImpl::GetCloneInfoByFileName(
-    const std::string &fileName, CloneInfo *cloneInfo) {
-    return metaStore_->GetCloneInfoByFileName(fileName, cloneInfo);
+    const std::string &fileName, std::vector<CloneInfo> *list) {
+    return metaStore_->GetCloneInfoByFileName(fileName, list);
 }
 
 inline bool CloneCoreImpl::IsLazy(std::shared_ptr<CloneTaskInfo> task) {
