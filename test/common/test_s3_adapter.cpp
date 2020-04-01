@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>  //NOLINT
 #include <gmock/gmock.h>  //NOLINT
 #include "src/common/s3_adapter.h"
+#include "src/common/uuid.h"
 #include "src/common/concurrent/count_down_event.h"
 
 namespace curve {
@@ -19,17 +20,24 @@ class TestS3Adapter : public ::testing::Test {
      TestS3Adapter() {}
      virtual ~TestS3Adapter() {}
 
+     static void SetUpTestCase() {
+         bucketName = "curve-unit-test" + UUIDGenerator().GenerateUUID();
+     }
+
     void SetUp() {
         adapter_ = new S3Adapter();
         adapter_->Init("./conf/s3.conf");
-        adapter_->SetBucketName("curve-unit-test");
+        adapter_->SetBucketName(bucketName.c_str());
     }
     void TearDown() {
         adapter_->Deinit();
         delete adapter_;
     }
     S3Adapter *adapter_;
+    static std::string bucketName;
 };
+
+std::string TestS3Adapter::bucketName = "";  // NOLINT
 
 TEST_F(TestS3Adapter, testS3BucketRequest) {
     ASSERT_EQ(false, adapter_->BucketExist());

@@ -97,6 +97,9 @@ clone.disable_curve_client=false
 clone.disable_s3_adapter=false
 # 克隆的分片大小，一般1MB
 clone.slice_size=1048576
+# 读clone chunk时是否需要paste到本地
+# 该配置对recover chunk请求类型无效
+clone.enable_paste=false
 # 克隆的线程数量
 clone.thread_num=10
 # 克隆的队列深度

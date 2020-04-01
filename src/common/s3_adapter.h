@@ -115,7 +115,7 @@ class S3Adapter {
      *
      * @param context 异步上下文
      */
-    void GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context);
+    virtual void GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context);
 
     /**
      * 删除对象

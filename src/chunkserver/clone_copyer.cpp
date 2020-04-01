@@ -6,9 +6,36 @@
  */
 
 #include "src/chunkserver/clone_copyer.h"
+#include "src/chunkserver/clone_core.h"
 
 namespace curve {
 namespace chunkserver {
+
+std::ostream& operator<<(std::ostream& out, const AsyncDownloadContext& rhs) {
+    out  << "{ location: " << rhs.location
+        << ", offset: " << rhs.offset
+        << ", size: " << rhs.size
+        << " }";
+    return out;
+}
+
+struct CurveAioCombineContext {
+    DownloadClosure* done;
+    CurveAioContext curveCtx;
+};
+
+void CurveAioCallback(struct CurveAioContext* context) {
+    auto curveCombineCtx = reinterpret_cast<CurveAioCombineContext *>(
+        reinterpret_cast<char *>(context) -
+        offsetof(CurveAioCombineContext, curveCtx));
+    DownloadClosure* done = curveCombineCtx->done;
+    if (context->ret < 0) {
+        done->SetFailed();
+    }
+    delete curveCombineCtx;
+
+    brpc::ClosureGuard doneGuard(done);
+}
 
 OriginCopyer::OriginCopyer()
     : curveClient_(nullptr)
@@ -49,54 +76,85 @@ int OriginCopyer::Fini() {
     return 0;
 }
 
-int OriginCopyer::Download(const string& location,
-                           off_t off,
-                           size_t size,
-                           char* buf) {
+void OriginCopyer::DownloadAsync(DownloadClosure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    AsyncDownloadContext* context = done->GetDownloadContext();
     std::string originPath;
-    OriginType type = LocationOperator::ParseLocation(location, &originPath);
+    OriginType type =
+        LocationOperator::ParseLocation(context->location, &originPath);
     if (type == OriginType::CurveOrigin) {
         off_t chunkOffset;
         std::string fileName;
-        bool ret = LocationOperator::ParseCurveChunkPath(
+        bool parseSuccess = LocationOperator::ParseCurveChunkPath(
             originPath, &fileName, &chunkOffset);
-        return DownloadFromCurve(fileName, chunkOffset + off, size, buf);
+        if (!parseSuccess) {
+            LOG(ERROR) << "Parse curve chunk path failed."
+                       << "originPath: " << originPath;
+            done->SetFailed();
+            return;
+        }
+        DownloadFromCurve(fileName, chunkOffset + context->offset,
+                          context->size, context->buf,
+                          done);
+        doneGuard.release();
     } else if (type == OriginType::S3Origin) {
-        return DownloadFromS3(originPath, off, size, buf);
+        DownloadFromS3(originPath, context->offset,
+                       context->size, context->buf,
+                       done);
+        doneGuard.release();
     } else {
         LOG(ERROR) << "Unknown origin location."
-                   << "location: " << location;
-        return -1;
+                   << "location: " << context->location;
+        done->SetFailed();
     }
 }
 
-int OriginCopyer::DownloadFromS3(const string& objectName,
+void OriginCopyer::DownloadFromS3(const string& objectName,
                                  off_t off,
                                  size_t size,
-                                 char* buf) {
+                                 char* buf,
+                                 DownloadClosure* done) {
+    brpc::ClosureGuard doneGuard(done);
     if (s3Client_ == nullptr) {
         LOG(ERROR) << "Failed to get s3 object."
                    << "s3 adapter is disabled";
-        return -1;
+        done->SetFailed();
+        return;
     }
-    int ret = s3Client_->GetObject(objectName, buf, off, size);
-    if (ret < 0) {
-        LOG(ERROR) << "Failed to get s3 object."
-                   << "objectName: " << objectName
-                   << ", ret: " << ret;
-    }
-    return ret;
+
+    GetObjectAsyncCallBack cb =
+        [=] (const S3Adapter* adapter,
+             const std::shared_ptr<GetObjectAsyncContext>& context) {
+            brpc::ClosureGuard doneGuard(done);
+            if (context->retCode != 0) {
+                done->SetFailed();
+            }
+        };
+
+    auto context = std::make_shared<GetObjectAsyncContext>();
+    context->key = objectName;
+    context->buf = buf;
+    context->offset = off;
+    context->len = size;
+    context->cb = cb;
+
+    s3Client_->GetObjectAsync(context);
+    doneGuard.release();
 }
 
-int OriginCopyer::DownloadFromCurve(const string& fileName,
+void OriginCopyer::DownloadFromCurve(const string& fileName,
                                     off_t off,
                                     size_t size,
-                                    char* buf) {
+                                    char* buf,
+                                    DownloadClosure* done) {
+    brpc::ClosureGuard doneGuard(done);
     if (curveClient_ == nullptr) {
         LOG(ERROR) << "Failed to read curve file."
                    << "curve client is disabled";
-        return -1;
+        done->SetFailed();
+        return;
     }
+
     int fd = 0;
     {
         std::unique_lock<std::mutex> lock(mtx_);
@@ -109,20 +167,31 @@ int OriginCopyer::DownloadFromCurve(const string& fileName,
                 LOG(ERROR) << "Open curve file failed."
                         << "file name: " << fileName
                         << " ,return code: " << fd;
-                return -1;
+                done->SetFailed();
+                return;
             }
             fdMap_[fileName] = fd;
         }
     }
 
-    int ret = curveClient_->Read(fd, buf, off, size);
-    if (ret < 0) {
+    CurveAioCombineContext *curveCombineCtx = new CurveAioCombineContext();
+    curveCombineCtx->done = done;
+    curveCombineCtx->curveCtx.offset = off;
+    curveCombineCtx->curveCtx.length = size;
+    curveCombineCtx->curveCtx.buf = buf;
+    curveCombineCtx->curveCtx.op = LIBCURVE_OP::LIBCURVE_OP_READ;
+    curveCombineCtx->curveCtx.cb = CurveAioCallback;
+
+    int ret = curveClient_->AioRead(fd,  &curveCombineCtx->curveCtx);
+    if (ret !=  LIBCURVE_ERROR::OK) {
         LOG(ERROR) << "Read curve file failed."
                    << "file name: " << fileName
                    << " ,error code: " << ret;
-        return -1;
+        delete curveCombineCtx;
+        done->SetFailed();
+    } else {
+        doneGuard.release();
     }
-    return 0;
 }
 
 }  // namespace chunkserver
