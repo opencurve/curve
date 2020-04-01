@@ -120,7 +120,10 @@ int ChunkServer::Run(int argc, char** argv) {
     InitCloneOptions(&conf, &cloneOptions);
     uint32_t sliceSize;
     LOG_IF(FATAL, !conf.GetUInt32Value("clone.slice_size", &sliceSize));
-    cloneOptions.core = std::make_shared<CloneCore>(sliceSize, copyer);
+    bool enablePaste = false;
+    LOG_IF(FATAL, !conf.GetBoolValue("clone.enable_paste", &enablePaste));
+    cloneOptions.core =
+        std::make_shared<CloneCore>(sliceSize, enablePaste, copyer);
     LOG_IF(FATAL, cloneManager_.Init(cloneOptions) != 0)
         << "Failed to initialize clone manager.";
 
