@@ -35,6 +35,7 @@ using ::testing::ElementsAre;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
+using ::testing::Invoke;
 
 using curve::chunkserver::CHUNK_OP_STATUS;
 using curve::chunkserver::ChunkResponse;
