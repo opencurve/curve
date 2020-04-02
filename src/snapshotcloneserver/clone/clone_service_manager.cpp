@@ -48,6 +48,12 @@ int CloneServiceManager::CloneFile(const UUID &source,
         source, user, destination, lazyFlag,
         CloneTaskType::kClone, &cloneInfo);
     if (ret < 0) {
+        if (kErrCodeTaskExist == ret) {
+            // 任务已存在的情况下返回成功，使接口幂等
+            *taskId = cloneInfo.GetTaskId();
+            closure->SetErrCode(kErrCodeSuccess);
+            return kErrCodeSuccess;
+        }
         LOG(ERROR) << "CloneOrRecoverPre error"
                    << ", ret = " << ret
                    << ", source = " << source
@@ -80,6 +86,12 @@ int CloneServiceManager::RecoverFile(const UUID &source,
         source, user, destination, lazyFlag,
         CloneTaskType::kRecover, &cloneInfo);
     if (ret < 0) {
+        if (kErrCodeTaskExist == ret) {
+            // 任务已存在的情况下返回成功，使接口幂等
+            *taskId = cloneInfo.GetTaskId();
+            closure->SetErrCode(kErrCodeSuccess);
+            return kErrCodeSuccess;
+        }
         LOG(ERROR) << "CloneOrRecoverPre error"
                    << ", ret = " << ret
                    << ", source = " << source

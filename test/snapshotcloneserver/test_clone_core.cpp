@@ -140,6 +140,7 @@ class TestCloneCoreImpl : public ::testing::Test {
     SnapshotCloneServerOptions option;
 };
 
+
 TEST_F(TestCloneCoreImpl, TestClonePreForSnapSuccess) {
     const UUID &source = "id1";
     const std::string user = "user1";
@@ -166,6 +167,76 @@ TEST_F(TestCloneCoreImpl, TestClonePreForSnapSuccess) {
     ASSERT_EQ(kErrCodeSuccess, ret);
 
     ASSERT_EQ(1, core_->GetSnapshotRef()->GetSnapshotRef(source));
+    ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
+}
+
+TEST_F(TestCloneCoreImpl, TestClonePreForSnapTaskExist) {
+    const UUID &source = "id1";
+    const std::string user = "user1";
+    const std::string destination = "destination1";
+    bool lazyFlag = true;
+    CloneInfo cloneInfoOut;
+
+    std::vector<CloneInfo> cloneInfoList;
+    CloneInfo info1("taskid1",
+        user,
+        CloneTaskType::kClone,
+        source,
+        destination,
+        100,
+        101,
+        0,
+        CloneFileType::kSnapshot,
+        lazyFlag,
+        CloneStep::kCreateCloneFile,
+        CloneStatus::cloning);
+    cloneInfoList.push_back(info1);
+    EXPECT_CALL(*metaStore_, GetCloneInfoByFileName(destination, _))
+        .WillOnce(DoAll(
+                SetArgPointee<1>(cloneInfoList),
+                Return(kErrCodeSuccess)));
+
+    int ret = core_->CloneOrRecoverPre(
+        source, user, destination, lazyFlag,
+        CloneTaskType::kClone, &cloneInfoOut);
+    ASSERT_EQ(kErrCodeTaskExist, ret);
+
+    ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
+    ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
+}
+
+TEST_F(TestCloneCoreImpl, TestClonePreForSnapFailOnFileExist) {
+    const UUID &source = "id1";
+    const std::string user = "user1";
+    const std::string destination = "destination1";
+    bool lazyFlag = true;
+    CloneInfo cloneInfoOut;
+
+    std::vector<CloneInfo> cloneInfoList;
+    CloneInfo info1("taskid1",
+        user,
+        CloneTaskType::kRecover,
+        source,
+        destination,
+        100,
+        101,
+        0,
+        CloneFileType::kSnapshot,
+        lazyFlag,
+        CloneStep::kCreateCloneFile,
+        CloneStatus::cloning);
+    cloneInfoList.push_back(info1);
+    EXPECT_CALL(*metaStore_, GetCloneInfoByFileName(destination, _))
+        .WillOnce(DoAll(
+                SetArgPointee<1>(cloneInfoList),
+                Return(kErrCodeSuccess)));
+
+    int ret = core_->CloneOrRecoverPre(
+        source, user, destination, lazyFlag,
+        CloneTaskType::kClone, &cloneInfoOut);
+    ASSERT_EQ(kErrCodeFileExist, ret);
+
+    ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
     ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
 }
 

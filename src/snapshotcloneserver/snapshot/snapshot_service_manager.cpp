@@ -33,6 +33,11 @@ int SnapshotServiceManager::CreateSnapshot(const std::string &file,
     SnapshotInfo snapInfo;
     int ret = core_->CreateSnapshotPre(file, user, snapshotName, &snapInfo);
     if (ret < 0) {
+        if (kErrCodeTaskExist == ret) {
+            // 任务已存在的情况下返回成功，使接口幂等
+            *uuid = snapInfo.GetUuid();
+            return kErrCodeSuccess;
+        }
         LOG(ERROR) << "CreateSnapshotPre error, "
                    << " ret ="
                    << ret
