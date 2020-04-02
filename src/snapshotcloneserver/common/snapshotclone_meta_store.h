@@ -392,6 +392,8 @@ class SnapshotInfo {
     Status status_;
 };
 
+std::ostream& operator<<(std::ostream& os, const SnapshotInfo &snapshotInfo);
+
 class SnapshotCloneMetaStore {
  public:
     SnapshotCloneMetaStore() {}

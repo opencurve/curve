@@ -41,6 +41,19 @@ int SnapshotCoreImpl::CreateSnapshotPre(const std::string &file,
     metaStore_->GetSnapshotList(file, &fileInfo);
     int snapshotNum = fileInfo.size();
     for (auto& snap : fileInfo) {
+        if (Status::pending == snap.GetStatus()) {
+            if ((snap.GetUser() == user) &&
+                (snap.GetSnapshotName() == snapshotName)) {
+                LOG(INFO) << "CreateSnapshotPre find same snap task"
+                          << ", file = " << file
+                          << ", user = " << user
+                          << ", snapshotName = " << snapshotName
+                          << ", Exist SnapInfo : " << snap;
+                // 视为同一个快照，返回任务已存在
+                *snapInfo = snap;
+                return kErrCodeTaskExist;
+            }
+        }
         if (Status::error == snap.GetStatus()) {
             snapshotNum--;
         }
