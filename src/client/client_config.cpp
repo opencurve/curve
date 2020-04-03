@@ -112,15 +112,6 @@ int ClientConfig::Init(const char* configpath) {
     LOG_IF(ERROR, ret == false) << "config no metacache.getLeaderTimeOutMS info";   // NOLINT
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetStringValue("metacache.getLeaderBackupRequestLbName",
-        &fileServiceOption_.ioOpt.metaCacheOpt.metacacheGetLeaderBackupRequestLbName);  // NOLINT
-    LOG_IF(ERROR, ret == false)
-        << "config no metacacheGetLeaderBackupRequestLbName info, using default value"; // NOLINT
-
-    ret = conf_.GetUInt32Value("metacache.getLeaderBackupRequestMS",
-        &fileServiceOption_.ioOpt.metaCacheOpt.metacacheGetLeaderBackupRequestMS);   // NOLINT
-    LOG_IF(ERROR, ret == false) << "config no metacache.getLeaderBackupRequestMS info, using default value";  // NOLINT
-
     ret = conf_.GetUInt32Value("schedule.queueCapacity",
         &fileServiceOption_.ioOpt.reqSchdulerOpt.scheduleQueueCapacity);
     LOG_IF(ERROR, ret == false) << "config no schedule.queueCapacity info";

@@ -1221,6 +1221,8 @@ TEST_F(CopysetSchedulerPOC, test_rapidleader_rebalance) {
 
     ASSERT_EQ(kScheduleErrCodeSuccess, rapidLeaderScheduler_->Schedule());
     ApplyTranferLeaderOperator();
+    ASSERT_EQ(kScheduleErrCodeSuccess, rapidLeaderScheduler_->Schedule());
+    ApplyTranferLeaderOperator();
 
     PrintLeaderCountInChunkServer();
     ASSERT_LE(GetLeaderCountRange(), 5);
