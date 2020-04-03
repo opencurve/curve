@@ -47,12 +47,12 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     std::vector<CloneInfo> cloneInfoList;
     metaStore_->GetCloneInfoByFileName(destination, &cloneInfoList);
     for (auto &info : cloneInfoList) {
-        if (info.GetTaskType() == CloneTaskType::kClone) {
+        if ((taskType == CloneTaskType::kClone) &&
+            (info.GetTaskType() == CloneTaskType::kClone)) {
             if (info.GetStatus() == CloneStatus::done ||
                 info.GetStatus() == CloneStatus::error ||
                 info.GetStatus() == CloneStatus::metaInstalled ||
                 info.GetStatus() == CloneStatus::cloning ||
-                info.GetStatus() == CloneStatus::recovering ||
                 info.GetStatus() == CloneStatus::retrying) {
                 LOG(INFO) << "CloneOrRecoverPre find same clone task"
                           << ", source = " << source
