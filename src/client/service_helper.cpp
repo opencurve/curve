@@ -5,10 +5,16 @@
  * Copyright (c)￼ 2018 netease
  */
 
-#include <ostream>
-
-#include "src/client/client_config.h"
 #include "src/client/service_helper.h"
+
+#include <bthread/condition_variable.h>
+#include <bthread/mutex.h>
+#include <bthread/types.h>
+
+#include <memory>
+#include <set>
+#include <utility>
+#include "src/client/client_config.h"
 #include "src/client/client_metric.h"
 
 namespace curve {
@@ -54,83 +60,216 @@ void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo* finfo,
     }
 }
 
-std::string ServiceHelper::BuildChannelUrl(
-    const std::unordered_set<std::string>& chunkserverIpPorts) {
-    std::string urls("list://");
-    for (const auto& addr : chunkserverIpPorts) {
-        urls.append(addr).append(",");
-    }
+class GetLeaderProxy : public std::enable_shared_from_this<GetLeaderProxy> {
+    friend struct GetLeaderClosure;
+ public:
+    GetLeaderProxy()
+        : proxyId_(getLeaderProxyId.fetch_add(1)),
+          finish_(false),
+          success_(false) {}
 
-    return urls;
-}
+    /**
+     * @brief 等待GetLeader返回结果
+     * @param[out] leaderId leader的id
+     * @param[out] leaderAddr leader的ip地址
+     * @return 0 成功 / -1 失败
+     */
+    int Wait(ChunkServerID* leaderId, ChunkServerAddr* leaderAddr) {
+        {
+            std::unique_lock<bthread::Mutex> ulk(finishMtx_);
+            while (!finish_) {
+                finishCv_.wait(ulk);
+            }
+        }
 
-int ServiceHelper::GetLeaderInternal(
-    const GetLeaderInfo& getLeaderInfo,
-    const std::unordered_set<std::string>& chunkserverIpPorts,
-    FileMetric* fileMetric,
-    ChunkServerAddr* leaderAddr,
-    ChunkServerID* leaderId,
-    int* cntlErrCode,
-    std::string* cntlFailedAddr) {
-    const std::string& urls = BuildChannelUrl(chunkserverIpPorts);
-    LOG(INFO) << "Send GetLeader request to " << urls
-        << " logicpool id = " << getLeaderInfo.logicPoolId
-        << ", copyset id = " << getLeaderInfo.copysetId;
+        std::lock_guard<bthread::Mutex> lk(mtx_);
+        if (success_ == false) {
+            LOG(WARNING) << "GetLeader failed, logicpool id = " << logicPooldId_
+                         << ", copyset id = " << copysetId_
+                         << ", proxy id = " << proxyId_;
+            return -1;
+        }
 
-    brpc::Channel channel;
-    brpc::ChannelOptions opts;
-    opts.backup_request_ms = getLeaderInfo.rpcOption.backupRequestMs;
+        LOG(INFO) << "GetLeader returned, logicpool id = " << logicPooldId_
+                  << ", copyset id = " << copysetId_
+                  << ", proxy id = " << proxyId_ << ", leader "
+                  << leader_.DebugString();
 
-    int ret = channel.Init(urls.c_str(),
-                           getLeaderInfo.rpcOption.backupRequestLbName.c_str(),
-                           &opts);
-    if (ret != 0) {
-        LOG(ERROR) << "Fail to init channel to " << urls;
+        bool has_id = leader_.has_id();
+        if (has_id) {
+            *leaderId = leader_.id();
+        }
+
+        bool has_address = leader_.has_address();
+        if (has_address) {
+            leaderAddr->Parse(leader_.address());
+            return leaderAddr->IsEmpty() ? -1 : 0;
+        }
+
         return -1;
     }
 
-    curve::chunkserver::CliService2_Stub stub(&channel);
-    curve::chunkserver::GetLeaderRequest2 request;
-    curve::chunkserver::GetLeaderResponse2 response;
+    /**
+     * @brief 发起GetLeader请求
+     * @param peerAddresses 除当前leader以外的peer地址
+     * @param logicPoolId getleader请求的logicpool id
+     * @param copysetId getleader请求的copyset id
+     * @param fileMetric metric统计
+     */
+    void StartGetLeader(const std::unordered_set<std::string>& peerAddresses,
+                        const GetLeaderRpcOption& rpcOption,
+                        LogicPoolID logicPoolId, CopysetID copysetId,
+                        FileMetric* fileMetric) {
+        logicPooldId_ = logicPoolId;
+        copysetId_ = copysetId;
 
-    brpc::Controller cntl;
-    cntl.set_timeout_ms(getLeaderInfo.rpcOption.rpcTimeoutMs);
+        {
+            std::lock_guard<bthread::Mutex> lk(mtx_);
+            for (const auto& ipPort : peerAddresses) {
+                std::unique_ptr<brpc::Channel> channel(new brpc::Channel());
+                int ret = channel->Init(ipPort.c_str(), nullptr);
+                if (ret != 0) {
+                    LOG(WARNING)
+                        << "GetLeader init channel to " << ipPort << " failed, "
+                        << "logicpool id = " << logicPoolId
+                        << "copyset id = " << copysetId;
+                    continue;
+                }
 
-    request.set_logicpoolid(getLeaderInfo.logicPoolId);
-    request.set_copysetid(getLeaderInfo.copysetId);
+                GetLeaderClosure* done = new GetLeaderClosure(
+                    logicPooldId_, copysetId_, shared_from_this());
 
-    stub.GetLeader(&cntl, &request, &response, NULL);
-    MetricHelper::IncremGetLeaderRetryTime(fileMetric);
+                done->cntl.set_timeout_ms(rpcOption.rpcTimeoutMs);
+                callIds_.emplace(done->cntl.call_id());
 
+                channels_.emplace_back(std::move(channel));
+                closures_.emplace_back(done);
+            }
+
+            if (channels_.empty()) {
+                std::lock_guard<bthread::Mutex> ulk(finishMtx_);
+                finish_ = true;
+                success_ = false;
+                finishCv_.notify_one();
+                return;
+            }
+        }
+
+        for (int i = 0; i < channels_.size(); ++i) {
+            curve::chunkserver::CliService2_Stub stub(channels_[i].get());
+            curve::chunkserver::GetLeaderRequest2 request;
+            request.set_logicpoolid(logicPoolId);
+            request.set_copysetid(copysetId);
+
+            MetricHelper::IncremGetLeaderRetryTime(fileMetric);
+            stub.GetLeader(&(closures_[i]->cntl), &request,
+                           &(closures_[i]->response), closures_[i]);
+        }
+    }
+
+    /**
+     * @brief 处理异步请求结果
+     * @param callId rpc请求id
+     * @param success rpc请求是否成功
+     * @param peer rpc请求返回的leader信息
+     */
+    void HandleResponse(brpc::CallId callId, bool success,
+                        const curve::common::Peer& peer) {
+        std::lock_guard<bthread::Mutex> lk(mtx_);
+
+        if (finish_) {
+            return;
+        }
+
+        if (success) {
+            for (auto id : callIds_) {
+                if (id == callId) {
+                    continue;
+                }
+
+                // cancel以后,后续的rpc请求回调仍然会执行,但是会标记为失败
+                brpc::StartCancel(id);
+            }
+
+            callIds_.clear();
+            leader_ = peer;
+
+            std::lock_guard<bthread::Mutex> ulk(finishMtx_);
+            finish_ = true;
+            success_ = true;
+            finishCv_.notify_one();
+        } else {
+            // 删除当前call id
+            callIds_.erase(callId);
+
+            // 如果为空，说明是最后一个rpc返回，需要标记请求失败，并向上返回
+            if (callIds_.empty()) {
+                std::lock_guard<bthread::Mutex> ulk(finishMtx_);
+                finish_ = true;
+                success_ = false;
+                finishCv_.notify_one();
+            }
+        }
+    }
+
+ private:
+    uint64_t proxyId_;
+
+    // 是否完成请求
+    //   1. 其中一个请求成功
+    //   2. 最后一个请求返回
+    // 都会标记为true
+    bool finish_;
+    bthread::ConditionVariable finishCv_;
+    bthread::Mutex finishMtx_;
+
+    // 记录cntl id
+    std::set<brpc::CallId> callIds_;
+
+    // 请求是否成功
+    bool success_;
+
+    // leader信息
+    curve::common::Peer leader_;
+
+    // 保护callIds_/success_，避免异步rpc回调同时操作
+    bthread::Mutex mtx_;
+
+    LogicPoolID logicPooldId_;
+    CopysetID copysetId_;
+
+    std::vector<std::unique_ptr<brpc::Channel>> channels_;
+    std::vector<GetLeaderClosure*> closures_;
+
+    static std::atomic<uint64_t> getLeaderProxyId;
+};
+
+std::atomic<uint64_t> GetLeaderProxy::getLeaderProxyId{0};
+
+void GetLeaderClosure::Run() {
+    std::unique_ptr<GetLeaderClosure> selfGuard(this);
+    if (proxy == nullptr) {
+        LOG(ERROR) << "proxy invalid";
+        return;
+    }
+
+    bool success = false;
     if (cntl.Failed()) {
-        LOG(WARNING) << "GetLeader failed, "
-                     << cntl.ErrorText()
-                     << ", chunkserver addr = " << cntl.remote_side()
-                     << ", logicpool id = " << getLeaderInfo.logicPoolId
-                     << ", copyset id = " << getLeaderInfo.copysetId;
-
-        *cntlErrCode = cntl.ErrorCode();
-        *cntlFailedAddr = butil::endpoint2str(cntl.remote_side()).c_str();
-        return -1;
+        success = false;
+        LOG(WARNING) << "GetLeader failed from " << cntl.remote_side()
+                        << ", logicpool id = " << logicPoolId
+                        << ", copyset id = " << copysetId
+                        << ", proxy id = " << proxy->proxyId_
+                        << ", error = " << cntl.ErrorText();
+    } else {
+        success = true;
+        LOG(INFO) << "GetLeader returned from " << cntl.remote_side()
+                    << ", logicpool id = " << logicPoolId
+                    << ", copyset id = " << copysetId
+                    << ", proxy id = " << proxy->proxyId_
+                    << ", leader = " << response.DebugString();
     }
-
-    LOG(INFO) << "GetLeader returned from " << cntl.remote_side()
-              << ", logicpool id = " << getLeaderInfo.logicPoolId
-              << ", copyset id = " << getLeaderInfo.copysetId
-              << ", response = " << response.DebugString();
-
-    bool has_id = response.leader().has_id();
-    if (has_id) {
-        *leaderId = response.leader().id();
-    }
-
-    bool has_address = response.leader().has_address();
-    if (has_address) {
-        leaderAddr->Parse(response.leader().address());
-        return leaderAddr->IsEmpty() ? -1 : 0;
-    }
-
-    return -1;
+    proxy->HandleResponse(cntl.call_id(), success, response.leader());
 }
 
 int ServiceHelper::GetLeader(const GetLeaderInfo& getLeaderInfo,
@@ -138,12 +277,6 @@ int ServiceHelper::GetLeader(const GetLeaderInfo& getLeaderInfo,
                              ChunkServerID* leaderId,
                              FileMetric_t* fileMetric) {
     const auto& peerInfo = getLeaderInfo.copysetPeerInfo;
-    if (peerInfo.empty()) {
-        LOG(ERROR) << "Empty group configuration"
-                   << ", logicpool id = " << getLeaderInfo.logicPoolId
-                   << ", copyset id = " << getLeaderInfo.copysetId;
-        return -1;
-    }
 
     int16_t index = -1;
     leaderAddr->Reset();
@@ -163,54 +296,11 @@ int ServiceHelper::GetLeader(const GetLeaderInfo& getLeaderInfo,
             butil::endpoint2str(iter->csaddr_.addr_).c_str());
     }
 
-    int ret = 0;
-    int cntlErrCode = 0;
-    std::string cntlFailedAddr;
-
-    while (!chunkserverIpPorts.empty()) {
-        ret = GetLeaderInternal(getLeaderInfo,
-                                chunkserverIpPorts,
-                                fileMetric,
-                                leaderAddr,
-                                leaderId,
-                                &cntlErrCode,
-                                &cntlFailedAddr);
-        if (ret == 0) {
-            return 0;
-        }
-
-        // 针对错误码，删除failed节点后进行重试
-        // 假如有A B C三个节点，C是当前leader，GetLeader请求会发往A B两个节点上
-        // 如果A节点比较繁忙, B所在的进程退出
-        // 此时，发往A节点的返回时间超过backupRequestMs
-        // 会再次发送一个到B节点的请求，由于进程退出，会很快返回，导致这次GetLeader失败
-        // 由于复制组没有变化，下次请求还是出现这种情况，导致GetLeader一直失败
-        // 所以需要删除B节点后进行重试
-        // 1. ENOENT: chunkserver端没有对应的copyset
-        // 2. EAGAIN: chunkserver端有对应的copyset，但是copyset没有leader
-        // 3. EHOSTDOWN: 正常发送RPC情况下，对端进程挂掉
-        // 4. ECONNREFUSED: 访问存在IP地址，但无人监听
-        // 5. ECONNRESET: 对端连接已关闭
-        // 6. ELOGOFF: 对端进程调用了Stop
-        if (cntlErrCode == ENOENT || cntlErrCode == EAGAIN ||
-            cntlErrCode == EHOSTDOWN || cntlErrCode == ECONNREFUSED ||
-            cntlErrCode == ECONNRESET || cntlErrCode == brpc::ELOGOFF) {
-            // 当list中的所有节点都不可用时，failedAddr是0.0.0.0:0
-            // 这里判断failedAdrr是否在chunkserverIpPorts中，如果不在，直接返回
-            if (chunkserverIpPorts.count(cntlFailedAddr) == 0) {
-                return -1;
-            }
-
-            chunkserverIpPorts.erase(cntlFailedAddr);
-            cntlErrCode = 0;
-            cntlFailedAddr.clear();
-            continue;
-        } else {
-            return -1;
-        }
-    }
-
-    return -1;
+    std::shared_ptr<GetLeaderProxy> proxy(std::make_shared<GetLeaderProxy>());
+    proxy->StartGetLeader(chunkserverIpPorts, getLeaderInfo.rpcOption,
+                          getLeaderInfo.logicPoolId, getLeaderInfo.copysetId,
+                          fileMetric);
+    return proxy->Wait(leaderId, leaderAddr);
 }
 
 bool ServiceHelper::GetUserInfoFromFilename(const std::string& filename,
@@ -264,3 +354,4 @@ int ServiceHelper::CheckChunkServerHealth(
 
 }   // namespace client
 }   // namespace curve
+
