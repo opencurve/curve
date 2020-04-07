@@ -1016,55 +1016,40 @@ int CloneCoreImpl::RenameCloneFile(
         cloneTempDir_ + "/" + task->GetCloneInfo().GetTaskId();
     std::string destination = task->GetCloneInfo().GetDest();
 
-    // 判断原始文件存不存在
-    FInfo oriFInfo;
-    int ret = client_->GetFileInfo(origin, mdsRootUser_, &oriFInfo);
-
-    if (LIBCURVE_ERROR::OK == ret) {
-        if (oriFInfo.id != originId) {
-            LOG(ERROR) << "Origin File is missing, when rename clone file, "
-                       << "exist file id = " << oriFInfo.id
-                       << ", originId = " << originId
-                       << ", taskid = " << task->GetTaskId();
-            return kErrCodeInternalError;
-        }
-        ret = client_->RenameCloneFile(mdsRootUser_,
+    // 先rename
+    int ret = client_->RenameCloneFile(mdsRootUser_,
             originId,
             destinationId,
             origin,
             destination);
-        if (ret != LIBCURVE_ERROR::OK) {
-            LOG(ERROR) << "RenameCloneFile fail"
-                       << ", ret = " << ret
-                       << ", user = " << user
-                       << ", originId = " << originId
-                       << ", origin = " << origin
-                       << ", destination = " << destination
-                       << ", taskid = " << task->GetTaskId();
-            return kErrCodeInternalError;
-        }
-    } else if (-LIBCURVE_ERROR::NOTEXIST == ret) {
+    if (-LIBCURVE_ERROR::NOTEXIST == ret) {
         // 有可能是已经rename过了
         FInfo destFInfo;
         ret = client_->GetFileInfo(destination, mdsRootUser_, &destFInfo);
         if (ret != LIBCURVE_ERROR::OK) {
-            LOG(ERROR) << "Origin File is missing, when rename clone file,"
-                       << "GetFileInfo fail, ret = " << ret
+            LOG(ERROR) << "RenameCloneFile return NOTEXIST,"
+                       << "And get dest fileInfo fail, ret = " << ret
                        << ", destination filename = " << destination
                        << ", taskid = " << task->GetTaskId();
             return kErrCodeInternalError;
         }
         if (destFInfo.id != originId) {
-            LOG(ERROR) << "Origin File is missing, when rename clone file, "
+            LOG(ERROR) << "RenameCloneFile return NOTEXIST,"
+                       << "And get dest file id not equal, ret = " << ret
                        << "originId = " << originId
+                       << "destFInfo.id = " << destFInfo.id
                        << ", taskid = " << task->GetTaskId();
             return kErrCodeInternalError;
         }
-    } else {
-            LOG(ERROR) << "GetFileInfo fail, ret = " << ret
-                       << ", origin filename = " << origin
-                       << ", taskid = " << task->GetTaskId();
-            return ret;
+    } else if (ret != LIBCURVE_ERROR::OK) {
+        LOG(ERROR) << "RenameCloneFile fail"
+                   << ", ret = " << ret
+                   << ", user = " << user
+                   << ", originId = " << originId
+                   << ", origin = " << origin
+                   << ", destination = " << destination
+                   << ", taskid = " << task->GetTaskId();
+        return kErrCodeInternalError;
     }
 
     if (IsLazy(task)) {
