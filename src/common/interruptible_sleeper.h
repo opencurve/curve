@@ -8,7 +8,7 @@
 #ifndef SRC_COMMON_INTERRUPTIBLE_SLEEPER_H_
 #define SRC_COMMON_INTERRUPTIBLE_SLEEPER_H_
 
-#include <chrono>
+#include <chrono>  // NOLINT
 #include "src/common/concurrent/concurrent.h"
 
 namespace curve {
