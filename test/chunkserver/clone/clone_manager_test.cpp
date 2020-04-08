@@ -91,7 +91,7 @@ TEST_F(CloneManagerTest, TaskTest) {
             cloneMgr.GenerateCloneTask(req, nullptr);
         ASSERT_EQ(task, nullptr);
 
-        options.core = std::make_shared<CloneCore>(1, nullptr);
+        options.core = std::make_shared<CloneCore>(1, false, nullptr);
         ASSERT_EQ(cloneMgr.Init(options), 0);
         task = cloneMgr.GenerateCloneTask(req, nullptr);
         ASSERT_NE(task, nullptr);

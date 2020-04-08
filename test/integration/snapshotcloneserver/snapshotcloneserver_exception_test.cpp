@@ -262,7 +262,7 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnGetSnapshot) {
     fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetSnapshot", // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap1", &uuid);
+    int ret = MakeSnapshot(user, file , "snap2", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
@@ -281,7 +281,7 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnDeleteSnapshot) {
     fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.DeleteSnapshot", // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap1", &uuid);
+    int ret = MakeSnapshot(user, file , "snap3", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
@@ -300,7 +300,7 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnCheckSnapShotStatus) {
     fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.CheckSnapShotStatus", // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap1", &uuid);
+    int ret = MakeSnapshot(user, file , "snap4", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
@@ -320,7 +320,7 @@ TEST_F(SnapshotCloneServerTest,
     fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetSnapshotSegmentInfo", // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap1", &uuid);
+    int ret = MakeSnapshot(user, file , "snap5", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
@@ -339,7 +339,7 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnReadChunkSnapshot) {
     fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.ReadChunkSnapshot", // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap1", &uuid);
+    int ret = MakeSnapshot(user, file , "snap6", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
@@ -358,7 +358,7 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnGetChunkInfo) {
     fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetChunkInfo", // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap1", &uuid);
+    int ret = MakeSnapshot(user, file , "snap7", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
@@ -378,7 +378,7 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnAddSnapshot) {
         1, NULL, 0);
 
     // 验证任务失败
-    int ret = MakeSnapshot(user, file , "snap1", &uuid);
+    int ret = MakeSnapshot(user, file , "snap8", &uuid);
     ASSERT_EQ(-1, ret);
 
     fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.AddSnapshot");  // NOLINT
@@ -397,7 +397,7 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnUpdateSnapshot) {
     fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.UpdateSnapshot", // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap1", &uuid);
+    int ret = MakeSnapshot(user, file , "snap9", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
@@ -423,7 +423,7 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnPutChunkIndexData) {
     fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.PutChunkIndexData", // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap1", &uuid);
+    int ret = MakeSnapshot(user, file , "snap10", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
@@ -443,7 +443,7 @@ TEST_F(SnapshotCloneServerTest,
     fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.DataChunkTranferComplete", // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap1", &uuid);
+    int ret = MakeSnapshot(user, file , "snap11", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
@@ -459,7 +459,7 @@ TEST_F(SnapshotCloneServerTest, TestDeleteSnapshotFailOnGetChunkIndexData) {
     std::string user = testUser1;
     std::string file = testFile1;
 
-    ASSERT_TRUE(PrepreTestSnapshot(user, file, "snap1", &uuid));
+    ASSERT_TRUE(PrepreTestSnapshot(user, file, "snap12", &uuid));
 
     fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.GetChunkIndexData", // NOLINT
         1, NULL, 0);
@@ -482,7 +482,7 @@ TEST_F(SnapshotCloneServerTest, TestDeleteSnapshotFailOnDeleteChunkData) {
     std::string user = testUser1;
     std::string file = testFile1;
 
-    ASSERT_TRUE(PrepreTestSnapshot(user, file, "snap1", &uuid));
+    ASSERT_TRUE(PrepreTestSnapshot(user, file, "snap13", &uuid));
 
     fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.DeleteChunkData", // NOLINT
         1, NULL, 0);
@@ -505,7 +505,7 @@ TEST_F(SnapshotCloneServerTest, TestDeleteSnapshotFailOnDeleteChunkIndexData) {
     std::string user = testUser1;
     std::string file = testFile1;
 
-    ASSERT_TRUE(PrepreTestSnapshot(user, file, "snap1", &uuid));
+    ASSERT_TRUE(PrepreTestSnapshot(user, file, "snap14", &uuid));
 
     fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.DeleteChunkIndexData", // NOLINT
         1, NULL, 0);
@@ -528,7 +528,7 @@ TEST_F(SnapshotCloneServerTest, TestDeleteSnapshotFailOnDeleteSnapshot) {
     std::string user = testUser1;
     std::string file = testFile1;
 
-    ASSERT_TRUE(PrepreTestSnapshot(user, file, "snap1", &uuid));
+    ASSERT_TRUE(PrepreTestSnapshot(user, file, "snap15", &uuid));
 
     fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.DeleteSnapshot", // NOLINT
         1, NULL, 0);

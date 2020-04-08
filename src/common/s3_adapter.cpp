@@ -36,6 +36,10 @@ void S3Adapter::Init(const std::string &path) {
     clientCfg_->connectTimeoutMs = conf_.GetIntValue("s3.connect_timeout");
     clientCfg_->requestTimeoutMs = conf_.GetIntValue("s3.request_timeout");
     clientCfg_->endpointOverride = s3Address_;
+    auto asyncThreadNum = conf_.GetIntValue("s3.async_thread_num");
+    clientCfg_->executor =
+        Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>(
+            "S3Adapter.S3Client", asyncThreadNum);
     s3Client_ = Aws::New<Aws::S3::S3Client>("S3Adapter.S3Client",
             Aws::Auth::AWSCredentials(s3Ak_, s3Sk_),
             *clientCfg_,
@@ -216,6 +220,40 @@ int S3Adapter::GetObject(const std::string &key,
         return -1;
     }
 }
+
+void S3Adapter::GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) {
+    Aws::S3::Model::GetObjectRequest request;
+    request.SetBucket(bucketName_);
+    request.SetKey(context->key.c_str());
+    request.SetRange(("bytes=" + std::to_string(context->offset) + "-" + std::to_string(context->offset + context->len)).c_str()); //NOLINT
+
+    Aws::S3::GetObjectResponseReceivedHandler handler = [this] (
+        const Aws::S3::S3Client* client,
+        const Aws::S3::Model::GetObjectRequest& request,
+        const Aws::S3::Model::GetObjectOutcome& response,
+        const std::shared_ptr<const Aws::Client::AsyncCallerContext>& awsCtx) {
+        std::shared_ptr<const GetObjectAsyncContext> cctx =
+            std::dynamic_pointer_cast<const GetObjectAsyncContext>(awsCtx);
+        std::shared_ptr<GetObjectAsyncContext> ctx =
+            std::const_pointer_cast<GetObjectAsyncContext>(cctx);
+        if (response.IsSuccess()) {
+            const Aws::S3::Model::GetObjectResult &result =
+                response.GetResult();
+            Aws::S3::Model::GetObjectResult &ret =
+                const_cast<Aws::S3::Model::GetObjectResult&>(result);
+            ret.GetBody().rdbuf()->sgetn(ctx->buf, ctx->len);  // NOLINT
+            ctx->retCode = 0;
+        } else {
+            LOG(ERROR) << "GetObjectAsync error: "
+                    << response.GetError().GetExceptionName()
+                    << response.GetError().GetMessage();
+            ctx->retCode = -1;
+        }
+        ctx->cb(this, ctx);
+    };
+    s3Client_->GetObjectAsync(request, handler, context);
+}
+
 bool S3Adapter::ObjectExist(const Aws::String &key) {
     Aws::S3::Model::HeadObjectRequest request;
     request.SetBucket(bucketName_);

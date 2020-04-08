@@ -9,6 +9,7 @@
 #define SRC_COMMON_S3_ADAPTER_H_
 #include <map>
 #include <string>
+#include <memory>
 #include <aws/core/utils/memory/AWSMemory.h>  //NOLINT
 #include <aws/core/Aws.h>   //NOLINT
 #include <aws/s3/S3Client.h>  //NOLINT
@@ -32,10 +33,28 @@
 #include <aws/core/utils/memory/stl/AWSStringStream.h>  //NOLINT
 #include <aws/s3/model/BucketLocationConstraint.h>  //NOLINT
 #include <aws/s3/model/CreateBucketConfiguration.h>  //NOLINT
+#include <aws/core/utils/threading/Executor.h>  // NOLINT
 #include "src/common/configuration.h"
 
 namespace curve {
 namespace common {
+
+struct GetObjectAsyncContext;
+class S3Adapter;
+
+typedef std::function<void(const S3Adapter*,
+    const std::shared_ptr<GetObjectAsyncContext>&)>
+        GetObjectAsyncCallBack;
+
+struct GetObjectAsyncContext : public Aws::Client::AsyncCallerContext {
+    std::string key;
+    char *buf;
+    off_t offset;
+    size_t len;
+    GetObjectAsyncCallBack cb;
+    int retCode;
+};
+
 class S3Adapter {
  public:
     S3Adapter() {}
@@ -91,6 +110,14 @@ class S3Adapter {
      * @param 读取的长度
      */
     virtual int GetObject(const std::string &key, char *buf, off_t offset, size_t len);   //NOLINT
+
+    /**
+     * @brief 异步从对象存储读取数据
+     *
+     * @param context 异步上下文
+     */
+    virtual void GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context);
+
     /**
      * 删除对象
      * @param 对象名

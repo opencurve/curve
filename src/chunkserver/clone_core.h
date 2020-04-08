@@ -16,6 +16,7 @@
 
 #include "proto/chunk.pb.h"
 #include "include/chunkserver/chunkserver_common.h"
+#include "src/common/timeutility.h"
 #include "src/chunkserver/clone_copyer.h"
 #include "src/chunkserver/datastore/define.h"
 
@@ -25,9 +26,43 @@ namespace chunkserver {
 using ::google::protobuf::Closure;
 using ::google::protobuf::Message;
 using curve::chunkserver::CSChunkInfo;
+using common::TimeUtility;
 
 class ReadChunkRequest;
 class PasteChunkInternalRequest;
+class CloneCore;
+
+class DownloadClosure : public Closure {
+ public:
+    DownloadClosure(std::shared_ptr<ReadChunkRequest> readRequest,
+                    std::shared_ptr<CloneCore> cloneCore,
+                    AsyncDownloadContext* downloadCtx,
+                    Closure *done);
+
+    void Run();
+
+    void SetFailed() {
+        isFailed_ = true;
+    }
+
+    AsyncDownloadContext* GetDownloadContext() {
+        return downloadCtx_;
+    }
+
+ protected:
+    // 下载是否出错出错
+    bool isFailed_;
+    // 请求开始的时间
+    uint64_t beginTime_;
+    // 下载请求上下文信息
+    AsyncDownloadContext* downloadCtx_;
+    // clone core对象
+    std::shared_ptr<CloneCore> cloneCore_;
+    // read chunk请求对象
+    std::shared_ptr<ReadChunkRequest> readRequest_;
+    // DownloadClosure生命周期结束后需要执行的回调
+    Closure* done_;
+};
 
 class CloneClosure : public Closure {
  public:
@@ -61,10 +96,13 @@ class CloneClosure : public Closure {
     Closure             *done_;
 };
 
-class CloneCore {
+class CloneCore : public std::enable_shared_from_this<CloneCore> {
+    friend class DownloadClosure;
  public:
-    CloneCore(uint32_t sliceSize, std::shared_ptr<OriginCopyer> copyer)
+    CloneCore(uint32_t sliceSize, bool enablePaste,
+              std::shared_ptr<OriginCopyer> copyer)
         : sliceSize_(sliceSize)
+        , enablePaste_(enablePaste)
         , copyer_(copyer) {}
     virtual ~CloneCore() {}
 
@@ -77,17 +115,22 @@ class CloneCore {
     int HandleReadRequest(std::shared_ptr<ReadChunkRequest> readRequest,
                           Closure* done);
 
- private:
+ protected:
+    /**
+     * 从本地chunk中读取请求的区域，然后设置response
+     * @param readRequest: 用户的ReadRequest
+     * @return: 成功返回0，失败返回-1
+     */
+    int ReadChunk(std::shared_ptr<ReadChunkRequest> readRequest);
+
     /**
      * 从本地chunk中读取已被写过的区域，未写过的区域从克隆下来的数据中获取
      * 然后将数据在内存中merge
      * @param readRequest: 用户的ReadRequest
-     * @param chunkInfo: 本地chunk的信息
      * @param cloneData: 从源端拷贝下来的数据，数据起始偏移同请求中的偏移
      * @return: 成功返回0，失败返回-1
      */
     int ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
-                      const CSChunkInfo& chunkInfo,
                       const char* cloneData);
 
     /**
@@ -110,6 +153,8 @@ class CloneCore {
  private:
     // 每次拷贝的slice的大小
     uint32_t sliceSize_;
+    // 判断read chunk类型的请求是否需要paste, true需要paste，false表示不需要
+    bool enablePaste_;
     // 负责从源端下载数据
     std::shared_ptr<OriginCopyer> copyer_;
 };

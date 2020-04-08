@@ -166,12 +166,12 @@ void CopysetNodeManager::LoadCopyset(const LogicPoolID &logicPoolId,
     std::shared_ptr<CopysetNode> copysetNode =
         CreateCopysetNodeUnlocked(logicPoolId, copysetId, conf);
     if (copysetNode == nullptr) {
-        LOG(FATAL) << "Failed to create copyset "
+        LOG(ERROR) << "Failed to create copyset "
                    << ToGroupIdString(logicPoolId, copysetId);
         return;
     }
     if (!InsertCopysetNodeIfNotExist(logicPoolId, copysetId, copysetNode)) {
-        LOG(FATAL) << "Failed to insert copyset "
+        LOG(ERROR) << "Failed to insert copyset "
                    << ToGroupIdString(logicPoolId, copysetId);
         return;
     }

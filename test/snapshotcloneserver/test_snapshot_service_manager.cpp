@@ -164,6 +164,28 @@ TEST_F(TestSnapshotServiceManager,
 }
 
 TEST_F(TestSnapshotServiceManager,
+    TestCreateSnapshotSuccessByTaskExist) {
+    const std::string file = "file1";
+    const std::string user = "user1";
+    const std::string desc = "snap1";
+    UUID uuid;
+    UUID uuidOut = "abc";
+
+    SnapshotInfo info(uuidOut, user, file, desc);
+    EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
+        .WillOnce(DoAll(
+            SetArgPointee<3>(info),
+            Return(kErrCodeTaskExist)));
+
+    int ret = manager_->CreateSnapshot(
+        file,
+        user,
+        desc,
+        &uuid);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+}
+
+TEST_F(TestSnapshotServiceManager,
     TestCreateSnapshotPushTaskFail) {
     const std::string file1 = "file1";
     const std::string user1 = "user1";
