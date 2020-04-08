@@ -4513,6 +4513,58 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_FileInfo_t_fileStatus_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  FileInfo *arg1 = (FileInfo *) 0 ;
+  int arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:FileInfo_t_fileStatus_set",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_fileStatus_set" "', argument " "1"" of type '" "FileInfo *""'"); 
+  }
+  arg1 = reinterpret_cast< FileInfo * >(argp1);
+  ecode2 = SWIG_AsVal_int(obj1, &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "FileInfo_t_fileStatus_set" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = static_cast< int >(val2);
+  if (arg1) (arg1)->fileStatus = arg2;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_FileInfo_t_fileStatus_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  FileInfo *arg1 = (FileInfo *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  int result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:FileInfo_t_fileStatus_get",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_fileStatus_get" "', argument " "1"" of type '" "FileInfo *""'"); 
+  }
+  arg1 = reinterpret_cast< FileInfo * >(argp1);
+  result = (int) ((arg1)->fileStatus);
+  resultobj = SWIG_From_int(static_cast< int >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_new_FileInfo_t(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   FileInfo *result = 0 ;
@@ -5690,6 +5742,8 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"FileInfo_t_filename_get", _wrap_FileInfo_t_filename_get, METH_VARARGS, NULL},
 	 { (char *)"FileInfo_t_owner_set", _wrap_FileInfo_t_owner_set, METH_VARARGS, NULL},
 	 { (char *)"FileInfo_t_owner_get", _wrap_FileInfo_t_owner_get, METH_VARARGS, NULL},
+	 { (char *)"FileInfo_t_fileStatus_set", _wrap_FileInfo_t_fileStatus_set, METH_VARARGS, NULL},
+	 { (char *)"FileInfo_t_fileStatus_get", _wrap_FileInfo_t_fileStatus_get, METH_VARARGS, NULL},
 	 { (char *)"new_FileInfo_t", _wrap_new_FileInfo_t, METH_VARARGS, NULL},
 	 { (char *)"delete_FileInfo_t", _wrap_delete_FileInfo_t, METH_VARARGS, NULL},
 	 { (char *)"FileInfo_t_swigregister", FileInfo_t_swigregister, METH_VARARGS, NULL},
@@ -6522,6 +6576,12 @@ SWIG_init(void) {
   SWIG_Python_SetConstant(d, "CURVE_ERROR_NOT_ALIGNED",SWIG_From_int(static_cast< int >(22)));
   SWIG_Python_SetConstant(d, "CURVE_ERROR_BAD_FD",SWIG_From_int(static_cast< int >(23)));
   SWIG_Python_SetConstant(d, "CURVE_ERROR_LENGTH_NOT_SUPPORT",SWIG_From_int(static_cast< int >(24)));
+  SWIG_Python_SetConstant(d, "CURVE_FILE_CREATED",SWIG_From_int(static_cast< int >(0)));
+  SWIG_Python_SetConstant(d, "CURVE_FILE_DELETING",SWIG_From_int(static_cast< int >(1)));
+  SWIG_Python_SetConstant(d, "CURVE_FILE_CLONING",SWIG_From_int(static_cast< int >(2)));
+  SWIG_Python_SetConstant(d, "CURVE_FILE_CLONEMETAINSTALLED",SWIG_From_int(static_cast< int >(3)));
+  SWIG_Python_SetConstant(d, "CURVE_FILE_CLONED",SWIG_From_int(static_cast< int >(4)));
+  SWIG_Python_SetConstant(d, "CURVE_FILE_BEINGCLONED",SWIG_From_int(static_cast< int >(5)));
   SWIG_Python_SetConstant(d, "CURVE_ERROR_UNKNOWN",SWIG_From_int(static_cast< int >(100)));
   SWIG_Python_SetConstant(d, "CURVE_OP_READ",SWIG_From_int(static_cast< int >(0)));
   SWIG_Python_SetConstant(d, "CURVE_OP_WRITE",SWIG_From_int(static_cast< int >(1)));

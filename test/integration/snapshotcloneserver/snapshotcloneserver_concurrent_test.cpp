@@ -555,8 +555,9 @@ TEST_F(SnapshotCloneServerTest, TestSnapSameClone1Success) {
     ret1 = CloneOrRecover("Clone", testUser1_, snapId, dstFile, true, &uuid1);
     ASSERT_EQ(0, ret1);
 
+    // 幂等
     ret2 = CloneOrRecover("Clone", testUser1_, snapId, dstFile, true, &uuid2);
-    ASSERT_EQ(kErrCodeFileExist, ret2);
+    ASSERT_EQ(0, ret2);
 
     // Flatten
     ret1 = Flatten(testUser1_, uuid1);

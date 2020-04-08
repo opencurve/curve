@@ -194,6 +194,10 @@ class ReadChunkRequest : public ChunkOpRequest {
                         const ChunkRequest &request,
                         const butil::IOBuf &data) override;
 
+    const ChunkRequest* GetChunkRequest() {
+        return request_;
+    }
+
  private:
     // 根据chunk信息判断是否需要拷贝数据
     bool NeedClone(const CSChunkInfo& chunkInfo);

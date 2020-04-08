@@ -144,9 +144,7 @@ int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
                                     FileMetric_t* fm) {
     ChunkServerID csid = 0;
     ChunkServerAddr  leaderaddr;
-    GetLeaderRpcOption rpcOption(metacacheopt_.metacacheGetLeaderRPCTimeOutMS,
-                        metacacheopt_.metacacheGetLeaderBackupRequestMS,
-                        metacacheopt_.metacacheGetLeaderBackupRequestLbName);
+    GetLeaderRpcOption rpcOption(metacacheopt_.metacacheGetLeaderRPCTimeOutMS);
     GetLeaderInfo getLeaderInfo(logicPoolId,
                         copysetId, toupdateCopyset->csinfos_,
                         toupdateCopyset->GetCurrentLeaderIndex(),
