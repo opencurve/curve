@@ -97,6 +97,27 @@ TEST_F(TestSnapshotCoreImpl, TestCreateSnapshotPreSuccess) {
     ASSERT_EQ(kErrCodeSuccess, ret);
 }
 
+TEST_F(TestSnapshotCoreImpl, TestCreateSnapshotPreTaskExist) {
+    const std::string file = "file";
+    const std::string user = "user";
+    const std::string desc = "snap1";
+    SnapshotInfo info;
+
+    std::vector<SnapshotInfo> list;
+    SnapshotInfo sinfo("snapid1",
+        user,
+        file,
+        desc);
+    sinfo.SetStatus(Status::pending);
+    list.push_back(sinfo);
+    EXPECT_CALL(*metaStore_, GetSnapshotList(_, _))
+        .WillOnce(DoAll(
+                SetArgPointee<1>(list),
+                Return(kErrCodeSuccess)));
+    int ret = core_->CreateSnapshotPre(file, user, desc, &info);
+    ASSERT_EQ(kErrCodeTaskExist, ret);
+}
+
 TEST_F(TestSnapshotCoreImpl, TestCreateSnapshotPreAddSnapshotFail) {
     const std::string file = "file";
     const std::string user = "user";

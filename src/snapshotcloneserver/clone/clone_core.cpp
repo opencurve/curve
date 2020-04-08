@@ -47,15 +47,53 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     std::vector<CloneInfo> cloneInfoList;
     metaStore_->GetCloneInfoByFileName(destination, &cloneInfoList);
     for (auto &info : cloneInfoList) {
-        if (info.GetStatus() != CloneStatus::done &&
-            info.GetStatus() != CloneStatus::error &&
-            info.GetStatus() != CloneStatus::metaInstalled) {
-            LOG(INFO) << "CloneOrRecoverPre find some task in progress"
-                      << ", source = " << source
-                      << ", user = " << user
-                      << ", destination = " << destination
-                      << ", Exist CloneInfo : " << info;
-            return kErrCodeTaskExist;
+        if ((taskType == CloneTaskType::kClone) &&
+            (info.GetTaskType() == CloneTaskType::kClone)) {
+            if (info.GetStatus() == CloneStatus::done ||
+                info.GetStatus() == CloneStatus::error ||
+                info.GetStatus() == CloneStatus::metaInstalled ||
+                info.GetStatus() == CloneStatus::cloning ||
+                info.GetStatus() == CloneStatus::retrying) {
+                LOG(INFO) << "CloneOrRecoverPre find same clone task"
+                          << ", source = " << source
+                          << ", user = " << user
+                          << ", destination = " << destination
+                          << ", Exist CloneInfo : " << info;
+                if ((info.GetUser() == user) &&
+                    (info.GetSrc() == source) &&
+                    (info.GetIsLazy() == lazyFlag) &&
+                    (info.GetTaskType() == taskType)) {
+                    // 视为同一个clone，返回任务已存在
+                    *cloneInfo = info;
+                    return kErrCodeTaskExist;
+                } else {
+                    // 视为不同的克隆，那么文件实际上已被占用，返回文件已存在
+                    return kErrCodeFileExist;
+                }
+            } else {
+                // 此时，有个相同的克隆任务正在删除中, 返回文件被占用
+                return kErrCodeFileExist;
+            }
+        } else {
+            if (info.GetStatus() == CloneStatus::cloning ||
+                info.GetStatus() == CloneStatus::recovering ||
+                info.GetStatus() == CloneStatus::retrying) {
+                LOG(INFO) << "CloneOrRecoverPre find some task in progress"
+                          << ", source = " << source
+                          << ", user = " << user
+                          << ", destination = " << destination
+                          << ", Exist CloneInfo : " << info;
+                if ((info.GetUser() == user) &&
+                    (info.GetSrc() == source) &&
+                    (info.GetIsLazy() == lazyFlag) &&
+                    (info.GetTaskType() == taskType)) {
+                    // 视为同一个clone，返回任务已存在
+                    return kErrCodeTaskExist;
+                } else {
+                    // 视为不同的克隆，那么文件实际上已被占用，返回文件已存在
+                    return kErrCodeFileExist;
+                }
+            }
         }
     }
 
@@ -978,55 +1016,40 @@ int CloneCoreImpl::RenameCloneFile(
         cloneTempDir_ + "/" + task->GetCloneInfo().GetTaskId();
     std::string destination = task->GetCloneInfo().GetDest();
 
-    // 判断原始文件存不存在
-    FInfo oriFInfo;
-    int ret = client_->GetFileInfo(origin, mdsRootUser_, &oriFInfo);
-
-    if (LIBCURVE_ERROR::OK == ret) {
-        if (oriFInfo.id != originId) {
-            LOG(ERROR) << "Origin File is missing, when rename clone file, "
-                       << "exist file id = " << oriFInfo.id
-                       << ", originId = " << originId
-                       << ", taskid = " << task->GetTaskId();
-            return kErrCodeInternalError;
-        }
-        ret = client_->RenameCloneFile(mdsRootUser_,
+    // 先rename
+    int ret = client_->RenameCloneFile(mdsRootUser_,
             originId,
             destinationId,
             origin,
             destination);
-        if (ret != LIBCURVE_ERROR::OK) {
-            LOG(ERROR) << "RenameCloneFile fail"
-                       << ", ret = " << ret
-                       << ", user = " << user
-                       << ", originId = " << originId
-                       << ", origin = " << origin
-                       << ", destination = " << destination
-                       << ", taskid = " << task->GetTaskId();
-            return kErrCodeInternalError;
-        }
-    } else if (-LIBCURVE_ERROR::NOTEXIST == ret) {
+    if (-LIBCURVE_ERROR::NOTEXIST == ret) {
         // 有可能是已经rename过了
         FInfo destFInfo;
         ret = client_->GetFileInfo(destination, mdsRootUser_, &destFInfo);
         if (ret != LIBCURVE_ERROR::OK) {
-            LOG(ERROR) << "Origin File is missing, when rename clone file,"
-                       << "GetFileInfo fail, ret = " << ret
+            LOG(ERROR) << "RenameCloneFile return NOTEXIST,"
+                       << "And get dest fileInfo fail, ret = " << ret
                        << ", destination filename = " << destination
                        << ", taskid = " << task->GetTaskId();
             return kErrCodeInternalError;
         }
         if (destFInfo.id != originId) {
-            LOG(ERROR) << "Origin File is missing, when rename clone file, "
+            LOG(ERROR) << "RenameCloneFile return NOTEXIST,"
+                       << "And get dest file id not equal, ret = " << ret
                        << "originId = " << originId
+                       << "destFInfo.id = " << destFInfo.id
                        << ", taskid = " << task->GetTaskId();
             return kErrCodeInternalError;
         }
-    } else {
-            LOG(ERROR) << "GetFileInfo fail, ret = " << ret
-                       << ", origin filename = " << origin
-                       << ", taskid = " << task->GetTaskId();
-            return ret;
+    } else if (ret != LIBCURVE_ERROR::OK) {
+        LOG(ERROR) << "RenameCloneFile fail"
+                   << ", ret = " << ret
+                   << ", user = " << user
+                   << ", originId = " << originId
+                   << ", origin = " << origin
+                   << ", destination = " << destination
+                   << ", taskid = " << task->GetTaskId();
+        return kErrCodeInternalError;
     }
 
     if (IsLazy(task)) {

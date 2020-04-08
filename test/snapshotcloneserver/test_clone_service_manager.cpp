@@ -151,6 +151,32 @@ TEST_F(TestCloneServiceManager,
     ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
+TEST_F(TestCloneServiceManager, TestCloneFileSuccessByTaskExist) {
+    const UUID source = "uuid1";
+    const std::string user = "user1";
+    const std::string destination = "file1";
+    bool lazyFlag = true;
+
+    CloneInfo cloneInfo;
+
+    EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
+            source, user, destination, lazyFlag, CloneTaskType::kClone, _))
+        .WillOnce(DoAll(
+            SetArgPointee<5>(cloneInfo),
+            Return(kErrCodeTaskExist)));
+
+    TaskIdType taskId;
+    auto closure = std::make_shared<CloneClosure>();
+    int ret = manager_->CloneFile(
+        source,
+        user,
+        destination,
+        lazyFlag,
+        closure,
+        &taskId);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+}
+
 TEST_F(TestCloneServiceManager,
     TestCloneFilePushTaskFail) {
     const UUID source = "uuid1";
@@ -282,6 +308,33 @@ TEST_F(TestCloneServiceManager,
         closure,
         &taskId);
     ASSERT_EQ(kErrCodeInternalError, ret);
+}
+
+TEST_F(TestCloneServiceManager,
+    TestRecoverFileSuccessByTaskExist) {
+    const UUID source = "uuid1";
+    const std::string user = "user1";
+    const std::string destination = "file1";
+    bool lazyFlag = true;
+
+    CloneInfo cloneInfo;
+
+    EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
+            source, user, destination, lazyFlag, CloneTaskType::kRecover, _))
+        .WillOnce(DoAll(
+            SetArgPointee<5>(cloneInfo),
+            Return(kErrCodeTaskExist)));
+
+    TaskIdType taskId;
+    auto closure = std::make_shared<CloneClosure>();
+    int ret = manager_->RecoverFile(
+        source,
+        user,
+        destination,
+        lazyFlag,
+        closure,
+        &taskId);
+    ASSERT_EQ(kErrCodeSuccess, ret);
 }
 
 TEST_F(TestCloneServiceManager,

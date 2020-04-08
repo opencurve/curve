@@ -33,6 +33,20 @@ std::ostream& operator<<(std::ostream& os, const CloneInfo &cloneInfo) {
     return os;
 }
 
+std::ostream& operator<<(std::ostream& os, const SnapshotInfo &snapshotInfo) {
+    os << "{ uuid : " << snapshotInfo.GetUuid();
+    os << ", user : " << snapshotInfo.GetUser();
+    os << ", fileName : " << snapshotInfo.GetFileName();
+    os << ", snapshotName : " << snapshotInfo.GetSnapshotName();
+    os << ", seqNum : " << snapshotInfo.GetSeqNum();
+    os << ", chunkSize : " << snapshotInfo.GetChunkSize();
+    os << ", segementSize : " << snapshotInfo.GetSegmentSize();
+    os << ", fileLength : " << snapshotInfo.GetFileLength();
+    os << ", time : " << snapshotInfo.GetCreateTime();
+    os << ", status : " << static_cast<int>(snapshotInfo.GetStatus());
+    os << " }";
+    return os;
+}
 
 int DBSnapshotCloneMetaStore::Init(
         const SnapshotCloneMetaStoreOptions &options) {

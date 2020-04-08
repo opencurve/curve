@@ -29,7 +29,11 @@ using curve::client::FileClient;
 using curve::client::UserInfo;
 using curve::common::LocationOperator;
 using curve::common::OriginType;
+using curve::common::GetObjectAsyncCallBack;
+using curve::common::GetObjectAsyncContext;
 using std::string;
+
+class DownloadClosure;
 
 struct CopyerOptions {
     // curvefs上的root用户信息
@@ -43,6 +47,19 @@ struct CopyerOptions {
     // s3 adapter的对象指针
     std::shared_ptr<S3Adapter> s3Client;
 };
+
+struct AsyncDownloadContext {
+    // 源chunk的位置信息
+    string location;
+    // 请求下载数据在对象中的相对偏移
+    off_t offset;
+    // 请求下载数据的的长度
+    size_t size;
+    // 存放下载数据的缓冲区
+    char* buf;
+};
+
+std::ostream& operator<<(std::ostream& out, const AsyncDownloadContext& rhs);
 
 class OriginCopyer {
  public:
@@ -63,27 +80,23 @@ class OriginCopyer {
     virtual int Fini();
 
     /**
-     * 从源端拷贝数据
-     * @param location：源chunk的位置信息
-     * @param off：请求下载数据在对象中的相对偏移
-     * @param size：请求下载数据的的长度
-     * @param buf：存放下载数据的缓冲区
-     * @return：成功返回0，失败返回-1
+     * 异步地从源端拷贝数据
+     * @param done：包含下载请求的上下文信息，
+     * 数据下载完成后执行该closure进行回调
      */
-    virtual int Download(const string& location,
-                         off_t off,
-                         size_t size,
-                         char* buf);
+    virtual void DownloadAsync(DownloadClosure* done);
 
  private:
-    int DownloadFromS3(const string& objectName,
+    void DownloadFromS3(const string& objectName,
                        off_t off,
                        size_t size,
-                       char* buf);
-    int DownloadFromCurve(const string& fileName,
+                       char* buf,
+                       DownloadClosure* done);
+    void DownloadFromCurve(const string& fileName,
                           off_t off,
                           size_t size,
-                          char* buf);
+                          char* buf,
+                          DownloadClosure* done);
 
  private:
     // curvefs上的root用户信息
