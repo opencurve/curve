@@ -36,6 +36,10 @@ void S3Adapter::Init(const std::string &path) {
     clientCfg_->connectTimeoutMs = conf_.GetIntValue("s3.connect_timeout");
     clientCfg_->requestTimeoutMs = conf_.GetIntValue("s3.request_timeout");
     clientCfg_->endpointOverride = s3Address_;
+    auto asyncThreadNum = conf_.GetIntValue("s3.async_thread_num");
+    clientCfg_->executor =
+        Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>(
+            "S3Adapter.S3Client", asyncThreadNum);
     s3Client_ = Aws::New<Aws::S3::S3Client>("S3Adapter.S3Client",
             Aws::Auth::AWSCredentials(s3Ak_, s3Sk_),
             *clientCfg_,
