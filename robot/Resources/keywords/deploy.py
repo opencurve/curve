@@ -215,44 +215,20 @@ def clean_env():
 def destroy_mds():
     for host in config.mds_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-        ori_cmd = "ps -ef|grep -v grep | grep -v sudo | grep curve-mds | awk '{print $2}'"
-        rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        if rs[1] == []:
-            logger.debug("mds not up")
-            continue
-        pid = "".join(rs[1]).strip()
-        kill_cmd = "sudo kill -9 %s"%pid
-        rs = shell_operator.ssh_exec(ssh,kill_cmd)
-        logger.debug("exec %s,stdout is %s"%(kill_cmd,"".join(rs[1])))
-        assert rs[3] == 0,"kill mds fail"
+        ori_cmd = "ps -ef|grep -v grep | grep -v sudo | grep curve-mds | awk '{print $2}' | sudo xargs kill -9"
+        shell_operator.ssh_exec(ssh, ori_cmd)
 
 def destroy_etcd():
     for host in config.etcd_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-        ori_cmd = "ps -ef|grep -v grep | grep etcd | awk '{print $2}'"
-        rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        if rs[1] == []:
-            logger.debug("etcd not up")
-            continue
-        pid = "".join(rs[1]).strip()
-        kill_cmd = "sudo kill -9 %s"%pid
-        rs = shell_operator.ssh_exec(ssh,kill_cmd)
-        logger.debug("exec %s,stdout is %s"%(kill_cmd,"".join(rs[1])))
-        assert rs[3] == 0,"kill etcd fail"
+        ori_cmd = "ps -ef|grep -v grep | grep etcd | awk '{print $2}' | sudo  xargs kill -9"
+        shell_operator.ssh_exec(ssh, ori_cmd)
 
 def destroy_snapshotclone_server():
     for host in config.snap_server_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-        ori_cmd = "ps -ef|grep -v grep |grep -v sudo | grep snapshotcloneserver | awk '{print $2}'"
-        rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        if rs[1] == []:
-            logger.debug("snapshotcloneserver not up")
-            continue
-        pid = "".join(rs[1]).strip()
-        kill_cmd = "sudo kill -9 %s"%pid
-        rs = shell_operator.ssh_exec(ssh,kill_cmd)
-        logger.debug("exec %s,stdout is %s"%(kill_cmd,"".join(rs[1])))
-        assert rs[3] == 0,"kill snapshotcloneserver fail"
+        ori_cmd = "ps -ef|grep -v grep |grep -v sudo | grep snapshotcloneserver | awk '{print $2}' | sudo xargs kill -9"
+        shell_operator.ssh_exec(ssh, ori_cmd)
 
 def stop_nebd():
     for host in config.client_list:
@@ -266,12 +242,12 @@ def stop_nebd():
 def initial_chunkserver(host):
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     try:
-        kill_cmd = "ps -ef|grep -v grep | grep -w chunkserver |grep -v sudo | awk '{print $2}' | sudo xargs kill -9"
+        kill_cmd = "ps -ef|grep -v grep | grep -v curve-chunkserver.log | grep -w chunkserver |grep -v sudo | awk '{print $2}' | sudo xargs kill -9"
         logger.debug("stop host %s chunkserver" % host)
         rs = shell_operator.ssh_exec(ssh, kill_cmd)
 #        assert rs[3] == 0
         time.sleep(30)
-        ori_cmd = "ps -ef|grep -v grep | grep -w curve-chunkserver | awk '{print $2}'"
+        ori_cmd = "ps -ef|grep -v grep | grep -v curve-chunkserver.log | grep -w curve-chunkserver | awk '{print $2}'"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[1] == [], "kill chunkserver fail"
         ori_cmd = "bash delete.sh"
@@ -421,7 +397,7 @@ def start_abnormal_test_services():
             mds_cmd = "sudo nohup /usr/bin/curve-mds --confPath=/etc/curve/mds.conf &"
             shell_operator.ssh_background_exec2(ssh, mds_cmd)
             time.sleep(1)
-            ori_cmd = "ps -ef|grep -v grep | grep -v sudo | grep -w curve-mds | awk '{print $2}'"
+            ori_cmd = "ps -ef|grep -v grep | grep -v curve-mds.log | grep -v sudo | grep -w curve-mds | awk '{print $2}'"
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[1] != [], "up mds fail"
             logger.debug("mds pid is %s"%rs[1])
