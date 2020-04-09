@@ -211,7 +211,16 @@ def destroy_snapshotclone_server():
         rs = shell_operator.ssh_exec(ssh,kill_cmd)
         logger.debug("exec %s,stdout is %s"%(kill_cmd,"".join(rs[1])))
         assert rs[3] == 0,"kill snapshotcloneserver fail"
-  
+ 
+def stop_nebd():
+    for host in config.client_list:
+        ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+        ori_cmd = "ps -ef|grep -v grep | grep nebd | awk '{print $2}' | sudo xargs kill -9"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        if rs[3] != 0:
+            logger.debug("snapshotcloneserver not up")
+            continue
+ 
 def initial_chunkserver(host):
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     try:
@@ -305,6 +314,38 @@ def install_deb():
         logger.error("install deb fail.")
         raise
 
+def start_nebd():
+        cmd = "ls nebd/nebd*.deb"
+        nebd_deb = shell_operator.run_exec2(cmd)
+        version = nebd_deb.split('+')[1]
+        assert nebd_deb != "","can not get nebd deb"
+        for host in config.client_list:
+            cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 %snebd/*.deb %s:~/"%\
+                    (config.pravie_key_path,config.curve_workspace,host)
+            shell_operator.run_exec2(cmd)
+            ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+            ori_cmd = "sudo dpkg -i --force-overwrite nebd_*%s"%version
+            rs = shell_operator.ssh_exec(ssh, ori_cmd)
+            assert rs[3] == 0,"install nebd deb fail,error is %s"%rs
+            rm_deb = "rm nebd_*%s"%version
+            shell_operator.ssh_exec(ssh, rm_deb)
+            cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 nebd/etc/nebd/*.conf %s:~/"%\
+                 (config.pravie_key_path,host)
+            shell_operator.run_exec2(cmd)
+            ori_cmd = "sudo cp nebd-client.conf nebd-server.conf /etc/nebd/"
+            rs = shell_operator.ssh_exec(ssh, ori_cmd)
+            assert rs[3] == 0,"cp %s nebd conf fail"%host
+            ori_cmd = "sudo nebd-daemon start"
+            rs = shell_operator.ssh_exec(ssh, ori_cmd)
+            if rs[3] != 0:
+                logger.debug("nebd start fail,error is %s"%rs[1])
+                ori_cmd == "sudo nebd-daemon restart"
+                rs2 = shell_operator.ssh_exec(ssh, ori_cmd)
+                assert rs2[3] == 0,"restart nebd fail, return is %s"%rs2[1]
+            time.sleep(5)
+            ori_cmd = "ps -ef|grep nebd-server | grep -v daemon |grep -v grep |awk '{print $2}'"
+            rs = shell_operator.ssh_exec(ssh, ori_cmd)
+            assert rs[1] != "","start nebd fail!"
 
 def add_config_file():
     for host in config.mds_list:

@@ -102,6 +102,13 @@ inject kill diff host chunkserver
 #    check copies consistency
     [Teardown]	 wait cluster healthy    ${vm_iops_limit}
 
+inject reboot nebd
+    [Tags]   P1  base   first release   failover
+    test reboot nebd
+    sleep   5
+    check vm iops
+    check data consistency
+    [Teardown]  wait cluster healthy   ${vm_iops_limit}
 
 inject stop and start vm
     [Tags]    P1    base    first release   failover
@@ -122,6 +129,14 @@ inject reboot vm
 #    check copies consistency
     [Teardown]	  wait cluster healthy    ${vm_iops_limit}
 
+inject hang vm
+    [Tags]    P1    base    first release   failover
+    test hang vm
+    sleep   5
+    check vm iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	 wait cluster healthy     ${vm_iops_limit}
 
 inject kill one mds 
     [Tags]    P1    base    first release   failover
@@ -536,6 +551,7 @@ init abnormal test env
      destroy etcd
      destroy mds
      destroy snapshotclone server
+     stop nebd
      drop all chunkserver dat
      drop abnormal test db
      create abnormal db table
@@ -545,6 +561,7 @@ init abnormal test env
      create pool
      restart cinder server
      wait cinder server up
+     start nebd
 
 init rw cloud disk
      remove vm key
