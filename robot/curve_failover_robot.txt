@@ -356,6 +356,8 @@ test chunkserver loss package 5%
     ${percent}  evaluate  int(5)
     test cs loss package  ${percent}
     check vm iops
+    test start mds
+    test start snap
     check data consistency
 #    check copies consistency
 #    [Teardown]	   wait cluster healthy    ${vm_iops_limit}
@@ -441,6 +443,7 @@ test ipmitool restart mds node
    sleep  60
    check vm iops
    check data consistency
+   test start mds
    test start snap
    [Teardown]    wait cluster healthy   ${vm_iops_limit}
 
