@@ -1497,6 +1497,39 @@ def test_restart_vm():
     except Exception as e:
          raise
 
+def test_reboot_nebd():
+    client_host = random.choice(config.client_list)
+    logger.info("|------begin test reboot nebd %s------|"%(client_host))
+    cmd = "sudo nebd-daemon restart"
+    ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    assert rs[3] == 0,"reboot nebd daemon fail,return is %s"%rs[1]
+
+def test_hang_vm():
+    ori_cmd = "source OPENRC && nova list |grep %s | awk '{print $2}'"%config.vm_host
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    vm_uuid = "".join(rs[1]).strip()
+    client_host = config.client_list[0]
+    logger.info("|------begin test hang vm %s------|"%(vm_uuid))
+    cmd = "ps -ef|grep -v grep | grep %s | awk \'{print $2}\'"%vm_uuid
+    ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    pid_vm = "".join(rs[1]).strip()
+    assert pid_vm != "","get vm pid fail,return is %s"%pid_vm
+    try:
+        cmd = "sudo kill -19 %s"%pid_vm
+        ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
+        rs = shell_operator.ssh_exec(ssh, cmd)
+        assert rs[3] == 0,"kill -19 vm fail,return is %s"%rs[1]
+        time.sleep(30)
+        cmd = "sudo kill -18 %s"%pid_vm
+        ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
+        rs = shell_operator.ssh_exec(ssh, cmd)
+        assert rs[3] == 0,"kill -18 vm fail,return is %s"%rs[1]
+    except Exception as e:
+        raise       
+
 def test_cs_loss_package(percent):
     start_iops = get_cluster_iops()
     chunkserver_list = config.chunkserver_list
