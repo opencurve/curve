@@ -327,7 +327,7 @@ def get_vol_md5(vol_uuid):
     md5_obj = hashlib.md5()
     for i in range(1,2560):
         j = i - 1
-        context = curvefs.Read(fd, buf, 4096*j,4096*i)
+        context = curvefs.Read(fd, buf, 4096*1024*j,4096*1024)
         md5_obj.update(context)
     hash_code = md5_obj.hexdigest()
     md5 = str(hash_code).lower()
