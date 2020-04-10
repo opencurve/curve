@@ -12,6 +12,7 @@
 #include <glog/logging.h>
 #include <brpc/channel.h>
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <string>
 #include <memory>
@@ -105,6 +106,7 @@ class StatusTool : public CurveTool {
     int PrintEtcdStatus();
     int PrintChunkserverStatus(bool checkLeftSize = true);
     int PrintClientStatus();
+    void PrintCsLeftSizeStatistics(const std::vector<uint64_t>& leftSize);
     /**
      *  @brief 判断命令是否需要和etcd交互
      *  @param command：执行的命令

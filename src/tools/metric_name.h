@@ -22,6 +22,7 @@ const char kChunkServerMetricPrefix[] = "chunkserver_";
 const char kOperatorNumMetricName[] = "mds_scheduler_metric_operator_num";
 const char kMdsListenAddrMetricName[] = "mds_config_mds_listen_addr";
 const char kCurveVersionMetricName[] = "curve_version";
+const char kProcessCmdLineMetricName[] = "process_cmdline";
 const char kSechduleOpMetricpPrefix[] = "mds_scheduler_metric_";
 
 // operator名称

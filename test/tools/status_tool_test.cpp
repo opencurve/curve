@@ -402,6 +402,9 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
     VersionMapType versionMap = {{"0.0.1", {"127.0.0.1:8001"}},
                                  {"0.0.2", {"127.0.0.1:8002"}},
                                  {"0.0.3", {"127.0.0.1:8003"}}};
+    ClientVersionMapType clientVersionMap = {{"nebd-server", versionMap},
+                                              {"python", versionMap},
+                                              {"qemu", versionMap}};
     std::vector<std::string> offlineList = {"127.0.0.1:8004",
                                             "127.0.0.1:8005"};
     std::string leaderAddr = "127.0.0.1:2379";
@@ -463,9 +466,8 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
                         Return(0)));
 
     // 设置client status的输出
-    EXPECT_CALL(*versionTool_, GetClientVersion(_, _))
-        .WillOnce(DoAll(SetArgPointee<0>(versionMap),
-                        SetArgPointee<1>(offlineList),
+    EXPECT_CALL(*versionTool_, GetClientVersion(_))
+        .WillOnce(DoAll(SetArgPointee<0>(clientVersionMap),
                         Return(0)));
 
     // 2、设置MDS status的输出
@@ -481,6 +483,10 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
                         Return(0)));
 
     // 3、设置etcd status的输出
+    EXPECT_CALL(*etcdClient_, GetAndCheckEtcdVersion(_, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<0>("3.4.1"),
+                        Return(0)));
     EXPECT_CALL(*etcdClient_, GetEtcdClusterStatus(_, _))
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<0>(leaderAddr),
@@ -571,7 +577,7 @@ TEST_F(StatusToolTest, StatusCmdError) {
         .WillRepeatedly(Return(-1));
 
     // 获取client version失败
-    EXPECT_CALL(*versionTool_, GetClientVersion(_, _))
+    EXPECT_CALL(*versionTool_, GetClientVersion(_))
         .WillOnce(Return(-1));
 
     // 2、当前无mds可用
@@ -590,6 +596,9 @@ TEST_F(StatusToolTest, StatusCmdError) {
                         Return(0)));
 
     // 3、GetEtcdClusterStatus失败
+    EXPECT_CALL(*etcdClient_, GetAndCheckEtcdVersion(_, _))
+        .Times(1)
+        .WillOnce(Return(-1));
     EXPECT_CALL(*etcdClient_, GetEtcdClusterStatus(_, _))
         .Times(1)
         .WillOnce(Return(-1));
