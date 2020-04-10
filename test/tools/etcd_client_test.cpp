@@ -78,3 +78,20 @@ TEST_F(EtcdClientTest, GetEtcdClusterStatus) {
     ASSERT_EQ(-1, client.GetEtcdClusterStatus(nullptr, &onlineState));
     ASSERT_EQ(-1, client.GetEtcdClusterStatus(&leaderAddr, nullptr));
 }
+
+TEST_F(EtcdClientTest, GetAndCheckEtcdVersion) {
+    curve::tool::EtcdClient client;
+    ASSERT_EQ(0, client.Init("127.0.0.1:2366"));
+
+    // 正常情况
+    std::string version;
+    std::vector<std::string> failedList;
+    ASSERT_EQ(0, client.GetAndCheckEtcdVersion(&version, &failedList));
+    ASSERT_TRUE(failedList.empty());
+
+    // 个别etcd获取version失败
+    ASSERT_EQ(0, client.Init(etcdAddr));
+    ASSERT_EQ(0, client.GetAndCheckEtcdVersion(&version, &failedList));
+    ASSERT_EQ(1, failedList.size());
+    ASSERT_EQ("127.0.0.1:2368", failedList[0]);
+}
