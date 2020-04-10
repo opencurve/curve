@@ -46,6 +46,7 @@ namespace chunkserver {
 
 const ChunkSizeType CHUNK_SIZE = 16 * 1024 * 1024;
 const PageSizeType PAGE_SIZE = 4096;
+const uint32_t kLocationLimit = 3000;
 const char baseDir[] = "/home/chunkserver/copyset/data";
 const char chunk1[] = "chunk_1";
 const char chunk1Path[] = "/home/chunkserver/copyset/data/chunk_1";
@@ -88,6 +89,7 @@ class CSDataStore_test : public testing::Test {
             options.baseDir = baseDir;
             options.chunkSize = CHUNK_SIZE;
             options.pageSize = PAGE_SIZE;
+            options.locationLimit = kLocationLimit;
             dataStore = std::make_shared<CSDataStore>(lfs_,
                                                       fpool_,
                                                       options);
@@ -2087,10 +2089,12 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest5) {
 /*
  * WriteChunkErrorTest
  * 所写chunk为clone chunk
- * case1:写数据时失败
- * 预期结果1:返回InternalError，chunk状态不变
- * case2:更新metapage时失败
+ * case1:请求location过长，导致metapage size超出page size
+ * 预期结果1:create clone chunk失败
+ * case2:写数据时失败
  * 预期结果2:返回InternalError，chunk状态不变
+ * case3:更新metapage时失败
+ * 预期结果3:返回InternalError，chunk状态不变
  */
 TEST_F(CSDataStore_test, WriteChunkErrorTest6) {
     // initialize
@@ -2104,6 +2108,16 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest6) {
     size_t length = PAGE_SIZE;
     char buf[length] = {0};
     CSChunkInfo info;
+    // 创建 clone chunk
+    {
+        string longLocation(kLocationLimit+1, 'a');
+        EXPECT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->CreateCloneChunk(id,
+                                              sn,
+                                              correctedSn,
+                                              CHUNK_SIZE,
+                                              longLocation));
+    }
     // 创建 clone chunk
     {
         char chunk3MetaPage[PAGE_SIZE] = {0};

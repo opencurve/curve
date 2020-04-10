@@ -72,6 +72,8 @@ struct CopysetNodeOptions {
     uint32_t maxChunkSize;
     // chunk文件的page大小
     uint32_t pageSize;
+    // clone chunk的location长度限制
+    uint32_t locationLimit;
 
     // 并发模块
     ConcurrentApplyModule *concurrentapply;
