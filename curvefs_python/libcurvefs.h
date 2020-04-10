@@ -78,6 +78,13 @@ extern "C" {
 
 #define CLUSTERIDMAX 256
 
+// 文件状态
+#define CURVE_FILE_CREATED            0
+#define CURVE_FILE_DELETING           1
+#define CURVE_FILE_CLONING            2
+#define CURVE_FILE_CLONEMETAINSTALLED 3
+#define CURVE_FILE_CLONED             4
+#define CURVE_FILE_BEINGCLONED        5
 
 typedef void (*AioCallBack)(struct AioContext* context);
 typedef struct AioContext {
@@ -104,6 +111,17 @@ typedef struct FileInfo {
     char          owner[256];
 } FileInfo_t;
 
+typedef struct FileInfo2 {
+    uint64_t      id;
+    uint64_t      parentid;
+    int           filetype;
+    uint64_t      length;
+    uint64_t      ctime;
+    char          filename[256];
+    char          owner[256];
+    int           fileStatus;
+} FileInfo2_t;
+
 typedef struct DirInfos {
     char*         dirpath;
     UserInfo_t*   userinfo;
@@ -127,6 +145,7 @@ int AioWrite(int fd, AioContext* aioctx);
 // 获取文件的基本信息
 int StatFile4Qemu(const char* filename, FileInfo_t* finfo);
 int StatFile(const char* filename, UserInfo_t* info, FileInfo_t* finfo);
+int StatFile2(const char* filename, UserInfo_t* info, FileInfo2_t* finfo);
 int ChangeOwner(const char* filename, const char* owner, UserInfo_t* info);
 int Close(int fd);
 

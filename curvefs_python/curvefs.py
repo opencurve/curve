@@ -131,6 +131,12 @@ CURVE_ERROR_UNKNOWN = _curvefs.CURVE_ERROR_UNKNOWN
 CURVE_OP_READ = _curvefs.CURVE_OP_READ
 CURVE_OP_WRITE = _curvefs.CURVE_OP_WRITE
 CLUSTERIDMAX = _curvefs.CLUSTERIDMAX
+CURVE_FILE_CREATED = _curvefs.CURVE_FILE_CREATED
+CURVE_FILE_DELETING = _curvefs.CURVE_FILE_DELETING
+CURVE_FILE_CLONING = _curvefs.CURVE_FILE_CLONING
+CURVE_FILE_CLONEMETAINSTALLED = _curvefs.CURVE_FILE_CLONEMETAINSTALLED
+CURVE_FILE_CLONED = _curvefs.CURVE_FILE_CLONED
+CURVE_FILE_BEINGCLONED = _curvefs.CURVE_FILE_BEINGCLONED
 class AioContext_t(_object):
     __swig_setmethods__ = {}
     __setattr__ = lambda self, name, value: _swig_setattr(self, AioContext_t, name, value)
@@ -245,6 +251,56 @@ class FileInfo_t(_object):
 FileInfo_t_swigregister = _curvefs.FileInfo_t_swigregister
 FileInfo_t_swigregister(FileInfo_t)
 
+class FileInfo2_t(_object):
+    __swig_setmethods__ = {}
+    __setattr__ = lambda self, name, value: _swig_setattr(self, FileInfo2_t, name, value)
+    __swig_getmethods__ = {}
+    __getattr__ = lambda self, name: _swig_getattr(self, FileInfo2_t, name)
+    __repr__ = _swig_repr
+    __swig_setmethods__["id"] = _curvefs.FileInfo2_t_id_set
+    __swig_getmethods__["id"] = _curvefs.FileInfo2_t_id_get
+    if _newclass:
+        id = _swig_property(_curvefs.FileInfo2_t_id_get, _curvefs.FileInfo2_t_id_set)
+    __swig_setmethods__["parentid"] = _curvefs.FileInfo2_t_parentid_set
+    __swig_getmethods__["parentid"] = _curvefs.FileInfo2_t_parentid_get
+    if _newclass:
+        parentid = _swig_property(_curvefs.FileInfo2_t_parentid_get, _curvefs.FileInfo2_t_parentid_set)
+    __swig_setmethods__["filetype"] = _curvefs.FileInfo2_t_filetype_set
+    __swig_getmethods__["filetype"] = _curvefs.FileInfo2_t_filetype_get
+    if _newclass:
+        filetype = _swig_property(_curvefs.FileInfo2_t_filetype_get, _curvefs.FileInfo2_t_filetype_set)
+    __swig_setmethods__["length"] = _curvefs.FileInfo2_t_length_set
+    __swig_getmethods__["length"] = _curvefs.FileInfo2_t_length_get
+    if _newclass:
+        length = _swig_property(_curvefs.FileInfo2_t_length_get, _curvefs.FileInfo2_t_length_set)
+    __swig_setmethods__["ctime"] = _curvefs.FileInfo2_t_ctime_set
+    __swig_getmethods__["ctime"] = _curvefs.FileInfo2_t_ctime_get
+    if _newclass:
+        ctime = _swig_property(_curvefs.FileInfo2_t_ctime_get, _curvefs.FileInfo2_t_ctime_set)
+    __swig_setmethods__["filename"] = _curvefs.FileInfo2_t_filename_set
+    __swig_getmethods__["filename"] = _curvefs.FileInfo2_t_filename_get
+    if _newclass:
+        filename = _swig_property(_curvefs.FileInfo2_t_filename_get, _curvefs.FileInfo2_t_filename_set)
+    __swig_setmethods__["owner"] = _curvefs.FileInfo2_t_owner_set
+    __swig_getmethods__["owner"] = _curvefs.FileInfo2_t_owner_get
+    if _newclass:
+        owner = _swig_property(_curvefs.FileInfo2_t_owner_get, _curvefs.FileInfo2_t_owner_set)
+    __swig_setmethods__["fileStatus"] = _curvefs.FileInfo2_t_fileStatus_set
+    __swig_getmethods__["fileStatus"] = _curvefs.FileInfo2_t_fileStatus_get
+    if _newclass:
+        fileStatus = _swig_property(_curvefs.FileInfo2_t_fileStatus_get, _curvefs.FileInfo2_t_fileStatus_set)
+
+    def __init__(self):
+        this = _curvefs.new_FileInfo2_t()
+        try:
+            self.this.append(this)
+        except __builtin__.Exception:
+            self.this = this
+    __swig_destroy__ = _curvefs.delete_FileInfo2_t
+    __del__ = lambda self: None
+FileInfo2_t_swigregister = _curvefs.FileInfo2_t_swigregister
+FileInfo2_t_swigregister(FileInfo2_t)
+
 class DirInfos_t(_object):
     __swig_setmethods__ = {}
     __setattr__ = lambda self, name, value: _swig_setattr(self, DirInfos_t, name, value)
@@ -319,6 +375,10 @@ StatFile4Qemu = _curvefs.StatFile4Qemu
 def StatFile(filename, info, finfo):
     return _curvefs.StatFile(filename, info, finfo)
 StatFile = _curvefs.StatFile
+
+def StatFile2(filename, info, finfo):
+    return _curvefs.StatFile2(filename, info, finfo)
+StatFile2 = _curvefs.StatFile2
 
 def ChangeOwner(filename, owner, info):
     return _curvefs.ChangeOwner(filename, owner, info)
