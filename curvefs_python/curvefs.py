@@ -127,12 +127,6 @@ CURVE_ERROR_NO_SPACE = _curvefs.CURVE_ERROR_NO_SPACE
 CURVE_ERROR_NOT_ALIGNED = _curvefs.CURVE_ERROR_NOT_ALIGNED
 CURVE_ERROR_BAD_FD = _curvefs.CURVE_ERROR_BAD_FD
 CURVE_ERROR_LENGTH_NOT_SUPPORT = _curvefs.CURVE_ERROR_LENGTH_NOT_SUPPORT
-CURVE_FILE_CREATED = _curvefs.CURVE_FILE_CREATED
-CURVE_FILE_DELETING = _curvefs.CURVE_FILE_DELETING
-CURVE_FILE_CLONING = _curvefs.CURVE_FILE_CLONING
-CURVE_FILE_CLONEMETAINSTALLED = _curvefs.CURVE_FILE_CLONEMETAINSTALLED
-CURVE_FILE_CLONED = _curvefs.CURVE_FILE_CLONED
-CURVE_FILE_BEINGCLONED = _curvefs.CURVE_FILE_BEINGCLONED
 CURVE_ERROR_UNKNOWN = _curvefs.CURVE_ERROR_UNKNOWN
 CURVE_OP_READ = _curvefs.CURVE_OP_READ
 CURVE_OP_WRITE = _curvefs.CURVE_OP_WRITE
@@ -239,10 +233,6 @@ class FileInfo_t(_object):
     __swig_getmethods__["owner"] = _curvefs.FileInfo_t_owner_get
     if _newclass:
         owner = _swig_property(_curvefs.FileInfo_t_owner_get, _curvefs.FileInfo_t_owner_set)
-    __swig_setmethods__["fileStatus"] = _curvefs.FileInfo_t_fileStatus_set
-    __swig_getmethods__["fileStatus"] = _curvefs.FileInfo_t_fileStatus_get
-    if _newclass:
-        fileStatus = _swig_property(_curvefs.FileInfo_t_fileStatus_get, _curvefs.FileInfo_t_fileStatus_set)
 
     def __init__(self):
         this = _curvefs.new_FileInfo_t()
