@@ -24,6 +24,7 @@ CSDataStore::CSDataStore(std::shared_ptr<LocalFileSystem> lfs,
     : chunkSize_(options.chunkSize),
       pageSize_(options.pageSize),
       baseDir_(options.baseDir),
+      locationLimit_(options.locationLimit),
       chunkfilePool_(chunkfilePool),
       lfs_(lfs) {
     CHECK(!baseDir_.empty()) << "Create datastore failed";
@@ -219,13 +220,15 @@ CSErrorCode CSDataStore::CreateCloneChunk(ChunkID id,
     // 检查参数的合法性
     if (size != chunkSize_
         || sn == 0
-        || location.empty()) {
+        || location.empty()
+        || location.size() > locationLimit_) {
         LOG(ERROR) << "Invalid arguments."
                    << "ChunkID = " << id
                    << ", sn = " << sn
                    << ", correctedSn = " << correctedSn
                    << ", size = " << size
-                   << ", location = " << location;
+                   << ", location = " << location
+                   << ", location limit length = " << locationLimit_;
         return CSErrorCode::InvalidArgError;
     }
     auto chunkFile = metaCache_.Get(id);

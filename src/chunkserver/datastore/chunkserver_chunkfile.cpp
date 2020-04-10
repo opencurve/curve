@@ -177,7 +177,7 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
         // 不过当前同一个chunk的操作是串行的，不会出现这个问题
         if (rc != 0  && rc != -EEXIST) {
             LOG(ERROR) << "Error occured when create file."
-                   << " filepath = " << chunkFilePath;
+                       << " filepath = " << chunkFilePath;
             return CSErrorCode::InternalError;
         }
     }
