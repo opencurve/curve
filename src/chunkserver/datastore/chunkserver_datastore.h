@@ -40,6 +40,7 @@ struct DataStoreOptions {
     std::string                         baseDir;
     ChunkSizeType                       chunkSize;
     PageSizeType                        pageSize;
+    uint32_t                            locationLimit;
 };
 
 /**
@@ -251,6 +252,8 @@ class CSDataStore {
     ChunkSizeType chunkSize_;
     // page大小，为最小原子读写单元
     PageSizeType pageSize_;
+    // clone chunk location长度限制
+    uint32_t locationLimit_;
     // datastore的管理目录
     std::string baseDir_;
     // 为chunkid->chunkfile的映射
