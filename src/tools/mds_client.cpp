@@ -249,7 +249,8 @@ int MDSClient::DeleteFile(const std::string& fileName, bool forcedelete) {
 
     if (response.has_statuscode() &&
                 (response.statuscode() == StatusCode::kOK ||
-                 response.statuscode() == StatusCode::kFileNotExists)) {
+                 response.statuscode() == StatusCode::kFileNotExists ||
+                 response.statuscode() == StatusCode::kFileUnderDeleting)) {
         return 0;
     }
     std::cout << "DeleteFile fail with errCode: "

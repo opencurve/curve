@@ -67,16 +67,53 @@ int VersionTool::GetAndCheckChunkServerVersion(std::string* version,
     return ret;
 }
 
-int VersionTool::GetClientVersion(VersionMapType* versionMap,
-                                  std::vector<std::string>* failedList) {
+int VersionTool::GetClientVersion(ClientVersionMapType* versionMap) {
     std::vector<std::string> clientAddrs;
     int res = mdsClient_->ListClient(&clientAddrs);
     if (res != 0) {
         std::cout << "ListClient fail" << std::endl;
         return -1;
     }
-    GetVersionMap(clientAddrs, versionMap, failedList);
+    ProcessMapType processMap;
+    FetchClientProcessMap(clientAddrs, &processMap);
+    for (const auto& item : processMap) {
+        VersionMapType map;
+        std::vector<std::string> failedList;
+        GetVersionMap(item.second, &map, &failedList);
+        (*versionMap)[item.first] = map;
+    }
     return 0;
+}
+
+void VersionTool::FetchClientProcessMap(const std::vector<std::string>& addrVec,
+                                        ProcessMapType* processMap) {
+    for (const auto& addr : addrVec) {
+        std::string cmd;
+        MetricRet res = metricClient_->GetMetric(addr,
+                                            kProcessCmdLineMetricName,
+                                            &cmd);
+        if (res != MetricRet::kOK) {
+            continue;
+        }
+        std::string processName = GetProcessNameFromCmd(cmd);
+        if (processMap->find(processName) == processMap->end()) {
+            (*processMap)[processName] = {addr};
+        } else {
+            (*processMap)[processName].emplace_back(addr);
+        }
+    }
+}
+
+std::string VersionTool::GetProcessNameFromCmd(const std::string& cmd) {
+    if (cmd.find(kProcessNebdServer) != cmd.npos) {
+        return kProcessNebdServer;
+    } else if (cmd.find(kProcessPython) != cmd.npos) {
+        return kProcessPython;
+    } else if (cmd.find(kProcessQemu) != cmd.npos) {
+        return kProcessQemu;
+    } else {
+        return kProcessOther;
+    }
 }
 
 void VersionTool::GetVersionMap(const std::vector<std::string>& addrVec,

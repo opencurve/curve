@@ -95,12 +95,21 @@ int StatusTool::SpaceCmd() {
         std::cout << "GetSpaceInfo fail!" << std::endl;
         return -1;
     }
+    double logicalUsedRatio = static_cast<double>(spaceInfo.logicalUsed) /
+                                                            spaceInfo.total;
+    double physicalUsedRatio = static_cast<double>(spaceInfo.physicalUsed) /
+                                                            spaceInfo.total;
+    double canBeRecycledRatio = static_cast<double>(spaceInfo.canBeRecycled) /
+                                                        spaceInfo.logicalUsed;
+    std:: cout.setf(std::ios::fixed);
+    std::cout<< std::setprecision(2);
     std::cout << "total space = " << spaceInfo.total / mds::kGB << "GB"
               << ", logical used = " << spaceInfo.logicalUsed / mds::kGB << "GB"
+              << "(" << logicalUsedRatio * 100 << "%, can be recycled = "
+              << spaceInfo.canBeRecycled / mds::kGB << "GB("
+              << canBeRecycledRatio * 100 << "%))"
               << ", physical used = " << spaceInfo.physicalUsed / mds::kGB
-              << "GB"
-              << ", can be recycled = " << spaceInfo.canBeRecycled / mds::kGB
-              << "GB"
+              << "GB(" << physicalUsedRatio * 100 << "%)"
               << std::endl;
     return 0;
 }
@@ -353,39 +362,56 @@ int StatusTool::PrintMdsStatus() {
 
 int StatusTool::PrintEtcdStatus() {
     std::cout << "Etcd status:" << std::endl;
+    std::string version;
+    std::vector<std::string> failedList;
+    int res = etcdClient_->GetAndCheckEtcdVersion(&version, &failedList);
+    int ret = 0;
+    if (res != 0) {
+        std::cout << "GetAndCheckEtcdVersion fail" << std::endl;
+        ret = -1;
+    } else {
+        std::cout << "version: " << version << std::endl;
+        if (!failedList.empty()) {
+            VersionTool::PrintFailedList(failedList);
+            ret = -1;
+        }
+    }
     std::string leaderAddr;
     std::map<std::string, bool> onlineStatus;
-    int res = etcdClient_->GetEtcdClusterStatus(&leaderAddr, &onlineStatus);
+    res = etcdClient_->GetEtcdClusterStatus(&leaderAddr, &onlineStatus);
     if (res != 0) {
         std::cout << "GetEtcdClusterStatus fail!" << std::endl;
         return -1;
     }
     std::cout << "current etcd: " << leaderAddr << std::endl;
     PrintOnlineStatus("etcd", onlineStatus);
-    return 0;
+    return ret;
 }
 
 int StatusTool::PrintClientStatus() {
     std::cout << "Client status: " << std::endl;
-    VersionMapType versionMap;
-    std::vector<std::string> offlineList;
-    int res = versionTool_->GetClientVersion(&versionMap, &offlineList);
+    ClientVersionMapType versionMap;
+    int res = versionTool_->GetClientVersion(&versionMap);
     if (res != 0) {
         std::cout << "GetClientVersion fail" << std::endl;
         return -1;
     }
-    bool first = true;
     for (const auto& item : versionMap) {
-        if (!first) {
-            std::cout << ", ";
+        std::cout << item.first << ": ";
+        bool first = true;
+        for (const auto& item2 : item.second) {
+            if (!first) {
+                std::cout << ", ";
+            }
+            std::cout << "version-" <<  item2.first << ": "
+                      << item2.second.size();
+            first = false;
         }
-        std::cout << "version-" <<  item.first << ": " << item.second.size();
-        first = false;
-    }
-    std::cout << std::endl;
-    if (FLAGS_detail) {
-        std::cout << "version map:" << std::endl;
-        versionTool_->PrintVersionMap(versionMap);
+        std::cout << std::endl;
+        if (FLAGS_detail) {
+            std::cout << "version map: " << std::endl;
+            versionTool_->PrintVersionMap(item.second);
+        }
     }
     return 0;
 }
@@ -416,7 +442,7 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     uint64_t total = 0;
     uint64_t online = 0;
     uint64_t offline = 0;
-    std::map<uint64_t, int> leftSizeNum;
+    std::vector<uint64_t> leftSize;
     for (const auto& chunkserver : chunkservers) {
         total++;
         std::string csAddr = chunkserver.hostip()
@@ -440,11 +466,7 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
             continue;
         }
         uint64_t size = chunkNum * FLAGS_chunkSize;
-        if (leftSizeNum.count(size) == 0) {
-            leftSizeNum[size] = 1;
-        } else {
-            leftSizeNum[size]++;
-        }
+        leftSize.emplace_back(size / mds::kGB);
     }
     std::cout << "chunkserver: total num = " << total
             << ", online = " << online
@@ -452,14 +474,45 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     if (!checkLeftSize) {
         return ret;
     }
-    if (leftSizeNum.empty()) {
-        std::cout << "No chunkserver left chunk size found!" << std::endl;
-        return -1;
-    }
-    auto minPair = leftSizeNum.begin();
-    std::cout << "minimal left size: " << minPair->first / mds::kGB << "GB"
-              << ", chunkserver num: " << minPair->second << std::endl;
+
+    PrintCsLeftSizeStatistics(leftSize);
     return ret;
+}
+
+void StatusTool::PrintCsLeftSizeStatistics(
+                        const std::vector<uint64_t>& leftSize) {
+    if (leftSize.empty()) {
+        std::cout << "No chunkserver left chunk size found!" << std::endl;
+        return;
+    }
+    uint64_t min = leftSize[0];
+    uint64_t max = leftSize[0];
+    double sum = 0;
+    for (const auto& size : leftSize) {
+        sum += size;
+        if (size < min) {
+            min = size;
+        }
+        if (size > max) {
+            max = size;
+        }
+    }
+    uint64_t range = max - min;
+    std::cout << sum << std::endl;
+    double avg = sum / leftSize.size();
+    sum = 0;
+    for (const auto& size : leftSize) {
+        sum += (size - avg) * (size - avg);
+    }
+
+    double var = sum / leftSize.size();
+    std:: cout.setf(std::ios::fixed);
+    std::cout<< std::setprecision(2);
+    std::cout << "left size: min = " << min << "GB"
+              << ", max = " << max << "GB"
+              << ", average = " << avg << "GB"
+              << ", range = " << range << "GB"
+              << ", variance = " << var << std::endl;
 }
 
 int StatusTool::GetPoolsInCluster(std::vector<PhysicalPoolInfo>* phyPools,

@@ -17,9 +17,18 @@
 #include <map>
 
 #include "src/common/string_util.h"
+#include "src/tools/version_tool.h"
 
 namespace curve {
 namespace tool {
+
+const char kEtcdStatusUri[] = "/v3/maintenance/status";
+const char kEtcdVersionUri[] = "/version";
+const char kEtcdLeader[] = "leader";
+const char kEtcdHeader[] = "header";
+const char kEtcdMemberId[] = "member_id";
+const char kEtcdCluster[] = "etcdcluster";
+
 class EtcdClient {
  public:
     virtual ~EtcdClient() = default;
@@ -39,10 +48,18 @@ class EtcdClient {
      */
     virtual int GetEtcdClusterStatus(std::string* leaderAddr,
                         std::map<std::string, bool>* onlineState);
+
+    /**
+     *  @brief 获取etcd的版本并检查版本一致性
+     *  @param[out] version 版本
+     *  @param[out] failedList 查询version失败的地址列表
+     *  @return 成功返回0，失败返回-1
+     */
+    virtual int GetAndCheckEtcdVersion(std::string* version,
+                                       std::vector<std::string>* failedList);
+
  private:
     std::vector<std::string> etcdAddrVec_;
-
-    const std::string statusUri_ = "/v3/maintenance/status";
 };
 }  // namespace tool
 }  // namespace curve

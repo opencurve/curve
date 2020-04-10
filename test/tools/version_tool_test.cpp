@@ -126,7 +126,7 @@ TEST_F(VersionToolTest, GetAndCheckMdsVersion) {
         .Times(3)
         .WillRepeatedly(Return(MetricRet::kNotFound));
     ASSERT_EQ(0, versionTool.GetAndCheckMdsVersion(&version, &failedList));
-    ASSERT_EQ("before0.0.5.2", version);
+    ASSERT_EQ("before-0.0.5.2", version);
     ASSERT_TRUE(failedList.empty());
 }
 
@@ -214,40 +214,61 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
         .WillRepeatedly(Return(MetricRet::kNotFound));
     ASSERT_EQ(0, versionTool.GetAndCheckChunkServerVersion(&version,
                                                            &failedList));
-    ASSERT_EQ("before0.0.5.2", version);
+    ASSERT_EQ("before-0.0.5.2", version);
     ASSERT_TRUE(failedList.empty());
 }
 
 TEST_F(VersionToolTest, GetClientVersion) {
     VersionTool versionTool(mdsClient_, metricClient_);
     std::vector<std::string> clientAddrs =
-                {"127.0.0.1:8000", "127.0.0.1:8001", "127.0.0.1:8002"};
+                {"127.0.0.1:8000", "127.0.0.1:8001", "127.0.0.1:8002",
+                 "127.0.0.1:8003", "127.0.0.1:8004", "127.0.0.1:8005"};
 
-    // 1、正常情况,三个client有一个访问失败，剩下两个version不一致
+    // 1、正常情况
     EXPECT_CALL(*mdsClient_, ListClient(_))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(clientAddrs),
                   Return(0)));
-    EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
-        .Times(3)
-        .WillOnce(DoAll(SetArgPointee<2>("0.0.1"),
+    EXPECT_CALL(*metricClient_, GetMetric(_, kProcessCmdLineMetricName, _))
+        .Times(6)
+        .WillOnce(Return(MetricRet::kOtherErr))
+        .WillOnce(DoAll(SetArgPointee<2>(kProcessQemu),
+                        Return(MetricRet::kOK)))
+        .WillOnce(DoAll(SetArgPointee<2>(kProcessPython),
+                        Return(MetricRet::kOK)))
+        .WillOnce(DoAll(SetArgPointee<2>(kProcessOther),
+                        Return(MetricRet::kOK)))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(kProcessNebdServer),
+                        Return(MetricRet::kOK)));
+    EXPECT_CALL(*metricClient_, GetMetric(_, kCurveVersionMetricName, _))
+        .Times(5)
+        .WillOnce(DoAll(SetArgPointee<2>("0.0.5.2"),
+                        Return(MetricRet::kOK)))
+        .WillOnce(DoAll(SetArgPointee<2>("0.0.5.3"),
                         Return(MetricRet::kOK)))
         .WillOnce(Return(MetricRet::kNotFound))
-        .WillOnce(Return(MetricRet::kOtherErr));
-    VersionMapType versionMap;
-    std::vector<std::string> offlineList;
-    ASSERT_EQ(0, versionTool.GetClientVersion(&versionMap, &offlineList));
-    VersionMapType expected = {{"0.0.1", {"127.0.0.1:8000"}},
-                               {"before0.0.5.2", {"127.0.0.1:8001"}}};
-    ASSERT_EQ(expected, versionMap);
-    std::vector<std::string> expectedList = {"127.0.0.1:8002"};
-    ASSERT_EQ(expectedList, offlineList);
+        .WillOnce(Return(MetricRet::kNotFound))
+        .WillOnce(DoAll(SetArgPointee<2>("0.0.5.2"),
+                        Return(MetricRet::kOK)));
+    ClientVersionMapType clientVersionMap;
+    ClientVersionMapType expected;
+    VersionMapType versionMap = {{"0.0.5.2", {"127.0.0.1:8004"}},
+                                 {"0.0.5.3", {"127.0.0.1:8005"}}};
+    expected[kProcessNebdServer] = versionMap;
+    versionMap = {{kOldVersion, {"127.0.0.1:8003"}}};
+    expected[kProcessOther] = versionMap;
+    versionMap = {{kOldVersion, {"127.0.0.1:8002"}}};
+    expected[kProcessPython] = versionMap;
+    versionMap = {{"0.0.5.2", {"127.0.0.1:8001"}}};
+    expected[kProcessQemu] = versionMap;
+    ASSERT_EQ(0, versionTool.GetClientVersion(&clientVersionMap));
+    ASSERT_EQ(expected, clientVersionMap);
 
     // 2、ListClient失败
     EXPECT_CALL(*mdsClient_, ListClient(_))
         .Times(1)
         .WillOnce(Return(-1));
-    ASSERT_EQ(-1, versionTool.GetClientVersion(&versionMap, &offlineList));
+    ASSERT_EQ(-1, versionTool.GetClientVersion(&clientVersionMap));
 }
 
 }  // namespace tool
