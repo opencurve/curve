@@ -417,6 +417,29 @@ int FileClient::StatFile(const std::string& filename,
     return -ret;
 }
 
+int FileClient::StatFile2(const std::string& filename,
+                          const UserInfo_t& userinfo, FileStatInfo2* finfo) {
+    FInfo_t fi;
+    int ret;
+    if (mdsClient_ != nullptr) {
+        ret = mdsClient_->GetFileInfo(filename, userinfo, &fi);
+    } else {
+        LOG(ERROR) << "global mds client not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    if (ret == LIBCURVE_ERROR::OK) {
+        finfo->id = fi.id;
+        finfo->parentid = fi.parentid;
+        finfo->ctime = fi.ctime;
+        finfo->length = fi.length;
+        finfo->filetype = fi.filetype;
+        finfo->fileStatus = static_cast<CurveFileStatus>(fi.filestatus);
+    }
+
+    return -ret;
+}
+
 int FileClient::Listdir(const std::string& dirpath,
     const UserInfo_t& userinfo, std::vector<FileStatInfo>* filestatVec) {
     LIBCURVE_ERROR ret;
@@ -830,6 +853,17 @@ int StatFile(const char* filename,
 
     curve::client::UserInfo_t userinfo(cuserinfo->owner, cuserinfo->password);
     return globalclient->StatFile(filename, userinfo, finfo);
+}
+
+int StatFile2(const char* filename, const C_UserInfo_t* cuserinfo,
+              FileStatInfo2* finfo) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    curve::client::UserInfo_t userinfo(cuserinfo->owner, cuserinfo->password);
+    return globalclient->StatFile2(filename, userinfo, finfo);
 }
 
 int ChangeOwner(const char* filename,
