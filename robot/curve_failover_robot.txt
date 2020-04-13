@@ -521,12 +521,12 @@ inject cluster stress test
 *** Keywords ***
 
 init failover cluster
+     init vm
      init abnormal test env
      check chunkserver online
      ${begin_num}    get all chunk num
      ${begin_num}    Convert To Integer   ${begin_num}
      Set Global Variable  ${chunk_num}    ${begin_num} 
-     init vm
 #     init vol
      loop attach detach vol
      init rw cloud disk
@@ -536,6 +536,7 @@ init abnormal test env
      destroy etcd
      destroy mds
      destroy snapshotclone server
+     stop nebd
      drop all chunkserver dat
      drop abnormal test db
      create abnormal db table
@@ -545,6 +546,7 @@ init abnormal test env
      create pool
      restart cinder server
      wait cinder server up
+     start nebd
 
 init rw cloud disk
      remove vm key
