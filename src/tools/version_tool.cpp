@@ -10,10 +10,6 @@
 namespace curve {
 namespace tool {
 
-int VersionTool::Init(const std::string& mdsAddr) {
-    return mdsClient_->Init(mdsAddr);
-}
-
 int VersionTool::GetAndCheckMdsVersion(std::string* version,
                                        std::vector<std::string>* failedList) {
     const auto& dummyServerMap = mdsClient_->GetDummyServerMap();
@@ -59,6 +55,29 @@ int VersionTool::GetAndCheckChunkServerVersion(std::string* version,
         ret = -1;
     } else if (versionMap.size() > 1) {
         std::cout << "chunkserver version not match, version map: ";
+        PrintVersionMap(versionMap);
+        ret = -1;
+    } else {
+        *version = versionMap.begin()->first;
+    }
+    return ret;
+}
+
+int VersionTool::GetAndCheckSnapshotCloneVersion(std::string* version,
+                                        std::vector<std::string>* failedList) {
+    const auto& dummyServerMap = snapshotClient_->GetDummyServerMap();
+    std::vector<std::string> dummyServers;
+    for (const auto& item : dummyServerMap) {
+        dummyServers.emplace_back(item.second);
+    }
+    VersionMapType versionMap;
+    GetVersionMap(dummyServers, &versionMap, failedList);
+    int ret = 0;
+    if (versionMap.empty()) {
+        std::cout << "no version found!" << std::endl;
+        ret = -1;
+    } else if (versionMap.size() > 1) {
+        std::cout << "snapshot clone version not match, version map: ";
         PrintVersionMap(versionMap);
         ret = -1;
     } else {

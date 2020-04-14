@@ -87,11 +87,12 @@ int ChunkOpRequest::Propose(const ChunkRequest *request,
 }
 
 void ChunkOpRequest::RedirectChunkRequest() {
-    // Fix bthread deadlock issue: CLDCFS-1120
-//    PeerId leader = node_->GetLeaderId();
-//    if (!leader.is_empty()) {
-//        response_->set_redirect(leader.to_string());
-//    }
+    // 编译时加上 --copt -DUSE_BTHREAD_MUTEX
+    // 否则可能发生死锁: CLDCFS-1120
+    // PeerId leader = node_->GetLeaderId();
+    // if (!leader.is_empty()) {
+    //     response_->set_redirect(leader.to_string());
+    // }
     response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
 }
 
@@ -289,10 +290,6 @@ void ReadChunkRequest::OnApply(uint64_t index,
         if (CSErrorCode::ChunkNotExistError == errorCode) {
             response_->set_status(
                 CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
-            DVLOG(9) << "chunk not exist: "
-                     << " logic pool id: " << request_->logicpoolid()
-                     << " copyset id: " << request_->copysetid()
-                     << " chunkid: " << request_->chunkid();
             break;
         } else if (CSErrorCode::Success != errorCode) {
             LOG(ERROR) << "get chunkinfo failed: "
@@ -325,8 +322,13 @@ void ReadChunkRequest::OnApply(uint64_t index,
             return;
         }
         // 如果是ReadChunk请求还需要从本地读取数据
-        if (request_->optype() == CHUNK_OP_TYPE::CHUNK_OP_READ)
+        if (request_->optype() == CHUNK_OP_TYPE::CHUNK_OP_READ) {
             ReadChunk();
+        }
+        // 如果是recover请求，说明请求区域已经被写过了，可以直接返回成功
+        if (request_->optype() == CHUNK_OP_TYPE::CHUNK_OP_RECOVER) {
+            response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+        }
     } while (false);
 
     if (response_->status() == CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS) {
@@ -362,6 +364,10 @@ bool ReadChunkRequest::NeedClone(const CSChunkInfo& chunkInfo) {
     return false;
 }
 
+static void ReadBufferDeleter(void* ptr) {
+    delete[] static_cast<char*>(ptr);
+}
+
 void ReadChunkRequest::ReadChunk() {
     char *readBuffer = nullptr;
     size_t size = request_->size();
@@ -375,23 +381,14 @@ void ReadChunkRequest::ReadChunk() {
                                      readBuffer,
                                      request_->offset(),
                                      size);
-
     if (CSErrorCode::Success == ret) {
-        cntl_->response_attachment().append(readBuffer, size);
+        butil::IOBuf wrapper;
+        wrapper.append_user_data(readBuffer, size, ReadBufferDeleter);
+        cntl_->response_attachment().append(wrapper);
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        DVLOG(9) << "read success: "
-                 << " logic pool id: " << request_->logicpoolid()
-                 << " copyset id: " << request_->copysetid()
-                 << " chunkid: " << request_->chunkid()
-                 << " data size: " << request_->size()
-                 << " read len :" << size;
     } else if (CSErrorCode::ChunkNotExistError == ret) {
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
-        DVLOG(9) << "chunk not exist: "
-                 << " logic pool id: " << request_->logicpoolid()
-                 << " copyset id: " << request_->copysetid()
-                 << " chunkid: " << request_->chunkid();
     } else {
         LOG(ERROR) << "read failed: "
                    << " logic pool id: " << request_->logicpoolid()
@@ -403,8 +400,6 @@ void ReadChunkRequest::ReadChunk() {
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     }
-
-    delete[] readBuffer;
 }
 
 void WriteChunkRequest::OnApply(uint64_t index,
@@ -421,11 +416,6 @@ void WriteChunkRequest::OnApply(uint64_t index,
 
     if (CSErrorCode::Success == ret) {
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        DVLOG(9) << "write success : "
-                 << " logic pool id: " << request_->logicpoolid()
-                 << " copyset id: " << request_->copysetid()
-                 << " chunkid: " << request_->chunkid()
-                 << " data size: " << request_->size();
         node_->UpdateAppliedIndex(index);
     } else if (CSErrorCode::BackwardRequestError == ret) {
         // 打快照那一刻是有可能出现旧版本的请求
@@ -451,7 +441,6 @@ void WriteChunkRequest::OnApply(uint64_t index,
                    << " copyset id: " << request_->copysetid()
                    << " chunkid: " << request_->chunkid()
                    << " data size: " << request_->size()
-                   << " error: " << strerror(errno)
                    << " data store return: " << ret;
     } else {
         LOG(ERROR) << "write failed: "
@@ -525,15 +514,10 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
          * 1.成功
          */
         if (CSErrorCode::Success == ret) {
-            cntl_->response_attachment().append(readBuffer, size);
+            butil::IOBuf wrapper;
+            wrapper.append_user_data(readBuffer, size, ReadBufferDeleter);
+            cntl_->response_attachment().append(wrapper);
             response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-            DVLOG(9) << "read snapshot success: "
-                     << " logic pool id: " << request_->logicpoolid()
-                     << " copyset id: " << request_->copysetid()
-                     << " chunkid: " << request_->chunkid()
-                     << " sn: " << request_->sn()
-                     << " data size: " << request_->size()
-                     << " read len :" << size;
             node_->UpdateAppliedIndex(index);
             break;
         }
@@ -564,7 +548,6 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
     auto maxIndex =
         (index > node_->GetAppliedIndex() ? index : node_->GetAppliedIndex());
     response_->set_appliedindex(maxIndex);
-    delete[] readBuffer;
 }
 
 void ReadSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
@@ -655,13 +638,6 @@ void CreateCloneChunkRequest::OnApply(uint64_t index,
 
     if (CSErrorCode::Success == ret) {
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        DVLOG(9) << "create clone chunk success : "
-                 << " logic pool id: " << request_->logicpoolid()
-                 << " copyset id: " << request_->copysetid()
-                 << " chunkid: " << request_->chunkid()
-                 << " sn " << request_->sn()
-                 << " correctedSn: " << request_->correctedsn()
-                 << " location: " << request_->location();
         node_->UpdateAppliedIndex(index);
     } else if (CSErrorCode::InternalError == ret ||
                CSErrorCode::CrcCheckError == ret ||
@@ -738,18 +714,6 @@ void PasteChunkInternalRequest::Process() {
     }
 }
 
-void PasteChunkInternalRequest::RedirectChunkRequest() {
-    if (readRequest_ == nullptr)
-        return;
-
-    PeerId leader = node_->GetLeaderId();
-    if (!leader.is_empty()) {
-        readRequest_->response_->set_redirect(leader.to_string());
-    }
-    readRequest_->response_->set_status(
-        CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
-}
-
 void PasteChunkInternalRequest::OnApply(uint64_t index,
                                         ::google::protobuf::Closure *done) {
     brpc::ClosureGuard doneGuard(done);
@@ -760,16 +724,7 @@ void PasteChunkInternalRequest::OnApply(uint64_t index,
                                       request_->size());
 
     if (CSErrorCode::Success == ret) {
-        if (readRequest_ != nullptr) {
-            readRequest_->response_->set_status(
-                CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        }
-        DVLOG(9) << "paste chunk success : "
-                 << " logic pool id: " << request_->logicpoolid()
-                 << " copyset id: " << request_->copysetid()
-                 << " chunkid: " << request_->chunkid()
-                 << " offset: " << request_->offset()
-                 << " length: " << request_->size();
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         node_->UpdateAppliedIndex(index);
     } else if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "paste chunk failed: "
@@ -778,7 +733,6 @@ void PasteChunkInternalRequest::OnApply(uint64_t index,
                    << " chunkid: " << request_->chunkid()
                    << " offset: " << request_->offset()
                    << " length: " << request_->size();
-        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     } else {
         LOG(ERROR) << "paste chunk failed: "
                    << " logic pool id: " << request_->logicpoolid()
@@ -788,12 +742,11 @@ void PasteChunkInternalRequest::OnApply(uint64_t index,
                    << " length: " << request_->size();
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     }
-    if (readRequest_ != nullptr) {
-        auto maxIndex = (index > node_->GetAppliedIndex()
-                        ? index
-                        : node_->GetAppliedIndex());
-        readRequest_->response_->set_appliedindex(maxIndex);
-    }
+
+    auto maxIndex = (index > node_->GetAppliedIndex()
+                    ? index
+                    : node_->GetAppliedIndex());
+    response_->set_appliedindex(maxIndex);
 }
 
 void PasteChunkInternalRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT

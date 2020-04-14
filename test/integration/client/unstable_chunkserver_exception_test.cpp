@@ -11,15 +11,15 @@
 
 #include <map>
 #include <cmath>
-#include <mutex>    // NOLINT
-#include <thread>    // NOLINT
+#include <mutex>   // NOLINT
+#include <thread>  // NOLINT
 #include <atomic>
 #include <unordered_map>
 #include <memory>
 #include <string>
 #include <numeric>
 #include <algorithm>
-#include <condition_variable>    // NOLINT
+#include <condition_variable>  // NOLINT
 
 #include "include/client/libcurve.h"
 #include "src/common/timeutility.h"
@@ -44,15 +44,14 @@ const char* kLogPath = "./runlog/";
 
 curve::client::PerSecondMetric iops("test", "iops");
 
-std::atomic<bool> running{false};
+std::atomic<bool> running{ false };
 
 const std::vector<std::string> chunkserverConfigOpts{
     "chunkfilepool.enable_get_chunk_from_pool=false"
 };
 
-const std::vector<std::string> mdsConfigOpts{
-    std::string("mds.DbName=") + std::string(kDbName)
-};
+const std::vector<std::string> mdsConfigOpts{ std::string("mds.DbName=") +
+                                              std::string(kDbName) };
 
 const std::vector<std::string> clientConfigOpts{
     std::string("mds.listen.addr=") + kMdsIpPort,
@@ -66,29 +65,27 @@ const std::vector<std::string> mdsConf{
     std::string(" --confPath=") + kMdsConfPath,
     std::string(" --mdsAddr=") + kMdsIpPort,
     std::string(" --etcdAddr=") + kEtcdClientIpPort,
-    {" --log_dir=./runlog/mds"},
-    {" --stderrthreshold=3"}
+    { " --log_dir=./runlog/mds" },
+    { " --stderrthreshold=3" }
 };
 
 const std::vector<std::string> chunkserverConfTemplate{
-    {" -raft_sync_segments=true"},
+    { " -raft_sync_segments=true" },
     std::string(" -conf=") + kCSConfPath,
-    {" -chunkServerPort=%d"},
-    {" -chunkServerStoreUri=local://./ttt/%d/"},
-    {" -chunkServerMetaUri=local://./ttt/%d/chunkserver.dat"},
-    {" -copySetUri=local://./ttt/%d/copysets"},
-    {" -recycleUri=local://./ttt/%d/recycler"},
-    {" -chunkFilePoolDir=./ttt/%d/"},
-    {" -chunkFilePoolMetaPath=./ttt/%d/chunkfilepool.meta"},
-    {" -mdsListenAddr=127.0.0.1:30010,127.0.0.1:30011,127.0.0.1:30012"},
-    {" -log_dir=./runlog/cs_%d"},
-    {" --stderrthreshold=3"}
+    { " -chunkServerPort=%d" },
+    { " -chunkServerStoreUri=local://./ttt/%d/" },
+    { " -chunkServerMetaUri=local://./ttt/%d/chunkserver.dat" },
+    { " -copySetUri=local://./ttt/%d/copysets" },
+    { " -recycleUri=local://./ttt/%d/recycler" },
+    { " -chunkFilePoolDir=./ttt/%d/" },
+    { " -chunkFilePoolMetaPath=./ttt/%d/chunkfilepool.meta" },
+    { " -mdsListenAddr=127.0.0.1:30010,127.0.0.1:30011,127.0.0.1:30012" },
+    { " -log_dir=./runlog/cs_%d" },
+    { " --stderrthreshold=3" }
 };
 
 const std::vector<int> chunkserverPorts{
-    31000, 31001,
-    31010, 31011,
-    31020, 31021,
+    31000, 31001, 31010, 31011, 31020, 31021,
 };
 
 std::vector<std::string> GenChunkserverConf(int port) {
@@ -96,10 +93,7 @@ std::vector<std::string> GenChunkserverConf(int port) {
     char temp[NAME_MAX_SIZE];
 
     auto formatter = [&](const std::string& format, int port) {
-        snprintf(temp,
-                 sizeof(temp),
-                 format.c_str(),
-                 port);
+        snprintf(temp, sizeof(temp), format.c_str(), port);
         return temp;
     };
 
@@ -133,7 +127,7 @@ static char buffer[1024 * 4096];
 struct ChunkserverParam {
     int id;
     int port;
-    std::string addr{"127.0.0.1:"};
+    std::string addr{ "127.0.0.1:" };
     std::vector<std::string> conf;
 
     ChunkserverParam(int id, int port) {
@@ -158,49 +152,50 @@ class UnstableCSModuleException : public ::testing::Test {
         ASSERT_NE(nullptr, cluster.get());
 
         // 生成配置文件
-        cluster->PrepareConfig<curve::MDSConfigGenerator>(
-            kMdsConfPath,
-            mdsConfigOpts);
-        cluster->PrepareConfig<curve::CSConfigGenerator>(
-            kCSConfPath,
-            chunkserverConfigOpts);
-        cluster->PrepareConfig<curve::ClientConfigGenerator>(
-            kClientConfPath,
-            clientConfigOpts);
+        cluster->PrepareConfig<curve::MDSConfigGenerator>(kMdsConfPath,
+                                                          mdsConfigOpts);
+        cluster->PrepareConfig<curve::CSConfigGenerator>(kCSConfPath,
+                                                         chunkserverConfigOpts);
+        cluster->PrepareConfig<curve::ClientConfigGenerator>(kClientConfPath,
+                                                             clientConfigOpts);
 
         // 0. 初始化db
-        cluster->InitDB(kDbName);
+        ASSERT_EQ(0, cluster->InitDB(kDbName));
         cluster->mdsRepo_->dropDataBase();
         cluster->mdsRepo_->createDatabase();
         cluster->mdsRepo_->useDataBase();
         cluster->mdsRepo_->createAllTables();
 
         // 1. 启动etcd
-        cluster->StartSingleEtcd(
-            1,
-            kEtcdClientIpPort,
-            kEtcdPeerIpPort,
+        pid_t pid = cluster->StartSingleEtcd(
+            1, kEtcdClientIpPort, kEtcdPeerIpPort,
             std::vector<std::string>{
-                " --name module_exception_curve_unstable_cs"});
+                " --name module_exception_curve_unstable_cs" });
+        LOG(INFO) << "etcd 1 started on " << kEtcdClientIpPort << ":"
+                  << kEtcdPeerIpPort << ", pid = " << pid;
+        ASSERT_GT(pid, 0);
 
         // 2. 启动一个mds
-        cluster->StartSingleMDS(1, kMdsIpPort, 30013, mdsConf, true);
+        pid = cluster->StartSingleMDS(1, kMdsIpPort, 30013, mdsConf, true);
+        LOG(INFO) << "mds 1 started on " << kMdsIpPort << ", pid = " << pid;
+        ASSERT_GT(pid, 0);
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
         // 3. 创建物理池
-        cluster->PreparePhysicalPool(
-            1, "./test/integration/client/config/unstable/topo_unstable.txt");
+        ASSERT_EQ(
+            0,
+            cluster->PreparePhysicalPool(
+                1,
+                "./test/integration/client/config/unstable/topo_unstable.txt"));
 
         // 4. 创建chunkserver
         StartAllChunkserver();
         std::this_thread::sleep_for(std::chrono::seconds(5));
 
         // 5. 创建逻辑池，并睡眠一段时间让底层copyset先选主
-        cluster->PrepareLogicalPool(
-            1,
-            "test/integration/client/config/unstable/topo_unstable.txt",
-            300,
-            "pool1");
+        ASSERT_EQ(0, cluster->PrepareLogicalPool(
+            1, "test/integration/client/config/unstable/topo_unstable.txt", 300,
+            "pool1"));
         std::this_thread::sleep_for(std::chrono::seconds(10));
 
         // 6. 初始化client配置
@@ -214,7 +209,7 @@ class UnstableCSModuleException : public ::testing::Test {
     void TearDown() {
         UnInit();
         cluster->mdsRepo_->dropDataBase();
-        cluster->StopCluster();
+        ASSERT_EQ(0, cluster->StopCluster());
         // 清理文件夹
         system("rm -rf module_exception_curve_unstable_cs");
     }
@@ -225,7 +220,11 @@ class UnstableCSModuleException : public ::testing::Test {
             ChunkserverParam param(id, port);
             chunkServers.emplace(id, param);
 
-            cluster->StartSingleChunkServer(id, param.addr, param.conf);
+            pid_t pid =
+                cluster->StartSingleChunkServer(id, param.addr, param.conf);
+            LOG(INFO) << "chunkserver " << id << " started on " << param.addr
+                      << ", pid = " << pid;
+            ASSERT_GT(pid, 0);
             std::this_thread::sleep_for(std::chrono::seconds(1));
             ++id;
         }
@@ -238,8 +237,8 @@ class UnstableCSModuleException : public ::testing::Test {
         std::vector<std::thread> writeThs;
         for (int i = 0; i < 5; ++i) {
             writeThs.emplace_back(AioWriteFunc, fd);
-            LOG(INFO) << "write " << filename
-                << ", thread " << (i+1) << " started";
+            LOG(INFO) << "write " << filename << ", thread " << (i + 1)
+                      << " started";
         }
 
         for (auto& th : writeThs) {
@@ -298,35 +297,37 @@ TEST_F(UnstableCSModuleException, HangOneZone) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         beforeRecords.push_back(iops.value.get_value(1));
     }
-    auto beforeAvgIOps = std::accumulate(
-        beforeRecords.begin(), beforeRecords.end(), 0) / beforeRecords.size();
+    auto beforeAvgIOps =
+        std::accumulate(beforeRecords.begin(), beforeRecords.end(), 0) /
+        beforeRecords.size();
     LOG(INFO) << "iops before hang: " << beforeAvgIOps;
 
     // hang一个zone的chunkserver
     LOG(INFO) << "hang one zone";
-    cluster->HangChunkServer(1);
-    cluster->HangChunkServer(2);
+    ASSERT_EQ(0, cluster->HangChunkServer(1));
+    ASSERT_EQ(0, cluster->HangChunkServer(2));
 
     std::vector<uint64_t> afterRecords;
     // 打印每一秒的iops情况
     for (int i = 1; i <= 10; ++i) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         auto tmp = iops.value.get_value(1);
-        LOG(INFO) << "after " << i <<  "s, iops: " << tmp;
+        LOG(INFO) << "after " << i << "s, iops: " << tmp;
         // 记录后5s的iops值
         if (i >= 5) {
             afterRecords.push_back(tmp);
         }
     }
 
-    uint64_t afterAvgIOps = std::accumulate(
-        afterRecords.begin(), afterRecords.end(), 0) / afterRecords.size();
+    uint64_t afterAvgIOps =
+        std::accumulate(afterRecords.begin(), afterRecords.end(), 0) /
+        afterRecords.size();
     LOG(INFO) << "before iops: " << beforeAvgIOps;
     LOG(INFO) << "after iops: " << afterAvgIOps;
     ASSERT_GT(afterAvgIOps, static_cast<uint64_t>(beforeAvgIOps * 0.7));
 
-    cluster->RecoverHangChunkServer(1);
-    cluster->RecoverHangChunkServer(2);
+    ASSERT_EQ(0, cluster->RecoverHangChunkServer(1));
+    ASSERT_EQ(0, cluster->RecoverHangChunkServer(2));
 
     running = false;
     for (auto& th : openAndWriteThreads) {

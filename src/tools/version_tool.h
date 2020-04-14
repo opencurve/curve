@@ -14,26 +14,22 @@
 #include <memory>
 #include "src/tools/mds_client.h"
 #include "src/tools/metric_client.h"
+#include "src/tools/snapshot_clone_client.h"
 
 namespace curve {
 namespace tool {
 
 using VersionMapType = std::map<std::string, std::vector<std::string>>;
-const char kOldVersion[] = "before0.0.5.2";
 
 class VersionTool {
  public:
     explicit VersionTool(std::shared_ptr<MDSClient> mdsClient,
-                         std::shared_ptr<MetricClient> metricClient)
+                         std::shared_ptr<MetricClient> metricClient,
+                         std::shared_ptr<SnapshotCloneClient> snapshotClient)
                                  : mdsClient_(mdsClient),
-                                   metricClient_(metricClient) {}
+                                   metricClient_(metricClient),
+                                   snapshotClient_(snapshotClient) {}
     virtual ~VersionTool() {}
- 	/**
-     *  @brief 初始化channel
-     *  @param mdsAddr mds的地址，支持多地址，用","分隔
-     *  @return 成功返回0，失败返回-1
-     */
-    virtual int Init(const std::string& mdsAddr);
 
     /**
      *  @brief 获取mds的版本并检查版本一致性
@@ -50,6 +46,14 @@ class VersionTool {
      */
     virtual int GetAndCheckChunkServerVersion(std::string* version,
                                        std::vector<std::string>* failedList);
+
+    /**
+     *  @brief 获取snapshot clone server的版本
+     *  @param[out] version 版本
+     *  @return 成功返回0，失败返回-1
+     */
+    virtual int GetAndCheckSnapshotCloneVersion(std::string* version,
+                                        std::vector<std::string>* failedList);
 
     /**
      *  @brief 获取client的版本
@@ -86,6 +90,8 @@ class VersionTool {
  private:
     // 向mds发送RPC的client
     std::shared_ptr<MDSClient> mdsClient_;
+    // 用于获取snapshotClone状态
+    std::shared_ptr<SnapshotCloneClient> snapshotClient_;
     // 获取metric的client
     std::shared_ptr<MetricClient> metricClient_;
 };

@@ -339,72 +339,6 @@ TEST_F(InflightRPCTest, FileCloseTest) {
     t2.joinable() ? t2.join() : void();
 }
 
-
-TEST_F(InflightRPCTest, sessionNotValidhangRPCTest) {
-    // session过期，重试RPC被重新放回队列，然后退出时RPC直接错误返回
-    fileinstance_ = new FileInstance();
-    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.
-        failRequestOpt.chunkserverOPMaxRetry = 50;
-    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.
-        failRequestOpt.chunkserverRPCTimeoutMS = 5000;
-    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.
-        failRequestOpt.chunkserverMaxRPCTimeoutMS = 5000;
-    // 设置inflight RPC最大数量为1
-    fopt.ioOpt.ioSenderOpt.inflightOpt.fileMaxInFlightRPCNum = 100;
-    fileinstance_->Initialize("/test", &mdsclient_, userinfo, fopt);
-    curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
-    auto fm = iomana->GetMetric();
-    auto scheduler = iomana->GetScheduler();
-    auto fakemds = mds->GetMDSService();
-
-    ASSERT_EQ(LIBCURVE_ERROR::OK, fileinstance_->Open("file",
-    userinfo));
-
-    // 设置session刷新失败
-    brpc::Controller* cntl = new brpc::Controller;
-    cntl->SetFailed(-1, "failed");
-    ::curve::mds::ReFreshSessionResponse* refreshresp =
-    new ::curve::mds::ReFreshSessionResponse();
-    refreshresp->set_statuscode(::curve::mds::StatusCode::kOK);
-    refreshresp->set_sessionid("1234");
-    FakeReturn* refreshfakeret = new FakeReturn(cntl,
-    static_cast<void*>(refreshresp));
-    fakemds->SetRefreshSession(refreshfakeret, nullptr);
-
-    // 这个IO会被拆分为两个RPC
-    CurveAioContext* aioctx = new CurveAioContext;
-    aioctx->offset = 0;
-    aioctx->length = 128 * 1024;
-    aioctx->ret = LIBCURVE_ERROR::OK;
-    aioctx->cb = readcb;
-    aioctx->buf = new char[aioctx->length];
-    aioctx->op = LIBCURVE_OP::LIBCURVE_OP_READ;
-
-    CurveAioContext* aioctx2 = new CurveAioContext;
-    aioctx2->offset = 0;
-    aioctx2->length = 128 * 1024;
-    aioctx2->ret = LIBCURVE_ERROR::OK;
-    aioctx2->cb = writecb;
-    aioctx2->buf = new char[aioctx2->length];
-    aioctx2->op = LIBCURVE_OP::LIBCURVE_OP_WRITE;
-
-    // 设置rpc等待时间，这样确保rpc发出去但是没有回来，发出的
-    // RPC都是inflight RPC
-    mds->EnableNetUnstable(10000);
-    iorflag = false;
-    iowflag = false;
-    iomana->AioRead(aioctx, &mdsclient_);
-    iomana->AioWrite(aioctx2, &mdsclient_);
-
-    std::this_thread::sleep_for(std::chrono::seconds(30));
-    // IO都重试失败，并且在充实过程中session过期，rpc停止重试
-    // 被重新压回队列
-    ASSERT_EQ(0, fm->inflightRPCNum.get_value());
-    ASSERT_EQ(4, scheduler->GetQueue()->Size());
-    fileinstance_->UnInitialize();
-}
-
-
 TEST_F(InflightRPCTest, sessionValidRPCTest) {
     // 测试session正常，RPC会一直重试到rpcRetryTimes之后然后错误返回
     fileinstance_ = new FileInstance();
@@ -449,7 +383,7 @@ TEST_F(InflightRPCTest, sessionValidRPCTest) {
 
     // 设置rpc等待时间，这样确保rpc发出去但是没有回来，发出的
     // RPC都是inflight RPC
-    mds->EnableNetUnstable(8000);
+    mds->EnableNetUnstable(10000);
     iorflag = false;
     iowflag = false;
     ASSERT_EQ(LIBCURVE_ERROR::OK, iomana->AioRead(aioctx, &mdsclient_));

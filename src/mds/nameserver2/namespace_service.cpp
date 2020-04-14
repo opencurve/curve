@@ -1243,6 +1243,10 @@ void NameSpaceService::RefreshSession(
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
     std::string clientIP = butil::ip2str(cntl->remote_side().ip).c_str();
+    std::string clientVersion;
+    if (request->has_clientversion()) {
+        clientVersion = request->clientversion();
+    }
     uint32_t clientPort = cntl->remote_side().port;
 
     if (!isPathValid(request->filename())) {
@@ -1300,6 +1304,7 @@ void NameSpaceService::RefreshSession(
                                       request->date(),
                                       request->signature(),
                                       clientIP,
+                                      clientVersion,
                                       fileInfo);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);

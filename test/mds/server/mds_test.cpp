@@ -44,10 +44,10 @@ class MDSTest : public ::testing::Test {
         } else if (0 == etcdPid) {
             std::string runEtcd =
                 std::string("etcd --listen-client-urls") +
-                std::string(" 'http://localhost:10002'") +
+                std::string(" 'http://localhost:10032'") +
                 std::string(" --advertise-client-urls") +
-                std::string(" 'http://localhost:10002'") +
-                std::string(" --listen-peer-urls 'http://localhost:10003'") +
+                std::string(" 'http://localhost:10032'") +
+                std::string(" --listen-peer-urls 'http://localhost:10033'") +
                 std::string(" --name testMds");
             ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", runEtcd.c_str(), NULL));
             exit(0);
@@ -65,8 +65,8 @@ class MDSTest : public ::testing::Test {
         }
         ASSERT_TRUE(initSuccess);
         ASSERT_EQ(
-            EtcdErrCode::DeadlineExceeded, client->Put("05", "hello word"));
-        ASSERT_EQ(EtcdErrCode::DeadlineExceeded,
+            EtcdErrCode::EtcdDeadlineExceeded, client->Put("05", "hello word"));
+        ASSERT_EQ(EtcdErrCode::EtcdDeadlineExceeded,
             client->CompareAndSwap("04", "10", "110"));
         client->CloseClient();
         fiu_init(0);
@@ -81,9 +81,9 @@ class MDSTest : public ::testing::Test {
 
     brpc::Channel channel_;
     pid_t etcdPid;
-    const std::string kMdsAddr = "127.0.0.1:10001";
-    char kEtcdAddr[20] = {"127.0.0.1:10002"};
-    const int kDummyPort = 10004;
+    const std::string kMdsAddr = "127.0.0.1:10031";
+    char kEtcdAddr[20] = {"127.0.0.1:10032"};
+    const int kDummyPort = 10034;
     MdsRepo *mdsRepo;
 };
 

@@ -58,6 +58,7 @@ class FileClient {
   /**
    * 打开或创建文件
    * @param: filename文件名
+   * @param: userinfo是操作文件的用户信息
    * @return: 返回文件fd
    */
   virtual int Open(const std::string& filename,

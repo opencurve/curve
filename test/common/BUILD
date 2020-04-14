@@ -3,6 +3,9 @@ cc_test(
     srcs = glob([
         "*.cpp",
     ]),
+    linkopts = [
+        "-luuid"
+    ],
     deps = [
         "//src/common:curve_common",
         "//src/common/concurrent:curve_concurrent",

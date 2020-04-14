@@ -35,6 +35,7 @@ using ::testing::ElementsAre;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
+using ::testing::Invoke;
 
 using curve::chunkserver::CHUNK_OP_STATUS;
 using curve::chunkserver::ChunkResponse;
@@ -46,6 +47,51 @@ const uint32_t SLICE_SIZE = 1024 * 1024;
 const uint32_t PAGE_SIZE = 4 * 1024;
 const uint32_t CHUNK_SIZE = 16 * 1024 * 1024;
 const uint32_t LAST_INDEX = 5;
+
+class FakeChunkClosure : public ::google::protobuf::Closure {
+    struct ResponseContent {
+        uint64_t appliedindex;
+        int status;
+        butil::IOBuf attachment;
+        ResponseContent() : appliedindex(0), status(-1) {}
+    };
+
+ public:
+    FakeChunkClosure() : isDone_(false)
+                      , cntl_(nullptr)
+                      , request_(nullptr)
+                      , response_(nullptr) {}
+    ~FakeChunkClosure() {
+        std::unique_ptr<FakeChunkClosure> selfGuard(this);
+    }
+
+    void Run() {
+        std::unique_ptr<brpc::Controller> cntlGuard(cntl_);
+        std::unique_ptr<ChunkRequest> requestGuard(request_);
+        std::unique_ptr<ChunkResponse> responseGuard(response_);
+        isDone_ = true;
+        resContent_.appliedindex = response_->appliedindex();
+        resContent_.status = response_->status();
+        resContent_.attachment = cntl_->response_attachment();
+    }
+
+    void SetCntl(brpc::Controller* cntl) {
+        cntl_ = cntl;
+    }
+    void SetRequest(Message* request) {
+        request_ = dynamic_cast<ChunkRequest *>(request);
+    }
+    void SetResponse(Message* response) {
+        response_ = dynamic_cast<ChunkResponse *>(response);
+    }
+
+ public:
+    bool                isDone_;
+    brpc::Controller    *cntl_;
+    ChunkRequest        *request_;
+    ChunkResponse       *response_;
+    ResponseContent     resContent_;
+};
 
 class UnitTestClosure : public ::google::protobuf::Closure {
  public:

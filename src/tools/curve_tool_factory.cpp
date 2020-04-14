@@ -22,6 +22,8 @@ std::shared_ptr<CurveTool> CurveToolFactory::GenerateCurveTool(
         return GenerateCurveCli();
     } else if (CopysetCheck::SupportCommand(command)) {
         return GenerateCopysetCheck();
+    } else if (SnapshotCheck::SupportCommand(command)) {
+        return GenerateSnapshotCheck();
     } else if (ScheduleTool::SupportCommand(command)) {
         return GenerateScheduleTool();
     } else {
@@ -38,10 +40,14 @@ std::shared_ptr<StatusTool> CurveToolFactory::GenerateStatusTool() {
     auto copysetCheck =
         std::make_shared<CopysetCheckCore>(mdsClient, csClient);
     auto metricClient = std::make_shared<MetricClient>();
-    auto versionTool = std::make_shared<VersionTool>(mdsClient, metricClient);
+    auto snapshotCloneClient =
+                std::make_shared<SnapshotCloneClient>(metricClient);
+    auto versionTool = std::make_shared<VersionTool>(mdsClient, metricClient,
+                                                     snapshotCloneClient);
     return std::make_shared<StatusTool>(mdsClient, etcdClient,
                                        nameSpaceTool, copysetCheck,
-                                       versionTool, metricClient);
+                                       versionTool, metricClient,
+                                       snapshotCloneClient);
 }
 
 std::shared_ptr<NameSpaceTool> CurveToolFactory::GenerateNameSpaceTool() {
@@ -68,6 +74,15 @@ std::shared_ptr<CopysetCheck> CurveToolFactory::GenerateCopysetCheck() {
     auto core = std::make_shared<curve::tool::CopysetCheckCore>(mdsClient,
                                                                 csClient);
     return std::make_shared<CopysetCheck>(core);
+}
+
+std::shared_ptr<SnapshotCheck> CurveToolFactory::GenerateSnapshotCheck() {
+    std::shared_ptr<SnapshotRead> snapshotRead =
+                    std::make_shared<SnapshotRead>(
+                    std::make_shared<SnapshotCloneRepo>(),
+                    std::make_shared<curve::common::S3Adapter>());
+    return std::make_shared<SnapshotCheck>(
+            std::make_shared<curve::client::FileClient>(), snapshotRead);
 }
 
 std::shared_ptr<ScheduleTool> CurveToolFactory::GenerateScheduleTool() {

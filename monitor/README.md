@@ -30,6 +30,9 @@ grafana相关目录
 
 grafana的启动配置文件，将映射到容器的 `/etc/grafana/grafana.ini` 上
 
+##### grafana/report:
+grafana日报临时目录，将映射到reporter容器的`/tmp/report`目录上
+
 ##### grafana/provisioning:
 
 grafana预配置相关目录，将映射到容器的`/etc/grafana/provisioning`上
@@ -84,11 +87,11 @@ apt-get install docker-ce-cli
   ```
 
   或者直接安装
-  
+
   ```
   apt-get install docker-compose
   ```
-  
+
 * node_exporter
 
   可能很多节点都要安装，可以用脚本来一起装，如下面的方式：
@@ -116,9 +119,9 @@ apt-get install docker-ce-cli
   apt-get install jq
   ```
 
-2.chunkserver上安装node_exporter（client机器上也可以装上）
+2.chunkserver上安装node_exporter（机器监控可以依赖哨兵，可以不装）
 
-3.mysql需要添加监控用户
+3.mysql需要添加监控用户（也可以直接使用使用账户）
 
 ```
 mysql -uroot -pqwer
@@ -144,6 +147,14 @@ flush privileges;
 在当前目录下执行如下命令即可
 
 ```curve-monitor.sh start ```
+
+* 部署grafana每日报表
+
+crontab配置定时任务，添加如下任务：
+30 8 * * * python /etc/curve/monitor/report.py >> /etc/curve/monitor/cron.log 2>&1
+如果机器上没有配置其他的定时任务，可直接用下面命令
+echo "30 8 * * * python /etc/curve/monitor/report.py >> /etc/curve/monitor/cron.log 2>&1" >> conf && crontab conf && rm -f conf
+
 
 
 

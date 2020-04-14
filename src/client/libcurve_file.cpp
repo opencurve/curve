@@ -412,6 +412,7 @@ int FileClient::StatFile(const std::string& filename,
         finfo->ctime    = fi.ctime;
         finfo->length   = fi.length;
         finfo->filetype = fi.filetype;
+        finfo->fileStatus = static_cast<int>(fi.filestatus);
     }
 
     return -ret;
@@ -498,7 +499,7 @@ FileInstance* FileClient::GetInitedFileInstance(const std::string& filename,
     }
 
     bool ret = fileserv->Initialize(filename, mdsClient_, userinfo,
-               clientconfig_.GetFileServiceOption());
+               clientconfig_.GetFileServiceOption(), readonly);
     if (!ret) {
         LOG(ERROR) << "FileInstance initialize failed"
             << ", filename = " << filename

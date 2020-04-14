@@ -17,6 +17,7 @@ class CurveTool {
  public:
     virtual int RunCommand(const std::string& command) = 0;
     virtual void PrintHelp(const std::string& command) = 0;
+    virtual ~CurveTool() {}
 };
 }  // namespace tool
 }  // namespace curve
