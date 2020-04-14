@@ -568,7 +568,7 @@ TEST_F(SnapshotCloneServerTest, TestSnapSameClone1Success) {
 
     TaskCloneInfo info2;
     int retCode = GetCloneTaskInfo(testUser1_, uuid2, &info2);
-    ASSERT_EQ(kErrCodeFileNotExist, retCode);
+    ASSERT_EQ(0, retCode);
 }
 
 TEST_F(SnapshotCloneServerTest, TestSnap2Clone2Success) {

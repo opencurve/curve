@@ -151,13 +151,30 @@ TEST_F(TestCloneServiceManager,
     ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
+struct FakeCloneClosure : public CloneClosure {
+    FakeCloneClosure()
+     : taskId_(""),
+       errorCode_(-1),
+       callNum_(0) {}
+    void Run() {
+        callNum_++;
+        taskId_ = GetTaskId();
+        errorCode_ = GetErrCode();
+    }
+    TaskIdType taskId_;
+    int errorCode_;
+    int callNum_;
+};
+
 TEST_F(TestCloneServiceManager, TestCloneFileSuccessByTaskExist) {
     const UUID source = "uuid1";
     const std::string user = "user1";
     const std::string destination = "file1";
     bool lazyFlag = true;
 
+    TaskIdType expectUuid = "abc321";
     CloneInfo cloneInfo;
+    cloneInfo.SetTaskId(expectUuid);
 
     EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
             source, user, destination, lazyFlag, CloneTaskType::kClone, _))
@@ -166,7 +183,7 @@ TEST_F(TestCloneServiceManager, TestCloneFileSuccessByTaskExist) {
             Return(kErrCodeTaskExist)));
 
     TaskIdType taskId;
-    auto closure = std::make_shared<CloneClosure>();
+    auto closure = std::make_shared<FakeCloneClosure>();
     int ret = manager_->CloneFile(
         source,
         user,
@@ -175,6 +192,10 @@ TEST_F(TestCloneServiceManager, TestCloneFileSuccessByTaskExist) {
         closure,
         &taskId);
     ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(expectUuid, taskId);
+    ASSERT_EQ(1, closure->callNum_);
+    ASSERT_EQ(expectUuid, closure->taskId_);
+    ASSERT_EQ(kErrCodeSuccess, closure->errorCode_);
 }
 
 TEST_F(TestCloneServiceManager,
@@ -317,7 +338,9 @@ TEST_F(TestCloneServiceManager,
     const std::string destination = "file1";
     bool lazyFlag = true;
 
+    TaskIdType expectUuid = "abc321";
     CloneInfo cloneInfo;
+    cloneInfo.SetTaskId(expectUuid);
 
     EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
             source, user, destination, lazyFlag, CloneTaskType::kRecover, _))
@@ -326,7 +349,7 @@ TEST_F(TestCloneServiceManager,
             Return(kErrCodeTaskExist)));
 
     TaskIdType taskId;
-    auto closure = std::make_shared<CloneClosure>();
+    auto closure = std::make_shared<FakeCloneClosure>();
     int ret = manager_->RecoverFile(
         source,
         user,
@@ -335,6 +358,10 @@ TEST_F(TestCloneServiceManager,
         closure,
         &taskId);
     ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(expectUuid, taskId);
+    ASSERT_EQ(1, closure->callNum_);
+    ASSERT_EQ(expectUuid, closure->taskId_);
+    ASSERT_EQ(kErrCodeSuccess, closure->errorCode_);
 }
 
 TEST_F(TestCloneServiceManager,
