@@ -165,19 +165,7 @@ class MDSClient {
     LIBCURVE_ERROR DeleteSnapShot(const std::string& filename,
                             const UserInfo_t& userinfo,
                             uint64_t seq);
-    /**
-     * 获取版本号为seq的snapshot文件信息，snapif是出参
-     * @param: filename是要快照的文件名
-     * @param: userinfo是用户信息
-     * @param: seq是创建快照时文件的版本信息
-     * @param: snapif是出参，保存文件的基本信息
-     * @return: 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
-     *          否则返回LIBCURVE_ERROR::FAILED
-     */
-    LIBCURVE_ERROR GetSnapShot(const std::string& filename,
-                            const UserInfo_t& userinfo,
-                            uint64_t seq,
-                            FInfo* snapif);
+
     /**
      * 以列表的形式获取版本号为seq的snapshot文件信息，snapif是出参
      * @param: filename是要快照的文件名

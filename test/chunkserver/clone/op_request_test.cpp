@@ -136,7 +136,9 @@ TEST_F(OpRequestTest, CreateCloneTest) {
         // 设置预期
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(false));
-        braft::Task task;
+        // PeerId leaderId(PEER_STRING);
+        // EXPECT_CALL(*node_, GetLeaderId())
+        //     .WillOnce(Return(leaderId));
         EXPECT_CALL(*node_, Propose(_))
             .Times(0);
 
@@ -147,6 +149,7 @@ TEST_F(OpRequestTest, CreateCloneTest) {
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   closure->response_->status());
+        // ASSERT_STREQ(closure->response_->redirect().c_str(), PEER_STRING);
     }
     /**
      * 测试Process
@@ -195,6 +198,7 @@ TEST_F(OpRequestTest, CreateCloneTest) {
         // 验证结果
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
+        ASSERT_TRUE(response->has_status());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   closure->response_->status());
     }
@@ -216,6 +220,30 @@ TEST_F(OpRequestTest, CreateCloneTest) {
         ASSERT_DEATH(opReq->OnApply(3, closure), "");
     }
     /**
+     * 测试OnApply
+     * 用例：CreateCloneChunk失败,返回其他错误
+     * 预期：进程退出
+     */
+    {
+        // 重置closure
+        closure->Reset();
+
+        // 设置预期
+        EXPECT_CALL(*datastore_, CreateCloneChunk(_, _, _, _, _))
+            .WillRepeatedly(Return(CSErrorCode::InvalidArgError));
+        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
+            .Times(0);
+
+        opReq->OnApply(3, closure);
+
+        // 验证结果
+        ASSERT_TRUE(closure->isDone_);
+        ASSERT_EQ(LAST_INDEX, response->appliedindex());
+        ASSERT_TRUE(response->has_status());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
+                  closure->response_->status());
+    }
+    /**
      * 测试 OnApplyFromLog
      * 用例：CreateCloneChunk成功
      * 预期：无返回
@@ -233,7 +261,7 @@ TEST_F(OpRequestTest, CreateCloneTest) {
     }
     /**
      * 测试 OnApplyFromLog
-     * 用例：CreateCloneChunk失败
+     * 用例：CreateCloneChunk失败，返回InternalError
      * 预期：进程退出
      */
     {
@@ -246,6 +274,22 @@ TEST_F(OpRequestTest, CreateCloneTest) {
 
         butil::IOBuf data;
         ASSERT_DEATH(opReq->OnApplyFromLog(datastore_, *request, data), "");
+    }
+    /**
+     * 测试 OnApplyFromLog
+     * 用例：CreateCloneChunk失败，返回其他错误
+     * 预期：进程退出
+     */
+    {
+        // 重置closure
+        closure->Reset();
+
+        // 设置预期
+        EXPECT_CALL(*datastore_, CreateCloneChunk(_, _, _, _, _))
+            .WillRepeatedly(Return(CSErrorCode::InvalidArgError));
+
+        butil::IOBuf data;
+        opReq->OnApplyFromLog(datastore_, *request, data);
     }
     // 释放资源
     closure->Release();
@@ -281,9 +325,9 @@ TEST_F(OpRequestTest, PasteChunkTest) {
     closure->SetRequest(request);
     closure->SetResponse(response);
     std::shared_ptr<PasteChunkInternalRequest> opReq =
-        std::make_shared<PasteChunkInternalRequest>(readChunkRequest,
-                                                    node_,
+        std::make_shared<PasteChunkInternalRequest>(node_,
                                                     request,
+                                                    response,
                                                     str.c_str(),
                                                     closure);
     /**
@@ -317,7 +361,9 @@ TEST_F(OpRequestTest, PasteChunkTest) {
         // 设置预期
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(false));
-        braft::Task task;
+        // PeerId leaderId(PEER_STRING);
+        // EXPECT_CALL(*node_, GetLeaderId())
+        //     .WillOnce(Return(leaderId));
         EXPECT_CALL(*node_, Propose(_))
             .Times(0);
 
@@ -328,6 +374,7 @@ TEST_F(OpRequestTest, PasteChunkTest) {
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   response->status());
+        // ASSERT_STREQ(closure->response_->redirect().c_str(), PEER_STRING);
     }
     /**
      * 测试Process
@@ -376,12 +423,13 @@ TEST_F(OpRequestTest, PasteChunkTest) {
         // 验证结果
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
+        ASSERT_TRUE(response->has_status());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   response->status());
     }
     /**
      * 测试OnApply
-     * 用例：CreateCloneChunk失败
+     * 用例：CreateCloneChunk失败,返回InternalError
      * 预期：进程退出
      */
     {
@@ -395,6 +443,30 @@ TEST_F(OpRequestTest, PasteChunkTest) {
             .Times(0);
 
         ASSERT_DEATH(opReq->OnApply(3, closure), "");
+    }
+    /**
+     * 测试OnApply
+     * 用例：CreateCloneChunk失败,返回其他错误
+     * 预期：进程退出
+     */
+    {
+        // 重置closure
+        closure->Reset();
+
+        // 设置预期
+        EXPECT_CALL(*datastore_, PasteChunk(_, _, _, _))
+            .WillRepeatedly(Return(CSErrorCode::InvalidArgError));
+        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
+            .Times(0);
+
+        opReq->OnApply(3, closure);
+
+        // 验证结果
+        ASSERT_TRUE(closure->isDone_);
+        ASSERT_EQ(LAST_INDEX, response->appliedindex());
+        ASSERT_TRUE(response->has_status());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
+                  response->status());
     }
     /**
      * 测试 OnApplyFromLog
@@ -414,7 +486,7 @@ TEST_F(OpRequestTest, PasteChunkTest) {
     }
     /**
      * 测试 OnApplyFromLog
-     * 用例：CreateCloneChunk失败
+     * 用例：CreateCloneChunk失败,返回InternalError
      * 预期：进程退出
      */
     {
@@ -427,6 +499,22 @@ TEST_F(OpRequestTest, PasteChunkTest) {
 
         butil::IOBuf data;
         ASSERT_DEATH(opReq->OnApplyFromLog(datastore_, *request, data), "");
+    }
+    /**
+     * 测试 OnApplyFromLog
+     * 用例：CreateCloneChunk失败，返回其他错误
+     * 预期：进程退出
+     */
+    {
+        // 重置closure
+        closure->Reset();
+
+        // 设置预期
+        EXPECT_CALL(*datastore_, PasteChunk(_, _, _, _))
+            .WillRepeatedly(Return(CSErrorCode::InvalidArgError));
+
+        butil::IOBuf data;
+        opReq->OnApplyFromLog(datastore_, *request, data);
     }
     // 释放资源
     closure->Release();
@@ -487,7 +575,9 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         // 设置预期
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(false));
-        braft::Task task;
+        // PeerId leaderId(PEER_STRING);
+        // EXPECT_CALL(*node_, GetLeaderId())
+        //     .WillOnce(Return(leaderId));
         EXPECT_CALL(*node_, Propose(_))
             .Times(0);
 
@@ -498,6 +588,7 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   closure->response_->status());
+        // ASSERT_STREQ(closure->response_->redirect().c_str(), PEER_STRING);
     }
     /**
      * 测试Process
@@ -591,6 +682,7 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         // 验证结果
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
+        ASSERT_TRUE(response->has_status());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   response->status());
         ASSERT_EQ(memcmp(chunkData,
@@ -627,6 +719,7 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         // 验证结果
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
+        ASSERT_TRUE(response->has_status());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   closure->response_->status());
         ASSERT_EQ(memcmp(chunkData,
@@ -852,7 +945,9 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         // 设置预期
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(false));
-        braft::Task task;
+        // PeerId leaderId(PEER_STRING);
+        // EXPECT_CALL(*node_, GetLeaderId())
+        //     .WillOnce(Return(leaderId));
         EXPECT_CALL(*node_, Propose(_))
             .Times(0);
 
@@ -863,6 +958,7 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   closure->response_->status());
+        // ASSERT_STREQ(closure->response_->redirect().c_str(), PEER_STRING);
     }
     /**
      * 测试Process
@@ -950,6 +1046,7 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         // 验证结果
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
+        ASSERT_TRUE(response->has_status());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   response->status());
     }
@@ -979,6 +1076,7 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         // 验证结果
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
+        ASSERT_TRUE(response->has_status());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   closure->response_->status());
     }

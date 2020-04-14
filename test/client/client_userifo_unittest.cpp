@@ -349,6 +349,7 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
     std::vector<uint64_t> seqvec;
     std::map<uint64_t, curve::client::FInfo_t> fivec;
     seqvec.push_back(seq);
+    curve::client::FInfo_t ffinfo;
     ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL,
                 cl.ListSnapShot(filename, emptyuserinfo, &seqvec, &fivec));
     cl.UnInit();
@@ -484,8 +485,10 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     std::vector<uint64_t> seqvec;
     std::map<uint64_t, curve::client::FInfo_t> fivec;
     seqvec.push_back(seq);
+    curve::client::FInfo_t ffinfo;
     ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL,
-                cl.ListSnapShot(filename, rootuserinfo, &seqvec, &fivec));
+                cl.ListSnapShot(filename, rootuserinfo,
+                                &seqvec, &fivec));
     cl.UnInit();
 
     delete fakeret;

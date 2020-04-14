@@ -18,7 +18,7 @@ void S3Adapter::Init(const std::string &path) {
     conf_.SetConfigPath(path);
     LOG_IF(FATAL, !conf_.LoadConfig())
               << "Failed to open s3 config file: " << conf_.GetConfigPath();
-    options_ = new Aws::SDKOptions();
+    options_ = Aws::New<Aws::SDKOptions>("S3Adapter.SDKOptions");
     options_->loggingOptions.logLevel =
       Aws::Utils::Logging::LogLevel(conf_.GetIntValue("s3.loglevel"));
     Aws::InitAPI(*options_);
@@ -26,25 +26,34 @@ void S3Adapter::Init(const std::string &path) {
     s3Ak_ = conf_.GetStringValue("s3.ak").c_str();
     s3Sk_ = conf_.GetStringValue("s3.sk").c_str();
     bucketName_ = conf_.GetStringValue("s3.snapshot_bucket_name").c_str();
-    clientCfg_ = new Aws::Client::ClientConfiguration();
+    clientCfg_ = Aws::New<Aws::Client::ClientConfiguration>(
+        "S3Adapter.ClientConfiguration");
     clientCfg_->scheme = Aws::Http::Scheme(conf_.GetIntValue("s3.http_scheme"));
     clientCfg_->verifySSL = conf_.GetBoolValue("s3.verify_SSL");
     //clientCfg_->userAgent = conf_.GetStringValue("s3.user_agent_conf").c_str();  //NOLINT
     clientCfg_->userAgent = "S3 Browser";
+    clientCfg_->maxConnections = conf_.GetIntValue("s3.max_connections");
     clientCfg_->connectTimeoutMs = conf_.GetIntValue("s3.connect_timeout");
     clientCfg_->requestTimeoutMs = conf_.GetIntValue("s3.request_timeout");
     clientCfg_->endpointOverride = s3Address_;
-    s3Client_ = new Aws::S3::S3Client(
+    auto asyncThreadNum = conf_.GetIntValue("s3.async_thread_num");
+    clientCfg_->executor =
+        Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>(
+            "S3Adapter.S3Client", asyncThreadNum);
+    s3Client_ = Aws::New<Aws::S3::S3Client>("S3Adapter.S3Client",
             Aws::Auth::AWSCredentials(s3Ak_, s3Sk_),
-                                        *clientCfg_);
+            *clientCfg_,
+            Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never,
+            false);
 }
 
 void S3Adapter::Deinit() {
     Aws::ShutdownAPI(*options_);
-    delete options_;
-    delete clientCfg_;
-    delete s3Client_;
+    Aws::Delete<Aws::SDKOptions>(options_);
+    Aws::Delete<Aws::Client::ClientConfiguration>(clientCfg_);
+    Aws::Delete<Aws::S3::S3Client>(s3Client_);
 }
+
 int S3Adapter::CreateBucket() {
     Aws::S3::Model::CreateBucketRequest request;
     request.SetBucket(bucketName_);
@@ -211,6 +220,40 @@ int S3Adapter::GetObject(const std::string &key,
         return -1;
     }
 }
+
+void S3Adapter::GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) {
+    Aws::S3::Model::GetObjectRequest request;
+    request.SetBucket(bucketName_);
+    request.SetKey(context->key.c_str());
+    request.SetRange(("bytes=" + std::to_string(context->offset) + "-" + std::to_string(context->offset + context->len)).c_str()); //NOLINT
+
+    Aws::S3::GetObjectResponseReceivedHandler handler = [this] (
+        const Aws::S3::S3Client* client,
+        const Aws::S3::Model::GetObjectRequest& request,
+        const Aws::S3::Model::GetObjectOutcome& response,
+        const std::shared_ptr<const Aws::Client::AsyncCallerContext>& awsCtx) {
+        std::shared_ptr<const GetObjectAsyncContext> cctx =
+            std::dynamic_pointer_cast<const GetObjectAsyncContext>(awsCtx);
+        std::shared_ptr<GetObjectAsyncContext> ctx =
+            std::const_pointer_cast<GetObjectAsyncContext>(cctx);
+        if (response.IsSuccess()) {
+            const Aws::S3::Model::GetObjectResult &result =
+                response.GetResult();
+            Aws::S3::Model::GetObjectResult &ret =
+                const_cast<Aws::S3::Model::GetObjectResult&>(result);
+            ret.GetBody().rdbuf()->sgetn(ctx->buf, ctx->len);  // NOLINT
+            ctx->retCode = 0;
+        } else {
+            LOG(ERROR) << "GetObjectAsync error: "
+                    << response.GetError().GetExceptionName()
+                    << response.GetError().GetMessage();
+            ctx->retCode = -1;
+        }
+        ctx->cb(this, ctx);
+    };
+    s3Client_->GetObjectAsync(request, handler, context);
+}
+
 bool S3Adapter::ObjectExist(const Aws::String &key) {
     Aws::S3::Model::HeadObjectRequest request;
     request.SetBucket(bucketName_);
@@ -314,10 +357,10 @@ Aws::S3::Model::CompletedPart S3Adapter:: UploadOnePart(
     request.SetUploadId(uploadId);
     request.SetPartNumber(partNum);
     request.SetContentLength(partSize);
-    Aws::String str(buf, partSize);
+    auto str = std::make_shared<std::string>(buf, partSize);
     auto input_data =
             Aws::MakeShared<Aws::StringStream>("UploadPartStream");
-    *input_data << str;
+    *input_data << *str;
     request.SetBody(input_data);
     auto result = s3Client_->UploadPart(request);
     if (result.IsSuccess()) {

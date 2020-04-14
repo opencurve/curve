@@ -16,11 +16,12 @@
 namespace curve {
 namespace chunkserver {
 
+class DownloadClosure;
 class MockChunkCopyer : public OriginCopyer {
  public:
     MockChunkCopyer() = default;
     ~MockChunkCopyer() = default;
-    MOCK_METHOD4(Download, int(const string&, off_t, size_t, char*));
+    MOCK_METHOD1(DownloadAsync, void(DownloadClosure*));
 };
 
 }  // namespace chunkserver

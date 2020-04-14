@@ -76,14 +76,15 @@ TEST_F(TestEtcdIdGenerator, test_all) {
     uint64_t alloc2 = alloc1 + bundle_;
     std::string strAlloc1 = NameSpaceStorageCodec::EncodeID(alloc1);
     EXPECT_CALL(*client_, Get(storeKey_, _))
-        .WillOnce(Return(EtcdErrCode::KeyNotExist))
-        .WillOnce(DoAll(SetArgPointee<1>(strAlloc1), Return(EtcdErrCode::OK)));
+        .WillOnce(Return(EtcdErrCode::EtcdKeyNotExist))
+        .WillOnce(DoAll(
+            SetArgPointee<1>(strAlloc1), Return(EtcdErrCode::EtcdOK)));
     EXPECT_CALL(*client_, CompareAndSwap(
         storeKey_, "", NameSpaceStorageCodec::EncodeID(alloc1)))
-        .WillOnce(Return(EtcdErrCode::OK));
+        .WillOnce(Return(EtcdErrCode::EtcdOK));
     EXPECT_CALL(*client_, CompareAndSwap(
         storeKey_, strAlloc1, NameSpaceStorageCodec::EncodeID(alloc2)))
-        .WillOnce(Return(EtcdErrCode::OK));
+        .WillOnce(Return(EtcdErrCode::EtcdOK));
 
     uint64_t end = 2 * bundle_;
     uint64_t res;
@@ -96,10 +97,11 @@ TEST_F(TestEtcdIdGenerator, test_all) {
     uint64_t alloc3 = alloc2 + bundle_;
     std::string strAlloc2 = NameSpaceStorageCodec::EncodeID(alloc2);
     EXPECT_CALL(*client_, Get(storeKey_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(strAlloc2), Return(EtcdErrCode::OK)));
+        .WillOnce(
+            DoAll(SetArgPointee<1>(strAlloc2), Return(EtcdErrCode::EtcdOK)));
     EXPECT_CALL(*client_, CompareAndSwap(
         storeKey_, strAlloc2, NameSpaceStorageCodec::EncodeID(alloc3)))
-        .WillOnce(Return(EtcdErrCode::OK));
+        .WillOnce(Return(EtcdErrCode::EtcdOK));
     for (int i = end + 1; i <= 3 * bundle_; i++) {
         ASSERT_TRUE(etcdIdGen_->GenID(&res));
         ASSERT_EQ(i, res);
@@ -107,7 +109,7 @@ TEST_F(TestEtcdIdGenerator, test_all) {
 
     // 3. kill etcd, gen id ok
     EXPECT_CALL(*client_, Get(storeKey_, _))
-        .WillOnce(Return(EtcdErrCode::PermissionDenied));
+        .WillOnce(Return(EtcdErrCode::EtcdPermissionDenied));
     ASSERT_FALSE(etcdIdGen_->GenID(&res));
 }
 
@@ -118,24 +120,26 @@ TEST_F(TestEtcdIdGenerator, test_multiclient) {
     std::string strAlloc1 = NameSpaceStorageCodec::EncodeID(alloc1);
     std::string strAlloc2 = NameSpaceStorageCodec::EncodeID(alloc2);
     EXPECT_CALL(*client_, Get(storeKey_, _))
-        .WillOnce(Return(EtcdErrCode::KeyNotExist))
-        .WillOnce(DoAll(SetArgPointee<1>(strAlloc1), Return(EtcdErrCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(strAlloc2), Return(EtcdErrCode::OK)));
+        .WillOnce(Return(EtcdErrCode::EtcdKeyNotExist))
+        .WillOnce(
+            DoAll(SetArgPointee<1>(strAlloc1), Return(EtcdErrCode::EtcdOK)))
+        .WillOnce(
+            DoAll(SetArgPointee<1>(strAlloc2), Return(EtcdErrCode::EtcdOK)));
     EXPECT_CALL(*client_, CompareAndSwap(
         storeKey_, "", NameSpaceStorageCodec::EncodeID(alloc1)))
-        .WillOnce(Return(EtcdErrCode::OK));
+        .WillOnce(Return(EtcdErrCode::EtcdOK));
     EXPECT_CALL(*client_, CompareAndSwap(
         storeKey_, strAlloc1, NameSpaceStorageCodec::EncodeID(alloc2)))
-        .WillOnce(Return(EtcdErrCode::OK));
+        .WillOnce(Return(EtcdErrCode::EtcdOK));
     EXPECT_CALL(*client_, CompareAndSwap(
         storeKey_, strAlloc2, NameSpaceStorageCodec::EncodeID(alloc3)))
-        .WillOnce(Return(EtcdErrCode::OK));
+        .WillOnce(Return(EtcdErrCode::EtcdOK));
 
-    std::thread thread1 = std::thread(
+    common::Thread thread1 = common::Thread(
         &TestEtcdIdGenerator::GenID1000Times, this);
-    std::thread thread2 = std::thread(
+    common::Thread thread2 = common::Thread(
         &TestEtcdIdGenerator::GenID1000Times, this);
-    std::thread thread3 = std::thread(
+    common::Thread thread3 = common::Thread(
         &TestEtcdIdGenerator::GenID500Times, this);
     thread1.join();
     thread2.join();

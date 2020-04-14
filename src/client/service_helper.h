@@ -15,6 +15,7 @@
 #include <vector>
 #include <string>
 #include <unordered_set>
+#include <memory>
 #include "proto/cli2.pb.h"
 #include "proto/nameserver2.pb.h"
 #include "src/client/client_common.h"
@@ -27,16 +28,10 @@ namespace client {
 // GetLeader请求rpc参数信息
 struct GetLeaderRpcOption {
     uint32_t rpcTimeoutMs;
-    uint32_t backupRequestMs;
-    std::string backupRequestLbName;
 
     explicit GetLeaderRpcOption(
-        uint32_t rpcTimeoutMs = 500,
-        uint32_t backupRequestMs = 100,
-        const std::string& backupRequestLbName = "rr")
-      : rpcTimeoutMs(rpcTimeoutMs),
-        backupRequestMs(backupRequestMs),
-        backupRequestLbName(backupRequestLbName) {}
+        uint32_t rpcTimeoutMs = 500)
+      : rpcTimeoutMs(rpcTimeoutMs) {}
 };
 
 // GetLeader请求对应的copyset信息及rpc相关参数信息
@@ -57,6 +52,24 @@ struct GetLeaderInfo {
         copysetPeerInfo(copysetPeerInfo),
         currentLeaderIndex(currentLeaderIndex),
         rpcOption(rpcOption) {}
+};
+
+class GetLeaderProxy;
+
+// GetLeader异步请求回调
+struct GetLeaderClosure : public google::protobuf::Closure {
+    GetLeaderClosure(LogicPoolID logicPoolId, CopysetID copysetId,
+                     std::shared_ptr<GetLeaderProxy> proxy)
+        : logicPoolId(logicPoolId), copysetId(copysetId), proxy(proxy) {}
+
+    void Run() override;
+
+    LogicPoolID logicPoolId;
+    CopysetID copysetId;
+    std::shared_ptr<GetLeaderProxy> proxy;
+
+    brpc::Controller cntl;
+    curve::chunkserver::GetLeaderResponse2 response;
 };
 
 // ServiceHelper是client端RPC服务的一些工具
@@ -94,34 +107,6 @@ class ServiceHelper {
     static bool GetUserInfoFromFilename(const std::string& fname,
                                        std::string* realfilename,
                                        std::string* user);
-
-    /**
-     * 从chunkserver端获取最新的leader信息
-     * @param[in]: getLeaderInfo为对应copyset的信息
-     * @param[in]: chunkserverIpPorts为需要发送请求的chunkserver
-     * @param[in]: fileMetric是用于metric的记录
-     * @param[out]: leaderAddr是出参，返回当前copyset的leader信息
-     * @param[out]: leaderId是出参，返回当前leader的id信息
-     * @param[out]: cntlErrCode是出参，返回cntl失败时的状态码
-     * @param[out]: failedAddr是出参，返回cntl失败时对应的server addr
-     * @return: 成功返回0，否则返回-1
-     */
-    static int GetLeaderInternal(
-       const GetLeaderInfo& getLeaderInfo,
-       const std::unordered_set<std::string>& chunkserverIpPorts,  // NOLINT
-       FileMetric* fileMetric,
-       ChunkServerAddr* leaderAddr,
-       ChunkServerID* leaderId,
-       int* cntlErrCode,
-       std::string* cntlFailedAddr);
-
-    /**
-     * 以chunkserverIpPorts构造用于初始化channel的naming service url
-     * @param: chunkserverIpPorts存放多个ip:port字符串
-     * @return: 构造的url 例如：list://127.0.0.1:12345,127.0.0.1:12346,
-     */
-    static std::string BuildChannelUrl(
-      const std::unordered_set<std::string>& chunkserverIpPorts);
 
     /**
      * @brief: 发送http请求，判断chunkserver是否健康

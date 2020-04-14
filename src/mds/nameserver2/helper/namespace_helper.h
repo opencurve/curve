@@ -16,23 +16,6 @@
 namespace curve {
 namespace mds {
 
-extern const char FILEINFOKEYPREFIX[];
-extern const char FILEINFOKEYEND[];
-extern const char SEGMENTINFOKEYPREFIX[];
-extern const char SEGMENTINFOKEYEND[];
-extern const char SNAPSHOTFILEINFOKEYPREFIX[];
-extern const char SNAPSHOTFILEINFOKEYEND[];
-extern const char INODESTOREKEY[];
-extern const char INODESTOREKEYEND[];
-extern const char CHUNKSTOREKEY[];
-extern const char CHUNKSTOREKEYEND[];
-extern const char LEADERCAMPAIGNNPFX[];
-extern const char SEGMENTALLOCSIZEKEY[];
-extern const char SEGMENTALLOCSIZEKEYEND[];
-
-extern const int PREFIX_LENGTH;
-extern const int SEGMENTKEYLEN;
-
 class NameSpaceStorageCodec {
  public:
     static std::string EncodeFileStoreKey(uint64_t parentID,

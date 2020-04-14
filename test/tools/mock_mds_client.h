@@ -62,9 +62,9 @@ class MockMDSClient : public MDSClient {
                  int(std::vector<ChunkServerInfo>*));
     MOCK_METHOD2(GetMetric, int(const std::string&, uint64_t*));
     MOCK_CONST_METHOD0(GetMdsAddrVec, const std::vector<std::string>&());
-    MOCK_METHOD0(GetCurrentMds, std::string());
+    MOCK_METHOD0(GetCurrentMds, std::vector<std::string>());
     MOCK_METHOD1(GetMdsOnlineStatus,
-                    int(std::map<std::string, bool>* onlineStatus));
+                    void(std::map<std::string, bool>* onlineStatus));
     MOCK_CONST_METHOD0(GetDummyServerMap,
                     const std::map<std::string, std::string>&());
     MOCK_METHOD1(ListClient, int(std::vector<std::string>*));

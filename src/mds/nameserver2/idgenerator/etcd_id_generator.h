@@ -11,10 +11,11 @@
 #include <string>
 #include <memory>
 #include "src/mds/common/mds_define.h"
-#include "src/mds/kvstorageclient/etcd_client.h"
+#include "src/kvstorageclient/etcd_client.h"
 #include "src/common/concurrent/concurrent.h"
 
 using ::curve::common::Atomic;
+using ::curve::kvstorage::KVStorageClient;
 
 namespace curve {
 namespace mds {

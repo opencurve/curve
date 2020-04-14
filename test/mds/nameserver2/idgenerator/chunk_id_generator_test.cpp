@@ -45,14 +45,15 @@ TEST_F(TestChunkIdGenerator, test_all) {
     uint64_t alloc2 = alloc1 + CHUNKBUNDLEALLOCATED;
     std::string strAlloc1 = NameSpaceStorageCodec::EncodeID(alloc1);
     EXPECT_CALL(*client_, Get(CHUNKSTOREKEY, _))
-        .WillOnce(Return(EtcdErrCode::KeyNotExist))
-        .WillOnce(DoAll(SetArgPointee<1>(strAlloc1), Return(EtcdErrCode::OK)));
+        .WillOnce(Return(EtcdErrCode::EtcdKeyNotExist))
+        .WillOnce(
+            DoAll(SetArgPointee<1>(strAlloc1), Return(EtcdErrCode::EtcdOK)));
     EXPECT_CALL(*client_, CompareAndSwap(
         CHUNKSTOREKEY, "", NameSpaceStorageCodec::EncodeID(alloc1)))
-        .WillOnce(Return(EtcdErrCode::OK));
+        .WillOnce(Return(EtcdErrCode::EtcdOK));
     EXPECT_CALL(*client_, CompareAndSwap(
         CHUNKSTOREKEY, strAlloc1, NameSpaceStorageCodec::EncodeID(alloc2)))
-        .WillOnce(Return(EtcdErrCode::OK));
+        .WillOnce(Return(EtcdErrCode::EtcdOK));
 
     uint64_t end = 2 * CHUNKBUNDLEALLOCATED;
     InodeID res;

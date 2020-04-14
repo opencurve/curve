@@ -248,13 +248,16 @@ struct SessionRepoItem : public RepoItem {
     uint64_t createTime;
     uint64_t updateTime;
     std::string clientIP;
+    std::string clientVersion;
 
     SessionRepoItem() = default;
 
-    SessionRepoItem(std::string fileName, std::string sessionID,
+    SessionRepoItem(const std::string &fileName,
+                    const std::string &sessionID,
                     uint32_t leaseTime,
                     uint16_t sessionStatus, uint64_t createTime,
-                    std::string clientIP);
+                    const std::string &clientIP,
+                    const std::string &clientVersion);
 
     explicit SessionRepoItem(std::string sessionID);
 

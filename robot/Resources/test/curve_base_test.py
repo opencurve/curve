@@ -2,7 +2,7 @@
 # -*- coding: utf8 -*-
 
 from config import config
-from logger import logger
+from logger.logger import *
 from lib import db_operator
 from lib import shell_operator
 from keywords import base_operate

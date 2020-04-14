@@ -1,0 +1,50 @@
+
+### 1. 组件说明
+
+SnapshotCloneServer 前端OpenResty反向代理，使用docker的方式维护
+
+主要实现的功能点
+
+1. 结合后端SnapshotCloneServer的主备，向上提供failover期间服务始终可用的特性
+2. 结合Nginx的KeepAlive 特性，向上暴露高可用的SnapShotCloneServe endpoint
+
+详细设计方案见
+http://doc.hz.netease.com/pages/viewpage.action?pageId=236921653
+
+### 2. 使用说明
+
+sudo docker run -p 8080:80
+-v ${current_dir}/app:/usr/local/openresty/nginx/app
+-v ${current_dir}/conf:/usr/local/openresty/nginx/conf
+-v ${current_dir}/logs:/usr/local/openresty/nginx/logs
+-d hub.c.163.com/tomtom/openresty:v1.15.8.3
+
+
+
+-p：宿主机8080 port映射到docker内部80 port
+-v：映射宿主机外围的配置、日志等相关目录到docker内部
+    其中app为所有lua脚本相关，并且其中记录了后端所有snapshotcloneserver地址
+    conf 为nginx对外暴露的port以及基础的nginx配置目录
+    logs 为日志映射目录，方便docker进程退出之后日志保留
+
+    其中冒号后边部分为docker容器内目录地址不用修改
+    前半部分为app conf 的放置目录
+
+    后端集群的的信息在app/etc/config.lua 中进行修改
+    cluster = {
+        {   -- level 1
+            servers = {
+                { host = "10.182.26.25", port = 5555 },
+                { host = "10.182.26.17", port = 5555 },
+                { host = "10.182.26.16", port = 5555 },
+            }
+        }
+    }
+
+note:
+1. ${current_dir} 为 app/conf/logs 同级目录，docker -v 的路径必须为全局路径，不能使用相对路径
+2. 脚本依赖 [checkups](https://github.com/NetEase-Object-Storage/lua-resty-checkups) 库, 需要下载放到 app/lib 目录下(已添加)
+
+
+## 使用前确保基础 docker 镜像已经pull 下来
+sudo docker pull hub.c.163.com/tomtom/openresty:v1.15.8.3

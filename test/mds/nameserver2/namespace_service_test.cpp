@@ -69,8 +69,8 @@ class NameSpaceServiceTest : public ::testing::Test {
         std::shared_ptr<FakeRepoInterface> repo =
                                     std::make_shared<FakeRepoInterface>();
         fileRecordManager_ = std::make_shared<FileRecordManager>();
-        fileRecordOptions.fileRecordExpiredTimeUs = 5000000;
-        fileRecordOptions.scanIntervalTimeUs = 100000;
+        fileRecordOptions.fileRecordExpiredTimeUs = 5 * 1000;
+        fileRecordOptions.scanIntervalTimeUs = 1 * 1000;
 
         authOptions.rootOwner = "root";
         authOptions.rootPassword = "root_password";
@@ -87,6 +87,9 @@ class NameSpaceServiceTest : public ::testing::Test {
                         allocStatistic_,
                         curveFSOptions, repo);
         kCurveFS.Run();
+
+        std::this_thread::sleep_for(std::chrono::microseconds(
+            11 * fileRecordOptions.fileRecordExpiredTimeUs));
     }
 
     void TearDown() override {
@@ -974,7 +977,6 @@ TEST_F(NameSpaceServiceTest, test1) {
     server.Join();
     return;
 }
-
 
 TEST_F(NameSpaceServiceTest, snapshottests) {
     brpc::Server server;
