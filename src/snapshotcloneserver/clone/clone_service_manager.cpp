@@ -51,6 +51,7 @@ int CloneServiceManager::CloneFile(const UUID &source,
         if (kErrCodeTaskExist == ret) {
             // 任务已存在的情况下返回成功，使接口幂等
             *taskId = cloneInfo.GetTaskId();
+            closure->SetTaskId(*taskId);
             closure->SetErrCode(kErrCodeSuccess);
             return kErrCodeSuccess;
         }
@@ -89,6 +90,7 @@ int CloneServiceManager::RecoverFile(const UUID &source,
         if (kErrCodeTaskExist == ret) {
             // 任务已存在的情况下返回成功，使接口幂等
             *taskId = cloneInfo.GetTaskId();
+            closure->SetTaskId(*taskId);
             closure->SetErrCode(kErrCodeSuccess);
             return kErrCodeSuccess;
         }
