@@ -22,6 +22,7 @@ using curve::fs::LocalFsFactory;
 
 void allocateChunk(std::shared_ptr<LocalFileSystem> fsptr,
                    uint32_t num,
-                   std::string poolDir);
+                   std::string poolDir,
+                   uint32_t chunkSize);
 
 #endif  // TEST_CHUNKSERVER_DATASTORE_CHUNKFILEPOOL_HELPER_H_

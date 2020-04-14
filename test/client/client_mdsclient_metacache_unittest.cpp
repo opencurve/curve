@@ -123,9 +123,8 @@ class MDSClientTest : public ::testing::Test {
         ASSERT_EQ(server.Start(mdsMetaServerAddr.c_str(), &options), 0);
 
         LOG(INFO) << configpath.c_str();
-        if (Init(configpath.c_str()) != 0) {
-            LOG(ERROR) << "Fail to init config, path = " << configpath;
-        }
+        ASSERT_EQ(0, Init(configpath.c_str()))
+            << "Fail to init config, path = " << configpath;
     }
 
     void TearDown() {
@@ -1251,10 +1250,6 @@ TEST_F(MDSClientTest, GetLeaderTest) {
 
     mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
 
-    ASSERT_EQ(1, cliservice1.GetInvokeTimes() +
-                 cliservice2.GetInvokeTimes() +
-                 cliservice3.GetInvokeTimes());
-
     ASSERT_EQ(ckid, 3);
     ASSERT_EQ(ep3, leaderep);
 
@@ -1314,8 +1309,7 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     // 向当前集群中拉取leader，然后会从mds一侧获取新server list
     ASSERT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, true));
 
-    // 从1,2获取leader, 但是controller返回错误, 所以会去mds获取新的server list
-    ASSERT_EQ(1, cliservice1.GetInvokeTimes() + cliservice2.GetInvokeTimes());
+    // getleader请求会跳过当前leader
     ASSERT_EQ(0, cliservice3.GetInvokeTimes());
 
     // 因为从mds获取新的copyset信息了，所以其leader信息被重置了，需要重新获取新leader
@@ -1363,27 +1357,17 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     FakeReturn fakeret444(nullptr, static_cast<void*>(&response4));
     cliservice4.SetFakeReturn(&fakeret444);
 
-    // 清空被凋次数
-    cliservice1.CleanInvokeTimes();
-    cliservice2.CleanInvokeTimes();
-    cliservice3.CleanInvokeTimes();
-    cliservice4.CleanInvokeTimes();
     ASSERT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, true));
     ASSERT_EQ(leaderep, ep4);
 
-    ASSERT_EQ(1, cliservice1.GetInvokeTimes() +
-                 cliservice2.GetInvokeTimes() +
-                 cliservice4.GetInvokeTimes() +
-                 cliservice3.GetInvokeTimes());
-
-    // 直接获取新的leader信息
     cliservice1.CleanInvokeTimes();
     cliservice2.CleanInvokeTimes();
     cliservice3.CleanInvokeTimes();
     cliservice4.CleanInvokeTimes();
+
+    // refresh为false，所以只会从metacache中获取，不会发起rpc请求
     ASSERT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, false));
     ASSERT_EQ(leaderep, ep4);
-
     ASSERT_EQ(0, cliservice1.GetInvokeTimes());
     ASSERT_EQ(0, cliservice2.GetInvokeTimes());
     ASSERT_EQ(0, cliservice3.GetInvokeTimes());
@@ -1409,10 +1393,6 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     cliservice3.CleanInvokeTimes();
 
     mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
-
-    ASSERT_EQ(1, cliservice1.GetInvokeTimes() +
-                 cliservice2.GetInvokeTimes() +
-                 cliservice3.GetInvokeTimes());
 
     CopysetInfo_t cpinfo = mc.GetServerList(1234, 1234);
     // 新的leader因为没有id，所以并没有被添加到copyset中
@@ -1444,11 +1424,6 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     cliservice4.CleanInvokeTimes();
 
     mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
-
-    ASSERT_EQ(1, cliservice1.GetInvokeTimes() +
-                 cliservice2.GetInvokeTimes() +
-                 cliservice3.GetInvokeTimes() +
-                 cliservice4.GetInvokeTimes());
 
     cpinfo = mc.GetServerList(1234, 1234);
     ASSERT_EQ(cpinfo.csinfos_.size(), 6);
@@ -2158,7 +2133,6 @@ TEST_F(ServiceHelperGetLeaderTest, NormalTest) {
         copysetPeerInfos, -1, rpcOption);
     ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
         &leaderId, nullptr));
-    ASSERT_EQ(1, GetAllInvokeTimes());
     ASSERT_EQ(chunkserverAddrs[0], leaderAddr);
 
     ResetAllFakeCliService();
@@ -2179,9 +2153,6 @@ TEST_F(ServiceHelperGetLeaderTest, NormalTest) {
     ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
         &leaderId, nullptr));
 
-    ASSERT_EQ(0, fakeCliServices[0].GetInvokeTimes());
-    ASSERT_EQ(1, fakeCliServices[1].GetInvokeTimes() +
-                 fakeCliServices[2].GetInvokeTimes());
     ASSERT_EQ(currentLeader, leaderAddr);
 
     ResetAllFakeCliService();
@@ -2202,9 +2173,6 @@ TEST_F(ServiceHelperGetLeaderTest, NormalTest) {
     ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
         &leaderId, nullptr));
 
-    ASSERT_EQ(0, fakeCliServices[1].GetInvokeTimes());
-    ASSERT_EQ(1, fakeCliServices[0].GetInvokeTimes() +
-                 fakeCliServices[2].GetInvokeTimes());
     ASSERT_EQ(currentLeader, leaderAddr);
 
     ResetAllFakeCliService();
@@ -2230,10 +2198,6 @@ TEST_F(ServiceHelperGetLeaderTest, RpcDelayTest) {
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    ASSERT_EQ(0, fakeCliServices[2].GetInvokeTimes());
-    int invokedTimes = fakeCliServices[0].GetInvokeTimes() +
-                       fakeCliServices[1].GetInvokeTimes();
-    ASSERT_TRUE(invokedTimes == 2 || invokedTimes == 3);
     ASSERT_EQ(currentLeader, leaderAddr);
 
     fakeCliServices[0].ClearDelay();
@@ -2275,16 +2239,6 @@ TEST_F(ServiceHelperGetLeaderTest, RpcDelayAndExceptionTest) {
             &leaderId, nullptr));
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        ASSERT_EQ(0, fakeCliServices[2].GetInvokeTimes());
-
-        // 总共两种情况
-        // 1. 第一次先访问宕机节点，返回cntl failed，删除当前节点后进行重试
-        //    第二次访问延迟节点，返回结果
-        // 2. 第一次先访问延迟节点，超过backup时间，然后访问cntl failed节点，删除当前节点后进行重试  // NOLINT
-        //    第二次访问延迟节点
-        // 但是brpc内部会针对错误码进行重试，所以这里判断调用次数 >= 2
-        ASSERT_GE(fakeCliServices[0].GetInvokeTimes() +
-                  fakeCliServices[1].GetInvokeTimes(), 2);
         ASSERT_EQ(currentLeader, leaderAddr);
 
         for (auto& cliservice : fakeCliServices) {
@@ -2327,10 +2281,64 @@ TEST_F(ServiceHelperGetLeaderTest, AllChunkServerExceptionTest) {
             copysetPeerInfos, currentLeaderIndex, rpcOption);
         ASSERT_EQ(-1, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
             &leaderId, nullptr));
-        ASSERT_GE(fakeCliServices[0].GetInvokeTimes() +
-                  fakeCliServices[1].GetInvokeTimes(), 2);
 
         ResetAllFakeCliService();
     }
 }
 
+TEST_F(ServiceHelperGetLeaderTest, EmptyCopysetPeerInfoTest) {
+    GetLeaderRpcOption rpcOption;
+    rpcOption.rpcTimeoutMs = 1000;
+
+    GetLeaderInfo getLeaderInfo(kLogicPoolId, kCopysetId, {}, -1, rpcOption);
+    ASSERT_EQ(-1, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
+                                           &leaderId, nullptr));
+}
+
+TEST_F(MDSClientTest, StatFileStatusTest) {
+    std::vector<curve::mds::FileStatus> fileStatus{
+        curve::mds::FileStatus::kFileCreated,
+        curve::mds::FileStatus::kFileDeleting,
+        curve::mds::FileStatus::kFileCloning,
+        curve::mds::FileStatus::kFileCloneMetaInstalled,
+        curve::mds::FileStatus::kFileCloned,
+        curve::mds::FileStatus::kFileBeingCloned,
+    };
+
+    std::string filename = "/StatFileStatusTest";
+
+    for (auto status : fileStatus) {
+        std::unique_ptr<curve::mds::FileInfo> info(new curve::mds::FileInfo());
+        ::curve::mds::GetFileInfoResponse response;
+        info->set_filename("_filename_");
+        info->set_id(1);
+        info->set_parentid(0);
+        info->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+        info->set_chunksize(4 * 1024 * 1024);
+        info->set_length(4 * 1024 * 1024 * 1024ul);
+        info->set_ctime(12345678);
+        info->set_segmentsize(1 * 1024 * 1024 * 1024ul);
+
+        info->set_filestatus(status);
+
+        response.set_allocated_fileinfo(info.release());
+        response.set_statuscode(::curve::mds::StatusCode::kOK);
+
+        FakeReturn* fakeret =
+            new FakeReturn(nullptr, static_cast<void*>(&response));
+        curvefsservice.SetGetFileInfoFakeReturn(fakeret);
+
+        std::unique_ptr<curve::client::FInfo_t> finfo(
+            new curve::client::FInfo_t());
+        FileStatInfo fstat;
+        globalclient->StatFile(filename, userinfo, &fstat);
+
+        ASSERT_EQ(fstat.id, 1);
+        ASSERT_EQ(fstat.parentid, 0);
+        ASSERT_EQ(static_cast<curve::mds::FileType>(fstat.filetype),
+                  curve::mds::FileType::INODE_PAGEFILE);
+        ASSERT_EQ(fstat.ctime, 12345678);
+        ASSERT_EQ(fstat.length, 4 * 1024 * 1024 * 1024ul);
+        ASSERT_EQ(fstat.fileStatus, static_cast<int>(status));
+    }
+}

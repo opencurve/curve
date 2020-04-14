@@ -3,7 +3,7 @@
 
 from curvefs_python import curvefs
 from config import config
-from logger import logger
+from logger.logger import *
 
 
 class LibCurve:

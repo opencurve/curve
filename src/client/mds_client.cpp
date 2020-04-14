@@ -150,6 +150,14 @@ int MDSClient::MDSRPCExcutor::PreProcessBeforeRetry(
         status == -ECONNREFUSED || status == -brpc::ELOGOFF ||
         *curMDSRetryCount >= metaServerOpt_.mdsMaxFailedTimesBeforeChangeMDS) {
         needChangeMDS = true;
+
+        // 在开启健康检查的情况下，在底层tcp连接失败时
+        // rpc请求会本地直接返回 EHOSTSOWN
+        // 这种情况下，增加一些睡眠时间，避免大量的重试请求占满bthread
+        // TODO(wuhanqing): 关闭健康检查
+        if (status == -EHOSTDOWN) {
+            bthread_usleep(metaServerOpt_.mdsRPCRetryIntervalUS);
+        }
     } else if (status == -brpc::ERPCTIMEDOUT || status == -ETIMEDOUT) {
         rpcTimeout = true;
         needChangeMDS = false;
@@ -411,7 +419,21 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
 
         bool hasinfo = response.has_snapshotfileinfo();
         StatusCode stcode = response.statuscode();
-        if (!hasinfo && stcode == StatusCode::kOK) {
+
+        if ((stcode == StatusCode::kOK ||
+             stcode == StatusCode::kFileUnderSnapShot) &&
+            hasinfo) {
+            FInfo_t* fi = new (std::nothrow) FInfo_t;
+            curve::mds::FileInfo finfo = response.snapshotfileinfo();
+            ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
+            *seq = fi->seqnum;
+            delete fi;
+            if (stcode == StatusCode::kOK) {
+                return LIBCURVE_ERROR::OK;
+            } else {
+                return LIBCURVE_ERROR::UNDER_SNAPSHOT;
+            }
+        } else if (!hasinfo && stcode == StatusCode::kOK) {
             LOG(WARNING) << "mds side response has no snapshot file info!";
             return LIBCURVE_ERROR::FAILED;
         }
@@ -460,55 +482,6 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
                 << ", log id = " << cntl->log_id();
         return retcode;
     };
-    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
-}
-
-LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
-    const UserInfo_t& userinfo, uint64_t seq, FInfo* fi) {
-    auto task = RPCTaskDefine {
-        std::vector<uint64_t> seqVec;
-        seqVec.push_back(seq);
-        ::curve::mds::ListSnapShotFileInfoResponse response;
-        mdsClientBase_.ListSnapShot(filename, userinfo, &seqVec,
-                                        &response, cntl, channel);
-        if (cntl->Failed()) {
-            LOG(ERROR) << "list snap file failed, errcorde = "
-                << response.statuscode()
-                << ", error content:" << cntl->ErrorText()
-                << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
-        }
-
-        ::curve::mds::StatusCode stcode = response.statuscode();
-
-        if (curve::mds::StatusCode::kOwnerAuthFail == stcode) {
-            LOG(ERROR) << "auth failed!";
-            return LIBCURVE_ERROR::AUTHFAIL;
-        }
-
-        LOG_IF(ERROR, stcode != ::curve::mds::StatusCode::kOK)
-        << "list snap file failed, errcode = " << stcode;
-
-        auto size = response.fileinfo_size();
-        for (int i = 0; i < size; i++) {
-            curve::mds::FileInfo finfo = response.fileinfo(i);
-            ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
-        }
-
-        LIBCURVE_ERROR retcode;
-        MDSStatusCode2LibcurveError(stcode, &retcode);
-
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                << "GetSnapShot: filename = " << filename.c_str()
-                << ", owner = " << userinfo.owner
-                << ", seqnum = " << seq
-                << ", errocde = " << retcode
-                << ", error message = " << curve::mds::StatusCode_Name(stcode)
-                << ", log id = " << cntl->log_id();
-
-        return retcode;
-    };
-
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
 }
 
@@ -588,7 +561,6 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
                        << ", seq = " << seq;
             return retcode;
         }
-
         if (!response.has_pagefilesegment()) {
             LOG(WARNING) << "response has no pagesegment!";
             return LIBCURVE_ERROR::OK;
@@ -867,7 +839,7 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
         LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                << "CreateCloneFile failed, filename = " << filename.c_str()
+                << "SetCloneFileStatus failed, filename = " << filename.c_str()
                 << ", owner = " << userinfo.owner.c_str()
                 << ", filestatus = " << static_cast<int>(filestatus)
                 << ", fileID = " << fileID
@@ -1244,13 +1216,25 @@ void MDSClient::MDSStatusCode2LibcurveError(const StatusCode& status
             *errcode = LIBCURVE_ERROR::SESSION_NOT_EXIST;
             break;
         case StatusCode::kParaError:
-            *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
+            *errcode = LIBCURVE_ERROR::PARAM_ERROR;
             break;
         case StatusCode::kStorageError:
             *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
             break;
         case StatusCode::kFileLengthNotSupported:
             *errcode = LIBCURVE_ERROR::LENGTH_NOT_SUPPORT;
+            break;
+        case ::curve::mds::StatusCode::kCloneStatusNotMatch:
+            *errcode = LIBCURVE_ERROR::STATUS_NOT_MATCH;
+            break;
+        case ::curve::mds::StatusCode::kDeleteFileBeingCloned:
+            *errcode = LIBCURVE_ERROR::DELETE_BEING_CLONED;
+            break;
+        case ::curve::mds::StatusCode::kClientVersionNotMatch:
+            *errcode = LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT;
+            break;
+        case ::curve::mds::StatusCode::kSnapshotFrozen:
+            *errcode = LIBCURVE_ERROR::SNAPSTHO_FROZEN;
             break;
         default:
             *errcode = LIBCURVE_ERROR::UNKNOWN;

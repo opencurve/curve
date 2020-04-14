@@ -23,6 +23,7 @@
 #include "src/chunkserver/braft_cli_service2.h"
 #include "src/chunkserver/chunkserver_helper.h"
 #include "src/chunkserver/uri_paser.h"
+#include "src/chunkserver/raftsnapshot_attachment.h"
 #include "src/common/curve_version.h"
 
 using ::curve::fs::LocalFileSystem;
@@ -119,7 +120,10 @@ int ChunkServer::Run(int argc, char** argv) {
     InitCloneOptions(&conf, &cloneOptions);
     uint32_t sliceSize;
     LOG_IF(FATAL, !conf.GetUInt32Value("clone.slice_size", &sliceSize));
-    cloneOptions.core = std::make_shared<CloneCore>(sliceSize, copyer);
+    bool enablePaste = false;
+    LOG_IF(FATAL, !conf.GetBoolValue("clone.enable_paste", &enablePaste));
+    cloneOptions.core =
+        std::make_shared<CloneCore>(sliceSize, enablePaste, copyer);
     LOG_IF(FATAL, cloneManager_.Init(cloneOptions) != 0)
         << "Failed to initialize clone manager.";
 
@@ -209,7 +213,7 @@ int ChunkServer::Run(int argc, char** argv) {
     // 监控部分模块的metric指标
     metric->MonitorTrash(trash_.get());
     metric->MonitorChunkFilePool(chunkfilePool.get());
-    metric->UpdateConfigMetric(&conf);
+    metric->ExposeConfigMetric(&conf);
 
     // ========================添加rpc服务===============================//
     // TODO(lixiaocui): rpc中各接口添加上延迟metric
@@ -265,6 +269,9 @@ int ChunkServer::Run(int argc, char** argv) {
     CHECK(0 == ret) << "Fail to add RaftStatService";
 
     // braft file service
+    scoped_refptr<braft::SnapshotAttachment> attach(
+        new RaftSnapshotAttachment(fs));
+    braft::file_service_set_snapshot_attachment(&attach);
     ret = server.AddService(braft::file_service(),
         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add FileService";
@@ -554,16 +561,16 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
         << "chunkFilePoolMetaPath must be set when run chunkserver in command.";
     }
 
+    if (GetCommandLineFlagInfo("mdsListenAddr", &info) && !info.is_default) {
+        conf->SetStringValue("mds.listen.addr", FLAGS_mdsListenAddr);
+    }
+
     // 设置日志存放文件夹
     if (FLAGS_log_dir.empty()) {
         if (!conf->GetStringValue("chunkserver.common.logDir", &FLAGS_log_dir)) {  // NOLINT
             LOG(WARNING) << "no chunkserver.common.logDir in " << FLAGS_conf
                          << ", will log to /tmp";
         }
-    }
-
-    if (GetCommandLineFlagInfo("mdsListenAddr", &info) && !info.is_default) {
-        conf->SetStringValue("mds.listen.addr", FLAGS_mdsListenAddr);
     }
 
     if (GetCommandLineFlagInfo("enableChunkfilepool", &info) &&

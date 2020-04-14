@@ -8,6 +8,7 @@
 #include "src/mds/nameserver2/curvefs.h"
 #include <glog/logging.h>
 #include <memory>
+#include <chrono>
 #include "src/common/string_util.h"
 #include "src/common/encode.h"
 #include "src/common/timeutility.h"
@@ -15,6 +16,8 @@
 #include "src/mds/common/mds_define.h"
 
 using curve::common::TimeUtility;
+using ::std::chrono::steady_clock;
+using ::std::chrono::microseconds;
 
 namespace curve {
 namespace mds {
@@ -69,6 +72,7 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
                 std::shared_ptr<AllocStatistic> allocStatistic,
                 const struct CurveFSOption &curveFSOptions,
                 std::shared_ptr<MdsRepo> repo) {
+    startTime_ = steady_clock::now();
     storage_ = storage;
     InodeIDGenerator_ = InodeIDGenerator;
     chunkSegAllocator_ = chunkSegAllocator;
@@ -363,6 +367,36 @@ StatusCode CurveFS::isDirectoryEmpty(const FileInfo &fileInfo, bool *result) {
     return StatusCode::kOK;
 }
 
+StatusCode CurveFS::IsSnapshotAllowed(const std::string &fileName) {
+    // 启动时间是否足够client至少进行一次refresh session
+    steady_clock::duration timePass = steady_clock::now() - startTime_;
+    int32_t expiredUs = fileRecordManager_->GetFileRecordExpiredTimeUs();
+    if (timePass < 10 * microseconds(expiredUs)) {
+        LOG(INFO) << "snapshot is not allowed now, fileName = " << fileName
+                  << ", time pass = " << timePass.count();
+        return StatusCode::kSnapshotFrozen;
+    }
+
+    // client version的版本符合条件
+    std::string clientVersion;
+    bool exist = fileRecordManager_->GetFileClientVersion(
+        fileName, &clientVersion);
+    if (!exist) {
+        return StatusCode::kOK;
+    }
+
+    if (clientVersion < kLeastSupportSnapshotClientVersion) {
+        LOG(INFO) << "current client version is not support snapshot"
+                  << ", fileName = " << fileName
+                  << ", clientVersion = " << clientVersion
+                  << ", leastSupportSnapshotClientVersion = "
+                  << kLeastSupportSnapshotClientVersion;
+        return StatusCode::kClientVersionNotMatch;
+    }
+
+    return StatusCode::kOK;
+}
+
 StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
                             bool deleteForce) {
     std::string lastEntry;
@@ -419,7 +453,7 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
                   << ", filename = " << filename;
         return StatusCode::kOK;
     } else if (fileInfo.filetype() == FileType::INODE_PAGEFILE) {
-        StatusCode ret = CheckFileCanChange(filename);
+        StatusCode ret = CheckFileCanChange(filename, fileInfo);
         if (ret != StatusCode::kOK) {
             LOG(ERROR) << "delete file, can not delete file"
                        << ", filename = " << filename
@@ -458,13 +492,6 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
             if (fileInfo.filestatus() == FileStatus::kFileDeleting) {
                 LOG(INFO) << "file is underdeleting, filename = " << filename;
                 return StatusCode::kFileUnderDeleting;
-            }
-
-            if (fileInfo.filestatus() != FileStatus::kFileCreated) {
-                LOG(ERROR) << "delete file, file status error, filename = "
-                           << filename
-                           << ", status = " << fileInfo.filestatus();
-                return StatusCode:: KInternalError;
             }
 
             // 查看任务是否已经在
@@ -534,7 +561,8 @@ StatusCode CurveFS::ReadDir(const std::string & dirname,
     return StatusCode::kOK;
 }
 
-StatusCode CurveFS::CheckFileCanChange(const std::string &fileName) {
+StatusCode CurveFS::CheckFileCanChange(const std::string &fileName,
+    const FileInfo &fileInfo) {
     // 检查文件是否有快照
     std::vector<FileInfo> snapshotFileInfos;
     auto ret = ListSnapShotFile(fileName, &snapshotFileInfos);
@@ -548,6 +576,12 @@ StatusCode CurveFS::CheckFileCanChange(const std::string &fileName) {
         LOG(WARNING) << "CheckFileCanChange, file is under snapshot, "
                      << "cannot delete or rename, fileName = " << fileName;
         return StatusCode::kFileUnderSnapShot;
+    }
+
+    if (fileInfo.filestatus() == FileStatus::kFileBeingCloned) {
+        LOG(ERROR) << "CheckFileCanChange, file is being Cloned, "
+                   << "cannot delete or rename, fileName = " << fileName;
+        return StatusCode::kDeleteFileBeingCloned;
     }
 
     return StatusCode::kOK;
@@ -594,7 +628,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
     }
 
     // 判断oldFileName能否rename，文件是否正在被使用，是否正在快照中，是否正在克隆
-    ret = CheckFileCanChange(oldFileName);
+    ret = CheckFileCanChange(oldFileName, oldFileInfo);
     if (ret != StatusCode::kOK) {
         LOG(ERROR) << "rename fail, can not rename file"
                 << ", oldFileName = " << oldFileName
@@ -634,7 +668,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
         }
 
         // 判断newFileName能否rename，是否正在被使用，是否正在快照中，是否正在克隆
-        StatusCode ret = CheckFileCanChange(newFileName);
+        StatusCode ret = CheckFileCanChange(newFileName, existNewFileInfo);
         if (ret != StatusCode::kOK) {
             LOG(ERROR) << "cannot rename file"
                         << ", newFileName = " << newFileName
@@ -754,7 +788,7 @@ StatusCode CurveFS::ChangeOwner(const std::string &filename,
     if (fileInfo.filetype() == FileType::INODE_PAGEFILE) {
         // 判断filename能否change owner
         // 是否正在被使用，是否正在快照中，是否正在克隆
-        ret = CheckFileCanChange(filename);
+        ret = CheckFileCanChange(filename, fileInfo);
         if (ret != StatusCode::kOK) {
             LOG(ERROR) << "cannot changeOwner file"
                         << ", filename = " << filename
@@ -879,6 +913,12 @@ StatusCode CurveFS::CreateSnapShotFile(const std::string &fileName,
         return StatusCode::kNotSupported;
     }
 
+    // 兼容性设计，当client版本不存在或小于0.0.6时，不允许打快照
+    ret = IsSnapshotAllowed(fileName);
+    if (ret != kOK) {
+        return ret;
+    }
+
     // check  if snapshot exist
     std::vector<FileInfo> snapShotFiles;
     if (storage_->ListSnapshotFile(fileInfo.id(),
@@ -888,7 +928,9 @@ StatusCode CurveFS::CreateSnapShotFile(const std::string &fileName,
     }
     if (snapShotFiles.size() != 0) {
         LOG(INFO) << fileName << " exist snapshotfile, num = "
-            << snapShotFiles.size();
+            << snapShotFiles.size()
+            << ", snapShotFiles[0].seqNum = " << snapShotFiles[0].seqnum();
+        *snapshotFileInfo = snapShotFiles[0];
         return StatusCode::kFileUnderSnapShot;
     }
 
@@ -1212,6 +1254,7 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
                             const uint64_t date,
                             const std::string &signature,
                             const std::string &clientIP,
+                            const std::string &clientVersion,
                             FileInfo  *fileInfo) {
     // 检查文件是否存在
     StatusCode ret;
@@ -1239,7 +1282,7 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
     }
 
     // 更新文件记录
-    fileRecordManager_->UpdateFileRecord(fileName);
+    fileRecordManager_->UpdateFileRecord(fileName, clientVersion);
 
     return StatusCode::kOK;
 }
@@ -1370,9 +1413,23 @@ StatusCode CurveFS::SetCloneFileStatus(const std::string &filename,
                 }
                 break;
             case kFileCloned:
-                if (fileStatus == kFileCloned) {
+                if (fileStatus == kFileCloned ||
+                    fileStatus == kFileBeingCloned) {
                     // noop
                 } else {
+                    return kCloneStatusNotMatch;
+                }
+                break;
+            case kFileCreated:
+                if (fileStatus != kFileCreated &&
+                    fileStatus != kFileBeingCloned) {
+                    return kCloneStatusNotMatch;
+                }
+                break;
+            case kFileBeingCloned:
+                if (fileStatus != kFileBeingCloned &&
+                    fileStatus != kFileCreated &&
+                    fileStatus != kFileCloned) {
                     return kCloneStatusNotMatch;
                 }
                 break;

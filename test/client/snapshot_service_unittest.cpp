@@ -42,6 +42,11 @@ using curve::client::MetaCache;
 using curve::client::IOManager4Chunk;
 using curve::client::LogicalPoolCopysetIDInfo;
 
+class SnapCloneClosureTest : public curve::client::SnapCloneClosure {
+ public:
+    void Run() {}
+};
+
 TEST(SnapInstance, SnapShotTest) {
     ClientConfigOption_t opt;
     opt.metaServerOpt.mdsMaxRetryMS = 1000;
@@ -129,8 +134,6 @@ TEST(SnapInstance, SnapShotTest) {
                                                         &seq));
 
     // set return kFileUnderSnapShot
-    ::curve::mds::CheckSnapShotStatusResponse* checkresp4 =
-        new ::curve::mds::CheckSnapShotStatusResponse();
     response.set_statuscode(::curve::mds::StatusCode::kFileUnderSnapShot);
     FakeReturn* checkfakeret3
      = new FakeReturn(nullptr, static_cast<void*>(&response));
@@ -138,6 +141,17 @@ TEST(SnapInstance, SnapShotTest) {
     ASSERT_EQ(-LIBCURVE_ERROR::UNDER_SNAPSHOT, cl.CreateSnapShot(filename,
                                                         userinfo,
                                                         &seq));
+
+    // set return kClientVersionNotMatch
+    ::curve::mds::CreateSnapShotResponse versionNotMatchResponse;
+    versionNotMatchResponse.set_statuscode(
+        curve::mds::StatusCode::kClientVersionNotMatch);
+    std::unique_ptr<FakeReturn> versionNotMatchFakeRetrun(
+        new FakeReturn(nullptr, static_cast<void*>(&versionNotMatchResponse)));
+
+    curvefsservice.SetCreateSnapShot(versionNotMatchFakeRetrun.get());
+    ASSERT_EQ(-LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT,
+              cl.CreateSnapShot(filename, userinfo, &seq));
 
     // test renamefile
     ::curve::mds::RenameFileResponse renameresp;
@@ -279,51 +293,96 @@ TEST(SnapInstance, SnapShotTest) {
 
     // test list snapshot
     // normal delete test
-    ::curve::mds::ListSnapShotFileInfoResponse listresponse;
-    listresponse.add_fileinfo();
-    listresponse.mutable_fileinfo(0)->set_filename(filename);
-    listresponse.mutable_fileinfo(0)->set_id(1);
-    listresponse.mutable_fileinfo(0)->set_parentid(0);
-    listresponse.mutable_fileinfo(0)->set_filetype(curve::mds::FileType::INODE_PAGEFILE);    // NOLINT
-    listresponse.mutable_fileinfo(0)->set_chunksize(4 * 1024 * 1024);
-    listresponse.mutable_fileinfo(0)->set_length(4 * 1024 * 1024 * 1024ul);
-    listresponse.mutable_fileinfo(0)->set_ctime(12345678);
-    listresponse.mutable_fileinfo(0)->set_seqnum(0);
-    listresponse.mutable_fileinfo(0)->set_segmentsize(1 * 1024 * 1024 * 1024ul);
+    ::curve::mds::ListSnapShotFileInfoResponse* listresponse
+    = new ::curve::mds::ListSnapShotFileInfoResponse;
+    listresponse->add_fileinfo();
+    listresponse->mutable_fileinfo(0)->set_filename(filename);
+    listresponse->mutable_fileinfo(0)->set_id(1);
+    listresponse->mutable_fileinfo(0)->set_parentid(0);
+    listresponse->mutable_fileinfo(0)->set_filetype(curve::mds::FileType::INODE_PAGEFILE);    // NOLINT
+    listresponse->mutable_fileinfo(0)->set_chunksize(4 * 1024 * 1024);
+    listresponse->mutable_fileinfo(0)->set_length(4 * 1024 * 1024 * 1024ul);
+    listresponse->mutable_fileinfo(0)->set_ctime(12345678);
+    listresponse->mutable_fileinfo(0)->set_seqnum(seq);
+    listresponse->mutable_fileinfo(0)->set_segmentsize(1 * 1024 * 1024 * 1024ul);   //  NOLINT
 
-    listresponse.set_statuscode(::curve::mds::StatusCode::kOK);
+    listresponse->set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* listfakeret
-     = new FakeReturn(nullptr, static_cast<void*>(&listresponse));
+     = new FakeReturn(nullptr, static_cast<void*>(listresponse));
     curve::client::FInfo_t sinfo;
     curvefsservice.SetListSnapShot(listfakeret);
     ASSERT_EQ(LIBCURVE_ERROR::OK, cl.GetSnapShot(filename,
                                                 emptyuserinfo,
                                                 seq, &sinfo));
-
     ASSERT_EQ(sinfo.id, 1);
     ASSERT_EQ(sinfo.filename, filename.c_str());
     ASSERT_EQ(sinfo.parentid, 0);
     ASSERT_EQ(sinfo.chunksize, 4 * 1024 * 1024);
     ASSERT_EQ(sinfo.ctime, 12345678);
-    ASSERT_EQ(sinfo.seqnum, 0);
+    ASSERT_EQ(sinfo.seqnum, seq);
     ASSERT_EQ(sinfo.segmentsize, 1 * 1024 * 1024 * 1024ul);
     ASSERT_EQ(sinfo.filetype, curve::mds::FileType::INODE_PAGEFILE);
 
     std::vector<uint64_t> seqvec;
-    std::map<uint64_t, curve::client::FInfo_t> fivec;
+    std::map<uint64_t, curve::client::FInfo_t> fimap;
+    seqvec.push_back(1);
     seqvec.push_back(seq);
-    ASSERT_EQ(LIBCURVE_ERROR::OK,
-                cl.ListSnapShot(filename, emptyuserinfo, &seqvec, &fivec));
-/*
-    ASSERT_EQ(fivec[0]->id, 1);
-    ASSERT_EQ(fivec[0]->filename, filename.c_str());
-    ASSERT_EQ(fivec[0]->parentid, 0);
-    ASSERT_EQ(fivec[0]->chunksize, 4 * 1024 * 1024);
-    ASSERT_EQ(fivec[0]->ctime, 12345678);
-    ASSERT_EQ(fivec[0]->seqnum, 0);
-    ASSERT_EQ(fivec[0]->segmentsize, 1 * 1024 * 1024 * 1024ul);
-    ASSERT_EQ(fivec[0]->filetype, curve::mds::FileType::INODE_PAGEFILE);
-*/
+    ASSERT_EQ(-LIBCURVE_ERROR::NOTEXIST,
+                cl.ListSnapShot(filename, emptyuserinfo, &seqvec, &fimap));
+
+    listresponse->add_fileinfo();
+    listresponse->mutable_fileinfo(1)->set_filename(filename);
+    listresponse->mutable_fileinfo(1)->set_id(2);
+    listresponse->mutable_fileinfo(1)->set_parentid(1);
+    listresponse->mutable_fileinfo(1)->set_filetype(curve::mds::FileType::INODE_PAGEFILE);    // NOLINT
+    listresponse->mutable_fileinfo(1)->set_chunksize(4 * 1024 * 1024);
+    listresponse->mutable_fileinfo(1)->set_length(4 * 1024 * 1024 * 1024ul);
+    listresponse->mutable_fileinfo(1)->set_ctime(12345678);
+    listresponse->mutable_fileinfo(1)->set_seqnum(1);
+    listresponse->mutable_fileinfo(1)->set_segmentsize(1 * 1024 * 1024 * 1024ul);   //  NOLINT
+
+    ASSERT_EQ(0, cl.ListSnapShot(filename, emptyuserinfo, &seqvec, &fimap));
+    ASSERT_EQ(fimap[seq].id, 1);
+    ASSERT_EQ(fimap[seq].filename, filename.c_str());
+    ASSERT_EQ(fimap[seq].parentid, 0);
+    ASSERT_EQ(fimap[seq].chunksize, 4 * 1024 * 1024);
+    ASSERT_EQ(fimap[seq].ctime, 12345678);
+    ASSERT_EQ(fimap[seq].seqnum, seq);
+    ASSERT_EQ(fimap[seq].segmentsize, 1 * 1024 * 1024 * 1024ul);
+    ASSERT_EQ(fimap[seq].filetype, curve::mds::FileType::INODE_PAGEFILE);
+
+    ASSERT_EQ(fimap[1].id, 2);
+    ASSERT_EQ(fimap[1].filename, filename.c_str());
+    ASSERT_EQ(fimap[1].parentid, 1);
+    ASSERT_EQ(fimap[1].chunksize, 4 * 1024 * 1024);
+    ASSERT_EQ(fimap[1].ctime, 12345678);
+    ASSERT_EQ(fimap[1].seqnum, 1);
+    ASSERT_EQ(fimap[1].segmentsize, 1 * 1024 * 1024 * 1024ul);
+    ASSERT_EQ(fimap[1].filetype, curve::mds::FileType::INODE_PAGEFILE);
+
+    // GetSnapShot when return not equal seq num
+    ::curve::mds::ListSnapShotFileInfoResponse* listresponse_seq
+    = new ::curve::mds::ListSnapShotFileInfoResponse;
+    listresponse_seq->add_fileinfo();
+    listresponse_seq->mutable_fileinfo(0)->set_filename(filename);
+    listresponse_seq->mutable_fileinfo(0)->set_id(1);
+    listresponse_seq->mutable_fileinfo(0)->set_parentid(0);
+    listresponse_seq->mutable_fileinfo(0)->set_filetype(curve::mds::FileType::INODE_PAGEFILE);    // NOLINT
+    listresponse_seq->mutable_fileinfo(0)->set_chunksize(4 * 1024 * 1024);
+    listresponse_seq->mutable_fileinfo(0)->set_length(4 * 1024 * 1024 * 1024ul);
+    listresponse_seq->mutable_fileinfo(0)->set_ctime(12345678);
+    listresponse_seq->mutable_fileinfo(0)->set_seqnum(seq+1);
+    listresponse_seq->mutable_fileinfo(0)->set_segmentsize(1 * 1024 * 1024 * 1024ul);   //  NOLINT
+
+    listresponse_seq->set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* listfakeret_seq
+     = new FakeReturn(nullptr, static_cast<void*>(listresponse_seq));
+    curve::client::FInfo_t sinfo_seq;
+    curvefsservice.SetListSnapShot(listfakeret_seq);
+    ASSERT_EQ(-LIBCURVE_ERROR::NOTEXIST, cl.GetSnapShot(filename,
+                                                emptyuserinfo,
+                                                seq, &sinfo_seq));
+
     // rpc fail
     curvefsservice.CleanRetryTimes();
     ::curve::mds::ListSnapShotFileInfoResponse* listresponse1 =
@@ -338,7 +397,7 @@ TEST(SnapInstance, SnapShotTest) {
 
     curvefsservice.CleanRetryTimes();
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
-            cl.ListSnapShot(filename, userinfo, &seqvec, &fivec));
+            cl.ListSnapShot(filename, userinfo, &seqvec, &fimap));
 
     // rpc fail
     ::curve::mds::CheckSnapShotStatusResponse* checkresponse1 =
@@ -442,6 +501,8 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.logLevel = 0;
 
+    SnapCloneClosureTest scc, scc2;
+
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
     auto max_split_size_kb = 1024 * 64;
@@ -462,8 +523,12 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
     char* buf = new char[len];
     memset(buf, 0, len);
     LOG(ERROR) << "start read snap chunk";
-    ASSERT_EQ(132 * 1024, ioctxmana->ReadSnapChunk(ChunkIDInfo(cid, 2, 3), 0, 0,
-                                                   len, buf));
+    ioctxmana->ReadSnapChunk(ChunkIDInfo(cid, 2, 3), 0, 0,
+                                         len, buf, &scc);
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ASSERT_EQ(132 * 1024, scc.GetRetCode());
+
     LOG(ERROR) << "read snap chunk success!";
     ASSERT_EQ(buf[0], 'a');
     ASSERT_EQ(buf[max_split_size_kb - 1], 'a');
@@ -473,8 +538,8 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
     ASSERT_EQ(buf[len - 1], 'c');
 
     mocksch->EnableScheduleFailed();
-    ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
-    ioctxmana->ReadSnapChunk(ChunkIDInfo(cid, 2, 3), 0, 0, len, buf));
+    ASSERT_EQ(0,
+    ioctxmana->ReadSnapChunk(ChunkIDInfo(cid, 2, 3), 0, 0, len, buf, &scc2));
 
     cl.UnInit();
 }
@@ -573,6 +638,8 @@ TEST(SnapInstance, RecoverChunkTest) {
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.logLevel = 0;
 
+    SnapCloneClosureTest scc, scc2;
+
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
     MockRequestScheduler* mocksch = new MockRequestScheduler;
@@ -587,12 +654,14 @@ TEST(SnapInstance, RecoverChunkTest) {
 
     IOManager4Chunk* ioctxmana = cl.GetIOManager4Chunk();
     ioctxmana->SetRequestScheduler(mocksch);
-    ASSERT_EQ(0, ioctxmana->RecoverChunk(ChunkIDInfo(cid, 2, 3),
-                                            1, 4*1024*1024));
+    ioctxmana->RecoverChunk(ChunkIDInfo(cid, 2, 3), 1, 4*1024*1024, &scc);
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, scc.GetRetCode());
 
     mocksch->EnableScheduleFailed();
-    ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
-    ioctxmana->RecoverChunk(ChunkIDInfo(cid, 2, 3), 1, 4*1024*1024));
+    ASSERT_EQ(0,
+    ioctxmana->RecoverChunk(ChunkIDInfo(cid, 2, 3), 1, 4*1024*1024, &scc2));
 
     cl.UnInit();
 }
@@ -611,6 +680,8 @@ TEST(SnapInstance, CreateCloneChunkTest) {
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.logLevel = 0;
 
+    SnapCloneClosureTest scc, scc2;
+
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
     MockRequestScheduler* mocksch = new MockRequestScheduler;
@@ -625,16 +696,16 @@ TEST(SnapInstance, CreateCloneChunkTest) {
 
     IOManager4Chunk* ioctxmana = cl.GetIOManager4Chunk();
     ioctxmana->SetRequestScheduler(mocksch);
-    ASSERT_EQ(0, ioctxmana->CreateCloneChunk("destination",
-                                            ChunkIDInfo(cid, 2, 3),
-                                            1,
-                                            2,
-                                            1024));
+    ioctxmana->CreateCloneChunk("destination", ChunkIDInfo(cid, 2, 3),
+                                1, 2, 1024, &scc);
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, scc.GetRetCode());
 
     mocksch->EnableScheduleFailed();
-    ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
+    ASSERT_EQ(0,
     ioctxmana->CreateCloneChunk("destination", ChunkIDInfo(cid, 2, 3),
-                                1, 2, 1024));
+                                1, 2, 1024, &scc2));
 
     cl.UnInit();
 }

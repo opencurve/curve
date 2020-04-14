@@ -17,7 +17,7 @@ cc_library(
             "//src/mds/nameserver2/helper:helper",
             "//src/mds/nameserver2/idgenerator:idgenerator",
             "//src/common:curve_auth",
-            "//src/mds/kvstorageclient:kvstorage_client",
+            "//src/kvstorageclient:kvstorage_client",
     ],
 )
 

@@ -38,12 +38,14 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
      * @param: userinfo为user信息
      * @param: fileservicopt fileclient的配置选项
      * @param: clientMetric为client端要统计的metric信息
+     * @param: readonly是否以只读方式打开
      * @return: 成功返回true、否则返回false
      */
     bool Initialize(const std::string& filename,
                     MDSClient* mdsclient,
                     const UserInfo_t& userinfo,
-                    FileServiceOption_t fileservicopt);
+                    FileServiceOption_t fileservicopt,
+                    bool readonly = false);
     /**
      * 打开文件
      * @param: filename为文件名
@@ -134,6 +136,9 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
 
     // IOManager4File用于管理所有向chunkserver端发送的IO
     IOManager4File          iomanager4file_;
+
+    // 是否为只读方式
+    bool                   readonly_;
 };
 }   // namespace client
 }   // namespace curve

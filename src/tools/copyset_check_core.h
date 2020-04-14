@@ -26,6 +26,7 @@
 #include "src/tools/mds_client.h"
 #include "src/tools/chunkserver_client.h"
 #include "src/tools/metric_name.h"
+#include "src/tools/curve_tool_define.h"
 
 using curve::mds::topology::PoolIdType;
 using curve::mds::topology::CopySetIdType;
@@ -40,19 +41,6 @@ namespace tool {
 
 using CopySet = std::pair<PoolIdType, CopySetIdType>;
 using CopySetInfosType = std::vector<std::map<std::string, std::string>>;
-
-const char kState[] = "state";
-const char kStateLeader[] = "LEADER";
-const char kStateFollower[] = "FOLLOWER";
-const char kStateTransferring[] = "TRANSFERRING";
-const char kStateCandidate[] = "CANDIDATE";
-const char kLeader[] = "leader";
-const char kGroupId[] = "groupId";
-const char kPeers[] = "peers";
-const char kReplicator[] = "replicator";
-const char kStorage[] = "storage";
-const char kSnapshot[] = "snapshot";
-const char kNextIndex[] = "next_index";
 
 enum class CheckResult {
     // copyset健康

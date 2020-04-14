@@ -483,6 +483,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                       response.status());
+            // ASSERT_EQ(response.redirect(), leader.to_string());
         }
         // read without applied index
         {
@@ -502,6 +503,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                       response.status());
+            // ASSERT_EQ(response.redirect(), leader.to_string());
         }
         // read with applied index
         {
@@ -522,6 +524,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                       response.status());
+            // ASSERT_EQ(response.redirect(), leader.to_string());
         }
         // get chunk info
         {
@@ -536,6 +539,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                       response.status());
+            // ASSERT_EQ(response.redirect(), leader.to_string());
         }
     }
 }

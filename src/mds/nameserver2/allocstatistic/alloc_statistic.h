@@ -12,7 +12,7 @@
 #include <map>
 #include <set>
 #include <string>
-#include "src/mds/kvstorageclient/etcd_client.h"
+#include "src/kvstorageclient/etcd_client.h"
 #include "src/mds/common/mds_define.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
@@ -26,6 +26,9 @@ using ::curve::common::InterruptibleSleeper;
 
 namespace curve {
 namespace mds {
+
+using ::curve::kvstorage::EtcdClientImp;
+
 /**
  * AllocStatistic 用于统计当前已分配出去的segment量
  * 思路

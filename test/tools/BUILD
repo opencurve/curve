@@ -26,9 +26,13 @@ cc_binary(
     deps = [
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
-	"//external:gflags",
+        "//external:gflags",
         "//src/tools:curve_tool_lib",
-	"//test/client/fake:fake_lib",
+        "//test/client/fake:fake_lib",
+        "//test/fs:fs_mock",
+        "//test/common:common_mock",
+        "//test/snapshotcloneserver:mock_repo",
+        "//test/client:client_mock",
     ],
     copts = COPTS
 )

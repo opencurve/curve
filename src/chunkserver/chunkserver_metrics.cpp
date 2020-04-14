@@ -83,75 +83,131 @@ void IOMetric::OnResponse(size_t size, int64_t latUs, bool hasError) {
     }
 }
 
-int CSCopysetMetric::Init(const LogicPoolID& logicPoolId,
-                          const CopysetID& copysetId) {
-    logicPoolId_ = logicPoolId;
-    copysetId_ = copysetId;
-    std::string readPrefix = Prefix() + "_read";
-    std::string writePrefix = Prefix() + "_write";
+
+int CSIOMetric::Init(const std::string& prefix) {
+    // 初始化io统计项metric
+    std::string readPrefix = prefix + "_read";
+    std::string writePrefix = prefix + "_write";
+    std::string recoverPrefix = prefix + "_recover";
+    std::string pastePrefix = prefix + "_paste";
+    std::string downloadPrefix = prefix + "_download";
     readMetric_ = std::make_shared<IOMetric>();
     writeMetric_ = std::make_shared<IOMetric>();
+    recoverMetric_ = std::make_shared<IOMetric>();
+    pasteMetric_ = std::make_shared<IOMetric>();
+    downloadMetric_ = std::make_shared<IOMetric>();
     if (readMetric_->Init(readPrefix) != 0) {
-        LOG(ERROR) << "Init Copyset ("
-                   << logicPoolId << "," << copysetId << ")"
-                   << " metric failed : init read metric failed."
+        LOG(ERROR) << "Init read metric failed."
                    << " prefix = " << readPrefix;
         return -1;
     }
     if (writeMetric_->Init(writePrefix) != 0) {
-        LOG(ERROR) << "Init Copyset ("
-                   << logicPoolId << "," << copysetId << ")"
-                   << " metric failed : init write metric failed."
+        LOG(ERROR) << "Init write metric failed."
                    << " prefix = " << writePrefix;
+        return -1;
+    }
+    if (recoverMetric_->Init(recoverPrefix) != 0) {
+        LOG(ERROR) << "Init recover metric failed."
+                   << " prefix = " << recoverPrefix;
+        return -1;
+    }
+    if (pasteMetric_->Init(pastePrefix) != 0) {
+        LOG(ERROR) << "Init paste metric failed."
+                   << " prefix = " << pastePrefix;
+        return -1;
+    }
+    if (downloadMetric_->Init(downloadPrefix) != 0) {
+        LOG(ERROR) << "Init download metric failed."
+                   << " prefix = " << downloadPrefix;
         return -1;
     }
     return 0;
 }
 
-void CSCopysetMetric::OnRequestWrite() {
-    if (writeMetric_ != nullptr) {
-        writeMetric_->OnRequest();
+void CSIOMetric::Fini() {
+    readMetric_ = nullptr;
+    writeMetric_ = nullptr;
+    recoverMetric_ = nullptr;
+    pasteMetric_ = nullptr;
+    downloadMetric_ = nullptr;
+}
+
+void CSIOMetric::OnRequest(CSIOMetricType type) {
+    IOMetricPtr ioMetric = GetIOMetric(type);
+    if (ioMetric != nullptr) {
+        ioMetric->OnRequest();
     }
 }
 
-void CSCopysetMetric::OnRequestRead() {
-    if (readMetric_ != nullptr) {
-        readMetric_->OnRequest();
+void CSIOMetric::OnResponse(CSIOMetricType type,
+                              size_t size,
+                              int64_t latUs,
+                              bool hasError) {
+    IOMetricPtr ioMetric = GetIOMetric(type);
+    if (ioMetric != nullptr) {
+        ioMetric->OnResponse(size, latUs, hasError);
     }
 }
 
-void CSCopysetMetric::OnResponseWrite(size_t size,
-                                      int64_t latUs,
-                                      bool hasError) {
-    if (writeMetric_ != nullptr) {
-        writeMetric_->OnResponse(size, latUs, hasError);
+IOMetricPtr CSIOMetric::GetIOMetric(CSIOMetricType type) {
+    IOMetricPtr result = nullptr;
+    switch (type) {
+        case CSIOMetricType::READ_CHUNK:
+            result = readMetric_;
+            break;
+        case CSIOMetricType::WRITE_CHUNK:
+            result = writeMetric_;
+            break;
+        case CSIOMetricType::RECOVER_CHUNK:
+            result = recoverMetric_;
+            break;
+        case CSIOMetricType::PASTE_CHUNK:
+            result = pasteMetric_;
+            break;
+        case CSIOMetricType::DOWNLOAD:
+            result = downloadMetric_;
+            break;
+        default:
+            result = nullptr;
+            break;
     }
+    return result;
 }
 
-void CSCopysetMetric::OnResponseRead(size_t size,
-                                       int64_t latUs,
-                                       bool hasError) {
-    if (readMetric_ != nullptr) {
-        readMetric_->OnResponse(size, latUs, hasError);
+int CSCopysetMetric::Init(const LogicPoolID& logicPoolId,
+                          const CopysetID& copysetId) {
+    logicPoolId_ = logicPoolId;
+    copysetId_ = copysetId;
+    int ret = ioMetrics_.Init(Prefix());
+    if (ret < 0) {
+        LOG(ERROR) << "Init Copyset ("
+                   << logicPoolId << "," << copysetId << ")"
+                   << " metric failed.";
+        return -1;
     }
+    return 0;
 }
 
 void CSCopysetMetric::MonitorDataStore(CSDataStore* datastore) {
-    std::string chunkCountPrefix = Prefix() + "_datastore_chunk_count";
-    std::string snapshotCountPrefix = Prefix() + "_datastore_snapshot_count";
+    std::string chunkCountPrefix = Prefix() + "_chunk_count";
+    std::string snapshotCountPrefix = Prefix() + "snapshot_count";
+    std::string cloneChunkCountPrefix = Prefix() + "_clonechunk_count";
     chunkCount_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
-        chunkCountPrefix, getDatastoreChunkCountFunc, datastore);
+        chunkCountPrefix, GetDatastoreChunkCountFunc, datastore);
     snapshotCount_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
-        snapshotCountPrefix, getDatastoreSnapshotCountFunc, datastore);
+        snapshotCountPrefix, GetDatastoreSnapshotCountFunc, datastore);
+    cloneChunkCount_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
+        cloneChunkCountPrefix, GetDatastoreCloneChunkCountFunc, datastore);
 }
 
 ChunkServerMetric::ChunkServerMetric()
     : hasInited_(false)
-    , readMetric_(nullptr)
-    , writeMetric_(nullptr)
     , leaderCount_(nullptr)
     , chunkLeft_(nullptr)
-    , chunkTrashed_(nullptr) {}
+    , chunkTrashed_(nullptr)
+    , chunkCount_(nullptr)
+    , snapshotCount_(nullptr)
+    , cloneChunkCount_(nullptr) {}
 
 ChunkServerMetric* ChunkServerMetric::self_ = nullptr;
 
@@ -178,23 +234,27 @@ int ChunkServerMetric::Init(const ChunkServerMetricOptions& option) {
     }
 
     // 初始化io统计项metric
-    std::string readPrefix = Prefix() + "_read";
-    std::string writePrefix = Prefix() + "_write";
-    readMetric_ = std::make_shared<IOMetric>();
-    writeMetric_ = std::make_shared<IOMetric>();
-    if (readMetric_->Init(readPrefix) != 0) {
-        LOG(ERROR) << "Init read metric failed."
-                   << " prefix = " << readPrefix;
-        return -1;
-    }
-    if (writeMetric_->Init(writePrefix) != 0) {
-        LOG(ERROR) << "Init write metric failed."
-                   << " prefix = " << writePrefix;
+    int ret = ioMetrics_.Init(Prefix());
+    if (ret < 0) {
+        LOG(ERROR) << "Init chunkserver metric failed.";
         return -1;
     }
 
+    // 初始化资源统计
     std::string leaderCountPrefix = Prefix() + "_leader_count";
     leaderCount_ = std::make_shared<bvar::Adder<uint32_t>>(leaderCountPrefix);
+
+    std::string chunkCountPrefix = Prefix() + "_chunk_count";
+    chunkCount_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
+        chunkCountPrefix, GetTotalChunkCountFunc, this);
+
+    std::string snapshotCountPrefix = Prefix() + "_snapshot_count";
+    snapshotCount_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
+        snapshotCountPrefix, GetTotalSnapshotCountFunc, this);
+
+    std::string cloneChunkCountPrefix = Prefix() + "_clonechunk_count";
+    cloneChunkCount_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
+        cloneChunkCountPrefix, GetTotalCloneChunkCountFunc, this);
 
     hasInited_ = true;
     LOG(INFO) << "Init chunkserver metric success.";
@@ -203,12 +263,14 @@ int ChunkServerMetric::Init(const ChunkServerMetricOptions& option) {
 
 int ChunkServerMetric::Fini() {
     // 释放资源，从而将暴露的metric从全局的map中移除
-    readMetric_ = nullptr;
-    writeMetric_ = nullptr;
+    ioMetrics_.Fini();
     leaderCount_ = nullptr;
     chunkLeft_ = nullptr;
     chunkTrashed_ = nullptr;
-    copysetMetricMap_.clear();
+    chunkCount_ = nullptr;
+    snapshotCount_ = nullptr;
+    cloneChunkCount_ = nullptr;
+    copysetMetricMap_.Clear();
     hasInited_ = false;
     return 0;
 }
@@ -220,9 +282,8 @@ int ChunkServerMetric::CreateCopysetMetric(const LogicPoolID& logicPoolId,
     }
 
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
-    WriteLockGuard lockGuard(rwLock_);
-    auto it = copysetMetricMap_.find(groupId);
-    if (it != copysetMetricMap_.end()) {
+    bool exist = copysetMetricMap_.Exist(groupId);
+    if (exist) {
         LOG(ERROR) << "Create Copyset ("
                    << logicPoolId << "," << copysetId << ")"
                    << " metric failed : is already exists.";
@@ -237,7 +298,8 @@ int ChunkServerMetric::CreateCopysetMetric(const LogicPoolID& logicPoolId,
                    << " metric failed : init failed.";
         return -1;
     }
-    copysetMetricMap_[groupId] = copysetMetric;
+
+    copysetMetricMap_.Add(groupId, copysetMetric);
     return 0;
 }
 
@@ -248,90 +310,48 @@ CopysetMetricPtr ChunkServerMetric::GetCopysetMetric(
     }
 
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
-    ReadLockGuard lockGuard(rwLock_);
-    auto it = copysetMetricMap_.find(groupId);
-    if (it == copysetMetricMap_.end()) {
-        return nullptr;
-    }
-    return it->second;
+    return copysetMetricMap_.Get(groupId);
 }
 
 int ChunkServerMetric::RemoveCopysetMetric(const LogicPoolID& logicPoolId,
                                            const CopysetID& copysetId) {
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
-    WriteLockGuard lockGuard(rwLock_);
-    auto it = copysetMetricMap_.find(groupId);
-    if (it != copysetMetricMap_.end()) {
-        copysetMetricMap_.erase(it);
-    }
+    // 这里先保存copyset metric，等remove后再去释放
+    // 防止在读写锁里面去操作metric，导致死锁
+    auto metric = copysetMetricMap_.Get(groupId);
+    copysetMetricMap_.Remove(groupId);
     return 0;
 }
 
-void ChunkServerMetric::OnRequestWrite(const LogicPoolID& logicPoolId,
-                                       const CopysetID& copysetId) {
+void ChunkServerMetric::OnRequest(const LogicPoolID& logicPoolId,
+                                  const CopysetID& copysetId,
+                                  CSIOMetricType type) {
     if (!option_.collectMetric) {
         return;
     }
 
     CopysetMetricPtr cpMetric = GetCopysetMetric(logicPoolId, copysetId);
     if (cpMetric != nullptr) {
-        cpMetric->OnRequestWrite();
+        cpMetric->OnRequest(type);
     }
-    if (writeMetric_ != nullptr) {
-        writeMetric_->OnRequest();
-    }
+    ioMetrics_.OnRequest(type);
 }
 
-void ChunkServerMetric::OnRequestRead(const LogicPoolID& logicPoolId,
-                                      const CopysetID& copysetId) {
+void ChunkServerMetric::OnResponse(const LogicPoolID& logicPoolId,
+                                   const CopysetID& copysetId,
+                                   CSIOMetricType type,
+                                   size_t size,
+                                   int64_t latUs,
+                                   bool hasError) {
     if (!option_.collectMetric) {
         return;
     }
 
     CopysetMetricPtr cpMetric = GetCopysetMetric(logicPoolId, copysetId);
     if (cpMetric != nullptr) {
-        cpMetric->OnRequestRead();
+        cpMetric->OnResponse(type, size, latUs, hasError);
     }
-    if (readMetric_ != nullptr) {
-        readMetric_->OnRequest();
-    }
-}
-
-
-void ChunkServerMetric::OnResponseWrite(const LogicPoolID& logicPoolId,
-                                        const CopysetID& copysetId,
-                                        size_t size,
-                                        int64_t latUs,
-                                        bool hasError) {
-    if (!option_.collectMetric) {
-        return;
-    }
-
-    CopysetMetricPtr cpMetric = GetCopysetMetric(logicPoolId, copysetId);
-    if (cpMetric != nullptr) {
-        cpMetric->OnResponseWrite(size, latUs, hasError);
-    }
-    if (writeMetric_ != nullptr) {
-        writeMetric_->OnResponse(size, latUs, hasError);
-    }
-}
-
-void ChunkServerMetric::OnResponseRead(const LogicPoolID& logicPoolId,
-                                        const CopysetID& copysetId,
-                                        size_t size,
-                                        int64_t latUs,
-                                        bool hasError) {
-    if (!option_.collectMetric) {
-        return;
-    }
-
-    CopysetMetricPtr cpMetric = GetCopysetMetric(logicPoolId, copysetId);
-    if (cpMetric != nullptr) {
-        cpMetric->OnResponseRead(size, latUs, hasError);
-    }
-    if (readMetric_ != nullptr) {
-        readMetric_->OnResponse(size, latUs, hasError);
-    }
+    ioMetrics_.OnResponse(type, size, latUs, hasError);
 }
 
 void ChunkServerMetric::MonitorChunkFilePool(ChunkfilePool* chunkfilePool) {
@@ -341,7 +361,7 @@ void ChunkServerMetric::MonitorChunkFilePool(ChunkfilePool* chunkfilePool) {
 
     std::string chunkLeftPrefix = Prefix() + "_chunkfilepool_left";
     chunkLeft_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
-        chunkLeftPrefix, getChunkLeftFunc, chunkfilePool);
+        chunkLeftPrefix, GetChunkLeftFunc, chunkfilePool);
 }
 
 void ChunkServerMetric::MonitorTrash(Trash* trash) {
@@ -351,7 +371,7 @@ void ChunkServerMetric::MonitorTrash(Trash* trash) {
 
     std::string chunkTrashedPrefix = Prefix() + "_chunk_trashed";
     chunkTrashed_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
-        chunkTrashedPrefix, getChunkTrashedFunc, trash);
+        chunkTrashedPrefix, GetChunkTrashedFunc, trash);
 }
 
 void ChunkServerMetric::IncreaseLeaderCount() {
@@ -370,14 +390,13 @@ void ChunkServerMetric::DecreaseLeaderCount() {
     *leaderCount_ << -1;
 }
 
-void ChunkServerMetric::UpdateConfigMetric(common::Configuration* conf) {
+void ChunkServerMetric::ExposeConfigMetric(common::Configuration* conf) {
     if (!option_.collectMetric) {
         return;
     }
 
     std::string exposeName = Prefix() + "_config";
     conf->ExposeMetric(exposeName);
-    conf->UpdateMetric();
 }
 
 }  // namespace chunkserver

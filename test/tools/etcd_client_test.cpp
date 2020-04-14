@@ -16,7 +16,6 @@ class EtcdClientTest : public ::testing::Test {
  protected:
     void SetUp() {
         system("rm -fr test1.etcd");
-        system("rm -fr test2.etcd");
         etcdPid = ::fork();
         if (0 > etcdPid) {
             ASSERT_TRUE(false);
