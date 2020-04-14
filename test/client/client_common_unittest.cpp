@@ -40,7 +40,7 @@ TEST(ClientCommon, ChunkServerAddrTest) {
     std::string ipaddr2("127.0.0.q:9000:0");
     ASSERT_EQ(-1, caddr2.Parse(ipaddr2));
     std::string ipaddr3("127.0.0.1:9000:a");
-    ASSERT_EQ(-1, caddr2.Parse(ipaddr3));
+    ASSERT_EQ(0, caddr2.Parse(ipaddr3));
     std::string ipaddr4("827.0.0.1:9000:0");
     ASSERT_EQ(-1, caddr2.Parse(ipaddr4));
     std::string ipaddr5("127.0.0.1001:9000:0");
