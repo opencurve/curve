@@ -264,9 +264,11 @@ class ClientClosure : public Closure {
     static BackoffParam backoffParam_;
 
  protected:
+    int UpdateLeaderWithRedirectInfo(const std::string& leaderInfo);
+
     void ProcessUnstableState();
 
-    void RefreshLeader() const;
+    void RefreshLeader();
 
     static FailureRequestOption_t       failReqOpt_;
 
@@ -285,6 +287,9 @@ class ClientClosure : public Closure {
     FileMetric*                         fileMetric_;
     RequestContext*                     reqCtx_;
     ChunkIDInfo                         chunkIdInfo_;
+
+    // 发送重试请求前是否睡眠
+    bool retryDirectly_{false};
 
     // response 状态码
     int                                 status_;
