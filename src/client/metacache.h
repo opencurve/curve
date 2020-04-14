@@ -114,9 +114,8 @@ class MetaCache {
      * @param: cpid是copysetid
      * @param: csinfo是要更新的copyset info
      */
-    virtual void UpdateCopysetInfo(LogicPoolID logicPoolId,
-                                CopysetID copysetId,
-                                CopysetInfo_t csinfo);
+    virtual void UpdateCopysetInfo(LogicPoolID logicPoolId, CopysetID copysetId,
+                                   const CopysetInfo& csinfo);
     /**
      * 通过chunk index更新chunkid信息
      * @param: index为待更新的chunk index
@@ -246,6 +245,14 @@ class MetaCache {
     //                             CopysetID cpid);
 
  private:
+    /**
+     * @brief 从mds更新copyset复制组信息
+     * @param logicPoolId 逻辑池id
+     * @param copysetId 复制组id
+     * @return 0 成功 / -1 失败
+     */
+    int UpdateCopysetInfoFromMDS(LogicPoolID logicPoolId, CopysetID copysetId);
+
     /**
      * 更新copyset的leader信息
      * @param[in]: logicPoolId逻辑池信息

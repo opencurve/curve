@@ -1100,6 +1100,10 @@ LIBCURVE_ERROR MDSClient::GetChunkServerID(const ChunkServerAddr& csAddr,
 
     auto task = RPCTaskDefine {
         curve::mds::topology::GetChunkServerInfoResponse response;
+
+        mdsClientMetric_.getChunkServerId.qps.count << 1;
+        LatencyGuard guard(&mdsClientMetric_.getChunkServerId.latency);
+
         std::vector<std::string> strs;
         curve::common::SplitString(csAddr.ToString(), ":", &strs);
         const std::string& ip = strs[0];
@@ -1134,6 +1138,9 @@ LIBCURVE_ERROR MDSClient::ListChunkServerInServer(
     std::vector<ChunkServerID>* csIds) {
     auto task = RPCTaskDefine {
         curve::mds::topology::ListChunkServerResponse response;
+
+        mdsClientMetric_.listChunkserverInServer.qps.count << 1;
+        LatencyGuard guard(&mdsClientMetric_.listChunkserverInServer.latency);
 
         mdsClientBase_.ListChunkServerInServer(
             serverIp, &response, cntl, channel);

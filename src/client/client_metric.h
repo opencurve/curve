@@ -55,7 +55,7 @@ typedef struct PerSecondMetric {
 } PerSecondMetric_t;
 
 // 接口统计信息metric信息统计
-typedef struct InterfaceMtetric {
+typedef struct InterfaceMetric {
     // 接口统计信息调用qps
     PerSecondMetric_t       qps;
     // error request persecond
@@ -69,7 +69,7 @@ typedef struct InterfaceMtetric {
     // 调用latency
     bvar::LatencyRecorder   latency;
 
-    InterfaceMtetric(const std::string& prefix,
+    InterfaceMetric(const std::string& prefix,
                       const std::string& name) :
                       qps(prefix, name + "_qps")
                     , eps(prefix, name + "_eps")
@@ -78,7 +78,7 @@ typedef struct InterfaceMtetric {
                     , timeoutQps(prefix, name + "_timeout_qps")
                     , latency(prefix, name + "_lat")
     {}
-} InterfaceMtetric_t;
+} InterfaceMetric_t;
 
 // 文件级别metric信息统计
 typedef struct FileMetric {
@@ -92,13 +92,13 @@ typedef struct FileMetric {
     bvar::LatencyRecorder                   sizeRecorder;
 
     // libcurve最底层read rpc接口统计信息metric统计
-    InterfaceMtetric_t                      readRPC;
+    InterfaceMetric_t                      readRPC;
     // libcurve最底层write rpc接口统计信息metric统计
-    InterfaceMtetric_t                      writeRPC;
+    InterfaceMetric_t                      writeRPC;
     // 用户读请求qps、eps、rps
-    InterfaceMtetric_t                      userRead;
+    InterfaceMetric_t                      userRead;
     // 用户写请求qps、eps、rps
-    InterfaceMtetric_t                      userWrite;
+    InterfaceMetric_t                      userWrite;
     // get leader失败重试qps
     PerSecondMetric_t                       getLeaderRetryQPS;
 
@@ -128,53 +128,58 @@ typedef struct MDSClientMetric {
     bvar::PassiveStatus<std::string> metaserverAddress;
 
     // openfile接口统计信息
-    InterfaceMtetric_t      openFile;
+    InterfaceMetric_t      openFile;
     // createFile接口统计信息
-    InterfaceMtetric_t      createFile;
+    InterfaceMetric_t      createFile;
     // closeFile接口统计信息
-    InterfaceMtetric_t      closeFile;
+    InterfaceMetric_t      closeFile;
     // getFileInfo接口统计信息
-    InterfaceMtetric_t      getFile;
+    InterfaceMetric_t      getFile;
     // RefreshSession接口统计信息
-    InterfaceMtetric_t      refreshSession;
+    InterfaceMetric_t      refreshSession;
     // GetServerList接口统计信息
-    InterfaceMtetric_t      getServerList;
+    InterfaceMetric_t      getServerList;
     // GetOrAllocateSegment接口统计信息
-    InterfaceMtetric_t      getOrAllocateSegment;
+    InterfaceMetric_t      getOrAllocateSegment;
     // RenameFile接口统计信息
-    InterfaceMtetric_t      renameFile;
+    InterfaceMetric_t      renameFile;
     // Extend接口统计信息
-    InterfaceMtetric_t      extendFile;
+    InterfaceMetric_t      extendFile;
     // DeleteFile接口统计信息
-    InterfaceMtetric_t      deleteFile;
+    InterfaceMetric_t      deleteFile;
     // changeowner接口统计信息
-    InterfaceMtetric_t      changeOwner;
+    InterfaceMetric_t      changeOwner;
     // listdir接口统计信息
-    InterfaceMtetric_t      listDir;
+    InterfaceMetric_t      listDir;
     // register接口统计信息
-    InterfaceMtetric_t      registerClient;
+    InterfaceMetric_t      registerClient;
+    // GetChunkServerID接口统计
+    InterfaceMetric getChunkServerId;
+    // ListChunkServerInServer接口统计
+    InterfaceMetric listChunkserverInServer;
 
     // 切换mds server总次数
     bvar::Adder<uint64_t>   mdsServerChangeTimes;
 
-    MDSClientMetric() :
-                        metaserverAddress(prefix, "current_metaserver_addr",
-                            GetStringValue, &metaserverAddr)
-                      , mdsServerChangeTimes(prefix, "mds_server_change_times")
-                      , openFile(prefix, "openFile")
-                      , createFile(prefix, "createFile")
-                      , closeFile(prefix, "closeFile")
-                      , getFile(prefix, "getFileInfo")
-                      , refreshSession(prefix, "refreshSession")
-                      , getServerList(prefix, "getServerList")
-                      , getOrAllocateSegment(prefix, "getOrAllocateSegment")
-                      , renameFile(prefix, "renameFile")
-                      , extendFile(prefix, "extendFile")
-                      , deleteFile(prefix, "deleteFile")
-                      , changeOwner(prefix, "changeOwner")
-                      , listDir(prefix, "listDir")
-                      , registerClient(prefix, "registerClient")
-    {}
+    MDSClientMetric()
+        : metaserverAddress(prefix, "current_metaserver_addr", GetStringValue,
+                            &metaserverAddr),
+          mdsServerChangeTimes(prefix, "mds_server_change_times"),
+          openFile(prefix, "openFile"),
+          createFile(prefix, "createFile"),
+          closeFile(prefix, "closeFile"),
+          getFile(prefix, "getFileInfo"),
+          refreshSession(prefix, "refreshSession"),
+          getServerList(prefix, "getServerList"),
+          getOrAllocateSegment(prefix, "getOrAllocateSegment"),
+          renameFile(prefix, "renameFile"),
+          extendFile(prefix, "extendFile"),
+          deleteFile(prefix, "deleteFile"),
+          changeOwner(prefix, "changeOwner"),
+          listDir(prefix, "listDir"),
+          registerClient(prefix, "registerClient"),
+          getChunkServerId(prefix, "GetChunkServerId"),
+          listChunkserverInServer(prefix, "ListChunkServerInServer") {}
 } MDSClientMetric_t;
 
 typedef struct LatencyGuard {
