@@ -44,8 +44,16 @@ class CloneClosure : public Closure {
         taskId_ = taskId;
     }
 
+    TaskIdType GetTaskId() {
+        return taskId_;
+    }
+
     void SetErrCode(int retCode) {
         retCode_ = retCode;
+    }
+
+    int GetErrCode() {
+        return retCode_;
     }
 
     void Run() {
