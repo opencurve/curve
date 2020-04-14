@@ -170,6 +170,17 @@ local function prepare_callbacks(skey, opts, upstream)
 end
 
 
+local function copy_servers(servers)
+    local _servers = {}
+
+    for _, srv in ipairs(servers) do
+        table.insert(_servers, {host = srv.host, port = srv.port})
+    end
+
+    return _servers
+end
+
+
 --[[
 parameters:
     - (string) skey
@@ -205,7 +216,8 @@ function _M.try_cluster(skey, request_cb, opts, upstream)
             break
         end
 
-        for srv, err in itersrvs(cls.servers, peer_cb) do
+        local loop_servers = copy_servers(cls.servers)
+        for srv, err in itersrvs(loop_servers, peer_cb) do
             -- exec request callback by server
             local start_time = now()
             local args = opts.args or { srv }
