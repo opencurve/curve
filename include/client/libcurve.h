@@ -118,6 +118,7 @@ typedef struct FileStatInfo {
     uint64_t        ctime;
     char            filename[NAME_MAX_SIZE];
     char            owner[NAME_MAX_SIZE];
+    int             fileStatus;
 } FileStatInfo_t;
 
 // 存储用户信息
