@@ -3007,21 +3007,20 @@ SWIG_Python_NonDynamicSetAttr(PyObject *obj, PyObject *name, PyObject *value) {
 #define SWIGTYPE_p_AioContext swig_types[0]
 #define SWIGTYPE_p_DirInfos swig_types[1]
 #define SWIGTYPE_p_FileInfo swig_types[2]
-#define SWIGTYPE_p_FileInfo2 swig_types[3]
-#define SWIGTYPE_p_UserInfo swig_types[4]
-#define SWIGTYPE_p_char swig_types[5]
-#define SWIGTYPE_p_f_p_AioContext__void swig_types[6]
-#define SWIGTYPE_p_int swig_types[7]
-#define SWIGTYPE_p_long_long swig_types[8]
-#define SWIGTYPE_p_short swig_types[9]
-#define SWIGTYPE_p_signed_char swig_types[10]
-#define SWIGTYPE_p_unsigned_char swig_types[11]
-#define SWIGTYPE_p_unsigned_int swig_types[12]
-#define SWIGTYPE_p_unsigned_long_long swig_types[13]
-#define SWIGTYPE_p_unsigned_short swig_types[14]
-#define SWIGTYPE_p_void swig_types[15]
-static swig_type_info *swig_types[17];
-static swig_module_info swig_module = {swig_types, 16, 0, 0, 0, 0};
+#define SWIGTYPE_p_UserInfo swig_types[3]
+#define SWIGTYPE_p_char swig_types[4]
+#define SWIGTYPE_p_f_p_AioContext__void swig_types[5]
+#define SWIGTYPE_p_int swig_types[6]
+#define SWIGTYPE_p_long_long swig_types[7]
+#define SWIGTYPE_p_short swig_types[8]
+#define SWIGTYPE_p_signed_char swig_types[9]
+#define SWIGTYPE_p_unsigned_char swig_types[10]
+#define SWIGTYPE_p_unsigned_int swig_types[11]
+#define SWIGTYPE_p_unsigned_long_long swig_types[12]
+#define SWIGTYPE_p_unsigned_short swig_types[13]
+#define SWIGTYPE_p_void swig_types[14]
+static swig_type_info *swig_types[16];
+static swig_module_info swig_module = {swig_types, 15, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -4555,477 +4554,6 @@ SWIGINTERN PyObject *FileInfo_t_swigregister(PyObject *SWIGUNUSEDPARM(self), PyO
   return SWIG_Py_Void();
 }
 
-SWIGINTERN PyObject *_wrap_FileInfo2_t_id_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  uint64_t arg2 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  unsigned long long val2 ;
-  int ecode2 = 0 ;
-  PyObject * obj0 = 0 ;
-  PyObject * obj1 = 0 ;
-  
-  if (!PyArg_ParseTuple(args,(char *)"OO:FileInfo2_t_id_set",&obj0,&obj1)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo2_t_id_set" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  ecode2 = SWIG_AsVal_unsigned_SS_long_SS_long(obj1, &val2);
-  if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "FileInfo2_t_id_set" "', argument " "2"" of type '" "uint64_t""'");
-  } 
-  arg2 = static_cast< uint64_t >(val2);
-  if (arg1) (arg1)->id = arg2;
-  resultobj = SWIG_Py_Void();
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_FileInfo2_t_id_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  PyObject * obj0 = 0 ;
-  uint64_t result;
-  
-  if (!PyArg_ParseTuple(args,(char *)"O:FileInfo2_t_id_get",&obj0)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo2_t_id_get" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  result = (uint64_t) ((arg1)->id);
-  resultobj = SWIG_From_unsigned_SS_long_SS_long(static_cast< unsigned long long >(result));
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_FileInfo2_t_parentid_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  uint64_t arg2 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  unsigned long long val2 ;
-  int ecode2 = 0 ;
-  PyObject * obj0 = 0 ;
-  PyObject * obj1 = 0 ;
-  
-  if (!PyArg_ParseTuple(args,(char *)"OO:FileInfo2_t_parentid_set",&obj0,&obj1)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo2_t_parentid_set" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  ecode2 = SWIG_AsVal_unsigned_SS_long_SS_long(obj1, &val2);
-  if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "FileInfo2_t_parentid_set" "', argument " "2"" of type '" "uint64_t""'");
-  } 
-  arg2 = static_cast< uint64_t >(val2);
-  if (arg1) (arg1)->parentid = arg2;
-  resultobj = SWIG_Py_Void();
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_FileInfo2_t_parentid_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  PyObject * obj0 = 0 ;
-  uint64_t result;
-  
-  if (!PyArg_ParseTuple(args,(char *)"O:FileInfo2_t_parentid_get",&obj0)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo2_t_parentid_get" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  result = (uint64_t) ((arg1)->parentid);
-  resultobj = SWIG_From_unsigned_SS_long_SS_long(static_cast< unsigned long long >(result));
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_FileInfo2_t_filetype_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  int arg2 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  int val2 ;
-  int ecode2 = 0 ;
-  PyObject * obj0 = 0 ;
-  PyObject * obj1 = 0 ;
-  
-  if (!PyArg_ParseTuple(args,(char *)"OO:FileInfo2_t_filetype_set",&obj0,&obj1)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo2_t_filetype_set" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  ecode2 = SWIG_AsVal_int(obj1, &val2);
-  if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "FileInfo2_t_filetype_set" "', argument " "2"" of type '" "int""'");
-  } 
-  arg2 = static_cast< int >(val2);
-  if (arg1) (arg1)->filetype = arg2;
-  resultobj = SWIG_Py_Void();
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_FileInfo2_t_filetype_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  PyObject * obj0 = 0 ;
-  int result;
-  
-  if (!PyArg_ParseTuple(args,(char *)"O:FileInfo2_t_filetype_get",&obj0)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo2_t_filetype_get" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  result = (int) ((arg1)->filetype);
-  resultobj = SWIG_From_int(static_cast< int >(result));
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_FileInfo2_t_length_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  uint64_t arg2 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  unsigned long long val2 ;
-  int ecode2 = 0 ;
-  PyObject * obj0 = 0 ;
-  PyObject * obj1 = 0 ;
-  
-  if (!PyArg_ParseTuple(args,(char *)"OO:FileInfo2_t_length_set",&obj0,&obj1)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo2_t_length_set" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  ecode2 = SWIG_AsVal_unsigned_SS_long_SS_long(obj1, &val2);
-  if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "FileInfo2_t_length_set" "', argument " "2"" of type '" "uint64_t""'");
-  } 
-  arg2 = static_cast< uint64_t >(val2);
-  if (arg1) (arg1)->length = arg2;
-  resultobj = SWIG_Py_Void();
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_FileInfo2_t_length_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  PyObject * obj0 = 0 ;
-  uint64_t result;
-  
-  if (!PyArg_ParseTuple(args,(char *)"O:FileInfo2_t_length_get",&obj0)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo2_t_length_get" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  result = (uint64_t) ((arg1)->length);
-  resultobj = SWIG_From_unsigned_SS_long_SS_long(static_cast< unsigned long long >(result));
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_FileInfo2_t_ctime_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  uint64_t arg2 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  unsigned long long val2 ;
-  int ecode2 = 0 ;
-  PyObject * obj0 = 0 ;
-  PyObject * obj1 = 0 ;
-  
-  if (!PyArg_ParseTuple(args,(char *)"OO:FileInfo2_t_ctime_set",&obj0,&obj1)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo2_t_ctime_set" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  ecode2 = SWIG_AsVal_unsigned_SS_long_SS_long(obj1, &val2);
-  if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "FileInfo2_t_ctime_set" "', argument " "2"" of type '" "uint64_t""'");
-  } 
-  arg2 = static_cast< uint64_t >(val2);
-  if (arg1) (arg1)->ctime = arg2;
-  resultobj = SWIG_Py_Void();
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_FileInfo2_t_ctime_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  PyObject * obj0 = 0 ;
-  uint64_t result;
-  
-  if (!PyArg_ParseTuple(args,(char *)"O:FileInfo2_t_ctime_get",&obj0)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo2_t_ctime_get" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  result = (uint64_t) ((arg1)->ctime);
-  resultobj = SWIG_From_unsigned_SS_long_SS_long(static_cast< unsigned long long >(result));
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_FileInfo2_t_filename_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  char *arg2 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  char temp2[256] ;
-  int res2 ;
-  PyObject * obj0 = 0 ;
-  PyObject * obj1 = 0 ;
-  
-  if (!PyArg_ParseTuple(args,(char *)"OO:FileInfo2_t_filename_set",&obj0,&obj1)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo2_t_filename_set" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  res2 = SWIG_AsCharArray(obj1, temp2, 256);
-  if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "FileInfo2_t_filename_set" "', argument " "2"" of type '" "char [256]""'");
-  }
-  arg2 = reinterpret_cast< char * >(temp2);
-  if (arg2) memcpy(arg1->filename,arg2,256*sizeof(char));
-  else memset(arg1->filename,0,256*sizeof(char));
-  resultobj = SWIG_Py_Void();
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_FileInfo2_t_filename_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  PyObject * obj0 = 0 ;
-  char *result = 0 ;
-  
-  if (!PyArg_ParseTuple(args,(char *)"O:FileInfo2_t_filename_get",&obj0)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo2_t_filename_get" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  result = (char *)(char *) ((arg1)->filename);
-  {
-    size_t size = SWIG_strnlen(result, 256);
-    
-    
-    
-    resultobj = SWIG_FromCharPtrAndSize(result, size);
-  }
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_FileInfo2_t_owner_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  char *arg2 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  char temp2[256] ;
-  int res2 ;
-  PyObject * obj0 = 0 ;
-  PyObject * obj1 = 0 ;
-  
-  if (!PyArg_ParseTuple(args,(char *)"OO:FileInfo2_t_owner_set",&obj0,&obj1)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo2_t_owner_set" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  res2 = SWIG_AsCharArray(obj1, temp2, 256);
-  if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "FileInfo2_t_owner_set" "', argument " "2"" of type '" "char [256]""'");
-  }
-  arg2 = reinterpret_cast< char * >(temp2);
-  if (arg2) memcpy(arg1->owner,arg2,256*sizeof(char));
-  else memset(arg1->owner,0,256*sizeof(char));
-  resultobj = SWIG_Py_Void();
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_FileInfo2_t_owner_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  PyObject * obj0 = 0 ;
-  char *result = 0 ;
-  
-  if (!PyArg_ParseTuple(args,(char *)"O:FileInfo2_t_owner_get",&obj0)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo2_t_owner_get" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  result = (char *)(char *) ((arg1)->owner);
-  {
-    size_t size = SWIG_strnlen(result, 256);
-    
-    
-    
-    resultobj = SWIG_FromCharPtrAndSize(result, size);
-  }
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_FileInfo2_t_fileStatus_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  int arg2 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  int val2 ;
-  int ecode2 = 0 ;
-  PyObject * obj0 = 0 ;
-  PyObject * obj1 = 0 ;
-  
-  if (!PyArg_ParseTuple(args,(char *)"OO:FileInfo2_t_fileStatus_set",&obj0,&obj1)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo2_t_fileStatus_set" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  ecode2 = SWIG_AsVal_int(obj1, &val2);
-  if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "FileInfo2_t_fileStatus_set" "', argument " "2"" of type '" "int""'");
-  } 
-  arg2 = static_cast< int >(val2);
-  if (arg1) (arg1)->fileStatus = arg2;
-  resultobj = SWIG_Py_Void();
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_FileInfo2_t_fileStatus_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  PyObject * obj0 = 0 ;
-  int result;
-  
-  if (!PyArg_ParseTuple(args,(char *)"O:FileInfo2_t_fileStatus_get",&obj0)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo2_t_fileStatus_get" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  result = (int) ((arg1)->fileStatus);
-  resultobj = SWIG_From_int(static_cast< int >(result));
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_new_FileInfo2_t(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *result = 0 ;
-  
-  if (!PyArg_ParseTuple(args,(char *)":new_FileInfo2_t")) SWIG_fail;
-  result = (FileInfo2 *)new FileInfo2();
-  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_FileInfo2, SWIG_POINTER_NEW |  0 );
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_delete_FileInfo2_t(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  FileInfo2 *arg1 = (FileInfo2 *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  PyObject * obj0 = 0 ;
-  
-  if (!PyArg_ParseTuple(args,(char *)"O:delete_FileInfo2_t",&obj0)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo2, SWIG_POINTER_DISOWN |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_FileInfo2_t" "', argument " "1"" of type '" "FileInfo2 *""'"); 
-  }
-  arg1 = reinterpret_cast< FileInfo2 * >(argp1);
-  delete arg1;
-  resultobj = SWIG_Py_Void();
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *FileInfo2_t_swigregister(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *obj;
-  if (!PyArg_ParseTuple(args,(char*)"O:swigregister", &obj)) return NULL;
-  SWIG_TypeNewClientData(SWIGTYPE_p_FileInfo2, SWIG_NewClientData(obj));
-  return SWIG_Py_Void();
-}
-
 SWIGINTERN PyObject *_wrap_DirInfos_t_dirpath_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   DirInfos *arg1 = (DirInfos *) 0 ;
@@ -5663,49 +5191,6 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_StatFile2(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  char *arg1 = (char *) 0 ;
-  UserInfo_t *arg2 = (UserInfo_t *) 0 ;
-  FileInfo2_t *arg3 = (FileInfo2_t *) 0 ;
-  int res1 ;
-  char *buf1 = 0 ;
-  int alloc1 = 0 ;
-  void *argp2 = 0 ;
-  int res2 = 0 ;
-  void *argp3 = 0 ;
-  int res3 = 0 ;
-  PyObject * obj0 = 0 ;
-  PyObject * obj1 = 0 ;
-  PyObject * obj2 = 0 ;
-  int result;
-  
-  if (!PyArg_ParseTuple(args,(char *)"OOO:StatFile2",&obj0,&obj1,&obj2)) SWIG_fail;
-  res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "StatFile2" "', argument " "1"" of type '" "char const *""'");
-  }
-  arg1 = reinterpret_cast< char * >(buf1);
-  res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_UserInfo, 0 |  0 );
-  if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "StatFile2" "', argument " "2"" of type '" "UserInfo_t *""'"); 
-  }
-  arg2 = reinterpret_cast< UserInfo_t * >(argp2);
-  res3 = SWIG_ConvertPtr(obj2, &argp3,SWIGTYPE_p_FileInfo2, 0 |  0 );
-  if (!SWIG_IsOK(res3)) {
-    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "StatFile2" "', argument " "3"" of type '" "FileInfo2_t *""'"); 
-  }
-  arg3 = reinterpret_cast< FileInfo2_t * >(argp3);
-  result = (int)StatFile2((char const *)arg1,arg2,arg3);
-  resultobj = SWIG_From_int(static_cast< int >(result));
-  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
-  return resultobj;
-fail:
-  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
-  return NULL;
-}
-
-
 SWIGINTERN PyObject *_wrap_ChangeOwner(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   char *arg1 = (char *) 0 ;
@@ -6208,25 +5693,6 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"new_FileInfo_t", _wrap_new_FileInfo_t, METH_VARARGS, NULL},
 	 { (char *)"delete_FileInfo_t", _wrap_delete_FileInfo_t, METH_VARARGS, NULL},
 	 { (char *)"FileInfo_t_swigregister", FileInfo_t_swigregister, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_id_set", _wrap_FileInfo2_t_id_set, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_id_get", _wrap_FileInfo2_t_id_get, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_parentid_set", _wrap_FileInfo2_t_parentid_set, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_parentid_get", _wrap_FileInfo2_t_parentid_get, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_filetype_set", _wrap_FileInfo2_t_filetype_set, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_filetype_get", _wrap_FileInfo2_t_filetype_get, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_length_set", _wrap_FileInfo2_t_length_set, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_length_get", _wrap_FileInfo2_t_length_get, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_ctime_set", _wrap_FileInfo2_t_ctime_set, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_ctime_get", _wrap_FileInfo2_t_ctime_get, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_filename_set", _wrap_FileInfo2_t_filename_set, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_filename_get", _wrap_FileInfo2_t_filename_get, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_owner_set", _wrap_FileInfo2_t_owner_set, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_owner_get", _wrap_FileInfo2_t_owner_get, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_fileStatus_set", _wrap_FileInfo2_t_fileStatus_set, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_fileStatus_get", _wrap_FileInfo2_t_fileStatus_get, METH_VARARGS, NULL},
-	 { (char *)"new_FileInfo2_t", _wrap_new_FileInfo2_t, METH_VARARGS, NULL},
-	 { (char *)"delete_FileInfo2_t", _wrap_delete_FileInfo2_t, METH_VARARGS, NULL},
-	 { (char *)"FileInfo2_t_swigregister", FileInfo2_t_swigregister, METH_VARARGS, NULL},
 	 { (char *)"DirInfos_t_dirpath_set", _wrap_DirInfos_t_dirpath_set, METH_VARARGS, NULL},
 	 { (char *)"DirInfos_t_dirpath_get", _wrap_DirInfos_t_dirpath_get, METH_VARARGS, NULL},
 	 { (char *)"DirInfos_t_userinfo_set", _wrap_DirInfos_t_userinfo_set, METH_VARARGS, NULL},
@@ -6248,7 +5714,6 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"AioWrite", _wrap_AioWrite, METH_VARARGS, NULL},
 	 { (char *)"StatFile4Qemu", _wrap_StatFile4Qemu, METH_VARARGS, NULL},
 	 { (char *)"StatFile", _wrap_StatFile, METH_VARARGS, NULL},
-	 { (char *)"StatFile2", _wrap_StatFile2, METH_VARARGS, NULL},
 	 { (char *)"ChangeOwner", _wrap_ChangeOwner, METH_VARARGS, NULL},
 	 { (char *)"Close", _wrap_Close, METH_VARARGS, NULL},
 	 { (char *)"Rename", _wrap_Rename, METH_VARARGS, NULL},
@@ -6271,7 +5736,6 @@ static PyMethodDef SwigMethods[] = {
 static swig_type_info _swigt__p_AioContext = {"_p_AioContext", "AioContext *|AioContext_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_DirInfos = {"_p_DirInfos", "DirInfos_t *|DirInfos *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_FileInfo = {"_p_FileInfo", "FileInfo *|FileInfo_t *", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_FileInfo2 = {"_p_FileInfo2", "FileInfo2_t *|FileInfo2 *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_UserInfo = {"_p_UserInfo", "UserInfo *|UserInfo_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_char = {"_p_char", "char *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_f_p_AioContext__void = {"_p_f_p_AioContext__void", "AioCallBack|void (*)(AioContext *)", 0, 0, (void*)0, 0};
@@ -6289,7 +5753,6 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_AioContext,
   &_swigt__p_DirInfos,
   &_swigt__p_FileInfo,
-  &_swigt__p_FileInfo2,
   &_swigt__p_UserInfo,
   &_swigt__p_char,
   &_swigt__p_f_p_AioContext__void,
@@ -6307,7 +5770,6 @@ static swig_type_info *swig_type_initial[] = {
 static swig_cast_info _swigc__p_AioContext[] = {  {&_swigt__p_AioContext, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_DirInfos[] = {  {&_swigt__p_DirInfos, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_FileInfo[] = {  {&_swigt__p_FileInfo, 0, 0, 0},{0, 0, 0, 0}};
-static swig_cast_info _swigc__p_FileInfo2[] = {  {&_swigt__p_FileInfo2, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_UserInfo[] = {  {&_swigt__p_UserInfo, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_char[] = {  {&_swigt__p_char, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_f_p_AioContext__void[] = {  {&_swigt__p_f_p_AioContext__void, 0, 0, 0},{0, 0, 0, 0}};
@@ -6325,7 +5787,6 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_AioContext,
   _swigc__p_DirInfos,
   _swigc__p_FileInfo,
-  _swigc__p_FileInfo2,
   _swigc__p_UserInfo,
   _swigc__p_char,
   _swigc__p_f_p_AioContext__void,
@@ -7065,12 +6526,6 @@ SWIG_init(void) {
   SWIG_Python_SetConstant(d, "CURVE_OP_READ",SWIG_From_int(static_cast< int >(0)));
   SWIG_Python_SetConstant(d, "CURVE_OP_WRITE",SWIG_From_int(static_cast< int >(1)));
   SWIG_Python_SetConstant(d, "CLUSTERIDMAX",SWIG_From_int(static_cast< int >(256)));
-  SWIG_Python_SetConstant(d, "CURVE_FILE_CREATED",SWIG_From_int(static_cast< int >(0)));
-  SWIG_Python_SetConstant(d, "CURVE_FILE_DELETING",SWIG_From_int(static_cast< int >(1)));
-  SWIG_Python_SetConstant(d, "CURVE_FILE_CLONING",SWIG_From_int(static_cast< int >(2)));
-  SWIG_Python_SetConstant(d, "CURVE_FILE_CLONEMETAINSTALLED",SWIG_From_int(static_cast< int >(3)));
-  SWIG_Python_SetConstant(d, "CURVE_FILE_CLONED",SWIG_From_int(static_cast< int >(4)));
-  SWIG_Python_SetConstant(d, "CURVE_FILE_BEINGCLONED",SWIG_From_int(static_cast< int >(5)));
 #if PY_VERSION_HEX >= 0x03000000
   return m;
 #else
