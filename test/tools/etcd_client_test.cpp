@@ -6,8 +6,8 @@
  */
 
 #include <gtest/gtest.h>
-#include <thread> //NOLINT
-#include <chrono> //NOLINT
+#include <thread>  //NOLINT
+#include <chrono>  //NOLINT
 #include <cstdlib>
 #include "src/tools/etcd_client.h"
 #include "src/common/timeutility.h"
@@ -27,6 +27,10 @@ class EtcdClientTest : public ::testing::Test {
                 std::string(" http://127.0.0.1:2366") +
                 std::string(" --listen-peer-urls http://127.0.0.1:2367") +
                 std::string(" --name test1");
+            /**
+             *  重要提示！！！！
+             *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+             */
             ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", runEtcd.c_str(), NULL));
             exit(0);
         }
@@ -35,12 +39,12 @@ class EtcdClientTest : public ::testing::Test {
         ASSERT_EQ(0, client.Init("127.0.0.1:2366"));
         bool running;
         uint64_t startTime = ::curve::common::TimeUtility::GetTimeofDaySec();
-        while (::curve::common::TimeUtility::GetTimeofDaySec() -
-                                                        startTime <= 5) {
+        while (::curve::common::TimeUtility::GetTimeofDaySec() - startTime <=
+               5) {
             std::string leaderAddr;
             std::map<std::string, bool> onlineState;
-            ASSERT_EQ(0, client.GetEtcdClusterStatus(&leaderAddr,
-                                                     &onlineState));
+            ASSERT_EQ(0,
+                      client.GetEtcdClusterStatus(&leaderAddr, &onlineState));
             if (onlineState["127.0.0.1:2366"]) {
                 running = true;
                 break;
@@ -69,8 +73,8 @@ TEST_F(EtcdClientTest, GetEtcdClusterStatus) {
 
     // 正常情况
     ASSERT_EQ(0, client.GetEtcdClusterStatus(&leaderAddr, &onlineState));
-    std::map<std::string, bool> expected = {{"127.0.0.1:2366", true},
-                                            {"127.0.0.1:2368", false}};
+    std::map<std::string, bool> expected = { { "127.0.0.1:2366", true },
+                                             { "127.0.0.1:2368", false } };
     ASSERT_EQ(expected, onlineState);
     ASSERT_EQ("127.0.0.1:2366", leaderAddr);
 
