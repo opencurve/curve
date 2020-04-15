@@ -412,6 +412,7 @@ int FileClient::StatFile(const std::string& filename,
         finfo->ctime    = fi.ctime;
         finfo->length   = fi.length;
         finfo->filetype = fi.filetype;
+        finfo->fileStatus = static_cast<int>(fi.filestatus);
     }
 
     return -ret;
