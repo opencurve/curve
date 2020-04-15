@@ -15,7 +15,7 @@
 #include "src/chunkserver/heartbeat.h"
 #include "test/chunkserver/heartbeat_test_common.h"
 
-static char* param[3][11] = {
+static char *param[3][11] = {
     {
         "heartbeat_test",
         "-chunkServerIp=127.0.0.1",
@@ -61,7 +61,7 @@ using ::curve::chunkserver::ChunkServer;
 
 butil::AtExitManager atExitManager;
 
-static int RunChunkServer(int i, int argc, char** argv) {
+static int RunChunkServer(int i, int argc, char **argv) {
     auto chunkserver = new curve::chunkserver::ChunkServer();
     if (chunkserver == nullptr) {
         LOG(ERROR) << "Failed to create chunkserver " << i;
@@ -76,7 +76,7 @@ static int RunChunkServer(int i, int argc, char** argv) {
     return 0;
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     int ret;
     pid_t pids[3];
     testing::InitGoogleTest(&argc, argv);
@@ -88,21 +88,30 @@ int main(int argc, char* argv[]) {
     if (pids[0] < 0) {
         LOG(FATAL) << "Failed to create chunkserver process 0";
     } else if (pids[0] == 0) {
-        return RunChunkServer(0, sizeof(param[0])/sizeof(char *), param[0]);
+        /*
+         * RunChunkServer内部会调用LOG(), 有较低概率因不兼容fork()而卡死
+         */
+        return RunChunkServer(0, sizeof(param[0]) / sizeof(char *), param[0]);
     }
 
     pids[1] = fork();
     if (pids[1] < 0) {
         LOG(FATAL) << "Failed to create chunkserver process 1";
     } else if (pids[1] == 0) {
-        return RunChunkServer(1, sizeof(param[1])/sizeof(char *), param[1]);
+        /*
+         * RunChunkServer内部会调用LOG(), 有较低概率因不兼容fork()而卡死
+         */
+        return RunChunkServer(1, sizeof(param[1]) / sizeof(char *), param[1]);
     }
 
     pids[2] = fork();
     if (pids[2] < 0) {
         LOG(FATAL) << "Failed to create chunkserver process 2";
     } else if (pids[2] == 0) {
-        return RunChunkServer(2, sizeof(param[2])/sizeof(char *), param[2]);
+        /*
+         * RunChunkServer内部会调用LOG(), 有较低概率因不兼容fork()而卡死
+         */
+        return RunChunkServer(2, sizeof(param[2]) / sizeof(char *), param[2]);
     }
 
     // main test process
@@ -112,6 +121,10 @@ int main(int argc, char* argv[]) {
         if (pid < 0) {
             LOG(FATAL) << "Failed to create test proccess";
         } else if (pid == 0) {
+            /*
+             * RUN_ALL_TESTS内部可能会调用LOG(),
+             * 有较低概率因不兼容fork()而卡死
+             */
             ret = RUN_ALL_TESTS();
             return ret;
         }
@@ -131,7 +144,11 @@ int main(int argc, char* argv[]) {
         if (pid < 0) {
             LOG(FATAL) << "Failed to restart chunkserver process 1";
         } else if (pid == 0) {
-            ret = RunChunkServer(1, sizeof(param[1])/sizeof(char *), param[1]);
+            /*
+             * RunChunkServer内部会调用LOG(), 有较低概率因不兼容fork()而卡死
+             */
+            ret =
+                RunChunkServer(1, sizeof(param[1]) / sizeof(char *), param[1]);
             return ret;
         }
         sleep(2);
