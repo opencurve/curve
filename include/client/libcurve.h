@@ -26,15 +26,6 @@ enum FileType {
     INODE_SNAPSHOT_PAGEFILE = 4
 };
 
-enum CurveFileStatus {
-    FILE_CREATED = 0,
-    FILE_DELETING = 1,
-    FILE_CLONING = 2,
-    FILE_CLONEMETAINSTALLED = 3,
-    FILE_CLONED = 4,
-    FILE_BEINGCLONED = 5,
-};
-
 enum LIBCURVE_ERROR {
     // 操作成功
     OK                      = 0,
@@ -128,20 +119,6 @@ typedef struct FileStatInfo {
     char            filename[NAME_MAX_SIZE];
     char            owner[NAME_MAX_SIZE];
 } FileStatInfo_t;
-
-// 与FileStatInfo的区别是多加了一个fileStatus字段
-// 为了兼容python接口
-// TODO(wuhanqing): python接口生成独立的包,不依赖curve-sdk
-typedef struct FileStatInfo2 {
-    uint64_t id;
-    uint64_t parentid;
-    FileType filetype;
-    uint64_t length;
-    uint64_t ctime;
-    char filename[NAME_MAX_SIZE];
-    char owner[NAME_MAX_SIZE];
-    CurveFileStatus fileStatus;
-} FileStatInfo2_t;
 
 // 存储用户信息
 typedef struct C_UserInfo {
@@ -338,17 +315,6 @@ int Rmdir(const char* dirpath, const C_UserInfo_t* userinfo);
 int StatFile(const char* filename,
              const C_UserInfo_t* userinfo,
              FileStatInfo* finfo);
-
-/**
- * 获取文件信息
- * @param: filename文件名
- * @param: userinfo是用户信息
- * @param: finfo2是出参，携带当前文件的基础信息, 包括文件状态
- * @return: 成功返回 0,
- *          否则可能返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
- */
-int StatFile2(const char* filename, const C_UserInfo_t* userinfo,
-              FileStatInfo2* finfo);
 
 /**
  * 获取文件信息

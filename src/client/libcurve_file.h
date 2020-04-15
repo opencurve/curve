@@ -202,16 +202,6 @@ class FileClient {
                        FileStatInfo* finfo);
 
   /**
-   * 获取文件信息
-   * @param: filename文件名
-   * @param: userinfo是用户信息
-   * @param: finfo2是出参，携带当前文件的基础信息,包括文件状态
-   * @return: 成功返回int::OK,否则返回小于0的错误码
-   */
-  virtual int StatFile2(const std::string& filename, const UserInfo_t& userinfo,
-                        FileStatInfo2* finfo);
-
-  /**
    * 变更owner
    * @param: filename待变更的文件名
    * @param: newOwner新的owner信息
