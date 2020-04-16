@@ -26,6 +26,7 @@ cc_library(
         "mock_copyset_node.h",
         "mock_node.h",
         "fake_datastore.h",
+        "mock_raftsnapshot_filesystem_adaptor.h"
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -233,6 +234,7 @@ cc_test(
         "raftsnapshot_chunkfilepool_integration.cpp",
         "raftsnapshot_filesystem_adaptor_mock_unittest.cpp",
         "raftsnapshot_filesystem_adaptor_unittest.cpp",
+        "raftsnapshot_attachment_test.cpp",
     ],
     copts = ["-std=c++14"],
     deps = DEPS

@@ -18,6 +18,7 @@
 #include "src/tools/consistency_check.h"
 #include "src/tools/curve_cli.h"
 #include "src/tools/copyset_check.h"
+#include "src/tools/snapshot_check.h"
 #include "src/tools/schedule_tool.h"
 
 namespace curve {
@@ -59,6 +60,10 @@ class CurveToolFactory {
      */
     static std::shared_ptr<CopysetCheck> GenerateCopysetCheck();
 
+    /**
+     *  @brief 获取SnapshotCheck实例
+     */
+    static std::shared_ptr<SnapshotCheck> GenerateSnapshotCheck();
     /**
      *  @brief 获取ScheduleTool实例
      */

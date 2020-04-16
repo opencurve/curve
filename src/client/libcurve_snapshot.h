@@ -107,13 +107,11 @@ class SnapshotClient {
    * @param: offset是快照内的offset
    * @param: len是要读取的长度
    * @param: buf是读取缓冲区
+   * @param: scc是异步回调
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  int ReadChunkSnapshot(ChunkIDInfo cidinfo,
-                          uint64_t seq,
-                          uint64_t offset,
-                          uint64_t len,
-                          char *buf);
+  int ReadChunkSnapshot(ChunkIDInfo cidinfo, uint64_t seq, uint64_t offset,
+                        uint64_t len, char *buf, SnapCloneClosure* scc);
   /**
    * 删除此次转储时产生的或者历史遗留的快照
    * 如果转储过程中没有产生快照，则修改chunk的correctedSn
@@ -172,14 +170,14 @@ class SnapshotClient {
    * @param:sn chunk的序列号
    * @param:chunkSize chunk的大小
    * @param:correntSn CreateCloneChunk时候用于修改chunk的correctedSn
+   * @param: scc是异步回调
    *
    * @return 错误码
    */
   int CreateCloneChunk(const std::string &location,
-                                const ChunkIDInfo &chunkidinfo,
-                                uint64_t sn,
-                                uint64_t correntSn,
-                                uint64_t chunkSize);
+                       const ChunkIDInfo &chunkidinfo, uint64_t sn,
+                       uint64_t correntSn, uint64_t chunkSize,
+                       SnapCloneClosure* scc);
 
   /**
    * @brief 实际恢复chunk数据
@@ -187,12 +185,13 @@ class SnapshotClient {
    * @param:chunkidinfo chunkidinfo
    * @param:offset 偏移
    * @param:len 长度
+   * @param: scc是异步回调
    *
    * @return 错误码
    */
   int RecoverChunk(const ChunkIDInfo &chunkidinfo,
-                              uint64_t offset,
-                              uint64_t len);
+                   uint64_t offset, uint64_t len,
+                   SnapCloneClosure* scc);
 
   /**
    * @brief 通知mds完成Clone Meta
@@ -215,6 +214,20 @@ class SnapshotClient {
    */
   int CompleteCloneFile(const std::string &destination,
                                 const UserInfo_t& userinfo);
+
+  /**
+   * 设置clone文件状态
+   * @param: filename 目标文件
+   * @param: filestatus为要设置的目标状态
+   * @param: userinfo用户信息
+   * @param: fileId为文件ID信息，非必填
+   *
+   * @return 错误码
+   */
+  int SetCloneFileStatus(const std::string &filename,
+                          const FileStatus& filestatus,
+                          const UserInfo_t& userinfo,
+                          uint64_t fileID = 0);
 
   /**
    * @brief 获取文件信息

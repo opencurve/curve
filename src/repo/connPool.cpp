@@ -108,6 +108,7 @@ sql::Connection* ConnPool::GetConnection() {
         if (conn->isClosed()||!conn->isValid()) {
             delete conn;
             conn = CreateConnection();
+            LOG(INFO) << "delete conn and create one = " << conn;
         }
         if (conn == nullptr) {
             --size_;
@@ -120,8 +121,13 @@ sql::Connection* ConnPool::GetConnection() {
             if (conn) {
                 ++size_;
             }
+            LOG(INFO) << "size < capacity_, create one, now size = " << size_
+                      << ", return conn = " << conn;
             return conn;
         } else {
+            LOG(INFO) << "size_(" << size_
+                      << ") >= capacity_(" << capacity_
+                      << "), return nullptr";
             return nullptr;
         }
     }

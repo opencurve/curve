@@ -244,13 +244,10 @@ void ClientClosure::Run() {
                 OnBackward();
             } else {
                 LOG(ERROR) << OpTypeToString(reqCtx_->optype_)
-                    << " return backward, op info: "
-                    << "<" << chunkIdInfo_.lpid_ << ", " << chunkIdInfo_.cpid_
-                    << ">, " << chunkIdInfo_.cid_
-                    << ", sn=" << reqCtx_->seq_
-                    << ", offset=" << reqCtx_->offset_
-                    << ", length=" << reqCtx_->rawlength_
+                    << " return backward, "
+                    << *reqCtx_
                     << ", status=" << status_
+                    << ", retried times = " << reqDone_->GetRetriedTimes()
                     << ", IO id = " << reqDone_->GetIOTracker()->GetID()
                     << ", request id = " << reqCtx_->id_
                     << ", remote side = " << remoteAddress_;
@@ -264,6 +261,7 @@ void ClientClosure::Run() {
                 << ", status="
                 << curve::chunkserver::CHUNK_OP_STATUS_Name(
                         static_cast<CHUNK_OP_STATUS>(status_))
+                << ", retried times = " << reqDone_->GetRetriedTimes()
                 << ", IO id = " << reqDone_->GetIOTracker()->GetID()
                 << ", request id = " << reqCtx_->id_
                 << ", remote side = " << remoteAddress_;
@@ -291,6 +289,7 @@ void ClientClosure::OnRpcFailed() {
         << cntl_->ErrorCode()
         << ", error: " << cntl_->ErrorText()
         << ", " << *reqCtx_
+        << ", retried times = " << reqDone_->GetRetriedTimes()
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
         << ", request id = " << reqCtx_->id_
         << ", remote side = " << remoteAddress_;
@@ -347,6 +346,7 @@ void ClientClosure::OnChunkNotExist() {
     LOG(WARNING) << OpTypeToString(reqCtx_->optype_)
         << " not exists, " << *reqCtx_
         << ", status=" << status_
+        << ", retried times = " << reqDone_->GetRetriedTimes()
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
         << ", request id = " << reqCtx_->id_
         << ", remote side = " << remoteAddress_;
@@ -361,6 +361,7 @@ void ClientClosure::OnRedirected() {
     LOG(WARNING) << OpTypeToString(reqCtx_->optype_) << " redirected, "
         << *reqCtx_
         << ", status = " << status_
+        << ", retried times = " << reqDone_->GetRetriedTimes()
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
         << ", request id = " << reqCtx_->id_
         << ", redirect leader is "
@@ -390,6 +391,7 @@ void ClientClosure::OnCopysetNotExist() {
     LOG(WARNING) << OpTypeToString(reqCtx_->optype_) << " copyset not exists, "
         << *reqCtx_
         << ", status = " << status_
+        << ", retried times = " << reqDone_->GetRetriedTimes()
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
         << ", request id = " << reqCtx_->id_
         << ", remote side = " << remoteAddress_;
@@ -445,15 +447,10 @@ void ClientClosure::RefreshLeader() const {
 void ClientClosure::OnBackward() {
     const auto latestSn = metaCache_->GetLatestFileSn();
     LOG(WARNING) << OpTypeToString(reqCtx_->optype_)
-        << " return BACKWARD"
-        << ", logicpool id = " << chunkIdInfo_.lpid_
-        << ", copyset id = " << chunkIdInfo_.cpid_
-        << ", chunk id = " << chunkIdInfo_.cid_
-        << ", sn = " << reqCtx_->seq_
-        << ", set sn = " << latestSn
-        << ", offset = " << reqCtx_->offset_
-        << ", length = " << reqCtx_->rawlength_
+        << " return BACKWARD, "
+        << *reqCtx_
         << ", status = " << status_
+        << ", retried times = " << reqDone_->GetRetriedTimes()
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
         << ", request id = " << reqCtx_->id_
         << ", remote side = " << remoteAddress_;
@@ -466,6 +463,7 @@ void ClientClosure::OnInvalidRequest() {
     LOG(ERROR) << OpTypeToString(reqCtx_->optype_)
         << " failed for invalid format, " << *reqCtx_
         << ", status=" << status_
+        << ", retried times = " << reqDone_->GetRetriedTimes()
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
         << ", request id = " << reqCtx_->id_
         << ", remote side = " << remoteAddress_;
@@ -558,6 +556,7 @@ void GetChunkInfoClosure::OnRedirected() {
     LOG(WARNING) << OpTypeToString(reqCtx_->optype_)
         << " redirected, " << *reqCtx_
         << ", status = " << status_
+        << ", retried times = " << reqDone_->GetRetriedTimes()
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
         << ", request id = " << reqCtx_->id_
         << ", redirect leader is "

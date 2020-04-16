@@ -7,7 +7,6 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <string.h>
 #include <string>
 #include <memory>
 
@@ -47,6 +46,7 @@ namespace chunkserver {
 
 const ChunkSizeType CHUNK_SIZE = 16 * 1024 * 1024;
 const PageSizeType PAGE_SIZE = 4096;
+const uint32_t kLocationLimit = 3000;
 const char baseDir[] = "/home/chunkserver/copyset/data";
 const char chunk1[] = "chunk_1";
 const char chunk1Path[] = "/home/chunkserver/copyset/data/chunk_1";
@@ -89,6 +89,7 @@ class CSDataStore_test : public testing::Test {
             options.baseDir = baseDir;
             options.chunkSize = CHUNK_SIZE;
             options.pageSize = PAGE_SIZE;
+            options.locationLimit = kLocationLimit;
             dataStore = std::make_shared<CSDataStore>(lfs_,
                                                       fpool_,
                                                       options);
@@ -1517,6 +1518,123 @@ TEST_F(CSDataStore_test, WriteChunkTest14) {
 }
 
 /**
+ * WriteChunkTest
+ * case:chunk存在,
+ *      sn==chunk.sn
+ *      sn>chunk.correctedSn
+ *      chunk.sn<snap.sn
+ *      chunk存在快照
+ * 预期结果:先cow到snapshot，再写chunk文件
+ */
+TEST_F(CSDataStore_test, WriteChunkTest15) {
+    // initialize
+    FakeEnv();
+    // fake read chunk1 metapage
+    FakeEncodeChunk(chunk1MetaPage, 0, 2);
+    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+        .WillRepeatedly(DoAll(
+                        SetArrayArgument<1>(chunk1MetaPage,
+                        chunk1MetaPage + PAGE_SIZE),
+                        Return(PAGE_SIZE)));
+    // fake read chunk1's snapshot1 metapage,chunk.sn<snap.sn
+    FakeEncodeSnapshot(chunk1SnapMetaPage, 3);
+    EXPECT_CALL(*lfs_, Read(2, NotNull(), 0, PAGE_SIZE))
+        .WillRepeatedly(DoAll(
+                        SetArrayArgument<1>(chunk1SnapMetaPage,
+                        chunk1SnapMetaPage + PAGE_SIZE),
+                        Return(PAGE_SIZE)));
+    EXPECT_TRUE(dataStore->Initialize());
+
+    ChunkID id = 1;
+    SequenceNum sn = 2;
+    off_t offset = 0;
+    size_t length = PAGE_SIZE;
+    char buf[length] = {0};
+    // will not create snapshot
+    // will not copy on write
+    EXPECT_CALL(*lfs_, Write(2, NotNull(), _, _))
+        .Times(0);
+    // will write data
+    EXPECT_CALL(*lfs_, Write(1, NotNull(), PAGE_SIZE + offset, length))
+        .Times(1);
+
+    EXPECT_EQ(CSErrorCode::Success,
+              dataStore->WriteChunk(id,
+                                    sn,
+                                    buf,
+                                    offset,
+                                    length,
+                                    nullptr));
+
+    EXPECT_CALL(*lfs_, Close(1))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(3))
+        .Times(1);
+}
+
+/**
+ * WriteChunkTest
+ * case:chunk存在,
+ *      sn>chunk.sn
+ *      sn>chunk.correctedSn
+ *      chunk.sn==snap.sn
+ *      chunk存在快照
+ * 预期结果:先cow到snapshot，再写chunk文件
+ */
+TEST_F(CSDataStore_test, WriteChunkTest16) {
+    // initialize
+    FakeEnv();
+    // fake read chunk1 metapage
+    FakeEncodeChunk(chunk1MetaPage, 0, 2);
+    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+        .WillRepeatedly(DoAll(
+                        SetArrayArgument<1>(chunk1MetaPage,
+                        chunk1MetaPage + PAGE_SIZE),
+                        Return(PAGE_SIZE)));
+    // fake read chunk1's snapshot1 metapage
+    FakeEncodeSnapshot(chunk1SnapMetaPage, 3);
+    EXPECT_CALL(*lfs_, Read(2, NotNull(), 0, PAGE_SIZE))
+        .WillRepeatedly(DoAll(
+                        SetArrayArgument<1>(chunk1SnapMetaPage,
+                        chunk1SnapMetaPage + PAGE_SIZE),
+                        Return(PAGE_SIZE)));
+    EXPECT_TRUE(dataStore->Initialize());
+
+    ChunkID id = 1;
+    SequenceNum sn = 3;
+    off_t offset = 0;
+    size_t length = PAGE_SIZE;
+    char buf[length] = {0};
+    // will not create snapshot
+    // will not copy on write
+    EXPECT_CALL(*lfs_, Write(2, NotNull(), _, _))
+        .Times(0);
+    // will update sn
+    EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, PAGE_SIZE))
+        .Times(1);
+    // will write data
+    EXPECT_CALL(*lfs_, Write(1, NotNull(), PAGE_SIZE + offset, length))
+        .Times(1);
+
+    EXPECT_EQ(CSErrorCode::Success,
+              dataStore->WriteChunk(id,
+                                    sn,
+                                    buf,
+                                    offset,
+                                    length,
+                                    nullptr));
+
+    EXPECT_CALL(*lfs_, Close(1))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(3))
+        .Times(1);
+}
+
+/**
  * WriteChunkTest 异常测试
  * case:创建快照文件时出错
  * 预期结果:写失败，不会改变当前chunk状态
@@ -1971,10 +2089,12 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest5) {
 /*
  * WriteChunkErrorTest
  * 所写chunk为clone chunk
- * case1:写数据时失败
- * 预期结果1:返回InternalError，chunk状态不变
- * case2:更新metapage时失败
+ * case1:请求location过长，导致metapage size超出page size
+ * 预期结果1:create clone chunk失败
+ * case2:写数据时失败
  * 预期结果2:返回InternalError，chunk状态不变
+ * case3:更新metapage时失败
+ * 预期结果3:返回InternalError，chunk状态不变
  */
 TEST_F(CSDataStore_test, WriteChunkErrorTest6) {
     // initialize
@@ -1988,6 +2108,16 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest6) {
     size_t length = PAGE_SIZE;
     char buf[length] = {0};
     CSChunkInfo info;
+    // 创建 clone chunk
+    {
+        string longLocation(kLocationLimit+1, 'a');
+        EXPECT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->CreateCloneChunk(id,
+                                              sn,
+                                              correctedSn,
+                                              CHUNK_SIZE,
+                                              longLocation));
+    }
     // 创建 clone chunk
     {
         char chunk3MetaPage[PAGE_SIZE] = {0};
@@ -2797,7 +2927,8 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest1) {
  * DeleteSnapshotChunkOrCorrectSnTest
  * case:chunk存在,snapshot存在
  *      fileSn >= chunk的sn
- *      fileSn <= chunk的sn或correctedSn
+ *      fileSn == chunk的correctedSn
+ *      chunk.sn>snap.sn
  * 预期结果:删除快照，不会修改correctedSn,返回成功
  */
 TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest2) {
@@ -3040,6 +3171,108 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest7) {
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
     EXPECT_CALL(*lfs_, Close(4))
+        .Times(1);
+}
+
+/**
+ * DeleteSnapshotChunkOrCorrectSnTest
+ * case:chunk存在,snapshot存在
+ *      fileSn > chunk的sn
+ *      fileSn > chunk的correctedSn
+ *      chunk.sn==snap.sn
+ * 预期结果:删除快照，不会修改correctedSn,返回成功
+ */
+TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest8) {
+    // initialize
+    FakeEnv();
+    // fake read chunk1 metapage
+    FakeEncodeChunk(chunk1MetaPage, 0, 2);
+    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+        .WillRepeatedly(DoAll(
+                        SetArrayArgument<1>(chunk1MetaPage,
+                        chunk1MetaPage + PAGE_SIZE),
+                        Return(PAGE_SIZE)));
+    // fake read chunk1's snapshot1 metapage,chunk.sn==snap.sn
+    FakeEncodeSnapshot(chunk1SnapMetaPage, 2);
+    EXPECT_CALL(*lfs_, Read(2, NotNull(), 0, PAGE_SIZE))
+        .WillRepeatedly(DoAll(
+                        SetArrayArgument<1>(chunk1SnapMetaPage,
+                        chunk1SnapMetaPage + PAGE_SIZE),
+                        Return(PAGE_SIZE)));
+    EXPECT_TRUE(dataStore->Initialize());
+
+    ChunkID id = 1;
+    // fileSn > sn
+    // fileSn > correctedSn
+    SequenceNum fileSn = 3;
+    // snapshot will not be closed
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(0);
+    // expect to call chunkfilepool RecycleChunk
+    EXPECT_CALL(*fpool_, RecycleChunk(chunk1snap1Path))
+        .Times(0);
+    // chunk's metapage should be updated
+    EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, PAGE_SIZE))
+        .Times(1);
+    EXPECT_EQ(CSErrorCode::Success,
+              dataStore->DeleteSnapshotChunkOrCorrectSn(id, fileSn));
+
+    EXPECT_CALL(*lfs_, Close(1))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(3))
+        .Times(1);
+}
+
+/**
+ * DeleteSnapshotChunkOrCorrectSnTest
+ * case:chunk存在,snapshot存在
+ *      fileSn == chunk的sn
+ *      fileSn == chunk的correctedSn
+ *      chunk.sn<snap.sn
+ * 预期结果:删除快照，不会修改correctedSn,返回成功
+ */
+TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest9) {
+    // initialize
+    FakeEnv();
+    // fake read chunk1 metapage
+    FakeEncodeChunk(chunk1MetaPage, 2, 2);
+    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+        .WillRepeatedly(DoAll(
+                        SetArrayArgument<1>(chunk1MetaPage,
+                        chunk1MetaPage + PAGE_SIZE),
+                        Return(PAGE_SIZE)));
+    // fake read chunk1's snapshot1 metapage,chunk.sn==snap.sn
+    FakeEncodeSnapshot(chunk1SnapMetaPage, 3);
+    EXPECT_CALL(*lfs_, Read(2, NotNull(), 0, PAGE_SIZE))
+        .WillRepeatedly(DoAll(
+                        SetArrayArgument<1>(chunk1SnapMetaPage,
+                        chunk1SnapMetaPage + PAGE_SIZE),
+                        Return(PAGE_SIZE)));
+    EXPECT_TRUE(dataStore->Initialize());
+
+    ChunkID id = 1;
+    // fileSn == sn
+    // fileSn == correctedSn
+    SequenceNum fileSn = 2;
+    // snapshot will not be closed
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(0);
+    // expect to call chunkfilepool RecycleChunk
+    EXPECT_CALL(*fpool_, RecycleChunk(chunk1snap1Path))
+        .Times(0);
+    // chunk's metapage should not be updated
+    EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, PAGE_SIZE))
+        .Times(0);
+    EXPECT_EQ(CSErrorCode::Success,
+              dataStore->DeleteSnapshotChunkOrCorrectSn(id, fileSn));
+
+    EXPECT_CALL(*lfs_, Close(1))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
 }
 

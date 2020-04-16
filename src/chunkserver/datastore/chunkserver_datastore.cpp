@@ -24,6 +24,7 @@ CSDataStore::CSDataStore(std::shared_ptr<LocalFileSystem> lfs,
     : chunkSize_(options.chunkSize),
       pageSize_(options.pageSize),
       baseDir_(options.baseDir),
+      locationLimit_(options.locationLimit),
       chunkfilePool_(chunkfilePool),
       lfs_(lfs) {
     CHECK(!baseDir_.empty()) << "Create datastore failed";
@@ -53,6 +54,7 @@ bool CSDataStore::Initialize() {
 
     // 如果之前加载过，这里要重新加载
     metaCache_.Clear();
+    metric_ = std::make_shared<DataStoreMetric>();
     for (size_t i = 0; i < files.size(); ++i) {
         FileNameOperator::FileInfo info =
             FileNameOperator::ParseFileName(files[i]);
@@ -99,8 +101,8 @@ CSErrorCode CSDataStore::DeleteChunk(ChunkID id, SequenceNum sn) {
     if (chunkFile != nullptr) {
         CSErrorCode errorCode = chunkFile->Delete(sn);
         if (errorCode != CSErrorCode::Success) {
-            LOG(ERROR) << "Delete chunk file failed."
-                        << "ChunkID = " << id;
+            LOG(WARNING) << "Delete chunk file failed."
+                         << "ChunkID = " << id;
             return errorCode;
         }
         metaCache_.Remove(id);
@@ -114,9 +116,9 @@ CSErrorCode CSDataStore::DeleteSnapshotChunkOrCorrectSn(
     if (chunkFile != nullptr) {
         CSErrorCode errorCode = chunkFile->DeleteSnapshotOrCorrectSn(correctedSn);  // NOLINT
         if (errorCode != CSErrorCode::Success) {
-            LOG(ERROR) << "Delete snapshot chunk or correct sn failed."
-                        << "ChunkID = " << id
-                        << ", correctedSn = " << correctedSn;
+            LOG(WARNING) << "Delete snapshot chunk or correct sn failed."
+                         << "ChunkID = " << id
+                         << ", correctedSn = " << correctedSn;
             return errorCode;
         }
     }
@@ -135,8 +137,8 @@ CSErrorCode CSDataStore::ReadChunk(ChunkID id,
 
     CSErrorCode errorCode = chunkFile->Read(buf, offset, length);
     if (errorCode != CSErrorCode::Success) {
-        LOG(ERROR) << "Read chunk file failed."
-                   << "ChunkID = " << id;
+        LOG(WARNING) << "Read chunk file failed."
+                     << "ChunkID = " << id;
         return errorCode;
     }
     return CSErrorCode::Success;
@@ -154,8 +156,8 @@ CSErrorCode CSDataStore::ReadSnapshotChunk(ChunkID id,
     CSErrorCode errorCode =
         chunkFile->ReadSpecifiedChunk(sn, buf, offset, length);
     if (errorCode != CSErrorCode::Success) {
-        LOG(ERROR) << "Read snapshot chunk failed."
-                   << "ChunkID = " << id;
+        LOG(WARNING) << "Read snapshot chunk failed."
+                     << "ChunkID = " << id;
     }
     return errorCode;
 }
@@ -181,13 +183,14 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id,
         options.baseDir = baseDir_;
         options.chunkSize = chunkSize_;
         options.pageSize = pageSize_;
+        options.metric = metric_;
         chunkFile = std::make_shared<CSChunkFile>(lfs_,
                                                   chunkfilePool_,
                                                   options);
         CSErrorCode errorCode = chunkFile->Open(true);
         if (errorCode != CSErrorCode::Success) {
-            LOG(ERROR) << "Create chunk file failed."
-                       << "ChunkID = " << id;
+            LOG(WARNING) << "Create chunk file failed."
+                         << "ChunkID = " << id;
             return errorCode;
         }
         // 如果有两个操作并发去创建chunk文件，
@@ -202,8 +205,8 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id,
                                              length,
                                              cost);
     if (errorCode != CSErrorCode::Success) {
-        LOG(ERROR) << "Write chunk file failed."
-                   << "ChunkID = " << id;
+        LOG(WARNING) << "Write chunk file failed."
+                     << "ChunkID = " << id;
         return errorCode;
     }
     return CSErrorCode::Success;
@@ -217,13 +220,15 @@ CSErrorCode CSDataStore::CreateCloneChunk(ChunkID id,
     // 检查参数的合法性
     if (size != chunkSize_
         || sn == 0
-        || location.empty()) {
+        || location.empty()
+        || location.size() > locationLimit_) {
         LOG(ERROR) << "Invalid arguments."
                    << "ChunkID = " << id
                    << ", sn = " << sn
                    << ", correctedSn = " << correctedSn
                    << ", size = " << size
-                   << ", location = " << location;
+                   << ", location = " << location
+                   << ", location limit length = " << locationLimit_;
         return CSErrorCode::InvalidArgError;
     }
     auto chunkFile = metaCache_.Get(id);
@@ -233,17 +238,18 @@ CSErrorCode CSDataStore::CreateCloneChunk(ChunkID id,
         options.id = id;
         options.sn = sn;
         options.correctedSn = correctedSn;
+        options.location = location;
         options.baseDir = baseDir_;
         options.chunkSize = chunkSize_;
         options.pageSize = pageSize_;
-        options.location = location;
+        options.metric = metric_;
         chunkFile = std::make_shared<CSChunkFile>(lfs_,
                                                   chunkfilePool_,
                                                   options);
         CSErrorCode errorCode = chunkFile->Open(true);
         if (errorCode != CSErrorCode::Success) {
-            LOG(ERROR) << "Create chunk file failed."
-                       << "ChunkID = " << id;
+            LOG(WARNING) << "Create chunk file failed."
+                         << "ChunkID = " << id;
             return errorCode;
         }
         // 如果有两个操作并发去创建chunk文件，
@@ -278,14 +284,14 @@ CSErrorCode CSDataStore::PasteChunk(ChunkID id,
     auto chunkFile = metaCache_.Get(id);
     // Paste Chunk要求Chunk必须存在
     if (chunkFile == nullptr) {
-        LOG(ERROR) << "Paste Chunk failed, Chunk not exists."
-                   << "ChunkID = " << id;
+        LOG(WARNING) << "Paste Chunk failed, Chunk not exists."
+                     << "ChunkID = " << id;
         return CSErrorCode::ChunkNotExistError;
     }
     CSErrorCode errcode = chunkFile->Paste(buf, offset, length);
     if (errcode != CSErrorCode::Success) {
-        LOG(ERROR) << "Paste Chunk failed, Chunk not exists."
-                   << "ChunkID = " << id;
+        LOG(WARNING) << "Paste Chunk failed, Chunk not exists."
+                     << "ChunkID = " << id;
         return errcode;
     }
     return CSErrorCode::Success;
@@ -318,9 +324,9 @@ CSErrorCode CSDataStore::GetChunkHash(ChunkID id,
 
 DataStoreStatus CSDataStore::GetStatus() {
     DataStoreStatus status;
-    status.chunkFileCount = metaCache_.Size();
-
-    // TODO(yyk) 快照数量目前还未统计
+    status.chunkFileCount = metric_->chunkFileCount.get_value();
+    status.cloneChunkCount = metric_->cloneChunkCount.get_value();
+    status.snapshotCount = metric_->snapshotCount.get_value();
     return status;
 }
 
@@ -333,6 +339,7 @@ CSErrorCode CSDataStore::loadChunkFile(ChunkID id) {
         options.baseDir = baseDir_;
         options.chunkSize = chunkSize_;
         options.pageSize = pageSize_;
+        options.metric = metric_;
         CSChunkFilePtr chunkFilePtr =
             std::make_shared<CSChunkFile>(lfs_,
                                           chunkfilePool_,

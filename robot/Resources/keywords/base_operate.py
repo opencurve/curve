@@ -34,9 +34,11 @@ def clean_db():
         raise
 
 def create_db_table():
-    conn = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
     try:
+        conn = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
         db_operator.exec_sql_file(conn, config.curve_sql)
+        conn2 = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
+        db_operator.exec_sql_file(conn2, config.snap_sql)
 
     except Exception:
         logger.error("创建表失败.")
@@ -635,6 +637,11 @@ def delete_multi_dir(depth,user_name=config.user_name, pass_word=config.pass_wor
 def test():
     logger.info("pass,need to add later")
 
+def test_kill_one_chunkserver():
+    id = random.randint(0,2)
+    process_name = "chunkserver.conf.%d"%id
+    logger.info("kill chunkserver %d"%id)
+    kill_process(process_name)
 
 def thrasher(fd):
     actions = []

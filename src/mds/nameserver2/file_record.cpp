@@ -29,7 +29,21 @@ void FileRecordManager::Stop() {
     }
 }
 
-void FileRecordManager::UpdateFileRecord(const std::string& fileName) {
+bool FileRecordManager::GetFileClientVersion(
+    const std::string& fileName, std::string *clientVersion) const {
+    ReadLockGuard lk(rwlock_);
+
+    auto it = fileRecords_.find(fileName);
+    if (it == fileRecords_.end()) {
+        return false;
+    }
+
+    *clientVersion = it->second.GetClientVersion();
+    return true;
+}
+
+void FileRecordManager::UpdateFileRecord(
+    const std::string& fileName, const std::string& clientVersion) {
     do {
         ReadLockGuard lk(rwlock_);
 
@@ -40,13 +54,19 @@ void FileRecordManager::UpdateFileRecord(const std::string& fileName) {
 
         // 更新record
         it->second.Update();
+        // 更新version
+        if (it->second.GetClientVersion() != clientVersion) {
+            it->second.Update(clientVersion);
+        }
         return;
     } while (0);
 
-    FileRecord record(fileRecordOptions_.fileRecordExpiredTimeUs);
+    FileRecord record(
+        fileRecordOptions_.fileRecordExpiredTimeUs, clientVersion);
     WriteLockGuard lk(rwlock_);
     fileRecords_.emplace(fileName, record);
 }
+
 
 void FileRecordManager::Scan() {
     while (sleeper_.wait_for(

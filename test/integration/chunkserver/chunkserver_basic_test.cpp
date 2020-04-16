@@ -24,6 +24,10 @@ using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 
+const uint64_t kMB = 1024 * 1024;
+const ChunkSizeType CHUNK_SIZE = 16 * kMB;
+
+
 #define BASIC_TEST_CHUNK_SERVER_PORT "9078"
 #define KB 1024
 
@@ -81,7 +85,7 @@ class ChunkServerIoTest : public testing::Test {
                    "/chunkfilepool.meta";
         ChunkfilePoolHelper::PersistEnCodeMetaInfo(lfs_, kChunkSize, kPageSize,
                                                    poolDir_, metaDir_);
-        allocateChunk(lfs_, kChunkNum, poolDir_);
+        allocateChunk(lfs_, kChunkNum, poolDir_, kChunkSize);
     }
 
     virtual void TearDown() {

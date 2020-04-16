@@ -27,7 +27,7 @@ MetricRet MetricClient::GetMetric(const std::string& addr,
         return MetricRet::kOtherErr;
     }
 
-    cntl.http_request().uri() = addr + "/vars/" + metricName;
+    cntl.http_request().uri() = addr + kVars + metricName;
     cntl.set_timeout_ms(FLAGS_rpcTimeout);
     httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (!cntl.Failed()) {
@@ -45,7 +45,7 @@ MetricRet MetricClient::GetMetric(const std::string& addr,
     uint64_t retryTimes = 0;
     while (needRetry && retryTimes < FLAGS_rpcRetryTimes) {
         cntl.Reset();
-        cntl.http_request().uri() = addr + "/vars/" + metricName;
+        cntl.http_request().uri() = addr + kVars + metricName;
         cntl.set_timeout_ms(FLAGS_rpcTimeout);
         httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
         if (cntl.Failed()) {
@@ -77,6 +77,25 @@ MetricRet MetricClient::GetMetricUint(const std::string& addr,
         std::cout << "parse metric as uint64_t fail!" << std::endl;
         return MetricRet::kOtherErr;
     }
+    return MetricRet::kOK;
+}
+
+MetricRet MetricClient::GetConfValueFromMetric(const std::string& addr,
+                                               const std::string& metricName,
+                                               std::string* confValue) {
+    std::string jsonString;
+    brpc::Controller cntl;
+    MetricRet res = GetMetric(addr, metricName, &jsonString);
+    if (res != MetricRet::kOK) {
+        return res;
+    }
+    Json::Reader reader(Json::Features::strictMode());
+    Json::Value value;
+    if (!reader.parse(jsonString, value)) {
+        std::cout << "Parse metric as json fail" << std::endl;
+        return MetricRet::kOtherErr;
+    }
+    *confValue = value[kConfValue].asString();
     return MetricRet::kOK;
 }
 

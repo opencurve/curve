@@ -39,11 +39,6 @@ class Configuration {
      */
     void ExposeMetric(const std::string& exposeName);
 
-    /**
-     * 更新新的配置到metric
-     */
-    void UpdateMetric();
-
     void SetConfigPath(const std::string &path);
     std::string GetConfigPath();
 
@@ -72,6 +67,7 @@ class Configuration {
     bool GetUInt32Value(const std::string &key, uint32_t *out);
     bool GetUInt64Value(const std::string &key, uint64_t *out);
     void SetIntValue(const std::string &key, const int value);
+    void SetUInt64Value(const std::string &key, const uint64_t value);
 
     double GetDoubleValue(const std::string &key, double defaultvalue = 0.0);
     /*
@@ -128,6 +124,14 @@ class Configuration {
     void GetValueFatalIfFail(const std::string& key, uint64_t* value);
     void GetValueFatalIfFail(const std::string& key, float* value);
     void GetValueFatalIfFail(const std::string& key, double* value);
+
+ private:
+    /**
+     * 更新新的配置到metric
+     * @param 要更新的metric
+     */
+    void UpdateMetricIfExposed(const std::string &key,
+                               const std::string &value);
 
  private:
     std::string                         confFile_;

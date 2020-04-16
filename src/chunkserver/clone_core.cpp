@@ -11,18 +11,104 @@
 #include "src/chunkserver/clone_core.h"
 #include "src/chunkserver/op_request.h"
 #include "src/chunkserver/copyset_node.h"
+#include "src/chunkserver/chunk_service_closure.h"
 #include "src/chunkserver/datastore/chunkserver_datastore.h"
+#include "src/common/timeutility.h"
 
 namespace curve {
 namespace chunkserver {
 
 using curve::common::Bitmap;
+using curve::common::TimeUtility;
+
+DownloadClosure::DownloadClosure(std::shared_ptr<ReadChunkRequest> readRequest,
+                                 std::shared_ptr<CloneCore> cloneCore,
+                                 AsyncDownloadContext* downloadCtx,
+                                 Closure* done)
+    : isFailed_(false)
+    , beginTime_(TimeUtility::GetTimeofDayUs())
+    , readRequest_(readRequest)
+    , cloneCore_(cloneCore)
+    , downloadCtx_(downloadCtx)
+    , done_(done) {
+    // 记录初始metric
+    if (readRequest_ != nullptr) {
+        const ChunkRequest* request = readRequest_->GetChunkRequest();
+        ChunkServerMetric* csMetric = ChunkServerMetric::GetInstance();
+        csMetric->OnRequest(request->logicpoolid(),
+                            request->copysetid(),
+                            CSIOMetricType::DOWNLOAD);
+    }
+}
+
+void DownloadClosure::Run() {
+    std::unique_ptr<DownloadClosure> selfGuard(this);
+    std::unique_ptr<AsyncDownloadContext> contextGuard(downloadCtx_);
+    std::unique_ptr<char[]> bufferGuard(downloadCtx_->buf);
+    brpc::ClosureGuard doneGuard(done_);
+
+    CHECK(readRequest_ != nullptr) << "read request is nullptr.";
+    // 记录结束metric
+    const ChunkRequest* request = readRequest_->GetChunkRequest();
+    ChunkServerMetric* csMetric = ChunkServerMetric::GetInstance();
+    uint64_t latencyUs = TimeUtility::GetTimeofDayUs() - beginTime_;
+    csMetric->OnResponse(request->logicpoolid(),
+                         request->copysetid(),
+                         CSIOMetricType::DOWNLOAD,
+                         downloadCtx_->size,
+                         latencyUs,
+                         isFailed_);
+
+    // 从源端拷贝数据失败
+    if (isFailed_) {
+        LOG(ERROR) << "download origin data failed: "
+                    << " logic pool id: " << request->logicpoolid()
+                    << " copyset id: " << request->copysetid()
+                    << " chunkid: " << request->chunkid()
+                    << " AsyncDownloadContext: " << *downloadCtx_;
+        cloneCore_->SetResponse(
+            readRequest_, CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+        return;
+    }
+
+    if (CHUNK_OP_TYPE::CHUNK_OP_RECOVER == request->optype()) {
+        // release doneGuard，将closure交给paste请求处理
+        cloneCore_->PasteCloneData(readRequest_,
+                                   downloadCtx_->buf,
+                                   downloadCtx_->offset,
+                                   downloadCtx_->size,
+                                   doneGuard.release());
+    } else if (CHUNK_OP_TYPE::CHUNK_OP_READ == request->optype()) {
+        // 出错或处理结束调用closure返回给用户
+        cloneCore_->ReadThenMerge(readRequest_, downloadCtx_->buf);
+
+        // paste clone data是异步操作，很快就能处理完
+        cloneCore_->PasteCloneData(readRequest_,
+                                   downloadCtx_->buf,
+                                   downloadCtx_->offset,
+                                   downloadCtx_->size,
+                                   nullptr);
+    }
+}
 
 void CloneClosure::Run() {
     // 释放资源
     std::unique_ptr<CloneClosure> selfGuard(this);
     std::unique_ptr<ChunkRequest> requestGuard(request_);
+    std::unique_ptr<ChunkResponse> responseGuard(response_);
     brpc::ClosureGuard doneGuard(done_);
+    // 如果userResponse不为空，需要将response_中的相关内容赋值给userResponse
+    if (userResponse_ != nullptr) {
+        if (response_->has_status()) {
+            userResponse_->set_status(response_->status());
+        }
+        if (response_->has_redirect()) {
+            userResponse_->set_redirect(response_->redirect());
+        }
+        if (response_->has_appliedindex()) {
+            userResponse_->set_appliedindex(response_->appliedindex());
+        }
+    }
 }
 
 int CloneCore::HandleReadRequest(
@@ -70,84 +156,105 @@ int CloneCore::HandleReadRequest(
 
     uint32_t beginIndex = offset / pageSize;
     uint32_t endIndex = (offset + length - 1) / pageSize;
-    size_t cloneDataSize = length < sliceSize_ ? sliceSize_ : length;
-    std::unique_ptr<char[]> cloneData = nullptr;
 
     // 请求提交到CloneManager的时候，chunk一定是clone chunk
     // 但是由于有其他请求操作相同的chunk，此时chunk有可能已经被遍写过了
     // 所以此处要先判断chunk是否是clone chunk，如果是再判断是否要拷贝数据
-    if (chunkInfo.isClone) {
+    bool needClone = chunkInfo.isClone &&
+                    (chunkInfo.bitmap->NextClearBit(beginIndex, endIndex)
+                     != Bitmap::NO_POS);
+    if (needClone) {
         // TODO(yyk) 这一块可以优化，但是优化方法判断条件可能比较复杂
         // 目前只根据是否存在未写过的page来决定是否要触发拷贝
         // chunk中请求读取范围内的数据存在page未被写过，则需要从源端拷贝数据
-        if (chunkInfo.bitmap->NextClearBit(beginIndex, endIndex)
-            != Bitmap::NO_POS) {
-            cloneData = std::unique_ptr<char[]>(new char[cloneDataSize]);
-            int ret = copyer_->Download(chunkInfo.location,
-                                        offset,
-                                        cloneDataSize,
-                                        cloneData.get());
-            // 从源端拷贝数据失败
-            if (ret < 0) {
-                LOG(ERROR) << "download origin data failed: "
-                           << " logic pool id: " << request->logicpoolid()
-                           << " copyset id: " << request->copysetid()
-                           << " chunkid: " << request->chunkid()
-                           << " location: " << chunkInfo.location
-                           << " return: " << ret;
-                SetResponse(readRequest,
-                            CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
-                return -1;
-            }
-        }
+        AsyncDownloadContext* downloadCtx =
+            new (std::nothrow) AsyncDownloadContext;
+        downloadCtx->location = chunkInfo.location;
+        downloadCtx->offset = offset;
+        downloadCtx->size = length;
+        downloadCtx->buf = new (std::nothrow) char[length];
+        DownloadClosure* downloadClosure =
+            new (std::nothrow) DownloadClosure(readRequest,
+                                               shared_from_this(),
+                                               downloadCtx,
+                                               doneGuard.release());
+        copyer_->DownloadAsync(downloadClosure);
+        return 0;
     }
 
+    // 执行到这一步说明不需要拷贝数据，如果是recover请求可以直接返回成功
+    // 如果是ReadChunk请求，则直接读chunk并返回
     if (CHUNK_OP_TYPE::CHUNK_OP_RECOVER == request->optype()) {
-        // 如果是CHUNK_OP_RECOVER，且不需要拷贝数据，直接返回成功
-        if (cloneData == nullptr) {
-            SetResponse(readRequest, CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        } else {
-            PasteCloneData(readRequest,
-                           cloneData.get(),
-                           offset,
-                           cloneDataSize,
-                           doneGuard.release());
-        }
+        SetResponse(readRequest, CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     } else if (CHUNK_OP_TYPE::CHUNK_OP_READ == request->optype()) {
-        // 释放doneGuard，回调交给ReadMergeReturn处理
-        int ret = ReadMergeResponse(readRequest,
-                                    chunkInfo,
-                                    cloneData.get(),
-                                    doneGuard.release());
-        if (ret < 0)
-            return ret;
-
-        // cloneData不为nullptr，说明有拷贝数据，需要将数据paste到chunk
-        if (cloneData != nullptr) {
-            PasteCloneData(readRequest,
-                           cloneData.get(),
-                           offset,
-                           cloneDataSize,
-                           nullptr);
-        }
+        // 出错或处理结束调用closure返回给用户
+        return ReadChunk(readRequest);
     }
 
     return 0;
 }
 
-int CloneCore::ReadMergeResponse(std::shared_ptr<ReadChunkRequest> readRequest,
-                                 const CSChunkInfo& chunkInfo,
-                                 const char* cloneData,
-                                 Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
 
+int CloneCore::ReadChunk(std::shared_ptr<ReadChunkRequest> readRequest) {
     const ChunkRequest* request = readRequest->request_;
+    off_t offset = request->offset();
+    size_t length = request->size();
+    std::unique_ptr<char[]> chunkData(new char[length]);
+    std::shared_ptr<CSDataStore> dataStore = readRequest->datastore_;
+    CSErrorCode errorCode;
+    errorCode = dataStore->ReadChunk(request->chunkid(),
+                                     request->sn(),
+                                     chunkData.get(),
+                                     offset,
+                                     length);
+    if (CSErrorCode::Success != errorCode) {
+        SetResponse(readRequest,
+                    CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+        LOG(ERROR) << "read chunk failed: "
+                    << " logic pool id: " << request->logicpoolid()
+                    << " copyset id: " << request->copysetid()
+                    << " chunkid: " << request->chunkid()
+                    << " read offset: " << offset
+                    << " read length: " << length
+                    << " error code: " << errorCode;
+        return -1;
+    }
+
+    // 读成功后需要更新 apply index
+    readRequest->node_->UpdateAppliedIndex(readRequest->applyIndex);
+    // Return 完成数据读取后可以将结果返回给用户
+    readRequest->cntl_->response_attachment().append(
+        chunkData.get(), length);
+    SetResponse(readRequest, CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+    return 0;
+}
+
+int CloneCore::ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
+                             const char* cloneData) {
+    const ChunkRequest* request = readRequest->request_;
+
+    CSChunkInfo chunkInfo;
+    ChunkID id = readRequest->ChunkId();
+    std::shared_ptr<CSDataStore> dataStore = readRequest->datastore_;
+    CSErrorCode errorCode = dataStore->GetChunkInfo(id, &chunkInfo);
+
+    // 理论上到这里chunk肯定是存在的，如果返回ChunkNotExistError也当做错误处理
+    if (errorCode != CSErrorCode::Success) {
+        LOG(ERROR) << "get chunkinfo failed: "
+                   << " logic pool id: " << request->logicpoolid()
+                   << " copyset id: " << request->copysetid()
+                   << " chunkid: " << request->chunkid()
+                   << " error code: " << errorCode;
+        SetResponse(readRequest,
+                    CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+        return -1;
+    }
+
     off_t offset = request->offset();
     size_t length = request->size();
     uint32_t pageSize = chunkInfo.pageSize;
     uint32_t beginIndex = offset / pageSize;
     uint32_t endIndex = (offset + length - 1) / pageSize;
-
     // 获取chunk文件已经写过和未被写过的区域
     std::vector<BitRange> copiedRanges;
     std::vector<BitRange> uncopiedRanges;
@@ -170,8 +277,6 @@ int CloneCore::ReadMergeResponse(std::shared_ptr<ReadChunkRequest> readRequest,
     // 每次从chunk读取的数据长度
     size_t readSize;
     std::unique_ptr<char[]> chunkData(new char[length]);
-    std::shared_ptr<CSDataStore> dataStore = readRequest->datastore_;
-    CSErrorCode errorCode;
     // 1.Read 对于已写过的区域，从chunk文件中读取
     for (auto& range : copiedRanges) {
         readOff = range.beginIndex * pageSize;
@@ -221,6 +326,10 @@ void CloneCore::PasteCloneData(std::shared_ptr<ReadChunkRequest> readRequest,
                                size_t cloneDataSize,
                                Closure* done) {
     const ChunkRequest* request = readRequest->request_;
+    bool dontPaste = CHUNK_OP_TYPE::CHUNK_OP_READ == request->optype()
+                     && !enablePaste_;
+    if (dontPaste) return;
+
     // 数据拷贝完成以后，需要将产生PaseChunkRequest将数据Paste到chunk文件
     ChunkRequest* pasteRequest = new ChunkRequest();
     pasteRequest->set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_PASTE);
@@ -231,29 +340,27 @@ void CloneCore::PasteCloneData(std::shared_ptr<ReadChunkRequest> readRequest,
     pasteRequest->set_size(cloneDataSize);
     std::shared_ptr<PasteChunkInternalRequest> req = nullptr;
 
+    ChunkResponse* pasteResponse = new ChunkResponse();
     CloneClosure* closure = new CloneClosure();
     closure->SetRequest(pasteRequest);
+    closure->SetResponse(pasteResponse);
     closure->SetClosure(done);
-
+    // 如果是recover chunk的请求，需要将paste的结果通过rpc返回
     if (CHUNK_OP_TYPE::CHUNK_OP_RECOVER == request->optype()) {
-        // 这里需要把ReadChunkRequest传给PasteChunkInternalRequest
-        // 主要在里面设置ReadChunkRequest的response
-        req =
-            std::make_shared<PasteChunkInternalRequest>(readRequest,
-                                                        readRequest->node_,
-                                                        pasteRequest,
-                                                        cloneData,
-                                                        closure);
-    } else {
-        // 如果是CHUNK_OP_READ类型请求，rpc在前面已经返回给用户了
-        // 所以这里不需要再把ReadChunkRequest传给PasteChunkInternalRequest
-        req =
-            std::make_shared<PasteChunkInternalRequest>(nullptr,
-                                                        readRequest->node_,
-                                                        pasteRequest,
-                                                        cloneData,
-                                                        closure);
+        closure->SetUserResponse(readRequest->response_);
     }
+
+    ChunkServiceClosure* pasteClosure =
+        new (std::nothrow) ChunkServiceClosure(nullptr,
+                                               pasteRequest,
+                                               pasteResponse,
+                                               closure);
+
+    req = std::make_shared<PasteChunkInternalRequest>(readRequest->node_,
+                                                      pasteRequest,
+                                                      pasteResponse,
+                                                      cloneData,
+                                                      pasteClosure);
     req->Process();
 }
 

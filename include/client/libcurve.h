@@ -79,6 +79,14 @@ enum LIBCURVE_ERROR {
     LENGTH_NOT_SUPPORT      = 24,
     // session不存在
     SESSION_NOT_EXIST       = 25,
+    // 状态异常
+    STATUS_NOT_MATCH        = 26,
+    // 删除文件正常被克隆
+    DELETE_BEING_CLONED     = 27,
+    // client版本不支持快照
+    CLIENT_NOT_SUPPORT_SNAPSHOT = 28,
+    // snapshot功能禁用中
+    SNAPSTHO_FROZEN = 29,
     // 未知错误
     UNKNOWN                 = 100
 };
@@ -110,6 +118,7 @@ typedef struct FileStatInfo {
     uint64_t        ctime;
     char            filename[NAME_MAX_SIZE];
     char            owner[NAME_MAX_SIZE];
+    int             fileStatus;
 } FileStatInfo_t;
 
 // 存储用户信息

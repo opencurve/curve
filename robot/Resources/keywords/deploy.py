@@ -113,13 +113,13 @@ def add_config():
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s chunkserver config fail"%host
         #open use snapshot
- #       ori_cmd = R"sed -i 's/clone.disable_curve_client=true/clone.disable_curve_client=false/g' chunkserver.conf"
- #       rs = shell_operator.ssh_exec(ssh, ori_cmd)
- #       assert rs[3] == 0,"change host %s chunkserver config fail"%host
- #       ori_cmd = R"sed -i 's/clone.disable_s3_adapter=true/clone.disable_s3_adapter=false/g' chunkserver.conf"
- #       rs = shell_operator.ssh_exec(ssh, ori_cmd)
- #       assert rs[3] == 0,"change host %s chunkserver config fail"%host
-        ori_cmd = R"sed -i 's#curve.config_path=conf/client.conf#curve.config_path=/etc/curve/conf/client.conf#g' chunkserver.conf"
+        ori_cmd = R"sed -i 's/clone.disable_curve_client=true/clone.disable_curve_client=false/g' chunkserver.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s chunkserver config fail"%host
+        ori_cmd = R"sed -i 's/clone.disable_s3_adapter=true/clone.disable_s3_adapter=false/g' chunkserver.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s chunkserver config fail"%host
+        ori_cmd = R"sed -i 's#curve.config_path=conf/cs_client.conf#curve.config_path=/etc/curve/conf/cs_client.conf#g' chunkserver.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s chunkserver config fail"%host
         ori_cmd = R"sed -i 's#s3.config_path=conf/s3.conf#s3.config_path=/etc/curve/conf/s3.conf#g' chunkserver.conf"
@@ -128,20 +128,45 @@ def add_config():
         ori_cmd = "sudo mv chunkserver.conf /etc/curve/"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"mv %s chunkserver conf fail"%host
-    # add s3 and client conf
+    # add s3 and client conf\cs_client conf
     client_host = random.choice(config.client_list)
     cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 %s:/etc/curve/client.conf ."%\
             (config.pravie_key_path,client_host)
     shell_operator.run_exec2(cmd)
     for host in config.chunkserver_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/s3.conf client.conf %s:~/"%\
+        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/s3.conf client.conf conf/cs_client.conf %s:~/"%\
                             (config.pravie_key_path,host)
         shell_operator.run_exec2(cmd)
-        ori_cmd = "sudo mv s3.conf /etc/curve/conf && sudo mv client.conf /etc/curve/conf"
+        ori_cmd = R"sed -i 's/mds.listen.addr=127.0.0.1:6666/mds.listen.addr=%s/g' cs_client.conf"%(addrs)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s cs_client config fail"%host
+        ori_cmd = "sudo mv s3.conf /etc/curve/conf && sudo mv client.conf /etc/curve/conf && sudo mv cs_client.conf /etc/curve/conf/"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"mv %s s3 conf fail"%host
+    for host in config.snap_server_list:
+        ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/s3.conf client.conf conf/snapshot_clone_server.conf conf/snap_client.conf %s:~/"%\
+                  (config.pravie_key_path,host)
+        shell_operator.run_exec2(cmd)
+        ori_cmd = "sed -i \"s/client.config_path=\S*/client.config_path=\/etc\/curve\/snap_client.conf/\" snapshot_clone_server.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s snapshot config fail"%host
+        ori_cmd = "sed -i \"s/s3.config_path=\S*/s3.config_path=\/etc\/curve\/s3.conf/\" snapshot_clone_server.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s snapshot config fail"%host
+        ori_cmd = "sed -i \"s/server.address=\S*/server.address=%s:5555/g\" snapshot_clone_server.conf"%host
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s snapshot config fail"%host
+#change snap_client.conf
+        ori_cmd = "sed -i \"s/mds.listen.addr=\S*/mds.listen.addr=%s/g\" snap_client.conf"%(addrs)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s snapshot config fail"%host
     # add tools config
+    snap_addrs_list = []
+    for host in config.snap_server_list:
+        snap_addrs_list.append(host + ":5555")
+    snap_addrs = ",".join(snap_addrs_list)
     for host in config.mds_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
@@ -154,10 +179,17 @@ def add_config():
         ori_cmd = R"sed -i 's/etcdAddr=127.0.0.1:2379/etcdAddr=%s/g' tools.conf"%etcd_addrs
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s tools config fail"%host
+        ori_cmd = R"sed -i 's/snapshotCloneAddr=127.0.0.1:5555/snapshotCloneAddr=%s/g' tools.conf"%snap_addrs
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s tools config fail"%host
         ori_cmd = "sudo mv tools.conf /etc/curve/"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"mv %s tools conf fail"%host
 
+        ori_cmd = "sudo mv s3.conf /etc/curve/ && sudo mv client.conf /etc/curve/ && sudo mv snapshot_clone_server.conf /etc/curve/ && sudo mv snap_client.conf /etc/curve/"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"mv %s snapshot_clone_server conf fail"%host
+        
 def clean_env():
     host_list = config.client_list + config.mds_list + config.chunkserver_list 
     host_list = list(set(host_list))
@@ -168,7 +200,7 @@ def clean_env():
         ori_cmd2 = "ps -ef|grep -v grep | grep memtester | awk '{print $2}'| sudo xargs kill -9"
         shell_operator.ssh_exec(ssh, ori_cmd2)
         ori_cmd3 = "ps -ef|grep -v grep | grep cpu_stress.py | awk '{print $2}'| sudo xargs kill -9"
-        shell_operator.ssh_exec(ssh, ori_cmd3)    
+        shell_operator.ssh_exec(ssh, ori_cmd3)
 
 def destroy_mds():
     for host in config.mds_list:
@@ -274,9 +306,11 @@ def drop_abnormal_test_db():
         raise
 
 def create_abnormal_db_table():
-    conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
     try:
+       conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
        db_operator.exec_sql_file(conn, config.curve_sql)
+       conn2 = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
+       db_operator.exec_sql_file(conn2, config.snap_sql)
     except Exception:
         logger.error("创建表失败.")
         raise
@@ -383,7 +417,7 @@ def start_abnormal_test_services():
             logger.debug("mds pid is %s"%rs[1])
         for host in config.snap_server_list:
             ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-            ori_cmd = "cd snapshot/temp && sudo nohup ./snapshotcloneserver -conf=./snapshot_clone_server.conf &"
+            ori_cmd = "cd snapshot/temp && sudo nohup curve-snapshotcloneserver -conf=/etc/curve/snapshot_clone_server.conf &"
             shell_operator.ssh_background_exec2(ssh, ori_cmd)
     except Exception:
         logger.error("up servers fail.")
