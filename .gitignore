@@ -74,3 +74,4 @@ bazel-testlogs
 *.log
 
 .clang-format
+!curve-snapshotcloneserver-nginx/app/lib

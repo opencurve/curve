@@ -183,6 +183,73 @@ int ChunkServiceOp::DeleteChunkSnapshotOrCorrectSn(
     return status;
 }
 
+int ChunkServiceOp::CreateCloneChunk(struct ChunkServiceOpConf *opConf,
+                                     ChunkID chunkId,
+                                     const std::string &location,
+                                     uint64_t correctedSn, uint64_t sn,
+                                     uint64_t chunkSize) {
+    PeerId leaderId(opConf->leaderPeer->address());
+    brpc::Channel channel;
+    channel.Init(leaderId.addr, NULL);
+    ChunkService_Stub stub(&channel);
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(opConf->rpcTimeout);
+
+    ChunkRequest request;
+    ChunkResponse response;
+    request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_CREATE_CLONE);
+    request.set_logicpoolid(opConf->logicPoolId);
+    request.set_copysetid(opConf->copysetId);
+    request.set_chunkid(chunkId);
+    request.set_location(location);
+    request.set_sn(sn);
+    request.set_correctedsn(correctedSn);
+    request.set_size(chunkSize);
+    stub.CreateCloneChunk(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        LOG(ERROR) << "CreateCloneChunk failed: " << cntl.ErrorText();
+        return -1;
+    }
+
+    CHUNK_OP_STATUS status = response.status();
+    LOG_IF(ERROR, status) << "CreateCloneChunk failed: "
+                          << CHUNK_OP_STATUS_Name(status);
+
+    return status;
+}
+
+int ChunkServiceOp::RecoverChunk(struct ChunkServiceOpConf *opConf,
+                                 ChunkID chunkId, off_t offset, size_t len) {
+    PeerId leaderId(opConf->leaderPeer->address());
+    brpc::Channel channel;
+    channel.Init(leaderId.addr, NULL);
+    ChunkService_Stub stub(&channel);
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(opConf->rpcTimeout);
+
+    ChunkRequest request;
+    ChunkResponse response;
+    request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_RECOVER);
+    request.set_logicpoolid(opConf->logicPoolId);
+    request.set_copysetid(opConf->copysetId);
+    request.set_chunkid(chunkId);
+    request.set_offset(offset);
+    request.set_size(len);
+    stub.RecoverChunk(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        LOG(ERROR) << "RecoverChunk failed: " << cntl.ErrorText();
+        return -1;
+    }
+
+    CHUNK_OP_STATUS status = response.status();
+    LOG_IF(ERROR, status != CHUNK_OP_STATUS_SUCCESS)
+        << "RecoverChunk failed: " << CHUNK_OP_STATUS_Name(status);
+
+    return status;
+}
+
 int ChunkServiceOp::GetChunkInfo(struct ChunkServiceOpConf *opConf,
                                  ChunkID chunkId, SequenceNum *curSn,
                                  SequenceNum *snapSn,
@@ -362,6 +429,32 @@ int ChunkServiceVerify::VerifyDeleteChunkSnapshotOrCorrectSn(
                                                              correctedSn);
     LOG(INFO) << "DeleteSnapshot for Chunk " << chunkId
               << ", correctedSn=" << correctedSn << ", ret=" << ret;
+
+    return ret;
+}
+
+int ChunkServiceVerify::VerifyCreateCloneChunk(ChunkID chunkId,
+                                               const std::string &location,
+                                               uint64_t correctedSn,
+                                               uint64_t sn,
+                                               uint64_t chunkSize) {
+    int ret = ChunkServiceOp::CreateCloneChunk(opConf_, chunkId, location,
+                                               correctedSn, sn, chunkSize);
+    LOG(INFO) << "CreateCloneChunk for Chunk " << chunkId << ", from location "
+              << location << ", correctedSn=" << correctedSn << ", sn=" << sn
+              << ", chunkSize=" << chunkSize << ", ret=" << ret;
+
+    if (ret == CHUNK_OP_STATUS_SUCCESS)
+        existChunks_.insert(chunkId);
+
+    return ret;
+}
+
+int ChunkServiceVerify::VerifyRecoverChunk(ChunkID chunkId, off_t offset,
+                                           size_t len) {
+    int ret = ChunkServiceOp::RecoverChunk(opConf_, chunkId, offset, len);
+    LOG(INFO) << "RecoverChunk for Chunk " << chunkId << ", offset=" << offset
+              << ", len=" << len << ", ret=" << ret;
 
     return ret;
 }

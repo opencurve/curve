@@ -6,6 +6,7 @@
  */
 
 #include "src/client/mds_client_base.h"
+#include "src/common/curve_version.h"
 
 const char* kRootUserName = "root";
 
@@ -23,6 +24,7 @@ void MDSClientBase::OpenFile(const std::string& filename,
                             brpc::Channel* channel) {
     OpenFileRequest request;
     request.set_filename(filename);
+    request.set_clientversion(curve::common::CurveVersion());
     FillUserInfo<OpenFileRequest>(&request, userinfo);
 
     LOG(INFO) << "OpenFile: filename = " << filename.c_str()
@@ -149,7 +151,15 @@ void MDSClientBase::ListSnapShot(const std::string& filename,
 
     LOG(INFO) << "ListSnapShot: filename = " << filename.c_str()
                 << ", owner = " << userinfo.owner
-                << ", seqnum = " << seq
+                << ", seqnum = " << [seq] () {
+                    std::string data("[ ");
+                    for (uint64_t v : *seq) {
+                        data += std::to_string(v);
+                        data += " ";
+                    }
+                    data += "]";
+                    return data;
+                } ()
                 << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
@@ -189,6 +199,8 @@ void MDSClientBase::RefreshSession(const std::string& filename,
     ReFreshSessionRequest request;
     request.set_filename(filename);
     request.set_sessionid(sessionid);
+    request.set_clientversion(curve::common::CurveVersion());
+
     FillUserInfo<ReFreshSessionRequest>(&request, userinfo);
 
     LOG_EVERY_N(INFO, 10) << "RefreshSession: filename = " << filename.c_str()

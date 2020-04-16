@@ -898,20 +898,20 @@ TEST_F(ToolMDSClientTest, GetMetric) {
 }
 
 TEST_F(ToolMDSClientTest, GetCurrentMds) {
+    std::unique_ptr<bvar::Status<std::string>>
+        value(new bvar::Status<std::string>());
+    fakemds.SetMetric("mds_status", value.get());
+    fakemds.ExposeMetric();
     curve::tool::MDSClient mdsClient;
-    ASSERT_EQ(0, mdsClient.Init(mdsAddr));
-    // 有mds存活
-    ASSERT_EQ(mdsMetaServerAddr, mdsClient.GetCurrentMds());
-    // 没有mds存活
-    FakeMDSCurveFSService* curvefsservice = fakemds.GetMDSService();
-    std::unique_ptr<curve::mds::GetFileInfoResponse> response(
-                            new curve::mds::GetFileInfoResponse());
-    brpc::Controller cntl;
-    cntl.SetFailed("fail for test");
-    std::unique_ptr<FakeReturn> fakeret(
-        new FakeReturn(&cntl, static_cast<void*>(response.get())));
-    curvefsservice->SetGetFileInfoFakeReturn(fakeret.get());
-    ASSERT_EQ("", mdsClient.GetCurrentMds());
+    ASSERT_EQ(0, mdsClient.Init(mdsAddr, "9999,9180"));
+    // 有leader
+    value->set_value("leader");
+    std::vector<std::string> curMds = mdsClient.GetCurrentMds();
+    ASSERT_EQ(1, curMds.size());
+    ASSERT_EQ("127.0.0.1:9180", curMds[0]);
+    // 没有leader
+    value->set_value("follower");
+    ASSERT_TRUE(mdsClient.GetCurrentMds().empty());
 }
 
 TEST_F(ToolMDSClientTest, GetMdsOnlineStatus) {
@@ -925,19 +925,19 @@ TEST_F(ToolMDSClientTest, GetMdsOnlineStatus) {
     // 9180在线，9999不在线
     value->set_value("{\"conf_name\":\"mds.listen.addr\","
                         "\"conf_value\":\"127.0.0.1:9180\"}");
-    ASSERT_EQ(0, mdsClient.GetMdsOnlineStatus(&onlineStatus));
+    mdsClient.GetMdsOnlineStatus(&onlineStatus);
     std::map<std::string, bool> expected = {{"127.0.0.1:9180", true},
                                             {"127.0.0.1:9999", false}};
     ASSERT_EQ(expected, onlineStatus);
     // 9180的服务端口不一致
     value->set_value("{\"conf_name\":\"mds.listen.addr\","
                         "\"conf_value\":\"127.0.0.1:9188\"}");
-    ASSERT_EQ(0, mdsClient.GetMdsOnlineStatus(&onlineStatus));
+    mdsClient.GetMdsOnlineStatus(&onlineStatus);
     expected = {{"127.0.0.1:9180", false}, {"127.0.0.1:9999", false}};
     ASSERT_EQ(expected, onlineStatus);
     // 非json格式
     value->set_value("127.0.0.1::9180");
-    ASSERT_EQ(0, mdsClient.GetMdsOnlineStatus(&onlineStatus));
+    mdsClient.GetMdsOnlineStatus(&onlineStatus);
     expected = {{"127.0.0.1:9180", false}, {"127.0.0.1:9999", false}};
     ASSERT_EQ(expected, onlineStatus);
 }

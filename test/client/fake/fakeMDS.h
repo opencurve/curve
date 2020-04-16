@@ -40,6 +40,8 @@ using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using ::curve::mds::topology::GetChunkServerListInCopySetsRequest;
 using ::curve::mds::topology::ChunkServerRegistRequest;
 using ::curve::mds::topology::ChunkServerRegistResponse;
+using ::curve::mds::topology::GetClusterInfoRequest;
+using ::curve::mds::topology::GetClusterInfoResponse;
 using ::curve::mds::topology::GetChunkServerInfoRequest;
 using ::curve::mds::topology::GetChunkServerInfoResponse;
 using ::curve::mds::topology::ListChunkServerRequest;

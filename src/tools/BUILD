@@ -131,5 +131,7 @@ cc_library(
         "//src/chunkserver:chunkserver-lib",
         "//src/client:curve_client",
         "//include/client:include_client",
+        "//proto:snapshotcloneserver_cc_proto",
+        "//src/snapshotcloneserver/dao:snapshotrepo",
     ],
 )

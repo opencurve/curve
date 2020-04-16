@@ -70,19 +70,6 @@ create table if not exists `curve_copyset` (
     primary key (`logicalPoolID`,`copySetID`)
 )COMMENT='copyset';
 
-create table if not exists `curve_session` (
-    `entryID`       INT       unsigned     NOT NULL AUTO_INCREMENT  COMMENT '递增ID',
-    `sessionID`     VARCHAR(64)            NOT NULL   COMMENT  '唯一sessionID',
-    `fileName`      VARCHAR(256)           NOT NULL   COMMENT  'session对应的fileName',
-    `leaseTime`     INT       unsigned     NOT NULL   COMMENT   'session对应的时间',
-    `sessionStatus` TINYINT   unsigned     NOT NULL   COMMENT  'session状态，0: kSessionOK, 1: kSessionStaled, 2:ksessionDeleted',
-    `createTime`    BIGINT                 NOT NULL   COMMENT '创建时间',
-    `updateTime`    timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE  CURRENT_TIMESTAMP COMMENT '记录修改时间',
-    `clientIP`      VARCHAR(16)            NOT NULL   COMMENT '挂载客户端IP',
-    PRIMARY KEY (`entryID`),
-    UNIQUE KEY (`sessionID`)
-)COMMENT='session';
-
 create table if not exists `client_info` (
     `clientIp`         varchar(16)   NOT NULL COMMENT 'client ip',
     `clientPort`       int           NOT NULL COMMENT 'client port',

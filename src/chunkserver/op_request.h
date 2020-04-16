@@ -194,6 +194,10 @@ class ReadChunkRequest : public ChunkOpRequest {
                         const ChunkRequest &request,
                         const butil::IOBuf &data) override;
 
+    const ChunkRequest* GetChunkRequest() {
+        return request_;
+    }
+
  private:
     // 根据chunk信息判断是否需要拷贝数据
     bool NeedClone(const CSChunkInfo& chunkInfo);
@@ -300,30 +304,27 @@ class PasteChunkInternalRequest : public ChunkOpRequest {
  public:
     PasteChunkInternalRequest() :
         ChunkOpRequest() {}
-    PasteChunkInternalRequest(std::shared_ptr<ReadChunkRequest> readRequest,
-                              std::shared_ptr<CopysetNode> nodePtr,
+    PasteChunkInternalRequest(std::shared_ptr<CopysetNode> nodePtr,
                               const ChunkRequest *request,
+                              ChunkResponse *response,
                               const char* data,
                               ::google::protobuf::Closure *done) :
         ChunkOpRequest(nodePtr,
                        nullptr,
                        request,
-                       nullptr,
-                       done),
-        readRequest_(readRequest) {
+                       response,
+                       done) {
             data_.append(data, request->size());
         }
     virtual ~PasteChunkInternalRequest() = default;
 
     void Process() override;
-    void RedirectChunkRequest() override;
     void OnApply(uint64_t index, ::google::protobuf::Closure *done) override;
     void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                         const ChunkRequest &request,
                         const butil::IOBuf &data) override;
 
  private:
-    std::shared_ptr<ReadChunkRequest> readRequest_;
     butil::IOBuf data_;
 };
 

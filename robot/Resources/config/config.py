@@ -83,6 +83,7 @@ db_pass = "qwer"
 mds_db_name = "curve_mds"
 snap_db_name = "curve_snapshot"
 curve_sql = "./src/repo/curve_mds.sql"
+snap_sql = "./src/repo/curve_snapshot.sql"
 
 # chunkserver mount point
 cs_0 = curve_workspace + "0"
@@ -122,7 +123,9 @@ vm_stability_host = "60.191.87.92"
 vm_user = "root"
 vm_iosize = "4" #4k
 
-
+# snapshot test param
+snapshot_file_name = "/lc"
+snapshot_s3_object_location = "snapshot_test_chunk_data@s3"
 
 
 

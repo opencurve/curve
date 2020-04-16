@@ -310,7 +310,7 @@ class CSModuleException : public ::testing::Test {
             ret = resumeFlag;
         }
 
-        failCount == nullptr ? 0 : * failCount = ioFailedCount;
+        failCount == nullptr ? 0 : (*failCount = ioFailedCount);
 
         // 唤醒io线程
         iothread.join();

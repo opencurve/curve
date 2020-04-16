@@ -193,9 +193,9 @@ class UnstableCSModuleException : public ::testing::Test {
         std::this_thread::sleep_for(std::chrono::seconds(5));
 
         // 5. 创建逻辑池，并睡眠一段时间让底层copyset先选主
-        cluster->PrepareLogicalPool(
+        ASSERT_EQ(0, cluster->PrepareLogicalPool(
             1, "test/integration/client/config/unstable/topo_unstable.txt", 300,
-            "pool1");
+            "pool1"));
         std::this_thread::sleep_for(std::chrono::seconds(10));
 
         // 6. 初始化client配置

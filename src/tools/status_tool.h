@@ -30,6 +30,7 @@
 #include "src/tools/curve_tool_define.h"
 #include "src/tools/metric_client.h"
 #include "src/tools/metric_name.h"
+#include "src/tools/snapshot_clone_client.h"
 
 using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::DiskState;
@@ -48,8 +49,6 @@ struct SpaceInfo{
     uint64_t canBeRecycled = 0;
 };
 
-const char kOffline[] = "offline";
-
 class StatusTool : public CurveTool {
  public:
     StatusTool(std::shared_ptr<MDSClient> mdsClient,
@@ -57,12 +56,14 @@ class StatusTool : public CurveTool {
                std::shared_ptr<NameSpaceToolCore> nameSpaceToolCore,
                std::shared_ptr<CopysetCheckCore> copysetCheckCore,
                std::shared_ptr<VersionTool> versionTool,
-               std::shared_ptr<MetricClient> metricClient) :
+               std::shared_ptr<MetricClient> metricClient,
+               std::shared_ptr<SnapshotCloneClient> snapshotClient) :
                   mdsClient_(mdsClient), etcdClient_(etcdClient),
                   nameSpaceToolCore_(nameSpaceToolCore),
                   copysetCheckCore_(copysetCheckCore),
                   versionTool_(versionTool),
                   metricClient_(metricClient),
+                  snapshotClient_(snapshotClient),
                   mdsInited_(false), etcdInited_(false) {}
     ~StatusTool() = default;
 
@@ -107,6 +108,8 @@ class StatusTool : public CurveTool {
     int PrintChunkserverStatus(bool checkLeftSize = true);
     int PrintClientStatus();
     void PrintCsLeftSizeStatistics(const std::vector<uint64_t>& leftSize);
+    int PrintSnapshotCloneStatus();
+
     /**
      *  @brief 判断命令是否需要和etcd交互
      *  @param command：执行的命令
@@ -116,11 +119,18 @@ class StatusTool : public CurveTool {
 
 
     /**
-     *  @brief 判断命令是否需要和mds
+     *  @brief 判断命令是否需要mds
      *  @param command：执行的命令
      *  @return 需要返回true，否则返回false
      */
     bool CommandNeedMds(const std::string& command);
+
+    /**
+     *  @brief 判断命令是否需要snapshot clone server
+     *  @param command：执行的命令
+     *  @return 需要返回true，否则返回false
+     */
+    bool CommandNeedSnapshotClone(const std::string& command);
 
     /**
      *  @brief 打印在线状态
@@ -146,6 +156,8 @@ class StatusTool : public CurveTool {
     std::shared_ptr<EtcdClient> etcdClient_;
     // 用于获取metric
     std::shared_ptr<MetricClient> metricClient_;
+    // 用于获取snapshot clone的状态
+    std::shared_ptr<SnapshotCloneClient> snapshotClient_;
     // version client，用于获取version信息
     std::shared_ptr<VersionTool> versionTool_;
     // mds是否初始化过

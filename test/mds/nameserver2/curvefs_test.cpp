@@ -48,8 +48,8 @@ class CurveFSTest: public ::testing::Test {
         fileRecordManager_ = std::make_shared<FileRecordManager>();
 
         // session repo已经mock，数据库相关参数不需要
-        fileRecordOptions_.fileRecordExpiredTimeUs = 5000000;
-        fileRecordOptions_.scanIntervalTimeUs = 100000;
+        fileRecordOptions_.fileRecordExpiredTimeUs = 5 * 1000;
+        fileRecordOptions_.scanIntervalTimeUs = 1 * 1000;
 
         authOptions_.rootOwner = "root";
         authOptions_.rootPassword = "root_password";
@@ -1558,6 +1558,69 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
 
 TEST_F(CurveFSTest, testCreateSnapshotFile) {
     {
+        // test client time not expired
+        FileInfo originalFile;
+        originalFile.set_seqnum(1);
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+        std::string fileName = "/snapshotFile1WithInvalidClientVersion";
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(originalFile),
+                            Return(StoreStatus::OK)));
+
+        FileInfo snapShotFileInfoRet;
+        ASSERT_EQ(StatusCode::kSnapshotFrozen,
+            curvefs_->CreateSnapShotFile(fileName, &snapShotFileInfoRet));
+    }
+    {
+        // test client version invalid
+        std::string fileName = "/snapshotFile1WithInvalidClientVersion2";
+        std::this_thread::sleep_for(std::chrono::microseconds(
+            11 * fileRecordOptions_.fileRecordExpiredTimeUs));
+        FileInfo originalFile;
+        originalFile.set_seqnum(1);
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillOnce(Return(StoreStatus::OK))
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
+            Return(StoreStatus::OK)));
+
+        FileInfo info;
+        ASSERT_EQ(StatusCode::kOK,
+            curvefs_->RefreshSession(
+                fileName, "", 0 , "", "", "0.0.5", &info));
+
+        FileInfo snapShotFileInfoRet;
+        ASSERT_EQ(curvefs_->CreateSnapShotFile(
+                "/snapshotFile1WithInvalidClientVersion2",
+                &snapShotFileInfoRet), StatusCode::kClientVersionNotMatch);
+    }
+    {
+        // test client version empty invalid
+        std::string fileName = "/snapshotFile1WithInvalidClientVersion2";
+        FileInfo originalFile;
+        originalFile.set_seqnum(1);
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillOnce(Return(StoreStatus::OK))
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
+            Return(StoreStatus::OK)));
+
+        FileInfo info;
+        ASSERT_EQ(StatusCode::kOK,
+            curvefs_->RefreshSession(
+                fileName, "", 0 , "", "", "", &info));
+
+        FileInfo snapShotFileInfoRet;
+        ASSERT_EQ(curvefs_->CreateSnapShotFile(
+                "/snapshotFile1WithInvalidClientVersion2",
+                &snapShotFileInfoRet), StatusCode::kClientVersionNotMatch);
+    }
+    {
         // test under snapshot
         FileInfo originalFile;
         originalFile.set_seqnum(1);
@@ -1619,8 +1682,50 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
+        // test client version valid
         FileInfo snapShotFileInfoRet;
         ASSERT_EQ(curvefs_->CreateSnapShotFile("/originalFile",
+                &snapShotFileInfoRet), StatusCode::kOK);
+        ASSERT_EQ(snapShotFileInfoRet.parentid(), originalFile.id());
+        ASSERT_EQ(snapShotFileInfoRet.filename(),
+            originalFile.filename() + "-" +
+            std::to_string(originalFile.seqnum()) );
+        ASSERT_EQ(snapShotFileInfoRet.filestatus(), FileStatus::kFileCreated);
+        ASSERT_EQ(
+            snapShotFileInfoRet.filetype(), FileType::INODE_SNAPSHOT_PAGEFILE);
+    }
+    {
+        // test create snapshot ok
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile2");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<0>(2),
+            Return(true)));
+
+        FileInfo snapShotFileInfo;
+        EXPECT_CALL(*storage_, SnapShotFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        // test client version valid
+        FileInfo snapShotFileInfoRet;
+        ASSERT_EQ(curvefs_->CreateSnapShotFile("/originalFile2",
                 &snapShotFileInfoRet), StatusCode::kOK);
         ASSERT_EQ(snapShotFileInfoRet.parentid(), originalFile.id());
         ASSERT_EQ(snapShotFileInfoRet.filename(),
@@ -2343,9 +2448,9 @@ TEST_F(CurveFSTest, testOpenFile) {
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
-        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
-                                     &protoSession, &fileInfo),
-                  StatusCode::kOK);
+        ASSERT_EQ(
+            curvefs_->OpenFile("/file1", "127.0.0.1", &protoSession, &fileInfo),
+            StatusCode::kOK);
     }
 }
 
@@ -2359,18 +2464,9 @@ TEST_F(CurveFSTest, testCloseFile) {
     .Times(1)
     .WillOnce(Return(StoreStatus::OK));
 
-    ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
-                                    &protoSession, &fileInfo),
-                StatusCode::kOK);
-
-    // 文件不存在
-    {
-         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
-        ASSERT_EQ(curvefs_->CloseFile("/file1", "sessionidxxxxx"),
-                  StatusCode::kFileNotExists);
-    }
+    ASSERT_EQ(
+        curvefs_->OpenFile("/file1", "127.0.0.1", &protoSession, &fileInfo),
+        StatusCode::kOK);
 
     // 执行成功
     {
@@ -2404,7 +2500,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
         ASSERT_EQ(curvefs_->RefreshSession("/file1", "sessionidxxxxx", 12345,
-                    "signaturexxxx", "127.0.0.1", &fileInfo1),
+                    "signaturexxxx", "127.0.0.1", "", &fileInfo1),
                   StatusCode::kFileNotExists);
     }
 
@@ -2417,7 +2513,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
 
         uint64_t date = ::curve::common::TimeUtility::GetTimeofDayUs();
         ASSERT_EQ(curvefs_->RefreshSession("/file1", protoSession.sessionid(),
-                    date, "signaturexxxx", "127.0.0.1", &fileInfo1),
+                    date, "signaturexxxx", "127.0.0.1", "", &fileInfo1),
                   StatusCode::kOK);
         ASSERT_EQ(1, curvefs_->GetOpenFileNum());
     }
@@ -2735,12 +2831,30 @@ TEST_F(CurveFSTest, testSetCloneFileStatus) {
                 StatusCode::kOK, 1},
             {FileStatus::kFileCloned, FileStatus::kFileCloned,
                 StatusCode::kOK, 1},
+            {FileStatus::kFileCreated, FileStatus::kFileBeingCloned,
+                StatusCode::kOK, 1},
+            {FileStatus::kFileBeingCloned, FileStatus::kFileCreated,
+                StatusCode::kOK, 1},
+            {FileStatus::kFileBeingCloned, FileStatus::kFileBeingCloned,
+                StatusCode::kOK, 1},
+            {FileStatus::kFileCloned, FileStatus::kFileBeingCloned,
+                StatusCode::kOK, 1},
+            {FileStatus::kFileBeingCloned, FileStatus::kFileCloned,
+                StatusCode::kOK, 1},
+            {FileStatus::kFileCreated, FileStatus::kFileCreated,
+                StatusCode::kOK, 1},
             {FileStatus::kFileCloning, FileStatus::kFileCloned,
                 StatusCode::kCloneStatusNotMatch, 0},
             {FileStatus::kFileCloneMetaInstalled, FileStatus::kFileCloning,
                 StatusCode::kCloneStatusNotMatch, 0},
             {FileStatus::kFileCreated, FileStatus::kFileCloned,
                 StatusCode::kCloneStatusNotMatch, 0},
+            {FileStatus::kFileDeleting, FileStatus::kFileBeingCloned,
+                StatusCode::kCloneStatusNotMatch, 0},
+            {FileStatus::kFileCloning, FileStatus::kFileBeingCloned,
+                StatusCode::kCloneStatusNotMatch, 0},
+            {FileStatus::kFileCloneMetaInstalled, FileStatus::kFileBeingCloned,
+                StatusCode::kCloneStatusNotMatch, 0}
         };
 
         for (int i = 0; i < sizeof(testCases) / sizeof(testCases[0]); i++) {

@@ -8,6 +8,7 @@
 #include <glog/logging.h>
 
 #include <string>
+#include <memory>
 
 #include "curvesnapshot_python/libcurveSnapshot.h"
 #include "src/client/libcurve_snapshot.h"
@@ -18,6 +19,85 @@
 using curve::client::UserInfo;
 using curve::client::ClientConfig;
 using curve::client::SnapshotClient;
+using curve::client::SnapCloneClosure;
+
+class TaskTracker {
+ public:
+    TaskTracker()
+    : concurrent_(0),
+      lastErr_(0) {}
+
+    /**
+     * @brief 增加一个追踪任务
+     */
+    void AddOneTrace() {
+        concurrent_.fetch_add(1, std::memory_order_acq_rel);
+    }
+
+    /**
+     * @brief 获取任务数量
+     *
+     * @return 任务数量
+     */
+    uint32_t GetTaskNum() const {
+        return concurrent_;
+    }
+
+    /**
+     * @brief 处理任务返回值
+     *
+     * @param retCode 返回值
+     */
+    void HandleResponse(int retCode) {
+        if (retCode < 0) {
+            lastErr_ = retCode;
+        }
+        if (1 == concurrent_.fetch_sub(1, std::memory_order_acq_rel)) {
+            // 最后一次需拿锁再发信号，防止先发信号后等待导致死锁
+            std::unique_lock<Mutex> lk(cv_m);
+            cv_.notify_all();
+        } else {
+            cv_.notify_all();
+        }
+    }
+
+    /**
+     * @brief 等待追踪的所有任务完成
+     */
+    void Wait() {
+        std::unique_lock<Mutex> lk(cv_m);
+        cv_.wait(lk, [this](){
+            return concurrent_.load(std::memory_order_acquire) == 0;});
+    }
+
+    /**
+     * @brief 获取最后一个错误
+     *
+     * @return 错误码
+     */
+    int GetResult() {
+        return lastErr_;
+    }
+
+ private:
+    // 等待的条件变量
+    ConditionVariable cv_;
+    Mutex cv_m;
+    // 并发数量
+    std::atomic<uint32_t> concurrent_;
+    // 错误码
+    int lastErr_;
+};
+
+struct SnapCloneTestClosure : public SnapCloneClosure {
+    explicit SnapCloneTestClosure(std::shared_ptr<TaskTracker> tracker)
+        : tracker_(tracker) {}
+    void Run() {
+        std::unique_ptr<SnapCloneTestClosure> self_guard(this);
+        tracker_->HandleResponse(GetRetCode());
+    }
+    std::shared_ptr<TaskTracker> tracker_;
+};
 
 bool globalinited = false;
 SnapshotClient* globalSnapshotclient = nullptr;
@@ -212,10 +292,23 @@ int ReadChunkSnapshot(CChunkIDInfo cidinfo,
 
     curve::client::ChunkIDInfo idinfo;
     LocalInfo2ChunkIDInfo(cidinfo, &idinfo);
+    auto tracker = std::make_shared<TaskTracker>();
+    SnapCloneTestClosure *cb = new SnapCloneTestClosure(tracker);
+
+    tracker->AddOneTrace();
     int ret = globalSnapshotclient->ReadChunkSnapshot(idinfo, seq.value,
                                                       offset.value, len.value,
-                                                      buf);
-    return ret;
+                                                      buf, cb);
+    tracker->Wait();
+    if (ret < 0) {
+        return ret;
+    } else {
+        if (tracker->GetResult() < 0) {
+            return tracker->GetResult();
+        } else {
+            return len.value;
+        }
+    }
 }
 
 int DeleteChunkSnapshotOrCorrectSn(CChunkIDInfo cidinfo,
@@ -283,11 +376,20 @@ int CreateCloneChunk(const char* location,
 
     curve::client::ChunkIDInfo idinfo;
     LocalInfo2ChunkIDInfo(chunkidinfo, &idinfo);
+    auto tracker = std::make_shared<TaskTracker>();
+    SnapCloneTestClosure *cb = new SnapCloneTestClosure(tracker);
 
+    tracker->AddOneTrace();
     int ret = globalSnapshotclient->CreateCloneChunk(location, idinfo,
                                                      sn.value, correntSn.value,
-                                                     chunkSize.value);
-    return ret;
+                                                     chunkSize.value,
+                                                     cb);
+    tracker->Wait();
+    if (ret < 0) {
+        return ret;
+    } else {
+        return tracker->GetResult();
+    }
 }
 
 
@@ -300,11 +402,20 @@ int RecoverChunk(const CChunkIDInfo chunkidinfo,
     }
     curve::client::ChunkIDInfo idinfo;
     LocalInfo2ChunkIDInfo(chunkidinfo, &idinfo);
+    auto tracker = std::make_shared<TaskTracker>();
+    SnapCloneTestClosure *cb = new SnapCloneTestClosure(tracker);
 
+    tracker->AddOneTrace();
     int ret = globalSnapshotclient->RecoverChunk(idinfo,
                                                  offset.value,
-                                                 len.value);
-    return ret;
+                                                 len.value,
+                                                 cb);
+    tracker->Wait();
+    if (ret < 0) {
+        return ret;
+    } else {
+        return tracker->GetResult();
+    }
 }
 
 void UnInit() {

@@ -17,8 +17,6 @@ DECLARE_uint32(copysetId);
 namespace curve {
 namespace tool {
 
-const int kDefaultMdsDummyPort = 6667;
-
 /**
  *  @brief 格式化，从metric获取的string
  *         去掉string两边的双引号以及空格和回车
