@@ -15,12 +15,35 @@
 #include "src/mds/dao/mdsRepo.h"
 #include "src/client/mds_client.h"
 #include "src/client/config_info.h"
+#include "src/snapshotcloneserver/dao/snapshotcloneRepo.h"
 #include "test/util/config_generator.h"
 
 using ::curve::client::MDSClient;
 using ::curve::mds::MdsRepo;
+using ::curve::snapshotcloneserver::SnapshotCloneRepo;
 
 namespace curve {
+
+#define RETURN_IF_NOT_ZERO(x)                                                  \
+    do {                                                                       \
+        int ret = (x);                                                         \
+        if (ret != 0) {                                                        \
+            LOG(ERROR) << __FILE__ << ":" << __LINE__                          \
+                       << "-> get non-ZERO, return -1";                        \
+            return ret;                                                        \
+        }                                                                      \
+    } while (0)
+
+#define RETURN_IF_FALSE(x)                                                     \
+    do {                                                                       \
+        bool ret = (x);                                                        \
+        if (!ret) {                                                            \
+            LOG(ERROR) << __FILE__ << ":" << __LINE__                          \
+                       << "-> get FALSE, return -1";                           \
+            return -1;                                                         \
+        }                                                                      \
+    } while (0)
+
 class CurveCluster {
  public:
     /**
@@ -114,7 +137,43 @@ class CurveCluster {
     int StopAllMDS();
 
     /**
-     * StarrSingleEtcd 启动一个etcd节点
+     * @brief 启动一个snapshotcloneserver
+     *
+     * @param id snapshotcloneserver 的Id
+     * @param ipPort ip端口
+     * @param snapshotcloneConf 参数项
+     * @return 成功则返回pid; 失败则返回-1
+     */
+    int
+    StartSnapshotCloneServer(int id, const std::string &ipPort,
+                             const std::vector<std::string> &snapshotcloneConf);
+
+    /**
+     * @brief 停止指定Id的snapshotcloneserver
+     *
+     * @param id snapshotcloneserver的id
+     * @param force 为true时使用kill -9
+     * @return 成功返回0，失败返回-1
+     */
+    int StopSnapshotCloneServer(int id, bool force = false);
+
+    /**
+     * @brief 重启指定Id的snapshotcloneserver
+     *
+     * @param id snapshotcloneserver的id
+     * @param force 为true时使用kill -9
+     * @return 成功则返回pid; 失败则返回-1
+     */
+    int RestartSnapshotCloneServer(int id, bool force = false);
+
+    /**
+     * @brief 停止所有的snapshotcloneserver
+     * @return 成功返回0，失败返回-1
+     */
+    int StopAllSnapshotCloneServer();
+
+    /**
+     * StartSingleEtcd 启动一个etcd节点
      *
      * @param clientIpPort
      * @param peerIpPort
@@ -143,6 +202,19 @@ class CurveCluster {
      * @return 0.成功; -1.失败
      */
     int StopAllEtcd();
+
+    /**
+     * @brief 格式化chunkfilepool
+     *
+     * @param chunkfilepooldir chunkfilepool目录
+     * @param chunkfilepoolmetapath chunkfilepool元数据目录
+     * @param filesystem_path 文件系统目录
+     * @param size chunkfilepool size (GB)
+     * @return 成功返回0，失败返回-1
+     */
+    int FormatChunkFilePool(const std::string &chunkfilepooldir,
+                            const std::string &chunkfilepoolmetapath,
+                            const std::string &filesystem_path, uint32_t size);
 
     /**
      * StartSingleChunkServer 启动一个chunkserver节点
@@ -336,6 +408,15 @@ class CurveCluster {
     // mds的id对应的ipport
     std::map<int, std::string> mdsIpPort_;
 
+    // snapshotcloneserver id对应的pid
+    std::map<int, pid_t> snapPidMap_;
+
+    // snapshotcloneserver id对应的ipPort
+    std::map<int, std::string> snapIpPort_;
+
+    // snapshotcloneserver id对应的conf
+    std::map<int, std::vector<std::string>> snapConf_;
+
     // etcd的id对应的进程号
     std::map<int, pid_t> etcdPidMap_;
 
@@ -357,6 +438,8 @@ class CurveCluster {
  public:
     // mysql数据库
     MdsRepo *mdsRepo_;
+    // snapshotcloneserver数据库
+    SnapshotCloneRepo *snapshotcloneRepo_;
 };
 }  // namespace curve
 

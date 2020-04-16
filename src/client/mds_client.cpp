@@ -419,7 +419,21 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
 
         bool hasinfo = response.has_snapshotfileinfo();
         StatusCode stcode = response.statuscode();
-        if (!hasinfo && stcode == StatusCode::kOK) {
+
+        if ((stcode == StatusCode::kOK ||
+             stcode == StatusCode::kFileUnderSnapShot) &&
+            hasinfo) {
+            FInfo_t* fi = new (std::nothrow) FInfo_t;
+            curve::mds::FileInfo finfo = response.snapshotfileinfo();
+            ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
+            *seq = fi->seqnum;
+            delete fi;
+            if (stcode == StatusCode::kOK) {
+                return LIBCURVE_ERROR::OK;
+            } else {
+                return LIBCURVE_ERROR::UNDER_SNAPSHOT;
+            }
+        } else if (!hasinfo && stcode == StatusCode::kOK) {
             LOG(WARNING) << "mds side response has no snapshot file info!";
             return LIBCURVE_ERROR::FAILED;
         }
@@ -547,7 +561,6 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
                        << ", seq = " << seq;
             return retcode;
         }
-
         if (!response.has_pagefilesegment()) {
             LOG(WARNING) << "response has no pagesegment!";
             return LIBCURVE_ERROR::OK;
@@ -826,7 +839,7 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
         LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                << "CreateCloneFile failed, filename = " << filename.c_str()
+                << "SetCloneFileStatus failed, filename = " << filename.c_str()
                 << ", owner = " << userinfo.owner.c_str()
                 << ", filestatus = " << static_cast<int>(filestatus)
                 << ", fileID = " << fileID
@@ -1203,13 +1216,25 @@ void MDSClient::MDSStatusCode2LibcurveError(const StatusCode& status
             *errcode = LIBCURVE_ERROR::SESSION_NOT_EXIST;
             break;
         case StatusCode::kParaError:
-            *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
+            *errcode = LIBCURVE_ERROR::PARAM_ERROR;
             break;
         case StatusCode::kStorageError:
             *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
             break;
         case StatusCode::kFileLengthNotSupported:
             *errcode = LIBCURVE_ERROR::LENGTH_NOT_SUPPORT;
+            break;
+        case ::curve::mds::StatusCode::kCloneStatusNotMatch:
+            *errcode = LIBCURVE_ERROR::STATUS_NOT_MATCH;
+            break;
+        case ::curve::mds::StatusCode::kDeleteFileBeingCloned:
+            *errcode = LIBCURVE_ERROR::DELETE_BEING_CLONED;
+            break;
+        case ::curve::mds::StatusCode::kClientVersionNotMatch:
+            *errcode = LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT;
+            break;
+        case ::curve::mds::StatusCode::kSnapshotFrozen:
+            *errcode = LIBCURVE_ERROR::SNAPSTHO_FROZEN;
             break;
         default:
             *errcode = LIBCURVE_ERROR::UNKNOWN;

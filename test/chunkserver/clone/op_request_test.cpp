@@ -136,7 +136,9 @@ TEST_F(OpRequestTest, CreateCloneTest) {
         // 设置预期
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(false));
-        braft::Task task;
+        // PeerId leaderId(PEER_STRING);
+        // EXPECT_CALL(*node_, GetLeaderId())
+        //     .WillOnce(Return(leaderId));
         EXPECT_CALL(*node_, Propose(_))
             .Times(0);
 
@@ -147,6 +149,7 @@ TEST_F(OpRequestTest, CreateCloneTest) {
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   closure->response_->status());
+        // ASSERT_STREQ(closure->response_->redirect().c_str(), PEER_STRING);
     }
     /**
      * 测试Process
@@ -258,7 +261,7 @@ TEST_F(OpRequestTest, CreateCloneTest) {
     }
     /**
      * 测试 OnApplyFromLog
-     * 用例：CreateCloneChunk失败
+     * 用例：CreateCloneChunk失败，返回InternalError
      * 预期：进程退出
      */
     {
@@ -322,9 +325,9 @@ TEST_F(OpRequestTest, PasteChunkTest) {
     closure->SetRequest(request);
     closure->SetResponse(response);
     std::shared_ptr<PasteChunkInternalRequest> opReq =
-        std::make_shared<PasteChunkInternalRequest>(readChunkRequest,
-                                                    node_,
+        std::make_shared<PasteChunkInternalRequest>(node_,
                                                     request,
+                                                    response,
                                                     str.c_str(),
                                                     closure);
     /**
@@ -358,7 +361,9 @@ TEST_F(OpRequestTest, PasteChunkTest) {
         // 设置预期
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(false));
-        braft::Task task;
+        // PeerId leaderId(PEER_STRING);
+        // EXPECT_CALL(*node_, GetLeaderId())
+        //     .WillOnce(Return(leaderId));
         EXPECT_CALL(*node_, Propose(_))
             .Times(0);
 
@@ -369,6 +374,7 @@ TEST_F(OpRequestTest, PasteChunkTest) {
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   response->status());
+        // ASSERT_STREQ(closure->response_->redirect().c_str(), PEER_STRING);
     }
     /**
      * 测试Process
@@ -423,7 +429,7 @@ TEST_F(OpRequestTest, PasteChunkTest) {
     }
     /**
      * 测试OnApply
-     * 用例：CreateCloneChunk失败
+     * 用例：CreateCloneChunk失败,返回InternalError
      * 预期：进程退出
      */
     {
@@ -480,7 +486,7 @@ TEST_F(OpRequestTest, PasteChunkTest) {
     }
     /**
      * 测试 OnApplyFromLog
-     * 用例：CreateCloneChunk失败
+     * 用例：CreateCloneChunk失败,返回InternalError
      * 预期：进程退出
      */
     {
@@ -569,7 +575,9 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         // 设置预期
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(false));
-        braft::Task task;
+        // PeerId leaderId(PEER_STRING);
+        // EXPECT_CALL(*node_, GetLeaderId())
+        //     .WillOnce(Return(leaderId));
         EXPECT_CALL(*node_, Propose(_))
             .Times(0);
 
@@ -580,6 +588,7 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   closure->response_->status());
+        // ASSERT_STREQ(closure->response_->redirect().c_str(), PEER_STRING);
     }
     /**
      * 测试Process
@@ -936,7 +945,9 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         // 设置预期
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(false));
-        braft::Task task;
+        // PeerId leaderId(PEER_STRING);
+        // EXPECT_CALL(*node_, GetLeaderId())
+        //     .WillOnce(Return(leaderId));
         EXPECT_CALL(*node_, Propose(_))
             .Times(0);
 
@@ -947,6 +958,7 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   closure->response_->status());
+        // ASSERT_STREQ(closure->response_->redirect().c_str(), PEER_STRING);
     }
     /**
      * 测试Process

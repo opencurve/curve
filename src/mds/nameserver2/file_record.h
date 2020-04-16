@@ -31,18 +31,20 @@ struct FileRecordOptions {
 
 class FileRecord {
  public:
-    explicit FileRecord(uint64_t timeoutUs)
+    explicit FileRecord(uint64_t timeoutUs, const std::string& clientVersion)
       : updateTimeUs_(curve::common::TimeUtility::GetTimeofDayUs())
+      , clientVersion_(clientVersion)
       , timeoutUs_(timeoutUs) {}
 
     FileRecord(const FileRecord& fileRecord)
-      : updateTimeUs_(fileRecord.updateTimeUs_)
-      , timeoutUs_(fileRecord.timeoutUs_) {}
+      : updateTimeUs_(fileRecord.updateTimeUs_),
+        timeoutUs_(fileRecord.timeoutUs_),
+        clientVersion_(fileRecord.clientVersion_) {}
 
     FileRecord& operator=(const FileRecord& fileRecord) {
         updateTimeUs_ = fileRecord.updateTimeUs_;
         timeoutUs_ = fileRecord.timeoutUs_;
-
+        clientVersion_ = fileRecord.clientVersion_;
         return *this;
     }
 
@@ -53,7 +55,7 @@ class FileRecord {
     bool IsTimeout() const {
         curve::common::LockGuard lk(mtx_);
         uint64_t currentTimeUs = curve::common::TimeUtility::GetTimeofDayUs();
-        return currentTimeUs > updateTimeUs_ + timeoutUs_;
+        return currentTimeUs > updateTimeUs_ + 10 * timeoutUs_;
     }
 
     /**
@@ -65,6 +67,14 @@ class FileRecord {
     }
 
     /**
+     * @brief 更新版本号
+     */
+    void Update(const std::string& clientVersion) {
+        curve::common::LockGuard lk(mtx_);
+        clientVersion_ = clientVersion;
+    }
+
+    /**
      * @brief 获取上次更新时间
      * @return 上次更新时间
      */
@@ -73,11 +83,21 @@ class FileRecord {
         return updateTimeUs_;
     }
 
+    /**
+     * @brief 获取当前打开文件的client版本号
+     * @return 版本号, 没有为空
+     */
+    std::string GetClientVersion() const {
+        return clientVersion_;
+    }
+
  private:
     // 最新更新时间，单位us
     uint64_t updateTimeUs_;
     // 超时时间
     uint64_t timeoutUs_;
+    // client版本号
+    std::string clientVersion_;
     // 更新时间锁
     mutable curve::common::Mutex mtx_;
 };
@@ -100,10 +120,26 @@ class FileRecordManager {
     }
 
     /**
+     * @brief 获取文件过期时间
+     * @return 文件过期时间
+     */
+    uint32_t GetFileRecordExpiredTimeUs() const {
+        return fileRecordOptions_.fileRecordExpiredTimeUs;
+    }
+
+    /**
      * @brief 更新filename对应的文件记录
      * @param[in] filename文件名
      */
-    void UpdateFileRecord(const std::string& filename);
+    void UpdateFileRecord(
+        const std::string& filename, const std::string& clientVersion);
+
+    /**
+     * @brief 获取filename对应的client version
+     * @param[in] filename文件名
+     */
+    bool GetFileClientVersion(
+        const std::string& fileName, std::string *clientVersion) const;
 
     /**
      * @brief 启动FileRecordManager

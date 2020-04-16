@@ -16,6 +16,7 @@
 #include <map>
 #include <memory>
 #include "src/tools/version_tool.h"
+#include "test/tools/mock_snapshot_clone_client.h"
 
 using ::testing::Return;
 namespace curve {
@@ -23,13 +24,15 @@ namespace tool {
 class MockVersionTool : public VersionTool {
  public:
     MockVersionTool() : VersionTool(std::make_shared<MDSClient>(),
-                                    std::make_shared<MetricClient>()) {}
-    MOCK_METHOD1(Init, int(const std::string&));
+                                 std::make_shared<MetricClient>(),
+                                 std::make_shared<MockSnapshotCloneClient>()) {}
     MOCK_METHOD2(GetAndCheckMdsVersion, int(std::string*,
                                             std::vector<std::string>*));
     MOCK_METHOD2(GetAndCheckChunkServerVersion, int(std::string*,
                                                     std::vector<std::string>*));
     MOCK_METHOD1(GetClientVersion, int(ClientVersionMapType*));
+    MOCK_METHOD2(GetAndCheckSnapshotCloneVersion, int(std::string*,
+                                                    std::vector<std::string>*));
 };
 }  // namespace tool
 }  // namespace curve

@@ -30,7 +30,9 @@ void ChunkServiceClosure::Run() {
     // closure调用的时候减1，closure创建的什么加1
     // 这一行必须放在brpcDone_调用之后，ut里需要测试inflightio超过限制时的表现
     // 会在传进来的closure里面加一个sleep来控制inflightio个数
-    inflightThrottle_->Decrement();
+    if (nullptr != inflightThrottle_) {
+        inflightThrottle_->Decrement();
+    }
 }
 
 void ChunkServiceClosure::OnRequest() {
@@ -42,13 +44,27 @@ void ChunkServiceClosure::OnRequest() {
     ChunkServerMetric* metric = ChunkServerMetric::GetInstance();
     switch (request_->optype()) {
         case CHUNK_OP_TYPE::CHUNK_OP_READ: {
-            metric->OnRequestRead(request_->logicpoolid(),
-                                  request_->copysetid());
+            metric->OnRequest(request_->logicpoolid(),
+                              request_->copysetid(),
+                              CSIOMetricType::READ_CHUNK);
             break;
         }
         case CHUNK_OP_TYPE::CHUNK_OP_WRITE: {
-            metric->OnRequestWrite(request_->logicpoolid(),
-                                    request_->copysetid());
+            metric->OnRequest(request_->logicpoolid(),
+                              request_->copysetid(),
+                              CSIOMetricType::WRITE_CHUNK);
+            break;
+        }
+        case CHUNK_OP_TYPE::CHUNK_OP_RECOVER: {
+            metric->OnRequest(request_->logicpoolid(),
+                              request_->copysetid(),
+                              CSIOMetricType::RECOVER_CHUNK);
+            break;
+        }
+        case CHUNK_OP_TYPE::CHUNK_OP_PASTE: {
+            metric->OnRequest(request_->logicpoolid(),
+                              request_->copysetid(),
+                              CSIOMetricType::PASTE_CHUNK);
             break;
         }
         default:
@@ -74,21 +90,45 @@ void ChunkServiceClosure::OnResonse() {
                         (response_->status()
                         != CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
 
-            metric->OnResponseRead(request_->logicpoolid(),
-                                   request_->copysetid(),
-                                   request_->size(),
-                                   latencyUs,
-                                   hasError);
+            metric->OnResponse(request_->logicpoolid(),
+                               request_->copysetid(),
+                               CSIOMetricType::READ_CHUNK,
+                               request_->size(),
+                               latencyUs,
+                               hasError);
             break;
         }
         case CHUNK_OP_TYPE::CHUNK_OP_WRITE: {
             hasError = response_->status()
                        != CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS;
-            metric->OnResponseWrite(request_->logicpoolid(),
-                                    request_->copysetid(),
-                                    request_->size(),
-                                    latencyUs,
-                                    hasError);
+            metric->OnResponse(request_->logicpoolid(),
+                               request_->copysetid(),
+                               CSIOMetricType::WRITE_CHUNK,
+                               request_->size(),
+                               latencyUs,
+                               hasError);
+            break;
+        }
+        case CHUNK_OP_TYPE::CHUNK_OP_RECOVER: {
+            hasError = response_->status()
+                       != CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS;
+            metric->OnResponse(request_->logicpoolid(),
+                               request_->copysetid(),
+                               CSIOMetricType::RECOVER_CHUNK,
+                               request_->size(),
+                               latencyUs,
+                               hasError);
+            break;
+        }
+        case CHUNK_OP_TYPE::CHUNK_OP_PASTE: {
+            hasError = response_->status()
+                       != CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS;
+            metric->OnResponse(request_->logicpoolid(),
+                               request_->copysetid(),
+                               CSIOMetricType::PASTE_CHUNK,
+                               request_->size(),
+                               latencyUs,
+                               hasError);
             break;
         }
         default:

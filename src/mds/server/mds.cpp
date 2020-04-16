@@ -56,7 +56,6 @@ void MDS::StartDummy() {
     LOG(INFO) << "mds version: " << curve::common::CurveVersion();
     curve::common::ExposeCurveVersion();
     conf_->ExposeMetric("mds_config");
-    conf_->UpdateMetric();
     status_.expose("mds_status");
     status_.set_value("follower");
 

@@ -121,9 +121,9 @@ TEST_F(ClusterBasicTest, DISABLED_test_start_stop_module1) {
     ASSERT_GT(pid, 0);
 
     // 创建逻辑池和copyset
-    curveCluster_->PrepareLogicalPool(
+    ASSERT_EQ(0, curveCluster_->PrepareLogicalPool(
         1, "./test/integration/cluster_common/cluster_common_topo_1.txt", 10,
-        "pool1");
+        "pool1"));
 
     // 停掉chunkserver
     ASSERT_EQ(0, curveCluster_->StopChunkServer(1));
@@ -204,9 +204,9 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     ASSERT_GT(pid, 0);
 
     // 创建逻辑池和copyset
-    curveCluster_->PrepareLogicalPool(
+    ASSERT_EQ(0, curveCluster_->PrepareLogicalPool(
         1, "./test/integration/cluster_common/cluster_common_topo_2.txt", 20,
-        "pool1");
+        "pool1"));
 
     // 创建文件
     ASSERT_EQ(0, curveCluster_->CreateFile("test", "test", "/basic_test",

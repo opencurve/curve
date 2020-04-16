@@ -30,6 +30,9 @@ cc_binary(
         "//src/tools:curve_tool_lib",
         "//test/client/fake:fake_lib",
         "//test/fs:fs_mock",
+        "//test/common:common_mock",
+        "//test/snapshotcloneserver:mock_repo",
+        "//test/client:client_mock",
     ],
     copts = COPTS
 )

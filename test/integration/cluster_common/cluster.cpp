@@ -26,29 +26,16 @@ using ::curve::client::UserInfo_t;
 
 namespace curve {
 
-#define RETURN_IF_NOT_ZERO(x)                                                  \
-    do {                                                                       \
-        int ret = x;                                                           \
-        if (ret != 0) {                                                        \
-            LOG(ERROR) << #x << " is not ZERO";                                \
-            return ret;                                                        \
-        }                                                                      \
-    } while (0)
-
-#define RETURN_IF_FALSE(x)                                                     \
-    do {                                                                       \
-        bool ret = x;                                                          \
-        if (!ret) {                                                            \
-            LOG(ERROR) << #x << " is FALSE";                                   \
-            return -1;                                                         \
-        }                                                                      \
-    } while (0)
-
 int CurveCluster::InitDB(const std::string &mdsTable, const std::string &user,
                          const std::string &url, const std::string &password,
                          int poolSize) {
     mdsRepo_ = new MdsRepo();
-    return mdsRepo_->connectDB(mdsTable, user, url, password, poolSize);
+    RETURN_IF_NOT_ZERO(
+        mdsRepo_->connectDB(mdsTable, user, url, password, poolSize));
+    snapshotcloneRepo_ = new SnapshotCloneRepo;
+    RETURN_IF_NOT_ZERO(
+        snapshotcloneRepo_->connectDB(mdsTable, user, url, password, poolSize));
+    return 0;
 }
 
 int CurveCluster::InitMdsClient(const MetaServerOption_t &op) {
@@ -64,48 +51,24 @@ int CurveCluster::BuildNetWork() {
 int CurveCluster::StopCluster() {
     LOG(INFO) << "stop cluster begin...";
 
-    int waitStatus;
-    for (auto it = mdsPidMap_.begin(); it != mdsPidMap_.end();) {
-        LOG(INFO) << "begin to stop mds" << it->first << " " << it->second
-                  << ", port: " << mdsIpPort_[it->first];
-        kill(it->second, SIGTERM);
-        LOG(INFO) << "kill mds: " << strerror(errno);
-        waitpid(it->second, &waitStatus, 0);
-        RETURN_IF_NOT_ZERO(ProbePort(mdsIpPort_[it->first], 20000, false));
-        LOG(INFO) << "success stop mds" << it->first << " " << it->second;
-        it = mdsPidMap_.erase(it);
-    }
+    int ret = 0;
+    if (StopAllMDS() < 0)
+        ret = -1;
 
-    for (auto it = etcdPidMap_.begin(); it != etcdPidMap_.end();) {
-        LOG(INFO) << "begin to stop etcd" << it->first << " " << it->second
-                  << ", port: " << etcdClientIpPort_[it->first];
-        kill(it->second, SIGTERM);
-        LOG(INFO) << "kill etcd: " << strerror(errno);
-        waitpid(it->second, &waitStatus, 0);
-        RETURN_IF_NOT_ZERO(
-            ProbePort(etcdClientIpPort_[it->first], 20000, false));
-        LOG(INFO) << "success stop etcd" << it->first << " " << it->second;
-        it = etcdPidMap_.erase(it);
-    }
+    if (StopAllChunkServer() < 0)
+        ret = -1;
 
-    for (auto it = chunkserverPidMap_.begin();
-         it != chunkserverPidMap_.end();) {
-        LOG(INFO) << "begin to stop chunkserver" << it->first << " "
-                  << it->second << "， port: " << chunkserverIpPort_[it->first];
-        kill(it->second, SIGTERM);
-        LOG(INFO) << "kill chunkserver: " << strerror(errno);
-        waitpid(it->second, &waitStatus, 0);
-        RETURN_IF_NOT_ZERO(
-            ProbePort(chunkserverIpPort_[it->first], 20000, false));
-        LOG(INFO) << "success stop chunkserver" << it->first << " "
-                  << it->second;
-        it = chunkserverPidMap_.erase(it);
-    }
+    if (StopAllSnapshotCloneServer() < 0)
+        ret = -1;
 
-    // 等待进程完全退出
-    ::sleep(2);
-    LOG(INFO) << "success stop cluster";
-    return 0;
+    if (StopAllEtcd() < 0)
+        ret = -1;
+
+    if (!ret)
+        LOG(INFO) << "success stop cluster";
+    else
+        LOG(ERROR) << "Error occurred to stop cluster";
+    return ret;
 }
 
 int CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
@@ -146,8 +109,10 @@ int CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
 int CurveCluster::StopMDS(int id) {
     LOG(INFO) << "stop mds " << mdsIpPort_[id] << " begin...";
     if (mdsPidMap_.find(id) != mdsPidMap_.end()) {
-        kill(mdsPidMap_[id], SIGTERM);
-        LOG(INFO) << "kill mds: " << strerror(errno);
+        if (kill(mdsPidMap_[id], SIGTERM) < 0) {
+            LOG(ERROR) << "kill mds: " << strerror(errno);
+            RETURN_IF_NOT_ZERO(-1);
+        }
         int waitStatus;
         waitpid(mdsPidMap_[id], &waitStatus, 0);
         RETURN_IF_NOT_ZERO(ProbePort(MDSIpPort(id), 20000, false));
@@ -162,21 +127,131 @@ int CurveCluster::StopMDS(int id) {
 int CurveCluster::StopAllMDS() {
     LOG(INFO) << "stop all mds begin...";
 
-    for (auto it = mdsPidMap_.begin(); it != mdsPidMap_.end();) {
-        LOG(INFO) << "begin to stop mds" << it->first << " " << it->second
+    int ret = 0;
+    for (auto it = mdsPidMap_.begin(); it != mdsPidMap_.end();
+         it = mdsPidMap_.erase(it)) {
+        LOG(INFO) << "begin to stop mds " << it->first << " " << it->second
                   << ", port: " << mdsIpPort_[it->first];
-        kill(it->second, SIGTERM);
-        LOG(INFO) << "kill mds: " << strerror(errno);
+        if (kill(it->second, SIGTERM) < 0) {
+            LOG(ERROR) << "kill mds: " << strerror(errno);
+            ret = -1;
+            continue;
+        }
         int waitStatus;
         waitpid(it->second, &waitStatus, 0);
-        RETURN_IF_NOT_ZERO(ProbePort(mdsIpPort_[it->first], 20000, false));
-        LOG(INFO) << "success stop mds" << it->first << " " << it->second;
-        it = mdsPidMap_.erase(it);
+        if (ProbePort(mdsIpPort_[it->first], 20000, false) < 0) {
+            ret = -1;
+            LOG(ERROR) << "failed to stop mds " << it->first << " "
+                       << it->second << ", port: " << mdsIpPort_[it->first];
+        } else {
+            LOG(INFO) << "success stop mds " << it->first << " " << it->second;
+        }
     }
 
     ::sleep(2);
-    LOG(INFO) << "success stop all mds";
+    if (ret < 0)
+        LOG(ERROR) << "Error occured to stop all mds";
+    else
+        LOG(INFO) << "success stop all mds";
+    return ret;
+}
+
+int CurveCluster::StartSnapshotCloneServer(
+    int id, const std::string &ipPort,
+    const std::vector<std::string> &snapshotcloneConf) {
+    LOG(INFO) << "start snapshotcloneserver " << ipPort << " begin ...";
+    pid_t pid = ::fork();
+    if (0 > pid) {
+        LOG(ERROR) << "start snapshotcloneserver " << ipPort << " fork failed";
+        return -1;
+    } else if (0 == pid) {
+        // 在子进程中起一个snapshotcloneserver
+        std::string cmd_dir = std::string(
+                                  "./bazel-bin/src/snapshotcloneserver/"
+                                  "snapshotcloneserver --addr=") +  // NOLINT
+                              ipPort;
+        for (auto &item : snapshotcloneConf) {
+            cmd_dir += item;
+        }
+        execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
+        // 使用error级别，帮助收集日志
+        LOG(ERROR) << "start mds by execl, errno = " << errno;
+        exit(0);
+    }
+
+    RETURN_IF_NOT_ZERO(ProbePort(ipPort, 20000, true));
+    LOG(INFO) << "start snapshotcloneserver " << ipPort << " (pid=" << pid
+              << ") success.";
+    snapPidMap_[id] = pid;
+    snapIpPort_[id] = ipPort;
+    snapConf_[id] = snapshotcloneConf;
+    return pid;
+}
+
+int CurveCluster::StopSnapshotCloneServer(int id, bool force) {
+    LOG(INFO) << "stop snapshotcloneserver " << snapIpPort_[id] << " begin...";
+    if (snapPidMap_.find(id) != snapPidMap_.end()) {
+        int res = 0;
+        if (force) {
+            res = kill(snapPidMap_[id], SIGKILL);
+        } else {
+            res = kill(snapPidMap_[id], SIGTERM);
+        }
+        if (res < 0)
+            LOG(ERROR) << "failed to kill snapshotcloneserver: "
+                       << strerror(errno);
+        RETURN_IF_NOT_ZERO(res);
+        RETURN_IF_NOT_ZERO(ProbePort(snapIpPort_[id], 5000, false));
+        int waitStatus;
+        waitpid(snapPidMap_[id], &waitStatus, 0);
+        snapPidMap_.erase(id);
+    }
+    LOG(INFO) << "stop snapshotcloneserver " << snapIpPort_[id] << " success.";
     return 0;
+}
+
+int CurveCluster::RestartSnapshotCloneServer(int id, bool force) {
+    LOG(INFO) << "restart snapshotcloneserver " << snapIpPort_[id]
+              << " begin...";
+    pid_t pid = -1;
+    if (snapPidMap_.find(id) != snapPidMap_.end()) {
+        int res = 0;
+        if (force) {
+            res = kill(snapPidMap_[id], SIGKILL);
+        } else {
+            res = kill(snapPidMap_[id], SIGTERM);
+        }
+        if (res < 0)
+            LOG(ERROR) << "failed to kill snapshotcloneserver: "
+                       << strerror(errno);
+        RETURN_IF_NOT_ZERO(res);
+        RETURN_IF_NOT_ZERO(ProbePort(snapIpPort_[id], 20000, false));
+        int waitStatus;
+        waitpid(snapPidMap_[id], &waitStatus, 0);
+        std::string ipPort = snapIpPort_[id];
+        auto conf = snapConf_[id];
+        snapPidMap_.erase(id);
+        pid = StartSnapshotCloneServer(id, ipPort, conf);
+    }
+
+    LOG(INFO) << "restart snapshotcloneserver " << snapIpPort_[id] << " done.";
+    return pid;
+}
+
+int CurveCluster::StopAllSnapshotCloneServer() {
+    LOG(INFO) << "stop all snapshotclone server begin ...";
+
+    int ret = 0;
+    auto tempMap = snapPidMap_;
+    for (auto pair : tempMap) {
+        if (StopSnapshotCloneServer(pair.first) < 0)
+            ret = -1;
+    }
+
+    // 等待进程完全退出
+    ::sleep(2);
+    LOG(INFO) << "stop all snapshotcloneservver end.";
+    return ret;
 }
 
 int CurveCluster::StartSingleEtcd(int id, const std::string &clientIpPort,
@@ -257,8 +332,10 @@ int CurveCluster::StopEtcd(int id) {
     LOG(INFO) << "stop etcd " << etcdClientIpPort_[id] << " begin...";
 
     if (etcdPidMap_.find(id) != etcdPidMap_.end()) {
-        kill(etcdPidMap_[id], SIGTERM);
-        LOG(INFO) << "kill etcd: " << strerror(errno);
+        if (kill(etcdPidMap_[id], SIGTERM) < 0) {
+            LOG(ERROR) << "kill etcd: " << strerror(errno);
+            RETURN_IF_NOT_ZERO(-1);
+        }
         int waitStatus;
         waitpid(etcdPidMap_[id], &waitStatus, 0);
         RETURN_IF_NOT_ZERO(ProbePort(etcdClientIpPort_[id], 20000, false));
@@ -277,21 +354,52 @@ int CurveCluster::StopEtcd(int id) {
 int CurveCluster::StopAllEtcd() {
     LOG(INFO) << "stop all etcd begin...";
 
+    int ret = 0;
     int waitStatus;
-    for (auto it = etcdPidMap_.begin(); it != etcdPidMap_.end();) {
+    for (auto it = etcdPidMap_.begin(); it != etcdPidMap_.end();
+         it = etcdPidMap_.erase(it)) {
         LOG(INFO) << "begin to stop etcd" << it->first << " " << it->second
                   << ", " << etcdClientIpPort_[it->first];
-        kill(it->second, SIGTERM);
-        LOG(INFO) << "kill etcd: " << strerror(errno);
+        if (kill(it->second, SIGTERM) < 0) {
+            LOG(ERROR) << "kill etcd: " << strerror(errno);
+            ret = -1;
+            continue;
+        }
         waitpid(it->second, &waitStatus, 0);
-        RETURN_IF_NOT_ZERO(
-            ProbePort(etcdClientIpPort_[it->first], 20000, false));
-        LOG(INFO) << "success stop etcd" << it->first << " " << it->second;
-        it = etcdPidMap_.erase(it);
+        if (ProbePort(etcdClientIpPort_[it->first], 20000, false) < 0) {
+            ret = -1;
+            LOG(ERROR) << "faild to stop etcd" << it->first << " "
+                       << it->second;
+        } else {
+            LOG(INFO) << "success stop etcd" << it->first << " " << it->second;
+        }
     }
 
     ::sleep(2);
-    LOG(INFO) << "success stop all etcd";
+    if (ret < 0)
+        LOG(ERROR) << "Error occured to stop all etcd";
+    else
+        LOG(INFO) << "success stop all etcd";
+    return ret;
+}
+
+int CurveCluster::FormatChunkFilePool(const std::string &chunkfilepooldir,
+                                      const std::string &chunkfilepoolmetapath,
+                                      const std::string &filesystempath,
+                                      uint32_t size) {
+    LOG(INFO) << "FormatChunkFilePool begin...";
+
+    std::string cmd = std::string("./bazel-bin/src/tools/curve_format") +
+                      " -chunkfilepool_dir=" + chunkfilepooldir +
+                      " -chunkfilepool_metapath=" + chunkfilepoolmetapath +
+                      " -filesystem_path=" + filesystempath +
+                      " -allocateByPercent=false -preallocateNum=" +
+                      std::to_string(size * 64) +
+                      " -needWriteZero=false";  // 1G = 64 chunk
+
+    RETURN_IF_NOT_ZERO(system(cmd.c_str()));
+
+    LOG(INFO) << "FormatChunkFilePool end.";
     return 0;
 }
 
@@ -319,6 +427,7 @@ int CurveCluster::StartSingleChunkServer(
         for (auto &item : chunkserverConf) {
             cmd_dir += item;
         }
+
         LOG(INFO) << "start exec cmd: " << cmd_dir;
         execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
         LOG(ERROR) << "start single chunkserver: " << strerror(errno);
@@ -381,8 +490,10 @@ int CurveCluster::StopChunkServer(int id) {
     if (chunkserverPidMap_.find(id) != chunkserverPidMap_.end()) {
         std::string killCmd = "kill " + std::to_string(chunkserverPidMap_[id]);
         LOG(INFO) << "exec cmd: " << killCmd << " to stop chunkserver " << id;
-        system(killCmd.c_str());
-        LOG(INFO) << "kill chunkserver: " << strerror(errno);
+        if (system(killCmd.c_str()) < 0) {
+            LOG(ERROR) << "kill chunkserver: " << strerror(errno);
+            RETURN_IF_NOT_ZERO(-1);
+        }
         int waitStatus;
         waitpid(chunkserverPidMap_[id], &waitStatus, 0);
         RETURN_IF_NOT_ZERO(ProbePort(chunkserverIpPort_[id], 20000, false));
@@ -400,24 +511,34 @@ int CurveCluster::StopChunkServer(int id) {
 int CurveCluster::StopAllChunkServer() {
     LOG(INFO) << "sttop all chunkserver begin...";
 
-    for (auto it = chunkserverPidMap_.begin();
-         it != chunkserverPidMap_.end();) {
+    int ret = 0;
+    for (auto it = chunkserverPidMap_.begin(); it != chunkserverPidMap_.end();
+         it = chunkserverPidMap_.erase(it)) {
         LOG(INFO) << "begin to stop chunkserver" << it->first << " "
                   << it->second << ", " << chunkserverIpPort_[it->first];
-        kill(it->second, SIGTERM);
-        LOG(INFO) << "kill chunkserver: " << strerror(errno);
+        if (kill(it->second, SIGTERM) < 0) {
+            LOG(ERROR) << "kill chunkserver: " << strerror(errno);
+            ret = -1;
+            continue;
+        }
         int waitStatus;
         waitpid(it->second, &waitStatus, 0);
-        RETURN_IF_NOT_ZERO(
-            ProbePort(chunkserverIpPort_[it->first], 20000, false));
-        LOG(INFO) << "success stop chunkserver" << it->first << " "
-                  << it->second;
-        it = chunkserverPidMap_.erase(it);
+        if (ProbePort(chunkserverIpPort_[it->first], 20000, false) < 0) {
+            ret = -1;
+            LOG(ERROR) << "failed to stop chunkserver" << it->first << " "
+                       << it->second;
+        } else {
+            LOG(INFO) << "success stop chunkserver" << it->first << " "
+                      << it->second;
+        }
     }
 
     ::sleep(2);
-    LOG(INFO) << "success stop all chunkserver";
-    return 0;
+    if (ret < 0)
+        LOG(ERROR) << "Error occured to stop all chunkserver";
+    else
+        LOG(INFO) << "success stop all chunkserver";
+    return ret;
 }
 
 std::string CurveCluster::MDSIpPort(int id) {
@@ -480,8 +601,10 @@ int CurveCluster::RecoverHangChunkServer(int id) {
 
 int CurveCluster::HangProcess(pid_t pid) {
     LOG(INFO) << "hang pid: " << pid << " begin...";
-    kill(pid, SIGSTOP);
-    LOG(INFO) << "hung pid: " << strerror(errno);
+    if (kill(pid, SIGSTOP) < 0) {
+        LOG(ERROR) << "hang pid: " << strerror(errno);
+        RETURN_IF_NOT_ZERO(-1);
+    }
     int waitStatus;
     waitpid(pid, &waitStatus, WUNTRACED);
     LOG(INFO) << "success hang pid: " << pid;
@@ -490,8 +613,10 @@ int CurveCluster::HangProcess(pid_t pid) {
 
 int CurveCluster::RecoverHangProcess(pid_t pid) {
     LOG(INFO) << "recover hang pid: " << pid << " begin...";
-    kill(pid, SIGCONT);
-    LOG(INFO) << "recover pid: " << strerror(errno);
+    if (kill(pid, SIGCONT) < 0) {
+        LOG(ERROR) << "recover pid: " << strerror(errno);
+        RETURN_IF_NOT_ZERO(-1);
+    }
     int waitStatus;
     waitpid(pid, &waitStatus, WCONTINUED);
     LOG(INFO) << "success recover hang pid: " << pid;
@@ -511,8 +636,8 @@ int CurveCluster::PreparePhysicalPool(int mdsId,
                               std::string(" -mds_addr=") + MDSIpPort(mdsId) +
                               std::string(" -op=create_physicalpool") +
                               std::string(" -stderrthreshold=0") +
-                              std::string(" -minloglevel=0") +
-                              std::string(" -rpcTimeOutMs=10000");
+                              std::string(" -rpcTimeOutMs=20000") +
+                              std::string(" -minloglevel=0");
 
     LOG(INFO) << "exec cmd: " << createPPCmd;
     RETURN_IF_NOT_ZERO(system(createPPCmd.c_str()));

@@ -35,13 +35,15 @@ class IOManager4Chunk : public IOManager {
     * @param: offset是快照内的offset
     * @param: len是要读取的长度
     * @param: buf是读取缓冲区
+    * @param: scc是异步回调
     * @return：成功返回真实读取长度，失败为-1
     */
     int ReadSnapChunk(const ChunkIDInfo &chunkidinfo,
                      uint64_t seq,
                      uint64_t offset,
                      uint64_t len,
-                     char *buf);
+                     char *buf,
+                     SnapCloneClosure* scc);
    /**
     * 删除此次转储时产生的或者历史遗留的快照
     * 如果转储过程中没有产生快照，则修改chunk的correctedSn
@@ -70,14 +72,15 @@ class IOManager4Chunk : public IOManager {
     * @param:sn chunk的序列号
     * @param:chunkSize chunk的大小
     * @param:correntSn CreateCloneChunk时候用于修改chunk的correctedSn
-    *
+    * @param: scc是异步回调
     * @return 成功返回0， 否则-1
     */
     int CreateCloneChunk(const std::string &location,
                                 const ChunkIDInfo &chunkidinfo,
                                 uint64_t sn,
                                 uint64_t correntSn,
-                                uint64_t chunkSize);
+                                uint64_t chunkSize,
+                                SnapCloneClosure* scc);
 
    /**
     * @brief 实际恢复chunk数据
@@ -85,12 +88,12 @@ class IOManager4Chunk : public IOManager {
     * @param:chunkidinfo chunkidinfo
     * @param:offset 偏移
     * @param:len 长度
-    *
+    * @param: scc是异步回调
     * @return 成功返回0， 否则-1
     */
     int RecoverChunk(const ChunkIDInfo &chunkidinfo,
-                              uint64_t offset,
-                              uint64_t len);
+                     uint64_t offset, uint64_t len,
+                     SnapCloneClosure* scc);
 
     /**
      * 因为curve client底层都是异步IO，每个IO会分配一个IOtracker跟踪IO

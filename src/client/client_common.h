@@ -10,6 +10,7 @@
 
 #include <butil/endpoint.h>
 #include <butil/status.h>
+#include <brpc/closure_guard.h>
 
 #include <unistd.h>
 #include <string>
@@ -51,7 +52,8 @@ enum class FileStatus {
     Deleting,
     Cloning,
     CloneMetaInstalled,
-    Cloned
+    Cloned,
+    BeingCloned,
 };
 
 typedef struct ChunkIDInfo {
@@ -198,9 +200,19 @@ struct ChunkServerAddr {
 };
 
 const char* OpTypeToString(OpType optype);
-
 struct ClusterContext {
     std::string clusterId;
+};
+
+class SnapCloneClosure : public google::protobuf::Closure {
+ public:
+    SnapCloneClosure():ret(-LIBCURVE_ERROR::FAILED) {}
+
+    void SetRetCode(int retCode) {ret = retCode;}
+    int GetRetCode() {return ret;}
+
+ private:
+    int ret;
 };
 
 }   // namespace client

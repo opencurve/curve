@@ -9,6 +9,8 @@
 #include <gtest/gtest.h>  //NOLINT
 #include <gmock/gmock.h>  //NOLINT
 #include "src/common/s3_adapter.h"
+#include "src/common/uuid.h"
+#include "src/common/concurrent/count_down_event.h"
 
 namespace curve {
 namespace common {
@@ -18,17 +20,24 @@ class TestS3Adapter : public ::testing::Test {
      TestS3Adapter() {}
      virtual ~TestS3Adapter() {}
 
+     static void SetUpTestCase() {
+         bucketName = "curve-unit-test" + UUIDGenerator().GenerateUUID();
+     }
+
     void SetUp() {
         adapter_ = new S3Adapter();
-        adapter_->Init("./conf/s3_test.conf");
-        adapter_->SetBucketName("curve-unit-test");
+        adapter_->Init("./conf/s3.conf");
+        adapter_->SetBucketName(bucketName.c_str());
     }
     void TearDown() {
         adapter_->Deinit();
         delete adapter_;
     }
     S3Adapter *adapter_;
+    static std::string bucketName;
 };
+
+std::string TestS3Adapter::bucketName = "";  // NOLINT
 
 TEST_F(TestS3Adapter, testS3BucketRequest) {
     ASSERT_EQ(false, adapter_->BucketExist());
@@ -62,6 +71,28 @@ TEST_F(TestS3Adapter, testS3ObjectRequest) {
     ASSERT_EQ(0, adapter_->GetObject("teststr", buf, 0, 4));
     std::string tmp(buf, 4);
     ASSERT_EQ("0123", tmp);
+
+    CountDownEvent cond(1);
+
+    // test GetObjectAsync
+    GetObjectAsyncCallBack cb = [&cond] (const S3Adapter* adapter,
+    const std::shared_ptr<GetObjectAsyncContext>& ctx) {
+        ASSERT_EQ(0, ctx->retCode);
+        cond.Signal();
+    };
+    auto context = std::make_shared<GetObjectAsyncContext>();
+    context->key = "teststr";
+    context->buf = new char[10];
+    context->offset = 1;
+    context->len = 4;
+    context->cb = cb;
+    context->retCode = -1;
+    adapter_->GetObjectAsync(context);
+
+    cond.Wait();
+    std::string tmp2(context->buf, 4);
+    ASSERT_EQ("1234", tmp2);
+
     ASSERT_EQ(0, adapter_->DeleteObject("teststr"));
 }
 

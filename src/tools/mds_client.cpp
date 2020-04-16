@@ -750,32 +750,21 @@ int MDSClient::ListChunkServersInCluster(
     return 0;
 }
 
-int MDSClient::GetMdsListenAddr(const std::string& dummyAddr,
-                                std::string* listenAddr) {
-    std::string jsonString;
-    brpc::Controller cntl;
-    MetricRet res = metricClient_.GetMetric(dummyAddr, kMdsListenAddrMetricName,
-                        &jsonString);
+int MDSClient::GetListenAddrFromDummyPort(const std::string& dummyAddr,
+                                          std::string* listenAddr) {
+    MetricRet res = metricClient_.GetConfValueFromMetric(dummyAddr,
+                        kMdsListenAddrMetricName, listenAddr);
     if (res != MetricRet::kOK) {
-        std::cout << "Get mds listen addr from " << dummyAddr
-                  << " fail" << std::endl;
         return -1;
     }
-    Json::Reader reader(Json::Features::strictMode());
-    Json::Value value;
-    if (!reader.parse(jsonString, value)) {
-        std::cout << "Parse metric as json fail" << std::endl;
-        return -1;
-    }
-    *listenAddr = value["conf_value"].asString();
     return 0;
 }
 
-int MDSClient::GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus) {
+void MDSClient::GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus) {
     onlineStatus->clear();
     for (const auto item : dummyServerMap_) {
         std::string listenAddr;
-        int res = GetMdsListenAddr(item.second, &listenAddr);
+        int res = GetListenAddrFromDummyPort(item.second, &listenAddr);
         // 如果获取到的监听地址与记录的mds地址不一致，也认为不在线
         if (res != 0 || listenAddr != item.first) {
             onlineStatus->emplace(item.first, false);
@@ -783,7 +772,6 @@ int MDSClient::GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus) {
         }
         onlineStatus->emplace(item.first, true);
     }
-    return 0;
 }
 
 int MDSClient::GetMetric(const std::string& metricName, uint64_t* value) {
@@ -830,25 +818,23 @@ bool MDSClient::ChangeMDServer() {
     return true;
 }
 
-std::string MDSClient::GetCurrentMds() {
-    // 需要发送RPC确认一下，不然可能mds已经切换了
-    curve::mds::GetFileInfoRequest request;
-    curve::mds::GetFileInfoResponse response;
-    request.set_filename("/");
-    FillUserInfo(&request);
-    curve::mds::CurveFSService_Stub stub(&channel_);
-
-    void (curve::mds::CurveFSService_Stub::*fp)(
-                            google::protobuf::RpcController*,
-                            const curve::mds::GetFileInfoRequest*,
-                            curve::mds::GetFileInfoResponse*,
-                            google::protobuf::Closure*);
-    fp = &curve::mds::CurveFSService_Stub::GetFileInfo;
-    if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
-        return "";
-    } else {
-        return mdsAddrVec_[currentMdsIndex_];
+std::vector<std::string> MDSClient::GetCurrentMds() {
+    std::vector<std::string> leaderAddrs;
+    for (const auto item : dummyServerMap_) {
+        // 获取status来判断正在服务的地址
+        std::string status;
+        MetricRet ret = metricClient_.GetMetric(item.second,
+                                        kMdsStatusMetricName, &status);
+        if (ret != MetricRet::kOK) {
+            std::cout << "Get status metric from " << item.second
+                      << " fail" << std::endl;
+            continue;
+        }
+        if (status == kMdsStatusLeader) {
+            leaderAddrs.emplace_back(item.first);
+        }
     }
+    return leaderAddrs;
 }
 
 int MDSClient::RapidLeaderSchedule(PoolIdType lpoolId) {

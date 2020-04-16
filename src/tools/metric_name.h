@@ -17,20 +17,31 @@
 namespace curve {
 namespace tool {
 
+// common metric name
+const char kCurveVersionMetricName[] = "curve_version";
+
+// snapshot clone server metric name
+const char kSnapshotCloneConfMetricName[] =
+                                "snapshotcloneserver_config_server_address";
+const char kSnapshotCloneStatusMetricName[] = "snapshotcloneserver_status";
+const char kSnapshotCloneStatusActive[] = "active";
+
+// mds metric name
 const char kLogicalPoolMetricPrefix[] = "topology_metric_logicalPool_";
 const char kChunkServerMetricPrefix[] = "chunkserver_";
 const char kOperatorNumMetricName[] = "mds_scheduler_metric_operator_num";
-const char kMdsListenAddrMetricName[] = "mds_config_mds_listen_addr";
-const char kCurveVersionMetricName[] = "curve_version";
 const char kProcessCmdLineMetricName[] = "process_cmdline";
 const char kSechduleOpMetricpPrefix[] = "mds_scheduler_metric_";
-
+const char kMdsListenAddrMetricName[] = "mds_config_mds_listen_addr";
+const char kMdsStatusMetricName[] = "mds_status";
+const char kMdsStatusLeader[] = "leader";
 // operator名称
 const char kTotalOpName[] = "operator";
 const char kChangeOpName[] = "change_peer";
 const char kAddOpName[] = "add_peer";
 const char kRemoveOpName[] = "remove_peer";
 const char kTransferOpName[] = "transfer_leader";
+
 
 inline std::string GetPoolTotalBytesName(
                             const std::string& poolName) {
