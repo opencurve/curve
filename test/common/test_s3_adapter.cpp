@@ -17,40 +17,26 @@ namespace common {
 
 class TestS3Adapter : public ::testing::Test {
  public:
-     TestS3Adapter() {}
-     virtual ~TestS3Adapter() {}
-
-     static void SetUpTestCase() {
-         bucketName = "curve-unit-test" + UUIDGenerator().GenerateUUID();
-     }
+    TestS3Adapter() {}
+    virtual ~TestS3Adapter() {}
 
     void SetUp() {
         adapter_ = new S3Adapter();
         adapter_->Init("./conf/s3.conf");
-        adapter_->SetBucketName(bucketName.c_str());
+        adapter_->SetBucketName("curve-unit-test-bkt");
+        if (!adapter_->BucketExist()) {
+            ASSERT_EQ(0, adapter_->CreateBucket());
+        }
     }
     void TearDown() {
         adapter_->Deinit();
         delete adapter_;
     }
     S3Adapter *adapter_;
-    static std::string bucketName;
 };
 
-std::string TestS3Adapter::bucketName = "";  // NOLINT
-
-TEST_F(TestS3Adapter, testS3BucketRequest) {
-    ASSERT_EQ(false, adapter_->BucketExist());
-    ASSERT_EQ(0, adapter_->CreateBucket());
-    ASSERT_EQ(true, adapter_->BucketExist());
-    ASSERT_EQ(0, adapter_->DeleteBucket());
-    ASSERT_EQ(-1, adapter_->DeleteBucket());
-    ASSERT_EQ(0, adapter_->CreateBucket());
-    ASSERT_EQ(-1, adapter_->CreateBucket());
-}
-
 TEST_F(TestS3Adapter, testS3ObjectRequest) {
-    Aws::String tmpBucket1 = "tmp";
+    Aws::String tmpBucket1 = "unexist";
     Aws::String tmpBucket2;
     ASSERT_EQ(false, adapter_->ObjectExist("test"));
     ASSERT_EQ(0, adapter_->PutObject("test", "test"));
@@ -122,7 +108,6 @@ TEST_F(TestS3Adapter, testS3MulitPartRequest) {
     ASSERT_EQ(-1, adapter_->CompleteMultiUpload(key_err, "", cp_v));
     ASSERT_EQ(-1, adapter_->AbortMultiUpload(key, id));
     ASSERT_EQ(0, adapter_->DeleteObject("test-multipart"));
-    ASSERT_EQ(0, adapter_->DeleteBucket());
     delete [] buf;
 }
 
