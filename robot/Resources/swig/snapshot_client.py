@@ -3,7 +3,7 @@
 
 from curvesnapshot_python import curvesnapshot
 from config import config
-from logger import logger
+from logger.logger import *
 
 
 class CurveSnapshot:

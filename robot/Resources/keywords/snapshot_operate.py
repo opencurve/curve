@@ -2,7 +2,7 @@
 # -*- coding: utf8 -*-
 
 from config import config
-from logger import logger
+from logger.logger import *
 from swig import snapshot_client
 from swig import swig_operate
 from curvesnapshot_python import curvesnapshot
