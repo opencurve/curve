@@ -5,7 +5,7 @@ import subprocess
 
 from config import config
 
-from logger import logger
+from logger.logger import *
 import paramiko
 import time
 
@@ -166,9 +166,8 @@ def create_ssh_connect(host,port,user):
     ssh.connect(host,port=port,username=user,timeout=100,pkey=key)
     return ssh
 
-def ssh_exec(con, cmd,log=True):
-    if log == True:
-        logger.info('ssh exec cmd %s', cmd)
+def ssh_exec(con, cmd,log=logger):
+    log.info('ssh exec cmd %s', cmd)
     stdin, stdout, stderr = con.exec_command(cmd, timeout=120)
     return_code = stdout.channel.recv_exit_status()
     return stdin,stdout.readlines(),stderr.readlines(),return_code
