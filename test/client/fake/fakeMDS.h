@@ -435,6 +435,10 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         auto resp = static_cast<::curve::mds::CloseFileResponse*>(
                     fakeclosefile_->response_);
         response->CopyFrom(*resp);
+
+        if (closeFileTask_) {
+            closeFileTask_();
+        }
     }
 
     void RenameFile(::google::protobuf::RpcController* controller,
@@ -663,6 +667,10 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         fakeChangeOwner_ = fakeret;
     }
 
+    void SetCloseFileTask(std::function<void(void)> task) {
+        closeFileTask_ = task;
+    }
+
     void CleanRetryTimes() {
         retrytimes_ = 0;
     }
@@ -722,6 +730,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
     FakeReturn* fakedeletesnapchunkret_;
     FakeReturn* fakegetsnapsegmentinforet_;
     std::function<void(void)> refreshtask_;
+    std::function<void(void)> closeFileTask_;
 };
 
 class FakeMDSTopologyService : public curve::mds::topology::TopologyService {
