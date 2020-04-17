@@ -94,7 +94,7 @@ class TestLibcbdLibcurve : public ::testing::Test {
         delete mds_;
     }
 
- private:
+ protected:
     FakeMDS* mds_;
 };
 
@@ -260,6 +260,56 @@ TEST_F(TestLibcbdLibcurve, StatFileTest) {
 
     ret = cbd_lib_fini();
     ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
+}
+
+TEST_F(TestLibcbdLibcurve, ReadAndCloseConcurrencyTest) {
+    char buffer[BUFSIZE];
+    CurveOptions opts;
+
+    const int closeFileSleepS = 20;
+
+    memset(&opts, 0, sizeof(opts));
+    memset(buffer, 0, sizeof(buffer));
+
+    opts.conf = const_cast<char*>(configpath.c_str());
+    ASSERT_EQ(LIBCURVE_ERROR::OK, cbd_lib_init(&opts));
+
+    int fd1 = cbd_lib_open("/ReadWithCloseTest1_test_");
+    int fd2 = cbd_lib_open("/ReadWithCloseTest2_test_");
+    ASSERT_GE(fd1, 0);
+    ASSERT_GE(fd2, 0);
+
+    auto curvefsService = mds_->GetMDSService();
+    curvefsService->SetCloseFileTask([]() {
+        std::this_thread::sleep_for(std::chrono::seconds(closeFileSleepS));
+    });
+
+    auto closeThread = [](int fd) {
+        ASSERT_EQ(0, cbd_lib_close(fd));
+        LOG(INFO) << "here";
+    };
+
+    auto readThread = [buffer](int fd) {
+        auto start = curve::common::TimeUtility::GetTimeofDayMs();
+        ASSERT_EQ(BUFSIZE, cbd_lib_pread(fd, (void*)buffer, 0, BUFSIZE));  // NOLINT
+        auto end = curve::common::TimeUtility::GetTimeofDayMs();
+
+        ASSERT_LE(end - start, 1000);
+    };
+
+    std::thread t1(closeThread, fd1);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::thread t2(readThread, fd2);
+
+    t1.join();
+    t2.join();
+
+    curvefsService->SetCloseFileTask(nullptr);
+
+    ASSERT_EQ(LIBCURVE_ERROR::OK, cbd_lib_close(fd1));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, cbd_lib_close(fd2));
+
+    ASSERT_EQ(LIBCURVE_ERROR::OK, cbd_lib_fini());
 }
 
 std::string mdsMetaServerAddr = "127.0.0.1:9951";     // NOLINT
