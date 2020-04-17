@@ -11,6 +11,7 @@
 
 #include <thread>   // NOLINT
 #include <mutex>    // NOLINT
+#include <memory>
 #include "src/client/libcurve_file.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
@@ -465,24 +466,33 @@ int FileClient::ChangeOwner(const std::string& filename,
 }
 
 int FileClient::Close(int fd) {
-    WriteLockGuard lk(rwlock_);
-    auto iter = fileserviceMap_.find(fd);
-    if (iter == fileserviceMap_.end()) {
-        LOG(ERROR) << "can not find " << fd;
-        return -LIBCURVE_ERROR::FAILED;
+    {
+        ReadLockGuard lk(rwlock_);
+        auto iter = fileserviceMap_.find(fd);
+        if (iter == fileserviceMap_.end()) {
+            LOG(ERROR) << "CloseFile failed not found fd = " << fd;
+            return -LIBCURVE_ERROR::FAILED;
+        }
     }
 
     int ret = fileserviceMap_[fd]->Close();
-    if (ret == LIBCURVE_ERROR::OK || ret == -LIBCURVE_ERROR::SESSION_NOT_EXIST) {   //  NOLINT
+    if (ret == LIBCURVE_ERROR::OK ||
+        ret == -LIBCURVE_ERROR::SESSION_NOT_EXIST) {
         fileserviceMap_[fd]->UnInitialize();
-        delete fileserviceMap_[fd];
-        fileserviceMap_.erase(iter);
-        LOG(INFO) << "uninitialize " << fd;
+
+        {
+            WriteLockGuard lk(rwlock_);
+            delete fileserviceMap_[fd];
+            fileserviceMap_.erase(fd);
+        }
+
+        LOG(INFO) << "CloseFile ok, fd = " << fd;
+
         return LIBCURVE_ERROR::OK;
-    } else {
-        LOG(ERROR) << "close failed " << fd;
-        return -LIBCURVE_ERROR::FAILED;
     }
+
+    LOG(ERROR) << "CloseFile failed fd = " << fd;
+    return -LIBCURVE_ERROR::FAILED;
 }
 
 bool FileClient::CheckAligned(off_t offset, size_t length) {
