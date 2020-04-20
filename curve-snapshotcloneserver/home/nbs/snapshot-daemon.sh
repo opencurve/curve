@@ -7,22 +7,19 @@ curveBin=/usr/bin/curve-snapshotcloneserver
 confPath=/etc/curve/snapshot_clone_server.conf
 
 # 日志文件路径
-logPath=${HOME}/
+logPath=${HOME}/snapshotlog
 
 # serverAddr
 serverAddr=
-
-# stop时是否停止curve-mds
-forceStop=false
 
 # pidfile
 pidFile=${HOME}/curve-snapshot.pid
 
 # daemon log
-daemonLog=${HOME}/daemon-mds.log
+daemonLog=${logPath}/curve-snapshot-daemon.log
 
 # console output
-consoleLog=${HOME}/snapshot-console.log
+consoleLog=${logPath}/curve-snapshot-console.log
 
 # 启动snapshotcloneserver
 function start_server() {
@@ -47,7 +44,7 @@ function start_server() {
         exit
     fi
 
-    # 判断是否已经通过daemon启动了curve-mds
+    # 判断是否已经通过daemon启动了curve-snapshotcloneserver
     daemon --name curve-snapshotcloneserver --pidfile ${pidFile} --running
     if [ $? -eq 0 ]
     then
@@ -55,7 +52,6 @@ function start_server() {
         exit
     fi
 
-    # TODO(wuhanqing): 交给glog创建
     # 创建logPath
     mkdir -p ${logPath} > /dev/null 2>&1
     if [ $? -ne 0 ]
@@ -64,16 +60,12 @@ function start_server() {
         exit
     fi
 
-    # TODO(wuhanqing): 交给glog检测
-    # 检查logPath是否有写入权限
-    touch ${logPath}/dummy-file > /dev/null 2>&1
-    if [ $? -ne 0 ]
+    # 检查logPath是否有写权限
+    if [ ! -w ${logPath} ]
     then
-        echo "Can't Create logfile in ${logPath}, check permission"
-        rm -f ${logPath}/dummy-file > /dev/null 2>&1
-        exit
+        echo "Write permission denied: ${logPath}"
+        exit 1
     fi
-    rm -f ${logPath}/dummy-file > /dev/null 2>&1
 
     # 检查consoleLog是否可写或者能否创建，初始化glog之前的日志存放在这里
     touch ${consoleLog} > /dev/null 2>&1
@@ -91,33 +83,71 @@ function start_server() {
         exit
     fi
 
-    # 未指定serverAddr
+    # 未指定serverAddr, 从配置文件中解析出网段
     if [ -z ${serverAddr} ]
     then
-        daemon --name curve-snapshotcloneserver --core --inherit \
-            --respawn --attempts 100 --delay 10 \
-            --pidfile ${pidFile} \
-            --errlog ${daemonLog} \
-            --output ${consoleLog} \
-            -- ${curveBin} -conf=${confPath} -log_dir=${logPath} -stderrthreshold=3 -graceful_quit_on_sigterm=true
-    else
-        daemon --name curve-snapshotcloneserver --core --inherit \
+        subnet=`cat $confPath|grep server.subnet|awk -F"=" '{print $2}'`
+        port=`cat $confPath|grep server.port|awk -F"=" '{print $2}'`
+        prefix=`echo $subnet|awk -F/ '{print $1}'|awk -F. '{printf "%d", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
+        mod=`echo $subnet|awk -F/ '{print $2}'`
+        mask=$((2**32-2**(32-$mod)))
+        ip=
+        echo "subnet: $subnet"
+        echo "port: $port"
+        # 对prefix再取一次模，为了支持10.182.26.50/22这种格式
+        prefix=$(($prefix&$mask))
+        for i in `/sbin/ifconfig -a|grep inet|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
+        do
+                # 把ip转换成整数
+                ip_int=`echo $i|awk -F. '{printf "%d\n", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
+                if [ $(($ip_int&$mask)) -eq $prefix ]
+                then
+                    ip=$i
+                    break
+                fi
+        done
+        if [ -z "$ip" ]
+        then
+                echo "no ip matched!\n"
+                return 1
+        fi
+        serverAddr=${ip}:${port}
+    fi
+
+    daemon --name curve-snapshotcloneserver --core --inherit \
             --respawn --attempts 100 --delay 10 \
             --pidfile ${pidFile} \
             --errlog ${daemonLog} \
             --output ${consoleLog} \
             -- ${curveBin} -conf=${confPath} -addr=${serverAddr} -log_dir=${logPath} -stderrthreshold=3 -graceful_quit_on_sigterm=true
-    fi
+
+    sleep 1
+    show_status
 }
 
 # 停止daemon进程和curve-snapshotcloneserver
 function stop_server() {
+    # 判断是否已经通过daemon启动了curve-snapshotcloneserver
+    daemon --name curve-snapshotcloneserver --pidfile ${pidFile} --running
+    if [ $? -ne 0 ]
+    then
+        echo "Didn't start curve-snapshotcloneserver by daemon"
+        exit 1
+    fi
+
     daemon --name curve-snapshotcloneserver --pidfile ${pidFile} --stop
+    if [ $? -ne 0 ]
+    then
+        echo "stop may not success!"
+    else
+        echo "curve-snapshotcloneserver exit success!"
+        echo "daemon exit success!"
+    fi
 }
 
 # restart
 function restart_server() {
-    # 判断是否已经通过daemon启动了curve-mds
+    # 判断是否已经通过daemon启动了curve-snapshotcloneserver
     daemon --name curve-snapshotcloneserver --pidfile ${pidFile} --running
     if [ $? -ne 0 ]
     then
@@ -132,6 +162,45 @@ function restart_server() {
     fi
 }
 
+# show status
+function show_status() {
+    # 判断是否已经通过daemon启动了curve-snapshotcloneserver
+    daemon --name curve-snapshotcloneserver --pidfile ${pidFile} --running
+    if [ $? -ne 0 ]
+    then
+        echo "Didn't start curve-snapshotcloneserver by daemon"
+        exit 1
+    fi
+
+    # 查询leader的IP
+    leaderAddr=`tac ${consoleLog}|grep -m 1 -B 1000000 "Logging before InitGoogleLogging()"|grep "leader"|grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}"|head -n1`
+
+    # 如果load configuration之后的日志，没有leader相关日志
+    # 那么leaderAddr为空, snapshotcloneserver应该没有起来
+    if [ -z ${leaderAddr} ]
+    then
+        echo "SnapshotClone may not start successfully, check log"
+        exit 1
+    fi
+
+    if [ ${leaderAddr} = "127.0.0.1" ]
+    then
+        echo "Current SnapshotClone is LEADER"
+    else
+        # 查询是否和自身ip相等
+        for ip in `(hostname -I)`
+        do
+            if [ ${leaderAddr} = ${ip} ]
+            then
+                echo "Current SnapshotClone is LEADER"
+                exit
+            fi
+        done
+
+        echo "Current SnapshotClone is FOLLOWER, LEADER is ${leaderAddr}"
+    fi
+}
+
 # 使用方式
 function usage() {
     echo "Usage:"
@@ -141,6 +210,7 @@ function usage() {
     echo "        [-a|--serverAddr  ip:port]  listening address"
     echo "  snapshot-daemon stop  -- stop daemon process and curve-snapshotcloneserver"
     echo "  snapshot-daemon restart -- restart curve-snapshotcloneserver"
+    echo "  snapshot-daemon status -- show snapshotcloneserver status [LEADER/STATUS]"
     echo "Examples:"
     echo "  snapshot-daemon start -c /etc/curve/snapshot_clone_server.conf -l ${HOME}/ -a 127.0.0.1:5555"
 }
@@ -192,9 +262,10 @@ case $1 in
 "restart")
     restart_server
     ;;
+"status")
+  show_status
+  ;;
 *)
     usage
     ;;
 esac
-
-

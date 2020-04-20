@@ -72,6 +72,14 @@ std::vector<std::string> SnapshotCloneClient::GetActiveAddrs() {
             continue;
         }
         if (status == kSnapshotCloneStatusActive) {
+            // 如果是active状态，再访问一下服务端口
+            MetricRet ret = metricClient_->GetMetric(item.first,
+                            kSnapshotCloneStatusMetricName, &status);
+            if (ret != MetricRet::kOK) {
+                std::cout << "Get status metric from " << item.first
+                          << " fail" << std::endl;
+                continue;
+            }
             activeAddrs.emplace_back(item.first);
         }
     }

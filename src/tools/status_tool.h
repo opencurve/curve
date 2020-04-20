@@ -42,12 +42,21 @@ using curve::mds::topology::ChunkServerInfo;
 
 namespace curve {
 namespace tool {
-struct SpaceInfo{
+struct SpaceInfo {
     uint64_t total = 0;
     uint64_t logicalUsed = 0;
     uint64_t physicalUsed = 0;
     uint64_t canBeRecycled = 0;
 };
+
+enum class ServiceName {
+    // mds
+    kMds,
+    kEtcd,
+    kSnapshotCloneServer,
+};
+
+std::string ToString(ServiceName name);
 
 class StatusTool : public CurveTool {
  public:
@@ -144,6 +153,12 @@ class StatusTool : public CurveTool {
      *  @brief 获取并打印mds version信息
      */
     int GetAndPrintMdsVersion();
+
+    /**
+     *  @brief 检查服务是否健康
+     *  @param name 服务名
+     */
+    bool CheckServiceHealthy(const ServiceName& name);
 
  private:
     // 向mds发送RPC的client

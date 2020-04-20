@@ -19,13 +19,12 @@ int EtcdClient::Init(const std::string& etcdAddr) {
     return 0;
 }
 
-int EtcdClient::GetEtcdClusterStatus(std::string* leaderAddr,
-                        std::map<std::string, bool>* onlineState) {
-    if (!leaderAddr || !onlineState) {
+int EtcdClient::GetEtcdClusterStatus(std::vector<std::string>* leaderAddrVec,
+                                     std::map<std::string, bool>* onlineState) {
+    if (!leaderAddrVec || !onlineState) {
         std::cout << "The argument is a null pointer!" << std::endl;
         return -1;
     }
-    *leaderAddr = "";
     brpc::Channel httpChannel;
     brpc::ChannelOptions options;
     options.protocol = brpc::PROTOCOL_HTTP;
@@ -53,7 +52,7 @@ int EtcdClient::GetEtcdClusterStatus(std::string* leaderAddr,
         }
         if (!value[kEtcdLeader].isNull()) {
             if (value[kEtcdLeader] == value[kEtcdHeader][kEtcdMemberId]) {
-                *leaderAddr = addr;
+                leaderAddrVec->emplace_back(addr);
             }
         }
     }

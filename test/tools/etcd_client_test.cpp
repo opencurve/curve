@@ -41,10 +41,10 @@ class EtcdClientTest : public ::testing::Test {
         uint64_t startTime = ::curve::common::TimeUtility::GetTimeofDaySec();
         while (::curve::common::TimeUtility::GetTimeofDaySec() - startTime <=
                5) {
-            std::string leaderAddr;
+            std::vector<std::string> leaderAddrVec;
             std::map<std::string, bool> onlineState;
             ASSERT_EQ(0,
-                      client.GetEtcdClusterStatus(&leaderAddr, &onlineState));
+                    client.GetEtcdClusterStatus(&leaderAddrVec, &onlineState));
             if (onlineState["127.0.0.1:2366"]) {
                 running = true;
                 break;
@@ -68,19 +68,20 @@ TEST_F(EtcdClientTest, GetEtcdClusterStatus) {
     ASSERT_EQ(-1, client.Init(""));
     // Init成功
     ASSERT_EQ(0, client.Init(etcdAddr));
-    std::string leaderAddr;
+    std::vector<std::string> leaderAddrVec;
     std::map<std::string, bool> onlineState;
 
     // 正常情况
-    ASSERT_EQ(0, client.GetEtcdClusterStatus(&leaderAddr, &onlineState));
+    ASSERT_EQ(0, client.GetEtcdClusterStatus(&leaderAddrVec, &onlineState));
     std::map<std::string, bool> expected = { { "127.0.0.1:2366", true },
                                              { "127.0.0.1:2368", false } };
     ASSERT_EQ(expected, onlineState);
-    ASSERT_EQ("127.0.0.1:2366", leaderAddr);
+    ASSERT_EQ(1, leaderAddrVec.size());
+    ASSERT_EQ("127.0.0.1:2366", leaderAddrVec[0]);
 
     // 空指针错误
     ASSERT_EQ(-1, client.GetEtcdClusterStatus(nullptr, &onlineState));
-    ASSERT_EQ(-1, client.GetEtcdClusterStatus(&leaderAddr, nullptr));
+    ASSERT_EQ(-1, client.GetEtcdClusterStatus(&leaderAddrVec, nullptr));
 }
 
 TEST_F(EtcdClientTest, GetAndCheckEtcdVersion) {

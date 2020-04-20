@@ -6,6 +6,7 @@
  */
 
 #include <gflags/gflags.h>
+#include "src/common/curve_version.h"
 #include "src/tools/curve_tool_factory.h"
 
 const char* kHelpStr = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
@@ -24,7 +25,7 @@ const char* kHelpStr = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
         "seginfo : list the segments info of the file\n"
         "delete : delete the file, to force delete, should specify the --forcedelete=true\n"  //NOLINT
         "clean-recycle : clean the RecycleBin\n"
-        "create : create file\n"
+        "create : create file, file length unit is GB\n"
         "chunk-location : query the location of the chunk corresponding to the offset\n"  //NOLINT
         "check-consistency : check the consistency of three copies\n"
         "remove-peer : remove the peer from the copyset\n"
@@ -79,6 +80,9 @@ int main(int argc, char** argv) {
     gflags::SetUsageMessage(kHelpStr);
     google::ParseCommandLineFlags(&argc, &argv, true);
     google::InitGoogleLogging(argv[0]);
+
+    std::cout << "curve_ops_tool version: "
+              << curve::common::CurveVersion() << std::endl;
 
     if (argc < 2) {
         std::cout << kHelpStr << std::endl;
