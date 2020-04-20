@@ -219,6 +219,7 @@ void ClientClosure::Run() {
 
         // 2.1 不是leader
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED:
+            MetricHelper::IncremRedirectRPCCount(fileMetric_, reqCtx_->optype_);
             needRetry = true;
             OnRedirected();
             break;

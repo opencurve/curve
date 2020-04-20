@@ -108,7 +108,7 @@ class IOManager4File : public IOManager {
   /**
    * 获取metric信息，测试代码使用
    */
-  FileMetric_t* GetMetric() {
+  FileMetric* GetMetric() {
     return fileMetric_;
   }
 
@@ -201,7 +201,7 @@ class IOManager4File : public IOManager {
   RequestScheduler*     scheduler_;
 
   // client端metric统计信息
-  FileMetric_t*        fileMetric_;
+  FileMetric*        fileMetric_;
 
   // task thread pool为了将qemu线程与curve线程隔离
   curve::common::TaskThreadPool taskPool_;

@@ -198,7 +198,7 @@ TEST_F(CopysetClientTest, normal_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     // write success
@@ -474,7 +474,7 @@ TEST_F(CopysetClientTest, write_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* 非法参数 */
@@ -706,6 +706,8 @@ TEST_F(CopysetClientTest, write_error_test) {
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
+
+        ASSERT_EQ(1, fm.writeRPC.redirectQps.count.get_value());
     }
     /* 不是 leader，没有返回 leader，刷新 meta cache 成功 */
     {
@@ -807,6 +809,7 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        FileMetric fm("test");
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -853,6 +856,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         ASSERT_GE(elpased, 1500);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
+        ASSERT_EQ(3, fm.writeRPC.redirectQps.count.get_value());
     }
     /* copyset 不存在，更新 leader 依然失败 */
     {
@@ -1017,7 +1021,7 @@ TEST_F(CopysetClientTest, write_failed_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* controller set timeout */
@@ -1168,7 +1172,7 @@ TEST_F(CopysetClientTest, read_failed_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* controller set timeout */
@@ -1320,7 +1324,7 @@ TEST_F(CopysetClientTest, read_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* 非法参数 */
@@ -1877,7 +1881,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* 非法参数 */
@@ -2378,7 +2382,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* 非法参数 */
@@ -2827,7 +2831,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* 非法参数 */
@@ -3261,7 +3265,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* 非法参数 */
@@ -3685,7 +3689,7 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* 非法参数 */
@@ -4200,7 +4204,7 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
     std::string leaderStr2 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr2.c_str(), &leaderAdder2);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     {

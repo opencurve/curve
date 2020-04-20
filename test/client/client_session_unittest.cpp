@@ -44,7 +44,7 @@ using curve::client::FileClient;
 using curve::client::FileInstance;
 using curve::client::TimerTask;
 using curve::client::TimerTaskWorker;
-using curve::client::FileMetric_t;
+using curve::client::FileMetric;
 
 #define SLEEP_TIME_S 5
 

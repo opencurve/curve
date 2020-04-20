@@ -41,7 +41,7 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     IOTracker(IOManager* iomanager,
               MetaCache* mc,
               RequestScheduler* scheduler,
-              FileMetric_t* clientMetric = nullptr);
+              FileMetric* clientMetric = nullptr);
     ~IOTracker() = default;
 
     /**
@@ -242,7 +242,7 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     uint64_t opStartTimePoint_;
 
     // client端的metric统计信息
-    FileMetric_t* fileMetric_;
+    FileMetric* fileMetric_;
 
     // 当前tracker的id
     uint64_t id_;

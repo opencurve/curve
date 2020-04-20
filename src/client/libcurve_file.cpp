@@ -69,7 +69,7 @@ void InitLogging(const std::string& confPath) {
     static LoggerGuard guard(confPath);
 }
 
-FileClient::FileClient(): fdcount_(0) {
+FileClient::FileClient(): fdcount_(0), openedFileNum_("opened_file_num") {
     inited_ = false;
     mdsClient_ = nullptr;
     fileserviceMap_.clear();
@@ -204,6 +204,9 @@ int FileClient::Open(const std::string& filename,
         WriteLockGuard lk(rwlock_);
         fileserviceMap_[fd] = fileserv;
     }
+
+    openedFileNum_ << 1;
+
     return fd;
 }
 
@@ -232,6 +235,8 @@ int FileClient::ReOpen(const std::string& filename,
         WriteLockGuard wlk(rwlock_);
         fileserviceMap_[fd] = fileInstance;
     }
+
+    openedFileNum_ << 1;
 
     return fd;
 }
@@ -263,6 +268,9 @@ int FileClient::Open4ReadOnly(const std::string& filename,
         WriteLockGuard lk(rwlock_);
         fileserviceMap_[fd] = fileserv;
     }
+
+    openedFileNum_ << 1;
+
     return fd;
 }
 
@@ -487,6 +495,8 @@ int FileClient::Close(int fd) {
         }
 
         LOG(INFO) << "CloseFile ok, fd = " << fd;
+
+        openedFileNum_ << -1;
 
         return LIBCURVE_ERROR::OK;
     }
