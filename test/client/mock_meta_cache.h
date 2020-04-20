@@ -31,7 +31,7 @@ class FakeMetaCache : public MetaCache {
                   ChunkServerID *serverId,
                   butil::EndPoint *serverAddr,
                   bool refresh = false,
-                  FileMetric_t* fm = nullptr) {
+                  FileMetric* fm = nullptr) {
         *serverId = 10000;
         butil::str2endpoint("127.0.0.1:9109", serverAddr);
         return 0;
@@ -49,7 +49,7 @@ class MockMetaCache : public MetaCache {
     MockMetaCache() : MetaCache() {}
 
     MOCK_METHOD6(GetLeader, int(LogicPoolID, CopysetID, ChunkServerID*,
-                                butil::EndPoint *, bool, FileMetric_t*));
+                                butil::EndPoint *, bool, FileMetric*));
     MOCK_METHOD4(UpdateLeader, int(LogicPoolID, CopysetID, ChunkServerID*,
                                    const butil::EndPoint &));
 

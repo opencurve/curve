@@ -363,7 +363,7 @@ class MDSClient {
     void UnInitialize();
 
     // 测试使用
-    MDSClientMetric_t* GetMetric() {
+    MDSClientMetric* GetMetric() {
        return &mdsClientMetric_;
     }
 
@@ -491,7 +491,7 @@ class MDSClient {
     MetaServerOption_t metaServerOpt_;
 
     // client与mds通信的metric统计
-    MDSClientMetric_t mdsClientMetric_;
+    MDSClientMetric mdsClientMetric_;
 
     // MDSClientBase是真正的rpc发送逻辑
     // MDSClient是在RPC上层的一些业务逻辑封装，比如metric，或者重试逻辑

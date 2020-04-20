@@ -74,7 +74,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
     cmpbuff[8] = '\0';
     off_t offset = 0;
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* error request schedule test when scheduler not run */

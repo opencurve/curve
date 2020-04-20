@@ -88,7 +88,7 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     FileInstance fi;
     ASSERT_TRUE(fi.Initialize(filename.c_str(), &mdsclient, userinfo, opt));
 
-    FileMetric_t* fm = fi.GetIOManager4File()->GetMetric();
+    FileMetric* fm = fi.GetIOManager4File()->GetMetric();
 
     char* buffer;
 
@@ -204,7 +204,7 @@ TEST(MetricTest, SuspendRPC_MetricTest) {
     FileInstance fi;
     ASSERT_TRUE(fi.Initialize(filename.c_str(), &mdsclient, userinfo, opt));
 
-    FileMetric_t* fm = fi.GetIOManager4File()->GetMetric();
+    FileMetric* fm = fi.GetIOManager4File()->GetMetric();
 
     char* buffer;
 
@@ -299,7 +299,8 @@ TEST(MetricTest, MetricHelperTest) {
     ASSERT_NO_THROW(MetricHelper::IncremIOSuspendNum(fm));
     ASSERT_NO_THROW(MetricHelper::DecremIOSuspendNum(fm));
     ASSERT_NO_THROW(MetricHelper::LatencyRecord(fm, 0, OpType::READ));
-
+    ASSERT_NO_THROW(MetricHelper::IncremRedirectRPCCount(fm, OpType::READ));
+    ASSERT_NO_THROW(MetricHelper::IncremRedirectRPCCount(fm, OpType::WRITE));
 
     FileMetric fm2("test");
 
@@ -325,6 +326,9 @@ TEST(MetricTest, MetricHelperTest) {
     ASSERT_NO_THROW(MetricHelper::IncremIOSuspendNum(&fm2));
     ASSERT_NO_THROW(MetricHelper::DecremIOSuspendNum(&fm2));
     ASSERT_NO_THROW(MetricHelper::LatencyRecord(&fm2, 0, OpType::READ));
+
+    ASSERT_NO_THROW(MetricHelper::IncremRedirectRPCCount(&fm2, OpType::READ));
+    ASSERT_NO_THROW(MetricHelper::IncremRedirectRPCCount(&fm2, OpType::WRITE));
 
     ASSERT_NO_THROW(MetricHelper::IncremGetLeaderRetryTime(nullptr));
     ASSERT_NO_THROW(MetricHelper::IncremUserQPSCount(nullptr, 0, OpType::READ));

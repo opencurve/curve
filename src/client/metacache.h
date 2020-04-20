@@ -95,7 +95,7 @@ class MetaCache {
                                 ChunkServerID* serverId,
                                 butil::EndPoint* serverAddr,
                                 bool refresh = false,
-                                FileMetric_t* fm = nullptr);
+                                FileMetric* fm = nullptr);
     /**
      * 更新某个copyset的leader信息
      * @param: lpid逻辑池id
@@ -262,7 +262,7 @@ class MetaCache {
     int UpdateLeaderInternal(LogicPoolID logicPoolId,
                              CopysetID copysetId,
                              CopysetInfo* toupdateCopyset,
-                             FileMetric_t* fm = nullptr);
+                             FileMetric* fm = nullptr);
 
     /**
      * 从mds拉去复制组信息，如果当前leader在复制组中

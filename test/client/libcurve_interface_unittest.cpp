@@ -246,6 +246,8 @@ TEST(TestLibcurveInterface, FileClientTest) {
     // init twice also return 0
     ASSERT_EQ(0, fc.Init(configpath));
 
+    ASSERT_EQ(0, fc.GetOpenedFileNum());
+
     int fd = fc.Open4ReadOnly(filename, userinfo);
     int fd2 = fc.Open(filename, userinfo);
     int fd3 = fc.Open(filename, UserInfo_t{});
@@ -257,6 +259,8 @@ TEST(TestLibcurveInterface, FileClientTest) {
     // user info invalid
     ASSERT_EQ(-1, fd3);
     ASSERT_EQ(-1, fd4);
+
+    ASSERT_EQ(2, fc.GetOpenedFileNum());
 
     fiu_enable("test/client/fake/fakeMDS.GetOrAllocateSegment", 1, nullptr, 0);
 
@@ -311,6 +315,8 @@ TEST(TestLibcurveInterface, FileClientTest) {
 
     fc.Close(fd);
     fc.Close(fd2);
+
+    ASSERT_EQ(0, fc.GetOpenedFileNum());
 
     mds.UnInitialize();
     delete[] buffer;
