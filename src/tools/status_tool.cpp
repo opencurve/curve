@@ -33,6 +33,15 @@ std::ostream& operator<<(std::ostream& os,
     return os;
 }
 
+std::string ToString(ServiceName name) {
+    static std::map<ServiceName, std::string> serviceNameMap =
+                           {{ServiceName::kMds, "mds"},
+                            {ServiceName::kEtcd, "etcd"},
+                            {ServiceName::kSnapshotCloneServer,
+                                       "snapshot-clone-server"}};
+    return serviceNameMap[name];
+}
+
 int StatusTool::Init(const std::string& command) {
     if (CommandNeedMds(command) && !mdsInited_) {
         if (mdsClient_->Init(FLAGS_mdsAddr, FLAGS_mdsDummyPort) != 0) {
@@ -290,54 +299,77 @@ int StatusTool::PrintClusterStatus() {
 }
 
 bool StatusTool::IsClusterHeatlhy() {
+    bool ret = true;
     // 1、检查copyset健康状态
     int res = copysetCheckCore_->CheckCopysetsInCluster();
     if (res != 0) {
-        return false;
+        std::cout << "Copysets are not healthy!" << std::endl;
+        ret = false;
     }
+
     // 2、检查mds状态
-    std::vector<std::string> mdsAddrs = mdsClient_->GetCurrentMds();
-    // 当前工作mds为空或超过一个返回不健康
-    if (mdsAddrs.size() != 1) {
-        return false;
+    if (!CheckServiceHealthy(ServiceName::kMds)) {
+        ret = false;
     }
-    std::map<std::string, bool> onlineStatus;
-    mdsClient_->GetMdsOnlineStatus(&onlineStatus);
-    for (const auto& item : onlineStatus) {
-        if (!item.second) {
-            return false;
-        }
-    }
+
     // 3、检查etcd在线状态
-    std::string leaderAddr;
-    onlineStatus.clear();
-    res = etcdClient_->GetEtcdClusterStatus(&leaderAddr, &onlineStatus);
-    if (res != 0) {
-        return false;
-    }
-    if (leaderAddr.empty()) {
-        return false;
-    }
-    for (const auto& item : onlineStatus) {
-        if (!item.second) {
-            return false;
-        }
+    if (!CheckServiceHealthy(ServiceName::kEtcd)) {
+        ret = false;
     }
 
     // 4、检查snapshot clone server状态
-    std::vector<std::string> activeAddrs = snapshotClient_->GetActiveAddrs();
-    // 当前工作snapshot clone为空或超过一个返回不健康
-    if (activeAddrs.size() != 1) {
-        return false;
+    if (!CheckServiceHealthy(ServiceName::kSnapshotCloneServer)) {
+        ret = false;
     }
-    snapshotClient_->GetOnlineStatus(&onlineStatus);
-    for (const auto& item : onlineStatus) {
-        if (!item.second) {
+
+    return ret;
+}
+
+bool StatusTool::CheckServiceHealthy(const ServiceName& name) {
+    std::vector<std::string> leaderVec;
+    std::map<std::string, bool> onlineStatus;
+    switch (name) {
+        case ServiceName::kMds: {
+            leaderVec = mdsClient_->GetCurrentMds();
+            mdsClient_->GetMdsOnlineStatus(&onlineStatus);
+            break;
+        }
+        case ServiceName::kEtcd: {
+            int res = etcdClient_->GetEtcdClusterStatus(&leaderVec,
+                                                        &onlineStatus);
+            if (res != 0) {
+                std:: cout << "GetEtcdClusterStatus fail!" << std::endl;
+                return false;
+            }
+            break;
+        }
+        case ServiceName::kSnapshotCloneServer: {
+            leaderVec = snapshotClient_->GetActiveAddrs();
+            snapshotClient_->GetOnlineStatus(&onlineStatus);
+            break;
+        }
+        default: {
+            std::cout << "Unknown service" << std::endl;
             return false;
         }
     }
-
-    return true;
+    bool ret = true;
+    if (leaderVec.empty()) {
+        std::cout << "No " << ToString(name) << " is active" << std::endl;
+        ret = false;
+    } else if (leaderVec.size() != 1) {
+        std::cout << "More than one " << ToString(name) << " is active"
+                  << std::endl;
+        ret = false;
+    }
+    for (const auto& item : onlineStatus) {
+        if (!item.second) {
+            std::cout << ToString(name) << " " << item.first << " is offline"
+                      << std::endl;
+            ret = false;
+        }
+    }
+    return ret;
 }
 
 void StatusTool::PrintOnlineStatus(const std::string& name,
@@ -415,14 +447,14 @@ int StatusTool::PrintEtcdStatus() {
             ret = -1;
         }
     }
-    std::string leaderAddr;
+    std::vector<std::string> leaderAddrVec;
     std::map<std::string, bool> onlineStatus;
-    res = etcdClient_->GetEtcdClusterStatus(&leaderAddr, &onlineStatus);
+    res = etcdClient_->GetEtcdClusterStatus(&leaderAddrVec, &onlineStatus);
     if (res != 0) {
         std::cout << "GetEtcdClusterStatus fail!" << std::endl;
         return -1;
     }
-    std::cout << "current etcd: " << leaderAddr << std::endl;
+    std::cout << "current etcd: " << leaderAddrVec << std::endl;
     PrintOnlineStatus("etcd", onlineStatus);
     return ret;
 }

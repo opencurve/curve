@@ -42,11 +42,11 @@ class EtcdClient {
 
     /**
      *  @brief 获取etcd集群的leader
-     *  @param[out] leaderAddr etcd的leader的地址,返回值为0时有效
+     *  @param[out] leaderAddrVec etcd的leader的地址列表,返回值为0时有效
      *  @param[out] onlineState etcd集群中每个节点的在线状态，返回值为0时有效
      *  @return 成功返回0，失败返回-1
      */
-    virtual int GetEtcdClusterStatus(std::string* leaderAddr,
+    virtual int GetEtcdClusterStatus(std::vector<std::string>* leaderAddrVec,
                         std::map<std::string, bool>* onlineState);
 
     /**

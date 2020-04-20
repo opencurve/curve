@@ -7,7 +7,7 @@ curveBin=/usr/bin/curve-mds
 confPath=/etc/curve/mds.conf
 
 # 日志文件路径
-logPath=${HOME}
+logPath=${HOME}/mdslog
 
 # mdsAddr
 mdsAddr=
@@ -16,10 +16,10 @@ mdsAddr=
 pidFile=${HOME}/curve-mds.pid
 
 # daemon log
-daemonLog=${HOME}/curve-mds-daemon.log
+daemonLog=${logPath}/curve-mds-daemon.log
 
 # console output
-consoleLog=${HOME}/curve-mds-console.log
+consoleLog=${logPath}/curve-mds-console.log
 
 # 启动mds
 function start_mds() {
@@ -93,7 +93,7 @@ function start_mds() {
         mask=$((2**32-2**(32-$mod)))
         ip=
         echo "subnet: $subnet"
-        echo "base port: $port"
+        echo "port: $port"
         # 对prefix再取一次模，为了支持10.182.26.50/22这种格式
         prefix=$(($prefix&$mask))
         for i in `/sbin/ifconfig -a|grep inet|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
@@ -112,7 +112,7 @@ function start_mds() {
                 return 1
         fi
         mdsAddr=${ip}:${port}
-    fi
+  fi
 
   daemon --name curve-mds --core --inherit \
     --respawn --attempts 100 --delay 10 \
@@ -156,6 +156,10 @@ function restart_mds() {
   fi
 
   daemon --name curve-mds --pidfile ${pidFile} --restart
+  if [ $? -ne 0 ]
+  then
+    echo "Restart failed"
+  fi
 }
 
 # show status
@@ -253,12 +257,6 @@ case $1 in
   start_mds
   ;;
 "stop")
-  # stop时加了-f参数，则停止curve-mds进程
-  if [ $# -eq 2 ] && [ $2 = '-f' ]
-  then
-    forceStop=true
-  fi
-
   stop_mds
   ;;
 "restart")
