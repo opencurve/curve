@@ -31,6 +31,7 @@ cc_test(
         "chunkfilepool_mock_unittest.cpp",
         "datastore_mock_unittest.cpp",
         "datastore_unittest_main.cpp",
+        "file_helper_unittest.cpp",
     ],
     includes = ([]),
     copts = ["-std=c++14"],

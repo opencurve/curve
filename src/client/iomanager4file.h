@@ -120,6 +120,11 @@ class IOManager4File : public IOManager {
   }
 
   /**
+   * 测试使用，获取request scheduler
+   */
+  RequestScheduler* GetScheduler() { return scheduler_; }
+
+  /**
    * lease excutor在检查到版本更新的时候，需要通知iomanager更新文件版本信息
    * @param: fi为当前需要更新的文件信息
    */
@@ -142,11 +147,6 @@ class IOManager4File : public IOManager {
   void SetLatestFileSn(uint64_t newSn) {
     mc_.SetLatestFileSn(newSn);
   }
-
-  /**
-   * 测试使用，获取request scheduler
-   */
-  RequestScheduler* GetScheduler() { return scheduler_; }
 
  private:
   friend class LeaseExcutor;

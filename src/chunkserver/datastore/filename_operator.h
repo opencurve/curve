@@ -17,6 +17,9 @@
 namespace curve {
 namespace chunkserver {
 
+using std::string;
+using std::vector;
+
 class FileNameOperator {
  public:
     enum class FileType {

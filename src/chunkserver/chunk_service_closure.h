@@ -33,7 +33,9 @@ class ChunkServiceClosure : public braft::Closure {
         , brpcDone_(done)
         , receivedTimeUs_(common::TimeUtility::GetTimeofDayUs()) {
             // closure创建的什么加1，closure调用的时候减1
-            inflightThrottle_->Increment();
+            if (nullptr != inflightThrottle_) {
+                inflightThrottle_->Increment();
+            }
             // 统计请求数量
             OnRequest();
         }

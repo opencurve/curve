@@ -38,12 +38,13 @@ void IOManager4Chunk::UnInitialize() {
     scheduler_ = nullptr;
 }
 
-int IOManager4Chunk::ReadSnapChunk(const ChunkIDInfo &chunkidinfo, uint64_t seq,
-    uint64_t offset, uint64_t len, char *buf) {
+int IOManager4Chunk::ReadSnapChunk(const ChunkIDInfo &chunkidinfo,
+    uint64_t seq, uint64_t offset, uint64_t len,
+    char *buf, SnapCloneClosure* scc) {
 
-    IOTracker temp(this, &mc_, scheduler_);
-    temp.ReadSnapChunk(chunkidinfo, seq, offset, len, buf);
-    return temp.Wait();
+    IOTracker* temp = new IOTracker(this, &mc_, scheduler_);
+    temp->ReadSnapChunk(chunkidinfo, seq, offset, len, buf, scc);
+    return 0;
 }
 
 int IOManager4Chunk::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &chunkidinfo,
@@ -55,31 +56,32 @@ int IOManager4Chunk::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &chunkidinfo,
 }
 
 int IOManager4Chunk::GetChunkInfo(const ChunkIDInfo &chunkidinfo,
-    ChunkInfoDetail *chunkInfo) {
-
+                                  ChunkInfoDetail *chunkInfo) {
     IOTracker temp(this, &mc_, scheduler_);
     temp.GetChunkInfo(chunkidinfo, chunkInfo);
     return temp.Wait();
 }
 
 int IOManager4Chunk::CreateCloneChunk(const std::string &location,
-    const ChunkIDInfo &chunkidinfo, uint64_t sn,
-    uint64_t correntSn, uint64_t chunkSize) {
+    const ChunkIDInfo &chunkidinfo, uint64_t sn, uint64_t correntSn,
+    uint64_t chunkSize, SnapCloneClosure* scc) {
 
-    IOTracker temp(this, &mc_, scheduler_);
-    temp.CreateCloneChunk(location, chunkidinfo, sn, correntSn, chunkSize);
-    return temp.Wait();
+    IOTracker* temp = new IOTracker(this, &mc_, scheduler_);
+    temp->CreateCloneChunk(location, chunkidinfo, sn,
+                           correntSn, chunkSize, scc);
+    return 0;
 }
 
 int IOManager4Chunk::RecoverChunk(const ChunkIDInfo &chunkidinfo,
-    uint64_t offset, uint64_t len) {
+    uint64_t offset, uint64_t len, SnapCloneClosure* scc) {
 
-    IOTracker temp(this, &mc_, scheduler_);
-    temp.RecoverChunk(chunkidinfo, offset, len);
-    return temp.Wait();
+    IOTracker* temp = new IOTracker(this, &mc_, scheduler_);
+    temp->RecoverChunk(chunkidinfo, offset, len, scc);
+    return 0;
 }
 
 void IOManager4Chunk::HandleAsyncIOResponse(IOTracker* iotracker) {
+    delete iotracker;
 }
 
 }   // namespace client

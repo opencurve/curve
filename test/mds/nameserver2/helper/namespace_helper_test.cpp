@@ -8,7 +8,14 @@
 #include <gtest/gtest.h>
 #include <string>
 #include "src/common/timeutility.h"
+#include "src/common/namespace_define.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
+
+using ::curve::common::COMMON_PREFIX_LENGTH;
+using ::curve::common::FILEINFOKEYPREFIX;
+using ::curve::common::SNAPSHOTFILEINFOKEYPREFIX;
+using ::curve::common::SEGMENTALLOCSIZEKEY;
+using ::curve::common::SEGMENTINFOKEYPREFIX;
 
 namespace curve {
 namespace mds {
@@ -19,7 +26,7 @@ TEST(NameSpaceHelperTest, test_EncodeFileStoreKey) {
         NameSpaceStorageCodec::EncodeFileStoreKey(parentID, filename);
 
     ASSERT_EQ(str.size(), 17);
-    ASSERT_EQ(str.substr(0, PREFIX_LENGTH), FILEINFOKEYPREFIX);
+    ASSERT_EQ(str.substr(0, COMMON_PREFIX_LENGTH), FILEINFOKEYPREFIX);
     ASSERT_EQ(str.substr(10, filename.length()), filename);
     for (int i = 2;  i != 9; i++) {
         ASSERT_EQ(static_cast<int>(str[i]), 0);
@@ -30,7 +37,7 @@ TEST(NameSpaceHelperTest, test_EncodeFileStoreKey) {
     str = NameSpaceStorageCodec::EncodeFileStoreKey(parentID, filename);
 
     ASSERT_EQ(str.size(), 17);
-    ASSERT_EQ(str.substr(0, PREFIX_LENGTH), FILEINFOKEYPREFIX);
+    ASSERT_EQ(str.substr(0, COMMON_PREFIX_LENGTH), FILEINFOKEYPREFIX);
     ASSERT_EQ(str.substr(10, filename.length()), filename);
     for (int i = 2;  i != 8; i++) {
         ASSERT_EQ(static_cast<int>(str[i]), 0);
@@ -47,7 +54,7 @@ TEST(NameSpaceHelperTest, test_EncodeSnapShotFileStoreKey) {
                                                             snapshotName);
 
     ASSERT_EQ(str.size(), 17);
-    ASSERT_EQ(str.substr(0, PREFIX_LENGTH), SNAPSHOTFILEINFOKEYPREFIX);
+    ASSERT_EQ(str.substr(0, COMMON_PREFIX_LENGTH), SNAPSHOTFILEINFOKEYPREFIX);
     ASSERT_EQ(str.substr(10, snapshotName.length()), snapshotName);
     for (int i = 2; i != 8; i++) {
         ASSERT_EQ(static_cast<int>(str[i]), 0);
@@ -61,7 +68,7 @@ TEST(NameSpaceHelperTest, test_EncodeSegmentStoreKey) {
     std::string str =
         NameSpaceStorageCodec::EncodeSegmentStoreKey(inodeID, offset);
 
-    ASSERT_EQ(str.substr(0, PREFIX_LENGTH), SEGMENTINFOKEYPREFIX);
+    ASSERT_EQ(str.substr(0, COMMON_PREFIX_LENGTH), SEGMENTINFOKEYPREFIX);
 
     ASSERT_EQ(str.size(), 18);
     for (int i = 2;  i != 9; i++) {

@@ -356,8 +356,6 @@ int PeerCluster::GetFollwerPeers(const std::vector<Peer>& peers,
     return 0;
 }
 
-LogicPoolID PeerCluster::logicPoolID_ = 0;
-CopysetID   PeerCluster::copysetID_ = 0;
 ChunkServerID PeerCluster::chunkServerId_ = 0;
 
 std::shared_ptr<LocalFileSystem> PeerCluster::fs_
@@ -554,6 +552,44 @@ void ReadSnapshotVerify(Peer leaderPeer,
         ASSERT_STREQ(expectRead.c_str(),
                      cntl.response_attachment().to_string().c_str());
     }
+}
+
+/**
+ * 删除chunk的snapshot进行验证
+ * @param leaderId      主的 id
+ * @param logicPoolId   逻辑池 id
+ * @param copysetId     复制组 id
+ * @param chunkId       chunk id
+ * @param csn           corrected sn
+ */
+void DeleteSnapshotVerify(Peer leaderPeer,
+                          LogicPoolID logicPoolId,
+                          CopysetID copysetId,
+                          ChunkID chunkId,
+                          uint64_t csn) {
+    LOG(INFO) << "Delete snapshot verify, csn: " << csn;
+    PeerId leaderId(leaderPeer.address());
+    brpc::Channel channel;
+    ASSERT_EQ(0, channel.Init(leaderId.addr, NULL));
+
+    ChunkService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(5000);
+    ChunkRequest request;
+    ChunkResponse response;
+    request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP);
+    request.set_logicpoolid(logicPoolId);
+    request.set_copysetid(copysetId);
+    request.set_chunkid(chunkId);
+    request.set_correctedsn(csn);
+    stub.DeleteChunkSnapshotOrCorrectSn(&cntl, &request, &response, nullptr);
+    LOG_IF(INFO, cntl.Failed()) << "error msg: "
+                                << cntl.ErrorCode() << " : "
+                                << cntl.ErrorText();
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+              response.status());
 }
 
 /**

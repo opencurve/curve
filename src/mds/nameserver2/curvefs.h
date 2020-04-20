@@ -13,6 +13,7 @@
 #include <string>
 #include <memory>
 #include <thread>  //NOLINT
+#include <chrono>
 #include "proto/nameserver2.pb.h"
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/common/mds_define.h"
@@ -303,6 +304,7 @@ class CurveFS {
                               const uint64_t date,
                               const std::string &signature,
                               const std::string &clientIP,
+                              const std::string &clientVersion,
                               FileInfo  *fileInfo);
 
     /**
@@ -486,11 +488,28 @@ class CurveFS {
     StatusCode isDirectoryEmpty(const FileInfo &fileInfo, bool *result);
 
     /**
+     * @brief 当前是否允许打快照
+     *        允许打快照的情况:
+     *        1.filerecord记录的版本号>="0.0.6" 2.没有filerecord记录
+     *        不允许打快照的情况: filerecord记录的版本号为空或者小于"0.0.6"
+     *
+     * @param fileName 文件名
+     *
+     * @return 返回值有三种：
+     *         StatusCode::kOK 允许打快照
+     *         StatusCode::kSnapshotFrozen snapshot功能为启用
+     *         StatusCode::kClientVersionNotMatch client版本不允许打快照
+     */
+    StatusCode IsSnapshotAllowed(const std::string &fileName);
+
+    /**
      *  @brief 判断文件是否进行更改，目前删除、rename、changeowner时需要判断
      *  @param: fileName
+     *  @param: fileInfo 文件信息结构
      *  @return: 正常返回kOK，否则返回错误码
      */
-    StatusCode CheckFileCanChange(const std::string &fileName);
+    StatusCode CheckFileCanChange(const std::string &fileName,
+        const FileInfo &fileInfo);
 
     /**
      *  @brief 获取分配大小
@@ -537,6 +556,7 @@ class CurveFS {
 
     uint64_t defaultChunkSize_;
     std::shared_ptr<MdsRepo> repo_;
+    std::chrono::steady_clock::time_point startTime_;
 };
 extern CurveFS &kCurveFS;
 }   // namespace mds
