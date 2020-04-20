@@ -51,7 +51,7 @@ using curve::client::MetaCache;
 using curve::client::RequestContext;
 using curve::client::IOManager4File;
 using curve::client::LogicalPoolCopysetIDInfo_t;
-using curve::client::FileMetric_t;
+using curve::client::FileMetric;
 
 bool ioreadflag = false;
 std::mutex readmtx;
@@ -656,7 +656,7 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
     curve::client::IOManager4File* iomana = fileserv->GetIOManager4File();
     MetaCache* mc = fileserv->GetIOManager4File()->GetMetaCache();
 
-    FileMetric_t fileMetric("/test");
+    FileMetric fileMetric("/test");
     IOTracker* iotracker = new IOTracker(iomana, mc, mockschuler, &fileMetric);
 
     ASSERT_NE(nullptr, iotracker);

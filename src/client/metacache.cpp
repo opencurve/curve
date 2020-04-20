@@ -68,7 +68,7 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
                         ChunkServerID* serverId,
                         EndPoint* serverAddr,
                         bool refresh,
-                        FileMetric_t* fm) {
+                        FileMetric* fm) {
     std::string mapkey = LogicPoolCopysetID2Str(logicPoolId, copysetId);
 
     CopysetInfo_t targetInfo;
@@ -123,7 +123,7 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
 int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
                                     CopysetID copysetId,
                                     CopysetInfo* toupdateCopyset,
-                                    FileMetric_t* fm) {
+                                    FileMetric* fm) {
     ChunkServerID csid = 0;
     ChunkServerAddr  leaderaddr;
     GetLeaderRpcOption rpcOption(metacacheopt_.metacacheGetLeaderRPCTimeOutMS);

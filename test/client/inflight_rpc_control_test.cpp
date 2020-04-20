@@ -56,7 +56,7 @@ using curve::client::MetaCache;
 using curve::client::RequestContext;
 using curve::client::IOManager4File;
 using curve::client::LogicalPoolCopysetIDInfo_t;
-using curve::client::FileMetric_t;
+using curve::client::FileMetric;
 
 bool iorflag = false;
 std::mutex rmtx;

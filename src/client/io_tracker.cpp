@@ -26,7 +26,7 @@ std::atomic<uint64_t> IOTracker::tracekerID_(1);
 IOTracker::IOTracker(IOManager* iomanager,
                         MetaCache* mc,
                         RequestScheduler* scheduler,
-                        FileMetric_t* clientMetric):
+                        FileMetric* clientMetric):
                         mc_(mc),
                         iomanager_(iomanager),
                         scheduler_(scheduler),

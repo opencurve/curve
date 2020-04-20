@@ -275,7 +275,7 @@ void GetLeaderClosure::Run() {
 int ServiceHelper::GetLeader(const GetLeaderInfo& getLeaderInfo,
                              ChunkServerAddr* leaderAddr,
                              ChunkServerID* leaderId,
-                             FileMetric_t* fileMetric) {
+                             FileMetric* fileMetric) {
     const auto& peerInfo = getLeaderInfo.copysetPeerInfo;
 
     int16_t index = -1;
