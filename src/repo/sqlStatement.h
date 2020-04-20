@@ -116,6 +116,7 @@ const char CreateSessionTable[] =
     "   `createTime`    BIGINT                 NOT NULL   COMMENT '创建时间',\n"
     "   `updateTime`    timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE  CURRENT_TIMESTAMP COMMENT '记录修改时间',\n" //NOLINT
     "   `clientIP`      VARCHAR(16)            NOT NULL   COMMENT '挂载客户端IP',\n"                                         //NOLINT
+    "   `clientVersion`      VARCHAR(64)            NOT NULL   COMMENT '挂载客户端的版本号',\n"                                         //NOLINT
     "   PRIMARY KEY (`entryID`),\n"
     "   UNIQUE KEY (`sessionID`)\n"
     ")COMMENT='session';";

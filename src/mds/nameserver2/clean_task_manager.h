@@ -40,8 +40,8 @@ class CleanTaskManager {
     }
 
     /**
-     * @brief 启动worker线程池、启动检查线程 
-     * 
+     * @brief 启动worker线程池、启动检查线程
+     *
      */
     bool Start(void);
 
@@ -73,8 +73,8 @@ class CleanTaskManager {
     ::curve::common::TaskThreadPool *cleanWorkers_;
     // for period check snapshot delete status
     std::unordered_map<TaskIDType, std::shared_ptr<Task>> cleanTasks_;
-    std::mutex mutex_;
-    std::thread *checkThread_;
+    common::Mutex mutex_;
+    common::Thread *checkThread_;
     int checkPeriod_;
 
     Atomic<bool> stopFlag_;

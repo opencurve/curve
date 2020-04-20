@@ -39,6 +39,8 @@ using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using ::curve::mds::topology::GetChunkServerListInCopySetsRequest;
 using ::curve::mds::topology::ChunkServerRegistRequest;
 using ::curve::mds::topology::ChunkServerRegistResponse;
+using ::curve::mds::topology::GetClusterInfoRequest;
+using ::curve::mds::topology::GetClusterInfoResponse;
 using ::curve::mds::topology::GetChunkServerInfoRequest;
 using ::curve::mds::topology::GetChunkServerInfoResponse;
 using ::curve::mds::topology::ListChunkServerRequest;
@@ -184,6 +186,15 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         }
 
         retrytimes_++;
+
+        // 检查请求内容是全路径
+        auto checkFullpath = [&]() {
+            LOG(INFO) << "request filename = " << request->filename();
+            ASSERT_EQ(request->filename()[0], '/');
+        };
+
+        fiu_do_on("test/client/fake/fakeMDS.GetOrAllocateSegment",
+                 checkFullpath());
 
         auto resp = static_cast<::curve::mds::GetOrAllocateSegmentResponse*>(
                     fakeGetOrAllocateSegmentret_->response_);

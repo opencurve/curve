@@ -102,6 +102,13 @@ inject kill diff host chunkserver
 #    check copies consistency
     [Teardown]	 wait cluster healthy    ${vm_iops_limit}
 
+inject reboot nebd
+    [Tags]   P1  base   first release   failover
+    test reboot nebd
+    sleep   5
+    check vm iops
+    check data consistency
+    [Teardown]  wait cluster healthy   ${vm_iops_limit}
 
 inject stop and start vm
     [Tags]    P1    base    first release   failover
@@ -122,6 +129,14 @@ inject reboot vm
 #    check copies consistency
     [Teardown]	  wait cluster healthy    ${vm_iops_limit}
 
+inject hang vm
+    [Tags]    P1    base    first release   failover
+    test hang vm
+    sleep   5
+    check vm iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	 wait cluster healthy     ${vm_iops_limit}
 
 inject kill one mds 
     [Tags]    P1    base    first release   failover
@@ -166,6 +181,7 @@ inject loop restart one mds
     check data consistency
     [Teardown]    test start mds
 
+
 inject kill one etcd     
     [Tags]    P1    base    first release   failover   
     ${host}  test kill etcd
@@ -174,6 +190,7 @@ inject kill one etcd
     sleep  3
     test start etcd 
     test start mds
+    test start snap
 #    sleep  3
     check vm iops
     check data consistency
@@ -187,6 +204,7 @@ test round restart etcd
     check vm iops
     check data consistency
     test start mds
+    test start snap
     [Teardown]    test start etcd
 
 inject loop restart one etcd
@@ -200,6 +218,7 @@ inject loop restart one etcd
     END
     check data consistency
     test start mds
+    test start snap
     [Teardown]    test start etcd
 
 inject kill mysql
@@ -341,17 +360,6 @@ test chunkserver loss package 5%
 #    check copies consistency
 #    [Teardown]	   wait cluster healthy    ${vm_iops_limit}
 
-test mds loss package 5%   
-    [Tags]    P1    base    first release   failover  
-    ${percent}  evaluate  int(5)
-    test mds loss package  ${percent}
-    sleep  60
-    check vm iops
-    check data consistency
-#    check copies consistency
-    test start mds
-    [Teardown]	   wait cluster healthy   ${vm_iops_limit}
-
 test chunkserver delay package 50ms
     [Tags]    P1    base    first release   failover   
     ${ms}  evaluate  int(50)
@@ -361,6 +369,7 @@ test chunkserver delay package 50ms
     check data consistency
 #    check copies consistency
     test start mds
+    test start snap
     sleep   5
     [Teardown]	 wait cluster healthy    ${vm_iops_limit}
 
@@ -413,12 +422,25 @@ test pendding host all cs
 #   check copies consistency
    [Teardown]	  check chunkserver online
 
+test mds loss package 5%   
+    [Tags]    P1    base    first release   failover  
+    ${percent}  evaluate  int(5)
+    test mds loss package  ${percent}
+    sleep  60
+    check vm iops
+    check data consistency
+#    check copies consistency
+    test start mds
+    test start snap
+    [Teardown]	   wait cluster healthy   ${vm_iops_limit}
+
 test ipmitool restart mds node
    [Tags]    P1    base    first release   failover  ipmitool
    test ipmitool restart mds
    sleep  60
    check vm iops
    check data consistency
+   test start snap
    [Teardown]    wait cluster healthy   ${vm_iops_limit}
 
 test ipmitool restart chunkserver node
@@ -433,6 +455,23 @@ stop attach detach thread
     [Tags]    P1    base    first release   failover
     stop attach detach
 #    [Teardown]   wait cluster healthy    ${vm_iops_limit}
+
+stop snapshot test
+    [Tags]    P1    base    first release   failover  
+    stop snapshot test
+
+test mds delay package 50ms
+    [Tags]    P1    base    first release   failover   
+    ${ms}  evaluate  int(50)
+    test mds delay package  ${ms}
+    test start mds
+    test start etcd
+    test start snap
+    sleep  120
+    check vm iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	   wait cluster healthy   ${vm_iops_limit}
 
 inject kill all mds
     [Tags]    P1    base    first release   failover
@@ -453,24 +492,12 @@ inject kill two etcd
     sleep  3
     test start etcd
     test start mds
+    test start snap
     sleep  3
     check vm iops
     check data consistency
 #    check copies consistency
     [Teardown]     test start etcd
-
-
-test mds delay package 50ms
-    [Tags]    P1    base    first release   failover   
-    ${ms}  evaluate  int(50)
-    test mds delay package  ${ms}
-    test start mds
-    test start etcd
-    sleep  120
-    check vm iops
-    check data consistency
-#    check copies consistency
-    [Teardown]	   wait cluster healthy   ${vm_iops_limit}
 
 inject all chunkserver down
     [Tags]    P1    base    first release   failover
@@ -496,11 +523,11 @@ inject all chunkserver down 10min
     [Teardown]   wait cluster healthy    ${vm_iops_limit}
 
 test clone vol
-    [Tags]    P1    base    first release   failover   no-need
+    [Tags]    P1    base    first release   failover  snapshot  no-need
     test clone iovol consistency
 
 test cancel vol snapshot
-    [Tags]    P1    base    first release   failover   no-need
+    [Tags]    P1    base    first release   failover   snapshot  no-need
     test cancel snapshot
 
 test one volume perf
@@ -517,7 +544,7 @@ inject cluster stress test
     attach new vol   20   20
     stop rwio
     stress test
-    
+
 *** Keywords ***
 
 init failover cluster
@@ -527,7 +554,10 @@ init failover cluster
      ${begin_num}    get all chunk num
      ${begin_num}    Convert To Integer   ${begin_num}
      Set Global Variable  ${chunk_num}    ${begin_num} 
-#     init vol
+     init vol
+     test get all chunk num
+     begin snapshot test
+     begin kill snapshotserver
      loop attach detach vol
      init rw cloud disk
 
@@ -554,6 +584,17 @@ init rw cloud disk
      stop rwio
      write full disk  ${fio_vdsize}
      run rwio
+
+test get all chunk num
+    stop rwio
+    sleep  2
+    ${begin_num}    get all chunk num
+    ${begin_num}    Convert To Integer  ${begin_num}
+    exec deleteforce
+    sleep  3
+    ${end_num}    get all chunk num
+    ${end_num}    Convert To Integer   ${end_num}
+    should be equal    ${begin_num}   ${end_num}
 
 clean failover env
      stop rwio

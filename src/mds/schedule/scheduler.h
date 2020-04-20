@@ -97,7 +97,7 @@ class Scheduler {
      */
     int GetMinScatterWidth(PoolIdType lpid);
 
-     /**
+    /**
      * @brief CopysetAllPeersOnline 指定copyset的所有副本是否在线
      *
      * @param[in] copySetInfo 指定copyset

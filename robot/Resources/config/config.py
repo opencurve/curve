@@ -62,19 +62,19 @@ mds_reset_list = ["10.182.26.16","10.182.26.17"]
 abnormal_user = "nbs"
 pravie_key_path = "/home/nbs/rsa/id_rsa"
 abnormal_db_host = "10.182.2.252"
-recover_time = 10800
+recover_time = 3600
 offline_timeout = 100
 vol_uuid = ""
 thrash_attach = True
 thrash_thread = []
 #snapshot_test
-snap_server_list = ["10.182.26.25"]
+snap_server_list = ["10.182.26.25","10.182.26.16","10.182.26.17"]
 snap_version = '2019-08-01'
 snapshot_size = 10
 snapshot_timeout = 1200
 snapshot_vmid = ""
 snapshot_volid = ""
-
+snapshot_vip = "10.182.26.25"
 # db info
 db_host = "127.0.0.1"
 db_port = 3306
@@ -83,6 +83,7 @@ db_pass = "qwer"
 mds_db_name = "curve_mds"
 snap_db_name = "curve_snapshot"
 curve_sql = "./src/repo/curve_mds.sql"
+snap_sql = "./src/repo/curve_snapshot.sql"
 
 # chunkserver mount point
 cs_0 = curve_workspace + "0"
@@ -122,7 +123,9 @@ vm_stability_host = "60.191.87.92"
 vm_user = "root"
 vm_iosize = "4" #4k
 
-
+# snapshot test param
+snapshot_file_name = "/lc"
+snapshot_s3_object_location = "snapshot_test_chunk_data@s3"
 
 
 

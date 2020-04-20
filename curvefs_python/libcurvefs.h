@@ -70,6 +70,15 @@ extern "C" {
 #define CURVE_ERROR_BAD_FD 23
 // 文件长度不支持
 #define CURVE_ERROR_LENGTH_NOT_SUPPORT 24
+
+// 文件状态
+#define CURVE_FILE_CREATED            0
+#define CURVE_FILE_DELETING           1
+#define CURVE_FILE_CLONING            2
+#define CURVE_FILE_CLONEMETAINSTALLED 3
+#define CURVE_FILE_CLONED             4
+#define CURVE_FILE_BEINGCLONED        5
+
 // 未知错误
 #define CURVE_ERROR_UNKNOWN 100
 
@@ -102,6 +111,7 @@ typedef struct FileInfo {
     uint64_t      ctime;
     char          filename[256];
     char          owner[256];
+    int           fileStatus;
 } FileInfo_t;
 
 typedef struct DirInfos {

@@ -276,7 +276,7 @@ TEST(TestLibcurveInterface, FileClientTest) {
     writeaioctx.length = 8 * 1024;
     writeaioctx.cb = writecallbacktest;
 
-    // ASSERT_EQ(-1, fc.AioWrite(fd, &writeaioctx));
+    ASSERT_EQ(-1, fc.AioWrite(fd, &writeaioctx));
 
     writeflag = false;
     ASSERT_EQ(0, fc.AioWrite(fd2, &writeaioctx));
@@ -714,8 +714,6 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     ASSERT_EQ(length, fileinstance_.Write(buffer, offset, length));
     ASSERT_EQ(length, fileinstance_.Read(buffer, offset, length));
 
-    // 正常情况下只有第一次会去get leader
-    ASSERT_EQ(1, cliservice->GetInvokeTimes());
     // metacache中被写过的copyset leadermaychange都处于正常状态
     ChunkIDInfo_t chunkinfo1;
     MetaCacheErrorType rc = mc->GetChunkInfoByIndex(0, &chunkinfo1);
@@ -807,8 +805,6 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     ASSERT_EQ(8192, fileinstance_.Read(buffer, 0 * chunk_size, length));
     ASSERT_EQ(8192, fileinstance_.Write(buffer, 1 * chunk_size, length));
     ASSERT_EQ(8192, fileinstance_.Read(buffer, 1 * chunk_size, length));
-
-    ASSERT_EQ(2, cliservice->GetInvokeTimes());
 
     for (int i = 0; i < FLAGS_copyset_num; ++i) {
         CopysetInfo_t ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
@@ -902,8 +898,6 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     ASSERT_EQ(length, fileinstance_.Write(buffer, offset, length));
     ASSERT_EQ(length, fileinstance_.Read(buffer, offset, length));
 
-    // 正常情况下只有第一次会去get leader
-    ASSERT_EQ(1, cliservice->GetInvokeTimes());
     // metacache中被写过的copyset leadermaychange都处于正常状态
     ChunkIDInfo_t chunkinfo1;
     MetaCacheErrorType rc = mc->GetChunkInfoByIndex(0, &chunkinfo1);
@@ -943,4 +937,3 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     mds.UnInitialize();
     delete[] buffer;
 }
-

@@ -11,6 +11,7 @@
 
 #include "include/client/libcurve.h"
 #include "src/chunkserver/clone_copyer.h"
+#include "src/chunkserver/clone_core.h"
 #include "test/chunkserver/clone/clone_test_util.h"
 #include "test/client/mock_file_client.h"
 #include "test/common/mock_s3_adapter.h"
@@ -26,17 +27,49 @@ const char S3_CONF[] = "s3.conf";
 const char ROOT_OWNER[] = "root";
 const char ROOT_PWD[] = "pwd";
 
+class MockDownloadClosure : public DownloadClosure {
+ public:
+    explicit MockDownloadClosure(AsyncDownloadContext* context)
+        : DownloadClosure(nullptr, nullptr, context, nullptr)
+        , isRun_(false) {}
+
+    void Run() {
+        CHECK(!isRun_) << "closure has been invoked.";
+        isRun_ = true;
+    }
+
+    bool IsFailed() {
+        return isFailed_;
+    }
+
+    bool IsRun() {
+        return isRun_;
+    }
+
+    void Reset() {
+        isFailed_ = false;
+        isRun_ = false;
+    }
+
+ private:
+    bool isRun_;
+};
+
 class CloneCopyerTest : public testing::Test  {
  public:
     void SetUp() {
         curveClient_ = std::make_shared<MockFileClient>();
         s3Client_ = std::make_shared<MockS3Adapter>();
+        Aws::InitAPI(awsOptions_);
     }
-    void TearDown() {}
+    void TearDown() {
+        Aws::ShutdownAPI(awsOptions_);
+    }
 
  protected:
     std::shared_ptr<MockFileClient> curveClient_;
     std::shared_ptr<MockS3Adapter> s3Client_;
+    Aws::SDKOptions awsOptions_;
 };
 
 TEST_F(CloneCopyerTest, BasicTest) {
@@ -62,70 +95,117 @@ TEST_F(CloneCopyerTest, BasicTest) {
     }
     // Download test
     {
-        string location;
-        off_t off = 0;
-        size_t size = 4096;
         char* buf = new char[4096];
+        AsyncDownloadContext context;
+        context.offset = 0;
+        context.size = 4096;
+        context.buf = buf;
+        MockDownloadClosure closure(&context);
 
         // invalid location
-        location = "aaaaa";
-        ASSERT_EQ(-1, copyer.Download(location, off, size, buf));
+        context.location = "aaaaa";
+        copyer.DownloadAsync(&closure);
+        ASSERT_TRUE(closure.IsRun());
+        ASSERT_TRUE(closure.IsFailed());
+        closure.Reset();
+
+        // invalid location
+        context.location = "aaaaa@cs";
+        copyer.DownloadAsync(&closure);
+        ASSERT_TRUE(closure.IsRun());
+        ASSERT_TRUE(closure.IsFailed());
+        closure.Reset();
 
         /* 用例:读curve上的数据，读取成功
          * 预期:调用Open和Read读取数据
          */
-        location = "test:0@cs";
-        EXPECT_CALL(*curveClient_, Open("test", _, _))
+        context.location = "test:0@cs";
+        EXPECT_CALL(*curveClient_, Open4ReadOnly("test", _))
             .WillOnce(Return(1));
-        EXPECT_CALL(*curveClient_, Read(1, _, off, size))
-            .WillOnce(Return(LIBCURVE_ERROR::OK));
-        ASSERT_EQ(0, copyer.Download(location, off, size, buf));
+        EXPECT_CALL(*curveClient_, AioRead(_, _))
+            .WillOnce(Invoke([](int fd, CurveAioContext* context){
+                context->ret = 1024;
+                context->cb(context);
+                return LIBCURVE_ERROR::OK;
+            }));
+        copyer.DownloadAsync(&closure);
+        ASSERT_TRUE(closure.IsRun());
+        ASSERT_FALSE(closure.IsFailed());
+        closure.Reset();
 
-        /* 用例:再次读前面的文件
-         * 预期:直接Read
+        /* 用例:再次读前面的文件,但是ret值为-1
+         * 预期:直接Read，返回失败
          */
-        location = "test:0@cs";
-        EXPECT_CALL(*curveClient_, Open(_, _, _))
+        context.location = "test:0@cs";
+        EXPECT_CALL(*curveClient_, Open4ReadOnly(_, _))
             .Times(0);
-        EXPECT_CALL(*curveClient_, Read(1, _, off, size))
-            .WillOnce(Return(LIBCURVE_ERROR::OK));
-        ASSERT_EQ(0, copyer.Download(location, off, size, buf));
+        EXPECT_CALL(*curveClient_, AioRead(_, _))
+            .WillOnce(Invoke([](int fd, CurveAioContext* context){
+                context->ret = -1;
+                context->cb(context);
+                return LIBCURVE_ERROR::OK;
+            }));
+        copyer.DownloadAsync(&closure);
+        ASSERT_TRUE(closure.IsRun());
+        ASSERT_TRUE(closure.IsFailed());
+        closure.Reset();
 
         /* 用例:读curve上的数据，Open的时候失败
          * 预期:返回-1
          */
-        location = "test2:0@cs";
-        EXPECT_CALL(*curveClient_, Open("test2", _, _))
+        context.location = "test2:0@cs";
+        EXPECT_CALL(*curveClient_, Open4ReadOnly("test2", _))
             .WillOnce(Return(-1));
-        EXPECT_CALL(*curveClient_, Read(_, _, _, _))
+        EXPECT_CALL(*curveClient_, AioRead(_, _))
             .Times(0);
-        ASSERT_EQ(-1, copyer.Download(location, off, size, buf));
+        copyer.DownloadAsync(&closure);
+        ASSERT_TRUE(closure.IsRun());
+        ASSERT_TRUE(closure.IsFailed());
+        closure.Reset();
 
         /* 用例:读curve上的数据，Read的时候失败
          * 预期:返回-1
          */
-        location = "test2:0@cs";
-        EXPECT_CALL(*curveClient_, Open("test2", _, _))
+        context.location = "test2:0@cs";
+        EXPECT_CALL(*curveClient_, Open4ReadOnly("test2", _))
             .WillOnce(Return(2));
-        EXPECT_CALL(*curveClient_, Read(2, _, off, size))
+        EXPECT_CALL(*curveClient_, AioRead(_, _))
             .WillOnce(Return(-1 * LIBCURVE_ERROR::FAILED));
-        ASSERT_EQ(-1, copyer.Download(location, off, size, buf));
+        copyer.DownloadAsync(&closure);
+        ASSERT_TRUE(closure.IsRun());
+        ASSERT_TRUE(closure.IsFailed());
+        closure.Reset();
+
 
         /* 用例:读s3上的数据，读取成功
          * 预期:返回0
          */
-        location = "test@s3";
-        EXPECT_CALL(*s3Client_, GetObject("test", _, off, size))
-            .WillOnce(Return(0));
-        ASSERT_EQ(0, copyer.Download(location, off, size, buf));
+        context.location = "test@s3";
+        EXPECT_CALL(*s3Client_, GetObjectAsync(_))
+            .WillOnce(Invoke(
+                [&] (const std::shared_ptr<GetObjectAsyncContext>& context) {
+                    context->retCode = 0;
+                    context->cb(s3Client_.get(), context);
+                }));
+        copyer.DownloadAsync(&closure);
+        ASSERT_TRUE(closure.IsRun());
+        ASSERT_FALSE(closure.IsFailed());
+        closure.Reset();
 
         /* 用例:读s3上的数据，读取失败
          * 预期:返回-1
          */
-        location = "test@s3";
-        EXPECT_CALL(*s3Client_, GetObject("test", _, off, size))
-            .WillOnce(Return(-1));
-        ASSERT_EQ(-1, copyer.Download(location, off, size, buf));
+        context.location = "test@s3";
+        EXPECT_CALL(*s3Client_, GetObjectAsync(_))
+            .WillOnce(Invoke(
+                [&] (const std::shared_ptr<GetObjectAsyncContext>& context) {
+                    context->retCode = -1;
+                    context->cb(s3Client_.get(), context);
+                }));
+        copyer.DownloadAsync(&closure);
+        ASSERT_TRUE(closure.IsRun());
+        ASSERT_TRUE(closure.IsFailed());
+        closure.Reset();
 
         delete [] buf;
     }
@@ -161,26 +241,34 @@ TEST_F(CloneCopyerTest, DisableTest) {
 
     // 从上s3或者curve请求下载数据会返回失败
     {
-        string location;
-        off_t off = 0;
-        size_t size = 4096;
         char* buf = new char[4096];
+        AsyncDownloadContext context;
+        context.offset = 0;
+        context.size = 4096;
+        context.buf = buf;
+        MockDownloadClosure closure(&context);
 
         /* 用例:读curve上的数据，读取失败
          */
-        location = "test:0@cs";
-        EXPECT_CALL(*curveClient_, Open(_, _, _))
+        context.location = "test:0@cs";
+        EXPECT_CALL(*curveClient_, Open4ReadOnly(_, _))
             .Times(0);
-        EXPECT_CALL(*curveClient_, Read(_, _, _, _))
+        EXPECT_CALL(*curveClient_, AioRead(_, _))
             .Times(0);
-        ASSERT_EQ(-1, copyer.Download(location, off, size, buf));
+        copyer.DownloadAsync(&closure);
+        ASSERT_TRUE(closure.IsRun());
+        ASSERT_TRUE(closure.IsFailed());
+        closure.Reset();
 
         /* 用例:读s3上的数据，读取失败
          */
-        location = "test@s3";
-        EXPECT_CALL(*s3Client_, GetObject(_, _, _, _))
+        context.location = "test@s3";
+        EXPECT_CALL(*s3Client_, GetObjectAsync(_))
             .Times(0);
-        ASSERT_EQ(-1, copyer.Download(location, off, size, buf));
+        copyer.DownloadAsync(&closure);
+        ASSERT_TRUE(closure.IsRun());
+        ASSERT_TRUE(closure.IsFailed());
+        closure.Reset();
         delete [] buf;
     }
     // fini 可以成功

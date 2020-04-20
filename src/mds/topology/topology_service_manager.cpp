@@ -1321,8 +1321,8 @@ void TopologyServiceManager::GetCopySetsInChunkServer(
 }
 
 void TopologyServiceManager::GetClusterInfo(
-      const GetClusterInfoRequest* request,
-      GetClusterInfoResponse* response) {
+    const GetClusterInfoRequest* request,
+    GetClusterInfoResponse* response) {
     ClusterInformation info;
     if (topology_->GetClusterInfo(&info)) {
         response->set_statuscode(kTopoErrCodeSuccess);

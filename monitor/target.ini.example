@@ -8,6 +8,7 @@ port=3306
 mds=127.0.0.1:6666
 etcd=127.0.0.1:2379
 mysql=127.0.0.1:9104
+snapclone=127.0.0.1:5555
 
 [path]
 target_path=prometheus/target.json

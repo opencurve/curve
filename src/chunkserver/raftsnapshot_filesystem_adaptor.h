@@ -48,6 +48,7 @@ class RaftSnapshotFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
      */
     RaftSnapshotFilesystemAdaptor(std::shared_ptr<ChunkfilePool> chunkfilePool,
                                   std::shared_ptr<LocalFileSystem> lfs);
+    RaftSnapshotFilesystemAdaptor();
     virtual ~RaftSnapshotFilesystemAdaptor();
 
     /**
