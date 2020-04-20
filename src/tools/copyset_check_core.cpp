@@ -536,14 +536,9 @@ void CopysetCheckCore::UpdateChunkServerCopysets(
     chunkserverCopysets_[csAddr] = copysetIds;
 }
 
-// 通过发送RPC检查chunkserver是否在线，如果访问过，就直接返回结果
+// 通过发送RPC检查chunkserver是否在线
 bool CopysetCheckCore::CheckChunkServerOnline(
                     const std::string& chunkserverAddr) {
-    // 如果已经查询过，就直接返回结果，每次查询的总时间很短，
-    // 假设这段时间内chunkserver不会恢复
-    if (chunkserverCopysets_.count(chunkserverAddr) != 0) {
-        return !chunkserverCopysets_[chunkserverAddr].empty();
-    }
     int res = csClient_->Init(chunkserverAddr);
     if (res != 0) {
         std::cout << "Init chunkserverClient fail!" << std::endl;

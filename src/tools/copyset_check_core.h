@@ -206,7 +206,7 @@ class CopysetCheckCore {
     }
 
     /**
-    * @brief 通过发送RPC检查chunkserver是否在线，如果访问过，就直接返回结果
+    * @brief 通过发送RPC检查chunkserver是否在线
     *
     * @param chunkserverAddr chunkserver的地址
     *

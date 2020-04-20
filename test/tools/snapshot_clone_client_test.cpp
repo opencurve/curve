@@ -51,7 +51,9 @@ TEST_F(SnapshotCloneClientTest, GetActiveAddr) {
     ASSERT_EQ(0, client.Init("127.0.0.1:5555,127.0.0.1:5556,127.0.0.1:5557",
                                "9091"));
     EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
-        .Times(3)
+        .Times(4)
+        .WillOnce(DoAll(SetArgPointee<2>("active"),
+                        Return(MetricRet::kOK)))
         .WillOnce(DoAll(SetArgPointee<2>("active"),
                         Return(MetricRet::kOK)))
         .WillRepeatedly(DoAll(SetArgPointee<2>("standby"),
@@ -59,6 +61,17 @@ TEST_F(SnapshotCloneClientTest, GetActiveAddr) {
     std::vector<std::string> activeAddr = client.GetActiveAddrs();
     ASSERT_EQ(1, activeAddr.size());
     ASSERT_EQ("127.0.0.1:5555", activeAddr[0]);
+
+    // 有一个dummyserver显示active，服务端口访问失败
+    EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
+        .Times(4)
+        .WillOnce(DoAll(SetArgPointee<2>("active"),
+                        Return(MetricRet::kOK)))
+        .WillOnce(Return(MetricRet::kOtherErr))
+        .WillRepeatedly(DoAll(SetArgPointee<2>("standby"),
+                        Return(MetricRet::kOK)));
+    activeAddr = client.GetActiveAddrs();
+    ASSERT_TRUE(activeAddr.empty());
 
     // 有一个获取metric失败，其他返回standby
     EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
@@ -70,7 +83,7 @@ TEST_F(SnapshotCloneClientTest, GetActiveAddr) {
 
     // 有两个active状态的
     EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
-        .Times(3)
+        .Times(5)
         .WillOnce(DoAll(SetArgPointee<2>("standby"),
                         Return(MetricRet::kOK)))
         .WillRepeatedly(DoAll(SetArgPointee<2>("active"),
