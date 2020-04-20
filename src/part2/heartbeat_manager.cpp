@@ -55,6 +55,7 @@ void HeartbeatManager::UpdateNebdClientInfo(int pid, const std::string& version,
     if (iter == nebdClients_.end()) {
         nebdClients_[pid] =
                 std::make_shared<NebdClientInfo>(pid, version, timestamp);
+        nebdClientNum_ << 1;
     } else {
         nebdClients_[pid]->timeStamp = timestamp;
         nebdClients_[pid]->version.Set(kVersion, version);
@@ -116,6 +117,7 @@ void HeartbeatManager::RemoveTimeoutNebdClient() {
             LOG(INFO) << "Delete nebd client info which has timed out. "
                       << "client info: " << iter->second;
             iter = nebdClients_.erase(iter);
+            nebdClientNum_ << -1;
         } else {
             iter++;
         }

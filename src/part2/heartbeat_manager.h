@@ -65,7 +65,9 @@ class HeartbeatManager {
         : isRunning_(false)
         , heartbeatTimeoutS_(option.heartbeatTimeoutS)
         , checkTimeoutIntervalMs_(option.checkTimeoutIntervalMs)
-        , fileManager_(option.fileManager) {}
+        , fileManager_(option.fileManager) {
+        nebdClientNum_.expose("nebd_client_num");
+    }
     virtual ~HeartbeatManager() {}
 
     // 启动心跳检测线程
@@ -106,6 +108,8 @@ class HeartbeatManager {
     NebdFileManagerPtr fileManager_;
     // nebd client的信息
     std::map<int, std::shared_ptr<NebdClientInfo>> nebdClients_;
+    // nebdClient的计数器
+    bvar::Adder<uint64_t> nebdClientNum_;
     // file map 读写保护锁
     RWLock rwLock_;
 };
