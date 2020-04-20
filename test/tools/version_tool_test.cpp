@@ -9,6 +9,7 @@
 #include "src/tools/version_tool.h"
 #include "test/tools/mock_mds_client.h"
 #include "test/tools/mock_metric_client.h"
+#include "test/tools/mock_snapshot_clone_client.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -27,6 +28,7 @@ class VersionToolTest : public ::testing::Test {
     void SetUp() {
         mdsClient_ = std::make_shared<MockMDSClient>();
         metricClient_ = std::make_shared<MockMetricClient>();
+        snapshotClient_ = std::make_shared<MockSnapshotCloneClient>();
     }
 
     void TearDown() {
@@ -49,18 +51,11 @@ class VersionToolTest : public ::testing::Test {
     }
     std::shared_ptr<MockMDSClient> mdsClient_;
     std::shared_ptr<MockMetricClient> metricClient_;
+    std::shared_ptr<MockSnapshotCloneClient> snapshotClient_;
 };
 
-TEST_F(VersionToolTest, Init) {
-    VersionTool versionTool(mdsClient_, metricClient_);
-    EXPECT_CALL(*mdsClient_, Init(_))
-        .Times(1)
-        .WillOnce(Return(0));
-    ASSERT_EQ(0, versionTool.Init("127.0.0.1:6666"));
-}
-
 TEST_F(VersionToolTest, GetAndCheckMdsVersion) {
-    VersionTool versionTool(mdsClient_, metricClient_);
+    VersionTool versionTool(mdsClient_, metricClient_, snapshotClient_);
     std::map<std::string, std::string> dummyServerMap =
                                 {{"127.0.0.1:6666", "127.0.0.1:6667"},
                                  {"127.0.0.1:6668", "127.0.0.1:6669"},
@@ -131,7 +126,7 @@ TEST_F(VersionToolTest, GetAndCheckMdsVersion) {
 }
 
 TEST_F(VersionToolTest, GetChunkServerVersion) {
-    VersionTool versionTool(mdsClient_, metricClient_);
+    VersionTool versionTool(mdsClient_, metricClient_, snapshotClient_);
     std::vector<ChunkServerInfo> chunkservers;
     ChunkServerInfo csInfo;
     for (uint64_t i = 1; i <= 5; ++i) {
@@ -219,7 +214,7 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
 }
 
 TEST_F(VersionToolTest, GetClientVersion) {
-    VersionTool versionTool(mdsClient_, metricClient_);
+    VersionTool versionTool(mdsClient_, metricClient_, snapshotClient_);
     std::vector<std::string> clientAddrs =
                 {"127.0.0.1:8000", "127.0.0.1:8001", "127.0.0.1:8002"};
 
@@ -248,6 +243,82 @@ TEST_F(VersionToolTest, GetClientVersion) {
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, versionTool.GetClientVersion(&versionMap, &offlineList));
+}
+
+TEST_F(VersionToolTest, GetAndCheckSnapshotCloneVersion) {
+    VersionTool versionTool(mdsClient_, metricClient_, snapshotClient_);
+    std::map<std::string, std::string> dummyServerMap =
+                                {{"127.0.0.1:6666", "127.0.0.1:6667"},
+                                 {"127.0.0.1:6668", "127.0.0.1:6669"},
+                                 {"127.0.0.1:6670", "127.0.0.1:6671"}};
+
+    // 1、正常情况
+    EXPECT_CALL(*snapshotClient_, GetDummyServerMap())
+        .Times(1)
+        .WillOnce(ReturnRef(dummyServerMap));
+    EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
+        .Times(3)
+        .WillRepeatedly(DoAll(SetArgPointee<2>("0.0.1"),
+                        Return(MetricRet::kOK)));
+    std::string version;
+    std::vector<std::string> failedList;
+    ASSERT_EQ(0, versionTool.GetAndCheckSnapshotCloneVersion(&version,
+                                                             &failedList));
+    ASSERT_EQ("0.0.1", version);
+    ASSERT_TRUE(failedList.empty());
+
+    // 2、获取部分curve_version失败
+    EXPECT_CALL(*snapshotClient_, GetDummyServerMap())
+        .Times(1)
+        .WillOnce(ReturnRef(dummyServerMap));
+    EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
+        .Times(3)
+        .WillOnce(Return(MetricRet::kOtherErr))
+        .WillRepeatedly(DoAll(SetArgPointee<2>("0.0.1"),
+                        Return(MetricRet::kOK)));
+    ASSERT_EQ(0, versionTool.GetAndCheckSnapshotCloneVersion(&version,
+                                                             &failedList));
+    ASSERT_EQ("0.0.1", version);
+    std::vector<std::string> expectedList = {"127.0.0.1:6667"};
+    ASSERT_EQ(expectedList, failedList);
+
+    // 3、dummyServerMap为空
+    std::map<std::string, std::string> dummyServerMap2;
+    EXPECT_CALL(*snapshotClient_, GetDummyServerMap())
+        .Times(1)
+        .WillOnce(ReturnRef(dummyServerMap2));
+    EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
+        .Times(0);
+    ASSERT_EQ(-1, versionTool.GetAndCheckSnapshotCloneVersion(&version,
+                                                              &failedList));
+    ASSERT_TRUE(failedList.empty());
+
+    // 4、version不一致
+    EXPECT_CALL(*snapshotClient_, GetDummyServerMap())
+        .Times(1)
+        .WillOnce(ReturnRef(dummyServerMap));
+    EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
+        .Times(3)
+        .WillOnce(DoAll(SetArgPointee<2>("0.0.2"),
+                        Return(MetricRet::kOK)))
+        .WillOnce(DoAll(SetArgPointee<2>("0.0.1"),
+                        Return(MetricRet::kOK)))
+        .WillOnce(Return(MetricRet::kNotFound));
+    ASSERT_EQ(-1, versionTool.GetAndCheckSnapshotCloneVersion(&version,
+                                                              &failedList));
+    ASSERT_TRUE(failedList.empty());
+
+    // 5、老版本mds
+    EXPECT_CALL(*snapshotClient_, GetDummyServerMap())
+        .Times(1)
+        .WillOnce(ReturnRef(dummyServerMap));
+    EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
+        .Times(3)
+        .WillRepeatedly(Return(MetricRet::kNotFound));
+    ASSERT_EQ(0, versionTool.GetAndCheckSnapshotCloneVersion(&version,
+                                                             &failedList));
+    ASSERT_EQ("before0.0.5.2", version);
+    ASSERT_TRUE(failedList.empty());
 }
 
 }  // namespace tool

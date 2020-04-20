@@ -181,7 +181,7 @@ class ChunkServerConcurrentFromChunkFilePoolTest : public testing::Test {
                                                    poolDir,
                                                    metaDir);
 
-        allocateChunk(lfs, kChunkNum, poolDir);
+        allocateChunk(lfs, kChunkNum, poolDir, kChunkSize);
     }
     virtual void TearDown() {
         std::string rmdir1("rm -fr ");

@@ -20,9 +20,10 @@ targetPath=None
 etcd_exporter=None
 mds_exporter=None
 mysql_exporter=None
+snapclone_exporter=None
 
 def loadConf():
-    global host,port,username,password,targetPath,etcd_exporter,mds_exporter,mysql_exporter
+    global host,port,username,password,targetPath,etcd_exporter,mds_exporter,mysql_exporter,snapclone_exporter
     conf=ConfigParser.ConfigParser()
     conf.read("target.ini")
     host=conf.get("mysql", "ip")
@@ -33,6 +34,7 @@ def loadConf():
     etcd_exporter=conf.get("exporter", "etcd")
     mds_exporter=conf.get("exporter", "mds")
     mysql_exporter=conf.get("exporter", "mysql")
+    snapclone_exporter=conf.get("exporter", "snapclone")
 
 def refresh(cur):
     targets = []
@@ -90,6 +92,12 @@ def refresh(cur):
     targets.append({
         'labels': {'job': "mds"},
         'targets': mds_exporter.split(','),
+    })
+
+    # 添加snapclone targets
+    targets.append({
+        'labels': {'job': "snapclone"},
+        'targets': snapclone_exporter.split(','),
     })
 
     with open(targetPath+'.new', 'w', 0777) as fd:

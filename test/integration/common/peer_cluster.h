@@ -122,6 +122,8 @@ class PeerCluster {
 
     const CopysetID GetCopysetId() const {return copysetID_;}
 
+    void SetWorkingCopyset(CopysetID copysetID) {copysetID_ = copysetID;}
+
     /* 修改 PeerNode 配置相关的接口，单位: s */
     int SetsnapshotIntervalS(int snapshotIntervalS);
     int SetElectionTimeoutMs(int electionTimeoutMs);
@@ -154,11 +156,10 @@ class PeerCluster {
                                                     LogicPoolID logicPoolID,
                                                     CopysetID copysetID);
 
- private:
     static int CreateCopyset(LogicPoolID logicPoolID,
-                              CopysetID copysetID,
-                              Peer peer,
-                              const std::vector<Peer>& peers);
+                             CopysetID copysetID,
+                             Peer peer,
+                             const std::vector<Peer>& peers);
 
  private:
     // 集群名字
@@ -176,9 +177,9 @@ class PeerCluster {
     Configuration           conf_;
 
     // 逻辑池id
-    static LogicPoolID      logicPoolID_;
+    LogicPoolID             logicPoolID_;
     // 复制组id
-    static CopysetID        copysetID_;
+    CopysetID               copysetID_;
     // chunkserver id
     static ChunkServerID    chunkServerId_;
     // 文件系统适配层
@@ -245,6 +246,20 @@ void ReadSnapshotVerify(Peer leaderPeer,
                         int length,
                         char fillCh,
                         int loop);
+
+/**
+ * 删除chunk的snapshot进行验证
+ * @param leaderId      主的 id
+ * @param logicPoolId   逻辑池 id
+ * @param copysetId     复制组 id
+ * @param chunkId       chunk id
+ * @param csn           corrected sn
+ */
+void DeleteSnapshotVerify(Peer leaderPeer,
+                          LogicPoolID logicPoolId,
+                          CopysetID copysetId,
+                          ChunkID chunkId,
+                          uint64_t csn);
 
 /**
  * 异常I/O验证，read数据不符合预期

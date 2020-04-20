@@ -22,6 +22,17 @@ DECLARE_bool(detail);
 namespace curve {
 namespace tool {
 
+std::ostream& operator<<(std::ostream& os,
+                    std::vector<std::string> strs) {
+    for (uint32_t i = 0; i < strs.size(); ++i) {
+        if (i != 0) {
+            os << ", ";
+        }
+        os << strs[i];
+    }
+    return os;
+}
+
 int StatusTool::Init(const std::string& command) {
     if (CommandNeedMds(command) && !mdsInited_) {
         if (mdsClient_->Init(FLAGS_mdsAddr, FLAGS_mdsDummyPort) != 0) {
@@ -36,10 +47,6 @@ int StatusTool::Init(const std::string& command) {
             std::cout << "Init copysetCheckCore failed!" << std::endl;
             return -1;
         }
-        if (versionTool_->Init(FLAGS_mdsAddr) != 0) {
-            std::cout << "Init versionTool failed!" << std::endl;
-            return -1;
-        }
         mdsInited_ = true;
     }
     if (CommandNeedEtcd(command) && !etcdInited_) {
@@ -49,6 +56,13 @@ int StatusTool::Init(const std::string& command) {
         }
         etcdInited_ = true;
     }
+    if (CommandNeedSnapshotClone(command)) {
+        if (snapshotClient_->Init(FLAGS_snapshotCloneAddr,
+                                  FLAGS_snapshotCloneDummyPort) != 0) {
+            std::cout << "Init snapshotClient failed!" << std::endl;
+            return -1;
+        }
+    }
     return 0;
 }
 
@@ -57,7 +71,11 @@ bool StatusTool::CommandNeedEtcd(const std::string& command) {
 }
 
 bool StatusTool::CommandNeedMds(const std::string& command) {
-    return (command != kEtcdStatusCmd);
+    return (command != kEtcdStatusCmd && command != kSnapshotCloneStatusCmd);
+}
+
+bool StatusTool::CommandNeedSnapshotClone(const std::string& command) {
+    return (command == kSnapshotCloneStatusCmd || command == kStatusCmd);
 }
 
 bool StatusTool::SupportCommand(const std::string& command) {
@@ -66,7 +84,8 @@ bool StatusTool::SupportCommand(const std::string& command) {
                                  || command == kChunkserverStatusCmd
                                  || command == kMdsStatusCmd
                                  || command == kEtcdStatusCmd
-                                 || command == kClientStatusCmd);
+                                 || command == kClientStatusCmd
+                                 || command == kSnapshotCloneStatusCmd);
 }
 
 void StatusTool::PrintHelp(const std::string& cmd) {
@@ -77,6 +96,9 @@ void StatusTool::PrintHelp(const std::string& cmd) {
     }
     if (CommandNeedEtcd(cmd)) {
         std::cout << " -etcdAddr=127.0.0.1:6666";
+    }
+    if (CommandNeedSnapshotClone(cmd)) {
+        std::cout << " -snapshotCloneAddr=127.0.0.1:5555";
     }
     if (cmd == kChunkserverListCmd) {
         std::cout << " [-offline] [-unhealthy] [-checkHealth=false]"
@@ -207,6 +229,11 @@ int StatusTool::StatusCmd() {
         success = false;
     }
     std::cout << std::endl;
+    res = PrintSnapshotCloneStatus();
+    if (res != 0) {
+        success = false;
+    }
+    std::cout << std::endl;
     res = PrintChunkserverStatus();
     if (res != 0) {
         success = false;
@@ -260,15 +287,13 @@ bool StatusTool::IsClusterHeatlhy() {
         return false;
     }
     // 2、检查mds状态
-    std::string mds = mdsClient_->GetCurrentMds();
-    if (mds.empty()) {
+    std::vector<std::string> mdsAddrs = mdsClient_->GetCurrentMds();
+    // 当前工作mds为空或超过一个返回不健康
+    if (mdsAddrs.size() != 1) {
         return false;
     }
     std::map<std::string, bool> onlineStatus;
-    res = mdsClient_->GetMdsOnlineStatus(&onlineStatus);
-    if (res != 0) {
-        return false;
-    }
+    mdsClient_->GetMdsOnlineStatus(&onlineStatus);
     for (const auto& item : onlineStatus) {
         if (!item.second) {
             return false;
@@ -289,6 +314,20 @@ bool StatusTool::IsClusterHeatlhy() {
             return false;
         }
     }
+
+    // 4、检查snapshot clone server状态
+    std::vector<std::string> activeAddrs = snapshotClient_->GetActiveAddrs();
+    // 当前工作snapshot clone为空或超过一个返回不健康
+    if (activeAddrs.size() != 1) {
+        return false;
+    }
+    snapshotClient_->GetOnlineStatus(&onlineStatus);
+    for (const auto& item : onlineStatus) {
+        if (!item.second) {
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -338,10 +377,10 @@ int StatusTool::PrintMdsStatus() {
             ret = -1;
         }
     }
-
-    std::cout << "current MDS: " << mdsClient_->GetCurrentMds() << std::endl;
+    std::vector<std::string> mdsAddrs = mdsClient_->GetCurrentMds();
+    std::cout << "current MDS: " << mdsAddrs << std::endl;
     std::map<std::string, bool> onlineStatus;
-    res = mdsClient_->GetMdsOnlineStatus(&onlineStatus);
+    mdsClient_->GetMdsOnlineStatus(&onlineStatus);
     if (res != 0) {
         std::cout << "GetMdsOnlineStatus fail!" << std::endl;
         ret = -1;
@@ -363,6 +402,31 @@ int StatusTool::PrintEtcdStatus() {
     std::cout << "current etcd: " << leaderAddr << std::endl;
     PrintOnlineStatus("etcd", onlineStatus);
     return 0;
+}
+
+int StatusTool::PrintSnapshotCloneStatus() {
+    std::cout << "SnapshotCloneServer status:" << std::endl;
+    std::string version;
+    std::vector<std::string> failedList;
+    int res = versionTool_->GetAndCheckSnapshotCloneVersion(&version,
+                                                            &failedList);
+    int ret = 0;
+    if (res != 0) {
+        std::cout << "GetAndCheckSnapshotCloneVersion fail" << std::endl;
+        ret = -1;
+    } else {
+        std::cout << "version: " << version << std::endl;
+        if (!failedList.empty()) {
+            versionTool_->PrintFailedList(failedList);
+            ret = -1;
+        }
+    }
+    std::vector<std::string> activeAddrs = snapshotClient_->GetActiveAddrs();
+    std::map<std::string, bool> onlineStatus;
+    snapshotClient_->GetOnlineStatus(&onlineStatus);
+    std::cout << "current snapshot-clone-server: " << activeAddrs << std::endl;
+    PrintOnlineStatus("snapshot-clone-server", onlineStatus);
+    return ret;
 }
 
 int StatusTool::PrintClientStatus() {
@@ -543,6 +607,8 @@ int StatusTool::RunCommand(const std::string &cmd) {
         return PrintEtcdStatus();
     } else if (cmd == kClientStatusCmd) {
         return PrintClientStatus();
+    } else if (cmd == kSnapshotCloneStatusCmd) {
+        return PrintSnapshotCloneStatus();
     } else {
         std::cout << "Command not supported!" << std::endl;
         return -1;

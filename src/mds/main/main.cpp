@@ -8,6 +8,7 @@
 #include <gflags/gflags.h>
 
 #include "src/mds/server/mds.h"
+#include "src/mds/common/mds_define.h"
 
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
 DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds listen addr");
@@ -17,6 +18,14 @@ DEFINE_int32(sessionInterSec, 5, "mds session expired second");
 DEFINE_int32(updateToRepoSec, 5, "interval of update data in mds to repo");
 DEFINE_uint32(dummyPort, 6667, "dummy server port");
 
+using ::curve::mds::kMB;
+using ::curve::mds::kGB;
+using ::curve::mds::DefaultSegmentSize;
+using ::curve::mds::kMiniFileLength;
+
+DEFINE_uint64(chunkSize, 16 * kMB, "chunk size");
+DEFINE_uint64(segmentSize, 1 * kGB, "segment size");
+DEFINE_uint64(minFileLength, 10 * kGB, "min filglength");
 
 void LoadConfigFromCmdline(Configuration *conf) {
     google::CommandLineFlagInfo info;
@@ -26,6 +35,18 @@ void LoadConfigFromCmdline(Configuration *conf) {
 
     if (GetCommandLineFlagInfo("etcdAddr", &info) && !info.is_default) {
         conf->SetStringValue("mds.etcd.endpoint", FLAGS_etcdAddr);
+    }
+
+    if (GetCommandLineFlagInfo("chunkSize", &info) && !info.is_default) {
+        conf->SetUInt64Value("mds.curvefs.defaultChunkSize", FLAGS_chunkSize);
+    }
+
+    if (GetCommandLineFlagInfo("segmentSize", &info) && !info.is_default) {
+        DefaultSegmentSize = FLAGS_segmentSize;
+    }
+
+    if (GetCommandLineFlagInfo("minFileLength", &info) && !info.is_default) {
+        kMiniFileLength = FLAGS_minFileLength;
     }
 
     if (GetCommandLineFlagInfo("mdsDbName", &info) && !info.is_default) {
@@ -92,5 +113,4 @@ int main(int argc, char **argv) {
     google::ShutdownGoogleLogging();
     return 0;
 }
-
 

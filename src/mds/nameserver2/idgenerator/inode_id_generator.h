@@ -12,9 +12,12 @@
 #include <memory>
 
 #include "src/mds/common/mds_define.h"
+#include "src/common/namespace_define.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/mds/nameserver2/idgenerator/etcd_id_generator.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
+
+using ::curve::common::INODESTOREKEY;
 
 namespace curve {
 namespace mds {

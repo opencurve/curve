@@ -378,7 +378,7 @@ TEST(MDSClientTestRegitser, Register) {
     curvefsservice3.SetRegistRet(fakeregist4);
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Init(configpath.c_str()));
     LOG(INFO) << "start test!";
-    ASSERT_EQ(LIBCURVE_ERROR::INTERNAL_ERROR,
+    ASSERT_EQ(LIBCURVE_ERROR::PARAM_ERROR,
     mdsclient.Register(ip, 999));
 
     // 设置mds2 ECONNRESET，触发切换mds，切换到mds3，mds3返回ECONNREFUSED
@@ -463,4 +463,3 @@ int main(int argc, char ** argv) {
     int ret = RUN_ALL_TESTS();
     return ret;
 }
-

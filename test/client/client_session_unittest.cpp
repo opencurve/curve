@@ -459,6 +459,7 @@ const std::vector<std::string> clientConf {
     std::string("metacache.rpcRetryIntervalUS=500"),
     std::string("mds.rpcRetryIntervalUS=500"),
     std::string("schedule.threadpoolSize=2"),
+    std::string("mds.maxRetryMS=5000")
 };
 
 int main(int argc, char ** argv) {

@@ -383,7 +383,7 @@ TEST_F(InflightRPCTest, sessionValidRPCTest) {
 
     // 设置rpc等待时间，这样确保rpc发出去但是没有回来，发出的
     // RPC都是inflight RPC
-    mds->EnableNetUnstable(8000);
+    mds->EnableNetUnstable(10000);
     iorflag = false;
     iowflag = false;
     ASSERT_EQ(LIBCURVE_ERROR::OK, iomana->AioRead(aioctx, &mdsclient_));

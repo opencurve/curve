@@ -7,6 +7,7 @@
 
 #include <glog/logging.h>
 #include "src/mds/server/mds.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
 
 namespace curve {
 namespace mds {
@@ -55,7 +56,6 @@ void MDS::StartDummy() {
     LOG(INFO) << "mds version: " << curve::common::CurveVersion();
     curve::common::ExposeCurveVersion();
     conf_->ExposeMetric("mds_config");
-    conf_->UpdateMetric();
     status_.expose("mds_status");
     status_.set_value("follower");
 
@@ -81,8 +81,9 @@ void MDS::StartCompaginLeader() {
 
     // 进行leader选举
     LeaderElectionOptions leaderElectionOp;
-    InitLeaderElectionOption(&leaderElectionOp);
+    InitMdsLeaderElectionOption(&leaderElectionOp);
     leaderElectionOp.etcdCli = etcdClient_;
+    leaderElectionOp.campaginPrefix = "";
     InitLeaderElection(leaderElectionOp);
     while (0 != leaderElection_->CampaginLeader()) {
         LOG(INFO) << leaderElection_->GetLeaderName()
@@ -237,7 +238,7 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
                          int retryTimes) {
     etcdClient_ = std::make_shared<EtcdClientImp>();
     auto res = etcdClient_->Init(etcdConf, etcdTimeout, retryTimes);
-    LOG_IF(FATAL, res != EtcdErrCode::OK)
+    LOG_IF(FATAL, res != EtcdErrCode::EtcdOK)
         << "init etcd client err! "
         << "etcdaddr: " << etcdConf.Endpoints
         << ", etcdaddr len: " << etcdConf.len
@@ -248,7 +249,8 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
 
     std::string out;
     res = etcdClient_->Get("test", &out);
-    LOG_IF(FATAL, res != EtcdErrCode::OK && res != EtcdErrCode::KeyNotExist)
+    LOG_IF(FATAL, res != EtcdErrCode::EtcdOK &&
+        res != EtcdErrCode::EtcdKeyNotExist)
         << "Run mds err. Check if etcd is running.";
 
     LOG(INFO) << "init etcd client ok! "
@@ -263,7 +265,7 @@ void MDS::InitLeaderElection(const LeaderElectionOptions& leaderElectionOp) {
     leaderElection_ = std::make_shared<LeaderElection>(leaderElectionOp);
 }
 
-void MDS::InitLeaderElectionOption(LeaderElectionOptions *electionOp) {
+void MDS::InitMdsLeaderElectionOption(LeaderElectionOptions *electionOp) {
     conf_->GetValueFatalIfFail("mds.listen.addr",
         &electionOp->leaderUniqueName);
     conf_->GetValueFatalIfFail("mds.leader.sessionInterSec",

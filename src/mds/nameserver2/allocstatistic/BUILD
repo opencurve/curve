@@ -13,7 +13,7 @@ cc_library(
     deps = [
         "//external:glog",
         "//external:gflags",
-        "//src/mds/kvstorageclient:kvstorage_client",
+        "//src/kvstorageclient:kvstorage_client",
         "//src/mds/nameserver2/helper:helper",
         "//src/common:curve_common",
     ],
