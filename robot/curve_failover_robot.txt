@@ -549,12 +549,12 @@ inject cluster stress test
 *** Keywords ***
 
 init failover cluster
+     init vm
      init abnormal test env
      check chunkserver online
      ${begin_num}    get all chunk num
      ${begin_num}    Convert To Integer   ${begin_num}
      Set Global Variable  ${chunk_num}    ${begin_num} 
-     init vm
      init vol
      test get all chunk num
      begin snapshot test
