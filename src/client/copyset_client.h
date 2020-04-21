@@ -168,6 +168,14 @@ class CopysetClient : public Uncopyable {
                   Closure *done);
 
     /**
+     * @brief 如果csId对应的RequestSender不健康，就进行重置
+     * @param csId chunkserver id
+     */
+    void ResetSenderIfNotHealth(const ChunkServerID& csId) {
+        senderManager_->ResetSenderIfNotHealth(csId);
+    }
+
+    /**
      * session过期，需要将重试RPC停住
      */
     void StartRecycleRetryRPC() {

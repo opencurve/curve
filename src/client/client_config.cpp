@@ -185,6 +185,12 @@ int ClientConfig::Init(const char* configpath) {
     LOG_IF(ERROR, ret == false) << "config no mds.registerToMDS info";
     RETURN_IF_FALSE(ret)
 
+    ret = conf_.GetBoolValue("global.turnOffHealthCheck",
+                             &fileServiceOption_.commonOpt.turnOffHealthCheck);
+    LOG_IF(WARNING, ret == false)
+        << "config no global.turnOffHealthCheck info, using default value "
+        << fileServiceOption_.commonOpt.turnOffHealthCheck;
+
     return 0;
 }
 

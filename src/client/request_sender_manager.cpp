@@ -40,5 +40,21 @@ RequestSenderManager::SenderPtr RequestSenderManager::GetOrCreateSender(
     return senderPtr;
 }
 
+void RequestSenderManager::ResetSenderIfNotHealth(const ChunkServerID& csId) {
+    std::lock_guard<std::mutex> guard(lock_);
+    auto iter = senderPool_.find(csId);
+
+    if (iter == senderPool_.end()) {
+        return;
+    }
+
+    // 检查是否健康
+    if (iter->second->IsSocketHealth()) {
+        return;
+    }
+
+    senderPool_.erase(iter);
+}
+
 }   // namespace client
 }   // namespace curve

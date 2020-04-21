@@ -278,6 +278,8 @@ void ClientClosure::Run() {
 }
 
 void ClientClosure::OnRpcFailed() {
+    client_->ResetSenderIfNotHealth(chunkserverID_);
+
     status_ = cntl_->ErrorCode();
 
     // 如果连接失败，再等一定时间再重试

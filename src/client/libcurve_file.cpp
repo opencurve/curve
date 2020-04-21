@@ -37,6 +37,10 @@ curve::client::FileClient* globalclient = nullptr;
 static const int PROCESS_NAME_MAX = 32;
 static char g_processname[PROCESS_NAME_MAX];
 
+namespace brpc {
+    DECLARE_int32(health_check_interval);
+}  // namespace brpc
+
 namespace curve {
 namespace client {
 
@@ -100,6 +104,10 @@ int FileClient::Init(const std::string& configpath) {
         delete mdsClient_;
         mdsClient_ = nullptr;
         return -LIBCURVE_ERROR::FAILED;
+    }
+
+    if (clientconfig_.GetFileServiceOption().commonOpt.turnOffHealthCheck) {
+        brpc::FLAGS_health_check_interval = -1;
     }
 
     bool rc = StartDummyServer();
