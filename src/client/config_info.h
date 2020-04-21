@@ -255,12 +255,11 @@ typedef struct IOOption {
  * @mdsRegisterToMDS: 是否向mds注册client信息，因为client需要通过dummy server导出
  *                    metric信息，为了配合普罗米修斯的自动服务发现机制，会将其监听的
  *                    ip和端口信息发送给mds。
+ * @turnOffHealthCheck: 是否关闭健康检查
  */
 typedef struct CommonConfigOpt {
-    bool    mdsRegisterToMDS;
-    CommonConfigOpt() {
-        mdsRegisterToMDS = false;
-    }
+    bool mdsRegisterToMDS{false};
+    bool turnOffHealthCheck{false};
 } CommonConfigOpt_t;
 
 /**

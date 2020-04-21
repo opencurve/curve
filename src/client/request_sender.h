@@ -156,6 +156,10 @@ class RequestSender {
     int ResetSender(ChunkServerID chunkServerId,
                     butil::EndPoint serverEndPoint);
 
+    bool IsSocketHealth() {
+       return channel_.CheckHealth() == 0;
+    }
+
  private:
     // Rpc stub配置
     IOSenderOption_t iosenderopt_;
