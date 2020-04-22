@@ -901,6 +901,7 @@ int TopologyImpl::Init(const TopologyOption &option) {
         LOG(ERROR) << "[TopologyImpl::init], LoadChunkServer fail.";
         return kTopoErrCodeStorgeFail;
     }
+    SetChunkServerExternalIp();
     idGenerator_->initChunkServerIdGenerator(maxChunkServerId);
     LOG(INFO) << "[TopologyImpl::init], LoadChunkServer success, "
               << "chunkserver num = " << chunkServerMap_.size();
@@ -973,6 +974,13 @@ int TopologyImpl::Init(const TopologyOption &option) {
     LOG(INFO) << "Clean Invalid LogicalPool and copyset success.";
 
     return kTopoErrCodeSuccess;
+}
+
+void TopologyImpl::SetChunkServerExternalIp() {
+    for (auto& it : chunkServerMap_) {
+        Server server = serverMap_[it.second.GetServerId()];
+        it.second.SetExternalHostIp(server.GetExternalHostIp());
+    }
 }
 
 int TopologyImpl::CleanInvalidLogicalPoolAndCopyset() {

@@ -368,7 +368,8 @@ TEST(ClientSession, AppliedIndexTest) {
 
     braft::PeerId pd(ep);
     curve::client::CopysetPeerInfo
-        peer(1, curve::client::ChunkServerAddr(ep));
+        peer(1, curve::client::ChunkServerAddr(ep),
+             curve::client::ChunkServerAddr(ep));
     cpinfo.csinfos_.push_back(peer);
     mc->UpdateCopysetInfo(2, 3, cpinfo);
 

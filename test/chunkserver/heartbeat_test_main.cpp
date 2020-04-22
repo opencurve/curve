@@ -29,6 +29,7 @@
 #include "src/chunkserver/chunkserver.h"
 #include "src/chunkserver/heartbeat.h"
 #include "test/chunkserver/heartbeat_test_common.h"
+#include "test/integration/common/config_generator.h"
 
 static char *param[3][12] = {
     {
@@ -42,7 +43,7 @@ static char *param[3][12] = {
         "-recycleUri=local://./0/recycler",
         "-chunkFilePoolDir=./0/chunkfilepool/",
         "-chunkFilePoolMetaPath=./0/chunkfilepool.meta",
-        "-conf=test/chunkserver/chunkserver.conf.0",
+        "-conf=./8200/chunkserver.conf",
         "-graceful_quit_on_sigterm",
     },
     {
@@ -56,7 +57,7 @@ static char *param[3][12] = {
         "-recycleUri=local://./1/recycler",
         "-chunkFilePoolDir=./1/chunkfilepool/",
         "-chunkFilePoolMetaPath=./1/chunkfilepool.meta",
-        "-conf=test/chunkserver/chunkserver.conf.1",
+        "-conf=./8201/chunkserver.conf",
         "-graceful_quit_on_sigterm",
     },
     {
@@ -70,7 +71,7 @@ static char *param[3][12] = {
         "-recycleUri=local://./2/recycler",
         "-chunkFilePoolDir=./2/chunkfilepool/",
         "-chunkFilePoolMetaPath=./2/chunkfilepool.meta",
-        "-conf=test/chunkserver/chunkserver.conf.2",
+        "-conf=./8202/chunkserver.conf",
         "-graceful_quit_on_sigterm",
     },
 };
@@ -102,34 +103,28 @@ int main(int argc, char *argv[]) {
     LOG_IF(ERROR, 0 != curve::chunkserver::RemovePeersData(true))
         << "Failed to remove peers' data";
 
-    pids[0] = fork();
-    if (pids[0] < 0) {
-        LOG(FATAL) << "Failed to create chunkserver process 0";
-    } else if (pids[0] == 0) {
-        /*
-         * RunChunkServer内部会调用LOG(), 有较低概率因不兼容fork()而卡死
-         */
-        return RunChunkServer(0, sizeof(param[0]) / sizeof(char *), param[0]);
-    }
-
-    pids[1] = fork();
-    if (pids[1] < 0) {
-        LOG(FATAL) << "Failed to create chunkserver process 1";
-    } else if (pids[1] == 0) {
-        /*
-         * RunChunkServer内部会调用LOG(), 有较低概率因不兼容fork()而卡死
-         */
-        return RunChunkServer(1, sizeof(param[1]) / sizeof(char *), param[1]);
-    }
-
-    pids[2] = fork();
-    if (pids[2] < 0) {
-        LOG(FATAL) << "Failed to create chunkserver process 2";
-    } else if (pids[2] == 0) {
-        /*
-         * RunChunkServer内部会调用LOG(), 有较低概率因不兼容fork()而卡死
-         */
-        return RunChunkServer(2, sizeof(param[2]) / sizeof(char *), param[2]);
+    for (int i = 0; i < 3; ++i) {
+        // generate config file
+        std::string mkdir1("mkdir ");
+        mkdir1 += std::to_string(8200 + i);
+        ::system(mkdir1.c_str());
+        curve::CSTConfigGenerator cg;
+        CHECK(cg.Init(std::to_string(8200 + i)))
+                    << "Init config generator fail";
+        cg.SetKV("mds.listen.addr", "127.0.0.1:7777,127.0.0.1:9300");
+        cg.SetKV("mds.heartbeat_interval", "1");
+        cg.SetKV("copyset.snapshot_interval_s", "30");
+        CHECK(cg.Generate()) << "Generate config file fail";
+        pids[i] = fork();
+        if (pids[i] < 0) {
+            LOG(FATAL) << "Failed to create chunkserver process 0";
+        } else if (pids[i] == 0) {
+            /*
+            * RunChunkServer内部会调用LOG(), 有较低概率因不兼容fork()而卡死
+            */
+            return RunChunkServer(i,
+                            sizeof(param[i]) / sizeof(char *), param[i]);
+        }
     }
 
     // main test process

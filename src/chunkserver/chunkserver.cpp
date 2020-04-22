@@ -50,6 +50,8 @@ using ::curve::fs::FileSystemType;
 
 DEFINE_string(conf, "ChunkServer.conf", "Path of configuration file");
 DEFINE_string(chunkServerIp, "127.0.0.1", "chunkserver ip");
+DEFINE_bool(enalbleExternalServer, false, "start external server or not");
+DEFINE_string(chunkServerExternalIp, "127.0.0.1", "chunkserver external ip");
 DEFINE_int32(chunkServerPort, 8200, "chunkserver port");
 DEFINE_string(chunkServerStoreUri, "local://./0/", "chunkserver store uri");
 DEFINE_string(chunkServerMetaUri,
@@ -245,6 +247,7 @@ int ChunkServer::Run(int argc, char** argv) {
     // ========================添加rpc服务===============================//
     // TODO(lixiaocui): rpc中各接口添加上延迟metric
     brpc::Server server;
+    brpc::Server externalServer;
 
     // copyset service
     CopysetServiceImpl copysetService(copysetNodeManager_);
@@ -308,11 +311,38 @@ int ChunkServer::Run(int argc, char** argv) {
     CHECK(0 == ret) << "Fail to add ChunkServerService";
 
     // 启动rpc service
-    LOG(INFO) << "RPC server is going to serve on: "
+    LOG(INFO) << "Internal server is going to serve on: "
               << copysetNodeOptions.ip << ":" << copysetNodeOptions.port;
     if (server.Start(endPoint, NULL) != 0) {
-        LOG(ERROR) << "Fail to start RPC Server";
+        LOG(ERROR) << "Fail to start Internal Server";
         return -1;
+    }
+    /* 启动external server
+       external server用于向client和工具等外部提供服务
+       区别于mds和chunkserver之间的通信*/
+    if (registerOptions.enableExternalServer) {
+        ret = externalServer.AddService(&copysetService,
+                        brpc::SERVER_DOESNT_OWN_SERVICE);
+        CHECK(0 == ret) << "Fail to add CopysetService at external server";
+        ret = externalServer.AddService(&chunkService,
+                        brpc::SERVER_DOESNT_OWN_SERVICE);
+        CHECK(0 == ret) << "Fail to add ChunkService at external server";
+        ret = externalServer.AddService(&braftCliService,
+                        brpc::SERVER_DOESNT_OWN_SERVICE);
+        CHECK(0 == ret) << "Fail to add BRaftCliService at external server";
+        ret = externalServer.AddService(&braftCliService2,
+                        brpc::SERVER_DOESNT_OWN_SERVICE);
+        CHECK(0 == ret) << "Fail to add BRaftCliService2 at external server";
+        ret = externalServer.AddService(&raftStatService,
+                        brpc::SERVER_DOESNT_OWN_SERVICE);
+        CHECK(0 == ret) << "Fail to add RaftStatService at external server";
+        std::string externalAddr = registerOptions.chunkserverExternalIp + ":" +
+                                std::to_string(registerOptions.chunkserverPort);
+        LOG(INFO) << "External server is going to serve on: " << externalAddr;
+        if (externalServer.Start(externalAddr.c_str(), NULL) != 0) {
+            LOG(ERROR) << "Fail to start External Server";
+            return -1;
+        }
     }
 
     // =======================启动各模块==================================//
@@ -331,7 +361,15 @@ int ChunkServer::Run(int argc, char** argv) {
         << "Failed to start CopysetNodeManager.";
 
     // =======================等待进程退出==================================//
-    server.RunUntilAskedToQuit();
+    while (!brpc::IsAskedToQuit()) {
+        bthread_usleep(1000000L);
+    }
+    if (registerOptions.enableExternalServer) {
+        externalServer.Stop(0);
+        externalServer.Join();
+    }
+    server.Stop(0);
+    server.Join();
 
     LOG(INFO) << "ChunkServer is going to quit.";
     LOG_IF(ERROR, heartbeat_.Fini() != 0)
@@ -480,7 +518,11 @@ void ChunkServer::InitRegisterOptions(
     LOG_IF(FATAL, !conf->GetStringValue("mds.listen.addr",
         &registerOptions->mdsListenAddr));
     LOG_IF(FATAL, !conf->GetStringValue("global.ip",
-        &registerOptions->chunkserverIp));
+        &registerOptions->chunkserverInternalIp));
+    LOG_IF(FATAL, !conf->GetBoolValue("global.enable_external_server",
+        &registerOptions->enableExternalServer));
+    LOG_IF(FATAL, !conf->GetStringValue("global.external_ip",
+        &registerOptions->chunkserverExternalIp));
     LOG_IF(FATAL, !conf->GetIntValue("global.port",
         &registerOptions->chunkserverPort));
     LOG_IF(FATAL, !conf->GetStringValue("chunkserver.stor_uri",
@@ -523,6 +565,15 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
     } else {
         LOG(FATAL)
         << "chunkServerIp must be set when run chunkserver in command.";
+    }
+    if (GetCommandLineFlagInfo("enalbleExternalServer", &info) &&
+                                                            !info.is_default) {
+        conf->SetBoolValue(
+            "global.enable_external_server", FLAGS_enalbleExternalServer);
+    }
+    if (GetCommandLineFlagInfo("chunkServerExternalIp", &info) &&
+                                                            !info.is_default) {
+        conf->SetStringValue("global.external_ip", FLAGS_chunkServerExternalIp);
     }
 
     if (GetCommandLineFlagInfo("chunkServerPort", &info) && !info.is_default) {

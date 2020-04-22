@@ -468,6 +468,7 @@ class ChunkServer {
           diskType_(""),
           serverId_(UNINTIALIZE_ID),
           internalHostIp_(""),
+          externalHostIp_(""),
           port_(0),
           mountPoint_(""),
           startUpTime_(0),
@@ -483,12 +484,14 @@ class ChunkServer {
                 uint32_t port,
                 const std::string &diskPath,
                 ChunkServerStatus status = READWRITE,
-                OnlineState onlineState = OnlineState::OFFLINE)
+                OnlineState onlineState = OnlineState::OFFLINE,
+                const std::string &externalHostIp = "")
         : id_(id),
           token_(token),
           diskType_(diskType),
           serverId_(serverId),
           internalHostIp_(hostIp),
+          externalHostIp_(externalHostIp),
           port_(port),
           mountPoint_(diskPath),
           startUpTime_(0),
@@ -519,6 +522,7 @@ class ChunkServer {
         diskType_ = v.diskType_;
         serverId_ = v.serverId_;
         internalHostIp_ = v.internalHostIp_;
+        externalHostIp_ = v.externalHostIp_;
         port_ = v.port_;
         mountPoint_ = v.mountPoint_;
         startUpTime_ = v.startUpTime_;
@@ -554,6 +558,12 @@ class ChunkServer {
     }
     std::string GetHostIp() const {
         return internalHostIp_;
+    }
+    void SetExternalHostIp(const std::string &ip) {
+        externalHostIp_ = ip;
+    }
+    std::string GetExternalHostIp() const {
+        return externalHostIp_;
     }
     void SetPort(uint32_t port) {
         port_ = port;
@@ -619,6 +629,7 @@ class ChunkServer {
     std::string diskType_;  // "nvme_ssd"
     ServerIdType serverId_;
     std::string internalHostIp_;
+    std::string externalHostIp_;
     uint32_t port_;
     std::string mountPoint_;  // mnt/ssd1
 

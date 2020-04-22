@@ -53,6 +53,32 @@ function help() {
     echo "    [-c|--confPath path]  chunkserver conf path need for start command, default:/etc/curve/chunkserver.conf"
 }
 
+# 从subnet获取ip
+function get_ip_from_subnet() {
+    subnet=$1
+    prefix=`echo $subnet|awk -F/ '{print $1}'|awk -F. '{printf "%d", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
+    mod=`echo $subnet|awk -F/ '{print $2}'`
+    mask=$((2**32-2**(32-$mod)))
+    # 对prefix再取一次模，为了支持10.182.26.50/22这种格式
+    prefix=$(($prefix&$mask))
+    ip=
+    for i in `/sbin/ifconfig -a|grep inet|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
+    do
+        # 把ip转换成整数
+        ip_int=`echo $i|awk -F. '{printf "%d\n", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
+        if [ $(($ip_int&$mask)) -eq $prefix ]
+        then
+            ip=$i
+            break
+        fi
+    done
+    if [ -z "$ip" ]
+    then
+        echo "no ip matched!\n"
+        exit 1
+    fi
+}
+
 # 启动chunkserver
 function start() {
     if [ $# -lt 1 ]
@@ -71,31 +97,24 @@ function start() {
         return 1
     fi
     # parse subnet mask from config
-    subnet=`cat $confPath|grep global.subnet|awk -F"=" '{print $2}'`
+    internal_subnet=`cat $confPath|grep global.subnet|awk -F"=" '{print $2}'`
     port=`cat $confPath|grep global.port|awk -F"=" '{print $2}'`
-    prefix=`echo $subnet|awk -F/ '{print $1}'|awk -F. '{printf "%d", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
-    mod=`echo $subnet|awk -F/ '{print $2}'`
-    mask=$((2**32-2**(32-$mod)))
-    echo "subnet: $subnet"
+    get_ip_from_subnet $internal_subnet
+    internal_ip=$ip
+    echo "ip: $internal_ip"
     echo "base port: $port"
-    # 对prefix再取一次模，为了支持10.182.26.50/22这种格式
-    prefix=$(($prefix&$mask))
-    for i in `/sbin/ifconfig -a|grep inet|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
-    do
-        # 把ip转换成整数
-        ip_int=`echo $i|awk -F. '{printf "%d\n", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
-        if [ $(($ip_int&$mask)) -eq $prefix ]
-        then
-            ip=$i
-            break
-        fi
-    done
-
-    if [ -z "$ip" ]
+    external_subnet=`cat $confPath|grep global.external_subnet|awk -F"=" '{print $2}'`
+    get_ip_from_subnet $external_subnet
+    external_ip=$ip
+    enalbleExternalServer=true
+    # external ip和internal ip一致或external ip为127.0.0.1时不启动external server
+    if [ $internal_ip = $external_ip -o $external_ip = "127.0.0.1" ]
     then
-        echo "no ip matched!\n"
-        return 1
+        enalbleExternalServer=false
+    else
+        echo "external_ip: $external_ip"
     fi
+
     if [ "$1" = "all" ]
     then
         ret=`lsblk|grep chunkserver|awk '{print $7}'|sed 's/[^0-9]//g'`
@@ -144,7 +163,9 @@ function start_one() {
             -conf=${confPath} \
             -chunkFilePoolDir=${DATA_DIR}/chunkserver$1 \
             -chunkFilePoolMetaPath=${DATA_DIR}/chunkserver$1/chunkfilepool.meta \
-            -chunkServerIp=$ip \
+            -chunkServerIp=$internal_ip \
+            -enalbleExternalServer=$enalbleExternalServer \
+            -chunkServerExternalIp=$external_ip \
             -chunkServerPort=$((${port}+${1})) \
             -chunkServerMetaUri=local:///data/chunkserver$1/chunkserver.dat \
             -chunkServerStoreUri=local:///data/chunkserver$1/ \
@@ -186,7 +207,7 @@ function stop() {
     fi
 
     echo "kill chunkserver $1"
-    kill `ps -efl|grep -w chunkserver$1|grep -v grep|awk '{print $4}'`
+    kill `ps -efl|grep -w /data/chunkserver$1|grep -v grep|awk '{print $4}'`
 }
 
 function restart() {
@@ -217,9 +238,11 @@ function restart() {
 }
 
 function wait_stop() {
-    # 确认chunkserver已经停掉再启动
-    while true
+    # wait 3秒钟让它退出
+    retry_times=0
+    while [ $retry_times -le 3 ]
     do
+        ((retry_times=$retry_times+1))
         ps -efl|grep -w "/data/chunkserver$1"|grep -v grep > /dev/null 2>&1
         if [ $? -eq 0 ]
         then
@@ -229,6 +252,13 @@ function wait_stop() {
             break
         fi
     done
+    # 如果进程还在，就kill -9
+    ps -efl|grep -w "/data/chunkserver$1"|grep -v grep > /dev/null 2>&1
+    if [ $? -eq 0 ]
+    then
+        echo "The process of chunkserver$1 still exists after 3s, now kill -9 it"
+        kill -9 `ps -efl|grep -w /data/chunkserver$1|grep -v grep|awk '{print $4}'`
+    fi
 }
 
 function status() {
