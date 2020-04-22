@@ -163,7 +163,7 @@ def add_config():
         ori_cmd = "sed -i \"s/s3.config_path=\S*/s3.config_path=\/etc\/curve\/s3.conf/\" snapshot_clone_server.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s snapshot config fail"%host
-        ori_cmd = "sed -i \"s/server.address=\S*/server.address=%s:5555/g\" snapshot_clone_server.conf"%host
+        ori_cmd = "sed -i \"s/server.address=\S*/server.address=%s:5556/g\" snapshot_clone_server.conf"%host
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s snapshot config fail"%host
 #change snap_client.conf
@@ -179,7 +179,7 @@ def add_config():
     # add tools config
     snap_addrs_list = []
     for host in config.snap_server_list:
-        snap_addrs_list.append(host + ":5555")
+        snap_addrs_list.append(host + ":5556")
     snap_addrs = ",".join(snap_addrs_list)
     for host in config.mds_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
