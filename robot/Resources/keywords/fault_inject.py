@@ -214,17 +214,17 @@ def clear_RecycleBin():
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[3] == 0,"clean RecyclenBin失败，msg is %s"%rs[1]
     starttime = time.time()
-    ori_cmd = "curve_ops_tool list -fileName=/RecycleBin |grep fileName"
+    ori_cmd = "curve_ops_tool list -fileName=/RecycleBin |grep Total"
     while time.time() - starttime < 180:
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        if rs[1] == [] and rs[3] == 0:
+        if "".join(rs[1]).strip() == "Total file number: 0" and rs[3] == 0:
             break
         else:
             logger.debug("删除中")
             if rs[3] != 0:
                 logger.debug("list /RecycleBin 失败,error is %s"%rs[1])
             time.sleep(3) 
-    assert rs[1] == [],"删除/RecycleBin 失败，error is %s"%rs[1]
+    assert rs[3] == 0,"删除/RecycleBin 失败，error is %s"%rs[1]
 
 def loop_attach_detach_vol():
     ori_cmd = "source OPENRC && nova list |grep %s | awk '{print $2}'"%config.vm_stability_host
@@ -869,6 +869,8 @@ def check_io_error():
     ori_cmd = "grep \'I/O error\' /var/log/kern.log -R"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     if rs[1] != []:
+        ori_cmd = "logrotate -vf /etc/logrotate.d/rsyslog"
+        shell_operator.ssh_exec(ssh, ori_cmd)
         assert False," rwio error,log is %s"%rs[1]
     ssh.close()
 

@@ -136,7 +136,7 @@ def create_vol_snapshot(vol_uuid):
     payload['File'] = R'/cinder/volume-' + vol_uuid
     payload['Name'] = 'test'
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = R'http://%s:5000/SnapshotCloneService'%snap_server
+    http = R'http://%s:5555/SnapshotCloneService'%snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http,params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
@@ -155,7 +155,7 @@ def delete_vol_snapshot(voluuid,snapshot_uuid):
     payload['File'] = R'/cinder/volume-' + voluuid
     payload['UUID'] = snapshot_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = R'http://%s:5000/SnapshotCloneService' % snap_server
+    http = R'http://%s:5555/SnapshotCloneService' % snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
@@ -172,7 +172,7 @@ def clone_vol_snapshot(snapshot_uuid,lazy="true"):
     payload['Destination'] = R'/cinder/volume-%s'%snapshot_uuid
     payload['Lazy']  = lazy
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = R'http://%s:5000/SnapshotCloneService' % snap_server
+    http = R'http://%s:5555/SnapshotCloneService' % snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
@@ -190,7 +190,7 @@ def flatten_clone_vol(clone_uuid):
     payload['User'] = 'cinder'
     payload['UUID'] = clone_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = R'http://%s:5000/SnapshotCloneService' % snap_server
+    http = R'http://%s:5555/SnapshotCloneService' % snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
@@ -205,7 +205,7 @@ def clean_vol_clone(clone_uuid):
     payload['User'] = 'cinder'
     payload['UUID'] = clone_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = R'http://%s:5000/SnapshotCloneService' % snap_server
+    http = R'http://%s:5555/SnapshotCloneService' % snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
@@ -231,7 +231,7 @@ def cancel_vol_snapshot(voluuid,snapshot_uuid):
     payload['File'] = R'/cinder/volume-' + voluuid
     payload['UUID'] = snapshot_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = R'http://%s:5000/SnapshotCloneService' % snap_server
+    http = R'http://%s:5555/SnapshotCloneService' % snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
@@ -248,7 +248,7 @@ def recover_snapshot(vol_uuid,snapshot_uuid,lazy='true'):
     payload['Destination'] = R'/cinder/volume-%s'%vol_uuid
     payload['Lazy']  = lazy
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = R'http://%s:5000/SnapshotCloneService' % snap_server
+    http = R'http://%s:5555/SnapshotCloneService' % snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
@@ -291,7 +291,7 @@ def get_snapshot_status(voluuid,snapshot_uuid):
     payload['File'] = '/cinder/volume-' + voluuid
     payload['UUID'] = snapshot_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = 'http://%s:5000/SnapshotCloneService' % snap_server
+    http = 'http://%s:5555/SnapshotCloneService' % snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
@@ -316,7 +316,7 @@ def get_clone_status(clone_vol_uuid):
     payload['User'] = 'cinder'
     payload['UUID'] = clone_vol_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = 'http://%s:5000/SnapshotCloneService' % snap_server
+    http = 'http://%s:5555/SnapshotCloneService' % snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
