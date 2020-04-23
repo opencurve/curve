@@ -257,6 +257,11 @@ void ClientClosure::Run() {
             }
             break;
 
+        // 2.6 返回chunk exist，直接返回，不用重试
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_EXIST:
+            OnChunkExist();
+            break;
+
         default:
             needRetry = true;
             LOG_EVERY_N(ERROR, 10) << OpTypeToString(reqCtx_->optype_)
@@ -360,6 +365,18 @@ void ClientClosure::OnChunkNotExist() {
     MetricHelper::LatencyRecord(fileMetric_, duration, reqCtx_->optype_);
     MetricHelper::IncremRPCQPSCount(
         fileMetric_, reqCtx_->rawlength_, reqCtx_->optype_);
+}
+
+void ClientClosure::OnChunkExist() {
+    reqDone_->SetFailed(status_);
+
+    LOG(WARNING) << OpTypeToString(reqCtx_->optype_)
+        << " exists, " << *reqCtx_
+        << ", status=" << status_
+        << ", retried times = " << reqDone_->GetRetriedTimes()
+        << ", IO id = " << reqDone_->GetIOTracker()->GetID()
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = " << remoteAddress_;
 }
 
 void ClientClosure::OnRedirected() {
