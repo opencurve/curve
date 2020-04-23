@@ -175,6 +175,9 @@ class ClientClosure : public Closure {
     // 返回chunk不存在 处理函数
     virtual void OnChunkNotExist();
 
+    // 返回chunk存在 处理函数
+    void OnChunkExist();
+
     // 非法参数
     void OnInvalidRequest();
 

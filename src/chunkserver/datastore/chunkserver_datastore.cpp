@@ -277,7 +277,7 @@ CSErrorCode CSDataStore::CreateCloneChunk(ChunkID id,
     if (info.location.compare(location) != 0
         || info.curSn != sn
         || info.correctedSn != correctedSn) {
-        LOG(ERROR) << "Conflict chunk already exists."
+        LOG(WARNING) << "Conflict chunk already exists."
                    << "sn in arg = " << sn
                    << ", correctedSn in arg = " << correctedSn
                    << ", location in arg = " << location

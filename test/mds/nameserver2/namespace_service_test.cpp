@@ -1777,6 +1777,7 @@ TEST_F(NameSpaceServiceTest, clonetest) {
     request.set_chunksize(curveFSOptions.defaultChunkSize);
     request.set_date(TimeUtility::GetTimeofDayUs());
     request.set_owner("tom");
+    request.set_clonesource("/sourcefile1");
     cntl.set_log_id(1);
 
     stub.CreateCloneFile(&cntl, &request, &response, NULL);

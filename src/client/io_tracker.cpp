@@ -345,6 +345,9 @@ void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_NOSPACE:
             *errout = LIBCURVE_ERROR::NO_SPACE;
             break;
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_EXIST:
+            *errout = LIBCURVE_ERROR::EXISTS;
+            break;
         default:
             *errout = LIBCURVE_ERROR::FAILED;
             break;

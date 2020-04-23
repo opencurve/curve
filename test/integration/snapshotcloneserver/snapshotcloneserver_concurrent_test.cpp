@@ -313,18 +313,18 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
         ASSERT_EQ(0, fileClient_->Mkdir("/concurrentItUser1", userinfo));
 
-        std::string fackData(4096, 'x');
-        ASSERT_TRUE(CreateAndWriteFile(testFile1_, testUser1_, fackData));
+        std::string fakeData(4096, 'x');
+        ASSERT_TRUE(CreateAndWriteFile(testFile1_, testUser1_, fakeData));
         LOG(INFO) << "Write testFile1_ success.";
 
-        ASSERT_TRUE(CreateAndWriteFile(testFile2_, testUser1_, fackData));
+        ASSERT_TRUE(CreateAndWriteFile(testFile2_, testUser1_, fakeData));
         LOG(INFO) << "Write testFile2_ success.";
 
         UserInfo_t userinfo2;
         userinfo2.owner = "concurrentItUser2";
         ASSERT_EQ(0, fileClient_->Mkdir("/concurrentItUser2", userinfo2));
 
-        ASSERT_TRUE(CreateAndWriteFile(testFile3_, testUser2_, fackData));
+        ASSERT_TRUE(CreateAndWriteFile(testFile3_, testUser2_, fakeData));
         LOG(INFO) << "Write testFile3_ success.";
 
         ASSERT_EQ(0, fileClient_->Create(testFile4_, userinfo,
@@ -698,9 +698,9 @@ TEST_F(SnapshotCloneServerTest, TestReadWriteWhenLazyCloneSnap) {
     ret = Flatten(testUser1_, uuid1);
     ASSERT_EQ(0, ret);
 
-    std::string fackData(4096, 'y');
-    ASSERT_TRUE(WriteFile(dstFile, testUser1_, fackData));
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'y');
+    ASSERT_TRUE(WriteFile(dstFile, testUser1_, fakeData));
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 
     // 判断是否clone成功
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
@@ -710,17 +710,24 @@ TEST_F(SnapshotCloneServerTest, TestReadWriteWhenLazyCloneSnap) {
 TEST_F(SnapshotCloneServerTest, TestReadWriteWhenLazyCloneImage) {
     std::string uuid1;
     std::string dstFile = "/concurrentItUser1/ImageLazyClone4Rw";
+
     int ret =
         CloneOrRecover("Clone", testUser1_, testFile1_, dstFile, true, &uuid1);
     ASSERT_EQ(0, ret);
+
+    ASSERT_TRUE(WaitMetaInstalledSuccess(testUser1_, uuid1, true));
+
+    // clone完成stage1之后即可对外提供服务，测试克隆卷是否能正常读取数据
+    std::string fakeData1(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData1));
 
     // Flatten
     ret = Flatten(testUser1_, uuid1);
     ASSERT_EQ(0, ret);
 
-    std::string fackData(4096, 'y');
-    ASSERT_TRUE(WriteFile(dstFile, testUser1_, fackData));
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData2(4096, 'y');
+    ASSERT_TRUE(WriteFile(dstFile, testUser1_, fakeData2));
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData2));
 
     // 判断是否clone成功
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
@@ -741,9 +748,9 @@ TEST_F(SnapshotCloneServerTest, TestReadWriteWhenLazyRecoverSnap) {
     ret = Flatten(testUser1_, uuid1);
     ASSERT_EQ(0, ret);
 
-    std::string fackData(4096, 'y');
-    ASSERT_TRUE(WriteFile(dstFile, testUser1_, fackData));
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'y');
+    ASSERT_TRUE(WriteFile(dstFile, testUser1_, fakeData));
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 
     // 判断是否clone成功
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
