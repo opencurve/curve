@@ -75,7 +75,10 @@ def add_config():
         ori_cmd = R"sed -i 's/mds.listen.addr=127.0.0.1:6666/mds.listen.addr=%s/g' client.conf"%(addrs)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s client config fail"%host
+#将client.conf配置成py_client.conf(主机用)，方便client复现死锁问题
         ori_cmd = "sudo mv client.conf /etc/curve/"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        ori_cmd = "sudo cp /etc/curve/client.conf /etc/curve/py_client.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"mv %s client conf fail"%host
     # add chunkserver config
