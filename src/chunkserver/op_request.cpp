@@ -679,6 +679,16 @@ void CreateCloneChunkRequest::OnApply(uint64_t index,
                    << " location: " << request_->location();
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+    } else if (CSErrorCode::ChunkConflictError == ret) {
+        LOG(WARNING) << "create clone chunk exist: "
+                   << " logic pool id: " << request_->logicpoolid()
+                   << " copyset id: " << request_->copysetid()
+                   << " chunkid: " << request_->chunkid()
+                   << " sn " << request_->sn()
+                   << " correctedSn: " << request_->correctedsn()
+                   << " location: " << request_->location();
+        response_->set_status(
+            CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_EXIST);
     } else {
         LOG(ERROR) << "create clone failed: "
                    << " logic pool id: " << request_->logicpoolid()
@@ -705,6 +715,17 @@ void CreateCloneChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datast
                                            request.location());
     if (CSErrorCode::Success == ret)
         return;
+
+    if (CSErrorCode::ChunkConflictError == ret) {
+        LOG(WARNING) << "create clone chunk exist: "
+                << " logic pool id: " << request.logicpoolid()
+                << " copyset id: " << request.copysetid()
+                << " chunkid: " << request.chunkid()
+                << " sn " << request.sn()
+                << " correctedSn: " << request.correctedsn()
+                << " location: " << request.location();
+        return;
+    }
 
     if (CSErrorCode::InternalError == ret ||
         CSErrorCode::CrcCheckError == ret ||

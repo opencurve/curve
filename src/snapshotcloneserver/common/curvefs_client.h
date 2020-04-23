@@ -198,6 +198,7 @@ class CurveFsClient {
      *  - 若是clone，sn重置为初始值
      *  - 若是recover，sn不变
      *
+     * @param source clone源文件名
      * @param filename clone目标文件名
      * @param user 用户信息
      * @param size 文件大小
@@ -208,6 +209,7 @@ class CurveFsClient {
      * @return 错误码
      */
     virtual int CreateCloneFile(
+        const std::string &source,
         const std::string &filename,
         const std::string &user,
         uint64_t size,
@@ -429,6 +431,7 @@ class CurveFsClientImpl : public CurveFsClient {
         ChunkInfoDetail *chunkInfo) override;
 
     int CreateCloneFile(
+        const std::string &source,
         const std::string &filename,
         const std::string &user,
         uint64_t size,

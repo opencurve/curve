@@ -59,6 +59,7 @@ enum CHUNK_OP_STATUS {
     CHUNK_OP_STATUS_FAILURE_UNKNOWN = 8;    // 其他错误
     CHUNK_OP_STATUS_OVERLOAD = 9;           // 过载，表示服务端有过多请求未处理返回
     CHUNK_OP_STATUS_BACKWARD = 10;          // 请求的版本落后当前chunk的版本
+    CHUNK_OP_STATUS_CHUNK_EXIST = 11;       // chunk已存在
 };
 
 message ChunkResponse {

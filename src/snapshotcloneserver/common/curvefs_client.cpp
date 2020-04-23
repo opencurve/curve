@@ -159,6 +159,7 @@ int CurveFsClientImpl::GetChunkInfo(
 }
 
 int CurveFsClientImpl::CreateCloneFile(
+    const std::string &source,
     const std::string &filename,
     const std::string &user,
     uint64_t size,
@@ -166,9 +167,9 @@ int CurveFsClientImpl::CreateCloneFile(
     uint32_t chunkSize,
     FInfo* fileInfo) {
     UserInfo userInfo = GetUserInfo(user);
-    RetryMethod method = [this, &filename,
+    RetryMethod method = [this, &source, &filename,
         userInfo, size, sn, chunkSize, fileInfo] () {
-            return snapClient_->CreateCloneFile(filename,
+            return snapClient_->CreateCloneFile(source, filename,
                 userInfo, size,
                 sn, chunkSize, fileInfo);
     };

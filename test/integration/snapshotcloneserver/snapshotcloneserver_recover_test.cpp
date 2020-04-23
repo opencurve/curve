@@ -341,9 +341,9 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
         ASSERT_EQ(0, fileClient_->Mkdir("/RcvItUser1", userinfo));
 
-        std::string fackData(4096, 'x');
+        std::string fakeData(4096, 'x');
         ASSERT_TRUE(
-            CreateAndWriteFile(testFile1_, testUser1_, fackData, &testFd1_));
+            CreateAndWriteFile(testFile1_, testUser1_, fakeData, &testFd1_));
         LOG(INFO) << "Write testFile1_ success.";
     }
 
@@ -484,7 +484,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         } else {
             seqNum = 1;  // 克隆新文件使用初始版本号1
         }
-        int ret = snapClient_->CreateCloneFile(
+        int ret = snapClient_->CreateCloneFile(testFile1_,
             fileName, UserInfo_t(mdsRootUser_, mdsRootPassword_),
             testFile1Length, seqNum, chunkSize, fInfoOut);
         return ret;
@@ -700,8 +700,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverSnapshotWhenNotCreateSnapOnCurvefs) {
     int ret = DeleteAndCheckSnapshotSuccess(testUser1_, testFile1_, uuid1);
     ASSERT_EQ(0, ret);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // 已在curve中创建快照，但成功结果未返回，重启恢复
@@ -727,8 +727,8 @@ TEST_F(SnapshotCloneServerTest,
     int ret = DeleteAndCheckSnapshotSuccess(testUser1_, testFile1_, uuid1);
     ASSERT_EQ(0, ret);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // 已在curve中创建快照，结果已返回，重启恢复
@@ -754,8 +754,8 @@ TEST_F(SnapshotCloneServerTest,
     int ret = DeleteAndCheckSnapshotSuccess(testUser1_, testFile1_, uuid1);
     ASSERT_EQ(0, ret);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // 已在curve中创建快照阶段，nos上传部分快照，重启恢复
@@ -793,8 +793,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverSnapshotWhenHasTransferSomeData) {
     ret = DeleteAndCheckSnapshotSuccess(testUser1_, testFile1_, uuid1);
     ASSERT_EQ(0, ret);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // CreateCloneFile阶段重启，mds上未创建文件
@@ -817,8 +817,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCreateCloneFile) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // CreateCloneFile阶段重启，mds上创建文件成功未返回
@@ -847,8 +847,8 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // CreateCloneMeta阶段重启， 在mds上未创建segment
@@ -875,8 +875,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCreateCloneMeta) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // CreateCloneMeta阶段重启， 在mds上创建segment成功未返回
@@ -909,8 +909,8 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // CreateCloneChunk阶段重启，未在chunkserver上创建clonechunk
@@ -941,8 +941,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCreateCloneChunk) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // CreateCloneChunk阶段重启，在chunkserver上创建部分clonechunk
@@ -977,8 +977,8 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // CompleteCloneMeta阶段重启
@@ -1011,8 +1011,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCompleteCloneMeta) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // CompleteCloneMeta阶段重启，同时在mds上调用CompleteCloneMeta成功但未返回
@@ -1049,8 +1049,8 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // RecoverChunk阶段重启，在chunkserver上未调用RecoverChunk
@@ -1085,8 +1085,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotRecoverChunk) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // RecoverChunk阶段重启，在chunkserver上部分调用RecoverChunk
@@ -1124,8 +1124,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneRecoverChunkSuccssNotReturn) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // CompleteCloneFile阶段重启
@@ -1162,8 +1162,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCompleteCloneFile) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // CompleteCloneFile阶段重启，但mds上CompleteCloneFile已成功未返回
@@ -1204,8 +1204,8 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // ChangeOwner阶段重启
@@ -1244,8 +1244,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotChangeOwner) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // ChangeOwner阶段重启，但mds上ChangeOwner成功未返回
@@ -1287,8 +1287,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneChangeOwnerSuccessNotReturn) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // RenameCloneFile阶段重启
@@ -1329,8 +1329,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotRenameCloneFile) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // RenameCloneFile阶段重启，但mds上已RenameCloneFile成功未返回
@@ -1377,8 +1377,8 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // 以下为Lazy模式用例
@@ -1408,8 +1408,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCreateCloneFile) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // CreateCloneFile阶段重启，mds上创建文件成功未返回
@@ -1444,8 +1444,8 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // CreateCloneMeta阶段重启， 在mds上未创建segment
@@ -1479,8 +1479,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCreateCloneMeta) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // CreateCloneMeta阶段重启， 在mds上创建segment成功未返回
@@ -1519,8 +1519,8 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // CreateCloneChunk阶段重启，未在chunkserver上创建clonechunk
@@ -1558,8 +1558,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCreateCloneChunk) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // CreateCloneChunk阶段重启，在chunkserver上创建部分clonechunk
@@ -1600,8 +1600,8 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // CompleteCloneMeta阶段重启
@@ -1641,8 +1641,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCompleteCloneMeta) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // CompleteCloneMeta阶段重启，同时在mds上调用CompleteCloneMeta成功但未返回
@@ -1685,8 +1685,8 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // ChangeOwner阶段重启
@@ -1728,8 +1728,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotChangeOwner) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // ChangeOwner阶段重启，但mds上ChangeOwner成功未返回
@@ -1774,8 +1774,8 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // RenameCloneFile阶段重启
@@ -1819,8 +1819,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotRenameCloneFile) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // RenameCloneFile阶段重启，但mds上已RenameCloneFile成功未返回
@@ -1868,8 +1868,8 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // RecoverChunk阶段重启，在chunkserver上未调用RecoverChunk
@@ -1911,8 +1911,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotRecoverChunk) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // RecoverChunk阶段重启，在chunkserver上部分调用RecoverChunk
@@ -1957,8 +1957,8 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // CompleteCloneFile阶段重启
@@ -2002,8 +2002,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCompleteCloneFile) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 // CompleteCloneFile阶段重启，但mds上CompleteCloneFile已成功未返回
@@ -2050,8 +2050,8 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
 }  // namespace snapshotcloneserver
