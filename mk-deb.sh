@@ -25,6 +25,14 @@ then
 fi
 
 #step2 执行编译
+
+cd ${dir}/thirdparties/etcdclient
+make clean
+make all
+cd ${dir}
+
+cp ${dir}/thirdparties/etcdclient/libetcdclient.h ${dir}/include/etcdclient/etcdclient.h
+
 if [ "$1" = "debug" ]
 then
 bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true \
@@ -375,3 +383,7 @@ dpkg-deb -b build/curve-nginx .
 #aws-c-event-stream(commit=ad9a8b2a42d6c6ef07ccf251b5038b89487eacb3)
 #aws-sdk-cpp(commit=2330d84a30ac32ad04d4fb9baf88cda4f8b9b190)
 dpkg-deb -b thirdparties/aws-sdk .
+
+#step6 清理libetcdclient.so编译出现的临时文件
+cd ${dir}/thirdparties/etcdclient
+make clean
