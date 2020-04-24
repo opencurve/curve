@@ -9,6 +9,13 @@ looptimes=5
 # 超时连接的计数器
 declare -A slow_times
 
+# 打印当前时间
+function echo_time()
+{
+    time=$(date "+%Y-%m-%d %H:%M:%S")
+    echo "${time}"
+}
+
 # 获取nebd server进程号及metric的端口号
 function get_nebdport()
 {
@@ -48,8 +55,13 @@ function check_rtt()
             continue
         fi
         localport=`echo $rttline|awk '{print $2}' |sed 's/|\(.*\)|.*/\1/g'`
+        if [[ $rtt == "|0" ]];then
+            echo "skip this line: $rttline"
+            continue
+        fi
         isslowtcp=`echo "$rtt $slowrtt"|awk '{print ($1 > $2)}'`
         if [[ $isslowtcp -eq 1 ]];then
+            echo_time
             incref $localport
             echo "connection_port $localport connection rtt is slow than $slowrtt, rtt is : $rtt"
         fi
@@ -62,6 +74,7 @@ function kill_nebd_ifunhealthy()
 {
     for connection in ${!slow_times[*]};do
         if [[ ${slow_times[$connection]} -eq $looptimes ]];then
+            echo_time
             echo "connection_port $connection is unhealthy, nebd server will be killed. pid : $nebd_pid"
             sudo kill -9 $nebd_pid
         fi
@@ -71,8 +84,6 @@ function kill_nebd_ifunhealthy()
 
 loop=1
 while [[ $loop -le $looptimes ]];do
-    echo "check ${loop}th times. "
-
     get_nebdport
     if [ $? -ne 0 ];then
         echo "get nebd port failed"
