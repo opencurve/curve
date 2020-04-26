@@ -9,11 +9,12 @@ import random
 import time
 from lib import db_operator
 import threading
-import random
 import time
 import mythread
 import test_curve_stability
 import re
+import string
+import types
 
 def block_ip(chain):
     ori_cmd = "iptables -I %s 2>&1" % chain
@@ -753,7 +754,10 @@ def check_chunkserver_online(num=120):
     i = 0
     while time.time() - starttime < 300:
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[3] == 0,"get chunkserver status fail,rs is %s"%rs[2]
+        if rs[3] != 0:
+            logger.debug("get chunkserver status fail,rs is %s"%rs[1])
+            time.sleep(10)
+            continue
         status = "".join(rs[1]).strip()
         online_num = re.findall(r'(?<=online = )\d+',status)
         logger.info("chunkserver online num is %s"%online_num)
@@ -847,8 +851,6 @@ def wait_cluster_healthy(limit_iops=8000):
         logger.debug("copysets status is %s"%copysets_status)
         assert check == 1,"cluster is not healthy in %d s,cluster status is:\n %s,copysets status is:\n %s"%(config.recover_time,cluster_status,copysets_status)
 
-    # 快速leader均衡
-    rapid_leader_schedule()
 #检测云主机iops    
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
     i = 0
@@ -875,6 +877,8 @@ def check_io_error():
     ssh.close()
 
 def check_copies_consistency():
+    # 快速leader均衡
+    rapid_leader_schedule()
     host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     if config.vol_uuid == "":
@@ -1734,6 +1738,23 @@ def test_ipmitool_restart_chunkserver():
     assert status,"restart host %s fail"%chunkserver_host
     start_host_cs_process(chunkserver_host)
 
+def test_ipmitool_restart_client():
+    client_host = config.client_list[1]
+    logger.info("|------begin test client ipmitool cycle,host %s------|"%(client_host))
+    ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
+    ipmitool_cycle_restart_host(ssh)
+    time.sleep(60)
+    starttime = time.time()
+    i = 0
+    while time.time() - starttime < 600:
+        status = check_host_connect(client_host)
+        if status == True:
+            break
+        else:
+            logger.debug("wait host up")
+            time.sleep(5)
+    assert status,"restart host %s fail"%client_host
+
 #使用reset从掉电到上电没有间隔
 def test_ipmitool_reset_chunkserver():
     chunkserver_host = random.choice(config.chunkserver_reset_list)
@@ -1850,7 +1871,8 @@ def perf_test():
     assert rs[3] == 0,"cp fiodata fail,error is %s"%rs[1]
     analysis_data(ssh)
 
-def stress_test():
+#增加数据盘
+def add_data_disk():
     ori_cmd = "bash attach_thrash.sh"
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     rs = shell_operator.ssh_exec(ssh,ori_cmd)
@@ -1872,39 +1894,164 @@ def stress_test():
         vm_ip_list.append(ip[0])
     ssh.close()
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
-    ori_cmd = "/etc/init.d/nagent start"
-    rs = shell_operator.ssh_exec(ssh,ori_cmd)
-    ori_cmd = "nohup fio -name=/dev/vdc -direct=1 -iodepth=1 -rw=randrw  -ioengine=libaio \
-       -bs=4k -size=10G  -runtime=99999999 -numjobs=1 -time_based -write_iops_log=str \
-       -log_avg_msec=500 -rate_iops=10 &"
-    shell_operator.ssh_background_exec2(ssh,ori_cmd) 
     for ip in vm_ip_list:
         ori_cmd = "ssh %s -o StrictHostKeyChecking=no "%ip + "\"" + " supervisorctl reload && supervisorctl start all " + "\""
         logger.info("exec cmd %s" % ori_cmd)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"start supervisor fail,rs is %s"%rs[1]
-    start_time = time.time()
-    while time.time() - start_time < 70000:
-        num = random.randint(1,5)
-        host = test_kill_chunkserver_num(num)
-        time.sleep(30)
-        check_vm_iops(9) #打桩机iops检测，默认为10 iops
-        time.sleep(100)
-        check_chunkserver_online(120 - num) # chunkserver数量检测，初始为120个
-        test_start_chunkserver_num(num,host)
-        time.sleep(30)
-        check_vm_iops(9)
-        time.sleep(100)
-        check_chunkserver_online(120)
     ssh.close()
 
-def thrasher_abnormal_cluster():
-    actions = []
-    actions.append((test_kill_chunkserver_num,1.0,))
-    actions.append((test_outcs_recover_copyset,0,))
-    actions.append((stop_all_cs_not_recover,1.0,))
-    actions.append((test_suspend_recover_copyset,1.0,))
-    actions.append((test_kill_mds,1.0,))
 
-def log_test(i):
-    logger.info("%s"%i)
+def create_vm_image(vm_name):
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    ori_cmd = "source OPENRC && nova list |grep %s | awk '{print $2}'"%(vm_name)
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    logger.info("vm uuid is %s" % rs[1])
+    thrash_vm_uuid = "".join(rs[1]).strip()
+    ori_cmd = "source OPENRC && nova image-create %s image-%s"%(thrash_vm_uuid,vm_name)
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    assert rs[3] == 0,"create vm %s image fail"%(thrash_vm_uuid)
+    starttime = time.time()
+    ori_cmd = "source OPENRC && nova image-list|grep image-%s|awk '{print $6}'"%vm_name
+    while time.time() - starttime < 600:
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        if "".join(rs[1]).strip() == "ACTIVE":
+            break
+        elif "".join(rs[1]).strip() == "ERROR":
+            assert False,"create vm image image-%s fail"%(vm_name)
+        else:
+            time.sleep(10)
+    if "".join(rs[1]).strip() != "ACTIVE":
+        assert False,"wait image create image-%s fail"%(vm_name)
+    ori_cmd = "source OPENRC && nova image-list|grep image-%s|awk '{print $2}'"%vm_name
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    return "".join(rs[1]).strip()
+
+def get_all_curvevm_active_num(num):
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    starttime = time.time()
+    while time.time() - starttime < 600:
+        ori_cmd = "source OPENRC && nova list |grep %s | grep ACTIVE | wc -l"%config.vm_prefix
+        rs = shell_operator.ssh_exec(ssh,ori_cmd)
+        assert rs[3] == 0,"get vm status fail"
+        if int("".join(rs[1]).strip()) == num:
+            break
+        else:
+            time.sleep(10)
+    active_num = "".join(rs[1]).strip()
+    ori_cmd = "source OPENRC && nova list |grep %s | awk '{print $2}'"%config.vm_prefix
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    assert rs[3] == 0,"get vm uuid fail"
+    for uuid in rs[1]:
+        uuid = uuid.strip()
+        status = "up"
+        cmd = "source OPENRC && nova show %s |grep os-server-status |awk \'{print $4}\'" % uuid
+        st = shell_operator.ssh_exec(ssh, cmd)
+        status = "".join(st[1]).strip()
+        assert status == "up","get vm status fail,not up.is %s,current vm id is %s"%(status,uuid)
+    return active_num
+
+# 用于初始化创建50个curve系统盘的云主机。先从镜像创建一个curve云主机，再从该云主机创建自定义镜像和克隆50个云主机。每个云主机会自动拉起1000 iops的io
+def init_create_curve_vm(num):
+    image_id = config.image_id
+    salt = ''.join(random.sample(string.ascii_letters + string.digits, 8))
+    logger.info("vm name is thrash-%s"%salt)
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    ori_cmd = "source OPENRC && nova boot --flavor 10 --image %s --vnc-password 000000  --availability-zone %s \
+            --key-name  cyh  --nic vpc-net=ff89c80a-585d-4b19-992a-462f4d2ddd27:77a410be-1cf4-4992-8894-0c0bc67f5e48 \
+            --meta use-vpc=True --meta instance_image_type=curve thrash-%s"%(config.image_id,config.avail_zone,salt)
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    logger.info("exec cmd %s" % ori_cmd)
+    assert rs[3] == 0,"create vm fail,return is %s"%rs[1]
+    vm_name = "thrash-%s"%salt
+    starttime = time.time()
+    ori_cmd = "source OPENRC && nova list|grep %s|awk '{print $6}'"%vm_name
+    while time.time() - starttime < 600:
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        if "".join(rs[1]).strip() == "ACTIVE":
+            break
+        elif "".join(rs[1]).strip() == "ERROR":
+            assert False,"create vm %s fail"%(vm_name)
+        else:
+            time.sleep(10)
+    if "".join(rs[1]).strip() != "ACTIVE":
+        assert False,"wait vm ok %s fail"%(vm_name)
+    new_image_id = create_vm_image(vm_name)
+    config.vm_prefix = vm_name
+    for i in range(1,num):
+        ori_cmd = "source OPENRC && nova boot --flavor 10 --image %s --vnc-password 000000  --availability-zone %s \
+            --key-name  cyh  --nic vpc-net=ff89c80a-585d-4b19-992a-462f4d2ddd27:77a410be-1cf4-4992-8894-0c0bc67f5e48 \
+            --meta use-vpc=True --meta instance_image_type=curve thrash-%s-%d"%(new_image_id,config.avail_zone,salt,i)
+        rs = shell_operator.ssh_exec(ssh,ori_cmd)
+        assert rs[3] == 0,"create vm fail,return is %s"%rs[1]
+    starttime = time.time()
+    while time.time() - starttime < 300:
+        active_num = int(get_all_curvevm_active_num(num))
+        if active_num == num:
+            logger.info("all vm is active")
+            break
+        else:
+            time.sleep(10)
+    assert active_num == num,"some vm are abnormal,%d is acitve"%active_num
+
+def reboot_curve_vm():
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    ori_cmd = "vm=`source OPENRC && nova list |grep %s |awk '{print $2}'`;source OPENRC;for i in $vm;do nova reboot $i;done "%config.vm_prefix
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    assert rs[3] == 0,"reboot curve vm fail"
+
+def clean_curve_data():
+    ori_cmd = "bash detach_thrash.sh"
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    assert rs[3] == 0,"detach thrash vol fail,rs is %s"%rs[1]
+    ori_cmd = "vm=`source OPENRC && nova list|grep %s | awk '{print $2}'`;source OPENRC;for i in $vm;do nova delete $i;done"%config.vm_prefix
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    assert rs[3] == 0,"delete vm fail,rs is %s"%rs[1]
+
+def do_thrasher(action):
+    #start level1
+    if type(action) is types.StringType:
+        logger.debug("开始启动故障XXXXXXXXXXXXXXXXXXX %s XXXXXXXXXXXXXXXXXXXXXXXXX"%action)
+        globals()[action]()
+    else:
+        logger.debug("开始启动故障XXXXXXXXXXXXXXXXXXX %s,%s XXXXXXXXXXXXXXXXXXXXXX"%(action[0],str(action[1])))
+        globals()[action[0]](action[1])
+
+#加回所有retired的chunkserver
+def start_retired_and_down_chunkservers():
+    for host in config.chunkserver_list:
+        ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+        try:
+           cs_status = get_chunkserver_status(host)
+           down_cs = cs_status["down"]
+           if down_cs == []:
+               continue
+           logger.debug("down_cs is %s"%down_cs)
+           for cs in down_cs:
+               id = get_chunkserver_id(host,cs)
+               if  get_cs_copyset_num(id) == 0:
+                   ori_cmd = "sudo rm -rf /data/chunkserver%d/chunkserver.dat"%(cs)
+                   rs = shell_operator.ssh_exec(ssh, ori_cmd)
+                   assert rs[3] == 0,"rm chunkserver%d chunkserver.dat fail"%cs
+               ori_cmd = "sudo /home/nbs/chunkserver_ctl.sh start %d"%cs
+               logger.debug("exec %s"%ori_cmd)
+               rs = shell_operator.ssh_exec(ssh,ori_cmd)
+               assert rs[3] == 0,"start chunkserver fail,error is %s"%rs[1]
+               time.sleep(2)
+               ori_cmd = "ps -ef|grep -v grep | grep -w chunkserver%d | awk '{print $2}' && \
+               ps -ef|grep -v grep | grep -w /etc/curve/chunkserver.conf.%d |grep -v sudo | awk '{print $2}'" % (cs, cs)
+               rs = shell_operator.ssh_exec(ssh,ori_cmd)
+               if rs[1] == []:
+                   assert False,"up chunkserver fail"
+        except:
+            raise
+        ssh.close()
+
+def get_level_list(level):
+    if level == "level1":
+        return config.level1
+    elif level == "level2":
+        return config.level2
+    elif level == "level3":
+        return config.level3

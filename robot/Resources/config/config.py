@@ -56,7 +56,7 @@ mds_listen = "-listenAddr=127.0.0.1:6666"
 chunkserver_list = ["10.182.26.16","10.182.26.17","10.182.26.18","10.182.26.34","10.182.26.35","10.182.26.36"]
 mds_list = ["10.182.26.25","10.182.26.16","10.182.26.17"]
 etcd_list = ["10.182.26.16","10.182.26.17","10.182.26.18"]
-client_list = ["10.182.26.25"]
+client_list = ["10.182.26.25","10.182.26.32"]
 chunkserver_reset_list = ["10.182.26.34","10.182.26.35","10.182.26.36"]
 mds_reset_list = ["10.182.26.16","10.182.26.17"]
 abnormal_user = "nbs"
@@ -127,6 +127,30 @@ vm_iosize = "4" #4k
 snapshot_file_name = "/lc"
 snapshot_s3_object_location = "snapshot_test_chunk_data@s3"
 
+#curve thrash 
+image_id = "94f54f29-af1e-4afd-acc9-8481c560356b"
+avail_zone = "dongguan1.curve1:pubbeta2-curve17.dg.163.org"
+vm_prefix = ""
 
-
-
+level1 = [('test_kill_chunkserver_num',1),\
+          ('test_kill_chunkserver_num',2),\
+          ('test_stop_chunkserver_host'),\
+          ('test_ipmitool_restart_chunkserver'),\
+          ('test_outcs_recover_copyset'),\
+          ('test_kill_mds',1),\
+          ('test_kill_etcd',1),\
+          ('test_reboot_nebd')]
+level2 = [('reboot_curve_vm'),\
+          ('test_ipmitool_restart_client'),\
+          ('test_chunkserver_cpu_stress',95),\
+          ('test_mds_cpu_stress',95),\
+          ('test_client_cpu_stress',95),\
+          ('test_chunkserver_mem_stress',95),\
+          ('test_mds_mem_stress',95),\
+          ('test_client_mem_stress',95)]
+level3 = [('test_cs_loss_package',5),\
+          ('test_stop_chunkserver_host'),\
+          ('test_kill_chunkserver_num',1),\
+          ('test_ipmitool_restart_chunkserver'),\
+          ('test_kill_mds',3),\
+          ('test_kill_etcd',3)]
