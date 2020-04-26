@@ -96,6 +96,10 @@ TEST_F(CurveFSTest, testCreateFile1) {
     ASSERT_EQ(curvefs_->CreateFile("/file1", "owner1", FileType::INODE_PAGEFILE,
                     kMaxFileLength + 1), StatusCode::kFileLengthNotSupported);
 
+    ASSERT_EQ(curvefs_->CreateFile("/flie1", "owner1", FileType::INODE_PAGEFILE,
+                                   kMiniFileLength + 1),
+              StatusCode::kFileLengthNotSupported);
+
     ASSERT_EQ(curvefs_->CreateFile("/", "", FileType::INODE_DIRECTORY, 0),
               StatusCode::kFileExists);
 
