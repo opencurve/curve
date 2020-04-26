@@ -210,6 +210,14 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
                        << ", maxFileLength = " << kMaxFileLength;
             return StatusCode::kFileLengthNotSupported;
         }
+
+        if (length % DefaultSegmentSize != 0) {
+            LOG(ERROR) << "Create file length not align to segment size, "
+                       << "fileName = " << fileName
+                       << ", length = " << length
+                       << ", segment size = " << DefaultSegmentSize;
+            return StatusCode::kFileLengthNotSupported;
+        }
     }
 
     auto ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
