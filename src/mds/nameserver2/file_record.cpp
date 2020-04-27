@@ -6,6 +6,7 @@
  */
 
 #include "src/mds/nameserver2/file_record.h"
+#include "src/mds/common/mds_define.h"
 
 namespace curve {
 namespace mds {
@@ -42,8 +43,10 @@ bool FileRecordManager::GetFileClientVersion(
     return true;
 }
 
-void FileRecordManager::UpdateFileRecord(
-    const std::string& fileName, const std::string& clientVersion) {
+void FileRecordManager::UpdateFileRecord(const std::string& fileName,
+                                         const std::string& clientVersion,
+                                         const std::string& clientIP,
+                                         uint32_t clientPort) {
     do {
         ReadLockGuard lk(rwlock_);
 
@@ -53,16 +56,14 @@ void FileRecordManager::UpdateFileRecord(
         }
 
         // 更新record
-        it->second.Update();
-        // 更新version
-        if (it->second.GetClientVersion() != clientVersion) {
-            it->second.Update(clientVersion);
-        }
+        it->second.Update(clientVersion, clientIP, clientPort);
         return;
     } while (0);
 
-    FileRecord record(
-        fileRecordOptions_.fileRecordExpiredTimeUs, clientVersion);
+    FileRecord record(fileRecordOptions_.fileRecordExpiredTimeUs,
+                      clientVersion,
+                      clientIP,
+                      clientPort);
     WriteLockGuard lk(rwlock_);
     fileRecords_.emplace(fileName, record);
 }
@@ -90,6 +91,34 @@ void FileRecordManager::GetRecordParam(ProtoSession* protoSession) const {
     protoSession->set_createtime(
         curve::common::TimeUtility::GetTimeofDayUs());
     protoSession->set_sessionstatus(SessionStatus::kSessionOK);
+}
+
+std::set<ClientIpPortType> FileRecordManager::ListAllClient() const {
+    std::set<ClientIpPortType> res;
+
+    {
+        ReadLockGuard lk(rwlock_);
+        for (const auto& r : fileRecords_) {
+            const auto& ipPort = r.second.GetClientIpPort();
+            if (ipPort.second != kInvalidPort) {
+                res.emplace(ipPort);
+            }
+        }
+    }
+
+    return res;
+}
+
+bool FileRecordManager::FindFileMountPoint(const std::string& fileName,
+                                           ClientIpPortType* ipPort) const {
+    ReadLockGuard lk(rwlock_);
+    auto iter = fileRecords_.find(fileName);
+    if (iter == fileRecords_.end()) {
+        return false;
+    }
+
+    *ipPort = iter->second.GetClientIpPort();
+    return true;
 }
 
 }  // namespace mds

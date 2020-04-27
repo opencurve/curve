@@ -36,6 +36,7 @@
 #include "src/common/net_common.h"
 #include "test/integration/cluster_common/cluster.h"
 #include "test/util/config_generator.h"
+#include "test/client/mock_curvefs_service.h"
 
 extern std::string mdsMetaServerAddr;
 extern uint32_t chunk_size;
@@ -2342,3 +2343,108 @@ TEST_F(MDSClientTest, StatFileStatusTest) {
         ASSERT_EQ(fstat.fileStatus, static_cast<int>(status));
     }
 }
+
+namespace curve {
+namespace client {
+
+using ::testing::_;
+using ::testing::DoAll;
+using ::testing::ElementsAre;
+using ::testing::Invoke;
+using ::testing::NotNull;
+using ::testing::Return;
+using ::testing::ReturnArg;
+using ::testing::SaveArg;
+using ::testing::SaveArgPointee;
+using ::testing::SetArgPointee;
+using ::testing::SetArrayArgument;
+
+static void MockRefreshSession(::google::protobuf::RpcController* controller,
+                               const curve::mds::ReFreshSessionRequest* request,
+                               curve::mds::ReFreshSessionResponse* response,
+                               ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard guard(done);
+
+    response->set_statuscode(curve::mds::StatusCode::kOK);
+    response->set_sessionid("");
+}
+
+class MDSClientRefreshSessionTest : public ::testing::Test {
+ public:
+    void SetUp() override {
+        ASSERT_EQ(0, server_.AddService(&curveFsService_,
+                                        brpc::SERVER_DOESNT_OWN_SERVICE));
+        ASSERT_EQ(0, server_.Start(kServerAddress, nullptr));
+    }
+
+    void TearDown() override {
+        server_.Stop(0);
+        server_.Join();
+    }
+
+ protected:
+    const char* kServerAddress = "127.0.0.1:21000";
+    const uint32_t kTestPort = 1234;
+
+    brpc::Server server_;
+    curve::client::MockCurveFsService curveFsService_;
+};
+
+TEST_F(MDSClientRefreshSessionTest, StartDummyServerTest) {
+    curve::client::ClientDummyServerInfo::GetInstance().SetRegister(true);
+    curve::client::ClientDummyServerInfo::GetInstance().SetPort(kTestPort);
+    curve::client::ClientDummyServerInfo::GetInstance().SetIP(kServerAddress);
+
+    MDSClient mdsClient;
+    MetaServerOption opt;
+    opt.metaaddrvec.push_back(kServerAddress);
+    ASSERT_EQ(0, mdsClient.Initialize(opt));
+
+    curve::mds::ReFreshSessionRequest request;
+    curve::mds::ReFreshSessionResponse response;
+    curve::mds::FileInfo* fileInfo = new curve::mds::FileInfo();
+    response.set_allocated_fileinfo(fileInfo);
+    EXPECT_CALL(curveFsService_, RefreshSession(_, _, _, _))
+        .WillOnce(DoAll(SaveArgPointee<1>(&request),
+                        SetArgPointee<2>(response),
+                        Invoke(MockRefreshSession)));
+
+    UserInfo userInfo;
+    userInfo.owner = "test";
+    LeaseRefreshResult result;
+    ASSERT_EQ(0, mdsClient.RefreshSession("/filename", userInfo, "", &result));
+
+    ASSERT_TRUE(request.has_clientport());
+    ASSERT_TRUE(request.has_clientip());
+    ASSERT_EQ(request.clientport(), kTestPort);
+    ASSERT_EQ(request.clientip(), kServerAddress);
+}
+
+TEST_F(MDSClientRefreshSessionTest, NoStartDummyServerTest) {
+    curve::client::ClientDummyServerInfo::GetInstance().SetRegister(false);
+
+    MDSClient mdsClient;
+    MetaServerOption opt;
+    opt.metaaddrvec.push_back(kServerAddress);
+    ASSERT_EQ(0, mdsClient.Initialize(opt));
+
+    curve::mds::ReFreshSessionRequest request;
+    curve::mds::ReFreshSessionResponse response;
+    curve::mds::FileInfo* fileInfo = new curve::mds::FileInfo();
+    response.set_allocated_fileinfo(fileInfo);
+    EXPECT_CALL(curveFsService_, RefreshSession(_, _, _, _))
+        .WillOnce(DoAll(SaveArgPointee<1>(&request),
+                        SetArgPointee<2>(response),
+                        Invoke(MockRefreshSession)));
+
+    UserInfo userInfo;
+    userInfo.owner = "test";
+    LeaseRefreshResult result;
+    ASSERT_EQ(0, mdsClient.RefreshSession("/filename", userInfo, "", &result));
+
+    ASSERT_FALSE(request.has_clientport());
+    ASSERT_FALSE(request.has_clientip());
+}
+
+}  // namespace client
+}  // namespace curve

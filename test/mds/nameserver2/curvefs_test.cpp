@@ -1594,7 +1594,7 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         FileInfo info;
         ASSERT_EQ(StatusCode::kOK,
             curvefs_->RefreshSession(
-                fileName, "", 0 , "", "", "0.0.5", &info));
+                fileName, "", 0 , "", "",  1234, "0.0.5", &info));
 
         FileInfo snapShotFileInfoRet;
         ASSERT_EQ(curvefs_->CreateSnapShotFile(
@@ -1617,7 +1617,7 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         FileInfo info;
         ASSERT_EQ(StatusCode::kOK,
             curvefs_->RefreshSession(
-                fileName, "", 0 , "", "", "", &info));
+                fileName, "", 0 , "", "",  1234, "", &info));
 
         FileInfo snapShotFileInfoRet;
         ASSERT_EQ(curvefs_->CreateSnapShotFile(
@@ -2504,7 +2504,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
         ASSERT_EQ(curvefs_->RefreshSession("/file1", "sessionidxxxxx", 12345,
-                    "signaturexxxx", "127.0.0.1", "", &fileInfo1),
+                    "signaturexxxx", "127.0.0.1", 1234, "", &fileInfo1),
                   StatusCode::kFileNotExists);
     }
 
@@ -2517,7 +2517,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
 
         uint64_t date = ::curve::common::TimeUtility::GetTimeofDayUs();
         ASSERT_EQ(curvefs_->RefreshSession("/file1", protoSession.sessionid(),
-                    date, "signaturexxxx", "127.0.0.1", "", &fileInfo1),
+                    date, "signaturexxxx", "127.0.0.1", 1234, "", &fileInfo1),
                   StatusCode::kOK);
         ASSERT_EQ(1, curvefs_->GetOpenFileNum());
     }
@@ -3068,19 +3068,24 @@ TEST_F(CurveFSTest, RegistClient) {
     }
 }
 
-TEST_F(CurveFSTest, ListClient) {
+TEST_F(CurveFSTest, ListAllClient) {
     // 成功
     {
         std::vector<ClientInfoRepoItem> items;
         items.emplace_back("127.0.0.1", 8888);
         items.emplace_back("127.0.0.1", 9999);
+        fileRecordManager_->UpdateFileRecord(
+            "/file1", "0.0.6", "127.0.0.1", 8888);
+        fileRecordManager_->UpdateFileRecord(
+            "/file2", "0.0.6", "127.0.0.1", 9999);
         EXPECT_CALL(*mockRepo_, LoadClientInfoRepoItems(_))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<0>(items),
                 Return(repo::OperationOK)));
         std::vector<ClientInfo> clientInfos;
         ASSERT_EQ(StatusCode::kOK,
-                        curvefs_->ListClient(&clientInfos));
+                        curvefs_->ListClient(true, &clientInfos));
+        ASSERT_EQ(2, clientInfos.size());
     }
     // 失败
     {
@@ -3089,8 +3094,24 @@ TEST_F(CurveFSTest, ListClient) {
             .WillOnce(Return(repo::SqlException));
         std::vector<ClientInfo> clientInfos;
         ASSERT_EQ(StatusCode::KInternalError,
-                        curvefs_->ListClient(&clientInfos));
+                        curvefs_->ListClient(true, &clientInfos));
     }
+}
+
+TEST_F(CurveFSTest, ListClient) {
+    std::vector<ClientInfo> clientInfos;
+    ASSERT_EQ(StatusCode::kOK, curvefs_->ListClient(false, &clientInfos));
+    ASSERT_EQ(0, clientInfos.size());
+
+    fileRecordManager_->UpdateFileRecord("/file1", "0.0.6", "127.0.0.1", 1234);
+    fileRecordManager_->UpdateFileRecord("/file2", "0.0.6", "127.0.0.1", 1234);
+    ASSERT_EQ(StatusCode::kOK, curvefs_->ListClient(false, &clientInfos));
+    ASSERT_EQ(1, clientInfos.size());
+
+    clientInfos.clear();
+    fileRecordManager_->UpdateFileRecord("/file3", "0.0.6", "127.0.0.1", 1235);
+    ASSERT_EQ(StatusCode::kOK, curvefs_->ListClient(false, &clientInfos));
+    ASSERT_EQ(2, clientInfos.size());
 }
 
 int main(int argc, char **argv) {

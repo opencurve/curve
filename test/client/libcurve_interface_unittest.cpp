@@ -576,8 +576,6 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     memcpy(userinfo.owner, "userinfo", 9);
     memcpy(userinfo.password, "", 256);
 
-    ASSERT_EQ(-2, Init(configpath.c_str()));
-
     // open not create file
     ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, Open(filename.c_str(), &userinfo));
 

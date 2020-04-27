@@ -27,6 +27,8 @@ Used port list:
     9150/9151 ChunkserverUnstableTest
     19151/19110/19111/19112 curveClient测试
 
+    client_test_unittest: 21000
+
 
 
 # mds & snapshotcloneserver

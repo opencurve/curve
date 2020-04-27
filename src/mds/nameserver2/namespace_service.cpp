@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <vector>
 #include <string>
+#include <memory>
 #include "src/mds/nameserver2/curvefs.h"
 #include "src/mds/nameserver2/file_lock.h"
 #include "src/common/string_util.h"
@@ -1299,13 +1300,15 @@ void NameSpaceService::RefreshSession(
     }
 
     FileInfo *fileInfo = new FileInfo();
-    retCode = kCurveFS.RefreshSession(request->filename(),
-                                      request->sessionid(),
-                                      request->date(),
-                                      request->signature(),
-                                      clientIP,
-                                      clientVersion,
-                                      fileInfo);
+    retCode = kCurveFS.RefreshSession(
+        request->filename(),
+        request->sessionid(),
+        request->date(),
+        request->signature(),
+        request->has_clientip() ? request->clientip() : clientIP,
+        request->has_clientport() ? request->clientport() : kInvalidPort,
+        clientVersion,
+        fileInfo);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         response->set_sessionid(request->sessionid());
@@ -1636,11 +1639,14 @@ void NameSpaceService::ListClient(
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
-    LOG(INFO) << "logid = " << cntl->log_id() << ", ListClient request";
+    LOG(INFO) << "logid = " << cntl->log_id()
+              << ", ListClient request = " << request->ShortDebugString();
 
     StatusCode retCode;
     std::vector<ClientInfo> clientInfos;
-    retCode = kCurveFS.ListClient(&clientInfos);
+    bool listAllClient =
+        request->has_listallclient() && request->listallclient();
+    retCode = kCurveFS.ListClient(listAllClient, &clientInfos);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -1655,8 +1661,46 @@ void NameSpaceService::ListClient(
             *clientInfo = info;
         }
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", ListClient ok";
+                  << ", ListClient ok, "
+                  << ", return " << response->clientinfos_size()
+                  << " client infos";
     }
+}
+
+void NameSpaceService::FindFileMountPoint(
+    ::google::protobuf::RpcController* controller,
+    const ::curve::mds::FindFileMountPointRequest* request,
+    ::curve::mds::FindFileMountPointResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+              << ", FindFileMountPoint request, fileName = "
+              << request->filename();
+
+    StatusCode retCode;
+    std::unique_ptr<ClientInfo> clientInfo(new ClientInfo());
+    retCode =
+        kCurveFS.FindFileMountPoint(request->filename(), clientInfo.get());
+
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                   << ", FindFileMountPoint fail, fileName = "
+                   << request->filename()
+                   << ", statusCode = " << retCode
+                   << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        return;
+    } else {
+        LOG(INFO) << "logid = " << cntl->log_id()
+                  << ", FindFileMountPoint ok, fileName = "
+                  << request->filename() << ", client info = "
+                  << response->clientinfo().ShortDebugString();
+        response->set_statuscode(StatusCode::kOK);
+        response->set_allocated_clientinfo(clientInfo.release());
+    }
+    return;
 }
 
 uint32_t GetMdsLogLevel(StatusCode code) {
