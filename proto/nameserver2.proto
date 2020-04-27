@@ -376,6 +376,8 @@ message ReFreshSessionRequest {
     required uint64     date = 4; //current time
     optional string     signature = 5;
     optional string     clientVersion = 6;
+    optional string     clientIP = 7;
+    optional uint32     clientPort = 8;
 }
 
 // statusCode返回值，详见StatusCode定义:
@@ -446,11 +448,21 @@ message ClientInfo {
 }
 
 message ListClientRequest {
+    optional bool listAllClient = 1;
 }
 
 message ListClientResponse {
     required StatusCode statusCode = 1;
     repeated ClientInfo clientInfos = 2;
+}
+
+message FindFileMountPointRequest {
+    required string fileName = 1;
+}
+
+message FindFileMountPointResponse {
+    required StatusCode statusCode = 1;
+    optional ClientInfo clientInfo = 2;
 }
 
 service CurveFSService {
@@ -491,4 +503,5 @@ service CurveFSService {
     rpc     RegistClient(RegistClientRequest) returns (RegistClientResponse);
     rpc     GetAllocatedSize(GetAllocatedSizeRequest) returns (GetAllocatedSizeResponse);
     rpc     ListClient(ListClientRequest) returns (ListClientResponse);
+    rpc     FindFileMountPoint(FindFileMountPointRequest) returns (FindFileMountPointResponse);
 }

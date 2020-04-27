@@ -247,6 +247,8 @@ class FileClient {
     }
 
  private:
+    bool StartDummyServer();
+
     inline bool CheckAligned(off_t offset, size_t length);
 
     // 获取一个初始化的FileInstance对象

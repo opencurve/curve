@@ -1930,6 +1930,106 @@ TEST_F(NameSpaceServiceTest, listClientTest) {
     server.Stop(10);
     server.Join();
 }
+
+TEST_F(NameSpaceServiceTest, listAllClientTest) {
+    brpc::Server server;
+
+    // start server
+    NameSpaceService namespaceService(new FileLockManager(8));
+    ASSERT_EQ(server.AddService(&namespaceService,
+            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+
+    brpc::ServerOptions option;
+    option.idle_timeout_sec = -1;
+    ASSERT_EQ(0, server.Start("127.0.0.1", {8900, 8999}, &option));
+
+    // init client
+    brpc::Channel channel;
+    ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
+
+    CurveFSService_Stub stub(&channel);
+
+    ListClientRequest request;
+    ListClientResponse response;
+    brpc::Controller cntl;
+
+    request.set_listallclient(true);
+    cntl.set_log_id(1);
+
+    stub.ListClient(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    server.Stop(10);
+    server.Join();
+}
+
+TEST_F(NameSpaceServiceTest, FindFileMountPointTest) {
+    brpc::Server server;
+
+    std::string testFileName = "/test_filename";
+    std::string testClientIP = "127.0.0.1";
+    uint32_t testClientPort = 1234;
+
+    // start server
+    NameSpaceService namespaceService(new FileLockManager(8));
+    ASSERT_EQ(
+        server.AddService(&namespaceService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
+
+    brpc::ServerOptions option;
+    option.idle_timeout_sec = -1;
+    ASSERT_EQ(0, server.Start("127.0.0.1", {8900, 8999}, &option));
+
+    // init client
+    brpc::Channel channel;
+    ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
+
+    fileRecordManager_->UpdateFileRecord(testFileName, "0.0.6", testClientIP,
+                                         testClientPort);
+
+    CurveFSService_Stub stub(&channel);
+
+    FindFileMountPointRequest request;
+    request.set_filename("/test_filename");
+    FindFileMountPointResponse response;
+    brpc::Controller cntl;
+
+    cntl.set_log_id(1);
+
+    stub.FindFileMountPoint(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+
+        ASSERT_EQ(response.clientinfo().ip(), testClientIP);
+        ASSERT_EQ(response.clientinfo().port(), testClientPort);
+    } else {
+        LOG(INFO) << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    request.Clear();
+    response.Clear();
+    cntl.Reset();
+
+    request.set_filename("/test_filename100");
+    cntl.set_log_id(1);
+
+    stub.FindFileMountPoint(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_NE(response.statuscode(), StatusCode::kOK);
+    } else {
+        LOG(INFO) << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    server.Stop(10);
+    server.Join();
+}
+
 }  // namespace mds
 }  // namespace curve
 

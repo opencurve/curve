@@ -191,22 +191,30 @@ void MDSClientBase::GetSnapshotSegmentInfo(const std::string& filename,
 }
 
 void MDSClientBase::RefreshSession(const std::string& filename,
-                                const UserInfo_t& userinfo,
-                                const std::string& sessionid,
-                                ReFreshSessionResponse* response,
-                                brpc::Controller* cntl,
-                                brpc::Channel* channel) {
+                                   const UserInfo_t& userinfo,
+                                   const std::string& sessionid,
+                                   ReFreshSessionResponse* response,
+                                   brpc::Controller* cntl,
+                                   brpc::Channel* channel) {
     ReFreshSessionRequest request;
     request.set_filename(filename);
     request.set_sessionid(sessionid);
     request.set_clientversion(curve::common::CurveVersion());
 
+    static ClientDummyServerInfo& clientInfo =
+        ClientDummyServerInfo::GetInstance();
+
+    if (clientInfo.GetRegister()) {
+        request.set_clientip(clientInfo.GetIP());
+        request.set_clientport(clientInfo.GetPort());
+    }
+
     FillUserInfo<ReFreshSessionRequest>(&request, userinfo);
 
     LOG_EVERY_N(INFO, 10) << "RefreshSession: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner
-                  << ", sessionid = " << sessionid
-                  << ", log id = " << cntl->log_id();
+                          << ", owner = " << userinfo.owner
+                          << ", sessionid = " << sessionid
+                          << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.RefreshSession(cntl, &request, response, nullptr);
