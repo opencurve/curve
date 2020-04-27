@@ -142,6 +142,9 @@ typedef uint64_t FileSeqType;
 const char CURVE_MDS_CURVEFS_METRIC_PREFIX[] = "curve_mds_curvefs";
 
 const char kLeastSupportSnapshotClientVersion[] = "0.0.5.3";
+
+const uint32_t kInvalidPort = 0;
+
 }  // namespace mds
 }  // namespace curve
 

@@ -9,6 +9,8 @@
 #include <glog/logging.h>
 #include <memory>
 #include <chrono>
+#include <set>
+#include <utility>
 #include "src/common/string_util.h"
 #include "src/common/encode.h"
 #include "src/common/timeutility.h"
@@ -1262,6 +1264,7 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
                             const uint64_t date,
                             const std::string &signature,
                             const std::string &clientIP,
+                            uint32_t clientPort,
                             const std::string &clientVersion,
                             FileInfo  *fileInfo) {
     // 检查文件是否存在
@@ -1284,13 +1287,15 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
                    << ", date = " << date
                    << ", signature = " << signature
                    << ", clientIP = " << clientIP
+                   << ", clientPort = " << clientPort
                    << ", errCode = " << ret
                    << ", errName = " << StatusCode_Name(ret);
         return  ret;
     }
 
     // 更新文件记录
-    fileRecordManager_->UpdateFileRecord(fileName, clientVersion);
+    fileRecordManager_->UpdateFileRecord(fileName, clientVersion, clientIP,
+                                         clientPort);
 
     return StatusCode::kOK;
 }
@@ -1714,21 +1719,48 @@ StatusCode CurveFS::RegistClient(const std::string &clientIp,
     return StatusCode::kOK;
 }
 
-StatusCode CurveFS::ListClient(std::vector<ClientInfo>* clientInfos) {
-    std::vector<ClientInfoRepoItem> items;
-    auto res = repo_->LoadClientInfoRepoItems(&items);
-    if (res != repo::OperationOK) {
-        LOG(ERROR) << "ListClientsIpPort query client info from repo fail";
-        return StatusCode::KInternalError;
+StatusCode CurveFS::ListClient(bool listAllClient,
+                               std::vector<ClientInfo>* clientInfos) {
+    std::set<ClientIpPortType> allClients = fileRecordManager_->ListAllClient();
+
+    if (listAllClient) {
+        // 获取mysql中记录的client节点信息
+        std::vector<ClientInfoRepoItem> items;
+        auto res = repo_->LoadClientInfoRepoItems(&items);
+        if (res != repo::OperationOK) {
+            LOG(ERROR) << "ListClientsIpPort query client info from repo fail";
+            return StatusCode::KInternalError;
+        }
+
+        for (auto& item : items) {
+            allClients.emplace(item.GetClientIp(), item.GetClientPort());
+        }
     }
 
-    for (auto& item : items) {
-        ClientInfo clientInfo;
-        clientInfo.set_ip(item.GetClientIp());
-        clientInfo.set_port(item.GetClientPort());
-        clientInfos->emplace_back(clientInfo);
+    for (const auto& c : allClients) {
+        ClientInfo info;
+        info.set_ip(c.first);
+        info.set_port(c.second);
+
+        clientInfos->emplace_back(std::move(info));
     }
+
     return StatusCode::kOK;
+}
+
+StatusCode CurveFS::FindFileMountPoint(
+    const std::string& fileName,
+    ClientInfo* clientInfo) {
+    ClientIpPortType clientIpPort;
+    auto res = fileRecordManager_->FindFileMountPoint(fileName, &clientIpPort);
+
+    if (res) {
+        clientInfo->set_ip(clientIpPort.first);
+        clientInfo->set_port(clientIpPort.second);
+        return StatusCode::kOK;
+    }
+
+    return StatusCode::kFileNotExists;
 }
 
 uint64_t CurveFS::GetOpenFileNum() {

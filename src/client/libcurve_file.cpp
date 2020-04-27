@@ -102,54 +102,7 @@ int FileClient::Init(const std::string& configpath) {
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    bool rc = true;
-    do {
-        if (!clientconfig_.GetFileServiceOption().commonOpt.mdsRegisterToMDS) {
-            LOG(INFO) << "do not need register to mds!";
-            break;
-        }
-
-        // 在一个进程里只允许启动一次
-        uint16_t metricDummyServerStartPort =
-        clientconfig_.GetDummyserverStartPort();
-        static std::once_flag flag;
-        std::call_once(flag, [&](){
-            // 启动dummy server
-            int ret = -1;
-            while (metricDummyServerStartPort < PORT_LIMIT) {
-                ret = brpc::StartDummyServerAt(metricDummyServerStartPort);
-                if (ret >= 0) {
-                    LOG(INFO) << "start dummy server success, listen port = "
-                            << metricDummyServerStartPort;
-                    break;
-                }
-                metricDummyServerStartPort++;
-            }
-        });
-
-        if (metricDummyServerStartPort >= PORT_LIMIT) {
-            rc = false;
-            LOG(ERROR) << "start dummy server failed!";
-            break;
-        }
-
-        // 获取本地IP
-        std::string ip;
-        rc = common::NetCommon::GetLocalIP(&ip);
-        if (rc == false) {
-            LOG(ERROR) << "get local ip failed! can not regist to mds!";
-            break;
-        }
-
-        // 向mds注册
-        auto ret = mdsClient_->Register(ip, metricDummyServerStartPort);
-        if (ret != LIBCURVE_ERROR::OK) {
-            rc = false;
-            LOG(ERROR) << "regist client metric info to mds failed!";
-            break;
-        }
-    } while (0);
-
+    bool rc = StartDummyServer();
     if (rc == false) {
         mdsClient_->UnInitialize();
         delete mdsClient_;
@@ -571,6 +524,47 @@ int FileClient::GetFileInfo(int fd, FInfo* finfo) {
     }
 
     return ret;
+}
+
+bool FileClient::StartDummyServer() {
+    if (!clientconfig_.GetFileServiceOption().commonOpt.mdsRegisterToMDS) {
+        LOG(INFO) << "No need register to MDS";
+        ClientDummyServerInfo::GetInstance().SetRegister(false);
+        return true;
+    }
+
+    static std::once_flag flag;
+    uint16_t dummyServerStartPort = clientconfig_.GetDummyserverStartPort();
+    std::call_once(flag, [&]() {
+        while (dummyServerStartPort < PORT_LIMIT) {
+            int ret = brpc::StartDummyServerAt(dummyServerStartPort);
+            if (ret >= 0) {
+                LOG(INFO) << "Start dummy server success, listen port = "
+                          << dummyServerStartPort;
+                break;
+            }
+
+            ++dummyServerStartPort;
+        }
+    });
+
+    if (dummyServerStartPort >= PORT_LIMIT) {
+        LOG(ERROR) << "Start dummy server failed!";
+        return false;
+    }
+
+    // 获取本地ip
+    std::string ip;
+    if (!common::NetCommon::GetLocalIP(&ip)) {
+        LOG(ERROR) << "Get local ip failed!";
+        return false;
+    }
+
+    ClientDummyServerInfo::GetInstance().SetRegister(true);
+    ClientDummyServerInfo::GetInstance().SetPort(dummyServerStartPort);
+    ClientDummyServerInfo::GetInstance().SetIP(ip);
+
+    return true;
 }
 
 }   // namespace client

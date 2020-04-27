@@ -207,6 +207,7 @@ class MDSClientBase {
                     GetOrAllocateSegmentResponse* response,
                     brpc::Controller* cntl,
                     brpc::Channel* channel);
+
     /**
      * 文件接口在打开文件的时候需要与mds保持心跳，refresh用来续约
      * 续约结果将会通过LeaseRefreshResult* resp返回给调用层
@@ -217,11 +218,11 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void RefreshSession(const std::string& filename,
-                    const UserInfo_t& userinfo,
-                    const std::string& sessionid,
-                    ReFreshSessionResponse* response,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+                        const UserInfo_t& userinfo,
+                        const std::string& sessionid,
+                        ReFreshSessionResponse* response,
+                        brpc::Controller* cntl,
+                        brpc::Channel* channel);
     /**
      * 获取快照状态
      * @param: filenam文件名
