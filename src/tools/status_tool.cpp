@@ -94,7 +94,8 @@ bool StatusTool::SupportCommand(const std::string& command) {
                                  || command == kMdsStatusCmd
                                  || command == kEtcdStatusCmd
                                  || command == kClientStatusCmd
-                                 || command == kSnapshotCloneStatusCmd);
+                                 || command == kSnapshotCloneStatusCmd
+                                 || command == kClusterStatusCmd);
 }
 
 void StatusTool::PrintHelp(const std::string& cmd) {
@@ -718,6 +719,8 @@ int StatusTool::RunCommand(const std::string &cmd) {
         return PrintClientStatus();
     } else if (cmd == kSnapshotCloneStatusCmd) {
         return PrintSnapshotCloneStatus();
+    } else if (cmd == kClusterStatusCmd) {
+        return PrintClusterStatus();
     } else {
         std::cout << "Command not supported!" << std::endl;
         return -1;

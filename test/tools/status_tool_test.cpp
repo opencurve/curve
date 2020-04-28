@@ -123,6 +123,7 @@ TEST_F(StatusToolTest, InitAndSupportCommand) {
     ASSERT_TRUE(statusTool.SupportCommand("etcd-status"));
     ASSERT_TRUE(statusTool.SupportCommand("client-status"));
     ASSERT_TRUE(statusTool.SupportCommand("snapshot-clone-status"));
+    ASSERT_TRUE(statusTool.SupportCommand("cluster-status"));
     ASSERT_FALSE(statusTool.SupportCommand("none"));
 }
 
