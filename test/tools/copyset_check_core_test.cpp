@@ -178,10 +178,10 @@ TEST_F(CopysetCheckCoreTest, CheckOneCopysetNormal) {
         .WillOnce(DoAll(SetArgPointee<2>(csLocs),
                         Return(0)));
     EXPECT_CALL(*csClient_, Init(_))
-        .Times(5)
+        .Times(6)
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, GetRaftStatus(_))
-        .Times(5)
+        .Times(6)
         .WillOnce(DoAll(SetArgPointee<0>(leaderBuf),
                         Return(0)))
         .WillRepeatedly(DoAll(SetArgPointee<0>(followerBuf),
@@ -245,11 +245,11 @@ TEST_F(CopysetCheckCoreTest, CheckOneCopysetError) {
         .WillOnce(DoAll(SetArgPointee<2>(csLocs),
                         Return(0)));
     EXPECT_CALL(*csClient_, Init(_))
-        .Times(4)
+        .Times(5)
         .WillOnce(Return(-1))
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, GetRaftStatus(_))
-        .Times(3)
+        .Times(4)
         .WillOnce(DoAll(SetArgPointee<0>(leaderBuf),
                         Return(0)))
         .WillRepeatedly(DoAll(SetArgPointee<0>(followerBuf),
@@ -299,15 +299,15 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerHealthy) {
         .WillOnce(DoAll(SetArgPointee<1>(csInfo),
                         Return(0)));
     EXPECT_CALL(*csClient_, Init(_))
-        .Times(3)
+        .Times(4)
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, GetRaftStatus(_))
-        .Times(3)
+        .Times(4)
         .WillOnce(DoAll(SetArgPointee<0>(followerBuf1),
                         Return(0)))
         .WillOnce(DoAll(SetArgPointee<0>(leaderBuf),
                         Return(0)))
-        .WillOnce(DoAll(SetArgPointee<0>(followerBuf1),
+        .WillRepeatedly(DoAll(SetArgPointee<0>(followerBuf1),
                         Return(0)));
     CopysetCheckCore copysetCheck2(mdsClient_, csClient_);
     ASSERT_EQ(0, copysetCheck2.CheckCopysetsOnChunkServer(csId));
