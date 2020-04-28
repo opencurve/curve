@@ -889,20 +889,20 @@ def check_copies_consistency():
         stop_rwio()
         while i < 600:
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
-            if rs[1] == [u'consistency check success!\n']:
+            if rs[3] == 0:
                 break
             logger.info("check_hash false return is %s,return code is %d"%(rs[1],rs[3]))
             time.sleep(3)
             i = i + 3
-        if rs[1] != [u'consistency check success!\n']:
+        if rs[3] != 0:
             assert False,"exec check_hash false fail,return is %s"%rs[1]
         check_hash = "true"
         ori_cmd = ori_cmdpri + check_hash
         rs = shell_operator.ssh_exec(ssh,ori_cmd)
         logger.debug("exec %s,stdout is %s"%(ori_cmd,"".join(rs[1])))
-        if rs[1] == [u'consistency check success!\n']:
+        if rs[3] == 0:
             print "check consistency ok!"
-        elif rs[1][0] == [u'Chunk hash not equal!\n']:
+        else:
             message = eval(rs[1][2])
             groupId = message["groupId"]
             chunkID = message["chunkID"]
@@ -916,8 +916,6 @@ def check_copies_consistency():
                 rs = shell_operator.ssh_exec(ssh, ori_cmd)
                 if rs[3] != 0:
                     logger.error("cp chunk fail,is %s"%rs[1])
-            assert False,"checkconsistecny fail,error is %s"%("".join(rs[1]).strip())
-        else:
             assert False,"checkconsistecny fail,error is %s"%("".join(rs[1]).strip())
 #        check_data_consistency()
     except:
