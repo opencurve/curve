@@ -40,14 +40,12 @@ int MDSClient::Init(const std::string& mdsAddr,
             continue;
         }
         // 寻找哪个mds存活
-        curve::mds::GetFileInfoRequest request;
-        curve::mds::GetFileInfoResponse response;
+        curve::mds::topology::ListPhysicalPoolRequest request;
+        curve::mds::topology::ListPhysicalPoolResponse response;
+        curve::mds::topology::TopologyService_Stub stub(&channel_);
         brpc::Controller cntl;
         cntl.set_timeout_ms(FLAGS_rpcTimeout);
-        request.set_filename("/");
-        FillUserInfo(&request);
-        curve::mds::CurveFSService_Stub stub(&channel_);
-        stub.GetFileInfo(&cntl, &request, &response, nullptr);
+        stub.ListPhysicalPool(&cntl, &request, &response, nullptr);
 
         if (cntl.Failed()) {
             continue;

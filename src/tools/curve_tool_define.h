@@ -30,6 +30,7 @@ const char kEtcdStatusCmd[] = "etcd-status";
 const char kChunkserverListCmd[] = "chunkserver-list";
 const char kClientStatusCmd[] = "client-status";
 const char kSnapshotCloneStatusCmd[] = "snapshot-clone-status";
+const char kClusterStatusCmd[] = "cluster-status";
 
 // NamesPaceTool相关命令
 const char kGetCmd[] = "get";

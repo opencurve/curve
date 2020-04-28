@@ -301,6 +301,13 @@ bool FakeMDS::StartService() {
 
     fakecurvefsservice_.SetExtendFile(fakeExtendRet);
 
+    /**
+     * set list physical pool response
+     */
+    ListPhysicalPoolResponse* listphypoolresp = new ListPhysicalPoolResponse();
+    FakeReturn* fakeListPPRet = new FakeReturn(nullptr, response);
+    faketopologyservice_.fakelistpoolret_ = fakeListPPRet;
+
     return true;
 }
 
