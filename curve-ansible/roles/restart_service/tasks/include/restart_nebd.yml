@@ -1,0 +1,22 @@
+---
+
+# 获取nebd的版本
+- name: get nebd version
+  vars:
+    metric_port: "{{ dummy_port }}"
+    nebd_version:
+  include_tasks: common_tasks/get_nebd_version_from_metric.yml
+
+- name: set need restart false
+  set_fact:
+    need_restart: false
+  when: nebd_version == expected_nebd_version
+
+- name: restart nebd-server
+  vars:
+    ch_dir: "{{ deploy_dir }}"
+    daemon_script: nebd-daemon
+    ping_port: "{{ dummy_port }}"
+    check_health: false
+  include_tasks: restart_by_daemon.yml
+  when: need_restart

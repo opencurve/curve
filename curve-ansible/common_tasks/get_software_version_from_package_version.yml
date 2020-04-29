@@ -1,0 +1,11 @@
+---
+
+- name: get software version from package_version
+  shell: echo {{ package_version }} | awk -F "+" '{print $1}'
+  register:
+    result
+  failed_when: result.stdout == ""
+
+- name: set software_version
+  set_fact:
+    software_version: "{{ result.stdout }}"

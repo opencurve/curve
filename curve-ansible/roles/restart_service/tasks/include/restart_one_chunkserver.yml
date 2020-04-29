@@ -1,0 +1,33 @@
+---
+
+# 获取chunkserver的版本
+- name: get chunkserver version
+  vars:
+    metric_port: "{{ chunkserver_base_port | int + chunkserver_seq | int }}"
+    curve_version:
+  include_tasks: common_tasks/get_curve_version_from_metric.yml
+
+- name: set need restart false
+  set_fact:
+    need_restart: false
+  when: curve_version == expected_curve_version
+
+- name: set sudo
+  set_fact:
+    sudo: "sudo"
+  when: command_need_sudo
+
+# 重启chunkserver
+- name: restart chunkserver
+  shell:  chdir={{ deploy_dir }} {{ sudo }} ./chunkserver_ctl.sh restart {{ chunkserver_seq }}
+  register: restart_chunkserver_res
+  async: "{{ chunkserver_async }}"
+  poll: "{{ chunkserver_poll }}"
+  when: need_restart
+  failed_when: restart_chunkserver_res.rc != 0 or "down" in restart_chunkserver_res.stdout
+
+# 打印控制台输出
+- name: print console output
+  debug:
+    var: restart_chunkserver_res.stdout_lines
+  when: need_restart

@@ -1,0 +1,160 @@
+用ansible编写的curve高性能存储系统远程部署升级工具，可以很方便的在一台主控机上做到部署升级集群所有节点。
+
+一、软件依赖
+ansible 2.5.9
+python 2.7.13
+
+二、使用说明
+0、inventory文件说明
+inventory文件有client.ini和server.ini，client.ini存放client的机器列表以及对应的变量，server.ini存放除了
+client以外的机器，包括etcd，mds，快照克隆，chunkserver等。机器列表格式：
+    pubt1-curve2 ansible_ssh_host=10.187.2.13 chunkserver_num=14
+其中pubt1-curve1为机器别名，10.187.0.114为ip。chunkserver_num是主机变量，inventory中的所有变量都定义成了
+组变量，比如
+    [chunkservers:vars]
+    chunkserver_num=13
+表示所有chunkserver机器上的chunkserver数量都是13，但是可能会有个别chunkserver的数量不等于13，这时候在主机
+变量中指定一下就可以覆盖组变量中的值，就能够做到特化处理，其他变量同理。
+
+1、集群升级
+目前curve的升级流程为先升级mds，后升级chunkserver，最后升级client。使用ansible需要指定一台主控机，我们规定
+主控机为mds节点之一。ansible-playbook同时需要yml文件和inventory文件，yml文件规定了要做哪些操作，inventory
+指定了机器列表并定义了一些变量。yml文件在curve仓库的curve-ansible目录中，inventory通过puppet管理，所以第一
+次使用时需要把仓库拉下来。如果下载过仓库，则git pull更新到最新的代码。然后用sudo puppet agent -t命令更新一下
+inventory文件。
+
+所有rolling_update的脚本都支持通过指定tag选择只升级包和配置或只重启服务。比如对于mds来说：
+  (1) 如果想只更新包，不重启，命令为：
+      ansible-playbook rolling_update_mds.yml -i server.ini --tags update_config_and_pkg
+  (2) 如果只想重启服务，不想更新包，命令为：
+      ansible-playbook rolling_update_mds.yml -i server.ini --tags restart
+
+1.1 拉curve仓库，更新inventory
+  (1) git clone http://gerrit.storage.netease.com/curve/curve
+  (3) 通过puppet agent -t更新ansible配置
+
+1.2 升级mds
+mds升级需要先升级备，再升级主，这个逻辑在yml文件中已经包含了，使用的时候只需要交互确认一下即可。
+  (1) ansible-playbook rolling_update_mds.yml -i server.ini
+  (2) 此时会打出"Confirm restart mds in pubt1-curve1. ENTER to continue or CTRL-C A to quit:"，确认无误
+      （确认第一个是备）后输入回车继续
+  (3) 重复上一步直到所有mds升级完毕
+
+1.3 重启etcd
+etcd的版本很少会更新，但是配置和etcd-daemon可能会更新，这时需要重启一下etcd，因此需要一个重启etcd的功能。
+etcd的重启同样需要需要先升级follower，再升级leader，这个逻辑在yml文件中已经包含了，使用的时候只需要交互确认一下即可。
+  (1) ansible-playbook restart_etcd.yml -i server.ini
+  (2) 此时会打出"Confirm restart etcd in pubt1-curve1. ENTER to continue or CTRL-C A to quit:"，确认无误
+      （确认第一个是备）后输入回车继续
+  (3) 重复上一步直到所有etcd重启完毕
+
+
+1.4 升级快照克隆
+快照克隆升级需要先升级备，再升级主，这个逻辑在yml文件中已经包含了，使用的时候只需要交互确认一下即可。
+  (1) ansible-playbook rolling_update_snapshotclone.yml -i server.ini
+  (2) 此时会打出"Confirm restart snapshotclone in pubt1-curve1. ENTER to continue or CTRL-C A to quit:"
+      确认无误（确认第一个是备）后输入回车继续
+  (3) 重复上一步直到所有快照克隆升级完毕
+
+1.5 升级chunkserver
+  (1) ansible-playbook rolling_update_chunkserver.yml -i server.ini
+  (2) 此时会打出"Confirm restart chunkserver in pubt1-curve1. ENTER to continue or CTRL-C A to quit:"
+      确认无误（集群healthy，io恢复）后输入回车继续
+  (3) 重复上一步直到所有chunkserver升级完毕
+
+1.6 升级nebd-server
+  (1) ansible-playbook rolling_update_nebd.yml -i client.ini
+  (2) 升级nebd-server也有类似的确认步骤，由于机器比较多，可以选择指定 --extra-vars "need_confirm=false"来关掉
+      确认这一步
+
+1.7 升级curve-sdk
+curve-sdk主要给cinder，nova等服务使用，只需要更新包和配置即可，不需要重启服务
+  (1) ansible-playbook rolling_update_curve_sdk.yml -i client.ini
+
+2、集群回退
+升级过程中，可能会因为一些问题导致升级失败，这时候会有回退的需求。回退是一个危险操作，因为老版本不一定能够兼容新版本，
+所以要谨慎回退。回退的时候只回退软件版本，不回退配置文件，所以要保证配置文件是向前兼容的（即只增加字段，不删除字段）。
+回退和升级共享一个yml文件，区别仅在与软件版本不同，所以额外在命令行中指定版本即可。
+
+2.1 回退mds
+mds回退同样需要先重启备，再重启主，这个逻辑在yml文件中已经包含了，使用的时候只需要交互确认一下即可。
+  (1) ansible-playbook rolling_update_mds.yml -i server.ini --extra-vars \
+          "mds_package_version=0.0.5.3+4b11a64d tool_package_version=0.0.5.3+4b11a64d \
+           need_update_config=false"
+  (2) 此时会打出"Confirm restart mds in pubt1-curve1. ENTER to continue or CTRL-C A to quit:"，确认无误
+      （确认第一个是备）后输入回车继续
+  (3) 重复上一步直到所有mds回退完毕
+
+2.2 回退快照克隆
+快照克隆回退需要先重启备，再重启主，这个逻辑在yml文件中已经包含了，使用的时候只需要交互确认一下即可。
+  (1) ansible-playbook rolling_update_snapshotclone.yml -i server.ini --extra-vars /
+              "snap_package_version=0.0.6.1+160be351 need_update_config=false"
+  (2) 此时会打出"Confirm restart snapshotclone in pubt1-curve1. ENTER to continue or CTRL-C A to quit:"
+      确认无误（确认第一个是备）后输入回车继续
+  (3) 重复上一步直到所有快照克隆回滚完毕
+
+2.3 回退chunkserver
+  (1) ansible-playbook rolling_update_mds.yml -i server.ini --extra-vars \
+          "cs_package_version=0.0.5.3+4b11a64d need_update_config=false"
+  (2) 此时会打出"Confirm restart chunkserver in pubt1-curve1. ENTER to continue or CTRL-C A to quit:"
+      确认无误（集群healthy，io恢复）后输入回车继续
+  (3) 重复上一步直到所有chunkserver回退完毕
+
+2.4 回退nebd-server
+  (1) ansible-playbook rolling_update_nebd.yml -i client.ini --extra-vars \
+        "nebd_package_version=1.0.1+5e87f36 need_update_config=false"
+  (2) 升级nebd-server也有类似的确认步骤，由于机器比较多，可以选择指定 --extra-vars "need_confirm=false"来关掉
+      确认这一步
+
+1.7 回退curve-sdk
+curve-sdk主要给cinder，nova等服务使用，只需要更新包和配置即可，不需要重启服务
+  (1) ansible-playbook rolling_update_curve_sdk.yml -i client.ini --extra-vars \
+          "sdk_package_version=0.0.5.3+4b11a64d need_update_config=false"
+
+三、目录结构说明
+.
+├── common_tasks                                        # 放置可以复用的代码（可以理解为各种函数）
+│   ├── check_chunkserver.yml                           # 检查chunkserver机器配置
+│   ├── check_cluster_healthy_status.yml                # 检查集群健康状态
+│   ├── check_mds.yml                                   # 检查mds机器配置
+│   ├── get_curve_version_from_metric.yml               # 从metric获取curve版本
+│   ├── get_nebd_version_from_metric.yml                # 从metric获取nebd版本
+│   ├── get_software_version_from_package_version.yml   # 从包版本获取软件版本
+│   ├── update_config.yml                               # 更新配置文件
+│   ├── update_package.yml                              # 更新包
+│   └── wait_copysets_status_healthy.yml                # 在一段时间内循环检查copyset健康状态
+├── roles                                               # roles也是用来存放可以复用的代码，一个role内的task存在关联
+│   ├── restart_service                                 # 用来重启服务的role
+│   │   ├── tasks                                       # 存放重启服务的task，main.yml是入口，其他的被main引用
+│   │   │   ├── include
+│   │   │   │   ├── restart_by_daemon.yml               # 用daemon重启服务
+│   │   │   │   ├── restart_chunkserver.yml             # 重启chunkserver
+│   │   │   │   ├── restart_etcd.yml                    # 重启etcd
+│   │   │   │   ├── restart_mds.yml                     # 重启etcd
+│   │   │   │   ├── restart_nebd.yml                    # 重启nebd server
+│   │   │   │   ├── restart_one_chunkserver.yml         # 重启单个chunkserver
+│   │   │   │   └── restart_snapshotclone.yml           # 重启快照克隆
+│   │   │   └── main.yml                                # main.yml的所有task会被include到使用role的地方
+│   │   └── vars
+│   │       └── main.yml                                # main.yml的所有变量会被包含到使用role的地方
+│   └── set_leader_and_follower_list                    # 设置leader和follower列表的task
+│       ├── tasks                                       # 存放task，main.yml是入口，其他的被main引用
+│       │   ├── include
+│       │   │   ├── get_all_ip.yml                      # 获取节点的所有ip
+│       │   │   ├── get_etcd_leader_ip.yml              # 获取etcd leader的ip
+│       │   │   ├── get_mds_leader_ip.yml               # 获取mds leader的ip
+│       │   │   └── get_snapshot_leader_ip.yml          # 获取快照克隆leader的ip
+│       │   └── main.yml
+│       └── vars
+│           └── main.yml
+├── rolling_update_chunkserver.yml                      # 升级chunkserver
+├── rolling_update_mds.yml                              # 升级mds
+├── rolling_update_nebd.yml                             # 升级nebd-server
+├── rolling_update_curve_sdk.yml                        # 升级curve sdk
+├── rolling_update_snapshotclone.yml                    # 升级快照克隆
+├── restart_etcd.yml                                    # 重启etcd的命令
+├── check_chunkserver.yml                               # 检查chunkserver所在机器配置
+├── check_mds.yml                                       # 检查mds所在机器配置
+├── README                                              # 本帮助文档
+├── client.ini                                          # client的inventory文件
+└── server.ini                                          # server的列表，包括mds，快照克隆，etcd，chunkserver

@@ -1,0 +1,10 @@
+---
+
+- name: get all ip
+  shell: /sbin/ifconfig -a
+  register: result
+  failed_when: result.stdout == ""
+
+- name: set all_ip
+  set_fact:
+    all_ip="{{ result.stdout }}"

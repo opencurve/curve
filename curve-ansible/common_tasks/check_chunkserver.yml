@@ -1,0 +1,90 @@
+---
+
+# check the os and config
+- name: check os_family
+  fail:
+    msg: "os_family is {{ ansible_facts['os_family'] }}"
+  when: ansible_facts['os_family'] != "Debian"
+
+- name: "check os version"
+  fail:
+    msg: "distribution_major_version is  {{ansible_facts['distribution_major_version']}}"
+  when: ansible_facts['distribution_major_version'] != "9"
+
+- name: "check kernel"
+  fail:
+    msg: "kernel version is {{ ansible_facts['kernel'] }}"
+  when: ansible_facts['kernel'] != "4.9.0-8-amd64"
+
+- name: "check max fd number"
+  shell: cat /proc/sys/fs/file-max
+  register: result
+  failed_when: result.stdout|int < 26000000
+
+- name: "check max mmap"
+  shell: ulimit -n
+  register: result
+  failed_when: result.stdout|int < 650000
+
+# check hd and firmware config
+- name: check the cpu performace
+  shell: cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor | grep -v "performance"
+  register: result
+  failed_when: result.rc != 1  or result.stdout != ""
+  changed_when: False
+
+- name: check the network bond
+  shell: cat /proc/net/bonding/bond0
+  register: result
+  failed_when: >
+    ("IEEE 802.3ad Dynamic link aggregation" not in result.stdout) or
+    ("layer2+3" not in result.stdout)
+  changed_when: False
+
+- name: check the megasas firmware
+  shell: /sbin/modinfo  megaraid_sas | grep "^version"
+  register: megaresult
+  failed_when: "'06.811.02.00-rc4' not in megaresult.stdout"
+  # failed_when: "'06.811.02.00-rc4' not in megaresult.stdout"
+  changed_when: False
+
+- name: check the sysdisk raid and datadisk is JBOD
+  shell: sudo /usr/sbin/megacli  -PDList -aALL -Nolog|grep '^Firmware' |  awk  -F":" '{s[$2] += 1}END{ for(i in s){ print i, s[i] } }'
+  register: result
+  failed_when: >
+    ("Online, Spun Up 2" not in result.stdout)
+  #   ("BOD 20" not in result.stdout)
+  changed_when: False
+
+- name: check the sysdisk RAID0 setting
+  shell:  sudo /usr/sbin/megacli  -LDPDInfo -aAll
+  register: result
+  failed_when: '"Qualifier-0" not in result.stdout'
+  changed_when: False
+
+- name: check if RAID consistency-check closed
+  shell: sudo /usr/sbin/megacli  -AdpCcSched -info -a0
+  register: result
+  failed_when: " 'Operation Mode: Disabled' not in result.stdout "
+  changed_when: False
+
+- name:  check the RAID cache
+  shell: sudo megacli -LDGetProp -Cache -LALL -a0
+  register: result
+  failed_when: " 'Cache Policy:WriteThrough' not in result.stdout"
+  changed_when: False
+
+- name: check the RAID firmware
+  shell: sudo /usr/sbin/megacli -AdpAllInfo -aALL  | grep "FW Package Build"
+  register: result
+  failed_when: " '24.3.0-0050' not in result.stdout"
+
+- name: check the disk schedule algorithm
+  shell:  cat /sys/block/sd*/queue/scheduler  | grep -v "\[deadline\]" | wc -l
+  register: result
+  failed_when: result.stdout != ""
+
+- name: check if the disk cache closed
+  shell:  sudo /sbin/hdparm -W /dev/sd*  | grep "write-caching"
+  register: result
+  failed_when: " 'write-caching =  1' in result.stdout "

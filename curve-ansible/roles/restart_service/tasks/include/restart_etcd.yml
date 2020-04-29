@@ -1,0 +1,9 @@
+---
+
+- name: restart etcd
+  vars:
+    ch_dir: "{{ deploy_dir }}"
+    daemon_script: ./etcd-daemon.sh
+    ping_port: "{{ etcd_port }}"
+    check_health: true
+  include_tasks: restart_by_daemon.yml

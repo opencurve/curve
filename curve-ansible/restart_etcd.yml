@@ -1,0 +1,52 @@
+---
+# Copyright 2020 NetEase, Inc.
+# The rolling update playbook of Curve
+
+# 重启etcd
+
+# 1. 更新各节点上的配置
+- name: update config and package
+  hosts: etcd
+  gather_facts: no
+  any_errors_fatal: true
+  become: true
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - update_config_and_pkg
+
+  tasks:
+    # 更新配置
+    - include_tasks: "common_tasks/update_config.yml"
+
+# 2. 获取leader节点和follower节点
+- name: set etcd leader and follower list
+  hosts: etcd
+  gather_facts: no
+  serial: 1
+  tags:
+    - restart
+
+  roles:
+    - { role: set_leader_and_follower_list, service_name: etcd }
+
+# 3. 按顺序先升级follower节点，再升级leader节点
+- name: update follower and leader server in sequence
+  hosts: etcd_servers_followers, etcd_servers_leader
+  any_errors_fatal: true
+  gather_facts: no
+  serial: 1
+  become: true
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - restart
+
+  pre_tasks:
+    - pause:
+        prompt: "Confirm update etcd in {{ inventory_hostname }}. ENTER to continue or 'CTRL-C A' to quit"
+      when: need_confirm
+
+  # 重启etcd
+  roles:
+    - { role: restart_service, service_name: etcd }

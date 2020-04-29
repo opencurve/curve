@@ -1,0 +1,6 @@
+---
+
+- name: update pkg
+  shell: sudo aptitude install -y -o Aptitude::Cmdline::ignore-trust-violations=true -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold {{ update_component }}
+  register: result
+  failed_when: result.rc != 0

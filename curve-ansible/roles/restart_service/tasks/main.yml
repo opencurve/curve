@@ -1,0 +1,5 @@
+---
+
+# 重启对应的服务
+- name: restart_service
+  include_tasks: "include/restart_{{ service_name }}.yml"

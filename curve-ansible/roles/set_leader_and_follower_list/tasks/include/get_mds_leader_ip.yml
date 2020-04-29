@@ -1,0 +1,12 @@
+---
+
+- name: get mds leader
+  local_action: >
+    shell curve_ops_tool mds-status --confPath={{ curve_ops_tool_config }} |
+    grep "current MDS" | awk '{print $3}' | awk -F ":" '{print $1}'
+  register: result
+  failed_when: result.stdout == ""
+
+- name: set etcd leader ip
+  set_fact:
+    leader_ip="{{ result.stdout }}"
