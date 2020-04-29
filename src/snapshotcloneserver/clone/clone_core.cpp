@@ -42,7 +42,6 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     bool lazyFlag,
     CloneTaskType taskType,
     CloneInfo *cloneInfo) {
-    NameLockGuard lockDestFileGuard(destFileLock_, destination);
     // 查询数据库中是否有任务正在执行
     std::vector<CloneInfo> cloneInfoList;
     metaStore_->GetCloneInfoByFileName(destination, &cloneInfoList);
