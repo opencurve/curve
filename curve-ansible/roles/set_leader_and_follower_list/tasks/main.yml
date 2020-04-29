@@ -1,0 +1,30 @@
+---
+
+- vars:
+    leader_ip:
+  include_tasks: "include/get_{{ service_name }}_leader_ip.yml"
+
+- vars:
+    all_ip:
+  include_tasks: "include/get_all_ip.yml"
+
+- name: set follower list
+  add_host:
+    name: "{{ inventory_hostname }}"
+    ansible_host: "{{ ansible_host }}"
+    ansible_ssh_host: "{{ ansible_ssh_host }}"
+    deploy_dir: "{{ deploy_dir }}"
+    sudo_user: "{{ sudo_user}}"
+    groups: "{{ service_name }}_servers_followers"
+  when: leader_ip not in all_ip
+
+- name: set leader list
+  add_host:
+    name: "{{ inventory_hostname }}"
+    ansible_host: "{{ ansible_host }}"
+    ansible_ssh_host: "{{ ansible_ssh_host }}"
+    deploy_dir: "{{ deploy_dir }}"
+    sudo_user: "{{ sudo_user}}"
+    groups: "{{ service_name }}_servers_leader"
+  when: leader_ip in all_ip
+

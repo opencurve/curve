@@ -1,0 +1,12 @@
+---
+
+- name: get snapshotclone leader
+  local_action: >
+    shell curve_ops_tool snapshot-clone-status --confPath={{ curve_ops_tool_config }} |
+    grep "current snapshot-clone-server" | awk '{print $3}' | awk -F ":" '{print $1}'
+  register: result
+  failed_when: result.stdout == ""
+
+- name: set etcd leader ip
+  set_fact:
+    leader_ip="{{ result.stdout }}"

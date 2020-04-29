@@ -1,0 +1,52 @@
+---
+# Copyright 2020 NetEase, Inc.
+# The rolling update playbook of Curve
+
+# 滚动升级chunkserver
+
+# 1. 更新各节点上的包和配置
+- name: update config and package
+  hosts: chunkservers
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - update_config_and_pkg
+
+  tasks:
+    - include_tasks: "common_tasks/update_config.yml"
+      when: need_update_config
+    - vars:
+        update_component: "curve-chunkserver={{ cs_package_version }}"
+      include_tasks: "common_tasks/update_package.yml"
+
+
+# 2、逐个重启chunkserver，每重启完一个需要等待copyset健康
+#    继续操作下一个的的时候还需要一个命令行交互确认
+- name: restart chunkserver and wait healthy
+  hosts: chunkservers
+  any_errors_fatal: true
+  gather_facts: no
+  serial: 1
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - restart
+
+  pre_tasks:
+    - pause:
+        prompt: "Confirm restart chunkserver in {{ inventory_hostname }}. ENTER to continue or CTRL-C A to quit"
+      when: need_confirm
+    - vars:
+        package_version: "{{ cs_package_version }}"
+        software_version:
+      include_tasks: "common_tasks/get_software_version_from_package_version.yml"
+
+  roles:
+    - { role: restart_service, service_name: chunkserver, expected_curve_version: "{{ software_version }}" }
+
+  tasks:
+    - include_tasks: "common_tasks/wait_copysets_status_healthy.yml"

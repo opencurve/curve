@@ -1,0 +1,43 @@
+---
+# Copyright 2020 NetEase, Inc.
+# The rolling update playbook of Curve
+
+# 滚动升级nebd server
+
+# 1. 更新各节点上的包和配置
+- name: update config and package
+  hosts: client
+  gather_facts: no
+  any_errors_fatal: true
+  tags:
+    - update_config_and_pkg
+  tasks:
+    # 更新配置
+    - include_tasks: "common_tasks/update_config.yml"
+      when: need_update_config
+
+    # 更新nebd包
+    - vars:
+        update_component: "nebd={{ nebd_package_version }}"
+      include_tasks: "common_tasks/update_package.yml"
+
+# 2、重启nebd server
+- name: restart nebd server
+  hosts: client
+  gather_facts: no
+  any_errors_fatal: true
+  tags:
+    - restart
+
+  pre_tasks:
+    - pause:
+        prompt: "Confirm restart nebd-server in {{ inventory_hostname }}. ENTER to continue or CTRL-C A to quit"
+      when: need_confirm
+    - vars:
+        package_version: "{{ nebd_package_version }}"
+        software_version:
+      include_tasks: "common_tasks/get_software_version_from_package_version.yml"
+
+  # 重启nebd server
+  roles:
+    - { role: restart_service, service_name: nebd, expected_nebd_version: "{{ software_version }}" }

@@ -1,0 +1,8 @@
+# 服务的名称
+service_name:
+need_restart: true
+sudo: ""
+curve_version:
+nebd_version:
+expected_curve_version:
+expected_nebd_version:

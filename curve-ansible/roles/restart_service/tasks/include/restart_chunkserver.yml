@@ -1,0 +1,8 @@
+---
+
+- name: restart chunkserver
+  vars:
+    end_seq: "{{ chunkserver_num | int - 1}}"
+    chunkserver_seq: "{{ item }}"
+  include_tasks: "restart_one_chunkserver.yml"
+  with_sequence: start=0 end={{ end_seq }}

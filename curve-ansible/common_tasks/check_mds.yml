@@ -1,0 +1,17 @@
+---
+
+# check the os and config
+- name: check os_family
+  fail:
+    msg: "os_family is {{ ansible_facts['os_family'] }}"
+  when: ansible_facts['os_family'] != "Debian"
+
+- name: "check os version"
+  fail:
+    msg: "distribution_major_version is  {{ansible_facts['distribution_major_version']}}"
+  when: ansible_facts['distribution_major_version'] != "9"
+
+- name: "check kernel"
+  fail:
+    msg: "kernel version is {{ ansible_facts['kernel'] }}"
+  when: ansible_facts['kernel'] != "4.9.0-8-amd64"

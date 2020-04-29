@@ -1,0 +1,6 @@
+---
+
+- name: get cluster healthy status
+  local_action: shell curve_ops_tool status --confPath={{ curve_ops_tool_config }} | grep "cluster is"
+  register: result
+  failed_when: result.stdout != defined_healthy_status
