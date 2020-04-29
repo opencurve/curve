@@ -219,6 +219,7 @@ TEST_F(TestCloneServiceManager,
     EXPECT_CALL(*cloneCore_, HandleCloneOrRecoverTask(_))
         .WillOnce(Invoke([&cond1] (std::shared_ptr<CloneTaskInfo> task) {
                 task->GetCloneInfo().SetStatus(CloneStatus::done);
+                task->GetClosure()->Run();
                                 cond1.Signal();
                             }));
 
@@ -385,6 +386,7 @@ TEST_F(TestCloneServiceManager,
     EXPECT_CALL(*cloneCore_, HandleCloneOrRecoverTask(_))
         .WillOnce(Invoke([&cond1] (std::shared_ptr<CloneTaskInfo> task) {
                 task->GetCloneInfo().SetStatus(CloneStatus::done);
+                task->GetClosure()->Run();
                                 cond1.Signal();
                             }));
 

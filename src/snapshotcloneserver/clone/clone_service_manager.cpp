@@ -42,7 +42,12 @@ int CloneServiceManager::CloneFile(const UUID &source,
     bool lazyFlag,
     std::shared_ptr<CloneClosure> closure,
     TaskIdType *taskId) {
+    // 加锁防止并发
+    NameLockGuard lockDestFileGuard(*destFileLock_, destination);
     brpc::ClosureGuard guard(closure.get());
+    closure->SetDestFileLock(destFileLock_);
+    closure->SetDestFileName(destination);
+    lockDestFileGuard.Release();
     CloneInfo cloneInfo;
     int ret = cloneCore_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
@@ -81,7 +86,12 @@ int CloneServiceManager::RecoverFile(const UUID &source,
     bool lazyFlag,
     std::shared_ptr<CloneClosure> closure,
     TaskIdType *taskId) {
+    // 加锁防止并发
+    NameLockGuard lockDestFileGuard(*destFileLock_, destination);
     brpc::ClosureGuard guard(closure.get());
+    closure->SetDestFileLock(destFileLock_);
+    closure->SetDestFileName(destination);
+    lockDestFileGuard.Release();
     CloneInfo cloneInfo;
     int ret = cloneCore_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
@@ -404,6 +414,12 @@ int CloneServiceManager::RecoverCloneTaskInternal(const CloneInfo &cloneInfo) {
             }
         // 否则push到stage1Pool
         } else {
+            // stage1的task包含了异步的请求的返回，需要加锁
+            std::string destination = cloneInfo.GetDest();
+            NameLockGuard lockDestFileGuard(*destFileLock_, destination);
+            closure->SetDestFileLock(destFileLock_);
+            closure->SetDestFileName(destination);
+            lockDestFileGuard.Release();
             ret = cloneTaskMgr_->PushStage1Task(task);
             if (ret < 0) {
                 LOG(ERROR) << "CloneTaskMgr Push Stage1 Task error"

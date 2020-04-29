@@ -11,13 +11,16 @@
 
 #include <brpc/server.h>
 #include <string>
+#include <memory>
 
 #include "proto/snapshotcloneserver.pb.h"
 #include "src/snapshotcloneserver/common/define.h"
 #include "json/json.h"
+#include "src/common/concurrent/name_lock.h"
 
 using ::google::protobuf::RpcController;
 using ::google::protobuf::Closure;
+using ::curve::common::NameLockGuard;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -56,6 +59,14 @@ class CloneClosure : public Closure {
         return retCode_;
     }
 
+    void SetDestFileLock(std::shared_ptr<NameLock> lock) {
+        lock_ = lock;
+    }
+
+    void SetDestFileName(const std::string &destFileName) {
+        destFileName_ = destFileName;
+    }
+
     void Run() {
         if (done_ != nullptr && bcntl_ != nullptr) {
             brpc::ClosureGuard done_guard(done_);
@@ -85,11 +96,15 @@ class CloneClosure : public Closure {
                       << ", context = " << bcntl_->response_attachment();
             done_ = nullptr;
             bcntl_ = nullptr;
-            return;
+        }
+        if (lock_ != nullptr) {
+            lock_->Unlock(destFileName_);
         }
     }
 
  private:
+    std::shared_ptr<NameLock> lock_;
+    std::string destFileName_;
     brpc::Controller *bcntl_;
     Closure* done_;
     UUID requestId_;
