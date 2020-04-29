@@ -546,9 +546,6 @@ class CloneCoreImpl : public CloneCore {
     std::shared_ptr<SnapshotReference> snapshotRef_;
     std::shared_ptr<CloneReference> cloneRef_;
 
-    // 锁住克隆/恢复的文件名，防止并发克隆或恢复
-    NameLock destFileLock_;
-
     // clone chunk分片大小
     uint64_t cloneChunkSplitSize_;
     // 克隆临时目录
