@@ -116,13 +116,14 @@ static void DeleteChunkSnapshotFunc(::google::protobuf::RpcController *controlle
     }
 }
 
-static void CreateCloneChunkFunc(::google::protobuf::RpcController *controller,      //NOLINT
-                                  const ::curve::chunkserver::ChunkRequest *request,    //NOLINT
-                                  ::curve::chunkserver::ChunkResponse *response,
-                                  google::protobuf::Closure *done) {
+static void CreateCloneChunkFunc(
+    ::google::protobuf::RpcController* controller,
+    const ::curve::chunkserver::ChunkRequest* request,
+    ::curve::chunkserver::ChunkResponse* response,
+    google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     if (0 != gReadCntlFailedCode) {
-        brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
+        brpc::Controller* cntl = dynamic_cast<brpc::Controller*>(controller);
         cntl->SetFailed(-1, "create clone chunk controller error");
     }
 }
@@ -198,7 +199,7 @@ TEST_F(CopysetClientTest, normal_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     // write success
@@ -229,7 +230,7 @@ TEST_F(CopysetClientTest, normal_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, reqDone);
+                                 buff1, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -264,7 +265,7 @@ TEST_F(CopysetClientTest, normal_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, reqDone);
+                                 buff1, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -302,7 +303,7 @@ TEST_F(CopysetClientTest, normal_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, reqDone);
+                                 buff1, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -336,7 +337,7 @@ TEST_F(CopysetClientTest, normal_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -371,7 +372,7 @@ TEST_F(CopysetClientTest, normal_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -409,7 +410,7 @@ TEST_F(CopysetClientTest, normal_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -474,7 +475,7 @@ TEST_F(CopysetClientTest, write_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* 非法参数 */
@@ -505,7 +506,7 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, reqDone);
+                                 buff1, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
@@ -538,7 +539,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(3)
             .WillRepeatedly(Invoke(WriteChunkFunc));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, reqDone);
+                                 buff1, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
 
@@ -578,7 +579,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(3)
             .WillRepeatedly(Invoke(WriteChunkFunc));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, reqDone);
+                                 buff1, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
 
@@ -623,7 +624,7 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, reqDone);
+                                 buff1, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD,
                  reqDone->GetErrorCode());
@@ -661,7 +662,7 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, reqDone);
+                                 buff1, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                  reqDone->GetErrorCode());
@@ -671,7 +672,6 @@ TEST_F(CopysetClientTest, write_error_test) {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->writeBuffer_ = buff1;
         reqCtx->offset_ = 0;
@@ -703,10 +703,12 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, reqDone);
+                                 buff1, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
+
+        ASSERT_EQ(1, fm.writeRPC.redirectQps.count.get_value());
     }
     /* 不是 leader，没有返回 leader，刷新 meta cache 成功 */
     {
@@ -745,8 +747,9 @@ TEST_F(CopysetClientTest, write_error_test) {
                             Invoke(WriteChunkFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(WriteChunkFunc)));
+
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, reqDone);
+                                 buff1, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -789,7 +792,7 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, reqDone);
+                                 buff1, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -807,6 +810,7 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        FileMetric fm("test");
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -824,14 +828,17 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
                             SetArgPointee<3>(leaderAdder1),
                             Return(0)))
-            .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
-                            SetArgPointee<3>(leaderAdder2),
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1),
                             Return(0)))
-            .WillOnce(DoAll(SetArgPointee<2>(leaderId3),
-                            SetArgPointee<3>(leaderAdder3),
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1),
                             Return(0)));
-        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _, _)).Times(3)
-            .WillRepeatedly(Return(0));
+        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(leaderId1),
+                      Return(0)));
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(3)
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(WriteChunkFunc)))
@@ -839,11 +846,18 @@ TEST_F(CopysetClientTest, write_error_test) {
                             Invoke(WriteChunkFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(WriteChunkFunc)));
+        auto startTimeUs = curve::common::TimeUtility::GetTimeofDayUs();
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, reqDone);
+                                 buff1, offset, len, {}, reqDone);
         cond.Wait();
+        auto elpased = curve::common::TimeUtility::GetTimeofDayUs()
+                     - startTimeUs;
+        // chunkserverOPRetryIntervalUS = 5000
+        // 每次redirect睡眠500us，共重试3次，所以总共耗费时间大于1500us
+        ASSERT_GE(elpased, 1500);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
+        ASSERT_EQ(3, fm.writeRPC.redirectQps.count.get_value());
     }
     /* copyset 不存在，更新 leader 依然失败 */
     {
@@ -898,7 +912,7 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, reqDone);
+                                 buff1, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
@@ -942,7 +956,7 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, reqDone);
+                                 buff1, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -1008,7 +1022,7 @@ TEST_F(CopysetClientTest, write_failed_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* controller set timeout */
@@ -1042,7 +1056,7 @@ TEST_F(CopysetClientTest, write_failed_test) {
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(50)
             .WillRepeatedly(Invoke(WriteChunkFunc));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, reqDone);
+                                 buff1, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
 
@@ -1086,7 +1100,7 @@ TEST_F(CopysetClientTest, write_failed_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, reqDone);
+                                 buff1, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD,
                  reqDone->GetErrorCode());
@@ -1159,7 +1173,7 @@ TEST_F(CopysetClientTest, read_failed_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* controller set timeout */
@@ -1192,7 +1206,7 @@ TEST_F(CopysetClientTest, read_failed_test) {
         EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(50)
             .WillRepeatedly(Invoke(ReadChunkFunc));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
 
@@ -1239,7 +1253,7 @@ TEST_F(CopysetClientTest, read_failed_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD,
                   reqDone->GetErrorCode());
@@ -1311,7 +1325,7 @@ TEST_F(CopysetClientTest, read_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* 非法参数 */
@@ -1341,7 +1355,7 @@ TEST_F(CopysetClientTest, read_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
@@ -1373,7 +1387,7 @@ TEST_F(CopysetClientTest, read_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
@@ -1405,7 +1419,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(3)
             .WillRepeatedly(Invoke(ReadChunkFunc));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
 
@@ -1445,7 +1459,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(3)
             .WillRepeatedly(Invoke(ReadChunkFunc));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
 
@@ -1491,7 +1505,7 @@ TEST_F(CopysetClientTest, read_error_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD,
                   reqDone->GetErrorCode());
@@ -1528,7 +1542,7 @@ TEST_F(CopysetClientTest, read_error_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   reqDone->GetErrorCode());
@@ -1570,7 +1584,7 @@ TEST_F(CopysetClientTest, read_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -1613,7 +1627,7 @@ TEST_F(CopysetClientTest, read_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -1656,7 +1670,7 @@ TEST_F(CopysetClientTest, read_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -1707,7 +1721,7 @@ TEST_F(CopysetClientTest, read_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
@@ -1765,7 +1779,7 @@ TEST_F(CopysetClientTest, read_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
@@ -1809,7 +1823,7 @@ TEST_F(CopysetClientTest, read_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, 0, reqDone);
+                                offset, len, 0, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -1868,7 +1882,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* 非法参数 */
@@ -2369,7 +2383,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* 非法参数 */
@@ -2778,7 +2792,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 /**
  * create clone chunk error testing
  */
-TEST_F(CopysetClientTest, create_clone_error_test) {
+TEST_F(CopysetClientTest, create_s3_clone_error_test) {
     MockChunkServiceImpl mockChunkService;
     ASSERT_EQ(server_->AddService(&mockChunkService,
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
@@ -2818,7 +2832,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* 非法参数 */
@@ -2879,7 +2893,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
         ASSERT_NE(0, reqDone->GetErrorCode());
         gReadCntlFailedCode = 0;
     }
-    /* 其他错误 */
+    // /* 其他错误 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
@@ -3252,7 +3266,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* 非法参数 */
@@ -3676,7 +3690,7 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    FileMetric_t fm("test");
+    FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     /* 非法参数 */
@@ -4142,6 +4156,257 @@ TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
 
     // 上次写请求成功
     ASSERT_EQ(true, gWriteSuccessFlag);
+}
+
+TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
+    MockChunkServiceImpl mockChunkService;
+    ASSERT_EQ(
+        server_->AddService(&mockChunkService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
+    ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
+
+    const uint64_t sleepUsBeforeRetry = 5 * 1000 * 1000;
+
+    IOSenderOption_t ioSenderOpt;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS =
+        sleepUsBeforeRetry;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 3500;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 3500000;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
+
+    RequestScheduleOption_t reqopt;
+    reqopt.ioSenderOpt = ioSenderOpt;
+
+    CopysetClient copysetClient;
+    MockMetaCache mockMetaCache;
+    mockMetaCache.DelegateToFake();
+
+    RequestScheduler scheduler;
+    scheduler.Init(reqopt, &mockMetaCache);
+    scheduler.Run();
+    copysetClient.Init(&mockMetaCache, ioSenderOpt, &scheduler, nullptr);
+
+    LogicPoolID logicPoolId = 1;
+    CopysetID copysetId = 100001;
+    ChunkID chunkId = 1;
+    size_t len = 8;
+    char buff1[8 + 1] = {0};
+    off_t offset = 0;
+
+    ChunkServerID leaderId1 = 10000;
+    butil::EndPoint leaderAdder1;
+    std::string leaderStr1 = "127.0.0.1:9109";
+    butil::str2endpoint(leaderStr1.c_str(), &leaderAdder1);
+
+    ChunkServerID leaderId2 = 10001;
+    butil::EndPoint leaderAdder2;
+    std::string leaderStr2 = "127.0.0.1:9109";
+    butil::str2endpoint(leaderStr2.c_str(), &leaderAdder2);
+
+    FileMetric fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
+    {
+        // redirect情况下, chunkserver返回新的leader
+        // 重试之前不会睡眠
+        RequestContext* reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::WRITE;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+        reqCtx->writeBuffer_ = buff1;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len;
+
+        curve::common::CountDownEvent cond(1);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
+        reqCtx->done_ = reqDone;
+
+        ChunkResponse response1;
+        response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
+        response1.set_redirect(leaderStr2);
+
+        ChunkResponse response2;
+        response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(2)
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1), Return(0)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
+                            SetArgPointee<3>(leaderAdder2), Return(0)));
+        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _, _))
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId2), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response1), Invoke(WriteChunkFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
+
+        auto startUs = curve::common::TimeUtility::GetTimeofDayUs();
+        copysetClient.WriteChunk(reqCtx->idinfo_, 0, buff1, offset, len, {},
+                                 reqDone);
+        cond.Wait();
+        auto endUs = curve::common::TimeUtility::GetTimeofDayUs();
+
+        // 返回新的leader id，所以重试之前不会进行睡眠
+        ASSERT_LE(endUs - startUs, sleepUsBeforeRetry / 10);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                  reqDone->GetErrorCode());
+    }
+
+    {
+        // redirect情况下,chunkserver返回旧leader
+        // 重试之前会睡眠
+        RequestContext* reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::WRITE;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+        reqCtx->writeBuffer_ = buff1;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len;
+
+        curve::common::CountDownEvent cond(1);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
+        reqCtx->done_ = reqDone;
+
+        ChunkResponse response1;
+        response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
+        response1.set_redirect(leaderStr2);
+
+        ChunkResponse response2;
+        response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(2)
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1), Return(0)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
+                            SetArgPointee<3>(leaderAdder2), Return(0)));
+        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _, _))
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response1), Invoke(WriteChunkFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
+        auto startUs = curve::common::TimeUtility::GetTimeofDayUs();
+        copysetClient.WriteChunk(reqCtx->idinfo_, 0, buff1, offset, len, {},
+                                 reqDone);
+        cond.Wait();
+        auto endUs = curve::common::TimeUtility::GetTimeofDayUs();
+
+        // 返回同样的leader id，重试之前会进行睡眠
+        ASSERT_GE(endUs - startUs, sleepUsBeforeRetry / 10);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                  reqDone->GetErrorCode());
+    }
+
+    {
+        // redirect情况下,chunkserver未返回leader
+        // 主动refresh获取到新leader
+        RequestContext* reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::WRITE;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+        reqCtx->writeBuffer_ = buff1;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len;
+
+        curve::common::CountDownEvent cond(1);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
+        reqCtx->done_ = reqDone;
+
+        ChunkResponse response1;
+        response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
+
+        ChunkResponse response2;
+        response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1), Return(0)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
+                            SetArgPointee<3>(leaderAdder2), Return(0)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
+                            SetArgPointee<3>(leaderAdder2), Return(0)));
+        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _, _)).Times(0);
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response1), Invoke(WriteChunkFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
+        auto startUs = curve::common::TimeUtility::GetTimeofDayUs();
+        copysetClient.WriteChunk(reqCtx->idinfo_, 0, buff1, offset, len, {},
+                                 reqDone);
+        cond.Wait();
+        auto endUs = curve::common::TimeUtility::GetTimeofDayUs();
+
+        // 返回新的leader id，所以重试之前不会进行睡眠
+        ASSERT_LE(endUs - startUs, sleepUsBeforeRetry / 10);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                  reqDone->GetErrorCode());
+    }
+
+    {
+        // redirect情况下,chunkserver未返回leader
+        // 主动refresh获取到旧leader
+        RequestContext* reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::WRITE;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+        reqCtx->writeBuffer_ = buff1;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len;
+
+        curve::common::CountDownEvent cond(1);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
+        reqCtx->done_ = reqDone;
+
+        ChunkResponse response1;
+        response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
+
+        ChunkResponse response2;
+        response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1), Return(0)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1), Return(0)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
+                            SetArgPointee<3>(leaderAdder2), Return(0)));
+        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _, _)).Times(0);
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response1), Invoke(WriteChunkFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
+        auto startUs = curve::common::TimeUtility::GetTimeofDayUs();
+        copysetClient.WriteChunk(reqCtx->idinfo_, 0, buff1, offset, len, {},
+                                 reqDone);
+        cond.Wait();
+        auto endUs = curve::common::TimeUtility::GetTimeofDayUs();
+
+        // 返回新的leader id，所以重试之前会进行睡眠
+        ASSERT_GE(endUs - startUs, sleepUsBeforeRetry / 10);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                  reqDone->GetErrorCode());
+    }
+    scheduler.Fini();
 }
 
 }   // namespace client

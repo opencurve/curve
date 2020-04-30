@@ -172,8 +172,9 @@ class MockCurveFsClient : public CurveFsClient {
         int(const ChunkIDInfo &cidinfo,
         ChunkInfoDetail *chunkInfo));
 
-    MOCK_METHOD6(CreateCloneFile,
-        int(const std::string &filename,
+    MOCK_METHOD7(CreateCloneFile,
+        int(const std::string &source,
+        const std::string &filename,
         const std::string &user,
         uint64_t size,
         uint64_t sn,

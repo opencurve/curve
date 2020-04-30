@@ -55,7 +55,7 @@ RequestContext* RequestClosure::GetReqCtx() {
     return reqCtx_;
 }
 
-void RequestClosure::SetFileMetric(FileMetric_t* fm) {
+void RequestClosure::SetFileMetric(FileMetric* fm) {
     metric_ = fm;
 }
 
@@ -63,7 +63,7 @@ void RequestClosure::SetIOManager(IOManager* ioManager) {
     ioManager_ = ioManager;
 }
 
-FileMetric_t* RequestClosure::GetMetric() {
+FileMetric* RequestClosure::GetMetric() {
     return metric_;
 }
 

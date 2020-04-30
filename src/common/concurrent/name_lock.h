@@ -70,17 +70,25 @@ class NameLockGuard : public Uncopyable {
  public:
     NameLockGuard(NameLock &lock, const std::string &lockStr) :  //NOLINT
         lock_(lock),
-        lockStr_(lockStr) {
+        lockStr_(lockStr),
+        release_(false) {
         lock_.Lock(lockStr_);
     }
 
     ~NameLockGuard() {
-        lock_.Unlock(lockStr_);
+        if (!release_) {
+            lock_.Unlock(lockStr_);
+        }
+    }
+
+    void Release() {
+        release_ = true;
     }
 
  private:
     NameLock &lock_;
     std::string lockStr_;
+    bool release_;
 };
 
 

@@ -44,7 +44,7 @@ using curve::client::CopysetInfo_t;
 using curve::client::MetaCache;
 using curve::client::IOManager4Chunk;
 using curve::client::LogicalPoolCopysetIDInfo;
-using curve::client::FileMetric_t;
+using curve::client::FileMetric;
 
 /*
 void sessioncallback(CurveAioContext* aioctx) {

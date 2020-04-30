@@ -304,6 +304,7 @@ class CurveFS {
                               const uint64_t date,
                               const std::string &signature,
                               const std::string &clientIP,
+                              uint32_t clientPort,
                               const std::string &clientVersion,
                               FileInfo  *fileInfo);
 
@@ -315,6 +316,8 @@ class CurveFS {
      * @param length 克隆文件的长度
      * @param seq 版本号
      * @param ChunkSizeType 创建克隆文件的chunk大小
+     * @param cloneSource 克隆源文件地址，当前只支持curvefs
+     * @param cloneLength 克隆源文件长度
      * @param[out] fileInfo 创建成功克隆文件的fileInfo
      * @return 成功返回StatusCode:kOK
      */
@@ -324,7 +327,9 @@ class CurveFS {
                             uint64_t length,
                             FileSeqType seq,
                             ChunkSizeType chunksize,
-                            FileInfo *fileInfo);
+                            FileInfo *fileInfo,
+                            const std::string & cloneSource = "",
+                            uint64_t cloneLength = 0);
 
     /**
      * @brief 设置克隆文件的状态
@@ -408,12 +413,23 @@ class CurveFS {
     StatusCode RegistClient(const std::string &ip, uint32_t port);
 
     /**
-     *  @brief 获取所有client的信息
+     *  @brief 获取fileRecord中的client的信息
+     *  @param listAllClient 是否列出所有client信息
      *  @param[out]:  client信息的列表
      *  @return 是否成功，成功返回StatusCode::kOK
      *          失败返回StatusCode::KInternalError
      */
-    StatusCode ListClient(std::vector<ClientInfo>* clientInfos);
+    StatusCode ListClient(bool listAllClient,
+                          std::vector<ClientInfo>* clientInfos);
+
+    /**
+     * @brief 查询文件的挂载点
+     * @param clientInfo 文件被挂载的节点信息
+     * @return 是否成功，成功返回StatusCode::kOK
+     *         失败返回 StatusCode::kFileNotExists
+     */
+    StatusCode FindFileMountPoint(const std::string& fileName,
+                                  ClientInfo* clientInfo);
 
     /**
      *  @brief 获取已经open的文件个数

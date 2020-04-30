@@ -42,6 +42,12 @@ class RequestSenderManager : public Uncopyable {
                                 const butil::EndPoint &leaderAddr,
                                 IOSenderOption_t senderopt);
 
+    /**
+     * @brief 如果csId对应的RequestSender不健康，就进行重置
+     * @param csId chunkserver id
+     */
+    void ResetSenderIfNotHealth(const ChunkServerID& csId);
+
  private:
     // 互斥锁，保护senderPool_
     mutable std::mutex lock_;

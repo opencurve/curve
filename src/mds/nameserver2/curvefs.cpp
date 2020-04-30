@@ -9,6 +9,8 @@
 #include <glog/logging.h>
 #include <memory>
 #include <chrono>
+#include <set>
+#include <utility>
 #include "src/common/string_util.h"
 #include "src/common/encode.h"
 #include "src/common/timeutility.h"
@@ -208,6 +210,14 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
             LOG(ERROR) << "CreateFile file length > maxFileLength, fileName = "
                        << fileName << ", length = " << length
                        << ", maxFileLength = " << kMaxFileLength;
+            return StatusCode::kFileLengthNotSupported;
+        }
+
+        if (length % DefaultSegmentSize != 0) {
+            LOG(ERROR) << "Create file length not align to segment size, "
+                       << "fileName = " << fileName
+                       << ", length = " << length
+                       << ", segment size = " << DefaultSegmentSize;
             return StatusCode::kFileLengthNotSupported;
         }
     }
@@ -1254,6 +1264,7 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
                             const uint64_t date,
                             const std::string &signature,
                             const std::string &clientIP,
+                            uint32_t clientPort,
                             const std::string &clientVersion,
                             FileInfo  *fileInfo) {
     // 检查文件是否存在
@@ -1276,13 +1287,15 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
                    << ", date = " << date
                    << ", signature = " << signature
                    << ", clientIP = " << clientIP
+                   << ", clientPort = " << clientPort
                    << ", errCode = " << ret
                    << ", errName = " << StatusCode_Name(ret);
         return  ret;
     }
 
     // 更新文件记录
-    fileRecordManager_->UpdateFileRecord(fileName, clientVersion);
+    fileRecordManager_->UpdateFileRecord(fileName, clientVersion, clientIP,
+                                         clientPort);
 
     return StatusCode::kOK;
 }
@@ -1293,7 +1306,9 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
                             uint64_t length,
                             FileSeqType seq,
                             ChunkSizeType chunksize,
-                            FileInfo *retFileInfo) {
+                            FileInfo *retFileInfo,
+                            const std::string & cloneSource,
+                            uint64_t cloneLength) {
     // 检查基本参数
     if (filetype != FileType::INODE_PAGEFILE) {
         LOG(WARNING) << "CreateCloneFile err, filename = " << fileName
@@ -1349,6 +1364,8 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
 
         fileInfo.set_seqnum(seq);
+        fileInfo.set_clonesource(cloneSource);
+        fileInfo.set_clonelength(cloneLength);
 
         fileInfo.set_filestatus(FileStatus::kFileCloning);
 
@@ -1702,21 +1719,48 @@ StatusCode CurveFS::RegistClient(const std::string &clientIp,
     return StatusCode::kOK;
 }
 
-StatusCode CurveFS::ListClient(std::vector<ClientInfo>* clientInfos) {
-    std::vector<ClientInfoRepoItem> items;
-    auto res = repo_->LoadClientInfoRepoItems(&items);
-    if (res != repo::OperationOK) {
-        LOG(ERROR) << "ListClientsIpPort query client info from repo fail";
-        return StatusCode::KInternalError;
+StatusCode CurveFS::ListClient(bool listAllClient,
+                               std::vector<ClientInfo>* clientInfos) {
+    std::set<ClientIpPortType> allClients = fileRecordManager_->ListAllClient();
+
+    if (listAllClient) {
+        // 获取mysql中记录的client节点信息
+        std::vector<ClientInfoRepoItem> items;
+        auto res = repo_->LoadClientInfoRepoItems(&items);
+        if (res != repo::OperationOK) {
+            LOG(ERROR) << "ListClientsIpPort query client info from repo fail";
+            return StatusCode::KInternalError;
+        }
+
+        for (auto& item : items) {
+            allClients.emplace(item.GetClientIp(), item.GetClientPort());
+        }
     }
 
-    for (auto& item : items) {
-        ClientInfo clientInfo;
-        clientInfo.set_ip(item.GetClientIp());
-        clientInfo.set_port(item.GetClientPort());
-        clientInfos->emplace_back(clientInfo);
+    for (const auto& c : allClients) {
+        ClientInfo info;
+        info.set_ip(c.first);
+        info.set_port(c.second);
+
+        clientInfos->emplace_back(std::move(info));
     }
+
     return StatusCode::kOK;
+}
+
+StatusCode CurveFS::FindFileMountPoint(
+    const std::string& fileName,
+    ClientInfo* clientInfo) {
+    ClientIpPortType clientIpPort;
+    auto res = fileRecordManager_->FindFileMountPoint(fileName, &clientIpPort);
+
+    if (res) {
+        clientInfo->set_ip(clientIpPort.first);
+        clientInfo->set_port(clientIpPort.second);
+        return StatusCode::kOK;
+    }
+
+    return StatusCode::kFileNotExists;
 }
 
 uint64_t CurveFS::GetOpenFileNum() {

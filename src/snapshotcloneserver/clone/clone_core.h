@@ -170,6 +170,8 @@ struct CloneChunkInfo {
     std::string location;
     // 该chunk的版本号
     uint64_t seqNum;
+    // chunk是否需要recover
+    bool needRecover;
 };
 
 // 克隆/恢复所需segment信息，key是ChunkIndex In Segment, value是chunk信息
@@ -351,7 +353,7 @@ class CloneCoreImpl : public CloneCore {
     int CreateCloneChunk(
         std::shared_ptr<CloneTaskInfo> task,
         const FInfo &fInfo,
-        const CloneSegmentMap &segInfos);
+        CloneSegmentMap *segInfos);
 
     /**
      * @brief 开始CreateCloneChunk的异步请求
@@ -543,9 +545,6 @@ class CloneCoreImpl : public CloneCore {
     std::shared_ptr<SnapshotDataStore> dataStore_;
     std::shared_ptr<SnapshotReference> snapshotRef_;
     std::shared_ptr<CloneReference> cloneRef_;
-
-    // 锁住克隆/恢复的文件名，防止并发克隆或恢复
-    NameLock destFileLock_;
 
     // clone chunk分片大小
     uint64_t cloneChunkSplitSize_;

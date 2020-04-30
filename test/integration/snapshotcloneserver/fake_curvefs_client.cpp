@@ -150,6 +150,7 @@ int FakeCurveFsClient::GetChunkInfo(const ChunkIDInfo &cidinfo,
 }
 
 int FakeCurveFsClient::CreateCloneFile(
+    const std::string &source,
     const std::string &filename,
     const std::string &user,
     uint64_t size,

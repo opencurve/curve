@@ -150,11 +150,11 @@ class MockChunkServiceImpl : public ChunkService {
         const ::curve::chunkserver::GetChunkInfoRequest *request,
         ::curve::chunkserver::GetChunkInfoResponse *response,
         google::protobuf::Closure *done));
-    MOCK_METHOD4(CreateCloneChunk, void(::google::protobuf::RpcController
-        *controller,
-        const ::curve::chunkserver::ChunkRequest *request,
-        ::curve::chunkserver::ChunkResponse *response,
-        google::protobuf::Closure *done));
+    MOCK_METHOD4(CreateCloneChunk,
+                 void(::google::protobuf::RpcController* controller,
+                      const ::curve::chunkserver::ChunkRequest* request,
+                      ::curve::chunkserver::ChunkResponse* response,
+                      google::protobuf::Closure* done));
     MOCK_METHOD4(RecoverChunk, void(::google::protobuf::RpcController
         *controller,
         const ::curve::chunkserver::ChunkRequest *request,

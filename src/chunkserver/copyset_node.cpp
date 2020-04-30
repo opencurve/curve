@@ -94,6 +94,7 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     dsOptions.baseDir = chunkDataApath_;
     dsOptions.chunkSize = options.maxChunkSize;
     dsOptions.pageSize = options.pageSize;
+    dsOptions.locationLimit = options.locationLimit;
     dataStore_ = std::make_shared<CSDataStore>(options.localFileSystem,
                                                options.chunkfilePool,
                                                dsOptions);

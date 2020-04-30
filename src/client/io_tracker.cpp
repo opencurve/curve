@@ -26,7 +26,7 @@ std::atomic<uint64_t> IOTracker::tracekerID_(1);
 IOTracker::IOTracker(IOManager* iomanager,
                         MetaCache* mc,
                         RequestScheduler* scheduler,
-                        FileMetric_t* clientMetric):
+                        FileMetric* clientMetric):
                         mc_(mc),
                         iomanager_(iomanager),
                         scheduler_(scheduler),
@@ -186,9 +186,10 @@ void IOTracker::GetChunkInfo(const ChunkIDInfo &cinfo,
     }
 }
 
-void IOTracker::CreateCloneChunk(const std::string &location,
-    const ChunkIDInfo &cinfo, uint64_t sn, uint64_t correntSn,
-    uint64_t chunkSize, SnapCloneClosure* scc) {
+void IOTracker::CreateCloneChunk(const std::string& location,
+                                 const ChunkIDInfo& cinfo, uint64_t sn,
+                                 uint64_t correntSn, uint64_t chunkSize,
+                                 SnapCloneClosure* scc) {
     type_ = OpType::CREATE_CLONE;
     scc_ = scc;
 
@@ -218,10 +219,10 @@ void IOTracker::CreateCloneChunk(const std::string &location,
     }
 }
 
-void IOTracker::RecoverChunk(const ChunkIDInfo &cinfo,
-    uint64_t offset, uint64_t len, SnapCloneClosure* scc) {
+void IOTracker::RecoverChunk(const ChunkIDInfo& cinfo, uint64_t offset,
+                             uint64_t len, SnapCloneClosure* scc) {
     type_ = OpType::RECOVER_CHUNK;
-    scc_  = scc;
+    scc_ = scc;
 
     int ret = -1;
     do {
@@ -343,6 +344,9 @@ void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
             break;
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_NOSPACE:
             *errout = LIBCURVE_ERROR::NO_SPACE;
+            break;
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_EXIST:
+            *errout = LIBCURVE_ERROR::EXISTS;
             break;
         default:
             *errout = LIBCURVE_ERROR::FAILED;

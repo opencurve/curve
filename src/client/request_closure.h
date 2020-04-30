@@ -82,12 +82,12 @@ class RequestClosure : public ::google::protobuf::Closure {
     /**
      * 设置metric
      */
-    void SetFileMetric(FileMetric_t* fm);
+    void SetFileMetric(FileMetric* fm);
 
     /**
      * 获取metric指针
      */
-    FileMetric_t* GetMetric();
+    FileMetric* GetMetric();
 
     /**
      * 设置rpc发送起始时间，用于RPC延时统计
@@ -148,7 +148,7 @@ class RequestClosure : public ::google::protobuf::Closure {
     RequestContext* reqCtx_;
 
     // metric信息
-    FileMetric_t* metric_;
+    FileMetric* metric_;
 
     // 起始时间
     uint64_t starttime_;

@@ -24,6 +24,25 @@ using ::curve::mds::topology::UNINTIALIZE_ID;
 namespace curve {
 namespace mds {
 namespace schedule {
+
+ScheduleOption GetScheduleOption() {
+    ScheduleOption scheduleOption;
+    scheduleOption.enableCopysetScheduler = false;
+    scheduleOption.enableLeaderScheduler = false;
+    scheduleOption.enableRecoverScheduler = false;
+    scheduleOption.enableReplicaScheduler = false;
+    scheduleOption.copysetSchedulerIntervalSec = 0;
+    scheduleOption.leaderSchedulerIntervalSec = 0;
+    scheduleOption.recoverSchedulerIntervalSec = 0;
+    scheduleOption.replicaSchedulerIntervalSec = 0;
+    scheduleOption.operatorConcurrent = 2;
+    scheduleOption.transferLeaderTimeLimitSec = 1;
+    scheduleOption.addPeerTimeLimitSec = 1;
+    scheduleOption.removePeerTimeLimitSec = 1;
+
+    return scheduleOption;
+}
+
 TEST(CoordinatorTest, test_AddPeer_CopySetHeartbeat) {
     auto topo = std::make_shared<MockTopology>();
     auto metric = std::make_shared<ScheduleMetrics>(topo);
@@ -435,19 +454,7 @@ TEST(CoordinatorTest, test_RapidLeaderSchedule) {
     auto topoAdapter = std::make_shared<MockTopoAdapter>();
     auto coordinator = std::make_shared<Coordinator>(topoAdapter);
 
-    ScheduleOption scheduleOption;
-    scheduleOption.enableCopysetScheduler = true;
-    scheduleOption.enableLeaderScheduler = true;
-    scheduleOption.enableRecoverScheduler = true;
-    scheduleOption.enableReplicaScheduler = true;
-    scheduleOption.copysetSchedulerIntervalSec = 0;
-    scheduleOption.leaderSchedulerIntervalSec = 0;
-    scheduleOption.recoverSchedulerIntervalSec = 0;
-    scheduleOption.replicaSchedulerIntervalSec = 0;
-    scheduleOption.operatorConcurrent = 2;
-    scheduleOption.transferLeaderTimeLimitSec = 1;
-    scheduleOption.addPeerTimeLimitSec = 1;
-    scheduleOption.removePeerTimeLimitSec = 1;
+    ScheduleOption scheduleOption = GetScheduleOption();
     coordinator->InitScheduler(scheduleOption, metric);
 
     EXPECT_CALL(*topoAdapter, GetLogicalpools())
@@ -455,6 +462,128 @@ TEST(CoordinatorTest, test_RapidLeaderSchedule) {
     ASSERT_EQ(kScheduleErrCodeInvalidLogicalPool,
         coordinator->RapidLeaderSchedule(2));
 }
+
+TEST(CoordinatorTest, test_QueryChunkServerRecoverStatus) {
+    /*
+    场景：
+    chunkserver1: offline 有恢复op
+    chunkserver2: offline 没有恢复op,没有candidate,有其他op
+    chunkserver3: offline 有candidate
+    chunkserver4: online
+    chunkserver4: online
+    */
+    auto topo = std::make_shared<MockTopology>();
+    auto metric = std::make_shared<ScheduleMetrics>(topo);
+    auto topoAdapter = std::make_shared<MockTopoAdapter>();
+    auto coordinator = std::make_shared<Coordinator>(topoAdapter);
+
+    // 获取option
+    ScheduleOption scheduleOption = GetScheduleOption();
+    coordinator->InitScheduler(scheduleOption, metric);
+
+    // 构造chunkserver
+    std::vector<ChunkServerInfo> chunkserverInfos;
+    std::vector<PeerInfo> peerInfos;
+    for (int i = 1; i <= 6; i++) {
+        PeerInfo peer(i, i % 3 + 1, i, "192.168.0." + std::to_string(i), 9000);
+        ChunkServerInfo csInfo(
+            peer,
+            OnlineState::ONLINE,
+            DiskState::DISKNORMAL,
+            ChunkServerStatus::READWRITE,
+            1, 10, 1, ChunkServerStatisticInfo{});
+        if (i <= 3) {
+            csInfo.state = OnlineState::OFFLINE;
+        }
+
+        chunkserverInfos.emplace_back(csInfo);
+        peerInfos.emplace_back(peer);
+    }
+
+    // 构造op
+    Operator opForCopySet1(
+        1, CopySetKey{1, 1},
+        OperatorPriority::HighPriority,
+        steady_clock::now(),
+        std::make_shared<ChangePeer>(1, 4));
+    ASSERT_TRUE(coordinator->GetOpController()->AddOperator(opForCopySet1));
+
+    Operator opForCopySet2(
+        2, CopySetKey{1, 2},
+        OperatorPriority::NormalPriority,
+        steady_clock::now(),
+        std::make_shared<TransferLeader>(2, 4));
+    ASSERT_TRUE(coordinator->GetOpController()->AddOperator(opForCopySet2));
+
+    // 构造copyset
+    std::vector<PeerInfo> peersFor2({peerInfos[1], peerInfos[3], peerInfos[4]});
+    CopySetInfo copyset2(
+        CopySetKey{1, 2}, 1, 4,
+        peersFor2,
+        ConfigChangeInfo{},
+        CopysetStatistics{});
+
+    std::vector<PeerInfo> peersFor3({peerInfos[2], peerInfos[3], peerInfos[4]});
+    ConfigChangeInfo configChangeInfoForCS3;
+    auto replica = new ::curve::common::Peer();
+    replica->set_id(6);
+    replica->set_address("192.168.0.6:9000:0");
+    configChangeInfoForCS3.set_allocated_peer(replica);
+    configChangeInfoForCS3.set_type(ConfigChangeType::CHANGE_PEER);
+    configChangeInfoForCS3.set_finished(true);
+    CopySetInfo copyset3(
+        CopySetKey{1, 3}, 1, 4,
+        peersFor3,
+        configChangeInfoForCS3,
+        CopysetStatistics{});
+
+    // 1. 查询所有chunkserver
+    {
+        EXPECT_CALL(*topoAdapter, GetChunkServerInfos())
+            .WillOnce(Return(chunkserverInfos));
+        EXPECT_CALL(*topoAdapter, GetCopySetInfosInChunkServer(2))
+            .WillOnce(Return(std::vector<CopySetInfo>{copyset2}));
+        EXPECT_CALL(*topoAdapter, GetCopySetInfosInChunkServer(3))
+            .WillOnce(Return(std::vector<CopySetInfo>{copyset3}));
+
+        std::map<ChunkServerIdType, bool> statusMap;
+        ASSERT_EQ(kScheduleErrCodeSuccess,
+            coordinator->QueryChunkServerRecoverStatus(
+            std::vector<ChunkServerIdType>{}, &statusMap));
+        ASSERT_EQ(6, statusMap.size());
+        ASSERT_TRUE(statusMap[1]);
+        ASSERT_FALSE(statusMap[2]);
+        ASSERT_TRUE(statusMap[3]);
+        ASSERT_FALSE(statusMap[4]);
+        ASSERT_FALSE(statusMap[5]);
+        ASSERT_FALSE(statusMap[6]);
+    }
+
+    // 2. 查询指定chunkserver, 但chunkserver不存在
+    {
+        EXPECT_CALL(*topoAdapter, GetChunkServerInfo(7, _))
+            .WillOnce(Return(false));
+
+        std::map<ChunkServerIdType, bool> statusMap;
+        ASSERT_EQ(kScheduleErrInvalidQueryChunkserverID,
+            coordinator->QueryChunkServerRecoverStatus(
+            std::vector<ChunkServerIdType>{7}, &statusMap));
+    }
+
+    // 3. 查询指定chunkserver, 不在恢复中
+    {
+        EXPECT_CALL(*topoAdapter, GetChunkServerInfo(6, _))
+            .WillOnce(DoAll(SetArgPointee<1>(chunkserverInfos[5]),
+                            Return(true)));
+        std::map<ChunkServerIdType, bool> statusMap;
+        ASSERT_EQ(kScheduleErrCodeSuccess,
+            coordinator->QueryChunkServerRecoverStatus(
+            std::vector<ChunkServerIdType>{6}, &statusMap));
+        ASSERT_EQ(1, statusMap.size());
+        ASSERT_FALSE(statusMap[6]);
+    }
+}
+
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

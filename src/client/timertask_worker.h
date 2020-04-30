@@ -19,9 +19,9 @@
 #include "src/common/timeutility.h"
 
 using curve::common::TimeUtility;
-typedef std::chrono::microseconds   MicroSeconds;
-typedef std::chrono::steady_clock   SteadyClock;
-typedef std::chrono::steady_clock::time_point TimePoint;
+using MicroSeconds = std::chrono::microseconds;
+using SteadyClock = std::chrono::steady_clock;
+using TimePoint = SteadyClock::time_point;
 
 namespace curve {
 namespace client {

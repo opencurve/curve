@@ -346,6 +346,16 @@ class MDSClient {
      */
     virtual void GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus);
 
+    /**
+     *  @brief 获取指定chunkserver的恢复状态
+     *  @param[in] cs 需要查询的chunkserver列表
+     *  @param[out] statusMap 返回各chunkserver对应的恢复状态
+     *  @return 成功返回0，失败返回-1
+     */
+    int QueryChunkServerRecoverStatus(
+        const std::vector<ChunkServerIdType>& cs,
+        std::map<ChunkServerIdType, bool> *statusMap);
+
  private:
     /**
      *  @brief 切换mds
@@ -407,6 +417,7 @@ class MDSClient {
      */
     int GetListenAddrFromDummyPort(const std::string& dummyAddr,
                                    std::string* listenAddr);
+
 
     // 填充signature
     template <class T>

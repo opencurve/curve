@@ -72,9 +72,10 @@ bool CopysetClient::FetchLeader(LogicPoolID lpid, CopysetID cpid,
 // 2. clientclosure再重试逻辑里调用copyset client重试
 // 这两种状况都会调用该接口，因为对于重试的RPC有可能需要重新push到队列中
 // 非重试的RPC如果重新push到队列中会导致死锁。
-int CopysetClient::ReadChunk(const ChunkIDInfo& idinfo,
-    uint64_t sn, off_t offset, size_t length,
-    uint64_t appliedindex, google::protobuf::Closure *done) {
+int CopysetClient::ReadChunk(const ChunkIDInfo& idinfo, uint64_t sn,
+                             off_t offset, size_t length, uint64_t appliedindex,
+                             const RequestSourceInfo& sourceInfo,
+                             google::protobuf::Closure* done) {
     RequestClosure* reqclosure = static_cast<RequestClosure*>(done);
     brpc::ClosureGuard doneGuard(done);
 
@@ -110,15 +111,16 @@ int CopysetClient::ReadChunk(const ChunkIDInfo& idinfo,
     auto task = [&](Closure* done, std::shared_ptr<RequestSender> senderPtr) {
         ReadChunkClosure *readDone = new ReadChunkClosure(this, done);
         senderPtr->ReadChunk(idinfo, sn, offset, length,
-                             appliedindex, readDone);
+                             appliedindex, sourceInfo, readDone);
     };
 
     return DoRPCTask(idinfo, task, doneGuard.release());
 }
 
-int CopysetClient::WriteChunk(const ChunkIDInfo& idinfo,
-    uint64_t sn, const char *buf, off_t offset,
-    size_t length, google::protobuf::Closure *done) {
+int CopysetClient::WriteChunk(const ChunkIDInfo& idinfo, uint64_t sn,
+                              const char* buf, off_t offset, size_t length,
+                              const RequestSourceInfo& sourceInfo,
+                              google::protobuf::Closure* done) {
     std::shared_ptr<RequestSender> senderPtr = nullptr;
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
@@ -155,8 +157,9 @@ int CopysetClient::WriteChunk(const ChunkIDInfo& idinfo,
     }
 
     auto task = [&](Closure* done, std::shared_ptr<RequestSender> senderPtr) {
-        WriteChunkClosure * writeDone = new WriteChunkClosure(this, done);
-        senderPtr->WriteChunk(idinfo, sn, buf, offset, length, writeDone);
+        WriteChunkClosure* writeDone = new WriteChunkClosure(this, done);
+        senderPtr->WriteChunk(idinfo, sn, buf, offset, length, sourceInfo,
+                              writeDone);
     };
 
     return DoRPCTask(idinfo, task, doneGuard.release());
@@ -196,12 +199,12 @@ int CopysetClient::GetChunkInfo(const ChunkIDInfo& idinfo, Closure *done) {
 }
 
 int CopysetClient::CreateCloneChunk(const ChunkIDInfo& idinfo,
-    const std::string &location, uint64_t sn, uint64_t correntSn,
-    uint64_t chunkSize, Closure *done) {
-
+                                      const std::string& location, uint64_t sn,
+                                      uint64_t correntSn, uint64_t chunkSize,
+                                      Closure* done) {
     auto task = [&](Closure* done, std::shared_ptr<RequestSender> senderPtr) {
-        CreateCloneChunkClosure *createCloneDone = new CreateCloneChunkClosure(
-                                                   this, done);
+        CreateCloneChunkClosure* createCloneDone =
+            new CreateCloneChunkClosure(this, done);
         senderPtr->CreateCloneChunk(idinfo, createCloneDone, location,
                                     correntSn, sn, chunkSize);
     };
@@ -209,13 +212,14 @@ int CopysetClient::CreateCloneChunk(const ChunkIDInfo& idinfo,
     return DoRPCTask(idinfo, task, done);
 }
 
-int CopysetClient::RecoverChunk(const ChunkIDInfo& idinfo, uint64_t offset,
-    uint64_t len, Closure *done) {
-
+int CopysetClient::RecoverChunk(const ChunkIDInfo& idinfo,
+                                 uint64_t offset,
+                                uint64_t len, Closure* done) {
     auto task = [&](Closure* done, std::shared_ptr<RequestSender> senderPtr) {
-        RecoverChunkClosure* recoverChunkDone = new RecoverChunkClosure(
-                                                this, done);
-        senderPtr->RecoverChunk(idinfo, recoverChunkDone, offset, len);
+        RecoverChunkClosure* recoverChunkDone =
+            new RecoverChunkClosure(this, done);
+        senderPtr->RecoverChunk(idinfo, recoverChunkDone, offset,
+                                len);
     };
 
     return DoRPCTask(idinfo, task, done);

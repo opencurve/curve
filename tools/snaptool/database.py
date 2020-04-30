@@ -8,11 +8,12 @@ import MySQLdb
 import config
 
 def connectDB():
-    dbhost = config.get('metastore.db_address')
+    dbhost = config.get('metastore.db_host')
+    dbport = config.get('metastore.db_port')
     dbuser = config.get('metastore.db_user')
     dbpass = config.get('metastore.db_passwd')
     dbname = config.get('metastore.db_name')
-    db = MySQLdb.connect(host=dbhost, user=dbuser, passwd=dbpass, db=dbname)
+    db = MySQLdb.connect(host=dbhost, port=int(dbport), user=dbuser, passwd=dbpass, db=dbname)
     return db
 
 def queryDB(db, sql):

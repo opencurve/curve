@@ -18,7 +18,6 @@
 #include "src/client/iomanager4file.h"
 #include "src/client/request_scheduler.h"
 #include "src/client/request_sender_manager.h"
-#include "src/client/session_map.h"
 
 using curve::client::ClientConfig;
 using curve::common::TimeUtility;

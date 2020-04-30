@@ -40,14 +40,12 @@ int MDSClient::Init(const std::string& mdsAddr,
             continue;
         }
         // 寻找哪个mds存活
-        curve::mds::GetFileInfoRequest request;
-        curve::mds::GetFileInfoResponse response;
+        curve::mds::topology::ListPhysicalPoolRequest request;
+        curve::mds::topology::ListPhysicalPoolResponse response;
+        curve::mds::topology::TopologyService_Stub stub(&channel_);
         brpc::Controller cntl;
         cntl.set_timeout_ms(FLAGS_rpcTimeout);
-        request.set_filename("/");
-        FillUserInfo(&request);
-        curve::mds::CurveFSService_Stub stub(&channel_);
-        stub.GetFileInfo(&cntl, &request, &response, nullptr);
+        stub.ListPhysicalPool(&cntl, &request, &response, nullptr);
 
         if (cntl.Failed()) {
             continue;
@@ -249,7 +247,8 @@ int MDSClient::DeleteFile(const std::string& fileName, bool forcedelete) {
 
     if (response.has_statuscode() &&
                 (response.statuscode() == StatusCode::kOK ||
-                 response.statuscode() == StatusCode::kFileNotExists)) {
+                 response.statuscode() == StatusCode::kFileNotExists ||
+                 response.statuscode() == StatusCode::kFileUnderDeleting)) {
         return 0;
     }
     std::cout << "DeleteFile fail with errCode: "
@@ -862,6 +861,42 @@ int MDSClient::RapidLeaderSchedule(PoolIdType lpoolId) {
         << response.statuscode() << std::endl;
     return -1;
 }
+
+int MDSClient::QueryChunkServerRecoverStatus(
+    const std::vector<ChunkServerIdType>& cs,
+    std::map<ChunkServerIdType, bool> *statusMap) {
+    ::curve::mds::schedule::QueryChunkServerRecoverStatusRequest request;
+    ::curve::mds::schedule::QueryChunkServerRecoverStatusResponse response;
+    ::curve::mds::schedule::ScheduleService_Stub stub(&channel_);
+
+    for (auto id : cs) {
+        request.add_chunkserverid(id);
+    }
+
+    void (curve::mds::schedule::ScheduleService_Stub::*fp)(
+        google::protobuf::RpcController*,
+        const ::curve::mds::schedule::QueryChunkServerRecoverStatusRequest*,
+        ::curve::mds::schedule::QueryChunkServerRecoverStatusResponse*,
+        google::protobuf::Closure*);
+    fp = &::curve::mds::schedule::ScheduleService_Stub::QueryChunkServerRecoverStatus; // NOLINT
+    if (0 != SendRpcToMds(&request, &response, &stub, fp)) {
+        std::cout << "QueryChunkServerRecoverStatus fail" << std::endl;
+        return -1;
+    }
+
+    if (response.statuscode() ==
+        ::curve::mds::schedule::kScheduleErrCodeSuccess) {
+        for (auto it = response.recoverstatusmap().begin();
+            it != response.recoverstatusmap().end(); ++it) {
+            (*statusMap)[it->first] = it->second;
+        }
+        return 0;
+    }
+    std::cout << "QueryChunkServerRecoverStatus fail with errCode: "
+        << response.statuscode() << std::endl;
+    return -1;
+}
+
 
 template <typename T, typename Request, typename Response>
 int MDSClient::SendRpcToMds(Request* request, Response* response, T* obp,

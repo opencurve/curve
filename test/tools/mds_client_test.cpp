@@ -824,6 +824,57 @@ TEST_F(ToolMDSClientTest, GetServerOrChunkserverInCluster) {
     }
 }
 
+TEST_F(ToolMDSClientTest, RapidLeaderSchedule) {
+    curve::tool::MDSClient mdsClient;
+    ASSERT_EQ(0, mdsClient.Init(mdsAddr));
+
+    FakeScheduleService* schedule = fakemds.GetScheduleService();
+
+    // 设置QueryChunkServerRecoverStatus的返回
+    std::unique_ptr<RapidLeaderScheduleResponse> r(
+        new RapidLeaderScheduleResponse);
+    std::unique_ptr<FakeReturn> fakeRet(
+         new FakeReturn(nullptr, static_cast<void*>(r.get())));
+
+    std::map<ChunkServerIdType, bool> statusMap;
+    // 1. QueryChunkServerRecoverStatus失败的情况
+    r->set_statuscode(curve::mds::schedule::kScheduleErrCodeInvalidLogicalPool);
+    schedule->SetFakeReturn(fakeRet.get());
+    ASSERT_EQ(-1, mdsClient.RapidLeaderSchedule(1));
+
+    // 2. QueryChunkServerRecoverStatus成功的情况
+    r->set_statuscode(curve::mds::schedule::kScheduleErrCodeSuccess);
+    schedule->SetFakeReturn(fakeRet.get());
+    ASSERT_EQ(0, mdsClient.RapidLeaderSchedule(1));
+}
+
+TEST_F(ToolMDSClientTest, QueryChunkServerRecoverStatus) {
+    curve::tool::MDSClient mdsClient;
+    ASSERT_EQ(0, mdsClient.Init(mdsAddr));
+
+    FakeScheduleService* schedule = fakemds.GetScheduleService();
+
+    // 设置QueryChunkServerRecoverStatus的返回
+    std::unique_ptr<QueryChunkServerRecoverStatusResponse> r(
+        new QueryChunkServerRecoverStatusResponse);
+    std::unique_ptr<FakeReturn> fakeRet(
+         new FakeReturn(nullptr, static_cast<void*>(r.get())));
+
+    std::map<ChunkServerIdType, bool> statusMap;
+    // 1. QueryChunkServerRecoverStatus失败的情况
+    r->set_statuscode(
+        curve::mds::schedule::kScheduleErrInvalidQueryChunkserverID);
+    schedule->SetFakeReturn(fakeRet.get());
+    ASSERT_EQ(-1, mdsClient.QueryChunkServerRecoverStatus(
+        std::vector<ChunkServerIdType>{}, &statusMap));
+
+    // 2. QueryChunkServerRecoverStatus成功的情况
+    r->set_statuscode(curve::mds::schedule::kScheduleErrCodeSuccess);
+    schedule->SetFakeReturn(fakeRet.get());
+    ASSERT_EQ(0, mdsClient.QueryChunkServerRecoverStatus(
+        std::vector<ChunkServerIdType>{}, &statusMap));
+}
+
 TEST_F(ToolMDSClientTest, GetMetric) {
     curve::tool::MDSClient mdsClient;
     ASSERT_EQ(0, mdsClient.Init(mdsAddr));

@@ -1090,8 +1090,8 @@ void TestCloneCoreImpl::MockCreateCloneFileSuccess(
     std::shared_ptr<CloneTaskInfo> task) {
     FInfo fInfoOut;
     fInfoOut.id = 100;
-    EXPECT_CALL(*client_, CreateCloneFile(_, _, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<5>(fInfoOut),
+    EXPECT_CALL(*client_, CreateCloneFile(_, _, _, _, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<6>(fInfoOut),
                 Return(LIBCURVE_ERROR::OK)));
 }
 
@@ -1252,8 +1252,8 @@ void TestCloneCoreImpl::MockCreateCloneFileFail(
     std::shared_ptr<CloneTaskInfo> task) {
     FInfo fInfoOut;
     fInfoOut.id = 100;
-    EXPECT_CALL(*client_, CreateCloneFile(_, _, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<5>(fInfoOut),
+    EXPECT_CALL(*client_, CreateCloneFile(_, _, _, _, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<6>(fInfoOut),
             Return(-LIBCURVE_ERROR::FAILED)));
 }
 
