@@ -132,6 +132,8 @@ struct CreateCloneChunkContext {
     uint64_t startTime;
     // 异步请求重试总时间
     uint64_t clientAsyncMethodRetryTimeSec;
+    // chunk信息
+    struct CloneChunkInfo *cloneChunkInfo;
 };
 
 using CreateCloneChunkContextPtr = std::shared_ptr<CreateCloneChunkContext>;

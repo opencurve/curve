@@ -32,95 +32,93 @@ static uint64_t GetUnInt64Value(void* arg) {
 }
 
 // 悬挂IO统计，文件级别统计，方便定位
-typedef struct IOSuspendMetric {
+struct IOSuspendMetric {
     // 当前persecond计数总数
     bvar::Adder<uint64_t> count;
-    IOSuspendMetric(const std::string& prefix,
-                    const std::string& name) :
-                    count(prefix, name + "_total_count")
-    {}
-} IOSuspendMetric_t;
+    IOSuspendMetric(const std::string& prefix, const std::string& name)
+        : count(prefix, name + "_total_count") {}
+};
 
 // 秒级信息统计
-typedef struct PerSecondMetric {
+struct PerSecondMetric {
     // 当前persecond计数总数
     bvar::Adder<uint64_t> count;
     // persecond真实数据，这个数据依赖于count
     bvar::PerSecond<bvar::Adder<uint64_t>> value;
-    PerSecondMetric(const std::string& prefix,
-                    const std::string& name) :
-                    count(prefix, name + "_total_count")
-                    , value(prefix, name, &count, 1)
-    {}
-} PerSecondMetric_t;
+    PerSecondMetric(const std::string& prefix, const std::string& name)
+        : count(prefix, name + "_total_count"),
+          value(prefix, name, &count, 1) {}
+};
 
 // 接口统计信息metric信息统计
-typedef struct InterfaceMtetric {
+struct InterfaceMetric {
     // 接口统计信息调用qps
-    PerSecondMetric_t       qps;
+    PerSecondMetric qps;
     // error request persecond
-    PerSecondMetric_t       eps;
+    PerSecondMetric eps;
     // receive request persecond
-    PerSecondMetric_t       rps;
+    PerSecondMetric rps;
     // 调用吞吐
-    PerSecondMetric_t       bps;
+    PerSecondMetric bps;
     // 调用超时次数qps
-    PerSecondMetric_t       timeoutQps;
+    PerSecondMetric timeoutQps;
+    // 调用redirect次数qps
+    PerSecondMetric redirectQps;
     // 调用latency
-    bvar::LatencyRecorder   latency;
+    bvar::LatencyRecorder latency;
 
-    InterfaceMtetric(const std::string& prefix,
-                      const std::string& name) :
-                      qps(prefix, name + "_qps")
-                    , eps(prefix, name + "_eps")
-                    , rps(prefix, name + "_rps")
-                    , bps(prefix, name + "_bps")
-                    , timeoutQps(prefix, name + "_timeout_qps")
-                    , latency(prefix, name + "_lat")
-    {}
-} InterfaceMtetric_t;
+    InterfaceMetric(const std::string& prefix, const std::string& name)
+        : qps(prefix, name + "_qps"),
+          eps(prefix, name + "_eps"),
+          rps(prefix, name + "_rps"),
+          bps(prefix, name + "_bps"),
+          timeoutQps(prefix, name + "_timeout_qps"),
+          redirectQps(prefix, name + "_redirect_qps"),
+          latency(prefix, name + "_lat") {}
+};
 
 // 文件级别metric信息统计
-typedef struct FileMetric {
+struct FileMetric {
     // 当前metric归属于哪个文件
     std::string filename;
     const std::string prefix = "curve client";
 
     // 当前文件inflight io数量
-    bvar::Adder<int64_t>                    inflightRPCNum;
+    bvar::Adder<int64_t> inflightRPCNum;
+
     // 当前文件请求的最大请求字节数，这种统计方式可以很方便的看到最大值，分位值
-    bvar::LatencyRecorder                   sizeRecorder;
+    bvar::LatencyRecorder writeSizeRecorder;
+    bvar::LatencyRecorder readSizeRecorder;
 
     // libcurve最底层read rpc接口统计信息metric统计
-    InterfaceMtetric_t                      readRPC;
+    InterfaceMetric readRPC;
     // libcurve最底层write rpc接口统计信息metric统计
-    InterfaceMtetric_t                      writeRPC;
+    InterfaceMetric writeRPC;
     // 用户读请求qps、eps、rps
-    InterfaceMtetric_t                      userRead;
+    InterfaceMetric userRead;
     // 用户写请求qps、eps、rps
-    InterfaceMtetric_t                      userWrite;
+    InterfaceMetric userWrite;
     // get leader失败重试qps
-    PerSecondMetric_t                       getLeaderRetryQPS;
+    PerSecondMetric getLeaderRetryQPS;
 
     // 当前文件上的悬挂IO数量
-    IOSuspendMetric_t                       suspendRPCMetric;
+    IOSuspendMetric suspendRPCMetric;
 
-    FileMetric(std::string name) :
-          filename(name)
-        , userRead(prefix, filename + "_read")
-        , userWrite(prefix, filename + "_write")
-        , readRPC(prefix, filename + "_read_rpc")
-        , writeRPC(prefix, filename + "_write_rpc")
-        , inflightRPCNum(prefix, filename + "_inflight_rpc_num")
-        , getLeaderRetryQPS(prefix, filename + "_get_leader_retry_rpc")
-        , sizeRecorder(prefix, filename + "_write_request_size_recoder")
-        , suspendRPCMetric(prefix, filename + "_suspend_io_num")
-    {}
-} FileMetric_t;
-
+    explicit FileMetric(const std::string& name)
+        : filename(name),
+          userRead(prefix, filename + "_read"),
+          userWrite(prefix, filename + "_write"),
+          readRPC(prefix, filename + "_read_rpc"),
+          writeRPC(prefix, filename + "_write_rpc"),
+          inflightRPCNum(prefix, filename + "_inflight_rpc_num"),
+          getLeaderRetryQPS(prefix, filename + "_get_leader_retry_rpc"),
+          writeSizeRecorder(prefix, filename + "_write_request_size_recoder"),
+          readSizeRecorder(prefix, filename + "_read_request_size_recoder"),
+          suspendRPCMetric(prefix, filename + "_suspend_io_num") {}
+};
 
 // 用于全局mds接口统计信息调用信息统计
-typedef struct MDSClientMetric {
+struct MDSClientMetric {
     const std::string prefix = "curve mds client";
 
     // mds的地址信息
@@ -128,59 +126,64 @@ typedef struct MDSClientMetric {
     bvar::PassiveStatus<std::string> metaserverAddress;
 
     // openfile接口统计信息
-    InterfaceMtetric_t      openFile;
+    InterfaceMetric openFile;
     // createFile接口统计信息
-    InterfaceMtetric_t      createFile;
+    InterfaceMetric createFile;
     // closeFile接口统计信息
-    InterfaceMtetric_t      closeFile;
+    InterfaceMetric closeFile;
     // getFileInfo接口统计信息
-    InterfaceMtetric_t      getFile;
+    InterfaceMetric getFile;
     // RefreshSession接口统计信息
-    InterfaceMtetric_t      refreshSession;
+    InterfaceMetric refreshSession;
     // GetServerList接口统计信息
-    InterfaceMtetric_t      getServerList;
+    InterfaceMetric getServerList;
     // GetOrAllocateSegment接口统计信息
-    InterfaceMtetric_t      getOrAllocateSegment;
+    InterfaceMetric getOrAllocateSegment;
     // RenameFile接口统计信息
-    InterfaceMtetric_t      renameFile;
+    InterfaceMetric renameFile;
     // Extend接口统计信息
-    InterfaceMtetric_t      extendFile;
+    InterfaceMetric extendFile;
     // DeleteFile接口统计信息
-    InterfaceMtetric_t      deleteFile;
+    InterfaceMetric deleteFile;
     // changeowner接口统计信息
-    InterfaceMtetric_t      changeOwner;
+    InterfaceMetric changeOwner;
     // listdir接口统计信息
-    InterfaceMtetric_t      listDir;
+    InterfaceMetric listDir;
     // register接口统计信息
-    InterfaceMtetric_t      registerClient;
+    InterfaceMetric registerClient;
+    // GetChunkServerID接口统计
+    InterfaceMetric getChunkServerId;
+    // ListChunkServerInServer接口统计
+    InterfaceMetric listChunkserverInServer;
 
     // 切换mds server总次数
-    bvar::Adder<uint64_t>   mdsServerChangeTimes;
+    bvar::Adder<uint64_t> mdsServerChangeTimes;
 
-    MDSClientMetric() :
-                        metaserverAddress(prefix, "current_metaserver_addr",
-                            GetStringValue, &metaserverAddr)
-                      , mdsServerChangeTimes(prefix, "mds_server_change_times")
-                      , openFile(prefix, "openFile")
-                      , createFile(prefix, "createFile")
-                      , closeFile(prefix, "closeFile")
-                      , getFile(prefix, "getFileInfo")
-                      , refreshSession(prefix, "refreshSession")
-                      , getServerList(prefix, "getServerList")
-                      , getOrAllocateSegment(prefix, "getOrAllocateSegment")
-                      , renameFile(prefix, "renameFile")
-                      , extendFile(prefix, "extendFile")
-                      , deleteFile(prefix, "deleteFile")
-                      , changeOwner(prefix, "changeOwner")
-                      , listDir(prefix, "listDir")
-                      , registerClient(prefix, "registerClient")
-    {}
-} MDSClientMetric_t;
+    MDSClientMetric()
+        : metaserverAddress(prefix, "current_metaserver_addr", GetStringValue,
+                            &metaserverAddr),
+          mdsServerChangeTimes(prefix, "mds_server_change_times"),
+          openFile(prefix, "openFile"),
+          createFile(prefix, "createFile"),
+          closeFile(prefix, "closeFile"),
+          getFile(prefix, "getFileInfo"),
+          refreshSession(prefix, "refreshSession"),
+          getServerList(prefix, "getServerList"),
+          getOrAllocateSegment(prefix, "getOrAllocateSegment"),
+          renameFile(prefix, "renameFile"),
+          extendFile(prefix, "extendFile"),
+          deleteFile(prefix, "deleteFile"),
+          changeOwner(prefix, "changeOwner"),
+          listDir(prefix, "listDir"),
+          registerClient(prefix, "registerClient"),
+          getChunkServerId(prefix, "GetChunkServerId"),
+          listChunkserverInServer(prefix, "ListChunkServerInServer") {}
+};
 
-typedef struct LatencyGuard {
+struct LatencyGuard {
     bvar::LatencyRecorder* latencyRec;
     uint64_t timeelapse;
-    LatencyGuard(bvar::LatencyRecorder* latency) {
+    explicit LatencyGuard(bvar::LatencyRecorder* latency) {
         latencyRec = latency;
         timeelapse = TimeUtility::GetTimeofDayUs();
     }
@@ -189,8 +192,7 @@ typedef struct LatencyGuard {
         timeelapse = TimeUtility::GetTimeofDayUs() - timeelapse;
         *latencyRec << timeelapse;
     }
-} LatencyGuard_t;
-
+};
 
 class MetricHelper {
  public:
@@ -198,7 +200,7 @@ class MetricHelper {
      * 统计getleader重试次数
      * @param: fm为当前文件的metric指针
      */
-    static void IncremGetLeaderRetryTime(FileMetric_t* fm) {
+    static void IncremGetLeaderRetryTime(FileMetric* fm) {
         if (fm != nullptr) {
             fm->getLeaderRetryQPS.count << 1;
         }
@@ -210,19 +212,20 @@ class MetricHelper {
      * @param: length为当前请求大小
      * @param: read为当前操作是读操作还是写操作
      */
-    static void IncremUserQPSCount(FileMetric_t* fm,
-                                      uint64_t length,
-                                      OpType type) {
+    static void IncremUserQPSCount(FileMetric* fm,
+                                   uint64_t length,
+                                   OpType type) {
         if (fm != nullptr) {
             switch (type) {
                 case OpType::READ:
                     fm->userRead.qps.count << 1;
                     fm->userRead.bps.count << length;
+                    fm->readSizeRecorder << length;
                     break;
                 case OpType::WRITE:
                     fm->userWrite.qps.count << 1;
                     fm->userWrite.bps.count << length;
-                    fm->sizeRecorder << length;
+                    fm->writeSizeRecorder << length;
                     break;
                 default:
                     break;
@@ -235,7 +238,7 @@ class MetricHelper {
      * @param: fm为当前文件的metric指针
      * @param: read为当前操作是读操作还是写操作
      */
-    static void IncremUserEPSCount(FileMetric_t* fm, OpType type) {
+    static void IncremUserEPSCount(FileMetric* fm, OpType type) {
         if (fm != nullptr) {
             switch (type) {
                 case OpType::READ:
@@ -259,7 +262,7 @@ class MetricHelper {
      * @param: fm为当前文件的metric指针
      * @param: read为当前操作是读操作还是写操作
      */
-    static void IncremUserRPSCount(FileMetric_t* fm, OpType type) {
+    static void IncremUserRPSCount(FileMetric* fm, OpType type) {
         if (fm != nullptr) {
             switch (type) {
                 case OpType::READ:
@@ -279,7 +282,7 @@ class MetricHelper {
      * @param: fm为当前文件的metric指针
      * @param: read为当前操作是读操作还是写操作
      */
-    static void IncremFailRPCCount(FileMetric_t* fm, OpType type) {
+    static void IncremFailRPCCount(FileMetric* fm, OpType type) {
         if (fm != nullptr) {
             switch (type) {
                 case OpType::READ:
@@ -299,7 +302,7 @@ class MetricHelper {
      * @param: fm为当前文件的metric指针
      * @param: read为当前操作是读操作还是写操作
      */
-    static void IncremTimeOutRPCCount(FileMetric_t* fm, OpType type) {
+    static void IncremTimeOutRPCCount(FileMetric* fm, OpType type) {
         if (fm != nullptr) {
             switch (type) {
                 case OpType::READ:
@@ -315,12 +318,32 @@ class MetricHelper {
     }
 
     /**
+     * 统计请求被redirect的次数
+     * @param fileMetric 当前文件的metric指针
+     * @param opType 请求类型
+     */
+    static void IncremRedirectRPCCount(FileMetric* fileMetric, OpType opType) {
+        if (fileMetric) {
+            switch (opType) {
+                case OpType::READ:
+                    fileMetric->readRPC.redirectQps.count << 1;
+                    break;
+                case OpType::WRITE:
+                    fileMetric->writeRPC.redirectQps.count << 1;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    /**
      * 统计读写RPC接口统计信息请求次数及带宽统计，用于qps及bps计算
      * @param: fm为当前文件的metric指针
      * @param: length为当前请求大小
      * @param: read为当前操作是读操作还是写操作
      */
-    static void IncremRPCQPSCount(FileMetric_t* fm,
+    static void IncremRPCQPSCount(FileMetric* fm,
                                   uint64_t length,
                                   OpType type) {
         if (fm != nullptr) {
@@ -345,7 +368,7 @@ class MetricHelper {
      * @param: length为当前请求大小
      * @param: read为当前操作是读操作还是写操作
      */
-    static void IncremRPCRPSCount(FileMetric_t* fm,
+    static void IncremRPCRPSCount(FileMetric* fm,
                                   OpType type) {
         if (fm != nullptr) {
             switch (type) {
@@ -361,7 +384,7 @@ class MetricHelper {
         }
     }
 
-    static void LatencyRecord(FileMetric_t* fm,
+    static void LatencyRecord(FileMetric* fm,
                               uint64_t duration,
                               OpType type) {
         if (fm != nullptr) {
@@ -378,7 +401,7 @@ class MetricHelper {
         }
     }
 
-    static void UserLatencyRecord(FileMetric_t* fm,
+    static void UserLatencyRecord(FileMetric* fm,
                                   uint64_t duration,
                                   OpType type) {
         if (fm != nullptr) {
@@ -395,28 +418,29 @@ class MetricHelper {
         }
     }
 
-    static void IncremInflightRPC(FileMetric_t* fm) {
+    static void IncremInflightRPC(FileMetric* fm) {
         if (fm != nullptr) {
             fm->inflightRPCNum << 1;
         }
     }
 
-    static void DecremInflightRPC(FileMetric_t* fm) {
+    static void DecremInflightRPC(FileMetric* fm) {
         if (fm != nullptr) {
             fm->inflightRPCNum << -1;
         }
     }
 
-    static void IncremIOSuspendNum(FileMetric_t* fm) {
+    static void IncremIOSuspendNum(FileMetric* fm) {
         if (fm != nullptr) {
             fm->suspendRPCMetric.count << 1;
         }
     }
 
-    static void DecremIOSuspendNum(FileMetric_t* fm) {
+    static void DecremIOSuspendNum(FileMetric* fm) {
         if (fm != nullptr) {
-            fm->suspendRPCMetric.count.get_value() > 0 ?
-            fm->suspendRPCMetric.count << -1 : fm->suspendRPCMetric.count << 0;
+            fm->suspendRPCMetric.count.get_value() > 0
+                ? fm->suspendRPCMetric.count << -1
+                : fm->suspendRPCMetric.count << 0;
         }
     }
 };

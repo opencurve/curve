@@ -16,6 +16,27 @@
 
 namespace curve {
 namespace client {
+
+struct RequestSourceInfo {
+    std::string cloneFileSource;
+    uint64_t cloneFileOffset{0};
+
+    RequestSourceInfo() = default;
+    RequestSourceInfo(const std::string& source, uint64_t offset)
+        : cloneFileSource(source), cloneFileOffset(offset) {}
+};
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const RequestSourceInfo& location) {
+    if (location.cloneFileSource.empty()) {
+        os << "empty";
+    } else {
+        os << location.cloneFileSource << ":" << location.cloneFileOffset;
+    }
+
+    return os;
+}
+
 class RequestContext {
  public:
     RequestContext();
@@ -50,6 +71,7 @@ class RequestContext {
     // clone chunk请求需要携带源chunk的location及所需要创建的chunk的大小
     uint32_t            chunksize_;
     std::string         location_;
+    RequestSourceInfo   sourceInfo_;
     // create clone chunk时候用于修改chunk的correctedSn
     uint64_t            correctedSeq_;
 
@@ -67,7 +89,8 @@ inline std::ostream& operator<<(std::ostream& os,
        << ", chunk id = " << reqCtx.idinfo_.cid_
        << ", offset = " << reqCtx.offset_
        << ", length = " << reqCtx.rawlength_
-       << ", sn = " << reqCtx.seq_;
+       << ", sn = " << reqCtx.seq_
+       << ", source info = " << reqCtx.sourceInfo_;
 
     return os;
 }

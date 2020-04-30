@@ -775,17 +775,21 @@ LIBCURVE_ERROR MDSClient::GetClusterInfo(ClusterContext* clsctx) {
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
 }
 
-LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
-    const UserInfo_t& userinfo, uint64_t size, uint64_t sn,
-    uint32_t chunksize, FInfo* fileinfo) {
+LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string& source,
+                                          const std::string& destination,
+                                          const UserInfo_t& userinfo,
+                                          uint64_t size, uint64_t sn,
+                                          uint32_t chunksize, FInfo* fileinfo) {
     auto task = RPCTaskDefine {
         CreateCloneFileResponse response;
-        mdsClientBase_.CreateCloneFile(destination, userinfo, size, sn,
+        mdsClientBase_.CreateCloneFile(source, destination, userinfo, size, sn,
                                        chunksize, &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "Create clone file failed, errcorde = "
-                << cntl->ErrorCode() << ", error content:"
-                << cntl->ErrorText();
+                         << cntl->ErrorCode()
+                         << ", error content:" << cntl->ErrorText()
+                         << ", source = " << source
+                         << ", destination = " << destination;
             return -cntl->ErrorCode();
         }
 
@@ -793,10 +797,10 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
         LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-            << "CreateCloneFile: destination = " << destination
-            << ", owner = " << userinfo.owner.c_str()
-            << ", seqnum = " << sn << ", size = " << size
-            << ", chunksize = " << chunksize
+            << "CreateCloneFile: source = " << source
+            << ", destination = " << destination
+            << ", owner = " << userinfo.owner.c_str() << ", seqnum = " << sn
+            << ", size = " << size << ", chunksize = " << chunksize
             << ", errocde = " << retcode
             << ", error msg = " << StatusCode_Name(stcode)
             << ", log id = " << cntl->log_id();
@@ -1100,6 +1104,10 @@ LIBCURVE_ERROR MDSClient::GetChunkServerID(const ChunkServerAddr& csAddr,
 
     auto task = RPCTaskDefine {
         curve::mds::topology::GetChunkServerInfoResponse response;
+
+        mdsClientMetric_.getChunkServerId.qps.count << 1;
+        LatencyGuard guard(&mdsClientMetric_.getChunkServerId.latency);
+
         std::vector<std::string> strs;
         curve::common::SplitString(csAddr.ToString(), ":", &strs);
         const std::string& ip = strs[0];
@@ -1134,6 +1142,9 @@ LIBCURVE_ERROR MDSClient::ListChunkServerInServer(
     std::vector<ChunkServerID>* csIds) {
     auto task = RPCTaskDefine {
         curve::mds::topology::ListChunkServerResponse response;
+
+        mdsClientMetric_.listChunkserverInServer.qps.count << 1;
+        LatencyGuard guard(&mdsClientMetric_.listChunkserverInServer.latency);
 
         mdsClientBase_.ListChunkServerInServer(
             serverIp, &response, cntl, channel);

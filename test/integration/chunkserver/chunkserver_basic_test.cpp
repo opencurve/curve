@@ -85,7 +85,7 @@ class ChunkServerIoTest : public testing::Test {
                    "/chunkfilepool.meta";
         ChunkfilePoolHelper::PersistEnCodeMetaInfo(lfs_, kChunkSize, kPageSize,
                                                    poolDir_, metaDir_);
-        allocateChunk(lfs_, kChunkNum, poolDir_, CHUNK_SIZE);
+        allocateChunk(lfs_, kChunkNum, poolDir_, kChunkSize);
     }
 
     virtual void TearDown() {

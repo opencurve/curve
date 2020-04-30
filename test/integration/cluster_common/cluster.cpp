@@ -26,26 +26,6 @@ using ::curve::client::UserInfo_t;
 
 namespace curve {
 
-#define RETURN_IF_NOT_ZERO(x)                                                  \
-    do {                                                                       \
-        int ret = (x);                                                         \
-        if (ret != 0) {                                                        \
-            LOG(ERROR) << __FILE__ << ":" << __LINE__                          \
-                       << "-> get non-ZERO, return -1";                        \
-            return ret;                                                        \
-        }                                                                      \
-    } while (0)
-
-#define RETURN_IF_FALSE(x)                                                     \
-    do {                                                                       \
-        bool ret = (x);                                                        \
-        if (!ret) {                                                            \
-            LOG(ERROR) << __FILE__ << ":" << __LINE__                          \
-                       << "-> get FALSE, return -1";                           \
-            return -1;                                                         \
-        }                                                                      \
-    } while (0)
-
 int CurveCluster::InitDB(const std::string &mdsTable, const std::string &user,
                          const std::string &url, const std::string &password,
                          int poolSize) {
@@ -109,13 +89,20 @@ int CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
         for (auto &item : mdsConf) {
             cmd_dir += item;
         }
+
+        /**
+         *  重要提示！！！！
+         *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+         */
         execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
-        // 使用error级别，帮助收集日志
-        LOG(ERROR) << "start single mds: " << strerror(errno);
         exit(0);
     }
 
-    RETURN_IF_NOT_ZERO(ProbePort(ipPort, 20000, expectLeader));
+    if (ProbePort(ipPort, 20000, expectLeader) < 0) {
+        LOG(ERROR) << "start mds " << ipPort << " faild, pid=" << pid;
+        return -1;
+    }
+
     LOG(INFO) << "start mds " << ipPort << " success";
     mdsPidMap_[id] = pid;
     mdsIpPort_[id] = ipPort;
@@ -193,13 +180,19 @@ int CurveCluster::StartSnapshotCloneServer(
         for (auto &item : snapshotcloneConf) {
             cmd_dir += item;
         }
+        /**
+         *  重要提示！！！！
+         *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+         */
         execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
-        // 使用error级别，帮助收集日志
-        LOG(ERROR) << "start mds by execl, errno = " << errno;
         exit(0);
     }
 
-    RETURN_IF_NOT_ZERO(ProbePort(ipPort, 20000, true));
+    if (ProbePort(ipPort, 20000, true) < 0) {
+        LOG(ERROR) << "start snapshotcloneserver " << ipPort
+                   << " faild, pid=" << pid;
+        return -1;
+    }
     LOG(INFO) << "start snapshotcloneserver " << ipPort << " (pid=" << pid
               << ") success.";
     snapPidMap_[id] = pid;
@@ -298,13 +291,18 @@ int CurveCluster::StartSingleEtcd(int id, const std::string &clientIpPort,
             cmd_dir += item;
         }
 
-        LOG(INFO) << "start exec cmd: " << cmd_dir;
+        /**
+         *  重要提示！！！！
+         *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+         */
         execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
-        LOG(ERROR) << "start single etcd: " << strerror(errno);
         exit(0);
     }
 
-    RETURN_IF_NOT_ZERO(ProbePort(clientIpPort, 20000, true));
+    if (ProbePort(clientIpPort, 20000, true) < 0) {
+        LOG(ERROR) << "start etcd " << clientIpPort << " faild, pid=" << pid;
+        return -1;
+    }
     LOG(INFO) << "start etcd " << clientIpPort << " success";
     etcdPidMap_[id] = pid;
     etcdClientIpPort_[id] = clientIpPort;
@@ -448,13 +446,18 @@ int CurveCluster::StartSingleChunkServer(
             cmd_dir += item;
         }
 
-        LOG(INFO) << "start exec cmd: " << cmd_dir;
+        /**
+         *  重要提示！！！！
+         *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+         */
         execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
-        LOG(ERROR) << "start single chunkserver: " << strerror(errno);
         exit(0);
     }
 
-    RETURN_IF_NOT_ZERO(ProbePort(ipPort, 20000, true));
+    if (ProbePort(ipPort, 20000, true) < 0) {
+        LOG(ERROR) << "start chunkserver " << ipPort << " failed, pid=" << pid;
+        return -1;
+    }
     LOG(INFO) << "start chunkserver " << ipPort << " success";
     chunkserverPidMap_[id] = pid;
     chunkserverIpPort_[id] = ipPort;
@@ -489,15 +492,19 @@ int CurveCluster::StartSingleChunkServerInBackground(
         for (auto &item : chunkserverConf) {
             cmd_dir += item;
         }
-        LOG(INFO) << "start exec cmd: " << cmd_dir;
+        /**
+         *  重要提示！！！！
+         *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+         */
         execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
-        LOG(ERROR) << "start single chunkserver in background: "
-                   << strerror(errno);
         exit(0);
     }
 
-    RETURN_IF_NOT_ZERO(
-        ProbePort(ChunkServerIpPortInBackground(id), 20000, true));
+    if (ProbePort(ChunkServerIpPortInBackground(id), 20000, true) < 0) {
+        LOG(ERROR) << "start chunkserver " << ChunkServerIpPortInBackground(id)
+                   << " failed, pid=" << pid;
+        return -1;
+    }
     LOG(INFO) << "start chunkserver " << id << " in background success";
     chunkserverPidMap_[id] = pid;
     chunkserverIpPort_[id] = ChunkServerIpPortInBackground(id);

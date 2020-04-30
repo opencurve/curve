@@ -255,12 +255,11 @@ typedef struct IOOption {
  * @mdsRegisterToMDS: 是否向mds注册client信息，因为client需要通过dummy server导出
  *                    metric信息，为了配合普罗米修斯的自动服务发现机制，会将其监听的
  *                    ip和端口信息发送给mds。
+ * @turnOffHealthCheck: 是否关闭健康检查
  */
 typedef struct CommonConfigOpt {
-    bool    mdsRegisterToMDS;
-    CommonConfigOpt() {
-        mdsRegisterToMDS = false;
-    }
+    bool mdsRegisterToMDS{false};
+    bool turnOffHealthCheck{false};
 } CommonConfigOpt_t;
 
 /**
@@ -274,15 +273,6 @@ typedef struct ClientConfigOption {
 } ClientConfigOption_t;
 
 /**
- * session id file option
- * session文件用于存储当前打开文件的session信息
- * @sessionmap_path: session文件的路径
- */
-typedef struct SessionIDMapOption {
-    std::string sessionmap_path;
-} SessionIDMapOption_t;
-
-/**
  * FileServiceOption是QEMU侧总体配置信息
  */
 typedef struct FileServiceOption {
@@ -291,7 +281,6 @@ typedef struct FileServiceOption {
     LeaseOption_t             leaseOpt;
     CommonConfigOpt_t         commonOpt;
     MetaServerOption_t        metaServerOpt;
-    SessionIDMapOption_t      sessionmapOpt;
 } FileServiceOption_t;
 
 #endif  // SRC_CLIENT_CONFIG_INFO_H_

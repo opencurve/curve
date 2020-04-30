@@ -42,7 +42,6 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     bool lazyFlag,
     CloneTaskType taskType,
     CloneInfo *cloneInfo) {
-    NameLockGuard lockDestFileGuard(destFileLock_, destination);
     // 查询数据库中是否有任务正在执行
     std::vector<CloneInfo> cloneInfoList;
     metaStore_->GetCloneInfoByFileName(destination, &cloneInfoList);
@@ -325,7 +324,7 @@ void CloneCoreImpl::HandleCloneOrRecoverTask(
                 task->SetProgress(kProgressCreateCloneMeta);
                 break;
             case CloneStep::kCreateCloneChunk:
-                ret = CreateCloneChunk(task, newFileInfo, segInfos);
+                ret = CreateCloneChunk(task, newFileInfo, &segInfos);
                 if (ret < 0) {
                     HandleCloneError(task, ret);
                     return;
@@ -459,6 +458,7 @@ int CloneCoreImpl::BuildFileInfoFromSnapshot(
         uint64_t segmentIndex = chunkIndex / chunkPerSegment;
         CloneChunkInfo info;
         info.location = chunkDataName.ToDataChunkKey();
+        info.needRecover = true;
         if (IsRecover(task)) {
             info.seqNum = chunkDataName.chunkSeqNum_;
         } else {
@@ -543,6 +543,7 @@ int CloneCoreImpl::BuildFileInfoFromFile(
                 CloneChunkInfo info;
                 info.location = std::to_string(offset + j * chunkSize);
                 info.seqNum = kInitializeSeqNum;
+                info.needRecover = true;
                 segInfo.emplace(j, info);
             }
             segInfos->emplace(i, segInfo);
@@ -561,9 +562,10 @@ int CloneCoreImpl::CreateCloneFile(
     uint64_t fileLength = fInfo.length;
     uint64_t seqNum = fInfo.seqnum;
     uint32_t chunkSize = fInfo.chunksize;
+    std::string source = task->GetCloneInfo().GetSrc();
 
     FInfo fInfoOut;
-    int ret = client_->CreateCloneFile(fileName,
+    int ret = client_->CreateCloneFile(source, fileName,
         mdsRootUser_, fileLength, seqNum, chunkSize, &fInfoOut);
     if (ret == LIBCURVE_ERROR::OK) {
         // nothing
@@ -614,7 +616,15 @@ int CloneCoreImpl::CreateCloneMeta(
     if (ret < 0) {
         return ret;
     }
-    task->GetCloneInfo().SetNextStep(CloneStep::kCreateCloneChunk);
+
+    // 如果是lazy&非快照，先不要createCloneChunk
+    // 等后面stage2阶段recoveryChunk之前去createCloneChunk
+    if (IsLazy(task) && IsFile(task)) {
+        task->GetCloneInfo().SetNextStep(CloneStep::kCompleteCloneMeta);
+    } else {
+        task->GetCloneInfo().SetNextStep(CloneStep::kCreateCloneChunk);
+    }
+
     ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     if (ret < 0) {
         LOG(ERROR) << "UpdateCloneInfo after CreateCloneMeta error."
@@ -628,7 +638,7 @@ int CloneCoreImpl::CreateCloneMeta(
 int CloneCoreImpl::CreateCloneChunk(
     std::shared_ptr<CloneTaskInfo> task,
     const FInfo &fInfo,
-    const CloneSegmentMap &segInfos) {
+    CloneSegmentMap *segInfos) {
     int ret = kErrCodeSuccess;
     uint32_t chunkSize = fInfo.chunksize;
     uint32_t correctSn = 0;
@@ -639,7 +649,7 @@ int CloneCoreImpl::CreateCloneChunk(
         correctSn = fInfo.seqnum;
     }
     auto tracker = std::make_shared<CreateCloneChunkTaskTracker>();
-    for (auto & cloneSegmentInfo : segInfos) {
+    for (auto & cloneSegmentInfo : *segInfos) {
         for (auto & cloneChunkInfo : cloneSegmentInfo.second) {
             std::string location;
             if (IsSnapshot(task)) {
@@ -655,6 +665,7 @@ int CloneCoreImpl::CreateCloneChunk(
             auto context = std::make_shared<CreateCloneChunkContext>();
             context->location = location;
             context->cidInfo = cidInfo;
+            context->cloneChunkInfo = &cloneChunkInfo.second;
             context->sn = cloneChunkInfo.second.seqNum;
             context->csn = correctSn;
             context->chunkSize = chunkSize;
@@ -694,7 +705,11 @@ int CloneCoreImpl::CreateCloneChunk(
         }
     } while (true);
 
-    task->GetCloneInfo().SetNextStep(CloneStep::kCompleteCloneMeta);
+    if (IsLazy(task) && IsFile(task)) {
+        task->GetCloneInfo().SetNextStep(CloneStep::kRecoverChunk);
+    } else {
+        task->GetCloneInfo().SetNextStep(CloneStep::kCompleteCloneMeta);
+    }
     ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     if (ret < 0) {
         LOG(ERROR) << "UpdateCloneInfo after CreateCloneChunk error."
@@ -748,7 +763,17 @@ int CloneCoreImpl::HandleCreateCloneChunkResultsAndRetry(
     const std::list<CreateCloneChunkContextPtr> &results) {
     int ret = kErrCodeSuccess;
     for (auto context : results) {
-        if (context->retCode != LIBCURVE_ERROR::OK) {
+        if (context->retCode == -LIBCURVE_ERROR::EXISTS) {
+            LOG(INFO) << "CreateCloneChunk chunk exist"
+                      << ", location = " << context->location
+                      << ", logicalPoolId = " << context->cidInfo.lpid_
+                      << ", copysetId = " << context->cidInfo.cpid_
+                      << ", chunkId = " << context->cidInfo.cid_
+                      << ", seqNum = " << context->sn
+                      << ", csn = " << context->csn
+                      << ", taskid = " << task->GetTaskId();
+            context->cloneChunkInfo->needRecover = false;
+        } else if (context->retCode != LIBCURVE_ERROR::OK) {
             uint64_t nowTime = TimeUtility::GetTimeofDaySec();
             if (nowTime - context->startTime <
                 context->clientAsyncMethodRetryTimeSec) {
@@ -830,6 +855,9 @@ int CloneCoreImpl::RecoverChunk(
     // 为避免发往同一个chunk碰撞，异步请求不同的chunk
     for (auto & cloneSegmentInfo : segInfos) {
         for (auto & cloneChunkInfo : cloneSegmentInfo.second) {
+            if (!cloneChunkInfo.second.needRecover) {
+                continue;
+            }
             // 当前并发工作的chunk数已大于要求的并发数时，先消化一部分
             while (workingChunkNum >= recoverChunkConcurrency_) {
                 uint64_t completeChunkNum = 0;
@@ -1053,7 +1081,11 @@ int CloneCoreImpl::RenameCloneFile(
     }
 
     if (IsLazy(task)) {
-        task->GetCloneInfo().SetNextStep(CloneStep::kRecoverChunk);
+        if (IsFile(task)) {
+            task->GetCloneInfo().SetNextStep(CloneStep::kCreateCloneChunk);
+        } else {
+            task->GetCloneInfo().SetNextStep(CloneStep::kRecoverChunk);
+        }
     } else {
         task->GetCloneInfo().SetNextStep(CloneStep::kEnd);
     }
@@ -1126,8 +1158,8 @@ void CloneCoreImpl::HandleLazyCloneStage1Finish(
     LOG(INFO) << "Task Lazy Stage1 Success"
               << ", TaskInfo : " << *task;
     task->GetClosure()->SetErrCode(ret);
-    task->GetClosure()->Run();
     task->Finish();
+    task->GetClosure()->Run();
     return;
 }
 

@@ -8,7 +8,7 @@
 
 DEFINE_string(fileName, "", "file name");
 DEFINE_bool(forcedelete, false, "force delete file or not");
-DEFINE_uint64(fileLength, 20*1024*1024*1024ull, "file length");
+DEFINE_uint64(fileLength, 20, "file length (GB)");
 DEFINE_bool(isTest, false, "is unit test or not");
 DEFINE_uint64(offset, 0, "offset to query chunk location");
 DEFINE_uint64(rpc_timeout, 3000, "millisecond for rpc timeout");
@@ -84,7 +84,7 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
             return 0;
         }
     } else if (cmd == kCreateCmd) {
-        return core_->CreateFile(fileName, FLAGS_fileLength);
+        return core_->CreateFile(fileName, FLAGS_fileLength * mds::kGB);
     } else if (cmd == kChunkLocatitonCmd) {
         return PrintChunkLocation(fileName, FLAGS_offset);
     } else {
@@ -104,7 +104,7 @@ void NameSpaceTool::PrintHelp(const std::string &cmd) {
         std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 [-fileName=/cinder]" << std::endl;  // NOLINT
         std::cout << "If -fileName is specified, delete the files in recyclebin that the original directory is fileName" << std::endl;  // NOLINT
     } else if (cmd == kCreateCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test -userName=test -password=123 -fileLength=21474836480‬" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test -userName=test -password=123 -fileLength=20‬" << std::endl;  // NOLINT
     } else if (cmd == kDeleteCmd) {
         std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test -userName=test -password=123 -forcedelete=true" << std::endl;  // NOLINT
     } else if (cmd == kChunkLocatitonCmd) {

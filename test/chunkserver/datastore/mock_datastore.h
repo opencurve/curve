@@ -34,12 +34,13 @@ class MockDataStore : public CSDataStore {
                                                 char*,
                                                 off_t,
                                                 size_t));
-    MOCK_METHOD6(WriteChunk, CSErrorCode(ChunkID,
+    MOCK_METHOD7(WriteChunk, CSErrorCode(ChunkID,
                                          SequenceNum,
                                          const char*,
                                          off_t,
                                          size_t,
-                                         uint32_t*));
+                                         uint32_t*,
+                                         const string&));
     MOCK_METHOD5(CreateCloneChunk, CSErrorCode(ChunkID,
                                                SequenceNum,
                                                SequenceNum,

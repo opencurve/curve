@@ -789,6 +789,81 @@ TEST_F(OpRequestTest, ReadChunkTest) {
     }
     /**
      * 测试OnApply
+     * 用例：GetChunkInfo 返回 ChunkNotExistError
+     *      但是请求中包含源chunk的信息
+     * 预期：将请求转发给clone manager处理
+     */
+    {
+        // 重置closure
+        closure->Reset();
+        request->set_clonefilesource("/test");
+        request->set_clonefileoffset(0);
+
+        // 设置预期
+        EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
+            .WillOnce(Return(CSErrorCode::ChunkNotExistError));
+        // 读chunk文件
+        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
+            .Times(0);
+        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
+            .Times(0);
+        EXPECT_CALL(*cloneMgr_, GenerateCloneTask(_, _))
+            .Times(1);
+        EXPECT_CALL(*cloneMgr_, IssueCloneTask(_))
+            .WillOnce(Return(true));
+
+        opReq->OnApply(3, closure);
+
+        // 验证结果
+        ASSERT_FALSE(closure->isDone_);
+        ASSERT_FALSE(response->has_appliedindex());
+        ASSERT_FALSE(closure->response_->has_status());
+
+        closure->Run();
+        ASSERT_TRUE(closure->isDone_);
+    }
+    /**
+     * 测试OnApply
+     * 用例：请求的chunk是 clone chunk，请求区域的bitmap都为1
+     *      请求中包含源chunk的信息
+     * 预期：从本地读chunk,返回 CHUNK_OP_STATUS_SUCCESS
+     */
+    {
+        // 重置closure
+        closure->Reset();
+        request->set_clonefilesource("/test");
+        request->set_clonefileoffset(0);
+
+        // 设置预期
+        info.isClone = true;
+        info.bitmap->Set();
+        EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(info),
+                            Return(CSErrorCode::Success)));
+        // 读chunk文件
+        char chunkData[length]= {0};
+        memset(chunkData, 'a', length);
+        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
+            .WillOnce(DoAll(SetArrayArgument<2>(chunkData,
+                                                chunkData + length),
+                            Return(CSErrorCode::Success)));
+        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
+            .Times(1);
+
+        opReq->OnApply(3, closure);
+
+        // 验证结果
+        ASSERT_TRUE(closure->isDone_);
+        ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
+        ASSERT_TRUE(response->has_status());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                  closure->response_->status());
+        ASSERT_EQ(memcmp(chunkData,
+                         closure->cntl_->response_attachment().to_string().c_str(),  //NOLINT
+                         length), 0);
+    }
+    /**
+     * 测试OnApply
      * 用例：GetChunkInfo 返回 非ChunkNotExistError错误
      * 预期：请求失败,返回 CHUNK_OP_STATUS_FAILURE_UNKNOWN
      */

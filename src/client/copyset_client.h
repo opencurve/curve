@@ -18,6 +18,7 @@
 
 #include "src/common/concurrent/concurrent.h"
 #include "src/client/client_metric.h"
+#include "src/client/request_context.h"
 #include "src/client/client_common.h"
 #include "src/client/config_info.h"
 #include "src/common/uncopyable.h"
@@ -70,6 +71,7 @@ class CopysetClient : public Uncopyable {
      * @param offset:读的偏移
      * @param length:读的长度
      * @param appliedindex:需要读到>=appliedIndex的数据
+     * @param souceInfo chunk克隆源信息
      * @param done:上一层异步回调的closure
      */
     int ReadChunk(const ChunkIDInfo& idinfo,
@@ -77,6 +79,7 @@ class CopysetClient : public Uncopyable {
                   off_t offset,
                   size_t length,
                   uint64_t appliedindex,
+                  const RequestSourceInfo& sourceInfo,
                   google::protobuf::Closure *done);
 
     /**
@@ -86,6 +89,7 @@ class CopysetClient : public Uncopyable {
     * @param buf:要写入的数据
      *@param offset:写的偏移
     * @param length:写的长度
+    * @param sourceInfo chunk克隆源信息
     * @param done:上一层异步回调的closure
     */
     int WriteChunk(const ChunkIDInfo& idinfo,
@@ -93,6 +97,7 @@ class CopysetClient : public Uncopyable {
                   const char *buf,
                   off_t offset,
                   size_t length,
+                  const RequestSourceInfo& sourceInfo,
                   Closure *done);
 
     /**
@@ -130,19 +135,12 @@ class CopysetClient : public Uncopyable {
 
     /**
     * @brief lazy 创建clone chunk
-    * @detail
-    *  - location的格式定义为 A@B的形式。
-    *  - 如果源数据在s3上，则location格式为uri@s3，uri为实际chunk对象的地址；
-    *  - 如果源数据在curvefs上，则location格式为/filename/chunkindex@cs
-    *
     * @param idinfo为chunk相关的id信息
-    * @param done:上一层异步回调的closure
     * @param:location 数据源的url
     * @param:sn chunk的序列号
     * @param:correntSn CreateCloneChunk时候用于修改chunk的correctedSn
     * @param:chunkSize chunk的大小
-    * @param retriedTimes:已经重试了几次
-    *
+    * @param done:上一层异步回调的closure
     * @return 错误码
     */
     int CreateCloneChunk(const ChunkIDInfo& idinfo,
@@ -155,17 +153,23 @@ class CopysetClient : public Uncopyable {
    /**
     * @brief 实际恢复chunk数据
     * @param idinfo为chunk相关的id信息
-    * @param done:上一层异步回调的closure
     * @param:offset 偏移
     * @param:len 长度
-    * @param retriedTimes:已经重试了几次
-    *
+    * @param done:上一层异步回调的closure
     * @return 错误码
     */
     int RecoverChunk(const ChunkIDInfo& idinfo,
                   uint64_t offset,
                   uint64_t len,
                   Closure *done);
+
+    /**
+     * @brief 如果csId对应的RequestSender不健康，就进行重置
+     * @param csId chunkserver id
+     */
+    void ResetSenderIfNotHealth(const ChunkServerID& csId) {
+        senderManager_->ResetSenderIfNotHealth(csId);
+    }
 
     /**
      * session过期，需要将重试RPC停住

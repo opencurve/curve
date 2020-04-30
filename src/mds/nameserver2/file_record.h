@@ -9,7 +9,9 @@
 #define SRC_MDS_NAMESERVER2_FILE_RECORD_H_
 
 #include <unordered_map>
+#include <utility>
 #include <string>
+#include <set>
 
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/interruptible_sleeper.h"
@@ -21,6 +23,7 @@ namespace mds {
 
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
+using ClientIpPortType = std::pair<std::string, uint32_t>;
 
 struct FileRecordOptions {
     // file record过期时间，单位us
@@ -31,20 +34,27 @@ struct FileRecordOptions {
 
 class FileRecord {
  public:
-    explicit FileRecord(uint64_t timeoutUs, const std::string& clientVersion)
-      : updateTimeUs_(curve::common::TimeUtility::GetTimeofDayUs())
-      , clientVersion_(clientVersion)
-      , timeoutUs_(timeoutUs) {}
+    FileRecord(uint64_t timeoutUs, const std::string& clientVersion,
+               const std::string& clientIP, uint32_t clientPort)
+        : updateTimeUs_(curve::common::TimeUtility::GetTimeofDayUs()),
+          timeoutUs_(timeoutUs),
+          clientVersion_(clientVersion),
+          clientIP_(clientIP),
+          clientPort_(clientPort) {}
 
     FileRecord(const FileRecord& fileRecord)
-      : updateTimeUs_(fileRecord.updateTimeUs_),
-        timeoutUs_(fileRecord.timeoutUs_),
-        clientVersion_(fileRecord.clientVersion_) {}
+        : updateTimeUs_(fileRecord.updateTimeUs_),
+          timeoutUs_(fileRecord.timeoutUs_),
+          clientVersion_(fileRecord.clientVersion_),
+          clientIP_(fileRecord.clientIP_),
+          clientPort_(fileRecord.clientPort_) {}
 
     FileRecord& operator=(const FileRecord& fileRecord) {
         updateTimeUs_ = fileRecord.updateTimeUs_;
         timeoutUs_ = fileRecord.timeoutUs_;
         clientVersion_ = fileRecord.clientVersion_;
+        clientIP_ = fileRecord.clientIP_;
+        clientPort_ = fileRecord.clientPort_;
         return *this;
     }
 
@@ -61,9 +71,13 @@ class FileRecord {
     /**
      * @brief 更新时间
      */
-    void Update() {
+    void Update(const std::string& clientVersion, const std::string& clientIP,
+                uint32_t clientPort) {
         curve::common::LockGuard lk(mtx_);
         updateTimeUs_ = curve::common::TimeUtility::GetTimeofDayUs();
+        clientVersion_ = clientVersion;
+        clientIP_ = clientIP;
+        clientPort_ = clientPort_;
     }
 
     /**
@@ -91,6 +105,10 @@ class FileRecord {
         return clientVersion_;
     }
 
+    ClientIpPortType GetClientIpPort() const {
+        return {clientIP_, clientPort_};
+    }
+
  private:
     // 最新更新时间，单位us
     uint64_t updateTimeUs_;
@@ -98,6 +116,10 @@ class FileRecord {
     uint64_t timeoutUs_;
     // client版本号
     std::string clientVersion_;
+    // client地址
+    std::string clientIP_;
+    // client端口
+    uint32_t clientPort_;
     // 更新时间锁
     mutable curve::common::Mutex mtx_;
 };
@@ -131,8 +153,10 @@ class FileRecordManager {
      * @brief 更新filename对应的文件记录
      * @param[in] filename文件名
      */
-    void UpdateFileRecord(
-        const std::string& filename, const std::string& clientVersion);
+    void UpdateFileRecord(const std::string& filename,
+                          const std::string& clientVersion,
+                          const std::string& clientIP,
+                          uint32_t clientPort);
 
     /**
      * @brief 获取filename对应的client version
@@ -156,6 +180,11 @@ class FileRecordManager {
      * @param[out] protoSession需要设置的参数
      */
     void GetRecordParam(ProtoSession* protoSession) const;
+
+    std::set<ClientIpPortType> ListAllClient() const;
+
+    bool FindFileMountPoint(const std::string& fileName,
+                            ClientIpPortType* ipPort) const;
 
  private:
     /**

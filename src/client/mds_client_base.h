@@ -207,6 +207,7 @@ class MDSClientBase {
                     GetOrAllocateSegmentResponse* response,
                     brpc::Controller* cntl,
                     brpc::Channel* channel);
+
     /**
      * 文件接口在打开文件的时候需要与mds保持心跳，refresh用来续约
      * 续约结果将会通过LeaseRefreshResult* resp返回给调用层
@@ -217,11 +218,11 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void RefreshSession(const std::string& filename,
-                    const UserInfo_t& userinfo,
-                    const std::string& sessionid,
-                    ReFreshSessionResponse* response,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+                        const UserInfo_t& userinfo,
+                        const std::string& sessionid,
+                        ReFreshSessionResponse* response,
+                        brpc::Controller* cntl,
+                        brpc::Channel* channel);
     /**
      * 获取快照状态
      * @param: filenam文件名
@@ -263,6 +264,7 @@ class MDSClientBase {
 
     /**
      * 创建clone文件
+     * @param source 克隆源文件名
      * @param:destination clone目标文件名
      * @param:userinfo 用户信息
      * @param:size 文件大小
@@ -272,14 +274,12 @@ class MDSClientBase {
      * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
      * @param[in]:channel是当前与mds建立的通道
      */
-    void CreateCloneFile(const std::string &destination,
-                    const UserInfo_t& userinfo,
-                    uint64_t size,
-                    uint64_t sn,
-                    uint32_t chunksize,
-                    CreateCloneFileResponse* response,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+    void CreateCloneFile(const std::string& source,
+                         const std::string& destination,
+                         const UserInfo_t& userinfo, uint64_t size, uint64_t sn,
+                         uint32_t chunksize, CreateCloneFileResponse* response,
+                         brpc::Controller* cntl, brpc::Channel* channel);
+
     /**
      * @brief 通知mds完成Clone Meta
      * @param: filename 目标文件

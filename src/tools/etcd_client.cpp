@@ -19,13 +19,12 @@ int EtcdClient::Init(const std::string& etcdAddr) {
     return 0;
 }
 
-int EtcdClient::GetEtcdClusterStatus(std::string* leaderAddr,
-                        std::map<std::string, bool>* onlineState) {
-    if (!leaderAddr || !onlineState) {
+int EtcdClient::GetEtcdClusterStatus(std::vector<std::string>* leaderAddrVec,
+                                     std::map<std::string, bool>* onlineState) {
+    if (!leaderAddrVec || !onlineState) {
         std::cout << "The argument is a null pointer!" << std::endl;
         return -1;
     }
-    *leaderAddr = "";
     brpc::Channel httpChannel;
     brpc::ChannelOptions options;
     options.protocol = brpc::PROTOCOL_HTTP;
@@ -36,7 +35,7 @@ int EtcdClient::GetEtcdClusterStatus(std::string* leaderAddr,
             continue;
         }
         brpc::Controller cntl;
-        cntl.http_request().uri() = addr + statusUri_;
+        cntl.http_request().uri() = addr + kEtcdStatusUri;
         cntl.http_request().set_method(brpc::HTTP_METHOD_POST);
         httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
         if (cntl.Failed()) {
@@ -51,13 +50,69 @@ int EtcdClient::GetEtcdClusterStatus(std::string* leaderAddr,
             std::cout << "Parse the response fail!" << std::endl;
             return -1;
         }
-        if (!value["leader"].isNull()) {
-            if (value["leader"] == value["header"]["member_id"]) {
-                *leaderAddr = addr;
+        if (!value[kEtcdLeader].isNull()) {
+            if (value[kEtcdLeader] == value[kEtcdHeader][kEtcdMemberId]) {
+                leaderAddrVec->emplace_back(addr);
             }
         }
     }
     return 0;
 }
+
+int EtcdClient::GetAndCheckEtcdVersion(std::string* version,
+                                       std::vector<std::string>* failedList) {
+    brpc::Channel httpChannel;
+    brpc::ChannelOptions options;
+    options.protocol = brpc::PROTOCOL_HTTP;
+    VersionMapType versionMap;
+    for (const auto& addr : etcdAddrVec_) {
+        int res = httpChannel.Init(addr.c_str(), &options);
+        if (res != 0) {
+            std::cout << "Init channel to " << addr << " failed" << std::endl;
+            failedList->emplace_back(addr);
+            continue;
+        }
+        brpc::Controller cntl;
+        cntl.http_request().uri() = addr + kEtcdVersionUri;
+        httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+        if (cntl.Failed()) {
+            std::cout << "Access " << addr + kEtcdVersionUri << " failed"
+                      << std::endl;;
+            failedList->emplace_back(addr);
+            continue;
+        }
+        std::string resp = cntl.response_attachment().to_string();
+        Json::Reader reader(Json::Features::strictMode());
+        Json::Value value;
+        if (!reader.parse(resp, value)) {
+            std::cout << "Parse the response fail!" << std::endl;
+            return -1;
+        }
+        if (value[kEtcdCluster].isNull()) {
+            std::cout << "Parse cluster version from response failed"
+                      << std::endl;
+            failedList->emplace_back(addr);
+            continue;
+        }
+        std::string ver = value[kEtcdCluster].asString();
+        if (versionMap.find(ver) == versionMap.end()) {
+            versionMap[ver] = {addr};
+        } else {
+            versionMap[ver].emplace_back(addr);
+        }
+    }
+    if (versionMap.empty()) {
+        std::cout << "no version found!" << std::endl;
+        return -1;
+    } else if (versionMap.size() > 1) {
+        std::cout << " version not match, version map: ";
+        VersionTool::PrintVersionMap(versionMap);
+        return -1;
+    } else {
+        *version = versionMap.begin()->first;
+    }
+    return 0;
+}
+
 }  // namespace tool
 }  // namespace curve

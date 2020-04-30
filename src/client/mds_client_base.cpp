@@ -191,22 +191,30 @@ void MDSClientBase::GetSnapshotSegmentInfo(const std::string& filename,
 }
 
 void MDSClientBase::RefreshSession(const std::string& filename,
-                                const UserInfo_t& userinfo,
-                                const std::string& sessionid,
-                                ReFreshSessionResponse* response,
-                                brpc::Controller* cntl,
-                                brpc::Channel* channel) {
+                                   const UserInfo_t& userinfo,
+                                   const std::string& sessionid,
+                                   ReFreshSessionResponse* response,
+                                   brpc::Controller* cntl,
+                                   brpc::Channel* channel) {
     ReFreshSessionRequest request;
     request.set_filename(filename);
     request.set_sessionid(sessionid);
     request.set_clientversion(curve::common::CurveVersion());
 
+    static ClientDummyServerInfo& clientInfo =
+        ClientDummyServerInfo::GetInstance();
+
+    if (clientInfo.GetRegister()) {
+        request.set_clientip(clientInfo.GetIP());
+        request.set_clientport(clientInfo.GetPort());
+    }
+
     FillUserInfo<ReFreshSessionRequest>(&request, userinfo);
 
     LOG_EVERY_N(INFO, 10) << "RefreshSession: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner
-                  << ", sessionid = " << sessionid
-                  << ", log id = " << cntl->log_id();
+                          << ", owner = " << userinfo.owner
+                          << ", sessionid = " << sessionid
+                          << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.RefreshSession(cntl, &request, response, nullptr);
@@ -258,27 +266,26 @@ void MDSClientBase::GetClusterInfo(GetClusterInfoResponse* response,
     stub.GetClusterInfo(cntl, &request, response, nullptr);
 }
 
-void MDSClientBase::CreateCloneFile(const std::string &destination,
-                                const UserInfo_t& userinfo,
-                                uint64_t size,
-                                uint64_t sn,
-                                uint32_t chunksize,
-                                CreateCloneFileResponse* response,
-                                brpc::Controller* cntl,
-                                brpc::Channel* channel) {
+void MDSClientBase::CreateCloneFile(const std::string& source,
+                                    const std::string& destination,
+                                    const UserInfo_t& userinfo, uint64_t size,
+                                    uint64_t sn, uint32_t chunksize,
+                                    CreateCloneFileResponse* response,
+                                    brpc::Controller* cntl,
+                                    brpc::Channel* channel) {
     CreateCloneFileRequest request;
     request.set_seq(sn);
     request.set_filelength(size);
     request.set_filename(destination);
     request.set_chunksize(chunksize);
     request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+    request.set_clonesource(source);
     FillUserInfo<CreateCloneFileRequest>(&request, userinfo);
 
-    LOG(INFO) << "CreateCloneFile: destination = " << destination
-              << ", owner = " << userinfo.owner.c_str()
-              << ", seqnum = " << sn
-              << ", size = " << size
-              << ", chunksize = " << chunksize
+    LOG(INFO) << "CreateCloneFile: source = " << source
+              << ", destination = " << destination
+              << ", owner = " << userinfo.owner.c_str() << ", seqnum = " << sn
+              << ", size = " << size << ", chunksize = " << chunksize
               << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);

@@ -13,6 +13,7 @@
 #include <gmock/gmock.h>
 #include <string>
 #include <map>
+#include <vector>
 #include "src/tools/etcd_client.h"
 
 using ::testing::Return;
@@ -23,8 +24,10 @@ class MockEtcdClient : public EtcdClient {
     MockEtcdClient() {}
     ~MockEtcdClient() {}
     MOCK_METHOD1(Init, int(const std::string &));
-    MOCK_METHOD2(GetEtcdClusterStatus, int(std::string*,
+    MOCK_METHOD2(GetEtcdClusterStatus, int(std::vector<std::string>*,
                                     std::map<std::string, bool>*));
+    MOCK_METHOD2(GetAndCheckEtcdVersion, int(std::string*,
+                                             std::vector<std::string>*));
 };
 }  // namespace tool
 }  // namespace curve

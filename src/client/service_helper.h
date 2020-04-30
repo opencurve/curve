@@ -93,7 +93,7 @@ class ServiceHelper {
     static int GetLeader(const GetLeaderInfo& getLeaderInfo,
                          ChunkServerAddr *leaderAddr,
                          ChunkServerID* leaderId = nullptr,
-                         FileMetric_t* fileMetric = nullptr);
+                         FileMetric* fileMetric = nullptr);
     /**
      * 从文件名中获取user信息.
      * 用户的user信息需要夹在文件名中，比如文件名为temp,用户名为user,

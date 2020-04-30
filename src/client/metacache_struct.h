@@ -8,6 +8,7 @@
 #ifndef SRC_CLIENT_METACACHE_STRUCT_H_
 #define SRC_CLIENT_METACACHE_STRUCT_H_
 
+#include <atomic>
 #include <string>
 #include <list>
 #include <map>
@@ -62,7 +63,7 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     // 当前copyset的节点信息
     std::vector<CopysetPeerInfo_t> csinfos_;
     // 当前节点的apply信息，在read的时候需要，用来避免读IO进入raft
-    uint32_t    lastappliedindex_;
+    std::atomic<uint64_t> lastappliedindex_{0};
     // leader在本copyset信息中的索引，用于后面避免重复尝试同一个leader
     int16_t     leaderindex_;
     // 当前copyset的id信息
@@ -86,21 +87,20 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
         this->cpid_ = other.cpid_;
         this->csinfos_.assign(other.csinfos_.begin(), other.csinfos_.end());
         this->leaderindex_ = other.leaderindex_;
-        this->lastappliedindex_ = other.lastappliedindex_;
+        this->lastappliedindex_.store(other.lastappliedindex_);
         this->leaderMayChange_ = other.leaderMayChange_;
         return *this;
     }
 
-    CopysetInfo(const CopysetInfo& other) {
-        this->cpid_ = other.cpid_;
-        this->csinfos_.assign(other.csinfos_.begin(), other.csinfos_.end());
-        this->leaderindex_ = other.leaderindex_;
-        this->lastappliedindex_ = other.lastappliedindex_;
-        this->leaderMayChange_ = other.leaderMayChange_;
-    }
+    CopysetInfo(const CopysetInfo& other)
+        : leaderMayChange_(other.leaderMayChange_),
+          csinfos_(other.csinfos_),
+          lastappliedindex_(other.lastappliedindex_.load()),
+          leaderindex_(other.leaderindex_),
+          cpid_(other.cpid_) {}
 
-    uint64_t GetAppliedIndex() {
-        return lastappliedindex_;
+    uint64_t GetAppliedIndex() const {
+        return lastappliedindex_.load(std::memory_order_acquire);
     }
 
     void SetLeaderUnstableFlag() {
@@ -121,10 +121,18 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
      * @param: appliedindex为待更新的值
      */
     void UpdateAppliedIndex(uint64_t appliedindex) {
-        spinlock_.Lock();
-        if (appliedindex == 0 || appliedindex > lastappliedindex_)
-            lastappliedindex_ = appliedindex;
-        spinlock_.UnLock();
+        uint64_t curIndex = lastappliedindex_.load(std::memory_order_acquire);
+
+        if (appliedindex != 0 && appliedindex <= curIndex) {
+            return;
+        }
+
+        while (!lastappliedindex_.compare_exchange_strong(
+            curIndex, appliedindex, std::memory_order_acq_rel)) {
+            if (curIndex >= appliedindex) {
+                break;
+            }
+        }
     }
 
     /**

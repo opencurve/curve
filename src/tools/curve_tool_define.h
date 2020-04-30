@@ -30,6 +30,7 @@ const char kEtcdStatusCmd[] = "etcd-status";
 const char kChunkserverListCmd[] = "chunkserver-list";
 const char kClientStatusCmd[] = "client-status";
 const char kSnapshotCloneStatusCmd[] = "snapshot-clone-status";
+const char kClusterStatusCmd[] = "cluster-status";
 
 // NamesPaceTool相关命令
 const char kGetCmd[] = "get";
@@ -67,7 +68,6 @@ const char kSnapshotMeta[] = "snapshot-meta";
 // raft log相关命令
 const char kRaftLogMeta[] = "raft-log-meta";
 
-const char kOldVersion[] = "before0.0.5.2";
 const char kOffline[] = "offline";
 const char kVars[] = "/vars/";
 const char kConfValue[] = "conf_value";

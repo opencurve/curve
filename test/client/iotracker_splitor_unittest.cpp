@@ -22,6 +22,7 @@
 #include "test/client/fake/mock_schedule.h"
 #include "src/client/io_tracker.h"
 #include "src/client/splitor.h"
+#include "src/client/request_context.h"
 #include "test/client/fake/mockMDS.h"
 #include "src/client/client_common.h"
 #include "src/client/file_instance.h"
@@ -51,7 +52,10 @@ using curve::client::MetaCache;
 using curve::client::RequestContext;
 using curve::client::IOManager4File;
 using curve::client::LogicalPoolCopysetIDInfo_t;
-using curve::client::FileMetric_t;
+using curve::client::FileMetric;
+using curve::client::OpType;
+using curve::client::ChunkIDInfo;
+using curve::client::Splitor;
 
 bool ioreadflag = false;
 std::mutex readmtx;
@@ -656,7 +660,7 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
     curve::client::IOManager4File* iomana = fileserv->GetIOManager4File();
     MetaCache* mc = fileserv->GetIOManager4File()->GetMetaCache();
 
-    FileMetric_t fileMetric("/test");
+    FileMetric fileMetric("/test");
     IOTracker* iotracker = new IOTracker(iomana, mc, mockschuler, &fileMetric);
 
     ASSERT_NE(nullptr, iotracker);
@@ -882,4 +886,66 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
 
     delete iotracker;
     delete[] buf;
+}
+
+TEST(SplitorTest, RequestSourceInfoTest) {
+    using curve::client::ChunkIndex;
+    using curve::client::RequestSourceInfo;
+
+    IOTracker ioTracker(nullptr, nullptr, nullptr);
+    ioTracker.SetOpType(OpType::READ);
+
+    MetaCache metaCache;
+    FInfo_t fileInfo;
+    fileInfo.chunksize = 16 * 1024 * 1024;          // 16M
+    fileInfo.cloneLength = 1 * 1024 * 1024 * 1024;  // 1G
+    fileInfo.cloneSource = "/clonesource";
+
+    metaCache.UpdateFileInfo(fileInfo);
+
+    ChunkIndex chunkIdx = 0;
+    RequestSourceInfo sourceInfo;
+
+    // 第一个chunk
+    sourceInfo =
+        Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
+    ASSERT_EQ(sourceInfo.cloneFileSource, fileInfo.cloneSource);
+    ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
+
+    // 克隆卷最后一个chunk
+    chunkIdx = fileInfo.cloneLength / fileInfo.chunksize - 1;
+
+    // offset = 1024*1024*1024 - 16 * 1024 * 1024 = 1056964608
+    sourceInfo =
+        Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
+    ASSERT_EQ(sourceInfo.cloneFileSource, fileInfo.cloneSource);
+    ASSERT_EQ(sourceInfo.cloneFileOffset, 1056964608);
+
+    // 超过长度
+    chunkIdx = fileInfo.cloneLength / fileInfo.chunksize;
+
+    sourceInfo =
+        Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
+    ASSERT_TRUE(sourceInfo.cloneFileSource.empty());
+    ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
+
+    // 不是read/write请求
+    chunkIdx = 1;
+    ioTracker.SetOpType(OpType::READ_SNAP);
+    sourceInfo =
+        Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
+    ASSERT_TRUE(sourceInfo.cloneFileSource.empty());
+    ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
+
+    fileInfo.cloneSource.clear();
+    fileInfo.cloneLength = 0;
+    metaCache.UpdateFileInfo(fileInfo);
+
+    chunkIdx = 0;
+
+    // 不是克隆卷
+    sourceInfo =
+        Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
+    ASSERT_TRUE(sourceInfo.cloneFileSource.empty());
+    ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
 }

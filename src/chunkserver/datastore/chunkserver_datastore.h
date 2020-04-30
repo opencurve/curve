@@ -40,6 +40,7 @@ struct DataStoreOptions {
     std::string                         baseDir;
     ChunkSizeType                       chunkSize;
     PageSizeType                        pageSize;
+    uint32_t                            locationLimit;
 };
 
 /**
@@ -184,14 +185,16 @@ class CSDataStore {
      * @param offset：请求写入的偏移地址
      * @param length：请求写入的数据长度
      * @param cost：实际产生的IO次数，用于QOS控制
+     * @param cloneSource：表示从curvefs clone的地址
      * @return：返回错误码
      */
     virtual CSErrorCode WriteChunk(ChunkID id,
-                                   SequenceNum sn,
-                                   const char * buf,
-                                   off_t offset,
-                                   size_t length,
-                                   uint32_t* cost);
+                                SequenceNum sn,
+                                const char * buf,
+                                off_t offset,
+                                size_t length,
+                                uint32_t* cost,
+                                const std::string & cloneSourceLocation = "");
     /**
      * 创建克隆的Chunk，chunk中记录数据源位置信息
      * 该接口需要保证幂等性，重复以相同参数进行创建返回成功
@@ -245,12 +248,16 @@ class CSDataStore {
 
  private:
     CSErrorCode loadChunkFile(ChunkID id);
+    CSErrorCode CreateChunkFile(const ChunkOptions & ops,
+                                CSChunkFilePtr* chunkFile);
 
  private:
     // 每个chunk的大小
     ChunkSizeType chunkSize_;
     // page大小，为最小原子读写单元
     PageSizeType pageSize_;
+    // clone chunk location长度限制
+    uint32_t locationLimit_;
     // datastore的管理目录
     std::string baseDir_;
     // 为chunkid->chunkfile的映射

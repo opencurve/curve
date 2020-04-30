@@ -314,18 +314,18 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
         ASSERT_EQ(0, fileClient_->Mkdir("/ItUser1", userinfo));
 
-        std::string fackData(4096, 'x');
-        ASSERT_TRUE(CreateAndWriteFile(testFile1_, testUser1_, fackData));
+        std::string fakeData(4096, 'x');
+        ASSERT_TRUE(CreateAndWriteFile(testFile1_, testUser1_, fakeData));
         LOG(INFO) << "Write testFile1_ success.";
 
-        ASSERT_TRUE(CreateAndWriteFile(testFile2_, testUser1_, fackData));
+        ASSERT_TRUE(CreateAndWriteFile(testFile2_, testUser1_, fakeData));
         LOG(INFO) << "Write testFile2_ success.";
 
         UserInfo_t userinfo2;
         userinfo2.owner = "ItUser2";
         ASSERT_EQ(0, fileClient_->Mkdir("/ItUser2", userinfo2));
 
-        ASSERT_TRUE(CreateAndWriteFile(testFile3_, testUser2_, fackData));
+        ASSERT_TRUE(CreateAndWriteFile(testFile3_, testUser2_, fakeData));
         LOG(INFO) << "Write testFile3_ success.";
 
         ASSERT_EQ(0, fileClient_->Create(testFile4_, userinfo,
@@ -477,9 +477,9 @@ TEST_F(SnapshotCloneServerTest, TestSnapshotAddDeleteGet) {
     ret = MakeSnapshot(testUser1_, testFile1_, "snap1", &uuid1);
     ASSERT_EQ(0, ret);
 
-    std::string fackData(4096, 'y');
-    ASSERT_TRUE(WriteFile(testFile1_, testUser1_, fackData));
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'y');
+    ASSERT_TRUE(WriteFile(testFile1_, testUser1_, fakeData));
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 
     // 操作4: 获取快照信息，user=testUser1_，filename=testFile1_
     // 预期4：返回快照snap1的信息
@@ -526,8 +526,8 @@ TEST_F(SnapshotCloneServerTest, TestSnapshotAddDeleteGet) {
     ASSERT_EQ(0, ret);
 
     // 复原testFile1_
-    std::string fackData2(4096, 'x');
-    ASSERT_TRUE(WriteFile(testFile1_, testUser1_, fackData2));
+    std::string fakeData2(4096, 'x');
+    ASSERT_TRUE(WriteFile(testFile1_, testUser1_, fakeData2));
 }
 
 // 场景二：取消快照
@@ -667,8 +667,8 @@ TEST_F(SnapshotCloneServerTest, TestSnapLazyClone) {
     ASSERT_EQ(kErrCodeFileNotExist, ret);
 
     // 验证数据正确性
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // 场景四：非lazy快照克隆场景
@@ -707,8 +707,8 @@ TEST_F(SnapshotCloneServerTest, TestSnapNotLazyClone) {
     ASSERT_EQ(0, ret);
 
     // 验证数据正确性
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // 场景五：lazy快照恢复场景
@@ -744,8 +744,8 @@ TEST_F(SnapshotCloneServerTest, TestSnapLazyRecover) {
     ASSERT_TRUE(success1);
 
     // 验证数据正确性
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 
     // 操作4：testUser1_ recover 快照snap1，目标文件为不存在的文件
     // 预期4:  返回目标文件不存在
@@ -783,8 +783,8 @@ TEST_F(SnapshotCloneServerTest, TestSnapNotLazyRecover) {
     ASSERT_TRUE(success1);
 
     // 验证数据正确性
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 
     // 操作4：testUser1_ recover 快照snap1，目标文件为不存在的文件
     // 预期4:  返回目标文件不存在
@@ -825,6 +825,12 @@ TEST_F(SnapshotCloneServerTest, TestImageLazyClone) {
     int retCode = GetSnapshotInfo(testUser1_, testFile1_, uuid4, &info2);
     ASSERT_EQ(kErrCodeFileNotExist, retCode);
 
+    ASSERT_TRUE(WaitMetaInstalledSuccess(testUser1_, uuid2, true));
+
+    // Flatten之前验证数据正确性
+    std::string fakeData1(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData1));
+
     // Flatten
     ret = Flatten(testUser1_, uuid2);
     ASSERT_EQ(0, ret);
@@ -832,9 +838,9 @@ TEST_F(SnapshotCloneServerTest, TestImageLazyClone) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid2, true);
     ASSERT_TRUE(success1);
 
-    // 验证数据正确性
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    // Flatten之后验证数据正确性
+    std::string fakeData2(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData2));
 }
 
 // 场景八：非lazy镜像克隆场景
@@ -865,8 +871,8 @@ TEST_F(SnapshotCloneServerTest, TestImageNotLazyClone) {
     ASSERT_EQ(0, ret);
 
     // 验证数据正确性
-    std::string fackData(4096, 'x');
-    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fackData));
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
 // 场景九：快照存在失败场景

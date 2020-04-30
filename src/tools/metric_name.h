@@ -30,6 +30,7 @@ const char kSnapshotCloneStatusActive[] = "active";
 const char kLogicalPoolMetricPrefix[] = "topology_metric_logicalPool_";
 const char kChunkServerMetricPrefix[] = "chunkserver_";
 const char kOperatorNumMetricName[] = "mds_scheduler_metric_operator_num";
+const char kProcessCmdLineMetricName[] = "process_cmdline";
 const char kSechduleOpMetricpPrefix[] = "mds_scheduler_metric_";
 const char kMdsListenAddrMetricName[] = "mds_config_mds_listen_addr";
 const char kMdsStatusMetricName[] = "mds_status";

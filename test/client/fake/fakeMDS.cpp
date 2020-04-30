@@ -93,6 +93,10 @@ bool FakeMDS::StartService() {
                 brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(FATAL) << "Fail to add heartbeat service";
     }
+    if (server_->AddService(&fakeScheduleService_,
+                brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        LOG(FATAL) << "Fail to add heartbeat service";
+    }
     brpc::ServerOptions options;
     options.idle_timeout_sec = -1;
 
@@ -296,6 +300,13 @@ bool FakeMDS::StartService() {
      = new FakeReturn(nullptr, static_cast<void*>(extendfileresponse));
 
     fakecurvefsservice_.SetExtendFile(fakeExtendRet);
+
+    /**
+     * set list physical pool response
+     */
+    ListPhysicalPoolResponse* listphypoolresp = new ListPhysicalPoolResponse();
+    FakeReturn* fakeListPPRet = new FakeReturn(nullptr, response);
+    faketopologyservice_.fakelistpoolret_ = fakeListPPRet;
 
     return true;
 }

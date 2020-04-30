@@ -1,19 +1,37 @@
 #!/bin/bash
 
 # 默认配置文件
-confPath=/etcd/etcd.conf.yml
+confPath=/etc/curve/etcd/etcd.conf.yml
+
+# 日志文件目录
+logDir=${HOME}/etcdlog
 
 # 日志文件路径
-logPath=${HOME}/etcd.log
+logPath=${logDir}/etcd.log
 
 # pidfile
 pidFile=${HOME}/etcd.pid
 
 # daemon log
-daemonLog=${HOME}/daemon-etcd.log
+daemonLog=${logDir}/daemon-etcd.log
 
 # 启动etcd
 function start_etcd() {
+    # 创建logDir
+    mkdir -p ${logDir} > /dev/null 2>&1
+    if [ $? -ne 0 ]
+    then
+        echo "Create etcd log dir failed: ${logDir}"
+        exit 1
+    fi
+
+    # 检查logPath是否有写权限
+    if [ ! -w ${logDir} ]
+    then
+        echo "Write permission denied: ${logDir}"
+        exit 1
+    fi
+
     # 检查logPath是否可写或者是否能够创建
     touch ${logPath} > /dev/null 2>&1
     if [ $? -ne 0 ]
@@ -74,9 +92,38 @@ function start_etcd() {
 
 # 停止daemon进程和etcd
 function stop_etcd() {
-    if [ -f ${pidFile} ]
+    # 判断是否已经通过daemon启动了etcd
+    daemon --name etcd --pidfile ${pidFile} --running
+    if [ $? -ne 0 ]
     then
-        daemon --stop --name etcd --pidfile ${pidFile}
+        echo "Didn't start etcd by daemon"
+        exit 1
+    fi
+
+    daemon --name etcd --pidfile ${pidFile} --stop
+    if [ $? -ne 0 ]
+    then
+        echo "stop may not success!"
+    else
+        echo "etcd exit success!"
+        echo "daemon exit success!"
+    fi
+}
+
+# restart
+function restart_etcd() {
+    # 判断是否已经通过daemon启动了etcd
+    daemon --name etcd --pidfile ${pidFile} --running
+    if [ $? -ne 0 ]
+    then
+        echo "Didn't start etcd by daemon"
+        exit 1
+    fi
+
+    daemon --name etcd --pidfile ${pidFile} --restart
+    if [ $? -ne 0 ]
+    then
+        echo "Restart failed"
     fi
 }
 
@@ -87,6 +134,7 @@ function usage() {
     echo "        [-c|--confPath path]        etcd conf path"
     echo "        [-l|--logPath  path]        etcd log path"
     echo "  etcd-daemon stop  -- stop daemon process and etcd"
+    echo "  etcd-daemon restart -- restart etcd"
     echo "Examples:"
     echo "  etcd-daemon start -c /etcd/etcd.conf.yml -l ${HOME}/etcd.log"
 }
@@ -130,6 +178,10 @@ case $1 in
 "stop")
     # 停止daemon和etcd进程
     stop_etcd
+    ;;
+"restart")
+    # 重启etcd
+    restart_etcd
     ;;
 *)
     usage
