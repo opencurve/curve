@@ -33,6 +33,15 @@ std::ostream& operator<<(std::ostream& os,
     return os;
 }
 
+std::string ToString(ServiceName name) {
+    static std::map<ServiceName, std::string> serviceNameMap =
+                           {{ServiceName::kMds, "mds"},
+                            {ServiceName::kEtcd, "etcd"},
+                            {ServiceName::kSnapshotCloneServer,
+                                       "snapshot-clone-server"}};
+    return serviceNameMap[name];
+}
+
 int StatusTool::Init(const std::string& command) {
     if (CommandNeedMds(command) && !mdsInited_) {
         if (mdsClient_->Init(FLAGS_mdsAddr, FLAGS_mdsDummyPort) != 0) {
@@ -85,7 +94,8 @@ bool StatusTool::SupportCommand(const std::string& command) {
                                  || command == kMdsStatusCmd
                                  || command == kEtcdStatusCmd
                                  || command == kClientStatusCmd
-                                 || command == kSnapshotCloneStatusCmd);
+                                 || command == kSnapshotCloneStatusCmd
+                                 || command == kClusterStatusCmd);
 }
 
 void StatusTool::PrintHelp(const std::string& cmd) {
@@ -117,12 +127,21 @@ int StatusTool::SpaceCmd() {
         std::cout << "GetSpaceInfo fail!" << std::endl;
         return -1;
     }
+    double logicalUsedRatio = static_cast<double>(spaceInfo.logicalUsed) /
+                                                            spaceInfo.total;
+    double physicalUsedRatio = static_cast<double>(spaceInfo.physicalUsed) /
+                                                            spaceInfo.total;
+    double canBeRecycledRatio = static_cast<double>(spaceInfo.canBeRecycled) /
+                                                        spaceInfo.logicalUsed;
+    std:: cout.setf(std::ios::fixed);
+    std::cout<< std::setprecision(2);
     std::cout << "total space = " << spaceInfo.total / mds::kGB << "GB"
               << ", logical used = " << spaceInfo.logicalUsed / mds::kGB << "GB"
+              << "(" << logicalUsedRatio * 100 << "%, can be recycled = "
+              << spaceInfo.canBeRecycled / mds::kGB << "GB("
+              << canBeRecycledRatio * 100 << "%))"
               << ", physical used = " << spaceInfo.physicalUsed / mds::kGB
-              << "GB"
-              << ", can be recycled = " << spaceInfo.canBeRecycled / mds::kGB
-              << "GB"
+              << "GB(" << physicalUsedRatio * 100 << "%)"
               << std::endl;
     return 0;
 }
@@ -281,54 +300,77 @@ int StatusTool::PrintClusterStatus() {
 }
 
 bool StatusTool::IsClusterHeatlhy() {
+    bool ret = true;
     // 1、检查copyset健康状态
     int res = copysetCheckCore_->CheckCopysetsInCluster();
     if (res != 0) {
-        return false;
+        std::cout << "Copysets are not healthy!" << std::endl;
+        ret = false;
     }
+
     // 2、检查mds状态
-    std::vector<std::string> mdsAddrs = mdsClient_->GetCurrentMds();
-    // 当前工作mds为空或超过一个返回不健康
-    if (mdsAddrs.size() != 1) {
-        return false;
+    if (!CheckServiceHealthy(ServiceName::kMds)) {
+        ret = false;
     }
-    std::map<std::string, bool> onlineStatus;
-    mdsClient_->GetMdsOnlineStatus(&onlineStatus);
-    for (const auto& item : onlineStatus) {
-        if (!item.second) {
-            return false;
-        }
-    }
+
     // 3、检查etcd在线状态
-    std::string leaderAddr;
-    onlineStatus.clear();
-    res = etcdClient_->GetEtcdClusterStatus(&leaderAddr, &onlineStatus);
-    if (res != 0) {
-        return false;
-    }
-    if (leaderAddr.empty()) {
-        return false;
-    }
-    for (const auto& item : onlineStatus) {
-        if (!item.second) {
-            return false;
-        }
+    if (!CheckServiceHealthy(ServiceName::kEtcd)) {
+        ret = false;
     }
 
     // 4、检查snapshot clone server状态
-    std::vector<std::string> activeAddrs = snapshotClient_->GetActiveAddrs();
-    // 当前工作snapshot clone为空或超过一个返回不健康
-    if (activeAddrs.size() != 1) {
-        return false;
+    if (!CheckServiceHealthy(ServiceName::kSnapshotCloneServer)) {
+        ret = false;
     }
-    snapshotClient_->GetOnlineStatus(&onlineStatus);
-    for (const auto& item : onlineStatus) {
-        if (!item.second) {
+
+    return ret;
+}
+
+bool StatusTool::CheckServiceHealthy(const ServiceName& name) {
+    std::vector<std::string> leaderVec;
+    std::map<std::string, bool> onlineStatus;
+    switch (name) {
+        case ServiceName::kMds: {
+            leaderVec = mdsClient_->GetCurrentMds();
+            mdsClient_->GetMdsOnlineStatus(&onlineStatus);
+            break;
+        }
+        case ServiceName::kEtcd: {
+            int res = etcdClient_->GetEtcdClusterStatus(&leaderVec,
+                                                        &onlineStatus);
+            if (res != 0) {
+                std:: cout << "GetEtcdClusterStatus fail!" << std::endl;
+                return false;
+            }
+            break;
+        }
+        case ServiceName::kSnapshotCloneServer: {
+            leaderVec = snapshotClient_->GetActiveAddrs();
+            snapshotClient_->GetOnlineStatus(&onlineStatus);
+            break;
+        }
+        default: {
+            std::cout << "Unknown service" << std::endl;
             return false;
         }
     }
-
-    return true;
+    bool ret = true;
+    if (leaderVec.empty()) {
+        std::cout << "No " << ToString(name) << " is active" << std::endl;
+        ret = false;
+    } else if (leaderVec.size() != 1) {
+        std::cout << "More than one " << ToString(name) << " is active"
+                  << std::endl;
+        ret = false;
+    }
+    for (const auto& item : onlineStatus) {
+        if (!item.second) {
+            std::cout << ToString(name) << " " << item.first << " is offline"
+                      << std::endl;
+            ret = false;
+        }
+    }
+    return ret;
 }
 
 void StatusTool::PrintOnlineStatus(const std::string& name,
@@ -392,16 +434,30 @@ int StatusTool::PrintMdsStatus() {
 
 int StatusTool::PrintEtcdStatus() {
     std::cout << "Etcd status:" << std::endl;
-    std::string leaderAddr;
+    std::string version;
+    std::vector<std::string> failedList;
+    int res = etcdClient_->GetAndCheckEtcdVersion(&version, &failedList);
+    int ret = 0;
+    if (res != 0) {
+        std::cout << "GetAndCheckEtcdVersion fail" << std::endl;
+        ret = -1;
+    } else {
+        std::cout << "version: " << version << std::endl;
+        if (!failedList.empty()) {
+            VersionTool::PrintFailedList(failedList);
+            ret = -1;
+        }
+    }
+    std::vector<std::string> leaderAddrVec;
     std::map<std::string, bool> onlineStatus;
-    int res = etcdClient_->GetEtcdClusterStatus(&leaderAddr, &onlineStatus);
+    res = etcdClient_->GetEtcdClusterStatus(&leaderAddrVec, &onlineStatus);
     if (res != 0) {
         std::cout << "GetEtcdClusterStatus fail!" << std::endl;
         return -1;
     }
-    std::cout << "current etcd: " << leaderAddr << std::endl;
+    std::cout << "current etcd: " << leaderAddrVec << std::endl;
     PrintOnlineStatus("etcd", onlineStatus);
-    return 0;
+    return ret;
 }
 
 int StatusTool::PrintSnapshotCloneStatus() {
@@ -431,25 +487,28 @@ int StatusTool::PrintSnapshotCloneStatus() {
 
 int StatusTool::PrintClientStatus() {
     std::cout << "Client status: " << std::endl;
-    VersionMapType versionMap;
-    std::vector<std::string> offlineList;
-    int res = versionTool_->GetClientVersion(&versionMap, &offlineList);
+    ClientVersionMapType versionMap;
+    int res = versionTool_->GetClientVersion(&versionMap);
     if (res != 0) {
         std::cout << "GetClientVersion fail" << std::endl;
         return -1;
     }
-    bool first = true;
     for (const auto& item : versionMap) {
-        if (!first) {
-            std::cout << ", ";
+        std::cout << item.first << ": ";
+        bool first = true;
+        for (const auto& item2 : item.second) {
+            if (!first) {
+                std::cout << ", ";
+            }
+            std::cout << "version-" <<  item2.first << ": "
+                      << item2.second.size();
+            first = false;
         }
-        std::cout << "version-" <<  item.first << ": " << item.second.size();
-        first = false;
-    }
-    std::cout << std::endl;
-    if (FLAGS_detail) {
-        std::cout << "version map:" << std::endl;
-        versionTool_->PrintVersionMap(versionMap);
+        std::cout << std::endl;
+        if (FLAGS_detail) {
+            std::cout << "version map: " << std::endl;
+            versionTool_->PrintVersionMap(item.second);
+        }
     }
     return 0;
 }
@@ -480,7 +539,9 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     uint64_t total = 0;
     uint64_t online = 0;
     uint64_t offline = 0;
-    std::map<uint64_t, int> leftSizeNum;
+    std::vector<uint64_t> leftSize;
+    std::vector<ChunkServerIdType> offlineCs;
+    // 获取chunkserver的online状态
     for (const auto& chunkserver : chunkservers) {
         total++;
         std::string csAddr = chunkserver.hostip()
@@ -489,6 +550,7 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
             online++;
         } else {
             offline++;
+            offlineCs.emplace_back(chunkserver.chunkserverid());
         }
         if (!checkLeftSize) {
             continue;
@@ -504,26 +566,74 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
             continue;
         }
         uint64_t size = chunkNum * FLAGS_chunkSize;
-        if (leftSizeNum.count(size) == 0) {
-            leftSizeNum[size] = 1;
+        leftSize.emplace_back(size / mds::kGB);
+    }
+    // 获取offline chunkserver的恢复状态
+    std::vector<ChunkServerIdType> offlineRecover;
+    if (offlineCs.size() > 0) {
+        // 获取offline中的chunkserver恢复状态
+        std::map<ChunkServerIdType, bool> statusMap;
+        int res = mdsClient_->QueryChunkServerRecoverStatus(
+            offlineCs, &statusMap);
+        if (res != 0) {
+            std::cout << "query offlinne chunkserver recover status fail";
         } else {
-            leftSizeNum[size]++;
+            // 区分正在恢复的和未恢复的
+            for (auto it = statusMap.begin(); it != statusMap.end(); ++it) {
+                if (it->second) {
+                    offlineRecover.emplace_back(it->first);
+                }
+            }
         }
     }
+
     std::cout << "chunkserver: total num = " << total
             << ", online = " << online
-            << ", offline = " << offline << std::endl;
+            << ", offline = " << offline
+            << "(recovering = " << offlineRecover.size()
+            << ")" << std::endl;
     if (!checkLeftSize) {
         return ret;
     }
-    if (leftSizeNum.empty()) {
-        std::cout << "No chunkserver left chunk size found!" << std::endl;
-        return -1;
-    }
-    auto minPair = leftSizeNum.begin();
-    std::cout << "minimal left size: " << minPair->first / mds::kGB << "GB"
-              << ", chunkserver num: " << minPair->second << std::endl;
+
+    PrintCsLeftSizeStatistics(leftSize);
     return ret;
+}
+
+void StatusTool::PrintCsLeftSizeStatistics(
+                        const std::vector<uint64_t>& leftSize) {
+    if (leftSize.empty()) {
+        std::cout << "No chunkserver left chunk size found!" << std::endl;
+        return;
+    }
+    uint64_t min = leftSize[0];
+    uint64_t max = leftSize[0];
+    double sum = 0;
+    for (const auto& size : leftSize) {
+        sum += size;
+        if (size < min) {
+            min = size;
+        }
+        if (size > max) {
+            max = size;
+        }
+    }
+    uint64_t range = max - min;
+    std::cout << sum << std::endl;
+    double avg = sum / leftSize.size();
+    sum = 0;
+    for (const auto& size : leftSize) {
+        sum += (size - avg) * (size - avg);
+    }
+
+    double var = sum / leftSize.size();
+    std:: cout.setf(std::ios::fixed);
+    std::cout<< std::setprecision(2);
+    std::cout << "left size: min = " << min << "GB"
+              << ", max = " << max << "GB"
+              << ", average = " << avg << "GB"
+              << ", range = " << range << "GB"
+              << ", variance = " << var << std::endl;
 }
 
 int StatusTool::GetPoolsInCluster(std::vector<PhysicalPoolInfo>* phyPools,
@@ -609,6 +719,8 @@ int StatusTool::RunCommand(const std::string &cmd) {
         return PrintClientStatus();
     } else if (cmd == kSnapshotCloneStatusCmd) {
         return PrintSnapshotCloneStatus();
+    } else if (cmd == kClusterStatusCmd) {
+        return PrintClusterStatus();
     } else {
         std::cout << "Command not supported!" << std::endl;
         return -1;

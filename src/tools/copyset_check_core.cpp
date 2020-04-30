@@ -59,7 +59,6 @@ int CopysetCheckCore::CheckOneCopyset(const PoolIdType& logicalPoolId,
         }
         std::vector<std::map<std::string, std::string>> copysetInfos;
         ParseResponseAttachment({groupId}, &iobuf, &copysetInfos, true);
-        UpdateChunkServerCopysets(csAddr, copysetInfos);
         if (copysetInfos.empty()) {
             std::cout << "copyset not found on chunkserver " << csAddr
                       << std::endl;
@@ -147,7 +146,10 @@ ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
     // 存储每一个copyset的详细信息
     CopySetInfosType copysetInfos;
     ParseResponseAttachment(groupIds, &iobuf, &copysetInfos);
-    UpdateChunkServerCopysets(chunkserverAddr, copysetInfos);
+    // 只有查询全部chunkserver的时候才更新chunkServer上的copyset列表
+    if (groupIds.empty()) {
+        UpdateChunkServerCopysets(chunkserverAddr, copysetInfos);
+    }
 
     // 对应的chunkserver上没有要找的leader的copyset，可能已经迁移出去了，
     // 但是follower这边还没更新，这种情况也认为chunkserver不健康
@@ -165,6 +167,7 @@ ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
     for (auto& copysetInfo : copysetInfos) {
         std::string groupId = copysetInfo[kGroupId];
         std::string state = copysetInfo[kState];
+        copysets_[kTotal].emplace(groupId);
         if (state == kStateLeader) {
             CheckResult res = CheckHealthOnLeader(&copysetInfo);
             switch (res) {
@@ -479,10 +482,6 @@ void CopysetCheckCore::ParseResponseAttachment(
                     }
                     temp.clear();
                     map.emplace(kGroupId, gid);
-                    if (gIds.empty()) {
-                        // 查询chunkserver上所有copyset的时候保存，避免重复
-                        copysets_[kTotal].emplace(gid);
-                    }
                     continue;
                 }
             }
@@ -536,14 +535,9 @@ void CopysetCheckCore::UpdateChunkServerCopysets(
     chunkserverCopysets_[csAddr] = copysetIds;
 }
 
-// 通过发送RPC检查chunkserver是否在线，如果访问过，就直接返回结果
+// 通过发送RPC检查chunkserver是否在线
 bool CopysetCheckCore::CheckChunkServerOnline(
                     const std::string& chunkserverAddr) {
-    // 如果已经查询过，就直接返回结果，每次查询的总时间很短，
-    // 假设这段时间内chunkserver不会恢复
-    if (chunkserverCopysets_.count(chunkserverAddr) != 0) {
-        return !chunkserverCopysets_[chunkserverAddr].empty();
-    }
     int res = csClient_->Init(chunkserverAddr);
     if (res != 0) {
         std::cout << "Init chunkserverClient fail!" << std::endl;
@@ -692,6 +686,9 @@ void CopysetCheckCore::UpdatePeerNotOnlineCopysets(const std::string& csAddr) {
     if (res != 0) {
         std::cout << "GetCopySetsInChunkServer " << csAddr
                   << " fail!" << std::endl;
+        return;
+    } else if (copysets.empty()) {
+        std::cout << "No copysets on chunkserver " << csAddr << std::endl;
         return;
     }
 

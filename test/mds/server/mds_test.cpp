@@ -31,8 +31,8 @@ class MDSTest : public ::testing::Test {
         system("rm -fr testMds.etcd");
         // 创建数据库
         mdsRepo = new MdsRepo();
-        ASSERT_EQ(0, mdsRepo->connectDB(
-            "curve_mds", "root", "localhost", "qwer", 16));
+        ASSERT_EQ(0, mdsRepo->connectDB("curve_mds", "root", "localhost",
+                                        "qwer", 16));
         ASSERT_EQ(0, mdsRepo->dropDataBase());
         ASSERT_EQ(0, mdsRepo->createDatabase());
         ASSERT_EQ(0, mdsRepo->useDataBase());
@@ -49,12 +49,16 @@ class MDSTest : public ::testing::Test {
                 std::string(" 'http://localhost:10032'") +
                 std::string(" --listen-peer-urls 'http://localhost:10033'") +
                 std::string(" --name testMds");
+            /**
+             *  重要提示！！！！
+             *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+             */
             ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", runEtcd.c_str(), NULL));
             exit(0);
         }
         // 一定时间内尝试init直到etcd完全起来
         auto client = std::make_shared<EtcdClientImp>();
-        EtcdConf conf = {kEtcdAddr, strlen(kEtcdAddr), 1000};
+        EtcdConf conf = { kEtcdAddr, strlen(kEtcdAddr), 1000 };
         uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
         bool initSuccess = false;
         while (::curve::common::TimeUtility::GetTimeofDaySec() - now <= 5) {
@@ -64,10 +68,10 @@ class MDSTest : public ::testing::Test {
             }
         }
         ASSERT_TRUE(initSuccess);
-        ASSERT_EQ(
-            EtcdErrCode::EtcdDeadlineExceeded, client->Put("05", "hello word"));
         ASSERT_EQ(EtcdErrCode::EtcdDeadlineExceeded,
-            client->CompareAndSwap("04", "10", "110"));
+                  client->Put("05", "hello word"));
+        ASSERT_EQ(EtcdErrCode::EtcdDeadlineExceeded,
+                  client->CompareAndSwap("04", "10", "110"));
         client->CloseClient();
         fiu_init(0);
         fiu_enable("src/mds/leaderElection/observeLeader", 1, nullptr, 0);
@@ -82,9 +86,9 @@ class MDSTest : public ::testing::Test {
     brpc::Channel channel_;
     pid_t etcdPid;
     const std::string kMdsAddr = "127.0.0.1:10031";
-    char kEtcdAddr[20] = {"127.0.0.1:10032"};
+    char kEtcdAddr[20] = { "127.0.0.1:10032" };
     const int kDummyPort = 10034;
-    MdsRepo *mdsRepo;
+    MdsRepo* mdsRepo;
 };
 
 TEST_F(MDSTest, common) {
@@ -106,7 +110,7 @@ TEST_F(MDSTest, common) {
     brpc::Channel httpChannel;
     brpc::Controller cntl;
     brpc::ChannelOptions options;
-        options.protocol = brpc::PROTOCOL_HTTP;
+    options.protocol = brpc::PROTOCOL_HTTP;
     std::string dummyAddr = "127.0.0.1:" + std::to_string(kDummyPort);
     ASSERT_EQ(0, httpChannel.Init(dummyAddr.c_str(), &options));
 
@@ -138,7 +142,7 @@ TEST_F(MDSTest, common) {
     httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     ASSERT_FALSE(cntl.Failed());
     ASSERT_NE(std::string::npos,
-        cntl.response_attachment().to_string().find("follower"));
+              cntl.response_attachment().to_string().find("follower"));
 
     mds.StartCompaginLeader();
 
@@ -147,7 +151,7 @@ TEST_F(MDSTest, common) {
     cntl.http_request().uri() = dummyAddr + "/vars/is_leader";
     ASSERT_FALSE(cntl.Failed());
     ASSERT_EQ(std::string::npos,
-        cntl.response_attachment().to_string().find("leader"));
+              cntl.response_attachment().to_string().find("leader"));
 
     mds.Init();
     // 启动mds
@@ -209,4 +213,3 @@ TEST_F(MDSTest, common) {
 
 }  // namespace mds
 }  // namespace curve
-

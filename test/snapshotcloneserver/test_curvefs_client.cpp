@@ -112,10 +112,11 @@ TEST_F(TestCurveFsClientImpl, TestClientInterfaceFail) {
     ret = client_->GetChunkInfo(cidinfo, &chunkInfo);
     ASSERT_LT(ret, 0);
 
-    ret = client_->CreateCloneFile("file1", "user1", 1024, 1, 1024, &fInfo);
+    ret = client_->CreateCloneFile(
+        "source1", "file1", "user1", 1024, 1, 1024, &fInfo);
     ASSERT_LT(ret, 0);
     ret = client_->CreateCloneFile(
-        "file1", clientOption_.mdsRootUser, 1024, 1, 1024, &fInfo);
+        "source1", "file1", clientOption_.mdsRootUser, 1024, 1, 1024, &fInfo);
     ASSERT_LT(ret, 0);
 
     TestClosure *cb = new TestClosure();

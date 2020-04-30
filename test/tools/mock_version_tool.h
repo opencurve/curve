@@ -30,8 +30,7 @@ class MockVersionTool : public VersionTool {
                                             std::vector<std::string>*));
     MOCK_METHOD2(GetAndCheckChunkServerVersion, int(std::string*,
                                                     std::vector<std::string>*));
-    MOCK_METHOD2(GetClientVersion, int(VersionMapType*,
-                                       std::vector<std::string>*));
+    MOCK_METHOD1(GetClientVersion, int(ClientVersionMapType*));
     MOCK_METHOD2(GetAndCheckSnapshotCloneVersion, int(std::string*,
                                                     std::vector<std::string>*));
 };

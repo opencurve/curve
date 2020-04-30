@@ -137,6 +137,7 @@ void RequestScheduler::Process() {
                                         req->offset_,
                                         req->rawlength_,
                                         req->appliedindex_,
+                                        req->sourceInfo_,
                                         guard.release());
                     }
                     break;
@@ -150,6 +151,7 @@ void RequestScheduler::Process() {
                                         req->writeBuffer_,
                                         req->offset_,
                                         req->rawlength_,
+                                        req->sourceInfo_,
                                         guard.release());
                     }
                     break;
@@ -179,9 +181,8 @@ void RequestScheduler::Process() {
                     break;
                 case OpType::RECOVER_CHUNK:
                     client_.RecoverChunk(req->idinfo_,
-                                        req->offset_,
-                                        req->rawlength_,
-                                        guard.release());
+                                         req->offset_, req->rawlength_,
+                                         guard.release());
                     break;
                 default:
                     /* TODO(wudemiao) 后期整个链路错误发统一了在处理 */

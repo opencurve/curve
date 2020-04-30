@@ -123,6 +123,7 @@ TEST_F(StatusToolTest, InitAndSupportCommand) {
     ASSERT_TRUE(statusTool.SupportCommand("etcd-status"));
     ASSERT_TRUE(statusTool.SupportCommand("client-status"));
     ASSERT_TRUE(statusTool.SupportCommand("snapshot-clone-status"));
+    ASSERT_TRUE(statusTool.SupportCommand("cluster-status"));
     ASSERT_FALSE(statusTool.SupportCommand("none"));
 }
 
@@ -420,9 +421,12 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
     VersionMapType versionMap = {{"0.0.1", {"127.0.0.1:8001"}},
                                  {"0.0.2", {"127.0.0.1:8002"}},
                                  {"0.0.3", {"127.0.0.1:8003"}}};
+    ClientVersionMapType clientVersionMap = {{"nebd-server", versionMap},
+                                              {"python", versionMap},
+                                              {"qemu", versionMap}};
     std::vector<std::string> offlineList = {"127.0.0.1:8004",
                                             "127.0.0.1:8005"};
-    std::string leaderAddr = "127.0.0.1:2379";
+    std::vector<std::string> leaderAddr = {"127.0.0.1:2379"};
     std::map<std::string, bool> onlineState = {{"127.0.0.1:2379", true},
                                                {"127.0.0.1:2381", true},
                                                {"127.0.0.1:2383", true}};
@@ -481,9 +485,8 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
                         Return(0)));
 
     // 设置client status的输出
-    EXPECT_CALL(*versionTool_, GetClientVersion(_, _))
-        .WillOnce(DoAll(SetArgPointee<0>(versionMap),
-                        SetArgPointee<1>(offlineList),
+    EXPECT_CALL(*versionTool_, GetClientVersion(_))
+        .WillOnce(DoAll(SetArgPointee<0>(clientVersionMap),
                         Return(0)));
 
     // 2、设置MDS status的输出
@@ -498,6 +501,10 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
                         Return(0)));
 
     // 3、设置etcd status的输出
+    EXPECT_CALL(*etcdClient_, GetAndCheckEtcdVersion(_, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<0>("3.4.1"),
+                        Return(0)));
     EXPECT_CALL(*etcdClient_, GetEtcdClusterStatus(_, _))
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<0>(leaderAddr),
@@ -603,7 +610,7 @@ TEST_F(StatusToolTest, StatusCmdError) {
         .WillRepeatedly(Return(-1));
 
     // 获取client version失败
-    EXPECT_CALL(*versionTool_, GetClientVersion(_, _))
+    EXPECT_CALL(*versionTool_, GetClientVersion(_))
         .WillOnce(Return(-1));
 
     // 2、当前无mds可用
@@ -614,16 +621,19 @@ TEST_F(StatusToolTest, StatusCmdError) {
     std::map<std::string, bool> mdsOnlineStatus = {{"127.0.0.1:6666", false},
                                                    {"127.0.0.1:6667", false}};
     EXPECT_CALL(*mdsClient_, GetCurrentMds())
-        .Times(1)
-        .WillOnce(Return(std::vector<std::string>()));
+        .Times(2)
+        .WillRepeatedly(Return(std::vector<std::string>()));
     EXPECT_CALL(*mdsClient_, GetMdsOnlineStatus(_))
-        .Times(1)
-        .WillOnce(SetArgPointee<0>(mdsOnlineStatus));
+        .Times(2)
+        .WillRepeatedly(SetArgPointee<0>(mdsOnlineStatus));
 
     // 3、GetEtcdClusterStatus失败
-    EXPECT_CALL(*etcdClient_, GetEtcdClusterStatus(_, _))
+    EXPECT_CALL(*etcdClient_, GetAndCheckEtcdVersion(_, _))
         .Times(1)
         .WillOnce(Return(-1));
+    EXPECT_CALL(*etcdClient_, GetEtcdClusterStatus(_, _))
+        .Times(2)
+        .WillRepeatedly(Return(-1));
 
     // 当前无snapshot clone server可用
     EXPECT_CALL(*versionTool_, GetAndCheckSnapshotCloneVersion(_, _))
@@ -632,11 +642,11 @@ TEST_F(StatusToolTest, StatusCmdError) {
     std::map<std::string, bool> onlineStatus = {{"127.0.0.1:5555", false},
                                                 {"127.0.0.1:5556", false}};
     EXPECT_CALL(*snapshotClient_, GetActiveAddrs())
-        .Times(1)
-        .WillOnce(Return(std::vector<std::string>()));
+        .Times(2)
+        .WillRepeatedly(Return(std::vector<std::string>()));
     EXPECT_CALL(*snapshotClient_, GetOnlineStatus(_))
-        .Times(1)
-        .WillOnce(SetArgPointee<0>(onlineStatus));
+        .Times(2)
+        .WillRepeatedly(SetArgPointee<0>(onlineStatus));
 
     // 4、获取chunkserver version失败并ListChunkServersInCluster失败
     EXPECT_CALL(*versionTool_, GetAndCheckChunkServerVersion(_, _))
@@ -674,78 +684,64 @@ TEST_F(StatusToolTest, IsClusterHeatlhy) {
                           nameSpaceTool_, copysetCheck_,
                           versionTool_, metricClient_,
                           snapshotClient_);
-    std::string leader = "127.0.0.1:8001";
     std::map<std::string, bool> onlineStatus = {{"127.0.0.1:8001", true},
                                                 {"127.0.0.1:8002", true},
                                                 {"127.0.0.1:8003", true}};
     std::map<std::string, bool> onlineStatus2 = {{"127.0.0.1:8001", true},
                                                  {"127.0.0.1:8002", false},
                                                  {"127.0.0.1:8003", true}};
-    std::vector<std::string> activeAddrs = {"127.0.0.1:5555"};
     // 1、copysets不健康
     EXPECT_CALL(*copysetCheck_, CheckCopysetsInCluster())
-        .Times(9)
-        .WillOnce(Return(-1))
-        .WillRepeatedly(Return(0));
-    ASSERT_FALSE(statusTool.IsClusterHeatlhy());
-
+        .Times(1)
+        .WillOnce(Return(-1));
     // 2、没有mds可用
     EXPECT_CALL(*mdsClient_, GetCurrentMds())
         .Times(1)
         .WillOnce(Return(std::vector<std::string>()));
-    ASSERT_FALSE(statusTool.IsClusterHeatlhy());
-
-    // 3、有不止一个mds在提供服务
-    std::vector<std::string> mdsAddrs = {"127.0.0.1:6666"};
-    EXPECT_CALL(*mdsClient_, GetCurrentMds())
-        .Times(7)
-        .WillOnce(Return(std::vector<std::string>(2)))
-        .WillRepeatedly(Return(mdsAddrs));
-    ASSERT_FALSE(statusTool.IsClusterHeatlhy());
-
-    // 4、有mds不在线
+    // 3、有mds不在线
     EXPECT_CALL(*mdsClient_, GetMdsOnlineStatus(_))
-        .Times(6)
-        .WillOnce(SetArgPointee<0>(onlineStatus2))
-        .WillRepeatedly(SetArgPointee<0>(onlineStatus));
-    ASSERT_FALSE(statusTool.IsClusterHeatlhy());
-
-    // 5、etcd没有leader
+        .Times(1)
+        .WillOnce(SetArgPointee<0>(onlineStatus2));
+    // 4、获取etcd集群状态失败
     EXPECT_CALL(*etcdClient_, GetEtcdClusterStatus(_, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<0>(""),
-                        SetArgPointee<1>(onlineStatus),
-                        Return(0)));
-    ASSERT_FALSE(statusTool.IsClusterHeatlhy());
-
-    // 6、有etcd不在线
-    EXPECT_CALL(*etcdClient_, GetEtcdClusterStatus(_, _))
-        .Times(4)
-        .WillOnce(DoAll(SetArgPointee<0>(leader),
-                        SetArgPointee<1>(onlineStatus2),
-                        Return(0)))
-        .WillRepeatedly(DoAll(SetArgPointee<0>(leader),
-                        SetArgPointee<1>(onlineStatus),
-                        Return(0)));
-    ASSERT_FALSE(statusTool.IsClusterHeatlhy());
-
-    // 7、没有snapshot-clone-server可用
+        .WillOnce(Return(-1));
+    // 5、没有snapshot-clone-server可用
     EXPECT_CALL(*snapshotClient_, GetActiveAddrs())
         .Times(1)
         .WillOnce(Return(std::vector<std::string>()));
-    ASSERT_FALSE(statusTool.IsClusterHeatlhy());
-
-    // 8、有多个snapshot-clone-server可用
-    EXPECT_CALL(*snapshotClient_, GetActiveAddrs())
-        .Times(2)
-        .WillOnce(Return(std::vector<std::string>(2)))
-        .WillOnce(Return(activeAddrs));
-    ASSERT_FALSE(statusTool.IsClusterHeatlhy());
-
-    // 9、有snapshot-clone-server不在线
+    // 6、有snapshot-clone-server不在线
     EXPECT_CALL(*snapshotClient_, GetOnlineStatus(_))
         .Times(1)
         .WillOnce(SetArgPointee<0>(onlineStatus2));
+    ASSERT_FALSE(statusTool.IsClusterHeatlhy());
+
+    // 1、copyset健康
+    EXPECT_CALL(*copysetCheck_, CheckCopysetsInCluster())
+        .Times(1)
+        .WillOnce(Return(0));
+    // 2、超过一个mds在服务
+    EXPECT_CALL(*mdsClient_, GetCurrentMds())
+        .Times(1)
+        .WillOnce(Return(std::vector<std::string>(2)));
+    // 3、mds都在线
+    EXPECT_CALL(*mdsClient_, GetMdsOnlineStatus(_))
+        .Times(1)
+        .WillOnce(SetArgPointee<0>(onlineStatus));
+    // 4、etcd没有leader且有etcd不在线
+    EXPECT_CALL(*etcdClient_, GetEtcdClusterStatus(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<0>(std::vector<std::string>()),
+                        SetArgPointee<1>(onlineStatus2),
+                        Return(0)));
+    // 5、有多个snapshot-clone-server可用
+    EXPECT_CALL(*snapshotClient_, GetActiveAddrs())
+        .Times(1)
+        .WillOnce(Return(std::vector<std::string>(2)));
+    // 9、snapshot-clone-server都在线
+    EXPECT_CALL(*snapshotClient_, GetOnlineStatus(_))
+        .Times(1)
+        .WillOnce(SetArgPointee<0>(onlineStatus));
     ASSERT_FALSE(statusTool.IsClusterHeatlhy());
 }
 

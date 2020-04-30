@@ -12,6 +12,7 @@
 #include <string>
 #include <memory>
 #include <mutex> //NOLINT
+#include <atomic>
 
 #include "src/common/concurrent/concurrent.h"
 
@@ -53,7 +54,7 @@ class TaskInfo {
      * @brief 完成任务
      */
     void Finish() {
-        isFinish_ = true;
+        isFinish_.store(true);
     }
 
     /**
@@ -63,7 +64,7 @@ class TaskInfo {
      * @retval false 任务未完成
      */
     bool IsFinish() const {
-        return isFinish_;
+        return isFinish_.load();
     }
 
     /**
@@ -87,7 +88,7 @@ class TaskInfo {
      * @brief 重置任务
      */
     void Reset() {
-        isFinish_ = false;
+        isFinish_.store(false);
         isCanceled_ = false;
     }
 
@@ -110,7 +111,7 @@ class TaskInfo {
     // 任务完成度百分比
     uint32_t progress_;
     // 任务任务是否结束
-    bool isFinish_;
+    std::atomic_bool isFinish_;
     // 任务是否被取消
     bool isCanceled_;
     mutable curve::common::Mutex lock_;

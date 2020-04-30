@@ -58,6 +58,12 @@ void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo* finfo,
     if (finfo->has_filestatus()) {
         fi->filestatus = (FileStatus)finfo->filestatus();
     }
+    if (finfo->has_clonesource()) {
+        fi->cloneSource = finfo->clonesource();
+    }
+    if (finfo->has_clonelength()) {
+        fi->cloneLength = finfo->clonelength();
+    }
 }
 
 class GetLeaderProxy : public std::enable_shared_from_this<GetLeaderProxy> {
@@ -275,7 +281,7 @@ void GetLeaderClosure::Run() {
 int ServiceHelper::GetLeader(const GetLeaderInfo& getLeaderInfo,
                              ChunkServerAddr* leaderAddr,
                              ChunkServerID* leaderId,
-                             FileMetric_t* fileMetric) {
+                             FileMetric* fileMetric) {
     const auto& peerInfo = getLeaderInfo.copysetPeerInfo;
 
     int16_t index = -1;

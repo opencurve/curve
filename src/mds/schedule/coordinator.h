@@ -61,6 +61,10 @@ class Coordinator {
      */
     virtual int RapidLeaderSchedule(PoolIdType lpid);
 
+    virtual int QueryChunkServerRecoverStatus(
+        const std::vector<ChunkServerIdType> &idList,
+        std::map<ChunkServerIdType, bool> *statusMap);
+
     /**
      * @brief 判断指定chunkserver是否为指定copyset上
      *                              已有AddOperator的target
@@ -151,6 +155,8 @@ class Coordinator {
      * @return 调度器名字
      */
     std::string ScheduleName(SchedulerType type);
+
+    bool IsChunkServerRecover(const ChunkServerInfo &info);
 
  private:
     std::shared_ptr<TopoAdapter> topo_;

@@ -7,10 +7,6 @@
 
 #include "src/client/chunk_closure.h"
 
-#include <unistd.h>
-#include <bthread/bthread.h>
-#include <braft/configuration.h>
-
 #include <cmath>
 #include <string>
 #include <memory>
@@ -127,24 +123,33 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
                   << ", remote side = " << remoteAddress_;
         bthread_usleep(nextsleeptime);
         return;
-    } else if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED) {
-        LOG(WARNING) << "leader redirect, retry directly, " << *reqCtx
-                     << ", retried times = " << reqDone->GetRetriedTimes()
-                     << ", IO id = " << reqDone->GetIOTracker()->GetID()
-                     << ", request id = " << reqCtx->id_
-                     << ", remote side = " << remoteAddress_;
-        return;
     }
 
-    LOG(WARNING) << "rpc failed, sleep(us) = "
-                << failReqOpt_.chunkserverOPRetryIntervalUS << ", " << *reqCtx
-                << ", cntl status = " << cntlstatus
-                << ", response status = " << rpcstatus
-                << ", retried times = " << reqDone->GetRetriedTimes()
-                << ", IO id = " << reqDone->GetIOTracker()->GetID()
-                << ", request id = " << reqCtx->id_
-                << ", remote side = " << remoteAddress_;
-    bthread_usleep(failReqOpt_.chunkserverOPRetryIntervalUS);
+    auto nextSleepUS = 0;
+
+    if (!retryDirectly_) {
+        nextSleepUS = failReqOpt_.chunkserverOPRetryIntervalUS;
+        if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED) {
+            nextSleepUS /= 10;
+        }
+    }
+
+    LOG(WARNING)
+        << "Rpc failed "
+        << (retryDirectly_ ? "retry directly, "
+                           : "sleep " + std::to_string(nextSleepUS) + " us, ")
+        << *reqCtx << ", cntl status = " << cntlstatus
+        << ", response status = "
+        << curve::chunkserver::CHUNK_OP_STATUS_Name(
+               static_cast<curve::chunkserver::CHUNK_OP_STATUS>(rpcstatus))
+        << ", retried times = " << reqDone->GetRetriedTimes()
+        << ", IO id = " << reqDone->GetIOTracker()->GetID()
+        << ", request id = " << reqCtx->id_
+        << ", remote side = " << remoteAddress_;
+
+    if (nextSleepUS != 0) {
+        bthread_usleep(nextSleepUS);
+    }
 }
 
 uint64_t ClientClosure::OverLoadBackOff(uint64_t currentRetryTimes) {
@@ -214,6 +219,7 @@ void ClientClosure::Run() {
 
         // 2.1 不是leader
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED:
+            MetricHelper::IncremRedirectRPCCount(fileMetric_, reqCtx_->optype_);
             needRetry = true;
             OnRedirected();
             break;
@@ -251,6 +257,11 @@ void ClientClosure::Run() {
             }
             break;
 
+        // 2.6 返回chunk exist，直接返回，不用重试
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_EXIST:
+            OnChunkExist();
+            break;
+
         default:
             needRetry = true;
             LOG_EVERY_N(ERROR, 10) << OpTypeToString(reqCtx_->optype_)
@@ -272,6 +283,8 @@ void ClientClosure::Run() {
 }
 
 void ClientClosure::OnRpcFailed() {
+    client_->ResetSenderIfNotHealth(chunkserverID_);
+
     status_ = cntl_->ErrorCode();
 
     // 如果连接失败，再等一定时间再重试
@@ -354,6 +367,18 @@ void ClientClosure::OnChunkNotExist() {
         fileMetric_, reqCtx_->rawlength_, reqCtx_->optype_);
 }
 
+void ClientClosure::OnChunkExist() {
+    reqDone_->SetFailed(status_);
+
+    LOG(WARNING) << OpTypeToString(reqCtx_->optype_)
+        << " exists, " << *reqCtx_
+        << ", status=" << status_
+        << ", retried times = " << reqDone_->GetRetriedTimes()
+        << ", IO id = " << reqDone_->GetIOTracker()->GetID()
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = " << remoteAddress_;
+}
+
 void ClientClosure::OnRedirected() {
     LOG(WARNING) << OpTypeToString(reqCtx_->optype_) << " redirected, "
         << *reqCtx_
@@ -365,19 +390,10 @@ void ClientClosure::OnRedirected() {
         << (response_->has_redirect() ? response_->redirect() : "empty")
         << ", remote side = " << remoteAddress_;
 
-    ChunkServerID leaderId = 0;
-    butil::EndPoint leaderAddr;
-
     if (response_->has_redirect()) {
-        braft::PeerId leader;
-        int ret = leader.parse(response_->redirect());
-        if (0 == ret) {
-            ret = metaCache_->UpdateLeader(
-                chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
-                &leaderId, leader.addr);
-            if (ret == 0) {
-                return;
-            }
+        int ret = UpdateLeaderWithRedirectInfo(response_->redirect());
+        if (ret == 0) {
+            return;
         }
     }
 
@@ -424,20 +440,23 @@ void ClientClosure::OnRetry() {
     SendRetryRequest();
 }
 
-void ClientClosure::RefreshLeader() const {
-    ChunkServerID leaderId;
+void ClientClosure::RefreshLeader() {
+    ChunkServerID leaderId = 0;
     butil::EndPoint leaderAddr;
 
-    if (-1 == metaCache_->GetLeader(
-            chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
-            &leaderId, &leaderAddr, true, fileMetric_)) {
+    if (-1 == metaCache_->GetLeader(chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
+                                    &leaderId, &leaderAddr, true,
+                                    fileMetric_)) {
         LOG(WARNING) << "Refresh leader failed, "
-            << "logicpool id = " << chunkIdInfo_.lpid_
-            << ", copyset id = " << chunkIdInfo_.cpid_
-            << ", current op return status = "
-            << status_
-            << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-            << ", request id = " << reqCtx_->id_;
+                     << "logicpool id = " << chunkIdInfo_.lpid_
+                     << ", copyset id = " << chunkIdInfo_.cpid_
+                     << ", current op return status = " << status_
+                     << ", IO id = " << reqDone_->GetIOTracker()->GetID()
+                     << ", request id = " << reqCtx_->id_;
+    } else {
+        // 如果refresh leader获取到了新的leader信息
+        // 则重试之前不进行睡眠
+        retryDirectly_ = (leaderId != chunkserverID_);
     }
 }
 
@@ -472,6 +491,7 @@ void WriteChunkClosure::SendRetryRequest() {
                         reqCtx_->writeBuffer_,
                         reqCtx_->offset_,
                         reqCtx_->rawlength_,
+                        reqCtx_->sourceInfo_,
                         done_);
 }
 
@@ -489,6 +509,7 @@ void ReadChunkClosure::SendRetryRequest() {
                        reqCtx_->offset_,
                        reqCtx_->rawlength_,
                        reqCtx_->appliedindex_,
+                       reqCtx_->sourceInfo_,
                        done_);
 }
 
@@ -561,19 +582,10 @@ void GetChunkInfoClosure::OnRedirected() {
                                                : "empty")
         << ", remote side = " << remoteAddress_;
 
-    ChunkServerID leaderId = 0;
-    butil::EndPoint leaderAddr;
-
     if (chunkinforesponse_->has_redirect()) {
-        braft::PeerId leader;
-        int ret = leader.parse(chunkinforesponse_->redirect());
+        int ret = UpdateLeaderWithRedirectInfo(chunkinforesponse_->redirect());
         if (0 == ret) {
-            ret = metaCache_->UpdateLeader(
-                chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
-                &leaderId, leader.addr);
-            if (ret == 0) {
-                return;
-            }
+            return;
         }
     }
 
@@ -594,6 +606,23 @@ void RecoverChunkClosure::SendRetryRequest() {
                           reqCtx_->offset_,
                           reqCtx_->rawlength_,
                           done_);
+}
+
+int ClientClosure::UpdateLeaderWithRedirectInfo(const std::string& leaderInfo) {
+    ChunkServerID leaderId = 0;
+    ChunkServerAddr leaderAddr;
+
+    int ret = leaderAddr.Parse(leaderInfo);
+    if (0 == ret) {
+        ret = metaCache_->UpdateLeader(chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
+                                       &leaderId, leaderAddr.addr_);
+        if (0 == ret) {
+            retryDirectly_ = (leaderId != chunkserverID_);
+            return 0;
+        }
+    }
+
+    return -1;
 }
 
 }   // namespace client

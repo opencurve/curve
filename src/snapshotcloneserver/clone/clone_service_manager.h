@@ -84,7 +84,9 @@ class CloneServiceManager {
         std::shared_ptr<CloneTaskManager> cloneTaskMgr,
         std::shared_ptr<CloneCore> cloneCore)
           : cloneTaskMgr_(cloneTaskMgr),
-            cloneCore_(cloneCore) {}
+            cloneCore_(cloneCore) {
+        destFileLock_ = std::make_shared<NameLock>();
+    }
     virtual ~CloneServiceManager() {}
 
     /**
@@ -285,6 +287,7 @@ class CloneServiceManager {
         std::shared_ptr<CloneClosure> closure);
 
  private:
+    std::shared_ptr<NameLock> destFileLock_;
     std::shared_ptr<CloneTaskManager> cloneTaskMgr_;
     std::shared_ptr<CloneCore> cloneCore_;
 };

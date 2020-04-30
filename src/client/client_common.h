@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "include/client/libcurve.h"
+#include "src/common/net_common.h"
 
 namespace curve {
 namespace client {
@@ -137,6 +138,8 @@ typedef struct FInfo {
     std::string     filename;
     std::string     fullPathName;
     FileStatus      filestatus;
+    std::string     cloneSource;
+    uint64_t        cloneLength{0};
 
     FInfo() {
         id = 0;
@@ -172,7 +175,7 @@ struct ChunkServerAddr {
     int Parse(const std::string& str) {
         int idx;
         char ip_str[64];
-        if (3 != sscanf(str.c_str(), "%[^:]%*[:]%d%*[:]%d", ip_str,
+        if (2 > sscanf(str.c_str(), "%[^:]%*[:]%d%*[:]%d", ip_str,
                        &addr_.port, &idx)) {
             Reset();
             return -1;
@@ -213,6 +216,46 @@ class SnapCloneClosure : public google::protobuf::Closure {
 
  private:
     int ret;
+};
+
+class ClientDummyServerInfo {
+ public:
+    static ClientDummyServerInfo& GetInstance() {
+        static ClientDummyServerInfo clientInfo;
+        return clientInfo;
+    }
+
+    void SetIP(const std::string& ip) {
+        localIP_ = ip;
+    }
+
+    const std::string& GetIP() const {
+        return localIP_;
+    }
+
+    void SetPort(uint32_t port) {
+        localPort_ = port;
+    }
+
+    uint32_t GetPort() const {
+        return localPort_;
+    }
+
+    void SetRegister(bool registerFlag) {
+        register_ = registerFlag;
+    }
+
+    bool GetRegister() const {
+        return register_;
+    }
+
+ private:
+    ClientDummyServerInfo() = default;
+
+ private:
+    std::string localIP_;
+    uint32_t localPort_ = 0;
+    bool register_ = false;
 };
 
 }   // namespace client

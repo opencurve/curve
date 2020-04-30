@@ -15,6 +15,7 @@
 #include "src/client/file_instance.h"
 #include "src/client/request_closure.h"
 #include "src/client/metacache_struct.h"
+#include "src/common/location_operator.h"
 
 namespace curve {
 namespace client {
@@ -216,6 +217,8 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
 
             for_each(templist.begin(), templist.end(), [&](RequestContext* it) {
                 it->appliedindex_ = appliedindex_;
+                it->sourceInfo_ =
+                    CalcRequestSourceInfo(iotracker, mc, chunkidx);
             });
 
             targetlist->insert(targetlist->end(), templist.begin(), templist.end());    // NOLINT
@@ -236,6 +239,8 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
             newreqNode->optype_       = iotracker->Optype();
             newreqNode->idinfo_       = chinfo;
             newreqNode->appliedindex_ = appliedindex_;
+            newreqNode->sourceInfo_ =
+                CalcRequestSourceInfo(iotracker, mc, chunkidx);
             newreqNode->done_->SetIOTracker(iotracker);
 
             targetlist->push_back(newreqNode);
@@ -256,6 +261,28 @@ RequestContext* Splitor::GetInitedRequestContext() {
         delete ctx;
         return nullptr;
     }
+}
+
+RequestSourceInfo Splitor::CalcRequestSourceInfo(IOTracker* ioTracker,
+                                                 MetaCache* metaCache,
+                                                 ChunkIndex chunkIdx) {
+    const FInfo* fileInfo = metaCache->GetFileInfo();
+    if (fileInfo->cloneSource.empty()) {
+        return {};
+    }
+
+    OpType type = ioTracker->Optype();
+    if (type != OpType::READ && type != OpType::WRITE) {
+        return {};
+    }
+
+    uint64_t offset = chunkIdx * fileInfo->chunksize;
+
+    if (offset >= fileInfo->cloneLength) {
+        return {};
+    }
+
+    return {fileInfo->cloneSource, offset};
 }
 
 }   // namespace client

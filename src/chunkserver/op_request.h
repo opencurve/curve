@@ -31,6 +31,17 @@ class CloneManager;
 class CloneCore;
 class CloneTask;
 
+
+inline bool existCloneInfo(const ChunkRequest *request) {
+    if (request != nullptr) {
+        if (request->has_clonefilesource() &&
+            request->has_clonefileoffset()) {
+                return true;
+        }
+    }
+    return false;
+}
+
 class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
  public:
     ChunkOpRequest();
