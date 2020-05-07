@@ -9,6 +9,10 @@
 #include "src/part2/request_executor_curve.h"
 #include "tests/part2/mock_curve_client.h"
 
+#include "proto/client.pb.h"
+#include "proto/heartbeat.pb.h"
+#include "src/part2/file_service.h"
+
 namespace nebd {
 namespace server {
 
@@ -17,6 +21,24 @@ using ::testing::_;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
 using ::testing::SaveArg;
+
+class TestReuqestExecutorCurveClosure : public google::protobuf::Closure {
+ public:
+    TestReuqestExecutorCurveClosure() : runned_(false) {}
+    ~TestReuqestExecutorCurveClosure() {}
+    void Run() {
+        runned_ = true;
+    }
+    bool IsRunned() {
+        return runned_;
+    }
+    void Reset() {
+        runned_ = false;
+    }
+
+ private:
+    bool runned_;
+};
 
 void NebdUnitTestCallback(NebdServerAioContext* context) {
     std::cout << "callback" << std::endl;
@@ -319,6 +341,42 @@ TEST_F(TestReuqestExecutorCurve, test_AioWrite) {
     }
 }
 
+TEST_F(TestReuqestExecutorCurve, test_Discard) {
+    auto executor = CurveRequestExecutor::GetInstance();
+    std::string curveFilename("/cinder/volume-1234_cinder_");
+    std::unique_ptr<CurveFileInstance> curveFileIns(new CurveFileInstance());
+    NebdServerAioContext* aioctx = new NebdServerAioContext();
+    nebd::client::DiscardResponse response;
+    TestReuqestExecutorCurveClosure done;
+
+    aioctx->op = LIBAIO_OP::LIBAIO_OP_DISCARD;
+    aioctx->cb = NebdFileServiceCallback;
+    aioctx->response = &response;
+    aioctx->done = &done;
+
+    ASSERT_EQ(0, executor.Discard(curveFileIns.get(), aioctx));
+    ASSERT_TRUE(done.IsRunned());
+    ASSERT_EQ(response.retcode(), nebd::client::RetCode::kOK);
+}
+
+TEST_F(TestReuqestExecutorCurve, test_Flush) {
+    auto executor = CurveRequestExecutor::GetInstance();
+    std::string curveFilename("/cinder/volume-1234_cinder_");
+    std::unique_ptr<CurveFileInstance> curveFileIns(new CurveFileInstance());
+    NebdServerAioContext* aioctx = new NebdServerAioContext();
+    nebd::client::FlushResponse response;
+    TestReuqestExecutorCurveClosure done;
+
+    aioctx->op = LIBAIO_OP::LIBAIO_OP_FLUSH;
+    aioctx->cb = NebdFileServiceCallback;
+    aioctx->response = &response;
+    aioctx->done = &done;
+
+    ASSERT_EQ(0, executor.Flush(curveFileIns.get(), aioctx));
+    ASSERT_TRUE(done.IsRunned());
+    ASSERT_EQ(response.retcode(), nebd::client::RetCode::kOK);
+}
+
 TEST_F(TestReuqestExecutorCurve, test_InvalidCache) {
     auto executor = CurveRequestExecutor::GetInstance();
     std::string curveFilename("/cinder/volume-1234_cinder_");
@@ -378,5 +436,3 @@ int main(int argc, char ** argv) {
     ::testing::InitGoogleMock(&argc, argv);
     return RUN_ALL_TESTS();
 }
-
-

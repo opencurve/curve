@@ -5,8 +5,9 @@
  * Copyright (c) 2020 netease
  */
 
-#include <glog/logging.h>
 #include "src/part2/request_executor_curve.h"
+
+#include <glog/logging.h>
 
 namespace nebd {
 namespace server {
@@ -135,6 +136,9 @@ int CurveRequestExecutor::GetInfo(
 int CurveRequestExecutor::Discard(
     NebdFileInstance* fd, NebdServerAioContext* aioctx) {
 
+    aioctx->ret = 0;
+    aioctx->cb(aioctx);
+
     return 0;
 }
 
@@ -188,7 +192,10 @@ int CurveRequestExecutor::AioWrite(
 
 int CurveRequestExecutor::Flush(
     NebdFileInstance* fd, NebdServerAioContext* aioctx) {
-    // TODO(lxc)
+
+    aioctx->ret = 0;
+    aioctx->cb(aioctx);
+
     return 0;
 }
 
