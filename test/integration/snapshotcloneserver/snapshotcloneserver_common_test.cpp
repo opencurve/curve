@@ -542,7 +542,8 @@ TEST_F(SnapshotCloneServerTest, TestCancelSnapshot) {
         FileSnapshotInfo info1;
         int retCode = GetSnapshotInfo(testUser1_, testFile1_, uuid1, &info1);
         if (retCode == 0) {
-            if (info1.GetSnapshotInfo().GetStatus() == Status::pending) {
+            if (info1.GetSnapshotInfo().GetStatus() == Status::pending ||
+                info1.GetSnapshotInfo().GetStatus() == Status::canceling) {
                 if (!isCancel) {
                     // 操作1：用户testUser1_对testFile1_打快照snap1，
                     //        在快照未完成前testUser2_取消testFile1_的快照snap1
