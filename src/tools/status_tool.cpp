@@ -590,8 +590,19 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     std::cout << "chunkserver: total num = " << total
             << ", online = " << online
             << ", offline = " << offline
-            << "(recovering = " << offlineRecover.size()
-            << ")" << std::endl;
+            << "(recoveringout = " << offlineRecover.size()
+            << ", chunkserverlist: [";
+
+    int i = 0;
+    for (ChunkServerIdType csId :  offlineRecover) {
+        i++;
+        if (i == offlineRecover.size()) {
+            std::cout << csId;
+        } else {
+            std::cout << csId << ", ";
+        }
+    }
+    std::cout << "])" << std::endl;
     if (!checkLeftSize) {
         return ret;
     }
