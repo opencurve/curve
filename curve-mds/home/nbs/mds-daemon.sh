@@ -7,7 +7,7 @@ curveBin=/usr/bin/curve-mds
 confPath=/etc/curve/mds.conf
 
 # 日志文件路径
-logPath=${HOME}/mdslog
+logPath=/data/log/curve/mds
 
 # mdsAddr
 mdsAddr=

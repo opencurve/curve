@@ -7,7 +7,7 @@ curveBin=/usr/bin/curve-snapshotcloneserver
 confPath=/etc/curve/snapshot_clone_server.conf
 
 # 日志文件路径
-logPath=${HOME}/snapshotlog
+logPath=/data/log/curve/snapshotclone
 
 # serverAddr
 serverAddr=
