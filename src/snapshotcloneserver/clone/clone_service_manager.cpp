@@ -402,10 +402,13 @@ int CloneServiceManager::RecoverCloneTaskInternal(const CloneInfo &cloneInfo) {
     // Lazy 克隆/恢复
     if (isLazy) {
         CloneStep step = cloneInfo.GetNextStep();
-        // 处理这三个阶段的Push到stage2Pool
+        // 处理kRecoverChunk,kCompleteCloneFile,kEnd这三个阶段的Push到stage2Pool
+        // 如果克隆source类型是file，阶段为kCreateCloneChunk也需要push到stage2Pool
         if (CloneStep::kRecoverChunk == step ||
             CloneStep::kCompleteCloneFile == step ||
-            CloneStep::kEnd == step) {
+            CloneStep::kEnd == step ||
+            (CloneStep::kCreateCloneChunk == step
+                && cloneInfo.GetFileType() == CloneFileType::kFile)) {
             ret = cloneTaskMgr_->PushStage2Task(task);
             if (ret < 0) {
                 LOG(ERROR) << "CloneTaskMgr Push Stage2 Task error"
