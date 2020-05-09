@@ -1086,6 +1086,7 @@ int CloneCoreImpl::RenameCloneFile(
         } else {
             task->GetCloneInfo().SetNextStep(CloneStep::kRecoverChunk);
         }
+        task->GetCloneInfo().SetStatus(CloneStatus::metaInstalled);
     } else {
         task->GetCloneInfo().SetNextStep(CloneStep::kEnd);
     }
@@ -1148,16 +1149,9 @@ int CloneCoreImpl::CompleteCloneFile(
 
 void CloneCoreImpl::HandleLazyCloneStage1Finish(
     std::shared_ptr<CloneTaskInfo> task) {
-    task->GetCloneInfo().SetStatus(CloneStatus::metaInstalled);
-    int ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
-    if (ret < 0) {
-        LOG(ERROR) << "UpdateCloneInfo Task Success Fail!"
-                   << " ret = " << ret
-                   << ", uuid = " << task->GetTaskId();
-    }
     LOG(INFO) << "Task Lazy Stage1 Success"
               << ", TaskInfo : " << *task;
-    task->GetClosure()->SetErrCode(ret);
+    task->GetClosure()->SetErrCode(kErrCodeSuccess);
     task->Finish();
     task->GetClosure()->Run();
     return;
