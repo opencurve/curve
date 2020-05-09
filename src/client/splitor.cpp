@@ -276,7 +276,7 @@ RequestSourceInfo Splitor::CalcRequestSourceInfo(IOTracker* ioTracker,
         return {};
     }
 
-    uint64_t offset = chunkIdx * fileInfo->chunksize;
+    uint64_t offset = static_cast<uint64_t>(chunkIdx) * fileInfo->chunksize;
 
     if (offset >= fileInfo->cloneLength) {
         return {};

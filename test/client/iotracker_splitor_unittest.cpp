@@ -898,7 +898,7 @@ TEST(SplitorTest, RequestSourceInfoTest) {
     MetaCache metaCache;
     FInfo_t fileInfo;
     fileInfo.chunksize = 16 * 1024 * 1024;          // 16M
-    fileInfo.cloneLength = 1 * 1024 * 1024 * 1024;  // 1G
+    fileInfo.cloneLength = 10ull * 1024 * 1024 * 1024;  // 10G
     fileInfo.cloneSource = "/clonesource";
 
     metaCache.UpdateFileInfo(fileInfo);
@@ -914,12 +914,15 @@ TEST(SplitorTest, RequestSourceInfoTest) {
 
     // 克隆卷最后一个chunk
     chunkIdx = fileInfo.cloneLength / fileInfo.chunksize - 1;
+    LOG(INFO) << "clone length = " << fileInfo.cloneLength
+              << ", chunk size = " << fileInfo.chunksize
+              << ", chunk idx = " << chunkIdx;
 
-    // offset = 1024*1024*1024 - 16 * 1024 * 1024 = 1056964608
+    // offset = 10*1024*1024*1024 - 16 * 1024 * 1024 = 10720641024
     sourceInfo =
         Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
     ASSERT_EQ(sourceInfo.cloneFileSource, fileInfo.cloneSource);
-    ASSERT_EQ(sourceInfo.cloneFileOffset, 1056964608);
+    ASSERT_EQ(sourceInfo.cloneFileOffset, 10720641024);
 
     // 超过长度
     chunkIdx = fileInfo.cloneLength / fileInfo.chunksize;
