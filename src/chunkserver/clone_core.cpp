@@ -276,8 +276,6 @@ static void ReadBufferDeleter(void* ptr) {
     delete[] static_cast<char*>(ptr);
 }
 
-static void EmptyDeleter(void* ptr) {}
-
 int CloneCore::SetReadChunkResponse(
     std::shared_ptr<ReadChunkRequest> readRequest, const char* cloneData) {
     const ChunkRequest* request = readRequest->request_;
@@ -322,10 +320,7 @@ int CloneCore::SetReadChunkResponse(
             return ret;
         }
     } else {
-        // clone data的声明周期会在异步closure中释放
-        // 所以这里的deleter不做delete[]操作
-        responseData.append_user_data(
-            const_cast<char*>(cloneData), length, EmptyDeleter);
+        responseData.append(const_cast<char*>(cloneData), length);
     }
     readRequest->cntl_->response_attachment().append(responseData);
 
