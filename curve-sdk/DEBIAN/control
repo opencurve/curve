@@ -1,7 +1,7 @@
 Package: curve-sdk
 Section:
 Priority: optional
-Depends: libunwind8
+Depends: libunwind8, libnl-3-dev, libnl-genl-3-dev
 Suggests:
 Architecture:amd64
 Installed-Size:

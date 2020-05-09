@@ -287,6 +287,11 @@ if [ $? -ne 0 ]
 then
     exit
 fi
+cp ./bazel-bin/src/tools/nbd/curve-nbd build/curve-sdk/usr/bin/curve-nbd
+if [ $? -ne 0 ]
+then
+	exit
+fi
 #cp ./conf/client.conf build/curve-sdk/etc/curve/client.conf
 #if [ $? -ne 0 ]
 #then
