@@ -182,6 +182,26 @@ def clone_vol_snapshot(snapshot_uuid,lazy="true"):
     clone_vol_uuid = ref["UUID"]
     return clone_vol_uuid
 
+def clone_vol_from_file(file_name,lazy="true"):
+    snap_server = config.snapshot_vip
+    payload = {}
+    payload['Action'] = 'Clone'
+    payload['Version'] = config.snap_version
+    payload['User'] = 'cinder'
+    payload['Source'] = "/cinder/volume-" + file_name
+    payload['Destination'] = R'/cinder/volume-%s-%s'%(file_name,lazy)
+    payload['Lazy']  = lazy
+    payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
+    http = R'http://%s:5555/SnapshotCloneService' % snap_server
+    logger2.info("exec requests:%s %s"%(http,payload))
+    r = requests.get(http, params=payload_str)
+    logger2.info("exec requests url:%s"%(r.url))
+    assert r.status_code == 200, "clone snapshot fail,return code is %d,return msg is %s" % (r.status_code, r.text)
+    logger2.info("requests ret is %s"%r.text)
+    ref = json.loads(r.text)
+    clone_vol_uuid = ref["UUID"]
+    return clone_vol_uuid
+
 def flatten_clone_vol(clone_uuid):
     snap_server = config.snapshot_vip
     payload = {}
@@ -379,6 +399,8 @@ def check_clone_vol_exist(clonevol_uuid):
 def diff_vol_consistency(vol_uuid,clone_uuid):
     context1 = get_vol_md5(vol_uuid)
     context2 = get_vol_md5(clone_uuid)
+    if context1 != context2:
+        logger2.error("check md5 consistency fail ,vol is %s,clone vol is %s"%(vol_uuid,clone_uuid))
     assert context1 == context2,"vol and clone vol not same"
 
 def init_vol():
@@ -500,6 +522,56 @@ def test_clone_iovol_consistency(lazy):
     else:
        assert False,"clone vol fail,status is %s"%rc
 
+def test_clone_vol_from_file(lazy):
+    logger2.info("------------begin test clone vol from file lazy=%s----------"%lazy)
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    vol_id = config.snapshot_volid
+    vm_id = config.snapshot_vmid
+    destination = vol_id + "-" + lazy 
+    clone_vol_uuid = clone_vol_from_file(vol_id,lazy)
+    time.sleep(1)
+    if lazy == "true":
+        rc = check_clone_vol_exist(destination)
+        assert rc,"clone vol volume-%s not create ok in 2s"%destination
+    starttime = time.time()
+    status = 0 
+    final = False
+    if lazy == "true":
+        status = 7
+    while time.time() - starttime < config.snapshot_timeout:
+        rc = get_clone_status(clone_vol_uuid)
+        if rc["TaskStatus"] == status and rc["TaskType"] == 0:
+            final = True
+            break
+        else:
+           time.sleep(60)
+    if final == True:
+        time.sleep(3)
+        try:
+           nova_vol_detach(ssh,vm_id, vol_id)
+           wait_vol_status(ssh,vol_id, 'available')
+           diff_vol_consistency(vol_id,destination)
+           if lazy == "true":
+               flatten_clone_vol(clone_vol_uuid)
+               starttime = time.time()
+               final = False
+               while time.time() - starttime < config.snapshot_timeout:
+                   rc = get_clone_status(clone_vol_uuid)
+                   if rc["TaskStatus"] == 0 and rc["TaskType"] == 0:
+                       final = True
+                       break
+                   else:
+                      time.sleep(60)
+        except:
+           raise
+        finally:
+           nova_vol_attach(ssh,vm_id, vol_id)
+           clean_vol_clone(clone_vol_uuid)
+           check_clone_clean(clone_vol_uuid)
+           unlink_clone_vol(destination)
+    else:
+       assert False,"clone vol fail,status is %s"%rc
+
 def test_cancel_snapshot():
     logger2.info("------------begin test cancel snapshot----------")
     vol_write_data()
@@ -598,10 +670,12 @@ def random_kill_snapshot():
 
 def test_snapshot_all(vol_uuid):
     lazy="true"
+    test_clone_vol_from_file(lazy)
     test_clone_iovol_consistency(lazy)
     test_recover_snapshot(lazy)
     test_cancel_snapshot()
     lazy="false"
+    test_clone_vol_from_file(lazy)
     test_clone_iovol_consistency(lazy)
     test_recover_snapshot(lazy)
     return "finally"
