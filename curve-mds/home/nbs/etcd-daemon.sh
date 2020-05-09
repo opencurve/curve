@@ -4,7 +4,7 @@
 confPath=/etc/curve/etcd/etcd.conf.yml
 
 # 日志文件目录
-logDir=${HOME}/etcdlog
+logDir=/data/log/curve/etcd
 
 # 日志文件路径
 logPath=${logDir}/etcd.log
