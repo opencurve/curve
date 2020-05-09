@@ -132,6 +132,23 @@ function fstab_record {
   fi
 }
 
+#将当前的uuid持久化到磁盘上做备份，防止系统重启后uuid发生变化
+function meta_record {
+  grep curvefs /etc/fstab
+  if [ $? -eq 0 ]
+  then
+  for i in `cat /etc/fstab | grep "/data/chunkserver" | awk '{print $1 $2}' | awk -F '=' '{print $2}'`
+  do
+    uuid=`echo $i | awk -F / '{print $1}'`
+    uuidmd5=`echo -n $uuid | md5sum | cut -d ' ' -f1`
+    datadir=`echo $i | awk -F / '{print "/" $2 "/" $3}'`
+    touch $datadir/disk.meta
+    echo "uuid=$uuid" > $datadir/disk.meta
+    echo "uuidmd5=$uuidmd5" >> $datadir/disk.meta
+  done
+  fi
+}
+
 #初始化chunkfile pool
 function chunkfile_pool_prep {
 ret=`lsblk|grep chunkserver|wc -l`
@@ -162,6 +179,7 @@ function deploy_all {
     disk_format;
     mount_dir;
     fstab_record;
+    meta_record;
     chunkfile_pool_prep;
 }
 
@@ -229,6 +247,11 @@ function deploy_one {
   line_num=`grep -n $dirname /etc/fstab`
   sed -i ''${line_num}'d' /etc/fstab
   echo "UUID=$uuid    $dirname    ext4  rw,errors=remount-ro    0    0" >> /etc/fstab
+  # 将uuid及其md5写到diskmeta中
+  uuidmd5=`echo -n $uuid | md5sum | cut -d ' ' -f1`
+  touch $dirname/disk.meta
+  echo "uuid=$uuid" > $dirname/disk.meta
+  echo "uuidmd5=$uuidmd5" >> $dirname/disk.meta
   #格式化chunkfile pool
   curve-format -allocatepercent=80 \
   -chunkfilepool_dir=$dirname/chunkfilepool \
