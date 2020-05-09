@@ -23,6 +23,7 @@ function help() {
     echo "    restart one chunkserver             : ./chunkserver_ctl.sh restart {\$chunkserverId}"
     echo "    show the status of all chunkservers : ./chunkserver_ctl.sh status all"
     echo "    show the status of one chunkserver  : ./chunkserver_ctl.sh status {\$chunkserverId}"
+    echo "    record uuid meta in all disks       : ./chunkserver_ctl.sh record-meta"
     echo "    deploy all disk                     : ./chunkserver_ctl.sh deploy all"
     echo "    deploy one disk                     : ./chunkserver_ctl.sh deploy /dev/sd{id} /data/chunkserver{id}"
     echo "    format by percent                   : ./chunkserver_ctl.sh format -allocatepercent=80 -filesystem_path=/data/chunkserver{id} "
@@ -272,6 +273,11 @@ function format() {
     curve-format $*
 }
 
+function recordmeta() {
+    # 将当前的磁盘的uuid及其md5备份到磁盘的disk.meta文件中
+    meta_record;
+}
+
 function main() {
     if [ $# -lt 1 ]
     then
@@ -303,6 +309,10 @@ function main() {
     "format")
         shift # pass first argument
         format $@
+        ;;
+    "record-meta")
+        shift
+        recordmeta
         ;;
     *)
         help
