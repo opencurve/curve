@@ -41,7 +41,6 @@
 #include "src/client/client_config.h"
 #include "test/client/fake/fakeMDS.h"
 #include "src/client/file_instance.h"
-#include "src/client/timertask_worker.h"
 #include "src/client/iomanager4file.h"
 #include "src/client/libcurve_file.h"
 #include "test/client/fake/fakeChunkserver.h"
@@ -52,14 +51,8 @@ extern std::string mdsMetaServerAddr;
 extern std::string configpath;
 DECLARE_string(chunkserver_list);
 
-using curve::client::MDSClient;
-using curve::client::UserInfo_t;
-using curve::client::ClientConfig;
-using curve::client::FileClient;
-using curve::client::FileInstance;
-using curve::client::TimerTask;
-using curve::client::TimerTaskWorker;
-using curve::client::FileMetric;
+namespace curve {
+namespace client {
 
 #define SLEEP_TIME_S 5
 
@@ -75,58 +68,6 @@ void sessioncallback(CurveAioContext* aioctx) {
     ASSERT_GT(ioEndTime - ioSleepTime, SLEEP_TIME_S * 1000000);
 
     sessionFlag = true;
-}
-
-TEST(TimerTaskWorkerTest, TimerTaskWorkerRunTaskTest) {
-    // test timer worker run task follow task lease
-    TimerTaskWorker timerworker;
-    timerworker.Start();
-    timerworker.Start();
-
-    // task run in sequence by lease
-    std::mutex mtx;
-    std::condition_variable cv;
-    std::atomic<uint64_t> testnum1(0);
-    auto tt1 = [&testnum1, &cv]() {
-        testnum1.fetch_add(1);
-        cv.notify_all();
-    };
-    TimerTask task1(1000000);
-    task1.AddCallback(tt1);
-    ASSERT_TRUE(timerworker.AddTimerTask(&task1));
-    ASSERT_FALSE(timerworker.AddTimerTask(&task1));
-
-    std::atomic<uint64_t> testnum2(0);
-    auto tt2 = [&testnum2, &cv]() {
-        testnum2.fetch_add(1);
-        cv.notify_all();
-    };
-    TimerTask task2(2000000);
-    task2.AddCallback(tt2);
-    ASSERT_TRUE(timerworker.AddTimerTask(&task2));
-    ASSERT_FALSE(timerworker.AddTimerTask(&task2));
-
-    task1.SetDeleteSelf();
-
-    std::unique_lock<std::mutex> lk(mtx);
-    cv.wait(lk, [&testnum1, &testnum2]()->bool{
-        return testnum2.load() || testnum1.load();
-    });
-
-    ASSERT_EQ(1, testnum1.load());
-    ASSERT_NE(1, testnum2.load());
-
-    cv.wait(lk, [&testnum1, &testnum2]()->bool{
-        return testnum2.load() >= 2;
-    });
-
-    ASSERT_TRUE(timerworker.CancelTimerTask(&task2));
-    ASSERT_FALSE(timerworker.CancelTimerTask(&task1));
-
-    TimerTask task3(2000000);
-    ASSERT_FALSE(timerworker.CancelTimerTask(&task3));
-
-    timerworker.Stop();
 }
 
 TEST(ClientSession, LeaseTaskTest) {
@@ -167,7 +108,7 @@ TEST(ClientSession, LeaseTaskTest) {
     ::curve::mds::ProtoSession* se = new ::curve::mds::ProtoSession;
     se->set_sessionid("1");
     se->set_createtime(12345);
-    se->set_leasetime(10000000);
+    se->set_leasetime(100000);
     se->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);
 
     finfo->set_filename(filename);
@@ -219,7 +160,7 @@ TEST(ClientSession, LeaseTaskTest) {
 
     auto iomanager = fileinstance.GetIOManager4File();
 
-    curve::client::LeaseExcutor* lease = fileinstance.GetLeaseExcutor();
+    curve::client::LeaseExecutor* lease = fileinstance.GetLeaseExecutor();
 
     // 5. set refresh AuthFail
     refreshresp.set_statuscode(::curve::mds::kOwnerAuthFail);
@@ -263,7 +204,6 @@ TEST(ClientSession, LeaseTaskTest) {
     ASSERT_TRUE(lease->LeaseValid());
 
     // 7. set refresh kFileNotExists
-    auto timerTask = fileinstance.GetLeaseExcutor()->GetTimerTask();
     refreshresp.set_statuscode(::curve::mds::kFileNotExists);
     FakeReturn* refreshFakeRetFileNotExists =
         new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
@@ -275,7 +215,7 @@ TEST(ClientSession, LeaseTaskTest) {
     }
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    lease = fileinstance.GetLeaseExcutor();
+    lease = fileinstance.GetLeaseExecutor();
     ASSERT_FALSE(lease->LeaseValid());
 
     // 8. set refresh success
@@ -283,8 +223,7 @@ TEST(ClientSession, LeaseTaskTest) {
     FakeReturn* refreshfakeretOK3 =
         new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
     curvefsservice->SetRefreshSession(refreshfakeretOK3, refresht);
-    timerTask->ClearDeleteSelf();
-    fileinstance.GetLeaseExcutor()->SetTimerTask(timerTask);
+    fileinstance.GetLeaseExecutor()->ResetRefreshSessionTask();
 
     for (int i = 0; i < 2; i++) {
         {
@@ -299,8 +238,7 @@ TEST(ClientSession, LeaseTaskTest) {
     FakeReturn* refreshfakeretOK4 =
         new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
     curvefsservice->SetRefreshSession(refreshfakeretOK4, refresht);
-    timerTask->ClearDeleteSelf();
-    fileinstance.GetLeaseExcutor()->SetTimerTask(timerTask);
+    fileinstance.GetLeaseExecutor()->ResetRefreshSessionTask();
 
     for (int i = 0; i < 2; i++) {
         {
@@ -458,6 +396,9 @@ TEST(ClientSession, AppliedIndexTest) {
     delete readret2;
     delete readret;
 }
+
+}  // namespace client
+}  // namespace curve
 
 std::string mdsMetaServerAddr = "127.0.0.1:9101";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT

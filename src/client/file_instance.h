@@ -25,11 +25,12 @@
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 
-#include <string>
-#include <mutex>    //NOLINT
-#include <vector>
 #include <atomic>
-#include <condition_variable>   // NOLINT
+#include <condition_variable>  // NOLINT
+#include <memory>
+#include <mutex>  //NOLINT
+#include <string>
+#include <vector>
 
 #include "src/client/mds_client.h"
 #include "include/client/libcurve.h"
@@ -121,8 +122,8 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     /**
      * 获取lease, 测试代码使用
      */
-    LeaseExcutor* GetLeaseExcutor() {
-       return leaseexcutor_;
+    LeaseExecutor* GetLeaseExecutor() {
+       return leaseExecutor_.get();
     }
 
     int GetFileInfo(const std::string& filename, FInfo_t* fi);
@@ -146,8 +147,8 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     // MDSClient是FileInstance与mds通信的唯一出口
     MDSClient*              mdsclient_;
 
-    // 每个文件都持有与MDS通信的lease，leaseexcutor是续约执行者
-    LeaseExcutor*           leaseexcutor_;
+    // 每个文件都持有与MDS通信的lease，LeaseExecutor是续约执行者
+    std::unique_ptr<LeaseExecutor> leaseExecutor_;
 
     // IOManager4File用于管理所有向chunkserver端发送的IO
     IOManager4File          iomanager4file_;

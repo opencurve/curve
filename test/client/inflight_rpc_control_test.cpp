@@ -57,7 +57,7 @@ extern std::string configpath;
 
 extern char* writebuffer;
 
-using curve::client::LeaseExcutor;
+using curve::client::LeaseExecutor;
 using curve::client::EndPoint;
 using curve::client::UserInfo_t;
 using curve::client::CopysetInfo_t;
@@ -325,7 +325,7 @@ TEST_F(InflightRPCTest, FileCloseTest) {
             LeaseOption lopt;
             lopt.mdsRefreshTimesPerLease = 1;
             UserInfo_t userinfo("test", "");
-            LeaseExcutor lease(lopt, userinfo, &mdsclient_, iomanager);
+            LeaseExecutor lease(lopt, userinfo, &mdsclient_, iomanager);
 
             for (int j = 0; j < 5; j ++) {
                 // 测试iomanager退出之后，lease再去调用其scheduler资源不会crash

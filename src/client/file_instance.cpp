@@ -41,8 +41,6 @@ namespace curve {
 namespace client {
 
 FileInstance::FileInstance() {
-    leaseexcutor_     = nullptr;
-
     finfo_.chunksize   = 4 * 1024 * 1024;
     finfo_.segmentsize = 1 * 1024 * 1024 * 1024ul;
 }
@@ -72,25 +70,24 @@ bool FileInstance::Initialize(const std::string& filename,
         finfo_.fullPathName = filename;
 
         if (!iomanager4file_.Initialize(filename, fileopt_.ioOpt, mdsclient_)) {
-            LOG(ERROR) << "Init io context manager failed!";
+            LOG(ERROR) << "Init io context manager failed, filename = "
+                       << filename;
             break;
         }
 
         iomanager4file_.UpdateFileInfo(finfo_);
 
-        leaseexcutor_ = new (std::nothrow) LeaseExcutor(fileopt_.leaseOpt,
-                                finfo_.userinfo, mdsclient_, &iomanager4file_);
-        if (CURVE_UNLIKELY(leaseexcutor_ == nullptr)) {
-            LOG(ERROR) << "allocate lease excutor failed!";
+        leaseExecutor_.reset(new (std::nothrow) LeaseExecutor(
+            fileopt_.leaseOpt, finfo_.userinfo, mdsclient_, &iomanager4file_));
+        if (CURVE_UNLIKELY(leaseExecutor_ == nullptr)) {
+            LOG(ERROR) << "Allocate LeaseExecutor failed, filename = "
+                       << filename;
             break;
         }
 
         ret = true;
     } while (0);
 
-    if (!ret) {
-        delete leaseexcutor_;
-    }
     return ret;
 }
 
@@ -99,10 +96,9 @@ void FileInstance::UnInitialize() {
     // 因为如果后台集群重新部署了，需要通过lease续约来获取当前session状态
     // 这样在session过期后才能将inflight RPC正确回收掉。
     iomanager4file_.UnInitialize();
-    if (leaseexcutor_ != nullptr) {
-        leaseexcutor_->Stop();
-        delete leaseexcutor_;
-        leaseexcutor_ = nullptr;
+    if (leaseExecutor_ != nullptr) {
+        leaseExecutor_->Stop();
+        leaseExecutor_.reset();
     }
 }
 
@@ -146,7 +142,7 @@ int FileInstance::Open(const std::string& filename,
 
     ret = mdsclient_->OpenFile(filename, finfo_.userinfo, &finfo_, &lease);
     if (ret == LIBCURVE_ERROR::OK) {
-        ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
+        ret = leaseExecutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
                                                   : LIBCURVE_ERROR::FAILED;
         if (nullptr != sessionId) {
             sessionId->assign(lease.sessionID);
@@ -173,9 +169,11 @@ int FileInstance::Close() {
         return 0;
     }
 
-    LIBCURVE_ERROR ret = mdsclient_->CloseFile(finfo_.fullPathName,
-                         finfo_.userinfo, leaseexcutor_->GetLeaseSessionID());
+    LIBCURVE_ERROR ret =
+        mdsclient_->CloseFile(finfo_.fullPathName, finfo_.userinfo,
+                              leaseExecutor_->GetLeaseSessionID());
     return -ret;
 }
+
 }   // namespace client
 }   // namespace curve

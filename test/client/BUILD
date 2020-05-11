@@ -46,7 +46,8 @@ cc_test(
                 "libcbd_libcurve_test.cpp",
                 "inflight_rpc_control_test.cpp",
                 "mds_failover_test.cpp",
-                "libcurve_client_unittest.cpp"
+                "libcurve_client_unittest.cpp",
+                "lease_excutor_test.cpp",
                 ]
     ),
     copts = COPTS,
@@ -221,6 +222,33 @@ cc_test(
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "//test/integration/cluster_common:integration_cluster_common",
+    ],
+)
+
+cc_test(
+    name = "client_lease_excutor_test",
+    srcs = glob([
+        "lease_excutor_test.cpp",
+    ]),
+    copts = COPTS,
+    defines = ["UNIT_TEST"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:braft",
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
+        "//external:leveldb",
+        "//external:protobuf",
+        "//include/client:include_client",
+        "//proto:chunkserver-cc-protos",
+        "//proto:nameserver2_cc_proto",
+        "//proto:topology_cc_proto",
+        "//src/client:curve_client",
+        "//src/common:curve_common",
+        "//src/common/concurrent:curve_concurrent",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
