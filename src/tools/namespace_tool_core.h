@@ -96,10 +96,12 @@ class NameSpaceToolCore {
      *  @brief 计算文件或目录实际分配的空间
      *  @param fileName 文件名
      *  @param[out] allocSize 文件或目录已分配大小，返回值为0是有效
+     *  @param[out] phyAllocSize 文件或目录底层实际分配的大小，返回值0时有效
      *  @return 成功返回0，失败返回-1
      */
     virtual int GetAllocatedSize(const std::string& fileName,
-                                 uint64_t* allocSize);
+                                 uint64_t* allocSize,
+                                 uint64_t* phyAllocSize = nullptr);
 
     /**
      *  @brief 返回文件或目录的中的文件的用户申请的大小

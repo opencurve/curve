@@ -243,9 +243,9 @@ TEST_F(StatusToolTest, SpaceCmd) {
                         Return(0)))
         .WillOnce(DoAll(SetArgPointee<1>(29292213829632),
                         Return(0)));
-    EXPECT_CALL(*nameSpaceTool_, GetAllocatedSize(_, _))
+    EXPECT_CALL(*nameSpaceTool_, GetAllocatedSize(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(14646106914816),
+        .WillOnce(DoAll(SetArgPointee<2>(14646106914816),
                         Return(0)));
     ASSERT_EQ(0, statusTool.RunCommand("space"));
     ASSERT_EQ(-1, statusTool.RunCommand("123"));
@@ -307,7 +307,7 @@ TEST_F(StatusToolTest, SpaceCmd) {
                         Return(0)))
         .WillOnce(DoAll(SetArgPointee<1>(29292213829632),
                         Return(0)));
-    EXPECT_CALL(*nameSpaceTool_, GetAllocatedSize(_, _))
+    EXPECT_CALL(*nameSpaceTool_, GetAllocatedSize(_, _, _))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("space"));
@@ -479,9 +479,9 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
                         Return(0)))
         .WillOnce(DoAll(SetArgPointee<1>(58584427659264),
                         Return(0)));
-    EXPECT_CALL(*nameSpaceTool_, GetAllocatedSize(_, _))
+    EXPECT_CALL(*nameSpaceTool_, GetAllocatedSize(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(14646106914816),
+        .WillOnce(DoAll(SetArgPointee<2>(14646106914816),
                         Return(0)));
 
     // 设置client status的输出

@@ -29,6 +29,12 @@ using curve::common::TimeUtility;
 using curve::common::Authenticator;
 using curve::mds::topology::MockTopology;
 using ::curve::mds::chunkserverclient::ChunkServerClientOption;
+using ::testing::_;
+using ::testing::Return;
+using ::testing::AtLeast;
+using ::testing::SetArgPointee;
+using ::testing::DoAll;
+using ::testing::Invoke;
 
 namespace curve {
 namespace mds {
@@ -85,7 +91,7 @@ class NameSpaceServiceTest : public ::testing::Test {
                         cleanManager_,
                         fileRecordManager_,
                         allocStatistic_,
-                        curveFSOptions, repo);
+                        curveFSOptions, repo, topology_);
         kCurveFS.Run();
 
         std::this_thread::sleep_for(std::chrono::microseconds(
@@ -502,10 +508,18 @@ TEST_F(NameSpaceServiceTest, test1) {
         // normal
         cntl.Reset();
         request.set_filename("/file1");
+        LogicalPool lgPool;
+        LogicalPool::RedundanceAndPlaceMentPolicy rap;
+        rap.pageFileRAP.replicaNum = 3;
+        lgPool.SetRedundanceAndPlaceMentPolicy(rap);
+        EXPECT_CALL(*topology_, GetLogicalPool(_, _))
+            .WillRepeatedly(
+                    DoAll(SetArgPointee<1>(lgPool), Return(true)));
         stub.GetAllocatedSize(&cntl, &request, &response, NULL);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(StatusCode::kOK, response.statuscode());
         ASSERT_EQ(DefaultSegmentSize, response.allocatedsize());
+        ASSERT_EQ(DefaultSegmentSize * 3, response.physicalallocatedsize());
     }
 
     // test change owner
@@ -1541,12 +1555,6 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     using ::curve::chunkserver::ChunkRequest;
     using ::curve::chunkserver::ChunkResponse;
     using ::curve::chunkserver::CHUNK_OP_STATUS;
-    using ::testing::_;
-    using ::testing::Return;
-    using ::testing::AtLeast;
-    using ::testing::SetArgPointee;
-    using ::testing::DoAll;
-    using ::testing::Invoke;
 
     CopySetInfo copyset(1, 1);
     copyset.SetLeader(1);

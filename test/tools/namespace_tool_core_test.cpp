@@ -230,7 +230,7 @@ TEST_F(NameSpaceToolCoreTest, GetAllocatedSize) {
     curve::tool::NameSpaceToolCore namespaceTool(client_);
     // 1、正常情况
     uint64_t allocSize;
-    EXPECT_CALL(*client_, GetAllocatedSize(_, _))
+    EXPECT_CALL(*client_, GetAllocatedSize(_, _, _))
         .Times(1)
         .WillOnce(Return(0));
     ASSERT_EQ(0, namespaceTool.GetAllocatedSize("/test", &allocSize));

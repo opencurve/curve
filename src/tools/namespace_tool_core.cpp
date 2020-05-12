@@ -51,8 +51,9 @@ int NameSpaceToolCore::CreateFile(const std::string& fileName,
 }
 
 int NameSpaceToolCore::GetAllocatedSize(const std::string& fileName,
-                                        uint64_t* size) {
-    return client_->GetAllocatedSize(fileName, size);
+                                        uint64_t* allocSize,
+                                        uint64_t* phyAllocSize) {
+    return client_->GetAllocatedSize(fileName, allocSize, phyAllocSize);
 }
 
 int NameSpaceToolCore::GetFileSize(const std::string& fileName,

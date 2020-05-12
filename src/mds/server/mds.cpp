@@ -446,7 +446,7 @@ void MDS::InitCurveFS(const CurveFSOption& curveFSOptions) {
                   chunkSegmentAllocate, cleanManager_,
                   fileRecordManager,
                   segmentAllocStatistic_,
-                  curveFSOptions, mdsRepo_))
+                  curveFSOptions, mdsRepo_, topology_))
         << "init FileRecordManager fail";
     LOG(INFO) << "init FileRecordManager success.";
 
