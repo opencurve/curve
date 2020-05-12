@@ -1614,8 +1614,8 @@ void NameSpaceService::GetAllocatedSize(
         << ", GetAllocatedSize request, fileName = " << request->filename();
 
     StatusCode retCode;
-    uint64_t allocatedSize;
-    retCode = kCurveFS.GetAllocatedSize(request->filename(), &allocatedSize);
+    AllocatedSize allocSize;
+    retCode = kCurveFS.GetAllocatedSize(request->filename(), &allocSize);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -1625,7 +1625,8 @@ void NameSpaceService::GetAllocatedSize(
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
-        response->set_allocatedsize(allocatedSize);
+        response->set_allocatedsize(allocSize.allocatedSize);
+        response->set_physicalallocatedsize(allocSize.physicalAllocatedSize);
         LOG(INFO) << "logid = " << cntl->log_id()
             << ", GetAllocatedSize ok, fileName = " << request->filename()
             << ", allocatedSize = " << response->allocatedsize() / kGB << "GB";

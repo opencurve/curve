@@ -124,7 +124,8 @@ int MDSClient::GetFileInfo(const std::string &fileName,
 }
 
 int MDSClient::GetAllocatedSize(const std::string& fileName,
-                                 uint64_t* allocSize) {
+                                uint64_t* allocSize,
+                                uint64_t* physicalAllocSize) {
     if (!allocSize) {
         std::cout << "The argument is a null pointer!" << std::endl;
         return -1;
@@ -146,6 +147,9 @@ int MDSClient::GetAllocatedSize(const std::string& fileName,
     }
     if (response.statuscode() == StatusCode::kOK) {
         *allocSize = response.allocatedsize();
+        if (physicalAllocSize) {
+            *physicalAllocSize = response.physicalallocatedsize();
+        }
         return 0;
     }
     std::cout << "GetAllocatedSize fail with errCode: "

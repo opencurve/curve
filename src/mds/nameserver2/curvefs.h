@@ -41,6 +41,15 @@ struct CurveFSOption {
     FileRecordOptions fileRecordOptions;
 };
 
+struct AllocatedSize {
+    // mds给文件分配的segment的大小
+    uint64_t allocatedSize;
+    // 实际会占用的底层空间
+    uint64_t physicalAllocatedSize;
+    AllocatedSize() : allocatedSize(0), physicalAllocatedSize(0) {}
+    AllocatedSize& operator+=(const AllocatedSize& rhs);
+};
+
 using ::curve::mds::DeleteSnapShotResponse;
 
 bool InitRecycleBinDir(std::shared_ptr<NameServerStorage> storage);
@@ -72,7 +81,8 @@ class CurveFS {
               std::shared_ptr<FileRecordManager> fileRecordManager,
               std::shared_ptr<AllocStatistic> allocStatistic,
               const struct CurveFSOption &curveFSOptions,
-              std::shared_ptr<MdsRepo> repo);
+              std::shared_ptr<MdsRepo> repo,
+              std::shared_ptr<Topology> topology);
 
     /**
      *  @brief Run session manager
@@ -119,7 +129,7 @@ class CurveFS {
      *  @return 是否成功，成功返回StatusCode::kOK
      */
     StatusCode GetAllocatedSize(const std::string& fileName,
-                                uint64_t* allocatedSize);
+                                AllocatedSize* allocatedSize);
 
     /**
      *  @brief 删除文件
@@ -536,7 +546,7 @@ class CurveFS {
      */
     StatusCode GetAllocatedSize(const std::string& fileName,
                                 const FileInfo& fileInfo,
-                                uint64_t* allocSize);
+                                AllocatedSize* allocSize);
 
     /**
      *  @brief 获取文件分配大小
@@ -547,7 +557,7 @@ class CurveFS {
      */
     StatusCode GetFileAllocSize(const std::string& fileName,
                                 const FileInfo& fileInfo,
-                                uint64_t* allocSize);
+                                AllocatedSize* allocSize);
 
     /**
      *  @brief 获取目录分配大小
@@ -558,7 +568,7 @@ class CurveFS {
      */
     StatusCode GetDirAllocSize(const std::string& fileName,
                                 const FileInfo& fileInfo,
-                                uint64_t* allocSize);
+                                AllocatedSize* allocSize);
 
  private:
     FileInfo rootFileInfo_;
@@ -568,6 +578,7 @@ class CurveFS {
     std::shared_ptr<FileRecordManager> fileRecordManager_;
     std::shared_ptr<CleanManagerInterface> cleanManager_;
     std::shared_ptr<AllocStatistic> allocStatistic_;
+    std::shared_ptr<Topology> topology_;
     struct RootAuthOption       rootAuthOptions_;
 
     uint64_t defaultChunkSize_;

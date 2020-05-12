@@ -133,14 +133,21 @@ int StatusTool::SpaceCmd() {
         std::cout << "GetSpaceInfo fail!" << std::endl;
         return -1;
     }
-    double logicalUsedRatio = static_cast<double>(spaceInfo.logicalUsed) /
+    double logicalUsedRatio = 0;
+    double physicalUsedRatio = 0;
+    double canBeRecycledRatio = 0;
+    if (spaceInfo.total != 0) {
+        logicalUsedRatio = static_cast<double>(spaceInfo.logicalUsed) /
                                                             spaceInfo.total;
-    double physicalUsedRatio = static_cast<double>(spaceInfo.physicalUsed) /
+        physicalUsedRatio = static_cast<double>(spaceInfo.physicalUsed) /
                                                             spaceInfo.total;
-    double canBeRecycledRatio = static_cast<double>(spaceInfo.canBeRecycled) /
+    }
+    if (spaceInfo.logicalUsed != 0) {
+        canBeRecycledRatio = static_cast<double>(spaceInfo.canBeRecycled) /
                                                         spaceInfo.logicalUsed;
+    }
     std:: cout.setf(std::ios::fixed);
-    std::cout<< std::setprecision(2);
+    std::cout << std::setprecision(2);
     std::cout << "total space = " << spaceInfo.total / mds::kGB << "GB"
               << ", logical used = " << spaceInfo.logicalUsed / mds::kGB << "GB"
               << "(" << logicalUsedRatio * 100 << "%, can be recycled = "
@@ -719,7 +726,9 @@ int StatusTool::GetSpaceInfo(SpaceInfo* spaceInfo) {
         spaceInfo->physicalUsed += size;
     }
     // 通过NameSpace工具获取RecycleBin的大小
+    uint64_t allocSize;
     res = nameSpaceToolCore_->GetAllocatedSize(curve::mds::RECYCLEBINDIR,
+                                         &allocSize,
                                          &spaceInfo->canBeRecycled);
     if (res != 0) {
         std::cout << "GetAllocatedSize of RecycleBin fail!" << std::endl;

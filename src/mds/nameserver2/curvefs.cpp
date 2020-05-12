@@ -20,6 +20,7 @@
 using curve::common::TimeUtility;
 using ::std::chrono::steady_clock;
 using ::std::chrono::microseconds;
+using curve::mds::topology::LogicalPool;
 
 namespace curve {
 namespace mds {
@@ -73,7 +74,8 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
                 std::shared_ptr<FileRecordManager> fileRecordManager,
                 std::shared_ptr<AllocStatistic> allocStatistic,
                 const struct CurveFSOption &curveFSOptions,
-                std::shared_ptr<MdsRepo> repo) {
+                std::shared_ptr<MdsRepo> repo,
+                std::shared_ptr<Topology> topology) {
     startTime_ = steady_clock::now();
     storage_ = storage;
     InodeIDGenerator_ = InodeIDGenerator;
@@ -85,6 +87,7 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
 
     defaultChunkSize_ = curveFSOptions.defaultChunkSize;
     repo_ = repo;
+    topology_ = topology;
 
     InitRootFile();
 
@@ -282,9 +285,17 @@ StatusCode CurveFS::GetFileInfo(const std::string & filename,
     }
 }
 
+AllocatedSize& AllocatedSize::operator+=(const AllocatedSize& rhs) {
+    allocatedSize += rhs.allocatedSize;
+    physicalAllocatedSize += rhs.physicalAllocatedSize;
+    return *this;
+}
+
 StatusCode CurveFS::GetAllocatedSize(const std::string& fileName,
-                                     uint64_t* allocatedSize) {
+                                     AllocatedSize* allocatedSize) {
     assert(allocatedSize != nullptr);
+    allocatedSize->allocatedSize = 0;
+    allocatedSize->physicalAllocatedSize = 0;
     FileInfo fileInfo;
     auto ret = GetFileInfo(fileName, &fileInfo);
     if (ret != StatusCode::kOK) {
@@ -303,8 +314,7 @@ StatusCode CurveFS::GetAllocatedSize(const std::string& fileName,
 
 StatusCode CurveFS::GetAllocatedSize(const std::string& fileName,
                                      const FileInfo& fileInfo,
-                                     uint64_t* allocSize) {
-    *allocSize = 0;
+                                     AllocatedSize* allocSize) {
     if (fileInfo.filetype() != curve::mds::FileType::INODE_DIRECTORY) {
         return GetFileAllocSize(fileName, fileInfo, allocSize);
     } else {  // 如果是目录，则list dir，并递归计算每个文件的大小最后加起来
@@ -314,20 +324,32 @@ StatusCode CurveFS::GetAllocatedSize(const std::string& fileName,
 
 StatusCode CurveFS::GetFileAllocSize(const std::string& fileName,
                                      const FileInfo& fileInfo,
-                                     uint64_t* allocSize) {
+                                     AllocatedSize* allocSize) {
     std::vector<PageFileSegment> segments;
     auto listSegmentRet = storage_->ListSegment(fileInfo.id(), &segments);
 
     if (listSegmentRet != StoreStatus::OK) {
         return StatusCode::kStorageError;
     }
-    *allocSize = fileInfo.segmentsize() * segments.size();
+    for (const auto& segment : segments) {
+        const auto & logicPoolId = segment.logicalpoolid();
+        LogicalPool logicPool;
+        if (!topology_->GetLogicalPool(logicPoolId, &logicPool)) {
+            LOG(ERROR) << "Get logical pool " << logicPoolId
+                       << " from topology failed!";
+            return StatusCode::KInternalError;
+        }
+        uint64_t replicasNum = logicPool.GetReplicaNum();
+        allocSize->physicalAllocatedSize +=
+                    fileInfo.segmentsize() * replicasNum;
+    }
+    allocSize->allocatedSize = fileInfo.segmentsize() * segments.size();
     return StatusCode::kOK;
 }
 
 StatusCode CurveFS::GetDirAllocSize(const std::string& fileName,
                                     const FileInfo& fileInfo,
-                                    uint64_t* allocSize) {
+                                    AllocatedSize* allocSize) {
     std::vector<FileInfo> files;
     StatusCode ret = ReadDir(fileName, &files);
     if (ret != StatusCode::kOK) {
@@ -341,7 +363,7 @@ StatusCode CurveFS::GetDirAllocSize(const std::string& fileName,
         } else {
             fullPathName = fileName + "/" + file.filename();
         }
-        uint64_t size;
+        AllocatedSize size;
         if (GetAllocatedSize(fullPathName, file, &size) != 0) {
             std::cout << "Get allocated size of " << fullPathName
                       << " fail!" << std::endl;

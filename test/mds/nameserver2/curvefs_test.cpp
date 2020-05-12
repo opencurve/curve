@@ -19,6 +19,7 @@
 #include "test/mds/nameserver2/mock/mock_clean_manager.h"
 #include "test/mds/mock/mock_repo.h"
 #include "test/mds/mock/mock_alloc_statistic.h"
+#include "test/mds/mock/mock_topology.h"
 
 
 using ::testing::AtLeast;
@@ -31,6 +32,7 @@ using ::testing::SetArgPointee;
 using curve::common::Authenticator;
 
 using curve::common::TimeUtility;
+using curve::mds::topology::MockTopology;
 
 namespace curve {
 namespace mds {
@@ -45,6 +47,7 @@ class CurveFSTest: public ::testing::Test {
         mockcleanManager_ = std::make_shared<MockCleanManager>();
 
         mockRepo_ = std::make_shared<MockRepo>();
+        topology_ = std::make_shared<MockTopology>();
         fileRecordManager_ = std::make_shared<FileRecordManager>();
 
         // session repo已经mock，数据库相关参数不需要
@@ -66,7 +69,8 @@ class CurveFSTest: public ::testing::Test {
                         fileRecordManager_,
                         allocStatistic_,
                         curveFSOptions_,
-                        mockRepo_);
+                        mockRepo_,
+                        topology_);
         curvefs_->Run();
     }
 
@@ -83,6 +87,7 @@ class CurveFSTest: public ::testing::Test {
     std::shared_ptr<FileRecordManager> fileRecordManager_;
     std::shared_ptr<MockAllocStatistic> allocStatistic_;
     std::shared_ptr<MockRepo> mockRepo_;
+    std::shared_ptr<MockTopology> topology_;
     struct FileRecordOptions fileRecordOptions_;
     struct RootAuthOption authOptions_;
     struct CurveFSOption curveFSOptions_;
@@ -554,14 +559,14 @@ TEST_F(CurveFSTest, testDeleteFile) {
 }
 
 TEST_F(CurveFSTest, testGetAllocatedSize) {
-    uint64_t allocSize;
+    AllocatedSize allocSize;
     FileInfo  fileInfo;
     uint64_t segmentSize = 1 * 1024 * 1024 * 1024ul;
     fileInfo.set_id(0);
     fileInfo.set_filetype(FileType::INODE_PAGEFILE);
     fileInfo.set_segmentsize(segmentSize);
     std::vector<PageFileSegment> segments;
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < 3; ++i) {
         PageFileSegment segment;
         segment.set_logicalpoolid(1);
         segment.set_segmentsize(segmentSize);
@@ -569,6 +574,15 @@ TEST_F(CurveFSTest, testGetAllocatedSize) {
         segment.set_startoffset(i);
         segments.emplace_back(segment);
     }
+
+    LogicalPool lgPool1;
+    LogicalPool::RedundanceAndPlaceMentPolicy rap1;
+    rap1.pageFileRAP.replicaNum = 4;
+    lgPool1.SetRedundanceAndPlaceMentPolicy(rap1);
+    LogicalPool lgPool2;
+    LogicalPool::RedundanceAndPlaceMentPolicy rap2;
+    rap2.pageFileRAP.replicaNum = 3;
+    lgPool2.SetRedundanceAndPlaceMentPolicy(rap2);
 
     // test page file normal
     {
@@ -580,9 +594,15 @@ TEST_F(CurveFSTest, testGetAllocatedSize) {
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(segments),
             Return(StoreStatus::OK)));
+        EXPECT_CALL(*topology_, GetLogicalPool(_, _)).Times(3)
+        .WillOnce(
+            DoAll(SetArgPointee<1>(lgPool1), Return(true)))
+        .WillRepeatedly(
+            DoAll(SetArgPointee<1>(lgPool2), Return(true)));
         ASSERT_EQ(StatusCode::kOK,
                     curvefs_->GetAllocatedSize("/tests", &allocSize));
-        ASSERT_EQ(5 * segmentSize, allocSize);
+        ASSERT_EQ(3 * segmentSize, allocSize.allocatedSize);
+        ASSERT_EQ(10 * segmentSize, allocSize.physicalAllocatedSize);
     }
     // test directory normal
     {
@@ -604,9 +624,14 @@ TEST_F(CurveFSTest, testGetAllocatedSize) {
         .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<1>(segments),
             Return(StoreStatus::OK)));
+        EXPECT_CALL(*topology_, GetLogicalPool(_, _)).Times(9)
+        .WillOnce(DoAll(SetArgPointee<1>(lgPool1), Return(true)))
+        .WillRepeatedly(
+            DoAll(SetArgPointee<1>(lgPool2), Return(true)));
         ASSERT_EQ(StatusCode::kOK,
                     curvefs_->GetAllocatedSize("/tests", &allocSize));
-        ASSERT_EQ(15 * segmentSize, allocSize);
+        ASSERT_EQ(9 * segmentSize, allocSize.allocatedSize);
+        ASSERT_EQ(28 * segmentSize, allocSize.physicalAllocatedSize);
     }
     // test GetFile fail
     {
@@ -651,6 +676,21 @@ TEST_F(CurveFSTest, testGetAllocatedSize) {
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
         ASSERT_EQ(StatusCode::kStorageError,
+                    curvefs_->GetAllocatedSize("/tests", &allocSize));
+    }
+    // test get logical pool fail
+    {
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, ListSegment(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(segments),
+            Return(StoreStatus::OK)));
+        EXPECT_CALL(*topology_, GetLogicalPool(_, _)).Times(1)
+        .WillOnce(Return(false));
+        ASSERT_EQ(StatusCode::KInternalError,
                     curvefs_->GetAllocatedSize("/tests", &allocSize));
     }
 }

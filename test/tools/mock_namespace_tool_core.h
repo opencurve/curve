@@ -33,7 +33,8 @@ class MockNameSpaceToolCore : public NameSpaceToolCore {
                                      std::vector<ChunkServerLocation>*));
     MOCK_METHOD2(DeleteFile, int(const std::string&, bool));
     MOCK_METHOD2(CreateFile, int(const std::string&, uint64_t));
-    MOCK_METHOD2(GetAllocatedSize, int(const std::string&, uint64_t*));
+    MOCK_METHOD3(GetAllocatedSize, int(const std::string&, uint64_t*,
+                                       uint64_t*));
     MOCK_METHOD2(GetFileSegments, int(const std::string&,
                                   std::vector<PageFileSegment>*));
     MOCK_METHOD4(QueryChunkCopyset, int(const std::string&, uint64_t,

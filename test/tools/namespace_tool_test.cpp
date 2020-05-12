@@ -104,7 +104,7 @@ TEST_F(NameSpaceToolTest, GetFile) {
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
                         Return(0)));
-    EXPECT_CALL(*core_, GetAllocatedSize(_, _))
+    EXPECT_CALL(*core_, GetAllocatedSize(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(10 * segmentSize),
                         Return(0)));
@@ -121,7 +121,7 @@ TEST_F(NameSpaceToolTest, GetFile) {
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
                         Return(0)));
-    EXPECT_CALL(*core_, GetAllocatedSize(_, _))
+    EXPECT_CALL(*core_, GetAllocatedSize(_, _, _))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.RunCommand("get"));
@@ -134,7 +134,7 @@ TEST_F(NameSpaceToolTest, GetFile) {
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
                         Return(0)));
-    EXPECT_CALL(*core_, GetAllocatedSize(_, _))
+    EXPECT_CALL(*core_, GetAllocatedSize(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(10 * segmentSize),
                         Return(0)));
@@ -182,7 +182,7 @@ TEST_F(NameSpaceToolTest, ListDir) {
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<1>(files),
                         Return(0)));
-    EXPECT_CALL(*core_, GetAllocatedSize(_, _))
+    EXPECT_CALL(*core_, GetAllocatedSize(_, _, _))
         .Times(6)
         .WillRepeatedly(DoAll(SetArgPointee<1>(10 * segmentSize),
                         Return(0)));
@@ -202,7 +202,7 @@ TEST_F(NameSpaceToolTest, ListDir) {
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(files),
                         Return(0)));
-    EXPECT_CALL(*core_, GetAllocatedSize(_, _))
+    EXPECT_CALL(*core_, GetAllocatedSize(_, _, _))
         .Times(3)
         .WillOnce(Return(-1))
         .WillRepeatedly(DoAll(SetArgPointee<1>(10 * segmentSize),

@@ -220,10 +220,17 @@ TEST_F(ToolMDSClientTest, GetAllocatedSize) {
     ASSERT_EQ(-1, mdsClient.GetAllocatedSize(filename, &allocSize));
 
     // 正常情况
-    response->set_allocatedsize(1073741824);
+    uint64_t expectedSize1 = 1073741824;
+    uint64_t expectedSize2 = allocSize * 3;
+    response->set_allocatedsize(expectedSize1);
+    response->set_physicalallocatedsize(expectedSize2);
+
     response->set_statuscode(curve::mds::StatusCode::kOK);
-    ASSERT_EQ(0, mdsClient.GetAllocatedSize(filename, &allocSize));
-    ASSERT_EQ(1073741824, allocSize);
+    uint64_t physicAllocSize;
+    ASSERT_EQ(0, mdsClient.GetAllocatedSize(filename, &allocSize,
+                                            &physicAllocSize));
+    ASSERT_EQ(expectedSize1, allocSize);
+    ASSERT_EQ(expectedSize2, physicAllocSize);
 }
 
 TEST_F(ToolMDSClientTest, ListDir) {

@@ -26,7 +26,8 @@ class MockMDSClient : public MDSClient {
     MOCK_METHOD1(Init, int(const std::string&));
     MOCK_METHOD2(Init, int(const std::string&, const std::string&));
     MOCK_METHOD2(GetFileInfo, int(const std::string&, FileInfo*));
-    MOCK_METHOD2(GetAllocatedSize, int(const std::string&, uint64_t*));
+    MOCK_METHOD3(GetAllocatedSize, int(const std::string&,
+                                       uint64_t*, uint64_t*));
     MOCK_METHOD2(ListDir, int(const std::string&, std::vector<FileInfo>*));
     MOCK_METHOD3(GetSegmentInfo, GetSegmentRes(const std::string&,
                                         uint64_t, PageFileSegment*));
