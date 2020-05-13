@@ -116,6 +116,7 @@ class StatusTool : public CurveTool {
     int PrintEtcdStatus();
     int PrintChunkserverStatus(bool checkLeftSize = true);
     int PrintClientStatus();
+    int ClientListCmd();
     void PrintCsLeftSizeStatistics(const std::vector<uint64_t>& leftSize);
     int PrintSnapshotCloneStatus();
 

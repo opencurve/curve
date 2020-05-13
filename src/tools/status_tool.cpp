@@ -14,6 +14,8 @@ DEFINE_bool(checkHealth, true, "if true, it will check the health "
                                 "state of chunkserver in chunkserver-list");
 DEFINE_bool(checkCSAlive, false, "if true, it will check the online state of "
                                 "chunkservers with rpc in chunkserver-list");
+DEFINE_bool(listClientInRepo, true, "if true, list-client will list all clients"
+                                    " include that in repo");
 DECLARE_string(mdsAddr);
 DECLARE_string(etcdAddr);
 DECLARE_string(mdsDummyPort);
@@ -94,6 +96,7 @@ bool StatusTool::SupportCommand(const std::string& command) {
                                  || command == kMdsStatusCmd
                                  || command == kEtcdStatusCmd
                                  || command == kClientStatusCmd
+                                 || command == kClientListCmd
                                  || command == kSnapshotCloneStatusCmd
                                  || command == kClusterStatusCmd);
 }
@@ -116,6 +119,9 @@ void StatusTool::PrintHelp(const std::string& cmd) {
     }
     if (cmd == kClientStatusCmd) {
         std::cout << " [-detail]";
+    }
+    if (cmd == kClientListCmd) {
+        std::cout << " [-listClientInRepo=false]";
     }
     std::cout << std::endl;
 }
@@ -513,6 +519,19 @@ int StatusTool::PrintClientStatus() {
     return 0;
 }
 
+int StatusTool::ClientListCmd() {
+    std::vector<std::string> clientAddrs;
+    int res = mdsClient_->ListClient(&clientAddrs, FLAGS_listClientInRepo);
+    if (res != 0) {
+        std::cout << "ListClient from mds fail!" << std::endl;
+        return -1;
+    }
+    for (const auto& addr : clientAddrs) {
+        std::cout << addr << std::endl;
+    }
+    return 0;
+}
+
 int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     std::cout << "ChunkServer status:" << std::endl;
     std::string version;
@@ -732,6 +751,8 @@ int StatusTool::RunCommand(const std::string &cmd) {
         return PrintSnapshotCloneStatus();
     } else if (cmd == kClusterStatusCmd) {
         return PrintClusterStatus();
+    } else if (cmd == kClientListCmd) {
+        return ClientListCmd();
     } else {
         std::cout << "Command not supported!" << std::endl;
         return -1;

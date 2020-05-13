@@ -21,6 +21,9 @@ DECLARE_uint64(chunkSize);
 
 namespace curve {
 namespace tool {
+// 显示版本命令
+const char kVersionCmd[] = "version";
+
 // StatusTool相关命令
 const char kStatusCmd[] = "status";
 const char kSpaceCmd[] = "space";
@@ -29,6 +32,7 @@ const char kMdsStatusCmd[] = "mds-status";
 const char kEtcdStatusCmd[] = "etcd-status";
 const char kChunkserverListCmd[] = "chunkserver-list";
 const char kClientStatusCmd[] = "client-status";
+const char kClientListCmd[] = "client-list";
 const char kSnapshotCloneStatusCmd[] = "snapshot-clone-status";
 const char kClusterStatusCmd[] = "cluster-status";
 

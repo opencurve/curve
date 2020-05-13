@@ -285,7 +285,8 @@ int MDSClient::CreateFile(const std::string& fileName, uint64_t length) {
     return -1;
 }
 
-int MDSClient::ListClient(std::vector<std::string>* clientAddrs) {
+int MDSClient::ListClient(std::vector<std::string>* clientAddrs,
+                          bool listClientsInRepo) {
     if (!clientAddrs) {
         std::cout << "The argument is a null pointer!" << std::endl;
         return -1;
@@ -293,6 +294,9 @@ int MDSClient::ListClient(std::vector<std::string>* clientAddrs) {
     curve::mds::ListClientRequest request;
     curve::mds::ListClientResponse response;
     curve::mds::CurveFSService_Stub stub(&channel_);
+    if (listClientsInRepo) {
+        request.set_listallclient(true);
+    }
 
     void (curve::mds::CurveFSService_Stub::*fp)(
                             google::protobuf::RpcController*,

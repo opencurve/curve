@@ -745,6 +745,38 @@ TEST_F(StatusToolTest, IsClusterHeatlhy) {
     ASSERT_FALSE(statusTool.IsClusterHeatlhy());
 }
 
+TEST_F(StatusToolTest, ListClientCmd) {
+    StatusTool statusTool(mdsClient_, etcdClient_,
+                          nameSpaceTool_, copysetCheck_,
+                          versionTool_, metricClient_,
+                          snapshotClient_);
+    EXPECT_CALL(*mdsClient_, Init(_, _))
+        .Times(1)
+        .WillOnce(Return(0));
+    EXPECT_CALL(*nameSpaceTool_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    EXPECT_CALL(*copysetCheck_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+
+    std::vector<std::string> clientAddrs;
+    for (int i = 0; i < 10; ++i) {
+        clientAddrs.emplace_back("127.0.0.1:900" + std::to_string(i));
+    }
+    // 成功
+    EXPECT_CALL(*mdsClient_, ListClient(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<0>(clientAddrs),
+                        Return(0)));
+    ASSERT_EQ(0, statusTool.RunCommand("client-list"));
+    // 失败
+    EXPECT_CALL(*mdsClient_, ListClient(_, _))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, statusTool.RunCommand("client-list"));
+}
+
 }  // namespace tool
 }  // namespace curve
 

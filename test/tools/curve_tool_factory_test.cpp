@@ -26,6 +26,8 @@ TEST(CurveToolFactoryTest, GetStatusTool) {
     ASSERT_TRUE(dynamic_cast<StatusTool *>(curveTool.get()) != nullptr);
     curveTool = CurveToolFactory::GenerateCurveTool("client-status");
     ASSERT_TRUE(dynamic_cast<StatusTool *>(curveTool.get()) != nullptr);
+    curveTool = CurveToolFactory::GenerateCurveTool("client-list");
+    ASSERT_TRUE(dynamic_cast<StatusTool *>(curveTool.get()) != nullptr);
     curveTool = CurveToolFactory::GenerateCurveTool("snapshot-clone-status");
     ASSERT_TRUE(dynamic_cast<StatusTool *>(curveTool.get()) != nullptr);
     curveTool = CurveToolFactory::GenerateCurveTool("cluster-status");

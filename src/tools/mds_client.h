@@ -151,9 +151,11 @@ class MDSClient {
     /**
      *  @brief 列出client的dummyserver的地址
      *  @param[out] clientAddrs client地址列表，返回0时有效
+     *  @param[out] listClientsInRepo 把数据库里的client也列出来
      *  @return 成功返回0,失败返回-1
      */
-    virtual int ListClient(std::vector<std::string>* clientAddrs);
+    virtual int ListClient(std::vector<std::string>* clientAddrs,
+                           bool listClientsInRepo = false);
 
     /**
      *  @brief 获取copyset中的chunkserver列表
