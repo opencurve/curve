@@ -22,6 +22,10 @@ namespace chunkserver {
 using curve::common::Bitmap;
 using curve::common::TimeUtility;
 
+static void ReadBufferDeleter(void* ptr) {
+    delete[] static_cast<char*>(ptr);
+}
+
 DownloadClosure::DownloadClosure(std::shared_ptr<ReadChunkRequest> readRequest,
                                  std::shared_ptr<CloneCore> cloneCore,
                                  AsyncDownloadContext* downloadCtx,
@@ -45,8 +49,10 @@ DownloadClosure::DownloadClosure(std::shared_ptr<ReadChunkRequest> readRequest,
 void DownloadClosure::Run() {
     std::unique_ptr<DownloadClosure> selfGuard(this);
     std::unique_ptr<AsyncDownloadContext> contextGuard(downloadCtx_);
-    std::unique_ptr<char[]> bufferGuard(downloadCtx_->buf);
     brpc::ClosureGuard doneGuard(done_);
+    butil::IOBuf copyData;
+    copyData.append_user_data(
+        downloadCtx_->buf, downloadCtx_->size, ReadBufferDeleter);
 
     CHECK(readRequest_ != nullptr) << "read request is nullptr.";
     // 记录结束metric
@@ -75,17 +81,17 @@ void DownloadClosure::Run() {
     if (CHUNK_OP_TYPE::CHUNK_OP_RECOVER == request->optype()) {
         // release doneGuard，将closure交给paste请求处理
         cloneCore_->PasteCloneData(readRequest_,
-                                   downloadCtx_->buf,
+                                   &copyData,
                                    downloadCtx_->offset,
                                    downloadCtx_->size,
                                    doneGuard.release());
     } else if (CHUNK_OP_TYPE::CHUNK_OP_READ == request->optype()) {
         // 出错或处理结束调用closure返回给用户
-        cloneCore_->SetReadChunkResponse(readRequest_, downloadCtx_->buf);
+        cloneCore_->SetReadChunkResponse(readRequest_, &copyData);
 
         // paste clone data是异步操作，很快就能处理完
         cloneCore_->PasteCloneData(readRequest_,
-                                   downloadCtx_->buf,
+                                   &copyData,
                                    downloadCtx_->offset,
                                    downloadCtx_->size,
                                    nullptr);
@@ -272,12 +278,9 @@ int CloneCore::ReadChunk(std::shared_ptr<ReadChunkRequest> readRequest) {
     return 0;
 }
 
-static void ReadBufferDeleter(void* ptr) {
-    delete[] static_cast<char*>(ptr);
-}
-
 int CloneCore::SetReadChunkResponse(
-    std::shared_ptr<ReadChunkRequest> readRequest, const char* cloneData) {
+    std::shared_ptr<ReadChunkRequest> readRequest,
+    const butil::IOBuf* cloneData) {
     const ChunkRequest* request = readRequest->request_;
     CSChunkInfo chunkInfo;
     ChunkID id = readRequest->ChunkId();
@@ -320,7 +323,7 @@ int CloneCore::SetReadChunkResponse(
             return ret;
         }
     } else {
-        responseData.append(const_cast<char*>(cloneData), length);
+        responseData = *cloneData;
     }
     readRequest->cntl_->response_attachment().append(responseData);
 
@@ -332,7 +335,7 @@ int CloneCore::SetReadChunkResponse(
 
 int CloneCore::ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
                              const CSChunkInfo& chunkInfo,
-                             const char* cloneData,
+                             const butil::IOBuf* cloneData,
                              char* chunkData) {
     const ChunkRequest* request = readRequest->request_;
     ChunkID id = readRequest->ChunkId();
@@ -392,15 +395,13 @@ int CloneCore::ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
         readOff = range.beginIndex * pageSize;
         readSize = (range.endIndex - range.beginIndex + 1) * pageSize;
         relativeOff = readOff - offset;
-        memcpy(chunkData + relativeOff,
-               cloneData + relativeOff,
-               readSize);
+        cloneData->copy_to(chunkData + relativeOff, readSize, relativeOff);
     }
     return 0;
 }
 
 void CloneCore::PasteCloneData(std::shared_ptr<ReadChunkRequest> readRequest,
-                               const char* cloneData,
+                               const butil::IOBuf* cloneData,
                                off_t offset,
                                size_t cloneDataSize,
                                Closure* done) {

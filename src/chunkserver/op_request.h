@@ -318,14 +318,16 @@ class PasteChunkInternalRequest : public ChunkOpRequest {
     PasteChunkInternalRequest(std::shared_ptr<CopysetNode> nodePtr,
                               const ChunkRequest *request,
                               ChunkResponse *response,
-                              const char* data,
+                              const butil::IOBuf* data,
                               ::google::protobuf::Closure *done) :
         ChunkOpRequest(nodePtr,
                        nullptr,
                        request,
                        response,
                        done) {
-            data_.append(data, request->size());
+            if (data != nullptr) {
+                data_ = *data;
+            }
         }
     virtual ~PasteChunkInternalRequest() = default;
 
