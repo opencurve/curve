@@ -34,7 +34,7 @@
 #include "src/client/mds_client.h"
 #include "src/common/timeutility.h"
 #include "src/common/string_util.h"
-#include "src/client/lease_excutor.h"
+#include "src/client/lease_executor.h"
 
 using curve::common::NetCommon;
 using curve::common::TimeUtility;

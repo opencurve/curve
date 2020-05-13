@@ -45,6 +45,7 @@ Used port list:
 
     client_test_unittest: 21000
 
+    use port : 19500 - 19999
 
 # mds & snapshotcloneserver
     use port : 8900~8999, 8888

@@ -258,143 +258,15 @@ TEST(ClientSession, LeaseTaskTest) {
      = new FakeReturn(nullptr, static_cast<void*>(&closeresp));
     curvefsservice->SetCloseFile(closefileret);
 
+    LOG(INFO) << "uninit fileinstance";
     fileinstance.UnInitialize();
+
+    LOG(INFO) << "stop server";
     server.Stop(0);
     server.Join();
+
+    LOG(INFO) << "uninit mds";
     mds.UnInitialize();
-}
-
-TEST(ClientSession, AppliedIndexTest) {
-    ClientConfig cc;
-    cc.Init(configpath.c_str());
-    FileInstance fileinstance;
-    UserInfo_t userinfo;
-    userinfo.owner = "userinfo";
-
-    MDSClient mdsclient;
-    mdsclient.Initialize(cc.GetFileServiceOption().metaServerOpt);
-    ASSERT_TRUE(fileinstance.Initialize("/test", &mdsclient, userinfo,
-                                        cc.GetFileServiceOption()));
-
-    // create fake chunkserver service
-    FakeChunkServerService fakechunkservice;
-    // 设置cli服务
-    CliServiceFake fakeCliservice;
-
-    brpc::Server server;
-    if (server.AddService(&fakechunkservice,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(FATAL) << "Fail to add service";
-    }
-    if (server.AddService(&fakeCliservice,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(FATAL) << "Fail to add service";
-    }
-
-    brpc::ServerOptions options;
-    options.idle_timeout_sec = -1;
-    ASSERT_EQ(server.Start("127.0.0.1:9102", &options), 0);
-
-    // fill metacache
-    curve::client::MetaCache* mc
-        = fileinstance.GetIOManager4File()->GetMetaCache();
-    curve::client::ChunkIDInfo_t chunkinfo(1, 2, 3);
-    mc->UpdateChunkInfoByIndex(0, chunkinfo);
-    curve::client::CopysetInfo cpinfo;
-    curve::client::EndPoint ep;
-    butil::str2endpoint("127.0.0.1", 9102, &ep);
-
-    braft::PeerId pd(ep);
-    curve::client::CopysetPeerInfo
-        peer(1, curve::client::ChunkServerAddr(ep),
-             curve::client::ChunkServerAddr(ep));
-    cpinfo.csinfos_.push_back(peer);
-    mc->UpdateCopysetInfo(2, 3, cpinfo);
-
-    fakeCliservice.SetPeerID(pd);
-
-    // 1. first write with applied index = 0 return
-    // create fake return
-    // first write, and set the applied index = 0
-    ::curve::chunkserver::ChunkResponse response;
-    response.set_status(::curve::chunkserver::CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);    // NOLINT
-    response.set_appliedindex(0);
-    FakeReturn* writeret = new FakeReturn(nullptr, static_cast<void*>(&response));   // NOLINT
-    fakechunkservice.SetFakeWriteReturn(writeret);
-
-    // send write request
-    // curve::client::IOManager4File* ioctx = fileinstance.GetIOCtxManager();
-    char buffer[8192] = {0};
-    fileinstance.Write(buffer, 0, 8192);
-
-    // create fake read return
-    ::curve::chunkserver::ChunkResponse readresponse;
-    readresponse.set_status(::curve::chunkserver::CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);    // NOLINT
-    readresponse.set_appliedindex(0);
-    FakeReturn* readret = new FakeReturn(nullptr, static_cast<void*>(&readresponse));   // NOLINT
-    fakechunkservice.SetFakeReadReturn(readret);
-
-    // send read request
-    fileinstance.Read(buffer, 0, 8192);
-
-    // verify buffer content
-    for (int i = 0; i < 4096; i++) {
-        ASSERT_EQ(buffer[i], 'c');
-        ASSERT_EQ(buffer[i + 4096], 'd');
-    }
-
-    // 2. second write with appliedindex = 1 return. then read with appliedindex
-    //    and with applied index = 0 return.
-    // create fake return
-    // first write, and set the applied index = 0
-    response.set_status(::curve::chunkserver::CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);    // NOLINT
-    response.set_appliedindex(1);
-    FakeReturn* writeret2 = new FakeReturn(nullptr, static_cast<void*>(&response));   // NOLINT
-    fakechunkservice.SetFakeWriteReturn(writeret2);
-
-    // send write request
-    fileinstance.Write(buffer, 0, 8192);
-
-    // create fake read return
-    ::curve::chunkserver::ChunkResponse readresponse2;
-    readresponse2.set_status(::curve::chunkserver::CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);    // NOLINT
-    readresponse2.set_appliedindex(0);
-    FakeReturn* readret2 = new FakeReturn(nullptr, static_cast<void*>(&readresponse2));   // NOLINT
-    fakechunkservice.SetFakeReadReturn(readret2);
-
-    // send read request
-    memset(buffer, 1, 8192);
-    fileinstance.Read(buffer, 0, 8192);
-
-    // verify buffer content
-    for (int i = 0; i < 4096; i++) {
-        // chunk not exit, so the data will be set to 0.
-        ASSERT_EQ(buffer[i], 0);
-        ASSERT_EQ(buffer[i + 4096], 0);
-    }
-
-    ::curve::chunkserver::ChunkResponse readresponse3;
-    readresponse3.set_status(::curve::chunkserver::CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);    // NOLINT
-    readresponse3.set_appliedindex(0);
-    FakeReturn* readret3 = new FakeReturn(nullptr, static_cast<void*>(&readresponse3));   // NOLINT
-    fakechunkservice.SetFakeReadReturn(readret3);
-
-    // send read request with applied index = 0
-    fileinstance.Read(buffer, 0, 8192);
-
-    // verify buffer content
-    for (int i = 0; i < 4096; i++) {
-        ASSERT_EQ(buffer[i], 'c');
-        ASSERT_EQ(buffer[i + 4096], 'd');
-    }
-
-    fileinstance.UnInitialize();
-
-    delete writeret;
-    delete writeret2;
-    delete readret3;
-    delete readret2;
-    delete readret;
 }
 
 }  // namespace client
@@ -403,7 +275,7 @@ TEST(ClientSession, AppliedIndexTest) {
 std::string mdsMetaServerAddr = "127.0.0.1:9101";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
-std::string configpath = "./test/client/testConfig/client_session.conf";   // NOLINT
+std::string configpath = "./test/client/client_session.conf";   // NOLINT
 
 const std::vector<std::string> clientConf {
     std::string("mds.listen.addr=127.0.0.1:9101,127.0.0.1:9102"),

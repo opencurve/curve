@@ -37,6 +37,9 @@
 #include "src/client/chunk_closure.h"
 #include "src/common/timeutility.h"
 #include "test/client/fake/fakeChunkserver.h"
+#include "test/client/mock_request_scheduler.h"
+#include "src/client/request_closure.h"
+#include "src/client/metacache.h"
 
 namespace curve {
 namespace client {
@@ -3897,6 +3900,54 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
                   reqDone->GetErrorCode());
     }
     scheduler.Fini();
+}
+
+class TestRunnedRequestClosure : public RequestClosure {
+ public:
+    TestRunnedRequestClosure() : RequestClosure(nullptr) {}
+
+    void Run() override {
+        runned_ = true;
+    }
+
+    bool IsRunned() const {
+        return runned_;
+    }
+
+ private:
+    bool runned_ = false;
+};
+
+// 测试session失效后，重试请求会被重新放入请求队列
+TEST(CopysetClientBasicTest, TestReScheduleWhenSessionNotValid) {
+    MockRequestScheduler requestScheduler;
+    CopysetClient copysetClient;
+    IOSenderOption ioSenderOption;
+    MetaCache metaCache;
+
+    ASSERT_EQ(0, copysetClient.Init(&metaCache, ioSenderOption,
+                                    &requestScheduler, nullptr));
+
+    // 设置session not valid
+    copysetClient.StartRecycleRetryRPC();
+
+    {
+        EXPECT_CALL(requestScheduler, ReSchedule(_))
+            .Times(1);
+
+        TestRunnedRequestClosure closure;
+        copysetClient.ReadChunk({}, 0, 0, 0, 0, {}, &closure);
+        ASSERT_FALSE(closure.IsRunned());
+    }
+
+    {
+        EXPECT_CALL(requestScheduler, ReSchedule(_))
+            .Times(1);
+
+        TestRunnedRequestClosure closure;
+        copysetClient.WriteChunk({}, 0, 0, 0, 0, {}, &closure);
+        ASSERT_FALSE(closure.IsRunned());
+    }
 }
 
 }   // namespace client

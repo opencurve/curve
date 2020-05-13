@@ -38,7 +38,7 @@
 #include "src/client/client_common.h"
 #include "src/client/service_helper.h"
 #include "src/client/iomanager4file.h"
-#include "src/client/lease_excutor.h"
+#include "src/client/lease_executor.h"
 
 namespace curve {
 namespace client {

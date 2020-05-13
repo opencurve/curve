@@ -28,7 +28,7 @@
 #include "src/client/client_common.h"
 #include "src/client/config_info.h"
 #include "src/client/iomanager4file.h"
-#include "src/client/lease_excutor.h"
+#include "src/client/lease_executor.h"
 #include "src/client/libcurve_file.h"
 #include "src/client/mds_client.h"
 

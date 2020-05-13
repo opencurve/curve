@@ -22,7 +22,7 @@
 #include <glog/logging.h>
 
 #include "src/common/timeutility.h"
-#include "src/client/lease_excutor.h"
+#include "src/client/lease_executor.h"
 #include "src/client/service_helper.h"
 
 using curve::common::TimeUtility;

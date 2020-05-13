@@ -20,8 +20,8 @@
  * Author: tongguangxun
  */
 
-#ifndef SRC_CLIENT_LEASE_EXCUTOR_H_
-#define SRC_CLIENT_LEASE_EXCUTOR_H_
+#ifndef SRC_CLIENT_LEASE_EXECUTOR_H_
+#define SRC_CLIENT_LEASE_EXECUTOR_H_
 
 #include <brpc/periodic_task.h>
 
@@ -254,4 +254,4 @@ class RefreshSessionTask : public brpc::PeriodicTask {
 }   // namespace client
 }   // namespace curve
 
-#endif  // SRC_CLIENT_LEASE_EXCUTOR_H_
+#endif  // SRC_CLIENT_LEASE_EXECUTOR_H_
