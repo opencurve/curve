@@ -320,6 +320,8 @@ TEST_F(OpRequestTest, PasteChunkTest) {
     request->set_offset(offset);
     request->set_size(size);
     std::string str(size, 'a');
+    butil::IOBuf cloneData;
+    cloneData.append(str);
 
     UnitTestClosure *closure = new UnitTestClosure();
     closure->SetRequest(request);
@@ -328,7 +330,7 @@ TEST_F(OpRequestTest, PasteChunkTest) {
         std::make_shared<PasteChunkInternalRequest>(node_,
                                                     request,
                                                     response,
-                                                    str.c_str(),
+                                                    &cloneData,
                                                     closure);
     /**
      * 测试Encode/Decode
