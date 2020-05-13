@@ -150,12 +150,12 @@ class CloneCore : public std::enable_shared_from_this<CloneCore> {
      * @return: 成功返回0，失败返回-1
      */
     int SetReadChunkResponse(std::shared_ptr<ReadChunkRequest> readRequest,
-                             const char* cloneData);
+                             const butil::IOBuf* cloneData);
 
     // 从本地chunk中读取已经写过的区域合并到clone data中
     int ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
                       const CSChunkInfo& chunkInfo,
-                      const char* cloneData,
+                      const butil::IOBuf* cloneData,
                       char* chunkData);
 
     /**
@@ -167,7 +167,7 @@ class CloneCore : public std::enable_shared_from_this<CloneCore> {
      * @param done:任务完成后要执行的closure
      */
     void PasteCloneData(std::shared_ptr<ReadChunkRequest> readRequest,
-                        const char* cloneData,
+                        const butil::IOBuf* cloneData,
                         off_t offset,
                         size_t cloneDataSize,
                         Closure* done);
