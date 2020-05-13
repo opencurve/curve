@@ -81,12 +81,14 @@ int main(int argc, char** argv) {
     google::ParseCommandLineFlags(&argc, &argv, true);
     google::InitGoogleLogging(argv[0]);
 
-    std::cout << "curve_ops_tool version: "
-              << curve::common::CurveVersion() << std::endl;
-
     if (argc < 2) {
         std::cout << kHelpStr << std::endl;
         return -1;
+    }
+    std::string command = argv[1];
+    if (command == curve::tool::kVersionCmd) {
+        std::cout << curve::common::CurveVersion() << std::endl;
+        return 0;
     }
 
     std::string confPath = FLAGS_confPath.c_str();
@@ -95,7 +97,6 @@ int main(int argc, char** argv) {
     UpdateFlagsFromConf(&conf);
     // 关掉健康检查，否则Not Connect to的时候重试没有意义
     brpc::FLAGS_health_check_interval = -1;
-    std::string command = argv[1];
     auto curveTool = curve::tool::CurveToolFactory::GenerateCurveTool(command);
     if (!curveTool) {
         std::cout << kHelpStr << std::endl;

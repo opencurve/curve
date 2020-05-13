@@ -220,7 +220,7 @@ TEST_F(VersionToolTest, GetClientVersion) {
                  "127.0.0.1:8003", "127.0.0.1:8004", "127.0.0.1:8005"};
 
     // 1、正常情况
-    EXPECT_CALL(*mdsClient_, ListClient(_))
+    EXPECT_CALL(*mdsClient_, ListClient(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(clientAddrs),
                   Return(0)));
@@ -260,7 +260,7 @@ TEST_F(VersionToolTest, GetClientVersion) {
     ASSERT_EQ(expected, clientVersionMap);
 
     // 2、ListClient失败
-    EXPECT_CALL(*mdsClient_, ListClient(_))
+    EXPECT_CALL(*mdsClient_, ListClient(_, _))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, versionTool.GetClientVersion(&clientVersionMap));

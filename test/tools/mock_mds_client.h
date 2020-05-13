@@ -67,7 +67,7 @@ class MockMDSClient : public MDSClient {
                     void(std::map<std::string, bool>* onlineStatus));
     MOCK_CONST_METHOD0(GetDummyServerMap,
                     const std::map<std::string, std::string>&());
-    MOCK_METHOD1(ListClient, int(std::vector<std::string>*));
+    MOCK_METHOD2(ListClient, int(std::vector<std::string>*, bool));
 };
 }  // namespace tool
 }  // namespace curve
