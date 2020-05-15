@@ -7,6 +7,7 @@ rm -rf curvefs_python/tmplib/
 rm -rf curvesnapshot_python/BUILD
 rm -rf curvesnapshot_python/tmplib/
 rm -rf *.deb
+rm -rf *.whl
 rm -rf build
 
 git submodule update --init
@@ -29,6 +30,11 @@ fi
 cd ${dir}/thirdparties/etcdclient
 make clean
 make all
+if [ $? -ne 0 ]
+then
+    echo "make etcd client failed"
+    exit
+fi
 cd ${dir}
 
 cp ${dir}/thirdparties/etcdclient/libetcdclient.h ${dir}/include/etcdclient/etcdclient.h
@@ -387,3 +393,18 @@ dpkg-deb -b thirdparties/aws-sdk .
 #step6 清理libetcdclient.so编译出现的临时文件
 cd ${dir}/thirdparties/etcdclient
 make clean
+
+# step7 打包python whell
+cd ${dir}
+cp curve-sdk*deb build/
+cd build/
+dpkg-deb -X curve-sdk*deb python-wheel
+cp ${dir}/curvefs_python/setup.py python-wheel/usr
+cd python-wheel/usr
+cp lib/* curvefs/
+
+# 替换curvefs setup.py中的版本号
+sed -i "s/version-anchor/${tag_version}+${commit_id}${debug}/g" setup.py
+
+python setup.py bdist_wheel
+cp dist/*whl $dir

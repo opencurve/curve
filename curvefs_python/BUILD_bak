@@ -21,7 +21,7 @@ COPTS = [
 
 cc_library(
     name = "curvefs",
-    srcs = glob(["*.cxx"]),
+    srcs = glob(["*.cxx", "*.cpp"]),
     hdrs = glob(["*h"]),
     deps = [
         "//external:gflags",
@@ -37,7 +37,7 @@ cc_library(
         "//proto:nameserver2_cc_proto",
         "//proto:topology_cc_proto",
         "//proto:chunkserver-cc-protos",
-         "//src/client:curve_client"
+        "//src/client:curve_client"
     ],
     copts = COPTS,
     linkopts = [
@@ -75,6 +75,7 @@ cc_library(
         "-lunwind",
         "-lstdc++",
         "-lm",
+        "-Wl,-rpath=$$ORIGIN",
     ],
     visibility = ["//visibility:public"],
 )

@@ -22,14 +22,9 @@ cc_library(
     srcs = glob([
         "*.h",
         "*.cpp",
-        ],exclude = ["authenticator.*"]
+        ],exclude = ["authenticator.*", "s3_adapter.*"]
     ),
     copts = COPTS,
-    linkopts = [
-        "-laws-cpp-sdk-s3",
-        "-laws-cpp-sdk-core",
-        "-L/usr/local/lib"
-    ],
     visibility = ["//visibility:public"],
     deps = [
         "//external:glog",
@@ -63,5 +58,24 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//external:glog",
+    ],
+)
+
+cc_library(
+    name = "curve_s3_adapter",
+    srcs = glob([
+        "s3_adapter.h",
+        "s3_adapter.cpp",
+    ]),
+    copts = COPTS,
+    linkopts = [
+        "-laws-cpp-sdk-s3",
+        "-laws-cpp-sdk-core",
+        "-L/usr/local/lib"
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:glog",
+        "//src/common:curve_common",
     ],
 )
