@@ -86,6 +86,7 @@ int FileClient::Init(const std::string& configpath) {
         return 0;
     }
 
+    curve::client::InitLogging(configpath);
     curve::common::ExposeCurveVersion();
 
     if (-1 == clientconfig_.Init(configpath.c_str())) {
@@ -495,31 +496,36 @@ FileInstance* FileClient::GetInitedFileInstance(const std::string& filename,
 }
 
 int FileClient::GetClusterId(char* buf, int len) {
-    if (mdsClient_ == nullptr) {
-        LOG(ERROR) << "global mds client not inited!";
+    std::string result = GetClusterId();
+
+    if (result.empty()) {
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    if (buf == nullptr) {
-        LOG(ERROR) << "invalid argument: buffer is nullptr";
-        return -LIBCURVE_ERROR::FAILED;
+    if (len >= result.size() + 1) {
+        snprintf(buf, len, "%s", result.c_str());
+        return LIBCURVE_ERROR::OK;
+    }
+
+    LOG(ERROR) << "buffer length is too small, "
+               << "cluster id length is " << result.size() + 1;
+
+    return -LIBCURVE_ERROR::FAILED;
+}
+
+std::string FileClient::GetClusterId() {
+    if (mdsClient_ == nullptr) {
+        LOG(ERROR) << "global mds client not inited!";
+        return {};
     }
 
     ClusterContext clsctx;
     int ret = mdsClient_->GetClusterInfo(&clsctx);
     if (ret == LIBCURVE_ERROR::OK) {
-        if (len >= clsctx.clusterId.size() + 1) {
-            snprintf(buf, len, "%s", clsctx.clusterId.c_str());
-            return LIBCURVE_ERROR::OK;
-        }
-
-        LOG(ERROR) << "buffer length is too small, "
-            << "cluster id length is "
-            << clsctx.clusterId.size() + 1;
-        return -LIBCURVE_ERROR::FAILED;
+        return clsctx.clusterId;
     }
 
-    return -LIBCURVE_ERROR::FAILED;
+    return {};
 }
 
 int FileClient::GetFileInfo(int fd, FInfo* finfo) {
@@ -888,7 +894,6 @@ int GlobalInit(const char* path) {
     }
 
     if (globalclient == nullptr) {
-        curve::client::InitLogging(path);
         globalclient = new (std::nothrow) curve::client::FileClient();
         if (globalclient != nullptr) {
             ret = globalclient->Init(path);

@@ -9,7 +9,7 @@ from lib import db_operator
 from lib import shell_operator
 from swig import swig_operate
 from multiprocessing import Pool
-from curvefs_python import curvefs
+# from curvefs_python import curvefs
 import threading
 import random
 import time
@@ -248,8 +248,8 @@ def start_etcd():
     #except Exception as e:
         #logger.error("start mds fail.")
         #raise e
-		
-		
+
+
 def stop_write():
     logger.info("set write_stopped = True")
     config.write_stopped = True
@@ -668,4 +668,3 @@ def thrasher(fd):
                 else:
                     action()
             val -= prob
-

@@ -231,6 +231,12 @@ class FileClient {
     int GetClusterId(char* buf, int len);
 
     /**
+     * @brief 获取集群id
+     * @return 成功返回集群id，失败返回空
+     */
+    std::string GetClusterId();
+
+    /**
      * @brief 获取文件信息，测试使用
      * @param fd 文件句柄
      * @param[out] finfo 文件信息
