@@ -5,11 +5,12 @@ from curvefs_python import curvefs
 from config import config
 from logger.logger import *
 
+cbdClient = curvefs.CBDClient()
 
 class LibCurve:
 
     def __init__(self):
-        rc = curvefs.Init(config.client_conf)
+        rc = cbdClient.Init(config.client_conf)
         logger.info("init success.")
         if rc != 0:
             print ("init client fail! rc=%s" % rc)
@@ -20,7 +21,7 @@ class LibCurve:
         user_info_t = curvefs.UserInfo_t()
         user_info_t.owner = user_name
         user_info_t.password = pass_word
-        rc = curvefs.Create(file_path, user_info_t, size)
+        rc = cbdClient.Create(file_path, user_info_t, size)
         if rc != 0:
 #            print("create file %s fail! rc=%s" %(file_path,rc))
             logger.debug("create file %s fail! rc=%s" % (file_path,rc))
@@ -33,12 +34,12 @@ class LibCurve:
         user_info_t = curvefs.UserInfo_t()
         user_info_t.owner = user_name
         user_info_t.password = pass_word
-        fd = curvefs.Open(file_path, user_info_t)
+        fd = cbdClient.Open(file_path, user_info_t)
         logger.info("fd=%s" % fd)
         return fd
 
     def libcurve_write(self, fd, buf, offset, length):
-        rc = curvefs.Write(fd, buf, offset, length)
+        rc = cbdClient.Write(fd, buf, offset, length)
         if rc < 0:
             logger.debug("write error, rc=%s" % rc)
             return rc
@@ -47,7 +48,7 @@ class LibCurve:
             return rc
 
     def libcurve_read(self, fd, buf, offset, length):
-        content = curvefs.Read(fd, buf, offset, length)
+        content = cbdClient.Read(fd, buf, offset, length)
         #logger.debug(content)
         return content
 
@@ -56,7 +57,7 @@ class LibCurve:
         user_info_t.owner = user_name
         user_info_t.password = pass_word
         file_info = curvefs.FileInfo_t()
-        rc = curvefs.StatFile(file_name, user_info_t, file_info)
+        rc = cbdClient.StatFile(file_name, user_info_t, file_info)
         if rc == 0:
             return file_info
         else:
@@ -68,7 +69,7 @@ class LibCurve:
         user_info_t = curvefs.UserInfo_t()
         user_info_t.owner = user_name
         user_info_t.password = pass_word
-        rc = curvefs.Extend(file_path, user_info_t, new_size)
+        rc = cbdClient.Extend(file_path, user_info_t, new_size)
         if rc != 0:
             logger.info("extend file fail. rc=%s" %rc)
             return rc
@@ -77,7 +78,7 @@ class LibCurve:
             return rc
 
     def libcurve_close(self, fd):
-        rc = curvefs.Close(fd)
+        rc = cbdClient.Close(fd)
         if rc != 0:
             logger.info("close file fail! rc=%s" % rc)
             return rc
@@ -89,7 +90,7 @@ class LibCurve:
         user_info_t = curvefs.UserInfo_t()
         user_info_t.owner = user_name
         user_info_t.password = pass_word
-        rc = curvefs.Rename(user_info_t, old_path, new_path)
+        rc = cbdClient.Rename(user_info_t, old_path, new_path)
         if rc != 0:
             logger.info("rename file fail! rc=%s" % rc)
             return rc
@@ -101,7 +102,7 @@ class LibCurve:
         user_info_t = curvefs.UserInfo_t()
         user_info_t.owner = user_name
         user_info_t.password = pass_word
-        rc = curvefs.Unlink(filepath, user_info_t)
+        rc = cbdClient.Unlink(filepath, user_info_t)
         if rc != 0:
             #print "delete file fail! rc=%s" % rc
             logger.debug("delete file %s fail! rc=%s" % (filepath,rc))
@@ -115,7 +116,7 @@ class LibCurve:
         user_info_t = curvefs.UserInfo_t()
         user_info_t.owner = user_name
         user_info_t.password = pass_word
-        rc = curvefs.Rmdir(dirpath, user_info_t)
+        rc = cbdClient.Rmdir(dirpath, user_info_t)
         if rc != 0:
             #print "delete dir fail! rc=%s" % rc
             logger.info("delete dir fail! rc=%s" % rc)
@@ -128,7 +129,7 @@ class LibCurve:
         user_info_t = curvefs.UserInfo_t()
         user_info_t.owner = user_name
         user_info_t.password = pass_word
-        rc = curvefs.Mkdir(dirpath, user_info_t)
+        rc = cbdClient.Mkdir(dirpath, user_info_t)
         if rc != 0:
             #print "mkdir fail! rc=%s" % rc
             logger.info("mkdir fail! rc=%s" % rc)
@@ -138,7 +139,7 @@ class LibCurve:
             return rc
 
 def libcurve_uninit():
-    rc = curvefs.UnInit()
+    rc = cbdClient.UnInit()
     if rc != None:
         print "uninit  fail! rc=%s" % rc
         logger.debug("uninit file fail! rc=%s" % rc)
@@ -146,8 +147,3 @@ def libcurve_uninit():
         raise AssertionError
     else:
         return 0
-
-
-
-
-

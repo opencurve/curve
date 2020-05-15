@@ -373,6 +373,81 @@ UnInit = _curvefs.UnInit
 def GetClusterId(buf=None, len=0):
     return _curvefs.GetClusterId(buf, len)
 GetClusterId = _curvefs.GetClusterId
+class CBDClient(_object):
+    __swig_setmethods__ = {}
+    __setattr__ = lambda self, name, value: _swig_setattr(self, CBDClient, name, value)
+    __swig_getmethods__ = {}
+    __getattr__ = lambda self, name: _swig_getattr(self, CBDClient, name)
+    __repr__ = _swig_repr
+
+    def __init__(self):
+        this = _curvefs.new_CBDClient()
+        try:
+            self.this.append(this)
+        except __builtin__.Exception:
+            self.this = this
+    __swig_destroy__ = _curvefs.delete_CBDClient
+    __del__ = lambda self: None
+
+    def Init(self, configPath):
+        return _curvefs.CBDClient_Init(self, configPath)
+
+    def UnInit(self):
+        return _curvefs.CBDClient_UnInit(self)
+
+    def Open(self, filename, userInfo):
+        return _curvefs.CBDClient_Open(self, filename, userInfo)
+
+    def Close(self, fd):
+        return _curvefs.CBDClient_Close(self, fd)
+
+    def Create(self, filename, userInfo, size):
+        return _curvefs.CBDClient_Create(self, filename, userInfo, size)
+
+    def Unlink(self, filename, info):
+        return _curvefs.CBDClient_Unlink(self, filename, info)
+
+    def DeleteForce(self, filename, info):
+        return _curvefs.CBDClient_DeleteForce(self, filename, info)
+
+    def Rename(self, info, oldpath, newpath):
+        return _curvefs.CBDClient_Rename(self, info, oldpath, newpath)
+
+    def Extend(self, filename, info, size):
+        return _curvefs.CBDClient_Extend(self, filename, info, size)
+
+    def Read(self, fd, buf, offset, length):
+        return _curvefs.CBDClient_Read(self, fd, buf, offset, length)
+
+    def Write(self, fd, buf, offset, length):
+        return _curvefs.CBDClient_Write(self, fd, buf, offset, length)
+
+    def AioRead(self, fd, aioctx):
+        return _curvefs.CBDClient_AioRead(self, fd, aioctx)
+
+    def AioWrite(self, fd, aioctx):
+        return _curvefs.CBDClient_AioWrite(self, fd, aioctx)
+
+    def StatFile(self, filename, info, finfo):
+        return _curvefs.CBDClient_StatFile(self, filename, info, finfo)
+
+    def ChangeOwner(self, filename, owner, info):
+        return _curvefs.CBDClient_ChangeOwner(self, filename, owner, info)
+
+    def Listdir(self, dirpath, info):
+        return _curvefs.CBDClient_Listdir(self, dirpath, info)
+
+    def Mkdir(self, dirpath, info):
+        return _curvefs.CBDClient_Mkdir(self, dirpath, info)
+
+    def Rmdir(self, dirpath, info):
+        return _curvefs.CBDClient_Rmdir(self, dirpath, info)
+
+    def GetClusterId(self):
+        return _curvefs.CBDClient_GetClusterId(self)
+CBDClient_swigregister = _curvefs.CBDClient_swigregister
+CBDClient_swigregister(CBDClient)
+
 # This file is compatible with both classic and new-style classes.
 
 

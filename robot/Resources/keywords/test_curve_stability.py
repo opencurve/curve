@@ -232,15 +232,16 @@ def clean_vol_clone(clone_uuid):
     assert r.status_code == 200, "clean clone vol fail,return code is %d,return msg is %s" % (r.status_code, r.text)
 
 def unlink_clone_vol(vol_uuid):
-    curvefs.UnInit()
-    rc = curvefs.Init("./client.conf") 
+    cbd = curvefs.CBDClient()
+    rc = cbd.Init("./client.conf")
     if rc != 0:
         raise AssertionError
     filename = "/cinder/volume-" + vol_uuid
     user = curvefs.UserInfo_t()
     user.owner = "cinder"
     logger2.debug("filename is %s"%filename)
-    curvefs.Unlink(str(filename), user) 
+    cbd.Unlink(str(filename), user)
+    cbd.UnInit()
 
 def cancel_vol_snapshot(voluuid,snapshot_uuid):
     snap_server = config.snapshot_vip
@@ -276,13 +277,13 @@ def recover_snapshot(vol_uuid,snapshot_uuid,lazy='true'):
     logger2.info("requests ret is %s"%r.text)
     ref = json.loads(r.text)
     recover_vol_uuid = ref["UUID"]
-    return recover_vol_uuid    
+    return recover_vol_uuid
 
 def detach_snapshot_vol(vol_uuid):
     ori_cmd = "source OPENRC && nova list |grep %s | awk '{print $2}'"%config.vm_host
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     rs = shell_operator.ssh_exec(ssh,ori_cmd, logger2)
-    vm_uuid = "".join(rs[1]).strip() 
+    vm_uuid = "".join(rs[1]).strip()
     ori_cmd = "source OPENRC &&nova volume-detach  %s %s"%((vm_uuid,vol_uuid))
     rs = shell_operator.ssh_exec(ssh,ori_cmd, logger2)
     logger2.info("exec cmd %s" % ori_cmd)
@@ -294,14 +295,14 @@ def attach_snapshot_vol(vol_uuid):
     ori_cmd = "source OPENRC && nova list |grep %s | awk '{print $2}'"%config.vm_host
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     rs = shell_operator.ssh_exec(ssh,ori_cmd,logger2)
-    vm_uuid = "".join(rs[1]).strip()  
+    vm_uuid = "".join(rs[1]).strip()
     ori_cmd = "source OPENRC &&nova volume-attach  %s %s"%((vm_uuid,vol_uuid))
     rs = shell_operator.ssh_exec(ssh,ori_cmd,logger2)
     logger2.info("exec cmd %s" % ori_cmd)
     assert rs[3] == 0,"detach vol fail,return is %s"%rs[2]
     logger2.info("exec cmd %s"%ori_cmd)
     ssh.close()
-  
+
 def get_snapshot_status(voluuid,snapshot_uuid):
     snap_server = config.snapshot_vip
     payload = {}
@@ -316,7 +317,7 @@ def get_snapshot_status(voluuid,snapshot_uuid):
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
 #    assert r.status_code == 200, "get snapshot info fail,return code is %d,return msg is %s" % (r.status_code, r.text)
-    logger2.info("requests ret is %s"%r.text)    
+    logger2.info("requests ret is %s"%r.text)
     ref = json.loads(r.text)
     if r.status_code != 200:
         logger2.error("get snapshot %s fail"%snapshot_uuid)
@@ -358,8 +359,8 @@ def get_clone_status(clone_vol_uuid):
     return False
 
 def get_vol_md5(vol_uuid):
-    curvefs.UnInit()
-    rc = curvefs.Init("./client.conf") 
+    cbd = curvefs.CBDClient()
+    rc = cbd.Init("./client.conf")
     if rc != 0:
         raise AssertionError
     filename = "/cinder/volume-" + vol_uuid
@@ -368,32 +369,35 @@ def get_vol_md5(vol_uuid):
 #    user.password = ""
     logger2.info("file name is %s,type is %s"%(filename,type(filename)))
     logger2.info("user is %s,type is %s"%(user,type(user)))
-    fd = curvefs.Open(str(filename), user)
+    fd = cbd.Open(str(filename), user)
     buf = ''
     md5_obj = hashlib.md5()
     for i in range(1,2560):
         j = i - 1
-        context = curvefs.Read(fd, buf, 4096*1024*j,4096*1024)
+        context = cbd.Read(fd, buf, 4096*1024*j,4096*1024)
         md5_obj.update(context)
     hash_code = md5_obj.hexdigest()
     md5 = str(hash_code).lower()
-    curvefs.Close(fd)
+    cbd.Close(fd)
+    cbd.UnInit()
     logger2.info("md5 is %s"%md5)
     return md5
 
 def check_clone_vol_exist(clonevol_uuid):
-    curvefs.UnInit()
-    rc = curvefs.Init("./client.conf")
+    cbd = curvefs.CBDClient()
+    rc = cbd.Init("./client.conf")
     if rc != 0:
         raise AssertionError
     filename = "volume-" + clonevol_uuid
     user = curvefs.UserInfo_t()
     user.owner = "cinder"
-    dirs = curvefs.Listdir("/cinder", user)
+    dirs = cbd.Listdir("/cinder", user)
     for d in dirs:
         logger2.info("dir is %s,filename is %s"%(d,filename))
         if d == filename:
+            cbd.UnInit()
             return True
+    cbd.UnInit()
     return False
 
 def diff_vol_consistency(vol_uuid,clone_uuid):
@@ -460,7 +464,7 @@ def test_clone_iovol_consistency(lazy):
     logger2.info("------------begin test clone iovol consistency lazy=%s----------"%lazy)
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     vol_id = config.snapshot_volid
-    vm_id = config.snapshot_vmid 
+    vm_id = config.snapshot_vmid
     snapshot_uuid = create_vol_snapshot(vol_id)
     starttime = time.time()
     final = False
@@ -483,7 +487,7 @@ def test_clone_iovol_consistency(lazy):
     final = False
     time.sleep(5)
     starttime = time.time()
-    status = 0 
+    status = 0
     if lazy == "true":
         status = 7
     while time.time() - starttime < config.snapshot_timeout:
@@ -527,14 +531,14 @@ def test_clone_vol_from_file(lazy):
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     vol_id = config.snapshot_volid
     vm_id = config.snapshot_vmid
-    destination = vol_id + "-" + lazy 
+    destination = vol_id + "-" + lazy
     clone_vol_uuid = clone_vol_from_file(vol_id,lazy)
     time.sleep(1)
     if lazy == "true":
         rc = check_clone_vol_exist(destination)
         assert rc,"clone vol volume-%s not create ok in 2s"%destination
     starttime = time.time()
-    status = 0 
+    status = 0
     final = False
     if lazy == "true":
         status = 7

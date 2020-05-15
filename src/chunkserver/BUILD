@@ -50,6 +50,7 @@ cc_library(
         "//proto:topology_cc_proto",
         "//src/chunkserver/datastore:chunkserver_datastore",
         "//src/common:curve_common",
+        "//src/common:curve_s3_adapter",
         "//src/fs:lfs",
         "//src/client:curve_client",
 	"//include/client:include_client",
@@ -91,6 +92,7 @@ cc_library(
         "//proto:topology_cc_proto",
         "//src/chunkserver/datastore:chunkserver_datastore",
         "//src/common:curve_common",
+        "//src/common:curve_s3_adapter",
         "//src/fs:lfs",
         "//src/client:curve_client",
     ],
@@ -125,6 +127,7 @@ cc_binary(
         "//src/chunkserver:chunkserver-lib",
         "//src/chunkserver/datastore:chunkserver_datastore",
         "//src/common:curve_common",
+        "//src/common:curve_s3_adapter",
         "//src/fs:lfs",
     ],
 )
