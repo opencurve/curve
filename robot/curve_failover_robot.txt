@@ -558,7 +558,6 @@ init failover cluster
      ${begin_num}    Convert To Integer   ${begin_num}
      Set Global Variable  ${chunk_num}    ${begin_num} 
      init vol
-     test get all chunk num
      begin snapshot test
      begin kill snapshotserver
      loop attach detach vol

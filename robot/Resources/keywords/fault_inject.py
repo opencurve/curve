@@ -1635,7 +1635,8 @@ def test_mds_cpu_stress(stress=50):
     return ssh
 
 def test_client_cpu_stress(stress=50):
-    client_host = random.choice(config.client_list)
+#    client_host = random.choice(config.client_list)
+    client_host = config.client_list[0]
     logger.info("|------begin test client cpu stress,host %s------|"%(client_host))
     cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 robot/Resources/keywords/cpu_stress.py \
      %s:~/"%(config.pravie_key_path,client_host)
@@ -1667,7 +1668,7 @@ def test_mds_mem_stress(stress=50):
     return ssh
 
 def test_client_mem_stress(stress=50):
-    client_host = random.choice(config.client_list)
+    client_host = config.client_list[0]
     logger.info("|------begin test client mem stress,host %s------|"%(client_host))
     cmd = "free -g |grep Mem|awk \'{print $2}\'"
     ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
@@ -1698,7 +1699,7 @@ def test_mds_network_stress():
     return mds_host
 
 def test_client_network_stress():
-    client_host = random.choice(config.client_list)
+    client_host = config.client_list[0]
     logger.info("|------begin test client network stress,host %s------|"%(client_host))
     t1 = mythread.runThread(listen_network_stress, client_host)
     t2 = mythread.runThread(inject_network_stress, client_host)
