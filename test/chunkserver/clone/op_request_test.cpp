@@ -917,21 +917,15 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         // 设置预期
         info.isClone = false;
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
-            .WillOnce(DoAll(SetArgPointee<1>(info),
+            .WillRepeatedly(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
         // 读chunk文件失败
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
-            .WillOnce(Return(CSErrorCode::InternalError));
+            .WillRepeatedly(Return(CSErrorCode::InternalError));
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(0);
 
-        opReq->OnApply(3, closure);
-
-        // 验证结果
-        ASSERT_TRUE(closure->isDone_);
-        ASSERT_EQ(LAST_INDEX, response->appliedindex());
-        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
-                  response->status());
+        ASSERT_DEATH(opReq->OnApply(3, closure), "");
     }
     /**
      * 测试OnApply
