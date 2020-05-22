@@ -480,10 +480,10 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
     // NOTE: 处理过程中优先使用参数传入的datastore/request
     uint32_t cost;
     std::string  cloneSourceLocation;
-    if (existCloneInfo(request_)) {
+    if (existCloneInfo(&request)) {
         auto func = ::curve::common::LocationOperator::GenerateCurveLocation;
-        cloneSourceLocation =  func(request_->clonefilesource(),
-                            request_->clonefileoffset());
+        cloneSourceLocation =  func(request.clonefilesource(),
+                            request.clonefileoffset());
     }
 
 
