@@ -601,7 +601,7 @@ test get all chunk num
 clean failover env
      stop rwio
      check io error
-#     stop scheduler
+     stop scheduler
      check copies consistency
      detach vol
      sleep  10
