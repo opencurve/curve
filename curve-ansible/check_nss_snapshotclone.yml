@@ -1,0 +1,10 @@
+---
+# Copyright 2020 NetEase, Inc.
+# The nss check of curve
+
+- name: check snapshot nss
+  hosts: localhost
+  gather_facts: no
+  roles:
+    - { role: check_nss, group_hosts: "{{ groups.snapshotclone }}", nss_cluster_name: "{{ snapshot_nss_cluster_name }}",
+        expected_monitor_items: "{{ snapshot_monitor_items }}", expected_alarm_rules: "{{ snapshot_alarm_rules }}" }

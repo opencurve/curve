@@ -1,0 +1,13 @@
+---
+# Copyright 2020 NetEase, Inc.
+# The nss check of curve
+
+- name: check chunkserver nss
+  hosts: localhost
+  gather_facts: no
+
+  roles:
+    - { role: check_nss, group_hosts: "{{ groups.chunkservers }}", nss_cluster_name: "{{ chunkserver_nss_cluster_name }}",
+        expected_monitor_items: "{{ chunkserver_monitor_items }}", expected_alarm_rules: "{{ chunkserver_alarm_rules }}" }
+
+

@@ -1,0 +1,6 @@
+---
+
+- name: check if member in list
+  fail:
+    msg: "{{ member }} not in list: {{ list }}"
+  when: member not in list

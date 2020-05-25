@@ -1,0 +1,21 @@
+---
+# Copyright 2020 NetEase, Inc.
+# The nss check of curve
+
+- name: check mds nss
+  hosts: localhost
+  gather_facts: no
+  tags:
+    - mds
+  roles:
+    - { role: check_nss, group_hosts: "{{ groups.mds }}", nss_cluster_name: "{{ mds_nss_cluster_name }}",
+        expected_monitor_items: "{{ mds_monitor_items }}", expected_alarm_rules: "{{ mds_alarm_rules }}" }
+
+- name: check etcd nss
+  hosts: localhost
+  gather_facts: no
+  tags:
+    - etcd
+  roles:
+    - { role: check_nss, group_hosts: "{{ groups.mds }}", nss_cluster_name: "{{ etcd_nss_cluster_name }}",
+        expected_monitor_items: "{{ mds_monitor_items }}", expected_alarm_rules: "{{ mds_alarm_rules }}" }

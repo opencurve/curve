@@ -1,0 +1,16 @@
+---
+
+- name: get all monitor items in nss cluster
+  uri:
+    url: "http://api.nss.netease.com/api/getMonitorItemsByCluster?client={{ nss_client }}\
+          &signature={{ signature }}&clusterName={{ nss_cluster_name }}"
+  register: result
+
+- name: fail if return code not 200
+  fail:
+    msg: "return code is not 200, response is {{ result.json }}"
+  when: result.json.code != 200
+
+- name: set monitor_items
+  set_fact:
+    monitor_items: "{% for item in result.json.rt %} {{ item.name }} {% endfor %}"

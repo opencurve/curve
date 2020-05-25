@@ -1,0 +1,110 @@
+---
+
+base_monitor_items: &base_monitor_items
+  - base_nstat
+  - base_top_snapshot
+  - check_package
+  - disk
+  - diskrw
+  - HostAlive
+  - monitor_connect
+  - nagent
+  - nic_stats
+  - ntp
+  - socket_statistics
+  - system
+  - sys_uptime
+  - vpcNet
+  - watchdog
+
+base_alarm_rules: &base_alarm_rules
+  - check_package
+  - cpus
+  - cpu_steal
+  - cpu_total
+  - disk
+  - disk_io
+  - disk_rw
+  - file_handle
+  - HostAlive
+  - HostAlive_3
+  - HostAlive_phy
+  - if_traffic
+  - mem_usage
+  - monitor_connect
+  - nagent
+  - ntp
+  - socket_establish
+  - syn_recv
+  - system_load
+  - sys_uptime
+  - watchdog
+  - 网卡丢弃包监控
+  - 网卡错误包监控
+
+client_monitor_items:
+  - curve_client_log_test
+  - nebd-server-log-monitor
+  - curve_nebdserver_status
+  - curve_nebdtcpcheck_status
+  - *base_monitor_items
+
+client_alarm_rules:
+  - curve-client日志监控
+  - curve_nebdserver_status
+  - mem_usage
+  - nebd-server日志监控
+  - *base_alarm_rules
+
+mds_monitor_items:
+  - curve-mds日志监控
+  - curve-mds进程监控
+  - curve_alloc_info
+  - curve_etcd_metrics
+  - curve_recyclebin_check
+  - *base_monitor_items
+
+mds_alarm_rules:
+  - curve_recyclebin_check
+  - MDS日志监控
+  - MDS进程监控
+  - 集群可分配容量监控
+  - *base_alarm_rules
+
+etcd_monitor_items:
+  - curve_etcd_metrics
+  - curve_etcd_status
+  - *base_monitor_items
+
+etcd_alarm_rules:
+  - curve_etcd_status
+  - *base_alarm_rules
+
+chunkserver_monitor_items:
+  - chunkserver-glog日志监控
+  - curve-chunkserver进程监控
+  - curve_disk_write_cache2
+  - curve_leftchunks
+  - *base_monitor_items
+
+chunkserver_alarm_rules:
+  - chunkserver-glog日志监控
+  - chunkserver进程监控
+  - curve磁盘缓存监控
+  - leftchunks
+  - leftchunks
+  - *base_alarm_rules
+
+snapshot_monitor_items:
+  - curve_snapservernginx_status
+  - curve_snapserver_status
+  - curve_snapshotcloneserver_log
+  - nginx日志监控
+  - *base_monitor_items
+
+snapshot_alarm_rules:
+  - nginx日志报警
+  - snapservernginx监控
+  - snapshotcloneserver日志报警
+  - snapshotcloneserver进程监控
+  - *base_alarm_rules

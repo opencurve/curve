@@ -1,0 +1,17 @@
+---
+
+- name: get all host in nss cluster
+  uri:
+    url: "http://api.nss.netease.com/api/getServersByCluster?client={{ nss_client }}\
+          &signature={{ signature }}&clusterName={{ nss_cluster_name }}"
+  register: result
+
+- name: fail if return code not 200
+  fail:
+    msg: "return code is not 200, response is {{ result.json }}"
+  when: result.json.code != 200
+
+- name: set all_host_list
+  set_fact:
+    all_host_list: "{% for item in result.json.rt.servers %} {{ item.hostname }} {% endfor %}"
+

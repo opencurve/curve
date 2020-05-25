@@ -1,0 +1,39 @@
+---
+
+- name: get cluster id
+  uri:
+    url: "http://api.nss.netease.com/api/v2/getCluster?client={{ nss_client }}\
+          &signature={{ signature }}&clusterName={{ nss_cluster_name }}"
+  register: result
+
+- name: fail if return code not 200
+  fail:
+    msg: "return code is not 200, respose is {{ result.json }}"
+  when: result.json.code != 200
+
+- name: set cluster id
+  set_fact:
+    cluster_id: "{{ result.json.rt.nodeId }}"
+
+- name: get all monitor items in nss cluster
+  uri:
+    url: "http://api.nss.netease.com/api/getAlarmRuleList?client={{ nss_client }}\
+          &signature={{ signature }}&clusterId={{ cluster_id }}&needBase=true&needTemplate=true"
+  register: result
+
+- name: fail if return code not 200
+  fail:
+    msg: "return code is not 200, response is {{ result.json }}"
+  when: result.json.code != 200
+
+- name: set sigle_alarm_rules
+  set_fact:
+    sigle_alarm_rules: "{% for item in result.json.rt.singleRules %} {{ item.name }} {% endfor %}"
+
+- name: set cluster_alarm_rules
+  set_fact:
+    cluster_alarm_rules: "{% for item in result.json.rt.clusterRules %} {{ item.name }} {% endfor %}"
+
+- name: set alarm_rules
+  set_fact:
+    alarm_rules: "{{ sigle_alarm_rules }} {{ cluster_alarm_rules }}"

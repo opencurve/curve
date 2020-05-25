@@ -1,0 +1,10 @@
+---
+
+- name: generate signature
+  shell: printf  '{{ nss_client }}'`date '+%Y%m%d'`'{{ nss_password }}'|md5sum|awk '{print $1}'
+  register: result
+  failed_when: result.stdout == ""
+
+- name: set signature
+  set_fact:
+    signature: "{{ result.stdout }}"

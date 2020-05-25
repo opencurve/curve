@@ -1,0 +1,12 @@
+---
+# Copyright 2020 NetEase, Inc.
+# The nss check of curve
+
+- name: check client nss
+  hosts: localhost
+  gather_facts: no
+  tags:
+    - client
+  roles:
+    - { role: check_nss, group_hosts: "{{ groups.client }}",nss_cluster_name: "{{ client_nss_cluster_name }}",
+        expected_monitor_items: "{{ client_monitor_items }}", expected_alarm_rules: "{{ client_alarm_rules }}"}

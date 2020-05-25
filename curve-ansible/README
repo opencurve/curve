@@ -106,55 +106,92 @@ mds回退同样需要先重启备，再重启主，这个逻辑在yml文件中�
   (2) 升级nebd-server也有类似的确认步骤，由于机器比较多，可以选择指定 --extra-vars "need_confirm=false"来关掉
       确认这一步
 
-1.7 回退curve-sdk
+2.5 回退curve-sdk
 curve-sdk主要给cinder，nova等服务使用，只需要更新包和配置即可，不需要重启服务
   (1) ansible-playbook rolling_update_curve_sdk.yml -i client.ini --extra-vars \
           "sdk_package_version=0.0.5.3+4b11a64d need_update_config=false"
 
+3、检查哨兵配置
+curve线上报警统一由哨兵完成。在部署或升级完一个环境的时候，往往需要配置或修改监控项和报警规则，由于配置是人工完成的，
+所以有一定概率有遗漏之类的，所以提供了检查哨兵配置的check_nss命令。哨兵上的监控项和报警规则以集群为单位配置，所以检
+查哨兵配置应该有两步，第一步是检查inventory里面列出的机器确实都在集群里，这一步可以通过CMDB的getServersByCluster
+接口配合遍历inventory中的主机来完成。第二步是检查集群的监控项和报警规则，通过哨兵的getMonitorItemsByCluster和get
+AlarmRuleList两个接口查询后和本地的group_vars中定义的监控项和报警规则比较。
+group_vars/all.yml中定义了需要的全部监控项和报警项，理论上这些变量和版本有关，和具体的环境关系不大。
+
+(1) 检查mds
+ansible-playbook check_nss_mds.yml -i server.ini
+(2) 检查快照克隆
+ansible-playbook check_nss_snapshotclone.yml -i server.ini
+(3) 检查etcd
+ansible-playbook check_nss_etcd.yml -i server.ini
+(4) 检查chunkserver
+ansible-playbook check_nss_chunkserver.yml -i server.ini
+(5) 检查client
+ansible-playbook check_nss_client.yml -i client.ini
+
 三、目录结构说明
 .
-├── common_tasks                                        # 放置可以复用的代码（可以理解为各种函数）
-│   ├── check_chunkserver.yml                           # 检查chunkserver机器配置
-│   ├── check_cluster_healthy_status.yml                # 检查集群健康状态
-│   ├── check_mds.yml                                   # 检查mds机器配置
-│   ├── get_curve_version_from_metric.yml               # 从metric获取curve版本
-│   ├── get_nebd_version_from_metric.yml                # 从metric获取nebd版本
-│   ├── get_software_version_from_package_version.yml   # 从包版本获取软件版本
-│   ├── update_config.yml                               # 更新配置文件
-│   ├── update_package.yml                              # 更新包
-│   └── wait_copysets_status_healthy.yml                # 在一段时间内循环检查copyset健康状态
-├── roles                                               # roles也是用来存放可以复用的代码，一个role内的task存在关联
-│   ├── restart_service                                 # 用来重启服务的role
-│   │   ├── tasks                                       # 存放重启服务的task，main.yml是入口，其他的被main引用
+├── common_tasks                                            # 放置可以复用的代码（可以理解为各种函数）
+│   ├── check_chunkserver.yml                               # 检查chunkserver机器配置
+│   ├── check_cluster_healthy_status.yml                    # 检查集群健康状态
+│   ├── check_mds.yml                                       # 检查mds机器配置
+│   ├── get_curve_version_from_metric.yml                   # 从metric获取curve版本
+│   ├── get_nebd_version_from_metric.yml                    # 从metric获取nebd版本
+│   ├── get_software_version_from_package_version.yml       # 从包版本获取软件版本
+│   ├── update_config.yml                                   # 更新配置文件
+│   ├── update_package.yml                                  # 更新包
+│   └── wait_copysets_status_healthy.yml                    # 在一段时间内循环检查copyset健康状态
+├── roles                                                   # roles也是用来存放可以复用的代码，一个role内的task存在关联
+│   ├── check_nss                                           # 检查哨兵监控的role
+│   │   ├── defaults
+│   │   │   └── main.yml                                    # 用来存放有默认值的变量，优先级最低，可以在inventory或命令行覆盖
+│   │   ├── tasks                                           # 用来存放task，main.yml是入口，其他的被main引用
 │   │   │   ├── include
-│   │   │   │   ├── restart_by_daemon.yml               # 用daemon重启服务
-│   │   │   │   ├── restart_chunkserver.yml             # 重启chunkserver
-│   │   │   │   ├── restart_etcd.yml                    # 重启etcd
-│   │   │   │   ├── restart_mds.yml                     # 重启etcd
-│   │   │   │   ├── restart_nebd.yml                    # 重启nebd server
-│   │   │   │   ├── restart_one_chunkserver.yml         # 重启单个chunkserver
-│   │   │   │   └── restart_snapshotclone.yml           # 重启快照克隆
-│   │   │   └── main.yml                                # main.yml的所有task会被include到使用role的地方
+│   │   │   │   ├── check_if_member_in_list.yml             # 检查一个字符串是否在一个列表中
+│   │   │   │   ├── generate_signature.yml                  # 生成发送API所需的签名
+│   │   │   │   ├── get_all_host_in_nss_cluster.yml         # 获取哨兵cluster中的所有机器的hostname
+│   │   │   │   ├── get_cluster_alarm_rules_from_nss.yml    # 从哨兵获取集群的全部报警规则
+│   │   │   │   └── get_cluster_monitor_items_from_nss.yml  # 从哨兵获取集群的全部监控项
+│   │   │   └── main.yml                                    # main.yml的所有task会被include到使用role的地方
 │   │   └── vars
-│   │       └── main.yml                                # main.yml的所有变量会被包含到使用role的地方
-│   └── set_leader_and_follower_list                    # 设置leader和follower列表的task
-│       ├── tasks                                       # 存放task，main.yml是入口，其他的被main引用
+│   │       └── main.yml
+│   ├── restart_service                                     # 用来重启服务的role
+│   │   ├── tasks                                           # 存放重启服务的task，main.yml是入口，其他的被main引用
+│   │   │   ├── include
+│   │   │   │   ├── restart_by_daemon.yml                   # 用daemon重启服务
+│   │   │   │   ├── restart_chunkserver.yml                 # 重启chunkserver
+│   │   │   │   ├── restart_etcd.yml                        # 重启etcd
+│   │   │   │   ├── restart_mds.yml                         # 重启etcd
+│   │   │   │   ├── restart_nebd.yml                        # 重启nebd server
+│   │   │   │   ├── restart_one_chunkserver.yml             # 重启单个chunkserver
+│   │   │   │   └── restart_snapshotclone.yml               # 重启快照克隆
+│   │   │   └── main.yml                                    # main.yml的所有task会被include到使用role的地方
+│   │   └── vars
+│   │       └── main.yml                                    # main.yml的所有变量会被包含到使用role的地方
+│   └── set_leader_and_follower_list                        # 设置leader和follower列表的task
+│       ├── tasks                                           # 存放task，main.yml是入口，其他的被main引用
 │       │   ├── include
-│       │   │   ├── get_all_ip.yml                      # 获取节点的所有ip
-│       │   │   ├── get_etcd_leader_ip.yml              # 获取etcd leader的ip
-│       │   │   ├── get_mds_leader_ip.yml               # 获取mds leader的ip
-│       │   │   └── get_snapshot_leader_ip.yml          # 获取快照克隆leader的ip
+│       │   │   ├── get_all_ip.yml                          # 获取节点的所有ip
+│       │   │   ├── get_etcd_leader_ip.yml                  # 获取etcd leader的ip
+│       │   │   ├── get_mds_leader_ip.yml                   # 获取mds leader的ip
+│       │   │   └── get_snapshot_leader_ip.yml              # 获取快照克隆leader的ip
 │       │   └── main.yml
 │       └── vars
 │           └── main.yml
-├── rolling_update_chunkserver.yml                      # 升级chunkserver
-├── rolling_update_mds.yml                              # 升级mds
-├── rolling_update_nebd.yml                             # 升级nebd-server
-├── rolling_update_curve_sdk.yml                        # 升级curve sdk
-├── rolling_update_snapshotclone.yml                    # 升级快照克隆
-├── restart_etcd.yml                                    # 重启etcd的命令
-├── check_chunkserver.yml                               # 检查chunkserver所在机器配置
-├── check_mds.yml                                       # 检查mds所在机器配置
-├── README                                              # 本帮助文档
-├── client.ini                                          # client的inventory文件
-└── server.ini                                          # server的列表，包括mds，快照克隆，etcd，chunkserver
+├── rolling_update_chunkserver.yml                          # 升级chunkserver
+├── rolling_update_mds.yml                                  # 升级mds
+├── rolling_update_nebd.yml                                 # 升级nebd-server
+├── rolling_update_curve_sdk.yml                            # 升级curve sdk
+├── rolling_update_snapshotclone.yml                        # 升级快照克隆
+├── restart_etcd.yml                                        # 重启etcd的命令
+├── check_chunkserver.yml                                   # 检查chunkserver所在机器配置
+├── check_mds.yml                                           # 检查mds所在机器配置
+├── check_nss_chunkserver.yml                               # 检查chunkserver哨兵监控
+├── check_nss_client.yml                                    # 检查client哨兵监控
+├── check_nss_etcd.yml                                      # 检查etcd哨兵监控
+├── check_nss_mds.yml                                       # 检查mds哨兵监控
+├── check_nss_snapshotclone.yml                             # 检查快照克隆哨兵监控
+├── README                                                  # 本帮助文档
+├── client.ini                                              # client的inventory文件
+└── server.ini                                              # server的列表，包括mds，快照克隆，etcd，chunkserver

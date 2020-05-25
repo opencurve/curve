@@ -1,0 +1,44 @@
+---
+
+- name: generate signature
+  include_tasks: "include/generate_signature.yml"
+
+- name: get all host in cluster
+  vars:
+    all_host_list:
+  include_tasks: "include/get_all_host_in_nss_cluster.yml"
+
+- name: check if all host in group in nss cluster
+  vars:
+    member: "{{ item }}"
+    list: "{{ all_host_list }}"
+  include_tasks: "include/check_if_member_in_list.yml"
+  with_items:
+    "{{ group_hosts }}"
+
+- name: get all monitor items in cluster from nss
+  vars:
+    monitor_items:
+  include_tasks: "include/get_cluster_monitor_items_from_nss.yml"
+
+- name: check if all monitor items set in nss
+  vars:
+    member: "{{ item }}"
+    list: "{{ monitor_items }}"
+  include_tasks: "include/check_if_member_in_list.yml"
+  with_items:
+    "{{ expected_monitor_items }}"
+
+- name: get all alarm rules in cluster from nss
+  vars:
+    alarm_rules:
+  include_tasks: "include/get_cluster_alarm_rules_from_nss.yml"
+
+- name: check if all monitor items set in nss
+  vars:
+    member: "{{ item }}"
+    list: "{{ alarm_rules }}"
+  include_tasks: "include/check_if_member_in_list.yml"
+  with_items:
+    "{{ expected_alarm_rules }}"
+
