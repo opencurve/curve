@@ -189,6 +189,7 @@ void DeleteChunkRequest::OnApply(uint64_t index,
 void DeleteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                         const ChunkRequest &request,
                                         const butil::IOBuf &data) {
+    // NOTE: 处理过程中优先使用参数传入的datastore/request
     auto ret = datastore->DeleteChunk(request.chunkid(),
                                       request.sn());
     if (CSErrorCode::Success == ret)
@@ -351,6 +352,7 @@ void ReadChunkRequest::OnApply(uint64_t index,
 void ReadChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                       const ChunkRequest &request,
                                       const butil::IOBuf &data) {
+    // NOTE: 处理过程中优先使用参数传入的datastore/request
     // read什么都不用做
 }
 
@@ -475,6 +477,7 @@ void WriteChunkRequest::OnApply(uint64_t index,
 void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                        const ChunkRequest &request,
                                        const butil::IOBuf &data) {
+    // NOTE: 处理过程中优先使用参数传入的datastore/request
     uint32_t cost;
     std::string  cloneSourceLocation;
     if (existCloneInfo(request_)) {
@@ -577,6 +580,7 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
 void ReadSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                          const ChunkRequest &request,
                                          const butil::IOBuf &data) {
+    // NOTE: 处理过程中优先使用参数传入的datastore/request
     // read什么都不用做
 }
 
@@ -622,6 +626,7 @@ void DeleteSnapshotRequest::OnApply(uint64_t index,
 void DeleteSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
                                            const ChunkRequest &request,
                                            const butil::IOBuf &data) {
+    // NOTE: 处理过程中优先使用参数传入的datastore/request
     auto ret = datastore->DeleteSnapshotChunkOrCorrectSn(
         request.chunkid(), request.correctedsn());
     if (CSErrorCode::Success == ret) {
@@ -708,6 +713,7 @@ void CreateCloneChunkRequest::OnApply(uint64_t index,
 void CreateCloneChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
                                              const ChunkRequest &request,
                                              const butil::IOBuf &data) {
+    // NOTE: 处理过程中优先使用参数传入的datastore/request
     auto ret = datastore->CreateCloneChunk(request.chunkid(),
                                            request.sn(),
                                            request.correctedsn(),
@@ -797,6 +803,7 @@ void PasteChunkInternalRequest::OnApply(uint64_t index,
 void PasteChunkInternalRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
                                                const ChunkRequest &request,
                                                const butil::IOBuf &data) {
+    // NOTE: 处理过程中优先使用参数传入的datastore/request
     auto ret = datastore->PasteChunk(request.chunkid(),
                                      data.to_string().c_str(),
                                      request.offset(),
