@@ -238,12 +238,13 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
             ChunkRequest request;
             butil::IOBuf data;
             auto opReq = ChunkOpRequest::Decode(log, &request, &data);
+            auto chunkId = request.chunkid();
             auto task = std::bind(&ChunkOpRequest::OnApplyFromLog,
                                   opReq,
                                   dataStore_,
-                                  request,
+                                  std::move(request),
                                   data);
-            concurrentapply_->Push(request.chunkid(), task);
+            concurrentapply_->Push(chunkId, task);
         }
     }
 }

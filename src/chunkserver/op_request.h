@@ -67,6 +67,7 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
                          ::google::protobuf::Closure *done) = 0;
 
     /**
+     * NOTE: 子类实现过程中优先使用参数传入的datastore/request
      * 从log entry反序列之后得到request详细信息进行处理，request
      * 相关的上下文和依赖的data store都是从参数传递进去的
      * 1.重启回放日志，从磁盘读取op log entry然后执行on apply逻辑

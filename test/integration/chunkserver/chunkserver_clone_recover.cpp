@@ -426,6 +426,46 @@ class CSCloneRecoverTest : public ::testing::Test {
             return -1;
     }
 
+    int TransferLeaderToFollower() {
+        Peer peer1, peer2, peer3, follower;
+        peer1.set_address(CHUNK_SERVER0_IP_PORT + ":0");
+        peer2.set_address(CHUNK_SERVER1_IP_PORT + ":0");
+        peer3.set_address(CHUNK_SERVER2_IP_PORT + ":0");
+        PeerId peerId1(peer1.address());
+        PeerId peerId2(peer2.address());
+        PeerId peerId3(peer3.address());
+        Configuration csConf;
+        csConf.add_peer(peerId1);
+        csConf.add_peer(peerId2);
+        csConf.add_peer(peerId3);
+        if (peer1.address() == leaderPeer_.address()) {
+            follower = peer2;
+        } else {
+            follower = peer1;
+        }
+        LOG(INFO) << "transfer leader from " << leaderPeer_.address()
+                  << " to " <<follower.address();
+        braft::cli::CliOptions options;
+        options.max_retry = 3;
+        options.timeout_ms = 5000;
+        butil::Status status = curve::chunkserver::TransferLeader(
+            logicPoolId_, copysetId_, csConf, follower, options);
+        if (!status.ok()) {
+            LOG(ERROR) << "transfer leader failed.";
+            return -1;
+        }
+
+        // 先睡眠5s，让chunkserver选出leader
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        status = curve::chunkserver::GetLeader(
+            logicPoolId_, copysetId_, csConf, &leaderPeer_);
+        LOG(INFO) << "Current leader is " << leaderPeer_.address();
+        if (status.ok())
+            return 0;
+        else
+            return -1;
+    }
+
     void prepareSourceDataInCurve() {
         // 创建一个curveFS文件
         LOG(INFO) << "create source curveFS file: " << CURVEFS_FILENAME;
@@ -679,6 +719,8 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunkWhenLazyAlloc) {
               verify.VerifyWriteChunk(cloneChunk1, sn2, 0, 8 * KB, temp.c_str(),
                                       nullptr));
 
+    // 将leader切换到follower
+    ASSERT_EQ(0, TransferLeaderToFollower());
     // 2. 通过readchunk恢复克隆文件
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 12 * KB,
                                         cloneData1.get(),
