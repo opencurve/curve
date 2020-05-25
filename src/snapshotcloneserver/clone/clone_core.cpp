@@ -597,7 +597,14 @@ int CloneCoreImpl::CreateCloneFile(
         task->GetCloneInfo().SetDestId(fInfoOut.id);
     }
     task->GetCloneInfo().SetTime(fInfoOut.ctime);
-    task->GetCloneInfo().SetNextStep(CloneStep::kCreateCloneMeta);
+    // 如果是lazy&非快照，先不要createCloneMeta，createCloneChunk
+    // 等后面stage2阶段recoveryChunk之前去createCloneMeta，createCloneChunk
+    if (IsLazy(task) && IsFile(task)) {
+        task->GetCloneInfo().SetNextStep(CloneStep::kCompleteCloneMeta);
+    } else {
+        task->GetCloneInfo().SetNextStep(CloneStep::kCreateCloneMeta);
+    }
+
     ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     if (ret < 0) {
         LOG(ERROR) << "UpdateCloneInfo after CreateCloneFile error."
@@ -617,13 +624,7 @@ int CloneCoreImpl::CreateCloneMeta(
         return ret;
     }
 
-    // 如果是lazy&非快照，先不要createCloneChunk
-    // 等后面stage2阶段recoveryChunk之前去createCloneChunk
-    if (IsLazy(task) && IsFile(task)) {
-        task->GetCloneInfo().SetNextStep(CloneStep::kCompleteCloneMeta);
-    } else {
-        task->GetCloneInfo().SetNextStep(CloneStep::kCreateCloneChunk);
-    }
+    task->GetCloneInfo().SetNextStep(CloneStep::kCreateCloneChunk);
 
     ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     if (ret < 0) {
@@ -1082,7 +1083,7 @@ int CloneCoreImpl::RenameCloneFile(
 
     if (IsLazy(task)) {
         if (IsFile(task)) {
-            task->GetCloneInfo().SetNextStep(CloneStep::kCreateCloneChunk);
+            task->GetCloneInfo().SetNextStep(CloneStep::kCreateCloneMeta);
         } else {
             task->GetCloneInfo().SetNextStep(CloneStep::kRecoverChunk);
         }
