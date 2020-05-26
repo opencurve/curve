@@ -401,7 +401,18 @@ cd build/
 dpkg-deb -X curve-sdk*deb python-wheel
 cp ${dir}/curvefs_python/setup.py python-wheel/usr
 cd python-wheel/usr
-cp lib/* curvefs/
+
+# 复制依赖的so文件到curvefs
+deps=`ldd curvefs/_curvefs.so | awk '{ print $1 }' | sed '/^$/d'`
+for i in `find lib/ -name "lib*so"`
+do
+    basename=$(basename $i)
+    if [[ $deps =~ $basename ]]
+    then
+        echo $i
+        cp $i curvefs
+    fi
+done
 
 # 替换curvefs setup.py中的版本号
 sed -i "s/version-anchor/${tag_version}+${commit_id}${debug}/g" setup.py

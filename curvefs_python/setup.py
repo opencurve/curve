@@ -9,6 +9,6 @@ setup(
     author="curve-dev",
     packages=find_packages(),
     package_data={
-        "": ["*so"],
+        "": ["*.so"],
     }
 )
