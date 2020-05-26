@@ -31,6 +31,10 @@ def add_config():
         ori_cmd = R"sed -i 's/mds.heartbeat.offlinetimeoutMs=.*/mds.heartbeat.offlinetimeoutMs=%d/g' mds.conf"%(config.offline_timeout*1000)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s mds config fail"%host
+        #change clean_follower_afterMs  time
+        ori_cmd = R"sed -i 's/mds.heartbeat.clean_follower_afterMs=.*/mds.heartbeat.clean_follower_afterMs=%d/g' mds.conf"%(300000)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s mds config fail"%host
         #change scheduler time
         ori_cmd = R"sed -i 's/mds.copyset.scheduler.intervalSec=.*/mds.copyset.scheduler.intervalSec=0/g' mds.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
