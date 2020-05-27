@@ -41,6 +41,16 @@ TEST(TestNameserverCacheMetrics, testall) {
 
     cacheMetrics.UpdateRemoveFromCacheBytes(200);
     ASSERT_EQ(800, cacheMetrics.cacheBytes.get_value());
+
+    // 3. cache命中
+    ASSERT_EQ(0, cacheMetrics.cacheHit.get_value());
+    cacheMetrics.OnCacheHit();
+    ASSERT_EQ(1, cacheMetrics.cacheHit.get_value());
+
+    // 4. cache未命中
+    ASSERT_EQ(0, cacheMetrics.cacheMiss.get_value());
+    cacheMetrics.OnCacheMiss();
+    ASSERT_EQ(1, cacheMetrics.cacheMiss.get_value());
 }
 }  // namespace mds
 }  // namespace curve

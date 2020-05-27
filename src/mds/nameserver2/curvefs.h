@@ -591,4 +591,3 @@ extern CurveFS &kCurveFS;
 }   // namespace mds
 }   // namespace curve
 #endif   // SRC_MDS_NAMESERVER2_CURVEFS_H_
-

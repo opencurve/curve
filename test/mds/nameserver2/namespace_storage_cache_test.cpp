@@ -131,7 +131,32 @@ TEST(CaCheTest, test_cache_with_large_data_capacity_no_limit) {
     ASSERT_FALSE(cache->Get(encodeKey, &out));
 }
 
+TEST(CaCheTest, TestCacheHitAndMissMetric) {
+    std::shared_ptr<LRUCache> cache = std::make_shared<LRUCache>();
+    ASSERT_EQ(0, cache->GetCacheMetrics()->cacheHit.get_value());
+    ASSERT_EQ(0, cache->GetCacheMetrics()->cacheMiss.get_value());
+
+    std::string existKey = "hello";
+    std::string notExistKey = "world";
+    cache->Put(existKey, existKey);
+
+    std::string out;
+    for (int i = 0; i < 10; ++i) {
+        ASSERT_TRUE(cache->Get(existKey, &out));
+        ASSERT_FALSE(cache->Get(notExistKey, &out));
+    }
+
+    ASSERT_EQ(10, cache->GetCacheMetrics()->cacheHit.get_value());
+    ASSERT_EQ(10, cache->GetCacheMetrics()->cacheMiss.get_value());
+
+    for (int i = 0; i < 5; ++i) {
+        ASSERT_TRUE(cache->Get(existKey, &out));
+    }
+
+    ASSERT_EQ(15, cache->GetCacheMetrics()->cacheHit.get_value());
+    ASSERT_EQ(10, cache->GetCacheMetrics()->cacheMiss.get_value());
+}
+
+
 }  // namespace mds
 }  // namespace curve
-
-

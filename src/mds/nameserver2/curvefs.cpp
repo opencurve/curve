@@ -1785,4 +1785,3 @@ bvar::PassiveStatus<uint64_t> g_open_file_num_bvar(
                         GetOpenFileNum, &kCurveFS);
 }   // namespace mds
 }   // namespace curve
-
