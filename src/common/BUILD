@@ -38,7 +38,9 @@ cc_library(
     srcs = glob([
         "*.h",
         "*.cpp",
-        ],exclude = ["authenticator.*", "s3_adapter.*"]
+        ],exclude = ["authenticator.*",
+                      "s3_adapter.*",
+                      "snapshotclone_define.*"]
     ),
     copts = COPTS,
     visibility = ["//visibility:public"],
@@ -89,5 +91,17 @@ cc_library(
         "//external:glog",
         "//src/common:curve_common",
         "@aws",
+    ],
+)
+
+cc_library(
+    name = "curve_snapshotclone",
+    srcs = glob([
+        "snapshotclone_define.*",
+    ]),
+    copts = COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:json"
     ],
 )

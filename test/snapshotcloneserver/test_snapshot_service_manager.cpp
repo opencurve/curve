@@ -24,7 +24,7 @@
 #include <gmock/gmock.h>
 
 #include "src/snapshotcloneserver/snapshot/snapshot_service_manager.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 
 #include "test/snapshotcloneserver/mock_snapshot_server.h"
 #include "src/common/concurrent/count_down_event.h"
@@ -447,6 +447,7 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotByCancelSuccess) {
     EXPECT_CALL(*core_, HandleCreateSnapshotTask(_))
         .WillOnce(Invoke([&cond1] (
                              std::shared_ptr<SnapshotTaskInfo> task) {
+                                LOG(INFO) << "in HandleCreateSnapshotTask";
                                 while (1) {
                                     if (task->IsCanceled()) {
                                         break;
@@ -1065,6 +1066,7 @@ TEST_F(TestSnapshotServiceManager,
     EXPECT_CALL(*core_, HandleCreateSnapshotTask(_))
         .WillOnce(Invoke([&cond1, &cond2] (
                              std::shared_ptr<SnapshotTaskInfo> task) {
+                                LOG(INFO) << "in mock HandleCreateSnapshotTask";
                                 while (1) {
                                     if (task->IsCanceled()) {
                                         cond1.Signal();

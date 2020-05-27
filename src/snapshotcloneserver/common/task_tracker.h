@@ -28,7 +28,7 @@
 #include <list>
 
 #include "src/common/concurrent/concurrent.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 
 using ::curve::common::Mutex;
 using ::curve::common::ConditionVariable;

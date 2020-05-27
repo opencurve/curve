@@ -20,8 +20,8 @@
  * Author: xuchaojie
  */
 
-#ifndef SRC_SNAPSHOTCLONESERVER_COMMON_DEFINE_H_
-#define SRC_SNAPSHOTCLONESERVER_COMMON_DEFINE_H_
+#ifndef SRC_COMMON_SNAPSHOTCLONE_SNAPSHOTCLONE_DEFINE_H_
+#define SRC_COMMON_SNAPSHOTCLONE_SNAPSHOTCLONE_DEFINE_H_
 
 #include <string>
 #include <map>
@@ -43,7 +43,7 @@ extern const char* kCleanCloneTaskAction;
 extern const char* kFlattenAction;
 extern const char* kGetFileSnapshotListAction;
 extern const char* kGetCloneTaskListAction;
-
+extern const char* kGetCloneRefStatusAction;
 // param
 extern const char* kActionStr;
 extern const char* kVersionStr;
@@ -58,6 +58,7 @@ extern const char* kDestinationStr;
 extern const char* kLazyStr;
 extern const char* kStatusStr;
 extern const char* kTypeStr;
+extern const char* kInodeStr;
 
 // json key
 extern const char* kCodeStr;
@@ -66,7 +67,8 @@ extern const char* kRequestIdStr;
 extern const char* kTotalCountStr;
 extern const char* kSnapshotsStr;
 extern const char* kTaskInfosStr;
-
+extern const char* kRefStatusStr;
+extern const char* kCloneFileInfoStr;
 
 typedef std::string UUID;
 using TaskIdType = UUID;
@@ -74,6 +76,12 @@ using TaskIdType = UUID;
 enum class CloneTaskType {
     kClone = 0,
     kRecover
+};
+
+enum class CloneRefStatus {
+    kNoRef = 0,
+    kHasRef = 1,
+    kNeedCheck = 2
 };
 
 // 未初始序列号
@@ -149,4 +157,4 @@ constexpr uint32_t kProgressCloneComplete = 100;
 }  // namespace snapshotcloneserver
 }  // namespace curve
 
-#endif  // SRC_SNAPSHOTCLONESERVER_COMMON_DEFINE_H_
+#endif  // SRC_COMMON_SNAPSHOTCLONE_SNAPSHOTCLONE_DEFINE_H_

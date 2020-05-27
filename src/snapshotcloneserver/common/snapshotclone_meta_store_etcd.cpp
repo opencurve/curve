@@ -200,7 +200,17 @@ int SnapshotCloneMetaStoreEtcd::UpdateCloneInfo(const CloneInfo &info) {
         return -1;
     }
     WriteLockGuard guard(cloneInfos_lock_);
-    int errCode = client_->Put(key, value);
+    // if old record not exist, return failed
+    std::string oldValue;
+    int errCode = client_->Get(key, &oldValue);
+    if (errCode != EtcdErrCode::EtcdOK) {
+        LOG(ERROR) << "Get old cloneInfo from etcd err"
+                   << ", errcode = " << errCode
+                   << ", cloneInfo : " << info;
+        return -1;
+    }
+
+    errCode = client_->Put(key, value);
     if (errCode != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "Put cloneInfo into etcd err"
                    << ", errcode = " << errCode
@@ -211,7 +221,8 @@ int SnapshotCloneMetaStoreEtcd::UpdateCloneInfo(const CloneInfo &info) {
     if (search != cloneInfos_.end()) {
         search->second = info;
     } else {
-        cloneInfos_.emplace(info.GetTaskId(), info);
+        LOG(ERROR) << "UpdateCloneInfo old record not exist";
+        return -1;
     }
     return 0;
 }

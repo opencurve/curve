@@ -33,7 +33,7 @@
 #include "src/snapshotcloneserver/clone/clone_task.h"
 #include "src/snapshotcloneserver/common/thread_pool.h"
 #include "src/common/concurrent/rw_lock.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/config.h"
 #include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 #include "src/snapshotcloneserver/clone/clone_core.h"
@@ -149,11 +149,11 @@ class CloneTaskManager {
 
     // 存放stage1Poo2_池的当前任务，key为destination
     std::map<std::string, std::shared_ptr<CloneTaskBase> > stage2TaskMap_;
-    mutable Mutex stage2TasksLock_;;
+    mutable Mutex stage2TasksLock_;
 
     // 存放commonPool_池的当前任务
     std::map<std::string, std::shared_ptr<CloneTaskBase> > commonTaskMap_;
-    mutable Mutex commonTasksLock_;;
+    mutable Mutex commonTasksLock_;
 
     // 用于Lazy克隆元数据部分的线程池
     std::shared_ptr<ThreadPool> stage1Pool_;

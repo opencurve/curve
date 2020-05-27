@@ -1747,6 +1747,261 @@ TEST_F(TestSnapshotCloneServiceImpl, TestFlattenFail) {
     LOG(ERROR) << cntl.response_attachment();
 }
 
+TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneRefStatusNeedCheckRefSuccess) {
+    std::string user = "user1";
+    std::string source = "/file";
+
+    std::vector<CloneInfo> infoVec;
+    CloneInfo cinfo1, cinfo2, cinfo3, cinfo4;
+    cinfo1.SetTaskId("1");
+    cinfo1.SetUser("1");
+    cinfo1.SetDest("1");
+    cinfo1.SetDestId(1);
+
+    cinfo2.SetTaskId("2");
+    cinfo2.SetUser("2");
+    cinfo2.SetDest("2");
+    cinfo2.SetDestId(2);
+
+    cinfo3.SetTaskId("3");
+    cinfo3.SetUser("3");
+    cinfo3.SetDest("3");
+    cinfo3.SetDestId(3);
+
+    cinfo4.SetTaskId("4");
+    cinfo4.SetUser("4");
+    cinfo4.SetDest("4");
+    cinfo4.SetDestId(4);
+
+    infoVec.push_back(cinfo1);
+    infoVec.push_back(cinfo2);
+    infoVec.push_back(cinfo3);
+    infoVec.push_back(cinfo4);
+
+    CloneRefStatus refStatus = CloneRefStatus::kNeedCheck;
+    EXPECT_CALL(*cloneManager_, GetCloneRefStatus(source, _, _))
+        .WillOnce(DoAll(
+                SetArgPointee<1>(refStatus),
+                SetArgPointee<2>(infoVec),
+                Return(kErrCodeSuccess)));
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kGetCloneRefStatusAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kSourceStr + "=" + source;
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+
+    std::stringstream ss;
+    ss << cntl.response_attachment();
+    std::string data = ss.str();
+    Json::Reader jsonReader;
+    Json::Value jsonObj;
+    if (!jsonReader.parse(data, jsonObj)) {
+        FAIL() << "parse json fail, data = " << data;
+    }
+    ASSERT_STREQ("0", jsonObj["Code"].asCString());
+    ASSERT_EQ(4, jsonObj["TotalCount"].asInt());
+    ASSERT_EQ(2, jsonObj["RefStatus"].asInt());
+    ASSERT_EQ(4, jsonObj["CloneFileInfo"].size());
+    ASSERT_STREQ("1", jsonObj["CloneFileInfo"][0]["User"].asCString());
+    ASSERT_STREQ("1", jsonObj["CloneFileInfo"][0]["File"].asCString());
+    ASSERT_EQ(1, jsonObj["CloneFileInfo"][0]["Inode"].asUInt64());
+    ASSERT_STREQ("2", jsonObj["CloneFileInfo"][1]["User"].asCString());
+    ASSERT_STREQ("3", jsonObj["CloneFileInfo"][2]["User"].asCString());
+    ASSERT_STREQ("4", jsonObj["CloneFileInfo"][3]["User"].asCString());
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneRefStatusNoRefSuccess) {
+    std::string user = "user1";
+    std::string source = "/file";
+
+    CloneRefStatus refStatus = CloneRefStatus::kNoRef;
+    EXPECT_CALL(*cloneManager_, GetCloneRefStatus(source, _, _))
+        .WillOnce(DoAll(
+                SetArgPointee<1>(refStatus),
+                Return(kErrCodeSuccess)));
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kGetCloneRefStatusAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kSourceStr + "=" + source;
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+
+    std::stringstream ss;
+    ss << cntl.response_attachment();
+    std::string data = ss.str();
+    Json::Reader jsonReader;
+    Json::Value jsonObj;
+    if (!jsonReader.parse(data, jsonObj)) {
+        FAIL() << "parse json fail, data = " << data;
+    }
+    ASSERT_STREQ("0", jsonObj["Code"].asCString());
+    ASSERT_EQ(0, jsonObj["TotalCount"].asInt());
+    ASSERT_EQ(0, jsonObj["RefStatus"].asInt());
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneRefStatusHasRefSuccess) {
+    std::string user = "user1";
+    std::string source = "/file";
+
+    std::vector<CloneInfo> infoVec;
+    CloneInfo cinfo1, cinfo2, cinfo3, cinfo4;
+    cinfo1.SetTaskId("1");
+    cinfo2.SetTaskId("2");
+    cinfo3.SetTaskId("3");
+    cinfo4.SetTaskId("4");
+    infoVec.push_back(cinfo1);
+    infoVec.push_back(cinfo2);
+    infoVec.push_back(cinfo3);
+    infoVec.push_back(cinfo4);
+
+    CloneRefStatus refStatus = CloneRefStatus::kHasRef;
+    EXPECT_CALL(*cloneManager_, GetCloneRefStatus(source, _, _))
+        .WillOnce(DoAll(
+                SetArgPointee<1>(refStatus),
+                Return(kErrCodeSuccess)));
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kGetCloneRefStatusAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kSourceStr + "=" + source;
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+
+    std::stringstream ss;
+    ss << cntl.response_attachment();
+    std::string data = ss.str();
+    Json::Reader jsonReader;
+    Json::Value jsonObj;
+    if (!jsonReader.parse(data, jsonObj)) {
+        FAIL() << "parse json fail, data = " << data;
+    }
+    ASSERT_STREQ("0", jsonObj["Code"].asCString());
+    ASSERT_EQ(0, jsonObj["TotalCount"].asInt());
+    ASSERT_EQ(1, jsonObj["RefStatus"].asInt());
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneRefStatusMissingParam) {
+    std::string user = "user1";
+    std::string source = "/file";
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kGetCloneRefStatusAction + "&"
+                    + kVersionStr + "=1&";
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+    ASSERT_EQ(brpc::HTTP_STATUS_BAD_REQUEST,
+                    cntl.http_response().status_code());
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneRefStatusFail) {
+    std::string user = "user1";
+    std::string source = "/file";
+
+    EXPECT_CALL(*cloneManager_, GetCloneRefStatus(source, _, _))
+        .WillOnce(Return(kErrCodeInternalError));
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kGetCloneRefStatusAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kSourceStr + "=" + source;
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+
+    ASSERT_EQ(brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR,
+                    cntl.http_response().status_code());
+}
 }  // namespace snapshotcloneserver
 }  // namespace curve
 

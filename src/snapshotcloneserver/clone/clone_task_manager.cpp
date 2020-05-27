@@ -21,7 +21,7 @@
  */
 
 #include "src/snapshotcloneserver/clone/clone_task_manager.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 
 
 namespace curve {

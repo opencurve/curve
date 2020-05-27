@@ -57,7 +57,7 @@ int FakeSnapshotCloneMetaStore::UpdateSnapshot(const SnapshotInfo &info) {
     if (search != snapInfos_.end()) {
         search->second = info;
     } else {
-        snapInfos_.emplace(info.GetUuid(), info);
+        return -1;
     }
     return 0;
 }
@@ -129,7 +129,7 @@ int FakeSnapshotCloneMetaStore::UpdateCloneInfo(const CloneInfo &info) {
     if (search != cloneInfos_.end()) {
         search->second = info;
     } else {
-        cloneInfos_.emplace(info.GetTaskId(), info);
+        return -1;
     }
     return 0;
 }

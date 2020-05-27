@@ -24,7 +24,7 @@
 #include <gmock/gmock.h>
 
 #include "src/snapshotcloneserver/clone/clone_service_manager.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 
 #include "test/snapshotcloneserver/mock_snapshot_server.h"
 #include "src/common/concurrent/count_down_event.h"
@@ -51,6 +51,8 @@ class TestCloneServiceManager : public ::testing::Test {
     virtual void SetUp() {
         cloneCore_ = std::make_shared<MockCloneCore>();
         cloneMetric_ = std::make_shared<CloneMetric>();
+        cloneServiceManagerBackend_ =
+            std::make_shared<MockCloneServiceManagerBackend>();
         std::shared_ptr<CloneTaskManager> cloneTaskMgr_ =
             std::make_shared<CloneTaskManager>(cloneCore_, cloneMetric_);
 
@@ -58,20 +60,31 @@ class TestCloneServiceManager : public ::testing::Test {
         option_.stage2PoolThreadNum = 3;
         option_.commonPoolThreadNum = 3;
         option_.cloneTaskManagerScanIntervalMs = 100;
+        option_.backEndReferenceRecordScanIntervalMs = 100;
+        option_.backEndReferenceFuncScanIntervalMs = 1000;
 
         manager_ = std::make_shared<CloneServiceManager>(
-            cloneTaskMgr_, cloneCore_);
+            cloneTaskMgr_, cloneCore_, cloneServiceManagerBackend_);
+
+        EXPECT_CALL(*cloneServiceManagerBackend_, Init(_, _))
+            .Times(1);
 
         ASSERT_EQ(0, manager_->Init(option_))
             << "manager init fail.";
+
+        EXPECT_CALL(*cloneServiceManagerBackend_, Start())
+            .Times(1);
         ASSERT_EQ(0, manager_->Start())
             << "manager start fail.";
     }
 
     virtual void TearDown() {
+        EXPECT_CALL(*cloneServiceManagerBackend_, Stop())
+            .Times(1);
+        manager_->Stop();
+        cloneServiceManagerBackend_ = nullptr;
         cloneCore_ = nullptr;
         cloneMetric_ = nullptr;
-        manager_->Stop();
         manager_ = nullptr;
     }
 
@@ -79,6 +92,7 @@ class TestCloneServiceManager : public ::testing::Test {
     std::shared_ptr<MockCloneCore> cloneCore_;
     std::shared_ptr<CloneServiceManager> manager_;
     std::shared_ptr<CloneMetric> cloneMetric_;
+    std::shared_ptr<MockCloneServiceManagerBackend> cloneServiceManagerBackend_;
     SnapshotCloneServerOptions option_;
 };
 
@@ -1062,6 +1076,349 @@ TEST_F(TestCloneServiceManager, TestRecoverCloneTaskDefaultSuccess) {
 
     int ret = manager_->RecoverCloneTask();
     ASSERT_EQ(kErrCodeSuccess, ret);
+}
+
+TEST_F(TestCloneServiceManager, TestGetCloneRefStatusSuccessNoRef) {
+    const UUID source = "/file";
+    const UUID source2 = "/file2";
+    const std::string user = "user1";
+    const std::string destination = "file1";
+    bool lazyFlag = true;
+
+    // only done record
+    CloneInfo cloneInfo1("uuid1", user, CloneTaskType::kClone,
+        source, destination, CloneFileType::kFile, lazyFlag);
+    cloneInfo1.SetStatus(CloneStatus::done);
+    CloneInfo cloneInfo2("uuid2", user, CloneTaskType::kClone,
+        source2, destination, CloneFileType::kFile, lazyFlag);
+    cloneInfo2.SetStatus(CloneStatus::metaInstalled);
+
+    std::vector<CloneInfo> list;
+    list.push_back(cloneInfo1);
+    list.push_back(cloneInfo2);
+    EXPECT_CALL(*cloneCore_, GetCloneInfoList(_))
+        .WillOnce(DoAll(SetArgPointee<0>(list),
+            Return(kErrCodeSuccess)));
+
+    std::vector<CloneInfo> infos;
+    CloneRefStatus refStatus;
+    auto ret = manager_->GetCloneRefStatus(source, &refStatus, &infos);
+
+    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(refStatus, CloneRefStatus::kNoRef);
+    ASSERT_EQ(0, infos.size());
+
+    // no record found
+    EXPECT_CALL(*cloneCore_, GetCloneInfoList(_))
+        .WillOnce(Return(-1));
+    ret = manager_->GetCloneRefStatus(source, &refStatus, &infos);
+
+    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(refStatus, CloneRefStatus::kNoRef);
+    ASSERT_EQ(0, infos.size());
+}
+
+TEST_F(TestCloneServiceManager, TestGetCloneRefStatusSuccessHasRef) {
+    const UUID source = "/file";
+    const std::string user = "user1";
+    const std::string destination = "file1";
+    bool lazyFlag = true;
+
+    CloneInfo cloneInfo1("uuid1", user, CloneTaskType::kClone,
+        source, destination, CloneFileType::kFile, lazyFlag);
+    cloneInfo1.SetStatus(CloneStatus::done);
+    CloneInfo cloneInfo2("uuid2", user, CloneTaskType::kClone,
+        source, destination, CloneFileType::kFile, lazyFlag);
+    cloneInfo2.SetStatus(CloneStatus::cloning);
+    CloneInfo cloneInfo3("uuid3", user, CloneTaskType::kClone,
+        source, destination, CloneFileType::kFile, lazyFlag);
+    cloneInfo3.SetStatus(CloneStatus::metaInstalled);
+
+    std::vector<CloneInfo> list;
+    list.push_back(cloneInfo1);
+    list.push_back(cloneInfo2);
+    list.push_back(cloneInfo3);
+    EXPECT_CALL(*cloneCore_, GetCloneInfoList(_))
+        .WillOnce(DoAll(SetArgPointee<0>(list),
+            Return(kErrCodeSuccess)));
+
+    std::vector<CloneInfo> infos;
+    CloneRefStatus refStatus;
+    auto ret = manager_->GetCloneRefStatus(source, &refStatus, &infos);
+
+    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(refStatus, CloneRefStatus::kHasRef);
+    ASSERT_EQ(0, infos.size());
+}
+
+TEST_F(TestCloneServiceManager, TestGetCloneRefStatusSuccessNeedCheck) {
+    const UUID source = "/file1";
+    const UUID source2 = "/file2";
+    const std::string user = "user1";
+    const std::string destination = "file1";
+    bool lazyFlag = true;
+
+    CloneInfo cloneInfo1("uuid1", user, CloneTaskType::kClone,
+        source , destination, CloneFileType::kFile, lazyFlag);
+    cloneInfo1.SetStatus(CloneStatus::done);
+    CloneInfo cloneInfo2("uuid2", user, CloneTaskType::kClone,
+        source2, destination, CloneFileType::kFile, lazyFlag);
+    cloneInfo2.SetStatus(CloneStatus::cloning);
+    CloneInfo cloneInfo3("uuid3", user, CloneTaskType::kClone,
+        source, destination, CloneFileType::kFile, lazyFlag);
+    cloneInfo3.SetStatus(CloneStatus::metaInstalled);
+
+    std::vector<CloneInfo> list;
+    list.push_back(cloneInfo1);
+    list.push_back(cloneInfo2);
+    list.push_back(cloneInfo3);
+    EXPECT_CALL(*cloneCore_, GetCloneInfoList(_))
+        .WillOnce(DoAll(SetArgPointee<0>(list),
+            Return(kErrCodeSuccess)));
+
+    std::vector<CloneInfo> infos;
+    CloneRefStatus refStatus;
+    auto ret = manager_->GetCloneRefStatus(source, &refStatus, &infos);
+
+    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(refStatus, CloneRefStatus::kNeedCheck);
+     ASSERT_EQ(1, infos.size());
+    CloneInfo cInfo = infos[0];
+    ASSERT_EQ("uuid3", cInfo.GetTaskId());
+    ASSERT_EQ(user, cInfo.GetUser());
+    ASSERT_EQ(CloneTaskType::kClone, cInfo.GetTaskType());
+    ASSERT_EQ(source, cInfo.GetSrc());
+    ASSERT_EQ(destination, cInfo.GetDest());
+    ASSERT_EQ(CloneFileType::kFile, cInfo.GetFileType());
+    ASSERT_EQ(lazyFlag, cInfo.GetIsLazy());
+    ASSERT_EQ(CloneStatus::metaInstalled, cInfo.GetStatus());
+}
+
+class TestCloneServiceManagerBackend : public ::testing::Test {
+ public:
+    TestCloneServiceManagerBackend() {}
+    virtual ~TestCloneServiceManagerBackend() {}
+
+    virtual void SetUp() {
+        cloneCore_ = std::make_shared<MockCloneCore>();
+        cloneServiceManagerBackend_ =
+            std::make_shared<CloneServiceManagerBackendImpl>(cloneCore_);
+     }
+
+    virtual void TearDown() {
+        cloneServiceManagerBackend_ = nullptr;
+        cloneCore_ = nullptr;
+    }
+
+ protected:
+    std::shared_ptr<MockCloneCore> cloneCore_;
+    std::shared_ptr<CloneServiceManagerBackend> cloneServiceManagerBackend_;
+};
+
+TEST_F(TestCloneServiceManagerBackend,
+    TestInitStop) {
+    uint32_t backEndReferenceRecordScanIntervalMs = 100;
+    uint32_t backEndReferenceFuncScanIntervalMs = 1000;
+    cloneServiceManagerBackend_->Init(backEndReferenceRecordScanIntervalMs,
+                                        backEndReferenceFuncScanIntervalMs);
+    cloneServiceManagerBackend_->Init(backEndReferenceRecordScanIntervalMs,
+                                        backEndReferenceFuncScanIntervalMs);
+    cloneServiceManagerBackend_->Stop();
+    cloneServiceManagerBackend_->Init(backEndReferenceRecordScanIntervalMs,
+                                        backEndReferenceFuncScanIntervalMs);
+    cloneServiceManagerBackend_->Stop();
+    cloneServiceManagerBackend_->Stop();
+}
+
+TEST_F(TestCloneServiceManagerBackend,
+    TestEmptyCloneInfoList) {
+    std::vector<CloneInfo> cloneInfos;
+
+    uint32_t backEndReferenceRecordScanIntervalMs = 100;
+    uint32_t backEndReferenceFuncScanIntervalMs = 1000;
+    uint32_t testCount = 5;
+    cloneServiceManagerBackend_->Init(backEndReferenceRecordScanIntervalMs,
+                                    backEndReferenceFuncScanIntervalMs);
+
+    EXPECT_CALL(*cloneCore_, GetCloneInfoList(_))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(cloneInfos),
+            Return(kErrCodeSuccess)));
+    cloneServiceManagerBackend_->Start();
+    usleep(testCount * backEndReferenceRecordScanIntervalMs * 1000);
+    cloneServiceManagerBackend_->Stop();
+}
+
+TEST_F(TestCloneServiceManagerBackend,
+    TestNoMetaInstalledClone) {
+    CloneInfo cloneInfo1("taskId1", "user1", CloneTaskType::kClone,
+        "source1", "destination1", CloneFileType::kSnapshot, true);
+    CloneInfo cloneInfo2("taskId2", "user2", CloneTaskType::kRecover,
+        "source2", "destination2", CloneFileType::kFile, false);
+    std::vector<CloneInfo> cloneInfos;
+    cloneInfos.push_back(cloneInfo1);
+    cloneInfos.push_back(cloneInfo2);
+
+    uint32_t backEndReferenceRecordScanIntervalMs = 100;
+    uint32_t backEndReferenceFuncScanIntervalMs = 1000;
+    uint32_t testCount = 5;
+    cloneServiceManagerBackend_->Init(backEndReferenceRecordScanIntervalMs,
+                                        backEndReferenceFuncScanIntervalMs);
+
+    EXPECT_CALL(*cloneCore_, GetCloneInfoList(_))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(cloneInfos),
+            Return(kErrCodeSuccess)));
+    cloneServiceManagerBackend_->Start();
+    usleep(testCount * backEndReferenceRecordScanIntervalMs * 1000);
+    cloneServiceManagerBackend_->Stop();
+}
+
+TEST_F(TestCloneServiceManagerBackend,
+    TestMetaInstalledCloneNotExist) {
+    CloneInfo cloneInfo1("taskId1", "user1", CloneTaskType::kClone,
+        "source1", "destination1", CloneFileType::kSnapshot, true);
+    CloneInfo cloneInfo2("taskId2", "user2", CloneTaskType::kRecover,
+        "source2", "destination2", 0, 0, 0, CloneFileType::kFile, false,
+        CloneStep::kRecoverChunk, CloneStatus::metaInstalled);
+    std::vector<CloneInfo> cloneInfos;
+    cloneInfos.push_back(cloneInfo1);
+    cloneInfos.push_back(cloneInfo2);
+
+    uint32_t backEndReferenceRecordScanIntervalMs = 100;
+    uint32_t backEndReferenceFuncScanIntervalMs = 1000;
+    uint32_t testCount = 5;
+    cloneServiceManagerBackend_->Init(backEndReferenceRecordScanIntervalMs,
+                                        backEndReferenceFuncScanIntervalMs);
+
+    EXPECT_CALL(*cloneCore_, GetCloneInfoList(_))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(cloneInfos),
+            Return(kErrCodeSuccess)));
+    EXPECT_CALL(*cloneCore_, GetCloneInfo(_, _))
+        .WillRepeatedly(Return(-1));
+    cloneServiceManagerBackend_->Start();
+    usleep(testCount * backEndReferenceRecordScanIntervalMs * 1000);
+    cloneServiceManagerBackend_->Stop();
+}
+
+TEST_F(TestCloneServiceManagerBackend,
+    TestMetaInstalledCloneNotMetaInstalled) {
+    CloneInfo cloneInfo1("taskId1", "user1", CloneTaskType::kClone,
+        "source1", "destination1", CloneFileType::kSnapshot, true);
+    CloneInfo cloneInfo2("taskId2", "user2", CloneTaskType::kRecover,
+        "source2", "destination2", 0, 0, 0, CloneFileType::kFile, false,
+        CloneStep::kRecoverChunk, CloneStatus::metaInstalled);
+    std::vector<CloneInfo> cloneInfos;
+    cloneInfos.push_back(cloneInfo1);
+    cloneInfos.push_back(cloneInfo2);
+
+    uint32_t backEndReferenceRecordScanIntervalMs = 100;
+    uint32_t backEndReferenceFuncScanIntervalMs = 1000;
+    uint32_t testCount = 5;
+    cloneServiceManagerBackend_->Init(backEndReferenceRecordScanIntervalMs,
+                                        backEndReferenceFuncScanIntervalMs);
+
+    EXPECT_CALL(*cloneCore_, GetCloneInfoList(_))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(cloneInfos),
+            Return(kErrCodeSuccess)));
+    EXPECT_CALL(*cloneCore_, GetCloneInfo(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(cloneInfo1),
+            Return(kErrCodeSuccess)));
+    cloneServiceManagerBackend_->Start();
+    usleep(testCount * backEndReferenceRecordScanIntervalMs * 1000);
+    cloneServiceManagerBackend_->Stop();
+}
+
+TEST_F(TestCloneServiceManagerBackend,
+    TestMetaInstalledCloneFileExist) {
+    CloneInfo cloneInfo1("taskId1", "user1", CloneTaskType::kClone,
+        "source1", "destination1", CloneFileType::kSnapshot, true);
+    CloneInfo cloneInfo2("taskId2", "user2", CloneTaskType::kRecover,
+        "source2", "destination2", 0, 0, 0, CloneFileType::kFile, false,
+        CloneStep::kRecoverChunk, CloneStatus::metaInstalled);
+    std::vector<CloneInfo> cloneInfos;
+    cloneInfos.push_back(cloneInfo1);
+    cloneInfos.push_back(cloneInfo2);
+
+    uint32_t backEndReferenceRecordScanIntervalMs = 100;
+    uint32_t backEndReferenceFuncScanIntervalMs = 1000;
+    uint32_t testCount = 5;
+    cloneServiceManagerBackend_->Init(backEndReferenceRecordScanIntervalMs,
+                                        backEndReferenceFuncScanIntervalMs);
+
+    EXPECT_CALL(*cloneCore_, GetCloneInfoList(_))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(cloneInfos),
+            Return(kErrCodeSuccess)));
+    EXPECT_CALL(*cloneCore_, GetCloneInfo(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(cloneInfo2),
+            Return(kErrCodeSuccess)));
+    EXPECT_CALL(*cloneCore_, CheckFileExists(_, _))
+        .WillRepeatedly(Return(kErrCodeFileExist));
+    cloneServiceManagerBackend_->Start();
+    usleep(testCount * backEndReferenceRecordScanIntervalMs * 1000);
+    cloneServiceManagerBackend_->Stop();
+}
+
+TEST_F(TestCloneServiceManagerBackend,
+    TestMetaInstalledCloneDeleteFail) {
+    CloneInfo cloneInfo1("taskId1", "user1", CloneTaskType::kClone,
+        "source1", "destination1", CloneFileType::kSnapshot, true);
+    CloneInfo cloneInfo2("taskId2", "user2", CloneTaskType::kRecover,
+        "source2", "destination2", 0, 0, 0, CloneFileType::kFile, false,
+        CloneStep::kRecoverChunk, CloneStatus::metaInstalled);
+    std::vector<CloneInfo> cloneInfos;
+    cloneInfos.push_back(cloneInfo1);
+    cloneInfos.push_back(cloneInfo2);
+
+    uint32_t backEndReferenceRecordScanIntervalMs = 100;
+    uint32_t backEndReferenceFuncScanIntervalMs = 1000;
+    uint32_t testCount = 5;
+    cloneServiceManagerBackend_->Init(backEndReferenceRecordScanIntervalMs,
+                                        backEndReferenceFuncScanIntervalMs);
+
+    EXPECT_CALL(*cloneCore_, GetCloneInfoList(_))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(cloneInfos),
+            Return(kErrCodeSuccess)));
+    EXPECT_CALL(*cloneCore_, GetCloneInfo(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(cloneInfo2),
+            Return(kErrCodeSuccess)));
+    EXPECT_CALL(*cloneCore_, CheckFileExists(_, _))
+        .WillRepeatedly(Return(kErrCodeFileNotExist));
+    EXPECT_CALL(*cloneCore_, HandleDeleteCloneInfo(_))
+        .WillRepeatedly(Return(kErrCodeInternalError));
+    cloneServiceManagerBackend_->Start();
+    usleep(testCount * backEndReferenceRecordScanIntervalMs * 1000);
+    cloneServiceManagerBackend_->Stop();
+}
+
+TEST_F(TestCloneServiceManagerBackend,
+    TestMetaInstalledCloneDeleteSuccess) {
+    CloneInfo cloneInfo1("taskId1", "user1", CloneTaskType::kClone,
+        "source1", "destination1", CloneFileType::kSnapshot, true);
+    CloneInfo cloneInfo2("taskId2", "user2", CloneTaskType::kRecover,
+        "source2", "destination2", 0, 0, 0, CloneFileType::kFile, false,
+        CloneStep::kRecoverChunk, CloneStatus::metaInstalled);
+    std::vector<CloneInfo> cloneInfos;
+    cloneInfos.push_back(cloneInfo1);
+    cloneInfos.push_back(cloneInfo2);
+
+    uint32_t backEndReferenceRecordScanIntervalMs = 100;
+    uint32_t backEndReferenceFuncScanIntervalMs = 1000;
+    uint32_t testCount = 5;
+    cloneServiceManagerBackend_->Init(backEndReferenceRecordScanIntervalMs,
+                                        backEndReferenceFuncScanIntervalMs);
+
+    EXPECT_CALL(*cloneCore_, GetCloneInfoList(_))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(cloneInfos),
+            Return(kErrCodeSuccess)));
+    EXPECT_CALL(*cloneCore_, GetCloneInfo(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(cloneInfo2),
+            Return(kErrCodeSuccess)));
+    EXPECT_CALL(*cloneCore_, CheckFileExists(_, _))
+        .WillRepeatedly(Return(kErrCodeFileNotExist));
+    EXPECT_CALL(*cloneCore_, HandleDeleteCloneInfo(_))
+        .WillRepeatedly(Return(kErrCodeSuccess));
+    cloneServiceManagerBackend_->Start();
+    usleep(testCount * backEndReferenceRecordScanIntervalMs * 1000);
+    cloneServiceManagerBackend_->Stop();
 }
 
 }  // namespace snapshotcloneserver

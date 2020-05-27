@@ -86,9 +86,12 @@ int SnapshotCloneServerModule::Start(
     std::shared_ptr<CloneTaskManager> cloneTaskMgr =
         std::make_shared<CloneTaskManager>(cloneCore, cloneMetric);
 
+    auto cloneServiceManagerBackend =
+            std::make_shared<CloneServiceManagerBackendImpl>(cloneCore);
+
     cloneServiceManager_ =
         std::make_shared<CloneServiceManager>(cloneTaskMgr,
-                cloneCore);
+                cloneCore, cloneServiceManagerBackend);
     if (cloneServiceManager_->Init(serverOption_) < 0) {
         LOG(ERROR) << "CloneServiceManager init fail.";
         return kErrCodeServerInitFail;

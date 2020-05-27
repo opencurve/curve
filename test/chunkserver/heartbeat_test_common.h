@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 #include <atomic>
-#include <thread>
+#include <thread>    //NOLINT
 
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/chunkserver/copyset_node_manager.h"

@@ -14,13 +14,33 @@
 #  limitations under the License.
 #
 
+COPTS = [
+    "-DGFLAGS=gflags",
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-DHAVE_SSE42",
+    "-DNDEBUG",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-msse4.2",
+    "-pthread",
+    "-Wsign-compare",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+    "-Woverloaded-virtual",
+    "-Wnon-virtual-dtor",
+    "-Wno-missing-field-initializers",
+    "-std=c++11",
+]
+
 cc_library(
-    name = "nameserver2_mock",
-    hdrs = glob(["*.h"]),
-    deps = [
-        "//src/mds/topology:topology",
-        "//src/mds/nameserver2:nameserver2",
-        "//src/mds/snapshotcloneclient:snapshotcloneclient"
-    ],
+    name = "curve_snapshotclone",
+    srcs = glob([
+        "snapshotclone_define.*",
+    ]),
+    copts = COPTS,
     visibility = ["//visibility:public"],
+    deps = [
+        "//external:json"
+    ],
 )

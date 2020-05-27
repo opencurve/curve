@@ -14,13 +14,20 @@
 #  limitations under the License.
 #
 
-cc_library(
-    name = "nameserver2_mock",
-    hdrs = glob(["*.h"]),
+load(
+    "//:copts.bzl",
+    "GCC_FLAGS",
+    "GCC_TEST_FLAGS",
+)
+
+cc_test(
+    name = "snapshotcloneclient_utest",
+    srcs = glob(["*.cpp", "*.h"]),
+    copts = GCC_TEST_FLAGS,
     deps = [
-        "//src/mds/topology:topology",
-        "//src/mds/nameserver2:nameserver2",
-        "//src/mds/snapshotcloneclient:snapshotcloneclient"
+        "//external:gtest",
+        "//src/mds/snapshotcloneclient:snapshotcloneclient",
+        "//test/mds/mock:common_mock",
+        "@com_google_googletest//:gtest_main",
     ],
-    visibility = ["//visibility:public"],
 )

@@ -32,6 +32,7 @@
 #include "test/mds/nameserver2/mock/mock_inode_id_generator.h"
 #include "test/mds/nameserver2/mock/mock_chunk_allocate.h"
 #include "test/mds/nameserver2/mock/mock_clean_manager.h"
+#include "test/mds/nameserver2/mock/mock_snapshotclone_client.h"
 #include "test/mds/mock/mock_alloc_statistic.h"
 #include "test/mds/mock/mock_topology.h"
 
@@ -47,6 +48,8 @@ using curve::common::Authenticator;
 
 using curve::common::TimeUtility;
 using curve::mds::topology::MockTopology;
+using curve::mds::snapshotcloneclient::MockSnapshotCloneClient;
+using curve::mds::snapshotcloneclient::DestFileInfo;
 
 namespace curve {
 namespace mds {
@@ -61,7 +64,7 @@ class CurveFSTest: public ::testing::Test {
         mockcleanManager_ = std::make_shared<MockCleanManager>();
         topology_ = std::make_shared<MockTopology>();
         fileRecordManager_ = std::make_shared<FileRecordManager>();
-
+        snapshotClient_ = std::make_shared<MockSnapshotCloneClient>();
         // session repo已经mock，数据库相关参数不需要
         fileRecordOptions_.fileRecordExpiredTimeUs = 5 * 1000;
         fileRecordOptions_.scanIntervalTimeUs = 1 * 1000;
@@ -92,7 +95,8 @@ class CurveFSTest: public ::testing::Test {
                         fileRecordManager_,
                         allocStatistic_,
                         curveFSOptions_,
-                        topology_);
+                        topology_,
+                        snapshotClient_);
         curvefs_->Run();
     }
 
@@ -109,6 +113,7 @@ class CurveFSTest: public ::testing::Test {
     std::shared_ptr<FileRecordManager> fileRecordManager_;
     std::shared_ptr<MockAllocStatistic> allocStatistic_;
     std::shared_ptr<MockTopology> topology_;
+    std::shared_ptr<MockSnapshotCloneClient> snapshotClient_;
     struct FileRecordOptions fileRecordOptions_;
     struct RootAuthOption authOptions_;
     struct CurveFSOption curveFSOptions_;
@@ -390,6 +395,10 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
             Return(StoreStatus::OK)));
 
+        EXPECT_CALL(*storage_, PutFile(_))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
         std::vector<FileInfo> fileInfoList;
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
@@ -437,6 +446,10 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
             Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, PutFile(_))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
 
         EXPECT_CALL(*mockcleanManager_,
             GetTask(_))
@@ -576,6 +589,230 @@ TEST_F(CurveFSTest, testDeleteFile) {
 
         ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
                                                 StatusCode::kNotSupported);
+    }
+
+    // test delete pagefile, file under clone
+    {
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_filestatus(FileStatus::kFileBeingCloned);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        CloneRefStatus status = CloneRefStatus::kHasRef;
+        EXPECT_CALL(*snapshotClient_, GetCloneRefStatus(_, _, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(status),
+            Return(StatusCode::kOK)));
+
+        ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
+                                StatusCode::kDeleteFileBeingCloned);
+    }
+
+    // test delete pagefile, file under clone but has no ref but delete fail
+    {
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_filestatus(FileStatus::kFileBeingCloned);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        CloneRefStatus status = CloneRefStatus::kNoRef;
+        EXPECT_CALL(*snapshotClient_, GetCloneRefStatus(_, _, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(status),
+            Return(StatusCode::kOK)));
+
+        EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
+                                     StatusCode::kStorageError);
+    }
+
+    // test delete pagefile, file under clone but has no ref success
+    {
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_filestatus(FileStatus::kFileBeingCloned);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        CloneRefStatus status = CloneRefStatus::kNoRef;
+        EXPECT_CALL(*snapshotClient_, GetCloneRefStatus(_, _, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(status),
+            Return(StatusCode::kOK)));
+
+        EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
+                                     StatusCode::kOK);
+    }
+
+    // test delete pagefile, file under clone but need check list empty
+    {
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_filestatus(FileStatus::kFileBeingCloned);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        CloneRefStatus status = CloneRefStatus::kNeedCheck;
+        EXPECT_CALL(*snapshotClient_, GetCloneRefStatus(_, _, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(status),
+            Return(StatusCode::kOK)));
+
+        EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
+                                     StatusCode::kOK);
+    }
+
+    // test delete pagefile, file under clone but need check, file has ref
+    {
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_filestatus(FileStatus::kFileBeingCloned);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(3)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::KeyNotExist)));
+
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        CloneRefStatus status = CloneRefStatus::kNeedCheck;
+        std::vector<DestFileInfo> fileCheckList;
+        DestFileInfo info;
+        info.filename = "/file";
+        info.inodeid = 100;
+        fileCheckList.push_back(info);
+        EXPECT_CALL(*snapshotClient_, GetCloneRefStatus(_, _, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(status),
+            SetArgPointee<3>(fileCheckList),
+            Return(StatusCode::kOK)));
+
+        EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
+                                     StatusCode::kOK);
+    }
+
+    // test delete pagefile, file under clone but need check, inode mismatch
+    {
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_filestatus(FileStatus::kFileBeingCloned);
+        fileInfo.set_id(10);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(3)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        CloneRefStatus status = CloneRefStatus::kNeedCheck;
+        std::vector<DestFileInfo> fileCheckList;
+        DestFileInfo info;
+        info.filename = "/file";
+        info.inodeid = 100;
+        fileCheckList.push_back(info);
+        EXPECT_CALL(*snapshotClient_, GetCloneRefStatus(_, _, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(status),
+            SetArgPointee<3>(fileCheckList),
+            Return(StatusCode::kOK)));
+
+        EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
+                                     StatusCode::kOK);
+    }
+
+    // test delete pagefile, file under clone but need check, has ref
+    {
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_filestatus(FileStatus::kFileBeingCloned);
+        fileInfo.set_id(100);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(3)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        CloneRefStatus status = CloneRefStatus::kNeedCheck;
+        std::vector<DestFileInfo> fileCheckList;
+        DestFileInfo info;
+        info.filename = "/file";
+        info.inodeid = 100;
+        fileCheckList.push_back(info);
+        EXPECT_CALL(*snapshotClient_, GetCloneRefStatus(_, _, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(status),
+            SetArgPointee<3>(fileCheckList),
+            Return(StatusCode::kOK)));
+
+        // EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
+        // .Times(1)
+        // .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
+                                     StatusCode::kDeleteFileBeingCloned);
     }
 }
 
@@ -3086,7 +3323,8 @@ TEST_F(CurveFSTest, Init) {
                                                       fileRecordManager_,
                                                       allocStatistic_,
                                                       curveFSOptions_,
-                                                      topology_));
+                                                      topology_,
+                                                      nullptr));
         }
     }
 
@@ -3103,7 +3341,8 @@ TEST_F(CurveFSTest, Init) {
                                        fileRecordManager_,
                                        allocStatistic_,
                                        curveFSOptions_,
-                                       topology_));
+                                       topology_,
+                                       nullptr));
     }
 
     // test getfile not exist
@@ -3124,7 +3363,8 @@ TEST_F(CurveFSTest, Init) {
                                        fileRecordManager_,
                                        allocStatistic_,
                                        curveFSOptions_,
-                                       topology_));
+                                       topology_,
+                                       nullptr));
 
         // putfile ok
         FileInfo fileInfo5;
@@ -3149,7 +3389,8 @@ TEST_F(CurveFSTest, Init) {
                                       fileRecordManager_,
                                       allocStatistic_,
                                       curveFSOptions_,
-                                      topology_));
+                                      topology_,
+                                      nullptr));
     }
 }
 

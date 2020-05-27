@@ -29,8 +29,8 @@
 #include <brpc/server.h>
 
 #include <memory>
-#include <thread>
-#include <chrono>
+#include <thread>    //NOLINT
+#include <chrono>    //NOLINT
 #include <unordered_map>
 #include <map>
 #include <string>

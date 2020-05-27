@@ -86,6 +86,10 @@ struct SnapshotCloneServerOptions {
     uint32_t createCloneChunkConcurrency;
     // RecoverChunk同时进行的异步请求数量
     uint32_t recoverChunkConcurrency;
+    // 引用计数后台扫描每条记录间隔
+    uint32_t backEndReferenceRecordScanIntervalMs;
+    // 引用计数后台扫描每轮间隔
+    uint32_t backEndReferenceFuncScanIntervalMs;
 };
 
 }  // namespace snapshotcloneserver

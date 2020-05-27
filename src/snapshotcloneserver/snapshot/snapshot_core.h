@@ -31,7 +31,7 @@
 #include "src/snapshotcloneserver/common/curvefs_client.h"
 #include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_data_store.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/config.h"
 #include "src/snapshotcloneserver/common/snapshot_reference.h"
 #include "src/common/concurrent/name_lock.h"

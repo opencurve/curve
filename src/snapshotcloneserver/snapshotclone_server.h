@@ -33,7 +33,7 @@
 #include "src/client/libcurve_file.h"
 
 #include "src/snapshotcloneserver/common/config.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/curvefs_client.h"
 #include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"
 #include "src/snapshotcloneserver/common/snapshotclone_metric.h"
@@ -149,6 +149,7 @@ class SnapShotCloneServer {
     std::shared_ptr<CloneReference>       cloneRef_;
     std::shared_ptr<CloneCoreImpl>        cloneCore_;
     std::shared_ptr<CloneTaskManager>     cloneTaskMgr_;
+    std::shared_ptr<CloneServiceManagerBackendImpl> cloneServiceManagerBackend_;
     std::shared_ptr<CloneServiceManager>  cloneServiceManager_;
     std::shared_ptr<SnapshotCloneServiceImpl> service_;
     std::shared_ptr<brpc::Server>          server_;

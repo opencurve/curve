@@ -413,6 +413,9 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     int ret = metaStore_->AddCloneInfo(cloneInfo);
     ASSERT_EQ(0, ret);
 
+    EXPECT_CALL(*kvStorageClient_, Get(_, _))
+        .WillOnce(Return(EtcdErrCode::EtcdOK));
+
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
         .WillOnce(Return(EtcdErrCode::EtcdOK));
 
@@ -448,6 +451,9 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     int ret = metaStore_->AddCloneInfo(cloneInfo);
     ASSERT_EQ(0, ret);
 
+    EXPECT_CALL(*kvStorageClient_, Get(_, _))
+        .WillOnce(Return(EtcdErrCode::EtcdOK));
+
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
         .WillOnce(Return(EtcdErrCode::EtcdUnknown));
 
@@ -456,7 +462,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 }
 
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
-    TestUpdateCloneInfoNotExistAndGetSuccess) {
+    TestUpdateCloneInfoNotExist) {
     CloneInfo cloneInfo("uuid1", "user1",
                      CloneTaskType::kClone, "src1",
                      "dst1", 1, 2, 3,
@@ -464,17 +470,11 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
                      CloneStep::kCompleteCloneFile,
                      CloneStatus::cloning);
 
-    EXPECT_CALL(*kvStorageClient_, Put(_, _))
-        .WillOnce(Return(EtcdErrCode::EtcdOK));
+    EXPECT_CALL(*kvStorageClient_, Get(_, _))
+        .WillOnce(Return(EtcdErrCode::EtcdKeyNotExist));
 
     int ret = metaStore_->UpdateCloneInfo(cloneInfo);
-    ASSERT_EQ(0, ret);
-
-    CloneInfo outInfo;
-    ret = metaStore_->GetCloneInfo("uuid1", &outInfo);
-    ASSERT_EQ(0, ret);
-
-    ASSERT_TRUE(JudgeCloneInfoEqual(cloneInfo, outInfo));
+    ASSERT_EQ(-1, ret);
 }
 
 TEST_F(TestSnapshotCloneMetaStoreEtcd,

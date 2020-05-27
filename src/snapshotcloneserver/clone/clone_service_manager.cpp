@@ -29,7 +29,7 @@
 #include <vector>
 
 #include "src/snapshotcloneserver/common/snapshotclone_metric.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/common/string_util.h"
 
 namespace curve {
@@ -42,16 +42,22 @@ int CloneServiceManager::Init(const SnapshotCloneServerOptions &option) {
         std::make_shared<ThreadPool>(option.stage2PoolThreadNum);
     std::shared_ptr<ThreadPool> commonPool =
         std::make_shared<ThreadPool>(option.commonPoolThreadNum);
+    cloneServiceManagerBackend_->Init(
+                option.backEndReferenceRecordScanIntervalMs,
+                option.backEndReferenceFuncScanIntervalMs);
     return cloneTaskMgr_->Init(stage1Pool, stage2Pool, commonPool, option);
 }
 
 int CloneServiceManager::Start() {
+    cloneServiceManagerBackend_->Start();
     return cloneTaskMgr_->Start();
 }
 
 void CloneServiceManager::Stop() {
     cloneTaskMgr_->Stop();
+    cloneServiceManagerBackend_->Stop();
 }
+
 int CloneServiceManager::CloneFile(const UUID &source,
     const std::string &user,
     const std::string &destination,
@@ -298,6 +304,48 @@ int CloneServiceManager::GetCloneTaskInfoByFilter(
         return kErrCodeFileNotExist;
     }
     return GetCloneTaskInfoInner(cloneInfos, filter, info);
+}
+
+int CloneServiceManager::GetCloneRefStatus(const std::string &src,
+        CloneRefStatus *refStatus,
+        std::vector<CloneInfo> *needCheckFiles) {
+    std::vector<CloneInfo> cloneInfos;
+    int ret = cloneCore_->GetCloneInfoList(&cloneInfos);
+    if (ret < 0) {
+        *refStatus = CloneRefStatus::kNoRef;
+        return kErrCodeSuccess;
+    }
+
+    *refStatus = CloneRefStatus::kNoRef;
+    for (auto &cloneInfo : cloneInfos) {
+        if (cloneInfo.GetSrc() == src) {
+            switch (cloneInfo.GetStatus()) {
+                case CloneStatus::done :
+                case CloneStatus::error: {
+                    break;
+                }
+                case CloneStatus::cleaning:
+                case CloneStatus::errorCleaning:
+                case CloneStatus::retrying:
+                case CloneStatus::cloning:
+                case CloneStatus::recovering: {
+                    *refStatus = CloneRefStatus::kHasRef;
+                    needCheckFiles->clear();
+                    return kErrCodeSuccess;
+                }
+                case CloneStatus::metaInstalled: {
+                    *refStatus = CloneRefStatus::kNeedCheck;
+                    needCheckFiles->emplace_back(cloneInfo);
+                    break;
+                }
+                default:
+                    LOG(ERROR) << "can not reach here!, status = "
+                               << static_cast<int>(cloneInfo.GetStatus());
+                    return kErrCodeInternalError;
+            }
+        }
+    }
+    return kErrCodeSuccess;
 }
 
 int CloneServiceManager::GetCloneTaskInfoInner(
@@ -641,6 +689,101 @@ int CloneServiceManager::RecoverCloneTask() {
         }
     }
     return kErrCodeSuccess;
+}
+
+// 当clone处于matainstall状态，且克隆卷已经删除的情况下，原卷的引用计数没有减。
+// 这个后台线程处理函数周期性的检查这个场景，如果发现有clone处于metaintalled状态
+// 且克隆卷已经删除，就去删除这条无效的clone信息，并减去原卷的引用计数。
+// 如果原卷是镜像且引用计数减为0，还需要去mds把原卷的状态改为created。
+void CloneServiceManagerBackendImpl::Func() {
+    LOG(INFO) << "CloneServiceManager BackEndReferenceScanFunc start";
+    while (!isStop_.load()) {
+        std::vector<CloneInfo> cloneInfos;
+        int ret = cloneCore_->GetCloneInfoList(&cloneInfos);
+        if (ret < 0) {
+            LOG(WARNING) << "GetCloneInfoList fail" << ", ret = " << ret;
+        }
+
+        int deleteCount = 0;
+        for (auto &it : cloneInfos) {
+            if (it.GetStatus() == CloneStatus::metaInstalled
+                    && it.GetIsLazy() == true) {
+                // 检查destination在不在
+                if (it.GetTaskType() == CloneTaskType::kClone) {
+                    ret = cloneCore_->CheckFileExists(it.GetDest(),
+                                        it.GetDestId());
+                } else {
+                    // rename时，inodeid恢复成
+                    ret = cloneCore_->CheckFileExists(it.GetDest(),
+                                        it.GetOriginId());
+                }
+
+                if (ret == kErrCodeFileNotExist) {
+                    // 如果克隆卷是metaInstalled状态，且destination文件不存在，
+                    // 删除这条cloneInfo，并减引用计数
+                    TaskIdType taskId = it.GetTaskId();
+                    CloneInfo cloneInfo;
+                    ret = cloneCore_->GetCloneInfo(taskId, &cloneInfo);
+                    if (ret != kErrCodeSuccess) {
+                        // cloneInfo已经不存在了
+                        continue;
+                    }
+
+                    // 再次检查cloneInfo是否是metaInstalled状态
+                    if (cloneInfo.GetStatus() != CloneStatus::metaInstalled) {
+                        continue;
+                    }
+                    ret = cloneCore_->HandleDeleteCloneInfo(cloneInfo);
+                    if (ret != kErrCodeSuccess) {
+                        LOG(WARNING) << "HandleDeleteCloneInfo fail, ret = "
+                                     << ret << ", cloneInfo = " << cloneInfo;
+                    } else {
+                        deleteCount++;
+                    }
+                }
+
+                recordWaitInterval_.WaitForNextExcution();
+            }
+        }
+
+        LOG(INFO) << "backend scan list, size = " << cloneInfos.size()
+                  << ", delete clone record count = " << deleteCount;
+
+        // 控制每轮扫描间隔
+        roundWaitInterval_.WaitForNextExcution();
+    }
+    LOG(INFO) << "CloneServiceManager BackEndReferenceScanFunc exit";
+}
+
+void CloneServiceManagerBackendImpl::Init(uint32_t recordIntevalMs,
+                                uint32_t roundIntevalMs) {
+    recordWaitInterval_.Init(recordIntevalMs);
+    roundWaitInterval_.Init(roundIntevalMs);
+
+    LOG(INFO) << "Init recordIntevalMs = " << recordIntevalMs
+              << ", roundIntevalMs = " << roundIntevalMs;
+    return;
+}
+
+void CloneServiceManagerBackendImpl::Start() {
+    if (isStop_.load()) {
+        isStop_.store(false);
+        backEndReferenceScanThread_ =
+            std::thread(&CloneServiceManagerBackendImpl::Func, this);
+    }
+    return;
+}
+
+void CloneServiceManagerBackendImpl::Stop() {
+    recordWaitInterval_.StopWait();
+    roundWaitInterval_.StopWait();
+    if (!isStop_.exchange(true)) {
+        if (backEndReferenceScanThread_.joinable()) {
+            backEndReferenceScanThread_.join();
+        }
+    }
+
+    return;
 }
 
 }  // namespace snapshotcloneserver

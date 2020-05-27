@@ -26,7 +26,7 @@
 #include <utility>
 #include <algorithm>
 
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_task.h"
 
 #include "src/common/uuid.h"

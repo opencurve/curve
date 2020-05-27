@@ -29,7 +29,7 @@
 #include <memory>
 #include <mutex> //NOLINT
 
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/config.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/snapshotcloneserver/common/snapshotclone_info.h"
