@@ -28,7 +28,7 @@
 #include <list>
 
 #include "src/snapshotcloneserver/snapshot/snapshot_core.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/task.h"
 #include "src/snapshotcloneserver/common/task_info.h"
 #include "src/snapshotcloneserver/common/snapshotclone_metric.h"

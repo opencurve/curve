@@ -92,6 +92,8 @@ class SnapshotCloneServiceImpl : public SnapshotCloneService {
         const std::string &requestId);
     void HandleGetCloneTaskListAction(brpc::Controller* bcntl,
         const std::string &requestId);
+    void HandleGetCloneRefStatusAction(brpc::Controller* bcntl,
+        const std::string &requestId);
     bool CheckBoolParamter(
         const std::string *param, bool *valueOut);
     void SetErrorMessage(brpc::Controller* bcntl, int errCode,

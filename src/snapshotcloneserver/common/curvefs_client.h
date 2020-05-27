@@ -35,7 +35,7 @@
 #include "src/client/client_common.h"
 #include "src/client/libcurve_snapshot.h"
 #include "src/client/libcurve_file.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/config.h"
 #include "src/common/timeutility.h"
 

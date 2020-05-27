@@ -130,6 +130,10 @@ enum  StatusCode {
     kClientVersionNotMatch = 134;
     // snapshot功能禁用中
     kSnapshotFrozen = 135;
+    // 快照克隆服务连不上
+    kSnapshotCloneConnectFail = 136;
+    // 快照克隆服务未初始化
+    kSnapshotCloneServerNotInit = 137;
 
     // 元数据存储错误
     kStorageError = 501;

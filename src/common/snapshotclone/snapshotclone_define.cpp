@@ -22,7 +22,7 @@
 
 #include <json/json.h>
 
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -40,6 +40,7 @@ const char* kCleanCloneTaskAction = "CleanCloneTask";
 const char* kFlattenAction = "Flatten";
 const char* kGetFileSnapshotListAction = "GetFileSnapshotList";
 const char* kGetCloneTaskListAction = "GetCloneTaskList";
+const char* kGetCloneRefStatusAction = "GetCloneRefStatus";
 
 const char* kActionStr = "Action";
 const char* kVersionStr = "Version";
@@ -54,6 +55,7 @@ const char* kDestinationStr = "Destination";
 const char* kLazyStr = "Lazy";
 const char* kStatusStr = "Status";
 const char* kTypeStr = "Type";
+const char* kInodeStr = "Inode";
 
 const char* kCodeStr = "Code";
 const char* kMessageStr = "Message";
@@ -61,6 +63,8 @@ const char* kRequestIdStr = "RequestId";
 const char* kTotalCountStr = "TotalCount";
 const char* kSnapshotsStr = "Snapshots";
 const char* kTaskInfosStr = "TaskInfos";
+const char* kRefStatusStr = "RefStatus";
+const char* kCloneFileInfoStr = "CloneFileInfo";
 
 std::map<int, std::string> code2Msg = {
     {kErrCodeSuccess, "Exec success."},

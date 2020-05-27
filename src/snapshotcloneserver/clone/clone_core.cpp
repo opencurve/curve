@@ -1571,6 +1571,93 @@ int CloneCoreImpl::HandleRemoveCloneOrRecoverTask(
                    << ", taskId = " << taskId;
         return kErrCodeInternalError;
     }
+
+    if (IsSnapshot(task)) {
+        snapshotRef_->DecrementSnapshotRef(task->GetCloneInfo().GetSrc());
+    } else {
+        std::string source = task->GetCloneInfo().GetSrc();
+        cloneRef_->DecrementRef(source);
+        NameLockGuard lockGuard(cloneRef_->GetLock(), source);
+        if (cloneRef_->GetRef(source) == 0) {
+            int ret = client_->SetCloneFileStatus(source,
+                    FileStatus::Created, mdsRootUser_);
+            if (ret < 0) {
+                LOG(ERROR) << "Task Fail cause by SetCloneFileStatus fail"
+                           << ", ret = " << ret
+                           << ", TaskInfo : " << *task;
+                return kErrCodeInternalError;
+            }
+        }
+    }
+
+    return kErrCodeSuccess;
+}
+
+int CloneCoreImpl::CheckFileExists(const std::string &filename,
+                                    uint64_t inodeId) {
+    FInfo destFInfo;
+    int ret = client_->GetFileInfo(filename, mdsRootUser_, &destFInfo);
+    if (ret == LIBCURVE_ERROR::OK) {
+        if (destFInfo.id == inodeId) {
+            return kErrCodeFileExist;
+        } else {
+            return kErrCodeFileNotExist;
+        }
+    }
+
+    if (ret == -LIBCURVE_ERROR::NOTEXIST) {
+        return kErrCodeFileNotExist;
+    }
+
+    return kErrCodeInternalError;
+}
+
+// 加减引用计数的时候，接口里面会对引用计数map加锁；
+// 加引用计数、处理引用计数减到0的时候，需要额外对修改的那条记录加锁。
+int CloneCoreImpl::HandleDeleteCloneInfo(const CloneInfo &cloneInfo) {
+    // 先减引用计数，如果是从镜像克隆且引用计数减到0，需要修改源镜像的状态为created
+    std::string source = cloneInfo.GetSrc();
+    if (cloneInfo.GetFileType() == CloneFileType::kSnapshot) {
+        snapshotRef_->DecrementSnapshotRef(source);
+    } else {
+        cloneRef_->DecrementRef(source);
+        NameLockGuard lockGuard(cloneRef_->GetLock(), source);
+        if (cloneRef_->GetRef(source) == 0) {
+            int ret = client_->SetCloneFileStatus(source,
+                    FileStatus::Created, mdsRootUser_);
+            if (ret == -LIBCURVE_ERROR::NOTEXIST) {
+                LOG(WARNING) << "SetCloneFileStatus, file not exist, filename: "
+                             << source;
+            } else  if (ret != LIBCURVE_ERROR::OK) {
+                cloneRef_->IncrementRef(source);
+                LOG(ERROR) << "SetCloneFileStatus fail"
+                           << ", ret = " << ret
+                           << ", cloneInfo : " << cloneInfo;
+                return kErrCodeInternalError;
+            }
+        }
+    }
+
+    // 删除这条记录，如果删除失败，把前面已经减掉的引用计数加回去
+    int ret = metaStore_->DeleteCloneInfo(cloneInfo.GetTaskId());
+    if (ret != 0) {
+        if (cloneInfo.GetFileType() == CloneFileType::kSnapshot) {
+            NameLockGuard lockSnapGuard(snapshotRef_->GetSnapshotLock(),
+                                        source);
+            snapshotRef_->IncrementSnapshotRef(source);
+        } else {
+            NameLockGuard lockGuard(cloneRef_->GetLock(), source);
+            cloneRef_->IncrementRef(source);
+        }
+        LOG(ERROR) << "DeleteCloneInfo failed"
+                   << ", ret = " << ret
+                   << ", CloneInfo = " << cloneInfo;
+        return kErrCodeInternalError;
+    }
+
+    LOG(INFO) << "HandleDeleteCloneInfo success"
+              << ", cloneInfo = " << cloneInfo;
+
     return kErrCodeSuccess;
 }
 

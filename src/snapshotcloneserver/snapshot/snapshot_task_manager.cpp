@@ -21,7 +21,7 @@
  */
 
 #include "src/snapshotcloneserver/snapshot/snapshot_task_manager.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/common/concurrent/concurrent.h"
 
 

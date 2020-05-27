@@ -26,10 +26,11 @@
 #include <vector>
 #include <memory>
 
+#include "src/common/wait_interval.h"
 #include "src/snapshotcloneserver/clone/clone_core.h"
 #include "src/snapshotcloneserver/clone/clone_task.h"
 #include "src/snapshotcloneserver/clone/clone_task_manager.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/config.h"
 #include "src/snapshotcloneserver/clone/clone_closure.h"
 
@@ -151,14 +152,61 @@ class CloneFilterCondition {
     const std::string *status_;
     const std::string *type_;
 };
+class CloneServiceManagerBackend {
+ public:
+    CloneServiceManagerBackend() {}
+    virtual ~CloneServiceManagerBackend() {}
+
+    /**
+     * @brief 后台扫描线程执行函数，扫描克隆卷是否存在
+     *
+     */
+    virtual void Func() = 0;
+
+    virtual void Init(uint32_t recordIntevalMs, uint32_t roundIntevalMs) = 0;
+
+    virtual void Start() = 0;
+
+    virtual void Stop() = 0;
+};
+
+class CloneServiceManagerBackendImpl : public CloneServiceManagerBackend {
+ public:
+    explicit CloneServiceManagerBackendImpl(
+        std::shared_ptr<CloneCore> cloneCore)
+          : cloneCore_(cloneCore),
+            isStop_(true) {
+    }
+
+    ~CloneServiceManagerBackendImpl() {
+    }
+
+    void Func() override;
+    void Init(uint32_t recordIntevalMs, uint32_t roundIntevalMs) override;
+    void Start() override;
+    void Stop() override;
+
+ private:
+    std::shared_ptr<CloneCore> cloneCore_;
+    // 后台扫描线程，扫描clone卷是否存在
+    std::thread backEndReferenceScanThread_;
+    // 当前后台扫描是否停止，用于支持start，stop功能
+    std::atomic_bool isStop_;
+    // 后台扫描线程记录使用定时器
+    common::WaitInterval recordWaitInterval_;
+    // 后台扫描线程每轮使用定时器
+    common::WaitInterval roundWaitInterval_;
+};
 
 class CloneServiceManager {
  public:
     CloneServiceManager(
         std::shared_ptr<CloneTaskManager> cloneTaskMgr,
-        std::shared_ptr<CloneCore> cloneCore)
+        std::shared_ptr<CloneCore> cloneCore,
+        std::shared_ptr<CloneServiceManagerBackend> cloneServiceManagerBackend)
           : cloneTaskMgr_(cloneTaskMgr),
-            cloneCore_(cloneCore) {
+            cloneCore_(cloneCore),
+            cloneServiceManagerBackend_(cloneServiceManagerBackend) {
         destFileLock_ = std::make_shared<NameLock>();
     }
     virtual ~CloneServiceManager() {}
@@ -284,6 +332,19 @@ class CloneServiceManager {
                             std::vector<TaskCloneInfo> *info);
 
     /**
+     * @brief 查询src是否有依赖
+     *
+     * @param src 指定的文件名
+     * @param refStatus 0表示没有依赖，1表示有依赖，2表示需要进一步确认
+     * @param needCheckFiles 需要进一步确认的文件列表
+     *
+     * @return 错误码
+     */
+    virtual int GetCloneRefStatus(const std::string &src,
+        CloneRefStatus *refStatus,
+        std::vector<CloneInfo> *needCheckFiles);
+
+    /**
      * @brief 清除失败的clone/Recover任务、状态、文件
      *
      * @param user 用户名
@@ -386,7 +447,10 @@ class CloneServiceManager {
     std::shared_ptr<NameLock> destFileLock_;
     std::shared_ptr<CloneTaskManager> cloneTaskMgr_;
     std::shared_ptr<CloneCore> cloneCore_;
+    std::shared_ptr<CloneServiceManagerBackend> cloneServiceManagerBackend_;
 };
+
+
 
 }  // namespace snapshotcloneserver
 }  // namespace curve

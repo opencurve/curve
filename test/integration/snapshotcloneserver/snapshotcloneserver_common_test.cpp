@@ -30,7 +30,7 @@
 #include "src/snapshotcloneserver/snapshot/snapshot_service_manager.h"
 #include "src/snapshotcloneserver/clone/clone_service_manager.h"
 #include "test/integration/snapshotcloneserver/test_snapshotcloneserver_helpler.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"
 
 using curve::CurveCluster;
@@ -91,6 +91,7 @@ const std::vector<std::string> mdsConfigOptions{
     std::string("mds.DbName=") + kMdsDbName,
     std::string("mds.file.expiredTimeUs=50000"),
     std::string("mds.file.expiredTimeUs=10000"),
+    std::string("mds.snapshotcloneclient.addr=") + kSnapshotCloneServerIpPort,
 };
 
 const std::vector<std::string> mdsConf1{
@@ -197,6 +198,8 @@ const std::vector<std::string> snapshotcloneserverConfigOptions{
     std::string("server.dummy.listen.port=") +
         kSnapshotCloneServerDummyServerPort,
     std::string("leader.campagin.prefix=") + kLeaderCampaginPrefix,
+    std::string("server.backEndReferenceRecordScanIntervalMs=100"),
+    std::string("server.backEndReferenceFuncScanIntervalMs=1000"),
 };
 
 const std::vector<std::string> snapshotcloneConf{
@@ -215,6 +218,7 @@ const char* testFile1_ = "/ItUser1/file1";
 const char* testFile2_ = "/ItUser1/file2";
 const char* testFile3_ = "/ItUser2/file3";
 const char* testFile4_ = "/ItUser1/file3";
+const char* testFile5_ = "/ItUser1/file4";
 const char* testUser1_ = "ItUser1";
 const char* testUser2_ = "ItUser2";
 
@@ -355,6 +359,9 @@ class SnapshotCloneServerTest : public ::testing::Test {
         LOG(INFO) << "Write testFile3_ success.";
 
         ASSERT_EQ(0, fileClient_->Create(testFile4_, userinfo,
+                                         10ULL * 1024 * 1024 * 1024));
+
+        ASSERT_EQ(0, fileClient_->Create(testFile5_, userinfo,
                                          10ULL * 1024 * 1024 * 1024));
     }
 
@@ -1049,5 +1056,61 @@ TEST_F(SnapshotCloneServerTest, TestCloneHasSameDest) {
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
+// lazy克隆卷，删除克隆卷，再删除源卷，源卷需要可以删除
+TEST_F(SnapshotCloneServerTest, TestDeleteLazyCloneDestThenDeleteSrc) {
+    // 操作1：testUser1_ clone 镜像testFile5_，lazy克隆两个卷dstFile1，dstFile2
+    // 预期1  返回克隆成功
+    std::string uuid1;
+    std::string uuid2;
+    std::string dstFile1 = "/dest1";
+    std::string dstFile2 = "/dest2";
+    UserInfo_t userinfo;
+    userinfo.owner = testUser1_;
+    int ret =
+        CloneOrRecover("Clone", testUser1_, testFile5_, dstFile1, true, &uuid1);
+    ASSERT_EQ(0, ret);
+
+    ret =
+        CloneOrRecover("Clone", testUser1_, testFile5_, dstFile2, true, &uuid2);
+    ASSERT_EQ(0, ret);
+
+    // 删除源卷，删除失败，卷被占用
+
+    ret = fileClient_->Unlink(testFile5_, userinfo, false);
+    ASSERT_EQ(-27, ret);
+
+    // 操作2：删除目的卷dstFile1成功，再次删除源卷
+    // 预期2 删除失败，卷被占用
+    ret = fileClient_->Unlink(dstFile1, userinfo, false);
+    ASSERT_EQ(0, ret);
+
+    ret = fileClient_->Unlink(testFile5_, userinfo, false);
+    ASSERT_EQ(-27, ret);
+
+
+    // 操作3：删除目的卷dstFile2成功，再次删除源卷
+    // 预期3 删除成功
+    ret = fileClient_->Unlink(dstFile2, userinfo, false);
+    ASSERT_EQ(0, ret);
+
+    ret = fileClient_->Unlink(testFile5_, userinfo, false);
+    ASSERT_EQ(0, ret);
+
+    // 操作4： 等待一段时间，看垃圾记录后台能否删除
+    bool noRecord = false;
+    for (int i = 0; i < 100; i++) {
+        TaskCloneInfo info;
+        int ret1 = GetCloneTaskInfo(testUser1_, uuid1, &info);
+        int ret2 = GetCloneTaskInfo(testUser1_, uuid2, &info);
+        if (ret1 == kErrCodeFileNotExist && ret2 == kErrCodeFileNotExist) {
+            noRecord = true;
+            break;
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+    }
+
+    ASSERT_TRUE(noRecord);
+}
 }  // namespace snapshotcloneserver
 }  // namespace curve

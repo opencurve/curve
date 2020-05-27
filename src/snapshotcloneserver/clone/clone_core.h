@@ -30,7 +30,7 @@
 #include <list>
 
 #include "src/snapshotcloneserver/common/curvefs_client.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_data_store.h"
 #include "src/snapshotcloneserver/common/snapshot_reference.h"
@@ -173,6 +173,25 @@ class CloneCore {
      */
     virtual int HandleRemoveCloneOrRecoverTask(
         std::shared_ptr<CloneTaskInfo> task) = 0;
+
+    /**
+     * @brief 检查文件是否存在
+     *
+     * @param filename 文件名
+     *
+     * @return 错误码
+     */
+    virtual int CheckFileExists(const std::string &filename,
+                                uint64_t inodeId) = 0;
+
+    /**
+     * @brief 删除cloneInfo
+     *
+     * @param cloneInfo 待删除的cloneInfo
+     *
+     * @return 错误码
+     */
+    virtual int HandleDeleteCloneInfo(const CloneInfo &cloneInfo) = 0;
 };
 
 /**
@@ -262,6 +281,10 @@ class CloneCoreImpl : public CloneCore {
 
     int HandleRemoveCloneOrRecoverTask(
         std::shared_ptr<CloneTaskInfo> task) override;
+
+    int CheckFileExists(const std::string &filename,
+                        uint64_t inodeId) override;
+    int HandleDeleteCloneInfo(const CloneInfo &cloneInfo) override;
 
  private:
     /**

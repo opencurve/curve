@@ -23,7 +23,7 @@
 #include "src/mds/nameserver2/curvefs.h"
 #include <glog/logging.h>
 #include <memory>
-#include <chrono>
+#include <chrono>    //NOLINT
 #include <set>
 #include <utility>
 #include "src/common/string_util.h"
@@ -89,7 +89,8 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
                 std::shared_ptr<FileRecordManager> fileRecordManager,
                 std::shared_ptr<AllocStatistic> allocStatistic,
                 const struct CurveFSOption &curveFSOptions,
-                std::shared_ptr<Topology> topology) {
+                std::shared_ptr<Topology> topology,
+                std::shared_ptr<SnapshotCloneClient> snapshotCloneClient) {
     startTime_ = steady_clock::now();
     storage_ = storage;
     InodeIDGenerator_ = InodeIDGenerator;
@@ -101,6 +102,7 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
 
     defaultChunkSize_ = curveFSOptions.defaultChunkSize;
     topology_ = topology;
+    snapshotCloneClient_ = snapshotCloneClient;
 
     InitRootFile();
     bool ret = InitRecycleBinDir();
@@ -126,6 +128,7 @@ void CurveFS::Uninit() {
     cleanManager_ = nullptr;
     allocStatistic_ = nullptr;
     fileRecordManager_ = nullptr;
+    snapshotCloneClient_ = nullptr;
 }
 
 void CurveFS::InitRootFile(void) {
@@ -567,7 +570,24 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
         return StatusCode::kOK;
     } else if (fileInfo.filetype() == FileType::INODE_PAGEFILE) {
         StatusCode ret = CheckFileCanChange(filename, fileInfo);
-        if (ret != StatusCode::kOK) {
+        if (ret == StatusCode::kDeleteFileBeingCloned) {
+            bool isHasCloneRely;
+            StatusCode ret1 = CheckHasCloneRely(filename,
+                                                       fileInfo.owner(),
+                                                       &isHasCloneRely);
+            if (ret1 != StatusCode::kOK) {
+                LOG(ERROR) << "delete file, check file clone ref fail,"
+                           << "filename = " << filename
+                           << ", ret = " << ret1;
+                return ret1;
+            }
+
+            if (isHasCloneRely) {
+                LOG(WARNING) << "delete file, can not delete file, "
+                            << "file has clone rely, filename = " << filename;
+                return StatusCode::kDeleteFileBeingCloned;
+            }
+        } else if (ret != StatusCode::kOK) {
             LOG(ERROR) << "delete file, can not delete file"
                        << ", filename = " << filename
                        << ", ret = " << ret;
@@ -693,8 +713,8 @@ StatusCode CurveFS::CheckFileCanChange(const std::string &fileName,
     }
 
     if (fileInfo.filestatus() == FileStatus::kFileBeingCloned) {
-        LOG(ERROR) << "CheckFileCanChange, file is being Cloned, "
-                   << "cannot delete or rename, fileName = " << fileName;
+        LOG(WARNING) << "CheckFileCanChange, file is being Cloned, "
+                   << "need check first, fileName = " << fileName;
         return StatusCode::kDeleteFileBeingCloned;
     }
 
@@ -1810,6 +1830,51 @@ StatusCode CurveFS::ListClient(bool listAllClient,
         clientInfos->emplace_back(std::move(info));
     }
 
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::CheckHasCloneRely(const std::string & filename,
+                                             const std::string &owner,
+                                             bool *isHasCloneRely) {
+    CloneRefStatus refStatus;
+    std::vector<snapshotcloneclient::DestFileInfo> fileCheckList;
+    StatusCode ret = snapshotCloneClient_->GetCloneRefStatus(filename,
+                                            owner, &refStatus, &fileCheckList);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "delete file, check file clone ref fail,"
+                    << "filename = " << filename
+                    << ", ret = " << ret;
+        return ret;
+    }
+    bool hasCloneRef = false;
+    if (refStatus == CloneRefStatus::kHasRef) {
+        hasCloneRef = true;
+    } else if (refStatus == CloneRefStatus::kNoRef) {
+        hasCloneRef = false;
+    } else {
+        int recordNum = fileCheckList.size();
+        for (int i = 0; i < recordNum; i++) {
+            FileInfo  destFileInfo;
+            StatusCode ret2 = GetFileInfo(fileCheckList[i].filename,
+                                            &destFileInfo);
+            if (ret2 == StatusCode::kFileNotExists) {
+                continue;
+            } else if (ret2 == StatusCode::kOK) {
+                if (destFileInfo.id() == fileCheckList[i].inodeid) {
+                    hasCloneRef = true;
+                    break;
+                }
+            } else {
+                LOG(ERROR) << "CheckHasCloneRely, check clonefile exist fail"
+                            << ", filename = " << filename
+                            << ", clonefile = " << fileCheckList[i].filename
+                            << ", ret = " << ret2;
+                return ret2;
+            }
+        }
+    }
+
+    *isHasCloneRely = hasCloneRef;
     return StatusCode::kOK;
 }
 

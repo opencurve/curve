@@ -25,7 +25,7 @@
 
 #include <functional>
 #include <memory>
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/task_tracker.h"
 
 namespace curve {

@@ -14,13 +14,25 @@
 #  limitations under the License.
 #
 
+load(
+    "//:copts.bzl",
+    "GCC_FLAGS",
+    "GCC_TEST_FLAGS",
+)
+
 cc_library(
-    name = "nameserver2_mock",
-    hdrs = glob(["*.h"]),
-    deps = [
-        "//src/mds/topology:topology",
-        "//src/mds/nameserver2:nameserver2",
-        "//src/mds/snapshotcloneclient:snapshotcloneclient"
-    ],
+    name = "snapshotcloneclient",
+    srcs = glob([
+        "*.cpp",
+        "*.h",
+    ]),
+    copts = GCC_FLAGS,
     visibility = ["//visibility:public"],
+    deps = [
+        "//external:brpc",
+        "//external:glog",
+        "//external:json",
+        "//src/common/snapshotclone:curve_snapshotclone",
+        "//proto:nameserver2_cc_proto",
+    ],
 )

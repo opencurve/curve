@@ -298,7 +298,7 @@ class MockSnapshotServiceManager : public SnapshotServiceManager {
 class MockCloneServiceManager : public CloneServiceManager {
  public:
     MockCloneServiceManager() :
-        CloneServiceManager(nullptr, nullptr) {}
+        CloneServiceManager(nullptr, nullptr, nullptr) {}
     ~MockCloneServiceManager() {}
 
     MOCK_METHOD6(CloneFile,
@@ -345,6 +345,11 @@ class MockCloneServiceManager : public CloneServiceManager {
     MOCK_METHOD2(CleanCloneTask,
         int(const std::string &user,
         const TaskIdType &taskId));
+
+    MOCK_METHOD3(GetCloneRefStatus,
+        int(const std::string &src,
+        CloneRefStatus *refStatus,
+        std::vector<CloneInfo> *needCheckFiles));
 };
 
 class MockCloneCore : public CloneCore {
@@ -390,6 +395,20 @@ class MockCloneCore : public CloneCore {
 
     MOCK_METHOD1(HandleRemoveCloneOrRecoverTask,
         int(std::shared_ptr<CloneTaskInfo> task));
+
+    MOCK_METHOD2(CheckFileExists,
+        int(const std::string &filename, uint64_t inodeId));
+
+    MOCK_METHOD1(HandleDeleteCloneInfo,
+        int(const CloneInfo &cloneInfo));
+};
+
+class MockCloneServiceManagerBackend : public CloneServiceManagerBackend {
+ public:
+    MOCK_METHOD0(Func, void());
+    MOCK_METHOD2(Init, void(uint32_t recordIntevalMs, uint32_t roundIntevalMs));
+    MOCK_METHOD0(Start, void());
+    MOCK_METHOD0(Stop, void());
 };
 
 class MockKVStorageClient : public KVStorageClient {

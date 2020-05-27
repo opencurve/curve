@@ -75,6 +75,7 @@ using ::curve::mds::schedule::ScheduleOption;
 using ::curve::mds::schedule::ScheduleMetrics;
 using ::curve::mds::schedule::ScheduleServiceImpl;
 using ::curve::mds::chunkserverclient::ChunkServerClientOption;
+using ::curve::mds::snapshotcloneclient::SnapshotCloneClientOption;
 using ::curve::election::LeaderElectionOptions;
 using ::curve::election::LeaderElection;
 using ::curve::common::Configuration;
@@ -102,6 +103,7 @@ struct MDSOptions {
     TopologyOption topologyOption;
     CopysetOption copysetOption;
     ChunkServerClientOption chunkServerClientOption;
+    SnapshotCloneClientOption snapshotCloneClientOption;
 };
 
 class MDS {
@@ -117,7 +119,7 @@ class MDS {
 
     /**
      * @brief start MDS DummyServer for liveness probe for all mds
-     *        and get metrics like version and configuration  
+     *        and get metrics like version and configuration
      */
     void StartDummy();
 
@@ -163,6 +165,8 @@ class MDS {
 
     void InitChunkServerClientOption(ChunkServerClientOption *option);
 
+    void InitSnapshotCloneClientOption(SnapshotCloneClientOption *option);
+
     void InitEtcdClient(const EtcdConf& etcdConf,
                         int etcdTimeout,
                         int retryTimes);
@@ -196,6 +200,8 @@ class MDS {
 
     void InitHeartbeatManager();
 
+    void InitSnapshotCloneClient();
+
  private:
     // mds configuration items
     std::shared_ptr<Configuration> conf_;
@@ -221,6 +227,7 @@ class MDS {
     std::shared_ptr<HeartbeatManager> heartbeatManager_;
     char* etcdEndpoints_;
     FileLockManager* fileLockManager_;
+    std::shared_ptr<SnapshotCloneClient> snapshotCloneClient_;
 };
 
 }  // namespace mds

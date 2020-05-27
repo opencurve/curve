@@ -25,7 +25,7 @@
 #include <string>
 #include <memory>
 
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/snapshotclone_server.h"
 #include "src/common/curve_version.h"
 
@@ -102,6 +102,10 @@ void InitSnapshotCloneServerOptions(std::shared_ptr<Configuration> conf,
                             &serverOption->createCloneChunkConcurrency);
     conf->GetValueFatalIfFail("server.recoverChunkConcurrency",
                             &serverOption->recoverChunkConcurrency);
+    conf->GetValueFatalIfFail("server.backEndReferenceRecordScanIntervalMs",
+                        &serverOption->backEndReferenceRecordScanIntervalMs);
+    conf->GetValueFatalIfFail("server.backEndReferenceFuncScanIntervalMs",
+                        &serverOption->backEndReferenceFuncScanIntervalMs);
 }
 
 void InitEtcdConf(std::shared_ptr<Configuration> conf, EtcdConf* etcdConf) {
@@ -284,9 +288,13 @@ bool SnapShotCloneServer::Init() {
     }
     cloneTaskMgr_ = std::make_shared<CloneTaskManager>(cloneCore_,
         cloneMetric_);
+
+    cloneServiceManagerBackend_ =
+            std::make_shared<CloneServiceManagerBackendImpl>(cloneCore_);
     cloneServiceManager_ = std::make_shared<CloneServiceManager>(
                 cloneTaskMgr_,
-                cloneCore_);
+                cloneCore_,
+                cloneServiceManagerBackend_);
     if (cloneServiceManager_->Init(
             snapshotCloneServerOptions_.serverOption) < 0) {
         LOG(ERROR) << "CloneServiceManager init fail.";

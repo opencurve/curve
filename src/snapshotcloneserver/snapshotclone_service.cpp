@@ -27,7 +27,7 @@
 #include <limits>
 
 #include "json/json.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/common/uuid.h"
 #include "src/common/string_util.h"
 #include "src/snapshotcloneserver/clone/clone_closure.h"
@@ -82,6 +82,8 @@ void SnapshotCloneServiceImpl::default_method(RpcController* cntl,
         HandleGetFileSnapshotListAction(bcntl, requestId);
     } else if (*action == kGetCloneTaskListAction) {
         HandleGetCloneTaskListAction(bcntl, requestId);
+    } else if (*action == kGetCloneRefStatusAction) {
+        HandleGetCloneRefStatusAction(bcntl, requestId);
     } else {
         HandleBadRequestError(bcntl, requestId);
     }
@@ -859,6 +861,73 @@ void SnapshotCloneServiceImpl::HandleGetCloneTaskListAction(
     }
 
     mainObj[kTaskInfosStr] = listObj;
+
+    os << mainObj.toStyledString();
+    os.move_to(bcntl->response_attachment());
+    return;
+}
+
+void SnapshotCloneServiceImpl::HandleGetCloneRefStatusAction(
+    brpc::Controller* bcntl, const std::string &requestId) {
+    const std::string *version =
+        bcntl->http_request().uri().GetQuery(kVersionStr);
+    const std::string *user =
+        bcntl->http_request().uri().GetQuery(kUserStr);
+    const std::string *source =
+        bcntl->http_request().uri().GetQuery(kSourceStr);
+    if ((version == nullptr) ||
+        (user == nullptr) ||
+        (source == nullptr) ||
+        (version->empty()) ||
+        (source->empty()) ||
+        (user->empty())) {
+        HandleBadRequestError(bcntl, requestId);
+        return;
+    }
+
+    LOG(INFO) << "GetCloneRefStatus:"
+              << " Version = " << *version
+              << ", User = " << *user
+              << ", Source = " << *source
+              << ", requestId = " << requestId;
+
+    std::vector<CloneInfo> cloneInfos;
+    CloneRefStatus refStatus;
+    int ret = cloneManager_->GetCloneRefStatus(*source, &refStatus,
+                                                &cloneInfos);
+    if (ret < 0) {
+        bcntl->http_response().set_status_code(
+            brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
+        SetErrorMessage(bcntl, ret, requestId);
+        return;
+    }
+
+    bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
+    butil::IOBufBuilder os;
+    Json::Value mainObj;
+    mainObj[kCodeStr] = std::to_string(kErrCodeSuccess);
+    mainObj[kMessageStr] = code2Msg[kErrCodeSuccess];
+    mainObj[kRequestIdStr] = requestId;
+    mainObj[kRefStatusStr] = static_cast<int> (refStatus);
+    mainObj[kTotalCountStr] = 0;
+    if (refStatus == CloneRefStatus::kNeedCheck) {
+        mainObj[kTotalCountStr] = cloneInfos.size();
+        Json::Value listObj;
+        for (int i = 0; i < cloneInfos.size(); i++) {
+            Json::Value cloneTaskObj;
+            cloneTaskObj[kUserStr] = cloneInfos[i].GetUser();
+            cloneTaskObj[kFileStr] = cloneInfos[i].GetDest();
+            if (cloneInfos[i].GetTaskType() == CloneTaskType::kClone) {
+                cloneTaskObj[kInodeStr] = cloneInfos[i].GetDestId();
+            } else {
+                cloneTaskObj[kInodeStr] = cloneInfos[i].GetOriginId();
+            }
+
+            listObj.append(cloneTaskObj);
+        }
+
+        mainObj[kCloneFileInfoStr] = listObj;
+    }
 
     os << mainObj.toStyledString();
     os.move_to(bcntl->response_attachment());

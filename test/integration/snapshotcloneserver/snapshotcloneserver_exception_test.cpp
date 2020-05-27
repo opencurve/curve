@@ -56,6 +56,8 @@ class SnapshotCloneServerTest : public ::testing::Test {
         options_->createCloneChunkConcurrency = 8;
         options_->recoverChunkConcurrency = 8;
         options_->clientAsyncMethodRetryTimeSec = 1;
+        options_->backEndReferenceRecordScanIntervalMs = 100;
+        options_->backEndReferenceFuncScanIntervalMs = 1000;
 
         server_ = new SnapshotCloneServerModule();
         server_->Start(*options_);

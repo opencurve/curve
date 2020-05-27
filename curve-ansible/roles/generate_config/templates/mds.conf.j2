@@ -188,6 +188,11 @@ mds.chunkserverclient.updateLeaderRetryTimes={{ mds_chunkserverclient_update_lea
 #  从copyset的每个chunkserver getleader的每一轮的间隔，需大于raft选主的时间
 mds.chunkserverclient.updateLeaderRetryIntervalMs={{ mds_chunkserverclient_update_leader_retry_interval_ms }}
 
+# snapshotclone config
+#
+# snapshot clone server 地址
+mds.snapshotcloneclient.addr={{ mds_snapshotcloneclient_addr }}
+
 #
 # common options
 #

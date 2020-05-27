@@ -30,7 +30,7 @@
 #include "src/snapshotcloneserver/snapshot/snapshot_service_manager.h"
 #include "src/snapshotcloneserver/clone/clone_service_manager.h"
 #include "test/integration/snapshotcloneserver/test_snapshotcloneserver_helpler.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"
 
 using curve::CurveCluster;
@@ -90,6 +90,7 @@ const std::vector<std::string> mdsConfigOptions{
     std::string("mds.DbName=") + kMdsDbName,
     std::string("mds.file.expiredTimeUs=50000"),
     std::string("mds.file.expiredTimeUs=10000"),
+    std::string("mds.snapshotcloneclient.addr=") + kSnapshotCloneServerIpPort,
 };
 
 const std::vector<std::string> mdsConf1{
@@ -198,6 +199,8 @@ const std::vector<std::string> snapshotcloneserverConfigOptions{
     std::string("server.dummy.listen.port=") +
         kSnapshotCloneServerDummyServerPort,
     std::string("leader.campagin.prefix=") + kLeaderCampaginPrefix,
+    std::string("server.backEndReferenceRecordScanIntervalMs=100"),
+    std::string("server.backEndReferenceFuncScanIntervalMs=1000"),
 };
 
 const std::vector<std::string> snapshotcloneConf{

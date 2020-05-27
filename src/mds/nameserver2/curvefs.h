@@ -28,7 +28,7 @@
 #include <string>
 #include <memory>
 #include <thread>  //NOLINT
-#include <chrono>
+#include <chrono>  //NOLINT
 #include <unordered_map>
 #include "proto/nameserver2.pb.h"
 #include "src/mds/nameserver2/namespace_storage.h"
@@ -40,7 +40,9 @@
 #include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
 #include "src/common/authenticator.h"
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
+#include "src/mds/snapshotcloneclient/snapshotclone_client.h"
 using curve::common::Authenticator;
+using curve::mds::snapshotcloneclient::SnapshotCloneClient;
 
 namespace curve {
 namespace mds {
@@ -93,7 +95,8 @@ class CurveFS {
               std::shared_ptr<FileRecordManager> fileRecordManager,
               std::shared_ptr<AllocStatistic> allocStatistic,
               const struct CurveFSOption &curveFSOptions,
-              std::shared_ptr<Topology> topology);
+              std::shared_ptr<Topology> topology,
+              std::shared_ptr<SnapshotCloneClient> snapshotCloneClient);
 
     /**
      *  @brief Run session manager
@@ -599,6 +602,17 @@ class CurveFS {
                            const FileInfo& fileInfo,
                            uint64_t* fileSize);
 
+    /**
+     *  @brief check file has rely dest file
+     *  @param: fileName
+     *  @param: owner
+     *  @param[out]: isCloneHasRely:  is clone has rely
+     *  @return StatusCode::kOK if succeeded
+     */
+    StatusCode CheckHasCloneRely(const std::string & filename,
+                                 const std::string &owner,
+                                 bool *isHasCloneRely);
+
  private:
     FileInfo rootFileInfo_;
     std::shared_ptr<NameServerStorage> storage_;
@@ -608,6 +622,7 @@ class CurveFS {
     std::shared_ptr<CleanManagerInterface> cleanManager_;
     std::shared_ptr<AllocStatistic> allocStatistic_;
     std::shared_ptr<Topology> topology_;
+    std::shared_ptr<SnapshotCloneClient> snapshotCloneClient_;
     struct RootAuthOption       rootAuthOptions_;
 
     uint64_t defaultChunkSize_;

@@ -49,6 +49,7 @@ void MDS::InitMdsOptions(std::shared_ptr<Configuration> conf) {
     InitTopologyOption(&options_.topologyOption);
     InitCopysetOption(&options_.copysetOption);
     InitChunkServerClientOption(&options_.chunkServerClientOption);
+    InitSnapshotCloneClientOption(&options_.snapshotCloneClientOption);
 
     conf_->GetValueFatalIfFail(
         "mds.segment.alloc.retryInterMs", &options_.retryInterTimes);
@@ -388,6 +389,20 @@ void MDS::InitNameServerStorage(int mdsCacheCount) {
     LOG(INFO) << "init NameServerStorage success.";
 }
 
+void MDS::InitSnapshotCloneClientOption(SnapshotCloneClientOption *option) {
+    if (!conf_->GetValue("mds.snapshotcloneclient.addr",
+        &option->snapshotCloneAddr)) {
+            option->snapshotCloneAddr = "";
+        }
+}
+
+void MDS::InitSnapshotCloneClient() {
+    snapshotCloneClient_ = std::make_shared<SnapshotCloneClient>();
+    SnapshotCloneClientOption snapshotCloneClientOption;
+    InitSnapshotCloneClientOption(&snapshotCloneClientOption);
+    snapshotCloneClient_->Init(snapshotCloneClientOption);
+}
+
 void MDS::InitCurveFS(const CurveFSOption& curveFSOptions) {
     // init InodeIDGenerator
     auto inodeIdGenerator = std::make_shared<InodeIdGeneratorImp>(etcdClient_);
@@ -406,11 +421,16 @@ void MDS::InitCurveFS(const CurveFSOption& curveFSOptions) {
 
     // init FileRecordManager
     auto fileRecordManager = std::make_shared<FileRecordManager>();
+
+    // init snapshotCloneClient
+    InitSnapshotCloneClient();
+
     LOG_IF(FATAL, !kCurveFS.Init(nameServerStorage_, inodeIdGenerator,
                   chunkSegmentAllocate, cleanManager_,
                   fileRecordManager,
                   segmentAllocStatistic_,
-                  curveFSOptions, topology_))
+                  curveFSOptions, topology_,
+                  snapshotCloneClient_))
         << "init FileRecordManager fail";
     LOG(INFO) << "init FileRecordManager success.";
 

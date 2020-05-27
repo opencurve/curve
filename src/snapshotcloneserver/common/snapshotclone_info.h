@@ -28,7 +28,7 @@
 #include <map>
 #include <memory>
 
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 
 namespace curve {
 namespace snapshotcloneserver {

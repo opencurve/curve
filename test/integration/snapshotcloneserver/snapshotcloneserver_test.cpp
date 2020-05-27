@@ -77,6 +77,7 @@ const std::vector<std::string> mdsConfigOptions{
     "mds.enable.replica.scheduler=false",
     "mds.heartbeat.misstimeoutMs=10000",
     "mds.topology.TopologyUpdateToRepoSec=5",
+    std::string("mds.snapshotcloneclient.addr=") + kSnapshotCloneServerIpPort,
 };
 
 const std::vector<std::string> mdsConf1{
@@ -111,6 +112,8 @@ const std::vector<std::string> snapshotcloneserverConfigOptions{
         kSnapshotCloneServerDummyServerPort,
     std::string("leader.campagin.prefix=") + kLeaderCampaginPrefix,
     std::string("server.address=") + kSnapshotCloneServerIpPort,
+    std::string("server.backEndReferenceRecordScanIntervalMs=100"),
+    std::string("server.backEndReferenceFuncScanIntervalMs=1000"),
 };
 
 const std::vector<std::string> snapshotcloneConf{

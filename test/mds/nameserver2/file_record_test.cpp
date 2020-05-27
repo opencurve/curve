@@ -23,8 +23,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <chrono>
-#include <thread>
+#include <chrono>    //NOLINT
+#include <thread>    // NOLINT
 
 #include "src/common/timeutility.h"
 #include "src/mds/common/mds_define.h"

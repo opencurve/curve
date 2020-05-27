@@ -27,6 +27,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//proto:chunkserver-cc-protos",
+        "//proto:snapshotcloneserver_cc_proto",
         "//src/mds/nameserver2"
     ],
 )

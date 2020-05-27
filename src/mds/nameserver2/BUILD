@@ -29,6 +29,7 @@ cc_library(
             "//src/mds/topology:topology",
             "//src/mds/nameserver2/allocstatistic:alloc_statistic",
             "//src/mds/chunkserverclient:chunkserverclient",
+            "//src/mds/snapshotcloneclient:snapshotcloneclient",
             "//src/mds/common:mds_common",
             "//src/mds/nameserver2/helper:helper",
             "//src/mds/nameserver2/idgenerator:idgenerator",

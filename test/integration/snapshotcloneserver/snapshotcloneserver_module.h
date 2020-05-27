@@ -35,7 +35,7 @@
 #include "src/snapshotcloneserver/clone/clone_service_manager.h"
 #include "src/common/configuration.h"
 
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/curvefs_client.h"
 
 #include "src/snapshotcloneserver/snapshot/snapshot_data_store.h"

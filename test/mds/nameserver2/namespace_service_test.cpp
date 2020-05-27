@@ -102,7 +102,8 @@ class NameSpaceServiceTest : public ::testing::Test {
                         cleanManager_,
                         fileRecordManager_,
                         allocStatistic_,
-                        curveFSOptions, topology_);
+                        curveFSOptions, topology_,
+                        nullptr);
         kCurveFS.Run();
 
         std::this_thread::sleep_for(std::chrono::microseconds(

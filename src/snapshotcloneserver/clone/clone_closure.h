@@ -29,7 +29,7 @@
 #include <memory>
 
 #include "proto/snapshotcloneserver.pb.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "json/json.h"
 #include "src/common/concurrent/name_lock.h"
 

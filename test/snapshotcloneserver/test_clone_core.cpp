@@ -25,7 +25,7 @@
 
 #include "src/snapshotcloneserver/clone/clone_core.h"
 #include "src/snapshotcloneserver/clone/clone_task.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/common/location_operator.h"
 
 #include "test/snapshotcloneserver/mock_snapshot_server.h"
@@ -1626,6 +1626,115 @@ TEST_F(TestCloneCoreImpl,
         .WillOnce(Return(0));
 
     core_->HandleCleanCloneOrRecoverTask(task);
+}
+
+TEST_F(TestCloneCoreImpl,
+    TestCheckFileExists) {
+    FInfo fInfo;
+    fInfo.id = 100;
+    EXPECT_CALL(*client_, GetFileInfo(_, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(fInfo),
+            Return(LIBCURVE_ERROR::OK)));
+
+    ASSERT_EQ(core_->CheckFileExists("filename", 100), kErrCodeFileExist);
+
+    EXPECT_CALL(*client_, GetFileInfo(_, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(fInfo),
+            Return(LIBCURVE_ERROR::OK)));
+
+    ASSERT_EQ(core_->CheckFileExists("filename", 10), kErrCodeFileNotExist);
+
+    EXPECT_CALL(*client_, GetFileInfo(_, _, _))
+        .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
+
+    ASSERT_EQ(core_->CheckFileExists("filename", 100), kErrCodeFileNotExist);
+
+    EXPECT_CALL(*client_, GetFileInfo(_, _, _))
+        .WillOnce(Return(LIBCURVE_ERROR::INTERNAL_ERROR));
+
+    ASSERT_EQ(core_->CheckFileExists("filename", 100), kErrCodeInternalError);
+}
+
+TEST_F(TestCloneCoreImpl,
+    TestHandleDeleteCloneInfoSnapDeleteCloneInfoFail) {
+    CloneInfo info("id1", "user1", CloneTaskType::kClone,
+    "snapid1", "file1", CloneFileType::kSnapshot, false);
+    EXPECT_CALL(*metaStore_, DeleteCloneInfo(_))
+        .WillOnce(Return(-1));
+    snapshotRef_->IncrementSnapshotRef("snapid1");
+    ASSERT_EQ(core_->HandleDeleteCloneInfo(info), kErrCodeInternalError);
+    ASSERT_EQ(snapshotRef_->GetSnapshotRef("snapid1"), 1);
+}
+
+TEST_F(TestCloneCoreImpl,
+    TestHandleDeleteCloneInfoSnapSuccess) {
+    CloneInfo info("id1", "user1", CloneTaskType::kClone,
+    "snapid1", "file1", CloneFileType::kSnapshot, false);
+    info.SetStatus(CloneStatus::metaInstalled);
+    EXPECT_CALL(*metaStore_, DeleteCloneInfo(_))
+        .WillOnce(Return(0));
+    snapshotRef_->IncrementSnapshotRef("snapid1");
+    ASSERT_EQ(core_->HandleDeleteCloneInfo(info), kErrCodeSuccess);
+    ASSERT_EQ(snapshotRef_->GetSnapshotRef("snapid1"), 0);
+}
+
+TEST_F(TestCloneCoreImpl,
+    TestHandleDeleteCloneInfoFileRefReturnMetainstalledNotTo0) {
+    CloneInfo info("id1", "user1", CloneTaskType::kClone,
+    "source1", "file1", CloneFileType::kFile, false);
+    info.SetStatus(CloneStatus::metaInstalled);
+    EXPECT_CALL(*metaStore_, DeleteCloneInfo(_))
+        .WillOnce(Return(0));
+    cloneRef_->IncrementRef("source1");
+    cloneRef_->IncrementRef("source1");
+    ASSERT_EQ(cloneRef_->GetRef("source1"), 2);
+    ASSERT_EQ(core_->HandleDeleteCloneInfo(info), kErrCodeSuccess);
+    ASSERT_EQ(cloneRef_->GetRef("source1"), 1);
+}
+
+TEST_F(TestCloneCoreImpl,
+    TestHandleDeleteCloneInfoFileSetStatusFail) {
+    CloneInfo info("id1", "user1", CloneTaskType::kClone,
+    "source1", "file1", CloneFileType::kFile, false);
+    info.SetStatus(CloneStatus::metaInstalled);
+    cloneRef_->IncrementRef("source1");
+    ASSERT_EQ(cloneRef_->GetRef("source1"), 1);
+    EXPECT_CALL(*client_, SetCloneFileStatus(_, _, _))
+        .WillOnce(Return(-1));
+    ASSERT_EQ(core_->HandleDeleteCloneInfo(info), kErrCodeInternalError);
+    ASSERT_EQ(cloneRef_->GetRef("source1"), 1);
+}
+
+TEST_F(TestCloneCoreImpl,
+    TestHandleDeleteCloneInfoFileDeleteCloneInfoFail) {
+    CloneInfo info("id1", "user1", CloneTaskType::kClone,
+    "source1", "file1", CloneFileType::kFile, false);
+    info.SetStatus(CloneStatus::metaInstalled);
+    EXPECT_CALL(*metaStore_, DeleteCloneInfo(_))
+        .WillOnce(Return(-1));
+    cloneRef_->IncrementRef("source1");
+    ASSERT_EQ(cloneRef_->GetRef("source1"), 1);
+    EXPECT_CALL(*client_, SetCloneFileStatus(_, _, _))
+        .WillOnce(Return(LIBCURVE_ERROR::OK));
+    ASSERT_EQ(core_->HandleDeleteCloneInfo(info), kErrCodeInternalError);
+    ASSERT_EQ(cloneRef_->GetRef("source1"), 1);
+}
+
+TEST_F(TestCloneCoreImpl,
+    TestHandleDeleteCloneInfoFileSuccess) {
+    CloneInfo info("id1", "user1", CloneTaskType::kClone,
+    "source1", "file1", CloneFileType::kFile, false);
+    info.SetStatus(CloneStatus::metaInstalled);
+    EXPECT_CALL(*metaStore_, DeleteCloneInfo(_))
+        .WillOnce(Return(0));
+    cloneRef_->IncrementRef("source1");
+    ASSERT_EQ(cloneRef_->GetRef("source1"), 1);
+    EXPECT_CALL(*client_, SetCloneFileStatus(_, _, _))
+        .WillOnce(Return(LIBCURVE_ERROR::OK));
+    ASSERT_EQ(core_->HandleDeleteCloneInfo(info), kErrCodeSuccess);
+    ASSERT_EQ(cloneRef_->GetRef("source1"), 0);
 }
 
 }  // namespace snapshotcloneserver

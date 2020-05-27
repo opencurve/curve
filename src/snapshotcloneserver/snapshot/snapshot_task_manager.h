@@ -33,7 +33,7 @@
 #include "src/snapshotcloneserver/snapshot/snapshot_task.h"
 #include "src/snapshotcloneserver/common/thread_pool.h"
 #include "src/common/concurrent/rw_lock.h"
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/config.h"
 #include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_core.h"

@@ -26,7 +26,7 @@
 #include <atomic>
 #include <map>
 
-#include "src/snapshotcloneserver/common/define.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/concurrent/name_lock.h"
