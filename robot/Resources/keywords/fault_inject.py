@@ -850,7 +850,7 @@ def wait_cluster_healthy(limit_iops=8000):
         copysets_status = "".join(rs2[1]).strip()
         logger.debug("copysets status is %s"%copysets_status)
         assert check == 1,"cluster is not healthy in %d s,cluster status is:\n %s,copysets status is:\n %s"%(config.recover_time,cluster_status,copysets_status)
-
+    rapid_leader_schedule() 
 #检测云主机iops    
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
     i = 0
@@ -878,7 +878,6 @@ def check_io_error():
 
 def check_copies_consistency():
     # 快速leader均衡
-    rapid_leader_schedule()
     host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     if config.vol_uuid == "":
