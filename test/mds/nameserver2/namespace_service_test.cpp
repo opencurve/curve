@@ -85,8 +85,6 @@ class NameSpaceServiceTest : public ::testing::Test {
         curveFSOptions.fileRecordOptions = fileRecordOptions;
         curveFSOptions.authOptions = authOptions;
 
-        InitRecycleBinDir(storage_);
-
         kCurveFS.Init(storage_, inodeGenerator_, chunkSegmentAllocate_,
                         cleanManager_,
                         fileRecordManager_,

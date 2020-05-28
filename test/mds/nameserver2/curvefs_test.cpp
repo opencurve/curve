@@ -64,6 +64,17 @@ class CurveFSTest: public ::testing::Test {
         curvefs_ =  &kCurveFS;
 
         allocStatistic_ = std::make_shared<MockAllocStatistic>();
+        FileInfo fileInfo;
+        fileInfo.set_parentid(ROOTINODEID);
+        fileInfo.set_id(RECYCLEBININODEID);
+        fileInfo.set_filename(RECYCLEBINDIRNAME);
+        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
+        fileInfo.set_owner(authOptions_.rootOwner);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+                Return(StoreStatus::OK)));
+
         curvefs_->Init(storage_, inodeIdGenerator_, mockChunkAllocator_,
                         mockcleanManager_,
                         fileRecordManager_,
@@ -2591,6 +2602,12 @@ TEST_F(CurveFSTest, testCheckRenameNewfilePathOwner) {
 
     // 普通用户，根目录下的文件非root用户认证失败
     {
+        FileInfo fileInfo;
+        fileInfo.set_owner(authOptions_.rootOwner);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+                Return(StoreStatus::OK)));
         ASSERT_EQ(curvefs_->CheckDestinationOwner("/file1",
                     "normaluser", "wrongpass", date),
                   StatusCode::kOwnerAuthFail);
@@ -2960,7 +2977,7 @@ TEST_F(CurveFSTest, testSetCloneFileStatus) {
     }
 }
 
-TEST_F(CurveFSTest, InitRecycleBinDir) {
+TEST_F(CurveFSTest, Init) {
     // test getFile ok
     {
         FileInfo fileInfo1, fileInfo2, fileInfo3, fileInfo4, fileInfo5;
@@ -2988,7 +3005,7 @@ TEST_F(CurveFSTest, InitRecycleBinDir) {
         fileInfo5.set_id(RECYCLEBININODEID);
         fileInfo5.set_filename(RECYCLEBINDIRNAME);
         fileInfo5.set_filetype(FileType::INODE_DIRECTORY);
-        fileInfo5.set_owner(ROOTUSERNAME);
+        fileInfo5.set_owner(authOptions_.rootOwner);
 
         const struct {
             FileInfo info;
@@ -3001,42 +3018,61 @@ TEST_F(CurveFSTest, InitRecycleBinDir) {
             {fileInfo5, true},
         };
 
-        auto mockstorage = std::make_shared<MockNameServerStorage>();
         for (int i = 0; i < sizeof(testCases)/ sizeof(testCases[0]); i++) {
-            EXPECT_CALL(*mockstorage, GetFile(_, _, _))
+            EXPECT_CALL(*storage_, GetFile(_, _, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(testCases[i].info),
                 Return(StoreStatus::OK)));
 
-            ASSERT_EQ(InitRecycleBinDir(mockstorage), testCases[i].ret);
+            ASSERT_EQ(testCases[i].ret, kCurveFS.Init(storage_,
+                                                      inodeIdGenerator_,
+                                                      mockChunkAllocator_,
+                                                      mockcleanManager_,
+                                                      fileRecordManager_,
+                                                      allocStatistic_,
+                                                      curveFSOptions_,
+                                                      mockRepo_,
+                                                      topology_));
         }
     }
 
     // test internal error
     {
-        auto mockstorage = std::make_shared<MockNameServerStorage>();
-
-        EXPECT_CALL(*mockstorage, GetFile(_, _, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
             .Times(1)
             .WillOnce(Return(StoreStatus::InternalError));
 
-        ASSERT_EQ(InitRecycleBinDir(mockstorage), false);
+        ASSERT_EQ(false, kCurveFS.Init(storage_,
+                                       inodeIdGenerator_,
+                                       mockChunkAllocator_,
+                                       mockcleanManager_,
+                                       fileRecordManager_,
+                                       allocStatistic_,
+                                       curveFSOptions_,
+                                       mockRepo_,
+                                       topology_));
     }
 
     // test getfile not exist
     {
-        auto mockstorage = std::make_shared<MockNameServerStorage>();
-
         // putfile error case
-        EXPECT_CALL(*mockstorage, GetFile(_, _, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
             .Times(1)
             .WillOnce(Return(StoreStatus::KeyNotExist));
 
-        EXPECT_CALL(*mockstorage, PutFile(_))
+        EXPECT_CALL(*storage_, PutFile(_))
             .Times(1)
             .WillOnce(Return(StoreStatus::InternalError));
 
-        ASSERT_EQ(InitRecycleBinDir(mockstorage), false);
+        ASSERT_EQ(false, kCurveFS.Init(storage_,
+                                       inodeIdGenerator_,
+                                       mockChunkAllocator_,
+                                       mockcleanManager_,
+                                       fileRecordManager_,
+                                       allocStatistic_,
+                                       curveFSOptions_,
+                                       mockRepo_,
+                                       topology_));
 
         // putfile ok
         FileInfo fileInfo5;
@@ -3046,15 +3082,23 @@ TEST_F(CurveFSTest, InitRecycleBinDir) {
         fileInfo5.set_filetype(FileType::INODE_DIRECTORY);
         fileInfo5.set_owner(ROOTUSERNAME);
 
-        EXPECT_CALL(*mockstorage, GetFile(_, _, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
             .Times(1)
             .WillOnce(Return(StoreStatus::KeyNotExist));
 
-        EXPECT_CALL(*mockstorage, PutFile(_))
+        EXPECT_CALL(*storage_, PutFile(_))
             .Times(1)
             .WillOnce(Return(StoreStatus::OK));
 
-        ASSERT_EQ(InitRecycleBinDir(mockstorage), true);
+        ASSERT_EQ(true, kCurveFS.Init(storage_,
+                                      inodeIdGenerator_,
+                                      mockChunkAllocator_,
+                                      mockcleanManager_,
+                                      fileRecordManager_,
+                                      allocStatistic_,
+                                      curveFSOptions_,
+                                      mockRepo_,
+                                      topology_));
     }
 }
 

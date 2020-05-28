@@ -1,0 +1,142 @@
+#
+################### mds一侧配置信息 ##################
+#
+
+# mds的地址信息，对于mds集群，地址以逗号隔开
+{% set mds_address=[] -%}
+{% for host in groups.mds -%}
+  {% set mds_ip = hostvars[host].ansible_ssh_host -%}
+  {% set mds_port = hostvars[host].mds_port -%}
+  {% set _ = mds_address.append("%s:%s" % (mds_ip, mds_port)) -%}
+{% endfor -%}
+mds.listen.addr={{ mds_address | join(',') }}
+
+# 初始化阶段向mds注册开关，默认为开
+mds.registerToMDS={{ client_register_to_mds }}
+
+# 与mds通信的rpc超时时间
+mds.rpcTimeoutMS={{ client_mds_rpc_timeout_ms }}
+
+# 与mds通信rpc最大的超时时间, 指数退避的超时间不能超过这个值
+mds.maxRPCTimeoutMS={{ client_mds_max_rpc_timeout_ms }}
+
+# 与mds通信重试总时间
+mds.maxRetryMS={{ client_mds_max_retry_ms }}
+
+# 在当前mds上连续重试次数超过该限制就切换, 这个失败次数包含超时重试次数
+mds.maxFailedTimesBeforeChangeMDS={{ client_mds_max_failed_times_before_change_mds }}
+
+# 与MDS一侧保持一个lease时间内多少次续约
+mds.refreshTimesPerLease={{ client_mds_refresh_times_per_lease }}
+
+# mds RPC接口每次重试之前需要先睡眠一段时间
+mds.rpcRetryIntervalUS={{ client_mds_rpc_retry_interval_us }}
+
+#
+################# metacache配置信息 ################
+#
+
+# 获取leader的rpc超时时间
+metacache.getLeaderTimeOutMS={{ client_metacache_get_leader_timeout_ms }}
+
+# 获取leader的重试次数
+metacache.getLeaderRetry={{ client_metacache_get_leader_retry }}
+
+# 获取leader接口每次重试之前需要先睡眠一段时间
+metacache.rpcRetryIntervalUS={{ client_metacache_rpc_retry_interval_us }}
+
+#
+############### 调度层的配置信息 #############
+#
+
+# 调度层队列大小，每个文件对应一个队列
+# 调度队列的深度会影响client端整体吞吐，这个队列存放的是异步IO任务。。
+schedule.queueCapacity={{ client_schedule_queue_capacity }}
+
+# 队列的执行线程数量
+# 执行线程所要做的事情就是将IO取出，然后发到网络就返回取下一个网络任务。一个任务从
+# 队列取出到发送完rpc请求大概在(20us-100us)，20us是正常情况下不需要获取leader的时候
+# 如果在发送的时候需要获取leader，时间会在100us左右，一个线程的吞吐在10w-50w
+# 性能已经满足需求
+schedule.threadpoolSize={{ client_schedule_threadpool_size }}
+
+# 为隔离qemu侧线程引入的任务队列，因为qemu一侧只有一个IO线程
+# 当qemu一侧调用aio接口的时候直接将调用push到任务队列就返回，
+# 这样libcurve不占用qemu的线程，不阻塞其异步调用
+isolation.taskQueueCapacity={{ client_isolation_task_queue_capacity }}
+
+# 隔离qemu线程的任务队列线程池大小, 默认值为1个线程
+isolation.taskThreadPoolSize={{ client_isolation_task_thread_pool_size }}
+
+
+#
+################ 与chunkserver通信相关配置 #############
+#
+# 读写接口失败的OP之间重试睡眠
+chunkserver.opRetryIntervalUS={{ client_chunkserver_op_retry_interval_us }}
+
+# 失败的OP重试次数
+chunkserver.opMaxRetry={{ client_chunkserver_op_max_retry }}
+
+# 与chunkserver通信的rpc超时时间
+chunkserver.rpcTimeoutMS={{ client_chunkserver_rpc_timeout_ms }}
+
+# 开启基于appliedindex的读，用于性能优化
+chunkserver.enableAppliedIndexRead={{ client_chunkserver_enable_applied_index_read }}
+
+# 重试请求之间睡眠最长时间
+# 因为当网络拥塞的时候或者chunkserver出现过载的时候，需要增加睡眠时间
+# 这个时间最大为maxRetrySleepIntervalUs
+chunkserver.maxRetrySleepIntervalUS={{ client_chunkserver_max_retry_sleep_interval_us }}
+
+# 重试请求的超时rpc时间最大值，超时时间会遵循指数退避策略
+# 因为当网络拥塞的时候出现超时，需要增加RPC超时时间
+# 这个时间最大为maxTimeoutMS
+chunkserver.maxRPCTimeoutMS={{ client_chunkserver_max_rpc_timeout_ms }}
+
+# 同一个chunkserver连续超时上限次数
+# 如果超过这个值，就会进行健康检查，健康检查失败后，会标记为unstable
+chunkserver.maxStableTimeoutTimes={{ client_chunkserver_max_stable_timeout_times }}
+# chunkserver上rpc连续超时后，健康检查请求的超时间
+chunkserver.checkHealthTimeoutMs={{ client_chunkserver_check_health_timeout_ms }}
+# 同一个server上unstable的chunkserver数量超过这个值之后
+# 所有的chunkserver都会标记为unstable
+chunkserver.serverStableThreshold={{ client_chunkserver_server_stable_threshold }}
+
+# 当底层chunkserver压力大时，可能也会触发unstable
+# 由于copyset leader may change，会导致请求超时时间设置为默认值，从而导致IO hang
+# 真正宕机的情况下，请求重试一定次数后会处理完成
+# 如果一直重试，则不是宕机情况，这时候超时时间还是要进入指数退避逻辑
+# 当一个请求重试次数超过这个值时，其超时时间一定进入指数退避
+chunkserver.minRetryTimesForceTimeoutBackoff={{ client_chunkserver_min_retry_times_force_timeout_backoff }}
+
+# 当一个rpc重试超过次数maxRetryTimesBeforeConsiderSuspend的时候
+# 记为悬挂IO，metric会报警
+chunkserver.maxRetryTimesBeforeConsiderSuspend={{ client_chunkserver_max_retry_times_before_consider_suspend }}
+
+#
+################# 文件级别配置项 #############
+#
+# libcurve底层rpc调度允许最大的未返回rpc数量，每个文件的inflight RPC独立
+global.fileMaxInFlightRPCNum={{ client_file_max_inflight_rpc_num }}
+
+# 文件IO下发到底层chunkserver最大的分片KB
+global.fileIOSplitMaxSizeKB={{ client_file_io_split_max_size_kb }}
+
+#
+################# log相关配置 ###############
+#
+# log等级 INFO=0/WARNING=1/ERROR=2/FATAL=3
+global.logLevel={{ client_log_level }}
+# 设置log的路径
+global.logPath={{ client_log_path }}
+# 单元测试情况下
+# logpath=./runlog/
+
+#
+############### metric 配置信息 #############
+#
+global.metricDummyServerStartPort={{ client_metric_dummy_server_start_port }}
+
+# 是否关闭健康检查: true/关闭 false/不关闭
+global.turnOffHealthCheck={{ client_turn_off_health_check }}

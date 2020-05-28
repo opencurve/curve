@@ -1,0 +1,91 @@
+---
+# Copyright 2020 NetEase, Inc.
+# The deploy playbook of Curve
+
+# 部署etcd
+- name: update config on etcd
+  hosts: etcd
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - update_config_etcd
+  roles:
+    - { role: generate_config, template_name: etcd.conf.yml, conf_path: "{{ etcd_config_path }}" }
+
+# 部署mds
+
+# 1. 分发配置
+- name: update config on mds
+  hosts: mds
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - update_config_mds
+  roles:
+    - { role: generate_config, template_name: mds.conf, conf_path: "{{ mds_config_path }}" }
+    - { role: generate_config, template_name: tools.conf, conf_path: "{{ tool_config_path }}" }
+    - { role: generate_config, template_name: topo.json, conf_path: "{{ topo_file_path }}" }
+
+# 2. 更新各节点上的包和配置
+- name: update package
+  hosts: mds
+  gather_facts: no
+  any_errors_fatal: true
+  become: true
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - update_package
+  tasks:
+    # 更新mds包
+    - vars:
+        update_component: "curve-mds={{ mds_package_version }}"
+      include_tasks: "common_tasks/update_package.yml"
+    # 更新curve_tool包
+    - vars:
+        update_component: "curve-tools={{ tool_package_version }}"
+      include_tasks: "common_tasks/update_package.yml"
+
+# 3. 预格式化
+- name: prepare chunkserver
+  hosts: chunkservers
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - prepare
+  roles:
+    - { role: prepare_chunkserver }
+
+# 4. 启动chunkserver
+- name: start chunkserver
+  hosts: chunkservers
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - start
+  vars:
+    sudo: ""
+  tasks:
+    - include_tasks: "common_tasks/start_chunkserver.yml"
+
+# 5、创建逻辑池
+- name: create logical pool
+  hosts: mds[0]
+  any_errors_fatal: true
+  gather_facts: no
+  tags:
+    - create_logical_pool
+  tasks:
+    - include_tasks: "common_tasks/create_logical_pool.yml"

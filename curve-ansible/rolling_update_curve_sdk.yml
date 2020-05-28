@@ -4,18 +4,24 @@
 
 # 升级curve sdk
 
-# 1. 更新各节点上的包和配置
+# 1. 更新各节点上的配置
+- name: update config
+  hosts: client
+  gather_facts: no
+  any_errors_fatal: true
+  tags:
+    - update_config
+  roles:
+    - { role: generate_config, template_name: client, conf_path: "{{ client_config_path }}" }
+
+# 2. 更新各节点上的包
 - name: update config and package
   hosts: client
   gather_facts: no
   any_errors_fatal: true
   tags:
-    - update_config_and_pkg
+    - update_package
   tasks:
-    # 更新配置
-    - include_tasks: "common_tasks/update_config.yml"
-      when: need_update_config
-
     # 更新curve-sdk的包
     - vars:
         update_component: "curve-sdk={{ sdk_package_version }}"

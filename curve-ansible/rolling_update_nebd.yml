@@ -4,24 +4,32 @@
 
 # 滚动升级nebd server
 
-# 1. 更新各节点上的包和配置
-- name: update config and package
+# 1. 更新各节点上的配置
+- name: update config
   hosts: client
   gather_facts: no
   any_errors_fatal: true
   tags:
-    - update_config_and_pkg
-  tasks:
-    # 更新配置
-    - include_tasks: "common_tasks/update_config.yml"
-      when: need_update_config
+    - update_config
+  roles:
+    - { role: generate_config, template_name: client, conf_path: "{{ client_config_path }}" }
+    - { role: generate_config, template_name: nebd-client, conf_path: "{{ nebd_client_config_path }}" }
+    - { role: generate_config, template_name: nebd-server, conf_path: "{{ nebd_server_config_path }}" }
 
+# 2. 更新各节点上的包
+- name: update package
+  hosts: client
+  gather_facts: no
+  any_errors_fatal: true
+  tags:
+    - update_package
+  tasks:
     # 更新nebd包
     - vars:
         update_component: "nebd={{ nebd_package_version }}"
       include_tasks: "common_tasks/update_package.yml"
 
-# 2、重启nebd server
+# 3、重启nebd server
 - name: restart nebd server
   hosts: client
   gather_facts: no

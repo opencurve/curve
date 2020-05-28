@@ -1,0 +1,183 @@
+#
+# Global settings
+#
+# log等级INFO=0/WARNING=1/ERROR=2/FATAL=3
+global.ip={{ ansible_ssh_host }}
+global.port={{ chunkserver_base_port }}
+global.subnet={{ chunkserver_subnet }}
+global.enable_external_server={{ chunkserver_enable_external_server }}
+global.external_ip={{ ansible_ssh_host }}
+global.external_subnet={{ chunkserver_external_subnet }}
+# chunk大小，一般16MB
+global.chunk_size={{ chunk_size }}
+# chunk 元数据页大小，一般4KB
+global.meta_page_size={{ chunkserver_meta_page_size }}
+# clone chunk允许的最长location长度
+global.location_limit={{ chunkserver_location_limit }}
+
+#
+# MDS settings
+#
+#支持mds多地址，以逗号分隔 127.0.0.1:6666,127.0.0.1:7777
+{% set mds_address=[] -%}
+{% for host in groups.mds -%}
+  {% set mds_ip = hostvars[host].ansible_ssh_host -%}
+  {% set mds_port = hostvars[host].mds_port -%}
+  {% set _ = mds_address.append("%s:%s" % (mds_ip, mds_port)) -%}
+{% endfor -%}
+mds.listen.addr={{ mds_address | join(',') }}
+# 向mds注册的最大重试次数
+mds.register_retries={{ chunkserver_register_retries }}
+# 向mds注册的rpc超时时间，一般1000ms
+mds.register_timeout={{ chunkserver_register_timeout }}
+# 向mds发送心跳的间隔，一般10s
+mds.heartbeat_interval={{ chunkserver_heartbeat_interval }}
+# 向mds发送心跳的rpc超时间，一般1000ms
+mds.heartbeat_timeout={{ chunkserver_heartbeat_timeout }}
+
+#
+# Chunkserver settings
+#
+# chunkserver主目录
+chunkserver.stor_uri={{ chunkserver_stor_uri }}
+# chunkserver元数据文件
+chunkserver.meta_uri={{ chunkserver_meta_uri }}
+# disk类型
+chunkserver.disk_type={{ chunkserver_disk_type }}
+# raft内部install snapshot带宽上限，一般20MB
+chunkserver.snapshot_throttle_throughput_bytes={{ chunkserver_snapshot_throttle_throughput_bytes }}
+# check cycles是为了更精细的进行带宽控制，以snapshotThroughputBytes=100MB，
+# check cycles=10为例，它可以保证每1/10秒的带宽是10MB，且不累积，例如第1个
+# 1/10秒的带宽是10MB，但是就过期了，在第2个1/10秒依然只能用10MB的带宽，而
+# 不是20MB的带宽
+chunkserver.snapshot_throttle_check_cycles={{ chunkserver_snapshot_throttle_check_cycles }}
+
+#
+# Testing purpose settings
+#
+test.create_testcopyset={{ chunkserver_test_create_testcopyset }}
+test.testcopyset_poolid={{ chunkserver_test_testcopyset_poolid }}
+test.testcopyset_copysetid={{ chunkserver_test_testcopyset_copysetid }}
+test.testcopyset_conf={{ chunkserver_test_testcopyset_conf }}
+
+#
+# Copyset settings
+#
+# 是否检查任期，一般检查
+copyset.check_term={{ chunkserver_copyset_check_term }}
+# 是否关闭raft配置变更的服务，一般不关闭
+copyset.disable_cli={{ chunkserver_copyset_disable_cli }}
+copyset.log_applied_task={{ chunkserver_copyset_log_applied_task }}
+# raft选举超时时间，一般是5000ms
+copyset.election_timeout_ms={{ chunkserver_copyset_election_timeout_ms }}
+# raft打快照间隔，一般是1800s，也就是30分钟
+copyset.snapshot_interval_s={{ chunkserver_copyset_snapshot_interval_s }}
+# add一个节点，add的节点首先以类似learner的角色拷贝数据
+# 在跟leader差距catchup_margin个entry的时候，leader
+# 会尝试将配置变更的entry进行提交(一般来说提交的entry肯定
+# 会commit&apply，catchup_margin较小可以大概率确保learner
+# 后续很快可以加入复制组
+copyset.catchup_margin={{ chunkserver_copyset_catchup_margin }}
+# copyset chunk数据目录
+copyset.chunk_data_uri={{ chunkserver_copyset_chunk_data_uri }}
+# raft wal log目录
+copyset.raft_log_uri={{ chunkserver_copyset_raft_log_uri }}
+# raft元数据目录
+copyset.raft_meta_uri={{ chunkserver_copyset_raft_meta_uri }}
+# raft snapshot目录
+copyset.raft_snapshot_uri={{ chunkserver_copyset_raft_snapshot_uri }}
+# copyset回收目录
+copyset.recycler_uri={{ chunkserver_copyset_recycler_uri }}
+copyset.max_inflight_requests={{ chunkserver_copyset_max_inflight_requests }}
+# chunkserver启动时，copyset并发加载的阈值,为0则表示不做限制
+copyset.load_concurrency={{ chunkserver_copyset_load_concurrency }}
+# 检查copyset是否加载完成出现异常时的最大重试次数
+copyset.check_retrytimes={{ chunkserver_copyset_check_retrytimes }}
+# 当前peer的applied_index与leader上的committed_index差距小于该值
+# 则判定copyset已经加载完成
+copyset.finishload_margin={{ chunkserver_copyset_finishload_margin }}
+# 循环判定copyset是否加载完成的内部睡眠时间
+copyset.check_loadmargin_interval_ms={{ chunkserver_copyset_check_loadmargin_interval_ms }}
+
+#
+# Clone settings
+#
+# 禁止使用curveclient
+clone.disable_curve_client={{ chunkserver_clone_disable_curve_client }}
+# 禁止使用s3adapter
+clone.disable_s3_adapter={{ chunkserver_clone_disable_s3_adapter }}
+# 克隆的分片大小，一般1MB
+clone.slice_size={{ chunkserver_clone_slice_size }}
+# 读clone chunk时是否需要paste到本地
+# 该配置对recover chunk请求类型无效
+clone.enable_paste={{ chunkserver_clone_enable_paste }}
+# 克隆的线程数量
+clone.thread_num={{ chunkserver_clone_thread_num }}
+# 克隆的队列深度
+clone.queue_depth={{ chunkserver_clone_queue_depth }}
+# curve用户名
+curve.root_username={{ curve_root_username }}
+# curve密码
+curve.root_password={{ curve_root_password }}
+# client配置文件
+curve.config_path={{ chunkserver_client_config_path }}
+# s3配置文件
+s3.config_path={{ chunkserver_s3_config_path }}
+
+#
+# Local FileSystem settings
+#
+# 是否开启使用renameat2，ext4内核3.15以后开始支持
+fs.enable_renameat2={{ chunkserver_fs_enable_renameat2 }}
+
+#
+# metrics settings
+# true means on, false means off
+#
+metric.onoff={{ chunkserver_metric_onoff }}
+
+#
+# Storage engine settings
+#
+storeng.sync_write={{ chunkserver_storeng_sync_write }}
+
+#
+# QoS settings
+#
+
+#
+# Concurrent apply module
+#
+# 并发模块的并发度，一般是10
+concurrentapply.size={{ chunkserver_concurrentapply_size }}
+# 并发模块线程的队列深度
+concurrentapply.queuedepth={{ chunkserver_concurrentapply_queuedepth }}
+
+#
+# Chunkfile pool
+#
+# 是否开启从chunkfilepool获取chunk，一般是true
+chunkfilepool.enable_get_chunk_from_pool={{ chunkserver_chunkfilepool_enable_get_chunk_from_pool }}
+# chunkfilepool目录
+chunkfilepool.chunk_file_pool_dir={{ chunkserver_chunkfilepool_chunk_file_pool_dir }}
+# chunkfilepool meta文件路径
+#chunkfilepool.meta_path=./chunkfilepool.meta
+# chunkfilepool meta文件大小
+chunkfilepool.cpmeta_file_size={{ chunkserver_chunkfilepool_cpmeta_file_size }}
+# chunkfilepool get chunk最大重试次数
+chunkfilepool.retry_times={{ chunkserver_chunkfilepool_retry_times }}
+
+#
+# trash settings
+#
+# chunkserver回收数据彻底删除的过期时间
+trash.expire_afterSec={{ chunkserver_trash_expire_after_sec }}
+# chunkserver检查回收数据过期时间的周期
+trash.scan_periodSec={{ chunkserver_trash_scan_period_sec }}
+
+# common option
+#
+# chunkserver 日志存放文件夹
+chunkserver.common.logDir={{ chunkserver_common_log_dir }}
+# 单元测试情况下
+# chunkserver.common.logDir=./runlog/

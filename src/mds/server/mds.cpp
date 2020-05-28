@@ -417,11 +417,6 @@ void MDS::InitNameServerStorage(int mdsCacheCount) {
     nameServerStorage_ = std::make_shared<NameServerStorageImp>(etcdClient_,
                                                                 cache);
     LOG(INFO) << "init NameServerStorage success.";
-
-    // init recyclebindir
-    LOG_IF(FATAL, !InitRecycleBinDir(nameServerStorage_))
-                            << "init recyclebindir error";
-    LOG(INFO) << "init InitRecycleBinDir success.";
 }
 
 void MDS::InitCurveFS(const CurveFSOption& curveFSOptions) {
@@ -461,7 +456,8 @@ void MDS::InitFileRecordOptions(FileRecordOptions *fileRecordOptions) {
 }
 
 void MDS::InitAuthOptions(RootAuthOption *authOptions) {
-    authOptions->rootOwner = ROOTUSERNAME;
+    conf_->GetValueFatalIfFail(
+        "mds.auth.rootUserName", &authOptions->rootOwner);
     conf_->GetValueFatalIfFail(
         "mds.auth.rootPassword", &authOptions->rootPassword);
 }
