@@ -52,8 +52,6 @@ struct AllocatedSize {
 
 using ::curve::mds::DeleteSnapShotResponse;
 
-bool InitRecycleBinDir(std::shared_ptr<NameServerStorage> storage);
-
 class CurveFS {
  public:
     // singleton, supported in c++11
@@ -459,6 +457,8 @@ class CurveFS {
     CurveFS() = default;
 
     void InitRootFile(void);
+
+    bool InitRecycleBinDir();
 
     StatusCode WalkPath(const std::string &fileName,
                         FileInfo *fileInfo, std::string  *lastEntry) const;

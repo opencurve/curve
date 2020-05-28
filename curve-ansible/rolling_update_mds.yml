@@ -4,8 +4,8 @@
 
 # 滚动升级mds
 
-# 1. 更新各节点上的包和配置
-- name: update config and package
+# 1. 更新各节点上的配置
+- name: update config
   hosts: mds
   gather_facts: no
   any_errors_fatal: true
@@ -13,22 +13,34 @@
   become_user: "{{ sudo_user }}"
   become_flags: -iu {{ sudo_user }}
   tags:
-    - update_config_and_pkg
+    - update_config
+  roles:
+    - { role: generate_config, template_name: mds, conf_path: "{{ mds_config_path }}" }
+    - { role: generate_config, template_name: tools, conf_path: "{{ tool_config_path }}" }
+
+
+# 2. 更新各节点上的包
+- name: update package
+  hosts: mds
+  gather_facts: no
+  any_errors_fatal: true
+  become: true
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - update_package
 
   tasks:
-    # 更新配置
-    - include_tasks: "common_tasks/update_config.yml"
-      when: need_update_config
     # 更新mds包
     - vars:
         update_component: "curve-mds={{ mds_package_version }}"
       include_tasks: "common_tasks/update_package.yml"
-    # 更新curve_tool包和配置
+    # 更新curve_tool包
     - vars:
         update_component: "curve-tools={{ tool_package_version }}"
       include_tasks: "common_tasks/update_package.yml"
 
-# 2. 获取leader节点和follower节点
+# 3. 获取leader节点和follower节点
 - name: set mds leader and follower list
   hosts: mds
   gather_facts: no
@@ -37,9 +49,8 @@
     - restart
   roles:
     - { role: set_leader_and_follower_list, service_name: mds }
-    
 
-# 3. 按顺序先升级follower节点，再升级leader节点
+# 4. 按顺序先升级follower节点，再升级leader节点
 - name: update follower and leader server in sequence
   hosts: mds_servers_followers, mds_servers_leader
   any_errors_fatal: true

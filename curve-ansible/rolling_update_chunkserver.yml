@@ -4,8 +4,8 @@
 
 # 滚动升级chunkserver
 
-# 1. 更新各节点上的包和配置
-- name: update config and package
+# 1. 更新各节点上的配置
+- name: update config
   hosts: chunkservers
   any_errors_fatal: true
   gather_facts: no
@@ -13,17 +13,30 @@
   become_user: "{{ sudo_user }}"
   become_flags: -iu {{ sudo_user }}
   tags:
-    - update_config_and_pkg
+    - update_config
+
+  roles:
+    - { role: generate_config, template_name: chunkserver, conf_path: "{{ chunkserver_conf_path }}" }
+    - { role: generate_config, template_name: client, conf_path: "{{ chunkserver_client_config_path }}" }
+    - { role: generate_config, template_name: s3, conf_path: "{{ chunkserver_s3_config_path }}" }
+
+# 2. 更新各节点上的包
+- name: update package
+  hosts: chunkservers
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - update_package
 
   tasks:
-    - include_tasks: "common_tasks/update_config.yml"
-      when: need_update_config
     - vars:
         update_component: "curve-chunkserver={{ cs_package_version }}"
       include_tasks: "common_tasks/update_package.yml"
 
-
-# 2、逐个重启chunkserver，每重启完一个需要等待copyset健康
+# 3、逐个重启chunkserver，每重启完一个需要等待copyset健康
 #    继续操作下一个的的时候还需要一个命令行交互确认
 - name: restart chunkserver and wait healthy
   hosts: chunkservers

@@ -24,17 +24,17 @@ using curve::mds::topology::LogicalPool;
 
 namespace curve {
 namespace mds {
-bool InitRecycleBinDir(std::shared_ptr<NameServerStorage> storage) {
+bool CurveFS::InitRecycleBinDir() {
     FileInfo recyclebinFileInfo;
 
-    StoreStatus ret = storage->GetFile(ROOTINODEID, RECYCLEBINDIR,
+    StoreStatus ret = storage_->GetFile(ROOTINODEID, RECYCLEBINDIR,
         &recyclebinFileInfo);
     if (ret == StoreStatus::OK) {
         if (recyclebinFileInfo.parentid() != ROOTINODEID
             ||  recyclebinFileInfo.id() != RECYCLEBININODEID
             ||  recyclebinFileInfo.filename().compare(RECYCLEBINDIRNAME) != 0
             ||  recyclebinFileInfo.filetype() != FileType::INODE_DIRECTORY
-            ||  recyclebinFileInfo.owner() != ROOTUSERNAME) {
+            ||  recyclebinFileInfo.owner() != rootAuthOptions_.rootOwner) {
             LOG(ERROR) << "Recyclebin info error, fileInfo = "
                 << recyclebinFileInfo.DebugString();
             return false;
@@ -50,9 +50,9 @@ bool InitRecycleBinDir(std::shared_ptr<NameServerStorage> storage) {
         recyclebinFileInfo.set_filetype(FileType::INODE_DIRECTORY);
         recyclebinFileInfo.set_ctime(
             ::curve::common::TimeUtility::GetTimeofDayUs());
-        recyclebinFileInfo.set_owner(ROOTUSERNAME);
+        recyclebinFileInfo.set_owner(rootAuthOptions_.rootOwner);
 
-        StoreStatus ret2 = storage->PutFile(recyclebinFileInfo);
+        StoreStatus ret2 = storage_->PutFile(recyclebinFileInfo);
         if ( ret2 != StoreStatus::OK ) {
             LOG(ERROR) << "RecycleBin dir create error, Path = "
                 << RECYCLEBINDIR;
@@ -90,6 +90,11 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
     topology_ = topology;
 
     InitRootFile();
+    bool ret = InitRecycleBinDir();
+    if (!ret) {
+        LOG(ERROR) << "Init RecycleBin fail!";
+        return false;
+    }
 
     fileRecordManager_->Init(curveFSOptions.fileRecordOptions);
 

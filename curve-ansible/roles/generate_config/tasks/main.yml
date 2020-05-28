@@ -1,0 +1,23 @@
+---
+
+- name: create config dir
+  ignore_errors: true
+  shell: mkdir -p `dirname {{ conf_path }}`
+  register: create_conf_dir_res
+
+- name: create config dir with sudo
+  shell: sudo mkdir -p `dirname {{ conf_path }}`
+  when: create_conf_dir_res.rc != 0
+
+- name: generate configuration file directly
+  ignore_errors: true
+  template: src={{ template_name }}.conf.j2 dest={{ conf_path }} mode=0644
+  register: template_res
+
+- name: generate configuration file with sudo
+  block:
+    - name: generate configuration file at /tmp
+      template: src={{ template_name }}.conf.j2 dest=/tmp/{{ template_name }}.conf mode=0644
+    - name: mv config file
+      shell: sudo mv /tmp/{{ template_name }}.conf {{ conf_path }}
+  when: template_res.failed
