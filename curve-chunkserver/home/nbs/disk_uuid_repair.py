@@ -137,7 +137,7 @@ def __mount_with_atual_uuid(diskPath, record, actual):
         return False
     print("mount %s to %s success." % (diskPath, mntdir))
 
-    replaceCmd = "sed -n \"s/" + record + "/" + actual + "/g\""
+    replaceCmd = "sed -i \"s/" + record + "/" + actual + "/g\""
     # 将新的uuid写入到fstab
     cmd = "cp /etc/fstab /etc/fstab.bak;" + replaceCmd + " /etc/fstab > /dev/null"
     retCode = subprocess.call(cmd, shell=True)
