@@ -16,30 +16,35 @@
 
 /*
  * Project: curve
- * File Created: 2019-10-29
+ * File Created: 2020-03-06
  * Author: charisu
  */
 
-#ifndef TEST_TOOLS_MOCK_SNAPSHOT_READ_H_
-#define TEST_TOOLS_MOCK_SNAPSHOT_READ_H_
+
+#ifndef TEST_TOOLS_MOCK_MOCK_SEGMENT_PARSER_H_
+#define TEST_TOOLS_MOCK_MOCK_SEGMENT_PARSER_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <string>
-#include "src/tools/snapshot_read.h"
+#include <vector>
+#include <map>
+#include <memory>
+#include "src/tools/raft_log_tool.h"
+#include "test/fs/mock_local_filesystem.h"
 
+using ::testing::Return;
 namespace curve {
 namespace tool {
-class MockSnapshotRead : public SnapshotRead {
+class MockSegmentParser : public SegmentParser {
  public:
-    MockSnapshotRead() {}
-    ~MockSnapshotRead() {}
-
-    MOCK_METHOD2(Init, int(const std::string&, const std::string&));
+    MockSegmentParser() : SegmentParser(
+                std::make_shared<curve::fs::MockLocalFileSystem>()) {}
+    MOCK_METHOD1(Init, int(const std::string&));
     MOCK_METHOD0(UnInit, void());
-    MOCK_METHOD3(Read, int(char*, off_t, size_t));
-    MOCK_METHOD1(GetSnapshotInfo, void(SnapshotRepoItem*));
+    MOCK_METHOD1(GetNextEntryHeader, bool(EntryHeader* header));
+    MOCK_METHOD0(SuccessfullyFinished, bool());
 };
 }  // namespace tool
 }  // namespace curve
-#endif  // TEST_TOOLS_MOCK_SNAPSHOT_READ_H_
+#endif  // TEST_TOOLS_MOCK_MOCK_SEGMENT_PARSER_H_

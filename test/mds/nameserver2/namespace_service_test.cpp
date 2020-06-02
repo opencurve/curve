@@ -519,18 +519,34 @@ TEST_F(NameSpaceServiceTest, test1) {
         // normal
         cntl.Reset();
         request.set_filename("/file1");
-        LogicalPool lgPool;
-        LogicalPool::RedundanceAndPlaceMentPolicy rap;
-        rap.pageFileRAP.replicaNum = 3;
-        lgPool.SetRedundanceAndPlaceMentPolicy(rap);
-        EXPECT_CALL(*topology_, GetLogicalPool(_, _))
-            .WillRepeatedly(
-                    DoAll(SetArgPointee<1>(lgPool), Return(true)));
         stub.GetAllocatedSize(&cntl, &request, &response, NULL);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(StatusCode::kOK, response.statuscode());
         ASSERT_EQ(DefaultSegmentSize, response.allocatedsize());
-        ASSERT_EQ(DefaultSegmentSize * 3, response.physicalallocatedsize());
+        ASSERT_EQ(1, response.allocsizemap_size());
+        ASSERT_NE(response.allocsizemap().end(),
+                  response.allocsizemap().find(0));
+        ASSERT_EQ(DefaultSegmentSize, response.allocsizemap().at(0));
+    }
+
+    // test get file size
+    {
+        cntl.Reset();
+        // file not exist
+        GetFileSizeRequest request;
+        GetFileSizeResponse response;
+        request.set_filename("/file-not-exist");
+        stub.GetFileSize(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kFileNotExists, response.statuscode());
+
+        // normal
+        cntl.Reset();
+        request.set_filename("/file1");
+        stub.GetFileSize(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kOK, response.statuscode());
+        ASSERT_EQ(fileLength, response.filesize());
     }
 
     // test change owner

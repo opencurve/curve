@@ -1681,13 +1681,47 @@ void NameSpaceService::GetAllocatedSize(
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
-        response->set_allocatedsize(allocSize.allocatedSize);
-        response->set_physicalallocatedsize(allocSize.physicalAllocatedSize);
+        response->set_allocatedsize(allocSize.total);
+        for (const auto& item : allocSize.allocSizeMap) {
+            response->mutable_allocsizemap()->insert({item.first, item.second});
+        }
         LOG(INFO) << "logid = " << cntl->log_id()
                   << ", GetAllocatedSize ok, fileName = " << request->filename()
                   << ", allocatedSize = " << response->allocatedsize() / kGB
                   << "GB"
                   << ", cost " << expiredTime.ExpiredMs() << " ms";
+    }
+    return;
+}
+
+void NameSpaceService::GetFileSize(
+                        ::google::protobuf::RpcController* controller,
+                       const ::curve::mds::GetFileSizeRequest* request,
+                       ::curve::mds::GetFileSizeResponse* response,
+                       ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", GetFileSize request, fileName = " << request->filename();
+
+    StatusCode retCode;
+    uint64_t fileSize = 0;
+    retCode = kCurveFS.GetFileSize(request->filename(), &fileSize);
+    if (retCode != StatusCode::kOK)  {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", GetFileSize fail, fileName = " << request->filename()
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        return;
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        response->set_filesize(fileSize);
+        LOG(INFO) << "logid = " << cntl->log_id()
+            << ", GetFileSize ok, fileName = " << request->filename()
+            << ", fileSize = " << response->filesize() / kGB << "GB";
     }
     return;
 }

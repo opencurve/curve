@@ -20,8 +20,8 @@
  * Author: charisu
  */
 
-#ifndef TEST_TOOLS_MOCK_COPYSET_CHECK_CORE_H_
-#define TEST_TOOLS_MOCK_COPYSET_CHECK_CORE_H_
+#ifndef TEST_TOOLS_MOCK_MOCK_COPYSET_CHECK_CORE_H_
+#define TEST_TOOLS_MOCK_MOCK_COPYSET_CHECK_CORE_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -64,4 +64,4 @@ class MockCopysetCheckCore : public CopysetCheckCore {
 };
 }  // namespace tool
 }  // namespace curve
-#endif  // TEST_TOOLS_MOCK_COPYSET_CHECK_CORE_H_
+#endif  // TEST_TOOLS_MOCK_MOCK_COPYSET_CHECK_CORE_H_

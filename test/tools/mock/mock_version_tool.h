@@ -21,8 +21,8 @@
  */
 
 
-#ifndef TEST_TOOLS_MOCK_VERSION_TOOL_H_
-#define TEST_TOOLS_MOCK_VERSION_TOOL_H_
+#ifndef TEST_TOOLS_MOCK_MOCK_VERSION_TOOL_H_
+#define TEST_TOOLS_MOCK_MOCK_VERSION_TOOL_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -31,7 +31,7 @@
 #include <map>
 #include <memory>
 #include "src/tools/version_tool.h"
-#include "test/tools/mock_snapshot_clone_client.h"
+#include "test/tools/mock/mock_snapshot_clone_client.h"
 
 using ::testing::Return;
 namespace curve {
@@ -51,4 +51,4 @@ class MockVersionTool : public VersionTool {
 };
 }  // namespace tool
 }  // namespace curve
-#endif  // TEST_TOOLS_MOCK_VERSION_TOOL_H_
+#endif  // TEST_TOOLS_MOCK_MOCK_VERSION_TOOL_H_

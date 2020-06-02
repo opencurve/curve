@@ -91,8 +91,9 @@ int EtcdClient::GetAndCheckEtcdVersion(std::string* version,
         cntl.http_request().uri() = addr + kEtcdVersionUri;
         httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
         if (cntl.Failed()) {
-            std::cout << "Access " << addr + kEtcdVersionUri << " failed"
-                      << std::endl;;
+            std::cout << "Access " << addr + kEtcdVersionUri
+                      << " failed, error text: " << cntl.ErrorText()
+                      << std::endl;
             failedList->emplace_back(addr);
             continue;
         }

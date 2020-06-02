@@ -16,35 +16,32 @@
 
 /*
  * Project: curve
- * File Created: 2020-03-06
+ * File Created: 2019-11-28
  * Author: charisu
  */
 
-
-#ifndef TEST_TOOLS_MOCK_SEGMENT_PARSER_H_
-#define TEST_TOOLS_MOCK_SEGMENT_PARSER_H_
+#ifndef TEST_TOOLS_MOCK_MOCK_CHUNKSERVER_CLIENT_H_
+#define TEST_TOOLS_MOCK_MOCK_CHUNKSERVER_CLIENT_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <string>
-#include <vector>
-#include <map>
-#include <memory>
-#include "src/tools/raft_log_tool.h"
-#include "test/fs/mock_local_filesystem.h"
+#include "src/tools/chunkserver_client.h"
 
 using ::testing::Return;
 namespace curve {
 namespace tool {
-class MockSegmentParser : public SegmentParser {
+class MockChunkServerClient : public ChunkServerClient {
  public:
-    MockSegmentParser() : SegmentParser(
-                std::make_shared<curve::fs::MockLocalFileSystem>()) {}
+    MockChunkServerClient() {}
+    ~MockChunkServerClient() {}
     MOCK_METHOD1(Init, int(const std::string&));
-    MOCK_METHOD0(UnInit, void());
-    MOCK_METHOD1(GetNextEntryHeader, bool(EntryHeader* header));
-    MOCK_METHOD0(SuccessfullyFinished, bool());
+    MOCK_METHOD1(GetRaftStatus, int(butil::IOBuf*));
+    MOCK_METHOD0(CheckChunkServerOnline, bool());
+    MOCK_METHOD2(GetCopysetStatus, int(const CopysetStatusRequest& request,
+                                 CopysetStatusResponse* response));
+    MOCK_METHOD2(GetChunkHash, int(const Chunk&, std::string*));
 };
 }  // namespace tool
 }  // namespace curve
-#endif  // TEST_TOOLS_MOCK_SEGMENT_PARSER_H_
+#endif  // TEST_TOOLS_MOCK_MOCK_CHUNKSERVER_CLIENT_H_

@@ -303,16 +303,18 @@ StatusCode CurveFS::GetFileInfo(const std::string & filename,
 }
 
 AllocatedSize& AllocatedSize::operator+=(const AllocatedSize& rhs) {
-    allocatedSize += rhs.allocatedSize;
-    physicalAllocatedSize += rhs.physicalAllocatedSize;
+    total += rhs.total;
+    for (const auto& item : rhs.allocSizeMap) {
+        allocSizeMap[item.first] += item.second;
+    }
     return *this;
 }
 
 StatusCode CurveFS::GetAllocatedSize(const std::string& fileName,
                                      AllocatedSize* allocatedSize) {
     assert(allocatedSize != nullptr);
-    allocatedSize->allocatedSize = 0;
-    allocatedSize->physicalAllocatedSize = 0;
+    allocatedSize->total = 0;
+    allocatedSize->allocSizeMap.clear();
     FileInfo fileInfo;
     auto ret = GetFileInfo(fileName, &fileInfo);
     if (ret != StatusCode::kOK) {
@@ -349,18 +351,10 @@ StatusCode CurveFS::GetFileAllocSize(const std::string& fileName,
         return StatusCode::kStorageError;
     }
     for (const auto& segment : segments) {
-        const auto & logicPoolId = segment.logicalpoolid();
-        LogicalPool logicPool;
-        if (!topology_->GetLogicalPool(logicPoolId, &logicPool)) {
-            LOG(ERROR) << "Get logical pool " << logicPoolId
-                       << " from topology failed!";
-            return StatusCode::KInternalError;
-        }
-        uint64_t replicasNum = logicPool.GetReplicaNum();
-        allocSize->physicalAllocatedSize +=
-                    fileInfo.segmentsize() * replicasNum;
+        const auto & poolId = segment.logicalpoolid();
+        allocSize->allocSizeMap[poolId] += fileInfo.segmentsize();
     }
-    allocSize->allocatedSize = fileInfo.segmentsize() * segments.size();
+    allocSize->total = fileInfo.segmentsize() * segments.size();
     return StatusCode::kOK;
 }
 
@@ -387,6 +381,75 @@ StatusCode CurveFS::GetDirAllocSize(const std::string& fileName,
             continue;
         }
         *allocSize += size;
+    }
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::GetFileSize(const std::string& fileName, uint64_t* size) {
+    assert(size != nullptr);
+    *size = 0;
+    FileInfo fileInfo;
+    auto ret = GetFileInfo(fileName, &fileInfo);
+    if (ret != StatusCode::kOK) {
+        return ret;
+    }
+
+    if (fileInfo.filetype() != curve::mds::FileType::INODE_DIRECTORY &&
+                fileInfo.filetype() != curve::mds::FileType::INODE_PAGEFILE) {
+        LOG(ERROR) << "GetFileSize not support file type : "
+                   << fileInfo.filetype() << ", fileName = " << fileName;
+        return StatusCode::kNotSupported;
+    }
+    return GetFileSize(fileName, fileInfo, size);
+}
+
+StatusCode CurveFS::GetFileSize(const std::string& fileName,
+                                const FileInfo& fileInfo,
+                                uint64_t* fileSize) {
+    // 如果是文件的话直接返回file length
+    switch (fileInfo.filetype()) {
+        case FileType::INODE_PAGEFILE: {
+            *fileSize = fileInfo.length();
+            return StatusCode::kOK;
+        }
+        case FileType::INODE_SNAPSHOT_PAGEFILE: {
+            // 快照文件不统计file size，所以使file size为0
+            *fileSize = 0;
+            return StatusCode::kOK;
+        }
+        case FileType::INODE_DIRECTORY: {
+            break;
+        }
+        default: {
+            LOG(ERROR) << "Get file size of type "
+                       << FileType_Name(fileInfo.filetype())
+                       << " not supported";
+            return StatusCode::kNotSupported;
+        }
+    }
+    // 如果是目录，则list dir，并递归计算file size
+    std::vector<FileInfo> files;
+    StatusCode ret = ReadDir(fileName, &files);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "ReadDir Fail, fileName: " << fileName
+                   << ", error code: " << ret;
+        return ret;
+    }
+    for (auto& file : files) {
+        std::string fullPathName;
+        if (fileName == "/") {
+            fullPathName = fileName + file.filename();
+        } else {
+            fullPathName = fileName + "/" + file.filename();
+        }
+        uint64_t size = 0;
+        ret = GetFileSize(fullPathName, file, &size);
+        if (ret != StatusCode::kOK) {
+            LOG(ERROR) << "Get file size of " << fullPathName
+                       << " fail, error code: " << ret;
+            return ret;
+        }
+        *fileSize += size;
     }
     return StatusCode::kOK;
 }

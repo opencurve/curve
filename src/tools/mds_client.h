@@ -83,7 +83,7 @@ enum class GetSegmentRes {
     kOtherError = -3  // 其他错误
 };
 
-
+using AllocMap = std::unordered_map<PoolIdType, uint64_t>;
 
 class MDSClient {
  public:
@@ -121,12 +121,21 @@ class MDSClient {
      *  @brief 获取文件或目录分配大小
      *  @param fileName 文件名
      *  @param[out] allocSize 文件或目录分配大小，返回值为0时有效
-     *  @param[out] physicalAllocSize 文件或目录底层分配大小，返回值为0时有效
+     *  @param[out] allocMap 文件在各个池子分配的情况
      *  @return 成功返回0，失败返回-1
      */
     virtual int GetAllocatedSize(const std::string& fileName,
                                  uint64_t* allocSize,
-                                 uint64_t* physicalAllocSize = nullptr);
+                                 AllocMap* allocMap = nullptr);
+
+    /**
+     *  @brief 获取文件或目录的大小
+     *  @param fileName 文件名
+     *  @param[out] fileSize 文件或目录分配大小，返回值为0时有效
+     *  @return 成功返回0，失败返回-1
+     */
+    virtual int GetFileSize(const std::string& fileName,
+                            uint64_t* fileSize);
 
     /**
      *  @brief 将目录下所有的fileInfo列出来
@@ -213,6 +222,13 @@ class MDSClient {
      */
     virtual int ListLogicalPoolsInPhysicalPool(const PoolIdType& id,
                                        std::vector<LogicalPoolInfo>* pools);
+
+    /**
+     *  @brief 集群中的逻辑池列表
+     *  @param[out] pools 逻辑池信息的列表，返回值为0时有效
+     *  @return 成功返回0，失败返回-1
+     */
+    virtual int ListLogicalPoolsInCluster(std::vector<LogicalPoolInfo>* pools);
 
     /**
      *  @brief 获取物理池中的zone列表

@@ -21,13 +21,13 @@
  */
 #include <gtest/gtest.h>
 #include "src/tools/status_tool.h"
-#include "test/tools/mock_namespace_tool_core.h"
-#include "test/tools/mock_copyset_check_core.h"
-#include "test/tools/mock_mds_client.h"
-#include "test/tools/mock_etcd_client.h"
-#include "test/tools/mock_version_tool.h"
-#include "test/tools/mock_metric_client.h"
-#include "test/tools/mock_snapshot_clone_client.h"
+#include "test/tools/mock/mock_namespace_tool_core.h"
+#include "test/tools/mock/mock_copyset_check_core.h"
+#include "test/tools//mock/mock_mds_client.h"
+#include "test/tools/mock/mock_etcd_client.h"
+#include "test/tools/mock/mock_version_tool.h"
+#include "test/tools/mock/mock_metric_client.h"
+#include "test/tools/mock/mock_snapshot_clone_client.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -37,6 +37,7 @@ using ::testing::SetArgPointee;
 using ::testing::An;
 using curve::mds::topology::LogicalPoolType;
 using curve::mds::topology::AllocateStatus;
+using curve::mds::DefaultSegmentSize;
 
 DECLARE_bool(offline);
 DECLARE_bool(unhealthy);
@@ -54,8 +55,6 @@ class StatusToolTest : public ::testing::Test {
     }
     void SetUp() {
         mdsClient_ = std::make_shared<MockMDSClient>();
-        nameSpaceTool_ =
-                std::make_shared<MockNameSpaceToolCore>();
         copysetCheck_ = std::make_shared<MockCopysetCheckCore>();
         etcdClient_ = std::make_shared<MockEtcdClient>();
         versionTool_ = std::make_shared<MockVersionTool>();
@@ -65,7 +64,6 @@ class StatusToolTest : public ::testing::Test {
 
     void TearDown() {
         mdsClient_ = nullptr;
-        nameSpaceTool_ = nullptr;
         copysetCheck_ = nullptr;
         etcdClient_ = nullptr;
         versionTool_ = nullptr;
@@ -78,7 +76,8 @@ class StatusToolTest : public ::testing::Test {
         pool->set_desc("physical pool for test");
     }
 
-    void GetLogicalPoolForTest(PoolIdType id, LogicalPoolInfo *lpInfo) {
+    void GetLogicalPoolForTest(PoolIdType id, LogicalPoolInfo *lpInfo,
+                               bool getSpace = true) {
         lpInfo->set_logicalpoolid(id);
         lpInfo->set_logicalpoolname("defaultLogicalPool");
         lpInfo->set_physicalpoolid(1);
@@ -113,11 +112,22 @@ class StatusToolTest : public ::testing::Test {
         csInfo->set_diskcapacity(1024);
         csInfo->set_diskused(512);
     }
+
+    void GetServerInfoForTest(curve::mds::topology::ServerInfo *server,
+                              uint64_t id) {
+        server->set_serverid(id);
+        server->set_hostname("localhost");
+        server->set_internalip("internal_ip");
+        server->set_internalport(8200);
+        server->set_externalip("external_ip");
+        server->set_externalport(8200);
+        server->set_zoneid(1);
+        server->set_physicalpoolid(1);
+    }
     CopysetStatistics statistics1;
     CopysetStatistics statistics2;
 
     std::shared_ptr<MockMDSClient> mdsClient_;
-    std::shared_ptr<MockNameSpaceToolCore> nameSpaceTool_;
     std::shared_ptr<MockCopysetCheckCore> copysetCheck_;
     std::shared_ptr<MockEtcdClient> etcdClient_;
     std::shared_ptr<MockVersionTool> versionTool_;
@@ -127,9 +137,8 @@ class StatusToolTest : public ::testing::Test {
 
 TEST_F(StatusToolTest, InitAndSupportCommand) {
     StatusTool statusTool(mdsClient_, etcdClient_,
-                          nameSpaceTool_, copysetCheck_,
-                          versionTool_, metricClient_,
-                          snapshotClient_);
+                          copysetCheck_, versionTool_,
+                          metricClient_, snapshotClient_);
     ASSERT_TRUE(statusTool.SupportCommand("status"));
     ASSERT_TRUE(statusTool.SupportCommand("space"));
     ASSERT_TRUE(statusTool.SupportCommand("mds-status"));
@@ -144,15 +153,10 @@ TEST_F(StatusToolTest, InitAndSupportCommand) {
 
 TEST_F(StatusToolTest, InitFail) {
     StatusTool statusTool1(mdsClient_, etcdClient_,
-                           nameSpaceTool_, copysetCheck_,
-                           versionTool_, metricClient_,
-                           snapshotClient_);
+                          copysetCheck_, versionTool_,
+                          metricClient_, snapshotClient_);
     // 1、status命令需要所有的init
     EXPECT_CALL(*mdsClient_, Init(_, _))
-        .Times(4)
-        .WillOnce(Return(-1))
-        .WillRepeatedly(Return(0));
-    EXPECT_CALL(*nameSpaceTool_, Init(_))
         .Times(3)
         .WillOnce(Return(-1))
         .WillRepeatedly(Return(0));
@@ -171,13 +175,11 @@ TEST_F(StatusToolTest, InitFail) {
     ASSERT_EQ(-1, statusTool1.RunCommand("status"));
     ASSERT_EQ(-1, statusTool1.RunCommand("status"));
     ASSERT_EQ(-1, statusTool1.RunCommand("status"));
-    ASSERT_EQ(-1, statusTool1.RunCommand("status"));
 
     // 2、etcd-status命令只需要初始化etcdClinet
     StatusTool statusTool2(mdsClient_, etcdClient_,
-                           nameSpaceTool_, copysetCheck_,
-                           versionTool_, metricClient_,
-                           snapshotClient_);
+                          copysetCheck_, versionTool_,
+                          metricClient_, snapshotClient_);
     EXPECT_CALL(*etcdClient_, Init(_))
         .Times(1)
         .WillOnce(Return(-1));
@@ -185,14 +187,9 @@ TEST_F(StatusToolTest, InitFail) {
 
     // 3、space和其他命令不需要初始化etcdClient
     StatusTool statusTool3(mdsClient_, etcdClient_,
-                           nameSpaceTool_, copysetCheck_,
-                           versionTool_, metricClient_,
-                           snapshotClient_);
+                          copysetCheck_, versionTool_,
+                          metricClient_, snapshotClient_);
     EXPECT_CALL(*mdsClient_, Init(_, _))
-        .Times(3)
-        .WillOnce(Return(-1))
-        .WillRepeatedly(Return(0));
-    EXPECT_CALL(*nameSpaceTool_, Init(_))
         .Times(2)
         .WillOnce(Return(-1))
         .WillRepeatedly(Return(0));
@@ -201,40 +198,30 @@ TEST_F(StatusToolTest, InitFail) {
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool3.RunCommand("space"));
     ASSERT_EQ(-1, statusTool3.RunCommand("chunkserver-list"));
-    ASSERT_EQ(-1, statusTool3.RunCommand("chunkserver-status"));
 
     // 4、snapshot-clone-status只需要snapshot clone
     StatusTool statusTool4(mdsClient_, etcdClient_,
-                           nameSpaceTool_, copysetCheck_,
-                           versionTool_, metricClient_,
-                           snapshotClient_);
+                          copysetCheck_, versionTool_,
+                          metricClient_, snapshotClient_);
     EXPECT_CALL(*snapshotClient_, Init(_, _))
         .Times(1)
         .WillOnce(Return(-1));
-    ASSERT_EQ(-1, statusTool2.RunCommand("snapshot-clone-status"));
+    ASSERT_EQ(-1, statusTool4.RunCommand("snapshot-clone-status"));
 }
 
 TEST_F(StatusToolTest, SpaceCmd) {
     StatusTool statusTool(mdsClient_, etcdClient_,
-                          nameSpaceTool_, copysetCheck_,
-                          versionTool_, metricClient_,
-                          snapshotClient_);
+                          copysetCheck_, versionTool_,
+                          metricClient_, snapshotClient_);
     statusTool.PrintHelp("space");
     statusTool.PrintHelp("123");
     LogicalPoolInfo lgPool;
-    PhysicalPoolInfo phyPool;
     GetLogicalPoolForTest(1, &lgPool);
-    GetPhysicalPoolInfoForTest(1, &phyPool);
     std::vector<LogicalPoolInfo> lgPools;
     lgPools.emplace_back(lgPool);
-    std::vector<PhysicalPoolInfo> phyPools;
-    phyPools.emplace_back(phyPool);
 
     // 设置Init的期望
     EXPECT_CALL(*mdsClient_, Init(_, _))
-        .Times(1)
-        .WillOnce(Return(0));
-    EXPECT_CALL(*nameSpaceTool_, Init(_))
         .Times(1)
         .WillOnce(Return(0));
     EXPECT_CALL(*copysetCheck_, Init(_))
@@ -242,87 +229,84 @@ TEST_F(StatusToolTest, SpaceCmd) {
         .WillOnce(Return(0));
 
     // 1、正常情况
-    EXPECT_CALL(*mdsClient_, ListPhysicalPoolsInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<0>(phyPools),
+        .WillOnce(DoAll(SetArgPointee<0>(lgPools),
                         Return(0)));
-    EXPECT_CALL(*mdsClient_, ListLogicalPoolsInPhysicalPool(_, _))
+    EXPECT_CALL(*mdsClient_, GetFileSize(_, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(lgPools),
+        .WillOnce(DoAll(SetArgPointee<1>(150 * DefaultSegmentSize),
                         Return(0)));
     EXPECT_CALL(*mdsClient_, GetMetric(_, _))
-        .Times(3)
-        .WillOnce(DoAll(SetArgPointee<1>(340050401280000),
+        .Times(4)
+        .WillOnce(DoAll(SetArgPointee<1>(300 * DefaultSegmentSize),
                         Return(0)))
-        .WillOnce(DoAll(SetArgPointee<1>(58584427659264),
+        .WillOnce(DoAll(SetArgPointee<1>(20 * DefaultSegmentSize),
                         Return(0)))
-        .WillOnce(DoAll(SetArgPointee<1>(29292213829632),
+        .WillOnce(DoAll(SetArgPointee<1>(100 * DefaultSegmentSize),
+                        Return(0)))
+        .WillOnce(DoAll(SetArgPointee<1>(10 * DefaultSegmentSize),
                         Return(0)));
-    EXPECT_CALL(*nameSpaceTool_, GetAllocatedSize(_, _, _))
+    EXPECT_CALL(*mdsClient_, GetAllocatedSize(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(14646106914816),
+        .WillOnce(DoAll(SetArgPointee<1>(10 * DefaultSegmentSize),
                         Return(0)));
     ASSERT_EQ(0, statusTool.RunCommand("space"));
     ASSERT_EQ(-1, statusTool.RunCommand("123"));
 
-    // 2、ListPhysicalPoolsInCluster失败的情况
-    EXPECT_CALL(*mdsClient_, ListPhysicalPoolsInCluster(_))
+    // 2、ListLogicalPoolsInPhysicalPool失败的情况
+    EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("space"));
 
-    // 3、ListLogicalPoolsInPhysicalPool失败的情况
-    EXPECT_CALL(*mdsClient_, ListPhysicalPoolsInCluster(_))
+    // 3、获取filesize失败
+    EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<0>(phyPools),
+        .WillOnce(DoAll(SetArgPointee<0>(lgPools),
                         Return(0)));
-    EXPECT_CALL(*mdsClient_, ListLogicalPoolsInPhysicalPool(_, _))
+    EXPECT_CALL(*mdsClient_, GetFileSize(_, _))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("space"));
 
     // 4、获取metric失败的情况
-    EXPECT_CALL(*mdsClient_, ListPhysicalPoolsInCluster(_))
-        .Times(3)
-        .WillRepeatedly(DoAll(SetArgPointee<0>(phyPools),
+    EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<0>(lgPools),
                         Return(0)));
-    EXPECT_CALL(*mdsClient_, ListLogicalPoolsInPhysicalPool(_, _))
-        .Times(3)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(lgPools),
+    EXPECT_CALL(*mdsClient_, GetFileSize(_, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(150 * DefaultSegmentSize),
                         Return(0)));
     EXPECT_CALL(*mdsClient_, GetMetric(_, _))
-        .Times(6)
         .WillOnce(Return(-1))
-        .WillOnce(DoAll(SetArgPointee<1>(340050401280000),
-                        Return(0)))
-        .WillOnce(Return(-1))
-        .WillOnce(DoAll(SetArgPointee<1>(340050401280000),
-                        Return(0)))
-        .WillOnce(DoAll(SetArgPointee<1>(58584427659264),
+        .WillOnce(DoAll(SetArgPointee<1>(300 * curve::mds::DefaultSegmentSize),
                         Return(0)))
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("space"));
     ASSERT_EQ(-1, statusTool.RunCommand("space"));
-    ASSERT_EQ(-1, statusTool.RunCommand("space"));
 
     // 5、获取RecyleBin大小失败的情况
-    EXPECT_CALL(*mdsClient_, ListPhysicalPoolsInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<0>(phyPools),
+        .WillRepeatedly(DoAll(SetArgPointee<0>(lgPools),
                         Return(0)));
-    EXPECT_CALL(*mdsClient_, ListLogicalPoolsInPhysicalPool(_, _))
+    EXPECT_CALL(*mdsClient_, GetFileSize(_, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(lgPools),
+        .WillOnce(DoAll(SetArgPointee<1>(150 * curve::mds::DefaultSegmentSize),
                         Return(0)));
     EXPECT_CALL(*mdsClient_, GetMetric(_, _))
-        .Times(3)
-        .WillOnce(DoAll(SetArgPointee<1>(340050401280000),
+        .Times(4)
+        .WillOnce(DoAll(SetArgPointee<1>(300 * DefaultSegmentSize),
                         Return(0)))
-        .WillOnce(DoAll(SetArgPointee<1>(58584427659264),
+        .WillOnce(DoAll(SetArgPointee<1>(20 * DefaultSegmentSize),
                         Return(0)))
-        .WillOnce(DoAll(SetArgPointee<1>(29292213829632),
+        .WillOnce(DoAll(SetArgPointee<1>(100 * DefaultSegmentSize),
+                        Return(0)))
+        .WillOnce(DoAll(SetArgPointee<1>(10 * DefaultSegmentSize),
                         Return(0)));
-    EXPECT_CALL(*nameSpaceTool_, GetAllocatedSize(_, _, _))
+    EXPECT_CALL(*mdsClient_, GetAllocatedSize(_, _, _))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("space"));
@@ -330,9 +314,8 @@ TEST_F(StatusToolTest, SpaceCmd) {
 
 TEST_F(StatusToolTest, ChunkServerCmd) {
     StatusTool statusTool(mdsClient_, etcdClient_,
-                          nameSpaceTool_, copysetCheck_,
-                          versionTool_, metricClient_,
-                          snapshotClient_);
+                          copysetCheck_, versionTool_,
+                          metricClient_, snapshotClient_);
     statusTool.PrintHelp("chunkserver-list");
     std::vector<ChunkServerInfo> chunkservers;
     // 加入5个chunkserver，2个offline
@@ -343,9 +326,6 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
     }
     // 设置Init的期望
     EXPECT_CALL(*mdsClient_, Init(_, _))
-        .Times(1)
-        .WillOnce(Return(0));
-    EXPECT_CALL(*nameSpaceTool_, Init(_))
         .Times(1)
         .WillOnce(Return(0));
     EXPECT_CALL(*copysetCheck_, Init(_))
@@ -414,9 +394,8 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
 
 TEST_F(StatusToolTest, StatusCmdCommon) {
     StatusTool statusTool(mdsClient_, etcdClient_,
-                          nameSpaceTool_, copysetCheck_,
-                          versionTool_, metricClient_,
-                          snapshotClient_);
+                          copysetCheck_, versionTool_,
+                          metricClient_, snapshotClient_);
     statusTool.PrintHelp("status");
     statusTool.PrintHelp("chunkserver-status");
     statusTool.PrintHelp("mds-status");
@@ -457,9 +436,6 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
     EXPECT_CALL(*mdsClient_, Init(_, _))
         .Times(1)
         .WillOnce(Return(0));
-    EXPECT_CALL(*nameSpaceTool_, Init(_))
-        .Times(1)
-        .WillOnce(Return(0));
     EXPECT_CALL(*copysetCheck_, Init(_))
         .Times(1)
         .WillOnce(Return(0));
@@ -479,24 +455,34 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
         .Times(1)
         .WillOnce(Return(statistics1));
     EXPECT_CALL(*mdsClient_, ListPhysicalPoolsInCluster(_))
-        .Times(2)
+        .Times(1)
         .WillRepeatedly(DoAll(SetArgPointee<0>(phyPools),
                         Return(0)));
     EXPECT_CALL(*mdsClient_, ListLogicalPoolsInPhysicalPool(_, _))
-        .Times(2)
+        .Times(1)
         .WillRepeatedly(DoAll(SetArgPointee<1>(lgPools),
                         Return(0)));
-    EXPECT_CALL(*mdsClient_, GetMetric(_, _))
-        .Times(3)
-        .WillOnce(DoAll(SetArgPointee<1>(340050401280000),
-                        Return(0)))
-        .WillOnce(DoAll(SetArgPointee<1>(58584427659264),
-                        Return(0)))
-        .WillOnce(DoAll(SetArgPointee<1>(58584427659264),
-                        Return(0)));
-    EXPECT_CALL(*nameSpaceTool_, GetAllocatedSize(_, _, _))
+    EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(14646106914816),
+        .WillOnce(DoAll(SetArgPointee<0>(lgPools),
+                        Return(0)));
+    EXPECT_CALL(*mdsClient_, GetFileSize(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(150 * curve::mds::DefaultSegmentSize),
+                        Return(0)));
+    EXPECT_CALL(*mdsClient_, GetMetric(_, _))
+        .Times(4)
+        .WillOnce(DoAll(SetArgPointee<1>(300 * DefaultSegmentSize),
+                        Return(0)))
+        .WillOnce(DoAll(SetArgPointee<1>(20 * DefaultSegmentSize),
+                        Return(0)))
+        .WillOnce(DoAll(SetArgPointee<1>(100 * DefaultSegmentSize),
+                        Return(0)))
+        .WillOnce(DoAll(SetArgPointee<1>(10 * DefaultSegmentSize),
+                        Return(0)));
+    EXPECT_CALL(*mdsClient_, GetAllocatedSize(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(10 * curve::mds::DefaultSegmentSize),
                         Return(0)));
 
     // 设置client status的输出
@@ -591,15 +577,11 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
 
 TEST_F(StatusToolTest, StatusCmdError) {
     StatusTool statusTool(mdsClient_, etcdClient_,
-                          nameSpaceTool_, copysetCheck_,
-                          versionTool_, metricClient_,
-                          snapshotClient_);
+                          copysetCheck_, versionTool_,
+                          metricClient_, snapshotClient_);
 
     // 设置Init的期望
     EXPECT_CALL(*mdsClient_, Init(_, _))
-        .Times(1)
-        .WillOnce(Return(0));
-    EXPECT_CALL(*nameSpaceTool_, Init(_))
         .Times(1)
         .WillOnce(Return(0));
     EXPECT_CALL(*copysetCheck_, Init(_))
@@ -621,7 +603,11 @@ TEST_F(StatusToolTest, StatusCmdError) {
         .WillOnce(Return(statistics2));
     // 列出物理池失败
     EXPECT_CALL(*mdsClient_, ListPhysicalPoolsInCluster(_))
-        .Times(2)
+        .Times(1)
+        .WillRepeatedly(Return(-1));
+    // 列出逻辑池失败
+    EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
+        .Times(1)
         .WillRepeatedly(Return(-1));
 
     // 获取client version失败
@@ -696,9 +682,8 @@ TEST_F(StatusToolTest, StatusCmdError) {
 
 TEST_F(StatusToolTest, IsClusterHeatlhy) {
     StatusTool statusTool(mdsClient_, etcdClient_,
-                          nameSpaceTool_, copysetCheck_,
-                          versionTool_, metricClient_,
-                          snapshotClient_);
+                          copysetCheck_, versionTool_,
+                          metricClient_, snapshotClient_);
     std::map<std::string, bool> onlineStatus = {{"127.0.0.1:8001", true},
                                                 {"127.0.0.1:8002", true},
                                                 {"127.0.0.1:8003", true}};
@@ -762,13 +747,9 @@ TEST_F(StatusToolTest, IsClusterHeatlhy) {
 
 TEST_F(StatusToolTest, ListClientCmd) {
     StatusTool statusTool(mdsClient_, etcdClient_,
-                          nameSpaceTool_, copysetCheck_,
-                          versionTool_, metricClient_,
-                          snapshotClient_);
+                          copysetCheck_, versionTool_,
+                          metricClient_, snapshotClient_);
     EXPECT_CALL(*mdsClient_, Init(_, _))
-        .Times(1)
-        .WillOnce(Return(0));
-    EXPECT_CALL(*nameSpaceTool_, Init(_))
         .Times(1)
         .WillOnce(Return(0));
     EXPECT_CALL(*copysetCheck_, Init(_))
@@ -790,6 +771,77 @@ TEST_F(StatusToolTest, ListClientCmd) {
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("client-list"));
+}
+
+TEST_F(StatusToolTest, ServerList) {
+    StatusTool statusTool(mdsClient_, etcdClient_,
+                          copysetCheck_, versionTool_,
+                          metricClient_, snapshotClient_);
+    EXPECT_CALL(*mdsClient_, Init(_, _))
+        .Times(1)
+        .WillOnce(Return(0));
+    EXPECT_CALL(*copysetCheck_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+
+    std::vector<ServerInfo> servers;
+    for (int i = 0; i < 3; ++i) {
+        ServerInfo server;
+        GetServerInfoForTest(&server, i);
+        servers.emplace_back(server);
+    }
+    // 成功
+    EXPECT_CALL(*mdsClient_, ListServersInCluster(_))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<0>(servers),
+                        Return(0)));
+    ASSERT_EQ(0, statusTool.RunCommand("server-list"));
+    // 失败
+    EXPECT_CALL(*mdsClient_, ListServersInCluster(_))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, statusTool.RunCommand("server-list"));
+}
+
+TEST_F(StatusToolTest, LogicalPoolList) {
+    StatusTool statusTool(mdsClient_, etcdClient_,
+                          copysetCheck_, versionTool_,
+                          metricClient_, snapshotClient_);
+    EXPECT_CALL(*mdsClient_, Init(_, _))
+        .Times(1)
+        .WillOnce(Return(0));
+    EXPECT_CALL(*copysetCheck_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+
+    std::vector<LogicalPoolInfo> lgPools;
+    for (int i = 1; i <= 3; ++i) {
+        LogicalPoolInfo lgPool;
+        GetLogicalPoolForTest(i, &lgPool);
+        lgPools.emplace_back(lgPool);
+    }
+    // 成功
+    EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<0>(lgPools),
+                        Return(0)));
+    AllocMap allocMap = {{1, DefaultSegmentSize}, {2, DefaultSegmentSize * 20}};
+    EXPECT_CALL(*mdsClient_, GetAllocatedSize(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(allocMap),
+                        Return(0)));
+    ASSERT_EQ(0, statusTool.RunCommand("logical-pool-list"));
+    // 失败
+    EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, statusTool.RunCommand("logical-pool-list"));
+    EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<0>(lgPools),
+                        Return(0)));
+    EXPECT_CALL(*mdsClient_, GetAllocatedSize(_, _, _))
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, statusTool.RunCommand("logical-pool-list"));
 }
 
 }  // namespace tool

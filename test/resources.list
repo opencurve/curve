@@ -83,8 +83,4 @@ Used port list:
     raftsnapshot test:      9501
 
 # tools
-    data check:             9160 9161 9162 9163
-    mds client:             9180
-    chunkserver client:     9191
-    curve cli:              9192
-    http client:            9193
+    curve_tool_test         9191~9193, 2366~2367
