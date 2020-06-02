@@ -328,7 +328,7 @@ def install_deb():
             shell_operator.ssh_exec(ssh, rm_deb)
         
         for host in config.client_list:
-            cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 curve-sdk*.deb %s:~/"%\
+            cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 %s*.deb %s:~/"%\
                   (config.pravie_key_path,config.curve_workspace,host)
             shell_operator.run_exec2(cmd)
             ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
