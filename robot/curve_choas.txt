@@ -82,7 +82,6 @@ init failover cluster
      ${begin_num}    get all chunk num
      ${begin_num}    Convert To Integer   ${begin_num}
      Set Global Variable  ${chunk_num}    ${begin_num} 
-     test get all chunk num
 
 init abnormal test env
      clean env
