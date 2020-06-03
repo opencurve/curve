@@ -90,18 +90,22 @@ class Trash {
     bool IsChunkOrSnapShotFile(const std::string &chunkName);
 
     /*
-    * @brief CleanCopySet 回收某一copyset目录下的物理空间
+    * @brief RecycleChunksInCopyset 回收指定文件下的chunk
     *
-    * @param[in] copysetPath copyset目录
+    * @param[in] copysetDir 文件路径
+    * @param[in] filename 文件名
     */
-    void CleanCopySet(const std::string &copysetPath);
+    bool RecycleChunksInDir(
+        const std::string &copysetDir, const std::string &filename);
 
     /*
-    * @brief RecycleChunks 回收copyset/data目录下的chunk到chunkpool
+    * @brief RecycleIfChunkfile 如果是chunk文件则回收
     *
-    * @param[in] dataPath chunk所在目录
+    * @param[in] filepath 文件路径
+    * @param[in] filename 文件名
     */
-    void RecycleChunks(const std::string &dataPath);
+    bool RecycleIfChunkfile(
+        const std::string &filepath, const std::string &filename);
 
     /*
     * @brief 统计copyset目录中的chunk个数
