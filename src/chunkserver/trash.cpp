@@ -148,8 +148,16 @@ void Trash::DeleteEligibleFileInTrash() {
             continue;
         }
 
-        // 清理copyset目录
-        CleanCopySet(copysetDir);
+        // 回收copyset目录下的chunk
+        if (!RecycleChunksInDir(copysetDir, file)) {
+            continue;
+        }
+
+        // 删除copyset目录
+        if (0 != localFileSystem_->Delete(copysetDir)) {
+            LOG(ERROR) << "Trash fail to delete " << copysetDir;
+            return;
+        }
     }
 }
 
@@ -197,77 +205,48 @@ bool Trash::IsChunkOrSnapShotFile(const std::string &chunkName) {
         FileNameOperator::ParseFileName(chunkName).type;
 }
 
-void Trash::CleanCopySet(const std::string &copysetPath) {
-    std::vector<std::string> out;
-    if (0 != localFileSystem_->List(copysetPath, &out)) {
+bool Trash::RecycleChunksInDir(
+    const std::string &copysetPath, const std::string &filename) {
+    bool isDir = localFileSystem_->DirExists(copysetPath);
+    // 是文件看是否需要回收
+    if (!isDir) {
+        return RecycleIfChunkfile(copysetPath, filename);
+    }
+
+    // 是目录，继续list
+    std::vector<std::string> files;
+    if (0 != localFileSystem_->List(copysetPath, &files)) {
         LOG(ERROR) << "Trash failed to list files in " << copysetPath;
-        return;
+        return false;
     }
 
-    // 如果copyset目录文件是空的，直接删除
-    if (out.empty()) {
-        if (0 != localFileSystem_->Delete(copysetPath)) {
-            LOG(ERROR) << "Trash failed to delete copyset dir "
-                        << copysetPath;
-        }
-        return;
-    }
-
-    // 遍copyset下面所有文件
-    for (auto file : out) {
+    // 遍历子文件
+    for (auto &file : files) {
         std::string filePath = copysetPath + "/" + file;
-
-        // log或raft_snapshot文件夹直接删除
-        if (file == RAFT_LOG_DIR ||
-            file == RAFT_SNAP_DIR ||
-            file == RAFT_META_DIR) {
-            if (0 != localFileSystem_->Delete(filePath)) {
-                LOG(ERROR) << "Trash failed to delete " << file;
-            }
-        } else if (file == RAFT_DATA_DIR) {
-            RecycleChunks(filePath);
-        } else {
-            LOG(ERROR) << "Trash find unknown file " << filePath;
+        if (!RecycleChunksInDir(filePath, file)) {
+            return false;
         }
     }
-    LOG(INFO) << "Clean copyset success. Copyset path: " << copysetPath
-              << ", current num of chunks in trash: " << chunkNum_.load();
+
+    return true;
 }
 
-void Trash::RecycleChunks(const std::string &dataPath) {
-    std::vector<std::string> chunks;
-    if (0 != localFileSystem_->List(dataPath, &chunks)) {
-        LOG(ERROR) << "Trash failed to list files in " << dataPath;
-        return;
+bool Trash::RecycleIfChunkfile(
+    const std::string &filepath, const std::string &filename) {
+    // 不是chunkfile或者snapshotfile
+    if (!IsChunkOrSnapShotFile(filename)) {
+        return true;
     }
 
-    // data下面没有chunk
-    if (chunks.empty()) {
-        if (0 != localFileSystem_->Delete(dataPath)) {
-            LOG(ERROR) << "Trash failed to delete " << dataPath;
-        }
-        return;
+    // 是chunkfile, 回收到chunkfilepool中
+    if (0 != chunkfilePool_->RecycleChunk(filepath)) {
+        LOG(ERROR) << "Trash  failed recycle chunk " << filepath
+                    << " to chunkfilePool";
+        return false;
     }
 
-    // 遍历data下面的chunk
-    for (auto &chunk : chunks) {
-        // 不是chunkfile或者snapshotfile
-        if (!IsChunkOrSnapShotFile(chunk)) {
-            LOG(ERROR) << "Trash find a illegal file:"
-                       << chunk << " in " << dataPath;
-            continue;
-        }
-
-        // 是chunkfile, 回收到chunkfilepool中
-        std::string chunkPath = dataPath + "/" + chunk;
-        if (0 != chunkfilePool_->RecycleChunk(chunkPath)) {
-            LOG(ERROR) << "Trash  failed recycle chunk " << chunkPath
-                       << " to chunkfilePool";
-            continue;
-        }
-
-        chunkNum_.fetch_sub(1);
-    }
+    chunkNum_.fetch_sub(1);
+    return true;
 }
 
 uint32_t Trash::CountChunkNumInCopyset(const std::string &copysetPath) {
