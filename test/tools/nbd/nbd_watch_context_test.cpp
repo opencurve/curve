@@ -62,5 +62,16 @@ TEST_F(NBDWatchContextTest, GetImageSizeFailedTest) {
     ASSERT_NO_THROW(watchCtx_->StopWatch());
 }
 
+TEST_F(NBDWatchContextTest, GetImageSizeReturnZero) {
+    EXPECT_CALL(*image_, GetImageSize()).WillRepeatedly(Return(0));
+    EXPECT_CALL(*nbdCtrl_, Resize(_)).Times(0);
+
+    ASSERT_NO_THROW(watchCtx_->WatchImageSize());
+
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+
+    ASSERT_NO_THROW(watchCtx_->StopWatch());
+}
+
 }  // namespace nbd
 }  // namespace curve

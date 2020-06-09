@@ -17,8 +17,11 @@
 #include "test/util/config_generator.h"
 #include "test/client/fake/mock_schedule.h"
 #include "test/client/fake/fakeMDS.h"
+#include "test/client/mock_file_client.h"
 
 using curve::client::EndPoint;
+using ::testing::Return;
+using ::testing::_;
 
 const uint32_t kBufSize = 4 * 1024;
 const uint64_t kFileSize = 10ul * 1024 * 1024 * 1024;
@@ -95,6 +98,15 @@ TEST_F(CurveClientTest, OpenTest) {
 TEST_F(CurveClientTest, StatFileTest) {
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED, client_.StatFile(kWrongFileName));
     ASSERT_EQ(kFileSize, client_.StatFile(kFileName));
+}
+
+TEST_F(CurveClientTest, StatFileFailedTest) {
+    MockFileClient* mockFileClient = new MockFileClient();
+    client_.SetFileClient(mockFileClient);
+    EXPECT_CALL(*mockFileClient, StatFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(-LIBCURVE_ERROR::FAILED));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, client_.StatFile(kFileName));
 }
 
 TEST_F(CurveClientTest, ExtendTest) {

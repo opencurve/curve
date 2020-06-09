@@ -21,13 +21,12 @@ void NBDWatchContext::WatchImageSize() {
 void NBDWatchContext::WatchFunc() {
     while (started_) {
         int64_t newSize = image_->GetImageSize();
-        if (newSize >= 0 && newSize != currentSize_) {
+        if (newSize > 0 && newSize != currentSize_) {
             LOG(INFO) << "image size changed, old size = " << currentSize_
                       << ", new size = " << newSize;
             nbdCtrl_->Resize(newSize);
+            currentSize_ = newSize;
         }
-
-        currentSize_ = newSize;
 
         sleeper_.wait_for(std::chrono::seconds(1));
     }

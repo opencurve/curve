@@ -141,6 +141,7 @@ cc_test(
         "//src/client:curve_client",
         "//src/common:curve_common",
         "//test/client/fake:fake_lib",
+        "//test/client:client_mock",
         "//src/common/concurrent:curve_concurrent",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
