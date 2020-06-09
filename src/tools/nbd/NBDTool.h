@@ -39,6 +39,8 @@ class NBDTool {
     int Disconnect(const std::string& devpath);
     // 获取已经映射文件的映射信息，包括进程pid、文件名、设备路径
     int List(std::vector<DeviceInfo>* infos);
+    // 阻塞直到nbd server退出
+    void RunServerUntilQuit();
 
  private:
     // 获取指定类型的nbd controller
@@ -46,10 +48,53 @@ class NBDTool {
     // 启动nbd server
     NBDServerPtr StartServer(int sockfd, NBDControllerPtr nbdCtrl,
                              ImagePtr imageInstance);
-    // 阻塞直到nbd server退出
-    void RunServerUntilQuit(NBDServerPtr server);
     // 生成image instance
     ImagePtr GenerateImage(const std::string& imageName);
+
+ private:
+    class NBDSocketPair {
+     public:
+        NBDSocketPair() : inited_(false) {}
+        ~NBDSocketPair() {
+            Uninit();
+        }
+
+        int Init() {
+            if (inited_) {
+                return 0;
+            }
+            int ret = socketpair(AF_UNIX, SOCK_STREAM, 0, fd_);
+            if (ret < 0) {
+                return -errno;
+            }
+            inited_ = true;
+            return 0;
+        }
+
+        void Uninit() {
+            if (inited_) {
+                close(fd_[0]);
+                close(fd_[1]);
+                inited_ = false;
+            }
+        }
+
+        int First() {
+            return fd_[0];
+        }
+
+        int Second() {
+            return fd_[1];
+        }
+
+     private:
+        bool inited_;
+        int fd_[2];
+    };
+
+    NBDSocketPair socketPair_;
+    NBDServerPtr nbdServer_;
+    std::shared_ptr<NBDWatchContext> nbdWatchCtx_;
 };
 
 }  // namespace nbd

@@ -100,7 +100,7 @@ int IOController::DisconnectByPath(const std::string& devpath) {
     int devfd = open(devpath.c_str(), O_RDWR);
     if (devfd < 0) {
         cerr << "curve-ndb: failed to open device: "
-             << devpath << std::endl;
+             << devpath << ", error = " << cpp_strerror(errno) << std::endl;
         return devfd;
     }
 
