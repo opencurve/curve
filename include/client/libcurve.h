@@ -458,6 +458,12 @@ class CurveClient {
      */
     virtual int AioWrite(int fd, CurveAioContext* aioctx);
 
+    /**
+     * 测试使用，设置fileclient
+     * @param client 需要设置的fileclient
+     */
+    void SetFileClient(FileClient* client);
+
  private:
     FileClient* fileClient_{nullptr};
 };
@@ -466,4 +472,3 @@ class CurveClient {
 }  // namespace curve
 
 #endif  // INCLUDE_CLIENT_LIBCURVE_H_
-

@@ -16,47 +16,6 @@
 namespace curve {
 namespace nbd {
 
-class NBDSocketPair {
- public:
-    NBDSocketPair() : inited_(false) {}
-    ~NBDSocketPair() {
-        Uninit();
-    }
-
-    int Init() {
-        if (inited_) {
-            return 0;
-        }
-        int ret = socketpair(AF_UNIX, SOCK_STREAM, 0, fd_);
-        if (ret < 0) {
-            return -errno;
-        }
-        inited_ = true;
-        return 0;
-    }
-
-    void Uninit() {
-        if (inited_) {
-            close(fd_[0]);
-            close(fd_[1]);
-            inited_ = false;
-        }
-    }
-
-    int First() {
-        return fd_[0];
-    }
-
-    int Second() {
-        return fd_[1];
-    }
-
- private:
-    bool inited_;
-    int fd_[2];
-};
-
-
 std::ostream& operator<<(std::ostream& os, const DeviceInfo& info) {
     TextTable tbl;
     tbl.define_column("id", TextTable::LEFT, TextTable::LEFT);
@@ -83,8 +42,7 @@ int NBDTool::Connect(NBDConfig *cfg) {
     // loadmodule 到时候放到外面做
 
     // init socket pair
-    NBDSocketPair sockPair;
-    int ret = sockPair.Init();
+    int ret = socketPair_.Init();
     if (ret < 0) {
         return ret;
     }
@@ -114,9 +72,9 @@ int NBDTool::Connect(NBDConfig *cfg) {
         return ret;
     }
 
-    // start NBDServer
     NBDControllerPtr nbdCtrl = GetController(cfg->try_netlink);
-    auto server = StartServer(sockPair.Second(), nbdCtrl, imageInstance);
+    nbdServer_ = std::make_shared<NBDServer>(socketPair_.Second(), nbdCtrl,
+                                             imageInstance);
 
     // setup controller
     uint64_t flags = NBD_FLAG_SEND_FLUSH | NBD_FLAG_SEND_TRIM |
@@ -124,17 +82,14 @@ int NBDTool::Connect(NBDConfig *cfg) {
     if (cfg->readonly) {
         flags |= NBD_FLAG_READ_ONLY;
     }
-    ret = nbdCtrl->SetUp(cfg, sockPair.First(), fileSize, flags);
+    ret = nbdCtrl->SetUp(cfg, socketPair_.First(), fileSize, flags);
     if (ret < 0) {
         return -1;
     }
 
-    // watch context start
-    NBDWatchContext watchCtx(nbdCtrl, imageInstance, fileSize);
-    watchCtx.WatchImageSize();
+    nbdWatchCtx_ =
+        std::make_shared<NBDWatchContext>(nbdCtrl, imageInstance, fileSize);
 
-    // run server until quit
-    RunServerUntilQuit(server);
     return 0;
 }
 
@@ -152,18 +107,16 @@ int NBDTool::List(std::vector<DeviceInfo>* infos) {
     return 0;
 }
 
-NBDServerPtr NBDTool::StartServer(int sockfd, NBDControllerPtr nbdCtrl,
-                                  ImagePtr imageInstance) {
-    auto server = std::make_shared<NBDServer>(sockfd, nbdCtrl, imageInstance);
-    server->Start();
+void NBDTool::RunServerUntilQuit() {
+    // start nbd server
+    nbdServer_->Start();
 
-    return server;
-}
+    // start watch context
+    nbdWatchCtx_->WatchImageSize();
 
-void NBDTool::RunServerUntilQuit(NBDServerPtr server) {
-    NBDControllerPtr ctrl = server->GetController();
+    NBDControllerPtr ctrl = nbdServer_->GetController();
     if (ctrl->IsNetLink()) {
-        server->WaitForDisconnect();
+        nbdServer_->WaitForDisconnect();
     } else {
         ctrl->RunUntilQuit();
     }

@@ -6,6 +6,7 @@
  */
 
 #include <sys/wait.h>
+#include <unistd.h>
 
 #include <iostream>
 #include <string>
@@ -76,15 +77,34 @@ static void Usage() {
 }
 
 static int NBDConnect() {
-    pid_t pid = fork();
+    int waitConnectPipe[2];
 
+    if (0 != pipe(waitConnectPipe)) {
+        std::cout << "create pipe failed";
+        return -1;
+    }
+
+    pid_t pid = fork();
     if (pid < 0) {
         std::cout << "fork failed, " << cpp_strerror(errno);
         return -1;
     }
 
     if (pid > 0) {
-        return 0;
+        int connectRes = -1;
+        int nr = read(waitConnectPipe[0], &connectRes, sizeof(connectRes));
+        if (nr != sizeof(connectRes)) {
+            std::cout << "Read from child failed, " << cpp_strerror(errno)
+                      << ", nr = " << nr
+                      << std::endl;
+        }
+
+        if (connectRes != 0) {
+            // wait child process exit
+            wait(nullptr);
+        }
+
+        return connectRes == 0 ? 0 : -1;
     }
 
     // in child
@@ -96,11 +116,17 @@ static int NBDConnect() {
     signal(SIGTERM, HandleSignal);
     signal(SIGINT, HandleSignal);
 
-    // in child
     int ret = nbdTool->Connect(nbdConfig.get());
+    int connectionRes = -1;
     if (ret < 0) {
-        ::exit(ret);
+        ::write(waitConnectPipe[1], &connectionRes, sizeof(connectionRes));
+    } else {
+        connectionRes = 0;
+        ::write(waitConnectPipe[1], &connectionRes, sizeof(connectionRes));
+        nbdTool->RunServerUntilQuit();
     }
+
+    ::exit(ret);
 }
 
 static int CurveNbdMain(int argc, const char* argv[]) {

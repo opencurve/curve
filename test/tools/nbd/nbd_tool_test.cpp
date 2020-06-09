@@ -47,7 +47,9 @@ class NBDToolTest : public ::testing::Test {
     void StartInAnotherThread(NBDConfig* config) {
         auto task = [](NBDConfig* config, bool* isRunning, NBDTool* tool) {
             *isRunning = true;
-            (*tool).Connect(config);
+            if (0 == (*tool).Connect(config)) {
+                (*tool).RunServerUntilQuit();
+            }
             *isRunning = false;
         };
         EXPECT_CALL(*image_, Open())
