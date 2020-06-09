@@ -545,6 +545,7 @@ void NebdClient::InitLogger(const LogOption& logOption) {
     static const char* kProcessName = "nebd-client";
 
     FLAGS_log_dir = logOption.logPath;
+    FLAGS_stderrthreshold = 3;
     google::InitGoogleLogging(kProcessName);
 }
 

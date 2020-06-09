@@ -421,9 +421,12 @@ TEST(TestFileNameParser, test_Parse) {
     ASSERT_EQ("", FileNameParser::Parse(fileName));
 
     fileName = "cbd:pool1//cinder/volume-1234_cinder_";
-    ASSERT_EQ("", FileNameParser::Parse(fileName));
+    ASSERT_EQ(res, FileNameParser::Parse(fileName));
 
     fileName = "cbd:pool1//:";
+    ASSERT_EQ("", FileNameParser::Parse(fileName));
+
+    fileName = "cbd:pool1//";
     ASSERT_EQ("", FileNameParser::Parse(fileName));
 }
 

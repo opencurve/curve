@@ -15,17 +15,21 @@ namespace server {
 using ::curve::client::UserInfo_t;
 
 std::string FileNameParser::Parse(const std::string& fileName) {
-    int beginPos = fileName.find_first_of("/");
+    auto beginPos = fileName.find_first_of("/");
     if (beginPos == std::string::npos) {
         LOG(ERROR) << "error format fileName: " << fileName;
         return "";
     }
     beginPos += 1;
 
-    int endPos = fileName.find_last_of(":");
+    auto endPos = fileName.find_last_of(":");
     if (endPos == std::string::npos) {
         LOG(ERROR) << "error format fileName: " << fileName;
         return "";
+    }
+
+    if (endPos < beginPos) {
+        endPos = fileName.length();
     }
 
     if (beginPos >= endPos) {
@@ -33,7 +37,7 @@ std::string FileNameParser::Parse(const std::string& fileName) {
         return "";
     }
 
-    int length = endPos - beginPos;
+    auto length = endPos - beginPos;
     if (length <= 2) {
         LOG(ERROR) << "error format fileName: " << fileName;
         return "";

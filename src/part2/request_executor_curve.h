@@ -39,7 +39,9 @@ class FileNameParser {
  public:
     /**
      * @brief 解析fileName
-     *  一般格式: "cbd:pool1//cinder/volume-6f30d296-07f7-452e-a983-513191f8cd95_cinder_:/etc/curve/client.conf" //NOLINT
+     *  一般格式:
+     *    qemu "cbd:pool1//cinder/volume-6f30d296-07f7-452e-a983-513191f8cd95_cinder_:/etc/curve/client.conf" //NOLINT
+     *    nbd  "cbd:pool1//cinder/volume-6f30d296-07f7-452e-a983-513191f8cd95_cinder_"  // NOLINT
      * @param[in] fileName
      * @return 解析出的字符串: "/cinder/volume-6f30d296-07f7-452e-a983-513191f8cd95_cinder_" //NOLINT
      */
