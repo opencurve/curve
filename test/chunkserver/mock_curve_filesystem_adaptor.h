@@ -20,22 +20,22 @@
  * Author: yangyaokai
  */
 
-#ifndef TEST_CHUNKSERVER_MOCK_RAFTSNAPSHOT_FILESYSTEM_ADAPTOR_H_
-#define TEST_CHUNKSERVER_MOCK_RAFTSNAPSHOT_FILESYSTEM_ADAPTOR_H_
+#ifndef TEST_CHUNKSERVER_MOCK_CURVE_FILESYSTEM_ADAPTOR_H_
+#define TEST_CHUNKSERVER_MOCK_CURVE_FILESYSTEM_ADAPTOR_H_
 
 #include <gmock/gmock.h>
 #include <string>
 #include <memory>
 
-#include "src/chunkserver/raftsnapshot_filesystem_adaptor.h"
+#include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
 
 namespace curve {
 namespace chunkserver {
 
-class MockRaftSnapshotFilesystemAdaptor : public RaftSnapshotFilesystemAdaptor {
+class MockCurveFilesystemAdaptor : public CurveFilesystemAdaptor {
  public:
-    MockRaftSnapshotFilesystemAdaptor() {}
-    ~MockRaftSnapshotFilesystemAdaptor() {}
+    MockCurveFilesystemAdaptor() {}
+    ~MockCurveFilesystemAdaptor() {}
     MOCK_METHOD4(open, braft::FileAdaptor*(const std::string&,
                                            int,
                                            const ::google::protobuf::Message*,
@@ -47,4 +47,4 @@ class MockRaftSnapshotFilesystemAdaptor : public RaftSnapshotFilesystemAdaptor {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // TEST_CHUNKSERVER_MOCK_RAFTSNAPSHOT_FILESYSTEM_ADAPTOR_H_
+#endif  // TEST_CHUNKSERVER_MOCK_CURVE_FILESYSTEM_ADAPTOR_H_

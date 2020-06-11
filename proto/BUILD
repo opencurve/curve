@@ -54,6 +54,7 @@ proto_library(
         "integrity.proto",
         "configuration.proto",
         "chunkserver.proto",
+        "curve_storage.proto",
     ]),
     visibility = ["//visibility:public"],
 )

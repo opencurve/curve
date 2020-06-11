@@ -33,7 +33,7 @@
 #include <algorithm>
 #include <cassert>
 
-#include "src/chunkserver/raftsnapshot_filesystem_adaptor.h"
+#include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
 #include "src/chunkserver/chunk_closure.h"
 #include "src/chunkserver/op_request.h"
 #include "src/fs/fs_common.h"
@@ -42,6 +42,7 @@
 #include "src/chunkserver/datastore/datastore_file_helper.h"
 #include "src/chunkserver/uri_paser.h"
 #include "src/common/crc32.h"
+#include "src/common/fs_util.h"
 
 namespace curve {
 namespace chunkserver {
@@ -144,18 +145,18 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     nodeOptions_.usercode_in_pthread = options.usercodeInPthread;
     nodeOptions_.snapshot_throttle = options.snapshotThrottle;
 
-    RaftSnapshotFilesystemAdaptor* rfa =
-        new RaftSnapshotFilesystemAdaptor(options.chunkfilePool,
-                                          options.localFileSystem);
+    CurveFilesystemAdaptor* cfa =
+        new CurveFilesystemAdaptor(options.chunkfilePool,
+                                   options.localFileSystem);
     std::vector<std::string> filterList;
     std::string snapshotMeta(BRAFT_SNAPSHOT_META_FILE);
     filterList.push_back(kCurveConfEpochFilename);
     filterList.push_back(snapshotMeta);
     filterList.push_back(snapshotMeta.append(BRAFT_PROTOBUF_FILE_TEMP));
-    rfa->SetFilterList(filterList);
+    cfa->SetFilterList(filterList);
 
     nodeOptions_.snapshot_file_system_adaptor =
-        new scoped_refptr<braft::FileSystemAdaptor>(rfa);
+        new scoped_refptr<braft::FileSystemAdaptor>(cfa);
 
     /* 初始化 peer id */
     butil::ip_t ip;
@@ -305,16 +306,12 @@ void CopysetNode::on_snapshot_save(::braft::SnapshotWriter *writer,
             if (isSnapshot) {
                 continue;
             }
-            std::string filePath;
-            // 不是conf epoch文件，保存绝对路径和相对路径
-            // 1. 添加绝对路径
-            filePath.append(chunkDataApath_);
-            filePath.append("/").append(fileName);
-            // 2. 添加分隔符
-            filePath.append(":");
-            // 3. 添加相对路径
-            filePath.append(chunkDataRpath_);
-            filePath.append("/").append(fileName);
+            std::string chunkApath;
+            // 通过绝对路径，算出相对于快照目录的路径
+            chunkApath.append(chunkDataApath_);
+            chunkApath.append("/").append(fileName);
+            std::string filePath = curve::common::CalcRelativePath(
+                                    writer->get_path(), chunkApath);
             writer->add_file(filePath);
         }
     } else {

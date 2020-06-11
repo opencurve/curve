@@ -39,8 +39,8 @@
 #include "test/chunkserver/mock_node.h"
 #include "src/chunkserver/conf_epoch_file.h"
 #include "proto/heartbeat.pb.h"
-#include "src/chunkserver/raftsnapshot_filesystem_adaptor.h"
-#include "test/chunkserver/mock_raftsnapshot_filesystem_adaptor.h"
+#include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
+#include "test/chunkserver/mock_curve_filesystem_adaptor.h"
 
 namespace curve {
 namespace chunkserver {
@@ -342,14 +342,14 @@ TEST_F(CopysetNodeTest, error_test) {
             mockfs = std::make_shared<MockLocalFileSystem>();
         std::unique_ptr<ConfEpochFile>
             epochFile = std::make_unique<ConfEpochFile>(mockfs);
-        MockRaftSnapshotFilesystemAdaptor* rfa =
-            new MockRaftSnapshotFilesystemAdaptor();
-        auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(rfa);
+        MockCurveFilesystemAdaptor* cfa =
+            new MockCurveFilesystemAdaptor();
+        auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(cfa);
         copysetNode.SetSnapshotFileSystem(sfs);
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, DirExists(_)).Times(1).WillOnce(Return(true));
-        EXPECT_CALL(*rfa,
+        EXPECT_CALL(*cfa,
                     delete_file(_, _)).Times(1).WillOnce(Return(false));
 
         ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
@@ -368,16 +368,16 @@ TEST_F(CopysetNodeTest, error_test) {
         std::unique_ptr<ConfEpochFile>
             epochFile = std::make_unique<ConfEpochFile>(mockfs);
         defaultOptions_.localFileSystem = mockfs;
-        MockRaftSnapshotFilesystemAdaptor* rfa =
-            new MockRaftSnapshotFilesystemAdaptor();
-        auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(rfa);
+        MockCurveFilesystemAdaptor* cfa =
+            new MockCurveFilesystemAdaptor();
+        auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(cfa);
         copysetNode.SetSnapshotFileSystem(sfs);
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, DirExists(_)).Times(1).WillOnce(Return(true));
-        EXPECT_CALL(*rfa,
+        EXPECT_CALL(*cfa,
                     delete_file(_, _)).Times(1).WillOnce(Return(true));
-        EXPECT_CALL(*rfa,
+        EXPECT_CALL(*cfa,
                     rename(_, _)).Times(1).WillOnce(Return(false));
 
         ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
@@ -400,17 +400,17 @@ TEST_F(CopysetNodeTest, error_test) {
         std::unique_ptr<ConfEpochFile>
             epochFile = std::make_unique<ConfEpochFile>(mockfs);
         defaultOptions_.localFileSystem = mockfs;
-        MockRaftSnapshotFilesystemAdaptor* rfa =
-            new MockRaftSnapshotFilesystemAdaptor();
-        auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(rfa);
+        MockCurveFilesystemAdaptor* cfa =
+            new MockCurveFilesystemAdaptor();
+        auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(cfa);
         copysetNode.SetSnapshotFileSystem(sfs);
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, DirExists(_)).Times(1)
             .WillOnce(Return(true));
-        EXPECT_CALL(*rfa,
+        EXPECT_CALL(*cfa,
                     delete_file(_, _)).Times(1).WillOnce(Return(true));
-        EXPECT_CALL(*rfa,
+        EXPECT_CALL(*cfa,
                     rename(_, _)).Times(1).WillOnce(Return(true));
         EXPECT_CALL(*mockfs, FileExists(_)).Times(1)
             .WillOnce(Return(true));

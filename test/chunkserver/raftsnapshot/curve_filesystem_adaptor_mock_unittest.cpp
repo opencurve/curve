@@ -30,7 +30,7 @@
 #include "src/fs/local_filesystem.h"
 #include "test/fs/mock_local_filesystem.h"
 #include "src/chunkserver/datastore/chunkfile_pool.h"
-#include "src/chunkserver/raftsnapshot_filesystem_adaptor.h"
+#include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
 
 using ::testing::_;
 using ::testing::Ge;
@@ -103,7 +103,7 @@ class RaftSnapshotFilesystemAdaptorMockTest : public testing::Test {
 
         lfs = std::make_shared<curve::fs::MockLocalFileSystem>();
 
-        rfa = new RaftSnapshotFilesystemAdaptor(ChunkfilepoolPtr_, lfs);
+        rfa = new CurveFilesystemAdaptor(ChunkfilepoolPtr_, lfs);
         std::vector<std::string> filterList;
         std::string snapshotMeta(BRAFT_SNAPSHOT_META_FILE);
         filterList.push_back(snapshotMeta);
@@ -146,7 +146,7 @@ class RaftSnapshotFilesystemAdaptorMockTest : public testing::Test {
     std::shared_ptr<ChunkfilePool>  ChunkfilepoolPtr_;
     std::shared_ptr<LocalFileSystem>  fsptr;
     std::shared_ptr<MockLocalFileSystem>  lfs;
-    RaftSnapshotFilesystemAdaptor*  rfa;
+    CurveFilesystemAdaptor*  rfa;
 };
 
 TEST_F(RaftSnapshotFilesystemAdaptorMockTest, open_file_mock_test) {

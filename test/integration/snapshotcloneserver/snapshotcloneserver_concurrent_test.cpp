@@ -122,6 +122,7 @@ const std::vector<std::string> chunkserverConf1{
     { " -chunkServerMetaUri=local://./" + kTestPrefix +
       "1/chunkserver.dat" },  // NOLINT
     { " -copySetUri=local://./" + kTestPrefix + "1/copysets" },
+    { " -raftSnapshotUri=curve://./" + kTestPrefix + "1/copysets" },
     { " -recycleUri=local://./" + kTestPrefix + "1/recycler" },
     { " -chunkFilePoolDir=./" + kTestPrefix + "1/chunkfilepool/" },
     { " -chunkFilePoolMetaPath=./" + kTestPrefix +
@@ -138,6 +139,7 @@ const std::vector<std::string> chunkserverConf2{
     { " -chunkServerMetaUri=local://./" + kTestPrefix +
       "2/chunkserver.dat" },  // NOLINT
     { " -copySetUri=local://./" + kTestPrefix + "2/copysets" },
+    { " -raftSnapshotUri=curve://./" + kTestPrefix + "2/copysets" },
     { " -recycleUri=local://./" + kTestPrefix + "2/recycler" },
     { " -chunkFilePoolDir=./" + kTestPrefix + "2/chunkfilepool/" },
     { " -chunkFilePoolMetaPath=./" + kTestPrefix +
@@ -154,6 +156,7 @@ const std::vector<std::string> chunkserverConf3{
     { " -chunkServerMetaUri=local://./" + kTestPrefix +
       "3/chunkserver.dat" },  // NOLINT
     { " -copySetUri=local://./" + kTestPrefix + "3/copysets" },
+    { " -raftSnapshotUri=curve://./" + kTestPrefix + "3/copysets" },
     { " -recycleUri=local://./" + kTestPrefix + "3/recycler" },
     { " -chunkFilePoolDir=./" + kTestPrefix + "3/chunkfilepool/" },
     { " -chunkFilePoolMetaPath=./" + kTestPrefix +

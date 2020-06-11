@@ -28,14 +28,14 @@
 
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/datastore/chunkfile_pool.h"
-#include "src/chunkserver/raftsnapshot_filesystem_adaptor.h"
+#include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
 
 using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;
 using curve::chunkserver::ChunkfilePool;
 namespace curve {
 namespace chunkserver {
-class RaftSnapshotFilesystemAdaptorTest : public testing::Test {
+class CurveFilesystemAdaptorTest : public testing::Test {
  public:
     void SetUp() {
         fsptr = curve::fs::LocalFsFactory::CreateFs(
@@ -82,7 +82,7 @@ class RaftSnapshotFilesystemAdaptorTest : public testing::Test {
             return;
         }
 
-        rfa = new RaftSnapshotFilesystemAdaptor(ChunkfilepoolPtr_, fsptr);
+        rfa = new CurveFilesystemAdaptor(ChunkfilepoolPtr_, fsptr);
         std::vector<std::string> filterList;
         std::string snapshotMeta(BRAFT_SNAPSHOT_META_FILE);
         filterList.push_back(snapshotMeta);
@@ -124,10 +124,10 @@ class RaftSnapshotFilesystemAdaptorTest : public testing::Test {
     scoped_refptr<braft::FileSystemAdaptor> fsadaptor;
     std::shared_ptr<ChunkfilePool>  ChunkfilepoolPtr_;
     std::shared_ptr<LocalFileSystem>  fsptr;
-    RaftSnapshotFilesystemAdaptor*  rfa;
+    CurveFilesystemAdaptor*  rfa;
 };
 
-TEST_F(RaftSnapshotFilesystemAdaptorTest, open_file_test) {
+TEST_F(CurveFilesystemAdaptorTest, open_file_test) {
     // 1. open flag不带CREAT
     std::string path = "./raftsnap/10";
     butil::File::Error e;
@@ -156,7 +156,7 @@ TEST_F(RaftSnapshotFilesystemAdaptorTest, open_file_test) {
     ASSERT_EQ(nullptr, fa);
 }
 
-TEST_F(RaftSnapshotFilesystemAdaptorTest, delete_file_test) {
+TEST_F(CurveFilesystemAdaptorTest, delete_file_test) {
     // 1. 创建一个多层目录，且目录中含有chunk文件
     ASSERT_EQ(0, fsptr->Mkdir("./test_temp"));
     ASSERT_EQ(0, fsptr->Mkdir("./test_temp/test_temp1"));
@@ -223,7 +223,7 @@ TEST_F(RaftSnapshotFilesystemAdaptorTest, delete_file_test) {
     ASSERT_EQ(0, fsptr->Delete("./test_temp7"));
 }
 
-TEST_F(RaftSnapshotFilesystemAdaptorTest, rename_test) {
+TEST_F(CurveFilesystemAdaptorTest, rename_test) {
     // 1. 创建一个多层目录，且目录中含有chunk文件
     ASSERT_EQ(0, fsptr->Mkdir("./test_temp"));
     std::string filename = "./test_temp/";

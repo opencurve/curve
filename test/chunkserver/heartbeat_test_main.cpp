@@ -30,7 +30,7 @@
 #include "src/chunkserver/heartbeat.h"
 #include "test/chunkserver/heartbeat_test_common.h"
 
-static char *param[3][11] = {
+static char *param[3][12] = {
     {
         "heartbeat_test",
         "-chunkServerIp=127.0.0.1",
@@ -38,6 +38,7 @@ static char *param[3][11] = {
         "-chunkServerStoreUri=local://./0/",
         "-chunkServerMetaUri=local://./0/chunkserver.dat",
         "-copySetUri=local://./0/copysets",
+        "-raftSnapshotUri=curve://./0/copysets",
         "-recycleUri=local://./0/recycler",
         "-chunkFilePoolDir=./0/chunkfilepool/",
         "-chunkFilePoolMetaPath=./0/chunkfilepool.meta",
@@ -51,6 +52,7 @@ static char *param[3][11] = {
         "-chunkServerStoreUri=local://./1/",
         "-chunkServerMetaUri=local://./1/chunkserver.dat",
         "-copySetUri=local://./1/copysets",
+        "-raftSnapshotUri=curve://./1/copysets",
         "-recycleUri=local://./1/recycler",
         "-chunkFilePoolDir=./1/chunkfilepool/",
         "-chunkFilePoolMetaPath=./1/chunkfilepool.meta",
@@ -64,6 +66,7 @@ static char *param[3][11] = {
         "-chunkServerStoreUri=local://./2/",
         "-chunkServerMetaUri=local://./2/chunkserver.dat",
         "-copySetUri=local://./2/copysets",
+        "-raftSnapshotUri=curve://./2/copysets",
         "-recycleUri=local://./2/recycler",
         "-chunkFilePoolDir=./2/chunkfilepool/",
         "-chunkFilePoolMetaPath=./2/chunkfilepool.meta",

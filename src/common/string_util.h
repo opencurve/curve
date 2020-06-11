@@ -82,6 +82,7 @@ static bool StringToUll(const std::string &value, uint64_t *out) {
         return false;
     }
 }
+
 }  // namespace common
 }  // namespace curve
 

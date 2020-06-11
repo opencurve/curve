@@ -20,18 +20,20 @@
  * Author: yangyaokai
  */
 
-#include "src/chunkserver/raftsnapshot_attachment.h"
-#include "src/chunkserver/copyset_node.h"
+#include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
+#include "src/common/fs_util.h"
 
 namespace curve {
 namespace chunkserver {
 
-RaftSnapshotAttachment::RaftSnapshotAttachment(
+CurveSnapshotAttachment::CurveSnapshotAttachment(
     std::shared_ptr<LocalFileSystem> fs)
     : fileHelper_(fs) {}
 
-void RaftSnapshotAttachment::list_attach_files(
-    std::vector<std::string> *files, const std::string& raftBaseDir) {
+void CurveSnapshotAttachment::list_attach_files(
+    std::vector<std::string> *files, const std::string& raftSnapshotPath) {
+    std::string raftBaseDir =
+                    getCurveRaftBaseDir(raftSnapshotPath, RAFT_SNAP_DIR);
     std::string dataDir;
     if (raftBaseDir[raftBaseDir.length()-1] != '/') {
         dataDir = raftBaseDir + "/" + RAFT_DATA_DIR;
@@ -48,15 +50,12 @@ void RaftSnapshotAttachment::list_attach_files(
     files->clear();
     // 文件路径格式与snapshot_meta中的格式要相同
     for (const auto& snapFile : snapFiles) {
-        std::string filePath;
+        std::string snapApath;
         // 添加绝对路径
-        filePath.append(dataDir);
-        filePath.append("/").append(snapFile);
-        // 添加分隔符
-        filePath.append(":");
-        // 添加相对路径
-        filePath.append(RAFT_DATA_DIR);
-        filePath.append("/").append(snapFile);
+        snapApath.append(dataDir);
+        snapApath.append("/").append(snapFile);
+        std::string filePath = curve::common::CalcRelativePath(
+                                    raftSnapshotPath, snapApath);
         files->emplace_back(filePath);
     }
 }

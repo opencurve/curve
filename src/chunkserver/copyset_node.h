@@ -35,6 +35,9 @@
 #include "src/chunkserver/conf_epoch_file.h"
 #include "src/chunkserver/config_info.h"
 #include "src/chunkserver/chunkserver_metrics.h"
+#include "src/chunkserver/raftsnapshot/define.h"
+#include "src/chunkserver/raftsnapshot/curve_snapshot_writer.h"
+#include "src/common/string_util.h"
 #include "proto/heartbeat.pb.h"
 #include "proto/chunk.pb.h"
 #include "proto/common.pb.h"
@@ -50,15 +53,6 @@ using ::curve::common::Peer;
 class CopysetNodeManager;
 
 extern const char *kCurveConfEpochFilename;
-
-const char RAFT_DATA_DIR[] = "data";
-const char RAFT_META_DIR[] = "raft_meta";
-
-// TODO(all:fix it): RAFT_SNAP_DIR注意当前这个目录地址不能修改
-// 与当前外部依赖curve-braft代码强耦合（两边硬编码耦合）
-// 详见http://jira.netease.com/browse/CLDCFS-1937
-const char RAFT_SNAP_DIR[] = "raft_snapshot";
-const char RAFT_LOG_DIR[]  = "log";
 
 /**
  * 一个Copyset Node就是一个复制组的副本

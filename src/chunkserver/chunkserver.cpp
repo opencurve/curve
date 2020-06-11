@@ -23,9 +23,9 @@
 #include <glog/logging.h>
 
 #include <butil/endpoint.h>
-#include <braft/file_service.h>
 #include <braft/builtin_service_impl.h>
 #include <braft/raft_service.h>
+#include <braft/storage.h>
 
 #include <memory>
 
@@ -38,7 +38,9 @@
 #include "src/chunkserver/braft_cli_service2.h"
 #include "src/chunkserver/chunkserver_helper.h"
 #include "src/chunkserver/uri_paser.h"
-#include "src/chunkserver/raftsnapshot_attachment.h"
+#include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
+#include "src/chunkserver/raftsnapshot/curve_file_service.h"
+#include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
 #include "src/common/curve_version.h"
 
 using ::curve::fs::LocalFileSystem;
@@ -53,6 +55,7 @@ DEFINE_string(chunkServerStoreUri, "local://./0/", "chunkserver store uri");
 DEFINE_string(chunkServerMetaUri,
     "local://./0/chunkserver.dat", "chunnkserver meata uri");
 DEFINE_string(copySetUri, "local://./0/copysets", "copyset data uri");
+DEFINE_string(raftSnapshotUri, "curve://./0/copysets", "raft snapshot uri");
 DEFINE_string(recycleUri, "local://./0/recycler" , "recycle uri");
 DEFINE_string(chunkFilePoolDir, "./0/", "chunk file pool location");
 DEFINE_string(chunkFilePoolMetaPath,
@@ -64,6 +67,12 @@ DEFINE_uint32(copysetLoadConcurrency, 5, "copyset load concurrency");
 
 namespace curve {
 namespace chunkserver {
+
+void RegisterCurveSnapshotStorageOrDie() {
+    static CurveSnapshotStorage snapshotStorage;
+    braft::snapshot_storage_extension()->RegisterOrDie(
+                                    "curve", &snapshotStorage);
+}
 
 int ChunkServer::Run(int argc, char** argv) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -211,6 +220,9 @@ int ChunkServer::Run(int argc, char** argv) {
     if (!braft::NodeManager::GetInstance()->server_exists(endPoint)) {
         braft::NodeManager::GetInstance()->add_address(endPoint);
     }
+    // 注册curve snapshot storage
+    RegisterCurveSnapshotStorageOrDie();
+    CurveSnapshotStorage::set_server_addr(endPoint);
     copysetNodeManager_ = &CopysetNodeManager::GetInstance();
     LOG_IF(FATAL, copysetNodeManager_->Init(copysetNodeOptions) != 0)
         << "Failed to initialize CopysetNodeManager.";
@@ -284,10 +296,8 @@ int ChunkServer::Run(int argc, char** argv) {
     CHECK(0 == ret) << "Fail to add RaftStatService";
 
     // braft file service
-    scoped_refptr<braft::SnapshotAttachment> attach(
-        new RaftSnapshotAttachment(fs));
-    braft::file_service_set_snapshot_attachment(&attach);
-    ret = server.AddService(braft::file_service(),
+    kCurveFileService.set_snapshot_attachment(new CurveSnapshotAttachment(fs));
+    ret = server.AddService(&kCurveFileService,
         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add FileService";
 
@@ -548,6 +558,13 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
     } else {
         LOG(FATAL)
         << "copySetUri must be set when run chunkserver in command.";
+    }
+    if (GetCommandLineFlagInfo("raftSnapshotUri", &info) && !info.is_default) {
+        conf->SetStringValue(
+                            "copyset.raft_snapshot_uri", FLAGS_raftSnapshotUri);
+    } else {
+        LOG(FATAL)
+        << "raftSnapshotUri must be set when run chunkserver in command.";
     }
 
     if (GetCommandLineFlagInfo("recycleUri", &info) &&

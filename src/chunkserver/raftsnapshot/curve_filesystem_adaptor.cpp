@@ -23,11 +23,11 @@
 #include <butil/fd_utility.h>
 #include <vector>
 
-#include "src/chunkserver/raftsnapshot_filesystem_adaptor.h"
+#include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
 
 namespace curve {
 namespace chunkserver {
-RaftSnapshotFilesystemAdaptor::RaftSnapshotFilesystemAdaptor(
+CurveFilesystemAdaptor::CurveFilesystemAdaptor(
                                 std::shared_ptr<ChunkfilePool> chunkfilePool,
                                 std::shared_ptr<LocalFileSystem> lfs) {
     lfs_ = lfs;
@@ -38,11 +38,11 @@ RaftSnapshotFilesystemAdaptor::RaftSnapshotFilesystemAdaptor(
     memset(tempMetaPageContent, 0, metapageSize);
 }
 
-RaftSnapshotFilesystemAdaptor::RaftSnapshotFilesystemAdaptor()
+CurveFilesystemAdaptor::CurveFilesystemAdaptor()
     : tempMetaPageContent(nullptr) {
 }
 
-RaftSnapshotFilesystemAdaptor::~RaftSnapshotFilesystemAdaptor() {
+CurveFilesystemAdaptor::~CurveFilesystemAdaptor() {
     if (tempMetaPageContent != nullptr) {
         delete[] tempMetaPageContent;
         tempMetaPageContent = nullptr;
@@ -50,7 +50,7 @@ RaftSnapshotFilesystemAdaptor::~RaftSnapshotFilesystemAdaptor() {
     LOG(INFO) << "release raftsnapshot filesystem adaptor!";
 }
 
-braft::FileAdaptor* RaftSnapshotFilesystemAdaptor::open(const std::string& path,
+braft::FileAdaptor* CurveFilesystemAdaptor::open(const std::string& path,
                     int oflag, const ::google::protobuf::Message* file_meta,
                     butil::File::Error* e) {
     (void) file_meta;
@@ -69,6 +69,8 @@ braft::FileAdaptor* RaftSnapshotFilesystemAdaptor::open(const std::string& path,
     if (cloexec && !local_s_support_cloexec_on_open) {
         oflag &= (~O_CLOEXEC);
     }
+    // Open就使用sync标志是为了避免集中在close一次性sync，对于16MB的chunk文件可能会造成抖动
+    oflag |= O_SYNC;
 
     // 先判断当前文件是否需要过滤，如果需要过滤，就直接走下面逻辑，不走chunkfilepool
     // 如果open操作携带create标志，则从chunkfilepool取，否则保持原来语意
@@ -109,10 +111,10 @@ braft::FileAdaptor* RaftSnapshotFilesystemAdaptor::open(const std::string& path,
         butil::make_close_on_exec(fd);
     }
 
-    return new braft::PosixFileAdaptor(fd);
+    return new CurveFileAdaptor(fd);
 }
 
-bool RaftSnapshotFilesystemAdaptor::delete_file(const std::string& path,
+bool CurveFilesystemAdaptor::delete_file(const std::string& path,
                                                 bool recursive) {
     // 1. 如果是目录且recursive=true，那么遍历目录内容回收
     // 2. 如果是目录且recursive=false，那么判断目录内容是否为空，不为空返回false
@@ -140,7 +142,7 @@ bool RaftSnapshotFilesystemAdaptor::delete_file(const std::string& path,
     return true;
 }
 
-bool RaftSnapshotFilesystemAdaptor::RecycleDirRecursive(
+bool CurveFilesystemAdaptor::RecycleDirRecursive(
     const std::string& path) {
     std::vector<std::string> dircontent;
     lfs_->List(path, &dircontent);
@@ -170,7 +172,7 @@ bool RaftSnapshotFilesystemAdaptor::RecycleDirRecursive(
     return rc && lfs_->Delete(path) == 0;
 }
 
-bool RaftSnapshotFilesystemAdaptor::rename(const std::string& old_path,
+bool CurveFilesystemAdaptor::rename(const std::string& old_path,
                                             const std::string& new_path) {
     if (!NeedFilter(new_path) && lfs_->FileExists(new_path)) {
         // chunkfilePool内部会检查path对应文件合法性，如果不符合就直接删除
@@ -179,12 +181,12 @@ bool RaftSnapshotFilesystemAdaptor::rename(const std::string& old_path,
     return lfs_->Rename(old_path, new_path) == 0;
 }
 
-void RaftSnapshotFilesystemAdaptor::SetFilterList(
+void CurveFilesystemAdaptor::SetFilterList(
                                     const std::vector<std::string>& filter) {
     filterList_.assign(filter.begin(), filter.end());
 }
 
-bool RaftSnapshotFilesystemAdaptor::NeedFilter(const std::string& filename) {
+bool CurveFilesystemAdaptor::NeedFilter(const std::string& filename) {
     bool ret = false;
     for (auto name : filterList_) {
         if (filename.find(name) != filename.npos) {

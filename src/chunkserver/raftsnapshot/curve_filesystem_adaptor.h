@@ -19,8 +19,8 @@
  * File Created: Monday, 10th June 2019 2:20:12 pm
  * Author: tongguangxun
  */
-#ifndef SRC_CHUNKSERVER_RAFTSNAPSHOT_FILESYSTEM_ADAPTOR_H_
-#define SRC_CHUNKSERVER_RAFTSNAPSHOT_FILESYSTEM_ADAPTOR_H_
+#ifndef SRC_CHUNKSERVER_RAFTSNAPSHOT_CURVE_FILESYSTEM_ADAPTOR_H_
+#define SRC_CHUNKSERVER_RAFTSNAPSHOT_CURVE_FILESYSTEM_ADAPTOR_H_
 
 #include <braft/file_system_adaptor.h>
 #include <google/protobuf/message.h>
@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "src/chunkserver/datastore/chunkfile_pool.h"
+#include "src/chunkserver/raftsnapshot/curve_file_adaptor.h"
 
 /**
  * RaftSnapshotFilesystemAdaptor目的是为了接管braft
@@ -48,23 +49,23 @@ using curve::chunkserver::ChunkfilePool;
 namespace curve {
 namespace chunkserver {
 /**
- * RaftSnapshotFilesystemAdaptor集成raft的PosixFileSystemAdaptor类，在raft
+ * CurveFilesystemAdaptor继承raft的PosixFileSystemAdaptor类，在raft
  * 内部其快照使用PosixFileSystemAdaptor类进行文件操作，因为我们只希望在其创建文件
  * 或者删除文件的时候使用chunkfilepool提供的getchunk和recyclechunk接口，所以这里
  * 我们只实现了open和delete_file两个接口。其他接口在调用的时候仍然使用原来raft的内部
  * 的接口。
  */
-class RaftSnapshotFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
+class CurveFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
  public:
     /**
      * 构造函数
      * @param: chunkfilePool用于获取和回收chunk文件
      * @param: lfs用于进行一些文件操作，比如打开或者删除目录
      */
-    RaftSnapshotFilesystemAdaptor(std::shared_ptr<ChunkfilePool> chunkfilePool,
+    CurveFilesystemAdaptor(std::shared_ptr<ChunkfilePool> chunkfilePool,
                                   std::shared_ptr<LocalFileSystem> lfs);
-    RaftSnapshotFilesystemAdaptor();
-    virtual ~RaftSnapshotFilesystemAdaptor();
+    CurveFilesystemAdaptor();
+    virtual ~CurveFilesystemAdaptor();
 
     /**
      * 打开文件，在raft内部使用open来创建一个文件，并返回FileAdaptor结构
@@ -153,4 +154,4 @@ class RaftSnapshotFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // SRC_CHUNKSERVER_RAFTSNAPSHOT_FILESYSTEM_ADAPTOR_H_
+#endif  // SRC_CHUNKSERVER_RAFTSNAPSHOT_CURVE_FILESYSTEM_ADAPTOR_H_
