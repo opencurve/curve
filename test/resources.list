@@ -79,6 +79,7 @@ Used port list:
     chunkserver_test:       9301
     cli-test2:              9310 9311 9312
     metric_test:            9401
+    raftsnapshot test:      9501
 
 # tools
     data check:             9160 9161 9162 9163

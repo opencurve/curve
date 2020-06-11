@@ -25,7 +25,7 @@
 #include <memory>
 #include <string>
 
-#include "src/chunkserver/raftsnapshot_attachment.h"
+#include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
 #include "test/fs/mock_local_filesystem.h"
 
 namespace curve {
@@ -42,50 +42,50 @@ using ::testing::ElementsAre;
 using ::testing::SetArgPointee;
 using ::testing::UnorderedElementsAre;
 
-const char COPYSET_DIR[] = ("./attachcp");
-const char DATA_DIR[] = ("./attachcp/data");
+const char kRaftSnapDir[] = ("./attachcp/raft_snapshot/snapshot_805455");
+const char kDataDir[] = ("./attachcp/data");
 
-class RaftSnapshotAttachmentMockTest : public testing::Test {
+class CurveSnapshotAttachmentMockTest : public testing::Test {
  public:
     void SetUp() {
         fs_ = std::make_shared<MockLocalFileSystem>();
-        attachment_ = scoped_refptr<RaftSnapshotAttachment>(
-            new RaftSnapshotAttachment(fs_));
+        attachment_ = scoped_refptr<CurveSnapshotAttachment>(
+            new CurveSnapshotAttachment(fs_));
     }
     void TearDown() {}
  protected:
     std::shared_ptr<MockLocalFileSystem> fs_;
-    scoped_refptr<RaftSnapshotAttachment> attachment_;
+    scoped_refptr<CurveSnapshotAttachment> attachment_;
 };
 
-TEST_F(RaftSnapshotAttachmentMockTest, ListTest) {
+TEST_F(CurveSnapshotAttachmentMockTest, ListTest) {
     // 返回成功
     vector<std::string> fileNames;
     fileNames.emplace_back("chunk_1");
     fileNames.emplace_back("chunk_1_snap_1");
     fileNames.emplace_back("chunk_2_snap_1");
-    EXPECT_CALL(*fs_, List(DATA_DIR, _))
+    EXPECT_CALL(*fs_, List(kDataDir, _))
         .WillOnce(DoAll(SetArgPointee<1>(fileNames), Return(0)));
     vector<std::string> snapFiles;
-    attachment_->list_attach_files(&snapFiles, COPYSET_DIR);
+    attachment_->list_attach_files(&snapFiles, kRaftSnapDir);
 
     std::string snapPath1 =
-        "./attachcp/data/chunk_1_snap_1:data/chunk_1_snap_1";
+        "../../data/chunk_1_snap_1";
     std::string snapPath2 =
-        "./attachcp/data/chunk_2_snap_1:data/chunk_2_snap_1";
+        "../../data/chunk_2_snap_1";
     EXPECT_THAT(snapFiles, UnorderedElementsAre(snapPath1.c_str(),
                                                 snapPath2.c_str()));
 
     // 路径结尾添加反斜杠
-    EXPECT_CALL(*fs_, List(DATA_DIR, _))
+    EXPECT_CALL(*fs_, List(kDataDir, _))
         .WillOnce(DoAll(SetArgPointee<1>(fileNames), Return(0)));
-    attachment_->list_attach_files(&snapFiles, "./attachcp/");
+    attachment_->list_attach_files(&snapFiles, std::string(kRaftSnapDir) + "/");
     EXPECT_THAT(snapFiles, UnorderedElementsAre(snapPath1.c_str(),
                                                 snapPath2.c_str()));
     // 返回失败
-    EXPECT_CALL(*fs_, List(DATA_DIR, _))
+    EXPECT_CALL(*fs_, List(kDataDir, _))
         .WillRepeatedly(Return(-1));
-    ASSERT_DEATH(attachment_->list_attach_files(&snapFiles, COPYSET_DIR), "");
+    ASSERT_DEATH(attachment_->list_attach_files(&snapFiles, kRaftSnapDir), "");
 }
 
 }   // namespace chunkserver
