@@ -6,6 +6,7 @@ import time
 import json
 import ConfigParser
 import MySQLdb
+import commands
 
 from itertools import groupby
 from MySQLdb import connect
@@ -67,13 +68,15 @@ def refresh(cur):
     })
 
     # 获取client的ip和port
-    cur.execute("SELECT clientIP,clientPort FROM client_info")
-    result=cur.fetchall()
+    result = commands.getstatusoutput("curve_ops_tool client-list -listClientInRepo=true")
+    if result[0] != 0:
+        print "curve_ops_tool list client fail!"
+        return
 
     # 添加client targets
     targets.append({
         'labels': {'job': "client"},
-        'targets': [t[0]+':'+str(t[1]) for t in result],
+        'targets': result[1].split("\n"),
     })
 
     # 添加mysql exporter targets
