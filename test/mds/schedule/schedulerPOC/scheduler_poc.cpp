@@ -62,12 +62,12 @@ using ::curve::mds::topology::CopySetFilter;
 using ::curve::mds::copyset::ChunkServerInfo;
 using ::curve::mds::copyset::CopysetPolicy;
 using ::curve::mds::copyset::CopysetPermutationPolicy;
-using ::curve::mds::copyset::CopysetPermutationPolicyN33;
+using ::curve::mds::copyset::CopysetPermutationPolicyNXX;
 using ::curve::mds::copyset::CopysetZoneShufflePolicy;
 using ::curve::mds::copyset::Copyset;
 using ::curve::mds::copyset::ClusterInfo;
 using ::curve::mds::copyset::CopysetManager;
-
+using ::curve::mds::copyset::CopysetConstrait;
 namespace curve {
 namespace mds {
 namespace schedule {
@@ -112,9 +112,12 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
             cluster_.AddChunkServerInfo(info);
         }
 
+        CopysetConstrait cst;
+        cst.zoneChoseNum = 3;
+        cst.replicaNum = 3;
         std::vector<Copyset> copySet;
         std::shared_ptr<CopysetPermutationPolicy> permutation =
-            std::make_shared<CopysetPermutationPolicyN33>();
+            std::make_shared<CopysetPermutationPolicyNXX>(cst);
         std::shared_ptr<CopysetPolicy> policy =
             std::make_shared<CopysetZoneShufflePolicy>(permutation);
         policy->GenCopyset(cluster_, numCopysets, &copySet);
@@ -382,7 +385,7 @@ class CopysetSchedulerPOC : public testing::Test {
     void PrintScatterWithInOnlineChunkServer(PoolIdType lid = 0) {
         // 打印初始每个chunkserver的scatter-with
         int sumFactor = 0;
-        std::map<ChunkServerIDType, int> factorMap;
+        std::map<ChunkServerIdType, int> factorMap;
         int max = -1;
         int maxId = -1;
         int min = -1;
@@ -435,7 +438,7 @@ class CopysetSchedulerPOC : public testing::Test {
         int maxId = -1;
         int min = -1;
         int minId = -1;
-        std::map<ChunkServerIDType, int> factorMap;
+        std::map<ChunkServerIdType, int> factorMap;
         for (auto it : topo_->GetChunkServerInLogicalPool(lid)) {
             int factor = GetChunkServerScatterwith(it);
             sumFactor += factor;
@@ -471,7 +474,7 @@ class CopysetSchedulerPOC : public testing::Test {
 
     void PrintCopySetNumInOnlineChunkServer(PoolIdType lid = 0) {
         // 打印每个chunksever上copyset的数量
-        std::map<ChunkServerIDType, int> numberMap;
+        std::map<ChunkServerIdType, int> numberMap;
         int sumNumber = 0;
         int max = -1;
         int maxId = -1;
@@ -518,7 +521,7 @@ class CopysetSchedulerPOC : public testing::Test {
 
     void PrintCopySetNumInLogicalPool(PoolIdType lid = 0) {
         // 打印每个chunksever上copyset的数量
-        std::map<ChunkServerIDType, int> numberMap;
+        std::map<ChunkServerIdType, int> numberMap;
         int sumNumber = 0;
         int max = -1;
         int min = -1;

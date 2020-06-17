@@ -150,10 +150,6 @@ class NameSpaceService: public CurveFSService {
                        const ::curve::mds::SetCloneFileStatusRequest* request,
                        ::curve::mds::SetCloneFileStatusResponse* response,
                        ::google::protobuf::Closure* done) override;
-    void RegistClient(::google::protobuf::RpcController* controller,
-                       const ::curve::mds::RegistClientRequest* request,
-                       ::curve::mds::RegistClientResponse* response,
-                       ::google::protobuf::Closure* done) override;
     void GetAllocatedSize(::google::protobuf::RpcController* controller,
                        const ::curve::mds::GetAllocatedSizeRequest* request,
                        ::curve::mds::GetAllocatedSizeResponse* response,

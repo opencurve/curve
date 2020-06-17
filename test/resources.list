@@ -46,7 +46,6 @@ Used port list:
     client_test_unittest: 21000
 
 
-
 # mds & snapshotcloneserver
     use port : 8900~8999, 8888
     use port(xuchaojie) : 8900~8999
@@ -56,6 +55,7 @@ Used port list:
     fakes3 : 9999
     use port(charisu) : 10031~10034
     use port(schedule service):5900~5999
+    heartbeat_test : 8890~8899
 
 # chunkserver
 

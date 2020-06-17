@@ -227,9 +227,9 @@ TEST_F(TestSchedulerHelper, test_SatisfyZoneAndScatterWidthLimit) {
 }
 
 TEST_F(TestSchedulerHelper, test_SortDistribute) {
-    std::map<ChunkServerIDType, std::vector<CopySetInfo>> distribute;
+    std::map<ChunkServerIdType, std::vector<CopySetInfo>> distribute;
     GetCopySetInChunkServersForTest(&distribute);
-    std::vector<std::pair<ChunkServerIDType, std::vector<CopySetInfo>>> desc;
+    std::vector<std::pair<ChunkServerIdType, std::vector<CopySetInfo>>> desc;
     SchedulerHelper::SortDistribute(distribute, &desc);
     bool initial = false;
     int before;

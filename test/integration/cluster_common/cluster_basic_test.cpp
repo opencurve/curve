@@ -84,15 +84,6 @@ class ClusterBasicTest : public ::testing::Test {
         curveCluster_ = std::make_shared<CurveCluster>();
         // TODO(lixiaocui): 需要用sudo去运行，后续打开
         // curveCluster_->BuildNetWork();
-
-        // 初始化db
-        ASSERT_EQ(0, curveCluster_->InitDB("cluster_common_curve_mds"));
-
-        // 清理DB数据和文件
-        curveCluster_->mdsRepo_->dropDataBase();
-        curveCluster_->mdsRepo_->createDatabase();
-        curveCluster_->mdsRepo_->useDataBase();
-        curveCluster_->mdsRepo_->createAllTables();
     }
 
     void TearDown() {

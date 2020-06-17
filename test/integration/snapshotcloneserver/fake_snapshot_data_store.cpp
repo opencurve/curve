@@ -36,6 +36,7 @@ int FakeSnapshotDataStore::Init(const std::string &path) {
 
 int FakeSnapshotDataStore::PutChunkIndexData(const ChunkIndexDataName &name,
         const ChunkIndexData &meta) {
+    std::lock_guard<std::mutex> guard(indexMapMutex_);
     fiu_return_on(
         "test/integration/snapshotcloneserver/FakeSnapshotDataStore.PutChunkIndexData", -1);  // NOLINT
     indexDataMap_.emplace(name.ToIndexDataChunkKey(), meta);
@@ -44,6 +45,7 @@ int FakeSnapshotDataStore::PutChunkIndexData(const ChunkIndexDataName &name,
 
 int FakeSnapshotDataStore::GetChunkIndexData(const ChunkIndexDataName &name,
         ChunkIndexData *meta) {
+    std::lock_guard<std::mutex> guard(indexMapMutex_);
     fiu_return_on(
         "test/integration/snapshotcloneserver/FakeSnapshotDataStore.GetChunkIndexData", -1);  // NOLINT
     std::string key = name.ToIndexDataChunkKey();
@@ -53,6 +55,7 @@ int FakeSnapshotDataStore::GetChunkIndexData(const ChunkIndexDataName &name,
 
 int FakeSnapshotDataStore::DeleteChunkIndexData(
     const ChunkIndexDataName &name) {
+    std::lock_guard<std::mutex> guard(indexMapMutex_);
     fiu_return_on(
         "test/integration/snapshotcloneserver/FakeSnapshotDataStore.DeleteChunkIndexData", -1);  // NOLINT
     std::string key = name.ToIndexDataChunkKey();
@@ -62,11 +65,13 @@ int FakeSnapshotDataStore::DeleteChunkIndexData(
 
 bool FakeSnapshotDataStore::ChunkIndexDataExist(
     const ChunkIndexDataName &name) {
+    std::lock_guard<std::mutex> guard(indexMapMutex_);
     std::string key = name.ToIndexDataChunkKey();
     return indexDataMap_.find(key) != indexDataMap_.end();
 }
 
 int FakeSnapshotDataStore::DeleteChunkData(const ChunkDataName &name) {
+    std::lock_guard<std::mutex> guard(chunkDataMutex_);
     fiu_return_on(
         "test/integration/snapshotcloneserver/FakeSnapshotDataStore.DeleteChunkData", -1);  // NOLINT
     chunkData_.erase(name.ToDataChunkKey());
@@ -74,6 +79,7 @@ int FakeSnapshotDataStore::DeleteChunkData(const ChunkDataName &name) {
 }
 
 bool FakeSnapshotDataStore::ChunkDataExist(const ChunkDataName &name) {
+    std::lock_guard<std::mutex> guard(chunkDataMutex_);
     return chunkData_.find(name.ToDataChunkKey()) != chunkData_.end();
 }
 
@@ -92,6 +98,7 @@ int FakeSnapshotDataStore::DataChunkTranferAddPart(const ChunkDataName &name,
 
 int FakeSnapshotDataStore::DataChunkTranferComplete(const ChunkDataName &name,
         std::shared_ptr<TransferTask> task) {
+    std::lock_guard<std::mutex> guard(chunkDataMutex_);
     fiu_return_on(
         "test/integration/snapshotcloneserver/FakeSnapshotDataStore.DataChunkTranferComplete", -1);  // NOLINT
     chunkData_.insert(name.ToDataChunkKey());

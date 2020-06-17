@@ -28,7 +28,6 @@ cc_library(
     ]),
     copts = GCC_FLAGS,
     linkopts = [
-        "-lmysqlcppconn",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -40,7 +39,6 @@ cc_library(
         "//proto:topology_cc_proto",
         "//src/mds/common:mds_common",
         "//src/mds/copyset:copyset",
-        "//src/mds/dao:mdsrepo",
         "//src/common:curve_common",
         "//src/mds/nameserver2/allocstatistic:alloc_statistic",
     ],

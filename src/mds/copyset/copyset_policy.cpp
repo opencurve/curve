@@ -135,7 +135,7 @@ int CopysetZoneShufflePolicy::GetMaxPermutationNum(int numCopysets,
 }
 
 /**
- * @brief  N个zone中选择3个zone放置3副本的随机排列算法
+ * @brief  N个zone中选择X个zone放置X副本的随机排列算法
  *
  *  1. 首先对所有zone的server各自进行随机排列，
  *  2. 之后按照如下顺序依次选择：
@@ -150,7 +150,7 @@ int CopysetZoneShufflePolicy::GetMaxPermutationNum(int numCopysets,
  * @reval true   exec success.
  * @reval false  exec fail.
  */
-bool CopysetPermutationPolicyN33::permutation(
+bool CopysetPermutationPolicyNXX::permutation(
     const std::vector<ChunkServerInfo> &serversIn,
     std::vector<ChunkServerInfo> *serversOut) {
     std::map<curve::mds::topology::ZoneIdType,
@@ -167,8 +167,10 @@ bool CopysetPermutationPolicyN33::permutation(
     }
 
     if (csMap.size() < GetZoneChosenNum()) {
-        LOG(ERROR) << "[CopysetPermutationPolicyN33::permutation]:"
-                   << "error, cluster must has more than 3 zones";
+        LOG(ERROR) << "[CopysetPermutationPolicyNXX::permutation]:"
+                   << "error, cluster must has more than "
+                   << GetZoneChosenNum()
+                   << "zones";
         return false;
     }
 

@@ -24,7 +24,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/common:curve_common",
-        "//src/mds/dao:mdsrepo",
         "//src/client:curve_client",
         "//src/snapshotcloneserver:snapshot_server_lib",
         "//external:gflags",
@@ -33,7 +32,6 @@ cc_library(
         "@com_google_googletest//:gtest",
     ],
     linkopts = [
-        "-lmysqlcppconn",
     ]
 )
 

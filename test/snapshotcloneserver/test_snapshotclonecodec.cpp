@@ -39,7 +39,7 @@ using ::testing::DoAll;
 namespace curve {
 namespace snapshotcloneserver {
 
-TEST(TestSnapshotCloneServerCodec, TestSnapInfoEncodeDecodeEnqual) {
+TEST(TestSnapshotCloneServerCodec, TestSnapInfoEncodeDecodeEqual) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
                         1024, 2048, 4096, 0,
                         Status::pending);
@@ -62,7 +62,7 @@ TEST(TestSnapshotCloneServerCodec, TestSnapInfoEncodeDecodeEnqual) {
     ASSERT_EQ(snapInfo.GetStatus(), decodedSnapInfo.GetStatus());
 }
 
-TEST(TestSnapshotCloneServerCodec, TestCloneInfoEncodeDecodeEnqual) {
+TEST(TestSnapshotCloneServerCodec, TestCloneInfoEncodeDecodeEqual) {
     CloneInfo cloneInfo("cloneuuid", "cloneuser",
                      CloneTaskType::kRecover, "srcfile",
                      "dstfile", 1, 2, 3,

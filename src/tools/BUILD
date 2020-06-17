@@ -86,7 +86,6 @@ cc_binary(
 
     copts = COPTS,
     linkopts = [
-        "-lmysqlcppconn",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -101,7 +100,6 @@ cc_binary(
 
     copts = COPTS,
     linkopts = [
-        "-lmysqlcppconn",
     ],
     visibility = ["//visibility:public"],
     deps = [

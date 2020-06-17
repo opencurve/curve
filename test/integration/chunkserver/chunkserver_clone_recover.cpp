@@ -206,13 +206,6 @@ class CSCloneRecoverTest : public ::testing::Test {
         cluster_->PrepareConfig<curve::CSConfigGenerator>(CHUNKSERVER_CONF_PATH,
                                                           csCommonConf);
 
-        // 0. 初始化db
-        ASSERT_EQ(0, cluster_->InitDB(CSCLONE_TEST_MDS_DBNAME));
-        ASSERT_EQ(0, cluster_->mdsRepo_->dropDataBase());
-        ASSERT_EQ(0, cluster_->mdsRepo_->createDatabase());
-        ASSERT_EQ(0, cluster_->mdsRepo_->useDataBase());
-        ASSERT_EQ(0, cluster_->mdsRepo_->createAllTables());
-
         // 1. 启动etcd
         LOG(INFO) << "begin to start etcd";
         pid_t pid = cluster_->StartSingleEtcd(
@@ -329,7 +322,6 @@ class CSCloneRecoverTest : public ::testing::Test {
         UnInit();
 
         ASSERT_EQ(0, cluster_->StopCluster());
-        cluster_->mdsRepo_->dropDataBase();
         delete cluster_;
 
         if (s3ObjExisted_) {

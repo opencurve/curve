@@ -106,7 +106,7 @@ int RecoverScheduler::Schedule() {
 
         // 修复其中一个挂掉的副本
         Operator fixRes;
-        ChunkServerIDType target;
+        ChunkServerIdType target;
         // 修复副本失败
         if (!FixOfflinePeer(
                 copysetInfo, *offlinelists.begin(), &fixRes, &target)) {
@@ -155,7 +155,7 @@ int64_t RecoverScheduler::GetRunningInterval() {
 
 bool RecoverScheduler::FixOfflinePeer(
     const CopySetInfo &info, ChunkServerIdType peerId,
-    Operator *op, ChunkServerIDType *target) {
+    Operator *op, ChunkServerIdType *target) {
     assert(op != nullptr);
     // check the number of replicas first
     auto standardReplicaNum =

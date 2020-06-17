@@ -29,7 +29,6 @@
 #include <string>
 #include <thread>  //NOLINT
 #include <boost/shared_ptr.hpp>
-#include "src/mds/dao/mdsRepo.h"
 #include "src/mds/schedule/operatorController.h"
 #include "src/mds/schedule/scheduler.h"
 #include "src/mds/schedule/schedule_define.h"

@@ -46,15 +46,14 @@ struct ClusterInformation {
     ClusterInformation() = default;
     explicit ClusterInformation(const std::string &clusterId)
         : clusterId(clusterId) {}
+
+    bool SerializeToString(std::string *value) const;
+
+    bool ParseFromString(const std::string &value);
 };
 
 class LogicalPool {
  public:
-    enum LogicalPoolStatus {
-        ALLOCATABLE = 0,
-        UNALLOCATABLE = 1,
-    };
-
     union RedundanceAndPlaceMentPolicy {
         struct PRAP {
             uint16_t replicaNum;
@@ -103,7 +102,7 @@ class LogicalPool {
           type_(PAGEFILE),
           initialScatterWidth_(0),
           createTime_(0),
-          status_(UNALLOCATABLE),
+          status_(AllocateStatus::DENY),
           avaliable_(false) {}
     LogicalPool(PoolIdType id,
                 const std::string &name,
@@ -121,7 +120,7 @@ class LogicalPool {
           policy_(policy),
           initialScatterWidth_(0),
           createTime_(createTime),
-          status_(UNALLOCATABLE),
+          status_(AllocateStatus::DENY),
           avaliable_(avaliable) {}
 
     PoolIdType GetId() const {
@@ -180,11 +179,11 @@ class LogicalPool {
         return initialScatterWidth_;
     }
 
-    void SetStatus(LogicalPoolStatus status) {
+    void SetStatus(AllocateStatus status) {
         status_ = status;
     }
 
-    LogicalPoolStatus GetStatus() const {
+    AllocateStatus GetStatus() const {
         return status_;
     }
 
@@ -195,6 +194,10 @@ class LogicalPool {
     bool GetLogicalPoolAvaliableFlag() const {
         return avaliable_;
     }
+
+    bool SerializeToString(std::string *value) const;
+
+    bool ParseFromString(const std::string &value);
 
  private:
     PoolIdType id_;
@@ -210,7 +213,7 @@ class LogicalPool {
     uint32_t initialScatterWidth_;
 
     uint64_t createTime_;
-    LogicalPoolStatus status_;
+    AllocateStatus status_;
     bool avaliable_;
 };
 
@@ -246,7 +249,7 @@ class PhysicalPool {
     void SetDiskCapacity(uint64_t diskCapacity) {
         diskCapacity_ = diskCapacity;
     }
-    uint64_t GetDiskCapacity() {
+    uint64_t GetDiskCapacity() const {
         return diskCapacity_;
     }
 
@@ -259,6 +262,10 @@ class PhysicalPool {
     std::list<ZoneIdType> GetZoneList() const {
         return zoneList_;
     }
+
+    bool SerializeToString(std::string *value) const;
+
+    bool ParseFromString(const std::string &value);
 
  private:
     PoolIdType id_;
@@ -313,6 +320,10 @@ class Zone {
     std::list<ServerIdType> GetServerList() const {
         return serverList_;
     }
+
+    bool SerializeToString(std::string *value) const;
+
+    bool ParseFromString(const std::string &value);
 
  private:
     ZoneIdType id_;
@@ -396,6 +407,10 @@ class Server {
     std::list<ChunkServerIdType> GetChunkServerList() const {
         return chunkserverList_;
     }
+
+    bool SerializeToString(std::string *value) const;
+
+    bool ParseFromString(const std::string &value);
 
  private:
     ServerIdType id_;
@@ -594,6 +609,10 @@ class ChunkServer {
         return mutex_;
     }
 
+    bool SerializeToString(std::string *value) const;
+
+    bool ParseFromString(const std::string &value);
+
  private:
     ChunkServerIdType id_;
     std::string token_;
@@ -751,6 +770,10 @@ class CopySetInfo {
     ::curve::common::RWLock& GetRWLockRef() const {
         return mutex_;
     }
+
+    bool SerializeToString(std::string *value) const;
+
+    bool ParseFromString(const std::string &value);
 
  private:
     PoolIdType logicalPoolId_;

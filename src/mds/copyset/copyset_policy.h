@@ -65,12 +65,10 @@ class CopysetPermutationPolicy {
     : zoneNum_(0),
     zoneChoseNum_(0),
     replicaNum_(0) {}
-    CopysetPermutationPolicy(uint32_t zoneNum,
-        uint32_t zoneChoseNum,
-        uint32_t replicaNum)
-    : zoneNum_(zoneNum),
-    zoneChoseNum_(zoneChoseNum),
-    replicaNum_(replicaNum) {}
+    explicit CopysetPermutationPolicy(const CopysetConstrait &constrait)
+    : zoneNum_(constrait.zoneNum),
+    zoneChoseNum_(constrait.zoneChoseNum),
+    replicaNum_(constrait.replicaNum) {}
     virtual ~CopysetPermutationPolicy() {}
     virtual bool permutation(
             const std::vector<ChunkServerInfo> &serversIn,
@@ -125,12 +123,12 @@ class CopysetZoneShufflePolicy : public CopysetPolicy {
     std::shared_ptr<CopysetPermutationPolicy> permutationPolicy_;
 };
 
-class CopysetPermutationPolicyN33 : public CopysetPermutationPolicy {
+class CopysetPermutationPolicyNXX : public CopysetPermutationPolicy {
  public:
-    CopysetPermutationPolicyN33()
-        : CopysetPermutationPolicy(CopysetConstrait::NUM_ANY, 3, 3) {}
+    explicit CopysetPermutationPolicyNXX(const CopysetConstrait &constrait)
+        : CopysetPermutationPolicy(constrait) {}
 
-    ~CopysetPermutationPolicyN33() {}
+    ~CopysetPermutationPolicyNXX() {}
 
     bool permutation(const std::vector<ChunkServerInfo> &serversIn,
             std::vector<ChunkServerInfo> *serversOut) override;

@@ -239,12 +239,6 @@ class SnapshotCloneServerTest : public ::testing::Test {
         ASSERT_NE(nullptr, cluster_);
 
         // 初始化db
-        ASSERT_EQ(0, cluster_->InitDB(kMdsDbName));
-        // 在一开始清理数据库和文件
-        cluster_->mdsRepo_->dropDataBase();
-        cluster_->mdsRepo_->createDatabase();
-        cluster_->mdsRepo_->useDataBase();
-        cluster_->mdsRepo_->createAllTables();
         system(std::string("rm -rf " + kTestPrefix + "t.etcd").c_str());
         system(std::string("rm -rf " + kTestPrefix + "1").c_str());
         system(std::string("rm -rf " + kTestPrefix + "2").c_str());

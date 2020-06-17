@@ -40,6 +40,7 @@
 #include "src/mds/topology/topology_id_generator.h"
 #include "src/mds/topology/topology_service.h"
 #include "src/mds/topology/topology_stat.h"
+#include "src/kvstorageclient/etcd_client.h"
 
 #include "proto/copyset.pb.h"
 
@@ -292,168 +293,6 @@ class MockTopologyStat : public TopologyStat {
                       ChunkServerStat *stat));
 };
 
-class MockRepo : public MdsRepo {
- public:
-    MockRepo() {}
-    ~MockRepo() {}
-
-    MOCK_METHOD5(connectDB, int(
-                     const std::string &dbName,
-                     const std::string &user,
-                     const std::string &url,
-                     const std::string &password,
-                     uint32_t poolSize));
-
-    MOCK_METHOD0(createAllTables, int());
-    MOCK_METHOD0(createDatabase, int());
-    MOCK_METHOD0(useDataBase, int());
-    MOCK_METHOD0(dropDataBase, int());
-
-    MOCK_METHOD1(InsertChunkServerRepoItem,
-                 int(
-                     const ChunkServerRepoItem &cr));
-
-    MOCK_METHOD1(LoadChunkServerRepoItems,
-                 int(std::vector<ChunkServerRepoItem>
-                     *chunkServerRepoItemList));
-
-    MOCK_METHOD1(DeleteChunkServerRepoItem,
-                 int(ChunkServerIDType
-                     id));
-
-    MOCK_METHOD1(UpdateChunkServerRepoItem,
-                 int(
-                     const ChunkServerRepoItem &cr));
-
-    MOCK_METHOD2(QueryChunkServerRepoItem,
-                 int(ChunkServerIDType
-                     id, ChunkServerRepoItem * repo));
-
-    MOCK_METHOD1(InsertServerRepoItem,
-                 int(
-                     const ServerRepoItem &sr));
-
-    MOCK_METHOD1(LoadServerRepoItems,
-                 int(std::vector<ServerRepoItem>
-                     *serverList));
-
-    MOCK_METHOD1(DeleteServerRepoItem,
-                 int(ServerIDType
-                     id));
-
-    MOCK_METHOD1(UpdateServerRepoItem,
-                 int(
-                     const ServerRepoItem &sr));
-
-    MOCK_METHOD2(QueryServerRepoItem,
-                 int(ServerIDType
-                     id, ServerRepoItem * repo));
-
-    MOCK_METHOD1(InsertZoneRepoItem,
-                 int(
-                     const ZoneRepoItem &zr));
-
-    MOCK_METHOD1(LoadZoneRepoItems,
-                 int(std::vector<ZoneRepoItem>
-                     *zonevector));
-
-    MOCK_METHOD1(DeleteZoneRepoItem,
-                 int(ZoneIDType
-                     id));
-
-    MOCK_METHOD1(UpdateZoneRepoItem,
-                 int(
-                     const ZoneRepoItem &zr));
-
-    MOCK_METHOD2(QueryZoneRepoItem,
-                 int(ZoneIDType
-                     id, ZoneRepoItem * repo));
-
-    MOCK_METHOD1(InsertPhysicalPoolRepoItem,
-                 int(
-                     const PhysicalPoolRepoItem &pr));
-
-    MOCK_METHOD1(LoadPhysicalPoolRepoItems,
-                 int(std::vector<PhysicalPoolRepoItem>
-                     *physicalPoolvector));
-
-    MOCK_METHOD1(DeletePhysicalPoolRepoItem,
-                 int(PhysicalPoolIDType
-                     id));
-
-    MOCK_METHOD1(UpdatePhysicalPoolRepoItem,
-                 int(
-                     const PhysicalPoolRepoItem &pr));
-
-    MOCK_METHOD2(QueryPhysicalPoolRepoItem,
-                 int(PhysicalPoolIDType
-                     id, PhysicalPoolRepoItem * repo));
-
-    MOCK_METHOD1(InsertLogicalPoolRepoItem,
-                 int(
-                     const LogicalPoolRepoItem &lr));
-
-    MOCK_METHOD1(LoadLogicalPoolRepoItems,
-                 int(std::vector<LogicalPoolRepoItem>
-                     *logicalPoolList));
-
-    MOCK_METHOD1(DeleteLogicalPoolRepoItem,
-                 int(LogicalPoolIDType
-                     id));
-
-    MOCK_METHOD1(UpdateLogicalPoolRepoItem,
-                 int(
-                     const LogicalPoolRepoItem &lr));
-
-    MOCK_METHOD2(QueryLogicalPoolRepoItem,
-                 int(LogicalPoolIDType
-                     id, LogicalPoolRepoItem * repo));
-
-    MOCK_METHOD1(InsertCopySetRepoItem,
-                 int(
-                     const CopySetRepoItem &cr));
-
-    MOCK_METHOD1(LoadCopySetRepoItems,
-                 int(std::vector<CopySetRepoItem>
-                     *copySetList));
-
-    MOCK_METHOD2(DeleteCopySetRepoItem,
-                 int(CopySetIDType
-                     id, LogicalPoolIDType
-                     lid));
-
-    MOCK_METHOD1(UpdateCopySetRepoItem,
-                 int(
-                     const CopySetRepoItem &cr));
-
-    MOCK_METHOD3(QueryCopySetRepoItem,
-                 int(CopySetIDType
-                     id,
-                     LogicalPoolIDType
-                     lid,
-                     CopySetRepoItem * repo));
-
-    MOCK_METHOD1(InsertSessionRepoItem,
-                 int(const SessionRepoItem &r));
-
-    MOCK_METHOD1(LoadSessionRepoItems,
-                 int(std::vector<SessionRepoItem> *sessionList));
-
-    MOCK_METHOD1(DeleteSessionRepoItem,
-                 int(const std::string &sessionID));
-
-    MOCK_METHOD1(UpdateSessionRepoItem,
-                 int(const SessionRepoItem &r));
-
-    MOCK_METHOD2(QuerySessionRepoItem,
-                 int(const std::string &sessionID, SessionRepoItem *r));
-
-    MOCK_METHOD1(InsertClusterInfoRepoItem,
-                 int(const ClusterInfoRepoItem &r));
-
-    MOCK_METHOD1(LoadClusterInfoRepoItems,
-                 int(std::vector<ClusterInfoRepoItem> *list));
-};
 }  // namespace topology
 }  // namespace mds
 
@@ -471,5 +310,38 @@ class MockCopysetServiceImpl : public CopysetService {
 }  // namespace chunkserver
 }  // namespace curve
 
+using ::curve::kvstorage::EtcdClientImp;
+using ::curve::kvstorage::KVStorageClient;
+
+namespace curve {
+namespace kvstorage {
+
+class MockKVStorageClient : public KVStorageClient {
+ public:
+    virtual ~MockKVStorageClient() {}
+    MOCK_METHOD2(Put, int(const std::string&, const std::string&));
+    MOCK_METHOD2(Get, int(const std::string&, std::string*));
+    MOCK_METHOD3(List,
+        int(const std::string&, const std::string&, std::vector<std::string>*));
+    MOCK_METHOD1(Delete, int(const std::string&));
+    MOCK_METHOD1(TxnN, int(const std::vector<Operation>&));
+    MOCK_METHOD3(CompareAndSwap, int(const std::string&, const std::string&,
+        const std::string&));
+    MOCK_METHOD5(CampaignLeader, int(const std::string&, const std::string&,
+        uint32_t, uint32_t, uint64_t*));
+    MOCK_METHOD2(LeaderObserve, int(uint64_t, const std::string&));
+    MOCK_METHOD2(LeaderKeyExist, bool(uint64_t, uint64_t));
+    MOCK_METHOD2(LeaderResign, int(uint64_t, uint64_t));
+    MOCK_METHOD1(GetCurrentRevision, int(int64_t *));
+    MOCK_METHOD6(ListWithLimitAndRevision,
+        int(const std::string&, const std::string&,
+        int64_t, int64_t, std::vector<std::string>*, std::string *));
+    MOCK_METHOD3(PutRewithRevision, int(const std::string &,
+        const std::string &, int64_t *));
+    MOCK_METHOD2(DeleteRewithRevision, int(const std::string &, int64_t *));
+};
+
+}  // namespace kvstorage
+}  // namespace curve
 
 #endif  // TEST_MDS_TOPOLOGY_MOCK_TOPOLOGY_H_

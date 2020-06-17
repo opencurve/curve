@@ -77,7 +77,6 @@ using curve::client::ChunkServerAddr;
 using curve::client::FileInstance;
 using curve::mds::CurveFSService;
 using curve::mds::topology::TopologyService;
-using curve::mds::RegistClientResponse;
 using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using curve::client::GetLeaderInfo;
 using curve::client::GetLeaderRpcOption;
@@ -126,12 +125,6 @@ class MDSClientTest : public ::testing::Test {
         response->set_allocated_chunkserverinfo(serverinfo);
         FakeReturn* getidret = new FakeReturn(nullptr, static_cast<void*>(response));      // NOLINT
         topologyservice.SetGetChunkserveridFakeReturn(getidret);
-
-
-        RegistClientResponse* registResp = new RegistClientResponse();
-        registResp->set_statuscode(::curve::mds::StatusCode::kOK);
-        FakeReturn* fakeregist = new FakeReturn(nullptr, static_cast<void*>(registResp));      // NOLINT
-        curvefsservice.SetRegistRet(fakeregist);
 
         brpc::ServerOptions options;
         options.idle_timeout_sec = -1;

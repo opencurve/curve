@@ -61,7 +61,6 @@ using ::curve::mds::topology::TopologyChunkAllocatorImpl;
 using ::curve::mds::topology::TopologyServiceImpl;
 using ::curve::mds::topology::DefaultIdGenerator;
 using ::curve::mds::topology::DefaultTokenGenerator;
-using ::curve::mds::topology::DefaultTopologyStorage;
 using ::curve::mds::topology::TopologyImpl;
 using ::curve::mds::topology::TopologyOption;
 using ::curve::mds::topology::TopologyStatImpl;
@@ -101,7 +100,6 @@ struct MDSOptions {
     CurveFSOption curveFSOptions;
     ScheduleOption scheduleOption;
     HeartbeatOption heartbeatOption;
-    MdsRepoOption mdsRepoOption;
     TopologyOption topologyOption;
     CopysetOption copysetOption;
     ChunkServerClientOption chunkServerClientOption;
@@ -189,12 +187,6 @@ class MDS {
     void InitMdsLeaderElectionOption(LeaderElectionOptions* electionOp);
 
     /**
-     * @brief 初始化数据库option
-     * @[out] opition 数据库选项
-     */
-    void InitMdsRepoOption(MdsRepoOption* option);
-
-    /**
      * @brief 初始化topology option
      * @param[out] topologyOption topology相关选项
      */
@@ -241,11 +233,6 @@ class MDS {
      * @param mdsCacheCount 缓存大小
      */
     void InitNameServerStorage(int mdsCacheCount);
-
-    /**
-     * @brief 初始化数据库
-     */
-    void InitMdsRepo(const MdsRepoOption& option);
 
     /**
      * @brief 开启brpc server
@@ -326,8 +313,6 @@ class MDS {
     std::shared_ptr<AllocStatistic> segmentAllocStatistic_;
     // NameServer存储模块
     std::shared_ptr<NameServerStorage> nameServerStorage_;
-    // 数据库访问模块
-    std::shared_ptr<MdsRepo> mdsRepo_;
     // topology模块，用于定期把内存中的topology数据持久化
     std::shared_ptr<TopologyImpl> topology_;
     // topology统计模块

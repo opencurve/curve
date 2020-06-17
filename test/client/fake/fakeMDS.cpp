@@ -47,7 +47,6 @@ DEFINE_string(chunkserver_list,
              "127.0.0.1:9106:0,127.0.0.1:9107:0,127.0.0.1:9108:0",
             "chunkserver address");
 
-using ::curve::mds::RegistClientResponse;
 using curve::chunkserver::COPYSET_OP_STATUS;
 using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 
@@ -118,14 +117,6 @@ bool FakeMDS::StartService() {
     if (server_->Start(mdsMetaServerAddr.c_str(), &options) != 0) {
         LOG(ERROR) << "Fail to start Server";
     }
-
-    /**
-     * set regist fake return
-     */
-    ::curve::mds::RegistClientResponse* registResp = new ::curve::mds::RegistClientResponse();      // NOLINT
-    registResp->set_statuscode(::curve::mds::StatusCode::kOK);
-    FakeReturn* fakeregist = new FakeReturn(nullptr, static_cast<void*>(registResp));      // NOLINT
-    fakecurvefsservice_.SetRegistRet(fakeregist);
 
     /**
      * set CreateFile fake return

@@ -471,23 +471,6 @@ void MDSClientBase::Listdir(const std::string& dirpath,
     stub.ListDir(cntl, &request, response, NULL);
 }
 
-void MDSClientBase::Register(const std::string& ip,
-                                uint16_t port,
-                                RegistClientResponse* response,
-                                brpc::Controller* cntl,
-                                brpc::Channel* channel) {
-    curve::mds::RegistClientRequest     request;
-    request.set_ip(ip);
-    request.set_port(port);
-    LOG(INFO) << "client regist info to mds: "
-              << "ip = " << ip
-              << ", port = " << port
-              << ", log id = " << cntl->log_id();
-
-    curve::mds::CurveFSService_Stub stub(channel);
-    stub.RegistClient(cntl, &request, response, NULL);
-}
-
 void MDSClientBase::GetChunkServerInfo(const std::string& ip,
     uint16_t port, GetChunkServerInfoResponse* response,
     brpc::Controller* cntl, brpc::Channel* channel) {

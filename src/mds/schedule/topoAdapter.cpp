@@ -400,7 +400,7 @@ bool TopoAdapterImpl::CreateCopySetAtChunkServer(CopySetKey id,
 }
 
 void TopoAdapterImpl::GetChunkServerScatterMap(
-    const ChunkServerIDType &cs, std::map<ChunkServerIdType, int> *out) {
+    const ChunkServerIdType &cs, std::map<ChunkServerIdType, int> *out) {
     assert(out != nullptr);
 
     std::vector<CopySetKey> copySetsInCS = topo_->GetCopySetsInChunkServer(cs);

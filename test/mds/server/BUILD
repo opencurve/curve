@@ -25,7 +25,6 @@ cc_binary(
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "//src/mds/server:mds_for_test",
-        "//src/mds/dao:mdsrepo",
     ],
     linkopts = ["-lfiu"],
 )

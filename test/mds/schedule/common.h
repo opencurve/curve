@@ -49,7 +49,7 @@ namespace mds {
 namespace schedule {
 ::curve::mds::schedule::CopySetInfo GetCopySetInfoForTest();
 void GetCopySetInChunkServersForTest(
-    std::map<ChunkServerIDType, std::vector<CopySetInfo>> *out);
+    std::map<ChunkServerIdType, std::vector<CopySetInfo>> *out);
 ::curve::mds::topology::CopySetInfo GetTopoCopySetInfoForTest();
 std::vector<::curve::mds::topology::ChunkServer> GetTopoChunkServerForTest();
 std::vector<::curve::mds::topology::Server> GetServerForTest();

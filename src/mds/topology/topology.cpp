@@ -844,7 +844,7 @@ std::list<ZoneIdType> TopologyImpl::GetZoneInLogicalPool(PoolIdType id,
     return std::list<ZoneIdType>();
 }
 
-int TopologyImpl::init(const TopologyOption &option) {
+int TopologyImpl::Init(const TopologyOption &option) {
     option_ = option;
 
     int ret = LoadClusterInfo();

@@ -81,7 +81,7 @@ static char* raftConfigParam[5][13] = {
         "-raftSnapshotUri=curve://./9083/copysets",
         "-recycleUri=local://./9083/recycler",
         "-chunkFilePoolDir=./9083/chunkfilepool/",
-        "-chunkFilePoolMetaPath=./9073/chunkfilepool.meta",
+        "-chunkFilePoolMetaPath=./9083/chunkfilepool.meta",
         "-conf=./9083/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL

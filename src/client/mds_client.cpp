@@ -64,7 +64,6 @@ using curve::mds::CloseFileResponse;
 using curve::mds::ReFreshSessionResponse;
 using curve::mds::CreateCloneFileResponse;
 using curve::mds::SetCloneFileStatusResponse;
-using curve::mds::RegistClientResponse;
 using curve::mds::topology::CopySetServerInfo;
 using curve::mds::topology::ChunkServerLocation;
 using curve::mds::topology::GetChunkServerListInCopySetsResponse;
@@ -246,34 +245,6 @@ int MDSClient::MDSRPCExcutor::ExcuteTask(
 }
 
 #define RPCTaskDefine [&](int mdsindex, uint64_t rpctimeoutMS, brpc::Channel* channel, brpc::Controller* cntl)->int    // NOLINT
-
-LIBCURVE_ERROR MDSClient::Register(const std::string& ip, uint16_t port) {
-    auto task = RPCTaskDefine {
-        RegistClientResponse response;
-        mdsClientMetric_.registerClient.qps.count << 1;
-        LatencyGuard lg(&mdsClientMetric_.registerClient.latency);
-        mdsClientBase_.Register(ip, port, &response, cntl, channel);
-
-        if (cntl->Failed()) {
-            mdsClientMetric_.registerClient.eps.count << 1;
-            LOG(WARNING) << "register client failed, errcorde = "
-                << cntl->ErrorCode() << ", error content:"
-                << cntl->ErrorText() << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
-        }
-
-        LIBCURVE_ERROR retcode;
-        StatusCode stcode = response.statuscode();
-        MDSStatusCode2LibcurveError(stcode, &retcode);
-
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-            << "Register failed, errocde = " << retcode
-            << ", error message = " << StatusCode_Name(stcode)
-            << ", log id = " << cntl->log_id();
-        return retcode;
-    };
-    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
-}
 
 LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
     const UserInfo_t& userinfo, FInfo_t* fi, LeaseSession* lease) {

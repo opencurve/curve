@@ -322,7 +322,7 @@ class TopologyImpl : public Topology {
         Stop();
     }
 
-    int init(const TopologyOption &option);
+    int Init(const TopologyOption &option);
 
     int Run();
     int Stop();

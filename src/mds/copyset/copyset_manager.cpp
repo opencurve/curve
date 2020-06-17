@@ -31,10 +31,9 @@ namespace copyset {
 
 bool CopysetManager::Init(const CopysetConstrait &constrait) {
     constrait_ = constrait;
-    if ((3 == constrait.zoneChoseNum) &&
-        (3 == constrait.replicaNum)) {
+    if (constrait.zoneChoseNum == constrait.replicaNum) {
         policy_ = std::make_shared<CopysetZoneShufflePolicy>(
-               std::make_shared<CopysetPermutationPolicyN33>());
+               std::make_shared<CopysetPermutationPolicyNXX>(constrait));
         return true;
     } else {
         LOG(ERROR) << "current constrait is not supported"

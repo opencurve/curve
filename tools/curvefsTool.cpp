@@ -73,7 +73,7 @@ namespace curve {
 namespace mds {
 namespace topology {
 
-struct ServerData {
+struct CurveServerData {
     std::string serverName;
     std::string internalIp;
     uint32_t internalPort;
@@ -83,13 +83,13 @@ struct ServerData {
     std::string physicalPoolName;
 };
 
-struct ZoneData {
+struct CurveZoneData {
     std::string zoneName;
     std::string physicalPoolName;
     PoolIdType physicalPoolId;
 };
 
-struct PhysicalPoolData {
+struct CurvePhysicalPoolData {
     std::string physicalPoolName;
 };
 
@@ -133,10 +133,10 @@ class CurvefsTools {
         std::list<ServerInfo> *serverInfos);
 
  private:
-    std::list<ServerData> cluster;
-    std::list<PhysicalPoolData> physicalPoolToAdd;
-    std::list<ZoneData> zoneToAdd;
-    std::list<ServerData> serverToAdd;
+    std::list<CurveServerData> cluster;
+    std::list<CurvePhysicalPoolData> physicalPoolToAdd;
+    std::list<CurveZoneData> zoneToAdd;
+    std::list<CurveServerData> serverToAdd;
 
     std::list<PoolIdType> physicalPoolToDel;
     std::list<ZoneIdType> zoneToDel;
@@ -322,7 +322,7 @@ int CurvefsTools::ReadClusterMap() {
                 continue;   // blank line
             }
 
-            ServerData info;
+            CurveServerData info;
             // serverName
             if (index < strList.size() && !strList[index].empty()) {
                 info.serverName = strList[index];
@@ -618,13 +618,13 @@ int CurvefsTools::ScanCluster() {
     for (auto server : cluster) {
         if (std::find_if(physicalPoolToAdd.begin(),
             physicalPoolToAdd.end(),
-            [server](curve::mds::topology::PhysicalPoolData& data) {
+            [server](CurvePhysicalPoolData& data) {
             return data.physicalPoolName ==
             server.physicalPoolName;
         }) != physicalPoolToAdd.end()) {
             continue;
         }
-        PhysicalPoolData poolData;
+        CurvePhysicalPoolData poolData;
         poolData.physicalPoolName = server.physicalPoolName;
         physicalPoolToAdd.push_back(poolData);
     }
@@ -639,7 +639,7 @@ int CurvefsTools::ScanCluster() {
             it != physicalPoolInfos.end();) {
             auto ix = std::find_if(physicalPoolToAdd.begin(),
                 physicalPoolToAdd.end(),
-                [it] (curve::mds::topology::PhysicalPoolData& data) {
+                [it] (CurvePhysicalPoolData& data) {
                     return data.physicalPoolName == it->physicalpoolname();
                 });
             if (ix != physicalPoolToAdd.end()) {
@@ -656,7 +656,7 @@ int CurvefsTools::ScanCluster() {
     for (auto server : cluster) {
         if (std::find_if(zoneToAdd.begin(),
             zoneToAdd.end(),
-            [server](curve::mds::topology::ZoneData& data) {
+            [server](CurveZoneData& data) {
             return (data.physicalPoolName ==
                 server.physicalPoolName) &&
                    (data.zoneName ==
@@ -664,10 +664,10 @@ int CurvefsTools::ScanCluster() {
         }) != zoneToAdd.end()) {
             continue;
         }
-        ZoneData zoneData;
-        zoneData.physicalPoolName = server.physicalPoolName;
-        zoneData.zoneName = server.zoneName;
-        zoneToAdd.push_back(zoneData);
+        CurveZoneData CurveZoneData;
+        CurveZoneData.physicalPoolName = server.physicalPoolName;
+        CurveZoneData.zoneName = server.zoneName;
+        zoneToAdd.push_back(CurveZoneData);
     }
 
     std::list<ZoneInfo> zoneInfos;
@@ -697,7 +697,7 @@ int CurvefsTools::ScanCluster() {
             it != zoneInfos.end();) {
         auto ix = std::find_if(zoneToAdd.begin(),
             zoneToAdd.end(),
-            [it] (ZoneData &data) {
+            [it] (CurveZoneData &data) {
                 return (data.physicalPoolName ==
                     it->physicalpoolname()) &&
                        (data.zoneName ==
@@ -717,7 +717,7 @@ int CurvefsTools::ScanCluster() {
     for (auto server : cluster) {
         if (std::find_if(serverToAdd.begin(),
             serverToAdd.end(),
-            [server](curve::mds::topology::ServerData& data) {
+            [server](CurveServerData& data) {
             return data.serverName ==
                  server.serverName;
             }) != serverToAdd.end()) {
@@ -757,7 +757,7 @@ int CurvefsTools::ScanCluster() {
             it++) {
         auto ix = std::find_if(serverToAdd.begin(),
             serverToAdd.end(),
-            [it] (ServerData &data) {
+            [it] (CurveServerData &data) {
                     return (data.serverName == it->hostname()) &&
                     (data.zoneName == it->zonename()) &&
                     (data.physicalPoolName == it->physicalpoolname());

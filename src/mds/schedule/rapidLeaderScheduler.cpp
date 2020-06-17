@@ -56,7 +56,7 @@ int RapidLeaderScheduler::Schedule() {
     return kScheduleErrCodeSuccess;
 }
 
-void RapidLeaderScheduler::DoRapidLeaderSchedule(LogicalPoolIDType lid) {
+void RapidLeaderScheduler::DoRapidLeaderSchedule(LogicalPoolIdType lid) {
     // 统计当前逻辑池中leader的分布情况
     LeaderStatInLogicalPool stat;
     stat.lid = lid;

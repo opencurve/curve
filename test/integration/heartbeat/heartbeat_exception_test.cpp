@@ -25,17 +25,13 @@
 
 #include "test/integration/heartbeat/common.h"
 
+using std::string;
+
 namespace curve {
 namespace mds {
 class HeartbeatExceptionTest : public ::testing::Test {
  protected:
     void InitConfiguration(Configuration *conf) {
-        // db相关配置设置
-        conf->SetStringValue("mds.DbName", "heartbeat_exception_test_mds");
-        conf->SetStringValue("mds.DbUser", "root");
-        conf->SetStringValue("mds.DbUrl", "localhost");
-        conf->SetStringValue("mds.DbPassword", "qwer");
-        conf->SetIntValue("mds.DbPoolSize", 16);
         conf->SetIntValue("mds.topology.ChunkServerStateUpdateSec", 0);
 
         // heartbeat相关配置设置
@@ -68,10 +64,10 @@ class HeartbeatExceptionTest : public ::testing::Test {
         conf->SetIntValue("mds.scheduler.minScatterWidth", 50);
     }
 
-    void BuildCopySetInfo(
-        CopySetInfo *info, uint64_t epoch, ChunkServerIdType leader,
-        const std::set<ChunkServerIdType> &members,
-        ChunkServerIdType candidateId = UNINTIALIZE_ID) {
+    void BuildCopySetInfo(CopySetInfo *info, uint64_t epoch,
+                          ChunkServerIdType leader,
+                          const std::set<ChunkServerIdType> &members,
+                          ChunkServerIdType candidateId = UNINTIALIZE_ID) {
         info->SetEpoch(epoch);
         info->SetLeader(leader);
         info->SetCopySetMembers(members);
@@ -99,40 +95,41 @@ class HeartbeatExceptionTest : public ::testing::Test {
 };
 
 /*
-* Jira: http://jira.netease.com/browse/CLDCFS-2009
-*
-* bug说明：稳定性测试环境，宕机一台机器之后设置pending，副本恢复过程中mds有切换
-*         最终发现有5个pending状态的chunkserver没有完成迁移
-* 分析：
-* 1. mds1提供服务时产生operator并下发给copyset-1{A,B,C} + D的变更，C是offline状态
-* 2. copyset-1完成配置变更，此时leader上的配置更新为epoch=2/{A,B,C,D},
-*    candidate上的配置为epoch=1/{A,B,C}, mds1中记录的配置为epoch=1/{A,B,C}
-* 3. mds1挂掉，mds2提供服务, 并从数据库加载copyset,mds2中copyset-1的配置
-*    epoch=1/{A,B,C}
-* 4. candidate-D上报心跳,copyset-1的配置为epoch=1/{A,B,C}。mds2发现D上报的
-*    copyset中epoch和mds2记录的相同，但D并不在mds2记录的复制组中且调度模块也没有
-*    对应的operator,下发命令把D上的copyset-1删除导致D被误删
-*
-* 解决方法：
-* 正常情况下，heartbeat模块会在mds启动一定时间(目前配置20min)后才可以下发删除copyset
-* 的命令，极大概率保证这段时间内copyset-leader上的配置更新到mds, 防止刚加入复制组
-* 副本上的数据备误删
-*
-* 这个时间的起始点应该是mds正式对外提供服务的时间，而不是mds的启动时间。如果设置为mds的启动
-* 时间，备mds启动很久后如果能够提供服务，就立马可以删除，导致bug
-*/
+ * Jira: http://jira.netease.com/browse/CLDCFS-2009
+ *
+ * bug说明：稳定性测试环境，宕机一台机器之后设置pending，副本恢复过程中mds有切换
+ *         最终发现有5个pending状态的chunkserver没有完成迁移
+ * 分析：
+ * 1. mds1提供服务时产生operator并下发给copyset-1{A,B,C} +
+ * D的变更，C是offline状态
+ * 2. copyset-1完成配置变更，此时leader上的配置更新为epoch=2/{A,B,C,D},
+ *    candidate上的配置为epoch=1/{A,B,C}, mds1中记录的配置为epoch=1/{A,B,C}
+ * 3. mds1挂掉，mds2提供服务, 并从数据库加载copyset,mds2中copyset-1的配置
+ *    epoch=1/{A,B,C}
+ * 4. candidate-D上报心跳,copyset-1的配置为epoch=1/{A,B,C}。mds2发现D上报的
+ *    copyset中epoch和mds2记录的相同，但D并不在mds2记录的复制组中且调度模块也没有
+ *    对应的operator,下发命令把D上的copyset-1删除导致D被误删
+ *
+ * 解决方法：
+ * 正常情况下，heartbeat模块会在mds启动一定时间(目前配置20min)后才可以下发删除copyset
+ * 的命令，极大概率保证这段时间内copyset-leader上的配置更新到mds,
+ * 防止刚加入复制组 副本上的数据被误删
+ *
+ * 这个时间的起始点应该是mds正式对外提供服务的时间，而不是mds的启动时间。如果设置为mds的启动
+ * 时间，备mds启动很久后如果能够提供服务，就立马可以删除，导致bug
+ */
 TEST_F(HeartbeatExceptionTest, test_mdsRestart_opLost) {
     // 1. copyset-1(epoch=2, peers={1,2,3}, leader=1)
     //    scheduler中有+4的operator
-    CopySetKey key{1, 1};
+    CopySetKey key{ 1, 1 };
     int startEpoch = 2;
     ChunkServerIdType leader = 1;
     ChunkServerIdType candidate = 4;
-    std::set<ChunkServerIdType> peers{1, 2, 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ChunkServer cs(4, "testtoekn", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
     Operator op(2, key, OperatorPriority::NormalPriority,
-        std::chrono::steady_clock::now(), std::make_shared<AddPeer>(4));
+                std::chrono::steady_clock::now(), std::make_shared<AddPeer>(4));
     op.timeLimit = std::chrono::seconds(3);
     hbtest_->AddOperatorToOpController(op);
 

@@ -49,7 +49,7 @@ TEST(TestCopysetManager, InitFail) {
     CopysetConstrait constrait;
     constrait.zoneNum = 4;
     constrait.zoneChoseNum = 4;
-    constrait.replicaNum = 4;
+    constrait.replicaNum = 3;
 
     ASSERT_FALSE(manager.Init(constrait));
 }

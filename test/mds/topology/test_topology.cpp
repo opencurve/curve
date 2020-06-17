@@ -245,7 +245,7 @@ TEST_F(TestTopology, test_init_success) {
         .WillOnce(Return(true));
 
     TopologyOption option;
-    int ret = topology_->init(option);
+    int ret = topology_->Init(option);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 }
 
@@ -256,7 +256,7 @@ TEST_F(TestTopology, test_init_loadClusterFail) {
                 Return(false)));
 
     TopologyOption option;
-    int ret = topology_->init(option);
+    int ret = topology_->Init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
@@ -270,7 +270,7 @@ TEST_F(TestTopology, test_init_StorageClusterInfoFail) {
         .WillOnce(Return(false));
 
     TopologyOption option;
-    int ret = topology_->init(option);
+    int ret = topology_->Init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
@@ -286,7 +286,7 @@ TEST_F(TestTopology, test_init_loadLogicalPoolFail) {
         .WillOnce(Return(false));
 
     TopologyOption option;
-    int ret = topology_->init(option);
+    int ret = topology_->Init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
@@ -306,7 +306,7 @@ TEST_F(TestTopology, test_init_LoadPhysicalPoolFail) {
     EXPECT_CALL(*idGenerator_, initLogicalPoolIdGenerator(_));
 
     TopologyOption option;
-    int ret = topology_->init(option);
+    int ret = topology_->Init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
@@ -329,7 +329,7 @@ TEST_F(TestTopology, test_init_LoadZoneFail) {
     EXPECT_CALL(*idGenerator_, initPhysicalPoolIdGenerator(_));
 
     TopologyOption option;
-    int ret = topology_->init(option);
+    int ret = topology_->Init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
@@ -355,7 +355,7 @@ TEST_F(TestTopology, test_init_LoadServerFail) {
     EXPECT_CALL(*idGenerator_, initZoneIdGenerator(_));
 
     TopologyOption option;
-    int ret = topology_->init(option);
+    int ret = topology_->Init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
@@ -384,7 +384,7 @@ TEST_F(TestTopology, test_init_LoadChunkServerFail) {
     EXPECT_CALL(*idGenerator_, initServerIdGenerator(_));
 
     TopologyOption option;
-    int ret = topology_->init(option);
+    int ret = topology_->Init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
@@ -416,7 +416,7 @@ TEST_F(TestTopology, test_init_LoadCopysetFail) {
     EXPECT_CALL(*idGenerator_, initChunkServerIdGenerator(_));
 
     TopologyOption option;
-    int ret = topology_->init(option);
+    int ret = topology_->Init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 

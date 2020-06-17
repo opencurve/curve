@@ -307,7 +307,7 @@ class TopoAdapter {
      *       chunkserver4上有copyset2和copyset3
      *       依次类推
      */
-    virtual void GetChunkServerScatterMap(const ChunkServerIDType &cs,
+    virtual void GetChunkServerScatterMap(const ChunkServerIdType &cs,
         std::map<ChunkServerIdType, int> *out) = 0;
 };
 
@@ -357,7 +357,7 @@ class TopoAdapterImpl : public TopoAdapter {
         const ::curve::mds::topology::ChunkServer &origin,
         ::curve::mds::schedule::ChunkServerInfo *out) override;
 
-    void GetChunkServerScatterMap(const ChunkServerIDType &cs,
+    void GetChunkServerScatterMap(const ChunkServerIdType &cs,
         std::map<ChunkServerIdType, int> *out) override;
 
  private:

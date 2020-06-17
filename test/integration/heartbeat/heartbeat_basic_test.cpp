@@ -25,17 +25,14 @@
 
 #include "test/integration/heartbeat/common.h"
 
+using std::string;
+
 namespace curve {
 namespace mds {
+
 class HeartbeatBasicTest : public ::testing::Test {
  protected:
     void InitConfiguration(Configuration *conf) {
-        // db相关配置设置
-        conf->SetStringValue("mds.DbName", "heartbeat_basic_test_mds");
-        conf->SetStringValue("mds.DbUser", "root");
-        conf->SetStringValue("mds.DbUrl", "localhost");
-        conf->SetStringValue("mds.DbPassword", "qwer");
-        conf->SetIntValue("mds.DbPoolSize", 16);
         conf->SetIntValue("mds.topology.ChunkServerStateUpdateSec", 0);
 
         // heartbeat相关配置设置
@@ -71,12 +68,13 @@ class HeartbeatBasicTest : public ::testing::Test {
         // 构造mds中copyset当前状
         ChunkServer cs(10, "testtoekn", "nvme", 3, "10.198.100.3", 9001, "/");
         hbtest_->PrepareAddChunkServer(cs);
-        hbtest_->UpdateCopysetTopo(
-            1, 1, 5, 1, std::set<ChunkServerIDType>{1, 2, 3}, 10);
+        hbtest_->UpdateCopysetTopo(1, 1, 5, 1,
+                                   std::set<ChunkServerIdType>{ 1, 2, 3 }, 10);
 
         // 构造scheduler当前的状态
-        Operator op(5, CopySetKey{1, 1}, OperatorPriority::NormalPriority,
-            std::chrono::steady_clock::now(), std::make_shared<AddPeer>(10));
+        Operator op(5, CopySetKey{ 1, 1 }, OperatorPriority::NormalPriority,
+                    std::chrono::steady_clock::now(),
+                    std::make_shared<AddPeer>(10));
         op.timeLimit = std::chrono::seconds(3);
         hbtest_->AddOperatorToOpController(op);
     }
@@ -86,12 +84,13 @@ class HeartbeatBasicTest : public ::testing::Test {
         // copyset-1(epoch=5, peers={1,2,3}, leader=1);
         ChunkServer cs(10, "testtoekn", "nvme", 3, "10.198.100.3", 9001, "/");
         hbtest_->PrepareAddChunkServer(cs);
-        hbtest_->UpdateCopysetTopo(
-            1, 1, 5, 1, std::set<ChunkServerIDType>{1, 2, 3});
+        hbtest_->UpdateCopysetTopo(1, 1, 5, 1,
+                                   std::set<ChunkServerIdType>{ 1, 2, 3 });
 
         // 构造scheduler当前的状态
-        Operator op(5, CopySetKey{1, 1}, OperatorPriority::NormalPriority,
-            std::chrono::steady_clock::now(), std::make_shared<AddPeer>(10));
+        Operator op(5, CopySetKey{ 1, 1 }, OperatorPriority::NormalPriority,
+                    std::chrono::steady_clock::now(),
+                    std::make_shared<AddPeer>(10));
         op.timeLimit = std::chrono::seconds(3);
         hbtest_->AddOperatorToOpController(op);
     }
@@ -101,11 +100,12 @@ class HeartbeatBasicTest : public ::testing::Test {
         // scheduler中copyset-1有operator: startEpoch=5, step=RemovePeer<4>
         ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
         hbtest_->PrepareAddChunkServer(cs);
-        hbtest_->UpdateCopysetTopo(
-            1, 1, 5, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+        hbtest_->UpdateCopysetTopo(1, 1, 5, 1,
+                                   std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
 
-        Operator op(5, CopySetKey{1, 1}, OperatorPriority::NormalPriority,
-            std::chrono::steady_clock::now(), std::make_shared<RemovePeer>(4));
+        Operator op(5, CopySetKey{ 1, 1 }, OperatorPriority::NormalPriority,
+                    std::chrono::steady_clock::now(),
+                    std::make_shared<RemovePeer>(4));
         op.timeLimit = std::chrono::seconds(3);
         hbtest_->AddOperatorToOpController(op);
     }
@@ -116,10 +116,11 @@ class HeartbeatBasicTest : public ::testing::Test {
         ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
         hbtest_->PrepareAddChunkServer(cs);
         hbtest_->UpdateCopysetTopo(
-            1, 1, 5, 1, std::set<ChunkServerIdType>{1, 2, 3, 4}, 4);
+            1, 1, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 }, 4);
 
-        Operator op(5, CopySetKey{1, 1}, OperatorPriority::NormalPriority,
-            std::chrono::steady_clock::now(), std::make_shared<RemovePeer>(4));
+        Operator op(5, CopySetKey{ 1, 1 }, OperatorPriority::NormalPriority,
+                    std::chrono::steady_clock::now(),
+                    std::make_shared<RemovePeer>(4));
         op.timeLimit = std::chrono::seconds(3);
         hbtest_->AddOperatorToOpController(op);
     }
@@ -127,12 +128,12 @@ class HeartbeatBasicTest : public ::testing::Test {
     void PrepareMdsWithTransferOp() {
         // mds存在copyset-1(epoch=5, peers={1,2,3}, leader=1);
         // scheduler中copyset-1有operator:startEpoch=5,step=TransferLeader{1>2}
-        hbtest_->UpdateCopysetTopo(
-            1, 1, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+        hbtest_->UpdateCopysetTopo(1, 1, 5, 1,
+                                   std::set<ChunkServerIdType>{ 1, 2, 3 });
 
-        Operator op(5, CopySetKey{1, 1}, OperatorPriority::NormalPriority,
-            std::chrono::steady_clock::now(),
-            std::make_shared<TransferLeader>(1, 2));
+        Operator op(5, CopySetKey{ 1, 1 }, OperatorPriority::NormalPriority,
+                    std::chrono::steady_clock::now(),
+                    std::make_shared<TransferLeader>(1, 2));
         op.timeLimit = std::chrono::seconds(3);
         hbtest_->AddOperatorToOpController(op);
     }
@@ -140,12 +141,12 @@ class HeartbeatBasicTest : public ::testing::Test {
     void PrepareMdsWithTransferOpOnGoing() {
         // mds存在copyset-1(epoch=5, peers={1,2,3}, leader=1, candidate=2);
         // scheduler中copyset-1有operator:startEpoch=5,step=TransferLeader{1>2}
-        hbtest_->UpdateCopysetTopo(
-            1, 1, 5, 1, std::set<ChunkServerIdType>{1, 2, 3}, 2);
+        hbtest_->UpdateCopysetTopo(1, 1, 5, 1,
+                                   std::set<ChunkServerIdType>{ 1, 2, 3 }, 2);
 
-        Operator op(5, CopySetKey{1, 1}, OperatorPriority::NormalPriority,
-            std::chrono::steady_clock::now(),
-            std::make_shared<TransferLeader>(1, 2));
+        Operator op(5, CopySetKey{ 1, 1 }, OperatorPriority::NormalPriority,
+                    std::chrono::steady_clock::now(),
+                    std::make_shared<TransferLeader>(1, 2));
         op.timeLimit = std::chrono::seconds(3);
         hbtest_->AddOperatorToOpController(op);
     }
@@ -154,8 +155,8 @@ class HeartbeatBasicTest : public ::testing::Test {
         // mds存在copyset-1(epoch=5, peers={1,2,3}, leader=1, candidate=4);
         ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
         hbtest_->PrepareAddChunkServer(cs);
-        hbtest_->UpdateCopysetTopo(
-            1, 1, 5, 1, std::set<ChunkServerIdType>{1, 2, 3}, 4);
+        hbtest_->UpdateCopysetTopo(1, 1, 5, 1,
+                                   std::set<ChunkServerIdType>{ 1, 2, 3 }, 4);
     }
 
     void PrepareMdsWithChangeOp() {
@@ -163,12 +164,12 @@ class HeartbeatBasicTest : public ::testing::Test {
         // scheduler中copyset-1有operator:startEpoch=5,step=ChangePeer{3>4}
         ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
         hbtest_->PrepareAddChunkServer(cs);
-        hbtest_->UpdateCopysetTopo(
-            1, 1, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+        hbtest_->UpdateCopysetTopo(1, 1, 5, 1,
+                                   std::set<ChunkServerIdType>{ 1, 2, 3 });
 
-        Operator op(5, CopySetKey{1, 1}, OperatorPriority::NormalPriority,
-            std::chrono::steady_clock::now(),
-            std::make_shared<ChangePeer>(3, 4));
+        Operator op(5, CopySetKey{ 1, 1 }, OperatorPriority::NormalPriority,
+                    std::chrono::steady_clock::now(),
+                    std::make_shared<ChangePeer>(3, 4));
         op.timeLimit = std::chrono::seconds(3);
         hbtest_->AddOperatorToOpController(op);
     }
@@ -178,12 +179,12 @@ class HeartbeatBasicTest : public ::testing::Test {
         // scheduler中copyset-1有operator:startEpoch=5,step=step=ChangePeer{3>4}
         ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
         hbtest_->PrepareAddChunkServer(cs);
-        hbtest_->UpdateCopysetTopo(
-            1, 1, 5, 1, std::set<ChunkServerIdType>{1, 2, 3}, 4);
+        hbtest_->UpdateCopysetTopo(1, 1, 5, 1,
+                                   std::set<ChunkServerIdType>{ 1, 2, 3 }, 4);
 
-        Operator op(5, CopySetKey{1, 1}, OperatorPriority::NormalPriority,
-            std::chrono::steady_clock::now(),
-            std::make_shared<ChangePeer>(3, 4));
+        Operator op(5, CopySetKey{ 1, 1 }, OperatorPriority::NormalPriority,
+                    std::chrono::steady_clock::now(),
+                    std::make_shared<ChangePeer>(3, 4));
         op.timeLimit = std::chrono::seconds(3);
         hbtest_->AddOperatorToOpController(op);
     }
@@ -191,8 +192,8 @@ class HeartbeatBasicTest : public ::testing::Test {
     bool ValidateCopySet(const ::curve::mds::topology::CopySetInfo &expected) {
         ::curve::mds::topology::CopySetInfo copysetInfo;
         if (!hbtest_->topology_->GetCopySet(
-            CopySetKey{expected.GetLogicalPoolId(), expected.GetId()},
-            &copysetInfo)) {
+                CopySetKey{ expected.GetLogicalPoolId(), expected.GetId() },
+                &copysetInfo)) {
             return false;
         }
 
@@ -225,10 +226,10 @@ class HeartbeatBasicTest : public ::testing::Test {
         return true;
     }
 
-    void BuildCopySetInfo(
-        CopySetInfo *info, uint64_t epoch, ChunkServerIdType leader,
-        const std::set<ChunkServerIdType> &members,
-        ChunkServerIdType candidateId = UNINTIALIZE_ID) {
+    void BuildCopySetInfo(CopySetInfo *info, uint64_t epoch,
+                          ChunkServerIdType leader,
+                          const std::set<ChunkServerIdType> &members,
+                          ChunkServerIdType candidateId = UNINTIALIZE_ID) {
         info->SetEpoch(epoch);
         info->SetLeader(leader);
         info->SetCopySetMembers(members);
@@ -279,23 +280,23 @@ TEST_F(HeartbeatBasicTest, test_chunkserver_ip_port_not_match) {
     req.set_ip("127.0.0.1");
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
-    ASSERT_EQ(
-        ::curve::mds::heartbeat::hbChunkserverIpPortNotMatch, rep.statuscode());
+    ASSERT_EQ(::curve::mds::heartbeat::hbChunkserverIpPortNotMatch,
+              rep.statuscode());
 
     // port不匹配
     req.set_ip("10.198.100.3");
     req.set_port(1111);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
-    ASSERT_EQ(
-        ::curve::mds::heartbeat::hbChunkserverIpPortNotMatch, rep.statuscode());
+    ASSERT_EQ(::curve::mds::heartbeat::hbChunkserverIpPortNotMatch,
+              rep.statuscode());
 
     // token不匹配
     req.set_ip("10.198.100.3");
     req.set_port(9000);
     req.set_token("youdao");
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
-    ASSERT_EQ(
-        ::curve::mds::heartbeat::hbChunkserverTokenNotMatch, rep.statuscode());
+    ASSERT_EQ(::curve::mds::heartbeat::hbChunkserverTokenNotMatch,
+              rep.statuscode());
 }
 
 TEST_F(HeartbeatBasicTest, test_chunkserver_offline_then_online) {
@@ -329,7 +330,8 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_is_initial_state_condition1) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
 
     // copyset-1(epoch=1, peers={1,2,3}, leader=1)
     CopySetInfo csInfo(1, 1);
@@ -337,7 +339,8 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_is_initial_state_condition1) {
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
 }
@@ -346,7 +349,8 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_is_initial_state_condition2) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
 
@@ -357,7 +361,8 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_is_initial_state_condition2) {
     hbtest_->AddCopySetToRequest(&req, csInfo, ConfigChangeType::ADD_PEER);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_TRUE(copysetInfo.HasCandidate());
@@ -368,7 +373,7 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_is_initial_state_condition3) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    CopySetKey key{1, 1};
+    CopySetKey key{ 1, 1 };
     ASSERT_TRUE(hbtest_->topology_->GetCopySet(key, &copysetInfo));
     ChunkServer cs(5, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
@@ -382,10 +387,11 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_is_initial_state_condition3) {
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3, 5};
+    std::set<ChunkServerIdType> res{ 1, 2, 3, 5 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
     ASSERT_EQ(0, rep.needupdatecopysets_size());
 }
@@ -394,7 +400,8 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_initial_state_condition4) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ChunkServer cs4(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs4);
     ChunkServer cs5(5, "testtoken", "nvme", 3, "10.198.100.3", 9002, "/");
@@ -410,10 +417,11 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_initial_state_condition4) {
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3, 5};
+    std::set<ChunkServerIdType> res{ 1, 2, 3, 5 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
     ASSERT_EQ(4, copysetInfo.GetCandidate());
     ASSERT_EQ(0, rep.needupdatecopysets_size());
@@ -423,7 +431,8 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_initial_state_condition5) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
 
     // copyset-1(epoch=0, peers={1,2,3}, leader=0)
     CopySetInfo csInfo(1, 1);
@@ -432,10 +441,11 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_initial_state_condition5) {
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
-     ASSERT_EQ(0, copysetInfo.GetEpoch());
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
+    ASSERT_EQ(0, copysetInfo.GetEpoch());
     ASSERT_EQ(0, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
     ASSERT_EQ(0, rep.needupdatecopysets_size());
 }
@@ -444,7 +454,8 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_initial_state_condition6) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
 
     // copyset-1(epoch=0, peers={1,2,3}, leader=1)
     CopySetInfo csInfo(1, 1);
@@ -453,10 +464,11 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_initial_state_condition6) {
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(0, copysetInfo.GetEpoch());
     ASSERT_EQ(0, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
     ASSERT_EQ(0, rep.needupdatecopysets_size());
 }
@@ -465,7 +477,8 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_initial_state_condition7) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
 
     // copyset-1(epoch=0, peers={1,2,3}, leader=1)
     CopySetInfo csInfo(1, 1);
@@ -474,10 +487,11 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_initial_state_condition7) {
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(0, copysetInfo.GetEpoch());
     ASSERT_EQ(0, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
     ASSERT_EQ(0, rep.needupdatecopysets_size());
 }
@@ -486,7 +500,8 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_initial_state_condition8) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
 
     // copyset-1(epoch=1, peers={1,2,3}, leader=0)
     CopySetInfo csInfo(1, 1);
@@ -495,10 +510,11 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_initial_state_condition8) {
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(0, copysetInfo.GetEpoch());
     ASSERT_EQ(0, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
     ASSERT_EQ(0, rep.needupdatecopysets_size());
 }
@@ -507,7 +523,8 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_initial_state_condition9) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
 
@@ -520,10 +537,11 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_initial_state_condition9) {
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(0, copysetInfo.GetEpoch());
     ASSERT_EQ(0, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
     ASSERT_EQ(0, rep.needupdatecopysets_size());
 }
@@ -532,7 +550,8 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_initial_state_condition10) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
 
@@ -545,10 +564,11 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_initial_state_condition10) {
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(0, copysetInfo.GetEpoch());
     ASSERT_EQ(0, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
     ASSERT_EQ(0, rep.needupdatecopysets_size());
 }
@@ -556,36 +576,37 @@ TEST_F(HeartbeatBasicTest, test_copysets_in_mds_initial_state_condition10) {
 // 上报的是leader
 TEST_F(HeartbeatBasicTest, test_leader_report_consistent_with_mds) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     // chunkserver1上报的copyset-1(epoch=2, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 2, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_leader_report_epoch_bigger) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     // chunkserver1上报的copyset-1(epoch=5, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -593,23 +614,24 @@ TEST_F(HeartbeatBasicTest, test_leader_report_epoch_bigger) {
     // response为空，mds更新epoch为5
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_leader_report_epoch_bigger_leader_not_same) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     // chunkserver2上报的copyset-1(epoch=5, peers={1,2,3}, leader=2)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 2, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 2, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -617,24 +639,25 @@ TEST_F(HeartbeatBasicTest, test_leader_report_epoch_bigger_leader_not_same) {
     // response为空，mds更新epoch为5，leader为2
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(2, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 // 上报的是follower
 TEST_F(HeartbeatBasicTest, test_follower_report_consistent_with_mds) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     // chunkserver2上报的copyset-1(epoch=2, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 2, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -642,24 +665,25 @@ TEST_F(HeartbeatBasicTest, test_follower_report_consistent_with_mds) {
     // response为空
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 // 上报的是follower
 TEST_F(HeartbeatBasicTest, test_follower_report_leader_0) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     // chunkserver2上报的copyset-1(epoch=2, peers={1,2,3}, leader=0)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 2, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 2, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -667,61 +691,64 @@ TEST_F(HeartbeatBasicTest, test_follower_report_leader_0) {
     // response为空
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_follower_report_epoch_bigger) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     // chunkserver2上报的copyset-1(epoch=3, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 3, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 3, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_follower_report_epoch_bigger_leader_0) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     // chunkserver2上报的copyset-1(epoch=3, peers={1,2,3}, leader=0)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 3, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 3, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_follower_report_epoch_bigger_peers_not_same) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
 
@@ -729,210 +756,219 @@ TEST_F(HeartbeatBasicTest, test_follower_report_epoch_bigger_peers_not_same) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 3, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 3, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_follower_report_epoch_smaller) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     // chunkserver2上报的copyset-1(epoch=1, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 1, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 1, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_follower_report_epoch_smaller_leader_0) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     // chunkserver2上报的copyset-1(epoch=1, peers={1,2,3}, leader=0)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 1, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 1, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_follower_report_epoch_smaller_peers_not_same1) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
     // chunkserver2上报的copyset-1(epoch=1, peers={1,2,3,4}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 1, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 1, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_follower_report_epoch_smaller_peers_not_same2) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
     // chunkserver2上报的copyset-1(epoch=1, peers={1,2,3,4}, leader=0)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 1, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 1, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_follower_report_epoch_0) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     // chunkserver2上报的copyset-1(epoch=0, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_follower_report_epoch_0_leader_0) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver2上报的copyset-1(epoch=0, peers={1,2,3}, leader=0)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_follower_report_epoch_0_peers_not_same1) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
     // chunkserver2上报的copyset-1(epoch=0, peers={1,2,3,4}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_follower_report_epoch_0_peers_not_same2) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
     // chunkserver2上报的copyset-1(epoch=0, peers={1,2,3,4}, leader=0)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 // 上报的不是复制组成员
 TEST_F(HeartbeatBasicTest, test_other_report_consistent_with_mds) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
     // chunkserver4上报的copyset-1(epoch=2, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 2, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -944,24 +980,25 @@ TEST_F(HeartbeatBasicTest, test_other_report_consistent_with_mds) {
     ASSERT_EQ(3, conf.peers_size());
     ASSERT_EQ(2, conf.epoch());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_other_report_epoch_smaller) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
     // chunkserver4上报的copyset-1(epoch=1, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 1, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 1, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -973,24 +1010,25 @@ TEST_F(HeartbeatBasicTest, test_other_report_epoch_smaller) {
     ASSERT_EQ(3, conf.peers_size());
     ASSERT_EQ(2, conf.epoch());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_other_report_epoch_smaller_peers_not_same) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
     // chunkserver4上报的copyset-1(epoch=1, peers={1,2}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 1, 1, std::set<ChunkServerIdType>{1, 2});
+    BuildCopySetInfo(&csInfo, 1, 1, std::set<ChunkServerIdType>{ 1, 2 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1002,17 +1040,18 @@ TEST_F(HeartbeatBasicTest, test_other_report_epoch_smaller_peers_not_same) {
     ASSERT_EQ(3, conf.peers_size());
     ASSERT_EQ(2, conf.epoch());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_other_report_epoch_0_leader_0) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
 
@@ -1020,7 +1059,7 @@ TEST_F(HeartbeatBasicTest, test_other_report_epoch_0_leader_0) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1032,17 +1071,18 @@ TEST_F(HeartbeatBasicTest, test_other_report_epoch_0_leader_0) {
     ASSERT_EQ(3, conf.peers_size());
     ASSERT_EQ(2, conf.epoch());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
 TEST_F(HeartbeatBasicTest, test_other_report_epoch_0_leader_0_peers_not_same) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 2, 1,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     ChunkServer cs4(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs4);
     ChunkServer cs5(5, "testtoken", "nvme", 3, "10.198.100.3", 9090, "/");
@@ -1052,7 +1092,7 @@ TEST_F(HeartbeatBasicTest, test_other_report_epoch_0_leader_0_peers_not_same) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 5});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1064,10 +1104,11 @@ TEST_F(HeartbeatBasicTest, test_other_report_epoch_0_leader_0_peers_not_same) {
     ASSERT_EQ(3, conf.peers_size());
     ASSERT_EQ(2, conf.epoch());
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
@@ -1078,7 +1119,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition1) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1104,7 +1145,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition2) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3}, 10);
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 }, 10);
     hbtest_->AddCopySetToRequest(&req, csInfo, ConfigChangeType::ADD_PEER);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1112,10 +1153,11 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition2) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查topology
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
 }
@@ -1127,7 +1169,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition3) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1138,10 +1180,11 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition3) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查topology
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(6, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
@@ -1152,7 +1195,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition4) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1163,10 +1206,11 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition4) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查topology
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(6, copysetInfo.GetEpoch());
     ASSERT_EQ(2, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
@@ -1177,7 +1221,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition5) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 10 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1188,10 +1232,11 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition5) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查topology
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(6, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3, 10};
+    std::set<ChunkServerIdType> res{ 1, 2, 3, 10 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
@@ -1202,7 +1247,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition6) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1218,7 +1263,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition7) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1227,10 +1272,11 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition7) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查topology
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
@@ -1241,7 +1287,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition8) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1250,10 +1296,11 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition8) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查topology
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
@@ -1264,7 +1311,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition9) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1273,10 +1320,11 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition9) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查topology
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
@@ -1287,7 +1335,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition10) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 10 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1296,10 +1344,11 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition10) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查topology
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
@@ -1310,7 +1359,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition11) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 10 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1319,10 +1368,11 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition11) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查topology
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
@@ -1333,7 +1383,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition12) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1349,7 +1399,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition13) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1367,7 +1417,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition14) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1385,7 +1435,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition15) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1401,7 +1451,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition16) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1417,7 +1467,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition17) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1435,7 +1485,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition18) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1453,7 +1503,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition19) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1469,7 +1519,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition20) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1485,7 +1535,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition21) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1501,7 +1551,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition22) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 10 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1510,10 +1560,11 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition22) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查topology
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
@@ -1524,7 +1575,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition23) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 10 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1533,10 +1584,11 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition23) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查topology
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(1, copysetInfo.GetLeader());
-    std::set<ChunkServerIDType> res{1, 2, 3};
+    std::set<ChunkServerIdType> res{ 1, 2, 3 };
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
 }
 
@@ -1547,7 +1599,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition24) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1563,7 +1615,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition25) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1581,7 +1633,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition26) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1599,7 +1651,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition27) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1615,7 +1667,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition28) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1631,7 +1683,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition29) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1649,7 +1701,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition30) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1667,7 +1719,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition31) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1685,7 +1737,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition32) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1708,7 +1760,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition33) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1733,7 +1785,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition34) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 5});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1756,7 +1808,7 @@ TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition35) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1777,7 +1829,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition1) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1786,7 +1838,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition1) {
     ASSERT_EQ(1, rep.needupdatecopysets_size());
     ASSERT_EQ(ConfigChangeType::ADD_PEER, rep.needupdatecopysets(0).type());
     ASSERT_EQ("10.198.100.3:9001:0",
-        rep.needupdatecopysets(0).configchangeitem().address());
+              rep.needupdatecopysets(0).configchangeitem().address());
 }
 
 TEST_F(HeartbeatBasicTest, test_test_mdsWithCandidate_OpOnGoing_condition2) {
@@ -1798,7 +1850,7 @@ TEST_F(HeartbeatBasicTest, test_test_mdsWithCandidate_OpOnGoing_condition2) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3}, 10);
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 }, 10);
     hbtest_->AddCopySetToRequest(&req, csInfo, ConfigChangeType::ADD_PEER);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1813,8 +1865,8 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition3) {
     // chunkserver2上报copyset-1(epoch=6, peers={1,2,3}, leader=2)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{1, 2, 3});
+    CopySetInfo csInfo(1, 1);
+    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1826,7 +1878,8 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition3) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查topology中copyset的状态
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetLeader());
     ASSERT_EQ(6, copysetInfo.GetEpoch());
     ASSERT_EQ(UNINTIALIZE_ID, copysetInfo.GetCandidate());
@@ -1838,8 +1891,8 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition4) {
     // chunkserver1上报copyset-1(epoch=6, peers={1,2,3,10}, leader=2)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
-         CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    CopySetInfo csInfo(1, 1);
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 10 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1851,11 +1904,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition4) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查topology中copyset的状态
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(6, copysetInfo.GetEpoch());
     ASSERT_EQ(UNINTIALIZE_ID, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3, 10};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3, 10 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -1865,8 +1919,8 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition5) {
     // chunkserver2上报copyset-1(epoch=7, peers={1,2,3, 10}, leader=2)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-         CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 7, 2, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    CopySetInfo csInfo(1, 1);
+    BuildCopySetInfo(&csInfo, 7, 2, std::set<ChunkServerIdType>{ 1, 2, 3, 10 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1878,11 +1932,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition5) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查topology中copyset的状态
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(2, copysetInfo.GetLeader());
     ASSERT_EQ(7, copysetInfo.GetEpoch());
     ASSERT_EQ(UNINTIALIZE_ID, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3, 10};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3, 10 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -1890,10 +1945,10 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition6) {
     PrepareMdsWithCandidateOpOnGoing();
 
     // chunkserver2上报copyset-1(epoch=5, peers={1,2,3}, leader=1)
-     ChunkServerHeartbeatRequest req;
+    ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1912,7 +1967,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition7) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1931,7 +1986,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition8) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 10 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1943,11 +1998,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition8) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -1958,7 +2014,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition9) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 10 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -1970,11 +2026,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition9) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -1985,23 +2042,24 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition10) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
-     // 检查sheduler中的operator
+    // 检查sheduler中的operator
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
     ASSERT_EQ(1, ops.size());
     // 检查response
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2012,23 +2070,24 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition11) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
-     // 检查sheduler中的operator
+    // 检查sheduler中的operator
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
     ASSERT_EQ(1, ops.size());
     // 检查response
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2041,7 +2100,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition12) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2053,11 +2112,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition12) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2070,7 +2130,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition13) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2082,11 +2142,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition13) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2096,8 +2157,8 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition14) {
     // chunkserver2上报copyset-1(epoch=0, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-        CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    CopySetInfo csInfo(1, 1);
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2109,11 +2170,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition14) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2124,7 +2186,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition15) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2136,11 +2198,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition15) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2153,7 +2216,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition16) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2165,11 +2228,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition16) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2182,7 +2246,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition17) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2194,11 +2258,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition17) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2209,7 +2274,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition18) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2221,11 +2286,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition18) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2236,7 +2302,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition19) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2248,11 +2314,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition19) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2263,7 +2330,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition20) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 10 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2275,11 +2342,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition20) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2290,7 +2358,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition21) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 10 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2302,11 +2370,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition21) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2317,7 +2386,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition22) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2329,11 +2398,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition22) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2344,7 +2414,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition23) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2356,11 +2426,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition23) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2373,7 +2444,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition24) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2385,11 +2456,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition24) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2401,8 +2473,8 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition25) {
     // chunkserver10上报copyset-1(epoch=4, peers={1,2,3,4}, leader=0)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(10, &req);
-        CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    CopySetInfo csInfo(1, 1);
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2414,11 +2486,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition25) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2430,7 +2503,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition26) {
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2442,11 +2515,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition26) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2458,7 +2532,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition27) {
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     hbtest_->BuildBasicChunkServerRequest(10, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2470,11 +2544,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition27) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2487,7 +2562,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition28) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2499,19 +2574,20 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition28) {
     ASSERT_EQ(1, rep.needupdatecopysets_size());
     ASSERT_EQ(1, rep.needupdatecopysets(0).copysetid());
     ASSERT_EQ(5, rep.needupdatecopysets(0).epoch());
-    ASSERT_EQ(
-        "10.198.100.1:9000:0", rep.needupdatecopysets(0).peers(0).address());
-    ASSERT_EQ(
-        "10.198.100.2:9000:0", rep.needupdatecopysets(0).peers(1).address());
-    ASSERT_EQ(
-        "10.198.100.3:9000:0", rep.needupdatecopysets(0).peers(2).address());
+    ASSERT_EQ("10.198.100.1:9000:0",
+              rep.needupdatecopysets(0).peers(0).address());
+    ASSERT_EQ("10.198.100.2:9000:0",
+              rep.needupdatecopysets(0).peers(1).address());
+    ASSERT_EQ("10.198.100.3:9000:0",
+              rep.needupdatecopysets(0).peers(2).address());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2524,7 +2600,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition29) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2536,19 +2612,20 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition29) {
     ASSERT_EQ(1, rep.needupdatecopysets_size());
     ASSERT_EQ(1, rep.needupdatecopysets(0).copysetid());
     ASSERT_EQ(5, rep.needupdatecopysets(0).epoch());
-    ASSERT_EQ(
-        "10.198.100.1:9000:0", rep.needupdatecopysets(0).peers(0).address());
-    ASSERT_EQ(
-        "10.198.100.2:9000:0", rep.needupdatecopysets(0).peers(1).address());
-    ASSERT_EQ(
-        "10.198.100.3:9000:0", rep.needupdatecopysets(0).peers(2).address());
+    ASSERT_EQ("10.198.100.1:9000:0",
+              rep.needupdatecopysets(0).peers(0).address());
+    ASSERT_EQ("10.198.100.2:9000:0",
+              rep.needupdatecopysets(0).peers(1).address());
+    ASSERT_EQ("10.198.100.3:9000:0",
+              rep.needupdatecopysets(0).peers(2).address());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2561,7 +2638,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition30) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2573,19 +2650,20 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition30) {
     ASSERT_EQ(1, rep.needupdatecopysets_size());
     ASSERT_EQ(1, rep.needupdatecopysets(0).copysetid());
     ASSERT_EQ(5, rep.needupdatecopysets(0).epoch());
-    ASSERT_EQ(
-        "10.198.100.1:9000:0", rep.needupdatecopysets(0).peers(0).address());
-    ASSERT_EQ(
-        "10.198.100.2:9000:0", rep.needupdatecopysets(0).peers(1).address());
-    ASSERT_EQ(
-        "10.198.100.3:9000:0", rep.needupdatecopysets(0).peers(2).address());
+    ASSERT_EQ("10.198.100.1:9000:0",
+              rep.needupdatecopysets(0).peers(0).address());
+    ASSERT_EQ("10.198.100.2:9000:0",
+              rep.needupdatecopysets(0).peers(1).address());
+    ASSERT_EQ("10.198.100.3:9000:0",
+              rep.needupdatecopysets(0).peers(2).address());
     // 检查copyset
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(hbtest_->topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
     ASSERT_EQ(1, copysetInfo.GetLeader());
     ASSERT_EQ(5, copysetInfo.GetEpoch());
     ASSERT_EQ(10, copysetInfo.GetCandidate());
-    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    std::set<ChunkServerIdType> peers{ 1, 2, 3 };
     ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 
@@ -2596,7 +2674,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_1) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2605,17 +2683,17 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_1) {
     ASSERT_EQ(1, rep.needupdatecopysets_size());
     ASSERT_EQ(1, rep.needupdatecopysets(0).copysetid());
     ASSERT_EQ(5, rep.needupdatecopysets(0).epoch());
-    ASSERT_EQ(
-        "10.198.100.1:9000:0", rep.needupdatecopysets(0).peers(0).address());
-    ASSERT_EQ(
-        "10.198.100.2:9000:0", rep.needupdatecopysets(0).peers(1).address());
-    ASSERT_EQ(
-        "10.198.100.3:9000:0", rep.needupdatecopysets(0).peers(2).address());
-    ASSERT_EQ(
-        "10.198.100.3:9001:0", rep.needupdatecopysets(0).peers(3).address());
+    ASSERT_EQ("10.198.100.1:9000:0",
+              rep.needupdatecopysets(0).peers(0).address());
+    ASSERT_EQ("10.198.100.2:9000:0",
+              rep.needupdatecopysets(0).peers(1).address());
+    ASSERT_EQ("10.198.100.3:9000:0",
+              rep.needupdatecopysets(0).peers(2).address());
+    ASSERT_EQ("10.198.100.3:9001:0",
+              rep.needupdatecopysets(0).peers(3).address());
     ASSERT_EQ(ConfigChangeType::REMOVE_PEER, rep.needupdatecopysets(0).type());
     ASSERT_EQ("10.198.100.3:9001:0",
-        rep.needupdatecopysets(0).configchangeitem().address());
+              rep.needupdatecopysets(0).configchangeitem().address());
     // 检查copyset
     ASSERT_TRUE(ValidateCopySet(csInfo));
 }
@@ -2628,7 +2706,8 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_2) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3, 4}, 4);
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 },
+                     4);
     hbtest_->AddCopySetToRequest(&req, csInfo, ConfigChangeType::REMOVE_PEER);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2646,7 +2725,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_3) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2668,7 +2747,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_4) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2677,7 +2756,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_4) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(6);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2 , 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -2691,7 +2770,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_5) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 7, 2, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 7, 2, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2701,7 +2780,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_5) {
     // 检查copyset
     csInfo.SetEpoch(7);
     csInfo.SetLeader(2);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2 , 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -2715,7 +2794,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_6) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2739,7 +2818,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_7) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2764,7 +2843,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_8) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2789,7 +2868,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_9) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2815,7 +2894,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_10) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2824,7 +2903,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_10) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -2841,7 +2920,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_11) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2851,7 +2930,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_11) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -2868,7 +2947,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_12) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2887,7 +2966,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_12) {
 
     // chunkserver-2上报copyset-1(epoch=4, peers={1,2,3,4}, leader=0)
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
@@ -2912,7 +2991,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_13) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2921,7 +3000,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_13) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -2932,7 +3011,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_13) {
 
     // chunkserver-2上报(epoch=4, peers={1,2,3}, leader=0)
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
@@ -2957,7 +3036,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_14) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -2976,7 +3055,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_14) {
 
     // chunkserver-2上报copyset-1(epoch=0, peers={1,2,3}, leader=1)
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
@@ -2984,7 +3063,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_14) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -3001,7 +3080,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_15) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3021,7 +3100,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_15) {
 
     // chunkserver-2上报copyset-1(epoch=0, peers={1,2,3}, leader=0)
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
@@ -3030,7 +3109,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_15) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -3050,7 +3129,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_16) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3087,7 +3166,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_17) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3115,7 +3194,6 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_17) {
     ASSERT_EQ(4, step->GetTargetPeer());
 }
 
-
 TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_18) {
     PrepareMdsWithRemoveOp();
     ChunkServer cs(5, "testtoken", "nvme", 3, "10.198.100.3", 9002, "/");
@@ -3126,7 +3204,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_18) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3164,7 +3242,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_19) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3183,7 +3261,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOp_19) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -3200,7 +3278,8 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_1) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3, 4}, 4);
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 },
+                     4);
     hbtest_->AddCopySetToRequest(&req, csInfo, ConfigChangeType::REMOVE_PEER);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3223,7 +3302,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_2) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3244,7 +3323,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_3) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3264,7 +3343,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_4) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3284,7 +3363,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_5) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 7, 2, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 7, 2, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3304,7 +3383,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_6) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3328,7 +3407,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_7) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3353,7 +3432,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_8) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3362,7 +3441,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_8) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -3379,7 +3458,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_9) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3389,7 +3468,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_9) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -3406,7 +3485,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_10) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3415,7 +3494,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_10) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -3432,7 +3511,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_11) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3442,7 +3521,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_11) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -3459,7 +3538,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_12) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3468,7 +3547,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_12) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -3485,7 +3564,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_13) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3511,7 +3590,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_14) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3520,7 +3599,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_14) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -3537,7 +3616,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_15) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3547,7 +3626,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_15) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -3564,7 +3643,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_16) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3589,7 +3668,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_17) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3615,7 +3694,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_18) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3624,7 +3703,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_18) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -3641,7 +3720,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_19) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3651,7 +3730,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_19) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -3668,7 +3747,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_20) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3692,7 +3771,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_21) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3717,7 +3796,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_22) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3742,7 +3821,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_23) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3768,7 +3847,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_24) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3777,7 +3856,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_24) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -3794,7 +3873,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_25) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3804,7 +3883,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_25) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -3821,7 +3900,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_26) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3830,7 +3909,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_26) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -3847,7 +3926,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_27) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3873,7 +3952,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_28) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3882,7 +3961,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_28) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -3899,7 +3978,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_29) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3909,7 +3988,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_29) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -3926,7 +4005,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_30) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3951,7 +4030,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_31) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3977,7 +4056,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_32) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -3986,7 +4065,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_32) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -4003,7 +4082,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_33) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4013,7 +4092,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_33) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -4034,7 +4113,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_34) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4072,7 +4151,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_35) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4105,7 +4184,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_35) {
     rep.Clear();
     req.Clear();
     hbtest_->BuildBasicChunkServerRequest(5, &req);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -4122,7 +4201,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_35) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -4143,7 +4222,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_36) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4172,7 +4251,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_36) {
     rep.Clear();
     req.Clear();
     hbtest_->BuildBasicChunkServerRequest(5, &req);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -4185,7 +4264,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithRemoveOpOnGoing_36) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3, 4});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     csInfo.SetCandidate(4);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -4202,7 +4281,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_1) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4210,16 +4289,16 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_1) {
     ASSERT_EQ(1, rep.needupdatecopysets_size());
     ASSERT_EQ(1, rep.needupdatecopysets(0).copysetid());
     ASSERT_EQ(5, rep.needupdatecopysets(0).epoch());
-    ASSERT_EQ(
-        "10.198.100.1:9000:0", rep.needupdatecopysets(0).peers(0).address());
-    ASSERT_EQ(
-        "10.198.100.2:9000:0", rep.needupdatecopysets(0).peers(1).address());
-    ASSERT_EQ(
-        "10.198.100.3:9000:0", rep.needupdatecopysets(0).peers(2).address());
-    ASSERT_EQ(ConfigChangeType::TRANSFER_LEADER,
-                rep.needupdatecopysets(0).type());
+    ASSERT_EQ("10.198.100.1:9000:0",
+              rep.needupdatecopysets(0).peers(0).address());
     ASSERT_EQ("10.198.100.2:9000:0",
-        rep.needupdatecopysets(0).configchangeitem().address());
+              rep.needupdatecopysets(0).peers(1).address());
+    ASSERT_EQ("10.198.100.3:9000:0",
+              rep.needupdatecopysets(0).peers(2).address());
+    ASSERT_EQ(ConfigChangeType::TRANSFER_LEADER,
+              rep.needupdatecopysets(0).type());
+    ASSERT_EQ("10.198.100.2:9000:0",
+              rep.needupdatecopysets(0).configchangeitem().address());
     // 检查copyset
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -4237,9 +4316,9 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_2) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3}, 2);
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 }, 2);
     hbtest_->AddCopySetToRequest(&req, csInfo,
-                                ConfigChangeType::TRANSFER_LEADER);
+                                 ConfigChangeType::TRANSFER_LEADER);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -4260,7 +4339,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_3) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4279,7 +4358,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_4) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4298,7 +4377,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_5) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4320,7 +4399,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_6) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4343,7 +4422,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_7) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4366,7 +4445,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_8) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4390,7 +4469,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_9) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4412,14 +4491,14 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_9) {
     rep.Clear();
     req.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -4435,7 +4514,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_10) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4458,7 +4537,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_10) {
     rep.Clear();
     req.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -4466,7 +4545,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_10) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -4482,7 +4561,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_11) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4504,14 +4583,14 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_11) {
     rep.Clear();
     req.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -4527,7 +4606,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_12) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4550,7 +4629,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_12) {
     rep.Clear();
     req.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -4558,7 +4637,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_12) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -4576,7 +4655,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_13) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4609,7 +4688,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_14) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4645,7 +4724,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_15) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4662,7 +4741,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_15) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -4683,7 +4762,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_16) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4712,7 +4791,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_16) {
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(5, &req);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -4728,7 +4807,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOp_16) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -4745,9 +4824,9 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_1) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3}, 2);
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 }, 2);
     hbtest_->AddCopySetToRequest(&req, csInfo,
-                                ConfigChangeType::TRANSFER_LEADER);
+                                 ConfigChangeType::TRANSFER_LEADER);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
@@ -4769,7 +4848,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_2) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4789,7 +4868,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_3) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4809,7 +4888,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_4) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4833,7 +4912,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_5) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4858,7 +4937,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_6) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4883,7 +4962,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_7) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4906,7 +4985,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_7) {
     rep.Clear();
     req.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -4914,7 +4993,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_7) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(2);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -4930,7 +5009,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_8) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -4954,7 +5033,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_8) {
     rep.Clear();
     req.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -4963,7 +5042,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_8) {
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
     csInfo.SetCandidate(2);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -4979,7 +5058,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_9) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5002,7 +5081,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_9) {
     rep.Clear();
     req.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -5010,7 +5089,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_9) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(2);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -5026,7 +5105,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_10) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5050,7 +5129,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_10) {
     rep.Clear();
     req.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -5059,7 +5138,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_10) {
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
     csInfo.SetCandidate(2);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -5077,7 +5156,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_11) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5111,7 +5190,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_12) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5149,7 +5228,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_13) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5179,7 +5258,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_13) {
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(5, &req);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -5196,7 +5275,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithTransferOpOnGoing_13) {
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
     csInfo.SetCandidate(2);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -5212,7 +5291,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_1) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5233,7 +5312,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_2) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3}, 4);
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 }, 4);
     hbtest_->AddCopySetToRequest(&req, csInfo, ConfigChangeType::ADD_PEER);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5253,7 +5332,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_3) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5273,7 +5352,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_4) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
@@ -5288,14 +5367,13 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_4) {
     ASSERT_EQ(0, ops.size());
 }
 
-
 TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_5) {
     PrePareMdsWithCandidateNoOp();
     // chunkserver-1上报copyset-1(epoch=6, peers={1,2,3,4}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5315,7 +5393,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_6) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 7, 2, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 7, 2, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5335,7 +5413,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_7) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5356,7 +5434,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_8) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5378,7 +5456,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_9) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
@@ -5401,7 +5479,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_10) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
@@ -5425,7 +5503,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_11) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
 
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
@@ -5436,7 +5514,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_11) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -5449,7 +5527,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_12) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
 
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
@@ -5461,7 +5539,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_12) {
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -5474,7 +5552,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_13) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5484,7 +5562,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_13) {
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -5494,7 +5572,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_13) {
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -5502,7 +5580,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_13) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -5515,7 +5593,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_14) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5534,7 +5612,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_14) {
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -5543,7 +5621,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_14) {
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -5556,7 +5634,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_15) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5574,7 +5652,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_15) {
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -5582,7 +5660,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_15) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -5595,7 +5673,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_16) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5614,7 +5692,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_16) {
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -5623,7 +5701,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_16) {
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -5636,7 +5714,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_17) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5651,14 +5729,13 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_17) {
     ASSERT_EQ(0, ops.size());
 }
 
-
 TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_18) {
     PrePareMdsWithCandidateNoOp();
     // chunkserver-4上报copyset-1(epoch=5, peers={1,2,3}, leader=0)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5680,7 +5757,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_19) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5690,13 +5767,12 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_19) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
     ASSERT_EQ(0, ops.size());
 }
-
 
 TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_20) {
     PrePareMdsWithCandidateNoOp();
@@ -5704,7 +5780,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_20) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5715,7 +5791,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_20) {
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -5728,7 +5804,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_21) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5738,7 +5814,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_21) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -5751,7 +5827,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_22) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
 
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
@@ -5763,7 +5839,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_22) {
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -5776,7 +5852,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_23) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5796,7 +5872,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_23) {
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(4, &req);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3, 5});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -5804,7 +5880,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_23) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -5817,7 +5893,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_24) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5838,7 +5914,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_24) {
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(4, &req);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 5});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -5847,7 +5923,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_24) {
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -5862,7 +5938,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_25) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5894,7 +5970,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_26) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
@@ -5928,7 +6004,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_27) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
 
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
@@ -5948,7 +6024,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_27) {
     csInfo.SetLeader(1);
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -5963,7 +6039,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_28) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -5990,7 +6066,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_28) {
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(5, &req);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -6007,7 +6083,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_28) {
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -6016,13 +6092,13 @@ TEST_F(HeartbeatBasicTest, test_mdsWithCandidateNoOp_28) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_1) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-1上报copyset-1(epoch=5, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
@@ -6039,16 +6115,16 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_1) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_2) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-1上报copyset-1(epoch=5, peers={1,2,3}, leader=1)
     //                  configChangeInfo={peer: 2, type: TRANSFER_LEADER})
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3}, 2);
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 }, 2);
     hbtest_->AddCopySetToRequest(&req, csInfo,
-                            ConfigChangeType::TRANSFER_LEADER);
+                                 ConfigChangeType::TRANSFER_LEADER);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
@@ -6063,13 +6139,13 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_2) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_3) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-1上报copyset-1(epoch=6, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6085,16 +6161,16 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_3) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_4) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-1上报copyset-1(epoch=6, peers={1,2,3}, leader=1)
     //                  configChangeInfo={peer: 2, type: TRANSFER_LEADER})
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3}, 2);
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 }, 2);
     hbtest_->AddCopySetToRequest(&req, csInfo,
-                                ConfigChangeType::TRANSFER_LEADER);
+                                 ConfigChangeType::TRANSFER_LEADER);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
@@ -6109,15 +6185,15 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_4) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_5) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
     // chunkserver-1上报copyset-1(epoch=6, peers={1,2,3,4}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6133,8 +6209,8 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_5) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_6) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
     // chunkserver-1上报copyset-1(epoch=6, peers={1,2,3,4}, leader=1)
@@ -6142,9 +6218,10 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_6) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 4}, 2);
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 },
+                     2);
     hbtest_->AddCopySetToRequest(&req, csInfo,
-                            ConfigChangeType::TRANSFER_LEADER);
+                                 ConfigChangeType::TRANSFER_LEADER);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
@@ -6159,13 +6236,13 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_6) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_7) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-2上报copyset-1(epoch=5, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6182,13 +6259,13 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_7) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_8) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-2上报copyset-1(epoch=5, peers={1,2,3}, leader=0)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6204,13 +6281,13 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_8) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_9) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-2上报copyset-1(epoch=6, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6228,7 +6305,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_9) {
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -6243,15 +6320,15 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_9) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_10) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-2上报copyset-1(epoch=6, peers={1,2,3,4}, leader=1)
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6260,7 +6337,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_10) {
     // 检查copyset
     csInfo.SetLeader(0);
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -6270,14 +6347,14 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_10) {
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -6286,13 +6363,13 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_10) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_11) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-2上报copyset-1(epoch=4, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6310,7 +6387,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_11) {
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -6325,15 +6402,15 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_11) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_12) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-2上报copyset-1(epoch=4, peers={1,2,3,4}, leader=1)
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6342,7 +6419,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_12) {
     // 检查copyset
     csInfo.SetLeader(0);
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -6352,14 +6429,14 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_12) {
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -6368,13 +6445,13 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_12) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_13) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-2上报copyset-1(epoch=0, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6392,7 +6469,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_13) {
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -6407,15 +6484,15 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_13) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_14) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-2上报copyset-1(epoch=0, peers={1,2,3,4}, leader=1)
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6424,7 +6501,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_14) {
     // 检查copyset
     csInfo.SetLeader(0);
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -6434,14 +6511,14 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_14) {
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(2, &req);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -6450,15 +6527,15 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_14) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_15) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-4上报copyset-1(epoch=5, peers={1,2,3}, leader=1)
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6483,15 +6560,15 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_15) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_16) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-4上报copyset-1(epoch=5, peers={1,2,3}, leader=0)
     ChunkServer cs(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs);
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6514,15 +6591,15 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_16) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_17) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-4上报copyset-1(epoch=6, peers={1,2,3}, leader=1)
     ChunkServer cs1(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs1);
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6542,7 +6619,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_17) {
     ChunkServer cs2(5, "testtoken", "nvme", 3, "10.198.100.3", 9002, "/");
     hbtest_->PrepareAddChunkServer(cs2);
     hbtest_->BuildBasicChunkServerRequest(4, &req);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 5});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -6550,7 +6627,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_17) {
     // 检查copyset
     csInfo.SetLeader(0);
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -6559,15 +6636,15 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_17) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_18) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-4上报copyset-1(epoch=6, peers={1,2,3}, leader=0)
     ChunkServer cs1(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs1);
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6586,14 +6663,14 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_18) {
     ChunkServer cs2(5, "testtoken", "nvme", 3, "10.198.100.3", 9002, "/");
     hbtest_->PrepareAddChunkServer(cs2);
     hbtest_->BuildBasicChunkServerRequest(4, &req);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3, 5});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -6602,8 +6679,8 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_18) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_19) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     // chunkserver-4上报copyset-1(epoch=4, peers={1,2,3}, leader=1)
     ChunkServer cs1(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
@@ -6611,7 +6688,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_19) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
@@ -6640,7 +6717,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_19) {
     ChunkServer cs2(5, "testtoken", "nvme", 3, "10.198.100.3", 9002, "/");
     hbtest_->PrepareAddChunkServer(cs2);
     hbtest_->BuildBasicChunkServerRequest(4, &req);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3, 5});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -6656,7 +6733,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_19) {
     // 检查copyset
     csInfo.SetLeader(0);
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -6665,15 +6742,15 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_19) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_20) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-4上报copyset-1(epoch=4, peers={1,2,3}, leader=0)
     ChunkServer cs1(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs1);
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6700,7 +6777,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_20) {
     ChunkServer cs2(5, "testtoken", "nvme", 3, "10.198.100.3", 9002, "/");
     hbtest_->PrepareAddChunkServer(cs2);
     hbtest_->BuildBasicChunkServerRequest(4, &req);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 5});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -6715,7 +6792,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_20) {
     ASSERT_EQ(5, conf.epoch());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -6724,8 +6801,8 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_20) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_21) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
 
     // chunkserver-4上报copyset-1(epoch=0, peers={1,2,3}, leader=1)
     ChunkServer cs1(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
@@ -6733,7 +6810,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_21) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6761,7 +6838,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_21) {
     ChunkServer cs2(5, "testtoken", "nvme", 3, "10.198.100.3", 9002, "/");
     hbtest_->PrepareAddChunkServer(cs2);
     hbtest_->BuildBasicChunkServerRequest(4, &req);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3, 5});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -6777,7 +6854,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_21) {
     // 检查copyset
     csInfo.SetLeader(0);
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -6786,15 +6863,15 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_21) {
 
 TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_22) {
     // 更新topology中的copyset-1(epoch=5, peers={1,2,3}, leader=0)
-    hbtest_->UpdateCopysetTopo(
-        1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    hbtest_->UpdateCopysetTopo(1, 1, 5, 0,
+                               std::set<ChunkServerIdType>{ 1, 2, 3 });
     // chunkserver-4上报copyset-1(epoch=0, peers={1,2,3}, leader=0)
     ChunkServer cs1(4, "testtoken", "nvme", 3, "10.198.100.3", 9001, "/");
     hbtest_->PrepareAddChunkServer(cs1);
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6821,7 +6898,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_22) {
     ChunkServer cs2(5, "testtoken", "nvme", 3, "10.198.100.3", 9002, "/");
     hbtest_->PrepareAddChunkServer(cs2);
     hbtest_->BuildBasicChunkServerRequest(4, &req);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 5});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
     // 检查response
@@ -6836,7 +6913,7 @@ TEST_F(HeartbeatBasicTest, test_mdsCopysetNoLeader_22) {
     ASSERT_EQ(5, conf.epoch());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -6850,7 +6927,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_1) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6888,9 +6965,8 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_2) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3}, 4);
-    hbtest_->AddCopySetToRequest(&req, csInfo,
-                                ConfigChangeType::CHANGE_PEER);
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 }, 4);
+    hbtest_->AddCopySetToRequest(&req, csInfo, ConfigChangeType::CHANGE_PEER);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
@@ -6913,7 +6989,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_3) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6934,7 +7010,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_4) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6957,7 +7033,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_5) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6978,7 +7054,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_6) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 4});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -6999,7 +7075,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_7) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 7, 2, std::set<ChunkServerIdType>{1, 2, 4});
+    BuildCopySetInfo(&csInfo, 7, 2, std::set<ChunkServerIdType>{ 1, 2, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7020,7 +7096,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_8) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 7, 4, std::set<ChunkServerIdType>{1, 2, 4});
+    BuildCopySetInfo(&csInfo, 7, 4, std::set<ChunkServerIdType>{ 1, 2, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7041,7 +7117,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_9) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7065,7 +7141,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_10) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7090,7 +7166,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_11) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7115,7 +7191,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_12) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7141,7 +7217,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_13) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 4});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7150,7 +7226,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_13) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -7167,7 +7243,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_14) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 4});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7177,7 +7253,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_14) {
     // 检查copyset
     csInfo.SetLeader(1);
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -7196,7 +7272,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_15) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7205,7 +7281,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_15) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -7224,7 +7300,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_16) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7234,7 +7310,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_16) {
     // 检查copyset
     csInfo.SetLeader(1);
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -7251,7 +7327,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_17) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7276,7 +7352,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_18) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7304,7 +7380,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_19) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7313,7 +7389,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_19) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -7332,7 +7408,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_20) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7342,7 +7418,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_20) {
     // 检查copyset
     csInfo.SetLeader(1);
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -7359,7 +7435,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_21) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7384,7 +7460,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_22) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7412,7 +7488,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_23) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7421,7 +7497,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_23) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -7440,7 +7516,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_24) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7450,7 +7526,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_24) {
     // 检查copyset
     csInfo.SetLeader(1);
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -7467,7 +7543,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_25) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7491,7 +7567,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_26) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7516,7 +7592,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_27) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 4});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7525,7 +7601,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_27) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -7542,7 +7618,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_28) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 4});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7551,7 +7627,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_28) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     csInfo.SetLeader(1);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -7569,7 +7645,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_29) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7594,7 +7670,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_30) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7622,7 +7698,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_31) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7631,7 +7707,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_31) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -7650,7 +7726,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_32) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7660,7 +7736,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_32) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -7677,7 +7753,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_33) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7702,7 +7778,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_34) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7730,7 +7806,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_35) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7739,7 +7815,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_35) {
     ASSERT_EQ(0, rep.needupdatecopysets_size());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -7758,7 +7834,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_36) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7768,7 +7844,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_36) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -7787,7 +7863,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_37) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7804,7 +7880,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_37) {
     ASSERT_EQ(5, conf.epoch());
     // 检查copyset
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -7823,7 +7899,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_38) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7848,14 +7924,13 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_38) {
     ASSERT_TRUE(nullptr != step);
     ASSERT_EQ(4, step->GetTargetPeer());
 
-
     ChunkServer cs2(6, "testtoken", "nvme", 3, "10.198.100.3", 9003, "/");
     hbtest_->PrepareAddChunkServer(cs2);
     req.Clear();
     rep.Clear();
     // chunkserver-5上报copyset-1(epoch=4, peers={1,2,6}, leader=1)
     hbtest_->BuildBasicChunkServerRequest(5, &req);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 6});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 6 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
@@ -7871,7 +7946,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_38) {
     ASSERT_EQ(5, conf.epoch());
     // 检查copyset
     csInfo.SetEpoch(5);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -7890,7 +7965,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_39) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7916,14 +7991,13 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_39) {
     ASSERT_TRUE(nullptr != step);
     ASSERT_EQ(4, step->GetTargetPeer());
 
-
     ChunkServer cs2(6, "testtoken", "nvme", 3, "10.198.100.3", 9003, "/");
     hbtest_->PrepareAddChunkServer(cs2);
     // chunkserver-5上报copyset-1(epoch=4, peers={1,2,6}, leader=0)
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(5, &req);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 6});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 6 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
@@ -7940,7 +8014,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_39) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -7959,7 +8033,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_40) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -7989,7 +8063,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_40) {
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(5, &req);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
@@ -8006,7 +8080,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOp_40) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -8023,7 +8097,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_1) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8061,9 +8135,8 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_2) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3}, 4);
-    hbtest_->AddCopySetToRequest(&req, csInfo,
-                                ConfigChangeType::CHANGE_PEER);
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 }, 4);
+    hbtest_->AddCopySetToRequest(&req, csInfo, ConfigChangeType::CHANGE_PEER);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
@@ -8086,7 +8159,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_3) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8107,7 +8180,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_4) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 2, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8130,7 +8203,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_5) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8151,7 +8224,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_6) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(1, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 4});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8166,13 +8239,13 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_6) {
 }
 
 TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_7) {
-    PrepareMdsWithChangeOpOnGoing();;
+    PrepareMdsWithChangeOpOnGoing();
 
     // chunkserver-2上报copyset-1(epoch=7, peers={1,2,4}, leader=2)
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 7, 2, std::set<ChunkServerIdType>{1, 2, 4});
+    BuildCopySetInfo(&csInfo, 7, 2, std::set<ChunkServerIdType>{ 1, 2, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8193,7 +8266,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_8) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 7, 4, std::set<ChunkServerIdType>{1, 2, 4});
+    BuildCopySetInfo(&csInfo, 7, 4, std::set<ChunkServerIdType>{ 1, 2, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8214,7 +8287,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_9) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8239,7 +8312,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_10) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8265,7 +8338,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_11) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8291,7 +8364,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_12) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8318,7 +8391,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_13) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 4});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8328,7 +8401,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_13) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -8345,7 +8418,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_14) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 4});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8356,7 +8429,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_14) {
     csInfo.SetLeader(1);
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -8375,7 +8448,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_15) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8385,7 +8458,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_15) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -8404,7 +8477,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_16) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8415,7 +8488,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_16) {
     csInfo.SetLeader(1);
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -8432,7 +8505,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_17) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8458,7 +8531,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_18) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8487,7 +8560,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_19) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8497,7 +8570,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_19) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -8516,7 +8589,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_20) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8527,7 +8600,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_20) {
     csInfo.SetLeader(1);
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -8544,7 +8617,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_21) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8570,7 +8643,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_22) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8599,7 +8672,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_23) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8609,7 +8682,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_23) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -8628,7 +8701,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_24) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(2, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8639,7 +8712,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_24) {
     csInfo.SetLeader(1);
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -8656,7 +8729,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_25) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8681,7 +8754,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_26) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8707,7 +8780,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_27) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{1, 2, 4});
+    BuildCopySetInfo(&csInfo, 6, 1, std::set<ChunkServerIdType>{ 1, 2, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8717,7 +8790,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_27) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -8734,7 +8807,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_28) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{1, 2, 4});
+    BuildCopySetInfo(&csInfo, 6, 0, std::set<ChunkServerIdType>{ 1, 2, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8744,7 +8817,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_28) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     csInfo.SetLeader(1);
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
@@ -8762,7 +8835,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_29) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8788,7 +8861,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_30) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8817,7 +8890,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_31) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8827,7 +8900,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_31) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -8846,7 +8919,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_32) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8857,7 +8930,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_32) {
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -8874,7 +8947,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_33) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8900,7 +8973,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_34) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8929,7 +9002,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_35) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 0, 1, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8939,7 +9012,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_35) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -8958,7 +9031,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_36) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(4, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -8969,7 +9042,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_36) {
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -8988,7 +9061,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_37) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{1, 2, 5});
+    BuildCopySetInfo(&csInfo, 5, 0, std::set<ChunkServerIdType>{ 1, 2, 5 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -9006,7 +9079,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_37) {
     // 检查copyset
     csInfo.SetLeader(1);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     auto ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -9025,7 +9098,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_38) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -9052,14 +9125,13 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_38) {
     ASSERT_TRUE(nullptr != step);
     ASSERT_EQ(4, step->GetTargetPeer());
 
-
     ChunkServer cs2(6, "testtoken", "nvme", 3, "10.198.100.3", 9003, "/");
     hbtest_->PrepareAddChunkServer(cs2);
     req.Clear();
     rep.Clear();
     // chunkserver-5上报copyset-1(epoch=4, peers={1,2,6}, leader=0)
     hbtest_->BuildBasicChunkServerRequest(5, &req);
-    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{1, 2, 6});
+    BuildCopySetInfo(&csInfo, 4, 0, std::set<ChunkServerIdType>{ 1, 2, 6 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
@@ -9077,7 +9149,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_38) {
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -9096,7 +9168,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_39) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -9122,14 +9194,13 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_39) {
     ASSERT_TRUE(nullptr != step);
     ASSERT_EQ(4, step->GetTargetPeer());
 
-
     ChunkServer cs2(6, "testtoken", "nvme", 3, "10.198.100.3", 9003, "/");
     hbtest_->PrepareAddChunkServer(cs2);
     // chunkserver-5上报copyset-1(epoch=4, peers={1,2,6}, leader=1)
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(5, &req);
-    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{1, 2, 6});
+    BuildCopySetInfo(&csInfo, 4, 1, std::set<ChunkServerIdType>{ 1, 2, 6 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
@@ -9146,7 +9217,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_39) {
     // 检查copyset
     csInfo.SetEpoch(5);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();
@@ -9165,7 +9236,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_40) {
     ChunkServerHeartbeatRequest req;
     hbtest_->BuildBasicChunkServerRequest(5, &req);
     CopySetInfo csInfo(1, 1);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 3 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     ChunkServerHeartbeatResponse rep;
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
@@ -9192,12 +9263,11 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_40) {
     ASSERT_TRUE(nullptr != step);
     ASSERT_EQ(4, step->GetTargetPeer());
 
-
     // chunkserver-5上报copyset-1(epoch=0, peers={1,2,4}, leader=0)
     req.Clear();
     rep.Clear();
     hbtest_->BuildBasicChunkServerRequest(5, &req);
-    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{1, 2, 4});
+    BuildCopySetInfo(&csInfo, 0, 0, std::set<ChunkServerIdType>{ 1, 2, 4 });
     hbtest_->AddCopySetToRequest(&req, csInfo);
     hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
 
@@ -9215,7 +9285,7 @@ TEST_F(HeartbeatBasicTest, test_mdsWithChangePeerOpOnGoing_40) {
     csInfo.SetEpoch(5);
     csInfo.SetLeader(1);
     csInfo.SetCandidate(4);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>{ 1, 2, 3 });
     ASSERT_TRUE(ValidateCopySet(csInfo));
     // 检查scheduler中的op
     ops = hbtest_->coordinator_->GetOpController()->GetOperators();

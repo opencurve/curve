@@ -274,7 +274,7 @@ bool Coordinator::BuildCopySetConf(
 }
 
 bool Coordinator::ChunkserverGoingToAdd(
-    ChunkServerIDType csId, CopySetKey key) {
+    ChunkServerIdType csId, CopySetKey key) {
     Operator op;
     // copyset上没有需要变更的operator,
     if (!opController_->GetOperatorById(key, &op)) {
