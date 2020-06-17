@@ -39,6 +39,7 @@ const char CHUNKSTOREKEYEND[] = "06";
 const char LEADERCAMPAIGNNPFX[] = "07leader";
 const char SEGMENTALLOCSIZEKEY[] = "08";
 const char SEGMENTALLOCSIZEKEYEND[] = "09";
+const char TOPOLOGYITEMPRIFIX[] = "10";
 
 const char SNAPINFOKEYPREFIX[] = "11";
 const char SNAPINFOKEYEND[] = "12";

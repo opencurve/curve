@@ -35,12 +35,12 @@ class MockCoordinator : public ::curve::mds::schedule::Coordinator {
     MockCoordinator() {}
     ~MockCoordinator() {}
 
-    MOCK_METHOD3(CopySetHeartbeat, ChunkServerIDType(
+    MOCK_METHOD3(CopySetHeartbeat, ChunkServerIdType(
                 const ::curve::mds::topology::CopySetInfo &originInfo,
                 const ::curve::mds::heartbeat::ConfigChangeInfo &configChInfo,
                 ::curve::mds::heartbeat::CopySetConf *newConf));
 
-    MOCK_METHOD2(ChunkserverGoingToAdd, bool(ChunkServerIDType, CopySetKey));
+    MOCK_METHOD2(ChunkserverGoingToAdd, bool(ChunkServerIdType, CopySetKey));
 
     MOCK_METHOD1(RapidLeaderSchedule, int(PoolIdType));
 

@@ -42,7 +42,6 @@ cc_test(
     copts = COPTS,
     defines = ["FIU_ENABLE"],
     linkopts = ["-lfiu",
-        "-lmysqlcppconn",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -74,7 +73,6 @@ cc_test(
     copts = COPTS,
     defines = ["FIU_ENABLE"],
     linkopts = ["-lfiu",
-        "-lmysqlcppconn",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -105,7 +103,6 @@ cc_test(
     copts = COPTS,
     defines = ["FIU_ENABLE"],
     linkopts = ["-lfiu",
-        "-lmysqlcppconn",
     ],
     visibility = ["//visibility:public"],
     deps = [

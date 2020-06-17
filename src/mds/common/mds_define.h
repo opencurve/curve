@@ -58,6 +58,8 @@ namespace curve {
 namespace mds {
 namespace topology {
 
+typedef uint16_t LogicalPoolIdType;
+typedef uint16_t PhysicalPoolIdType;
 typedef uint16_t PoolIdType;
 typedef uint32_t ZoneIdType;
 typedef uint32_t ServerIdType;

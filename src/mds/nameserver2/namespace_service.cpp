@@ -1584,38 +1584,6 @@ void NameSpaceService::SetCloneFileStatus(
     }
 }
 
-void NameSpaceService::RegistClient(
-                        ::google::protobuf::RpcController* controller,
-                       const ::curve::mds::RegistClientRequest* request,
-                       ::curve::mds::RegistClientResponse* response,
-                       ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-
-
-    LOG(INFO) << "logid = " << cntl->log_id()
-        << ", RegistClient request, ip = " << request->ip()
-        << ", port = " << request->port();
-
-    StatusCode retCode;
-    retCode = kCurveFS.RegistClient(request->ip(), request->port());
-    if (retCode != StatusCode::kOK)  {
-        response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", RegistClient fail, ip = " << request->ip()
-            << ", port = " << request->port()
-            << ", statusCode = " << retCode
-            << ", StatusCode_Name = " << StatusCode_Name(retCode);
-        return;
-    } else {
-        response->set_statuscode(StatusCode::kOK);
-        LOG(INFO) << "logid = " << cntl->log_id()
-            << ", RegistClient ok, ip = " << request->ip()
-            << ", port = " << request->port();
-    }
-    return;
-}
-
 void NameSpaceService::GetAllocatedSize(
                         ::google::protobuf::RpcController* controller,
                        const ::curve::mds::GetAllocatedSizeRequest* request,

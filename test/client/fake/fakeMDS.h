@@ -90,31 +90,6 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         retrytimes_ = 0;
     }
 
-    void RegistClient(::google::protobuf::RpcController* controller,
-                       const ::curve::mds::RegistClientRequest* request,
-                       ::curve::mds::RegistClientResponse* response,
-                       ::google::protobuf::Closure* done) {
-        brpc::ClosureGuard done_guard(done);
-        if (fakeRegisterret_->controller_ != nullptr &&
-             fakeRegisterret_->controller_->Failed()) {
-            auto cntl = static_cast<brpc::Controller*>(
-                        fakeRegisterret_->controller_);
-            static_cast<brpc::Controller*>(controller)->
-            SetFailed(cntl->ErrorCode(),
-            "failed");
-            LOG(ERROR) << "RegistClient set controller failed!";
-        }
-
-        retrytimes_++;
-
-        ip_ = request->ip();
-        port_ = request->port();
-
-        auto resp = static_cast<::curve::mds::RegistClientResponse*>(
-                    fakeRegisterret_->response_);
-        response->CopyFrom(*resp);
-    }
-
     void ListClient(::google::protobuf::RpcController* controller,
                     const ::curve::mds::ListClientRequest* request,
                     ::curve::mds::ListClientResponse* response,

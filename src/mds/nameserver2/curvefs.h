@@ -37,7 +37,6 @@
 #include "src/mds/nameserver2/async_delete_snapshot_entity.h"
 #include "src/mds/nameserver2/file_record.h"
 #include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
-#include "src/mds/dao/mdsRepo.h"
 #include "src/common/authenticator.h"
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 using curve::common::Authenticator;
@@ -84,7 +83,6 @@ class CurveFS {
      *         fileRecordManager
      *         allocStatistic: 分配统计模块
      *         CurveFSOption : 对curvefs进行初始化需要的参数
-     *         repo : curvefs持久化数据所用的数据库，目前保存client注册信息使用
      *  @return 初始化是否成功
      */
     bool Init(std::shared_ptr<NameServerStorage>,
@@ -94,7 +92,6 @@ class CurveFS {
               std::shared_ptr<FileRecordManager> fileRecordManager,
               std::shared_ptr<AllocStatistic> allocStatistic,
               const struct CurveFSOption &curveFSOptions,
-              std::shared_ptr<MdsRepo> repo,
               std::shared_ptr<Topology> topology);
 
     /**
@@ -427,15 +424,6 @@ class CurveFS {
                               uint64_t date);
 
     /**
-     *  @brief 注册client信息
-     *  @param: ip：client的ip信息
-     *  @param: port：client的端口信息
-     *  @return 是否成功，成功返回StatusCode::kOK
-     *          失败返回StatusCode::KInternalError
-     */
-    StatusCode RegistClient(const std::string &ip, uint32_t port);
-
-    /**
      *  @brief 获取fileRecord中的client的信息
      *  @param listAllClient 是否列出所有client信息
      *  @param[out]:  client信息的列表
@@ -597,7 +585,6 @@ class CurveFS {
     struct RootAuthOption       rootAuthOptions_;
 
     uint64_t defaultChunkSize_;
-    std::shared_ptr<MdsRepo> repo_;
     std::chrono::steady_clock::time_point startTime_;
 };
 extern CurveFS &kCurveFS;

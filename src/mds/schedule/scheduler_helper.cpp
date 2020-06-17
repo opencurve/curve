@@ -97,8 +97,8 @@ bool SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
         LOG(ERROR) << "copyset scheduler can not get chunkserver " << target;
         return false;
     }
-    ZoneIDType targetZone = targetInfo.info.zoneId;
-    ZoneIDType sourceZone;
+    ZoneIdType targetZone = targetInfo.info.zoneId;
+    ZoneIdType sourceZone;
     int minZone = topo->GetStandardZoneNumInLogicalPool(candidate.id.first);
     if (minZone <=0) {
         LOG(ERROR) << "standard zone num should > 0";
@@ -153,22 +153,22 @@ bool SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
 }
 
 void SchedulerHelper::SortDistribute(
-    const std::map<ChunkServerIDType, std::vector<CopySetInfo>> &distribute,
-    std::vector<std::pair<ChunkServerIDType, std::vector<CopySetInfo>>> *desc) {
+    const std::map<ChunkServerIdType, std::vector<CopySetInfo>> &distribute,
+    std::vector<std::pair<ChunkServerIdType, std::vector<CopySetInfo>>> *desc) {
     static std::random_device rd;
     static std::mt19937 g(rd());
 
     for (auto item : distribute) {
         std::shuffle(item.second.begin(), item.second.end(), g);
         desc->emplace_back(
-            std::pair<ChunkServerIDType, std::vector<CopySetInfo>>(
+            std::pair<ChunkServerIdType, std::vector<CopySetInfo>>(
                 item.first, item.second));
     }
     std::shuffle(desc->begin(), desc->end(), g);
 
     std::sort(desc->begin(), desc->end(),
-        [](const std::pair<ChunkServerIDType, std::vector<CopySetInfo>> &c1,
-           const std::pair<ChunkServerIDType, std::vector<CopySetInfo>> &c2) {
+        [](const std::pair<ChunkServerIdType, std::vector<CopySetInfo>> &c1,
+           const std::pair<ChunkServerIdType, std::vector<CopySetInfo>> &c2) {
             return c1.second.size() > c2.second.size();
     });
 }

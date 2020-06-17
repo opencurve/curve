@@ -440,15 +440,6 @@ message SetCloneFileStatusResponse {
     required StatusCode statusCode = 1;
 }
 
-message RegistClientRequest {
-    required string ip = 1;
-    required uint32 port = 2;
-}
-
-message RegistClientResponse {
-    required StatusCode statusCode = 1;
-}
-
 message GetAllocatedSizeRequest {
     required string fileName = 1;
 }
@@ -520,7 +511,6 @@ service CurveFSService {
     rpc     SetCloneFileStatus(SetCloneFileStatusRequest) returns (SetCloneFileStatusResponse);
 
     // curve status
-    rpc     RegistClient(RegistClientRequest) returns (RegistClientResponse);
     rpc     GetAllocatedSize(GetAllocatedSizeRequest) returns (GetAllocatedSizeResponse);
     rpc     ListClient(ListClientRequest) returns (ListClientResponse);
     rpc     FindFileMountPoint(FindFileMountPointRequest) returns (FindFileMountPointResponse);

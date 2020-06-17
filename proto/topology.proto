@@ -26,6 +26,17 @@ package curve.mds.topology;
 
 option cc_generic_services = true;
 
+enum LogicalPoolType {
+    PAGEFILE = 0;
+    APPENDFILE = 1;
+    APPENDECFILE = 2;
+};
+
+enum AllocateStatus {
+    ALLOW = 0;
+    DENY = 1;
+}
+
 enum ChunkServerStatus {
     READWRITE = 0;
     PENDDING = 1;
@@ -42,6 +53,73 @@ enum OnlineState {
     OFFLINE = 1;
     UNSTABLE = 2;
 }
+
+// etcd struct defination
+message ClusterInfoData {
+    required string clusterId = 1;
+}
+
+message LogicalPoolData {
+    required uint32 logicalPoolId = 1;
+    required string logicalPoolName = 2;
+    required uint32 physicalPoolId = 3;
+    required LogicalPoolType type = 4;
+    required uint32 initialScatterWidth = 5;
+    required uint64 createTime = 6;
+    required AllocateStatus status = 7;
+    required string redundanceAndPlacementPolicy = 8;
+    required string userPolicy = 9;
+    required bool availFlag = 10;
+}
+
+message PhysicalPoolData {
+    required uint32 physicalPoolId = 1;
+    required string physicalPoolName = 2;
+    required string desc = 3;
+}
+
+message ZoneData {
+    required uint32 zoneId = 1;
+    required string zoneName = 2;
+    required uint32 physicalPoolId = 3;
+    required string desc = 4;
+}
+
+message ServerData {
+    required uint32 serverId = 1;
+    required string hostName = 2;
+    required string internalHostIP = 3;
+    required uint32 internalPort = 4;
+    required string externalHostIP = 5;
+    required uint32 externalPort = 6;
+    required uint32 zoneId = 7;
+    required uint32 physicalPoolId = 8;
+    required string desc = 9;
+}
+
+message ChunkServerData {
+    required uint32 chunkserverId = 1;
+    required string token = 2;
+    required string diskType = 3;
+    required string internalHostIP = 4;
+    required uint32 port = 5;
+    required uint32 serverId = 6;
+    required ChunkServerStatus rwstatus = 7;
+    required DiskState diskState = 8;
+    required OnlineState onlineState = 9;
+    required string mountPoint = 10;
+    required int64 diskCapacity = 11;
+    required int64 diskUsed = 12;
+}
+
+message CopysetData {
+    required uint32 copysetId = 1;
+    required uint32 logicalPoolId = 2;
+    required uint64 epoch = 3;
+    repeated uint32 chunkserverIds = 4;
+}
+
+// rpc struct defination
 
 message ChunkServerInfo {
     required uint32 chunkServerID = 1;
@@ -246,17 +324,6 @@ message ListPhysicalPoolResponse {
 }
 
 //logicalpool message
-enum LogicalPoolType {
-    PAGEFILE = 0;
-    APPENDFILE = 1;
-    APPENDECFILE = 2;
-};
-
-enum AllocateStatus {
-    ALLOW = 0;
-    DENY = 1;
-}
-
 message LogicalPoolInfo {
     required uint32 logicalPoolID = 1;
     required string logicalPoolName = 2;

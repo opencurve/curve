@@ -27,10 +27,24 @@
 
 #include "json/json.h"
 #include "src/common/string_util.h"
+#include "proto/topology.pb.h"
 
 namespace curve {
 namespace mds {
 namespace topology {
+
+bool ClusterInformation::SerializeToString(std::string *value) const {
+    ClusterInfoData data;
+    data.set_clusterid(clusterId);
+    return data.SerializeToString(value);
+}
+
+bool ClusterInformation::ParseFromString(const std::string &value) {
+    ClusterInfoData data;
+    bool ret = data.ParseFromString(value);
+    clusterId = data.clusterid();
+    return ret;
+}
 
 bool LogicalPool::TransRedundanceAndPlaceMentPolicyFromJsonStr(
     const std::string &jsonStr,
@@ -149,6 +163,140 @@ uint16_t LogicalPool::GetReplicaNum() const {
     return ret;
 }
 
+bool LogicalPool::SerializeToString(std::string *value) const {
+    LogicalPoolData data;
+    data.set_logicalpoolid(id_);
+    data.set_logicalpoolname(name_);
+    data.set_physicalpoolid(physicalPoolId_);
+    data.set_type(type_);
+    data.set_initialscatterwidth(initialScatterWidth_);
+    data.set_createtime(createTime_);
+    data.set_status(status_);
+    data.set_redundanceandplacementpolicy(
+        this->GetRedundanceAndPlaceMentPolicyJsonStr());
+    data.set_userpolicy(this->GetUserPolicyJsonStr());
+    data.set_availflag(avaliable_);
+    return data.SerializeToString(value);
+}
+
+bool LogicalPool::ParseFromString(const std::string &value) {
+    LogicalPoolData data;
+    bool ret = data.ParseFromString(value);
+    id_ = data.logicalpoolid();
+    name_ = data.logicalpoolname();
+    physicalPoolId_ = data.physicalpoolid();
+    type_ = data.type();
+    SetRedundanceAndPlaceMentPolicyByJson(
+        data.redundanceandplacementpolicy());
+    SetUserPolicyByJson(
+        data.userpolicy());
+    initialScatterWidth_ = data.initialscatterwidth();
+    createTime_ = data.createtime();
+    status_ = data.status();
+    avaliable_ = data.availflag();
+    return ret;
+}
+
+bool PhysicalPool::SerializeToString(std::string *value) const {
+    PhysicalPoolData data;
+    data.set_physicalpoolid(id_);
+    data.set_physicalpoolname(name_);
+    data.set_desc(desc_);
+    return data.SerializeToString(value);
+}
+
+bool PhysicalPool::ParseFromString(const std::string &value) {
+    PhysicalPoolData data;
+    bool ret = data.ParseFromString(value);
+    id_ = data.physicalpoolid();
+    name_ = data.physicalpoolname();
+    desc_ = data.desc();
+    return ret;
+}
+
+bool Zone::SerializeToString(std::string *value) const {
+    ZoneData data;
+    data.set_zoneid(id_);
+    data.set_zonename(name_);
+    data.set_physicalpoolid(physicalPoolId_);
+    data.set_desc(desc_);
+    return data.SerializeToString(value);
+}
+
+bool Zone::ParseFromString(const std::string &value) {
+    ZoneData data;
+    bool ret = data.ParseFromString(value);
+    id_ = data.zoneid();
+    name_ = data.zonename();
+    physicalPoolId_ = data.physicalpoolid();
+    desc_ = data.desc();
+    return ret;
+}
+
+bool Server::SerializeToString(std::string *value) const {
+    ServerData data;
+    data.set_serverid(id_);
+    data.set_hostname(hostName_);
+    data.set_internalhostip(internalHostIp_);
+    data.set_internalport(internalPort_);
+    data.set_externalhostip(externalHostIp_);
+    data.set_externalport(externalPort_);
+    data.set_zoneid(zoneId_);
+    data.set_physicalpoolid(physicalPoolId_);
+    data.set_desc(desc_);
+    return data.SerializeToString(value);
+}
+
+bool Server::ParseFromString(const std::string &value) {
+    ServerData data;
+    bool ret = data.ParseFromString(value);
+    id_ = data.serverid();
+    hostName_ = data.hostname();
+    internalHostIp_ = data.internalhostip();
+    internalPort_ = data.internalport();
+    externalHostIp_ = data.externalhostip();
+    externalPort_ = data.externalport();
+    zoneId_ = data.zoneid();
+    physicalPoolId_ = data.physicalpoolid();
+    desc_ = data.desc();
+    return ret;
+}
+
+bool ChunkServer::SerializeToString(std::string *value) const {
+    ChunkServerData data;
+    data.set_chunkserverid(id_);
+    data.set_token(token_);
+    data.set_disktype(diskType_);
+    data.set_internalhostip(internalHostIp_);
+    data.set_port(port_);
+    data.set_serverid(serverId_);
+    data.set_rwstatus(status_);
+    data.set_diskstate(state_.GetDiskState());
+    data.set_onlinestate(onlineState_);
+    data.set_mountpoint(mountPoint_);
+    data.set_diskcapacity(state_.GetDiskCapacity());
+    data.set_diskused(state_.GetDiskUsed());
+    return data.SerializeToString(value);
+}
+
+bool ChunkServer::ParseFromString(const std::string &value) {
+    ChunkServerData data;
+    bool ret = data.ParseFromString(value);
+    id_ = data.chunkserverid();
+    token_ = data.token();
+    diskType_ = data.disktype();
+    serverId_ = data.serverid();
+    internalHostIp_ = data.internalhostip();
+    port_ = data.port();
+    mountPoint_ = data.mountpoint();
+    status_ = data.rwstatus();
+    onlineState_ = data.onlinestate();
+    state_.SetDiskState(data.diskstate());
+    state_.SetDiskCapacity(data.diskcapacity());
+    state_.SetDiskUsed(data.diskused());
+    return ret;
+}
+
 std::string CopySetInfo::GetCopySetMembersStr() const {
     Json::Value copysetMemJson;
     for (ChunkServerIdType id : peers_) {
@@ -175,6 +323,29 @@ bool CopySetInfo::SetCopySetMembersByJson(const std::string &jsonStr) {
     return true;
 }
 
+bool CopySetInfo::SerializeToString(std::string *value) const {
+    CopysetData data;
+    data.set_copysetid(copySetId_);
+    data.set_logicalpoolid(logicalPoolId_);
+    data.set_epoch(epoch_);
+    for (ChunkServerIdType csId : peers_) {
+        data.add_chunkserverids(csId);
+    }
+    return data.SerializeToString(value);
+}
+
+bool CopySetInfo::ParseFromString(const std::string &value) {
+    CopysetData data;
+    bool ret = data.ParseFromString(value);
+    logicalPoolId_ = data.logicalpoolid();
+    copySetId_ = data.copysetid();
+    epoch_ = data.epoch();
+    peers_.clear();
+    for (int i = 0; i < data.chunkserverids_size(); i++) {
+        peers_.insert(data.chunkserverids(i));
+    }
+    return ret;
+}
 
 bool SplitPeerId(
     const std::string &peerId,

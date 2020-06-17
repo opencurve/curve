@@ -64,7 +64,7 @@ class MockTopoAdapter : public TopoAdapter {
                 bool(const ::curve::mds::topology::ChunkServer &origin,
                     ::curve::mds::schedule::ChunkServerInfo *out));
 
-    MOCK_METHOD2(GetChunkServerScatterMap, void(const ChunkServerIDType &,
+    MOCK_METHOD2(GetChunkServerScatterMap, void(const ChunkServerIdType &,
                 std::map<ChunkServerIdType, int> *));
 
     MOCK_METHOD0(GetLogicalpools, std::vector<PoolIdType>());

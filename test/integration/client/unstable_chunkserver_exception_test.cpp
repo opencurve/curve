@@ -49,7 +49,6 @@ using curve::CurveCluster;
 const char* kMdsConfPath = "./test/integration/unstable_test_mds.conf";
 const char* kCSConfPath = "./test/integration/unstable_test_cs.conf";
 const char* kClientConfPath = "./test/integration/unstable_test_client.conf";
-const char* kDbName = "unstable_chunkserver";
 
 const char* kEtcdClientIpPort = "127.0.0.1:30000";
 const char* kEtcdPeerIpPort = "127.0.0.1:29999";
@@ -65,8 +64,9 @@ const std::vector<std::string> chunkserverConfigOpts{
     "chunkfilepool.enable_get_chunk_from_pool=false"
 };
 
-const std::vector<std::string> mdsConfigOpts{ std::string("mds.DbName=") +
-                                              std::string(kDbName) };
+const std::vector<std::string> mdsConfigOpts{
+    std::string("mds.etcd.endpoint=") + std::string(kEtcdClientIpPort)
+};
 
 const std::vector<std::string> clientConfigOpts{
     std::string("mds.listen.addr=") + kMdsIpPort,
@@ -175,13 +175,6 @@ class UnstableCSModuleException : public ::testing::Test {
         cluster->PrepareConfig<curve::ClientConfigGenerator>(kClientConfPath,
                                                              clientConfigOpts);
 
-        // 0. 初始化db
-        ASSERT_EQ(0, cluster->InitDB(kDbName));
-        cluster->mdsRepo_->dropDataBase();
-        cluster->mdsRepo_->createDatabase();
-        cluster->mdsRepo_->useDataBase();
-        cluster->mdsRepo_->createAllTables();
-
         // 1. 启动etcd
         pid_t pid = cluster->StartSingleEtcd(
             1, kEtcdClientIpPort, kEtcdPeerIpPort,
@@ -209,9 +202,11 @@ class UnstableCSModuleException : public ::testing::Test {
         std::this_thread::sleep_for(std::chrono::seconds(5));
 
         // 5. 创建逻辑池，并睡眠一段时间让底层copyset先选主
-        ASSERT_EQ(0, cluster->PrepareLogicalPool(
-            1, "test/integration/client/config/unstable/topo_unstable.txt", 300,
-            "pool1"));
+        ASSERT_EQ(
+            0,
+            cluster->PrepareLogicalPool(
+                1, "test/integration/client/config/unstable/topo_unstable.txt",
+                300, "pool1"));
         std::this_thread::sleep_for(std::chrono::seconds(10));
 
         // 6. 初始化client配置
@@ -224,7 +219,6 @@ class UnstableCSModuleException : public ::testing::Test {
 
     void TearDown() {
         UnInit();
-        cluster->mdsRepo_->dropDataBase();
         ASSERT_EQ(0, cluster->StopCluster());
         // 清理文件夹
         system("rm -rf module_exception_curve_unstable_cs");

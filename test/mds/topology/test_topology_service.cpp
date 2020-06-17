@@ -29,7 +29,12 @@
 #include <memory>
 
 #include "src/mds/topology/topology_service.h"
+#include "src/mds/topology/topology_storge.h"
+#include "src/mds/topology/topology_storge_etcd.h"
+#include "src/mds/topology/topology_storage_codec.h"
+
 #include "src/mds/common/mds_define.h"
+#include "test/mds/mock/mock_etcdclient.h"
 #include "test/mds/topology/mock_topology.h"
 #include "proto/topology.pb.h"
 
@@ -62,11 +67,10 @@ class TestTopologyService : public ::testing::Test {
         std::shared_ptr<TopologyTokenGenerator> tokenGenerator_ =
             std::make_shared<DefaultTokenGenerator>();
 
-        std::shared_ptr<MdsRepo> repo_ =
-            std::make_shared<MdsRepo>();
-
-        std::shared_ptr<TopologyStorage> storage_ =
-            std::make_shared<DefaultTopologyStorage>(repo_);
+        auto etcdClient_ = std::make_shared<MockEtcdClient>();
+        auto codec = std::make_shared<TopologyStorageCodec>();
+        auto storage_ =
+            std::make_shared<TopologyStorageEtcd>(etcdClient_, codec);
 
         CopysetOption copysetOption;
         manager_ = std::make_shared<MockTopologyServiceManager>(

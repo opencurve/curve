@@ -44,6 +44,9 @@ cc_library(
         "common/*.h",
         "*.cpp",
         "*.h"
+    ],
+    exclude = [
+        "main.cpp",
     ]),
     copts = COPTS,
     linkopts = [
@@ -53,7 +56,6 @@ cc_library(
         "-ldl",
         "-lz",
         "-lpthread",
-        "-lmysqlcppconn",
         "-luuid",
     ],
     visibility = ["//visibility:public"],
@@ -95,7 +97,6 @@ cc_binary(
         "-ldl",
         "-lz",
         "-lpthread",
-        "-lmysqlcppconn",
         "-luuid",
     ],
     visibility = ["//visibility:public"],

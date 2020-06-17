@@ -135,13 +135,6 @@ class MDSModuleException : public ::testing::Test {
         cluster->PrepareConfig<curve::ClientConfigGenerator>(confPath,
                                                              clientConf);
 
-        // 0. 初始化db
-        ASSERT_EQ(0, cluster->InitDB("module_exception_curve_mds"));
-        cluster->mdsRepo_->dropDataBase();
-        cluster->mdsRepo_->createDatabase();
-        cluster->mdsRepo_->useDataBase();
-        cluster->mdsRepo_->createAllTables();
-
         // 1. 启动etcd
         pid_t pid = cluster->StartSingleEtcd(
             1, "127.0.0.1:22230", "127.0.0.1:22231",
@@ -252,12 +245,10 @@ class MDSModuleException : public ::testing::Test {
         ::Close(fd);
         UnInit();
 
-        system("rm -rf module_exception_test_mds.etcd");
-        system("rm -rf moduleException1 moduleException2 moduleException3");
-
-        ASSERT_EQ(0, cluster->StopEtcd(1));
         ASSERT_EQ(0, cluster->StopCluster());
         delete cluster;
+        system("rm -rf module_exception_test_mds.etcd");
+        system("rm -rf moduleException1 moduleException2 moduleException3");
     }
 
     void CreateOpenFileBackend() {

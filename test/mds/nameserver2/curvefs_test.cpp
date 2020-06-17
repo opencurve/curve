@@ -32,7 +32,6 @@
 #include "test/mds/nameserver2/mock/mock_inode_id_generator.h"
 #include "test/mds/nameserver2/mock/mock_chunk_allocate.h"
 #include "test/mds/nameserver2/mock/mock_clean_manager.h"
-#include "test/mds/mock/mock_repo.h"
 #include "test/mds/mock/mock_alloc_statistic.h"
 #include "test/mds/mock/mock_topology.h"
 
@@ -60,8 +59,6 @@ class CurveFSTest: public ::testing::Test {
         mockChunkAllocator_ = std::make_shared<MockChunkAllocator>();
 
         mockcleanManager_ = std::make_shared<MockCleanManager>();
-
-        mockRepo_ = std::make_shared<MockRepo>();
         topology_ = std::make_shared<MockTopology>();
         fileRecordManager_ = std::make_shared<FileRecordManager>();
 
@@ -95,7 +92,6 @@ class CurveFSTest: public ::testing::Test {
                         fileRecordManager_,
                         allocStatistic_,
                         curveFSOptions_,
-                        mockRepo_,
                         topology_);
         curvefs_->Run();
     }
@@ -112,7 +108,6 @@ class CurveFSTest: public ::testing::Test {
     std::shared_ptr<MockCleanManager> mockcleanManager_;
     std::shared_ptr<FileRecordManager> fileRecordManager_;
     std::shared_ptr<MockAllocStatistic> allocStatistic_;
-    std::shared_ptr<MockRepo> mockRepo_;
     std::shared_ptr<MockTopology> topology_;
     struct FileRecordOptions fileRecordOptions_;
     struct RootAuthOption authOptions_;
@@ -3046,7 +3041,6 @@ TEST_F(CurveFSTest, Init) {
                                                       fileRecordManager_,
                                                       allocStatistic_,
                                                       curveFSOptions_,
-                                                      mockRepo_,
                                                       topology_));
         }
     }
@@ -3064,7 +3058,6 @@ TEST_F(CurveFSTest, Init) {
                                        fileRecordManager_,
                                        allocStatistic_,
                                        curveFSOptions_,
-                                       mockRepo_,
                                        topology_));
     }
 
@@ -3086,7 +3079,6 @@ TEST_F(CurveFSTest, Init) {
                                        fileRecordManager_,
                                        allocStatistic_,
                                        curveFSOptions_,
-                                       mockRepo_,
                                        topology_));
 
         // putfile ok
@@ -3112,88 +3104,7 @@ TEST_F(CurveFSTest, Init) {
                                       fileRecordManager_,
                                       allocStatistic_,
                                       curveFSOptions_,
-                                      mockRepo_,
                                       topology_));
-    }
-}
-
-TEST_F(CurveFSTest, RegistClient) {
-    std::string clientIp = "127.0.0.1";
-    uint32_t clientPort = 8888;
-    // client的信息与mds记录的一致
-    {
-        ClientInfoRepoItem clientRepo(clientIp, clientPort);
-        EXPECT_CALL(*mockRepo_, QueryClientInfoRepoItem(_, _, _))
-            .Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(clientRepo),
-                Return(repo::OperationOK)));
-        ASSERT_EQ(StatusCode::kOK, curvefs_->RegistClient(clientIp,
-                                                          clientPort));
-    }
-    // client信息与mds记录不一致
-    {
-        ClientInfoRepoItem clientRepo(clientIp, 9999);
-        EXPECT_CALL(*mockRepo_, QueryClientInfoRepoItem(_, _, _))
-            .Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(clientRepo),
-                Return(repo::OperationOK)));
-        EXPECT_CALL(*mockRepo_, InsertClientInfoRepoItem(_))
-            .Times(1)
-            .WillOnce(Return(repo::OperationOK));
-        ASSERT_EQ(StatusCode::kOK, curvefs_->RegistClient(clientIp,
-                                                          clientPort));
-    }
-    // 从数据库获取失败
-    {
-        ClientInfoRepoItem clientRepo(clientIp, clientPort);
-        EXPECT_CALL(*mockRepo_, QueryClientInfoRepoItem(_, _, _))
-            .Times(1)
-            .WillOnce(Return(repo::SqlException));
-        ASSERT_EQ(StatusCode::KInternalError, curvefs_->RegistClient(clientIp,
-                                                            clientPort));
-    }
-    // 插入数据库失败
-    {
-        ClientInfoRepoItem clientRepo(clientIp, 9999);
-        EXPECT_CALL(*mockRepo_, QueryClientInfoRepoItem(_, _, _))
-            .Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(clientRepo),
-                Return(repo::OperationOK)));
-        EXPECT_CALL(*mockRepo_, InsertClientInfoRepoItem(_))
-            .Times(1)
-            .WillOnce(Return(repo::SqlException));
-        ASSERT_EQ(StatusCode::KInternalError, curvefs_->RegistClient(clientIp,
-                                                            clientPort));
-    }
-}
-
-TEST_F(CurveFSTest, ListAllClient) {
-    // 成功
-    {
-        std::vector<ClientInfoRepoItem> items;
-        items.emplace_back("127.0.0.1", 8888);
-        items.emplace_back("127.0.0.1", 9999);
-        fileRecordManager_->UpdateFileRecord(
-            "/file1", "0.0.6", "127.0.0.1", 8888);
-        fileRecordManager_->UpdateFileRecord(
-            "/file2", "0.0.6", "127.0.0.1", 9999);
-        EXPECT_CALL(*mockRepo_, LoadClientInfoRepoItems(_))
-            .Times(1)
-            .WillOnce(DoAll(SetArgPointee<0>(items),
-                Return(repo::OperationOK)));
-        std::vector<ClientInfo> clientInfos;
-        ASSERT_EQ(StatusCode::kOK,
-                        curvefs_->ListClient(true, &clientInfos));
-        ASSERT_EQ(2, clientInfos.size());
-    }
-    // 失败
-    {
-        EXPECT_CALL(*mockRepo_, LoadClientInfoRepoItems(_))
-            .Times(1)
-            .WillOnce(Return(repo::SqlException));
-        std::vector<ClientInfo> clientInfos;
-        ASSERT_EQ(StatusCode::KInternalError,
-                        curvefs_->ListClient(true, &clientInfos));
     }
 }
 

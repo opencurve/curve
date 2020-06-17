@@ -75,7 +75,6 @@ using curve::client::FileInstance;
 using curve::client::LeaseExcutor;
 using curve::mds::CurveFSService;
 using curve::mds::topology::TopologyService;
-using curve::mds::RegistClientResponse;
 using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 
 TEST(LeaseExcutorBaseTest, CommonTest) {

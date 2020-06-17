@@ -54,7 +54,6 @@ cc_library(
         "//src/client:curve_client",
         "//src/common:curve_common",
         "//src/common/concurrent:curve_concurrent",
-        "//src/mds/dao:mdsrepo",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
     ],

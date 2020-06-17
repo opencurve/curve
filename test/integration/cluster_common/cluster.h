@@ -27,7 +27,6 @@
 #include <map>
 #include <vector>
 #include <memory>
-#include "src/mds/dao/mdsRepo.h"
 #include "src/client/mds_client.h"
 #include "src/client/config_info.h"
 #include "test/util/config_generator.h"
@@ -35,7 +34,6 @@
 
 using ::curve::snapshotcloneserver::SnapshotCloneMetaStoreEtcd;
 using ::curve::client::MDSClient;
-using ::curve::mds::MdsRepo;
 
 namespace curve {
 
@@ -70,20 +68,6 @@ class CurveCluster {
     CurveCluster(const std::string &netWorkSegment = "192.168.200.",
                  const std::string &nsPrefix = "integ_")
         : networkSegment_(netWorkSegment), nsPrefix_(nsPrefix) {}
-
-    /**
-     * InitDB 初始化一个MdsRepo， 方便对数据库进行操作
-     *
-     * @param[in] mdsTable 数据库名称,建议按照模块来命名，避免冲突
-     * @param[in] user 测试环境一般设置为"root"
-     * @param[in] url 测试环境一般设置为"localhost"
-     * @param[in] password 测试环境一般设置为"qwer"
-     * @param[in] poolSize 测试环境一般设置为16
-     * @return 0.成功; 非0.失败
-     */
-    int InitDB(const std::string &mdsTable, const std::string &user = "root",
-               const std::string &url = "localhost",
-               const std::string &password = "qwer", int poolSize = 16);
 
     /**
      * InitMdsClient 初始化mdsclient， 用于和mds交互
@@ -462,9 +446,6 @@ class CurveCluster {
     std::shared_ptr<MDSClient> mdsClient_;
 
  public:
-    // mysql数据库
-    MdsRepo *mdsRepo_;
-
     // SnapshotCloneMetaStore用于测试过程中灌数据
     std::shared_ptr<SnapshotCloneMetaStoreEtcd> metaStore_;
 };

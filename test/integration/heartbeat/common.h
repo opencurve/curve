@@ -31,6 +31,8 @@
 #include <memory>
 #include <thread>
 #include <chrono>
+#include <unordered_map>
+#include <map>
 #include <string>
 #include <vector>
 #include <set>
@@ -58,56 +60,155 @@
 #include "src/common/timeutility.h"
 
 using ::curve::common::Configuration;
+using std::string;
 
-using ::curve::mds::topology::TopologyOption;
-using ::curve::mds::topology::kTopoErrCodeSuccess;
-using ::curve::mds::topology::PoolIdType;
-using ::curve::mds::topology::ZoneIdType;
 using ::curve::mds::topology::ChunkServerIdType;
-using ::curve::mds::topology::ServerIdType;
-using ::curve::mds::topology::CopySetIdType;
-using ::curve::mds::topology::LogicalPoolType;
-using ::curve::mds::topology::PhysicalPool;
-using ::curve::mds::topology::LogicalPool;
-using ::curve::mds::topology::Zone;
-using ::curve::mds::topology::TopologyImpl;
-using ::curve::mds::topology::TopologyStatImpl;
-using ::curve::mds::topology::TopologyServiceManager;
-using ::curve::mds::topology::DefaultTopologyStorage;
 using ::curve::mds::topology::ChunkServerState;
+using ::curve::mds::topology::CopySetIdType;
 using ::curve::mds::topology::DefaultIdGenerator;
 using ::curve::mds::topology::DefaultTokenGenerator;
+using ::curve::mds::topology::kTopoErrCodeSuccess;
+using ::curve::mds::topology::LogicalPool;
+using ::curve::mds::topology::LogicalPoolType;
+using ::curve::mds::topology::PhysicalPool;
+using ::curve::mds::topology::PoolIdType;
+using ::curve::mds::topology::ServerIdType;
+using ::curve::mds::topology::TopologyImpl;
+using ::curve::mds::topology::TopologyOption;
+using ::curve::mds::topology::TopologyServiceManager;
+using ::curve::mds::topology::TopologyStatImpl;
 using ::curve::mds::topology::UNINTIALIZE_ID;
+using ::curve::mds::topology::Zone;
+using ::curve::mds::topology::ZoneIdType;
 
-using ::curve::mds::heartbeat::HeartbeatManager;
-using ::curve::mds::heartbeat::HeartbeatServiceImpl;
-using ::curve::mds::heartbeat::HeartbeatOption;
-using ::curve::mds::heartbeat::ChunkServerStatisticInfo;
 using ::curve::mds::heartbeat::ChunkServerHeartbeatRequest;
 using ::curve::mds::heartbeat::ChunkServerHeartbeatResponse;
-using ::curve::mds::heartbeat::HeartbeatService_Stub;
-using ::curve::mds::heartbeat::CopySetConf;
+using ::curve::mds::heartbeat::ChunkServerStatisticInfo;
 using ::curve::mds::heartbeat::ConfigChangeType;
+using ::curve::mds::heartbeat::CopySetConf;
+using ::curve::mds::heartbeat::HeartbeatManager;
+using ::curve::mds::heartbeat::HeartbeatOption;
+using ::curve::mds::heartbeat::HeartbeatService_Stub;
+using ::curve::mds::heartbeat::HeartbeatServiceImpl;
 
 using ::curve::mds::copyset::CopysetManager;
 using ::curve::mds::copyset::CopysetOption;
 
-using ::curve::mds::schedule::TopoAdapterImpl;
-using ::curve::mds::schedule::ScheduleOption;
-using ::curve::mds::schedule::OperatorPriority;
-using ::curve::mds::schedule::Operator;
-using ::curve::mds::schedule::OperatorStep;
-using ::curve::mds::schedule::TransferLeader;
 using ::curve::mds::schedule::AddPeer;
-using ::curve::mds::schedule::RemovePeer;
 using ::curve::mds::schedule::ChangePeer;
+using ::curve::mds::schedule::Operator;
+using ::curve::mds::schedule::OperatorPriority;
+using ::curve::mds::schedule::OperatorStep;
+using ::curve::mds::schedule::RemovePeer;
 using ::curve::mds::schedule::ScheduleMetrics;
+using ::curve::mds::schedule::ScheduleOption;
+using ::curve::mds::schedule::TopoAdapterImpl;
+using ::curve::mds::schedule::TransferLeader;
 
 namespace curve {
 namespace mds {
 
 #define SENDHBOK false
 #define SENDHBFAIL true
+
+namespace topology {
+class FakeTopologyStorage : public TopologyStorage {
+ public:
+    FakeTopologyStorage() {}
+
+    bool
+    LoadLogicalPool(std::unordered_map<PoolIdType, LogicalPool> *logicalPoolMap,
+                    PoolIdType *maxLogicalPoolId) {
+        return true;
+    }
+    bool LoadPhysicalPool(
+        std::unordered_map<PoolIdType, PhysicalPool> *physicalPoolMap,
+        PoolIdType *maxPhysicalPoolId) {
+        return true;
+    }
+    bool LoadZone(std::unordered_map<ZoneIdType, Zone> *zoneMap,
+                  ZoneIdType *maxZoneId) {
+        return true;
+    }
+    bool LoadServer(std::unordered_map<ServerIdType, Server> *serverMap,
+                    ServerIdType *maxServerId) {
+        return true;
+    }
+    bool LoadChunkServer(
+        std::unordered_map<ChunkServerIdType, ChunkServer> *chunkServerMap,
+        ChunkServerIdType *maxChunkServerId) {
+        return true;
+    }
+    bool LoadCopySet(std::map<CopySetKey, CopySetInfo> *copySetMap,
+                     std::map<PoolIdType, CopySetIdType> *copySetIdMaxMap) {
+        return true;
+    }
+
+    bool StorageLogicalPool(const LogicalPool &data) {
+        return true;
+    }
+    bool StoragePhysicalPool(const PhysicalPool &data) {
+        return true;
+    }
+    bool StorageZone(const Zone &data) {
+        return true;
+    }
+    bool StorageServer(const Server &data) {
+        return true;
+    }
+    bool StorageChunkServer(const ChunkServer &data) {
+        return true;
+    }
+    bool StorageCopySet(const CopySetInfo &data) {
+        return true;
+    }
+
+    bool DeleteLogicalPool(PoolIdType id) {
+        return true;
+    }
+    bool DeletePhysicalPool(PoolIdType id) {
+        return true;
+    }
+    bool DeleteZone(ZoneIdType id) {
+        return true;
+    }
+    bool DeleteServer(ServerIdType id) {
+        return true;
+    }
+    bool DeleteChunkServer(ChunkServerIdType id) {
+        return true;
+    }
+    bool DeleteCopySet(CopySetKey key) {
+        return true;
+    }
+
+    bool UpdateLogicalPool(const LogicalPool &data) {
+        return true;
+    }
+    bool UpdatePhysicalPool(const PhysicalPool &data) {
+        return true;
+    }
+    bool UpdateZone(const Zone &data) {
+        return true;
+    }
+    bool UpdateServer(const Server &data) {
+        return true;
+    }
+    bool UpdateChunkServer(const ChunkServer &data) {
+        return true;
+    }
+    bool UpdateCopySet(const CopySetInfo &data) {
+        return true;
+    }
+
+    bool LoadClusterInfo(std::vector<ClusterInformation> *info) {
+        return true;
+    }
+    bool StorageClusterInfo(const ClusterInformation &info) {
+        return true;
+    }
+};
+}  // namespace topology
 
 class HeartbeatIntegrationCommon {
  public:
@@ -156,7 +257,7 @@ class HeartbeatIntegrationCommon {
      * @param[in] members copyset成员
      */
     void PrepareAddCopySet(CopySetIdType copysetId, PoolIdType logicalPoolId,
-                            const std::set<ChunkServerIdType> &members);
+                           const std::set<ChunkServerIdType> &members);
 
     /* UpdateCopysetTopo 更新topology中copyset的状态
      *
@@ -168,9 +269,9 @@ class HeartbeatIntegrationCommon {
      * @param[in] candidate copyset的candidate信息
      */
     void UpdateCopysetTopo(CopySetIdType copysetId, PoolIdType logicalPoolId,
-                        uint64_t epoch, ChunkServerIdType leader,
-                        const std::set<ChunkServerIdType> &members,
-                        ChunkServerIdType candidate = UNINTIALIZE_ID);
+                           uint64_t epoch, ChunkServerIdType leader,
+                           const std::set<ChunkServerIdType> &members,
+                           ChunkServerIdType candidate = UNINTIALIZE_ID);
 
     /* SendHeartbeat 发送心跳
      *
@@ -178,16 +279,17 @@ class HeartbeatIntegrationCommon {
      * @param[in] expectedFailed 为true表示希望发送成功，为false表示希望发送失败
      * @param[out] response
      */
-    void SendHeartbeat(const ChunkServerHeartbeatRequest& request,
-        bool expectFailed, ChunkServerHeartbeatResponse* response);
+    void SendHeartbeat(const ChunkServerHeartbeatRequest &request,
+                       bool expectFailed,
+                       ChunkServerHeartbeatResponse *response);
 
     /* BuildBasicChunkServerRequest 构建最基本的request
      *
      * @param[in] id chunkserver的id
      * @param[out] req 构造好的指定id的request
      */
-    void BuildBasicChunkServerRequest(
-        ChunkServerIdType id, ChunkServerHeartbeatRequest *req);
+    void BuildBasicChunkServerRequest(ChunkServerIdType id,
+                                      ChunkServerHeartbeatRequest *req);
 
     /* AddCopySetToRequest 向request中添加copyset
      *
@@ -196,8 +298,8 @@ class HeartbeatIntegrationCommon {
      * @param[in] type copyset当前变更类型
      */
     void AddCopySetToRequest(ChunkServerHeartbeatRequest *req,
-        const CopySetInfo &csInfo,
-        ConfigChangeType type = ConfigChangeType::NONE);
+                             const CopySetInfo &csInfo,
+                             ConfigChangeType type = ConfigChangeType::NONE);
 
     /* AddOperatorToOpController 向调度模块添加op
      *
@@ -212,9 +314,10 @@ class HeartbeatIntegrationCommon {
     void RemoveOperatorFromOpController(const CopySetKey &id);
 
     /*
-    * PrepareBasicCluseter 在topology中构建最基本的拓扑结构
-    * 一个物理池，一个逻辑池，三个zone，每个zone一个chunkserver, 集群中有一个copyset
-    */
+     * PrepareBasicCluseter 在topology中构建最基本的拓扑结构
+     * 一个物理池，一个逻辑池，三个zone，每个zone一个chunkserver,
+     * 集群中有一个copyset
+     */
     void PrepareBasicCluseter();
 
     /**
@@ -223,8 +326,8 @@ class HeartbeatIntegrationCommon {
      * @param[in] conf 配置模块
      * @param[out] heartbeatOption 赋值完成的心跳option
      */
-    void InitHeartbeatOption(
-        Configuration *conf, HeartbeatOption *heartbeatOption);
+    void InitHeartbeatOption(Configuration *conf,
+                             HeartbeatOption *heartbeatOption);
 
     /**
      * InitSchedulerOption 初始化scheduleOption
@@ -232,8 +335,8 @@ class HeartbeatIntegrationCommon {
      * @param[in] conf 配置模块
      * @param[out] heartbeatOption 赋值完成的调度option
      */
-    void InitSchedulerOption(
-        Configuration *conf, ScheduleOption *scheduleOption);
+    void InitSchedulerOption(Configuration *conf,
+                             ScheduleOption *scheduleOption);
 
     /**
      * BuildBasicCluster 运行heartbeat/topology/scheduler模块
@@ -247,8 +350,7 @@ class HeartbeatIntegrationCommon {
 
     std::shared_ptr<TopologyImpl> topology_;
     std::shared_ptr<TopologyStatImpl> topologyStat_;
-    std::shared_ptr<MdsRepo> mdsRepo_;
-    std::shared_ptr<DefaultTopologyStorage> topologyStorage_;
+
     std::shared_ptr<HeartbeatManager> heartbeatManager_;
     std::shared_ptr<HeartbeatServiceImpl> heartbeatService_;
     std::shared_ptr<Coordinator> coordinator_;
@@ -256,5 +358,3 @@ class HeartbeatIntegrationCommon {
 }  // namespace mds
 }  // namespace curve
 #endif  // TEST_INTEGRATION_HEARTBEAT_COMMON_H_
-
-

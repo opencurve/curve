@@ -28,8 +28,6 @@
 #include "src/mds/schedule/scheduler.h"
 #include "src/mds/schedule/scheduler_helper.h"
 
-using ::curve::mds::topology::UNINTIALIZE_ID;
-
 namespace curve {
 namespace mds {
 namespace schedule {
@@ -304,8 +302,8 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
 
     // 所有chunkserver都是online状态，根据移除该副本对scatter-width的影响选择
     // 根据chunkserver上copyset的数量对candidateChunkserver进行排序
-    std::map<ChunkServerIDType, std::vector<CopySetInfo>> distribute;
-    std::vector<std::pair<ChunkServerIDType, std::vector<CopySetInfo>>> desc;
+    std::map<ChunkServerIdType, std::vector<CopySetInfo>> distribute;
+    std::vector<std::pair<ChunkServerIdType, std::vector<CopySetInfo>>> desc;
     for (auto csId : candidateChunkServer) {
         distribute[csId] = topo_->GetCopySetInfosInChunkServer(csId);
     }
@@ -316,8 +314,8 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
     std::vector<std::pair<ChunkServerIdType, int>> candidates;
     for (auto it = desc.begin(); it != desc.end(); it++) {
         // 计算移除该副本对其他副本上scatter-with的影响
-        ChunkServerIDType source = it->first;
-        ChunkServerIDType target = UNINTIALIZE_ID;
+        ChunkServerIdType source = it->first;
+        ChunkServerIdType target = UNINTIALIZE_ID;
         ChunkServerIdType ignore = UNINTIALIZE_ID;
         int affected = 0;
         int minScatterWidth = GetMinScatterWidth(copySetInfo.id.first);

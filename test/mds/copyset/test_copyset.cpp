@@ -118,9 +118,11 @@ class TestCopyset : public  testing::Test {
 
 TEST_F(TestCopyset,
     test_CopysetZoneShufflePolicyN33_GenCopyset_uniformClusterSuccess) {
-
+    CopysetConstrait cst;
+    cst.zoneChoseNum = 3;
+    cst.replicaNum = 3;
     std::shared_ptr<CopysetPermutationPolicy> permutation =
-        std::make_shared<CopysetPermutationPolicyN33>();
+        std::make_shared<CopysetPermutationPolicyNXX>(cst);
     std::shared_ptr<CopysetPolicy> policy =
         std::make_shared<CopysetZoneShufflePolicy>(permutation);
 
@@ -145,8 +147,11 @@ TEST_F(TestCopyset,
 TEST_F(TestCopyset,
     test_CopysetZoneShufflePolicyN33_GenCopyset_MassiveClusterSuccess) {
 
+    CopysetConstrait cst;
+    cst.zoneChoseNum = 3;
+    cst.replicaNum = 3;
     std::shared_ptr<CopysetPermutationPolicy> permutation =
-        std::make_shared<CopysetPermutationPolicyN33>();
+        std::make_shared<CopysetPermutationPolicyNXX>(cst);
     std::shared_ptr<CopysetPolicy> policy =
         std::make_shared<CopysetZoneShufflePolicy>(permutation);
 
@@ -231,8 +236,11 @@ TEST_F(TestCopyset,
 TEST_F(TestCopyset,
     test_CopysetZoneShufflePolicyN33_GenCopyset_IncompleteClusterFail) {
 
+    CopysetConstrait cst;
+    cst.zoneChoseNum = 3;
+    cst.replicaNum = 3;
     std::shared_ptr<CopysetPermutationPolicy> permutation =
-        std::make_shared<CopysetPermutationPolicyN33>();
+        std::make_shared<CopysetPermutationPolicyNXX>(cst);
     std::shared_ptr<CopysetPolicy> policy =
         std::make_shared<CopysetZoneShufflePolicy>(permutation);
 
@@ -250,8 +258,11 @@ TEST_F(TestCopyset,
 TEST_F(TestCopyset,
     test_CopysetZoneShufflePolicyN33_GenCopyset_SlantClustserSuccess) {
 
+    CopysetConstrait cst;
+    cst.zoneChoseNum = 3;
+    cst.replicaNum = 3;
     std::shared_ptr<CopysetPermutationPolicy> permutation =
-        std::make_shared<CopysetPermutationPolicyN33>();
+        std::make_shared<CopysetPermutationPolicyNXX>(cst);
     std::shared_ptr<CopysetPolicy> policy =
         std::make_shared<CopysetZoneShufflePolicy>(permutation);
 
@@ -275,8 +286,11 @@ TEST_F(TestCopyset,
 TEST_F(TestCopyset,
     test_CopysetZoneShufflePolicyN33_GenCopyset_MultiZoneClusterSuccess) {
 
+    CopysetConstrait cst;
+    cst.zoneChoseNum = 3;
+    cst.replicaNum = 3;
     std::shared_ptr<CopysetPermutationPolicy> permutation =
-        std::make_shared<CopysetPermutationPolicyN33>();
+        std::make_shared<CopysetPermutationPolicyNXX>(cst);
     std::shared_ptr<CopysetPolicy> policy =
         std::make_shared<CopysetZoneShufflePolicy>(permutation);
 

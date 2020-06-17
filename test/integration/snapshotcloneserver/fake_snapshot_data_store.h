@@ -60,7 +60,9 @@ class FakeSnapshotDataStore : public SnapshotDataStore {
 
  private:
     std::map<std::string, ChunkIndexData> indexDataMap_;
+    std::mutex indexMapMutex_;
     std::set<std::string> chunkData_;
+    std::mutex chunkDataMutex_;
 };
 
 }  // namespace snapshotcloneserver

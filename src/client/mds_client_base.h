@@ -55,8 +55,6 @@ using curve::mds::DeleteFileRequest;
 using curve::mds::DeleteFileResponse;
 using curve::mds::GetFileInfoRequest;
 using curve::mds::GetFileInfoResponse;
-using curve::mds::RegistClientRequest;
-using curve::mds::RegistClientResponse;
 using curve::mds::DeleteSnapShotRequest;
 using curve::mds::DeleteSnapShotResponse;
 using curve::mds::ReFreshSessionRequest;
@@ -406,21 +404,6 @@ class MDSClientBase {
                     ListDirResponse* response,
                     brpc::Controller* cntl,
                     brpc::Channel* channel);
-
-    /**
-     * 注册client metric信息
-     * @param: ip为当前client的监听地址
-     * @param: port为监听端口
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
-     */
-    void Register(const std::string& ip,
-                    uint16_t port,
-                    RegistClientResponse* reponse,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
-
     /**
      * 获取chunkserverID信息
      * @param[in]: ip为当前client的监听地址

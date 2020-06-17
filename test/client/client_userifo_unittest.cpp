@@ -66,7 +66,6 @@ void sessioncallback(CurveAioContext* aioctx) {
     ASSERT_EQ(-LIBCURVE_ERROR::DISABLEIO, aioctx->ret);
 }
 */
-using curve::mds::RegistClientResponse;
 
 class CurveClientUserAuthFail : public ::testing::Test {
  public:
@@ -86,11 +85,6 @@ class CurveClientUserAuthFail : public ::testing::Test {
                             brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
             LOG(FATAL) << "Fail to add service";
         }
-
-        RegistClientResponse* registResp = new RegistClientResponse();
-        registResp->set_statuscode(::curve::mds::StatusCode::kOK);
-        FakeReturn* fakeregist = new FakeReturn(nullptr, static_cast<void*>(registResp));      // NOLINT
-        curvefsservice.SetRegistRet(fakeregist);
 
         brpc::ServerOptions options;
         options.idle_timeout_sec = -1;

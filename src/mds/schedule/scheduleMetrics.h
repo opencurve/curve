@@ -80,7 +80,7 @@ class ScheduleMetrics {
      *
      * @return hostName:port的表现形式
      */
-    std::string GetHostNameAndPortById(ChunkServerIDType csid);
+    std::string GetHostNameAndPortById(ChunkServerIdType csid);
 
     /**
      * @brief GetOpPriorityStr 获取operator优先级的string形式

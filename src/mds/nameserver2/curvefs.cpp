@@ -89,7 +89,6 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
                 std::shared_ptr<FileRecordManager> fileRecordManager,
                 std::shared_ptr<AllocStatistic> allocStatistic,
                 const struct CurveFSOption &curveFSOptions,
-                std::shared_ptr<MdsRepo> repo,
                 std::shared_ptr<Topology> topology) {
     startTime_ = steady_clock::now();
     storage_ = storage;
@@ -101,7 +100,6 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
     rootAuthOptions_ = curveFSOptions.authOptions;
 
     defaultChunkSize_ = curveFSOptions.defaultChunkSize;
-    repo_ = repo;
     topology_ = topology;
 
     InitRootFile();
@@ -128,7 +126,6 @@ void CurveFS::Uninit() {
     cleanManager_ = nullptr;
     allocStatistic_ = nullptr;
     fileRecordManager_ = nullptr;
-    repo_ = nullptr;
 }
 
 void CurveFS::InitRootFile(void) {
@@ -1734,50 +1731,9 @@ bool CurveFS::CheckSignature(const std::string& owner,
     return signature == sig;
 }
 
-StatusCode CurveFS::RegistClient(const std::string &clientIp,
-                                uint32_t clientPort) {
-    ClientInfoRepoItem queryRepo("", 0);
-    auto ret = repo_->QueryClientInfoRepoItem(clientIp, clientPort, &queryRepo);
-    if (ret != repo::OperationOK) {
-        LOG(ERROR) << "RegistClient query client info from repo fail"
-                   << ", clientIp = " << clientIp
-                   << ", clientPort = " << clientPort;
-        return StatusCode::KInternalError;
-    }
-
-    ClientInfoRepoItem clientRepo(clientIp, clientPort);
-    if (queryRepo == clientRepo) {
-        return StatusCode::kOK;
-    } else {
-        ret = repo_->InsertClientInfoRepoItem(clientRepo);
-        if (ret != repo::OperationOK) {
-            LOG(ERROR) << "RegistClient insert client info to repo fail"
-                    << ", clientIp = " << clientIp
-                    << ", clientPort = " << clientPort;
-            return StatusCode::KInternalError;
-        }
-    }
-
-    return StatusCode::kOK;
-}
-
 StatusCode CurveFS::ListClient(bool listAllClient,
                                std::vector<ClientInfo>* clientInfos) {
     std::set<ClientIpPortType> allClients = fileRecordManager_->ListAllClient();
-
-    if (listAllClient) {
-        // 获取mysql中记录的client节点信息
-        std::vector<ClientInfoRepoItem> items;
-        auto res = repo_->LoadClientInfoRepoItems(&items);
-        if (res != repo::OperationOK) {
-            LOG(ERROR) << "ListClientsIpPort query client info from repo fail";
-            return StatusCode::KInternalError;
-        }
-
-        for (auto& item : items) {
-            allClients.emplace(item.GetClientIp(), item.GetClientPort());
-        }
-    }
 
     for (const auto& c : allClients) {
         ClientInfo info;

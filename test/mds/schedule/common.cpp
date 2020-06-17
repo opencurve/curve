@@ -52,7 +52,7 @@ namespace schedule {
 }
 
 void GetCopySetInChunkServersForTest(
-    std::map<ChunkServerIDType, std::vector<CopySetInfo>> *out) {
+    std::map<ChunkServerIdType, std::vector<CopySetInfo>> *out) {
     PoolIdType poolId = 1;
     for (int i = 1; i <= 10; i++) {
         CopySetIdType copysetId = i;

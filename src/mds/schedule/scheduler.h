@@ -34,6 +34,15 @@
 #include "src/mds/schedule/operatorController.h"
 #include "src/mds/topology/topology.h"
 
+using ::curve::mds::topology::UNINTIALIZE_ID;
+using ::curve::mds::topology::LogicalPoolIdType;
+using ::curve::mds::topology::PhysicalPoolIdType;
+using ::curve::mds::topology::ZoneIdType;
+using ::curve::mds::topology::ServerIdType;
+using ::curve::mds::topology::ChunkServerIdType;
+using ::curve::mds::topology::CopySetIdType;
+
+
 namespace curve {
 namespace mds {
 namespace schedule {
@@ -363,7 +372,7 @@ class RecoverScheduler : public Scheduler {
      * @return 是否生成了operator
      */
     bool FixOfflinePeer(const CopySetInfo &info, ChunkServerIdType peerId,
-        Operator *op, ChunkServerIDType *target);
+        Operator *op, ChunkServerIdType *target);
 
     /**
      * @brief 统计server上有哪些offline超过一定数量的chunkserver集合
@@ -432,7 +441,7 @@ class RapidLeaderScheduler : public Scheduler {
      * @brief 在指定逻辑池中做leader均衡
      * @param[in] lid 指定logicalpool
      */
-    void DoRapidLeaderSchedule(LogicalPoolIDType lid);
+    void DoRapidLeaderSchedule(LogicalPoolIdType lid);
 
     /**
      * @brief 统计指定逻辑池中leader分布的信息

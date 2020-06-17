@@ -125,8 +125,8 @@ class SchedulerHelper {
      * @param[out] desc 降序
      */
     static void SortDistribute(
-        const std::map<ChunkServerIDType, std::vector<CopySetInfo>> &distribute,
-        std::vector<std::pair<ChunkServerIDType,
+        const std::map<ChunkServerIdType, std::vector<CopySetInfo>> &distribute,
+        std::vector<std::pair<ChunkServerIdType,
                               std::vector<CopySetInfo>>> *desc);
 
     /**

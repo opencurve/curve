@@ -131,13 +131,6 @@ class CSModuleException : public ::testing::Test {
         cluster->PrepareConfig<curve::ClientConfigGenerator>(confPath,
                                                              clientConf);
 
-        // 0. 初始化db
-        ASSERT_EQ(0, cluster->InitDB("module_exception_curve_chunkserver"));
-        cluster->mdsRepo_->dropDataBase();
-        cluster->mdsRepo_->createDatabase();
-        cluster->mdsRepo_->useDataBase();
-        cluster->mdsRepo_->createAllTables();
-
         // 1. 启动etcd
         pid_t pid = cluster->StartSingleEtcd(
             1, "127.0.0.1:22233", "127.0.0.1:22234",

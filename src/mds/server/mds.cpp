@@ -23,6 +23,10 @@
 #include <glog/logging.h>
 #include "src/mds/server/mds.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
+#include "src/mds/topology/topology_storge_etcd.h"
+
+using ::curve::mds::topology::TopologyStorageEtcd;
+using ::curve::mds::topology::TopologyStorageCodec;
 
 namespace curve {
 namespace mds {
@@ -42,7 +46,6 @@ void MDS::InitMdsOptions(std::shared_ptr<Configuration> conf) {
     InitCurveFSOptions(&options_.curveFSOptions);
     InitScheduleOption(&options_.scheduleOption);
     InitHeartbeatOption(&options_.heartbeatOption);
-    InitMdsRepoOption(&options_.mdsRepoOption);
     InitTopologyOption(&options_.topologyOption);
     InitCopysetOption(&options_.copysetOption);
     InitChunkServerClientOption(&options_.chunkServerClientOption);
@@ -115,8 +118,6 @@ void MDS::Init() {
                               options_.periodicPersistInterMs);
     // 初始化NameServer存储模块
     InitNameServerStorage(options_.mdsCacheCount);
-    // 初始化数据库
-    InitMdsRepo(options_.mdsRepoOption);
     // init topology
     InitTopology(options_.topologyOption);
     // init TopologyStat
@@ -298,19 +299,6 @@ void MDS::InitSegmentAllocStatistic(uint64_t retryInterTimes,
     LOG(INFO) << "init segmentAllocStatistic success.";
 }
 
-void MDS::InitMdsRepo(const MdsRepoOption& option) {
-    // init mdsRepo
-    mdsRepo_ = std::make_shared<MdsRepo>();
-    int res = mdsRepo_->connectDB(option.dbName, option.dbUser, option.dbUrl,
-                                     option.dbPassword, option.dbPoolSize);
-    LOG_IF(FATAL, res != OperationOK) << "connectDB fail";
-
-    res = mdsRepo_->useDataBase();
-    LOG_IF(FATAL, res != OperationOK) << "useDataBase fail";
-
-    LOG(INFO) << "init mdsRepo success.";
-}
-
 void MDS::InitTopologyOption(TopologyOption *topologyOption) {
     conf_->GetValueFatalIfFail(
         "mds.topology.TopologyUpdateToRepoSec",
@@ -335,25 +323,15 @@ void MDS::InitTopologyOption(TopologyOption *topologyOption) {
         &topologyOption->choosePoolPolicy);
 }
 
-void MDS::InitMdsRepoOption(MdsRepoOption* option) {
-    conf_->GetValueFatalIfFail("mds.DbName", &option->dbName);
-    conf_->GetValueFatalIfFail("mds.DbUser", &option->dbUser);
-    conf_->GetValueFatalIfFail("mds.DbUrl", &option->dbUrl);
-    conf_->GetValueFatalIfFail("mds.DbPassword", &option->dbPassword);
-    conf_->GetValueFatalIfFail("mds.DbPoolSize", &option->dbPoolSize);
-}
-
 void MDS::InitTopology(const TopologyOption& option) {
     auto topologyIdGenerator  =
         std::make_shared<DefaultIdGenerator>();
     auto topologyTokenGenerator =
         std::make_shared<DefaultTokenGenerator>();
 
+    auto codec = std::make_shared<TopologyStorageCodec>();
     auto topologyStorage =
-        std::make_shared<DefaultTopologyStorage>(mdsRepo_);
-
-    LOG_IF(FATAL, !topologyStorage->init(option))
-        << "init topologyStorage fail.";
+        std::make_shared<TopologyStorageEtcd>(etcdClient_, codec);
 
     LOG(INFO) << "init topologyStorage success.";
 
@@ -361,7 +339,7 @@ void MDS::InitTopology(const TopologyOption& option) {
         std::make_shared<TopologyImpl>(topologyIdGenerator,
                                            topologyTokenGenerator,
                                            topologyStorage);
-    LOG_IF(FATAL, topology_->init(option) < 0) << "init topology fail.";
+    LOG_IF(FATAL, topology_->Init(option) < 0) << "init topology fail.";
 
     LOG(INFO) << "init topology success.";
 }
@@ -456,7 +434,7 @@ void MDS::InitCurveFS(const CurveFSOption& curveFSOptions) {
                   chunkSegmentAllocate, cleanManager_,
                   fileRecordManager,
                   segmentAllocStatistic_,
-                  curveFSOptions, mdsRepo_, topology_))
+                  curveFSOptions, topology_))
         << "init FileRecordManager fail";
     LOG(INFO) << "init FileRecordManager success.";
 
