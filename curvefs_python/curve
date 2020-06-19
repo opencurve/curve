@@ -1,0 +1,3 @@
+#! /bin/bash
+cd /usr/curvefs/
+python curvefs_tool.py $@

@@ -2310,7 +2310,8 @@ TEST_F(MDSClientTest, StatFileStatusTest) {
     for (auto status : fileStatus) {
         std::unique_ptr<curve::mds::FileInfo> info(new curve::mds::FileInfo());
         ::curve::mds::GetFileInfoResponse response;
-        info->set_filename("_filename_");
+        info->set_filename(filename);
+        info->set_owner(userinfo.owner);
         info->set_id(1);
         info->set_parentid(0);
         info->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
@@ -2340,6 +2341,8 @@ TEST_F(MDSClientTest, StatFileStatusTest) {
         ASSERT_EQ(fstat.ctime, 12345678);
         ASSERT_EQ(fstat.length, 4 * 1024 * 1024 * 1024ul);
         ASSERT_EQ(fstat.fileStatus, static_cast<int>(status));
+        ASSERT_EQ(fstat.filename, filename);
+        ASSERT_EQ(fstat.owner, userinfo.owner);
     }
 }
 

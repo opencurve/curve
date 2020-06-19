@@ -12,6 +12,7 @@
 #include <thread>   // NOLINT
 #include <mutex>    // NOLINT
 #include <memory>
+#include <algorithm>
 #include "src/client/libcurve_file.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
@@ -384,6 +385,12 @@ int FileClient::StatFile(const std::string& filename,
         finfo->ctime    = fi.ctime;
         finfo->length   = fi.length;
         finfo->filetype = fi.filetype;
+
+        memcpy(finfo->filename, fi.filename.c_str(),
+                std::min(sizeof(finfo->filename), fi.filename.size() + 1));
+        memcpy(finfo->owner, fi.owner.c_str(),
+                std::min(sizeof(finfo->owner), fi.owner.size() + 1));
+
         finfo->fileStatus = static_cast<int>(fi.filestatus);
     }
 

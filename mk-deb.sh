@@ -276,6 +276,22 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
+cp curvefs_python/curvefs_tool.py build/curve-sdk/usr/curvefs/curvefs_tool.py
+if [ $? -ne 0 ]
+then
+	exit
+fi
+cp curvefs_python/parser.py build/curve-sdk/usr/curvefs/parser.py
+if [ $? -ne 0 ]
+then
+	exit
+fi
+cp curvefs_python/curve build/curve-sdk/usr/bin/curve
+if [ $? -ne 0 ]
+then
+	exit
+fi
+chmod a+x build/curve-sdk/usr/bin/curve
 cp curvefs_python/tmplib/* build/curve-sdk/usr/lib/
 if [ $? -ne 0 ]
 then
