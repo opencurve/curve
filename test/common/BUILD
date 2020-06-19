@@ -24,6 +24,7 @@ cc_test(
     ],
     deps = [
         "//src/common:curve_common",
+        "//src/common:curve_auth",
         "//src/common:curve_s3_adapter",
         "//src/common/concurrent:curve_concurrent",
         "@com_google_googletest//:gtest_main",
