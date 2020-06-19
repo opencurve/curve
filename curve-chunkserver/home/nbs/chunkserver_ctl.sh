@@ -153,6 +153,8 @@ function start_one() {
             -recycleUri=local:///data/chunkserver$1/recycler \
             -raft_sync_segments=true \
             -graceful_quit_on_sigterm=true \
+            -raft_sync_meta=true \
+            -raft_sync_segments=true \
             -log_dir=${DATA_DIR}/log/chunkserver$1 > /dev/null 2>&1 &
 }
 
