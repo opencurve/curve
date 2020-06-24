@@ -39,6 +39,8 @@ if __name__ == '__main__':
     # 获取文件user信息
     user = curvefs.UserInfo_t()
     user.owner = args.user
+    if args.password:
+        user.password = args.password
 
     if args.optype == "create":
         ret = cbd.Create(args.filename, user, args.length * kGB)
