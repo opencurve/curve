@@ -2,7 +2,7 @@
 
 - name: set metric addr
   set_fact:
-    addr="{{ ansible_host }}:{{ metric_port }}"
+    addr: "{{ ansible_host }}:{{ metric_port }}"
 
 - name: get curve version
   shell: curl -s http://{{ addr }}/vars/curve_version  | awk -F ':' '{print $2}' | awk -F '"' '{print $2}'

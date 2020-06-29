@@ -9,4 +9,4 @@
 
 - name: set etcd leader ip
   set_fact:
-    leader_ip="{{ result.stdout }}"
+    leader_ip: "{{ result.stdout }}"

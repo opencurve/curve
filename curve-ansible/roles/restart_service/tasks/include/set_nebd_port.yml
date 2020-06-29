@@ -1,0 +1,11 @@
+---
+
+- name: get process cmdline
+  ignore_errors: true
+  shell: curl -s http://{{ ansible_host }}:{{ metric_port }}/vars/process_cmdline | grep nebd-server
+  register: result
+
+- name: set nebd_port
+  set_fact:
+    nebd_port: "{{ metric_port }}"
+  when: result.stdout != ""
