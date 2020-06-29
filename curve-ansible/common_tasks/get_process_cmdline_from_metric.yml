@@ -1,0 +1,19 @@
+---
+
+- name: set metric addr
+  set_fact:
+    addr: "{{ ansible_host }}:{{ metric_port }}"
+
+- name: get process cmdline
+  ignore_errors: true
+  shell: curl -s http://{{ addr }}/vars/process_cmdline
+  register: result
+
+- name: set process cmd line
+  set_fact:
+    process_cmdline: "{{ result.stdout }}"
+
+- name: set metric port
+  set_fact:
+    metric_port: "{{ metric_port }}"
+

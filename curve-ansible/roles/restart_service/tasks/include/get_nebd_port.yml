@@ -1,0 +1,7 @@
+---
+
+- name: get nebd port through process cmdline
+  vars:
+    metric_port: "{{ nebd_start_port | int + item | int }}"
+  include_tasks: set_nebd_port.yml
+  with_sequence: start=0 end={{ nebd_port_max_range }}

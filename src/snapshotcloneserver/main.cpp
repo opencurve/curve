@@ -63,8 +63,8 @@ int main(int argc, char **argv) {
         return -1;
     }
     LoadConfigFromCmdline(conf.get());
-    google::InitGoogleLogging(argv[0]);
     conf->PrintConfig();
+    google::InitGoogleLogging(argv[0]);
     snapshotcloneserver_main(conf);
 }
 

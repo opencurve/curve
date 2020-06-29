@@ -656,7 +656,6 @@ void StatusTool::PrintCsLeftSizeStatistics(
         }
     }
     uint64_t range = max - min;
-    std::cout << sum << std::endl;
     double avg = sum / leftSize.size();
     sum = 0;
     for (const auto& size : leftSize) {
