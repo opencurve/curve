@@ -261,8 +261,11 @@ function deploy_one {
     exit
   fi
   uuid=`ls -l /dev/disk/by-uuid/|grep -w ${short_diskname}|awk '{print $9}'`
-  line_num=`grep -n $dirname /etc/fstab`
-  sed -i ''${line_num}'d' /etc/fstab
+  line_num=`grep -n $dirname /etc/fstab | cut -f1 -d:`
+  if [ -n "$line_num" ]
+  then
+    sed -i ''${line_num}'d' /etc/fstab
+  fi
   echo "UUID=$uuid    $dirname    ext4  rw,errors=remount-ro    0    0" >> /etc/fstab
   # 将uuid及其md5写到diskmeta中
   uuidmd5=`echo -n $uuid | md5sum | cut -d ' ' -f1`
