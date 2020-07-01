@@ -123,8 +123,6 @@ class SnapshotCloneServerMainTest : public ::testing::Test {
         cluster_->mdsRepo_->createDatabase();
         cluster_->mdsRepo_->useDataBase();
         cluster_->mdsRepo_->createAllTables();
-        cluster_->snapshotcloneRepo_->useDataBase();
-        cluster_->snapshotcloneRepo_->createAllTables();
         std::string rmcmd = "rm -rf " + std::string(kEtcdName) + ".etcd";
         system(rmcmd.c_str());
 

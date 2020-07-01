@@ -1125,7 +1125,8 @@ int SnapshotCoreImpl::BuildSnapshotMap(const std::string &fileName,
 }
 
 int SnapshotCoreImpl::GetSnapshotList(std::vector<SnapshotInfo> *list) {
-    return metaStore_->GetSnapshotList(list);
+    metaStore_->GetSnapshotList(list);
+    return kErrCodeSuccess;
 }
 
 int SnapshotCoreImpl::HandleCancelUnSchduledSnapshotTask(

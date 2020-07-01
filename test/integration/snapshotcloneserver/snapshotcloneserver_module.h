@@ -23,8 +23,6 @@
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/curvefs_client.h"
 
-#include "src/snapshotcloneserver/dao/snapshotcloneRepo.h"
-
 #include "src/snapshotcloneserver/snapshot/snapshot_data_store.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_data_store_s3.h"
 #include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"

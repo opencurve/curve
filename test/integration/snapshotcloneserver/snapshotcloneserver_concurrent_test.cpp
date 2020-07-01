@@ -205,8 +205,6 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_->mdsRepo_->createDatabase();
         cluster_->mdsRepo_->useDataBase();
         cluster_->mdsRepo_->createAllTables();
-        cluster_->snapshotcloneRepo_->useDataBase();
-        cluster_->snapshotcloneRepo_->createAllTables();
         system(std::string("rm -rf " + kTestPrefix + "t.etcd").c_str());
         system(std::string("rm -rf " + kTestPrefix + "1").c_str());
         system(std::string("rm -rf " + kTestPrefix + "2").c_str());
@@ -414,7 +412,6 @@ class SnapshotCloneServerTest : public ::testing::Test {
         delete fileClient_;
         fileClient_ = nullptr;
         ASSERT_EQ(0, cluster_->StopCluster());
-        cluster_->mdsRepo_->dropDataBase();
         delete cluster_;
         cluster_ = nullptr;
         system(std::string("rm -rf " + kTestPrefix + "t.etcd").c_str());

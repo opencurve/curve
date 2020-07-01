@@ -9,8 +9,8 @@ cc_library(
     deps = [
         "//src/common:curve_common",
         "//src/mds/dao:mdsrepo",
-        "//src/snapshotcloneserver/dao:snapshotrepo",
         "//src/client:curve_client",
+        "//src/snapshotcloneserver:snapshot_server_lib",
         "//external:gflags",
         "//external:glog",
         "//test/util:test_util",

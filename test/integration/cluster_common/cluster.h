@@ -15,12 +15,12 @@
 #include "src/mds/dao/mdsRepo.h"
 #include "src/client/mds_client.h"
 #include "src/client/config_info.h"
-#include "src/snapshotcloneserver/dao/snapshotcloneRepo.h"
 #include "test/util/config_generator.h"
+#include "src/snapshotcloneserver/common/snapshotclone_meta_store_etcd.h"
 
+using ::curve::snapshotcloneserver::SnapshotCloneMetaStoreEtcd;
 using ::curve::client::MDSClient;
 using ::curve::mds::MdsRepo;
-using ::curve::snapshotcloneserver::SnapshotCloneRepo;
 
 namespace curve {
 
@@ -77,6 +77,17 @@ class CurveCluster {
      * @return 0.成功; 非0.失败
      */
     int InitMdsClient(const MetaServerOption_t &op);
+
+
+    /**
+     * @brief 初始化metastore
+     *
+     * @param[in] etcdEndpoints etcd client的ip port
+     *
+     * @return 返回错误码
+     */
+    int InitSnapshotCloneMetaStoreEtcd(
+        const std::string &etcdEndpoints);
 
     /**
      * BuildNetWork 如果需要是用不同的ip来起chunkserver,
@@ -438,8 +449,9 @@ class CurveCluster {
  public:
     // mysql数据库
     MdsRepo *mdsRepo_;
-    // snapshotcloneserver数据库
-    SnapshotCloneRepo *snapshotcloneRepo_;
+
+    // SnapshotCloneMetaStore用于测试过程中灌数据
+    std::shared_ptr<SnapshotCloneMetaStoreEtcd> metaStore_;
 };
 }  // namespace curve
 

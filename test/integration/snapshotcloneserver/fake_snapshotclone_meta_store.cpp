@@ -15,11 +15,6 @@
 namespace curve {
 namespace snapshotcloneserver {
 
-int FakeSnapshotCloneMetaStore::Init(
-    const SnapshotCloneMetaStoreOptions &options) {
-    return 0;
-}
-
 int FakeSnapshotCloneMetaStore::AddSnapshot(const SnapshotInfo &info) {
     fiu_return_on(
         "test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.AddSnapshot", -1);  // NOLINT
