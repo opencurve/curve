@@ -30,7 +30,7 @@
 #include "src/snapshotcloneserver/snapshotclone_service.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_service_manager.h"
 #include "src/snapshotcloneserver/clone/clone_service_manager.h"
-#include "src/snapshotcloneserver/dao/snapshotcloneRepo.h"
+#include "src/snapshotcloneserver/common/snapshotclone_meta_store_etcd.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -48,7 +48,6 @@ using LeaderElection = ::curve::election::LeaderElection;
 
 struct SnapShotCloneServerOptions {
     CurveClientOptions clientOptions;
-    SnapshotCloneMetaStoreOptions metastoreOption;
     SnapshotCloneServerOptions serverOption;
 
     // etcd options
@@ -123,8 +122,7 @@ class SnapShotCloneServer {
     std::shared_ptr<FileClient> fileClient_;
     std::shared_ptr<CurveFsClientImpl> client_;
 
-    std::shared_ptr<SnapshotCloneRepo>      repo_;
-    std::shared_ptr<SnapshotCloneMetaStore> metaStore_;
+    std::shared_ptr<SnapshotCloneMetaStoreEtcd> metaStore_;
     std::shared_ptr<SnapshotDataStore>  dataStore_;
     std::shared_ptr<SnapshotReference>  snapshotRef_;
     std::shared_ptr<SnapshotMetric>     snapshotMetric_;

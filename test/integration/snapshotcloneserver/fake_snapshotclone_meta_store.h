@@ -19,7 +19,6 @@ namespace snapshotcloneserver {
 
 class FakeSnapshotCloneMetaStore : public SnapshotCloneMetaStore {
  public:
-    int Init(const SnapshotCloneMetaStoreOptions &options) override;
     int AddSnapshot(const SnapshotInfo &snapinfo) override;
     int DeleteSnapshot(const UUID &uuid) override;
     int UpdateSnapshot(const SnapshotInfo &snapinfo) override;

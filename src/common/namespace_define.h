@@ -25,6 +25,11 @@ const char LEADERCAMPAIGNNPFX[] = "07leader";
 const char SEGMENTALLOCSIZEKEY[] = "08";
 const char SEGMENTALLOCSIZEKEYEND[] = "09";
 
+const char SNAPINFOKEYPREFIX[] = "11";
+const char SNAPINFOKEYEND[] = "12";
+const char CLONEINFOKEYPREFIX[] = "12";
+const char CLONEINFOKEYEND[] = "13";
+
 // TODO(hzsunjianliang): if use single prefix for snapshot file?
 const int COMMON_PREFIX_LENGTH = 2;
 const int LEADER_PREFIX_LENGTH = 8;

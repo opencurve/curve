@@ -227,8 +227,6 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_->mdsRepo_->createDatabase();
         cluster_->mdsRepo_->useDataBase();
         cluster_->mdsRepo_->createAllTables();
-        cluster_->snapshotcloneRepo_->useDataBase();
-        cluster_->snapshotcloneRepo_->createAllTables();
         system(std::string("rm -rf " + kTestPrefix + "t.etcd").c_str());
         system(std::string("rm -rf " + kTestPrefix + "1").c_str());
         system(std::string("rm -rf " + kTestPrefix + "2").c_str());
@@ -241,6 +239,8 @@ class SnapshotCloneServerTest : public ::testing::Test {
         LOG(INFO) << "etcd 1 started on " << kEtcdClientIpPort
                   << "::" << kEtcdPeerIpPort << ", pid = " << pid;
         ASSERT_GT(pid, 0);
+
+        cluster_->InitSnapshotCloneMetaStoreEtcd(kEtcdClientIpPort);
 
         cluster_->PrepareConfig<MDSConfigGenerator>(kMdsConfigPath,
                                                     mdsConfigOptions);
@@ -444,7 +444,6 @@ class SnapshotCloneServerTest : public ::testing::Test {
         delete snapClient_;
         snapClient_ = nullptr;
         ASSERT_EQ(0, cluster_->StopCluster());
-        cluster_->mdsRepo_->dropDataBase();
         delete cluster_;
         cluster_ = nullptr;
         system("rm -rf RevSCSTest.etcd");
@@ -685,10 +684,11 @@ SnapshotClient *SnapshotCloneServerTest::snapClient_ = nullptr;
 // 未在curve中创建快照阶段，重启恢复
 TEST_F(SnapshotCloneServerTest, TestRecoverSnapshotWhenNotCreateSnapOnCurvefs) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
-    SnapshotRepoItem sr(uuid1, testUser1_, testFile1_, "snapxxx", 0, chunkSize,
+    SnapshotInfo snapInfo(uuid1, testUser1_, testFile1_,
+                        "snapxxx", 0, chunkSize,
                         segmentSize, testFile1Length, 0,
-                        static_cast<int>(Status::pending));
-    cluster_->snapshotcloneRepo_->InsertSnapshotRepoItem(sr);
+                        Status::pending);
+    cluster_->metaStore_->AddSnapshot(snapInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -712,10 +712,11 @@ TEST_F(SnapshotCloneServerTest,
     snapClient_->CreateSnapShot(testFile1_, UserInfo_t(testUser1_, ""), &seq);
 
     std::string uuid1 = UUIDGenerator().GenerateUUID();
-    SnapshotRepoItem sr(uuid1, testUser1_, testFile1_, "snapxxx", 0, chunkSize,
+    SnapshotInfo snapInfo(uuid1, testUser1_, testFile1_,
+                        "snapxxx", 0, chunkSize,
                         segmentSize, testFile1Length, 0,
-                        static_cast<int>(Status::pending));
-    cluster_->snapshotcloneRepo_->InsertSnapshotRepoItem(sr);
+                        Status::pending);
+    cluster_->metaStore_->AddSnapshot(snapInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -739,10 +740,10 @@ TEST_F(SnapshotCloneServerTest,
     snapClient_->CreateSnapShot(testFile1_, UserInfo_t(testUser1_, ""), &seq);
 
     std::string uuid1 = UUIDGenerator().GenerateUUID();
-    SnapshotRepoItem sr(uuid1, testUser1_, testFile1_, "snapxxx", seq,
+    SnapshotInfo snapInfo(uuid1, testUser1_, testFile1_, "snapxxx", seq,
                         chunkSize, segmentSize, testFile1Length, 0,
-                        static_cast<int>(Status::pending));
-    cluster_->snapshotcloneRepo_->InsertSnapshotRepoItem(sr);
+                        Status::pending);
+    cluster_->metaStore_->AddSnapshot(snapInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -801,14 +802,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverSnapshotWhenHasTransferSomeData) {
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCreateCloneFile) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotCreateCloneFile";
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kClone), testFile1_,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kClone, testFile1_,
                      dstFile, 0, 0, 0,
-                     static_cast<uint8_t>(CloneFileType::kFile), false,
-                     static_cast<uint8_t>(CloneStep::kCreateCloneFile),
-                     static_cast<uint8_t>(CloneStatus::cloning));
+                     CloneFileType::kFile, false,
+                     CloneStep::kCreateCloneFile,
+                     CloneStatus::cloning);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -831,14 +832,14 @@ TEST_F(SnapshotCloneServerTest,
 
     std::string dstFile =
         "/RcvItUser1/TestRecoverCloneHasCreateCloneFileSuccessNotReturn";
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kClone), testFile1_,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kClone, testFile1_,
                      dstFile, 0, 0, 0,
-                     static_cast<uint8_t>(CloneFileType::kFile), false,
-                     static_cast<uint8_t>(CloneStep::kCreateCloneFile),
-                     static_cast<uint8_t>(CloneStatus::cloning));
+                     CloneFileType::kFile, false,
+                     CloneStep::kCreateCloneFile,
+                     CloneStatus::cloning);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -859,14 +860,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCreateCloneMeta) {
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareCreateCloneFile(fileName, &fInfoOut));
 
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotCreateCloneMeta";
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kClone), testFile1_,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kClone, testFile1_,
                      dstFile, fInfoOut.id, fInfoOut.id, 0,
-                     static_cast<uint8_t>(CloneFileType::kFile), false,
-                     static_cast<uint8_t>(CloneStep::kCreateCloneMeta),
-                     static_cast<uint8_t>(CloneStatus::cloning));
+                     CloneFileType::kFile, false,
+                     CloneStep::kCreateCloneMeta,
+                     CloneStatus::cloning);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -893,14 +894,14 @@ TEST_F(SnapshotCloneServerTest,
 
     std::string dstFile =
         "/RcvItUser1/TestRecoverCloneCreateCloneMetaSuccessNotReturn";
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kClone), testFile1_,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kClone, testFile1_,
                      dstFile, fInfoOut.id, fInfoOut.id, 0,
-                     static_cast<uint8_t>(CloneFileType::kFile), false,
-                     static_cast<uint8_t>(CloneStep::kCreateCloneMeta),
-                     static_cast<uint8_t>(CloneStatus::cloning));
+                     CloneFileType::kFile, false,
+                     CloneStep::kCreateCloneMeta,
+                     CloneStatus::cloning);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -925,14 +926,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCreateCloneChunk) {
               PrepareCreateCloneMeta(&fInfoOut, fileName, &segInfoOutVec));
 
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotCreateCloneChunk";
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kClone), testFile1_,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kClone, testFile1_,
                      dstFile, fInfoOut.id, fInfoOut.id, 0,
-                     static_cast<uint8_t>(CloneFileType::kFile), false,
-                     static_cast<uint8_t>(CloneStep::kCreateCloneChunk),
-                     static_cast<uint8_t>(CloneStatus::cloning));
+                     CloneFileType::kFile, false,
+                     CloneStep::kCreateCloneChunk,
+                     CloneStatus::cloning);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -961,14 +962,14 @@ TEST_F(SnapshotCloneServerTest,
 
     std::string dstFile =
         "/RcvItUser1/TestRecoverCloneCreateCloneChunkSuccessNotReturn";
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kClone), testFile1_,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kClone, testFile1_,
                      dstFile, fInfoOut.id, fInfoOut.id, 0,
-                     static_cast<uint8_t>(CloneFileType::kFile), false,
-                     static_cast<uint8_t>(CloneStep::kCreateCloneChunk),
-                     static_cast<uint8_t>(CloneStatus::cloning));
+                     CloneFileType::kFile, false,
+                     CloneStep::kCreateCloneChunk,
+                     CloneStatus::cloning);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -995,14 +996,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCompleteCloneMeta) {
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareCreateCloneChunk(segInfoOutVec));
 
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotCompleteCloneMeta";
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kClone), testFile1_,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kClone, testFile1_,
                      dstFile, fInfoOut.id, fInfoOut.id, 0,
-                     static_cast<uint8_t>(CloneFileType::kFile), false,
-                     static_cast<uint8_t>(CloneStep::kCompleteCloneMeta),
-                     static_cast<uint8_t>(CloneStatus::cloning));
+                     CloneFileType::kFile, false,
+                     CloneStep::kCompleteCloneMeta,
+                     CloneStatus::cloning);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1033,14 +1034,14 @@ TEST_F(SnapshotCloneServerTest,
 
     std::string dstFile =
         "/RcvItUser1/TestRecoverCloneCompleteCloneMetaSuccessNotReturn";
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kClone), testFile1_,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kClone, testFile1_,
                      dstFile, fInfoOut.id, fInfoOut.id, 0,
-                     static_cast<uint8_t>(CloneFileType::kFile), false,
-                     static_cast<uint8_t>(CloneStep::kCompleteCloneMeta),
-                     static_cast<uint8_t>(CloneStatus::cloning));
+                     CloneFileType::kFile, false,
+                     CloneStep::kCompleteCloneMeta,
+                     CloneStatus::cloning);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1069,14 +1070,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotRecoverChunk) {
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareCompleteCloneMeta(uuid1));
 
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotRecoverChunk";
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kClone), testFile1_,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kClone, testFile1_,
                      dstFile, fInfoOut.id, fInfoOut.id, 0,
-                     static_cast<uint8_t>(CloneFileType::kFile), false,
-                     static_cast<uint8_t>(CloneStep::kRecoverChunk),
-                     static_cast<uint8_t>(CloneStatus::cloning));
+                     CloneFileType::kFile, false,
+                     CloneStep::kRecoverChunk,
+                     CloneStatus::cloning);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1108,14 +1109,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneRecoverChunkSuccssNotReturn) {
 
     std::string dstFile =
         "/RcvItUser1/TestRecoverCloneRecoverChunkSuccssNotReturn";
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kClone), testFile1_,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kClone, testFile1_,
                      dstFile, fInfoOut.id, fInfoOut.id, 0,
-                     static_cast<uint8_t>(CloneFileType::kFile), false,
-                     static_cast<uint8_t>(CloneStep::kRecoverChunk),
-                     static_cast<uint8_t>(CloneStatus::cloning));
+                     CloneFileType::kFile, false,
+                     CloneStep::kRecoverChunk,
+                     CloneStatus::cloning);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1146,14 +1147,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCompleteCloneFile) {
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareRecoverChunk(segInfoOutVec));
 
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotCompleteCloneFile";
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kClone), testFile1_,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kClone, testFile1_,
                      dstFile, fInfoOut.id, fInfoOut.id, 0,
-                     static_cast<uint8_t>(CloneFileType::kFile), false,
-                     static_cast<uint8_t>(CloneStep::kCompleteCloneFile),
-                     static_cast<uint8_t>(CloneStatus::cloning));
+                     CloneFileType::kFile, false,
+                     CloneStep::kCompleteCloneFile,
+                     CloneStatus::cloning);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1188,14 +1189,14 @@ TEST_F(SnapshotCloneServerTest,
 
     std::string dstFile =
         "/RcvItUser1/TestRecoverCloneCompleteCloneFileSuccessNotReturn";
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kClone), testFile1_,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kClone, testFile1_,
                      dstFile, fInfoOut.id, fInfoOut.id, 0,
-                     static_cast<uint8_t>(CloneFileType::kFile), false,
-                     static_cast<uint8_t>(CloneStep::kCompleteCloneFile),
-                     static_cast<uint8_t>(CloneStatus::cloning));
+                     CloneFileType::kFile, false,
+                     CloneStep::kCompleteCloneFile,
+                     CloneStatus::cloning);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1228,14 +1229,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotChangeOwner) {
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareCompleteCloneFile(fileName));
 
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotChangeOwner";
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kClone), testFile1_,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kClone, testFile1_,
                      dstFile, fInfoOut.id, fInfoOut.id, 0,
-                     static_cast<uint8_t>(CloneFileType::kFile), false,
-                     static_cast<uint8_t>(CloneStep::kChangeOwner),
-                     static_cast<uint8_t>(CloneStatus::cloning));
+                     CloneFileType::kFile, false,
+                     CloneStep::kChangeOwner,
+                     CloneStatus::cloning);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1271,14 +1272,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneChangeOwnerSuccessNotReturn) {
 
     std::string dstFile =
         "/RcvItUser1/TestRecoverCloneChangeOwnerSuccessNotReturn";
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kClone), testFile1_,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kClone, testFile1_,
                      dstFile, fInfoOut.id, fInfoOut.id, 0,
-                     static_cast<uint8_t>(CloneFileType::kFile), false,
-                     static_cast<uint8_t>(CloneStep::kChangeOwner),
-                     static_cast<uint8_t>(CloneStatus::cloning));
+                     CloneFileType::kFile, false,
+                     CloneStep::kChangeOwner,
+                     CloneStatus::cloning);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1313,14 +1314,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotRenameCloneFile) {
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareChangeOwner(fileName));
 
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotRenameCloneFile";
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kClone), testFile1_,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kClone, testFile1_,
                      dstFile, fInfoOut.id, fInfoOut.id, 0,
-                     static_cast<uint8_t>(CloneFileType::kFile), false,
-                     static_cast<uint8_t>(CloneStep::kRenameCloneFile),
-                     static_cast<uint8_t>(CloneStatus::cloning));
+                     CloneFileType::kFile, false,
+                     CloneStep::kRenameCloneFile,
+                     CloneStatus::cloning);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1361,14 +1362,14 @@ TEST_F(SnapshotCloneServerTest,
         LIBCURVE_ERROR::OK,
         PrepareRenameCloneFile(fInfoOut.id, fInfoOut.id, fileName, dstFile));
 
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kClone), testFile1_,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kClone, testFile1_,
                      dstFile, fInfoOut.id, fInfoOut.id, 0,
-                     static_cast<uint8_t>(CloneFileType::kFile), false,
-                     static_cast<uint8_t>(CloneStep::kRenameCloneFile),
-                     static_cast<uint8_t>(CloneStatus::cloning));
+                     CloneFileType::kFile, false,
+                     CloneStep::kRenameCloneFile,
+                     CloneStatus::cloning);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1387,14 +1388,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCreateCloneFile) {
     std::string snapId;
     PrepareSnapshotForTestFile1(&snapId);
     std::string uuid1 = UUIDGenerator().GenerateUUID();
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kRecover), snapId,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kRecover, snapId,
                      testFile1_, 0, 0, 0,
-                     static_cast<uint8_t>(CloneFileType::kSnapshot), true,
-                     static_cast<uint8_t>(CloneStep::kCreateCloneFile),
-                     static_cast<uint8_t>(CloneStatus::recovering));
+                     CloneFileType::kSnapshot, true,
+                     CloneStep::kCreateCloneFile,
+                     CloneStatus::recovering);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1423,14 +1424,14 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_EQ(LIBCURVE_ERROR::OK,
               PrepareCreateCloneFile(fileName, &fInfoOut, true));
 
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kRecover), snapId,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kRecover, snapId,
                      testFile1_, 0, 0, 0,
-                     static_cast<uint8_t>(CloneFileType::kSnapshot), true,
-                     static_cast<uint8_t>(CloneStep::kCreateCloneFile),
-                     static_cast<uint8_t>(CloneStatus::recovering));
+                     CloneFileType::kSnapshot, true,
+                     CloneStep::kCreateCloneFile,
+                     CloneStatus::recovering);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1458,14 +1459,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCreateCloneMeta) {
     ASSERT_EQ(LIBCURVE_ERROR::OK,
               PrepareCreateCloneFile(fileName, &fInfoOut, true));
 
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kRecover), snapId,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kRecover, snapId,
                      testFile1_, fInfoOut.id, testFd1_, 0,
-                     static_cast<uint8_t>(CloneFileType::kSnapshot), true,
-                     static_cast<uint8_t>(CloneStep::kCreateCloneMeta),
-                     static_cast<uint8_t>(CloneStatus::recovering));
+                     CloneFileType::kSnapshot, true,
+                     CloneStep::kCreateCloneMeta,
+                     CloneStatus::recovering);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1498,14 +1499,14 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_EQ(LIBCURVE_ERROR::OK,
               PrepareCreateCloneMeta(&fInfoOut, fileName, &segInfoOutVec));
 
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kRecover), snapId,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kRecover, snapId,
                      testFile1_, fInfoOut.id, testFd1_, 0,
-                     static_cast<uint8_t>(CloneFileType::kSnapshot), true,
-                     static_cast<uint8_t>(CloneStep::kCreateCloneMeta),
-                     static_cast<uint8_t>(CloneStatus::recovering));
+                     CloneFileType::kSnapshot, true,
+                     CloneStep::kCreateCloneMeta,
+                     CloneStatus::recovering);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1537,14 +1538,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCreateCloneChunk) {
     ASSERT_EQ(LIBCURVE_ERROR::OK,
               PrepareCreateCloneMeta(&fInfoOut, fileName, &segInfoOutVec));
 
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kRecover), snapId,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kRecover, snapId,
                      testFile1_, fInfoOut.id, testFd1_, 0,
-                     static_cast<uint8_t>(CloneFileType::kSnapshot), true,
-                     static_cast<uint8_t>(CloneStep::kCreateCloneChunk),
-                     static_cast<uint8_t>(CloneStatus::recovering));
+                     CloneFileType::kSnapshot, true,
+                     CloneStep::kCreateCloneChunk,
+                     CloneStatus::recovering);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1579,14 +1580,14 @@ TEST_F(SnapshotCloneServerTest,
 
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareCreateCloneChunk(segInfoOutVec, true));
 
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kRecover), snapId,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kRecover, snapId,
                      testFile1_, fInfoOut.id, testFd1_, 0,
-                     static_cast<uint8_t>(CloneFileType::kSnapshot), true,
-                     static_cast<uint8_t>(CloneStep::kCreateCloneChunk),
-                     static_cast<uint8_t>(CloneStatus::recovering));
+                     CloneFileType::kSnapshot, true,
+                     CloneStep::kCreateCloneChunk,
+                     CloneStatus::recovering);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1620,14 +1621,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCompleteCloneMeta) {
 
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareCreateCloneChunk(segInfoOutVec, true));
 
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kRecover), snapId,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kRecover, snapId,
                      testFile1_, fInfoOut.id, testFd1_, 0,
-                     static_cast<uint8_t>(CloneFileType::kSnapshot), true,
-                     static_cast<uint8_t>(CloneStep::kCompleteCloneMeta),
-                     static_cast<uint8_t>(CloneStatus::recovering));
+                     CloneFileType::kSnapshot, true,
+                     CloneStep::kCompleteCloneMeta,
+                     CloneStatus::recovering);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1664,14 +1665,14 @@ TEST_F(SnapshotCloneServerTest,
 
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareCompleteCloneMeta(uuid1));
 
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kRecover), snapId,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kRecover, snapId,
                      testFile1_, fInfoOut.id, testFd1_, 0,
-                     static_cast<uint8_t>(CloneFileType::kSnapshot), true,
-                     static_cast<uint8_t>(CloneStep::kCompleteCloneMeta),
-                     static_cast<uint8_t>(CloneStatus::recovering));
+                     CloneFileType::kSnapshot, true,
+                     CloneStep::kCompleteCloneMeta,
+                     CloneStatus::recovering);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1707,14 +1708,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotChangeOwner) {
 
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareCompleteCloneMeta(uuid1));
 
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kRecover), snapId,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kRecover, snapId,
                      testFile1_, fInfoOut.id, testFd1_, 0,
-                     static_cast<uint8_t>(CloneFileType::kSnapshot), true,
-                     static_cast<uint8_t>(CloneStep::kChangeOwner),
-                     static_cast<uint8_t>(CloneStatus::recovering));
+                     CloneFileType::kSnapshot, true,
+                     CloneStep::kChangeOwner,
+                     CloneStatus::recovering);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1753,14 +1754,14 @@ TEST_F(SnapshotCloneServerTest,
 
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareChangeOwner(fileName));
 
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kRecover), snapId,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kRecover, snapId,
                      testFile1_, fInfoOut.id, testFd1_, 0,
-                     static_cast<uint8_t>(CloneFileType::kSnapshot), true,
-                     static_cast<uint8_t>(CloneStep::kChangeOwner),
-                     static_cast<uint8_t>(CloneStatus::recovering));
+                     CloneFileType::kSnapshot, true,
+                     CloneStep::kChangeOwner,
+                     CloneStatus::recovering);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1798,14 +1799,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotRenameCloneFile) {
 
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareChangeOwner(fileName));
 
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kRecover), snapId,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kRecover, snapId,
                      testFile1_, fInfoOut.id, testFd1_, 0,
-                     static_cast<uint8_t>(CloneFileType::kSnapshot), true,
-                     static_cast<uint8_t>(CloneStep::kRenameCloneFile),
-                     static_cast<uint8_t>(CloneStatus::recovering));
+                     CloneFileType::kSnapshot, true,
+                     CloneStep::kRenameCloneFile,
+                     CloneStatus::recovering);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1847,14 +1848,14 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareRenameCloneFile(fInfoOut.id, testFd1_,
                                                          fileName, testFile1_));
 
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kRecover), snapId,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kRecover, snapId,
                      testFile1_, fInfoOut.id, testFd1_, 0,
-                     static_cast<uint8_t>(CloneFileType::kSnapshot), true,
-                     static_cast<uint8_t>(CloneStep::kRenameCloneFile),
-                     static_cast<uint8_t>(CloneStatus::recovering));
+                     CloneFileType::kSnapshot, true,
+                     CloneStep::kRenameCloneFile,
+                     CloneStatus::recovering);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1895,14 +1896,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotRecoverChunk) {
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareRenameCloneFile(fInfoOut.id, testFd1_,
                                                          fileName, testFile1_));
 
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kRecover), snapId,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kRecover, snapId,
                      testFile1_, fInfoOut.id, testFd1_, 0,
-                     static_cast<uint8_t>(CloneFileType::kSnapshot), true,
-                     static_cast<uint8_t>(CloneStep::kRecoverChunk),
-                     static_cast<uint8_t>(CloneStatus::recovering));
+                     CloneFileType::kSnapshot, true,
+                     CloneStep::kRecoverChunk,
+                     CloneStatus::recovering);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1941,14 +1942,14 @@ TEST_F(SnapshotCloneServerTest,
 
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareRecoverChunk(segInfoOutVec, true));
 
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kRecover), snapId,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kRecover, snapId,
                      testFile1_, fInfoOut.id, testFd1_, 0,
-                     static_cast<uint8_t>(CloneFileType::kSnapshot), true,
-                     static_cast<uint8_t>(CloneStep::kRecoverChunk),
-                     static_cast<uint8_t>(CloneStatus::recovering));
+                     CloneFileType::kSnapshot, true,
+                     CloneStep::kRecoverChunk,
+                     CloneStatus::recovering);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -1986,14 +1987,14 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCompleteCloneFile) {
 
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareRecoverChunk(segInfoOutVec, true));
 
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kRecover), snapId,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kRecover, snapId,
                      testFile1_, fInfoOut.id, testFd1_, 0,
-                     static_cast<uint8_t>(CloneFileType::kSnapshot), true,
-                     static_cast<uint8_t>(CloneStep::kCompleteCloneFile),
-                     static_cast<uint8_t>(CloneStatus::recovering));
+                     CloneFileType::kSnapshot, true,
+                     CloneStep::kCompleteCloneFile,
+                     CloneStatus::recovering);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
@@ -2034,14 +2035,14 @@ TEST_F(SnapshotCloneServerTest,
 
     ASSERT_EQ(LIBCURVE_ERROR::OK, PrepareCompleteCloneFile(testFile1_));
 
-    CloneRepoItem cr(uuid1, testUser1_,
-                     static_cast<uint8_t>(CloneTaskType::kRecover), snapId,
+    CloneInfo cloneInfo(uuid1, testUser1_,
+                     CloneTaskType::kRecover, snapId,
                      testFile1_, fInfoOut.id, testFd1_, 0,
-                     static_cast<uint8_t>(CloneFileType::kSnapshot), true,
-                     static_cast<uint8_t>(CloneStep::kCompleteCloneFile),
-                     static_cast<uint8_t>(CloneStatus::recovering));
+                     CloneFileType::kSnapshot, true,
+                     CloneStep::kCompleteCloneFile,
+                     CloneStatus::recovering);
 
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+    cluster_->metaStore_->AddCloneInfo(cloneInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;

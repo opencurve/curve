@@ -21,8 +21,11 @@
 #include "src/common/string_util.h"
 #include "src/common/timeutility.h"
 #include "src/client/client_common.h"
+#include "src/kvstorageclient/etcd_client.h"
 
 using ::curve::client::UserInfo_t;
+using ::curve::kvstorage::EtcdClientImp;
+using ::curve::snapshotcloneserver::SnapshotCloneCodec;
 
 namespace curve {
 
@@ -32,15 +35,38 @@ int CurveCluster::InitDB(const std::string &mdsTable, const std::string &user,
     mdsRepo_ = new MdsRepo();
     RETURN_IF_NOT_ZERO(
         mdsRepo_->connectDB(mdsTable, user, url, password, poolSize));
-    snapshotcloneRepo_ = new SnapshotCloneRepo;
-    RETURN_IF_NOT_ZERO(
-        snapshotcloneRepo_->connectDB(mdsTable, user, url, password, poolSize));
     return 0;
 }
 
 int CurveCluster::InitMdsClient(const MetaServerOption_t &op) {
     mdsClient_ = std::make_shared<MDSClient>();
     return mdsClient_->Initialize(op);
+}
+
+int CurveCluster::InitSnapshotCloneMetaStoreEtcd(
+    const std::string &etcdEndpoints) {
+    EtcdConf conf;
+    conf.Endpoints = new char[etcdEndpoints.size()];
+    std::memcpy(conf.Endpoints, etcdEndpoints.c_str(), etcdEndpoints.size());
+    conf.len = etcdEndpoints.size();
+    conf.DialTimeout = 5000;
+    int timeout = 5000;
+    int retryTimes = 3;
+    auto etcdClient = std::make_shared<EtcdClientImp>();
+    auto res = etcdClient->Init(conf, timeout, retryTimes);
+    if (res != EtcdErrCode::EtcdOK) {
+        LOG(ERROR) << "init etcd client err! ";
+        return -1;
+    }
+    auto codec = std::make_shared<SnapshotCloneCodec>();
+
+    metaStore_ = std::make_shared<SnapshotCloneMetaStoreEtcd>(etcdClient,
+        codec);
+    if (metaStore_->Init() < 0) {
+        LOG(ERROR) << "metaStore init fail.";
+        return -1;
+    }
+    return 0;
 }
 
 int CurveCluster::BuildNetWork() {

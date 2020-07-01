@@ -73,22 +73,6 @@ struct SnapshotCloneServerOptions {
     uint32_t recoverChunkConcurrency;
 };
 
-// metastore options
-struct SnapshotCloneMetaStoreOptions {
-    // 数据库名称
-    std::string dbName;
-    // 数据库用户名
-    std::string dbUser;
-    // 数据库验证密码
-    std::string dbPassword;
-    // 数据库服务地址
-    std::string dbAddr;
-    // 数据库连接池最大连接数
-    uint32_t dbPoolSize;
-};
-
-
-
 }  // namespace snapshotcloneserver
 }  // namespace curve
 #endif  // SRC_SNAPSHOTCLONESERVER_COMMON_CONFIG_H_

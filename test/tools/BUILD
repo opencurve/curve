@@ -31,7 +31,6 @@ cc_binary(
         "//test/client/fake:fake_lib",
         "//test/fs:fs_mock",
         "//test/common:common_mock",
-        "//test/snapshotcloneserver:mock_repo",
         "//test/client:client_mock",
     ],
     copts = COPTS

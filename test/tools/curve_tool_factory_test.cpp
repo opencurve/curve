@@ -79,10 +79,5 @@ TEST(CurveToolFactoryTest, GetCopysetCheck) {
     curveTool = CurveToolFactory::GenerateCurveTool("check-operator");
     ASSERT_TRUE(dynamic_cast<CopysetCheck *>(curveTool.get()) != nullptr);
 }
-
-TEST(CurveToolFactoryTest, GetSnapshotCheck) {
-    auto curveTool = CurveToolFactory::GenerateCurveTool("snapshot-check");
-    ASSERT_TRUE(dynamic_cast<SnapshotCheck *>(curveTool.get()) != nullptr);
-}
 }  // namespace tool
 }  // namespace curve

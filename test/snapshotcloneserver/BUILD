@@ -23,8 +23,6 @@ cc_library(
     srcs = [
             "mock_repo.h",
             ],
-    deps = [
-            "//src/snapshotcloneserver/dao:snapshotrepo",
-            ],
+    deps = [],
     visibility = ["//visibility:public"],
 )

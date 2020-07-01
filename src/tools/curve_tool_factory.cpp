@@ -22,8 +22,6 @@ std::shared_ptr<CurveTool> CurveToolFactory::GenerateCurveTool(
         return GenerateCurveCli();
     } else if (CopysetCheck::SupportCommand(command)) {
         return GenerateCopysetCheck();
-    } else if (SnapshotCheck::SupportCommand(command)) {
-        return GenerateSnapshotCheck();
     } else if (ScheduleTool::SupportCommand(command)) {
         return GenerateScheduleTool();
     } else {
@@ -74,15 +72,6 @@ std::shared_ptr<CopysetCheck> CurveToolFactory::GenerateCopysetCheck() {
     auto core = std::make_shared<curve::tool::CopysetCheckCore>(mdsClient,
                                                                 csClient);
     return std::make_shared<CopysetCheck>(core);
-}
-
-std::shared_ptr<SnapshotCheck> CurveToolFactory::GenerateSnapshotCheck() {
-    std::shared_ptr<SnapshotRead> snapshotRead =
-                    std::make_shared<SnapshotRead>(
-                    std::make_shared<SnapshotCloneRepo>(),
-                    std::make_shared<curve::common::S3Adapter>());
-    return std::make_shared<SnapshotCheck>(
-            std::make_shared<curve::client::FileClient>(), snapshotRead);
 }
 
 std::shared_ptr<ScheduleTool> CurveToolFactory::GenerateScheduleTool() {

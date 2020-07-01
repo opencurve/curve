@@ -203,8 +203,6 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_->mdsRepo_->createDatabase();
         cluster_->mdsRepo_->useDataBase();
         cluster_->mdsRepo_->createAllTables();
-        cluster_->snapshotcloneRepo_->useDataBase();
-        cluster_->snapshotcloneRepo_->createAllTables();
         system(std::string("rm -rf " + kTestPrefix + "t.etcd").c_str());
         system(std::string("rm -rf " + kTestPrefix + "1").c_str());
         system(std::string("rm -rf " + kTestPrefix + "2").c_str());
@@ -217,6 +215,8 @@ class SnapshotCloneServerTest : public ::testing::Test {
         LOG(INFO) << "etcd 1 started on " << kEtcdPeerIpPort
                   << ", pid = " << pid;
         ASSERT_GT(pid, 0);
+
+        cluster_->InitSnapshotCloneMetaStoreEtcd(kEtcdClientIpPort);
 
         cluster_->PrepareConfig<MDSConfigGenerator>(kMdsConfigPath,
                                                     mdsConfigOptions);
@@ -879,9 +879,10 @@ TEST_F(SnapshotCloneServerTest, TestImageNotLazyClone) {
 // 场景九：快照存在失败场景
 TEST_F(SnapshotCloneServerTest, TestSnapAndCloneWhenSnapHasError) {
     std::string snapId = "errorSnapUuid";
-    SnapshotRepoItem sr(snapId, testUser1_, testFile4_, "snapxxx", 0, 0, 0, 0,
-                        0, static_cast<int>(Status::error));
-    cluster_->snapshotcloneRepo_->InsertSnapshotRepoItem(sr);
+    SnapshotInfo snapInfo(snapId, testUser1_, testFile4_, "snapxxx", 0, 0, 0, 0,
+                        0, Status::error);
+
+    cluster_->metaStore_->AddSnapshot(snapInfo);
 
     pid_t pid = cluster_->RestartSnapshotCloneServer(1);
     LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;

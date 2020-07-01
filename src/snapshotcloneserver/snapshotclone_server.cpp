@@ -39,20 +39,6 @@ void InitClientOption(std::shared_ptr<Configuration> conf,
         &clientOption->clientMethodRetryIntervalMs);
 }
 
-void InitMetaStoreOptions(std::shared_ptr<Configuration> conf,
-                          SnapshotCloneMetaStoreOptions *metastoreOption) {
-    conf->GetValueFatalIfFail("metastore.db_name",
-                                        &metastoreOption->dbName);
-    conf->GetValueFatalIfFail("metastore.db_user",
-                                        &metastoreOption->dbUser);
-    conf->GetValueFatalIfFail("metastore.db_passwd",
-                                        &metastoreOption->dbPassword);
-    conf->GetValueFatalIfFail("metastore.db_address",
-                                        &metastoreOption->dbAddr);
-    conf->GetValueFatalIfFail("metastore.db_poolsize",
-                                        &metastoreOption->dbPoolSize);
-}
-
 void InitSnapshotCloneServerOptions(std::shared_ptr<Configuration> conf,
                                     SnapshotCloneServerOptions *serverOption) {
     conf->GetValueFatalIfFail("server.address",
@@ -115,7 +101,6 @@ void InitEtcdConf(std::shared_ptr<Configuration> conf, EtcdConf* etcdConf) {
 
 void SnapShotCloneServer::InitAllSnapshotCloneOptions(void) {
     InitClientOption(conf_, &(snapshotCloneServerOptions_.clientOptions));
-    InitMetaStoreOptions(conf_, &(snapshotCloneServerOptions_.metastoreOption));
     InitSnapshotCloneServerOptions(conf_,
         &(snapshotCloneServerOptions_.serverOption));
     InitEtcdConf(conf_, &(snapshotCloneServerOptions_.etcdConf));
@@ -229,12 +214,13 @@ bool SnapShotCloneServer::Init() {
         LOG(ERROR) << "curvefs_client init fail.";
         return false;
     }
+    auto codec = std::make_shared<SnapshotCloneCodec>();
 
-    repo_ = std::make_shared<SnapshotCloneRepo>();
-    metaStore_ = std::make_shared<DBSnapshotCloneMetaStore>(repo_);
-    if (metaStore_->Init(snapshotCloneServerOptions_.metastoreOption) < 0) {
+    metaStore_ = std::make_shared<SnapshotCloneMetaStoreEtcd>(etcdClient_,
+        codec);
+    if (metaStore_->Init() < 0) {
         LOG(ERROR) << "metaStore init fail.";
-        return FLAGS_logbufsecs;
+        return false;
     }
 
     dataStore_ = std::make_shared<S3SnapshotDataStore>();

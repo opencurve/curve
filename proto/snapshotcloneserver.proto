@@ -21,6 +21,34 @@ message ChunkMap {
     map<uint32, string> indexmap = 1;
 };
 
+message SnapshotInfoData {
+    required string uuid = 1;
+    required string user = 2;
+    required string fileName = 3;
+    required string snapshotName = 4;
+    required uint64 seqNum = 5;
+    required uint32 chunkSize = 6;
+    required uint64 segmentSize = 7;
+    required uint64 fileLength = 8;
+    required uint64 time = 9;
+    required int32 status = 10;
+};
+
+message CloneInfoData {
+    required string uuid = 1;
+    required string user = 2;
+    required int32 taskType = 3;
+    required string source = 4;
+    required string destination = 5;
+    required uint64 originId = 6;
+    required uint64 destinationId = 7;
+    required uint64 time = 8;
+    required int32 fileType = 9;
+    required bool isLazy = 10;
+    required int32 nextStep = 11;
+    required int32 status = 12;
+};
+
 message HttpRequest {};
 
 message HttpResponse {};
