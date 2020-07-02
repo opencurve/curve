@@ -1,0 +1,11 @@
+language: c++
+sudo: required
+services:
+  - docker
+    #before_install: sudo apt-get install fio -y
+intall: 
+  - sudo docker pull chenyunhui/untest:1.0.0
+script:
+  - sudo docker run -d --privileged --name curve --volume ~/chenyunhui-1/test-cyh:/curve chenyunhui/untest:1.0.0 /bin/bash /etc/rc.local 
+  - sudo docker exec -it curve  /bin/bash -c "cp -r /root/new/* /curve/"
+  - sudo docker exec -it curve  /bin/bash -c "cd /curve/  && bash untest.sh"
