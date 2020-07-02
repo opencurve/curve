@@ -1,0 +1,25 @@
+syntax="proto2";
+import "nebd/proto/nebd-common.proto";
+
+package nebd.client;
+
+option cc_generic_services = true;
+
+message HeartbeatFileInfo {
+    required int32 fd = 1;
+    required string name = 2;
+}
+
+message HeartbeatRequest {
+   required int32 pid = 1;
+   required string nebdVersion = 2;
+   repeated HeartbeatFileInfo info = 3;
+}
+
+message HeartbeatResponse {
+   required RetCode retCode = 1;
+}
+
+service NebdHeartbeatService {
+   rpc KeepAlive(HeartbeatRequest) returns (HeartbeatResponse);
+};
