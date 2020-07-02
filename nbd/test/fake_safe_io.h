@@ -9,7 +9,7 @@
 #define TEST_TOOLS_NBD_FAKE_SAFE_IO_H_
 
 #include <functional>
-#include "src/tools/nbd/SafeIO.h"
+#include "nbd/src/SafeIO.h"
 
 namespace curve {
 namespace nbd {

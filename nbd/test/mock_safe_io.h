@@ -10,7 +10,7 @@
 
 #include <gmock/gmock.h>
 
-#include "src/tools/nbd/SafeIO.h"
+#include "nbd/src/SafeIO.h"
 namespace curve {
 namespace nbd {
 

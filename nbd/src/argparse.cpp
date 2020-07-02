@@ -13,7 +13,7 @@
 #include <sstream>
 #include <iostream>
 
-#include "src/tools/nbd/argparse.h"
+#include "nbd/src/argparse.h"
 
 namespace curve {
 namespace nbd {

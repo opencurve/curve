@@ -11,14 +11,14 @@
 #include <iostream>
 #include <string>
 
-#include "src/tools/nbd/ImageInstance.h"
-#include "src/tools/nbd/NBDController.h"
-#include "src/tools/nbd/NBDServer.h"
-#include "src/tools/nbd/NBDTool.h"
-#include "src/tools/nbd/NBDWatchContext.h"
-#include "src/tools/nbd/argparse.h"
-#include "src/tools/nbd/define.h"
-#include "src/tools/nbd/util.h"
+#include "nbd/src/ImageInstance.h"
+#include "nbd/src/NBDController.h"
+#include "nbd/src/NBDServer.h"
+#include "nbd/src/NBDTool.h"
+#include "nbd/src/NBDWatchContext.h"
+#include "nbd/src/argparse.h"
+#include "nbd/src/define.h"
+#include "nbd/src/util.h"
 
 namespace curve {
 namespace nbd {

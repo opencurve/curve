@@ -12,9 +12,9 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <memory>
-#include "test/tools/nbd/mock_image_instance.h"
-#include "src/tools/nbd/NBDTool.h"
-#include "src/tools/nbd/util.h"
+#include "nbd/test/mock_image_instance.h"
+#include "nbd/src/NBDTool.h"
+#include "nbd/src/util.h"
 
 namespace curve {
 namespace nbd {

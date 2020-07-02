@@ -11,11 +11,11 @@
 #include <vector>
 #include <string>
 #include <memory>
-#include "src/tools/nbd/define.h"
-#include "src/tools/nbd/NBDController.h"
-#include "src/tools/nbd/NBDServer.h"
-#include "src/tools/nbd/ImageInstance.h"
-#include "src/tools/nbd/NBDWatchContext.h"
+#include "nbd/src/define.h"
+#include "nbd/src/NBDController.h"
+#include "nbd/src/NBDServer.h"
+#include "nbd/src/ImageInstance.h"
+#include "nbd/src/NBDWatchContext.h"
 
 namespace curve {
 namespace nbd {

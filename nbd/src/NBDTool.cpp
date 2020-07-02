@@ -9,9 +9,9 @@
 #include <limits.h>
 #include <memory>
 #include <string>
-#include "src/tools/nbd/NBDTool.h"
-#include "src/tools/nbd/argparse.h"
-#include "src/tools/nbd/texttable.h"
+#include "nbd/src/NBDTool.h"
+#include "nbd/src/argparse.h"
+#include "nbd/src/texttable.h"
 
 namespace curve {
 namespace nbd {

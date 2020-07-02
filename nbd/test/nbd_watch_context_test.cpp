@@ -5,9 +5,9 @@
  * Copyright (c) 2020 Netease
  */
 
-#include "src/tools/nbd/NBDWatchContext.h"
-#include "test/tools/nbd/mock_image_instance.h"
-#include "test/tools/nbd/mock_nbd_controller.h"
+#include "nbd/src/NBDWatchContext.h"
+#include "nbd/test/mock_image_instance.h"
+#include "nbd/test/mock_nbd_controller.h"
 
 namespace curve {
 namespace nbd {

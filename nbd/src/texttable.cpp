@@ -11,7 +11,7 @@
  * Foundation.  See file COPYING.
  *
  */
-#include "src/tools/nbd/texttable.h"
+#include "nbd/src/texttable.h"
 
 namespace curve {
 namespace nbd {

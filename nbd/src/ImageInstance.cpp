@@ -5,7 +5,7 @@
  * Copyright (c) 2020 Netease
  */
 
-#include "src/tools/nbd/ImageInstance.h"
+#include "nbd/src/ImageInstance.h"
 #include <glog/logging.h>
 
 namespace curve {

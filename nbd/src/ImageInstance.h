@@ -10,7 +10,7 @@
 
 #include <string>
 #include <memory>
-#include "src/tools/nbd/libnebd.h"
+#include "nbd/src/libnebd.h"
 
 namespace curve {
 namespace nbd {

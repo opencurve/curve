@@ -5,14 +5,14 @@
  * Copyright (c) 2020 Netease
  */
 
-#include "src/tools/nbd/NBDServer.h"
+#include "nbd/src/NBDServer.h"
 
 #include <signal.h>
 #include <glog/logging.h>
 #include <inttypes.h>
 #include <netinet/in.h>
 
-#include "src/tools/nbd/util.h"
+#include "nbd/src/util.h"
 
 namespace curve {
 namespace nbd {

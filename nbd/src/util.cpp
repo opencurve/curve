@@ -11,9 +11,9 @@
 #include <libgen.h>
 #include <string.h>
 #include <sstream>
-#include "src/tools/nbd/define.h"
-#include "src/tools/nbd/util.h"
-#include "src/tools/nbd/argparse.h"
+#include "nbd/src/define.h"
+#include "nbd/src/util.h"
+#include "nbd/src/argparse.h"
 
 namespace curve {
 namespace nbd {

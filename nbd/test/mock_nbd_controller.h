@@ -10,7 +10,7 @@
 
 #include <gmock/gmock.h>
 #include <string>
-#include "src/tools/nbd/NBDController.h"
+#include "nbd/src/NBDController.h"
 
 namespace curve {
 namespace nbd {

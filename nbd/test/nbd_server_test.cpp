@@ -13,10 +13,10 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <memory>
-#include "src/tools/nbd/NBDServer.h"
-#include "test/tools/nbd/fake_safe_io.h"
-#include "test/tools/nbd/mock_image_instance.h"
-#include "test/tools/nbd/mock_safe_io.h"
+#include "nbd/src/NBDServer.h"
+#include "nbd/test/fake_safe_io.h"
+#include "nbd/test/mock_image_instance.h"
+#include "nbd/test/mock_safe_io.h"
 
 namespace curve {
 namespace nbd {

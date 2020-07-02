@@ -5,10 +5,10 @@
  * Copyright (c) 2020 Netease
  */
 
-#include "src/tools/nbd/SafeIO.h"
+#include "nbd/src/SafeIO.h"
 #include <cerrno>
 
-#include "src/tools/nbd/util.h"
+#include "nbd/src/util.h"
 
 namespace curve {
 namespace nbd {

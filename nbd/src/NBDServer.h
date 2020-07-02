@@ -17,10 +17,10 @@
 #include <string>
 #include <thread>  // NOLINT
 
-#include "src/tools/nbd/ImageInstance.h"
-#include "src/tools/nbd/NBDController.h"
-#include "src/tools/nbd/SafeIO.h"
-#include "src/tools/nbd/libnebd.h"
+#include "nbd/src/ImageInstance.h"
+#include "nbd/src/NBDController.h"
+#include "nbd/src/SafeIO.h"
+#include "nbd/src/libnebd.h"
 
 namespace curve {
 namespace nbd {

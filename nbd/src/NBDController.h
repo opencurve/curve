@@ -19,9 +19,9 @@
 #include <string>
 #include <memory>
 
-#include "src/tools/nbd/nbd-netlink.h"
-#include "src/tools/nbd/define.h"
-#include "src/tools/nbd/util.h"
+#include "nbd/src/nbd-netlink.h"
+#include "nbd/src/define.h"
+#include "nbd/src/util.h"
 
 namespace curve {
 namespace nbd {

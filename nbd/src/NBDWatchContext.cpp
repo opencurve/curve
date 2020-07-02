@@ -5,7 +5,7 @@
  * Copyright (c) 2020 NetEase
  */
 
-#include "src/tools/nbd/NBDWatchContext.h"
+#include "nbd/src/NBDWatchContext.h"
 #include <glog/logging.h>
 
 namespace curve {

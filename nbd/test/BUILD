@@ -27,7 +27,7 @@ cc_library(
     hdrs = glob(["*.h"]),
     deps = [
         "//external:gtest",
-        "//src/tools/nbd:curvenbd",
+        "//nbd/src:curvenbd",
     ],
     copts = COPTS,
     visibility = ["//visibility:public"],
@@ -39,11 +39,8 @@ cc_binary(
         "*.cpp",
     ]),
     deps = [
-        "//src/tools/nbd:curvenbd",
-        "//test/tools/nbd:mock_lib"
+        "//nbd/src:curvenbd",
+        "//nbd/test:mock_lib"
     ],
     copts = COPTS,
-    linkopts = [
-        "-Wl,-rpath=/usr/lib/nebd"
-    ],
 )

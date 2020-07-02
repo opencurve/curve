@@ -11,9 +11,9 @@
 #include <atomic>
 #include <thread>  // NOLINT
 #include <memory>
-#include "src/tools/nbd/ImageInstance.h"
-#include "src/tools/nbd/NBDController.h"
-#include "src/tools/nbd/interruptible_sleeper.h"
+#include "nbd/src/ImageInstance.h"
+#include "nbd/src/NBDController.h"
+#include "nbd/src/interruptible_sleeper.h"
 
 namespace curve {
 namespace nbd {

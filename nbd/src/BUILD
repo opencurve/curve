@@ -28,35 +28,10 @@ cc_library(
     deps = [
         "//external:gflags",
         "//external:glog",
+        "//nebd/src/part1:nebdclient",
     ],
     copts = COPTS,
     linkopts = [
-        "-L/usr/lib/nebd",
-        "-lnebdclient",
-        "-lclient_proto",
-        "-lnebd_common",
-        "-lbrpc",
-        "-lcc_brpc_idl_options_proto",
-        "-lcc_brpc_internal_proto",
-        "-lbthread",
-        "-lbvar",
-        "-ljson2pb",
-        "-lmcpack2pb",
-        "-lbutil",
-        "-lprotoc_lib",
-        "-lleveldb",
-        "-lprotobuf",
-        "-lprotobuf_lite",
-        "-lssl",
-        "-lrt",
-        "-lssl",
-        "-lcrypto",
-        "-ldl",
-        "-lz",
-        "-lpthread",
-        "-lunwind",
-        "-lstdc++",
-        "-lm",
         "-lnl-3",
         "-lnl-genl-3",
     ],
@@ -70,12 +45,7 @@ cc_binary(
         ]
     ),
     deps = [
-        "//src/tools/nbd:curvenbd"
+        "//nbd/src:curvenbd"
     ],
     copts = COPTS,
-    linkopts = [
-        "-Wl,-rpath=/usr/lib/nebd"
-    ],
 )
-
-

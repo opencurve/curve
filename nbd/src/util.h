@@ -10,7 +10,7 @@
 
 #include <string>
 #include <vector>
-#include "src/tools/nbd/define.h"
+#include "nbd/src/define.h"
 
 namespace curve {
 namespace nbd {

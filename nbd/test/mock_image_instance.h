@@ -9,7 +9,7 @@
 #define TEST_TOOLS_NBD_MOCK_IMAGE_INSTANCE_H_
 
 #include <gmock/gmock.h>
-#include "src/tools/nbd/ImageInstance.h"
+#include "nbd/src/ImageInstance.h"
 
 namespace curve {
 namespace nbd {

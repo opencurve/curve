@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 dir=`pwd`
 #step1 清除生成的目录和文件
 bazel clean
@@ -43,13 +43,14 @@ if [ "$1" = "debug" ]
 then
 bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
--Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${tag_version}
+-Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${tag_version} \
+--linkopt -L${dir}/thirdparties/etcdclient
 if [ $? -ne 0 ]
 then
 	echo "build phase1 failed"
 	exit
 fi
-sh ./curvefs_python/configure.sh
+bash ./curvefs_python/configure.sh
 if [ $? -ne 0 ]
 then
 	echo "configure failed"
@@ -68,13 +69,14 @@ fi
 else
 bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
--Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${tag_version}
+-Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${tag_version} \
+--linkopt -L${dir}/thirdparties/etcdclient
 if [ $? -ne 0 ]
 then
 	echo "build phase1 failed"
 	exit
 fi
-sh ./curvefs_python/configure.sh
+bash ./curvefs_python/configure.sh
 if [ $? -ne 0 ]
 then
 	echo "configure failed"
@@ -303,11 +305,7 @@ if [ $? -ne 0 ]
 then
     exit
 fi
-cp ./bazel-bin/src/tools/nbd/curve-nbd build/curve-sdk/usr/bin/curve-nbd
-if [ $? -ne 0 ]
-then
-	exit
-fi
+
 #cp ./conf/client.conf build/curve-sdk/etc/curve/client.conf
 #if [ $? -ne 0 ]
 #then
@@ -380,6 +378,23 @@ then
 	exit
 fi
 
+# step 3.1 prepare for nebd package
+cp -r nebd/nebd-package build/
+mkdir -p build/nebd-package/usr/bin
+mkdir -p build/nebd-package/usr/lib/nebd
+
+for i in `find bazel-bin/|grep -w so|grep -v solib|grep -v params|grep -v test|grep -v fake`
+do
+    cp -f $i build/nebd-package/usr/lib/nebd
+done
+
+cp bazel-bin/nebd/src/part2/nebd-server build/nebd-package/usr/bin
+
+# step 3.2 prepare for curve-nbd package
+cp -r nbd/nbd-package build
+mkdir -p build/nbd-package/usr/bin
+cp bazel-bin/nbd/src/curve-nbd build/nbd-package/usr/bin
+
 #step4 获取git提交版本信息，记录到debian包的配置文件
 commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
 if [ "$1" = "debug" ]
@@ -396,6 +411,8 @@ echo ${version} >> build/curve-tools/DEBIAN/control
 echo ${version} >> build/curve-monitor/DEBIAN/control
 echo ${version} >> build/curve-snapshotcloneserver/DEBIAN/control
 echo ${version} >> build/curve-nginx/DEBIAN/control
+echo ${version} >> build/nebd-package/DEBIAN/control
+echo ${version} >> build/nbd-package/DEBIAN/control
 
 #step5 打包debian包
 dpkg-deb -b build/curve-mds .
@@ -405,6 +422,8 @@ dpkg-deb -b build/curve-tools .
 dpkg-deb -b build/curve-monitor .
 dpkg-deb -b build/curve-snapshotcloneserver .
 dpkg-deb -b build/curve-nginx .
+dpkg-deb -b build/nebd-package .
+dpkg-deb -b build/nbd-package .
 #aws-c-common(commit=0302570a3cbabd98293ee03971e0867f28355086)
 #aws-checksums(commit=78be31b81a2b0445597e60ecb2412bc44e762a99)
 #aws-c-event-stream(commit=ad9a8b2a42d6c6ef07ccf251b5038b89487eacb3)

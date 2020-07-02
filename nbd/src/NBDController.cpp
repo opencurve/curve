@@ -5,7 +5,7 @@
  * Copyright (c) 2020 netease
  */
 
-#include "src/tools/nbd/NBDController.h"
+#include "nbd/src/NBDController.h"
 
 namespace curve {
 namespace nbd {
