@@ -2,7 +2,7 @@ workspace(name = "curve")
 
 git_repository(
     name = "com_netease_storage_gerrit_curve_curve_braft",
-    remote = "http://gerrit.storage.netease.com/curve/curve-braft",
+    remote = "https://github.com/opencurve/curve-braft",
     commit = "b17ebad68d1d1b84440f7bce984755ff47095137",
 )
 
@@ -43,7 +43,7 @@ bind(
 # brpc内BUILD文件在依赖glog时, 直接指定的依赖是"@com_github_google_glog//:glog"
 git_repository(
     name = "com_github_google_glog",
-    remote = "http://gerrit.storage.netease.com/curve/curve-glog",
+    remote = "https://github.com/opencurve/curve-glog",
     commit = "fa4439bd6a4aae0486fe1b4e9ba7f2b761976ac2",
 )
 
@@ -81,7 +81,7 @@ bind(
 
 git_repository(
     name = "com_netease_storage_gerrit_curve_curve_brpc",
-    remote = "http://gerrit.storage.netease.com/curve/curve-brpc",
+    remote = "https://github.com/opencurve/curve-brpc",
     commit = "0f0287df3f232b8b12a30b4d99392d716de1a16b",
 )
 
