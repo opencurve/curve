@@ -14,9 +14,10 @@ script:
   - sudo docker exec -it curve  /bin/bash -c "cd /curve/  && bash untest.sh"
   - cp gen-coverage.py bazel-bin
   - cp check_coverage.sh bazel-bin
-  - cd bazel-bin
+  - cd bazel-bin/
   - python gen-coverage.py
   - bash check_coverage.sh
-  - cp coverage/index.html $WOCKSPACE/
+  - cd $WOCKSPACE
+  - cp bazel-bin/coverage/index.html .
 after_success:
-  - codecov
+  - bash <(curl -s https://codecov.io/bash)
