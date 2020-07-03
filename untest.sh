@@ -7,10 +7,10 @@ ps -ef | grep chunkserver | grep -v grep | awk '{print $2}' | sudo xargs kill -9
 ps -ef | grep mds | grep -v grep | awk '{print $2}' | sudo xargs kill -9 || true
 ps -ef | grep etcd | grep -v grep | awk '{print $2}' | sudo xargs kill -9 || true
 
-#cd /curve/thirdparties/etcdclient && make all
-#sudo cp /curve/thirdparties/etcdclient/libetcdclient.so /usr/lib/
+cd /curve/curve_multijob/thirdparties/etcdclient && make all
+sudo cp /curve/curve_multijob/thirdparties/etcdclient/libetcdclient.so /usr/lib/
 #make clean
-cd /curve/
+cd /curve/curve_multijob
 bazel clean --async
 sleep 3
 
