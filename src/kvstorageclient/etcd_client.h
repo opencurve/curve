@@ -23,9 +23,9 @@
 #ifndef SRC_KVSTORAGECLIENT_ETCD_CLIENT_H_
 #define SRC_KVSTORAGECLIENT_ETCD_CLIENT_H_
 
+#include <libetcdclient.h>
 #include <string>
 #include <vector>
-#include "include/etcdclient/etcdclient.h"
 
 namespace curve {
 namespace kvstorage {
@@ -236,5 +236,3 @@ class EtcdClientImp : public KVStorageClient {
 }  // namespace curve
 
 #endif  // SRC_KVSTORAGECLIENT_ETCD_CLIENT_H_
-
-

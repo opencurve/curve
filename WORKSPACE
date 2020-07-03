@@ -133,3 +133,15 @@ bind(
     name = "json",
     actual = "@jsoncpp//:json",
 )
+
+new_local_repository(
+    name = "aws_sdk",
+    build_file = "bazel/aws-sdk.BUILD",
+    path = "thirdparties/aws-sdk/usr",
+)
+
+new_local_repository(
+    name = "etcdclient",
+    build_file = "bazel/etcdclient.BUILD",
+    path = "thirdparties/etcdclient",
+)
