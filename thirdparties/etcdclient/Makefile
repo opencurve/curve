@@ -11,7 +11,7 @@ intall-go:
 
 install-etcdclient:
 	mkdir -p $(pwd)/tmp/gosrc/src/go.etcd.io
-	cd $(pwd)/tmp/gosrc/src/go.etcd.io && git clone http://gerrit.storage.netease.com/curve/etcd
+	cd $(pwd)/tmp/gosrc/src/go.etcd.io && git clone https://github.com/opencurve/curve-etcd.git
 	cd $(pwd)/tmp/gosrc/src/go.etcd.io/etcd && git checkout feature
 
 vendorpath := $(pwd)/tmp/gosrc/src/go.etcd.io/etcd/vendor
