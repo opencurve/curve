@@ -9,7 +9,7 @@ ps -ef | grep etcd | grep -v grep | awk '{print $2}' | sudo xargs kill -9 || tru
 
 #cd /curve/thirdparties/etcdclient && make all
 #sudo cp /curve/thirdparties/etcdclient/libetcdclient.so /usr/lib/
-make clean
+#make clean
 cd /curve/
 bazel clean --async
 sleep 3
