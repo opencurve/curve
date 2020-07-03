@@ -53,11 +53,8 @@ cc_library(
         "-ldl",
         "-lz",
         "-lpthread",
-        "-laws-cpp-sdk-core",
-        "-laws-cpp-sdk-s3",
         "-lmysqlcppconn",
         "-luuid",
-        "-L/usr/local/lib",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -98,11 +95,8 @@ cc_binary(
         "-ldl",
         "-lz",
         "-lpthread",
-        "-laws-cpp-sdk-core",
-        "-laws-cpp-sdk-s3",
         "-lmysqlcppconn",
         "-luuid",
-        "-L/usr/local/lib",
     ],
     visibility = ["//visibility:public"],
     deps = [
