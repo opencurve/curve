@@ -1,4 +1,4 @@
-[![BUILD Status](http://59.111.93.165:8080/job/curve_multijob/lastBuild/buildStatus)](http://59.111.93.165:8080/job/curve_multijob/lastBuild)
+[![BUILD Status](https://img.shields.io/jenkins/build?jobUrl=http%3A%2F%2F59.111.93.165%3A8080%2Fjob%2Fcurve_multijob%2F)](http://59.111.93.165:8080/job/curve_multijob/lastBuild)
 1.1 系统概述
 
 curve的框架，更多的类似经典的Google GFS分布式文件系统，希望围绕curve满足诸多的存储应用场景的需求：
