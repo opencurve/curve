@@ -7,7 +7,7 @@
 
 #include "nebd/src/part1/libnebd_file.h"
 #include <string>
-#include "nebd/src/common/configuration.h"
+#include "src/common/configuration.h"
 #include "nebd/src/part1/nebd_client.h"
 
 

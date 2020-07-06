@@ -15,19 +15,19 @@
 #include <map>
 #include <string>
 
-#include "nebd/src/common/interrupt_sleep.h"
-#include "nebd/src/common/rw_lock.h"
-#include "nebd/src/common/stringstatus.h"
+#include "src/common/interruptible_sleeper.h"
+#include "src/common/concurrent/rw_lock.h"
+#include "src/common/stringstatus.h"
 #include "nebd/src/part2/file_manager.h"
 #include "nebd/src/part2/define.h"
 
 namespace nebd {
 namespace server {
 
-using nebd::common::InterruptibleSleeper;
-using nebd::common::RWLock;
-using nebd::common::WriteLockGuard;
-using nebd::common::ReadLockGuard;
+using curve::common::InterruptibleSleeper;
+using curve::common::RWLock;
+using curve::common::WriteLockGuard;
+using curve::common::ReadLockGuard;
 
 struct HeartbeatManagerOption {
     // 文件心跳超时时间（单位：秒）
@@ -53,7 +53,7 @@ struct NebdClientInfo {
     // nebd client的进程号
     int pid;
     // nebd version的metric
-    nebd::common::StringStatus version;
+    curve::common::StringStatus version;
     // 上次心跳的时间戳
     uint64_t timeStamp;
 };

@@ -22,7 +22,7 @@ const char metaPath[] = "/tmp/nebd-test-metafilemanager.meta";
 
 void FillCrc(Json::Value* root) {
     std::string jsonString = root->toStyledString();
-    uint32_t crc = nebd::common::CRC32(jsonString.c_str(),
+    uint32_t crc = curve::common::CRC32(jsonString.c_str(),
                                        jsonString.size());
     (*root)[kCRC] = crc;
 }

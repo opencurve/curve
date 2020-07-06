@@ -17,7 +17,7 @@
 #include <string>
 
 #include "nebd/src/part1/async_request_closure.h"
-#include "nebd/src/common/configuration.h"
+#include "src/common/configuration.h"
 
 #define RETURN_IF_FALSE(val) if (val == false) { return -1; }
 
@@ -43,7 +43,7 @@ NebdClient &nebdClient = NebdClient::GetInstance();
 constexpr int32_t kBufSize = 128;
 
 int NebdClient::Init(const char* confpath) {
-    nebd::common::Configuration conf;
+    curve::common::Configuration conf;
     conf.SetConfigPath(confpath);
 
     if (!conf.LoadConfig()) {

@@ -33,6 +33,7 @@ cc_binary(
         "//external:gflags",
         "//nebd/src/part2:nebdserver",
         "//nebd/test/part2:mock_lib",
+        "//src/common:curve_common",
         "@com_google_googletest//:gtest_main",
     ],
 )

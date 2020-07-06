@@ -5,14 +5,14 @@
  * Copyright (c) 2020 netease
  */
 
-#include "nebd/src/common/timeutility.h"
 #include "nebd/src/part2/heartbeat_service.h"
 #include "nebd/src/part2/define.h"
+#include "src/common/timeutility.h"
 
 namespace nebd {
 namespace server {
 
-using common::TimeUtility;
+using curve::common::TimeUtility;
 
 void NebdHeartbeatServiceImpl::KeepAlive(
         google::protobuf::RpcController* cntl_base,

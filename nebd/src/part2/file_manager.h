@@ -16,7 +16,7 @@
 #include <mutex>  // NOLINT
 #include <unordered_map>
 
-#include "nebd/src/common/rw_lock.h"
+#include "src/common/concurrent/rw_lock.h"
 #include "nebd/src/common/name_lock.h"
 #include "nebd/src/part2/define.h"
 #include "nebd/src/part2/util.h"
@@ -29,8 +29,8 @@ namespace server {
 
 using nebd::common::NameLock;
 using nebd::common::NameLockGuard;
-using nebd::common::WriteLockGuard;
-using nebd::common::ReadLockGuard;
+using curve::common::WriteLockGuard;
+using curve::common::ReadLockGuard;
 
 using FileEntityMap = std::unordered_map<int, NebdFileEntityPtr>;
 class NebdFileManager {

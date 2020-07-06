@@ -13,7 +13,7 @@
 #include <string>
 
 #include "nebd/proto/heartbeat.pb.h"
-#include "nebd/src/common/nebd_version.h"
+#include "src/common/curve_version.h"
 
 namespace nebd {
 namespace client {
@@ -36,7 +36,7 @@ int HeartbeatManager::Init(const HeartbeatOption& option) {
     }
 
     pid_ = getpid();
-    nebdVersion_ = nebd::common::NebdVersion();
+    nebdVersion_ = curve::common::CurveVersion();
 
     return 0;
 }

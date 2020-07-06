@@ -34,7 +34,10 @@ cc_library(
         "//external:glog",
         "//external:brpc",
         "//nebd/src/common:nebd_common",
-        "//nebd/proto:client_cc_proto"
+        "//nebd/proto:client_cc_proto",
+        "//src/common:curve_common",
+        "//src/common:curve_uncopy",
+        "//src/common/concurrent:curve_concurrent",
     ],
     copts = COPTS,
     linkopts = ["-Wl,-rpath=/usr/lib/nebd"],

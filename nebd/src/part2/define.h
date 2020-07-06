@@ -14,12 +14,12 @@
 #include <memory>
 #include <map>
 
-#include "nebd/src/common/rw_lock.h"
+#include "src/common/concurrent/rw_lock.h"
 
 namespace nebd {
 namespace server {
 
-using nebd::common::RWLock;
+using curve::common::RWLock;
 using ::google::protobuf::Message;
 using ::google::protobuf::Closure;
 using ::google::protobuf::RpcController;

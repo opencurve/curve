@@ -20,7 +20,7 @@
 #include "nbd/src/ImageInstance.h"
 #include "nbd/src/NBDController.h"
 #include "nbd/src/SafeIO.h"
-#include "nbd/src/libnebd.h"
+#include "nebd/src/part1/libnebd.h"
 
 namespace curve {
 namespace nbd {

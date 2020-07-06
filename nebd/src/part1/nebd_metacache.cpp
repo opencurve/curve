@@ -10,19 +10,22 @@
 namespace nebd {
 namespace client {
 
+using curve::common::WriteLockGuard;
+using curve::common::ReadLockGuard;
+
 void NebdClientMetaCache::AddFileInfo(const NebdClientFileInfo& fileInfo) {
-    common::WriteLockGuard guard(rwLock_);
+    WriteLockGuard guard(rwLock_);
     fileinfos_.emplace(fileInfo.fd, fileInfo);
 }
 
 void NebdClientMetaCache::RemoveFileInfo(int fd) {
-    common::WriteLockGuard guard(rwLock_);
+    WriteLockGuard guard(rwLock_);
     fileinfos_.erase(fd);
 }
 
 int NebdClientMetaCache::GetFileInfo(
     int fd, NebdClientFileInfo* fileInfo) const {
-    common::ReadLockGuard guard(rwLock_);
+    ReadLockGuard guard(rwLock_);
     auto iter = fileinfos_.find(fd);
     if (iter != fileinfos_.end()) {
         *fileInfo = iter->second;
@@ -33,7 +36,7 @@ int NebdClientMetaCache::GetFileInfo(
 }
 
 std::vector<NebdClientFileInfo> NebdClientMetaCache::GetAllFileInfo() const {
-    common::ReadLockGuard guard(rwLock_);
+    ReadLockGuard guard(rwLock_);
     std::vector<NebdClientFileInfo> result;
 
     result.reserve(fileinfos_.size());

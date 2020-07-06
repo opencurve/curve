@@ -12,7 +12,7 @@
 #include <vector>
 #include <string>
 
-#include "nebd/src/common/rw_lock.h"
+#include "src/common/concurrent/rw_lock.h"
 #include "nebd/src/common/file_lock.h"
 
 namespace nebd {
@@ -72,7 +72,7 @@ class NebdClientMetaCache {
  private:
     // 当前已打开文件信息
     std::unordered_map<int, NebdClientFileInfo> fileinfos_;
-    mutable common::RWLock rwLock_;
+    mutable curve::common::RWLock rwLock_;
 };
 
 }  // namespace client

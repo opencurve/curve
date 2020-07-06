@@ -13,7 +13,7 @@
 #include <memory>
 #include "nbd/src/ImageInstance.h"
 #include "nbd/src/NBDController.h"
-#include "nbd/src/interruptible_sleeper.h"
+#include "src/common/interruptible_sleeper.h"
 
 namespace curve {
 namespace nbd {
@@ -62,7 +62,7 @@ class NBDWatchContext {
     // 任务线程
     std::thread watchThread_;
 
-    InterruptibleSleeper sleeper_;
+    curve::common::InterruptibleSleeper sleeper_;
 };
 
 }  // namespace nbd

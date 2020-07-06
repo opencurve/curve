@@ -15,10 +15,12 @@
 #include <memory>
 #include <atomic>
 #include <mutex>  // NOLINT
-#include "nebd/src/common/uncopyable.h"
+#include "src/common/uncopyable.h"
 
 namespace nebd {
 namespace common {
+
+using curve::common::Uncopyable;
 
 class NameLock : public Uncopyable {
  public:

@@ -36,8 +36,10 @@ cc_library(
         "//external:json",
         "//external:gflags",
         "//src/client:curve",
+        "//src/common:curve_common",
+        "//src/common/concurrent:curve_concurrent",
         "//nebd/src/common:nebd_common",
-        "//nebd/proto:client_cc_proto"
+        "//nebd/proto:client_cc_proto",
     ],
     copts = COPTS,
 )

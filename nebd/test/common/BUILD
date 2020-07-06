@@ -6,6 +6,7 @@ cc_binary(
     deps = [
         "//external:gflags",
         "//nebd/src/common:nebd_common",
+        "//src/common:curve_common",
         "@com_google_googletest//:gtest_main",
     ],
 )

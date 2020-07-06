@@ -8,13 +8,14 @@
 #include <unordered_map>
 #include <string>
 
-#include "nebd/src/common/timeutility.h"
 #include "nebd/src/part2/heartbeat_manager.h"
+
+#include "src/common/timeutility.h"
 
 namespace nebd {
 namespace server {
 
-using common::TimeUtility;
+using curve::common::TimeUtility;
 
 int HeartbeatManager::Run() {
     if (isRunning_.exchange(true)) {

@@ -15,7 +15,7 @@
 #include <memory>
 
 #include "nebd/src/part1/nebd_common.h"
-#include "nebd/src/common/configuration.h"
+#include "src/common/configuration.h"
 #include "nebd/proto/client.pb.h"
 #include "nebd/src/part1/libnebd.h"
 #include "nebd/src/part1/heartbeat_manager.h"
@@ -27,7 +27,7 @@ namespace client {
 using RpcTask = std::function<int64_t (brpc::Controller* cntl,
                                        brpc::Channel* channel,
                                        bool* rpcFailed)>;
-using nebd::common::Configuration;
+using curve::common::Configuration;
 
 class NebdClient {
  public:

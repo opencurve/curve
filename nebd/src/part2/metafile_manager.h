@@ -16,19 +16,20 @@
 #include <thread>  // NOLINT
 #include <mutex>   // NOLINT
 
-#include "nebd/src/common/rw_lock.h"
+#include "src/common/concurrent/rw_lock.h"
 #include "nebd/src/common/posix_wrapper.h"
-#include "nebd/src/common/crc32.h"
 #include "nebd/src/part2/define.h"
 #include "nebd/src/part2/util.h"
+
+#include "src/common/crc32.h"
 
 namespace nebd {
 namespace server {
 
 using nebd::common::PosixWrapper;
-using nebd::common::RWLock;
-using nebd::common::WriteLockGuard;
-using nebd::common::ReadLockGuard;
+using curve::common::RWLock;
+using curve::common::WriteLockGuard;
+using curve::common::ReadLockGuard;
 using FileMetaMap = std::unordered_map<std::string, NebdFileMeta>;
 
 const char kVolumes[] = "volumes";

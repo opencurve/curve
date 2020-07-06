@@ -56,7 +56,7 @@ class Configuration {
 
     int GetIntValue(const std::string &key, uint64_t defaultvalue = 0);
     /*
-    * @brief GetIntValue/GetUInt32Value/GetUInt64Value 获取指定配置项的值 //NOLINT
+    * @brief GetIntValue/GetUInt32Value/GetUInt64Value/GetInt64Value 获取指定配置项的值 //NOLINT
     *
     * @param[in] key 配置项名称
     * @param[out] out 获取的值
@@ -68,6 +68,8 @@ class Configuration {
     bool GetUInt64Value(const std::string &key, uint64_t *out);
     void SetIntValue(const std::string &key, const int value);
     void SetUInt64Value(const std::string &key, const uint64_t value);
+    bool GetInt64Value(const std::string& key, int64_t* out);
+    void SetInt64Value(const std::string& key, const int64_t value);
 
     double GetDoubleValue(const std::string &key, double defaultvalue = 0.0);
     /*
