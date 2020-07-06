@@ -1,3 +1,4 @@
+[![Build Status](http://59.111.93.165:8080/job/curve_multijob/lastBuild/buildStatus)](http://59.111.93.165:8080/job/curve_multijob/lastBuild)
 1.1 系统概述
 
 curve的框架，更多的类似经典的Google GFS分布式文件系统，希望围绕curve满足诸多的存储应用场景的需求：
@@ -22,4 +23,3 @@ curve的框架，更多的类似经典的Google GFS分布式文件系统，希�
 
 
 总体设计文档详见:https://g.hz.netease.com/newstore/curve-design/blob/master/curve-design.md
-[![Build Status](http://59.111.93.165:8080/job/curve_multijob/lastBuild/buildStatus)](http://59.111.93.165:8080/job/curve_multijob/lastBuild)
