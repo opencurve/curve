@@ -26,7 +26,11 @@ class EtcdClientTest : public ::testing::Test {
                 std::string(" --advertise-client-urls") +
                 std::string(" http://127.0.0.1:2366") +
                 std::string(" --listen-peer-urls http://127.0.0.1:2367") +
-                std::string(" --name test1");
+                std::string(" --initial-advertise-peer-urls "
+                                                "http://127.0.0.1:2367") +
+                std::string(" --initial-cluster toolEtcdClientTest="
+                                                "http://127.0.0.1:2367") +
+                std::string(" --name toolEtcdClientTest");
             /**
              *  重要提示！！！！
              *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
