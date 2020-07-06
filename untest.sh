@@ -13,7 +13,6 @@ ps -ef | grep etcd | grep -v grep | awk '{print $2}' | sudo xargs kill -9 || tru
 cd /curve/curve_multijob
 bazel clean --async
 sleep 5
-
 git submodule update --init
 #bazel build tools/... --compilation_mode=dbg --collect_code_coverage  --jobs=64 --copt   -DHAVE_ZLIB=1 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX 
 #bazel build src/... --compilation_mode=dbg --collect_code_coverage  --jobs=64 --copt   -DHAVE_ZLIB=1 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX 
