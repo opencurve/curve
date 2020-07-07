@@ -312,32 +312,51 @@ def write_full_disk(fio_size):
     assert rs[3] == 0,"write fio fail"
    
 def get_chunkserver_id(host,cs_id):
-    conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
-    sql = R"select * from curve_chunkserver where `internalHostIP` like '%s' and `mountPoint` like 'local:///data/chunkserver%d/' and `rwstatus` like 0;;"%(host,cs_id)
-    chunkserver = db_operator.query_db(conn, sql)
-    if chunkserver["rowcount"] == 1:
-        chunkserver_id = chunkserver["data"][0]["chunkServerID"]
-        logger.info("operator chunkserver id is %d"%chunkserver_id)
-    else:
+#    conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
+#    sql = R"select * from curve_chunkserver where `internalHostIP` like '%s' and `mountPoint` like 'local:///data/chunkserver%d/' and `rwstatus` like 0;;"%(host,cs_id)
+#    chunkserver = db_operator.query_db(conn, sql)
+#    if chunkserver["rowcount"] == 1:
+#        chunkserver_id = chunkserver["data"][0]["chunkServerID"]
+#        logger.info("operator chunkserver id is %d"%chunkserver_id)
+#    else:
 #            assert False,"get chunkserver id fail,retun is %s"%(chunkserver)
+#        return -1
+    client_host = config.client_list[0]
+    logger.info("|------begin get chunkserver %s id %d------|"%(host,cs_id))
+    cmd = "curve_ops_tool chunkserver-list | grep %s |grep -w chunkserver%d"%(host,cs_id)
+    ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    chunkserver_info = "".join(rs[1]).strip().split(',')
+    chunkserver_id = re.findall(r"\d+",chunkserver_info[0])
+    if chunkserver_id != []:
+        return int(chunkserver_id[0])
+    else:
         return -1
 
-    return int(chunkserver_id)
-
-def get_cs_copyset_num(chunkserver_id):
-    conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
-    try:
-        sql = R"select * from curve_copyset where chunkServerIDList REGEXP '\n\t%d,|,\n\t%d,|,\n\t%d\n';"\
-                %(chunkserver_id,chunkserver_id,chunkserver_id)
-        cs_copyset_info = db_operator.query_db(conn, sql)
+def get_cs_copyset_num(host,cs_id):
+#    conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
+#    try:
+#        sql = R"select * from curve_copyset where chunkServerIDList REGEXP '\n\t%d,|,\n\t%d,|,\n\t%d\n';"\
+#                %(chunkserver_id,chunkserver_id,chunkserver_id)
+#        cs_copyset_info = db_operator.query_db(conn, sql)
 #        logger.debug("get table row is %s"%cs_copyset_info["rowcount"])
 #        logger.debug("get table %s" %(cs_copyset_info))
-    except Exception:
-        logger.error("get db fail.")
-        raise
-    logger.info("chunkserver id %d have %s copysets"%(chunkserver_id,cs_copyset_info["rowcount"]))
-    return int(cs_copyset_info["rowcount"])
-
+#    except Exception:
+#        logger.error("get db fail.")
+#        raise
+#    logger.info("chunkserver id %d have %s copysets"%(chunkserver_id,cs_copyset_info["rowcount"]))
+#    return int(cs_copyset_info["rowcount"])
+    client_host = config.client_list[0]
+    cs_number = int(cs_id) + 8200
+    cmd = "curve_ops_tool check-chunkserver -chunkserverAddr=%s:%d |grep 'total copysets'"%(host,cs_number)
+    ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    chunkserver_info = "".join(rs[1]).strip().split(',')
+    chunkserver_id = re.findall(r"\d+",chunkserver_info[0])
+    if chunkserver_id != []:
+        return int(chunkserver_id[0])
+    else:
+        return -1 
 
 def stop_vm(ssh,uuid):
     stop_cmd = "source OPENRC && nova stop %s"%uuid
@@ -487,8 +506,7 @@ def start_mult_cs_process(host,num):
            #raise AssertionError()
         logger.debug("cs_status is %s"%cs_status)
         cs = random.choice(down_cs)
-        id = get_chunkserver_id(host,cs)
-        if id == -1 and get_cs_copyset_num(id) == 0:
+        if get_cs_copyset_num(host,cs) == 0:
             ori_cmd = "sudo rm -rf /data/chunkserver%d/chunkserver.dat"%(cs)
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[3] == 0
@@ -523,8 +541,7 @@ def up_all_cs():
         logger.debug("cs_status is %s"%cs_status)
         cs = random.choice(down_cs)
         for cs in down_cs:
-            id = get_chunkserver_id(host,cs)
-            if id == -1 and get_cs_copyset_num(id) == 0:
+            if get_cs_copyset_num(host,cs) == 0:
                 ori_cmd = "sudo rm -rf /data/chunkserver%d/chunkserver.dat;sudo rm -rf /data/chunkserver%d/copysets;\
                 sudo rm -rf /data/chunkserver%d/recycler"%(cs,cs,cs)
                 rs = shell_operator.ssh_exec(ssh, ori_cmd)
@@ -573,8 +590,7 @@ def start_host_cs_process(host,csid=-1):
     if csid == -1:
         ori_cmd = "sudo /home/nbs/chunkserver_ctl.sh start all"
     else:
-        id = get_chunkserver_id(host,csid)
-        if id == -1 and get_cs_copyset_num(id) == 0:
+        if get_cs_copyset_num(host,csid) == 0:
             ori_cmd = "sudo rm -rf /data/chunkserver%d/chunkserver.dat"%(csid)
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[3] == 0
@@ -984,16 +1000,14 @@ def test_outcs_recover_copyset():
     logger.info("|------begin test out one chunkserver,host %s------|"%(chunkserver_host))
     try:
         cs_list = kill_mult_cs_process(chunkserver_host,1)
-        chunkserver_id = get_chunkserver_id(chunkserver_host,cs_list[0])
-        assert chunkserver_id != -1
-        begin_num = get_cs_copyset_num(chunkserver_id)
+        begin_num = get_cs_copyset_num(chunkserver_host,cs_list[0])
         #time.sleep(config.recover_time)
         i = 0
         time.sleep(5)
         while i < config.recover_time:
             check_vm_iops()
             i = i + 60
-            num = get_cs_copyset_num(chunkserver_id)
+            num = get_cs_copyset_num(chunkserver_host,cs_list[0])
             time.sleep(60)
             if num == 0:
                 break
@@ -1017,15 +1031,13 @@ def test_upcs_recover_copyset(host,copyset_num):
     try:
         cs_list = start_mult_cs_process(chunkserver_host,1)
         time.sleep(10)
-        chunkserver_id = get_chunkserver_id(chunkserver_host,cs_list[0])
-        assert chunkserver_id != -1,"mysql can not find chunkserver"
         #time.sleep(config.recover_time)
         i = 0
         while i < config.recover_time:
             check_vm_iops()
             i = i + 60
             time.sleep(60)
-            num = get_cs_copyset_num(chunkserver_id)
+            num = get_cs_copyset_num(chunkserver_host,cs_list[0])
             logger.info("cs copyset num is %d"%num)
             if abs(num - copyset_num) <= 10:
                 break
@@ -1048,14 +1060,12 @@ def stop_all_cs_not_recover():
         down_list = list["down"]
         dict = {}
         for cs in down_list:
-            chunkserver_id = get_chunkserver_id(chunkserver_host,cs)
-            assert chunkserver_id != -1
-            num = get_cs_copyset_num(chunkserver_id)
-            dict[chunkserver_id] = num
+            num = get_cs_copyset_num(chunkserver_host,cs)
+            dict[cs] = num
         time.sleep(config.offline_timeout + 10)
         check_vm_iops()
         for cs in dict:
-            num = get_cs_copyset_num(cs)
+            num = get_cs_copyset_num(chunkserver_host,cs)
             if num != dict[cs]:
             #    assert num != 0
                 raise Exception("stop all chunkserver not recover fail,cs id %d,copysets num from %d to %d" % (cs,dict[cs],num))
@@ -1096,8 +1106,8 @@ def pendding_all_cs_recover():
             check_vm_iops()
             i = i + 60
             time.sleep(60)
-            for chunkserver_id in csid_list:
-                num = get_cs_copyset_num(chunkserver_id)
+            for cs in down_list:
+                num = get_cs_copyset_num(chunkserver_host,cs)
                 if num != 0:
                     break
             if num == 0:
@@ -1118,18 +1128,16 @@ def pendding_all_cs_recover():
     list = get_chunkserver_status(chunkserver_host)
     up_list = list["up"]
     for cs in up_list:
-        chunkserver_id = get_chunkserver_id(chunkserver_host,cs)
-        assert chunkserver_id != -1
         i = 0
         while i < config.recover_time:
             i = i + 10
             time.sleep(10)
-            num = get_cs_copyset_num(chunkserver_id)
+            num = get_cs_copyset_num(chunkserver_host,cs)
             logger.info("cs copyset num is %d"%num)
             if num > 0:
                 break
         if num == 0:
-            logger.error("get host %s chunkserver %d copyset num is %d"%(chunkserver_host,chunkserver_id,num))
+            logger.error("get host %s chunkserver %d copyset num is %d"%(chunkserver_host,cs,num))
             raise Exception(
                 "host %s chunkserver %d not recover to %d in %d,now is %d" % \
             (chunkserver_host, cs,1,config.recover_time,num))
@@ -1140,16 +1148,14 @@ def test_suspend_recover_copyset():
     logger.info("|------begin test suspend recover,host %s------|"%(chunkserver_host))
     try:
         cs_list = kill_mult_cs_process(chunkserver_host,1)
-        chunkserver_id = get_chunkserver_id(chunkserver_host,cs_list[0])
-        assert chunkserver_id != -1
-        begin_num = get_cs_copyset_num(chunkserver_id)
+        begin_num = get_cs_copyset_num(chunkserver_host,cs_list[0])
         #time.sleep(config.recover_time)
         i = 0
         time.sleep(config.offline_timeout - 5)
         while i < config.recover_time:
             check_vm_iops()
             i = i + 1
-            num = get_cs_copyset_num(chunkserver_id)
+            num = get_cs_copyset_num(chunkserver_host,cs_list[0])
             time.sleep(1)
             logger.info("now cs copyset num is %d,begin_num is %d"%(num,begin_num))
             if num > 0 and abs(begin_num - num) > 10 :
@@ -1162,7 +1168,7 @@ def test_suspend_recover_copyset():
         while i < config.recover_time:
             check_vm_iops()
             i = i + 60
-            num = get_cs_copyset_num(chunkserver_id)
+            num = get_cs_copyset_num(chunkserver_host,cs_list[0])
             time.sleep(60)
             logger.info("cs copyset num is %d"%num)
             if abs(num - begin_num) < 10:
@@ -1182,16 +1188,14 @@ def test_suspend_delete_recover_copyset():
     logger.info("|------begin test suspend delete recover,host %s------|"%(chunkserver_host))
     try:
         cs_list = kill_mult_cs_process(chunkserver_host,1)
-        chunkserver_id = get_chunkserver_id(chunkserver_host,cs_list[0])
-        assert chunkserver_id != -1
-        begin_num = get_cs_copyset_num(chunkserver_id)
+        begin_num = get_cs_copyset_num(chunkserver_host,cs_list[0])
         #time.sleep(config.recover_time)
         i = 0
         time.sleep(10)
         while i < config.recover_time:
             check_vm_iops()
             i = i + 1
-            num = get_cs_copyset_num(chunkserver_id)
+            num = get_cs_copyset_num(chunkserver_host,cs_list[0])
             time.sleep(1)
             logger.info("now cs copyset num is %d,begin_num is %d"%(num,begin_num))
             if num > 0 and abs(begin_num - num) > 10 :
@@ -1201,12 +1205,11 @@ def test_suspend_delete_recover_copyset():
                assert False,"copyset is 0"
         start_host_cs_process(chunkserver_host,cs_list[0])
         time.sleep(300)
-        chunkserver_id = get_chunkserver_id(chunkserver_host,cs_list[0])
         i = 0
         while i < config.recover_time:
             check_vm_iops()
             i = i + 60
-            num = get_cs_copyset_num(chunkserver_id)
+            num = get_cs_copyset_num(chunkserver_host,cs_list[0])
             time.sleep(60)
             logger.info("cs copyset num is %d"%num)
             if abs(num - begin_num) < 10:
@@ -2029,8 +2032,7 @@ def start_retired_and_down_chunkservers():
                continue
            logger.debug("down_cs is %s"%down_cs)
            for cs in down_cs:
-               id = get_chunkserver_id(host,cs)
-               if  get_cs_copyset_num(id) == 0:
+               if  get_cs_copyset_num(host,cs) == 0:
                    ori_cmd = "sudo rm -rf /data/chunkserver%d/chunkserver.dat"%(cs)
                    rs = shell_operator.ssh_exec(ssh, ori_cmd)
                    assert rs[3] == 0,"rm chunkserver%d chunkserver.dat fail"%cs
