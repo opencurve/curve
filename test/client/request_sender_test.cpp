@@ -25,6 +25,7 @@
 
 #include "src/client/client_common.h"
 #include "src/client/request_sender.h"
+#include "src/common/concurrent/count_down_event.h"
 #include "test/client/mock_chunkservice.h"
 
 namespace curve {
@@ -42,19 +43,26 @@ using ::testing::SaveArgPointee;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
 
+using curve::common::CountDownEvent;
+
 class FakeChunkClosure : public ClientClosure {
  public:
-    FakeChunkClosure()
-        : ClientClosure(nullptr, nullptr), reqeustClosure(nullptr) {
+    explicit FakeChunkClosure(CountDownEvent* event)
+        : ClientClosure(nullptr, nullptr),
+          reqeustClosure(nullptr),
+          event(event) {
         SetClosure(&reqeustClosure);
     }
 
-    void Run() override {}
+    void Run() override {
+        event->Signal();
+    }
 
     void SendRetryRequest() override {}
 
  private:
     RequestClosure reqeustClosure;
+    CountDownEvent* event;
 };
 
 void MockChunkRequestService(::google::protobuf::RpcController* controller,
@@ -116,14 +124,14 @@ TEST_F(RequestSenderTest, TestReadChunkAppliedIndex) {
             .WillOnce(DoAll(SaveArgPointee<1>(&chunkRequest),
                             Invoke(MockChunkRequestService)));
 
-        FakeChunkClosure closure;
+        CountDownEvent event(1);
+        FakeChunkClosure closure(&event);
 
         appliedIndex = 100;
         requestSender.ReadChunk(ChunkIDInfo(), 0, 0, 0, appliedIndex, {},
                                 &closure);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-
+        event.Wait();
         ASSERT_TRUE(chunkRequest.has_appliedindex());
     }
 
@@ -134,14 +142,14 @@ TEST_F(RequestSenderTest, TestReadChunkAppliedIndex) {
             .WillOnce(DoAll(SaveArgPointee<1>(&chunkRequest),
                             Invoke(MockChunkRequestService)));
 
-        FakeChunkClosure closure;
+        CountDownEvent event(1);
+        FakeChunkClosure closure(&event);
 
         appliedIndex = 0;
         requestSender.ReadChunk(ChunkIDInfo(), 0, 0, 0, appliedIndex, {},
                                 &closure);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-
+        event.Wait();
         ASSERT_FALSE(chunkRequest.has_appliedindex());
     }
 }
@@ -162,14 +170,14 @@ TEST_F(RequestSenderTest, TestWriteChunkSourceInfo) {
             .WillOnce(DoAll(SaveArgPointee<1>(&chunkRequest),
                             Invoke(MockChunkRequestService)));
 
-        FakeChunkClosure closure;
+        CountDownEvent event(1);
+        FakeChunkClosure closure(&event);
 
         sourceInfo.cloneFileSource.clear();
         requestSender.WriteChunk(ChunkIDInfo(), 0, 0, 0, 0,
                                  sourceInfo, &closure);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-
+        event.Wait();
         ASSERT_FALSE(chunkRequest.has_clonefilesource());
         ASSERT_FALSE(chunkRequest.has_clonefileoffset());
     }
@@ -181,7 +189,8 @@ TEST_F(RequestSenderTest, TestWriteChunkSourceInfo) {
             .WillOnce(DoAll(SaveArgPointee<1>(&chunkRequest),
                             Invoke(MockChunkRequestService)));
 
-        FakeChunkClosure closure;
+        CountDownEvent event(1);
+        FakeChunkClosure closure(&event);
 
         sourceInfo.cloneFileSource = "/test_WriteChunkSourceInfo";
         sourceInfo.cloneFileOffset = 0;
@@ -189,8 +198,7 @@ TEST_F(RequestSenderTest, TestWriteChunkSourceInfo) {
         requestSender.WriteChunk(ChunkIDInfo(), 0, 0, 0, 0,
                                  sourceInfo, &closure);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-
+        event.Wait();
         ASSERT_TRUE(chunkRequest.has_clonefilesource());
         ASSERT_TRUE(chunkRequest.has_clonefileoffset());
     }
@@ -215,14 +223,14 @@ TEST_F(RequestSenderTest, TestReadChunkSourceInfo) {
             .WillOnce(DoAll(SaveArgPointee<1>(&chunkRequest),
                             Invoke(MockChunkRequestService)));
 
-        FakeChunkClosure closure;
+        CountDownEvent event(1);
+        FakeChunkClosure closure(&event);
 
         sourceInfo.cloneFileSource.clear();
         requestSender.ReadChunk(ChunkIDInfo(), 0, 0, 0, appliedIndex,
                                 sourceInfo, &closure);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-
+        event.Wait();
         ASSERT_FALSE(chunkRequest.has_clonefilesource());
         ASSERT_FALSE(chunkRequest.has_clonefileoffset());
     }
@@ -234,7 +242,8 @@ TEST_F(RequestSenderTest, TestReadChunkSourceInfo) {
             .WillOnce(DoAll(SaveArgPointee<1>(&chunkRequest),
                             Invoke(MockChunkRequestService)));
 
-        FakeChunkClosure closure;
+        CountDownEvent event(1);
+        FakeChunkClosure closure(&event);
 
         sourceInfo.cloneFileSource = "/test_ReadChunkSourceInfo";
         sourceInfo.cloneFileOffset = 0;
@@ -242,8 +251,7 @@ TEST_F(RequestSenderTest, TestReadChunkSourceInfo) {
         requestSender.ReadChunk(ChunkIDInfo(), 0, 0, 0, appliedIndex,
                                 sourceInfo, &closure);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-
+        event.Wait();
         ASSERT_TRUE(chunkRequest.has_clonefilesource());
         ASSERT_TRUE(chunkRequest.has_clonefileoffset());
     }
