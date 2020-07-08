@@ -46,3 +46,8 @@
   debug:
     var: restart_chunkserver_res.stdout_lines
   when: need_restart
+
+- name: wait until chunkserver is up
+  vars:
+    ping_port: "{{ chunkserver_base_port | int + chunkserver_seq | int }}"
+  include_tasks: "common_tasks/wait_until_server_up.yml"

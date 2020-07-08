@@ -24,19 +24,17 @@
   shell: chdir={{ ch_dir }} {{ sudo }} {{ daemon_script }} stop
 
 - name: wait until server is down
-  wait_for:
-    port: "{{ ping_port }}"
-    state: stopped
-    msg: "the server {{ ansible_host }}:{{ ping_port }} is down"
+  vars:
+    ping_port: "{{ service_port }}"
+  include_tasks: "common_tasks/wait_until_server_down.yml"
 
 - name: start by daemon
   shell: chdir={{ ch_dir }} {{ sudo }} {{ daemon_script }} start
 
 - name: wait until server is up
-  wait_for:
-    port: "{{ ping_port }}"
-    state: started
-    msg: "the server {{ ansible_host }}:{{ ping_port }} is up"
+  vars:
+    ping_port: "{{ service_port }}"
+  include_tasks: "common_tasks/wait_until_server_up.yml"
 
 - name: wait until the cluster healthy
   include_tasks: "common_tasks/check_cluster_healthy_status.yml"

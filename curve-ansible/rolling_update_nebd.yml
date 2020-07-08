@@ -26,9 +26,9 @@
   tags:
     - update_config
   roles:
-    - { role: generate_config, template_name: client, conf_path: "{{ client_config_path }}" }
-    - { role: generate_config, template_name: nebd-client, conf_path: "{{ nebd_client_config_path }}" }
-    - { role: generate_config, template_name: nebd-server, conf_path: "{{ nebd_server_config_path }}" }
+    - { role: generate_config, template_name: client.conf, conf_path: "{{ client_config_path }}" }
+    - { role: generate_config, template_name: nebd-client.conf, conf_path: "{{ nebd_client_config_path }}" }
+    - { role: generate_config, template_name: nebd-server.conf, conf_path: "{{ nebd_server_config_path }}" }
 
 # 2. 更新各节点上的包
 - name: update package
@@ -62,4 +62,5 @@
 
   # 重启nebd server
   roles:
-    - { role: restart_service, service_name: nebd, expected_nebd_version: "{{ software_version }}" }
+    - { role: restart_service, service_name: nebd, expected_nebd_version: "{{ software_version }}",
+        command_need_sudo: "{{ nebd_need_sudo }}" }
