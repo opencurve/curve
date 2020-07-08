@@ -16,7 +16,7 @@ rpcRetryTimes={{ tool_rpc_retry_times }}
 {% set etcd_address=[] -%}
 {% for host in groups.etcd -%}
   {% set etcd_ip = hostvars[host].ansible_ssh_host -%}
-  {% set etcd_port = hostvars[host].etcd_port -%}
+  {% set etcd_port = hostvars[host].etcd_listen_client_port -%}
   {% set _ = etcd_address.append("%s:%s" % (etcd_ip, etcd_port)) -%}
 {% endfor -%}
 etcdAddr={{ etcd_address | join(',') }}

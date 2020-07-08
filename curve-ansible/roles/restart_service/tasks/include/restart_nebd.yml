@@ -23,7 +23,7 @@
 
 - name: get nebd version
   vars:
-    metric_port: "{{ nebd_port }}"
+    service_port: "{{ nebd_port }}"
     nebd_version:
   include_tasks: common_tasks/get_nebd_version_from_metric.yml
 

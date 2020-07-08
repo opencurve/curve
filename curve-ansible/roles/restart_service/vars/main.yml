@@ -23,3 +23,4 @@ curve_version:
 nebd_version:
 expected_curve_version:
 expected_nebd_version:
+command_need_sudo:

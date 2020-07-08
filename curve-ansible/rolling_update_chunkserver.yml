@@ -30,9 +30,9 @@
     - update_config
 
   roles:
-    - { role: generate_config, template_name: chunkserver, conf_path: "{{ chunkserver_conf_path }}" }
-    - { role: generate_config, template_name: client, conf_path: "{{ chunkserver_client_config_path }}" }
-    - { role: generate_config, template_name: s3, conf_path: "{{ chunkserver_s3_config_path }}" }
+    - { role: generate_config, template_name: chunkserver.conf, conf_path: "{{ chunkserver_conf_path }}" }
+    - { role: generate_config, template_name: client.conf, conf_path: "{{ chunkserver_client_config_path }}" }
+    - { role: generate_config, template_name: s3.conf, conf_path: "{{ chunkserver_s3_config_path }}" }
 
 # 2. 更新各节点上的包
 - name: update package
@@ -73,7 +73,8 @@
       include_tasks: "common_tasks/get_software_version_from_package_version.yml"
 
   roles:
-    - { role: restart_service, service_name: chunkserver, expected_curve_version: "{{ software_version }}" }
+    - { role: restart_service, service_name: chunkserver, expected_curve_version: "{{ software_version }}",
+        command_need_sudo: "{{ chunkserver_need_sudo }}"}
 
   tasks:
     - include_tasks: "common_tasks/wait_copysets_status_healthy.yml"

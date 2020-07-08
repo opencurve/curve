@@ -15,23 +15,8 @@
 #  limitations under the License.
 #
 
-# 获取mds的版本
-- name: get curve version
-  vars:
-    metric_port: "{{ mds_dummy_port }}"
-    curve_version:
-  include_tasks: common_tasks/get_curve_version_from_metric.yml
-
-- name: set need_restart false
-  set_fact:
-    need_restart: false
-  when: curve_version == expected_curve_version
-
-- name: restart mds
-  vars:
-    ch_dir: "{{ deploy_dir }}"
-    daemon_script: ./mds-daemon.sh
-    service_port: "{{ mds_dummy_port }}"
-    check_health: true
-  include_tasks: restart_by_daemon.yml
-  when: need_restart
+- name: wait until server is up
+  wait_for:
+    port: "{{ ping_port }}"
+    state: started
+    msg: "the server {{ ansible_host }}:{{ ping_port }} is up"

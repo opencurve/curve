@@ -29,10 +29,10 @@
   tags:
     - update_config
   roles:
-    - { role: generate_config, template_name: snapshot_clone_server, conf_path: "{{ snapshot_config_path }}" }
-    - { role: generate_config, template_name: s3, conf_path: "{{ snap_s3_config_path }}" }
-    - { role: generate_config, template_name: client, conf_path: "{{ snap_client_config_path }}" }
-    - { role: generate_config, template_name: snapshot_tools, conf_path: "{{ snap_tool_config_path }}" }
+    - { role: generate_config, template_name: snapshot_clone_server.conf, conf_path: "{{ snapshot_config_path }}" }
+    - { role: generate_config, template_name: s3.conf, conf_path: "{{ snap_s3_config_path }}" }
+    - { role: generate_config, template_name: client.conf, conf_path: "{{ snap_client_config_path }}" }
+    - { role: generate_config, template_name: snapshot_tools.conf, conf_path: "{{ snap_tool_config_path }}" }
 
 # 2. 更新各节点上的包和配置
 - name: update package
@@ -83,4 +83,5 @@
 
   # 重启snapshot clone
   roles:
-    - { role: restart_service, service_name: snapshotclone, expected_curve_version: "{{ software_version }}" }
+    - { role: restart_service, service_name: snapshotclone, expected_curve_version: "{{ software_version }}",
+        command_need_sudo: "{{ snapshot_need_sudo }}" }

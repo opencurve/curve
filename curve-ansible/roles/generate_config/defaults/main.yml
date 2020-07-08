@@ -235,3 +235,73 @@ s3_async_thread_num: 64
 tool_rpc_timeout: 500
 tool_rpc_retry_times: 5
 
+
+# etcd默认配置
+etcd_data_dir: '/etcd/data'
+etcd_wal_dir: '/etcd/wal'
+etcd_snapshot_count: 10000
+etcd_heartbeat_interval: 100
+etcd_election_timeout: 1000
+etcd_quota_backend_bytes: 0
+etcd_max_snapshots: 5
+etcd_max_wals: 5
+etcd_discovery_fallback: 'proxy'
+etcd_initial_cluster_token: 'etcd-cluster'
+etcd_initial_cluster_state: 'new'
+etcd_strict_reconfig_check: false
+etcd_enable_v2: true
+etcd_enable_pprof: true
+etcd_proxy: 'off'
+etcd_proxy_failure_wait: 5000
+etcd_proxy_refresh_interval: 30000
+etcd_proxy_dial_timeout: 1000
+etcd_proxy_write_timeout: 5000
+etcd_proxy_read_timeout: 0
+
+etcd_client_transport_security:
+  # Path to the client server TLS cert file.
+  cert-file:
+
+  # Path to the client server TLS key file.
+  key-file:
+
+  # Enable client cert authentication.
+  client-cert-auth: false
+
+  # Path to the client server TLS trusted CA cert file.
+  trusted-ca-file:
+
+  # Client TLS using generated certificates
+  auto-tls: false
+
+etcd_peer_transport_security:
+  # Path to the peer server TLS cert file.
+  cert-file:
+
+  # Path to the peer server TLS key file.
+  key-file:
+
+  # Enable peer client cert authentication.
+  client-cert-auth: false
+
+  # Path to the peer server TLS trusted CA cert file.
+  trusted-ca-file:
+
+  # Peer TLS using generated certificates.
+  auto-tls: false
+
+etcd_debug: false
+
+etcd_logger: zap
+
+# Specify 'stdout' or 'stderr' to skip journald logging even when running under systemd.
+letcd_log_outputs: stderr
+
+# Force to create a new one member cluster.
+etcd_force_new_cluster: false
+
+etcd_auto_compaction_mode: periodic
+etcd_auto_compaction_retention: 1
+etcd_metric: extensive
+etcd_prevote: true
+etcd_enable_grpc_gateway: true

@@ -1,0 +1,124 @@
+# This is the configuration file for the etcd server.
+
+# Human-readable name for this member.
+name: {{ etcd_name }}
+
+# Path to the data directory.
+data-dir: {{ etcd_data_dir }}
+
+# Path to the dedicated wal directory.
+wal-dir: {{ etcd_wal_dir }}
+
+# Number of committed transactions to trigger a snapshot to disk.
+snapshot-count: {{ etcd_snapshot_count }}
+
+# Time (in milliseconds) of a heartbeat interval.
+heartbeat-interval: {{ etcd_heartbeat_interval }}
+
+# Time (in milliseconds) for an election to timeout.
+election-timeout: {{ etcd_election_timeout }}
+quota-backend-bytes: {{ etcd_quota_backend_bytes }}
+
+# List of comma separated URLs to listen on for peer traffic.
+listen-peer-urls: http://{{ ansible_ssh_host }}:{{ etcd_listen_peer_port }}
+
+# List of comma separated URLs to listen on for client traffic.
+listen-client-urls: http://{{ ansible_ssh_host }}:{{ etcd_listen_client_port }}
+
+# Maximum number of snapshot files to retain (0 is unlimited).
+max-snapshots: {{ etcd_max_snapshots }}
+
+# Maximum number of wal files to retain (0 is unlimited).
+max-wals: {{ etcd_max_wals }}
+
+# Comma-separated white list of origins for CORS (cross-origin resource sharing).
+cors:
+
+# List of this member's peer URLs to advertise to the rest of the cluster.
+# The URLs needed to be a comma-separated list.
+initial-advertise-peer-urls: http://{{ ansible_ssh_host }}:{{ etcd_listen_peer_port }}
+
+# List of this member's client URLs to advertise to the public.
+# The URLs needed to be a comma-separated list.
+advertise-client-urls: http://{{ ansible_ssh_host }}:{{ etcd_listen_client_port }}
+
+# Discovery URL used to bootstrap the cluster.
+discovery:
+
+# Valid values include 'exit', 'proxy'
+discovery-fallback: {{ etcd_discovery_fallback }}
+
+# HTTP proxy to use for traffic to discovery service.
+discovery-proxy:
+
+# DNS domain used to bootstrap initial cluster.
+discovery-srv:
+
+# Initial cluster configuration for bootstrapping.
+{% set etcd_peers=[] -%}
+{% for host in groups.etcd -%}
+  {% set etcd_name = hostvars[host].etcd_name -%}
+  {% set etcd_ip = hostvars[host].ansible_ssh_host -%}
+  {% set etcd_port = hostvars[host].etcd_listen_peer_port -%}
+  {% set _ = etcd_peers.append("%s=http://%s:%s" % (etcd_name, etcd_ip, etcd_port)) -%}
+{% endfor -%}
+initial-cluster: {{ etcd_peers | join(',') }}
+
+# Initial cluster token for the etcd cluster during bootstrap.
+initial-cluster-token: {{ etcd_initial_cluster_token }}
+
+# Initial cluster state ('new' or 'existing').
+initial-cluster-state: {{ etcd_initial_cluster_state }}
+
+# Reject reconfiguration requests that would cause quorum loss.
+strict-reconfig-check: {{ etcd_strict_reconfig_check }}
+
+# Accept etcd V2 client requests
+enable-v2: {{ etcd_enable_v2 }}
+
+# Enable runtime profiling data via HTTP server
+enable-pprof: {{ etcd_enable_pprof }}
+
+# Valid values include 'on', 'readonly', 'off'
+proxy: '{{ etcd_proxy }}'
+
+# Time (in milliseconds) an endpoint will be held in a failed state.
+proxy-failure-wait: {{ etcd_proxy_failure_wait }}
+
+# Time (in milliseconds) of the endpoints refresh interval.
+proxy-refresh-interval: {{ etcd_proxy_refresh_interval }}
+
+# Time (in milliseconds) for a dial to timeout.
+proxy-dial-timeout: {{ etcd_proxy_dial_timeout }}
+
+# Time (in milliseconds) for a write to timeout.
+proxy-write-timeout: {{ etcd_proxy_write_timeout }}
+
+# Time (in milliseconds) for a read to timeout.
+proxy-read-timeout: {{ etcd_proxy_read_timeout }}
+
+client-transport-security: {{ etcd_client_transport_security }}
+
+peer-transport-security: {{ etcd_peer_transport_security }}
+
+# Enable debug-level logging for etcd.
+debug: {{ etcd_debug }}
+
+logger: {{ etcd_logger }}
+
+# Specify 'stdout' or 'stderr' to skip journald logging even when running under systemd.
+log-outputs: [{{ letcd_log_outputs }}]
+
+# Force to create a new one member cluster.
+force-new-cluster: {{ etcd_force_new_cluster }}
+
+auto-compaction-mode: {{ etcd_auto_compaction_mode }}
+auto-compaction-retention: "{{ etcd_auto_compaction_retention }}"
+
+# Set level of detail for exported metrics, specify 'extensive' to include histogram metrics.
+metrics: {{ etcd_metric }}
+
+# Enable to run an additional Raft election phase.
+pre-vote: {{ etcd_prevote }}
+
+enable-grpc-gateway: {{ etcd_enable_grpc_gateway }}

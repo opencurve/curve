@@ -26,7 +26,7 @@
   tags:
     - update_config
   roles:
-    - { role: generate_config, template_name: client, conf_path: "{{ client_config_path }}" }
+    - { role: generate_config, template_name: client.conf, conf_path: "{{ client_config_path }}" }
 
 # 2. 更新各节点上的包
 - name: update config and package

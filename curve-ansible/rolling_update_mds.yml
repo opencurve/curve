@@ -29,8 +29,8 @@
   tags:
     - update_config
   roles:
-    - { role: generate_config, template_name: mds, conf_path: "{{ mds_config_path }}" }
-    - { role: generate_config, template_name: tools, conf_path: "{{ tool_config_path }}" }
+    - { role: generate_config, template_name: mds.conf, conf_path: "{{ mds_config_path }}" }
+    - { role: generate_config, template_name: tools.conf, conf_path: "{{ tool_config_path }}" }
 
 
 # 2. 更新各节点上的包
@@ -87,4 +87,5 @@
 
   # 重启mds
   roles:
-    - { role: restart_service, service_name: mds, expected_curve_version: "{{ software_version }}" }
+    - { role: restart_service, service_name: mds, expected_curve_version: "{{ software_version }}",
+        command_need_sudo: "{{ mds_need_sudo }}"}

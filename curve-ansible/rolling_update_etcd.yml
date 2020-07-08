@@ -18,20 +18,19 @@
 
 # 重启etcd
 
-# 1. 更新各节点上的配置
-- name: update config and package
+# 1. 准备工作
+- name: prepare etcd
   hosts: etcd
-  gather_facts: no
   any_errors_fatal: true
-  become: true
+  gather_facts: no
+  become: yes
   become_user: "{{ sudo_user }}"
   become_flags: -iu {{ sudo_user }}
   tags:
-    - update_config_and_pkg
-
-  tasks:
-    # 更新配置
-    - include_tasks: "common_tasks/update_config.yml"
+    - prepare
+  roles:
+    - { role: install_package, package_name: etcd,   tags: install_etcd }
+    - { role: generate_config, template_name: etcd.conf.yml, conf_path: "{{ etcd_config_path }}", tags: update_etcd_config }
 
 # 2. 获取leader节点和follower节点
 - name: set etcd leader and follower list
@@ -63,4 +62,4 @@
 
   # 重启etcd
   roles:
-    - { role: restart_service, service_name: etcd }
+    - { role: restart_service, service_name: etcd, command_need_sudo: "{{ etcd_need_sudo }}"}
