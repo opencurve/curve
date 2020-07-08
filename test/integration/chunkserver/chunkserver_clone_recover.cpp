@@ -18,12 +18,14 @@
 #include "src/common/timeutility.h"
 #include "src/client/inflight_controller.h"
 #include "src/chunkserver/cli2.h"
+#include "src/common/concurrent/count_down_event.h"
 #include "test/integration/common/chunkservice_op.h"
 #include "test/integration/client/common/file_operation.h"
 #include "test/integration/cluster_common/cluster.h"
 #include "test/util/config_generator.h"
 
 using curve::CurveCluster;
+using curve::common::CountDownEvent;
 using std::string;
 
 #define PHYSICAL_POOL_NAME string("pool0")
@@ -67,9 +69,8 @@ using std::string;
 
 #define KB 1024
 
-bool gIoDoneFlag;
+CountDownEvent gCond(1);
 int gIoRet;
-
 const uint32_t kChunkSize = 16 * 1024 * 1024;
 const uint32_t kChunkServerMaxIoSize = 64 * 1024;
 
@@ -357,21 +358,23 @@ class CSCloneRecoverTest : public ::testing::Test {
             system(("mkdir " + CHUNKSERVER2_BASE_DIR + "/filepool").c_str()));
     }
 
-    /**下发一个写请求
-     * @param: offset是当前需要下发IO的偏移
-     * @param: size是下发IO的大小
-     * @return: IO是否下发成功
+    /**下发一个写请求并等待完成
+     * @param:  offset是当前需要下发IO的偏移
+     * @param:  size是下发IO的大小
+     * @return: IO是否成功完成
      */
-    bool SendAioWriteRequest(uint64_t offset, uint64_t size, const char* data) {
-        gIoDoneFlag = false;
+    bool HandleAioWriteRequest(uint64_t offset, uint64_t size,
+                               const char* data) {
+        gCond.Reset(1);
+        gIoRet = 0;
 
         auto writeCallBack = [](CurveAioContext* context) {
-            // 无论IO是否成功，只要返回，就置为true
-            gIoDoneFlag = true;
             gIoRet = context->ret;
             char* buffer = reinterpret_cast<char*>(context->buf);
             delete[] buffer;
             delete context;
+            // 无论IO是否成功，只要返回，就触发cond
+            gCond.Signal();
         };
 
         char* buffer = new char[size];
@@ -383,17 +386,36 @@ class CSCloneRecoverTest : public ::testing::Test {
         context->buf = buffer;
         context->cb = writeCallBack;
 
-        return AioWrite(fd_, context) == 0;
+        int ret;
+        if (ret = AioWrite(fd_, context)) {
+            LOG(ERROR) << "failed to send aio write request, err="
+                       << ret;
+            return false;
+        }
+
+        gCond.Wait();
+        if (gIoRet < size) {
+            LOG(ERROR) << "write failed, ret=" << gIoRet;
+            return false;
+        }
+        return true;
     }
 
-    bool SendAioReadRequest(uint64_t offset, uint64_t size, char* data) {
-        gIoDoneFlag = false;
+    /**下发一个读请求并等待完成
+     * @param:  offset是当前需要下发IO的偏移
+     * @param:  size是下发IO的大小
+     * @data:   读出的数据
+     * @return: IO是否成功完成
+     */
+    bool HandleAioReadRequest(uint64_t offset, uint64_t size, char* data) {
+        gCond.Reset(1);
+        gIoRet = 0;
 
         auto readCallBack = [](CurveAioContext* context) {
-            // 无论IO是否成功，只要返回，就置为true
-            gIoDoneFlag = true;
             gIoRet = context->ret;
             delete context;
+            // 无论IO是否成功，只要返回，就触发cond
+            gCond.Signal();
         };
 
         CurveAioContext* context = new CurveAioContext();
@@ -402,8 +424,19 @@ class CSCloneRecoverTest : public ::testing::Test {
         context->length = size;
         context->buf = data;
         context->cb = readCallBack;
+        int ret;
+        if (ret = AioRead(fd_, context)) {
+            LOG(ERROR) << "failed to send aio read request, err="
+                       << ret;
+            return false;
+        }
 
-        return AioRead(fd_, context) == 0;
+        gCond.Wait();
+        if (gIoRet < size) {
+            LOG(ERROR) << "read failed, ret=" << gIoRet;
+            return false;
+        }
+        return true;
     }
 
     int chunkSeverGetLeader() {
@@ -443,8 +476,8 @@ class CSCloneRecoverTest : public ::testing::Test {
         } else {
             follower = peer1;
         }
-        LOG(INFO) << "transfer leader from " << leaderPeer_.address()
-                  << " to " <<follower.address();
+        LOG(INFO) << "transfer leader from " << leaderPeer_.address() << " to "
+                  << follower.address();
         braft::cli::CliOptions options;
         options.max_retry = 3;
         options.timeout_ms = 5000;
@@ -457,8 +490,8 @@ class CSCloneRecoverTest : public ::testing::Test {
 
         // 先睡眠5s，让chunkserver选出leader
         std::this_thread::sleep_for(std::chrono::seconds(5));
-        status = curve::chunkserver::GetLeader(
-            logicPoolId_, copysetId_, csConf, &leaderPeer_);
+        status = curve::chunkserver::GetLeader(logicPoolId_, copysetId_, csConf,
+                                               &leaderPeer_);
         LOG(INFO) << "Current leader is " << leaderPeer_.address();
         if (status.ok())
             return 0;
@@ -474,27 +507,20 @@ class CSCloneRecoverTest : public ::testing::Test {
 
         // 写数据到curveFS的第1个chunk
         LOG(INFO) << "Write first 16MB of source curveFS file";
-        SendAioWriteRequest(0, kChunkSize, chunkData1_.c_str());
-        std::this_thread::sleep_for(std::chrono::seconds(5));
-        ASSERT_TRUE(gIoDoneFlag);
+        ASSERT_TRUE(HandleAioWriteRequest(0, kChunkSize, chunkData1_.c_str()));
 
         // 读出数据进行验证
         std::unique_ptr<char[]> temp(new char[kChunkSize]);
-        SendAioReadRequest(0, kChunkSize, temp.get());
-        std::this_thread::sleep_for(std::chrono::seconds(5));
-        ASSERT_TRUE(gIoDoneFlag);
+        ASSERT_TRUE(HandleAioReadRequest(0, kChunkSize, temp.get()));
         ASSERT_EQ(0, strncmp(chunkData1_.c_str(), temp.get(), kChunkSize));
 
         // 写数据到curveFS的第2个chunk
         LOG(INFO) << "Write second 16MB of source curveFS file";
-        SendAioWriteRequest(kChunkSize, kChunkSize, chunkData2_.c_str());
-        std::this_thread::sleep_for(std::chrono::seconds(5));
-        ASSERT_TRUE(gIoDoneFlag);
+        ASSERT_TRUE(
+            HandleAioWriteRequest(kChunkSize, kChunkSize, chunkData2_.c_str()));
 
         // 读出数据进行验证
-        SendAioReadRequest(kChunkSize, kChunkSize, temp.get());
-        std::this_thread::sleep_for(std::chrono::seconds(5));
-        ASSERT_TRUE(gIoDoneFlag);
+        ASSERT_TRUE(HandleAioReadRequest(kChunkSize, kChunkSize, temp.get()));
         ASSERT_EQ(0, strncmp(chunkData2_.c_str(), temp.get(), kChunkSize));
 
         LOG(INFO) << "Prepare curveFS file done";
@@ -704,15 +730,14 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunkWhenLazyAlloc) {
     LOG(INFO) << "clone chunk1 from " << sourceFile;
     std::shared_ptr<string> cloneData1(new string(chunkData1_));
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 8 * KB,
-                                        cloneData1.get(),
-                                        CURVEFS_FILENAME, 0));
+                                        cloneData1.get(), CURVEFS_FILENAME, 0));
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
 
     string temp(8 * KB, 'a');
-    ASSERT_EQ(0, verify.VerifyWriteChunk(cloneChunk1, sn1, 0, 8 * KB,
-                                         temp.c_str(), cloneData1.get(),
-                                         CURVEFS_FILENAME, 0));
+    ASSERT_EQ(0,
+              verify.VerifyWriteChunk(cloneChunk1, sn1, 0, 8 * KB, temp.c_str(),
+                                      cloneData1.get(), CURVEFS_FILENAME, 0));
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
     ASSERT_EQ(CHUNK_OP_STATUS_FAILURE_UNKNOWN,
@@ -723,8 +748,7 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunkWhenLazyAlloc) {
     ASSERT_EQ(0, TransferLeaderToFollower());
     // 2. 通过readchunk恢复克隆文件
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 12 * KB,
-                                        cloneData1.get(),
-                                        CURVEFS_FILENAME, 0));
+                                        cloneData1.get(), CURVEFS_FILENAME, 0));
 
     temp.assign(8 * KB, 'b');
     ASSERT_EQ(0, verify.VerifyWriteChunk(cloneChunk1, sn1, 4 * KB, 8 * KB,
@@ -733,20 +757,17 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunkWhenLazyAlloc) {
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 12 * KB,
-                                        cloneData1.get(),
-                                        CURVEFS_FILENAME, 0));
+                                        cloneData1.get(), CURVEFS_FILENAME, 0));
 
     // 通过ReadChunk读遍clone chunk1的所有pages
     string ioBuf(kChunkServerMaxIoSize, 'c');
     for (int offset = 0; offset < kChunkSize; offset += kChunkServerMaxIoSize) {
-        ASSERT_EQ(0, verify.VerifyWriteChunk(cloneChunk1, sn1, offset,
-                                             kChunkServerMaxIoSize,
-                                             ioBuf.c_str(), cloneData1.get(),
-                                             CURVEFS_FILENAME, 0));
+        ASSERT_EQ(0, verify.VerifyWriteChunk(
+                         cloneChunk1, sn1, offset, kChunkServerMaxIoSize,
+                         ioBuf.c_str(), cloneData1.get(), CURVEFS_FILENAME, 0));
     }
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 12 * KB,
-                                        cloneData1.get(),
-                                        CURVEFS_FILENAME, 0));
+                                        cloneData1.get(), CURVEFS_FILENAME, 0));
 
     /**
      * clone文件遍写后会转换为普通chunk1文件
