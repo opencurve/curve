@@ -91,6 +91,7 @@ const int kTopoErrCodeIpPortDuplicated = -15;
 const int kTopoErrCodeNameDuplicated = -16;
 const int kTopoErrCodeCreateCopysetNodeOnChunkServerFail = -17;
 const int kTopoErrCodeCannotRemoveNotRetired = -18;
+const int kTopoErrCodeLogicalPoolExist = -19;
 
 }  // namespace topology
 }  // namespace mds

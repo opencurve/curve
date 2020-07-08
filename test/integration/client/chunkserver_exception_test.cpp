@@ -160,7 +160,7 @@ class CSModuleException : public ::testing::Test {
         std::string createPPCmd = std::string("./bazel-bin/tools/curvefsTool") +
                                   std::string(
                                       " -cluster_map=./test/integration/client/"
-                                      "config/topo_example_1.txt") +
+                                      "config/topo_example_1.json") +
                                   std::string(
                                       " -mds_addr=127.0.0.1:22122,127.0.0.1:"
                                       "22123,127.0.0.1:22124") +
@@ -200,13 +200,11 @@ class CSModuleException : public ::testing::Test {
             std::string("./bazel-bin/tools/curvefsTool") +
             std::string(
                 " -cluster_map=./test/integration/client/"
-                "config/topo_example_1.txt") +
+                "config/topo_example_1.json") +
             std::string(
                 " -mds_addr=127.0.0.1:22122,127.0.0.1:"
                 "22123,127.0.0.1:22124") +
-            std::string(" -copyset_num=300") +
             std::string(" -op=create_logicalpool") +
-            std::string(" -physicalpool_name=pool1") +
             std::string(" -stderrthreshold=0 -minloglevel=0");
 
         ret = 0;

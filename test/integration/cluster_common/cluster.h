@@ -288,8 +288,7 @@ class CurveCluster {
     /**
      * @return 0.成功; -1.失败
      */
-    int PrepareLogicalPool(int mdsId, const std::string &clusterMap,
-                           int copysetNum, const std::string &physicalPoolName);
+    int PrepareLogicalPool(int mdsId, const std::string &clusterMap);
 
     /**
      * MDSIpPort 获取指定id的mds地址

@@ -23,6 +23,7 @@
 #include <gtest/gtest.h>
 #include <glog/logging.h>
 #include <gflags/gflags.h>
+#include <json/json.h>
 #include <stdio.h>
 
 #include <fstream>
@@ -223,21 +224,48 @@ class CSCloneRecoverTest : public ::testing::Test {
         ASSERT_GT(pid, 0);
         std::this_thread::sleep_for(std::chrono::seconds(8));
 
-        // 3. 创建物理池
-        std::ofstream topoConf(CSCLONE_BASE_DIR + "/topo.conf");
-        topoConf << "server0 " + CHUNK_SERVER0_IP_PORT + " " +
-                        CHUNK_SERVER0_IP_PORT + " zone0 " + PHYSICAL_POOL_NAME
-                 << std::endl;
-        topoConf << "server1 " + CHUNK_SERVER1_IP_PORT + " " +
-                        CHUNK_SERVER1_IP_PORT + " zone1 " + PHYSICAL_POOL_NAME
-                 << std::endl;
-        topoConf << "server2 " + CHUNK_SERVER2_IP_PORT + " " +
-                        CHUNK_SERVER2_IP_PORT + " zone2 " + PHYSICAL_POOL_NAME
-                 << std::endl;
+        // 生成topo.json
+        Json::Value topo;
+        Json::Value servers;
+        std::string chunkServerIpPort[] = {CHUNK_SERVER0_IP_PORT,
+                                            CHUNK_SERVER1_IP_PORT,
+                                            CHUNK_SERVER2_IP_PORT};
+        for (int i = 0; i < 3; ++i) {
+            Json::Value server;
+            std::vector<std::string> ipPort;
+            curve::common::SplitString(chunkServerIpPort[i], ":", &ipPort);
+            std::string ip = ipPort[0];
+            uint64_t port;
+            ASSERT_TRUE(curve::common::StringToUll(ipPort[1], &port));
+            server["externalip"] = ipPort[0];
+            server["externalport"] = port;
+            server["internalip"] = ipPort[0];
+            server["internalport"] = port;
+            server["name"] = std::string("server") + std::to_string(i);
+            server["physicalpool"] = PHYSICAL_POOL_NAME;
+            server["zone"] = std::string("zone") + std::to_string(i);
+            servers.append(server);
+        }
+        topo["servers"] = servers;
+        Json::Value logicalPools;
+        Json::Value logicalPool;
+        logicalPool["copysetnum"] = 1;
+        logicalPool["name"] = "defaultLogicalPool";
+        logicalPool["physicalpool"] = PHYSICAL_POOL_NAME;
+        logicalPool["replicasnum"] = 3;
+        logicalPool["scatterwidth"] = 0;
+        logicalPool["type"] = 0;
+        logicalPool["zonenum"] = 3;
+        logicalPools.append(logicalPool);
+        topo["logicalpools"] = logicalPools;
+        std::ofstream topoConf(CSCLONE_BASE_DIR + "/topo.json");
+        topoConf << topo.toStyledString();
         topoConf.close();
+
+        // 3. 创建物理池
         string createPPCmd =
             string("./bazel-bin/tools/curvefsTool") +
-            string(" -cluster_map=" + CSCLONE_BASE_DIR + "/topo.conf") +
+            string(" -cluster_map=" + CSCLONE_BASE_DIR + "/topo.json") +
             string(" -mds_addr=" + ALLMDS_IP_PORT) +
             string(" -op=create_physicalpool") + string(" -stderrthreshold=0") +
             string(" -rpcTimeOutMs=10000") + string(" -minloglevel=0");
@@ -278,10 +306,9 @@ class CSCloneRecoverTest : public ::testing::Test {
         // 5. 创建逻辑池, 并睡眠一段时间让底层copyset先选主
         string createLPCmd =
             string("./bazel-bin/tools/curvefsTool") +
-            string(" -cluster_map=" + CSCLONE_BASE_DIR + "/topo.conf") +
-            string(" -mds_addr=" + ALLMDS_IP_PORT) + string(" -copyset_num=1") +
+            string(" -cluster_map=" + CSCLONE_BASE_DIR + "/topo.json") +
+            string(" -mds_addr=" + ALLMDS_IP_PORT) +
             string(" -op=create_logicalpool") +
-            string(" -physicalpool_name=" + PHYSICAL_POOL_NAME) +
             string(" -stderrthreshold=0 -minloglevel=0");
         ret = 0;
         retry = 0;

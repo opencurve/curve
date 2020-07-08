@@ -1,0 +1,70 @@
+{
+    "logicalpools": [
+        {
+            "copysetnum": 300,
+            "name": "logicalPool1",
+            "physicalpool": "pool1",
+            "replicasnum": 3,
+            "scatterwidth": 0,
+            "type": 0,
+            "zonenum": 3
+        }
+    ],
+    "servers": [
+        {
+            "externalip": "127.0.0.1",
+            "externalport": 31000,
+            "internalip": "127.0.0.1",
+            "internalport": 31000,
+            "name": "server4",
+            "physicalpool": "pool1",
+            "zone": "zone4"
+        },
+        {
+            "externalip": "127.0.0.1",
+            "externalport": 31001,
+            "internalip": "127.0.0.1",
+            "internalport": 31001,
+            "name": "server5",
+            "physicalpool": "pool1",
+            "zone": "zone4"
+        },
+        {
+            "externalip": "127.0.0.1",
+            "externalport": 31010,
+            "internalip": "127.0.0.1",
+            "internalport": 31010,
+            "name": "server7",
+            "physicalpool": "pool1",
+            "zone": "zone5"
+        },
+        {
+            "externalip": "127.0.0.1",
+            "externalport": 31011,
+            "internalip": "127.0.0.1",
+            "internalport": 31011,
+            "name": "server8",
+            "physicalpool": "pool1",
+            "zone": "zone5"
+        },
+        {
+            "externalip": "127.0.0.1",
+            "externalport": 31020,
+            "internalip": "127.0.0.1",
+            "internalport": 31020,
+            "name": "server10",
+            "physicalpool": "pool1",
+            "zone": "zone6"
+        },
+        {
+            "externalip": "127.0.0.1",
+            "externalport": 31021,
+            "internalip": "127.0.0.1",
+            "internalport": 31021,
+            "name": "server11",
+            "physicalpool": "pool1",
+            "zone": "zone6"
+        }
+    ]
+}
+

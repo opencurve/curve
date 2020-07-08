@@ -25,6 +25,7 @@
 #include <brpc/server.h>
 #include <brpc/channel.h>
 #include <butil/endpoint.h>
+#include <json/json.h>
 
 #include <fstream>
 #include <map>
@@ -34,38 +35,40 @@
 #include "proto/topology.pb.h"
 #include "src/mds/common/mds_define.h"
 #include "src/common/string_util.h"
+#include "src/common/configuration.h"
 
 DEFINE_string(mds_addr, "127.0.0.1:6666",
     "mds ip and port list, separated by \",\"");
-// 兼容原有接口
-DEFINE_string(mds_ip, "127.0.0.1", "mds ip");
-DEFINE_int32(mds_port, 6666, "mds port");
 
 DEFINE_string(op,
     "",
     "operation: create_logicalpool, create_physicalpool, set_chunkserver");
 
-DEFINE_string(name, "defaultLogicalPool", "logical pool name.");
-DEFINE_string(physicalpool_name, "pool1", "physicalPool name.");
-DEFINE_int32(logicalpool_type,
-    ::curve::mds::topology::PAGEFILE,
-    "logical pool type.");
-
-DEFINE_int32(replica_num, 3, "replica num.");
-DEFINE_int32(copyset_num, 0, "copyset num.");
-DEFINE_int32(zone_num, 3, "zone num.");
-DEFINE_int32(scatterWidth, 0, "scatter width.");
-
-DEFINE_string(cluster_map, "./topo.txt", "cluster topology map.");
+DEFINE_string(cluster_map, "/etc/curve/topo.json", "cluster topology map.");
 
 DEFINE_int32(chunkserver_id, -1, "chunkserver id for set chunkserver status.");
 DEFINE_string(chunkserver_status, "readwrite",
     "chunkserver status: readwrite, pendding, retired.");
 
 DEFINE_uint32(rpcTimeOutMs, 5000u, "rpc time out");
+DEFINE_string(confPath, "/etc/curve/tools.conf", "config file path of tools");
 
 const int kRetCodeCommonErr = -1;
 const int kRetCodeRedirectMds = -2;
+const char kServers[] = "servers";
+const char kLogicalPools[] = "logicalpools";
+const char kName[] = "name";
+const char kInternalIp[] = "internalip";
+const char kInternalPort[] = "internalport";
+const char kExternalIp[] = "externalip";
+const char kExternalPort[] = "externalport";
+const char kZone[] = "zone";
+const char kPhysicalPool[] = "physicalpool";
+const char kType[] = "type";
+const char kReplicasNum[] = "replicasnum";
+const char kCopysetNum[] = "copysetnum";
+const char kZoneNum[] = "zonenum";
+const char kScatterWidth[] = "scatterwidth";
 
 using ::curve::common::SplitString;
 
@@ -81,6 +84,16 @@ struct CurveServerData {
     uint32_t externalPort;
     std::string zoneName;
     std::string physicalPoolName;
+};
+
+struct CurveLogicalPoolData {
+    std::string name;
+    std::string physicalPoolName;
+    curve::mds::topology::LogicalPoolType type;
+    uint32_t replicasNum;
+    uint64_t copysetNum;
+    uint32_t zoneNum;
+    uint32_t scatterwidth;
 };
 
 struct CurveZoneData {
@@ -114,7 +127,10 @@ class CurvefsTools {
 
  private:
     int ReadClusterMap();
+    int InitServerData();
+    int InitLogicalPoolData();
     int ScanCluster();
+    int ScanLogicalPool();
     int CreatePhysicalPool();
     int CreateZone();
     int CreateServer();
@@ -126,6 +142,9 @@ class CurvefsTools {
     int ListPhysicalPool(
         std::list<PhysicalPoolInfo> *physicalPoolInfos);
 
+    int ListLogicalPool(const std::string& phyPoolName,
+        std::list<LogicalPoolInfo> *logicalPoolInfos);
+
     int AddListPoolZone(PoolIdType poolid,
         std::list<ZoneInfo> *zoneInfos);
 
@@ -133,7 +152,8 @@ class CurvefsTools {
         std::list<ServerInfo> *serverInfos);
 
  private:
-    std::list<CurveServerData> cluster;
+    std::list<CurveServerData> serverDatas;
+    std::list<CurveLogicalPoolData> lgPoolDatas;
     std::list<CurvePhysicalPoolData> physicalPoolToAdd;
     std::list<CurveZoneData> zoneToAdd;
     std::list<CurveServerData> serverToAdd;
@@ -145,21 +165,27 @@ class CurvefsTools {
     std::vector<std::string> mdsAddressStr_;
     int mdsAddressIndex_;
     brpc::Channel channel_;
+    Json::Value clusterMap_;
 };
 
 const std::string CurvefsTools::clusterMapSeprator = " ";  // NOLINT
 
-int CurvefsTools::Init() {
-    // 兼容原有接口
-    google::CommandLineFlagInfo info1, info2;
-    if ((GetCommandLineFlagInfo("mds_ip", &info1) && !info1.is_default) ||
-        (GetCommandLineFlagInfo("mds_port", &info2) && !info2.is_default)) {
-        mdsAddressStr_.push_back(
-            FLAGS_mds_ip + ':' + std::to_string(FLAGS_mds_port));
-         mdsAddressIndex_ = -1;
-         return 0;
+void UpdateFlagsFromConf(curve::common::Configuration* conf) {
+    // 如果配置文件不存在的话不报错，以命令行为准,这是为了不强依赖配置
+    // 如果配置文件存在并且没有指定命令行的话，就以配置文件为准
+    if (conf->LoadConfig()) {
+        google::CommandLineFlagInfo info;
+        if (GetCommandLineFlagInfo("mds_addr", &info) && info.is_default) {
+            conf->GetStringValue("mdsAddr", &FLAGS_mds_addr);
+        }
     }
+}
 
+int CurvefsTools::Init() {
+    std::string confPath = FLAGS_confPath.c_str();
+    curve::common::Configuration conf;
+    conf.SetConfigPath(confPath);
+    UpdateFlagsFromConf(&conf);
     SplitString(FLAGS_mds_addr, ",", &mdsAddressStr_);
     if (mdsAddressStr_.size() <= 0) {
         LOG(ERROR) << "no avaliable mds address.";
@@ -195,59 +221,129 @@ int CurvefsTools::TryAnotherMdsAddress() {
 }
 
 int CurvefsTools::HandleCreateLogicalPool() {
+    int ret = ReadClusterMap();
+    if (ret < 0) {
+        LOG(ERROR) << "read cluster map fail";
+        return ret;
+    }
+    ret = InitLogicalPoolData();
+    if (ret < 0) {
+        LOG(ERROR) << "init logical pool data fail";
+        return ret;
+    }
+    for (const auto& lgPool : lgPoolDatas) {
+        TopologyService_Stub stub(&channel_);
+
+        CreateLogicalPoolRequest request;
+        request.set_logicalpoolname(lgPool.name);
+        request.set_physicalpoolname(lgPool.physicalPoolName);
+        request.set_type(lgPool.type);
+        std::string replicaNumStr = std::to_string(lgPool.replicasNum);
+        std::string copysetNumStr = std::to_string(lgPool.copysetNum);
+        std::string zoneNumStr = std::to_string(lgPool.zoneNum);
+
+        std::string rapString = "{\"replicaNum\":" + replicaNumStr
+                             + ", \"copysetNum\":" + copysetNumStr
+                             + ", \"zoneNum\":" + zoneNumStr
+                             + "}";
+
+        request.set_redundanceandplacementpolicy(rapString);
+        request.set_userpolicy("{\"aaa\":1}");
+        request.set_scatterwidth(lgPool.scatterwidth);
+
+        CreateLogicalPoolResponse response;
+
+        brpc::Controller cntl;
+        cntl.set_max_retry(0);
+        cntl.set_timeout_ms(-1);
+        cntl.set_log_id(1);
+
+        LOG(INFO) << "CreateLogicalPool, second request: "
+                  << request.DebugString();
+
+        stub.CreateLogicalPool(&cntl, &request, &response, nullptr);
+
+        if (cntl.ErrorCode() == EHOSTDOWN ||
+            cntl.ErrorCode() == brpc::ELOGOFF) {
+            return kRetCodeRedirectMds;
+
+        } else if (cntl.Failed()) {
+            LOG(ERROR) << "CreateLogicalPool, errcorde = "
+                       << response.statuscode()
+                       << ", error content:"
+                       << cntl.ErrorText();
+            return kRetCodeCommonErr;
+        }
+        if (response.statuscode() == kTopoErrCodeSuccess) {
+            LOG(INFO) << "Received CreateLogicalPool Rpc response success, "
+                      << response.DebugString();
+        } else if (response.statuscode() == kTopoErrCodeLogicalPoolExist) {
+            LOG(INFO) << "Logical pool already exist";
+        } else {
+            LOG(ERROR) << "CreateLogicalPool Rpc response fail. "
+                       << "Message is :"
+                       << response.DebugString();
+            return response.statuscode();
+        }
+    }
+    return 0;
+}
+
+int CurvefsTools::ScanLogicalPool() {
+    // get all phsicalpool and compare
+    // 去重
+    std::set<std::string> phyPools;
+    for (const auto& lgPool : lgPoolDatas) {
+        phyPools.insert(lgPool.physicalPoolName);
+    }
+    for (const auto& phyPool : phyPools) {
+        std::list<LogicalPoolInfo> logicalPoolInfos;
+        int ret = ListLogicalPool(phyPool, &logicalPoolInfos);
+        if (ret < 0) {
+            return ret;
+        }
+        for (auto it = logicalPoolInfos.begin();
+            it != logicalPoolInfos.end();) {
+            auto ix = std::find_if(lgPoolDatas.begin(),
+                lgPoolDatas.end(),
+                [it] (CurveLogicalPoolData& data) {
+                    return data.name == it->logicalpoolname();
+                });
+            if (ix != lgPoolDatas.end()) {
+                lgPoolDatas.erase(ix);
+                it++;
+            }
+        }
+    }
+}
+
+int CurvefsTools::ListLogicalPool(const std::string& phyPoolName,
+        std::list<LogicalPoolInfo> *logicalPoolInfos) {
     TopologyService_Stub stub(&channel_);
-
-    CreateLogicalPoolRequest request;
-    request.set_logicalpoolname(FLAGS_name);
-    request.set_physicalpoolname(FLAGS_physicalpool_name);
-    request.set_type(static_cast<LogicalPoolType>(FLAGS_logicalpool_type));
-
-    std::string replicaNumStr = std::to_string(FLAGS_replica_num);
-    std::string copysetNumStr = std::to_string(FLAGS_copyset_num);
-    std::string zoneNumStr = std::to_string(FLAGS_zone_num);
-
-    std::string rapString = "{\"replicaNum\":" + replicaNumStr
-                         + ", \"copysetNum\":" + copysetNumStr
-                         + ", \"zoneNum\":" + zoneNumStr
-                         + "}";
-
-    request.set_redundanceandplacementpolicy(rapString);
-    request.set_userpolicy("{\"aaa\":1}");
-    request.set_scatterwidth(FLAGS_scatterWidth);
-
-    CreateLogicalPoolResponse response;
-
+    ListLogicalPoolRequest request;
+    ListLogicalPoolResponse response;
     brpc::Controller cntl;
-    cntl.set_max_retry(0);
-    cntl.set_timeout_ms(-1);
+    cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
     cntl.set_log_id(1);
+    request.set_physicalpoolname(phyPoolName);
 
-    LOG(INFO) << "CreateLogicalPool, second request: "
+    LOG(INFO) << "ListLogicalPool send request: "
               << request.DebugString();
-
-    stub.CreateLogicalPool(&cntl, &request, &response, nullptr);
-
+    stub.ListLogicalPool(&cntl, &request, &response, nullptr);
     if (cntl.ErrorCode() == EHOSTDOWN ||
-        cntl.ErrorCode() == brpc::ELOGOFF) {
+            cntl.ErrorCode() == brpc::ELOGOFF) {
         return kRetCodeRedirectMds;
-
     } else if (cntl.Failed()) {
-        LOG(ERROR) << "CreateLogicalPool, errcorde = "
-                    << response.statuscode()
-                    << ", error content:"
-                    << cntl.ErrorText();
+        LOG(ERROR) << "ListLogicalPool Rpc fail, errcorde = "
+                   << response.statuscode()
+                   << ", error content:"
+                   << cntl.ErrorText();
         return kRetCodeCommonErr;
     }
-    if (response.statuscode() != 0) {
-        LOG(ERROR) << "CreateLogicalPool Rpc response fail. "
-                   << "Message is :"
-                   << response.DebugString();
-        return response.statuscode();
-    } else {
-        LOG(INFO) << "Received CreateLogicalPool Rpc response success, "
-                  << response.DebugString();
+    for (int i = 0; i < response.logicalpoolinfos_size(); i++) {
+        logicalPoolInfos->push_back(
+            response.logicalpoolinfos(i));
     }
-
     return 0;
 }
 
@@ -255,6 +351,11 @@ int CurvefsTools::HandleBuildCluster() {
     int ret = ReadClusterMap();
     if (ret < 0) {
         LOG(ERROR) << "read cluster map fail";
+        return ret;
+    }
+    ret = InitServerData();
+    if (ret < 0) {
+        LOG(ERROR) << "init server data fail";
         return ret;
     }
     ret = ScanCluster();
@@ -296,181 +397,115 @@ int CurvefsTools::HandleBuildCluster() {
 }
 
 int CurvefsTools::ReadClusterMap() {
-    std::string clusterMap = FLAGS_cluster_map;
-
     std::ifstream fin;
-    fin.open(clusterMap, std::ios::in);
-
+    fin.open(FLAGS_cluster_map.c_str(), std::ios::in);
     if (fin.is_open()) {
-        int lineNo = 0;
-        for (std::string line; std::getline(fin, line); ) {
-            lineNo++;
-            int colNo = 0;
-            if (line.empty()) {
-                continue;
-            }
-            std::vector<std::string> strList;
-            SplitString(line, CurvefsTools::clusterMapSeprator, &strList);
-
-            std::vector<std::string>::size_type index = 0;
-            while (index < strList.size() && strList[index].empty()) {
-                index++;
-                colNo++;
-            }
-
-            if (index >= strList.size()) {
-                continue;   // blank line
-            }
-
-            CurveServerData info;
-            // serverName
-            if (index < strList.size() && !strList[index].empty()) {
-                info.serverName = strList[index];
-                index++;
-                colNo += strList[index].size();
-            } else {
-                LOG(ERROR) << "parse cluster map error in line, context: \""
-                           << line
-                           << "\", line No: "
-                           << lineNo
-                           << ", colume No: "
-                           << colNo;
-                return kRetCodeCommonErr;
-            }
-
-            while (index < strList.size() && strList[index].empty()) {
-                index++;
-                colNo++;
-            }
-            // internalIp & port
-            if (index < strList.size() && !strList[index].empty()) {
-                std::string ipPort = strList[index];
-                std::vector<std::string> ipPortList;
-                SplitString(ipPort, ":", &ipPortList);
-                if (1 == ipPortList.size()) {
-                    info.internalIp = ipPortList[0];
-                    info.internalPort = 0;
-                } else if (2 == ipPortList.size()) {
-                    info.internalIp = ipPortList[0];
-                    info.internalPort = std::stoul(ipPortList[1]);
-                } else {
-                    LOG(ERROR) << "parse cluster map error in line, context: \""
-                               << line
-                               << "\", line No: "
-                               << lineNo
-                               << ", ipPort string error: "
-                               << ipPort;
-                }
-                butil::ip_t ip;
-                if (butil::str2ip(info.internalIp.c_str(), &ip) != 0) {
-                    LOG(ERROR) << "parse cluster map error in line, context: \""
-                               << line
-                               << "\", line No: "
-                               << lineNo
-                               << ", invalid ip adress, ipPort str: "
-                               << ipPort;
-                }
-                index++;
-                colNo += strList[index].size();
-            } else {
-                LOG(ERROR) << "parse cluster map error in line, context: \""
-                           << line
-                           << "\", line No: "
-                           << lineNo
-                           << ", colume No: "
-                           << colNo;
-                return kRetCodeCommonErr;
-            }
-
-            while (index < strList.size() && strList[index].empty()) {
-                index++;
-                colNo++;
-            }
-            // externalIp & port
-            if (index < strList.size() && !strList[index].empty()) {
-                std::string ipPort = strList[index];
-                std::vector<std::string> ipPortList;
-                SplitString(ipPort, ":", &ipPortList);
-                if (1 == ipPortList.size()) {
-                    info.externalIp = ipPortList[0];
-                    info.externalPort = 0;
-                } else if (2 == ipPortList.size()) {
-                    info.externalIp = ipPortList[0];
-                    info.externalPort = std::stoul(ipPortList[1]);
-                } else {
-                    LOG(ERROR) << "parse cluster map error in line, context: \""
-                               << line
-                               << "\", line No: "
-                               << lineNo
-                               << ", ipPort string error: "
-                               << ipPort;
-                }
-                butil::ip_t ip;
-                if (butil::str2ip(info.externalIp.c_str(), &ip) != 0) {
-                    LOG(ERROR) << "parse cluster map error in line, context: \""
-                               << line
-                               << "\", line No: "
-                               << lineNo
-                               << ", invalid ip adress, ipPort str: "
-                               << ipPort;
-                }
-                index++;
-                colNo += strList[index].size();
-            } else {
-                LOG(ERROR) << "parse cluster map error in line, context: \""
-                           << line
-                           << "\", line No: "
-                           << lineNo
-                           << ", colume No: "
-                           << colNo;
-                return kRetCodeCommonErr;
-            }
-
-            while (index < strList.size() && strList[index].empty()) {
-                index++;
-                colNo++;
-            }
-            // zoneName
-            if (index < strList.size() && !strList[index].empty()) {
-                info.zoneName = strList[index];
-                index++;
-                colNo += strList[index].size();
-            } else {
-                LOG(ERROR) << "parse cluster map error in line, context: \""
-                           << line
-                           << "\", line No: "
-                           << lineNo
-                           << ", colume No: "
-                           << colNo;
-                return kRetCodeCommonErr;
-            }
-
-            while (index < strList.size() && strList[index].empty()) {
-                index++;
-                colNo++;
-            }
-            // physicalPoolName
-            if (index < strList.size() && !strList[index].empty()) {
-                info.physicalPoolName = strList[index];
-                index++;
-                colNo += strList[index].size();
-            } else {
-                LOG(ERROR) << "parse cluster map error in line, context: \""
-                           << line
-                           << "\", line No: "
-                           << lineNo
-                           << ", colume No: "
-                           << colNo;
-                return kRetCodeCommonErr;
-            }
-
-            cluster.push_back(info);
+        Json::CharReaderBuilder reader;
+        JSONCPP_STRING errs;
+        bool ok = Json::parseFromStream(reader, fin, &clusterMap_, &errs);
+        fin.close();
+        if (!ok) {
+            LOG(ERROR) << "Parse cluster map file " << FLAGS_cluster_map
+                       << " fail: " << errs;
+            return -1;
         }
     } else {
         LOG(ERROR) << "open cluster map file : "
-                   << clusterMap
-                   << " fail.";
-        return kRetCodeCommonErr;
+                   << FLAGS_cluster_map << " fail.";
+        return -1;
+    }
+}
+
+int CurvefsTools::InitServerData() {
+    if (clusterMap_[kServers].isNull()) {
+        LOG(ERROR) << "No servers in cluster map";
+        return -1;
+    }
+    for (const auto server : clusterMap_[kServers]) {
+        CurveServerData serverData;
+        if (!server[kName].isString()) {
+            LOG(ERROR) << "server name must be string";
+            return -1;
+        }
+        serverData.serverName = server[kName].asString();
+        if (!server[kInternalIp].isString()) {
+            LOG(ERROR) << "server internal ip must be string";
+            return -1;
+        }
+        serverData.internalIp = server[kInternalIp].asString();
+        if (!server[kInternalPort].isUInt()) {
+            LOG(ERROR) << "server internal port must be uint";
+            return -1;
+        }
+        serverData.internalPort = server[kInternalPort].asUInt();
+        if (!server[kExternalIp].isString()) {
+            LOG(ERROR) << "server internal port must be string";
+            return -1;
+        }
+        serverData.externalIp = server[kExternalIp].asString();
+        if (!server[kExternalPort].isUInt()) {
+            LOG(ERROR) << "server internal port must be string";
+            return -1;
+        }
+        serverData.externalPort = server[kExternalPort].asUInt();
+        if (!server[kZone].isString()) {
+            LOG(ERROR) << "server zone must be string";
+            return -1;
+        }
+        serverData.zoneName = server[kZone].asString();
+        if (!server[kPhysicalPool].isString()) {
+            LOG(ERROR) << "server physicalpool must be string";
+            return -1;
+        }
+        serverData.physicalPoolName = server[kPhysicalPool].asString();
+        serverDatas.emplace_back(serverData);
+    }
+    return 0;
+}
+
+int CurvefsTools::InitLogicalPoolData() {
+    if (clusterMap_[kLogicalPools].isNull()) {
+        LOG(ERROR) << "No servers in cluster map";
+        return -1;
+    }
+    for (const auto lgPool : clusterMap_[kLogicalPools]) {
+        CurveLogicalPoolData lgPoolData;
+        if (!lgPool[kName].isString()) {
+            LOG(ERROR) << "logicalpool name must be string";
+            return -1;
+        }
+        lgPoolData.name = lgPool[kName].asString();
+        if (!lgPool[kPhysicalPool].isString()) {
+            LOG(ERROR) << "logicalpool physicalpool must be string";
+            return -1;
+        }
+        lgPoolData.physicalPoolName = lgPool[kPhysicalPool].asString();
+        if (!lgPool[kType].isInt()) {
+            LOG(ERROR) << "logicalpool type must be int";
+            return -1;
+        }
+        lgPoolData.type = static_cast<LogicalPoolType>(lgPool[kType].asInt());
+        if (!lgPool[kReplicasNum].isUInt()) {
+            LOG(ERROR) << "logicalpool replicasnum must be uint";
+            return -1;
+        }
+        lgPoolData.replicasNum = lgPool[kReplicasNum].asUInt();
+        if (!lgPool[kCopysetNum].isUInt64()) {
+            LOG(ERROR) << "logicalpool copysetnum must be uint64";
+            return -1;
+        }
+        lgPoolData.copysetNum = lgPool[kCopysetNum].asUInt64();
+        if (!lgPool[kZoneNum].isUInt64()) {
+            LOG(ERROR) << "logicalpool zonenum must be uint64";
+            return -1;
+        }
+        lgPoolData.zoneNum = lgPool[kZoneNum].asUInt();
+        if (!lgPool[kScatterWidth].isUInt()) {
+            LOG(ERROR) << "logicalpool scatterwidth must be uint";
+            return -1;
+        }
+        lgPoolData.scatterwidth = lgPool[kScatterWidth].asUInt();
+        lgPoolDatas.emplace_back(lgPoolData);
     }
     return 0;
 }
@@ -602,7 +637,7 @@ int CurvefsTools::AddListZoneServer(ZoneIdType zoneid,
                    << zoneid;
         return response.statuscode();
     } else {
-        LOG(ERROR) << "ListZoneServer Rpc response success, "
+        LOG(INFO) << "ListZoneServer Rpc response success, "
                    << response.DebugString();
     }
 
@@ -615,7 +650,7 @@ int CurvefsTools::AddListZoneServer(ZoneIdType zoneid,
 int CurvefsTools::ScanCluster() {
     // get all phsicalpool and compare
     // 去重
-    for (auto server : cluster) {
+    for (auto server : serverDatas) {
         if (std::find_if(physicalPoolToAdd.begin(),
             physicalPoolToAdd.end(),
             [server](CurvePhysicalPoolData& data) {
@@ -653,7 +688,7 @@ int CurvefsTools::ScanCluster() {
 
     // get zone and compare
     // 去重
-    for (auto server : cluster) {
+    for (auto server : serverDatas) {
         if (std::find_if(zoneToAdd.begin(),
             zoneToAdd.end(),
             [server](CurveZoneData& data) {
@@ -714,7 +749,7 @@ int CurvefsTools::ScanCluster() {
 
     // get server and compare
     // 去重
-    for (auto server : cluster) {
+    for (auto server : serverDatas) {
         if (std::find_if(serverToAdd.begin(),
             serverToAdd.end(),
             [server](CurveServerData& data) {
@@ -899,16 +934,18 @@ int CurvefsTools::CreateServer() {
                        << it.serverName;
             return kRetCodeCommonErr;
         }
-        if (response.statuscode() != 0) {
+        if (response.statuscode() == kTopoErrCodeSuccess) {
+            LOG(INFO) << "Received RegistServer Rpc response success, "
+                      << response.DebugString();
+        } else if (response.statuscode() == kTopoErrCodeIpPortDuplicated) {
+            LOG(INFO) << "Server already exist";
+        } else {
             LOG(ERROR) << "RegistServer Rpc response fail. "
                        << "Message is :"
                        << response.DebugString()
                        << " , serverName = "
                        << it.serverName;
             return response.statuscode();
-        } else {
-            LOG(INFO) << "Received RegistServer Rpc response success, "
-                      << response.DebugString();
         }
     }
     return 0;

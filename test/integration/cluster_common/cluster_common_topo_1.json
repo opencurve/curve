@@ -1,0 +1,52 @@
+{
+    "logicalpools": [
+        {
+            "copysetnum": 10,
+            "name": "logicalPool1",
+            "physicalpool": "pool1",
+            "replicasnum": 3,
+            "scatterwidth": 0,
+            "type": 0,
+            "zonenum": 3
+        }
+    ],
+    "servers": [
+        {
+            "externalip": "192.168.200.41",
+            "externalport": 0,
+            "internalip": "192.168.200.41",
+            "internalport": 0,
+            "name": "server1",
+            "physicalpool": "pool1",
+            "zone": "zone1"
+        },
+        {
+            "externalip": "192.168.200.42",
+            "externalport": 0,
+            "internalip": "192.168.200.42",
+            "internalport": 0,
+            "name": "server2",
+            "physicalpool": "pool1",
+            "zone": "zone2"
+        },
+        {
+            "externalip": "192.168.200.43",
+            "externalport": 0,
+            "internalip": "192.168.200.43",
+            "internalport": 0,
+            "name": "server3",
+            "physicalpool": "pool1",
+            "zone": "zone3"
+        },
+        {
+            "externalip": "192.168.200.44",
+            "externalport": 0,
+            "internalip": "192.168.200.44",
+            "internalport": 0,
+            "name": "server4",
+            "physicalpool": "pool1",
+            "zone": "zone4"
+        }
+    ]
+}
+

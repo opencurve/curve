@@ -267,7 +267,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         ASSERT_EQ(0, cluster_->PreparePhysicalPool(
                          1,
                          "./test/integration/snapshotcloneserver/"
-                         "config/topo3.txt"));  // NOLINT
+                         "config/topo3.json"));  // NOLINT
 
         // 格式化chunkfilepool
         std::vector<std::thread> threadpool(3);
@@ -324,8 +324,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         ASSERT_EQ(0, cluster_->PrepareLogicalPool(
                          1,
                          "./test/integration/snapshotcloneserver/"
-                         "config/topo3.txt",  // NOLINT
-                         100, "pool1"));
+                         "config/topo3.json"));
 
         cluster_->PrepareConfig<SnapClientConfigGenerator>(
             kSnapClientConfigPath, snapClientConfigOptions);

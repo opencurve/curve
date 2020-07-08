@@ -704,18 +704,14 @@ int CurveCluster::PreparePhysicalPool(int mdsId,
     return 0;
 }
 
-int CurveCluster::PrepareLogicalPool(int mdsId, const std::string &clusterMap,
-                                     int copysetNum,
-                                     const std::string &physicalPoolName) {
+int CurveCluster::PrepareLogicalPool(int mdsId, const std::string &clusterMap) {
     LOG(INFO) << "create logicalpool begin...";
 
     std::string createLPCmd =
         std::string("./bazel-bin/tools/curvefsTool") +
         std::string(" -cluster_map=") + clusterMap +
         std::string(" -mds_addr=") + MDSIpPort(mdsId) +
-        std::string(" -copyset_num=") + std::to_string(copysetNum) +
         std::string(" -op=create_logicalpool") +
-        std::string(" -physicalpool_name=") + physicalPoolName +
         std::string(" -stderrthreshold=0 -minloglevel=0");
 
     LOG(INFO) << "exec cmd: " << createLPCmd;

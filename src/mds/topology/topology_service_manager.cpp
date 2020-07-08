@@ -1027,6 +1027,16 @@ void TopologyServiceManager::CreateLogicalPool(
         response->set_statuscode(kTopoErrCodeInvalidParam);
         return;
     }
+    auto lgPools = topology_->GetLogicalPoolInPhysicalPool(pPool.GetId(),
+                        [&](const LogicalPool &pool) {
+                            return pool.GetName() == request->logicalpoolname();
+                        });
+    if (!lgPools.empty()) {
+        LOG(WARNING) << "Logical pool "
+                     << request->logicalpoolname() << " exist";
+        response->set_statuscode(kTopoErrCodeLogicalPoolExist);
+        return;
+    }
 
     PoolIdType lPoolId = topology_->AllocateLogicalPoolId();
     if (lPoolId ==
