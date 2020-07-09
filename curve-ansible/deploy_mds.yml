@@ -16,59 +16,9 @@
 #
 # The deploy playbook of Curve
 
-# 部署etcd
-- name: update config on etcd
-  hosts: etcd
-  any_errors_fatal: true
-  gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
-  tags:
-    - update_config_etcd
-  roles:
-    - { role: generate_config, template_name: etcd.conf.yml, conf_path: "{{ etcd_config_path }}" }
-
 # 部署mds
-
-# 1. 分发配置
-- name: update config on mds
+- name: prepare mds
   hosts: mds
-  any_errors_fatal: true
-  gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
-  tags:
-    - update_config_mds
-  roles:
-    - { role: generate_config, template_name: mds.conf, conf_path: "{{ mds_config_path }}" }
-    - { role: generate_config, template_name: tools.conf, conf_path: "{{ tool_config_path }}" }
-    - { role: generate_config, template_name: topo.json, conf_path: "{{ topo_file_path }}" }
-
-# 2. 更新各节点上的包和配置
-- name: update package
-  hosts: mds
-  gather_facts: no
-  any_errors_fatal: true
-  become: true
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
-  tags:
-    - update_package
-  tasks:
-    # 更新mds包
-    - vars:
-        update_component: "curve-mds={{ mds_package_version }}"
-      include_tasks: "common_tasks/update_package.yml"
-    # 更新curve_tool包
-    - vars:
-        update_component: "curve-tools={{ tool_package_version }}"
-      include_tasks: "common_tasks/update_package.yml"
-
-# 3. 预格式化
-- name: prepare chunkserver
-  hosts: chunkservers
   any_errors_fatal: true
   gather_facts: no
   become: yes
@@ -77,11 +27,19 @@
   tags:
     - prepare
   roles:
-    - { role: prepare_chunkserver }
+    - { role: install_package, package_name: curve-mds, package_version: "{{ mds_package_version }}",
+            tags: ["install_package", "install_mds_package"] }
+    - { role: install_package, package_name: curve-tools, package_version: "{{ tool_package_version }}",
+            tags: ["install_package", "install_tool_package"] }
+    - { role: generate_config, template_name: mds.conf, conf_path: "{{ mds_config_path }}",
+            tags: ["generate_config", "generage_mds_conf"] }
+    - { role: generate_config, template_name: tools.conf, conf_path: "{{ tool_config_path }}",
+            tags: ["generate_config", "generage_tools_conf"] }
+    - { role: generate_config, template_name: topo.json, conf_path: "{{ topo_file_path }}",
+            tags: ["generate_config", "generage_topo_json"] }
 
-# 4. 启动chunkserver
-- name: start chunkserver
-  hosts: chunkservers
+- name: start mds
+  hosts: mds
   any_errors_fatal: true
   gather_facts: no
   become: yes
@@ -89,17 +47,14 @@
   become_flags: -iu {{ sudo_user }}
   tags:
     - start
-  vars:
-    sudo: ""
-  tasks:
-    - include_tasks: "common_tasks/start_chunkserver.yml"
+  roles:
+    - { role: start_service, service_name: mds, command_need_sudo: "{{ mds_need_sudo }}" }
 
-# 5、创建逻辑池
-- name: create logical pool
+- name: create physical pool
   hosts: mds[0]
   any_errors_fatal: true
   gather_facts: no
   tags:
-    - create_logical_pool
+    - create_physical_pool
   tasks:
-    - include_tasks: "common_tasks/create_logical_pool.yml"
+    - include_tasks: "common_tasks/create_physical_pool.yml"

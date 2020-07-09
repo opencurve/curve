@@ -1,0 +1,44 @@
+---
+#
+#  Copyright (c) 2020 NetEase Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+- name: create remote dir
+  ignore_errors: true
+  shell: mkdir -p {{ remote_dir_name }}
+  register: create_dir_res
+
+- name: create remote dir with sudo
+  shell: sudo mkdir -p {{ remote_dir_name }}
+  when: create_dir_res.rc != 0
+
+- name: copy file directly
+  ignore_errors: true
+  become: false
+  copy: src={{ local_file_path }} dest={{ remote_dir_name }} mode={{ file_mode }}
+  register: copy_file_res
+
+- name: copy file with sudo
+  block:
+    - name: clear tmp dir
+      become: false
+      shell: rm -rf {{ tmp_dir }}
+    - name: copy files to tempory directory
+      become: false
+      copy: src={{ local_file_path }} dest={{ tmp_dir }} mode={{ file_mode }}
+    - name: mv file
+      shell: sudo cp -rf {{ tmp_dir }}/* {{ remote_dir_name }}
+  when: copy_file_res.failed
+

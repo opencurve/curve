@@ -15,6 +15,6 @@
 #  limitations under the License.
 #
 
-# 包的名称
-package_name:
-package_version:
+- name: create physical pool
+  shell: >
+    curve-tool -op=create_physicalpool -cluster_map={{ topo_file_path }}
