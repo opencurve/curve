@@ -15,6 +15,13 @@
 #  limitations under the License.
 #
 
-# 包的名称
-package_name:
-package_version:
+# Debian GNU/Linux, Ubuntu, Fedora, CentOS, CoreOS
+- name: Get distro name from /etc/os-release
+  shell: "([ -f /etc/os-release ] && grep '^NAME=' /etc/os-release | sed s'/NAME=//' | tr -d \\\") || ([ -f /etc/redhat-release ] && cat /etc/redhat-release | cut '-d ' -f1)"
+  register: distro_st
+  failed_when: false
+  changed_when: false
+
+- name: set distro facts
+  set_fact:
+    distro: "{{ distro_st.stdout | trim }}"

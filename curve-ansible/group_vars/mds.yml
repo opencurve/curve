@@ -1,0 +1,34 @@
+---
+
+# 集群拓扑信息
+cluster_map:
+  servers:
+    - name: server1
+      internalip: 127.0.0.1
+      internalport: 8200
+      externalip: 127.0.0.1
+      externalport: 8200
+      zone: zone1
+      physicalpool: pool1
+    - name: server2
+      internalip: 127.0.0.1
+      internalport: 8201
+      externalip: 127.0.0.1
+      externalport: 8201
+      zone: zone2
+      physicalpool: pool1
+    - name: server3
+      internalip: 127.0.0.1
+      internalport: 8202
+      externalip: 127.0.0.1
+      externalport: 8202
+      zone: zone3
+      physicalpool: pool1
+  logicalpools:
+    - name: logicalPool1
+      physicalpool: pool1
+      type: 0
+      replicasnum: 3
+      copysetnum: 2000
+      zonenum: 3
+      scatterwidth: 0

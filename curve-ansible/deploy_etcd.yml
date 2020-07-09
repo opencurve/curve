@@ -29,7 +29,7 @@
     - prepare
   roles:
     - { role: install_package, package_name: etcd, install_with_deb: false, tags: install_etcd }
-    - { role: generate_config, template_name: etcd.conf.yml, conf_path: "{{ etcd_config_path }}", tags: update_etcd_config }
+    - { role: generate_config, template_name: etcd.conf.yml, conf_path: "{{ etcd_config_path }}", tags: generage_config }
 
 - name: start etcd
   hosts: etcd
