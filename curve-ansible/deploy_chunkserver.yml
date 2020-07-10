@@ -14,11 +14,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-# The rolling update playbook of Curve
+# The deploy playbook of Curve
 
-# 滚动升级chunkserver
+# 部署chunkserver
 
-# 1. 更新各节点上的配置
+# 1、启动前准备
 - name: prepare chunkserver
   hosts: chunkservers
   any_errors_fatal: true
@@ -31,6 +31,9 @@
   roles:
     - { role: install_package, package_name: curve-chunkserver, package_version: "{{ cs_package_version }}",
             tags: ["install_package", "install_chunkserver_package"] }
+    - { role: install_package, package_name: aws-sdk, package_version: "{{ aws_package_version }}",
+            tags: ["install_package", "install_aws_sdk_package"] }
+    - { role: format_chunkserver, tags: format }
     - { role: generate_config, template_name: chunkserver.conf, conf_path: "{{ chunkserver_conf_path }}",
                 tags: ["generate_config", "generage_chunkserver_conf"] }
     - { role: generate_config, template_name: client.conf, conf_path: "{{ chunkserver_client_config_path }}",
@@ -38,31 +41,25 @@
     - { role: generate_config, template_name: s3.conf, conf_path: "{{ chunkserver_s3_config_path }}",
                 tags: ["generate_config", "generage_s3_conf"] }
 
-# 逐个重启chunkserver，每重启完一个需要等待copyset健康
-# 继续操作下一个的的时候还需要一个命令行交互确认
-- name: restart chunkserver and wait healthy
+# 2. 启动chunkserver
+- name: start chunkserver
   hosts: chunkservers
   any_errors_fatal: true
   gather_facts: no
-  serial: 1
   become: yes
   become_user: "{{ sudo_user }}"
   become_flags: -iu {{ sudo_user }}
   tags:
-    - restart
-
-  pre_tasks:
-    - pause:
-        prompt: "Confirm restart chunkserver in {{ inventory_hostname }}. ENTER to continue or CTRL-C A to quit"
-      when: need_confirm
-    - vars:
-        package_version: "{{ cs_package_version }}"
-        software_version:
-      include_tasks: "common_tasks/get_software_version_from_package_version.yml"
-
+    - start
   roles:
-    - { role: restart_service, service_name: chunkserver, expected_curve_version: "{{ software_version }}",
-        command_need_sudo: "{{ chunkserver_need_sudo }}"}
+    - { role: start_service, service_name: chunkserver, command_need_sudo: "{{ chunkserver_need_sudo }}" }
 
+# 3、创建逻辑池
+- name: create logical pool
+  hosts: mds[0]
+  any_errors_fatal: true
+  gather_facts: no
+  tags:
+    - create_logical_pool
   tasks:
-    - include_tasks: "common_tasks/wait_copysets_status_healthy.yml"
+    - include_tasks: "common_tasks/create_logical_pool.yml"

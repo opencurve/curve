@@ -1,0 +1,26 @@
+---
+#
+#  Copyright (c) 2020 NetEase Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+- name: deploy chunkserver with format disk
+  shell: sudo ./chunkserver_ctl.sh deploy all --noConfirm
+  async: 0
+  poll: 3
+  when: chunkserver_format_disk
+
+- name: deploy chunkserver without format disk
+  include_tasks: "include/prepare_chunkserver_without_disk_format.yml"
+  when: not {{ chunkserver_format_disk }}

@@ -22,6 +22,11 @@ mds_remote_tmp_dir: /tmp/mds
 mds_bin_dir: /usr/bin
 mds_lib_dir: /usr/lib
 mds_log_dir: /data/log/curve/mds
+local_chunkserver_package_path: ../curve-chunkserver
+chunkserver_bin_dir: /usr/bin
+local_aws_sdk_package_path: ../aws-sdk
+aws_sdk_lib_dir: /usr/lib
+aws_sdk_include_dir: /usr/include
 
 local_tool_package_path: ../curve-tools
 tool_bin_dir: /usr/bin
@@ -34,3 +39,5 @@ install_etcd_dir: /usr/bin
 
 lib_download_dir: /tmp
 libunwind_download_url: http://download.savannah.gnu.org/releases/libunwind/libunwind-1.1.tar.gz
+jemalloc_version: 3.6.0
+jemalloc_download_url: https://github.com/jemalloc/jemalloc/releases/download/jemalloc-3.6.0.tar.bz2
