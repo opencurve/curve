@@ -1,0 +1,351 @@
+#!/bin/bash
+
+# default config path
+confPath={{ chunkserver_conf_path }}
+dataDir={{ chunkserver_data_dir }}
+source ./chunkserver_deploy.sh
+
+# 使用方式
+function help() {
+    echo "COMMANDS:"
+    echo "    start   :  start chunkserver"
+    echo "    stop    :  stop chunkserver"
+    echo "    restart : restart chunkserver"
+    echo "    status  : show the online status of chunkserver"
+    echo "    deploy  : prepare the chunkserver running environment"
+    echo "    format  : format the chunkfile pool"
+    echo "USAGE:"
+    echo "    start all chunkservers              : ./chunkserver_ctl.sh start all"
+    echo "    start one chunkserver               : ./chunkserver_ctl.sh start {\$chunkserverId}"
+    echo "    stop all chunkservers               : ./chunkserver_ctl.sh stop all"
+    echo "    stop one chunkserver                : ./chunkserver_ctl.sh stop {\$chunkserverId}"
+    echo "    restart all chunkservers            : ./chunkserver_ctl.sh restart all"
+    echo "    restart one chunkserver             : ./chunkserver_ctl.sh restart {\$chunkserverId}"
+    echo "    show the status of all chunkservers : ./chunkserver_ctl.sh status all"
+    echo "    show the status of one chunkserver  : ./chunkserver_ctl.sh status {\$chunkserverId}"
+    echo "    record uuid meta in all disks       : ./chunkserver_ctl.sh record-meta"
+    echo "    deploy all disk                     : ./chunkserver_ctl.sh deploy all"
+    echo "    deploy one disk                     : ./chunkserver_ctl.sh deploy /dev/sd{id} /data/chunkserver{id}"
+    echo "    format by percent                   : ./chunkserver_ctl.sh format -allocatepercent=80 -filesystem_path=/data/chunkserver{id} "
+    echo "                                          -chunkfilepool_dir=/data/chunkserver{id}/chunkfilepool/"
+    echo "                                          -chunkfilepool_metapath=/data/chunkserver{id}/chunkfilepool.meta"
+    echo "    format by chunk numbers             : ./chunkserver_ctl.sh format -allocateByPercent=false -preallocateNum=100"
+    echo "                                          -filesystem_path=/data/chunkserver{id} "
+    echo "                                          -chunkfilepool_dir=/data/chunkserver{id}/chunkfilepool/"
+    echo "                                          -chunkfilepool_metapath==/data/chunkserver{id}/chunkfilepool.meta"
+    echo "OPSTIONS:"
+    echo "    [-c|--confPath path]  chunkserver conf path need for start command, default:/etc/curve/chunkserver.conf"
+    echo "    [-nc|--noConfirm]  if specified, deploy no need to confirm"
+}
+
+# 从subnet获取ip
+function get_ip_from_subnet() {
+    subnet=$1
+    prefix=`echo $subnet|awk -F/ '{print $1}'|awk -F. '{printf "%d", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
+    mod=`echo $subnet|awk -F/ '{print $2}'`
+    mask=$((2**32-2**(32-$mod)))
+    # 对prefix再取一次模，为了支持10.182.26.50/22这种格式
+    prefix=$(($prefix&$mask))
+    ip=
+    for i in `/sbin/ifconfig -a|grep inet|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
+    do
+        # 把ip转换成整数
+        ip_int=`echo $i|awk -F. '{printf "%d\n", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
+        if [ $(($ip_int&$mask)) -eq $prefix ]
+        then
+            ip=$i
+            break
+        fi
+    done
+    if [ -z "$ip" ]
+    then
+        echo "no ip matched!\n"
+        exit 1
+    fi
+}
+
+# 启动chunkserver
+function start() {
+    if [ $# -lt 1 ]
+    then
+        help
+        return 1
+    fi
+    if [ $# -gt 2 ]
+    then
+	    confPath=$3
+    fi
+    # 检查配置文件
+    if [ ! -f ${confPath} ]
+    then
+        echo "confPath $confPath not exist!"
+        return 1
+    fi
+    # parse subnet mask from config
+    internal_subnet=`cat $confPath|grep global.subnet|awk -F"=" '{print $2}'`
+    port=`cat $confPath|grep global.port|awk -F"=" '{print $2}'`
+    get_ip_from_subnet $internal_subnet
+    internal_ip=$ip
+    echo "ip: $internal_ip"
+    echo "base port: $port"
+    external_subnet=`cat $confPath|grep global.external_subnet|awk -F"=" '{print $2}'`
+    get_ip_from_subnet $external_subnet
+    external_ip=$ip
+    enableExternalServer=true
+    # external ip和internal ip一致或external ip为127.0.0.1时不启动external server
+    if [ $internal_ip = $external_ip -o $external_ip = "127.0.0.1" ]
+    then
+        enableExternalServer=false
+    else
+        echo "external_ip: $external_ip"
+    fi
+
+    if [ "$1" = "all" ]
+    then
+        ret=`ls ${dataDir} |grep chunkserver| sed 's/[^0-9]//g'`
+        for i in $ret
+        do
+            start_one $i
+        done
+    else
+        start_one $1
+    fi
+    sleep 1
+    status $1
+}
+
+function start_one() {
+    if [ $1 -lt 0 ]
+    then
+        echo "chunkserver num $1 is not ok"
+        return 1
+    fi
+
+    ps -efl|grep -w "${dataDir}/chunkserver$1"|grep -v grep
+    if [ $? -eq 0 ]
+    then
+        echo "chunkserver$1 is already active!"
+        return 0
+    fi
+
+    mkdir -p ${dataDir}/log/chunkserver$1
+    if [ $? -ne 0 ]
+    then
+        echo "Create log dir failed: ${dataDir}/log/chunkserver$1"
+        return 1
+    fi
+
+    jemallocpath=/usr/lib/x86_64-linux-gnu/libjemalloc.so.1
+    # 检查jemalloc库文件
+    if [ ! -f ${jemallocpath} ]
+    then
+        echo "Not found jemalloc library, Path is ${jemallocpath}"
+        exit 1
+    fi
+    LD_PRELOAD=${jemallocpath} curve-chunkserver \
+            -bthread_concurrency=18 -raft_max_segment_size=8388608 \
+            -raft_max_install_snapshot_tasks_num=1 -raft_sync=true  \
+            -conf=${confPath} \
+            -enableChunkfilepool={{ enable_chunkfilepool }} \
+            -chunkFilePoolDir=${dataDir}/chunkserver$1 \
+            -chunkFilePoolMetaPath=${dataDir}/chunkserver$1/chunkfilepool.meta \
+            -chunkServerIp=$internal_ip \
+            -enableExternalServer=$enableExternalServer \
+            -chunkServerExternalIp=$external_ip \
+            -chunkServerPort=$((${port}+${1})) \
+            -chunkServerMetaUri=local://${dataDir}/chunkserver$1/chunkserver.dat \
+            -chunkServerStoreUri=local://${dataDir}/chunkserver$1/ \
+            -copySetUri=local://${dataDir}/chunkserver$1/copysets \
+            -raftSnapshotUri=curve:///data/chunkserver$1/copysets \
+            -recycleUri=local://${dataDir}/chunkserver$1/recycler \
+            -raft_sync_segments=true \
+            -graceful_quit_on_sigterm=true \
+            -log_dir=${dataDir}/log/chunkserver$1 > /dev/null 2>&1 &
+}
+
+function stop() {
+    if [ $# -lt 1 ]
+    then
+        help
+        return 1
+    fi
+    # stop all
+    if [ "$1" = "all" ]
+    then
+        echo "kill all chunkservers"
+        killall curve-chunkserver
+        return $?
+    fi
+
+    if [ $1 -lt 0 ]
+    then
+        echo "chunkserver num $1 is not ok"
+        return 1
+    fi
+
+    echo "kill chunkserver $1"
+    kill `ps -efl|grep -w ${dataDir}/chunkserver$1|grep -v grep|awk '{print $4}'`
+}
+
+function restart() {
+    if [ $# -lt 1 ]
+    then
+        help
+        return 1
+    fi
+    if [ $# -gt 2 ]
+    then
+	    confPath=$3
+    fi
+    stop $1
+    if [ "$1" = "all" ]
+    then
+        ret=`ls ${dataDir} |grep chunkserver| sed 's/[^0-9]//g'`
+        for j in $ret
+        do
+        {
+            wait_stop $j
+        } &
+        done
+        wait
+    else
+        wait_stop $1
+    fi
+    start $1
+}
+
+function wait_stop() {
+    # wait 3秒钟让它退出
+    retry_times=0
+    while [ $retry_times -le 3 ]
+    do
+        ((retry_times=$retry_times+1))
+        ps -efl|grep -w "${dataDir}/chunkserver$1"|grep -v grep > /dev/null 2>&1
+        if [ $? -eq 0 ]
+        then
+            sleep 1
+            continue
+        else
+            break
+        fi
+    done
+    # 如果进程还在，就kill -9
+    ps -efl|grep -w "${dataDir}/chunkserver$1"|grep -v grep > /dev/null 2>&1
+    if [ $? -eq 0 ]
+    then
+        echo "The process of chunkserver$1 still exists after 3s, now kill -9 it"
+        kill -9 `ps -efl|grep -w ${dataDir}/chunkserver$1|grep -v grep|awk '{print $4}'`
+    fi
+}
+
+function status() {
+    if [ $# -lt 1 ]
+    then
+        help
+        return 1
+    fi
+    if [ "$1" = "all" ]
+    then
+        for i in `ls ${dataDir} |grep chunkserver|sed 's/[^0-9]//g'`
+        do
+            status_one $i
+        done
+    else
+        status_one $1
+    fi
+}
+
+function status_one() {
+    ps -efl|grep -w "${dataDir}/chunkserver$1"|grep -v grep > /dev/null 2>&1
+    if [ $? -eq 0 ]
+    then
+        echo "chunkserver$1 is active!"
+        return 0
+    else
+        echo "chunkserver$1 is down"
+        return 1
+    fi
+}
+
+confirm=true
+
+function deploy() {
+    if [ $# -lt 1 ]
+    then
+        help
+        return 1
+    fi
+    if [ $# -gt 1 ] && ([ "$2" = "-nc" ] || [ "$2" = "--noConfirm" ])
+    then
+	    confirm=false
+    fi
+    if $confirm
+    then
+        do_confirm;
+    fi
+    if [ "$1" = "all" ]
+    then
+        #deploy_all;
+        return $?
+    fi
+    if [ $# -eq 2 ]
+    then
+        #deploy_one $@;
+        return $?
+    fi
+    usage;
+}
+
+function format() {
+    # 格式化chunkfile pool
+    curve-format $*
+}
+
+function recordmeta() {
+    # 将当前的磁盘的uuid及其md5备份到磁盘的disk.meta文件中
+    meta_record;
+}
+
+function main() {
+    if [ $# -lt 1 ]
+    then
+        help
+        return 1
+    fi
+
+    case $1 in
+    "start")
+        shift # pass first argument
+        start $@
+        ;;
+    "stop")
+        shift # pass first argument
+        stop $@
+        ;;
+    "restart")
+        shift # pass first argument
+        restart $@
+        ;;
+    "status")
+        shift # pass first argument
+        status $@
+        ;;
+    "deploy")
+        shift # pass first argument
+        deploy $@
+        ;;
+    "format")
+        shift # pass first argument
+        format $@
+        ;;
+    "record-meta")
+        shift
+        recordmeta
+        ;;
+    *)
+        help
+        ;;
+    esac
+}
+
+main $@
