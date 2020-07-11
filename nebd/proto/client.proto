@@ -1,0 +1,129 @@
+/*
+ *  Copyright (c) 2020 NetEase Inc.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+syntax="proto2";
+import "nebd/proto/nebd-common.proto";
+
+package nebd.client;
+
+option cc_generic_services = true;
+
+message OpenFileRequest {
+   required string fileName = 1;
+}
+message OpenFileResponse {
+   required RetCode retCode = 1;
+   optional string retMsg = 2;
+   optional int32 fd = 3;
+}
+
+message CloseFileRequest {
+   required int32 fd = 1;
+}
+message CloseFileResponse {
+   required RetCode retCode = 1;
+   optional string retMsg = 2;
+}
+
+message ReadRequest {
+   required int32 fd = 1;
+   required uint64 offset = 2;
+   required uint64 size = 3;
+}
+message ReadResponse {
+   required RetCode retCode = 1;
+   optional string retMsg = 2;
+}
+// readbody in attachment
+
+message WriteRequest {
+   required int32 fd = 1;
+   required uint64 offset = 2;
+   required uint64 size = 3;
+}
+// write content in attachment
+message WriteResponse {
+   required RetCode RetCode = 1;
+   optional string RetMsg = 2;
+}
+
+message DiscardRequest {
+   required int32 fd = 1;
+   required uint64 offset = 2;
+   required uint64 size = 3;
+}
+message DiscardResponse {
+   required RetCode RetCode = 1;
+   optional string RetMsg = 2;
+}
+
+message ResizeRequest {
+   required int32 fd = 1;
+   required uint64 newSize = 2;
+}
+message ResizeResponse {
+   required RetCode retCode = 1;
+   optional string retMsg = 2;
+}
+
+// 以下proto定义，仅ceph使用
+message FlushRequest {
+   required int32 fd = 1;
+}
+
+message FlushResponse {
+   required RetCode retCode = 1;
+   optional string retMsg = 2;
+}
+
+message FileInfo {
+   required uint64 size = 1;
+   required uint64 objSize = 2;
+   required uint64 objNums = 3;
+}
+
+message GetInfoRequest {
+   required int32 fd = 1;
+}
+
+message GetInfoResponse {
+   required RetCode retCode = 1;
+   optional string retMsg = 2;
+   optional FileInfo info = 3;
+}
+
+message InvalidateCacheRequest {
+   required int32 fd = 1;
+}
+
+message InvalidateCacheResponse {
+   required RetCode retCode = 1;
+   optional string retMsg = 2;
+}
+
+service NebdFileService {
+   // for ceph & curve
+   rpc OpenFile(OpenFileRequest) returns (OpenFileResponse);
+   rpc CloseFile(CloseFileRequest) returns (CloseFileResponse);
+   rpc Read(ReadRequest) returns (ReadResponse);
+   rpc Write(WriteRequest) returns (WriteResponse);
+   rpc Discard(DiscardRequest) returns (DiscardResponse);
+   rpc ResizeFile(ResizeRequest) returns (ResizeResponse);
+   // for ceph only
+   rpc Flush(FlushRequest) returns (FlushResponse);
+   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse);
+   rpc InvalidateCache(InvalidateCacheRequest) returns (InvalidateCacheResponse);
+};
