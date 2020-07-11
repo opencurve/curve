@@ -250,11 +250,6 @@ if [ $? -ne 0 ]
 then
     exit
 fi
-cp ./bazel-bin/src/tools/nbd/curve-nbd build/curve/curve-sdk/bin/curve-nbd
-if [ $? -ne 0 ]
-then
-	exit
-fi
 # curve-snapshotcloneserver
 mkdir -p build/curve/curve-snapshotcloneserver/bin
 if [ $? -ne 0 ]
@@ -359,6 +354,23 @@ then
 fi
 echo "end copy"
 
+# step 3.1 prepare for nebd-package
+cp -r nebd/nebd-package build/
+mkdir -p build/nebd-package/usr/bin
+mkdir -p build/nebd-package/usr/lib/nebd
+
+for i in `find bazel-bin/|grep -w so|grep -v solib|grep -v params|grep -v test|grep -v fake`
+do
+    cp -f $i build/nebd-package/usr/lib/nebd
+done
+
+cp bazel-bin/nebd/src/part2/nebd-server build/nebd-package/usr/bin
+
+# step 3.2 prepare for curve-nbd package
+cp -r nbd/nbd-package build
+mkdir -p build/nbd-package/usr/bin
+cp bazel-bin/nbd/src/curve-nbd build/nbd-package/usr/bin
+
 #step4 获取git提交版本信息
 commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
 if [ "$1" = "debug" ]
@@ -379,6 +391,14 @@ monitor_name="curve-monitor_${tag_version}+${commit_id}${debug}.tar.gz"
 echo "curve_name: ${curve_name}"
 tar zcvf ${monitor_name} curve-monitor
 cp ${monitor_name} $dir
+nebd_name="nebd_${tag_version}+${commit_id}${debug}.tar.gz"
+echo "nebd_name: ${nebd_name}"
+tar zcvf ${nebd_name} nebd-package
+cp ${nebd_name} $dir
+nbd_name="nbd_${tag_version}+${commit_id}${debug}.tar.gz"
+echo "nbd_name: ${nbd_name}"
+tar zcvf ${nbd_name} nbd-package
+cp ${nbd_name} $dir
 echo "end make tarball"
 
 #step6 清理libetcdclient.so编译出现的临时文件
