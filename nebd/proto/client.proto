@@ -79,7 +79,6 @@ message ResizeResponse {
    optional string retMsg = 2;
 }
 
-// 以下proto定义，仅ceph使用
 message FlushRequest {
    required int32 fd = 1;
 }
@@ -115,14 +114,14 @@ message InvalidateCacheResponse {
 }
 
 service NebdFileService {
-   // for ceph & curve
+
    rpc OpenFile(OpenFileRequest) returns (OpenFileResponse);
    rpc CloseFile(CloseFileRequest) returns (CloseFileResponse);
    rpc Read(ReadRequest) returns (ReadResponse);
    rpc Write(WriteRequest) returns (WriteResponse);
    rpc Discard(DiscardRequest) returns (DiscardResponse);
    rpc ResizeFile(ResizeRequest) returns (ResizeResponse);
-   // for ceph only
+
    rpc Flush(FlushRequest) returns (FlushResponse);
    rpc GetInfo(GetInfoRequest) returns (GetInfoResponse);
    rpc InvalidateCache(InvalidateCacheRequest) returns (InvalidateCacheResponse);

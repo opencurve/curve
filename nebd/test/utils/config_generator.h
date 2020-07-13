@@ -27,7 +27,7 @@
 #include <string>
 #include <vector>
 
-#include "src/common/configuration.h"
+#include "nebd/src/common/configuration.h"
 
 namespace nebd {
 namespace common {
@@ -74,7 +74,7 @@ class NebdClientConfigGenerator {
     }
 
     std::string configPath_;
-    curve::common::Configuration conf_;
+    nebd::common::Configuration conf_;
 };
 
 }  // namespace common

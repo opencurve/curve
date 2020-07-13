@@ -37,8 +37,8 @@ const char metaPath[] = "/tmp/nebd-test-metafilemanager.meta";
 
 void FillCrc(Json::Value* root) {
     std::string jsonString = root->toStyledString();
-    uint32_t crc = curve::common::CRC32(jsonString.c_str(),
-                                        jsonString.size());
+    uint32_t crc = nebd::common::CRC32(jsonString.c_str(),
+                                       jsonString.size());
     (*root)[kCRC] = crc;
 }
 
@@ -65,9 +65,9 @@ TEST_F(MetaFileManagerTest, nomaltest) {
     ASSERT_EQ(0, metaFileManager.ListFileMeta(&fileMetas));
     ASSERT_TRUE(fileMetas.empty());
 
-    // 添加两条记录，ceph和curve各一
+    // 添加两条记录，curve和test各一
     NebdFileMeta fileMeta1;
-    fileMeta1.fileName = "rbd:volume1";
+    fileMeta1.fileName = "test:volume1";
     fileMeta1.fd = 1;
     ASSERT_EQ(0, metaFileManager.UpdateFileMeta(fileMeta1.fileName, fileMeta1));
     // 使用相同的内容Update
@@ -105,7 +105,7 @@ TEST_F(MetaFileManagerTest, UpdateMetaFailTest) {
     NebdMetaFileManager metaFileManager;
     ASSERT_EQ(metaFileManager.Init(option), 0);
     NebdFileMeta fileMeta;
-    fileMeta.fileName = "rbd:volume1";
+    fileMeta.fileName = "cbd:volume1";
     fileMeta.fd = 111;
     FileMetaMap fileMetaMap;
     fileMetaMap.emplace(fileMeta.fileName, fileMeta);
@@ -152,7 +152,7 @@ TEST_F(MetaFileManagerTest, RemoveMetaFailTest) {
     NebdMetaFileManager metaFileManager;
     ASSERT_EQ(metaFileManager.Init(option), 0);
     NebdFileMeta fileMeta;
-    fileMeta.fileName = "rbd:volume1";
+    fileMeta.fileName = "cbd:volume1";
     fileMeta.fd = 111;
     FileMetaMap fileMetaMap;
     fileMetaMap.emplace(fileMeta.fileName, fileMeta);
@@ -216,7 +216,7 @@ TEST(MetaFileParserTest, Parse) {
     FileMetaMap fileMetas;
 
     // 正常情况
-    volume[kFileName] = "rbd:volume1";
+    volume[kFileName] = "cbd:volume1";
     volume[kFd] = 1;
     volumes.append(volume);
     volume[kFileName] = "cbd:volume2";

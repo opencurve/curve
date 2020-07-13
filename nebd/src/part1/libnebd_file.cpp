@@ -22,7 +22,7 @@
 
 #include "nebd/src/part1/libnebd_file.h"
 #include <string>
-#include "src/common/configuration.h"
+#include "nebd/src/common/configuration.h"
 #include "nebd/src/part1/nebd_client.h"
 
 
@@ -65,10 +65,6 @@ int AioWrite4Nebd(int fd, NebdClientAioContext* aioctx) {
 
 int Flush4Nebd(int fd, NebdClientAioContext* aioctx) {
     return nebd::client::nebdClient.Flush(fd, aioctx);
-}
-
-int64_t GetInfo4Nebd(int fd) {
-    return nebd::client::nebdClient.GetInfo(fd);
 }
 
 int InvalidCache4Nebd(int fd) {

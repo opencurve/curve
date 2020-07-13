@@ -30,12 +30,12 @@
 #include <atomic>
 #include <mutex>  // NOLINT
 
-#include "src/common/uncopyable.h"
+#include "nebd/src/common/uncopyable.h"
 
 namespace nebd {
 namespace common {
 
-class NameLock : public curve::common::Uncopyable {
+class NameLock : public Uncopyable {
  public:
     explicit NameLock(int bucketNum = 256);
 
@@ -83,7 +83,7 @@ class NameLock : public curve::common::Uncopyable {
     std::vector<LockBucketPtr> locks_;
 };
 
-class NameLockGuard : public curve::common::Uncopyable {
+class NameLockGuard : public Uncopyable {
  public:
     NameLockGuard(NameLock &lock, const std::string &lockStr) :  //NOLINT
         lock_(lock),

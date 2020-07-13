@@ -29,18 +29,17 @@
 #include <memory>
 #include <map>
 
-#include "src/common/concurrent/rw_lock.h"
+#include "nebd/src/common/rw_lock.h"
 
 namespace nebd {
 namespace server {
 
-using curve::common::RWLock;
+using nebd::common::RWLock;
 using ::google::protobuf::Message;
 using ::google::protobuf::Closure;
 using ::google::protobuf::RpcController;
 
 const char CURVE_PREFIX[] = "cbd";
-const char CEPH_PREFIX[] = "rbd";
 const char TEST_PREFIX[] = "test";
 
 // nebd异步请求的类型
@@ -59,7 +58,6 @@ enum class NebdFileStatus {
 };
 
 enum class NebdFileType {
-    CEPH = 0,
     CURVE = 1,
     TEST = 2,
     UNKWOWN = 3,
@@ -101,7 +99,7 @@ struct NebdServerAioContext {
 struct NebdFileInfo {
     // 文件大小
     uint64_t size;
-    // object大小（ceph为object，curve为chunk）
+    // object/chunk大小
     uint64_t obj_size;
     // object数量
     uint64_t num_objs;

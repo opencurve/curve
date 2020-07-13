@@ -7,4 +7,4 @@ Architecture:amd64
 Installed-Size:
 Maintainer: nebd-dev
 Provides:
-Description: nebd is a proxy between qemu and cbd/rbd
+Description: nebd is a proxy between qemu and cbd

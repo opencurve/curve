@@ -23,7 +23,6 @@ cc_library(
     hdrs = glob(["*.h"]),
     deps = [
         "//nebd/src/common:nebd_common",
-        "//src/common:curve_common",
     ],
     visibility = ["//visibility:public"],
 )

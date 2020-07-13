@@ -98,10 +98,6 @@ int nebd_lib_flush(int fd, NebdClientAioContext* context) {
     return Flush4Nebd(fd, context);
 }
 
-int64_t nebd_lib_getinfo(int fd) {
-    return GetInfo4Nebd(fd);
-}
-
 int nebd_lib_invalidcache(int fd) {
     return InvalidCache4Nebd(fd);
 }

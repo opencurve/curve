@@ -26,7 +26,7 @@
 #include "nebd/src/part2/nebd_server.h"
 #include "nebd/src/part2/file_service.h"
 #include "nebd/src/part2/heartbeat_service.h"
-#include "src/common/curve_version.h"
+#include "nebd/src/common/nebd_version.h"
 
 namespace nebd {
 namespace server {
@@ -75,8 +75,8 @@ int NebdServer::Init(const std::string &confPath,
 
     LOG(INFO) << "NebdServer init ok";
     // 暴露版本信息
-    LOG(INFO) << "nebd version: " << curve::common::CurveVersion();
-    curve::common::ExposeCurveVersion();
+    LOG(INFO) << "nebd version: " << nebd::common::NebdVersion();
+    nebd::common::ExposeNebdVersion();
     return 0;
 }
 

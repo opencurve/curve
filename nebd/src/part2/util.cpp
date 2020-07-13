@@ -33,8 +33,6 @@ NebdFileType GetFileType(const std::string& fileName) {
     std::string type = fileName.substr(0, pos);
     if (type == CURVE_PREFIX) {
         return NebdFileType::CURVE;
-    } else if (type == CEPH_PREFIX) {
-        return NebdFileType::CEPH;
     } else if (type == TEST_PREFIX) {
         return NebdFileType::TEST;
     } else {

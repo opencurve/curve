@@ -25,8 +25,8 @@
 namespace nebd {
 namespace client {
 
-using curve::common::WriteLockGuard;
-using curve::common::ReadLockGuard;
+using nebd::common::WriteLockGuard;
+using nebd::common::ReadLockGuard;
 
 void NebdClientMetaCache::AddFileInfo(const NebdClientFileInfo& fileInfo) {
     WriteLockGuard guard(rwLock_);
