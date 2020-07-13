@@ -1583,12 +1583,12 @@ random combination thrasher
     check loop read   ${new_fd}
     [Teardown]	    file clean     ${new_fd}
 
-analysis copyset scatterwith
-    [Tags]    P0    base    first release
-    get copyset table
-    mv copyset table
-    get copyset scatterwith
-    [Teardown]	    rm copyset table
+#analysis copyset scatterwith
+#    [Tags]    P0    base    first release
+#    get copyset table
+#    mv copyset table
+#    get copyset scatterwith
+#    [Teardown]	    rm copyset table
 
 snapshot test
     [Tags]    P1    base    first release   snapshot    no-need
@@ -2341,8 +2341,8 @@ file clean
 
 
 init cluster
-     Run Keyword And Ignore Error   drop mds table
-     create db table
+#     Run Keyword And Ignore Error   drop mds table
+#     create db table
      #drop snap clone table
      Run Keyword And Ignore Error   clean cs data
      Run Keyword And Ignore Error   clean etcd data
@@ -2364,8 +2364,8 @@ init cluster
 
 clean env
      libcurve uninit
-	 Run Keyword And Ignore Error   clean db
-	 Run Keyword And Ignore Error   drop mds table
+#	 Run Keyword And Ignore Error   clean db
+#	 Run Keyword And Ignore Error   drop mds table
 	 #drop snap clone table
 	 kill mds
 	 stop chunkserver if started
@@ -2421,8 +2421,8 @@ start services
 
 create logicalpool with sleep
 	 create logicalpool		${copyset_num}		${mds_port}		${physicalpool_name} 		${logical_op}
-	 Sleep 		3s
-	 check_copyset_num      64
+	 Sleep 		30s
+#	 check_copyset_num      64
 
 snapshot workflow base
      start services

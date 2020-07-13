@@ -570,8 +570,8 @@ init abnormal test env
      destroy snapshotclone server
      stop nebd
      drop all chunkserver dat
-     drop abnormal test db
-     create abnormal db table
+#     drop abnormal test db
+#     create abnormal db table
      install deb
      add config 
      start abnormal test services
