@@ -16,13 +16,9 @@
 #
 
 - name: create remote dir
-  ignore_errors: true
-  shell: mkdir -p {{ remote_dir_name }}
-  register: create_dir_res
-
-- name: create remote dir with sudo
-  shell: sudo mkdir -p {{ remote_dir_name }}
-  when: create_dir_res.rc != 0
+  vars:
+    dir_name: "{{ remote_dir_name }}"
+  include_tasks: common_tasks/create_dir.yml
 
 - name: copy file directly
   ignore_errors: true
@@ -35,6 +31,9 @@
     - name: clear tmp dir
       become: false
       shell: rm -rf {{ tmp_dir }}
+    - name: create tmp dir
+      become: false
+      shell: mkdir -p {{ tmp_dir }}
     - name: copy files to tempory directory
       become: false
       copy: src={{ local_file_path }} dest={{ tmp_dir }} mode={{ file_mode }}

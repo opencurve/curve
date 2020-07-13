@@ -202,8 +202,6 @@ client_turn_off_health_check: true
 
 # nebd默认配置
 client_config_path: /etc/curve/client.conf
-nebd_socket_file: /data/nebd/nebd.sock
-nebd_client_file_lock_path: /data/nebd/lock
 nebd_client_sync_rpc_retry_times: 50
 nebd_client_rpc_retry_inverval_us: 100000
 nebd_client_rpc_retry_max_inverval_us: 64000000
@@ -212,8 +210,6 @@ nebd_client_health_check_internal_s: 1
 nebd_client_delay_health_check_internal_ms: 100
 nebd_client_heartbeat_inverval_s: 5
 nebd_client_heartbeat_rpc_timeout_ms: 500
-nebd_client_log_path: /data/log/nebd/client
-nebd_server_meta_path: /data/nebd/nebdserver.meta
 nebd_server_heartbeat_timeout_s: 30
 nebd_server_heartbeat_check_interval_ms: 3000
 

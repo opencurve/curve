@@ -304,7 +304,6 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
-# curve-nebd
 # aws
 mkdir -p build/curve/aws-sdk
 if [ $? -ne 0 ]
@@ -355,21 +354,19 @@ fi
 echo "end copy"
 
 # step 3.1 prepare for nebd-package
-cp -r nebd/nebd-package build/
-mkdir -p build/nebd-package/usr/bin
-mkdir -p build/nebd-package/usr/lib/nebd
+mkdir -p build/nebd-package/bin
+mkdir -p build/nebd-package/lib/nebd
 
 for i in `find bazel-bin/|grep -w so|grep -v solib|grep -v params|grep -v test|grep -v fake`
 do
-    cp -f $i build/nebd-package/usr/lib/nebd
+    cp -f $i build/nebd-package/lib/nebd
 done
 
-cp bazel-bin/nebd/src/part2/nebd-server build/nebd-package/usr/bin
+cp bazel-bin/nebd/src/part2/nebd-server build/nebd-package/bin
 
 # step 3.2 prepare for curve-nbd package
-cp -r nbd/nbd-package build
-mkdir -p build/nbd-package/usr/bin
-cp bazel-bin/nbd/src/curve-nbd build/nbd-package/usr/bin
+mkdir -p build/nbd-package/bin
+cp bazel-bin/nbd/src/curve-nbd build/nbd-package/bin
 
 #step4 获取git提交版本信息
 commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`

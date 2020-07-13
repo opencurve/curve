@@ -2,10 +2,10 @@
 curveclient.confPath={{ client_config_path }}
 
 #brpc server监听端口
-listen.address={{ nebd_socket_file }}
+listen.address={{ nebd_data_dir }}/nebd.sock
 
 #元数据文件地址,包含文件名
-meta.file.path={{ nebd_server_meta_path }}
+meta.file.path={{ nebd_data_dir }}/nebdserver.meta
 
 #心跳超时时间
 heartbeat.timeout.sec={{ nebd_server_heartbeat_timeout_s }}
