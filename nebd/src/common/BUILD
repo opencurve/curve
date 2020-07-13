@@ -27,7 +27,5 @@ cc_library(
         "//external:butil",
         "//external:bthread",
         "//external:bvar",
-        "//src/common:curve_uncopy",
-        "//src/common:curve_common",
     ],
 )

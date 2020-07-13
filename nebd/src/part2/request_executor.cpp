@@ -21,7 +21,6 @@
  */
 
 #include "nebd/src/part2/request_executor.h"
-#include "nebd/src/part2/request_executor_ceph.h"
 #include "nebd/src/part2/request_executor_curve.h"
 
 namespace nebd {
@@ -33,9 +32,6 @@ NebdRequestExecutor*
 NebdRequestExecutorFactory::GetExecutor(NebdFileType type) {
     NebdRequestExecutor* executor = nullptr;
     switch (type) {
-        case NebdFileType::CEPH:
-            executor = &CephRequestExecutor::GetInstance();
-            break;
         case NebdFileType::CURVE:
             executor = &CurveRequestExecutor::GetInstance();
             break;
@@ -52,9 +48,6 @@ NebdFileInstancePtr
 NebdFileInstanceFactory::GetInstance(NebdFileType type) {
     NebdFileInstancePtr instance = nullptr;
     switch (type) {
-        case NebdFileType::CEPH:
-            instance = std::make_shared<CephFileInstance>();
-            break;
         case NebdFileType::CURVE:
             instance = std::make_shared<CurveFileInstance>();
             break;

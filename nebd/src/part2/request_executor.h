@@ -32,10 +32,8 @@ namespace nebd {
 namespace server {
 
 class CurveRequestExecutor;
-class CephRequestExecutor;
 
 // 具体RequestExecutor中会用到的文件实例上下文信息
-// 该类为抽象结构，ceph或curve需要继承定义自己的FileInstance
 // RequestExecutor需要用到的文件上下文信息都记录到FileInstance内
 class NebdFileInstance {
  public:

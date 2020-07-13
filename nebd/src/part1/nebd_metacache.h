@@ -28,7 +28,7 @@
 #include <string>
 
 #include "nebd/src/common/file_lock.h"
-#include "src/common/concurrent/rw_lock.h"
+#include "nebd/src/common/rw_lock.h"
 
 namespace nebd {
 namespace client {
@@ -87,7 +87,7 @@ class NebdClientMetaCache {
  private:
     // 当前已打开文件信息
     std::unordered_map<int, NebdClientFileInfo> fileinfos_;
-    mutable curve::common::RWLock rwLock_;
+    mutable nebd::common::RWLock rwLock_;
 };
 
 }  // namespace client

@@ -189,7 +189,7 @@ int NebdMetaFileParser::Parse(Json::Value root,
     uint32_t crcValue = root[kCRC].asUInt();
     root.removeMember(kCRC);
     std::string jsonString = root.toStyledString();
-    uint32_t crcCalc = curve::common::CRC32(jsonString.c_str(),
+    uint32_t crcCalc = nebd::common::CRC32(jsonString.c_str(),
                                            jsonString.size());
     if (crcValue != crcCalc) {
         LOG(ERROR) << "Parse json: " << root
@@ -256,7 +256,7 @@ Json::Value NebdMetaFileParser::ConvertFileMetasToJson(
 
     // 计算crc
     std::string jsonString = root.toStyledString();
-    uint32_t crc = curve::common::CRC32(jsonString.c_str(), jsonString.size());
+    uint32_t crc = nebd::common::CRC32(jsonString.c_str(), jsonString.size());
     root[kCRC] = crc;
     return root;
 }

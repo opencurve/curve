@@ -32,7 +32,7 @@
 #include <string>
 
 #include "nebd/src/part1/async_request_closure.h"
-#include "src/common/configuration.h"
+#include "nebd/src/common/configuration.h"
 
 #define RETURN_IF_FALSE(val) if (val == false) { return -1; }
 
@@ -58,7 +58,7 @@ NebdClient &nebdClient = NebdClient::GetInstance();
 constexpr int32_t kBufSize = 128;
 
 int NebdClient::Init(const char* confpath) {
-    curve::common::Configuration conf;
+    nebd::common::Configuration conf;
     conf.SetConfigPath(confpath);
 
     if (!conf.LoadConfig()) {
@@ -351,44 +351,6 @@ int NebdClient::Flush(int fd, NebdClientAioContext* aioctx) {
     done->cntl.set_log_id(logId_.fetch_add(1, std::memory_order_relaxed));
     stub.Flush(&done->cntl, &request, &done->response, done);
     return 0;
-}
-
-int64_t NebdClient::GetInfo(int fd) {
-    auto task = [&](brpc::Controller* cntl,
-                    brpc::Channel* channel,
-                    bool* rpcFailed) -> int64_t {
-        nebd::client::NebdFileService_Stub stub(channel);
-        nebd::client::GetInfoRequest request;
-        nebd::client::GetInfoResponse response;
-
-        request.set_fd(fd);
-        stub.GetInfo(cntl, &request, &response, nullptr);
-
-        *rpcFailed = cntl->Failed();
-        if (*rpcFailed) {
-            LOG(WARNING) << "GetInfo rpc failed, error = "
-                         << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -1;
-        } else {
-            if (response.retcode() != nebd::client::RetCode::kOK) {
-                LOG(ERROR) << "GetInfo failed, "
-                           << "retcode = " << response.retcode()
-                           <<",  retmsg = " << response.retmsg()
-                           << ", fd = " << fd
-                           << ", log id = " << cntl->log_id();
-                return -1;
-            } else {
-                return response.info().objsize();
-            }
-        }
-    };
-
-    int64_t ret = ExecuteSyncRpc(task);
-    if (ret < 0) {
-        LOG(ERROR) << "GetInfo failed, fd = " << fd;
-    }
-    return ret;
 }
 
 int NebdClient::InvalidCache(int fd) {

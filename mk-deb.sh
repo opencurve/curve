@@ -107,7 +107,7 @@ then
 	exit
 fi
 fi
-set -e
+
 #step3 创建临时目录，拷贝二进制、lib库和配置模板
 mkdir build
 if [ $? -ne 0 ]

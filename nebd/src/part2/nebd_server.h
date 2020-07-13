@@ -26,7 +26,7 @@
 #include <brpc/server.h>
 #include <string>
 #include <memory>
-#include "src/common/configuration.h"
+#include "nebd/src/common/configuration.h"
 #include "nebd/src/part2/file_manager.h"
 #include "nebd/src/part2/heartbeat_manager.h"
 #include "nebd/src/part2/request_executor_curve.h"
@@ -34,7 +34,7 @@
 namespace nebd {
 namespace server {
 
-using ::curve::common::Configuration;
+using ::nebd::common::Configuration;
 using ::curve::client::CurveClient;
 
 class NebdServer {

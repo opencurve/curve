@@ -31,8 +31,8 @@
 #include <mutex>  // NOLINT
 #include <unordered_map>
 
-#include "src/common/concurrent/rw_lock.h"
-#include "src/common/timeutility.h"
+#include "nebd/src/common/rw_lock.h"
+#include "nebd/src/common/timeutility.h"
 #include "nebd/src/part2/define.h"
 #include "nebd/src/part2/util.h"
 #include "nebd/src/part2/request_executor.h"
@@ -41,10 +41,10 @@
 namespace nebd {
 namespace server {
 
-using curve::common::BthreadRWLock;
-using curve::common::WriteLockGuard;
-using curve::common::ReadLockGuard;
-using curve::common::TimeUtility;
+using nebd::common::BthreadRWLock;
+using nebd::common::WriteLockGuard;
+using nebd::common::ReadLockGuard;
+using nebd::common::TimeUtility;
 
 class NebdFileInstance;
 class NebdRequestExecutor;

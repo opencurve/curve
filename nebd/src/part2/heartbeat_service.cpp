@@ -20,14 +20,14 @@
  * Author: charisu
  */
 
-#include "src/common/timeutility.h"
+#include "nebd/src/common/timeutility.h"
 #include "nebd/src/part2/heartbeat_service.h"
 #include "nebd/src/part2/define.h"
 
 namespace nebd {
 namespace server {
 
-using curve::common::TimeUtility;
+using nebd::common::TimeUtility;
 
 void NebdHeartbeatServiceImpl::KeepAlive(
         google::protobuf::RpcController* cntl_base,

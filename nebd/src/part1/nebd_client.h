@@ -30,7 +30,7 @@
 #include <memory>
 
 #include "nebd/src/part1/nebd_common.h"
-#include "src/common/configuration.h"
+#include "nebd/src/common/configuration.h"
 #include "nebd/proto/client.pb.h"
 #include "nebd/src/part1/libnebd.h"
 #include "nebd/src/part1/heartbeat_manager.h"
@@ -42,7 +42,7 @@ namespace client {
 using RpcTask = std::function<int64_t (brpc::Controller* cntl,
                                        brpc::Channel* channel,
                                        bool* rpcFailed)>;
-using curve::common::Configuration;
+using nebd::common::Configuration;
 
 class NebdClient {
  public:
@@ -127,13 +127,6 @@ class NebdClient {
      *  @return 成功返回0，失败返回错误码
      */
     int Flush(int fd, NebdClientAioContext* aioctx);
-
-    /**
-     *  @brief 获取文件info
-     *  @param fd：文件的fd
-     *  @return 成功返回文件对象size，失败返回错误码
-     */
-    int64_t GetInfo(int fd);
 
     /**
      *  @brief 刷新cache，等所有异步请求返回

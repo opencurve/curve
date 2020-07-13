@@ -31,7 +31,7 @@
 
 #include "nebd/src/part1/nebd_common.h"
 #include "nebd/src/part1/nebd_metacache.h"
-#include "src/common/interruptible_sleeper.h"
+#include "nebd/src/common/interrupt_sleep.h"
 
 namespace nebd {
 namespace client {
@@ -82,7 +82,7 @@ class HeartbeatManager {
     std::shared_ptr<NebdClientMetaCache>  metaCache_;
 
     std::thread heartbeatThread_;
-    curve::common::InterruptibleSleeper sleeper_;
+    nebd::common::InterruptibleSleeper sleeper_;
 
     std::atomic<bool> running_;
     std::atomic<uint64_t> logId_;
