@@ -105,6 +105,7 @@ TEST_F(NebdLibTest, CommonTest) {
 
     ASSERT_EQ(0, nebd_lib_resize(fd, kFileSize));
     ASSERT_EQ(kFileSize, nebd_lib_filesize(fd));
+    ASSERT_EQ(kFileSize, nebd_lib_getinfo(fd));
     ASSERT_EQ(0, nebd_lib_invalidcache(fd));
 
     ASSERT_EQ(-1, nebd_lib_pread(fd, 0, 0, 0));

@@ -129,6 +129,13 @@ class NebdClient {
     int Flush(int fd, NebdClientAioContext* aioctx);
 
     /**
+     *  @brief 获取文件info
+     *  @param fd：文件的fd
+     *  @return 成功返回文件对象size，失败返回错误码
+     */
+    int64_t GetInfo(int fd);
+
+    /**
      *  @brief 刷新cache，等所有异步请求返回
      *  @param fd：文件的fd
      *  @return 成功返回0，失败返回错误码

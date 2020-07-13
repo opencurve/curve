@@ -67,6 +67,10 @@ int Flush4Nebd(int fd, NebdClientAioContext* aioctx) {
     return nebd::client::nebdClient.Flush(fd, aioctx);
 }
 
+int64_t GetInfo4Nebd(int fd) {
+    return nebd::client::nebdClient.GetInfo(fd);
+}
+
 int InvalidCache4Nebd(int fd) {
     return nebd::client::nebdClient.InvalidCache(fd);
 }
