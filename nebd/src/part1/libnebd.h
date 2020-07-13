@@ -166,6 +166,13 @@ int nebd_lib_resize(int fd, int64_t size);
 int nebd_lib_flush(int fd, NebdClientAioContext* context);
 
 /**
+ *  @brief 获取文件info
+ *  @param fd：文件的fd
+ *  @return 成功返回文件对象size，失败返回错误码
+ */
+int64_t nebd_lib_getinfo(int fd);
+
+/**
  *  @brief 刷新cache，等所有异步请求返回
  *  @param fd：文件的fd
  *  @return 成功返回0，失败返回错误码

@@ -353,6 +353,44 @@ int NebdClient::Flush(int fd, NebdClientAioContext* aioctx) {
     return 0;
 }
 
+int64_t NebdClient::GetInfo(int fd) {
+    auto task = [&](brpc::Controller* cntl,
+                    brpc::Channel* channel,
+                    bool* rpcFailed) -> int64_t {
+        nebd::client::NebdFileService_Stub stub(channel);
+        nebd::client::GetInfoRequest request;
+        nebd::client::GetInfoResponse response;
+
+        request.set_fd(fd);
+        stub.GetInfo(cntl, &request, &response, nullptr);
+
+        *rpcFailed = cntl->Failed();
+        if (*rpcFailed) {
+            LOG(WARNING) << "GetInfo rpc failed, error = "
+                         << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
+            return -1;
+        } else {
+            if (response.retcode() != nebd::client::RetCode::kOK) {
+                LOG(ERROR) << "GetInfo failed, "
+                           << "retcode = " << response.retcode()
+                           <<",  retmsg = " << response.retmsg()
+                           << ", fd = " << fd
+                           << ", log id = " << cntl->log_id();
+                return -1;
+            } else {
+                return response.info().objsize();
+            }
+        }
+    };
+
+    int64_t ret = ExecuteSyncRpc(task);
+    if (ret < 0) {
+        LOG(ERROR) << "GetInfo failed, fd = " << fd;
+    }
+    return ret;
+}
+
 int NebdClient::InvalidCache(int fd) {
     auto task = [&](brpc::Controller* cntl,
                     brpc::Channel* channel,

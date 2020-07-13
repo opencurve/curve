@@ -29,10 +29,10 @@ namespace common {
 // https://gcc.gnu.org/onlinedocs/gcc-4.8.5/cpp/Stringification.html
 std::string NebdVersion() {
     static const std::string version =
-#ifdef NEBDVERSION
+#ifdef CURVEVERSION
 #  define STR(val) #val
 #  define XSTR(val) STR(val)
-        std::string(XSTR(NEBDVERSION));
+        std::string(XSTR(CURVEVERSION));
 #else
         std::string("unknown");
 #endif

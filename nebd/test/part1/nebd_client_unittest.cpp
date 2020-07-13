@@ -269,6 +269,7 @@ TEST_F(NebdFileClientTest, NoNebdServerTest) {
     }
     ASSERT_EQ(-1, Extend4Nebd(1, kFileSize));
     ASSERT_EQ(-1, GetFileSize4Nebd(1));
+    ASSERT_EQ(-1, GetInfo4Nebd(1));
     ASSERT_EQ(-1, InvalidCache4Nebd(1));
     ASSERT_EQ(-1, Close4Nebd(1));
 
@@ -290,6 +291,7 @@ TEST_F(NebdFileClientTest, CommonTest) {
 
     ASSERT_EQ(0, Extend4Nebd(fd, kFileSize));
     ASSERT_EQ(kFileSize, GetFileSize4Nebd(fd));
+    ASSERT_EQ(-1, GetInfo4Nebd(1));
     ASSERT_EQ(0, InvalidCache4Nebd(fd));
 
     char buffer[kBufSize];
@@ -439,6 +441,17 @@ TEST_F(NebdFileClientTest, ResponseFailTest) {
                 SetArgPointee<2>(response),
                 Invoke(MockClientFunc<GetInfoRequest, GetInfoResponse>)));  // NOLINT
         ASSERT_EQ(-1, GetFileSize4Nebd(1));
+    }
+
+    {
+        GetInfoResponse response;
+        response.set_retcode(RetCode::kNoOK);
+        EXPECT_CALL(mockService, GetInfo(_, _, _, _))
+            .Times(1)
+            .WillOnce(DoAll(
+                SetArgPointee<2>(response),
+                Invoke(MockClientFunc<GetInfoRequest, GetInfoResponse>)));  // NOLINT
+        ASSERT_EQ(-1, GetInfo4Nebd(1));
     }
 
     {
