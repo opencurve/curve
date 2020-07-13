@@ -57,5 +57,5 @@ install_etcd_dir: /usr/bin
 
 lib_download_dir: /tmp
 libunwind_download_url: http://download.savannah.gnu.org/releases/libunwind/libunwind-1.1.tar.gz
-jemalloc_version: 3.6.0
 jemalloc_download_url: https://github.com/jemalloc/jemalloc/releases/download/jemalloc-3.6.0.tar.bz2
+libnl_download_url: http://www.infradead.org/~tgr/libnl/files/libnl-3.2.25.tar.gz

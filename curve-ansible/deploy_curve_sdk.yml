@@ -14,11 +14,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-# The rolling update playbook of Curve
+# The deploy playbook of Curve
 
-# 升级curve sdk
+# 部署curve-sdk
 
-# 1. 更新各节点上的配置
 - name: prepare curve-sdk
   hosts: client
   gather_facts: no

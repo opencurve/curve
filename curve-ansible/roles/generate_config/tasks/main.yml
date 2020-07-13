@@ -15,14 +15,14 @@
 #  limitations under the License.
 #
 
-- name: create config dir
-  ignore_errors: true
-  shell: mkdir -p `dirname {{ conf_path }}`
-  register: create_conf_dir_res
+- name: get config dir
+  shell: dirname {{ conf_path }}
+  register: dirname_res
 
-- name: create config dir with sudo
-  shell: sudo mkdir -p `dirname {{ conf_path }}`
-  when: create_conf_dir_res.rc != 0
+- name: create config dir
+  vars:
+    dir_name: "{{ dirname_res.stdout }}"
+  include_tasks: common_tasks/create_dir.yml
 
 - name: generate configuration file directly
   ignore_errors: true

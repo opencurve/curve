@@ -1,8 +1,8 @@
 # part2 socket file address
-nebdserver.serverAddress={{ nebd_socket_file }}
+nebdserver.serverAddress={{ nebd_data_dir }}/nebd.sock
 
 # 文件锁路径
-metacache.fileLockPath={{ nebd_client_file_lock_path }}
+metacache.fileLockPath={{ nebd_data_dir }}/lock
 
 # 同步rpc的最大重试次数
 request.syncRpcMaxRetryTimes={{ nebd_client_sync_rpc_retry_times }}
@@ -23,4 +23,4 @@ heartbeat.intervalS={{ nebd_client_heartbeat_inverval_s }}
 heartbeat.rpcTimeoutMs={{ nebd_client_heartbeat_rpc_timeout_ms }}
 
 # 日志路径
-log.path={{ nebd_client_log_path }}
+log.path={{ nebd_log_dir }}/client
