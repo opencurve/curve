@@ -1,0 +1,3218 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 7f221dc..fa2e935 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -193,9 +193,13 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ # for *.so
+-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/output/lib)
++if(NOT CMAKE_LIBRARY_OUTPUT_DIRECTORY)
++    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/output/lib)
++endif()
+ # for *.a
+-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/output/lib)
++if(NOT CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
++    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/output/lib)
++endif()
+ 
+ # list all source files
+ set(BUTIL_SOURCES
+diff --git a/example/BUILD b/example/BUILD
+index 02cff39..18e607f 100644
+--- a/example/BUILD
++++ b/example/BUILD
+@@ -59,3 +59,33 @@ cc_binary(
+     ],
+     copts = COPTS,
+ )
++
++cc_binary(
++    name = "echo_c++_unix_server",
++    srcs = [
++        "echo_c++_unix_socket/server.cpp",
++    ],
++    includes = [
++        "echo_c++",
++    ],
++    deps = [
++        ":cc_echo_c++_proto",
++        "//:brpc",
++    ],
++    copts = COPTS,
++)
++
++cc_binary(
++    name = "echo_c++_unix_client",
++    srcs = [
++        "echo_c++_unix_socket/client.cpp",
++    ],
++    includes = [
++        "echo_c++",
++    ],
++    deps = [
++        ":cc_echo_c++_proto",
++        "//:brpc",
++    ],
++    copts = COPTS,
++)
+diff --git a/example/echo_c++_unix_socket/CMakeLists.txt b/example/echo_c++_unix_socket/CMakeLists.txt
+new file mode 100644
+index 0000000..325918d
+--- /dev/null
++++ b/example/echo_c++_unix_socket/CMakeLists.txt
+@@ -0,0 +1,128 @@
++cmake_minimum_required(VERSION 2.8.10)
++project(echo_c++ C CXX)
++
++option(EXAMPLE_LINK_SO "Whether examples are linked dynamically" OFF)
++
++execute_process(
++    COMMAND bash -c "find ${PROJECT_SOURCE_DIR}/../.. -type d -regex \".*output/include$\" | head -n1 | xargs dirname | tr -d '\n'"
++    OUTPUT_VARIABLE OUTPUT_PATH
++)
++
++set(CMAKE_PREFIX_PATH ${OUTPUT_PATH})
++
++include(FindThreads)
++include(FindProtobuf)
++protobuf_generate_cpp(PROTO_SRC PROTO_HEADER echo.proto)
++# include PROTO_HEADER
++include_directories(${CMAKE_CURRENT_BINARY_DIR})
++
++# Search for libthrift* by best effort. If it is not found and brpc is
++# compiled with thrift protocol enabled, a link error would be reported.
++find_library(THRIFT_LIB NAMES thrift)
++if (NOT THRIFT_LIB)
++    set(THRIFT_LIB "")
++endif()
++find_library(THRIFTNB_LIB NAMES thriftnb)
++if (NOT THRIFTNB_LIB)
++    set(THRIFTNB_LIB "")
++endif()
++
++find_path(BRPC_INCLUDE_PATH NAMES brpc/server.h)
++if(EXAMPLE_LINK_SO)
++    find_library(BRPC_LIB NAMES brpc)
++else()
++    find_library(BRPC_LIB NAMES libbrpc.a brpc)
++endif()
++if((NOT BRPC_INCLUDE_PATH) OR (NOT BRPC_LIB))
++    message(FATAL_ERROR "Fail to find brpc")
++endif()
++include_directories(${BRPC_INCLUDE_PATH})
++
++find_path(GFLAGS_INCLUDE_PATH gflags/gflags.h)
++find_library(GFLAGS_LIBRARY NAMES gflags libgflags)
++if((NOT GFLAGS_INCLUDE_PATH) OR (NOT GFLAGS_LIBRARY))
++    message(FATAL_ERROR "Fail to find gflags")
++endif()
++include_directories(${GFLAGS_INCLUDE_PATH})
++
++execute_process(
++    COMMAND bash -c "grep \"namespace [_A-Za-z0-9]\\+ {\" ${GFLAGS_INCLUDE_PATH}/gflags/gflags_declare.h | head -1 | awk '{print $2}' | tr -d '\n'"
++    OUTPUT_VARIABLE GFLAGS_NS
++)
++if(${GFLAGS_NS} STREQUAL "GFLAGS_NAMESPACE")
++    execute_process(
++        COMMAND bash -c "grep \"#define GFLAGS_NAMESPACE [_A-Za-z0-9]\\+\" ${GFLAGS_INCLUDE_PATH}/gflags/gflags_declare.h | head -1 | awk '{print $3}' | tr -d '\n'"
++        OUTPUT_VARIABLE GFLAGS_NS
++    )
++endif()
++if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
++    include(CheckFunctionExists)
++    CHECK_FUNCTION_EXISTS(clock_gettime HAVE_CLOCK_GETTIME)
++    if(NOT HAVE_CLOCK_GETTIME)
++        set(DEFINE_CLOCK_GETTIME "-DNO_CLOCK_GETTIME_IN_MAC")
++    endif()
++endif()
++
++set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++
++if(CMAKE_VERSION VERSION_LESS "3.1.3")
++    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
++        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
++    endif()
++    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
++        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
++    endif()
++else()
++    set(CMAKE_CXX_STANDARD 11)
++    set(CMAKE_CXX_STANDARD_REQUIRED ON)
++endif()
++
++find_path(LEVELDB_INCLUDE_PATH NAMES leveldb/db.h)
++find_library(LEVELDB_LIB NAMES leveldb)
++if ((NOT LEVELDB_INCLUDE_PATH) OR (NOT LEVELDB_LIB))
++    message(FATAL_ERROR "Fail to find leveldb")
++endif()
++include_directories(${LEVELDB_INCLUDE_PATH})
++
++find_library(SSL_LIB NAMES ssl)
++if (NOT SSL_LIB)
++    message(FATAL_ERROR "Fail to find ssl")
++endif()
++
++find_library(CRYPTO_LIB NAMES crypto)
++if (NOT CRYPTO_LIB)
++    message(FATAL_ERROR "Fail to find crypto")
++endif()
++
++add_executable(echo_client client.cpp ${PROTO_SRC} ${PROTO_HEADER})
++add_executable(echo_server server.cpp ${PROTO_SRC} ${PROTO_HEADER})
++
++set(DYNAMIC_LIB
++    ${CMAKE_THREAD_LIBS_INIT}
++    ${GFLAGS_LIBRARY}
++    ${PROTOBUF_LIBRARIES}
++    ${LEVELDB_LIB}
++    ${SSL_LIB}
++    ${CRYPTO_LIB}
++    ${THRIFT_LIB}
++    ${THRIFTNB_LIB}
++    dl
++    )
++
++if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
++    set(DYNAMIC_LIB ${DYNAMIC_LIB}
++        pthread
++        "-framework CoreFoundation"
++        "-framework CoreGraphics"
++        "-framework CoreData"
++        "-framework CoreText"
++        "-framework Security"
++        "-framework Foundation"
++        "-Wl,-U,_MallocExtension_ReleaseFreeMemory"
++        "-Wl,-U,_ProfilerStart"
++        "-Wl,-U,_ProfilerStop")
++endif()
++
++target_link_libraries(echo_client ${BRPC_LIB} ${DYNAMIC_LIB})
++target_link_libraries(echo_server ${BRPC_LIB} ${DYNAMIC_LIB})
+diff --git a/example/echo_c++_unix_socket/client.cpp b/example/echo_c++_unix_socket/client.cpp
+new file mode 100644
+index 0000000..f7d708d
+--- /dev/null
++++ b/example/echo_c++_unix_socket/client.cpp
+@@ -0,0 +1,87 @@
++// Copyright (c) 2014 Baidu, Inc.
++// 
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++// 
++//     http://www.apache.org/licenses/LICENSE-2.0
++// 
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++// A client sending requests to server every 1 second.
++
++#include <gflags/gflags.h>
++#include <butil/logging.h>
++#include <butil/time.h>
++#include <brpc/channel.h>
++#include "echo.pb.h"
++
++DEFINE_string(attachment, "", "Carry this along with requests");
++DEFINE_string(protocol, "baidu_std", "Protocol type. Defined in src/brpc/options.proto");
++DEFINE_string(connection_type, "", "Connection type. Available values: single, pooled, short");
++DEFINE_string(server_file, "", "socket file of server");
++DEFINE_int32(timeout_ms, 100, "RPC timeout in milliseconds");
++DEFINE_int32(max_retry, 3, "Max retries(not including the first RPC)"); 
++DEFINE_int32(interval_ms, 1000, "Milliseconds between consecutive requests");
++
++int main(int argc, char* argv[]) {
++    // Parse gflags. We recommend you to use gflags as well.
++    GFLAGS_NS::ParseCommandLineFlags(&argc, &argv, true);
++    
++    // A Channel represents a communication line to a Server. Notice that 
++    // Channel is thread-safe and can be shared by all threads in your program.
++    brpc::Channel channel;
++    
++    // Initialize the channel, NULL means using default options.
++    brpc::ChannelOptions options;
++    options.protocol = FLAGS_protocol;
++    options.connection_type = FLAGS_connection_type;
++    options.timeout_ms = FLAGS_timeout_ms/*milliseconds*/;
++    options.max_retry = FLAGS_max_retry;
++    if (channel.InitWithSockFile(FLAGS_server_file.c_str(), &options) != 0) {
++        LOG(ERROR) << "Fail to initialize channel";
++        return -1;
++    }
++
++    // Normally, you should not call a Channel directly, but instead construct
++    // a stub Service wrapping it. stub can be shared by all threads as well.
++    example::EchoService_Stub stub(&channel);
++
++    // Send a request and wait for the response every 1 second.
++    int log_id = 0;
++    while (!brpc::IsAskedToQuit()) {
++        // We will receive response synchronously, safe to put variables
++        // on stack.
++        example::EchoRequest request;
++        example::EchoResponse response;
++        brpc::Controller cntl;
++
++        request.set_message("hello world");
++
++        cntl.set_log_id(log_id ++);  // set by user
++        // Set attachment which is wired to network directly instead of 
++        // being serialized into protobuf messages.
++        cntl.request_attachment().append(FLAGS_attachment);
++
++        // Because `done'(last parameter) is NULL, this function waits until
++        // the response comes back or error occurs(including timedout).
++        stub.Echo(&cntl, &request, &response, NULL);
++        if (!cntl.Failed()) {
++            LOG(INFO) << "Received response from " << cntl.remote_side()
++                << " to " << cntl.local_side()
++                << ": " << response.message() << " (attached="
++                << cntl.response_attachment() << ")"
++                << " latency=" << cntl.latency_us() << "us";
++        } else {
++            LOG(WARNING) << cntl.ErrorText();
++        }
++        usleep(FLAGS_interval_ms * 1000L);
++    }
++
++    LOG(INFO) << "EchoClient is going to quit";
++    return 0;
++}
+diff --git a/example/echo_c++_unix_socket/echo.proto b/example/echo_c++_unix_socket/echo.proto
+new file mode 100644
+index 0000000..4601d5d
+--- /dev/null
++++ b/example/echo_c++_unix_socket/echo.proto
+@@ -0,0 +1,16 @@
++syntax="proto2";
++package example;
++
++option cc_generic_services = true;
++
++message EchoRequest {
++      required string message = 1;
++};
++
++message EchoResponse {
++      required string message = 1;
++};
++
++service EchoService {
++      rpc Echo(EchoRequest) returns (EchoResponse);
++};
+diff --git a/example/echo_c++_unix_socket/server.cpp b/example/echo_c++_unix_socket/server.cpp
+new file mode 100644
+index 0000000..68979a6
+--- /dev/null
++++ b/example/echo_c++_unix_socket/server.cpp
+@@ -0,0 +1,107 @@
++// Copyright (c) 2014 Baidu, Inc.
++// 
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++// 
++//     http://www.apache.org/licenses/LICENSE-2.0
++// 
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++// A server to receive EchoRequest and send back EchoResponse.
++
++#include <gflags/gflags.h>
++#include <butil/logging.h>
++#include <brpc/server.h>
++#include "echo.pb.h"
++
++DEFINE_bool(echo_attachment, true, "Echo attachment as well");
++DEFINE_string(socket_file, "", "Unix socket file for this server");
++DEFINE_int32(idle_timeout_s, -1, "Connection will be closed if there is no "
++             "read/write operations during the last `idle_timeout_s'");
++DEFINE_int32(logoff_ms, 2000, "Maximum duration of server's LOGOFF state "
++             "(waiting for client to close connection before server stops)");
++DEFINE_int32(internal_port, -1, "internal port for buitin service");
++DEFINE_bool(has_builtin_service, false, "has builtin service or not");
++
++// Your implementation of example::EchoService
++// Notice that implementing brpc::Describable grants the ability to put
++// additional information in /status.
++namespace example {
++class EchoServiceImpl : public EchoService {
++public:
++    EchoServiceImpl() {};
++    virtual ~EchoServiceImpl() {};
++    virtual void Echo(google::protobuf::RpcController* cntl_base,
++                      const EchoRequest* request,
++                      EchoResponse* response,
++                      google::protobuf::Closure* done) {
++        // This object helps you to call done->Run() in RAII style. If you need
++        // to process the request asynchronously, pass done_guard.release().
++        brpc::ClosureGuard done_guard(done);
++
++        brpc::Controller* cntl =
++            static_cast<brpc::Controller*>(cntl_base);
++
++        // The purpose of following logs is to help you to understand
++        // how clients interact with servers more intuitively. You should 
++        // remove these logs in performance-sensitive servers.
++        LOG(INFO) << "Received request[log_id=" << cntl->log_id() 
++                  << "] from " << cntl->remote_side() 
++                  << " to " << cntl->local_side()
++                  << ": " << request->message()
++                  << " (attached=" << cntl->request_attachment() << ")";
++
++        // Fill response.
++        response->set_message(request->message());
++
++        // You can compress the response by setting Controller, but be aware
++        // that compression may be costly, evaluate before turning on.
++        // cntl->set_response_compress_type(brpc::COMPRESS_TYPE_GZIP);
++
++        if (FLAGS_echo_attachment) {
++            // Set attachment which is wired to network directly instead of
++            // being serialized into protobuf messages.
++            cntl->response_attachment().append(cntl->request_attachment());
++        }
++    }
++};
++}  // namespace example
++
++int main(int argc, char* argv[]) {
++    // Parse gflags. We recommend you to use gflags as well.
++    GFLAGS_NS::ParseCommandLineFlags(&argc, &argv, true);
++
++    // Generally you only need one Server.
++    brpc::Server server;
++
++    // Instance of your service.
++    example::EchoServiceImpl echo_service_impl;
++
++    // Add the service into server. Notice the second parameter, because the
++    // service is put on stack, we don't want server to delete it, otherwise
++    // use brpc::SERVER_OWNS_SERVICE.
++    if (server.AddService(&echo_service_impl, 
++                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
++        LOG(ERROR) << "Fail to add service";
++        return -1;
++    }
++
++    // Start the server.
++    brpc::ServerOptions options;
++    options.idle_timeout_sec = FLAGS_idle_timeout_s;
++    options.has_builtin_services = FLAGS_has_builtin_service;
++    options.internal_port = FLAGS_internal_port;
++    if (server.StartAtSockFile(FLAGS_socket_file.c_str(), &options) != 0) {
++        LOG(ERROR) << "Fail to start EchoServer";
++        return -1;
++    }
++
++    // Wait until Ctrl-C is pressed, then Stop() and Join() the server.
++    server.RunUntilAskedToQuit();
++    return 0;
++}
+diff --git a/src/brpc/builtin/prometheus_metrics_service.cpp b/src/brpc/builtin/prometheus_metrics_service.cpp
+index 4ff38c5..b36de87 100644
+--- a/src/brpc/builtin/prometheus_metrics_service.cpp
++++ b/src/brpc/builtin/prometheus_metrics_service.cpp
+@@ -17,6 +17,8 @@
+ #include <vector>
+ #include <iomanip>
+ #include <map>
++#include <string>
++#include <json2pb/rapidjson.h>
+ #include "brpc/controller.h"                // Controller
+ #include "brpc/server.h"                    // Server
+ #include "brpc/closure_guard.h"             // ClosureGuard
+@@ -55,6 +57,8 @@ private:
+     // Return true iff name ends with suffix output by LatencyRecorder.
+     bool DumpLatencyRecorderSuffix(const butil::StringPiece& name,
+                                    const butil::StringPiece& desc);
++    bool DumpStatusJsonString(const std::string& name,
++                              const std::string& desc);
+ 
+     // 6 is the number of bvars in LatencyRecorder that indicating percentiles
+     static const int NPERCENTILES = 6;
+@@ -80,8 +84,12 @@ bool PrometheusMetricsDumper::dump(const std::string& name,
+                                    const butil::StringPiece& desc) {
+     if (!desc.empty() && desc[0] == '"') {
+         // there is no necessary to monitor string in prometheus
++        std::string strdesc;
++        desc.CopyToString(&strdesc);
++        DumpStatusJsonString(name, strdesc);
+         return true;
+     }
++
+     if (DumpLatencyRecorderSuffix(name, desc)) {
+         // Has encountered name with suffix exposed by LatencyRecorder,
+         // Leave it to DumpLatencyRecorderSuffix to output Summary.
+@@ -174,6 +182,45 @@ bool PrometheusMetricsDumper::DumpLatencyRecorderSuffix(
+     return true;
+ }
+ 
++bool PrometheusMetricsDumper::DumpStatusJsonString(
++    const std::string& name, const std::string& desc) {
++    // 如果不是json格式，返回false, 是json格式则print
++    BUTIL_RAPIDJSON_NAMESPACE::Document d;
++    if (desc.size() == 2) {
++        return false;
++    }
++    if (d.Parse(desc.substr(1, desc.size()-2).c_str()).HasParseError()
++        || !d.IsObject()) {
++        return false;
++    }
++    std::string tmpos = std::string("# HELP ") + name + std::string("\n") +
++        std::string("# TYPE ") + name + std::string(" gauge\n") +
++        name + std::string("{");
++
++    // 遍历json并打印
++    int count = 0;
++    BUTIL_RAPIDJSON_NAMESPACE::Value::MemberIterator it = d.MemberBegin();
++    while (it != d.MemberEnd()) {
++        count++;
++        if (!it->value.IsString()) {
++            it++;
++            return false;
++        }
++
++        if (count == d.MemberCount()) {
++            tmpos += it->name.GetString() + std::string("=\"") +
++                it->value.GetString() + std::string("\"}");
++        } else {
++            tmpos += it->name.GetString() + std::string("=\"") +
++                it->value.GetString() + std::string("\",");
++        }
++        it++;
++    }
++    tmpos += std::string(" 0\n");
++    *_os << tmpos;
++    return true;
++}
++
+ void PrometheusMetricsService::default_method(::google::protobuf::RpcController* cntl_base,
+                                               const ::brpc::MetricsRequest*,
+                                               ::brpc::MetricsResponse*,
+diff --git a/src/brpc/channel.cpp b/src/brpc/channel.cpp
+index 27fdb84..9c84937 100755
+--- a/src/brpc/channel.cpp
++++ b/src/brpc/channel.cpp
+@@ -281,6 +281,15 @@ int Channel::Init(butil::EndPoint server_addr_and_port,
+     return InitSingle(server_addr_and_port, "", options);
+ }
+ 
++int Channel::InitWithSockFile(const char* socket_file, const ChannelOptions* options) {
++    if (!butil::is_sock_file_name_valid(socket_file)) {
++        LOG(ERROR) << "Socket file name: " << socket_file << " too long.";
++        return -1;
++    }
++    butil::EndPoint point(socket_file);
++    return InitSingle(point, "", options);
++}
++
+ int Channel::InitSingle(const butil::EndPoint& server_addr_and_port,
+                         const char* raw_server_address,
+                         const ChannelOptions* options) {
+diff --git a/src/brpc/channel.h b/src/brpc/channel.h
+index be631cf..98af2c2 100644
+--- a/src/brpc/channel.h
++++ b/src/brpc/channel.h
+@@ -155,6 +155,7 @@ public:
+     int Init(butil::EndPoint server_addr_and_port, const ChannelOptions* options);
+     int Init(const char* server_addr_and_port, const ChannelOptions* options);
+     int Init(const char* server_addr, int port, const ChannelOptions* options);
++    int InitWithSockFile(const char* socket_file, const ChannelOptions* options);
+ 
+     // Connect this channel to a group of servers whose addresses can be
+     // accessed via `naming_service_url' according to its protocol. Use the
+@@ -196,9 +197,9 @@ public:
+     // Sum of weights of servers that this channel connects to.
+     int Weight();
+ 
+-protected:
+     int CheckHealth();
+ 
++protected:
+     bool SingleServer() const { return _lb.get() == NULL; }
+ 
+     // Pick a server using `lb' and then send RPC. Wait for response when 
+diff --git a/src/brpc/details/usercode_backup_pool.cpp b/src/brpc/details/usercode_backup_pool.cpp
+index 1c25569..88b5aba 100644
+--- a/src/brpc/details/usercode_backup_pool.cpp
++++ b/src/brpc/details/usercode_backup_pool.cpp
+@@ -110,7 +110,7 @@ int UserCodeBackupPool::Init() {
+ void UserCodeBackupPool::UserCodeRunningLoop() {
+     bthread::run_worker_startfn();
+ #ifdef BAIDU_INTERNAL
+-    logging::ComlogInitializer comlog_initializer;
++    butil::logging::ComlogInitializer comlog_initializer;
+ #endif
+     
+     int64_t last_time = butil::cpuwide_time_us();
+diff --git a/src/brpc/server.cpp b/src/brpc/server.cpp
+index 383b643..b83607c 100644
+--- a/src/brpc/server.cpp
++++ b/src/brpc/server.cpp
+@@ -31,6 +31,7 @@
+ #include "butil/time.h"
+ #include "butil/class_name.h"
+ #include "butil/string_printf.h"
++#include "butil/unix_socket.h"
+ #include "brpc/log.h"
+ #include "brpc/compress.h"
+ #include "brpc/policy/nova_pbrpc_protocol.h"
+@@ -692,10 +693,7 @@ static bool CreateConcurrencyLimiter(const AdaptiveMaxConcurrency& amc,
+ 
+ static AdaptiveMaxConcurrency g_default_max_concurrency_of_method = 0;
+ 
+-int Server::StartInternal(const butil::ip_t& ip,
+-                          const PortRange& port_range,
+-                          const ServerOptions *opt) {
+-    std::unique_ptr<Server, RevertServerStatus> revert_server(this);
++int Server::Init(const ServerOptions *opt) {
+     if (_failed_to_set_max_concurrency_of_method) {
+         _failed_to_set_max_concurrency_of_method = false;
+         LOG(ERROR) << "previous call to MaxConcurrencyOf() was failed, "
+@@ -926,7 +924,54 @@ int Server::StartInternal(const butil::ip_t& ip,
+             it->second.status->SetConcurrencyLimiter(cl);
+         }
+     }
+-    
++    return 0;
++}
++
++int Server::ListenInternalPort() {
++    if (_options.internal_port  == _listen_addr.port) {
++        LOG(ERROR) << "ServerOptions.internal_port=" << _options.internal_port
++                   << " is same with port=" << _listen_addr.port << " to Start()";
++        return -1;
++    }
++    if (_options.internal_port == 0) {
++        LOG(ERROR) << "ServerOptions.internal_port cannot be 0, which"
++            " allocates a dynamic and probabaly unfiltered port,"
++            " against the purpose of \"being internal\".";
++        return -1;
++    }
++    butil::EndPoint internal_point;
++    internal_point.ip = _listen_addr.ip;
++    internal_point.port = _options.internal_port;
++    butil::fd_guard sockfd(tcp_listen(internal_point));
++    if (sockfd < 0) {
++        LOG(ERROR) << "Fail to listen " << internal_point << " (internal)";
++            return -1;
++    }
++    if (NULL == _internal_am) {
++        _internal_am = BuildAcceptor();
++        if (NULL == _internal_am) {
++            LOG(ERROR) << "Fail to build internal acceptor";
++            return -1;
++        }
++    }
++        // Pass ownership of `sockfd' to `_internal_am'
++    if (_internal_am->StartAccept(sockfd, _options.idle_timeout_sec,
++                                  _default_ssl_ctx) != 0) {
++        LOG(ERROR) << "Fail to start internal_acceptor";
++        return -1;
++    }
++    sockfd.release();
++    return 0;
++}
++
++int Server::StartInternal(const butil::ip_t& ip,
++                          const PortRange& port_range,
++                          const ServerOptions *opt) {
++    std::unique_ptr<Server, RevertServerStatus> revert_server(this);
++    if (Init(opt) != 0) {
++        LOG(ERROR) << "Init failed";
++        return -1;
++    }
+     // Create listening ports
+     if (port_range.min_port > port_range.max_port) {
+         LOG(ERROR) << "Invalid port_range=[" << port_range.min_port << '-'
+@@ -983,38 +1028,10 @@ int Server::StartInternal(const butil::ip_t& ip,
+         break; // stop trying
+     }
+     if (_options.internal_port >= 0 && _options.has_builtin_services) {
+-        if (_options.internal_port  == _listen_addr.port) {
+-            LOG(ERROR) << "ServerOptions.internal_port=" << _options.internal_port
+-                       << " is same with port=" << _listen_addr.port << " to Start()";
++        if (ListenInternalPort() != 0) {
++            LOG(ERROR) << "ListenInternalPort failed";
+             return -1;
+         }
+-        if (_options.internal_port == 0) {
+-            LOG(ERROR) << "ServerOptions.internal_port cannot be 0, which"
+-                " allocates a dynamic and probabaly unfiltered port,"
+-                " against the purpose of \"being internal\".";
+-            return -1;
+-        }
+-        butil::EndPoint internal_point = _listen_addr;
+-        internal_point.port = _options.internal_port;
+-        butil::fd_guard sockfd(tcp_listen(internal_point));
+-        if (sockfd < 0) {
+-            LOG(ERROR) << "Fail to listen " << internal_point << " (internal)";
+-            return -1;
+-        }
+-        if (NULL == _internal_am) {
+-            _internal_am = BuildAcceptor();
+-            if (NULL == _internal_am) {
+-                LOG(ERROR) << "Fail to build internal acceptor";
+-                return -1;
+-            }
+-        }
+-        // Pass ownership of `sockfd' to `_internal_am'
+-        if (_internal_am->StartAccept(sockfd, _options.idle_timeout_sec,
+-                                      _default_ssl_ctx) != 0) {
+-            LOG(ERROR) << "Fail to start internal_acceptor";
+-            return -1;
+-        }
+-        sockfd.release();
+     }
+     
+     PutPidFileIfNeeded();
+@@ -1051,7 +1068,83 @@ int Server::StartInternal(const butil::ip_t& ip,
+     return 0;
+ }
+ 
++int Server::StartAtSockFile(const char* socket_file, const ServerOptions *opt) {
++    if (!butil::is_sock_file_name_valid(socket_file)) {
++        LOG(ERROR) << "Socket file name: " << socket_file << " too long.";
++        return -1;
++    }
++    std::unique_ptr<Server, RevertServerStatus> revert_server(this);
++    if (Init(opt) != 0) {
++        LOG(ERROR) << "Init failed";
++        return -1;
++    }
++    // Start listen
++    _listen_addr.socket_file = socket_file;
++    butil::fd_guard sockfd(butil::unix_socket_listen(socket_file));
++    if (sockfd < 0) {
++        LOG(ERROR) << "Fail to listen :[" << socket_file << ']';
++        return -1;
++    }
++    if (_am == NULL) {
++        _am = BuildAcceptor();
++        if (NULL == _am) {
++            LOG(ERROR) << "Fail to build acceptor";
++            return -1;
++        }
++    }
++    // Set `_status' to RUNNING before accepting connections
++    // to prevent requests being rejected as ELOGOFF
++    _status = RUNNING;
++    time(&_last_start_time);
++    GenerateVersionIfNeeded();
++    g_running_server_count.fetch_add(1, butil::memory_order_relaxed);
++
++    // Pass ownership of `sockfd' to `_am'
++    if (_am->StartAccept(sockfd, _options.idle_timeout_sec,
++                            _default_ssl_ctx) != 0) {
++        LOG(ERROR) << "Fail to start acceptor";
++        return -1;
++    }
++    sockfd.release();
++
++    if (_options.internal_port >= 0 && _options.has_builtin_services) {
++        if (ListenInternalPort() != 0) {
++            LOG(ERROR) << "ListenInternalPort failed";
++            return -1;
++        }
++    }
++
++    PutPidFileIfNeeded();
++
++    // Launch _derivative_thread.
++    CHECK_EQ(INVALID_BTHREAD, _derivative_thread);
++    if (bthread_start_background(&_derivative_thread, NULL,
++                                 UpdateDerivedVars, this) != 0) {
++        LOG(ERROR) << "Fail to create _derivative_thread";
++        return -1;
++    }
++
++    // Print tips to server launcher.
++    std::ostringstream server_info;
++    server_info << "Server[" << version() << "] is serving on file="
++                << _listen_addr.socket_file;
++    if (_options.internal_port >= 0 && _options.has_builtin_services) {
++        server_info << " and internal_port="
++                    << _options.internal_port;
++        LOG(INFO) << "Check out http://" << butil::my_hostname() << ':'
++                  << _options.internal_port << " in web browser.";
++
++    }
++    LOG(INFO) << server_info.str() << '.';
++
++    revert_server.release();
++    return 0;
++}
++
+ int Server::Start(const butil::EndPoint& endpoint, const ServerOptions* opt) {
++    if (butil::is_unix_sock_endpoint(endpoint)) {
++        return StartAtSockFile(endpoint.socket_file.c_str(), opt);
++    }
+     return StartInternal(
+         endpoint.ip, PortRange(endpoint.port, endpoint.port), opt);
+ }
+diff --git a/src/brpc/server.h b/src/brpc/server.h
+index 1c0968c..a83346b 100644
+--- a/src/brpc/server.h
++++ b/src/brpc/server.h
+@@ -374,6 +374,8 @@ public:
+     int Start(int port, const ServerOptions* opt);
+     // Start on `ip_str' + any useable port in `range'
+     int Start(const char* ip_str, PortRange range, const ServerOptions *opt);
++    // Start on unix socket file
++    int StartAtSockFile(const char* socket_file, const ServerOptions *opt);
+ 
+     // NOTE: Stop() is paired with Join() to stop a server without losing
+     // requests. The point of separating them is that you can Stop() multiple
+@@ -543,6 +545,10 @@ friend class Controller;
+     // Create acceptor with handlers of protocols.
+     Acceptor* BuildAcceptor();
+ 
++    int Init(const ServerOptions *opt);
++
++    int ListenInternalPort();
++
+     int StartInternal(const butil::ip_t& ip,
+                       const PortRange& port_range,
+                       const ServerOptions *opt);
+diff --git a/src/brpc/socket.cpp b/src/brpc/socket.cpp
+index e360da8..695ca3a 100644
+--- a/src/brpc/socket.cpp
++++ b/src/brpc/socket.cpp
+@@ -19,6 +19,7 @@
+ #include "butil/compat.h"                        // OS_MACOSX
+ #include <openssl/ssl.h>
+ #include <openssl/err.h>
++#include <sys/un.h>
+ #ifdef USE_MESALINK
+ #include <mesalink/openssl/ssl.h>
+ #include <mesalink/openssl/err.h>
+@@ -1205,7 +1206,14 @@ int Socket::Connect(const timespec* abstime,
+     } else {
+         _ssl_state = SSL_OFF;
+     }
+-    butil::fd_guard sockfd(socket(AF_INET, SOCK_STREAM, 0));
++    butil::fd_guard sockfd;
++
++    if (butil::is_unix_sock_endpoint(remote_side())) {
++        sockfd.reset(socket(AF_LOCAL, SOCK_STREAM, 0));
++    } else {
++        sockfd.reset(socket(AF_INET, SOCK_STREAM, 0));
++    }
++
+     if (sockfd < 0) {
+         PLOG(ERROR) << "Fail to create socket";
+         return -1;
+@@ -1213,15 +1221,27 @@ int Socket::Connect(const timespec* abstime,
+     CHECK_EQ(0, butil::make_close_on_exec(sockfd));
+     // We need to do async connect (to manage the timeout by ourselves).
+     CHECK_EQ(0, butil::make_non_blocking(sockfd));
+-    
+-    
+-    struct sockaddr_in serv_addr;
+-    bzero((char*)&serv_addr, sizeof(serv_addr));
+-    serv_addr.sin_family = AF_INET;
+-    serv_addr.sin_addr = remote_side().ip;
+-    serv_addr.sin_port = htons(remote_side().port);
+-    const int rc = ::connect(
+-        sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
++
++    int rc;
++
++    if (butil::is_unix_sock_endpoint(remote_side())) {
++        struct sockaddr_un serv_addr;
++        bzero((char*)&serv_addr, sizeof(serv_addr));
++        serv_addr.sun_family = AF_LOCAL;
++        snprintf(serv_addr.sun_path, sizeof(serv_addr.sun_path),
++                        "%s", remote_side().socket_file.c_str());
++        rc =  ::connect(
++            sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
++    } else {
++        struct sockaddr_in serv_addr;
++        bzero((char*)&serv_addr, sizeof(serv_addr));
++        serv_addr.sin_family = AF_INET;
++        serv_addr.sin_addr = remote_side().ip;
++        serv_addr.sin_port = htons(remote_side().port);
++        rc = ::connect(
++            sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
++    }
++
+     if (rc != 0 && errno != EINPROGRESS) {
+         PLOG(WARNING) << "Fail to connect to " << remote_side();
+         return -1;
+diff --git a/src/bthread/bthread.h b/src/bthread/bthread.h
+index e4c9476..37d5121 100644
+--- a/src/bthread/bthread.h
++++ b/src/bthread/bthread.h
+@@ -27,6 +27,7 @@
+ #if defined(__cplusplus)
+ #  include <iostream>
+ #  include "bthread/mutex.h"        // use bthread_mutex_t in the RAII way
++#  include "bthread/rwlock.h"        // use bthread_rwlock_t in the RAII way
+ #endif
+ 
+ #include "bthread/id.h"
+diff --git a/src/bthread/rwlock.cpp b/src/bthread/rwlock.cpp
+new file mode 100644
+index 0000000..418f4ad
+--- /dev/null
++++ b/src/bthread/rwlock.cpp
+@@ -0,0 +1,163 @@
++#include <pthread.h>
++#include <execinfo.h>
++#include <dlfcn.h> // dlsym
++#include <fcntl.h> // O_RDONLY
++#include "butil/atomicops.h"
++#include "bvar/bvar.h"
++#include "bvar/collector.h"
++#include "butil/macros.h" // BAIDU_CASSERT
++#include "butil/containers/flat_map.h"
++#include "butil/iobuf.h"
++#include "butil/fd_guard.h"
++#include "butil/files/file.h"
++#include "butil/files/file_path.h"
++#include "butil/file_util.h"
++#include "butil/unique_ptr.h"
++#include "butil/third_party/murmurhash3/murmurhash3.h"
++#include "butil/logging.h"
++#include "butil/object_pool.h"
++#include "bthread/butex.h"     // butex_*
++#include "bthread/processor.h" // cpu_relax, barrier
++#include "bthread/bthread.h"
++#include "bthread/sys_futex.h"
++#include "bthread/log.h"
++
++
++namespace bthread {
++
++inline int rwlock_unrlock(bthread_rwlock_t* rwlock) {
++    butil::atomic<unsigned>* whole =
++        (butil::atomic<unsigned>*)rwlock->lock_flag;
++
++    while(1) {
++        unsigned r = whole->load();
++        if(r==0 || (r>>31) != 0) {
++            LOG(ERROR) << "wrong unrlock!";
++            return 0;
++        }
++        if(!(whole->compare_exchange_weak(r, r-1))) {
++            continue;
++        }
++        //wake up write waiter
++        bthread::butex_wake(whole);
++        return 0;
++    }
++
++}
++
++
++inline int rwlock_unwlock(bthread_rwlock_t* rwlock) {
++    butil::atomic<unsigned>* whole =
++        (butil::atomic<unsigned>*)rwlock->lock_flag;
++
++    while(1) {
++        unsigned r = whole->load();
++        if(r != (unsigned)(1<<31) ) {
++            LOG(ERROR) << "wrong unwlock!";
++            return 0;
++        }
++        if(!whole->compare_exchange_weak(r, 0)) {
++            continue;
++        }
++        //wake up write waiter first
++        bthread::butex_wake(whole);
++        butil::atomic<unsigned>* w_wait_count = (butil::atomic<unsigned>*)rwlock->w_wait_count;
++        //try reduce wait_count for read waiters,and wake up read waiters
++        w_wait_count->fetch_sub(1);
++        bthread::butex_wake_all(w_wait_count);
++        return 0;
++    }
++
++}
++
++
++inline int rwlock_unlock(bthread_rwlock_t* rwlock) {
++    butil::atomic<unsigned>* whole =
++        (butil::atomic<unsigned>*)rwlock->lock_flag;
++    if ((whole->load(butil::memory_order_relaxed) >> 31) != 0) {
++        return rwlock_unwlock(rwlock);
++    } else {
++        return rwlock_unrlock(rwlock);
++    }
++}
++
++inline int rwlock_rlock(bthread_rwlock_t* rwlock) {
++    butil::atomic<unsigned>* whole =
++        (butil::atomic<unsigned>*)rwlock->lock_flag;
++
++    butil::atomic<unsigned>* w_wait_count = (butil::atomic<unsigned>*)rwlock->w_wait_count;
++    while (1) {
++        unsigned w = w_wait_count->load();
++        if( w > 0) {
++            if(bthread::butex_wait(w_wait_count, w, NULL) < 0 &&
++                errno != EWOULDBLOCK && errno != EINTR) {
++                return errno;
++            }
++            continue;
++        }
++        //FIXME!! we don't consider read_wait_count overflow yet,2^31 should be enough here
++        unsigned r = whole->load();
++        if((r >> 31) == 0) {
++            if(whole->compare_exchange_weak(r, r + 1)) {
++                return 0;
++            }
++        }
++    }
++
++}
++
++inline int rwlock_wlock(bthread_rwlock_t* rwlock) {
++    butil::atomic<unsigned>* w_wait_count = (butil::atomic<unsigned>*)rwlock->w_wait_count;
++    butil::atomic<unsigned>* whole = (butil::atomic<unsigned>*)rwlock->lock_flag;
++    //we don't consider w_wait_count overflow yet,2^32 should be enough here
++    w_wait_count->fetch_add(1);
++    while(1) {
++        unsigned r = whole->load();
++        if(r != 0) {
++            if(bthread::butex_wait(whole, r, NULL) < 0 &&
++                errno != EWOULDBLOCK && errno != EINTR) {
++                whole->fetch_sub(1);
++                return errno;
++            }
++            continue;
++        }
++        if(whole->compare_exchange_weak(r, (unsigned)(1<<31) )) {
++            return 0;
++        }
++    }
++}
++
++} // namespace bthread
++
++extern "C" {
++
++int bthread_rwlock_init(bthread_rwlock_t* __restrict rwlock,
++                        const bthread_rwlockattr_t* __restrict attr) {
++    rwlock->w_wait_count = bthread::butex_create_checked<unsigned>();
++    rwlock->lock_flag =
++        bthread::butex_create_checked<unsigned>();
++    if (!rwlock->w_wait_count || !rwlock->lock_flag) {
++        LOG(ERROR) << "no memory";
++        return ENOMEM;
++    }
++    *rwlock->w_wait_count = 0;
++    *rwlock->lock_flag = 0;
++    return 0;
++}
++
++int bthread_rwlock_destroy(bthread_rwlock_t* rwlock) {
++    bthread::butex_destroy(rwlock->w_wait_count);
++    bthread::butex_destroy(rwlock->lock_flag);
++    return 0;
++}
++
++int bthread_rwlock_rdlock(bthread_rwlock_t* rwlock) { return bthread::rwlock_rlock(rwlock); }
++
++int bthread_rwlock_wrlock(bthread_rwlock_t* rwlock) { return bthread::rwlock_wlock(rwlock); }
++
++int bthread_rwlock_unrlock(bthread_rwlock_t* rwlock) { return bthread::rwlock_unrlock(rwlock); }
++
++int bthread_rwlock_unwlock(bthread_rwlock_t* rwlock) { return bthread::rwlock_unwlock(rwlock); }
++
++int bthread_rwlock_unlock(bthread_rwlock_t* rwlock) { return bthread::rwlock_unlock(rwlock); }
++}
+diff --git a/src/bthread/rwlock.h b/src/bthread/rwlock.h
+new file mode 100644
+index 0000000..786df3b
+--- /dev/null
++++ b/src/bthread/rwlock.h
+@@ -0,0 +1,130 @@
++#ifndef BTHREAD_RW_MUTEX_H
++#define BTHREAD_RW_MUTEX_H
++
++#include "bthread/types.h"
++#include "butil/scoped_lock.h"
++#include "bvar/utils/lock_timer.h"
++#include "bthread/bthread.h"
++
++__BEGIN_DECLS
++// -------------------------------------------
++// Functions for handling read-write locks.
++// -------------------------------------------
++
++// Initialize read-write lock `rwlock' using attributes `attr', or use
++// the default values if later is NULL.
++extern int bthread_rwlock_init(bthread_rwlock_t* __restrict rwlock,
++                               const bthread_rwlockattr_t* __restrict attr);
++
++// Destroy read-write lock `rwlock'.
++extern int bthread_rwlock_destroy(bthread_rwlock_t* rwlock);
++
++// Acquire read lock for `rwlock'.
++extern int bthread_rwlock_rdlock(bthread_rwlock_t* rwlock);
++
++// Try to acquire read lock for `rwlock'.
++extern int bthread_rwlock_tryrdlock(bthread_rwlock_t* rwlock);
++
++// Try to acquire read lock for `rwlock' or return after specfied time.
++extern int bthread_rwlock_timedrdlock(bthread_rwlock_t* __restrict rwlock,
++                                      const struct timespec* __restrict abstime);
++
++// Acquire write lock for `rwlock'.
++extern int bthread_rwlock_wrlock(bthread_rwlock_t* rwlock);
++
++// Try to acquire write lock for `rwlock'.
++extern int bthread_rwlock_trywrlock(bthread_rwlock_t* rwlock);
++
++// Try to acquire write lock for `rwlock' or return after specfied time.
++extern int bthread_rwlock_timedwrlock(bthread_rwlock_t* __restrict rwlock,
++                                      const struct timespec* __restrict abstime);
++
++// Unlock `rwlock'.
++extern int bthread_rwlock_unlock(bthread_rwlock_t* rwlock);
++
++
++// ---------------------------------------------------
++// Functions for handling read-write lock attributes.
++// ---------------------------------------------------
++
++// Initialize attribute object `attr' with default values.
++extern int bthread_rwlockattr_init(bthread_rwlockattr_t* attr);
++
++// Destroy attribute object `attr'.
++extern int bthread_rwlockattr_destroy(bthread_rwlockattr_t* attr);
++
++// Return current setting of reader/writer preference.
++extern int bthread_rwlockattr_getkind_np(const bthread_rwlockattr_t* attr, int* pref);
++
++// Set reader/write preference.
++extern int bthread_rwlockattr_setkind_np(bthread_rwlockattr_t* attr, int pref);
++__END_DECLS
++
++
++// Specialize std::lock_guard and std::unique_lock for bthread_rwlock_t
++
++namespace bthread {
++
++class wlock_guard {
++public:
++    explicit wlock_guard(bthread_rwlock_t& mutex) : _pmutex(&mutex) {
++#if !defined(NDEBUG)
++        const int rc = bthread_rwlock_wrlock(_pmutex);
++        if (rc) {
++            LOG(FATAL) << "Fail to lock bthread_rwlock_t=" << _pmutex << ", " << berror(rc);
++            _pmutex = NULL;
++        }
++#else
++        bthread_rwlock_wrlock(_pmutex);
++#endif // NDEBUG
++    }
++
++    ~wlock_guard() {
++#ifndef NDEBUG
++        if (_pmutex) {
++            bthread_rwlock_unlock(_pmutex);
++        }
++#else
++        bthread_rwlock_unlock(_pmutex);
++#endif
++    }
++
++private:
++    DISALLOW_COPY_AND_ASSIGN(wlock_guard);
++    bthread_rwlock_t* _pmutex;
++};
++
++class rlock_guard {
++public:
++    explicit rlock_guard(bthread_rwlock_t& mutex) : _pmutex(&mutex) {
++#if !defined(NDEBUG)
++        const int rc = bthread_rwlock_rdlock(_pmutex);
++        if (rc) {
++            LOG(FATAL) << "Fail to lock bthread_rwlock_t=" << _pmutex << ", " << berror(rc);
++            _pmutex = NULL;
++        }
++#else
++        bthread_rwlock_rdlock(_pmutex);
++#endif // NDEBUG
++    }
++
++    ~rlock_guard() {
++#ifndef NDEBUG
++        if (_pmutex) {
++            bthread_rwlock_unlock(_pmutex);
++        }
++#else
++        bthread_rwlock_unlock(_pmutex);
++#endif
++    }
++
++private:
++    DISALLOW_COPY_AND_ASSIGN(rlock_guard);
++    bthread_rwlock_t* _pmutex;
++};
++
++
++} // namespace bthread
++
++
++#endif
+diff --git a/src/bthread/task_control.cpp b/src/bthread/task_control.cpp
+index 2527c72..b6ae1b2 100644
+--- a/src/bthread/task_control.cpp
++++ b/src/bthread/task_control.cpp
+@@ -55,7 +55,7 @@ void run_worker_startfn() {
+ void* TaskControl::worker_thread(void* arg) {
+     run_worker_startfn();    
+ #ifdef BAIDU_INTERNAL
+-    logging::ComlogInitializer comlog_initializer;
++    butil::logging::ComlogInitializer comlog_initializer;
+ #endif
+     
+     TaskControl* c = static_cast<TaskControl*>(arg);
+diff --git a/src/bthread/timer_thread.cpp b/src/bthread/timer_thread.cpp
+index 1a5ff35..89b3c99 100644
+--- a/src/bthread/timer_thread.cpp
++++ b/src/bthread/timer_thread.cpp
+@@ -310,7 +310,7 @@ static T deref_value(void* arg) {
+ void TimerThread::run() {
+     run_worker_startfn();
+ #ifdef BAIDU_INTERNAL
+-    logging::ComlogInitializer comlog_initializer;
++    butil::logging::ComlogInitializer comlog_initializer;
+ #endif
+ 
+     int64_t last_sleep_time = butil::gettimeofday_us();
+diff --git a/src/bthread/types.h b/src/bthread/types.h
+index f81ff0c..1a12491 100644
+--- a/src/bthread/types.h
++++ b/src/bthread/types.h
+@@ -170,6 +170,8 @@ typedef struct {
+ } bthread_condattr_t;
+ 
+ typedef struct {
++    unsigned* w_wait_count;   //include the bthread who holding wlock yet
++    unsigned* lock_flag;     //highest bit 1 for wlocked, low 31 bit for read lock holding count, 0 for unlocked
+ } bthread_rwlock_t;
+ 
+ typedef struct {
+diff --git a/src/butil/comlog_sink.h b/src/butil/comlog_sink.h
+index 247336c..a420d42 100644
+--- a/src/butil/comlog_sink.h
++++ b/src/butil/comlog_sink.h
+@@ -101,18 +101,18 @@ struct ComlogSinkOptions {
+ 
+ // The LogSink to flush logs into comlog. Notice that this is a singleton class.
+ // [ Setup from a Configure file ]
+-//   if (logging::ComlogSink::GetInstance()->SetupFromConfig("log/log.conf") != 0) {
++//   if (butil::logging::ComlogSink::GetInstance()->SetupFromConfig("log/log.conf") != 0) {
+ //       LOG(ERROR) << "Fail to setup comlog";
+ //       return -1;
+ //   }
+-//   logging::SetLogSink(ComlogSink::GetInstance());
++//   butil::logging::SetLogSink(ComlogSink::GetInstance());
+ //
+ // [ Setup from ComlogSinkOptions ]
+-//   if (logging::ComlogSink::GetInstance()->Setup(NULL/*default options*/) != 0) {
++//   if (butil::logging::ComlogSink::GetInstance()->Setup(NULL/*default options*/) != 0) {
+ //       LOG(ERROR) << "Fail to setup comlog";
+ //       return -1;
+ //   }
+-//   logging::SetLogSink(ComlogSink::GetInstance());
++//   butil::logging::SetLogSink(ComlogSink::GetInstance());
+ 
+ class ComlogSink : public LogSink {
+ public:
+diff --git a/src/butil/endpoint.cpp b/src/butil/endpoint.cpp
+index a0ecb35..bd141e7 100644
+--- a/src/butil/endpoint.cpp
++++ b/src/butil/endpoint.cpp
+@@ -98,6 +98,10 @@ int ip2hostname(ip_t ip, std::string* host) {
+ 
+ EndPointStr endpoint2str(const EndPoint& point) {
+     EndPointStr str;
++    if (is_unix_sock_endpoint(point)) {
++        snprintf(str._buf, sizeof(str._buf), "%s", point.socket_file.c_str());
++        return str;
++    }
+     if (inet_ntop(AF_INET, &point.ip, str._buf, INET_ADDRSTRLEN) == NULL) {
+         return endpoint2str(EndPoint(IP_NONE, 0));
+     }
+@@ -383,4 +387,13 @@ int get_remote_side(int fd, EndPoint *out) {
+     return 0;
+ }
+ 
++bool is_unix_sock_endpoint(const EndPoint& point) {
++    return !point.socket_file.empty();
++}
++
++bool is_sock_file_name_valid(const char* filename) {
++    return strlen(filename) < UNIX_SOCKET_FILE_PATH_SIZE;
++
++}
++
+ }  // namespace butil
+diff --git a/src/butil/endpoint.h b/src/butil/endpoint.h
+index bec4dc5..b35fbe8 100644
+--- a/src/butil/endpoint.h
++++ b/src/butil/endpoint.h
+@@ -25,6 +25,7 @@
+ #include "butil/containers/hash_tables.h"         // hashing functions
+ 
+ namespace butil {
++const size_t UNIX_SOCKET_FILE_PATH_SIZE = 108;
+ 
+ // Type of an IP address
+ typedef struct in_addr ip_t;
+@@ -79,18 +80,23 @@ const char* my_ip_cstr();
+ 
+ // ipv4 + port
+ struct EndPoint {
+-    EndPoint() : ip(IP_ANY), port(0) {}
+-    EndPoint(ip_t ip2, int port2) : ip(ip2), port(port2) {}
++    EndPoint() : ip(IP_ANY), port(0), socket_file("") {}
++    EndPoint(ip_t ip2, int port2) : ip(ip2), port(port2), socket_file("") {}
+     explicit EndPoint(const sockaddr_in& in)
+-        : ip(in.sin_addr), port(ntohs(in.sin_port)) {}
++        : ip(in.sin_addr), port(ntohs(in.sin_port)), socket_file("") {}
++    explicit EndPoint(const char* file) : ip(IP_ANY), port(0),
++                                            socket_file(file) {}
++    explicit EndPoint(const std::string& file) : ip(IP_ANY), port(0),
++                                            socket_file(file) {}
+     
+     ip_t ip;
+     int port;
++    std::string socket_file;
+ };
+ 
+ struct EndPointStr {
+     const char* c_str() const { return _buf; }
+-    char _buf[INET_ADDRSTRLEN + 16];
++    char _buf[UNIX_SOCKET_FILE_PATH_SIZE];
+ };
+ 
+ // Convert EndPoint to c-style string. Notice that you can serialize 
+@@ -99,7 +105,13 @@ struct EndPointStr {
+ // Example: printf("point=%s\n", endpoint2str(point).c_str());
+ EndPointStr endpoint2str(const EndPoint&);
+ 
+-// Convert string `ip_and_port_str' to a EndPoint *point.
++// is an unix socket endpoint or not
++bool is_unix_sock_endpoint(const EndPoint& point);
++
++// is sock file name is valid
++bool is_sock_file_name_valid(const char* filename);
++
++// Convert string `ip_and_port_str or unix_socket_file_path' to a EndPoint *point.
+ // Returns 0 on success, -1 otherwise.
+ int str2endpoint(const char* ip_and_port_str, EndPoint* point);
+ int str2endpoint(const char* ip_str, int port, EndPoint* point);
+@@ -183,7 +195,7 @@ inline bool operator!=(EndPoint p1, EndPoint p2) {
+ }
+ 
+ inline std::ostream& operator<<(std::ostream& os, const EndPoint& ep) {
+-    return os << ep.ip << ':' << ep.port;
++    return os << endpoint2str(ep).c_str();
+ }
+ inline std::ostream& operator<<(std::ostream& os, const EndPointStr& ep_str) {
+     return os << ep_str.c_str();
+diff --git a/src/butil/logging.cc b/src/butil/logging.cc
+index b9e2b23..cd6008f 100644
+--- a/src/butil/logging.cc
++++ b/src/butil/logging.cc
+@@ -110,6 +110,7 @@ int BAIDU_WEAK bthread_setspecific(bthread_key_t key, void* data);
+ void* BAIDU_WEAK bthread_getspecific(bthread_key_t key);
+ }
+ 
++namespace butil{
+ namespace logging {
+ 
+ DEFINE_bool(crash_on_fatal_log, false,
+@@ -838,8 +839,8 @@ void LogStream::FlushWithoutReset() {
+             // Remove top 3 frames which are useless to users.
+             // #2 may be ~LogStream
+             //   #0 0x00000059ccae butil::debug::StackTrace::StackTrace()
+-            //   #1 0x0000005947c7 logging::LogStream::FlushWithoutReset()
+-            //   #2 0x000000594b88 logging::LogMessage::~LogMessage()
++            //   #1 0x0000005947c7 butil::logging::LogStream::FlushWithoutReset()
++            //   #2 0x000000594b88 butil::logging::LogMessage::~LogMessage()
+             butil::debug::StackTrace trace_stripped(addrs + 3, count - 3);
+             trace_stripped.OutputToStream(this);
+         } else {
+@@ -1435,6 +1436,7 @@ const bool ALLOW_UNUSED validate_min_log_level = GFLAGS_NS::RegisterFlagValidato
+     &FLAGS_minloglevel, NonNegativeInteger);
+ 
+ }  // namespace logging
++}  // namespace butil
+ 
+ std::ostream& operator<<(std::ostream& out, const wchar_t* wstr) {
+     return out << butil::WideToUTF8(std::wstring(wstr));
+diff --git a/src/butil/logging.h b/src/butil/logging.h
+index 998ee95..3a5f4f7 100644
+--- a/src/butil/logging.h
++++ b/src/butil/logging.h
+@@ -198,6 +198,7 @@
+ // There is the special severity of DFATAL, which logs FATAL in debug mode,
+ // ERROR in normal mode.
+ 
++namespace butil{
+ namespace logging {
+ 
+ // TODO(avi): do we want to do a unification of character types here?
+@@ -358,8 +359,8 @@ const LogSeverity BLOG_DFATAL = BLOG_ERROR;
+ // by LOG() and LOG_IF, etc. Since these are used all over our code, it's
+ // better to have compact code for these operations.
+ #define BAIDU_COMPACT_LOG_EX(severity, ClassName, ...)  \
+-    ::logging::ClassName(__FILE__, __LINE__,            \
+-    ::logging::BLOG_##severity, ##__VA_ARGS__)
++    ::butil::logging::ClassName(__FILE__, __LINE__,            \
++    ::butil::logging::BLOG_##severity, ##__VA_ARGS__)
+ 
+ #define BAIDU_COMPACK_LOG(severity)             \
+     BAIDU_COMPACT_LOG_EX(severity, LogMessage)
+@@ -380,7 +381,7 @@ const LogSeverity BLOG_0 = BLOG_ERROR;
+ // LOG_IS_ON(DFATAL) always holds in debug mode. In particular, CHECK()s will
+ // always fire if they fail.
+ #define LOG_IS_ON(severity)                                     \
+-    (logging::BLOG_##severity >= ::logging::GetMinLogLevel())
++    (butil::logging::BLOG_##severity >= ::butil::logging::GetMinLogLevel())
+ 
+ #if defined(__GNUC__)
+ // We emit an anonymous static int* variable at every VLOG_IS_ON(n) site.
+@@ -390,18 +391,18 @@ const LogSeverity BLOG_0 = BLOG_ERROR;
+ // matching the current source file that represents results of
+ // parsing of --vmodule flag and/or SetVLOGLevel calls.
+ # define BAIDU_VLOG_IS_ON(verbose_level, filepath)                      \
+-    ({ static const int* vlocal = &::logging::VLOG_UNINITIALIZED;       \
++    ({ static const int* vlocal = &::butil::logging::VLOG_UNINITIALIZED;       \
+         const int saved_verbose_level = (verbose_level);                \
+         (saved_verbose_level >= 0)/*VLOG(-1) is forbidden*/ &&          \
+             (*vlocal >= saved_verbose_level) &&                         \
+-            ((vlocal != &::logging::VLOG_UNINITIALIZED) ||              \
+-             (::logging::add_vlog_site(&vlocal, filepath, __LINE__,     \
++            ((vlocal != &::butil::logging::VLOG_UNINITIALIZED) ||              \
++             (::butil::logging::add_vlog_site(&vlocal, filepath, __LINE__,     \
+                                        saved_verbose_level))); })
+ #else
+ // GNU extensions not available, so we do not support --vmodule.
+ // Dynamic value of FLAGS_verbose always controls the logging level.
+ # define BAIDU_VLOG_IS_ON(verbose_level, filepath)      \
+-    (::logging::FLAGS_v >= (verbose_level))
++    (::butil::logging::FLAGS_v >= (verbose_level))
+ #endif
+ 
+ #define VLOG_IS_ON(verbose_level) BAIDU_VLOG_IS_ON(verbose_level, __FILE__)
+@@ -432,7 +433,7 @@ void print_vlog_sites(VLogSitePrinter*);
+ // Helper macro which avoids evaluating the arguments to a stream if
+ // the condition doesn't hold.
+ #define BAIDU_LAZY_STREAM(stream, condition)                            \
+-    !(condition) ? (void) 0 : ::logging::LogMessageVoidify() & (stream)
++    !(condition) ? (void) 0 : ::butil::logging::LogMessageVoidify() & (stream)
+ 
+ // We use the preprocessor's merging operator, "##", so that, e.g.,
+ // LOG(INFO) becomes the token BAIDU_COMPACK_LOG(INFO).  There's some funny
+@@ -470,14 +471,14 @@ void print_vlog_sites(VLogSitePrinter*);
+ // file/line can be specified at running-time. This is useful for printing
+ // logs with known file/line inside a LogSink or LogMessageHandler
+ #define LOG_AT_STREAM(severity, file, line)                             \
+-    ::logging::LogMessage(file, line, ::logging::BLOG_##severity).stream()
++    ::butil::logging::LogMessage(file, line, ::butil::logging::BLOG_##severity).stream()
+ 
+ #define LOG_AT(severity, file, line)                                    \
+     BAIDU_LAZY_STREAM(LOG_AT_STREAM(severity, file, line), LOG_IS_ON(severity))
+ 
+ // The VLOG macros log with negative verbosities.
+ #define VLOG_STREAM(verbose_level)                                      \
+-    ::logging::LogMessage(__FILE__, __LINE__, -(verbose_level)).stream()
++    ::butil::logging::LogMessage(__FILE__, __LINE__, -(verbose_level)).stream()
+ 
+ #define VLOG(verbose_level)                                             \
+     BAIDU_LAZY_STREAM(VLOG_STREAM(verbose_level), VLOG_IS_ON(verbose_level))
+@@ -505,12 +506,12 @@ void print_vlog_sites(VLogSitePrinter*);
+ 
+ #if defined (OS_WIN)
+ #define VPLOG_STREAM(verbose_level)                                     \
+-     ::logging::Win32ErrorLogMessage(__FILE__, __LINE__, -verbose_level, \
+-                                     ::logging::GetLastSystemErrorCode()).stream()
++     ::butil::logging::Win32ErrorLogMessage(__FILE__, __LINE__, -verbose_level, \
++                                     ::butil::logging::GetLastSystemErrorCode()).stream()
+ #elif defined(OS_POSIX)
+ #define VPLOG_STREAM(verbose_level)                                     \
+-    ::logging::ErrnoLogMessage(__FILE__, __LINE__, -verbose_level,      \
+-                               ::logging::GetLastSystemErrorCode()).stream()
++    ::butil::logging::ErrnoLogMessage(__FILE__, __LINE__, -verbose_level,      \
++                               ::butil::logging::GetLastSystemErrorCode()).stream()
+ #endif
+ 
+ #define VPLOG(verbose_level)                                            \
+@@ -523,11 +524,11 @@ void print_vlog_sites(VLogSitePrinter*);
+ #if defined(OS_WIN)
+ #define PLOG_STREAM(severity)                                           \
+     BAIDU_COMPACT_LOG_EX(severity, Win32ErrorLogMessage,                \
+-                         ::logging::GetLastSystemErrorCode()).stream()
++                         ::butil::logging::GetLastSystemErrorCode()).stream()
+ #elif defined(OS_POSIX)
+ #define PLOG_STREAM(severity)                                           \
+     BAIDU_COMPACT_LOG_EX(severity, ErrnoLogMessage,                     \
+-                         ::logging::GetLastSystemErrorCode()).stream()
++                         ::butil::logging::GetLastSystemErrorCode()).stream()
+ #endif
+ 
+ #define PLOG(severity)                                                  \
+@@ -537,7 +538,7 @@ void print_vlog_sites(VLogSitePrinter*);
+ 
+ // The actual stream used isn't important.
+ #define BAIDU_EAT_STREAM_PARAMS                                           \
+-    true ? (void) 0 : ::logging::LogMessageVoidify() & LOG_STREAM(FATAL)
++    true ? (void) 0 : ::butil::logging::LogMessageVoidify() & LOG_STREAM(FATAL)
+ 
+ // CHECK dies with a fatal error if condition is not true.  It is *not*
+ // controlled by NDEBUG, so the check will be executed regardless of
+@@ -578,9 +579,9 @@ void print_vlog_sites(VLogSitePrinter*);
+ // CHECK_EQ(...) else { ... } work properly.
+ #define BAIDU_CHECK_OP(name, op, val1, val2)                                  \
+     if (std::string* _result =                                          \
+-        ::logging::Check##name##Impl((val1), (val2),                    \
++        ::butil::logging::Check##name##Impl((val1), (val2),                    \
+                                      #val1 " " #op " " #val2))          \
+-        ::logging::LogMessage(__FILE__, __LINE__, _result).stream().SetCheck()
++        ::butil::logging::LogMessage(__FILE__, __LINE__, _result).stream().SetCheck()
+ 
+ #endif
+ 
+@@ -805,10 +806,10 @@ const LogSeverity BLOG_DCHECK = BLOG_INFO;
+ #define BAIDU_DCHECK_OP(name, op, val1, val2)                           \
+     if (DCHECK_IS_ON())                                                   \
+         if (std::string* _result =                                      \
+-            ::logging::Check##name##Impl((val1), (val2),                \
++            ::butil::logging::Check##name##Impl((val1), (val2),                \
+                                          #val1 " " #op " " #val2))      \
+-            ::logging::LogMessage(                                      \
+-                __FILE__, __LINE__, ::logging::BLOG_DCHECK,             \
++            ::butil::logging::LogMessage(                                      \
++                __FILE__, __LINE__, ::butil::logging::BLOG_DCHECK,             \
+                 _result).stream()
+ 
+ // Equality/Inequality checks - compare two values, and log a
+@@ -1050,12 +1051,12 @@ BUTIL_EXPORT void CloseLogFile();
+ BUTIL_EXPORT void RawLog(int level, const char* message);
+ 
+ #define RAW_LOG(level, message)                         \
+-    ::logging::RawLog(::logging::BLOG_##level, message)
++    ::butil::logging::RawLog(::butil::logging::BLOG_##level, message)
+ 
+ #define RAW_CHECK(condition, message)                                   \
+     do {                                                                \
+         if (!(condition))                                               \
+-            ::logging::RawLog(::logging::BLOG_FATAL, "Check failed: " #condition "\n"); \
++            ::butil::logging::RawLog(::butil::logging::BLOG_FATAL, "Check failed: " #condition "\n"); \
+     } while (0)
+ 
+ #if defined(OS_WIN)
+@@ -1069,10 +1070,11 @@ inline LogStream& noflush(LogStream& ls) {
+ }
+ 
+ }  // namespace logging
++}  // namespace butil
+ 
+-using ::logging::noflush;
+-using ::logging::VLogSitePrinter;
+-using ::logging::print_vlog_sites;
++using ::butil::logging::noflush;
++using ::butil::logging::VLogSitePrinter;
++using ::butil::logging::print_vlog_sites;
+ 
+ // These functions are provided as a convenience for logging, which is where we
+ // use streams (it is against Google style to use streams in other places). It
+diff --git a/src/bvar/detail/sampler.cpp b/src/bvar/detail/sampler.cpp
+index 90b4f80..1de8097 100644
+--- a/src/bvar/detail/sampler.cpp
++++ b/src/bvar/detail/sampler.cpp
+@@ -1,11 +1,11 @@
+ // Copyright (c) 2015 Baidu, Inc.
+-// 
++//
+ // Licensed under the Apache License, Version 2.0 (the "License");
+ // you may not use this file except in compliance with the License.
+ // You may obtain a copy of the License at
+-// 
++//
+ //     http://www.apache.org/licenses/LICENSE-2.0
+-// 
++//
+ // Unless required by applicable law or agreed to in writing, software
+ // distributed under the License is distributed on an "AS IS" BASIS,
+ // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+@@ -73,10 +73,10 @@ public:
+     static double get_cumulated_time(void* arg) {
+         return ((SamplerCollector*)arg)->_cumulated_time_us / 1000.0 / 1000.0;
+     }
+-    
++
+ private:
+     void run();
+-    
++
+     static void* sampling_thread(void* arg) {
+         ((SamplerCollector*)arg)->run();
+         return NULL;
+@@ -93,9 +93,9 @@ void SamplerCollector::run() {
+     butil::LinkNode<Sampler> root;
+     int consecutive_nosleep = 0;
+ #ifndef UNIT_TEST
+-    PassiveStatus<double> cumulated_time(get_cumulated_time, this);
+-    bvar::PerSecond<bvar::PassiveStatus<double> > usage(
+-            "bvar_sampler_collector_usage", &cumulated_time, 10);
++    // PassiveStatus<double> cumulated_time(get_cumulated_time, this);
++    // bvar::PerSecond<bvar::PassiveStatus<double> > usage(
++    //        "bvar_sampler_collector_usage", &cumulated_time, 10);
+ #endif
+     while (!_stop) {
+         int64_t abstime = butil::gettimeofday_us();
+@@ -133,7 +133,7 @@ void SamplerCollector::run() {
+         }
+         if (slept) {
+             consecutive_nosleep = 0;
+-        } else {            
++        } else {
+             if (++consecutive_nosleep >= WARN_NOSLEEP_THRESHOLD) {
+                 consecutive_nosleep = 0;
+                 LOG(WARNING) << "bvar is busy at sampling for "
+diff --git a/test/BUILD b/test/BUILD
+index b1f9ae5..c1bdfbb 100644
+--- a/test/BUILD
++++ b/test/BUILD
+@@ -220,6 +220,7 @@ cc_test(
+         "bthread_dispatcher_unittest.cpp",
+         "bthread_fd_unittest.cpp",
+         "bthread_mutex_unittest.cpp",
++        "bthread_brpc_rwlock_unittest.cpp",
+         "bthread_setconcurrency_unittest.cpp",
+         # glog CHECK die with a fatal error
+         "bthread_key_unittest.cpp"
+diff --git a/test/brpc_channel_unittest.cpp b/test/brpc_channel_unittest.cpp
+index 049a497..48fb927 100644
+--- a/test/brpc_channel_unittest.cpp
++++ b/test/brpc_channel_unittest.cpp
+@@ -12,6 +12,7 @@
+ #include "butil/macros.h"
+ #include "butil/logging.h"
+ #include "butil/files/temp_file.h"
++#include "butil/unix_socket.h"
+ #include "brpc/socket.h"
+ #include "brpc/acceptor.h"
+ #include "brpc/server.h"
+@@ -161,6 +162,7 @@ protected:
+ 
+         EXPECT_EQ(0, _server_list.save(butil::endpoint2str(_ep).c_str()));           
+         _naming_url = std::string("File://") + _server_list.fname();
++        snprintf(_socket_file, sizeof(_socket_file), "%s", "/tmp/brpc_channel_test.sock");
+     };
+ 
+     virtual ~ChannelTest(){};
+@@ -168,6 +170,7 @@ protected:
+     };
+     virtual void TearDown() {
+         StopAndJoin();
++        unlink(_socket_file);
+     };
+ 
+     static void register_protocol() {
+@@ -253,6 +256,17 @@ protected:
+         return 0;
+     }
+ 
++    int StartAccept(const char* socket_file) {
++        int listening_fd = -1;
++        if ((listening_fd = butil::unix_socket_listen(socket_file)) < 0) {
++            return -1;
++        }
++        if (_messenger.StartAccept(listening_fd, -1, NULL) != 0) {
++            return -1;
++        }
++        return 0;
++    }
++
+     void StopAndJoin() {
+         _messenger.StopAccept(0);
+         _messenger.Join();
+@@ -276,6 +290,20 @@ protected:
+             EXPECT_EQ(0, channel->Init(_naming_url.c_str(), "rR", &opt));
+         }                                         
+     }
++
++    void SetUpChannel(brpc::Channel* channel,
++                      bool short_connection,
++                      const brpc::Authenticator* auth = NULL,
++                      std::string connection_group = std::string()) {
++        brpc::ChannelOptions opt;
++        if (short_connection) {
++            opt.connection_type = brpc::CONNECTION_TYPE_SHORT;
++        }
++        opt.auth = auth;
++        opt.max_retry = 0;
++        opt.connection_group = connection_group;
++        EXPECT_EQ(0, channel->InitWithSockFile(_socket_file, &opt));
++    }
+     
+     void CallMethod(brpc::ChannelBase* channel, 
+                     brpc::Controller* cntl,
+@@ -334,6 +362,22 @@ protected:
+         
+         EXPECT_EQ(ECONNREFUSED, cntl.ErrorCode()) << cntl.ErrorText();
+     }
++
++    void TestConnectionFailedUnixSocket(bool async, bool short_connection) {
++        std::cout << " ** async=" << async
++                  << " short=" << short_connection << std::endl;
++
++        brpc::Channel channel;
++        SetUpChannel(&channel, short_connection);
++
++        brpc::Controller cntl;
++        test::EchoRequest req;
++        test::EchoResponse res;
++        req.set_message(__FUNCTION__);
++        CallMethod(&channel, &cntl, &req, &res, async);
++
++        EXPECT_EQ(ENOENT, cntl.ErrorCode()) << cntl.ErrorText();
++    }
+     
+     void TestConnectionFailedParallel(bool single_server, bool async, 
+                                       bool short_connection) {
+@@ -469,6 +513,79 @@ protected:
+         StopAndJoin();
+     }
+ 
++    void TestSuccessUnixSocket(bool async, bool short_connection) {
++        std::cout << " *** async=" << async
++                  << " short=" << short_connection << std::endl;
++
++        ASSERT_EQ(0, StartAccept(_socket_file));
++        brpc::Channel channel;
++        SetUpChannel(&channel, short_connection);
++
++        brpc::Controller cntl;
++        test::EchoRequest req;
++        test::EchoResponse res;
++        req.set_message(__FUNCTION__);
++        CallMethod(&channel, &cntl, &req, &res, async);
++
++        EXPECT_EQ(0, cntl.ErrorCode())
++            << async << ", " << short_connection;
++        const uint64_t receiving_socket_id = res.receiving_socket_id();
++        EXPECT_EQ(0, cntl.sub_count());
++        EXPECT_TRUE(NULL == cntl.sub(-1));
++        EXPECT_TRUE(NULL == cntl.sub(0));
++        EXPECT_TRUE(NULL == cntl.sub(1));
++        EXPECT_EQ("received " + std::string(__FUNCTION__), res.message());
++        if (short_connection) {
++            // Sleep to let `_messenger' detect `Socket' being `SetFailed'
++            const int64_t start_time = butil::gettimeofday_us();
++            while (_messenger.ConnectionCount() != 0) {
++                EXPECT_LT(butil::gettimeofday_us(), start_time + 100000L/*100ms*/);
++                bthread_usleep(1000);
++            }
++        } else {
++            // Reuse the connection
++            brpc::Channel channel2;
++            SetUpChannel(&channel2, short_connection);
++            cntl.Reset();
++            req.Clear();
++            res.Clear();
++            req.set_message(__FUNCTION__);
++            CallMethod(&channel2, &cntl, &req, &res, async);
++            EXPECT_EQ(0, cntl.ErrorCode())
++                << async << ", " << short_connection;
++            EXPECT_EQ(receiving_socket_id, res.receiving_socket_id());
++
++            // A different connection_group does not reuse the connection
++            brpc::Channel channel3;
++            SetUpChannel(&channel3, short_connection,
++                         NULL, "another_group");
++            cntl.Reset();
++            req.Clear();
++            res.Clear();
++            req.set_message(__FUNCTION__);
++            CallMethod(&channel3, &cntl, &req, &res, async);
++            EXPECT_EQ(0, cntl.ErrorCode())
++                << async << ", " << short_connection;
++            const uint64_t receiving_socket_id2 = res.receiving_socket_id();
++            EXPECT_NE(receiving_socket_id, receiving_socket_id2);
++
++            // Channel in the same connection_group reuses the connection
++            // note that the leading/trailing spaces should be trimed.
++            brpc::Channel channel4;
++            SetUpChannel(&channel4, short_connection,
++                         NULL, " another_group ");
++            cntl.Reset();
++            req.Clear();
++            res.Clear();
++            req.set_message(__FUNCTION__);
++            CallMethod(&channel4, &cntl, &req, &res, async);
++            EXPECT_EQ(0, cntl.ErrorCode())
++                << async << ", " << short_connection;
++            EXPECT_EQ(receiving_socket_id2, res.receiving_socket_id());
++        }
++        StopAndJoin();
++    }
++
+     class SetCode : public brpc::CallMapper {
+     public:
+         brpc::SubCall Map(
+@@ -814,6 +931,27 @@ protected:
+         StopAndJoin();
+     }
+ 
++    void CancelBeforeCallMethodUnixSocket(
++        bool async, bool short_connection) {
++        std::cout << " ***  async=" << async
++                  << " short=" << short_connection << std::endl;
++
++        ASSERT_EQ(0, StartAccept(_socket_file));
++        brpc::Channel channel;
++        SetUpChannel(&channel, short_connection);
++
++        brpc::Controller cntl;
++        test::EchoRequest req;
++        test::EchoResponse res;
++        req.set_message(__FUNCTION__);
++        const brpc::CallId cid = cntl.call_id();
++        ASSERT_TRUE(cid.value != 0);
++        brpc::StartCancel(cid);
++        CallMethod(&channel, &cntl, &req, &res, async);
++        EXPECT_EQ(ECANCELED, cntl.ErrorCode()) << cntl.ErrorText();
++        StopAndJoin();
++    }
++
+     void CancelBeforeCallMethodParallel(
+         bool single_server, bool async, bool short_connection) {
+         std::cout << " *** single=" << single_server
+@@ -908,6 +1046,38 @@ protected:
+         EXPECT_TRUE(NULL == cntl.sub(0));
+         StopAndJoin();
+     }
++
++    void CancelDuringCallMethodUnixSocket(
++        bool async, bool short_connection) {
++        std::cout << " ***  async=" << async
++                  << " short=" << short_connection << std::endl;
++
++        ASSERT_EQ(0, StartAccept(_socket_file));
++        brpc::Channel channel;
++        SetUpChannel(&channel, short_connection);
++
++        brpc::Controller cntl;
++        test::EchoRequest req;
++        test::EchoResponse res;
++        req.set_message(__FUNCTION__);
++        const brpc::CallId cid = cntl.call_id();
++        ASSERT_TRUE(cid.value != 0);
++        pthread_t th;
++        CancelerArg carg = { 10000, cid };
++        ASSERT_EQ(0, pthread_create(&th, NULL, Canceler, &carg));
++        req.set_sleep_us(carg.sleep_before_cancel_us * 2);
++        butil::Timer tm;
++        tm.start();
++        CallMethod(&channel, &cntl, &req, &res, async);
++        tm.stop();
++        EXPECT_LT(labs(tm.u_elapsed() - carg.sleep_before_cancel_us), 10000);
++        ASSERT_EQ(0, pthread_join(th, NULL));
++        EXPECT_EQ(ECANCELED, cntl.ErrorCode());
++        EXPECT_EQ(0, cntl.sub_count());
++        EXPECT_TRUE(NULL == cntl.sub(1));
++        EXPECT_TRUE(NULL == cntl.sub(0));
++        StopAndJoin();
++    }
+     
+     void CancelDuringCallMethodParallel(
+         bool single_server, bool async, bool short_connection) {
+@@ -1014,6 +1184,28 @@ protected:
+         StopAndJoin();
+     }
+ 
++    void CancelAfterCallMethodUnixSocket(
++        bool async, bool short_connection) {
++        std::cout << " *** async=" << async
++                  << " short=" << short_connection << std::endl;
++
++        ASSERT_EQ(0, StartAccept(_socket_file));
++        brpc::Channel channel;
++        SetUpChannel(&channel, short_connection);
++
++        brpc::Controller cntl;
++        test::EchoRequest req;
++        test::EchoResponse res;
++        req.set_message(__FUNCTION__);
++        const brpc::CallId cid = cntl.call_id();
++        ASSERT_TRUE(cid.value != 0);
++        CallMethod(&channel, &cntl, &req, &res, async);
++        EXPECT_EQ(0, cntl.ErrorCode());
++        EXPECT_EQ(0, cntl.sub_count());
++        ASSERT_EQ(EINVAL, bthread_id_error(cid, ECANCELED));
++        StopAndJoin();
++    }
++
+     void CancelAfterCallMethodParallel(
+         bool single_server, bool async, bool short_connection) {
+         std::cout << " *** single=" << single_server
+@@ -1077,6 +1269,35 @@ protected:
+         StopAndJoin();
+     }
+ 
++    void TestAttachmentUnixSocket(bool async, bool short_connection) {
++        ASSERT_EQ(0, StartAccept(_socket_file));
++        brpc::Channel channel;
++        SetUpChannel(&channel, short_connection);
++
++        brpc::Controller cntl;
++        cntl.request_attachment().append("attachment");
++        test::EchoRequest req;
++        test::EchoResponse res;
++        req.set_message(__FUNCTION__);
++        CallMethod(&channel, &cntl, &req, &res, async);
++
++        EXPECT_EQ(0, cntl.ErrorCode())  << short_connection;
++        EXPECT_FALSE(cntl.request_attachment().empty())
++            << ", " << async << ", " << short_connection;
++        EXPECT_EQ("received " + std::string(__FUNCTION__), res.message());
++        if (short_connection) {
++            // Sleep to let `_messenger' detect `Socket' being `SetFailed'
++            const int64_t start_time = butil::gettimeofday_us();
++            while (_messenger.ConnectionCount() != 0) {
++                EXPECT_LT(butil::gettimeofday_us(), start_time + 100000L/*100ms*/);
++                bthread_usleep(1000);
++            }
++        } else {
++            EXPECT_GE(1ul, _messenger.ConnectionCount());
++        }
++        StopAndJoin();
++    }
++
+     void TestRequestNotInit(bool single_server, bool async,
+                             bool short_connection) {
+         std::cout << " *** single=" << single_server
+@@ -1094,6 +1315,21 @@ protected:
+         StopAndJoin();
+     }
+ 
++    void TestRequestNotInitUnixSocket(bool async, bool short_connection) {
++        std::cout << " *** async=" << async
++                  << " short=" << short_connection << std::endl;
++        ASSERT_EQ(0, StartAccept(_socket_file));
++        brpc::Channel channel;
++        SetUpChannel(&channel, short_connection);
++
++        brpc::Controller cntl;
++        test::EchoRequest req;
++        test::EchoResponse res;
++        CallMethod(&channel, &cntl, &req, &res, async);
++        EXPECT_EQ(brpc::EREQUEST, cntl.ErrorCode()) << cntl.ErrorText();
++        StopAndJoin();
++    }
++
+     void TestRequestNotInitParallel(bool single_server, bool async,
+                                     bool short_connection) {
+         std::cout << " *** single=" << single_server
+@@ -1170,6 +1406,28 @@ protected:
+         StopAndJoin();
+     }
+ 
++    void TestRPCTimeoutUnixSocket(bool async, bool short_connection) {
++        std::cout << " *** async=" << async
++                  << " short=" << short_connection << std::endl;
++        ASSERT_EQ(0, StartAccept(_socket_file));
++        brpc::Channel channel;
++        SetUpChannel(&channel, short_connection);
++
++        brpc::Controller cntl;
++        test::EchoRequest req;
++        test::EchoResponse res;
++        req.set_message(__FUNCTION__);
++        req.set_sleep_us(70000); // 70ms
++        cntl.set_timeout_ms(17);
++        butil::Timer tm;
++        tm.start();
++        CallMethod(&channel, &cntl, &req, &res, async);
++        tm.stop();
++        EXPECT_EQ(brpc::ERPCTIMEDOUT, cntl.ErrorCode()) << cntl.ErrorText();
++        EXPECT_LT(labs(tm.m_elapsed() - cntl.timeout_ms()), 10);
++        StopAndJoin();
++    }
++
+     void TestRPCTimeoutParallel(
+         bool single_server, bool async, bool short_connection) {
+         std::cout << " *** single=" << single_server
+@@ -1312,6 +1570,25 @@ protected:
+         StopAndJoin();
+     }
+ 
++    void TestCloseFDUnixSocket(bool async, bool short_connection) {
++        std::cout << " *** async=" << async
++                  << " short=" << short_connection << std::endl;
++
++        ASSERT_EQ(0, StartAccept(_socket_file));
++        brpc::Channel channel;
++        SetUpChannel(&channel, short_connection);
++
++        brpc::Controller cntl;
++        test::EchoRequest req;
++        test::EchoResponse res;
++        req.set_message(__FUNCTION__);
++        req.set_close_fd(true);
++        CallMethod(&channel, &cntl, &req, &res, async);
++
++        EXPECT_EQ(brpc::EEOF, cntl.ErrorCode()) << cntl.ErrorText();
++        StopAndJoin();
++    }
++
+     void TestCloseFDParallel(bool single_server, bool async, bool short_connection) {
+         std::cout << " *** single=" << single_server
+                   << " async=" << async
+@@ -1382,6 +1659,25 @@ protected:
+         ASSERT_EQ(0, StartAccept(_ep));
+         brpc::Channel channel;
+         SetUpChannel(&channel, single_server, short_connection);
++
++        brpc::Controller cntl;
++        test::EchoRequest req;
++        test::EchoResponse res;
++        req.set_message(__FUNCTION__);
++        req.set_server_fail(brpc::EINTERNAL);
++        CallMethod(&channel, &cntl, &req, &res, async);
++
++        EXPECT_EQ(brpc::EINTERNAL, cntl.ErrorCode()) << cntl.ErrorText();
++        StopAndJoin();
++    }
++
++    void TestServerFailUnixSocket(bool async, bool short_connection) {
++        std::cout << " *** async=" << async
++                  << " short=" << short_connection << std::endl;
++
++        ASSERT_EQ(0, StartAccept(_socket_file));
++        brpc::Channel channel;
++        SetUpChannel(&channel, short_connection);
+                 
+         brpc::Controller cntl;
+         test::EchoRequest req;
+@@ -1461,6 +1757,32 @@ protected:
+         ASSERT_EQ(0, StartAccept(_ep));
+         brpc::Channel* channel = new brpc::Channel();
+         SetUpChannel(channel, single_server, short_connection);
++
++        brpc::Controller cntl;
++        test::EchoRequest req;
++        test::EchoResponse res;
++        req.set_message(__FUNCTION__);
++        req.set_sleep_us(10000);
++        CallMethod(channel, &cntl, &req, &res, true, true/*destroy*/);
++
++        EXPECT_EQ(0, cntl.ErrorCode()) << cntl.ErrorText();
++        EXPECT_EQ("received " + std::string(__FUNCTION__), res.message());
++        // Sleep to let `_messenger' detect `Socket' being `SetFailed'
++        const int64_t start_time = butil::gettimeofday_us();
++        while (_messenger.ConnectionCount() != 0) {
++            EXPECT_LT(butil::gettimeofday_us(), start_time + 100000L/*100ms*/);
++            bthread_usleep(1000);
++        }
++
++        StopAndJoin();
++    }
++
++    void TestDestroyChannelUnixSocket(bool short_connection) {
++        std::cout << "***short=" << short_connection << std::endl;
++
++        ASSERT_EQ(0, StartAccept(_socket_file));
++        brpc::Channel* channel = new brpc::Channel();
++        SetUpChannel(channel, short_connection);
+                 
+         brpc::Controller cntl;
+         test::EchoRequest req;
+@@ -1623,6 +1945,37 @@ protected:
+         StopAndJoin();
+     }
+ 
++    void TestAuthenticationUnixSocket(
++                            bool async, bool short_connection) {
++        std::cout << " *** async=" << async
++                  << " short=" << short_connection << std::endl;
++
++        ASSERT_EQ(0, StartAccept(_socket_file));
++        MyAuthenticator auth;
++        brpc::Channel channel;
++        SetUpChannel(&channel, short_connection, &auth);
++
++        const int NUM = 10;
++        pthread_t tids[NUM];
++        for (int i = 0; i < NUM; ++i) {
++            google::protobuf::Closure* thrd_func = 
++                brpc::NewCallback(
++                    this, &ChannelTest::RPCThread, (brpc::ChannelBase*)&channel, async);
++            EXPECT_EQ(0, pthread_create(&tids[i], NULL,
++                                        RunClosure, thrd_func));
++        }
++        for (int i = 0; i < NUM; ++i) {
++            pthread_join(tids[i], NULL);
++        }
++
++        if (short_connection) {
++            EXPECT_EQ(NUM, auth.count.load());
++        } else {
++            EXPECT_EQ(1, auth.count.load());
++        }
++        StopAndJoin();
++    }
++
+     void TestAuthenticationParallel(bool single_server, 
+                                     bool async, bool short_connection) {
+         std::cout << " *** single=" << single_server
+@@ -1751,6 +2104,66 @@ protected:
+             } else {
+                 EXPECT_TRUE(cntl.retried_count() > 0);
+             }
++        }
++        StopAndJoin();
++        bthread_usleep(100000);  // wait for stop
++
++        // Retry when connection failed
++        cntl.Reset();
++        cntl.set_max_retry(RETRY_NUM);
++        CallMethod(&channel, &cntl, &req, &res, async);
++        EXPECT_EQ(EHOSTDOWN, cntl.ErrorCode());
++        EXPECT_EQ(RETRY_NUM, cntl.retried_count());
++    }
++
++    void TestRetryUnixSocket(bool async, bool short_connection) {
++        std::cout << " *** async=" << async
++                  << " short=" << short_connection << std::endl;
++
++        ASSERT_EQ(0, StartAccept(_socket_file));
++        brpc::Channel channel;
++        SetUpChannel(&channel, short_connection);
++
++        const int RETRY_NUM = 3;
++        test::EchoRequest req;
++        test::EchoResponse res;
++        brpc::Controller cntl;
++        req.set_message(__FUNCTION__);
++
++        // No retry when timeout
++        cntl.set_max_retry(RETRY_NUM);
++        cntl.set_timeout_ms(10);  // 10ms
++        req.set_sleep_us(70000); // 70ms
++        CallMethod(&channel, &cntl, &req, &res, async);
++        EXPECT_EQ(brpc::ERPCTIMEDOUT, cntl.ErrorCode()) << cntl.ErrorText();
++        EXPECT_EQ(0, cntl.retried_count());
++        bthread_usleep(100000);  // wait for the sleep task to finish
++
++        // Retry when connection broken
++        cntl.Reset();
++        cntl.set_max_retry(RETRY_NUM);
++        _close_fd_once = true;
++        req.set_sleep_us(0);
++        CallMethod(&channel, &cntl, &req, &res, async);
++
++        if (short_connection) {
++            // Always succeed
++            EXPECT_EQ(0, cntl.ErrorCode()) << cntl.ErrorText();
++            EXPECT_EQ(1, cntl.retried_count());
++
++            const int64_t start_time = butil::gettimeofday_us();
++            while (_messenger.ConnectionCount() != 0) {
++                EXPECT_LT(butil::gettimeofday_us(), start_time + 100000L/*100ms*/);
++                bthread_usleep(1000);
++            }
++        } else {
++            // May fail if health checker can't revive in time
++            if (cntl.Failed()) {
++                EXPECT_EQ(EHOSTDOWN, cntl.ErrorCode()) << async;
++                EXPECT_EQ(RETRY_NUM, cntl.retried_count());
++            } else {
++                EXPECT_TRUE(cntl.retried_count() > 0);
++            }
+         }   
+         StopAndJoin();
+         bthread_usleep(100000);  // wait for stop
+@@ -1804,6 +2217,7 @@ protected:
+     bool _close_fd_once;
+     
+     MyEchoService _svc;
++    char _socket_file[butil::UNIX_SOCKET_FILE_PATH_SIZE];
+ };
+ 
+ class MyShared : public brpc::SharedObject {
+@@ -1871,6 +2285,35 @@ TEST_F(ChannelTest, init_as_single_server) {
+     }
+ }
+ 
++TEST_F(ChannelTest, init_with_socket_file) {
++    {
++        brpc::Channel channel;
++        char socket_file[109];
++        memset(socket_file, '1', 108);
++        socket_file[108] = '\0';
++        ASSERT_EQ(-1, channel.InitWithSockFile(socket_file, NULL));
++        ASSERT_EQ(0, channel.InitWithSockFile("test", NULL));
++    }
++
++    butil::EndPoint ep("test");
++    brpc::Channel channel;
++    ASSERT_EQ(0, channel.Init(ep, NULL));
++    ASSERT_TRUE(channel.SingleServer());
++    ASSERT_EQ(ep, channel._server_address);
++
++    brpc::SocketId id;
++    ASSERT_EQ(0, brpc::SocketMapFind(brpc::SocketMapKey(ep), &id));
++    ASSERT_EQ(id, channel._server_id);
++
++    const int NUM = 10;
++    brpc::Channel channels[NUM];
++    for (int i = 0; i < 10; ++i) {
++        ASSERT_EQ(0, channels[i].Init(ep, NULL));
++        // Share the same server socket
++        ASSERT_EQ(id, channels[i]._server_id);
++    }
++}
++
+ TEST_F(ChannelTest, init_using_unknown_naming_service) {
+     brpc::Channel channel;
+     ASSERT_EQ(-1, channel.Init("unknown://unknown", "unknown", NULL));
+@@ -1952,6 +2395,14 @@ TEST_F(ChannelTest, connection_failed) {
+     }
+ }
+ 
++TEST_F(ChannelTest, connection_failed_unix_socket) {
++    for (int i = 0; i <= 1; ++i) { // Flag Asynchronous
++        for (int j = 0; j <= 1; ++j) { // Flag ShortConnection
++            TestConnectionFailedUnixSocket(i, j);
++        }
++    }
++}
++
+ TEST_F(ChannelTest, empty_parallel_channel) {
+     brpc::ParallelChannel channel;
+ 
+@@ -2064,6 +2515,14 @@ TEST_F(ChannelTest, success) {
+     }
+ }
+ 
++TEST_F(ChannelTest, success_unix_socket) {
++    for (int i = 0; i <= 1; ++i) { // Flag Asynchronous
++        for (int j = 0; j <= 1; ++j) { // Flag ShortConnection
++            TestSuccessUnixSocket(i, j);
++        }
++    }
++}
++
+ TEST_F(ChannelTest, success_parallel) {
+     for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
+         for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
+@@ -2124,6 +2583,14 @@ TEST_F(ChannelTest, cancel_before_callmethod) {
+     }
+ }
+ 
++TEST_F(ChannelTest, cancel_before_callmethod_unix_socket) {
++    for (int i = 0; i <= 1; ++i) { // Flag Asynchronous 
++        for (int j = 0; j <= 1; ++j) { // Flag ShortConnection
++            CancelBeforeCallMethodUnixSocket(i, j);
++        }
++    }
++}
++
+ TEST_F(ChannelTest, cancel_before_callmethod_parallel) {
+     for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
+         for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
+@@ -2154,6 +2621,14 @@ TEST_F(ChannelTest, cancel_during_callmethod) {
+     }
+ }
+ 
++TEST_F(ChannelTest, cancel_during_callmethod_unix_socket) {
++    for (int i = 0; i <= 1; ++i) { // Flag Asynchronous
++        for (int j = 0; j <= 1; ++j) { // Flag ShortConnection
++            CancelDuringCallMethodUnixSocket(i, j);
++        }
++    }
++}
++
+ TEST_F(ChannelTest, cancel_during_callmethod_parallel) {
+     for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
+         for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
+@@ -2184,6 +2659,14 @@ TEST_F(ChannelTest, cancel_after_callmethod) {
+     }
+ }
+ 
++TEST_F(ChannelTest, cancel_after_callmethod_unix_socket) {
++    for (int i = 0; i <= 1; ++i) { // Flag Asynchronous 
++        for (int j = 0; j <= 1; ++j) { // Flag ShortConnection
++            CancelAfterCallMethodUnixSocket(i, j);
++        }
++    }
++}
++
+ TEST_F(ChannelTest, cancel_after_callmethod_parallel) {
+     for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
+         for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
+@@ -2204,6 +2687,14 @@ TEST_F(ChannelTest, request_not_init) {
+     }
+ }
+ 
++TEST_F(ChannelTest, request_not_init_unix_socket) {
++    for (int i = 0; i <= 1; ++i) { // Flag Asynchronous
++        for (int j = 0; j <= 1; ++j) { // Flag ShortConnection
++            TestRequestNotInitUnixSocket(i, j);
++        }
++    }
++}
++
+ TEST_F(ChannelTest, request_not_init_parallel) {
+     for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
+         for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
+@@ -2234,6 +2725,14 @@ TEST_F(ChannelTest, timeout) {
+     }
+ }
+ 
++TEST_F(ChannelTest, timeout_unix_socket) {
++    for (int i = 0; i <= 1; ++i) { // Flag Asynchronous
++        for (int j = 0; j <= 1; ++j) { // Flag ShortConnection
++            TestRPCTimeoutUnixSocket(i, j);
++        }
++    }
++}
++
+ TEST_F(ChannelTest, timeout_parallel) {
+     for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
+         for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
+@@ -2274,6 +2773,14 @@ TEST_F(ChannelTest, close_fd) {
+     }
+ }
+ 
++TEST_F(ChannelTest, close_fd_unix_socket) {
++    for (int i = 0; i <= 1; ++i) { // Flag Asynchronous
++        for (int j = 0; j <= 1; ++j) { // Flag ShortConnection
++            TestCloseFDUnixSocket(i, j);
++        }
++    }
++}
++
+ TEST_F(ChannelTest, close_fd_parallel) {
+     for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
+         for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
+@@ -2304,6 +2811,14 @@ TEST_F(ChannelTest, server_fail) {
+     }
+ }
+ 
++TEST_F(ChannelTest, server_fail_unix_socket) {
++    for (int i = 0; i <= 1; ++i) { // Flag Asynchronous
++        for (int j = 0; j <= 1; ++j) { // Flag ShortConnection
++            TestServerFailUnixSocket(i, j);
++        }
++    }
++}
++
+ TEST_F(ChannelTest, server_fail_parallel) {
+     for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
+         for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
+@@ -2334,6 +2849,14 @@ TEST_F(ChannelTest, authentication) {
+     }
+ }
+ 
++TEST_F(ChannelTest, authentication_unix_socket) {
++    for (int i = 0; i <= 1; ++i) { // Flag Asynchronous
++        for (int j = 0; j <= 1; ++j) { // Flag ShortConnection
++            TestAuthenticationUnixSocket(i, j);
++        }
++    }
++}
++
+ TEST_F(ChannelTest, authentication_parallel) {
+     for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
+         for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
+@@ -2364,6 +2887,14 @@ TEST_F(ChannelTest, retry) {
+     }
+ }
+ 
++TEST_F(ChannelTest, retry_unix_socket) {
++    for (int i = 0; i <= 1; ++i) { // Flag Asynchronous
++        for (int j = 0; j <= 1; ++j) { // Flag ShortConnection
++            TestRetryUnixSocket(i, j);
++        }
++    }
++}
++
+ TEST_F(ChannelTest, retry_other_servers) {
+     for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
+         for (int k = 0; k <=1; ++k) { // Flag ShortConnection
+@@ -2453,6 +2984,14 @@ TEST_F(ChannelTest, clear_attachment_after_retry) {
+     }
+ }
+ 
++TEST_F(ChannelTest, clear_attachment_after_retry_unix_socket) {
++    for (int j = 0; j <= 1; ++j) {
++        for (int k = 0; k <= 1; ++k) {
++            TestAttachmentUnixSocket(j, k);
++        }
++    }
++}
++
+ TEST_F(ChannelTest, destroy_channel) {
+     for (int i = 0; i <= 1; ++i) {
+         for (int j = 0; j <= 1; ++j) {
+@@ -2461,6 +3000,12 @@ TEST_F(ChannelTest, destroy_channel) {
+     }
+ }
+ 
++TEST_F(ChannelTest, destroy_channel_unix_socket) {
++    for (int i = 0; i <= 1; ++i) {
++        TestDestroyChannelUnixSocket(i);
++    }
++}
++
+ TEST_F(ChannelTest, destroy_channel_parallel) {
+     for (int i = 0; i <= 1; ++i) {
+         for (int j = 0; j <= 1; ++j) {
+diff --git a/test/brpc_prometheus_metrics_unittest.cpp b/test/brpc_prometheus_metrics_unittest.cpp
+index fe9055d..38dd7cb 100644
+--- a/test/brpc_prometheus_metrics_unittest.cpp
++++ b/test/brpc_prometheus_metrics_unittest.cpp
+@@ -123,3 +123,80 @@ TEST(PrometheusMetrics, sanity) {
+     ASSERT_EQ(0, server.Stop(0));
+     ASSERT_EQ(0, server.Join());
+ }
++/*
++TEST(PrometheusMetricsDumperTest, sanity) {
++    butil::IOBufBuilder os;
++    brpc::PrometheusMetricsDumper dumper(&os, "test");
++    std::string test1("\"\"");
++    ASSERT_FALSE(dumper.dump("test1", test1));
++
++    std::string test2("\"hello word\"");
++    ASSERT_FALSE(dumper.dump("test2", test2));
++
++    std::string test3("\"{\"name\":\"haorooms\",\"address\":\"\"}\"");
++    ASSERT_TRUE(dumper.dump("test3", test3));
++
++    std::string test4("\"{\"name\":\"haorooms\",\"address\":\"word\"}\"");
++    ASSERT_TRUE(dumper.dump("test4", test4));
++
++    std::string test5("\"{\"name\":\"haorooms\",\"number\":1}\"");
++    ASSERT_FALSE(dumper.dump("test5", test5));
++    std::cout << "dump result:\n" << os << "\n";
++
++    butil::IOBuf buf;
++    os.move_to(buf);
++    std::string strformat = buf.to_string();
++
++    int end_pos = strformat.find('\n');
++    ASSERT_TRUE(std::string::npos != end_pos);
++    ASSERT_EQ("# HELP test3", strformat.substr(0, end_pos));
++    end_pos++;
++    strformat = strformat.substr(end_pos);
++
++    end_pos = strformat.find('\n');
++    ASSERT_TRUE(std::string::npos != end_pos);
++    ASSERT_EQ("# TYPE test3 gauge", strformat.substr(0, end_pos));
++    end_pos++;
++    strformat = strformat.substr(end_pos);
++
++    end_pos = strformat.find('\n');
++    ASSERT_TRUE(std::string::npos != end_pos);
++    ASSERT_EQ("test3{name=\"haorooms\",address=\"\"} 0",
++              strformat.substr(0, end_pos));
++    end_pos++;
++    strformat = strformat.substr(end_pos);
++
++    end_pos = strformat.find('\n');
++    ASSERT_TRUE(std::string::npos != end_pos);
++    ASSERT_EQ("# HELP test4", strformat.substr(0, end_pos));
++    end_pos++;
++    strformat = strformat.substr(end_pos);
++
++    end_pos = strformat.find('\n');
++    ASSERT_TRUE(std::string::npos != end_pos);
++    ASSERT_EQ("# TYPE test4 gauge", strformat.substr(0, end_pos));
++    end_pos++;
++    strformat = strformat.substr(end_pos);
++
++    ASSERT_EQ("test4{name=\"haorooms\",address=\"word\"} 0\n", strformat);
++
++    // 运行结果
++    // [==========] Running 1 test from 1 test case.
++    // [----------] Global test environment set-up.
++    // [----------] 1 test from PrometheusMetricsDumperTest
++    // [ RUN      ] PrometheusMetricsDumperTest.sanity
++    // dump result:
++    // # HELP test3
++    // # TYPE test3 gauge
++    // test3{name="haorooms",address=""} 0
++    // # HELP test4
++    // # TYPE test4 gauge
++    // test4{name="haorooms",address="word"} 0
++
++    // [       OK ] PrometheusMetricsDumperTest.sanity (1 ms)
++    // [----------] 1 test from PrometheusMetricsDumperTest (1 ms total)
++
++    // [----------] Global test environment tear-down
++    // [==========] 1 test from 1 test case ran. (1 ms total)
++    // [  PASSED  ] 1 test.
++}*/
+diff --git a/test/brpc_server_unittest.cpp b/test/brpc_server_unittest.cpp
+index 575c88e..65b5a08 100644
+--- a/test/brpc_server_unittest.cpp
++++ b/test/brpc_server_unittest.cpp
+@@ -211,6 +211,47 @@ TEST_F(ServerTest, sanity) {
+     ASSERT_EQ(0, server.Join());
+ }
+ 
++TEST_F(ServerTest, start_with_socket_file) {
++    {
++        brpc::Server server;
++        brpc::ServerOptions options;
++        options.has_builtin_services = false;
++        // path not exist
++        ASSERT_EQ(-1, server.StartAtSockFile("/tmp/test/test.sock", &options));
++        // file name too long
++        char socket_file[109];
++        memset(socket_file, '1', 108);
++        socket_file[108] = '\0';
++        ASSERT_EQ(-1, server.StartAtSockFile(socket_file, &options));
++        // normal
++        ASSERT_EQ(0, server.StartAtSockFile("/tmp/test.sock", &options));
++        ASSERT_TRUE(server.IsRunning());
++        std::vector<google::protobuf::Service*> services;
++        server.ListServices(&services);
++        ASSERT_TRUE(services.empty());
++        ASSERT_EQ(0UL, server.service_count());
++        ASSERT_TRUE(server._service_map.empty());
++        unlink("/tmp/test.sock");
++    }
++    {
++        brpc::Server server;
++        brpc::ServerOptions options;
++        options.internal_port = 8613;
++        ASSERT_EQ(0, server.StartAtSockFile("/tmp/test.sock", &options));
++        ASSERT_TRUE(server.IsRunning());
++        std::vector<google::protobuf::Service*> services;
++        server.ListServices(&services);
++        ASSERT_TRUE(services.empty());
++        ASSERT_EQ(0UL, server.service_count());
++        for (brpc::Server::ServiceMap::const_iterator it
++                     = server._service_map.begin();
++            it != server._service_map.end(); ++it) {
++            ASSERT_TRUE(it->second.is_builtin_service);
++        }
++        unlink("/tmp/test.sock");
++    }
++}
++
+ TEST_F(ServerTest, invalid_protocol_in_enabled_protocols) {
+     butil::EndPoint ep;
+     ASSERT_EQ(0, str2endpoint("127.0.0.1:8613", &ep));
+@@ -1256,8 +1297,8 @@ TEST_F(ServerTest, too_big_message) {
+     ASSERT_EQ(0, server.Start(8613, NULL));
+ 
+ #if !BRPC_WITH_GLOG
+-    logging::StringSink log_str;
+-    logging::LogSink* old_sink = logging::SetLogSink(&log_str);
++    butil::logging::StringSink log_str;
++    butil::logging::LogSink* old_sink = butil::logging::SetLogSink(&log_str);
+ #endif
+ 
+     brpc::Channel chan;
+@@ -1271,7 +1312,7 @@ TEST_F(ServerTest, too_big_message) {
+     EXPECT_TRUE(cntl.Failed());
+ 
+ #if !BRPC_WITH_GLOG
+-    ASSERT_EQ(&log_str, logging::SetLogSink(old_sink));
++    ASSERT_EQ(&log_str, butil::logging::SetLogSink(old_sink));
+     std::ostringstream expected_log;
+     expected_log << " is bigger than " << brpc::FLAGS_max_body_size
+                  << " bytes, the connection will be closed."
+diff --git a/test/brpc_socket_unittest.cpp b/test/brpc_socket_unittest.cpp
+index b7249b8..80d2dd0 100644
+--- a/test/brpc_socket_unittest.cpp
++++ b/test/brpc_socket_unittest.cpp
+@@ -5,12 +5,14 @@
+ 
+ #include <sys/types.h>
+ #include <sys/socket.h>
++#include <sys/un.h>
+ #include <fcntl.h>  // F_GETFD
+ #include <gtest/gtest.h>
+ #include "butil/gperftools_profiler.h"
+ #include "butil/time.h"
+ #include "butil/macros.h"
+ #include "butil/fd_utility.h"
++#include "butil/unix_socket.h"
+ #include "bthread/unstable.h"
+ #include "bthread/task_control.h"
+ #include "brpc/socket.h"
+@@ -261,6 +263,84 @@ TEST_F(SocketTest, single_threaded_write) {
+     close(fds[0]);
+ }
+ 
++TEST_F(SocketTest, single_threaded_write_unix_socket) {
++    int fds[2];
++    ASSERT_EQ(0, socketpair(AF_LOCAL, SOCK_STREAM, 0, fds));
++    brpc::SocketId id = 8888;
++    butil::EndPoint dummy("/tmp/dummy");
++    brpc::SocketOptions options;
++    options.fd = fds[1];
++    options.remote_side = dummy;
++    options.user = new CheckRecycle;
++    ASSERT_EQ(0, brpc::Socket::Create(options, &id));
++    {
++        brpc::SocketUniquePtr s;
++        ASSERT_EQ(0, brpc::Socket::Address(id, &s));
++        global_sock = s.get();
++        ASSERT_TRUE(s.get());
++        ASSERT_EQ(fds[1], s->fd());
++        ASSERT_EQ(dummy, s->remote_side());
++        ASSERT_EQ(id, s->id());
++        const int BATCH = 5;
++        for (size_t i = 0; i < 20; ++i) {
++            char buf[32 * BATCH];
++            size_t len = snprintf(buf, sizeof(buf), "hello world! %lu", i);
++            if (i % 4 == 0) {
++                brpc::SocketMessagePtr<MyMessage> msg(new MyMessage(buf, len));
++                ASSERT_EQ(0, s->Write(msg));
++            } else if (i % 4 == 1) {
++                brpc::SocketMessagePtr<MyErrorMessage> msg(
++                    new MyErrorMessage(butil::Status(EINVAL, "Invalid input")));
++                bthread_id_t wait_id;
++                WaitData data;
++                ASSERT_EQ(0, bthread_id_create2(&wait_id, &data, OnWaitIdReset));
++                brpc::Socket::WriteOptions wopt;
++                wopt.id_wait = wait_id;
++                ASSERT_EQ(0, s->Write(msg, &wopt));
++                ASSERT_EQ(0, bthread_id_join(wait_id));
++                ASSERT_EQ(wait_id.value, data.id.value);
++                ASSERT_EQ(EINVAL, data.error_code);
++                ASSERT_EQ("Invalid input", data.error_text);
++                continue;
++            } else if (i % 4 == 2) {
++                int seq[BATCH] = {};
++                brpc::SocketMessagePtr<MyMessage> msgs[BATCH];
++                // re-print the buffer.
++                len = 0;
++                for (int j = 0; j < BATCH; ++j) {
++                    if (j % 2 == 0) {
++                        // Empty message, should be skipped.
++                        msgs[j].reset(new MyMessage(buf+len, 0, &seq[j]));
++                    } else {
++                        size_t sub_len = snprintf(
++                            buf+len, sizeof(buf)-len, "hello world! %lu.%d", i, j);
++                        msgs[j].reset(new MyMessage(buf+len, sub_len, &seq[j]));
++                        len += sub_len;
++                    }
++                }
++                for (size_t i = 0; i < BATCH; ++i) {
++                    ASSERT_EQ(0, s->Write(msgs[i]));
++                }
++                for (int j = 1; j < BATCH; ++j) {
++                    ASSERT_LT(seq[j-1], seq[j]) << "j=" << j;
++                }
++            } else {
++                butil::IOBuf src;
++                src.append(buf);
++                ASSERT_EQ(len, src.length());
++                ASSERT_EQ(0, s->Write(&src));
++                ASSERT_TRUE(src.empty());
++            }
++            char dest[sizeof(buf)];
++            ASSERT_EQ(len, (size_t)read(fds[0], dest, sizeof(dest)));
++            ASSERT_EQ(0, memcmp(buf, dest, len));
++        }
++        ASSERT_EQ(0, s->SetFailed());
++    }
++    ASSERT_EQ((brpc::Socket*)NULL, global_sock);
++    close(fds[0]);
++}
++
+ void EchoProcessHuluRequest(brpc::InputMessageBase* msg_base) {
+     brpc::DestroyingPtr<brpc::policy::MostCommonMessage> msg(
+         static_cast<brpc::policy::MostCommonMessage*>(msg_base));
+@@ -385,6 +465,98 @@ TEST_F(SocketTest, single_threaded_connect_and_write) {
+     ASSERT_EQ(EBADF, errno);
+ }
+ 
++TEST_F(SocketTest, single_threaded_connect_and_write_unix_socket) {
++    // FIXME(gejun): Messenger has to be new otherwise quitting may crash.
++    brpc::Acceptor* messenger = new brpc::Acceptor;
++    const brpc::InputMessageHandler pairs[] = {
++        { brpc::policy::ParseHuluMessage, 
++          EchoProcessHuluRequest, NULL, NULL, "dummy_hulu" }
++    };
++    char socket_file[] = "/tmp/brpc_socket_test.sock";
++    butil::EndPoint point(socket_file);
++    int listening_fd = butil::unix_socket_listen(socket_file);
++    ASSERT_TRUE(listening_fd > 0);
++    butil::make_non_blocking(listening_fd);
++    ASSERT_EQ(0, messenger->AddHandler(pairs[0]));
++    ASSERT_EQ(0, messenger->StartAccept(listening_fd, -1, NULL));
++
++    brpc::SocketId id = 8888;
++    brpc::SocketOptions options;
++    options.remote_side = point;
++    std::shared_ptr<MyConnect> my_connect = std::make_shared<MyConnect>();
++    options.app_connect = my_connect;
++    options.user = new CheckRecycle;
++    ASSERT_EQ(0, brpc::Socket::Create(options, &id));
++    {
++        brpc::SocketUniquePtr s;
++        ASSERT_EQ(0, brpc::Socket::Address(id, &s));
++        global_sock = s.get();
++        ASSERT_TRUE(s.get());
++        ASSERT_EQ(-1, s->fd());
++        ASSERT_EQ(point, s->remote_side());
++        ASSERT_EQ(id, s->id());
++        for (size_t i = 0; i < 20; ++i) {
++            char buf[64];
++            const size_t meta_len = 4;
++            *(uint32_t*)(buf + 12) = *(uint32_t*)"Meta";
++            const size_t len = snprintf(buf + 12 + meta_len,
++                                        sizeof(buf) - 12 - meta_len,
++                                        "hello world! %lu", i);
++            memcpy(buf, "HULU", 4);
++            // HULU uses host byte order directly...
++            *(uint32_t*)(buf + 4) = len + meta_len;
++            *(uint32_t*)(buf + 8) = meta_len;
++
++            int called = 0;
++            if (i % 2 == 0) {
++                brpc::SocketMessagePtr<MyMessage> msg(
++                    new MyMessage(buf, 12 + meta_len + len, &called));
++                ASSERT_EQ(0, s->Write(msg));
++            } else {
++                butil::IOBuf src;
++                src.append(buf, 12 + meta_len + len);
++                ASSERT_EQ(12 + meta_len + len, src.length());
++                ASSERT_EQ(0, s->Write(&src));
++                ASSERT_TRUE(src.empty());
++            }
++            if (i == 0) {
++                // connection needs to be established at first time.
++                // Should be intentionally blocked in app_connect.
++                bthread_usleep(10000);
++                ASSERT_TRUE(my_connect->is_start_connect_called());
++                ASSERT_LT(0, s->fd()); // already tcp connected
++                ASSERT_EQ(0, called); // request is not serialized yet.
++                my_connect->MakeConnectDone();
++                ASSERT_LT(0, called); // serialized
++            }
++            int64_t start_time = butil::gettimeofday_us();
++            while (s->fd() < 0) {
++                bthread_usleep(1000);
++                ASSERT_LT(butil::gettimeofday_us(), start_time + 1000000L) << "Too long!";
++            }
++#if defined(OS_LINUX)
++            ASSERT_EQ(0, bthread_fd_wait(s->fd(), EPOLLIN));
++#elif defined(OS_MACOSX)
++            ASSERT_EQ(0, bthread_fd_wait(s->fd(), EVFILT_READ));
++#endif
++            char dest[sizeof(buf)];
++            ASSERT_EQ(meta_len + len, (size_t)read(s->fd(), dest, sizeof(dest)));
++            ASSERT_EQ(0, memcmp(buf + 12, dest, meta_len + len));
++        }
++        ASSERT_EQ(0, s->SetFailed());
++    }
++    ASSERT_EQ((brpc::Socket*)NULL, global_sock);
++    // The id is invalid.
++    brpc::SocketUniquePtr ptr;
++    ASSERT_EQ(-1, brpc::Socket::Address(id, &ptr));
++
++    messenger->StopAccept(0);
++    unlink(socket_file);
++    ASSERT_EQ(-1, messenger->listened_fd());
++    ASSERT_EQ(-1, fcntl(listening_fd, F_GETFD));
++    ASSERT_EQ(EBADF, errno);
++}
++
+ #define NUMBER_WIDTH 16
+ 
+ struct WriterArg {
+@@ -461,6 +633,49 @@ TEST_F(SocketTest, fail_to_connect) {
+     ASSERT_EQ(-1, brpc::Socket::Address(id, &ptr));
+ }
+ 
++TEST_F(SocketTest, fail_to_connect_unix_socket) {
++    const size_t REP = 10;
++    char socket_file[] = "/tmp/brpc_socket_test.sock";
++    butil::EndPoint point(socket_file/*not listened*/);
++    brpc::SocketId id = 8888;
++    brpc::SocketOptions options;
++    options.remote_side = point;
++    options.user = new CheckRecycle;
++    ASSERT_EQ(0, brpc::Socket::Create(options, &id));
++    {
++        brpc::SocketUniquePtr s;
++        ASSERT_EQ(0, brpc::Socket::Address(id, &s));
++        global_sock = s.get();
++        ASSERT_TRUE(s.get());
++        ASSERT_EQ(-1, s->fd());
++        ASSERT_EQ(point, s->remote_side());
++        ASSERT_EQ(id, s->id());
++        pthread_t th[8];
++        WriterArg args[ARRAY_SIZE(th)];
++        for (size_t i = 0; i < ARRAY_SIZE(th); ++i) {
++            args[i].times = REP;
++            args[i].offset = i * REP;
++            args[i].socket_id = id;
++            ASSERT_EQ(0, pthread_create(&th[i], NULL, FailedWriter, &args[i]));
++        }
++        for (size_t i = 0; i < ARRAY_SIZE(th); ++i) {
++            ASSERT_EQ(0, pthread_join(th[i], NULL));
++        }
++        ASSERT_EQ(-1, s->SetFailed());  // already SetFailed
++        ASSERT_EQ(-1, s->fd());
++    }
++    // KeepWrite is possibly still running.
++    int64_t start_time = butil::gettimeofday_us();
++    while (global_sock != NULL) {
++        bthread_usleep(1000);
++        ASSERT_LT(butil::gettimeofday_us(), start_time + 1000000L) << "Too long!";
++    }
++    ASSERT_EQ(-1, brpc::Socket::Status(id));
++    // The id is invalid.
++    brpc::SocketUniquePtr ptr;
++    ASSERT_EQ(-1, brpc::Socket::Address(id, &ptr));
++}
++
+ TEST_F(SocketTest, not_health_check_when_nref_hits_0) {
+     brpc::SocketId id = 8888;
+     butil::EndPoint point(butil::IP_ANY, 7584/*not listened*/);
+diff --git a/test/bthread_brpc_rwlock_unittest.cpp b/test/bthread_brpc_rwlock_unittest.cpp
+new file mode 100644
+index 0000000..f5ce3fb
+--- /dev/null
++++ b/test/bthread_brpc_rwlock_unittest.cpp
+@@ -0,0 +1,198 @@
++// Copyright (c) 2020 Bigo, Inc.
++// Author: HeTao (hetao@bigo.sg)
++// Date: Jan 06 2020
++
++#include <gtest/gtest.h>
++#include "butil/compat.h"
++#include "butil/time.h"
++#include "butil/macros.h"
++#include "butil/string_printf.h"
++#include "butil/logging.h"
++#include "bthread/bthread.h"
++#include "bthread/butex.h"
++#include "bthread/task_control.h"
++#include "butil/gperftools_profiler.h"
++
++#include <stdlib.h>
++
++namespace {
++
++TEST(RwlockTest, sanity) {
++    bthread_rwlock_t m;
++    ASSERT_EQ(0, bthread_rwlock_init(&m, NULL));
++    ASSERT_EQ(0, bthread_rwlock_rdlock(&m));
++    ASSERT_EQ(0, bthread_rwlock_unlock(&m));
++    ASSERT_EQ(0, bthread_rwlock_wrlock(&m));
++    ASSERT_EQ(0, bthread_rwlock_unlock(&m));
++    ASSERT_EQ(0, bthread_rwlock_destroy(&m));
++}
++
++
++
++bool g_started = false;
++bool g_stopped = false;
++
++template <typename Rwlock>
++struct BAIDU_CACHELINE_ALIGNMENT PerfArgs {
++    Rwlock* rwlock;
++    int64_t counter;
++    int64_t elapse_ns;
++    bool ready;
++    int32_t op_type;   /*0 for read,1 for write*/
++
++    PerfArgs() : rwlock(NULL), counter(0), elapse_ns(0), ready(false), op_type(0) {}
++};
++
++template <typename Rwlock>
++void* add_with_rwlock(void* void_arg) {
++    PerfArgs<Rwlock>* args = (PerfArgs<Rwlock>*)void_arg;
++    args->ready = true;
++    butil::Timer t;
++    while (!g_stopped) {
++        if (g_started) {
++            break;
++        }
++        bthread_usleep(1000);
++    }
++    t.start();
++    while (!g_stopped) {
++        if(args->op_type == 0) {
++            // args->rwlock->Rlock();
++            bthread_rwlock_rdlock(args->rwlock);
++        }
++        else {
++            // args->rwlock->Wlock();
++            bthread_rwlock_wrlock(args->rwlock);
++            }
++        // args->rwlock->Unlock();
++        bthread_rwlock_unlock(args->rwlock);
++        ++args->counter;
++    }
++    t.stop();
++    args->elapse_ns = t.n_elapsed();
++    return NULL;
++}
++
++int g_prof_name_counter = 0;
++
++template <typename Rwlock, typename ThreadId,
++         typename ThreadCreateFn, typename ThreadJoinFn>
++         void PerfTest(Rwlock* rwlock,
++                 ThreadId* /*dummy*/,
++                 int thread_num,
++                 const ThreadCreateFn& create_fn,
++                 const ThreadJoinFn& join_fn,
++                 int op_type=0 /*0 for read,1 for write*/) {
++    g_started = false;
++    g_stopped = false;
++    ThreadId threads[thread_num];
++    std::vector<PerfArgs<Rwlock> > args(thread_num);
++    for (int i = 0; i < thread_num; ++i) {
++        args[i].rwlock = rwlock;
++        args[i].op_type = op_type;
++        create_fn(&threads[i], NULL, add_with_rwlock<Rwlock>, &args[i]);
++    }
++    while (true) {
++        bool all_ready = true;
++        for (int i = 0; i < thread_num; ++i) {
++            if (!args[i].ready) {
++                all_ready = false;
++                break;
++            }
++        }
++        if (all_ready) {
++            break;
++        }
++        usleep(1000);
++    }
++    g_started = true;
++    char prof_name[32];
++    snprintf(prof_name, sizeof(prof_name), "rwlock_perf_%d.prof", ++g_prof_name_counter);
++    ProfilerStart(prof_name);
++    usleep(500 * 1000);
++    ProfilerStop();
++    g_stopped = true;
++    int64_t wait_time = 0;
++    int64_t count = 0;
++    for (int i = 0; i < thread_num; ++i) {
++        join_fn(threads[i], NULL);
++        wait_time += args[i].elapse_ns;
++        count += args[i].counter;
++    }
++    LOG(INFO) << butil::class_name<Rwlock>() << (op_type==0?" readlock ":" writelock ") << " in "
++        << ((void*)create_fn == (void*)pthread_create ? "pthread" : "bthread")
++        << " thread_num=" << thread_num
++        << " count=" << count
++        << " average_time=" << wait_time / (double)count;
++}
++
++
++TEST(RWLockTest, performance) {
++    const int thread_num = 12;
++    bthread_rwlock_t brw;
++    bthread_rwlock_init(&brw, NULL);
++    //rlock
++    PerfTest(&brw, (pthread_t*)NULL, thread_num, pthread_create, pthread_join);
++    PerfTest(&brw, (bthread_t*)NULL, thread_num, bthread_start_background, bthread_join);
++
++    //add test 1 rlock for compare
++    PerfTest(&brw, (pthread_t*)NULL, 1, pthread_create, pthread_join);
++    PerfTest(&brw, (bthread_t*)NULL, 1, bthread_start_background, bthread_join);
++
++    //for wlock
++    PerfTest(&brw, (pthread_t*)NULL, thread_num, pthread_create, pthread_join, 1);
++    PerfTest(&brw, (bthread_t*)NULL, thread_num, bthread_start_background, bthread_join, 1);
++
++    //add test 1 wlock for compare
++    PerfTest(&brw, (pthread_t*)NULL, 1, pthread_create, pthread_join, 1);
++    PerfTest(&brw, (bthread_t*)NULL, 1, bthread_start_background, bthread_join, 1);
++}
++
++void* loop_until_stopped(void* arg) {
++    bthread_rwlock_t *m = (bthread_rwlock_t*)arg;
++    while (!g_stopped) {
++        int r = rand() % 100;
++        if((r&1)==0)
++        {
++            bthread::rlock_guard rg(*m);
++        }
++        else{
++            bthread::wlock_guard wg(*m);
++        }
++        bthread_usleep(20);
++    }
++    return NULL;
++}
++
++TEST(RwlockTest, mix_thread_types) {
++    g_stopped = false;
++    const int N = 16;
++    const int M = N * 2;
++    // bthread::Mutex m;
++    bthread_rwlock_t brw;
++    bthread_rwlock_init(&brw, NULL);
++
++    pthread_t pthreads[N];
++    bthread_t bthreads[M];
++    // reserve enough workers for test. This is a must since we have
++    // BTHREAD_ATTR_PTHREAD bthreads which may cause deadlocks (the
++    // bhtread_usleep below can't be scheduled and g_stopped is never
++    // true, thus loop_until_stopped spins forever)
++    bthread_setconcurrency(M);
++    for (int i = 0; i < N; ++i) {
++        ASSERT_EQ(0, pthread_create(&pthreads[i], NULL, loop_until_stopped, &brw));
++    }
++    for (int i = 0; i < M; ++i) {
++        const bthread_attr_t *attr = i % 2 ? NULL : &BTHREAD_ATTR_PTHREAD;
++        ASSERT_EQ(0, bthread_start_urgent(&bthreads[i], attr, loop_until_stopped, &brw));
++    }
++    bthread_usleep(1000L * 1000);
++    g_stopped = true;
++    for (int i = 0; i < M; ++i) {
++        bthread_join(bthreads[i], NULL);
++    }
++    for (int i = 0; i < N; ++i) {
++        pthread_join(pthreads[i], NULL);
++    }
++}
++} // namespace
+diff --git a/test/bvar_reducer_unittest.cpp b/test/bvar_reducer_unittest.cpp
+index 84e6aa4..30bb0c9 100644
+--- a/test/bvar_reducer_unittest.cpp
++++ b/test/bvar_reducer_unittest.cpp
+@@ -193,10 +193,10 @@ void ReducerTest_window() {
+     bvar::Window<bvar::Miner<int> > w9(&c3, 3);
+ 
+ #if !BRPC_WITH_GLOG
+-    logging::StringSink log_str;
+-    logging::LogSink* old_sink = logging::SetLogSink(&log_str);
++    butil::logging::StringSink log_str;
++    butil::logging::LogSink* old_sink = butil::logging::SetLogSink(&log_str);
+     c2.get_value();
+-    ASSERT_EQ(&log_str, logging::SetLogSink(old_sink));
++    ASSERT_EQ(&log_str, butil::logging::SetLogSink(old_sink));
+     ASSERT_NE(std::string::npos, log_str.find(
+                   "You should not call Reducer<int, bvar::detail::MaxTo<int>>"
+                   "::get_value() when a Window<> is used because the operator"
+@@ -237,10 +237,10 @@ void ReducerTest_window() {
+ TEST_F(ReducerTest, window) {
+ #if !BRPC_WITH_GLOG
+     ReducerTest_window();
+-    logging::StringSink log_str;
+-    logging::LogSink* old_sink = logging::SetLogSink(&log_str);
++    butil::logging::StringSink log_str;
++    butil::logging::LogSink* old_sink = butil::logging::SetLogSink(&log_str);
+     sleep(1);
+-    ASSERT_EQ(&log_str, logging::SetLogSink(old_sink));
++    ASSERT_EQ(&log_str, butil::logging::SetLogSink(old_sink));
+     if (log_str.find("Removed ") != std::string::npos) {
+         ASSERT_NE(std::string::npos, log_str.find("Removed 3, sampled 0")) << log_str;
+     }
+diff --git a/test/bvar_sampler_unittest.cpp b/test/bvar_sampler_unittest.cpp
+index b0ccdcf..6a47eb5 100644
+--- a/test/bvar_sampler_unittest.cpp
++++ b/test/bvar_sampler_unittest.cpp
+@@ -52,8 +52,8 @@ int DebugSampler::_s_ndestroy = 0;
+ 
+ TEST(SamplerTest, single_threaded) {
+ #if !BRPC_WITH_GLOG
+-    logging::StringSink log_str;
+-    logging::LogSink* old_sink = logging::SetLogSink(&log_str);
++    butil::logging::StringSink log_str;
++    butil::logging::LogSink* old_sink = butil::logging::SetLogSink(&log_str);
+ #endif
+     const int N = 100;
+     DebugSampler* s[N];
+@@ -73,7 +73,7 @@ TEST(SamplerTest, single_threaded) {
+     usleep(1010000);
+     EXPECT_EQ(N, DebugSampler::_s_ndestroy);
+ #if !BRPC_WITH_GLOG
+-    ASSERT_EQ(&log_str, logging::SetLogSink(old_sink));
++    ASSERT_EQ(&log_str, butil::logging::SetLogSink(old_sink));
+     if (log_str.find("Removed ") != std::string::npos) {
+         ASSERT_NE(std::string::npos, log_str.find("Removed 0, sampled 100"));
+         ASSERT_NE(std::string::npos, log_str.find("Removed 100, sampled 0"));
+@@ -100,8 +100,8 @@ static void* check(void*) {
+ 
+ TEST(SamplerTest, multi_threaded) {
+ #if !BRPC_WITH_GLOG
+-    logging::StringSink log_str;
+-    logging::LogSink* old_sink = logging::SetLogSink(&log_str);
++    butil::logging::StringSink log_str;
++    butil::logging::LogSink* old_sink = butil::logging::SetLogSink(&log_str);
+ #endif
+     pthread_t th[10];
+     DebugSampler::_s_ndestroy = 0;
+@@ -114,7 +114,7 @@ TEST(SamplerTest, multi_threaded) {
+     sleep(1);
+     EXPECT_EQ(100 * arraysize(th), (size_t)DebugSampler::_s_ndestroy);
+ #if !BRPC_WITH_GLOG
+-    ASSERT_EQ(&log_str, logging::SetLogSink(old_sink));
++    ASSERT_EQ(&log_str, butil::logging::SetLogSink(old_sink));
+     if (log_str.find("Removed ") != std::string::npos) {
+         ASSERT_NE(std::string::npos, log_str.find("Removed 0, sampled 1000"));
+         ASSERT_NE(std::string::npos, log_str.find("Removed 1000, sampled 0"));
+diff --git a/test/endpoint_unittest.cpp b/test/endpoint_unittest.cpp
+index cbb49e5..cc7502e 100644
+--- a/test/endpoint_unittest.cpp
++++ b/test/endpoint_unittest.cpp
+@@ -59,27 +59,32 @@ TEST(EndPointTest, endpoint) {
+     butil::EndPoint p1;
+     ASSERT_EQ(butil::IP_ANY, p1.ip);
+     ASSERT_EQ(0, p1.port);
++    ASSERT_FALSE(butil::is_unix_sock_endpoint(p1));
+     
+     butil::EndPoint p2(butil::IP_NONE, -1);
+     ASSERT_EQ(butil::IP_NONE, p2.ip);
+     ASSERT_EQ(-1, p2.port);
++    ASSERT_FALSE(butil::is_unix_sock_endpoint(p2));
+ 
+     butil::EndPoint p3;
+     ASSERT_EQ(-1, butil::str2endpoint(" 127.0.0.1:-1", &p3));
+     ASSERT_EQ(-1, butil::str2endpoint(" 127.0.0.1:65536", &p3));
+     ASSERT_EQ(0, butil::str2endpoint(" 127.0.0.1:65535", &p3));
+     ASSERT_EQ(0, butil::str2endpoint(" 127.0.0.1:0", &p3));
++    ASSERT_FALSE(butil::is_unix_sock_endpoint(p3));
+ 
+     butil::EndPoint p4;
+     ASSERT_EQ(0, butil::str2endpoint(" 127.0.0.1: 289 ", &p4));
+     ASSERT_STREQ("127.0.0.1", butil::ip2str(p4.ip).c_str());
+     ASSERT_EQ(289, p4.port);
++    ASSERT_FALSE(butil::is_unix_sock_endpoint(p4));
+     
+     butil::EndPoint p5;
+     ASSERT_EQ(-1, hostname2endpoint("localhost:-1", &p5));
+     ASSERT_EQ(-1, hostname2endpoint("localhost:65536", &p5));
+     ASSERT_EQ(0, hostname2endpoint("localhost:65535", &p5)) << berror();
+     ASSERT_EQ(0, hostname2endpoint("localhost:0", &p5));
++    ASSERT_FALSE(butil::is_unix_sock_endpoint(p5));
+ 
+ #ifdef BAIDU_INTERNAL
+     butil::EndPoint p6;
+@@ -87,6 +92,12 @@ TEST(EndPointTest, endpoint) {
+     ASSERT_STREQ("10.23.249.73", butil::ip2str(p6.ip).c_str());
+     ASSERT_EQ(289, p6.port);
+ #endif
++
++    butil::EndPoint p7("/tmp/test.sock");
++    ASSERT_EQ(butil::IP_ANY, p7.ip);
++    ASSERT_EQ(0, p7.port);
++    ASSERT_EQ("/tmp/test.sock", p7.socket_file);
++    ASSERT_TRUE(butil::is_unix_sock_endpoint(p7));
+ }
+ 
+ TEST(EndPointTest, hash_table) {
+diff --git a/test/logging_unittest.cc b/test/logging_unittest.cc
+index 08d0bfc..77a1bab 100644
+--- a/test/logging_unittest.cc
++++ b/test/logging_unittest.cc
+@@ -10,6 +10,7 @@
+ 
+ #if !BRPC_WITH_GLOG
+ 
++namespace butil {
+ namespace logging {
+ DECLARE_bool(crash_on_fatal_log);
+ DECLARE_int32(v);
+@@ -46,12 +47,12 @@ class LogStateSaver {
+ class LoggingTest : public testing::Test {
+ public:
+     virtual void SetUp() {
+-        _old_crash_on_fatal_log = ::logging::FLAGS_crash_on_fatal_log;
+-        ::logging::FLAGS_crash_on_fatal_log = true;
++        _old_crash_on_fatal_log = ::butil::logging::FLAGS_crash_on_fatal_log;
++        ::butil::logging::FLAGS_crash_on_fatal_log = true;
+     }
+     virtual void TearDown() {
+-        ::logging::FLAGS_crash_on_fatal_log = _old_crash_on_fatal_log;
+-        if (::logging::FLAGS_v != 0) {
++        ::butil::logging::FLAGS_crash_on_fatal_log = _old_crash_on_fatal_log;
++        if (::butil::logging::FLAGS_v != 0) {
+             // Clear -verbose to avoid affecting other tests.
+             ASSERT_FALSE(GFLAGS_NS::SetCommandLineOption("v", "0").empty());
+             ASSERT_FALSE(GFLAGS_NS::SetCommandLineOption("vmodule", "").empty());
+@@ -147,7 +148,7 @@ TEST_F(LoggingTest, DcheckReleaseBehavior) {
+ }
+ 
+ TEST_F(LoggingTest, streaming_log_sanity) {
+-    ::logging::FLAGS_crash_on_fatal_log = false;
++    ::butil::logging::FLAGS_crash_on_fatal_log = false;
+ 
+     LOG(WARNING) << 1 << 1.1f << 2l << "apple" << noflush;
+     LOG(WARNING) << " orange" << noflush;
+@@ -195,13 +196,13 @@ TEST_F(LoggingTest, streaming_log_sanity) {
+ }
+ 
+ TEST_F(LoggingTest, log_at) {
+-    ::logging::StringSink log_str;
+-    ::logging::LogSink* old_sink = ::logging::SetLogSink(&log_str);
++    ::butil::logging::StringSink log_str;
++    ::butil::logging::LogSink* old_sink = ::butil::logging::SetLogSink(&log_str);
+     LOG_AT(WARNING, "specified_file.cc", 12345) << "file/line is specified";
+     // the file:line part should be using the argument given by us.
+     ASSERT_NE(std::string::npos, log_str.find("specified_file.cc:12345"));
+     // restore the old sink.
+-    ::logging::SetLogSink(old_sink);
++    ::butil::logging::SetLogSink(old_sink);
+ }
+ 
+ #define VLOG_NE(verbose_level) VLOG(verbose_level) << noflush
+@@ -210,7 +211,7 @@ TEST_F(LoggingTest, log_at) {
+     VLOG2(virtual_path, verbose_level) << noflush
+ 
+ TEST_F(LoggingTest, vlog_sanity) {
+-    ::logging::FLAGS_crash_on_fatal_log = false;
++    ::butil::logging::FLAGS_crash_on_fatal_log = false;
+ 
+     EXPECT_FALSE(GFLAGS_NS::SetCommandLineOption("v", "1").empty());
+     
+@@ -312,7 +313,7 @@ TEST_F(LoggingTest, vlog_sanity) {
+ }
+ 
+ TEST_F(LoggingTest, check) {
+-    ::logging::FLAGS_crash_on_fatal_log = false;
++    ::butil::logging::FLAGS_crash_on_fatal_log = false;
+ 
+     CHECK(1 < 2);
+     CHECK(1 > 2);
+@@ -349,7 +350,7 @@ int foo(int* p) {
+ }
+ 
+ TEST_F(LoggingTest, debug_level) {
+-    ::logging::FLAGS_crash_on_fatal_log = false;
++    ::butil::logging::FLAGS_crash_on_fatal_log = false;
+ 
+     int run_foo = 0;
+     LOG(DEBUG) << foo(&run_foo) << noflush;
+@@ -378,7 +379,7 @@ static void need_ostream(std::ostream& os, const char* s) {
+ }
+ 
+ TEST_F(LoggingTest, as_ostream) {
+-    ::logging::FLAGS_crash_on_fatal_log = false;
++    ::butil::logging::FLAGS_crash_on_fatal_log = false;
+ 
+     need_ostream(LOG_STREAM(WARNING) << noflush, "hello");
+     ASSERT_EQ("hello", LOG_STREAM(WARNING).content_str());
+@@ -422,4 +423,5 @@ TEST_F(LoggingTest, limited_logging) {
+ }  // namespace
+ 
+ }  // namespace logging
++}  // namespace butil
+ #endif

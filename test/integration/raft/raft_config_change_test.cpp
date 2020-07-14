@@ -48,6 +48,7 @@ static char* raftConfigParam[5][13] = {
         "-chunkServerStoreUri=local://./9081/",
         "-chunkServerMetaUri=local://./9081/chunkserver.dat",
         "-copySetUri=local://./9081/copysets",
+        "-raftSnapshotUri=curve://./9081/copysets",
         "-recycleUri=local://./9081/recycler",
         "-chunkFilePoolDir=./9081/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9081/chunkfilepool.meta",
@@ -62,6 +63,7 @@ static char* raftConfigParam[5][13] = {
         "-chunkServerStoreUri=local://./9082/",
         "-chunkServerMetaUri=local://./9082/chunkserver.dat",
         "-copySetUri=local://./9082/copysets",
+        "-raftSnapshotUri=curve://./9082/copysets",
         "-recycleUri=local://./9082/recycler",
         "-chunkFilePoolDir=./9082/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9082/chunkfilepool.meta",
@@ -76,6 +78,7 @@ static char* raftConfigParam[5][13] = {
         "-chunkServerStoreUri=local://./9083/",
         "-chunkServerMetaUri=local://./9083/chunkserver.dat",
         "-copySetUri=local://./9083/copysets",
+        "-raftSnapshotUri=curve://./9083/copysets",
         "-recycleUri=local://./9083/recycler",
         "-chunkFilePoolDir=./9083/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9073/chunkfilepool.meta",
@@ -90,6 +93,7 @@ static char* raftConfigParam[5][13] = {
         "-chunkServerStoreUri=local://./9084/",
         "-chunkServerMetaUri=local://./9084/chunkserver.dat",
         "-copySetUri=local://./9084/copysets",
+        "-raftSnapshotUri=curve://./9084/copysets",
         "-recycleUri=local://./9084/recycler",
         "-chunkFilePoolDir=./9084/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9084/chunkfilepool.meta",
@@ -104,6 +108,7 @@ static char* raftConfigParam[5][13] = {
         "-chunkServerStoreUri=local://./9085/",
         "-chunkServerMetaUri=local://./9085/chunkserver.dat",
         "-copySetUri=local://./9085/copysets",
+        "-raftSnapshotUri=curve://./9085/copysets",
         "-recycleUri=local://./9085/recycler",
         "-chunkFilePoolDir=./9085/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9085/chunkfilepool.meta",
@@ -431,7 +436,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveShutdownPeer) {
     conf.remove_peer(shutdownPeer.address());
     butil::Status
         st2 = AddPeer(logicPoolId, copysetId, conf, shutdownPeer, options);
-    ASSERT_TRUE(st2.ok());
+    ASSERT_TRUE(st2.ok()) << st2.error_str();
     // read之前写入的数据验证
     ReadVerify(leaderPeer,
                logicPoolId,

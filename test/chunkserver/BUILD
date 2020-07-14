@@ -42,7 +42,7 @@ cc_library(
         "mock_copyset_node.h",
         "mock_node.h",
         "fake_datastore.h",
-        "mock_raftsnapshot_filesystem_adaptor.h"
+        "mock_curve_filesystem_adaptor.h"
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -242,19 +242,6 @@ cc_test(
         "chunkserver_service_test.cpp",
     ],
     deps = DEPS,
-)
-
-cc_test(
-    name = "raftsnapshot_test",
-    srcs = [
-        "raftsnapshot_chunkfilepool_integration.cpp",
-        "raftsnapshot_filesystem_adaptor_mock_unittest.cpp",
-        "raftsnapshot_filesystem_adaptor_unittest.cpp",
-        "raftsnapshot_attachment_test.cpp",
-    ],
-    copts = ["-std=c++14"],
-    deps = DEPS
-         + ["//test/chunkserver:chunkserver-test-util-lib"],
 )
 
 cc_test(

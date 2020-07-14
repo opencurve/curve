@@ -84,14 +84,10 @@ cc_library(
         "s3_adapter.cpp",
     ]),
     copts = COPTS,
-    linkopts = [
-        "-laws-cpp-sdk-s3",
-        "-laws-cpp-sdk-core",
-        "-L/usr/local/lib"
-    ],
     visibility = ["//visibility:public"],
     deps = [
         "//external:glog",
         "//src/common:curve_common",
+        "@aws_sdk//:aws_sdk",
     ],
 )

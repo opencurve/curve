@@ -75,3 +75,4 @@ bazel-testlogs
 
 .clang-format
 !curve-snapshotcloneserver-nginx/app/lib
+!nebd/nebd-package/usr/bin

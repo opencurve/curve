@@ -35,6 +35,10 @@
 #include "src/chunkserver/conf_epoch_file.h"
 #include "src/chunkserver/config_info.h"
 #include "src/chunkserver/chunkserver_metrics.h"
+#include "src/chunkserver/raftsnapshot/define.h"
+#include "src/chunkserver/raftsnapshot/curve_snapshot_writer.h"
+#include "src/common/string_util.h"
+#include "src/chunkserver/raft_node.h"
 #include "proto/heartbeat.pb.h"
 #include "proto/chunk.pb.h"
 #include "proto/common.pb.h"
@@ -51,14 +55,48 @@ class CopysetNodeManager;
 
 extern const char *kCurveConfEpochFilename;
 
-const char RAFT_DATA_DIR[] = "data";
-const char RAFT_META_DIR[] = "raft_meta";
+struct ConfigurationChange {
+    ConfigChangeType type;
+    Peer alterPeer;
 
-// TODO(all:fix it): RAFT_SNAP_DIR注意当前这个目录地址不能修改
-// 与当前外部依赖curve-braft代码强耦合（两边硬编码耦合）
-// 详见http://jira.netease.com/browse/CLDCFS-1937
-const char RAFT_SNAP_DIR[] = "raft_snapshot";
-const char RAFT_LOG_DIR[]  = "log";
+    ConfigurationChange() : type(ConfigChangeType::NONE) {}
+    ConfigurationChange(const ConfigChangeType& type2, const Peer& alterPeer2) :
+                            type(type2), alterPeer(alterPeer2) {}
+    bool IsEmpty() {
+        return type == ConfigChangeType::NONE && !alterPeer.has_address();
+    }
+    void Reset() {
+        type = ConfigChangeType::NONE;
+        alterPeer.clear_address();
+    }
+    bool operator==(const ConfigurationChange& rhs) {
+        return type == rhs.type &&
+                alterPeer.address() == rhs.alterPeer.address();
+    }
+    ConfigurationChange& operator=(const ConfigurationChange& rhs) {
+        type = rhs.type;
+        alterPeer = rhs.alterPeer;
+        return *this;
+    }
+};
+
+class ConfigurationChangeDone : public braft::Closure {
+ public:
+    void Run() {
+        if (!expectedCfgChange.IsEmpty() &&
+                            *curCfgChange == expectedCfgChange) {
+            curCfgChange->Reset();
+        }
+        delete this;
+    }
+    explicit ConfigurationChangeDone(
+                std::shared_ptr<ConfigurationChange> cfgChange)
+                    : curCfgChange(cfgChange) {}
+    // copyset node中当前的配置变更信息
+    std::shared_ptr<ConfigurationChange> curCfgChange;
+    // 这次配置变更对应的配置变更信息
+    ConfigurationChange expectedCfgChange;
+};
 
 /**
  * 一个Copyset Node就是一个复制组的副本
@@ -316,7 +354,7 @@ class CopysetNode : public braft::StateMachine,
 
     void SetConfEpochFile(std::unique_ptr<ConfEpochFile> epochFile);
 
-    void SetCopysetNode(std::shared_ptr<Node> node);
+    void SetCopysetNode(std::shared_ptr<RaftNode> node);
 
     void SetSnapshotFileSystem(scoped_refptr<FileSystemAdaptor>* fs);
 
@@ -363,7 +401,7 @@ class CopysetNode : public braft::StateMachine,
     // braft Node的配置参数
     NodeOptions nodeOptions_;
     // CopysetNode对应的braft Node
-    std::shared_ptr<Node> raftNode_;
+    std::shared_ptr<RaftNode> raftNode_;
     // chunk file的绝对目录
     std::string chunkDataApath_;
     // chunk file的相对目录
@@ -386,6 +424,10 @@ class CopysetNode : public braft::StateMachine,
     std::string recyclerUri_;
     // 复制组的metric信息
     CopysetMetricPtr metric_;
+    // 正在进行中的配置变更
+    std::shared_ptr<ConfigurationChange> configChange_;
+    // transfer leader的目标，状态为TRANSFERRING时有效
+    Peer transferee_;
 };
 
 }  // namespace chunkserver

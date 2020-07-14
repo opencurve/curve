@@ -84,6 +84,9 @@ class Configuration {
     void SetIntValue(const std::string &key, const int value);
     void SetUInt64Value(const std::string &key, const uint64_t value);
 
+    bool GetInt64Value(const std::string& key, int64_t* out);
+    void SetInt64Value(const std::string& key, const int64_t value);
+
     double GetDoubleValue(const std::string &key, double defaultvalue = 0.0);
     /*
     * @brief GetDoubleValue 获取指定配置项的值

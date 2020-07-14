@@ -91,6 +91,7 @@ const std::vector<std::string> chunkserverConfTemplate{
     { " -chunkServerStoreUri=local://./ttt/%d/" },
     { " -chunkServerMetaUri=local://./ttt/%d/chunkserver.dat" },
     { " -copySetUri=local://./ttt/%d/copysets" },
+    { " -raftSnapshotUri=curve://./ttt/%d/copysets" },
     { " -recycleUri=local://./ttt/%d/recycler" },
     { " -chunkFilePoolDir=./ttt/%d/" },
     { " -chunkFilePoolMetaPath=./ttt/%d/chunkfilepool.meta" },

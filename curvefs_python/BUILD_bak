@@ -57,7 +57,6 @@ cc_library(
     ],
     copts = COPTS,
     linkopts = [
-        "-lbraft",
         "-lcbd",
         "-lcurve_client",
         "-lbrpc",
@@ -70,7 +69,6 @@ cc_library(
         "-lcc_brpc_internal_proto",
         "-lcc_brpc_idl_options_proto",
         "-lleveldb",
-        "-lcc_braft_internal_proto",
         "-lcurve_common",
         "-lcurve_auth",
         "-lcurve_concurrent",
@@ -83,7 +81,6 @@ cc_library(
         "-lprotobuf_lite",
         "-lssl",
         "-lrt",
-        "-lssl",
         "-lcrypto",
         "-ldl",
         "-lz",

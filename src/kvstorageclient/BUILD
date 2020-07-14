@@ -30,6 +30,6 @@ cc_library(
         "//external:glog",
         "//external:gflags",
         "//src/common:curve_common",
-        "//include/etcdclient:etcd_client",
+        "@etcdclient//:etcdclient",
     ],
 )
