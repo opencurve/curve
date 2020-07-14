@@ -50,4 +50,5 @@
 - name: wait until chunkserver is up
   vars:
     ping_port: "{{ chunkserver_base_port | int + chunkserver_seq | int }}"
+    wait_timeout: "{{ wait_service_timeout }}"
   include_tasks: "common_tasks/wait_until_server_up.yml"

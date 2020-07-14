@@ -15,15 +15,16 @@
 #  limitations under the License.
 #
 
-- name: set sudo or not
-  set_fact:
-    sudo: "sudo"
-  when: command_need_sudo
-
-- name: start by daemon
-  shell: chdir={{ ch_dir }} {{ sudo }} {{ daemon_script }} start
+- name: start snapshotcloneserver_nginx
+  shell:  sudo docker run -p {{ nginx_docker_external_port }}:{{ nginx_docker_internal_port }}
+            -v {{ snapshotcloneserver_nginx_dir }}/app:/usr/local/openresty/nginx/app
+            -v {{ snapshotcloneserver_nginx_dir }}/conf:/usr/local/openresty/nginx/conf
+            -v {{ snapshotcloneserver_nginx_dir }}/logs:/usr/local/openresty/nginx/logs
+            -d hub.c.163.com/opencurve/nginx:latest
+  register: result
+  failed_when: result.rc != 0
 
 - name: wait until server is up
-  ping_port: "{{ service_port }}"
+  ping_port: "{{ nginx_docker_external_port }}"
   wait_timeout: "{{ wait_service_timeout }}"
   include_tasks: common_tasks/wait_until_server_up.yml

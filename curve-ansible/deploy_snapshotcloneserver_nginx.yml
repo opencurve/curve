@@ -1,0 +1,48 @@
+---
+#
+#  Copyright (c) 2020 NetEase Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+# The deploy playbook of Curve
+
+# 部署snapshotcloneserver_nginx
+- name: prepare snapshotcloneserver_nginx
+  hosts: snapshotclone_nginx
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - prepare
+  roles:
+    - { role: install_package, package_name: snapshotcloneserver_nginx,
+            tags: ["install_conf_package", "install_snapshotclone_nginx_conf_package"] }
+    - { role: generate_config, template_name: nginx.conf, conf_path: "{{ snapshot_nginx_conf_path }}",
+            tags: ["generate_config", "generate_snap_nginx_conf"] }
+    - { role: generate_config, template_name: nginx_config.lua, conf_path: "{{ snapshot_nginx_lua_conf_path}}",
+            tags: ["generate_config", "generate_snap_nginx_lua"] }
+
+
+- name: start snapshotcloneserver_nginx
+  hosts: snapshotclone_nginx
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - start
+  roles:
+    - {role: start_service, service_name: snapshotcloneserver_nginx, command_need_sudo: "{{ snapshot_need_sudo }}"}

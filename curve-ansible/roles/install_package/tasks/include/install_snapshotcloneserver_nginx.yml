@@ -15,8 +15,9 @@
 #  limitations under the License.
 #
 
-- name: wait until server is up
-  wait_for:
-    port: "{{ ping_port }}"
-    state: started
-    timeout: "{{ wait_service_timeout }}"
+- name: install snapshotcloneserver_nginx
+  vars:
+    remote_dir_name: "{{ snapshotcloneserver_nginx_dir }}"
+    local_file_path: "{{ local_snapshotcloneserver_nginx_package_path }}/"
+    file_mode: 0644
+  include_tasks: copy_file_to_remote.yml
