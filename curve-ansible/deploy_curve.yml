@@ -14,21 +14,15 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
+# The deploy playbook of Curve
 
-- name: set metric addr
-  set_fact:
-    addr: "{{ ansible_host }}:{{ metric_port }}"
+# 部署curve集群
 
-- name: get process cmdline
-  ignore_errors: true
-  shell: curl -s http://{{ addr }}/vars/process_cmdline
-  register: result
+- name: deploy etcd
+  import_playbook: deploy_etcd.yml
 
-- name: set process cmd line
-  set_fact:
-    process_cmdline: "{{ result.stdout }}"
+- name: deploy mds
+  import_playbook: deploy_mds.yml
 
-- name: set metric port
-  set_fact:
-    metric_port: "{{ metric_port }}"
-
+- name: deploy chunkserver
+  import_playbook: deploy_chunkserver.yml
