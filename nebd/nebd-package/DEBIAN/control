@@ -1,0 +1,10 @@
+Package: nebd
+Section:
+Priority: optional
+Depends: libunwind8, libjemalloc1(= 3.6.0-9.1)
+Suggests:
+Architecture:amd64
+Installed-Size:
+Maintainer: nebd-dev
+Provides:
+Description: nebd is a proxy between qemu and cbd

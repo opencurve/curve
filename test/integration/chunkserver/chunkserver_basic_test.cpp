@@ -53,6 +53,7 @@ static char *chunkServerParams[1][13] = {
       "-chunkServerMetaUri=local://./" BASIC_TEST_CHUNK_SERVER_PORT
       "/chunkserver.dat",
       "-copySetUri=local://./" BASIC_TEST_CHUNK_SERVER_PORT "/copysets",
+      "-raftSnapshotUri=curve://./" BASIC_TEST_CHUNK_SERVER_PORT "/copysets",
       "-recycleUri=local://./" BASIC_TEST_CHUNK_SERVER_PORT "/recycler",
       "-chunkFilePoolDir=./" BASIC_TEST_CHUNK_SERVER_PORT "/chunkfilepool/",
       "-chunkFilePoolMetaPath=./" BASIC_TEST_CHUNK_SERVER_PORT

@@ -16,6 +16,8 @@
 
 workspace(name = "curve")
 
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+
 git_repository(
     name = "com_netease_storage_gerrit_curve_curve_braft",
     remote = "http://gerrit.storage.netease.com/curve/curve-braft",
@@ -60,7 +62,9 @@ bind(
 git_repository(
     name = "com_github_google_glog",
     remote = "http://gerrit.storage.netease.com/curve/curve-glog",
-    commit = "fa4439bd6a4aae0486fe1b4e9ba7f2b761976ac2",
+    commit = "4cc89c9e2b452db579397887c37f302fb28f6ca1",
+    patch_args = ["-p1"],
+    patches = ["//:thirdparties/glog/glog.patch"],
 )
 
 bind(
@@ -98,7 +102,9 @@ bind(
 git_repository(
     name = "com_netease_storage_gerrit_curve_curve_brpc",
     remote = "http://gerrit.storage.netease.com/curve/curve-brpc",
-    commit = "0f0287df3f232b8b12a30b4d99392d716de1a16b",
+    commit = "1b9e00641cbec1c8803da6a1f7f555398c954cb0",
+    patches = ["//:thirdparties/brpc/brpc.patch"],
+    patch_args = ["-p1"],
 )
 
 bind(
@@ -132,4 +138,16 @@ new_git_repository(
 bind(
     name = "json",
     actual = "@jsoncpp//:json",
+)
+
+new_local_repository(
+    name = "aws_sdk",
+    build_file = "bazel/aws-sdk.BUILD",
+    path = "thirdparties/aws-sdk/usr",
+)
+
+new_local_repository(
+    name = "etcdclient",
+    build_file = "bazel/etcdclient.BUILD",
+    path = "thirdparties/etcdclient",
 )

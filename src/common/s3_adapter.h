@@ -48,7 +48,7 @@
 #include <aws/core/utils/memory/stl/AWSStringStream.h>  //NOLINT
 #include <aws/s3/model/BucketLocationConstraint.h>  //NOLINT
 #include <aws/s3/model/CreateBucketConfiguration.h>  //NOLINT
-#include <aws/core/utils/threading/Executor.h>  // NOLINT
+#include <aws/core/utils/threading/Executor.h> // NOLINT
 #include "src/common/configuration.h"
 
 namespace curve {

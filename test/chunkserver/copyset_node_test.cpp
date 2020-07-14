@@ -39,8 +39,8 @@
 #include "test/chunkserver/mock_node.h"
 #include "src/chunkserver/conf_epoch_file.h"
 #include "proto/heartbeat.pb.h"
-#include "src/chunkserver/raftsnapshot_filesystem_adaptor.h"
-#include "test/chunkserver/mock_raftsnapshot_filesystem_adaptor.h"
+#include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
+#include "test/chunkserver/mock_curve_filesystem_adaptor.h"
 
 namespace curve {
 namespace chunkserver {
@@ -342,14 +342,14 @@ TEST_F(CopysetNodeTest, error_test) {
             mockfs = std::make_shared<MockLocalFileSystem>();
         std::unique_ptr<ConfEpochFile>
             epochFile = std::make_unique<ConfEpochFile>(mockfs);
-        MockRaftSnapshotFilesystemAdaptor* rfa =
-            new MockRaftSnapshotFilesystemAdaptor();
-        auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(rfa);
+        MockCurveFilesystemAdaptor* cfa =
+            new MockCurveFilesystemAdaptor();
+        auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(cfa);
         copysetNode.SetSnapshotFileSystem(sfs);
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, DirExists(_)).Times(1).WillOnce(Return(true));
-        EXPECT_CALL(*rfa,
+        EXPECT_CALL(*cfa,
                     delete_file(_, _)).Times(1).WillOnce(Return(false));
 
         ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
@@ -368,16 +368,16 @@ TEST_F(CopysetNodeTest, error_test) {
         std::unique_ptr<ConfEpochFile>
             epochFile = std::make_unique<ConfEpochFile>(mockfs);
         defaultOptions_.localFileSystem = mockfs;
-        MockRaftSnapshotFilesystemAdaptor* rfa =
-            new MockRaftSnapshotFilesystemAdaptor();
-        auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(rfa);
+        MockCurveFilesystemAdaptor* cfa =
+            new MockCurveFilesystemAdaptor();
+        auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(cfa);
         copysetNode.SetSnapshotFileSystem(sfs);
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, DirExists(_)).Times(1).WillOnce(Return(true));
-        EXPECT_CALL(*rfa,
+        EXPECT_CALL(*cfa,
                     delete_file(_, _)).Times(1).WillOnce(Return(true));
-        EXPECT_CALL(*rfa,
+        EXPECT_CALL(*cfa,
                     rename(_, _)).Times(1).WillOnce(Return(false));
 
         ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
@@ -400,17 +400,17 @@ TEST_F(CopysetNodeTest, error_test) {
         std::unique_ptr<ConfEpochFile>
             epochFile = std::make_unique<ConfEpochFile>(mockfs);
         defaultOptions_.localFileSystem = mockfs;
-        MockRaftSnapshotFilesystemAdaptor* rfa =
-            new MockRaftSnapshotFilesystemAdaptor();
-        auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(rfa);
+        MockCurveFilesystemAdaptor* cfa =
+            new MockCurveFilesystemAdaptor();
+        auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(cfa);
         copysetNode.SetSnapshotFileSystem(sfs);
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, DirExists(_)).Times(1)
             .WillOnce(Return(true));
-        EXPECT_CALL(*rfa,
+        EXPECT_CALL(*cfa,
                     delete_file(_, _)).Times(1).WillOnce(Return(true));
-        EXPECT_CALL(*rfa,
+        EXPECT_CALL(*cfa,
                     rename(_, _)).Times(1).WillOnce(Return(true));
         EXPECT_CALL(*mockfs, FileExists(_)).Times(1)
             .WillOnce(Return(true));
@@ -551,9 +551,10 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         Peer alterPeer;
 
         copysetNode.on_leader_start(8);
-
-        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
-            .WillOnce(Return(false));
+        NodeStatus status;
+        status.state = braft::State::STATE_LEADER;
+        EXPECT_CALL(*mockNode, get_status(_))
+            .WillOnce(SetArgPointee<0>(status));
         EXPECT_EQ(0, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
         EXPECT_EQ(ConfigChangeType::NONE, type);
     }
@@ -571,11 +572,28 @@ TEST_F(CopysetNodeTest, get_conf_change) {
 
         copysetNode.on_leader_start(8);
 
-        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<1>(conf),
-                            Return(true)));
+        EXPECT_CALL(*mockNode, add_peer(_, _))
+            .Times(1);
+        EXPECT_CALL(*mockNode, remove_peer(_, _))
+            .WillOnce(
+                Invoke([](const PeerId& peer, braft::Closure* done) {
+                    done->status().set_error(-1,
+                                "another config change is ongoing");
+                }));
+        Peer addPeer;
+        addPeer.set_address("127.0.0.1:3202:0");
+        Peer removePeer;
+        removePeer.set_address("127.0.0.1:3200:0");
+        copysetNode.AddPeer(addPeer);
+        copysetNode.RemovePeer(removePeer);
+
+        NodeStatus status;
+        status.state = braft::State::STATE_LEADER;
+        EXPECT_CALL(*mockNode, get_status(_))
+            .WillOnce(SetArgPointee<0>(status));
         EXPECT_EQ(0, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
         EXPECT_EQ(ConfigChangeType::ADD_PEER, type);
+        EXPECT_EQ(addPeer.address(), alterPeer.address());
     }
     // 当前正在Remove Peer
     {
@@ -591,11 +609,28 @@ TEST_F(CopysetNodeTest, get_conf_change) {
 
         copysetNode.on_leader_start(8);
 
-        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(conf),
-                            Return(true)));
+        EXPECT_CALL(*mockNode, remove_peer(_, _))
+            .Times(1);
+        EXPECT_CALL(*mockNode, add_peer(_, _))
+            .WillOnce(
+                Invoke([](const braft::PeerId& peer, braft::Closure* done) {
+                    done->status().set_error(-1,
+                            "another config change is ongoing");
+                }));
+        Peer addPeer1;
+        addPeer1.set_address("127.0.0.1:3202:0");
+        Peer removePeer;
+        removePeer.set_address("127.0.0.1:3200:0");
+        copysetNode.RemovePeer(removePeer);
+        copysetNode.AddPeer(addPeer1);
+
+        NodeStatus status;
+        status.state = braft::State::STATE_LEADER;
+        EXPECT_CALL(*mockNode, get_status(_))
+            .WillOnce(SetArgPointee<0>(status));
         EXPECT_EQ(0, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
         EXPECT_EQ(ConfigChangeType::REMOVE_PEER, type);
+        EXPECT_EQ(removePeer.address(), alterPeer.address());
     }
     // 当前正在Transfer leader
     {
@@ -611,11 +646,28 @@ TEST_F(CopysetNodeTest, get_conf_change) {
 
         copysetNode.on_leader_start(8);
 
-        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<3>(peer),
-                            Return(true)));
+        Peer transferee1;
+        transferee1.set_address("127.0.0.1:3201:0");
+        Peer transferee2;
+        transferee2.set_address("127.0.0.1:3200:0");
+        EXPECT_CALL(*mockNode, transfer_leadership_to(_))
+            .WillOnce(Return(0))
+            .WillOnce(Return(-1));
+        EXPECT_CALL(*mockNode, leader_id())
+            .WillOnce(Return(peer))
+            .WillOnce(Return(peer1))
+            .WillOnce(Return(peer));
+        copysetNode.TransferLeader(transferee1);
+        copysetNode.TransferLeader(transferee2);
+        copysetNode.TransferLeader(transferee2);
+
+        NodeStatus status;
+        status.state = braft::State::STATE_TRANSFERRING;
+        EXPECT_CALL(*mockNode, get_status(_))
+            .WillOnce(SetArgPointee<0>(status));
         EXPECT_EQ(0, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
         EXPECT_EQ(ConfigChangeType::TRANSFER_LEADER, type);
+        EXPECT_EQ(transferee1.address(), alterPeer.address());
     }
     // 当前正在Change Peer
     {
@@ -631,114 +683,36 @@ TEST_F(CopysetNodeTest, get_conf_change) {
 
         copysetNode.on_leader_start(8);
 
-        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<1>(conf),
-                            SetArgPointee<2>(conf2),
-                            Return(true)));
+        EXPECT_CALL(*mockNode, change_peers(_, _))
+            .Times(1);
+
+        Peer addPeer1;
+        addPeer1.set_address("127.0.0.1:3201:0");
+        std::vector<Peer> peers;
+        peers.emplace_back(addPeer1);
+        copysetNode.ChangePeer(peers);
+        Peer addPeer2;
+        addPeer2.set_address("127.0.0.1:3202:0");
+        peers.emplace_back(addPeer2);
+        copysetNode.ChangePeer(peers);
+
+        NodeStatus status;
+        status.state = braft::State::STATE_LEADER;
+        EXPECT_CALL(*mockNode, get_status(_))
+            .WillOnce(SetArgPointee<0>(status));
         EXPECT_EQ(0, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
         EXPECT_EQ(ConfigChangeType::CHANGE_PEER, type);
-        EXPECT_EQ(alterPeer.address(), peer.to_string());
+        EXPECT_EQ(addPeer1.address(), alterPeer.address());
     }
-    // 异常，braft::node配置变更返回true，但是没有正在进行配置变更的成员
+    // leader term小于0
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        std::shared_ptr<MockNode> mockNode
-            = std::make_shared<MockNode>(logicPoolID,
-                                         copysetID);
-        copysetNode.SetCopysetNode(mockNode);
-
         ConfigChangeType type;
         Configuration oldConf;
         Peer alterPeer;
-
-        copysetNode.on_leader_start(8);
-
-        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
-            .WillOnce(Return(true));
-        EXPECT_EQ(-1, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
-    }
-    // 异常，正在add peer，但是是add多个成员
-    {
-        CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        std::shared_ptr<MockNode> mockNode
-            = std::make_shared<MockNode>(logicPoolID,
-                                         copysetID);
-        copysetNode.SetCopysetNode(mockNode);
-
-        ConfigChangeType type;
-        Configuration oldConf;
-        Peer alterPeer;
-
-        copysetNode.on_leader_start(8);
-
-        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<1>(conf1),
-                            Return(true)));
-        EXPECT_EQ(-1, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
-    }
-    // 异常，正在remove peer，但是是remove多个成员
-    {
-        CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        std::shared_ptr<MockNode> mockNode
-            = std::make_shared<MockNode>(logicPoolID,
-                                         copysetID);
-        copysetNode.SetCopysetNode(mockNode);
-
-        ConfigChangeType type;
-        Configuration oldConf;
-        Peer alterPeer;
-
-        copysetNode.on_leader_start(8);
-
-        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(conf1),
-                            Return(true)));
-        EXPECT_EQ(-1, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
-    }
-    // 异常，正在transfer leader，但是transferee是空
-    {
-        CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        std::shared_ptr<MockNode> mockNode
-            = std::make_shared<MockNode>(logicPoolID,
-                                         copysetID);
-        copysetNode.SetCopysetNode(mockNode);
-
-        ConfigChangeType type;
-        Configuration oldConf;
-        Peer alterPeer;
-
-        copysetNode.on_leader_start(8);
-
-        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<3>(emptyPeer),
-                            Return(true)));
-        EXPECT_EQ(-1, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
-    }
-    // 当前正在Change Peer，但是change peer有多个成员
-    {
-        CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        std::shared_ptr<MockNode> mockNode
-            = std::make_shared<MockNode>(logicPoolID,
-                                         copysetID);
-        copysetNode.SetCopysetNode(mockNode);
-
-        ConfigChangeType type;
-        Configuration oldConf;
-        Peer alterPeer;
-
-        copysetNode.on_leader_start(8);
-
-        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<1>(conf),
-                            SetArgPointee<2>(conf1),
-                            Return(true)));
-        EXPECT_EQ(-1, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
-
-        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<1>(conf1),
-                            SetArgPointee<2>(conf),
-                            Return(true)));
-        EXPECT_EQ(-1, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
+        copysetNode.on_leader_start(-1);
+        EXPECT_EQ(0, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
+        EXPECT_EQ(ConfigChangeType::NONE, type);
     }
 }
 

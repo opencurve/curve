@@ -259,9 +259,10 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     endMS = TimeUtility::GetTimeofDayMs();
     ASSERT_GE(endMS - startMS, 5 * 1000 - 1);
 
-    // 每次hostdown情况下，睡眠10ms，总重试时间5s，所以总共重试500次
+    // 每次hostdown情况下，睡眠10ms，总重试时间5s，所以总共重试次数小于等于500次
+    // 为了尽量减少误判，所以加入10次冗余
     LOG(INFO) << "called times " << calledTimes;
-    ASSERT_TRUE(calledTimes >= 490 && calledTimes <= 510);
+    ASSERT_LE(calledTimes, 510);
 }
 
 const std::vector<std::string> registConfOff {

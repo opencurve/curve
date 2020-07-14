@@ -130,6 +130,7 @@ const std::vector<string> chunkserverConf1{
     { " -chunkServerMetaUri=local://" + CHUNKSERVER0_BASE_DIR +
       "/chunkserver.dat" },
     { " -copySetUri=local://" + CHUNKSERVER0_BASE_DIR + "/copysets" },
+    { " -raftSnapshotUri=curve://" + CHUNKSERVER0_BASE_DIR + "/copysets" },
     { " -recycleUri=local://" + CHUNKSERVER0_BASE_DIR + "/recycler" },
     { " -chunkFilePoolDir=" + CHUNKSERVER0_BASE_DIR + "/filepool" },
     { " -chunkFilePoolMetaPath=" + CHUNKSERVER0_BASE_DIR +
@@ -148,6 +149,7 @@ const std::vector<string> chunkserverConf2{
     { " -chunkServerMetaUri=local://" + CHUNKSERVER1_BASE_DIR +
       "/chunkserver.dat" },
     { " -copySetUri=local://" + CHUNKSERVER1_BASE_DIR + "/copysets" },
+    { " -raftSnapshotUri=curve://" + CHUNKSERVER1_BASE_DIR + "/copysets" },
     { " -recycleUri=local://" + CHUNKSERVER1_BASE_DIR + "/recycler" },
     { " -chunkFilePoolDir=" + CHUNKSERVER1_BASE_DIR + "/filepool" },
     { " -chunkFilePoolMetaPath=" + CHUNKSERVER1_BASE_DIR +
@@ -166,6 +168,7 @@ const std::vector<string> chunkserverConf3{
     { " -chunkServerMetaUri=local://" + CHUNKSERVER2_BASE_DIR +
       "/chunkserver.dat" },
     { " -copySetUri=local://" + CHUNKSERVER2_BASE_DIR + "/copysets" },
+    { " -raftSnapshotUri=curve://" + CHUNKSERVER2_BASE_DIR + "/copysets" },
     { " -recycleUri=local://" + CHUNKSERVER2_BASE_DIR + "/recycler" },
     { " -chunkFilePoolDir=" + CHUNKSERVER2_BASE_DIR + "/filepool" },
     { " -chunkFilePoolMetaPath=" + CHUNKSERVER2_BASE_DIR +

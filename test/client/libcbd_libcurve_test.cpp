@@ -295,7 +295,7 @@ TEST_F(TestLibcbdLibcurve, ReadAndCloseConcurrencyTest) {
     ASSERT_GE(fd2, 0);
 
     auto curvefsService = mds_->GetMDSService();
-    curvefsService->SetCloseFileTask([]() {
+    curvefsService->SetCloseFileTask([closeFileSleepS]() {
         std::this_thread::sleep_for(std::chrono::seconds(closeFileSleepS));
     });
 

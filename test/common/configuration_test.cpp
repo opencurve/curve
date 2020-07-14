@@ -262,6 +262,15 @@ TEST_F(ConfigurationTest, GetSetIntValue) {
     conf.SetIntValue("no.exist.u64", 3);
     ASSERT_TRUE(conf.GetUInt64Value("no.exist.u64", &outu64));
     ASSERT_EQ(3, outu64);
+
+    int64_t outi64;
+    ASSERT_FALSE(conf.GetInt64Value("no.exist.i64", &outi64));
+    conf.SetInt64Value("no.exist.i64", std::numeric_limits<int64_t>::min());
+    ASSERT_TRUE(conf.GetInt64Value("no.exist.i64", &outi64));
+    ASSERT_EQ(std::numeric_limits<int64_t>::min(), outi64);
+    conf.SetInt64Value("no.exist.i64", std::numeric_limits<int64_t>::max());
+    ASSERT_TRUE(conf.GetInt64Value("no.exist.i64", &outi64));
+    ASSERT_EQ(std::numeric_limits<int64_t>::max(), outi64);
 }
 
 TEST_F(ConfigurationTest, GetSetBoolValue) {
