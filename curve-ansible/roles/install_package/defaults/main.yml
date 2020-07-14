@@ -27,6 +27,24 @@ chunkserver_bin_dir: /usr/bin
 local_aws_sdk_package_path: ../aws-sdk
 aws_sdk_lib_dir: /usr/lib
 aws_sdk_include_dir: /usr/include
+local_curve_sdk_package_path: ../curve-sdk
+curve_sdk_bin_dir: /usr/bin
+curve_sdk_lib_dir: /usr/lib
+curve_sdk_include_dir: /usr/include
+curve_sdk_curvefs_dir: /usr/curvefs
+local_nebd_package_path: ../../nebd-package
+nebd_bin_dir: /usr/bin
+nebd_lib_dir: /usr/lib
+local_nbd_package_path: ../../nbd-package
+nbd_bin_dir: /usr/bin
+snapshot_bin_dir: /usr/bin
+snapshot_clone_server_log_dir: /data/log/curve/snapshotclone
+snapshotcloneserver_bin_dir: /usr/bin
+local_snapshotcloneserver_package_path: ../curve-snapshotcloneserver
+snapshotcloneserver_lib_dir: /usr/lib
+
+local_snapshotcloneserver_nginx_package_path: ../curve-nginx
+snapshotcloneserver_nginx_dir: /etc/curve/nginx
 
 local_tool_package_path: ../curve-tools
 tool_bin_dir: /usr/bin

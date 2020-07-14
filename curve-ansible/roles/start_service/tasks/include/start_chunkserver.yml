@@ -36,5 +36,6 @@
   vars:
     end_seq: "{{ chunkserver_num | int - 1}}"
     ping_port: "{{ chunkserver_base_port | int + item | int }}"
+    wait_timeout: "{{ wait_service_timeout }}"
   include_tasks: "common_tasks/wait_until_server_up.yml"
   with_sequence: start=0 end={{ end_seq }}

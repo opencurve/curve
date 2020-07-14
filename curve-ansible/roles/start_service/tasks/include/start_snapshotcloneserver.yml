@@ -15,8 +15,9 @@
 #  limitations under the License.
 #
 
-- name: wait until server is up
-  wait_for:
-    port: "{{ ping_port }}"
-    state: started
-    timeout: "{{ wait_service_timeout }}"
+- name: start snapshotcloneserver
+  vars:
+    ch_dir: "{{ deploy_dir }}"
+    daemon_script: ./snapshot-daemon.sh
+    service_port: "{{ snapshot_dummy_port }}"
+  include_tasks: start_by_daemon.yml

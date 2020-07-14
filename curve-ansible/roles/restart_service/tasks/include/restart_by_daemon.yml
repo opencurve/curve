@@ -34,6 +34,7 @@
 - name: wait until server is up
   vars:
     ping_port: "{{ service_port }}"
+    wait_timeout: "{{ wait_service_timeout }}"
   include_tasks: "common_tasks/wait_until_server_up.yml"
 
 - name: wait until the cluster healthy

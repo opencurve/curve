@@ -235,6 +235,8 @@ s3_async_thread_num: 64
 tool_rpc_timeout: 500
 tool_rpc_retry_times: 5
 
+# snapshotclone_nginx配置
+nginx_docker_internal_port: 80
 
 # etcd默认配置
 etcd_data_dir: '/etcd/data'
