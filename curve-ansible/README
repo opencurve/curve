@@ -5,7 +5,7 @@ ansible 2.5.9
 python 2.7.13
 
 二、使用说明
-0、inventory文件说明
+1、inventory文件说明
 inventory文件有client.ini和server.ini，client.ini存放client的机器列表以及对应的变量，server.ini存放除了
 client以外的机器，包括etcd，mds，快照克隆，chunkserver等。机器列表格式：
     localhost ansible_ssh_host=127.0.0.1 chunkserver_num=14
@@ -16,12 +16,89 @@ client以外的机器，包括etcd，mds，快照克隆，chunkserver等。机�
 表示所有chunkserver机器上的chunkserver数量都是13，但是可能会有个别chunkserver的数量不等于13，这时候在主机
 变量中指定一下就可以覆盖组变量中的值，就能够做到特化处理，其他变量同理。
 
-0、配置管理
+2、配置管理
 配置由ansible通过模板的方式统一分发，所有组件的配置项的默认值在roles/generate_config/defaults/main.yml中，如
 果不想使用默认值，则在inventory或命令行中额外指定即可。
 
-1、集群升级
-目前curve的升级流程为先升级mds，后升级chunkserver，最后升级client。使用ansible需要指定一台主控机，我们规定
+3、包管理
+curve-ansible同时提供了debian包和tar包的方式安装curve软件包。默认使用tar包方式安装，如果想用debian包的方式，需要
+在inventory或者命令行中指定install_with_deb=true
+- debian包的方式下，需要将debian包上传到debian源中，使其能够用apt-get命令安装。
+- tar包的方式下，tar包可以是来自curve github release，也可以是自己执行mk-tar脚本获取到的。获取到tar包后，解压
+  并把对应的目录在inventory里指定一下，比如mds的包的路径对应的变量是local_mds_package_path，默认值是../curve-mds
+  假定mds的包在curve-ansible同一级目录下。
+
+三、使用命令
+1、集群部署
+部署分为两部分，一个是curve集群部署，即服务端部署，另一个是客户端部署，提供了sdk、qemu和nbd三种方式。curve集群部署
+提供了一键部署以及部署单个服务的命令。单个服务部署应该遵循etcd->mds->chunkserver->snapshotclone的顺序。所有play
+和role都有tag，可以根据tag来选择只执行部分操作。
+1.1 部署前准备
+    部署前需要准备inventory文件，inventory文件里的机器列表以及其他变量，根据自己的需求设置好相应的值。为了更好地发挥磁盘
+性能，curve提供了磁盘预格式化的功能，如果需要预格式化，则需要将inventory中的chunkserver_format_disk设置为true。如
+果是单机部署或不希望格式化磁盘，则将chunkserver_format_disk设置为false即可。
+    此外，还需把group_vars/mds.yml中的cluster_map设置成自己集群对应的拓扑结构。cluster_map格式如下：
+cluster_map:
+  servers:
+    - name: server1
+      internalip: 127.0.0.1
+      internalport: 8200
+      externalip: 127.0.0.1
+      externalport: 8200
+      zone: zone1
+      physicalpool: pool1
+    - name: server2
+      internalip: 127.0.0.1
+      internalport: 8201
+      externalip: 127.0.0.1
+      externalport: 8201
+      zone: zone2
+      physicalpool: pool1
+    - name: server3
+      internalip: 127.0.0.1
+      internalport: 8202
+      externalip: 127.0.0.1
+      externalport: 8202
+      zone: zone3
+      physicalpool: pool1
+  logicalpools:
+    - name: logicalPool1
+      physicalpool: pool1
+      type: 0
+      replicasnum: 3
+      copysetnum: 2000
+      zonenum: 3
+      scatterwidth: 0
+其中servers是chunkserver所在的机器列表。如果是单机部署，需要指定internalport和externalport为单机部署的chunkserver对应的端口。
+如果是多机部署，则需要把internalport和externalport都设置成0。需要注意这里zone的数量要大于等于logicalpools里面指定的zonenum。
+logicalpools是逻辑池的列表，除了名字，需要指定它所属的物理池、类型、副本数量、copyset数量zone数量以及scatterwidth。目前的类型
+只支持0，page file类型。
+
+1.1 部署etcd
+部署命令：
+ansible-playbook deploy_etcd.yml -i server.ini
+mds和快照克隆都需要用到etcd，因此部署的第一步是部署etcd。默认etcd的版本是v3.4.0，如果需要更高版本的话在inventory或命令行中指定
+etcd_version即可。
+
+1.2 部署mds
+部署命令：
+ansible-playbook deploy_mds.yml -i server.ini
+部署mds由三步组成：第一步安装包和配置，第二步启动服务，第三步创建物理池。创建物理池成功后，chunkserver才能正常启动。
+
+1.3 部署chunkserver
+部署命令：
+ansible-playbook deploy_chunkserver.yml -i server.ini
+部署chunkserver同样由三步组成，不一样的是在第一步多了一个格式化的步骤，如果指定了chunkserver_format_disk，会将机器上的数据盘
+全部格式化，否则不格式化，只是创建一下data目录。
+
+1.4 部署快照克隆
+
+1.1 一键部署curve集群
+一键部署命令:
+ansible-playbook deploy_curve.yml -i server.ini
+
+2、集群升级
+目前curve的升级流程为先升级mds，后升级chunkserver和快照克隆最后升级client。使用ansible需要指定一台主控机，我们规定
 主控机为mds节点之一。ansible-playbook同时需要yml文件和inventory文件，yml文件规定了要做哪些操作，inventory
 指定了机器列表并定义了一些变量。yml文件在curve仓库的curve-ansible目录中，inventory每个环境一份，由用户自行
 管理。
@@ -32,14 +109,14 @@ client以外的机器，包括etcd，mds，快照克隆，chunkserver等。机�
   (2) 如果只想重启服务，不想更新包，命令为：
       ansible-playbook rolling_update_mds.yml -i server.ini --tags restart
 
-1.1 升级mds
+2.1 升级mds
 mds升级需要先升级备，再升级主，这个逻辑在yml文件中已经包含了，使用的时候只需要交互确认一下即可。
   (1) ansible-playbook rolling_update_mds.yml -i server.ini
   (2) 此时会打出"Confirm restart mds in pubt1-curve1. ENTER to continue or CTRL-C A to quit:"，确认无误
       （确认第一个是备）后输入回车继续
   (3) 重复上一步直到所有mds升级完毕
 
-1.2 重启etcd
+2.2 重启etcd
 etcd的版本很少会更新，但是配置和etcd-daemon可能会更新，这时需要重启一下etcd，因此需要一个重启etcd的功能。
 etcd的重启同样需要需要先升级follower，再升级leader，这个逻辑在yml文件中已经包含了，使用的时候只需要交互确认一下即可。
   (1) ansible-playbook restart_etcd.yml -i server.ini
@@ -48,34 +125,34 @@ etcd的重启同样需要需要先升级follower，再升级leader，这个逻�
   (3) 重复上一步直到所有etcd重启完毕
 
 
-1.3 升级快照克隆
+2.3 升级快照克隆
 快照克隆升级需要先升级备，再升级主，这个逻辑在yml文件中已经包含了，使用的时候只需要交互确认一下即可。
   (1) ansible-playbook rolling_update_snapshotclone.yml -i server.ini
   (2) 此时会打出"Confirm restart snapshotclone in pubt1-curve1. ENTER to continue or CTRL-C A to quit:"
       确认无误（确认第一个是备）后输入回车继续
   (3) 重复上一步直到所有快照克隆升级完毕
 
-1.4 升级chunkserver
+2.4 升级chunkserver
   (1) ansible-playbook rolling_update_chunkserver.yml -i server.ini
   (2) 此时会打出"Confirm restart chunkserver in pubt1-curve1. ENTER to continue or CTRL-C A to quit:"
       确认无误（集群healthy，io恢复）后输入回车继续
   (3) 重复上一步直到所有chunkserver升级完毕
 
-1.5 升级nebd-server
+2.5 升级nebd-server
   (1) ansible-playbook rolling_update_nebd.yml -i client.ini
   (2) 升级nebd-server也有类似的确认步骤，由于机器比较多，可以选择指定 --extra-vars "need_confirm=false"来关掉
       确认这一步
 
-1.6 升级curve-sdk
+2.6 升级curve-sdk
 curve-sdk主要给cinder，nova等服务使用，只需要更新包和配置即可，不需要重启服务
   (1) ansible-playbook rolling_update_curve_sdk.yml -i client.ini
 
-2、集群回退
+3、集群回退
 升级过程中，可能会因为一些问题导致升级失败，这时候会有回退的需求。回退是一个危险操作，因为老版本不一定能够兼容新版本，
 所以要谨慎回退。回退的时候只回退软件版本，不回退配置文件，所以要保证配置文件是向前兼容的（即只增加字段，不删除字段）。
 回退和升级共享一个yml文件，区别仅在与软件版本不同，所以额外在命令行中指定版本即可。
 
-2.1 回退mds
+3.1 回退mds
 mds回退同样需要先重启备，再重启主，这个逻辑在yml文件中已经包含了，使用的时候只需要交互确认一下即可。
   (1) ansible-playbook rolling_update_mds.yml -i server.ini --extra-vars \
           "mds_package_version=0.0.5.3+4b11a64d tool_package_version=0.0.5.3+4b11a64d \
@@ -84,7 +161,7 @@ mds回退同样需要先重启备，再重启主，这个逻辑在yml文件中�
       （确认第一个是备）后输入回车继续
   (3) 重复上一步直到所有mds回退完毕
 
-2.2 回退快照克隆
+3.2 回退快照克隆
 快照克隆回退需要先重启备，再重启主，这个逻辑在yml文件中已经包含了，使用的时候只需要交互确认一下即可。
   (1) ansible-playbook rolling_update_snapshotclone.yml -i server.ini --extra-vars /
               "snap_package_version=0.0.6.1+160be351 need_update_config=false"
@@ -92,25 +169,25 @@ mds回退同样需要先重启备，再重启主，这个逻辑在yml文件中�
       确认无误（确认第一个是备）后输入回车继续
   (3) 重复上一步直到所有快照克隆回滚完毕
 
-2.3 回退chunkserver
+3.3 回退chunkserver
   (1) ansible-playbook rolling_update_mds.yml -i server.ini --extra-vars \
           "cs_package_version=0.0.5.3+4b11a64d need_update_config=false"
   (2) 此时会打出"Confirm restart chunkserver in pubt1-curve1. ENTER to continue or CTRL-C A to quit:"
       确认无误（集群healthy，io恢复）后输入回车继续
   (3) 重复上一步直到所有chunkserver回退完毕
 
-2.4 回退nebd-server
+3.4 回退nebd-server
   (1) ansible-playbook rolling_update_nebd.yml -i client.ini --extra-vars \
         "nebd_package_version=1.0.1+5e87f36 need_update_config=false"
   (2) 升级nebd-server也有类似的确认步骤，由于机器比较多，可以选择指定 --extra-vars "need_confirm=false"来关掉
       确认这一步
 
-2.5 回退curve-sdk
+3.5 回退curve-sdk
 curve-sdk主要给cinder，nova等服务使用，只需要更新包和配置即可，不需要重启服务
   (1) ansible-playbook rolling_update_curve_sdk.yml -i client.ini --extra-vars \
           "sdk_package_version=0.0.5.3+4b11a64d need_update_config=false"
 
-3、检查哨兵配置
+4、检查哨兵配置
 curve线上报警统一由哨兵完成。在部署或升级完一个环境的时候，往往需要配置或修改监控项和报警规则，由于配置是人工完成的，
 所以有一定概率有遗漏之类的，所以提供了检查哨兵配置的check_nss命令。哨兵上的监控项和报警规则以集群为单位配置，所以检
 查哨兵配置应该有两步，第一步是检查inventory里面列出的机器确实都在集群里，这一步可以通过CMDB的getServersByCluster
@@ -135,12 +212,21 @@ ansible-playbook check_nss_client.yml -i client.ini
 │   ├── check_chunkserver.yml                               # 检查chunkserver机器配置
 │   ├── check_cluster_healthy_status.yml                    # 检查集群健康状态
 │   ├── check_mds.yml                                       # 检查mds机器配置
+│   ├── create_dir.yml                                      # 创建目录
+│   ├── create_logical_pool.yml                             # 创建逻辑池
+│   ├── create_physical_pool.yml                            # 创建物理池
 │   ├── get_curve_version_from_metric.yml                   # 从metric获取curve版本
+│   ├── get_distro_name.yml                                 # 获取系统版本
 │   ├── get_nebd_version_from_metric.yml                    # 从metric获取nebd版本
 │   ├── get_software_version_from_package_version.yml       # 从包版本获取软件版本
 │   ├── update_package.yml                                  # 更新包
 │   └── wait_copysets_status_healthy.yml                    # 在一段时间内循环检查copyset健康状态
+│   ├── wait_until_server_down.yml                          # 等待直到server停掉
+│   └── wait_until_server_up.yml                            # 等待直到server起来
 ├── roles                                                   # roles也是用来存放可以复用的代码，一个role内的task存在关联
+├── group_vars                                              # 组变量
+│   ├── all.yml                                             # 属于所有host的变量
+│   └── mds.yml                                             # 属于mds的变量
 │   ├── check_nss                                           # 检查哨兵监控的role
 │   │   ├── defaults
 │   │   │   └── main.yml                                    # 用来存放有默认值的变量，优先级最低，可以在inventory或命令行覆盖
@@ -153,6 +239,13 @@ ansible-playbook check_nss_client.yml -i client.ini
 │   │   │   │   └── get_cluster_monitor_items_from_nss.yml  # 从哨兵获取集群的全部监控项
 │   │   │   └── main.yml                                    # main.yml的所有task会被include到使用role的地方
 │   │   └── vars
+│   │       └── main.yml
+│   ├── format_chunkserver                                  # 用来格式化chunkserver的role
+│   │   ├── defaults
+│   │   │   └── main.yml                                    # 存放带默认值的变量
+│   │   └── tasks
+│   │       ├── include
+│   │       │   └── prepare_chunkserver_without_disk_format.yml # 使用非格式化磁盘的方式准备data目录
 │   │       └── main.yml
 │   ├── restart_service                                     # 用来重启服务的role
 │   │   ├── tasks                                           # 存放重启服务的task，main.yml是入口，其他的被main引用
@@ -167,6 +260,34 @@ ansible-playbook check_nss_client.yml -i client.ini
 │   │   │   └── main.yml                                    # main.yml的所有task会被include到使用role的地方
 │   │   └── vars
 │   │       └── main.yml                                    # main.yml的所有变量会被包含到使用role的地方
+│   ├── install_package                                     # 安装软件包的role
+│   │   ├── defaults
+│   │   │   └── main.yml                                    # 存放带有默认值的变量
+│   │   ├── files                                           # 存放文件
+│   │   │   └── disk_uuid_repair.py
+│   │   ├── tasks
+│   │   │   ├── include
+│   │   │   │   ├── copy_file_to_remote.yml                 # 将文件拷贝到远端
+│   │   │   │   ├── install_aws-sdk.yml                     # 安装aws-sdk
+│   │   │   │   ├── install_curve-chunkserver.yml           # 安装chunkserver
+│   │   │   │   ├── install_curve-mds.yml                   # 安装mds
+│   │   │   │   ├── install_curve-nbd.yml                   # 安装nbd
+│   │   │   │   ├── install_curve-sdk.yml                   # 安装curve-sdk
+│   │   │   │   ├── install_curve-tools.yml                 # 安装部署工具
+│   │   │   │   ├── install_deb_package.yml                 # 安装debian包
+│   │   │   │   ├── install_etcd.yml                        # 安装etcd
+│   │   │   │   ├── install_libuuid.yml                     # 安装libuuid
+│   │   │   │   ├── install_lib_with_source_code.yml        # 从源码安装库
+│   │   │   │   └── install_nebd.yml                        # 安装nebd
+│   │   │   └── main.yml
+│   │   ├── templates                                       # 存放模板
+│   │   │   ├── chunkserver_ctl.sh.j2                       # chunkserver启动脚本的模板
+│   │   │   ├── chunkserver_deploy.sh.j2                    # chunkserver格式化脚本的模板
+│   │   │   ├── etcd-daemon.sh.j2                           # etcd启动脚本的模板
+│   │   │   ├── mds-daemon.sh.j2                            # mds启动脚本的模板
+│   │   │   └── nebd-daemon.j2                              # nebd-server启动脚本的模板
+│   │   └── vars
+│   │       └── main.yml
 │   ├── set_leader_and_follower_list                        # 设置leader和follower列表
 │   │   ├── tasks                                           # 存放task，main.yml是入口，其他的被main引用
 │   │   │   ├── include
@@ -177,29 +298,43 @@ ansible-playbook check_nss_client.yml -i client.ini
 │   │   │   └── main.yml                                    # main.yml的所有task会被include到使用role的地方
 │   │   └── vars
 │   │       └── main.yml                                    # main.yml的所有变量会被包含到使用role的地方
-│   └── generate_config                                       # 更新配置文件的role
-│       ├── defaults
-│       │   └── main.yml                                    # 存放有默认值的变量
+│   ├── generate_config                                     # 更新配置文件的role
+│   │   ├── defaults                                        # 存放有默认值的变量
+│   │   │   └── main.yml
+│   │   ├── tasks
+│   │   │   └── main.yml
+│   │   ├── templates                                       # 配置文件的模板
+│   │   │   ├── chunkserver.conf.j2
+│   │   │   ├── client.conf.j2
+│   │   │   ├── etcd.conf.yml.j2
+│   │   │   ├── mds.conf.j2
+│   │   │   ├── nebd-client.conf.j2
+│   │   │   ├── nebd-server.conf.j2
+│   │   │   ├── s3.conf.j2
+│   │   │   ├── snapshot_clone_server.conf.j2
+│   │   │   ├── snapshot_tools.conf.j2
+│   │   │   ├── tools.conf.j2
+│   │   │   └── topo.json.j2
+│   │   └── vars
+│   │       └── main.yml
+│   └── start_service                                      # 启动服务的role
 │       ├── tasks
-│       │   └── main.yml                                    # main.yml的所有task会被include到使用role的地方
-│       ├── templates                                       # 用于存放role中用到的jinjia模板
-│       │   ├── chunkserver.conf.j2                         # chunkserver配置文件的模板
-│       │   ├── client.conf.j2                              # client配置文件的模板
-│       │   ├── mds.conf.j2                                 # mds配置文件的模板
-│       │   ├── nebd-client.conf.j2                         # nebd client配置文件的模板
-│       │   ├── nebd-server.conf.j2                         # nebd server配置文件的模板
-│       │   ├── s3.conf.j2                                  # s3配置文件的模板
-│       │   ├── snapshot_clone_server.conf.j2               # 快照克隆配置文件的模板
-│       │   ├── snapshot_tools.conf.j2                      # 快照工具配置文件的模板
-│       │   └── tools.conf.j2                               # curve_ops_tool配置文件的模板
+│       │   ├── include
+│       │   │   ├── start_by_daemon.yml                    # 通过daemon启动服务
+│       │   │   ├── start_chunkserver.yml                  # 启动chunkserver
+│       │   │   ├── start_etcd.yml                         # 启动etcd
+│       │   │   ├── start_mds.yml                          # 启动mds
+│       │   │   └── start_nebd.yml                         # 启动nebd
+│       │   └── main.yml
 │       └── vars
-│           └── main.yml                                    # main.yml的所有变量会被包含到使用role的地方
+│           └── main.yml
 ├── rolling_update_chunkserver.yml                          # 升级chunkserver
 ├── rolling_update_mds.yml                                  # 升级mds
 ├── rolling_update_nebd.yml                                 # 升级nebd-server
 ├── rolling_update_curve_sdk.yml                            # 升级curve sdk
 ├── rolling_update_snapshotclone.yml                        # 升级快照克隆
-├── restart_etcd.yml                                        # 重启etcd的命令
+├── rolling_update_etcd.yml                                 # 升级etcd的命令
+├── rolling_update_curve.yml                                # 一键升级curve集群
 ├── check_chunkserver.yml                                   # 检查chunkserver所在机器配置
 ├── check_mds.yml                                           # 检查mds所在机器配置
 ├── check_nss_chunkserver.yml                               # 检查chunkserver哨兵监控
@@ -207,6 +342,13 @@ ansible-playbook check_nss_client.yml -i client.ini
 ├── check_nss_etcd.yml                                      # 检查etcd哨兵监控
 ├── check_nss_mds.yml                                       # 检查mds哨兵监控
 ├── check_nss_snapshotclone.yml                             # 检查快照克隆哨兵监控
+├── deploy_chunkserver.yml                                  # 部署chunkserver
+├── deploy_curve_sdk.yml                                    # 部署curve-sdk
+├── deploy_curve.yml                                        # 一键部署curve集群
+├── deploy_etcd.yml                                         # 部署etcd
+├── deploy_mds.yml                                          # 部署mds
+├── deploy_nbd.yml                                          # 部署nbd
+├── deploy_nebd.yml                                         # 部署nebd
 ├── README                                                  # 本帮助文档
 ├── client.ini                                              # client的inventory文件
 └── server.ini                                              # server的列表，包括mds，快照克隆，etcd，chunkserver
