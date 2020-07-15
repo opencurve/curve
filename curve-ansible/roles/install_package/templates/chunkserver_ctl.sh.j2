@@ -35,33 +35,6 @@ function help() {
     echo "                                          -chunkfilepool_metapath==/data/chunkserver{id}/chunkfilepool.meta"
     echo "OPSTIONS:"
     echo "    [-c|--confPath path]  chunkserver conf path need for start command, default:/etc/curve/chunkserver.conf"
-    echo "    [-nc|--noConfirm]  if specified, deploy no need to confirm"
-}
-
-# 从subnet获取ip
-function get_ip_from_subnet() {
-    subnet=$1
-    prefix=`echo $subnet|awk -F/ '{print $1}'|awk -F. '{printf "%d", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
-    mod=`echo $subnet|awk -F/ '{print $2}'`
-    mask=$((2**32-2**(32-$mod)))
-    # 对prefix再取一次模，为了支持10.182.26.50/22这种格式
-    prefix=$(($prefix&$mask))
-    ip=
-    for i in `/sbin/ifconfig -a|grep inet|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
-    do
-        # 把ip转换成整数
-        ip_int=`echo $i|awk -F. '{printf "%d\n", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
-        if [ $(($ip_int&$mask)) -eq $prefix ]
-        then
-            ip=$i
-            break
-        fi
-    done
-    if [ -z "$ip" ]
-    then
-        echo "no ip matched!\n"
-        exit 1
-    fi
 }
 
 # 启动chunkserver
@@ -82,27 +55,34 @@ function start() {
         return 1
     fi
     # parse subnet mask from config
-    internal_subnet=`cat $confPath|grep global.subnet|awk -F"=" '{print $2}'`
+    subnet=`cat $confPath|grep global.subnet|awk -F"=" '{print $2}'`
     port=`cat $confPath|grep global.port|awk -F"=" '{print $2}'`
-    get_ip_from_subnet $internal_subnet
-    internal_ip=$ip
-    echo "ip: $internal_ip"
+    prefix=`echo $subnet|awk -F/ '{print $1}'|awk -F. '{printf "%d", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
+    mod=`echo $subnet|awk -F/ '{print $2}'`
+    mask=$((2**32-2**(32-$mod)))
+    echo "subnet: $subnet"
     echo "base port: $port"
-    external_subnet=`cat $confPath|grep global.external_subnet|awk -F"=" '{print $2}'`
-    get_ip_from_subnet $external_subnet
-    external_ip=$ip
-    enableExternalServer=true
-    # external ip和internal ip一致或external ip为127.0.0.1时不启动external server
-    if [ $internal_ip = $external_ip -o $external_ip = "127.0.0.1" ]
-    then
-        enableExternalServer=false
-    else
-        echo "external_ip: $external_ip"
-    fi
+    # 对prefix再取一次模，为了支持10.182.26.50/22这种格式
+    prefix=$(($prefix&$mask))
+    for i in `/sbin/ifconfig -a|grep inet|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
+    do
+        # 把ip转换成整数
+        ip_int=`echo $i|awk -F. '{printf "%d\n", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
+        if [ $(($ip_int&$mask)) -eq $prefix ]
+        then
+            ip=$i
+            break
+        fi
+    done
 
+    if [ -z "$ip" ]
+    then
+        echo "no ip matched!\n"
+        return 1
+    fi
     if [ "$1" = "all" ]
     then
-        ret=`ls ${dataDir} |grep chunkserver| sed 's/[^0-9]//g'`
+        ret=`ls ${dataDir} |grep chunkserver|sed 's/[^0-9]//g'`
         for i in $ret
         do
             start_one $i
@@ -149,15 +129,15 @@ function start_one() {
             -enableChunkfilepool={{ enable_chunkfilepool }} \
             -chunkFilePoolDir=${dataDir}/chunkserver$1 \
             -chunkFilePoolMetaPath=${dataDir}/chunkserver$1/chunkfilepool.meta \
-            -chunkServerIp=$internal_ip \
-            -enableExternalServer=$enableExternalServer \
-            -chunkServerExternalIp=$external_ip \
+            -chunkServerIp=$ip \
             -chunkServerPort=$((${port}+${1})) \
             -chunkServerMetaUri=local://${dataDir}/chunkserver$1/chunkserver.dat \
             -chunkServerStoreUri=local://${dataDir}/chunkserver$1/ \
             -copySetUri=local://${dataDir}/chunkserver$1/copysets \
-            -raftSnapshotUri=curve:///data/chunkserver$1/copysets \
+            -raftSnapshotUri=curve://${dataDir}/chunkserver$1/copysets \
             -recycleUri=local://${dataDir}/chunkserver$1/recycler \
+            -graceful_quit_on_sigterm=true \
+            -raft_sync_meta=true \
             -raft_sync_segments=true \
             -graceful_quit_on_sigterm=true \
             -log_dir=${dataDir}/log/chunkserver$1 > /dev/null 2>&1 &
@@ -215,9 +195,8 @@ function restart() {
 }
 
 function wait_stop() {
-    # wait 3秒钟让它退出
-    retry_times=0
-    while [ $retry_times -le 3 ]
+    # 确认chunkserver已经停掉再启动
+    while true
     do
         ((retry_times=$retry_times+1))
         ps -efl|grep -w "${dataDir}/chunkserver$1"|grep -v grep > /dev/null 2>&1
@@ -229,13 +208,6 @@ function wait_stop() {
             break
         fi
     done
-    # 如果进程还在，就kill -9
-    ps -efl|grep -w "${dataDir}/chunkserver$1"|grep -v grep > /dev/null 2>&1
-    if [ $? -eq 0 ]
-    then
-        echo "The process of chunkserver$1 still exists after 3s, now kill -9 it"
-        kill -9 `ps -efl|grep -w ${dataDir}/chunkserver$1|grep -v grep|awk '{print $4}'`
-    fi
 }
 
 function status() {
@@ -267,8 +239,6 @@ function status_one() {
     fi
 }
 
-confirm=true
-
 function deploy() {
     if [ $# -lt 1 ]
     then
@@ -285,12 +255,13 @@ function deploy() {
     fi
     if [ "$1" = "all" ]
     then
-        #deploy_all;
+        deploy_all;
         return $?
     fi
     if [ $# -eq 2 ]
     then
-        #deploy_one $@;
+        do_confirm;
+        deploy_one $@;
         return $?
     fi
     usage;

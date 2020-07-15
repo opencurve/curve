@@ -5,9 +5,6 @@
 global.ip={{ ansible_ssh_host }}
 global.port={{ chunkserver_base_port }}
 global.subnet={{ chunkserver_subnet }}
-global.enable_external_server={{ chunkserver_enable_external_server }}
-global.external_ip={{ ansible_ssh_host }}
-global.external_subnet={{ chunkserver_external_subnet }}
 # chunk大小，一般16MB
 global.chunk_size={{ chunk_size }}
 # chunk 元数据页大小，一般4KB

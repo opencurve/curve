@@ -29,6 +29,6 @@ cluster_map:
       physicalpool: pool1
       type: 0
       replicasnum: 3
-      copysetnum: 2000
+      copysetnum: 100
       zonenum: 3
       scatterwidth: 0

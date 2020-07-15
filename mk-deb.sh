@@ -203,13 +203,6 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
-cp -r tools/snaptool build/curve-tools/usr/bin/snaptool-lib
-cp tools/snaptool/snaptool build/curve-tools/usr/bin/snaptool
-chmod a+x build/curve-tools/usr/bin/snaptool
-if [ $? -ne 0 ]
-then
-	exit
-fi
 mkdir -p build/curve-chunkserver/usr/bin
 if [ $? -ne 0 ]
 then
