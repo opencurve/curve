@@ -1,26 +1,17 @@
 [![BUILD Status](http://59.111.93.165:8080/job/curve_multijob/lastBuild/buildStatus)](http://59.111.93.165:8080/job/curve_multijob/lastBuild)
 [![COVERAGE Status](http://59.111.93.165:8080/job/curve_multijob/)](http://59.111.93.165:8080/job/curve_multijob/HTML_20Report/)
-1.1 系统概述
 
-curve的框架，更多的类似经典的Google GFS分布式文件系统，希望围绕curve满足诸多的存储应用场景的需求：
+CURVE是网易自主设计研发的高性能、高可用、高可靠分布式存储系统，具有非常良好的扩展性。基于该存储底座可以打造适用于不同应用场景的存储系统，如块存储、对象存储、云原生数据库等。当前我们基于CURVE已经实现了高性能块存储系统，支持快照克隆和恢复 ,支持QEMU虚拟机和物理机NBD设备两种挂载方式, 在网易内部作为高性能云盘使用。
 
-- 高性能块存储系统：基于统一存储框架，输出虚拟化块存储设备，替换NBS、CEPH；并满足块设备高可用需求(99.999%)，基础的可靠性保障（6个9），快照等基础的功能需求，以及Performance 的SLA保障能力等。
-- 在线对象存储服务：基于统一的存储框架，提供在线对象存储服务的基础功能（Put、Get、Delete），保障11个9的可靠性，99.9%的可用性，保障系统对外吞吐能力。
-- 近线对象存储服务：基于统一的存储框架，提供近线对象存储服务，可以支持通过EC（Erase Code）实现更低（50%）的存储成本，同样提供基础功能Put、Get、Delete，提供99%的可用性。
-- 文件存储：基于统一的存储框架，提供共享文件存储。提供支持NFSv4协议，能够去cover 基于文件层面的共享存储访问
-- 更多：基于统一的存储框架，基于底层提供对存储资源的抽象，在其提供的可靠性可用性的基础之上，实现更多的分布式存储分布式表存储、消息队列存储等
+## 文档
 
-对于现在网易云存储产品的现状，第一优先级集中精力打造高性能块存储系统。但是在系统的扩展性（此扩展性非规模的扩展性）上面能够较为无缝的支持后续基于这个统一的框架基于进行组件的替换基于更多的不打破原有核心框架之上去支持其他应用场景。
+- 通过 [简介](https://opencurve.github.io/) 可以了解 curve 架构
+- 通过 [编译与运行](https://github.com/opencurve/curve/)可以了解如何编译和执行单元测试
 
-1.2 设计理念
+## 快速开始
 
-- 围绕技术边界打造时代顶级的产品
+- 通过 [集群部署](https://github.com/opencurve/curve/) 快速搭建 curve 集群
 
-对于curve分布式文件系统的设计，特别是块存储的设计，希望是顺着当前存储设施发展的最新趋势（Nvme SSD、Optane），围绕硬件技术发展的边界，探索优秀的软件设计方案，软硬件结合提供顶级的块存储产品。其他产品线也是一样的思路。
+## 反馈和参与
 
-- Simple Can be harder than complex
-
-能够切中问题的要害，了解问题的本质，全面了解解决问题的方案，选择最简单的方案来解决问题。
-
-
-总体设计文档详见:https://g.hz.netease.com/newstore/curve-design/blob/master/curve-design.md
+- bug、疑惑、修改建议都欢迎提在[Github Issues](https://github.com/opencurve/curve/issues)中
