@@ -27,7 +27,7 @@ intall-go:
 
 install-etcdclient:
 	mkdir -p $(pwd)/tmp/gosrc/src/go.etcd.io
-	cd $(pwd)/tmp/gosrc/src/go.etcd.io && git clone --branch v3.4.0 http://gerrit.storage.netease.com/curve/etcd 
+	cd $(pwd)/tmp/gosrc/src/go.etcd.io && git clone --branch v3.4.0 https://github.com/etcd-io/etcd
 	cd $(pwd)/tmp/gosrc/src/go.etcd.io/etcd && cp $(pwd)/expose-session-for-election.patch . && git am expose-session-for-election.patch
 
 vendorpath := $(pwd)/tmp/gosrc/src/go.etcd.io/etcd/vendor

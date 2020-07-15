@@ -69,7 +69,7 @@ class CopysetEpochTest : public testing::Test {
 
 butil::AtExitManager atExitManager;
 
-TEST_F(CopysetEpochTest, epoch_test) {
+TEST_F(CopysetEpochTest, DISABLED_basic) {
     const char *ip = "127.0.0.1";
     int port = 9026;
     const char *confs = "127.0.0.1:9026:0";

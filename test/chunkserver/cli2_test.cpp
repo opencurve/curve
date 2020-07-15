@@ -83,7 +83,7 @@ class Cli2Test : public testing::Test {
 
 butil::AtExitManager atExitManager;
 
-TEST_F(Cli2Test, basic) {
+TEST_F(Cli2Test, DISABLED_basic) {
     const char *ip = "127.0.0.1";
     int port = 9033;
     const char *confs = "127.0.0.1:9033:0,127.0.0.1:9034:0,127.0.0.1:9035:0";
