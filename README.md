@@ -6,12 +6,13 @@ CURVE是网易自主设计研发的高性能、高可用、高可靠分布式存
 ## 文档
 
 - 通过 [简介](https://opencurve.github.io/) 可以了解 curve 架构
-- 通过 [编译与运行](https://github.com/opencurve/curve/)可以了解如何编译和执行单元测试
+- 通过 [编译与运行](docs/cn/build_and_run.md)可以了解如何编译和执行单元测试
 
 ## 快速开始
 
-- 通过 [集群部署](https://github.com/opencurve/curve/) 快速搭建 curve 集群
+- 通过 [集群部署](docs/cn/deploy.md) 快速搭建 curve 集群
 
 ## 反馈和参与
 
 - bug、疑惑、修改建议都欢迎提在[Github Issues](https://github.com/opencurve/curve/issues)中
+
