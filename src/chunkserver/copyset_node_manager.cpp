@@ -38,6 +38,7 @@
 #include "src/chunkserver/braft_cli_service.h"
 #include "src/chunkserver/braft_cli_service2.h"
 #include "src/chunkserver/uri_paser.h"
+#include "src/chunkserver/raftsnapshot/curve_file_service.h"
 
 
 namespace curve {
@@ -380,17 +381,24 @@ int CopysetNodeManager::AddService(brpc::Server *server,
             ret = -1;
             break;
         }
-        ret = server->AddService(braft::file_service(),
-                                 brpc::SERVER_DOESNT_OWN_SERVICE);
-        CHECK(0 == ret) << "Fail to add FileService";
-        ret = server->AddService(new braft::RaftServiceImpl(listenAddress),
-                                 brpc::SERVER_OWNS_SERVICE);
-        CHECK(0 == ret) << "Fail to add RaftService";
-
+        // We need call braft::add_service to add endPoint to braft::NodeManager
+        braft::add_service(server, listenAddress);
+        // We need to replace braft::CliService with our own implementation
+        auto service = server->FindServiceByName("CliService");
+        ret = server->RemoveService(service);
+        CHECK(0 == ret) << "Fail to remove braft::CliService";
         ret = server->AddService(new BRaftCliServiceImpl,
                                  brpc::SERVER_OWNS_SERVICE);
         CHECK(0 == ret) << "Fail to add BRaftCliService";
+        // We need to replace braft::FileServiceImpl with our own implementation
+        service = server->FindServiceByName("FileService");
+        ret = server->RemoveService(service);
+        CHECK(0 == ret) << "Fail to remove braft::FileService";
+        ret = server->AddService(&kCurveFileService,
+        brpc::SERVER_DOESNT_OWN_SERVICE);
+        CHECK(0 == ret) << "Fail to add CurveFileService";
 
+        // add other services
         ret = server->AddService(new BRaftCliServiceImpl2,
                                  brpc::SERVER_OWNS_SERVICE);
         CHECK(0 == ret) << "Fail to add BRaftCliService2";
@@ -401,10 +409,6 @@ int CopysetNodeManager::AddService(brpc::Server *server,
         ret = server->AddService(new ChunkServiceImpl(chunkServiceOptions),
                                  brpc::SERVER_OWNS_SERVICE);
         CHECK(0 == ret) << "Fail to add ChunkService";
-
-        if (!braft::NodeManager::GetInstance()->server_exists(listenAddress)) {
-            braft::NodeManager::GetInstance()->add_address(listenAddress);
-        }
     } while (false);
 
     return ret;

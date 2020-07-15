@@ -29,6 +29,7 @@
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/datastore/chunkfile_pool.h"
 #include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
+#include "src/chunkserver/raftsnapshot/define.h"
 
 using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;

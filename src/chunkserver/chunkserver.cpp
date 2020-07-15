@@ -70,12 +70,6 @@ DEFINE_uint32(copysetLoadConcurrency, 5, "copyset load concurrency");
 namespace curve {
 namespace chunkserver {
 
-void RegisterCurveSnapshotStorageOrDie() {
-    static CurveSnapshotStorage snapshotStorage;
-    braft::snapshot_storage_extension()->RegisterOrDie(
-                                    "curve", &snapshotStorage);
-}
-
 int ChunkServer::Run(int argc, char** argv) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
@@ -219,9 +213,6 @@ int ChunkServer::Run(int argc, char** argv) {
         return -1;
     }
     butil::EndPoint endPoint = butil::EndPoint(ip, copysetNodeOptions.port);
-    if (!braft::NodeManager::GetInstance()->server_exists(endPoint)) {
-        braft::NodeManager::GetInstance()->add_address(endPoint);
-    }
     // 注册curve snapshot storage
     RegisterCurveSnapshotStorageOrDie();
     CurveSnapshotStorage::set_server_addr(endPoint);
@@ -248,6 +239,8 @@ int ChunkServer::Run(int argc, char** argv) {
     // TODO(lixiaocui): rpc中各接口添加上延迟metric
     brpc::Server server;
     brpc::Server externalServer;
+    // We need call braft::add_service to add endPoint to braft::NodeManager
+    braft::add_service(&server, endPoint);
 
     // copyset service
     CopysetServiceImpl copysetService(copysetNodeManager_);
@@ -274,7 +267,10 @@ int ChunkServer::Run(int argc, char** argv) {
                         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add ChunkService";
 
-    // braftclient service
+    // We need to replace braft::CliService with our own implementation
+    auto service = server.FindServiceByName("CliService");
+    ret = server.RemoveService(service);
+    CHECK(0 == ret) << "Fail to remove braft::CliService";
     BRaftCliServiceImpl braftCliService;
     ret = server.AddService(&braftCliService,
                         brpc::SERVER_DOESNT_OWN_SERVICE);
@@ -286,23 +282,14 @@ int ChunkServer::Run(int argc, char** argv) {
                         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add BRaftCliService2";
 
-    // raft service
-    braft::RaftServiceImpl raftService(endPoint);
-    ret = server.AddService(&raftService,
-        brpc::SERVER_DOESNT_OWN_SERVICE);
-    CHECK(0 == ret) << "Fail to add RaftService";
-
-    // raft stat service
-    braft::RaftStatImpl raftStatService;
-    ret = server.AddService(&raftStatService,
-        brpc::SERVER_DOESNT_OWN_SERVICE);
-    CHECK(0 == ret) << "Fail to add RaftStatService";
-
-    // braft file service
+    // We need to replace braft::FileServiceImpl with our own implementation
+    service = server.FindServiceByName("FileService");
+    ret = server.RemoveService(service);
+    CHECK(0 == ret) << "Fail to remove braft::FileService";
     kCurveFileService.set_snapshot_attachment(new CurveSnapshotAttachment(fs));
     ret = server.AddService(&kCurveFileService,
         brpc::SERVER_DOESNT_OWN_SERVICE);
-    CHECK(0 == ret) << "Fail to add FileService";
+    CHECK(0 == ret) << "Fail to add CurveFileService";
 
     // chunkserver service
     ChunkServerServiceImpl chunkserverService(copysetNodeManager_);
@@ -333,6 +320,7 @@ int ChunkServer::Run(int argc, char** argv) {
         ret = externalServer.AddService(&braftCliService2,
                         brpc::SERVER_DOESNT_OWN_SERVICE);
         CHECK(0 == ret) << "Fail to add BRaftCliService2 at external server";
+        braft::RaftStatImpl raftStatService;
         ret = externalServer.AddService(&raftStatService,
                         brpc::SERVER_DOESNT_OWN_SERVICE);
         CHECK(0 == ret) << "Fail to add RaftStatService at external server";
