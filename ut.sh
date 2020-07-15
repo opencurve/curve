@@ -8,10 +8,10 @@ ps -ef | grep mds | grep -v grep | awk '{print $2}' | sudo xargs kill -9 || true
 ps -ef | grep etcd | grep -v grep | awk '{print $2}' | sudo xargs kill -9 || true
 ps -ef | grep test | grep -v grep | awk '{print $2}' | sudo xargs kill -9 || true
 
-if [ -f /curve/etcd/libetcdclient.h ] && [ -f /curve/etcd/libetcdclient.so ]
+if [ -f /etcdclient/libetcdclient.h ] && [ -f /etcdclient/libetcdclient.so ]
 then
-    cp /curve/etcd/libetcdclient.h /curve/curve_multijob/thirdparties/etcdclient
-    cp /curve/etcd/libetcdclient.so /curve/curve_multijob/thirdparties/etcdclient
+    cp /etcdclient/libetcdclient.h /curve/curve_multijob/thirdparties/etcdclient
+    cp /etcdclient/libetcdclient.so /curve/curve_multijob/thirdparties/etcdclient
 else
     cd /curve/curve_multijob/thirdparties/etcdclient && make all
     #sudo cp /curve/curve_multijob/thirdparties/etcdclient/libetcdclient.so /usr/lib/
