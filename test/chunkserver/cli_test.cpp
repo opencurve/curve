@@ -77,7 +77,7 @@ class CliTest : public testing::Test {
 
 butil::AtExitManager atExitManager;
 
-TEST_F(CliTest, basic) {
+TEST_F(CliTest, DISABLED_basic) {
     const char *ip = "127.0.0.1";
     int port = 9030;
     const char *confs = "127.0.0.1:9030:0,127.0.0.1:9031:0,127.0.0.1:9032:0";

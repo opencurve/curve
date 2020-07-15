@@ -19,14 +19,16 @@ workspace(name = "curve")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
 git_repository(
-    name = "com_netease_storage_gerrit_curve_curve_braft",
-    remote = "http://gerrit.storage.netease.com/curve/curve-braft",
-    commit = "b17ebad68d1d1b84440f7bce984755ff47095137",
+    name = "com_github_baidu_braft",
+    remote = "https://github.com/baidu/braft",
+    commit = "e255c0e4b18d1a8a5d484d4b647f41ff1385ef1e",
+    patch_args = ["-p1"],
+    patches = ["//:thirdparties/braft/braft.patch"],
 )
 
 bind(
     name = "braft",
-    actual = "@com_netease_storage_gerrit_curve_curve_braft//:braft",
+    actual = "@com_github_baidu_braft//:braft",
 )
 
 # proto_library, cc_proto_library, and java_proto_library rules implicitly
@@ -61,7 +63,7 @@ bind(
 # brpc内BUILD文件在依赖glog时, 直接指定的依赖是"@com_github_google_glog//:glog"
 git_repository(
     name = "com_github_google_glog",
-    remote = "http://gerrit.storage.netease.com/curve/curve-glog",
+    remote = "https://github.com/google/glog",
     commit = "4cc89c9e2b452db579397887c37f302fb28f6ca1",
     patch_args = ["-p1"],
     patches = ["//:thirdparties/glog/glog.patch"],
@@ -100,8 +102,8 @@ bind(
 )
 
 git_repository(
-    name = "com_netease_storage_gerrit_curve_curve_brpc",
-    remote = "http://gerrit.storage.netease.com/curve/curve-brpc",
+    name = "com_github_apache_brpc",
+    remote = "https://github.com/apache/incubator-brpc",
     commit = "1b9e00641cbec1c8803da6a1f7f555398c954cb0",
     patches = ["//:thirdparties/brpc/brpc.patch"],
     patch_args = ["-p1"],
@@ -109,22 +111,22 @@ git_repository(
 
 bind(
     name = "brpc",
-    actual = "@com_netease_storage_gerrit_curve_curve_brpc//:brpc",
+    actual = "@com_github_apache_brpc//:brpc",
 )
 
 bind(
     name = "butil",
-    actual = "@com_netease_storage_gerrit_curve_curve_brpc//:butil",
+    actual = "@com_github_apache_brpc//:butil",
 )
 
 bind(
     name = "bthread",
-    actual = "@com_netease_storage_gerrit_curve_curve_brpc//:bthread",
+    actual = "@com_github_apache_brpc//:bthread",
 )
 
 bind(
     name = "bvar",
-    actual = "@com_netease_storage_gerrit_curve_curve_brpc//:bvar",
+    actual = "@com_github_apache_brpc//:bvar",
 )
 
 # jsoncpp
