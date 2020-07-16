@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #
 #  Copyright (c) 2020 NetEase Inc.
 #
@@ -14,7 +16,6 @@
 #  limitations under the License.
 #
 
-#!/bin/bash
 dir=`pwd`
 #step1 清除生成的目录和文件
 bazel clean
