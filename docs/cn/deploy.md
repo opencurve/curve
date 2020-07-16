@@ -39,12 +39,12 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 2. 下载tar包并解压
 
    ```
-   wget https://github.com/opencurve/curve/releases/download/v0.1.0/curve_0.1.0+0bd75f0a.tar.gz
-   wget https://github.com/opencurve/curve/releases/download/v0.1.0/nbd_0.1.0+0bd75f0a.tar.gz
-   wget https://github.com/opencurve/curve/releases/download/v0.1.0/nebd_0.1.0+0bd75f0a.tar.gz
-   tar zxvf curve_0.1.0+086c8871.tar.gz
-   tar zxvf nbd_0.1.0+086c8871.tar.gz
-   tar zxvf nebd_0.1.0+086c8871.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v0.1.0/curve_0.1.0+55cecca7.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v0.1.0/nbd_0.1.0+55cecca7.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v0.1.0/nebd_0.1.0+55cecca7.tar.gz
+   tar zxvf curve_0.1.0+55cecca7.tar.gz
+   tar zxvf nbd_0.1.0+55cecca7.tar.gz
+   tar zxvf nebd_0.1.0+55cecca7.tar.gz
    cd curve/curve-ansible
    ```
 
@@ -123,12 +123,12 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 2. 下载tar包 并 解压
 
    ```
-   wget https://github.com/opencurve/curve/releases/download/v0.1.0/curve_0.1.0+0bd75f0a.tar.gz
-   wget https://github.com/opencurve/curve/releases/download/v0.1.0/nbd_0.1.0+0bd75f0a.tar.gz
-   wget https://github.com/opencurve/curve/releases/download/v0.1.0/nebd_0.1.0+0bd75f0a.tar.gz
-   tar zxvf curve_0.1.0+086c8871.tar.gz
-   tar zxvf nbd_0.1.0+086c8871.tar.gz
-   tar zxvf nebd_0.1.0+086c8871.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v0.1.0/curve_0.1.0+55cecca7.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v0.1.0/nbd_0.1.0+55cecca7.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v0.1.0/nebd_0.1.0+55cecca7.tar.gz
+   tar zxvf curve_0.1.0+55cecca7.tar.gz
+   tar zxvf nbd_0.1.0+55cecca7.tar.gz
+   tar zxvf nebd_0.1.0+55cecca7.tar.gz
    cd curve/curve-ansible
    ```
 
@@ -143,9 +143,9 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    mds3 ansible_ssh_host=10.192.100.3 // 改动
 
    [etcd]
-   etcd1 ansible_ssh_host=10.192.100.1 // 改动
-   etcd2 ansible_ssh_host=10.192.100.2 // 改动
-   etcd3 ansible_ssh_host=10.192.100.3 // 改动
+   etcd1 ansible_ssh_host=10.192.100.1 etcd_name=etcd1 // 改动
+   etcd2 ansible_ssh_host=10.192.100.2 etcd_name=etcd2 // 改动
+   etcd3 ansible_ssh_host=10.192.100.3 etcd_name=etcd3 // 改动
 
    [snapshotclone]
    snap1 ansible_ssh_host=10.192.100.1 // 改动
@@ -162,7 +162,6 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    server3 ansible_ssh_host=10.192.100.3 // 改动
 
    [mds:vars]
-   ansible_ssh_port=1046
    mds_dummy_port=6667
    mds_port=6666
    mds_subnet=10.192.100.0/22                      // 改动
@@ -170,19 +169,16 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    mds_package_version="0.0.6.1+160be351"
    tool_package_version="0.0.6.1+160be351"
    # 启动命令是否用sudo
-   mds_need_sudo=false
+   mds_need_sudo=true
    mds_config_path=/etc/curve/mds.conf
    tool_config_path=/etc/curve/tools.conf
    mds_log_dir=/data/log/curve/mds
    topo_file_path=/etc/curve/topo.json
 
    [etcd:vars]
-   ansible_ssh_port=1046
    etcd_listen_client_port=2379
    etcd_listen_peer_port=2380
    etcd_name="etcd"
-   sudo_user=nbs
-   deploy_dir=/home/curve
    etcd_need_sudo=true
    defined_healthy_status="cluster is healthy"
    etcd_config_path=/etc/curve/etcd.conf.yml
@@ -195,7 +191,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    snapshot_subnet=10.192.100.0/22                      // 改动
    defined_healthy_status="cluster is healthy"
    snapshot_package_version="0.0.6.1.1+7af4d6a4"
-   snapshot_need_sudo=false
+   snapshot_need_sudo=true
    snapshot_config_path=/etc/curve/snapshot_clone_server.conf
    snap_s3_config_path=/etc/curve/s3.conf
    snap_client_config_path=/etc/curve/snap_client.conf
@@ -206,13 +202,10 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    client_chunkserver_max_stable_timeout_times=64
    client_turn_off_health_check=false
    snapshot_clone_server_log_dir=/data/log/curve/snapshotclone
-   s3_ak=""
-   s3_sk=""
    aws_package_version="1.0"
 
    [chunkservers:vars]
    wait_service_timeout=60
-   ansible_ssh_port=1046
    env_name=pubt1
    check_copysets_status_times=1000
    check_copysets_status_interval=1
@@ -220,7 +213,8 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    aws_package_version="1.0"
    defined_copysets_status="Copysets are healthy"
    chunkserver_base_port=8200
-   chunkserver_format_disk=false
+   chunkserver_format_disk=true        // 改动，为了更好的性能，实际生产环境需要将chunkserver上的磁盘全部预格式化，这个过程比较耗时1T的盘格式80%化大概需要1个小时
+   chunk_alloc_percent=80              // 预创的chunkFilePool占据磁盘空间的比例，比例越大，格式化越慢
    # 每台机器上的chunkserver的数量
    chunkserver_num=10                                      // 改动
    chunkserver_need_sudo=true
@@ -239,6 +233,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    client_chunkserver_op_max_retry=3
    client_chunkserver_max_stable_timeout_times=64
    client_turn_off_health_check=false
+   disable_snapshot_clone=true                           // 改动，这一项取决于是否需要使用快照克隆功能，需要的话设置为false，并提供s3_ak和s3_sk
 
    [snapshotclone_nginx:vars]
    snapshotcloneserver_nginx_dir=/etc/curve/nginx
@@ -253,8 +248,12 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    need_confirm=true
    curve_ops_tool_config=/etc/curve/tools.conf
    need_update_config=true
-   mysql_url=localhost
    wait_service_timeout=10
+   s3_ak=""
+   s3_sk=""
+   ansible_ssh_port=22
+   curve_root_username=xxx                           // 改动，修改成自己需要的username
+   curve_root_password=xxx                           // 改动，修改成自己需要的密码
 
    ```
 
@@ -344,7 +343,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 5. 如果需要使用快照克隆功能，需要有S3账号，可以使用[网易云的对象存储](https://www.163yun.com/product/nos)  同上
 
    ```
-   1. 在 server.ini 中，填写s3_ak="" s3_sk=""
+   1. 在 server.ini 中，填写s3_ak="" s3_sk="" disable_snapshot_clone=false
    2. 安装快照克隆服务
       ansible-playbook -i server.ini deploy_snapshotcloneserver.yml
       ansible-playbook -i server.ini deploy_snapshotcloneserver_nginx.yml
