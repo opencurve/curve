@@ -56,7 +56,7 @@ class ScheduleMetricsTest : public testing::Test {
 
     ::curve::mds::topology::Server GetServer(int id) {
         std::string hostName =
-            "pubbeta2-curve" + std::to_string(id) + ".dg.163.org";
+            "pubbeta2-curve" + std::to_string(id) + ".org";
         return ::curve::mds::topology::Server(
             id, hostName, "", 0, "", 0, id, 1, "");
     }
@@ -133,10 +133,10 @@ TEST_F(ScheduleMetricsTest, test_add_rm_addOp) {
         std::string res =
             std::string("{\"copySetEpoch\":\"0\",\"copySetId\":\"1\",") +
             std::string("\"copySetLeader\":\"UNINTIALIZE_ID\",\"") +
-            std::string("copySetPeers\":\"pubbeta2-curve1.dg.163.org:9000,") +
-            std::string("pubbeta2-curve2.dg.163.org:9000\",\"") +
+            std::string("copySetPeers\":\"pubbeta2-curve1.org:9000,") +
+            std::string("pubbeta2-curve2.org:9000\",\"") +
             std::string("logicalPoolId\":\"1\",\"opItem\":\"") +
-            std::string("pubbeta2-curve3.dg.163.org:9000\",\"opPriority\":") +
+            std::string("pubbeta2-curve3.org:9000\",\"opPriority\":") +
             std::string("\"Normal\",\"opType\":\"AddPeer\",") +
             std::string("\"startEpoch\":\"1\"}");
         ASSERT_EQ(res, scheduleMetrics->operators[addOp.copysetID].JsonBody());
@@ -220,12 +220,12 @@ TEST_F(ScheduleMetricsTest, test_add_rm_rmOp) {
         std::string res =
             std::string("{\"copySetEpoch\":\"0\",\"copySetId\":\"2\",") +
             std::string("\"copySetLeader\":") +
-            std::string("\"pubbeta2-curve1.dg.163.org:9000\",\"") +
-            std::string("copySetPeers\":\"pubbeta2-curve1.dg.163.org:9000") +
-            std::string(",pubbeta2-curve2.dg.163.org:9000,") +
-            std::string("pubbeta2-curve3.dg.163.org:9000\",\"logicalPoolId") +
+            std::string("\"pubbeta2-curve1.org:9000\",\"") +
+            std::string("copySetPeers\":\"pubbeta2-curve1.org:9000") +
+            std::string(",pubbeta2-curve2.org:9000,") +
+            std::string("pubbeta2-curve3.org:9000\",\"logicalPoolId") +
             std::string("\":\"1\",\"opItem\":\"") +
-            std::string("pubbeta2-curve3.dg.163.org:9000\",\"opPriority\":") +
+            std::string("pubbeta2-curve3.org:9000\",\"opPriority\":") +
             std::string("\"High\",\"opType\":\"RemovePeer\",") +
             std::string("\"startEpoch\":\"1\"}");
         ASSERT_EQ(res, scheduleMetrics->operators[rmOp.copysetID].JsonBody());
@@ -306,12 +306,12 @@ TEST_F(ScheduleMetricsTest, test_add_rm_transferOp) {
         std::string res =
             std::string("{\"copySetEpoch\":\"0\",\"copySetId\":\"3\",") +
             std::string("\"copySetLeader\":") +
-            std::string("\"pubbeta2-curve1.dg.163.org:9000\",\"") +
-            std::string("copySetPeers\":\"pubbeta2-curve1.dg.163.org:9000") +
-            std::string(",pubbeta2-curve2.dg.163.org:9000,") +
-            std::string("pubbeta2-curve3.dg.163.org:9000\",\"logicalPoolId") +
+            std::string("\"pubbeta2-curve1.org:9000\",\"") +
+            std::string("copySetPeers\":\"pubbeta2-curve1.org:9000") +
+            std::string(",pubbeta2-curve2.org:9000,") +
+            std::string("pubbeta2-curve3.org:9000\",\"logicalPoolId") +
             std::string("\":\"1\",\"opItem\":\"") +
-            std::string("pubbeta2-curve3.dg.163.org:9000\",\"opPriority\":") +
+            std::string("pubbeta2-curve3.org:9000\",\"opPriority\":") +
             std::string("\"Normal\",\"opType\":\"TransferLeader\",") +
             std::string("\"startEpoch\":\"1\"}");
         ASSERT_EQ(res,
@@ -396,12 +396,12 @@ TEST_F(ScheduleMetricsTest, test_add_rm_changeOp) {
         std::string res =
             std::string("{\"copySetEpoch\":\"0\",\"copySetId\":\"4\",") +
             std::string("\"copySetLeader\":") +
-            std::string("\"pubbeta2-curve1.dg.163.org:9000\",\"") +
-            std::string("copySetPeers\":\"pubbeta2-curve1.dg.163.org:9000") +
-            std::string(",pubbeta2-curve2.dg.163.org:9000,") +
-            std::string("pubbeta2-curve3.dg.163.org:9000\",\"logicalPoolId") +
+            std::string("\"pubbeta2-curve1.org:9000\",\"") +
+            std::string("copySetPeers\":\"pubbeta2-curve1.org:9000") +
+            std::string(",pubbeta2-curve2.org:9000,") +
+            std::string("pubbeta2-curve3.org:9000\",\"logicalPoolId") +
             std::string("\":\"1\",\"opItem\":\"") +
-            std::string("pubbeta2-curve4.dg.163.org:9000\",\"opPriority\":") +
+            std::string("pubbeta2-curve4.org:9000\",\"opPriority\":") +
             std::string("\"Normal\",\"opType\":\"ChangePeer\",") +
             std::string("\"startEpoch\":\"1\"}");
         ASSERT_EQ(res,
@@ -464,9 +464,9 @@ TEST_F(ScheduleMetricsTest, test_abnormal) {
     std::string res =
             std::string("{\"copySetEpoch\":\"0\",\"copySetId\":\"3\",") +
             std::string("\"copySetLeader\":\"UNINTIALIZE_ID\",\"") +
-            std::string("copySetPeers\":\",,pubbeta2-curve3.dg.163.org:9000") +
+            std::string("copySetPeers\":\",,pubbeta2-curve3.org:9000") +
             std::string("\",\"logicalPoolId\":\"1\",\"opItem\":") +
-            std::string("\"pubbeta2-curve3.dg.163.org:9000\",\"opPriority\":") +
+            std::string("\"pubbeta2-curve3.org:9000\",\"opPriority\":") +
             std::string("\"Normal\",\"opType\":\"TransferLeader\",") +
             std::string("\"startEpoch\":\"1\"}");
     ASSERT_EQ(res, scheduleMetrics->operators[transferOp.copysetID].JsonBody());

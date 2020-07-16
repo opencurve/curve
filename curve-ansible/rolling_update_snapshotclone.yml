@@ -18,39 +18,25 @@
 
 # 滚动升级snapshotclone
 
-# 1. 更新各节点上的配置
-- name: update config
+# 1、准备包和配置
+- name: prepare snapshotcloneserver
   hosts: snapshotclone
-  gather_facts: no
   any_errors_fatal: true
-  become: true
+  gather_facts: no
+  become: yes
   become_user: "{{ sudo_user }}"
   become_flags: -iu {{ sudo_user }}
   tags:
-    - update_config
+    - prepare
   roles:
-    - { role: generate_config, template_name: snapshot_clone_server.conf, conf_path: "{{ snapshot_config_path }}" }
-    - { role: generate_config, template_name: s3.conf, conf_path: "{{ snap_s3_config_path }}" }
-    - { role: generate_config, template_name: client.conf, conf_path: "{{ snap_client_config_path }}" }
-    - { role: generate_config, template_name: snapshot_tools.conf, conf_path: "{{ snap_tool_config_path }}" }
+    - { role: install_package, package_name: curve-snapshotcloneserver, package_version: "{{ snapshot_package_version }}",
+            tags: ["install_package", "install_snap_package"] }
+    - { role: generate_config, template_name: snapshot_clone_server.conf, conf_path: "{{ snapshot_config_path }}",
+            tags: ["generate_config", "generate_snap_conf"] }
+    - { role: generate_config, template_name: client.conf, conf_path: "{{ snap_client_config_path }}",
+            tags: ["generate_config", "generate_snap_client_conf"] }
 
-# 2. 更新各节点上的包和配置
-- name: update package
-  hosts: snapshotclone
-  gather_facts: no
-  any_errors_fatal: true
-  become: true
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
-  tags:
-    - update_package
-
-  tasks:
-    - vars:
-        update_component: "curve-snapshotcloneserver={{ snap_package_version }}"
-      include_tasks: "common_tasks/update_package.yml"
-
-# 3. 获取leader节点和follower节点
+# 2. 获取leader节点和follower节点
 - name: set leader and follower list
   hosts: snapshotclone
   gather_facts: no
@@ -60,7 +46,7 @@
   roles:
     - { role: set_leader_and_follower_list, service_name: snapshot }
 
-# 4. 按顺序先升级follower节点，再升级leader节点
+# 3. 按顺序先升级follower节点，再升级leader节点
 - name: update follower and leader server in sequence
   hosts: snapshot_servers_followers, snapshot_servers_leader
   any_errors_fatal: true

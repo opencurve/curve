@@ -1,5 +1,6 @@
 #!/bin/bash
 #confirm提示，防止误操作
+dataDir={{ chunkserver_data_dir }}
 function do_confirm {
   echo "This deployment script will format the disk and delete all the data."
   echo "Please confirm that you want to do this action!"
@@ -19,7 +20,7 @@ function deploy_prep {
   if [ $? -eq 0 ]
   then
     sed -i '/curvefs/d' /etc/fstab
-    sed -i '/\/data\/chunkserver/d' /etc/fstab
+    sed -i '/chunkserver/d' /etc/fstab
   fi
 #通过lsscsi的输出过滤出curve使用的数据盘，将数据盘挂载的目录都卸载掉，为下一步格式化磁盘做准备
   for i in `lsscsi |grep ATA|awk '{print $7}'|awk -F"/" '{print $3}'`
@@ -41,7 +42,6 @@ function deploy_prep {
 }
 {% raw %}
 #记录磁盘的盘符信息和磁盘的wwn信息，将信息持久化到diskinfo文件
-DATA_DIR=/data
 declare -A disk_map
 diskinfo=./diskinfo
 function record_diskinfo {
@@ -61,23 +61,23 @@ function record_diskinfo {
   done
 }
 
-#根据磁盘数量创建数据目录和日志目录，目前的数据目录格式统一是/data/chunkserver+num，日志目录在/data/log/chunkserver+num
+#根据磁盘数量创建数据目录和日志目录，目前的数据目录格式统一是$dataDir/chunkserver+num，日志目录在$dataDir/log/chunkserver+num
 function chunk_dir_prep {
-  if [ -d ${DATA_DIR} ]
+  if [ -d ${dataDir} ]
   then
-    rm -rf ${DATA_DIR}
+    rm -rf ${dataDir}/chunkserver*
     if [ $? -ne 0 ]
     then
-    echo "rm $DATA_DIR failed"
+    echo "rm $dataDir failed"
     exit
     fi
   fi
-  mkdir -p ${DATA_DIR}
+  mkdir -p ${dataDir}
   echo $((${#disk_map[@]}-1))
   for i in `seq 0 $((${#disk_map[@]}-1))`
   do
-    mkdir -p ${DATA_DIR}/chunkserver$i
-    mkdir -p ${DATA_DIR}/log/chunkserver$i
+    mkdir -p ${dataDir}/chunkserver$i
+    mkdir -p ${dataDir}/log/chunkserver$i
   done
 }
 {% endraw %}
@@ -107,7 +107,7 @@ function mount_dir {
   j=0
   for i in `cat $diskinfo |awk '{print $1}'|awk -F":" '{print $2}'`
   do
-  mount /dev/$i $DATA_DIR/chunkserver$j
+  mount /dev/$i $dataDir/chunkserver$j
     if [ $? -ne 0 ]
     then
       echo "mount $i failed"
@@ -137,7 +137,7 @@ function meta_record {
   grep curvefs /etc/fstab
   if [ $? -eq 0 ]
   then
-  for i in `cat /etc/fstab | grep "/data/chunkserver" | awk '{print $1 $2}' | awk -F '=' '{print $2}'`
+  for i in `cat /etc/fstab | grep "$dataDir/chunkserver" | awk '{print $1 $2}' | awk -F '=' '{print $2}'`
   do
     uuid=`echo $i | awk -F / '{print $1}'`
     uuidmd5=`echo -n $uuid | md5sum | cut -d ' ' -f1`
@@ -155,9 +155,9 @@ ret=`lsblk|grep chunkserver|wc -l`
 for i in `seq 0 $((${ret}-1))`
 do
   curve-format -allocatepercent={{ chunk_alloc_percent }} \
-  -chunkfilepool_dir=/data/chunkserver$i/chunkfilepool \
-  -chunkfilepool_metapath=/data/chunkserver$i/chunkfilepool.meta \
-  -filesystem_path=/data/chunkserver$i/chunkfilepool &
+  -chunkfilepool_dir=$dataDir/chunkserver$i/chunkfilepool \
+  -chunkfilepool_metapath=$dataDir/chunkserver$i/chunkfilepool.meta \
+  -filesystem_path=$dataDir/chunkserver$i/chunkfilepool &
 done
 wait
 }
@@ -168,7 +168,7 @@ function usage {
   echo "      or deploy one disk by setting the diskname"
   echo "Example:"
   echo "        ./chunkserver_deploy2.sh all"
-  echo "        ./chunkserver_deploy2.sh /dev/sd{id} /data/chunkserver{id}"
+  echo "        ./chunkserver_deploy2.sh /dev/sd{id} $dataDir/chunkserver{id}"
   exit
 }
 

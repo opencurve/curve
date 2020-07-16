@@ -27,7 +27,7 @@
   tags:
     - prepare
   roles:
-    - { role: install_package, package_name: snapshotcloneserver_nginx,
+    - { role: install_package, package_name: curve-snapshotcloneserver-nginx,
             tags: ["install_conf_package", "install_snapshotclone_nginx_conf_package"] }
     - { role: generate_config, template_name: nginx.conf, conf_path: "{{ snapshot_nginx_conf_path }}",
             tags: ["generate_config", "generate_snap_nginx_conf"] }

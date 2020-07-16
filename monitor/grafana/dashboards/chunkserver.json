@@ -7674,9 +7674,9 @@
       {
         "allValue": "",
         "current": {
-          "text": "pubbeta2-curve22.dg.163.org",
+          "text": "localhost",
           "value": [
-            "pubbeta2-curve22.dg.163.org"
+            "localhost"
           ]
         },
         "datasource": "Prometheus",

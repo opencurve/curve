@@ -1,0 +1,10 @@
+diff --git a/clientv3/concurrency/election.go b/clientv3/concurrency/election.go
+index 2521db6ac..29b2750e8 100644
+--- a/clientv3/concurrency/election.go
++++ b/clientv3/concurrency/election.go
+@@ -252,3 +252,5 @@ func (e *Election) Rev() int64 { return e.leaderRev }
+ 
+ // Header is the response header from the last successful election proposal.
+ func (e *Election) Header() *pb.ResponseHeader { return e.hdr }
++
++func (e *Election) Session() *Session { return e.session }

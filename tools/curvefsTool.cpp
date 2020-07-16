@@ -177,6 +177,7 @@ void UpdateFlagsFromConf(curve::common::Configuration* conf) {
         google::CommandLineFlagInfo info;
         if (GetCommandLineFlagInfo("mds_addr", &info) && info.is_default) {
             conf->GetStringValue("mdsAddr", &FLAGS_mds_addr);
+            LOG(INFO) << "conf: " << FLAGS_mds_addr;
         }
     }
 }
@@ -262,17 +263,8 @@ int CurvefsTools::HandleCreateLogicalPool() {
                   << request.DebugString();
 
         stub.CreateLogicalPool(&cntl, &request, &response, nullptr);
-
-        if (cntl.ErrorCode() == EHOSTDOWN ||
-            cntl.ErrorCode() == brpc::ELOGOFF) {
+        if (cntl.Failed()) {
             return kRetCodeRedirectMds;
-
-        } else if (cntl.Failed()) {
-            LOG(ERROR) << "CreateLogicalPool, errcorde = "
-                       << response.statuscode()
-                       << ", error content:"
-                       << cntl.ErrorText();
-            return kRetCodeCommonErr;
         }
         if (response.statuscode() == kTopoErrCodeSuccess) {
             LOG(INFO) << "Received CreateLogicalPool Rpc response success, "
@@ -330,15 +322,8 @@ int CurvefsTools::ListLogicalPool(const std::string& phyPoolName,
     LOG(INFO) << "ListLogicalPool send request: "
               << request.DebugString();
     stub.ListLogicalPool(&cntl, &request, &response, nullptr);
-    if (cntl.ErrorCode() == EHOSTDOWN ||
-            cntl.ErrorCode() == brpc::ELOGOFF) {
+    if (cntl.Failed()) {
         return kRetCodeRedirectMds;
-    } else if (cntl.Failed()) {
-        LOG(ERROR) << "ListLogicalPool Rpc fail, errcorde = "
-                   << response.statuscode()
-                   << ", error content:"
-                   << cntl.ErrorText();
-        return kRetCodeCommonErr;
     }
     for (int i = 0; i < response.logicalpoolinfos_size(); i++) {
         logicalPoolInfos->push_back(
@@ -527,15 +512,8 @@ int CurvefsTools::ListPhysicalPool(
         &response,
         nullptr);
 
-    if (cntl.ErrorCode() == EHOSTDOWN ||
-        cntl.ErrorCode() == brpc::ELOGOFF) {
+    if (cntl.Failed()) {
         return kRetCodeRedirectMds;
-    } else if (cntl.Failed()) {
-        LOG(ERROR) << "ListPhysicalPool Rpc fail, errcorde = "
-                    << response.statuscode()
-                    << ", error content:"
-                    << cntl.ErrorText();
-        return kRetCodeCommonErr;
     }
     if (response.statuscode() != kTopoErrCodeSuccess) {
         LOG(ERROR) << "ListPhysicalPool Rpc response fail. "
@@ -572,17 +550,8 @@ int CurvefsTools::AddListPoolZone(PoolIdType poolid,
 
     stub.ListPoolZone(&cntl, &request, &response, nullptr);
 
-    if (cntl.ErrorCode() == EHOSTDOWN ||
-        cntl.ErrorCode() == brpc::ELOGOFF) {
+    if (cntl.Failed()) {
         return kRetCodeRedirectMds;
-    } else if (cntl.Failed()) {
-        LOG(ERROR) << "ListPoolZone Rpc fail, errcorde = "
-                   << response.statuscode()
-                   << ", error content:"
-                   << cntl.ErrorText()
-                   << ", physicalpoolid = "
-                   << poolid;
-        return kRetCodeCommonErr;
     }
     if (response.statuscode() != kTopoErrCodeSuccess) {
         LOG(ERROR) << "ListPoolZone Rpc response fail. "
@@ -617,17 +586,8 @@ int CurvefsTools::AddListZoneServer(ZoneIdType zoneid,
 
     stub.ListZoneServer(&cntl, &request, &response, nullptr);
 
-    if (cntl.ErrorCode() == EHOSTDOWN ||
-        cntl.ErrorCode() == brpc::ELOGOFF) {
+    if (cntl.Failed()) {
         return kRetCodeRedirectMds;
-    } else if (cntl.Failed()) {
-        LOG(ERROR) << "ListZoneServer Rpc fail, errcorde = "
-                   << response.statuscode()
-                   << ", error content:"
-                   << cntl.ErrorText()
-                   << ", zoneid = "
-                   << zoneid;
-        return kRetCodeCommonErr;
     }
     if (response.statuscode() != kTopoErrCodeSuccess) {
         LOG(ERROR) << "ListZoneServer Rpc response fail. "
@@ -825,17 +785,8 @@ int CurvefsTools::CreatePhysicalPool() {
 
         stub.CreatePhysicalPool(&cntl, &request, &response, nullptr);
 
-        if (cntl.ErrorCode() == EHOSTDOWN ||
-            cntl.ErrorCode() == brpc::ELOGOFF) {
+        if (cntl.Failed()) {
             return kRetCodeRedirectMds;
-        } else if (cntl.Failed()) {
-            LOG(ERROR) << "CreatePhysicalPool, errcorde = "
-                       << response.statuscode()
-                       << ", error content:"
-                       << cntl.ErrorText()
-                       << " , physicalPoolName ="
-                       << it.physicalPoolName;
-            return kRetCodeCommonErr;
         }
         if (response.statuscode() != kTopoErrCodeSuccess) {
             LOG(ERROR) << "CreatePhysicalPool Rpc response fail. "

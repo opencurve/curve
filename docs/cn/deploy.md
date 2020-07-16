@@ -36,7 +36,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 
 1. 以 ```root``` 用户登录中控机， 在中控机上创建 ```curve``` 用户， 并生成ssh key
 
-2. 下载tar包 并 解压
+2. 下载tar包并解压
 
    ```
    wget https://github.com/opencurve/curve/releases/download/v0.1.0/curve_0.1.0+0bd75f0a.tar.gz

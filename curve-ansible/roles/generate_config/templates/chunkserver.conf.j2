@@ -100,9 +100,9 @@ copyset.check_loadmargin_interval_ms={{ chunkserver_copyset_check_loadmargin_int
 # Clone settings
 #
 # 禁止使用curveclient
-clone.disable_curve_client={{ chunkserver_clone_disable_curve_client }}
+clone.disable_curve_client={{ disable_snapshot_clone }}
 # 禁止使用s3adapter
-clone.disable_s3_adapter={{ chunkserver_clone_disable_s3_adapter }}
+clone.disable_s3_adapter={{ disable_snapshot_clone }}
 # 克隆的分片大小，一般1MB
 clone.slice_size={{ chunkserver_clone_slice_size }}
 # 读clone chunk时是否需要paste到本地

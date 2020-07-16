@@ -17,6 +17,7 @@
 
 - name: wait until server is up
   wait_for:
+    host: "{{ ansible_ssh_host }}"
     port: "{{ ping_port }}"
     state: started
     timeout: "{{ wait_service_timeout }}"

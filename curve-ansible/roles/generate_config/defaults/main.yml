@@ -16,8 +16,8 @@
 #
 
 # 通用配置
-curve_root_username: root
-curve_root_password: root_password
+curve_root_username: xxx
+curve_root_password: xxx
 chunk_size: 16777216
 file_expired_time_us: 5000000
 
@@ -104,8 +104,6 @@ chunkserver_copyset_load_concurrency: 10
 chunkserver_copyset_check_retrytimes: 3
 chunkserver_copyset_finishload_margin: 2000
 chunkserver_copyset_check_loadmargin_interval_ms: 1000
-chunkserver_clone_disable_curve_client: false
-chunkserver_clone_disable_s3_adapter: false
 chunkserver_clone_slice_size: 1048576
 chunkserver_clone_enable_paste: false
 chunkserver_clone_thread_num: 10

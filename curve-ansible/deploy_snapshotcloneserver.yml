@@ -27,7 +27,7 @@
   tags:
     - prepare
   roles:
-    - { role: install_package, package_name: snapshotcloneserver, package_version: "{{ snapshot_package_version }}",
+    - { role: install_package, package_name: curve-snapshotcloneserver, package_version: "{{ snapshot_package_version }}",
             tags: ["install_package", "install_snap_package"] }
     - { role: install_package, package_name: aws-sdk, package_version: "{{ aws_package_version }}",
             tags: ["install_package", "install_aws_sdk_package"] }
