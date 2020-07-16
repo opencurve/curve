@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #
 #  Copyright (c) 2020 NetEase Inc.
 #
@@ -13,8 +15,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-
-#!/bin/bash
 
 # curve-mds路径
 curveBin=/usr/bin/curve-mds

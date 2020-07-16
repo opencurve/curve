@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# coding=utf-8
+
 #
 #  Copyright (c) 2020 NetEase Inc.
 #
@@ -13,10 +16,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-
-#!/usr/bin/env python
-# coding=utf-8
-
 
 import curvesnapshot
 
