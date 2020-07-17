@@ -100,30 +100,33 @@ int main(int argc, char *argv[]) {
     pid_t pids[3];
     testing::InitGoogleTest(&argc, argv);
 
-    LOG_IF(ERROR, 0 != curve::chunkserver::RemovePeersData(true))
-        << "Failed to remove peers' data";
-
+    // generate config file
     for (int i = 0; i < 3; ++i) {
-        // generate config file
-        std::string mkdir1("mkdir ");
+        std::string mkdir1("mkdir -p ");
         mkdir1 += std::to_string(8200 + i);
         ::system(mkdir1.c_str());
         curve::CSTConfigGenerator cg;
         CHECK(cg.Init(std::to_string(8200 + i)))
-                    << "Init config generator fail";
+            << "Init config generator fail";
         cg.SetKV("mds.listen.addr", "127.0.0.1:7777,127.0.0.1:9300");
         cg.SetKV("mds.heartbeat_interval", "1");
         cg.SetKV("copyset.snapshot_interval_s", "30");
         CHECK(cg.Generate()) << "Generate config file fail";
+    }
+
+    LOG_IF(ERROR, 0 != curve::chunkserver::RemovePeersData(true))
+        << "Failed to remove peers' data";
+
+    for (int i = 0; i < 3; ++i) {
         pids[i] = fork();
         if (pids[i] < 0) {
             LOG(FATAL) << "Failed to create chunkserver process 0";
         } else if (pids[i] == 0) {
             /*
-            * RunChunkServer内部会调用LOG(), 有较低概率因不兼容fork()而卡死
-            */
-            return RunChunkServer(i,
-                            sizeof(param[i]) / sizeof(char *), param[i]);
+             * RunChunkServer内部会调用LOG(), 有较低概率因不兼容fork()而卡死
+             */
+            return RunChunkServer(i, sizeof(param[i]) / sizeof(char *),
+                                  param[i]);
         }
     }
 
