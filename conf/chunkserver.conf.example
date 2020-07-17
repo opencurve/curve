@@ -107,9 +107,9 @@ clone.thread_num=10
 # 克隆的队列深度
 clone.queue_depth=6000
 # curve用户名
-curve.root_username=xxx
+curve.root_username=root
 # curve密码
-curve.root_password=xxx
+curve.root_password=root_password
 # client配置文件
 curve.config_path=conf/cs_client.conf
 # s3配置文件
