@@ -31,6 +31,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 - 目前仅支持在 x86_64 (AMD64) 架构上部署 CURVE 集群
 - 安装 ansible 2.5.9，用于部署集群
 - 安装 docker 18.09 及以上， 用于部署快照克隆服务器
+- 安装daemon程序，用于开启mds，etcd，snapshotclone的守护进程
 
 #### 实施部署
 
@@ -252,8 +253,8 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    s3_ak=""
    s3_sk=""
    ansible_ssh_port=22
-   curve_root_username=xxx                           // 改动，修改成自己需要的username
-   curve_root_password=xxx                           // 改动，修改成自己需要的密码
+   curve_root_username=root                           // 改动，修改成自己需要的username，因为目前的一个bug，用到快照克隆的话用户名必须为root
+   curve_root_password=root_password                  // 改动，修改成自己需要的密码
 
    ```
 
