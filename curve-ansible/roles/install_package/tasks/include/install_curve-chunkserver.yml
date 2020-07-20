@@ -18,18 +18,18 @@
 - name: install libunwind
   vars:
     lib_name: libunwind
-    lib_download_url: "{{ libunwind_download_url }}"
+    download_url: "{{ libunwind_download_url }}"
   include_tasks: install_lib_with_source_code.yml
 
 - name: install jemalloc
   vars:
     lib_name: jemalloc
-    lib_download_url: "{{ jemalloc_download_url }}"
+    download_url: "{{ jemalloc_download_url }}"
   include_tasks: install_lib_with_source_code.yml
 
 - name: install chunkserver bin
   vars:
-    remote_dir_name: "{{ chunkserver_bin_dir }}"
+    remote_dir_name: "{{ curve_bin_dir }}"
     local_file_path: "{{ local_chunkserver_package_path }}/bin/"
     file_mode: 0755
   include_tasks: copy_file_to_remote.yml
@@ -37,6 +37,7 @@
 - name: generate chunkserver_ctl.sh
   vars:
     enable_chunkfilepool: "{{ chunkserver_format_disk }}"
+    jemalloc_path: "{{ lib_install_prefix }}/lib/libjemalloc.so.1"
   template: src=chunkserver_ctl.sh.j2 dest={{ deploy_dir }}/chunkserver_ctl.sh mode=0755
 
 - name: generate chunkserver_deploy.sh

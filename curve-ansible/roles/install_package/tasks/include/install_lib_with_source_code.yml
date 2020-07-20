@@ -20,37 +20,16 @@
   shell: /sbin/ldconfig -p | grep {{ lib_name }}
   register: ldconfig_res
 
-- name: set lib_installed
+- name: set lib_installed true
   set_fact:
     lib_installed: true
   when: ldconfig_res.stdout != ""
 
-- name: install lib when not installed
-  block:
-    - name: download lib
-      get_url:
-        url: "{{ download_url }}"
-        dest: "{{ lib_download_dir }}"
-        validate_certs: no
-        timeout: 60
-      register: get_url_result
-      until: not get_url_result.failed
-      retries: 5
-      delay: 3
+- name: set lib_installed false
+  set_fact:
+    lib_installed: false
+  when: ldconfig_res.stdout == ""
 
-    - name: unarchive lib
-      unarchive:
-        remote_src: true
-        list_files: true
-        src: "{{ get_url_result.dest }}"
-        dest: "{{ lib_download_dir }}"
-      register: unarchive_result
-    
-    - name: get unarcive dir
-      shell: echo "{{ get_url_result.dest }}" | awk -F "." '{print $1}'
-
-    - name: install lib
-      shell: >
-          chdir="{{ lib_download_dir }}/{{ unarchive_result.files[0] }}"
-          ./configure && make && sudo make install
+- name: install lib if not installed
+  include_tasks: install_with_source_code.yml
   when: not lib_installed

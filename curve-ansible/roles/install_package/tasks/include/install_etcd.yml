@@ -24,6 +24,9 @@
   register: etcd_version_res
   when: stat_etcd_res.stat.exists
 
+- name: install daemon
+  include_tasks: install_daemon.yml
+
 - name: install etcd if etcd not installed or version not match
   block:
     - name: download etcd

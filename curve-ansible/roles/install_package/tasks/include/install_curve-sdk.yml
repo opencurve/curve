@@ -23,28 +23,28 @@
 
 - name: install curve-sdk bin
   vars:
-    remote_dir_name: "{{ curve_sdk_bin_dir }}"
+    remote_dir_name: "{{ curve_bin_dir }}"
     local_file_path: "{{ local_curve_sdk_package_path }}/bin/"
     file_mode: 0755
   include_tasks: copy_file_to_remote.yml
 
 - name: install curve-sdk lib
   vars:
-    remote_dir_name: "{{ curve_sdk_lib_dir }}"
+    remote_dir_name: "{{ curve_lib_dir }}"
     local_file_path: "{{ local_curve_sdk_package_path }}/lib/"
     file_mode: 0644
   include_tasks: copy_file_to_remote.yml
 
 - name: install curve-sdk include
   vars:
-    remote_dir_name: "{{ curve_sdk_include_dir }}"
+    remote_dir_name: "{{ curve_include_dir }}"
     local_file_path: "{{ local_curve_sdk_package_path }}/include/"
     file_mode: 0644
   include_tasks: copy_file_to_remote.yml
 
 - name: install curve-sdk curvefs
   vars:
-    remote_dir_name: "{{ curve_sdk_curvefs_dir }}"
+    remote_dir_name: "{{ curvefs_dir }}"
     local_file_path: "{{ local_curve_sdk_package_path }}/curvefs/"
     file_mode: 0644
   include_tasks: copy_file_to_remote.yml

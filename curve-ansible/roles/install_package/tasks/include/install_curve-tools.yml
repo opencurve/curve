@@ -17,7 +17,7 @@
 
 - name: install tool bin
   vars:
-    remote_dir_name: "{{ tool_bin_dir }}"
+    remote_dir_name: "{{ curve_bin_dir }}"
     local_file_path: "{{ local_tool_package_path }}/bin/"
     file_mode: 0755
   include_tasks: copy_file_to_remote.yml
