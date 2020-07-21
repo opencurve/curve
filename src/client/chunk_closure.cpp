@@ -140,7 +140,7 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
         return;
     }
 
-    auto nextSleepUS = 0;
+    uint64_t nextSleepUS = 0;
 
     if (!retryDirectly_) {
         nextSleepUS = failReqOpt_.chunkserverOPRetryIntervalUS;
