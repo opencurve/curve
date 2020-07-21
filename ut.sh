@@ -80,3 +80,4 @@ bash check_coverage.sh
 cp -r coverage /curve/curve_multijob
 gcovr -x -r src -e ".*test/.*" -e ".*\.h" -e ".*usr/include/.*" -e ".*/thirdparties/*" -e "/usr/lib/*" -e ".*/external/*" -e ".*/k8-dbg/*" -e ".*/bazel_out/*" -e ".*/k8-dbg/*" -e "/usr/local/include/*" -e "test/*" -e ".*main\.cpp" -e ".*/_objs/snapshotcloneserver/*" -e ".*/_objs/mds/*" --output coverage.xml
 cp coverage.xml /curve/curve_multijob
+
