@@ -15,21 +15,18 @@
 #  limitations under the License.
 #
 
-- name: install libunwind
-  vars:
-    lib_name: libunwind
-    download_url: "{{ libunwind_download_url }}"
-  include_tasks: install_lib_with_source_code.yml
+- name: determine if daemon installed
+  ignore_errors: true
+  shell: daemon --version
+  register: daemon_res
 
-- name: install libnl
-  vars:
-    lib_name: libnl-3
-    download_url: "{{ libnl_download_url}}"
-  include_tasks: install_lib_with_source_code.yml
+- name: set daemon_installed
+  set_fact:
+    daemon_installed: true
+  when: daemon_res.rc == 0
 
-- name: install nbd bin
+- name: install lib if not installed
   vars:
-    remote_dir_name: "{{ curve_bin_dir }}"
-    local_file_path: "{{ local_nbd_package_path }}/bin/"
-    file_mode: 0755
-  include_tasks: copy_file_to_remote.yml
+    download_url: "{{ daemon_download_url }}"
+  include_tasks: install_with_source_code.yml
+  when: not daemon_installed

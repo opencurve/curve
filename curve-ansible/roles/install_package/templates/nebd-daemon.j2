@@ -18,7 +18,7 @@ then
 fi
 
 # nebd-server路径
-bin={{ nebd_bin_dir }}/nebd-server
+bin={{ curve_bin_dir }}/nebd-server
 
 # 默认配置文件
 confPath={{ nebd_server_config_path }}
@@ -103,7 +103,7 @@ function start() {
         exit 1
     fi
 
-    jemallocpath=/usr/lib/x86_64-linux-gnu/libjemalloc.so.1
+    jemallocpath={{ jemalloc_path }}
     # 检查jemalloc库文件
     if [ ! -f ${jemallocpath} ]
     then

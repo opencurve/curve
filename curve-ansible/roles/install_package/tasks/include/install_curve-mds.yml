@@ -24,16 +24,19 @@
 - name: install libuuid
   include_tasks: install_libuuid.yml
 
+- name: install daemon
+  include_tasks: install_daemon.yml
+
 - name: install mds bin
   vars:
-    remote_dir_name: "{{ mds_bin_dir }}"
+    remote_dir_name: "{{ curve_bin_dir }}"
     local_file_path: "{{ local_mds_package_path }}/bin/"
     file_mode: 0755
   include_tasks: copy_file_to_remote.yml
 
 - name: install mds lib
   vars:
-    remote_dir_name: "{{ mds_lib_dir }}"
+    remote_dir_name: "{{ curve_lib_dir }}"
     local_file_path: "{{ local_mds_package_path }}/lib/"
     file_mode: 0644
   include_tasks: copy_file_to_remote.yml

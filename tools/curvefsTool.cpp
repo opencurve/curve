@@ -200,8 +200,8 @@ int CurvefsTools::Init() {
             return kRetCodeCommonErr;
         }
     }
-     mdsAddressIndex_ = -1;
-     return 0;
+    mdsAddressIndex_ = -1;
+    return 0;
 }
 
 int CurvefsTools::TryAnotherMdsAddress() {
@@ -307,6 +307,7 @@ int CurvefsTools::ScanLogicalPool() {
             }
         }
     }
+    return 0;
 }
 
 int CurvefsTools::ListLogicalPool(const std::string& phyPoolName,
@@ -399,6 +400,7 @@ int CurvefsTools::ReadClusterMap() {
                    << FLAGS_cluster_map << " fail.";
         return -1;
     }
+    return 0;
 }
 
 int CurvefsTools::InitServerData() {
