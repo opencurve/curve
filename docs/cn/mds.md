@@ -56,9 +56,15 @@ segment 和 chunk的关系如下图:
 
 <img src="../images/mds-segment-chunk.png" alt="mds-segment-chunk.png" width="900">
 
-文件的组织形式如下：
+namespace信息较为直观，即文件的目录层次关系:
 
 <img src="../images/mds-nameserver.png" alt="mds-nameserver.png" width="700">
+
+如上所示。在KV中，Key是`ParentID + "/"+ BaseName`，Value是自身的文件ID；这种方式可以很好地平衡几个需求：
+
+1. 文件列目录：列出目录下的所有文件和目录
+2. 文件查找：查找一个具体的文件
+3. 目录重命名：对一个目录/文件进行重命名
 
 当前元数据信息编码之后存储在 etcd 中。
 
@@ -78,7 +84,19 @@ ChunkServer，Copyset和Chunk三者之间的关系如下图：
 
 ## Heartbeat
 
-心跳用于中心节点和数据节点的数据交互。心跳模块的结构如下：
+心跳用于中心节点和数据节点的数据交互，详细功能如下：
+
+​	1.	通过chunkserver的定期心跳，检测chunkserver的在线状态（online，offline）
+
+​	2.	记录chunkserver定期上报的状态信息（磁盘容量，磁盘负载，copyset负载等），以提供运维工具查看上述状态信息。
+
+​	3.	通过上述信息的定期更新，作为schedule 模块进行均衡及配置变更的依据
+
+​	4.	通过chunkserver定期上报copyset的copyset的epoch， 检测chunkserver的copyset与mds差异，同步两者的copyset信息
+
+​	5.	支持配置变更功能，在心跳回复报文中下发mds发起的配置变更命令，并在后续心跳中获取配置变更进度。
+
+心跳模块的结构如下：
 
 <img src="../images/mds-heartbeat.png" alt="mds-heartbeat.png" width="600">
 
