@@ -6,7 +6,7 @@ Curve Client作为Curve集群的入口，是以链接库的形式提供给Qemu/C
 
 #### 整体架构
 
-<img src="../images/nebd-overview.png" alt="nebd-overview" style="zoom:60%;" />
+<img src="../images/nebd-overview.png" alt="nebd-overview" width="600" height="700" />
 
 上图是当前系统的部署架构。
 
