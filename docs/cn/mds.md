@@ -26,9 +26,9 @@ curve整体的拓扑结构如下图：
 
 **chunkserver**：用于抽象描述物理服务器上的一块物理磁盘(SSD)，chunkserver以一块磁盘作为最小的服务单元。
 
-**server:**用于抽象描述一台物理服务器，chunkserver必须归属于server。
+**server:** 用于抽象描述一台物理服务器，chunkserver必须归属于server。
 
-**zone: **故障隔离的基本单元，一般来说属于不同zone的机器至少是部署在不同的机架，再要求严格一点的话，属于不同zone的机器可以部署在不同机架组下面（一个机架组共享一组堆叠 leaf switch），一个server必须归属于一个zone。
+**zone: ** 故障隔离的基本单元，一般来说属于不同zone的机器至少是部署在不同的机架，再要求严格一点的话，属于不同zone的机器可以部署在不同机架组下面（一个机架组共享一组堆叠 leaf switch），一个server必须归属于一个zone。
 
 **pool:** 用于实现对机器资源进行物理隔离，pool中server之间的交互仅限于pool之内的server，一般来说运维可以在上架一批新的机器的时候，规划一个全新的pool，实现以pool为单元进行物理资源的扩容（pool内扩容也可以支持，但是不建议pool内扩容，因为会影响每个chunkserver上的copyset的数量）。
 
@@ -48,7 +48,15 @@ NameServer管理namespace元数据信息，包括（更具体的信息可以查�
 
  ``FileInfo:`` 文件的信息。 
 
-``PageFileSegment:`` segment是文件分配的最小单位 、``PageFileChunkInfo``。F
+``PageFileSegment:`` segment是给文件分配空间的最小单位 。
+
+``PageFileChunkInfo:`` chunk是内部数据管理的最小单位。
+
+segment 和 chunk的关系如下图:
+
+<img src="../images/mds-segment-chunk.png" alt="image-20200722185948100.png" width="900">
+
+![image-20200722212019248](/Users/lixiaocui/Library/Application Support/typora-user-images/image-20200722212019248.png)
 
 ## CopySet
 
@@ -102,5 +110,5 @@ chunkserver端的心跳由两个部分组成：
 
 **任务计算：** 任务计算模块包含了多个*定时任务* 和 *触发任务*。*定时任务* 中，``CopySetScheduler`` 是copyset均衡调度器，根据集群中copyset的分布情况生成copyset迁移任务；``LeaderScheduler`` 是leader均衡调度器，根据集群中leader的分布情况生成leader变更任务；``ReplicaScheduler`` 是副本数量调度器，根据当前copyset的副本数生成副本增删任务；``RecoverScheduler`` 是恢复调度器，根据当前copyset副本的存活状态生成迁移任务。*触发任务* 中，``RapidLeaderScheduler`` 是快速leader均衡器，由外部触发，一次生成多个leader变更任务，使得集群的leader尽快大达到均衡状态。``TopoAdapter`` 用于获取Topology中调度需要使用的数据。``Common Strategy`` 中是通用的副本添加和移除策略。
 
-**任务管理：** 任务管理模块用于管理计算模块产生的任务。``operatorController`` 是任务集合，用于存放和获取任务；``operatorStateUpdate`` 根据上报的copyset信息更新状态；``Metric``用于统计不同任务个数。
+**任务管理：** 任务管理模块用于管理计算模块产生的任务。``operatorController`` 是任务集合，用于存放和获取任务；``operatorStateUpdate`` 根据上报的copyset信息更新状态；``Metric``用于统计不同任务个数。 
 
