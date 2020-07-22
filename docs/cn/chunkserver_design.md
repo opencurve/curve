@@ -1,5 +1,5 @@
 
-# 1 Chunk Server 概述
+# 1 ChunkServer 概述
 
 ## 1.1 设计背景
 
@@ -61,7 +61,7 @@ Chunk Server概要结构如下所示，通过网络消息收发层统一接收�
 
   - CliService
   
-    提供RAFT配置变更相关的rpc服务，请求来自MetaServer，处理MetaServer下发的配置变更请求，包含AddPeer，RemovePeer，ChangePeer、GetLeader、ChangeLeader、ResetPeer等配置变更相关的服务。CliService底层通过调用Braft的配置变更相关接口完成配置变更。
+    提供RAFT配置变更相关的rpc服务，包含AddPeer，RemovePeer，ChangePeer、GetLeader、ChangeLeader、ResetPeer等配置变更相关的服务。CliService底层通过调用Braft的配置变更相关接口完成配置变更。
   
   - CopySetService
   
@@ -99,7 +99,7 @@ Chunk Server概要结构如下所示，通过网络消息收发层统一接收�
 
 + ConcurrentApplyModule
 
-    并发控制层，负责对chunkserver的IO请求进行并发控制，对上层的读写请求安装chunk粒度进行Hash，使得不同chunk的请求可以并发执行。
+  并发控制层，负责对chunkserver的IO请求进行并发控制，对上层的读写请求安装chunk粒度进行Hash，使得不同chunk的请求可以并发执行。
 
 + DataStore
 
@@ -107,7 +107,8 @@ Chunk Server概要结构如下所示，通过网络消息收发层统一接收�
 
 + LocalFileSystermAdaptor
 
- LocalFileSystermAdaptor是对底层文件系统的一层抽象，目前适配封装了ext4文件系统的接口。之所以要做这层抽象，是隔离了底层文件系统的实际读写请求，如果将来curve要适配裸盘或者采用其他文件系统，可以在这层进行适配。
+  LocalFileSystermAdaptor是对底层文件系统的一层抽象，目前适配封装了ext4文件系统的接口。
+  之所以要做这层抽象，目的是隔离了底层文件系统的实际读写请求，如果将来curve要适配裸盘或者采用其他文件系统，可以在这层进行适配。
 
 ## 2.2 关键模块
 
@@ -131,7 +132,7 @@ Chunkserver在启动时，流程如下：
 
 #### chunksever注册信息的持久化：
 
-hunkserver注册信息持久化的格式根据不同的存储引擎而不同，对于目前Ext4存储引擎, Chunkserver持久化信息保存在数据主目录下的chunkserver.dat文件中。
+chunkserver注册信息持久化的格式根据不同的存储引擎而不同，对于目前Ext4存储引擎, Chunkserver持久化信息保存在数据主目录下的chunkserver.dat文件中。
 存储时，计算Chunkserver ID，token和数据版本号相关的checksum，构成ChunkserverPersistentData，以json的数据格式，写入到chunkserver.dat文件中。
 读取时，获取的ChunkserverPersistentData数据首先校验校验码，防止读取到损坏的数据，并确认版本号是支持的版本。
 
