@@ -31,13 +31,13 @@ curvefs提供创建、删除和读快照的RPC接口，供快照系统调用。�
 
 ### 1.3 快照流程
 
-用户向快照克隆系统发起快照请求。请求在快照克隆系统在http service层生成具体的snap task，交给snapshot task manager调度处理。打快照的过程现在curvefs生成一个临时快照，然后把临时快照转储到对象存储系统中，最后删除curvefs的临时快照。
+用户向快照克隆系统发起快照请求。请求在快照克隆系统在http service层生成具体的snap task，交给snapshot task manager调度处理。打快照的过程先在curvefs生成一个临时快照，然后把临时快照转储到对象存储系统中，最后删除curvefs的临时快照。
 
 创建快照有以下几个步骤：
 
 1. 生成快照记录，并持久化到etcd。这一步需要进行几个判断：对于同一个卷，同时只能有一个快照正在打的快照，所以需要先判断卷是否有正在处理的快照请求；快照克隆系统理论上支持无限快照，在实际的实现过程中我们对快照克隆的深度增加一个限制，一个卷最多打多少层快照可以在快照的配置文件中进行修改，所以还需要判断下快照层数是否超过限制。如果判断通过，就可以从mds读取原卷的元数据信息，生成快照记录，持久化到etcd。这一步生成的快照状态为pending。
 2. 在curvefs创建临时快照。
-3. 构建快照映射表（见1.4.1），保存快照元数据到对象存储S3。
+3. 修改快照映射表（见1.4.1），添加seqNum，保存快照元数据到对象存储S3。
 4. 从curvefs上传快照数据到对象存储S3。
 5. 删除curvefs的临时快照。
 6. 更新快照状态。这一步更新快照状态为done。
@@ -72,7 +72,7 @@ curvefs提供创建、删除和读快照的RPC接口，供快照系统调用。�
 
 ### 2.1 curve克隆模块简介
 
-第一节介绍了快照系统，用于对curvefs的文件创建快照，并将快照数据增量地转储到NOS上；但是对于一个完整的快照系统来说，仅仅支持快照创建功能是不够的，快照的作用是文件恢复或者文件的克隆，这一节介绍一下curve的克隆（恢复也可以认为是某种程度上的克隆）。
+第一节介绍了快照系统，用于对curvefs的文件创建快照，并将快照数据增量地转储到S3服务上；但是对于一个完整的快照系统来说，仅仅支持快照创建功能是不够的，快照的作用是文件恢复或者文件的克隆，这一节介绍一下curve的克隆（恢复也可以认为是某种程度上的克隆）。
 
 curve的克隆按照数据来源分，可以分为从快照进行克隆、从镜像进行克隆。按照是否数据全部克隆出来之后才提供服务可以分为延迟克隆和非延迟克隆。
 
@@ -86,7 +86,7 @@ SnapshotCloneServer：负责快照和克隆任务信息的管理，处理快照�
 
 S3对象存储：存放快照的数据。
 
-ChunkServer：文件数据的实际存放位置，使用读时拷贝机制支持"Lazy Clone"功能；当Client像克隆卷发起读请求时，如果读区域还未写过，从S3上拷贝数据，返回给Client并异步将数据写入到chunk文件中。
+ChunkServer：文件数据的实际存放位置，使用读时拷贝机制支持"Lazy Clone"功能；当Client像克隆卷发起读请求时，如果读区域还未写过，从镜像（保存在curvefs）或者快照(保存在s3服务)上拷贝数据，返回给Client并异步将数据写入到chunk文件中。
 
 ### 2.3. 克隆流程
 
@@ -94,12 +94,12 @@ ChunkServer：文件数据的实际存放位置，使用读时拷贝机制支持
 
 #### 2.3.1 创建克隆卷
 
-1. 用户指定要克隆的文件或快照的UUID，向SnapshotCloneServer发送创建克隆卷的请求；
-2. SnapshotCloneServer收到请求后，如果克隆对象是快照，在本地数据库中获取快照信息；如果克隆对象是文件的话，就向MDS查询文件信息。
+1. 用户指定要克隆的文件或快照，向SnapshotCloneServer发送创建克隆卷的请求；
+2. SnapshotCloneServer收到请求后，如果克隆对象是快照，在快照克隆系统的本地保存的快照信息中（目前持久化到etcd）中获取快照信息；如果克隆对象是文件的话，就向MDS查询文件信息。
 3. SnapshotCloneServer向MDS发送`CreateCloneFile`请求，对于克隆创建的新文件的初始版本应设为1，MDS收到请求后会创建新的文件，并将文件的状态设置为`Cloning`（文件不同状态的含义及作用会在后面章节阐述）。需要注意的事，一开始创建的文件会被放到一个临时目录下，例如用户请求克隆的文件名为“des”，那么此步骤会以"/clone/des"的名称去创建文件。
 4. 文件创建成功后，SnapshotCloneServer需要查询各个chunk的位置信息，如果克隆对象为文件，只需要获取文件名称；如果克隆对象为快照，则先获取S3上的metaobject进行解析来获取Chunk的信息；然后先通过MDS为每个Segment上的Chunk分配copyset，再调用ChunkServer的`CreateCloneChunk`接口为获取到的每个Chunk创建新的Chunk文件，新建的Chunk文件的版本为1，Chunk中会记录源位置信息，如果克隆对象为文件，可以以/filename/offset@cs作为location，filename表示数据源的文件名，@cs表示文件数据在chunkserver上；如果克隆对象为快照，以url@s3作为location，url表示源数据在s3上的访问url，@s3表示源数据在s3上。
-5. 当所有的Chunk都在chunkserver创建并记录源端信息后，SnapshotCloneServer通过`CompleteCloneMeta`接口将文件的状态修改为`CloneMetaInstalled`，到这一步为止，lazy的方式和非lazy的方式的流程都是一样的，两者的差别在下面的步骤种体现。
-6. 如果用户指定以lazy的方式进行克隆，SnapshotCloneServer首先会将前面创建的“/clone/des”重命名为“des”，这样一来，用户就可以访问到新建的文件并进行挂载读写；然后SnapshotCloneServer会继续循环调用`RecoverChunk`异步地触发ChunkServer上Chunk数据的拷贝，当所有的Chunk都拷贝成功以后，再调用`CompleteCloneFile`将文件的状态改为`Cloned`，调用时指定的文件名为“des”，因为在前面已经将文件重命名了。
+5. 当所有的Chunk都在chunkserver创建并记录源端信息后，SnapshotCloneServer通过`CompleteCloneMeta`接口将文件的状态修改为`CloneMetaInstalled`，到这一步为止，lazy的方式和非lazy的方式的流程都是一样的，两者的差别在下面的步骤中体现。
+6. 如果用户指定以lazy的方式进行克隆，SnapshotCloneServer首先会将前面创建的“/clone/des”重命名为“des”，这样一来，用户就可以访问到新建的文件并进行挂载读写。lazy克隆不会继续后面的数据拷贝，除非显式调用快照克隆系统的flatten接口，然后SnapshotCloneServer会继续循环调用`RecoverChunk`异步地触发ChunkServer上Chunk数据的拷贝，当所有的Chunk都拷贝成功以后，再调用`CompleteCloneFile`将文件的状态改为`Cloned`，调用时指定的文件名为“des”，因为在前面已经将文件重命名了。
 7. 而如果用户没有指定以lazy的方式进行克隆，意味着需要将所有的数据同步下来后才能对外提供服务，SnapshotCloneServer首先循环调用`RecoverChunk`触发ChunkServer上Chunk数据的拷贝，当所有Chunk数据拷贝下来后，调用`CompleteCloneFile`将文件的状态改为`Cloned`，此时调用时指定的文件名为“/clone/des”；然后再将“/clone/des”重命名为“des”供用户使用。
 
 #### 2.3.2 恢复文件
@@ -112,7 +112,7 @@ ChunkServer：文件数据的实际存放位置，使用读时拷贝机制支持
 
 #### 2.3.3 写克隆卷
 
-克隆卷的写入过程同写普通卷一样，区别在于克隆卷的chunk会记录bitmap，数据写入时，会将对应位置的bit置位1；bitmap的作用在于拷贝数据时，防止数据覆盖已经写过的区域。
+克隆卷的写入过程同写普通卷一样，区别在于克隆卷的chunk会记录bitmap，数据写入时，会将对应位置的bit置位1；bitmap的作用在于读克隆卷时区分哪些区域已经被写过，哪些区域未被写过需要从克隆源读取。
 
 #### 2.3.4 读克隆卷
 
