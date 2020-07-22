@@ -22,7 +22,6 @@
  * Author: yangyaokai
  */
 
-#include <experimental/string_view>
 #include <limits.h>
 #include <string.h>
 #include <string>
@@ -35,13 +34,12 @@
 namespace curve {
 namespace nbd {
 
-using std::experimental::string_view;
 using std::ostringstream;
 
-float strict_strtof(string_view str, std::string *err) {
+float strict_strtof(const char *str, std::string *err) {
     char *endptr;
     errno = 0; /* To distinguish success/failure after call (see man page) */
-    float ret = strtof(str.data(), &endptr);
+    float ret = strtof(str, &endptr);
     if (errno == ERANGE) {
         ostringstream oss;
         oss << "strict_strtof: floating point overflow or underflow parsing '"
@@ -65,15 +63,11 @@ float strict_strtof(string_view str, std::string *err) {
     return ret;
 }
 
-float strict_strtof(const char *str, std::string *err) {
-    return strict_strtof(string_view(str), err);
-}
-
-int64_t strict_strtoll(string_view str, int base, std::string *err) {
+int64_t strict_strtoll(const char *str, int base, std::string *err) {
     char *endptr;
     errno = 0; /* To distinguish success/failure after call (see man page) */
-    int64_t ret = strtoll(str.data(), &endptr, base);
-    if (endptr == str.data() || endptr != str.data() + str.size()) {
+    int64_t ret = strtoll(str, &endptr, base);
+    if (endptr == str || endptr != str + strlen(str)) {
         *err = (std::string {"Expected option value to be integer, got '"} +
                 std::string {str} + "'");
         return 0;
@@ -87,11 +81,7 @@ int64_t strict_strtoll(string_view str, int base, std::string *err) {
     return ret;
 }
 
-int64_t strict_strtoll(const char *str, int base, std::string *err) {
-    return strict_strtoll(string_view(str), base, err);
-}
-
-int strict_strtol(string_view str, int base, std::string *err) {
+int strict_strtol(const char *str, int base, std::string *err) {
     int64_t ret = strict_strtoll(str, base, err);
     if (!err->empty())
         return 0;
@@ -102,10 +92,6 @@ int strict_strtol(string_view str, int base, std::string *err) {
         return 0;
     }
     return static_cast<int>(ret);
-}
-
-int strict_strtol(const char *str, int base, std::string *err) {
-    return strict_strtol(string_view(str), base, err);
 }
 
 struct strict_str_convert {

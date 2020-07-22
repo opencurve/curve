@@ -71,7 +71,7 @@ int PeerCluster::StartPeer(const Peer &peer,
         return -1;
     }
 
-    std::unique_ptr<PeerNode> peerNode = std::make_unique<PeerNode>();
+    std::unique_ptr<PeerNode> peerNode(new PeerNode());
 
     peerNode->peer = peer;
 

@@ -33,7 +33,7 @@ COPTS = [
     "-Woverloaded-virtual",
     "-Wnon-virtual-dtor",
     "-Wno-missing-field-initializers",
-    "-std=c++14",
+    "-std=c++11",
 ]
 
 cc_test(
