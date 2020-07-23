@@ -24,7 +24,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 
 准备一台部署主机，确保其软件满足需求:
 
-- 推荐安装 Debian 9 或者 Centos 8.0（其他环境未经测试）
+- 推荐安装 Debian9 或者 Centos7/8（其他环境未经测试）
   - Linux 操作系统开放外网访问，用于下载 CURVE 的安装包
   - 部署需要创建一个有root权限的公共用户
   - 目前仅支持在 x86_64 (AMD64) 架构上部署 CURVE 集群
@@ -65,7 +65,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    $ pip install --upgrade pip
    $ pip install --upgrade setuptools
    ```
-4. 安装其他依赖：net-tools, openssl-1.1.1, perf, perl-podlators, make, gcc6.1, libstdc++.so.6.22
+4. 检查其他依赖，未安装的需要手动安装：net-tools, openssl-1.1.1, perf, perl-podlators, make, gcc6.1, libstdc++.so.6.22
 
 ##### Debian9环境准备具体步骤
 1. root用户登录机器，创建curve用户
@@ -91,7 +91,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    $ pip install --upgrade pip
    $ pip install --upgrade setuptools
    ```
-4. 安装其他依赖：net-tools, openssl-1.1.1, perf, perl-podlators, make, gcc6.1, libstdc++.so.6.22, libcurl
+4. 检查其他依赖，未安装的需要手动安装：net-tools, openssl-1.1.1, perf, perl-podlators, make, gcc6.1, libstdc++.so.6.22, libcurl
 #### 实施部署
 
 1. 切换到curve用户下执行一下操作
@@ -129,7 +129,11 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
       ansible-playbook -i server.ini deploy_snapshotcloneserver_nginx.yml
    ```
 
-6. 执行命令查看当前集群状态，主要看以下几个状态
+6. 执行命令查看当前集群状态，主要看以下几个状态：
+   - Cluster status中的total copysets为100，unhealthy copysets为0
+   - Mds status中current MDS不为空，offline mds list为空
+   - Etcd status中的current etcd不为空，offline etcd list为空
+   - Chunkserver status中的offline为0
 
    ```
    curve_ops_tool status
@@ -164,7 +168,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 
 准备三台部署主机，确保其软件满足需求:
 
-- 推荐安装 Debian 9 或者 Centos 8.0
+- 推荐安装 Debian9 或者 Centos7/8
 - Linux 操作系统开放外网访问，用于下载 CURVE 的安装包
 - 部署需要在每个机器上创建一个有root权限的公共用户
 - 部署主机需要开放 CURVE 集群节点间所需ssh端口
@@ -198,7 +202,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    $ su curve  # 切换到curve用户
    $ sudo ls  # 测试sudo是否正确配置
    ```
-3. 安装其他依赖：net-tools, openssl-1.1.1, perf, perl-podlators, make, gcc6.1, libstdc++.so.6.22
+3. 检查其他依赖，未安装的需要手动安装：net-tools, openssl-1.1.1, perf, perl-podlators, make, gcc6.1, libstdc++.so.6.22
 
 下面的步骤只需要在中控机上执行：
 1. curve用户下配置ssh登陆到所有机器（包括自己），假设三台机器的ip分别为10.192.100.1,10.192.100.2,10.192.100.3
@@ -234,7 +238,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    $ sudo -iu curve  # 切换到curve用户
    $ sudo ls  # 测试sudo是否正确配置
    ```
-3. 安装其他依赖：net-tools, openssl-1.1.1, perf, perl-podlators, make, gcc6.1, libstdc++.so.6.22, libcurl
+3. 检查其他依赖，未安装的需要手动安装：net-tools, openssl-1.1.1, perf, perl-podlators, make, gcc6.1, libstdc++.so.6.22, libcurl
 下面的步骤只需要在中控机上执行：
 1. curve用户下配置ssh登陆到所有机器（包括自己），假设三台机器的ip分别为10.192.100.1,10.192.100.2,10.192.100.3
    ```bash
@@ -497,8 +501,11 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
       ansible-playbook -i server.ini deploy_snapshotcloneserver_nginx.yml
    ```
 
-6. 执行命令查看当前集群状态
-
+6. 执行命令查看当前集群状态，主要看以下几个状态：
+   - Cluster status中的total copysets为100，unhealthy copysets为0
+   - Mds status中current MDS不为空，offline mds list为空
+   - Etcd status中的current etcd不为空，offline etcd list为空
+   - Chunkserver status中的offline为0
    ```
    curve_ops_tool status
    ```
