@@ -12,7 +12,7 @@ CURVE是网易自主设计研发的高性能、高可用、高可靠分布式存
   - [MDS](docs/cn/mds.md)
   - [Chunkserver](docs/cn/chunkserver_design.md)
   - [Snapshotcloneserver](docs/cn/snapshotcloneserver.md)
-  - [Curve质量体系](docs/cn/curve质量体系.md)
+  - [Curve质量体系](docs/cn/quality.md)
 
 ## 快速开始
 
