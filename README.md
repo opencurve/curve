@@ -9,7 +9,9 @@ CURVE是网易自主设计研发的高性能、高可用、高可靠分布式存
 - 通过 [编译与运行](docs/cn/build_and_run.md) 可以了解如何编译和执行单元测试
 - CURVE系列文档
   - [NEBD](docs/cn/nebd.md)
-  - [snapshotcloneserver](docs/cn/snapshotcloneserver.md)
+  - [MDS](docs/cn/mds.md)
+  - [Chunkserver](docs/cn/chunkserver_design.md)
+  - [Snapshotcloneserver](docs/cn/snapshotcloneserver.md)
 
 ## 快速开始
 
