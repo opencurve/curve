@@ -50,13 +50,12 @@ curvefs提供创建、删除和读快照的RPC接口，供快照系统调用。�
 
 #### 1.4.1 快照数据在S3上的组织
 
-快照的数据以chunk为单位转储到S3上，每个chunk在s3上对应着一个Object，存储数据的object称为data object。每个快照还有一个object记录着快照的元数据信息，称为meta object。meta object记录着快照的元数据以及快照的chunk到object的映射表的映射关系。元数据信息包括3部分：
+快照的数据以chunk为单位转储到S3上，每个chunk在s3上对应着一个Object，存储数据的object称为data object。每个快照还有一个object记录着快照的元数据信息，称为meta object。meta object记录着快照的文件信息以及快照的chunk到object的映射表的映射关系。meta object包括2部分：
 
 1. 快照文件信息，包括原始数据卷名称，卷大小，chunk大小等
-2. 快照chunk映射表，记录chunk和object的映射关系
-3. 快照状态信息，记录在meta object的META区域
+2. 快照chunk映射表，记录着快照data object的列表
 
-下图是meta object的示意图
+下图是快照数据的示意图
 
 
 
