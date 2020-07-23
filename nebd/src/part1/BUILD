@@ -21,7 +21,7 @@ COPTS = [
     "-DHAVE_ZLIB",
     "-DHAVE_SSE42",
     "-DNDEBUG",
-    "-std=c++14",
+    "-std=c++11",
     "-pipe",
     "-W",
     "-Wall",

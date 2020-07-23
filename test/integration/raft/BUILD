@@ -19,7 +19,7 @@ cc_test(
     srcs = glob([
         "raft_log_replication_test.cpp",
     ]),
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = [
         "//external:braft",
         "//external:brpc",
@@ -41,7 +41,7 @@ cc_test(
     srcs = glob([
         "raft_config_change_test.cpp",
     ]),
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = [
         "//external:braft",
         "//external:brpc",
@@ -65,7 +65,7 @@ cc_test(
         "peer_cluster.cpp",
         "raft_vote_test.cpp",
     ]),
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = [
         "//external:braft",
         "//external:brpc",
@@ -87,7 +87,7 @@ cc_test(
     srcs = glob([
         "raft_snapshot_test.cpp",
     ]),
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = [
         "//external:braft",
         "//external:brpc",

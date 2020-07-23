@@ -31,12 +31,12 @@ COPTS = [
     "-Woverloaded-virtual",
     "-Wnon-virtual-dtor",
     "-Wno-missing-field-initializers",
-    "-std=c++14",
+    "-std=c++11",
 ]
 
 cc_binary(
     name = "curve_client_workflow",
-    srcs = glob(["*.cpp", 
+    srcs = glob(["*.cpp",
                 "*.h"],
                 exclude = ["client_workflow_test4snap.cpp",
                             "mds_workflow_test.cpp",],),
@@ -96,7 +96,7 @@ cc_library(
 cc_binary(
     name = "curve_fake_mds",
     srcs = glob(["mds_workflow_test.cpp",
-                "fakeMDS.cpp", 
+                "fakeMDS.cpp",
                 "*.h"]),
     linkopts = ["-lfiu"],
     deps = [
@@ -121,7 +121,7 @@ cc_binary(
 #CI不需要跑snap workflow
 #cc_binary(
 #    name = "curve_client_workflow4snap",
-#    srcs = glob(["*.cpp", 
+#    srcs = glob(["*.cpp",
 #                "*.h"],
 #                exclude = ["client_workflow_test.cpp",
 #                "mds_workflow_test.cpp"],),

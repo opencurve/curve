@@ -256,7 +256,7 @@ int TestCluster::StartPeer(const PeerId &peerId,
 
     peers_.insert(peerId);
 
-    std::unique_ptr<PeerNode> peer = std::make_unique<PeerNode>();
+    std::unique_ptr<PeerNode> peer(new PeerNode());
 
     peer->peerId = peerId;
 
