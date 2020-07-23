@@ -20,5 +20,4 @@ CURVE是网易自主设计研发的高性能、高可用、高可靠分布式存
 ## 反馈和参与
 
 - bug、疑惑、修改建议都欢迎提在[Github Issues](https://github.com/opencurve/curve/issues)中
-- [FAQ](https://github.com/opencurve/curve/wiki/CURVE-FAQ) 
-
+- [FAQ](https://github.com/opencurve/curve/wiki/CURVE-FAQ)
