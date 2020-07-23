@@ -55,11 +55,19 @@ cd ${dir}
 
 cp ${dir}/thirdparties/etcdclient/libetcdclient.h ${dir}/include/etcdclient/etcdclient.h
 
+if [ `gcc -dumpversion | awk -F'.' '{print $1}'` -le 6 ]
+then
+    bazelflags=''
+else
+    bazelflags='--copt -faligned-new'
+fi
+
 if [ "$1" = "debug" ]
 then
 bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
--Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${tag_version}
+-Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${tag_version} \
+--linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
 	echo "build phase1 failed"
@@ -75,7 +83,8 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --compilation_mode=dbg 
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
 --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
--L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${tag_version}
+-L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${tag_version} \
+--linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
 	echo "build phase2 failed"
@@ -84,7 +93,8 @@ fi
 else
 bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
--Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${tag_version}
+-Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${tag_version} \
+--linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
 	echo "build phase1 failed"
@@ -100,7 +110,8 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --copt -O2 -s \
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
 --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
--L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${tag_version}
+-L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${tag_version} \
+--linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
 	echo "build phase2 failed"
@@ -419,6 +430,6 @@ done
 # 替换curvefs setup.py中的版本号
 sed -i "s/version-anchor/${tag_version}+${commit_id}${debug}/g" setup.py
 
-python setup.py bdist_wheel
+python2 setup.py bdist_wheel
 cp dist/*whl $dir
 echo "end make python whell"
