@@ -13,7 +13,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    ansible-playbook -i server.ini deploy_curve.yml --tags start
    ```
 - 部署的过程中，在chunkserver成功启动之前都可以任意重试，**chunkserver启动成功后重试**要额外注意，要带上--skip-tags format,因为这一步会把启动成功的chunkserver的数据给清理掉，从而扰乱集群。
-- 需要用到nbd功能的话，内核版本要求不低于5.2
+- 需要用到curve-nbd功能的话，对内核有两方面的要求：一是要支持nbd模块，可以modprobe nbd查看nbd模块是否存在。二是nbd设备的block size要能够被设置为4KB。经验证，通过[DVD1.iso](http://mirrors.163.com/centos/8/isos/x86_64/CentOS-8.2.2004-x86_64-dvd1.iso)完整安装的CentOs8，内核版本是4.18.0-193.el8.x86_64，满足这个条件，可供参考。
 
 
 ## 单机部署
