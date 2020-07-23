@@ -462,5 +462,5 @@ done
 # 替换curvefs setup.py中的版本号
 sed -i "s/version-anchor/${tag_version}+${commit_id}${debug}/g" setup.py
 
-python setup.py bdist_wheel
+python2 setup.py bdist_wheel
 cp dist/*whl $dir
