@@ -1,7 +1,7 @@
 FROM centos
 
 WORKDIR /curve-tmp
-RUN cp -a /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.bak && \
+RUN mkdir -p /etc/yum.repos.d/bak && cp /etc/yum.repos.d/CentOS*repo /etc/yum.repos.d/bak && \
     curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-8.repo && \
     yum clean all && yum makecache
 
