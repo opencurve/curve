@@ -14,24 +14,25 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-# The deploy playbook of Curve
 
-# 检查ansible版本
-- name: Stop if ansible version not match, make sure that the Ansible version is Ansible 2.5.9
-  hosts: localhost
-  gather_facts: no
-  tasks:
-    - assert:
-        that:
-          - ansible_version.full|version_compare('2.5.9', '==')
+- name: determine if jemalloc installed
+  ignore_errors: true
+  shell: ls {{ lib_install_prefix }}/lib | grep jemalloc
+  register: ls_res
 
-# 部署curve集群
+- name: set lib_installed true
+  set_fact:
+    lib_installed: true
+  when: ls_res.stdout != ""
 
-- name: deploy etcd
-  import_playbook: deploy_etcd.yml
+- name: set lib_installed false
+  set_fact:
+    lib_installed: false
+  when: ls_res.stdout == ""
 
-- name: deploy mds
-  import_playbook: deploy_mds.yml
-
-- name: deploy chunkserver
-  import_playbook: deploy_chunkserver.yml
+- name: install lib if not installed
+  vars:
+    prefix: "{{ lib_install_prefix }}"
+    lib_name: jemalloc
+  include_tasks: install_with_source_code.yml
+  when: not lib_installed

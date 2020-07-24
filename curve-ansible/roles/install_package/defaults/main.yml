@@ -44,8 +44,6 @@ etcd_download_dir: /tmp
 install_etcd_dir: /usr/bin
 
 download_dir: /tmp
-libunwind_download_url: http://download.savannah.gnu.org/releases/libunwind/libunwind-1.1.tar.gz
 jemalloc_download_url: https://github.com/jemalloc/jemalloc/releases/download/3.6.0/jemalloc-3.6.0.tar.bz2
 lib_install_prefix: /usr/local
-libnl_download_url: http://www.infradead.org/~tgr/libnl/files/libnl-3.2.25.tar.gz
 daemon_download_url: http://libslack.org/daemon/download/daemon-0.6.4.tar.gz
