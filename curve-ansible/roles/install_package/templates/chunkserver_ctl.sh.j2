@@ -245,9 +245,17 @@ function deploy() {
         help
         return 1
     fi
-    if [ $# -gt 1 ] && ([ "$2" = "-nc" ] || [ "$2" = "--noConfirm" ])
+    if [ "$1" = "all" ]
     then
-	    confirm=false
+        if [ $# -gt 1 ] && ([ "$2" = "-nc" ] || [ "$2" = "--noConfirm" ])
+        then
+	        confirm=false
+        fi
+    else
+        if [ $# -gt 2 ] && ([ "$3" = "-nc" ] || [ "$3" = "--noConfirm" ])
+        then
+	        confirm=false
+        fi
     fi
     if $confirm
     then
@@ -258,9 +266,8 @@ function deploy() {
         deploy_all;
         return $?
     fi
-    if [ $# -eq 2 ]
+    if [ $# -ge 2 ]
     then
-        do_confirm;
         deploy_one $@;
         return $?
     fi

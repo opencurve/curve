@@ -15,18 +15,7 @@
 #  limitations under the License.
 #
 
-- name: get distro name
-  vars:
-    distro:
-  include_tasks: common_tasks/get_distro_name.yml
-
-- name: Debian/Ubuntu - install uuid-dev
-  shell: sudo apt-get -y install uuid-dev
-  when:
-    - "'Ubuntu' in distro or 'Debian' in distro"
-
-- name: Redhat/CentOS - install uuid-dev
-  shell: sudo yum -y install libuuid-devel
-  when:
-    - "'CentOS' in distro"
-
+- name: deploy chunkserver with format disk
+  shell: sudo ./chunkserver_ctl.sh deploy all --noConfirm
+  async: 0
+  poll: 3

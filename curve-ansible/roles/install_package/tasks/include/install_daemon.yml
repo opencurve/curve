@@ -28,5 +28,6 @@
 - name: install lib if not installed
   vars:
     download_url: "{{ daemon_download_url }}"
+    prefix: "{{ bin_install_prefix }}"
   include_tasks: install_with_source_code.yml
   when: not daemon_installed

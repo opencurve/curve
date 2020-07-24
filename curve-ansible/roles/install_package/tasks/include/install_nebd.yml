@@ -17,15 +17,21 @@
 
 - name: install libunwind
   vars:
-    lib_name: libunwind
-    download_url: "{{ libunwind_download_url }}"
-  include_tasks: install_lib_with_source_code.yml
+    apt_lib_name: libunwind8 libunwind8-dev
+    yum_lib_name: libunwind libunwind-devel
+  include_tasks: install_with_yum_apt.yml
+
+- name: install bzip2
+  vars:
+    apt_lib_name: bzip2
+    yum_lib_name: bzip2
+  include_tasks: install_with_yum_apt.yml
 
 - name: install jemalloc
   vars:
     lib_name: jemalloc
     download_url: "{{ jemalloc_download_url }}"
-  include_tasks: install_lib_with_source_code.yml
+  include_tasks: install_jemalloc.yml
 
 - name: install daemon
   include_tasks: install_daemon.yml

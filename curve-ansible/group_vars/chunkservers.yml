@@ -14,24 +14,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-# The deploy playbook of Curve
 
-# 检查ansible版本
-- name: Stop if ansible version not match, make sure that the Ansible version is Ansible 2.5.9
-  hosts: localhost
-  gather_facts: no
-  tasks:
-    - assert:
-        that:
-          - ansible_version.full|version_compare('2.5.9', '==')
-
-# 部署curve集群
-
-- name: deploy etcd
-  import_playbook: deploy_etcd.yml
-
-- name: deploy mds
-  import_playbook: deploy_mds.yml
-
-- name: deploy chunkserver
-  import_playbook: deploy_chunkserver.yml
+disk_list:
+  - sda
+  - sdb
+  - sdc

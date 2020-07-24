@@ -15,12 +15,8 @@
 #  limitations under the License.
 #
 
-- name: determine if lib installed
-  ignore_errors: true
-  shell: /sbin/ldconfig -p | grep {{ lib_name }}
-  register: ldconfig_res
-
-- name: set lib_installed
-  set_fact:
-    lib_installed: true
-  when: ldconfig_res.stdout != ""
+disk_list:
+  - sda
+  - sdb
+  - sdc
+  - sdd
