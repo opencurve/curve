@@ -35,6 +35,7 @@
 #include <glog/logging.h>
 #include <string>
 #include <vector>
+#include <stdexcept>
 
 namespace curve {
 namespace common {
@@ -87,4 +88,3 @@ static bool StringToUll(const std::string &value, uint64_t *out) {
 }  // namespace curve
 
 #endif  // SRC_COMMON_STRING_UTIL_H_
-

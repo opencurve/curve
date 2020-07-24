@@ -141,7 +141,7 @@ Files: test/tools/nbd/*
 Copyright: Copyright (c) 2020, NetEase Inc.
 License: GPL 2.0 (see LICENSE_GPL)
 
-Files: thirdparties/aws-sdk/*
-Copyright: Copyright 2010-2017 Amazon.com, Inc.
+Files: thirdparties/aws/*
+       common.bzl
+Copyright: Copyright 2019 The TensorFlow Authors
 License: Apache 2.0 (see LICENSE_APACHE)
-

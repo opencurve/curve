@@ -19,6 +19,7 @@ else
 fi
 export LD_LIBRARY_PATH=/curve/curve_multijob/thirdparties/etcdclient:${LD_LIBRARY_PATH}
 cd /curve/curve_multijob
+bash replace-curve-repo.sh
 mkdir runlog
 bazel clean --async
 sleep 5

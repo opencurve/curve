@@ -25,3 +25,6 @@ sed -i "s;https://github.com/apache/incubator-brpc;https://gitee.com/baidu/BRPC;
 
 # jsoncpp
 sed -i "s;https://github.com/open-source-parsers/jsoncpp.git;https://gitee.com/mirrors/jsoncpp;g" WORKSPACE
+
+# aws
+sed -i "s;https://github.com/aws/aws-sdk-cpp/archive/1.7.340.tar.gz;https://curve-build.nos-eastchina1.126.net/aws-sdk-cpp-1.7.340.tar.gz;g" WORKSPACE
