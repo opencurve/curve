@@ -326,6 +326,7 @@ ansible-playbook start_nebd_server.yml -i client.ini
 ├── common_tasks                                            # 放置可以复用的代码（可以理解为各种函数）
 │   ├── check_chunkserver.yml                               # 检查chunkserver机器配置
 │   ├── check_cluster_healthy_status.yml                    # 检查集群健康状态
+│   ├── check_if_nbd_exists_in_kernel.yml                   # 检查内核是否有nbd模块
 │   ├── check_mds.yml                                       # 检查mds机器配置
 │   ├── create_dir.yml                                      # 创建目录
 │   ├── create_logical_pool.yml                             # 创建逻辑池
@@ -334,8 +335,9 @@ ansible-playbook start_nebd_server.yml -i client.ini
 │   ├── get_distro_name.yml                                 # 获取系统版本
 │   ├── get_nebd_version_from_metric.yml                    # 从metric获取nebd版本
 │   ├── get_software_version_from_package_version.yml       # 从包版本获取软件版本
+│   ├── install_with_yum_apt.yml                            # 用apt或yum的方式安装
 │   ├── update_package.yml                                  # 更新包
-│   └── wait_copysets_status_healthy.yml                    # 在一段时间内循环检查copyset健康状态
+│   ├── wait_copysets_status_healthy.yml                    # 在一段时间内循环检查copyset健康状态
 │   ├── wait_until_server_down.yml                          # 等待直到server停掉
 │   └── wait_until_server_up.yml                            # 等待直到server起来
 ├── group_vars                                              # 组变量
@@ -365,6 +367,9 @@ ansible-playbook start_nebd_server.yml -i client.ini
 │   │       ├── include
 │   │       │   ├── prepare_chunkserver_with_disk_format.yml    # 使用格式化磁盘的方式准备data目录
 │   │       │   └── prepare_chunkserver_without_disk_format.yml # 使用非格式化磁盘的方式准备data目录
+│   │       └── main.yml
+│   ├── prepare_software_env                                # 用来自动检查和准备curve所需软件环境
+│   │   └── tasks
 │   │       └── main.yml
 │   ├── restart_service                                     # 用来重启服务的role
 │   │   ├── tasks                                           # 存放重启服务的task，main.yml是入口，其他的被main引用
@@ -398,10 +403,9 @@ ansible-playbook start_nebd_server.yml -i client.ini
 │   │   │   │   ├── install_deb_package.yml                 # 安装debian包
 │   │   │   │   ├── install_etcd.yml                        # 安装etcd
 │   │   │   │   ├── install_jemalloc.yml                    # 安装jemalloc
-│   │   │   │   ├── install_libuuid.yml                     # 安装libuuid
-│   │   │   │   └── install_with_yum_apt.yml                # 用apt或yum的方式安装
+│   │   │   │   ├── install_nebd.yml                        # 安装nebd
 │   │   │   │   ├── install_with_source_code.yml            # 从源码安装
-│   │   │   │   └── install_nebd.yml                        # 安装nebd
+│   │   │   │   └── set_curve_lib_dir.yml                   # 根据操作系统设置库安装路径
 │   │   │   └── main.yml
 │   │   ├── templates                                       # 存放模板
 │   │   │   ├── chunkserver_ctl.sh.j2                       # chunkserver启动脚本的模板

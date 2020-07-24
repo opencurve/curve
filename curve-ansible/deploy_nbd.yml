@@ -21,6 +21,29 @@
     - always
   import_playbook: check_ansible_version.yml
 
+- name: check kernal version and nbd module
+  hosts: client
+  any_errors_fatal: true
+  gather_facts: yes
+  tags:
+    - always
+  tasks:
+    - name: check kernel version
+      assert:
+        that:
+          - ansible_kernel|version_compare('4.18.0-193.el8.x86_64', '>=')
+    - name: check nbd module exist
+      include_tasks: common_tasks/check_if_nbd_exists_in_kernel.yml
+
+- name: prepare software environment on all machines
+  hosts: client
+  any_errors_fatal: true
+  gather_facts: no
+  tags:
+    - always
+  roles:
+    - { role: prepare_software_env }
+
 - name: prepare curve-nbd
   hosts: client
   gather_facts: no
