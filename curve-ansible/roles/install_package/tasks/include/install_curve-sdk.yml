@@ -19,7 +19,7 @@
   vars:
     apt_lib_name: libunwind8 libunwind8-dev
     yum_lib_name: libunwind libunwind-devel
-  include_tasks: install_with_yum_apt.yml
+  include_tasks: common_tasks/install_with_yum_apt.yml
 
 - name: install curve-sdk bin
   vars:
