@@ -25,8 +25,6 @@
 #include <glog/logging.h>
 #include "nebd/src/part2/nebd_server.h"
 
-#define BOOST_SPIRIT_THREADSAFE
-
 DEFINE_string(confPath, "/etc/nebd/nebd-server.conf", "nebd server conf path");
 
 int main(int argc, char* argv[]) {

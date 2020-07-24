@@ -26,7 +26,6 @@
 
 #include <vector>
 #include <map>
-#include <boost/shared_ptr.hpp>
 #include "src/mds/schedule/operatorStep.h"
 #include "src/mds/schedule/topoAdapter.h"
 #include "proto/heartbeat.pb.h"
