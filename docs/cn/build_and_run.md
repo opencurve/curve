@@ -66,19 +66,25 @@ bazel build test/common:common-test --copt -DHAVE_ZLIB=1 --define=with_glog=true
 ```
 
 
+## 使用Docker进行编译
 
+### 构建docker镜像
 
+使用工程目录下的Dockerfile进行构建，命令如下：
 
+```bash
+docker build -t curve-dev:centos8 .
+```
 
+Node：这一步操作最好不要在curve工程目录执行，因为docker构建时，会把当前目录的文件都复制到docker中。
 
+### 在docker镜像中编译
 
+```bash
+docker run -it curve-dev:centos8 /bin/bash
+cd <workspace>
+git clone https://github.com/opencurve/curve.git
+bash mk-tar.sh
+```
 
-
-
-
-
-
-
-
-
-
+Note：curve使用了一些外部组件，例如etcd、brpc、braft等，在编译时会拉去依赖仓库，这一步骤可能比较耗时。为了加速编译，提供了`replace-curve-repo.sh`，用于替换相关仓库为国内的镜像。

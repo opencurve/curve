@@ -1,7 +1,7 @@
 FROM centos
 
 WORKDIR /curve-tmp
-RUN mkdir -p /etc/yum.repos.d/bak && cp /etc/yum.repos.d/CentOS*repo /etc/yum.repos.d/bak && \
+RUN rm /etc/yum.repos.d/* && \
     curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-8.repo && \
     yum clean all && yum makecache
 
@@ -20,4 +20,3 @@ RUN wget https://curve-build.nos-eastchina1.126.net/bazel-0.17.2-installer-linux
 
 WORKDIR /
 RUN rm -rf /curve-tmp
-
