@@ -70,7 +70,13 @@ bazel build test/common:common-test --copt -DHAVE_ZLIB=1 --define=with_glog=true
 
 ### 获取或者构建docker镜像
 
-方法一：构建docker镜像
+方法一：从镜像库中拉取docker镜像(推荐方式)
+
+```bash
+docker pull opencurve/curvebuild:centos8
+```
+
+方法二：构建docker镜像
 
 使用工程目录下的Dockerfile进行构建，命令如下：
 
@@ -80,11 +86,7 @@ docker build -t opencurve/curvebuild:centos8 .
 
 Node：这一步操作最好不要在curve工程目录执行，因为docker构建时，会把当前目录的文件都复制到docker中。
 
-方法二：从镜像库中拉取docker镜像
 
-```bash
-docker pull opencurve/curvebuild:centos8
-```
 
 ### 在docker镜像中编译
 
