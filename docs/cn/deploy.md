@@ -91,7 +91,9 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 
 1. 切换到curve用户下执行一下操作
 
-2. 下载tar包并解压
+2. 获取tar包并解压。有两种方式：从github下载tar包和自行打包
+
+   2.1 从github下载tar包，如果想要部署release版本，则从github下载相应的tar包即可
 
    ```
    wget https://github.com/opencurve/curve/releases/download/v0.1.1/curve_0.1.1+4b930380.tar.gz
@@ -102,6 +104,12 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    tar zxvf nebd_0.1.1+4b930380.tar.gz
    cd curve/curve-ansible
    ```
+   2.2 如果想要部署代码仓库中最新代码的集群，则需要自行打包。打包的步骤为：
+   - cd到本地curve仓库
+   - 执行mk-tar.sh脚本
+   - 解压打出来的curve, nbd, nebd三个tar包
+   - cd curve/curve-ansible
+   
 3. 准备inventory文件
    - 在server.ini和client.ini的[all:vars]中增加ansible_connection=local
    - 如果是debian系统，则不需要改动，如果是CentOs系统，需要将client.ini和server.ini中的curve_lib_dir修改为/usr/lib64
@@ -255,17 +263,24 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 
 1. 在三台机器上分别用 ```root``` 用户登录，创建 ```curve``` 用户， 并生成ssh key，保证这三台机器可以通过ssh互相登录
 
-2. 选择三台机器中的一个作为中控机，在中控机上下载tar包 并 解压
+2. 获取tar包并解压。有两种方式：从github下载tar包和自行打包
+
+   2.1 从github下载tar包，如果想要部署release版本，则从github下载相应的tar包即可
 
    ```
-   wget https://github.com/opencurve/curve/releases/download/v0.1.0/curve_0.1.0+55cecca7.tar.gz
-   wget https://github.com/opencurve/curve/releases/download/v0.1.0/nbd_0.1.0+55cecca7.tar.gz
-   wget https://github.com/opencurve/curve/releases/download/v0.1.0/nebd_0.1.0+55cecca7.tar.gz
-   tar zxvf curve_0.1.0+55cecca7.tar.gz
-   tar zxvf nbd_0.1.0+55cecca7.tar.gz
-   tar zxvf nebd_0.1.0+55cecca7.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v0.1.1/curve_0.1.1+4b930380.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v0.1.1/nbd_0.1.1+4b930380.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v0.1.1/nebd_0.1.1+4b930380.tar.gz
+   tar zxvf curve_0.1.1+4b930380.tar.gz
+   tar zxvf nbd_0.1.1+4b930380.tar.gz
+   tar zxvf nebd_0.1.1+4b930380.tar.gz
    cd curve/curve-ansible
    ```
+   2.2 如果想要部署代码仓库中最新代码的集群，则需要自行打包。打包的步骤为：
+   - cd到本地curve仓库
+   - 执行mk-tar.sh脚本
+   - 解压打出来的curve, nbd, nebd三个tar包
+   - cd curve/curve-ansible
 
 3. 在中控机上修改配置文件
 
@@ -400,11 +415,11 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 
    ```
    [client]
-   client1 ansible_ssh_host=10.192.100.1  // 改动
+   client1 ansible_ssh_host=10.192.100.1  // 修改成想要部署client的机器的ip，可以是server.ini中的机器，也可以是其他的机器，保证网络互通即可
 
    # 仅用于生成配置中的mds地址
    [mds]
-   mds1 ansible_ssh_host=10.192.100.1  // 改动
+   mds1 ansible_ssh_host=10.192.100.1  // 改成和server.ini中的mds列表一致即可
    mds2 ansible_ssh_host=10.192.100.2  // 改动
    mds3 ansible_ssh_host=10.192.100.3  // 改动
 
@@ -483,16 +498,16 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    修改成机器上具体的磁盘的名字列表，数量不固定。
    ```
    disk_list:
-     - /dev/sda
-     - /dev/sdb
-     - /dev/sdc
+     - sda
+     - sdb
+     - sdc
    ```
    如果个别chunkserver的磁盘名字和其他的不同，需要单独拎出来放在host_vars下面。比如本例中，假设server1和server2上都是三个盘分别是/dev/sda，/dev/sdb，/dev/sdc和group_vars中的一致，而server3的是/dev/sdd，/dev/sde，/dev/sdf，那么需要在host_vars下面新增一个server3.yml，其中的内容为：
    ```
    disk_list:
-     - /dev/sdd
-     - /dev/sde
-     - /dev/sdf
+     - sdd
+     - sde
+     - sdf
    ```
 
 4. 部署集群并启动服务
