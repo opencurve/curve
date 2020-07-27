@@ -57,6 +57,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 3. 安装ansible 2.5.9
    ```bash
    $ sudo yum install python2  # 安装python2
+   $ ln -s /usr/bin/python2 /usr/bin/python  # 设置默认使用python2
    $ pip2 install ansible==2.5.9  # 安装ansible
    $ ansible-playbook  # 如果没有报错的话说明安装成功，报错的话执行下面两步
    $ pip install --upgrade pip
@@ -89,7 +90,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 4. 检查其他依赖，未安装的需要手动安装：net-tools, openssl-1.1.1, perf, perl-podlators, make, gcc6.1, libstdc++.so.6.22, libcurl
 #### 实施部署
 
-1. 切换到curve用户下执行一下操作
+1. 切换到curve用户下执行以下操作
 
 2. 获取tar包并解压。有两种方式：从github下载tar包和自行打包
 
@@ -219,6 +220,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 2. 安装ansible 2.5.9
    ```bash
    $ sudo yum install python2  # 安装python2
+   $ ln -s /usr/bin/python2 /usr/bin/python  # 设置默认使用python2
    $ pip2 install ansible==2.5.9  # 安装ansible
    $ ansible-playbook  # 如果没有报错的话说明安装成功，报错的话执行下面两步
    $ pip install --upgrade pip
@@ -260,8 +262,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    ```
 
 #### 实施部署
-
-1. 在三台机器上分别用 ```root``` 用户登录，创建 ```curve``` 用户， 并生成ssh key，保证这三台机器可以通过ssh互相登录
+1. 切换到curve用户下执行以下操作
 
 2. 获取tar包并解压。有两种方式：从github下载tar包和自行打包
 
@@ -404,7 +405,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    curve_root_username=root                           // 改动，修改成自己需要的username，因为目前的一个bug，用到快照克隆的话用户名必须为root
    curve_root_password=root_password                  // 改动，修改成自己需要的密码
    curve_bin_dir=/usr/bin
-   curve_lib_dir=/usr/lib                             // 如果是CentOs系统，则修改成/usrlib64
+   curve_lib_dir=/usr/lib                             // 如果是CentOs系统，则修改成/usr/lib64
    curve_include_dir=/usr/include
    lib_install_prefix=/usr/local
    bin_install_prefix=/usr
