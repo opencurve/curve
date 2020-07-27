@@ -74,7 +74,7 @@ then
 	echo "build phase1 failed"
 	exit
 fi
-sh ./curvefs_python/configure.sh
+bash ./curvefs_python/configure.sh
 if [ $? -ne 0 ]
 then
 	echo "configure failed"
@@ -101,7 +101,7 @@ then
 	echo "build phase1 failed"
 	exit
 fi
-sh ./curvefs_python/configure.sh
+bash ./curvefs_python/configure.sh
 if [ $? -ne 0 ]
 then
 	echo "configure failed"
