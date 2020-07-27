@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #
 #  Copyright (c) 2020 NetEase Inc.
 #
@@ -14,7 +16,6 @@
 #  limitations under the License.
 #
 
-#!/bin/bash
 echo "********************************************************************"
 echo "***********Prepare for curvefs python API build env.****************"
 echo "********************************************************************"

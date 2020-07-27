@@ -1,3 +1,5 @@
+# coding: utf-8
+
 #
 #  Copyright (c) 2020 NetEase Inc.
 #
@@ -13,8 +15,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-
-# coding: utf-8
 
 from setuptools import setup, find_packages
 
