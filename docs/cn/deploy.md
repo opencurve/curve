@@ -94,7 +94,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 
 2. 获取tar包并解压。有两种方式：从github下载tar包和自行打包
 
-   2.1 从github下载tar包，如果想要部署release版本，则从github下载相应的tar包即可
+   2.1 从github下载tar包，如果想要部署release版本，则从github下载最新的tar包即可。**下面的命令仅供参考，tar包会经常更新，下面给出不一定是最新的**。
 
    ```
    wget https://github.com/opencurve/curve/releases/download/v0.1.1/curve_0.1.1+4b930380.tar.gz
@@ -266,7 +266,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 
 2. 获取tar包并解压。有两种方式：从github下载tar包和自行打包
 
-   2.1 从github下载tar包，如果想要部署release版本，则从github下载相应的tar包即可
+   2.1 从github下载tar包，如果想要部署release版本，则从github下载最新的tar包即可。**下面的命令仅供参考，tar包会经常更新，下面给出不一定是最新的**。
 
    ```
    wget https://github.com/opencurve/curve/releases/download/v0.1.1/curve_0.1.1+4b930380.tar.gz
@@ -503,12 +503,13 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
      - sdb
      - sdc
    ```
-   如果个别chunkserver的磁盘名字和其他的不同，需要单独拎出来放在host_vars下面。比如本例中，假设server1和server2上都是三个盘分别是/dev/sda，/dev/sdb，/dev/sdc和group_vars中的一致，而server3的是/dev/sdd，/dev/sde，/dev/sdf，那么需要在host_vars下面新增一个server3.yml，其中的内容为：
+   如果个别chunkserver的磁盘名字和其他的不同，需要单独拎出来放在host_vars下面。比如本例中，假设server1和server2上都是三个盘分别是sda，sdb，sdc和group_vars中的一致，而server3的是sdd，sde，sdf，sdg，那么需要在host_vars下面新增一个server3.yml，其中的内容为：
    ```
    disk_list:
      - sdd
      - sde
      - sdf
+     - sdg
    ```
 
 4. 部署集群并启动服务
