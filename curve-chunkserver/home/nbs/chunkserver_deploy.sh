@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #
 #  Copyright (c) 2020 NetEase Inc.
 #
@@ -14,7 +16,6 @@
 #  limitations under the License.
 #
 
-#!/bin/bash
 #confirm提示，防止误操作
 function do_confirm {
   echo "This deployment script will format the disk and delete all the data."

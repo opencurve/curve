@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #
 #  Copyright (c) 2020 NetEase Inc.
 #
@@ -14,7 +16,6 @@
 #  limitations under the License.
 #
 
-#!/bin/bash
 set -e -o pipefail
 basedir=$(dirname ${BASH_SOURCE:-$0})
 script=${0##${basedir}/}

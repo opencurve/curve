@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# coding=utf-8
+
 #
 #  Copyright (c) 2020 NetEase Inc.
 #
@@ -14,8 +17,6 @@
 #  limitations under the License.
 #
 
-#!/usr/bin/env python
-# coding=utf-8
 import os
 
 def exec_cmd(cmd):
