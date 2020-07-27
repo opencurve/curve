@@ -50,16 +50,14 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 
    ```bash
    $ su  # 进入root用户
-   $ chmod u+w /etc/sudoers  # 设置为可写
-   $ vi /etc/sudoers  # 在'%wheel  ALL=(ALL)  ALL'下添加行‘curve ALL=(ALL) NOPASSWD:ALL’。若无该行，则在'root ALL=(ALL:ALL) ALL'后添加。curve ALL=(ALL) NOPASSWD:ALL
-   $ # 检查/etc/sudoers中的secure_path里是否有/usr/local/bin，如果没有，则添加进去
-   $ chmod u-w /etc/sudoers  #恢复只读
+   $ 在/etc/sudoers.d下面创建一个新文件curve，里面添加一行：curve ALL=(ALL) NOPASSWD:ALL
    $ su curve  # 切换到curve用户
    $ sudo ls  # 测试sudo是否正确配置
    ```
 3. 安装ansible 2.5.9
    ```bash
    $ sudo yum install python2  # 安装python2
+   $ ln -s /usr/bin/python2 /usr/bin/python  # 设置默认使用python2
    $ pip2 install ansible==2.5.9  # 安装ansible
    $ ansible-playbook  # 如果没有报错的话说明安装成功，报错的话执行下面两步
    $ pip install --upgrade pip
@@ -76,9 +74,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    ```bash
    $ su  # 进入root用户
    $ apt install sudo  # 安装sudo，如果没有安装过的话
-   $ chmod u+w /etc/sudoers  # 设置为可写
-   $ vi /etc/sudoers  # 在root ALL=(ALL:ALL) ALL下面增加一行curve ALL=(ALL) NOPASSWD:ALL
-   $ chmod u-w /etc/sudoers 恢复只读
+   $ 在/etc/sudoers.d下面创建一个新文件curve，里面添加一行：curve ALL=(ALL) NOPASSWD:ALL
    $ sudo -iu curve  # 切换到curve用户
    $ sudo ls  # 测试sudo是否正确配置
    ```
@@ -94,9 +90,11 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 4. 检查其他依赖，未安装的需要手动安装：net-tools, openssl-1.1.1, perf, perl-podlators, make, gcc6.1, libstdc++.so.6.22, libcurl
 #### 实施部署
 
-1. 切换到curve用户下执行一下操作
+1. 切换到curve用户下执行以下操作
 
-2. 下载tar包并解压
+2. 获取tar包并解压。有两种方式：从github下载tar包和自行打包
+
+   2.1 从github下载tar包，如果想要部署release版本，则从github下载最新的tar包即可。**下面的命令仅供参考，tar包会经常更新，下面给出不一定是最新的**。
 
    ```
    wget https://github.com/opencurve/curve/releases/download/v0.1.1/curve_0.1.1+4b930380.tar.gz
@@ -107,6 +105,12 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    tar zxvf nebd_0.1.1+4b930380.tar.gz
    cd curve/curve-ansible
    ```
+   2.2 如果想要部署代码仓库中最新代码的集群，则需要自行打包。打包的步骤为：
+   - cd到本地curve仓库
+   - 执行mk-tar.sh脚本
+   - 解压打出来的curve, nbd, nebd三个tar包
+   - cd curve/curve-ansible
+   
 3. 准备inventory文件
    - 在server.ini和client.ini的[all:vars]中增加ansible_connection=local
    - 如果是debian系统，则不需要改动，如果是CentOs系统，需要将client.ini和server.ini中的curve_lib_dir修改为/usr/lib64
@@ -176,6 +180,8 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 - 选择三台机器中的一个作为中控机，安装 ansible 2.5.9，用于部署集群（**目前只支持ansible 2.5.9下的部署**）
 - 安装 docker 18.09 及以上， 用于部署快照克隆服务器
 
+同时，确保每个机器都至少一个数据盘可以用于格式化供chunkserver使用。
+
  CURVE 集群拓扑：
 
 | 实例                                                         | 个数   | IP                                               | 端口 |
@@ -195,10 +201,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 
    ```bash
    $ su  # 进入root用户
-   $ chmod u+w /etc/sudoers  # 设置为可写
-   $ vi /etc/sudoers  # 在'%wheel  ALL=(ALL)  ALL'下添加行‘curve ALL=(ALL) NOPASSWD:ALL’。若无该行，则在'root ALL=(ALL:ALL) ALL'后添加。curve ALL=(ALL) NOPASSWD:ALL
-   $ # 检查/etc/sudoers中的secure_path里是否有/usr/local/bin，如果没有，则添加进去
-   $ chmod u-w /etc/sudoers  #恢复只读
+   $ 在/etc/sudoers.d下面创建一个新文件curve，里面添加一行：curve ALL=(ALL) NOPASSWD:ALL
    $ su curve  # 切换到curve用户
    $ sudo ls  # 测试sudo是否正确配置
    ```
@@ -217,6 +220,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 2. 安装ansible 2.5.9
    ```bash
    $ sudo yum install python2  # 安装python2
+   $ ln -s /usr/bin/python2 /usr/bin/python  # 设置默认使用python2
    $ pip2 install ansible==2.5.9  # 安装ansible
    $ ansible-playbook  # 如果没有报错的话说明安装成功，报错的话执行下面两步
    $ pip install --upgrade pip
@@ -232,9 +236,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    ```bash
    $ su  # 进入root用户
    $ apt install sudo  # 安装sudo，如果没有安装过的话
-   $ chmod u+w /etc/sudoers  # 设置为可写
-   $ vi /etc/sudoers  # 在root ALL=(ALL:ALL) ALL下面增加一行curve ALL=(ALL) NOPASSWD:ALL
-   $ chmod u-w /etc/sudoers 恢复只读
+   $ 在/etc/sudoers.d下面创建一个新文件curve，里面添加一行：curve ALL=(ALL) NOPASSWD:ALL
    $ sudo -iu curve  # 切换到curve用户
    $ sudo ls  # 测试sudo是否正确配置
    ```
@@ -260,20 +262,26 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    ```
 
 #### 实施部署
+1. 切换到curve用户下执行以下操作
 
-1. 在三台机器上分别用 ```root``` 用户登录，创建 ```curve``` 用户， 并生成ssh key，保证这三台机器可以通过ssh互相登录
+2. 获取tar包并解压。有两种方式：从github下载tar包和自行打包
 
-2. 选择三台机器中的一个作为中控机，在中控机上下载tar包 并 解压
+   2.1 从github下载tar包，如果想要部署release版本，则从github下载最新的tar包即可。**下面的命令仅供参考，tar包会经常更新，下面给出不一定是最新的**。
 
    ```
-   wget https://github.com/opencurve/curve/releases/download/v0.1.0/curve_0.1.0+55cecca7.tar.gz
-   wget https://github.com/opencurve/curve/releases/download/v0.1.0/nbd_0.1.0+55cecca7.tar.gz
-   wget https://github.com/opencurve/curve/releases/download/v0.1.0/nebd_0.1.0+55cecca7.tar.gz
-   tar zxvf curve_0.1.0+55cecca7.tar.gz
-   tar zxvf nbd_0.1.0+55cecca7.tar.gz
-   tar zxvf nebd_0.1.0+55cecca7.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v0.1.1/curve_0.1.1+4b930380.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v0.1.1/nbd_0.1.1+4b930380.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v0.1.1/nebd_0.1.1+4b930380.tar.gz
+   tar zxvf curve_0.1.1+4b930380.tar.gz
+   tar zxvf nbd_0.1.1+4b930380.tar.gz
+   tar zxvf nebd_0.1.1+4b930380.tar.gz
    cd curve/curve-ansible
    ```
+   2.2 如果想要部署代码仓库中最新代码的集群，则需要自行打包。打包的步骤为：
+   - cd到本地curve仓库
+   - 执行mk-tar.sh脚本
+   - 解压打出来的curve, nbd, nebd三个tar包
+   - cd curve/curve-ansible
 
 3. 在中控机上修改配置文件
 
@@ -358,7 +366,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    chunkserver_format_disk=true        // 改动，为了更好的性能，实际生产环境需要将chunkserver上的磁盘全部预格式化，这个过程比较耗时1T的盘格式80%化大概需要1个小时
    chunk_alloc_percent=80              // 预创的chunkFilePool占据磁盘空间的比例，比例越大，格式化越慢
    # 每台机器上的chunkserver的数量
-   chunkserver_num=10                                      // 改动，修改成机器上的数据盘对应的数量
+   chunkserver_num=3                                      // 改动，修改成机器上需要部署chunkserver的磁盘的数量
    chunkserver_need_sudo=true
    # 启动chunkserver要用到ansible的异步操作，否则ansible退出后chunkserver也会退出
    # 异步等待结果的总时间
@@ -366,7 +374,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    # 异步查询结果的间隔
    chunkserver_poll=1
    chunkserver_conf_path=/etc/curve/chunkserver.conf
-   chunkserver_data_dir=/data          // 改动，chunkserver想要挂载的目录，如果有三个盘，则会被分别挂载到/data/chunkserver0，/data/chunkserver1这些目录
+   chunkserver_data_dir=/data          // 改动，chunkserver想要挂载的目录，如果有两个盘，则会被分别挂载到/data/chunkserver0，/data/chunkserver1这些目录
    chunkserver_subnet=10.192.100.1/22                      // 改动
    chunkserver_s3_config_path=/etc/curve/cs_s3.conf
    # chunkserver使用的client相关的配置
@@ -397,9 +405,10 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    curve_root_username=root                           // 改动，修改成自己需要的username，因为目前的一个bug，用到快照克隆的话用户名必须为root
    curve_root_password=root_password                  // 改动，修改成自己需要的密码
    curve_bin_dir=/usr/bin
-   curve_lib_dir=/usr/lib                             // 如果是CentOs系统，则修改成/usrlib64
+   curve_lib_dir=/usr/lib                             // 如果是CentOs系统，则修改成/usr/lib64
    curve_include_dir=/usr/include
    lib_install_prefix=/usr/local
+   bin_install_prefix=/usr
 
    ```
 
@@ -407,11 +416,11 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 
    ```
    [client]
-   client1 ansible_ssh_host=10.192.100.1  // 改动
+   client1 ansible_ssh_host=10.192.100.1  // 修改成想要部署client的机器的ip，可以是server.ini中的机器，也可以是其他的机器，保证网络互通即可
 
    # 仅用于生成配置中的mds地址
    [mds]
-   mds1 ansible_ssh_host=10.192.100.1  // 改动
+   mds1 ansible_ssh_host=10.192.100.1  // 改成和server.ini中的mds列表一致即可
    mds2 ansible_ssh_host=10.192.100.2  // 改动
    mds3 ansible_ssh_host=10.192.100.3  // 改动
 
@@ -443,6 +452,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    curvefs_dir=/usr/curvefs
    ansible_ssh_port=22
    lib_install_prefix=/usr/local
+   bin_install_prefix=/usr
    ```
 
 
@@ -481,9 +491,25 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
          physicalpool: pool1
          type: 0
          replicasnum: 3
-         copysetnum: 1000               // copyset数量与集群规模有关，建议平均一个chunkserver上100个copyset，比如三台机器，每台20个盘的话是10*3*100=3000个copyset，除以三副本就是1000个
+         copysetnum: 300               // copyset数量与集群规模有关，建议平均一个chunkserver上100个copyset，比如三台机器，每台3个盘的话是3*3*100=900个copyset，除以三副本就是300个
          zonenum: 3
          scatterwidth: 0
+   ```
+   **group_vars/chunkservers.yml**
+   修改成机器上具体的磁盘的名字列表，数量不固定。
+   ```
+   disk_list:
+     - sda
+     - sdb
+     - sdc
+   ```
+   如果个别chunkserver的磁盘名字和其他的不同，需要单独拎出来放在host_vars下面。比如本例中，假设server1和server2上都是三个盘分别是sda，sdb，sdc和group_vars中的一致，而server3的是sdd，sde，sdf，sdg，那么需要在host_vars下面新增一个server3.yml，其中的内容为：
+   ```
+   disk_list:
+     - sdd
+     - sde
+     - sdf
+     - sdg
    ```
 
 4. 部署集群并启动服务
