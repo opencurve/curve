@@ -97,7 +97,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 
    有两种方式可以获得tar包：
       1. 从[github release页面](https://github.com/opencurve/curve/releases)下载稳定版本tar包
-      2. 自行通过编译环境打tar包，该方式可以让您体验测试最新代码：[编译开发环境搭建](docs/cn/build_and_run.md)
+      2. 自行通过编译环境打tar包，该方式可以让您体验测试最新代码：[编译开发环境搭建](build_and_run.md)
 
    ```
    # 如下几个tar包可替换为其他版本（如您采用方式2自行打包，则不需要下载，拷贝相关tar包即可），下载命令仅供参考
@@ -267,7 +267,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 
    有两种方式可以获得tar包：
       1. 从[github release页面](https://github.com/opencurve/curve/releases)下载稳定版本tar包
-      2. 自行通过编译环境打tar包，该方式可以让您体验测试最新代码：[编译开发环境搭建](docs/cn/build_and_run.md)
+      2. 自行通过编译环境打tar包，该方式可以让您体验测试最新代码：[编译开发环境搭建](build_and_run.md)
 
    ```
    # 如下几个tar包可替换为其他版本（如您采用方式2自行打包，则不需要下载，拷贝相关tar包即可），下载命令仅供参考

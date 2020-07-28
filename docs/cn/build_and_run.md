@@ -2,7 +2,7 @@
 # 编译环境搭建
 
 请注意：
-1. 如您只是想体验CURVE的部署流程和基本功能，**则不需要编译CURVE**，请参考[单机部署](docs/cn/deploy.md#%E5%8D%95%E6%9C%BA%E9%83%A8%E7%BD%B2)
+1. 如您只是想体验CURVE的部署流程和基本功能，**则不需要编译CURVE**，请参考[单机部署](deploy.md#%E5%8D%95%E6%9C%BA%E9%83%A8%E7%BD%B2)
 2. 本文档仅用来帮助你搭建CURVE代码编译环境，便于您参与CURVE的开发调试及打包测试
 
 ## 使用Docker进行编译（推荐方式）
@@ -37,7 +37,7 @@ git clone https://github.com/opencurve/curve.git 或者 git clone https://gitee.
 bash mk-tar.sh
 ```
 
-基于tar包的安装部署流程可参考：[集群部署](docs/cn/deploy.md)
+基于tar包的安装部署流程可参考：[集群部署](deploy.md)
 
 ## 在物理机上编译
 
@@ -74,7 +74,7 @@ opencurve 提供一键编译脚本，mk-tar.sh 生成所需的全部tar二进制
 bash ./mk-tar.sh
 ```
 
-基于tar包的安装部署流程可参考：[集群部署](docs/cn/deploy.md)
+基于tar包的安装部署流程可参考：[集群部署](deploy.md)
 
 特别的，由于curve内部版本使用在debian系统上，因此特别提供debian的版本，命令如下：
 
