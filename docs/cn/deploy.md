@@ -88,15 +88,19 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    $ pip install --upgrade setuptools
    ```
 4. 检查其他依赖，未安装的需要手动安装：net-tools, openssl-1.1.1, perf, perl-podlators, make, gcc6.1, libstdc++.so.6.22, libcurl
+
 #### 实施部署
 
 1. 切换到curve用户下执行以下操作
 
-2. 获取tar包并解压。有两种方式：从github下载tar包和自行打包
+2. 获取tar包并解压
 
-   2.1 从github下载tar包，如果想要部署release版本，则从github下载最新的tar包即可。**下面的命令仅供参考，tar包会经常更新，下面给出不一定是最新的**。
+   有两种方式可以获得tar包：
+      1. 从[github release页面](https://github.com/opencurve/curve/releases)下载稳定版本tar包
+      2. 自行通过编译环境打tar包，该方式可以让您体验测试最新代码：[编译开发环境搭建](docs/cn/build_and_run.md)
 
    ```
+   # 如下几个tar包可替换为其他版本（如您采用方式2自行打包，则不需要下载，拷贝相关tar包即可），下载命令仅供参考
    wget https://github.com/opencurve/curve/releases/download/v0.1.1/curve_0.1.1+4b930380.tar.gz
    wget https://github.com/opencurve/curve/releases/download/v0.1.1/nbd_0.1.1+4b930380.tar.gz
    wget https://github.com/opencurve/curve/releases/download/v0.1.1/nebd_0.1.1+4b930380.tar.gz
@@ -105,12 +109,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    tar zxvf nebd_0.1.1+4b930380.tar.gz
    cd curve/curve-ansible
    ```
-   2.2 如果想要部署代码仓库中最新代码的集群，则需要自行打包。打包的步骤为：
-   - cd到本地curve仓库
-   - 执行mk-tar.sh脚本
-   - 解压打出来的curve, nbd, nebd三个tar包
-   - cd curve/curve-ansible
-   
+
 3. 准备inventory文件
    - 在server.ini和client.ini的[all:vars]中增加ansible_connection=local
    - 如果是debian系统，则不需要改动，如果是CentOs系统，需要将client.ini和server.ini中的curve_lib_dir修改为/usr/lib64
@@ -264,11 +263,14 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 #### 实施部署
 1. 切换到curve用户下执行以下操作
 
-2. 获取tar包并解压。有两种方式：从github下载tar包和自行打包
+2. 获取tar包并解压
 
-   2.1 从github下载tar包，如果想要部署release版本，则从github下载最新的tar包即可。**下面的命令仅供参考，tar包会经常更新，下面给出不一定是最新的**。
+   有两种方式可以获得tar包：
+      1. 从[github release页面](https://github.com/opencurve/curve/releases)下载稳定版本tar包
+      2. 自行通过编译环境打tar包，该方式可以让您体验测试最新代码：[编译开发环境搭建](docs/cn/build_and_run.md)
 
    ```
+   # 如下几个tar包可替换为其他版本（如您采用方式2自行打包，则不需要下载，拷贝相关tar包即可），下载命令仅供参考
    wget https://github.com/opencurve/curve/releases/download/v0.1.1/curve_0.1.1+4b930380.tar.gz
    wget https://github.com/opencurve/curve/releases/download/v0.1.1/nbd_0.1.1+4b930380.tar.gz
    wget https://github.com/opencurve/curve/releases/download/v0.1.1/nebd_0.1.1+4b930380.tar.gz
@@ -277,11 +279,6 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    tar zxvf nebd_0.1.1+4b930380.tar.gz
    cd curve/curve-ansible
    ```
-   2.2 如果想要部署代码仓库中最新代码的集群，则需要自行打包。打包的步骤为：
-   - cd到本地curve仓库
-   - 执行mk-tar.sh脚本
-   - 解压打出来的curve, nbd, nebd三个tar包
-   - cd curve/curve-ansible
 
 3. 在中控机上修改配置文件
 
