@@ -73,6 +73,25 @@ cluster_map:
 如果是多机部署，则需要把internalport和externalport都设置成0。需要注意这里zone的数量要大于等于logicalpools里面指定的zonenum。
 logicalpools是逻辑池的列表，除了名字，需要指定它所属的物理池、类型、副本数量、copyset数量zone数量以及scatterwidth。目前的类型
 只支持0，page file类型。
+    如果需要格式化磁盘，则需要额外在group_vars/chunkservers.yml中指定磁盘的列表。比如：
+  disk_list:
+    - sda
+    - sdb
+    - sdc
+group_vars/chunkservers.yml中指定的变量是所有chunkserver共用的，如果某个chunkserver上的磁盘列表跟其他的不一致，则需要在host_vars
+中额外给出。比如server.ini中chunkserver是下面三台机器：
+[chunkservers]
+server1 ansible_ssh_host=10.192.100.1
+server2 ansible_ssh_host=10.192.100.2
+server3 ansible_ssh_host=10.192.100.3
+假设server1和server2对应的都是sda,sdb,sdc, server3使用的是sda,sdb,sdd,sde这四块盘。那么server1和server2的disk_list不需要在host_vars
+额外指出，而server3的disk_list需要额外指出。具体做法是在host_vars下面新建一个server3.yml。
+里面的内容为：
+  disk_list:
+    - sda
+    - sdb
+    - sdd
+    - sde
 
 1.1 部署etcd
 部署命令：
@@ -204,15 +223,19 @@ curve-sdk主要给cinder，nova等服务使用，只需要更新包和配置即�
 │   └── wait_copysets_status_healthy.yml                    # 在一段时间内循环检查copyset健康状态
 │   ├── wait_until_server_down.yml                          # 等待直到server停掉
 │   └── wait_until_server_up.yml                            # 等待直到server起来
-├── roles                                                   # roles也是用来存放可以复用的代码，一个role内的task存在关联
 ├── group_vars                                              # 组变量
 │   ├── all.yml                                             # 属于所有host的变量
+│   ├── chunkservers.yml                                    # 属于chunkserver的变量
 │   └── mds.yml                                             # 属于mds的变量
+├── host_vars                                               # 主机变量, 其中的文件名要合inventory中定义的主机名一致
+│   └── localhost.yml                                       # 属于localhost的变量，host_vars优先级高于group_vars
+├── roles                                                   # roles也是用来存放可以复用的代码，一个role内的task存在关联
 │   ├── format_chunkserver                                  # 用来格式化chunkserver的role
 │   │   ├── defaults
 │   │   │   └── main.yml                                    # 存放带默认值的变量
 │   │   └── tasks
 │   │       ├── include
+│   │       │   ├── prepare_chunkserver_with_disk_format.yml    # 使用格式化磁盘的方式准备data目录
 │   │       │   └── prepare_chunkserver_without_disk_format.yml # 使用非格式化磁盘的方式准备data目录
 │   │       └── main.yml
 │   ├── restart_service                                     # 用来重启服务的role
@@ -241,11 +264,16 @@ curve-sdk主要给cinder，nova等服务使用，只需要更新包和配置即�
 │   │   │   │   ├── install_curve-mds.yml                   # 安装mds
 │   │   │   │   ├── install_curve-nbd.yml                   # 安装nbd
 │   │   │   │   ├── install_curve-sdk.yml                   # 安装curve-sdk
+│   │   │   │   ├── install_curve-snapshotcloneserver-nginx.yml  # 安装快照克隆使用的Nginx
+│   │   │   │   ├── install_curve-snapshotcloneserver.yml   # 部署快照克隆
 │   │   │   │   ├── install_curve-tools.yml                 # 安装部署工具
+│   │   │   │   ├── install_daemon.yml                      # 安装daemon
 │   │   │   │   ├── install_deb_package.yml                 # 安装debian包
 │   │   │   │   ├── install_etcd.yml                        # 安装etcd
+│   │   │   │   ├── install_jemalloc.yml                    # 安装jemalloc
 │   │   │   │   ├── install_libuuid.yml                     # 安装libuuid
-│   │   │   │   ├── install_lib_with_source_code.yml        # 从源码安装库
+│   │   │   │   └── install_with_yum_apt.yml                # 用apt或yum的方式安装
+│   │   │   │   ├── install_with_source_code.yml            # 从源码安装
 │   │   │   │   └── install_nebd.yml                        # 安装nebd
 │   │   │   └── main.yml
 │   │   ├── templates                                       # 存放模板
@@ -253,7 +281,8 @@ curve-sdk主要给cinder，nova等服务使用，只需要更新包和配置即�
 │   │   │   ├── chunkserver_deploy.sh.j2                    # chunkserver格式化脚本的模板
 │   │   │   ├── etcd-daemon.sh.j2                           # etcd启动脚本的模板
 │   │   │   ├── mds-daemon.sh.j2                            # mds启动脚本的模板
-│   │   │   └── nebd-daemon.j2                              # nebd-server启动脚本的模板
+│   │   │   ├── nebd-daemon.j2                              # nebd-server启动脚本的模板
+│   │   │   └── snapshot-daemon.sh.j2                       # 快照克隆启动脚本模板
 │   │   └── vars
 │   │       └── main.yml
 │   ├── set_leader_and_follower_list                        # 设置leader和follower列表
@@ -292,7 +321,9 @@ curve-sdk主要给cinder，nova等服务使用，只需要更新包和配置即�
 │       │   │   ├── start_chunkserver.yml                  # 启动chunkserver
 │       │   │   ├── start_etcd.yml                         # 启动etcd
 │       │   │   ├── start_mds.yml                          # 启动mds
-│       │   │   └── start_nebd.yml                         # 启动nebd
+│       │   │   ├── start_nebd.yml                         # 启动nebd
+│       │   │   ├── start_snapshotcloneserver_nginx.yml    # 启动Nginx
+│       │   │   └── start_snapshotcloneserver.yml          # 启动快照克隆
 │       │   └── main.yml
 │       └── vars
 │           └── main.yml
@@ -312,6 +343,8 @@ curve-sdk主要给cinder，nova等服务使用，只需要更新包和配置即�
 ├── deploy_mds.yml                                          # 部署mds
 ├── deploy_nbd.yml                                          # 部署nbd
 ├── deploy_nebd.yml                                         # 部署nebd
+├── deploy_snapshotcloneserver_nginx.yml                    # 部署快照克隆所用Nginx
+├── deploy_snapshotcloneserver.yml                          # 部署快照克隆
 ├── README                                                  # 本帮助文档
 ├── client.ini                                              # client的inventory文件
 └── server.ini                                              # server的列表，包括mds，快照克隆，etcd，chunkserver

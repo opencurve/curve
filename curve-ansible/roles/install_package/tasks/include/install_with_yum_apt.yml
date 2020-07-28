@@ -15,21 +15,18 @@
 #  limitations under the License.
 #
 
-- name: determine if lib installed
-  ignore_errors: true
-  shell: /sbin/ldconfig -p | grep {{ lib_name }}
-  register: ldconfig_res
+- name: get distro name
+  vars:
+    distro:
+  include_tasks: common_tasks/get_distro_name.yml
 
-- name: set lib_installed true
-  set_fact:
-    lib_installed: true
-  when: ldconfig_res.stdout != ""
+- name: Debian/Ubuntu - install lib
+  shell: sudo apt-get -y install {{ apt_lib_name }}
+  when:
+    - "'Ubuntu' in distro or 'Debian' in distro"
 
-- name: set lib_installed false
-  set_fact:
-    lib_installed: false
-  when: ldconfig_res.stdout == ""
+- name: Redhat/CentOS - install lib
+  shell: sudo yum -y install {{ yum_lib_name }}
+  when:
+    - "'CentOS' in distro"
 
-- name: install lib if not installed
-  include_tasks: install_with_source_code.yml
-  when: not lib_installed

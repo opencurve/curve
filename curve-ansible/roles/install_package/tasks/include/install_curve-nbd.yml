@@ -17,15 +17,15 @@
 
 - name: install libunwind
   vars:
-    lib_name: libunwind
-    download_url: "{{ libunwind_download_url }}"
-  include_tasks: install_lib_with_source_code.yml
+    apt_lib_name: libunwind8 libunwind8-dev
+    yum_lib_name: libunwind libunwind-devel
+  include_tasks: install_with_yum_apt.yml
 
 - name: install libnl
   vars:
-    lib_name: libnl-3
-    download_url: "{{ libnl_download_url}}"
-  include_tasks: install_lib_with_source_code.yml
+    apt_lib_name: libnl-3-dev libnl-genl-3-dev
+    yum_lib_name: libnl3 libnl3-devel
+  include_tasks: install_with_yum_apt.yml
 
 - name: install nbd bin
   vars:
