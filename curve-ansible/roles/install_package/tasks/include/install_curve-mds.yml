@@ -23,8 +23,8 @@
 
 - name: install libuuid
   vars:
-    apt_lib_name: libunwind8 uuid-dev
-    yum_lib_name: libunwind libuuid-devel
+    apt_lib_name: libuuid1 uuid-dev
+    yum_lib_name: libuuid libuuid-devel
   include_tasks: install_with_yum_apt.yml
 
 - name: install daemon

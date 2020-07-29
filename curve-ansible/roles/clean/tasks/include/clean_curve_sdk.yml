@@ -15,16 +15,5 @@
 #  limitations under the License.
 #
 
-- name: install aws-sdk lib
-  vars:
-    remote_dir_name: "{{ curve_lib_dir }}"
-    local_file_path: "{{ local_aws_sdk_package_path }}/lib/"
-    file_mode: 0644
-  include_tasks: copy_file_to_remote.yml
-
-- name: install aws-sdk include
-  vars:
-    remote_dir_name: "{{ curve_include_dir }}"
-    local_file_path: "{{ local_aws_sdk_package_path }}/include/"
-    file_mode: 0644
-  include_tasks: copy_file_to_remote.yml
+- name: clean curve_sdk log dir
+  shell: sudo rm -rf {{ curve_sdk_log_dir }}

@@ -16,13 +16,214 @@
 #
 # The rolling update playbook of Curve
 
-# 滚动升级curve集群
+- name: check_ansible_version
+  tags:
+    - always
+  import_playbook: check_ansible_version.yml
 
-- name: rolling update mds
-  import_playbook: rolling_update_mds.yml
+############################## rolling update etcd ##############################
+- name: prepare etcd
+  hosts: etcd
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - etcd
+    - never
+  roles:
+    - { role: install_package, package_name: etcd, tags: install_etcd }
+    - { role: generate_config, template_name: etcd.conf.yml, conf_path: "{{ etcd_config_path }}", tags: update_etcd_config }
 
-- name: rolling update chunkserver
-  import_playbook: rolling_update_chunkserver.yml
+- name: set etcd leader and follower list
+  hosts: etcd
+  gather_facts: no
+  serial: 1
+  tags:
+    - etcd
+    - never
+  roles:
+    - { role: set_leader_and_follower_list, service_name: etcd }
 
-- name: rolling update snapshotclone
-  import_playbook: rolling_update_snapshotclone.yml
+- name: update follower and leader server in sequence
+  hosts: etcd_servers_followers, etcd_servers_leader
+  any_errors_fatal: true
+  gather_facts: no
+  serial: 1
+  become: true
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - etcd
+    - never
+  pre_tasks:
+    - pause:
+        prompt: "Confirm update etcd in {{ inventory_hostname }}. ENTER to continue or 'CTRL-C A' to quit"
+      when: need_confirm
+  roles:
+    - { role: restart_service, service_name: etcd, command_need_sudo: "{{ etcd_need_sudo }}"}
+
+############################## rolling update mds ##############################
+- name: prepare mds
+  hosts: mds
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - prepare
+    - mds
+  roles:
+    - { role: install_package, package_name: curve-mds, package_version: "{{ mds_package_version }}",
+            tags: ["install_package", "install_mds_package"] }
+    - { role: install_package, package_name: curve-tools, package_version: "{{ tool_package_version }}",
+            tags: ["install_package", "install_tool_package"] }
+    - { role: generate_config, template_name: mds.conf, conf_path: "{{ mds_config_path }}",
+            tags: ["generate_config", "generage_mds_conf"] }
+    - { role: generate_config, template_name: tools.conf, conf_path: "{{ tool_config_path }}",
+            tags: ["generate_config", "generage_tools_conf"] }
+    - { role: generate_config, template_name: topo.json, conf_path: "{{ topo_file_path }}",
+            tags: ["generate_config", "generage_topo_json"] }
+
+# 获取leader节点和follower节点
+- name: set mds leader and follower list
+  hosts: mds
+  gather_facts: no
+  serial: 1
+  tags:
+    - restart
+    - mds
+  roles:
+    - { role: set_leader_and_follower_list, service_name: mds }
+
+# 按顺序先升级follower节点，再升级leader节点
+- name: update follower and leader server in sequence
+  hosts: mds_servers_followers, mds_servers_leader
+  any_errors_fatal: true
+  gather_facts: no
+  serial: 1
+  become: true
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - restart
+    - mds
+  pre_tasks:
+    - pause:
+        prompt: "Confirm restart mds in {{ inventory_hostname }}. ENTER to continue or CTRL-C A to quit"
+      when: need_confirm
+    - vars:
+        package_version: "{{ mds_package_version }}"
+        software_version:
+      include_tasks: "common_tasks/get_software_version_from_package_version.yml"
+  # 重启mds
+  roles:
+    - { role: restart_service, service_name: mds, expected_curve_version: "{{ software_version }}",
+        command_need_sudo: "{{ mds_need_sudo }}"}
+
+
+############################## rolling update chunkserver ##############################
+# 1. 更新各节点上的配置
+- name: prepare chunkserver
+  hosts: chunkservers
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - prepare
+    - chunkserver
+  roles:
+    - { role: install_package, package_name: curve-chunkserver, package_version: "{{ cs_package_version }}",
+            tags: ["install_package", "install_chunkserver_package"] }
+    - { role: generate_config, template_name: chunkserver.conf, conf_path: "{{ chunkserver_conf_path }}",
+                tags: ["generate_config", "generage_chunkserver_conf"] }
+    - { role: generate_config, template_name: client.conf, conf_path: "{{ chunkserver_client_config_path }}",
+                tags: ["generate_config", "generage_chunkserver_conf"] }
+    - { role: generate_config, template_name: s3.conf, conf_path: "{{ chunkserver_s3_config_path }}",
+                tags: ["generate_config", "generage_s3_conf"] }
+
+# 逐个重启chunkserver，每重启完一个需要等待copyset健康
+# 继续操作下一个的的时候还需要一个命令行交互确认
+- name: restart chunkserver and wait healthy
+  hosts: chunkservers
+  any_errors_fatal: true
+  gather_facts: no
+  serial: 1
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - restart
+    - chunkserver
+  pre_tasks:
+    - pause:
+        prompt: "Confirm restart chunkserver in {{ inventory_hostname }}. ENTER to continue or CTRL-C A to quit"
+      when: need_confirm
+    - vars:
+        package_version: "{{ cs_package_version }}"
+        software_version:
+      include_tasks: "common_tasks/get_software_version_from_package_version.yml"
+  roles:
+    - { role: restart_service, service_name: chunkserver, expected_curve_version: "{{ software_version }}",
+        command_need_sudo: "{{ chunkserver_need_sudo }}"}
+  tasks:
+    - include_tasks: "common_tasks/wait_copysets_status_healthy.yml"
+
+############################## rolling update snapshotcloneserver ##############################
+
+- name: prepare snapshotcloneserver
+  hosts: snapshotclone
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - prepare
+    - snapshotclone
+  roles:
+    - { role: install_package, package_name: curve-snapshotcloneserver, package_version: "{{ snapshot_package_version }}",
+            tags: ["install_package", "install_snap_package"] }
+    - { role: generate_config, template_name: snapshot_clone_server.conf, conf_path: "{{ snapshot_config_path }}",
+            tags: ["generate_config", "generate_snap_conf"] }
+    - { role: generate_config, template_name: client.conf, conf_path: "{{ snap_client_config_path }}",
+            tags: ["generate_config", "generate_snap_client_conf"] }
+
+- name: set leader and follower list
+  hosts: snapshotclone
+  gather_facts: no
+  serial: 1
+  tags:
+    - restart
+    - snapshotclone
+  roles:
+    - { role: set_leader_and_follower_list, service_name: snapshot }
+
+- name: update follower and leader server in sequence
+  hosts: snapshot_servers_followers, snapshot_servers_leader
+  any_errors_fatal: true
+  gather_facts: no
+  serial: 1
+  become: true
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - restart
+    - snapshotclone
+  pre_tasks:
+    - pause:
+        prompt: "Confirm restart snapshotclone in {{ inventory_hostname }}. ENTER to continue or CTRL-C A to quit"
+      when: need_confirm
+    - vars:
+        package_version: "{{ mds_package_version }}"
+        software_version:
+      include_tasks: "common_tasks/get_software_version_from_package_version.yml"
+
+  # 重启snapshot clone
+  roles:
+    - { role: restart_service, service_name: snapshotclone, expected_curve_version: "{{ software_version }}",
+        command_need_sudo: "{{ snapshot_need_sudo }}" }
