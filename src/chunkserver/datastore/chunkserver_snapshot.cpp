@@ -143,7 +143,8 @@ CSErrorCode CSSnapshot::Open(bool createFile) {
     if (createFile
         && !lfs_->FileExists(snapshotPath)
         && metaPage_.sn > 0) {
-        char buf[pageSize_] = {0};
+        char buf[pageSize_];  // NOLINT
+        memset(buf, 0, sizeof(buf));
         metaPage_.encode(buf);
         int ret = chunkfilePool_->GetChunk(snapshotPath, buf);
         if (ret != 0) {
@@ -234,7 +235,8 @@ CSErrorCode CSSnapshot::Flush() {
 }
 
 CSErrorCode CSSnapshot::updateMetaPage(SnapshotMetaPage* metaPage) {
-    char buf[pageSize_] = {0};
+    char buf[pageSize_];  // NOLINT
+    memset(buf, 0, sizeof(buf));
     metaPage->encode(buf);
     int rc = writeMetaPage(buf);
     if (rc < 0) {
@@ -247,7 +249,8 @@ CSErrorCode CSSnapshot::updateMetaPage(SnapshotMetaPage* metaPage) {
 }
 
 CSErrorCode CSSnapshot::loadMetaPage() {
-    char buf[pageSize_] = {0};
+    char buf[pageSize_];  // NOLINT
+    memset(buf, 0, sizeof(buf));
     int rc = readMetaPage(buf);
     if (rc < 0) {
         LOG(ERROR) << "Error occured when reading metaPage_."

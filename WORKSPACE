@@ -143,13 +143,51 @@ bind(
 )
 
 new_local_repository(
-    name = "aws_sdk",
-    build_file = "bazel/aws-sdk.BUILD",
-    path = "thirdparties/aws-sdk/usr",
-)
-
-new_local_repository(
     name = "etcdclient",
     build_file = "bazel/etcdclient.BUILD",
     path = "thirdparties/etcdclient",
+)
+
+new_http_archive(
+    name = "aws",
+    urls = [
+        "https://github.com/aws/aws-sdk-cpp/archive/1.7.340.tar.gz",
+        "https://mirror.bazel.build/github.com/aws/aws-sdk-cpp/archive/1.7.340.tar.gz",
+    ],
+    sha256 = "2e82517045efb55409cff1408c12829d9e8aea22c1e2888529cb769b7473b0bf",
+    strip_prefix = "aws-sdk-cpp-1.7.340",
+    build_file = "//:thirdparties/aws/aws.BUILD",
+)
+
+new_http_archive(
+    name = "aws_c_common",
+    urls = [
+        "https://github.com/awslabs/aws-c-common/archive/v0.4.29.tar.gz",
+        "https://mirror.tensorflow.org/github.com/awslabs/aws-c-common/archive/v0.4.29.tar.gz",
+    ],
+    sha256 = "01c2a58553a37b3aa5914d9e0bf7bf14507ff4937bc5872a678892ca20fcae1f",
+    strip_prefix = "aws-c-common-0.4.29",
+    build_file = "//:thirdparties/aws/aws-c-common.BUILD",
+)
+
+new_http_archive(
+    name = "aws_c_event_stream",
+    urls = [
+        "https://github.com/awslabs/aws-c-event-stream/archive/v0.1.4.tar.gz",
+        "https://mirror.tensorflow.org/github.com/awslabs/aws-c-event-stream/archive/v0.1.4.tar.gz",
+    ],
+    sha256 = "31d880d1c868d3f3df1e1f4b45e56ac73724a4dc3449d04d47fc0746f6f077b6",
+    strip_prefix = "aws-c-event-stream-0.1.4",
+    build_file = "//:thirdparties/aws/aws-c-event-stream.BUILD",
+)
+
+new_http_archive(
+    name = "aws_checksums",
+    urls = [
+        "https://github.com/awslabs/aws-checksums/archive/v0.1.5.tar.gz",
+        "https://mirror.tensorflow.org/github.com/awslabs/aws-checksums/archive/v0.1.5.tar.gz",
+    ],
+    sha256 = "6e6bed6f75cf54006b6bafb01b3b96df19605572131a2260fddaf0e87949ced0",
+    strip_prefix = "aws-checksums-0.1.5",
+    build_file = "//:thirdparties/aws/aws-checksums.BUILD",
 )
