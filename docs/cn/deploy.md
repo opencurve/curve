@@ -2,16 +2,13 @@
 
 ## 概述
 
-ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook 功能编写的集群部署工具。本文档介绍如何快速上手体验 CURVE 分布式系统：1. 使用 curve-ansible 在单机上模拟生产环境部署步骤  2. 使用 curve-ansible 在多机上部署最小生产环境
+ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook 功能编写的集群部署工具。本文档介绍如何快速上手体验 CURVE 分布式系统：1. 使用 curve-ansible 在单机上模拟生产环境部署步骤  2. 使用 curve-ansible 在多机上部署最小生产环境。关于curve-ansible的更多用法和说明请参见[curve-ansible README](../../curve-ansible/README.md)
 
 ## 特别说明
 - curve默认会将相关的库安装到/usr/lib下面，如果是CentOS系统，需要将client.ini和server.ini中的curve_lib_dir修改为/usr/lib64
 - 一些外部依赖是通过源码的方式安装的，安装的过程中从github下载包可能会超时，这时可以选择重试或手动安装，jemalloc手动安装的话要保证configure的prefix与server.ini和client.ini的lib_install_prefix一致
 - 如果机器上开启了SElinux可能会报Aborting, target uses selinux but python bindings (libselinux-python) aren't installed，可以尝试安装libselinux-python，或者强行关闭selinux
-- deploy_curve.yml用于部署一个全新的集群，集群成功搭建后不能重复跑，因为会**扰乱集群**。想要清理集群的话需要手动停止mds，etcd，chunkserver并删掉/etcd目录（后续会完善清理脚本）。如果只是想启动服务的话，使用命令：
-   ```
-   ansible-playbook -i server.ini deploy_curve.yml --tags start
-   ```
+- deploy_curve.yml用于部署一个全新的集群，集群成功搭建后不能重复跑，因为会**扰乱集群**。可以选择**启动**集群或者**清理**集群后重新部署，详细用法见[curve-ansible README](../../curve-ansible/README.md)。
 - 部署的过程中，在chunkserver成功启动之前都可以任意重试，**chunkserver启动成功后重试**要额外注意，要带上--skip-tags format,因为这一步会把启动成功的chunkserver的数据给清理掉，从而扰乱集群。
 - 需要用到curve-nbd功能的话，对内核有两方面的要求：一是要支持nbd模块，可以modprobe nbd查看nbd模块是否存在。二是nbd设备的block size要能够被设置为4KB。经验证，通过[DVD1.iso](http://mirrors.163.com/centos/8/isos/x86_64/CentOS-8.2.2004-x86_64-dvd1.iso)完整安装的CentOs8，内核版本是4.18.0-193.el8.x86_64，满足这个条件，可供参考。
 
@@ -128,8 +125,8 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    ```
    1. 在 server.ini 中，填写s3_ak和s3_sk=替换成自己账号对应的
    2. 安装快照克隆服务
-      ansible-playbook -i server.ini deploy_snapshotcloneserver.yml
-      ansible-playbook -i server.ini deploy_snapshotcloneserver_nginx.yml
+      ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone
+      ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone_nginx
    ```
 
 6. 执行命令查看当前集群状态，主要看以下几个状态：
@@ -520,8 +517,8 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    ```
    1. 在 server.ini 中，填写s3_ak="" s3_sk="" disable_snapshot_clone=false
    2. 安装快照克隆服务
-      ansible-playbook -i server.ini deploy_snapshotcloneserver.yml
-      ansible-playbook -i server.ini deploy_snapshotcloneserver_nginx.yml
+      ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone
+      ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone_nginx
    ```
 
 6. 执行命令查看当前集群状态，主要看以下几个状态：
