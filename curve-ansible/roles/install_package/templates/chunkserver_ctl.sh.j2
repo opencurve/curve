@@ -154,7 +154,7 @@ function stop() {
     then
         echo "kill all chunkservers"
         killall curve-chunkserver
-        return $?
+        return 0
     fi
 
     if [ $1 -lt 0 ]

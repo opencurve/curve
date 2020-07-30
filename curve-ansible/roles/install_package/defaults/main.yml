@@ -25,7 +25,6 @@ local_mds_package_path: ../curve-mds
 mds_remote_tmp_dir: /tmp/mds
 mds_log_dir: /data/log/curve/mds
 local_chunkserver_package_path: ../curve-chunkserver
-local_aws_sdk_package_path: ../aws-sdk
 local_curve_sdk_package_path: ../curve-sdk
 local_nebd_package_path: ../../nebd-package
 local_nbd_package_path: ../../nbd-package

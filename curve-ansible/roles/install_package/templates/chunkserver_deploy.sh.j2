@@ -29,7 +29,7 @@ function deploy_prep {
     sed -i '/curvefs/d' /etc/fstab
     sed -i '/chunkserver/d' /etc/fstab
   fi
-#通过lsscsi的输出过滤出curve使用的数据盘，将数据盘挂载的目录都卸载掉，为下一步格式化磁盘做准备
+#将数据盘挂载的目录都卸载掉，为下一步格式化磁盘做准备
   for i in ${diskList[@]}
   do
     mntdir=`lsblk|grep $i|awk '{print $7}'`

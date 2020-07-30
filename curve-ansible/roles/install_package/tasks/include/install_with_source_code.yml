@@ -34,11 +34,11 @@
     src: "{{ get_url_result.dest }}"
     dest: "{{ download_dir }}"
   register: unarchive_result
-    
+
 - name: get unarcive dir
   shell: echo "{{ get_url_result.dest }}" | awk -F "." '{print $1}'
 
 - name: install
   shell: >
       chdir="{{ download_dir }}/{{ unarchive_result.files[0] }}"
-      sudo ./configure --prefix={{ prefix }} && sudo make && sudo make install
+      sudo ./configure --prefix={{ prefix }} && sudo make && sudo make PREFIX={{ prefix }} install

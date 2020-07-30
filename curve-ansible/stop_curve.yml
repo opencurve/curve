@@ -1,0 +1,93 @@
+---
+#
+#  Copyright (c) 2020 NetEase Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+# The deploy playbook of Curve
+
+- name: check_ansible_version
+  tags:
+    - always
+  import_playbook: check_ansible_version.yml
+
+############################## stop etcd ##############################
+- name: stop etcd
+  hosts: etcd
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - etcd
+  roles:
+    - { role: stop_service, service_name: etcd, command_need_sudo: "{{ etcd_need_sudo }}" }
+
+
+############################## stop mds ##############################
+- name: start mds
+  hosts: mds
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - mds
+  roles:
+    - { role: stop_service, service_name: mds, command_need_sudo: "{{ mds_need_sudo }}" }
+
+
+
+############################## stop chunkserver ##############################
+- name: start chunkserver
+  hosts: chunkservers
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - chunkserver
+  roles:
+    - { role: stop_service, service_name: chunkserver, command_need_sudo: "{{ chunkserver_need_sudo }}" }
+
+
+############################## stop snapshotcloneserver ##############################
+- name: stop snapshotcloneserver
+  hosts: snapshotclone
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - snapshotclone
+    - never
+  roles:
+    - { role: stop_service, service_name: snapshotcloneserver, command_need_sudo: "{{ snapshot_need_sudo }}"}
+
+############################## stop snapshotcloneserver-nginx ##############################
+- name: stop snapshotcloneserver_nginx
+  hosts: snapshotclone_nginx
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - snapshotclone_nginx
+    - never
+  roles:
+    - { role: stop_service, service_name: snapshotcloneserver_nginx }

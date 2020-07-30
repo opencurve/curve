@@ -16,13 +16,12 @@
 #
 
 - name: start snapshotcloneserver_nginx
-  shell:  sudo docker run -p {{ nginx_docker_external_port }}:{{ nginx_docker_internal_port }}
+  shell:  sudo docker run --name {{ snapshot_nginx_name }}
+            -p {{ nginx_docker_external_port }}:{{ nginx_docker_internal_port }}
             -v {{ snapshotcloneserver_nginx_dir }}/app:/usr/local/openresty/nginx/app
             -v {{ snapshotcloneserver_nginx_dir }}/conf:/usr/local/openresty/nginx/conf
             -v {{ snapshotcloneserver_nginx_dir }}/logs:/usr/local/openresty/nginx/logs
             -d hub.c.163.com/opencurve/nginx:latest
-  register: result
-  failed_when: result.rc != 0
 
 - name: wait until server is up
   ping_port: "{{ nginx_docker_external_port }}"

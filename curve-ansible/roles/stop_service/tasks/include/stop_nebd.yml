@@ -14,21 +14,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-# The rolling update playbook of Curve
 
-- name: check_ansible_version
-  tags:
-    - always
-  import_playbook: check_ansible_version.yml
+- name: set sudo
+  set_fact:
+    sudo: "sudo"
+  when: command_need_sudo
 
-- name: prepare curve-sdk
-  hosts: client
-  gather_facts: no
-  any_errors_fatal: true
-  tags:
-    - prepare
-  roles:
-    - { role: install_package, package_name: curve-sdk, package_version: "{{ sdk_package_version }}",
-            tags: ["install_package", "install_curve_sdk_package"] }
-    - { role: generate_config, template_name: client.conf, conf_path: "{{ client_config_path }}",
-            tags: ["generate_config", "sdk_package_version"] }
+- name: stop nebd
+  shell: chdir={{ deploy_dir }} {{ sudo }} nebd-daemon stop

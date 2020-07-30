@@ -16,9 +16,11 @@
 #
 # The rolling update playbook of Curve
 
-# 滚动升级nebd server
+- name: check_ansible_version
+  tags:
+    - always
+  import_playbook: check_ansible_version.yml
 
-# 1. 更新各节点上的配置
 - name: update config
   hosts: client
   gather_facts: no
@@ -30,7 +32,6 @@
     - { role: generate_config, template_name: nebd-client.conf, conf_path: "{{ nebd_client_config_path }}" }
     - { role: generate_config, template_name: nebd-server.conf, conf_path: "{{ nebd_server_config_path }}" }
 
-# 2. 更新各节点上的包
 - name: update package
   hosts: client
   gather_facts: no
@@ -38,12 +39,10 @@
   tags:
     - update_package
   tasks:
-    # 更新nebd包
     - vars:
         update_component: "nebd={{ nebd_package_version }}"
       include_tasks: "common_tasks/update_package.yml"
 
-# 3、重启nebd server
 - name: restart nebd server
   hosts: client
   gather_facts: no
@@ -59,8 +58,6 @@
         package_version: "{{ nebd_package_version }}"
         software_version:
       include_tasks: "common_tasks/get_software_version_from_package_version.yml"
-
-  # 重启nebd server
   roles:
     - { role: restart_service, service_name: nebd, expected_nebd_version: "{{ software_version }}",
         command_need_sudo: "{{ nebd_need_sudo }}" }
