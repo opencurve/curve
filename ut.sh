@@ -1,5 +1,5 @@
 #!/bin/bash
-WORKSPACE="/home/nbs/jenkins/workspace/opencurve_multijob/"
+WORKSPACE="/var/lib/jenkins/workspace/curve/curve_multijob/"
 sudo mkdir /var/lib/jenkins/log/curve_unittest/$BUILD_NUMBER
 set -e
 ulimit -a
