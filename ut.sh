@@ -1,5 +1,5 @@
 #!/bin/bash
-WORKSPACE="/var/lib/jenkins/workspace/curve/curve_multijob/"
+WORKSPACE="/home/nbs/jenkins/workspace/opencurve_multijob/"
 sudo mkdir /var/lib/jenkins/log/curve_unittest/$BUILD_NUMBER
 set -e
 ulimit -a
@@ -10,10 +10,10 @@ ps -ef | grep mds | grep -v grep | awk '{print $2}' | sudo xargs kill -9 || true
 ps -ef | grep etcd | grep -v grep | awk '{print $2}' | sudo xargs kill -9 || true
 ps -ef | grep test | grep -v grep | awk '{print $2}' | sudo xargs kill -9 || true
 
-if [ -f /etcdclient/libetcdclient.h ] && [ -f /etcdclient/libetcdclient.so ]
+if [ -f /home/nbs/etcdclient/libetcdclient.h ] && [ -f /home/nbs/etcdclient/libetcdclient.so ]
 then
-    cp /etcdclient/libetcdclient.h ${WORKSPACE}thirdparties/etcdclient
-    cp /etcdclient/libetcdclient.so ${WORKSPACE}thirdparties/etcdclient
+    cp /home/nbs/etcdclient/libetcdclient.h ${WORKSPACE}thirdparties/etcdclient
+    cp /home/nbs/etcdclient/libetcdclient.so ${WORKSPACE}thirdparties/etcdclient
 else
     cd ${WORKSPACE}thirdparties/etcdclient && make all
     #sudo cp /curve/curve_multijob/thirdparties/etcdclient/libetcdclient.so /usr/lib/
