@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf8 -*-
+
 #
 #  Copyright (c) 2020 NetEase Inc.
 #
@@ -14,8 +17,6 @@
 #  limitations under the License.
 #
 
-#!/usr/bin/env python
-# -*- coding: utf8 -*-
 # 检测磁盘上disk.meta中记录的uuid与当前磁盘的实际uuid是否相符合
 # 如果不符合, 更新为当前的uuid
 

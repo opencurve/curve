@@ -92,7 +92,7 @@ class MDSTest : public ::testing::Test {
     brpc::Channel channel_;
     pid_t etcdPid;
     const std::string kMdsAddr = "127.0.0.1:10031";
-    char kEtcdAddr[20] = { "127.0.0.1:10032" };
+    char kEtcdAddr[20] = "127.0.0.1:10032";
     const int kDummyPort = 10034;
 };
 

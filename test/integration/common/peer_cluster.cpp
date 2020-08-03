@@ -71,7 +71,7 @@ int PeerCluster::StartPeer(const Peer &peer,
         return -1;
     }
 
-    std::unique_ptr<PeerNode> peerNode = std::make_unique<PeerNode>();
+    std::unique_ptr<PeerNode> peerNode(new PeerNode());
 
     peerNode->peer = peer;
 
@@ -303,7 +303,7 @@ const std::string PeerCluster::RemoveCopysetLogDirCmd(const Peer &peer,
     butil::string_printf(&cmd,
                          "rm -fr %d/copysets/%s",
                          peerId.addr.port,
-                         ToGroupIdString(logicPoolID, copysetID));
+                         ToGroupIdString(logicPoolID, copysetID).c_str());
     return cmd;
 }
 

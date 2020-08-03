@@ -103,7 +103,7 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     copysetDirPath_.append("/").append(groupId);
     fs_ = options.localFileSystem;
     CHECK(nullptr != fs_) << "local file sytem is null";
-    epochFile_ = std::make_unique<ConfEpochFile>(fs_);
+    epochFile_.reset(new ConfEpochFile(fs_));
 
     chunkDataRpath_ = RAFT_DATA_DIR;
     chunkDataApath_.append("/").append(RAFT_DATA_DIR);

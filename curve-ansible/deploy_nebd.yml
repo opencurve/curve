@@ -16,9 +16,11 @@
 #
 # The deploy playbook of Curve
 
-# 部署nebd
+- name: check_ansible_version
+  tags:
+    - always
+  import_playbook: check_ansible_version.yml
 
-# 1. 准备包和配置文件
 - name: prepare nebd
   hosts: client
   gather_facts: no
@@ -27,12 +29,11 @@
     - prepare
   roles:
     - { role: install_package, package_name: nebd, package_version: "{{ nebd_package_version }}",
-            tags: ["install_package", "install_nebd_package"] }
+            tags: ["install_package"] }
     - { role: generate_config, template_name: client.conf, conf_path: "{{ client_config_path }}" }
     - { role: generate_config, template_name: nebd-client.conf, conf_path: "{{ nebd_client_config_path }}" }
     - { role: generate_config, template_name: nebd-server.conf, conf_path: "{{ nebd_server_config_path }}" }
 
-# 2、启动nebd server
 - name: start nebd server
   hosts: client
   gather_facts: no

@@ -1,3 +1,5 @@
+#!/bin/sh
+
 #
 #  Copyright (c) 2020 NetEase Inc.
 #
@@ -14,7 +16,6 @@
 #  limitations under the License.
 #
 
-#!/bin/sh
 dir=`pwd`
 #step1 清除生成的目录和文件
 bazel clean
@@ -55,17 +56,25 @@ cd ${dir}
 
 cp ${dir}/thirdparties/etcdclient/libetcdclient.h ${dir}/include/etcdclient/etcdclient.h
 
+if [ `gcc -dumpversion | awk -F'.' '{print $1}'` -le 6 ]
+then
+    bazelflags=''
+else
+    bazelflags='--copt -faligned-new'
+fi
+
 if [ "$1" = "debug" ]
 then
 bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
--Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${tag_version}
+-Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${tag_version} \
+--linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
 	echo "build phase1 failed"
 	exit
 fi
-sh ./curvefs_python/configure.sh
+bash ./curvefs_python/configure.sh
 if [ $? -ne 0 ]
 then
 	echo "configure failed"
@@ -75,7 +84,8 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --compilation_mode=dbg 
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
 --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
--L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${tag_version}
+-L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${tag_version} \
+--linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
 	echo "build phase2 failed"
@@ -84,13 +94,14 @@ fi
 else
 bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
--Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${tag_version}
+-Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${tag_version} \
+--linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
 	echo "build phase1 failed"
 	exit
 fi
-sh ./curvefs_python/configure.sh
+bash ./curvefs_python/configure.sh
 if [ $? -ne 0 ]
 then
 	echo "configure failed"
@@ -100,7 +111,8 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --copt -O2 -s \
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
 --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
--L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${tag_version}
+-L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${tag_version} \
+--linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
 	echo "build phase2 failed"
@@ -297,24 +309,6 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
-# aws
-mkdir -p build/curve/aws-sdk
-if [ $? -ne 0 ]
-then
-	exit
-fi
-cp -r thirdparties/aws-sdk/usr/include \
-build/curve/aws-sdk/
-if [ $? -ne 0 ]
-then
-	exit
-fi
-cp -r thirdparties/aws-sdk/usr/lib \
-build/curve/aws-sdk/
-if [ $? -ne 0 ]
-then
-	exit
-fi
 # ansible
 cp -r curve-ansible build/curve/
 if [ $? -ne 0 ]
@@ -419,6 +413,6 @@ done
 # 替换curvefs setup.py中的版本号
 sed -i "s/version-anchor/${tag_version}+${commit_id}${debug}/g" setup.py
 
-python setup.py bdist_wheel
+python2 setup.py bdist_wheel
 cp dist/*whl $dir
 echo "end make python whell"

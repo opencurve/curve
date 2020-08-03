@@ -36,7 +36,7 @@ cc_library(
             "@com_google_googletest//:gtest",
             "//src/chunkserver/datastore:chunkserver_datastore",
             ],
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     visibility = ["//visibility:public"],
 )
 
@@ -50,7 +50,7 @@ cc_test(
         "file_helper_unittest.cpp",
     ],
     includes = ([]),
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = [
         "@com_google_googletest//:gtest",
         "//external:braft",

@@ -58,7 +58,7 @@ cc_library(
         "chunkserver_test_util.h",
         "chunkserver_test_util.cpp",
     ]),
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     visibility = ["//visibility:public"],
     deps = DEPS,
 )
@@ -73,21 +73,21 @@ cc_test(
         "inflight_throttle_test.cpp",
         "concurrent_apply_unittest.cpp",
     ]),
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = DEPS,
 )
 
 cc_test(
     name = "copyset-node-manager-test",
     srcs = ["copyset_node_manager_test.cpp"],
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = DEPS,
 )
 
 cc_test(
     name = "chunk-service-test",
     srcs = ["chunk_service_test.cpp"],
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     linkopts = [
         "-luuid",
     ],
@@ -98,7 +98,7 @@ cc_test(
 cc_test(
     name = "chunk-service-test2",
     srcs = ["chunk_service_test2.cpp"],
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     linkopts = [
         "-luuid",
     ],
@@ -109,7 +109,7 @@ cc_test(
 cc_test(
     name = "copyset-epoch-test",
     srcs = ["copyset_epoch_test.cpp"],
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     linkopts = [
         "-luuid",
     ],
@@ -120,7 +120,7 @@ cc_test(
 cc_test(
     name = "chunk-snapshot-test",
     srcs = ["chunkserver_snapshot_test.cpp"],
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = DEPS
          + ["//test/chunkserver:chunkserver-test-util-lib"],
 )
@@ -128,7 +128,7 @@ cc_test(
 cc_test(
     name = "cli-test",
     srcs = ["cli_test.cpp"],
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = DEPS
          + ["//test/chunkserver:chunkserver-test-util-lib"],
 )
@@ -136,7 +136,7 @@ cc_test(
 cc_test(
     name = "cli2-test",
     srcs = ["cli2_test.cpp"],
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     linkopts = [
         "-luuid",
     ],
@@ -147,7 +147,7 @@ cc_test(
 cc_test(
     name = "braftcliservice-test",
     srcs = ["braft_cli_service_test.cpp"],
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = DEPS
          + ["//test/chunkserver:chunkserver-test-util-lib"],
 )
@@ -155,7 +155,7 @@ cc_test(
 cc_test(
     name = "braftcliservice2-test",
     srcs = ["braft_cli_service2_test.cpp"],
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     linkopts = [
         "-luuid",
     ],
@@ -169,7 +169,7 @@ cc_binary(
     srcs = [
         "server.cpp",
     ],
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = DEPS,
 )
 
@@ -177,7 +177,7 @@ cc_binary(
 cc_binary(
     name = "client-test",
     srcs = ["client.cpp"],
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = DEPS
          + ["//test/chunkserver:chunkserver-test-util-lib"],
 )
@@ -196,7 +196,7 @@ cc_test(
         "chunkserver_test.cpp",
         "trash_test.cpp",
     ],
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = DEPS
          + ["//test/client/fake:fake_lib"]
          + ["//test/chunkserver:chunkserver-test-util-lib"],
@@ -249,6 +249,6 @@ cc_test(
     srcs = glob([
         "metrics_test.cpp",
     ]),
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = DEPS,
 )

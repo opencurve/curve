@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #
 #  Copyright (c) 2020 NetEase Inc.
 #
@@ -14,7 +16,6 @@
 #  limitations under the License.
 #
 
-#!/bin/bash
 dir=`pwd`
 #step1 清除生成的目录和文件
 bazel clean
@@ -429,11 +430,6 @@ dpkg-deb -b build/curve-snapshotcloneserver .
 dpkg-deb -b build/curve-nginx .
 dpkg-deb -b build/nebd-package .
 dpkg-deb -b build/nbd-package .
-#aws-c-common(commit=0302570a3cbabd98293ee03971e0867f28355086)
-#aws-checksums(commit=78be31b81a2b0445597e60ecb2412bc44e762a99)
-#aws-c-event-stream(commit=ad9a8b2a42d6c6ef07ccf251b5038b89487eacb3)
-#aws-sdk-cpp(commit=2330d84a30ac32ad04d4fb9baf88cda4f8b9b190)
-dpkg-deb -b thirdparties/aws-sdk .
 
 #step6 清理libetcdclient.so编译出现的临时文件
 cd ${dir}/thirdparties/etcdclient
@@ -462,5 +458,5 @@ done
 # 替换curvefs setup.py中的版本号
 sed -i "s/version-anchor/${tag_version}+${commit_id}${debug}/g" setup.py
 
-python setup.py bdist_wheel
+python2 setup.py bdist_wheel
 cp dist/*whl $dir

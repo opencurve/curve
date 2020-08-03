@@ -14,6 +14,13 @@ function do_confirm {
   fi
 }
 
+{% set dlist=[] -%}
+{% for disk in disk_list -%}
+  {% set _ = dlist.append("%s" % (disk)) -%}
+{% endfor -%}
+
+diskList=({{ dlist | join(' ') }})
+
 function deploy_prep {
 #清理/etc/fstab残留信息
   grep curvefs /etc/fstab
@@ -22,8 +29,8 @@ function deploy_prep {
     sed -i '/curvefs/d' /etc/fstab
     sed -i '/chunkserver/d' /etc/fstab
   fi
-#通过lsscsi的输出过滤出curve使用的数据盘，将数据盘挂载的目录都卸载掉，为下一步格式化磁盘做准备
-  for i in `lsscsi |grep ATA|awk '{print $7}'|awk -F"/" '{print $3}'`
+#将数据盘挂载的目录都卸载掉，为下一步格式化磁盘做准备
+  for i in ${diskList[@]}
   do
     mntdir=`lsblk|grep $i|awk '{print $7}'`
     if [ -z $mntdir ]
@@ -36,7 +43,7 @@ function deploy_prep {
     if [ $? -ne 0 ]
     then
       echo "umount $mntdir failed"
-      exit
+      exit 1
     fi
   done
 }
@@ -45,7 +52,7 @@ function deploy_prep {
 declare -A disk_map
 diskinfo=./diskinfo
 function record_diskinfo {
-  for i in `lsblk -O|grep ATA|awk '{print $1}'`
+  for i in ${diskList[@]}
   do
     wwn=`lsblk -O|grep ATA|grep $i|awk '{print $32}'`
     disk_map["$i"]=$wwn
@@ -69,12 +76,12 @@ function chunk_dir_prep {
     if [ $? -ne 0 ]
     then
     echo "rm $dataDir failed"
-    exit
+    exit 1
     fi
   fi
   mkdir -p ${dataDir}
-  echo $((${#disk_map[@]}-1))
-  for i in `seq 0 $((${#disk_map[@]}-1))`
+  echo $((${#diskList[@]}-1))
+  for i in `seq 0 $((${#diskList[@]}-1))`
   do
     mkdir -p ${dataDir}/chunkserver$i
     mkdir -p ${dataDir}/log/chunkserver$i
@@ -83,7 +90,7 @@ function chunk_dir_prep {
 {% endraw %}
 #格式化磁盘文件系统
 function disk_format {
-  for disk in ${!disk_map[@]}
+  for disk in ${diskList[@]}
   do
     echo $disk
     mkfs.ext4 -F /dev/$disk 2>&1 > /dev/null &
@@ -105,13 +112,13 @@ function mount_dir {
   done
 
   j=0
-  for i in `cat $diskinfo |awk '{print $1}'|awk -F":" '{print $2}'`
+  for i in ${diskList[@]}
   do
   mount /dev/$i $dataDir/chunkserver$j
     if [ $? -ne 0 ]
     then
       echo "mount $i failed"
-      exit
+      exit 1
     fi
     ((j++));
   done
@@ -174,7 +181,6 @@ function usage {
 
 function deploy_all {
     deploy_prep;
-    record_diskinfo;
     chunk_dir_prep;
     disk_format;
     mount_dir;
@@ -186,39 +192,25 @@ function deploy_all {
 function deploy_one {
   local diskname=$1
   local dirname=$2
-  #磁盘不存在
-  lsscsi|grep -w $diskname
-  if [ $? -ne 0 ]
-  then
-    echo "$diskname is not exist!"
-    exit
-  fi
   #目录不存在
   if [ ! -d $dirname ]
   then
     echo "$dirname is not exist!"
-    exit
+    exit 1
   fi
   #磁盘正在挂载使用
   mount | grep -w $diskname
   if [ $? -eq 0 ]
   then
     echo "$diskname is being used"
-    exit
+    exit 1
   fi
   #目录正在挂载使用
   mount | grep -w $dirname
   if [ $? -eq 0 ]
   then
     echo "$dirname is being used"
-    exit
-  fi
-  #排除一下系统盘(目前都是通过ATA字段区分，后续硬件环境变动可能需要修改)
-  lsscsi|grep -v ATA|grep -w $diskname
-  if [ $? -eq 0 ]
-  then
-    echo "$diskname is system bootdisk, you can not use it!"
-    exit
+    exit 1
   fi
   mkfs.ext4 -F $diskname 2>&1 > /dev/null &
   while [ 1 ]
@@ -232,7 +224,6 @@ function deploy_one {
     fi
     break
   done
-  record_diskinfo;
   mount $diskname $dirname
   lsblk > ./mount.info
   #更新fstab
@@ -241,7 +232,7 @@ function deploy_one {
   if [ $? -ne 0 ]
   then
     echo "$short_diskname is not exist"
-    exit
+    exit 1
   fi
   uuid=`ls -l /dev/disk/by-uuid/|grep -w ${short_diskname}|awk '{print $9}'`
   line_num=`grep -n $dirname /etc/fstab`

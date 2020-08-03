@@ -184,7 +184,8 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
     if (createFile
         && !lfs_->FileExists(chunkFilePath)
         && metaPage_.sn > 0) {
-        char buf[pageSize_] = {0};
+        char buf[pageSize_];  // NOLINT
+        memset(buf, 0, sizeof(buf));
         metaPage_.encode(buf);
         int rc = chunkfilePool_->GetChunk(chunkFilePath, buf);
         // 并发创建文件时，可能前面线程已经创建成功，那么这里会返回-EEXIST
@@ -763,7 +764,8 @@ bool CSChunkFile::needCow(SequenceNum sn) {
 }
 
 CSErrorCode CSChunkFile::updateMetaPage(ChunkFileMetaPage* metaPage) {
-    char buf[pageSize_] = {0};
+    char buf[pageSize_];  // NOLINT
+    memset(buf, 0, sizeof(buf));
     metaPage->encode(buf);
     int rc = writeMetaPage(buf);
     if (rc < 0) {
@@ -776,7 +778,8 @@ CSErrorCode CSChunkFile::updateMetaPage(ChunkFileMetaPage* metaPage) {
 }
 
 CSErrorCode CSChunkFile::loadMetaPage() {
-    char buf[pageSize_] = {0};
+    char buf[pageSize_];  // NOLINT
+    memset(buf, 0, sizeof(buf));
     int rc = readMetaPage(buf);
     if (rc < 0) {
         LOG(ERROR) << "Error occured when reading metaPage_."

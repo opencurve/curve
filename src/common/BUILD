@@ -30,7 +30,7 @@ COPTS = [
     "-Woverloaded-virtual",
     "-Wnon-virtual-dtor",
     "-Wno-missing-field-initializers",
-    "-std=c++14",
+    "-std=c++11",
 ]
 
 cc_library(
@@ -88,6 +88,6 @@ cc_library(
     deps = [
         "//external:glog",
         "//src/common:curve_common",
-        "@aws_sdk//:aws_sdk",
+        "@aws",
     ],
 )

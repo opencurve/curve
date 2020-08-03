@@ -33,7 +33,7 @@ cc_test(
         "datastore_integration_main.cpp",
     ]),
     includes = ([]),
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = DEPS,
 )
 
@@ -45,7 +45,7 @@ cc_test(
         "datastore_integration_main.cpp",
     ]),
     includes = ([]),
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = DEPS,
 )
 
@@ -57,7 +57,7 @@ cc_test(
         "datastore_integration_main.cpp",
     ]),
     includes = ([]),
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = DEPS,
 )
 
@@ -69,7 +69,7 @@ cc_test(
         "datastore_integration_main.cpp",
     ]),
     includes = ([]),
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = DEPS,
 )
 
@@ -81,7 +81,7 @@ cc_test(
         "datastore_integration_main.cpp",
     ]),
     includes = ([]),
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = DEPS,
 )
 
@@ -93,7 +93,7 @@ cc_test(
         "datastore_integration_main.cpp",
     ]),
     includes = ([]),
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = DEPS,
 )
 
@@ -105,6 +105,6 @@ cc_test(
         "datastore_integration_main.cpp",
     ]),
     includes = ([]),
-    copts = ["-std=c++14"],
+    copts = ["-std=c++11"],
     deps = DEPS,
 )
