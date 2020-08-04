@@ -30,20 +30,19 @@ namespace mds {
 namespace topology {
 
 struct TopologyOption {
-    // topology更新至数据库时间间隔
+    // time interval that topology data updated to database
     uint32_t TopologyUpdateToRepoSec;
-    // 创建copyset rpc超时时间
+    // timeout peroid of RPC for copyset creation (in ms)
     uint32_t CreateCopysetRpcTimeoutMs;
-    // 创建copyset rpc超时重试次数
+    // retry times after timeout of RPC for copyset creation
     uint32_t CreateCopysetRpcRetryTimes;
-    // 创建copyset rpc超时重试时间间隔
+    // time interval of retries (in ms)
     uint32_t CreateCopysetRpcRetrySleepTimeMs;
-    // 更新topology metric 时间间隔
+    // time interval for updating topology metric
     uint32_t UpdateMetricIntervalSec;
-    //  物理池使用百分比，
-    //  即使用量超过这个值即不再往这个池分配
+    // threshold of maximum usage of a physical pool
     uint32_t PoolUsagePercentLimit;
-    // ChoosePoolPolicy
+    // policy of pool choosing
     int choosePoolPolicy;
 
     TopologyOption()

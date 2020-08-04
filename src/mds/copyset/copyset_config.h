@@ -28,18 +28,18 @@ namespace mds {
 namespace copyset {
 
 /**
- * @brief copyset模块配置项
+ * @brief copyset module configuration
  */
 struct CopysetOption {
-    // 生成copyset算法重试次数
+    // retry times of copyset creation
     int copysetRetryTimes;
-    // scatterWidth方差
+    // variance of scatterWidth
     double scatterWidthVariance;
-    // scatterWidth标准差
+    // standard deviation of scatterWidth
     double scatterWidthStandardDevation;
-    // scatterWidth极差
+    // range of scatterWidth
     double scatterWidthRange;
-    // 偏离均值的百分比
+    // floating percentage of scatterwidth
     double scatterWidthFloatingPercentage;
 
     CopysetOption()
