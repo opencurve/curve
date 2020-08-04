@@ -150,7 +150,7 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
             // memory of replica will be free by proto
             copysetConf->set_allocated_configchangeitem(replica);
         }
-
+        
         for (auto peer : recordCopySetInfo.GetCopySetMembers()) {
             std::string addPeer = BuildPeerByChunkserverId(peer);
             if (addPeer.empty()) {
