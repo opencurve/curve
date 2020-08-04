@@ -25,6 +25,7 @@
 #include "src/mds/server/mds.h"
 #include "src/mds/common/mds_define.h"
 
+// (argument name, default value, description)
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
 DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds listen addr");
 DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd client");
@@ -86,7 +87,7 @@ void LoadConfigFromCmdline(Configuration *conf) {
 
 
 int main(int argc, char **argv) {
-    // 初始化配置
+    // config initialization
     google::ParseCommandLineFlags(&argc, &argv, false);
     std::string confPath = FLAGS_confPath.c_str();
     auto conf = std::make_shared<Configuration>();
@@ -102,27 +103,27 @@ int main(int argc, char **argv) {
         }
     }
 
-    // 初始化日志模块
+    // initialize logging module
     google::InitGoogleLogging(argv[0]);
 
     curve::mds::MDS mds;
 
-    // 初始化各个选项
+    // initialize MDS options
     mds.InitMdsOptions(conf);
 
-    // 启动 MDS DummyServer用于主从MDS探活及Metric导出
+    // start MDS dummy server for master-slave liveness probe and Metric exportation of MDS
     mds.StartDummy();
 
-    // Master 竞选
+    // leader election (for leader MDS)
     mds.StartCompaginLeader();
 
-    // 选举成功进行初始化所有模块
+    // initialize other modules after master selection
     mds.Init();
 
-    // 启动对外服务
+    // start mds service
     mds.Run();
 
-    // 停止server和后台线程
+    // stop server and background threads
     mds.Stop();
 
     google::ShutdownGoogleLogging();

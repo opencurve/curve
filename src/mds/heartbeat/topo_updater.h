@@ -38,10 +38,11 @@ class TopoUpdater {
     explicit TopoUpdater(std::shared_ptr<Topology> topo) : topo_(topo) {}
     ~TopoUpdater() {}
 
-    /*
-    * @brief UpdateTopo 根据reportCopySetInfo的信息，更新topology中copyset的
-    *                    epoch, 副本关系， 统计信息等; leader copyset调用
-    * @param[in] reportCopySetInfo chunkserver上报的copyset信息
+   /*
+    * @brief UpdateTopo this function will be called by leader copyset
+    *                  for updating copyset epoch, copy relationship and statistical
+    *                  data according to reportCopySetInfo 
+    * @param[in] reportCopySetInfo copyset info reported by chunkserver
     */
     void UpdateTopo(const CopySetInfo &reportCopySetInfo);
 

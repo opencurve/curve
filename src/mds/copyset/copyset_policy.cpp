@@ -118,16 +118,18 @@ void CopysetZoneShufflePolicy::GetMinCopySetFromScatterWidth(
     int scatterWidth,
     int numReplicas,
     int *min) {
-    // scatter-width S 所需的copyset数估算:
-    // 1. 每轮permutation 产生 N/R个copyset
-    // 2. 每次permutation最多增加R-1个scatter-width
-    // 那么至少需要P = S/(R—1) 次permutation，
-    // 至少需要产生(S/(R-1))(N/R)个copyset。
-    // 因此，copyset的下限是(S/(R-1))(N/R)
-    // 其中，N为chunkserver num， R为replica num。
+
+    // estimation of copyset number needed for scatter width S
+    // 1. N/R copysets generated every permutation
+    // 2. for every permutation scatter width grow R-1 at most
+    // so we need at lease P = S/(R—1) permutations,
+    // and (S/(R-1))(N/R) copysets are generated.
+    // thus the lower bound of copyset number is (S/(R-1))(N/R)
+    
     *min = scatterWidth * numChunkServers / numReplicas / (numReplicas - 1);
 }
 
+// 这个函数的意义何在？
 int CopysetZoneShufflePolicy::GetMaxPermutationNum(int numCopysets,
     int numChunkServers,
     int numReplicas) {
@@ -135,10 +137,10 @@ int CopysetZoneShufflePolicy::GetMaxPermutationNum(int numCopysets,
 }
 
 /**
- * @brief  N个zone中选择X个zone放置X副本的随机排列算法
+ * @brief  a random permutation algorithm for selecting X zones for placing X replicas from N zones
  *
- *  1. 首先对所有zone的server各自进行随机排列，
- *  2. 之后按照如下顺序依次选择：
+ *  1. first we shuffle all servers in every zone
+ *  2. then we choose servers in following order:
  *
  *  zone1    zone2    zone3    zone4   ...  zoneN
  *   1        2        3         4     ...    N
@@ -165,7 +167,6 @@ bool CopysetPermutationPolicyNXX::permutation(
             csMap[zid] = temp;
         }
     }
-
     if (csMap.size() < GetZoneChosenNum()) {
         LOG(ERROR) << "[CopysetPermutationPolicyNXX::permutation]:"
                    << "error, cluster must has more than "

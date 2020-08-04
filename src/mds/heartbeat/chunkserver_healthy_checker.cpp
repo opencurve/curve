@@ -39,18 +39,17 @@ void ChunkserverHealthyChecker::CheckHeartBeatInterval() {
     ::curve::common::WriteLockGuard lk(hbinfoLock_);
     auto iter = heartbeatInfos_.begin();
     while (iter != heartbeatInfos_.end()) {
-        // 检测状态是否需要更新
+        // Check whether status need to be updated
         OnlineState newState;
         bool needUpdate = ChunkServerStateNeedUpdate(iter->second, &newState);
 
-        // 将chunkserver的状态更新到topology中
+        // update chunkserver status to topology
         if (needUpdate) {
             UpdateChunkServerOnlineState(iter->first, newState);
             iter->second.state = newState;
         }
-
-        // 如果是offline状态，并且chunkserver上没有copyset，设置为retired状态
-        // 一般换盘的场景会出现
+        // If a chunkserver is offline and contain no copyset, it will be set to retired status
+        // Function usually called when a disk need to be switched
         bool iterNeedMove = TrySetChunkServerRetiredIfNeed(iter->second);
         if (iterNeedMove) {
             iter = heartbeatInfos_.erase(iter);
@@ -62,10 +61,10 @@ void ChunkserverHealthyChecker::CheckHeartBeatInterval() {
 
 bool ChunkserverHealthyChecker::ChunkServerStateNeedUpdate(
     const HeartbeatInfo &info, OnlineState *newState) {
-    // 当前距离上次心跳的时间
+    // time interval since last heartbeat arrived
     steady_clock::duration timePass =
         steady_clock::now() - info.lastReceivedTime;
-
+    // decide whether a chunkserver should be an online one
     bool shouldOnline =
         (timePass < milliseconds(option_.heartbeatMissTimeOutMs));
     if (shouldOnline) {
@@ -77,7 +76,8 @@ bool ChunkserverHealthyChecker::ChunkServerStateNeedUpdate(
 
         return false;
     }
-
+    // heartbeat received later than usual, but didn't reach the threshold of being
+    // marked as an offline chunkserver
     bool shouldUnstable = (timePass < milliseconds(option_.offLineTimeOutMs));
     if (shouldUnstable) {
         if (OnlineState::UNSTABLE != info.state) {
@@ -89,7 +89,7 @@ bool ChunkserverHealthyChecker::ChunkServerStateNeedUpdate(
 
         return false;
     }
-
+    // last case: offline
     bool shouldOffline = true;
     if (OnlineState::OFFLINE != info.state) {
         LOG(WARNING) << "chunkserver " << info.csId << " is offline. "
@@ -134,12 +134,12 @@ void ChunkserverHealthyChecker::UpdateChunkServerOnlineState(
 
 bool ChunkserverHealthyChecker::TrySetChunkServerRetiredIfNeed(
     const HeartbeatInfo &info) {
-    // 非offline状态不考虑
+    // Disregard when chunkserver isn't in OFFLINE status
     if (OnlineState::OFFLINE != info.state) {
         return false;
     }
 
-    // 获取chunkserver出错
+    // Error when try fetching a chunkserver by its id
     ChunkServer cs;
     if (!topo_->GetChunkServer(info.csId, &cs)) {
         LOG(ERROR) << "heartbeatManager can not get chunkserver "
@@ -147,19 +147,19 @@ bool ChunkserverHealthyChecker::TrySetChunkServerRetiredIfNeed(
         return false;
     }
 
-    // chunkserver的状态已经是retired
+    // chunkserver already retired
     if (cs.GetStatus() == ChunkServerStatus::RETIRED) {
         LOG(INFO) << "chunkserver " << info.csId
             << " is already in retired state";
         return true;
     }
 
-    // 查看chunkserver上是否还有copyset
+    // Check for any remaining copyset on a chunkserver
     bool noCopyset = topo_->GetCopySetsInChunkServer(info.csId).empty();
     if (!noCopyset) {
         return false;
     }
-    // 如果没有copyset, 设置为retired状态
+    // Set chunkserver to retired status if there's no copyset on it
     int updateErrCode = topo_->UpdateChunkServerRwState(
         ChunkServerStatus::RETIRED, info.csId);
     if (kTopoErrCodeSuccess != updateErrCode) {
