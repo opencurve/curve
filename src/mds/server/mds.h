@@ -85,14 +85,14 @@ namespace mds {
 struct MDSOptions {
     // dummyserver port
     int dummyListenPort;
-    // 主mds对外核心服务监听地址
+    // the address that the master mds listen to
     std::string mdsListenAddr;
-    // segmentAlloc相关配置
+    // configuration of segmentAlloc
     uint64_t retryInterTimes;
     uint64_t periodicPersistInterMs;
-    // namestorage的缓存大小
+    // cache size of namestorage
     int mdsCacheCount;
-    // mds的文件锁桶大小
+    // bucket size of mds file lock
     int mdsFilelockBucketNum;
 
     FileRecordOptions fileRecordOptions;
@@ -112,130 +112,131 @@ class MDS {
     ~MDS();
 
     /**
-     * @brief 从配置初始化mds相关option
+     * @brief initialize mds options (read) from configuration files
      */
     void InitMdsOptions(std::shared_ptr<Configuration> conf);
 
     /**
-     * @brief 启动MDS DummyServer 用于主从MDS的基础探活和flags获取
-     *        比如用于暴露程序版本、从配置文件中获取的所有配置等等
+     * @brief start MDS DummyServer for liveness probe and flags fetching 
+     *        between master and slave MDS servers
+     *        (for exposing program version, fetching configuration from files etc.)
      */
     void StartDummy();
 
     /**
-     * @brief 开始竞选leader
+     * @brief start leader election
      *
      */
     void StartCompaginLeader();
 
     /**
-     * @brief 初始化各个组件
+     * @brief components initialization
      */
     void Init();
 
     /**
-     * @brief 启动mds
+     * @brief run mds
      */
     void Run();
 
     /**
-     * @brief 停止mds
+     * @brief stop mds
      */
     void Stop();
 
  private:
     /**
-     * @brief 初始化session相关选项
-     * @param session相关选项
+     * @brief initialize session options
+     * @param fileRecordOptions session related options
      */
     void InitFileRecordOptions(FileRecordOptions *fileRecordOptions);
 
     /**
-     * @brief 初始化认证选项
-     * @param 认证相关选项
+     * @brief initialize authentication options
+     * @param authOptions authentication options
      */
     void InitAuthOptions(RootAuthOption *authOptions);
 
     /**
-     * @brief 初始化curveFs选项
-     * @param curveFs选项
+     * @brief initialize curveFS options
+     * @param curveFSOptions curveFS options
      */
     void InitCurveFSOptions(CurveFSOption *curveFSOptions);
 
     /**
-     * @brief 初始化调度相关选项
-     * @param[out] scheduleOption 调度相关选项
+     * @brief initialize scheduling options
+     * @param[out] scheduleOption scheduling options
      */
     void InitScheduleOption(ScheduleOption *scheduleOption);
 
     /**
-     * @brief 初始化心跳相关选项
-     * param[out] 心跳相关选项
+     * @brief initialize heartbeat options
+     * @param[out] heartbeatOption heartbeat options
      */
     void InitHeartbeatOption(HeartbeatOption* heartbeatOption);
 
     /**
-     * @brief 初始化etcd conf
-     * @param[out] etcdConf etcd的配置信息
+     * @brief initialize etcd configurations
+     * @param[out] etcdConf etcd configurations
      */
     void InitEtcdConf(EtcdConf* etcdConf);
 
     /**
-     * @brief 初始化leader选举option
-     * @[out] electionOp leader选举选项
+     * @brief initialize leader election options
+     * @[out] electionOp leader election options
      */
     void InitMdsLeaderElectionOption(LeaderElectionOptions* electionOp);
 
     /**
-     * @brief 初始化topology option
-     * @param[out] topologyOption topology相关选项
+     * @brief initialize topology options
+     * @param[out] topologyOption topology options
      */
     void InitTopologyOption(TopologyOption *topologyOption);
 
     /**
-     * @brief 初始化copyset选项
-     * @param[out] copyset 选项
+     * @brief initialize copyset options
+     * @param[out] copysetOption copyset options
      */
     void InitCopysetOption(CopysetOption *copysetOption);
 
     /**
-     * @brief 初始化chunkserver client option
-     * @param[out] option chunkserverClient相关选项
+     * @brief initialize chunkserver client option
+     * @param[out] option chunkserver client option
      */
     void InitChunkServerClientOption(ChunkServerClientOption *option);
 
     /**
-     * @brief 初始化etcd client
-     * @param etcdConf etcd配置项
-     * @param etcdTimeout 超时时间
-     * @param retryTimes 重试次数
+     * @brief initialize etcd client
+     * @param etcdConf etcd configuration
+     * @param etcdTimeout timeout peroid
+     * @param retryTimes retry times
      */
     void InitEtcdClient(const EtcdConf& etcdConf,
                         int etcdTimeout,
                         int retryTimes);
 
     /**
-     * @brief 初始化leader选举模块
-     * @param leaderElectionOp leader选举选项
+     * @brief initialize leader election module
+     * @param leaderElectionOp leader election options
      */
     void InitLeaderElection(const LeaderElectionOptions& leaderElectionOp);
 
     /**
-     * @brief 初始化segment分配统计模块
-     * @param retryInterTimes 重试间隔
-     * @param periodicPersistInterMs 将内存中的数据持久化到etcd的间隔, 单位ms
+     * @brief initialize segment allocation and statistic module
+     * @param retryInterTimes retry interval
+     * @param periodicPersistInterMs time interval of RAM data persistance (in ms)
      */
     void InitSegmentAllocStatistic(uint64_t retryInterTimes,
                                    uint64_t periodicPersistInterMs);
 
     /**
-     * @brief 初始化nameserver存储模块
+     * @brief initialize nameserver storage module
      * @param mdsCacheCount 缓存大小
      */
     void InitNameServerStorage(int mdsCacheCount);
 
     /**
-     * @brief 开启brpc server
+     * @brief run brpc module
      */
     void StartServer();
 

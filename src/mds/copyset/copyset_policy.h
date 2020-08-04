@@ -51,7 +51,6 @@ class CopysetPolicy {
         int numCopysets,
         std::vector<Copyset>* out) = 0;
 
-
     virtual void GetMinCopySetFromScatterWidth(
         int numChunkServers,
         int scatterWidth,

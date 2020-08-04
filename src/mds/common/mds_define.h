@@ -130,11 +130,11 @@ extern uint64_t DefaultSegmentSize;
 extern uint64_t kMiniFileLength;
 const uint64_t kMaxFileLength = 4 * kTB;
 
-// curve默认root目录&inodeid
+// default root path and inodeid
 const InodeID ROOTINODEID = 0;
 const char ROOTFILENAME[] = "/";
 
-// curvefs内部垃圾回收站目录&inodeid
+// directory and inode id of the recycle bin of curvefs
 const InodeID RECYCLEBININODEID = 1;
 const std::string RECYCLEBINDIRNAME = "RecycleBin"; //NOLINT
 const std::string RECYCLEBINDIR = "/" + RECYCLEBINDIRNAME;  //NOLINT
