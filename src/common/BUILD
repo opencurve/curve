@@ -88,6 +88,6 @@ cc_library(
     deps = [
         "//external:glog",
         "//src/common:curve_common",
-        "@aws_sdk//:aws_sdk",
+        "@aws",
     ],
 )

@@ -20,4 +20,4 @@
     host: "{{ ansible_ssh_host }}"
     port: "{{ ping_port }}"
     state: stopped
-    msg: "the server {{ ansible_host }}:{{ ping_port }} is down"
+    timeout: "{{ wait_service_timeout }}"

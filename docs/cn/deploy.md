@@ -2,16 +2,13 @@
 
 ## 概述
 
-ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook 功能编写的集群部署工具。本文档介绍如何快速上手体验 CURVE 分布式系统：1. 使用 curve-ansible 在单机上模拟生产环境部署步骤  2. 使用 curve-ansible 在多机上部署最小生产环境
+ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook 功能编写的集群部署工具。本文档介绍如何快速上手体验 CURVE 分布式系统：1. 使用 curve-ansible 在单机上模拟生产环境部署步骤  2. 使用 curve-ansible 在多机上部署最小生产环境。关于curve-ansible的更多用法和说明请参见[curve-ansible README](../../curve-ansible/README.md)
 
 ## 特别说明
 - curve默认会将相关的库安装到/usr/lib下面，如果是CentOS系统，需要将client.ini和server.ini中的curve_lib_dir修改为/usr/lib64
 - 一些外部依赖是通过源码的方式安装的，安装的过程中从github下载包可能会超时，这时可以选择重试或手动安装，jemalloc手动安装的话要保证configure的prefix与server.ini和client.ini的lib_install_prefix一致
 - 如果机器上开启了SElinux可能会报Aborting, target uses selinux but python bindings (libselinux-python) aren't installed，可以尝试安装libselinux-python，或者强行关闭selinux
-- deploy_curve.yml用于部署一个全新的集群，集群成功搭建后不能重复跑，因为会**扰乱集群**。想要清理集群的话需要手动停止mds，etcd，chunkserver并删掉/etcd目录（后续会完善清理脚本）。如果只是想启动服务的话，使用命令：
-   ```
-   ansible-playbook -i server.ini deploy_curve.yml --tags start
-   ```
+- deploy_curve.yml用于部署一个全新的集群，集群成功搭建后不能重复跑，因为会**扰乱集群**。可以选择**启动**集群或者**清理**集群后重新部署，详细用法见[curve-ansible README](../../curve-ansible/README.md)。
 - 部署的过程中，在chunkserver成功启动之前都可以任意重试，**chunkserver启动成功后重试**要额外注意，要带上--skip-tags format,因为这一步会把启动成功的chunkserver的数据给清理掉，从而扰乱集群。
 - 需要用到curve-nbd功能的话，对内核有两方面的要求：一是要支持nbd模块，可以modprobe nbd查看nbd模块是否存在。二是nbd设备的block size要能够被设置为4KB。经验证，通过[DVD1.iso](http://mirrors.163.com/centos/8/isos/x86_64/CentOS-8.2.2004-x86_64-dvd1.iso)完整安装的CentOs8，内核版本是4.18.0-193.el8.x86_64，满足这个条件，可供参考。
 
@@ -88,15 +85,19 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    $ pip install --upgrade setuptools
    ```
 4. 检查其他依赖，未安装的需要手动安装：net-tools, openssl-1.1.1, perf, perl-podlators, make, gcc6.1, libstdc++.so.6.22, libcurl
+
 #### 实施部署
 
 1. 切换到curve用户下执行以下操作
 
-2. 获取tar包并解压。有两种方式：从github下载tar包和自行打包
+2. 获取tar包并解压
 
-   2.1 从github下载tar包，如果想要部署release版本，则从github下载最新的tar包即可。**下面的命令仅供参考，tar包会经常更新，下面给出不一定是最新的**。
+   有两种方式可以获得tar包：
+      1. 从[github release页面](https://github.com/opencurve/curve/releases)下载稳定版本tar包
+      2. 自行通过编译环境打tar包，该方式可以让您体验测试最新代码：[编译开发环境搭建](build_and_run.md)
 
    ```
+   # 如下几个tar包可替换为其他版本（如您采用方式2自行打包，则不需要下载，拷贝相关tar包即可），下载命令仅供参考
    wget https://github.com/opencurve/curve/releases/download/v0.1.1/curve_0.1.1+4b930380.tar.gz
    wget https://github.com/opencurve/curve/releases/download/v0.1.1/nbd_0.1.1+4b930380.tar.gz
    wget https://github.com/opencurve/curve/releases/download/v0.1.1/nebd_0.1.1+4b930380.tar.gz
@@ -105,12 +106,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    tar zxvf nebd_0.1.1+4b930380.tar.gz
    cd curve/curve-ansible
    ```
-   2.2 如果想要部署代码仓库中最新代码的集群，则需要自行打包。打包的步骤为：
-   - cd到本地curve仓库
-   - 执行mk-tar.sh脚本
-   - 解压打出来的curve, nbd, nebd三个tar包
-   - cd curve/curve-ansible
-   
+
 3. 准备inventory文件
    - 在server.ini和client.ini的[all:vars]中增加ansible_connection=local
    - 如果是debian系统，则不需要改动，如果是CentOs系统，需要将client.ini和server.ini中的curve_lib_dir修改为/usr/lib64
@@ -129,8 +125,8 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    ```
    1. 在 server.ini 中，填写s3_ak和s3_sk=替换成自己账号对应的
    2. 安装快照克隆服务
-      ansible-playbook -i server.ini deploy_snapshotcloneserver.yml
-      ansible-playbook -i server.ini deploy_snapshotcloneserver_nginx.yml
+      ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone
+      ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone_nginx
    ```
 
 6. 执行命令查看当前集群状态，主要看以下几个状态：
@@ -264,11 +260,14 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 #### 实施部署
 1. 切换到curve用户下执行以下操作
 
-2. 获取tar包并解压。有两种方式：从github下载tar包和自行打包
+2. 获取tar包并解压
 
-   2.1 从github下载tar包，如果想要部署release版本，则从github下载最新的tar包即可。**下面的命令仅供参考，tar包会经常更新，下面给出不一定是最新的**。
+   有两种方式可以获得tar包：
+      1. 从[github release页面](https://github.com/opencurve/curve/releases)下载稳定版本tar包
+      2. 自行通过编译环境打tar包，该方式可以让您体验测试最新代码：[编译开发环境搭建](build_and_run.md)
 
    ```
+   # 如下几个tar包可替换为其他版本（如您采用方式2自行打包，则不需要下载，拷贝相关tar包即可），下载命令仅供参考
    wget https://github.com/opencurve/curve/releases/download/v0.1.1/curve_0.1.1+4b930380.tar.gz
    wget https://github.com/opencurve/curve/releases/download/v0.1.1/nbd_0.1.1+4b930380.tar.gz
    wget https://github.com/opencurve/curve/releases/download/v0.1.1/nebd_0.1.1+4b930380.tar.gz
@@ -277,11 +276,6 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    tar zxvf nebd_0.1.1+4b930380.tar.gz
    cd curve/curve-ansible
    ```
-   2.2 如果想要部署代码仓库中最新代码的集群，则需要自行打包。打包的步骤为：
-   - cd到本地curve仓库
-   - 执行mk-tar.sh脚本
-   - 解压打出来的curve, nbd, nebd三个tar包
-   - cd curve/curve-ansible
 
 3. 在中控机上修改配置文件
 
@@ -523,8 +517,8 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    ```
    1. 在 server.ini 中，填写s3_ak="" s3_sk="" disable_snapshot_clone=false
    2. 安装快照克隆服务
-      ansible-playbook -i server.ini deploy_snapshotcloneserver.yml
-      ansible-playbook -i server.ini deploy_snapshotcloneserver_nginx.yml
+      ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone
+      ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone_nginx
    ```
 
 6. 执行命令查看当前集群状态，主要看以下几个状态：

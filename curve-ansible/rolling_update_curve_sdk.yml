@@ -16,9 +16,11 @@
 #
 # The rolling update playbook of Curve
 
-# 升级curve sdk
+- name: check_ansible_version
+  tags:
+    - always
+  import_playbook: check_ansible_version.yml
 
-# 1. 更新各节点上的配置
 - name: prepare curve-sdk
   hosts: client
   gather_facts: no

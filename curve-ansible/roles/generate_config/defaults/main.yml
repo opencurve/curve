@@ -220,8 +220,6 @@ tool_rpc_retry_times: 5
 nginx_docker_internal_port: 80
 
 # etcd默认配置
-etcd_data_dir: '/etcd/data'
-etcd_wal_dir: '/etcd/wal'
 etcd_snapshot_count: 10000
 etcd_heartbeat_interval: 100
 etcd_election_timeout: 1000
