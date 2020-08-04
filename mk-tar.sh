@@ -309,24 +309,6 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
-# aws
-mkdir -p build/curve/aws-sdk
-if [ $? -ne 0 ]
-then
-	exit
-fi
-cp -r thirdparties/aws-sdk/usr/include \
-build/curve/aws-sdk/
-if [ $? -ne 0 ]
-then
-	exit
-fi
-cp -r thirdparties/aws-sdk/usr/lib \
-build/curve/aws-sdk/
-if [ $? -ne 0 ]
-then
-	exit
-fi
 # ansible
 cp -r curve-ansible build/curve/
 if [ $? -ne 0 ]

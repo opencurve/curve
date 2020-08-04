@@ -35,7 +35,9 @@ void SnapshotReference::IncrementSnapshotRef(const UUID &snapshotId) {
     if (it != refMap_.end()) {
         it->second++;
     } else {
-        refMap_.emplace(snapshotId, 1);
+        refMap_.emplace(std::piecewise_construct,
+                        std::forward_as_tuple(snapshotId),
+                        std::forward_as_tuple(1));
     }
 }
 

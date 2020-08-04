@@ -97,7 +97,7 @@ function stop_etcd() {
     if [ $? -ne 0 ]
     then
         echo "Didn't start etcd by daemon"
-        exit 1
+        exit 0
     fi
 
     daemon --name etcd --pidfile ${pidFile} --stop

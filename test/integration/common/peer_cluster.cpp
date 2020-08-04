@@ -303,7 +303,7 @@ const std::string PeerCluster::RemoveCopysetLogDirCmd(const Peer &peer,
     butil::string_printf(&cmd,
                          "rm -fr %d/copysets/%s",
                          peerId.addr.port,
-                         ToGroupIdString(logicPoolID, copysetID));
+                         ToGroupIdString(logicPoolID, copysetID).c_str());
     return cmd;
 }
 

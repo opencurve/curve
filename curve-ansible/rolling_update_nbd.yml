@@ -16,7 +16,10 @@
 #
 # The deploy playbook of Curve
 
-# 升级nbd
+- name: check_ansible_version
+  tags:
+    - always
+  import_playbook: check_ansible_version.yml
 
 - name: prepare curve-nbd
   hosts: client

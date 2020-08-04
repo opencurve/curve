@@ -209,7 +209,7 @@ TEST_F(CloneCoreTest, ReadChunkTest2) {
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
         // 读chunk文件
-        char chunkData[length]= {0};
+        char chunkData[length];  // NOLINT
         memset(chunkData, 'a', length);
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .WillOnce(DoAll(SetArrayArgument<2>(chunkData,
@@ -240,7 +240,7 @@ TEST_F(CloneCoreTest, ReadChunkTest2) {
         // 每次调HandleReadRequest后会被closure释放
         std::shared_ptr<ReadChunkRequest> readRequest
             = GenerateReadRequest(CHUNK_OP_TYPE::CHUNK_OP_READ, offset, length);
-        char cloneData[length]= {0};
+        char cloneData[length];  // NOLINT
         memset(cloneData, 'b', length);
         EXPECT_CALL(*copyer_, DownloadAsync(_))
             .WillOnce(Invoke([&](DownloadClosure* closure){
@@ -291,7 +291,7 @@ TEST_F(CloneCoreTest, ReadChunkTest2) {
         // 每次调HandleReadRequest后会被closure释放
         std::shared_ptr<ReadChunkRequest> readRequest
             = GenerateReadRequest(CHUNK_OP_TYPE::CHUNK_OP_READ, offset, length);
-        char cloneData[length]= {0};
+        char cloneData[length];  // NOLINT
         memset(cloneData, 'b', length);
         EXPECT_CALL(*copyer_, DownloadAsync(_))
             .WillOnce(Invoke([&](DownloadClosure* closure){
@@ -304,7 +304,7 @@ TEST_F(CloneCoreTest, ReadChunkTest2) {
             .WillRepeatedly(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
         // 读chunk文件
-        char chunkData[3 * PAGE_SIZE]= {0};
+        char chunkData[3 * PAGE_SIZE];
         memset(chunkData, 'a', 3 * PAGE_SIZE);
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, 0, 3 * PAGE_SIZE))
             .WillOnce(DoAll(SetArrayArgument<2>(chunkData,
@@ -400,7 +400,7 @@ TEST_F(CloneCoreTest, ReadChunkTest3) {
         std::shared_ptr<ReadChunkRequest> readRequest
             = GenerateReadRequest(CHUNK_OP_TYPE::CHUNK_OP_READ, offset, length);
         SetCloneParam(readRequest);
-        char cloneData[length]= {0};
+        char cloneData[length];  // NOLINT
         memset(cloneData, 'b', length);
         EXPECT_CALL(*copyer_, DownloadAsync(_))
             .WillOnce(Invoke([&](DownloadClosure* closure){
@@ -496,7 +496,7 @@ TEST_F(CloneCoreTest, ReadChunkErrorTest) {
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
-        char cloneData[length]= {0};
+        char cloneData[length];  // NOLINT
         memset(cloneData, 'b', length);
         EXPECT_CALL(*copyer_, DownloadAsync(_))
             .WillOnce(Invoke([&](DownloadClosure* closure){
@@ -524,7 +524,7 @@ TEST_F(CloneCoreTest, ReadChunkErrorTest) {
             .Times(2)
             .WillRepeatedly(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
-        char cloneData[length]= {0};
+        char cloneData[length];  // NOLINT
         memset(cloneData, 'b', length);
         EXPECT_CALL(*copyer_, DownloadAsync(_))
             .WillOnce(Invoke([&](DownloadClosure* closure){
@@ -646,7 +646,7 @@ TEST_F(CloneCoreTest, RecoverChunkTest2) {
         // 每次调HandleReadRequest后会被closure释放
         std::shared_ptr<ReadChunkRequest> readRequest
             = GenerateReadRequest(CHUNK_OP_TYPE::CHUNK_OP_RECOVER, offset, length);  //NOLINT
-        char cloneData[length]= {0};
+        char cloneData[length];  // NOLINT
         memset(cloneData, 'b', length);
         EXPECT_CALL(*copyer_, DownloadAsync(_))
             .WillOnce(Invoke([&](DownloadClosure* closure){
@@ -705,7 +705,7 @@ TEST_F(CloneCoreTest, DisablePasteTest) {
         // 每次调HandleReadRequest后会被closure释放
         std::shared_ptr<ReadChunkRequest> readRequest
             = GenerateReadRequest(CHUNK_OP_TYPE::CHUNK_OP_READ, offset, length);
-        char cloneData[length]= {0};
+        char cloneData[length];  // NOLINT
         memset(cloneData, 'b', length);
         EXPECT_CALL(*copyer_, DownloadAsync(_))
             .WillOnce(Invoke([&](DownloadClosure* closure){
@@ -744,7 +744,7 @@ TEST_F(CloneCoreTest, DisablePasteTest) {
         // 每次调HandleReadRequest后会被closure释放
         std::shared_ptr<ReadChunkRequest> readRequest
             = GenerateReadRequest(CHUNK_OP_TYPE::CHUNK_OP_RECOVER, offset, length);  //NOLINT
-        char cloneData[length]= {0};
+        char cloneData[length];  // NOLINT
         memset(cloneData, 'b', length);
         EXPECT_CALL(*copyer_, DownloadAsync(_))
             .WillOnce(Invoke([&](DownloadClosure* closure){
