@@ -30,7 +30,7 @@ CURVE 中 bvar 的具体使用方式可以查看:
 
 [chunkserver metric](../../src/chunkserver/chunkserver_metrics.h)   
 
-[mds topoloy metric](../../src/mds/topoloy/topology_metric.h)
+[mds topoloy metric](../../src/mds/topology/topology_metric.h)
 
 [mds shedule metric](../../src/mds/schedule/scheduleMetrics.h)
 
@@ -50,5 +50,18 @@ CURVE 集群监控使用 Prometheus 采集数据，并使用 Grafana 作为前�
 
 3. ```python``` 脚本有多个。[target_json.py ](../../monitor/target_json.py)用于生成 prometheus 服务发现依赖的监控目标配置，生成的文件为 json 格式；该脚本依赖 [target.ini](../../monitor/target.ini.example) 中的配置，从配置中获取 mds、etcd 的信息。[grafana-report.py](../../monitor/grafana-report.py) 用于从 Grafana 导出 daily reporter中所需要的数据信息。
 
-   
+
+## 效果图展示
+
+##### Grafana 效果图
+
+<img src="../images/grafana-example-1.png" alt="monitor" width="1000" />
+
+<img src="../images/grafana-example-3.png" alt="monitor" width="1000" />
+
+<img src="../images/grafana-example-2.png" alt="monitor" width="1000" />
+
+##### Daily Report 效果图
+
+<img src="../images/grafana-reporter.png" alt="monitor" width="800" />
 
