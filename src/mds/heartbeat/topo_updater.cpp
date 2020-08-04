@@ -28,6 +28,7 @@ namespace mds {
 namespace heartbeat {
 void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
     CopySetInfo recordCopySetInfo;
+    // decide whether a copyset has corresponding info in topology module
     if (!topo_->GetCopySet(
         reportCopySetInfo.GetCopySetKey(), &recordCopySetInfo)) {
         LOG(ERROR) << "topoUpdater receive copyset("
@@ -36,17 +37,20 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
                    << ") information, but can not get info from topology";
         return;
     }
-
-    // 比较report epoch 和 mds record epoch的大小，有如下三种情况:
+    // here we compare epoch number reported by heartbeat and stored in mds record,
+    // and there're three possible cases:
     // 1. report epoch > mds record epoch
-    //    每完成一次配置变更，raft会增加copyset的epoch, 此时mds的epoch将会落后
-    //    需要将新的epoch和copyset副本关系更新到mds
+    //    after every configuration change, raft will increase the epoch of copyset,
+    //    which makes epoch of mds fall behind. update on mds of epoch and copy relationship 
+    //    is required
     // 2. report epoch == mds record epoch
-    //    没有配置变更或配置变更正在进行. 可能需要将candidate记录到mds中
-    // 3. report epoch < mds record epoch
-    //    这种情况不应该发生，raft中的epoch永远是最新的. 不排除代码bug导致，需要报警 //NOLINT
+    //    there's no finished or undergoing configuration changes, recording candidate
+    //    to mds may be needed
+    // 3. report epoch < mds epoch
+    //    this case should not occurs normally since epoch number in raft is always the
+    //    most up-to-date. this case may caused by bugs, alarm is neened  //NOLINT
 
-    // mds epoch落后，需要更新.
+    // mds epoch fall behind, update needed:
     bool needUpdate = false;
     if (recordCopySetInfo.GetEpoch() < reportCopySetInfo.GetEpoch()) {
         LOG(INFO) << "topoUpdater find report copyset("
@@ -57,16 +61,17 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
                   << recordCopySetInfo.GetEpoch() << " need to update";
         needUpdate = true;
     } else if (recordCopySetInfo.GetEpoch() == reportCopySetInfo.GetEpoch()) {
-        // 上报的epoch和记录的epoch相等.
+        // epoch reported is equal to epoch stored in mds
 
-        // report中leader和topology记录的leader不一致
+        // leader reported and recorded in topology are different
         if (reportCopySetInfo.GetLeader() != recordCopySetInfo.GetLeader()) {
             needUpdate = true;
         }
 
-        // report中memberlist 和 record的不一致, 这种情况应该报警
-        // 这种情况不应该存在，chunkserver端总是返回已经apply的配置
-        // 因此，member list不一样的情况epoch一定不同
+        // heartbeat report and mds record provide a different member list.
+        // this should trigger an alarm since it should not happend in normal cases,
+        // since chunkserver always report configurations that already applied and
+        // when member list are different the epoch should be different
         if (reportCopySetInfo.GetCopySetMembers() !=
             recordCopySetInfo.GetCopySetMembers()) {
             LOG(ERROR) << "topoUpdater find report copyset("
@@ -81,9 +86,9 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
             return;
         }
 
-        // report的信息中不含有变更项
+        // no configuration changes in heartbeat report (no candidate)
         if (!reportCopySetInfo.HasCandidate()) {
-            // report信息中不含变更项，但mds上有
+            // configuration changes on mds (has candidate)
             if (recordCopySetInfo.HasCandidate()) {
                 LOG(WARNING) << "topoUpdater find report"
                              " copyset("
@@ -94,11 +99,11 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
                 needUpdate = true;
             }
         } else if (!recordCopySetInfo.HasCandidate()) {
-            // report有变更项，但是mds上没有
+            // configuration changes reported but not on mds
             needUpdate = true;
         } else if (reportCopySetInfo.GetCandidate() !=
                    recordCopySetInfo.GetCandidate()) {
-            // report的变更项和mds记录的不同
+            // reported data and mds record have different configuration changes
             LOG(WARNING) << "topoUpdater find report candidate "
                          << reportCopySetInfo.GetCandidate()
                          << ", record candidate: "
@@ -110,8 +115,8 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
             needUpdate = true;
         }
     } else if (recordCopySetInfo.GetEpoch() > reportCopySetInfo.GetEpoch()) {
-        // report epoch小于 mds记录的epoch，报警
-        // leader上的epoch应该永远大于等于mds记录的epoch
+        // this case will trigger an alarm since epoch of copyset leader should
+        // always larger or equal than the epoch of mds record
         LOG(ERROR) << "topoUpdater find copyset("
                    << reportCopySetInfo.GetLogicalPoolId()
                    << "," << reportCopySetInfo.GetId()
@@ -121,7 +126,7 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
         return;
     }
 
-    // 更新到数据库和内存
+    // update changes to database and RAM
     if (needUpdate) {
         LOG(INFO) << "topoUpdater find copyset("
                   << reportCopySetInfo.GetLogicalPoolId() << ","

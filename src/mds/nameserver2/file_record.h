@@ -41,9 +41,9 @@ using curve::common::WriteLockGuard;
 using ClientIpPortType = std::pair<std::string, uint32_t>;
 
 struct FileRecordOptions {
-    // file record过期时间，单位us
+    // file record expire time (in μs)
     uint32_t fileRecordExpiredTimeUs;
-    // 后台扫描file record map的时间间隔，单位us
+    // time interval of scanning file record map (in μs)
     uint32_t scanIntervalTimeUs;
 };
 

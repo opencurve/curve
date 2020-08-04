@@ -226,7 +226,7 @@ bool NebdServer::StartServer() {
         return false;
     }
 
-    // start brcp server
+    // start brpc server
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
     // 获取文件锁

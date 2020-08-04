@@ -52,7 +52,7 @@ bool CopysetValidation::Validate(
         variance = StatisticsTools::CalcVariance(scatterWidthVec,
             average);
     }
-    //检查方差
+    // check variance
     if (option_.scatterWidthVariance != 0 &&
         variance > option_.scatterWidthVariance) {
         LOG(WARNING) << "Validate copyset failed in scatterWidthVariance = "
@@ -61,7 +61,7 @@ bool CopysetValidation::Validate(
         return false;
     }
 
-    //检查标准差
+    // check standard deviation
     if (option_.scatterWidthStandardDevation != 0) {
         double standardDevation =
             StatisticsTools::CalcStandardDevation(variance);
@@ -83,7 +83,7 @@ bool CopysetValidation::Validate(
             scatterWidthVec, &minValue, &maxValue);
     }
 
-    // 检查极差
+    // check range
     if ((option_.scatterWidthRange != 0) &&
         (range > option_.scatterWidthRange)) {
         LOG(WARNING) << "Validate copyset failed in "
@@ -92,7 +92,7 @@ bool CopysetValidation::Validate(
                    << ", actual = " << range;
         return false;
     }
-    // 检查偏离百分比
+    // check floating percentage
     if (option_.scatterWidthFloatingPercentage != 0) {
         double minPercent = (average - minValue) * 100 / average;
         double maxPercent = (maxValue - average) * 100 / average;
@@ -145,7 +145,7 @@ void CopysetValidation::CalcScatterWidth(const std::vector<Copyset> &copysets,
                 collector.insert(cs.replicas.begin(), cs.replicas.end());
             }
         }
-        // scatterWidth -1 是为了除去自身
+        // scatterWidth -1 is for excluding one of the copy itself (see the definition of scatter width)
         pair.second = collector.size() - 1;
     }
 }
