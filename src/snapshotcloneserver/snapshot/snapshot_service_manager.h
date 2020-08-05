@@ -107,6 +107,47 @@ class FileSnapshotInfo {
     uint32_t snapProgress_;
 };
 
+class SnapshotFilterCondition {
+ public:
+    SnapshotFilterCondition()
+                   : uuid_(nullptr),
+                    file_(nullptr),
+                    user_(nullptr),
+                    status_(nullptr) {}
+
+    SnapshotFilterCondition(const std::string *uuid, const std::string *file,
+                        const std::string *user,
+                        const std::string *status)
+                   : uuid_(uuid),
+                    file_(file),
+                    user_(user),
+                    status_(status) {}
+    bool IsMatchCondition(const SnapshotInfo &snapInfo);
+
+    void SetUuid(const std::string *uuid) {
+        uuid_ = uuid;
+    }
+
+    void SetFile(const std::string *file) {
+        file_ = file;
+    }
+
+    void SetUser(const std::string *user) {
+        user_ = user;
+    }
+
+    void SetStatus(const std::string *status) {
+        status_ = status;
+    }
+
+
+ private:
+    const std::string *uuid_;
+    const std::string *file_;
+    const std::string *user_;
+    const std::string *status_;
+};
+
 class SnapshotServiceManager {
  public:
      /**
@@ -213,6 +254,17 @@ class SnapshotServiceManager {
         std::vector<FileSnapshotInfo> *info);
 
     /**
+     * @brief 获取快照列表
+     *
+     * @param filter 过滤条件
+     * @param info 快照信息列表
+     *
+     * @return 错误码
+     */
+    virtual int GetSnapshotListByFilter(const SnapshotFilterCondition &filter,
+                    std::vector<FileSnapshotInfo> *info);
+
+    /**
      * @brief 恢复快照任务接口
      *
      * @return 错误码
@@ -232,6 +284,20 @@ class SnapshotServiceManager {
     int GetFileSnapshotInfoInner(
         std::vector<SnapshotInfo> snapInfos,
         const std::string &user,
+        std::vector<FileSnapshotInfo> *info);
+
+    /**
+     * @brief 根据快照信息获取快照任务信息
+     *
+     * @param snapInfos 快照信息
+     * @param filter 过滤条件
+     * @param[out] info 快照任务信息
+     *
+     * @return 错误码
+     */
+    int GetSnapshotListInner(
+        std::vector<SnapshotInfo> snapInfos,
+        SnapshotFilterCondition filter,
         std::vector<FileSnapshotInfo> *info);
 
  private:

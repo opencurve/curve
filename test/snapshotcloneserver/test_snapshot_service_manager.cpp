@@ -720,6 +720,249 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoFail2) {
     ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
+TEST_F(TestSnapshotServiceManager, TestGetSnapshotListByFilterSuccess) {
+    const std::string file = "file1";
+    const std::string user = "user1";
+    const std::string desc = "snap1";
+    UUID uuid;
+    UUID uuidOut = "uuid1";
+    uint32_t progress = 50;
+
+    SnapshotInfo info(uuidOut, user, file, desc);
+    EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
+        .WillOnce(DoAll(
+            SetArgPointee<3>(info),
+            Return(kErrCodeSuccess)));
+
+    CountDownEvent cond1(1);
+
+    EXPECT_CALL(*core_, HandleCreateSnapshotTask(_))
+        .WillOnce(Invoke(
+                [&cond1, progress] (std::shared_ptr<SnapshotTaskInfo> task) {
+                                task->SetProgress(progress);
+                                cond1.Signal();
+                            }));
+
+    int ret = manager_->CreateSnapshot(
+        file,
+        user,
+        desc,
+        &uuid);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+
+    cond1.Wait();
+
+
+    const std::string file2 = "file2";
+    const std::string desc2 = "snap2";
+    UUID uuid2 = "uuid2";
+
+    std::vector<SnapshotInfo> snapInfo;
+    SnapshotInfo snap1(uuidOut, user, file, desc);
+    snap1.SetStatus(Status::pending);
+    snapInfo.push_back(snap1);
+
+    SnapshotInfo snap2(uuid2, user, file2, desc2);
+    snap2.SetStatus(Status::done);
+    snapInfo.push_back(snap2);
+
+    std::string user2 = "user2";
+    UUID uuid3 = "uuid3";
+    UUID uuid4 = "uuid4";
+
+    SnapshotInfo snap3(uuid3, user2, file, desc);
+    snap3.SetStatus(Status::done);
+    snapInfo.push_back(snap3);
+
+    SnapshotInfo snap4(uuid4, user, file, desc);
+    snap4.SetStatus(Status::error);
+    snapInfo.push_back(snap4);
+
+    EXPECT_CALL(*core_, GetSnapshotList(_))
+        .WillOnce(DoAll(SetArgPointee<0>(snapInfo),
+                Return(kErrCodeSuccess)));
+
+    // empty filter
+    SnapshotFilterCondition filter;
+    std::vector<FileSnapshotInfo> fileSnapInfo;
+    ret = manager_->GetSnapshotListByFilter(filter, &fileSnapInfo);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(4, fileSnapInfo.size());
+
+    for (auto v : fileSnapInfo) {
+        SnapshotInfo s = v.GetSnapshotInfo();
+        if (s.GetUuid() == uuidOut) {
+            ASSERT_EQ(file, s.GetFileName());
+            ASSERT_EQ(user, s.GetUser());
+            ASSERT_EQ(desc, s.GetSnapshotName());
+            ASSERT_EQ(Status::pending, s.GetStatus());
+            ASSERT_EQ(progress, v.GetSnapProgress());
+        } else if (s.GetUuid() == uuid2) {
+            ASSERT_EQ(file2, s.GetFileName());
+            ASSERT_EQ(user, s.GetUser());
+            ASSERT_EQ(desc2, s.GetSnapshotName());
+            ASSERT_EQ(Status::done, s.GetStatus());
+            ASSERT_EQ(100, v.GetSnapProgress());
+        } else if (s.GetUuid() == uuid3) {
+            ASSERT_EQ(file, s.GetFileName());
+            ASSERT_EQ(user2, s.GetUser());
+            ASSERT_EQ(desc, s.GetSnapshotName());
+            ASSERT_EQ(Status::done, s.GetStatus());
+            ASSERT_EQ(100, v.GetSnapProgress());
+        } else if (s.GetUuid() == uuid4) {
+            ASSERT_EQ(file, s.GetFileName());
+            ASSERT_EQ(user, s.GetUser());
+            ASSERT_EQ(desc, s.GetSnapshotName());
+            ASSERT_EQ(Status::error, s.GetStatus());
+            ASSERT_EQ(0, v.GetSnapProgress());
+        } else {
+            FAIL() << "should not exist this uuid = "
+                   << s.GetUuid();
+        }
+    }
+
+    EXPECT_CALL(*core_, GetSnapshotList(_))
+        .WillOnce(DoAll(SetArgPointee<0>(snapInfo),
+                Return(kErrCodeSuccess)));
+
+    // filter uuid
+    SnapshotFilterCondition filter2;
+    filter2.SetUuid(&uuidOut);
+    std::vector<FileSnapshotInfo> fileSnapInfo2;
+    ret = manager_->GetSnapshotListByFilter(filter2, &fileSnapInfo2);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(1, fileSnapInfo2.size());
+
+    for (auto v : fileSnapInfo2) {
+        SnapshotInfo s = v.GetSnapshotInfo();
+        if (s.GetUuid() == uuidOut) {
+            ASSERT_EQ(file, s.GetFileName());
+            ASSERT_EQ(user, s.GetUser());
+            ASSERT_EQ(desc, s.GetSnapshotName());
+            ASSERT_EQ(Status::pending, s.GetStatus());
+            ASSERT_EQ(progress, v.GetSnapProgress());
+        } else {
+            FAIL() << "should not exist this uuid = "
+                   << s.GetUuid();
+        }
+    }
+
+    EXPECT_CALL(*core_, GetSnapshotList(_))
+        .WillOnce(DoAll(SetArgPointee<0>(snapInfo),
+                Return(kErrCodeSuccess)));
+
+    // filter by filename
+    SnapshotFilterCondition filter3;
+    filter3.SetFile(&file);
+    std::vector<FileSnapshotInfo> fileSnapInfo3;
+    ret = manager_->GetSnapshotListByFilter(filter3, &fileSnapInfo3);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(3, fileSnapInfo3.size());
+
+    for (auto v : fileSnapInfo3) {
+        SnapshotInfo s = v.GetSnapshotInfo();
+        if (s.GetUuid() == uuidOut) {
+            ASSERT_EQ(file, s.GetFileName());
+            ASSERT_EQ(user, s.GetUser());
+            ASSERT_EQ(desc, s.GetSnapshotName());
+            ASSERT_EQ(Status::pending, s.GetStatus());
+            ASSERT_EQ(progress, v.GetSnapProgress());
+        } else if (s.GetUuid() == uuid3) {
+            ASSERT_EQ(file, s.GetFileName());
+            ASSERT_EQ(user2, s.GetUser());
+            ASSERT_EQ(desc, s.GetSnapshotName());
+            ASSERT_EQ(Status::done, s.GetStatus());
+            ASSERT_EQ(100, v.GetSnapProgress());
+        } else if (s.GetUuid() == uuid4) {
+            ASSERT_EQ(file, s.GetFileName());
+            ASSERT_EQ(user, s.GetUser());
+            ASSERT_EQ(desc, s.GetSnapshotName());
+            ASSERT_EQ(Status::error, s.GetStatus());
+            ASSERT_EQ(0, v.GetSnapProgress());
+        } else {
+            FAIL() << "should not exist this uuid = "
+                   << s.GetUuid();
+        }
+    }
+
+    EXPECT_CALL(*core_, GetSnapshotList(_))
+        .WillOnce(DoAll(SetArgPointee<0>(snapInfo),
+                Return(kErrCodeSuccess)));
+
+    // filter by status
+    SnapshotFilterCondition filter4;
+    std::string status = "0";
+    filter4.SetStatus(&status);
+    std::vector<FileSnapshotInfo> fileSnapInfo4;
+    ret = manager_->GetSnapshotListByFilter(filter4, &fileSnapInfo4);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(2, fileSnapInfo4.size());
+
+    for (auto v : fileSnapInfo4) {
+        SnapshotInfo s = v.GetSnapshotInfo();
+        if (s.GetUuid() == uuid2) {
+            ASSERT_EQ(file2, s.GetFileName());
+            ASSERT_EQ(user, s.GetUser());
+            ASSERT_EQ(desc2, s.GetSnapshotName());
+            ASSERT_EQ(Status::done, s.GetStatus());
+            ASSERT_EQ(100, v.GetSnapProgress());
+        } else if (s.GetUuid() == uuid3) {
+            ASSERT_EQ(file, s.GetFileName());
+            ASSERT_EQ(user2, s.GetUser());
+            ASSERT_EQ(desc, s.GetSnapshotName());
+            ASSERT_EQ(Status::done, s.GetStatus());
+            ASSERT_EQ(100, v.GetSnapProgress());
+        } else {
+            FAIL() << "should not exist this uuid = "
+                   << s.GetUuid();
+        }
+    }
+
+    EXPECT_CALL(*core_, GetSnapshotList(_))
+        .WillOnce(DoAll(SetArgPointee<0>(snapInfo),
+                Return(kErrCodeSuccess)));
+
+    // filter by user
+    SnapshotFilterCondition filter5;
+    filter5.SetUser(&user2);
+    std::vector<FileSnapshotInfo> fileSnapInfo5;
+    ret = manager_->GetSnapshotListByFilter(filter5, &fileSnapInfo5);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(1, fileSnapInfo5.size());
+
+    for (auto v : fileSnapInfo5) {
+        SnapshotInfo s = v.GetSnapshotInfo();
+        if (s.GetUuid() == uuid3) {
+            ASSERT_EQ(file, s.GetFileName());
+            ASSERT_EQ(user2, s.GetUser());
+            ASSERT_EQ(desc, s.GetSnapshotName());
+            ASSERT_EQ(Status::done, s.GetStatus());
+            ASSERT_EQ(100, v.GetSnapProgress());
+        } else {
+            FAIL() << "should not exist this uuid = "
+                   << s.GetUuid();
+        }
+    }
+}
+
+TEST_F(TestSnapshotServiceManager, TestGetSnapshotListByFilterFail) {
+    const std::string file = "file1";
+    const std::string user = "user1";
+    const std::string desc = "snap1";
+    UUID uuid = "uuid1";
+
+    std::vector<SnapshotInfo> snapInfo;
+
+    EXPECT_CALL(*core_, GetSnapshotList(_))
+        .WillOnce(DoAll(SetArgPointee<0>(snapInfo),
+                Return(kErrCodeInternalError)));
+
+    SnapshotFilterCondition filter;
+    std::vector<FileSnapshotInfo> fileSnapInfo;
+    int ret = manager_->GetSnapshotListByFilter(filter, &fileSnapInfo);
+    ASSERT_EQ(kErrCodeInternalError, ret);
+}
+
 TEST_F(TestSnapshotServiceManager, TestRecoverSnapshotTaskSuccess) {
     const std::string file1 = "file1";
     const std::string user1 = "user1";
