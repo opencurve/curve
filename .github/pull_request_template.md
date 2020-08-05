@@ -1,30 +1,24 @@
 <!-- Thank you for contributing to curve! -->
 
-### 这个pr解决了什么问题?
+### What problem does this PR solve?
 
-关联的issue: close #xxx <!-- 如果没有issue，就删掉这一行 -->
+Issue Number: close #xxx <!-- REMOVE this line if no issue to close -->
 
-问题描述:
+Problem Summary:
 
-### 修改了哪些地方?
+### What is changed and how it works?
 
-修改了哪些地方:
+What's Changed:
 
-如何使用:
+How it Works:
 
-### 相关的修改
+Side effects(Breaking backward compatibility? Performance regression?): 
 
-- 是否需要修改文档:
+### Check List
 
-### 检查列表
-
-测试
-
-- 单元测试：增量行覆盖80%以上，增量分支覆盖70%以上
-- 集成测试：与单元测试合并统计，满足上述覆盖率要求即可
-- 异常测试：暂不做要求
-
-副作用
-
-- 是否修改了接口
-- 是否破坏了向后兼容性
+- [ ] Cpplint check is passed
+- [ ] Relevant documentation/comments is changed or added
+- [ ] Unit test lines coverage rate 80% above，branches coverage rate 70% above
+- [ ] Integration test passed
+- [ ] I acknowledge that all my contributions will be made under the project's license
+<!--- [ ] Exception test: No need right now. -->
