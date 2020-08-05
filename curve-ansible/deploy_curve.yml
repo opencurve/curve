@@ -93,6 +93,8 @@
             tags: ["generate_config", "generage_tools_conf"] }
     - { role: generate_config, template_name: topo.json, conf_path: "{{ topo_file_path }}",
             tags: ["generate_config", "generage_topo_json"] }
+    - { role: generate_config, template_name: snapshot_tools.conf, conf_path: "{{ snap_tool_config_path }}",
+            tags: ["generate_config", "generage_snaptool_conf"] }
 
 - name: start mds
   hosts: mds

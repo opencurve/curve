@@ -496,6 +496,40 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoSuccess) {
     cond1.Wait();
 }
 
+TEST_F(TestCloneServiceManager, GetCloneTaskInfoByFilterSuccess) {
+    const UUID source = "uuid1";
+    const std::string user = "user1";
+    const std::string destination = "file1";
+    bool lazyFlag = true;
+
+    CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
+        source, destination, CloneFileType::kSnapshot, lazyFlag);
+    cloneInfo.SetStatus(CloneStatus::done);
+
+    std::vector<CloneInfo> cloneInfos;
+    cloneInfos.push_back(cloneInfo);
+    EXPECT_CALL(*cloneCore_, GetCloneInfoList(_))
+        .WillOnce(DoAll(SetArgPointee<0>(cloneInfos),
+            Return(kErrCodeSuccess)));
+
+    CloneFilterCondition filter;
+    std::vector<TaskCloneInfo> infos;
+    auto ret = manager_->GetCloneTaskInfoByFilter(filter, &infos);
+
+    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(1, infos.size());
+    CloneInfo cInfo = infos[0].GetCloneInfo();
+    ASSERT_EQ("uuid1", cInfo.GetTaskId());
+    ASSERT_EQ(user, cInfo.GetUser());
+    ASSERT_EQ(CloneTaskType::kClone, cInfo.GetTaskType());
+    ASSERT_EQ(source, cInfo.GetSrc());
+    ASSERT_EQ(destination, cInfo.GetDest());
+    ASSERT_EQ(CloneFileType::kSnapshot, cInfo.GetFileType());
+    ASSERT_EQ(lazyFlag, cInfo.GetIsLazy());
+    ASSERT_EQ(CloneStatus::done, cInfo.GetStatus());
+    ASSERT_EQ(kProgressCloneComplete, infos[0].GetCloneProgress());
+}
+
 TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoByUUIDSuccess) {
     const UUID uuid = "uuid1";
     const UUID source = "src";

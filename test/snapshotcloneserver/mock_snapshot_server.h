@@ -285,6 +285,10 @@ class MockSnapshotServiceManager : public SnapshotServiceManager {
         const UUID &uuid,
         std::vector<FileSnapshotInfo> *info));
 
+    MOCK_METHOD2(GetSnapshotListByFilter,
+        int(const SnapshotFilterCondition &filter,
+        std::vector<FileSnapshotInfo> *info));
+
     MOCK_METHOD3(CancelSnapshot,
         int(const UUID &uuid,
         const std::string &user,
@@ -321,6 +325,9 @@ class MockCloneServiceManager : public CloneServiceManager {
         int(const std::string &user,
         std::vector<TaskCloneInfo> *info));
 
+    MOCK_METHOD1(GetCloneTaskInfo,
+        int(std::vector<TaskCloneInfo> *info));
+
     MOCK_METHOD3(GetCloneTaskInfoById,
         int(const std::string &user,
         const TaskIdType &taskId,
@@ -329,6 +336,10 @@ class MockCloneServiceManager : public CloneServiceManager {
     MOCK_METHOD3(GetCloneTaskInfoByName,
         int(const std::string &user,
         const std::string &fileName,
+        std::vector<TaskCloneInfo> *info));
+
+    MOCK_METHOD2(GetCloneTaskInfoByFilter,
+        int(const CloneFilterCondition &filter,
         std::vector<TaskCloneInfo> *info));
 
     MOCK_METHOD2(CleanCloneTask,

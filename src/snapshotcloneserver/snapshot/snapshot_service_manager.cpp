@@ -262,6 +262,103 @@ int SnapshotServiceManager::GetFileSnapshotInfoInner(
     return kErrCodeSuccess;
 }
 
+bool SnapshotFilterCondition::IsMatchCondition(const SnapshotInfo &snapInfo) {
+    if (user_ != nullptr && *user_ != snapInfo.GetUser()) {
+        return false;
+    }
+
+    if (file_ != nullptr && *file_ != snapInfo.GetFileName()) {
+        return false;
+    }
+
+    if (uuid_ != nullptr && *uuid_ != snapInfo.GetUuid()) {
+        return false;
+    }
+
+    if (status_ != nullptr
+        && std::stoi(*status_) != static_cast<int>(snapInfo.GetStatus())) {
+        return false;
+    }
+
+    return true;
+}
+
+int SnapshotServiceManager::GetSnapshotListInner(
+    std::vector<SnapshotInfo> snapInfos,
+    SnapshotFilterCondition filter,
+    std::vector<FileSnapshotInfo> *info) {
+    int ret = kErrCodeSuccess;
+    for (auto &snap : snapInfos) {
+        if (filter.IsMatchCondition(snap)) {
+            Status st = snap.GetStatus();
+            switch (st) {
+                case Status::done: {
+                    info->emplace_back(snap, 100);
+                    break;
+                }
+                case Status::error:
+                case Status::canceling: {
+                    info->emplace_back(snap, 0);
+                    break;
+                }
+                case Status::deleting:
+                case Status::errorDeleting:
+                case Status::pending: {
+                    UUID uuid = snap.GetUuid();
+                    std::shared_ptr<SnapshotTask> task =
+                        taskMgr_->GetTask(uuid);
+                    if (task != nullptr) {
+                        info->emplace_back(snap,
+                            task->GetTaskInfo()->GetProgress());
+                    } else {
+                        // 刚刚完成
+                        SnapshotInfo newInfo;
+                        ret = core_->GetSnapshotInfo(uuid, &newInfo);
+                        if (ret < 0) {
+                            LOG(ERROR) << "GetSnapshotInfo fail"
+                                       << ", ret = " << ret
+                                       << ", uuid = " << uuid;
+                            return ret;
+                        }
+                        switch (newInfo.GetStatus()) {
+                            case Status::done: {
+                                info->emplace_back(newInfo, 100);
+                                break;
+                            }
+                            case Status::error: {
+                                info->emplace_back(newInfo, 0);
+                                break;
+                            }
+                            default:
+                                LOG(ERROR) << "can not reach here!";
+                                // 当更新数据库失败时，有可能进入这里
+                                return kErrCodeInternalError;
+                        }
+                    }
+                    break;
+                }
+                default:
+                    LOG(ERROR) << "can not reach here!";
+                    return kErrCodeInternalError;
+            }
+        }
+    }
+    return kErrCodeSuccess;
+}
+
+int SnapshotServiceManager::GetSnapshotListByFilter(
+                    const SnapshotFilterCondition &filter,
+                    std::vector<FileSnapshotInfo> *info) {
+    std::vector<SnapshotInfo> snapInfos;
+    int ret = core_->GetSnapshotList(&snapInfos);
+    if (ret < 0) {
+        LOG(ERROR) << "GetFileSnapshotInfo error, "
+                   << " ret = " << ret;
+        return ret;
+    }
+    return GetSnapshotListInner(snapInfos, filter, info);
+}
+
 int SnapshotServiceManager::RecoverSnapshotTask() {
     std::vector<SnapshotInfo> list;
     int ret = core_->GetSnapshotList(&list);

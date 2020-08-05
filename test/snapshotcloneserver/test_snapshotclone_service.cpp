@@ -328,6 +328,140 @@ TEST_F(TestSnapshotCloneServiceImpl,
     ASSERT_STREQ("3", jsonObj["Snapshots"][1]["UUID"].asCString());
 }
 
+TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotListSuccess) {
+    std::string file = "test";
+    std::string user = "test";
+
+    std::vector<FileSnapshotInfo> infoVec;
+    FileSnapshotInfo info;
+    SnapshotInfo sinfo("uuid1",
+        "user1",
+        "file1",
+        "snap1",
+         100,
+         1024,
+         1024,
+         2048,
+         100,
+         Status::pending);
+    info.SetSnapshotInfo(sinfo);
+    info.SetSnapProgress(50);
+    infoVec.push_back(info);
+    EXPECT_CALL(*snapshotManager_, GetSnapshotListByFilter(_, _))
+        .WillOnce(DoAll(
+                    SetArgPointee<1>(infoVec),
+                    Return(kErrCodeSuccess)));
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kGetFileSnapshotListAction + "&"
+                    + kVersionStr + "=1";
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+
+    std::stringstream ss;
+    ss << cntl.response_attachment();
+    std::string data = ss.str();
+    Json::Reader jsonReader;
+    Json::Value jsonObj;
+    if (!jsonReader.parse(data, jsonObj)) {
+        FAIL() << "parse json fail, data = " << data;
+    }
+    ASSERT_STREQ("0", jsonObj["Code"].asCString());
+    ASSERT_EQ(1, jsonObj["TotalCount"].asInt());
+    ASSERT_EQ(1, jsonObj["Snapshots"].size());
+    ASSERT_STREQ("uuid1", jsonObj["Snapshots"][0]["UUID"].asCString());
+    ASSERT_STREQ("user1", jsonObj["Snapshots"][0]["User"].asCString());
+    ASSERT_STREQ("file1", jsonObj["Snapshots"][0]["File"].asCString());
+    ASSERT_EQ(100, jsonObj["Snapshots"][0]["SeqNum"].asInt());
+    ASSERT_STREQ("snap1", jsonObj["Snapshots"][0]["Name"].asCString());
+    ASSERT_EQ(100, jsonObj["Snapshots"][0]["Time"].asInt());
+    ASSERT_EQ(2048, jsonObj["Snapshots"][0]["FileLength"].asInt());
+    ASSERT_EQ(1, jsonObj["Snapshots"][0]["Status"].asInt());
+    ASSERT_EQ(50, jsonObj["Snapshots"][0]["Progress"].asInt());
+}
+
+TEST_F(TestSnapshotCloneServiceImpl,
+    TestGetFileSnapshotListUseLimitOffsetSuccess) {
+    std::string file = "test";
+    std::string user = "test";
+
+    std::vector<FileSnapshotInfo> infoVec;
+    FileSnapshotInfo info1, info2, info3;
+    SnapshotInfo sinfo1, sinfo2, sinfo3;
+    sinfo1.SetUuid("1");
+    sinfo2.SetUuid("2");
+    sinfo3.SetUuid("3");
+
+    info1.SetSnapshotInfo(sinfo1);
+    info2.SetSnapshotInfo(sinfo2);
+    info3.SetSnapshotInfo(sinfo3);
+    infoVec.push_back(info1);
+    infoVec.push_back(info2);
+    infoVec.push_back(info3);
+
+    EXPECT_CALL(*snapshotManager_, GetSnapshotListByFilter(_, _))
+        .WillOnce(DoAll(
+                    SetArgPointee<1>(infoVec),
+                    Return(kErrCodeSuccess)));
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kGetFileSnapshotListAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + file + "&"
+                    + kLimitStr + "=10&"
+                    + kOffsetStr + "=1";
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    std::stringstream ss;
+    ss << cntl.response_attachment();
+    std::string data = ss.str();
+    Json::Reader jsonReader;
+    Json::Value jsonObj;
+    if (!jsonReader.parse(data, jsonObj)) {
+        FAIL() << "parse json fail, data = " << data;
+    }
+    ASSERT_STREQ("0", jsonObj["Code"].asCString());
+    ASSERT_EQ(3, jsonObj["TotalCount"].asInt());
+    ASSERT_EQ(2, jsonObj["Snapshots"].size());
+    ASSERT_STREQ("2", jsonObj["Snapshots"][0]["UUID"].asCString());
+    ASSERT_STREQ("3", jsonObj["Snapshots"][1]["UUID"].asCString());
+}
+
 TEST_F(TestSnapshotCloneServiceImpl, TestActionIsNull) {
     std::string file = "test";
     std::string user = "test";
@@ -491,6 +625,36 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoMissingParam) {
     LOG(ERROR) << cntl.response_attachment();
 }
 
+TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotListMissingParam) {
+    std::string file = "test";
+    std::string user = "test";
+
+    std::vector<FileSnapshotInfo> info;
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kGetFileSnapshotListAction;
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
+
 TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotFail) {
     UUID uuid = "uuid1";
     std::string user = "user";
@@ -620,6 +784,44 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoFail) {
                     + std::to_string(listenAddr_.port)
                     + "/" + kServiceName + "?"
                     + kActionStr + "=" +kGetFileSnapshotInfoAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kFileStr + "=" + file + "&"
+                    + kLimitStr + "=10";
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotListFail) {
+    std::string file = "test";
+    std::string user = "test";
+
+    std::vector<FileSnapshotInfo> info;
+    EXPECT_CALL(*snapshotManager_, GetSnapshotListByFilter(_, _))
+        .WillOnce(DoAll(
+                    SetArgPointee<1>(info),
+                    Return(kErrCodeInternalError)));
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kGetFileSnapshotListAction + "&"
                     + kVersionStr + "=1&"
                     + kUserStr + "=" + user + "&"
                     + kFileStr + "=" + file + "&"
@@ -828,6 +1030,11 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskSuccess) {
     ASSERT_STREQ("uuid1", jsonObj["TaskInfos"][0]["UUID"].asCString());
     ASSERT_STREQ("user1", jsonObj["TaskInfos"][0]["User"].asCString());
     ASSERT_STREQ("dest", jsonObj["TaskInfos"][0]["File"].asCString());
+    ASSERT_STREQ("source", jsonObj["TaskInfos"][0]["Src"].asCString());
+    ASSERT_EQ(true, jsonObj["TaskInfos"][0]["IsLazy"].asBool());
+    ASSERT_EQ(0, jsonObj["TaskInfos"][0]["NextStep"].asInt());
+    ASSERT_EQ(1, jsonObj["TaskInfos"][0]["FileType"].asInt());
+    ASSERT_EQ(50, jsonObj["TaskInfos"][0]["Progress"].asInt());
     ASSERT_EQ(0,
         jsonObj["TaskInfos"][0]["TaskType"].asInt());
     ASSERT_EQ(1,
@@ -898,11 +1105,29 @@ TEST_F(TestSnapshotCloneServiceImpl,
     ASSERT_STREQ("3", jsonObj["TaskInfos"][1]["UUID"].asCString());
 }
 
-TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileMissingParam) {
+TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskListSuccess) {
     UUID uuid = "uuid1";
     std::string user = "user1";
-    std::string source = "abc";
-    std::string destination = "file1";
+
+    std::vector<TaskCloneInfo> infoVec;
+    TaskCloneInfo info1, info2 , info3, info4;
+    CloneInfo cinfo1, cinfo2, cinfo3, cinfo4;
+    cinfo1.SetTaskId("1");
+    cinfo2.SetTaskId("2");
+    cinfo3.SetTaskId("3");
+    cinfo4.SetTaskId("4");
+    info1.SetCloneInfo(cinfo1);
+    info2.SetCloneInfo(cinfo2);
+    info3.SetCloneInfo(cinfo3);
+    info4.SetCloneInfo(cinfo4);
+    infoVec.push_back(info1);
+    infoVec.push_back(info2);
+    infoVec.push_back(info3);
+    infoVec.push_back(info4);
+    EXPECT_CALL(*cloneManager_, GetCloneTaskInfoByFilter(_, _))
+        .WillOnce(DoAll(
+                SetArgPointee<1>(infoVec),
+                Return(kErrCodeSuccess)));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -911,11 +1136,8 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileMissingParam) {
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
                     + "/" + kServiceName + "?"
-                    + kActionStr + "=" +kCloneAction + "&"
-                    + kVersionStr + "=1&"
-                    + kUserStr + "=" + user + "&"
-                    + kSourceStr + "=" + source + "&"
-                    + kDestinationStr + "=" + destination;
+                    + kActionStr + "=" + kGetCloneTaskListAction + "&"
+                    + kVersionStr + "=1";
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -929,7 +1151,88 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileMissingParam) {
     if (cntl.Failed()) {
         LOG(ERROR) << cntl.ErrorText();
     }
-    LOG(ERROR) << cntl.response_attachment();
+    std::stringstream ss;
+    ss << cntl.response_attachment();
+    std::string data = ss.str();
+    Json::Reader jsonReader;
+    Json::Value jsonObj;
+    if (!jsonReader.parse(data, jsonObj)) {
+        FAIL() << "parse json fail, data = " << data;
+    }
+
+    ASSERT_STREQ("0", jsonObj["Code"].asCString());
+    ASSERT_EQ(4, jsonObj["TotalCount"].asInt());
+    ASSERT_EQ(4, jsonObj["TaskInfos"].size());
+    ASSERT_STREQ("1", jsonObj["TaskInfos"][0]["UUID"].asCString());
+    ASSERT_STREQ("2", jsonObj["TaskInfos"][1]["UUID"].asCString());
+    ASSERT_STREQ("3", jsonObj["TaskInfos"][2]["UUID"].asCString());
+    ASSERT_STREQ("4", jsonObj["TaskInfos"][3]["UUID"].asCString());
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskListWithLimitSuccess) {
+    UUID uuid = "uuid1";
+    std::string user = "user1";
+
+    std::vector<TaskCloneInfo> infoVec;
+    TaskCloneInfo info1, info2 , info3, info4;
+    CloneInfo cinfo1, cinfo2, cinfo3, cinfo4;
+    cinfo1.SetTaskId("1");
+    cinfo2.SetTaskId("2");
+    cinfo3.SetTaskId("3");
+    cinfo4.SetTaskId("4");
+    info1.SetCloneInfo(cinfo1);
+    info2.SetCloneInfo(cinfo2);
+    info3.SetCloneInfo(cinfo3);
+    info4.SetCloneInfo(cinfo4);
+    infoVec.push_back(info1);
+    infoVec.push_back(info2);
+    infoVec.push_back(info3);
+    infoVec.push_back(info4);
+
+    EXPECT_CALL(*cloneManager_, GetCloneTaskInfoByFilter(_, _))
+        .WillOnce(DoAll(
+                SetArgPointee<1>(infoVec),
+                Return(kErrCodeSuccess)));
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" + kGetCloneTaskListAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kLimitStr + "=2&"
+                    + kOffsetStr + "=1";
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    std::stringstream ss;
+    ss << cntl.response_attachment();
+    std::string data = ss.str();
+    Json::Reader jsonReader;
+    Json::Value jsonObj;
+    if (!jsonReader.parse(data, jsonObj)) {
+        FAIL() << "parse json fail, data = " << data;
+    }
+
+    ASSERT_STREQ("0", jsonObj["Code"].asCString());
+    ASSERT_EQ(4, jsonObj["TotalCount"].asInt());
+    ASSERT_EQ(2, jsonObj["TaskInfos"].size());
+    ASSERT_STREQ("2", jsonObj["TaskInfos"][0]["UUID"].asCString());
+    ASSERT_STREQ("3", jsonObj["TaskInfos"][1]["UUID"].asCString());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileMissingParam) {
@@ -978,6 +1281,33 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskMissingParam) {
                     + "/" + kServiceName + "?"
                     + kActionStr + "=" +kGetCloneTasksAction + "&"
                     + kVersionStr + "=1";
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskListMissingParam) {
+    UUID uuid = "uuid1";
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kGetCloneTaskListAction;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -1107,6 +1437,38 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskFail) {
                     + kActionStr + "=" +kGetCloneTasksAction + "&"
                     + kVersionStr + "=1&"
                     + kUserStr + "=" + user;
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneListFail) {
+    UUID uuid = "uuid1";
+    std::string user = "user1";
+
+    EXPECT_CALL(*cloneManager_, GetCloneTaskInfoByFilter(_, _))
+        .WillOnce(Return(kErrCodeInternalError));
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kGetCloneTaskListAction + "&"
+                    + kVersionStr + "=1&";
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
