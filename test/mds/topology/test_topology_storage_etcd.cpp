@@ -410,6 +410,7 @@ TEST_F(TestTopologyStorageEtcd, test_LoadChunkServer_success) {
     ASSERT_TRUE(ret);
 
     ASSERT_EQ(1, chunkServerMap.size());
+    data.SetOnlineState(OnlineState::UNSTABLE);
     ASSERT_TRUE(JudgeChunkServerEqual(data, chunkServerMap[0x51]));
     ASSERT_EQ(0x51, maxChunkServerId);
 }
