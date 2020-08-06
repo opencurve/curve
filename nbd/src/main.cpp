@@ -143,7 +143,7 @@ static int NBDConnect() {
         nbdTool->RunServerUntilQuit();
     }
 
-    ::exit(ret);
+    return 0;
 }
 
 static int CurveNbdMain(int argc, const char* argv[]) {
@@ -207,6 +207,9 @@ static int CurveNbdMain(int argc, const char* argv[]) {
             break;
         }
     }
+
+    nbdTool.reset();
+    nbdConfig.reset();
 
     return 0;
 }
