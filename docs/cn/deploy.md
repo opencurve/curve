@@ -2,10 +2,9 @@
 
 ## 概述
 
-ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook 功能编写的集群部署工具。本文档介绍如何快速上手体验 CURVE 分布式系统：1. 使用 curve-ansible 在单机上模拟生产环境部署步骤  2. 使用 curve-ansible 在多机上部署最小生产环境。关于curve-ansible的更多用法和说明请参见[curve-ansible README](../../curve-ansible/README.md)
+ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook 功能编写的集群部署工具。本文档介绍如何快速上手体验 CURVE 分布式系统：1. 使用 curve-ansible 在单机上模拟生产环境部署步骤  2. 使用 curve-ansible 在多机上部署最小生产环境。关于curve-ansible的更多用法和说明请参见[curve-ansible README](../../curve-ansible/README.md)。安装过程中遇到文档中未说明的问题，请先使用最新版本的软件包，老版本ansible中存在的问题以及解决方法不会在本文档中出现。
 
 ## 特别说明
-- curve默认会将相关的库安装到/usr/lib下面，如果是CentOS系统，需要将client.ini和server.ini中的curve_lib_dir修改为/usr/lib64
 - 一些外部依赖是通过源码的方式安装的，安装的过程中从github下载包可能会超时，这时可以选择重试或手动安装，jemalloc手动安装的话要保证configure的prefix与server.ini和client.ini的lib_install_prefix一致
 - 如果机器上开启了SElinux可能会报Aborting, target uses selinux but python bindings (libselinux-python) aren't installed，可以尝试安装libselinux-python，或者强行关闭selinux
 - deploy_curve.yml用于部署一个全新的集群，集群成功搭建后不能重复跑，因为会**扰乱集群**。可以选择**启动**集群或者**清理**集群后重新部署，详细用法见[curve-ansible README](../../curve-ansible/README.md)。
@@ -16,7 +15,13 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 ## 单机部署
 
 - 适用场景：希望用单台 Linux 服务器，体验 CURVE 最小的拓扑的集群，并模拟生产部署步骤。
-
+我们提供了all-in-one的docker镜像，在这个docker镜像中，有全部的编译依赖和运行依赖。因此可以快速的部署自己编译好的代码，当然也可以选择从github下载最新的release包实施部署。
+#### docker准备
+执行下面的命令启动docker
+   ```bash
+   docker run --cap-add=ALL -v /dev:/dev -v /lib/modules:/lib/modules --privileged -it opencurve/curveintegration:centos8 /bin/bash
+   ```
+选择docker部署的话，下面的准备环境步骤可以直接跳过，开始实施部署即可。
 #### 准备环境
 
 准备一台部署主机，确保其软件满足需求:
@@ -60,7 +65,6 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    $ pip install --upgrade pip
    $ pip install --upgrade setuptools
    ```
-4. 检查其他依赖，未安装的需要手动安装：net-tools, openssl-1.1.1, perf, perl-podlators, make, gcc6.1, libstdc++.so.6.22
 
 ##### Debian9环境准备具体步骤
 1. root用户登录机器，创建curve用户
@@ -84,7 +88,6 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    $ pip install --upgrade pip
    $ pip install --upgrade setuptools
    ```
-4. 检查其他依赖，未安装的需要手动安装：net-tools, openssl-1.1.1, perf, perl-podlators, make, gcc6.1, libstdc++.so.6.22, libcurl
 
 #### 实施部署
 
@@ -106,30 +109,22 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    tar zxvf nebd_0.1.1+4b930380.tar.gz
    cd curve/curve-ansible
    ```
-
-3. 准备inventory文件
-   - 在server.ini和client.ini的[all:vars]中增加ansible_connection=local
-   - 如果是debian系统，则不需要改动，如果是CentOs系统，需要将client.ini和server.ini中的curve_lib_dir修改为/usr/lib64
-   ```
-   curve_lib_dir=/usr/lib64
-   ```
-
-4. 部署集群并启动服务
+3. 部署集群并启动服务
 
    ```
    ansible-playbook -i server.ini deploy_curve.yml
    ```
 
-5. 如果需要使用快照克隆功能，需要有S3账号，可以使用[网易云的对象存储](https://www.163yun.com/product/nos)
+4. 如果需要使用快照克隆功能，需要有S3账号，可以使用[网易云的对象存储](https://www.163yun.com/product/nos)
 
    ```
-   1. 在 server.ini 中，填写s3_ak和s3_sk=替换成自己账号对应的
+   1. 在 server.ini 中，填写s3_nos_address，s3_snapshot_bucket_name，s3_ak和s3_sk。设置disable_snapshot_clone=false
    2. 安装快照克隆服务
       ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone
       ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone_nginx
    ```
 
-6. 执行命令查看当前集群状态，主要看以下几个状态：
+5. 执行命令查看当前集群状态，主要看以下几个状态：
    - Cluster status中的total copysets为100，unhealthy copysets为0
    - Mds status中current MDS不为空，offline mds list为空
    - Etcd status中的current etcd不为空，offline etcd list为空
@@ -139,7 +134,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    curve_ops_tool status
    ```
 
-7. 安装 Nebd 服务和 NBD 包
+6. 安装 Nebd 服务和 NBD 包
 
    ```
    ansible-playbook -i client.ini deploy_nebd.yml
@@ -150,11 +145,11 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 8. 创建 CURVE 卷，并通过 NBD 挂载到本地。创建CURVE卷的时候可能会报Fail to listen，这个属于日志打印问题，不影响结果，可以忽略
 
    ```
-   1. 创建 CURVE 卷： 命令为 curve create [-h] --filename FILENAME --length LENGTH --user USER， LENGTH >= 10
+   1. 创建 CURVE 卷： 命令为 curve create [-h] --filename FILENAME --length LENGTH --user USER， LENGTH >= 10。其中length单位为1GB。
       curve create --filename /test --length 10 --user curve
    2. 挂载卷
       sudo curve-nbd map cbd:pool//test_curve_
-   3. 查看设备挂载情况
+   3. 查看设备挂载情况（在docker部署的情况下，list-mapped会看不到，可以选择lsblk看一下是否有/dev/nbd0类型的卷）
       curve-nbd list-mapped
    ```
 
@@ -236,7 +231,6 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    $ sudo -iu curve  # 切换到curve用户
    $ sudo ls  # 测试sudo是否正确配置
    ```
-3. 检查其他依赖，未安装的需要手动安装：net-tools, openssl-1.1.1, perf, perl-podlators, make, gcc6.1, libstdc++.so.6.22, libcurl
 下面的步骤只需要在中控机上执行：
 1. curve用户下配置ssh登陆到所有机器（包括自己），假设三台机器的ip分别为10.192.100.1,10.192.100.2,10.192.100.3
    ```bash
@@ -328,6 +322,8 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    defined_healthy_status="cluster is healthy"
    etcd_config_path=/etc/curve/etcd.conf.yml
    etcd_log_dir=/data/log/curve/etcd
+   etcd_data_dir=/etcd/data
+   etcd_wal_dir=/etcd/wal
 
    [snapshotclone:vars]
    snapshot_port=5556
@@ -346,7 +342,6 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    client_chunkserver_max_stable_timeout_times=64
    client_turn_off_health_check=false
    snapshot_clone_server_log_dir=/data/log/curve/snapshotclone
-   aws_package_version="1.0"
 
    [chunkservers:vars]
    wait_service_timeout=60
@@ -395,14 +390,14 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    deploy_dir=/home/curve
    s3_ak=""                                            // 如果需要快照克隆服务，则修改成自己s3账号对应的值
    s3_sk=""                                            // 如果需要快照克隆服务，则修改成自己s3账号对应的值
+   s3_nos_address=""                                   // 如果需要快照克隆服务，则修改成s3服务的地址
+   s3_snapshot_bucket_name=""                          // 如果需要快照克隆服务，则修改成自己在s3上的桶名
    ansible_ssh_port=22
    curve_root_username=root                           // 改动，修改成自己需要的username，因为目前的一个bug，用到快照克隆的话用户名必须为root
    curve_root_password=root_password                  // 改动，修改成自己需要的密码
-   curve_bin_dir=/usr/bin
-   curve_lib_dir=/usr/lib                             // 如果是CentOs系统，则修改成/usr/lib64
-   curve_include_dir=/usr/include
    lib_install_prefix=/usr/local
    bin_install_prefix=/usr
+   ansible_connection=ssh                              // 改动
 
    ```
 
@@ -440,13 +435,10 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    [all:vars]
    need_confirm=true
    need_update_config=true
-   curve_bin_dir=/usr/bin
-   curve_lib_dir=/usr/lib                             // 如果是CentOs系统，需要修改成/usr/lib64
-   curve_include_dir=/usr/include
-   curvefs_dir=/usr/curvefs
    ansible_ssh_port=22
    lib_install_prefix=/usr/local
    bin_install_prefix=/usr
+   ansible_connection=ssh    // 改动
    ```
 
 
@@ -515,7 +507,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 5. 如果需要使用快照克隆功能，需要有S3账号，可以使用[网易云的对象存储](https://www.163yun.com/product/nos)  同上
 
    ```
-   1. 在 server.ini 中，填写s3_ak="" s3_sk="" disable_snapshot_clone=false
+   1. 在 server.ini 中，填写s3_nos_address，s3_snapshot_bucket_name，s3_ak和s3_sk disable_snapshot_clone=false
    2. 安装快照克隆服务
       ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone
       ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone_nginx
@@ -545,6 +537,6 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
       curve create --filename /test --length 10 --user curve
    2. 挂载卷
       sudo curve-nbd map cbd:pool//test_curve_
-   3. 查看设备挂载情况
+   3. 查看设备挂载情况（在docker部署的情况下，list-mapped会看不到，可以选择lsblk看一下是否有/dev/nbd0类型的卷）
       curve-nbd list-mapped
    ```
