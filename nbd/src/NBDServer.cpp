@@ -285,7 +285,8 @@ void NBDServer::OnRequestFinish(IOContext* ctx) {
 }
 
 void NBDServer::WaitClean() {
-    LOG(INFO) << "WaitClean";
+    LOG(INFO) << "WaitClean, current pending requests: "
+              << pendingRequestCounts_;
     std::unique_lock<std::mutex> lk(requestMtx_);
     requestCond_.wait(lk, [this]() { return pendingRequestCounts_ == 0; });
 
