@@ -316,7 +316,7 @@ ansible-playbook stop_curve.yml -i server.ini
 （2）关闭nebd-server
 
 ```shell
-ansible-playbook start_nebd_server.yml -i client.ini
+ansible-playbook stop_nebd_server.yml -i client.ini
 ```
 
 三、目录结构说明
