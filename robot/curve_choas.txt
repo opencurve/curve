@@ -1,0 +1,148 @@
+*** Settings ***
+Library           Resources/keywords/base_operate.py
+Library           Resources/test/curve_base_test.py
+Library           Resources/swig/swig_operate.py
+Library	          Collections
+#Library           RequestsLibrary
+Library           Process
+#Library           SSHLibrary
+Library           Resources/keywords/mythread.py
+Library           Resources/keywords/fault_inject.py
+Library           Resources/keywords/deploy.py
+Library           Resources/keywords/test_curve_stability.py
+Library           Resources/config/config.py
+
+Suite Setup       init failover cluster
+Suite Teardown    clean failover env
+
+*** Variables ***
+${fio_vdsize}     10
+${vdbench_vdsize}   10
+${vm_iops_limit}   8000
+${chunk_num}   0
+${WaitTimeBetweenIterations}   300
+${WaitTimeBetweenFaults}     30
+${ChoasLevel}     3
+${MaxClusterOkTimeout}    1800
+@{choas_level1}    Create List
+@{choas_level2}    Create List
+@{choas_level3}    Create List
+
+*** Test Cases ***
+
+test one volume perf
+    [Tags]    P1    base    first release  longtime   perf  
+    remove vm key
+    attach new vol   200   200
+    stop rwio
+    perf test
+
+#启动大压力情况下的混沌测试：分等级进行随机故障注入。每次注入完成后恢复集群所有业务，目前设置100次的全流程注入
+
+inject cluster chaos test
+    [Tags]   P2   chaos   longtime  
+    init rw cloud disk
+    add data disk
+    get level cases 
+    ${num}   evaluate  int(50)
+    init create curve vm    ${num}
+    :FOR   ${i}   IN RANGE   100
+          log   "启动第"${i}"轮故障"
+          ${choas1}   evaluate  random.choice($choas_level1)   random
+          log   "开始启动一级故障"
+          do thrasher    ${choas1}
+          sleep  30
+          ${choas2}   evaluate  random.choice($choas_level2)   random
+          log   "开始启动二级故障"
+          do thrasher    ${choas2}
+          sleep  30
+          ${choas3}   evaluate  random.choice($choas_level3)   random
+          log   "开始启动三级故障"
+          do thrasher    ${choas3}
+          sleep  30
+          clean env
+          start all services 
+          wait cluster healthy
+          ${active_num}     get all curvevm active num    ${num}
+          ${active_num}    Convert To Integer   ${active_num}
+          should be equal    ${active_num}   ${num} 
+          check data consistency
+          check io error
+          sleep   300
+    END
+    [Teardown]   clean curve data
+    
+
+*** Keywords ***
+
+init failover cluster
+     init vm
+     init abnormal test env
+     check chunkserver online
+     ${begin_num}    get all chunk num
+     ${begin_num}    Convert To Integer   ${begin_num}
+     Set Global Variable  ${chunk_num}    ${begin_num} 
+
+init abnormal test env
+     clean env
+     destroy etcd
+     destroy mds
+     destroy snapshotclone server
+     stop nebd
+     drop all chunkserver dat
+     install deb
+     add config 
+     start abnormal test services
+     create pool
+     restart cinder server
+     wait cinder server up
+     start nebd
+
+init rw cloud disk
+     remove vm key
+     attach new vol   ${fio_vdsize}   ${vdbench_vdsize} 
+     stop rwio
+     write full disk  ${fio_vdsize}
+     run rwio
+
+test get all chunk num
+    stop rwio
+    sleep  2
+    ${begin_num}    get all chunk num
+    ${begin_num}    Convert To Integer  ${begin_num}
+    exec deleteforce
+    sleep  3
+    ${end_num}    get all chunk num
+    ${end_num}    Convert To Integer   ${end_num}
+    should be equal    ${begin_num}   ${end_num}
+
+clean failover env
+     stop rwio
+     check io error
+#     stop scheduler
+     check copies consistency
+     detach vol
+     sleep  10
+     clear RecycleBin
+#     sleep  60 
+#     ${final_num}    get all chunk num
+#     ${final_num}    Convert To Integer   ${final_num}
+#     should be equal    ${final_num}   ${chunk_num}
+
+get level cases
+     ${level}    evaluate   str("level1")
+     ${choas}   get level list      ${level}
+     Set Global Variable  ${choas_level1}    ${choas}
+     ${level}    evaluate   str("level2")
+     ${choas}   get level list      ${level}
+     Set Global Variable  ${choas_level2}    ${choas}
+     ${level}    evaluate   str("level3")
+     ${choas}   get level list      ${level}
+     Set Global Variable  ${choas_level3}    ${choas}
+
+start all services
+     test start etcd
+     sleep  10
+     test start mds
+     start retired and down chunkservers
+     test start snap
