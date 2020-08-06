@@ -263,6 +263,9 @@ int StatusTool::ChunkServerListCmd() {
             std::cout <<  ", unhealthyCopysetRatio = "
                       << unhealthyRatio * 100 << "%";
         }
+        if (chunkserver.has_externalip()) {
+            std::cout << ", externalIP = " << chunkserver.externalip();
+        }
         std::cout << std::endl;
     }
     std::cout << "total: " << total << ", online: " << online;

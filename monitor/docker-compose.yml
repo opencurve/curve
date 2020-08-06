@@ -48,14 +48,6 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=curve
 
-  mysqld_exporter:
-    image: prom/mysqld-exporter:latest
-    environment:
-      - DATA_SOURCE_NAME=user:password@(ip:port)/
-    network_mode: host
-    command:
-      - '--web.listen-address=:9104'
-
   reporter:
     image: promoon/reporter:latest
     volumes:
