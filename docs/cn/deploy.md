@@ -533,10 +533,10 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 8. 在client的机器上创建 CURVE 卷，并通过 NBD 挂载到本地。创建CURVE卷的时候可能会报Fail to listen，这个属于日志打印问题，不影响结果，可以忽略。
 
    ```
-   1. 创建 CURVE 卷： 命令为 curve create [-h] --filename FILENAME --length LENGTH --user USER， LENGTH >= 10
+   1. 创建 CURVE 卷： 命令为 curve create [-h] --filename FILENAME --length LENGTH --user USER， LENGTH >= 10。其中length单位为GB。
       curve create --filename /test --length 10 --user curve
    2. 挂载卷
       sudo curve-nbd map cbd:pool//test_curve_
-   3. 查看设备挂载情况（在docker部署的情况下，list-mapped会看不到，可以选择lsblk看一下是否有/dev/nbd0类型的卷）
+   3. 查看设备挂载情况
       curve-nbd list-mapped
    ```
