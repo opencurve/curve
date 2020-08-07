@@ -200,6 +200,9 @@ TEST_F(CopysetClientTest, normal_test) {
     buff2[8] = '\0';
     off_t offset = 0;
 
+    butil::IOBuf iobuf;
+    iobuf.append(buff1, sizeof(buff1) - 1);
+
     ChunkServerID leaderId = 10000;
     butil::EndPoint leaderAddr;
     std::string leaderStr = "127.0.0.1:9109";
@@ -207,6 +210,7 @@ TEST_F(CopysetClientTest, normal_test) {
 
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
+    iot.PrepareReadIOBuffers(1);
 
     // write success
     for (int i = 0; i < 10; ++i) {
@@ -214,8 +218,8 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
+        reqCtx->writeData_ = iobuf;
 
-        reqCtx->writeBuffer_ = buff1;
         reqCtx->offset_ = i * 8;
         reqCtx->rawlength_ = len;
 
@@ -236,7 +240,7 @@ TEST_F(CopysetClientTest, normal_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, {}, reqDone);
+                                 iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -246,8 +250,7 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
@@ -269,7 +272,7 @@ TEST_F(CopysetClientTest, normal_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, {}, reqDone);
+                                 iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -279,8 +282,7 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
@@ -303,7 +305,7 @@ TEST_F(CopysetClientTest, normal_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, {}, reqDone);
+                                 iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -316,9 +318,9 @@ TEST_F(CopysetClientTest, normal_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = i * 8;
         reqCtx->rawlength_ = len;
+        reqCtx->subIoIndex_ = 0;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -347,8 +349,7 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->readBuffer_ = buff1;
+        reqCtx->subIoIndex_ = 0;
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
@@ -380,8 +381,7 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->readBuffer_ = buff1;
+        reqCtx->subIoIndex_ = 0;
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
@@ -452,6 +452,9 @@ TEST_F(CopysetClientTest, write_error_test) {
     buff2[8] = '\0';
     off_t offset = 0;
 
+    butil::IOBuf iobuf;
+    iobuf.append(buff1, sizeof(buff1) - 1);
+
     ChunkServerID leaderId = 10000;
     butil::EndPoint leaderAddr;
     std::string leaderStr = "127.0.0.1:9109";
@@ -466,8 +469,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -488,7 +490,7 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, {}, reqDone);
+                                 iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
@@ -499,8 +501,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -521,7 +522,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(3)
             .WillRepeatedly(Invoke(WriteChunkFunc));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, {}, reqDone);
+                                 iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
 
@@ -535,8 +536,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -561,7 +561,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(3)
             .WillRepeatedly(Invoke(WriteChunkFunc));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, {}, reqDone);
+                                 iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
 
@@ -579,8 +579,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -606,13 +605,13 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, {}, reqDone);
+                                 iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD,
                  reqDone->GetErrorCode());
 
         uint64_t end = TimeUtility::GetTimeofDayUs();
-        ASSERT_GT(end - start, 29000);
+        ASSERT_GT(end - start, 28000);
         ASSERT_LT(end - start, 2 * 50000);
         gWriteCntlFailedCode = 0;
     }
@@ -623,8 +622,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -644,7 +642,7 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, {}, reqDone);
+                                 iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                  reqDone->GetErrorCode());
@@ -655,7 +653,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-        reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -682,7 +680,7 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, {}, reqDone);
+                                 iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -695,8 +693,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -722,7 +719,7 @@ TEST_F(CopysetClientTest, write_error_test) {
                             Invoke(WriteChunkFunc)));
 
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, {}, reqDone);
+                                 iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -733,8 +730,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -763,7 +759,7 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, {}, reqDone);
+                                 iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -774,8 +770,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -801,13 +796,13 @@ TEST_F(CopysetClientTest, write_error_test) {
                             Invoke(WriteChunkFunc)));
         auto startTimeUs = curve::common::TimeUtility::GetTimeofDayUs();
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, {}, reqDone);
+                                 iobuf, offset, len, {}, reqDone);
         cond.Wait();
         auto elpased = curve::common::TimeUtility::GetTimeofDayUs()
                      - startTimeUs;
         // chunkserverOPRetryIntervalUS = 5000
         // 每次redirect睡眠500us，共重试3次，所以总共耗费时间大于1500us
-        ASSERT_GE(elpased, 1500);
+        ASSERT_GE(elpased, 1000);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
         ASSERT_EQ(3, fm.writeRPC.redirectQps.count.get_value());
@@ -818,8 +813,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -840,7 +834,7 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, {}, reqDone);
+                                 iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
@@ -851,8 +845,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -878,7 +871,7 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, {}, reqDone);
+                                 iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -926,6 +919,8 @@ TEST_F(CopysetClientTest, write_failed_test) {
     buff1[8] = '\0';
     buff2[8] = '\0';
     off_t offset = 0;
+    butil::IOBuf iobuf;
+    iobuf.append(buff1, sizeof(buff1) - 1);
 
     ChunkServerID leaderId = 10000;
     butil::EndPoint leaderAddr;
@@ -941,8 +936,7 @@ TEST_F(CopysetClientTest, write_failed_test) {
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -966,7 +960,7 @@ TEST_F(CopysetClientTest, write_failed_test) {
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(50)
             .WillRepeatedly(Invoke(WriteChunkFunc));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, {}, reqDone);
+                                 iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
 
@@ -983,8 +977,7 @@ TEST_F(CopysetClientTest, write_failed_test) {
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1010,7 +1003,7 @@ TEST_F(CopysetClientTest, write_failed_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(reqCtx->idinfo_, 0,
-                                 buff1, offset, len, {}, reqDone);
+                                 iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD,
                  reqDone->GetErrorCode());
@@ -1073,6 +1066,7 @@ TEST_F(CopysetClientTest, read_failed_test) {
 
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
+    iot.PrepareReadIOBuffers(1);
 
     /* controller set timeout */
     {
@@ -1080,7 +1074,7 @@ TEST_F(CopysetClientTest, read_failed_test) {
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
+        reqCtx->subIoIndex_ = 0;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1123,8 +1117,7 @@ TEST_F(CopysetClientTest, read_failed_test) {
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->readBuffer_ = buff1;
+        reqCtx->subIoIndex_ = 0;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1213,6 +1206,7 @@ TEST_F(CopysetClientTest, read_error_test) {
 
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
+    iot.PrepareReadIOBuffers(1);
 
     /* 非法参数 */
     {
@@ -1220,8 +1214,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->readBuffer_ = buff1;
+        reqCtx->subIoIndex_ = 0;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1252,8 +1245,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->readBuffer_ = buff1;
+        reqCtx->subIoIndex_ = 0;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1283,7 +1275,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
+        reqCtx->subIoIndex_ = 0;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1310,7 +1302,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         ASSERT_NE(0, reqDone->GetErrorCode());
 
         uint64_t end = TimeUtility::GetTimeofDayUs();
-        ASSERT_GT(end - start, 1400);
+        ASSERT_GT(end - start, 1000);
         gReadCntlFailedCode = 0;
     }
 
@@ -1320,7 +1312,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
+        reqCtx->subIoIndex_ = 0;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1364,8 +1356,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->readBuffer_ = buff1;
+        reqCtx->subIoIndex_ = 0;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1407,8 +1398,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->readBuffer_ = buff1;
+        reqCtx->subIoIndex_ = 0;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1439,8 +1429,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->readBuffer_ = buff1;
+        reqCtx->subIoIndex_ = 0;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1478,8 +1467,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->readBuffer_ = buff1;
+        reqCtx->subIoIndex_ = 0;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1521,8 +1509,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->readBuffer_ = buff1;
+        reqCtx->subIoIndex_ = 0;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1564,8 +1551,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->readBuffer_ = buff1;
+        reqCtx->subIoIndex_ = 0;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1599,8 +1585,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->readBuffer_ = buff1;
+        reqCtx->subIoIndex_ = 0;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1632,8 +1617,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-        reqCtx->readBuffer_ = buff1;
+        reqCtx->subIoIndex_ = 0;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1723,7 +1707,6 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1756,7 +1739,6 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1819,7 +1801,6 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1852,7 +1833,6 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1892,7 +1872,6 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1929,7 +1908,6 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1970,7 +1948,6 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -2006,7 +1983,6 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -2040,7 +2016,6 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -2078,7 +2053,6 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -3639,7 +3613,7 @@ TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
         aioctx->cb = WriteCallBack;
 
         // 下发写请求
-        fileinstance.AioWrite(aioctx);
+        fileinstance.AioWrite(aioctx, UserDataType::RawBuffer);
 
         std::this_thread::sleep_for(std::chrono::seconds(sec));
         return gWriteSuccessFlag;
@@ -3698,7 +3672,9 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
     CopysetID copysetId = 100001;
     ChunkID chunkId = 1;
     size_t len = 8;
-    char buff1[8 + 1] = {0};
+    char buff1[8] = {0};
+    butil::IOBuf iobuf;
+    iobuf.append(buff1, sizeof(len));
     off_t offset = 0;
 
     ChunkServerID leaderId = 10000;
@@ -3716,7 +3692,8 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
         RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-        reqCtx->writeBuffer_ = buff1;
+        // reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -3750,7 +3727,7 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
                 DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
 
         auto startUs = curve::common::TimeUtility::GetTimeofDayUs();
-        copysetClient.WriteChunk(reqCtx->idinfo_, 0, buff1, offset, len, {},
+        copysetClient.WriteChunk(reqCtx->idinfo_, 0, iobuf, offset, len, {},
                                  reqDone);
         cond.Wait();
         auto endUs = curve::common::TimeUtility::GetTimeofDayUs();
@@ -3767,7 +3744,8 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
         RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-        reqCtx->writeBuffer_ = buff1;
+        // reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -3798,7 +3776,7 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
             .WillOnce(
                 DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
         auto startUs = curve::common::TimeUtility::GetTimeofDayUs();
-        copysetClient.WriteChunk(reqCtx->idinfo_, 0, buff1, offset, len, {},
+        copysetClient.WriteChunk(reqCtx->idinfo_, 0, iobuf, offset, len, {},
                                  reqDone);
         cond.Wait();
         auto endUs = curve::common::TimeUtility::GetTimeofDayUs();
@@ -3815,7 +3793,8 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
         RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-        reqCtx->writeBuffer_ = buff1;
+        // reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -3845,7 +3824,7 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
             .WillOnce(
                 DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
         auto startUs = curve::common::TimeUtility::GetTimeofDayUs();
-        copysetClient.WriteChunk(reqCtx->idinfo_, 0, buff1, offset, len, {},
+        copysetClient.WriteChunk(reqCtx->idinfo_, 0, iobuf, offset, len, {},
                                  reqDone);
         cond.Wait();
         auto endUs = curve::common::TimeUtility::GetTimeofDayUs();
@@ -3862,7 +3841,8 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
         RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-        reqCtx->writeBuffer_ = buff1;
+        // reqCtx->writeBuffer_ = buff1;
+        reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -3890,7 +3870,7 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
             .WillOnce(
                 DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
         auto startUs = curve::common::TimeUtility::GetTimeofDayUs();
-        copysetClient.WriteChunk(reqCtx->idinfo_, 0, buff1, offset, len, {},
+        copysetClient.WriteChunk(reqCtx->idinfo_, 0, iobuf, offset, len, {},
                                  reqDone);
         cond.Wait();
         auto endUs = curve::common::TimeUtility::GetTimeofDayUs();
@@ -3945,7 +3925,7 @@ TEST(CopysetClientBasicTest, TestReScheduleWhenSessionNotValid) {
             .Times(1);
 
         TestRunnedRequestClosure closure;
-        copysetClient.WriteChunk({}, 0, 0, 0, 0, {}, &closure);
+        copysetClient.WriteChunk({}, 0, {}, 0, 0, {}, &closure);
         ASSERT_FALSE(closure.IsRunned());
     }
 }

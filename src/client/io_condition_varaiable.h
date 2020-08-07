@@ -31,10 +31,8 @@ namespace client {
 // IOConditionVariable是用户同步IO场景下IO等待条件变量
 class IOConditionVariable {
  public:
-    IOConditionVariable() {
-        ret = -1;
-        done_ = false;
-    }
+    IOConditionVariable() : retCode_(-1), done_(false), mtx_(), cv_() {}
+
     ~IOConditionVariable() = default;
 
     /**
@@ -44,7 +42,7 @@ class IOConditionVariable {
      */
     void Complete(int retcode) {
         std::unique_lock<std::mutex> lk(mtx_);
-        ret = retcode;
+        retCode_ = retcode;
         done_ = true;
         cv_.notify_one();
     }
@@ -52,16 +50,16 @@ class IOConditionVariable {
     /**
      * 是用户IO需要等待时候调用的函数，这个函数会在Complete被调用的时候返回
      */
-    int  Wait() {
+    int Wait() {
         std::unique_lock<std::mutex> lk(mtx_);
-        cv_.wait(lk, [&]()->bool {return done_;});
+        cv_.wait(lk, [&]() { return done_; });
         done_ = false;
-        return ret;
+        return retCode_;
     }
 
  private:
     // 当前IO的返回值
-    int     ret;
+    int     retCode_;
 
     // 当前IO是否完成
     bool    done_;

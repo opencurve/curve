@@ -103,15 +103,17 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     /**
      * 异步模式读
      * @param: aioctx为异步读写的io上下文，保存基本的io信息
+     * @param: dataType type of user buffer
      * @return: 0为成功，小于0为失败
      */
-    int AioRead(CurveAioContext* aioctx);
+    int AioRead(CurveAioContext* aioctx, UserDataType dataType);
     /**
      * 异步模式写
      * @param: aioctx为异步读写的io上下文，保存基本的io信息
+     * @param: dataType type of user buffer
      * @return: 0为成功，小于0为失败
      */
-    int AioWrite(CurveAioContext* aioctx);
+    int AioWrite(CurveAioContext* aioctx, UserDataType dataType);
 
     int Close();
 

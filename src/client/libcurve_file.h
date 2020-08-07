@@ -137,17 +137,21 @@ class FileClient {
      * 异步模式读
      * @param: fd为当前open返回的文件描述符
      * @param: aioctx为异步读写的io上下文，保存基本的io信息
+     * @param dataType type of aioctx->buf, default is `UserDataType::RawBuffer`
      * @return: 成功返回读取字节数,否则返回小于0的错误码
      */
-    virtual int AioRead(int fd, CurveAioContext* aioctx);
+    virtual int AioRead(int fd, CurveAioContext* aioctx,
+                        UserDataType dataType = UserDataType::RawBuffer);
 
     /**
      * 异步模式写
      * @param: fd为当前open返回的文件描述符
      * @param: aioctx为异步读写的io上下文，保存基本的io信息
+     * @param dataType type of aioctx->buf, default is `UserDataType::RawBuffer`
      * @return: 成功返回写入字节数,否则返回小于0的错误码
      */
-    virtual int AioWrite(int fd, CurveAioContext* aioctx);
+    virtual int AioWrite(int fd, CurveAioContext* aioctx,
+                         UserDataType dataType = UserDataType::RawBuffer);
 
     /**
      * 重命名文件

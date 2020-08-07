@@ -124,7 +124,13 @@ TEST_F(FileServiceTest, WriteTest) {
     EXPECT_CALL(*fileManager_, AioWrite(fd, NotNull()))
     .WillOnce(DoAll(SaveArg<1>(&aioCtx), Return(0)));
     fileService_->Write(&cntl, &request, &response, &done);
-    ASSERT_EQ(0, strncmp((char*)aioCtx->buf, buf, kSize));  // NOLINT
+
+    butil::IOBuf data;
+    data.append(buf, kSize);
+    ASSERT_EQ(
+        *reinterpret_cast<butil::IOBuf*>(aioCtx->buf),
+        data);
+
     ASSERT_FALSE(done.IsRunned());
 
     // write failed
@@ -342,7 +348,7 @@ TEST_F(FileServiceTest, CallbackTest) {
         context->offset = 0;
         context->size = 4096;
         context->done = &done;
-        context->buf = new char[4096];
+        context->buf = new butil::IOBuf();
         context->ret = 0;
         NebdFileServiceCallback(context);
         ASSERT_TRUE(done.IsRunned());
@@ -360,7 +366,7 @@ TEST_F(FileServiceTest, CallbackTest) {
         context->offset = 0;
         context->size = 4096;
         context->done = &done;
-        context->buf = new char[4096];
+        context->buf = new butil::IOBuf();
         context->ret = -1;
         NebdFileServiceCallback(context);
         ASSERT_TRUE(done.IsRunned());
@@ -378,7 +384,7 @@ TEST_F(FileServiceTest, CallbackTest) {
         context->offset = 0;
         context->size = 4096;
         context->done = &done;
-        context->buf = new char[4096];
+        context->buf = new butil::IOBuf();
         context->ret = 0;
         NebdFileServiceCallback(context);
         ASSERT_TRUE(done.IsRunned());
@@ -396,7 +402,7 @@ TEST_F(FileServiceTest, CallbackTest) {
         context->offset = 0;
         context->size = 4096;
         context->done = &done;
-        context->buf = new char[4096];
+        context->buf = new butil::IOBuf();
         context->ret = -1;
         NebdFileServiceCallback(context);
         ASSERT_TRUE(done.IsRunned());

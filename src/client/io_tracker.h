@@ -22,10 +22,12 @@
 #ifndef SRC_CLIENT_IO_TRACKER_H_
 #define SRC_CLIENT_IO_TRACKER_H_
 
+#include <butil/iobuf.h>
+
 #include <set>
-#include <list>
 #include <atomic>
 #include <string>
+#include <vector>
 
 #include "src/client/metacache.h"
 #include "src/client/mds_client.h"
@@ -60,28 +62,44 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     ~IOTracker() = default;
 
     /**
-     * startread和startwrite将上层的同步和异步读写接口统一了
-     * CurveAioContext传入的为空值的时候，代表这个读写是同步，
-     * 否则是异步的，MDSClient和FInfo_t透传给splitor。
-     * @param: aioctx异步io上下文，为空的时候代表同步IO
-     * @param: buf是读写缓冲区
-     * @param: offset是读写偏移
-     * @param: length是读写长度
-     * @param: mdsclient透传给splitor，与mds通信
-     * @param: fi是当前io对应文件的基本信息
+     * @brief StartRead同步读
+     * @param buf 读缓冲区
+     * @param offset 读偏移
+     * @param length 读长度
+     * @param mdsclient 透传给splitor，与mds通信
+     * @param fileInfo 当前io对应文件的基本信息
      */
-    void StartRead(CurveAioContext* aioctx,
-                     char* buf,
-                     off_t offset,
-                     size_t length,
-                     MDSClient* mdsclient,
-                     const FInfo_t* fi);
-    void StartWrite(CurveAioContext* aioctx,
-                     const char* buf,
-                     off_t offset,
-                     size_t length,
-                     MDSClient* mdsclient,
-                     const FInfo_t* fi);
+    void StartRead(void* buf, off_t offset, size_t length, MDSClient* mdsclient,
+                   const FInfo_t* fileInfo);
+
+    /**
+     * @brief StartWrite同步写
+     * @param buf 写缓冲区
+     * @param offset 写偏移
+     * @param length 写长度
+     * @param mdsclient 透传给splitor，与mds通信
+     * @param fileInfo 当前io对应文件的基本信息
+     */
+    void StartWrite(const void* buf, off_t offset, size_t length,
+                    MDSClient* mdsclient, const FInfo_t* fileInfo);
+
+    /**
+     * @brief start an async read operation
+     * @param ctx async read context
+     * @param mdsclient used to communicate with MDS
+     * @param fileInfo current file info
+     */
+    void StartAioRead(CurveAioContext* ctx, MDSClient* mdsclient,
+                      const FInfo_t* fileInfo);
+
+    /**
+     * @brief start an async write operation
+     * @param ctx async write context
+     * @param mdsclient used to communicate with MDS
+     * @param fileInfo current file info
+     */
+    void StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
+                       const FInfo_t* fileInfo);
     /**
      * chunk相关接口是提供给snapshot使用的，上层的snapshot和file
      * 接口是分开的，在IOTracker这里会将其统一，这样对下层来说不用
@@ -168,9 +186,26 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     /**
      * 获取当前tracker id信息
      */
-     uint64_t GetID() {
+    uint64_t GetID() const {
         return id_;
-     }
+    }
+
+    // set user data type
+    void SetUserDataType(const UserDataType dataType) {
+        userDataType_ = dataType;
+    }
+
+    /**
+     * @brief prepare space to store read data
+     * @param subIoCount #space to store read data
+     */
+    void PrepareReadIOBuffers(const uint32_t subIoCount) {
+        readDatas_.resize(subIoCount);
+    }
+
+    void SetReadData(const uint32_t subIoIndex, const butil::IOBuf& data) {
+        readDatas_[subIoIndex] = data;
+    }
 
  private:
     /**
@@ -209,6 +244,12 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      */
     RequestContext* GetInitedRequestContext() const;
 
+    // perform read operation
+    void DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo);
+
+    // perform write operation
+    void DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo);
+
  private:
     // io 类型
     OpType  type_;
@@ -216,7 +257,18 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     // 当前IO的数据内容，data是读写数据的buffer
     off_t      offset_;
     uint64_t   length_;
-    mutable const char*   data_;
+
+    // user data pointer
+    void* data_;
+
+    // user data type
+    UserDataType userDataType_;
+
+    // save write data
+    butil::IOBuf writeData_;
+
+    // save read data
+    std::vector<butil::IOBuf> readDatas_;
 
     // 当用户下发的是同步IO的时候，其需要在上层进行等待，因为client的
     // IO发送流程全部是异步的，因此这里需要用条件变量等待，待异步IO返回
@@ -234,7 +286,7 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     std::atomic<uint32_t> reqcount_;
 
     // 大IO被拆分成多个request，这些request放在reqlist中国保存
-    std::list<RequestContext*>   reqlist_;
+    std::vector<RequestContext*>   reqlist_;
 
     // scheduler用来将用户线程与client自己的线程切分
     // 大IO被切分之后，将切分的reqlist传给scheduler向下发送

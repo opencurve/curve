@@ -380,6 +380,11 @@ namespace client {
 
 class FileClient;
 
+enum class UserDataType {
+    RawBuffer,  // char*
+    IOBuffer   // butil::IOBuf*
+};
+
 // 存储用户信息
 typedef struct UserInfo {
     // 当前执行的owner信息
@@ -461,17 +466,20 @@ class CurveClient {
      * 异步读
      * @param fd 文件fd
      * @param aioctx 异步读写的io上下文
+     * @param dataType type of user buffer
      * @return 返回错误码
      */
-    virtual int AioRead(int fd, CurveAioContext* aioctx);
+    virtual int AioRead(int fd, CurveAioContext* aioctx, UserDataType dataType);
 
     /**
      * 异步写
      * @param fd 文件fd
      * @param aioctx 异步读写的io上下文
+     * @param dataType type of user buffer
      * @return 返回错误码
      */
-    virtual int AioWrite(int fd, CurveAioContext* aioctx);
+    virtual int AioWrite(int fd, CurveAioContext* aioctx,
+                         UserDataType dataType);
 
     /**
      * 测试使用，设置fileclient

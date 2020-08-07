@@ -108,12 +108,14 @@ int64_t CurveClient::StatFile(const std::string& filename) {
     return rc == LIBCURVE_ERROR::OK ? fileStatInfo.length : rc;
 }
 
-int CurveClient::AioRead(int fd, CurveAioContext* aioctx) {
-    return fileClient_->AioRead(fd, aioctx);
+int CurveClient::AioRead(int fd, CurveAioContext* aioctx,
+                         UserDataType dataType) {
+    return fileClient_->AioRead(fd, aioctx, dataType);
 }
 
-int CurveClient::AioWrite(int fd, CurveAioContext* aioctx) {
-    return fileClient_->AioWrite(fd, aioctx);
+int CurveClient::AioWrite(int fd, CurveAioContext* aioctx,
+                          UserDataType dataType) {
+    return fileClient_->AioWrite(fd, aioctx, dataType);
 }
 
 void CurveClient::SetFileClient(FileClient* client) {

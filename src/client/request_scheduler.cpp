@@ -87,7 +87,8 @@ int RequestScheduler::Fini() {
     return 0;
 }
 
-int RequestScheduler::ScheduleRequest(const std::list<RequestContext *> requests) {   //NOLINT
+int RequestScheduler::ScheduleRequest(
+    const std::vector<RequestContext*>& requests) {
     if (running_.load(std::memory_order_acquire)) {
         /* TODO(wudemiao): 后期考虑 qos */
         for (auto it : requests) {
@@ -143,31 +144,23 @@ void RequestScheduler::Process() {
             brpc::ClosureGuard guard(req->done_);
             switch (req->optype_) {
                 case OpType::READ:
-                    DVLOG(9) << "Processing read request, buf header: "
-                             << " buf: " << *(unsigned int*)req->readBuffer_;
                     {
                         req->done_->GetInflightRPCToken();
-                        client_.ReadChunk(req->idinfo_,
-                                        req->seq_,
-                                        req->offset_,
-                                        req->rawlength_,
-                                        req->appliedindex_,
-                                        req->sourceInfo_,
-                                        guard.release());
+                        client_.ReadChunk(req->idinfo_, req->seq_, req->offset_,
+                                          req->rawlength_, req->appliedindex_,
+                                          req->sourceInfo_, guard.release());
                     }
                     break;
                 case OpType::WRITE:
                     DVLOG(9) << "Processing write request, buf header: "
-                             << " buf: " << *(unsigned int*)req->writeBuffer_;
+                             << " buf: "
+                             << *(unsigned int*)(req->writeData_.fetch1());
                     {
                         req->done_->GetInflightRPCToken();
-                        client_.WriteChunk(req->idinfo_,
-                                        req->seq_,
-                                        req->writeBuffer_,
-                                        req->offset_,
-                                        req->rawlength_,
-                                        req->sourceInfo_,
-                                        guard.release());
+                        client_.WriteChunk(req->idinfo_, req->seq_,
+                                           req->writeData_, req->offset_,
+                                           req->rawlength_, req->sourceInfo_,
+                                           guard.release());
                     }
                     break;
                 case OpType::READ_SNAP:

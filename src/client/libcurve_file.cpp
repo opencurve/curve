@@ -309,7 +309,8 @@ int FileClient::Write(int fd, const char* buf, off_t offset, size_t len) {
     return fileserviceMap_[fd]->Write(buf, offset, len);
 }
 
-int FileClient::AioRead(int fd, CurveAioContext* aioctx) {
+int FileClient::AioRead(int fd, CurveAioContext* aioctx,
+                        UserDataType dataType) {
     // 长度为0，直接返回，不做任何操作
     if (aioctx->length == 0) {
         return -LIBCURVE_ERROR::OK;
@@ -325,13 +326,14 @@ int FileClient::AioRead(int fd, CurveAioContext* aioctx) {
         LOG(ERROR) << "invalid fd!";
         ret = -LIBCURVE_ERROR::BAD_FD;
     } else {
-        ret = fileserviceMap_[fd]->AioRead(aioctx);
+        ret = fileserviceMap_[fd]->AioRead(aioctx, dataType);
     }
 
     return ret;
 }
 
-int FileClient::AioWrite(int fd, CurveAioContext* aioctx) {
+int FileClient::AioWrite(int fd, CurveAioContext* aioctx,
+                         UserDataType dataType) {
     // 长度为0，直接返回，不做任何操作
     if (aioctx->length == 0) {
         return -LIBCURVE_ERROR::OK;
@@ -347,7 +349,7 @@ int FileClient::AioWrite(int fd, CurveAioContext* aioctx) {
         LOG(ERROR) << "invalid fd!";
         ret = -LIBCURVE_ERROR::BAD_FD;
     } else {
-        ret = fileserviceMap_[fd]->AioWrite(aioctx);
+        ret = fileserviceMap_[fd]->AioWrite(aioctx, dataType);
     }
 
     return ret;

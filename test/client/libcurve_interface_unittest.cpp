@@ -20,42 +20,36 @@
  * Author: tongguangxun
  */
 
-#include <gtest/gtest.h>
+#include <fiu-control.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <fiu-control.h>
-#include <string>
-#include <iostream>
-#include <thread>   //NOLINT
-#include <chrono>      // NOLINT
+#include <gtest/gtest.h>
+#include <chrono>              // NOLINT
 #include <condition_variable>  // NOLINT
-#include <mutex>   // NOLINT
+#include <iostream>
+#include <mutex>  // NOLINT
+#include <string>
+#include <thread>  //NOLINT
 
 #include "include/client/libcurve.h"
-#include "src/client/file_instance.h"
-#include "test/client/fake/mock_schedule.h"
-#include "test/client/fake/fakeMDS.h"
-#include "src/client/libcurve_file.h"
-#include "src/client/client_common.h"
 #include "src/client/chunk_closure.h"
-
-using curve::client::MetaCacheErrorType;
-using curve::client::ChunkIDInfo_t;
-using curve::client::ChunkServerAddr;
-using curve::client::MetaCache;
-using curve::client::UserInfo_t;
-using curve::client::EndPoint;
-using curve::client::MDSClient;
-using curve::client::ClientConfig;
-using curve::client::FileInstance;
-using curve::client::CopysetInfo_t;
-using curve::client::CopysetIDInfo;
-using curve::client::FileClient;
-using curve::client::FInfo;
+#include "src/client/client_common.h"
+#include "src/client/file_instance.h"
+#include "src/client/libcurve_file.h"
+#include "test/client/fake/fakeMDS.h"
+#include "test/client/fake/mock_schedule.h"
 
 extern std::string configpath;
 extern uint32_t chunk_size;
 extern uint32_t segment_size;
+
+DECLARE_string(chunkserver_list);
+DECLARE_uint32(logic_pool_id);
+DECLARE_uint32(copyset_num);
+DECLARE_uint64(test_disk_size);
+
+namespace curve {
+namespace client {
 
 bool writeflag = false;
 bool readflag = false;
@@ -64,15 +58,12 @@ std::condition_variable writeinterfacecv;
 std::mutex interfacemtx;
 std::condition_variable interfacecv;
 
-DECLARE_string(chunkserver_list);
-DECLARE_uint32(logic_pool_id);
-DECLARE_uint32(copyset_num);
-DECLARE_uint64(test_disk_size);
 void writecallbacktest(CurveAioContext* context) {
     writeflag = true;
     writeinterfacecv.notify_one();
     LOG(INFO) << "aio call back here, errorcode = " << context->ret;
 }
+
 void readcallbacktest(CurveAioContext* context) {
     readflag = true;
     interfacecv.notify_one();
@@ -956,3 +947,6 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     mds.UnInitialize();
     delete[] buffer;
 }
+
+}  // namespace client
+}  // namespace curve

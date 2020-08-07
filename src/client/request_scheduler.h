@@ -23,7 +23,7 @@
 #ifndef SRC_CLIENT_REQUEST_SCHEDULER_H_
 #define SRC_CLIENT_REQUEST_SCHEDULER_H_
 
-#include <list>
+#include <vector>
 
 #include "src/common/uncopyable.h"
 #include "src/client/config_info.h"
@@ -85,7 +85,7 @@ class RequestScheduler : public Uncopyable {
      * @param requests:请求列表
      * @return 0成功，-1失败
      */
-    virtual int ScheduleRequest(const std::list<RequestContext *> requests);
+    virtual int ScheduleRequest(const std::vector<RequestContext*>& requests);
 
     /**
      * 将request push到Scheduler处理

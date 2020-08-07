@@ -25,6 +25,7 @@
 
 #include <brpc/channel.h>
 #include <butil/endpoint.h>
+#include <butil/iobuf.h>
 
 #include <string>
 
@@ -81,7 +82,7 @@ class RequestSender {
    * 写Chunk
    * @param idinfo为chunk相关的id信息
    * @param sn:文件版本号
-   * @param buf:要写入的数据
+   * @param data 要写入的数据
     *@param offset:写的偏移
    * @param length:写的长度
    * @param sourceInfo 数据源信息
@@ -89,7 +90,7 @@ class RequestSender {
    */
     int WriteChunk(ChunkIDInfo idinfo,
                    uint64_t sn,
-                   const char *buf,
+                   const butil::IOBuf& data,
                    off_t offset,
                    size_t length,
                    const RequestSourceInfo& sourceInfo,

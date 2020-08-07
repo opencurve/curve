@@ -20,38 +20,12 @@
  * Author: tongguangxun
  */
 
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-
 #include "src/client/request_context.h"
-#include "src/client/request_closure.h"
 
 namespace curve {
 namespace client {
 
-std::atomic<uint64_t> RequestContext::reqCtxID_(1);
-
-RequestContext::RequestContext() {
-    readBuffer_ = nullptr;
-    writeBuffer_ = nullptr;
-    chunkinfodetail_ = nullptr;
-
-    id_         = reqCtxID_.fetch_add(1);
-
-    seq_        = 0;
-    offset_     = 0;
-    rawlength_  = 0;
-
-    appliedindex_ = 0;
-}
-bool RequestContext::Init() {
-    done_ = new (std::nothrow) RequestClosure(this);
-    return done_ != nullptr;
-}
-
-void RequestContext::UnInit() {
-    delete done_;
-}
+std::atomic<uint64_t> RequestContext::requestId(0);
 
 }  // namespace client
 }  // namespace curve

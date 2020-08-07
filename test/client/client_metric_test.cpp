@@ -272,7 +272,7 @@ TEST(MetricTest, SuspendRPC_MetricTest) {
     aioctx->op = LIBCURVE_OP_WRITE;
     aioctx->length = 4 * 1024;
     aioctx->cb = cb;
-    fi.AioWrite(aioctx);
+    fi.AioWrite(aioctx, UserDataType::RawBuffer);
 
     std::this_thread::sleep_for(std::chrono::seconds(2));
     ASSERT_EQ(fm->suspendRPCMetric.count.get_value(), 1);

@@ -132,7 +132,8 @@ int CopysetClient::ReadChunk(const ChunkIDInfo& idinfo, uint64_t sn,
 }
 
 int CopysetClient::WriteChunk(const ChunkIDInfo& idinfo, uint64_t sn,
-                              const char* buf, off_t offset, size_t length,
+                              const butil::IOBuf& data,
+                              off_t offset, size_t length,
                               const RequestSourceInfo& sourceInfo,
                               google::protobuf::Closure* done) {
     std::shared_ptr<RequestSender> senderPtr = nullptr;
@@ -172,7 +173,7 @@ int CopysetClient::WriteChunk(const ChunkIDInfo& idinfo, uint64_t sn,
 
     auto task = [&](Closure* done, std::shared_ptr<RequestSender> senderPtr) {
         WriteChunkClosure* writeDone = new WriteChunkClosure(this, done);
-        senderPtr->WriteChunk(idinfo, sn, buf, offset, length, sourceInfo,
+        senderPtr->WriteChunk(idinfo, sn, data, offset, length, sourceInfo,
                               writeDone);
     };
 

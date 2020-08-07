@@ -503,7 +503,7 @@ void ClientClosure::OnInvalidRequest() {
 
 void WriteChunkClosure::SendRetryRequest() {
     client_->WriteChunk(reqCtx_->idinfo_, reqCtx_->seq_,
-                        reqCtx_->writeBuffer_,
+                        reqCtx_->writeData_,
                         reqCtx_->offset_,
                         reqCtx_->rawlength_,
                         reqCtx_->sourceInfo_,
@@ -531,9 +531,7 @@ void ReadChunkClosure::SendRetryRequest() {
 void ReadChunkClosure::OnSuccess() {
     ClientClosure::OnSuccess();
 
-    cntl_->response_attachment().copy_to(
-        reqCtx_->readBuffer_,
-        cntl_->response_attachment().size());
+    reqCtx_->readData_ = cntl_->response_attachment();
 
     metaCache_->UpdateAppliedIndex(
         reqCtx_->idinfo_.lpid_,
@@ -545,7 +543,7 @@ void ReadChunkClosure::OnChunkNotExist() {
     ClientClosure::OnChunkNotExist();
 
     reqDone_->SetFailed(0);
-    memset(reqCtx_->readBuffer_, 0, reqCtx_->rawlength_);
+    reqCtx_->readData_.resize(reqCtx_->rawlength_, 0);
     metaCache_->UpdateAppliedIndex(chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
                                    response_->appliedindex());
 }
@@ -560,9 +558,7 @@ void ReadChunkSnapClosure::SendRetryRequest() {
 void ReadChunkSnapClosure::OnSuccess() {
     ClientClosure::OnSuccess();
 
-    cntl_->response_attachment().copy_to(
-        reqCtx_->readBuffer_,
-        cntl_->response_attachment().size());
+    reqCtx_->readData_ = cntl_->response_attachment();
 }
 
 void DeleteChunkSnapClosure::SendRetryRequest() {

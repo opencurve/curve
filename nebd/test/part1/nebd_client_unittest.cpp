@@ -291,7 +291,7 @@ TEST_F(NebdFileClientTest, CommonTest) {
 
     ASSERT_EQ(0, Extend4Nebd(fd, kFileSize));
     ASSERT_EQ(kFileSize, GetFileSize4Nebd(fd));
-    ASSERT_EQ(-1, GetInfo4Nebd(1));
+    ASSERT_EQ(kFileSize, GetInfo4Nebd(fd));
     ASSERT_EQ(0, InvalidCache4Nebd(fd));
 
     char buffer[kBufSize];

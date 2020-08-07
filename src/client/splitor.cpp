@@ -35,22 +35,26 @@
 namespace curve {
 namespace client {
 IOSplitOPtion_t Splitor::iosplitopt_;
+
 void Splitor::Init(IOSplitOPtion_t ioSplitOpt) {
     iosplitopt_ = ioSplitOpt;
     LOG(INFO) << "io splitor init success!";
 }
-int Splitor::IO2ChunkRequests(IOTracker* iotracker,
-                              MetaCache* mc,
-                              std::list<RequestContext*>* targetlist,
-                              const char* data,
-                              off_t offset,
-                              size_t length,
-                              MDSClient* mdsclient,
-                              const FInfo_t* fi) {
-    if (targetlist == nullptr|| data == nullptr || mdsclient == nullptr ||
+
+int Splitor::IO2ChunkRequests(IOTracker* iotracker, MetaCache* mc,
+                              std::vector<RequestContext*>* targetlist,
+                              butil::IOBuf* data, off_t offset, size_t length,
+                              MDSClient* mdsclient, const FInfo_t* fi) {
+    if (targetlist == nullptr || mdsclient == nullptr ||
         mc == nullptr || iotracker == nullptr || fi == nullptr) {
         return -1;
     }
+
+    if (iotracker->Optype() == OpType::WRITE && data == nullptr) {
+        return -1;
+    }
+
+    targetlist->reserve(length / (iosplitopt_.fileIOSplitMaxSizeKB * 1024) + 1);
 
     uint64_t chunksize = fi->chunksize;
 
@@ -77,7 +81,7 @@ int Splitor::IO2ChunkRequests(IOTracker* iotracker,
                  << ", chunkindex = " << startchunkindex
                  << ", endchunkindex = " << endchunkindex;
 
-        if (!AssignInternal(iotracker, mc, targetlist, data + dataoff,
+        if (!AssignInternal(iotracker, mc, targetlist, data,
                             off, len, mdsclient, fi, startchunkindex)) {
             LOG(ERROR)  << "request split failed"
                         << ", off = " << off
@@ -101,17 +105,16 @@ int Splitor::IO2ChunkRequests(IOTracker* iotracker,
 }
 
 // this offset is begin by chunk
-int Splitor::SingleChunkIO2ChunkRequests(IOTracker* iotracker,
-                                        MetaCache* mc,
-                                        std::list<RequestContext*>* targetlist,
-                                        const ChunkIDInfo_t idinfo,
-                                        const char* data,
-                                        off_t offset,
-                                        uint64_t length,
-                                        uint64_t seq) {
-    if (targetlist == nullptr || mc == nullptr ||
-        iotracker == nullptr   || data == nullptr) {
-            return -1;
+int Splitor::SingleChunkIO2ChunkRequests(
+    IOTracker* iotracker, MetaCache* mc,
+    std::vector<RequestContext*>* targetlist, const ChunkIDInfo_t idinfo,
+    butil::IOBuf* data, off_t offset, uint64_t length, uint64_t seq) {
+    if (targetlist == nullptr || mc == nullptr || iotracker == nullptr) {
+        return -1;
+    }
+
+    if (iotracker->Optype() == OpType::WRITE && data == nullptr) {
+        return -1;
     }
 
     auto max_split_size_bytes = 1024 * iosplitopt_.fileIOSplitMaxSizeKB;
@@ -130,12 +133,16 @@ int Splitor::SingleChunkIO2ChunkRequests(IOTracker* iotracker,
         }
 
         newreqNode->seq_         = seq;
+
         if (iotracker->Optype() == OpType::WRITE) {
-            newreqNode->writeBuffer_ = data + off;
-        } else {
-            newreqNode->readBuffer_  = const_cast<char*>(data + off);
+            auto nc = data->cutn(&(newreqNode->writeData_), len);
+            if (nc != len) {
+                LOG(ERROR) << "IOBuf::cutn failed, expected: " << len
+                           << ", return: " << nc;
+                return -1;
+            }
         }
-        // newreqNode->data_        = data + off;
+
         newreqNode->offset_      = tempoff;
         newreqNode->rawlength_   = len;
         newreqNode->optype_      = iotracker->Optype();
@@ -157,21 +164,16 @@ int Splitor::SingleChunkIO2ChunkRequests(IOTracker* iotracker,
     return 0;
 }
 
-bool Splitor::AssignInternal(IOTracker* iotracker,
-                            MetaCache* mc,
-                            std::list<RequestContext*>* targetlist,
-                            const char* buf,
-                            off_t off,
-                            size_t len,
-                            MDSClient* mdsclient,
-                            const FInfo_t* fileinfo,
-                            ChunkIndex chunkidx) {
-    auto max_split_size_bytes = 1024 * iosplitopt_.fileIOSplitMaxSizeKB;
-
+bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* mc,
+                             std::vector<RequestContext*>* targetlist,
+                             butil::IOBuf* data, off_t off, size_t len,
+                             MDSClient* mdsclient, const FInfo_t* fileinfo,
+                             ChunkIndex chunkidx) {
     ChunkIDInfo_t chinfo;
     SegmentInfo segInfo;
     LogicalPoolCopysetIDInfo_t lpcsIDInfo;
-    MetaCacheErrorType chunkidxexist = mc->GetChunkInfoByIndex(chunkidx, &chinfo);          // NOLINT
+    MetaCacheErrorType chunkidxexist =
+        mc->GetChunkInfoByIndex(chunkidx, &chinfo);
 
     if (chunkidxexist == MetaCacheErrorType::CHUNKINFO_NOT_FOUND) {
         LIBCURVE_ERROR re = mdsclient->GetOrAllocateSegment(true,
@@ -222,46 +224,25 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
 
         chunkidxexist = mc->GetChunkInfoByIndex(chunkidx, &chinfo);
     }
+
     if (chunkidxexist == MetaCacheErrorType::OK) {
         int ret = 0;
         auto appliedindex_ = mc->GetAppliedIndex(chinfo.lpid_, chinfo.cpid_);
-        std::list<RequestContext*> templist;
-        if (len > max_split_size_bytes) {
-            ret = SingleChunkIO2ChunkRequests(iotracker, mc, &templist, chinfo,
-                                              buf, off, len, fileinfo->seqnum);
+        std::vector<RequestContext*> templist;
+        ret = SingleChunkIO2ChunkRequests(iotracker, mc, &templist, chinfo,
+                                          data, off, len, fileinfo->seqnum);
 
-            for_each(templist.begin(), templist.end(), [&](RequestContext* it) {
-                it->appliedindex_ = appliedindex_;
-                it->sourceInfo_ =
-                    CalcRequestSourceInfo(iotracker, mc, chunkidx);
-            });
-
-            targetlist->insert(targetlist->end(), templist.begin(), templist.end());    // NOLINT
-        } else {
-            RequestContext* newreqNode = GetInitedRequestContext();
-            if (newreqNode == nullptr) {
-                return -1;
-            }
-            newreqNode->seq_          = fileinfo->seqnum;
-            if (iotracker->Optype() == OpType::WRITE) {
-                newreqNode->writeBuffer_ = buf;
-            } else {
-                newreqNode->readBuffer_  = const_cast<char*>(buf);
-            }
-            // newreqNode->data_         = buf;
-            newreqNode->offset_       = off;
-            newreqNode->rawlength_    = len;
-            newreqNode->optype_       = iotracker->Optype();
-            newreqNode->idinfo_       = chinfo;
-            newreqNode->appliedindex_ = appliedindex_;
-            newreqNode->sourceInfo_ =
-                CalcRequestSourceInfo(iotracker, mc, chunkidx);
-            newreqNode->done_->SetIOTracker(iotracker);
-
-            targetlist->push_back(newreqNode);
+        for (auto& ctx : templist) {
+            ctx->appliedindex_ = appliedindex_;
+            ctx->sourceInfo_ = CalcRequestSourceInfo(iotracker, mc, chunkidx);
         }
+
+        targetlist->insert(targetlist->end(), templist.begin(),
+                           templist.end());
+
         return ret == 0;
     }
+
     LOG(ERROR) << "can not find the chunk index info!"
                 << ", chunk index = " << chunkidx;
     return false;

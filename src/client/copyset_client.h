@@ -27,6 +27,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <brpc/channel.h>
+#include <butil/iobuf.h>
 
 #include <string>
 #include <memory>
@@ -101,7 +102,7 @@ class CopysetClient : public Uncopyable {
     * 写Chunk
     * @param idinfo为chunk相关的id信息
     * @param sn:文件版本号
-    * @param buf:要写入的数据
+    * @param writeData:要写入的数据
      *@param offset:写的偏移
     * @param length:写的长度
     * @param sourceInfo chunk克隆源信息
@@ -109,7 +110,7 @@ class CopysetClient : public Uncopyable {
     */
     int WriteChunk(const ChunkIDInfo& idinfo,
                   uint64_t sn,
-                  const char *buf,
+                  const butil::IOBuf& writeData,
                   off_t offset,
                   size_t length,
                   const RequestSourceInfo& sourceInfo,
