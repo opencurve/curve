@@ -5,7 +5,6 @@ import os
 import shlex
 from config import config
 from logger.logger import *
-from lib import db_operator
 from lib import shell_operator
 from swig import swig_operate
 from multiprocessing import Pool
@@ -16,61 +15,6 @@ import time
 import Queue
 import types
 import mythread
-
-#clean_db
-def clean_db():
-    try:
-        cmd_list = ["DELETE FROM curve_logicalpool;", "DELETE FROM curve_copyset;", \
-                "DELETE FROM curve_physicalpool;", "DELETE FROM curve_zone;", \
-                "DELETE FROM curve_server;", "DELETE FROM curve_chunkserver;", \
-                "DELETE FROM curve_session;", "DELETE FROM client_info;"]
-        for cmd in cmd_list:
-            conn = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
-            db_operator.exec_sql(conn, cmd)
-            logger.debug("clean db %s" %cmd)
-
-    except Exception:
-        logger.error("clean db fail.")
-        raise
-
-def create_db_table():
-    try:
-        conn = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
-        db_operator.exec_sql_file(conn, config.curve_sql)
-        conn2 = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
-        db_operator.exec_sql_file(conn2, config.snap_sql)
-
-    except Exception:
-        logger.error("创建表失败.")
-        raise
-
-
-def drop_mds_table():
-    try:
-        cmd_list = ["DROP TABLE curve_logicalpool;", "DROP TABLE curve_copyset;", \
-                    "DROP TABLE curve_physicalpool;", "DROP TABLE curve_zone;", \
-                    "DROP TABLE curve_server;", "DROP TABLE curve_chunkserver;", \
-                    "DROP TABLE curve_session;", "DROP TABLE client_info;"]
-        for cmd in cmd_list:
-            conn = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
-            db_operator.exec_sql(conn, cmd)
-            logger.debug("drop table %s" %cmd)
-    except Exception:
-        logger.error("drop db fail.")
-        raise
-
-def get_copyset_table():
-    try:
-        cmd = "select copySetID,chunkServerIDList  from curve_copyset  INTO OUTFILE " + '"'+config.mysql_log +'"'+ \
-              " fields terminated by '|' lines terminated by '|'; "
-        conn = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
-        db_operator.exec_sql(conn, cmd)
-        logger.debug("get table %s" %cmd)
-        rc = os.path.isfile(config.mysql_log)
-        assert rc == True,"exec %s"%cmd
-    except Exception:
-        logger.error("get copyset table fail.cmd is %s"%cmd)
-        raise
 
 def mv_copyset_table():
     grep_cmd = "mv %s %s"%(config.mysql_log,config.curve_workspace)
@@ -129,30 +73,6 @@ def get_copyset_scatterwith():
         assert cs_copyset_num == (config.copyset_num*3/config.cs_num)
         logger.info("chunkserver %d copyset_num is %d \t,scatterwith is %d %s"%(cs,cs_copyset_num,len(scatterwith),scatterwith))
 #        print "chunkserver %d ,scatterwith is %d" % (cs, len(scatterwith))
-
-def drop_snap_clone_table():
-    try:
-        cmd_list = ["DROP TABLE snapshot;", "DROP TABLE clone;"]
-        for cmd in cmd_list:
-            conn = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.snap_db_name)
-            db_operator.exec_sql(conn, cmd)
-            logger.debug("drop table %s" %cmd)
-    except Exception:
-        logger.error("drop db fail.")
-        raise
-
-def mock_chunkserver_registe():
-    try:
-        mysql_cmd = ["INSERT INTO  curve_chunkserver VALUES (31, 'token1', 'nvme', '127.0.0.1', 8200, 0, 1, 0, 0, '/', 0, 0);",
-                     "INSERT INTO  curve_chunkserver VALUES (32, 'token2', 'nvme', '127.0.0.1', 8201, 0, 2, 0, 0, '/', 0, 0);",
-                     "INSERT INTO  curve_chunkserver VALUES (33, 'token3', 'nvme', '127.0.0.1', 8202, 0, 3, 0, 0, '/', 0, 0);"]
-        for cmd in mysql_cmd:
-            conn = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
-            db_operator.exec_sql(conn, cmd)
-            logger.debug("insert db %s" % cmd)
-    except Exception:
-        logger.error("insert db fail. %s" % cmd)
-        raise
 
 
 def kill_process(process_name):
@@ -431,13 +351,6 @@ def cat_chunkserver_log(chunkserver_id):
         shell_operator.run_exec(cmd)
     else:
         logger.error("chunkserver log not exists!")
-
-def check_copyset_num(copyset_num):
-    sql = "select * from curve_copyset;"
-    conn = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
-    logicalpool_dbinof = db_operator.query_db(conn, sql)
-    logger.info("logicalpool_dbinof = %s" % int(logicalpool_dbinof["rowcount"]))
-    assert int(logicalpool_dbinof["rowcount"]) == int(copyset_num)
 
 def get_buf():
     return config.buf

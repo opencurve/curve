@@ -16,7 +16,6 @@ class CurveSnapshot:
             logger.error("init CurveSnapshot client fail! rc=%s" % rc)
             raise AssertionError
 
-    # 创建文件快照
     def create_snapshot(self, file_path, user_name, password):
         user = curvesnapshot.CUserInfo_t()
         user.owner = user_name
@@ -30,7 +29,6 @@ class CurveSnapshot:
         else:
             return seq
 
-    # 获取快照文件信息,传入seq,返回结果为FileInfo
     def get_snapshot(self, file_path, user_name, password, seq):
         user = curvesnapshot.CUserInfo_t()
         user.owner = user_name
@@ -48,7 +46,6 @@ class CurveSnapshot:
                             finfo.seqnum.value, finfo.segmentsize.value))
             return finfo
 
-    # 获取快照文件分配信息,以segment为粒度
     def get_snapshot_SegmentInfo(self, file_path, user_name, password, seq, offset):
         user = curvesnapshot.CUserInfo_t()
         user.owner = user_name
@@ -61,7 +58,6 @@ class CurveSnapshot:
         else:
             return segInfo
 
-    # 获取chunk版本信息
     def get_chunk_Info(self, chunkidinfo):
         info = curvesnapshot.CChunkInfoDetail_t()
         rc = curvesnapshot.GetChunkInfo(chunkidinfo, info)
@@ -72,12 +68,10 @@ class CurveSnapshot:
         else:
             return info
 
-    # 读取快照chunk数据
     def read_chunk_snapshot(self, idinfo, seq, offset, len, buf):
         content = curvesnapshot.ReadChunkSnapshot(idinfo, seq, offset, len, buf)
         return content
 
-    # 删除chunkserver快照chunk
     def delete_chunk_snapshot_or_correct_sn(self, idinfo, correctseq):
         rc = curvesnapshot.DeleteChunkSnapshotOrCorrectSn(idinfo, correctseq)
         if rc != 0:
@@ -85,8 +79,6 @@ class CurveSnapshot:
             logger.error("delete_chunk_snapshot_or_correct_sn fail! rc=%s" % rc)
         return rc
 
-    # 查询快照状态
-    # TODO： 此接口有问题，需要 @光勋 修复后测试
     def check_snapshot_status(self, file_path, user_name, password, seq):
         user = curvesnapshot.CUserInfo_t()
         user.owner = user_name
@@ -100,7 +92,6 @@ class CurveSnapshot:
         else:
             return filestatus
 
-    # 删除快照
     def delete_snapshot(self, file_path, user_name, password, seq):
         user = curvesnapshot.CUserInfo_t()
         user.owner = user_name
@@ -111,7 +102,6 @@ class CurveSnapshot:
             logger.error("delete_snapshot fail! rc=%s" % rc)
         return rc
 
-    # 在chunkserver端创建clonechunk
     def create_clone_chunk(self, file_path, chunkinfo, seq, correctseq, chunksize):
         rc = curvesnapshot.CreateCloneChunk(file_path, chunkinfo, seq, correctseq, chunksize)
         if rc != 0:
@@ -119,7 +109,6 @@ class CurveSnapshot:
             logger.error("create_clone_chunk fail! rc=%s" % rc)
         return rc
 
-    # 恢复快照数据
     def recover_chunk(self, chunkinfo, offset, len):
         rc = curvesnapshot.RecoverChunk(chunkinfo, offset, len)
         if rc != 0:

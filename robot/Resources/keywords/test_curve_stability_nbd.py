@@ -8,7 +8,6 @@ import datetime
 from config import config
 from logger.logger import *
 from lib import shell_operator
-from lib import db_operator
 import mythread
 import requests
 import base_operate
@@ -28,36 +27,36 @@ class NbdThrash:
     def nbd_create(self,vol_size):
         cmd = "curve create --filename /%s --length %s --user test"%(self.name,vol_size)
         rs = shell_operator.ssh_exec(self.ssh, cmd)
-        assert rs[3] == 0,"创建卷失败，失败原因：%s"%rs[1]
+        assert rs[3] == 0,"create nbd fail：%s"%rs[1]
 
     def nbd_map(self):
         cmd = "sudo curve-nbd map cbd:pool1//%s_%s_ >/dev/null 2>&1"%(self.name,self.user)
         rs = shell_operator.ssh_exec(self.ssh, cmd)
-        assert rs[3] == 0,"map 失败，失败原因：%s"%rs[1]
+        assert rs[3] == 0,"map nbd fail：%s"%rs[1]
     
     def nbd_getdev(self):
         cmd = "sudo curve-nbd list-mapped |grep %s_ | awk '{print $3}'"%(self.name)
         rs = shell_operator.ssh_exec(self.ssh, cmd)
         self.dev = "".join(rs[1]).strip()
         logger3.info("map %s to %s"%(self.name,self.dev))
-        assert rs[3] == 0,"map 失败，失败原因：%s"%rs[1]
+        assert rs[3] == 0,"map fail：%s"%rs[1]
 
     def nbd_unmap(self):
         if self.dev != "":
             cmd = "sudo curve-nbd unmap %s"%(self.dev)
             rs = shell_operator.ssh_exec(self.ssh, cmd)
-            assert rs[3] == 0,"unmap失败，失败原因：%s"%rs[1]
+            assert rs[3] == 0,"unmap fail：%s"%rs[1]
             logger3.info("unmap dev %s"%self.dev)
             cmd = "sudo  curve-nbd list-mapped |grep %s_ | awk '{print $3}'"%(self.name)
             rs = shell_operator.ssh_exec(self.ssh, cmd)
             assert "".join(rs[1]).strip() == "","unmap fail,map dev is %s"%rs[1]
         else:
-            assert False,"没有找到设备名"
+            assert False,"can not find nbd"
     
     def nbd_delete(self):
         cmd = "sudo curve delete --filename /%s --user %s"%(self.name,self.user)
         rs = shell_operator.ssh_exec(self.ssh, cmd)
-        assert rs[3] == 0,"delete失败，失败原因：%s"%rs[1]
+        assert rs[3] == 0,"delete fail：%s"%rs[1]
 
 def nbd_all(name):
     thrash_time = 0

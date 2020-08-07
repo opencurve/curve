@@ -5,7 +5,6 @@ import subprocess
 from config import config
 from logger.logger import *
 from lib import shell_operator
-from lib import db_operator
 import threading
 import random
 import time
@@ -279,35 +278,6 @@ def drop_all_chunkserver_dat():
         logger.debug("drop cs dat get result is %d" % t.get_result())
         assert t.get_result() == 0
 
-def drop_abnormal_test_db():
-    try:
-        cmd_list = ["DROP TABLE curve_logicalpool;", "DROP TABLE curve_copyset;", \
-                    "DROP TABLE curve_physicalpool;", "DROP TABLE curve_zone;", \
-                    "DROP TABLE curve_server;", "DROP TABLE curve_chunkserver;", \
-                    "DROP TABLE curve_session;",  "DROP TABLE client_info;"]
-        cmd_list_2 = ["DROP TABLE clone;","DROP TABLE snapshot;"]
-        for cmd in cmd_list:
-            conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
-            db_operator.exec_sql(conn, cmd)
-            logger.debug("drop table %s" %cmd)
-        for cmd in cmd_list_2:
-            conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.snap_db_name)
-            db_operator.exec_sql(conn, cmd)
-            logger.debug("drop table %s" %cmd)
-    except Exception:
-        logger.error("drop db fail.")
-        raise
-
-def create_abnormal_db_table():
-    try:
-       conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
-       db_operator.exec_sql_file(conn, config.curve_sql)
-       conn2 = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
-       db_operator.exec_sql_file(conn2, config.snap_sql)
-    except Exception:
-        logger.error("创建表失败.")
-        raise
-
 def install_deb():
     try:
 #        mkdeb_url =  config.curve_workspace + "mk-deb.sh"
@@ -426,13 +396,6 @@ def start_abnormal_test_services():
     except Exception:
         logger.error("up servers fail.")
         raise
-
-def get_copyset_num():
-    conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
-    sql = R"select * from curve_copyset;"
-    copyset = db_operator.query_db(conn, sql)
-    logger.info("now copyset num is %d"%copyset["rowcount"])
-    return int(copyset["rowcount"])
 
 def create_pool():
     ssh = shell_operator.create_ssh_connect(config.mds_list[0], 1046, config.abnormal_user)

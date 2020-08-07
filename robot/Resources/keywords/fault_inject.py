@@ -7,7 +7,6 @@ from logger.logger import *
 from lib import shell_operator
 import random
 import time
-from lib import db_operator
 import threading
 import time
 import mythread
@@ -188,7 +187,7 @@ def clear_RecycleBin():
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     ori_cmd = "curve_ops_tool clean-recycle --isTest"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    assert rs[3] == 0,"clean RecyclenBin失败，msg is %s"%rs[1]
+    assert rs[3] == 0,"clean RecyclenBin fail,msg is %s"%rs[1]
     starttime = time.time()
     ori_cmd = "curve_ops_tool list -fileName=/RecycleBin |grep Total"
     while time.time() - starttime < 180:
@@ -196,11 +195,11 @@ def clear_RecycleBin():
         if "".join(rs[1]).strip() == "Total file number: 0" and rs[3] == 0:
             break
         else:
-            logger.debug("删除中")
+            logger.debug("deleting")
             if rs[3] != 0:
-                logger.debug("list /RecycleBin 失败,error is %s"%rs[1])
+                logger.debug("list /RecycleBin fail,error is %s"%rs[1])
             time.sleep(3) 
-    assert rs[3] == 0,"删除/RecycleBin 失败，error is %s"%rs[1]
+    assert rs[3] == 0,"delete /RecycleBin fail,error is %s"%rs[1]
 
 def loop_map_unmap_file():
     thread = []
@@ -274,15 +273,6 @@ def write_full_disk(fio_size):
     assert rs[3] == 0,"write fio fail"
    
 def get_chunkserver_id(host,cs_id):
-#    conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
-#    sql = R"select * from curve_chunkserver where `internalHostIP` like '%s' and `mountPoint` like 'local:///data/chunkserver%d/' and `rwstatus` like 0;;"%(host,cs_id)
-#    chunkserver = db_operator.query_db(conn, sql)
-#    if chunkserver["rowcount"] == 1:
-#        chunkserver_id = chunkserver["data"][0]["chunkServerID"]
-#        logger.info("operator chunkserver id is %d"%chunkserver_id)
-#    else:
-#            assert False,"get chunkserver id fail,retun is %s"%(chunkserver)
-#        return -1
     client_host = config.client_list[0]
     logger.info("|------begin get chunkserver %s id %d------|"%(host,cs_id))
     cmd = "curve_ops_tool chunkserver-list | grep %s |grep -w chunkserver%d"%(host,cs_id)
@@ -296,18 +286,6 @@ def get_chunkserver_id(host,cs_id):
         return -1
 
 def get_cs_copyset_num(host,cs_id):
-#    conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
-#    try:
-#        sql = R"select * from curve_copyset where chunkServerIDList REGEXP '\n\t%d,|,\n\t%d,|,\n\t%d\n';"\
-#                %(chunkserver_id,chunkserver_id,chunkserver_id)
-#        cs_copyset_info = db_operator.query_db(conn, sql)
-#        logger.debug("get table row is %s"%cs_copyset_info["rowcount"])
-#        logger.debug("get table %s" %(cs_copyset_info))
-#    except Exception:
-#        logger.error("get db fail.")
-#        raise
-#    logger.info("chunkserver id %d have %s copysets"%(chunkserver_id,cs_copyset_info["rowcount"]))
-#    return int(cs_copyset_info["rowcount"])
     client_host = config.client_list[0]
     cs_number = int(cs_id) + 8200
     cmd = "curve_ops_tool check-chunkserver -chunkserverAddr=%s:%d |grep 'total copysets'"%(host,cs_number)
@@ -342,27 +320,27 @@ def map_nbd():
     ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
     cmd = "curve create --filename /fiofile --length 10 --user test"
     rs = shell_operator.ssh_exec(ssh, cmd)
-    assert rs[3] == 0,"创建卷/fiofile 失败，失败原因：%s"%rs[2]
+    assert rs[3] == 0,"create /fiofile fail：%s"%rs[2]
     cmd = "curve create --filename /vdbenchfile --length 10 --user test"
     rs = shell_operator.ssh_exec(ssh, cmd)
-    assert rs[3] == 0,"创建卷/vdbenchfile 失败，失败原因：%s"%rs[2]
+    assert rs[3] == 0,"create /vdbenchfile fail：%s"%rs[2]
     time.sleep(3)
     cmd = "sudo curve-nbd map cbd:pool1//fiofile_test_ >/dev/null 2>&1"
     rs = shell_operator.ssh_exec(ssh, cmd)
-    assert rs[3] == 0,"map fiofile 失败，失败原因：%s"%rs[2]
+    assert rs[3] == 0,"map fiofile fail：%s"%rs[2]
     cmd = "sudo curve-nbd map cbd:pool1//vdbenchfile_test_ >/dev/null 2>&1"
     rs = shell_operator.ssh_exec(ssh, cmd)
-    assert rs[3] == 0,"map vdbenchfile 失败，失败原因：%s"%rs[2]
+    assert rs[3] == 0,"map vdbenchfile fail：%s"%rs[2]
 
 def delete_nbd():
     client_host = config.client_list[0]
     ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
     cmd = "curve delete --filename /fiofile --user test"
     rs = shell_operator.ssh_exec(ssh, cmd)
-    assert rs[3] == 0,"删除卷/fiofile 失败，失败原因：%s"%rs[2]
+    assert rs[3] == 0,"delete /fiofile fail：%s"%rs[2]
     cmd = "curve delete --filename /vdbenchfile --user test"
     rs = shell_operator.ssh_exec(ssh, cmd)
-    assert rs[3] == 0,"删除卷/vdbenchfile 失败，失败原因：%s"%rs[2]
+    assert rs[3] == 0,"delete /vdbenchfile fail：%s"%rs[2]
 
 def check_host_connect(ip):
     cmd = "ping %s -w3"%ip
@@ -751,7 +729,6 @@ def rapid_leader_schedule():
     ori_cmd = "curve_ops_tool rapid-leader-schedule"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[3] == 0,"rapid leader schedule not ok"
-    # 等待rapid leader schedule执行完成
     ori_cmd = "curve_ops_tool check-operator -opName=transfer_leader -leaderOpInterval=1| grep \"Operator num is\""
     starttime = time.time()
     while time.time() - starttime < 60:
@@ -764,7 +741,6 @@ def rapid_leader_schedule():
 
 def wait_cluster_healthy(limit_iops=8000):
     check_chunkserver_online()
-    #检测集群整体状态
     host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     ori_cmd = "curve_ops_tool status | grep \"cluster is\""
@@ -789,7 +765,6 @@ def wait_cluster_healthy(limit_iops=8000):
         logger.debug("copysets status is %s"%copysets_status)
         assert check == 1,"cluster is not healthy in %d s,cluster status is:\n %s,copysets status is:\n %s"%(config.recover_time,cluster_status,copysets_status)
     rapid_leader_schedule() 
-#检测nbd iops    
     ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
     i = 0
     while i < 300:
@@ -824,7 +799,6 @@ def check_io_error():
         ssh.close()
 
 def check_copies_consistency():
-    # 快速leader均衡
     host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     ori_cmdpri = "curve_ops_tool check-consistency -filename=/fiofile \
@@ -1738,7 +1712,6 @@ def perf_test():
     assert rs[3] == 0,"cp fiodata fail,error is %s"%rs[1]
     analysis_data(ssh)
 
-#增加数据盘
 def add_data_disk():
     ori_cmd = "bash attach_thrash.sh"
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
@@ -1818,7 +1791,6 @@ def get_all_curvevm_active_num(num):
         assert status == "up","get vm status fail,not up.is %s,current vm id is %s"%(status,uuid)
     return active_num
 
-# 用于初始化创建50个curve系统盘的云主机。先从镜像创建一个curve云主机，再从该云主机创建自定义镜像和克隆50个云主机。每个云主机会自动拉起1000 iops的io
 def init_create_curve_vm(num):
     image_id = config.image_id
     salt = ''.join(random.sample(string.ascii_letters + string.digits, 8))
@@ -1885,7 +1857,6 @@ def do_thrasher(action):
         logger.debug("开始启动故障XXXXXXXXXXXXXXXXXXX %s,%s XXXXXXXXXXXXXXXXXXXXXX"%(action[0],str(action[1])))
         globals()[action[0]](action[1])
 
-#加回所有retired的chunkserver
 def start_retired_and_down_chunkservers():
     for host in config.chunkserver_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)

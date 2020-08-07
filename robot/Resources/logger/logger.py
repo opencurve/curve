@@ -17,11 +17,6 @@ class Log():
     __handler = False
 
     def __init__(self, log_file, level=logging.DEBUG, stdout=True):
-        '''　初使化主程序日志的函数
-    
-        @param level 打印日志的级别，默认为logging.DEBUG
-        @param stdout 日志是否输出到标准输出中，默认输出
-        '''
         self.__handler = logging.getLogger(log_file) 
         formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
         log_fileHdl = logging.handlers.RotatingFileHandler(
@@ -98,9 +93,9 @@ class Log():
             else:
                 pass
 
-if os.path.exists("/var/lib/jenkins/workspace/curve/curve_multijob/robot/Resources/log"):
-    logger = Log("/var/lib/jenkins//workspace/curve/curve_multijob/robot/Resources/log/curve-test.log", logging.DEBUG, False)
-    logger2 = Log("/var/lib/jenkins//workspace/curve/curve_multijob/robot/Resources/log/curve-snapshot.log", logging.INFO, True)
-    logger3 = Log("/var/lib/jenkins//workspace/curve/curve_multijob/robot/Resources/log/curve-attach.log", logging.DEBUG, False)
+if os.path.exists("/var/lib/jenkins/workspace/curve_failover/robot/Resources/log"):
+    logger = Log("/var/lib/jenkins//workspace/curve_failover/robot/Resources/log/curve-test.log", logging.DEBUG, False)
+    logger2 = Log("/var/lib/jenkins//workspace/curve_failover/robot/Resources/log/curve-snapshot.log", logging.INFO, True)
+    logger3 = Log("/var/lib/jenkins//workspace/curve_failover/robot/Resources/log/curve-attach.log", logging.DEBUG, False)
 else:
     print "log dir not created!"

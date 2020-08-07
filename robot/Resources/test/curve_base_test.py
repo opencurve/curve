@@ -3,83 +3,11 @@
 
 from config import config
 from logger.logger import *
-from lib import db_operator
 from lib import shell_operator
 from keywords import base_operate
 import time
 import sys
 
-'''
-class TestLibcurveBaseTestCase(object):
-
-    def __init__(self):
-        pass
-
-    @classmethod
-    def setup_class(self):
-        """最开始执行，且只执行一次
-        """
-        base_operate.drop_mds_table()
-        ret_code = base_operate.check_process_exsits("mds")
-        if ret_code:
-            base_operate.start_mds()
-            time.sleep(2)
-        ret_code = base_operate.check_process_exsits("mds")
-        assert ret_code == 0
-        base_operate.clean_db()
-        base_operate.create_physicalpool(config.cluster_map, config.mds_port, config.physical_op)
-        base_operate.mock_chunkserver_registe()
-        base_operate.kill_process("mds")
-        ret_code = base_operate.check_process_exsits("mds")
-        assert ret_code != 0
-        ret_code = base_operate.check_process_exsits("chunk")
-        if not ret_code:
-            base_operate.stop_chunkserver()
-        base_operate.clean_cs_data()
-        base_operate.chunkserver_log_create()
-
-    def setUp(self):
-        """在每条用例执行前执行
-        """
-        pass
-
-    def tearDown(self):
-        """在每条用例执行后执行
-        """
-        pass
-
-    @classmethod
-    def teardown_class(self):
-        """最后执行，且只执行一次
-        """
-        base_operate.clean_db()
-        base_operate.drop_table()
-        base_operate.kill_process("mds")
-        base_operate.stop_chunkserver()
-        base_operate.clean_cs_data()
-        logger.debug("chunkser0 log print")
-        base_operate.cat_chunkserver_log('chunkserver.log.0')
-        logger.debug("chunkser1 log print")
-        base_operate.cat_chunkserver_log('chunkserver.log.1')
-        logger.debug("chunkser2 log print")
-        base_operate.cat_chunkserver_log('chunkserver.log.2')
-
-    def test_libcurve_workflow_base(self):
-        base_operate.start_mds()
-        time.sleep(2)
-        ret_code = base_operate.check_process_exsits("mds")
-        assert ret_code == 0
-        base_operate.start_chunkserver()
-        time.sleep(10)
-        base_operate.create_logicalpool(config.copyset_num, config.mds_port, config.physicalpool_name, config.logical_op)
-        time.sleep(5)
-        sql = "select * from curve_copyset;"
-        conn = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.db_name)
-        logicalpool_dbinof = db_operator.query_db(conn, sql)
-        logger.info("logicalpool_dbinof = %s" % int(logicalpool_dbinof["rowcount"]))
-        assert int(logicalpool_dbinof["rowcount"]) == int(config.copyset_num)
-        base_operate.run_libcurve_test(config.fake_mds_false, config.fake_chunkserver_false)
-'''
 
 def create_libcurve_file_with_normal_user():
     rc = base_operate.create_libcurve_file(config.file_name, config.user_name, size = config.size)

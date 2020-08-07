@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf8 -*-
 
-'''
-基本配置信息,若配置新的环境，需要更改此文件
-'''
 #curve info
 curve_workspace = "/var/lib/jenkins/workspace/curve_failover/"
 chunkserver_start_script = "./deploy/local/chunkserver/start_chunkservers_locally.sh"

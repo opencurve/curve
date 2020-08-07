@@ -2342,13 +2342,11 @@ file clean
 
 init cluster
 #     Run Keyword And Ignore Error   drop mds table
-#     create db table
      #drop snap clone table
      Run Keyword And Ignore Error   clean cs data
      Run Keyword And Ignore Error   clean etcd data
 	 #start mds if not started
 	 #check mds should be exsits
-	 #clean db
 	 stop mds if started
 	 kill mds
 	 stop chunkserver if started
