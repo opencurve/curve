@@ -201,8 +201,6 @@ nebd_server_heartbeat_timeout_s: 30
 nebd_server_heartbeat_check_interval_ms: 3000
 
 # s3配置默认值
-s3_nos_address: nos_netease_com
-s3_snapshot_bucket_name: curve-bucket-for-test
 s3_http_scheme: 0
 s3_verify_ssl: false
 s3_user_agent_conf: S3 Browser

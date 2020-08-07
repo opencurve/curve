@@ -15,21 +15,12 @@
 #  limitations under the License.
 #
 
-- name: install libunwind
-  vars:
-    apt_lib_name: libunwind8 libunwind8-dev
-    yum_lib_name: libunwind libunwind-devel
-  include_tasks: common_tasks/install_with_yum_apt.yml
+- name: check if nbd exists in kernel
+  shell: /sbin/modprobe nbd
+  ignore_errors: true
+  register: modprobe_res
 
-- name: install libnl
-  vars:
-    apt_lib_name: libnl-3-dev libnl-genl-3-dev
-    yum_lib_name: libnl3 libnl3-devel
-  include_tasks: common_tasks/install_with_yum_apt.yml
-
-- name: install nbd bin
-  vars:
-    remote_dir_name: "{{ curve_bin_dir }}"
-    local_file_path: "{{ local_nbd_package_path }}/bin/"
-    file_mode: 0755
-  include_tasks: copy_file_to_remote.yml
+- name: fail if nbd not found
+  fail:
+    msg: "nbd not found in kernel, please check!"
+  when: modprobe_res.rc != 0
