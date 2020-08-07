@@ -93,9 +93,9 @@ class Log():
             else:
                 pass
 
-if os.path.exists("/var/lib/jenkins/workspace/curve_failover/robot/Resources/log"):
-    logger = Log("/var/lib/jenkins//workspace/curve_failover/robot/Resources/log/curve-test.log", logging.DEBUG, False)
-    logger2 = Log("/var/lib/jenkins//workspace/curve_failover/robot/Resources/log/curve-snapshot.log", logging.INFO, True)
-    logger3 = Log("/var/lib/jenkins//workspace/curve_failover/robot/Resources/log/curve-attach.log", logging.DEBUG, False)
+if os.path.exists("/var/lib/jenkins/workspace/curve_failover/robot/"):
+    logger = Log("/var/lib/jenkins/workspace/curve_failover/robot/curve-test.log", logging.DEBUG, False)
+    logger2 = Log("/var/lib/jenkins/workspace/curve_failover/robot/curve-snapshot.log", logging.INFO, True)
+    logger3 = Log("/var/lib/jenkins/workspace/curve_failover/robot/curve-attach.log", logging.DEBUG, False)
 else:
     print "log dir not created!"
