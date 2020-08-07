@@ -50,7 +50,7 @@ using ::curve::fs::FileSystemType;
 
 DEFINE_string(conf, "ChunkServer.conf", "Path of configuration file");
 DEFINE_string(chunkServerIp, "127.0.0.1", "chunkserver ip");
-DEFINE_bool(enalbleExternalServer, false, "start external server or not");
+DEFINE_bool(enableExternalServer, false, "start external server or not");
 DEFINE_string(chunkServerExternalIp, "127.0.0.1", "chunkserver external ip");
 DEFINE_int32(chunkServerPort, 8200, "chunkserver port");
 DEFINE_string(chunkServerStoreUri, "local://./0/", "chunkserver store uri");
@@ -566,10 +566,10 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
         LOG(FATAL)
         << "chunkServerIp must be set when run chunkserver in command.";
     }
-    if (GetCommandLineFlagInfo("enalbleExternalServer", &info) &&
+    if (GetCommandLineFlagInfo("enableExternalServer", &info) &&
                                                             !info.is_default) {
         conf->SetBoolValue(
-            "global.enable_external_server", FLAGS_enalbleExternalServer);
+            "global.enable_external_server", FLAGS_enableExternalServer);
     }
     if (GetCommandLineFlagInfo("chunkServerExternalIp", &info) &&
                                                             !info.is_default) {

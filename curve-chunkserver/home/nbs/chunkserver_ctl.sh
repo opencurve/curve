@@ -106,11 +106,11 @@ function start() {
     external_subnet=`cat $confPath|grep global.external_subnet|awk -F"=" '{print $2}'`
     get_ip_from_subnet $external_subnet
     external_ip=$ip
-    enalbleExternalServer=true
+    enableExternalServer=true
     # external ip和internal ip一致或external ip为127.0.0.1时不启动external server
     if [ $internal_ip = $external_ip -o $external_ip = "127.0.0.1" ]
     then
-        enalbleExternalServer=false
+        enableExternalServer=false
     else
         echo "external_ip: $external_ip"
     fi
@@ -164,7 +164,7 @@ function start_one() {
             -chunkFilePoolDir=${DATA_DIR}/chunkserver$1 \
             -chunkFilePoolMetaPath=${DATA_DIR}/chunkserver$1/chunkfilepool.meta \
             -chunkServerIp=$internal_ip \
-            -enalbleExternalServer=$enalbleExternalServer \
+            -enableExternalServer=$enableExternalServer \
             -chunkServerExternalIp=$external_ip \
             -chunkServerPort=$((${port}+${1})) \
             -chunkServerMetaUri=local:///data/chunkserver$1/chunkserver.dat \
