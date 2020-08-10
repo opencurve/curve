@@ -58,17 +58,17 @@ namespace heartbeat {
 
 // the responsibilities of heartbeat manager including:
 // 1. background threads inspection
-//    - update lastest heartbeat timestamp of chunkserver 
+//    - update lastest heartbeat timestamp of chunkserver
 //    - regular chunkserver status inspection
 // 2. distribute copyset instruction, in cases like:
-//    - copyset reported by a chunkserver doesn't exist in mds, send 'empty'  
+//    - copyset reported by a chunkserver doesn't exist in mds, send 'empty'
 //      config to certain chunkserver for cleaning corresponding copyset
 //    - passing copyset information to scheduler (see UpdateChunkServerDiskStatus),   //NOLINT
 //      check for any possible configuration changes
-//    - chunkserver not included in follower copyset configuration, 
+//    - chunkserver not included in follower copyset configuration,
 //      send 'empty' config to certain chunkservers for cleaning
 // 3. update topology information
-//    - update epoch, copy relationship and other statistical data of topology 
+//    - update epoch, copy relationship and other statistical data of topology
 //      according to the copyset information reported by the chunkserver
 
 class HeartbeatManager {
@@ -83,9 +83,9 @@ class HeartbeatManager {
     }
 
     /**
-     * @brief Init Used by mds to initialize heartbeat module. 
-     *             It registers all chunkservers to chunkserver health 
-     *             checking module (class ChunkserverHealthyChecker), 
+     * @brief Init Used by mds to initialize heartbeat module.
+     *             It registers all chunkservers to chunkserver health
+     *             checking module (class ChunkserverHealthyChecker),
      *             and initializes them to online status
      */
     void Init();
@@ -135,13 +135,13 @@ class HeartbeatManager {
     /**
      * @brief CheckRequest Check the validity of a heartbeat request
      *
-     * @return Return HeartbeatStatusCode::hbOK when valid, otherwise return 
+     * @return Return HeartbeatStatusCode::hbOK when valid, otherwise return
      *         corresponding error code
      */
     HeartbeatStatusCode CheckRequest(const ChunkServerHeartbeatRequest &request);  // NOLINT
 
     /**
-     * @brief Convert copyset data structure from heartbeat format 
+     * @brief Convert copyset data structure from heartbeat format
      *        to topology format
      *
      * @param[in] info Copyset data reported by heartbeat
@@ -154,7 +154,7 @@ class HeartbeatManager {
         ::curve::mds::topology::CopySetInfo *out);
 
     /**
-     * @brief Extract ip address and port number from string, and fetch 
+     * @brief Extract ip address and port number from string, and fetch
      *        corresponding chunkserverID from topology. This is for receiving
      *        heartbeat message since it's a string in format of 'ip:port:id'
      *
