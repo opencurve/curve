@@ -85,7 +85,7 @@ class CopysetConfGenerator {
         ::curve::mds::heartbeat::CopySetConf *copysetConf);
 
     /*
-    * @brief FollowerGenCopysetConf deal with info follower copyset info. 
+    * @brief FollowerGenCopysetConf deal with follower copyset info. 
     *                               decide whether the reported chunkserver is 
     *                               within the copies of a copyset, if not, generation
     *                               corresponding instruction for deletion

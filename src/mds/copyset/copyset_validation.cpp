@@ -145,7 +145,8 @@ void CopysetValidation::CalcScatterWidth(const std::vector<Copyset> &copysets,
                 collector.insert(cs.replicas.begin(), cs.replicas.end());
             }
         }
-        // scatterWidth -1 is for excluding one of the copy itself (see the definition of scatter width)
+        // scatterWidth -1 is for excluding one of the copy itself 
+        // (see the definition of scatter width)
         pair.second = collector.size() - 1;
     }
 }

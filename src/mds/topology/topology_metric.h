@@ -356,7 +356,7 @@ class TopologyMetricService {
 
  private:
     /**
-     * @brief 后来线程执行函数，定期执行UpdateTopologyMetrics
+     * @brief 后台线程执行函数，定期执行UpdateTopologyMetrics
      */
     void BackEndFunc();
 

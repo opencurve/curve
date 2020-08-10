@@ -37,10 +37,10 @@ namespace mds {
 namespace topology {
 
 /**
- * @brief 集群信息结构, 目前暂时只有clusterId
+ * @brief cluster information, so far we only use clusterId
  */
 struct ClusterInformation {
-    // 集群的唯一Id
+    // the only and unique Id of a cluster
     std::string clusterId;
 
     ClusterInformation() = default;
@@ -74,7 +74,8 @@ class LogicalPool {
         } appendECFileRAP;
     };
 
-    // TODO(xuchaojie): 用户控制相关逻辑可暂行先不实现，后续再修改
+    // TODO(xuchaojie): User control related logic not implemented
+
     struct UserPolicy {
         UserPolicy()
             : strictAllow(false) {}
@@ -208,7 +209,7 @@ class LogicalPool {
     RedundanceAndPlaceMentPolicy rap_;
     UserPolicy policy_;
     /**
-     * @brief 逻辑池初始平均scatterWidth, 用于调度模块
+     * @brief initial average scatterwidth for scheduler
      */
     uint32_t initialScatterWidth_;
 
@@ -272,7 +273,7 @@ class PhysicalPool {
     std::string name_;
     std::string desc_;
 
-    // 逻辑的总容量
+    // logical total capacity
     uint64_t diskCapacity_;
 
     std::list<ZoneIdType> zoneList_;
@@ -454,7 +455,7 @@ class ChunkServerState {
     }
 
  private:
-    DiskState diskState_;  // 磁盘状态，DistError、DiskNormal；
+    DiskState diskState_;  // disk state，DistError、DiskNormal；
 
     uint64_t diskCapacity_;
     uint64_t diskUsed_;
@@ -634,7 +635,7 @@ class ChunkServer {
     std::string mountPoint_;  // mnt/ssd1
 
     /**
-     * @brief chunkserver启动时间
+     * @brief chunkserver start up time
      */
     uint64_t startUpTime_;
 
@@ -644,11 +645,11 @@ class ChunkServer {
     ChunkServerState state_;
 
     /**
-     * @brief 脏标志位，用于定时写入数据库
+     * @brief to mark whether data is dirty, for writing to database regularly
      */
     bool dirty_;
     /**
-     * @brief chunkserver读写锁,保护该chunkserver的并发读写
+     * @brief chunkserver read/write lock, for protecting concurrent read/write on the chunksever   //NOLINT
      */
     mutable ::curve::common::RWLock mutex_;
 };
@@ -670,6 +671,7 @@ class CopySetInfo {
         hasCandidate_(false),
         candidate_(UNINTIALIZE_ID),
         dirty_(false) {}
+        
     CopySetInfo(PoolIdType logicalPoolId,
                 CopySetIdType id) :
         logicalPoolId_(logicalPoolId),
@@ -746,7 +748,7 @@ class CopySetInfo {
     bool HasMember(ChunkServerIdType peer) const {
         return peers_.count(peer) > 0;
     }
-
+    
     bool SetCopySetMembersByJson(const std::string &jsonStr);
 
     bool HasCandidate() const {
@@ -796,21 +798,21 @@ class CopySetInfo {
     ChunkServerIdType candidate_;
 
     /**
-     * @brief 脏标志位，用于定时写入数据库
+     * @brief to mark whether data is dirty, for writing to database regularly
      */
     bool dirty_;
 
     /**
-     * @brief copyset读写锁,保护该copyset的并发读写
+     * @brief chunkserver read/write lock, for protecting concurrent read/write on the chunksever
      */
     mutable ::curve::common::RWLock mutex_;
 };
 
 /**
- * @brief 生成peerId
+ * @brief generate peerId
  *
  * @param ip hostIp
- * @param port 端口号
+ * @param port port number
  * @param idx index
  *
  * @return peerId
@@ -823,11 +825,11 @@ inline std::string BuildPeerId(
 }
 
 /**
- * @brief 拆分peerId
+ * @brief split peer ID
  *
- * @param peerId peerId
+ * @param peerId peer ID
  * @param[out] ip hostIp
- * @param[out] port 端口号
+ * @param[out] import port 
  * @param[out] idx index
  *
  * @retval true success
