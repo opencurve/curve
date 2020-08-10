@@ -61,9 +61,9 @@ namespace heartbeat {
 //    - update lastest heartbeat timestamp of chunkserver 
 //    - regular chunkserver status inspection
 // 2. distribute copyset instruction, in cases like:
-//    - copyset reported by a chunkserver doesn't exist in mds, send 'empty' config to certain 
-//      chunkserver for cleaning corresponding copyset
-//    - passing copyset information to scheduler (see UpdateChunkServerDiskStatus), 
+//    - copyset reported by a chunkserver doesn't exist in mds, send 'empty'  
+//      config to certain chunkserver for cleaning corresponding copyset
+//    - passing copyset information to scheduler (see UpdateChunkServerDiskStatus),   //NOLINT
 //      check for any possible configuration changes
 //    - chunkserver not included in follower copyset configuration, 
 //      send 'empty' config to certain chunkservers for cleaning
@@ -135,12 +135,14 @@ class HeartbeatManager {
     /**
      * @brief CheckRequest Check the validity of a heartbeat request
      *
-     * @return Return HeartbeatStatusCode::hbOK when valid, otherwise return corresponding error code
+     * @return Return HeartbeatStatusCode::hbOK when valid, otherwise return 
+     *         corresponding error code
      */
     HeartbeatStatusCode CheckRequest(const ChunkServerHeartbeatRequest &request);  // NOLINT
 
     /**
-     * @brief Convert copyset data structure from heartbeat format to topology format
+     * @brief Convert copyset data structure from heartbeat format 
+     *        to topology format
      *
      * @param[in] info Copyset data reported by heartbeat
      * @param[out] out Copyset data structure of topology module

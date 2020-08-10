@@ -40,8 +40,8 @@ class TopoUpdater {
 
    /*
     * @brief UpdateTopo this function will be called by leader copyset
-    *                  for updating copyset epoch, copy relationship and statistical
-    *                  data according to reportCopySetInfo 
+    *                   for updating copyset epoch, copy relationship and 
+    *                   statistical data according to reportCopySetInfo 
     * @param[in] reportCopySetInfo copyset info reported by chunkserver
     */
     void UpdateTopo(const CopySetInfo &reportCopySetInfo);

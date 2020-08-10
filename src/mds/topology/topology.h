@@ -90,75 +90,79 @@ class Topology {
     virtual int UpdateZone(const Zone &data) = 0;
     virtual int UpdateServer(const Server &data) = 0;
     /**
-     * @brief 更新chunkserver Topo信息
-     * - 仅更新topo部分数据
-     * - 先更新数据库，再更新内存，若更新数据库失败，则更新失败
+     * @brief update chunkserver topology information
+     * - update only part of topology data
+     * - update database before RAM, and fail when failed to update database
      *
-     * @param data chunkserver数据
+     * @param data chunkserver data
      *
-     * @return 错误码
+     * @return error code
      *
      */
     virtual int UpdateChunkServerTopo(const ChunkServer &data) = 0;
 
     /**
-     * @brief 更新chunkserver 读写状态
-     * - 仅更新读写状态
-     * - 先更新数据库，再更新内存，若更新数据库失败，则更新失败
+     * @brief update chunkserver read/write status
+     * - only R/W status is updated
+     * - update database before RAM, and fail when failed to update database
      *
-     * @param rwState 读写或retired状态
+     * @param rwState (R/W or retired)
      * @param id chunkserverid
      *
-     * @return 错误码
+     * @return error code
      */
     virtual int UpdateChunkServerRwState(const ChunkServerStatus &rwState,
                                   ChunkServerIdType id) = 0;
     /**
-     * @brief 更新chunkserver online状态
-     * - 仅更新online/offline状态
-     * - 仅更新内存，后台定期刷入数据库
+     * @brief update chunkserver online status
+     * - only online status will be updated
+     * - only RAM will be updated, data will be flushed to database regularly 
+     *   by background process
      *
-     * @param onlineState online/offline状态
+     * @param onlineState (online/offline)
      * @param id chunkseverid
      *
-     * @return 错误码
+     * @return error code
      */
     virtual int UpdateChunkServerOnlineState(const OnlineState &onlineState,
                                   ChunkServerIdType id) = 0;
     /**
-     * @brief 更新chunkserver 磁盘状态
-     * - 仅更新disk state
-     * - 仅更新内存，后台定期刷入数据库
+     * @brief update chunkserver disk status
+     * - only disk state will be updated
+     * - only RAM will be updated, data will be flushed to database regularly 
+     *   by background process
      *
-     * @param state 磁盘状态
+     * @param state disk status
      * @param id chunkserverid
      *
-     * @return 错误码
+     * @return error code
      */
     virtual int UpdateChunkServerDiskStatus(const ChunkServerState &state,
                                        ChunkServerIdType id) = 0;
 
 
     /**
-     * @brief 更新chunkserver启动时间
+     * @brief update chunkserver start up time
      *
-     * @param time 启动时间
+     * @param time start up time
      * @param id chunkserver id
      *
-     * @return 错误码
+     * @return error code
      */
     virtual int UpdateChunkServerStartUpTime(uint64_t time,
                          ChunkServerIdType id) = 0;
 
     /**
-     * @brief 更新copyset 拓扑信息
+     * @brief update copyset topology info
      * @detail
-     * - 用于更新epoch，leader等心跳周期性上报的copyset数据
-     * - 仅更新内存，后台定期刷入数据库
+     * - for updating copyset data reported by heartbeat regularly like 
+     *   epoch and leader
+     * - only RAM will be updated, data will be flushed to database regularly 
+     *   by background process
      *
-     * @param data copyset数据
+     * @param data copyset data 
      *
-     * @return 错误码
+     * @return error code
      */
     virtual int UpdateCopySetTopo(const CopySetInfo &data) = 0;
 
@@ -517,23 +521,23 @@ class TopologyImpl : public Topology {
             return true;}) const override;
 
     /**
-     * @brief 获取chunksever的所属physicalPool Id
+     * @brief get physicalPool Id that the chunksever belongs to
      *
      * @param csId chunkserver Id
      * @param[out] physicalPoolIdOut physicalPool Id
      *
-     * @return 错误码
+     * @return error code
      */
     int GetBelongPhysicalPoolId(ChunkServerIdType csId,
         PoolIdType *physicalPoolIdOut);
 
     /**
-     * @brief  获取server的所属physicalPool Id
+     * @brief  get physicalPool Id that the server belongs to
      *
      * @param serverId  server Id
      * @param[out] physicalPoolIdOut physicalPool Id
      *
-     * @return 错误码
+     * @return error code
      */
     int GetBelongPhysicalPoolIdByServerId(ServerIdType serverId,
         PoolIdType *physicalPoolIdOut);
@@ -560,14 +564,14 @@ class TopologyImpl : public Topology {
 
     std::map<CopySetKey, CopySetInfo> copySetMap_;
 
-    // 集群信息
+    // cluster info
     ClusterInformation clusterInfo;
 
     std::shared_ptr<TopologyIdGenerator> idGenerator_;
     std::shared_ptr<TopologyTokenGenerator> tokenGenerator_;
     std::shared_ptr<TopologyStorage> storage_;
-
-    // 以如下声明的顺序获取锁，防止死锁
+    
+    // fetch lock in the order below to avoid deadlock
     mutable curve::common::RWLock logicalPoolMutex_;
     mutable curve::common::RWLock physicalPoolMutex_;
     mutable curve::common::RWLock zoneMutex_;

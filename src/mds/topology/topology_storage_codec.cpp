@@ -26,7 +26,6 @@
 #include "src/common/namespace_define.h"
 #include "src/common/encode.h"
 
-
 namespace curve {
 namespace mds {
 namespace topology {
