@@ -1,0 +1,72 @@
+---
+#
+#  Copyright (c) 2020 NetEase Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+- name: get gcc version
+  shell: gcc -dumpversion
+  register: gcc_version
+
+- name: Stop if gcc version not match, make sure that the gcc version is bigger than 4.8.5
+  assert:
+    that:
+      - gcc_version|version_compare('4.8.5', '>=')
+
+- name: install openssl
+  vars:
+    apt_lib_name: openssl
+    yum_lib_name: openssl
+  include_tasks: common_tasks/install_with_yum_apt.yml
+
+- name: get openssl version
+  shell: openssl version | awk -F ' ' '{print$2}' | awk -F '-' '{print$1}'
+  register: openssl_version
+
+- name: Stop if openssl version not match, make sure that the openssl version is bigger than 1.1.0
+  assert:
+    that:
+      - openssl_version|version_compare('1.1.0', '>=')
+
+- name: install net-tool
+  vars:
+    apt_lib_name: net-tools
+    yum_lib_name: net-tools
+  include_tasks: common_tasks/install_with_yum_apt.yml
+
+- name: install perf
+  vars:
+    apt_lib_name: linux-perf
+    yum_lib_name: perf
+  include_tasks: common_tasks/install_with_yum_apt.yml
+
+- name: install perl-podlators
+  vars:
+    apt_lib_name: podlators-perl
+    yum_lib_name: perl-podlators
+  include_tasks: common_tasks/install_with_yum_apt.yml
+
+- name: install make
+  vars:
+    apt_lib_name: make
+    yum_lib_name: make
+  include_tasks: common_tasks/install_with_yum_apt.yml
+
+- name: install libcurl
+  vars:
+    apt_lib_name: libcurl3-gnutls
+    yum_lib_name: libcurl --allowerasing
+  include_tasks: common_tasks/install_with_yum_apt.yml
+
+

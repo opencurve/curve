@@ -15,21 +15,19 @@
 #  limitations under the License.
 #
 
-- name: install libunwind
+- name: get distro name
   vars:
-    apt_lib_name: libunwind8 libunwind8-dev
-    yum_lib_name: libunwind libunwind-devel
-  include_tasks: common_tasks/install_with_yum_apt.yml
+    distro:
+  include_tasks: common_tasks/get_distro_name.yml
 
-- name: install libnl
-  vars:
-    apt_lib_name: libnl-3-dev libnl-genl-3-dev
-    yum_lib_name: libnl3 libnl3-devel
-  include_tasks: common_tasks/install_with_yum_apt.yml
+- name: Debian/Ubuntu - set curve_lib_dir
+  set_fact:
+    curve_lib_dir: /usr/lib
+  when:
+    - "'Ubuntu' in distro or 'Debian' in distro"
 
-- name: install nbd bin
-  vars:
-    remote_dir_name: "{{ curve_bin_dir }}"
-    local_file_path: "{{ local_nbd_package_path }}/bin/"
-    file_mode: 0755
-  include_tasks: copy_file_to_remote.yml
+- name: Redhat/CentOS - set curve_lib_dir
+  set_fact:
+    curve_lib_dir: /usr/lib64
+  when:
+    - "'CentOS' in distro"
