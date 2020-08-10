@@ -128,7 +128,6 @@ void CopysetZoneShufflePolicy::GetMinCopySetFromScatterWidth(
     *min = scatterWidth * numChunkServers / numReplicas / (numReplicas - 1);
 }
 
-// 这个函数的意义何在？
 int CopysetZoneShufflePolicy::GetMaxPermutationNum(int numCopysets,
     int numChunkServers,
     int numReplicas) {

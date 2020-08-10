@@ -46,7 +46,7 @@ Feeling good? Maybe you would like to contribute your codes and make CURVE bette
 [test cases compiling and running](docs/cn/build_and_run.md#%E6%B5%8B%E8%AF%95%E7%94%A8%E4%BE%8B%E7%BC%96%E8%AF%91%E5%8F%8A%E6%89%A7%E8%A1%8C)
 
 ### Coding style guides
-CURVE is coded following [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html) strictly. Please follow this guideline if you're trying to contribute your codes.
+CURVE is coded following [Google C++ Style Guide strictly](https://google.github.io/styleguide/cppguide.html). Please follow this guideline if you're trying to contribute your codes.
 
 ### Code coverage requirement
 1. Unit tests：Incremental line coverage ≥ 80%, incremental branch coverage ≥ 70%
