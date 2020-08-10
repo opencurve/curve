@@ -21,6 +21,29 @@
     - always
   import_playbook: check_ansible_version.yml
 
+- name: check kernel version
+  hosts: chunkservers
+  any_errors_fatal: true
+  gather_facts: yes
+  tags:
+    - chunkserver
+  tasks:
+    - name: check kernel version
+      assert:
+        that:
+          - ansible_kernel|version_compare('3.15', '>=')
+
+- name: prepare software environment on all machines
+  hosts: all
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - always
+  roles:
+    - { role: prepare_software_env }
 
 ############################## deploy etcd ##############################
 - name: prepare etcd
@@ -159,6 +182,8 @@
             tags: ["generate_config", "generate_snap_conf"] }
     - { role: generate_config, template_name: client.conf, conf_path: "{{ snap_client_config_path }}",
             tags: ["generate_config", "generate_snap_client_conf"] }
+    - { role: generate_config, template_name: s3.conf, conf_path: "{{ snap_s3_config_path }}",
+                tags: ["generate_config", "generage_s3_conf"] }
 
 - name: start snapshotcloneserver
   hosts: snapshotclone
