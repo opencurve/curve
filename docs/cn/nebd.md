@@ -1,4 +1,4 @@
-[English version](../en/nebd.md)
+[English version](../en/nebd_en.md)
 
 ### 概要
 
