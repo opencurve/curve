@@ -37,7 +37,8 @@ bool CopysetConfGenerator::GenCopysetConf(
     const ::curve::mds::heartbeat::ConfigChangeInfo &configChInfo,
     ::curve::mds::heartbeat::CopySetConf *copysetConf) {
     // reported copyset not exist on topology
-    // in this case an empty configuration will be sent to chunkserver for the deletion (of the copy)
+    // in this case an empty configuration will be sent to chunkserver for the 
+    // deletion (of the copy)
     ::curve::mds::topology::CopySetInfo recordCopySetInfo;
     if (!topo_->GetCopySet(
         reportCopySetInfo.GetCopySetKey(), &recordCopySetInfo)) {
@@ -92,24 +93,24 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
     const ::curve::mds::topology::CopySetInfo &reportCopySetInfo,
     const ::curve::mds::topology::CopySetInfo &recordCopySetInfo,
     ::curve::mds::heartbeat::CopySetConf *copysetConf) {
-    // if there's no candidate on a copyset, and epoch on MDS is larger or equal to what non-leader copy report, //NOLINT
-    // copy(ies) can be delete according to the configuration of MDS
+    // if there's no candidate on a copyset, and epoch on MDS is larger or equal to what non-leader copy report,                //NOLINT
+    // copy(ies) can be deleted according to the configuration of MDS
 
     // epoch that MDS recorded >= epoch reported
     if (recordCopySetInfo.GetEpoch() >= reportCopySetInfo.GetEpoch()) {
         // delay cleaning is for avoiding cases like the example below:
-        // the initial config of a copyset is ABC, in which A is the leader, and epoch = 8 //NOLINT
+        // the initial config of a copyset is ABC, in which A is the leader, and epoch = 8                                      //NOLINT
         // 1. MDS gereration an operator ABC+D and dispatch to A
         // 2. A installed snapshot to D successfully, and start copying journal
-        // 3. When D is copying the journal, old config of the copyset is applied (e.g. ABE, epoch = 5)
+        // 3. When D is copying the journal, old config of the copyset is applied (e.g. ABE, epoch = 5)                         //NOLINT
         // 4. MDS restart now and operator is lost
-        // 5. After the MDS has restarted, it first receive heartbeat from follower-id (ABE, epoch = 5). //NOLINT
-        //    In normal cases (without delay cleaning), this copyset on D will be deleted since its epoch number is lower,
-        //    but it will be a problem in our case since D is already a member of the copyset, and the deletion of D means
+        // 5. After the MDS has restarted, it first receive heartbeat from follower-id (ABE, epoch = 5).                        //NOLINT
+        //    In normal cases (without delay cleaning), this copyset on D will be deleted since its epoch number is lower,      //NOLINT
+        //    but it will be a problem in our case since D is already a member of the copyset, and the deletion of D means      //NOLINT
         //    the elimination of copies.
         // here's how delay cleaning works:    //NOLINT
         //    In one way leader will report the existence of D, which promise that D will not be deleted by mistake. In another //NOLINT
-        //    way, the configuration that D report will be up-to-date since the journal replay has completed
+        //    way, the configuration that D report will be up-to-date since the journal replay has completed                    //NOLINT
 
         steady_clock::duration timePass = steady_clock::now() - mdsStartTime_;
         if (steady_clock::now() - mdsStartTime_ <
@@ -119,7 +120,7 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
                                  << " seconds of mds start";
             return false;
         }
-        // judge whether the reporting chunkserver is in the copyset it reported, and whether this  //NOLINT
+        // judge whether the reporting chunkserver is in the copyset it reported, and whether this                             //NOLINT
         // chunkserver is a candidate or going to be added into the copyset
         bool exist = recordCopySetInfo.HasMember(reportId);
         if (exist || reportId == recordCopySetInfo.GetCandidate() ||
@@ -133,7 +134,7 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
                          << "," << recordCopySetInfo.GetId() << ")";
         }
 
-        // if the chunkserver doesn't belong to any of the copyset, MDS will dispatch the configuration
+        // if the chunkserver doesn't belong to any of the copyset, MDS will dispatch the configuration                        //NOLINT
         copysetConf->set_logicalpoolid(recordCopySetInfo.GetLogicalPoolId());
         copysetConf->set_copysetid(recordCopySetInfo.GetId());
         copysetConf->set_epoch(recordCopySetInfo.GetEpoch());

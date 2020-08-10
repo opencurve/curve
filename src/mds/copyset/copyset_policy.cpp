@@ -129,7 +129,6 @@ void CopysetZoneShufflePolicy::GetMinCopySetFromScatterWidth(
     *min = scatterWidth * numChunkServers / numReplicas / (numReplicas - 1);
 }
 
-// 这个函数的意义何在？
 int CopysetZoneShufflePolicy::GetMaxPermutationNum(int numCopysets,
     int numChunkServers,
     int numReplicas) {
@@ -137,7 +136,8 @@ int CopysetZoneShufflePolicy::GetMaxPermutationNum(int numCopysets,
 }
 
 /**
- * @brief  a random permutation algorithm for selecting X zones for placing X replicas from N zones
+ * @brief  a random permutation algorithm for selecting X zones for placing 
+ *         X replicas from N zones
  *
  *  1. first we shuffle all servers in every zone
  *  2. then we choose servers in following order:
@@ -147,7 +147,7 @@ int CopysetZoneShufflePolicy::GetMaxPermutationNum(int numCopysets,
  *  N+1      N+2      N+3       N+4    ...   2N
  *  ...      ...      ...       ...    ...   ...
  *
- * @param chunkServers  all chunkserver in cluster.
+ * @param serversIn  all chunkserver in cluster.
  *
  * @reval true   exec success.
  * @reval false  exec fail.
@@ -157,6 +157,7 @@ bool CopysetPermutationPolicyNXX::permutation(
     std::vector<ChunkServerInfo> *serversOut) {
     std::map<curve::mds::topology::ZoneIdType,
         std::vector<ChunkServerInfo> > csMap;
+    // collect every zone that has chunkservers.
     for (const ChunkServerInfo& sv : serversIn) {
         curve::mds::topology::ZoneIdType zid = sv.location.zoneId;
         if (csMap.find(zid) != csMap.end()) {

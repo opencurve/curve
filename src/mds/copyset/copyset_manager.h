@@ -49,7 +49,8 @@ class CopysetManager {
      *
      * @param constrait copyset constraint
      *
-     * @return return 'false' if the constraint is not supported, otherwise 'true'.
+     * @return return 'false' if the constraint is not supported, 
+     *         otherwise 'true'.
      */
     bool Init(const CopysetConstrait &constrait);
 
@@ -58,10 +59,13 @@ class CopysetManager {
      *
      * @detail
      * 1. if copysetNum and scatterWidth are 0, execution fail
-     * 2. if only copysetNum provided, generate copyset according to copysetNumber
+     * 2. if only copysetNum provided, generate copyset according to 
+     *    copyset number
      * 3. if copysetNum and scatterWidth both provided,
-     *    then we first generate copyset using copysetNum, then verify whether scatterWidth is satisfied
-     * 4. if only scatterWidth provided, generate certain amount of copysets that can satisfy scatterWidth requirement
+     *    then we first generate copyset using copysetNum, 
+     *    and verify whether scatterWidth is satisfied
+     * 4. if only scatterWidth provided, generate certain amount of copysets 
+     *    that will satisfy scatterWidth requirement
      *
      * @param cluster cluster information
      * @param numCopysets copyset numbers 

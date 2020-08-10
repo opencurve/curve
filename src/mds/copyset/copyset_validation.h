@@ -40,7 +40,8 @@ class CopysetValidation{
     : option_(option) {}
 
     /**
-     * @brief validate whether the copyset list satisfy the metrics of CopysetOption
+     * @brief validate whether the copyset list satisfy the metrics of 
+     *        CopysetOption
      *
      * @param copysets copysets list
      *
@@ -50,7 +51,8 @@ class CopysetValidation{
     bool Validate(const std::vector<Copyset> &copysets) const;
 
     /**
-     * @brief validate whether average scatter width of copyset satisfy target scatterwidth
+     * @brief validate whether average scatter width of copyset satisfy 
+     *        target scatterwidth
      *
      * @param scatterWidth target scatterWidth
      * @param scatterWidthOut actual average scatterWidth
