@@ -31,6 +31,7 @@ namespace curve {
 namespace mds {
 namespace topology {
 
+
 bool TopologyStorageEtcd::LoadLogicalPool(
     std::unordered_map<PoolIdType, LogicalPool> *logicalPoolMap,
     PoolIdType *maxLogicalPoolId) {

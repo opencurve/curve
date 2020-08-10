@@ -749,7 +749,7 @@ class CopySetInfo {
     bool HasMember(ChunkServerIdType peer) const {
         return peers_.count(peer) > 0;
     }
-
+    
     bool SetCopySetMembersByJson(const std::string &jsonStr);
 
     bool HasCandidate() const {
