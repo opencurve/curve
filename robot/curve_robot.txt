@@ -1,0 +1,2560 @@
+*** Settings ***
+Library           Resources/keywords/base_operate.py
+Library           Resources/test/curve_base_test.py
+Library           Resources/swig/swig_operate.py
+Library           Resources/keywords/snapshot_operate.py
+Library			  Collections
+#Library           RequestsLibrary
+Library           Process
+#Library           SSHLibrary
+Library           Resources/keywords/mythread.py
+Suite Setup       init cluster
+Suite Teardown    clean env
+
+
+*** Variables ***
+${curve_workspace}		/var/lib/jenkins/workspace/curve/curve_multijob
+${chunkserver_start_script}		./deploy/local/chunkserver/start_chunkservers_locally.sh
+${chunkserver_stop_script}		./deploy/local/chunkserver/stop_chunkservers_locally.sh
+${mds_start}		${curve_workspace}/bazel-bin/src/mds/main/curvemds
+${curvefs_tool}		${curve_workspace}/bazel-bin/tools/curvefsTool
+${createfile_tool}		${curve_workspace}/bazel-bin/src/tools
+${libcurve_workflow}		${curve_workspace}/bazel-bin/test/client/fake/curve_client_workflow
+${chunkserver_log_dir}		${curve_workspace}/deploy/local/chunkserver/log/
+${mds_ip}		127.0.0.1
+${mds_port}		6666
+${mds_addr}		127.0.0.1:6666
+${mds_listen}		"-listenAddr=127.0.0.1:6666"
+${snapshot_server_ip}       127.0.0.1
+${snapshot_server_port}     55555
+${snapshot_server_host}     http://127.0.0.1:55555
+${cs_log}		deploy/local/chunkserver/log/
+${cluster_map}		./tools/topo_example.json
+${physicalpool_name}		pool1
+${physical_op}		create_physicalpool
+${logical_op}		create_logicalpool
+${fake_mds_false}		false
+${fake_chunkserver_false}		false
+${failover_time}    5
+${snap}     snaptest
+
+
+*** Test Cases ***
+file base test
+    [Tags]    P0    base    first release   no-need
+    #[Setup]	init cluster
+    workflow base
+    log        hello world
+    #[Teardown]	    clean env
+
+file read write base test
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    create libcurve file
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    write libcurve file     ${new_fd}
+    ${content}      read libcurve file     ${new_fd}
+    ${default_content}      get buf
+    should be equal as strings      ${content}    ${default_content}
+    close libcurve file     ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
+
+create file with normal user
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve file with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+
+create file with normal user and password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve file with normal user and password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+create file with root user and password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve file with root user and password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+create file with root user and error password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve file with root user and error password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+create file with root user and no password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve file with root user and no password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+create file with no user
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve file with no user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean   none
+
+create dir with normal user
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve dir
+    ${new_fd}       Convert To Integer    ${rc}
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+create dir with normal user and password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user and password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve dir
+    ${new_fd}       Convert To Integer    ${rc}
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+create dir with root user and password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with root user and password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+create dir with root user and error password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with root user and error password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+create dir with root user and no password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with root user and no password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+create dir with no user
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with no user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean   none
+
+open file with normal user
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${rc}   open libcurve file with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    #${expect_rc}    evaluate    int(0)
+    #should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
+
+
+open file with normal user and password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   open libcurve file with normal user and password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(1)
+    #should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
+
+open file with root user and password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   open libcurve file with root user and password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(1)
+    #should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
+
+open file with root user and error password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   open libcurve file with root user and error password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-2)
+    should be equal      ${rc}       ${expect_rc}
+    close libcurve file     ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
+
+open file with root user and no password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   open libcurve file with root user and no password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-2)
+    should be equal      ${rc}       ${expect_rc}
+    close libcurve file     ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
+
+open file with error user
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   open libcurve file with error user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-2)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+open file with error user and root password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   open libcurve file with error user and root password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-2)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+open file with no user
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   open libcurve file with no user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-1)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+extend file with normal user
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${rc}   extend libcurve file with normal user
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+
+extend file with normal user and password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   extend libcurve file with normal user and password
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+extend file with root user and password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   extend libcurve file with root user and password
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+extend file with root user and error password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   extend libcurve file with root user and error password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+extend file with root user and no password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   extend libcurve file with root user and no password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+extend file with error user
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   extend libcurve file with error user
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+extend file with error user and root password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   extend libcurve file with error user and root password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+extend file with no user
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   extend libcurve file with no user
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+rename file with normal user
+    [Tags]    P0    base    first release   lzw
+    #[Setup]	file init
+    ${origin_dir}    evaluate     str("/lzw")
+    ${rc}   create libcurve dir
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc_base}   statfs libcurve dir
+    ${origin_file}    evaluate     str("/lzw/1")
+    ${new_file}     evaluate    str("/lzw/2")
+    ${rc}   create libcurve file        ${origin_file}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   rename libcurve file with normal user
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+
+rename file with normal user and password
+    [Tags]    P0    base    first release   lzw
+    #[Setup]	file init
+    ${origin_dir}    evaluate     str("/lzw")
+    ${rc}   create libcurve dir
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc_base}   statfs libcurve dir
+    ${origin_file}    evaluate     str("/lzw/1")
+    ${new_file}     evaluate    str("/lzw/2")
+    ${rc}   create libcurve file        ${origin_file}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    #create libcurve file
+    ${rc}   rename libcurve file with normal user and password
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve file    ${new_file}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+rename file with root user and password
+    [Tags]    P0    base    first release   lzw
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   rename libcurve file with root user and password
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+rename file with root user and error password
+    [Tags]    P0    base    first release   lzw
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   rename libcurve file with root user and error password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+rename file with root user and no password
+    [Tags]    P0    base    first release   lzw
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   rename libcurve file with root user and no password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+rename file with error user
+    [Tags]    P0    base    first release   lzw
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   rename libcurve file with error user
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+rename file with error user and root password
+    [Tags]    P0    base    first release   lzw
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   rename libcurve file with error user and root password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+rename file with no user
+    [Tags]    P0    base    first release   lzw
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   rename libcurve file with no user
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+delete file with normal user
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${rc}   delete libcurve file with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+
+delete file with normal user and password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   delete libcurve file with normal user and password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+delete file with root user and password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   delete libcurve file with root user and password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+delete file with root user and error password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   delete libcurve file with root user and error password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+delete file with root user and no password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   delete libcurve file with root user and no password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+delete file with error user
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   delete libcurve file with error user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+delete file with error user and root password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   delete libcurve file with error user and root password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+delete file with no user
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   delete libcurve file with no user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+delete dir with normal user
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve dir with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+delete dir with normal user and password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve dir with normal user and password
+    ${new_fd}       Convert To Integer    ${rc}
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+delete dir with root user and password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve dir with root user and password
+    ${new_fd}       Convert To Integer    ${rc}
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+delete dir with root user and error password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve dir with root user and error password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+delete dir with root user and no password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve dir with root user and no password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+delete dir with error user
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve dir with error user
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+delete dir with error user and root password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve dir with error user and root password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+delete dir with no user
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve dir with no user
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+statfs file with normal user
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${rc}   statfs libcurve file with normal user
+    ${expect_rc}    evaluate    int(10737418240)
+    should be equal      ${rc.length}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+
+statfs file with normal user and password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   statfs libcurve file with normal user and password
+    ${expect_rc}    evaluate    int(10737418240)
+    should be equal      ${rc.length}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+statfs file with root user and password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   statfs libcurve file with root user and password
+    ${expect_rc}    evaluate    int(10737418240)
+    should be equal      ${rc.length}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+statfs file with root user and error password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   statfs libcurve file with root user and error password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+statfs file with root user and no password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   statfs libcurve file with root user and no password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+statfs file with error user
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   statfs libcurve file with error user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+statfs file with error user and root password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   statfs libcurve file with error user and root password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+statfs file with no user
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   statfs libcurve file with no user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+statfs dir with normal user
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve dir with normal user
+    should be equal      ${rc.length}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+statfs dir with normal user and password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve dir with normal user and password
+    should be equal      ${rc.length}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+statfs dir with root user and password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve dir with root user and password
+    should be equal      ${rc.length}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+statfs dir with root user and error password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve dir with root user and error password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+statfs dir with root user and no password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve dir with root user and no password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+statfs dir with error user
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve dir with error user
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+statfs dir with error user and root password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve dir with error user and root password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+statfs dir with no user
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve dir with no user
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+open file test
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${rc}   open libcurve file with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    #should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve file with normal user
+    ${expect_rc}    evaluate    int(10737418240)
+    should be equal      ${rc.length}       ${expect_rc}
+    ${expect_parentid}    evaluate    int(0)
+    should be equal     ${rc.parentid}      ${expect_parentid}
+    ${expect_filetype}    evaluate    int(1)
+    should be equal     ${rc.filetype}     ${expect_filetype}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
+
+create file when parent is not exsit
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve file when parent is not exist
+    ${expect_rc}    evaluate    int(-6)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+create file when parent is exsit
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc_base}   create libcurve dir
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc_base}       ${expect_rc}
+    ${rc_file}   statfs libcurve dir
+    ${rc}   create libcurve file when parent is exist
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${expect_file}    evaluate    str("/lzw/1")
+    ${rc}   statfs libcurve file        ${expect_file}
+    ${expect_rc}    evaluate    int(10737418240)
+    should be equal      ${rc.length}       ${expect_rc}
+    should be equal     ${rc.parentid}      ${rc_file.id}
+    ${expect_filetype}    evaluate    int(1)
+    should be equal     ${rc.filetype}     ${expect_filetype}
+    ${rc}   delete libcurve file     ${expect_file}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve dir
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+create dir when parent is exsit
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc_base}   statfs libcurve dir
+    ${rc}   create libcurve dir when parent is exist
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${expect_dir}    evaluate    str("/lzw/test")
+    ${rc}   statfs libcurve file        ${expect_dir}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc.length}       ${expect_rc}
+    should be equal     ${rc.parentid}      ${rc_base.id}
+    ${expect_filetype}    evaluate    int(0)
+    should be equal     ${rc.filetype}     ${expect_filetype}
+    ${rc}   delete libcurve dir     ${expect_dir}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve dir
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+delete not exsit file
+    [Tags]    P0    base    first release
+    ${rc}   delete libcurve file
+    ${expect_rc}    evaluate    int(-6)
+    should be equal      ${rc}       ${expect_rc}
+
+delete not exsit dir
+    [Tags]    P0    base    first release
+    ${rc}   delete libcurve file
+    ${expect_rc}    evaluate    int(-6)
+    should be equal      ${rc}       ${expect_rc}
+
+delete not empty dif
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc_base}   create libcurve dir
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc_base}       ${expect_rc}
+    ${rc_file}   statfs libcurve dir
+    ${rc}   create libcurve file when parent is exist
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${expect_file}    evaluate    str("/lzw/1")
+    ${rc}   statfs libcurve file        ${expect_file}
+    ${expect_rc}    evaluate    int(10737418240)
+    should be equal      ${rc.length}       ${expect_rc}
+    should be equal     ${rc.parentid}      ${rc_file.id}
+    ${expect_filetype}    evaluate    int(1)
+    should be equal     ${rc.filetype}     ${expect_filetype}
+    ${rc}   delete libcurve dir
+    ${expect_rc}    evaluate    int(-12)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve file    ${expect_file}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+extend file test
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   extend libcurve file
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve file
+    ${expect_rc}    evaluate    int(21474836480)
+    should be equal      ${rc.length}       ${expect_rc}
+    ${expect_filetype}    evaluate    int(1)
+    should be equal     ${rc.filetype}     ${expect_filetype}
+    [Teardown]	    file clean      none
+
+extend when file is not exist
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${expect_file}    evaluate    str("/aaa")
+    ${rc}   extend libcurve file    ${expect_file}
+    ${expect_rc}    evaluate    int(-6)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+extend when file is equal with origin
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${expect_file}    evaluate     str("/1")
+    ${expect_size}    evaluate    int(10737418240)
+    ${expect_user}    evaluate      str("userinfo")
+    ${rc}   extend libcurve file    ${expect_file}      ${expect_user}      ${expect_size}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+extend when file is small than origin
+    [Tags]    P0    base    first release
+    #[Setup]	file init
+    ${origin_file}    evaluate     str("/1")
+    ${origin_size}    evaluate    int(21474836480)
+    ${expect_size}    evaluate    int(10737418240)
+    ${origin_user}    evaluate      str("userinfo")
+    ${rc}   create libcurve file    ${origin_file}      ${origin_user}      ${origin_size}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   extend libcurve file    ${origin_file}      ${origin_user}      ${expect_size}
+    ${expect_rc}    evaluate    int(-13)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+extend dir test
+    [Tags]    P0    base    first release
+    ${origin_dir}    evaluate     str("/lzw")
+    ${rc}   create libcurve dir
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   extend libcurve file    ${origin_dir}
+    ${expect_rc}    evaluate    int(-11)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+open dir test
+    [Tags]    P0    base    first release   no-need
+    ${origin_dir}    evaluate     str("/lzw")
+    ${rc}   create libcurve dir
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   open libcurve file    ${origin_dir}
+    ${expect_rc}    evaluate    int(-11)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+close not open file test
+    [Tags]    P0    base    first release
+    ${origin_file}    evaluate     str("/1")
+    ${rc}   create libcurve file
+    ${expect_rc}    evaluate    int(0)
+    ${close_file}    evaluate    int(10)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   close libcurve file    ${close_file}
+    ${expect_rc}    evaluate    int(-2)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+close when file is not exsit
+    [Tags]    P0    base    first release
+    ${origin_file}    evaluate     str("/1")
+    ${close_file}    evaluate    int(200)
+    ${rc}   close libcurve file    ${close_file}
+    ${expect_rc}    evaluate    int(-2)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+close file when file is already closed
+    [Tags]    P0    base    first release
+    ${origin_file}    evaluate     str("/1")
+    ${expect_rc}    evaluate    int(0)
+    ${rc}   create libcurve file
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   open libcurve file    ${origin_file}
+    ${rc}   close libcurve file    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}      ${expect_rc}
+    ${rc}   close libcurve file    ${rc}
+    ${expect_rc}    evaluate    int(-2)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+open close file multi times
+    [Tags]    P0    base    first release
+    ${origin_file}    evaluate     str("/1")
+    ${expect_rc}    evaluate    int(0)
+    ${rc}   create libcurve file
+    should be equal      ${rc}       ${expect_rc}
+    ${rc_first}   open libcurve file    ${origin_file}
+    ${rc}   close libcurve file    ${rc_first}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc_second}   open libcurve file    ${origin_file}
+    ${rc}   close libcurve file    ${rc_second}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc_third}   open libcurve file    ${origin_file}
+    ${new_fd}       Convert To Integer    ${rc_third}
+    write libcurve file     ${new_fd}
+    ${content}      read libcurve file     ${new_fd}
+    ${default_content}      get buf
+    should be equal as strings      ${content}    ${default_content}
+    ${rc}   close libcurve file    ${new_fd}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      ${rc_third}
+
+extend file multi times
+    [Tags]    P0    base    first release
+    ${origin_file}    evaluate     str("/1")
+    ${expect_rc}    evaluate    int(0)
+    ${rc}   create libcurve file
+    should be equal      ${rc}       ${expect_rc}
+    ${rc_first}   extend libcurve file
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc_first}       ${expect_rc}
+    ${origin_user}    evaluate      str("userinfo")
+    ${origin_size}    evaluate    int(10737418240)
+    ${second_size}    evaluate    int(21474836480)
+    ${third_size}    evaluate    int(32212254720)
+    ${rc_second}   extend libcurve file     ${origin_file}      ${origin_user}      ${second_size}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc_second}       ${expect_rc}
+    ${rc_third}   extend libcurve file      ${origin_file}      ${origin_user}      ${third_size}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc_third}       ${expect_rc}
+    ${rc_open}   open libcurve file    ${origin_file}
+    ${new_fd}       Convert To Integer    ${rc_open}
+    write libcurve file     ${new_fd}
+    ${content}      read libcurve file     ${new_fd}
+    ${default_content}      get buf
+    should be equal as strings      ${content}    ${default_content}
+    ${rc}   close libcurve file    ${new_fd}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      ${rc_open}
+
+rename root file test
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${origin_file}    evaluate     str("/1")
+    ${new_file}     evaluate    str("/2")
+    ${rc}   rename libcurve file    ${origin_file}      ${new_file}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+rename root file with root user
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${origin_file}    evaluate     str("/1")
+    ${new_file}     evaluate    str("/2")
+    ${root_user}    evaluate    str("root")
+    ${root_password}    evaluate  str("root_password")
+    ${rc}   rename libcurve file    ${origin_file}      ${new_file}     ${root_user}    ${root_password}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve file    ${new_file}     ${root_user}    ${root_password}
+    [Teardown]	    file clean      none
+
+rename file with normal user test
+    [Tags]    P0    base    first release
+    ${origin_dir}    evaluate     str("/lzw")
+    ${rc}   create libcurve dir
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc_base}   statfs libcurve dir
+    ${origin_file}    evaluate     str("/lzw/1")
+    ${new_file}     evaluate    str("/lzw/2")
+    ${rc}   create libcurve file        ${origin_file}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   rename libcurve file    ${origin_file}      ${new_file}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve file    ${new_file}
+    ${expect_rc}    evaluate    int(10737418240)
+    should be equal      ${rc.length}       ${expect_rc}
+    ${expect_filetype}    evaluate    int(1)
+    should be equal     ${rc.filetype}     ${expect_filetype}
+    should be equal     ${rc.parentid}     ${rc_base.id}
+    ${rc}   delete libcurve file    ${new_file}
+    [Teardown]	    file clean      none
+
+rename root dir test
+    [Tags]    P0    base    first release
+    ${origin_dir}    evaluate     str("/lzw")
+    ${rc}   create libcurve dir
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${new_dir}     evaluate    str("/2")
+    ${expect_rc}    evaluate    int(0)
+    ${rc}   rename libcurve file    ${origin_dir}      ${new_dir}
+    ${expect_rc}    evaluate    int(-11)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+rename root dir with root user
+    [Tags]    P0    base    first release   lzw1    no-need
+    ${origin_dir}    evaluate     str("/lzw")
+    ${rc}   create libcurve dir
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${new_dir}     evaluate    str("/2")
+    ${root_user}    evaluate    str("root")
+    ${root_password}    evaluate  str("root_password")
+    ${expect_rc}    evaluate    int(0)
+    ${rc}   rename libcurve file    ${origin_dir}      ${new_dir}   ${root_user}    ${root_password}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve dir     ${new_dir}      ${root_user}    ${root_password}
+    [Teardown]	    file clean      none
+
+rename dir with normal user test
+    [Tags]    P0    base    first release    no-need
+    ${origin_dir}    evaluate     str("/lzw")
+    ${rc}   create libcurve dir
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc_base}   statfs libcurve dir
+    ${origin_dir}    evaluate     str("/lzw/1")
+    ${new_dir}     evaluate    str("/lzw/2")
+    ${rc}   create libcurve dir        ${origin_dir}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   rename libcurve file    ${origin_dir}      ${new_dir}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve dir    ${new_dir}
+    ${expect_rc}    evaluate    int(10737418240)
+    should be equal      ${rc.length}       ${expect_rc}
+    ${expect_filetype}    evaluate    int(1)
+    should be equal     ${rc.filetype}     ${expect_filetype}
+    should be equal     ${rc.parentid}     ${rc_base.id}
+    ${rc}   delete libcurve dir     ${new_dir}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+
+extend file when file is open
+    [Tags]    P0    base    first release
+    ${origin_file}    evaluate     str("/1")
+    ${expect_rc}    evaluate    int(0)
+    ${rc}   create libcurve file
+    should be equal      ${rc}       ${expect_rc}
+    ${rc_first}   open libcurve file    ${origin_file}
+    ${rc}       extend libcurve file
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve dir    ${origin_file}
+    ${expect_length}    evaluate    int(21474836480)
+    should be equal      ${rc.length}       ${expect_length}
+    ${expect_filetype}    evaluate    int(1)
+    should be equal     ${rc.filetype}     ${expect_filetype}
+    ${expect_parentid}    evaluate    int(0)
+    should be equal     ${rc.parentid}     ${expect_parentid}
+    ${new_fd}       Convert To Integer    ${rc_first}
+    write libcurve file     ${new_fd}
+    ${content}      read libcurve file     ${new_fd}
+    ${default_content}      get buf
+    should be equal as strings      ${content}    ${default_content}
+    ${rc}       close libcurve file     ${rc_first}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      ${rc_first}
+
+delete file when file is not exsit
+    [Tags]    P0    base    first release
+    ${rc}       delete libcurve file
+    ${expect_rc}    evaluate    int(-6)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+delete dir when dir is not exsit
+    [Tags]    P0    base    first release
+    ${rc}       delete libcurve dir
+    ${expect_rc}    evaluate    int(-6)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+close file when file is not exsit
+    [Tags]    P0    base    first release
+    ${fd}   evaluate    int(100)
+    ${rc}       close libcurve file     ${fd}
+    ${expect_rc}    evaluate    int(-2)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+create file less than 10g
+    [Tags]    P0    base    first release
+    #[Setup]	file init
+    ${rc}       create libcurve file less than 10g with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-24)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      ${new_fd}
+
+create file more than 5t
+    [Tags]    P0    base    first release       no-need
+    #[Setup]	file init
+    ${rc}       create libcurve file more than 5t with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-17)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      ${new_fd}
+
+create dir test
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve dir with normal user
+    should be equal      ${rc.length}       ${expect_rc}
+    ${expect_parentid}    evaluate    int(0)
+    should be equal     ${rc.parentid}      ${expect_parentid}
+    ${expect_filetype}    evaluate    int(0)
+    should be equal     ${rc.filetype}     ${expect_filetype}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+create dir when parent is not exsit
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir when parent is not exist
+    ${expect_rc}    evaluate    int(-6)
+    [Teardown]	    file clean      none
+
+rename file when dest file is exsit
+    [Tags]    P0    base    first release
+    ${origin_dir}    evaluate     str("/lzw")
+    ${rc}   create libcurve dir
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc_base}   statfs libcurve dir
+    ${origin_file}    evaluate     str("/lzw/1")
+    ${new_file}     evaluate    str("/lzw/2")
+    ${rc}   create libcurve file        ${origin_file}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   create libcurve file        ${new_file}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   rename libcurve file    ${origin_file}      ${new_file}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve file    ${new_file}
+    ${expect_rc}    evaluate    int(10737418240)
+    should be equal      ${rc.length}       ${expect_rc}
+    ${expect_filetype}    evaluate    int(1)
+    should be equal     ${rc.filetype}     ${expect_filetype}
+    should be equal     ${rc.parentid}     ${rc_base.id}
+    ${rc}   delete libcurve file    ${new_file}
+    [Teardown]	    file clean      none
+
+rename file when dest file has data
+    [Tags]    P0    base    first release
+    ${origin_dir}    evaluate     str("/lzw")
+    ${rc}   create libcurve dir
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc_base}   statfs libcurve dir
+    ${origin_file}    evaluate     str("/lzw/1")
+    ${new_file}     evaluate    str("/lzw/2")
+    ${rc}   create libcurve file        ${origin_file}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   create libcurve file        ${new_file}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${fd}   open libcurve file      ${new_file}
+    ${new_fd}       Convert To Integer    ${fd}
+    write libcurve file     ${new_fd}
+    ${content}      read libcurve file     ${new_fd}
+    ${default_content}      get buf
+    should be equal as strings      ${content}    ${default_content}
+    close libcurve file     ${new_fd}
+    ${rc}   rename libcurve file    ${origin_file}      ${new_file}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve file    ${new_file}
+    ${expect_rc}    evaluate    int(10737418240)
+    should be equal      ${rc.length}       ${expect_rc}
+    ${expect_filetype}    evaluate    int(1)
+    should be equal     ${rc.filetype}     ${expect_filetype}
+    should be equal     ${rc.parentid}     ${rc_base.id}
+    ${rc}   delete libcurve file    ${new_file}
+    [Teardown]	    file clean      none
+
+rename file when origin file is not exsit
+    [Tags]    P0    base    first release
+    ${origin_dir}    evaluate     str("/lzw")
+    ${rc}   create libcurve dir
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc_base}   statfs libcurve dir
+    ${origin_file}    evaluate     str("/lzw/1")
+    ${new_file}     evaluate    str("/lzw/2")
+    ${rc}   rename libcurve file    ${origin_file}      ${new_file}
+    ${expect_rc}    evaluate    int(-6)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+
+overwrite file
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    create libcurve file
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${expect_buf}    evaluate    str("a"*4096)
+    write libcurve file     ${new_fd}  ${expect_buf}
+    ${content}      read libcurve file     ${new_fd}
+    log     ${content}
+    should be equal as strings      ${content}    ${expect_buf}
+    ${new_buf}    evaluate    str("b"*4096)
+    write libcurve file     ${new_fd}  ${new_buf}
+    ${content}      read libcurve file     ${new_fd}
+    log     ${content}
+    should be equal as strings      ${content}    ${new_buf}
+#    close libcurve file     ${new_fd}
+    [Teardown]	    file clean    ${new_fd}
+
+read write append
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    create libcurve file
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${expect_buf}    evaluate    str("a"*4096)
+    write libcurve file     ${new_fd}  ${expect_buf}
+    ${new_buf}    evaluate    str("b"*4096)
+    write libcurve file     ${new_fd}  ${new_buf}   4096  4096
+    ${content}      read libcurve file     ${new_fd}
+    should be equal as strings      ${content}    ${expect_buf}
+    ${buf}   evaluate       str("")
+    ${append_content}      read libcurve file    ${new_fd}   ${buf}   4096  4096
+    should be equal as strings    ${append_content}    ${new_buf}
+    close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+read write offset > size
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    create libcurve file
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${ret}   write libcurve file error   ${new_fd}   offset=10737418240
+    ${new_ret}   evaluate       str(${ret})
+    should be equal as strings    ${new_ret}   -2
+    ${buf}   evaluate       str("")
+    ${ret}   read libcurve file    ${new_fd}  ${buf}  offset=10737418240
+    ${new_ret}   evaluate       str(${ret})
+    should be equal as strings    ${new_ret}   -2
+    close libcurve file     ${new_fd}
+    [Teardown]	    file clean     ${new_fd}
+
+read write offset + lenght > size
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${ret}   write libcurve file error   ${new_fd}   offset=10737414144  length=8192
+    ${new_ret}   evaluate       str(${ret})
+    should be equal as strings    ${new_ret}   -2
+    ${buf}   evaluate       str("")
+    ${ret}   read libcurve file    ${new_fd}  ${buf}  offset=10737414144   length=8192
+    ${new_ret}   evaluate       str(${ret})
+    should be equal as strings    ${new_ret}   -2
+#    close libcurve file     ${new_fd}
+    [Teardown]	    file clean     ${new_fd}
+
+read write offset + lenght = size
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${ret}   write libcurve file error   ${new_fd}   offset=10737414144  length=4096
+    ${new_ret}   evaluate       str(${ret})
+    should be equal as strings    ${new_ret}   4096
+    ${buf}   evaluate       str("")
+    ${content}   read libcurve file    ${new_fd}  ${buf}  offset=10737414144   length=4096
+    ${default_content}      get buf
+    should be equal as strings      ${content}    ${default_content}
+#    close libcurve file     ${new_fd}
+    [Teardown]	    file clean     ${new_fd}
+
+
+read write with extend file
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${thread}   background loop write file   ${new_fd}
+    sleep  1
+    check write isalive    ${thread}
+    extend libcurve file
+    sleep  3
+    stop write
+    wait thread  ${thread}
+    check loop read   ${new_fd}
+#    close libcurve file     ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
+
+read write with close file
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${thread}   background loop write file noassert   ${new_fd}
+    sleep  1
+    check write isalive    ${thread}
+    ${rc}   close libcurve file     ${new_fd}
+    ${expect_rc}    evaluate    int(0)
+    should be equal    ${rc}   ${expect_rc}
+    check write isalive    ${thread}
+    stop write
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    wait thread  ${thread}
+    check loop read   ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
+
+read write iosize 512
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${rc}    write libcurve file error   ${new_fd}    length=512
+    ${expect_rc}    evaluate    int(-22)
+    should be equal    ${rc}   ${expect_rc}
+    ${rc}    read libcurve file   ${new_fd}   length=512
+    ${expect_rc}    evaluate    int(-22)
+    should be equal    ${rc}   ${expect_rc}
+    [Teardown]	    file clean      ${new_fd}
+
+
+read write with create same file
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${thread}   background loop write file   ${new_fd}
+    sleep  1
+    check write isalive    ${thread}
+    ${rc}   create libcurve file
+    ${expect_rc}    evaluate    int(-1)
+    should be equal    ${rc}   ${expect_rc}
+    sleep  3
+    stop write
+    wait thread  ${thread}
+    check loop read   ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
+
+read write iosize 512
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${rc}    write libcurve file error   ${new_fd}    length=512
+    ${expect_rc}    evaluate    int(-22)
+    should be equal    ${rc}   ${expect_rc}
+    ${rc}    read libcurve file   ${new_fd}   length=512
+    ${expect_rc}    evaluate    int(-22)
+    should be equal    ${rc}   ${expect_rc}
+    [Teardown]	    file clean      ${new_fd}
+
+read write iosize 1k
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${rc}    write libcurve file error   ${new_fd}    length=1024
+    ${expect_rc}    evaluate    int(-22)
+    should be equal    ${rc}   ${expect_rc}
+    ${rc}    read libcurve file   ${new_fd}   length=1024
+    ${expect_rc}    evaluate    int(-22)
+    should be equal    ${rc}   ${expect_rc}
+    [Teardown]	    file clean      ${new_fd}
+
+read write iosize not 4k alignment
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${rc}    write libcurve file error   ${new_fd}    length=4095
+    ${expect_rc}    evaluate    int(-22)
+    should be equal    ${rc}   ${expect_rc}
+    ${rc}    read libcurve file    ${new_fd}    length=4095
+    ${expect_rc}    evaluate    int(-22)
+    should be equal    ${rc}   ${expect_rc}
+    [Teardown]	    file clean      ${new_fd}
+
+read write with different io size
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    loop read write file with different iosize   ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
+
+
+mult thread to create delete dir
+    [Tags]    P0    base    first release
+#    [Setup]	file clean
+    ${num}   evaluate   int(100)
+    sleep   3
+    mult thread    create_libcurve_dir    ${num}
+    mult thread    delete_libcurve_dir   ${num}
+    [Teardown]	    file clean      none
+
+mult thread to create delete file
+    [Tags]    P0    base    first release
+#    [Setup]	file init
+    ${num}   evaluate   int(100)
+    mult thread   create_libcurve_file    ${num}
+    mult thread   statfs_libcurve_file   ${num}
+    mult thread   delete_libcurve_file   ${num}
+    [Teardown]	    file clean     none
+
+mult thread to open close file
+    [Tags]    P0    base    first release
+#    [Setup]	file init
+    ${num}   evaluate   int(100)
+    mult thread   create_libcurve_file    ${num}
+    mult thread   statfs_libcurve_file   ${num}
+    ${results}    mult thread   open_libcurve_file   ${num}
+    mult thread close file   ${results}  ${num}
+    mult thread   delete_libcurve_file   ${num}
+    [Teardown]	    file clean     none
+
+create delete multilevel dir
+    [Tags]    P0    base    first release
+    ${num}   evaluate   int(100)
+    create multi dir  ${num}
+    delete multi dir  ${num}
+    [Teardown]	    file clean     none
+
+create max file
+    [Tags]    P0    base    first release
+    ${origin_dir}    evaluate     str("/cyh")
+    ${rc}   create libcurve dir   ${origin_dir}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${num}   evaluate   int(10000)
+    mult thread   create_libcurve_file   ${num}  ${origin_dir}
+    mult thread   statfs_libcurve_file   ${num}  ${origin_dir}
+    mult thread   delete_libcurve_file   ${num}  ${origin_dir}
+#    [Teardown]	    file clean     none
+
+random combination thrasher
+    [Tags]    P0    base    first release
+    create libcurve file with normal user
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${thread}   background loop write file   ${new_fd}
+    check write isalive    ${thread}
+    thrasher   ${new_fd}
+    stop write
+    wait thread  ${thread}
+    check loop read   ${new_fd}
+    [Teardown]	    file clean     ${new_fd}
+
+#analysis copyset scatterwith
+#    [Tags]    P0    base    first release
+#    get copyset table
+#    mv copyset table
+#    get copyset scatterwith
+#    [Teardown]	    rm copyset table
+
+snapshot test
+    [Tags]    P1    base    first release   snapshot    no-need
+    [Setup]	init cluster
+    create default file
+    create snapshot
+	wait until keyword succeeds  500     2       get snapshot info should be true
+	delete snapshot
+    [Teardown]	    clean env
+
+
+failover demo
+    [Tags]    P100     failover     no-need
+    [Setup]	file init
+    background loop write file
+    kill one chunkserver
+    sleep   2
+    start chunkserver
+    ${rc}   wait for process   loop write file      timeout=42 secs
+    Process Should Be Running
+    Should Be Equal	    ${rc}	    ${NONE}
+    terminate all processes
+    [Teardown]	    file clean  ${file_fd}
+
+test kill chunkserver one
+    [Tags]    P0    base    first release
+    create libcurve file with normal user
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${thread}   background loop write file   ${new_fd}
+    check write isalive    ${thread}
+    test kill one chunkserver
+    sleep  2
+    check write isalive    ${thread}
+    stop write
+    wait thread  ${thread}
+    check loop read   ${new_fd}
+    [Teardown]      file clean     ${new_fd}
+
+# create snapshot 相关用例
+
+create snapshot with notexist file
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  snapshot create with not exist file
+    ${expect_rc}    evaluate    int(-6)
+    should be equal  ${rc}  ${expect_rc}
+
+create snapshot with null file
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  snapshot create with empty str file
+    ${expect_rc}    evaluate    int(-16)
+    should be equal  ${rc}  ${expect_rc}
+
+create snapshot special char file name
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  snapshot create with special file name
+    ${expect_rc}    evaluate    int(-6)
+    should be equal  ${rc}  ${expect_rc}
+
+create snapshot with empty
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    ${seq}  snapshot normal create
+    ${seginfo_rst}  get snapshot first segment info  ${seq}
+    ${expect_segrst}  evaluate  int(-10)
+    should be equal  ${seginfo_rst}  ${expect_segrst}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+create snapshot with nomal file
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${expect_chunkvecsize}  evaluate  int(64)
+    should be equal  ${seginfo.chunkVecSize.value}  ${expect_chunkvecsize}
+    ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
+    ${expect_content}    evaluate    str("aaaaaaaa")*512
+    should be equal  ${content}     ${expect_content}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  15
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+create snapshot with nomal file and check first chunk snapshot
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${content}  read first chunk snapshot   ${seq}
+    ${expect_content}    evaluate    str("aaaaaaaa")*512
+    should be equal  ${content}     ${expect_content}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  5
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+# 创建文件->写文件->创建快照->修改文件->读快照验证（修改前数据）->删除重新快照->验证快照数据（修改后数据）
+create snapshot and check chunk snapshot after cow
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    modify curve file for snapshot
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
+    #${content}  read first chunk snapshot   ${seq}
+    ${expect_content}    evaluate    str("aaaaaaaa")*512
+    should be equal  ${content}     ${expect_content}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  5
+    should be equal  ${rs}  ${expect_rc}
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
+    #${content}  read first chunk snapshot   ${seq}
+    ${expect_content}    evaluate    str("tttttttt")*512
+    should be equal  ${content}     ${expect_content}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  5
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+create snapshot repeat
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${expect_rc}    evaluate  int(-7)
+    should not be equal  ${seq.value}   ${expect_rc}
+    ${rc}  snapshot normal create
+    should be equal  ${rc}  ${expect_rc}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  5
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+# getsnapshot info 用例
+
+get empty file snapshot info
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${finfo}    get sanpshot info  ${seq}
+    ${expect_status}    evaluate  int(0)
+    ${expect_seqnum}   evaluate  int(1)
+    ${expect_segmentsize}  evaluate  int(1073741824)
+    ${expect_filetype}  evaluate  int(4)
+    should be equal  ${finfo.filestatus}    ${expect_status}
+    should be equal  ${finfo.seqnum.value}  ${expect_seqnum}
+    should be equal  ${finfo.segmentsize.value}    ${expect_segmentsize}
+    should be equal  ${finfo.filetype}    ${expect_filetype}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  5
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+get nomal file snapshot info
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${finfo}    get sanpshot info  ${seq}
+    ${expect_status}    evaluate  int(0)
+    ${expect_seqnum}   evaluate  int(1)
+    ${expect_segmentsize}  evaluate  int(1073741824)
+    ${expect_type}  evaluate  int(4)
+    ${expect_filename}  evaluate  str("lc-1")
+    should be equal  ${finfo.filestatus}    ${expect_status}
+    should be equal  ${finfo.seqnum.value}  ${expect_seqnum}
+    should be equal  ${finfo.segmentsize.value}    ${expect_segmentsize}
+    should be equal  ${finfo.filetype}  ${expect_type}
+    should be equal  ${finfo.filename}  ${expect_filename}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  5
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+check snapshot info after modify file
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${finfo}    get sanpshot info  ${seq}
+    ${expect_status}    evaluate  int(0)
+    ${expect_seqnum}   evaluate  int(1)
+    ${expect_segmentsize}  evaluate  int(1073741824)
+    ${expect_type}  evaluate  int(4)
+    should be equal  ${finfo.filestatus}    ${expect_status}
+    should be equal  ${finfo.seqnum.value}  ${expect_seqnum}
+    should be equal  ${finfo.segmentsize.value}    ${expect_segmentsize}
+    should be equal  ${finfo.filetype}  ${expect_type}
+    modify curve file for snapshot
+    ${finfo}    get sanpshot info  ${seq}
+    should be equal  ${finfo.filestatus}    ${expect_status}
+    should be equal  ${finfo.seqnum.value}  ${expect_seqnum}
+    should be equal  ${finfo.segmentsize.value}    ${expect_segmentsize}
+    should be equal  ${finfo.filetype}  ${expect_type}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  5
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+get deleted snapshot info
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${finfo}    get sanpshot info  ${seq}
+    ${expect_status}    evaluate  int(0)
+    ${expect_seqnum}   evaluate  int(1)
+    should be equal  ${finfo.filestatus}    ${expect_status}
+    should be equal  ${finfo.seqnum.value}  ${expect_seqnum}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  5
+    should be equal  ${rs}  ${expect_rc}
+    ${rc}    get sanpshot info  ${seq}
+    ${expect_rc}    evaluate    int(-6)
+    should be equal  ${rc}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+get sanpshot info use error seq
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seq.value}    evaluate  int(8)
+    ${finfo}    get sanpshot info  ${seq}
+    ${expect_rs}    evaluate    int(-6)
+    should be equal  ${finfo}  ${expect_rs}
+    ${seq.value}    evaluate  int(1)
+    ${rs}   delete file snapshot    ${seq}
+    sleep  5
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+delete snapshoting curve file
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${rc}   delete curve file for shanpshot
+    ${expect_delete_rc}     evaluate  int(-7)
+    should be equal  ${rc}  ${expect_delete_rc}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  5
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+# getsegmentinfo 相关用例
+
+check snapshot segmentinfo after modify file
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    # check setment info
+    ${expect_segmentsize}   evaluate  int(1073741824)
+    ${expect_chunksize}     evaluate  int(16777216)
+    ${expect_startoffset}   evaluate  int(0)
+    ${expect_chunkvecsize}  evaluate  int(64)
+    should be equal  ${seginfo.segmentsize.value}   ${expect_segmentsize}
+    should be equal  ${seginfo.chunksize.value}     ${expect_chunksize}
+    should be equal  ${seginfo.startoffset.value}   ${expect_startoffset}
+    should be equal  ${seginfo.chunkVecSize.value}  ${expect_chunkvecsize}
+    modify curve file for snapshot
+    ${seginfo_new}  get snapshot first segment info  ${seq}
+    should be equal  ${seginfo_new.segmentsize.value}   ${expect_segmentsize}
+    should be equal  ${seginfo_new.chunksize.value}     ${expect_chunksize}
+    should be equal  ${seginfo_new.startoffset.value}   ${expect_startoffset}
+    should be equal  ${seginfo_new.chunkVecSize.value}  ${expect_chunkvecsize}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  5
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+get deleted snapshot segmentinfo
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${expect_segmentsize}   evaluate  int(1073741824)
+    ${expect_chunksize}     evaluate  int(16777216)
+    ${expect_startoffset}   evaluate  int(0)
+    ${expect_chunkvecsize}  evaluate  int(64)
+    should be equal  ${seginfo.segmentsize.value}   ${expect_segmentsize}
+    should be equal  ${seginfo.chunksize.value}     ${expect_chunksize}
+    should be equal  ${seginfo.startoffset.value}   ${expect_startoffset}
+    should be equal  ${seginfo.chunkVecSize.value}  ${expect_chunkvecsize}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  5
+    should be equal  ${rs}  ${expect_rc}
+    ${rs}  get snapshot first segment info  ${seq}
+    ${expect_rs}    evaluate    int(-6)
+    should be equal  ${rs}  ${expect_rs}
+    [Teardown]      delete curve file for shanpshot
+
+
+get snapshot segmentinfo with error seq
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seq.value}    evaluate  int(8)
+    ${rc}  get snapshot first segment info  ${seq}
+    ${expect_segmen_rc}     evaluate  int(-6)
+    should be equal  ${rc}  ${expect_segmen_rc}
+    ${seq.value}    evaluate  int(1)
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+check snapshot segmentinfo with nomal param
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    modify curve file for snapshot
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${expect_offset}    evaluate  int(0)
+    should be equal  ${seginfo.startoffset.value}   ${expect_offset}
+    #check first segment info
+    ${seginfo.startoffset.value}    evaluate  int(1073741824)
+    ${second_seginfo}   get snapshot segment info with seq and offset  ${seq}   ${seginfo.startoffset}
+    #check second segment info
+    ${expect_rst}   evaluate  int(-10)
+    should be equal  ${second_seginfo}   ${expect_rst}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+get empty file snapshot segmentinfo
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${expect_seginfo}   evaluate  int(-10)
+    should be equal  ${seginfo}    ${expect_seginfo}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+# snapshot chunkinfo 用例验证
+
+check empty file snapshot chunkinfo after modify file
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    ${seq}  snapshot normal create
+    write curve file for snapshot
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${chunkinfo}    get chunk info with chunk id info  ${seginfo.chunkvec[0]}
+    ${expect_size}  evaluate  int(1)
+    ${expect_first_sn}  evaluate  int(2)
+    should be equal  ${chunkinfo.snSize.value}  ${expect_size}
+    should be equal  ${chunkinfo.chunkSn[0]}    ${expect_first_sn}
+    # check chunkinfo
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+check nomal file snapshot chunkinfo after cow
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${chunkinfo}    get chunk info with chunk id info  ${seginfo.chunkvec[0]}
+    ${expect_size}  evaluate  int(1)
+    ${expect_first_sn}  evaluate  int(1)
+    should be equal  ${chunkinfo.snSize.value}  ${expect_size}
+    should be equal  ${chunkinfo.chunkSn[0]}    ${expect_first_sn}
+    modify curve file for snapshot
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${chunkinfo}    get chunk info with chunk id info  ${seginfo.chunkvec[0]}
+    ${expect_size}  evaluate  int(2)
+    ${expect_first_sn}  evaluate  int(2)
+    should be equal  ${chunkinfo.snSize.value}  ${expect_size}
+    should be equal  ${chunkinfo.chunkSn[0]}    ${expect_first_sn}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+# CLDCFS-1249
+get snapshot chunkinfo with notexist chunidinfo
+    [Tags]    P0    base    first release   no-need
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    # 修改chunkidinfo
+    ${seginfo.chunkvec[0].cpid_.value}    evaluate  int(66)
+    ${chunkinfo}    get chunk info with chunk id info  ${seginfo.chunkvec[0]}
+    #TODO: 此处需要判断错误，当前是死循环，不停轮询查询id信息
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+check snapshot chunkinfo after delete snapshot
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${chunkinfo}    get chunk info with chunk id info  ${seginfo.chunkvec[0]}
+    ${expect_size}  evaluate  int(1)
+    ${expect_first_sn}  evaluate  int(1)
+    should be equal  ${chunkinfo.snSize.value}  ${expect_size}
+    should be equal  ${chunkinfo.chunkSn[0]}    ${expect_first_sn}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    # 此处应该再重新获取下segmentinfo, chunkvec[0]应该不存在
+    ${chunkinfo}    get chunk info with chunk id info  ${seginfo.chunkvec[0]}
+    should be equal  ${chunkinfo.snSize.value}  ${expect_size}
+    should be equal  ${chunkinfo.chunkSn[0]}    ${expect_first_sn}
+    # check chunkinfo
+    [Teardown]      delete curve file for shanpshot
+
+
+# read snapshot chunk 用例 CLDCFS-1249
+
+read snapshot chunk with notexist idinfo
+    [Tags]    P0    base    first release   no-need
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    # 修改chunkidinfo
+    ${seginfo.chunkvec[0].cpid_.value}    evaluate  int(66)
+    ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
+    # TODO:当前客户端死循环打印错误，此处校验结果应该返回错误
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+read snapshot chunk with error seq
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${seq.value}    evaluate  int(8)
+    ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
+    # 此处校验结果应该返回错误
+    ${expect_rst}   evaluate  int(-6)
+    should be equal  ${content}     ${expect_rst}
+    ${seq.value}    evaluate  int(1)
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+# 查询快照状态用例
+check empty file snapshot status
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    ${seq}  snapshot normal create
+    ${status}   check snapshot status   ${seq}
+    ${expect_status}    evaluate  int(0)
+    should be equal  ${status.value}      ${expect_status}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+check nomal file snapshot status
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${status}   check snapshot status   ${seq}
+    ${expect_status}    evaluate  int(0)
+    should be equal  ${status.value}      ${expect_status}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+check snapshot status after snapshot deleted
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${status}   check snapshot status   ${seq}
+    ${expect_status}    evaluate  int(0)
+    should be equal  ${status.value}      ${expect_status}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    ${new_status}   check snapshot status   ${seq}
+    ${expect_rst}   evaluate  int(-6)
+    should be equal  ${new_status}      ${expect_rst}
+    [Teardown]      delete curve file for shanpshot
+
+
+check snapshot status after file and snapshot deleted
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${status}   check snapshot status   ${seq}
+    ${expect_status}    evaluate  int(0)
+    should be equal  ${status.value}      ${expect_status}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    delete curve file for shanpshot
+    ${rc}   check snapshot status   ${seq}
+    ${expect_rst}   evaluate  int(-6)
+    should be equal  ${rc}      ${expect_rst}
+
+check snapshot status use error seq
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seq.value}    evaluate  int(8)
+    ${rs}   check snapshot status   ${seq}
+    ${expect_rs}    evaluate  int(-6)
+    should be equal  ${rs}  ${expect_rs}
+    ${seq.value}    evaluate  int(1)
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+# 删除快照相关用例
+repeat delete snapshot
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    ${rs}   delete file snapshot    ${seq}
+    ${expect_rs}    evaluate  int(-6)
+    should be equal  ${rs}  ${expect_rs}
+    [Teardown]      delete curve file for shanpshot
+
+delete snapshot use error seq
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seq.value}    evaluate  int(8)
+    ${rs}   delete file snapshot    ${seq}
+    ${expect_rs}    evaluate  int(-6)
+    should be equal  ${rs}  ${expect_rs}
+    ${seq.value}    evaluate    int(1)
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+# 删除chunk快照(当前无限重试，需要调用方设置重试次数)  CLDCFS-1254
+delete chunk snapshot with snapshot seq
+    [Tags]    P0    base    first release   no-need
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    modify curve file for snapshot
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${rc}   delete chunk snapshot with correct sn  ${seginfo.chunkvec[0]}  ${seq}
+    should be equal  ${rc}  ${expect_rc}
+    ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
+    # 此处判断返回结果是否为错误
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+delete chunk snapshot with correct seq
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    modify curve file for snapshot
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${seq.value}    evaluate  ${seq.value}+1
+    ${rc}   delete chunk snapshot with correct sn  ${seginfo.chunkvec[0]}  ${seq}
+    should be equal  ${rc}  ${expect_rc}
+    ${seq.value}    evaluate  ${seq.value}-1
+    ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
+    ${expect_rst}   evaluate  int(-6)
+    should be equal  ${content}     ${expect_rst}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+repeat delete chunk snapshot
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${seq.value}    evaluate  ${seq.value}+1
+    ${rc}   delete chunk snapshot with correct sn  ${seginfo.chunkvec[0]}  ${seq}
+    should be equal  ${rc}  ${expect_rc}
+    ${rc}   delete chunk snapshot with correct sn  ${seginfo.chunkvec[0]}  ${seq}
+    should be equal  ${rc}  ${expect_rc}
+    ${seq.value}    evaluate  ${seq.value}-1
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+# 创建clone&recover
+# 步骤：创建文件、写文件、创建快照记录seq，触发cow，获取快照信息（版本号），createclonechunk(指定s3上对象，correctedseq=快照seq),恢复快照，验证chunk数据是否为s3数据
+create clone and recover chunk
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    modify curve file for snapshot
+    ${cotent}   read 4k length curve file
+    ${expect_content}   evaluate  str("tttttttt")*512
+    should be equal  ${cotent}  ${expect_content}
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${chunkinfo}    get chunk info with chunk id info  ${seginfo.chunkvec[0]}
+    #${seginfo.chunkvec[0].cid_.value}     evaluate  int(2)
+    ${rc}   create clone chunk with s3 object   ${seginfo.chunkvec[0]}
+    should be equal  ${rc}  ${expect_rc}
+    ${rc}   recover chunk data  ${seginfo.chunkvec[0]}
+    should be equal  ${rc}  ${expect_rc}
+    # check数据
+    ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
+    ${expect_content}   evaluate  str("aaaaaaaa")*512
+    should be equal  ${content}     ${expect_content}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+*** Keywords ***
+file init
+    ${expect_rc}    evaluate    int(0)
+    ${rc}   create libcurve file
+    should be equal      ${rc}       ${expect_rc}
+
+
+file clean
+    [Arguments]    ${fd}
+    run keyword if  "${fd}"!="none"   close libcurve file     ${fd}
+    ${origin_dir}   evaluate   str("/lzw/1")
+    ${new_dir}      evaluate   str("/lzw/2")
+    Run Keyword And Ignore Error    delete libcurve dir     ${origin_dir}
+    Run Keyword And Ignore Error    delete libcurve dir     ${new_dir}
+    Run Keyword And Ignore Error    delete libcurve file with root user and password
+    Run Keyword And Ignore Error    delete libcurve dir with root user and password
+
+
+
+init cluster
+#     Run Keyword And Ignore Error   drop mds table
+     #drop snap clone table
+     Run Keyword And Ignore Error   clean cs data
+     Run Keyword And Ignore Error   clean etcd data
+	 #start mds if not started
+	 #check mds should be exsits
+	 stop mds if started
+	 kill mds
+	 stop chunkserver if started
+	 check chunkserver should not be exsits
+	 #chunkserver log create
+	 stop snapshot server if started
+	 check snapshot server should not be exsits
+	 stop etcd if started
+	 check etcd should not be exsits
+	 clean cs data
+	 clean etcd data
+	 start services
+
+clean env
+     libcurve uninit
+#	 Run Keyword And Ignore Error   clean db
+#	 Run Keyword And Ignore Error   drop mds table
+	 #drop snap clone table
+	 kill mds
+	 stop chunkserver if started
+	 clean cs data
+	 clean etcd data
+	 stop snapshot server if started
+	 #cat chunkserver log 		chunkserver.log.0
+	 #cat chunkserver log 		chunkserver.log.1
+	 #cat chunkserver log 		chunkserver.log.2
+
+
+get every write time
+     ${time_start}      get time
+     ${fd}   open libcurve file
+     ${new_fd}       Convert To Integer    ${fd}
+     set test variable  ${file_fd}      ${new_fd}
+     write libcurve file     ${new_fd}
+     ${time_end}        get time
+     ${time_spend}        Evaluate    ${time_end}-${time_start}
+     should be true     ${time_spend}<${failover_time}
+
+start snapshot if not start
+     ${result}    	check process exsits    snapshot
+	 Run Keyword If		'${result}' != '0'    start snapshot server with sleep
+
+start snapshot server with sleep
+     start snapshot server
+	 Sleep		2s
+
+start etcd if not start
+     ${result}    	check process exsits    etcd
+	 Run Keyword If		'${result}' != '0'    start etcd with sleep
+
+start etcd with sleep
+     start etcd
+	 Sleep		2s
+
+start services
+	 start etcd if not start
+         start mds if not started
+	 check mds should be exsits
+	 create physical pool should success
+	 start chunkserver
+	 Sleep		2s
+	 check chunkserver should be exsits
+	 #start snapshot if not start
+	 #check snapshot server should be exsits
+	 start etcd if not start
+	 check etcd should be exsits
+	 #create physical pool should success
+	 sleep  3
+	 create logicalpool with sleep
+
+create logicalpool with sleep
+	 create logicalpool		${cluster_map}		${mds_addr}		${logical_op}
+	 Sleep 		30s
+#	 check_copyset_num      64
+
+snapshot workflow base
+     start services
+     create logicalpool with sleep
+	 create libcurve file
+
+create snapshot
+     create session         snapshotserver   ${snapshot_server_host}
+     #${headers}      create dictionary  Content-Type=application/x-www-form-urlencoded      charset=utf-8       content-type=text/html
+     ${params}     set variable    Action=CreateSnapshot&Version=1&User=${user}&File=${file}&Name=${snap}
+     ${resp}        post request       snapshotserver       /SnapshotCloneService        params=${params}
+     delete all sessions
+     should be equal as strings     "${resp.status_code}"     "200"
+
+get snapshot info should be true
+     create session         snapshotserver   ${snapshot_server_host}
+     ${params}     set variable    Action=GetFileSnapshotInfo&Version=1&User=${user}&File=${file}&Limit=0
+     ${resp}        get request       snapshotserver       /SnapshotCloneService          params=${params}
+     delete all sessions
+     should be equal as strings     "${resp.status_code}"     "200"
+     log    ${resp.json()}
+     log    ${resp.json()[0]}
+     should be equal as strings         ${resp.json()[0]["Progress"]}    100
+     should be equal as strings          ${resp.json()[0]["Status"]}     0
+     should be equal as strings          ${resp.json()[0]["User"]}     ${user}
+     should be equal as strings          ${resp.json()[0]["File"]}     ${file}
+     set test variable      ${snap_uuid}        ${resp.json()[0]["UUID"]}
+
+delete snapshot
+     create session         snapshotserver   ${snapshot_server_host}
+     #${headers}      create dictionary  Content-Type=application/x-www-form-urlencoded      charset=utf-8       content-type=text/html
+     ${params}     set variable    Action=DeleteSnapshot&Version=1&User=${user}&File=${file}&UUID=${snap_uuid}
+     ${resp}        post request       snapshotserver       /SnapshotCloneService          params=${params}
+     delete all sessions
+     should be equal as strings     "${resp.status_code}"     "200"
+
+workflow base
+     start services
+     create logicalpool with sleep
+	 run libcurve test 		${fake_mds_false} 		${fake_chunkserver_false}
+
+create default file
+     start services
+     create logicalpool with sleep
+     open_libcurve_file
+
+create physical pool should success
+	 create physicalpool		${cluster_map}		${mds_addr}		${physical_op}
+
+start mds if not started
+     ${result}    	check process exsits    mds
+	 Run Keyword If		'${result}' != 0    start mds with sleep
+
+check mds should be exsits
+	 ${result}	    check process exsits    mds
+	 Should Be Equal	'${result}' 		'0'
+
+kill mds
+	 kill process 		mds
+
+
+kill etcd
+	 kill process 		etcd
+
+
+kill one chunkserver
+     kill process       chunk
+
+stop snapshot server
+     kill process 		snapshotcloneserver
+
+stop etcd server
+     kill process 		 etcd
+
+
+
+stop snapshot server if started
+     ${result}		check process exsits		snapshot
+	 Run Keyword If    '${result}' == '0'		stop snapshot server
+	 sleep  2
+	 check snapshot server should not be exsits
+
+stop chunkserver if started
+	 ${result}		check process exsits		chunk
+	 Run Keyword If    '${result}' == '0'		stop chunkserver
+	 sleep  2
+	 check chunkserver should not be exsits
+
+stop mds if started
+	 ${result}		check process exsits		mds
+	 Run Keyword If    '${result}' == '0'		kill mds
+	 sleep  2
+	 check mds should not be exsits
+
+stop etcd if started
+	 ${result}		check process exsits		etcd
+	 Run Keyword If    '${result}' == '0'		kill etcd
+	 sleep  2
+	 check etcd should not be exsits
+
+check mds should not be exsits
+	 ${result}	    check process exsits    mds
+	 Should Not Be Equal	'${result}' 		'0'
+
+check snapshot server should not be exsits
+	 ${result}	    check process exsits    snapshot
+	 Should Not Be Equal	'${result}' 		'0'
+
+check snapshot server should be exsits
+	 ${result}	    check process exsits    snapshot
+	 Should Be Equal	'${result}' 		'0'
+
+check chunkserver should not be exsits
+	 ${result}	    check process exsits    chunk
+	 Should Not Be Equal	'${result}' 		'0'
+
+check etcd should not be exsits
+	 ${result}	    check process exsits    etcd
+	 Should Not Be Equal	'${result}' 		'0'
+
+check etcd should be exsits
+	 ${result}	    check process exsits    etcd
+	 Should Be Equal	'${result}' 		'0'
+
+check chunkserver should be exsits
+	 ${result}	    check process exsits    chunk
+	 Should Be Equal	'${result}' 		'0'
+
+start mds with sleep
+     start mds
+	 Sleep		5s
+
+
+
+
+
+
