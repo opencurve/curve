@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
     // initialize MDS options
     mds.InitMdsOptions(conf);
 
-    // start MDS dummy server for master-slave liveness probe and Metric exportation of MDS
+    // start MDS dummy server for master-slave liveness probe and Metric exportation of MDS //NOLINT
     mds.StartDummy();
 
     // leader election (for leader MDS)

@@ -48,8 +48,8 @@ void ChunkserverHealthyChecker::CheckHeartBeatInterval() {
             UpdateChunkServerOnlineState(iter->first, newState);
             iter->second.state = newState;
         }
-        // If a chunkserver is offline and contain no copyset, it will be set 
-        // to retired status 
+        // If a chunkserver is offline and contain no copyset, it will be set
+        // to retired status
         // Function usually called when a disk need to be switched
         bool iterNeedMove = TrySetChunkServerRetiredIfNeed(iter->second);
         if (iterNeedMove) {
@@ -77,8 +77,8 @@ bool ChunkserverHealthyChecker::ChunkServerStateNeedUpdate(
 
         return false;
     }
-    // heartbeat received later than usual, but didn't reach the threshold of 
-    //being marked as an offline chunkserver
+    // heartbeat received later than usual, but didn't reach the threshold of
+    // being marked as an offline chunkserver
     bool shouldUnstable = (timePass < milliseconds(option_.offLineTimeOutMs));
     if (shouldUnstable) {
         if (OnlineState::UNSTABLE != info.state) {

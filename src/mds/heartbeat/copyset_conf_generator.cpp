@@ -37,7 +37,7 @@ bool CopysetConfGenerator::GenCopysetConf(
     const ::curve::mds::heartbeat::ConfigChangeInfo &configChInfo,
     ::curve::mds::heartbeat::CopySetConf *copysetConf) {
     // reported copyset not exist on topology
-    // in this case an empty configuration will be sent to chunkserver for the 
+    // in this case an empty configuration will be sent to chunkserver for the
     // deletion (of the copy)
     ::curve::mds::topology::CopySetInfo recordCopySetInfo;
     if (!topo_->GetCopySet(
@@ -108,7 +108,7 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
         //    In normal cases (without delay cleaning), this copyset on D will be deleted since its epoch number is lower,      //NOLINT
         //    but it will be a problem in our case since D is already a member of the copyset, and the deletion of D means      //NOLINT
         //    the elimination of copies.
-        // here's how delay cleaning works:    //NOLINT
+        // here's how delay cleaning works:
         //    In one way leader will report the existence of D, which promise that D will not be deleted by mistake. In another //NOLINT
         //    way, the configuration that D report will be up-to-date since the journal replay has completed                    //NOLINT
 
@@ -150,7 +150,7 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
             // memory of replica will be free by proto
             copysetConf->set_allocated_configchangeitem(replica);
         }
-        
+
         for (auto peer : recordCopySetInfo.GetCopySetMembers()) {
             std::string addPeer = BuildPeerByChunkserverId(peer);
             if (addPeer.empty()) {
