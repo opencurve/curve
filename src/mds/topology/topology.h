@@ -116,7 +116,7 @@ class Topology {
     /**
      * @brief update chunkserver online status
      * - only online status will be updated
-     * - only RAM will be updated, data will be flushed to database regularly 
+     * - only RAM will be updated, data will be flushed to database regularly
      *   by background process
      *
      * @param onlineState (online/offline)
@@ -129,7 +129,7 @@ class Topology {
     /**
      * @brief update chunkserver disk status
      * - only disk state will be updated
-     * - only RAM will be updated, data will be flushed to database regularly 
+     * - only RAM will be updated, data will be flushed to database regularly
      *   by background process
      *
      * @param state disk status
@@ -155,12 +155,12 @@ class Topology {
     /**
      * @brief update copyset topology info
      * @detail
-     * - for updating copyset data reported by heartbeat regularly like 
+     * - for updating copyset data reported by heartbeat regularly like
      *   epoch and leader
-     * - only RAM will be updated, data will be flushed to database regularly 
+     * - only RAM will be updated, data will be flushed to database regularly
      *   by background process
      *
-     * @param data copyset data 
+     * @param data copyset data
      *
      * @return error code
      */
@@ -570,7 +570,6 @@ class TopologyImpl : public Topology {
     std::shared_ptr<TopologyIdGenerator> idGenerator_;
     std::shared_ptr<TopologyTokenGenerator> tokenGenerator_;
     std::shared_ptr<TopologyStorage> storage_;
-    
     // fetch lock in the order below to avoid deadlock
     mutable curve::common::RWLock logicalPoolMutex_;
     mutable curve::common::RWLock physicalPoolMutex_;

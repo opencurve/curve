@@ -649,7 +649,8 @@ class ChunkServer {
      */
     bool dirty_;
     /**
-     * @brief chunkserver read/write lock, for protecting concurrent read/write on the chunksever   //NOLINT
+     * @brief chunkserver read/write lock, for protecting concurrent read/write
+     *        on the chunksever
      */
     mutable ::curve::common::RWLock mutex_;
 };
@@ -671,7 +672,7 @@ class CopySetInfo {
         hasCandidate_(false),
         candidate_(UNINTIALIZE_ID),
         dirty_(false) {}
-        
+
     CopySetInfo(PoolIdType logicalPoolId,
                 CopySetIdType id) :
         logicalPoolId_(logicalPoolId),
@@ -748,7 +749,7 @@ class CopySetInfo {
     bool HasMember(ChunkServerIdType peer) const {
         return peers_.count(peer) > 0;
     }
-    
+
     bool SetCopySetMembersByJson(const std::string &jsonStr);
 
     bool HasCandidate() const {
@@ -803,7 +804,8 @@ class CopySetInfo {
     bool dirty_;
 
     /**
-     * @brief chunkserver read/write lock, for protecting concurrent read/write on the chunksever
+     * @brief chunkserver read/write lock, for protecting concurrent read/write
+     *        on the chunksever
      */
     mutable ::curve::common::RWLock mutex_;
 };
@@ -829,7 +831,7 @@ inline std::string BuildPeerId(
  *
  * @param peerId peer ID
  * @param[out] ip hostIp
- * @param[out] import port 
+ * @param[out] import port
  * @param[out] idx index
  *
  * @retval true success

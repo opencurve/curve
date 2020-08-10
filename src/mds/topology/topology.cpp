@@ -475,7 +475,7 @@ int TopologyImpl::UpdateChunkServerDiskStatus(const ChunkServerState &state,
             WriteLockGuard wlockChunkServer(it->second.GetRWLockRef());
             diff = state.GetDiskCapacity() -
                 it->second.GetChunkServerState().GetDiskCapacity();
-            // only data in RAM is updated, data will be synchronized to 
+            // only data in RAM is updated, data will be synchronized to
             // database by background process regularly
             it->second.SetChunkServerState(state);
             it->second.SetDirtyFlag(true);
@@ -1170,7 +1170,7 @@ void TopologyImpl::FlushCopySetToStorage() {
     {
         ReadLockGuard rlockCopySetMap(copySetMutex_);
         for (auto &c : copySetMap_) {
-            //we only update DirtyFlag here, thus only read lock is needed
+            // we only update DirtyFlag here, thus only read lock is needed
             ReadLockGuard rlockCopySet(c.second.GetRWLockRef());
             if (c.second.GetDirtyFlag()) {
                 c.second.SetDirtyFlag(false);
@@ -1191,7 +1191,7 @@ void TopologyImpl::FlushChunkServerToStorage() {
     {
         ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
         for (auto &c : chunkServerMap_) {
-            //update DirtyFlag only, thus only read lock is needed
+            // update DirtyFlag only, thus only read lock is needed
             ReadLockGuard rlockChunkServer(c.second.GetRWLockRef());
             if (c.second.GetDirtyFlag()) {
                 c.second.SetDirtyFlag(false);
