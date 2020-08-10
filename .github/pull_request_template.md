@@ -18,4 +18,3 @@ Side effects(Breaking backward compatibility? Performance regression?):
 
 - [ ] Relevant documentation/comments is changed or added
 - [ ] I acknowledge that all my contributions will be made under the project's license
-<!--- [ ] Exception test: No need right now. -->
