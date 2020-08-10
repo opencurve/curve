@@ -36,6 +36,10 @@ namespace topology {
 
 class TopologyStorageCodec {
  public:
+    // there are three types of function here:
+    // Encode__Key: attach item id to item prefix
+    // Encode__Data: convert data structure to a string
+    // Decode__Data: convert a string to data structure
     std::string EncodeLogicalPoolKey(
         LogicalPoolIdType id);
     bool EncodeLogicalPoolData(

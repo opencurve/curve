@@ -242,7 +242,8 @@ void HeartbeatManager::ChunkServerHeartbeat(
             *res = conf;
         }
 
-        // if a copyset is the leader, update (e.g. epoch) topology according to its info
+        // if a copyset is the leader, update (e.g. epoch) topology according 
+        // to its info
         if (request.chunkserverid() == reportCopySetInfo.GetLeader()) {
             topoUpdater_->UpdateTopo(reportCopySetInfo);
         }
@@ -281,8 +282,8 @@ HeartbeatStatusCode HeartbeatManager::CheckRequest(
     //    reflected on topology
     // 2. copy relationship that recorded on mds and raft will be different.
     //    in normal cases the one that recorded on raft should be the standard
-    //    and we should acknowledge raft (in this case) to update the location of
-    //    replicas, but we still have no idea how to implement.
+    //    and we should acknowledge raft (in this case) to update the location
+    //    of eplicas, but we still have no idea how to implement.
 
     // mismatch ip address reported by chunkserver and mds record
     if (request.ip() != chunkServer.GetHostIp()

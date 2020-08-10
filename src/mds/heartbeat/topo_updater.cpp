@@ -37,18 +37,19 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
                    << ") information, but can not get info from topology";
         return;
     }
-    // here we compare epoch number reported by heartbeat and stored in mds record,
-    // and there're three possible cases:
+    // here we compare epoch number reported by heartbeat and stored in mds 
+    // record, and there're three possible cases:
     // 1. report epoch > mds record epoch
-    //    after every configuration change, raft will increase the epoch of copyset,
-    //    which makes epoch of mds fall behind. update on mds of epoch and copy relationship 
-    //    is required
+    //    after every configuration change, raft will increase the epoch of 
+    //    copyset, which makes epoch of mds fall behind.
+    //    update on mds of epoch and copy relationship is required
     // 2. report epoch == mds record epoch
-    //    there's no finished or undergoing configuration changes, recording candidate
-    //    to mds may be needed
+    //    there's no finished or undergoing configuration changes, 
+    //    recording candidate to mds may be needed
     // 3. report epoch < mds epoch
-    //    this case should not occurs normally since epoch number in raft is always the
-    //    most up-to-date. this case may caused by bugs, alarm is neened  //NOLINT
+    //    this case should not occurs normally since epoch number in raft is 
+    //    always the most up-to-date. this case may caused by bugs, 
+    //    alarm is neened.
 
     // mds epoch fall behind, update needed:
     bool needUpdate = false;
@@ -69,9 +70,10 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
         }
 
         // heartbeat report and mds record provide a different member list.
-        // this should trigger an alarm since it should not happend in normal cases,
-        // since chunkserver always report configurations that already applied and
-        // when member list are different the epoch should be different
+        // this should trigger an alarm since it should not happend in normal 
+        // cases, since chunkserver always report configurations that already
+        // applied and when member list are different the epoch
+        // should be different
         if (reportCopySetInfo.GetCopySetMembers() !=
             recordCopySetInfo.GetCopySetMembers()) {
             LOG(ERROR) << "topoUpdater find report copyset("

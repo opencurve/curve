@@ -105,17 +105,22 @@ class ChunkserverHealthyChecker {
                                         const steady_clock::time_point &time);
 
     /**
-     * @brief CheckHeartBeatInterval: For heartbeat timeout and offline detection
+     * @brief CheckHeartBeatInterval: For heartbeat timeout and offline 
+     * detection
      * This function uses a timer and executes inspections below: 
      * (default value of OnlineFlag is false)
      * When OnlineFlag has a false value:
-     *     If current-time - last-heartbeat-received-time <= heartbeatMissTimeOut_:
-     *         Set OnlineFlag to true, and update OnlineState to ONLINE in topology
+     *     If current-time - last-heartbeat-received-time <= 
+     *     heartbeatMissTimeOut_:
+     *         Set OnlineFlag to true, and update OnlineState to ONLINE 
+     *         in topology
      * When OnlineFlag has a true value:
-     *     If current-time - last-heartbeat-received-time > heartbeatMissTimeOut_:
+     *     If current-time - last-heartbeat-received-time >
+     *     heartbeatMissTimeOut_:
      *         Alarm for missing heartbeat
      *     If current-time - last-heartbeat-received-time > offLineTimeOut_:
-     *         Set OnlineFlag to false and update OnlineState to OFFLINE in topology, then alarm
+     *         Set OnlineFlag to false and update OnlineState to OFFLINE in 
+     *         topology, then alarm
      */
     void CheckHeartBeatInterval();
 
