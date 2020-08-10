@@ -2,7 +2,7 @@
 
 ### Overview
 
-CURVE client serves as the entrance of the services provided by CURVE, providing dynamic link library for QEMU/CURVE-NBD for calling. As a result, restarting QEMU/CURVE-NBD is necessary when CURVE Client need to be updated.
+CURVE client serves as the entrance of the services provided by CURVE, providing dynamic link library for QEMU/CURVE-NBD for calling. As a result, restarting QEMU/CURVE-NBD is necessary when CURVE Client needs to be updated.
 
 In order to relief the impact of updating on applications based on CURVE, we decoupled CURVE client and its applications, and imported the hot upgrade module **NEBD** in between.
 
@@ -23,14 +23,14 @@ Also, figure 1 shows that instead of CURVE client, NEBD client is now the compon
 
 There are few steps for NEBD server/CURVE client's upgrade:
 
-1. Install the lastest version of CURVE client/NEBD server
+1. Install the latest version of CURVE client/NEBD server
 2. Stop running processes of part2
 3. Restart processes of part2
 
 
 In our practice, we use daemon to monitor the processes of part2, and start them if not exist.
 
-Also, notice that from the stop of processes of part2 to the start of the new ones, only 1 to 5 senconds are required in our test and production environment.
+Also, notice that from the stop of processes of part2 to the start of the new ones, only 1 to 5 seconds are required in our test and production environment.
 
 #### Structure of Modules
 
@@ -46,7 +46,7 @@ Figure 2 show the components of NEBD client and NEBD server.
 
 - File Client: The implementations of libnebd interface, send users' requests to NEBD server.
 
-- MetaCache Manager: Record information of files already opend currently.
+- MetaCache Manager: Record information of files already opened currently.
 
 - Heartbeat Client: Sent regular heartbeat carrying opened file info to NEBD server.
 
@@ -61,7 +61,7 @@ Figure 2 show the components of NEBD client and NEBD server.
 
 - IO Executor: Responsible for the actual execution of file requests, which calls the interface of CURVE client and send requests to storage clusters.
 
-- Metafile Manager: Manage metadata files, and also responsible for metadata persistance, or load persistent data from files.
+- Metafile Manager: Manage metadata files, and also responsible for metadata persistence, or load persistent data from files.
 
 
 ### Key Points
@@ -72,27 +72,28 @@ Figure 2 show the components of NEBD client and NEBD server.
 
    1. There's no time out for RPC requests from part1.
 
-   2. Part1 only execute retries for errors of RPC requests themselves, and forward error      codes return by RPC to upper level directly.
+   2. Part1 only executes retries for errors of RPC requests themselves, and forward error      codes return by RPC to upper level directly.
 
    
+
 Use Write request as an example, and figure3 is the flow chart of the request:
-   
-- Forward Write request from upper level to part2 through RPC request, and wait without setting the time out.
-     
-  - If the RPC request return successfully, return to upper level corresponding to the RPC response. 
-     
+
+- Forward Write request from upper level to part2 through RPC requests, and wait without setting the time out.
+  
+  - If the RPC requests return successfully, return to upper level corresponding to the RPC response. 
+    
   - If disconnection occurs of unable to connect, wait for a while and retry.
-     
+    
 
    <img src="../images/nebd-part1-write-request.png" alt="images\nebd-part1-write-request" width="300" />
-   
+  
    <center><font size=2> Figure 3: Flow chart of write request sent by NEBD client</font></center>
-   
+  
    Other requests follow similar procedures as write request does.
-   
+  
 2. Heartbeat management:
 
-   In order to avoid upper level application finishing without closing files opened, part2 will check heartbeat status of files (opened files info reported by part1 through regular heartbeat), and will close the files of which the last heartbeat time have exceeded the threshold.
+   In order to avoid upper level application finishing without closing files opened, part2 will check heartbeat status of files (opened files info reported by part1 through regular heartbeat), and will close the files of which the last heartbeat time has exceeded the threshold.
 
-   The different between closing files with time out heartbeat and files that requested to close by upper level applications is that the time-out closing will not remove file info from metafile. But there's a case that an upper level application suspended somehow and recovered later, this will also cause a heartbeat time out and therefore corresponding files are closed. Thus, when part2 receiving requests from part1, it will first check whether the metafile own the records for current files. If it does and corresponding files are in closed status, part2 will first open corresponding files and execute following requests.
+   The difference between closing files with time out heartbeat and files that requested to close by upper level applications is that the time-out closing will not remove file info from metafile. But there's a case that an upper level application suspended somehow and recovered later, this will also cause a heartbeat time out and therefore corresponding files are closed. Thus, when part2 receiving requests from part1, it will first check whether the metafile own the records for current files. If it does and corresponding files are in closed status, part2 will first open corresponding files and execute following requests.
 
