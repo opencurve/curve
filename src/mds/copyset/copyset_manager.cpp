@@ -87,11 +87,10 @@ bool CopysetManager::GenCopyset(const ClusterInfo& cluster,
             &numCopysets);
         // set an upper limit here to avoid infinite loop,
         // for every permutation N/R copysets are generated,
-        // assume that we can tolerate generating only one scatter-width for 
+        // assume that we can tolerate generating only one scatter-width for
         // every 10 permutation, we need P=10S permutations for 10SN/R copysets.
-        // P: permutations S: scatter width 
+        // P: permutations S: scatter width
         // N: number of chunkservers R: number of replicas
-        
         int maxRetryNum =
             10 * targetScatterWidth * numChunkServers / constrait_.replicaNum;
         while (numCopysets <= maxRetryNum) {

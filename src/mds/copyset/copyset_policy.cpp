@@ -125,7 +125,6 @@ void CopysetZoneShufflePolicy::GetMinCopySetFromScatterWidth(
     // so we need at lease P = S/(R—1) permutations,
     // and (S/(R-1))(N/R) copysets are generated.
     // thus the lower bound of copyset number is (S/(R-1))(N/R)
-    
     *min = scatterWidth * numChunkServers / numReplicas / (numReplicas - 1);
 }
 
@@ -136,7 +135,7 @@ int CopysetZoneShufflePolicy::GetMaxPermutationNum(int numCopysets,
 }
 
 /**
- * @brief  a random permutation algorithm for selecting X zones for placing 
+ * @brief  a random permutation algorithm for selecting X zones for placing
  *         X replicas from N zones
  *
  *  1. first we shuffle all servers in every zone

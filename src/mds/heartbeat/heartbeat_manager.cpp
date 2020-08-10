@@ -108,7 +108,8 @@ void HeartbeatManager::UpdateChunkServerDiskStatus(
     } else {
         state.SetDiskState(curve::mds::topology::DISKNORMAL);
     }
-    // update status from heartbeat request info, then pass them to topology module
+    // update status from heartbeat request info, then pass them to
+    // topology module
     state.SetDiskCapacity(request.diskcapacity());
     state.SetDiskUsed(request.diskused());
     int ret = topology_->UpdateChunkServerDiskStatus(state,
@@ -139,7 +140,7 @@ void HeartbeatManager::UpdateChunkServerStatistics(
             cstat.logicalPoolId = request.copysetinfos(i).logicalpoolid();
             cstat.copysetId = request.copysetinfos(i).copysetid();
 
-            // TODO(xuchaojie)：use id instead when new protocol supported
+            // TODO(xuchaojie): use id instead when new protocol supported
             std::string leaderPeer =
                 request.copysetinfos(i).leaderpeer().address();
             std::string leaderIp;
@@ -242,7 +243,7 @@ void HeartbeatManager::ChunkServerHeartbeat(
             *res = conf;
         }
 
-        // if a copyset is the leader, update (e.g. epoch) topology according 
+        // if a copyset is the leader, update (e.g. epoch) topology according
         // to its info
         if (request.chunkserverid() == reportCopySetInfo.GetLeader()) {
             topoUpdater_->UpdateTopo(reportCopySetInfo);

@@ -57,7 +57,7 @@ struct HeartbeatOption {
     // finds out that heartbeat is missed after heartbeatMissTimeOut peroid
     uint64_t heartbeatMissTimeOutMs;
 
-    // offLineTimeOutMs: 
+    // offLineTimeOutMs:
     // the maximun peroid that heartbeat is missed without
     // setting the chunkserver to offline status and alarm.
     // scheduling will depend on the status of chunkserver
@@ -105,21 +105,21 @@ class ChunkserverHealthyChecker {
                                         const steady_clock::time_point &time);
 
     /**
-     * @brief CheckHeartBeatInterval: For heartbeat timeout and offline 
+     * @brief CheckHeartBeatInterval: For heartbeat timeout and offline
      * detection
-     * This function uses a timer and executes inspections below: 
+     * This function uses a timer and executes inspections below:
      * (default value of OnlineFlag is false)
      * When OnlineFlag has a false value:
-     *     If current-time - last-heartbeat-received-time <= 
+     *     If current-time - last-heartbeat-received-time <=
      *     heartbeatMissTimeOut_:
-     *         Set OnlineFlag to true, and update OnlineState to ONLINE 
+     *         Set OnlineFlag to true, and update OnlineState to ONLINE
      *         in topology
      * When OnlineFlag has a true value:
      *     If current-time - last-heartbeat-received-time >
      *     heartbeatMissTimeOut_:
      *         Alarm for missing heartbeat
      *     If current-time - last-heartbeat-received-time > offLineTimeOut_:
-     *         Set OnlineFlag to false and update OnlineState to OFFLINE in 
+     *         Set OnlineFlag to false and update OnlineState to OFFLINE in
      *         topology, then alarm
      */
     void CheckHeartBeatInterval();
@@ -128,7 +128,7 @@ class ChunkserverHealthyChecker {
     bool GetHeartBeatInfo(ChunkServerIdType id, HeartbeatInfo *info);
 
  private:
-    // check whether the state of a chunkserver need to be updated, 
+    // check whether the state of a chunkserver need to be updated,
     // new state pass by parameter newState if update needed
     bool ChunkServerStateNeedUpdate(
         const HeartbeatInfo &info, OnlineState *newState);
