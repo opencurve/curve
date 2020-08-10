@@ -1,0 +1,548 @@
+*** Settings ***
+Library           Resources/keywords/base_operate.py
+Library           Resources/test/curve_base_test.py
+Library           Resources/swig/swig_operate.py
+Library			  Collections
+#Library           RequestsLibrary
+Library           Process
+#Library           SSHLibrary
+Library           Resources/keywords/mythread.py
+Library           Resources/keywords/fault_inject.py
+Library           Resources/keywords/deploy.py
+Library           Resources/keywords/test_curve_stability_nbd.py
+
+Suite Setup       init failover cluster
+Suite Teardown    clean failover env
+
+*** Variables ***
+${fio_vdsize}     10
+${vdbench_vdsize}   10
+${vm_iops_limit}   8000
+${chunk_num}   0
+
+*** Test Cases ***
+#test up all cs
+#    [Tags]    P8    base    first release
+#    up all cs
+#    [Teardown]   file clean    none
+   
+inject one chunkserver down/up
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate   int(1)
+    ${host}   test kill chunkserver num   ${num}
+    sleep  5
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    sleep  5
+    test start chunkserver num   ${num}  ${host}
+    sleep  5
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	  start host cs process   ${host}
+
+inject two chunkserver down/up
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate   int(2)
+    ${host}   test kill chunkserver num   ${num}
+    sleep  5
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    sleep  5
+    test start chunkserver num   ${num}  ${host}
+    sleep  5
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	  start host cs process   ${host}
+
+inject host all chunkserver down/up
+    [Tags]    P1    base    first release   failover
+    ${host}  test stop chunkserver host
+    sleep  10
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    sleep  5
+    test start chunkserver host  ${host}
+    sleep  5
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	  start host cs process  ${host}
+
+inject restart one chunkserver
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate   int(1)
+    test restart chunkserver num   ${num}
+    sleep  5
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	  wait cluster healthy   ${vm_iops_limit}
+
+inject restart two chunkserver
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate   int(2)
+    test restart chunkserver num   ${num}
+    sleep  5
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	 wait cluster healthy    ${vm_iops_limit}
+
+inject kill diff host chunkserver
+    [Tags]    P1    base    first release   failover
+    test kill diff host chunkserver
+    wait health ok
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	 wait cluster healthy    ${vm_iops_limit}
+
+inject reboot nebd
+    [Tags]   P1  base   first release   failover
+    test reboot nebd
+    sleep   5
+    check nbd iops
+    check data consistency
+    [Teardown]  wait cluster healthy   ${vm_iops_limit}
+
+inject kill one mds 
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate  int(1)
+    test kill mds   ${num}
+    check nbd iops  
+    sleep  3
+    test start mds
+    check nbd iops  
+    check data consistency
+    [Teardown]	  test start mds   
+
+inject kill two mds
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate  int(2)
+    test kill mds   ${num}
+    check nbd iops  
+    sleep  3
+    test start mds
+    sleep  3
+    check nbd iops  
+    check data consistency
+    [Teardown]    test start mds
+
+inject round restart mds
+    [Tags]    P1    base    first release   failover
+    test round restart mds
+    sleep  3
+    check nbd iops  
+    check data consistency
+    [Teardown]    test start mds
+
+inject loop restart one mds
+    [Tags]    P1    base    first release   failover
+    ${mds_ip}    evaluate    str("10.182.26.25")
+    :FOR   ${i}   IN RANGE   10
+          kill mds process   ${mds_ip}
+          start mds process  ${mds_ip}
+          sleep  3
+          check nbd iops  
+    END 
+    check data consistency
+    [Teardown]    test start mds
+
+
+inject kill one etcd     
+    [Tags]    P1    base    first release   failover   
+    ${host}  test kill etcd
+    sleep  5
+    check nbd iops
+    sleep  3
+    test start etcd 
+    test start mds
+    test start snap
+#    sleep  3
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    [Teardown]     start etcd process  ${host}
+
+test round restart etcd
+    [Tags]    P1    base    first release   failover   
+    test round restart etcd
+    sleep  3
+    check nbd iops
+    check data consistency
+    test start mds
+    test start snap
+    [Teardown]    test start etcd
+
+inject loop restart one etcd
+    [Tags]    P1    base    first release   failover  
+    ${etcd_ip}    evaluate    str("10.182.26.16")
+    :FOR   ${i}   IN RANGE   10
+          kill etcd process   ${etcd_ip}
+          start etcd process  ${etcd_ip}
+          sleep  2
+          check nbd iops
+    END
+    check data consistency
+    test start mds
+    test start snap
+    [Teardown]    test start etcd
+
+inject chunkserver cpu stress 95%
+    [Tags]    P1    base    first release   failover 
+    ${cpu_stress}   evaluate  int(95)
+    ${ssh}   test chunkserver cpu stress   ${cpu_stress}
+    sleep  5
+    ${limit_iops}   evaluate  int(2000)
+    check nbd iops    ${limit_iops} 
+    del cpu stress   ${ssh}
+    check nbd iops    ${vm_iops_limit} 
+    check data consistency
+#    check copies consistency
+    [Teardown]     del cpu stress    ${ssh}
+    
+inject mds cpu stress 95%
+    [Tags]    P1    base    first release   failover
+    ${cpu_stress}   evaluate  int(95)
+    ${ssh}   test mds cpu stress   ${cpu_stress}
+    sleep  5
+    ${limit_iops}   evaluate  int(2000)
+    check nbd iops    ${limit_iops} 
+    del cpu stress   ${ssh}
+    check nbd iops    ${vm_iops_limit} 
+    check data consistency
+#    check copies consistency
+    [Teardown]     del cpu stress    ${ssh}
+
+inject client cpu stress 95%
+    [Tags]    P1    base    first release   failover
+    ${cpu_stress}   evaluate  int(95)
+    ${ssh}   test client cpu stress   ${cpu_stress}
+    sleep  5
+    ${limit_iops}   evaluate  int(2000)
+    check nbd iops    ${limit_iops} 
+    del cpu stress   ${ssh}
+    check nbd iops    ${vm_iops_limit} 
+    check data consistency
+#    check copies consistency
+    [Teardown]     del cpu stress    ${ssh}
+
+inject chunkserver mem stress 95%
+    [Tags]    P1    base    first release   failover
+    ${cpu_stress}   evaluate  int(95)
+    ${ssh}   test chunkserver mem stress   ${cpu_stress}
+    sleep  10
+    check nbd iops    ${vm_iops_limit}
+    del mem stress   ${ssh}
+    check data consistency
+#    check copies consistency
+    [Teardown]     del mem stress    ${ssh}
+
+inject mds mem stress 95%
+    [Tags]    P1    base    first release   failover
+    ${cpu_stress}   evaluate  int(95)
+    ${ssh}   test mds mem stress   ${cpu_stress}
+    sleep  10
+    check nbd iops    ${vm_iops_limit}
+    del mem stress   ${ssh}
+    check data consistency
+#    check copies consistency
+    [Teardown]     del mem stress    ${ssh}
+
+inject client mem stress 95%
+    [Tags]    P1    base    first release   failover
+    ${cpu_stress}   evaluate  int(95)
+    ${ssh}   test client mem stress   ${cpu_stress}
+    sleep  10
+    check nbd iops    ${vm_iops_limit}
+    del mem stress   ${ssh}
+    check data consistency
+#    check copies consistency
+    [Teardown]     del mem stress    ${ssh}
+
+test chunkserver network stress
+    [Tags]    P1    base    first release   failover
+    ${ip}    test chunkserver network stress
+    sleep  10
+    check nbd iops    ${vm_iops_limit}
+    check data consistency
+#    stop network stress    ${ip}    
+    [Teardown]     stop network stress    ${ip}
+
+test mds network stress
+    [Tags]    P1    base    first release   failover
+    ${ip}    test mds network stress
+    sleep  10
+    check nbd iops    ${vm_iops_limit}
+    check data consistency
+#    stop network stress    ${ip}
+    [Teardown]     stop network stress    ${ip}
+
+test client network stress
+    [Tags]    P1    base    first release   failover
+    ${ip}    test client network stress
+    sleep  10
+    check nbd iops    ${vm_iops_limit}
+    check data consistency
+#   stop network stress    ${ip}
+    [Teardown]     stop network stress    ${ip}
+
+test chunkserver clock offset 2min
+    [Tags]    P1    base    first release   failover   no-need
+    ${offset}  evaluate  int(2)
+    ${ssh}    test chunkserver clock offset    ${offset}
+    check nbd iops   ${vm_iops_limit}
+    check data consistency
+    [Teardown]   del clock offset   ${ssh}    ${offset}
+
+test mds clock offset 2min
+    [Tags]    P1    base    first release   failover   no-need
+    ${offset}  evaluate  int(2)
+    ${ssh}    test mds clock offset    ${offset}
+    check nbd iops   ${vm_iops_limit}
+    check data consistency
+#   check copies consistency
+    [Teardown]   del clock offset   ${ssh}    ${offset}
+
+test chunkserver loss package 5%
+    [Tags]    P1    base    first release   failover
+    ${percent}  evaluate  int(5)
+    test cs loss package  ${percent}
+    check nbd iops
+    test start mds
+    test start snap
+    check data consistency
+#    check copies consistency
+#    [Teardown]	   wait cluster healthy    ${vm_iops_limit}
+
+test chunkserver delay package 50ms
+    [Tags]    P1    base    first release   failover   
+    ${ms}  evaluate  int(50)
+    test cs delay package  ${ms}
+    sleep  5
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    test start mds
+    test start snap
+    sleep   5
+    [Teardown]	 wait cluster healthy    ${vm_iops_limit}
+
+
+test out/in chunkserver recover
+    [Tags]    P1    base    first release   failover  longtime
+    ${host}	${cs_copyset_num}  test outcs recover copyset
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    ${copyset_num}       Convert To Integer    ${cs_copyset_num}
+    test upcs recover copyset  ${host}	 ${copyset_num}
+    sleep  5
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	   wait cluster healthy    ${vm_iops_limit}
+
+test suspend delete and up recover chunkserver
+    [Tags]    P1    base    first release   failover  longtime  no-need
+    test suspend delete recover copyset
+#    check nbd iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	   wait cluster healthy   ${vm_iops_limit}
+
+test stop all cs not recover
+    [Tags]    P1    base    first release   failover
+    stop all cs not recover
+    sleep   5
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	  wait cluster healthy   ${vm_iops_limit}
+
+test pendding host all cs
+   [Tags]    P1    base    first release   failover  longtime
+   pendding all cs recover 
+   sleep  5
+   check nbd iops 
+   check data consistency
+#   check copies consistency
+   [Teardown]	  check chunkserver online
+
+test mds loss package 5%   
+    [Tags]    P1    base    first release   failover  
+    ${percent}  evaluate  int(5)
+    test mds loss package  ${percent}
+    sleep  60
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    test start mds
+    test start snap
+    [Teardown]	   wait cluster healthy   ${vm_iops_limit}
+
+test ipmitool restart mds node
+   [Tags]    P1    base    first release   failover  ipmitool
+   test ipmitool restart mds
+   sleep  60
+   check nbd iops
+   check data consistency
+   test start mds
+   test start snap
+   [Teardown]    wait cluster healthy   ${vm_iops_limit}
+
+test ipmitool restart chunkserver node
+   [Tags]    P1    base    first release   failover  ipmitool
+   test ipmitool restart chunkserver
+   sleep  60
+   check nbd iops
+   check data consistency
+   [Teardown]    check chunkserver online
+
+stop map unmap thread
+    [Tags]    P1    base    first release   failover
+    stop map unmap
+#    [Teardown]   wait cluster healthy    ${vm_iops_limit}
+
+#stop snapshot test
+#    [Tags]    P1    base    first release   failover  
+#    stop snapshot test
+
+test mds delay package 50ms
+    [Tags]    P1    base    first release   failover   
+    ${ms}  evaluate  int(50)
+    test mds delay package  ${ms}
+    test start mds
+    test start etcd
+    test start snap
+    sleep  120
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	   wait cluster healthy   ${vm_iops_limit}
+
+inject kill all mds
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate  int(3)
+    test kill mds   ${num}
+    test start mds
+    sleep  3
+    check nbd iops  
+    check data consistency
+    [Teardown]    test start mds
+
+inject kill two etcd
+    [Tags]    P1    base    first release   failover  
+    ${num}   evaluate  int(2)
+    test kill etcd   ${num}
+    sleep  5
+#    check nbd iops
+    sleep  3
+    test start etcd
+    test start mds
+    test start snap
+    sleep  3
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    [Teardown]     test start etcd
+
+inject all chunkserver down
+    [Tags]    P1    base    first release   failover
+    test stop all chunkserver
+    test start all chunkserver
+    wait health ok
+    sleep  10
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    [Teardown]   wait cluster healthy    ${vm_iops_limit}
+
+inject all chunkserver down 10min
+    [Tags]    P1    base    first release   failover  
+    test stop all chunkserver
+    sleep   600
+    test start all chunkserver
+    wait health ok
+    sleep  10
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    [Teardown]   wait cluster healthy    ${vm_iops_limit}
+
+test clone vol
+    [Tags]    P1    base    first release   failover  snapshot  no-need
+    test clone iovol consistency
+
+test cancel vol snapshot
+    [Tags]    P1    base    first release   failover   snapshot  no-need
+    test cancel snapshot
+
+test one volume perf
+    [Tags]    P1    base    first release  longtime   perf  no-need
+    remove vm key
+    attach new vol   200   200
+    stop rwio
+    perf test
+
+inject cluster stress test
+    [Tags]    P1    base    first release  longtime  stress   perf  no-need
+    init vm
+    remove vm key
+    attach new vol   20   20
+    stop rwio
+    stress test
+
+*** Keywords ***
+
+init failover cluster
+     clean nbd
+     init abnormal test env
+     check chunkserver online
+     ${begin_num}    get all chunk num
+     ${begin_num}    Convert To Integer   ${begin_num}
+     Set Global Variable  ${chunk_num}    ${begin_num} 
+     init rw cloud disk
+#     init vol
+#     begin snapshot test
+#     begin kill snapshotserver
+     loop map unmap file
+
+init abnormal test env
+     clean env
+     destroy etcd
+     destroy mds
+     destroy snapshotclone server
+     stop nebd
+     drop all chunkserver dat
+     install deb
+     add config 
+     start abnormal test services
+     create pool
+     start nebd
+
+init rw cloud disk
+     map nbd
+     stop rwio
+     write full disk  ${fio_vdsize}
+     run rwio
+     clean kernel log
+
+clean failover env
+     stop rwio
+     check io error
+     stop scheduler
+     check copies consistency
+     clean nbd
+     delete nbd
+     sleep  10
+     clear RecycleBin
+     sleep  60 
+     ${final_num}    get all chunk num
+     ${final_num}    Convert To Integer   ${final_num}
+     should be equal    ${final_num}   ${chunk_num}
