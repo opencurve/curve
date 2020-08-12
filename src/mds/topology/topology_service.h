@@ -35,6 +35,8 @@ namespace curve {
 namespace mds {
 namespace topology {
 
+//这个TopologyService又是RPC调用相关的结构
+
 class TopologyServiceImpl : public TopologyService {
  public:
     explicit TopologyServiceImpl(

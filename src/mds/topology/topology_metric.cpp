@@ -37,7 +37,7 @@ std::map<PoolIdType, LogicalPoolMetricPtr> gLogicalPoolMetrics;
 std::map<ChunkServerIdType, ChunkServerMetricPtr> gChunkServerMetrics;
 
 void TopologyMetricService::UpdateTopologyMetrics() {
-    // 处理chunkserver
+    // process chunkserver
     std::vector<ChunkServerIdType> chunkservers =
         topo_->GetChunkServerInCluster(
                 [](const ChunkServer &cs) {
@@ -86,7 +86,7 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         }
     }
 
-    // 处理逻辑池
+    // process logical pool
     std::vector<PoolIdType> lPools =
         topo_->GetLogicalPoolInCluster([] (const LogicalPool &pool) {
                 return pool.GetLogicalPoolAvaliableFlag();
@@ -165,9 +165,10 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         uint64_t totalChunkSizeTrashedBytes = 0;
         uint64_t totalChunkSizeBytes = 0;
 
-        // 处理chunkserver的metric,
-        // 目前只考虑一个物理池只对应一个逻辑池的情况
-        // 因此多个逻辑池内不会有重复的chunkserver
+        // process the metric of chunkserver.
+        // by now we only consider the case that a physical pool only
+        // corresponds to one logical pool, thus there won't be any duplicate
+        // chunkservers between logical pools
         for (auto cm : chunkServerMetricInfo) {
             auto ix = gChunkServerMetrics.find(cm.first);
             if (ix == gChunkServerMetrics.end()) {
@@ -197,7 +198,7 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         int64_t diskAlloc = 0;
         allocStatistic_->GetAllocByLogicalPool(pid, &diskAlloc);
         it->second->logicalAlloc.set_value(diskAlloc);
-        // 需乘以副本数
+        // replica number should be considered
         it->second->diskAlloc.set_value(diskAlloc * pool.GetReplicaNum());
 
         it->second->chunkSizeUsedBytes.set_value(totalChunkSizeUsedBytes);
@@ -209,7 +210,7 @@ void TopologyMetricService::UpdateTopologyMetrics() {
                 totalChunkSizeBytes / pool.GetReplicaNum());
         }
     }
-    // 移除已经不存在的逻辑池metric
+    // remove invalid logical pool metric
     for (auto iy = gLogicalPoolMetrics.begin();
         iy != gLogicalPoolMetrics.end();) {
         if (std::find(lPools.begin(), lPools.end(), iy->first) ==
@@ -220,7 +221,7 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         }
     }
 
-    // 移除不存在的chunkserver
+    // remove invalid chunkserver
     for (auto iy = gChunkServerMetrics.begin();
         iy != gChunkServerMetrics.end();) {
         if (std::find(chunkservers.begin(), chunkservers.end(), iy->first) ==
@@ -258,7 +259,9 @@ void TopologyMetricService::CalcChunkServerMetrics(
                 leaderCount++;
             }
         }
-        // scatterWidth -1 是为了除去自身
+        // scatterWidth - 1 because the chunkserver that collect the data of
+        // replica number should not be considered according to the definition
+        // of scatter width.
         pair.second.scatterWidth = scatterWidthCollector.size() - 1;
         pair.second.copysetNum = copysetCount;
         pair.second.leaderNum = leaderCount;

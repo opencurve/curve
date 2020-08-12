@@ -35,6 +35,8 @@ namespace curve {
 namespace mds {
 namespace topology {
 
+// logical pool is not designated when calling this function. When executing,
+// a logical will be chosen following the policy (randomly or weighted)
 bool TopologyChunkAllocatorImpl::AllocateChunkRandomInSingleLogicalPool(
     curve::mds::FileType fileType,
     uint32_t chunkNumber,
@@ -103,9 +105,9 @@ bool TopologyChunkAllocatorImpl::AllocateChunkRoundRobinInSingleLogicalPool(
     if (it != nextIndexMap_.end()) {
         nextIndex = it->second;
     } else {
-        // TODO(xuchaojie): 后续可以使用剩余容量最大的作为起始。
-        std::random_device rd;  // 将用于为随机数引擎获得种子
-        std::mt19937 gen(rd());  // 以播种标准 mersenne_twister_engine
+        // TODO(xuchaojie): used capacity as the standard for nextIndex
+        std::random_device rd;   // generating seed for random number engine
+        std::mt19937 gen(rd());  // engin used: mersenne_twister_engine
         std::uniform_int_distribution<> dis(0, copySetIds.size() - 1);
         nextIndex = dis(gen);
         nextIndexMap_.emplace(logicalPoolChosenId, nextIndex);
@@ -118,6 +120,7 @@ bool TopologyChunkAllocatorImpl::AllocateChunkRoundRobinInSingleLogicalPool(
                chunkNumber,
                infos);
     if (ret) {
+        // update nextIndex for a certain logical pool
         nextIndexMap_[logicalPoolChosenId] = nextIndex;
     }
     return ret;
@@ -156,6 +159,7 @@ bool TopologyChunkAllocatorImpl::ChooseSingleLogicalPool(
 
     std::map<PoolIdType, double> poolWeightMap;
     std::vector<PoolIdType> poolToChoose;
+    // consider every logical pool available
     for (auto pid : logicalPools) {
         LogicalPool lPool;
         if (!topology_->GetLogicalPool(pid, &lPool)) {
@@ -166,17 +170,18 @@ bool TopologyChunkAllocatorImpl::ChooseSingleLogicalPool(
             continue;
         }
         uint64_t diskCapacity = pPool.GetDiskCapacity();
-        // 除去预留
+        // calculate actual capacity available
         diskCapacity = diskCapacity * poolUsagePercentLimit_ / 100;
 
-        // TODO(xuchaojie): 后续若支持同一物理池创建多个逻辑池，此处需修正
+        // TODO(xuchaojie): if create more than one logical pools is supported,
+        //                  the logic here need to be fixed
         int64_t alloc = 0;
         allocStatistic_->GetAllocByLogicalPool(pid, &alloc);
 
-        // 乘以副本数
+        // multipled by replica number
         alloc *= lPool.GetReplicaNum();
 
-        // 减去已使用
+        // calculate remaining capacity
         uint64_t diskRemainning =
             (diskCapacity > alloc) ? diskCapacity - alloc : 0;
 
@@ -185,11 +190,12 @@ bool TopologyChunkAllocatorImpl::ChooseSingleLogicalPool(
                   << ", diskAlloc:" << alloc
                   << ", diskRemainning:" << diskRemainning
                   << "}";
-
+        // choose logical pool according to its weight
         if (ChoosePoolPolicy::kWeight == policy_) {
-            // 以剩余空间作为权值
+            // record capacity remaining as the weight of this logicalpool
             poolWeightMap.emplace(pid, diskRemainning);
         } else {
+            // choose logical pool randomly
             if (diskRemainning > 0) {
                 poolToChoose.push_back(pid);
             }
@@ -211,8 +217,8 @@ bool AllocateChunkPolicy::AllocateChunkRandomInSingleLogicalPool(
     std::vector<CopysetIdInfo> *infos) {
     infos->clear();
 
-    static std::random_device rd;  // 将用于为随机数引擎获得种子
-    static std::mt19937 gen(rd());  // 以播种标准 mersenne_twister_engine
+    static std::random_device rd;   // generating seed for random number engine
+    static std::mt19937 gen(rd());  // engin used: mersenne_twister_engine
     std::uniform_int_distribution<> dis(0, copySetIds.size() - 1);
 
     for (uint32_t i = 0; i < chunkNumber; i++) {
@@ -236,6 +242,7 @@ bool AllocateChunkPolicy::AllocateChunkRoundRobinInSingleLogicalPool(
     }
     infos->clear();
     uint32_t size = copySetIds.size();
+    // copysets will be chosen in rounds
     for (uint32_t i = 0; i < chunkNumber; i++) {
         uint32_t index = (*nextIndex + i) % size;
         CopysetIdInfo idInfo;
@@ -255,9 +262,13 @@ bool AllocateChunkPolicy::ChooseSingleLogicalPoolByWeight(
                    << "poolWeightMap is empty.";
         return false;
     }
-    // 将权值累加，在(0,sum)这段区间内使用标准均匀分布取随机值，
-    // 由于权值越大的区间越大，权值越小的区间越小，
-    // 从而获得加权的随机值，将不同pool的分布慢慢拉平。
+    // sum up the weight of every logical pool, thus every logical pool has its
+    // own sector [sum of weight before, sum of weight before + its own weight).
+    // Then we generate a random number within (0, sum).
+    // Here we decide which logical pool to choose by figuring out which sector
+    // the random number falls at. The heavier the weight is (higher capacity),
+    // the more likely that this logical pool to be chosen.
+    // In this way we can balance the load between different logical pools.
     std::map<double, PoolIdType> distributionMap;
     double sum = 0;
     for (auto &v : poolWeightMap) {

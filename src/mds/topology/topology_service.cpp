@@ -27,6 +27,7 @@ namespace curve {
 namespace mds {
 namespace topology {
 
+// RPC encapsulation for corresponding methods in topology_service manager
 void TopologyServiceImpl::RegistChunkServer(
     google::protobuf::RpcController* cntl_base,
     const ChunkServerRegistRequest* request,
