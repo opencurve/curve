@@ -25,6 +25,7 @@
 
 #include <bvar/bvar.h>
 #include <glog/logging.h>
+#include <butil/iobuf.h>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -44,6 +45,8 @@ namespace chunkserver {
 using curve::fs::LocalFileSystem;
 using ::curve::common::Atomic;
 using CSChunkFilePtr = std::shared_ptr<CSChunkFile>;
+
+inline void TrivialDeleter(void* ptr) {}
 
 /**
  * DataStore的配置参数
@@ -205,11 +208,24 @@ class CSDataStore {
      */
     virtual CSErrorCode WriteChunk(ChunkID id,
                                 SequenceNum sn,
-                                const char * buf,
+                                const butil::IOBuf& buf,
                                 off_t offset,
                                 size_t length,
                                 uint32_t* cost,
                                 const std::string & cloneSourceLocation = "");
+
+    // Deprecated, only use for unit & integration test
+    virtual CSErrorCode WriteChunk(
+        ChunkID id, SequenceNum sn, const char* buf, off_t offset,
+        size_t length, uint32_t* cost,
+        const std::string& cloneSourceLocation = "") {
+        butil::IOBuf data;
+        data.append_user_data(const_cast<char*>(buf), length, TrivialDeleter);
+
+        return WriteChunk(id, sn, data, offset, length, cost,
+                          cloneSourceLocation);
+    }
+
     /**
      * 创建克隆的Chunk，chunk中记录数据源位置信息
      * 该接口需要保证幂等性，重复以相同参数进行创建返回成功

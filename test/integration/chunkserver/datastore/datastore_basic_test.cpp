@@ -71,6 +71,7 @@ TEST_F(BasicTestSuit, BasicTest) {
 
     char buf1_1_1[PAGE_SIZE];
     memset(buf1_1_1, 'a', length);
+
     errorCode = dataStore_->WriteChunk(id,
                                         sn,
                                         buf1_1_1,
@@ -109,6 +110,7 @@ TEST_F(BasicTestSuit, BasicTest) {
     // chunk 存在时，覆盖写
     char buf1_1_2[PAGE_SIZE];
     memset(buf1_1_2, 'b', length);
+
     errorCode = dataStore_->WriteChunk(id,
                                        sn,
                                        buf1_1_2,
@@ -132,6 +134,7 @@ TEST_F(BasicTestSuit, BasicTest) {
     memset(buf1_1_3, 'c', length);
     offset = PAGE_SIZE;
     length = PAGE_SIZE;
+
     errorCode = dataStore_->WriteChunk(id,
                                        sn,
                                        buf1_1_3,
@@ -156,9 +159,13 @@ TEST_F(BasicTestSuit, BasicTest) {
     memset(buf1_1_4, 'd', length);
     offset = PAGE_SIZE;
     length = 2 * PAGE_SIZE;
+
+    butil::IOBuf iobuf1_1_4;
+    iobuf1_1_4.append(buf1_1_4, length);
+
     errorCode = dataStore_->WriteChunk(id,
                                        sn,
-                                       buf1_1_4,
+                                       iobuf1_1_4,
                                        offset,
                                        length,
                                        nullptr);

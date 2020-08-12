@@ -150,9 +150,9 @@ class ExecWrite : public ExecStep {
     void Exec() override {
         char* buf = new char[data_.length];
         memset(buf, data_.data, data_.length);
+
         (*datastore_)->WriteChunk(id_, sn_, buf,
                                   data_.offset, data_.length, nullptr);
-        delete [] buf;
     }
 
     void Dump() override {

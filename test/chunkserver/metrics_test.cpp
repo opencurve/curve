@@ -468,8 +468,10 @@ TEST_F(CSMetricTest, CountTest) {
     char buf[PAGE_SIZE] = {0};
     off_t offset = 0;
     size_t length = PAGE_SIZE;
+    butil::IOBuf dataBuf;
+    dataBuf.append(buf, PAGE_SIZE);
     ASSERT_EQ(CSErrorCode::Success,
-              datastore->WriteChunk(id, seq, buf, offset, length, nullptr));
+              datastore->WriteChunk(id, seq, dataBuf, offset, length, nullptr));
     ASSERT_EQ(1, copysetMetric->GetChunkCount());
     ASSERT_EQ(0, copysetMetric->GetSnapshotCount());
     ASSERT_EQ(0, copysetMetric->GetCloneChunkCount());
@@ -480,7 +482,7 @@ TEST_F(CSMetricTest, CountTest) {
     // 增加版本号，生成快照
     seq = 2;
     ASSERT_EQ(CSErrorCode::Success,
-              datastore->WriteChunk(id, seq, buf, offset, length, nullptr));
+              datastore->WriteChunk(id, seq, dataBuf, offset, length, nullptr));
     ASSERT_EQ(1, copysetMetric->GetChunkCount());
     ASSERT_EQ(1, copysetMetric->GetSnapshotCount());
     ASSERT_EQ(0, copysetMetric->GetCloneChunkCount());
@@ -506,8 +508,10 @@ TEST_F(CSMetricTest, CountTest) {
 
     // clone chunk被覆盖写一遍,clone chun转成普通chunk
     char* buf2 = new char[CHUNK_SIZE];
+    butil::IOBuf dataBuf2;
+    dataBuf.append(buf2, CHUNK_SIZE);
     ASSERT_EQ(CSErrorCode::Success,
-              datastore->WriteChunk(id2, 1, buf2, 0, CHUNK_SIZE, nullptr));
+              datastore->WriteChunk(id2, 1, dataBuf, 0, CHUNK_SIZE, nullptr));
     delete[] buf2;
     ASSERT_EQ(3, copysetMetric->GetChunkCount());
     ASSERT_EQ(0, copysetMetric->GetSnapshotCount());

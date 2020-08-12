@@ -40,6 +40,7 @@ TEST_F(StressTestSuit, StressTest) {
     off_t offset = 0;
     size_t length = PAGE_SIZE;
     char buf[PAGE_SIZE] = {0};
+
     Atomic<SequenceNum> sn(1);
     static unsigned int seed = 1;
 

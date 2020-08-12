@@ -23,10 +23,12 @@
 #ifndef SRC_FS_EXT4_FILESYSTEM_IMPL_H_
 #define SRC_FS_EXT4_FILESYSTEM_IMPL_H_
 
+#include <butil/iobuf.h>
+
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <map>
 
 #include "src/fs/local_filesystem.h"
 #include "src/fs/wrap_posix.h"
@@ -52,6 +54,7 @@ class Ext4FileSystemImpl : public LocalFileSystem {
     int List(const string& dirPath, vector<std::string>* names) override;
     int Read(int fd, char* buf, uint64_t offset, int length) override;
     int Write(int fd, const char* buf, uint64_t offset, int length) override;
+    int Write(int fd, butil::IOBuf buf, uint64_t offset, int length) override;
     int Append(int fd, const char* buf, int length) override;
     int Fallocate(int fd, int op, uint64_t offset,
                   int length) override;

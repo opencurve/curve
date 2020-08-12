@@ -329,6 +329,33 @@ int Ext4FileSystemImpl::Write(int fd,
     return length;
 }
 
+int Ext4FileSystemImpl::Write(int fd,
+                              butil::IOBuf buf,
+                              uint64_t offset,
+                              int length) {
+    int remainLength = length;
+    int relativeOffset = 0;
+    int retryTimes = 0;
+
+    while (remainLength > 0) {
+        ssize_t ret = buf.pcut_into_file_descriptor(fd, offset, remainLength);
+        if (ret < 0) {
+            if (errno == EINTR || retryTimes < MAX_RETYR_TIME) {
+                ++retryTimes;
+                continue;
+            }
+            LOG(ERROR) << "IOBuf::pcut_into_file_descriptor failed: "
+                       << strerror(errno);
+            return -errno;
+        }
+
+        remainLength -= ret;
+        offset += ret;
+    }
+
+    return length;
+}
+
 int Ext4FileSystemImpl::Append(int fd,
                                const char *buf,
                                int length) {

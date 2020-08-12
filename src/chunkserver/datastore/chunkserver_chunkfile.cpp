@@ -265,7 +265,7 @@ CSErrorCode CSChunkFile::LoadSnapshot(SequenceNum sn) {
 }
 
 CSErrorCode CSChunkFile::Write(SequenceNum sn,
-                               const char * buf,
+                               const butil::IOBuf& buf,
                                off_t offset,
                                size_t length,
                                uint32_t* cost) {

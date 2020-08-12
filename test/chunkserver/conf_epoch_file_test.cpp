@@ -36,6 +36,7 @@ using ::testing::_;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::AnyNumber;
+using ::testing::Matcher;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
@@ -188,7 +189,7 @@ TEST(ConfEpochFileTest, load_save) {
         CopysetID loadCopysetID;
         uint64_t loadEpoch;
         EXPECT_CALL(*fs, Open(_, _)).Times(1).WillOnce(Return(10));
-        EXPECT_CALL(*fs, Write(_, _, _, _)).Times(1)
+        EXPECT_CALL(*fs, Write(_, Matcher<const char*>(_), _, _)).Times(1)
             .WillOnce(Return(-1));
         EXPECT_CALL(*fs, Close(_)).Times(1).WillOnce(Return(0));
         ASSERT_EQ(-1, confEpochFile.Save(path,
@@ -204,7 +205,7 @@ TEST(ConfEpochFileTest, load_save) {
             = std::make_shared<MockLocalFileSystem>();
         ConfEpochFile confEpochFile(fs);
         EXPECT_CALL(*fs, Open(_, _)).Times(1).WillOnce(Return(10));
-        EXPECT_CALL(*fs, Write(_, _, _, _)).Times(1)
+        EXPECT_CALL(*fs, Write(_, Matcher<const char*>(_), _, _)).Times(1)
             .WillOnce(Return(jsonStr.size()));
         EXPECT_CALL(*fs, Close(_)).Times(1).WillOnce(Return(0));
         EXPECT_CALL(*fs, Fsync(_)).Times(1).WillOnce(Return(-1));
