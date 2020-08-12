@@ -18,7 +18,6 @@
 install_with_deb: false
 tmp_dir: /tmp/curve-ansible-tmp-files
 curve_bin_dir: /usr/bin
-curve_lib_dir: /usr/lib
 curve_include_dir: /usr/include
 curvefs_dir: /usr/curvefs
 local_mds_package_path: ../curve-mds

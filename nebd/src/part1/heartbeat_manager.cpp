@@ -64,8 +64,6 @@ void HeartbeatManager::HeartBetaThreadFunc() {
         sleeper_.wait_for(std::chrono::seconds(
             heartbeatOption_.intervalS));
     }
-
-    LOG(INFO) << "Heartbeat thread stopped";
 }
 
 void HeartbeatManager::Run() {
@@ -79,8 +77,6 @@ void HeartbeatManager::Stop() {
         running_ = false;
         sleeper_.interrupt();
         heartbeatThread_.join();
-
-        LOG(INFO) << "Connection Manager stopped success";
     }
 }
 

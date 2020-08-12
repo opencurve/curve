@@ -42,7 +42,6 @@ class InterruptibleSleeper {
     void interrupt() {
         std::unique_lock<std::mutex> lock(m);
         terminate = true;
-        LOG(WARNING) << "interrupt sleeper.";
         cv.notify_all();
     }
  private:

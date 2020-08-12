@@ -20,3 +20,4 @@ package_name:
 package_version:
 lib_installed: false
 daemon_installed: false
+curve_lib_dir:
