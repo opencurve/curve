@@ -46,35 +46,35 @@ struct ChunkServerMetric {
         "topology_metric_chunkserver_Id_";
     // scatterWidth
     bvar::Status<uint32_t> scatterWidth;
-    // copyset数量
+    // copyset numbers
     bvar::Status<uint32_t> copysetNum;
-    // leader数量
+    // leader numbers
     bvar::Status<uint32_t> leaderNum;
 
-    // 磁盘容量
+    // disk capacity
     bvar::Status<uint64_t> diskCapacity;
-    // 磁盘使用量
+    // disk utilization
     bvar::Status<uint64_t> diskUsed;
 
-    // 心跳上报的leader数量
+    // number of leaders reported by heartbeat
     bvar::Status<uint32_t> leaderCount;
-    // 心跳上报的copyset数量
+    // number of copyset reported by heartbeat
     bvar::Status<uint32_t> copysetCount;
-    // 读带宽
+    // bandwidth of reading
     bvar::Status<uint32_t> readRate;
-    // 写带宽
+    // bandwidth of writing
     bvar::Status<uint32_t> writeRate;
-    // 读iops
+    // IOPS of reading
     bvar::Status<uint32_t> readIOPS;
-    // 写iops
+    // IOPS of writing
     bvar::Status<uint32_t> writeIOPS;
-    // 已使用的chunk占用的磁盘空间
+    // disk capacity of chunkfilepool occupied by used chunks
     bvar::Status<uint64_t> chunkSizeUsedBytes;
-    // chunkfilepool中未使用的chunk占用的磁盘空间
+    // disk capacity of chunkfilepool occupied by unused chunks
     bvar::Status<uint64_t> chunkSizeLeftBytes;
-    // 回收站中chunk占用的磁盘空间
+    // disk capacity of recycle bin occupied by chunks
     bvar::Status<uint64_t> chunkSizeTrashedBytes;
-    // 总容量
+    // total capacity
     bvar::Status<uint64_t> chunkSizeTotalBytes;
 
     explicit ChunkServerMetric(ChunkServerIdType csId) :
@@ -114,61 +114,62 @@ using ChunkServerMetricPtr = std::unique_ptr<ChunkServerMetric>;
 struct LogicalPoolMetric {
     const std::string kTopologyLogicalPoolMetricPrefix =
         "topology_metric_logicalPool_";
-    // chunkserver数量
+    // chunkserver number
     bvar::Status<uint32_t> chunkServerNum;
-    // copyset数量
+    // copyset number
     bvar::Status<uint32_t> copysetNum;
-    // scatterWidth平均值
+    // average scatterWidth
     bvar::Status<double> scatterWidthAvg;
-    // scatterWidth方差
+    // variance of scatterWidth
     bvar::Status<double> scatterWidthVariance;
-    // scatterWidth标准差
+    // standard deviation of scatterWidth
     bvar::Status<double> scatterWidthStandardDeviation;
-    // scatterWidth极差
+    // range of scatterWidth
     bvar::Status<double> scatterWidthRange;
-    // scatterWidth最小值
+    // minimum scatterWidth
     bvar::Status<double> scatterWidthMin;
-    // scatterWidth最大值
+    // maximum scatterWidth
     bvar::Status<double> scatterWidthMax;
-    // copyset数量平均值
+    // average copyset number
     bvar::Status<double> copysetNumAvg;
-    // copyset数量方差
+    // variance of copyset number
     bvar::Status<double> copysetNumVariance;
-    // copyset数量标准差
+    // standard deviation of copyset number
     bvar::Status<double> copysetNumStandardDeviation;
-    // copyset数量极差
+    // range of copyset number
     bvar::Status<double> copysetNumRange;
-    // copyset数量最小值
+    // minimum copyset number
     bvar::Status<double> copysetNumMin;
-    // copyset数量最大值
+    // maximum copyset number
     bvar::Status<double> copysetNumMax;
-    // leader数量平均值
+    // average value of leader number
     bvar::Status<double> leaderNumAvg;
-    // leader数量方差
+    // variance of leader number
     bvar::Status<double> leaderNumVariance;
-    // leader数量标准差
+    // standard deviation of leader number
     bvar::Status<double> leaderNumStandardDeviation;
-    // leader数量极差
+    // range of leader number
     bvar::Status<double> leaderNumRange;
-    // leader数量最小值
+    // minimum leader number
     bvar::Status<double> leaderNumMin;
-    // leader数量最大值
+    // maximum leader number
     bvar::Status<double> leaderNumMax;
 
-    // 整个逻辑池的容量,即对应物理池的容量
+    // capacity of the whole logical pool, which is also
+    // the capacity of the whole physical pool
     bvar::Status<uint64_t> diskCapacity;
-    // 整个逻辑池的分配量,即对应物理池的分配量
+    // capacity allocated of the entire logical pool / physical pool
     bvar::Status<uint64_t> diskAlloc;
-    // 整个逻辑池的使用量,即对应物理池的使用量
+    // utilization of the entire logical pool / physical pool
     bvar::Status<uint64_t> diskUsed;
 
-    // 已使用的chunk占用的磁盘空间
+    // disk capacity occupied by used chunks
     bvar::Status<uint64_t> chunkSizeUsedBytes;
-    // chunkfilepool中未使用的chunk占用的磁盘空间
+    // disk capacity occupied by unused chunks in chunkfilepool
     bvar::Status<uint64_t> chunkSizeLeftBytes;
-    // 回收站中chunk占用的磁盘空间
+    // capacity occupied by chunks in recycle bin
     bvar::Status<uint64_t> chunkSizeTrashedBytes;
-    // 总容量
+    // total capacity
     bvar::Status<uint64_t> chunkSizeTotalBytes;
     // 逻辑总容量
     bvar::Status<uint64_t> logicalCapacity;
@@ -245,9 +246,9 @@ class TopologyMetricService {
     struct ChunkServerMetricInfo {
         // scatterWidth
         uint32_t scatterWidth;
-        // copyset Num
+        // copyset number
         uint32_t copysetNum;
-        // leader Num
+        // leader number
         uint32_t leaderNum;
 
         ChunkServerMetricInfo() :
@@ -257,41 +258,41 @@ class TopologyMetricService {
     };
 
     struct LogicalPoolMetricInfo {
-        // scatterWidth平均值
+        // average scatterWidth
         double scatterWidthAvg;
-        // scatterWidth方差
+        // variance of scatterWidth
         double scatterWidthVariance;
-        // scatterWidth标准差
+        // standard deviation of scatterWidth
         double scatterWidthStandardDeviation;
-        // scatterWidth极差
+        // range of scatterWidth
         double scatterWidthRange;
-        // scatterWidth最小值
+        // minimum scatterWidth
         double scatterWidthMin;
-        // scatterWidth最大值
+        // maximum scatterWidth
         double scatterWidthMax;
-        // copyset数量平均值
+        // average value of copyset number
         double copysetNumAvg;
-        // copyset数量方差
+        // variance of copyset number
         double copysetNumVariance;
-        // copyset数量标准差
+        // standard deviation of copyset
         double copysetNumStandardDeviation;
-        // copyset数量极差
+        // range if copyset number
         double copysetNumRange;
-        // copyset数量最小值
+        // minumum copyset number
         double copysetNumMin;
-        // copyset数量最大值
+        // maximum copyset number
         double copysetNumMax;
-        // leader数量平均值
+        // average leader number
         double leaderNumAvg;
-        // leader数量方差
+        // variance of leader number
         double leaderNumVariance;
-        // leader数量标准差
+        // standard deviation of leader number
         double leaderNumStandardDeviation;
-        // leader数量极差
+        // range of leader number
         double leaderNumRange;
-        // leader数量最小值
+        // minimum leader number
         double leaderNumMin;
-        // leader数量最大值
+        // maximum leader number
         double leaderNumMax;
         LogicalPoolMetricInfo() :
             scatterWidthAvg(0.0),
@@ -335,19 +336,19 @@ class TopologyMetricService {
     void UpdateTopologyMetrics();
 
     /**
-     * @brief 计算chunkserver的metric数据
+     * @brief calculate metric data of chunkserver
      *
-     * @param copysets CopySetInfo列表
-     * @param[out] csMetricInfoMap metric数据
+     * @param copysets CopySetInfo list
+     * @param[out] csMetricInfoMap metric data
      */
     void CalcChunkServerMetrics(const std::vector<CopySetInfo> &copysets,
         std::map<ChunkServerIdType, ChunkServerMetricInfo> *csMetricInfoMap);
 
     /**
-     * @brief 计算逻辑池的metric数据
+     * @brief calculate metric data of logical pool
      *
-     * @param csMetricInfoMap chunkserver的metric数据
-     * @param[out] poolMetricInfo 逻辑池的metric数据
+     * @param csMetricInfoMap metric data of chunkserver
+     * @param[out] poolMetricInfo metric data of logical pool
      */
     void CalcLogicalPoolMetrics(
         const std::map<ChunkServerIdType,
@@ -356,36 +357,36 @@ class TopologyMetricService {
 
  private:
     /**
-     * @brief 后台线程执行函数，定期执行UpdateTopologyMetrics
+     * @brief backend function that executes UpdateTopologyMetrics regularly
      */
     void BackEndFunc();
 
  private:
     /**
-     * @brief topology模块
+     * @brief topology module
      */
     std::shared_ptr<Topology> topo_;
     /**
-     * @brief topology统计模块
+     * @brief topology statistic module
      */
     std::shared_ptr<TopologyStat> topoStat_;
     /**
-     * @brief 分配统计模块
+     * @brief allocation statistic module
      */
     std::shared_ptr<AllocStatistic> allocStatistic_;
     /**
-     * @brief 后台线程
+     * @brief backend thread
      */
     curve::common::Thread backEndThread_;
     /**
-     * @brief 是否停止后台线程的标准位
+     * @brief flag marking out stopping the backend thread or not
      */
     curve::common::Atomic<bool> isStop_;
 
     InterruptibleSleeper sleeper_;
 
     /**
-     * @brief 拓扑配置项
+     * @brief topology options
      */
     TopologyOption option_;
 };
