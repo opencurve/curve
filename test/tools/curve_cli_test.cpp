@@ -26,7 +26,7 @@
 #include <brpc/server.h>
 #include <string>
 #include "src/tools/curve_cli.h"
-#include "test/tools/mock_cli_service.h"
+#include "test/tools/mock/mock_cli_service.h"
 
 using ::testing::_;
 using ::testing::Return;

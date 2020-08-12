@@ -587,23 +587,17 @@ TEST_F(CurveFSTest, testGetAllocatedSize) {
     fileInfo.set_filetype(FileType::INODE_PAGEFILE);
     fileInfo.set_segmentsize(segmentSize);
     std::vector<PageFileSegment> segments;
-    for (int i = 0; i < 3; ++i) {
-        PageFileSegment segment;
+    PageFileSegment segment;
+    for (int i = 0; i < 2; ++i) {
         segment.set_logicalpoolid(1);
         segment.set_segmentsize(segmentSize);
         segment.set_chunksize(curvefs_->GetDefaultChunkSize());
         segment.set_startoffset(i);
         segments.emplace_back(segment);
     }
+    segment.set_logicalpoolid(2);
+    segments.emplace_back(segment);
 
-    LogicalPool lgPool1;
-    LogicalPool::RedundanceAndPlaceMentPolicy rap1;
-    rap1.pageFileRAP.replicaNum = 4;
-    lgPool1.SetRedundanceAndPlaceMentPolicy(rap1);
-    LogicalPool lgPool2;
-    LogicalPool::RedundanceAndPlaceMentPolicy rap2;
-    rap2.pageFileRAP.replicaNum = 3;
-    lgPool2.SetRedundanceAndPlaceMentPolicy(rap2);
 
     // test page file normal
     {
@@ -615,15 +609,12 @@ TEST_F(CurveFSTest, testGetAllocatedSize) {
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(segments),
             Return(StoreStatus::OK)));
-        EXPECT_CALL(*topology_, GetLogicalPool(_, _)).Times(3)
-        .WillOnce(
-            DoAll(SetArgPointee<1>(lgPool1), Return(true)))
-        .WillRepeatedly(
-            DoAll(SetArgPointee<1>(lgPool2), Return(true)));
         ASSERT_EQ(StatusCode::kOK,
                     curvefs_->GetAllocatedSize("/tests", &allocSize));
-        ASSERT_EQ(3 * segmentSize, allocSize.allocatedSize);
-        ASSERT_EQ(10 * segmentSize, allocSize.physicalAllocatedSize);
+        ASSERT_EQ(3 * segmentSize, allocSize.total);
+        std::unordered_map<PoolIdType, uint64_t> expected =
+                        {{1, 2 * segmentSize}, {2, segmentSize}};
+        ASSERT_EQ(expected, allocSize.allocSizeMap);
     }
     // test directory normal
     {
@@ -645,14 +636,11 @@ TEST_F(CurveFSTest, testGetAllocatedSize) {
         .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<1>(segments),
             Return(StoreStatus::OK)));
-        EXPECT_CALL(*topology_, GetLogicalPool(_, _)).Times(9)
-        .WillOnce(DoAll(SetArgPointee<1>(lgPool1), Return(true)))
-        .WillRepeatedly(
-            DoAll(SetArgPointee<1>(lgPool2), Return(true)));
         ASSERT_EQ(StatusCode::kOK,
                     curvefs_->GetAllocatedSize("/tests", &allocSize));
-        ASSERT_EQ(9 * segmentSize, allocSize.allocatedSize);
-        ASSERT_EQ(28 * segmentSize, allocSize.physicalAllocatedSize);
+        ASSERT_EQ(9 * segmentSize, allocSize.total);
+        std::unordered_map<PoolIdType, uint64_t> expected =
+                        {{1, 6 * segmentSize}, {2, 3 * segmentSize}};
     }
     // test GetFile fail
     {
@@ -699,20 +687,77 @@ TEST_F(CurveFSTest, testGetAllocatedSize) {
         ASSERT_EQ(StatusCode::kStorageError,
                     curvefs_->GetAllocatedSize("/tests", &allocSize));
     }
-    // test get logical pool fail
+}
+
+TEST_F(CurveFSTest, testGetFileSize) {
+    uint64_t fileSize;
+    FileInfo  fileInfo;
+    fileInfo.set_id(0);
+    fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+    fileInfo.set_length(10 * kGB);
+
+    // test page file normal
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
             Return(StoreStatus::OK)));
-        EXPECT_CALL(*storage_, ListSegment(_, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(segments),
+        ASSERT_EQ(StatusCode::kOK,
+                    curvefs_->GetFileSize("/tests", &fileSize));
+        ASSERT_EQ(10 * kGB, fileSize);
+    }
+    // test directory normal
+    {
+        FileInfo dirInfo;
+        dirInfo.set_filetype(FileType::INODE_DIRECTORY);
+        std::vector<FileInfo> files;
+        for (int i = 0; i < 3; ++i) {
+            files.emplace_back(fileInfo);
+        }
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(dirInfo),
             Return(StoreStatus::OK)));
-        EXPECT_CALL(*topology_, GetLogicalPool(_, _)).Times(1)
-        .WillOnce(Return(false));
-        ASSERT_EQ(StatusCode::KInternalError,
-                    curvefs_->GetAllocatedSize("/tests", &allocSize));
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(files),
+                        Return(StoreStatus::OK)));
+        ASSERT_EQ(StatusCode::kOK,
+                    curvefs_->GetFileSize("/tests", &fileSize));
+        ASSERT_EQ(30 * kGB, fileSize);
+    }
+    // test GetFile fail
+    {
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+        ASSERT_EQ(StatusCode::kFileNotExists,
+                    curvefs_->GetFileSize("/tests", &fileSize));
+    }
+    // test file type not supported
+    {
+        FileInfo appendFileInfo;
+        appendFileInfo.set_filetype(INODE_APPENDFILE);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(appendFileInfo),
+            Return(StoreStatus::OK)));
+        ASSERT_EQ(StatusCode::kNotSupported,
+                    curvefs_->GetFileSize("/tests", &fileSize));
+    }
+    // test list directory fail
+    {
+        FileInfo dirInfo;
+        dirInfo.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(dirInfo),
+            Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+        ASSERT_EQ(StatusCode::kStorageError,
+                    curvefs_->GetFileSize("/tests", &fileSize));
     }
 }
 

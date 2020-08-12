@@ -21,8 +21,8 @@
  */
 
 
-#ifndef TEST_TOOLS_MOCK_ETCD_CLIENT_H_
-#define TEST_TOOLS_MOCK_ETCD_CLIENT_H_
+#ifndef TEST_TOOLS_MOCK_MOCK_ETCD_CLIENT_H_
+#define TEST_TOOLS_MOCK_MOCK_ETCD_CLIENT_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -46,4 +46,4 @@ class MockEtcdClient : public EtcdClient {
 };
 }  // namespace tool
 }  // namespace curve
-#endif  // TEST_TOOLS_MOCK_ETCD_CLIENT_H_
+#endif  // TEST_TOOLS_MOCK_MOCK_ETCD_CLIENT_H_

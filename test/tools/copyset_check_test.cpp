@@ -23,7 +23,7 @@
 #include <gtest/gtest.h>
 #include "src/tools/copyset_check.h"
 #include "src/tools/copyset_check_core.h"
-#include "test/tools/mock_copyset_check_core.h"
+#include "test/tools/mock/mock_copyset_check_core.h"
 
 using ::testing::_;
 using ::testing::Return;

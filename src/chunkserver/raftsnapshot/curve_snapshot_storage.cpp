@@ -48,6 +48,12 @@ namespace braft {
 namespace curve {
 namespace chunkserver {
 
+void RegisterCurveSnapshotStorageOrDie() {
+    static CurveSnapshotStorage snapshotStorage;
+    braft::snapshot_storage_extension()->RegisterOrDie(
+                                    "curve", &snapshotStorage);
+}
+
 butil::EndPoint CurveSnapshotStorage::_addr;
 
 const char* CurveSnapshotStorage::_s_temp_path = "temp";

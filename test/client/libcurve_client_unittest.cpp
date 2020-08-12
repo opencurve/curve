@@ -20,23 +20,30 @@
  * Author: wuhanqing
  */
 
-#include <gtest/gtest.h>
+#include <braft/configuration.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <braft/configuration.h>
+#include <gtest/gtest.h>
 
 #include <string>
 
 #include "include/client/libcurve.h"
+#include "src/common/concurrent/count_down_event.h"
+#include "test/client/fake/fakeMDS.h"
+#include "test/client/fake/mock_schedule.h"
+#include "test/client/mock_file_client.h"
 #include "test/integration/cluster_common/cluster.h"
 #include "test/util/config_generator.h"
-#include "test/client/fake/mock_schedule.h"
-#include "test/client/fake/fakeMDS.h"
-#include "test/client/mock_file_client.h"
+
+DECLARE_string(chunkserver_list);
+extern std::string configpath;
+
+namespace curve {
+namespace client {
 
 using curve::client::EndPoint;
-using ::testing::Return;
 using ::testing::_;
+using ::testing::Return;
 
 const uint32_t kBufSize = 4 * 1024;
 const uint64_t kFileSize = 10ul * 1024 * 1024 * 1024;
@@ -44,16 +51,11 @@ const uint64_t kNewSize = 20ul * 1024 * 1024 * 1024;
 const char* kFileName = "1_userinfo_test.img";
 const char* kWrongFileName = "xxxxx";
 
-DECLARE_string(chunkserver_list);
-
-extern std::string configpath;
+curve::common::CountDownEvent event;
 
 void LibcbdLibcurveTestCallback(CurveAioContext* context) {
-    context->op = LIBCURVE_OP_MAX;
+    event.Signal();
 }
-
-namespace curve {
-namespace client {
 
 class CurveClientTest : public ::testing::Test {
  public:
@@ -139,24 +141,23 @@ TEST_F(CurveClientTest, AioReadWriteTest) {
     CurveAioContext aioctx;
     aioctx.buf = buffer;
     aioctx.offset = 0;
-    aioctx.length = BUFSIZ;
+    aioctx.length = kBufSize;
     aioctx.cb = LibcbdLibcurveTestCallback;
+    aioctx.op = LIBCURVE_OP_WRITE;
 
     memset(buffer, 'a', kBufSize);
 
-    aioctx.op = LIBCURVE_OP_WRITE;
+    event.Reset(1);
     ASSERT_EQ(0, client_.AioWrite(fd, &aioctx));
-
-    while (aioctx.op != LIBCURVE_OP_MAX) {
-        usleep(10 * 1000);
-    }
+    event.Wait();
+    ASSERT_EQ(aioctx.ret, aioctx.length);
 
     aioctx.op = LIBCURVE_OP_READ;
+    memset(buffer, '0', kBufSize);
+    event.Reset(1);
     ASSERT_EQ(0, client_.AioRead(fd, &aioctx));
-
-    while (aioctx.op != LIBCURVE_OP_MAX) {
-        usleep(10  * 1000);
-    }
+    event.Wait();
+    ASSERT_EQ(aioctx.ret, aioctx.length);
 
     for (int i = 0; i < kBufSize; ++i) {
         ASSERT_EQ(buffer[i], 'a');
@@ -168,12 +169,12 @@ TEST_F(CurveClientTest, AioReadWriteTest) {
 }  // namespace client
 }  // namespace curve
 
-std::string mdsMetaServerAddr = "127.0.0.1:19151";     // NOLINT
-uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
-uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
-std::string configpath = "./test/client/testConfig/libcurve_client_test.conf";   // NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:19151";                   // NOLINT
+uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;                    // NOLINT
+uint32_t chunk_size = 4 * 1024 * 1024;                               // NOLINT
+std::string configpath = "./test/client/libcurve_client_test.conf";  // NOLINT
 
-const std::vector<std::string> clientConf {
+const std::vector<std::string> clientConf{
     std::string("mds.listen.addr=127.0.0.1:19151"),
     std::string("global.logPath=./runlog/"),
     std::string("chunkserver.rpcTimeoutMS=1000"),
@@ -186,16 +187,15 @@ const std::vector<std::string> clientConf {
     std::string("schedule.threadpoolSize=2"),
 };
 
-int main(int argc, char ** argv) {
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
 
     curve::CurveCluster* cluster = new curve::CurveCluster();
 
-    cluster->PrepareConfig<curve::ClientConfigGenerator>(
-        configpath, clientConf);
+    cluster->PrepareConfig<curve::ClientConfigGenerator>(configpath,
+                                                         clientConf);
 
     int ret = RUN_ALL_TESTS();
     return ret;
 }
-

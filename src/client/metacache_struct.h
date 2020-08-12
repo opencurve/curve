@@ -48,26 +48,37 @@ operator==(const ChunkServerAddr& addr1, const ChunkServerAddr& addr2) {
 // 包含当前chunkserver的id信息，以及chunkserver的地址信息
 typedef struct CURVE_CACHELINE_ALIGNMENT CopysetPeerInfo {
     // 当前chunkserver节点的ID
-    ChunkServerID chunkserverid_;
-    // 当前chunkserver节点的地址信息
-    ChunkServerAddr      csaddr_;
+    ChunkServerID chunkserverID;
+    // 当前chunkserver节点的内部地址
+    ChunkServerAddr internalAddr;
+    // 当前chunkserver节点的外部地址
+    ChunkServerAddr externalAddr;
 
-    CopysetPeerInfo():chunkserverid_(0) {
+    CopysetPeerInfo() : chunkserverID(0) {
     }
 
-    CopysetPeerInfo(ChunkServerID cid, ChunkServerAddr addr_) {
-        this->chunkserverid_ = cid;
-        this->csaddr_ = addr_;
-    }
+    CopysetPeerInfo(const ChunkServerID& cid, const ChunkServerAddr& internal,
+                    const ChunkServerAddr& external)
+                        : chunkserverID(cid),
+                          internalAddr(internal),
+                          externalAddr(external) {}
 
     CopysetPeerInfo& operator=(const CopysetPeerInfo& other) {
-        this->chunkserverid_ = other.chunkserverid_;
-        this->csaddr_ = other.csaddr_;
+        this->chunkserverID = other.chunkserverID;
+        this->internalAddr = other.internalAddr;
+        this->externalAddr = other.externalAddr;
         return *this;
     }
 
     bool operator==(const CopysetPeerInfo& other) {
-        return csaddr_ == other.csaddr_;
+        return this->internalAddr == other.internalAddr
+               && this->externalAddr == other.externalAddr;
+    }
+
+    bool IsEmpty() {
+        return this->chunkserverID == 0
+               && this->internalAddr.IsEmpty()
+               && this->externalAddr.IsEmpty();
     }
 } CopysetPeerInfo_t;
 
@@ -162,7 +173,7 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
             if (csinfos_.size() < leaderindex_) {
                 return false;
             } else {
-                *id = csinfos_[leaderindex_].chunkserverid_;
+                *id = csinfos_[leaderindex_].chunkserverID;
                 return true;
             }
         } else {
@@ -171,71 +182,28 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     }
 
     /**
-     * 更新leader信息，并且获取其chunkserverID
-     * @param: chunkserverid是出参，为要获取的chunkserver信息
-     * @param: ep是当前leader的地址信息
-     * @param: newleader是否将新的leader信息push到copysetinfo中
-     * @return: 成功返回0，否则返回-1
-     */
-    int UpdateLeaderAndGetChunkserverID(ChunkServerID* chunkserverid,
-        const EndPoint& ep, bool newleader = true) {
-        spinlock_.Lock();
-
-        uint16_t tempindex = 0;
-        for (auto iter : csinfos_) {
-            if (iter.csaddr_.addr_ == ep) {
-                *chunkserverid = iter.chunkserverid_;
-                break;
-            }
-            tempindex++;
-        }
-        leaderindex_ = tempindex;
-
-        if (leaderindex_ >= csinfos_.size() && newleader) {
-            /**
-             * client在接收到RPC返回redirect回复的时候会更新metacache的leader信息，
-             * 如果返回的redirect chunkserver不在这个metacache里，则直接将这个新的
-             * leader插入到metacache中。
-             */
-            ChunkServerAddr pd(ep);
-            csinfos_.push_back(CopysetPeerInfo(*chunkserverid, pd));
-            spinlock_.UnLock();
-            // TODO(tongguangxun): pull latest copyset info
-            return 0;
-        }
-
-        if (leaderindex_ < csinfos_.size()) {
-            spinlock_.UnLock();
-            return 0;
-        }
-        spinlock_.UnLock();
-        return -1;
-    }
-
-    /**
-     * 如果leader的addr变更了，那么要变更chunkserverid到addr的映射
-     * @param: id为新leader的id，如果该id在copyset中则更新其addr，
-     *          如果不在就插入到copyset
+     * 更新leaderindex，如果leader不在当前配置组中，则返回-1
      * @param: addr为新的leader的地址信息
      */
-    int UpdateLeaderInfo(ChunkServerID id, const ChunkServerAddr& addr) {
+    int UpdateLeaderInfo(const ChunkServerAddr& addr,
+                         CopysetPeerInfo_t csInfo = CopysetPeerInfo()) {
         spinlock_.Lock();
         bool exists = false;
         uint16_t tempindex = 0;
         for (auto iter : csinfos_) {
-            if (iter.csaddr_ == addr) {
+            if (iter.internalAddr == addr || iter.externalAddr == addr) {
                 exists = true;
                 break;
             }
             tempindex++;
         }
 
-        // 新的addr不在当前copyset内，如果其id合法，那么将其插入copyset
-        if (!exists && id) {
-            csinfos_.push_back(CopysetPeerInfo(id, addr));
+        // 新的addr不在当前copyset内，如果csInfo不为空，那么将其插入copyset
+        if (!exists && !csInfo.IsEmpty()) {
+            csinfos_.push_back(csInfo);
         } else if (exists == false) {
             LOG(WARNING) << addr.ToString() << " not in current copyset and "
-                         << "its chunkserverid is not valid " << id;
+                         << "its chunkserver info not supplied";
             spinlock_.UnLock();
             return -1;
         }
@@ -255,8 +223,8 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
             return -1;
         }
 
-        *chunkserverid = csinfos_[leaderindex_].chunkserverid_;
-        *ep = csinfos_[leaderindex_].csaddr_.addr_;
+        *chunkserverid = csinfos_[leaderindex_].chunkserverID;
+        *ep = csinfos_[leaderindex_].externalAddr.addr_;
         return 0;
     }
 
@@ -291,7 +259,7 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
      */
     bool HasChunkServerInCopyset(const ChunkServerAddr& addr) const {
         for (const auto& peer : csinfos_) {
-            if (peer.csaddr_ == addr) {
+            if (peer.internalAddr == addr || peer.externalAddr == addr) {
                 return true;
             }
         }

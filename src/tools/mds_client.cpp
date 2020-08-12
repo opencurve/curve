@@ -108,10 +108,7 @@ int MDSClient::InitDummyServerMap(const std::string& dummyPort) {
 
 int MDSClient::GetFileInfo(const std::string &fileName,
                            FileInfo* fileInfo) {
-    if (!fileInfo) {
-        std::cout << "The argument is a null pointer!" << std::endl;
-        return -1;
-    }
+    assert(fileInfo != nullptr);
     curve::mds::GetFileInfoRequest request;
     curve::mds::GetFileInfoResponse response;
     request.set_filename(fileName);
@@ -139,12 +136,8 @@ int MDSClient::GetFileInfo(const std::string &fileName,
 }
 
 int MDSClient::GetAllocatedSize(const std::string& fileName,
-                                uint64_t* allocSize,
-                                uint64_t* physicalAllocSize) {
-    if (!allocSize) {
-        std::cout << "The argument is a null pointer!" << std::endl;
-        return -1;
-    }
+                                uint64_t* allocSize, AllocMap* allocMap) {
+    assert(allocSize != nullptr);
     curve::mds::GetAllocatedSizeRequest request;
     curve::mds::GetAllocatedSizeResponse response;
     request.set_filename(fileName);
@@ -162,9 +155,39 @@ int MDSClient::GetAllocatedSize(const std::string& fileName,
     }
     if (response.statuscode() == StatusCode::kOK) {
         *allocSize = response.allocatedsize();
-        if (physicalAllocSize) {
-            *physicalAllocSize = response.physicalallocatedsize();
+        if (allocMap) {
+            for (auto it = response.allocsizemap().begin();
+                    it != response.allocsizemap().end(); ++it) {
+                allocMap->emplace(it->first, it->second);
+            }
         }
+        return 0;
+    }
+    std::cout << "GetAllocatedSize fail with errCode: "
+              << response.statuscode() << std::endl;
+    return -1;
+}
+
+int MDSClient::GetFileSize(const std::string& fileName,
+                           uint64_t* fileSize) {
+    assert(fileSize != nullptr);
+    curve::mds::GetFileSizeRequest request;
+    curve::mds::GetFileSizeResponse response;
+    request.set_filename(fileName);
+    curve::mds::CurveFSService_Stub stub(&channel_);
+
+    void (curve::mds::CurveFSService_Stub::*fp)(
+                            google::protobuf::RpcController*,
+                            const curve::mds::GetFileSizeRequest*,
+                            curve::mds::GetFileSizeResponse*,
+                            google::protobuf::Closure*);
+    fp = &curve::mds::CurveFSService_Stub::GetFileSize;
+    if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
+        std::cout << "GetFileSize info from all mds fail!" << std::endl;
+        return -1;
+    }
+    if (response.statuscode() == StatusCode::kOK) {
+        *fileSize = response.filesize();
         return 0;
     }
     std::cout << "GetAllocatedSize fail with errCode: "
@@ -437,12 +460,30 @@ int MDSClient::ListPhysicalPoolsInCluster(
     return -1;
 }
 
-int MDSClient::ListLogicalPoolsInPhysicalPool(const PoolIdType& id,
-                                      std::vector<LogicalPoolInfo>* pools) {
-    if (!pools) {
-        std::cout << "The argument is a null pointer!" << std::endl;
+int MDSClient::ListLogicalPoolsInCluster(std::vector<LogicalPoolInfo>* pools) {
+    std::vector<PhysicalPoolInfo> phyPools;
+    int ret = ListPhysicalPoolsInCluster(&phyPools);
+    if (ret != 0) {
+        std::cout << "ListPhysicalPoolsInCluster fail!" << std::endl;
         return -1;
     }
+    for (const auto& phyPool : phyPools) {
+        std::vector<LogicalPoolInfo> lgPools;
+        ret = ListLogicalPoolsInPhysicalPool(phyPool.physicalpoolid(),
+                                                 &lgPools);
+        if (ret != 0) {
+            std::cout << "ListLogicalPoolsInPhysicalPool "
+                      << phyPool.physicalpoolid() << " fail" << std::endl;
+            return -1;
+        }
+        pools->insert(pools->end(), lgPools.begin(), lgPools.end());
+    }
+    return 0;
+}
+
+int MDSClient::ListLogicalPoolsInPhysicalPool(const PoolIdType& id,
+                                      std::vector<LogicalPoolInfo>* pools) {
+    assert(pools != nullptr);
     curve::mds::topology::ListLogicalPoolRequest request;
     curve::mds::topology::ListLogicalPoolResponse response;
     request.set_physicalpoolid(id);
@@ -474,10 +515,7 @@ int MDSClient::ListLogicalPoolsInPhysicalPool(const PoolIdType& id,
 
 int MDSClient::ListZoneInPhysicalPool(const PoolIdType& id,
                                       std::vector<ZoneInfo>* zones) {
-    if (!zones) {
-        std::cout << "The argument is a null pointer!" << std::endl;
-        return -1;
-    }
+    assert(zones != nullptr);
     curve::mds::topology::ListPoolZoneRequest request;
     curve::mds::topology::ListPoolZoneResponse response;
     request.set_physicalpoolid(id);
@@ -509,10 +547,7 @@ int MDSClient::ListZoneInPhysicalPool(const PoolIdType& id,
 
 int MDSClient::ListServersInZone(const ZoneIdType& id,
                                  std::vector<ServerInfo>* servers) {
-    if (!servers) {
-        std::cout << "The argument is a null pointer!" << std::endl;
-        return -1;
-    }
+    assert(servers != nullptr);
     curve::mds::topology::ListZoneServerRequest request;
     curve::mds::topology::ListZoneServerResponse response;
     request.set_zoneid(id);
@@ -544,20 +579,14 @@ int MDSClient::ListServersInZone(const ZoneIdType& id,
 
 int MDSClient::ListChunkServersOnServer(const ServerIdType& id,
                                 std::vector<ChunkServerInfo>* chunkservers) {
-    if (!chunkservers) {
-        std::cout << "The argument is a null pointer!" << std::endl;
-        return -1;
-    }
+    assert(chunkservers != nullptr);
     curve::mds::topology::ListChunkServerRequest request;
     request.set_serverid(id);
     return ListChunkServersOnServer(&request, chunkservers);
 }
 int MDSClient::ListChunkServersOnServer(const std::string& ip,
                                  std::vector<ChunkServerInfo>* chunkservers) {
-    if (!chunkservers) {
-        std::cout << "The argument is a null pointer!" << std::endl;
-        return -1;
-    }
+    assert(chunkservers != nullptr);
     curve::mds::topology::ListChunkServerRequest request;
     request.set_ip(ip);
     return ListChunkServersOnServer(&request, chunkservers);
@@ -599,10 +628,7 @@ int MDSClient::ListChunkServersOnServer(ListChunkServerRequest* request,
 
 int MDSClient::GetChunkServerInfo(const ChunkServerIdType& id,
                                   ChunkServerInfo* chunkserver) {
-    if (!chunkserver) {
-        std::cout << "The argument is a null pointer!"<< std::endl;
-        return -1;
-    }
+    assert(chunkserver != nullptr);
     curve::mds::topology::GetChunkServerInfoRequest request;
     curve::mds::topology::GetChunkServerInfoResponse response;
     request.set_chunkserverid(id);
@@ -611,10 +637,7 @@ int MDSClient::GetChunkServerInfo(const ChunkServerIdType& id,
 
 int MDSClient::GetChunkServerInfo(const std::string& csAddr,
                                   ChunkServerInfo* chunkserver) {
-    if (!chunkserver) {
-        std::cout << "The argument is a null pointer!"<< std::endl;
-        return -1;
-    }
+    assert(chunkserver != nullptr);
     curve::mds::topology::GetChunkServerInfoRequest request;
     curve::mds::topology::GetChunkServerInfoResponse response;
     if (!curve::common::NetCommon::CheckAddressValid(csAddr)) {
@@ -660,10 +683,7 @@ int MDSClient::GetChunkServerInfo(GetChunkServerInfoRequest* request,
 
 int MDSClient::GetCopySetsInChunkServer(const ChunkServerIdType& id,
                                  std::vector<CopysetInfo>* copysets) {
-    if (!copysets) {
-        std::cout << "The argument is a null pointer!"<< std::endl;
-        return -1;
-    }
+    assert(copysets != nullptr);
     curve::mds::topology::GetCopySetsInChunkServerRequest request;
     curve::mds::topology::GetCopySetsInChunkServerResponse response;
     request.set_chunkserverid(id);
@@ -672,10 +692,7 @@ int MDSClient::GetCopySetsInChunkServer(const ChunkServerIdType& id,
 
 int MDSClient::GetCopySetsInChunkServer(const std::string& csAddr,
                                  std::vector<CopysetInfo>* copysets) {
-    if (!copysets) {
-        std::cout << "The argument is a null pointer!"<< std::endl;
-        return -1;
-    }
+    assert(copysets != nullptr);
     curve::mds::topology::GetCopySetsInChunkServerRequest request;
     curve::mds::topology::GetCopySetsInChunkServerResponse response;
     if (!curve::common::NetCommon::CheckAddressValid(csAddr)) {
@@ -723,10 +740,7 @@ int MDSClient::GetCopySetsInChunkServer(
 }
 
 int MDSClient::ListServersInCluster(std::vector<ServerInfo>* servers) {
-    if (!servers) {
-        std::cout << "The argument is a null pointer!" << std::endl;
-        return -1;
-    }
+    assert(servers != nullptr);
     // 先列出逻辑池
     std::vector<PhysicalPoolInfo> phyPools;
     if (ListPhysicalPoolsInCluster(&phyPools) != 0) {
@@ -753,10 +767,7 @@ int MDSClient::ListServersInCluster(std::vector<ServerInfo>* servers) {
 
 int MDSClient::ListChunkServersInCluster(
                         std::vector<ChunkServerInfo>* chunkservers) {
-    if (!chunkservers) {
-        std::cout << "The argument is a null pointer!" << std::endl;
-        return -1;
-    }
+    assert(chunkservers != nullptr);
     std::vector<ServerInfo> servers;
     if (ListServersInCluster(&servers) != 0) {
         std::cout << "ListServersInCluster fail!" << std::endl;
@@ -773,6 +784,7 @@ int MDSClient::ListChunkServersInCluster(
 
 int MDSClient::GetListenAddrFromDummyPort(const std::string& dummyAddr,
                                           std::string* listenAddr) {
+    assert(listenAddr != nullptr);
     MetricRet res = metricClient_.GetConfValueFromMetric(dummyAddr,
                         kMdsListenAddrMetricName, listenAddr);
     if (res != MetricRet::kOK) {
@@ -782,6 +794,7 @@ int MDSClient::GetListenAddrFromDummyPort(const std::string& dummyAddr,
 }
 
 void MDSClient::GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus) {
+    assert(onlineStatus != nullptr);
     onlineStatus->clear();
     for (const auto item : dummyServerMap_) {
         std::string listenAddr;
@@ -796,6 +809,7 @@ void MDSClient::GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus) {
 }
 
 int MDSClient::GetMetric(const std::string& metricName, uint64_t* value) {
+    assert(value != nullptr);
     std::string str;
     int res = GetMetric(metricName, &str);
     if (res != 0) {
@@ -809,6 +823,7 @@ int MDSClient::GetMetric(const std::string& metricName, uint64_t* value) {
 }
 
 int MDSClient::GetMetric(const std::string& metricName, std::string* value) {
+    assert(value != nullptr);
     int changeTimeLeft = mdsAddrVec_.size() - 1;
     while (changeTimeLeft >= 0) {
         brpc::Controller cntl;
@@ -888,6 +903,7 @@ int MDSClient::RapidLeaderSchedule(PoolIdType lpoolId) {
 int MDSClient::QueryChunkServerRecoverStatus(
     const std::vector<ChunkServerIdType>& cs,
     std::map<ChunkServerIdType, bool> *statusMap) {
+    assert(statusMap != nullptr);
     ::curve::mds::schedule::QueryChunkServerRecoverStatusRequest request;
     ::curve::mds::schedule::QueryChunkServerRecoverStatusResponse response;
     ::curve::mds::schedule::ScheduleService_Stub stub(&channel_);

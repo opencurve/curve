@@ -32,43 +32,51 @@ def get_parser():
     subparser.add_argument("--filename", help='name of file', type=str, required=True)
     subparser.add_argument("--length", help='length of file(GB)', type=long, required=True)
     subparser.add_argument("--user", help='user of file', type=str, required=True)
+    subparser.add_argument("--password", help='password of user', type=str)
 
     # delete option
     subparser = subparsers.add_parser("delete", help="delete file")
     subparser.add_argument("--user", help='user of file', type=str, required=True)
     subparser.add_argument("--filename", help='name of file', type=str, required=True)
+    subparser.add_argument("--password", help='password of user', type=str)
 
     # extend option
     subparser = subparsers.add_parser("extend", help="extend file")
     subparser.add_argument("--user", help='user of file', type=str, required=True)
     subparser.add_argument("--filename", help='name of file', type=str, required=True)
     subparser.add_argument("--length", help='length of file(GB)', type=long, required=True)
+    subparser.add_argument("--password", help='password of user', type=str)
 
     # stat option
     subparser = subparsers.add_parser("stat", help="query file info")
     subparser.add_argument("--user", help='user of file', type=str, required=True)
     subparser.add_argument("--filename", help='name of file', type=str, required=True)
+    subparser.add_argument("--password", help='password of user', type=str)
 
     # rename option
     subparser = subparsers.add_parser("rename", help="rename file")
     subparser.add_argument("--user", help='user of file', type=str, required=True)
     subparser.add_argument("--filename", help='old name of file', type=str, required=True)
     subparser.add_argument("--newname", help='new name of file', type=str, required=True)
+    subparser.add_argument("--password", help='password of user', type=str)
 
     # mkdir option
     subparser = subparsers.add_parser("mkdir", help="create directory")
     subparser.add_argument("--user", help='user of dir', type=str, required=True)
     subparser.add_argument("--dirname", help='name of dir', type=str, required=True)
+    subparser.add_argument("--password", help='password of user', type=str)
 
     # rmdir option
     subparser = subparsers.add_parser("rmdir", help="delete directory")
     subparser.add_argument("--user", help='user of dir', type=str, required=True)
     subparser.add_argument("--dirname", help='name of dir', type=str, required=True)
+    subparser.add_argument("--password", help='password of user', type=str)
 
     # list option
     subparser = subparsers.add_parser("list", help="list file of dir")
     subparser.add_argument("--user", help='user of dir', type=str, required=True)
     subparser.add_argument("--dirname", help='name of dir', type=str, required=True)
+    subparser.add_argument("--password", help='password of user', type=str)
 
     return parser
 

@@ -46,8 +46,6 @@ using curve::client::UserInfo_t;
 using curve::client::ClientConfig;
 using curve::client::FileClient;
 using curve::client::FileInstance;
-using curve::client::TimerTask;
-using curve::client::TimerTaskWorker;
 using curve::client::SegmentInfo;
 using curve::client::ChunkInfoDetail;
 using curve::client::SnapshotClient;

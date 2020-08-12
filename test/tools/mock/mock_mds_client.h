@@ -21,8 +21,8 @@
  */
 
 
-#ifndef TEST_TOOLS_MOCK_MDS_CLIENT_H_
-#define TEST_TOOLS_MOCK_MDS_CLIENT_H_
+#ifndef TEST_TOOLS_MOCK_MOCK_MDS_CLIENT_H_
+#define TEST_TOOLS_MOCK_MOCK_MDS_CLIENT_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -42,7 +42,8 @@ class MockMDSClient : public MDSClient {
     MOCK_METHOD2(Init, int(const std::string&, const std::string&));
     MOCK_METHOD2(GetFileInfo, int(const std::string&, FileInfo*));
     MOCK_METHOD3(GetAllocatedSize, int(const std::string&,
-                                       uint64_t*, uint64_t*));
+                                       uint64_t*, AllocMap*));
+    MOCK_METHOD2(GetFileSize, int(const std::string&, uint64_t*));
     MOCK_METHOD2(ListDir, int(const std::string&, std::vector<FileInfo>*));
     MOCK_METHOD3(GetSegmentInfo, GetSegmentRes(const std::string&,
                                         uint64_t, PageFileSegment*));
@@ -84,7 +85,8 @@ class MockMDSClient : public MDSClient {
     MOCK_CONST_METHOD0(GetDummyServerMap,
                     const std::map<std::string, std::string>&());
     MOCK_METHOD2(ListClient, int(std::vector<std::string>*, bool));
+    MOCK_METHOD1(ListLogicalPoolsInCluster, int(std::vector<LogicalPoolInfo>*));
 };
 }  // namespace tool
 }  // namespace curve
-#endif  // TEST_TOOLS_MOCK_MDS_CLIENT_H_
+#endif  // TEST_TOOLS_MOCK_MOCK_MDS_CLIENT_H_

@@ -426,11 +426,7 @@ TEST(ChunkOpRequestTest, OnApplyErrorTest) {
                                                         nullptr);
         dataStore->InjectError();
         OpFakeClosure done;
-        opReq->OnApply(appliedIndex, &done);
-        ASSERT_FALSE(cntl->Failed());
-        ASSERT_EQ(0, cntl->ErrorCode());
-        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
-                  response.status());
+        ASSERT_DEATH(opReq->OnApply(appliedIndex, &done), "");
         delete opReq;
         delete cntl;
     }

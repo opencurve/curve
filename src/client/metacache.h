@@ -113,15 +113,13 @@ class MetaCache {
                                 FileMetric* fm = nullptr);
     /**
      * 更新某个copyset的leader信息
-     * @param: lpid逻辑池id
-     * @param: cpid是copysetid
-     * @param: serverId对应chunkserver的id信息
-     * @param: leaderAddr为serverid对应的ip信息
+     * @param logicPoolId 逻辑池id
+     * @param copysetId 复制组id
+     * @param leaderAddr leader地址
      * @return: 成功返回0， 否则返回-1
      */
     virtual int UpdateLeader(LogicPoolID logicPoolId,
                                 CopysetID copysetId,
-                                ChunkServerID* serverid,
                                 const butil::EndPoint &leaderAddr);
     /**
      * 更新copyset数据信息，包含serverlist

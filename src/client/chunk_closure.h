@@ -225,6 +225,11 @@ class ClientClosure : public Closure {
         return done_;
     }
 
+    // 测试使用，设置closure
+    void SetClosure(Closure* done) {
+        done_ = done;
+    }
+
     static FailureRequestOption_t GetFailOpt() {
         return failReqOpt_;
     }

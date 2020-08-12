@@ -549,6 +549,8 @@ class TopologyImpl : public Topology {
 
     void FlushChunkServerToStorage();
 
+    void SetChunkServerExternalIp();
+
  private:
     std::unordered_map<PoolIdType, LogicalPool> logicalPoolMap_;
     std::unordered_map<PoolIdType, PhysicalPool> physicalPoolMap_;
@@ -565,7 +567,7 @@ class TopologyImpl : public Topology {
     std::shared_ptr<TopologyTokenGenerator> tokenGenerator_;
     std::shared_ptr<TopologyStorage> storage_;
 
-    //以如下声明的顺序获取锁，防止死锁
+    // 以如下声明的顺序获取锁，防止死锁
     mutable curve::common::RWLock logicalPoolMutex_;
     mutable curve::common::RWLock physicalPoolMutex_;
     mutable curve::common::RWLock zoneMutex_;

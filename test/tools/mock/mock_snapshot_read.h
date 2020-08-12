@@ -16,32 +16,30 @@
 
 /*
  * Project: curve
- * File Created: 2019-11-28
+ * File Created: 2019-10-29
  * Author: charisu
  */
 
-#ifndef TEST_TOOLS_MOCK_CHUNKSERVER_CLIENT_H_
-#define TEST_TOOLS_MOCK_CHUNKSERVER_CLIENT_H_
+#ifndef TEST_TOOLS_MOCK_MOCK_SNAPSHOT_READ_H_
+#define TEST_TOOLS_MOCK_MOCK_SNAPSHOT_READ_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <string>
-#include "src/tools/chunkserver_client.h"
+#include "src/tools/snapshot_read.h"
 
-using ::testing::Return;
 namespace curve {
 namespace tool {
-class MockChunkServerClient : public ChunkServerClient {
+class MockSnapshotRead : public SnapshotRead {
  public:
-    MockChunkServerClient() {}
-    ~MockChunkServerClient() {}
-    MOCK_METHOD1(Init, int(const std::string&));
-    MOCK_METHOD1(GetRaftStatus, int(butil::IOBuf*));
-    MOCK_METHOD0(CheckChunkServerOnline, bool());
-    MOCK_METHOD2(GetCopysetStatus, int(const CopysetStatusRequest& request,
-                                 CopysetStatusResponse* response));
-    MOCK_METHOD2(GetChunkHash, int(const Chunk&, std::string*));
+    MockSnapshotRead() {}
+    ~MockSnapshotRead() {}
+
+    MOCK_METHOD2(Init, int(const std::string&, const std::string&));
+    MOCK_METHOD0(UnInit, void());
+    MOCK_METHOD3(Read, int(char*, off_t, size_t));
+    MOCK_METHOD1(GetSnapshotInfo, void(SnapshotRepoItem*));
 };
 }  // namespace tool
 }  // namespace curve
-#endif  // TEST_TOOLS_MOCK_CHUNKSERVER_CLIENT_H_
+#endif  // TEST_TOOLS_MOCK_MOCK_SNAPSHOT_READ_H_
