@@ -455,7 +455,7 @@ class ChunkServerState {
     }
 
  private:
-    DiskState diskState_;  // disk state，DistError、DiskNormal；
+    DiskState diskState_;  // disk state，DistError、DiskNormal;
 
     uint64_t diskCapacity_;
     uint64_t diskUsed_;
@@ -638,8 +638,8 @@ class ChunkServer {
      */
     bool dirty_;
     /**
-     * @brief chunkserver read/write lock, for protecting concurrent read/write
-     *        on the chunksever
+     * @brief chunkserver read/write lock, for protecting
+     *        concurrent read/write on the chunksever
      */
     mutable ::curve::common::RWLock mutex_;
 };
@@ -793,8 +793,8 @@ class CopySetInfo {
     bool dirty_;
 
     /**
-     * @brief chunkserver read/write lock, for protecting concurrent read/write
-     *        on the chunksever
+     * @brief chunkserver read/write lock, for protecting concurrent
+     *        read/write on the chunksever
      */
     mutable ::curve::common::RWLock mutex_;
 };

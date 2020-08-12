@@ -39,8 +39,6 @@ namespace topology {
 using ::curve::kvstorage::EtcdClientImp;
 using ::curve::kvstorage::KVStorageClient;
 
-
-
 class TopologyStorageEtcd : public TopologyStorage {
  public:
     TopologyStorageEtcd(std::shared_ptr<KVStorageClient> client,

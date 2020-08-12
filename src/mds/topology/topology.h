@@ -568,6 +568,7 @@ class TopologyImpl : public Topology {
     std::shared_ptr<TopologyIdGenerator> idGenerator_;
     std::shared_ptr<TopologyTokenGenerator> tokenGenerator_;
     std::shared_ptr<TopologyStorage> storage_;
+
     // fetch lock in the order below to avoid deadlock
     mutable curve::common::RWLock logicalPoolMutex_;
     mutable curve::common::RWLock physicalPoolMutex_;

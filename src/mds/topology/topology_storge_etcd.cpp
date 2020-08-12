@@ -31,7 +31,6 @@ namespace curve {
 namespace mds {
 namespace topology {
 
-
 bool TopologyStorageEtcd::LoadLogicalPool(
     std::unordered_map<PoolIdType, LogicalPool> *logicalPoolMap,
     PoolIdType *maxLogicalPoolId) {
@@ -207,8 +206,6 @@ bool TopologyStorageEtcd::LoadChunkServer(
             LOG(ERROR) << "DecodeChunkServerData err";
             return false;
         }
-        // set chunkserver unstable when loaded
-        data.SetOnlineState(OnlineState::UNSTABLE);
         ChunkServerIdType id = data.GetId();
         auto ret = chunkServerMap->emplace(id, std::move(data));
         if (!ret.second) {
@@ -265,6 +262,9 @@ bool TopologyStorageEtcd::LoadCopySet(
     }
     return true;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//storage
 
 bool TopologyStorageEtcd::StorageLogicalPool(const LogicalPool &data) {
     std::string key = codec_->EncodeLogicalPoolKey(data.GetId());
@@ -383,6 +383,9 @@ bool TopologyStorageEtcd::StorageCopySet(const CopySetInfo &data) {
     return true;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//delete
+
 bool TopologyStorageEtcd::DeleteLogicalPool(PoolIdType id) {
     std::string key = codec_->EncodeLogicalPoolKey(id);
     int errCode = client_->Delete(key);
@@ -455,6 +458,9 @@ bool TopologyStorageEtcd::DeleteCopySet(CopySetKey key) {
     }
     return true;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//update
 
 bool TopologyStorageEtcd::UpdateLogicalPool(const LogicalPool &data) {
     return StorageLogicalPool(data);
