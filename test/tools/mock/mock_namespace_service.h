@@ -109,11 +109,6 @@ class MockNameService: public CurveFSService {
         const SetCloneFileStatusRequest *request,
         SetCloneFileStatusResponse *response,
         Closure *done));
-    MOCK_METHOD4(RegistClient,
-        void(RpcController *controller,
-        const RegistClientRequest *request,
-        RegistClientResponse *response,
-        Closure *done));
     MOCK_METHOD4(GetAllocatedSize,
         void(RpcController *controller,
         const GetAllocatedSizeRequest *request,
