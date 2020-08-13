@@ -23,6 +23,8 @@ Please follow [google c++ styleguide](https://zh-google-styleguide.readthedocs.i
 
 ### Pull Requests
 
+Please create pull request to opencurve/curve **master** branch. 
+
 Please follow these steps to have your contribution considered by the maintainers:
 
 * Follow all instructions in the template
