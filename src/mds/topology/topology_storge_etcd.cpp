@@ -265,7 +265,7 @@ bool TopologyStorageEtcd::LoadCopySet(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//storage
+// storage
 
 bool TopologyStorageEtcd::StorageLogicalPool(const LogicalPool &data) {
     std::string key = codec_->EncodeLogicalPoolKey(data.GetId());
@@ -385,7 +385,7 @@ bool TopologyStorageEtcd::StorageCopySet(const CopySetInfo &data) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//delete
+// delete
 
 bool TopologyStorageEtcd::DeleteLogicalPool(PoolIdType id) {
     std::string key = codec_->EncodeLogicalPoolKey(id);
@@ -461,7 +461,7 @@ bool TopologyStorageEtcd::DeleteCopySet(CopySetKey key) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//update
+// update
 
 bool TopologyStorageEtcd::UpdateLogicalPool(const LogicalPool &data) {
     return StorageLogicalPool(data);
