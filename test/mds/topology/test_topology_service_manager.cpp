@@ -174,6 +174,7 @@ class TestTopologyServiceManager : public ::testing::Test {
                 const std::string &diskType = "nvme",
                 ServerIdType serverId = 0x31,
                 const std::string &hostIp = "testInternalIp",
+                const std::string &externalHostIp = "testExternalIp",
                 uint32_t port = 0,
                 const std::string &diskPath = "/") {
             ChunkServer cs(id,
@@ -182,7 +183,10 @@ class TestTopologyServiceManager : public ::testing::Test {
                     serverId,
                     hostIp,
                     port,
-                    diskPath);
+                    diskPath,
+                    READWRITE,
+                    OnlineState::OFFLINE,
+                    externalHostIp);
             EXPECT_CALL(*storage_, StorageChunkServer(_))
                 .WillOnce(Return(true));
         int ret = topology_->AddChunkServer(cs);
@@ -216,14 +220,79 @@ class TestTopologyServiceManager : public ::testing::Test {
 };
 
 
-TEST_F(TestTopologyServiceManager, test_RegistChunkServer_Success) {
+TEST_F(TestTopologyServiceManager, test_RegistChunkServer_SuccessWithExIp) {
     ChunkServerIdType csId = 0x41;
     ServerIdType serverId = 0x31;
     std::string token = "token";
 
     PrepareAddPhysicalPool();
     PrepareAddZone();
-    PrepareAddServer(serverId, "testServer", "testInternalIp");
+    PrepareAddServer(serverId, "testServer", "testInternalIp", "externalIp1");
+
+    ChunkServerRegistRequest request;
+    request.set_disktype("ssd");
+    request.set_diskpath("/");
+    request.set_hostip("testInternalIp");
+    request.set_externalip("externalIp1");
+    request.set_port(100);
+
+    ChunkServerRegistResponse response;
+
+    EXPECT_CALL(*tokenGenerator_, GenToken())
+        .WillOnce(Return(token));
+    EXPECT_CALL(*idGenerator_, GenChunkServerId())
+        .WillOnce(Return(csId));
+
+    EXPECT_CALL(*storage_, StorageChunkServer(_))
+        .WillOnce(Return(true));
+    serviceManager_->RegistChunkServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+    ASSERT_TRUE(response.has_chunkserverid());
+    ASSERT_EQ(csId, response.chunkserverid());
+    ASSERT_TRUE(response.has_token());
+    ASSERT_EQ(token, response.token());
+    ChunkServer chunkserver;
+    ASSERT_TRUE(topology_->GetChunkServer(csId, &chunkserver));
+    ASSERT_EQ("externalIp1", chunkserver.GetExternalHostIp());
+}
+
+TEST_F(TestTopologyServiceManager, test_RegistChunkServer_ExIpNotMatch) {
+    ChunkServerIdType csId = 0x41;
+    ServerIdType serverId = 0x31;
+    std::string token = "token";
+
+    PrepareAddPhysicalPool();
+    PrepareAddZone();
+    PrepareAddServer(serverId, "testServer", "testInternalIp", "externalIp1");
+
+    ChunkServerRegistRequest request;
+    request.set_disktype("ssd");
+    request.set_diskpath("/");
+    request.set_hostip("testInternalIp");
+    request.set_externalip("externalIp2");
+    request.set_port(100);
+
+    ChunkServerRegistResponse response;
+
+    EXPECT_CALL(*tokenGenerator_, GenToken())
+        .WillOnce(Return(token));
+    EXPECT_CALL(*idGenerator_, GenChunkServerId())
+        .WillOnce(Return(csId));
+
+    serviceManager_->RegistChunkServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeInternalError, response.statuscode());
+}
+
+TEST_F(TestTopologyServiceManager, test_RegistChunkServer_SuccessWithoutExIp) {
+    ChunkServerIdType csId = 0x41;
+    ServerIdType serverId = 0x31;
+    std::string token = "token";
+
+    PrepareAddPhysicalPool();
+    PrepareAddZone();
+    PrepareAddServer(serverId, "testServer", "testInternalIp", "externalIp1");
 
     ChunkServerRegistRequest request;
     request.set_disktype("ssd");
@@ -247,6 +316,9 @@ TEST_F(TestTopologyServiceManager, test_RegistChunkServer_Success) {
     ASSERT_EQ(csId, response.chunkserverid());
     ASSERT_TRUE(response.has_token());
     ASSERT_EQ(token, response.token());
+    ChunkServer chunkserver;
+    ASSERT_TRUE(topology_->GetChunkServer(csId, &chunkserver));
+    ASSERT_EQ("externalIp1", chunkserver.GetExternalHostIp());
 }
 
 TEST_F(TestTopologyServiceManager, test_RegistChunkServer_ServerNotFound) {
@@ -333,8 +405,8 @@ TEST_F(TestTopologyServiceManager, test_ListChunkServer_ByIdSuccess) {
     PrepareAddPhysicalPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", "ip2");
-    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", 100, "/");
-    PrepareAddChunkServer(csId2, "token2", "nvme", serverId, "ip2", 200, "/");
+    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", "ip2", 100);
+    PrepareAddChunkServer(csId2, "token2", "nvme", serverId, "ip1", "ip2", 200);
 
     ListChunkServerRequest request;
     request.set_serverid(serverId);
@@ -350,13 +422,15 @@ TEST_F(TestTopologyServiceManager, test_ListChunkServer_ByIdSuccess) {
     ASSERT_THAT(response.chunkserverinfos(0).chunkserverid(),
         AnyOf(csId1, csId2));
     ASSERT_THAT(response.chunkserverinfos(0).disktype(), "nvme");
-    ASSERT_THAT(response.chunkserverinfos(0).hostip(), "ip1");
+    ASSERT_EQ("ip1", response.chunkserverinfos(0).hostip());
+    ASSERT_EQ("ip2", response.chunkserverinfos(0).externalip());
     ASSERT_THAT(response.chunkserverinfos(0).port(), AnyOf(100, 200));
 
     ASSERT_THAT(response.chunkserverinfos(1).chunkserverid(),
         AnyOf(csId1, csId2));
     ASSERT_THAT(response.chunkserverinfos(1).disktype(), "nvme");
-    ASSERT_THAT(response.chunkserverinfos(1).hostip(), "ip1");
+    ASSERT_EQ("ip1", response.chunkserverinfos(1).hostip());
+    ASSERT_EQ("ip2", response.chunkserverinfos(1).externalip());
     ASSERT_THAT(response.chunkserverinfos(1).port(), AnyOf(100, 200));
 }
 
@@ -368,8 +442,8 @@ TEST_F(TestTopologyServiceManager, test_ListChunkServer_ByIpSuccess) {
     PrepareAddPhysicalPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", "ip2");
-    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "/", 100);
-    PrepareAddChunkServer(csId2, "token2", "nvme", serverId, "/", 200);
+    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", "ip2", 100);
+    PrepareAddChunkServer(csId2, "token2", "nvme", serverId, "ip1", "ip2", 200);
 
     ListChunkServerRequest request;
     request.set_ip("ip1");
@@ -385,13 +459,15 @@ TEST_F(TestTopologyServiceManager, test_ListChunkServer_ByIpSuccess) {
     ASSERT_THAT(response.chunkserverinfos(0).chunkserverid(),
         AnyOf(csId1, csId2));
     ASSERT_THAT(response.chunkserverinfos(0).disktype(), "nvme");
-    ASSERT_THAT(response.chunkserverinfos(0).hostip(), "ip1");
+    ASSERT_EQ("ip1", response.chunkserverinfos(0).hostip());
+    ASSERT_EQ("ip2", response.chunkserverinfos(0).externalip());
     ASSERT_THAT(response.chunkserverinfos(0).port(), AnyOf(100, 200));
 
     ASSERT_THAT(response.chunkserverinfos(1).chunkserverid(),
         AnyOf(csId1, csId2));
     ASSERT_THAT(response.chunkserverinfos(1).disktype(), "nvme");
-    ASSERT_THAT(response.chunkserverinfos(1).hostip(), "ip1");
+    ASSERT_EQ("ip1", response.chunkserverinfos(1).hostip());
+    ASSERT_EQ("ip2", response.chunkserverinfos(1).externalip());
     ASSERT_THAT(response.chunkserverinfos(1).port(), AnyOf(100, 200));
 }
 
@@ -403,8 +479,8 @@ TEST_F(TestTopologyServiceManager, test_ListChunkServer_ServerNotFound) {
     PrepareAddPhysicalPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", "ip2");
-    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "/", 100);
-    PrepareAddChunkServer(csId2, "token2", "nvme", serverId, "/", 200);
+    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", "ip2", 100);
+    PrepareAddChunkServer(csId2, "token2", "nvme", serverId, "ip1", "ip2", 200);
 
     ListChunkServerRequest request;
     request.set_serverid(++serverId);
@@ -426,8 +502,8 @@ TEST_F(TestTopologyServiceManager, test_ListChunkServer_IpServerNotFound) {
     PrepareAddPhysicalPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", "ip2");
-    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "/", 100);
-    PrepareAddChunkServer(csId2, "token2", "nvme", serverId, "/", 200);
+    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", "ip2", 100);
+    PrepareAddChunkServer(csId2, "token2", "nvme", serverId, "ip1", "ip2", 200);
 
     ListChunkServerRequest request;
     request.set_ip("ip3");
@@ -459,7 +535,7 @@ TEST_F(TestTopologyServiceManager, test_GetChunkServer_ByIdSuccess) {
     PrepareAddPhysicalPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", "ip2");
-    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", 100, "/");
+    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", "ip2", 100);
 
     GetChunkServerInfoRequest request;
     request.set_chunkserverid(csId1);
@@ -473,6 +549,7 @@ TEST_F(TestTopologyServiceManager, test_GetChunkServer_ByIdSuccess) {
     ASSERT_EQ(csId1, response.chunkserverinfo().chunkserverid());
     ASSERT_EQ("nvme", response.chunkserverinfo().disktype());
     ASSERT_EQ("ip1", response.chunkserverinfo().hostip());
+    ASSERT_EQ("ip2", response.chunkserverinfo().externalip());
     ASSERT_EQ(100, response.chunkserverinfo().port());
 }
 
@@ -483,7 +560,7 @@ TEST_F(TestTopologyServiceManager, test_GetChunkServer_ByIpSuccess) {
     PrepareAddPhysicalPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", "ip2");
-    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", 100, "/");
+    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", "ip2", 100);
 
     GetChunkServerInfoRequest request;
     request.set_hostip("ip1");
@@ -498,6 +575,7 @@ TEST_F(TestTopologyServiceManager, test_GetChunkServer_ByIpSuccess) {
     ASSERT_EQ(csId1, response.chunkserverinfo().chunkserverid());
     ASSERT_EQ("nvme", response.chunkserverinfo().disktype());
     ASSERT_EQ("ip1", response.chunkserverinfo().hostip());
+    ASSERT_EQ("ip2", response.chunkserverinfo().externalip());
     ASSERT_EQ(100, response.chunkserverinfo().port());
 }
 
@@ -508,7 +586,7 @@ TEST_F(TestTopologyServiceManager, test_GetChunkServer_ChunkServerNotFound) {
     PrepareAddPhysicalPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", "ip2");
-    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", 100, "/");
+    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", "ip2", 100);
 
     GetChunkServerInfoRequest request;
     request.set_chunkserverid(++csId1);
@@ -528,7 +606,7 @@ TEST_F(TestTopologyServiceManager,
     PrepareAddPhysicalPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", "ip2");
-    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", 100, "/");
+    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", "ip2", 100);
 
     GetChunkServerInfoRequest request;
     request.set_hostip("ip3");
@@ -558,7 +636,7 @@ TEST_F(TestTopologyServiceManager, test_DeleteChunkServer_success) {
     PrepareAddPhysicalPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", "ip2");
-    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", 100, "/");
+    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", "ip2", 100);
 
     DeleteChunkServerRequest request;
     request.set_chunkserverid(csId1);
@@ -583,7 +661,7 @@ TEST_F(TestTopologyServiceManager, test_DeleteChunkServer_ChunkServerNotFound) {
     PrepareAddPhysicalPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", "ip2");
-    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", 100, "/");
+    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", "ip2", 100);
 
     DeleteChunkServerRequest request;
     request.set_chunkserverid(++csId1);
@@ -601,7 +679,7 @@ TEST_F(TestTopologyServiceManager, test_SetChunkServer_Success) {
     PrepareAddPhysicalPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", "ip2");
-    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", 100, "/");
+    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", "ip2", 100);
 
     SetChunkServerStatusRequest request;
     request.set_chunkserverid(csId1);
@@ -621,7 +699,7 @@ TEST_F(TestTopologyServiceManager, test_SetChunkServer_ChunkServerNotFound) {
     PrepareAddPhysicalPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", "ip2");
-    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", 100, "/");
+    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", "ip2", 100);
 
     SetChunkServerStatusRequest request;
     request.set_chunkserverid(++csId1);
@@ -2030,9 +2108,12 @@ TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_Success) {
     PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
     PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
     uint32_t port = listenAddr_.port;
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", port);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", port);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", port);
+    PrepareAddChunkServer(
+        0x41, "token1", "nvme", 0x31, "127.0.0.1", "127.0.0.1", port);
+    PrepareAddChunkServer(
+        0x42, "token2", "nvme", 0x32, "127.0.0.1", "127.0.0.1", port);
+    PrepareAddChunkServer(
+        0x43, "token3", "nvme", 0x33, "127.0.0.1", "127.0.0.1", port);
 
     CreateLogicalPoolRequest request;
     request.set_logicalpoolname("logicalpoolName1");
@@ -2085,9 +2166,12 @@ TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_ByNameSuccess) {
     PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
     PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
     uint32_t port = listenAddr_.port;
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", port);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", port);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", port);
+    PrepareAddChunkServer(
+        0x41, "token1", "nvme", 0x31, "127.0.0.1", "127.0.0.1", port);
+    PrepareAddChunkServer(
+        0x42, "token2", "nvme", 0x32, "127.0.0.1", "127.0.0.1", port);
+    PrepareAddChunkServer(
+        0x43, "token3", "nvme", 0x33, "127.0.0.1", "127.0.0.1", port);
 
     CreateLogicalPoolRequest request;
     request.set_logicalpoolname("logicalpoolName1");
@@ -2464,12 +2548,12 @@ TEST_F(TestTopologyServiceManager,
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8888);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8888);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8888);
+    PrepareAddServer(0x31, "server1", "ip1", "ip2", 0x21, 0x11);
+    PrepareAddServer(0x32, "server2", "ip1", "ip2", 0x22, 0x11);
+    PrepareAddServer(0x33, "server3", "ip1", "ip2", 0x23, 0x11);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "ip1", "ip2", 8888);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "ip1", "ip2", 8888);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "ip1", "ip2", 8888);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
     std::set<ChunkServerIdType> replicas;
     replicas.insert(0x41);
@@ -2490,7 +2574,8 @@ TEST_F(TestTopologyServiceManager,
 
     ASSERT_THAT(response.csinfo(0).cslocs(0).chunkserverid(),
         AnyOf(0x41, 0x42, 0x43));
-    ASSERT_EQ("127.0.0.1", response.csinfo(0).cslocs(0).hostip());
+    ASSERT_EQ("ip1", response.csinfo(0).cslocs(0).hostip());
+    ASSERT_EQ("ip2", response.csinfo(0).cslocs(0).externalip());
     ASSERT_EQ(8888, response.csinfo(0).cslocs(0).port());
 }
 
@@ -2505,12 +2590,12 @@ TEST_F(TestTopologyServiceManager,
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8888);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8888);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8888);
+    PrepareAddServer(0x31, "server1", "ip1", "ip2", 0x21, 0x11);
+    PrepareAddServer(0x32, "server2", "ip1", "ip2", 0x22, 0x11);
+    PrepareAddServer(0x33, "server3", "ip1", "ip2", 0x23, 0x11);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "ip1", "ip2", 8888);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "ip1", "ip2", 8888);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "ip1", "ip2", 8888);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
     std::set<ChunkServerIdType> replicas;
     replicas.insert(0x41);
@@ -2538,12 +2623,12 @@ TEST_F(TestTopologyServiceManager,
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8888);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8888);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8888);
+    PrepareAddServer(0x31, "server1", "ip1", "ip2", 0x21, 0x11);
+    PrepareAddServer(0x32, "server2", "ip1", "ip2",  0x22, 0x11);
+    PrepareAddServer(0x33, "server3", "ip1", "ip2",  0x23, 0x11);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "ip1", "ip2", 8888);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "ip1", "ip2", 8888);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "ip1", "ip2", 8888);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
     std::set<ChunkServerIdType> replicas;
     replicas.insert(0x41);
@@ -2569,12 +2654,15 @@ TEST_F(TestTopologyServiceManager,
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "10.187.0.1", "10.187.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "10.187.0.2", "10.187.0.2", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "10.187.0.3", "10.187.0.3", 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "10.187.0.1", 8200);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "10.187.0.2", 8200);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "10.187.0.3", 8200);
+    PrepareAddServer(0x31, "server1", "10.187.0.1", "10.187.26.1", 0x21, 0x11);
+    PrepareAddServer(0x32, "server2", "10.187.0.2", "10.187.26.2", 0x22, 0x11);
+    PrepareAddServer(0x33, "server3", "10.187.0.3", "10.187.26.3", 0x23, 0x11);
+    PrepareAddChunkServer(
+        0x41, "token1", "nvme", 0x31, "10.187.0.1", "10.187.26.1", 8200);
+    PrepareAddChunkServer(
+        0x42, "token2", "nvme", 0x32, "10.187.0.2", "10.187.26.2", 8200);
+    PrepareAddChunkServer(
+        0x43, "token3", "nvme", 0x33, "10.187.0.3", "10.187.26.3", 8200);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
 
     std::set<ChunkServerIdType> replicas;
@@ -2603,12 +2691,15 @@ TEST_F(TestTopologyServiceManager,
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "10.187.0.1", "10.187.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "10.187.0.2", "10.187.0.2", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "10.187.0.3", "10.187.0.3", 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "10.187.0.1", 8888);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "10.187.0.2", 8888);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "10.187.0.3", 8888);
+    PrepareAddServer(0x31, "server1", "10.187.0.1", "10.187.26.1", 0x21, 0x11);
+    PrepareAddServer(0x32, "server2", "10.187.0.2", "10.187.26.2", 0x22, 0x11);
+    PrepareAddServer(0x33, "server3", "10.187.0.3", "10.187.26.3", 0x23, 0x11);
+    PrepareAddChunkServer(
+        0x41, "token1", "nvme", 0x31, "10.187.0.1", "10.187.26.1", 8200);
+    PrepareAddChunkServer(
+        0x42, "token2", "nvme", 0x32, "10.187.0.2", "10.187.26.2", 8200);
+    PrepareAddChunkServer(
+        0x43, "token3", "nvme", 0x33, "10.187.0.3", "10.187.26.3", 8200);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
 
     std::set<ChunkServerIdType> replicas;
@@ -2619,9 +2710,18 @@ TEST_F(TestTopologyServiceManager,
 
     GetCopySetsInChunkServerRequest request;
     request.set_hostip("10.187.0.1");
-    request.set_port(8888);
+    request.set_port(8200);
 
     GetCopySetsInChunkServerResponse response;
+    serviceManager_->GetCopySetsInChunkServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+    ASSERT_EQ(1, response.copysetinfos_size());
+    ASSERT_EQ(0x51, response.copysetinfos(0).copysetid());
+
+    request.set_hostip("10.187.26.1");
+    request.set_port(8200);
+    response.Clear();
     serviceManager_->GetCopySetsInChunkServer(&request, &response);
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -2636,8 +2736,8 @@ TEST_F(TestTopologyServiceManager,
 
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(0x21, "zone1", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "10.187.0.1", "10.187.0.1", 0x21, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "10.187.0.1", 8888);
+    PrepareAddServer(0x31, "server1");
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
 
     GetCopySetsInChunkServerRequest request;
@@ -2658,11 +2758,11 @@ TEST_F(TestTopologyServiceManager,
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddServer(0x31, "server1", "10.187.0.1", "10.187.0.1", 0x21, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "10.187.0.1", 8888);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "10.187.0.1");
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
 
     GetCopySetsInChunkServerRequest request;
-    request.set_hostip("10.187.0.1");
+    request.set_hostip("10.187.0.2");
     request.set_port(9999);
 
     GetCopySetsInChunkServerResponse response;

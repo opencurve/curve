@@ -196,7 +196,7 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
                             segInfo.lpcpIDInfo.cpidVec, &cpinfoVec);
             for (auto cpinfo : cpinfoVec) {
                 for (auto peerinfo : cpinfo.csinfos_) {
-                    mc->AddCopysetIDInfo(peerinfo.chunkserverid_,
+                    mc->AddCopysetIDInfo(peerinfo.chunkserverID,
                         CopysetIDInfo(segInfo.lpcpIDInfo.lpid, cpinfo.cpid_));
                 }
             }

@@ -70,7 +70,7 @@ void readcallbacktest(CurveAioContext* context) {
 int main(int argc, char ** argv) {
     // google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
-    std::string configpath = "./test/client/testConfig/client.conf";
+    std::string configpath = "./test/client/client.conf";
 
     if (Init(configpath.c_str()) != 0) {
         LOG(FATAL) << "Fail to init config";

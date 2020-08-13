@@ -33,6 +33,10 @@ TEST(CurveToolFactoryTest, GetStatusTool) {
     ASSERT_TRUE(dynamic_cast<StatusTool *>(curveTool.get()) != nullptr);
     curveTool = CurveToolFactory::GenerateCurveTool("chunkserver-list");
     ASSERT_TRUE(dynamic_cast<StatusTool *>(curveTool.get()) != nullptr);
+    curveTool = CurveToolFactory::GenerateCurveTool("server-list");
+    ASSERT_TRUE(dynamic_cast<StatusTool *>(curveTool.get()) != nullptr);
+    curveTool = CurveToolFactory::GenerateCurveTool("logical-pool-list");
+    ASSERT_TRUE(dynamic_cast<StatusTool *>(curveTool.get()) != nullptr);
     curveTool = CurveToolFactory::GenerateCurveTool("chunkserver-status");
     ASSERT_TRUE(dynamic_cast<StatusTool *>(curveTool.get()) != nullptr);
     curveTool = CurveToolFactory::GenerateCurveTool("mds-status");

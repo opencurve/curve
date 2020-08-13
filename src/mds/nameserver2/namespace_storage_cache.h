@@ -23,10 +23,10 @@
 #ifndef SRC_MDS_NAMESERVER2_NAMESPACE_STORAGE_CACHE_H_
 #define SRC_MDS_NAMESERVER2_NAMESPACE_STORAGE_CACHE_H_
 
-#include <string>
 #include <list>
-#include <map>
 #include <memory>
+#include <string>
+#include <unordered_map>
 #include "src/common/concurrent/concurrent.h"
 #include "src/mds/nameserver2/nameserverMetrics.h"
 
@@ -122,7 +122,7 @@ class LRUCache : public Cache {
     // 存储Item的双向队列
     std::list<Item> ll_;
     // 记录key对应的Item在双向列表中的位置
-    std::map<std::string, std::list<Item>::iterator> cache_;
+    std::unordered_map<std::string, std::list<Item>::iterator> cache_;
 
     // cache相关metric统计
     std::shared_ptr<NameserverCacheMetrics> cacheMetrics_;

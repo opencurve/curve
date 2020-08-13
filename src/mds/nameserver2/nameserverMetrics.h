@@ -33,7 +33,9 @@ class NameserverCacheMetrics {
     // 构造函数
     NameserverCacheMetrics() :
         cacheCount(NameServerMetricsPrefix, "cache_count"),
-        cacheBytes(NameServerMetricsPrefix, "cache_bytes") {}
+        cacheBytes(NameServerMetricsPrefix, "cache_bytes"),
+        cacheHit(NameServerMetricsPrefix, "cache_hit"),
+        cacheMiss(NameServerMetricsPrefix, "cache_miss") {}
 
     void UpdateAddToCacheCount();
 
@@ -43,15 +45,24 @@ class NameserverCacheMetrics {
 
     void UpdateRemoveFromCacheBytes(uint64_t size);
 
+    void OnCacheHit() {
+        cacheHit << 1;
+    }
+
+    void OnCacheMiss() {
+        cacheMiss << 1;
+    }
+
  public:
     const std::string NameServerMetricsPrefix = "mds_nameserver_cache_metric";
 
     bvar::Adder<uint32_t> cacheCount;
     bvar::Adder<uint64_t> cacheBytes;
+    bvar::Adder<uint64_t> cacheHit;
+    bvar::Adder<uint64_t> cacheMiss;
 };
 
 }  // namespace mds
 }  // namespace curve
 
 #endif  // SRC_MDS_NAMESERVER2_NAMESERVERMETRICS_H_
-

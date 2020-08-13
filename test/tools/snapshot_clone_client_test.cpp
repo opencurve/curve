@@ -23,7 +23,7 @@
 #include <gtest/gtest.h>
 #include <string>
 #include "src/tools/snapshot_clone_client.h"
-#include "test/tools/mock_metric_client.h"
+#include "test/tools/mock/mock_metric_client.h"
 
 using ::testing::_;
 using ::testing::Return;

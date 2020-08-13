@@ -65,10 +65,6 @@ int StatusTool::Init(const std::string& command) {
             std::cout << "Init mdsClient failed!" << std::endl;
             return -1;
         }
-        if (nameSpaceToolCore_->Init(FLAGS_mdsAddr) != 0) {
-            std::cout << "Init nameSpaceToolCore failed!" << std::endl;
-            return -1;
-        }
         if (copysetCheckCore_->Init(FLAGS_mdsAddr) != 0) {
             std::cout << "Init copysetCheckCore failed!" << std::endl;
             return -1;
@@ -113,7 +109,9 @@ bool StatusTool::SupportCommand(const std::string& command) {
                                  || command == kClientStatusCmd
                                  || command == kClientListCmd
                                  || command == kSnapshotCloneStatusCmd
-                                 || command == kClusterStatusCmd);
+                                 || command == kClusterStatusCmd
+                                 || command == kServerListCmd
+                                 || command == kLogicalPoolList);
 }
 
 void StatusTool::PrintHelp(const std::string& cmd) {
@@ -148,29 +146,50 @@ int StatusTool::SpaceCmd() {
         std::cout << "GetSpaceInfo fail!" << std::endl;
         return -1;
     }
-    double logicalUsedRatio = 0;
     double physicalUsedRatio = 0;
-    double canBeRecycledRatio = 0;
-    if (spaceInfo.total != 0) {
-        logicalUsedRatio = static_cast<double>(spaceInfo.logicalUsed) /
-                                                            spaceInfo.total;
-        physicalUsedRatio = static_cast<double>(spaceInfo.physicalUsed) /
-                                                            spaceInfo.total;
+    if (spaceInfo.totalChunkSize != 0) {
+        physicalUsedRatio = static_cast<double>(spaceInfo.usedChunkSize) /
+                                                    spaceInfo.totalChunkSize;
     }
-    if (spaceInfo.logicalUsed != 0) {
-        canBeRecycledRatio = static_cast<double>(spaceInfo.canBeRecycled) /
-                                                        spaceInfo.logicalUsed;
+
+    double logicalUsedRatio = 0;
+    double logicalLeftRatio = 0;
+    double canBeRecycledRatio = 0;
+    double createdFileRatio = 0;
+    if (spaceInfo.totalCapacity != 0) {
+        logicalUsedRatio = static_cast<double>(spaceInfo.allocatedSize) /
+                                                    spaceInfo.totalCapacity;
+        logicalLeftRatio = static_cast<double>(
+                        spaceInfo.totalCapacity - spaceInfo.allocatedSize) /
+                                                    spaceInfo.totalCapacity;
+        createdFileRatio = static_cast<double>(spaceInfo.currentFileSize) /
+                                                    spaceInfo.totalCapacity;
+    }
+    if (spaceInfo.allocatedSize != 0) {
+        canBeRecycledRatio = static_cast<double>(spaceInfo.recycleAllocSize) /
+                                                        spaceInfo.allocatedSize;
     }
     std:: cout.setf(std::ios::fixed);
     std::cout << std::setprecision(2);
-    std::cout << "total space = " << spaceInfo.total / mds::kGB << "GB"
-              << ", logical used = " << spaceInfo.logicalUsed / mds::kGB << "GB"
+    std::cout << "Space info:" << std::endl;
+    std::cout << "physical: total = "
+              << spaceInfo.totalChunkSize / mds::kGB << "GB"
+              << ", used = " << spaceInfo.usedChunkSize / mds::kGB
+              << "GB(" << physicalUsedRatio * 100 << "%), left = "
+              << (spaceInfo.totalChunkSize - spaceInfo.usedChunkSize) / mds::kGB
+              << "GB(" << (1 - physicalUsedRatio) * 100 << "%)" << std::endl;
+    std::cout << "logical: total = "
+              << spaceInfo.totalCapacity / mds::kGB << "GB"
+              << ", used = " << spaceInfo.allocatedSize / mds::kGB << "GB"
               << "(" << logicalUsedRatio * 100 << "%, can be recycled = "
-              << spaceInfo.canBeRecycled / mds::kGB << "GB("
+              << spaceInfo.recycleAllocSize / mds::kGB << "GB("
               << canBeRecycledRatio * 100 << "%))"
-              << ", physical used = " << spaceInfo.physicalUsed / mds::kGB
-              << "GB(" << physicalUsedRatio * 100 << "%)"
-              << std::endl;
+              << ", left = "
+              << (spaceInfo.totalCapacity - spaceInfo.allocatedSize) / mds::kGB
+              << "GB(" << logicalLeftRatio * 100 << "%)"
+              << ", created file size = "
+              << spaceInfo.currentFileSize / mds::kGB
+              << "GB(" << createdFileRatio * 100 << "%)" << std::endl;
     return 0;
 }
 
@@ -244,6 +263,9 @@ int StatusTool::ChunkServerListCmd() {
             std::cout <<  ", unhealthyCopysetRatio = "
                       << unhealthyRatio * 100 << "%";
         }
+        if (chunkserver.has_externalip()) {
+            std::cout << ", externalIP = " << chunkserver.externalip();
+        }
         std::cout << std::endl;
     }
     std::cout << "total: " << total << ", online: " << online;
@@ -251,6 +273,90 @@ int StatusTool::ChunkServerListCmd() {
         std::cout <<", unstable: " << unstable;
     }
     std::cout << ", offline: " << offline << std::endl;
+    return 0;
+}
+
+int StatusTool::ServerListCmd() {
+    std::vector<ServerInfo> servers;
+    int res = mdsClient_->ListServersInCluster(&servers);
+    if (res != 0) {
+        std::cout << "ListServersInCluster fail!" << std::endl;
+        return -1;
+    }
+    std::cout << "curve server list: " << std::endl;
+    uint64_t total = 0;
+    for (auto& server : servers) {
+        total++;
+        std::cout << "serverID = " << server.serverid()
+                  << ", hostName = " << server.hostname()
+                  << ", internalIP = " << server.internalip()
+                  << ", internalPort = " << server.internalport()
+                  << ", externalIp = " << server.externalip()
+                  << ", externalPort = " << server.externalport()
+                  << ", zoneID = " << server.zoneid()
+                  << ", poolID = " << server.physicalpoolid() << std::endl;
+    }
+    std::cout << "total: " << total << std::endl;
+    return 0;
+}
+
+int StatusTool::LogicalPoolListCmd() {
+    std::vector<LogicalPoolInfo> lgPools;
+    int res = mdsClient_->ListLogicalPoolsInCluster(&lgPools);
+    if (res != 0) {
+        std::cout << "ListLogicalPoolsInCluster fail!" << std::endl;
+        return -1;
+    }
+    std::cout << "curve logical pool list: " << std::endl;
+    uint64_t total = 0;
+    uint64_t allocSize;
+    AllocMap allocMap;
+    res = mdsClient_->GetAllocatedSize(curve::mds::RECYCLEBINDIR,
+                                       &allocSize, &allocMap);
+    if (res != 0) {
+        std::cout << "GetAllocatedSize of recycle bin fail!" << std::endl;
+        return -1;
+    }
+    for (auto& lgPool : lgPools) {
+        total++;
+        std::string poolName = lgPool.logicalpoolname();
+        uint64_t totalSize;
+        std::string metricName = GetPoolLogicalCapacityName(poolName);
+        res = mdsClient_->GetMetric(metricName, &totalSize);
+        if (res != 0) {
+            std::cout << "Get logical capacity from mds fail!" << std::endl;
+            return -1;
+        }
+        uint64_t usedSize;
+        metricName = GetPoolLogicalAllocName(poolName);
+        res = mdsClient_->GetMetric(metricName, &usedSize);
+        if (res != 0) {
+            std::cout << "Get logical alloc size from mds fail!" << std::endl;
+            return -1;
+        }
+        double usedRatio = 0;
+        if (total != 0) {
+            usedRatio = static_cast<double>(usedSize) / totalSize;
+        }
+        uint64_t canBeRecycle = allocMap[lgPool.logicalpoolid()];
+        double recycleRatio = 0;
+        if (usedSize != 0) {
+            recycleRatio = static_cast<double>(canBeRecycle) / usedSize;
+        }
+        std::cout << "id = " << lgPool.logicalpoolid()
+                  << ", name = " << lgPool.logicalpoolname()
+                  << ", physicalPoolID = " << lgPool.physicalpoolid()
+                  << ", type = "
+                  << curve::mds::topology::LogicalPoolType_Name(lgPool.type())
+                  << ", total space = " << totalSize / curve::mds::kGB << "GB"
+                  << ", used space = " << usedSize / curve::mds::kGB << "GB"
+                  << "(" << usedRatio * 100 << "%, can be recycled = "
+                  << canBeRecycle / curve::mds::kGB  << "GB"
+                  << "(" << recycleRatio * 100 << "%))" << ", left space = "
+                  << (totalSize - usedSize) / curve::mds::kGB
+                  << "GB(" << (1 - usedRatio) * 100 << "%)" << std::endl;
+    }
+    std::cout << "total: " << total << std::endl;
     return 0;
 }
 
@@ -706,44 +812,54 @@ int StatusTool::GetPoolsInCluster(std::vector<PhysicalPoolInfo>* phyPools,
 }
 
 int StatusTool::GetSpaceInfo(SpaceInfo* spaceInfo) {
-    std::vector<PhysicalPoolInfo> phyPools;
     std::vector<LogicalPoolInfo> lgPools;
-    int res = GetPoolsInCluster(&phyPools, &lgPools);
+    int res = mdsClient_->ListLogicalPoolsInCluster(&lgPools);
     if (res != 0) {
-        std::cout << "GetPoolsInCluster fail!" << std::endl;
+        std::cout << "ListLogicalPoolsInCluster fail!" << std::endl;
         return -1;
     }
-    // 从metric获取total，logicalUsed和physicalUsed
+    res = mdsClient_->GetFileSize(curve::mds::ROOTFILENAME,
+                                  &spaceInfo->currentFileSize);
+    if (res != 0) {
+        std::cout << "Get root directory file size from mds fail!" << std::endl;
+        return -1;
+    }
+    // 从metric获取space信息
     for (const auto& lgPool : lgPools) {
         std::string poolName = lgPool.logicalpoolname();
-        std::string metricName = GetPoolTotalBytesName(poolName);
+        std::string metricName = GetPoolTotalChunkSizeName(poolName);
         uint64_t size;
         int res = mdsClient_->GetMetric(metricName, &size);
         if (res != 0) {
-            std::cout << "Get total space from mds fail!" << std::endl;
+            std::cout << "Get total chunk byte from mds fail!" << std::endl;
             return -1;
         }
-        spaceInfo->total += size;
-        metricName = GetPoolDiskAllocName(poolName);
+        spaceInfo->totalChunkSize += size;
+        metricName = GetPoolUsedChunkSizeName(poolName);
         res = mdsClient_->GetMetric(metricName, &size);
         if (res != 0) {
-            std::cout << "Get logical used space from mds fail!" << std::endl;
+            std::cout << "Get used chunk byte from mds fail!" << std::endl;
             return -1;
         }
-        spaceInfo->logicalUsed += size;
-        metricName = GetPoolUsedBytesName(poolName);
+        spaceInfo->usedChunkSize += size;
+        metricName = GetPoolLogicalCapacityName(poolName);
         res = mdsClient_->GetMetric(metricName, &size);
         if (res != 0) {
-            std::cout << "Get physical used space from mds fail!" << std::endl;
+            std::cout << "Get logical capacity from mds fail!" << std::endl;
             return -1;
         }
-        spaceInfo->physicalUsed += size;
+        spaceInfo->totalCapacity += size;
+        metricName = GetPoolLogicalAllocName(poolName);
+        res = mdsClient_->GetMetric(metricName, &size);
+        if (res != 0) {
+            std::cout << "Get logical alloc size from mds fail!" << std::endl;
+            return -1;
+        }
+        spaceInfo->allocatedSize += size;
     }
-    // 通过NameSpace工具获取RecycleBin的大小
-    uint64_t allocSize;
-    res = nameSpaceToolCore_->GetAllocatedSize(curve::mds::RECYCLEBINDIR,
-                                         &allocSize,
-                                         &spaceInfo->canBeRecycled);
+    // 获取RecycleBin的分配大小
+    res = mdsClient_->GetAllocatedSize(curve::mds::RECYCLEBINDIR,
+                                       &spaceInfo->recycleAllocSize);
     if (res != 0) {
         std::cout << "GetAllocatedSize of RecycleBin fail!" << std::endl;
         return -1;
@@ -762,6 +878,10 @@ int StatusTool::RunCommand(const std::string &cmd) {
         return StatusCmd();
     } else if (cmd == kChunkserverListCmd) {
         return ChunkServerListCmd();
+    } else if (cmd == kServerListCmd) {
+        return ServerListCmd();
+    } else if (cmd == kLogicalPoolList) {
+        return LogicalPoolListCmd();
     } else if (cmd == kChunkserverStatusCmd) {
         return ChunkServerStatusCmd();
     } else if (cmd == kMdsStatusCmd) {

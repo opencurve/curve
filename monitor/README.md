@@ -6,7 +6,7 @@ curve集群监控的控制脚本，用于启动、停止、重启监控功能。
 
 ##### docker-compose.yml.example:
 
-编排监控系统相关容器的配置文件，包括prometheus容器、grafana容器、mysql_exporter容器。
+编排监控系统相关容器的配置文件，包括prometheus容器、grafana容器。
 
 修改该文件来配置各组件的配置参数。
 
@@ -16,7 +16,7 @@ curve集群监控的控制脚本，用于启动、停止、重启监控功能。
 
 ##### target_json.py
 
-用于生成prometheus监控对象的python脚本，每隔一段时间会去从mysql数据库里拉取监控目标并更新。
+用于生成prometheus监控对象的python脚本，每隔一段时间用curve_ops_tool拉取监控目标并更新。
 
 ##### target.ini.example
 
@@ -63,7 +63,7 @@ prometheus的配置文件
 
 1.部署监控系统的机器需要安装如下组件：
 
-node_exporter、docker、docker-compose、python-mysqldb、jq
+node_exporter、docker、docker-compose、jq
 
 * docker安装
 
@@ -105,12 +105,6 @@ apt-get install docker-ce-cli
   done
   ```
 
-* python-mysqldb
-
-  python脚本操作mysql需要依赖这个库
-
-  ```apt-get install python-mysqldb```
-
 * jq
 
   update_dashboard.sh脚本需要依赖jq命令，这个一般机器上都没装
@@ -121,16 +115,6 @@ apt-get install docker-ce-cli
 
 2.chunkserver上安装node_exporter（机器监控可以依赖哨兵，可以不装）
 
-3.mysql需要添加监控用户（也可以直接使用使用账户）
-
-```
-mysql -uroot -pqwer
-CREATE USER 'exporter'@'%' IDENTIFIED BY 'asdf' WITH MAX_USER_CONNECTIONS 3;
-GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'%';
-flush privileges;
-```
-
-
 
 #### 部署监控系统
 
@@ -140,7 +124,7 @@ flush privileges;
 
 2.修改update_dashboard.sh，将 URL 和 LOGIN 改为对应的地址和用户名密码
 
-3.修改docker-compose.yml文件，主要是映射的目录路径以及mysql的ip和用户密码
+3.修改docker-compose.yml文件，主要是映射的目录路径
 
 * 启动docker-compose
 

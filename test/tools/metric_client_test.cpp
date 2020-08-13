@@ -28,7 +28,7 @@
 namespace curve {
 namespace tool {
 
-const char serverAddr[] = "127.0.0.1:9193";
+const char serverAddr[] = "127.0.0.1:9192";
 
 class MetricClientTest : public ::testing::Test {
  protected:

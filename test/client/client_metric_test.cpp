@@ -73,7 +73,7 @@ TEST(MetricTest, ChunkServer_MetricTest) {
 
     FLAGS_chunkserver_list = "127.0.0.1:9130:0,127.0.0.1:9131:0,127.0.0.1:9132:0";   // NOLINT
 
-    std::string configpath("./test/client/testConfig/client_metric.conf");
+    std::string configpath("./test/client/client_metric.conf");
     curve::CurveCluster* cluster = new curve::CurveCluster();
 
     cluster->PrepareConfig<curve::ClientConfigGenerator>(

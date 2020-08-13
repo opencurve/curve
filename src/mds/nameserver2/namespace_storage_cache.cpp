@@ -34,8 +34,11 @@ bool LRUCache::Get(const std::string &key, std::string *value) {
     ::curve::common::WriteLockGuard guard(lock_);
     auto iter = cache_.find(key);
     if (iter == cache_.end()) {
+        cacheMetrics_->OnCacheMiss();
         return false;
     }
+
+    cacheMetrics_->OnCacheHit();
 
     // 更新元素在列表中的位置
     MoveToFront(iter->second);
@@ -103,5 +106,3 @@ void LRUCache::RemoveElement(const std::list<Item>::iterator &elem) {
 
 }  // namespace mds
 }  // namespace curve
-
-
