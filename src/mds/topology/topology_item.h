@@ -798,13 +798,8 @@ class CopySetInfo {
     bool dirty_;
 
     /**
-<<<<<<< HEAD
-     * @brief chunkserver read/write lock, for protecting concurrent
-     *        read/write on the chunksever
-=======
      * @brief chunkserver read/write lock, for protecting concurrent read/write
      *        on the chunksever
->>>>>>> c10bf54c3987439c8bfcf277b2c80ccdc8a72509
      */
     mutable ::curve::common::RWLock mutex_;
 };

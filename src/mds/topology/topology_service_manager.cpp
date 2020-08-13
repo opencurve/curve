@@ -54,13 +54,11 @@ using ::curve::mds::copyset::CopysetPermutationPolicy;
 using ::curve::mds::copyset::Copyset;
 using ::curve::mds::copyset::CopysetConstrait;
 
-// 这个函数是chunkserver用来向MDS注册的
 void TopologyServiceManager::RegistChunkServer(
     const ChunkServerRegistRequest *request,
     ChunkServerRegistResponse *response) {
     std::string hostIp = request->hostip();
     uint32_t port = request->port();
-    // 这里是锁了一个地址上的端口吗？
     ::curve::common::NameLockGuard lock(registCsMutex,
         hostIp + ":" + std::to_string(port));
 
