@@ -51,11 +51,15 @@ CURVE编码规范严格按照[Google C++开源项目编码指南](https://zh-goo
 3. 异常测试：暂不做要求
 
 ### 其他开发流程说明
-TODO
+代码开发完成之后，提[pr](https://github.com/opencurve/curve/compare)到curve的master分支。提交pr时，请填写pr模板。pr提交之后会自动触发CI，CI通过并且经过review之后，代码才可合入。
+具体规则请见[CONTRIBUTING](https://github.com/opencurve/curve/blob/master/CONTRIBUTING.md).
 
 ## 版本发布周期
 - CURVE版本发布周期：大版本半年，小版本1~2个月
-- 版本号规则：采用3段式版本号，x.y.z，x是大版本，y是用来区分开发版本、rc版本、和稳定版本的（对应0、1、2三个数字），z是BugFixes或小的功能版本。每半年的大版本是指x增加1，每1~2个月的小版本是z增加1
+- 版本号规则：采用3段式版本号，x.y.z{-后缀}，x是大版本，y是小版本，z是bugfix，后缀用来区beta版本(-beta)、rc版本(-rc)、和稳定版本(没有后缀)。每半年的大版本是指x增加1，每1~2个月的小版本是y增加1。正式版本发布之后，如果有bugfix是z增加1。
+
+## 分支规则
+所有的开发都在master分支开发，如果需要发布版本，从master拉取新的分支**release-x.y**。版本发布从release-x.y分支发布。
 
 ## 反馈及交流
 
