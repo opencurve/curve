@@ -33,7 +33,6 @@
 cmake-build-debug
 CMakeLists.txt
 bin
-lib
 *.temp
 .clwb
 
