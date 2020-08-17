@@ -23,6 +23,7 @@
 #include "src/snapshotcloneserver/snapshot/snapshot_service_manager.h"
 
 #include <glog/logging.h>
+#include "src/common/string_util.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -275,8 +276,15 @@ bool SnapshotFilterCondition::IsMatchCondition(const SnapshotInfo &snapInfo) {
         return false;
     }
 
+    int status;
     if (status_ != nullptr
-        && std::stoi(*status_) != static_cast<int>(snapInfo.GetStatus())) {
+        && common::StringToInt(*status_, &status) == false) {
+        return false;
+    }
+
+    if (status_ != nullptr
+        && common::StringToInt(*status_, &status) == true
+        && status != static_cast<int>(snapInfo.GetStatus())) {
         return false;
     }
 

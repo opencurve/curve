@@ -30,6 +30,7 @@
 
 #include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 #include "src/snapshotcloneserver/common/define.h"
+#include "src/common/string_util.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -418,15 +419,30 @@ bool CloneFilterCondition::IsMatchCondition(const CloneInfo &cloneInfo) {
         return false;
     }
 
+    int status;
     if (status_ != nullptr
-        && std::stoi(*status_) != static_cast<int>(cloneInfo.GetStatus())) {
+        && common::StringToInt(*status_, &status) == false) {
+        return false;
+    }
+
+    if (status_ != nullptr
+        && common::StringToInt(*status_, &status) == true
+        && status != static_cast<int>(cloneInfo.GetStatus())) {
+        return false;
+    }
+
+    int type;
+    if (type_ != nullptr
+        && common::StringToInt(*type_, &type) == false) {
         return false;
     }
 
     if (type_ != nullptr
-        && std::stoi(*type_) != static_cast<int>(cloneInfo.GetTaskType())) {
+        && common::StringToInt(*type_, &type) == true
+        && type != static_cast<int>(cloneInfo.GetTaskType())) {
         return false;
     }
+
     return true;
 }
 
