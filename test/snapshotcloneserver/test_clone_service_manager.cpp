@@ -530,6 +530,46 @@ TEST_F(TestCloneServiceManager, GetCloneTaskInfoByFilterSuccess) {
     ASSERT_EQ(kProgressCloneComplete, infos[0].GetCloneProgress());
 }
 
+TEST_F(TestCloneServiceManager, GetCloneTaskInfoByFilterFail) {
+    const UUID source = "uuid1";
+    const std::string user = "user1";
+    const std::string destination = "file1";
+    bool lazyFlag = true;
+
+    CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
+        source, destination, CloneFileType::kSnapshot, lazyFlag);
+    cloneInfo.SetStatus(CloneStatus::done);
+
+    std::vector<CloneInfo> cloneInfos;
+    cloneInfos.push_back(cloneInfo);
+    EXPECT_CALL(*cloneCore_, GetCloneInfoList(_))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(cloneInfos),
+            Return(kErrCodeSuccess)));
+
+    std::string type = "wrongType";
+    CloneFilterCondition filter;
+    filter.SetType(&type);
+    std::vector<TaskCloneInfo> infos;
+    auto ret = manager_->GetCloneTaskInfoByFilter(filter, &infos);
+
+    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(0, infos.size());
+
+    std::string type1 = "1";
+    filter.SetType(&type1);
+    ret = manager_->GetCloneTaskInfoByFilter(filter, &infos);
+
+    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(0, infos.size());
+
+    std::string type2 = "0";
+    filter.SetType(&type2);
+    ret = manager_->GetCloneTaskInfoByFilter(filter, &infos);
+
+    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(1, infos.size());
+}
+
 TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoByUUIDSuccess) {
     const UUID uuid = "uuid1";
     const UUID source = "src";

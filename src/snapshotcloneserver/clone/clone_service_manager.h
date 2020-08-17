@@ -124,7 +124,6 @@ class CloneFilterCondition {
                     type_(type) {}
     bool IsMatchCondition(const CloneInfo &cloneInfo);
 
- private:
     void SetUuid(const std::string *uuid) {
         uuid_ = uuid;
     }
@@ -143,6 +142,8 @@ class CloneFilterCondition {
     void SetType(const std::string *type) {
         type_ = type;
     }
+
+ private:
     const std::string *uuid_;
     const std::string *source_;
     const std::string *destination_;
