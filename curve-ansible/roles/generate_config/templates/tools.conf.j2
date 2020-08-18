@@ -7,7 +7,7 @@
 {% endfor -%}
 mdsAddr={{ mds_address | join(',') }}
 # mds dummy port
-mdsDummyPort={{ mds_dummy_port }}
+mdsDummyPort=hostvars[mds[0]].mds_dummy_port
 # 发送rpc的超时时间
 rpcTimeout={{ tool_rpc_timeout }}
 # rpc重试次数

@@ -1,4 +1,5 @@
 {
+  "dashboard": {
   "annotations": {
     "list": [
       {
@@ -2515,4 +2516,5 @@
   "title": "Etcd",
   "uid": "EuLA2DVZz",
   "version": 135
+}
 }

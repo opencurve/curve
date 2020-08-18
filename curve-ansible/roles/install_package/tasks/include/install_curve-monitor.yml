@@ -15,16 +15,21 @@
 #  limitations under the License.
 #
 
-- name: set sudo or not
-  set_fact:
-    sudo: "sudo"
-  when: command_need_sudo
+- name: pull prom/prometheus:latest
+  shell: sudo docker image pull prom/prometheus:latest
 
-- name: start by daemon
-  shell: chdir={{ ch_dir }} {{ sudo }} {{ daemon_script }} start
+- name: pull grafana/grafana:latest
+  shell: sudo docker image pull grafana/grafana:latest
 
-- name: wait until server is up
+- name: promoon/reporter:latest
+  shell: sudo docker image pull promoon/reporter:latest
+
+- name: install monitor work space
   vars:
-    ping_port: "{{ service_port }}"
-    wait_timeout: "{{ wait_service_timeout }}"
-  include_tasks: common_tasks/wait_until_server_up.yml
+    remote_dir_name: "{{ monitor_work_dir }}"
+    local_file_path: "{{ local_monitor_package_path }}/"
+    file_mode: 0777
+  include_tasks: copy_file_to_remote.yml
+
+- name: generate curve-monitor.sh
+  template: src=curve-monitor.sh.j2 dest={{ deploy_dir }}/curve-monitor.sh mode=0755
