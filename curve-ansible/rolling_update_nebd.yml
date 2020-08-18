@@ -21,27 +21,18 @@
     - always
   import_playbook: check_ansible_version.yml
 
-- name: update config
+- name: prepare nebd
   hosts: client
   gather_facts: no
   any_errors_fatal: true
   tags:
-    - update_config
+    - prepare
   roles:
+    - { role: install_package, package_name: nebd, package_version: "{{ nebd_package_version }}",
+            tags: ["install_package"] }
     - { role: generate_config, template_name: client.conf, conf_path: "{{ client_config_path }}" }
     - { role: generate_config, template_name: nebd-client.conf, conf_path: "{{ nebd_client_config_path }}" }
     - { role: generate_config, template_name: nebd-server.conf, conf_path: "{{ nebd_server_config_path }}" }
-
-- name: update package
-  hosts: client
-  gather_facts: no
-  any_errors_fatal: true
-  tags:
-    - update_package
-  tasks:
-    - vars:
-        update_component: "nebd={{ nebd_package_version }}"
-      include_tasks: "common_tasks/update_package.yml"
 
 - name: restart nebd server
   hosts: client

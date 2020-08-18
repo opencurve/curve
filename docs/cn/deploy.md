@@ -153,7 +153,10 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
       curve-nbd list-mapped
    ```
 
-
+9. 部署监控（可选）。关于监控体系的文档见[curve监控体系文档](./monitor.md)，监控的部署需要用到docker编排，首先请先确保安装了docker和docker-compose。其次，需要在curve包的同一级目录下下载并解压curve-monitor的tar包。
+   ```
+   ansible-playbook deploy_monitor.yml -i server.ini
+   ```
 
 ## 多机部署
 

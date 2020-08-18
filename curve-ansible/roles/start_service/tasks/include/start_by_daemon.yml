@@ -24,6 +24,7 @@
   shell: chdir={{ ch_dir }} {{ sudo }} {{ daemon_script }} start
 
 - name: wait until server is up
-  ping_port: "{{ service_port }}"
-  wait_timeout: "{{ wait_service_timeout }}"
+  vars:
+    ping_port: "{{ service_port }}"
+    wait_timeout: "{{ wait_service_timeout }}"
   include_tasks: common_tasks/wait_until_server_up.yml

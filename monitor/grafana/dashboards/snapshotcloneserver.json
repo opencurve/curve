@@ -1,4 +1,5 @@
 {
+  "dashboard": {
   "annotations": {
     "list": [
       {
@@ -1052,4 +1053,5 @@
   "title": "SnapshotCloneServer",
   "uid": "TZzWso-Wz",
   "version": 2
+}
 }

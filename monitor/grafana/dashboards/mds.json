@@ -1,4 +1,5 @@
 {
+  "dashboard": {
   "annotations": {
     "list": [
       {
@@ -2738,4 +2739,5 @@
   "title": "MDS",
   "uid": "EpuJscnWk",
   "version": 7
+}
 }

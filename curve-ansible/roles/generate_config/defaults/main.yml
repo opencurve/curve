@@ -81,7 +81,7 @@ chunkserver_register_timeout: 1000
 chunkserver_heartbeat_interval: 10
 chunkserver_heartbeat_timeout: 5000
 chunkserver_stor_uri: local://./0/
-chunkserver_meta_uri: local://./0/chunkserver_dat
+chunkserver_meta_uri: local://./0/chunkserver.dat
 chunkserver_disk_type: nvme
 chunkserver_snapshot_throttle_throughput_bytes: 20971520
 chunkserver_snapshot_throttle_check_cycles: 4
