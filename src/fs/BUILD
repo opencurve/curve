@@ -25,6 +25,7 @@ cc_library(
     hdrs = ["local_filesystem.h","fs_common.h"],
     linkopts = ([
         "-std=c++11",
+        "-laio",
     ]),
     deps = [
                 "//src/common:curve_common",

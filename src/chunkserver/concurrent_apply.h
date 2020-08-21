@@ -27,16 +27,17 @@
 #include <unistd.h>
 #include <atomic>
 #include <mutex>    // NOLINT
-#include <thread>    // NOLINT
+// #include <thread>    // NOLINT
 #include <unordered_map>
 #include <utility>
 #include <condition_variable>    // NOLINT
 
-#include "src/common/concurrent/task_queue.h"
+#include "bthread/bthread.h"
+#include "src/common/concurrent/bthread_task_queue.h"
 #include "include/curve_compiler_specific.h"
 #include "src/common/concurrent/count_down_event.h"
 
-using curve::common::TaskQueue;
+using curve::common::BthreadTaskQueue;
 using curve::common::CountDownEvent;
 namespace curve {
 namespace chunkserver {
@@ -49,7 +50,7 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
      * @param: concurrentsize是当前并发模块的并发大小
      * @param: queuedepth是当前并发模块每个队列的深度控制
      */
-    bool Init(int concurrentsize, int queuedepth);
+    bool Init(int concurrentsize, int queuedepth, bool enableCoroutine);
 
     /**
      * raft apply线程会将task push到后台队列
@@ -75,6 +76,7 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
 
  private:
     void Run(int index);
+    static void *RunBthread(void *arg);
     inline int Hash(uint64_t key) {
         return key % concurrentsize_;
     }
@@ -83,10 +85,16 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
     typedef uint8_t threadIndex;
     typedef struct taskthread {
         std::thread th;
-        TaskQueue tq;
+        bthread_t bth;
+        BthreadTaskQueue tq;
         taskthread(size_t capacity):tq(capacity) {}
         ~taskthread() = default;
     } taskthread_t;
+
+    struct BthreadCtx {
+        ConcurrentApplyModule* apply;
+        int index;
+    };
 
     // 常规的stop和start控制变量
     bool stop_;
@@ -95,6 +103,8 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
     int queuedepth_;
     // 并发度
     int concurrentsize_;
+    // 是否使用协程
+    bool enableCoroutine_;
     // 用于统一启动后台线程完全创建完成的条件变量
     CountDownEvent cond_;
     // 存储threadindex与taskthread的映射关系

@@ -132,7 +132,7 @@ class CopysetNodeTest : public ::testing::Test {
         defaultOptions_.finishLoadMargin = 1000;
 
         defaultOptions_.concurrentapply = &concurrentModule_;
-        defaultOptions_.concurrentapply->Init(2, 1);
+        defaultOptions_.concurrentapply->Init(2, 1, false);
         std::shared_ptr<LocalFileSystem> fs =
             LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
         ASSERT_TRUE(nullptr != fs);

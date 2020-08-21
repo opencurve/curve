@@ -33,6 +33,7 @@
 
 #include "src/common/concurrent/thread_pool.h"
 #include "src/common/concurrent/task_queue.h"
+#include "src/common/concurrent/bthread_task_queue.h"
 #include "src/common/concurrent/task_thread_pool.h"
 
 namespace curve {
@@ -57,7 +58,7 @@ using WriteLockGuard        = WriteLockGuard;
 using TaskQueue             = TaskQueue;
 using ThreadPool            = ThreadPool;
 using TaskThreadPool        = TaskThreadPool;
-
+using BthreadTaskQueue      = BthreadTaskQueue;
 }   // namespace common
 }   // namespace curve
 #endif  // SRC_COMMON_CONCURRENT_CONCURRENT_H_

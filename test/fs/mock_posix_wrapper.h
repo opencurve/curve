@@ -51,6 +51,11 @@ class MockPosixWrapper : public PosixWrapper {
     MOCK_METHOD1(fsync, int(int));
     MOCK_METHOD2(statfs, int(const char*, struct statfs*));
     MOCK_METHOD1(uname, int(struct utsname *));
+    MOCK_METHOD2(io_setup, int(int, io_context_t *));
+    MOCK_METHOD1(io_destroy, int(io_context_t));
+    MOCK_METHOD3(io_submit, int(io_context_t, long, struct iocb *[]));  // NOLINT
+    MOCK_METHOD5(io_getevents, int(io_context_t, long, long, struct io_event *  // NOLINT
+                                                    , struct timespec *));
 };
 
 }  // namespace fs

@@ -36,11 +36,11 @@ TEST(ConcurrentApplyModule, ConcurrentApplyModuleInitTest) {
      */
 
     ConcurrentApplyModule concurrentapply;
-    ASSERT_TRUE(concurrentapply.Init(-1, 1));
-    ASSERT_TRUE(concurrentapply.Init(1, -1));
-    ASSERT_TRUE(concurrentapply.Init(-1, -1));
-    ASSERT_TRUE(concurrentapply.Init(1, 1));
-    ASSERT_TRUE(concurrentapply.Init(1, 1));
+    ASSERT_TRUE(concurrentapply.Init(-1, 1, false));
+    ASSERT_TRUE(concurrentapply.Init(1, -1, false));
+    ASSERT_TRUE(concurrentapply.Init(-1, -1, false));
+    ASSERT_TRUE(concurrentapply.Init(1, 1, false));
+    ASSERT_TRUE(concurrentapply.Init(1, 1, false));
     concurrentapply.Stop();
 }
 
@@ -55,7 +55,7 @@ TEST(ConcurrentApplyModule, ConcurrentApplyModuleRunTest) {
         testnum++;
     };
     ASSERT_FALSE(concurrentapply.Push(1, runtask));
-    ASSERT_TRUE(concurrentapply.Init(2, 1));
+    ASSERT_TRUE(concurrentapply.Init(2, 1, false));
     concurrentapply.Push(0, runtask);
     concurrentapply.Flush();
     ASSERT_EQ(1, testnum);
@@ -71,7 +71,7 @@ TEST(ConcurrentApplyModule, ConcurrentApplyModuleFlushTest) {
      */
 
     ConcurrentApplyModule concurrentapply;
-    ASSERT_TRUE(concurrentapply.Init(2, 10000));
+    ASSERT_TRUE(concurrentapply.Init(2, 10000, false));
     std::atomic<uint32_t> testnum(0);
     auto runtask = [&testnum]() {
         testnum.fetch_add(1);
@@ -95,7 +95,7 @@ TEST(ConcurrentApplyModule, ConcurrentApplyModuleFlushConcurrentTest) {
     std::atomic<uint32_t> testnum(0);
 
     ConcurrentApplyModule concurrentapply;
-    ASSERT_TRUE(concurrentapply.Init(10, 1));
+    ASSERT_TRUE(concurrentapply.Init(10, 1, false));
     auto testfunc = [&concurrentapply, &stop, &testnum]() {
         auto runtask = [&testnum]() {
             testnum.fetch_add(1);
@@ -141,7 +141,7 @@ TEST(ConcurrentApplyModule, MultiCopysetPerformanceTest) {
     std::condition_variable startcv;
 
     ConcurrentApplyModule concurrentapply;
-    ASSERT_TRUE(concurrentapply.Init(10, 1));
+    ASSERT_TRUE(concurrentapply.Init(10, 1, false));
     auto testfunc = [&concurrentapply, &startcv, &start, &mtx, &donecount]() {
         {
             std::unique_lock<std::mutex> lk(mtx);
@@ -190,7 +190,7 @@ TEST(ConcurrentApplyModule, SingleCopysetPerformanceTest) {
     std::condition_variable startcv;
 
     ConcurrentApplyModule concurrentapply;
-    ASSERT_TRUE(concurrentapply.Init(10, 1));
+    ASSERT_TRUE(concurrentapply.Init(10, 1, false));
     auto testfunc = [&concurrentapply, &startcv, &start, &mtx, &donecount]() {
         {
             std::unique_lock<std::mutex> lk(mtx);
@@ -239,7 +239,7 @@ TEST(ConcurrentApplyModule, SingleCopysetSingleChunkPerformanceTest) {
     std::condition_variable startcv;
 
     ConcurrentApplyModule concurrentapply;
-    ASSERT_TRUE(concurrentapply.Init(10, 1));
+    ASSERT_TRUE(concurrentapply.Init(10, 1, false));
     auto testfunc = [&concurrentapply, &startcv, &start, &mtx, &donecount]() {
         {
             std::unique_lock<std::mutex> lk(mtx);
@@ -288,7 +288,7 @@ TEST(ConcurrentApplyModule, MultiCopysetSingleQueuePerformanceTest) {
     std::condition_variable startcv;
 
     ConcurrentApplyModule concurrentapply;
-    ASSERT_TRUE(concurrentapply.Init(10, 1));
+    ASSERT_TRUE(concurrentapply.Init(10, 1, false));
     auto testfunc = [&concurrentapply, &startcv, &start, &mtx, &donecount]() {
         {
             std::unique_lock<std::mutex> lk(mtx);

@@ -116,5 +116,19 @@ int PosixWrapper::uname(struct utsname *buf) {
     return ::uname(buf);
 }
 
+int PosixWrapper::iosetup(int maxevents, io_context_t *ctxp) {
+    return ::io_setup(maxevents, ctxp);
+}
+int PosixWrapper::iodestroy(io_context_t ctx) {
+    return ::io_destroy(ctx);
+}
+int PosixWrapper::iosubmit(io_context_t ctx, long nr, struct iocb *ios[]) {
+    return io_submit(ctx, nr, ios);
+}
+int PosixWrapper::iogetevents(io_context_t ctx_id, long min_nr, long nr,
+                        struct io_event *events, struct timespec *timeout) {
+    return ::io_getevents(ctx_id, min_nr, nr, events, timeout);
+}
+
 }  // namespace fs
 }  // namespace curve

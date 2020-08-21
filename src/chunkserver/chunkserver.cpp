@@ -108,7 +108,10 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(FATAL, !conf.GetIntValue("concurrentapply.size", &size));
     int qdepth;
     LOG_IF(FATAL, !conf.GetIntValue("concurrentapply.queuedepth", &qdepth));
-    LOG_IF(FATAL, false == concurrentapply.Init(size, qdepth))
+    bool enableCoroutine;
+    LOG_IF(FATAL, !conf.GetBoolValue("concurrentapply.enable_coroutine",
+        &enableCoroutine));
+    LOG_IF(FATAL, false == concurrentapply.Init(size, qdepth, enableCoroutine))
         << "Failed to initialize concurrentapply module!";
 
     // 初始化本地文件系统
@@ -117,6 +120,12 @@ int ChunkServer::Run(int argc, char** argv) {
     LocalFileSystemOption lfsOption;
     LOG_IF(FATAL, !conf.GetBoolValue(
         "fs.enable_renameat2", &lfsOption.enableRenameat2));
+    LOG_IF(FATAL, !conf.GetBoolValue(
+        "fs.enable_coroutine", &lfsOption.enableCoroutine));
+    LOG_IF(FATAL, !conf.GetBoolValue(
+        "fs.enable_aio", &lfsOption.enableAio));
+    LOG_IF(FATAL, !conf.GetBoolValue(
+        "fs.max_event", &lfsOption.maxEvents));
     LOG_IF(FATAL, 0 != fs->Init(lfsOption))
         << "Failed to initialize local filesystem module!";
 

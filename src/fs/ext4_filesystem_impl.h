@@ -27,7 +27,8 @@
 #include <string>
 #include <vector>
 #include <map>
-
+#include <thread>
+#include "bthread/butex.h"
 #include "src/fs/local_filesystem.h"
 #include "src/fs/wrap_posix.h"
 
@@ -35,6 +36,12 @@ const int MAX_RETYR_TIME = 3;
 
 namespace curve {
 namespace fs {
+struct CoRoutineContext {
+   butil::atomic<int>* waiter;
+   volatile long res;
+   volatile long res2; 
+};
+
 class Ext4FileSystemImpl : public LocalFileSystem {
  public:
     virtual ~Ext4FileSystemImpl();
@@ -42,6 +49,7 @@ class Ext4FileSystemImpl : public LocalFileSystem {
     void SetPosixWrapper(std::shared_ptr<PosixWrapper> wrapper);
 
     int Init(const LocalFileSystemOption& option) override;
+    int Uninit();
     int Statfs(const string& path, struct FileSystemInfo* info) override;
     int Open(const string& path, int flags) override;
     int Close(int fd) override;
@@ -64,12 +72,23 @@ class Ext4FileSystemImpl : public LocalFileSystem {
                  const string& newPath,
                  unsigned int flags) override;
     bool CheckKernelVersion();
+    void ReapIo();
+    int ReadCoroutine_(int fd, char* buf, uint64_t offset, int length);
+    int WriteCoroutine_(int fd, const char* buf, uint64_t offset, int length);
+    int ReadPread_(int fd, char* buf, uint64_t offset, int length);
+    int WritePwrite_(int fd, const char* buf, uint64_t offset, int length);
 
  private:
     static std::shared_ptr<Ext4FileSystemImpl> self_;
     static std::mutex mutex_;
     std::shared_ptr<PosixWrapper> posixWrapper_;
     bool enableRenameat2_;
+    bool enableCoroutine_;
+    bool enableAio_;
+    int maxEvents_;
+    io_context_t ctx_;
+    std::thread th_;
+    bool stop_;
 };
 
 }  // namespace fs

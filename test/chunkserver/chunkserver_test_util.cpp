@@ -156,7 +156,8 @@ int StartChunkserver(const char *ip,
         LOG(INFO) << "chunfilepool init success";
     }
 
-    LOG_IF(FATAL, false == copysetNodeOptions.concurrentapply->Init(2, 1))
+    LOG_IF(FATAL,
+        false == copysetNodeOptions.concurrentapply->Init(2, 1, false))
         << "Failed to init concurrent apply module";
 
     Configuration conf;

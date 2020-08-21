@@ -144,6 +144,21 @@ TEST_F(Ext4LocalFileSystemTest, InitTest) {
     ASSERT_EQ(0, lfs->Init(option));
 }
 
+TEST_F(Ext4LocalFileSystemTest, InitUninitTest) {
+    LocalFileSystemOption option;
+    option.enableRenameat2 = false;
+    option.enableAio = true;
+    option.enableCoroutine = true;
+    option.maxEvents = -1;
+
+    // aio && coroutine, but maxEvent < 0
+    ASSERT_EQ(lfs->Init(option), -1);
+
+    option.maxEvents = 128;
+    ASSERT_EQ(lfs->Init(option), 0);
+    ASSERT_EQ(lfs->Uninit(), 0);
+}
+
 // test Statfs
 TEST_F(Ext4LocalFileSystemTest, StatfsTest) {
     FileSystemInfo fsinfo;

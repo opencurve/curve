@@ -42,6 +42,7 @@ TEST_F(PosixWrapperTest, BasicTest) {
     struct stat info;
     struct statfs fsinfo;
     PosixWrapper wrapper;
+    io_context_t ctx;
     ASSERT_EQ(0, wrapper.statfs("./", &fsinfo));
     ASSERT_EQ(0, wrapper.mkdir(DIR_PATH, 0755));
     int fd = wrapper.open(FILE_PATH1, O_CREAT|O_RDWR, 0644);
@@ -51,6 +52,37 @@ TEST_F(PosixWrapperTest, BasicTest) {
     ASSERT_EQ(0, wrapper.fsync(fd));
     ASSERT_EQ(0, wrapper.fstat(fd, &info));
     ASSERT_EQ(4096, wrapper.pread(fd, buf, 4096, 0));
+    memset(&ctx, 0, sizeof(ctx));
+    ASSERT_EQ(0, wrapper.iosetup(1, &ctx));
+    iocb aioIocb;
+    iocb *aioIocbs[1];
+    aioIocbs[0] = &aioIocb;
+    io_prep_pwrite(&aioIocb, fd, buf, 4096, 0);
+    ASSERT_EQ(1, io_submit(ctx, 1, aioIocbs));
+    while (true) {
+        io_event event;
+        int ret = wrapper.iogetevents(ctx, 1, 1, &event, nullptr);
+        if (ret == 0) {
+            usleep(100);
+        } else {
+            ASSERT_EQ(1, ret);
+            ASSERT_EQ(4096, event.res);
+            break;
+        }
+    }
+    io_prep_pread(&aioIocb, fd, buf, 4096, 0);
+    ASSERT_EQ(1, io_submit(ctx, 1, aioIocbs));
+    while (true) {
+        io_event event;
+        int ret = wrapper.iogetevents(ctx, 1, 1, &event, nullptr);
+        if (ret == 0) {
+            usleep(100);
+        } else {
+            ASSERT_EQ(1, ret);
+            ASSERT_EQ(4096, event.res);
+            break;
+        }
+    }
     ASSERT_EQ(0, wrapper.close(fd));
     ASSERT_EQ(0, wrapper.stat(FILE_PATH1, &info));
     ASSERT_EQ(0, wrapper.rename(FILE_PATH1, FILE_PATH2));

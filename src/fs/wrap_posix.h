@@ -23,6 +23,7 @@
 #ifndef SRC_FS_WRAP_POSIX_H_
 #define SRC_FS_WRAP_POSIX_H_
 
+#include <libaio.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/vfs.h>
@@ -59,6 +60,11 @@ class PosixWrapper {
                            const void *buf,
                            size_t count,
                            off_t offset);
+    virtual int iosetup(int maxevents, io_context_t *ctxp);
+    virtual int iodestroy(io_context_t ctx);
+    virtual int iosubmit(io_context_t ctx, long nr, struct iocb *ios[]);
+    virtual int iogetevents(io_context_t ctx_id, long min_nr, long nr,
+                        struct io_event *events, struct timespec *timeout);
     virtual int fstat(int fd, struct stat *buf);
     virtual int fallocate(int fd, int mode, off_t offset, off_t len);
     virtual int fsync(int fd);

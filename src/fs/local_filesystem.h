@@ -44,7 +44,13 @@ namespace fs {
 
 struct LocalFileSystemOption {
     bool enableRenameat2;
-    LocalFileSystemOption() : enableRenameat2(false) {}
+    bool enableCoroutine;
+    bool enableAio;
+    int maxEvents;
+    LocalFileSystemOption() : enableRenameat2(false),
+                              enableCoroutine(false),
+                              enableAio(false),
+                              maxEvents(-1) {}
 };
 
 class LocalFileSystem {
@@ -149,6 +155,16 @@ class LocalFileSystem {
      */
     virtual int Read(int fd, char* buf, uint64_t offset, int length) = 0;
 
+    // /**
+    //  * 从文件指定区域读取数据，协程方式
+    //  * @param fd：文件句柄id，通过Open接口获取
+    //  * @param buf：接收读取数据的buffer
+    //  * @param offset：读取区域的起始偏移
+    //  * @param length：读取数据的长度
+    //  * @return 返回成功读取到的数据长度，失败返回-1
+    //  */
+    // virtual int ReadCoroutine(int fd, char* buf, uint64_t offset, int length) = 0;   // NOLINT
+
     /**
      * 向文件指定区域写入数据
      * @param fd：文件句柄id，通过Open接口获取
@@ -158,6 +174,16 @@ class LocalFileSystem {
      * @return 返回成功写入的数据长度，失败返回-1
      */
     virtual int Write(int fd, const char* buf, uint64_t offset, int length) = 0;
+
+    // /**
+    //  * 向文件指定区域写入数据，协程方式
+    //  * @param fd：文件句柄id，通过Open接口获取
+    //  * @param buf：待写入数据的buffer
+    //  * @param offset：写入区域的起始偏移
+    //  * @param length：写入数据的长度
+    //  * @return 返回成功写入的数据长度，失败返回-1
+    //  */
+    // virtual int WriteCoroutine(int fd, const char* buf, uint64_t offset, int length) = 0;   // NOLINT
 
     /**
      * 向文件末尾追加数据

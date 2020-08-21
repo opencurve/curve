@@ -123,6 +123,12 @@ s3.config_path=conf/s3.conf
 #
 # 是否开启使用renameat2，ext4内核3.15以后开始支持
 fs.enable_renameat2=true
+# 是否使用协程
+fs.enable_coroutine=true
+# 是否使用异步接口aio
+fs.enable_aio=true
+# 每个chunkserver的aio的maxevent深度
+fs.max_event=128
 
 #
 # metrics settings
@@ -143,9 +149,11 @@ storeng.sync_write=false
 # Concurrent apply module
 #
 # 并发模块的并发度，一般是10
-concurrentapply.size=10
+concurrentapply.size=128
 # 并发模块线程的队列深度
 concurrentapply.queuedepth=1
+# 并发模块是否使用协程替代线程
+concurrentapply.enable_coroutine=true
 
 #
 # Chunkfile pool

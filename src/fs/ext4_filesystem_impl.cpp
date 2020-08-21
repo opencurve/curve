@@ -25,7 +25,11 @@
 #include <sys/utsname.h>
 #include <linux/version.h>
 #include <dirent.h>
+#include <sys/eventfd.h>
+#include <sys/epoll.h>
+#include <utility>
 
+#include "bthread/bthread.h"
 #include "src/common/string_util.h"
 #include "src/fs/ext4_filesystem_impl.h"
 #include "src/fs/wrap_posix.h"
@@ -41,7 +45,9 @@ std::mutex Ext4FileSystemImpl::mutex_;
 Ext4FileSystemImpl::Ext4FileSystemImpl(
     std::shared_ptr<PosixWrapper> posixWrapper)
     : posixWrapper_(posixWrapper)
-    , enableRenameat2_(false) {
+    , enableRenameat2_(false)
+    , enableCoroutine_(false)
+    , stop_(false) {
     CHECK(posixWrapper_ != nullptr) << "PosixWrapper is null";
 }
 
@@ -116,6 +122,53 @@ int Ext4FileSystemImpl::Init(const LocalFileSystemOption& option) {
     if (enableRenameat2_) {
         if (!CheckKernelVersion())
             return -1;
+    }
+    enableCoroutine_ = option.enableCoroutine;
+    enableAio_ = option.enableAio;
+    maxEvents_ = option.maxEvents;
+    // 使用coroutine
+    if (enableAio_ && enableCoroutine_) {
+        if (maxEvents_ <= 0) {
+            return -1;
+        }
+        memset(&ctx_, 0, sizeof(ctx_));
+        int ret = posixWrapper_->iosetup(maxEvents_, &ctx_);
+        if (ret != 0) {
+            return -1;
+        }
+
+        stop_ = false;
+        th_ = std::move(std::thread(&Ext4FileSystemImpl::ReapIo, this));
+    }
+
+    return 0;
+}
+
+void Ext4FileSystemImpl::ReapIo() {
+    LOG(INFO) << "start reapio thread";
+    while (!stop_) {
+        // io_event *events = new io_event[maxEvents_];
+        io_event event;
+        timespec time = {0, 100000};  // 100us
+        int ret = posixWrapper_->iogetevents(ctx_, 1, 1,
+                                &event, &time);
+        if (ret == 0) {
+            continue;
+        }
+        CoRoutineContext *ctx =
+                        reinterpret_cast<CoRoutineContext *>(event.data);
+        ctx->res = event.res;
+        ctx->res2 = event.res2;
+        bthread::butex_wake(ctx->waiter);
+    }
+    LOG(INFO) << "end reapio thread";
+}
+
+int Ext4FileSystemImpl::Uninit() {
+    stop_ = true;
+    if (enableAio_ && enableCoroutine_) {
+        th_.join();
+        posixWrapper_->iodestroy(ctx_);
     }
     return 0;
 }
@@ -272,6 +325,17 @@ int Ext4FileSystemImpl::Read(int fd,
                              char *buf,
                              uint64_t offset,
                              int length) {
+    if (enableCoroutine_) {
+        return ReadCoroutine_(fd, buf, offset, length);
+    } else {
+        return ReadPread_(fd, buf, offset, length);
+    }
+}
+
+int Ext4FileSystemImpl::ReadPread_(int fd,
+                             char *buf,
+                             uint64_t offset,
+                             int length) {
     int remainLength = length;
     int relativeOffset = 0;
     int retryTimes = 0;
@@ -302,7 +366,53 @@ int Ext4FileSystemImpl::Read(int fd,
     return length - remainLength;
 }
 
+int Ext4FileSystemImpl::ReadCoroutine_(int fd,
+                             char *buf,
+                             uint64_t offset,
+                             int length) {
+    iocb aioIocb;
+    iocb *aioIocbs[1];
+    aioIocbs[0] = &aioIocb;
+
+    struct CoRoutineContext ctx;
+    ctx.res = 0;
+    ctx.res2 = 0;
+    aioIocb.data = &ctx;
+
+    io_prep_pread(&aioIocb, fd, buf, length, offset);
+    // io_set_eventfd(&aioIocb, efd);
+
+    ctx.waiter = bthread::butex_create_checked<butil::atomic<int> >();
+    const int expected_val = ctx.waiter->load(butil::memory_order_relaxed);
+
+
+    if (posixWrapper_->iosubmit(ctx_, 1, aioIocbs) < 0) {
+        LOG(ERROR) << "failed to submit libaio, errno: " << strerror(errno);
+        return -errno;
+    }
+
+    if (bthread::butex_wait(ctx.waiter, expected_val, NULL) < 0 && errno != EWOULDBLOCK && errno != EINTR) {  // NOLINT
+        LOG(ERROR) << "write failed at butex_wait ";
+        return -errno;
+    }
+
+    LOG(INFO) << "data write bytes " << ctx.res << " sucess";
+
+    return ctx.res;
+}
+
 int Ext4FileSystemImpl::Write(int fd,
+                              const char *buf,
+                              uint64_t offset,
+                              int length) {
+    if (enableCoroutine_) {
+        return WriteCoroutine_(fd, buf, offset, length);
+    } else {
+        return WritePwrite_(fd, buf, offset, length);
+    }
+}
+
+int Ext4FileSystemImpl::WritePwrite_(int fd,
                               const char *buf,
                               uint64_t offset,
                               int length) {
@@ -327,6 +437,41 @@ int Ext4FileSystemImpl::Write(int fd,
         relativeOffset += ret;
     }
     return length;
+}
+
+int Ext4FileSystemImpl::WriteCoroutine_(int fd,
+                             const char *buf,
+                             uint64_t offset,
+                             int length) {
+    iocb aioIocb;
+    iocb *aioIocbs[1];
+    aioIocbs[0] = &aioIocb;
+
+    struct CoRoutineContext ctx;
+    ctx.res = 0;
+    ctx.res2 = 0;
+    aioIocb.data = &ctx;
+
+    io_prep_pwrite(&aioIocb, fd, const_cast<char *>(buf), length, offset);
+    // io_set_eventfd(&aioIocb, efd);
+
+    ctx.waiter = bthread::butex_create_checked<butil::atomic<int> >();
+    const int expected_val = ctx.waiter->load(butil::memory_order_relaxed);
+
+
+    if (posixWrapper_->iosubmit(ctx_, 1, aioIocbs) < 0) {
+        LOG(ERROR) << "failed to submit libaio, errno: " << strerror(errno);
+        return -errno;
+    }
+
+    if (bthread::butex_wait(ctx.waiter, expected_val, NULL) < 0 && errno != EWOULDBLOCK && errno != EINTR) {  // NOLINT
+        LOG(ERROR) << "write failed at butex_wait ";
+        return -errno;
+    }
+
+    LOG(INFO) << "data write bytes " << ctx.res << " sucess ";
+
+    return ctx.res;
 }
 
 int Ext4FileSystemImpl::Append(int fd,

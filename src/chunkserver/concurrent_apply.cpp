@@ -21,6 +21,7 @@
  */
 
 #include <glog/logging.h>
+#include <functional>
 
 #include <algorithm>
 #include "src/chunkserver/concurrent_apply.h"
@@ -43,7 +44,8 @@ ConcurrentApplyModule::ConcurrentApplyModule():
 ConcurrentApplyModule::~ConcurrentApplyModule() {
 }
 
-bool ConcurrentApplyModule::Init(int concurrentsize, int queuedepth) {
+bool ConcurrentApplyModule::Init(int concurrentsize, int queuedepth,
+                                    bool enableCoroutine) {
     if (isStarted_) {
         LOG(WARNING) << "concurrent module already start!";
         return true;
@@ -61,6 +63,8 @@ bool ConcurrentApplyModule::Init(int concurrentsize, int queuedepth) {
         queuedepth_ = queuedepth;
     }
 
+    enableCoroutine_ = enableCoroutine;
+
     // 等待event事件数，等于线程数
     cond_.Reset(concurrentsize);
 
@@ -76,7 +80,15 @@ bool ConcurrentApplyModule::Init(int concurrentsize, int queuedepth) {
     }
 
     for (int i = 0; i < concurrentsize_; i++) {
-        applypoolMap_[i]->th = std::move(std::thread(&ConcurrentApplyModule::Run, this, i));     // NOLINT
+        if (enableCoroutine) {
+            BthreadCtx ctx;
+            ctx.apply = this;
+            ctx.index = i;
+            bthread_start_background(&(applypoolMap_[i]->bth),
+                                        NULL, RunBthread, &ctx);
+        } else {
+            applypoolMap_[i]->th = std::move(std::thread(&ConcurrentApplyModule::Run, this, i));     // NOLINT
+        }
     }
 
     /**
@@ -101,13 +113,23 @@ void ConcurrentApplyModule::Run(int index) {
     }
 }
 
+void *ConcurrentApplyModule::RunBthread(void *arg) {
+    BthreadCtx *ctx = reinterpret_cast<BthreadCtx *>(arg);
+    ctx->apply->Run(ctx->index);
+    return nullptr;
+}
+
 void ConcurrentApplyModule::Stop() {
     LOG(INFO) << "stop ConcurrentApplyModule...";
     stop_ = true;
     auto wakeup = []() {};
     for (auto iter : applypoolMap_) {
         iter.second->tq.Push(wakeup);
-        iter.second->th.join();
+        if (enableCoroutine_) {
+            bthread_join(iter.second->bth, NULL);
+        } else {
+            iter.second->th.join();
+        }
         delete iter.second;
     }
     applypoolMap_.clear();
