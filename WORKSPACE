@@ -21,7 +21,7 @@ load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 git_repository(
     name = "com_github_baidu_braft",
     remote = "https://github.com/baidu/braft",
-    commit = "e255c0e4b18d1a8a5d484d4b647f41ff1385ef1e",
+    commit = "22b0d4ec45a2abdaceeb2216e668130a839ed931",
 )
 
 bind(
