@@ -6,7 +6,7 @@ sed -i "s;https://dl.google.com/go/go1.12.8.linux-amd64.tar.gz;https://curve-bui
 sed -i "s;https://github.com/etcd-io/etcd;https://gitee.com/mirrors/etcd;g" thirdparties/etcdclient/Makefile
 
 # braft
-sed -i "s;https://github.com/baidu/braft;https://gitee.com/baidu/braft;g" WORKSPACE
+sed -i "s;https://github.com/baidu/braft;https://gitee.com/mirrors/BRAFT;g" WORKSPACE
 
 # protobuf
 sed -i "s;https://github.com/google/protobuf/archive/v3.5.0.zip;https://curve-build.nos-eastchina1.126.net/protobuf-3.5.0.zip;g" WORKSPACE

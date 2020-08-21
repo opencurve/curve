@@ -21,7 +21,7 @@ load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 git_repository(
     name = "com_github_baidu_braft",
     remote = "https://github.com/baidu/braft",
-    commit = "e255c0e4b18d1a8a5d484d4b647f41ff1385ef1e",
+    commit = "22b0d4ec45a2abdaceeb2216e668130a839ed931",
 )
 
 bind(
@@ -109,22 +109,22 @@ git_repository(
 
 bind(
     name = "brpc",
-    actual = "@com_github_apache_brpc//:brpc",
+    actual = "@com_github_brpc_brpc//:brpc",
 )
 
 bind(
     name = "butil",
-    actual = "@com_github_apache_brpc//:butil",
+    actual = "@com_github_brpc_brpc//:butil",
 )
 
 bind(
     name = "bthread",
-    actual = "@com_github_apache_brpc//:bthread",
+    actual = "@com_github_brpc_brpc//:bthread",
 )
 
 bind(
     name = "bvar",
-    actual = "@com_github_apache_brpc//:bvar",
+    actual = "@com_github_brpc_brpc//:bvar",
 )
 
 # jsoncpp
