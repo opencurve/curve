@@ -41,6 +41,9 @@
 #include "src/chunkserver/cli.h"
 #include "test/chunkserver/fake_datastore.h"
 #include "src/chunkserver/uri_paser.h"
+#include "src/chunkserver/concurrent_apply/concurrent_apply.h"
+
+using ::curve::chunkserver::concurrent::ConcurrentApplyOption;
 
 namespace curve {
 namespace chunkserver {
@@ -156,7 +159,8 @@ int StartChunkserver(const char *ip,
         LOG(INFO) << "chunfilepool init success";
     }
 
-    LOG_IF(FATAL, false == copysetNodeOptions.concurrentapply->Init(2, 1))
+    ConcurrentApplyOption opt{2, 1, 2, 1};
+    LOG_IF(FATAL, false == copysetNodeOptions.concurrentapply->Init(opt))
         << "Failed to init concurrent apply module";
 
     Configuration conf;

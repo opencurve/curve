@@ -56,11 +56,21 @@ static std::string Exec(const char *cmd) {
 class CopysetServiceTest : public testing::Test {
  public:
     void SetUp() {
-        Exec("rm -rf data");
+        testDir = "CopysetServiceTestData";
+        rmCmd = "rm -rf CopysetServiceTestData";
+        copysetDir = "local://./CopysetServiceTestData";
+        copysetDirPattern = "local://./CopysetServiceTestData/%d";
+        Exec(rmCmd.c_str());
     }
     void TearDown() {
-        Exec("rm -rf data");
+        Exec(rmCmd.c_str());
     }
+
+ protected:
+    std::string testDir;
+    std::string rmCmd;
+    std::string copysetDir;
+    std::string copysetDirPattern;
 };
 
 butil::AtExitManager atExitManager;
@@ -71,7 +81,6 @@ TEST_F(CopysetServiceTest, basic) {
     CopysetID copysetId = 100002;
     std::string ip = "127.0.0.1";
     uint32_t port = 9040;
-    std::string copysetDir = "local://./data";
 
     brpc::Server server;
     butil::EndPoint addr(butil::IP_ANY, port);
@@ -82,7 +91,7 @@ TEST_F(CopysetServiceTest, basic) {
     std::shared_ptr<LocalFileSystem> fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
     ASSERT_TRUE(nullptr != fs);
 
-    butil::string_printf(&copysetDir, "local://./data/%d", port);
+    butil::string_printf(&copysetDir, copysetDirPattern.c_str(), port);
     CopysetNodeOptions copysetNodeOptions;
     copysetNodeOptions.ip = ip;
     copysetNodeOptions.port = port;
@@ -177,7 +186,6 @@ TEST_F(CopysetServiceTest, basic2) {
     CopysetID copysetId = 100003;
     std::string ip = "127.0.0.1";
     uint32_t port = 9040;
-    std::string copysetDir = "local://./data";
 
     brpc::Server server;
     butil::EndPoint addr(butil::IP_ANY, port);
@@ -188,7 +196,7 @@ TEST_F(CopysetServiceTest, basic2) {
     std::shared_ptr<LocalFileSystem> fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
     ASSERT_TRUE(nullptr != fs);
 
-    butil::string_printf(&copysetDir, "local://./data/%d", port);
+    butil::string_printf(&copysetDir, copysetDirPattern.c_str(), port);
     CopysetNodeOptions copysetNodeOptions;
     copysetNodeOptions.ip = ip;
     copysetNodeOptions.port = port;

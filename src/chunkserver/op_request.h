@@ -31,14 +31,14 @@
 
 #include "proto/chunk.pb.h"
 #include "include/chunkserver/chunkserver_common.h"
-#include "src/chunkserver/concurrent_apply.h"
+#include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 #include "src/chunkserver/datastore/define.h"
+
+using ::google::protobuf::RpcController;
+using ::curve::chunkserver::concurrent::ConcurrentApplyModule;
 
 namespace curve {
 namespace chunkserver {
-
-using ::google::protobuf::RpcController;
-using curve::chunkserver::CSChunkInfo;
 
 class CopysetNode;
 class CSDataStore;

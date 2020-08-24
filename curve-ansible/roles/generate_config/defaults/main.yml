@@ -114,8 +114,10 @@ chunkserver_s3_config_path: /etc/curve/cs_s3.conf
 chunkserver_fs_enable_renameat2: true
 chunkserver_metric_onoff: true
 chunkserver_storeng_sync_write: false
-chunkserver_concurrentapply_size: 10
-chunkserver_concurrentapply_queuedepth: 1
+chunkserver_wconcurrentapply_size: 10
+chunkserver_wconcurrentapply_queuedepth: 1
+chunkserver_rconcurrentapply_size: 5
+chunkserver_rconcurrentapply_queuedepth: 1
 chunkserver_chunkfilepool_enable_get_chunk_from_pool: true
 chunkserver_chunkfilepool_chunk_file_pool_dir: ./0/
 chunkserver_chunkfilepool_cpmeta_file_size: 4096

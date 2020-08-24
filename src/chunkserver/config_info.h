@@ -29,14 +29,15 @@
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/trash.h"
 #include "src/chunkserver/inflight_throttle.h"
+#include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 #include "include/chunkserver/chunkserver_common.h"
 
 namespace curve {
 namespace chunkserver {
 
 using curve::fs::LocalFileSystem;
+using curve::chunkserver::concurrent::ConcurrentApplyModule;
 
-class ConcurrentApplyModule;
 class ChunkfilePool;
 class CopysetNodeManager;
 class CloneManager;
