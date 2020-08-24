@@ -61,8 +61,10 @@ CURVE is coded following [Google C++ Style Guide strictly](https://google.github
 3. Exception tests: Not required
 
 ### Other processes
-代码开发完成之后，提[pr](https://github.com/opencurve/curve/compare)到curve的master分支。提交pr时，请填写pr模板。pr提交之后会自动触发CI，CI通过并且经过review之后，代码才可合入。
-具体规则请见[CONTRIBUTING](https://github.com/opencurve/curve/blob/master/CONTRIBUTING.md).
+
+After finishing the development of your code, you should summit a pull request to master branch of Curve and fill out a pull request template. The pull request will trigger the CI automatically, and the code will only be merged after passing the CI and being reviewed.
+
+For more detail, please refer to [CONTRIBUTING](https://github.com/opencurve/curve/blob/master/CONTRIBUTING.md).
 
 ## Release Cycle
 - CURVE release cycle：Half a year for major version, 1~2 months for minor version
