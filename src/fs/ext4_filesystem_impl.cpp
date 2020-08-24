@@ -169,6 +169,8 @@ int Ext4FileSystemImpl::Uninit() {
     if (enableAio_ && enableCoroutine_) {
         th_.join();
         posixWrapper_->iodestroy(ctx_);
+        enableAio_ = false;
+        enableCoroutine_ = false;
     }
     return 0;
 }

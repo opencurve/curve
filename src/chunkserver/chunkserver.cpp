@@ -380,6 +380,7 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(ERROR, trash_->Fini() != 0)
         << "Failed to shutdown trash.";
     concurrentapply.Stop();
+    fs->Uninit();
 
     google::ShutdownGoogleLogging();
     return 0;

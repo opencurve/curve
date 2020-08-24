@@ -27,7 +27,7 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <thread>
+#include <thread>   //NOLINT
 #include "bthread/butex.h"
 #include "src/fs/local_filesystem.h"
 #include "src/fs/wrap_posix.h"
@@ -37,9 +37,9 @@ const int MAX_RETYR_TIME = 3;
 namespace curve {
 namespace fs {
 struct CoRoutineContext {
-   butil::atomic<int>* waiter;
-   volatile long res;
-   volatile long res2; 
+    butil::atomic<int>* waiter;
+    volatile int64_t res;
+    volatile int64_t res2;
 };
 
 class Ext4FileSystemImpl : public LocalFileSystem {

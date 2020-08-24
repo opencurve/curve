@@ -122,10 +122,10 @@ int PosixWrapper::iosetup(int maxevents, io_context_t *ctxp) {
 int PosixWrapper::iodestroy(io_context_t ctx) {
     return ::io_destroy(ctx);
 }
-int PosixWrapper::iosubmit(io_context_t ctx, long nr, struct iocb *ios[]) {
+int PosixWrapper::iosubmit(io_context_t ctx, int64_t nr, struct iocb *ios[]) {
     return io_submit(ctx, nr, ios);
 }
-int PosixWrapper::iogetevents(io_context_t ctx_id, long min_nr, long nr,
+int PosixWrapper::iogetevents(io_context_t ctx_id, int64_t min_nr, int64_t nr,
                         struct io_event *events, struct timespec *timeout) {
     return ::io_getevents(ctx_id, min_nr, nr, events, timeout);
 }
