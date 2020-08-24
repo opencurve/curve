@@ -283,7 +283,8 @@ void ReadChunkRequest::Process() {
                               thisPtr,
                               node_->GetAppliedIndex(),
                               doneGuard.release());
-        concurrentApplyModule_->Push(request_->chunkid(), task);
+        concurrentApplyModule_->Push(
+            request_->chunkid(), request_->optype(), task);
         return;
     }
 

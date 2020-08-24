@@ -32,6 +32,9 @@
 #include "src/chunkserver/register.h"
 #include "src/chunkserver/trash.h"
 #include "src/chunkserver/chunkserver_metrics.h"
+#include "src/chunkserver/concurrent_apply/concurrent_apply.h"
+
+using ::curve::chunkserver::concurrent::ConcurrentApplyOption;
 
 namespace curve {
 namespace chunkserver {
@@ -55,6 +58,9 @@ class ChunkServer {
  private:
     void InitChunkFilePoolOptions(common::Configuration *conf,
         ChunkfilePoolOptions *chunkFilePoolOptions);
+
+    void InitConcurrentApplyOptions(common::Configuration *conf,
+        ConcurrentApplyOption *concurrentApplyOption);
 
     void InitCopysetNodeOptions(common::Configuration *conf,
         CopysetNodeOptions *copysetNodeOptions);

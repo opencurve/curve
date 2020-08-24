@@ -30,7 +30,7 @@
 #include "src/chunkserver/chunk_service.h"
 #include "src/fs/fs_common.h"
 #include "src/fs/local_filesystem.h"
-#include "src/chunkserver/concurrent_apply.h"
+#include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 #include "src/chunkserver/datastore/chunkfile_pool.h"
 #include "src/chunkserver/uri_paser.h"
 #include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
@@ -40,7 +40,8 @@ using curve::chunkserver::Configuration;
 using curve::chunkserver::CopysetNodeManager;
 using curve::chunkserver::ChunkfilePool;
 using curve::chunkserver::ChunkfilePoolOptions;
-using curve::chunkserver::ConcurrentApplyModule;
+using curve::chunkserver::concurrent::ConcurrentApplyModule;
+using curve::chunkserver::concurrent::ConcurrentApplyOption;
 using curve::chunkserver::UriParser;
 using curve::chunkserver::LogicPoolID;
 using curve::chunkserver::CopysetID;
@@ -192,7 +193,8 @@ int main(int argc, char *argv[]) {
         LOG(INFO) << "chunfilepool init success";
     }
 
-    LOG_IF(FATAL, false == copysetNodeOptions.concurrentapply->Init(2, 1))
+    ConcurrentApplyOption opt{2, 1, 2, 1};
+    LOG_IF(FATAL, false == copysetNodeOptions.concurrentapply->Init(opt))
     << "Failed to init concurrent apply module";
 
     Configuration conf;

@@ -149,9 +149,13 @@ storeng.sync_write={{ chunkserver_storeng_sync_write }}
 # Concurrent apply module
 #
 # 并发模块的并发度，一般是10
-concurrentapply.size={{ chunkserver_concurrentapply_size }}
+wconcurrentapply.size={{ chunkserver_wconcurrentapply_size }}
 # 并发模块线程的队列深度
-concurrentapply.queuedepth={{ chunkserver_concurrentapply_queuedepth }}
+wconcurrentapply.queuedepth={{ chunkserver_wconcurrentapply_queuedepth }}
+# 并发模块读线程的并发度，一般是5
+rconcurrentapply.size={{ chunkserver_rconcurrentapply_size }}
+# 并发模块读线程的队列深度
+rconcurrentapply.queuedepth={{ chunkserver_rconcurrentapply_queuedepth }}
 
 #
 # Chunkfile pool
