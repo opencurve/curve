@@ -16,30 +16,25 @@
 
 /*
  * Project: curve
- * File Created: 2019-10-29
- * Author: charisu
+ * Created Date: Thursday November 29th 2018
+ * Author: yangyaokai
  */
 
-#ifndef TEST_TOOLS_MOCK_SNAPSHOT_READ_H_
-#define TEST_TOOLS_MOCK_SNAPSHOT_READ_H_
-
 #include <gtest/gtest.h>
-#include <gmock/gmock.h>
 #include <string>
-#include "src/tools/snapshot_read.h"
+
+#include "src/common/authenticator.h"
 
 namespace curve {
-namespace tool {
-class MockSnapshotRead : public SnapshotRead {
- public:
-    MockSnapshotRead() {}
-    ~MockSnapshotRead() {}
+namespace common {
 
-    MOCK_METHOD2(Init, int(const std::string&, const std::string&));
-    MOCK_METHOD0(UnInit, void());
-    MOCK_METHOD3(Read, int(char*, off_t, size_t));
-    MOCK_METHOD1(GetSnapshotInfo, void(SnapshotRepoItem*));
-};
-}  // namespace tool
+TEST(AuthenticatorTEST, basic_test) {
+    std::string key = "123456";
+    std::string data = "/data/123";
+    std::string sig = Authenticator::CalcString2Signature(data, key);
+    std::string expect = "ZKNsnF9DXRxeb0+xTgFD2zLYkQnE6Sy/g2ebqWEAdlc=";
+    ASSERT_STREQ(sig.c_str(), expect.c_str());
+}
+
+}  // namespace common
 }  // namespace curve
-#endif  // TEST_TOOLS_MOCK_SNAPSHOT_READ_H_

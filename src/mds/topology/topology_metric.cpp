@@ -197,13 +197,18 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         it->second->diskUsed.set_value(totalDiskUsed);
         int64_t diskAlloc = 0;
         allocStatistic_->GetAllocByLogicalPool(pid, &diskAlloc);
-        // replica number should be considered
+        it->second->logicalAlloc.set_value(diskAlloc);
+		// replica number should be considered
         it->second->diskAlloc.set_value(diskAlloc * pool.GetReplicaNum());
 
         it->second->chunkSizeUsedBytes.set_value(totalChunkSizeUsedBytes);
         it->second->chunkSizeLeftBytes.set_value(totalChunkSizeLeftBytes);
         it->second->chunkSizeTrashedBytes.set_value(totalChunkSizeTrashedBytes);
         it->second->chunkSizeTotalBytes.set_value(totalChunkSizeBytes);
+        if (pool.GetReplicaNum() != 0) {
+            it->second->logicalCapacity.set_value(
+                totalChunkSizeBytes / pool.GetReplicaNum());
+        }
     }
     // remove invalid logical pool metric
     for (auto iy = gLogicalPoolMetrics.begin();

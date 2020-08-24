@@ -22,8 +22,8 @@
 
 #include <gtest/gtest.h>
 #include "src/tools/copyset_check_core.h"
-#include "test/tools/mock_mds_client.h"
-#include "test/tools/mock_chunkserver_client.h"
+#include "test/tools/mock/mock_mds_client.h"
+#include "test/tools/mock/mock_chunkserver_client.h"
 
 using ::testing::_;
 using ::testing::Return;

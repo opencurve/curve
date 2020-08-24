@@ -329,8 +329,9 @@ class CopysetNode : public braft::StateMachine,
      * 配置变更日志entry apply的时候会调用此函数，目前会利用此接口
      * 更新配置epoch值
      * @param conf:当前复制组最新的配置
+     * @param index log index
      */
-    void on_configuration_committed(const ::braft::Configuration &conf) override;   //NOLINT
+    void on_configuration_committed(const Configuration& conf, int64_t index) override;   //NOLINT
 
     /**
      * 当follower停止following主的时候调用
@@ -428,6 +429,7 @@ class CopysetNode : public braft::StateMachine,
     std::shared_ptr<ConfigurationChange> configChange_;
     // transfer leader的目标，状态为TRANSFERRING时有效
     Peer transferee_;
+    int64_t lastSnapshotIndex_;
 };
 
 }  // namespace chunkserver

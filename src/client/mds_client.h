@@ -355,13 +355,13 @@ class MDSClient {
     LIBCURVE_ERROR Register(const std::string& ip, uint16_t port);
 
      /**
-      * 获取chunkserverid
-      * @param[in]: addr为chunkserver地址信息
-      * @param[out]: 待获取的chunkserverid
+      * 获取chunkserver信息
+      * @param[in] addr chunkserver地址信息
+      * @param[out] chunkserverInfo 待获取的信息
       * @return：成功返回ok
       */
-    LIBCURVE_ERROR GetChunkServerID(const ChunkServerAddr& addr,
-                                    ChunkServerID* id);
+    LIBCURVE_ERROR GetChunkServerInfo(const ChunkServerAddr& addr,
+                                    CopysetPeerInfo_t* chunkserverInfo);
 
      /**
       * 获取server上所有chunkserver的id

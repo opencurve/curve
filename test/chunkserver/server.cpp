@@ -33,6 +33,7 @@
 #include "src/chunkserver/concurrent_apply.h"
 #include "src/chunkserver/datastore/chunkfile_pool.h"
 #include "src/chunkserver/uri_paser.h"
+#include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
 
 using curve::chunkserver::CopysetNodeOptions;
 using curve::chunkserver::Configuration;
@@ -123,6 +124,8 @@ int main(int argc, char *argv[]) {
         LOG(ERROR) << "Fail to add rpc service";
         return -1;
     }
+    curve::chunkserver::RegisterCurveSnapshotStorageOrDie();
+    curve::chunkserver::CurveSnapshotStorage::set_server_addr(addr);
 
     if (server.Start(FLAGS_port, NULL) != 0) {
         LOG(ERROR) << "Fail to start Server: "
@@ -145,7 +148,9 @@ int main(int argc, char *argv[]) {
     copysetNodeOptions.chunkSnapshotUri = copysetUri;
     copysetNodeOptions.logUri = copysetUri;
     copysetNodeOptions.raftMetaUri = copysetUri;
-    copysetNodeOptions.raftSnapshotUri = copysetUri;
+    std::string raftSnapshotUri = copysetUri;
+    raftSnapshotUri.replace(raftSnapshotUri.find("local"), 5, "curve");
+    copysetNodeOptions.raftSnapshotUri = raftSnapshotUri;
     copysetNodeOptions.pageSize = 4 * 1024;
     copysetNodeOptions.maxChunkSize = kMaxChunkSize;
 

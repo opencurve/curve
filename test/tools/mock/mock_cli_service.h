@@ -20,8 +20,8 @@
  * Author: charisu
  */
 
-#ifndef TEST_TOOLS_MOCK_CLI_SERVICE_H_
-#define TEST_TOOLS_MOCK_CLI_SERVICE_H_
+#ifndef TEST_TOOLS_MOCK_MOCK_CLI_SERVICE_H_
+#define TEST_TOOLS_MOCK_MOCK_CLI_SERVICE_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -70,4 +70,4 @@ class MockCliService : public CliService2 {
 };
 }  // namespace tool
 }  // namespace curve
-#endif  // TEST_TOOLS_MOCK_CLI_SERVICE_H_
+#endif  // TEST_TOOLS_MOCK_MOCK_CLI_SERVICE_H_

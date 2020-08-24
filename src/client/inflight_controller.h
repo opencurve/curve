@@ -106,6 +106,10 @@ class InflightControl {
         DecremInflightNum();
     }
 
+    uint64_t GetCurrentInflightNum() const {
+        return curInflightIONum_;
+    }
+
  private:
     uint64_t              maxInflightNum_;
     std::atomic<uint64_t> curInflightIONum_;

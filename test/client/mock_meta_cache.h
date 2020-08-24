@@ -53,7 +53,6 @@ class FakeMetaCache : public MetaCache {
     }
     int UpdateLeader(LogicPoolID logicPoolId,
                      CopysetID copysetId,
-                     ChunkServerID *leaderId,
                      const butil::EndPoint &leaderAddr) {
         return 0;
     }
@@ -65,13 +64,13 @@ class MockMetaCache : public MetaCache {
 
     MOCK_METHOD6(GetLeader, int(LogicPoolID, CopysetID, ChunkServerID*,
                                 butil::EndPoint *, bool, FileMetric*));
-    MOCK_METHOD4(UpdateLeader, int(LogicPoolID, CopysetID, ChunkServerID*,
+    MOCK_METHOD3(UpdateLeader, int(LogicPoolID, CopysetID,
                                    const butil::EndPoint &));
 
     void DelegateToFake() {
         ON_CALL(*this, GetLeader(_, _, _, _, _, _))
             .WillByDefault(Invoke(&fakeMetaCache_, &FakeMetaCache::GetLeader));
-        ON_CALL(*this, UpdateLeader(_, _, _, _))
+        ON_CALL(*this, UpdateLeader(_, _, _))
             .WillByDefault(Invoke(&fakeMetaCache_,
                                   &FakeMetaCache::UpdateLeader));
     }

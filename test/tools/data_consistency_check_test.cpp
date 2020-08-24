@@ -25,8 +25,8 @@
 #include <fiu-control.h>
 
 #include "src/tools/consistency_check.h"
-#include "test/tools/mock_namespace_tool_core.h"
-#include "test/tools/mock_chunkserver_client.h"
+#include "test/tools/mock/mock_namespace_tool_core.h"
+#include "test/tools/mock/mock_chunkserver_client.h"
 
 DECLARE_bool(check_hash);
 

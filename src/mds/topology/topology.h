@@ -553,6 +553,8 @@ class TopologyImpl : public Topology {
 
     void FlushChunkServerToStorage();
 
+    void SetChunkServerExternalIp();
+
  private:
     std::unordered_map<PoolIdType, LogicalPool> logicalPoolMap_;
     std::unordered_map<PoolIdType, PhysicalPool> physicalPoolMap_;

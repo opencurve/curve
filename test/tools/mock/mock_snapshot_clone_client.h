@@ -16,35 +16,33 @@
 
 /*
  * Project: curve
- * File Created: 2020-02-20
+ * File Created: 2020-03-17
  * Author: charisu
  */
 
-
-#ifndef TEST_TOOLS_MOCK_METRIC_CLIENT_H_
-#define TEST_TOOLS_MOCK_METRIC_CLIENT_H_
+#ifndef TEST_TOOLS_MOCK_MOCK_SNAPSHOT_CLONE_CLIENT_H_
+#define TEST_TOOLS_MOCK_MOCK_SNAPSHOT_CLONE_CLIENT_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <string>
-#include <vector>
 #include <map>
-#include "src/tools/metric_client.h"
+#include <memory>
+#include <vector>
+#include "src/tools/snapshot_clone_client.h"
 
-using ::testing::Return;
 namespace curve {
 namespace tool {
-class MockMetricClient : public MetricClient {
+class MockSnapshotCloneClient : public SnapshotCloneClient {
  public:
-    MOCK_METHOD3(GetMetric, MetricRet(const std::string&, const std::string&,
-                                std::string*));
-    MOCK_METHOD3(GetMetricUint, MetricRet(const std::string&,
-                                const std::string&,
-                                uint64_t*));
-    MOCK_METHOD3(GetConfValueFromMetric, MetricRet(const std::string&,
-                                         const std::string&,
-                                         std::string*));
+    MockSnapshotCloneClient() :
+            SnapshotCloneClient(std::make_shared<MetricClient>()) {}
+    MOCK_METHOD2(Init, int(const std::string&, const std::string&));
+    MOCK_METHOD0(GetActiveAddrs, std::vector<std::string>());
+    MOCK_METHOD1(GetOnlineStatus, void(std::map<std::string, bool>*));
+    MOCK_CONST_METHOD0(GetDummyServerMap,
+                    const std::map<std::string, std::string>&());
 };
 }  // namespace tool
 }  // namespace curve
-#endif  // TEST_TOOLS_MOCK_METRIC_CLIENT_H_
+#endif  // TEST_TOOLS_MOCK_MOCK_SNAPSHOT_CLONE_CLIENT_H_

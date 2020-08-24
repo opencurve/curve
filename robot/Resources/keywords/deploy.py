@@ -141,18 +141,18 @@ def add_config():
     shell_operator.run_exec2(cmd)
     for host in config.chunkserver_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/s3.conf client.conf conf/cs_client.conf %s:~/"%\
+        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046  client.conf conf/cs_client.conf %s:~/"%\
                             (config.pravie_key_path,host)
         shell_operator.run_exec2(cmd)
         ori_cmd = R"sed -i 's/mds.listen.addr=127.0.0.1:6666/mds.listen.addr=%s/g' cs_client.conf"%(addrs)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s cs_client config fail"%host
-        ori_cmd = "sudo mv s3.conf /etc/curve/conf && sudo mv client.conf /etc/curve/conf && sudo mv cs_client.conf /etc/curve/conf/"
+        ori_cmd = "sudo mv client.conf /etc/curve/conf && sudo mv cs_client.conf /etc/curve/conf/"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[3] == 0,"mv %s s3 conf fail"%host
+        assert rs[3] == 0,"mv %s client conf fail"%host
     for host in config.snap_server_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/s3.conf client.conf conf/snapshot_clone_server.conf conf/snap_client.conf %s:~/"%\
+        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 client.conf conf/snapshot_clone_server.conf conf/snap_client.conf %s:~/"%\
                   (config.pravie_key_path,host)
         shell_operator.run_exec2(cmd)
         ori_cmd = "sed -i \"s/client.config_path=\S*/client.config_path=\/etc\/curve\/snap_client.conf/\" snapshot_clone_server.conf"
@@ -179,7 +179,7 @@ def add_config():
         ori_cmd = "sudo mv snapshot_clone_server.conf /etc/curve/ && sudo mv snap_client.conf /etc/curve/"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"mv %s snapshot_clone_server conf fail"%host
-        ori_cmd = "sudo mv s3.conf /etc/curve/ && sudo mv client.conf /etc/curve/"
+        ori_cmd = "sudo mv client.conf /etc/curve/"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
 
     # add tools config

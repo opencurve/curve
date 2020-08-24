@@ -111,6 +111,24 @@ void TopologyServiceManager::RegistChunkServer(
     }
 
     std::string token = topology_->AllocateToken();
+    std::string externalIp;
+    Server server;
+    bool foundServer = topology_->GetServer(serverId, &server);
+    if (!foundServer) {
+        LOG(ERROR) << "Get server " << serverId << " from topology fail";
+        response->set_statuscode(kTopoErrCodeServerNotFound);
+        return;
+    }
+    if (request->has_externalip()) {
+        if (request->externalip() != server.GetExternalHostIp()) {
+            LOG(ERROR) << "External ip of chunkserver not match server's"
+                       << ", server external ip: " << server.GetExternalHostIp()
+                       << ", request external ip: " << request->externalip();
+            response->set_statuscode(kTopoErrCodeInternalError);
+            return;
+        }
+    }
+    externalIp = server.GetExternalHostIp();
 
     ChunkServer chunkserver(
         chunkServerId,
@@ -119,8 +137,10 @@ void TopologyServiceManager::RegistChunkServer(
         serverId,
         request->hostip(),
         request->port(),
-        request->diskpath());
-    chunkserver.SetOnlineState(ONLINE);
+        request->diskpath(),
+        READWRITE,
+        ONLINE,
+        externalIp);
 
     int errcode = topology_->AddChunkServer(chunkserver);
     if (errcode == kTopoErrCodeSuccess) {
@@ -164,7 +184,8 @@ void TopologyServiceManager::ListChunkServer(
             ChunkServerInfo *csInfo = response->add_chunkserverinfos();
             csInfo->set_chunkserverid(cs.GetId());
             csInfo->set_disktype(cs.GetDiskType());
-            csInfo->set_hostip(server.GetInternalHostIp());
+            csInfo->set_hostip(cs.GetHostIp());
+            csInfo->set_externalip(cs.GetExternalHostIp());
             csInfo->set_port(cs.GetPort());
             csInfo->set_status(cs.GetStatus());
             csInfo->set_onlinestate(cs.GetOnlineState());
@@ -211,6 +232,7 @@ void TopologyServiceManager::GetChunkServer(
     csInfo->set_chunkserverid(cs.GetId());
     csInfo->set_disktype(cs.GetDiskType());
     csInfo->set_hostip(cs.GetHostIp());
+    csInfo->set_externalip(cs.GetExternalHostIp());
     csInfo->set_port(cs.GetPort());
     csInfo->set_status(cs.GetStatus());
     csInfo->set_onlinestate(cs.GetOnlineState());
@@ -1300,6 +1322,7 @@ void TopologyServiceManager::GetChunkServerListInCopySets(
                     csLoc->set_chunkserverid(csId);
                     csLoc->set_hostip(cs.GetHostIp());
                     csLoc->set_port(cs.GetPort());
+                    csLoc->set_externalip(cs.GetExternalHostIp());
                 } else {
                     LOG(ERROR) << "Topology has counter an internal error: "
                                << "[func:] GetChunkServerListInCopySets, "

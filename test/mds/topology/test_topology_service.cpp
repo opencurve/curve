@@ -117,6 +117,7 @@ TEST_F(TestTopologyService, test_RegistChunkServer_success) {
     request.set_diskpath("2");
     request.set_hostip("3");
     request.set_port(8888);
+    request.set_externalip("127.0.0.1");
 
     ChunkServerRegistResponse response;
 
@@ -149,6 +150,7 @@ TEST_F(TestTopologyService, test_RegistChunkServer_fail) {
     request.set_diskpath("2");
     request.set_hostip("3");
     request.set_port(8888);
+    request.set_externalip("127.0.0.1");
 
     ChunkServerRegistResponse response;
 

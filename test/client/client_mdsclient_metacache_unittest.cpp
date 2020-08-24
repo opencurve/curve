@@ -114,8 +114,9 @@ class MDSClientTest : public ::testing::Test {
         = new curve::mds::topology::ChunkServerInfo();
         serverinfo->set_chunkserverid(888);
         serverinfo->set_disktype("nvme");
-        serverinfo->set_hostip("127.0.0.1");
-        serverinfo->set_port(3333);
+        serverinfo->set_hostip("10.182.26.2");
+        serverinfo->set_externalip("127.0.0.1");
+        serverinfo->set_port(9124);
         serverinfo->set_status(ChunkServerStatus::RETIRED);
         serverinfo->set_diskstatus(DiskState::DISKNORMAL);
         serverinfo->set_onlinestate(OnlineState::ONLINE);
@@ -123,8 +124,8 @@ class MDSClientTest : public ::testing::Test {
         serverinfo->set_diskcapacity(11111);
         serverinfo->set_diskused(1111);
         response->set_allocated_chunkserverinfo(serverinfo);
-        FakeReturn* getidret = new FakeReturn(nullptr, static_cast<void*>(response));      // NOLINT
-        topologyservice.SetGetChunkserveridFakeReturn(getidret);
+        FakeReturn* getcsret = new FakeReturn(nullptr, static_cast<void*>(response));      // NOLINT
+        topologyservice.SetGetChunkserverFakeReturn(getcsret);
 
         brpc::ServerOptions options;
         options.idle_timeout_sec = -1;
@@ -969,7 +970,7 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
             auto cslocs = csinfo->add_cslocs();
             cslocs->set_chunkserverid(chunkserveridc++);
             cslocs->set_hostip("127.0.0.1");
-            cslocs->set_port(5000);
+            cslocs->set_port(5000 + j);
         }
     }
     FakeReturn* faktopologyeret = new FakeReturn(nullptr,
@@ -1010,6 +1011,7 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
     curve::client::EndPoint ep;
     butil::str2endpoint("127.0.0.1", 5000, &ep);
     curve::client::ChunkServerAddr pd(ep);
+
     for (int i = 0; i < 256; i++) {
         auto serverlist = mc.GetServerList(1234, i);
         ASSERT_TRUE(serverlist.IsValid());
@@ -1020,9 +1022,17 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
         mc.GetLeader(1234, i, &csid, &temp);
         ASSERT_EQ(csid, chunkserverid);
         ASSERT_EQ(temp, ep);
-        for (auto iter : serverlist.csinfos_) {
-            ASSERT_EQ(iter.chunkserverid_, chunkserverid++);
-            ASSERT_EQ(pd, iter.csaddr_);
+        for (int j = 0; j < 3; j++) {
+            auto csInfo = serverlist.csinfos_[j];
+            ASSERT_EQ(csInfo.chunkserverID, chunkserverid++);
+            curve::client::EndPoint ep1;
+            butil::str2endpoint("127.0.0.1", 5000 + j, &ep1);
+            curve::client::ChunkServerAddr pd1(ep1);
+            curve::client::EndPoint ep2;
+            butil::str2endpoint("127.0.0.1", 5000 + j, &ep2);
+            curve::client::ChunkServerAddr pd2(ep2);
+            ASSERT_EQ(pd1, csInfo.internalAddr);
+            ASSERT_EQ(pd2, csInfo.externalAddr);
         }
     }
 
@@ -1037,16 +1047,15 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
     ASSERT_EQ(-1, mc.GetLeader(2345, 0, &csid, &temp));
 
     curve::client::EndPoint ep1;
-    butil::str2endpoint("127.0.0.1", 7777, &ep1);
-    ChunkServerID cid1 = 4;
-    mc.UpdateLeader(1234, 0, &cid1, ep1);
+    butil::str2endpoint("127.0.0.1", 5001, &ep1);
+    mc.UpdateLeader(1234, 0, ep1);
 
     curve::client::EndPoint toep;
     ChunkServerID cid;
     mc.GetLeader(1234, 0, &cid, &toep, false);
 
     ASSERT_EQ(ep1, toep);
-    ASSERT_EQ(0, mc.UpdateLeader(1234, 0, &cid1, ep1));
+    ASSERT_EQ(0, mc.UpdateLeader(1234, 0, ep1));
 
     ASSERT_EQ(0, mc.GetAppliedIndex(1111, 0));
 
@@ -1081,9 +1090,9 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
     butil::str2endpoint("127.0.0.1", 7777, &ep33);
     curve::client::ChunkServerAddr pd33(ep33);
 
-    conf.push_back(CopysetPeerInfo(1, pd11));
-    conf.push_back(CopysetPeerInfo(2, pd22));
-    conf.push_back(CopysetPeerInfo(3, pd33));
+    conf.push_back(CopysetPeerInfo(1, pd11, pd11));
+    conf.push_back(CopysetPeerInfo(2, pd22, pd22));
+    conf.push_back(CopysetPeerInfo(3, pd33, pd33));
     GetLeaderInfo getLeaderInfo2(lpid, copyid, conf, 10);
     ASSERT_EQ(-1, ServiceHelper::GetLeader(getLeaderInfo2, &pid));
 
@@ -1106,7 +1115,8 @@ TEST_F(MDSClientTest, GetServerList) {
         for (int i = 0; i < 3; i++) {
             cslocs = csinfo->add_cslocs();
             cslocs->set_chunkserverid(chunkserveridc++);
-            cslocs->set_hostip("127.0.0.1");
+            cslocs->set_hostip("10.182.26.2");
+            cslocs->set_externalip("127.0.0.1");
             cslocs->set_port(5000);
         }
     }
@@ -1128,16 +1138,21 @@ TEST_F(MDSClientTest, GetServerList) {
         mc.UpdateCopysetInfo(1234, iter.cpid_, iter);
     }
 
-    curve::client::EndPoint ep;
-    butil::str2endpoint("127.0.0.1", 5000, &ep);
-    curve::client::ChunkServerAddr pd(ep);
     for (int i = 0; i < 256; i++) {
         auto serverlist = mc.GetServerList(1234, i);
         ASSERT_TRUE(serverlist.IsValid());
         int chunkserverid = i * 3 + 1;
-        for (auto iter : serverlist.csinfos_) {
-            ASSERT_EQ(iter.chunkserverid_, chunkserverid++);
-            ASSERT_EQ(pd, iter.csaddr_);
+        for (int j = 0; j < 3; j++) {
+            auto csInfo = serverlist.csinfos_[j];
+            curve::client::EndPoint ep1;
+            butil::str2endpoint("10.182.26.2", 5000, &ep1);
+            curve::client::ChunkServerAddr pd1(ep1);
+            curve::client::EndPoint ep2;
+            butil::str2endpoint("127.0.0.1", 5000, &ep2);
+            curve::client::ChunkServerAddr pd2(ep2);
+            ASSERT_EQ(csInfo.chunkserverID, chunkserverid++);
+            ASSERT_EQ(pd1, csInfo.internalAddr);
+            ASSERT_EQ(pd2, csInfo.externalAddr);
         }
     }
 }
@@ -1191,39 +1206,26 @@ TEST_F(MDSClientTest, GetLeaderTest) {
         LOG(ERROR) << "Fail to start Server";
     }
 
-    curve::client::EndPoint ep1, ep2, ep3, ep4;
-    butil::str2endpoint("127.0.0.1", 9120, &ep1);
-    curve::client::ChunkServerAddr pd1(ep1);
-    butil::str2endpoint("127.0.0.1", 9121, &ep2);
-    curve::client::ChunkServerAddr pd2(ep2);
-    butil::str2endpoint("127.0.0.1", 9122, &ep3);
-    curve::client::ChunkServerAddr pd3(ep3);
-    butil::str2endpoint("127.0.0.1", 9123, &ep4);
-    curve::client::ChunkServerAddr pd4(ep4);
-
-    std::vector<CopysetPeerInfo> cfg;
-    cfg.push_back(CopysetPeerInfo(1, pd1));
-    cfg.push_back(CopysetPeerInfo(2, pd2));
-    cfg.push_back(CopysetPeerInfo(3, pd3));
-
     curve::client::MetaCache mc;
     MetaCacheOption mcOpt;
     mc.Init(mcOpt, &mdsclient_);
     curve::client::CopysetInfo_t cslist;
 
-    curve::client::CopysetPeerInfo peerinfo_1;
-    peerinfo_1.chunkserverid_ = 1;
-    peerinfo_1.csaddr_ = pd1;
+    curve::client::ChunkServerAddr pd1;
+    pd1.Parse("10.182.26.2:9120:0");
+    curve::client::ChunkServerAddr pd2;
+    pd2.Parse("127.0.0.1:9120:0");
+    curve::client::CopysetPeerInfo peerinfo_1(1, pd1, pd2);
     cslist.AddCopysetPeerInfo(peerinfo_1);
 
-    curve::client::CopysetPeerInfo peerinfo_2;
-    peerinfo_2.chunkserverid_ = 2;
-    peerinfo_2.csaddr_ = pd2;
+    pd1.addr_.port = 9121;
+    pd2.addr_.port = 9121;
+    curve::client::CopysetPeerInfo peerinfo_2(2, pd1, pd2);
     cslist.AddCopysetPeerInfo(peerinfo_2);
 
-    curve::client::CopysetPeerInfo peerinfo_3;
-    peerinfo_3.chunkserverid_ = 3;
-    peerinfo_3.csaddr_ = pd3;
+    pd1.addr_.port = 9122;
+    pd2.addr_.port = 9122;
+    curve::client::CopysetPeerInfo peerinfo_3(3, pd1, pd2);
     cslist.AddCopysetPeerInfo(peerinfo_3);
 
     mc.UpdateCopysetInfo(1234, 1234, cslist);
@@ -1231,24 +1233,12 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     // 测试复制组里第三个addr为leader
     curve::chunkserver::GetLeaderResponse2 response1;
     curve::common::Peer *peer1 = new curve::common::Peer();
-    peer1->set_address(pd3.ToString());
+    peer1->set_address(peerinfo_3.internalAddr.ToString());
     response1.set_allocated_leader(peer1);
     FakeReturn fakeret1(nullptr, static_cast<void*>(&response1));
     cliservice1.SetFakeReturn(&fakeret1);
-
-    curve::chunkserver::GetLeaderResponse2 response2;
-    curve::common::Peer *peer2 = new curve::common::Peer();
-    peer2->set_address(pd3.ToString());
-    response2.set_allocated_leader(peer2);
-    FakeReturn fakeret2(nullptr, static_cast<void*>(&response2));
-    cliservice2.SetFakeReturn(&fakeret2);
-
-    curve::chunkserver::GetLeaderResponse2 response3;
-    curve::common::Peer *peer3 = new curve::common::Peer();
-    peer3->set_address(pd3.ToString());
-    response3.set_allocated_leader(peer3);
-    FakeReturn fakeret3(nullptr, static_cast<void*>(&response3));
-    cliservice3.SetFakeReturn(&fakeret3);
+    cliservice2.SetFakeReturn(&fakeret1);
+    cliservice3.SetFakeReturn(&fakeret1);
 
     curve::client::ChunkServerID ckid;
     curve::client::EndPoint leaderep;
@@ -1257,40 +1247,21 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     cliservice2.CleanInvokeTimes();
     cliservice3.CleanInvokeTimes();
 
-    mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
-
+    ASSERT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, true));
     ASSERT_EQ(ckid, 3);
-    ASSERT_EQ(ep3, leaderep);
+    curve::client::EndPoint expected;
+    butil::str2endpoint("127.0.0.1", 9122, &expected);
+    ASSERT_EQ(expected, leaderep);
 
     // 测试拉取新leader失败，需要到mds重新fetch新的serverlist
     // 当前新leader是3，尝试再刷新leader，这个时候会从1， 2获取leader
     // 但是这时候leader找不到了，于是就会触发向mds重新拉取最新的server list
     brpc::Controller controller11;
     controller11.SetFailed(-1, "error");
-    curve::common::Peer *peer9 = new curve::common::Peer();
-    peer9->set_address(pd3.ToString());
-    peer9->set_id(4321);
-    response1.set_allocated_leader(peer9);
     FakeReturn fakeret111(&controller11, static_cast<void*>(&response1));
     cliservice1.SetFakeReturn(&fakeret111);
-
-    brpc::Controller controller22;
-    controller22.SetFailed(-1, "error");
-    curve::common::Peer *peer10 = new curve::common::Peer();
-    peer10->set_address(pd2.ToString());
-    peer10->set_id(4321);
-    response2.set_allocated_leader(peer10);
-    FakeReturn fakeret222(&controller22, static_cast<void*>(&response2));
-    cliservice2.SetFakeReturn(&fakeret222);
-
-    brpc::Controller controller33;
-    controller33.SetFailed(-1, "error");
-    curve::common::Peer *peer11 = new curve::common::Peer();
-    peer11->set_address(pd3.ToString());
-    peer11->set_id(4321);
-    response3.set_allocated_leader(peer11);
-    FakeReturn fakeret333(&controller33, static_cast<void*>(&response3));
-    cliservice3.SetFakeReturn(&fakeret333);
+    cliservice2.SetFakeReturn(&fakeret111);
+    cliservice3.SetFakeReturn(&fakeret111);
 
     ::curve::mds::topology::GetChunkServerListInCopySetsResponse response_1;
     response_1.set_statuscode(0);
@@ -1303,7 +1274,8 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     for (int i = 0; i < 4; i++) {
         cslocs = csinfo->add_cslocs();
         cslocs->set_chunkserverid(chunkserveridc++);
-        cslocs->set_hostip("127.0.0.1");
+        cslocs->set_hostip("10.182.26.2");
+        cslocs->set_externalip("127.0.0.1");
         cslocs->set_port(9120 + i);
     }
 
@@ -1322,52 +1294,23 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     ASSERT_EQ(0, cliservice3.GetInvokeTimes());
 
     // 因为从mds获取新的copyset信息了，所以其leader信息被重置了，需要重新获取新leader
-    // 获取新新的leader，这时候会从1，2，3，4这三个server拉取新leader，并成功获取新leader
+    // 获取新新的leader，这时候会从1，2，3，4这四个server拉取新leader，并成功获取新leader
+    std::string leader = "10.182.26.2:9123:0";
     peer1 = new curve::common::Peer();
-    peer1->set_address(pd4.ToString());
+    peer1->set_address(leader);
     peer1->set_id(4321);
     response1.set_allocated_leader(peer1);
     fakeret1 = FakeReturn(nullptr, static_cast<void*>(&response1));
 
     cliservice1.SetFakeReturn(&fakeret1);
     cliservice2.SetFakeReturn(&fakeret1);
+    cliservice3.SetFakeReturn(&fakeret1);
     cliservice4.SetFakeReturn(&fakeret1);
 
     LOG(INFO) << "get leader test for nameing service";
-    curve::chunkserver::GetLeaderResponse2 response_11;
-    curve::common::Peer *peer_11 = new curve::common::Peer();
-    peer_11->set_address(pd4.ToString());
-    peer_11->set_id(4321);
-    response_11.set_allocated_leader(peer_11);
-    FakeReturn fakeret_11(nullptr, static_cast<void*>(&response_11));
-    cliservice1.SetFakeReturn(&fakeret_11);
-
-    curve::chunkserver::GetLeaderResponse2 response_22;
-    curve::common::Peer *peer_22 = new curve::common::Peer();
-    peer_22->set_address(pd4.ToString());
-    peer_22->set_id(4321);
-    response_22.set_allocated_leader(peer_22);
-    FakeReturn fakeret_22(nullptr, static_cast<void*>(&response_22));
-    cliservice2.SetFakeReturn(&fakeret_22);
-
-    curve::chunkserver::GetLeaderResponse2 response_33;
-    curve::common::Peer *peer_33 = new curve::common::Peer();
-    peer_33->set_address(pd4.ToString());
-    peer_33->set_id(4321);
-    response_33.set_allocated_leader(peer_33);
-    FakeReturn fakeret_33(nullptr, static_cast<void*>(&response_33));
-    cliservice3.SetFakeReturn(&fakeret_33);
-
-    curve::chunkserver::GetLeaderResponse2 response4;
-    curve::common::Peer *peer12 = new curve::common::Peer();
-    peer12->set_address(pd4.ToString());
-    peer12->set_id(4321);
-    response4.set_allocated_leader(peer12);
-    FakeReturn fakeret444(nullptr, static_cast<void*>(&response4));
-    cliservice4.SetFakeReturn(&fakeret444);
-
     ASSERT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, true));
-    ASSERT_EQ(leaderep, ep4);
+    butil::str2endpoint("127.0.0.1", 9123, &expected);
+    ASSERT_EQ(expected, leaderep);
 
     cliservice1.CleanInvokeTimes();
     cliservice2.CleanInvokeTimes();
@@ -1376,20 +1319,17 @@ TEST_F(MDSClientTest, GetLeaderTest) {
 
     // refresh为false，所以只会从metacache中获取，不会发起rpc请求
     ASSERT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, false));
-    ASSERT_EQ(leaderep, ep4);
+    ASSERT_EQ(expected, leaderep);
     ASSERT_EQ(0, cliservice1.GetInvokeTimes());
     ASSERT_EQ(0, cliservice2.GetInvokeTimes());
     ASSERT_EQ(0, cliservice3.GetInvokeTimes());
     ASSERT_EQ(0, cliservice4.GetInvokeTimes());
 
-    // 测试新增一个leader，其chunkserverid未知, 然后通过向mds
-    // 查询其chunkserverid之后, 将其成功插入metacache
-    curve::client::EndPoint ep5;
-    butil::str2endpoint("127.0.0.1", 9124, &ep5);
-    curve::client::ChunkServerAddr pd5(ep5);
-
+    // 测试新增一个leader，该节点不在配置组内, 然后通过向mds
+    // 查询其chunkserverInfo之后, 将其成功插入metacache
     curve::common::Peer *peer7 = new curve::common::Peer();
-    peer7->set_address(pd5.ToString());
+    leader = "10.182.26.2:9124:0";
+    peer7->set_address(leader);
     response1.set_allocated_leader(peer7);
     FakeReturn fakeret44(nullptr, static_cast<void*>(&response1));
     cliservice1.SetFakeReturn(&fakeret44);
@@ -1404,90 +1344,12 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
 
     CopysetInfo_t cpinfo = mc.GetServerList(1234, 1234);
-    // 新的leader因为没有id，所以并没有被添加到copyset中
     ASSERT_EQ(cpinfo.csinfos_.size(), 5);
     curve::client::CopysetPeerInfo_t cpeer;
-    cpeer.csaddr_.addr_ = pd5.addr_;
+    cpeer.internalAddr.Parse("10.182.26.2:9124:0");
+    cpeer.externalAddr.Parse("127.0.0.1:9124:0");
     auto it = std::find(cpinfo.csinfos_.begin(), cpinfo.csinfos_.end(), cpeer);
     ASSERT_NE(it, cpinfo.csinfos_.end());
-
-    // 测试新增一个leader，但是其chunkserverid已知
-    // 设置新的leaderid和addr
-    curve::client::EndPoint ep6;
-    butil::str2endpoint("127.0.0.1", 9125, &ep6);
-    curve::client::ChunkServerAddr pd6(ep6);
-
-    curve::common::Peer *peer8 = new curve::common::Peer();
-    peer8->set_address(pd6.ToString());
-    peer8->set_id(4321);
-    response1.set_allocated_leader(peer8);
-    FakeReturn fakeret55(nullptr, static_cast<void*>(&response1));
-    cliservice1.SetFakeReturn(&fakeret55);
-    cliservice2.SetFakeReturn(&fakeret55);
-    cliservice3.SetFakeReturn(&fakeret55);
-    cliservice4.SetFakeReturn(&fakeret55);
-
-    cliservice1.CleanInvokeTimes();
-    cliservice2.CleanInvokeTimes();
-    cliservice3.CleanInvokeTimes();
-    cliservice4.CleanInvokeTimes();
-
-    mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
-
-    cpinfo = mc.GetServerList(1234, 1234);
-    ASSERT_EQ(cpinfo.csinfos_.size(), 6);
-    auto t = std::find(cpinfo.csinfos_.begin(), cpinfo.csinfos_.end(), cpeer);
-    ASSERT_NE(t, cpinfo.csinfos_.end());
-    int leaderindex = cpinfo.GetCurrentLeaderIndex();
-
-    ASSERT_EQ(pd6, cpinfo.csinfos_[leaderindex].csaddr_);
-
-    // 测试新增一个leader，但是其chunkserverid未知
-    // 去mds拿到id之后，将其加入缓存中
-    // 再去mds拉取配置时，此leader在当前配置组中，更新本地缓存
-
-    // 设置mds端response
-    curve::mds::topology::GetChunkServerListInCopySetsResponse getCSListResponse;  // NOLINT
-    getCSListResponse.set_statuscode(0);
-    curve::mds::topology::ChunkServerLocation* csLocations;
-    curve::mds::topology::CopySetServerInfo* copysetServerInfos;
-    copysetServerInfos = getCSListResponse.add_csinfo();
-    copysetServerInfos->set_copysetid(1234);
-
-    // 复制组只包含一个chunkserver
-    csLocations = copysetServerInfos->add_cslocs();
-    csLocations->set_chunkserverid(4321);
-    csLocations->set_hostip("127.0.0.1");
-    csLocations->set_port(9127);
-
-    faktopologyeret = new FakeReturn(
-        nullptr, static_cast<void*>(&getCSListResponse));
-    topologyservice.SetFakeReturn(faktopologyeret);
-
-    // 设置chunkserver GetLeader response
-    curve::client::EndPoint ep7;
-    butil::str2endpoint("127.0.0.1", 9127, &ep7);
-    curve::client::ChunkServerAddr pd7(ep7);
-
-    auto peer = new curve::common::Peer();
-    peer->set_address(pd7.ToString());
-    response1.set_allocated_leader(peer);
-    fakeret55 = FakeReturn(nullptr, static_cast<void*>(&response1));
-    cliservice1.SetFakeReturn(&fakeret55);
-    cliservice2.SetFakeReturn(&fakeret55);
-    cliservice3.SetFakeReturn(&fakeret55);
-    cliservice4.SetFakeReturn(&fakeret55);
-
-    mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
-
-    cpinfo = mc.GetServerList(1234, 1234);
-    ASSERT_EQ(cpinfo.csinfos_.size(), 1);
-
-    cpeer.csaddr_.addr_ = pd7.addr_;
-    t = std::find(cpinfo.csinfos_.begin(), cpinfo.csinfos_.end(), cpeer);
-    ASSERT_NE(t, cpinfo.csinfos_.end());
-    leaderindex = cpinfo.GetCurrentLeaderIndex();
-    ASSERT_EQ(pd7, cpinfo.csinfos_[leaderindex].csaddr_);
 
     chunkserver1.Stop(0);
     chunkserver1.Join();
@@ -2028,21 +1890,26 @@ class ServiceHelperGetLeaderTest : public MDSClientTest {
                 ipPort.c_str(), &options)) << "Fail to start server";
         }
 
-        endPoints.resize(kChunkServerNum);
-        chunkserverAddrs.resize(kChunkServerNum);
+        internalAddrs.resize(kChunkServerNum);
+        externalAddrs.resize(kChunkServerNum);
         for (int i = 0; i < kChunkServerNum; ++i) {
+            curve::client::EndPoint endpoint;
+            butil::str2endpoint("10.182.26.2",
+                                chunkserverPorts[i],
+                                &endpoint);
+            internalAddrs[i] = ChunkServerAddr(endpoint);
             butil::str2endpoint("127.0.0.1",
                                 chunkserverPorts[i],
-                                &endPoints[i]);
-
-            chunkserverAddrs[i] = ChunkServerAddr(endPoints[i]);
+                                &endpoint);
+            externalAddrs[i] = ChunkServerAddr(endpoint);
         }
 
         // 设置copyset peer信息
         for (int i = 0; i < kChunkServerNum; ++i) {
             curve::client::CopysetPeerInfo peerinfo;
-            peerinfo.chunkserverid_ = i + 1;
-            peerinfo.csaddr_ = chunkserverAddrs[i];
+            peerinfo.chunkserverID = i + 1;
+            peerinfo.internalAddr = internalAddrs[i];
+            peerinfo.externalAddr = externalAddrs[i];
             copysetInfo.AddCopysetPeerInfo(peerinfo);
             copysetPeerInfos.push_back(peerinfo);
         }
@@ -2111,8 +1978,8 @@ class ServiceHelperGetLeaderTest : public MDSClientTest {
     brpc::Server chunkServers[kChunkServerNum];
     FakeCliService fakeCliServices[kChunkServerNum];
 
-    std::vector<curve::client::EndPoint> endPoints;
-    std::vector<curve::client::ChunkServerAddr> chunkserverAddrs;
+    std::vector<curve::client::ChunkServerAddr> internalAddrs;
+    std::vector<curve::client::ChunkServerAddr> externalAddrs;
     std::vector<CopysetPeerInfo> copysetPeerInfos;
 
     curve::client::CopysetInfo copysetInfo;
@@ -2124,7 +1991,7 @@ class ServiceHelperGetLeaderTest : public MDSClientTest {
 
 TEST_F(ServiceHelperGetLeaderTest, NormalTest) {
     // 测试复制组里第一个chunkserver为leader
-    GetLeaderResponse2 response = MakeResponse(chunkserverAddrs[0]);
+    GetLeaderResponse2 response = MakeResponse(internalAddrs[0]);
 
     FakeReturn fakeret0(nullptr, static_cast<void*>(&response));
     fakeCliServices[0].SetFakeReturn(&fakeret0);
@@ -2141,14 +2008,14 @@ TEST_F(ServiceHelperGetLeaderTest, NormalTest) {
         copysetPeerInfos, -1, rpcOption);
     ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
         &leaderId, nullptr));
-    ASSERT_EQ(chunkserverAddrs[0], leaderAddr);
+    ASSERT_EQ(internalAddrs[0], leaderAddr);
 
     ResetAllFakeCliService();
 
     // 测试第二次拉取新的leader，直接跳过第一个chunkserver，查找第2，3两个
     int32_t currentLeaderIndex = 0;
     curve::client::ChunkServerAddr currentLeader =
-        chunkserverAddrs[currentLeaderIndex];
+        internalAddrs[currentLeaderIndex];
 
     response = MakeResponse(currentLeader);
     fakeret1 = FakeReturn(nullptr, static_cast<void*>(&response));
@@ -2167,7 +2034,7 @@ TEST_F(ServiceHelperGetLeaderTest, NormalTest) {
 
     // 测试第三次获取leader，会跳过第二个chunkserver，重试1/3
     currentLeaderIndex = 1;
-    currentLeader = chunkserverAddrs[currentLeaderIndex];
+    currentLeader = internalAddrs[currentLeaderIndex];
 
     response = MakeResponse(currentLeader);
 
@@ -2189,7 +2056,7 @@ TEST_F(ServiceHelperGetLeaderTest, NormalTest) {
 TEST_F(ServiceHelperGetLeaderTest, RpcDelayTest) {
     // 设置第三个chunkserver为leader
     const auto currentLeaderIndex = 2;
-    const auto& currentLeader = chunkserverAddrs[2];
+    const auto& currentLeader = internalAddrs[2];
     SetGetLeaderResponse(currentLeader);
 
     // 再次GetLeader会向chunkserver 1/2 发送请求
@@ -2219,7 +2086,7 @@ TEST_F(ServiceHelperGetLeaderTest, RpcDelayAndExceptionTest) {
 
     // 设置第三个chunkserver为leader，GetLeader会向chunkserver 1/2发送请求
     const auto currentLeaderIndex = 2;
-    const auto& currentLeader = chunkserverAddrs[currentLeaderIndex];
+    const auto& currentLeader = internalAddrs[currentLeaderIndex];
     SetGetLeaderResponse(currentLeader);
 
     // 设置第一个chunkserver GetLeader service 延迟
@@ -2262,7 +2129,7 @@ TEST_F(ServiceHelperGetLeaderTest, AllChunkServerExceptionTest) {
 
     // 设置第三个chunkserver为leader
     const auto currentLeaderIndex = 2;
-    const auto& currentLeader = chunkserverAddrs[currentLeaderIndex];
+    const auto& currentLeader = internalAddrs[currentLeaderIndex];
 
     SetGetLeaderResponse(currentLeader);
 

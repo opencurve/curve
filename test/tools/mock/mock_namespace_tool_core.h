@@ -21,8 +21,8 @@
  */
 
 
-#ifndef TEST_TOOLS_MOCK_NAMESPACE_TOOL_CORE_H_
-#define TEST_TOOLS_MOCK_NAMESPACE_TOOL_CORE_H_
+#ifndef TEST_TOOLS_MOCK_MOCK_NAMESPACE_TOOL_CORE_H_
+#define TEST_TOOLS_MOCK_MOCK_NAMESPACE_TOOL_CORE_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -48,8 +48,8 @@ class MockNameSpaceToolCore : public NameSpaceToolCore {
                                      std::vector<ChunkServerLocation>*));
     MOCK_METHOD2(DeleteFile, int(const std::string&, bool));
     MOCK_METHOD2(CreateFile, int(const std::string&, uint64_t));
-    MOCK_METHOD3(GetAllocatedSize, int(const std::string&, uint64_t*,
-                                       uint64_t*));
+    MOCK_METHOD3(GetAllocatedSize, int(const std::string&,
+                                       uint64_t*, AllocMap*));
     MOCK_METHOD2(GetFileSegments, int(const std::string&,
                                   std::vector<PageFileSegment>*));
     MOCK_METHOD4(QueryChunkCopyset, int(const std::string&, uint64_t,
@@ -60,4 +60,4 @@ class MockNameSpaceToolCore : public NameSpaceToolCore {
 };
 }  // namespace tool
 }  // namespace curve
-#endif  // TEST_TOOLS_MOCK_NAMESPACE_TOOL_CORE_H_
+#endif  // TEST_TOOLS_MOCK_MOCK_NAMESPACE_TOOL_CORE_H_

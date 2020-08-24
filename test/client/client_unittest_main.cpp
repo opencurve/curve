@@ -52,7 +52,7 @@
 std::string mdsMetaServerAddr = "127.0.0.1:9104";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
-std::string configpath = "./test/client/testConfig/client.conf";   // NOLINT
+std::string configpath = "./test/client/client.conf";   // NOLINT
 using curve::client::FileClient;
 
 const std::vector<std::string> clientConf {

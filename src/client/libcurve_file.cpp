@@ -74,6 +74,9 @@ void LoggerGuard::InitInternal(const std::string& confPath) {
     FLAGS_minloglevel = 0;
     FLAGS_log_dir = "/tmp";
 
+    // disable error log output to console
+    FLAGS_stderrthreshold = 3;
+
     LOG_IF(WARNING, !conf.GetIntValue("global.logLevel", &FLAGS_minloglevel))
         << "config no loglevel info, using default value 0";
     LOG_IF(WARNING, !conf.GetStringValue("global.logPath", &FLAGS_log_dir))
