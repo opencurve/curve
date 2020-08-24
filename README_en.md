@@ -1,7 +1,14 @@
 [中文版](README.md)
 
-[![BUILD Status](https://img.shields.io/jenkins/build?jobUrl=http%3A%2F%2F59.111.93.165%3A8080%2Fjob%2Fcurve_multijob%2F)](http://59.111.93.165:8080/job/curve_multijob/lastBuild)
-[![Jenkins Coverage](https://img.shields.io/jenkins/coverage/cobertura?jobUrl=http%3A%2F%2F59.111.93.165%3A8080%2Fjob%2Fcurve_multijob%2F)](http://59.111.93.165:8080/job/curve_multijob/HTML_20Report/)
+# CURVE
+
+[![Jenkins Coverage](https://img.shields.io/jenkins/coverage/cobertura?jobUrl=http%3A%2F%2F59.111.93.165%3A8080%2Fjob%2Fcurve_untest_job%2F)](http://59.111.93.165:8080/job/curve_untest_job/HTML_20Report/)
+[![Robot failover](https://img.shields.io/jenkins/build?jobUrl=http%3A%2F%2F59.111.93.165%3A8080%2Fjob%2Fcurve_failover_testjob%2F&label=failover)](http://59.111.93.165:8080/job/curve_failover_testjob/)
+[![Robot interface](https://img.shields.io/jenkins/tests?jobUrl=http%3A%2F%2F59.111.93.165%3A8080%2Fjob%2Fcurve_robot_job%2F)](http://59.111.93.165:8080/job/curve_robot_job/)
+[![BUILD Status](https://img.shields.io/jenkins/build?jobUrl=http%3A%2F%2F59.111.93.165%3A8080%2Fjob%2Fopencurve_multijob%2F)](http://59.111.93.165:8080/job/opencurve_multijob/lastBuild)
+[![Docs](https://img.shields.io/badge/docs-latest-green.svg)](https://github.com/opencurve/curve/tree/master/docs)
+[![Releases](https://img.shields.io/github/v/release/opencurve/curve?include_prereleases)](https://github.com/opencurve/curve/releases)
+[![LICENSE](https://img.shields.io/badge/licence-Apache--2.0%2FGPL-blue)](https://github.com/opencurve/curve/blob/master/LICENSE)
 
 CURVE is a distributed storage system designed and developed independently by NetEase, featured with high performance, high availability, high reliability and well expansibility, and it can serve as the basis for storage systems designed for different scenario (e.g. block storage, object storage and cloud database). 
 
@@ -13,8 +20,8 @@ So far, we have implemented a high performance block storage system, which suppo
 - Want more details? Our documentation for every component:
   - [NEBD](docs/en/nebd_en.md)
   - [MDS](docs/en/mds_en.md)
-  - [Chunkserver](docs/cn/chunkserver_design.md)
-  - [Snapshotcloneserver](docs/cn/snapshotcloneserver.md)
+  - [Chunkserver](docs/cn/chunkserver_design_en.md)
+  - [Snapshotcloneserver](docs/cn/snapshotcloneserver_en.md)
   - [CURVE quality control](docs/cn/quality.md)
   - [CURVE monitoring](docs/cn/monitor.md)
   - [Client](docs/cn/curve-client.md)
@@ -49,16 +56,22 @@ Feeling good? Maybe you would like to contribute your codes and make CURVE bette
 CURVE is coded following [Google C++ Style Guide strictly](https://google.github.io/styleguide/cppguide.html). Please follow this guideline if you're trying to contribute your codes.
 
 ### Code coverage requirement
-1. Unit tests：Incremental line coverage ≥ 80%, incremental branch coverage ≥ 70%
-2. Integration tests：Measure together with unit tests, and should fulfill the same requirement
-3. Exception tests：Not required
+1. Unit tests: Incremental line coverage ≥ 80%, incremental branch coverage ≥ 70%
+2. Integration tests: Measure together with unit tests, and should fulfill the same requirement
+3. Exception tests: Not required
 
 ### Other processes
-TODO
+代码开发完成之后，提[pr](https://github.com/opencurve/curve/compare)到curve的master分支。提交pr时，请填写pr模板。pr提交之后会自动触发CI，CI通过并且经过review之后，代码才可合入。
+具体规则请见[CONTRIBUTING](https://github.com/opencurve/curve/blob/master/CONTRIBUTING.md).
 
 ## Release Cycle
 - CURVE release cycle：Half a year for major version, 1~2 months for minor version
-- Versioning format: We use a sequence of three digits (x.y.z), x is the major version, y is for distinguishing developing , RC and GA version (corresponding to 0, 1 and 2), and z is for marking BugFixes or minor version. Major version x will increase 1 every half year, and z will increase every 1~2 months. 
+
+- Versioning format: We use a sequence of three digits and a suffix (x.y.z{-suffix}), x is the major version, y is the minor version, and z is for bugfix. The suffix is for distinguishing beta (-beta), RC )-rc) and GA version (without any suffix). Major version x will increase 1 every half year, and y will increase every 1~2 months. After a version is released, number z will increase if there's any bugfix.
+
+## Branch
+
+All the developments will be done under master branch. If there's any new version to establish, a new branch release-x.y will be pulled from the master, and the new version will be released from this branch.
 
 ## Feedback & Contact
 
