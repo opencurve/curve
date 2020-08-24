@@ -192,6 +192,8 @@
             tags: ["generate_config", "generate_snap_conf"] }
     - { role: generate_config, template_name: client.conf, conf_path: "{{ snap_client_config_path }}",
             tags: ["generate_config", "generate_snap_client_conf"] }
+    - { role: generate_config, template_name: s3.conf, conf_path: "{{ snap_s3_config_path }}",
+                tags: ["generate_config", "generage_s3_conf"] }
 
 - name: set leader and follower list
   hosts: snapshotclone

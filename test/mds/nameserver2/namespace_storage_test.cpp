@@ -177,6 +177,8 @@ TEST_F(TestNameServerStorageImp, test_GetFile) {
     ASSERT_TRUE(NameSpaceStorageCodec::EncodeFileInfo(fileinfo,
                                                       &encodeFileinfo));
     EXPECT_CALL(*cache_, Get(_, _)).WillOnce(Return(false));
+    EXPECT_CALL(*cache_, Put(_, _))
+        .Times(1);
     EXPECT_CALL(*client_, Get(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(encodeFileinfo),
                   Return(EtcdErrCode::EtcdOK)));

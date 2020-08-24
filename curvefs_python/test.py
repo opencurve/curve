@@ -37,6 +37,14 @@ cmd = "curve rename --user k8s --filename /k8s/volume1 --newname /k8s/volume2"
 exec_cmd(cmd)
 cmd = "curve list --user k8s --dirname /k8s"
 exec_cmd(cmd)
+# 不是root，失败
+cmd = "curve list --user k8s --dirname /"
+exec_cmd(cmd)
+# root没有传入密码，失败
+cmd = "curve list --user root --dirname /"
+exec_cmd(cmd)
+cmd = "curve list --user root --dirname / --password root_password"
+exec_cmd(cmd)
 cmd = "curve stat --user k8s --filename /k8s/volume2"
 exec_cmd(cmd)
 cmd = "curve delete --user k8s --filename /k8s/volume2"

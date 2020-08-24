@@ -164,16 +164,16 @@ class IOManager4File : public IOManager {
   }
 
  private:
-  friend class LeaseExcutor;
+  friend class LeaseExecutor;
   friend class FlightIOGuard;
   /**
-   * lease相关接口，当leaseexcutor续约失败的时候，调用LeaseTimeoutDisableIO
+   * lease相关接口，当LeaseExecutor续约失败的时候，调用LeaseTimeoutDisableIO
    * 将新下发的IO全部失败返回
    */
   void LeaseTimeoutBlockIO();
 
   /**
-   * 当lease又续约成功的时候，leaseexcutor调用该接口恢复IO
+   * 当lease又续约成功的时候，LeaseExecutor调用该接口恢复IO
    */
   void RefeshSuccAndResumeIO();
 

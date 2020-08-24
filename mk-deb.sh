@@ -198,6 +198,13 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
+cp -r tools/snaptool build/curve-tools/usr/bin/snaptool-lib
+cp tools/snaptool/snaptool build/curve-tools/usr/bin/snaptool
+chmod a+x build/curve-tools/usr/bin/snaptool
+if [ $? -ne 0 ]
+then
+      exit
+fi
 cp ./bazel-bin/src/tools/curve_tool \
 build/curve-tools/usr/bin/curve_ops_tool
 if [ $? -ne 0 ]

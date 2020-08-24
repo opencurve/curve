@@ -105,7 +105,7 @@ class RequestScheduler : public Uncopyable {
     virtual void WakeupBlockQueueAtExit();
 
     /**
-     * 当leaseexcutor续约失败的时候，调用LeaseTimeoutDisableIO
+     * 当LeaseExecutor续约失败的时候，调用LeaseTimeoutDisableIO
      * 后续的IO调度会被阻塞
      */
     void LeaseTimeoutBlockIO() {
@@ -115,7 +115,7 @@ class RequestScheduler : public Uncopyable {
     }
 
     /**
-     * 当lease又续约成功的时候，leaseexcutor调用该接口恢复IO,
+     * 当lease又续约成功的时候，LeaseExecutor调用该接口恢复IO,
      * IO调度被恢复
      */
     void RefeshSuccAndResumeIO() {

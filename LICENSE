@@ -91,6 +91,11 @@ Copyright: Copyright (c) 2020, NetEase Inc.
            Copyright (c) 2015 Baidu.com, Inc.
 License: Apache 2.0 (see LICENSE_APACHE)
 
+Files: src/common/authenticator.cpp
+Copyright: Copyright (c) 2020, NetEase Inc.
+           Copyright (c) 2016 Baidu, Inc.
+License: Apache 2.0 (see LICENSE_APACHE)
+
 Files: src/common/hash.h
 Copyright: Copyright (c) 2020, NetEase Inc.
            Copyright (c) 2015, Baidu.com

@@ -24,7 +24,7 @@
 #include <fstream>
 #include <memory>
 #include "src/tools/raft_log_tool.h"
-#include "test/tools/mock_segment_parser.h"
+#include "test/tools/mock/mock_segment_parser.h"
 
 DECLARE_string(fileName);
 using ::testing::_;

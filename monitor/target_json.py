@@ -23,103 +23,112 @@ import os
 import time
 import json
 import ConfigParser
-import MySQLdb
 import commands
 
-from itertools import groupby
-from MySQLdb import connect
-from MySQLdb import cursors
-
-host=None
-port=None
-username=None
-password=None
-database='curve_mds'
 targetPath=None
 etcd_exporter=None
 mds_exporter=None
-mysql_exporter=None
 snapclone_exporter=None
 
 def loadConf():
-    global host,port,username,password,targetPath,etcd_exporter,mds_exporter,mysql_exporter,snapclone_exporter
+    global targetPath,etcd_exporter,mds_exporter,snapclone_exporter
     conf=ConfigParser.ConfigParser()
     conf.read("target.ini")
-    host=conf.get("mysql", "ip")
-    port=conf.getint("mysql", "port")
-    username=conf.get("mysql", "user")
-    password=conf.get("mysql", "pwd")
     targetPath=conf.get("path", "target_path")
-    etcd_exporter=conf.get("exporter", "etcd")
-    mds_exporter=conf.get("exporter", "mds")
-    mysql_exporter=conf.get("exporter", "mysql")
-    snapclone_exporter=conf.get("exporter", "snapclone")
 
-def refresh(cur):
+def refresh():
     targets = []
 
-    # 获取chunkserver的ip和port
-    cur.execute("SELECT internalHostIP,port FROM curve_chunkserver")
-    result=cur.fetchall()
+    # Get chunkserver's ip and port
+    chunkserverip = []
+    chunkserverport= []
+    curve_ops_tool_res = commands.getstatusoutput("curve_ops_tool chunkserver-list -checkHealth=false")
+    if curve_ops_tool_res[0] != 0:
+        print "curve_ops_tool list chunkserver fail!"
+    else:
+        chunkserver_infos = curve_ops_tool_res[1].split("\n")
+        for line in chunkserver_infos:
+            if not line.startswith("chunkServerID"):
+                continue
+            ip = line.split(", ")[2].split(" = ")[1]
+            chunkserverip.append(ip)
+            port = line.split(", ")[3].split(" = ")[1]
+            chunkserverport.append(port)
 
-    cur.execute("SELECT internalHostIP,hostName FROM curve_server")
-    hostnames=cur.fetchall()
+    # Get chunkserver's hostname
+    ip2hostname_dict = {}
+    curve_ops_tool_res = commands.getstatusoutput("curve_ops_tool server-list")
+    if curve_ops_tool_res[0] != 0:
+        print "curve_ops_tool list server fail!"
+    else:
+        server_infos = curve_ops_tool_res[1].split("\n")
+        for line in server_infos:
+            if not line.startswith("serverID"):
+                continue
+            ip = line.split(", ")[2].split(" = ")[1]
+            hostname = line.split(", ")[1].split(" = ")[1]
+            ip2hostname_dict[ip] = hostname
 
-    # 添加chunkserver targets
-    for t in result:
-        count = cur.execute("SELECT hostName FROM curve_server where internalHostIP ='%s'" % t[0])
-        if count > 0:
-            server=cur.fetchone()
-            hostname=server[0]
-        else:
-            hostname=t[0]
+    # add chunkserver targets
+    for i in range(len(chunkserverip)):
+        hostname=ip2hostname_dict[chunkserverip[i]]
         targets.append({
             'labels': {'job': "chunkserver", 'hostname': hostname},
-            'targets': [t[0]+':'+str(t[1])],
+            'targets': [chunkserverip[i]+':'+chunkserverport[i]],
         })
 
-    # 添加node_exporter targets
-    chunkserverip=set([t[0] for t in result])
+    # add node_exporter targets
     targets.append({
         'labels': {'job': "node_exporter"},
         'targets': [t+':9100' for t in chunkserverip],
     })
 
-    # 获取client的ip和port
-    result = commands.getstatusoutput("curve_ops_tool client-list -listClientInRepo=true")
-    if result[0] != 0:
+    # get client's ip and port
+    curve_ops_tool_res = commands.getstatusoutput("curve_ops_tool client-list -listClientInRepo=true")
+    if curve_ops_tool_res[0] != 0:
         print "curve_ops_tool list client fail!"
-        return
+    else:
+        # add client targets
+        targets.append({
+            'labels': {'job': "client"},
+            'targets': curve_ops_tool_res[1].split("\n"),
+        })
 
-    # 添加client targets
-    targets.append({
-        'labels': {'job': "client"},
-        'targets': result[1].split("\n"),
-    })
+    # get etcd ip and port
+    curve_ops_tool_res = commands.getstatusoutput("curve_ops_tool etcd-status | grep online")
+    if curve_ops_tool_res[0] != 0:
+        print "curve_ops_tool get etcd-status fail!"
+    else:
+        etcd_addrs = curve_ops_tool_res[1].split(": ")[1]
+        # add etcd targets
+        targets.append({
+            'labels': {'job': "etcd"},
+            'targets': etcd_addrs.split(", "),
+        })
 
-    # 添加mysql exporter targets
-    targets.append({
-        'labels': {'job': "mysqld"},
-        'targets': [mysql_exporter],
-    })
+    # get mds ip and port
+    curve_ops_tool_res = commands.getstatusoutput("curve_ops_tool mds-status | grep current")
+    if curve_ops_tool_res[0] != 0:
+        print "curve_ops_tool get mds-status fail!"
+    else:
+        mds_addrs = curve_ops_tool_res[1].split(": ")[1]
+        # add mds targets
+        targets.append({
+            'labels': {'job': "mds"},
+            'targets': mds_addrs.split(", "),
+        })
 
-    # 添加etcd targets
-    targets.append({
-        'labels': {'job': "etcd"},
-        'targets': etcd_exporter.split(','),
-    })
-
-    # 添加mds targets
-    targets.append({
-        'labels': {'job': "mds"},
-        'targets': mds_exporter.split(','),
-    })
-
-    # 添加snapclone targets
-    targets.append({
-        'labels': {'job': "snapclone"},
-        'targets': snapclone_exporter.split(','),
-    })
+    # get snapclone ip and port
+    curve_ops_tool_res = commands.getstatusoutput("curve_ops_tool snapshot-clone-status | grep current")
+    if curve_ops_tool_res[0] != 0:
+        print "curve_ops_tool get snapshot-clone-status fail!"
+    else:
+        snapclone_addrs = curve_ops_tool_res[1].split(": ")[1]
+        # add snapclone targets
+        targets.append({
+            'labels': {'job': "snapclone"},
+            'targets': snapclone_addrs.split(", "),
+        })
 
     with open(targetPath+'.new', 'w', 0777) as fd:
         json.dump(targets, fd)
@@ -132,16 +141,6 @@ def refresh(cur):
 if __name__ == '__main__':
     while True:
         loadConf()
-        db = None
-        try:
-            db = connect(host=host, user=username, passwd=password, db=database, port=port)
-            cur = db.cursor()
-            refresh(cur)
-        except MySQLdb.Error, e:
-            print "MySQL Error:%s" % str(e)
-        finally:
-            if db:
-                cur.close()
-                db.close()
-        # 每隔30s刷新一次
+        refresh()
+        # refresh every 30s
         time.sleep(30)

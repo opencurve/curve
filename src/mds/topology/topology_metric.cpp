@@ -196,6 +196,7 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         it->second->diskUsed.set_value(totalDiskUsed);
         int64_t diskAlloc = 0;
         allocStatistic_->GetAllocByLogicalPool(pid, &diskAlloc);
+        it->second->logicalAlloc.set_value(diskAlloc);
         // 需乘以副本数
         it->second->diskAlloc.set_value(diskAlloc * pool.GetReplicaNum());
 
@@ -203,6 +204,10 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         it->second->chunkSizeLeftBytes.set_value(totalChunkSizeLeftBytes);
         it->second->chunkSizeTrashedBytes.set_value(totalChunkSizeTrashedBytes);
         it->second->chunkSizeTotalBytes.set_value(totalChunkSizeBytes);
+        if (pool.GetReplicaNum() != 0) {
+            it->second->logicalCapacity.set_value(
+                totalChunkSizeBytes / pool.GetReplicaNum());
+        }
     }
     // 移除已经不存在的逻辑池metric
     for (auto iy = gLogicalPoolMetrics.begin();

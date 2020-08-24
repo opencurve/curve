@@ -74,11 +74,15 @@ bool FakeMDS::Initialize() {
 }
 
 void FakeMDS::UnInitialize() {
+    LOG(INFO) << "stop server";
     server_->Stop(0);
     server_->Join();
+    LOG(INFO) << "stopped server";
     for (unsigned i = 0; i < peers_.size(); i++) {
+        LOG(INFO) << "stop chunkserver " << i;
         chunkservers_[i]->Stop(0);
         chunkservers_[i]->Join();
+        LOG(INFO) << "stopped chunkserver " << i;
     }
     for (unsigned i = 0; i < peers_.size(); i++) {
         delete chunkservers_[i];

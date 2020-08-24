@@ -3,8 +3,11 @@
 #
 # log等级INFO=0/WARNING=1/ERROR=2/FATAL=3
 global.ip=127.0.0.1
-global.subnet=127.0.0.0/24
 global.port=8200
+global.subnet=127.0.0.0/24
+global.enable_external_server=false
+global.external_ip=127.0.0.1
+global.external_subnet=127.0.0.0/24
 # chunk大小，一般16MB
 global.chunk_size=16777216
 # chunk 元数据页大小，一般4KB

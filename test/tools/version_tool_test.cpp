@@ -23,9 +23,9 @@
 
 #include <gtest/gtest.h>
 #include "src/tools/version_tool.h"
-#include "test/tools/mock_mds_client.h"
-#include "test/tools/mock_metric_client.h"
-#include "test/tools/mock_snapshot_clone_client.h"
+#include "test/tools/mock/mock_mds_client.h"
+#include "test/tools/mock/mock_metric_client.h"
+#include "test/tools/mock/mock_snapshot_clone_client.h"
 
 using ::testing::_;
 using ::testing::Return;

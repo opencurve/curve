@@ -26,6 +26,7 @@ cc_test(
         "//src/common:curve_common",
         "//src/mds/topology:topology",
         "//src/mds/schedule",
+        "//test/mds/mock:common_mock",
         "@com_google_googletest//:gtest_main",
         "@com_google_googletest//:gtest",
         "//external:brpc"
@@ -44,6 +45,7 @@ cc_test(
         "//src/common:curve_common",
         "//src/mds/topology:topology",
         "//src/mds/schedule",
+        "//test/mds/mock:common_mock",
         "@com_google_googletest//:gtest_main",
         "@com_google_googletest//:gtest",
         "//external:brpc"

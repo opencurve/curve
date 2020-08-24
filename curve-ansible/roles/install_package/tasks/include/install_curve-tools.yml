@@ -22,3 +22,11 @@
     file_mode: 0755
   include_tasks: copy_file_to_remote.yml
 
+- name: pip install requests
+  ignore_errors: true
+  shell: sudo pip install requests
+  register: pip_requests_res
+
+- name: pip2 install requests
+  shell: sudo pip2 install requests
+  when: pip_requests_res.failed

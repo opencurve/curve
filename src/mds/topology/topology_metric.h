@@ -170,6 +170,10 @@ struct LogicalPoolMetric {
     bvar::Status<uint64_t> chunkSizeTrashedBytes;
     // 总容量
     bvar::Status<uint64_t> chunkSizeTotalBytes;
+    // 逻辑总容量
+    bvar::Status<uint64_t> logicalCapacity;
+    // 已分配的字节
+    bvar::Status<uint64_t> logicalAlloc;
 
     explicit LogicalPoolMetric(const std::string &logicalPoolName) :
         chunkServerNum(kTopologyLogicalPoolMetricPrefix,
@@ -225,7 +229,11 @@ struct LogicalPoolMetric {
         chunkSizeTrashedBytes(kTopologyLogicalPoolMetricPrefix,
             logicalPoolName + "_chunkSizeTrashedBytes", 0),
         chunkSizeTotalBytes(kTopologyLogicalPoolMetricPrefix,
-            logicalPoolName + "_chunkSizeTotalBytes", 0) {}
+            logicalPoolName + "_chunkSizeTotalBytes", 0),
+        logicalCapacity(kTopologyLogicalPoolMetricPrefix,
+            logicalPoolName + "_logicalCapacity", 0),
+        logicalAlloc(kTopologyLogicalPoolMetricPrefix,
+            logicalPoolName + "_logicalAlloc", 0) {}
 };
 using LogicalPoolMetricPtr = std::unique_ptr<LogicalPoolMetric>;
 

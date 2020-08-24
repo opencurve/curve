@@ -58,10 +58,16 @@ using curve::mds::topology::ChunkServerInfo;
 namespace curve {
 namespace tool {
 struct SpaceInfo {
-    uint64_t total = 0;
-    uint64_t logicalUsed = 0;
-    uint64_t physicalUsed = 0;
-    uint64_t canBeRecycled = 0;
+    uint64_t totalChunkSize = 0;
+    uint64_t usedChunkSize = 0;
+    // 总体能容纳的文件大小
+    uint64_t totalCapacity = 0;
+    // 分配大小
+    uint64_t allocatedSize = 0;
+    // recycleBin的分配大小
+    uint64_t recycleAllocSize = 0;
+    // 系统中存在的文件大小
+    uint64_t currentFileSize = 0;
 };
 
 enum class ServiceName {
@@ -77,13 +83,11 @@ class StatusTool : public CurveTool {
  public:
     StatusTool(std::shared_ptr<MDSClient> mdsClient,
                std::shared_ptr<EtcdClient> etcdClient,
-               std::shared_ptr<NameSpaceToolCore> nameSpaceToolCore,
                std::shared_ptr<CopysetCheckCore> copysetCheckCore,
                std::shared_ptr<VersionTool> versionTool,
                std::shared_ptr<MetricClient> metricClient,
                std::shared_ptr<SnapshotCloneClient> snapshotClient) :
                   mdsClient_(mdsClient), etcdClient_(etcdClient),
-                  nameSpaceToolCore_(nameSpaceToolCore),
                   copysetCheckCore_(copysetCheckCore),
                   versionTool_(versionTool),
                   metricClient_(metricClient),
@@ -122,6 +126,8 @@ class StatusTool : public CurveTool {
     int SpaceCmd();
     int StatusCmd();
     int ChunkServerListCmd();
+    int ServerListCmd();
+    int LogicalPoolListCmd();
     int ChunkServerStatusCmd();
     int GetPoolsInCluster(std::vector<PhysicalPoolInfo>* phyPools,
                           std::vector<LogicalPoolInfo>* lgPools);
@@ -179,8 +185,6 @@ class StatusTool : public CurveTool {
  private:
     // 向mds发送RPC的client
     std::shared_ptr<MDSClient> mdsClient_;
-    // NameSpace工具，用于获取recycleBin的大小
-    std::shared_ptr<NameSpaceToolCore> nameSpaceToolCore_;
     // Copyset检查工具，用于检查集群和chunkserver的健康状态
     std::shared_ptr<CopysetCheckCore> copysetCheckCore_;
     // etcd client，用于调etcd API获取状态

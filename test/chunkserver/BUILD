@@ -222,6 +222,7 @@ cc_test(
         "//src/chunkserver:chunkserver-test-lib",
         "//src/common:curve_common",
         "//test/client/fake:fake_lib",
+        "//test/integration/common:integration-test-common",
         "@com_google_googletest//:gtest_main",
     ],
 )

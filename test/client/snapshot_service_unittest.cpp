@@ -221,8 +221,9 @@ TEST(SnapInstance, SnapShotTest) {
     curvefsservice.CleanRetryTimes();
     brpc::Controller delcntl;
     delcntl.SetFailed(-1, "test fail");
+    curve::mds::DeleteSnapShotResponse deleteSnapshotResponse;
     FakeReturn* delfakeret2
-     = new FakeReturn(&delcntl, static_cast<void*>(&response));
+     = new FakeReturn(&delcntl, static_cast<void*>(&deleteSnapshotResponse));
     curvefsservice.SetDeleteSnapShot(delfakeret2);
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED, cl.DeleteSnapShot(filename,
                                                         userinfo,

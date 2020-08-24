@@ -21,6 +21,7 @@
  */
 
 #include "test/integration/heartbeat/common.h"
+#include "test/mds/mock/mock_alloc_statistic.h"
 
 namespace curve {
 namespace mds {
@@ -300,12 +301,13 @@ void HeartbeatIntegrationCommon::BuildBasicCluster() {
     ASSERT_EQ(kTopoErrCodeSuccess, topology_->Init(topologyOption));
 
     // init topology manager
-    auto copysetManager = std::make_shared<CopysetManager>(CopysetOption());
-    auto topologyServiceManager =
-        std::make_shared<TopologyServiceManager>(topology_, copysetManager);
-
-    topologyStat_ = std::make_shared<TopologyStatImpl>(topology_);
+    topologyStat_ =
+        std::make_shared<TopologyStatImpl>(topology_);
     topologyStat_->Init();
+    auto copysetManager = std::make_shared<CopysetManager>(CopysetOption());
+    auto allocStat = std::make_shared<MockAllocStatistic>();
+    auto topologyServiceManager = std::make_shared<TopologyServiceManager>(
+        topology_, copysetManager);
 
     // 初始化basic集群
     PrepareBasicCluseter();
