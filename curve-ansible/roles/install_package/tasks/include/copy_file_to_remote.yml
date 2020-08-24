@@ -29,8 +29,8 @@
 - name: copy file with sudo
   block:
     - name: clear tmp dir
-      become: false
-      shell: rm -rf {{ tmp_dir }}
+      become: true
+      shell: sudo rm -rf {{ tmp_dir }}
     - name: create tmp dir
       become: false
       shell: mkdir -p {{ tmp_dir }}
