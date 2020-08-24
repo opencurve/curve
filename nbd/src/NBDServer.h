@@ -52,7 +52,6 @@
 #include "nbd/src/ImageInstance.h"
 #include "nbd/src/NBDController.h"
 #include "nbd/src/SafeIO.h"
-#include "nebd/src/part1/libnebd.h"
 
 namespace curve {
 namespace nbd {
@@ -70,24 +69,25 @@ struct IOContext {
     NBDServer* server = nullptr;
     std::unique_ptr<char[]> data;
 
-    // NEBD请求上下文信息
-    NebdClientAioContext nebdAioCtx;
+    // 异步请求上下文信息
+    AioRequestContext aioRequestCtx;
 
     IOContext() {
-        memset(&nebdAioCtx, 0, sizeof(nebdAioCtx));
+        memset(&aioRequestCtx, 0, sizeof(aioRequestCtx));
     }
 };
 
 // NBDServer负责与nbd内核进行数据通信
 class NBDServer {
  public:
-    NBDServer(int sock, NBDControllerPtr nbdCtrl,
+    NBDServer(int sock, NBDControllerPtr nbdCtrl, NBDConfig* cfg,
               std::shared_ptr<ImageInstance> imageInstance,
               std::shared_ptr<SafeIO> safeIO = std::make_shared<SafeIO>())
         : started_(false),
           terminated_(false),
           sock_(sock),
           nbdCtrl_(nbdCtrl),
+          nbdConfig_(cfg),
           image_(imageInstance),
           pendingRequestCounts_(0),
           safeIO_(safeIO) {}
@@ -119,8 +119,9 @@ class NBDServer {
     /**
      * @brief NEBD异步请求回调函数
      */
-    static void NBDAioCallback(struct NebdClientAioContext* context);
+    static void NEBDAioCallback(struct NebdClientAioContext* context);
 
+    static void CurveAioCallback(struct CurveAioContext* context);
     /**
      * @brief 关闭server
      */
@@ -165,6 +166,9 @@ class NBDServer {
      */
     bool StartAioRequest(IOContext* ctx);
 
+ public:
+    static void FillRequestContext(int command, IOContext* ctx, NBDConfig* cfg);
+
  private:
     // server是否启动
     std::atomic<bool> started_;
@@ -174,6 +178,7 @@ class NBDServer {
     // 与内核通信的socket fd
     int sock_;
     NBDControllerPtr nbdCtrl_;
+    NBDConfig* nbdConfig_;
     std::shared_ptr<ImageInstance> image_;
     std::shared_ptr<SafeIO> safeIO_;
 

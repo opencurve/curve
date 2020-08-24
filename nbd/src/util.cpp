@@ -201,6 +201,8 @@ int parse_args(std::vector<const char*>& args, std::ostream *err_msg,   // NOLIN
             }
         } else if (argparse_flag(args, i, "--try-netlink", (char *)NULL)) { // NOLINT
             cfg->try_netlink = true;
+        } else if (argparse_flag(args, i, "--use-curve-client", (char *)NULL)) {  // NOLINT
+            cfg->use_curveclient = true;
         } else {
             ++i;
         }

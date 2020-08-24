@@ -18,34 +18,24 @@
 
 /**
  * Project: curve
- * Date: Fri Apr 24 09:41:49 CST 2020
+ * Date: Wed Sep  9 11:28:54 CST 2020
  * Author: wuhanqing
  */
 
-#ifndef NBD_TEST_MOCK_IMAGE_INSTANCE_H_
-#define NBD_TEST_MOCK_IMAGE_INSTANCE_H_
-
-#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+#include <memory>
 #include "nbd/src/ImageInstance.h"
 
 namespace curve {
 namespace nbd {
 
-class MockImageInstance : public ImageInstance {
- public:
-    MockImageInstance() : ImageInstance("/test_image") {}
-    ~MockImageInstance() = default;
+TEST(ImageInstanceTest, FileNameTest) {
+    ImagePtr image = std::make_shared<NebdImageInstance>("/1");
+    ASSERT_EQ(image->GetFileName(), "cbd:pool//1");
 
-    MOCK_METHOD0(Open, bool());
-    MOCK_METHOD0(Close, void());
-    MOCK_METHOD1(AioRead, bool(AioRequestContext*));
-    MOCK_METHOD1(AioWrite, bool(AioRequestContext*));
-    MOCK_METHOD1(Trim, bool(AioRequestContext*));
-    MOCK_METHOD1(Flush, bool(AioRequestContext*));
-    MOCK_METHOD0(GetImageSize, int64_t());
-};
+    image = std::make_shared<NebdImageInstance>("cbd:pool//1");
+    ASSERT_EQ(image->GetFileName(), "cbd:pool//1");
+}
 
 }  // namespace nbd
 }  // namespace curve
-
-#endif  // NBD_TEST_MOCK_IMAGE_INSTANCE_H_

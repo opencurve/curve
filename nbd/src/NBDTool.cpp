@@ -65,7 +65,7 @@ int NBDTool::Connect(NBDConfig *cfg) {
     }
 
     // 初始化打开文件
-    ImagePtr imageInstance = GenerateImage(cfg->imgname);
+    ImagePtr imageInstance = GenerateImage(cfg->imgname, cfg);
     bool openSuccess = imageInstance->Open();
     if (!openSuccess) {
         cerr << "curve-nbd: Could not open image." << std::endl;
@@ -90,7 +90,7 @@ int NBDTool::Connect(NBDConfig *cfg) {
     }
 
     NBDControllerPtr nbdCtrl = GetController(cfg->try_netlink);
-    nbdServer_ = std::make_shared<NBDServer>(socketPair_.Second(), nbdCtrl,
+    nbdServer_ = std::make_shared<NBDServer>(socketPair_.Second(), nbdCtrl, cfg,
                                              imageInstance);
 
     // setup controller
@@ -140,12 +140,17 @@ void NBDTool::RunServerUntilQuit() {
 }
 
 ImagePtr g_test_image = nullptr;
-ImagePtr NBDTool::GenerateImage(const std::string& imageName) {
+
+ImagePtr NBDTool::GenerateImage(const std::string& imageName, NBDConfig* cfg) {
     ImagePtr result = nullptr;
     if (imageName.compare(0, 4, "test") == 0) {
         result = g_test_image;
     } else {
-        result = std::make_shared<ImageInstance>(imageName);
+        if (cfg->use_curveclient) {
+            result = std::make_shared<CurveImageInstance>(imageName);
+        } else {
+            result = std::make_shared<NebdImageInstance>(imageName);
+        }
     }
     return result;
 }
