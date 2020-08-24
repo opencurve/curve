@@ -207,6 +207,8 @@ bool TopologyStorageEtcd::LoadChunkServer(
             LOG(ERROR) << "DecodeChunkServerData err";
             return false;
         }
+        // set chunkserver unstable when loaded
+        data.SetOnlineState(OnlineState::UNSTABLE);
         ChunkServerIdType id = data.GetId();
         auto ret = chunkServerMap->emplace(id, std::move(data));
         if (!ret.second) {
