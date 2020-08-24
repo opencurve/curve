@@ -56,8 +56,19 @@ class OperatorStep {
 
 class TransferLeader : public OperatorStep {
  public:
-    TransferLeader(ChunkServerIdType from, ChunkServerIdType to);
 
+    TransferLeader(ChunkServerIdType from, ChunkServerIdType to);
+    /**
+     * @brief possible scenario and reaction:
+     * 1. to_ is already the leader, the operation succeeded
+     * 2. the info reported has no configchangeItem, dispatch change command
+     * 3. the info reported has configchangeItem but doesn't match the target
+     *    leader. this means there's operator under execution lost due to the
+     *    MDS restart, the new operator should suspend and remove in this case.
+     * 4. configuration change fail reported, transferleader
+     *    failed and should be removed
+     * 5. configuration change undergoing, do nothing
+     */
     /**
      * @brief 可能的场景如下：
      * 1. to_已经是leader,变更成功
@@ -82,15 +93,16 @@ class TransferLeader : public OperatorStep {
 class AddPeer : public OperatorStep {
  public:
     explicit AddPeer(ChunkServerIdType peerID);
-
     /**
-     * @brief
-     * 1. add_已经是replica中的一个,变更成功
-     * 2. 上报的信息没有configchangeItem, 下发变更命令
-     * 3. 上报的信息有configchangeItem, 但是和add_不匹配, 说明有正在执行的operator,可能由于 //NOLINT
-     * mds重启丢掉了, 此时应该直接让新的operator失败并移除
-     * 4. 上报配置变更失败, addPeer失败并移除
-     * 5. 正在配置变更过程中, 不做任何操作
+     * @brief possible scenario and reaction:
+     * 1. add_ is already one of the replica, changed successfully
+     * 2. the info reported has no configchangeItem, dispatch change command
+     * 3. the info reported has configchangeItem but doesn't match add_.
+     *    this means there's operator under execution lost due to the
+     *    MDS restart, the new operator should suspend and remove in this case.
+     * 4. configuration change fail reported, AddPeer
+     *    failed and should be removed
+     * 5. configuration change undergoing, do nothing
      */
     ApplyStatus Apply(const CopySetInfo &originInfo,
                         CopySetConf *newConf) override;
@@ -105,16 +117,18 @@ class AddPeer : public OperatorStep {
 
 class RemovePeer : public OperatorStep {
  public:
-    explicit RemovePeer(ChunkServerIdType peerID);
 
+    explicit RemovePeer(ChunkServerIdType peerID);
     /**
-     * @brief
-     * 1. remove_已经不是replica中的一个,变更成功
-     * 2. 上报的信息没有configchangeItem, 下发变更命令
-     * 3. 上报的信息有candidate, 但是和remove_不匹配, 说明有正在执行的operator,可能由于
-     * mds重启丢掉了, 此时应该直接让新的operator失败并移除
-     * 4. 上报配置变更失败, removePeer失败并移除
-     * 5. 正在配置变更过程中, 不做任何操作
+     * @brief possible scenario and reaction:
+     * 1. remove_ is not one of the replica, changed successfully
+     * 2. the info reported has no configchangeItem, dispatch change command
+     * 3. the info reported has candidate but doesn't match remove_.
+     *    this means there's operator under execution lost due to the
+     *    MDS restart, the new operator should suspend and remove in this case.
+     * 4. configuration change fail reported, RemovePeer
+     *    failed and should be removed
+     * 5. configuration change undergoing, do nothing
      */
     ApplyStatus Apply(const CopySetInfo &originInfo,
                         CopySetConf *newConf) override;
@@ -129,16 +143,18 @@ class RemovePeer : public OperatorStep {
 
 class ChangePeer : public OperatorStep {
  public:
-    ChangePeer(ChunkServerIdType oldOne, ChunkServerIdType newOne);
 
+    ChangePeer(ChunkServerIdType oldOne, ChunkServerIdType newOne);
     /**
-     * @brief Apply
-     * 1. new_是复制组成员，old_不是复制组成员，变更成功
-     * 2. 上报的信息没有configchangeItem, 下发变更命令
-     * 3. 上报的信息有candidate, 但是和new_不匹配, 说明有正在执行的operator,可能由于
-     *    mds重启丢掉了, 此时应该直接让新的operator失败并移除
-     * 4. 上报配置变更失败, changePeer失败并移除
-     * 5. 正在配置变更过程中, 不做任何操作
+     * @brief possible scenario and reaction:
+     * 1. new_ is one of the replica, and old_ is not, changed successfully
+     * 2. the info reported has no configchangeItem, dispatch change command
+     * 3. the info reported has candidate but doesn't match new_.
+     *    this means there's operator under execution lost due to the
+     *    MDS restart, the new operator should suspend and remove in this case.
+     * 4. configuration change fail reported, ChangePeer
+     *    failed and should be removed
+     * 5. configuration change undergoing, do nothing
      */
     ApplyStatus Apply(
         const CopySetInfo &originInfo, CopySetConf *newConf) override;

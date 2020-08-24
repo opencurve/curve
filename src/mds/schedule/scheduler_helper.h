@@ -39,34 +39,37 @@ namespace schedule {
 class SchedulerHelper {
  public:
     /**
-     * @brief SatisfyScatterWidth 变更之后的scatter-width是否满足条件
+     * @brief SatisfyScatterWidth Determine whether the scatter-width satisfy
+     *                            the condition after the changing
      *
-     * @param[in] target 是否为迁入节点
-     * @param[in] oldValue 变更之前的scatter-width
-     * @param[in] newValue 变更之后的scatter-width
-     * @param[in] minScatterWidth scatter-width最小值
-     * @param[in] scatterWidthRangePerent scatter-width不能超过
+     * @param[in] target Whether the chunkserver is the target
+     * @param[in] oldValue Scatter-width before changing
+     * @param[in] newValue Scatter-width after changing
+     * @param[in] minScatterWidth Minimum value of scatter-width
+     * @param[in] scatterWidthRangePerent Scatter-width should nor exceed
      *            (1 + scatterWidthRangePerent) * minScatterWidth
      *
-     * @return false-迁移之后不满足scatter-width条件，true-迁移过后满足条件
+     * @return false when scatter-width condition is not satisfied
+     *         after the migration，true of it is
      */
     static bool SatisfyScatterWidth(bool target, int oldValue, int newValue,
         int minScatterWidth, float scatterWidthRangePerent);
 
     /**
-     * @brief SatisfyLimit 判断candidate的从source迁移到target是否满足zone和
-     *                     scatter-width的条件
+     * @brief SatisfyLimit Determine whether zone and scatter-width condition
+     *                     is satisfied after migrating candidate from source
+     *                     to target
      *
-     * @param[in] topo 拓扑逻辑
-     * @param[in] target 迁移目标节点，即迁入节点
-     * @param[in] targetZone 目标节点所在的zone
-     * @param[in] source 迁移源节点，即迁出节点
-     * @param[in] candidate 选中的copyset
-     * @param[in] minScatterWidth scatter-width最小值
-     * @param[in] scatterWidthRangePerent scatter-width不能超过
+     * @param[in] topo Pointer to an instance of topology module
+     * @param[in] target Target node, chunkserver that the replica migrate to
+     * @param[in] targetZone Zone that the target node belongs to
+     * @param[in] source Source of the migration
+     * @param[in] candidate Copyset selected
+     * @param[in] minScatterWidth Minimum value of scatter-width
+     * @param[in] scatterWidthRangePerent scatter-width should not exceed
      *            (1 + scatterWidthRangePerent) * minScatterWidth
      *
-     * @return false-满足条件; false-不满足条件
+     * @return true if limit is met false if not
      */
     static bool SatisfyZoneAndScatterWidthLimit(
         const std::shared_ptr<TopoAdapter> &topo, ChunkServerIdType target,
@@ -74,18 +77,23 @@ class SchedulerHelper {
         int minScatterWidth, float scatterWidthRangePerent);
 
     /**
-     * @brief CalculateAffectOfMigration 计算copyset(A,B,source)从source迁移到
-     *        target这一操作前 和 操作后{A,B,source,target}上的scatter-width
+     * @brief CalculateAffectOfMigration calculate the scatter-width of
+     *        {A,B,source,target} before and after the migration from source
+     *        to target
      *
-     * @param[in] copySetInfo 选定的copyset
-     * @param[in] source 迁出节点，是当前copyset的一个副本.
-     *                   如果source==UNINTIALIZE_ID, 说明只新增节点
-     * @param[in] target 迁入节点，如果target==UINITIALIZED, 说明只移除节点
-     * @param[in] topo 用来获取topology信息
-     * @param[out] scatterWidth copyset执行(+target, -source)前后{A,B,source,target} //NOLINT
-     *                          上的scatter-width. key表示涉及到的chunkserver,
-     *                          value.first表示迁移之前的scatterWidth, value.second //NOLINT
-     *                          表示迁移之后的scatterWidth
+     * @param[in] copySetInfo Copyset selected
+     * @param[in] source Chunkserver to migrate out, which is still a replica in
+     *                   current copyset
+     *                   only new replica is added if source == UNINTIALIZE_ID
+     * @param[in] target Chunkserver that thereplica will migrate to.
+     *                   target==UINITIALIZED if only remove replica from
+     * @param[in] topo   For topology info
+     * @param[out] scatterWidth The scatter-width result of chunkserver {A,B,
+     *                          source,target} before and after the execution of
+     *                          (+target, -source).
+     *                          the key of the map is the chunkserver ID
+     *                          value.first is the scatter-width before the
+     *                          migration, and value.second is the value after
      */
     static void CalculateAffectOfMigration(
         const CopySetInfo &copySetInfo, ChunkServerIdType source,
@@ -94,23 +102,27 @@ class SchedulerHelper {
 
     /**
      * @brief InvovledReplicasSatisfyScatterWidthAfterMigration
-     *        copyset(A,B,source) +taget, -source
-     *        计算copyset副本迁移操作后{A,B,source,target}上scatter-width是否
-     *        都符合条件, 全部符合返回true, 否则返回false
+     *        for copyset(A,B,source) and operation (+taget, -source),
+     *        calculate whether the scatter-width of {A,B,source,target}
+     *        satisfy the limitation.
      *
-     * @param[in] copySetInfo 指定copyset
-     * @param[in] source 迁出节点，是当前copyset的一个副本.
-     *            如果source==UNINTIALIZE_ID, 说明只新增节点
-     * @param[in] target 迁入节点，如果target==UNINTIALIZE_ID, 说明只移除节点
-     * @param[in] ignore 忽略该scatter-width的变化, 一般是source为offline状态的时候 //NOLINT
-     * @param[in] topo 获取toplogy相关信息
-     * @param[in] minScatterWidth scatter-width最小值
-     * @param[in] scatterWidthRangePerent scatter-width不能超过
+     * @param[in] copySetInfo Specified copyset
+     * @param[in] source Chunkserver to migrate out, which is still a replica in
+     *                   current copyset
+     *                   only new replica is added if source == UNINTIALIZE_ID
+     * @param[in] target Chunkserver that thereplica will migrate to.
+     *                   target==UINITIALIZED if only remove replica from
+     * @param[in] ignore For ignoring the changing of the scatter-width, this is
+     *                   usually when the source is offline
+     * @param[in] topo For topology info
+     * @param[in] minScatterWidth The minimum value of scatter-width
+     * @param[in] scatterWidthRangePerent Scatter-width should not exceed value
      *            (1 + scatterWidthRangePerent) * minScatterWidth
-     * @param[out] affected 该迁移操作对{A,B,source,target}scatter-width影响之和
+     * @param[out] affected The sum of the scatter-width changing of replica
+     *                      {A,B,source,target} caused by the migration
      *
-     * @return true-迁移之后{A,B,source,target}都满足scatter-width, false-有部分
-     *         chunkserver不满足
+     * @return true if every scatter-width of {A,B,source,target} satisfy the
+     *         requirement , false if any of them doesn't
      */
     static bool InvovledReplicasSatisfyScatterWidthAfterMigration(
         const CopySetInfo &copySetInfo, ChunkServerIdType source,
@@ -119,10 +131,10 @@ class SchedulerHelper {
         int minScatterWidth, float scatterWidthRangePerent, int *affected);
 
     /**
-     * @brief SortDistribute 对copyset的数量分布降序排序
+     * @brief SortDistribute Sort chunkservers by copyset number in descending order //NOLINT
      *
-     * @param[in] distribute 为排序的分布
-     * @param[out] desc 降序
+     * @param[in] distribute The distribution for sorting
+     * @param[out] desc The result in descending order
      */
     static void SortDistribute(
         const std::map<ChunkServerIdType, std::vector<CopySetInfo>> &distribute,
@@ -130,8 +142,8 @@ class SchedulerHelper {
                               std::vector<CopySetInfo>>> *desc);
 
     /**
-     * @brief SortScatterWitAffected 选择不同chunkserver作为source或者target，对
-     *        copyset各副本的scatter-width影响之和进行排序
+     * @brief SortScatterWitAffected Sort the input by the sum of the
+     *                               scatter-width difference (the value of the pair of the input) //NOLINT
      *
      * @param[in] candidates
      */
@@ -139,21 +151,22 @@ class SchedulerHelper {
         std::vector<std::pair<ChunkServerIdType, int>> *candidates);
 
     /**
-     * @brief SortChunkServerByCopySetNumAsc 将chunkserver按照所有copyset的数量升序排列 //NOLINT
+     * @brief SortChunkServerByCopySetNumAsc Rank chunkserver by the number of the copyset //NOLINT
      *
-     * @param[in/out] chunkserverList 对list中的chunkserver进行排序
-     * @param[in] topo 获取拓扑信息
+     * @param[in/out] chunkserverList The chunkserver to be ranked
+     * @param[in] topo Topology info
      */
     static void SortChunkServerByCopySetNumAsc(
         std::vector<ChunkServerInfo> *chunkserverList,
         const std::shared_ptr<TopoAdapter> &topo);
 
     /**
-     * @brief CopySetDistribution 统计online状态chunkserver上的copyset
+     * @brief CopySetDistribution Calculate the copyset number on
+     *                            chunkserver in online status
      *
-     * @param[in] copysetList topology中所有copyset
-     * @param[in] chunkserverList topology中所有chunkserver
-     * @param[out] out chunkserver对应的copyset列表
+     * @param[in] copysetList Copyset list in topo info
+     * @param[in] chunkserverList Chunkserver list in topo info
+     * @param[out] out List of copyset on chunkserver
      */
     static void CopySetDistributionInOnlineChunkServer(
         const std::vector<CopySetInfo> &copysetList,

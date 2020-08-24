@@ -271,7 +271,7 @@ int TopoAdapterImpl::GetStandardZoneNumInLogicalPool(PoolIdType id) {
     ::curve::mds::topology::LogicalPool logicalPool;
     if (topo_->GetLogicalPool(id, &logicalPool)) {
         switch (logicalPool.GetLogicalPoolType()) {
-            // TODO(lixiaocui): 暂未实现
+            // TODO(lixiaocui): to be implemented
             case LogicalPoolType::APPENDECFILE:return 0;
             case LogicalPoolType::APPENDFILE:
                 return logicalPool.GetRedundanceAndPlaceMentPolicy().
@@ -288,7 +288,7 @@ int TopoAdapterImpl::GetStandardReplicaNumInLogicalPool(PoolIdType id) {
     ::curve::mds::topology::LogicalPool logicalPool;
     if (topo_->GetLogicalPool(id, &logicalPool)) {
         switch (logicalPool.GetLogicalPoolType()) {
-            // TODO(lixiaocui): 暂未实现
+            // TODO(lixiaocui): to be implemented
             case LogicalPoolType::APPENDECFILE:return 0;
             case LogicalPoolType::APPENDFILE:
                 return logicalPool.GetRedundanceAndPlaceMentPolicy().
@@ -329,6 +329,7 @@ bool TopoAdapterImpl::GetPeerInfo(ChunkServerIdType id, PeerInfo *peerInfo) {
     return true;
 }
 
+//
 bool TopoAdapterImpl::CopySetFromTopoToSchedule(
     const ::curve::mds::topology::CopySetInfo &origin,
     ::curve::mds::schedule::CopySetInfo *out) {

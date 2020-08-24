@@ -40,38 +40,41 @@ int64_t Scheduler::GetRunningInterval() {
 }
 
 /**
-* SelectBestPlacementChunkServer 过程说明
-* 目的: 对于copyset-m(1, 2, 3), 要在chunkserverList{1, 2, 3, 4, 5, 6, 7...}中
-       选择一个chunkserver-n替代副本1, 即最终生成Operator(copyset-m, +n, -1)
-
-* 步骤:
-step1: 计算chunkserver-n需要满足的zone的限制生成excludeZoneList 以及
-       server的限制生成excludeServerList. 即将选择的chunkserver-n所在的
-       zone和server不能在两个列表中
-
-step2: for chunkserver-n in {1, 2, 3, 4, 5, 6, 7...} [遍历chunkserverList]
-            1. 判断chunkserver-n是否满足zone和server的限制，不满足continue
-            2. 判断chunkserver的状态，磁盘状态是否健康，不符合条件continue
-            3. 判断copyset-m(1, 2, 3), +n, -1操作执行对{1, 2, 3, n}
-               的scatter-width产生的影响是否符合条件:
-               - scatter-width_map的定义是 std::map<chunkserverIdType, int>
-               - scatter-width即为len(scatter-width_map)
-                chunkserver-a的scatter-width_map:
-                key: chunkserver-a上copyset的其他副本所在的chunkserver
-                value: key上拥有chunkserver-a上copyset的个数
-            例如: chunkserver-a上有copyset-1{a, 1, 2}, copyset-2{a, 2, 3}
-               ①对于n(记为target, copyset迁入方): scatter-width_map中{2,3}对应的value分别+1 //NOLINT
-               ②对于1(记为source, copyset迁出方): scatter-width_map中{2,3}对应的value分别-1 //NOLINT
-               ③对于2,3(记为other): scatter-width_map中{n}对应的value+1,{1}对应的value-1 //NOLINT
-            4. 如果operator的执行对于{1, 2, 3, n}的scatter-width产生的影响均符合条件，//NOLINT
-               选中该chunkserver-n作为目标节点，break
-       done
-       如果没有找到一个n, 使得(+n, -1)执行后{1, 2, 3, n}的scatter-width都符合条件，//NOLINT
-       那就选择对{1, 2, 3, n}的scatter-width负向影响最小的chunkserver
-*/
+ * process for SelectBestPlacementChunkServer process description:
+ * Purpose: For copyset-m(1, 2, 3), select a chunkserver-n in chunkserverList{1,
+ *          2, 3, 4, 5, 6, 7...} to replace copy 1, and generate Operator (copyset-m, +n, -1) //NOLINT
+ *
+ * Steps:
+ * 1: Calculate two lists of zone and server that the new Chunkserver cannot
+ *    locate in.
+ * 2: for chunkserver-n in {1, 2, 3, 4, 5, 6, 7...} [traverse chunkserverList]
+ *     1. determine whether chunkserver-n meets the limits of zone and server,
+ *        and continue if not
+ *     2. determine whether the chunkserver is healthy, continue if not
+ *     3. determine whether the impact of operation copyset-m(1, 2, 3), +n, -1
+ *        on the scatter-width of {1, 2, 3, n} meets the conditions
+ *        some definitions:
+ *            - the definition of scatter-width_map is std::map<chunkserverIdType, int> //NOLINT
+ *            - scatter-width here means len(scatter-width_map)
+ *            - scatter-width_map of chunkserver-a:
+ *              key: id of chunkserver that the other copies of copyset on chunkserver-a located //NOLINT
+ *              value: the number of copyset that own by both the chunkserver 'key' and chunkserver-a //NOLINT
+ *        example: chunkserver-a has copyset-1{a, 1, 2}, copyset-2{a, 2, 3},
+ *                 and now we want to migrate the replica on chunkserver 1 to
+ *                 chunkserver n, which is operator (copyset-1, +n, -1)
+ *            ① for chunkserver n(mark as target, to which the replica migrate), value of {2,3} in scatter-width_map will increase 1 //NOLINT
+ *            ② for chunkserver 1(mark as source, from which the replica migrate out), value of {2,3} in scatter-width_map will decrease 1 //NOLINT
+ *            ③for chunkserver 2 and 3 (mark as other), value of {n} will increase 1, and value of {1} will decrease 1 //NOLINT
+ *     4. if the impact of the execution of the operator on the scatter-width of
+ *        {1, 2, 3, n} meets the conditions, selects the chunkserver-n as the
+ *        target node and break
+ * then we're done!
+ * if there isn't any chunkserver n selected that makes the scatter-width of
+ * {1, 2, 3, n} meet the condition after the execution of (+n, -1), choose the
+ * chunkserver that makes the scatter-width decrease the least.
+ */
 ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
     const CopySetInfo &copySetInfo, ChunkServerIdType oldPeer) {
-    // 同一物理池中的所有chunkserver
     ChunkServerInfo oldPeerInfo;
     if (oldPeer != UNINTIALIZE_ID) {
         if (!topo_->GetChunkServerInfo(oldPeer, &oldPeerInfo)) {
@@ -90,7 +93,7 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
         return UNINTIALIZE_ID;
     }
 
-    // zone和server的限制
+    // restriction on zone and server
     std::map<ZoneIdType, bool> excludeZones;
     std::map<ServerIdType, bool> excludeServers;
     std::vector<ChunkServerIdType> otherList;
@@ -116,15 +119,14 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
     }
 
     std::vector<std::pair<ChunkServerIdType, int>> candidates;
-    // chunkserver需要根据copyset的数量排序
+    // sort chunkserver according to copyset it has
     SchedulerHelper::SortChunkServerByCopySetNumAsc(&chunkServers, topo_);
     for (auto &cs : chunkServers) {
-        // 不满足zone或者server的限制
         if (excludeZones.find(cs.info.zoneId) != excludeZones.end() ||
             excludeServers.find(cs.info.serverId) != excludeServers.end()) {
             continue;
         }
-        // chunkserver online状态, 磁盘状态，容量是否符合条件
+        // judge by online, disk and capacity status
         if (!cs.IsHealthy()) {
             // TODO(lixiaocui): consider capacity
             //  || !IsChunkServerCapacitySaturated(chunkServer)) {
@@ -136,12 +138,12 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
             continue;
         }
 
-        // 超过concurrent的不考虑
+        // exclude the chunkserver exceeding the concurrent limit
         if (opController_->ChunkServerExceed(cs.info.id)) {
             continue;
         }
 
-        // 计算添加该副本对其他副本上scatter-with的影响
+        // calculate the influence on scatter-width of other replicas
         std::map<ChunkServerIdType, std::pair<int, int>> out;
         int source = UNINTIALIZE_ID;
         int target = cs.info.id;
@@ -179,38 +181,45 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
 }
 
 /**
-* SelectRedundantReplicaToRemove 过程说明
-* 目的: 对于copyset-m(1, 2, 3, 4), 在副本列表{1, 2, 3, 4}中选择一个chunkserver移除
-       即最终生成Operator(copyset-m, -n)
-
-* 步骤:
-step1: 以下条件符合时副本不能移除
-       1. copyset-m的副本数量小于标准副本数量值, 报警
-       2. copyset-m的zone数量不满足标准zone数量值，报警
-
-
-step2: for chunkserver-n in {1, 2, 3, 4, 5, 6, 7...} [遍历chunkserverList]
-            1. 判断chunkserver-n是否满足zone和server的限制，不满足continue
-            2. 判断chunkserver的状态，磁盘状态是否健康，不符合条件continue
-            3. 判断copyset-m(1, 2, 3), +n, -1操作执行对{1, 2, 3, n}
-               的scatter-width产生的影响是否符合条件:
-               - scatter-width_map的定义是 std::map<chunkserverIdType, int>
-               - scatter-width即为len(scatter-width_map)
-                chunkserver-a的scatter-width_map:
-                key: chunkserver-a上copyset的其他副本所在的chunkserver
-                value: key上拥有chunkserver-a上copyset的个数
-               ①对于n(记为target, copyset迁入方): scatter-width_map中{2,3}对应的value分别+1 //NOLINT
-               ②对于1(记为source, copyset迁出方): scatter-width_map中{2,3}对应的value分别-1 //NOLINT
-               ③对于2,3(记为other): scatter-width_map中{n}对应的value+1,{1}对应的value-1 //NOLINT
-            4. 如果operator的执行对于{1, 2, 3, n}的scatter-width产生的影响均符合条件，//NOLINT
-               选中该chunkserver-n作为目标节点，break
-       done
-       如果没有找到一个n, 使得(+n, -1)执行后{1, 2, 3, n}的scatter-width都符合条件，//NOLINT
-       那就选择对{1, 2, 3, n}的scatter-width负向影响最小的chunkserver
-*/
+ * process of SelectRedundantReplicaToRemove
+ * purpose: for copyset-m(1, 2, 3, 4), select a chunkserver to remove in
+ *          chunkserver list {1, 2, 3, 4}, which can be represented in
+ *          operator(copyset-m, -n)
+ * steps:
+ * 1. the replica cannot be removed if the following conditions are satisfied:
+ *     - the replica number of copyset-m is less than the standard
+ *     - the number of zones that copyset-m covered doesn't satisfy the standard
+ *     alarm when cases above occur
+ * 2. for chunkserver-n in {1, 2, 3, 4, 5, 6, 7...} [traverse chunkserverList]
+ *     1. determine whether chunkserver-n meets the limits of zone and server,
+ *        and continue if not
+ *     2. determine whether the chunkserver is healthy, continue if not
+ *     3. determine whether the impact of operation copyset-m(1, 2, 3), +n, -1
+ *        on the scatter-width of {1, 2, 3, n} meets the conditions
+ *        some definitions:
+ *            - the definition of scatter-width_map is std::map<chunkserverIdType, int> //NOLINT
+ *            - scatter-width here means len(scatter-width_map)
+ *            - scatter-width_map of chunkserver-a:
+ *              key: id of chunkserver that the other copies of copyset on chunkserver-a located //NOLINT
+ *              value: the number of copyset that own by both the chunkserver 'key' and chunkserver-a //NOLINT
+ *        example: chunkserver-a has copyset-1{a, 1, 2}, copyset-2{a, 2, 3},
+ *                 and now we want to migrate the replica on chunkserver 1 to
+ *                 chunkserver n, which is operator (copyset-1, +n, -1)
+ *            ① for chunkserver n(mark as target, to which the replica migrate), value of {2,3} in scatter-width_map will increase 1 //NOLINT
+ *            ② for chunkserver 1(mark as source, from which the replica migrate out), value of {2,3} in scatter-width_map will decrease 1 //NOLINT
+ *            ③for chunkserver 2 and 3 (mark as other), value of {n} will increase 1, and value of {1} will decrease 1 //NOLINT
+ *     4. if the impact of the execution of the operator on the scatter-width of
+ *        {1, 2, 3, n} meets the conditions, selects the chunkserver-n as the
+ *        target node and break
+ * then we're done!
+ * if there isn't any chunkserver n selected that makes the scatter-width of
+ * {1, 2, 3, n} meet the condition after the execution of (+n, -1), choose the
+ * chunkserver that makes the scatter-width decrease the least.
+ */
 ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
     const CopySetInfo &copySetInfo) {
-    // 如果副本数量不大于标准副本数量，不应该进行移除，报警
+    // if the replica number is smaller or equal to the standard, stop removing
+    // and alarm
     int standardReplicaNum =
         topo_->GetStandardReplicaNumInLogicalPool(copySetInfo.id.first);
     if (standardReplicaNum <= 0) {
@@ -228,7 +237,7 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
         return UNINTIALIZE_ID;
     }
 
-    // 判断zone条件是否满足
+    // determine whether the zone condition is satisfied
     std::map<ZoneIdType, std::vector<ChunkServerIdType>> zoneList;
     int standardZoneNum =
         topo_->GetStandardZoneNumInLogicalPool(copySetInfo.id.first);
@@ -249,8 +258,8 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
         }
     }
 
-    // 1. 不满足标准zone数量，报警
-    // TODO(lixiaocui): 这种情况应该通过副本的增减进行调整
+    // 1. alarm if the zone number is lass than the standard
+    // TODO(lixiaocui): adjust by adding or deleting replica in this case
     if (zoneList.size() < standardZoneNum) {
         LOG(ERROR) << "topoAdapter find " << copySetInfo.CopySetInfoStr()
                    << " replicas distribute in "
@@ -258,17 +267,17 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
                    << standardZoneNum << ", please check";
         return UNINTIALIZE_ID;
     }
-
-    // 2. 大于等于标准zone数量
-    // 2.1 等于标准zone数量
-    // 为了满足zone条件的限制, 应该要从zone下包含多个ps中选取
-    // 如replica的副本是 A(zone1) B(zone2) C(zone3) D(zone3) E(zone2)
-    // 那么移除的副本应该从BCDE中选择
-    // 2.2 大于标准zone数量
-    // 无论移除哪个后都一定会满足zone条件限制。因此优先移除状态不是online的，然后考虑
-    // scatter-with
-    // 如replica副本是 A(zone1) B(zone2) C(zone3) D(zone4) E(zone4)
-    // 可以随意从ABCDE中移除一个
+    // 2. if greater or equal to the standard number
+    // 2.1 equal
+    // to satisfy the restriction of zone condition, should choose      这里需要修改         为了满足zone条件的限制, 应该要从zone下包含多个ps中选取
+    // for example, if the replica are A(zone1) B(zone2) C(zone3) D(zone3) E(zone2) //NOLINT
+    // the one to remove should be selected from BCDE
+    // 2.2 greater
+    // any chunkserver to remove will satisfy the requirement, thus we first
+    // consider the one not online, then consider the scatter-width
+    // for example, if the replicas are:
+    // A(zone1) B(zone2) C(zone3) D(zone4) E(zone4)
+    // we can remove anyone of it
     std::vector<ChunkServerIdType> candidateChunkServer;
     for (auto item : zoneList) {
         if (item.second.size() == 1) {
@@ -282,7 +291,7 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
         }
     }
 
-    // 优先移除offline状态的副本
+    // consider offline chunkservers first
     for (auto cs : candidateChunkServer) {
         ChunkServerInfo csInfo;
         if (!topo_->GetChunkServerInfo(cs, &csInfo)) {
@@ -292,7 +301,6 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
             return UNINTIALIZE_ID;
         }
 
-        // chunkserver不是online状态
         if (csInfo.IsOffline()) {
             LOG(WARNING) << "scheduler choose to remove offline chunkServer "
                          << cs << " from " << copySetInfo.CopySetInfoStr();
@@ -300,8 +308,8 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
         }
     }
 
-    // 所有chunkserver都是online状态，根据移除该副本对scatter-width的影响选择
-    // 根据chunkserver上copyset的数量对candidateChunkserver进行排序
+    // if all chunkserver are online, select according to the impact on scatter-width //NOLINT
+    // first rank chunkser by the number of copyset on it
     std::map<ChunkServerIdType, std::vector<CopySetInfo>> distribute;
     std::vector<std::pair<ChunkServerIdType, std::vector<CopySetInfo>>> desc;
     for (auto csId : candidateChunkServer) {
@@ -309,11 +317,11 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
     }
     SchedulerHelper::SortDistribute(distribute, &desc);
 
-    // 已优先移除offline状态的副本，然后移除满足scatter-width条件的copyset数量最多的
-    // 用于记录移除该副本对所有chunkserver的影响
+    // remove the chunkserver(replica) that has the most copyset and satisfy
+    // the scatter-width condition
     std::vector<std::pair<ChunkServerIdType, int>> candidates;
     for (auto it = desc.begin(); it != desc.end(); it++) {
-        // 计算移除该副本对其他副本上scatter-with的影响
+        // calculate the impact on scatter-width of other replicas
         ChunkServerIdType source = it->first;
         ChunkServerIdType target = UNINTIALIZE_ID;
         ChunkServerIdType ignore = UNINTIALIZE_ID;
