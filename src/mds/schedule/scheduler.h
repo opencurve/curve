@@ -48,24 +48,24 @@ namespace mds {
 namespace schedule {
 
 struct LeaderStatInLogicalPool {
-    // 当前leader id
+    // id of current leader
     PoolIdType lid;
-    // 当前逻辑池中每个chunkserver上平均leader数量
+    // average number of leaders on every chunkserver in current logical pool
     int avgLeaderNum;
-    // 当前逻辑池中chunkserver上copyset的分布
+    // copyset distribution of chunkservers on current logical pool
     std::map<ChunkServerIdType, std::vector<CopySetInfo>> distribute;
-    // 当前逻辑池中每个chunkserver上leader的数量
+    // leader number of every chunkser in current logical pool
     std::map<ChunkServerIdType, int> leaderNumInChunkServer;
 };
 
 class Scheduler {
  public:
     /**
-     * @brief Scheduler构造函数
+     * @brief Scheduler constructor
      *
-     * @param[in] opt 配置项
-     * @param[in] topo 提供拓扑逻辑信息
-     * @param[in] opController operator管理模块
+     * @param[in] opt Options
+     * @param[in] topo Topology info
+     * @param[in] opController Operator management module
      */
     Scheduler(
         const ScheduleOption &opt,
@@ -80,76 +80,82 @@ class Scheduler {
     }
 
     /**
-     * @brief scheduler根据集群的状况产生operator
+     * @brief producing operator according to cluster status
+     *
      */
     virtual int Schedule();
 
     /**
-     * @brief operator产生的时间间隔，单位是秒
+     * @brief time interval of generating operations
      */
     virtual int64_t GetRunningInterval();
 
  protected:
     /**
-     * @brief SelectBestPlacementChunkServer 从集群中选择一个健康的chunkserver
-     *        替换copySetInfo中的oldPeer
+     * @brief SelectBestPlacementChunkServer Select a healthy chunkserver in
+     *                                       the cluster to replace the oldPeer
+     *                                       in copysetInfo
      *
-     * @param[in] copySetInfo copyset信息
-     * @param[in] copySet需要被替换的副本
+     * @param[in] copySetInfo
+     * @param[in] copySet Replica to replace
      *
-     * @return 目的chunkserver, 如果为UNINITIALIZED表示未选出
+     * @return target chunkserver, return UNINITIALIZED if no
+     *         chunkserver selected
      */
     ChunkServerIdType SelectBestPlacementChunkServer(
         const CopySetInfo &copySetInfo, ChunkServerIdType oldPeer);
 
     /**
-     * @brief SelectRedundantReplicaToRemove 从copyset的副本中选择一个移除
+     * @brief SelectRedundantReplicaToRemove select a replica from
+     *        copyset to remove
      *
-     * @param[in] copySetInfo copyset信息
+     * @param[in] copySetInfo
      *
-     * @return 要移除的副本，如果为UNINITIALIZED表示未选出
+     * @return replica to remove, return UNINITIALIZED if no
+     *         chunkserver selected
      */
     ChunkServerIdType SelectRedundantReplicaToRemove(
         const CopySetInfo &copySetInfo);
 
     /**
-     * @brief GetMinScatterWidth 根据均值和百分比获取scatter-width的设定最小值
+     * @brief GetMinScatterWidth Get minimum value of scatter width according to
+     *                           the average value and percentage
      *
-     * @param[in] lpid 逻辑池id
+     * @param[in] lpid Logical pool id
      *
-     * @return scatter-width的设定最小值
+     * @return mimimum scatter-width
      */
     int GetMinScatterWidth(PoolIdType lpid);
 
     /**
-     * @brief CopysetAllPeersOnline 指定copyset的所有副本是否在线
+     * @brief CopysetAllPeersOnline Check whether all replicas of a copyset are online //NOLINT
      *
-     * @param[in] copySetInfo 指定copyset
+     * @param[in] copySetInfo Copyset to check
      *
-     * @return true-所有副本都在线 false-有副本不在线
+     * @return true if all online, false if there's any offline replica
      */
     bool CopysetAllPeersOnline(const CopySetInfo &copySetInfo);
 
  protected:
-    // chunkserver的scatter-width不能超过
+    // scatter width of chunkserver should be equal or smaller than
     // (1 + minScatterWdith_) * scatterWidthRangePerent_
     float scatterWidthRangePerent_;
 
     std::shared_ptr<TopoAdapter> topo_;
-    // operator管理模块
+    // operator management module
     std::shared_ptr<OperatorController> opController_;
 
-    // transfer leader的最大预计时间，超过需要报警
+    // maximum estimated time of transferring the leader, alarm if exceeded
     int transTimeSec_;
-    // add peer的最大预计时间，超过需要报警
+    // maximum estimated tim for adding peers, alarm if exceeded
     int addTimeSec_;
-    // remove peer的最大预计时间，超过需要报警
+    // maximum estimated time for removing peer, alarm if exceeded
     int removeTimeSec_;
-    // change peer的最大预计时间，超过需要报警
+    // maximum estimated time for changing peer, alarm if exceeded
     int changeTimeSec_;
 };
 
-// copyset数量和chunkserver scatter-with均衡
+// scheduler for balancing copyset number and chunkserver scatter width
 class CopySetScheduler : public Scheduler {
  public:
     CopySetScheduler(
@@ -162,54 +168,57 @@ class CopySetScheduler : public Scheduler {
     }
 
     /**
-     * @brief Schedule根据集群的状况产生operator
+     * @brief Schedule Generating operator according to
+     *        the condition of the cluster
      *
-     * @return 需要增加的chunkserverId, 这个返回值是为了POC进行处理
+     * @return chunkserver to add, a value for POC
      */
     int Schedule() override;
 
     /**
-     * @brief 获取CopySetScheduler的运行间隔
+     * @brief get running interval of CopySetScheduler
      *
-     * @return 时间间隔
+     * @return time interval
      */
     int64_t GetRunningInterval() override;
 
  private:
     /**
-     * @brief DoCopySetSchedule 对指定的logicalPool做copyset均衡
+     * @brief DoCopySetSchedule Operate copyset balancing on
+     *        specified logical pool
      *
-     * @param[in] lid 指定逻辑池id
+     * @param[in] lid Specified logical pool id
      *
-     * @return 本次迁移的源节点，仅供测试使用
+     * @return Source node of the migration, for test only
      */
     int DoCopySetSchedule(PoolIdType lid);
 
     /**
-     * @brief StatsCopysetDistribute
-     *        计算chunkserver上copyset数量的均值、极差、标准差
+     * @brief StatsCopysetDistribute Calculate the average number, range and
+     *        standard deviation of copyset on chunkserver
      *
-     * @param[in] distribute 每个chunkserver上的copyset
-     * @param[out] avg 均值
-     * @param[out] range 极差
-     * @param[out] stdvariance 标准差
+     * @param[in] distribute Copyset on every chunkservers
+     * @param[out] avg
+     * @param[out] range
+     * @param[out] standard deviation
      */
     void StatsCopysetDistribute(
         const std::map<ChunkServerIdType, std::vector<CopySetInfo>> &distribute,
         float *avg, int *range, float *stdvariance);
 
     /**
-     * @brief CopySetMigration
-     *        根据当前topo中copyset的分布选择一个copyset, 确定source和target
+     * @brief CopySetMigration Select a copyset according to current copyset
+     *                         distribution on Topology, and specify the source
+     *                         and target
      *
-     * @param[in] chunkserverlist topo中所有chunkserver, 作为参数是为了避免重复获取
-     * @param[in] distribute 每个chunkserver上的copyset
-     * @param[out] op 生成的operator
-     * @param[out] source 需要移除copyset的chunkserver
-     * @param[out] target 需要增加copyset的chunkserver
-     * @param[out] choose 选中的copyset
+     * @param[in] chunkserverlist Every chunkservers in Topology, for avoiding duplicate fetching as a parameter //NOLINT
+     * @param[in] distribute Copyset on every chunkserver
+     * @param[out] op Operator generated
+     * @param[out] source The chunkserver specified to remove copyset
+     * @param[out] target The chunkserver specified to add copyset
+     * @param[out] choose Copyset chosen
      *
-     * @return true-生成operator false-未生成operator
+     * @return true if operator generated false if not
      */
     bool CopySetMigration(
         const std::map<ChunkServerIdType, std::vector<CopySetInfo>> &distribute,
@@ -217,29 +226,36 @@ class CopySetScheduler : public Scheduler {
         CopySetInfo *choose);
 
     /**
-     * @brief CopySetSatisfiyBasicMigrationCond
-     *        指定copyset是否符合下列条件：
-     *        1. copyset上没有正在进行的变更
-     *        2. copyset的副本数目与标准一致
-     *        3. topology初始化已完成
-     *        4. copyset的所有副本均在线
+     * @brief CopySetSatisfiyBasicMigrationCond To check whether the copyset
+     *                                          specified fulfill the
+     *                                          requirements below:
+     *                                          1. no changes running
+     *                                          2. has same replicas as
+     *                                             the standard
+     *                                          3. topology initialization
+     *                                             finished
+     *                                          4. every replicas of copyset
+     *                                             are online
      *
-     * @param[info] info 指定copyset
+     * @param[info] info Copyset specified
      *
-     * @return true-符合所有条件 false-其中有条件不符合
+     * @return true if every conditions are fulfilled,
+     *         false if any of it does not
      */
     bool CopySetSatisfiyBasicMigrationCond(const CopySetInfo &info);
 
  private:
-    // CopySetScheduler运行时间间隔
+    // Running interval of CopySetScheduler
     int64_t runInterval_;
 
-    // 相关配置, 可以根据集群初始状态的scatterwith设置
-    // chunkserver上copyset数量的极差不能超过均值百分比
+    // can be changed according to the scatter width of the initial status
+    // of the cluster
+    // the range of the copyset number on chunkserver can not exceed this
+    // percentage
     float copysetNumRangePercent_;
 };
 
-// leader数量均衡
+// Scheduler for balancing the leader number
 class LeaderScheduler : public Scheduler {
  public:
     LeaderScheduler(
@@ -252,89 +268,94 @@ class LeaderScheduler : public Scheduler {
     }
 
     /**
-     * @brief Schedule根据集群的状况产生operator
+     * @brief Schedule Generate operators according to the status of the cluster
      *
-     * @return 产生operator的个数
+     * @return number of operators generated
      */
     int Schedule() override;
 
     /**
-     * @brief 获取LeaderScheduler的运行间隔
+     * @brief Get running interval of LeaderScheduler
      *
-     * @return 时间间隔
+     * @return time interval
      */
     int64_t GetRunningInterval() override;
 
  private:
     /**
-     * @brief 在source上随机选择一个leader copyset, 把leader从该chunkserver
-     *        上迁移出去
+     * @brief Select a leader copyset randomly on the source chunkserver,
+     *        and migrate the leader out
      *
-     * @param[in] source leader需要迁移出去的chunkserverID
-     * @param[in] leaderCount source上leader的个数
-     * @param[in] lid 当前正在均衡的logicalPoolId
-     * @param[out] op 生成的operator
-     * @param[out] selectedCopySet 选中的需要变更的copyset
+     * @param[in] source The ID of the chunkserver
+     *            where leader migration executed
+     * @param[in] leaderCount The number of the leaders of source chunkserver
+     * @param[in] lid The ID of the logical pool under balancing
+     * @param[out] op The operator generated
+     * @param[out] selectedCopySet The selected copyset to change
      *
-     * @return 是否成功生成operator, false为没有生成
+     * @return return true if operator generated, false if not
      */
     bool transferLeaderOut(ChunkServerIdType source, int leaderCount,
         PoolIdType lid, Operator *op, CopySetInfo *selectedCopySet);
 
     /**
-     * @brief 在target上随机选择一个follower copyset, 把leader迁移到该chunserver上
+     * @brief Select a follower copyset randomly on target chunkserver, and
+     *        migrate the leader to this chunkserver
      *
-     * @param[in] target 需要将该leader迁移到该chunkserverID
-     * @param[in] leaderCount target上leader的个数
-     * @param[in] 当前正在均衡的逻辑池id
-     * @param[out] op 生成的operator
-     * @param[out] selectedCopySet 选中的需要变更的copyset
+     * @param[in] target The ID of the chunkserver that the leader will
+     *            be migrated to
+     * @param[in] leaderCount The number of the leader on target chunkserver
+     * @param[in] lid The ID of the logical pool under balancing
+     * @param[out] op The operator generated
+     * @param[out] selectedCopySet The selected copyset to change
      *
-     * @return 是否成功生成operator, false为没有生成
+     * @return return true if the operator generated successfully, false if not
      */
     bool transferLeaderIn(ChunkServerIdType target, int leaderCount,
         PoolIdType lid, Operator *op, CopySetInfo *selectedCopySet);
 
-    /*
-    * @brief copySetHealthy检查copySet三个副本是否都在线
+    /**
+    * @brief copySetHealthy Check the online status of three replicas
     *
-    * @param[in] csInfo copyset的信息
+    * @param[in] csInfo Copyset Info
     *
-    * @return false为三个副本至少有一个不在线， true为三个副本均为online状态
+    * @return true if none of them is offline, false if any
     */
     bool copySetHealthy(const CopySetInfo &csInfo);
 
     /**
-     * @brief coolingTimeExpired 判断当前时间 - aliveTime
-     *                           是否大于chunkserverCoolingTimeSec_
+     * @brief coolingTimeExpired Check whether current-time - aliveTime is
+     *                           larger than chunkserverCoolingTimeSec_
      *
-     * @brief aliveTime chunkserver的启动时间
+     * @brief aliveTime The running time of the chunkserver
      *
-     * @return false表示 当前时间 - aliveTime <= chunkserverCoolingTimeSec_
-     *         true 当前时间 - aliveTime > chunkserverCoolingTimeSec_
+     * @return false if current-time - aliveTime <= chunkserverCoolingTimeSec_
+     *         true if not
      */
     bool coolingTimeExpired(uint64_t aliveTime);
 
     /**
-     * @brief DoLeaderSchedule 对指定的logicalPool做leader均衡
+     * @brief DoLeaderSchedule Execute leader balancing to
+     *        specified logical pool
      *
-     * @param[in] lid 指定逻辑池id
+     * @param[in] lid The ID of the logical pool specified
      *
-     * @return 本次均衡产生的有效operator个数
+     * @return The number of the effective operator generated
      */
     int DoLeaderSchedule(PoolIdType lid);
 
  private:
     int64_t runInterval_;
 
-    // chunkserver启动coolingTimeSec_后才可以作为target leader
+    // the minimum time that a chunkserver can become a target
+    // leader after it started
     uint32_t chunkserverCoolingTimeSec_;
 
-    // transferLeaderout的重试次数
+    // retry times of method transferLeaderout
     const int maxRetryTransferLeader = 10;
 };
 
-// 用于修复offline的副本
+// recovering the offline replicas
 class RecoverScheduler : public Scheduler {
  public:
     RecoverScheduler(
@@ -347,48 +368,49 @@ class RecoverScheduler : public Scheduler {
     }
 
     /**
-     * @brief 修复topology中offline的副本
+     * @brief recovering the offline replica on Topology
      *
-     * @return 生成的operator的数量
+     * @return the number of operators generated
      */
     int Schedule() override;
 
     /**
-     * @brief scheduler运行的时间间隔
+     * @brief running time interval of the scheduler
      *
-     * @return 时间间隔
+     * @return time interval
      */
     int64_t GetRunningInterval() override;
 
  private:
     /**
-     * @brief 修复指定副本
+     * @brief fix the specified replica
      *
-     * @param[in] info 待修复的copyset
-     * @param[in] peerId 待修复的副本
-     * @param[out] op 生成的operator
-     * @param[out] target 新增副本
+     * @param[in] info The copyset to be fixed
+     * @param[in] peerId The chunkserver(replica) to be fixed
+     * @param[out] op The operator generated
+     * @param[out] target The replica added
      *
-     * @return 是否生成了operator
+     * @return Whether any operator has been generated
      */
     bool FixOfflinePeer(const CopySetInfo &info, ChunkServerIdType peerId,
         Operator *op, ChunkServerIdType *target);
 
     /**
-     * @brief 统计server上有哪些offline超过一定数量的chunkserver集合
+     * @brief calculate the number of the chunkserver that has offline replicas more than a specific number on a server //NOLINT
      *
-     * @param[out] excludes server上offlinechunkserver超过一定数量的chunkserver集合//NOLINT
+     * @param[out] excludes
      */
     void CalculateExcludesChunkServer(std::set<ChunkServerIdType> *excludes);
 
  private:
-    // RecoverScheduler运行间隔
+    // running interval of RecoverScheduler
     int64_t runInterval_;
-    // 一个Server上超过offlineExceed_个chunkserver挂掉,不恢复
+    // the threshold of the failing chunkserver that the server will not be recovered //NOLINT
     int32_t chunkserverFailureTolerance_;
 };
 
-// 根据配置检查copyset的副本数量, 副本数量不符合标准值时进行删除或增加
+// Check replica numbers of the copyset according to the configuration, and
+// remove or add replica if the number didn't satisfy the requirement
 class ReplicaScheduler : public Scheduler {
  public:
     ReplicaScheduler(
@@ -400,26 +422,26 @@ class ReplicaScheduler : public Scheduler {
     }
 
     /**
-     * @brief Schedule检查copyset的副本数量是否符合标准值, 如果不符合, 生成operator //NOLINT
-     *        调整副本数量
+     * @brief Schedule Check whether the replica numebr of the copyset satisfies
+     *                 the standard, and generate operator for adjustment if not
      *
-     * @return 生成的operator的数量
+     * @return the number of operators generated
      */
     int Schedule() override;
 
     /**
-     * @brief scheduler运行的时间间隔
+     * @brief get running time interval of the scheduler
      *
-     * @return 时间间隔
+     * @return time interval
      */
     int64_t GetRunningInterval() override;
 
  private:
-    // replicaScheduler运行间隔
+    // time interval of replicaScheduler
     int64_t runInterval_;
 };
 
-// 快速leader均衡
+// for rapid leader balancing
 class RapidLeaderScheduler : public Scheduler {
  public:
     RapidLeaderScheduler(
@@ -430,62 +452,63 @@ class RapidLeaderScheduler : public Scheduler {
         : Scheduler(opt, topo, opController), lpoolId_(lpid) {}
 
     /**
-     * @brief 以逻辑池为力度做leader均衡
-     * @return 返回值是一个:
-     *         kScheduleErrCodeSuccess 成功生成了一批transferleader的operator
+     * @brief Execute leader balancing in a granularity of logical pool
+     * @return kScheduleErrCodeSuccess
      */
     int Schedule() override;
 
  private:
     /**
-     * @brief 在指定逻辑池中做leader均衡
-     * @param[in] lid 指定logicalpool
+     * @brief Execute leader balancing in specified logical pool
+     * @param[in] lid The logical pool specified
      */
     void DoRapidLeaderSchedule(LogicalPoolIdType lid);
 
     /**
-     * @brief 统计指定逻辑池中leader分布的信息
-     * @param[out] stat 统计结果
-     * @return false-初始化失败 true-初始化成功
+     * @brief measure the info of leader distribution on specified logical pool
+     * @param[out] stat The result of the measurement
+     * @return false if failed to initialize, true if succeeded
      */
     bool LeaderStatInSpecifiedLogicalPool(LeaderStatInLogicalPool *stat);
 
     /**
-     * @brief 为指定copyset选择有可能的目的leader节点
-     * @param[in] curChunkServerId 当前正在处理的chunkserver
-     * @param[in] info 指定复制组
-     * @param[in] stat leader的分布的统计信息
+     * @brief select possible target leader node for a copyset
+     * @param[in] curChunkServerId The ID of the chunkserver under processing
+     * @param[in] info The specified copyset
+     * @param[in] stat The distribution statistic of leaders
      * @return fChunkServerIdType
      */
     ChunkServerIdType SelectTargetPeer(ChunkServerIdType curChunkServerId,
         const CopySetInfo &info, const LeaderStatInLogicalPool &stat);
 
     /**
-     * @brief copyset的各副本中，leader数目最小的副本
-     * @param[in] info 指定复制组
-     * @param[in] stat leader的分布的统计信息
-     * @return leader数目最小的副本id
+     * @brief find the chunkserver that has the minimum number of leaders in copyset peers //NOLINT
+     * @param[in] info The copyset specified
+     * @param[in] stat The info of the distribution of leaders
+     * @return The ID of the chunkserver that has the minimum number of leaders
      */
     ChunkServerIdType MinLeaderNumInCopySetPeers(
         const CopySetInfo &info, const LeaderStatInLogicalPool &stat);
 
     /**
-     * @brief 判断潜在目的节点是否可以作为新leader
-     * 标准：1. 源节点和目的节点上leader的数量差大于1
-     *      2. 源节点上当前leader的数量大于均值
-     * @param[in] origLeader 旧leader
-     * @param[in] targetLeader 潜在目的节点
-     * @param[in] stat leader的分布的统计信息
-     * @return true-可以作为新leader false-不可以作为新leader
+     * @brief decide whether a node can be the new leader
+     *        criterion:
+     *        1. the variance of the leader number from source node and target
+     *           node is larger than 1
+     *        2. current leader number of the source node is larger than average
+     * @param[in] origLeader The old leader
+     * @param[in] targetLeader Potentail target node as the new leader
+     * @param[in] stat The info of the distribution of leaders
+     * @return true if the target node is able to be the new leader, false if not //NOLINT
      */
     bool PossibleTargetPeerConfirm(ChunkServerIdType origLeader,
         ChunkServerIdType targetLeader, const LeaderStatInLogicalPool &stat);
 
     /**
-     * @brief 为指定copyset生成transferleader的operator
-     * @param[in] info 指定复制组
-     * @param[in] targetLeader 目的节点
-     * @return true-生成成功  false-生成失败
+     * @brief generate operator for transferleader for specified copyset
+     * @param[in] info The copyset specified
+     * @param[in] targetLeader Target leader node
+     * @return true if generated successfully, false if not
      */
     bool GenerateLeaderChangeOperatorForCopySet(
         const CopySetInfo &info, ChunkServerIdType targetLeader);

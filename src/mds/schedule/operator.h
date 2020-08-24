@@ -55,16 +55,20 @@ class Operator {
   /**
    * @brief execute operator
    *
-   * @param originInfo 入参, chunkServer上报的copySet的信息
-   * @param newInfo 出参, schedule下发给copySet的命令
+   * @param originInfo copyset info reported by the chunkserver
+   * @param newInfo the configuration change (also a copyset info)
+   *                that the scheduler generate
    *
-   * @return 返回值, 此次operator执行是否完成/是否失败/是否有指令下发/错误信息
+   * @return ApplyStatus, showing the status of the execution
+   *         (finish or not / fail or success)
    */
   ApplyStatus Apply(const CopySetInfo &originInfo, CopySetConf *newInfo);
 
   /**
-   * @brief operator影响到的chunkServer列表, TransferLeader和RemovePeer的开销比较小,
-   * 涉及到的chunkServer不在列; AddPeer中新增的peer需要拷贝数据,被认为Affected.
+   * @brief list of the chunkserver affected by the operation. The overhead of
+   *        TransferLeader and RemovePeer is rather small, so we don't consider
+   *        the chunkservers involved. But for AddPeer operation, data copying
+   *        is required, and thus chunkservers involved are considered affected
    *
    * @return set of affected chunkServers
    */
@@ -80,7 +84,7 @@ class Operator {
   CopySetKey copysetID;
   steady_clock::time_point createTime;
   OperatorPriority priority;
-  // TODO(lixiaocui): 可能可以改成模板
+  // TODO(lixiaocui): use template instead
   std::shared_ptr<OperatorStep> step;
   steady_clock::duration timeLimit;
 };

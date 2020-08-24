@@ -37,47 +37,43 @@ enum SchedulerType {
 
 struct ScheduleOption {
  public:
-    // copyset均衡的开关
     bool enableCopysetScheduler;
-    // leader均衡开关
     bool enableLeaderScheduler;
-    // recover开关
     bool enableRecoverScheduler;
-    // replica开关
     bool enableReplicaScheduler;
 
-    // copyset均衡计算的时间间隔
+    // xxxSchedulerIntervalSec: time interval of calculation for xxx scheduling
     uint32_t copysetSchedulerIntervalSec;
-    // leader均衡计算时间间隔
     uint32_t leaderSchedulerIntervalSec;
-    // recover计算时间间隔
     uint32_t recoverSchedulerIntervalSec;
-    // replica均衡时间间隔
     uint32_t replicaSchedulerIntervalSec;
 
-    // 单个chunkserver上面可以同时进行配置变更的copyset数量
+    // number of copyset that can operate configuration changing at the same time on single chunkserver //NOLINT
     uint32_t operatorConcurrent;
-    // leader变更时间限制, 大于该时间mds认为超时，移除相关operator
+
+    // xxxTimeLimitSec: time limit for xxx, operation will be considered
+    // overtime and cancel if exceed this limit
     uint32_t transferLeaderTimeLimitSec;
-    // 增加节点时间限制, 大于该时间mds认为超时，移除相关operator
     uint32_t addPeerTimeLimitSec;
-    // 移除节点时间限制, 大于该时间mds认为超时，移除相关operator
     uint32_t removePeerTimeLimitSec;
-    // change节点时间限制，大于该时间mds认为超时，移除相关operator
     uint32_t changePeerTimeLimitSec;
 
-    // 供copysetScheduler使用, [chunkserver上copyset数量的极差]不能超过
-    // [chunkserver上copyset数量均值] * copysetNumRangePercent
+    // for copysetScheduler, the (range of the number of copyset on chunkserver)
+    // should not exceed (average number of copyset on chunkserver * copysetNumRangePercent) //NOLINT
     float copysetNumRangePercent;
-    // 配置变更需要尽量使得chunkserver的scatter-with不超过
-    // minScatterWith * (1 + scatterWidthRangePerent)
+    // configuration changes should try to guarantee that the scatter-width
+    // of chunkserver not exceed minScatterWith * (1 + scatterWidthRangePerent)
     float scatterWithRangePerent;
-    // 一个Server上超过offlineExceed_个chunkserver挂掉,不恢复
+    // the failing chunkserver threshold for operating a recovery, if exceed, no
+    // attempt on recovery will be committed
     uint32_t chunkserverFailureTolerance;
-    // chunkserver启动coolingTimeSec_后才可以作为leader均衡中的target leader
-    // chunkserver刚启时copyset会回放日志, 而transferleader的时候会停止现在的io,
-    // 如果作为目标leader,就需要等待日志回放完成才可以接受transferleader，回放时间
-    // 过长，就导致leadertimeout时间内io会被卡住
+    // chunkserver can be the target leader on leader scheduling only after
+    // starting for chunkserverCoolingTimeSec.
+    // when a chunkserver start running, the copysets will replay the journal,
+    // and during the leader transferring I/O on chunkserver will be suspended.
+    // if the chunkserver is under journal replaying when leader transferring
+    // operation arrive, the operation will wait for the replay and will be
+    // stuck and exceed the 'leadertimeout' if the replay takes too long time.
     uint32_t chunkserverCoolingTimeSec;
 };
 
