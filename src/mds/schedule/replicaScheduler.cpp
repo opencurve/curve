@@ -33,7 +33,7 @@ int ReplicaScheduler::Schedule() {
     LOG(INFO) << "replicaScheduelr begin.";
     int oneRoundGenOp = 0;
     for (auto info : topo_->GetCopySetInfos()) {
-        // 如果copyset上面已经有operator,跳过
+        // skip if there's any operator on a copyset
         Operator op;
         if (opController_->GetOperatorById(info.id, &op)) {
             continue;

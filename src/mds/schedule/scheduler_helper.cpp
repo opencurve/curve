@@ -30,60 +30,62 @@
 namespace curve {
 namespace mds {
 namespace schedule {
+
 /**
- copyset(ABC),-C,+D, C称为source, D称为target.
- 该操作对chunkserver{ABCD}的scatter-width有影响.
- 变更之前的scatter-width记为oldValue, 变更后记为newValue.
- 该变更需要符合以下条件：
- 1. 对于A,B,C
-    ① 变更之后的值在标准范围之内 minScatterWidth<=newValue<=maxScatterWidth
-    ② 变更之后值小于最小值 newValue<minScatterWidth, 但变更没有使得scatter-width减小
-       newValue-oldValue>=0
-    ③ 变更之后值大于最大值 newValue>maxScatterWidth, 但变更没有使得scatter-width增大
-       newValue-oldValue<=0
- 2. 对于D
-    ① 变更之后值在标准范围之内 minScatterWidth<=newValue<=maxScatterWidth
-    ② 变更之后值小于最小值 newValue<minScatterWidth, 但变更要使得scatter-with的值
-       至少增加1 newValue-oldValue>=1
-    ③ 变更之后值大于最大值 newValue>maxScatterWidth, 但变更要使得scatter-width的值
-       至少减小1 newValue-oldValue<=-1
+ * for operation copyset(ABC),-C,+D, C is the source and D is the target.
+ * this operation will change the scatter-width of {ABCD}, and for old
+ * scatter-width oldValue and new scatterwidth newValue, the change should
+ * satisfy one of the conditions below:
+ * 1. for A,B,C
+ *   ① minScatterWidth<=newValue<=maxScatterWidth
+ *   ② newValue<minScatterWidth, but the scatter-width didn't drop
+ *     (newValue-oldValue>=0)
+ *   ③ newValue>maxScatterWidth, but the scatter-width didn't increase
+ *     (newValue-oldValue<=0)
+ * 2. for D
+ *   ① minScatterWidth<=newValue<=maxScatterWidth
+ *   ② newValue<minScatterWidth, but the scatter-width increased at least 1
+ *     (newValue-oldValue>=1)
+ *   ③ newValue>maxScatterWidth, but the scatter-width decreased at least 1
+ *     (newValue-oldValue<=-1)
  */
+
 bool SchedulerHelper::SatisfyScatterWidth(
     bool target, int oldValue, int newValue,
     int minScatterWidth, float scatterWidthRangePerent) {
     int maxValue = minScatterWidth * (1 + scatterWidthRangePerent);
-    // 变更之后的scatter-with小于最小值
+    // newValue is smaller than the minimum value
     if (newValue < minScatterWidth) {
-        // 非target
+        // not the target
         if (!target) {
-            // 非target,变更之后值变小，不符合条件
+            // newValue decrease, invalid
             if (newValue - oldValue < 0) {
                 return false;
             }
         // target
         } else {
-            // target, 变更之后没有使得scatter-with至少增加1，不符合条件
+            // the increase of scatter-width is less than 1, invalid
             if (newValue - oldValue < 1) {
                 return false;
             }
         }
-    // 变更之后的scatter-with大于最大值
+    // newValue is larger than the maximum value
     } else if (newValue > maxValue) {
-        // 非target
+        // not the target
         if (!target) {
-            // 非target，变更之后值变大，不符合条件
+            // newValue increase increase, invalid
             if (newValue - oldValue > 0) {
                 return false;
             }
         // target
         } else {
-            // target, 变更之后没有使得scatter-with至少减少1，不符合条件
+            // the scatter-width decrease is less than 1, invalid
             if (newValue - oldValue >= 0) {
                 return false;
             }
         }
     }
-    // 变更之后的scatter-with在[min, max]之间
+    // the newValue falls inside [min, max]
     return true;
 }
 
@@ -105,24 +107,26 @@ bool SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
         return false;
     }
 
-    // 非source和非target
+    // the zone list stores the number chunkserver of the copyset given that a
+    // zone has
     std::map<ZoneIdType, int> zoneList;
 
     for (auto info : candidate.peers) {
-        // 更新zoneList
+        // update zoneList
         if (zoneList.count(info.zoneId) > 0) {
             zoneList[info.zoneId] += 1;
         } else {
             zoneList[info.zoneId] = 1;
         }
 
-        // 记录source zone
+        // record the source zone
         if (source == info.id) {
             sourceZone = info.zoneId;
         }
     }
 
-    // 迁移过后是否符合zone条件, -sourceZone, +targetZone
+    // calculate the zoneList after the migration and determine whether it
+    // satisfy the condition
     if (zoneList.count(sourceZone) >= 1) {
         if (zoneList[sourceZone] == 1) {
             zoneList.erase(sourceZone);
@@ -141,8 +145,7 @@ bool SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
         return false;
     }
 
-    // 迁移过后source(-other)/target(+other)上的scatter-with是否符合要求
-    // 迁移过后的otherReplica是否符合要求，-source, +target
+    // determine whether the scatter-width of source(-other)/target(+other)/other(-source, +target) satisfy the requirement //NOLINT
     int affected = 0;
     if (SchedulerHelper::InvovledReplicasSatisfyScatterWidthAfterMigration(
                 candidate, source, target, UNINTIALIZE_ID, topo,
@@ -177,7 +180,7 @@ void SchedulerHelper::SortChunkServerByCopySetNumAsc(
     std::vector<ChunkServerInfo> *chunkserverList,
     const std::shared_ptr<TopoAdapter> &topo) {
     std::vector<CopySetInfo> copysetList = topo->GetCopySetInfos();
-    // 统计chunkserver上copyset的数量
+    // calculate copyset number of chunkservers
     std::map<ChunkServerIdType, int> copysetNumInCs;
     for (auto copyset : copysetList) {
         for (auto peer : copyset.peers) {
@@ -189,7 +192,7 @@ void SchedulerHelper::SortChunkServerByCopySetNumAsc(
         }
     }
 
-    // map转换成vector
+    // transfer map to vector
     std::vector<std::pair<ChunkServerInfo, int>> transfer;
     for (auto &csInfo : *chunkserverList) {
         int num = 0;
@@ -200,18 +203,18 @@ void SchedulerHelper::SortChunkServerByCopySetNumAsc(
         transfer.emplace_back(item);
     }
 
-    // chunkserverlist随机排列
+    // randomize chunkserverlist
     static std::random_device rd;
     static std::mt19937 g(rd());
     std::shuffle(transfer.begin(), transfer.end(), g);
 
-    // 排序
+    // sort
     std::sort(transfer.begin(), transfer.end(),
         [](const std::pair<ChunkServerInfo, int> &c1,
            const std::pair<ChunkServerInfo, int> &c2){
             return c1.second < c2.second;});
 
-    // 放到chunkserverList中
+    // place back to chunkserverList
     chunkserverList->clear();
     for (auto item : transfer) {
         chunkserverList->emplace_back(item.first);
@@ -232,25 +235,27 @@ void SchedulerHelper::SortScatterWitAffected(
 }
 
 /**
- copyset(ABC),-C,+D操作对于{ABCD}的影响:
- 对于A: -C,+D
- 对于B: -C,+D
- 对于C: -A,-B
- 对于D: +A,+B
+ * for copyset(ABC), calculate the influence of operation
+ * {-C, +D} to scatter-width
+ * for A: -C,+D
+ * for B: -C,+D
+ * for C: -A,-B
+ * for D: +A,+B
  */
 void SchedulerHelper::CalculateAffectOfMigration(
     const CopySetInfo &copySetInfo, ChunkServerIdType source,
     ChunkServerIdType target, const std::shared_ptr<TopoAdapter> &topo,
     std::map<ChunkServerIdType, std::pair<int, int>> *scatterWidth) {
-    // 获取target的scatter-width map
+    // get scatter-width map and scatter-width of target
     std::map<ChunkServerIdType, int> targetMap;
     std::pair<int, int> targetScatterWidth;
     if (target != UNINTIALIZE_ID) {
         topo->GetChunkServerScatterMap(target, &targetMap);
+        // 这里输出的map里面value的first是当前的scatterwidth
         (*scatterWidth)[target].first = targetMap.size();
     }
 
-    // 获取source的scatter-width map
+    // get scatter-width map and scatter-width of the source
     std::map<ChunkServerIdType, int> sourceMap;
     std::pair<int, int> sourceScatterWidth;
     if (source != UNINTIALIZE_ID) {
@@ -258,7 +263,7 @@ void SchedulerHelper::CalculateAffectOfMigration(
         (*scatterWidth)[source].first = sourceMap.size();
     }
 
-    // 计算otherList{A,B}对C,D产生的影响 以及 受到C,D的影响
+    // calculate the influence between otherList {A,B} and {C,D}
     for (PeerInfo peer : copySetInfo.peers) {
         if (peer.id == source) {
             continue;
@@ -267,16 +272,16 @@ void SchedulerHelper::CalculateAffectOfMigration(
         std::map<ChunkServerIdType, int> tmpMap;
         topo->GetChunkServerScatterMap(peer.id, &tmpMap);
         (*scatterWidth)[peer.id].first = tmpMap.size();
-        // 如果target被初始化
+        // if target was initialized
         if (target != UNINTIALIZE_ID) {
-            // 对于target的影响， +replica
+            // influence on target
             if (targetMap.count(peer.id) <= 0) {
                 targetMap[peer.id] = 1;
             } else {
                 targetMap[peer.id]++;
             }
 
-            // target对于其他副本的影响，+target
+            // target's influence on other chunkservers
             if (tmpMap.count(target) <= 0) {
                 tmpMap[target] = 1;
             } else {
@@ -284,16 +289,16 @@ void SchedulerHelper::CalculateAffectOfMigration(
             }
         }
 
-        // 如果source被初始化
+        // if source was initialized
         if (source != UNINTIALIZE_ID) {
-            // source对于其他副本的影响，-source
+            // influence on source
             if (tmpMap[source] <= 1) {
                 tmpMap.erase(source);
             } else {
                 tmpMap[source]--;
             }
 
-            // 对于source的影响，-replica
+            // influence of source on other chunkservers
             if (sourceMap[peer.id] <= 1) {
                 sourceMap.erase(peer.id);
             } else {
@@ -312,22 +317,25 @@ void SchedulerHelper::CalculateAffectOfMigration(
     }
 }
 
+// calculate the influence of the migration of a chunkserver to the scatterwidth
+// of other corresponding chunkservers
 bool SchedulerHelper::InvovledReplicasSatisfyScatterWidthAfterMigration(
     const CopySetInfo &copySetInfo, ChunkServerIdType source,
     ChunkServerIdType target, ChunkServerIdType ignore,
     const std::shared_ptr<TopoAdapter> &topo,
     int minScatterWidth, float scatterWidthRangePerent, int *affected) {
-    // 计算copyset(A,B,source),+target,-source对{A,B,source,target}的
-    // scatter-width产生的影响
+    // calculate the influence of copyset(A,B,source),+target,-source
+    // on the scatter-width of {A,B,source,target}
     std::map<ChunkServerIdType, std::pair<int, int>> out;
     SchedulerHelper::CalculateAffectOfMigration(
             copySetInfo, source, target, topo, &out);
 
-    // 判断{A,B,source,target}上scatter-width的变动是否符合条件
+    // judge the validity of the scatter-width change
     bool allSatisfy = true;
     *affected = 0;
     for (auto iter = out.begin(); iter != out.end(); iter++) {
-        // 如果source是offline状态, 不需要关心copyset从source上迁移之后是否满足条件 //NOLINT
+        // if the source chunkserver is offline, we don't have to care about
+        // whether the change of moving out from source is valid
         if (iter->first == ignore) {
             continue;
         }
@@ -342,7 +350,7 @@ bool SchedulerHelper::InvovledReplicasSatisfyScatterWidthAfterMigration(
             allSatisfy = false;
         }
 
-        // 计算该变更对所有副本scatter-width的影响之和
+        // calculate the sum of the change of scatter-width
         *affected +=
             afterMigrationScatterWidth - beforeMigrationScatterWidth;
     }
@@ -354,7 +362,6 @@ void SchedulerHelper::CopySetDistributionInOnlineChunkServer(
         const std::vector<CopySetInfo> &copysetList,
         const std::vector<ChunkServerInfo> &chunkserverList,
         std::map<ChunkServerIdType, std::vector<CopySetInfo>> *out) {
-    // 跟据copyset统计每个chunkserver上的copysetList
     for (auto item : copysetList) {
         for (auto peer : item.peers) {
             if (out->find(peer.id) == out->end()) {
@@ -364,8 +371,6 @@ void SchedulerHelper::CopySetDistributionInOnlineChunkServer(
             }
         }
     }
-
-    // chunkserver上没有copyset的设置为空, 并且移除offline状态下的copyset
     for (auto item : chunkserverList) {
         if (item.IsOffline()) {
             out->erase(item.info.id);

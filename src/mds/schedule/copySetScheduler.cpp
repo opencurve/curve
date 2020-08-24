@@ -42,8 +42,8 @@ int CopySetScheduler::Schedule() {
 }
 
 int CopySetScheduler::DoCopySetSchedule(PoolIdType lid) {
-    // 1. 获取集群中copyset 和 chunkserver列表
-    //    统计每个online状态chunkserver上的copyset
+    // 1. collect the chunkserver list and copyset list of the cluster, then
+    //    collect copyset on every online chunkserver
     auto copysetList = topo_->GetCopySetInfosInLogicalPool(lid);
     auto chunkserverList = topo_->GetChunkServersInLogicalPool(lid);
     std::map<ChunkServerIdType, std::vector<CopySetInfo>> distribute;
@@ -54,15 +54,21 @@ int CopySetScheduler::DoCopySetSchedule(PoolIdType lid) {
         return UNINTIALIZE_ID;
     }
 
-    // 2. 获取chunkserver上copyset数量的均值，极差，标准差
+    // 2. measure the average, range and standard deviation of number of copyset
+    //    on chunkservers
     float avg;
     int range;
     float stdvariance;
+    //这里只是一个计算参数的函数而言
     StatsCopysetDistribute(distribute, &avg, &range, &stdvariance);
 
-    // 3. 设置迁移条件
-    // 条件：极差在均值的百分比范围内，开始迁移
-    // 源和目的的选择：
+    // 3. Set migration condition
+    //    condition: range and average volnme fall into a certain percentage
+    //    defined selection of source and target based on the numbef copyset
+    //    on chunkserver
+
+
+    // 这里先留着
     // - copyset数量多 迁移到 copyset数量少
     // - copyset成员发生变化后，成员上的scatter-with的变化要满足一定的要求
     //   * 成员上的[scatter-with < 最小值]，变动不能使得scatter-with减小

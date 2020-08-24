@@ -204,7 +204,7 @@ ApplyStatus RemovePeer::Apply(const CopySetInfo &originInfo,
         return ApplyStatus::Ordered;
     }
 
-    // config change item do not match,
+    // configuration change item do not match,
     // may be mds reboot and drop the operator, but old operator is ongoing,
     // so the new generated operator must be failed and removed
     if (originInfo.candidatePeerInfo.id != remove_) {
@@ -270,13 +270,14 @@ ApplyStatus ChangePeer::Apply(
     const CopySetInfo &originInfo, CopySetConf *newConf) {
     assert(newConf != nullptr);
 
-    // 如果info中已经包含new_, 说明变更成功
+    // if new_ is contained in origin info, the configuration change succeeded
     if (originInfo.ContainPeer(new_) &&
         !originInfo.ContainPeer(old_)) {
         return ApplyStatus::Finished;
     }
 
-    // 如果没有candidate信息，下发该operator
+    // if there isn't any candidate info, dispatch the operator for copyset to
+    // change peer
     if (!originInfo.configChangeInfo.IsInitialized()) {
         newConf->id.first = originInfo.id.first;
         newConf->id.second = originInfo.id.second;
@@ -288,7 +289,9 @@ ApplyStatus ChangePeer::Apply(
         return ApplyStatus::Ordered;
     }
 
-    // 如果上报上来的configchange item与记录的不符合，则移除
+    // the info reported has candidate but doesn't match new_.
+    // this means there's operator under execution lost due to the
+    // MDS restart, the new operator should suspend and remove in this case.
     if (originInfo.candidatePeerInfo.id != new_) {
         LOG(WARNING) << originInfo.CopySetInfoStr()
             << " apply change peer from " << old_ << " to " << new_
@@ -298,7 +301,7 @@ ApplyStatus ChangePeer::Apply(
         return ApplyStatus::Failed;
     }
 
-    // 上报上来的变更类型与mds中记录的不同
+    // config change type reported is different from the record in MDS
     if (originInfo.configChangeInfo.type() !=  ConfigChangeType::CHANGE_PEER) {
         LOG(WARNING) << originInfo.CopySetInfoStr()
             << " apply change peer from " << old_ << " to " << new_
@@ -306,8 +309,7 @@ ApplyStatus ChangePeer::Apply(
             << originInfo.configChangeInfo.type();
         return ApplyStatus::Failed;
     }
-
-    // 上报失败信息
+    // configuration change fail reported, ChangePeer failed and should be removed //NOLINT
     if (!originInfo.configChangeInfo.finished() &&
         originInfo.configChangeInfo.has_err()) {
         LOG(ERROR) << originInfo.CopySetInfoStr()
@@ -317,7 +319,7 @@ ApplyStatus ChangePeer::Apply(
         return ApplyStatus::Failed;
     }
 
-    // 变更未完成，继续
+    // configuration change undergoing, do nothing
     return ApplyStatus::OnGoing;
 }
 }  // namespace schedule

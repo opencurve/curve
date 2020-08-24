@@ -31,8 +31,8 @@ namespace curve {
 namespace mds {
 namespace schedule {
 /**
- * 使用curl -L mdsIp:port/flags/enableCopySetScheduler?setvalue=true
- * 可以实现动态修改参数
+ * use curl -L mdsIp:port/flags/enableCopySetScheduler?setvalue=true
+ * for dynamic parameter configuration
  */
 static bool pass_bool(const char*, bool) { return true; }
 DEFINE_bool(enableCopySetScheduler, true, "switch of copyset scheduler");
