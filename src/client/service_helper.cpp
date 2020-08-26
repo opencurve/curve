@@ -307,14 +307,14 @@ int ServiceHelper::GetLeader(const GetLeaderInfo& getLeaderInfo,
         ++index;
         if (index == getLeaderInfo.currentLeaderIndex) {
             LOG(INFO) << "refresh leader skip current leader address: "
-                      << iter->externalAddr.ToString().c_str()
+                      << iter->csaddr_.ToString().c_str()
                       << ", logicpoolid = " << getLeaderInfo.logicPoolId
                       << ", copysetid = " << getLeaderInfo.copysetId;
             continue;
         }
 
         chunkserverIpPorts.emplace(
-            butil::endpoint2str(iter->externalAddr.addr_).c_str());
+            butil::endpoint2str(iter->csaddr_.addr_).c_str());
     }
 
     std::shared_ptr<GetLeaderProxy> proxy(std::make_shared<GetLeaderProxy>());

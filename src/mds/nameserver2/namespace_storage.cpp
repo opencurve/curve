@@ -84,10 +84,6 @@ StoreStatus NameServerStorageImp::GetFile(InodeID parentid,
     std::string out;
     if (!cache_->Get(storeKey, &out)) {
         errCode = client_->Get(storeKey, &out);
-
-        if (errCode == EtcdErrCode::EtcdOK) {
-            cache_->Put(storeKey, out);
-        }
     }
 
     if (errCode == EtcdErrCode::EtcdOK) {

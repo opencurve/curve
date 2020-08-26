@@ -19,59 +19,27 @@
  * File Created: Monday, 1st April 2019 5:15:34 pm
  * Author: tongguangxun
  */
-
-// function HMacSha256() is copy from brpc project:
-//
-// Copyright (c) 2016 Baidu, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-// Authors: Ge,Jun (gejun@baidu.com)
-//          Jiashun Zhu (zhujiashun@baidu.com)
-
 #ifdef OPENSSL_NO_SHA256
 #undef OPENSSL_NO_SHA256
 #endif
 
-#include <glog/logging.h>
 #include <openssl/sha.h>
-#include <openssl/hmac.h>
 
 #include <string.h>
 
 #include "src/common/authenticator.h"
 
-// Older openssl does not have EVP_sha256. To make the code always compile,
-// we mark the symbol as weak. If the runtime does not have the function,
-// handshaking will fallback to the simple one.
-extern "C" {
-const EVP_MD* __attribute__((weak)) EVP_sha256(void);
-}
-
 namespace curve {
 namespace common {
-
 std::string Authenticator::CalcString2Signature(const std::string& in,
                                     const std::string& secretKey) {
     std::string signature;
     unsigned char digest[BUFSIZ];
     memset(digest, 0x00, BUFSIZ);
 
-    int ret = HMacSha256((unsigned char*)secretKey.c_str(), secretKey.size(),
-                         (unsigned char*)in.c_str(), in.size(), digest);
-    if (ret == 0) {
-        signature = Base64(digest, SHA256_DIGEST_LENGTH);
-    }
+    HMacSha256((unsigned char*)in.c_str(), in.size(),
+            (unsigned char*)secretKey.c_str(), secretKey.size(), digest);
+    signature = Base64(digest, SHA256_DIGEST_LENGTH);
 
     return signature;
 }
@@ -84,37 +52,67 @@ std::string Authenticator::GetString2Signature(uint64_t date,
               .append(owner);
 }
 
-int Authenticator::HMacSha256(const void* key, int key_size,
-                               const void* data, int data_size,
-                               void* digest) {
-    if (NULL == EVP_sha256) {
-        LOG(ERROR) << "Fail to find EVP_sha256.";
-        return -1;
+void Authenticator::HMacSha256(
+            const unsigned char *text,      /* pointer to data stream        */
+            int                 text_len,   /* length of data stream         */
+            const unsigned char *key,       /* pointer to authentication key */
+            int                 key_len,    /* length of authentication key  */
+            void                *digest) {
+    unsigned char k_ipad[65];   /* inner padding key XORd with ipad */
+    unsigned char k_opad[65];   /* outer padding key XORd with opad */
+    unsigned char tk[SHA256_DIGEST_LENGTH];
+    unsigned char tk2[SHA256_DIGEST_LENGTH];
+    unsigned char bufferIn[1024];
+    unsigned char bufferOut[1024];
+    int           i;
+
+    /* if key is longer than 64 bytes reset it to key=sha256(key) */
+    if (key_len > 64) {
+        SHA256(key, key_len, tk);
+        key     = tk;
+        key_len = SHA256_DIGEST_LENGTH;
     }
-    unsigned int digest_size = 0;
-    unsigned char* temp_digest = (unsigned char*)digest;
-    if (key == NULL) {
-        // NOTE: first parameter of EVP_Digest in older openssl is void*.
-        if (EVP_Digest(const_cast<void*>(data), data_size, temp_digest,
-                       &digest_size, EVP_sha256(), NULL) < 0) {
-            LOG(ERROR) << "Fail to EVP_Digest";
-            return -1;
-        }
-    } else {
-        // Note: following code uses HMAC_CTX previously which is ABI
-        // inconsistent in different version of openssl.
-        if (HMAC(EVP_sha256(), key, key_size,
-                 (const unsigned char*) data, data_size,
-                 temp_digest, &digest_size) == NULL) {
-            LOG(ERROR) << "Fail to HMAC";
-            return -1;
-        }
+
+    /*
+     * the HMAC_SHA256 transform looks like:
+     *
+     * SHA256(K XOR opad, SHA256(K XOR ipad, text))
+     *
+     * where K is an n byte key
+     * ipad is the byte 0x36 repeated 64 times
+     * opad is the byte 0x5c repeated 64 times
+     * and text is the data being protected
+     */
+
+    /* start out by storing key in pads */
+    memset(k_ipad, 0, sizeof k_ipad);
+    memset(k_opad, 0, sizeof k_opad);
+    memcpy(k_ipad, key, key_len);
+    memcpy(k_opad, key, key_len);
+
+    /* XOR key with ipad and opad values */
+    for (i = 0; i < 64; i++) {
+        k_ipad[i] ^= 0x36;
+        k_opad[i] ^= 0x5c;
     }
-    if (digest_size != 32) {
-        LOG(ERROR) << "digest_size=" << digest_size << " of sha256 is not 32";
-        return -1;
-    }
-    return 0;
+
+    /*
+     * perform inner SHA256
+     */
+    memset(bufferIn, 0x00, 1024);
+    memcpy(bufferIn, k_ipad, 64);
+    memcpy(bufferIn + 64, text, text_len);
+
+    SHA256(bufferIn, 64 + text_len, tk2);
+
+    /*
+     * perform outer SHA256
+     */
+    memset(bufferOut, 0x00, 1024);
+    memcpy(bufferOut, k_opad, 64);
+    memcpy(bufferOut + 64, tk2, SHA256_DIGEST_LENGTH);
+
+    SHA256(bufferOut, 64 + SHA256_DIGEST_LENGTH, (unsigned char*)digest);
 }
 
 std::string Authenticator::Base64(const unsigned char *src, size_t sz) {

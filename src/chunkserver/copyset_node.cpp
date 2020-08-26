@@ -422,7 +422,7 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
             conf_.add_peer(meta.peers(i));
         }
     }
-    lastSnapshotIndex_ = meta.last_included_index();
+
     return 0;
 }
 
@@ -447,12 +447,8 @@ void CopysetNode::on_error(const ::braft::Error &e) {
                << " meet raft error: " << e;
 }
 
-void CopysetNode::on_configuration_committed(const Configuration& conf,
-                                             int64_t index) {
-    // This function is also called when loading snapshot.
-    // Loading snapshot should not increase epoch. When loading
-    // snapshot, the index is equal with lastSnapshotIndex_.
-    if (index != lastSnapshotIndex_) {
+void CopysetNode::on_configuration_committed(const Configuration &conf) {
+    {
         std::unique_lock<std::mutex> lock_guard(confLock_);
         conf_ = conf;
         epoch_.fetch_add(1, std::memory_order_acq_rel);

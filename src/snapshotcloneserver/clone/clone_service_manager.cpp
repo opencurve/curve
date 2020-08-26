@@ -30,7 +30,6 @@
 
 #include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 #include "src/snapshotcloneserver/common/define.h"
-#include "src/common/string_util.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -287,70 +286,6 @@ int CloneServiceManager::GetCloneTaskInfoByName(
     return GetCloneTaskInfoInner(cloneInfos, user, info);
 }
 
-int CloneServiceManager::GetCloneTaskInfoByFilter(
-        const CloneFilterCondition &filter,
-        std::vector<TaskCloneInfo> *info) {
-    std::vector<CloneInfo> cloneInfos;
-    int ret = cloneCore_->GetCloneInfoList(&cloneInfos);
-    if (ret < 0) {
-        LOG(ERROR) << "GetCloneInfoList fail"
-                   << ", ret = " << ret;
-        return kErrCodeFileNotExist;
-    }
-    return GetCloneTaskInfoInner(cloneInfos, filter, info);
-}
-
-int CloneServiceManager::GetCloneTaskInfoInner(
-    std::vector<CloneInfo> cloneInfos,
-    CloneFilterCondition filter,
-    std::vector<TaskCloneInfo> *info) {
-    int ret = kErrCodeSuccess;
-    for (auto &cloneInfo : cloneInfos) {
-        if (filter.IsMatchCondition(cloneInfo)) {
-            switch (cloneInfo.GetStatus()) {
-                case CloneStatus::done : {
-                    info->emplace_back(cloneInfo, kProgressCloneComplete);
-                    break;
-                }
-                case CloneStatus::cleaning:
-                case CloneStatus::errorCleaning:
-                case CloneStatus::error:
-                case CloneStatus::retrying: {
-                    info->emplace_back(cloneInfo, kProgressCloneError);
-                    break;
-                }
-                case CloneStatus::cloning:
-                case CloneStatus::recovering: {
-                    TaskIdType taskId = cloneInfo.GetTaskId();
-                    std::shared_ptr<CloneTaskBase> task =
-                        cloneTaskMgr_->GetTask(taskId);
-                    if (task != nullptr) {
-                        info->emplace_back(cloneInfo,
-                            task->GetTaskInfo()->GetProgress());
-                    } else {
-                        TaskCloneInfo tcInfo;
-                        ret = GetFinishedCloneTask(taskId, &tcInfo);
-                        if (ret < 0) {
-                            return ret;
-                        }
-                        info->emplace_back(tcInfo);
-                    }
-                    break;
-                }
-                case CloneStatus::metaInstalled: {
-                    info->emplace_back(cloneInfo, kProgressMetaInstalled);
-                    break;
-                }
-                default:
-                    LOG(ERROR) << "can not reach here!, status = "
-                               << static_cast<int>(cloneInfo.GetStatus());
-                    return kErrCodeInternalError;
-            }
-        }
-    }
-    return kErrCodeSuccess;
-}
-
 int CloneServiceManager::GetCloneTaskInfoInner(
     std::vector<CloneInfo> cloneInfos,
     const std::string &user,
@@ -400,50 +335,6 @@ int CloneServiceManager::GetCloneTaskInfoInner(
         }
     }
     return kErrCodeSuccess;
-}
-
-bool CloneFilterCondition::IsMatchCondition(const CloneInfo &cloneInfo) {
-    if (user_ != nullptr && *user_ != cloneInfo.GetUser()) {
-        return false;
-    }
-
-    if (source_ != nullptr && *source_ != cloneInfo.GetSrc()) {
-        return false;
-    }
-
-    if (destination_ != nullptr && *destination_ != cloneInfo.GetDest()) {
-        return false;
-    }
-
-    if (uuid_ != nullptr && *uuid_ != cloneInfo.GetTaskId()) {
-        return false;
-    }
-
-    int status;
-    if (status_ != nullptr
-        && common::StringToInt(*status_, &status) == false) {
-        return false;
-    }
-
-    if (status_ != nullptr
-        && common::StringToInt(*status_, &status) == true
-        && status != static_cast<int>(cloneInfo.GetStatus())) {
-        return false;
-    }
-
-    int type;
-    if (type_ != nullptr
-        && common::StringToInt(*type_, &type) == false) {
-        return false;
-    }
-
-    if (type_ != nullptr
-        && common::StringToInt(*type_, &type) == true
-        && type != static_cast<int>(cloneInfo.GetTaskType())) {
-        return false;
-    }
-
-    return true;
 }
 
 int CloneServiceManager::GetFinishedCloneTask(

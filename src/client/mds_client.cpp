@@ -34,7 +34,7 @@
 #include "src/client/mds_client.h"
 #include "src/common/timeutility.h"
 #include "src/common/string_util.h"
-#include "src/client/lease_executor.h"
+#include "src/client/lease_excutor.h"
 
 using curve::common::NetCommon;
 using curve::common::TimeUtility;
@@ -711,23 +711,16 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
             for (int j = 0; j < cslocsNum; j++) {
                 CopysetPeerInfo_t csinfo;
                 ChunkServerLocation csl = info.cslocs(j);
-                uint16_t port = csl.port();
-                std::string internalIp = csl.hostip();
-                csinfo.chunkserverID = csl.chunkserverid();
-                std::string externalIp = internalIp;
-                if (csl.has_externalip()) {
-                    externalIp = csl.externalip();
-                }
+                uint16_t port           = csl.port();
+                std::string hostip      = csl.hostip();
+                csinfo.chunkserverid_   = csl.chunkserverid();
 
-                EndPoint internal;
-                butil::str2endpoint(internalIp.c_str(), port, &internal);
-                EndPoint external;
-                butil::str2endpoint(externalIp.c_str(), port, &external);
-                csinfo.internalAddr = ChunkServerAddr(internal);
-                csinfo.externalAddr = ChunkServerAddr(external);
+                EndPoint ep;
+                butil::str2endpoint(hostip.c_str(), port, &ep);
+                csinfo.csaddr_ = ChunkServerAddr(ep);
 
                 copysetseverl.AddCopysetPeerInfo(csinfo);
-                copyset_peer.append(internalIp).append(":")
+                copyset_peer.append(hostip).append(":")
                             .append(std::to_string(port)).append(", ");
             }
             cpinfoVec->push_back(copysetseverl);
@@ -1081,10 +1074,10 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
 }
 
-LIBCURVE_ERROR MDSClient::GetChunkServerInfo(const ChunkServerAddr& csAddr,
-                                    CopysetPeerInfo_t* chunkserverInfo) {
-    if (!chunkserverInfo) {
-        LOG(ERROR) << "chunkserverInfo pointer is null!";
+LIBCURVE_ERROR MDSClient::GetChunkServerID(const ChunkServerAddr& csAddr,
+    ChunkServerID* id) {
+    if (!id) {
+        LOG(ERROR) << "id pointer is null!";
         return LIBCURVE_ERROR::FAILED;
     }
 
@@ -1121,20 +1114,7 @@ LIBCURVE_ERROR MDSClient::GetChunkServerInfo(const ChunkServerAddr& csAddr,
                 << ", log id = " << cntl->log_id();
 
         if (statusCode == 0) {
-            const auto& csInfo = response.chunkserverinfo();
-            ChunkServerID csId = csInfo.chunkserverid();
-            std::string internalIp = csInfo.hostip();
-            std::string externalIp = internalIp;
-            if (csInfo.has_externalip()) {
-                externalIp = csInfo.externalip();
-            }
-            uint32_t port = csInfo.port();
-            EndPoint internal;
-            butil::str2endpoint(internalIp.c_str(), port, &internal);
-            EndPoint external;
-            butil::str2endpoint(externalIp.c_str(), port, &external);
-            *chunkserverInfo = CopysetPeerInfo(csId, ChunkServerAddr(internal),
-                                               ChunkServerAddr(external));
+            *id = response.chunkserverinfo().chunkserverid();
             return LIBCURVE_ERROR::OK;
         } else {
             return LIBCURVE_ERROR::FAILED;

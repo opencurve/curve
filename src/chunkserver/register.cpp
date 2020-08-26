@@ -58,18 +58,11 @@ int Register::RegisterToMDS(ChunkServerMetadata *metadata) {
 
     req.set_disktype(ops_.chunkserverDiskType);
     req.set_diskpath(ops_.chunserverStoreUri);
-    req.set_hostip(ops_.chunkserverInternalIp);
-    if (ops_.enableExternalServer) {
-        req.set_externalip(ops_.chunkserverExternalIp);
-    }
+    req.set_hostip(ops_.chunkserverIp);
     req.set_port(ops_.chunkserverPort);
 
-    LOG(INFO) << " Registering to MDS " << mdsEps_[inServiceIndex_]
-              << ". internal ip: " << ops_.chunkserverInternalIp
-              << ", port: " << ops_.chunkserverPort
-              << ", enable external server: " << ops_.enableExternalServer
-              << ", external ip: " << ops_.chunkserverExternalIp;
-
+    LOG(INFO) << ops_.chunkserverIp << ":" << ops_.chunkserverPort
+              <<" Registering to MDS " << mdsEps_[inServiceIndex_];
     int retries = ops_.registerRetries;
     while (retries >= 0) {
         brpc::Channel channel;
@@ -78,8 +71,7 @@ int Register::RegisterToMDS(ChunkServerMetadata *metadata) {
         cntl.set_timeout_ms(ops_.registerTimeout);
 
         if (channel.Init(mdsEps_[inServiceIndex_].c_str(), NULL) != 0) {
-            LOG(ERROR) << ops_.chunkserverInternalIp << ":"
-                       << ops_.chunkserverPort
+            LOG(ERROR) << ops_.chunkserverIp << ":" << ops_.chunkserverPort
                        << " Fail to init channel to MDS "
                        << mdsEps_[inServiceIndex_];
             return -1;
@@ -91,8 +83,7 @@ int Register::RegisterToMDS(ChunkServerMetadata *metadata) {
         if (!cntl.Failed() && resp.statuscode() == 0) {
             break;
         } else {
-            LOG(ERROR) << ops_.chunkserverInternalIp << ":"
-                       << ops_.chunkserverPort
+            LOG(ERROR) << ops_.chunkserverIp << ":" << ops_.chunkserverPort
                        << " Fail to register to MDS "
                        << mdsEps_[inServiceIndex_]
                        << ", cntl errorCode: " << cntl.ErrorCode() << ","
@@ -109,7 +100,7 @@ int Register::RegisterToMDS(ChunkServerMetadata *metadata) {
     }
 
     if (retries <= 0) {
-        LOG(ERROR) << ops_.chunkserverInternalIp << ":" << ops_.chunkserverPort
+        LOG(ERROR) << ops_.chunkserverIp << ":" << ops_.chunkserverPort
                    << " Fail to register to MDS for " << ops_.registerRetries
                    << " times.";
         return -1;
@@ -120,7 +111,7 @@ int Register::RegisterToMDS(ChunkServerMetadata *metadata) {
     metadata->set_token(resp.token());
     metadata->set_checksum(ChunkServerMetaHelper::MetadataCrc(*metadata));
 
-    LOG(INFO) << ops_.chunkserverInternalIp << ":" << ops_.chunkserverPort
+    LOG(INFO) << ops_.chunkserverIp << ":" << ops_.chunkserverPort
               << " Successfully registered to MDS: " << mdsEps_[inServiceIndex_]
               << ", chunkserver id: " << metadata->id() << ","
               << " token: " << metadata->token() << ","

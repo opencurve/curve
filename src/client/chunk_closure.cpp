@@ -628,30 +628,16 @@ int ClientClosure::UpdateLeaderWithRedirectInfo(const std::string& leaderInfo) {
     ChunkServerAddr leaderAddr;
 
     int ret = leaderAddr.Parse(leaderInfo);
-    if (ret != 0) {
-        LOG(WARNING) << "Parse leader adress from " << leaderInfo << " fail";
-        return -1;
+    if (0 == ret) {
+        ret = metaCache_->UpdateLeader(chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
+                                       &leaderId, leaderAddr.addr_);
+        if (0 == ret) {
+            retryDirectly_ = (leaderId != chunkserverID_);
+            return 0;
+        }
     }
 
-    LogicPoolID lpId = chunkIdInfo_.lpid_;
-    CopysetID cpId = chunkIdInfo_.cpid_;
-    ret = metaCache_->UpdateLeader(lpId, cpId, leaderAddr.addr_);
-    if (ret != 0) {
-        LOG(WARNING) << "Update leader of copyset (" << lpId << ", " << cpId
-                  <<  ") in metaCache fail";
-        return -1;
-    }
-
-    butil::EndPoint leaderEp;
-    ret = metaCache_->GetLeader(lpId, cpId, &leaderId, &leaderEp);
-    if (ret != 0) {
-        LOG(INFO) << "Get leader of copyset (" << lpId << ", " << cpId
-                  <<  ") from metaCache fail";
-        return -1;
-    }
-
-    retryDirectly_ = (leaderId != chunkserverID_);
-    return 0;
+    return -1;
 }
 
 }   // namespace client

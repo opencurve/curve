@@ -60,35 +60,6 @@ class TimeUtility {
         strftime(now, 64, "%Y-%m-%d %H:%M:%S", &p);
         *standard = std::string(now);
     }
-
-    // 时间戳转成标准时间并返回,时间戳单位为秒
-    static inline std::string TimeStampToStandard(time_t timeStamp) {
-        char now[64];
-        struct tm p;
-        p = *localtime_r(&timeStamp, &p);
-        strftime(now, 64, "%Y-%m-%d %H:%M:%S", &p);
-        return now;
-    }
-};
-
-class ExpiredTime {
- public:
-    ExpiredTime() : startUs_(TimeUtility::GetTimeofDayUs()) {}
-
-    double ExpiredSec() const {
-        return ExpiredUs() / 1000000;
-    }
-
-    double ExpiredMs() const {
-        return ExpiredUs() / 1000;
-    }
-
-    double ExpiredUs() const {
-        return TimeUtility::GetTimeofDayUs() - startUs_;
-    }
-
- private:
-    uint64_t startUs_;
 };
 
 }   // namespace common

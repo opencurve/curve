@@ -45,7 +45,6 @@ extern const char HIGH[];
 
 class ScheduleMetrics {
  public:
-    // 构造函数
     explicit ScheduleMetrics(std::shared_ptr<Topology> topo) :
     operatorNum(ScheduleMetricsPrefix, "operator_num"),
     addOpNum(ScheduleMetricsPrefix, "addPeer_num"),
@@ -57,66 +56,69 @@ class ScheduleMetrics {
     topo_(topo) {}
 
     /**
-     * @brief UpdateAddMetric 暴露给operatorContoller的接口,
-     *                        用于增加operator的时候更新metric
+     * @brief UpdateAddMetric Interface exposed to operatorContoller for
+     *                        updating metric when adding operator
      *
-     * @param[in] op, 具体的operator
+     * @param[in] op Specific operator
      */
     void UpdateAddMetric(const Operator &op);
 
     /**
-     * @brief UpdateMetric 暴露给operatorContoller的接口,
-     *                     用于减少operator的时候更新metric
+     * @brief UpdateMetric Interface exposed to operatorContoller for updating
+     *                     metric when deleting operator
      *
-     * @param[in] op, 具体的operator
+     * @param[in] op Specific operator
      */
     void UpdateRemoveMetric(const Operator &op);
 
  private:
     /**
-     * @brief GetHostNameAndPortById 获取指定chunkserverId的hostName:port
+     * @brief GetHostNameAndPortById Get hostName:port of chunkserver specified
+     *                               by its ID
      *
-     * @param[in] csid, 指定的chunkserver id
+     * @param[in] csid Chunkserver ID
      *
-     * @return hostName:port的表现形式
+     * @return hostName:port (a string)
      */
     std::string GetHostNameAndPortById(ChunkServerIdType csid);
 
     /**
-     * @brief GetOpPriorityStr 获取operator优先级的string形式
+     * @brief GetOpPriorityStr Get the name of the priority level in string
      *
-     * @param[in] pri, 指定优先级
+     * @param[in] pri Priority (OperatorPriority, which is an enum)
      *
-     * @return 优先级对应的string形式
+     * @return corresponding level in string
      */
     std::string GetOpPriorityStr(OperatorPriority pri);
 
     /**
-     * @brief RemoveUpdateOperatorsMap remove operator时更新operator map
+     * @brief RemoveUpdateOperatorsMap Update operator map when removing one of
+     *                                 them
      *
-     * @param[in] op, 具体operator
-     * @param[in] type, operator类型，包含AddPeer/RemovePeer/TransferLeader
-     * @param[in] target, 变更对象
+     * @param[in] op Specified operator
+     * @param[in] type Operator type, including AddPeer/RemovePeer/TransferLeader //NOLINT
+     * @param[in] target Target chunkserver to change
      */
     void RemoveUpdateOperatorsMap(
         const Operator &op, std::string type, ChunkServerIdType target);
 
     /**
-     * @brief AddUpdateOperatorsMap add operator时更新operator map
+     * @brief AddUpdateOperatorsMap Update operator map when adding a new one
      *
-     * @param[in] op, 具体operator
-     * @param[in] type, operator类型，包含AddPeer/RemovePeer/TransferLeader
-     * @param[in] target, 变更对象
+     * @param[in] op Specified operator
+     * @param[in] type Operator type, including AddPeer/RemovePeer/TransferLeader //NOLINT
+     * @param[in] target Target chunkserver to change
      */
     void AddUpdateOperatorsMap(
         const Operator &op, std::string type, ChunkServerIdType target);
 
     /**
-     * @brief UpdateOperatorsMap 构造需要导出的operator相关内容，并转化为json格式
+     * @brief UpdateOperatorsMap Construct operator map for exporting and
+     *                           transfer to JSON format
      *
-     * @param[in] op, 具体operator
-     * @param[in] type, operator类型，包含AddPeer/RemovePeer/TransferLeader
-     * @param[in] target, 变更对象
+     * @param[in] op Specified operator
+     * @param[in] type Operator type, including AddPeer/RemovePeer/TransferLeader //NOLINT
+     * @param[in] target Target chunkserver
      */
     void UpdateOperatorsMap(
         const Operator &op, std::string type, ChunkServerIdType target);
@@ -126,21 +128,16 @@ class ScheduleMetrics {
     const std::string ScheduleMetricsCopySetOpPrefix =
         "mds_scheduler_metric_copyset_";
 
-    // 正在执行的所有operator的数量
+    // number of operator under execution
     bvar::Adder<uint32_t> operatorNum;
-    // 正在执行的AddPeer operator的数量
+    // xxxNUM: number of operator xxx under execution
     bvar::Adder<uint32_t> addOpNum;
-    // 正在执行的RemovePeer operator的数量
     bvar::Adder<uint32_t> removeOpNum;
-    // 正在执行的TransferLeader operator的数量
     bvar::Adder<uint32_t> transferOpNum;
-    // 正在执行的ChangePeer operator的数量
     bvar::Adder<uint32_t> changeOpNum;
-    // 正在执行的normal级别的operator的数量
     bvar::Adder<uint32_t> normalOpNum;
-    // 正在执行的high级别的operator的数量
     bvar::Adder<uint32_t> highOpNum;
-    // 正在执行的具体的operator
+    // specific operator under execution
     std::map<CopySetKey, StringStatus> operators;
 
  private:

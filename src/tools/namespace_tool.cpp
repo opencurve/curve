@@ -31,8 +31,6 @@ DEFINE_uint64(rpc_timeout, 3000, "millisecond for rpc timeout");
 DEFINE_bool(showAllocSize, true, "If specified, the allocated size will not be computed");  // NOLINT
 DEFINE_bool(showFileSize, true, "If specified, the file size will not be computed");  // NOLINT
 DECLARE_string(mdsAddr);
-DEFINE_bool(showAllocMap, false, "If specified, the allocated size in each"
-                                 " logical pool will be print");
 
 namespace curve {
 namespace tool {
@@ -172,21 +170,13 @@ int NameSpaceTool::GetAndPrintAllocSize(const std::string& fileName) {
         return 0;
     }
     uint64_t size;
-    AllocMap allocMap;
-    int res = core_->GetAllocatedSize(fileName, &size, &allocMap);
+    int res = core_->GetAllocatedSize(fileName, &size);
     if (res != 0) {
         std::cout << "Get allocated size fail!" << std::endl;
         return -1;
     }
     double allocSize = static_cast<double>(size) / curve::mds::kGB;
     std::cout << "allocated size: " << allocSize << "GB" << std::endl;
-    if (FLAGS_showAllocMap) {
-        for (const auto& item : allocMap) {
-            allocSize = static_cast<double>(item.second) / curve::mds::kGB;
-            std::cout << "logical pool id: " << item.first
-                      << ", allocated size: " << allocSize << "GB" << std::endl;
-        }
-    }
     return 0;
 }
 
