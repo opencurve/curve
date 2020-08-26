@@ -1472,7 +1472,8 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
-    while (1) {
+    int attempts = 0;
+    while (attempts < 100) {
         cntl.Reset();
         CheckSnapShotStatusRequest checkRequest;
         CheckSnapShotStatusResponse checkResponse;
@@ -1488,12 +1489,15 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
             } else {
                 ASSERT_EQ(checkResponse.statuscode(), StatusCode::kOK);
                 sleep(1);
+                ++attempts;
             }
         } else {
             ASSERT_TRUE(false);
             break;
         }
     }
+    ASSERT_LE(attempts, 100)
+            << "max attempts for check snapshot status exhausted";
 
 
     // 2 如果目录下有文件，那么删除目录返回kDirNotEmpty
@@ -1718,25 +1722,31 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
-    sleep(1);
-
-    cntl.Reset();
-    date = TimeUtility::GetTimeofDayUs();
-    str2sig = Authenticator::GetString2Signature(date,
+    attempts = 0;
+    while (attempts < 100) {
+        cntl.Reset();
+        date = TimeUtility::GetTimeofDayUs();
+        str2sig = Authenticator::GetString2Signature(date,
                                             authOptions.rootOwner);
-    sig = Authenticator::CalcString2Signature(str2sig,
+        sig = Authenticator::CalcString2Signature(str2sig,
                                             authOptions.rootPassword);
-    listRequest.set_signature(sig);
-    listRequest.set_filename(RECYCLEBINDIR);
-    listRequest.set_owner(authOptions.rootOwner);
-    listRequest.set_date(date);
-    stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
-        ASSERT_EQ(listResponse.fileinfo_size(), 0);
+        listRequest.set_signature(sig);
+        listRequest.set_filename(RECYCLEBINDIR);
+        listRequest.set_owner(authOptions.rootOwner);
+        listRequest.set_date(date);
+        stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
+        if (!cntl.Failed() && listResponse.statuscode() == StatusCode::kOK) {
+            if (listResponse.fileinfo_size() == 0) {
+                break;
+            } else {
+                sleep(1);
+                ++attempts;
+            }
         } else {
-        ASSERT_TRUE(false);
+            ASSERT_TRUE(false);
+        }
     }
+    ASSERT_LE(attempts, 100) << "max attempts for list /RecycleBin exhausted";
 
     // 删除文件时，如果文件名不满足要求，会返回失败
     cntl.Reset();
