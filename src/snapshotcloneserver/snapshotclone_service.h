@@ -88,18 +88,9 @@ class SnapshotCloneServiceImpl : public SnapshotCloneService {
         const std::string &requestId);
     void HandleCleanCloneTaskAction(brpc::Controller* bcntl,
         const std::string &requestId);
-    void HandleGetFileSnapshotListAction(brpc::Controller* bcntl,
-        const std::string &requestId);
-    void HandleGetCloneTaskListAction(brpc::Controller* bcntl,
-        const std::string &requestId);
+
     bool CheckBoolParamter(
         const std::string *param, bool *valueOut);
-    void SetErrorMessage(brpc::Controller* bcntl, int errCode,
-                        const std::string &requestId,
-                        const std::string &uuid = "");
-    void HandleBadRequestError(brpc::Controller* bcntl,
-                        const std::string &requestId,
-                        const std::string &uuid = "");
 
  private:
     // 快照转储服务管理对象

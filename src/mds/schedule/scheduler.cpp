@@ -64,7 +64,7 @@ int64_t Scheduler::GetRunningInterval() {
  *                 chunkserver n, which is operator (copyset-1, +n, -1)
  *            ① for chunkserver n(mark as target, to which the replica migrate), value of {2,3} in scatter-width_map will increase 1 //NOLINT
  *            ② for chunkserver 1(mark as source, from which the replica migrate out), value of {2,3} in scatter-width_map will decrease 1 //NOLINT
- *            ③for chunkserver 2 and 3 (mark as other), value of {n} will increase 1, and value of {1} will decrease 1 //NOLINT
+ *            ③ for chunkserver 2 and 3 (mark as other), value of {n} will increase 1, and value of {1} will decrease 1 //NOLINT
  *     4. if the impact of the execution of the operator on the scatter-width of
  *        {1, 2, 3, n} meets the conditions, selects the chunkserver-n as the
  *        target node and break
@@ -193,28 +193,8 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
  * 2. for chunkserver-n in {1, 2, 3, 4, 5, 6, 7...} [traverse chunkserverList]
  *     1. determine whether chunkserver-n meets the limits of zone and server,
  *        and continue if not
- *     2. determine whether the chunkserver is healthy, continue if not
- *     3. determine whether the impact of operation copyset-m(1, 2, 3), +n, -1
- *        on the scatter-width of {1, 2, 3, n} meets the conditions
- *        some definitions:
- *            - the definition of scatter-width_map is std::map<chunkserverIdType, int> //NOLINT
- *            - scatter-width here means len(scatter-width_map)
- *            - scatter-width_map of chunkserver-a:
- *              key: id of chunkserver that the other copies of copyset on chunkserver-a located //NOLINT
- *              value: the number of copyset that own by both the chunkserver 'key' and chunkserver-a //NOLINT
- *        example: chunkserver-a has copyset-1{a, 1, 2}, copyset-2{a, 2, 3},
- *                 and now we want to migrate the replica on chunkserver 1 to
- *                 chunkserver n, which is operator (copyset-1, +n, -1)
- *            ① for chunkserver n(mark as target, to which the replica migrate), value of {2,3} in scatter-width_map will increase 1 //NOLINT
- *            ② for chunkserver 1(mark as source, from which the replica migrate out), value of {2,3} in scatter-width_map will decrease 1 //NOLINT
- *            ③for chunkserver 2 and 3 (mark as other), value of {n} will increase 1, and value of {1} will decrease 1 //NOLINT
- *     4. if the impact of the execution of the operator on the scatter-width of
- *        {1, 2, 3, n} meets the conditions, selects the chunkserver-n as the
- *        target node and break
- * then we're done!
- * if there isn't any chunkserver n selected that makes the scatter-width of
- * {1, 2, 3, n} meet the condition after the execution of (+n, -1), choose the
- * chunkserver that makes the scatter-width decrease the least.
+ *     2. following steps are the same as the example of
+ *        SelectBestPlacementChunkServer
  */
 ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
     const CopySetInfo &copySetInfo) {
@@ -267,9 +247,10 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
                    << standardZoneNum << ", please check";
         return UNINTIALIZE_ID;
     }
+
     // 2. if greater or equal to the standard number
     // 2.1 equal
-    // to satisfy the restriction of zone condition, should choose      这里需要修改         为了满足zone条件的限制, 应该要从zone下包含多个ps中选取
+    // to satisfy the restriction of zone condition, should choose from chunkserver under the zone //NOLINT
     // for example, if the replica are A(zone1) B(zone2) C(zone3) D(zone3) E(zone2) //NOLINT
     // the one to remove should be selected from BCDE
     // 2.2 greater

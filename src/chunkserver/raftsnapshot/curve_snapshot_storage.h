@@ -55,8 +55,6 @@
 namespace curve {
 namespace chunkserver {
 
-void RegisterCurveSnapshotStorageOrDie();
-
 // SnapshotStorage specific for curve, to fit the lightweight snapshot
 // and snapshot consistency
 class CurveSnapshotStorage : public braft::SnapshotStorage {

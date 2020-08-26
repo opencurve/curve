@@ -58,7 +58,7 @@ const char kRemoveOpName[] = "remove_peer";
 const char kTransferOpName[] = "transfer_leader";
 
 
-inline std::string GetPoolTotalChunkSizeName(
+inline std::string GetPoolTotalBytesName(
                             const std::string& poolName) {
     std::string tmpName = kLogicalPoolMetricPrefix +
                                 poolName + "_chunkSizeTotalBytes";
@@ -67,7 +67,7 @@ inline std::string GetPoolTotalChunkSizeName(
     return metricName;
 }
 
-inline std::string GetPoolUsedChunkSizeName(
+inline std::string GetPoolUsedBytesName(
                             const std::string& poolName) {
     std::string tmpName = kLogicalPoolMetricPrefix +
                             poolName + "_chunkSizeUsedBytes";
@@ -76,19 +76,10 @@ inline std::string GetPoolUsedChunkSizeName(
     return metricName;
 }
 
-inline std::string GetPoolLogicalCapacityName(
+inline std::string GetPoolDiskAllocName(
                             const std::string& poolName) {
     std::string tmpName = kLogicalPoolMetricPrefix +
-                            poolName + "_logicalCapacity";
-    std::string metricName;
-    bvar::to_underscored_name(&metricName, tmpName);
-    return metricName;
-}
-
-inline std::string GetPoolLogicalAllocName(
-                            const std::string& poolName) {
-    std::string tmpName = kLogicalPoolMetricPrefix +
-                            poolName + "_logicalAlloc";
+                            poolName + "_diskAlloc";
     std::string metricName;
     bvar::to_underscored_name(&metricName, tmpName);
     return metricName;

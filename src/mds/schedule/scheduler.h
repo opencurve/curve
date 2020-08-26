@@ -81,7 +81,6 @@ class Scheduler {
 
     /**
      * @brief producing operator according to cluster status
-     *
      */
     virtual int Schedule();
 
@@ -119,11 +118,12 @@ class Scheduler {
 
     /**
      * @brief GetMinScatterWidth Get minimum value of scatter width according to
-     *                           the average value and percentage
+     *                           the result calculated by average value and
+     *                           the percentage (scatterWidthRangePerent_)
      *
      * @param[in] lpid Logical pool id
      *
-     * @return mimimum scatter-width
+     * @return mimimum Scatter-width
      */
     int GetMinScatterWidth(PoolIdType lpid);
 
@@ -211,7 +211,8 @@ class CopySetScheduler : public Scheduler {
      *                         distribution on Topology, and specify the source
      *                         and target
      *
-     * @param[in] chunkserverlist Every chunkservers in Topology, for avoiding duplicate fetching as a parameter //NOLINT
+     * @param[in] chunkserverlist Every chunkservers in Topology,
+     *                            for avoiding duplicate fetching as a parameter
      * @param[in] distribute Copyset on every chunkserver
      * @param[out] op Operator generated
      * @param[out] source The chunkserver specified to remove copyset
@@ -230,8 +231,8 @@ class CopySetScheduler : public Scheduler {
      *                                          specified fulfill the
      *                                          requirements below:
      *                                          1. no changes running
-     *                                          2. has same replicas as
-     *                                             the standard
+     *                                          2. has same amount of replicas
+     *                                             as the standard
      *                                          3. topology initialization
      *                                             finished
      *                                          4. every replicas of copyset
@@ -250,8 +251,9 @@ class CopySetScheduler : public Scheduler {
 
     // can be changed according to the scatter width of the initial status
     // of the cluster
-    // the range of the copyset number on chunkserver can not exceed this
-    // percentage
+    // the range of the copyset number on chunkserver can not exceed
+    // (avg * copysetNumRangePercent_), avg is the average number of copyset
+    // on chunkserver
     float copysetNumRangePercent_;
 };
 
@@ -396,9 +398,12 @@ class RecoverScheduler : public Scheduler {
         Operator *op, ChunkServerIdType *target);
 
     /**
-     * @brief calculate the number of the chunkserver that has offline replicas more than a specific number on a server //NOLINT
+     * @brief calculate the number of the chunkserver that has offline
+     *        replicas more than a specific number on a server. for those
+     *        server, the chunkserver on it will not be recovered.
      *
-     * @param[out] excludes
+     * @param[out] excludes Chunkservers on the server that has offline
+     *                      Chunkserver more than a specified number
      */
     void CalculateExcludesChunkServer(std::set<ChunkServerIdType> *excludes);
 
@@ -482,7 +487,7 @@ class RapidLeaderScheduler : public Scheduler {
         const CopySetInfo &info, const LeaderStatInLogicalPool &stat);
 
     /**
-     * @brief find the chunkserver that has the minimum number of leaders in copyset peers //NOLINT
+     * @brief find the chunkserver that has the minimum number of leaders in peers of a copyset //NOLINT
      * @param[in] info The copyset specified
      * @param[in] stat The info of the distribution of leaders
      * @return The ID of the chunkserver that has the minimum number of leaders

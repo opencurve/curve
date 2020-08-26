@@ -22,7 +22,6 @@
 
 #include "src/mds/nameserver2/file_record.h"
 #include "src/mds/common/mds_define.h"
-#include "src/common/timeutility.h"
 
 namespace curve {
 namespace mds {
@@ -80,10 +79,6 @@ void FileRecordManager::UpdateFileRecord(const std::string& fileName,
                       clientVersion,
                       clientIP,
                       clientPort);
-    LOG(INFO) << "Add new file record, filename = " << fileName
-              << ", clientVersion = " << clientVersion
-              << ", clientIP = " << clientIP
-              << ", clientPort = " << clientPort;
     WriteLockGuard lk(rwlock_);
     fileRecords_.emplace(fileName, record);
 }
@@ -97,11 +92,6 @@ void FileRecordManager::Scan() {
         auto iter = fileRecords_.begin();
         while (iter != fileRecords_.end()) {
             if (iter->second.IsTimeout()) {
-                LOG(INFO) << "Remove timeout file record, filename = "
-                          << iter->first
-                          << ", last update time = "
-                          << curve::common::TimeUtility::TimeStampToStandard(
-                                 iter->second.GetUpdateTime() / 1000000);
                 iter = fileRecords_.erase(iter);
             } else {
                 ++iter;

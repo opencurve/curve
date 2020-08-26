@@ -49,7 +49,6 @@ namespace schedule {
  *   ③ newValue>maxScatterWidth, but the scatter-width decreased at least 1
  *     (newValue-oldValue<=-1)
  */
-
 bool SchedulerHelper::SatisfyScatterWidth(
     bool target, int oldValue, int newValue,
     int minScatterWidth, float scatterWidthRangePerent) {
@@ -251,7 +250,6 @@ void SchedulerHelper::CalculateAffectOfMigration(
     std::pair<int, int> targetScatterWidth;
     if (target != UNINTIALIZE_ID) {
         topo->GetChunkServerScatterMap(target, &targetMap);
-        // 这里输出的map里面value的first是当前的scatterwidth
         (*scatterWidth)[target].first = targetMap.size();
     }
 
@@ -362,6 +360,7 @@ void SchedulerHelper::CopySetDistributionInOnlineChunkServer(
         const std::vector<CopySetInfo> &copysetList,
         const std::vector<ChunkServerInfo> &chunkserverList,
         std::map<ChunkServerIdType, std::vector<CopySetInfo>> *out) {
+    // calculate the copysetlist by traversing the copyset list
     for (auto item : copysetList) {
         for (auto peer : item.peers) {
             if (out->find(peer.id) == out->end()) {
@@ -371,6 +370,8 @@ void SchedulerHelper::CopySetDistributionInOnlineChunkServer(
             }
         }
     }
+
+    // remove offline chunkserver, and report empty list for empty chunkserver
     for (auto item : chunkserverList) {
         if (item.IsOffline()) {
             out->erase(item.info.id);
