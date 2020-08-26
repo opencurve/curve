@@ -35,26 +35,17 @@ namespace schedule {
 class OperatorFactory {
  public:
     /**
-     * @brief 构造transferLeader op
+     * @brief Create_xxxx_Operator: Create operator for xxxx
      */
     Operator CreateTransferLeaderOperator(const CopySetInfo &info,
         ChunkServerIdType newLeader, OperatorPriority pri);
 
-    /**
-     * @brief 构造removePeer op
-     */
     Operator CreateRemovePeerOperator(const CopySetInfo &info,
         ChunkServerIdType rmPeer, OperatorPriority pri);
 
-    /**
-     * @brief 构造addPeer op
-     */
     Operator CreateAddPeerOperator(const CopySetInfo &info,
         ChunkServerIdType addPeer, OperatorPriority pri);
 
-    /**
-     * @brief 构造changePeer op
-     */
     Operator CreateChangePeerOperator(const CopySetInfo &info,
         ChunkServerIdType rmPeer, ChunkServerIdType addPeer,
         OperatorPriority pri);

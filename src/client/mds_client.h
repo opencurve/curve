@@ -357,9 +357,9 @@ class MDSClient {
     LIBCURVE_ERROR Register(const std::string& ip, uint16_t port);
 
      /**
-      * 获取chunkserver信息
-      * @param[in] addr chunkserver地址信息
-      * @param[out] chunkserverInfo 待获取的信息
+      * 获取chunkserverid
+      * @param[in]: addr为chunkserver地址信息
+      * @param[out]: 待获取的chunkserverid
       * @return：成功返回ok
       */
     LIBCURVE_ERROR GetChunkServerInfo(const ChunkServerAddr& addr,

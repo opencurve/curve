@@ -38,8 +38,6 @@ const char* kRecoverAction = "Recover";
 const char* kGetCloneTasksAction = "GetCloneTasks";
 const char* kCleanCloneTaskAction = "CleanCloneTask";
 const char* kFlattenAction = "Flatten";
-const char* kGetFileSnapshotListAction = "GetFileSnapshotList";
-const char* kGetCloneTaskListAction = "GetCloneTaskList";
 
 const char* kActionStr = "Action";
 const char* kVersionStr = "Version";
@@ -52,8 +50,6 @@ const char* kOffsetStr = "Offset";
 const char* kSourceStr = "Source";
 const char* kDestinationStr = "Destination";
 const char* kLazyStr = "Lazy";
-const char* kStatusStr = "Status";
-const char* kTypeStr = "Type";
 
 const char* kCodeStr = "Code";
 const char* kMessageStr = "Message";
@@ -83,8 +79,7 @@ std::map<int, std::string> code2Msg = {
     {kErrCodeCannotCleanCloneUnfinished, "Cannot clean task unfinished."},
     {kErrCodeSnapshotCountReachLimit, "Snapshot count reach the limit."},
     {kErrCodeFileExist, "File exist."},
-    {kErrCodeTaskIsFull, "Task is full."},
-    {kErrCodeNotSupport, "Not support."},
+    {kErrCodeTaskIsFull, "Task is full."}
 };
 
 std::string BuildErrorMessage(

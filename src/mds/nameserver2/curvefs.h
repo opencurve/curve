@@ -29,7 +29,6 @@
 #include <memory>
 #include <thread>  //NOLINT
 #include <chrono>
-#include <unordered_map>
 #include "proto/nameserver2.pb.h"
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/common/mds_define.h"
@@ -58,10 +57,10 @@ struct CurveFSOption {
 
 struct AllocatedSize {
     // mds给文件分配的segment的大小
-    uint64_t total;
-    // 在每个池子里的分配大小
-    std::unordered_map<PoolIdType, uint64_t> allocSizeMap;
-    AllocatedSize() : total(0) {}
+    uint64_t allocatedSize;
+    // 实际会占用的底层空间
+    uint64_t physicalAllocatedSize;
+    AllocatedSize() : allocatedSize(0), physicalAllocatedSize(0) {}
     AllocatedSize& operator+=(const AllocatedSize& rhs);
 };
 
@@ -141,14 +140,6 @@ class CurveFS {
      */
     StatusCode GetAllocatedSize(const std::string& fileName,
                                 AllocatedSize* allocatedSize);
-
-    /**
-     *  @brief 获取文件或目录的大小
-     *  @brief fileName：文件名
-     *  @param[out]: size 文件或目录fileLength大小
-     *  @return 是否成功，成功返回StatusCode::kOK
-     */
-    StatusCode GetFileSize(const std::string& fileName, uint64_t* size);
 
     /**
      *  @brief 删除文件
@@ -582,17 +573,6 @@ class CurveFS {
                                 const FileInfo& fileInfo,
                                 AllocatedSize* allocSize);
 
-    /**
-     *  @brief 获取文件或目录的大小
-     *  @param: fileName 文件名
-     *  @param: fileInfo 文件信息
-     *  @param[out]: fileSize 文件或目录的大小
-     *  @return 是否成功，成功返回StatusCode::kOK
-     */
-    StatusCode GetFileSize(const std::string& fileName,
-                           const FileInfo& fileInfo,
-                           uint64_t* fileSize);
-
  private:
     FileInfo rootFileInfo_;
     std::shared_ptr<NameServerStorage> storage_;
@@ -611,3 +591,4 @@ extern CurveFS &kCurveFS;
 }   // namespace mds
 }   // namespace curve
 #endif   // SRC_MDS_NAMESERVER2_CURVEFS_H_
+

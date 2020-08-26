@@ -67,16 +67,11 @@ class TaskCloneInfo {
         cloneTaskObj["UUID"] = info.GetTaskId();
         cloneTaskObj["User"] = info.GetUser();
         cloneTaskObj["File"] = info.GetDest();
-        cloneTaskObj["Src"] = info.GetSrc();
         cloneTaskObj["TaskType"] = static_cast<int> (
             info.GetTaskType());
         cloneTaskObj["TaskStatus"] = static_cast<int> (
             info.GetStatus());
-        cloneTaskObj["IsLazy"] = info.GetIsLazy();
-        cloneTaskObj["NextStep"] = static_cast<int> (info.GetNextStep());
         cloneTaskObj["Time"] = info.GetTime();
-        cloneTaskObj["Progress"] = GetCloneProgress();
-        cloneTaskObj["FileType"] = static_cast<int> (info.GetFileType());
         return cloneTaskObj;
     }
 
@@ -85,71 +80,17 @@ class TaskCloneInfo {
         info.SetTaskId(jsonObj["UUID"].asString());
         info.SetUser(jsonObj["User"].asString());
         info.SetDest(jsonObj["File"].asString());
-        info.SetSrc(jsonObj["Src"].asString());
         info.SetTaskType(static_cast<CloneTaskType>(
             jsonObj["TaskType"].asInt()));
         info.SetStatus(static_cast<CloneStatus>(
             jsonObj["TaskStatus"].asInt()));
-        info.SetIsLazy(jsonObj["IsLazy"].asBool());
-        info.SetNextStep(static_cast<CloneStep>(jsonObj["NextStep"].asInt()));
         info.SetTime(jsonObj["Time"].asUInt64());
-        info.SetFileType(static_cast<CloneFileType>(
-            jsonObj["FileType"].asInt()));
         SetCloneInfo(info);
     }
 
  private:
      CloneInfo cloneInfo_;
      uint32_t cloneProgress_;
-};
-
-class CloneFilterCondition {
- public:
-    CloneFilterCondition()
-                   : uuid_(nullptr),
-                    source_(nullptr),
-                    destination_(nullptr),
-                    user_(nullptr),
-                    status_(nullptr),
-                    type_(nullptr) {}
-
-    CloneFilterCondition(const std::string *uuid, const std::string *source,
-                        const std::string *destination, const std::string *user,
-                        const std::string *status, const std::string *type)
-                   : uuid_(uuid),
-                    source_(source),
-                    destination_(destination),
-                    user_(user),
-                    status_(status),
-                    type_(type) {}
-    bool IsMatchCondition(const CloneInfo &cloneInfo);
-
-    void SetUuid(const std::string *uuid) {
-        uuid_ = uuid;
-    }
-    void SetSource(const std::string *source) {
-        source_ = source;
-    }
-    void SetDestination(const std::string *destination) {
-        destination_ = destination;
-    }
-    void SetUser(const std::string *user) {
-        user_ = user;
-    }
-    void SetStatus(const std::string *status) {
-        status_ = status;
-    }
-    void SetType(const std::string *type) {
-        type_ = type;
-    }
-
- private:
-    const std::string *uuid_;
-    const std::string *source_;
-    const std::string *destination_;
-    const std::string *user_;
-    const std::string *status_;
-    const std::string *type_;
 };
 
 class CloneServiceManager {
@@ -237,6 +178,8 @@ class CloneServiceManager {
      * @brief 查询某个用户的克隆/恢复任务信息
      *
      * @param user 用户名
+     * @param taskId 指定的任务Id, 为nullptr时不指定
+     * @param fileName 指定的文件名, 为nullptr时不指定
      * @param info 克隆/恢复任务信息
      *
      * @return 错误码
@@ -273,17 +216,6 @@ class CloneServiceManager {
         std::vector<TaskCloneInfo> *info);
 
     /**
-     * @brief 通过过滤条件查询某个用户的克隆/恢复任务信息
-     *
-     * @param filter 过滤条件
-     * @param info 克隆/恢复任务信息
-     *
-     * @return 错误码
-     */
-    virtual int GetCloneTaskInfoByFilter(const CloneFilterCondition &filter,
-                            std::vector<TaskCloneInfo> *info);
-
-    /**
      * @brief 清除失败的clone/Recover任务、状态、文件
      *
      * @param user 用户名
@@ -313,19 +245,6 @@ class CloneServiceManager {
      */
     int GetCloneTaskInfoInner(std::vector<CloneInfo> cloneInfos,
         const std::string &user,
-        std::vector<TaskCloneInfo> *info);
-
-    /**
-     * @brief 从给定的任务列表中获取符合过滤条件的任务集
-     *
-     * @param cloneInfos 克隆/恢复信息
-     * @param filter 过滤条件
-     * @param[out] info 克隆/恢复任务信息
-     *
-     * @return 错误码
-     */
-    int GetCloneTaskInfoInner(std::vector<CloneInfo> cloneInfos,
-        CloneFilterCondition filter,
         std::vector<TaskCloneInfo> *info);
 
     /**

@@ -69,15 +69,6 @@ class TransferLeader : public OperatorStep {
      *    failed and should be removed
      * 5. configuration change undergoing, do nothing
      */
-    /**
-     * @brief 可能的场景如下：
-     * 1. to_已经是leader,变更成功
-     * 2. 上报的信息没有configchangeItem, 下发变更命令
-     * 3. 上报的信息有configchangeItem, 但是和目的leader不匹配, 说明有正在执行的operator,可能由于 //NOLINT
-     * mds重启丢掉了, 此时应该直接让新的operator失败并移除
-     * 4. 上报配置变更失败, transferleader失败并移除
-     * 5. 正在配置变更过程中, 不做任何操作
-     */
     ApplyStatus Apply(const CopySetInfo &originInfo,
                         CopySetConf *newConf) override;
 

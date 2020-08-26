@@ -41,8 +41,6 @@ extern const char* kRecoverAction;
 extern const char* kGetCloneTasksAction;
 extern const char* kCleanCloneTaskAction;
 extern const char* kFlattenAction;
-extern const char* kGetFileSnapshotListAction;
-extern const char* kGetCloneTaskListAction;
 
 // param
 extern const char* kActionStr;
@@ -56,8 +54,6 @@ extern const char* kOffsetStr;
 extern const char* kSourceStr;
 extern const char* kDestinationStr;
 extern const char* kLazyStr;
-extern const char* kStatusStr;
-extern const char* kTypeStr;
 
 // json key
 extern const char* kCodeStr;

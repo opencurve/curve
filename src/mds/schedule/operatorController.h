@@ -64,8 +64,8 @@ class OperatorController {
                         CopySetConf *newConf);
 
     /**
-     * @brief ChunkServerExceed Check whether the number operator on chunkserver
-     *                          has reach the concurrency limit
+     * @brief ChunkServerExceed Check whether the number of operator on
+     *                          chunkserver has reach the concurrency limit
      *
      * @param[in] id ID of chunkserv specified
      *

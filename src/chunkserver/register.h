@@ -38,9 +38,7 @@ const uint32_t CURRENT_METADATA_VERSION = 0x01;
 // register配置选项
 struct RegisterOptions {
     std::string mdsListenAddr;
-    std::string chunkserverInternalIp;
-    std::string chunkserverExternalIp;
-    bool enableExternalServer;
+    std::string chunkserverIp;
     int chunkserverPort;
     std::string chunserverStoreUri;
     std::string chunkserverMetaUri;

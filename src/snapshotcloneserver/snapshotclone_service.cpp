@@ -49,7 +49,11 @@ void SnapshotCloneServiceImpl::default_method(RpcController* cntl,
 
     std::string requestId = UUIDGenerator().GenerateUUID();
     if (action == nullptr) {
-        HandleBadRequestError(bcntl, requestId);
+        bcntl->http_response().set_status_code(brpc::HTTP_STATUS_BAD_REQUEST);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(kErrCodeInvalidRequest, requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         LOG(INFO) << "SnapshotCloneServiceImpl Return : "
                   << "action = null"
                   << ", requestId = " << requestId
@@ -78,18 +82,19 @@ void SnapshotCloneServiceImpl::default_method(RpcController* cntl,
         HandleCleanCloneTaskAction(bcntl, requestId);
     } else if (*action == kFlattenAction) {
         HandleFlattenAction(bcntl, requestId);
-    } else if (*action == kGetFileSnapshotListAction) {
-        HandleGetFileSnapshotListAction(bcntl, requestId);
-    } else if (*action == kGetCloneTaskListAction) {
-        HandleGetCloneTaskListAction(bcntl, requestId);
     } else {
-        HandleBadRequestError(bcntl, requestId);
+        bcntl->http_response().set_status_code(brpc::HTTP_STATUS_BAD_REQUEST);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+                requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
     }
 
     LOG(INFO) << "SnapshotCloneServiceImpl Return : "
-            << "action = " << *action
-            << ", requestId = " << requestId
-            << ", context = " << bcntl->response_attachment();
+              << "action = " << *action
+              << ", requestId = " << requestId
+              << ", context = " << bcntl->response_attachment();
     return;
 }
 
@@ -112,7 +117,13 @@ void SnapshotCloneServiceImpl::HandleCreateSnapshotAction(
         (user->empty()) ||
         (file->empty()) ||
         (name->empty())) {
-        HandleBadRequestError(bcntl, requestId);
+        bcntl->http_response().set_status_code(
+            brpc::HTTP_STATUS_BAD_REQUEST);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         return;
     }
     LOG(INFO) << "CreateSnapshot:"
@@ -126,7 +137,12 @@ void SnapshotCloneServiceImpl::HandleCreateSnapshotAction(
     if (ret < 0) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
-        SetErrorMessage(bcntl, ret, requestId);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(ret,
+            requestId,
+            uuid);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         return;
     }
     bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
@@ -158,7 +174,13 @@ void SnapshotCloneServiceImpl::HandleDeleteSnapshotAction(
         (version->empty()) ||
         (user->empty()) ||
         (uuid->empty())) {
-        HandleBadRequestError(bcntl, requestId);
+        bcntl->http_response().set_status_code(
+            brpc::HTTP_STATUS_BAD_REQUEST);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         return;
     }
     std::string fileStr = "null";
@@ -177,7 +199,11 @@ void SnapshotCloneServiceImpl::HandleDeleteSnapshotAction(
     if (ret < 0) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
-        SetErrorMessage(bcntl, ret, requestId);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(ret,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         return;
     }
     bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
@@ -210,7 +236,13 @@ void SnapshotCloneServiceImpl::HandleCancelSnapshotAction(
         (user->empty()) ||
         (uuid->empty()) ||
         (file->empty())) {
-        HandleBadRequestError(bcntl, requestId);
+        bcntl->http_response().set_status_code(
+            brpc::HTTP_STATUS_BAD_REQUEST);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         return;
     }
     LOG(INFO) << "CancelSnapshot:"
@@ -223,7 +255,11 @@ void SnapshotCloneServiceImpl::HandleCancelSnapshotAction(
     if (ret < 0) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
-        SetErrorMessage(bcntl, ret, requestId);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(ret,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         return;
     }
     bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
@@ -256,14 +292,26 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotInfoAction(
         (user == nullptr) ||
         (version->empty()) ||
         (user->empty())) {
-        HandleBadRequestError(bcntl, requestId);
+        bcntl->http_response().set_status_code(
+            brpc::HTTP_STATUS_BAD_REQUEST);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         return;
     }
     // 默认值为10
     uint64_t limitNum = 10;
     if ((limit != nullptr) && !limit->empty()) {
         if (!curve::common::StringToUll(*limit, &limitNum)) {
-            HandleBadRequestError(bcntl, requestId);
+            bcntl->http_response().set_status_code(
+                brpc::HTTP_STATUS_BAD_REQUEST);
+            butil::IOBufBuilder os;
+            std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+                requestId);
+            os << msg;
+            os.move_to(bcntl->response_attachment());
             return;
         }
     }
@@ -271,7 +319,13 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotInfoAction(
     uint64_t offsetNum = 0;
     if ((offset != nullptr) && !offset->empty()) {
         if (!curve::common::StringToUll(*offset, &offsetNum)) {
-            HandleBadRequestError(bcntl, requestId);
+            bcntl->http_response().set_status_code(
+                brpc::HTTP_STATUS_BAD_REQUEST);
+            butil::IOBufBuilder os;
+            std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+                requestId);
+            os << msg;
+            os.move_to(bcntl->response_attachment());
             return;
         }
     }
@@ -307,7 +361,11 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotInfoAction(
     if (ret < 0) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
-        SetErrorMessage(bcntl, ret, requestId);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(ret,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         return;
     }
     bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
@@ -319,7 +377,7 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotInfoAction(
     mainObj[kTotalCountStr] = info.size();
     Json::Value listSnapObj;
     for (std::vector<FileSnapshotInfo>::size_type i = offsetNum;
-        i < info.size() && i < limitNum + offsetNum;
+        i < info.size() && i < limitNum;
         i++) {
         Json::Value fileSnapObj = info[i].ToJsonObj();
         listSnapObj.append(fileSnapObj);
@@ -355,7 +413,13 @@ void SnapshotCloneServiceImpl::HandleCloneAction(
         (source->empty()) ||
         (destination->empty()) ||
         (lazy->empty())) {
-        HandleBadRequestError(bcntl, requestId);
+        bcntl->http_response().set_status_code(
+            brpc::HTTP_STATUS_BAD_REQUEST);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         LOG(INFO) << "SnapshotCloneServiceImpl Return : "
                   << "action = Clone"
                   << ", requestId = " << requestId
@@ -365,7 +429,13 @@ void SnapshotCloneServiceImpl::HandleCloneAction(
 
     bool lazyFlag = false;
     if (!CheckBoolParamter(lazy, &lazyFlag)) {
-        HandleBadRequestError(bcntl, requestId);
+        bcntl->http_response().set_status_code(
+            brpc::HTTP_STATUS_BAD_REQUEST);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         LOG(INFO) << "SnapshotCloneServiceImpl Return : "
                   << "action = Clone"
                   << ", requestId = " << requestId
@@ -415,7 +485,13 @@ void SnapshotCloneServiceImpl::HandleRecoverAction(
         (source->empty()) ||
         (destination->empty()) ||
         (lazy->empty())) {
-        HandleBadRequestError(bcntl, requestId);
+        bcntl->http_response().set_status_code(
+            brpc::HTTP_STATUS_BAD_REQUEST);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         LOG(INFO) << "SnapshotCloneServiceImpl Return : "
                   << "action = Recover"
                   << ", requestId = " << requestId
@@ -425,7 +501,13 @@ void SnapshotCloneServiceImpl::HandleRecoverAction(
 
     bool lazyFlag = false;
     if (!CheckBoolParamter(lazy, &lazyFlag)) {
-        HandleBadRequestError(bcntl, requestId);
+        bcntl->http_response().set_status_code(
+            brpc::HTTP_STATUS_BAD_REQUEST);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         LOG(INFO) << "SnapshotCloneServiceImpl Return : "
                   << "action = Recover"
                   << ", requestId = " << requestId
@@ -464,7 +546,13 @@ void SnapshotCloneServiceImpl::HandleFlattenAction(
         (version->empty()) ||
         (user->empty()) ||
         (taskId->empty())) {
-        HandleBadRequestError(bcntl, requestId);
+        bcntl->http_response().set_status_code(
+            brpc::HTTP_STATUS_BAD_REQUEST);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         LOG(INFO) << "SnapshotCloneServiceImpl Return : "
                   << "action = Flatten"
                   << ", requestId = " << requestId
@@ -480,7 +568,11 @@ void SnapshotCloneServiceImpl::HandleFlattenAction(
     if (ret < 0) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
-        SetErrorMessage(bcntl, ret, requestId);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(ret,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         return;
     }
     bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
@@ -513,14 +605,26 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
         (user == nullptr) ||
         (version->empty()) ||
         (user->empty())) {
-        HandleBadRequestError(bcntl, requestId);
+        bcntl->http_response().set_status_code(
+            brpc::HTTP_STATUS_BAD_REQUEST);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         return;
     }
     // 默认值为10
     uint64_t limitNum = 10;
     if ((limit != nullptr) && !limit->empty()) {
         if (!curve::common::StringToUll(*limit, &limitNum)) {
-            HandleBadRequestError(bcntl, requestId);
+            bcntl->http_response().set_status_code(
+                brpc::HTTP_STATUS_BAD_REQUEST);
+            butil::IOBufBuilder os;
+            std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+                requestId);
+            os << msg;
+            os.move_to(bcntl->response_attachment());
             return;
         }
     }
@@ -528,7 +632,13 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
     uint64_t offsetNum = 0;
     if ((offset != nullptr) && !offset->empty()) {
         if (!curve::common::StringToUll(*offset, &offsetNum)) {
-            HandleBadRequestError(bcntl, requestId);
+            bcntl->http_response().set_status_code(
+                brpc::HTTP_STATUS_BAD_REQUEST);
+            butil::IOBufBuilder os;
+            std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+                requestId);
+            os << msg;
+            os.move_to(bcntl->response_attachment());
             return;
         }
     }
@@ -567,7 +677,11 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
     if (ret < 0) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
-        SetErrorMessage(bcntl, ret, requestId);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(ret,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         return;
     }
     bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
@@ -579,7 +693,7 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
     mainObj[kTotalCountStr] = cloneTaskInfos.size();
     Json::Value listObj;
     for (std::vector<TaskCloneInfo>::size_type i = offsetNum;
-        i < cloneTaskInfos.size() && i < limitNum + offsetNum;
+        i < cloneTaskInfos.size() && i < limitNum;
         i++) {
         Json::Value cloneTaskObj = cloneTaskInfos[i].ToJsonObj();
         listObj.append(cloneTaskObj);
@@ -624,7 +738,13 @@ void SnapshotCloneServiceImpl::HandleCleanCloneTaskAction(
         (version->empty()) ||
         (user->empty()) ||
         (taskId->empty())) {
-        HandleBadRequestError(bcntl, requestId);
+        bcntl->http_response().set_status_code(
+            brpc::HTTP_STATUS_BAD_REQUEST);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         return;
     }
 
@@ -639,7 +759,11 @@ void SnapshotCloneServiceImpl::HandleCleanCloneTaskAction(
     if (ret < 0) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
-        SetErrorMessage(bcntl, ret, requestId);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(ret,
+            requestId);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
         return;
     }
     bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
@@ -653,236 +777,6 @@ void SnapshotCloneServiceImpl::HandleCleanCloneTaskAction(
     return;
 }
 
-void SnapshotCloneServiceImpl::HandleGetFileSnapshotListAction(
-    brpc::Controller* bcntl, const std::string &requestId) {
-    const std::string *version =
-        bcntl->http_request().uri().GetQuery(kVersionStr);
-    const std::string *user =
-        bcntl->http_request().uri().GetQuery(kUserStr);
-    const std::string *file =
-        bcntl->http_request().uri().GetQuery(kFileStr);
-    const std::string *limit =
-        bcntl->http_request().uri().GetQuery(kLimitStr);
-    const std::string *offset =
-        bcntl->http_request().uri().GetQuery(kOffsetStr);
-    const std::string *uuid =
-        bcntl->http_request().uri().GetQuery(kUUIDStr);
-    const std::string *status =
-        bcntl->http_request().uri().GetQuery(kStatusStr);
-    if ((version == nullptr) ||
-        (version->empty())) {
-        HandleBadRequestError(bcntl, requestId);
-        return;
-    }
-    // 默认值为10
-    uint64_t limitNum = 10;
-    if ((limit != nullptr) && !limit->empty()) {
-        if (!curve::common::StringToUll(*limit, &limitNum)) {
-            HandleBadRequestError(bcntl, requestId);
-            return;
-        }
-    }
-    // 默认值为0
-    uint64_t offsetNum = 0;
-    if ((offset != nullptr) && !offset->empty()) {
-        if (!curve::common::StringToUll(*offset, &offsetNum)) {
-            HandleBadRequestError(bcntl, requestId);
-            return;
-        }
-    }
-
-    std::string uuidStr = "null";
-    if (uuid != nullptr) {
-        uuidStr = *uuid;
-    }
-    std::string fileStr = "null";
-    if (file != nullptr) {
-        fileStr = *file;
-    }
-    std::string userStr = "null";
-    if (user != nullptr) {
-        userStr = *user;
-    }
-    std::string statusStr = "null";
-    if (status != nullptr) {
-        statusStr = *status;
-    }
-
-    LOG(INFO) << "GetFileSnapshotInfo:"
-              << " Version = " << *version
-              << ", User = " << userStr
-              << ", File = " << fileStr
-              << ", Limit = " << limitNum
-              << ", Offset = " << offsetNum
-              << ", UUID = " << uuidStr
-              << ", Status = " << statusStr
-              << ", requestId = " << requestId;
-
-    std::vector<FileSnapshotInfo> info;
-    int ret = kErrCodeSuccess;
-
-    SnapshotFilterCondition filter(uuid, file, user, status);
-    ret = snapshotManager_->GetSnapshotListByFilter(filter, &info);
-    if (ret < 0) {
-        bcntl->http_response().set_status_code(
-            brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
-        SetErrorMessage(bcntl, ret, requestId);
-        return;
-    }
-    bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
-    butil::IOBufBuilder os;
-    Json::Value mainObj;
-    mainObj[kCodeStr] = std::to_string(kErrCodeSuccess);
-    mainObj[kMessageStr] = code2Msg[kErrCodeSuccess];
-    mainObj[kRequestIdStr] = requestId;
-    mainObj[kTotalCountStr] = info.size();
-    Json::Value listSnapObj;
-    for (std::vector<FileSnapshotInfo>::size_type i = offsetNum;
-        i < info.size() && i < limitNum + offsetNum;
-        i++) {
-        Json::Value fileSnapObj = info[i].ToJsonObj();
-        listSnapObj.append(fileSnapObj);
-    }
-    mainObj[kSnapshotsStr] = listSnapObj;
-    os << mainObj.toStyledString();
-    os.move_to(bcntl->response_attachment());
-    return;
-}
-
-void SnapshotCloneServiceImpl::HandleGetCloneTaskListAction(
-    brpc::Controller* bcntl, const std::string &requestId) {
-    const std::string *version =
-        bcntl->http_request().uri().GetQuery(kVersionStr);
-    const std::string *user =
-        bcntl->http_request().uri().GetQuery(kUserStr);
-    const std::string *limit =
-        bcntl->http_request().uri().GetQuery(kLimitStr);
-    const std::string *offset =
-        bcntl->http_request().uri().GetQuery(kOffsetStr);
-    const std::string *uuid =
-        bcntl->http_request().uri().GetQuery(kUUIDStr);
-    const std::string *source =
-        bcntl->http_request().uri().GetQuery(kSourceStr);
-    const std::string *destination =
-        bcntl->http_request().uri().GetQuery(kDestinationStr);
-    const std::string *status =
-        bcntl->http_request().uri().GetQuery(kStatusStr);
-    const std::string *type =
-        bcntl->http_request().uri().GetQuery(kTypeStr);
-    if ((version == nullptr) ||
-        (version->empty())) {
-        HandleBadRequestError(bcntl, requestId);
-        return;
-    }
-    // 默认值为10
-    uint64_t limitNum = 10;
-    if ((limit != nullptr) && !limit->empty()) {
-        if (!curve::common::StringToUll(*limit, &limitNum)) {
-            HandleBadRequestError(bcntl, requestId);
-            return;
-        }
-    }
-    // 默认值为0
-    uint64_t offsetNum = 0;
-    if ((offset != nullptr) && !offset->empty()) {
-        if (!curve::common::StringToUll(*offset, &offsetNum)) {
-            HandleBadRequestError(bcntl, requestId);
-            return;
-        }
-    }
-
-    std::string uuidStr = "null";
-    if (uuid != nullptr) {
-        uuidStr = *uuid;
-    }
-
-    std::string destinationStr = "null";
-    if (destination != nullptr) {
-        destinationStr = *destination;
-    }
-
-    std::string sourceStr = "null";
-    if (source != nullptr) {
-        sourceStr = *source;
-    }
-
-    std::string userStr = "null";
-    if (user != nullptr) {
-        userStr = *user;
-    }
-
-    std::string statusStr = "null";
-    if (status != nullptr) {
-        statusStr = *status;
-    }
-
-    std::string typeStr = "null";
-    if (type != nullptr) {
-        typeStr = *type;
-    }
-
-    LOG(INFO) << "GetTaskList:"
-              << " Version = " << *version
-              << ", User = " << userStr
-              << ", Limit = " << limitNum
-              << ", Offset = " << offsetNum
-              << ", UUID = " << uuidStr
-              << ", Source = " << sourceStr
-              << ", Destination = " << destinationStr
-              << ", Status = " << statusStr
-              << ", Type = " << typeStr
-              << ", requestId = " << requestId;
-
-    std::vector<TaskCloneInfo> cloneTaskInfos;
-    CloneFilterCondition filter(uuid, source, destination, user, status, type);
-    int ret = cloneManager_->GetCloneTaskInfoByFilter(filter, &cloneTaskInfos);
-    if (ret < 0) {
-        bcntl->http_response().set_status_code(
-            brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
-        SetErrorMessage(bcntl, ret, requestId);
-        return;
-    }
-
-    bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
-    butil::IOBufBuilder os;
-    Json::Value mainObj;
-    mainObj[kCodeStr] = std::to_string(kErrCodeSuccess);
-    mainObj[kMessageStr] = code2Msg[kErrCodeSuccess];
-    mainObj[kRequestIdStr] = requestId;
-    mainObj[kTotalCountStr] = cloneTaskInfos.size();
-    Json::Value listObj;
-    for (std::vector<TaskCloneInfo>::size_type i = offsetNum;
-        i < cloneTaskInfos.size() && i < limitNum + offsetNum;
-        i++) {
-        Json::Value cloneTaskObj = cloneTaskInfos[i].ToJsonObj();
-        listObj.append(cloneTaskObj);
-    }
-
-    mainObj[kTaskInfosStr] = listObj;
-
-    os << mainObj.toStyledString();
-    os.move_to(bcntl->response_attachment());
-    return;
-}
-
-void SnapshotCloneServiceImpl::SetErrorMessage(brpc::Controller* bcntl,
-                        int errCode,
-                        const std::string &requestId,
-                        const std::string &uuid) {
-    butil::IOBufBuilder os;
-    std::string msg = BuildErrorMessage(errCode,
-        requestId, uuid);
-    os << msg;
-    os.move_to(bcntl->response_attachment());
-    return;
-}
-
-void SnapshotCloneServiceImpl::HandleBadRequestError(brpc::Controller* bcntl,
-                        const std::string &requestId,
-                        const std::string &uuid) {
-    bcntl->http_response().set_status_code(brpc::HTTP_STATUS_BAD_REQUEST);
-    SetErrorMessage(bcntl, kErrCodeInvalidRequest, requestId, uuid);
-}
 
 }  // namespace snapshotcloneserver
 }  // namespace curve

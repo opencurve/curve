@@ -56,9 +56,12 @@ class Authenticator {
                                             const std::string& secretKey);
 
  private:
-    static int HMacSha256(const void* key, int key_size,
-                          const void* data, int data_size,
-                          void* digest);
+    static void HMacSha256(
+        const unsigned char *text,      /* pointer to data stream        */
+        int                 text_len,   /* length of data stream         */
+        const unsigned char *key,       /* pointer to authentication key */
+        int                 key_len,    /* length of authentication key  */
+        void                *digest);
 
     static std::string Base64(const unsigned char *src, size_t sz);
 };

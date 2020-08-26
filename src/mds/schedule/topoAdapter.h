@@ -212,7 +212,7 @@ class TopoAdapter {
     virtual int GetStandardReplicaNumInLogicalPool(PoolIdType id) = 0;
 
     /**
-     * @brief CreateCopySetAtChunkServer Create copyset on chunkserver csID.           // 这里需要修改！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+     * @brief CreateCopySetAtChunkServer Create copyset on chunkserver csID.
      *                                   command add-configuration of Raft
      *                                   require Raft service on the node. thus,
      *                                   before dispatching config changing

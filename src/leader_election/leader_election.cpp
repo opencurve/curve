@@ -23,7 +23,6 @@
 #include <fiu.h>
 #include <cstdlib>
 #include <thread> //NOLINT
-#include <csignal>
 #include "src/leader_election/leader_election.h"
 #include "src/common/concurrent/concurrent.h"
 
@@ -83,8 +82,9 @@ int LeaderElection::ObserveLeader() {
     fiu_return_on("src/mds/leaderElection/observeLeader", -1);
 
     // 退出当前进程
-    LOG(INFO) << "mds is existing due to the error of leader observation";
-    raise(SIGTERM);
+    CHECK(false) << opt_.leaderUniqueName
+        << " observer encounter error, leader exit for prefix:"
+        << realPrefix_;
 }
 }  // namespace election
 }  // namespace curve

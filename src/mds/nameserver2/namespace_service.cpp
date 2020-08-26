@@ -27,12 +27,9 @@
 #include "src/mds/nameserver2/curvefs.h"
 #include "src/mds/nameserver2/file_lock.h"
 #include "src/common/string_util.h"
-#include "src/common/timeutility.h"
 
 namespace curve {
 namespace mds {
-
-using curve::common::ExpiredTime;
 
 void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
                        const ::curve::mds::CreateFileRequest* request,
@@ -40,7 +37,6 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -92,22 +88,19 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
             LOG(WARNING) << "logid = " << cntl->log_id()
                 << ", CreateFile fail, filename = " <<  request->filename()
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                 << ", CreateFile fail, filename = " <<  request->filename()
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
 
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", CreateFile ok, filename = " << request->filename()
-                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+            << ", CreateFile ok, filename = " << request->filename();
     }
     return;
 }
@@ -118,7 +111,6 @@ void NameSpaceService::DeleteFile(::google::protobuf::RpcController* controller,
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -175,21 +167,18 @@ void NameSpaceService::DeleteFile(::google::protobuf::RpcController* controller,
             LOG(WARNING) << "logid = " << cntl->log_id()
                 << ", DeleteFile fail, filename = " <<  request->filename()
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                 << ", DeleteFile fail, filename = " <<  request->filename()
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", DeleteFile ok, filename = " << request->filename()
-                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+            << ", DeleteFile ok, filename = " << request->filename();
     }
     return;
 }
@@ -201,7 +190,6 @@ void NameSpaceService::GetFileInfo(
                         ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -248,21 +236,18 @@ void NameSpaceService::GetFileInfo(
             LOG(WARNING) << "logid = " << cntl->log_id()
                 << ", GetFileInfo fail, filename = " <<  request->filename()
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                 << ", GetFileInfo fail, filename = " <<  request->filename()
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", GetFileInfo ok, filename = " << request->filename()
-                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+            << ", GetFileInfo ok, filename = " << request->filename();
     }
     return;
 }
@@ -274,7 +259,6 @@ void NameSpaceService::GetOrAllocateSegment(
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -331,8 +315,7 @@ void NameSpaceService::GetOrAllocateSegment(
                 << ", offset = " << request->offset()
                 << ", allocateTag = " << request->allocateifnotexist()
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                 << ", GetOrAllocateSegment fail, filename = "
@@ -340,17 +323,15 @@ void NameSpaceService::GetOrAllocateSegment(
                 << ", offset = " << request->offset()
                 << ", allocateTag = " << request->allocateifnotexist()
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
         response->clear_pagefilesegment();
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", GetOrAllocateSegment ok, filename = "
-                  << request->filename() << ", offset = " << request->offset()
-                  << ", allocateTag = " << request->allocateifnotexist()
-                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+            << ", GetOrAllocateSegment ok, filename = " << request->filename()
+            << ", offset = " << request->offset()
+            << ", allocateTag = " << request->allocateifnotexist();
     }
     return;
 }
@@ -361,7 +342,6 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
                          ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     // IsRenamePathValid判断rename的路径能够加锁。不能对这种情况进行rename，
     // rename /a/b -> /b或者/a/b -> /a，一个路径不能包含另一个路径。
@@ -450,22 +430,19 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
                 << ", RenameFile fail, oldfilename = " << request->oldfilename()
                 << ", newfilename = " << request->newfilename()
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                 << ", RenameFile fail, oldfilename = " << request->oldfilename()
                 << ", newfilename = " << request->newfilename()
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", RenameFile ok, oldFileName = " << request->oldfilename()
-                  << ", newFileName = " << request->newfilename()
-                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+            << ", RenameFile ok, oldFileName = " << request->oldfilename()
+            << ", newFileName = " << request->newfilename();
     }
     return;
 }
@@ -476,7 +453,6 @@ void NameSpaceService::ExtendFile(::google::protobuf::RpcController* controller,
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -523,27 +499,22 @@ void NameSpaceService::ExtendFile(::google::protobuf::RpcController* controller,
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
             LOG(WARNING) << "logid = " << cntl->log_id()
-                         << ", ExtendFile fail, filename = "
-                         << request->filename()
-                         << ", newsize = " << request->newsize()
-                         << ", statusCode = " << retCode
-                         << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                         << ", cost " << expiredTime.ExpiredMs() << " ms";
+                    << ", ExtendFile fail, filename = " << request->filename()
+                    << ", newsize = " << request->newsize()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
-                       << ", ExtendFile fail, filename = "
-                       << request->filename()
-                       << ", newsize = " << request->newsize()
-                       << ", statusCode = " << retCode
-                       << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                       << ", cost " << expiredTime.ExpiredMs() << " ms";
+                    << ", ExtendFile fail, filename = " << request->filename()
+                    << ", newsize = " << request->newsize()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", ExtendFile ok, filename = " << request->filename()
-                  << ", newsize = " << request->newsize() << ", cost "
-                  << expiredTime.ExpiredMs() << " ms";
+           << ", ExtendFile ok, filename = " << request->filename()
+           << ", newsize = " << request->newsize();
     }
 
     return;
@@ -556,7 +527,6 @@ void NameSpaceService::ChangeOwner(
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -598,27 +568,22 @@ void NameSpaceService::ChangeOwner(
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
             LOG(WARNING) << "logid = " << cntl->log_id()
-                         << ", ChangeOwner fail, filename = "
-                         << request->filename()
-                         << ", newOwner = " << request->newowner()
-                         << ", statusCode = " << retCode
-                         << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                         << ", cost " << expiredTime.ExpiredMs() << " ms";
+                    << ", ChangeOwner fail, filename = " << request->filename()
+                    << ", newOwner = " << request->newowner()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
-                       << ", ChangeOwner fail, filename = "
-                       << request->filename()
-                       << ", newOwner = " << request->newowner()
-                       << ", statusCode = " << retCode
-                       << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                       << ", cost " << expiredTime.ExpiredMs() << " ms";
+                    << ", ChangeOwner fail, filename = " << request->filename()
+                    << ", newOwner = " << request->newowner()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", ChangeOwner ok, filename = " << request->filename()
-                  << ", newOwner = " << request->newowner() << ", cost "
-                  << expiredTime.ExpiredMs() << " ms";
+           << ", ChangeOwner ok, filename = " << request->filename()
+           << ", newOwner = " << request->newowner();
     }
 
     return;
@@ -630,7 +595,6 @@ void NameSpaceService::ListDir(::google::protobuf::RpcController* controller,
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -677,14 +641,12 @@ void NameSpaceService::ListDir(::google::protobuf::RpcController* controller,
             LOG(WARNING) << "logid = " << cntl->log_id()
                 << ", ListDir fail, filename = " <<  request->filename()
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                 << ", ListDir fail, filename = " <<  request->filename()
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
         return;
     } else {
@@ -695,8 +657,7 @@ void NameSpaceService::ListDir(::google::protobuf::RpcController* controller,
             fileinfo->CopyFrom(*iter);
         }
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", ListDir ok, filename = " << request->filename()
-                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+            << ", ListDir ok, filename = " << request->filename();
     }
     return;
 }
@@ -708,7 +669,6 @@ void NameSpaceService::CreateSnapShot(
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -754,24 +714,23 @@ void NameSpaceService::CreateSnapShot(
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
             LOG(WARNING) << "logid = " << cntl->log_id()
-                         << ", CreateSnapShot fail, filename = "
-                         << request->filename() << ", statusCode = " << retCode
-                         << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                         << ", cost " << expiredTime.ExpiredMs() << " ms";
+                    << ", CreateSnapShot fail, filename = "
+                    << request->filename()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
-                       << ", CreateSnapShot fail, filename = "
-                       << request->filename() << ", statusCode = " << retCode
-                       << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                       << ", cost " << expiredTime.ExpiredMs() << " ms";
+                    << ", CreateSnapShot fail, filename = "
+                    << request->filename()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
 
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", CreateSnapShot ok, filename = " << request->filename()
-                  << ", seq = " << response->snapshotfileinfo().seqnum()
-                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+           << ", CreateSnapShot ok, filename = " << request->filename()
+           << ", seq = " << response->snapshotfileinfo().seqnum();
     }
     return;
 }
@@ -783,7 +742,6 @@ void NameSpaceService::ListSnapShot(
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -848,23 +806,20 @@ void NameSpaceService::ListSnapShot(
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
             LOG(WARNING) << "logid = " << cntl->log_id()
-                         << ", ListSnapShot fail, filename = "
-                         << request->filename() << ", statusCode = " << retCode
-                         << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                         << ", cost " << expiredTime.ExpiredMs() << " ms";
+                    << ", ListSnapShot fail, filename = " << request->filename()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
-                       << ", ListSnapShot fail, filename = "
-                       << request->filename() << ", statusCode = " << retCode
-                       << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                       << ", cost " << expiredTime.ExpiredMs() << " ms";
+                    << ", ListSnapShot fail, filename = " << request->filename()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
                   << ", ListSnapShot ok, filename = " << request->filename()
-                  << ", statusCode = " << retCode << ", cost "
-                  << expiredTime.ExpiredMs() << " ms";
+                  << ", statusCode = " << retCode;
     }
     return;
 }
@@ -876,7 +831,6 @@ void NameSpaceService::DeleteSnapShot(
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -925,18 +879,18 @@ void NameSpaceService::DeleteSnapShot(
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
             LOG(WARNING) << "logid = " << cntl->log_id()
-                         << ", DeleteSnapShot fail, filename = "
-                         << request->filename() << ", seq = " << request->seq()
-                         << ", statusCode = " << retCode
-                         << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                         << ", cost " << expiredTime.ExpiredMs() << " ms";
+                    << ", DeleteSnapShot fail, filename = "
+                    << request->filename()
+                    << ", seq = " << request->seq()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
-                       << ", DeleteSnapShot fail, filename = "
-                       << request->filename() << ", seq = " << request->seq()
-                       << ", statusCode = " << retCode
-                       << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                       << ", cost " << expiredTime.ExpiredMs() << " ms";
+                    << ", DeleteSnapShot fail, filename = "
+                    << request->filename()
+                    << ", seq = " << request->seq()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
         return;
     }
@@ -951,7 +905,6 @@ void NameSpaceService::CheckSnapShotStatus(
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -1000,16 +953,14 @@ void NameSpaceService::CheckSnapShotStatus(
                 <<  request->filename()
                 << ", seq = " << request->seq()
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                 << ", CheckSnapShotFileStatus fail, filename = "
                 <<  request->filename()
                 << ", seq = " << request->seq()
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
 
     } else {
@@ -1017,10 +968,10 @@ void NameSpaceService::CheckSnapShotStatus(
         response->set_filestatus(fileStatus);
         response->set_progress(progress);
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", CheckSnapShotFileStatus ok, filename = "
-                  << request->filename() << ", seq = " << request->seq()
-                  << ", statusCode = " << retCode << ", cost "
-                  << expiredTime.ExpiredMs() << " ms";
+            << ", CheckSnapShotFileStatus ok, filename = "
+            <<  request->filename()
+            << ", seq = " << request->seq()
+            << ", statusCode = " << retCode;
     }
 
     return;
@@ -1033,7 +984,6 @@ void NameSpaceService::GetSnapShotFileSegment(
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     if ( !request->has_seqnum() ) {
         response->set_statuscode(StatusCode::kParaError);
@@ -1099,8 +1049,7 @@ void NameSpaceService::GetSnapShotFileSegment(
                 << ", offset = " << request->offset()
                 << ", seqnum = " << request->seqnum()
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                 << ", GetSnapShotFileSegment fail, filename = "
@@ -1108,18 +1057,17 @@ void NameSpaceService::GetSnapShotFileSegment(
                 << ", offset = " << request->offset()
                 << ", seqnum = " << request->seqnum()
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
         response->clear_pagefilesegment();
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", GetSnapShotFileSegment ok, filename = "
-                  << request->filename() << ", offset = " << request->offset()
-                  << ", seqnum = " << request->seqnum()
-                  << ", statusCode = " << retCode << ", cost "
-                  << expiredTime.ExpiredMs() << " ms";
+            << ", GetSnapShotFileSegment ok, filename = "
+            <<  request->filename()
+            << ", offset = " << request->offset()
+            << ", seqnum = " << request->seqnum()
+            << ", statusCode = " << retCode;
     }
 
     return;
@@ -1131,7 +1079,6 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     std::string clientIP = butil::ip2str(cntl->remote_side().ip).c_str();
     uint32_t clientPort = cntl->remote_side().port;
@@ -1192,8 +1139,7 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
                 << ", clientip = " << clientIP
                 << ", clientport = " << clientPort
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                 << ", OpenFile fail, filename = "
@@ -1201,8 +1147,7 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
                 << ", clientip = " << clientIP
                 << ", clientport = " << clientPort
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
         delete protoSession;
         delete fileInfo;
@@ -1212,10 +1157,9 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
         response->set_allocated_fileinfo(fileInfo);
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", OpenFile ok, filename = " << request->filename()
-                  << ", clientip = " << clientIP
-                  << ", clientport = " << clientPort
-                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+            << ", OpenFile ok, filename = " << request->filename()
+            << ", clientip = " << clientIP
+            << ", clientport = " << clientPort;
     }
     return;
 }
@@ -1226,7 +1170,6 @@ void NameSpaceService::CloseFile(::google::protobuf::RpcController* controller,
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     std::string clientIP = butil::ip2str(cntl->remote_side().ip).c_str();
     uint32_t clientPort = cntl->remote_side().port;
@@ -1284,8 +1227,7 @@ void NameSpaceService::CloseFile(::google::protobuf::RpcController* controller,
                 << ", clientip = " << clientIP
                 << ", clientport = " << clientPort
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                 << ", CloseFile fail, filename = " <<  request->filename()
@@ -1293,18 +1235,16 @@ void NameSpaceService::CloseFile(::google::protobuf::RpcController* controller,
                 << ", clientip = " << clientIP
                 << ", clientport = " << clientPort
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", CloseFile ok, filename = " << request->filename()
-                  << ", sessionid = " << request->sessionid()
-                  << ", clientip = " << clientIP
-                  << ", clientport = " << clientPort << ", cost "
-                  << expiredTime.ExpiredMs() << " ms";
+            << ", CloseFile ok, filename = " << request->filename()
+            << ", sessionid = " << request->sessionid()
+            << ", clientip = " << clientIP
+            << ", clientport = " << clientPort;
     }
 
     return;
@@ -1317,7 +1257,6 @@ void NameSpaceService::RefreshSession(
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     std::string clientIP = butil::ip2str(cntl->remote_side().ip).c_str();
     std::string clientVersion;
@@ -1397,8 +1336,7 @@ void NameSpaceService::RefreshSession(
                 << ", clientip = " << clientIP
                 << ", clientport = " << clientPort
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost = " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                 << ", RefreshSession fail, filename = " <<  request->filename()
@@ -1408,8 +1346,7 @@ void NameSpaceService::RefreshSession(
                 << ", clientip = " << clientIP
                 << ", clientport = " << clientPort
                 << ", statusCode = " << retCode
-                << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                << ", cost = " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
         delete fileInfo;
         return;
@@ -1423,8 +1360,7 @@ void NameSpaceService::RefreshSession(
             << ", date = " << request->date()
             << ", signature = " << request->signature()
             << ", clientip = " << clientIP
-            << ", clientport = " << clientPort
-            << ", cost = " << expiredTime.ExpiredMs() << " ms";
+            << ", clientport = " << clientPort;
     }
 
     return;
@@ -1492,7 +1428,7 @@ void NameSpaceService::CreateCloneFile(
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+
 
     LOG(INFO) << "logid = " << cntl->log_id()
             << ", CreateCloneFile request, filename = " << request->filename()
@@ -1559,19 +1495,16 @@ void NameSpaceService::CreateCloneFile(
             LOG(WARNING) << "logid = " << cntl->log_id()
                 << ", CreateCloneFile fail, filename = " <<  request->filename()
                 << ", statusCode = " << ret
-                << ", StatusCode_Name = " << StatusCode_Name(ret)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(ret);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                 << ", CreateCloneFile fail, filename = " <<  request->filename()
                 << ", statusCode = " << ret
-                << ", StatusCode_Name = " << StatusCode_Name(ret)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(ret);
         }
     } else {
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", CreateFile ok, filename = " << request->filename()
-                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+            << ", CreateFile ok, filename = " << request->filename();
     }
     return;
 }
@@ -1583,7 +1516,6 @@ void NameSpaceService::SetCloneFileStatus(
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     LOG(INFO) << "logid = " << cntl->log_id()
         << ", SetCloneFileStatus request, filename = " << request->filename()
@@ -1638,21 +1570,17 @@ void NameSpaceService::SetCloneFileStatus(
                 << ", SetCloneFileStatus fail, filename = "
                 << request->filename()
                 << ", statusCode = " << ret
-                << ", StatusCode_Name = " << StatusCode_Name(ret)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(ret);
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                 << ", SetCloneFileStatus fail, filename = "
                 << request->filename()
                 << ", statusCode = " << ret
-                << ", StatusCode_Name = " << StatusCode_Name(ret)
-                << ", cost " << expiredTime.ExpiredMs() << " ms";
+                << ", StatusCode_Name = " << StatusCode_Name(ret);
         }
     } else {
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", SetCloneFileStatus ok, filename = "
-                  << request->filename() << ", cost "
-                  << expiredTime.ExpiredMs() << " ms";
+            << ", SetCloneFileStatus ok, filename = " << request->filename();
     }
 }
 
@@ -1663,7 +1591,7 @@ void NameSpaceService::GetAllocatedSize(
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+
 
     LOG(INFO) << "logid = " << cntl->log_id()
         << ", GetAllocatedSize request, fileName = " << request->filename();
@@ -1674,54 +1602,17 @@ void NameSpaceService::GetAllocatedSize(
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
-                   << ", GetAllocatedSize fail, fileName = "
-                   << request->filename() << ", statusCode = " << retCode
-                   << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                   << ", cost " << expiredTime.ExpiredMs() << " ms";
-        return;
-    } else {
-        response->set_statuscode(StatusCode::kOK);
-        response->set_allocatedsize(allocSize.total);
-        for (const auto& item : allocSize.allocSizeMap) {
-            response->mutable_allocsizemap()->insert({item.first, item.second});
-        }
-        LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", GetAllocatedSize ok, fileName = " << request->filename()
-                  << ", allocatedSize = " << response->allocatedsize() / kGB
-                  << "GB"
-                  << ", cost " << expiredTime.ExpiredMs() << " ms";
-    }
-    return;
-}
-
-void NameSpaceService::GetFileSize(
-                        ::google::protobuf::RpcController* controller,
-                       const ::curve::mds::GetFileSizeRequest* request,
-                       ::curve::mds::GetFileSizeResponse* response,
-                       ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-
-
-    LOG(INFO) << "logid = " << cntl->log_id()
-        << ", GetFileSize request, fileName = " << request->filename();
-
-    StatusCode retCode;
-    uint64_t fileSize = 0;
-    retCode = kCurveFS.GetFileSize(request->filename(), &fileSize);
-    if (retCode != StatusCode::kOK)  {
-        response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", GetFileSize fail, fileName = " << request->filename()
+            << ", GetAllocatedSize fail, fileName = " << request->filename()
             << ", statusCode = " << retCode
             << ", StatusCode_Name = " << StatusCode_Name(retCode);
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
-        response->set_filesize(fileSize);
+        response->set_allocatedsize(allocSize.allocatedSize);
+        response->set_physicalallocatedsize(allocSize.physicalAllocatedSize);
         LOG(INFO) << "logid = " << cntl->log_id()
-            << ", GetFileSize ok, fileName = " << request->filename()
-            << ", fileSize = " << response->filesize() / kGB << "GB";
+            << ", GetAllocatedSize ok, fileName = " << request->filename()
+            << ", allocatedSize = " << response->allocatedsize() / kGB << "GB";
     }
     return;
 }
@@ -1733,7 +1624,6 @@ void NameSpaceService::ListClient(
                         ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     LOG(INFO) << "logid = " << cntl->log_id()
               << ", ListClient request = " << request->ShortDebugString();
@@ -1745,10 +1635,10 @@ void NameSpaceService::ListClient(
     retCode = kCurveFS.ListClient(listAllClient, &clientInfos);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id() << ", ListClient fail, "
-                   << ", statusCode = " << retCode
-                   << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                   << ", cost " << expiredTime.ExpiredMs() << " ms";
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", ListClient fail, "
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
@@ -1756,10 +1646,10 @@ void NameSpaceService::ListClient(
             ClientInfo* clientInfo = response->add_clientinfos();
             *clientInfo = info;
         }
-        LOG(INFO) << "logid = " << cntl->log_id() << ", ListClient ok, "
+        LOG(INFO) << "logid = " << cntl->log_id()
+                  << ", ListClient ok, "
                   << ", return " << response->clientinfos_size()
-                  << " client infos"
-                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+                  << " client infos";
     }
 }
 
@@ -1770,7 +1660,6 @@ void NameSpaceService::FindFileMountPoint(
     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
 
     LOG(INFO) << "logid = " << cntl->log_id()
               << ", FindFileMountPoint request, fileName = "
@@ -1785,16 +1674,15 @@ void NameSpaceService::FindFileMountPoint(
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
                    << ", FindFileMountPoint fail, fileName = "
-                   << request->filename() << ", statusCode = " << retCode
-                   << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                   << ", cost " << expiredTime.ExpiredMs() << " ms";
+                   << request->filename()
+                   << ", statusCode = " << retCode
+                   << ", StatusCode_Name = " << StatusCode_Name(retCode);
         return;
     } else {
         LOG(INFO) << "logid = " << cntl->log_id()
                   << ", FindFileMountPoint ok, fileName = "
                   << request->filename() << ", client info = "
-                  << response->clientinfo().ShortDebugString()
-                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+                  << response->clientinfo().ShortDebugString();
         response->set_statuscode(StatusCode::kOK);
         response->set_allocated_clientinfo(clientInfo.release());
     }
@@ -1825,3 +1713,4 @@ uint32_t GetMdsLogLevel(StatusCode code) {
 }
 }  // namespace mds
 }  // namespace curve
+

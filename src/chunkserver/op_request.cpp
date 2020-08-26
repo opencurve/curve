@@ -414,14 +414,6 @@ void ReadChunkRequest::ReadChunk() {
     } else if (CSErrorCode::ChunkNotExistError == ret) {
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
-    } else if (CSErrorCode::InternalError == ret) {
-        LOG(FATAL) << "read failed: "
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " data size: " << request_->size()
-                   << " read len :" << size
-                   << " data store return: " << ret;
     } else {
         LOG(ERROR) << "read failed: "
                    << " logic pool id: " << request_->logicpoolid()
@@ -580,21 +572,7 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
             break;
         }
         /**
-         * 3.internal error
-         */
-        if (CSErrorCode::InternalError == ret) {
-            LOG(FATAL) << "read snapshot failed: "
-                       << " logic pool id: " << request_->logicpoolid()
-                       << " copyset id: " << request_->copysetid()
-                       << " chunkid: " << request_->chunkid()
-                       << " sn: " << request_->sn()
-                       << " data size: " << request_->size()
-                       << " read len :" << size
-                       << " offset: " << request_->offset()
-                       << " data store return: " << ret;
-        }
-        /**
-         * 4.其他错误
+         * 3.其他错误
          */
         LOG(ERROR) << "read snapshot failed: "
                    << " logic pool id: " << request_->logicpoolid()
@@ -604,6 +582,7 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
                    << " data size: " << request_->size()
                    << " read len :" << size
                    << " offset: " << request_->offset()
+                   << " error: " << strerror(errno)
                    << " data store return: " << ret;
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);

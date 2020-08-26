@@ -84,21 +84,6 @@ static bool StringToUll(const std::string &value, uint64_t *out) {
     }
 }
 
-static bool StringToInt(const std::string &value, int32_t *out) {
-    try {
-        *out = std::stoi(value);
-        return true;
-    } catch (std::invalid_argument &e) {
-        LOG(ERROR) << "decode string:{" << value << "} to number err:"
-                   << e.what();
-        return false;
-    } catch (std::out_of_range &e) {
-        LOG(ERROR) << "decode string:{" << value << "} to number err:"
-                   << e.what();
-        return false;
-    }
-}
-
 }  // namespace common
 }  // namespace curve
 

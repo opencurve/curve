@@ -159,9 +159,9 @@ int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
         return -1;
     }
 
-    ret = toupdateCopyset->UpdateLeaderInfo(leaderaddr);
+    ret = toupdateCopyset->UpdateLeaderInfo(csid, leaderaddr);
 
-    // 如果更新失败，说明leader地址不在当前配置组中，从mds获取chunkserver的信息
+    // 如果更新失败，说明chunksderverid不合法，就从mds拉取当前chunkserver的id信息
     if (ret == -1 && !leaderaddr.IsEmpty()) {
         CopysetPeerInfo csInfo;
         ret = mdsclient_->GetChunkServerInfo(leaderaddr, &csInfo);
@@ -175,7 +175,7 @@ int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
         UpdateCopysetInfoIfMatchCurrentLeader(
             logicPoolId, copysetId, leaderaddr);
         *toupdateCopyset = GetCopysetinfo(logicPoolId, copysetId);
-        ret = toupdateCopyset->UpdateLeaderInfo(leaderaddr, csInfo);
+        ret = toupdateCopyset->UpdateLeaderInfo(csid, leaderaddr);
     }
 
     return ret;
@@ -259,7 +259,7 @@ int MetaCache::UpdateLeader(LogicPoolID logicPoolId,
     }
 
     ChunkServerAddr csAddr(leaderAddr);
-    return iter->second.UpdateLeaderInfo(csAddr);
+    return iter->second.UpdateLeaderInfo(*leaderId, csAddr);
 }
 
 void MetaCache::UpdateChunkInfoByIndex(ChunkIndex cindex,
@@ -373,16 +373,16 @@ void MetaCache::UpdateChunkserverCopysetInfo(LogicPoolID lpid,
 
         // 先判断当前copyset有没有变更chunkserverid
         for (auto iter : previouscpinfo->second.csinfos_) {
-            changedID.push_back(iter.chunkserverID);
+            changedID.push_back(iter.chunkserverid_);
         }
 
         for (auto iter : cpinfo.csinfos_) {
             auto it = std::find(changedID.begin(), changedID.end(),
-                                iter.chunkserverID);
+                                iter.chunkserverid_);
             if (it != changedID.end()) {
                 changedID.erase(it);
             } else {
-                newID.push_back(iter.chunkserverID);
+                newID.push_back(iter.chunkserverid_);
             }
         }
 
