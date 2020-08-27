@@ -42,6 +42,5 @@
     ch_dir: "{{ deploy_dir }}"
     daemon_script: nebd-daemon
     service_port: "{{ nebd_port }}"
-    check_health: false
   include_tasks: restart_by_daemon.yml
   when: need_restart
