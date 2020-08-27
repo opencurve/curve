@@ -32,6 +32,5 @@
     ch_dir: "{{ deploy_dir }}"
     daemon_script: ./mds-daemon.sh
     service_port: "{{ mds_dummy_port }}"
-    check_health: true
   include_tasks: restart_by_daemon.yml
   when: need_restart
