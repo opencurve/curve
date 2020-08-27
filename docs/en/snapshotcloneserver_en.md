@@ -1,6 +1,6 @@
 
 
-[中文版](../cn/curve snapshot.md)
+[中文版](../cn/snapshotcloneserver.md)
 
 # Curve Snapshot & Clone
 
