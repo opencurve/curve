@@ -38,6 +38,9 @@ CURVE是网易自主设计研发的高性能、高可用、高可靠分布式存
 
 [多机部署](docs/cn/deploy.md#%E5%A4%9A%E6%9C%BA%E9%83%A8%E7%BD%B2)
 
+### 查询工具说明
+
+[查询工具说明](docs/cn/curve_ops_tool.md)
 
 ## 参与开发
 

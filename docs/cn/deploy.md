@@ -153,39 +153,6 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
       curve-nbd list-mapped
    ```
 
-8. curve_ops_tool 工具使用说明
-
-   ```
-   Usage: curve_ops_tool [Command] [OPTIONS...]
-   Commands:
-      space: 展示curve磁盘所有类型的空间，包括总的空间和已使用空间。
-      status: 展示集群的所有状态信息。
-      chunkserver-status: 展示chunkserver在线状态信息。
-      mds-status: 展示mds状态信息。
-      client-status: 展示客户端状态信息。
-      etcd-status: 展示etcd状态信息。
-      snapshot-clone-status: 展示快照克隆服务器状态。
-      copysets-status: 检查所有copyset的健康状态。
-      chunkserver-list: 展示chunkserver列表和chunkserver信息。
-      get: 展示文件信息和文件的真实空间。
-      list: 列出目录下所有文件的文件信息。
-      seginfo: 展示文件的segment信息。
-      delete: 删除文件，强制删除使用 --forcedelete=true。
-      clean-recycle: 清空RecycleBin。
-      create: 创建文件，文件长度以GB为单位。
-      chunk-location: 查询相应偏移的chunk的位置信息。
-      check-consistency: 检查三副本的一致性。
-      remove-peer: 从copyset中移除节点。
-      transfer-leader: 转换copyset上的leader角色给一个节点。
-      reset-peer: 重置copyset配置，仅支持针对一个节点的重置。
-      check-chunkserver: 检查一个chunkserver的健康状态。
-      check-copyset: 检查一个copyset的健康状态。
-      check-server: 检查一个server的健康状态。
-      check-operator: 检查操作者。
-      rapid-leader-schedule: 逻辑池中集群的快速leader调度。
-     
-     可以通过指定 -confPath 来避免输入太多的可选项
-   ```
 
 9. 部署监控（可选）。关于监控体系的文档见[curve监控体系文档](./monitor.md)，监控的部署需要用到docker编排，首先请先确保安装了docker和docker-compose。其次，需要在curve包的同一级目录下下载并解压curve-monitor的tar包。
    ```
@@ -576,38 +543,4 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
       sudo curve-nbd map cbd:pool//test_curve_
    3. 查看设备挂载情况
       curve-nbd list-mapped
-   ```
-
-9. curve_ops_tool 工具使用说明
-
-   ```
-   Usage: curve_ops_tool [Command] [OPTIONS...]
-   Commands:
-      space: 展示curve磁盘所有类型的空间，包括总的空间和已使用空间。
-      status: 展示集群的所有状态信息。
-      chunkserver-status: 展示chunkserver在线状态信息。
-      mds-status: 展示mds状态信息。
-      client-status: 展示客户端状态信息。
-      etcd-status: 展示etcd状态信息。
-      snapshot-clone-status: 展示快照克隆服务器状态。
-      copysets-status: 检查所有copyset的健康状态。
-      chunkserver-list: 展示chunkserver列表和chunkserver信息。
-      get: 展示文件信息和文件的真实空间。
-      list: 列出目录下所有文件的文件信息。
-      seginfo: 展示文件的segment信息。
-      delete: 删除文件，强制删除使用 --forcedelete=true。
-      clean-recycle: 清空RecycleBin。
-      create: 创建文件，文件长度以GB为单位。
-      chunk-location: 查询相应偏移的chunk的位置信息。
-      check-consistency: 检查三副本的一致性。
-      remove-peer: 从copyset中移除节点。
-      transfer-leader: 转换copyset上的leader角色给一个节点。
-      reset-peer: 重置copyset配置，仅支持针对一个节点的重置。
-      check-chunkserver: 检查一个chunkserver的健康状态。
-      check-copyset: 检查一个copyset的健康状态。
-      check-server: 检查一个server的健康状态。
-      check-operator: 检查操作者。
-      rapid-leader-schedule: 逻辑池中集群的快速leader调度。
-     
-     可以通过指定 -confPath 来避免输入太多的可选项
    ```
