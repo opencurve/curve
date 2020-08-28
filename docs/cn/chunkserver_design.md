@@ -99,7 +99,7 @@ Chunk Server概要结构如下所示，通过网络消息收发层统一接收�
 
 + ConcurrentApplyModule
 
-  并发控制层，负责对chunkserver的IO请求进行并发控制，对上层的读写请求安装chunk粒度进行Hash，使得不同chunk的请求可以并发执行。
+  并发控制层，负责对chunkserver的IO请求进行并发控制，对上层的读写请求安照chunk粒度进行Hash，使得不同chunk的请求可以并发执行。
 
 + DataStore
 
