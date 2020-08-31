@@ -65,6 +65,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    $ pip install --upgrade pip
    $ pip install --upgrade setuptools
    ```
+4. 确保源里面有以下几个包：net-tools, openssl>=1.1.1, perf, perl-podlators, make
 
 ##### Debian9环境准备具体步骤
 1. root用户登录机器，创建curve用户
@@ -88,6 +89,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    $ pip install --upgrade pip
    $ pip install --upgrade setuptools
    ```
+4. 确保源里面有以下几个包：net-tools, openssl>=1.1.1, perf, perl-podlators, make
 
 #### 实施部署
 
@@ -199,7 +201,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    $ su curve  # 切换到curve用户
    $ sudo ls  # 测试sudo是否正确配置
    ```
-3. 检查其他依赖，未安装的需要手动安装：net-tools, openssl-1.1.1, perf, perl-podlators, make, gcc6.1, libstdc++.so.6.22
+3. 确保源里面有以下几个包：net-tools, openssl>=1.1.1, perf, perl-podlators, make
 
 下面的步骤只需要在中控机上执行：
 1. curve用户下配置ssh登陆到所有机器（包括自己），假设三台机器的ip分别为10.192.100.1,10.192.100.2,10.192.100.3
@@ -219,6 +221,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    $ ansible-playbook  # 如果没有报错的话说明安装成功，报错的话执行下面两步
    $ pip install --upgrade pip
    $ pip install --upgrade setuptools
+3. 确保源里面有以下几个包：net-tools, openssl>=1.1.1, perf, perl-podlators, make
 
 #### Debian9环境准备步骤
 下面这些步骤要三台机器都操作：

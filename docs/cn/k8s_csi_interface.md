@@ -1,4 +1,4 @@
-目前，curve可以通过CSI插件的方式对接Kubernetes。本文给出的是CSI插件开发指导说明。内部使用的Curve CSI插件目前在联调测试中，后续会开源出来。
+目前，curve可以通过CSI插件的方式对接Kubernetes。本文给出的是CSI插件开发指导说明。curve csi插件源码请见[curve-csi](https://github.com/opencurve/curve-csi)。
 
 ## Curve Interface
 
