@@ -46,7 +46,7 @@ void ScheduleTool::PrintHelp(const std::string& cmd) {
 void ScheduleTool::PrintRapidLeaderScheduleHelp() {
     std::cout << "Example :" << std::endl
         << "curve_ops_tool " << kRapidLeaderSchedule
-        << " -mdsAddr=127.0.0.1:6666 -logicalPoolId=1"
+        << " -logicalPoolId=1 [-mdsAddr=127.0.0.1:6666]"
         << std::endl;
 }
 

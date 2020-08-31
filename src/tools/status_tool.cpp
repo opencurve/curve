@@ -118,13 +118,13 @@ void StatusTool::PrintHelp(const std::string& cmd) {
     std::cout << "Example :" << std::endl;
     std::cout << "curve_ops_tool " << cmd;
     if (CommandNeedMds(cmd)) {
-        std::cout << " -mdsAddr=127.0.0.1:6666";
+        std::cout << " [-mdsAddr=127.0.0.1:6666]";
     }
     if (CommandNeedEtcd(cmd)) {
-        std::cout << " -etcdAddr=127.0.0.1:6666";
+        std::cout << " [-etcdAddr=127.0.0.1:6666]";
     }
     if (CommandNeedSnapshotClone(cmd)) {
-        std::cout << " -snapshotCloneAddr=127.0.0.1:5555";
+        std::cout << " [-snapshotCloneAddr=127.0.0.1:5555]";
     }
     if (cmd == kChunkserverListCmd) {
         std::cout << " [-offline] [-unhealthy] [-checkHealth=false]"
