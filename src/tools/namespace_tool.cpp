@@ -115,18 +115,18 @@ void NameSpaceTool::PrintHelp(const std::string &cmd) {
     std::cout << "Example: " << std::endl;
     if (cmd == kGetCmd || cmd == kListCmd) {
         std::cout << "curve_ops_tool " << cmd << " -fileName=/test [-mdsAddr=127.0.0.1:6666]"  // NOLINT
-                            " [-showAllocSize=false] [-showFileSize=false]" << std::endl;  // NOLINT
+                            " [-showAllocSize=false] [-showFileSize=false] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
     } else if (cmd == kSegInfoCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -fileName=/test [-mdsAddr=127.0.0.1:6666]" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -fileName=/test [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
     } else if (cmd == kCleanRecycleCmd) {
-        std::cout << "curve_ops_tool " << cmd << " [-fileName=/cinder] [-mdsAddr=127.0.0.1:6666]" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " [-fileName=/cinder] [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
         std::cout << "If -fileName is specified, delete the files in recyclebin that the original directory is fileName" << std::endl;  // NOLINT
     } else if (cmd == kCreateCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -fileLength=20‬  [-mdsAddr=127.0.0.1:6666]" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -fileLength=20‬  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
     } else if (cmd == kDeleteCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -forcedelete=true  [-mdsAddr=127.0.0.1:6666]" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -forcedelete=true  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
     } else if (cmd == kChunkLocatitonCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -offset=16777216 [-mdsAddr=127.0.0.1:6666]" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -offset=16777216 [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
     } else {
         std::cout << "command not found!" << std::endl;
     }
