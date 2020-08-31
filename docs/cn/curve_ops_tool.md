@@ -35,4 +35,4 @@ Commands:
       rapid-leader-schedule: 逻辑池中集群的快速leader调度。
 	  
      可以在配置文件中进行配置，避免携带太多可选项，工具默认配置文件在 /etc/curve/tools.conf，自定义路径可以通过 -confPath 来指定配置文件。
-    注意：显式指定的参数和-confPath指定的配置文件同时存在时，显式指定参数会覆盖配置文件参数。
+     注意：显式指定的参数和-confPath指定的配置文件同时存在时，显式指定参数会覆盖配置文件参数。
