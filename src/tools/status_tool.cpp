@@ -118,23 +118,28 @@ void StatusTool::PrintHelp(const std::string& cmd) {
     std::cout << "Example :" << std::endl;
     std::cout << "curve_ops_tool " << cmd;
     if (CommandNeedMds(cmd)) {
-        std::cout << " [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]";
+        std::cout << " [-mdsAddr=127.0.0.1:6666]"
+                  << " [-confPath=/etc/curve/tools.conf]";
     }
     if (CommandNeedEtcd(cmd)) {
-        std::cout << " [-etcdAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]";
+        std::cout << " [-etcdAddr=127.0.0.1:6666]"
+                  << " [-confPath=/etc/curve/tools.conf]";
     }
     if (CommandNeedSnapshotClone(cmd)) {
-        std::cout << " [-snapshotCloneAddr=127.0.0.1:5555] [-confPath=/etc/curve/tools.conf]";
+        std::cout << " [-snapshotCloneAddr=127.0.0.1:5555]"
+                  << " [-confPath=/etc/curve/tools.conf]";
     }
     if (cmd == kChunkserverListCmd) {
-        std::cout << " [-offline] [-unhealthy] [-checkHealth=false] [-confPath=/etc/curve/tools.conf]"
-                     " [-checkCSAlive]";
+        std::cout << " [-offline] [-unhealthy] [-checkHealth=false]"
+                  << " [-confPath=/etc/curve/tools.conf]"
+                  << " [-checkCSAlive]";
     }
     if (cmd == kClientStatusCmd) {
         std::cout << " [-detail] [-confPath=/etc/curve/tools.conf]";
     }
     if (cmd == kClientListCmd) {
-        std::cout << " [-listClientInRepo=false] [-confPath=/etc/curve/tools.conf]";
+        std::cout << " [-listClientInRepo=false]"
+                  << " [-confPath=/etc/curve/tools.conf]";
     }
     std::cout << std::endl;
 }
