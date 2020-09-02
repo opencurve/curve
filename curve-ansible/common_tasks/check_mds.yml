@@ -26,7 +26,7 @@
     msg: "distribution_major_version is  {{ansible_facts['distribution_major_version']}}"
   when: ansible_facts['distribution_major_version'] != "9"
 
-- name: "check kernel"
-  fail:
-    msg: "kernel version is {{ ansible_facts['kernel'] }}"
-  when: ansible_facts['kernel'] != "4.9.0-8-amd64"
+- name: check kernel version
+  assert:
+    that:
+      - ansible_facts['kernel']|version_compare('4.9.0-8-amd64', '>=')
