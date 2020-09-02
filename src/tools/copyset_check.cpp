@@ -197,20 +197,23 @@ void CopysetCheck::PrintHelp(const std::string& command) {
     std::cout << "Example: " << std::endl << std::endl;
     if (command == kCheckCopysetCmd) {
         std::cout << "curve_ops_tool check-copyset -logicalPoolId=2 "
-                  << "-copysetId=101 [-mdsAddr=127.0.0.1:6666] [-margin=1000] "
-                  << "[-confPath=/etc/curve/tools.conf]" << std::endl << std::endl;  // NOLINT
+            << "-copysetId=101 [-mdsAddr=127.0.0.1:6666] [-margin=1000] "
+            << "[-confPath=/etc/curve/tools.conf]" << std::endl << std::endl;  // NOLINT
     } else if (command == kCheckChunnkServerCmd) {
         std::cout << "curve_ops_tool check-chunkserver "
-                  << "-chunkserverId=1 [-mdsAddr=127.0.0.1:6666] [-margin=1000] "
-                  << "[-confPath=/etc/curve/tools.conf]" << std::endl;
-        std::cout << "curve_ops_tool check-chunkserver [-mdsAddr=127.0.0.1:6666] "
-                  << "[-chunkserverAddr=127.0.0.1:8200] [-margin=1000] "
-                  << "[-confPath=/etc/curve/tools.conf]" << std::endl << std::endl;  // NOLINT
+            << "-chunkserverId=1 [-mdsAddr=127.0.0.1:6666] [-margin=1000] "
+            << "[-confPath=/etc/curve/tools.conf]" << std::endl;
+        std::cout << "curve_ops_tool check-chunkserver "
+            << "[-mdsAddr=127.0.0.1:6666] "
+            << "[-chunkserverAddr=127.0.0.1:8200] [-margin=1000] "
+            << "[-confPath=/etc/curve/tools.conf]" << std::endl << std::endl;  // NOLINT
     } else if (command == kCheckServerCmd) {
-        std::cout << "curve_ops_tool check-server -serverId=1 [-mdsAddr=127.0.0.1:6666] "
-                  << "[-margin=1000] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
-        std::cout << "curve_ops_tool check-server [-mdsAddr=127.0.0.1:6666] [-serverIp=127.0.0.1] "
-                  << "[-margin=1000] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool check-server -serverId=1 "
+            << "[-mdsAddr=127.0.0.1:6666] [-margin=1000] "
+            << "[-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool check-server [-mdsAddr=127.0.0.1:6666] "
+            << "[-serverIp=127.0.0.1] [-margin=1000] "
+            << "[-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
     } else if (command == kCopysetsStatusCmd) {
         std::cout << "curve_ops_tool copysets-status [-mdsAddr=127.0.0.1:6666] "
                   << "[-margin=1000] [-operatorMaxPeriod=30] [-checkOperator] "
