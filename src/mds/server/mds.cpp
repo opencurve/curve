@@ -87,7 +87,7 @@ void MDS::StartDummy() {
 
 void MDS::StartCompaginLeader() {
     // initialize etcd client
-    // TODO(lixiaocui): 为什么不把配置都放在EtcdConf中?
+    // TODO(lixiaocui): why not store the configuration in EtcdConf?
     int etcdTimeout;
     conf_->GetValueFatalIfFail(
         "mds.etcd.operation.timeoutMs", &etcdTimeout);
@@ -244,7 +244,7 @@ void MDS::StartServer() {
         << "start brpc server error";
     running_ = true;
 
-    // 要想实现SIGTERM的优雅退出，启动进程时需要指定参数：
+    // To achieve the graceful exit of SIGTERM, you need to specify parameters when starting the process: //NOLINT
     // --graceful_quit_on_sigterm
     server.RunUntilAskedToQuit();
 }

@@ -41,21 +41,22 @@ bool EtcdIdGenerator::GenID(InodeID *id) {
 }
 
 bool EtcdIdGenerator::AllocateBundleIds(int requiredNum) {
-    // 获取已经allocate的最大值
+    // get the maximum value that has been allocated
     std::string out = "";
     uint64_t alloc;
     int errCode = client_->Get(storeKey_, &out);
-    // 获取失败
+    // failed
     if (EtcdErrCode::EtcdOK != errCode &&
         EtcdErrCode::EtcdKeyNotExist != errCode) {
         LOG(ERROR) << "get store key: " << storeKey_
                    << " err, errCode: " << errCode;
         return false;
     } else if (EtcdErrCode::EtcdKeyNotExist == errCode) {
-        // key尚未存在，说明是初次分配
+        // key not exist, indicates the first allocation
         alloc = initialize_;
     } else if (!NameSpaceStorageCodec::DecodeID(out, &alloc)) {
-        // key对应的value存在，但是decode失败，说明出现了internal err, 报警
+        // The value corresponding to the key exists, but the decode fails,
+        // indicating that an internal err has occurred, alarm!
         LOG(ERROR) << "decode id: " << out << "err";
         return false;
     }
@@ -69,7 +70,7 @@ bool EtcdIdGenerator::AllocateBundleIds(int requiredNum) {
         return false;
     }
 
-    // 给next和end赋值
+    // assign values ​​to next and end
     bundleEnd_ = target;
     nextId_ = alloc + 1;
     return true;

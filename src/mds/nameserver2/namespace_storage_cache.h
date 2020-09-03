@@ -39,26 +39,26 @@ struct Item {
 
 class Cache {
  public:
-    /*
-    * @brief Put 存储key-value到缓存
+    /**
+    * @brief Store key-value to the cache
     *
     * @param[in] key
     * @param[in] value
     */
     virtual void Put(const std::string &key, const std::string &value) = 0;
 
-    /*
-    * @brief Get 从缓存中获取key对应的value
+    /**
+    * @brief Get corresponding value of the key from the cache
     *
     * @param[in] key
     * @param[out] value
     *
-    * @return false-获取不到 true-获取成功
+    * @return false if failed, true if succeeded
     */
     virtual bool Get(const std::string &key, std::string *value) = 0;
 
-    /*
-    * @brief Remove 从缓存中移除key-value
+    /**
+    * @brief Remove Remove key-value from cache
     *
     * @param[in] key
     */
@@ -80,51 +80,51 @@ class LRUCache : public Cache {
     std::shared_ptr<NameserverCacheMetrics> GetCacheMetrics() const;
 
  private:
-    /*
-    * @brief PutLocked 存储key-value到缓存，非线程安全
+    /**
+    * @brief PutLocked Store key-value in cache, not thread safe
     *
     * @param[in] key
     * @param[in] value
     */
     void PutLocked(const std::string &key, const std::string &value);
 
-    /*
-    * @brief RemoveLocked 从缓存中移除key-value，非线程安全
+    /**
+    * @brief RemoveLocked Remove key-value from the cache, not thread safe
     *
     * @param[in] key
     */
     void RemoveLocked(const std::string &key);
 
-    /*
-    * @brief MoveToFront 把本次击中的元素移动到list的头部
+    /**
+    * @brief MoveToFront Move the element hit this to the head of the list
     *
-    * @param[in] elem 本次击中的元素
+    * @param[in] elem Target element
     */
     void MoveToFront(const std::list<Item>::iterator &elem);
 
-    /*
-    * @brief RemoveOldest 移除超过maxCount的元素
+    /**
+    * @brief RemoveOldest Remove elements exceeded maxCount
     */
     void RemoveOldest();
 
-    /*
-    * @brief RemoveElement 移除指定元素
+    /**
+    * @brief RemoveElement Remove specified element
     *
-    * @param[in] elem 指定元素
+    * @param[in] elem Specified element
     */
     void RemoveElement(const std::list<Item>::iterator &elem);
 
  private:
     ::curve::common::RWLock lock_;
 
-    // 队列的最大长度. 为0表示长度不限
+    // the maximum length of the queue. 0 indicates unlimited length
     int maxCount_;
-    // 存储Item的双向队列
+    // dequeue for storing items
     std::list<Item> ll_;
-    // 记录key对应的Item在双向列表中的位置
+    // record the position of the item corresponding to the key in the dequeue
     std::map<std::string, std::list<Item>::iterator> cache_;
 
-    // cache相关metric统计
+    // cache related metric data
     std::shared_ptr<NameserverCacheMetrics> cacheMetrics_;
 };
 

@@ -19,12 +19,12 @@ MDS is the center node of the system, responsible for managing metadata, collect
 1. Failure domain isolation: placing replicas in different servers, different racks or under different network switch
 2. Isolation and sharing: data of different users can isolated from each other on or share certain physical resources
 
-
 Figure 1 shows the topological diagram of CURVE and the explanation of corresponding components.
 
-<img src="../images/mds-topology-all.png" alt="mds-topology-all.png" width="900">
-
-<center><font size=2> Figure 1: Topological diagram of CURVE</font></center>
+<p align="center">
+	<img src="../images/mds-topology-all.png" alt="mds-topology-all.png" width="900"><br>
+	<font size=3>Figure 1: Topological diagram of CURVE</font>
+</p>
 
 **chunkserver**：A chunkserver is an abstraction of a physical disk (SSD in our scenario) in a server (physical), and disk is the service unit of chunkserver.
 
@@ -36,9 +36,10 @@ Figure 1 shows the topological diagram of CURVE and the explanation of correspon
 
 Learned from the design of Ceph, CURVE introduced the concept of logical pool on top of a physical pool in order to satisfy the requirement of building a unified storage system. In our design, we support the coexist of block storage (based on multi-replica), online object storage (based on three replicas storage that support appends, to be implemented) and nearline object storage (based on Erasure Code storage that support appends, to be implemented).
 
-<img src="https://github.com/opencurve/curve/blob/master/docs/images/mds-topology-all.png" alt="mds-topology-l.png" width="600">
-
-<center><font size=2> Figure 2: An example of the relation between logical pool and physical pool</font></center>
+<p align="center">
+    <img src="../images/mds-topology-all.png" alt="mds-topology-l.png" width="600"><br>
+    <font size=3> Figure 2: An example of the relation between logical pool and physical pool</font>
+</p>
 
 Figure 2 is an example of the N:1 relation between logical pool and physical pool, and many types file can be stored in a physical pool. Multi pools are also supported by CURVE, which means you can configure a single physical pool for only one logical pool. 
 
@@ -58,15 +59,17 @@ NameServer is for managing metadata of namespace, including (for more details pl
 
 Figure 3 below shows the relation between segment and chunk:
 
-<img src="../images/mds-segment-chunk.png" alt="mds-segment-chunk.png" width="900">
-
-<center><font size=2> Figure 3: Relation between segment and chunk</font></center>
+<p align="center">
+    <img src="../images/mds-segment-chunk.png" alt="mds-segment-chunk.png" width="900"><br>
+    <font size=3> Figure 3: Relation between segment and chunk</font>
+</p>
 
 Namespace info is rather intuitive, which is the hierachy of files:
 
-<img src="../images/mds-nameserver.png" alt="mds-nameserver.png" width="700">
-
-<center><font size=2> Figure 4: Example of namespace data and operations </font></center>
+<p align="center">
+    <img src="../images/mds-nameserver.png" alt="mds-nameserver.png" width="700"><br>
+    <font size=3> Figure 4: Example of namespace data and operations </font>
+</p>
 
 Figure 4 illustrates how namespace info is stored in form of KV pairs. The key consists of parent directory ID and target directory ID (seperated by a '/'), and the value is the ID of the target file. In this way we struck a great balance between the workload of some of the operations we implemented:
 
@@ -90,9 +93,10 @@ We introduced copyset for three reasons:
 
 Figure 5 demonstrates the relation between ChunkServer, Copyset and Chunk:
 
-<img src="../images/mds-copyset.png" alt="mds-copyset.png" width="900">
-
-<center><font size=2> Figure 5: Relation between chunk, copyset and chunkserver</font></center>
+<p align="center">
+    <img src="../images/mds-copyset.png" alt="mds-copyset.png" width="900"><br>
+    <font size=3> Figure 5: Relation between chunk, copyset and chunkserver</font>
+</p>
 
 ## Heartbeat
 
@@ -106,9 +110,10 @@ Heartbeat is for data exchange between center node and data nodes, and it works 
 
 From figure 6 you can see the structure of heartbeat module:
 
-<img src="../images/mds-heartbeat.png" alt="mds-heartbeat.png" width="600">
-
-<center><font size=2> Figure 6: Structure of heartbeat module</font></center>
+<p align="center">
+    <img src="../images/mds-heartbeat.png" alt="mds-heartbeat.png" width="600"><br>
+    <font size=3> Figure 6: Structure of heartbeat module</font>
+</p>
 
 ##### MDS side
 
@@ -132,9 +137,10 @@ As for chunkserver side, there are two parts including:
 
 System scheduling is for implementing auto fault tolerance and load balancing, which are core issues of distributed system, and are also two of the decisive features for whether or not CURVE can be deployed in production environment. Auto fault tolerance promises that data loss caused by commonly seen abnormals (e.g. disk failure and system outage) will be fixed automatically without people getting involved. Load balancing and resources balancing make sure that the system can make the best use of hardware resources like disk, CPU and memory.
 
-<img src="../images/mds-schedule.png" alt="mds-schedule.png" width="700" />
-
-<center><font size=2> Figure 7 Structure of scheduler module</font></center>
+<p align="center">
+    <img src="../images/mds-schedule.png" alt="mds-schedule.png" width="700" /><br>
+    <font size=3> Figure 7 Structure of scheduler module</font>
+</p>
 
 Figure 7 shows the structure of the scheduler module.
 

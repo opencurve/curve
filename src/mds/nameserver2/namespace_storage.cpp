@@ -63,7 +63,7 @@ StoreStatus NameServerStorageImp::PutFile(const FileInfo &fileInfo) {
         LOG(ERROR) << "put file: [" << fileInfo.filename() << "] err: "
                     << errCode;
     } else {
-        // 更新到缓存
+        // update to cache
         cache_->Put(storeKey, encodeFileInfo);
     }
 
@@ -115,7 +115,7 @@ StoreStatus NameServerStorageImp::DeleteFile(InodeID id,
         return StoreStatus::InternalError;
     }
 
-    // 先删缓存，再删etcd
+    // delete cache first, then Etcd
     cache_->Remove(storeKey);
     int resCode = client_->Delete(storeKey);
 
@@ -135,7 +135,7 @@ StoreStatus NameServerStorageImp::DeleteSnapshotFile(InodeID id,
         return StoreStatus::InternalError;
     }
 
-    // 先删缓存，再删etcd
+    // delete cache first, then Etcd
     cache_->Remove(storeKey);
     int resCode = client_->Delete(storeKey);
 
@@ -181,10 +181,10 @@ StoreStatus NameServerStorageImp::RenameFile(const FileInfo &oldFInfo,
        return StoreStatus::InternalError;
     }
 
-    // 先删除缓存中的数据
+    // delete the data in the cache first
     cache_->Remove(oldStoreKey);
 
-    // 更新etcd
+    // update Etcd
     Operation op1{
         OpType::OpDelete,
         const_cast<char*>(oldStoreKey.c_str()), "",
@@ -202,7 +202,7 @@ StoreStatus NameServerStorageImp::RenameFile(const FileInfo &oldFInfo,
                    << ", " << newFInfo.filename() << "] err: "
                    << errCode;
     } else {
-        // 最后更新到缓存
+        // update to cache at last
         cache_->Put(newStoreKey, encodeNewFileInfo);
     }
     return getErrorCode(errCode);
@@ -266,7 +266,7 @@ StoreStatus NameServerStorageImp::ReplaceFileAndRecycleOldFile(
         return StoreStatus::InternalError;
     }
 
-    // 删除缓存中的数据
+    // delete data in cache
     cache_->Remove(conflictStoreKey);
     cache_->Remove(oldStoreKey);
 
@@ -293,7 +293,7 @@ StoreStatus NameServerStorageImp::ReplaceFileAndRecycleOldFile(
                    << "] to [" << newFInfo.filename() << "] err: "
                    << errCode;
     } else {
-        //更新到缓存
+        // update to cache
         cache_->Put(recycleStoreKey, encodeRecycleFInfo);
         cache_->Put(newStoreKey, encodeNewFInfo);
     }
@@ -328,10 +328,10 @@ StoreStatus NameServerStorageImp::MoveFileToRecycle(
         return StoreStatus::InternalError;
     }
 
-    // 删除缓存中的数据
+    // delete data in cache
     cache_->Remove(originFileInfoKey);
 
-    // 从etcd中删除originFileInfo, put recycleFileInfo
+    // remove originFileInfo from Etcd, and put recycleFileInfo
     Operation op1{
         OpType::OpDelete,
         const_cast<char*>(originFileInfoKey.c_str()), "",
@@ -350,7 +350,7 @@ StoreStatus NameServerStorageImp::MoveFileToRecycle(
                    << recycleFileInfo.filename() << "] err: "
                    << errCode;
     } else {
-        //更新到缓存
+        // update to cache
         cache_->Put(recycleFileInfoKey, encodeRecycleFInfo);
     }
     return getErrorCode(errCode);
@@ -512,7 +512,7 @@ StoreStatus NameServerStorageImp::DeleteSegment(
         NameSpaceStorageCodec::EncodeSegmentStoreKey(id, off);
     int errCode = client_->DeleteRewithRevision(storeKey, revision);
 
-    // 先更新缓存，再更新etcd
+    // update the cache first, then update Etcd
     cache_->Remove(storeKey);
     if (errCode != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "delete segment of inodeid: " << id
@@ -556,10 +556,10 @@ StoreStatus NameServerStorageImp::SnapShotFile(const FileInfo *originFInfo,
         return StoreStatus::InternalError;
     }
 
-    // 先删除缓存中的信息
+    // delete the information in cache first
     cache_->Remove(originFileKey);
 
-    // 再更新etcd
+    // then update Etcd
     Operation op1{
         OpType::OpPut,
         const_cast<char*>(originFileKey.c_str()),
@@ -579,7 +579,7 @@ StoreStatus NameServerStorageImp::SnapShotFile(const FileInfo *originFInfo,
                    << ", fileinfo inodeid: " << originFInfo->id()
                    << ", fileinfo: " << originFInfo->filename() << "err";
     } else {
-        // 最后put到缓存中
+        // update cache at last
         cache_->Put(originFileKey, encodeFileInfo);
         cache_->Put(snapshotFileKey, encodeSnapshot);
     }

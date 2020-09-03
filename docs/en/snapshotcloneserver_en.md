@@ -4,8 +4,6 @@
 
 # Curve Snapshot & Clone
 
-
-
 ## 1、Snapshot
 
 ### 1.1 Intro to Curve snapshot
@@ -18,9 +16,10 @@ The snapshot service works as an independent component from core services of Cur
 
 Figure 1 shows the architecture of Curve snapshot service.
 
-![快照架构图](../images/snap.png)
-
-<center><font size=2> Figure 1: Architecture of Curve snapshot</font></center>
+<p align="center">
+    <img src="../images/snap.png"><br>
+    <font size=3> Figure 1: Architecture of Curve snapshot</font>
+</p>
 
 #### Snapshot System
 
@@ -64,12 +63,12 @@ Snapshot data is stored in S3 in chunks, and each chunk corresponds to an object
 1. Snapshot file information, including original data volume name, volume size and chunk size, etc.
 2. Snapshot chunk mapping table, recording the list of snapshot data objects.
 
-
 Figure 2 is a sample of the sanpshot data.
 
-![快照映射表](../images/snap-s3-format.png)
-
-<center><font size=2> Figure 2: Snapshot data format</font></center>
+<p align="center">
+    <img src="../images/snap-s3-format.png"><br>
+    <font size=3> Figure 3: Snapshot data format</font>
+</p>
 
 ### 1.5 Interface of Curve Snapshot System
 
@@ -87,9 +86,10 @@ According to the data source, there are two kinds of cloning, including cloning 
 
 Figure 3 shows the architecture of Curve cloning.
 
-![clone架构图](../images/clone.png)
-
-<center><font size=2> Figure 3: Architecture of Curve cloning</font></center>
+<p align="center">
+    <img src="../images/clone.png"><br>
+    <font size=3> Figure 3: Architecture of Curve cloning</font>
+</p>
 
 In figure 3, we can see components and their responsibility below.
 
@@ -144,9 +144,10 @@ In few steps:
 
 In the procedure above, we've mentioned that the cloned file has many status. What do these different status mean and what are their functions?
 
-![clone-file-status](../images/clone-file-status.png)
-
-<center><font size=2> Figure 4: Status transformation of a cloned file</font></center>
+<p align="center">
+    <img src="../images/clone-file-status.png"><br>
+    <font size=3> Figure 4: Status transformation of a cloned file</font>
+</p>
 
 Figure 4 shows the status transformation of a cloned file.
 
