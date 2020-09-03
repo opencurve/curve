@@ -37,7 +37,7 @@ extern const int GETBUNDLE;
 
 class AllocStatisticHelper {
  public:
-    // 获取记录的physicalPool对应的segment的值
+    // get the segment value corresponding to the recorded physicalPool
     static int GetExistSegmentAllocValues(
         std::map<PoolIdType, int64_t> *out,
         const std::shared_ptr<EtcdClientImp> &client);

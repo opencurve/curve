@@ -58,16 +58,18 @@ class ChunkServerClient {
     virtual ~ChunkServerClient() {}
 
     /**
-     * @brief  删除此次转储时产生的或者历史遗留的快照
-     *         如果转储过程中没有产生快照，则修改chunk的correctedSn
+     * @brief  delete the snapshot generated during the dump or left from
+     *         history. If no snapshot is generated during the dump,
+     *         modify the correctedSn of the chunk
      *
-     * @param leaderId leader的ID
-     * @param logicalPoolId 逻辑池的ID
-     * @param copysetId 复制组的ID
-     * @param chunkId chunk文件ID
-     * @param correctedSn 快照chunk不存在时需要修正的correctedSn
+     * @param leaderId
+     * @param logicalPoolId
+     * @param copysetId
+     * @param chunkId chunk file ID
+     * @param correctedSn CorrectedSn to be corrected when the snapshot chunk
+     *                    does not exist
      *
-     * @return 错误码
+     * @return error code
      */
     virtual int DeleteChunkSnapshotOrCorrectSn(ChunkServerIdType leaderId,
         LogicalPoolID logicalPoolId,
@@ -76,15 +78,15 @@ class ChunkServerClient {
         uint64_t correctedSn);
 
     /**
-     * @brief 删除非快照chunk文件
+     * @brief delete chunk files that are not snapshot
      *
-     * @param leaderId leader的ID
-     * @param logicalPoolId 逻辑池的ID
-     * @param copysetId 复制组的ID
-     * @param chunkId chunk文件ID
-     * @param sn 文件版本号
+     * @param leaderId
+     * @param logicalPoolId
+     * @param copysetId
+     * @param chunkId chunk file ID
+     * @param sn file version number
      *
-     * @return 错误码
+     * @return error code
      */
     virtual int DeleteChunk(ChunkServerIdType leaderId,
         LogicalPoolID logicalPoolId,
@@ -93,16 +95,14 @@ class ChunkServerClient {
         uint64_t sn);
 
     /**
-     * @brief 获取leader
-     * @detail
-     *   向目标chunkserver发送报文查询leader
+     * @brief send a message to the target chunk server to query the leader
      *
-     * @param csId 目标chunkserverId
-     * @param logicalPoolId 逻辑池ID
-     * @param copysetId 复制组的ID
-     * @param[out] leader 当前leader
+     * @param csId ID of target chunk server
+     * @param logicalPoolId
+     * @param copysetId
+     * @param[out] leader current leader
      *
-     * @return 错误码
+     * @return error code
      */
     virtual int GetLeader(ChunkServerIdType csId,
         LogicalPoolID logicalPoolId,
@@ -111,12 +111,12 @@ class ChunkServerClient {
 
  private:
     /**
-     * @brief 从topology获取chunkserver的地址
+     * @brief obtain the address of the chunkserver from the topology
      *
-     * @param csId 目标chunkserver的ID
-     * @param[out] csAddr chunkserver的地址，ip:port的形式
+     * @param csId ID of target chunk server
+     * @param[out] csAddr chunkserver address in 'ip:port' form
      *
-     * @return 错误码
+     * @return error code
      */
     int GetChunkServerAddress(ChunkServerIdType csId,
                               std::string* csAddr);

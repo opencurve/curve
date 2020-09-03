@@ -117,9 +117,9 @@ class MDS {
     void InitMdsOptions(std::shared_ptr<Configuration> conf);
 
     /**
-     * @brief start MDS DummyServer for liveness probe and flags fetching 
-     *        between master and slave MDS servers
-     *        (for exposing program version, fetching configuration from files etc.)
+     * @brief start MDS DummyServer for liveness probe and flags fetching
+     *        between master and slave MDS servers (for exposing program
+     *        version, fetching configuration from files etc.)
      */
     void StartDummy();
 
@@ -224,115 +224,115 @@ class MDS {
     /**
      * @brief initialize segment allocation and statistic module
      * @param retryInterTimes retry interval
-     * @param periodicPersistInterMs time interval of RAM data persistance (in ms)
+     * @param periodicPersistInterMs time interval of RAM data persistance (ms)
      */
     void InitSegmentAllocStatistic(uint64_t retryInterTimes,
                                    uint64_t periodicPersistInterMs);
 
     /**
      * @brief initialize nameserver storage module
-     * @param mdsCacheCount 缓存大小
+     * @param mdsCacheCount cache size
      */
     void InitNameServerStorage(int mdsCacheCount);
 
     /**
-     * @brief run brpc module
+     * @brief run BRPC module
      */
     void StartServer();
 
     /**
-     * @brief 初始化topology相关模块
+     * @brief initialize topology related modules
      */
     void InitTopologyModule();
 
     /**
-     * @brief 初始化topology模块
-     * @param option topology相关选项
+     * @brief initialize Topology module
+     * @param option topology options
      */
     void InitTopology(const TopologyOption& option);
 
     /**
-     * @brief 初始化topology统计模块
+     * @brief initialize Topology statistics module
      */
     void InitTopologyStat();
 
     /**
-     * @brief 初始化topology metric模块
-     * @param option topology相关选项
+     * @brief initialize the topology metric module
+     * @param option topology related options
      */
     void InitTopologyMetricService(const TopologyOption& option);
 
     /**
-     * @brief 初始化topology service管理模块
-     * @param option topology相关选项
+     * @brief initialize topology service managing module
+     * @param option topology related options
      */
     void InitTopologyServiceManager(const TopologyOption& option);
 
     /**
-     * @brief 初始化chunk分配模块
-     * @param option topology相关选项
+     * @brief initialize the chunk allocation module
+     * @param option topology related options
      */
     void InitTopologyChunkAllocator(const TopologyOption& option);
 
     /**
-     * @brief 初始化curveFS
+     * @brief initialize curveFS
      */
     void InitCurveFS(const CurveFSOption& curveFSOptions);
 
     /**
-     * @brief 初始化异步清理模块
+     * @brief initialize the asynchronous cleanup module
      */
     void InitCleanManager();
 
     /**
-     * @brief 初始化调度模块
+     * @brief initialize the scheduling module
      */
     void InitCoordinator();
 
     /**
-     * @brief 初始化心跳模块
+     * @brief initialize the heartbeat module
      */
     void InitHeartbeatManager();
 
  private:
-    // mds配置项
+    //mds configuration items
     std::shared_ptr<Configuration> conf_;
-    // 是否初始化过
+    // initialized or not
     bool inited_;
-    // 是否作为主MDS在运行
+    // running as the main MDS or not
     bool running_;
-    // mds状态，leader或follower
+    // mds status, leader or follower
     bvar::Status<std::string> status_;
-    // mds相关选项
+    // mds related options
     MDSOptions options_;
 
-    // 与etcd交互的client
+    // client interacting with etcd
     std::shared_ptr<EtcdClientImp> etcdClient_;
-    // leader竞选模块
+    // leader election module
     std::shared_ptr<LeaderElection> leaderElection_;
-    // segment分配统计模块
+    // segment distribution statistics module
     std::shared_ptr<AllocStatistic> segmentAllocStatistic_;
-    // NameServer存储模块
+    // NameServer storage module
     std::shared_ptr<NameServerStorage> nameServerStorage_;
-    // topology模块，用于定期把内存中的topology数据持久化
+    // topology module for persisting topology data in memory periodically
     std::shared_ptr<TopologyImpl> topology_;
-    // topology统计模块
+    // topology statistics module
     std::shared_ptr<TopologyStatImpl> topologyStat_;
-    // chunk分配模块
+    // chunk allocation module
     std::shared_ptr<TopologyChunkAllocator> topologyChunkAllocator_;
     // topology metric
     std::shared_ptr<TopologyMetricService> topologyMetricService_;
-    // topology service管理模块
+    // topology service management module
     std::shared_ptr<TopologyServiceManager> topologyServiceManager_;
-    // 异步清理模块
+    // asynchronous cleanup module
     std::shared_ptr<CleanManager> cleanManager_;
-    // 调度模块
+    // scheduling module
     std::shared_ptr<Coordinator> coordinator_;
-    // 心跳模块
+    // heartbeat module
     std::shared_ptr<HeartbeatManager> heartbeatManager_;
-    // etcd节点信息，这个是go里面的逻辑，没法用智能指针
+    // etcd node information (logic in Go)
     char* etcdEndpoints_;
-    // 文件锁管理对象
+    // file lock management object
     FileLockManager* fileLockManager_;
 };
 

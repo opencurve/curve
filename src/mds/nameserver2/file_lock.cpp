@@ -171,7 +171,7 @@ FileWriteLockGuard::FileWriteLockGuard(FileLockManager *fileLockManager,
     path_.push_back(path);
     fileLockManager_->WriteLock(path);
 }
-// 传入两个path，该接口用来在rename的时候，对newfile和oldfile同时加锁
+// this interface is for locking newfile and oldfile at the same time when renaming //NOLINT
 FileWriteLockGuard::FileWriteLockGuard(FileLockManager *fileLockManager,
                                        const std::string &path1,
                                        const std::string &path2) {

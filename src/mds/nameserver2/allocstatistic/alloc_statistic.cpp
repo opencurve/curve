@@ -34,7 +34,7 @@ using ::curve::common::WriteLockGuard;
 namespace curve {
 namespace mds {
 int AllocStatistic::Init() {
-    // 获取当前的revision
+    // get the current revision
     int res = client_->GetCurrentRevision(&curRevision_);
     if (EtcdErrCode::EtcdOK != res) {
         LOG(ERROR) << "get current revision fail, errCode: " << res;
@@ -63,7 +63,7 @@ void AllocStatistic::Stop() {
 }
 
 bool AllocStatistic::GetAllocByLogicalPool(PoolIdType lid, int64_t *alloc) {
-    // segmentAlloc_的值已经可用
+    // value segmentAlloc_ is available
     if (true == currentValueAvalible_.load()) {
         ReadLockGuard guard(segmentAllocLock_);
         if (segmentAlloc_.find(lid) != segmentAlloc_.end()) {
@@ -72,7 +72,7 @@ bool AllocStatistic::GetAllocByLogicalPool(PoolIdType lid, int64_t *alloc) {
         }
 
         return false;
-    // segmentAlloc_的值不可用，从existSegmentAllocValues_中获取
+    // segmentAlloc_ is not available, fetch from existSegmentAllocValues_
     } else {
         ReadLockGuard guard(existSegmentAllocValuesLock_);
         if (existSegmentAllocValues_.find(lid) !=
@@ -89,17 +89,17 @@ bool AllocStatistic::GetAllocByLogicalPool(PoolIdType lid, int64_t *alloc) {
 
 void AllocStatistic::AllocSpace(
     PoolIdType lid, int64_t changeSize, int64_t revision) {
-    // segmentAlloc_值不可用,change需要更新到existSegmentAllocValues_中
+    // segmentAlloc_ value is not available, change needs to be updated to existSegmentAllocValues_ //NOLINT
     if (false == currentValueAvalible_.load()) {
         WriteLockGuard guarg(existSegmentAllocValuesLock_);
         existSegmentAllocValues_[lid] += changeSize;
     }
 
-    // 如果etcd中的数据已经统计结束，直接将change更新到segmentAlloc_中
+    // update change to segmentAlloc_ directly if the Etcd data has been counted
     if (true == segmentAllocFromEtcdOK_.load()) {
         WriteLockGuard guard(segmentAllocLock_);
         segmentAlloc_[lid] += changeSize;
-    // 如果etcd中的数据还未统计结束，将change更新到segmentChange_中
+    // if the Etcd data has not been counted, update change to segmentChange_
     } else {
         WriteLockGuard guard(segmentChangeLock_);
         segmentChange_[lid][revision] = changeSize;
@@ -123,7 +123,7 @@ void AllocStatistic::DeAllocSpace(
 }
 
 void AllocStatistic::CalculateSegmentAlloc() {
-    // 从etcd中获取revision之前的alloc数据
+    // get the alloc data before revision from Etcd
     int res;
     do {
         res =  AllocStatisticHelper::CalculateSegmentAlloc(
@@ -132,16 +132,14 @@ void AllocStatistic::CalculateSegmentAlloc() {
 
     LOG(INFO) << "calculate segment alloc revision not bigger than "
               << curRevision_ << " ok";
-    // 设置从etcd中获取数据完成
     segmentAllocFromEtcdOK_.store(true);
 
-    // 这里睡眠5s，极大概率避免merge之后segmentChange_中还有数据
+    // sleep for 5s to avoid data remain in segmentChange_ after the merge
     std::this_thread::sleep_for(std::chrono::seconds(5));
 
-    // 做一次合并
     DoMerge();
 
-    // 设置segmentAlloc_可用
+    // set segmentAlloc_available
     currentValueAvalible_.store(true);
 }
 
@@ -149,19 +147,17 @@ bool AllocStatistic::HandleResult(int res) {
     if (res == 0) {
         return false;
     } else {
-        // 获取当前的revision, 如果获取失败，过段时间再尝试
+        // fetch current revision, if failed, retry later
         int errCode = EtcdErrCode::EtcdOK;
         do {
-            // 如果出错，睡眠一段时间内再做尝试
             if (errCode != EtcdErrCode::EtcdOK) {
                 LOG(INFO) << "calculateSegmentAlloc"
                           << " occur error, sleep and retry later";
                 std::this_thread::sleep_for(
                     std::chrono::milliseconds(retryInterMs_));
             }
-
-            // 1. 清空当前已统计的segmentAlloc_以及更新过来的segmentChange_
-            // 2. 重新获取当前的revision
+            // 1. clear current segmentAlloc_ and updated segmentChange_
+            // 2. Regain current revision
             segmentAlloc_.clear();
             errCode = client_->GetCurrentRevision(&curRevision_);
             if (EtcdErrCode::EtcdOK != errCode) {
@@ -176,16 +172,14 @@ void AllocStatistic::PeriodicPersist() {
     std::map<PoolIdType, int64_t> lastPersist;
     while (sleeper_.wait_for(
         std::chrono::milliseconds(periodicPersistInterMs_))) {
-        // 获取本次需要持久化的数据
         std::map<PoolIdType, int64_t> curPersist = GetLatestSegmentAllocInfo();
         if (true == curPersist.empty()) {
             continue;
         }
-
-        // 将curPersist中的值持久化到etcd
+        // persist the value in curPersist to Etcd
         for (auto &item : curPersist) {
-            // 如果与上次持久化数据相同，不再重复持久化
             if (lastPersist.find(item.first) != lastPersist.end()) {
+                // if the data is the same as last persistence, do not repeat
                 if (lastPersist[item.first] == item.second) {
                     continue;
                 } else {
@@ -214,7 +208,7 @@ void AllocStatistic::PeriodicPersist() {
 }
 
 void AllocStatistic::DoMerge() {
-    // 将revision之前的alloc数据和revision之后的数据进行合并
+    // combine the alloc data before and after the revision
     std::set<PoolIdType> logicalPools = GetCurrentLogicalPools();
     for (PoolIdType lid : logicalPools) {
         UpdateSegmentAllocByCurrrevision(lid);
@@ -224,13 +218,13 @@ void AllocStatistic::DoMerge() {
 std::map<PoolIdType, int64_t> AllocStatistic::GetLatestSegmentAllocInfo() {
     std::map<PoolIdType, int64_t> curPersist;
 
-    // 如果segmentAlloc_可用，将segmentAlloc_作为本次持久化数据
+    // if segmentAlloc_ is available, use it as the current persistent data
     if (true == currentValueAvalible_.load()) {
         ReadLockGuard guard(segmentAllocLock_);
         for (auto item : segmentAlloc_) {
             curPersist[item.first] = item.second;
         }
-    // 如果segmentAlloc_不可用，将existSegmentAllocValues_作为本次持久化数据
+    // if not, use existSegmentAllocValues_ as this persistent data
     } else {
         ReadLockGuard guard(existSegmentAllocValuesLock_);
         for (auto item : existSegmentAllocValues_) {
@@ -242,19 +236,20 @@ std::map<PoolIdType, int64_t> AllocStatistic::GetLatestSegmentAllocInfo() {
 }
 
 void AllocStatistic::UpdateSegmentAllocByCurrrevision(PoolIdType lid) {
-    // 获取>revision之后的值
+    // sum up the value after the revision
     int64_t sumChangeUntilNow = 0;
 
     {
         WriteLockGuard guard(segmentChangeLock_);
-        // 获取指定lid对应的map
+        // get the map corresponding to the specified lid
         auto liter = segmentChange_.find(lid);
         if (liter != segmentChange_.end()) {
-            // change中的没有数据，可以直接删除，后续直接更新到segment中
+            // there's no data in the change, delete directly
+            // The data wil be updated to the segment later
             if (liter->second.empty()) {
                 segmentChange_.erase(liter);
             } else {
-                // 获取>curevisiond的对应的位置
+                // locate the corresponding position of "> curRevision"
                 auto removeEnd = liter->second.lower_bound(curRevision_ + 1);
                 if (removeEnd != liter->second.end()) {
                     liter->second.erase(liter->second.begin(), removeEnd);
