@@ -37,7 +37,7 @@ bool LRUCache::Get(const std::string &key, std::string *value) {
         return false;
     }
 
-    // 更新元素在列表中的位置
+    // update the position of the target item in the list
     MoveToFront(iter->second);
     *value = cache_[key]->value;
     return true;
@@ -55,12 +55,12 @@ std::shared_ptr<NameserverCacheMetrics> LRUCache::GetCacheMetrics() const {
 void LRUCache::PutLocked(const std::string &key, const std::string &value) {
     auto iter = cache_.find(key);
 
-    // 如果已存在，删除旧值
+    // delete the old value if already exist
     if (iter != cache_.end()) {
         RemoveElement(iter->second);
     }
 
-    // put新值
+    // put new value
     Item kv{key, value};
     ll_.push_front(kv);
     cache_[key] = ll_.begin();

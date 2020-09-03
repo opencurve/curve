@@ -32,32 +32,32 @@
 namespace curve {
 namespace mds {
 /**
- *  @brief 判断一个路径是否是合法的，判断规则：
- *         路径应该是从根目录开始的全路径，以"/"开始，各层目录以单个"/"进行分隔，
- *         除根目录以外，所有的path不得以"/"结尾。
- *  @param path 用来判断的路径，路径应该是从根目录开始的全路径
- *  @return true表示合法，false表示不合法
+ *  @brief determine whether a path is legal by following rules：
+ *         1. the path should be the full path start from the root directory
+ *            starting with "/", and each level of directory should be separated
+ *            by a single "/"
+ *         2. except for the root directory, all paths must not end with "/"
+ *  @param path the path to judge
+ *  @return true if legal, false if not
  */
-// isPathValid先放这里，目前就这里用
 bool isPathValid(const std::string path);
 
 /**
- *  @brief 判断一个rename的路径是否是合法的，判断规则：
- *         1、不允许对根目录rename或者rename到根目录
- *         2、一个路径不能包含另一个路径，
- *         比如不能rename /a 到 /a/b，或者rename /a/b 到 /a
- *  @param oldFileName 用来判断的路径，路径应该是从根目录开始的全路径
- *         newFileName 用来判断的路径，路径应该是从根目录开始的全路径
- *  @return true表示合法，false表示不合法
+ *  @brief determine whether a renamed path by following rules：
+ *         1.renaming or renaming to the root directory are not allowed
+ *         2.a path cannot contain another path
+ *           e.g. rename /a to /a/b, or /a/b to /a
+ *  @param oldFileName the path to judge, and should be the full path
+ *  @param newFileName the path to judge, and should be the full path
+ *  @return true if legal, false if not
  */
-// IsRenamePathValid先放这里，目前就这里用
 bool IsRenamePathValid(const std::string& oldFileName,
                        const std::string& newFileName);
 
 /**
- *  @brief 根据错误码，判断日志的打印级别
- *  @param code 错误吗
- *  @return 打印级别，google::INFO，google::WARNING，google::ERROR
+ *  @brief determine the log level according to the error code
+ *  @param code error code
+ *  @return log level: google::INFO, google::WARNING, google::ERROR
  */
 uint32_t GetMdsLogLevel(StatusCode code);
 

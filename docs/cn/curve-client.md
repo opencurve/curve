@@ -1,3 +1,7 @@
+[English version](../en/client_en.md)
+
+# Curve Client
+
 ## 1 概要
 
 curve作为中心化的分布式存储系统主要组件分为前端驱动Client模块、底层存储Chunkserver模块、元数据服务器MDS模块，以及快照系统。

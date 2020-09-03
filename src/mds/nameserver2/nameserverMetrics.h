@@ -30,7 +30,7 @@ namespace curve {
 namespace mds {
 class NameserverCacheMetrics {
  public:
-    // 构造函数
+    // constructor
     NameserverCacheMetrics() :
         cacheCount(NameServerMetricsPrefix, "cache_count"),
         cacheBytes(NameServerMetricsPrefix, "cache_bytes") {}

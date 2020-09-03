@@ -44,9 +44,10 @@ Replication: Most of the replicas will replicate synchronously, but few of them 
 
 Figure 1 shows the general structure of Chunkserver. The RPC network layer receive RPC message from Client, MDS and other Chunkservers, including I/O request, controlling request and event notification. Message received will be dispatched to different sub-services in RPC service layer for routing by RPC network layer, and different sub-service corresponds to different sub-systems in Chunkserver, including I/O processing, snapshot, recovering, data verification, configuration, monitoring metrics and Chunkserver controller. In each sub-system there's a set of interfaces, offering services by calling their own functions within. Sub-systems can also coordinate with each other using interfaces of each other.
 
-![chunkserver架构图](../images/chunkserverstructure.png)
-
-<center><font size=2> Figure 1: Chunkserver structure</font></center>
+<p align="center">
+    <img src="../images/chunkserverstructure.png"><br>
+    <font size=3> Figure 1: Chunkserver structure</font>
+</p>
 
 ### 2.1.3 Sub-systems 
 
@@ -148,17 +149,19 @@ These messages are reported by regular heartbeat to MDS. On the heartbeat messag
 
 Figure 2 shows the entire procedure of heartbeat.
 
-![心跳流程图](../images/chunkserver_heartbeat.png)
-
-<center><font size=2> Figure 2: heartbeat procedure</font></center>
+<p align="center">
+    <img src="../images/chunkserver_heartbeat.png"><br>
+    <font size=3> Figure 2: Heartbeat procedure</font>
+</p>
 
 ### 2.2.3 CopysetNode
 
 CopysetNode encapsulated the state machine of RaftNode, and is the core module of Chunkserver. Figure 3 shows the architecture of this module.
 
-![curve-raft-arch-1](../images/curve-raft-arch-1.png)
-
-<center><font size=2> Figure 3: CopysetNode structure</font></center>
+<p align="center">
+    <img src="../images/curve-raft-arch-1.png"><br>
+    <font size=3> Figure 3: CopysetNode structure</font>
+</p>
 
 In figure 3, you can see components below:
 

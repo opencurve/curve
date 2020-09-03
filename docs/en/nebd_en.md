@@ -8,9 +8,10 @@ In order to relief the impact of updating on applications based on CURVE, we dec
 
 ### NEBD Structure
 
-<img src="../images/nebd-overview.jpg" alt="nebd-overview" width="650" />
-
-<center><font size=2> Figure 1: NEBD structure</font></center>
+<p align="center">
+    <img src="../images/nebd-overview.jpg" alt="nebd-overview" width="650" /><br>
+    <font size=3> Figure 1: NEBD structure</font>
+</p>
 
 Figure1 shows the deployment structure of NEBD.
 
@@ -34,9 +35,10 @@ Also, notice that from the stop of processes of part2 to the start of the new on
 
 #### Structure of Modules
 
-<img src="../images/nebd-modules.png" alt="nebd-modules" width="500" />
-
-<center><font size=2> Figure 2: Structure of each module</font></center>
+<p align="center">
+    <img src="../images/nebd-modules.png" alt="nebd-modules" width="500" /><br>
+    <font size=3> Figure 2: Structure of each module</font>
+</p>
 
 Figure 2 show the components of NEBD client and NEBD server.
 
@@ -74,7 +76,6 @@ Figure 2 show the components of NEBD client and NEBD server.
 
    2. Part1 only executes retries for errors of RPC requests themselves, and forward error      codes return by RPC to upper level directly.
 
-   
 
 Use Write request as an example, and figure3 is the flow chart of the request:
 
@@ -84,13 +85,13 @@ Use Write request as an example, and figure3 is the flow chart of the request:
     
   - If disconnection occurs of unable to connect, wait for a while and retry.
     
+<p align="center">
+    <img src="../images/nebd-part1-write-request.png" alt="images\nebd-part1-write-request" width="300" /><br>
+    <font size=3> Figure 3: Flow chart of write request sent by NEBD client</font>
+</p>
 
-   <img src="../images/nebd-part1-write-request.png" alt="images\nebd-part1-write-request" width="300" />
-  
-   <center><font size=2> Figure 3: Flow chart of write request sent by NEBD client</font></center>
-  
    Other requests follow similar procedures as write request does.
-  
+
 2. Heartbeat management:
 
    In order to avoid upper level application finishing without closing files opened, part2 will check heartbeat status of files (opened files info reported by part1 through regular heartbeat), and will close the files of which the last heartbeat time has exceeded the threshold.
