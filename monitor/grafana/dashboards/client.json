@@ -1,4 +1,5 @@
 {
+  "dashboard": {
   "annotations": {
     "list": [
       {
@@ -2446,4 +2447,5 @@
   "title": "Client",
   "uid": "DCy23HnWk",
   "version": 5
+}
 }

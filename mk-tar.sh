@@ -325,22 +325,8 @@ fi
 # README
 
 # curve-monitor
-mkdir -p build/curve-monitor/bin
-if [ $? -ne 0 ]
-then
-	exit
-fi
-mkdir -p build/curve-monitor/etc/curve/monitor
-if [ $? -ne 0 ]
-then
-	exit
-fi
-cp monitor/curve-monitor.sh build/curve-monitor/bin/curve-monitor.sh
-if [ $? -ne 0 ]
-then
-	exit
-fi
-cp -r monitor/* build/curve-monitor/etc/curve/monitor
+mkdir -p build/curve-monitor
+cp -r monitor/* build/curve-monitor/
 if [ $? -ne 0 ]
 then
 	exit

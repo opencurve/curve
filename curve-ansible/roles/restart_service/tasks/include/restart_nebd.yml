@@ -23,7 +23,7 @@
 
 - name: get nebd version
   vars:
-    service_port: "{{ nebd_port }}"
+    metric_port: "{{ nebd_port }}"
     nebd_version:
   include_tasks: common_tasks/get_nebd_version_from_metric.yml
 
@@ -41,7 +41,6 @@
   vars:
     ch_dir: "{{ deploy_dir }}"
     daemon_script: nebd-daemon
-    ping_port: "{{ nebd_port }}"
-    check_health: false
+    service_port: "{{ nebd_port }}"
   include_tasks: restart_by_daemon.yml
   when: need_restart

@@ -15,9 +15,11 @@
 #  limitations under the License.
 #
 
-- name: restart etcd
-  vars:
-    ch_dir: "{{ deploy_dir }}"
-    daemon_script: ./etcd-daemon.sh
-    service_port: "{{ etcd_listen_client_port }}"
-  include_tasks: restart_by_daemon.yml
+- name: check docker exist
+  shell: docker -v
+  register: docker_res
+
+- name: fail when docker not exist
+  fail:
+    msg: "Docker should be installed on this machine!"
+  when: docker_res.rc != 0
