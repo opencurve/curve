@@ -91,7 +91,7 @@ Figure 3 shows the thread module of Curve client. Use asynchronous I/O request a
 4. BRPC thread: This thread deals with RPC sending and receives RPC response. The call back function Closure will be called after the RPC request returned. If every sub-I/Os return successfully, the call back function of their corresponding I/O will also be called (by the BRPC thread).
 
 
-## 4 Key Points
+## 4 Highlights
 
 ### 4.1 MetaCache
 
