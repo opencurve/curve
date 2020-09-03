@@ -176,6 +176,12 @@ ansible-playbook deploy_curve.yml -i server.ini --tags snapshotclone
 ansible-playbook deploy_curve.yml -i server.ini --tags snapshotclone_nginx
 ```
 
+#### 1.10 部署监控
+一键部署监控命令：
+```shell
+ansible-playbook deploy_monitor.yml -i server.ini
+```
+
 ### 2、集群升级
 目前curve的升级流程为先升级mds，后升级chunkserver和快照克隆最后升级client。使用ansible需要指定一台主控机，我们规定主控机为mds节点之一。ansible-playbook同时需要yml文件和inventory文件，yml文件规定了要做哪些操作，inventory指定了机器列表并定义了一些变量。yml文件在curve仓库的curve-ansible目录中，inventory每个环境一份，由用户自行管理。
 
@@ -326,6 +332,7 @@ ansible-playbook stop_nebd_server.yml -i client.ini
 ├── common_tasks                                            # 放置可以复用的代码（可以理解为各种函数）
 │   ├── check_chunkserver.yml                               # 检查chunkserver机器配置
 │   ├── check_cluster_healthy_status.yml                    # 检查集群健康状态
+│   ├── check_docker_exists.yml                             # 检查是否安装了docker
 │   ├── check_if_nbd_exists_in_kernel.yml                   # 检查内核是否有nbd模块
 │   ├── check_mds.yml                                       # 检查mds机器配置
 │   ├── create_dir.yml                                      # 创建目录
@@ -341,7 +348,6 @@ ansible-playbook stop_nebd_server.yml -i client.ini
 │   ├── wait_until_server_down.yml                          # 等待直到server停掉
 │   └── wait_until_server_up.yml                            # 等待直到server起来
 ├── group_vars                                              # 组变量
-│   ├── all.yml                                             # 属于所有host的变量
 │   ├── chunkservers.yml                                    # 属于chunkserver的变量
 │   └── mds.yml                                             # 属于mds的变量
 ├── host_vars                                               # 主机变量, 其中的文件名要合inventory中定义的主机名一致
@@ -394,6 +400,7 @@ ansible-playbook stop_nebd_server.yml -i client.ini
 │   │   │   │   ├── copy_file_to_remote.yml                 # 将文件拷贝到远端
 │   │   │   │   ├── install_curve-chunkserver.yml           # 安装chunkserver
 │   │   │   │   ├── install_curve-mds.yml                   # 安装mds
+│   │   │   │   ├── install_curve-monitor.yml
 │   │   │   │   ├── install_curve-nbd.yml                   # 安装nbd
 │   │   │   │   ├── install_curve-sdk.yml                   # 安装curve-sdk
 │   │   │   │   ├── install_curve-snapshotcloneserver-nginx.yml  # 安装快照克隆使用的Nginx
@@ -434,16 +441,24 @@ ansible-playbook stop_nebd_server.yml -i client.ini
 │   │   ├── templates                                       # 配置文件的模板
 │   │   │   ├── chunkserver.conf.j2
 │   │   │   ├── client.conf.j2
+│   │   │   ├── docker-compose.yml.j2                       # docker config for curve monitor
 │   │   │   ├── etcd.conf.yml.j2
+│   │   │   ├── grafana.ini.j2
 │   │   │   ├── mds.conf.j2
 │   │   │   ├── nebd-client.conf.j2
 │   │   │   ├── nebd-server.conf.j2
+│   │   │   ├── nginx_config.lua.j2
+│   │   │   ├── nginx.conf.j2
+│   │   │   ├── prometheus.yml.j2
 │   │   │   ├── s3.conf.j2
 │   │   │   ├── snapshot_clone_server.conf.j2
 │   │   │   ├── snapshot_tools.conf.j2
 │   │   │   ├── tools.conf.j2
 │   │   │   └── topo.json.j2
 │   │   └── vars
+│   │       └── main.yml
+│   ├── grafana_settings                                  # set grafana datasource and dashboard
+│   │   └── tasks
 │   │       └── main.yml
 │   ├── stop_service                                       # 停止服务的role
 │   │   ├── tasks
@@ -485,6 +500,7 @@ ansible-playbook stop_nebd_server.yml -i client.ini
 ├── deploy_curve.yml                                        # 一键部署curve集群
 ├── deploy_etcd.yml                                         # 部署etcd
 ├── deploy_mds.yml                                          # 部署mds
+├── deploy_monitor.yml                                      # 部署监控服务
 ├── deploy_nbd.yml                                          # 部署nbd
 ├── deploy_nebd.yml                                         # 部署nebd
 ├── deploy_snapshotcloneserver_nginx.yml                    # 部署快照克隆所用Nginx

@@ -1,4 +1,5 @@
 {
+  "dashboard": {
   "annotations": {
     "list": [
       {
@@ -7833,4 +7834,5 @@
   "title": "ChunkServer",
   "uid": "4r3JKSGWz",
   "version": 3
+}
 }

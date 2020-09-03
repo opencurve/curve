@@ -89,7 +89,7 @@
             tags: ["install_package", "install_tool_package"] }
     - { role: generate_config, template_name: mds.conf, conf_path: "{{ mds_config_path }}",
             tags: ["generate_config", "generage_mds_conf"] }
-    - { role: generate_config, template_name: tools.conf, conf_path: "{{ tool_config_path }}",
+    - { role: generate_config, template_name: tools.conf, conf_path: "{{ curve_ops_tool_config }}",
             tags: ["generate_config", "generage_tools_conf"] }
     - { role: generate_config, template_name: topo.json, conf_path: "{{ topo_file_path }}",
             tags: ["generate_config", "generage_topo_json"] }
@@ -202,6 +202,16 @@
 
 
 ############################## deploy snapshotcloneserver_nginx ##############################
+- name: check docker exist
+  hosts: snapshotclone_nginx
+  any_errors_fatal: true
+  gather_facts: no
+  tags:
+    - snapshotclone_nginx
+    - never
+  tasks:
+    - include_tasks: common_tasks/check_docker_exists.yml
+
 - name: prepare snapshotcloneserver_nginx
   hosts: snapshotclone_nginx
   any_errors_fatal: true

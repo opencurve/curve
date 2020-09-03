@@ -32,6 +32,5 @@
     ch_dir: "{{ deploy_dir }}"
     daemon_script: ./snapshot-daemon.sh
     service_port: "{{ snapshot_dummy_port }}"
-    check_health: true
   include_tasks: restart_by_daemon.yml
   when: need_restart

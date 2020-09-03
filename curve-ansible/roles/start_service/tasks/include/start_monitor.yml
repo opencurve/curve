@@ -15,9 +15,17 @@
 #  limitations under the License.
 #
 
-- name: restart etcd
+- name: start monitor
+  shell:  chdir={{ deploy_dir }} sudo ./curve-monitor.sh start
+
+- name: wait until prometheus is up
   vars:
-    ch_dir: "{{ deploy_dir }}"
-    daemon_script: ./etcd-daemon.sh
-    service_port: "{{ etcd_listen_client_port }}"
-  include_tasks: restart_by_daemon.yml
+    ping_port: "{{ prometheus_listen_port }}"
+    wait_timeout: "{{ wait_service_timeout }}"
+  include_tasks: common_tasks/wait_until_server_up.yml
+
+- name: wait until grafana is up
+  vars:
+    ping_port: "{{ grafana_listen_port }}"
+    wait_timeout: "{{ wait_service_timeout }}"
+  include_tasks: common_tasks/wait_until_server_up.yml
