@@ -70,6 +70,8 @@ DEFINE_uint32(copysetLoadConcurrency, 5, "copyset load concurrency");
 namespace curve {
 namespace chunkserver {
 
+std::shared_ptr<ChunkfilePool> walfilePool = nullptr;
+
 int ChunkServer::Run(int argc, char** argv) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
@@ -127,6 +129,13 @@ int ChunkServer::Run(int argc, char** argv) {
         std::make_shared<ChunkfilePool>(fs);
     LOG_IF(FATAL, false == chunkfilePool->Initialize(chunkFilePoolOptions))
         << "Failed to init chunk file pool";
+
+    // 初始化wal文件池
+    ChunkfilePoolOptions walFilePoolOptions;
+    InitWalFilePoolOptions(&conf, &walFilePoolOptions);
+    walfilePool = std::make_shared<ChunkfilePool>(fs);
+    LOG_IF(FATAL, false == chunkfilePool->Initialize(walFilePoolOptions))
+        << "Failed to init WAL file pool";
 
     // 远端拷贝管理模块选项
     CopyerOptions copyerOptions;
@@ -405,6 +414,34 @@ void ChunkServer::InitChunkFilePoolOptions(
             "chunkfilepool.meta_path", &metaUri));
         ::memcpy(
             chunkFilePoolOptions->metaPath, metaUri.c_str(), metaUri.size());
+    }
+}
+
+void ChunkServer::InitWalFilePoolOptions(
+    common::Configuration *conf, ChunkfilePoolOptions *walFilePoolOptions) {
+    LOG_IF(FATAL, !conf->GetUInt32Value("walfilepool.wal_segment_size",
+        &walFilePoolOptions->chunkSize));
+    LOG_IF(FATAL, !conf->GetUInt32Value("walfilepool.wal_metapage_size",
+        &walFilePoolOptions->metaPageSize));
+    LOG_IF(FATAL, !conf->GetUInt32Value("walfilepool.meta_file_size",
+        &walFilePoolOptions->cpMetaFileSize));
+    LOG_IF(FATAL, !conf->GetBoolValue(
+        "walfilepool.enable_get_chunk_from_pool",
+        &walFilePoolOptions->getChunkFromPool));
+
+    if (walFilePoolOptions->getChunkFromPool == false) {
+        std::string walFilePoolUri;
+        LOG_IF(FATAL, !conf->GetStringValue(
+            "walfilepool.wal_file_pool_dir", &walFilePoolUri));
+        ::memcpy(walFilePoolOptions->chunkFilePoolDir,
+                 walFilePoolUri.c_str(),
+                 walFilePoolUri.size());
+    } else {
+        std::string metaUri;
+        LOG_IF(FATAL, !conf->GetStringValue(
+            "walfilepool.meta_path", &metaUri));
+        ::memcpy(
+            walFilePoolOptions->metaPath, metaUri.c_str(), metaUri.size());
     }
 }
 

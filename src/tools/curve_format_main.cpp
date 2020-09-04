@@ -86,6 +86,39 @@ DEFINE_bool(needWriteZero,
         true,
         "not write zero for test.");
 
+/**
+ * WAL file pool预分配参数
+ */
+DEFINE_bool(WAL_alloc_by_percent,
+            true,
+            "allocate WAL filepool by percent of disk size or by chunk num!");
+
+DEFINE_uint32(WAL_segment_size,
+              8 * 1024 * 1024,
+              "WAL segment size");
+
+DEFINE_uint32(WAL_metapage_size,
+              4 * 1024,
+              "metapage size for every WAL log");
+
+DEFINE_string(WAL_filepool_dir,
+              "./wal_filepool/",
+              "WAL file pool dir");
+
+DEFINE_string(WAL_filepool_metapath,
+              "./walfilepool.meta",
+              "WAL file pool meta info file path.");
+// WAL_prealloc_num仅在测试的时候使用，测试提前预分配固定数量的chunk
+// 当设置这个值的时候可以不用设置allocatepercent
+DEFINE_uint32(WAL_prealloc_num,
+              0,
+              "preallocate WAL log nums, this is JUST for curve test");
+
+// WAL file pool预分配比例
+DEFINE_uint32(WAL_alloc_percent,
+              10,
+              "preallocate WAL storage percent of total disk");
+
 using curve::fs::FileSystemType;
 using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemInfo;
@@ -101,17 +134,31 @@ class CompareInternal {
     }
 };
 
+struct FilePoolConfig {
+    bool allocByPercent;
+    uint32_t fileSize;
+    uint32_t metaPageSize;
+    string workPath;
+    string filePoolDir;
+    string filePoolMetaPath;
+    uint32_t preallocNum;
+    uint32_t allocPercent;
+    bool needZero;
+};
+
 struct AllocateStruct {
     std::shared_ptr<LocalFileSystem> fsptr;
     std::atomic<uint64_t>* allocateChunknum;
     bool* checkwrong;
     std::mutex* mtx;
     uint64_t chunknum;
+    FilePoolConfig *config;
 };
 
 int AllocateChunks(AllocateStruct* allocatestruct) {
-    char* data = new(std::nothrow)char[FLAGS_chunksize + FLAGS_metapagsize];
-    memset(data, 0, FLAGS_chunksize + FLAGS_metapagsize);
+    FilePoolConfig *config = allocatestruct->config;
+    char* data = new(std::nothrow)char[config->fileSize + config->metaPageSize];
+    memset(data, 0, config->fileSize + config->metaPageSize);
 
     uint64_t count = 0;
     while (count < allocatestruct->chunknum) {
@@ -123,7 +170,7 @@ int AllocateChunks(AllocateStruct* allocatestruct) {
                             allocatestruct->allocateChunknum->load());
         }
         std::string tmpchunkfilepath
-                    = FLAGS_chunkfilepool_dir + "/" + filename;
+                    = config->filePoolDir + "/" + filename;
 
         int ret = allocatestruct->fsptr->Open(tmpchunkfilepath.c_str(),
                                              O_RDWR | O_CREAT);
@@ -134,8 +181,8 @@ int AllocateChunks(AllocateStruct* allocatestruct) {
         }
         int fd = ret;
 
-        ret = allocatestruct->fsptr->Fallocate(fd, 0, 0,
-                                             FLAGS_chunksize+FLAGS_metapagsize);
+        ret = allocatestruct->fsptr->Fallocate(fd, 0, 0, 
+                config->fileSize + config->metaPageSize);
         if (ret < 0) {
             allocatestruct->fsptr->Close(fd);
             *allocatestruct->checkwrong = true;
@@ -143,9 +190,9 @@ int AllocateChunks(AllocateStruct* allocatestruct) {
             break;
         }
 
-        if (FLAGS_needWriteZero) {
+        if (config->needZero) {
             ret = allocatestruct->fsptr->Write(fd, data, 0,
-                FLAGS_chunksize+FLAGS_metapagsize);
+                config->fileSize + config->metaPageSize);
             if (ret < 0) {
                 allocatestruct->fsptr->Close(fd);
                 *allocatestruct->checkwrong = true;
@@ -174,11 +221,7 @@ int AllocateChunks(AllocateStruct* allocatestruct) {
     return *allocatestruct->checkwrong == true ? 0 : -1;
 }
 
-// TODO(tongguangxun) :添加单元测试
-int main(int argc, char** argv) {
-    google::ParseCommandLineFlags(&argc, &argv, false);
-    google::InitGoogleLogging(argv[0]);
-
+int CreateFilePool(FilePoolConfig *poolConfig) {
     // load current chunkfile pool
     std::mutex mtx;
     std::shared_ptr<LocalFileSystem> fsptr = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");   // NOLINT
@@ -186,12 +229,12 @@ int main(int argc, char** argv) {
     std::atomic<uint64_t> allocateChunknum_(0);
     std::vector<std::string> tmpvec;
 
-    if (fsptr->Mkdir(FLAGS_chunkfilepool_dir.c_str()) < 0) {
-        LOG(ERROR) << "mkdir failed!, " << FLAGS_chunkfilepool_dir.c_str();
+    if (fsptr->Mkdir(poolConfig->filePoolDir.c_str()) < 0) {
+        LOG(ERROR) << "mkdir failed!, " << poolConfig->filePoolDir.c_str();
         return -1;
     }
-    if (fsptr->List(FLAGS_chunkfilepool_dir.c_str(), &tmpvec) < 0) {
-        LOG(ERROR) << "list dir failed!, " << FLAGS_chunkfilepool_dir.c_str();
+    if (fsptr->List(poolConfig->filePoolDir.c_str(), &tmpvec) < 0) {
+        LOG(ERROR) << "list dir failed!, " << poolConfig->filePoolDir.c_str();
         return -1;
     }
 
@@ -200,7 +243,7 @@ int main(int argc, char** argv) {
     allocateChunknum_.store(size + 1);
 
     FileSystemInfo finfo;
-    int r = fsptr->Statfs(FLAGS_filesystem_path, &finfo);
+    int r = fsptr->Statfs(poolConfig->workPath, &finfo);
     if (r != 0) {
         LOG(ERROR) << "get disk usage info failed!";
         return -1;
@@ -211,19 +254,19 @@ int main(int argc, char** argv) {
               << ", total space = " << finfo.total
               << ", freepercent = " << freepercent;
 
-    if (freepercent < FLAGS_allocatepercent && FLAGS_allocateByPercent) {
+    if (freepercent < poolConfig->allocPercent && poolConfig->allocByPercent) {
         LOG(ERROR) << "disk free space not enough.";
         return 0;
     }
 
     uint64_t preAllocateChunkNum = 0;
-    uint64_t preAllocateSize = FLAGS_allocatepercent * finfo.total / 100;
+    uint64_t preAllocateSize = poolConfig->allocPercent * finfo.total / 100;
 
-    if (FLAGS_allocateByPercent) {
+    if (poolConfig->allocByPercent) {
         preAllocateChunkNum = preAllocateSize
-                              / (FLAGS_chunksize + FLAGS_metapagsize);
+                              / (poolConfig->fileSize + poolConfig->metaPageSize);
     } else {
-        preAllocateChunkNum = FLAGS_preallocateNum;
+        preAllocateChunkNum = poolConfig->preallocNum;
     }
 
     bool checkwrong = false;
@@ -236,6 +279,7 @@ int main(int argc, char** argv) {
     allocateStruct.checkwrong = &checkwrong;
     allocateStruct.mtx = &mtx;
     allocateStruct.chunknum = threadAllocateNum;
+    allocateStruct.config = poolConfig;
 
     thvec.push_back(std::move(std::thread(AllocateChunks, &allocateStruct)));
     thvec.push_back(std::move(std::thread(AllocateChunks, &allocateStruct)));
@@ -251,13 +295,13 @@ int main(int argc, char** argv) {
 
     int ret = curve::chunkserver::ChunkfilePoolHelper::PersistEnCodeMetaInfo(
                                                 fsptr,
-                                                FLAGS_chunksize,
-                                                FLAGS_metapagsize,
-                                                FLAGS_chunkfilepool_dir,
-                                                FLAGS_chunkfilepool_metapath);
+                                                poolConfig->fileSize,
+                                                poolConfig->metaPageSize,
+                                                poolConfig->filePoolDir,
+                                                poolConfig->filePoolMetaPath);
 
     if (ret == -1) {
-        LOG(ERROR) << "persist chunkfile pool meta info failed!";
+        LOG(ERROR) << "persist file pool meta info failed!";
         return -1;
     }
 
@@ -268,34 +312,34 @@ int main(int argc, char** argv) {
 
     ret = curve::chunkserver::ChunkfilePoolHelper::DecodeMetaInfoFromMetaFile(
                                                 fsptr,
-                                                FLAGS_chunkfilepool_metapath,
+                                                poolConfig->filePoolMetaPath,
                                                 4096,
                                                 &chunksize,
                                                 &metapagesize,
                                                 &chunkfilePath);
     if (ret == -1) {
-        LOG(ERROR) << "chunkfile pool meta info file got something wrong!";
-        fsptr->Delete(FLAGS_chunkfilepool_metapath.c_str());
+        LOG(ERROR) << "file pool meta info file got something wrong!";
+        fsptr->Delete(poolConfig->filePoolMetaPath.c_str());
         return -1;
     }
 
     bool valid = false;
     do {
-        if (chunksize != FLAGS_chunksize) {
-            LOG(ERROR) << "chunksize meta info persistency wrong!";
+        if (chunksize != poolConfig->fileSize) {
+            LOG(ERROR) << "filesize meta info persistency wrong!";
             break;
         }
 
-        if (metapagesize != FLAGS_metapagsize) {
+        if (metapagesize != poolConfig->metaPageSize) {
             LOG(ERROR) << "metapagesize meta info persistency wrong!";
             break;
         }
 
         if (strcmp(chunkfilePath.c_str(),
-            FLAGS_chunkfilepool_dir.c_str()) != 0) {
+            poolConfig->filePoolDir.c_str()) != 0) {
             LOG(ERROR) << "meta info persistency failed!"
-                    << ", read chunkpath = " << chunkfilePath.c_str()
-                    << ", real chunkpath = " << FLAGS_chunkfilepool_dir.c_str();
+                    << ", read filepath = " << chunkfilePath.c_str()
+                    << ", real filepath = " << poolConfig->filePoolDir.c_str();
             break;
         }
 
@@ -308,4 +352,38 @@ int main(int argc, char** argv) {
     }
 
     return 0;
+}
+
+// TODO(tongguangxun) :添加单元测试
+int main(int argc, char** argv) {
+    google::ParseCommandLineFlags(&argc, &argv, false);
+    google::InitGoogleLogging(argv[0]);
+
+    // create chunk file pool
+    FilePoolConfig poolConfig;
+    poolConfig.allocByPercent = FLAGS_allocateByPercent;
+    poolConfig.fileSize = FLAGS_chunksize;
+    poolConfig.metaPageSize = FLAGS_metapagsize;
+    poolConfig.workPath = FLAGS_filesystem_path;
+    poolConfig.filePoolDir = FLAGS_chunkfilepool_dir;
+    poolConfig.filePoolMetaPath = FLAGS_chunkfilepool_metapath;
+    poolConfig.preallocNum = FLAGS_preallocateNum;
+    poolConfig.allocPercent = FLAGS_allocatepercent;
+    poolConfig.needZero = FLAGS_needWriteZero;
+
+    int ret = CreateFilePool(&poolConfig);
+    if (ret)
+        return -1;
+
+    poolConfig.allocByPercent = FLAGS_WAL_alloc_by_percent;
+    poolConfig.fileSize = FLAGS_WAL_segment_size;
+    poolConfig.metaPageSize = FLAGS_WAL_metapage_size;
+    poolConfig.workPath = FLAGS_filesystem_path;  // shared arg with chunkfilepool
+    poolConfig.filePoolDir = FLAGS_WAL_filepool_dir;
+    poolConfig.filePoolMetaPath = FLAGS_WAL_filepool_metapath;
+    poolConfig.preallocNum = FLAGS_WAL_prealloc_num;
+    poolConfig.allocPercent = FLAGS_WAL_alloc_percent;
+    poolConfig.needZero = FLAGS_needWriteZero;  // shared arg with chunkfilepool
+
+    return CreateFilePool(&poolConfig);
 }
