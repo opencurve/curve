@@ -339,7 +339,7 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
 
     UserInfo_t userinfo;
     MDSClient mdsclient_;
-    FileServiceOption_t fopt;
+    FileServiceOption fopt;
     FileInstance    fileinstance_;
 
     FLAGS_chunkserver_list =
@@ -347,7 +347,7 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
 
     userinfo.owner = "userinfo";
     userinfo.password = "12345";
-    fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
+    fopt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9104");
     fopt.metaServerOpt.chunkserverRPCTimeoutMS = 500;
     fopt.loginfo.logLevel = 0;
     fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
@@ -410,7 +410,7 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     MetaCacheErrorType rc = mc->GetChunkInfoByIndex(0, &chunkinfo1);
     ASSERT_EQ(rc, MetaCacheErrorType::OK);
     for (int i = 0; i < FLAGS_copyset_num; i++) {
-        CopysetInfo_t ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        CopysetPeerInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo1.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
             ASSERT_FALSE(ci.LeaderMayChange());
@@ -435,7 +435,7 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     ASSERT_EQ(rc, MetaCacheErrorType::OK);
     ASSERT_NE(chunkinfo2.cpid_, chunkinfo1.cpid_);
     for (int i = 0; i < FLAGS_copyset_num; i++) {
-        CopysetInfo_t ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        CopysetPeerInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo1.cpid_ || i == chunkinfo2.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
             // 这两个leader为该chunkserver的copyset的LeaderMayChange置位
@@ -453,7 +453,7 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     ASSERT_EQ(8192, fileinstance_.Write(buffer, 1 * chunk_size, length));
     ASSERT_EQ(8192, fileinstance_.Read(buffer, 1 * chunk_size, length));
     for (int i = 0; i < FLAGS_copyset_num; i++) {
-        CopysetInfo_t ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        CopysetPeerInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo2.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
             // copyset2的LeaderMayChange置位
@@ -484,7 +484,7 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     ASSERT_EQ(1, cliservice->GetInvokeTimes());
     // 这个时候
     for (int i = 0; i < FLAGS_copyset_num; i++) {
-        CopysetInfo_t ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        CopysetPeerInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo2.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
             // copyset2的LeaderMayChange置位
@@ -503,23 +503,23 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     // 验证copyset id信息更新
     // copyset id = 888， chunkserver id = 100 101 102
     // copyset id = 999， chunkserver id = 102 103 104
-    CopysetInfo_t csinfo1;
+    CopysetPeerInfo csinfo1;
     ChunkServerAddr addr;
     csinfo1.cpid_ = 888;
-    curve::client::CopysetPeerInfo_t peer1(100, addr);
+    curve::client::CopysetPeerInfo peer1(100, addr);
     csinfo1.csinfos_.push_back(peer1);
-    curve::client::CopysetPeerInfo_t peer2(101, addr);
+    curve::client::CopysetPeerInfo peer2(101, addr);
     csinfo1.csinfos_.push_back(peer2);
-    curve::client::CopysetPeerInfo_t peer3(102, addr);
+    curve::client::CopysetPeerInfo peer3(102, addr);
     csinfo1.csinfos_.push_back(peer3);
 
-    CopysetInfo_t csinfo2;
+    CopysetPeerInfo csinfo2;
     csinfo2.cpid_ = 999;
-    curve::client::CopysetPeerInfo_t peer4(102, addr);
+    curve::client::CopysetPeerInfo peer4(102, addr);
     csinfo2.csinfos_.push_back(peer4);
-    curve::client::CopysetPeerInfo_t peer5(103, addr);
+    curve::client::CopysetPeerInfo peer5(103, addr);
     csinfo2.csinfos_.push_back(peer5);
-    curve::client::CopysetPeerInfo_t peer6(104, addr);
+    curve::client::CopysetPeerInfo peer6(104, addr);
     csinfo2.csinfos_.push_back(peer6);
 
     mc->UpdateCopysetInfo(FLAGS_logic_pool_id, 888, csinfo1);
@@ -548,13 +548,13 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     ASSERT_FALSE(mc->CopysetIDInfoIn(101, FLAGS_logic_pool_id, 999));
 
 
-    CopysetInfo_t csinfo3;
+    CopysetPeerInfo csinfo3;
     csinfo3.cpid_ = 999;
-    curve::client::CopysetPeerInfo_t peer7(100, addr);
+    curve::client::CopysetPeerInfo peer7(100, addr);
     csinfo3.csinfos_.push_back(peer7);
-    curve::client::CopysetPeerInfo_t peer8(101, addr);
+    curve::client::CopysetPeerInfo peer8(101, addr);
     csinfo3.csinfos_.push_back(peer8);
-    curve::client::CopysetPeerInfo_t peer9(103, addr);
+    curve::client::CopysetPeerInfo peer9(103, addr);
     csinfo3.csinfos_.push_back(peer9);
 
     // 更新copyset信息，chunkserver 104的信息被清除
@@ -653,7 +653,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
 
     UserInfo_t userinfo;
     MDSClient mdsclient_;
-    FileServiceOption_t fopt;
+    FileServiceOption fopt;
     FileInstance    fileinstance_;
 
     FLAGS_chunkserver_list =
@@ -661,7 +661,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
 
     userinfo.owner = "userinfo";
     userinfo.password = "UnstableChunkserverTest";
-    fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
+    fopt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9104");
     fopt.metaServerOpt.mdsRPCTimeoutMs = 500;
     fopt.loginfo.logLevel = 0;
     fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
@@ -675,7 +675,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
     fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
-    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt.chunkserverUnstableOption.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
+    fopt.ioOpt.metaCacheOpt.chunkserverUnstableOption.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
 
     LOG(INFO) << "fopt size " << sizeof(fopt);
     // curve::client::ClientClosure::SetFailureRequestOption(
@@ -729,7 +729,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     MetaCacheErrorType rc = mc->GetChunkInfoByIndex(0, &chunkinfo1);
     ASSERT_EQ(rc, MetaCacheErrorType::OK);
     for (int i = 0; i < FLAGS_copyset_num; i++) {
-        CopysetInfo_t ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        CopysetInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo1.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
             ASSERT_FALSE(ci.LeaderMayChange());
@@ -759,7 +759,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     ASSERT_EQ(rc, MetaCacheErrorType::OK);
     ASSERT_NE(chunkinfo2.cpid_, chunkinfo1.cpid_);
     for (int i = 0; i < FLAGS_copyset_num; ++i) {
-        CopysetInfo_t ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        CopysetInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo1.cpid_ || i == chunkinfo2.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
             ASSERT_TRUE(ci.LeaderMayChange());
@@ -789,7 +789,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     ASSERT_EQ(8192, fileinstance_.Write(buffer, 1 * chunk_size, length));
     ASSERT_EQ(8192, fileinstance_.Read(buffer, 1 * chunk_size, length));
     for (int i = 0; i < FLAGS_copyset_num; ++i) {
-        CopysetInfo_t ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        CopysetInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo2.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
             ASSERT_FALSE(ci.LeaderMayChange());
@@ -817,7 +817,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     ASSERT_EQ(8192, fileinstance_.Read(buffer, 1 * chunk_size, length));
 
     for (int i = 0; i < FLAGS_copyset_num; ++i) {
-        CopysetInfo_t ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        CopysetInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo2.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
             ASSERT_FALSE(ci.LeaderMayChange());
@@ -841,7 +841,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
 
     UserInfo_t userinfo;
     MDSClient mdsclient_;
-    FileServiceOption_t fopt;
+    FileServiceOption fopt;
     FileInstance    fileinstance_;
 
     FLAGS_chunkserver_list =
@@ -849,7 +849,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
 
     userinfo.owner = "userinfo";
     userinfo.password = "ResumeTimeoutBackoff";
-    fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
+    fopt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9104");
     fopt.metaServerOpt.mdsRPCTimeoutMs = 500;
     fopt.loginfo.logLevel = 0;
     fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
@@ -864,7 +864,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
     fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
-    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt.chunkserverUnstableOption.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
+    fopt.ioOpt.metaCacheOpt.chunkserverUnstableOption.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
 
     mdsclient_.Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize(
@@ -913,7 +913,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     MetaCacheErrorType rc = mc->GetChunkInfoByIndex(0, &chunkinfo1);
     ASSERT_EQ(rc, MetaCacheErrorType::OK);
     for (int i = 0; i < FLAGS_copyset_num; i++) {
-        CopysetInfo_t ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        CopysetInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo1.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
             ASSERT_FALSE(ci.LeaderMayChange());

@@ -44,9 +44,8 @@ namespace client {
 struct GetLeaderRpcOption {
     uint32_t rpcTimeoutMs;
 
-    explicit GetLeaderRpcOption(
-        uint32_t rpcTimeoutMs = 500)
-      : rpcTimeoutMs(rpcTimeoutMs) {}
+    explicit GetLeaderRpcOption(uint32_t rpcTimeoutMs = 500)
+        : rpcTimeoutMs(rpcTimeoutMs) {}
 };
 
 // GetLeader请求对应的copyset信息及rpc相关参数信息
@@ -120,8 +119,8 @@ class ServiceHelper {
      * @return: 获取到user信息为true，否则false
      */
     static bool GetUserInfoFromFilename(const std::string& fname,
-                                       std::string* realfilename,
-                                       std::string* user);
+                                        std::string* realfilename,
+                                        std::string* user);
 
     /**
      * @brief: 发送http请求，判断chunkserver是否健康
@@ -131,8 +130,8 @@ class ServiceHelper {
      *
      * @return: 0 表示健康，-1表示不健康
      */
-    static int CheckChunkServerHealth(
-      const butil::EndPoint& endPoint, int32_t requestTimeoutMs);
+    static int CheckChunkServerHealth(const butil::EndPoint& endPoint,
+                                      int32_t requestTimeoutMs);
 };
 
 }   // namespace client

@@ -26,19 +26,19 @@
 #include <butil/endpoint.h>
 #include <utility>
 
-#include "src/client/chunk_closure.h"
+#include "src/client/unstable_helper.h"
 
 namespace curve {
 namespace client {
 
 TEST(UnstableHelperTest, normal_test) {
-    UnstableHelper& helper = UnstableHelper::GetInstance();
+    UnstableHelper helper;
 
     ChunkServerUnstableOption opt;
     opt.maxStableChunkServerTimeoutTimes = 10;
     opt.serverUnstableThreshold = 3;
 
-    helper.SetUnstableChunkServerOption(opt);
+    helper.Init(opt);
 
     std::vector<std::pair<ChunkServerID, butil::EndPoint>> chunkservers;
     for (int i = 1; i <= opt.serverUnstableThreshold; ++i) {
@@ -61,32 +61,32 @@ TEST(UnstableHelperTest, normal_test) {
 
     // 再对每个chunkserver增加一次超时
     // 前两个是chunkserver unstable状态，第三个是server unstable
-    UnstableHelper::GetInstance().IncreTimeout(chunkservers[0].first);
+    helper.IncreTimeout(chunkservers[0].first);
     ASSERT_EQ(UnstableState::ChunkServerUnstable,
               helper.GetCurrentUnstableState(
                   chunkservers[0].first, chunkservers[0].second));
 
-    UnstableHelper::GetInstance().IncreTimeout(chunkservers[1].first);
+    helper.IncreTimeout(chunkservers[1].first);
     ASSERT_EQ(UnstableState::ChunkServerUnstable,
               helper.GetCurrentUnstableState(
                   chunkservers[1].first, chunkservers[1].second));
 
-    UnstableHelper::GetInstance().IncreTimeout(chunkservers[2].first);
+    helper.IncreTimeout(chunkservers[2].first);
     ASSERT_EQ(UnstableState::ServerUnstable,
               helper.GetCurrentUnstableState(
                   chunkservers[2].first, chunkservers[2].second));
 
     // 继续增加超时次数
     // 这种情况下，每次都是chunkserver unstable
-    UnstableHelper::GetInstance().IncreTimeout(chunkservers[0].first);
+    helper.IncreTimeout(chunkservers[0].first);
     ASSERT_EQ(UnstableState::ChunkServerUnstable,
               helper.GetCurrentUnstableState(
                   chunkservers[0].first, chunkservers[0].second));
-    UnstableHelper::GetInstance().IncreTimeout(chunkservers[1].first);
+    helper.IncreTimeout(chunkservers[1].first);
     ASSERT_EQ(UnstableState::ChunkServerUnstable,
               helper.GetCurrentUnstableState(
                   chunkservers[1].first, chunkservers[1].second));
-    UnstableHelper::GetInstance().IncreTimeout(chunkservers[2].first);
+    helper.IncreTimeout(chunkservers[2].first);
     ASSERT_EQ(UnstableState::ChunkServerUnstable,
               helper.GetCurrentUnstableState(
                   chunkservers[2].first, chunkservers[2].second));

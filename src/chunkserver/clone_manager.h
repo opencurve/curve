@@ -105,7 +105,7 @@ class CloneManager {
     // 克隆任务管理相关的选项，调Init的时候初始化
     CloneOptions options_;
     // 处理克隆任务的异步线程池
-    std::shared_ptr<TaskThreadPool> tp_;
+    std::shared_ptr<TaskThreadPool<>> tp_;
     // 当前线程池是否处于工作状态
     std::atomic<bool> isRunning_;
 };

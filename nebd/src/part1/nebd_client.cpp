@@ -102,6 +102,17 @@ int NebdClient::Init(const char* confpath) {
 
     heartbeatMgr_->Run();
 
+    // init rpc send exec-queue
+    rpcTaskQueues_.resize(option_.requestOption.rpcSendExecQueueNum);
+    for (auto& q : rpcTaskQueues_) {
+        int rc = bthread::execution_queue_start(
+            &q, nullptr, &NebdClient::ExecAsyncRpcTask, this);
+        if (rc != 0) {
+            LOG(ERROR) << "Init AsyncRpcQueues failed";
+            return -1;
+        }
+    }
+
     return 0;
 }
 
@@ -109,6 +120,13 @@ void NebdClient::Uninit() {
     if (heartbeatMgr_ != nullptr) {
         heartbeatMgr_->Stop();
     }
+
+    // stop exec queue
+    for (auto& q : rpcTaskQueues_) {
+        bthread::execution_queue_stop(q);
+        bthread::execution_queue_join(q);
+    }
+
     LOG(INFO) << "NebdClient uninit success.";
     google::ShutdownGoogleLogging();
 }
@@ -289,67 +307,85 @@ int64_t NebdClient::GetFileSize(int fd) {
 }
 
 int NebdClient::Discard(int fd, NebdClientAioContext* aioctx) {
-    nebd::client::NebdFileService_Stub stub(&channel_);
-    nebd::client::DiscardRequest request;
-    request.set_fd(fd);
-    request.set_offset(aioctx->offset);
-    request.set_size(aioctx->length);
+    auto task = [this, fd, aioctx]() {
+        nebd::client::NebdFileService_Stub stub(&channel_);
+        nebd::client::DiscardRequest request;
+        request.set_fd(fd);
+        request.set_offset(aioctx->offset);
+        request.set_size(aioctx->length);
 
-    AioDiscardClosure* done = new(std::nothrow) AioDiscardClosure(
-        fd, aioctx, option_.requestOption);
-    done->cntl.set_timeout_ms(-1);
-    done->cntl.set_log_id(logId_.fetch_add(1, std::memory_order_relaxed));
-    stub.Discard(&done->cntl, &request, &done->response, done);
+        AioDiscardClosure* done = new(std::nothrow) AioDiscardClosure(
+            fd, aioctx, option_.requestOption);
+        done->cntl.set_timeout_ms(-1);
+        done->cntl.set_log_id(logId_.fetch_add(1, std::memory_order_relaxed));
+        stub.Discard(&done->cntl, &request, &done->response, done);
+    };
+
+    PushAsyncTask(task);
 
     return 0;
 }
 
 int NebdClient::AioRead(int fd, NebdClientAioContext* aioctx) {
-    nebd::client::NebdFileService_Stub stub(&channel_);
-    nebd::client::ReadRequest request;
-    request.set_fd(fd);
-    request.set_offset(aioctx->offset);
-    request.set_size(aioctx->length);
+    auto task = [this, fd, aioctx]() {
+        nebd::client::NebdFileService_Stub stub(&channel_);
+        nebd::client::ReadRequest request;
+        request.set_fd(fd);
+        request.set_offset(aioctx->offset);
+        request.set_size(aioctx->length);
 
-    AioReadClosure* done = new(std::nothrow) AioReadClosure(
-        fd, aioctx, option_.requestOption);
-    done->cntl.set_timeout_ms(-1);
-    done->cntl.set_log_id(logId_.fetch_add(1, std::memory_order_relaxed));
-    stub.Read(&done->cntl, &request, &done->response, done);
+        AioReadClosure* done = new(std::nothrow) AioReadClosure(
+            fd, aioctx, option_.requestOption);
+        done->cntl.set_timeout_ms(-1);
+        done->cntl.set_log_id(logId_.fetch_add(1, std::memory_order_relaxed));
+        stub.Read(&done->cntl, &request, &done->response, done);
+    };
+
+    PushAsyncTask(task);
+
     return 0;
 }
 
 static void EmptyDeleter(void* m) {}
 
 int NebdClient::AioWrite(int fd, NebdClientAioContext* aioctx) {
-    nebd::client::NebdFileService_Stub stub(&channel_);
-    nebd::client::WriteRequest request;
-    request.set_fd(fd);
-    request.set_offset(aioctx->offset);
-    request.set_size(aioctx->length);
+    auto task = [this, fd, aioctx]() {
+        nebd::client::NebdFileService_Stub stub(&channel_);
+        nebd::client::WriteRequest request;
+        request.set_fd(fd);
+        request.set_offset(aioctx->offset);
+        request.set_size(aioctx->length);
 
-    AioWriteClosure* done = new(std::nothrow) AioWriteClosure(
-        fd, aioctx, option_.requestOption);
+        AioWriteClosure* done = new(std::nothrow) AioWriteClosure(
+            fd, aioctx, option_.requestOption);
 
-    done->cntl.set_timeout_ms(-1);
-    done->cntl.set_log_id(logId_.fetch_add(1, std::memory_order_relaxed));
-    done->cntl.request_attachment().append_user_data(
-        aioctx->buf, aioctx->length, EmptyDeleter);
-    stub.Write(&done->cntl, &request, &done->response, done);
+        done->cntl.set_timeout_ms(-1);
+        done->cntl.set_log_id(logId_.fetch_add(1, std::memory_order_relaxed));
+        done->cntl.request_attachment().append_user_data(
+            aioctx->buf, aioctx->length, EmptyDeleter);
+        stub.Write(&done->cntl, &request, &done->response, done);
+    };
+
+    PushAsyncTask(task);
 
     return 0;
 }
 
 int NebdClient::Flush(int fd, NebdClientAioContext* aioctx) {
-    nebd::client::NebdFileService_Stub stub(&channel_);
-    nebd::client::FlushRequest request;
-    request.set_fd(fd);
+    auto task = [this, fd, aioctx]() {
+        nebd::client::NebdFileService_Stub stub(&channel_);
+        nebd::client::FlushRequest request;
+        request.set_fd(fd);
 
-    AioFlushClosure* done = new(std::nothrow) AioFlushClosure(
-        fd, aioctx, option_.requestOption);
-    done->cntl.set_timeout_ms(-1);
-    done->cntl.set_log_id(logId_.fetch_add(1, std::memory_order_relaxed));
-    stub.Flush(&done->cntl, &request, &done->response, done);
+        AioFlushClosure* done = new(std::nothrow) AioFlushClosure(
+            fd, aioctx, option_.requestOption);
+        done->cntl.set_timeout_ms(-1);
+        done->cntl.set_log_id(logId_.fetch_add(1, std::memory_order_relaxed));
+        stub.Flush(&done->cntl, &request, &done->response, done);
+    };
+
+    PushAsyncTask(task);
+
     return 0;
 }
 
@@ -473,6 +509,13 @@ int NebdClient::InitNebdClientOption(Configuration* conf) {
     LOG_IF(ERROR, ret != true) << "Load request.rpcMaxDelayHealthCheckIntervalMs failed";  // NOLINT
     RETURN_IF_FALSE(ret);
 
+    ret = conf->GetUInt32Value("request.rpcSendExecQueueNum",
+                               &requestOption.rpcSendExecQueueNum);
+    LOG_IF(ERROR, ret != true)
+        << "Load request.rpcSendExecQueueNum from config file failed, current "
+           "value is "
+        << requestOption.rpcSendExecQueueNum;
+
     option_.requestOption = requestOption;
 
     ret = conf->GetStringValue("log.path", &option_.logOption.logPath);
@@ -562,6 +605,20 @@ void NebdClient::InitLogger(const LogOption& logOption) {
     FLAGS_log_dir = logOption.logPath;
     FLAGS_stderrthreshold = 3;
     google::InitGoogleLogging(kProcessName);
+}
+
+int NebdClient::ExecAsyncRpcTask(void* meta,
+                                 bthread::TaskIterator<AsyncRpcTask>& iter) {  // NOLINT
+    if (iter.is_queue_stopped()) {
+        return 0;
+    }
+
+    for (; iter; ++iter) {
+        auto& task = *iter;
+        task();
+    }
+
+    return 0;
 }
 
 }  // namespace client

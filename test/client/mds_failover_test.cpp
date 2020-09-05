@@ -47,7 +47,8 @@
 #include "test/integration/cluster_common/cluster.h"
 #include "test/util/config_generator.h"
 
-using curve::client::MDSClient;
+namespace curve {
+namespace client {
 
 // 测试mds failover切换状态机
 TEST(MDSChangeTest, MDSFailoverTest) {
@@ -56,10 +57,10 @@ TEST(MDSChangeTest, MDSFailoverTest) {
         MDSClient::MDSRPCExcutor rpcexcutor;
     };
 
-    MetaServerOption_t  metaopt;
-    metaopt.metaaddrvec.push_back("127.0.0.1:9903");
-    metaopt.metaaddrvec.push_back("127.0.0.1:9904");
-    metaopt.metaaddrvec.push_back("127.0.0.1:9905");
+    MetaServerOption  metaopt;
+    metaopt.mdsAddrs.push_back("127.0.0.1:9903");
+    metaopt.mdsAddrs.push_back("127.0.0.1:9904");
+    metaopt.mdsAddrs.push_back("127.0.0.1:9905");
 
     metaopt.mdsRPCTimeoutMs = 1000;
     metaopt.mdsRPCRetryIntervalUS = 10000;  // 10ms
@@ -264,6 +265,9 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     LOG(INFO) << "called times " << calledTimes;
     ASSERT_LE(calledTimes, 510);
 }
+
+}  // namespace client
+}  // namespace curve
 
 const std::vector<std::string> registConfOff {
     std::string("mds.listen.addr=127.0.0.1:9903,127.0.0.1:9904,127.0.0.1:9905"),

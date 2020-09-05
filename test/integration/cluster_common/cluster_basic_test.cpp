@@ -172,9 +172,9 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     LOG(INFO) << "mds 1 started on 127.0.0.1:3333, pid = " << pid;
     ASSERT_GT(pid, 0);
     // 初始化mdsclient
-    MetaServerOption_t op;
+    curve::client::MetaServerOption op;
     op.mdsRPCTimeoutMs = 500;
-    op.metaaddrvec = std::vector<std::string>{ "127.0.0.1:3333" };
+    op.mdsAddrs = std::vector<std::string>{ "127.0.0.1:3333" };
     ASSERT_EQ(0, curveCluster_->InitMdsClient(op));
 
     // 创建物理池

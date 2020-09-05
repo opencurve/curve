@@ -20,33 +20,36 @@
  * Author: tongguangxun
  */
 
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <algorithm>
-#include <vector>
-#include <string>
 #include "src/client/splitor.h"
-#include "src/client/mds_client.h"
+
+#include <glog/logging.h>
+
+#include <algorithm>
+#include <string>
+#include <vector>
+
 #include "src/client/file_instance.h"
-#include "src/client/request_closure.h"
+#include "src/client/mds_client.h"
 #include "src/client/metacache_struct.h"
+#include "src/client/request_closure.h"
 #include "src/common/location_operator.h"
 
 namespace curve {
 namespace client {
-IOSplitOPtion_t Splitor::iosplitopt_;
 
-void Splitor::Init(IOSplitOPtion_t ioSplitOpt) {
+IOSplitOption Splitor::iosplitopt_;
+
+void Splitor::Init(const IOSplitOption& ioSplitOpt) {
     iosplitopt_ = ioSplitOpt;
     LOG(INFO) << "io splitor init success!";
 }
 
-int Splitor::IO2ChunkRequests(IOTracker* iotracker, MetaCache* mc,
+int Splitor::IO2ChunkRequests(IOTracker* iotracker, MetaCache* metaCache,
                               std::vector<RequestContext*>* targetlist,
                               butil::IOBuf* data, off_t offset, size_t length,
-                              MDSClient* mdsclient, const FInfo_t* fi) {
-    if (targetlist == nullptr || mdsclient == nullptr ||
-        mc == nullptr || iotracker == nullptr || fi == nullptr) {
+                              MDSClient* mdsclient, const FInfo_t* fileInfo) {
+    if (targetlist == nullptr || mdsclient == nullptr || metaCache == nullptr ||
+        iotracker == nullptr || fileInfo == nullptr) {
         return -1;
     }
 
@@ -56,60 +59,62 @@ int Splitor::IO2ChunkRequests(IOTracker* iotracker, MetaCache* mc,
 
     targetlist->reserve(length / (iosplitopt_.fileIOSplitMaxSizeKB * 1024) + 1);
 
-    uint64_t chunksize = fi->chunksize;
+    const uint64_t chunksize = fileInfo->chunksize;
+    uint64_t currentChunkIndex = offset / chunksize;
+    const uint64_t endChunkIndex = (offset + length - 1) / chunksize;
+    uint64_t currentRequestOffset = offset;
+    const uint64_t endRequestOffest = offset + length;
+    uint64_t currentChunkOffset = offset % chunksize;
+    uint64_t dataOffset = 0;
 
-    uint64_t startchunkindex = offset / chunksize;
-    uint64_t endchunkindex = (offset + length - 1) / chunksize;
-    uint64_t startoffset = offset;
-    uint64_t endoff = offset + length;
-    uint64_t currentoff = offset % chunksize;
-    uint64_t dataoff = 0;
-
-    while (startchunkindex <= endchunkindex) {
-        uint64_t off = currentoff;
-        uint64_t chunkendpos = chunksize * (startchunkindex + 1);
-        uint64_t pos = chunkendpos > endoff ? endoff : chunkendpos;
-        uint64_t len = pos - startoffset;
+    while (currentChunkIndex <= endChunkIndex) {
+        const uint64_t currentChunkEndOffset =
+            chunksize * (currentChunkIndex + 1);
+        uint64_t requestLength =
+            std::min(currentChunkEndOffset, endRequestOffest) -
+            currentRequestOffset;
 
         DVLOG(9) << "request split"
-                 << ", off = " << off
-                 << ", len = " << len
-                 << ", seqnum = " << fi->seqnum
-                 << ", endoff = " << endoff
-                 << ", chunkendpos = " << chunkendpos
+                 << ", off = " << currentChunkOffset
+                 << ", len = " << requestLength
+                 << ", seqnum = " << fileInfo->seqnum
+                 << ", endoff = " << endRequestOffest
+                 << ", chunkendpos = " << currentChunkEndOffset
                  << ", chunksize = " << chunksize
-                 << ", chunkindex = " << startchunkindex
-                 << ", endchunkindex = " << endchunkindex;
+                 << ", chunkindex = " << currentChunkIndex
+                 << ", endchunkindex = " << endChunkIndex;
 
-        if (!AssignInternal(iotracker, mc, targetlist, data,
-                            off, len, mdsclient, fi, startchunkindex)) {
+        if (!AssignInternal(iotracker, metaCache, targetlist, data,
+                            currentChunkOffset, requestLength, mdsclient,
+                            fileInfo, currentChunkIndex)) {
             LOG(ERROR)  << "request split failed"
-                        << ", off = " << off
-                        << ", len = " << len
-                        << ", seqnum = " << fi->seqnum
-                        << ", endoff = " << endoff
-                        << ", chunkendpos = " << chunkendpos
+                        << ", off = " << currentChunkOffset
+                        << ", len = " << requestLength
+                        << ", seqnum = " << fileInfo->seqnum
+                        << ", endoff = " << endRequestOffest
+                        << ", chunkendpos = " << currentChunkEndOffset
                         << ", chunksize = " << chunksize
-                        << ", chunkindex = " << startchunkindex
-                        << ", endchunkindex = " << endchunkindex;
+                        << ", chunkindex = " << currentChunkIndex
+                        << ", endchunkindex = " << endChunkIndex;
             return -1;
         }
 
-        currentoff = 0;
-        startchunkindex++;
+        currentChunkOffset = 0;
+        currentChunkIndex++;
 
-        dataoff += len;
-        startoffset += len;
+        dataOffset += requestLength;
+        currentRequestOffset += requestLength;
     }
+
     return 0;
 }
 
 // this offset is begin by chunk
 int Splitor::SingleChunkIO2ChunkRequests(
-    IOTracker* iotracker, MetaCache* mc,
-    std::vector<RequestContext*>* targetlist, const ChunkIDInfo_t idinfo,
+    IOTracker* iotracker, MetaCache* metaCache,
+    std::vector<RequestContext*>* targetlist, const ChunkIDInfo& idinfo,
     butil::IOBuf* data, off_t offset, uint64_t length, uint64_t seq) {
-    if (targetlist == nullptr || mc == nullptr || iotracker == nullptr) {
+    if (targetlist == nullptr || metaCache == nullptr || iotracker == nullptr) {
         return -1;
     }
 
@@ -117,146 +122,164 @@ int Splitor::SingleChunkIO2ChunkRequests(
         return -1;
     }
 
-    auto max_split_size_bytes = 1024 * iosplitopt_.fileIOSplitMaxSizeKB;
+    const auto maxSplitSizeBytes = 1024 * iosplitopt_.fileIOSplitMaxSizeKB;
 
-    uint64_t len = 0;
-    uint64_t off = 0;
-    uint64_t tempoff = offset;
-    uint64_t leftlength = length;
-    while (leftlength > 0) {
-        tempoff += len;
-        len = leftlength > max_split_size_bytes ? max_split_size_bytes : leftlength;    // NOLINT
+    uint64_t dataOffset = 0;
+    uint64_t currentOffset = offset;
+    uint64_t leftLength = length;
+    while (leftLength > 0) {
+        uint64_t requestLength = std::min(leftLength, maxSplitSizeBytes);
 
-        RequestContext* newreqNode = GetInitedRequestContext();
+        RequestContext* newreqNode = RequestContext::NewInitedRequestContext();
         if (newreqNode == nullptr) {
             return -1;
         }
 
-        newreqNode->seq_         = seq;
-
         if (iotracker->Optype() == OpType::WRITE) {
-            auto nc = data->cutn(&(newreqNode->writeData_), len);
-            if (nc != len) {
-                LOG(ERROR) << "IOBuf::cutn failed, expected: " << len
+            auto nc = data->cutn(&(newreqNode->writeData_), requestLength);
+            if (nc != requestLength) {
+                LOG(ERROR) << "IOBuf::cutn failed, expected: " << requestLength
                            << ", return: " << nc;
                 return -1;
             }
         }
 
-        newreqNode->offset_      = tempoff;
-        newreqNode->rawlength_   = len;
+        newreqNode->seq_         = seq;
+        newreqNode->offset_      = currentOffset;
+        newreqNode->rawlength_   = requestLength;
         newreqNode->optype_      = iotracker->Optype();
         newreqNode->idinfo_      = idinfo;
         newreqNode->done_->SetIOTracker(iotracker);
         targetlist->push_back(newreqNode);
 
         DVLOG(9) << "request split"
-                 << ", off = " << tempoff
-                 << ", len = " << len
+                 << ", off = " << currentOffset
+                 << ", len = " << requestLength
                  << ", seqnum = " << seq
                  << ", chunkid = " << idinfo.cid_
                  << ", copysetid = " << idinfo.cpid_
                  << ", logicpoolid = " << idinfo.lpid_;
 
-        leftlength -= len;
-        off += len;
+        leftLength -= requestLength;
+        dataOffset += requestLength;
+        currentOffset += requestLength;
     }
+
     return 0;
 }
 
-bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* mc,
+bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
                              std::vector<RequestContext*>* targetlist,
                              butil::IOBuf* data, off_t off, size_t len,
                              MDSClient* mdsclient, const FInfo_t* fileinfo,
                              ChunkIndex chunkidx) {
-    ChunkIDInfo_t chinfo;
-    SegmentInfo segInfo;
-    LogicalPoolCopysetIDInfo_t lpcsIDInfo;
-    MetaCacheErrorType chunkidxexist =
-        mc->GetChunkInfoByIndex(chunkidx, &chinfo);
+    const auto maxSplitSizeBytes = 1024 * iosplitopt_.fileIOSplitMaxSizeKB;
 
-    if (chunkidxexist == MetaCacheErrorType::CHUNKINFO_NOT_FOUND) {
-        LIBCURVE_ERROR re = mdsclient->GetOrAllocateSegment(true,
-                                        (off_t)chunkidx * fileinfo->chunksize,
-                                        fileinfo,
-                                        &segInfo);
-        if (re != LIBCURVE_ERROR::OK) {
-            LOG(ERROR) << "GetOrAllocateSegment failed! "
-                       << "offset = " << chunkidx * fileinfo->chunksize;
+    ChunkIDInfo chunkIdInfo;
+    MetaCacheErrorType errCode =
+        metaCache->GetChunkInfoByIndex(chunkidx, &chunkIdInfo);
+
+    if (errCode == MetaCacheErrorType::CHUNKINFO_NOT_FOUND) {
+        if (false == GetOrAllocateSegment(
+                         true,
+                         static_cast<uint64_t>(chunkidx) * fileinfo->chunksize,
+                         mdsclient, metaCache, fileinfo)) {
             return false;
-        } else {
-            int count = 0;
-            for (auto chunkidinfo : segInfo.chunkvec) {
-                uint64_t index = (segInfo.startoffset +
-                         count * fileinfo->chunksize) / fileinfo->chunksize;
-                mc->UpdateChunkInfoByIndex(index, chunkidinfo);
-                ++count;
-            }
-
-            std::vector<CopysetInfo_t> cpinfoVec;
-            re = mdsclient->GetServerList(segInfo.lpcpIDInfo.lpid,
-                            segInfo.lpcpIDInfo.cpidVec, &cpinfoVec);
-            for (auto cpinfo : cpinfoVec) {
-                for (auto peerinfo : cpinfo.csinfos_) {
-                    mc->AddCopysetIDInfo(peerinfo.chunkserverID,
-                        CopysetIDInfo(segInfo.lpcpIDInfo.lpid, cpinfo.cpid_));
-                }
-            }
-
-            if (re == LIBCURVE_ERROR::FAILED) {
-                std::string cpidstr;
-                for (auto id : segInfo.lpcpIDInfo.cpidVec) {
-                    cpidstr.append(std::to_string(id))
-                        .append(",");
-                }
-
-                LOG(ERROR) << "GetServerList failed! "
-                           << "logicpool id = " << segInfo.lpcpIDInfo.lpid
-                           << ", copyset list = " << cpidstr.c_str();
-                return false;
-            } else {
-                for (auto cpinfo : cpinfoVec) {
-                    mc->UpdateCopysetInfo(segInfo.lpcpIDInfo.lpid,
-                    cpinfo.cpid_, cpinfo);
-                }
-            }
         }
 
-        chunkidxexist = mc->GetChunkInfoByIndex(chunkidx, &chinfo);
+        errCode = metaCache->GetChunkInfoByIndex(chunkidx, &chunkIdInfo);
     }
 
-    if (chunkidxexist == MetaCacheErrorType::OK) {
+    if (errCode == MetaCacheErrorType::OK) {
         int ret = 0;
-        auto appliedindex_ = mc->GetAppliedIndex(chinfo.lpid_, chinfo.cpid_);
+        uint64_t appliedindex_ = 0;
+
+        // only read needs applied-index
+        if (iotracker->Optype() == OpType::READ) {
+            appliedindex_ = metaCache->GetAppliedIndex(chunkIdInfo.lpid_,
+                                                       chunkIdInfo.cpid_);
+        }
+
         std::vector<RequestContext*> templist;
-        ret = SingleChunkIO2ChunkRequests(iotracker, mc, &templist, chinfo,
-                                          data, off, len, fileinfo->seqnum);
+        ret = SingleChunkIO2ChunkRequests(iotracker, metaCache, &templist,
+                                          chunkIdInfo, data, off, len,
+                                          fileinfo->seqnum);
 
         for (auto& ctx : templist) {
             ctx->appliedindex_ = appliedindex_;
-            ctx->sourceInfo_ = CalcRequestSourceInfo(iotracker, mc, chunkidx);
+            ctx->sourceInfo_ =
+                CalcRequestSourceInfo(iotracker, metaCache, chunkidx);
         }
 
         targetlist->insert(targetlist->end(), templist.begin(),
-                           templist.end());
+                            templist.end());
 
         return ret == 0;
     }
 
     LOG(ERROR) << "can not find the chunk index info!"
                 << ", chunk index = " << chunkidx;
+
     return false;
 }
 
-RequestContext* Splitor::GetInitedRequestContext() {
-    RequestContext* ctx = new (std::nothrow) RequestContext();
-    if (ctx && ctx->Init()) {
-        return ctx;
-    } else {
-        LOG(ERROR) << "Allocate RequestContext Failed!";
-        delete ctx;
-        return nullptr;
+bool Splitor::GetOrAllocateSegment(bool allocateIfNotExist,
+                                   uint64_t offset,
+                                   MDSClient* mdsClient,
+                                   MetaCache* metaCache,
+                                   const FInfo* fileInfo) {
+    SegmentInfo segmentInfo;
+    LIBCURVE_ERROR errCode = mdsClient->GetOrAllocateSegment(
+        allocateIfNotExist, offset, fileInfo, &segmentInfo);
+
+    if (errCode == LIBCURVE_ERROR::FAILED ||
+        errCode == LIBCURVE_ERROR::AUTHFAIL) {
+        LOG(ERROR) << "GetOrAllocateSegmen failed, filename: "
+                   << fileInfo->filename << ", offset: " << offset;
+        return false;
     }
+
+    const auto chunksize = fileInfo->chunksize;
+    uint32_t count = 0;
+    for (const auto& chunkIdInfo : segmentInfo.chunkvec) {
+        uint64_t chunkIdx =
+            (segmentInfo.startoffset + count * chunksize) / chunksize;
+        metaCache->UpdateChunkInfoByIndex(chunkIdx, chunkIdInfo);
+        ++count;
+    }
+
+    std::vector<CopysetInfo> copysetInfos;
+    errCode = mdsClient->GetServerList(segmentInfo.lpcpIDInfo.lpid,
+                                       segmentInfo.lpcpIDInfo.cpidVec,
+                                       &copysetInfos);
+
+    if (errCode == LIBCURVE_ERROR::FAILED) {
+        std::string failedCopysets;
+        for (const auto& id : segmentInfo.lpcpIDInfo.cpidVec) {
+            failedCopysets.append(std::to_string(id)).append(",");
+        }
+
+        LOG(ERROR) << "GetServerList failed, logicpool id: "
+                   << segmentInfo.lpcpIDInfo.lpid
+                   << ", copysets: " << failedCopysets;
+
+        return false;
+    }
+
+    for (const auto& copysetInfo : copysetInfos) {
+        for (const auto& peerInfo : copysetInfo.csinfos_) {
+            metaCache->AddCopysetIDInfo(
+                peerInfo.chunkserverID,
+                CopysetIDInfo(segmentInfo.lpcpIDInfo.lpid, copysetInfo.cpid_));
+        }
+    }
+
+    for (const auto& copysetInfo : copysetInfos) {
+        metaCache->UpdateCopysetInfo(segmentInfo.lpcpIDInfo.lpid,
+                                     copysetInfo.cpid_, copysetInfo);
+    }
+
+    return true;
 }
 
 RequestSourceInfo Splitor::CalcRequestSourceInfo(IOTracker* ioTracker,

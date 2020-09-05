@@ -27,21 +27,22 @@
 #include "src/client/client_common.h"
 #include "src/common/concurrent/concurrent.h"
 
-using curve::common::Atomic;
-
 namespace curve {
 namespace client {
+
+using curve::common::Atomic;
+
 class IOManager {
  public:
     IOManager() {
-        id_ = idRecorder_.fetch_add(1);
+        id_ = idRecorder_.fetch_add(1, std::memory_order_relaxed);
     }
     virtual ~IOManager() = default;
 
     /**
-     * 获取当前iomanager的ID信息
+     * @brief 获取当前iomanager的ID信息
      */
-    virtual IOManagerID ID() {
+    virtual IOManagerID ID() const {
         return id_;
     }
 
@@ -60,7 +61,7 @@ class IOManager {
     }
 
     /**
-     * 处理异步返回的response
+     * @brief 处理异步返回的response
      * @param: iotracker是当前reponse的归属
      */
     virtual void HandleAsyncIOResponse(IOTracker* iotracker) = 0;
@@ -69,9 +70,11 @@ class IOManager {
     // iomanager id目的是为了让底层RPC知道自己归属于哪个iomanager
     IOManagerID id_;
 
+ private:
     // global id recorder
     static Atomic<uint64_t>   idRecorder_;
 };
+
 }   // namespace client
 }   // namespace curve
 

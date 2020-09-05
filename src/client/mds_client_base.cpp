@@ -23,24 +23,25 @@
 #include "src/client/mds_client_base.h"
 #include "src/common/curve_version.h"
 
-const char* kRootUserName = "root";
-
 namespace curve {
 namespace client {
-int MDSClientBase::Init(const MetaServerOption_t& metaServerOpt) {
+
+const char* kRootUserName = "root";
+
+int MDSClientBase::Init(const MetaServerOption& metaServerOpt) {
     metaServerOpt_ = metaServerOpt;
     return 0;
 }
 
 void MDSClientBase::OpenFile(const std::string& filename,
-                            const UserInfo_t& userinfo,
-                            OpenFileResponse* response,
-                            brpc::Controller* cntl,
-                            brpc::Channel* channel) {
+                             const UserInfo_t& userinfo,
+                             OpenFileResponse* response,
+                             brpc::Controller* cntl,
+                             brpc::Channel* channel) {
     OpenFileRequest request;
     request.set_filename(filename);
     request.set_clientversion(curve::common::CurveVersion());
-    FillUserInfo<OpenFileRequest>(&request, userinfo);
+    FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "OpenFile: filename = " << filename
               << ", owner = " << userinfo.owner
@@ -51,12 +52,12 @@ void MDSClientBase::OpenFile(const std::string& filename,
 }
 
 void MDSClientBase::CreateFile(const std::string& filename,
-                            const UserInfo_t& userinfo,
-                            size_t size,
-                            bool normalFile,
-                            CreateFileResponse* response,
-                            brpc::Controller* cntl,
-                            brpc::Channel* channel) {
+                               const UserInfo_t& userinfo,
+                               size_t size,
+                               bool normalFile,
+                               CreateFileResponse* response,
+                               brpc::Controller* cntl,
+                               brpc::Channel* channel) {
     CreateFileRequest request;
     request.set_filename(filename);
     if (normalFile) {
@@ -66,7 +67,7 @@ void MDSClientBase::CreateFile(const std::string& filename,
         request.set_filetype(curve::mds::FileType::INODE_DIRECTORY);
     }
 
-    FillUserInfo<CreateFileRequest>(&request, userinfo);
+    FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "CreateFile: filename = " << filename
                 << ", owner = " << userinfo.owner
@@ -78,15 +79,15 @@ void MDSClientBase::CreateFile(const std::string& filename,
 }
 
 void MDSClientBase::CloseFile(const std::string& filename,
-                            const UserInfo_t& userinfo,
-                            const std::string& sessionid,
-                            CloseFileResponse* response,
-                            brpc::Controller* cntl,
-                            brpc::Channel* channel) {
+                              const UserInfo_t& userinfo,
+                              const std::string& sessionid,
+                              CloseFileResponse* response,
+                              brpc::Controller* cntl,
+                              brpc::Channel* channel) {
     CloseFileRequest request;
     request.set_filename(filename);
     request.set_sessionid(sessionid);
-    FillUserInfo<curve::mds::CloseFileRequest>(&request, userinfo);
+    FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "CloseFile: filename = " << filename
                 << ", owner = " << userinfo.owner
@@ -104,7 +105,7 @@ void MDSClientBase::GetFileInfo(const std::string& filename,
                                 brpc::Channel* channel) {
     GetFileInfoRequest request;
     request.set_filename(filename);
-    FillUserInfo<curve::mds::GetFileInfoRequest>(&request, userinfo);
+    FillUserInfo(&request, userinfo);
 
     LOG_EVERY_SECOND(INFO) << "GetFileInfo: filename = " << filename
                            << ", owner = " << userinfo.owner
@@ -115,13 +116,13 @@ void MDSClientBase::GetFileInfo(const std::string& filename,
 }
 
 void MDSClientBase::CreateSnapShot(const std::string& filename,
-                                const UserInfo_t& userinfo,
-                                CreateSnapShotResponse* response,
-                                brpc::Controller* cntl,
-                                brpc::Channel* channel) {
+                                   const UserInfo_t& userinfo,
+                                   CreateSnapShotResponse* response,
+                                   brpc::Controller* cntl,
+                                   brpc::Channel* channel) {
     CreateSnapShotRequest request;
     request.set_filename(filename);
-    FillUserInfo<::curve::mds::CreateSnapShotRequest>(&request, userinfo);
+    FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "CreateSnapShot: filename = " << filename
                 << ", owner = " << userinfo.owner
@@ -132,15 +133,15 @@ void MDSClientBase::CreateSnapShot(const std::string& filename,
 }
 
 void MDSClientBase::DeleteSnapShot(const std::string& filename,
-                                const UserInfo_t& userinfo,
-                                uint64_t seq,
-                                DeleteSnapShotResponse* response,
-                                brpc::Controller* cntl,
-                                brpc::Channel* channel) {
+                                   const UserInfo_t& userinfo,
+                                   uint64_t seq,
+                                   DeleteSnapShotResponse* response,
+                                   brpc::Controller* cntl,
+                                   brpc::Channel* channel) {
     DeleteSnapShotRequest request;;
     request.set_seq(seq);
     request.set_filename(filename);
-    FillUserInfo<::curve::mds::DeleteSnapShotRequest>(&request, userinfo);
+    FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "DeleteSnapShot: filename = " << filename
                 << ", owner = " << userinfo.owner
@@ -152,17 +153,17 @@ void MDSClientBase::DeleteSnapShot(const std::string& filename,
 }
 
 void MDSClientBase::ListSnapShot(const std::string& filename,
-                                const UserInfo_t& userinfo,
-                                const std::vector<uint64_t>* seq,
-                                ListSnapShotFileInfoResponse* response,
-                                brpc::Controller* cntl,
-                                brpc::Channel* channel) {
+                                 const UserInfo_t& userinfo,
+                                 const std::vector<uint64_t>* seq,
+                                 ListSnapShotFileInfoResponse* response,
+                                 brpc::Controller* cntl,
+                                 brpc::Channel* channel) {
     ListSnapShotFileInfoRequest request;
     for (unsigned int i = 0; i < (*seq).size(); i++) {
         request.add_seq((*seq)[i]);
     }
     request.set_filename(filename);
-    FillUserInfo<ListSnapShotFileInfoRequest>(&request, userinfo);
+    FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "ListSnapShot: filename = " << filename
                 << ", owner = " << userinfo.owner
@@ -181,19 +182,20 @@ void MDSClientBase::ListSnapShot(const std::string& filename,
     stub.ListSnapShot(cntl, &request, response, nullptr);
 }
 
-void MDSClientBase::GetSnapshotSegmentInfo(const std::string& filename,
-                                const UserInfo_t& userinfo,
-                                uint64_t seq,
-                                uint64_t offset,
-                                GetOrAllocateSegmentResponse* response,
-                                brpc::Controller* cntl,
-                                brpc::Channel* channel) {
+void MDSClientBase::GetSnapshotSegmentInfo(
+    const std::string& filename,
+    const UserInfo_t& userinfo,
+    uint64_t seq,
+    uint64_t offset,
+    GetOrAllocateSegmentResponse* response,
+    brpc::Controller* cntl,
+    brpc::Channel* channel) {
     GetOrAllocateSegmentRequest request;
     request.set_filename(filename);
     request.set_offset(offset);
     request.set_allocateifnotexist(false);
     request.set_seqnum(seq);
-    FillUserInfo<GetOrAllocateSegmentRequest>(&request, userinfo);
+    FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "GetSnapshotSegmentInfo: filename = " << filename
                 << ", owner = " << userinfo.owner
@@ -224,7 +226,7 @@ void MDSClientBase::RefreshSession(const std::string& filename,
         request.set_clientport(clientInfo.GetPort());
     }
 
-    FillUserInfo<ReFreshSessionRequest>(&request, userinfo);
+    FillUserInfo(&request, userinfo);
 
     LOG_EVERY_N(INFO, 10) << "RefreshSession: filename = " << filename
                           << ", owner = " << userinfo.owner
@@ -236,15 +238,15 @@ void MDSClientBase::RefreshSession(const std::string& filename,
 }
 
 void MDSClientBase::CheckSnapShotStatus(const std::string& filename,
-                                const UserInfo_t& userinfo,
-                                uint64_t seq,
-                                CheckSnapShotStatusResponse* response,
-                                brpc::Controller* cntl,
-                                brpc::Channel* channel) {
+                                        const UserInfo_t& userinfo,
+                                        uint64_t seq,
+                                        CheckSnapShotStatusResponse* response,
+                                        brpc::Controller* cntl,
+                                        brpc::Channel* channel) {
     CheckSnapShotStatusRequest request;
     request.set_seq(seq);
     request.set_filename(filename);
-    FillUserInfo<CheckSnapShotStatusRequest>(&request, userinfo);
+    FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "CheckSnapShotStatus: filename = " << filename
                 << ", owner = " << userinfo.owner
@@ -255,11 +257,12 @@ void MDSClientBase::CheckSnapShotStatus(const std::string& filename,
     stub.CheckSnapShotStatus(cntl, &request, response, nullptr);
 }
 
-void MDSClientBase::GetServerList(const LogicPoolID& logicalpooid,
-                                const std::vector<CopysetID>& copysetidvec,
-                                GetChunkServerListInCopySetsResponse* response,
-                                brpc::Controller* cntl,
-                                brpc::Channel* channel) {
+void MDSClientBase::GetServerList(
+    const LogicPoolID& logicalpooid,
+    const std::vector<CopysetID>& copysetidvec,
+    GetChunkServerListInCopySetsResponse* response,
+    brpc::Controller* cntl,
+    brpc::Channel* channel) {
     GetChunkServerListInCopySetsRequest request;
     request.set_logicalpoolid(logicalpooid);
     std::string requestCopysets;
@@ -283,8 +286,10 @@ void MDSClientBase::GetClusterInfo(GetClusterInfoResponse* response,
 
 void MDSClientBase::CreateCloneFile(const std::string& source,
                                     const std::string& destination,
-                                    const UserInfo_t& userinfo, uint64_t size,
-                                    uint64_t sn, uint32_t chunksize,
+                                    const UserInfo_t& userinfo,
+                                    uint64_t size,
+                                    uint64_t sn,
+                                    uint32_t chunksize,
                                     CreateCloneFileResponse* response,
                                     brpc::Controller* cntl,
                                     brpc::Channel* channel) {
@@ -295,7 +300,7 @@ void MDSClientBase::CreateCloneFile(const std::string& source,
     request.set_chunksize(chunksize);
     request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
     request.set_clonesource(source);
-    FillUserInfo<CreateCloneFileRequest>(&request, userinfo);
+    FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "CreateCloneFile: source = " << source
               << ", destination = " << destination
@@ -307,20 +312,20 @@ void MDSClientBase::CreateCloneFile(const std::string& source,
     stub.CreateCloneFile(cntl, &request, response, NULL);
 }
 
-void MDSClientBase::SetCloneFileStatus(const std::string &filename,
-                                const FileStatus& filestatus,
-                                const UserInfo_t& userinfo,
-                                uint64_t fileID,
-                                SetCloneFileStatusResponse* response,
-                                brpc::Controller* cntl,
-                                brpc::Channel* channel) {
+void MDSClientBase::SetCloneFileStatus(const std::string& filename,
+                                       const FileStatus& filestatus,
+                                       const UserInfo_t& userinfo,
+                                       uint64_t fileID,
+                                       SetCloneFileStatusResponse* response,
+                                       brpc::Controller* cntl,
+                                       brpc::Channel* channel) {
     SetCloneFileStatusRequest request;
     request.set_filename(filename);
     request.set_filestatus(static_cast<curve::mds::FileStatus>(filestatus));
     if (fileID > 0) {
         request.set_fileid(fileID);
     }
-    FillUserInfo<SetCloneFileStatusRequest>(&request, userinfo);
+    FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "SetCloneFileStatus: filename = " << filename
                 << ", owner = " << userinfo.owner
@@ -333,11 +338,11 @@ void MDSClientBase::SetCloneFileStatus(const std::string &filename,
 }
 
 void MDSClientBase::GetOrAllocateSegment(bool allocate,
-                                uint64_t offset,
-                                const FInfo_t* fi,
-                                GetOrAllocateSegmentResponse* response,
-                                brpc::Controller* cntl,
-                                brpc::Channel* channel) {
+                                         uint64_t offset,
+                                         const FInfo_t* fi,
+                                         GetOrAllocateSegmentResponse* response,
+                                         brpc::Controller* cntl,
+                                         brpc::Channel* channel) {
     GetOrAllocateSegmentRequest request;
 
     // convert the user offset to seg  offset
@@ -347,7 +352,7 @@ void MDSClientBase::GetOrAllocateSegment(bool allocate,
     request.set_filename(fi->fullPathName);
     request.set_offset(seg_offset);
     request.set_allocateifnotexist(allocate);
-    FillUserInfo<GetOrAllocateSegmentRequest>(&request, fi->userinfo);
+    FillUserInfo(&request, fi->userinfo);
 
     LOG(INFO) << "GetOrAllocateSegment: allocate = " << allocate
                 << ", owner = " << fi->owner
@@ -360,13 +365,13 @@ void MDSClientBase::GetOrAllocateSegment(bool allocate,
 }
 
 void MDSClientBase::RenameFile(const UserInfo_t& userinfo,
-                                const std::string &origin,
-                                const std::string &destination,
-                                uint64_t originId,
-                                uint64_t destinationId,
-                                RenameFileResponse* response,
-                                brpc::Controller* cntl,
-                                brpc::Channel* channel) {
+                               const std::string& origin,
+                               const std::string& destination,
+                               uint64_t originId,
+                               uint64_t destinationId,
+                               RenameFileResponse* response,
+                               brpc::Controller* cntl,
+                               brpc::Channel* channel) {
     RenameFileRequest request;
     request.set_oldfilename(origin);
     request.set_newfilename(destination);
@@ -374,7 +379,7 @@ void MDSClientBase::RenameFile(const UserInfo_t& userinfo,
         request.set_oldfileid(originId);
         request.set_newfileid(destinationId);
     }
-    FillUserInfo<RenameFileRequest>(&request, userinfo);
+    FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "RenameFile: origin = " << origin
               << ", destination = " << destination
@@ -388,15 +393,15 @@ void MDSClientBase::RenameFile(const UserInfo_t& userinfo,
 }
 
 void MDSClientBase::Extend(const std::string& filename,
-                                const UserInfo_t& userinfo,
-                                uint64_t newsize,
-                                ExtendFileResponse* response,
-                                brpc::Controller* cntl,
-                                brpc::Channel* channel) {
+                           const UserInfo_t& userinfo,
+                           uint64_t newsize,
+                           ExtendFileResponse* response,
+                           brpc::Controller* cntl,
+                           brpc::Channel* channel) {
     ExtendFileRequest request;
     request.set_filename(filename);
     request.set_newsize(newsize);
-    FillUserInfo<ExtendFileRequest>(&request, userinfo);
+    FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "Extend: filename = " << filename
               << ", owner = " << userinfo.owner
@@ -408,19 +413,19 @@ void MDSClientBase::Extend(const std::string& filename,
 }
 
 void MDSClientBase::DeleteFile(const std::string& filename,
-                                const UserInfo_t& userinfo,
-                                bool deleteforce,
-                                uint64_t fileid,
-                                DeleteFileResponse* response,
-                                brpc::Controller* cntl,
-                                brpc::Channel* channel) {
+                               const UserInfo_t& userinfo,
+                               bool deleteforce,
+                               uint64_t fileid,
+                               DeleteFileResponse* response,
+                               brpc::Controller* cntl,
+                               brpc::Channel* channel) {
     DeleteFileRequest request;
     request.set_filename(filename);
     request.set_forcedelete(deleteforce);
     if (fileid > 0) {
         request.set_fileid(fileid);
     }
-    FillUserInfo<DeleteFileRequest>(&request, userinfo);
+    FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "DeleteFile: filename = " << filename
                 << ", owner = " << userinfo.owner
@@ -454,14 +459,14 @@ void MDSClientBase::ChangeOwner(const std::string& filename,
 }
 
 void MDSClientBase::Listdir(const std::string& dirpath,
-                                const UserInfo_t& userinfo,
-                                ListDirResponse* response,
-                                brpc::Controller* cntl,
-                                brpc::Channel* channel) {
+                            const UserInfo_t& userinfo,
+                            ListDirResponse* response,
+                            brpc::Controller* cntl,
+                            brpc::Channel* channel) {
     curve::mds::ListDirRequest request;
     request.set_filename(dirpath);
 
-    FillUserInfo<::curve::mds::ListDirRequest>(&request, userinfo);
+    FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "Listdir: filename = " << dirpath
                 << ", owner = " << userinfo.owner
@@ -472,8 +477,10 @@ void MDSClientBase::Listdir(const std::string& dirpath,
 }
 
 void MDSClientBase::GetChunkServerInfo(const std::string& ip,
-    uint16_t port, GetChunkServerInfoResponse* response,
-    brpc::Controller* cntl, brpc::Channel* channel) {
+                                       uint16_t port,
+                                       GetChunkServerInfoResponse* response,
+                                       brpc::Controller* cntl,
+                                       brpc::Channel* channel) {
     curve::mds::topology::GetChunkServerInfoRequest request;
     request.set_hostip(ip);
     request.set_port(port);
@@ -486,9 +493,10 @@ void MDSClientBase::GetChunkServerInfo(const std::string& ip,
     stub.GetChunkServer(cntl, &request, response, NULL);
 }
 
-void MDSClientBase::ListChunkServerInServer(
-    const std::string& ip, ListChunkServerResponse* response,
-    brpc::Controller* cntl, brpc::Channel* channel) {
+void MDSClientBase::ListChunkServerInServer(const std::string& ip,
+                                            ListChunkServerResponse* response,
+                                            brpc::Controller* cntl,
+                                            brpc::Channel* channel) {
     curve::mds::topology::ListChunkServerRequest request;
     request.set_ip(ip);
     LOG(INFO) << "ListChunkServerInServer from mds: "

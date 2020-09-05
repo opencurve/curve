@@ -23,6 +23,9 @@
 #ifndef SRC_CLIENT_IOMANAGER4FILE_H_
 #define SRC_CLIENT_IOMANAGER4FILE_H_
 
+#include <bthread/condition_variable.h>
+#include <bthread/mutex.h>
+
 #include <atomic>
 #include <condition_variable>  // NOLINT
 #include <mutex>               // NOLINT
@@ -40,7 +43,11 @@
 
 namespace curve {
 namespace client {
+
+using curve::common::Atomic;
+
 class FlightIOGuard;
+
 class IOManager4File : public IOManager {
  public:
     IOManager4File();
@@ -53,7 +60,8 @@ class IOManager4File : public IOManager {
      * @param: mdsclient向下透传给metacache
      * @return: 成功true,失败false
      */
-    bool Initialize(const std::string& filename, const IOOption_t& ioOpt,
+    bool Initialize(const std::string& filename,
+                    const IOOption& ioOpt,
                     MDSClient* mdsclient);
 
     /**
@@ -132,7 +140,7 @@ class IOManager4File : public IOManager {
     /**
      * 重新设置io配置信息，测试使用
      */
-    void SetIOOpt(const IOOption_t& opt) {
+    void SetIOOpt(const IOOption& opt) {
         ioopt_ = opt;
     }
 
@@ -211,7 +219,7 @@ class IOManager4File : public IOManager {
 
  private:
     // 每个IOManager都有其IO配置，保存在iooption里
-    IOOption_t ioopt_;
+    IOOption ioopt_;
 
     // metacache存储当前文件的所有元数据信息
     MetaCache mc_;
@@ -223,7 +231,8 @@ class IOManager4File : public IOManager {
     FileMetric* fileMetric_;
 
     // task thread pool为了将qemu线程与curve线程隔离
-    curve::common::TaskThreadPool taskPool_;
+    curve::common::TaskThreadPool<bthread::Mutex, bthread::ConditionVariable>
+        taskPool_;
 
     // inflight IO控制
     InflightControl inflightCntl_;
@@ -248,5 +257,4 @@ class IOManager4File : public IOManager {
 
 }  // namespace client
 }  // namespace curve
-
 #endif  // SRC_CLIENT_IOMANAGER4FILE_H_

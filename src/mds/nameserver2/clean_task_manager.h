@@ -85,7 +85,7 @@ class CleanTaskManager {
 
  private:
     int threadNum_;
-    ::curve::common::TaskThreadPool *cleanWorkers_;
+    ::curve::common::TaskThreadPool<> *cleanWorkers_;
     // for period check snapshot delete status
     std::unordered_map<TaskIDType, std::shared_ptr<Task>> cleanTasks_;
     common::Mutex mutex_;

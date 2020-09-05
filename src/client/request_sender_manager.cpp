@@ -30,33 +30,36 @@ namespace curve {
 namespace client {
 
 RequestSenderManager::SenderPtr RequestSenderManager::GetOrCreateSender(
-                                            const ChunkServerID &leaderId,
-                                            const butil::EndPoint &leaderAddr,
-                                            IOSenderOption_t senderopt) {
-    std::shared_ptr<RequestSender> senderPtr = nullptr;
-
-    std::lock_guard<std::mutex> guard(lock_);
-    auto leaderIter = senderPool_.find(leaderId);
-    if (senderPool_.end() != leaderIter) {
-        return leaderIter->second;
-    } else {
-        // 不存在则创建
-        senderPtr = std::make_shared<RequestSender>(leaderId, leaderAddr);
-        CHECK(nullptr != senderPtr) << "new RequestSender failed";
-
-        int rc = senderPtr->Init(senderopt);
-        if (0 != rc) {
-            return nullptr;
+    const ChunkServerID& leaderId,
+    const butil::EndPoint& leaderAddr,
+    const IOSenderOption& senderopt) {
+    {
+        curve::common::ReadLockGuard guard(rwlock_);
+        auto iter = senderPool_.find(leaderId);
+        if (senderPool_.end() != iter) {
+            return iter->second;
         }
-
-        senderPool_.insert(std::pair<ChunkServerID, SenderPtr>(leaderId,
-                                                               senderPtr));
     }
-    return senderPtr;
+
+    curve::common::WriteLockGuard guard(rwlock_);
+    auto iter = senderPool_.find(leaderId);
+    if (senderPool_.end() != iter) {
+        return iter->second;
+    }
+
+    SenderPtr sender = std::make_shared<RequestSender>(leaderId, leaderAddr);
+    int rc = sender->Init(senderopt);
+    if (rc != 0) {
+        return nullptr;
+    }
+
+    senderPool_.emplace(leaderId, sender);
+
+    return sender;
 }
 
 void RequestSenderManager::ResetSenderIfNotHealth(const ChunkServerID& csId) {
-    std::lock_guard<std::mutex> guard(lock_);
+    curve::common::WriteLockGuard guard(rwlock_);
     auto iter = senderPool_.find(csId);
 
     if (iter == senderPool_.end()) {

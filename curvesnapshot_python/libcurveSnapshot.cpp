@@ -30,11 +30,16 @@
 #include "src/client/client_config.h"
 #include "include/client/libcurve.h"
 #include "src/client/client_common.h"
+#include "src/common/concurrent/concurrent.h"
 
 using curve::client::UserInfo;
 using curve::client::ClientConfig;
 using curve::client::SnapshotClient;
 using curve::client::SnapCloneClosure;
+using curve::client::FileServiceOption;
+using curve::client::ClientConfigOption;
+using curve::common::Mutex;
+using curve::common::ConditionVariable;
 
 class TaskTracker {
  public:
@@ -128,8 +133,8 @@ int Init(const char* path) {
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    FileServiceOption_t fileopt = cc.GetFileServiceOption();
-    ClientConfigOption_t copt;
+    FileServiceOption fileopt = cc.GetFileServiceOption();
+    ClientConfigOption copt;
     copt.loginfo = fileopt.loginfo;
     copt.ioOpt = fileopt.ioOpt;
     copt.metaServerOpt = fileopt.metaServerOpt;

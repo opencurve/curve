@@ -20,35 +20,39 @@
  * Author: tongguangxun
  */
 
-#include <glog/logging.h>
-#include <gflags/gflags.h>
-#include <butil/endpoint.h>
-
-#include "proto/topology.pb.h"
-#include "proto/nameserver2.pb.h"
-#include "src/common/timeutility.h"
 #include "src/client/file_instance.h"
-#include "src/client/metacache.h"
-#include "src/client/mds_client.h"
+
+#include <butil/endpoint.h>
+#include <glog/logging.h>
+
+#include "proto/nameserver2.pb.h"
+#include "proto/topology.pb.h"
 #include "src/client/iomanager4file.h"
+#include "src/client/mds_client.h"
+#include "src/client/metacache.h"
 #include "src/client/request_scheduler.h"
 #include "src/client/request_sender_manager.h"
+#include "src/common/timeutility.h"
+
+namespace curve {
+namespace client {
 
 using curve::client::ClientConfig;
 using curve::common::TimeUtility;
 using curve::mds::SessionStatus;
-namespace curve {
-namespace client {
 
-FileInstance::FileInstance() {
-    finfo_.chunksize   = 4 * 1024 * 1024;
-    finfo_.segmentsize = 1 * 1024 * 1024 * 1024ul;
-}
+FileInstance::FileInstance()
+    : finfo_(),
+      fileopt_(),
+      mdsclient_(nullptr),
+      leaseExecutor_(),
+      iomanager4file_(),
+      readonly_(false) {}
 
 bool FileInstance::Initialize(const std::string& filename,
                               MDSClient* mdsclient,
                               const UserInfo_t& userinfo,
-                              FileServiceOption_t fileservicopt,
+                              const FileServiceOption& fileservicopt,
                               bool readonly) {
     readonly_ = readonly;
     fileopt_ = fileservicopt;
@@ -143,7 +147,7 @@ int FileInstance::Open(const std::string& filename,
     ret = mdsclient_->OpenFile(filename, finfo_.userinfo, &finfo_, &lease);
     if (ret == LIBCURVE_ERROR::OK) {
         ret = leaseExecutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
-                                                  : LIBCURVE_ERROR::FAILED;
+                                                   : LIBCURVE_ERROR::FAILED;
         if (nullptr != sessionId) {
             sessionId->assign(lease.sessionID);
         }
@@ -173,6 +177,32 @@ int FileInstance::Close() {
         mdsclient_->CloseFile(finfo_.fullPathName, finfo_.userinfo,
                               leaseExecutor_->GetLeaseSessionID());
     return -ret;
+}
+
+FileInstance* FileInstance::NewInitedFileInstance(
+    const FileServiceOption& fileServiceOption,
+    MDSClient* mdsClient,
+    const std::string& filename,
+    const UserInfo& userInfo,
+    bool readonly) {
+    FileInstance* instance = new (std::nothrow) FileInstance();
+    if (instance == nullptr) {
+        LOG(ERROR) << "Create FileInstance failed, filename: " << filename;
+        return nullptr;
+    }
+
+    bool ret = instance->Initialize(filename, mdsClient, userInfo,
+                                    fileServiceOption, readonly);
+    if (!ret) {
+        LOG(ERROR) << "FileInstance initialize failed"
+                   << ", filename = " << filename
+                   << ", ower = " << userInfo.owner
+                   << ", readonly = " << readonly;
+        delete instance;
+        return nullptr;
+    }
+
+    return instance;
 }
 
 }   // namespace client

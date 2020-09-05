@@ -22,15 +22,8 @@
 #ifndef SRC_CLIENT_FILE_INSTANCE_H_
 #define SRC_CLIENT_FILE_INSTANCE_H_
 
-#include <brpc/channel.h>
-#include <brpc/controller.h>
-
-#include <atomic>
-#include <condition_variable>  // NOLINT
 #include <memory>
-#include <mutex>  //NOLINT
 #include <string>
-#include <vector>
 
 #include "src/client/mds_client.h"
 #include "include/client/libcurve.h"
@@ -42,6 +35,7 @@
 
 namespace curve {
 namespace client {
+
 class CURVE_CACHELINE_ALIGNMENT FileInstance {
  public:
     FileInstance();
@@ -60,7 +54,7 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     bool Initialize(const std::string& filename,
                     MDSClient* mdsclient,
                     const UserInfo_t& userinfo,
-                    FileServiceOption_t fileservicopt,
+                    const FileServiceOption& fileservicopt,
                     bool readonly = false);
     /**
      * 打开文件
@@ -119,13 +113,15 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
 
     void UnInitialize();
 
-    IOManager4File* GetIOManager4File() {return &iomanager4file_;}
+    IOManager4File* GetIOManager4File() {
+        return &iomanager4file_;
+    }
 
     /**
      * 获取lease, 测试代码使用
      */
-    LeaseExecutor* GetLeaseExecutor() {
-       return leaseExecutor_.get();
+    LeaseExecutor* GetLeaseExecutor() const {
+        return leaseExecutor_.get();
     }
 
     int GetFileInfo(const std::string& filename, FInfo_t* fi);
@@ -136,15 +132,22 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
      * @return 当前instance对应文件的信息
      */
     FInfo GetCurrentFileInfo() const {
-       return finfo_;
+        return finfo_;
     }
+
+    static FileInstance* NewInitedFileInstance(
+        const FileServiceOption& fileServiceOption,
+        MDSClient* mdsClient,
+        const std::string& filename,
+        const UserInfo& userInfo,
+        bool readonly);
 
  private:
     // 保存当前file的文件信息
     FInfo_t                 finfo_;
 
     // 当前FileInstance的初始化配置信息
-    FileServiceOption_t     fileopt_;
+    FileServiceOption       fileopt_;
 
     // MDSClient是FileInstance与mds通信的唯一出口
     MDSClient*              mdsclient_;
@@ -158,6 +161,8 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     // 是否为只读方式
     bool                   readonly_;
 };
+
 }   // namespace client
 }   // namespace curve
+
 #endif  // SRC_CLIENT_FILE_INSTANCE_H_

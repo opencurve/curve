@@ -51,7 +51,7 @@ std::once_flag addServiceFlag;
 int CopysetNodeManager::Init(const CopysetNodeOptions &copysetNodeOptions) {
     copysetNodeOptions_ = copysetNodeOptions;
     if (copysetNodeOptions_.loadConcurrency > 0) {
-        copysetLoader_ = std::make_shared<TaskThreadPool>();
+        copysetLoader_ = std::make_shared<TaskThreadPool<>>();
     } else {
         copysetLoader_ = nullptr;
     }

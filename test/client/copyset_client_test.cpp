@@ -174,7 +174,7 @@ TEST_F(CopysetClientTest, normal_test) {
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
-    IOSenderOption_t ioSenderOpt;
+    IOSenderOption ioSenderOpt;
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
@@ -420,7 +420,7 @@ TEST_F(CopysetClientTest, write_error_test) {
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
-    IOSenderOption_t ioSenderOpt;
+    IOSenderOption ioSenderOpt;
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 5000;
@@ -428,7 +428,7 @@ TEST_F(CopysetClientTest, write_error_test) {
     ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 3500000;
     ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
-    RequestScheduleOption_t reqopt;
+    RequestScheduleOption reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
 
     CopysetClient copysetClient;
@@ -801,7 +801,8 @@ TEST_F(CopysetClientTest, write_error_test) {
         auto elpased = curve::common::TimeUtility::GetTimeofDayUs()
                      - startTimeUs;
         // chunkserverOPRetryIntervalUS = 5000
-        // 每次redirect睡眠500us，共重试3次，所以总共耗费时间大于1500us
+        // 每次redirect睡眠500us，共重试2次(chunkserverOPMaxRetry=3，判断时大于等于就返回，所以共只重试了两次)
+        // 所以总共耗费时间大于1000us
         ASSERT_GE(elpased, 1000);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
@@ -888,7 +889,7 @@ TEST_F(CopysetClientTest, write_failed_test) {
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
-    IOSenderOption_t ioSenderOpt;
+    IOSenderOption ioSenderOpt;
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 500;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 50;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 5000;
@@ -896,7 +897,7 @@ TEST_F(CopysetClientTest, write_failed_test) {
     ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 100000;
     ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
-    RequestScheduleOption_t reqopt;
+    RequestScheduleOption reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
 
     CopysetClient copysetClient;
@@ -1026,7 +1027,7 @@ TEST_F(CopysetClientTest, read_failed_test) {
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
-    IOSenderOption_t ioSenderOpt;
+    IOSenderOption ioSenderOpt;
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 500;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 50;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 5000;
@@ -1034,7 +1035,7 @@ TEST_F(CopysetClientTest, read_failed_test) {
     ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 100000;
     ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
-    RequestScheduleOption_t reqopt;
+    RequestScheduleOption reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
 
     CopysetClient copysetClient;
@@ -1165,7 +1166,7 @@ TEST_F(CopysetClientTest, read_error_test) {
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
-    IOSenderOption_t ioSenderOpt;
+    IOSenderOption ioSenderOpt;
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
@@ -1173,7 +1174,7 @@ TEST_F(CopysetClientTest, read_error_test) {
     ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 3500000;
     ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
-    RequestScheduleOption_t reqopt;
+    RequestScheduleOption reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
 
     CopysetClient copysetClient;
@@ -1666,7 +1667,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
-    IOSenderOption_t ioSenderOpt;
+    IOSenderOption ioSenderOpt;
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
@@ -2091,7 +2092,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
-    IOSenderOption_t ioSenderOpt;
+    IOSenderOption ioSenderOpt;
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
@@ -2475,7 +2476,7 @@ TEST_F(CopysetClientTest, create_s3_clone_error_test) {
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
-    IOSenderOption_t ioSenderOpt;
+    IOSenderOption ioSenderOpt;
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
@@ -2844,7 +2845,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
-    IOSenderOption_t ioSenderOpt;
+    IOSenderOption ioSenderOpt;
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
@@ -3201,7 +3202,7 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
-    IOSenderOption_t ioSenderOpt;
+    IOSenderOption ioSenderOpt;
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
@@ -3647,7 +3648,7 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
 
     const uint64_t sleepUsBeforeRetry = 5 * 1000 * 1000;
 
-    IOSenderOption_t ioSenderOpt;
+    IOSenderOption ioSenderOpt;
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS =
@@ -3656,7 +3657,7 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
     ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 3500000;
     ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
-    RequestScheduleOption_t reqopt;
+    RequestScheduleOption reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
 
     CopysetClient copysetClient;

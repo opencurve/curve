@@ -33,11 +33,11 @@
 #include "src/client/request_scheduler.h"
 #include "src/client/request_closure.h"
 
-using google::protobuf::Closure;
 namespace curve {
 namespace client {
+
 int CopysetClient::Init(MetaCache *metaCache,
-    const IOSenderOption_t& ioSenderOpt, RequestScheduler* scheduler,
+    const IOSenderOption& ioSenderOpt, RequestScheduler* scheduler,
     FileMetric* fileMetric) {
     if (nullptr == metaCache || scheduler == nullptr) {
         LOG(ERROR) << "metacache or scheduler is null!";

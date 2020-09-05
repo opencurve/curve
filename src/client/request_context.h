@@ -30,6 +30,7 @@
 
 #include "src/client/client_common.h"
 #include "src/client/request_closure.h"
+#include "include/curve_compiler_specific.h"
 
 namespace curve {
 namespace client {
@@ -54,7 +55,7 @@ inline std::ostream& operator<<(std::ostream& os,
     return os;
 }
 
-struct RequestContext {
+struct CURVE_CACHELINE_ALIGNMENT RequestContext {
     RequestContext() : id_(GetNextRequestContextId()) {}
 
     ~RequestContext() = default;
@@ -109,6 +110,18 @@ struct RequestContext {
     // 当前request context id
     uint64_t            id_ = 0;
 
+    static RequestContext* NewInitedRequestContext() {
+        RequestContext* ctx = new (std::nothrow) RequestContext();
+        if (ctx && ctx->Init()) {
+            return ctx;
+        } else {
+            LOG(ERROR) << "Allocate or Init RequestContext Failed";
+            delete ctx;
+            return nullptr;
+        }
+    }
+
+ private:
     static std::atomic<uint64_t> requestId;
 
     static uint64_t GetNextRequestContextId() {

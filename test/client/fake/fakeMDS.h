@@ -686,7 +686,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
                    const std::string& filename,
                    const std::string& owner,
                    uint64_t date) {
-        if (owner == kRootUserName) {
+        if (owner == curve::client::kRootUserName) {
             std::string str2sig = Authenticator::GetString2Signature(date, owner);  // NOLINT
             std::string sigtest = Authenticator::CalcString2Signature(str2sig, "123");  // NOLINT
             ASSERT_STREQ(sigtest.c_str(), signature.c_str());
@@ -1125,4 +1125,3 @@ class FakeMDS {
 };
 
 #endif   // TEST_CLIENT_FAKE_FAKEMDS_H_
-

@@ -29,6 +29,7 @@
 #include <deque>
 #include <mutex>                //NOLINT
 #include <atomic>
+#include <utility>
 
 #include "src/common/uncopyable.h"
 
@@ -113,7 +114,7 @@ class BoundedBlockingDeque : public Uncopyable {
         while (deque_.empty()) {
             notEmpty_.wait(guard);
         }
-        T front(deque_.front());
+        T front(std::move(deque_.front()));
         deque_.pop_front();
         notFull_.notify_one();
         return front;
@@ -124,7 +125,7 @@ class BoundedBlockingDeque : public Uncopyable {
         while (deque_.empty()) {
             notEmpty_.wait(guard);
         }
-        T back(deque_.back());
+        T back(std::move(deque_.back()));
         deque_.pop_back();
         notFull_.notify_one();
         return back;

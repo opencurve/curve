@@ -56,10 +56,7 @@ using WriteLockGuard        = WriteLockGuard;
 // curve内部定义的线程组件
 using TaskQueue             = TaskQueue;
 using ThreadPool            = ThreadPool;
-using TaskThreadPool        = TaskThreadPool;
 
 }   // namespace common
 }   // namespace curve
 #endif  // SRC_COMMON_CONCURRENT_CONCURRENT_H_
-
-

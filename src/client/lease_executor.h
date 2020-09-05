@@ -68,7 +68,7 @@ class LeaseExecutor {
      * @param: mdsclient是与mds续约的client
      * @param: iomanager会在续约失败或者版本变更的时候进行io调度
      */
-    LeaseExecutor(const LeaseOption_t& leaseOpt,
+    LeaseExecutor(const LeaseOption& leaseOpt,
                  UserInfo_t userinfo,
                  MDSClient* mdscllent,
                  IOManager4File* iomanager);
@@ -146,7 +146,7 @@ class LeaseExecutor {
     IOManager4File*         iomanager_;
 
     // 当前lease执行的配置信息
-    LeaseOption_t           leaseoption_;
+    LeaseOption           leaseoption_;
 
     // mds端传过来的lease信息，包含当前文件的lease时长，及sessionid
     LeaseSession_t          leasesession_;

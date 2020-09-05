@@ -43,7 +43,7 @@ using ::curve::kvstorage::EtcdClientImp;
 using ::curve::snapshotcloneserver::SnapshotCloneCodec;
 
 namespace curve {
-int CurveCluster::InitMdsClient(const MetaServerOption_t &op) {
+int CurveCluster::InitMdsClient(const curve::client::MetaServerOption &op) {
     mdsClient_ = std::make_shared<MDSClient>();
     return mdsClient_->Initialize(op);
 }

@@ -75,7 +75,7 @@ class CurveCluster {
      * @param op 参数设置
      * @return 0.成功; 非0.失败
      */
-    int InitMdsClient(const MetaServerOption_t &op);
+    int InitMdsClient(const curve::client::MetaServerOption &op);
 
 
     /**

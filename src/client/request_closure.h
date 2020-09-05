@@ -25,162 +25,157 @@
 
 // for Closure
 #include <google/protobuf/stubs/callback.h>
-#include <iostream>
-#include <map>
 
 #include "include/curve_compiler_specific.h"
-#include "src/client/inflight_controller.h"
-#include "src/client/client_metric.h"
-#include "src/client/config_info.h"
 #include "src/client/client_common.h"
+#include "src/client/client_metric.h"
+#include "src/client/inflight_controller.h"
 #include "src/common/concurrent/concurrent.h"
-
-using curve::common::RWLock;
 
 namespace curve {
 namespace client {
+
 class IOTracker;
 class RequestContext;
 class IOManager;
 
-class RequestClosure : public ::google::protobuf::Closure {
+class CURVE_CACHELINE_ALIGNMENT RequestClosure
+    : public ::google::protobuf::Closure {
  public:
-    explicit RequestClosure(RequestContext* reqctx);
+    explicit RequestClosure(RequestContext* reqctx) : reqCtx_(reqctx) {}
     virtual ~RequestClosure() = default;
 
-    /**
-     * clouser的callback执行函数
-     */
-    virtual void Run();
+    void Run() override;
 
     /**
-     *  获取request的错误码
+     * @brief Get the inflight token before sending rpc
      */
-    virtual int GetErrorCode();
+    void GetInflightRPCToken();
 
     /**
-     *  获取当前closure属于哪个request
+     * @brief Release the inflight token when rpc returned
      */
-    virtual RequestContext* GetReqCtx();
+    void ReleaseInflightRPCToken();
 
     /**
-     * 获取当前request属于哪个iotracker
+     * @brief Get error code
      */
-    virtual IOTracker* GetIOTracker();
+    virtual int GetErrorCode() {
+        return errcode_;
+    }
 
     /**
-     * 设置返回错误
+     * @brief Set error code, 0 means success
      */
-    virtual void SetFailed(int errorcode);
+    virtual void SetFailed(int errorCode) {
+        errcode_ = errorCode;
+    }
 
     /**
-     * 设置当前属于哪一个iotracker
+     * @brief 获取当前closure属于哪个request
      */
-    void SetIOTracker(IOTracker* ioctx);
+    virtual RequestContext* GetReqCtx() {
+        return reqCtx_;
+    }
+
+    /**
+     * @brief 获取当前request属于哪个iotracker
+     */
+    virtual IOTracker* GetIOTracker() {
+        return tracker_;
+    }
+
+    /**
+     * @brief 设置当前属于哪一个iotracker
+     */
+    void SetIOTracker(IOTracker* ioTracker) {
+        tracker_ = ioTracker;
+    }
 
     /**
      * @brief 设置所属的iomanager
      */
-    void SetIOManager(IOManager* ioManager);
-
-    /**
-     * 设置当前closure重试次数
-     */
-    void IncremRetriedTimes() {
-       retryTimes_++;
+    void SetIOManager(IOManager* ioManager) {
+        ioManager_ = ioManager;
     }
 
-    uint64_t GetRetriedTimes() {
-       return retryTimes_;
+    /**
+     * @brief 设置当前closure重试次数
+     */
+    void IncremRetriedTimes() {
+        retryTimes_++;
+    }
+
+    uint64_t GetRetriedTimes() const {
+        return retryTimes_;
     }
 
     /**
      * 设置metric
      */
-    void SetFileMetric(FileMetric* fm);
+    void SetFileMetric(FileMetric* fm) {
+        metric_ = fm;
+    }
 
     /**
      * 获取metric指针
      */
-    FileMetric* GetMetric();
-
-    /**
-     * 设置rpc发送起始时间，用于RPC延时统计
-     */
-    void SetStartTime(uint64_t start);
-
-    /**
-     * 获取rpc起始时间
-     */
-    uint64_t GetStartTime();
-
-    /**
-     * 发送rpc之前都需要先获取inflight token
-     */
-    void GetInflightRPCToken();
-
-    /**
-     * 返回给用户或者重新进队的时候都要释放inflight token
-     */
-    void ReleaseInflightRPCToken();
+    FileMetric* GetMetric() const {
+        return metric_;
+    }
 
     /**
      * 获取下一次rpc超时时间, rpc超时时间实现了指数退避的策略
      */
-    uint64_t GetNextTimeoutMS() {
-       return nextTimeoutMS_;
+    uint64_t GetNextTimeoutMS() const {
+        return nextTimeoutMS_;
     }
 
     /**
      * 设置下次重试超时时间
      */
     void SetNextTimeOutMS(uint64_t timeout) {
-       nextTimeoutMS_ = timeout;
+        nextTimeoutMS_ = timeout;
     }
 
     /**
      * 设置当前的IO为悬挂IO
      */
     void SetSuspendRPCFlag() {
-       suspendRPC_ = true;
+        suspendRPC_ = true;
     }
 
-    bool IsSuspendRPC() {
-       return suspendRPC_;
+    bool IsSuspendRPC() const {
+        return suspendRPC_;
     }
 
  private:
     // suspend io标志
-    bool suspendRPC_;
+    bool suspendRPC_ = false;
 
     // 当前request的错误码
-    int  errcode_;
+    int errcode_ = -1;
 
     // 当前request的tracker信息
-    IOTracker* tracker_;
+    IOTracker* tracker_ = nullptr;
 
     // closure的request信息
-    RequestContext* reqCtx_;
+    RequestContext* reqCtx_ = nullptr;
 
     // metric信息
-    FileMetric* metric_;
-
-    // 起始时间
-    uint64_t starttime_;
+    FileMetric* metric_ = nullptr;
 
     // 重试次数
-    uint64_t retryTimes_;
-
-    // 当前closure归属于哪个iomanager
-    IOManagerID managerID_;
+    uint64_t retryTimes_ = 0;
 
     // 当前closure属于的iomanager
-    IOManager* ioManager_;
+    IOManager* ioManager_ = nullptr;
 
     // 下一次rpc超时时间
-    uint64_t nextTimeoutMS_;
+    uint64_t nextTimeoutMS_ = 0;
 };
-}   // namespace client
-}   // namespace curve
+
+}  // namespace client
+}  // namespace curve
 
 #endif  // SRC_CLIENT_REQUEST_CLOSURE_H_

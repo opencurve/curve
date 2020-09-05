@@ -20,38 +20,34 @@
  * Author: tongguangxun
  */
 
+#include "src/client/libcurve_file.h"
+
 #include <brpc/server.h>
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include <thread>   // NOLINT
-#include <mutex>    // NOLINT
-#include <memory>
 #include <algorithm>
-#include "src/client/libcurve_file.h"
+#include <memory>
+#include <mutex>   // NOLINT
+#include <thread>  // NOLINT
+
+#include "include/client/libcurve.h"
+#include "include/curve_compiler_specific.h"
+#include "proto/nameserver2.pb.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
-#include "include/client/libcurve.h"
 #include "src/client/file_instance.h"
-#include "include/curve_compiler_specific.h"
 #include "src/client/iomanager4file.h"
 #include "src/client/service_helper.h"
-#include "proto/nameserver2.pb.h"
+#include "src/common/curve_version.h"
 #include "src/common/net_common.h"
 #include "src/common/uuid.h"
-#include "src/common/curve_version.h"
-
-using curve::client::UserInfo;
-using curve::common::ReadLockGuard;
-using curve::common::WriteLockGuard;
 
 #define PORT_LIMIT  65535
 
 bool globalclientinited_ = false;
 curve::client::FileClient* globalclient = nullptr;
 
-static const int PROCESS_NAME_MAX = 32;
-static char g_processname[PROCESS_NAME_MAX];
+using curve::client::UserInfo;
 
 namespace brpc {
     DECLARE_int32(health_check_interval);
@@ -59,6 +55,12 @@ namespace brpc {
 
 namespace curve {
 namespace client {
+
+using curve::common::ReadLockGuard;
+using curve::common::WriteLockGuard;
+
+static const int PROCESS_NAME_MAX = 32;
+static char g_processname[PROCESS_NAME_MAX];
 
 void LoggerGuard::InitInternal(const std::string& confPath) {
     curve::common::Configuration conf;
@@ -166,9 +168,11 @@ void FileClient::UnInit() {
 int FileClient::Open(const std::string& filename,
                      const UserInfo_t& userinfo,
                      std::string* sessionId) {
-    FileInstance* fileserv = GetInitedFileInstance(filename, userinfo, false);
+    FileInstance* fileserv = FileInstance::NewInitedFileInstance(
+        clientconfig_.GetFileServiceOption(), mdsClient_, filename, userinfo,
+        false);
     if (fileserv == nullptr) {
-        LOG(ERROR) << "GetInitedFileInstance fail";
+        LOG(ERROR) << "NewInitedFileInstance fail";
         return -1;
     }
 
@@ -181,7 +185,7 @@ int FileClient::Open(const std::string& filename,
         return ret;
     }
 
-    int fd = fdcount_.fetch_add(1, std::memory_order_acq_rel);
+    int fd = fdcount_.fetch_add(1, std::memory_order_relaxed);
 
     {
         WriteLockGuard lk(rwlock_);
@@ -197,10 +201,11 @@ int FileClient::ReOpen(const std::string& filename,
                        const std::string& sessionId,
                        const UserInfo& userInfo,
                        std::string* newSessionId) {
-    FileInstance* fileInstance =
-        GetInitedFileInstance(filename, userInfo, false);
+    FileInstance* fileInstance = FileInstance::NewInitedFileInstance(
+        clientconfig_.GetFileServiceOption(), mdsClient_, filename, userInfo,
+        false);
     if (nullptr == fileInstance) {
-        LOG(ERROR) << "GetInitedFileInstance fail";
+        LOG(ERROR) << "NewInitedFileInstance fail";
         return -1;
     }
 
@@ -212,7 +217,7 @@ int FileClient::ReOpen(const std::string& filename,
         return ret;
     }
 
-    int fd = fdcount_.fetch_add(1, std::memory_order_acq_rel);
+    int fd = fdcount_.fetch_add(1, std::memory_order_relaxed);
 
     {
         WriteLockGuard wlk(rwlock_);
@@ -226,9 +231,11 @@ int FileClient::ReOpen(const std::string& filename,
 
 int FileClient::Open4ReadOnly(const std::string& filename,
     const UserInfo_t& userinfo) {
-    FileInstance* fileserv = GetInitedFileInstance(filename, userinfo, true);
+    FileInstance* fileserv = FileInstance::NewInitedFileInstance(
+        clientconfig_.GetFileServiceOption(), mdsClient_, filename, userinfo,
+        true);
     if (fileserv == nullptr) {
-        LOG(ERROR) << "GetInitedFileInstance fail";
+        LOG(ERROR) << "NewInitedFileInstance fail";
         return -1;
     }
 
@@ -245,7 +252,7 @@ int FileClient::Open4ReadOnly(const std::string& filename,
     finfo.fullPathName = filename;
     fileserv->GetIOManager4File()->UpdateFileInfo(finfo);
 
-    int fd = fdcount_.fetch_add(1, std::memory_order_acq_rel);
+    int fd = fdcount_.fetch_add(1, std::memory_order_relaxed);
 
     {
         WriteLockGuard lk(rwlock_);
@@ -519,33 +526,6 @@ int FileClient::Close(int fd) {
 
     LOG(ERROR) << "CloseFile failed fd = " << fd;
     return -LIBCURVE_ERROR::FAILED;
-}
-
-bool FileClient::CheckAligned(off_t offset, size_t length) {
-    return (offset % IO_ALIGNED_BLOCK_SIZE == 0) &&
-           (length % IO_ALIGNED_BLOCK_SIZE == 0);
-}
-
-FileInstance* FileClient::GetInitedFileInstance(const std::string& filename,
-    const UserInfo& userinfo, bool readonly) {
-    FileInstance* fileserv = new (std::nothrow) FileInstance();
-    if (fileserv == nullptr) {
-        LOG(ERROR) << "create FileInstance failed!";
-        return nullptr;
-    }
-
-    bool ret = fileserv->Initialize(filename, mdsClient_, userinfo,
-               clientconfig_.GetFileServiceOption(), readonly);
-    if (!ret) {
-        LOG(ERROR) << "FileInstance initialize failed"
-            << ", filename = " << filename
-            << ", ower = " << userinfo.owner
-            << ", readonly = " << readonly;
-        delete fileserv;
-        return nullptr;
-    }
-
-    return fileserv;
 }
 
 int FileClient::GetClusterId(char* buf, int len) {

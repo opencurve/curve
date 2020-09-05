@@ -32,11 +32,10 @@
 namespace curve {
 namespace client {
 
-RequestScheduler::~RequestScheduler() {
-}
+RequestScheduler::~RequestScheduler() {}
 
-int RequestScheduler::Init(const RequestScheduleOption_t& reqSchdulerOpt,
-                           MetaCache *metaCache,
+int RequestScheduler::Init(const RequestScheduleOption& reqSchdulerOpt,
+                           MetaCache* metaCache,
                            FileMetric* fm) {
     blockIO_.store(false);
     reqschopt_ = reqSchdulerOpt;
@@ -134,69 +133,14 @@ void RequestScheduler::WakeupBlockQueueAtExit() {
 }
 
 void RequestScheduler::Process() {
-    while ((running_.load(std::memory_order_acquire)
-        || !queue_.Empty())  // flush all request in the queue
-        && !stop_.load(std::memory_order_acquire)) {
+    while ((running_.load(std::memory_order_acquire) ||
+            !queue_.Empty())  // flush all request in the queue
+           && !stop_.load(std::memory_order_acquire)) {
         WaitValidSession();
-        BBQItem<RequestContext *> item = queue_.TakeFront();
+        BBQItem<RequestContext*> item = queue_.TakeFront();
         if (!item.IsStop()) {
-            RequestContext *req = item.Item();
-            brpc::ClosureGuard guard(req->done_);
-            switch (req->optype_) {
-                case OpType::READ:
-                    {
-                        req->done_->GetInflightRPCToken();
-                        client_.ReadChunk(req->idinfo_, req->seq_, req->offset_,
-                                          req->rawlength_, req->appliedindex_,
-                                          req->sourceInfo_, guard.release());
-                    }
-                    break;
-                case OpType::WRITE:
-                    DVLOG(9) << "Processing write request, buf header: "
-                             << " buf: "
-                             << *(unsigned int*)(req->writeData_.fetch1());
-                    {
-                        req->done_->GetInflightRPCToken();
-                        client_.WriteChunk(req->idinfo_, req->seq_,
-                                           req->writeData_, req->offset_,
-                                           req->rawlength_, req->sourceInfo_,
-                                           guard.release());
-                    }
-                    break;
-                case OpType::READ_SNAP:
-                    client_.ReadChunkSnapshot(req->idinfo_,
-                                        req->seq_,
-                                        req->offset_,
-                                        req->rawlength_,
-                                        guard.release());
-                    break;
-                case OpType::DELETE_SNAP:
-                    client_.DeleteChunkSnapshotOrCorrectSn(req->idinfo_,
-                                        req->correctedSeq_,
-                                        guard.release());
-                    break;
-                case OpType::GET_CHUNK_INFO:
-                    client_.GetChunkInfo(req->idinfo_,
-                                        guard.release());
-                    break;
-                case OpType::CREATE_CLONE:
-                    client_.CreateCloneChunk(req->idinfo_,
-                                        req->location_,
-                                        req->seq_,
-                                        req->correctedSeq_,
-                                        req->chunksize_,
-                                        guard.release());
-                    break;
-                case OpType::RECOVER_CHUNK:
-                    client_.RecoverChunk(req->idinfo_,
-                                         req->offset_, req->rawlength_,
-                                         guard.release());
-                    break;
-                default:
-                    /* TODO(wudemiao) 后期整个链路错误发统一了在处理 */
-                    req->done_->SetFailed(-1);
-                    LOG(ERROR) << "unknown op type: OpType::UNKNOWN";
-            }
+            RequestContext* req = item.Item();
+            ProcessOne(req);
         } else {
             /**
              * 一旦遇到stop item，所有线程都可以退出，因为此时
@@ -204,6 +148,49 @@ void RequestScheduler::Process() {
              */
             stop_.store(true, std::memory_order_release);
         }
+    }
+}
+
+void RequestScheduler::ProcessOne(RequestContext* ctx) {
+    brpc::ClosureGuard guard(ctx->done_);
+
+    switch (ctx->optype_) {
+        case OpType::READ:
+            ctx->done_->GetInflightRPCToken();
+            client_.ReadChunk(ctx->idinfo_, ctx->seq_, ctx->offset_,
+                              ctx->rawlength_, ctx->appliedindex_,
+                              ctx->sourceInfo_, guard.release());
+            break;
+        case OpType::WRITE:
+            ctx->done_->GetInflightRPCToken();
+            client_.WriteChunk(ctx->idinfo_, ctx->seq_, ctx->writeData_,
+                               ctx->offset_, ctx->rawlength_, ctx->sourceInfo_,
+                               guard.release());
+            break;
+        case OpType::READ_SNAP:
+            client_.ReadChunkSnapshot(ctx->idinfo_, ctx->seq_, ctx->offset_,
+                                      ctx->rawlength_, guard.release());
+            break;
+        case OpType::DELETE_SNAP:
+            client_.DeleteChunkSnapshotOrCorrectSn(
+                ctx->idinfo_, ctx->correctedSeq_, guard.release());
+            break;
+        case OpType::GET_CHUNK_INFO:
+            client_.GetChunkInfo(ctx->idinfo_, guard.release());
+            break;
+        case OpType::CREATE_CLONE:
+            client_.CreateCloneChunk(ctx->idinfo_, ctx->location_, ctx->seq_,
+                                     ctx->correctedSeq_, ctx->chunksize_,
+                                     guard.release());
+            break;
+        case OpType::RECOVER_CHUNK:
+            client_.RecoverChunk(ctx->idinfo_, ctx->offset_, ctx->rawlength_,
+                                 guard.release());
+            break;
+        default:
+            /* TODO(wudemiao) 后期整个链路错误发统一了在处理 */
+            ctx->done_->SetFailed(-1);
+            LOG(ERROR) << "unknown op type: OpType::UNKNOWN";
     }
 }
 
