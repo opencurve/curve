@@ -144,7 +144,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    ansible-playbook -i client.ini deploy_curve_sdk.yml
    ```
 
-8. 创建 CURVE 卷，并通过 NBD 挂载到本地。创建CURVE卷的时候可能会报Fail to listen，这个属于日志打印问题，不影响结果，可以忽略
+7. 创建 CURVE 卷，并通过 NBD 挂载到本地。创建CURVE卷的时候可能会报Fail to listen，这个属于日志打印问题，不影响结果，可以忽略
 
    ```
    1. 创建 CURVE 卷： 命令为 curve create [-h] --filename FILENAME --length LENGTH --user USER， LENGTH >= 10。其中length单位为GB。
@@ -154,6 +154,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    3. 查看设备挂载情况（在docker环境中，list-mapped会看不到，可以选择lsblk看一下是否有/dev/nbd0类型的卷）
       curve-nbd list-mapped
    ```
+
 
 9. 部署监控（可选）。关于监控体系的文档见[curve监控体系文档](./monitor.md)，监控的部署需要用到docker编排，首先请先确保安装了docker和docker-compose。其次，需要在curve包的同一级目录下下载并解压curve-monitor的tar包。
    ```
