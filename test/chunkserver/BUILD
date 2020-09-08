@@ -31,7 +31,7 @@ DEPS = [
     "//test/fs:fs_mock",
     "//test/chunkserver:chunkserver_mock",
     "//test/chunkserver/datastore:datastore_mock",
-    "//test/chunkserver/datastore:chunkfilepool_helper",
+    "//test/chunkserver/datastore:filepool_helper",
     "@com_google_googletest//:gtest",
     "@com_google_googletest//:gtest_main",
 ]

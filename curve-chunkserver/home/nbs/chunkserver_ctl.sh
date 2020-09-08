@@ -29,6 +29,7 @@ function help() {
     echo "    restart : restart chunkserver"
     echo "    status  : show the online status of chunkserver"
     echo "    deploy  : prepare the chunkserver running environment"
+    echo "    deploy-wal-pool  : prepare the wal pool"
     echo "    format  : format the chunkfile pool"
     echo "USAGE:"
     echo "    start all chunkservers              : ./chunkserver_ctl.sh start all"
@@ -42,13 +43,17 @@ function help() {
     echo "    record uuid meta in all disks       : ./chunkserver_ctl.sh record-meta"
     echo "    deploy all disk                     : ./chunkserver_ctl.sh deploy all"
     echo "    deploy one disk                     : ./chunkserver_ctl.sh deploy /dev/sd{id} /data/chunkserver{id}"
-    echo "    format by percent                   : ./chunkserver_ctl.sh format -allocatepercent=80 -filesystem_path=/data/chunkserver{id} "
-    echo "                                          -chunkfilepool_dir=/data/chunkserver{id}/chunkfilepool/"
-    echo "                                          -chunkfilepool_metapath=/data/chunkserver{id}/chunkfilepool.meta"
-    echo "    format by chunk numbers             : ./chunkserver_ctl.sh format -allocateByPercent=false -preallocateNum=100"
-    echo "                                          -filesystem_path=/data/chunkserver{id} "
-    echo "                                          -chunkfilepool_dir=/data/chunkserver{id}/chunkfilepool/"
-    echo "                                          -chunkfilepool_metapath==/data/chunkserver{id}/chunkfilepool.meta"
+    echo "    deploy all wal pool                 : ./chunkserver_ctl.sh deploy-wal-pool all"
+    echo "    deploy one wal pool                 : ./chunkserver_ctl.sh deploy-wal-pool {\$chunkserverId}"
+    echo "    deploy all chunk pool               : ./chunkserver_ctl.sh deploy-chunk-pool all"
+    echo "    deploy one chunk pool               : ./chunkserver_ctl.sh deploy-chunk-pool {\$chunkserverId}"
+    echo "    format by percent                   : ./chunkserver_ctl.sh format -allocatePercent=80 -fileSystemPath=/data/chunkserver{id} "
+    echo "                                          -filePoolDir=/data/chunkserver{id}/filepool/"
+    echo "                                          -filePoolMetaPath=/data/chunkserver{id}/filepool.meta"
+    echo "    format by chunk numbers             : ./chunkserver_ctl.sh format -allocateByPercent=false -preAllocateNum=100"
+    echo "                                          -fileSystemPath=/data/chunkserver{id} "
+    echo "                                          -filePoolDir=/data/chunkserver{id}/filepool/"
+    echo "                                          -filePoolMetaPath==/data/chunkserver{id}/filepool.meta"
     echo "OPSTIONS:"
     echo "    [-c|--confPath path]  chunkserver conf path need for start command, default:/etc/curve/chunkserver.conf"
 }
@@ -163,6 +168,8 @@ function start_one() {
             -conf=${confPath} \
             -chunkFilePoolDir=${DATA_DIR}/chunkserver$1 \
             -chunkFilePoolMetaPath=${DATA_DIR}/chunkserver$1/chunkfilepool.meta \
+            -walFilePoolDir=${DATA_DIR}/chunkserver$1 \
+            -walFilePoolMetaPath=${DATA_DIR}/chunkserver$1/walfilepool.meta \
             -chunkServerIp=$internal_ip \
             -enableExternalServer=$enableExternalServer \
             -chunkServerExternalIp=$external_ip \
@@ -171,11 +178,13 @@ function start_one() {
             -chunkServerStoreUri=local:///data/chunkserver$1/ \
             -copySetUri=local:///data/chunkserver$1/copysets \
             -raftSnapshotUri=curve:///data/chunkserver$1/copysets \
+            -raftLogUri=curve:///data/chunkserver$1/copysets \
             -recycleUri=local:///data/chunkserver$1/recycler \
             -raft_sync_segments=true \
             -graceful_quit_on_sigterm=true \
             -raft_sync_meta=true \
             -raft_sync_segments=true \
+            -raft_use_fsync_rather_than_fdatasync=false \
             -log_dir=${DATA_DIR}/log/chunkserver$1 > /dev/null 2>&1 &
 }
 
@@ -327,6 +336,21 @@ function recordmeta() {
     meta_record;
 }
 
+function deploy-wal-pool() {
+    if [ $# -lt 1 ]
+    then
+        help
+        return 1
+    fi
+    if [ "$1" = "all" ]
+    then
+        walfile_pool_prep
+        return $?
+    fi
+    deploy_one_walfile_pool $1
+    wait
+}
+
 function main() {
     if [ $# -lt 1 ]
     then
@@ -362,6 +386,10 @@ function main() {
     "record-meta")
         shift
         recordmeta
+        ;;
+    "deploy-wal-pool")
+        shift
+        deploy-wal-pool $@
         ;;
     *)
         help

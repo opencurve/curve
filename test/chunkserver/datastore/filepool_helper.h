@@ -19,8 +19,8 @@
  * File Created: Tuesday, 29th January 2019 11:44:59 am
  * Author: tongguangxun
  */
-#ifndef TEST_CHUNKSERVER_DATASTORE_CHUNKFILEPOOL_HELPER_H_
-#define TEST_CHUNKSERVER_DATASTORE_CHUNKFILEPOOL_HELPER_H_
+#ifndef TEST_CHUNKSERVER_DATASTORE_FILEPOOL_HELPER_H_
+#define TEST_CHUNKSERVER_DATASTORE_FILEPOOL_HELPER_H_
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -40,4 +40,4 @@ void allocateChunk(std::shared_ptr<LocalFileSystem> fsptr,
                    std::string poolDir,
                    uint32_t chunkSize);
 
-#endif  // TEST_CHUNKSERVER_DATASTORE_CHUNKFILEPOOL_HELPER_H_
+#endif  // TEST_CHUNKSERVER_DATASTORE_FILEPOOL_HELPER_H_

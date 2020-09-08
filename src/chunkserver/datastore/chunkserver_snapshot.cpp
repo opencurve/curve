@@ -105,7 +105,7 @@ SnapshotMetaPage& SnapshotMetaPage::operator =(
 }
 
 CSSnapshot::CSSnapshot(std::shared_ptr<LocalFileSystem> lfs,
-                       std::shared_ptr<ChunkfilePool> chunkfilePool,
+                       std::shared_ptr<FilePool> chunkFilePool,
                        const ChunkOptions& options)
     : fd_(-1),
       chunkId_(options.id),
@@ -113,7 +113,7 @@ CSSnapshot::CSSnapshot(std::shared_ptr<LocalFileSystem> lfs,
       pageSize_(options.pageSize),
       baseDir_(options.baseDir),
       lfs_(lfs),
-      chunkfilePool_(chunkfilePool),
+      chunkFilePool_(chunkFilePool),
       metric_(options.metric) {
     CHECK(!baseDir_.empty()) << "Create snapshot failed";
     CHECK(lfs_ != nullptr) << "Create snapshot failed";
@@ -146,7 +146,7 @@ CSErrorCode CSSnapshot::Open(bool createFile) {
         char buf[pageSize_];  // NOLINT
         memset(buf, 0, sizeof(buf));
         metaPage_.encode(buf);
-        int ret = chunkfilePool_->GetChunk(snapshotPath, buf);
+        int ret = chunkFilePool_->GetFile(snapshotPath, buf);
         if (ret != 0) {
             LOG(ERROR) << "Error occured when create snapshot."
                    << " filepath = " << snapshotPath;
@@ -192,7 +192,7 @@ CSErrorCode CSSnapshot::Delete() {
         lfs_->Close(fd_);
         fd_ = -1;
     }
-    int ret = chunkfilePool_->RecycleChunk(path());
+    int ret = chunkFilePool_->RecycleFile(path());
     if (ret < 0)
         return CSErrorCode::InternalError;
     return CSErrorCode::Success;

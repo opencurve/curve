@@ -113,7 +113,7 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     dsOptions.pageSize = options.pageSize;
     dsOptions.locationLimit = options.locationLimit;
     dataStore_ = std::make_shared<CSDataStore>(options.localFileSystem,
-                                               options.chunkfilePool,
+                                               options.chunkFilePool,
                                                dsOptions);
     CHECK(nullptr != dataStore_);
     if (false == dataStore_->Initialize()) {
@@ -147,7 +147,7 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     nodeOptions_.snapshot_throttle = options.snapshotThrottle;
 
     CurveFilesystemAdaptor* cfa =
-        new CurveFilesystemAdaptor(options.chunkfilePool,
+        new CurveFilesystemAdaptor(options.chunkFilePool,
                                    options.localFileSystem);
     std::vector<std::string> filterList;
     std::string snapshotMeta(BRAFT_SNAPSHOT_META_FILE);

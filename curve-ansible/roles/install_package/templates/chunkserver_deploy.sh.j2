@@ -161,12 +161,32 @@ function chunkfile_pool_prep {
 ret=`lsblk|grep chunkserver|wc -l`
 for i in `seq 0 $((${ret}-1))`
 do
-  curve-format -allocatepercent={{ chunk_alloc_percent }} \
-  -chunkfilepool_dir=$dataDir/chunkserver$i/chunkfilepool \
-  -chunkfilepool_metapath=$dataDir/chunkserver$i/chunkfilepool.meta \
-  -filesystem_path=$dataDir/chunkserver$i/chunkfilepool &
+  curve-format -allocatePercent={{ chunk_alloc_percent }} \
+  -filePoolDir=/data/chunkserver$i/chunkfilepool \
+  -filePoolMetaPath=/data/chunkserver$i/chunkfilepool.meta \
+  -fileSize={{ chunk_size }} \
+  -fileSystemPath=/data/chunkserver$i/chunkfilepool  &
 done
 wait
+}
+
+function deploy_one_walfile_pool {
+  curve-format -allocatePercent={{ wal_segment_alloc_percent }} \
+  -filePoolDir=/data/chunkserver$1/walfilepool \
+  -filePoolMetaPath=/data/chunkserver$1/walfilepool.meta \
+  -fileSize={{ chunkserver_walfilepool_segment_size }} \
+  -fileSystemPath=/data/chunkserver$1/walfilepool  &
+}
+
+
+# format walfile pool
+function walfile_pool_prep {
+  ret=`lsblk|grep chunkserver|wc -l`
+  for i in `seq 0 $((${ret}-1))`
+  do
+    deploy_one_walfile_pool $i
+  done
+  wait
 }
 
 function usage {
@@ -187,6 +207,7 @@ function deploy_all {
     fstab_record;
     meta_record;
     chunkfile_pool_prep;
+    walfile_pool_prep;
 }
 
 function deploy_one {
@@ -244,10 +265,15 @@ function deploy_one {
   echo "uuid=$uuid" > $dirname/disk.meta
   echo "uuidmd5=$uuidmd5" >> $dirname/disk.meta
   #格式化chunkfile pool
-  curve-format -allocatepercent=80 \
-  -chunkfilepool_dir=$dirname/chunkfilepool \
-  -chunkfilepool_metapath=$dirname/chunkfilepool.meta \
-  -filesystem_path=$dirname/chunkfilepool &
+  curve-format -allocatePercent=80 \
+  -filePoolDir=$dirname/chunkfilepool \
+  -filePoolMetaPath=$dirname/chunkfilepool.meta \
+  -fileSystemPath=$dirname/chunkfilepool  &
+  # prepare walfile pool
+  curve-format -allocatePercent=10 \
+  -filePoolDir=$dirname/walfilepool \
+  -filePoolMetaPath=$dirname/walfilepool.meta \
+  -fileSystemPath=$dirname/walfilepool  &
   wait
   exit
 }

@@ -32,7 +32,7 @@
 #include <memory>
 #include <unordered_map>
 
-#include "src/chunkserver/datastore/chunkfile_pool.h"
+#include "src/chunkserver/datastore/file_pool.h"
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/copyset_node.h"
@@ -45,15 +45,15 @@ using curve::fs::LocalFileSystem;
 std::string Exec(const char *cmd);
 
 /**
- * 当前chunkfilepool需要事先格式化，才能使用，此函数用于事先格式化chunkfilepool
+ * 当前FilePool需要事先格式化，才能使用，此函数用于事先格式化FilePool
  * @param fsptr:本文文件系统指针
  * @param chunkfileSize:chunk文件的大小
  * @param metaPageSize:chunk文件的meta page大小
  * @param poolpath:文件池的路径，例如./chunkfilepool/
  * @param metaPath:meta文件路径，例如./chunkfilepool/chunkfilepool.meta
- * @return 初始化成功返回ChunkfilePool指针，否则返回null
+ * @return 初始化成功返回FilePool指针，否则返回null
  */
-std::shared_ptr<ChunkfilePool> InitChunkfilePool(std::shared_ptr<LocalFileSystem> fsptr,    //NOLINT
+std::shared_ptr<FilePool> InitFilePool(std::shared_ptr<LocalFileSystem> fsptr,    //NOLINT
                                                  int chunkfileCount,
                                                  int chunkfileSize,
                                                  int metaPageSize,
@@ -118,14 +118,14 @@ class TestCluster {
      * 启动一个 Peer
      * @param peerId
      * @param empty 初始化配置是否为空
-     * @param: get_chunk_from_pool是否从chunkfilepool获取chunk
-     * @param: create_chunkfilepool是否创建chunkfilepool，重启的情况下不需要
+     * @param: get_chunk_from_pool是否从FilePool获取chunk
+     * @param: createFilePool是否创建FilePool，重启的情况下不需要
      * @return 0：成功，-1 失败
      */
     int StartPeer(const PeerId &peerId,
                   const bool empty = false,
-                  bool get_chunk_from_pool = false,
-                  bool create_chunkfilepool = true);
+                  bool getChunkFrom_pool = false,
+                  bool createFilePool = true);
     /**
      * 关闭一个 peer，使用 SIGINT
      * @param peerId
@@ -171,7 +171,7 @@ class TestCluster {
     static int StartPeerNode(CopysetNodeOptions options,
                               const Configuration conf,
                               bool from_chunkfile_pool = false,
-                              bool create_chunkfilepool = true);
+                              bool createFilePool = true);
 
  public:
     /**

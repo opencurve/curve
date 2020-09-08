@@ -102,6 +102,14 @@ inline std::string GetCSLeftChunkName(const std::string& csAddr) {
     return metricName;
 }
 
+inline std::string GetCSLeftWalSegmentName(const std::string& csAddr) {
+    std::string tmpName = kChunkServerMetricPrefix +
+                        csAddr + "_walfilepool_left";
+    std::string metricName;
+    bvar::to_underscored_name(&metricName, tmpName);
+    return metricName;
+}
+
 inline std::string GetOpNumMetricName(const std::string& opName) {
     std::string tmpName = kSechduleOpMetricpPrefix +
                                 opName + "_num";

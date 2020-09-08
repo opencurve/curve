@@ -104,8 +104,8 @@ TEST_F(CopysetServiceTest, basic) {
     copysetNodeOptions.raftSnapshotUri = copysetDir;
     copysetNodeOptions.concurrentapply = new ConcurrentApplyModule();
     copysetNodeOptions.localFileSystem = fs;
-    copysetNodeOptions.chunkfilePool =
-        std::make_shared<ChunkfilePool>(fs);
+    copysetNodeOptions.chunkFilePool =
+        std::make_shared<FilePool>(fs);
     ASSERT_EQ(0, copysetNodeManager->Init(copysetNodeOptions));
     ASSERT_EQ(0, copysetNodeManager->Run());
 
@@ -209,8 +209,8 @@ TEST_F(CopysetServiceTest, basic2) {
     copysetNodeOptions.raftSnapshotUri = copysetDir;
     copysetNodeOptions.concurrentapply = new ConcurrentApplyModule();
     copysetNodeOptions.localFileSystem = fs;
-    copysetNodeOptions.chunkfilePool =
-        std::make_shared<ChunkfilePool>(fs);
+    copysetNodeOptions.chunkFilePool =
+        std::make_shared<FilePool>(fs);
     ASSERT_EQ(0, copysetNodeManager->Init(copysetNodeOptions));
     ASSERT_EQ(0, copysetNodeManager->Run());
 

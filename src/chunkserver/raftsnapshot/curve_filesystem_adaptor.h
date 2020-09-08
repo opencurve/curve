@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 
-#include "src/chunkserver/datastore/chunkfile_pool.h"
+#include "src/chunkserver/datastore/file_pool.h"
 #include "src/chunkserver/raftsnapshot/curve_file_adaptor.h"
 
 /**
@@ -44,7 +44,7 @@
  */
 
 using curve::fs::LocalFileSystem;
-using curve::chunkserver::ChunkfilePool;
+using curve::chunkserver::FilePool;
 
 namespace curve {
 namespace chunkserver {
@@ -59,10 +59,10 @@ class CurveFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
  public:
     /**
      * 构造函数
-     * @param: chunkfilePool用于获取和回收chunk文件
+     * @param: chunkfilepool用于获取和回收chunk文件
      * @param: lfs用于进行一些文件操作，比如打开或者删除目录
      */
-    CurveFilesystemAdaptor(std::shared_ptr<ChunkfilePool> chunkfilePool,
+    CurveFilesystemAdaptor(std::shared_ptr<FilePool> filePool,
                                   std::shared_ptr<LocalFileSystem> lfs);
     CurveFilesystemAdaptor();
     virtual ~CurveFilesystemAdaptor();
@@ -144,9 +144,9 @@ class CurveFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
     char*  tempMetaPageContent;
     // 我们自己的文件系统，这里文件系统会做一些打开及删除目录操作
     std::shared_ptr<LocalFileSystem> lfs_;
-    // 操作chunkfilepool的指针，这个chunkfilePool_与copysetnode的
-    // chunkfilePool_应该是全局唯一的，保证操作chunkfilepool的原子性
-    std::shared_ptr<ChunkfilePool> chunkfilePool_;
+    // 操作chunkfilepool的指针，这个FilePool_与copysetnode的
+    // chunkfilepool_应该是全局唯一的，保证操作chunkfilepool的原子性
+    std::shared_ptr<FilePool> chunkFilePool_;
     // 过滤名单，在当前vector中的文件名，都不从chunkfilepool中取文件
     // 回收的时候也直接删除这些文件，不进入chunkfilepool
     std::vector<std::string> filterList_;

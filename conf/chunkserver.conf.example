@@ -165,6 +165,24 @@ chunkfilepool.cpmeta_file_size=4096
 chunkfilepool.retry_times=5
 
 #
+# WAL file pool
+#
+# 是否开启从walfilepool获取chunk，一般是true
+walfilepool.enable_get_segment_from_pool=true
+# walpool目录
+walfilepool.file_pool_dir=./0/
+# walpool meta文件路径
+walfilepool.meta_path=./walfilepool.meta
+# walpool meta文件大小
+walfilepool.segment_size=8388608
+# WAL metapage大小
+walfilepool.metapage_size=4096
+# WAL filepool 元数据文件大小
+walfilepool.meta_file_size=4096
+# WAL filepool get chunk最大重试次数
+walfilepool.retry_times=5
+
+#
 # trash settings
 #
 # chunkserver回收数据彻底删除的过期时间

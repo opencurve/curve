@@ -35,17 +35,17 @@ namespace curve {
 namespace chunkserver {
 
 CSDataStore::CSDataStore(std::shared_ptr<LocalFileSystem> lfs,
-                         std::shared_ptr<ChunkfilePool> chunkfilePool,
+                         std::shared_ptr<FilePool> chunkFilePool,
                          const DataStoreOptions& options)
     : chunkSize_(options.chunkSize),
       pageSize_(options.pageSize),
       baseDir_(options.baseDir),
       locationLimit_(options.locationLimit),
-      chunkfilePool_(chunkfilePool),
+      chunkFilePool_(chunkFilePool),
       lfs_(lfs) {
     CHECK(!baseDir_.empty()) << "Create datastore failed";
     CHECK(lfs_ != nullptr) << "Create datastore failed";
-    CHECK(chunkfilePool_ != nullptr) << "Create datastore failed";
+    CHECK(chunkFilePool_ != nullptr) << "Create datastore failed";
 }
 
 CSDataStore::~CSDataStore() {
@@ -190,7 +190,7 @@ CSErrorCode CSDataStore::CreateChunkFile(const ChunkOptions & options,
             return CSErrorCode::InvalidArgError;
         }
         auto tempChunkFile = std::make_shared<CSChunkFile>(lfs_,
-                                                  chunkfilePool_,
+                                                  chunkFilePool_,
                                                   options);
         CSErrorCode errorCode = tempChunkFile->Open(true);
         if (errorCode != CSErrorCode::Success) {
@@ -369,7 +369,7 @@ CSErrorCode CSDataStore::loadChunkFile(ChunkID id) {
         options.metric = metric_;
         CSChunkFilePtr chunkFilePtr =
             std::make_shared<CSChunkFile>(lfs_,
-                                          chunkfilePool_,
+                                          chunkFilePool_,
                                           options);
         CSErrorCode errorCode = chunkFilePtr->Open(false);
         if (errorCode != CSErrorCode::Success)

@@ -42,12 +42,16 @@ const std::vector<std::string> chunkserverConf1{
     { " -chunkServerMetaUri=local://./basic1/chunkserver.dat" },
     { " -copySetUri=local://./basic1/copysets" },
     { " -raftSnapshotUri=curve://./basic1/copysets" },
+    { " -raftLogUri=curve://./basic1/copysets" },
     { " -recycleUri=local://./basic1/recycler" },
     { " -chunkFilePoolDir=./basic1/chunkfilepool/" },
     { " -chunkFilePoolMetaPath=./basic1/chunkfilepool.meta" },
     { " -conf=./conf/chunkserver.conf.example" },
     { " -raft_sync_segments=true" },
-    { " -enableChunkfilepool=false" }
+    { " -enableChunkfilepool=false" },
+    { " -enableWalfilepool=false" },
+    { " -walFilePoolDir=./basic1/walfilepool/" },
+    { " -walFilePoolMetaPath=./basic1/walfilepool.meta" }
 };
 
 const std::vector<std::string> chunkserverConf2{
@@ -56,12 +60,16 @@ const std::vector<std::string> chunkserverConf2{
     { " -chunkServerMetaUri=local://./basic2/chunkserver.dat" },
     { " -copySetUri=local://./basic2/copysets" },
     { " -raftSnapshotUri=curve://./basic2/copysets" },
+    { " -raftLogUri=curve://./basic2/copysets" },
     { " -recycleUri=local://./basic2/recycler" },
     { " -chunkFilePoolDir=./basic2/chunkfilepool/" },
     { " -chunkFilePoolMetaPath=./basic2/chunkfilepool.meta" },
     { " -conf=./conf/chunkserver.conf.example" },
     { " -raft_sync_segments=true" },
-    { " -enableChunkfilepool=false" }
+    { " -enableChunkfilepool=false" },
+    { " -enableWalfilepool=false" },
+    { " -walFilePoolDir=./basic2/walfilepool/" },
+    { " -walFilePoolMetaPath=./basic2/walfilepool.meta" }
 };
 
 const std::vector<std::string> chunkserverConf3{
@@ -70,12 +78,16 @@ const std::vector<std::string> chunkserverConf3{
     { " -chunkServerMetaUri=local://./basic3/chunkserver.dat" },
     { " -copySetUri=local://./basic3/copysets" },
     { " -raftSnapshotUri=curve://./basic3/copysets" },
+    { " -raftLogUri=curve://./basic3/copysets" },
     { " -recycleUri=local://./basic3/recycler" },
     { " -chunkFilePoolDir=./basic3/chunkfilepool/" },
     { " -chunkFilePoolMetaPath=./basic3/chunkfilepool.meta" },
     { " -conf=./conf/chunkserver.conf.example" },
     { " -raft_sync_segments=true" },
-    { " -enableChunkfilepool=false" }
+    { " -enableChunkfilepool=false" },
+    { " -enableWalfilepool=false" },
+    { " -walFilePoolDir=./basic3/walfilepool/" },
+    { " -walFilePoolMetaPath=./basic3/walfilepool.meta" }
 };
 
 class ClusterBasicTest : public ::testing::Test {

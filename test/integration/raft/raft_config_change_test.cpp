@@ -40,7 +40,7 @@ using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 
-static char* raftConfigParam[5][13] = {
+static char* raftConfigParam[5][16] = {
     {
         "chunkserver",
         "-chunkServerIp=127.0.0.1",
@@ -49,9 +49,12 @@ static char* raftConfigParam[5][13] = {
         "-chunkServerMetaUri=local://./9081/chunkserver.dat",
         "-copySetUri=local://./9081/copysets",
         "-raftSnapshotUri=curve://./9081/copysets",
+        "-raftLogUri=curve://./9081/copysets",
         "-recycleUri=local://./9081/recycler",
         "-chunkFilePoolDir=./9081/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9081/chunkfilepool.meta",
+        "-walFilePoolDir=./9081/walfilepool/",
+        "-walFilePoolMetaPath=./9081/walfilepool.meta",
         "-conf=./9081/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
@@ -64,9 +67,12 @@ static char* raftConfigParam[5][13] = {
         "-chunkServerMetaUri=local://./9082/chunkserver.dat",
         "-copySetUri=local://./9082/copysets",
         "-raftSnapshotUri=curve://./9082/copysets",
+        "-raftLogUri=curve://./9082/copysets",
         "-recycleUri=local://./9082/recycler",
         "-chunkFilePoolDir=./9082/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9082/chunkfilepool.meta",
+        "-walFilePoolDir=./9082/walfilepool/",
+        "-walFilePoolMetaPath=./9082/walfilepool.meta",
         "-conf=./9082/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
@@ -79,9 +85,12 @@ static char* raftConfigParam[5][13] = {
         "-chunkServerMetaUri=local://./9083/chunkserver.dat",
         "-copySetUri=local://./9083/copysets",
         "-raftSnapshotUri=curve://./9083/copysets",
+        "-raftLogUri=curve://./9083/copysets",
         "-recycleUri=local://./9083/recycler",
         "-chunkFilePoolDir=./9083/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9083/chunkfilepool.meta",
+        "-walFilePoolDir=./9083/walfilepool/",
+        "-walFilePoolMetaPath=./9083/walfilepool.meta",
         "-conf=./9083/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
@@ -94,9 +103,12 @@ static char* raftConfigParam[5][13] = {
         "-chunkServerMetaUri=local://./9084/chunkserver.dat",
         "-copySetUri=local://./9084/copysets",
         "-raftSnapshotUri=curve://./9084/copysets",
+        "-raftLogUri=curve://./9084/copysets",
         "-recycleUri=local://./9084/recycler",
         "-chunkFilePoolDir=./9084/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9084/chunkfilepool.meta",
+        "-walFilePoolDir=./9084/walfilepool/",
+        "-walFilePoolMetaPath=./9084/walfilepool.meta",
         "-conf=./9084/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
@@ -109,9 +121,12 @@ static char* raftConfigParam[5][13] = {
         "-chunkServerMetaUri=local://./9085/chunkserver.dat",
         "-copySetUri=local://./9085/copysets",
         "-raftSnapshotUri=curve://./9085/copysets",
+        "-raftLogUri=curve://./9085/copysets",
         "-recycleUri=local://./9085/recycler",
         "-chunkFilePoolDir=./9085/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9085/chunkfilepool.meta",
+        "-walFilePoolDir=./9085/walfilepool/",
+        "-walFilePoolMetaPath=./9085/walfilepool.meta",
         "-conf=./9085/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL

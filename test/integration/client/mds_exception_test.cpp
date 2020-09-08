@@ -61,6 +61,7 @@ const std::vector<std::string> chunkserverConf1{
     { " -chunkServerMetaUri=local://./moduleException1/chunkserver.dat" },
     { " -copySetUri=local://./moduleException1/copysets" },
     { " -raftSnapshotUri=curve://./moduleException1/copysets" },
+    { " -raftLogUri=curve://./moduleException1/copysets" },
     { " -recycleUri=local://./moduleException1/recycler" },
     { " -chunkFilePoolDir=./moduleException1/chunkfilepool/" },
     { " -chunkFilePoolMetaPath=./moduleException1/chunkfilepool.meta" },
@@ -71,7 +72,10 @@ const std::vector<std::string> chunkserverConf1{
     { " -chunkServerIp=127.0.0.1" },
     { " -chunkServerPort=22225" },
     { " -enableChunkfilepool=false" },
-    { " -mdsListenAddr=127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224" }
+    { " -mdsListenAddr=127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224" },
+    { " -enableWalfilepool=false" },
+    { " -walFilePoolDir=./moduleException1/walfilepool/" },
+    { " -walFilePoolMetaPath=./moduleException1/walfilepool.meta" }
 };
 
 const std::vector<std::string> chunkserverConf2{
@@ -79,6 +83,7 @@ const std::vector<std::string> chunkserverConf2{
     { " -chunkServerMetaUri=local://./moduleException2/chunkserver.dat" },
     { " -copySetUri=local://./moduleException2/copysets" },
     { " -raftSnapshotUri=curve://./moduleException2/copysets" },
+    { " -raftLogUri=curve://./moduleException2/copysets" },
     { " -recycleUri=local://./moduleException2/recycler" },
     { " -chunkFilePoolDir=./moduleException2/chunkfilepool/" },
     { " -chunkFilePoolMetaPath=./moduleException2/chunkfilepool.meta" },
@@ -89,7 +94,10 @@ const std::vector<std::string> chunkserverConf2{
     { " -chunkServerIp=127.0.0.1" },
     { " -chunkServerPort=22226" },
     { " -enableChunkfilepool=false" },
-    { " -mdsListenAddr=127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224" }
+    { " -mdsListenAddr=127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224" },
+    { " -enableWalfilepool=false" },
+    { " -walFilePoolDir=./moduleException2/walfilepool/" },
+    { " -walFilePoolMetaPath=./moduleException2/walfilepool.meta" }
 };
 
 const std::vector<std::string> chunkserverConf3{
@@ -97,6 +105,7 @@ const std::vector<std::string> chunkserverConf3{
     { " -chunkServerMetaUri=local://./moduleException3/chunkserver.dat" },
     { " -copySetUri=local://./moduleException3/copysets" },
     { " -raftSnapshotUri=curve://./moduleException3/copysets" },
+    { " -raftLogUri=curve://./moduleException3/copysets" },
     { " -recycleUri=local://./moduleException3/recycler" },
     { " -chunkFilePoolDir=./moduleException3/chunkfilepool/" },
     { " -chunkFilePoolMetaPath=./moduleException3/chunkfilepool.meta" },
@@ -107,7 +116,10 @@ const std::vector<std::string> chunkserverConf3{
     { " -chunkServerIp=127.0.0.1" },
     { " -chunkServerPort=22227" },
     { " -enableChunkfilepool=false" },
-    { " -mdsListenAddr=127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224" }
+    { " -mdsListenAddr=127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224" },
+    { " -enableWalfilepool=false" },
+    { " -walFilePoolDir=./moduleException3/walfilepool/" },
+    { " -walFilePoolMetaPath=./moduleException3/walfilepool.meta" }
 };
 
 std::string mdsaddr =                                   // NOLINT

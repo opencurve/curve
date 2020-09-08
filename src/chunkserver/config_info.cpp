@@ -23,8 +23,8 @@
 #include "src/chunkserver/config_info.h"
 
 #include "src/chunkserver/copyset_node_manager.h"
-#include "src/chunkserver/datastore/chunkfile_pool.h"
 #include "src/chunkserver/concurrent_apply/concurrent_apply.h"
+#include "src/chunkserver/datastore/file_pool.h"
 
 namespace curve {
 namespace chunkserver {
@@ -44,7 +44,7 @@ CopysetNodeOptions::CopysetNodeOptions()
       maxChunkSize(16 * 1024 * 1024),
       pageSize(4096),
       concurrentapply(nullptr),
-      chunkfilePool(nullptr),
+      chunkFilePool(nullptr),
       localFileSystem(nullptr),
       snapshotThrottle(nullptr) {
 }

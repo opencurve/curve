@@ -219,6 +219,7 @@ ChunkServerMetric::ChunkServerMetric()
     : hasInited_(false)
     , leaderCount_(nullptr)
     , chunkLeft_(nullptr)
+    , walSegmentLeft_(nullptr)
     , chunkTrashed_(nullptr)
     , chunkCount_(nullptr)
     , snapshotCount_(nullptr)
@@ -281,6 +282,7 @@ int ChunkServerMetric::Fini() {
     ioMetrics_.Fini();
     leaderCount_ = nullptr;
     chunkLeft_ = nullptr;
+    walSegmentLeft_ = nullptr;
     chunkTrashed_ = nullptr;
     chunkCount_ = nullptr;
     snapshotCount_ = nullptr;
@@ -369,14 +371,24 @@ void ChunkServerMetric::OnResponse(const LogicPoolID& logicPoolId,
     ioMetrics_.OnResponse(type, size, latUs, hasError);
 }
 
-void ChunkServerMetric::MonitorChunkFilePool(ChunkfilePool* chunkfilePool) {
+void ChunkServerMetric::MonitorChunkFilePool(FilePool* chunkFilePool) {
     if (!option_.collectMetric) {
         return;
     }
 
     std::string chunkLeftPrefix = Prefix() + "_chunkfilepool_left";
     chunkLeft_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
-        chunkLeftPrefix, GetChunkLeftFunc, chunkfilePool);
+        chunkLeftPrefix, GetChunkLeftFunc, chunkFilePool);
+}
+
+void ChunkServerMetric::MonitorWalFilePool(FilePool* walFilePool) {
+    if (!option_.collectMetric) {
+        return;
+    }
+
+    std::string walSegmentLeftPrefix = Prefix() + "_walfilepool_left";
+    walSegmentLeft_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
+        walSegmentLeftPrefix, GetWalSegmentLeftFunc, walFilePool);
 }
 
 void ChunkServerMetric::MonitorTrash(Trash* trash) {

@@ -31,17 +31,18 @@
 #include "src/fs/fs_common.h"
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/concurrent_apply/concurrent_apply.h"
-#include "src/chunkserver/datastore/chunkfile_pool.h"
+#include "src/chunkserver/datastore/file_pool.h"
 #include "src/chunkserver/uri_paser.h"
 #include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
 
 using curve::chunkserver::CopysetNodeOptions;
 using curve::chunkserver::Configuration;
 using curve::chunkserver::CopysetNodeManager;
-using curve::chunkserver::ChunkfilePool;
-using curve::chunkserver::ChunkfilePoolOptions;
 using curve::chunkserver::concurrent::ConcurrentApplyModule;
 using curve::chunkserver::concurrent::ConcurrentApplyOption;
+using curve::chunkserver::FilePool;
+using curve::chunkserver::FilePoolOptions;
+using curve::chunkserver::ConcurrentApplyModule;
 using curve::chunkserver::UriParser;
 using curve::chunkserver::LogicPoolID;
 using curve::chunkserver::CopysetID;
@@ -50,7 +51,7 @@ using curve::chunkserver::PeerId;
 using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
-using curve::chunkserver::ChunkfilePoolHelper;
+using curve::chunkserver::FilePoolHelper;
 
 DEFINE_string(ip,
               "127.0.0.1",
@@ -98,16 +99,16 @@ void CreateChunkFilePool(const std::string& dirname,
         count++;
     }
 
-    ChunkfilePoolOptions cpopt;
-    cpopt.getChunkFromPool = true;
-    cpopt.chunkSize = chunksize;
+    FilePoolOptions cpopt;
+    cpopt.getFileFromPool = true;
+    cpopt.fileSize = chunksize;
     cpopt.metaPageSize = 4096;
-    cpopt.cpMetaFileSize = 4096;
+    cpopt.metaFileSize = 4096;
 
-    memcpy(cpopt.chunkFilePoolDir, datadir.c_str(), datadir.size());
+    memcpy(cpopt.filePoolDir, datadir.c_str(), datadir.size());
     memcpy(cpopt.metaPath, metapath.c_str(), metapath.size());
 
-    int ret = ChunkfilePoolHelper::PersistEnCodeMetaInfo(
+    int ret = FilePoolHelper::PersistEnCodeMetaInfo(
                                             fsptr,
                                             chunksize,
                                             4096,
@@ -166,28 +167,28 @@ int main(int argc, char *argv[]) {
                    << " error chunkDataDir is: " << chunkDataDir;
     }
 
-    copysetNodeOptions.chunkfilePool = std::make_shared<ChunkfilePool>(fs);
-    if (nullptr == copysetNodeOptions.chunkfilePool) {
+    copysetNodeOptions.chunkFilePool = std::make_shared<FilePool>(fs);
+    if (nullptr == copysetNodeOptions.chunkFilePool) {
         LOG(FATAL) << "new chunfilepool failed";
     }
-    ChunkfilePoolOptions cfop;
-    ::memcpy(cfop.chunkFilePoolDir, chunkDataDir.c_str(), chunkDataDir.size());
-    cfop.getChunkFromPool = FLAGS_enable_getchunk_from_pool;
+    FilePoolOptions cfop;
+    ::memcpy(cfop.filePoolDir, chunkDataDir.c_str(), chunkDataDir.size());
+    cfop.getFileFromPool = FLAGS_enable_getchunk_from_pool;
     cfop.retryTimes = 3;
     cfop.metaPageSize = 4 * 1024;
-    cfop.chunkSize = kMaxChunkSize;
-    if (cfop.getChunkFromPool) {
-        cfop.cpMetaFileSize = 4096;
+    cfop.fileSize = kMaxChunkSize;
+    if (cfop.getFileFromPool) {
+        cfop.metaFileSize = 4096;
         if (FLAGS_create_chunkfilepool) {
             CreateChunkFilePool(chunkDataDir, kMaxChunkSize, fs);
         }
         std::string datadir = chunkDataDir + "/chunkfilepool";
         std::string metapath = chunkDataDir + "/chunkfilepool.meta";
-        memcpy(cfop.chunkFilePoolDir, datadir.c_str(), datadir.size());
+        memcpy(cfop.filePoolDir, datadir.c_str(), datadir.size());
         memcpy(cfop.metaPath, metapath.c_str(), metapath.size());
     }
 
-    if (false == copysetNodeOptions.chunkfilePool->Initialize(cfop)) {
+    if (false == copysetNodeOptions.chunkFilePool->Initialize(cfop)) {
         LOG(FATAL) << "chunfilepool init failed";
     } else {
         LOG(INFO) << "chunfilepool init success";

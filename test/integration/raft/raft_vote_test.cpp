@@ -40,7 +40,7 @@ using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 
-static char* raftVoteParam[3][13] = {
+static char* raftVoteParam[3][16] = {
     {
         "chunkserver",
         "-chunkServerIp=127.0.0.1",
@@ -54,6 +54,9 @@ static char* raftVoteParam[3][13] = {
         "-chunkFilePoolMetaPath=./9091/chunkfilepool.meta",
         "-conf=./9091/chunkserver.conf",
         "-raft_sync_segments=true",
+        "-raftLogUri=curve://./9091/copysets",
+        "-walFilePoolDir=./9091/walfilepool/",
+        "-walFilePoolMetaPath=./9091/walfilepool.meta",
         NULL
     },
     {
@@ -69,6 +72,9 @@ static char* raftVoteParam[3][13] = {
         "-chunkFilePoolMetaPath=./9092/chunkfilepool.meta",
         "-conf=./9092/chunkserver.conf",
         "-raft_sync_segments=true",
+        "-raftLogUri=curve://./9092/copysets",
+        "-walFilePoolDir=./9092/walfilepool/",
+        "-walFilePoolMetaPath=./9092/walfilepool.meta",
         NULL
     },
     {
@@ -84,6 +90,9 @@ static char* raftVoteParam[3][13] = {
         "-chunkFilePoolMetaPath=./9093/chunkfilepool.meta",
         "-conf=./9093/chunkserver.conf",
         "-raft_sync_segments=true",
+        "-raftLogUri=curve://./9093/copysets",
+        "-walFilePoolDir=./9093/walfilepool/",
+        "-walFilePoolMetaPath=./9093/walfilepool.meta",
         NULL
     },
 };

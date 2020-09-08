@@ -17,7 +17,7 @@
 cc_library(
     name = "datastore_mock",
     srcs = [
-            "mock_chunkfile_pool.h",
+            "mock_file_pool.h",
             "mock_datastore.h"
             ],
     deps = [
@@ -27,10 +27,10 @@ cc_library(
 )
 
 cc_library(
-    name = "chunkfilepool_helper",
+    name = "filepool_helper",
     srcs = [
-            "chunkfilepool_helper.cpp",
-            "chunkfilepool_helper.h",
+            "filepool_helper.cpp",
+            "filepool_helper.h",
             ],
     deps = [
             "@com_google_googletest//:gtest",
@@ -43,8 +43,8 @@ cc_library(
 cc_test(
     name = "curve_datastore_unittest",
     srcs = [
-        "chunkfilepool_unittest.cpp",
-        "chunkfilepool_mock_unittest.cpp",
+        "filepool_unittest.cpp",
+        "filepool_mock_unittest.cpp",
         "datastore_mock_unittest.cpp",
         "datastore_unittest_main.cpp",
         "file_helper_unittest.cpp",
@@ -62,6 +62,6 @@ cc_test(
         "//test/fs:fs_mock",
         "//test/chunkserver/datastore:datastore_mock",
         "//external:json",
-        "//test/chunkserver/datastore:chunkfilepool_helper",
+        "//test/chunkserver/datastore:filepool_helper",
     ],
 )

@@ -35,7 +35,7 @@
 #include <unordered_map>
 #include <memory>
 
-#include "src/chunkserver/datastore/chunkfile_pool.h"
+#include "src/chunkserver/datastore/file_pool.h"
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/copyset_node.h"

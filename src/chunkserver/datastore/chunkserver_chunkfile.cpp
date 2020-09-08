@@ -129,7 +129,7 @@ CSErrorCode ChunkFileMetaPage::decode(const char* buf) {
 }
 
 CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
-                         std::shared_ptr<ChunkfilePool> chunkfilePool,
+                         std::shared_ptr<FilePool> chunkFilePool,
                          const ChunkOptions& options)
     : fd_(-1),
       size_(options.chunkSize),
@@ -138,7 +138,7 @@ CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
       baseDir_(options.baseDir),
       isCloneChunk_(false),
       snapshot_(nullptr),
-      chunkfilePool_(chunkfilePool),
+      chunkFilePool_(chunkFilePool),
       lfs_(lfs),
       metric_(options.metric) {
     CHECK(!baseDir_.empty()) << "Create chunk file failed";
@@ -187,7 +187,7 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
         char buf[pageSize_];  // NOLINT
         memset(buf, 0, sizeof(buf));
         metaPage_.encode(buf);
-        int rc = chunkfilePool_->GetChunk(chunkFilePath, buf);
+        int rc = chunkFilePool_->GetFile(chunkFilePath, buf);
         // 并发创建文件时，可能前面线程已经创建成功，那么这里会返回-EEXIST
         // 此时可以继续open已经生成的文件
         // 不过当前同一个chunk的操作是串行的，不会出现这个问题
@@ -248,7 +248,7 @@ CSErrorCode CSChunkFile::LoadSnapshot(SequenceNum sn) {
     options.pageSize = pageSize_;
     options.metric = metric_;
     snapshot_ = new(std::nothrow) CSSnapshot(lfs_,
-                                            chunkfilePool_,
+                                            chunkFilePool_,
                                             options);
     CHECK(snapshot_ != nullptr) << "Failed to new CSSnapshot!"
                                 << "ChunkID:" << chunkId_
@@ -320,7 +320,7 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
         options.pageSize = pageSize_;
         options.metric = metric_;
         snapshot_ = new(std::nothrow) CSSnapshot(lfs_,
-                                                 chunkfilePool_,
+                                                 chunkFilePool_,
                                                  options);
         CHECK(snapshot_ != nullptr) << "Failed to new CSSnapshot!";
         CSErrorCode errorCode = snapshot_->Open(true);
@@ -582,7 +582,7 @@ CSErrorCode CSChunkFile::Delete(SequenceNum sn)  {
         lfs_->Close(fd_);
         fd_ = -1;
     }
-    int ret = chunkfilePool_->RecycleChunk(path());
+    int ret = chunkFilePool_->RecycleFile(path());
     if (ret < 0)
         return CSErrorCode::InternalError;
 

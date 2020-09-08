@@ -61,7 +61,8 @@ curve::client::PerSecondMetric iops("test", "iops");
 std::atomic<bool> running{ false };
 
 const std::vector<std::string> chunkserverConfigOpts{
-    "chunkfilepool.enable_get_chunk_from_pool=false"
+    "chunkfilepool.enable_get_chunk_from_pool=false",
+    "walfilepool.enable_get_segment_from_pool=false"
 };
 
 const std::vector<std::string> mdsConfigOpts{
@@ -92,9 +93,12 @@ const std::vector<std::string> chunkserverConfTemplate{
     { " -chunkServerMetaUri=local://./ttt/%d/chunkserver.dat" },
     { " -copySetUri=local://./ttt/%d/copysets" },
     { " -raftSnapshotUri=curve://./ttt/%d/copysets" },
+    { " -raftLogUri=curve://./ttt/%d/copysets" },
     { " -recycleUri=local://./ttt/%d/recycler" },
-    { " -chunkFilePoolDir=./ttt/%d/" },
+    { " -chunkFilePoolDir=./ttt/%d/chunkfilepool/" },
     { " -chunkFilePoolMetaPath=./ttt/%d/chunkfilepool.meta" },
+    { " -walFilePoolDir=./ttt/%d/walfilepool/" },
+    { " -walFilePoolMetaPath=./ttt/%d/walfilepool.meta" },
     { " -mdsListenAddr=127.0.0.1:30010,127.0.0.1:30011,127.0.0.1:30012" },
     { " -log_dir=./runlog/cs_%d" },
     { " --stderrthreshold=3" }
@@ -120,7 +124,11 @@ std::vector<std::string> GenChunkserverConf(int port) {
     conf[6] = formatter(chunkserverConfTemplate[6], port);
     conf[7] = formatter(chunkserverConfTemplate[7], port);
     conf[8] = formatter(chunkserverConfTemplate[8], port);
+    conf[9] = formatter(chunkserverConfTemplate[9], port);
     conf[10] = formatter(chunkserverConfTemplate[10], port);
+    conf[11] = formatter(chunkserverConfTemplate[11], port);
+    conf[12] = formatter(chunkserverConfTemplate[12], port);
+    conf[14] = formatter(chunkserverConfTemplate[14], port);
 
     std::string rmcmd = "rm -rf ./runlog/cs_" + std::to_string(port);
     std::string mkcmd = "mkdir -p ./runlog/cs_" + std::to_string(port);

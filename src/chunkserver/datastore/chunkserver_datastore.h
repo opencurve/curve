@@ -37,7 +37,7 @@
 #include "src/common/concurrent/concurrent.h"
 #include "src/chunkserver/datastore/define.h"
 #include "src/chunkserver/datastore/chunkserver_chunkfile.h"
-#include "src/chunkserver/datastore/chunkfile_pool.h"
+#include "src/chunkserver/datastore/file_pool.h"
 #include "src/fs/local_filesystem.h"
 
 namespace curve {
@@ -141,7 +141,7 @@ class CSDataStore {
     CSDataStore() {}
 
     CSDataStore(std::shared_ptr<LocalFileSystem> lfs,
-                std::shared_ptr<ChunkfilePool> chunkfilePool,
+                std::shared_ptr<FilePool> chunkFilePool,
                 const DataStoreOptions& options);
     virtual ~CSDataStore();
     /**
@@ -294,7 +294,7 @@ class CSDataStore {
     // 为chunkid->chunkfile的映射
     CSMetaCache metaCache_;
     // chunkfile池，依赖该池子创建回收chunk文件或快照文件
-    std::shared_ptr<ChunkfilePool>          chunkfilePool_;
+    std::shared_ptr<FilePool>          chunkFilePool_;
     // 本地文件系统
     std::shared_ptr<LocalFileSystem>        lfs_;
     // datastore的内部统计信息

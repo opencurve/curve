@@ -71,8 +71,8 @@ class CopysetNodeManagerTest : public ::testing::Test {
             LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
         ASSERT_TRUE(nullptr != fs);
         defaultOptions_.localFileSystem = fs;
-        defaultOptions_.chunkfilePool =
-            std::make_shared<ChunkfilePool>(fs);
+        defaultOptions_.chunkFilePool =
+            std::make_shared<FilePool>(fs);
         defaultOptions_.trash = std::make_shared<Trash>();
     }
 

@@ -49,7 +49,7 @@
 
 - name: generate chunkserver_ctl.sh
   vars:
-    enable_chunkfilepool: "{{ chunkserver_format_disk }}"
+    enable_FilePool: "{{ chunkserver_format_disk }}"
     jemalloc_path: "{{ lib_install_prefix }}/lib/libjemalloc.so.1"
   template: src=chunkserver_ctl.sh.j2 dest={{ deploy_dir }}/chunkserver_ctl.sh mode=0755
 

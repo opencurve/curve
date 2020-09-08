@@ -24,7 +24,7 @@
 #include <memory>
 #include "src/chunkserver/trash.h"
 #include "test/fs/mock_local_filesystem.h"
-#include "test/chunkserver/datastore/mock_chunkfile_pool.h"
+#include "test/chunkserver/datastore/mock_file_pool.h"
 #include "src/chunkserver/copyset_node.h"
 
 using ::testing::_;
@@ -49,9 +49,9 @@ class TrashTest : public ::testing::Test {
  protected:
     void SetUp() {
         lfs = std::make_shared<MockLocalFileSystem>();
-        pool = std::make_shared<MockChunkfilePool>(lfs);
+        pool = std::make_shared<MockFilePool>(lfs);
         ops.localFileSystem = lfs;
-        ops.chunkfilePool = pool;
+        ops.chunkFilePool = pool;
         ops.trashPath = "local://./0/trash";
         ops.expiredAfterSec = 1;
         ops.scanPeriodSec = 1;
@@ -103,8 +103,8 @@ class TrashTest : public ::testing::Test {
         EXPECT_CALL(*lfs, Delete(meta)).WillRepeatedly(Return(-1));
         EXPECT_CALL(*lfs, List(data, _))
             .WillRepeatedly(DoAll(SetArgPointee<1>(chunks), Return(0)));
-        EXPECT_CALL(*pool, RecycleChunk(chunks1)).WillRepeatedly(Return(-1));
-        EXPECT_CALL(*pool, RecycleChunk(chunks2)).WillRepeatedly(Return(0));
+        EXPECT_CALL(*pool, RecycleFile(chunks1)).WillRepeatedly(Return(-1));
+        EXPECT_CALL(*pool, RecycleFile(chunks2)).WillRepeatedly(Return(0));
         for (int i = 0; i < 50; i++) {
             trash->DeleteEligibleFileInTrash();
         }
@@ -127,7 +127,7 @@ class TrashTest : public ::testing::Test {
  protected:
     std::shared_ptr<Trash> trash;
     std::shared_ptr<MockLocalFileSystem> lfs;
-    std::shared_ptr<MockChunkfilePool> pool;
+    std::shared_ptr<MockFilePool> pool;
     TrashOptions ops;
 };
 
@@ -363,10 +363,10 @@ TEST_F(TrashTest,
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
 
     EXPECT_CALL(*pool,
-        RecycleChunk("./0/trash/4294967493.55555/data/chunk_123"))
+        RecycleFile("./0/trash/4294967493.55555/data/chunk_123"))
         .WillOnce(Return(0));
     EXPECT_CALL(*pool,
-        RecycleChunk("./0/trash/4294967493.55555/data/chunk_345"))
+        RecycleFile("./0/trash/4294967493.55555/data/chunk_345"))
         .WillOnce(Return(0));
 
     trash->DeleteEligibleFileInTrash();
@@ -493,10 +493,10 @@ TEST_F(TrashTest, test_chunk_num_statistic) {
     EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/data", _))
         .WillOnce(DoAll(SetArgPointee<1>(chunks1), Return(0)));
     EXPECT_CALL(*pool,
-        RecycleChunk("./0/trash/4294967493.55555/data/chunk_123"))
+        RecycleFile("./0/trash/4294967493.55555/data/chunk_123"))
         .WillOnce(Return(0));
     EXPECT_CALL(*pool,
-        RecycleChunk("./0/trash/4294967493.55555/data/chunk_345"))
+        RecycleFile("./0/trash/4294967493.55555/data/chunk_345"))
         .WillOnce(Return(-1));
     EXPECT_CALL(*lfs, Delete("./0/trash/4294967493.55555"))
         .Times(0);
