@@ -56,6 +56,9 @@ class ChunkServer {
     void InitChunkFilePoolOptions(common::Configuration *conf,
         ChunkfilePoolOptions *chunkFilePoolOptions);
 
+    void InitWalFilePoolOptions(common::Configuration *conf,
+        ChunkfilePoolOptions *walFilePoolOptions);
+
     void InitCopysetNodeOptions(common::Configuration *conf,
         CopysetNodeOptions *copysetNodeOptions);
 

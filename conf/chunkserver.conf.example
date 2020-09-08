@@ -169,6 +169,22 @@ trash.expire_afterSec=300
 # chunkserver检查回收数据过期时间的周期
 trash.scan_periodSec=120
 
+#
+# WAL file pool
+#
+# 是否开启从wal filepool获取segment file, 默认false
+walfilepool.enable_file_pool=false
+# WAL filepool目录
+walfilepool.file_pool_dir=./walfilepool/
+# WAL filepool meta文件路径
+walfilepool.meta_path=./walfilepool.meta
+# WAL segment大小
+walfilepool.segment_size=8388608
+# WAL metapage大小
+walfilepool.metapage_size=4096
+# WAL filepool 元数据文件大小
+walfilepool.meta_file_size=4096
+
 # common option
 #
 # chunkserver 日志存放文件夹

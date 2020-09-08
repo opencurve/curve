@@ -48,6 +48,10 @@ using ::curve::fs::LocalFileSystemOption;
 using ::curve::fs::LocalFsFactory;
 using ::curve::fs::FileSystemType;
 
+#define WAL_DEF_METAPAGE_SIZE 4096
+#define WAL_DEF_METAFILE_SIZE 4096
+#define WAL_DEF_SEGMENT_SIZE (8 * 1024 * 1024 + 4096)
+
 DEFINE_string(conf, "ChunkServer.conf", "Path of configuration file");
 DEFINE_string(chunkServerIp, "127.0.0.1", "chunkserver ip");
 DEFINE_bool(enableExternalServer, false, "start external server or not");
@@ -67,8 +71,21 @@ DEFINE_string(mdsListenAddr, "127.0.0.1:6666", "mds listen addr");
 DEFINE_bool(enableChunkfilepool, true, "enable chunkfilepool");
 DEFINE_uint32(copysetLoadConcurrency, 5, "copyset load concurrency");
 
+DEFINE_bool(wal_enable_filepool, false, "enable WAL filepool");
+DEFINE_string(wal_filepool_dir, "./walfilepool/", "WAL filepool location");
+DEFINE_string(wal_filepool_metapath, "./walfilepool.meta",
+    "WAL filepool meta path");
+DEFINE_uint32(wal_filepool_segment_size, WAL_DEF_SEGMENT_SIZE,
+    "WAL filepool segment size");
+DEFINE_uint32(wal_filepool_metapage_size, WAL_DEF_METAPAGE_SIZE,
+    "WAL filepool metapage size");
+DEFINE_uint32(wal_filepool_metafile_size, WAL_DEF_METAFILE_SIZE,
+    "WAL filepool metafile size");
+
 namespace curve {
 namespace chunkserver {
+
+std::shared_ptr<ChunkfilePool> walfilePool = nullptr;
 
 int ChunkServer::Run(int argc, char** argv) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -127,6 +144,13 @@ int ChunkServer::Run(int argc, char** argv) {
         std::make_shared<ChunkfilePool>(fs);
     LOG_IF(FATAL, false == chunkfilePool->Initialize(chunkFilePoolOptions))
         << "Failed to init chunk file pool";
+
+    // 初始化wal文件池
+    ChunkfilePoolOptions walFilePoolOptions;
+    InitWalFilePoolOptions(&conf, &walFilePoolOptions);
+    walfilePool = std::make_shared<ChunkfilePool>(fs);
+    LOG_IF(FATAL, false == walfilePool->Initialize(walFilePoolOptions))
+        << "Failed to init WAL file pool";
 
     // 远端拷贝管理模块选项
     CopyerOptions copyerOptions;
@@ -408,6 +432,38 @@ void ChunkServer::InitChunkFilePoolOptions(
     }
 }
 
+void ChunkServer::InitWalFilePoolOptions(
+    common::Configuration *conf, ChunkfilePoolOptions *walFilePoolOptions) {
+    if (!conf->GetBoolValue("walfilepool.enable_file_pool",
+        &walFilePoolOptions->getChunkFromPool))
+        walFilePoolOptions->getChunkFromPool = FLAGS_wal_enable_filepool;
+    if (!conf->GetUInt32Value("walfilepool.segment_size",
+        &walFilePoolOptions->chunkSize))
+        walFilePoolOptions->chunkSize = FLAGS_wal_filepool_segment_size;
+    if (!conf->GetUInt32Value("walfilepool.metapage_size",
+        &walFilePoolOptions->metaPageSize))
+        walFilePoolOptions->metaPageSize = FLAGS_wal_filepool_metapage_size;
+    if (!conf->GetUInt32Value("walfilepool.meta_file_size",
+        &walFilePoolOptions->cpMetaFileSize))
+        walFilePoolOptions->cpMetaFileSize = FLAGS_wal_filepool_metafile_size;
+
+    if (walFilePoolOptions->getChunkFromPool == false) {
+        std::string walFilePoolUri;
+        if (!conf->GetStringValue("walfilepool.file_pool_dir",
+            &walFilePoolUri))
+            walFilePoolUri = FLAGS_wal_filepool_dir;
+        ::memcpy(walFilePoolOptions->chunkFilePoolDir,
+                 walFilePoolUri.c_str(),
+                 walFilePoolUri.size());
+    } else {
+        std::string metaUri;
+        if (!conf->GetStringValue("walfilepool.meta_path", &metaUri))
+            metaUri = FLAGS_wal_filepool_metapath;
+        ::memcpy(
+            walFilePoolOptions->metaPath, metaUri.c_str(), metaUri.size());
+    }
+}
+
 void ChunkServer::InitCopysetNodeOptions(
     common::Configuration *conf, CopysetNodeOptions *copysetNodeOptions) {
     LOG_IF(FATAL, !conf->GetStringValue("global.ip", &copysetNodeOptions->ip));
@@ -646,6 +702,24 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
         !info.is_default) {
         conf->SetBoolValue("chunkfilepool.enable_get_chunk_from_pool",
             FLAGS_enableChunkfilepool);
+    }
+
+    if (GetCommandLineFlagInfo("wal_enable_filepool", &info) &&
+        !info.is_default) {
+        conf->SetBoolValue("walfilepool.enable_file_pool",
+            FLAGS_wal_enable_filepool);
+    }
+
+    if (GetCommandLineFlagInfo("wal_filepool_dir", &info) &&
+        !info.is_default) {
+        conf->SetStringValue(
+            "walfilepool.file_pool_dir", FLAGS_wal_filepool_dir);
+    }
+
+    if (GetCommandLineFlagInfo("wal_filepool_metapath", &info) &&
+        !info.is_default) {
+        conf->SetStringValue(
+            "walfilepool.meta_path", FLAGS_wal_filepool_metapath);
     }
 
     if (GetCommandLineFlagInfo("copysetLoadConcurrency", &info) &&
