@@ -41,6 +41,7 @@
 #include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
 #include "src/chunkserver/raftsnapshot/curve_file_service.h"
 #include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
+#include "src/chunkserver/raftlog/curve_segment_log_storage.h"
 #include "src/common/curve_version.h"
 
 using ::curve::fs::LocalFileSystem;
@@ -59,6 +60,7 @@ DEFINE_string(chunkServerMetaUri,
     "local://./0/chunkserver.dat", "chunnkserver meata uri");
 DEFINE_string(copySetUri, "local://./0/copysets", "copyset data uri");
 DEFINE_string(raftSnapshotUri, "curve://./0/copysets", "raft snapshot uri");
+DEFINE_string(raftLogUri, "curve://./0/copysets", "raft log uri");
 DEFINE_string(recycleUri, "local://./0/recycler" , "recycle uri");
 DEFINE_string(chunkFilePoolDir, "./0/", "chunk file pool location");
 DEFINE_string(chunkFilePoolMetaPath,
@@ -67,12 +69,18 @@ DEFINE_string(logPath, "./0/chunkserver.log-", "log file path");
 DEFINE_string(mdsListenAddr, "127.0.0.1:6666", "mds listen addr");
 DEFINE_bool(enableChunkfilepool, true, "enable chunkfilepool");
 DEFINE_uint32(copysetLoadConcurrency, 5, "copyset load concurrency");
+DEFINE_bool(enableWalfilepool, true, "enable WAL filepool");
+DEFINE_string(walFilePoolDir, "./0/", "WAL filepool location");
+DEFINE_string(walFilePoolMetaPath, "./walfilepool.meta",
+                                    "WAL filepool meta path");
 
 namespace curve {
 namespace chunkserver {
 
 int ChunkServer::Run(int argc, char** argv) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
+
+    RegisterCurveSegmentLogStorageOrDie();
 
     // ==========================加载配置项===============================//
     LOG(INFO) << "Loading Configuration.";
@@ -120,12 +128,19 @@ int ChunkServer::Run(int argc, char** argv) {
         << "Failed to initialize local filesystem module!";
 
     // 初始化chunk文件池
-    ChunkfilePoolOptions chunkFilePoolOptions;
+    FilePoolOptions chunkFilePoolOptions;
     InitChunkFilePoolOptions(&conf, &chunkFilePoolOptions);
-    std::shared_ptr<ChunkfilePool> chunkfilePool =
-        std::make_shared<ChunkfilePool>(fs);
+    std::shared_ptr<FilePool> chunkfilePool =
+            std::make_shared<FilePool>(fs);
     LOG_IF(FATAL, false == chunkfilePool->Initialize(chunkFilePoolOptions))
         << "Failed to init chunk file pool";
+
+    // Init Wal file pool
+    FilePoolOptions walFilePoolOptions;
+    InitWalFilePoolOptions(&conf, &walFilePoolOptions);
+    kWalFilePool = std::make_shared<FilePool>(fs);
+    LOG_IF(FATAL, false == kWalFilePool->Initialize(walFilePoolOptions))
+        << "Failed to init wal file pool";
 
     // 远端拷贝管理模块选项
     CopyerOptions copyerOptions;
@@ -173,7 +188,7 @@ int ChunkServer::Run(int argc, char** argv) {
     TrashOptions trashOptions;
     InitTrashOptions(&conf, &trashOptions);
     trashOptions.localFileSystem = fs;
-    trashOptions.chunkfilePool = chunkfilePool;
+    trashOptions.chunkFilePool = chunkfilePool;
     trash_ = std::make_shared<Trash>();
     LOG_IF(FATAL, trash_->Init(trashOptions) != 0)
         << "Failed to init Trash";
@@ -182,7 +197,7 @@ int ChunkServer::Run(int argc, char** argv) {
     CopysetNodeOptions copysetNodeOptions;
     InitCopysetNodeOptions(&conf, &copysetNodeOptions);
     copysetNodeOptions.concurrentapply = &concurrentapply;
-    copysetNodeOptions.chunkfilePool = chunkfilePool;
+    copysetNodeOptions.chunkFilePool = chunkfilePool;
     copysetNodeOptions.localFileSystem = fs;
     copysetNodeOptions.trash = trash_;
 
@@ -232,6 +247,7 @@ int ChunkServer::Run(int argc, char** argv) {
     // 监控部分模块的metric指标
     metric->MonitorTrash(trash_.get());
     metric->MonitorChunkFilePool(chunkfilePool.get());
+    metric->MonitorWalFilePool(kWalFilePool.get());
     metric->ExposeConfigMetric(&conf);
 
     // ========================添加rpc服务===============================//
@@ -382,22 +398,22 @@ void ChunkServer::Stop() {
 
 
 void ChunkServer::InitChunkFilePoolOptions(
-    common::Configuration *conf, ChunkfilePoolOptions *chunkFilePoolOptions) {
+    common::Configuration *conf, FilePoolOptions *chunkFilePoolOptions) {
     LOG_IF(FATAL, !conf->GetUInt32Value("global.chunk_size",
-        &chunkFilePoolOptions->chunkSize));
+        &chunkFilePoolOptions->fileSize));
     LOG_IF(FATAL, !conf->GetUInt32Value("global.meta_page_size",
         &chunkFilePoolOptions->metaPageSize));
     LOG_IF(FATAL, !conf->GetUInt32Value("chunkfilepool.cpmeta_file_size",
-        &chunkFilePoolOptions->cpMetaFileSize));
+        &chunkFilePoolOptions->metaFileSize));
     LOG_IF(FATAL, !conf->GetBoolValue(
         "chunkfilepool.enable_get_chunk_from_pool",
-        &chunkFilePoolOptions->getChunkFromPool));
+        &chunkFilePoolOptions->getFileFromPool));
 
-    if (chunkFilePoolOptions->getChunkFromPool == false) {
+    if (chunkFilePoolOptions->getFileFromPool == false) {
         std::string chunkFilePoolUri;
         LOG_IF(FATAL, !conf->GetStringValue(
             "chunkfilepool.chunk_file_pool_dir", &chunkFilePoolUri));
-        ::memcpy(chunkFilePoolOptions->chunkFilePoolDir,
+        ::memcpy(chunkFilePoolOptions->filePoolDir,
                  chunkFilePoolUri.c_str(),
                  chunkFilePoolUri.size());
     } else {
@@ -419,6 +435,34 @@ void ChunkServer::InitConcurrentApplyOptions(common::Configuration *conf,
         "rconcurrentapply.queuedepth", &concurrentApplyOptions->rqueuedepth));
     LOG_IF(FATAL, !conf->GetIntValue(
         "wconcurrentapply.queuedepth", &concurrentApplyOptions->wqueuedepth));
+}
+
+void ChunkServer::InitWalFilePoolOptions(
+    common::Configuration *conf, FilePoolOptions *walPoolOptions) {
+    LOG_IF(FATAL, !conf->GetUInt32Value("walfilepool.segment_size",
+        &walPoolOptions->fileSize));
+    LOG_IF(FATAL, !conf->GetUInt32Value("walfilepool.metapage_size",
+        &walPoolOptions->metaPageSize));
+    LOG_IF(FATAL, !conf->GetUInt32Value("walfilepool.meta_file_size",
+        &walPoolOptions->metaFileSize));
+    LOG_IF(FATAL, !conf->GetBoolValue(
+        "walfilepool.enable_get_segment_from_pool",
+        &walPoolOptions->getFileFromPool));
+
+    if (walPoolOptions->getFileFromPool == false) {
+        std::string filePoolUri;
+        LOG_IF(FATAL, !conf->GetStringValue(
+            "walfilepool.file_pool_dir", &filePoolUri));
+        ::memcpy(walPoolOptions->filePoolDir,
+                 filePoolUri.c_str(),
+                 filePoolUri.size());
+    } else {
+        std::string metaUri;
+        LOG_IF(FATAL, !conf->GetStringValue(
+            "walfilepool.meta_path", &metaUri));
+        ::memcpy(
+            walPoolOptions->metaPath, metaUri.c_str(), metaUri.size());
+    }
 }
 
 void ChunkServer::InitCopysetNodeOptions(
@@ -616,6 +660,13 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
         LOG(FATAL)
         << "raftSnapshotUri must be set when run chunkserver in command.";
     }
+    if (GetCommandLineFlagInfo("raftLogUri", &info) && !info.is_default) {
+        conf->SetStringValue(
+                            "copyset.raft_log_uri", FLAGS_raftLogUri);
+    } else {
+        LOG(FATAL)
+        << "raftLogUri must be set when run chunkserver in command.";
+    }
 
     if (GetCommandLineFlagInfo("recycleUri", &info) &&
         !info.is_default) {
@@ -643,6 +694,24 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
         << "chunkFilePoolMetaPath must be set when run chunkserver in command.";
     }
 
+    if (GetCommandLineFlagInfo("walFilePoolDir", &info) &&
+        !info.is_default) {
+        conf->SetStringValue(
+            "walfilepool.file_pool_dir", FLAGS_walFilePoolDir);
+    } else {
+        LOG(FATAL)
+        << "walFilePoolDir must be set when run chunkserver in command.";
+    }
+
+    if (GetCommandLineFlagInfo("walFilePoolMetaPath", &info) &&
+        !info.is_default) {
+        conf->SetStringValue(
+            "walfilepool.meta_path", FLAGS_walFilePoolMetaPath);
+    } else {
+        LOG(FATAL)
+        << "walFilePoolMetaPath must be set when run chunkserver in command.";
+    }
+
     if (GetCommandLineFlagInfo("mdsListenAddr", &info) && !info.is_default) {
         conf->SetStringValue("mds.listen.addr", FLAGS_mdsListenAddr);
     }
@@ -659,6 +728,12 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
         !info.is_default) {
         conf->SetBoolValue("chunkfilepool.enable_get_chunk_from_pool",
             FLAGS_enableChunkfilepool);
+    }
+
+    if (GetCommandLineFlagInfo("enableWalfilepool", &info) &&
+        !info.is_default) {
+        conf->SetBoolValue("walfilepool.enable_get_segment_from_pool",
+            FLAGS_enableWalfilepool);
     }
 
     if (GetCommandLineFlagInfo("copysetLoadConcurrency", &info) &&

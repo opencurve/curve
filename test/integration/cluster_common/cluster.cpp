@@ -432,23 +432,23 @@ int CurveCluster::StopAllEtcd() {
     return ret;
 }
 
-int CurveCluster::FormatChunkFilePool(const std::string &chunkfilepooldir,
-                                      const std::string &chunkfilepoolmetapath,
-                                      const std::string &filesystempath,
-                                      uint32_t size) {
-    LOG(INFO) << "FormatChunkFilePool begin...";
+int CurveCluster::FormatFilePool(const std::string &filePooldir,
+                                 const std::string &filePoolmetapath,
+                                 const std::string &filesystempath,
+                                 uint32_t size) {
+    LOG(INFO) << "FormatFilePool begin...";
 
     std::string cmd = std::string("./bazel-bin/src/tools/curve_format") +
-                      " -chunkfilepool_dir=" + chunkfilepooldir +
-                      " -chunkfilepool_metapath=" + chunkfilepoolmetapath +
-                      " -filesystem_path=" + filesystempath +
-                      " -allocateByPercent=false -preallocateNum=" +
+                      " -filePoolDir=" + filePooldir +
+                      " -filePoolMetaPath=" + filePoolmetapath +
+                      " -fileSystemPath=" + filesystempath +
+                      " -allocateByPercent=false -preAllocateNum=" +
                       std::to_string(size * 64) +
-                      " -needWriteZero=false";  // 1G = 64 chunk
+                      " -needWriteZero=false";
 
     RETURN_IF_NOT_ZERO(system(cmd.c_str()));
 
-    LOG(INFO) << "FormatChunkFilePool end.";
+    LOG(INFO) << "FormatFilePool end.";
     return 0;
 }
 

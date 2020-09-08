@@ -20,7 +20,7 @@
  * Author: tongguangxun
  */
 
-#include "test/chunkserver/datastore/chunkfilepool_helper.h"
+#include "test/chunkserver/datastore/filepool_helper.h"
 
 void allocateChunk(std::shared_ptr<LocalFileSystem> fsptr,
                    uint32_t num,

@@ -22,7 +22,7 @@ DEPS = [
     "//include/chunkserver:include-chunkserver",
     "//src/common:curve_common",
     "//src/chunkserver/datastore:chunkserver_datastore",
-    "//test/chunkserver/datastore:chunkfilepool_helper",
+    "//test/chunkserver/datastore:filepool_helper",
 ]
 
 cc_test(

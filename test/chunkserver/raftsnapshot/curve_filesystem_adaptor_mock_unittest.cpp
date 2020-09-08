@@ -29,7 +29,7 @@
 
 #include "src/fs/local_filesystem.h"
 #include "test/fs/mock_local_filesystem.h"
-#include "src/chunkserver/datastore/chunkfile_pool.h"
+#include "src/chunkserver/datastore/file_pool.h"
 #include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
 #include "src/chunkserver/raftsnapshot/define.h"
 
@@ -51,7 +51,7 @@ using ::testing::AtLeast;
 using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
-using curve::chunkserver::ChunkfilePool;
+using curve::chunkserver::FilePool;
 using curve::fs::MockLocalFileSystem;
 namespace curve {
 namespace chunkserver {
@@ -60,8 +60,8 @@ class RaftSnapshotFilesystemAdaptorMockTest : public testing::Test {
     void SetUp() {
         fsptr = curve::fs::LocalFsFactory::CreateFs(
                         curve::fs::FileSystemType::EXT4, "/dev/sda");
-        ChunkfilepoolPtr_ = std::make_shared<ChunkfilePool>(fsptr);
-        if (ChunkfilepoolPtr_ == nullptr) {
+        FilePoolPtr_ = std::make_shared<FilePool>(fsptr);
+        if (FilePoolPtr_ == nullptr) {
             LOG(FATAL) << "allocate chunkfile pool failed!";
         }
         int count = 1;
@@ -82,15 +82,15 @@ class RaftSnapshotFilesystemAdaptorMockTest : public testing::Test {
         uint32_t chunksize = 4096;
         uint32_t metapagesize = 4096;
 
-        ChunkfilePoolOptions cpopt;
-        cpopt.getChunkFromPool = true;
-        cpopt.chunkSize = chunksize;
+        FilePoolOptions cpopt;
+        cpopt.getFileFromPool = true;
+        cpopt.fileSize = chunksize;
         cpopt.metaPageSize = metapagesize;
-        cpopt.cpMetaFileSize = 4096;
-        memcpy(cpopt.chunkFilePoolDir, "./raftsnap/chunkfilepool", 17);
+        cpopt.metaFileSize = 4096;
+        memcpy(cpopt.filePoolDir, "./raftsnap/chunkfilepool", 17);
         memcpy(cpopt.metaPath, "./raftsnap/chunkfilepool.meta", 30);
 
-        int ret = ChunkfilePoolHelper::PersistEnCodeMetaInfo(
+        int ret = FilePoolHelper::PersistEnCodeMetaInfo(
                                                     fsptr,
                                                     chunksize,
                                                     metapagesize,
@@ -104,16 +104,16 @@ class RaftSnapshotFilesystemAdaptorMockTest : public testing::Test {
 
         lfs = std::make_shared<curve::fs::MockLocalFileSystem>();
 
-        rfa = new CurveFilesystemAdaptor(ChunkfilepoolPtr_, lfs);
+        rfa = new CurveFilesystemAdaptor(FilePoolPtr_, lfs);
         std::vector<std::string> filterList;
         std::string snapshotMeta(BRAFT_SNAPSHOT_META_FILE);
         filterList.push_back(snapshotMeta);
         rfa->SetFilterList(filterList);
 
-        ASSERT_TRUE(ChunkfilepoolPtr_->Initialize(cpopt));
+        ASSERT_TRUE(FilePoolPtr_->Initialize(cpopt));
         scoped_refptr<braft::FileSystemAdaptor> scptr(rfa);
 
-        ChunkfilepoolPtr_->SetLocalFileSystem(lfs);
+        FilePoolPtr_->SetLocalFileSystem(lfs);
 
         fsadaptor.swap(scptr);
         fsadaptor->AddRef();
@@ -121,7 +121,7 @@ class RaftSnapshotFilesystemAdaptorMockTest : public testing::Test {
 
     void TearDown() {
         std::vector<std::string> filename;
-        fsptr->List("./raftsnap/chunkfilepool", &filename);
+        fsptr->List("./raftsnap/FilePool", &filename);
         for (auto iter : filename) {
             auto path = "./raftsnap/chunkfilepool/" + iter;
             int err = fsptr->Delete(path.c_str());
@@ -131,7 +131,7 @@ class RaftSnapshotFilesystemAdaptorMockTest : public testing::Test {
         }
         fsptr->Delete("./raftsnap/chunkfilepool");
         fsptr->Delete("./raftsnap/chunkfilepool.meta");
-        ChunkfilepoolPtr_->UnInitialize();
+        FilePoolPtr_->UnInitialize();
         fsadaptor->Release();
     }
 
@@ -144,7 +144,7 @@ class RaftSnapshotFilesystemAdaptorMockTest : public testing::Test {
     }
 
     scoped_refptr<braft::FileSystemAdaptor> fsadaptor;
-    std::shared_ptr<ChunkfilePool>  ChunkfilepoolPtr_;
+    std::shared_ptr<FilePool>  FilePoolPtr_;
     std::shared_ptr<LocalFileSystem>  fsptr;
     std::shared_ptr<MockLocalFileSystem>  lfs;
     CurveFilesystemAdaptor*  rfa;
@@ -155,26 +155,26 @@ TEST_F(RaftSnapshotFilesystemAdaptorMockTest, open_file_mock_test) {
     CreateChunkFile("./10");
     std::string path = "./10";
     butil::File::Error e;
-    ASSERT_EQ(ChunkfilepoolPtr_->Size(), 3);
+    ASSERT_EQ(FilePoolPtr_->Size(), 3);
     EXPECT_CALL(*lfs, Open(_, _)).Times(AtLeast(1)).WillRepeatedly(Return(-1));
     braft::FileAdaptor* fa = fsadaptor->open(path,
                                              O_RDONLY | O_CLOEXEC,
                                              nullptr,
                                              &e);
 
-    ASSERT_EQ(ChunkfilepoolPtr_->Size(), 3);
+    ASSERT_EQ(FilePoolPtr_->Size(), 3);
     ASSERT_EQ(nullptr, fa);
 
-    // 2. open flag带CREAT, 从chunkfilepool取文件，但是chunkfilepool打开文件失败
+    // 2. open flag带CREAT, 从FilePool取文件，但是FilePool打开文件失败
     // 所以还是走原有逻辑，本地创建文件成功
     EXPECT_CALL(*lfs, Open(_, _)).Times(3).WillOnce(Return(-1))
                                           .WillOnce(Return(-1))
                                           .WillOnce(Return(-1));
     EXPECT_CALL(*lfs, FileExists(_)).Times(1).WillRepeatedly(Return(0));
-    ASSERT_EQ(ChunkfilepoolPtr_->Size(), 3);
+    ASSERT_EQ(FilePoolPtr_->Size(), 3);
     path = "./11";
     fa = fsadaptor->open(path, O_RDONLY | O_CLOEXEC | O_CREAT, nullptr, &e);
-    ASSERT_EQ(ChunkfilepoolPtr_->Size(), 0);
+    ASSERT_EQ(FilePoolPtr_->Size(), 0);
     ASSERT_TRUE(fsptr->FileExists("./10"));
     ASSERT_EQ(0, fsptr->Delete("./10"));
     ASSERT_FALSE(fsptr->FileExists("./10"));

@@ -39,7 +39,7 @@ using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 
-class RaftSnapChunkfilePoolTest : public testing::Test {
+class RaftSnapFilePoolTest : public testing::Test {
  protected:
     virtual void SetUp() {
         ASSERT_EQ(0, peer1.parse("127.0.0.1:9060:0"));
@@ -209,13 +209,13 @@ static void ReadVerify(PeerId leaderId,
  * 4. 然后 sleep 超过一个 snapshot interval，write read 数据
  * 5. 然后再 sleep 超过一个 snapshot interval，write read 数据；4,5两步
  *    是为了保证打至少两次快照，这样，节点再重启的时候必须通过 install snapshot,
- *    因为 log 已经被删除了, install snapshot的数据从chunkfilepool中取文件
+ *    因为 log 已经被删除了, install snapshot的数据从FilePool中取文件
  * 6. 等待 leader 产生，然后 read 之前写入的数据验证一遍
  * 7. transfer leader 到shut down 的peer 上
  * 8. 在 read 之前写入的数据验证
  * 9. 再 write 数据，再 read 出来验证一遍
  */
-TEST_F(RaftSnapChunkfilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
+TEST_F(RaftSnapFilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100001;
     uint64_t chunkId = 1;
@@ -236,12 +236,12 @@ TEST_F(RaftSnapChunkfilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     ASSERT_EQ(0, cluster.StartPeer(peer2, false, true, true));
     ASSERT_EQ(0, cluster.StartPeer(peer3, false, true, true));
 
-    // 等待chunkfilepool创建成功
+    // 等待FilePool创建成功
     std::this_thread::sleep_for(std::chrono::seconds(60));
     PeerId leaderId;
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 获取三个chunkserver的chunkfilepool的pool容量
+    // 获取三个chunkserver的FilePool的pool容量
     std::shared_ptr<LocalFileSystem> fs(LocalFsFactory::CreateFs(
                                         FileSystemType::EXT4, ""));
     std::vector<std::string> Peer1ChunkPoolSize;
@@ -268,14 +268,14 @@ TEST_F(RaftSnapChunkfilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     fs->List(copysetdir2+"/chunkfilepool", &Peer2ChunkPoolSize);
     fs->List(copysetdir3+"/chunkfilepool", &Peer3ChunkPoolSize);
 
-    // 目前只有chunk文件才会从chunkfilepool中取
+    // 目前只有chunk文件才会从FilePool中取
     // raft snapshot meta 和 conf epoch文件直接从文件系统创建
     ASSERT_EQ(20, Peer1ChunkPoolSize.size());
     ASSERT_EQ(20, Peer2ChunkPoolSize.size());
     ASSERT_EQ(20, Peer3ChunkPoolSize.size());
 
     LOG(INFO) << "write 1 start";
-    // 发起 read/write， 写数据会触发chunkserver从chunkfilepool取chunk
+    // 发起 read/write， 写数据会触发chunkserver从FilePool取chunk
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -296,7 +296,7 @@ TEST_F(RaftSnapChunkfilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     fs->List(copysetdir2+"/chunkfilepool", &Peer2ChunkPoolSize);
     fs->List(copysetdir3+"/chunkfilepool", &Peer3ChunkPoolSize);
 
-    // 写完数据后，chunkfilepool容量少一个
+    // 写完数据后，ChunkFilePool容量少一个
     ASSERT_EQ(19, Peer1ChunkPoolSize.size());
     ASSERT_EQ(19, Peer2ChunkPoolSize.size());
     ASSERT_EQ(19, Peer3ChunkPoolSize.size());
@@ -316,9 +316,9 @@ TEST_F(RaftSnapChunkfilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     ASSERT_EQ(0, cluster.ShutdownPeer(shutdownPeerid));
 
     // wait snapshot, 保证能够触发打快照
-    // 本次打快照，raft会从chunkfilepool取一个文件作为快照文件
-    // 然后会把上一次的快照文件删除，删除过的文件会被回收到chunkfilepool
-    // 所以总体上本次写入只会导致datastore从chunkfilepool取文件
+    // 本次打快照，raft会从FilePool取一个文件作为快照文件
+    // 然后会把上一次的快照文件删除，删除过的文件会被回收到FilePool
+    // 所以总体上本次写入只会导致datastore从FilePool取文件
     // 但是快照取了一个又放回去了一个
     ::sleep(1.5*snapshotTimeoutS);
     // 再次发起 read/write
@@ -341,15 +341,15 @@ TEST_F(RaftSnapChunkfilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     fs->List(copysetdir2+"/chunkfilepool", &Peer2ChunkPoolSize);
     fs->List(copysetdir3+"/chunkfilepool", &Peer3ChunkPoolSize);
 
-    // 写完数据后，chunkfilepool容量少一个
+    // 写完数据后，FilePool容量少一个
     ASSERT_EQ(19, Peer1ChunkPoolSize.size());
     ASSERT_EQ(19, Peer2ChunkPoolSize.size());
     ASSERT_EQ(19, Peer3ChunkPoolSize.size());
 
     // wait snapshot, 保证能够触发打快照
-    // 本次打快照，raft会从chunkfilepool取一个文件作为快照文件
-    // 然后会把上一次的快照文件删除，删除过的文件会被回收到chunkfilepool
-    // 所以总体上本次写入只会导致datastore从chunkfilepool取文件
+    // 本次打快照，raft会从FilePool取一个文件作为快照文件
+    // 然后会把上一次的快照文件删除，删除过的文件会被回收到FilePool
+    // 所以总体上本次写入只会导致datastore从FilePool取文件
     // 但是快照取了一个又放回去了一个
     ::sleep(1.5*snapshotTimeoutS);
     // 再次发起 read/write
@@ -376,7 +376,7 @@ TEST_F(RaftSnapChunkfilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     LOG(INFO) << "chunk pool2 size = " << Peer2ChunkPoolSize.size();
     LOG(INFO) << "chunk pool3 size = " << Peer3ChunkPoolSize.size();
 
-    // 写完数据后，chunkfilepool容量少一个
+    // 写完数据后，FilePool容量少一个
     if (shutdownPeerid == peer1) {
         ASSERT_EQ(19, Peer1ChunkPoolSize.size());
         ASSERT_EQ(18, Peer2ChunkPoolSize.size());

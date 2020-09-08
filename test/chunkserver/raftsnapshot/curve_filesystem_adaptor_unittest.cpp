@@ -27,13 +27,13 @@
 #include <memory>
 
 #include "src/fs/local_filesystem.h"
-#include "src/chunkserver/datastore/chunkfile_pool.h"
+#include "src/chunkserver/datastore/file_pool.h"
 #include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
 #include "src/chunkserver/raftsnapshot/define.h"
 
 using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;
-using curve::chunkserver::ChunkfilePool;
+using curve::chunkserver::FilePool;
 namespace curve {
 namespace chunkserver {
 class CurveFilesystemAdaptorTest : public testing::Test {
@@ -41,8 +41,8 @@ class CurveFilesystemAdaptorTest : public testing::Test {
     void SetUp() {
         fsptr = curve::fs::LocalFsFactory::CreateFs(
                         curve::fs::FileSystemType::EXT4, "/dev/sda");
-        ChunkfilepoolPtr_ = std::make_shared<ChunkfilePool>(fsptr);
-        if (ChunkfilepoolPtr_ == nullptr) {
+        chunkFilePoolPtr_ = std::make_shared<FilePool>(fsptr);
+        if (chunkFilePoolPtr_ == nullptr) {
             LOG(FATAL) << "allocate chunkfile pool failed!";
         }
         int count = 1;
@@ -63,15 +63,15 @@ class CurveFilesystemAdaptorTest : public testing::Test {
         uint32_t chunksize = 4096;
         uint32_t metapagesize = 4096;
 
-        ChunkfilePoolOptions cpopt;
-        cpopt.getChunkFromPool = true;
-        cpopt.chunkSize = chunksize;
+        FilePoolOptions cpopt;
+        cpopt.getFileFromPool = true;
+        cpopt.fileSize = chunksize;
         cpopt.metaPageSize = metapagesize;
-        cpopt.cpMetaFileSize = 4096;
-        memcpy(cpopt.chunkFilePoolDir, "./raftsnap/chunkfilepool", 17);
+        cpopt.metaFileSize = 4096;
+        memcpy(cpopt.filePoolDir, "./raftsnap/chunkfilepool", 17);
         memcpy(cpopt.metaPath, "./raftsnap/chunkfilepool.meta", 30);
 
-        int ret = ChunkfilePoolHelper::PersistEnCodeMetaInfo(
+        int ret = FilePoolHelper::PersistEnCodeMetaInfo(
                                                     fsptr,
                                                     chunksize,
                                                     metapagesize,
@@ -83,13 +83,13 @@ class CurveFilesystemAdaptorTest : public testing::Test {
             return;
         }
 
-        rfa = new CurveFilesystemAdaptor(ChunkfilepoolPtr_, fsptr);
+        rfa = new CurveFilesystemAdaptor(chunkFilePoolPtr_, fsptr);
         std::vector<std::string> filterList;
         std::string snapshotMeta(BRAFT_SNAPSHOT_META_FILE);
         filterList.push_back(snapshotMeta);
         rfa->SetFilterList(filterList);
 
-        ASSERT_TRUE(ChunkfilepoolPtr_->Initialize(cpopt));
+        ASSERT_TRUE(chunkFilePoolPtr_->Initialize(cpopt));
         scoped_refptr<braft::FileSystemAdaptor> scptr(rfa);
 
         fsadaptor.swap(scptr);
@@ -98,11 +98,11 @@ class CurveFilesystemAdaptorTest : public testing::Test {
 
     void TearDown() {
         fsptr->Delete("./raftsnap");
-        ChunkfilepoolPtr_->UnInitialize();
+        chunkFilePoolPtr_->UnInitialize();
         fsadaptor->Release();
     }
 
-    void ClearChunkFilepool() {
+    void ClearFilePool() {
         std::vector<std::string> filename;
         fsptr->List("./raftsnap/chunkfilepool", &filename);
         for (auto& iter : filename) {
@@ -123,7 +123,7 @@ class CurveFilesystemAdaptorTest : public testing::Test {
     }
 
     scoped_refptr<braft::FileSystemAdaptor> fsadaptor;
-    std::shared_ptr<ChunkfilePool>  ChunkfilepoolPtr_;
+    std::shared_ptr<FilePool>  chunkFilePoolPtr_;
     std::shared_ptr<LocalFileSystem>  fsptr;
     CurveFilesystemAdaptor*  rfa;
 };
@@ -132,24 +132,24 @@ TEST_F(CurveFilesystemAdaptorTest, open_file_test) {
     // 1. open flag不带CREAT
     std::string path = "./raftsnap/10";
     butil::File::Error e;
-    ASSERT_EQ(ChunkfilepoolPtr_->Size(), 3);
+    ASSERT_EQ(chunkFilePoolPtr_->Size(), 3);
     braft::FileAdaptor* fa = fsadaptor->open(path,
                                              O_RDONLY | O_CLOEXEC,
                                              nullptr,
                                              &e);
-    ASSERT_EQ(ChunkfilepoolPtr_->Size(), 3);
+    ASSERT_EQ(chunkFilePoolPtr_->Size(), 3);
     ASSERT_FALSE(fsptr->FileExists("./raftsnap/10"));
     ASSERT_EQ(nullptr, fa);
 
-    // 2. open flag待CREAT, 从chunkfilepool取文件
-    ASSERT_EQ(ChunkfilepoolPtr_->Size(), 3);
+    // 2. open flag待CREAT, 从FilePool取文件
+    ASSERT_EQ(chunkFilePoolPtr_->Size(), 3);
     fa = fsadaptor->open(path, O_RDONLY | O_CLOEXEC | O_CREAT, nullptr, &e);
-    ASSERT_EQ(ChunkfilepoolPtr_->Size(), 2);
+    ASSERT_EQ(chunkFilePoolPtr_->Size(), 2);
     ASSERT_TRUE(fsptr->FileExists("./raftsnap/10"));
     ASSERT_NE(nullptr, fa);
 
-    // 3. open flag待CREAT,chunkfilepool为空时，从chunkfilepool取文件
-    ClearChunkFilepool();
+    // 3. open flag待CREAT,FilePool为空时，从FilePool取文件
+    ClearFilePool();
     fa = fsadaptor->open("./raftsnap/11",
                          O_RDONLY | O_CLOEXEC | O_CREAT,
                          nullptr,
@@ -169,12 +169,12 @@ TEST_F(CurveFilesystemAdaptorTest, delete_file_test) {
     CreateChunkFile("./test_temp/test_temp1/test_temp2/1");
     CreateChunkFile("./test_temp/test_temp1/test_temp2/2");
     // 非递归删除非空文件夹，返回false
-    ASSERT_EQ(ChunkfilepoolPtr_->Size(), 3);
+    ASSERT_EQ(chunkFilePoolPtr_->Size(), 3);
     ASSERT_FALSE(fsadaptor->delete_file("./test_temp", false));
-    ASSERT_EQ(ChunkfilepoolPtr_->Size(), 3);
-    // 递归删除文件夹，chunk被回收到chunkfilepool
+    ASSERT_EQ(chunkFilePoolPtr_->Size(), 3);
+    // 递归删除文件夹，chunk被回收到FilePool
     ASSERT_TRUE(fsadaptor->delete_file("./test_temp", true));
-    ASSERT_EQ(ChunkfilepoolPtr_->Size(), 9);
+    ASSERT_EQ(chunkFilePoolPtr_->Size(), 9);
     ASSERT_FALSE(fsptr->DirExists("./test_temp"));
     ASSERT_FALSE(fsptr->DirExists("./test_temp/test_temp1"));
     ASSERT_FALSE(fsptr->DirExists("./test_temp/test_temp1/test_temp2"));
@@ -190,19 +190,19 @@ TEST_F(CurveFilesystemAdaptorTest, delete_file_test) {
     ASSERT_TRUE(fsadaptor->delete_file("./test_temp3", false));
     ASSERT_EQ(0, fsptr->Mkdir("./test_temp4"));
     ASSERT_TRUE(fsadaptor->delete_file("./test_temp4", true));
-    ASSERT_EQ(ChunkfilepoolPtr_->Size(), 9);
+    ASSERT_EQ(chunkFilePoolPtr_->Size(), 9);
     ASSERT_FALSE(fsptr->DirExists("./test_temp3"));
     ASSERT_FALSE(fsptr->DirExists("./test_temp4"));
 
-    // 3. 删除一个常规chunk文件， 会被回收到chunkfilepool
+    // 3. 删除一个常规chunk文件， 会被回收到FilePool
     ASSERT_EQ(0, fsptr->Mkdir("./test_temp5"));
     CreateChunkFile("./test_temp5/3");
     ASSERT_TRUE(fsadaptor->delete_file("./test_temp5/3", false));
-    ASSERT_EQ(ChunkfilepoolPtr_->Size(), 10);
+    ASSERT_EQ(chunkFilePoolPtr_->Size(), 10);
     ASSERT_EQ(0, fsptr->Mkdir("./test_temp6"));
     CreateChunkFile("./test_temp6/4");
     ASSERT_TRUE(fsadaptor->delete_file("./test_temp6/4", true));
-    ASSERT_EQ(ChunkfilepoolPtr_->Size(), 11);
+    ASSERT_EQ(chunkFilePoolPtr_->Size(), 11);
     ASSERT_FALSE(fsptr->FileExists("./test_temp6/4"));
     ASSERT_FALSE(fsptr->FileExists("./test_temp5/3"));
     ASSERT_TRUE(fsptr->DirExists("./test_temp5"));
@@ -219,7 +219,7 @@ TEST_F(CurveFilesystemAdaptorTest, delete_file_test) {
     fsptr->Write(fd, data, 0, 4096);
     fsptr->Close(fd);
     ASSERT_TRUE(fsadaptor->delete_file("./test_temp7/5", true));
-    ASSERT_EQ(ChunkfilepoolPtr_->Size(), 11);
+    ASSERT_EQ(chunkFilePoolPtr_->Size(), 11);
     ASSERT_FALSE(fsptr->FileExists("./test_temp7/5"));
     ASSERT_EQ(0, fsptr->Delete("./test_temp7"));
 }
@@ -232,23 +232,23 @@ TEST_F(CurveFilesystemAdaptorTest, rename_test) {
 
     // 目标文件size是chunksize，但是目标文件在过滤名单里，所以直接过滤
     CreateChunkFile(filename);
-    int poolSize = ChunkfilepoolPtr_->Size();
+    int poolSize = chunkFilePoolPtr_->Size();
     std::string temppath = "./temp";
     char metaPage[4096];
-    ASSERT_EQ(0, ChunkfilepoolPtr_->GetChunk(temppath, metaPage));
+    ASSERT_EQ(0, chunkFilePoolPtr_->GetFile(temppath, metaPage));
     ASSERT_TRUE(rfa->rename(temppath, filename));
     ASSERT_TRUE(fsptr->FileExists(filename));
     ASSERT_FALSE(fsptr->FileExists(temppath));
-    ASSERT_EQ(poolSize - 1, ChunkfilepoolPtr_->Size());
+    ASSERT_EQ(poolSize - 1, chunkFilePoolPtr_->Size());
     ASSERT_EQ(0, fsptr->Delete(filename));
 
      // 目标文件size是chunksize，但是目标文件不在过滤名单里，所以先回收再rename
     filename = "./test_temp/";
     filename.append("test");
     CreateChunkFile(filename);
-    ASSERT_EQ(0, ChunkfilepoolPtr_->GetChunk(temppath, metaPage));
+    ASSERT_EQ(0, chunkFilePoolPtr_->GetFile(temppath, metaPage));
     ASSERT_TRUE(rfa->rename(temppath, filename));
-    ASSERT_EQ(poolSize - 1, ChunkfilepoolPtr_->Size());
+    ASSERT_EQ(poolSize - 1, chunkFilePoolPtr_->Size());
     ASSERT_FALSE(fsptr->FileExists(temppath));
     ASSERT_TRUE(fsptr->FileExists(filename));
     ASSERT_EQ(0, fsptr->Delete(filename));

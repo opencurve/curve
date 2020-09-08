@@ -161,7 +161,7 @@ rconcurrentapply.queuedepth={{ chunkserver_rconcurrentapply_queuedepth }}
 # Chunkfile pool
 #
 # 是否开启从chunkfilepool获取chunk，一般是true
-chunkfilepool.enable_get_chunk_from_pool={{ chunkserver_chunkfilepool_enable_get_chunk_from_pool }}
+chunkfilepool.enable_get_chunk_from_pool={{ chunkserver_format_disk }}
 # chunkfilepool目录
 chunkfilepool.chunk_file_pool_dir={{ chunkserver_chunkfilepool_chunk_file_pool_dir }}
 # chunkfilepool meta文件路径
@@ -169,7 +169,25 @@ chunkfilepool.chunk_file_pool_dir={{ chunkserver_chunkfilepool_chunk_file_pool_d
 # chunkfilepool meta文件大小
 chunkfilepool.cpmeta_file_size={{ chunkserver_chunkfilepool_cpmeta_file_size }}
 # chunkfilepool get chunk最大重试次数
-chunkfilepool.retry_times={{ chunkserver_chunkfilepool_retry_times }}
+chunkfilepool.retry_times=5
+
+#
+# WAL file pool
+#
+# 是否开启从walfilepool获取chunk，一般是true
+walfilepool.enable_get_segment_from_pool={{ chunkserver_format_disk }}
+# walpool目录
+walfilepool.file_pool_dir={{ chunkserver_walfilepool_file_pool_dir }}
+# walpool meta文件路径
+walfilepool.meta_path={{ chunkserver_walfilepool_meta_path }}
+# walpool meta文件大小
+walfilepool.segment_size={{ chunkserver_walfilepool_segment_size }}
+# WAL metapage大小
+walfilepool.metapage_size={{ chunkserver_walfilepool_metapage_size }}
+# WAL filepool 元数据文件大小
+walfilepool.meta_file_size={{ chunkserver_walfilepool_meta_file_size }}
+# WAL filepool get chunk最大重试次数
+walfilepool.retry_times={{ chunkserver_walfilepool_retry_times }}
 
 #
 # trash settings

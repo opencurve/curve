@@ -45,7 +45,7 @@ namespace curve {
 namespace chunkserver {
 
 class CopysetNodeManager;
-class ChunkfilePool;
+class FilePool;
 class CSDataStore;
 class Trash;
 
@@ -422,9 +422,15 @@ class ChunkServerMetric : public Uncopyable {
 
     /**
      * 监视chunk分配池，主要监视池中chunk的数量
-     * @param chunkfilePool: ChunkfilePool的对象指针
+     * @param chunkFilePool: chunkfilePool的对象指针
      */
-    void MonitorChunkFilePool(ChunkfilePool* chunkfilePool);
+    void MonitorChunkFilePool(FilePool* chunkFilePool);
+
+    /**
+     * 监视wal segment分配池，主要监视池中segment的数量
+     * @param walFilePool: walfilePool的对象指针
+     */
+    void MonitorWalFilePool(FilePool* walFilePool);
 
     /**
      * 监视回收站
@@ -515,8 +521,10 @@ class ChunkServerMetric : public Uncopyable {
     ChunkServerMetricOptions option_;
     // leader 的数量
     AdderPtr<uint32_t> leaderCount_;
-    // chunkfilepool 中剩余的 chunk 的数量
+    // chunkfilepool  中剩余的 chunk 的数量
     PassiveStatusPtr<uint32_t> chunkLeft_;
+    // walfilepool  中剩余的 wal segment 的数量
+    PassiveStatusPtr<uint32_t> walSegmentLeft_;
     // trash 中的 chunk 的数量
     PassiveStatusPtr<uint32_t> chunkTrashed_;
     // chunkserver上的 chunk 的数量

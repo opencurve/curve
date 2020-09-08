@@ -214,17 +214,17 @@ class CurveCluster {
     int StopAllEtcd();
 
     /**
-     * @brief 格式化chunkfilepool
+     * @brief 格式化FilePool
      *
-     * @param chunkfilepooldir chunkfilepool目录
-     * @param chunkfilepoolmetapath chunkfilepool元数据目录
-     * @param filesystem_path 文件系统目录
-     * @param size chunkfilepool size (GB)
+     * @param filePooldir FilePool目录
+     * @param filePoolmetapath FilePool元数据目录
+     * @param filesystemPath 文件系统目录
+     * @param size FilePool size (GB)
      * @return 成功返回0，失败返回-1
      */
-    int FormatChunkFilePool(const std::string &chunkfilepooldir,
-                            const std::string &chunkfilepoolmetapath,
-                            const std::string &filesystem_path, uint32_t size);
+    int FormatFilePool(const std::string &filePooldir,
+                       const std::string &filePoolmetapath,
+                       const std::string &filesystemPath, uint32_t size);
 
     /**
      * StartSingleChunkServer 启动一个chunkserver节点

@@ -25,6 +25,7 @@
 #include <sys/utsname.h>
 #include <linux/version.h>
 #include <dirent.h>
+#include <brpc/server.h>
 
 #include "src/common/string_util.h"
 #include "src/fs/ext4_filesystem_impl.h"

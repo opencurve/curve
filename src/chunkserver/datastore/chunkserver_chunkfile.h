@@ -39,7 +39,7 @@
 #include "src/chunkserver/datastore/filename_operator.h"
 #include "src/chunkserver/datastore/chunkserver_snapshot.h"
 #include "src/chunkserver/datastore/define.h"
-#include "src/chunkserver/datastore/chunkfile_pool.h"
+#include "src/chunkserver/datastore/file_pool.h"
 
 namespace curve {
 namespace chunkserver {
@@ -50,7 +50,7 @@ using curve::common::WriteLockGuard;
 using curve::common::ReadLockGuard;
 using curve::common::BitRange;
 
-class ChunkfilePool;
+class FilePool;
 class CSSnapshot;
 struct DataStoreMetric;
 
@@ -117,7 +117,7 @@ struct ChunkOptions {
 class CSChunkFile {
  public:
     CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
-                std::shared_ptr<ChunkfilePool> ChunkfilePool,
+                std::shared_ptr<FilePool> chunkFilePool,
                 const ChunkOptions& options);
     virtual ~CSChunkFile();
 
@@ -349,8 +349,8 @@ class CSChunkFile {
     RWLock rwLock_;
     // 快照文件指针
     CSSnapshot* snapshot_;
-    // 依赖chunkfilepool创建删除文件
-    std::shared_ptr<ChunkfilePool> chunkfilePool_;
+    // 依赖FilePool创建删除文件
+    std::shared_ptr<FilePool> chunkFilePool_;
     // 依赖本地文件系统操作文件
     std::shared_ptr<LocalFileSystem> lfs_;
     // datastore内部统计指标

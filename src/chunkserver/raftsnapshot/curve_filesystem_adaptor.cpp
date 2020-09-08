@@ -28,11 +28,11 @@
 namespace curve {
 namespace chunkserver {
 CurveFilesystemAdaptor::CurveFilesystemAdaptor(
-                                std::shared_ptr<ChunkfilePool> chunkfilePool,
+                                std::shared_ptr<FilePool> chunkFilePool,
                                 std::shared_ptr<LocalFileSystem> lfs) {
     lfs_ = lfs;
-    chunkfilePool_ = chunkfilePool;
-    uint64_t metapageSize = chunkfilePool_->GetChunkFilePoolOpt().metaPageSize;
+    chunkFilePool_ = chunkFilePool;
+    uint64_t metapageSize = chunkFilePool->GetFilePoolOpt().metaPageSize;
     tempMetaPageContent = new (std::nothrow) char[metapageSize];
     CHECK(tempMetaPageContent != nullptr);
     memset(tempMetaPageContent, 0, metapageSize);
@@ -79,8 +79,8 @@ braft::FileAdaptor* CurveFilesystemAdaptor::open(const std::string& path,
         (oflag & O_CREAT) &&
         false == lfs_->FileExists(path)) {
         // 从chunkfile pool中取出chunk返回
-        int rc = chunkfilePool_->GetChunk(path, tempMetaPageContent);
-        // 如果从chunkfilepool中取失败，返回错误。
+        int rc = chunkFilePool_->GetFile(path, tempMetaPageContent);
+        // 如果从FilePool中取失败，返回错误。
         if (rc != 0) {
             LOG(ERROR) << "get chunk from chunkfile pool failed!";
             return NULL;
@@ -134,8 +134,8 @@ bool CurveFilesystemAdaptor::delete_file(const std::string& path,
              if (NeedFilter(path)) {
                  return lfs_->Delete(path) == 0;
              } else {
-                // chunkfilePool内部会检查path对应文件合法性，如果不符合就直接删除
-                return chunkfilePool_->RecycleChunk(path) == 0;
+                // chunkfilepool内部会检查path对应文件合法性，如果不符合就直接删除
+                return chunkFilePool_->RecycleFile(path) == 0;
              }
         }
     }
@@ -160,7 +160,7 @@ bool CurveFilesystemAdaptor::RecycleDirRecursive(
                     break;
                 }
             } else {
-                int ret = chunkfilePool_->RecycleChunk(todeletePath);
+                int ret = chunkFilePool_->RecycleFile(todeletePath);
                 if (ret < 0) {
                     rc = false;
                     LOG(ERROR) << "recycle " << path + filepath << ", failed!";
@@ -175,8 +175,8 @@ bool CurveFilesystemAdaptor::RecycleDirRecursive(
 bool CurveFilesystemAdaptor::rename(const std::string& old_path,
                                             const std::string& new_path) {
     if (!NeedFilter(new_path) && lfs_->FileExists(new_path)) {
-        // chunkfilePool内部会检查path对应文件合法性，如果不符合就直接删除
-        chunkfilePool_->RecycleChunk(new_path);
+        // chunkfilepool内部会检查path对应文件合法性，如果不符合就直接删除
+        chunkFilePool_->RecycleFile(new_path);
     }
     return lfs_->Rename(old_path, new_path) == 0;
 }

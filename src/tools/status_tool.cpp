@@ -31,6 +31,7 @@ DEFINE_bool(checkCSAlive, false, "if true, it will check the online state of "
                                 "chunkservers with rpc in chunkserver-list");
 DEFINE_bool(listClientInRepo, true, "if true, list-client will list all clients"
                                     " include that in repo");
+DEFINE_uint64(walSegmentSize, 8388608, "wal segment size");
 DECLARE_string(mdsAddr);
 DECLARE_string(etcdAddr);
 DECLARE_string(mdsDummyPort);
@@ -691,7 +692,8 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     uint64_t total = 0;
     uint64_t online = 0;
     uint64_t offline = 0;
-    std::vector<uint64_t> leftSize;
+    std::vector<uint64_t> chunkLeftSize;
+    std::vector<uint64_t> walSegmentLeftSize;
     std::vector<ChunkServerIdType> offlineCs;
     // 获取chunkserver的online状态
     for (const auto& chunkserver : chunkservers) {
@@ -718,7 +720,19 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
             continue;
         }
         uint64_t size = chunkNum * FLAGS_chunkSize;
-        leftSize.emplace_back(size / mds::kGB);
+        chunkLeftSize.emplace_back(size / mds::kGB);
+        // walfilepool left size
+        metricName = GetCSLeftWalSegmentName(csAddr);
+        uint64_t walSegmentNum;
+        res = metricClient_->GetMetricUint(csAddr, metricName, &walSegmentNum);
+        if (res != MetricRet::kOK) {
+            std::cout << "Get left wal segment size of chunkserver " << csAddr
+                      << " fail!" << std::endl;
+            ret = -1;
+            continue;
+        }
+        size = walSegmentNum * FLAGS_walSegmentSize;
+        walSegmentLeftSize.emplace_back(size / mds::kGB);
     }
     // 获取offline chunkserver的恢复状态
     std::vector<ChunkServerIdType> offlineRecover;
@@ -759,14 +773,16 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
         return ret;
     }
 
-    PrintCsLeftSizeStatistics(leftSize);
+    PrintCsLeftSizeStatistics("chunkfilepool", chunkLeftSize);
+    PrintCsLeftSizeStatistics("walfilepool", walSegmentLeftSize);
     return ret;
 }
 
 void StatusTool::PrintCsLeftSizeStatistics(
+                        const std::string& name,
                         const std::vector<uint64_t>& leftSize) {
     if (leftSize.empty()) {
-        std::cout << "No chunkserver left chunk size found!" << std::endl;
+        std::cout << "No " << name << " left size found!" << std::endl;
         return;
     }
     uint64_t min = leftSize[0];
@@ -791,7 +807,8 @@ void StatusTool::PrintCsLeftSizeStatistics(
     double var = sum / leftSize.size();
     std:: cout.setf(std::ios::fixed);
     std::cout<< std::setprecision(2);
-    std::cout << "left size: min = " << min << "GB"
+    std::cout<< name;
+    std::cout << " left size: min = " << min << "GB"
               << ", max = " << max << "GB"
               << ", average = " << avg << "GB"
               << ", range = " << range << "GB"

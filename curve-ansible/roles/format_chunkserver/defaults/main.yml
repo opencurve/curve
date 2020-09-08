@@ -16,3 +16,4 @@
 #
 
 chunk_alloc_percent: 80
+wal_segment_alloc_percent: 10

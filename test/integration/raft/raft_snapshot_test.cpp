@@ -40,7 +40,7 @@ using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 
-static char *raftVoteParam[4][13] = {
+static char *raftVoteParam[4][16] = {
     {
         "chunkserver",
         "-chunkServerIp=127.0.0.1",
@@ -54,6 +54,9 @@ static char *raftVoteParam[4][13] = {
         "-chunkFilePoolMetaPath=./9321/chunkfilepool.meta",
         "-conf=./9321/chunkserver.conf",
         "-raft_sync_segments=true",
+        "-raftLogUri=curve://./9321/copysets",
+        "-walFilePoolDir=./9321/walfilepool/",
+        "-walFilePoolMetaPath=./9321/walfilepool.meta",
         NULL
     },
     {
@@ -69,6 +72,9 @@ static char *raftVoteParam[4][13] = {
         "-chunkFilePoolMetaPath=./9322/chunkfilepool.meta",
         "-conf=./9322/chunkserver.conf",
         "-raft_sync_segments=true",
+        "-raftLogUri=curve://./9322/copysets",
+        "-walFilePoolDir=./9322/walfilepool/",
+        "-walFilePoolMetaPath=./9322/walfilepool.meta",
         NULL
     },
     {
@@ -84,6 +90,9 @@ static char *raftVoteParam[4][13] = {
         "-chunkFilePoolMetaPath=./9323/chunkfilepool.meta",
         "-conf=./9323/chunkserver.conf",
         "-raft_sync_segments=true",
+        "-raftLogUri=curve://./9323/copysets",
+        "-walFilePoolDir=./9323/walfilepool/",
+        "-walFilePoolMetaPath=./9323/walfilepool.meta",
         NULL
     },
     {
@@ -99,6 +108,9 @@ static char *raftVoteParam[4][13] = {
         "-chunkFilePoolMetaPath=./9324/chunkfilepool.meta",
         "-conf=./9324/chunkserver.conf",
         "-raft_sync_segments=true",
+        "-raftLogUri=curve://./9324/copysets",
+        "-walFilePoolDir=./9324/walfilepool/",
+        "-walFilePoolMetaPath=./9324/walfilepool.meta",
         NULL
     },
 };

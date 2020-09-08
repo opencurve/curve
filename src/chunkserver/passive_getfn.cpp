@@ -29,13 +29,23 @@ namespace curve {
 namespace chunkserver {
 
 uint32_t GetChunkLeftFunc(void* arg) {
-    ChunkfilePool* chunkfilePool = reinterpret_cast<ChunkfilePool*>(arg);
+    FilePool* chunkFilePool = reinterpret_cast<FilePool*>(arg);
     uint32_t chunkLeft = 0;
-    if (chunkfilePool != nullptr) {
-        ChunkFilePoolState poolState = chunkfilePool->GetState();
+    if (chunkFilePool != nullptr) {
+        FilePoolState poolState = chunkFilePool->GetState();
         chunkLeft = poolState.preallocatedChunksLeft;
     }
     return chunkLeft;
+}
+
+uint32_t GetWalSegmentLeftFunc(void* arg) {
+    FilePool* walFilePool = reinterpret_cast<FilePool*>(arg);
+    uint32_t segmentLeft = 0;
+    if (walFilePool != nullptr) {
+        FilePoolState poolState = walFilePool->GetState();
+        segmentLeft = poolState.preallocatedChunksLeft;
+    }
+    return segmentLeft;
 }
 
 uint32_t GetDatastoreChunkCountFunc(void* arg) {

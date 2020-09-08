@@ -54,7 +54,7 @@ int Trash::Init(TrashOptions options) {
     expiredAfterSec_ = options.expiredAfterSec;
     scanPeriodSec_ = options.scanPeriodSec;
     localFileSystem_ = options.localFileSystem;
-    chunkfilePool_ = options.chunkfilePool;
+    chunkFilePool_ = options.chunkFilePool;
     chunkNum_.store(0);
 
      // 读取trash目录下的所有目录
@@ -253,10 +253,10 @@ bool Trash::RecycleIfChunkfile(
         return true;
     }
 
-    // 是chunkfile, 回收到chunkfilepool中
-    if (0 != chunkfilePool_->RecycleChunk(filepath)) {
+    // 是chunkfile, 回收到FilePool中
+    if (0 != chunkFilePool_->RecycleFile(filepath)) {
         LOG(ERROR) << "Trash  failed recycle chunk " << filepath
-                    << " to chunkfilePool";
+                    << " to FilePool";
         return false;
     }
 

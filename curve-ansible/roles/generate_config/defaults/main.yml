@@ -118,10 +118,15 @@ chunkserver_wconcurrentapply_size: 10
 chunkserver_wconcurrentapply_queuedepth: 1
 chunkserver_rconcurrentapply_size: 5
 chunkserver_rconcurrentapply_queuedepth: 1
-chunkserver_chunkfilepool_enable_get_chunk_from_pool: true
 chunkserver_chunkfilepool_chunk_file_pool_dir: ./0/
 chunkserver_chunkfilepool_cpmeta_file_size: 4096
 chunkserver_chunkfilepool_retry_times: 5
+chunkserver_walfilepool_file_pool_dir: ./0/
+chunkserver_walfilepool_meta_path: ./walfilepool.meta
+chunkserver_walfilepool_segment_size: 8388608
+chunkserver_walfilepool_metapage_size: 4096
+chunkserver_walfilepool_meta_file_size: 4096
+chunkserver_walfilepool_retry_times: 5
 chunkserver_trash_expire_after_sec: 300
 chunkserver_trash_scan_period_sec: 120
 chunkserver_common_log_dir: ./runlog/

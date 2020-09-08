@@ -65,6 +65,11 @@ class CSTConfigGenerator : public ConfigGenerator {
         SetKV("chunkfilepool.meta_path", cfpoolMetaPath);
 
         SetKV("chunkfilepool.enable_get_chunk_from_pool", "false");
+        std::string walPoolDir = "./" + port + "/walfilepool/";
+        std::string walPoolMetaPath = "./" + port + "/walfilepool.meta";
+        SetKV("walfilepool.file_pool_dir", walPoolDir);
+        SetKV("walfilepool.meta_path", walPoolMetaPath);
+        SetKV("walfilepool.enable_get_segment_from_pool", "false");
 
         SetKV("chunkserver.common.logDir", DEFAULT_LOG_DIR);
 

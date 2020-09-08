@@ -36,7 +36,7 @@
 #include "src/fs/local_filesystem.h"
 #include "src/common/crc32.h"
 #include "src/common/curve_define.h"
-#include "src/chunkserver/datastore/chunkfile_pool.h"
+#include "src/chunkserver/datastore/file_pool.h"
 
 /**
  * chunkfile pool预分配工具，提供两种分配方式
@@ -47,37 +47,37 @@
  */
 DEFINE_bool(allocateByPercent,
             true,
-            "allocate chunkfilepool by percent of disk size or by chunk num!");
+            "allocate filePool by percent of disk size or by chunk num!");
 
-DEFINE_uint32(chunksize,
+DEFINE_uint32(fileSize,
               16 * 1024 * 1024,
               "chunk size");
 
-DEFINE_uint32(metapagsize,
+DEFINE_uint32(metaPagSize,
               4 * 1024,
               "metapage size for every chunk");
 
-DEFINE_string(filesystem_path,
+DEFINE_string(fileSystemPath,
               "./",
               "chunkserver disk path");
 
-DEFINE_string(chunkfilepool_dir,
-              "./chunkfilepool/",
+DEFINE_string(filePoolDir,
+              "./filePool/",
               "chunkfile pool dir");
 
-DEFINE_string(chunkfilepool_metapath,
-              "./chunkfilepool.meta",
+DEFINE_string(filePoolMetaPath,
+              "./filePool.meta",
               "chunkfile pool meta info file path.");
 
 // preallocateNum仅在测试的时候使用，测试提前预分配固定数量的chunk
 // 当设置这个值的时候可以不用设置allocatepercent
-DEFINE_uint32(preallocateNum,
+DEFINE_uint32(preAllocateNum,
               0,
               "preallocate chunk nums, this is JUST for curve test");
 
 // 在系统初始化的时候，管理员需要预先格式化磁盘，并进行预分配
 // 这时候只需要指定allocatepercent，allocatepercent是占整个盘的空间的百分比
-DEFINE_uint32(allocatepercent,
+DEFINE_uint32(allocatePercent,
               80,
               "preallocate storage percent of total disk");
 
@@ -90,7 +90,7 @@ using curve::fs::FileSystemType;
 using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemInfo;
 using curve::fs::LocalFileSystem;
-using curve::common::kChunkFilePoolMaigic;
+using curve::common::kFilePoolMaigic;
 
 class CompareInternal {
  public:
@@ -109,9 +109,9 @@ struct AllocateStruct {
     uint64_t chunknum;
 };
 
-int AllocateChunks(AllocateStruct* allocatestruct) {
-    char* data = new(std::nothrow)char[FLAGS_chunksize + FLAGS_metapagsize];
-    memset(data, 0, FLAGS_chunksize + FLAGS_metapagsize);
+int AllocateFiles(AllocateStruct* allocatestruct) {
+    char* data = new(std::nothrow)char[FLAGS_fileSize + FLAGS_metaPagSize];
+    memset(data, 0, FLAGS_fileSize + FLAGS_metaPagSize);
 
     uint64_t count = 0;
     while (count < allocatestruct->chunknum) {
@@ -123,7 +123,7 @@ int AllocateChunks(AllocateStruct* allocatestruct) {
                             allocatestruct->allocateChunknum->load());
         }
         std::string tmpchunkfilepath
-                    = FLAGS_chunkfilepool_dir + "/" + filename;
+                    = FLAGS_filePoolDir + "/" + filename;
 
         int ret = allocatestruct->fsptr->Open(tmpchunkfilepath.c_str(),
                                              O_RDWR | O_CREAT);
@@ -135,7 +135,7 @@ int AllocateChunks(AllocateStruct* allocatestruct) {
         int fd = ret;
 
         ret = allocatestruct->fsptr->Fallocate(fd, 0, 0,
-                                             FLAGS_chunksize+FLAGS_metapagsize);
+                                        FLAGS_fileSize + FLAGS_metaPagSize);
         if (ret < 0) {
             allocatestruct->fsptr->Close(fd);
             *allocatestruct->checkwrong = true;
@@ -145,7 +145,7 @@ int AllocateChunks(AllocateStruct* allocatestruct) {
 
         if (FLAGS_needWriteZero) {
             ret = allocatestruct->fsptr->Write(fd, data, 0,
-                FLAGS_chunksize+FLAGS_metapagsize);
+                FLAGS_fileSize + FLAGS_metaPagSize);
             if (ret < 0) {
                 allocatestruct->fsptr->Close(fd);
                 *allocatestruct->checkwrong = true;
@@ -186,12 +186,12 @@ int main(int argc, char** argv) {
     std::atomic<uint64_t> allocateChunknum_(0);
     std::vector<std::string> tmpvec;
 
-    if (fsptr->Mkdir(FLAGS_chunkfilepool_dir.c_str()) < 0) {
-        LOG(ERROR) << "mkdir failed!, " << FLAGS_chunkfilepool_dir.c_str();
+    if (fsptr->Mkdir(FLAGS_filePoolDir.c_str()) < 0) {
+        LOG(ERROR) << "mkdir failed!, " << FLAGS_filePoolDir.c_str();
         return -1;
     }
-    if (fsptr->List(FLAGS_chunkfilepool_dir.c_str(), &tmpvec) < 0) {
-        LOG(ERROR) << "list dir failed!, " << FLAGS_chunkfilepool_dir.c_str();
+    if (fsptr->List(FLAGS_filePoolDir.c_str(), &tmpvec) < 0) {
+        LOG(ERROR) << "list dir failed!, " << FLAGS_filePoolDir.c_str();
         return -1;
     }
 
@@ -200,7 +200,7 @@ int main(int argc, char** argv) {
     allocateChunknum_.store(size + 1);
 
     FileSystemInfo finfo;
-    int r = fsptr->Statfs(FLAGS_filesystem_path, &finfo);
+    int r = fsptr->Statfs(FLAGS_fileSystemPath, &finfo);
     if (r != 0) {
         LOG(ERROR) << "get disk usage info failed!";
         return -1;
@@ -211,19 +211,19 @@ int main(int argc, char** argv) {
               << ", total space = " << finfo.total
               << ", freepercent = " << freepercent;
 
-    if (freepercent < FLAGS_allocatepercent && FLAGS_allocateByPercent) {
+    if (freepercent < FLAGS_allocatePercent && FLAGS_allocateByPercent) {
         LOG(ERROR) << "disk free space not enough.";
         return 0;
     }
 
     uint64_t preAllocateChunkNum = 0;
-    uint64_t preAllocateSize = FLAGS_allocatepercent * finfo.total / 100;
+    uint64_t preAllocateSize = FLAGS_allocatePercent * finfo.total / 100;
 
     if (FLAGS_allocateByPercent) {
         preAllocateChunkNum = preAllocateSize
-                              / (FLAGS_chunksize + FLAGS_metapagsize);
+                              / (FLAGS_fileSize + FLAGS_metaPagSize);
     } else {
-        preAllocateChunkNum = FLAGS_preallocateNum;
+        preAllocateChunkNum = FLAGS_preAllocateNum;
     }
 
     bool checkwrong = false;
@@ -237,8 +237,8 @@ int main(int argc, char** argv) {
     allocateStruct.mtx = &mtx;
     allocateStruct.chunknum = threadAllocateNum;
 
-    thvec.push_back(std::move(std::thread(AllocateChunks, &allocateStruct)));
-    thvec.push_back(std::move(std::thread(AllocateChunks, &allocateStruct)));
+    thvec.push_back(std::move(std::thread(AllocateFiles, &allocateStruct)));
+    thvec.push_back(std::move(std::thread(AllocateFiles, &allocateStruct)));
 
     for (auto& iter : thvec) {
         iter.join();
@@ -249,12 +249,12 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    int ret = curve::chunkserver::ChunkfilePoolHelper::PersistEnCodeMetaInfo(
+    int ret = curve::chunkserver::FilePoolHelper::PersistEnCodeMetaInfo(
                                                 fsptr,
-                                                FLAGS_chunksize,
-                                                FLAGS_metapagsize,
-                                                FLAGS_chunkfilepool_dir,
-                                                FLAGS_chunkfilepool_metapath);
+                                                FLAGS_fileSize,
+                                                FLAGS_metaPagSize,
+                                                FLAGS_filePoolDir,
+                                                FLAGS_filePoolMetaPath);
 
     if (ret == -1) {
         LOG(ERROR) << "persist chunkfile pool meta info failed!";
@@ -266,36 +266,36 @@ int main(int argc, char** argv) {
     uint32_t metapagesize = 0;
     std::string chunkfilePath;
 
-    ret = curve::chunkserver::ChunkfilePoolHelper::DecodeMetaInfoFromMetaFile(
+    ret = curve::chunkserver::FilePoolHelper::DecodeMetaInfoFromMetaFile(
                                                 fsptr,
-                                                FLAGS_chunkfilepool_metapath,
+                                                FLAGS_filePoolMetaPath,
                                                 4096,
                                                 &chunksize,
                                                 &metapagesize,
                                                 &chunkfilePath);
     if (ret == -1) {
         LOG(ERROR) << "chunkfile pool meta info file got something wrong!";
-        fsptr->Delete(FLAGS_chunkfilepool_metapath.c_str());
+        fsptr->Delete(FLAGS_filePoolMetaPath.c_str());
         return -1;
     }
 
     bool valid = false;
     do {
-        if (chunksize != FLAGS_chunksize) {
+        if (chunksize != FLAGS_fileSize) {
             LOG(ERROR) << "chunksize meta info persistency wrong!";
             break;
         }
 
-        if (metapagesize != FLAGS_metapagsize) {
+        if (metapagesize != FLAGS_metaPagSize) {
             LOG(ERROR) << "metapagesize meta info persistency wrong!";
             break;
         }
 
         if (strcmp(chunkfilePath.c_str(),
-            FLAGS_chunkfilepool_dir.c_str()) != 0) {
+            FLAGS_filePoolDir.c_str()) != 0) {
             LOG(ERROR) << "meta info persistency failed!"
                     << ", read chunkpath = " << chunkfilePath.c_str()
-                    << ", real chunkpath = " << FLAGS_chunkfilepool_dir.c_str();
+                    << ", real chunkpath = " << FLAGS_filePoolDir.c_str();
             break;
         }
 

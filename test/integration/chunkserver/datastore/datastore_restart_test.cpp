@@ -28,8 +28,8 @@ namespace curve {
 namespace chunkserver {
 
 const string baseDir = "./data_int_res";    // NOLINT
-const string poolDir = "./chunkfilepool_int_res";  // NOLINT
-const string poolMetaPath = "./chunkfilepool_int_res.meta";  // NOLINT
+const string poolDir = "./chunfilepool_int_res";  // NOLINT
+const string poolMetaPath = "./chunfilepool_int_res.meta";  // NOLINT
 // 以下的测试读写数据都在[0, 32kb]范围内
 const uint64_t kMaxSize = 8 * PAGE_SIZE;
 
@@ -280,7 +280,7 @@ class StepList {
     void ClearEnv() {
         clearFunc_();
         // 清理每一步的预期状态，因为清理环境后，读取到的数据内容可能会不一样
-        // 因为通过chunkfilepool分配的chunk初始内容是不确定的
+        // 因为通过FilePool分配的chunk初始内容是不确定的
         for (auto &step : steps) {
             step->ClearStatus();
         }

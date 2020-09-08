@@ -57,7 +57,10 @@ class ChunkServer {
 
  private:
     void InitChunkFilePoolOptions(common::Configuration *conf,
-        ChunkfilePoolOptions *chunkFilePoolOptions);
+        FilePoolOptions *chunkFilePoolOptions);
+
+    void InitWalFilePoolOptions(common::Configuration *conf,
+        FilePoolOptions *walPoolOption);
 
     void InitConcurrentApplyOptions(common::Configuration *conf,
         ConcurrentApplyOption *concurrentApplyOption);

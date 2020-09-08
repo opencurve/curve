@@ -43,7 +43,7 @@ class FakeCSDataStore : public CSDataStore {
     FakeCSDataStore(DataStoreOptions options,
                     std::shared_ptr<LocalFileSystem> fs) :
         CSDataStore(fs,
-                    std::make_shared<ChunkfilePool>(fs),
+                    std::make_shared<FilePool>(fs),
                     options) {
         chunk_ = new (std::nothrow) char[options.chunkSize];
         ::memset(chunk_, 0, options.chunkSize);
@@ -228,14 +228,14 @@ class FakeCSDataStore : public CSDataStore {
     uint32_t chunkSize_;
 };
 
-class FakeChunkfilePool : public ChunkfilePool {
+class FakeFilePool : public FilePool {
  public:
-    explicit FakeChunkfilePool(std::shared_ptr<LocalFileSystem> lfs)
-        : ChunkfilePool(lfs) {}
-    ~FakeChunkfilePool() {}
+    explicit FakeFilePool(std::shared_ptr<LocalFileSystem> lfs)
+        : FilePool(lfs) {}
+    ~FakeFilePool() {}
 
-    bool Initialize(const ChunkfilePoolOptions &cfop) {
-        LOG(INFO) << "FakeChunkfilePool init success";
+    bool Initialize(const FilePoolOptions &cfop) {
+        LOG(INFO) << "FakeFilePool init success";
         return true;
     }
     int GetChunk(const std::string &chunkpath, char *metapage) { return 0; }

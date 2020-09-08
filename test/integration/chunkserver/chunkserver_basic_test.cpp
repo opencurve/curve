@@ -27,7 +27,7 @@
 #include <vector>
 #include <memory>
 
-#include "test/chunkserver/datastore/chunkfilepool_helper.h"
+#include "test/chunkserver/datastore/filepool_helper.h"
 #include "test/integration/common/chunkservice_op.h"
 #include "test/integration/common/config_generator.h"
 #include "test/integration/common/peer_cluster.h"
@@ -47,7 +47,7 @@ const ChunkSizeType CHUNK_SIZE = 16 * kMB;
 #define BASIC_TEST_CHUNK_SERVER_PORT "9078"
 #define KB 1024
 
-static char *chunkServerParams[1][13] = {
+static char *chunkServerParams[1][16] = {
     { "chunkserver", "-chunkServerIp=127.0.0.1",
       "-chunkServerPort=" BASIC_TEST_CHUNK_SERVER_PORT,
       "-chunkServerStoreUri=local://./" BASIC_TEST_CHUNK_SERVER_PORT "/",
@@ -55,10 +55,14 @@ static char *chunkServerParams[1][13] = {
       "/chunkserver.dat",
       "-copySetUri=local://./" BASIC_TEST_CHUNK_SERVER_PORT "/copysets",
       "-raftSnapshotUri=curve://./" BASIC_TEST_CHUNK_SERVER_PORT "/copysets",
+      "-raftLogUri=curve://./" BASIC_TEST_CHUNK_SERVER_PORT "/copysets",
       "-recycleUri=local://./" BASIC_TEST_CHUNK_SERVER_PORT "/recycler",
       "-chunkFilePoolDir=./" BASIC_TEST_CHUNK_SERVER_PORT "/chunkfilepool/",
       "-chunkFilePoolMetaPath=./" BASIC_TEST_CHUNK_SERVER_PORT
       "/chunkfilepool.meta",
+      "-walFilePoolDir=./" BASIC_TEST_CHUNK_SERVER_PORT "/walfilepool/",
+      "-walFilePoolMetaPath=./" BASIC_TEST_CHUNK_SERVER_PORT
+      "/walfilepool.meta",
       "-conf=./" BASIC_TEST_CHUNK_SERVER_PORT "/chunkserver.conf",
       "-raft_sync_segments=true", NULL },
 };
@@ -103,7 +107,7 @@ class ChunkServerIoTest : public testing::Test {
                    "/chunkfilepool/";
         metaDir_ = "./" + std::to_string(PeerCluster::PeerToId(peer1_)) +
                    "/chunkfilepool.meta";
-        ChunkfilePoolHelper::PersistEnCodeMetaInfo(lfs_, kChunkSize, kPageSize,
+        FilePoolHelper::PersistEnCodeMetaInfo(lfs_, kChunkSize, kPageSize,
                                                    poolDir_, metaDir_);
         allocateChunk(lfs_, kChunkNum, poolDir_, kChunkSize);
     }

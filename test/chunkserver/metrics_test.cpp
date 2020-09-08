@@ -34,9 +34,9 @@
 #include "src/chunkserver/chunkserver_metrics.h"
 #include "src/chunkserver/trash.h"
 #include "src/chunkserver/copyset_node_manager.h"
-#include "src/chunkserver/datastore/chunkfile_pool.h"
+#include "src/chunkserver/datastore/file_pool.h"
 #include "src/fs/local_filesystem.h"
-#include "test/chunkserver/datastore/chunkfilepool_helper.h"
+#include "test/chunkserver/datastore/filepool_helper.h"
 
 namespace curve {
 namespace chunkserver {
@@ -63,28 +63,28 @@ class CSMetricTest : public ::testing::Test {
     CSMetricTest() {}
     ~CSMetricTest() {}
 
-    void InitChunkFilePool() {
-        ChunkfilePoolHelper::PersistEnCodeMetaInfo(lfs_,
+    void InitFilePool() {
+        FilePoolHelper::PersistEnCodeMetaInfo(lfs_,
                                                    CHUNK_SIZE,
                                                    PAGE_SIZE,
                                                    poolDir,
                                                    poolMetaPath);
-        ChunkfilePoolOptions cfop;
-        cfop.chunkSize = CHUNK_SIZE;
+        FilePoolOptions cfop;
+        cfop.fileSize = CHUNK_SIZE;
         cfop.metaPageSize = PAGE_SIZE;
         memcpy(cfop.metaPath, poolMetaPath.c_str(), poolMetaPath.size());
 
         if (lfs_->DirExists(poolDir))
             lfs_->Delete(poolDir);
         allocateChunk(lfs_, chunkNum, poolDir, CHUNK_SIZE);
-        ASSERT_TRUE(chunkfilePool_->Initialize(cfop));
-        ASSERT_EQ(chunkNum, chunkfilePool_->Size());
+        ASSERT_TRUE(chunkFilePool_->Initialize(cfop));
+        ASSERT_EQ(chunkNum, chunkFilePool_->Size());
     }
 
     void InitTrash() {
         TrashOptions ops;
         ops.localFileSystem = lfs_;
-        ops.chunkfilePool = chunkfilePool_;
+        ops.chunkFilePool = chunkFilePool_;
         ops.trashPath = "local://./trash_csmetric";
         ops.expiredAfterSec = 1;
         ops.scanPeriodSec = 1;
@@ -104,7 +104,7 @@ class CSMetricTest : public ::testing::Test {
         copysetNodeOptions.raftSnapshotUri = copysetDir;
         copysetNodeOptions.concurrentapply = new ConcurrentApplyModule();
         copysetNodeOptions.localFileSystem = lfs_;
-        copysetNodeOptions.chunkfilePool = chunkfilePool_;
+        copysetNodeOptions.chunkFilePool = chunkFilePool_;
         copysetNodeOptions.maxChunkSize = CHUNK_SIZE;
         copysetNodeOptions.trash = trash_;
         ASSERT_EQ(0, copysetMgr_->Init(copysetNodeOptions));
@@ -124,7 +124,7 @@ class CSMetricTest : public ::testing::Test {
         metricOptions.collectMetric = true;
         metric_ = ChunkServerMetric::GetInstance();
         metric_->Init(metricOptions);
-        metric_->MonitorChunkFilePool(chunkfilePool_.get());
+        metric_->MonitorChunkFilePool(chunkFilePool_.get());
         metric_->MonitorTrash(trash_.get());
     }
 
@@ -146,10 +146,10 @@ class CSMetricTest : public ::testing::Test {
         ASSERT_NE(lfs_, nullptr);
         trash_ = std::make_shared<Trash>();
         ASSERT_NE(trash_, nullptr);
-        chunkfilePool_ = std::make_shared<ChunkfilePool>(lfs_);
-        ASSERT_NE(chunkfilePool_, nullptr);
+        chunkFilePool_ = std::make_shared<FilePool>(lfs_);
+        ASSERT_NE(chunkFilePool_, nullptr);
 
-        InitChunkFilePool();
+        InitFilePool();
         InitTrash();
         InitCopysetManager();
         InitChunkServerMetric();
@@ -163,7 +163,7 @@ class CSMetricTest : public ::testing::Test {
         lfs_->Delete(trashPath);
         lfs_->Delete(poolMetaPath);
         lfs_->Delete(confFile_);
-        chunkfilePool_->UnInitialize();
+        chunkFilePool_->UnInitialize();
         ASSERT_EQ(0, copysetMgr_->Fini());
         ASSERT_EQ(0, server_.Stop(0));
         ASSERT_EQ(0, server_.Join());
@@ -173,7 +173,7 @@ class CSMetricTest : public ::testing::Test {
     brpc::Server server_;
     std::shared_ptr<Trash> trash_;
     CopysetNodeManager* copysetMgr_;
-    std::shared_ptr<ChunkfilePool> chunkfilePool_;
+    std::shared_ptr<FilePool> chunkFilePool_;
     std::shared_ptr<LocalFileSystem> lfs_;
     ChunkServerMetric* metric_;
     std::string confFile_;
@@ -442,7 +442,7 @@ TEST_F(CSMetricTest, OnResponseTest) {
 }
 
 TEST_F(CSMetricTest, CountTest) {
-    // 初始状态下，没有copyset，chunkfilepool中有chunkNum个chunk
+    // 初始状态下，没有copyset，FilePool中有chunkNum个chunk
     ASSERT_EQ(0, metric_->GetCopysetCount());
     ASSERT_EQ(10, metric_->GetChunkLeftCount());
 
@@ -583,7 +583,7 @@ TEST_F(CSMetricTest, OnOffTest) {
     {
         metricOptions.collectMetric = false;
         ASSERT_EQ(0, metric_->Init(metricOptions));
-        metric_->MonitorChunkFilePool(chunkfilePool_.get());
+        metric_->MonitorChunkFilePool(chunkFilePool_.get());
         common::Configuration conf;
         conf.SetConfigPath(confFile_);
         int ret = conf.LoadConfig();

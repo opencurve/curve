@@ -61,13 +61,13 @@ std::string Exec(const char *cmd) {
     return result;
 }
 
-std::shared_ptr<ChunkfilePool> InitChunkfilePool(std::shared_ptr<LocalFileSystem> fsptr,    //NOLINT
+std::shared_ptr<FilePool> InitFilePool(std::shared_ptr<LocalFileSystem> fsptr,    //NOLINT
                                                  int chunkfileCount,
                                                  int chunkfileSize,
                                                  int metaPageSize,
                                                  std::string poolpath,
                                                  std::string metaPath) {
-    auto filePoolPtr = std::make_shared<ChunkfilePool>(fsptr);
+    auto filePoolPtr = std::make_shared<FilePool>(fsptr);
     if (filePoolPtr == nullptr) {
         LOG(FATAL) << "allocate chunkfile pool failed!";
     }
@@ -85,9 +85,9 @@ std::shared_ptr<ChunkfilePool> InitChunkfilePool(std::shared_ptr<LocalFileSystem
         delete[] data;
     }
     /**
-     * 持久化chunkfilepool meta file
+     * 持久化FilePool meta file
      */
-    int ret = curve::chunkserver::ChunkfilePoolHelper::PersistEnCodeMetaInfo(
+    int ret = curve::chunkserver::FilePoolHelper::PersistEnCodeMetaInfo(
                                                 fsptr,
                                                 chunkfileSize,
                                                 metaPageSize,
@@ -148,12 +148,12 @@ int StartChunkserver(const char *ip,
         LOG(FATAL) << "not support chunk data uri's protocol"
                    << " error chunkDataDir is: " << chunkDataDir;
     }
-    copysetNodeOptions.chunkfilePool = std::make_shared<FakeChunkfilePool>(fs);
-    if (nullptr == copysetNodeOptions.chunkfilePool) {
+    copysetNodeOptions.chunkFilePool = std::make_shared<FakeFilePool>(fs);
+    if (nullptr == copysetNodeOptions.chunkFilePool) {
         LOG(FATAL) << "new chunfilepool failed";
     }
-    ChunkfilePoolOptions cfop;
-    if (false == copysetNodeOptions.chunkfilePool->Initialize(cfop)) {
+    FilePoolOptions cfop;
+    if (false == copysetNodeOptions.chunkFilePool->Initialize(cfop)) {
         LOG(FATAL) << "chunfilepool init failed";
     } else {
         LOG(INFO) << "chunfilepool init success";
@@ -248,8 +248,8 @@ TestCluster::TestCluster(const std::string &clusterName,
 
 int TestCluster::StartPeer(const PeerId &peerId,
                            const bool empty,
-                           bool get_chunk_from_pool,
-                           bool create_chunkfilepool) {
+                           bool getChunkFromPool,
+                           bool createChunkFilePool) {
     LOG(INFO) << "going start peer: " << peerId.to_string();
     auto it = peersMap_.find(peerId.to_string());
     if (it != peersMap_.end()) {
@@ -293,7 +293,7 @@ int TestCluster::StartPeer(const PeerId &peerId,
     } else if (0 == pid) {
         /* 在子进程起一个 ChunkServer */
         StartPeerNode(peer->options, peer->conf,
-                      get_chunk_from_pool, create_chunkfilepool);
+                      getChunkFromPool, createChunkFilePool);
         exit(0);
     }
 
@@ -430,8 +430,8 @@ int TestCluster::SetElectionTimeoutMs(int electionTimeoutMs) {
 
 int TestCluster::StartPeerNode(CopysetNodeOptions options,
                                const Configuration conf,
-                               bool enable_getchunk_from_pool,
-                               bool create_chunkfilepool) {
+                               bool enableGetchunkFromPool,
+                               bool createChunkFilePool) {
     /**
      * 用于注释，说明 cmd format
      */
@@ -488,11 +488,11 @@ int TestCluster::StartPeerNode(CopysetNodeOptions options,
     std::string getchunk_from_pool;
     butil::string_printf(&getchunk_from_pool,
                          "-enable_getchunk_from_pool=%d",
-                         enable_getchunk_from_pool);
+                         enableGetchunkFromPool);
     std::string create_pool;
     butil::string_printf(&create_pool,
                          "-create_chunkfilepool=%d",
-                         create_chunkfilepool);
+                         createChunkFilePool);
     std::string logic_pool_id;
     butil::string_printf(&logic_pool_id, "-logic_pool_id=%d", logicPoolID_);
     std::string copyset_id;

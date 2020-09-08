@@ -533,7 +533,7 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
         .WillOnce(DoAll(SetArgPointee<0>("0.0.1"),
                         Return(0)));
     EXPECT_CALL(*metricClient_, GetMetricUint(_, _, _))
-        .Times(3)
+        .Times(6)
         .WillRepeatedly(DoAll(SetArgPointee<2>(1000),
                         Return(MetricRet::kOK)));
     EXPECT_CALL(*copysetCheck_, CheckChunkServerOnline(_))

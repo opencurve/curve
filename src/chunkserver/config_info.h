@@ -38,7 +38,8 @@ namespace chunkserver {
 using curve::fs::LocalFileSystem;
 using curve::chunkserver::concurrent::ConcurrentApplyModule;
 
-class ChunkfilePool;
+class ConcurrentApplyModule;
+class FilePool;
 class CopysetNodeManager;
 class CloneManager;
 
@@ -94,7 +95,7 @@ struct CopysetNodeOptions {
     // 并发模块
     ConcurrentApplyModule *concurrentapply;
     // Chunk file池子
-    std::shared_ptr<ChunkfilePool> chunkfilePool;
+    std::shared_ptr<FilePool> chunkFilePool;
     // 文件系统适配层
     std::shared_ptr<LocalFileSystem> localFileSystem;
     // 回收站, 心跳模块判断该chunkserver不在copyset配置组时，

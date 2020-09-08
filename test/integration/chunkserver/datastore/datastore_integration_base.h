@@ -34,9 +34,9 @@
 #include "src/common/timeutility.h"
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/datastore/define.h"
-#include "src/chunkserver/datastore/chunkfile_pool.h"
+#include "src/chunkserver/datastore/file_pool.h"
 #include "src/chunkserver/datastore/chunkserver_datastore.h"
-#include "test/chunkserver/datastore/chunkfilepool_helper.h"
+#include "test/chunkserver/datastore/filepool_helper.h"
 
 using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;
@@ -69,7 +69,7 @@ class DatastoreIntegrationBase : public testing::Test {
     virtual void SetUp() {
         lfs_ = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
 
-        filePool_ = std::make_shared<ChunkfilePool>(lfs_);
+        filePool_ = std::make_shared<FilePool>(lfs_);
         if (filePool_ == nullptr) {
             LOG(FATAL) << "allocate chunkfile pool failed!";
         }
@@ -84,7 +84,7 @@ class DatastoreIntegrationBase : public testing::Test {
             LOG(FATAL) << "allocate chunkfile pool failed!";
         }
 
-        ChunkfilePoolHelper::PersistEnCodeMetaInfo(lfs_,
+        FilePoolHelper::PersistEnCodeMetaInfo(lfs_,
                                                    CHUNK_SIZE,
                                                    PAGE_SIZE,
                                                    poolDir,
@@ -97,8 +97,8 @@ class DatastoreIntegrationBase : public testing::Test {
     void InitChunkPool(int chunkNum) {
         filePool_->UnInitialize();
 
-        ChunkfilePoolOptions cfop;
-        cfop.chunkSize = CHUNK_SIZE;
+        FilePoolOptions cfop;
+        cfop.fileSize = CHUNK_SIZE;
         cfop.metaPageSize = PAGE_SIZE;
         memcpy(cfop.metaPath, poolMetaPath.c_str(), poolMetaPath.size());
 
@@ -118,7 +118,7 @@ class DatastoreIntegrationBase : public testing::Test {
     }
 
  protected:
-    std::shared_ptr<ChunkfilePool>  filePool_;
+    std::shared_ptr<FilePool>  filePool_;
     std::shared_ptr<LocalFileSystem>  lfs_;
     std::shared_ptr<CSDataStore> dataStore_;
 };

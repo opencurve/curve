@@ -32,7 +32,7 @@
 #include "src/fs/local_filesystem.h"
 #include "src/common/concurrent/concurrent.h"
 #include "test/integration/common/peer_cluster.h"
-#include "test/chunkserver/datastore/chunkfilepool_helper.h"
+#include "test/chunkserver/datastore/filepool_helper.h"
 #include "test/integration/common/config_generator.h"
 
 namespace curve {
@@ -43,7 +43,7 @@ using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 using curve::common::Thread;
 
-static char *chunkConcurrencyParams1[1][13] = {
+static char *chunkConcurrencyParams1[1][16] = {
     {
         "chunkserver",
         "-chunkServerIp=127.0.0.1",
@@ -52,16 +52,19 @@ static char *chunkConcurrencyParams1[1][13] = {
         "-chunkServerMetaUri=local://./9076/chunkserver.dat",
         "-copySetUri=local://./9076/copysets",
         "-raftSnapshotUri=curve://./9076/copysets",
+        "-raftLogUri=curve://./9076/copysets",
         "-recycleUri=local://./9076/recycler",
         "-chunkFilePoolDir=./9076/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9076/chunkfilepool.meta",
+        "-walFilePoolDir=./9076/walfilepool/",
+        "-walFilePoolMetaPath=./9076/walfilepool.meta",
         "-conf=./9076/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
 };
 
-static char *chunkConcurrencyParams2[1][13] = {
+static char *chunkConcurrencyParams2[1][16] = {
     {
         "chunkserver",
         "-chunkServerIp=127.0.0.1",
@@ -70,9 +73,12 @@ static char *chunkConcurrencyParams2[1][13] = {
         "-chunkServerMetaUri=local://./9077/chunkserver.dat",
         "-copySetUri=local://./9077/copysets",
         "-raftSnapshotUri=curve://./9077/copysets",
+        "-raftLogUri=curve://./9077/copysets",
         "-recycleUri=local://./9077/recycler",
         "-chunkFilePoolDir=./9077/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9077/chunkfilepool.meta",
+        "-walFilePoolDir=./9077/walfilepool/",
+        "-walFilePoolMetaPath=./9077/walfilepool.meta",
         "-conf=./9077/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
@@ -84,8 +90,8 @@ const int kChunkNum = 10;
 const ChunkSizeType kChunkSize = 16 * 1024 * 1024;
 const PageSizeType kPageSize = kOpRequestAlignSize;
 
-// chunk不从chunkfilepool获取的chunkserver并发测试
-class ChunkServerConcurrentNotFromChunkFilePoolTest : public testing::Test {
+// chunk不从FilePool获取的chunkserver并发测试
+class ChunkServerConcurrentNotFromFilePoolTest : public testing::Test {
  protected:
     virtual void SetUp() {
         peer1.set_address("127.0.0.1:9076:0");
@@ -152,8 +158,8 @@ class ChunkServerConcurrentNotFromChunkFilePoolTest : public testing::Test {
     std::vector<char **> params;
 };
 
-// chunk从chunkfilepool获取的chunkserver并发测试
-class ChunkServerConcurrentFromChunkFilePoolTest : public testing::Test {
+// chunk从FilePool获取的chunkserver并发测试
+class ChunkServerConcurrentFromFilePoolTest : public testing::Test {
  protected:
     virtual void SetUp() {
         peer1.set_address("127.0.0.1:9077:0");
@@ -183,7 +189,7 @@ class ChunkServerConcurrentFromChunkFilePoolTest : public testing::Test {
 
         params.push_back(chunkConcurrencyParams2[0]);
 
-        // 初始化chunkfilepool，这里会预先分配一些chunk
+        // 初始化FilePool，这里会预先分配一些chunk
         lfs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
         poolDir = "./"
             + std::to_string(PeerCluster::PeerToId(peer1))
@@ -192,7 +198,7 @@ class ChunkServerConcurrentFromChunkFilePoolTest : public testing::Test {
             + std::to_string(PeerCluster::PeerToId(peer1))
             + "/chunkfilepool.meta";
 
-        ChunkfilePoolHelper::PersistEnCodeMetaInfo(lfs,
+        FilePoolHelper::PersistEnCodeMetaInfo(lfs,
                                                    kChunkSize,
                                                    kPageSize,
                                                    poolDir,
@@ -482,11 +488,11 @@ void CreateCloneChunk(Peer leader,
 }
 
 /**
- * chunk不是事先在chunkfilepool分配好的
+ * chunk不是事先在FilePool分配好的
  */
 
 // 多线程并发随机读同一个chunk
-TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, RandReadOneChunk) {
+TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadOneChunk) {
     uint64_t chunkId = 1;
     off_t offset = 0;
     int length = kOpRequestAlignSize;
@@ -534,7 +540,7 @@ TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, RandReadOneChunk) {
 }
 
 // 多线程并发随机写同一个chunk
-TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, RandWriteOneChunk) {
+TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandWriteOneChunk) {
     const int kThreadNum = 10;
     const int kMaxLoop = 200;
     ChunkID chunkIdRange = 1;
@@ -567,7 +573,7 @@ TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, RandWriteOneChunk) {
 }
 
 // 多线程并发写同一个chunk同一个offset
-TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, WriteOneChunkOnTheSameOffset) {   //NOLINT
+TEST_F(ChunkServerConcurrentNotFromFilePoolTest, WriteOneChunkOnTheSameOffset) {   //NOLINT
     const int kThreadNum = 10;
     std::vector<string> datas;
     ChunkID chunkId = 1;
@@ -637,7 +643,7 @@ TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, WriteOneChunkOnTheSameOffs
 }
 
 // 多线程并发随机读写同一个chunk
-TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, RandReadWriteOneChunk) {
+TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadWriteOneChunk) {
     off_t offset = 0;
     int length = kOpRequestAlignSize;
     std::string data(kOpRequestAlignSize, 'a');
@@ -698,7 +704,7 @@ TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, RandReadWriteOneChunk) {
 }
 
 // 多线程并发读不同的chunk
-TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, RandReadMultiChunk) {
+TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadMultiChunk) {
     off_t offset = 0;
     int length = kOpRequestAlignSize;
     std::string data(kOpRequestAlignSize, 'a');
@@ -746,7 +752,7 @@ TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, RandReadMultiChunk) {
 }
 
 // 多线程并发读不同的chunk，注意这些chunk都还没有被写过
-TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, RandReadMultiNotExistChunk) {  //NOLINT
+TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadMultiNotExistChunk) {  //NOLINT
     const int kThreadNum = 10;
     const int kMaxLoop = 200;
     ChunkID chunkIdRange = kChunkNum;
@@ -779,7 +785,7 @@ TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, RandReadMultiNotExistChunk
 }
 
 // 多线程并发随机写同多个chunk
-TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, RandWriteMultiChunk) {
+TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandWriteMultiChunk) {
     off_t offset = 0;
     int length = kOpRequestAlignSize;
     std::string data(kOpRequestAlignSize, 'a');
@@ -828,7 +834,7 @@ TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, RandWriteMultiChunk) {
 }
 
 // 多线程并发随机读写同多个chunk
-TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, RandReadWriteMultiChunk) {
+TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadWriteMultiChunk) {
     std::string data(kOpRequestAlignSize, 'a');
     const int kThreadNum = 10;
     const int kMaxLoop = 200;
@@ -875,7 +881,7 @@ TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, RandReadWriteMultiChunk) {
 }
 
 // 多线程并发删除不同的chunk
-TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, DeleteMultiChunk) {
+TEST_F(ChunkServerConcurrentNotFromFilePoolTest, DeleteMultiChunk) {
     off_t offset = 0;
     int length = kOpRequestAlignSize;
     std::string data(kOpRequestAlignSize, 'a');
@@ -923,7 +929,7 @@ TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, DeleteMultiChunk) {
 }
 
 // 多线程并发create clone不同的chunk
-TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, CreateCloneMultiChunk) {
+TEST_F(ChunkServerConcurrentNotFromFilePoolTest, CreateCloneMultiChunk) {
     const int kThreadNum = 10;
     ChunkID chunkIdRange = kChunkNum;
 
@@ -954,11 +960,11 @@ TEST_F(ChunkServerConcurrentNotFromChunkFilePoolTest, CreateCloneMultiChunk) {
 }
 
 /**
- * chunk是事先在chunkfilepool分配好的
+ * chunk是事先在FilePool分配好的
  */
 
 // 多线程并发随机读同一个chunk
-TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, RandReadOneChunk) {
+TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadOneChunk) {
     uint64_t chunkId = 1;
     off_t offset = 0;
     int length = kOpRequestAlignSize;
@@ -1005,7 +1011,7 @@ TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, RandReadOneChunk) {
 }
 
 // 多线程并发随机写同一个chunk
-TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, RandWriteOneChunk) {
+TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteOneChunk) {
     const int kThreadNum = 10;
     const int kMaxLoop = 200;
     ChunkID chunkIdRange = 1;
@@ -1038,7 +1044,7 @@ TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, RandWriteOneChunk) {
 }
 
 // 多线程并发写同一个chunk同一个offset
-TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, WriteOneChunkOnTheSameOffset) {   //NOLINT
+TEST_F(ChunkServerConcurrentFromFilePoolTest, WriteOneChunkOnTheSameOffset) {   //NOLINT
     const int kThreadNum = 10;
     std::vector<string> datas;
     ChunkID chunkId = 1;
@@ -1108,7 +1114,7 @@ TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, WriteOneChunkOnTheSameOffset)
 }
 
 // 多线程并发随机读写同一个chunk
-TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, RandReadWriteOneChunk) {
+TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadWriteOneChunk) {
     std::string data(kOpRequestAlignSize, 'a');
     const int kThreadNum = 10;
     const int kMaxLoop = 200;
@@ -1155,7 +1161,7 @@ TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, RandReadWriteOneChunk) {
 }
 
 // 多线程并发读不同的chunk
-TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, RandReadMultiChunk) {
+TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadMultiChunk) {
     off_t offset = 0;
     int length = kOpRequestAlignSize;
     std::string data(kOpRequestAlignSize, 'a');
@@ -1203,7 +1209,7 @@ TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, RandReadMultiChunk) {
 }
 
 // 多线程并发读不同的chunk，注意这些chunk都还没有被写过
-TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, RandReadMultiNotExistChunk) {
+TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadMultiNotExistChunk) {
     const int kThreadNum = 10;
     const int kMaxLoop = 200;
     ChunkID chunkIdRange = kChunkNum;
@@ -1236,7 +1242,7 @@ TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, RandReadMultiNotExistChunk) {
 }
 
 // 多线程并发随机写同多个chunk
-TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, RandWriteMultiChunk) {
+TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteMultiChunk) {
     std::string data(kOpRequestAlignSize, 'a');
     const int kThreadNum = 10;
     const int kMaxLoop = 200;
@@ -1270,7 +1276,7 @@ TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, RandWriteMultiChunk) {
 }
 
 // 多线程并发随机读写同多个chunk
-TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, RandReadWriteMultiChunk) {
+TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadWriteMultiChunk) {
     std::string data(kOpRequestAlignSize, 'a');
     const int kThreadNum = 10;
     const int kMaxLoop = 200;
@@ -1317,7 +1323,7 @@ TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, RandReadWriteMultiChunk) {
 }
 
 // 多线程并发删除不同的chunk
-TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, DeleteMultiChunk) {
+TEST_F(ChunkServerConcurrentFromFilePoolTest, DeleteMultiChunk) {
     off_t offset = 0;
     int length = kOpRequestAlignSize;
     std::string data(kOpRequestAlignSize, 'a');
@@ -1365,7 +1371,7 @@ TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, DeleteMultiChunk) {
 }
 
 // 多线程并发create clone不同的chunk
-TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, CreateCloneMultiChunk) {
+TEST_F(ChunkServerConcurrentFromFilePoolTest, CreateCloneMultiChunk) {
     const int kThreadNum = 10;
     ChunkID chunkIdRange = kChunkNum;
     const int sn = 1;
@@ -1397,7 +1403,7 @@ TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, CreateCloneMultiChunk) {
 }
 
 // 多线程并发随机读写同多个chunk，同事伴随这并发的COW
-TEST_F(ChunkServerConcurrentFromChunkFilePoolTest, RandWriteMultiChunkWithCOW) {
+TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteMultiChunkWithCOW) {
     off_t offset = 0;
     int length = kOpRequestAlignSize;
     std::string data(kOpRequestAlignSize, 'a');

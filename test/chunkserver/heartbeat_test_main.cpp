@@ -31,7 +31,7 @@
 #include "test/chunkserver/heartbeat_test_common.h"
 #include "test/integration/common/config_generator.h"
 
-static char *param[3][12] = {
+static char *param[3][15] = {
     {
         "heartbeat_test",
         "-chunkServerIp=127.0.0.1",
@@ -40,9 +40,12 @@ static char *param[3][12] = {
         "-chunkServerMetaUri=local://./0/chunkserver.dat",
         "-copySetUri=local://./0/copysets",
         "-raftSnapshotUri=curve://./0/copysets",
+        "-raftLogUri=curve://./0/copysets",
         "-recycleUri=local://./0/recycler",
         "-chunkFilePoolDir=./0/chunkfilepool/",
         "-chunkFilePoolMetaPath=./0/chunkfilepool.meta",
+        "-walFilePoolDir=./0/walfilepool/",
+        "-walFilePoolMetaPath=./0/walfilepool.meta",
         "-conf=./8200/chunkserver.conf",
         "-graceful_quit_on_sigterm",
     },
@@ -54,9 +57,12 @@ static char *param[3][12] = {
         "-chunkServerMetaUri=local://./1/chunkserver.dat",
         "-copySetUri=local://./1/copysets",
         "-raftSnapshotUri=curve://./1/copysets",
+        "-raftLogUri=curve://./1/copysets",
         "-recycleUri=local://./1/recycler",
         "-chunkFilePoolDir=./1/chunkfilepool/",
         "-chunkFilePoolMetaPath=./1/chunkfilepool.meta",
+        "-walFilePoolDir=./1/walfilepool/",
+        "-walFilePoolMetaPath=./1/walfilepool.meta",
         "-conf=./8201/chunkserver.conf",
         "-graceful_quit_on_sigterm",
     },
@@ -68,9 +74,12 @@ static char *param[3][12] = {
         "-chunkServerMetaUri=local://./2/chunkserver.dat",
         "-copySetUri=local://./2/copysets",
         "-raftSnapshotUri=curve://./2/copysets",
+        "-raftLogUri=curve://./2/copysets",
         "-recycleUri=local://./2/recycler",
         "-chunkFilePoolDir=./2/chunkfilepool/",
         "-chunkFilePoolMetaPath=./2/chunkfilepool.meta",
+        "-walFilePoolDir=./2/walfilepool/",
+        "-walFilePoolMetaPath=./2/walfilepool.meta",
         "-conf=./8202/chunkserver.conf",
         "-graceful_quit_on_sigterm",
     },

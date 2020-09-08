@@ -132,8 +132,9 @@ const std::vector<string> chunkserverConf1{
       "/chunkserver.dat" },
     { " -copySetUri=local://" + CHUNKSERVER0_BASE_DIR + "/copysets" },
     { " -raftSnapshotUri=curve://" + CHUNKSERVER0_BASE_DIR + "/copysets" },
+    { " -raftLogUri=curve://" + CHUNKSERVER0_BASE_DIR + "/copysets" },
     { " -recycleUri=local://" + CHUNKSERVER0_BASE_DIR + "/recycler" },
-    { " -chunkFilePoolDir=" + CHUNKSERVER0_BASE_DIR + "/filepool" },
+    { " -chunkFilePoolDir=" + CHUNKSERVER0_BASE_DIR + "/chunkfilepool" },
     { " -chunkFilePoolMetaPath=" + CHUNKSERVER0_BASE_DIR +
       "/chunkfilepool.meta" },
     { " -conf=" + CHUNKSERVER_CONF_PATH },
@@ -142,7 +143,10 @@ const std::vector<string> chunkserverConf1{
     { " --graceful_quit_on_sigterm" },
     { " -chunkServerIp=127.0.0.1" },
     { " -chunkServerPort=" + CHUNK_SERVER0_PORT },
-    { " -enableChunkfilepool=false" }
+    { " -enableChunkfilepool=false" },
+    { " -enableWalfilepool=false" },
+    { " -walFilePoolDir=" + CHUNKSERVER0_BASE_DIR + "/walfilepool" },
+    { " -walFilePoolMetaPath=" + CHUNKSERVER0_BASE_DIR + "/walfilepool.meta" }
 };
 
 const std::vector<string> chunkserverConf2{
@@ -151,6 +155,7 @@ const std::vector<string> chunkserverConf2{
       "/chunkserver.dat" },
     { " -copySetUri=local://" + CHUNKSERVER1_BASE_DIR + "/copysets" },
     { " -raftSnapshotUri=curve://" + CHUNKSERVER1_BASE_DIR + "/copysets" },
+    { " -raftLogUri=curve://" + CHUNKSERVER1_BASE_DIR + "/copysets" },
     { " -recycleUri=local://" + CHUNKSERVER1_BASE_DIR + "/recycler" },
     { " -chunkFilePoolDir=" + CHUNKSERVER1_BASE_DIR + "/filepool" },
     { " -chunkFilePoolMetaPath=" + CHUNKSERVER1_BASE_DIR +
@@ -161,7 +166,10 @@ const std::vector<string> chunkserverConf2{
     { " --graceful_quit_on_sigterm" },
     { " -chunkServerIp=127.0.0.1" },
     { " -chunkServerPort=" + CHUNK_SERVER1_PORT },
-    { " -enableChunkfilepool=false" }
+    { " -enableChunkfilepool=false" },
+    { " -enableWalfilepool=false" },
+    { " -walFilePoolDir=" + CHUNKSERVER1_BASE_DIR + "/walfilepool" },
+    { " -walFilePoolMetaPath=" + CHUNKSERVER1_BASE_DIR + "/walfilepool.meta" }
 };
 
 const std::vector<string> chunkserverConf3{
@@ -170,6 +178,7 @@ const std::vector<string> chunkserverConf3{
       "/chunkserver.dat" },
     { " -copySetUri=local://" + CHUNKSERVER2_BASE_DIR + "/copysets" },
     { " -raftSnapshotUri=curve://" + CHUNKSERVER2_BASE_DIR + "/copysets" },
+    { " -raftLogUri=curve://" + CHUNKSERVER2_BASE_DIR + "/copysets" },
     { " -recycleUri=local://" + CHUNKSERVER2_BASE_DIR + "/recycler" },
     { " -chunkFilePoolDir=" + CHUNKSERVER2_BASE_DIR + "/filepool" },
     { " -chunkFilePoolMetaPath=" + CHUNKSERVER2_BASE_DIR +
@@ -180,7 +189,10 @@ const std::vector<string> chunkserverConf3{
     { " --graceful_quit_on_sigterm" },
     { " -chunkServerIp=127.0.0.1" },
     { " -chunkServerPort=" + CHUNK_SERVER2_PORT },
-    { " -enableChunkfilepool=false" }
+    { " -enableChunkfilepool=false" },
+    { " -enableWalfilepool=false" },
+    { " -walFilePoolDir=" + CHUNKSERVER2_BASE_DIR + "/walfilepool" },
+    { " -walFilePoolMetaPath=" + CHUNKSERVER2_BASE_DIR + "/walfilepool.meta" }
 };
 
 namespace curve {

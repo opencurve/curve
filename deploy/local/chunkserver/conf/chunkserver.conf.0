@@ -129,6 +129,17 @@ chunkfilepool.cpmeta_file_size=4096
 chunkfilepool.retry_times=5
 
 #
+# WAL file pool
+#
+walfilepool.enable_get_segment_from_pool=false
+walfilepool.file_pool_dir=./0/walfilepool/
+walfilepool.meta_path=./0/walfilepool.meta
+walfilepool.segment_size=8388608
+walfilepool.metapage_size=4096
+walfilepool.meta_file_size=4096
+walfilepool.retry_times=5
+
+#
 # trash settings
 #
 trash.expire_afterSec=120

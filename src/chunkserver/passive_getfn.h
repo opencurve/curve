@@ -25,7 +25,7 @@
 
 #include "src/chunkserver/trash.h"
 #include "src/chunkserver/copyset_node_manager.h"
-#include "src/chunkserver/datastore/chunkfile_pool.h"
+#include "src/chunkserver/datastore/file_pool.h"
 
 namespace curve {
 namespace chunkserver {
@@ -65,6 +65,11 @@ namespace chunkserver {
      * @param arg: chunkfilepool的对象指针
      */
     uint32_t GetChunkLeftFunc(void* arg);
+    /**
+     * 获取walfilepool中剩余chunk的数量
+     * @param arg: walfilepool的对象指针
+     */
+    uint32_t GetWalSegmentLeftFunc(void* arg);
     /**
      * 获取trash中chunk的数量
      * @param arg: trash的对象指针

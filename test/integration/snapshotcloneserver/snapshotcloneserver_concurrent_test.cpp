@@ -104,6 +104,7 @@ const std::vector<std::string> chunkserverConfigOptions{
     std::string("mds.listen.addr=") + kMdsIpPort,
     std::string("curve.config_path=") + kCsClientConfigPath,
     std::string("s3.config_path=") + kS3ConfigPath,
+    "walfilepool.enable_get_segment_from_pool=false"
 };
 
 const std::vector<std::string> csClientConfigOptions{
@@ -131,6 +132,10 @@ const std::vector<std::string> chunkserverConf1{
     { " -raft_sync_segments=true" },
     std::string(" --log_dir=") + kLogPath,
     { " --stderrthreshold=3" },
+    { " -raftLogUri=curve://./" + kTestPrefix + "1/copysets" },
+    { " -walFilePoolDir=./" + kTestPrefix + "1/walfilepool/" },
+    { " -walFilePoolMetaPath=./" + kTestPrefix +
+        "1/walfilepool.meta" },
 };
 
 const std::vector<std::string> chunkserverConf2{
@@ -148,6 +153,10 @@ const std::vector<std::string> chunkserverConf2{
     { " -raft_sync_segments=true" },
     std::string(" --log_dir=") + kLogPath,
     { " --stderrthreshold=3" },
+    { " -raftLogUri=curve://./" + kTestPrefix + "2/copysets" },
+    { " -walFilePoolDir=./" + kTestPrefix + "2/walfilepool/" },
+    { " -walFilePoolMetaPath=./" + kTestPrefix +
+        "2/walfilepool.meta" },
 };
 
 const std::vector<std::string> chunkserverConf3{
@@ -165,6 +174,10 @@ const std::vector<std::string> chunkserverConf3{
     { " -raft_sync_segments=true" },
     std::string(" --log_dir=") + kLogPath,
     { " --stderrthreshold=3" },
+    { " -raftLogUri=curve://./" + kTestPrefix + "3/copysets" },
+    { " -walFilePoolDir=./" + kTestPrefix + "3/walfilepool/" },
+    { " -walFilePoolMetaPath=./" + kTestPrefix +
+        "3/walfilepool.meta" },
 };
 
 const std::vector<std::string> snapshotcloneserverConfigOptions{
@@ -245,25 +258,24 @@ class SnapshotCloneServerTest : public ::testing::Test {
                          "./test/integration/snapshotcloneserver/"
                          "config/topo2.json"));
 
-        // 格式化chunkfilepool
+        // format chunkfilepool and walfilepool
         std::vector<std::thread> threadpool(3);
 
         threadpool[0] =
-            std::thread(&CurveCluster::FormatChunkFilePool, cluster_,
+            std::thread(&CurveCluster::FormatFilePool, cluster_,
                         "./" + kTestPrefix + "1/chunkfilepool/",
                         "./" + kTestPrefix + "1/chunkfilepool.meta",
-                        "./" + kTestPrefix + "1/", 1);
+                        "./" + kTestPrefix + "1/chunkfilepool/", 1);
         threadpool[1] =
-            std::thread(&CurveCluster::FormatChunkFilePool, cluster_,
+            std::thread(&CurveCluster::FormatFilePool, cluster_,
                         "./" + kTestPrefix + "2/chunkfilepool/",
                         "./" + kTestPrefix + "2/chunkfilepool.meta",
-                        "./" + kTestPrefix + "2/", 1);
+                        "./" + kTestPrefix + "2/chunkfilepool/", 1);
         threadpool[2] =
-            std::thread(&CurveCluster::FormatChunkFilePool, cluster_,
+            std::thread(&CurveCluster::FormatFilePool, cluster_,
                         "./" + kTestPrefix + "3/chunkfilepool/",
                         "./" + kTestPrefix + "3/chunkfilepool.meta",
-                        "./" + kTestPrefix + "3/", 1);
-
+                        "./" + kTestPrefix + "3/chunkfilepool/", 1);
         for (int i = 0; i < 3; i++) {
             threadpool[i].join();
         }

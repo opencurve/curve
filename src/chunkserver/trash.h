@@ -26,7 +26,7 @@
 #include <memory>
 #include <string>
 #include "src/fs/local_filesystem.h"
-#include "src/chunkserver/datastore/chunkfile_pool.h"
+#include "src/chunkserver/datastore/file_pool.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
 
@@ -45,7 +45,7 @@ struct TrashOptions{
     int scanPeriodSec;
 
     std::shared_ptr<LocalFileSystem> localFileSystem;
-    std::shared_ptr<ChunkfilePool> chunkfilePool;
+    std::shared_ptr<FilePool> chunkFilePool;
 };
 
 class Trash {
@@ -144,7 +144,7 @@ class Trash {
     std::shared_ptr<LocalFileSystem> localFileSystem_;
 
     // chunk池子
-    std::shared_ptr<ChunkfilePool> chunkfilePool_;
+    std::shared_ptr<FilePool> chunkFilePool_;
 
     // 回收站全路径
     std::string trashPath_;

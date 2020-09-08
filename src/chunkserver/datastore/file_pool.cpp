@@ -35,44 +35,44 @@
 #include "src/common/crc32.h"
 #include "src/common/configuration.h"
 #include "src/common/curve_define.h"
-#include "src/chunkserver/datastore/chunkfile_pool.h"
+#include "src/chunkserver/datastore/file_pool.h"
 
-using curve::common::kChunkFilePoolMaigic;
+using curve::common::kFilePoolMaigic;
 
 namespace curve {
 namespace chunkserver {
-const char* ChunkfilePoolHelper::kChunkSize = "chunkSize";
-const char* ChunkfilePoolHelper::kMetaPageSize = "metaPageSize";
-const char* ChunkfilePoolHelper::kChunkFilePoolPath = "chunkfilepool_path";
-const char* ChunkfilePoolHelper::kCRC = "crc";
-const uint32_t ChunkfilePoolHelper::kPersistSize = 4096;
+const char* FilePoolHelper::kFileSize = "chunkSize";
+const char* FilePoolHelper::kMetaPageSize = "metaPageSize";
+const char* FilePoolHelper::kFilePoolPath = "chunkfilepool_path";
+const char* FilePoolHelper::kCRC = "crc";
+const uint32_t FilePoolHelper::kPersistSize = 4096;
 
-int ChunkfilePoolHelper::PersistEnCodeMetaInfo(
+int FilePoolHelper::PersistEnCodeMetaInfo(
                                     std::shared_ptr<LocalFileSystem> fsptr,
                                     uint32_t chunkSize,
                                     uint32_t metaPageSize,
-                                    const std::string& chunkfilepool_path,
+                                    const std::string& filePoolPath,
                                     const std::string& persistPath) {
     Json::Value root;
-    root[kChunkSize] = chunkSize;
+    root[kFileSize] = chunkSize;
     root[kMetaPageSize] = metaPageSize;
-    root[kChunkFilePoolPath] = chunkfilepool_path;
+    root[kFilePoolPath] = filePoolPath;
 
-    uint32_t crcsize = sizeof(kChunkFilePoolMaigic) +
+    uint32_t crcsize = sizeof(kFilePoolMaigic) +
                        sizeof(chunkSize) +
                        sizeof(metaPageSize) +
-                       chunkfilepool_path.size();
+                       filePoolPath.size();
     char* crcbuf = new char[crcsize];
 
-    ::memcpy(crcbuf, kChunkFilePoolMaigic,
-             sizeof(kChunkFilePoolMaigic));
-    ::memcpy(crcbuf + sizeof(kChunkFilePoolMaigic),
+    ::memcpy(crcbuf, kFilePoolMaigic,
+             sizeof(kFilePoolMaigic));
+    ::memcpy(crcbuf + sizeof(kFilePoolMaigic),
              &chunkSize, sizeof(uint32_t));
-    ::memcpy(crcbuf + sizeof(uint32_t) + sizeof(kChunkFilePoolMaigic),
+    ::memcpy(crcbuf + sizeof(uint32_t) + sizeof(kFilePoolMaigic),
              &metaPageSize, sizeof(uint32_t));
-    ::memcpy(crcbuf + 2*sizeof(uint32_t) + sizeof(kChunkFilePoolMaigic),
-             chunkfilepool_path.c_str(),
-             chunkfilepool_path.size());
+    ::memcpy(crcbuf + 2*sizeof(uint32_t) + sizeof(kFilePoolMaigic),
+             filePoolPath.c_str(),
+             filePoolPath.size());
     uint32_t crc = ::curve::common::CRC32(crcbuf, crcsize);
     delete[] crcbuf;
 
@@ -107,7 +107,7 @@ int ChunkfilePoolHelper::PersistEnCodeMetaInfo(
     return 0;
 }
 
-int ChunkfilePoolHelper::DecodeMetaInfoFromMetaFile(
+int FilePoolHelper::DecodeMetaInfoFromMetaFile(
                                     std::shared_ptr<LocalFileSystem> fsptr,
                                     const std::string& metaFilePath,
                                     uint32_t metaFileSize,
@@ -141,8 +141,8 @@ int ChunkfilePoolHelper::DecodeMetaInfoFromMetaFile(
             break;
         }
 
-        if (!value[kChunkSize].isNull()) {
-            *chunksize = value[kChunkSize].asUInt();
+        if (!value[kFileSize].isNull()) {
+            *chunksize = value[kFileSize].asUInt();
         } else {
             LOG(ERROR) << "chunkfile meta file got error!"
                     << " no chunksize!";
@@ -157,11 +157,11 @@ int ChunkfilePoolHelper::DecodeMetaInfoFromMetaFile(
             break;
         }
 
-        if (!value[kChunkFilePoolPath].isNull()) {
-            *chunkfilePath = value[kChunkFilePoolPath].asString();
+        if (!value[kFilePoolPath].isNull()) {
+            *chunkfilePath = value[kFilePoolPath].asString();
         } else {
             LOG(ERROR) << "chunkfile meta file got error!"
-                    << " no chunkfilepool path!";
+                    << " no FilePool path!";
             break;
         }
 
@@ -182,17 +182,17 @@ int ChunkfilePoolHelper::DecodeMetaInfoFromMetaFile(
     }
 
     uint32_t crcCheckSize = 2*sizeof(uint32_t) +
-                            sizeof(kChunkFilePoolMaigic) +
+                            sizeof(kFilePoolMaigic) +
                             chunkfilePath->size();
 
     std::unique_ptr<char[]> crcCheckBuf(new char[crcCheckSize]);
 
-    ::memcpy(crcCheckBuf.get(), kChunkFilePoolMaigic, sizeof(kChunkFilePoolMaigic));    //  NOLINT
-    ::memcpy(crcCheckBuf.get() + sizeof(kChunkFilePoolMaigic),
+    ::memcpy(crcCheckBuf.get(), kFilePoolMaigic, sizeof(kFilePoolMaigic));    //  NOLINT
+    ::memcpy(crcCheckBuf.get() + sizeof(kFilePoolMaigic),
              chunksize, sizeof(uint32_t));
-    ::memcpy(crcCheckBuf.get() + sizeof(uint32_t) + sizeof(kChunkFilePoolMaigic),    //  NOLINT
+    ::memcpy(crcCheckBuf.get() + sizeof(uint32_t) + sizeof(kFilePoolMaigic),    //  NOLINT
              metapagesize, sizeof(uint32_t));
-    ::memcpy(crcCheckBuf.get() + 2*sizeof(uint32_t) + sizeof(kChunkFilePoolMaigic),    //  NOLINT
+    ::memcpy(crcCheckBuf.get() + 2*sizeof(uint32_t) + sizeof(kFilePoolMaigic),    //  NOLINT
              chunkfilePath->c_str(),
              chunkfilePath->size());
     uint32_t crcCalc = ::curve::common::CRC32(crcCheckBuf.get(), crcCheckSize);
@@ -205,16 +205,16 @@ int ChunkfilePoolHelper::DecodeMetaInfoFromMetaFile(
     return 0;
 }
 
-ChunkfilePool::ChunkfilePool(std::shared_ptr<LocalFileSystem> fsptr):
-                             currentmaxfilenum_(0) {
+FilePool::FilePool(std::shared_ptr<LocalFileSystem> fsptr):
+                   currentmaxfilenum_(0) {
     CHECK(fsptr != nullptr) << "fs ptr allocate failed!";
     fsptr_ = fsptr;
     tmpChunkvec_.clear();
 }
 
-bool ChunkfilePool::Initialize(const ChunkfilePoolOptions& cfopt) {
-    chunkPoolOpt_ = cfopt;
-    if (chunkPoolOpt_.getChunkFromPool) {
+bool FilePool::Initialize(const FilePoolOptions& cfopt) {
+    poolOpt_ = cfopt;
+    if (poolOpt_.getFileFromPool) {
         if (!CheckValid()) {
             LOG(ERROR) << "check valid failed!";
             return false;
@@ -227,7 +227,7 @@ bool ChunkfilePool::Initialize(const ChunkfilePoolOptions& cfopt) {
             return false;
         }
     } else {
-        currentdir_ = chunkPoolOpt_.chunkFilePoolDir;
+        currentdir_ = poolOpt_.filePoolDir;
         if (!fsptr_->DirExists(currentdir_.c_str())) {
             return fsptr_->Mkdir(currentdir_.c_str()) == 0;
         }
@@ -235,36 +235,36 @@ bool ChunkfilePool::Initialize(const ChunkfilePoolOptions& cfopt) {
     return true;
 }
 
-bool ChunkfilePool::CheckValid() {
+bool FilePool::CheckValid() {
     uint32_t chunksize = 0;
     uint32_t metapagesize = 0;
-    std::string chunkfilePath;
+    std::string filePath;
 
-    int ret = ChunkfilePoolHelper::DecodeMetaInfoFromMetaFile(fsptr_,
-                                                chunkPoolOpt_.metaPath,
-                                                chunkPoolOpt_.cpMetaFileSize,
+    int ret = FilePoolHelper::DecodeMetaInfoFromMetaFile(fsptr_,
+                                                poolOpt_.metaPath,
+                                                poolOpt_.metaFileSize,
                                                 &chunksize,
                                                 &metapagesize,
-                                                &chunkfilePath);
+                                                &filePath);
     if (ret == -1) {
         LOG(ERROR) << "Decode meta info from meta file failed!";
         return false;
     }
 
-    currentdir_ = chunkfilePath;
+    currentdir_ = filePath;
     currentState_.chunkSize = chunksize;
     currentState_.metaPageSize = metapagesize;
     return true;
 }
 
-int ChunkfilePool::GetChunk(const std::string& targetpath, char* metapage) {
+int FilePool::GetFile(const std::string& targetpath, char* metapage) {
     int ret = -1;
     int retry = 0;
 
-    while (retry < chunkPoolOpt_.retryTimes) {
+    while (retry < poolOpt_.retryTimes) {
         uint64_t chunkID;
         std::string srcpath;
-        if (chunkPoolOpt_.getChunkFromPool) {
+        if (poolOpt_.getFileFromPool) {
             std::unique_lock<std::mutex> lk(mtx_);
             if (tmpChunkvec_.empty()) {
                 LOG(ERROR) << "no avaliable chunk!";
@@ -290,7 +290,7 @@ int ChunkfilePool::GetChunk(const std::string& targetpath, char* metapage) {
                   << ", dist path = " << targetpath.c_str();
         if (rc) {
             // 这里使用RENAME_NOREPLACE模式来rename文件当目标文件存在时，不允许被覆盖
-            // 也就是说通过chunkfilepool创建文件需要保证目标文件不存在datastore可能存
+            // 也就是说通过FilePool创建文件需要保证目标文件不存在datastore可能存
             // 在并发创建文件的场景通过rename一来保证文件创建的原子性，二来保证不会覆盖已
             // 有文件
             ret = fsptr_->Rename(srcpath.c_str(), targetpath.c_str(),
@@ -303,7 +303,7 @@ int ChunkfilePool::GetChunk(const std::string& targetpath, char* metapage) {
             } else if (ret < 0) {
                 LOG(ERROR) << "file rename failed, " << srcpath.c_str();
             } else {
-                LOG(INFO) << "get chunk success! now pool size = "
+                LOG(INFO) << "get file success! now pool size = "
                           << tmpChunkvec_.size();
                 break;
             }
@@ -316,8 +316,8 @@ int ChunkfilePool::GetChunk(const std::string& targetpath, char* metapage) {
     return ret;
 }
 
-int ChunkfilePool::AllocateChunk(const std::string& chunkpath) {
-    uint64_t chunklen = chunkPoolOpt_.chunkSize + chunkPoolOpt_.metaPageSize;
+int FilePool::AllocateChunk(const std::string& chunkpath) {
+    uint64_t chunklen = poolOpt_.fileSize + poolOpt_.metaPageSize;
 
     int ret = fsptr_->Open(chunkpath.c_str(), O_RDWR | O_CREAT);
     if (ret < 0) {
@@ -359,7 +359,7 @@ int ChunkfilePool::AllocateChunk(const std::string& chunkpath) {
     return ret;
 }
 
-bool ChunkfilePool::WriteMetaPage(const std::string& sourcepath, char* page) {
+bool FilePool::WriteMetaPage(const std::string& sourcepath, char* page) {
     int fd = -1;
     int ret = -1;
 
@@ -371,8 +371,8 @@ bool ChunkfilePool::WriteMetaPage(const std::string& sourcepath, char* page) {
 
     fd = ret;
 
-    ret = fsptr_->Write(fd, page, 0, chunkPoolOpt_.metaPageSize);
-    if (ret != chunkPoolOpt_.metaPageSize) {
+    ret = fsptr_->Write(fd, page, 0, poolOpt_.metaPageSize);
+    if (ret != poolOpt_.metaPageSize) {
         fsptr_->Close(fd);
         LOG(ERROR) << "write metapage failed, " << sourcepath.c_str();
         return false;
@@ -393,8 +393,8 @@ bool ChunkfilePool::WriteMetaPage(const std::string& sourcepath, char* page) {
     return true;
 }
 
-int ChunkfilePool::RecycleChunk(const std::string& chunkpath) {
-    if (!chunkPoolOpt_.getChunkFromPool) {
+int FilePool::RecycleFile(const std::string& chunkpath) {
+    if (!poolOpt_.getFileFromPool) {
         int ret = fsptr_->Delete(chunkpath.c_str());
         if (ret < 0) {
             LOG(ERROR) << "Recycle chunk failed!";
@@ -402,7 +402,7 @@ int ChunkfilePool::RecycleChunk(const std::string& chunkpath) {
         }
     } else {
         // 检查该待回收的文件大小是否符合要求，不符合就直接删掉
-        uint64_t chunklen = chunkPoolOpt_.chunkSize+chunkPoolOpt_.metaPageSize;
+        uint64_t chunklen = poolOpt_.fileSize+poolOpt_.metaPageSize;
         int fd = fsptr_->Open(chunkpath.c_str(), O_RDWR);
         if (fd < 0) {
             LOG(ERROR) << "file open failed! delete file dirctly"
@@ -456,26 +456,26 @@ int ChunkfilePool::RecycleChunk(const std::string& chunkpath) {
     return 0;
 }
 
-void ChunkfilePool::UnInitialize() {
+void FilePool::UnInitialize() {
     currentdir_         = "";
 
     std::unique_lock<std::mutex> lk(mtx_);
     tmpChunkvec_.clear();
 }
 
-bool ChunkfilePool::ScanInternal() {
+bool FilePool::ScanInternal() {
     uint64_t maxnum = 0;
     std::vector<std::string> tmpvec;
     int ret = fsptr_->List(currentdir_.c_str(), &tmpvec);
     if (ret < 0) {
-        LOG(ERROR) << "list chunkfile pool dir failed!";
+        LOG(ERROR) << "list file pool dir failed!";
         return false;
     } else {
-        LOG(INFO) << "list chunkfile pool dir done, size = "
+        LOG(INFO) << "list file pool dir done, size = "
                   << tmpvec.size();
     }
 
-    uint64_t chunklen = chunkPoolOpt_.chunkSize + chunkPoolOpt_.metaPageSize;
+    uint64_t chunklen = poolOpt_.fileSize + poolOpt_.metaPageSize;
     for (auto& iter : tmpvec) {
         auto it =
             std::find_if(iter.begin(), iter.end(), [](unsigned char c) {
@@ -526,12 +526,12 @@ bool ChunkfilePool::ScanInternal() {
     return true;
 }
 
-size_t ChunkfilePool::Size() {
+size_t FilePool::Size() {
     std::unique_lock<std::mutex> lk(mtx_);
     return tmpChunkvec_.size();
 }
 
-ChunkFilePoolState_t ChunkfilePool::GetState() {
+FilePoolState_t FilePool::GetState() {
     return currentState_;
 }
 
