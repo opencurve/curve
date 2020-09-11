@@ -156,7 +156,7 @@ function start_one() {
             -chunkServerMetaUri=local://${dataDir}/chunkserver$1/chunkserver.dat \
             -chunkServerStoreUri=local://${dataDir}/chunkserver$1/ \
             -copySetUri=local://${dataDir}/chunkserver$1/copysets \
-            -raftSnapshotUri=curve:///data/chunkserver$1/copysets \
+            -raftSnapshotUri=curve://${dataDir}/chunkserver$1/copysets \
             -recycleUri=local://${dataDir}/chunkserver$1/recycler \
             -raft_sync_segments=true \
             -graceful_quit_on_sigterm=true \
