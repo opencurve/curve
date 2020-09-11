@@ -96,8 +96,8 @@ ChunkServer：文件数据的实际存放位置，使用读时拷贝机制支持
 #### 2.3.1 创建克隆卷
 
 1. 用户指定要克隆的文件或快照，向SnapshotCloneServer发送创建克隆卷的请求；
-2. SnapshotCloneServer收到请求后，如果克隆对象是快照，在快照克隆系统的本地保存的快照信息中（目前持久化到etcd）中获取快照信息；如果克隆对象是文件的话，就向MDS查询文件信息。
-3. SnapshotCloneServer向MDS发送`CreateCloneFile`请求，对于克隆创建的新文件的初始版本应设为1，MDS收到请求后会创建新的文件，并将文件的状态设置为`Cloning`（文件不同状态的含义及作用会在后面章节阐述）。需要注意的事，一开始创建的文件会被放到一个临时目录下，例如用户请求克隆的文件名为“des”，那么此步骤会以"/clone/des"的名称去创建文件。
+2. SnapshotCloneServer收到请求后，如果克隆对象是快照，在快照克隆系统的本地保存的快照信息（目前持久化到etcd）中获取快照信息；如果克隆对象是文件的话，就向MDS查询文件信息。
+3. SnapshotCloneServer向MDS发送`CreateCloneFile`请求，对于克隆创建的新文件的初始版本应设为1，MDS收到请求后会创建新的文件，并将文件的状态设置为`Cloning`（文件不同状态的含义及作用会在后面章节阐述）。需要注意的是，一开始创建的文件会被放到一个临时目录下，例如用户请求克隆的文件名为“des”，那么此步骤会以"/clone/des"的名称去创建文件。
 4. 文件创建成功后，SnapshotCloneServer需要查询各个chunk的位置信息，如果克隆对象为文件，只需要获取文件名称；如果克隆对象为快照，则先获取S3上的metaobject进行解析来获取Chunk的信息；然后先通过MDS为每个Segment上的Chunk分配copyset，再调用ChunkServer的`CreateCloneChunk`接口为获取到的每个Chunk创建新的Chunk文件，新建的Chunk文件的版本为1，Chunk中会记录源位置信息，如果克隆对象为文件，可以以/filename/offset@cs作为location，filename表示数据源的文件名，@cs表示文件数据在chunkserver上；如果克隆对象为快照，以url@s3作为location，url表示源数据在s3上的访问url，@s3表示源数据在s3上。
 5. 当所有的Chunk都在chunkserver创建并记录源端信息后，SnapshotCloneServer通过`CompleteCloneMeta`接口将文件的状态修改为`CloneMetaInstalled`，到这一步为止，lazy的方式和非lazy的方式的流程都是一样的，两者的差别在下面的步骤中体现。
 6. 如果用户指定以lazy的方式进行克隆，SnapshotCloneServer首先会将前面创建的“/clone/des”重命名为“des”，这样一来，用户就可以访问到新建的文件并进行挂载读写。lazy克隆不会继续后面的数据拷贝，除非显式调用快照克隆系统的flatten接口，然后SnapshotCloneServer会继续循环调用`RecoverChunk`异步地触发ChunkServer上Chunk数据的拷贝，当所有的Chunk都拷贝成功以后，再调用`CompleteCloneFile`将文件的状态改为`Cloned`，调用时指定的文件名为“des”，因为在前面已经将文件重命名了。
