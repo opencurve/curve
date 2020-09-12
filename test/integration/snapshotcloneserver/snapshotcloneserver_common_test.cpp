@@ -938,5 +938,58 @@ TEST_F(SnapshotCloneServerTest, TestSnapAndCloneWhenSnapHasError) {
     ASSERT_EQ(kErrCodeFileNotExist, retCode);
 }
 
+// [线上问题修复]克隆失败，回滚删除克隆卷，再次创建同样的uuid的卷的场景
+TEST_F(SnapshotCloneServerTest, TestCloneHasSameDest) {
+    std::string uuid1, uuid2, uuid3, uuid4;
+    // 操作1：testUser1_ clone 镜像testFile1_，fileName=CloneHasSameDestUUID
+    // 预期1  返回克隆成功
+    std::string dstFile = "/ItUser1/CloneHasSameDest";
+    int ret =
+        CloneOrRecover("Clone", testUser1_, testFile1_, dstFile, true, &uuid1);
+    ASSERT_EQ(0, ret);
+
+    // 删除克隆卷
+    UserInfo_t userinfo;
+    userinfo.owner = testUser1_;
+    int ret2 = fileClient_->Unlink(dstFile, userinfo, false);
+    ASSERT_EQ(0, ret2);
+
+
+    // 操作2：testUser1_ 再次clone 镜像testFile1_，
+    // fileName=CloneHasSameDestUUID
+    // 预期2  返回克隆成功
+    ret =
+        CloneOrRecover("Clone", testUser1_, testFile1_, dstFile, true, &uuid2);
+    ASSERT_EQ(0, ret);
+
+    // 验证数据正确性
+    std::string fakeData(4096, 'x');
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
+
+    // 操作3：testUser1_ clone 镜像testFile1_，fileName=CloneHasSameDest2
+    // 预期3  返回克隆成功
+    dstFile = "/ItUser1/CloneHasSameDest2";
+    ret =
+        CloneOrRecover("Clone", testUser1_, testFile1_, dstFile, true, &uuid3);
+    ASSERT_EQ(0, ret);
+
+    // 删除克隆卷
+    UserInfo_t userinfo2;
+    userinfo2.owner = testUser1_;
+    ret2 = fileClient_->Unlink(dstFile, userinfo2, false);
+    ASSERT_EQ(0, ret2);
+
+
+    // 操作4：testUser1_ 再次clone 镜像testFile2_，
+    // fileName=CloneHasSameDest2
+    // 预期4  返回克隆成功
+    ret =
+        CloneOrRecover("Clone", testUser1_, testFile2_, dstFile, true, &uuid4);
+    ASSERT_EQ(0, ret);
+
+    // 验证数据正确性
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
+}
+
 }  // namespace snapshotcloneserver
 }  // namespace curve

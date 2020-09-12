@@ -60,6 +60,8 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     // 查询数据库中是否有任务正在执行
     std::vector<CloneInfo> cloneInfoList;
     metaStore_->GetCloneInfoByFileName(destination, &cloneInfoList);
+    bool maybeExist = false;
+    CloneInfo existCloneInfo;
     for (auto &info : cloneInfoList) {
         if ((taskType == CloneTaskType::kClone) &&
             (info.GetTaskType() == CloneTaskType::kClone)) {
@@ -74,12 +76,11 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                           << ", destination = " << destination
                           << ", Exist CloneInfo : " << info;
                 if ((info.GetUser() == user) &&
-                    (info.GetSrc() == source) &&
                     (info.GetIsLazy() == lazyFlag) &&
                     (info.GetTaskType() == taskType)) {
-                    // 视为同一个clone，返回任务已存在
-                    *cloneInfo = info;
-                    return kErrCodeTaskExist;
+                    // 视为同一个clone，可能克隆过，还需判断文件是否存在
+                    existCloneInfo = info;
+                    maybeExist = true;
                 } else {
                     // 视为不同的克隆，那么文件实际上已被占用，返回文件已存在
                     return kErrCodeFileExist;
@@ -117,11 +118,16 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     switch (ret) {
         case LIBCURVE_ERROR::OK:
             if (CloneTaskType::kClone == taskType) {
-                LOG(ERROR) << "Clone dest file must not exist"
-                           << ", source = " << source
-                           << ", user = " << user
-                           << ", destination = " << destination;
-                return kErrCodeFileExist;
+                if (maybeExist) {
+                    *cloneInfo = existCloneInfo;
+                    return kErrCodeTaskExist;
+                } else {
+                    LOG(ERROR) << "Clone dest file must not exist"
+                               << ", source = " << source
+                               << ", user = " << user
+                               << ", destination = " << destination;
+                    return kErrCodeFileExist;
+                }
             }
             break;
         case -LIBCURVE_ERROR::NOTEXIST:
