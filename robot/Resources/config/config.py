@@ -69,7 +69,7 @@ snap_server_list = ["10.182.26.25","10.182.26.16","10.182.26.17"]
 snap_version = '2019-08-01'
 snapshot_size = 10
 snapshot_timeout = 1200
-snapshot_vmid = ""
+snapshot_thrash = ""
 snapshot_volid = ""
 snapshot_vip = "10.182.26.25"
 # db info

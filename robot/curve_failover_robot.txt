@@ -409,9 +409,9 @@ stop map unmap thread
     stop map unmap
 #    [Teardown]   wait cluster healthy    ${vm_iops_limit}
 
-#stop snapshot test
-#    [Tags]    P1    base    first release   failover  
-#    stop snapshot test
+stop snapshot test
+    [Tags]    P1    base    first release   failover  
+    stop snapshot test
 
 test mds delay package 50ms
     [Tags]    P1    base    first release   failover   
@@ -508,9 +508,9 @@ init failover cluster
      ${begin_num}    Convert To Integer   ${begin_num}
      Set Global Variable  ${chunk_num}    ${begin_num} 
      init rw cloud disk
-#     init vol
-#     begin snapshot test
-#     begin kill snapshotserver
+     init nbd vol
+     begin snapshot test
+     begin kill snapshotserver
      loop map unmap file
 
 init abnormal test env
