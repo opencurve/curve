@@ -58,6 +58,11 @@ class NbdThrash:
         rs = shell_operator.ssh_exec(self.ssh, cmd)
         assert rs[3] == 0,"delete fail：%s"%rs[1]
 
+    def write_data(self,size):
+        ori_cmd = "sudo fio -name=%s -direct=1 -iodepth=8 -rw=write -ioengine=libaio -bs=1024k -size=%dG -numjobs=1 -time_based"%(self.dev,size)
+        rs = shell_operator.ssh_exec(self.ssh, ori_cmd)
+        assert rs[3] == 0,"write fio fail"
+
 def nbd_all(name):
     thrash_time = 0
     ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
@@ -82,31 +87,14 @@ def nbd_all(name):
         thrash.nbd_delete()
         return thrash_time
 
-def vol_write_data():
-    ssh = shell_operator.create_ssh_connect(config.vm_stability_host, 22, config.vm_user)
-    start_time = time.time()
-    while time.time() - start_time < 120:
-        ori_cmd = "lsblk |grep %dG | awk '{print $1}'"%config.snapshot_size
-        rs = shell_operator.ssh_exec(ssh, ori_cmd, logger2)
-        vd = "".join(rs[1]).strip()
-        if vd != "":
-            break
-        time.sleep(5)
-    if vd != "":
-        logger2.info("vd is %s"%vd)
-        ori_cmd = "fio -name=/dev/%s -direct=1 -iodepth=8 -rw=write -ioengine=libaio -bs=1024k -size=%dG -numjobs=1 -time_based"%(vd,config.snapshot_size)
-        rs = shell_operator.ssh_exec(ssh, ori_cmd, logger2)
-        assert rs[3] == 0,"write fio fail"
-    else:
-        assert False,"get vd fail"
 
 def create_vol_snapshot(vol_uuid):
     snap_server = config.snapshot_vip
     payload = {}
     payload['Action'] = 'CreateSnapshot'
     payload['Version'] = config.snap_version
-    payload['User'] = 'cinder'
-    payload['File'] = R'/cinder/volume-' + vol_uuid
+    payload['User'] = 'test'
+    payload['File'] = R'/' + vol_uuid
     payload['Name'] = 'test'
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
     http = R'http://%s:5555/SnapshotCloneService'%snap_server
@@ -124,8 +112,8 @@ def delete_vol_snapshot(voluuid,snapshot_uuid):
     payload = {}
     payload['Action'] = 'DeleteSnapshot'
     payload['Version'] = config.snap_version
-    payload['User'] = 'cinder'
-    payload['File'] = R'/cinder/volume-' + voluuid
+    payload['User'] = 'test'
+    payload['File'] = R'/' + voluuid
     payload['UUID'] = snapshot_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
     http = R'http://%s:5555/SnapshotCloneService' % snap_server
@@ -140,9 +128,9 @@ def clone_vol_snapshot(snapshot_uuid,lazy="true"):
     payload = {}
     payload['Action'] = 'Clone'
     payload['Version'] = config.snap_version
-    payload['User'] = 'cinder'
+    payload['User'] = 'test'
     payload['Source'] = snapshot_uuid
-    payload['Destination'] = R'/cinder/volume-%s'%snapshot_uuid
+    payload['Destination'] = R'/%s'%snapshot_uuid
     payload['Lazy']  = lazy
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
     http = R'http://%s:5555/SnapshotCloneService' % snap_server
@@ -160,9 +148,29 @@ def clone_vol_from_file(file_name,lazy="true"):
     payload = {}
     payload['Action'] = 'Clone'
     payload['Version'] = config.snap_version
-    payload['User'] = 'cinder'
-    payload['Source'] = "/cinder/volume-" + file_name
-    payload['Destination'] = R'/cinder/volume-%s-%s'%(file_name,lazy)
+    payload['User'] = 'test'
+    payload['Source'] = "/" + file_name
+    payload['Destination'] = R'/%s-%s'%(file_name,lazy)
+    payload['Lazy']  = lazy
+    payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
+    http = R'http://%s:5555/SnapshotCloneService' % snap_server
+    logger2.info("exec requests:%s %s"%(http,payload))
+    r = requests.get(http, params=payload_str)
+    logger2.info("exec requests url:%s"%(r.url))
+    assert r.status_code == 200, "clone snapshot fail,return code is %d,return msg is %s" % (r.status_code, r.text)
+    logger2.info("requests ret is %s"%r.text)
+    ref = json.loads(r.text)
+    clone_vol_uuid = ref["UUID"]
+    return clone_vol_uuid
+
+def clone_file(file_name,destination,lazy="true"):
+    snap_server = config.snapshot_vip
+    payload = {}
+    payload['Action'] = 'Clone'
+    payload['Version'] = config.snap_version
+    payload['User'] = 'test'
+    payload['Source'] = "/" + file_name
+    payload['Destination'] = R'/%s'%(destination)
     payload['Lazy']  = lazy
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
     http = R'http://%s:5555/SnapshotCloneService' % snap_server
@@ -180,7 +188,16 @@ def flatten_clone_vol(clone_uuid):
     payload = {}
     payload['Action'] = 'Flatten'
     payload['Version'] = config.snap_version
-    payload['User'] = 'cinder'
+    payload['User'] = 'test'
+    payload['UUID'] = clone_uuid
+    payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
+    http = R'http://%s:5555/SnapshotCloneService' % snap_server
+def flatten_clone_vol(clone_uuid):
+    snap_server = config.snapshot_vip
+    payload = {}
+    payload['Action'] = 'Flatten'
+    payload['Version'] = config.snap_version
+    payload['User'] = 'test'
     payload['UUID'] = clone_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
     http = R'http://%s:5555/SnapshotCloneService' % snap_server
@@ -195,7 +212,7 @@ def clean_vol_clone(clone_uuid):
     payload = {}
     payload['Action'] = 'CleanCloneTask'
     payload['Version'] = config.snap_version
-    payload['User'] = 'cinder'
+    payload['User'] = 'test'
     payload['UUID'] = clone_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
     http = R'http://%s:5555/SnapshotCloneService' % snap_server
@@ -209,9 +226,9 @@ def unlink_clone_vol(vol_uuid):
     rc = cbd.Init("./client.conf")
     if rc != 0:
         raise AssertionError
-    filename = "/cinder/volume-" + vol_uuid
+    filename = "/" + vol_uuid
     user = curvefs.UserInfo_t()
-    user.owner = "cinder"
+    user.owner = "test"
     logger2.debug("filename is %s"%filename)
     cbd.Unlink(str(filename), user)
     cbd.UnInit()
@@ -221,8 +238,8 @@ def cancel_vol_snapshot(voluuid,snapshot_uuid):
     payload = {}
     payload['Action'] = 'CancelSnapshot'
     payload['Version'] = config.snap_version
-    payload['User'] = 'cinder'
-    payload['File'] = R'/cinder/volume-' + voluuid
+    payload['User'] = 'test'
+    payload['File'] = R'/' + voluuid
     payload['UUID'] = snapshot_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
     http = R'http://%s:5555/SnapshotCloneService' % snap_server
@@ -237,9 +254,9 @@ def recover_snapshot(vol_uuid,snapshot_uuid,lazy='true'):
     payload = {}
     payload['Action'] = 'Recover'
     payload['Version'] = config.snap_version
-    payload['User'] = 'cinder'
+    payload['User'] = 'test'
     payload['Source'] = snapshot_uuid
-    payload['Destination'] = R'/cinder/volume-%s'%vol_uuid
+    payload['Destination'] = R'/%s'%vol_uuid
     payload['Lazy']  = lazy
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
     http = R'http://%s:5555/SnapshotCloneService' % snap_server
@@ -254,7 +271,7 @@ def recover_snapshot(vol_uuid,snapshot_uuid,lazy='true'):
 
 def detach_snapshot_vol(vol_uuid):
     ori_cmd = "source OPENRC && nova list |grep %s | awk '{print $2}'"%config.vm_host
-    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
     rs = shell_operator.ssh_exec(ssh,ori_cmd, logger2)
     vm_uuid = "".join(rs[1]).strip()
     ori_cmd = "source OPENRC &&nova volume-detach  %s %s"%((vm_uuid,vol_uuid))
@@ -266,7 +283,7 @@ def detach_snapshot_vol(vol_uuid):
 
 def attach_snapshot_vol(vol_uuid):
     ori_cmd = "source OPENRC && nova list |grep %s | awk '{print $2}'"%config.vm_host
-    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
     rs = shell_operator.ssh_exec(ssh,ori_cmd,logger2)
     vm_uuid = "".join(rs[1]).strip()
     ori_cmd = "source OPENRC &&nova volume-attach  %s %s"%((vm_uuid,vol_uuid))
@@ -281,8 +298,8 @@ def get_snapshot_status(voluuid,snapshot_uuid):
     payload = {}
     payload['Action'] = 'GetFileSnapshotInfo'
     payload['Version'] = config.snap_version
-    payload['User'] = 'cinder'
-    payload['File'] = '/cinder/volume-' + voluuid
+    payload['User'] = 'test'
+    payload['File'] = '/' + voluuid
     payload['UUID'] = snapshot_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
     http = 'http://%s:5555/SnapshotCloneService' % snap_server
@@ -307,7 +324,7 @@ def get_clone_status(clone_vol_uuid):
     payload = {}
     payload['Action'] = 'GetCloneTasks'
     payload['Version'] = config.snap_version
-    payload['User'] = 'cinder'
+    payload['User'] = 'test'
     payload['UUID'] = clone_vol_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
     http = 'http://%s:5555/SnapshotCloneService' % snap_server
@@ -336,9 +353,9 @@ def get_vol_md5(vol_uuid):
     rc = cbd.Init("./client.conf")
     if rc != 0:
         raise AssertionError
-    filename = "/cinder/volume-" + vol_uuid
+    filename = "/" + vol_uuid
     user = curvefs.UserInfo_t()
-    user.owner = "cinder"
+    user.owner = "test"
 #    user.password = ""
     logger2.info("file name is %s,type is %s"%(filename,type(filename)))
     logger2.info("user is %s,type is %s"%(user,type(user)))
@@ -361,10 +378,11 @@ def check_clone_vol_exist(clonevol_uuid):
     rc = cbd.Init("./client.conf")
     if rc != 0:
         raise AssertionError
-    filename = "volume-" + clonevol_uuid
+    filename = clonevol_uuid
     user = curvefs.UserInfo_t()
-    user.owner = "cinder"
-    dirs = cbd.Listdir("/cinder", user)
+    user.owner = "root"
+    user.password = "root_password"
+    dirs = cbd.Listdir("/", user)
     for d in dirs:
         logger2.info("dir is %s,filename is %s"%(d,filename))
         if d == filename:
@@ -380,25 +398,23 @@ def diff_vol_consistency(vol_uuid,clone_uuid):
         logger2.error("check md5 consistency fail ,vol is %s,clone vol is %s"%(vol_uuid,clone_uuid))
     assert context1 == context2,"vol and clone vol not same"
 
-def init_vol():
-    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+def init_nbd_vol():
+    ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
     try:
-        ori_cmd = "source OPENRC && nova list |grep %s | awk '{print $2}'"%config.vm_stability_host
-        rs = shell_operator.ssh_exec(ssh,ori_cmd,logger2)
-        vm_id = "".join(rs[1]).strip()
-        vol_size = config.snapshot_size
-        vol_id = cinder_vol_create(ssh,vol_size)
-        logger2.debug("snapshot test vol id is %s"%vol_id)
-        wait_vol_status(ssh,vol_id, 'available')
-        nova_vol_attach(ssh,vm_id, vol_id)
-        wait_vol_status(ssh,vol_id, 'in-use')
-        vol_write_data()
+        name = "volume-snapshot"
+        thrash = NbdThrash(ssh,name)
+        vol_size = 10
+        thrash.nbd_create(vol_size)
+        thrash.nbd_map()
+        time.sleep(5)
+        thrash.nbd_getdev()
+        thrash.write_data(vol_size)
+        time.sleep(60)
+        config.snapshot_volid = name
+        config.snapshot_thrash = thrash
     except:
-        logger2.error("create vol fail")
+        logger2.error("create snapshot nbd fail")
         raise
-    ssh.close()
-    config.snapshot_vmid = vm_id
-    config.snapshot_volid = vol_id
 
 def check_snapshot_delete(vol_id,snapshot_id):
     starttime = time.time()
@@ -435,9 +451,8 @@ def check_clone_clean(clone_id):
 
 def test_clone_iovol_consistency(lazy):
     logger2.info("------------begin test clone iovol consistency lazy=%s----------"%lazy)
-    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
     vol_id = config.snapshot_volid
-    vm_id = config.snapshot_vmid
     snapshot_uuid = create_vol_snapshot(vol_id)
     starttime = time.time()
     final = False
@@ -473,8 +488,6 @@ def test_clone_iovol_consistency(lazy):
     if final == True:
         time.sleep(3)
         try:
-           nova_vol_detach(ssh,vm_id, vol_id)
-           wait_vol_status(ssh,vol_id, 'available')
            diff_vol_consistency(vol_id,snapshot_uuid)
            if lazy == "true":
                flatten_clone_vol(clone_vol_uuid)
@@ -490,7 +503,6 @@ def test_clone_iovol_consistency(lazy):
         except:
            raise
         finally:
-           nova_vol_attach(ssh,vm_id, vol_id)
            delete_vol_snapshot(vol_id,snapshot_uuid)
            check_snapshot_delete(vol_id,snapshot_uuid)
            clean_vol_clone(clone_vol_uuid)
@@ -501,9 +513,8 @@ def test_clone_iovol_consistency(lazy):
 
 def test_clone_vol_from_file(lazy):
     logger2.info("------------begin test clone vol from file lazy=%s----------"%lazy)
-    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
     vol_id = config.snapshot_volid
-    vm_id = config.snapshot_vmid
     destination = vol_id + "-" + lazy
     clone_vol_uuid = clone_vol_from_file(vol_id,lazy)
     time.sleep(1)
@@ -525,8 +536,6 @@ def test_clone_vol_from_file(lazy):
     if final == True:
         time.sleep(3)
         try:
-           nova_vol_detach(ssh,vm_id, vol_id)
-           wait_vol_status(ssh,vol_id, 'available')
            diff_vol_consistency(vol_id,destination)
            if lazy == "true":
                flatten_clone_vol(clone_vol_uuid)
@@ -542,22 +551,71 @@ def test_clone_vol_from_file(lazy):
         except:
            raise
         finally:
-           nova_vol_attach(ssh,vm_id, vol_id)
            clean_vol_clone(clone_vol_uuid)
            check_clone_clean(clone_vol_uuid)
            unlink_clone_vol(destination)
     else:
        assert False,"clone vol fail,status is %s"%rc
 
+def clone_file_and_check(vol_id,destination,lazy):
+    logger2.info("------------begin clone vol and check lazy=%s----------"%lazy)
+    ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
+    clone_vol_uuid = clone_file(vol_id,destination,lazy)
+    time.sleep(1)
+    if lazy == "true":
+        rc = check_clone_vol_exist(destination)
+        assert rc,"clone vol volume-%s not create ok in 2s"%destination
+    starttime = time.time()
+    status = 0
+    final = False
+    if lazy == "true":
+        status = 7
+    while time.time() - starttime < config.snapshot_timeout:
+        rc = get_clone_status(clone_vol_uuid)
+        if rc["TaskStatus"] == status and rc["TaskType"] == 0:
+            final = True
+            break
+        else:
+           time.sleep(60)
+    if final == True:
+        time.sleep(3)
+        try:
+           diff_vol_consistency(vol_id,destination)
+           if lazy == "true":
+               flatten_clone_vol(clone_vol_uuid)
+               starttime = time.time()
+               final = False
+               while time.time() - starttime < config.snapshot_timeout:
+                   rc = get_clone_status(clone_vol_uuid)
+                   if rc["TaskStatus"] == 0 and rc["TaskType"] == 0:
+                       final = True
+                       break
+                   else:
+                      time.sleep(60)
+        except:
+           raise
+    else:
+       assert False,"clone vol fail,status is %s"%rc
+
+def test_clone_vol_same_uuid(lazy):
+    file_name = config.snapshot_volid
+    destination1 = file_name + "clone1"
+    clone_file_and_check(file_name,destination1)
+    destination2 = file_name + "clone2"
+    clone_file_and_check(file_name,destination2)
+    unlink_clone_vol(destination2)
+    clone_file_and_check(destination1,destination2)
+    unlink_clone_vol(destination2)
+    unlink_clone_vol(destination1)
+
 def test_cancel_snapshot():
     logger2.info("------------begin test cancel snapshot----------")
-    vol_write_data()
-    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    config.snapshot_thrash.write_data(10)
+    ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
     vol_id = config.snapshot_volid
-    vm_id = config.snapshot_vmid
     snapshot_uuid = create_vol_snapshot(vol_id)
     starttime = time.time()
-    time.sleep(60)
+    time.sleep(20)
     cancel_vol_snapshot(vol_id,snapshot_uuid)
     starttime = time.time()
     final = False
@@ -566,9 +624,8 @@ def test_cancel_snapshot():
 
 def test_recover_snapshot(lazy="true"):
     logger2.info("------------begin test recover snapshot----------")
-    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
     vol_id = config.snapshot_volid
-    vm_id = config.snapshot_vmid
     snapshot_uuid = create_vol_snapshot(vol_id)
     starttime = time.time()
     final = False
@@ -582,14 +639,8 @@ def test_recover_snapshot(lazy="true"):
            time.sleep(60)
     if final == True:
         try:
-            nova_vol_detach(ssh,vm_id, vol_id)
-            wait_vol_status(ssh,vol_id, 'available')
             first_md5 = get_vol_md5(vol_id)
-            nova_vol_attach(ssh,vm_id, vol_id)
-            wait_vol_status(ssh,vol_id, 'in-use')
-            vol_write_data()
-            nova_vol_detach(ssh,vm_id, vol_id)
-            wait_vol_status(ssh,vol_id, 'available')
+            config.snapshot_thrash.write_data(10)
             recover_task = recover_snapshot(vol_id,snapshot_uuid,lazy)
             final_recover = False
             time.sleep(5)
@@ -625,9 +676,6 @@ def test_recover_snapshot(lazy="true"):
             assert first_md5 == second_md5,"vol md5 not same after recover,fisrt is %s,recovered is %s"(first_md5,second_md5)
         except:
             raise
-        finally:
-            nova_vol_attach(ssh,vm_id, vol_id)
-            wait_vol_status(ssh,vol_id, 'in-use')
     delete_vol_snapshot(vol_id,snapshot_uuid)
     check_snapshot_delete(vol_id,snapshot_uuid)
 
@@ -648,12 +696,14 @@ def random_kill_snapshot():
 def test_snapshot_all(vol_uuid):
     lazy="true"
     test_clone_vol_from_file(lazy)
+    test_clone_vol_same_uuid(lazy)
     test_clone_iovol_consistency(lazy)
     test_recover_snapshot(lazy)
     test_cancel_snapshot()
     lazy="false"
 #    test_clone_vol_from_file(lazy)
     test_clone_iovol_consistency(lazy)
+    test_clone_vol_same_uuid(lazy)
     test_recover_snapshot(lazy)
     return "finally"
 
