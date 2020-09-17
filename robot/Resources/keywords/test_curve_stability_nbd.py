@@ -600,13 +600,19 @@ def clone_file_and_check(vol_id,destination,lazy):
 def test_clone_vol_same_uuid(lazy):
     file_name = config.snapshot_volid
     destination1 = file_name + "clone1"
-    clone_file_and_check(file_name,destination1)
+    #test create->delete->create
+    clone_file_and_check(file_name,destination1,lazy)
+    unlink_clone_vol(destination1)
+    clone_file_and_check(file_name,destination1,lazy)
+    #different source 
     destination2 = file_name + "clone2"
-    clone_file_and_check(file_name,destination2)
+    clone_file_and_check(file_name,destination2,lazy)
     unlink_clone_vol(destination2)
-    clone_file_and_check(destination1,destination2)
+    clone_file_and_check(destination1,destination2,lazy)
     unlink_clone_vol(destination2)
     unlink_clone_vol(destination1)
+    clone_file_and_check(file_name,destination2,lazy)
+    unlink_clone_vol(destination2)
 
 def test_cancel_snapshot():
     logger2.info("------------begin test cancel snapshot----------")
