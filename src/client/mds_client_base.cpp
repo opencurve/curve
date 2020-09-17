@@ -42,7 +42,7 @@ void MDSClientBase::OpenFile(const std::string& filename,
     request.set_clientversion(curve::common::CurveVersion());
     FillUserInfo<OpenFileRequest>(&request, userinfo);
 
-    LOG(INFO) << "OpenFile: filename = " << filename.c_str()
+    LOG(INFO) << "OpenFile: filename = " << filename
               << ", owner = " << userinfo.owner
               << ", log id = " << cntl->log_id();
 
@@ -68,7 +68,7 @@ void MDSClientBase::CreateFile(const std::string& filename,
 
     FillUserInfo<CreateFileRequest>(&request, userinfo);
 
-    LOG(INFO) << "CreateFile: filename = " << filename.c_str()
+    LOG(INFO) << "CreateFile: filename = " << filename
                 << ", owner = " << userinfo.owner
                 << ", is nomalfile: " << normalFile
                 << ", log id = " << cntl->log_id();
@@ -88,7 +88,7 @@ void MDSClientBase::CloseFile(const std::string& filename,
     request.set_sessionid(sessionid);
     FillUserInfo<curve::mds::CloseFileRequest>(&request, userinfo);
 
-    LOG(INFO) << "CloseFile: filename = " << filename.c_str()
+    LOG(INFO) << "CloseFile: filename = " << filename
                 << ", owner = " << userinfo.owner
                 << ", sessionid = " << sessionid
                 << ", log id = " << cntl->log_id();
@@ -106,9 +106,9 @@ void MDSClientBase::GetFileInfo(const std::string& filename,
     request.set_filename(filename);
     FillUserInfo<curve::mds::GetFileInfoRequest>(&request, userinfo);
 
-    LOG(INFO) << "GetFileInfo: filename = " << filename.c_str()
-                << ", owner = " << userinfo.owner
-                << ", log id = " << cntl->log_id();
+    LOG_EVERY_SECOND(INFO) << "GetFileInfo: filename = " << filename
+                           << ", owner = " << userinfo.owner
+                           << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.GetFileInfo(cntl, &request, response, nullptr);
@@ -123,7 +123,7 @@ void MDSClientBase::CreateSnapShot(const std::string& filename,
     request.set_filename(filename);
     FillUserInfo<::curve::mds::CreateSnapShotRequest>(&request, userinfo);
 
-    LOG(INFO) << "CreateSnapShot: filename = " << filename.c_str()
+    LOG(INFO) << "CreateSnapShot: filename = " << filename
                 << ", owner = " << userinfo.owner
                 << ", log id = " << cntl->log_id();
 
@@ -142,7 +142,7 @@ void MDSClientBase::DeleteSnapShot(const std::string& filename,
     request.set_filename(filename);
     FillUserInfo<::curve::mds::DeleteSnapShotRequest>(&request, userinfo);
 
-    LOG(INFO) << "DeleteSnapShot: filename = " << filename.c_str()
+    LOG(INFO) << "DeleteSnapShot: filename = " << filename
                 << ", owner = " << userinfo.owner
                 << ", seqnum = " << seq
                 << ", log id = " << cntl->log_id();
@@ -164,7 +164,7 @@ void MDSClientBase::ListSnapShot(const std::string& filename,
     request.set_filename(filename);
     FillUserInfo<ListSnapShotFileInfoRequest>(&request, userinfo);
 
-    LOG(INFO) << "ListSnapShot: filename = " << filename.c_str()
+    LOG(INFO) << "ListSnapShot: filename = " << filename
                 << ", owner = " << userinfo.owner
                 << ", seqnum = " << [seq] () {
                     std::string data("[ ");
@@ -195,7 +195,7 @@ void MDSClientBase::GetSnapshotSegmentInfo(const std::string& filename,
     request.set_seqnum(seq);
     FillUserInfo<GetOrAllocateSegmentRequest>(&request, userinfo);
 
-    LOG(INFO) << "GetSnapshotSegmentInfo: filename = " << filename.c_str()
+    LOG(INFO) << "GetSnapshotSegmentInfo: filename = " << filename
                 << ", owner = " << userinfo.owner
                 << ", offset = " << offset
                 << ", seqnum = " << seq
@@ -226,7 +226,7 @@ void MDSClientBase::RefreshSession(const std::string& filename,
 
     FillUserInfo<ReFreshSessionRequest>(&request, userinfo);
 
-    LOG_EVERY_N(INFO, 10) << "RefreshSession: filename = " << filename.c_str()
+    LOG_EVERY_N(INFO, 10) << "RefreshSession: filename = " << filename
                           << ", owner = " << userinfo.owner
                           << ", sessionid = " << sessionid
                           << ", log id = " << cntl->log_id();
@@ -246,7 +246,7 @@ void MDSClientBase::CheckSnapShotStatus(const std::string& filename,
     request.set_filename(filename);
     FillUserInfo<CheckSnapShotStatusRequest>(&request, userinfo);
 
-    LOG(INFO) << "CheckSnapShotStatus: filename = " << filename.c_str()
+    LOG(INFO) << "CheckSnapShotStatus: filename = " << filename
                 << ", owner = " << userinfo.owner
                 << ", seqnum = " << seq
                 << ", log id = " << cntl->log_id();
@@ -299,7 +299,7 @@ void MDSClientBase::CreateCloneFile(const std::string& source,
 
     LOG(INFO) << "CreateCloneFile: source = " << source
               << ", destination = " << destination
-              << ", owner = " << userinfo.owner.c_str() << ", seqnum = " << sn
+              << ", owner = " << userinfo.owner << ", seqnum = " << sn
               << ", size = " << size << ", chunksize = " << chunksize
               << ", log id = " << cntl->log_id();
 
@@ -322,8 +322,8 @@ void MDSClientBase::SetCloneFileStatus(const std::string &filename,
     }
     FillUserInfo<SetCloneFileStatusRequest>(&request, userinfo);
 
-    LOG(INFO) << "SetCloneFileStatus: filename = " << filename.c_str()
-                << ", owner = " << userinfo.owner.c_str()
+    LOG(INFO) << "SetCloneFileStatus: filename = " << filename
+                << ", owner = " << userinfo.owner
                 << ", filestatus = " << static_cast<int>(filestatus)
                 << ", fileID = " << fileID
                 << ", log id = " << cntl->log_id();
@@ -350,7 +350,7 @@ void MDSClientBase::GetOrAllocateSegment(bool allocate,
     FillUserInfo<GetOrAllocateSegmentRequest>(&request, fi->userinfo);
 
     LOG(INFO) << "GetOrAllocateSegment: allocate = " << allocate
-                << ", owner = " << fi->owner.c_str()
+                << ", owner = " << fi->owner
                 << ", offset = " << offset
                 << ", segment offset = " << seg_offset
                 << ", log id = " << cntl->log_id();
@@ -376,11 +376,11 @@ void MDSClientBase::RenameFile(const UserInfo_t& userinfo,
     }
     FillUserInfo<RenameFileRequest>(&request, userinfo);
 
-    LOG(INFO) << "RenameFile: origin = " << origin.c_str()
-              << ", destination = " << destination.c_str()
+    LOG(INFO) << "RenameFile: origin = " << origin
+              << ", destination = " << destination
               << ", originId = " << originId
               << ", destinationId = " << destinationId
-              << ", owner = " << userinfo.owner.c_str()
+              << ", owner = " << userinfo.owner
               << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
@@ -398,8 +398,8 @@ void MDSClientBase::Extend(const std::string& filename,
     request.set_newsize(newsize);
     FillUserInfo<ExtendFileRequest>(&request, userinfo);
 
-    LOG(INFO) << "Extend: filename = " << filename.c_str()
-              << ", owner = " << userinfo.owner.c_str()
+    LOG(INFO) << "Extend: filename = " << filename
+              << ", owner = " << userinfo.owner
               << ", newsize = " << newsize
               << ", log id = " << cntl->log_id();
 
@@ -422,8 +422,8 @@ void MDSClientBase::DeleteFile(const std::string& filename,
     }
     FillUserInfo<DeleteFileRequest>(&request, userinfo);
 
-    LOG(INFO) << "DeleteFile: filename = " << filename.c_str()
-                << ", owner = " << userinfo.owner.c_str()
+    LOG(INFO) << "DeleteFile: filename = " << filename
+                << ", owner = " << userinfo.owner
                 << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
@@ -444,9 +444,9 @@ void MDSClientBase::ChangeOwner(const std::string& filename,
     request.set_rootowner(userinfo.owner);
     request.set_signature(CalcSignature(userinfo, date));
 
-    LOG(INFO) << "ChangeOwner: filename = " << filename.c_str()
-                << ", operator owner = " << userinfo.owner.c_str()
-                << ", new owner = " << newOwner.c_str()
+    LOG(INFO) << "ChangeOwner: filename = " << filename
+                << ", operator owner = " << userinfo.owner
+                << ", new owner = " << newOwner
                 << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
@@ -463,8 +463,8 @@ void MDSClientBase::Listdir(const std::string& dirpath,
 
     FillUserInfo<::curve::mds::ListDirRequest>(&request, userinfo);
 
-    LOG(INFO) << "Listdir: filename = " << dirpath.c_str()
-                << ", owner = " << userinfo.owner.c_str()
+    LOG(INFO) << "Listdir: filename = " << dirpath
+                << ", owner = " << userinfo.owner
                 << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
