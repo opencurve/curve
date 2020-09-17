@@ -348,7 +348,6 @@ bool ServiceHelper::GetUserInfoFromFilename(const std::string& filename,
     *realfilename = filename.substr(0, user_begin);
     *user = filename.substr(user_begin + 1, user_end - user_begin - 1);
 
-    LOG(INFO) << "user info [" << *user << "]";
     return true;
 }
 
@@ -385,4 +384,3 @@ int ServiceHelper::CheckChunkServerHealth(
 
 }   // namespace client
 }   // namespace curve
-
