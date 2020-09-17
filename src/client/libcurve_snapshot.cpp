@@ -112,7 +112,7 @@ int SnapshotClient::GetSnapShot(const std::string& filename,
     if (ret == LIBCURVE_ERROR::OK && !infomap.empty()) {
         auto it = infomap.begin();
         if (it->first != seq) {
-            LOG(ERROR) << "Snapshot info not found with seqnum = " << seq;
+            LOG(WARNING) << "Snapshot info not found with seqnum = " << seq;
             return -LIBCURVE_ERROR::NOTEXIST;
         }
         *snapinfo = it->second;
@@ -138,11 +138,11 @@ int SnapshotClient::GetSnapshotSegmentInfo(const std::string& filename,
                                         seq, offset, segInfo);
 
     if (ret != LIBCURVE_ERROR::OK) {
-        LOG(ERROR) << "GetSnapshotSegmentInfo failed, ret = " << ret;
+        LOG(WARNING) << "GetSnapshotSegmentInfo failed, ret = " << ret;
         return -ret;
     }
 
-    for (auto iter : segInfo->chunkvec) {
+    for (const auto& iter : segInfo->chunkvec) {
         iomanager4chunk_.GetMetaCache()->UpdateChunkInfoByID(iter.cid_, iter);
     }
 

@@ -309,7 +309,7 @@ void ClientClosure::OnRpcFailed() {
         MetricHelper::IncremTimeOutRPCCount(fileMetric_, reqCtx_->optype_);
     }
 
-    LOG_EVERY_N(ERROR, 10) << OpTypeToString(reqCtx_->optype_)
+    LOG_EVERY_SECOND(WARNING) << OpTypeToString(reqCtx_->optype_)
         << " failed, error code: "
         << cntl_->ErrorCode()
         << ", error: " << cntl_->ErrorText()

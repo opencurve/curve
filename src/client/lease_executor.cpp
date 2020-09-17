@@ -97,9 +97,9 @@ bool LeaseExecutor::RefreshLease() {
         return true;
     } else if (LIBCURVE_ERROR::AUTHFAIL == ret) {
         iomanager_->LeaseTimeoutBlockIO();
-        LOG(WARNING) << "Refresh session auth fail, block io. "
-                     << "session id = " << leasesession_.sessionID
-                     << ", filename = " << fullFileName_;
+        LOG(ERROR) << "Refresh session auth fail, block io. "
+                   << "session id = " << leasesession_.sessionID
+                   << ", filename = " << fullFileName_;
         return true;
     }
 
@@ -112,12 +112,12 @@ bool LeaseExecutor::RefreshLease() {
     } else if (response.status == LeaseRefreshResult::Status::NOT_EXIST) {
         iomanager_->LeaseTimeoutBlockIO();
         isleaseAvaliable_.store(false);
-        LOG(WARNING) << "session or file not exists, no longer refresh!"
-                     << ", sessionid = " << leasesession_.sessionID
-                     << ", filename = " << fullFileName_;
+        LOG(ERROR) << "session or file not exists, no longer refresh!"
+                   << ", sessionid = " << leasesession_.sessionID
+                   << ", filename = " << fullFileName_;
         return false;
     } else {
-        LOG(WARNING) << "Refresh session failed, filename = " << fullFileName_;
+        LOG(ERROR) << "Refresh session failed, filename = " << fullFileName_;
         return true;
     }
     return true;

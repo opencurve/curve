@@ -304,7 +304,7 @@ int MetaCache::SetServerUnstable(const std::string& serverIp) {
     std::vector<ChunkServerID> csIds;
     int ret = mdsclient_->ListChunkServerInServer(serverIp, &csIds);
     if (ret != LIBCURVE_ERROR::OK) {
-        LOG(WARNING) << "ListChunkServer failed";
+        LOG(ERROR) << "ListChunkServer failed, server ip: " << serverIp;
         return -1;
     }
 
