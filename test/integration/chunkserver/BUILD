@@ -90,3 +90,32 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "chunkserver-offline-test",
+    srcs = glob([
+        "peer_cluster.h",
+        "peer_cluster.cpp",
+        "chunkserver_offline_test.cpp",
+    ]),
+    copts = ["-std=c++11"],
+    deps = [
+        "//external:braft",
+        "//external:brpc",
+        "//external:bthread",
+        "//external:butil",
+        "//external:gflags",
+        "//external:glog",
+        "//external:leveldb",
+        "//proto:chunkserver-cc-protos",
+        "//src/chunkserver:chunkserver-test-lib",
+        "//src/common:curve_common",
+        "//src/mds/topology:topology",
+    "//src/mds/copyset:copyset",
+        "//test/chunkserver/datastore:chunkfilepool_helper",
+        "//test/integration/common:integration-test-common",
+        "//test/integration/client/common:client_integration_common_lib",
+        "//test/integration/cluster_common:integration_cluster_common",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
