@@ -92,7 +92,7 @@ class Topology {
     /**
      * @brief update chunkserver topology information
      * - update only part of topology data
-     * - update database before RAM, and fail when failed to update database
+     * - update storage before RAM, and fail when failed to update storage
      *
      * @param data chunkserver data
      *
@@ -104,7 +104,7 @@ class Topology {
     /**
      * @brief update chunkserver read/write status
      * - only R/W status is updated
-     * - update database before RAM, and fail when failed to update database
+     * - update storage before RAM, and fail when failed to update storage
      *
      * @param rwState (R/W or retired)
      * @param id chunkserverid
@@ -157,7 +157,7 @@ class Topology {
      * @detail
      * - for updating copyset data reported by heartbeat regularly like
      *   epoch and leader
-     * - only RAM will be updated, data will be flushed to database regularly
+     * - only RAM will be updated, data will be flushed to storage regularly
      *   by background process
      *
      * @param data copyset data

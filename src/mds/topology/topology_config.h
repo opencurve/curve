@@ -30,7 +30,7 @@ namespace mds {
 namespace topology {
 
 struct TopologyOption {
-    // time interval that topology data updated to database
+    // time interval that topology data updated to storage
     uint32_t TopologyUpdateToRepoSec;
     // timeout peroid of RPC for copyset creation (in ms)
     uint32_t CreateCopysetRpcTimeoutMs;

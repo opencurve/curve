@@ -210,7 +210,7 @@ void TopologyMetricService::UpdateTopologyMetrics() {
                 totalChunkSizeBytes / pool.GetReplicaNum());
         }
     }
-    // remove invalid logical pool metric
+    // remove logical pool metrics that no longer exist
     for (auto iy = gLogicalPoolMetrics.begin();
         iy != gLogicalPoolMetrics.end();) {
         if (std::find(lPools.begin(), lPools.end(), iy->first) ==
@@ -221,7 +221,7 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         }
     }
 
-    // remove invalid chunkserver
+    // remove chunkservers that no longer exist
     for (auto iy = gChunkServerMetrics.begin();
         iy != gChunkServerMetrics.end();) {
         if (std::find(chunkservers.begin(), chunkservers.end(), iy->first) ==
