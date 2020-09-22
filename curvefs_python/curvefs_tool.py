@@ -24,6 +24,37 @@ import time
 fileType = ["INODE_DIRECTORY", "INODE_PAGEFILE", "INODE_APPENDFILE", "INODE_APPENDECFILE", "INODE_SNAPSHOT_PAGEFILE"]
 fileStatus = ["Created", "Deleting", "Cloning", "CloneMetaInstalled", "Cloned", "BeingCloned"]
 kGB = 1024 * 1024 * 1024
+retCode = { 0 : "CURVE_ERROR_OK",
+            1 : "CURVE_ERROR_EXISTS",
+            2 : "CURVE_ERROR_FAILED",
+            3 : "CURVE_ERROR_DISABLEIO",
+            4 : "CURVE_ERROR_AUTHFAIL",
+            5 : "CURVE_ERROR_DELETING",
+            6 : "CURVE_ERROR_NOTEXIST",
+            7 : "CURVE_ERROR_UNDER_SNAPSHOT",
+            8 : "CURVE_ERROR_NOT_UNDERSNAPSHOT",
+            9 : "CURVE_ERROR_DELETE_ERROR",
+            10 : "CURVE_ERROR_NOT_ALLOCATE",
+            11 : "CURVE_ERROR_NOT_SUPPORT",
+            12 : "CURVE_ERROR_NOT_EMPTY",
+            13 : "CURVE_ERROR_NO_SHRINK_BIGGER_FILE",
+            14 : "CURVE_ERROR_SESSION_NOTEXISTS",
+            15 : "CURVE_ERROR_FILE_OCCUPIED",
+            16 : "CURVE_ERROR_PARAM_ERROR",
+            17 : "CURVE_ERROR_INTERNAL_ERROR",
+            18 : "CURVE_ERROR_CRC_ERROR",
+            19 : "CURVE_ERROR_INVALID_REQUEST",
+            20 : "CURVE_ERROR_DISK_FAIL",
+            21 : "CURVE_ERROR_NO_SPACE",
+            22 : "CURVE_ERROR_NOT_ALIGNED",
+            23 : "CURVE_ERROR_BAD_FD",
+            24 : "CURVE_ERROR_LENGTH_NOT_SUPPORT",
+            100 : "CURVE_ERROR_UNKNOWN"}
+
+def getRetCodeMsg(ret):
+    if retCode.has_key(-ret) :
+        return retCode[-ret]
+    return "Unknown Error Code"
 
 if __name__ == '__main__':
     # 参数解析
@@ -71,6 +102,6 @@ if __name__ == '__main__':
         for i in dir:
             print i
     if ret != 0:
-        print args.optype + " fail, ret = " + str(ret)
+        print args.optype + " fail, ret = " + str(ret) + ", " + getRetCodeMsg(ret)
         exit(1)
     curvefs.UnInit()
