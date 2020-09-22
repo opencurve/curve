@@ -645,7 +645,7 @@ class ChunkServer {
     ChunkServerState state_;
 
     /**
-     * @brief to mark whether data is dirty, for writing to database regularly
+     * @brief to mark whether data is dirty, for writing to storage regularly
      */
     bool dirty_;
     /**
@@ -799,7 +799,7 @@ class CopySetInfo {
     ChunkServerIdType candidate_;
 
     /**
-     * @brief to mark whether data is dirty, for writing to database regularly
+     * @brief to mark whether data is dirty, for writing to storage regularly
      */
     bool dirty_;
 

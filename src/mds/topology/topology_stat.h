@@ -113,7 +113,7 @@ class TopologyStat {
     virtual void UpdateChunkServerStat(ChunkServerIdType csId,
         const ChunkServerStat &stat) = 0;
     /**
-     * @brief fetch statistic of the chunkserver that sent the heartbeat
+     * @brief fetch the statistic information of chunkservers that sent by heartbeat
      *
      * @param csId chunkserverId
      * @param[out] stat statistic of the chunkserver
