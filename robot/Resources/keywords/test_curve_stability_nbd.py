@@ -709,7 +709,7 @@ def test_snapshot_all(vol_uuid):
     lazy="false"
 #    test_clone_vol_from_file(lazy)
     test_clone_iovol_consistency(lazy)
-    test_clone_vol_same_uuid(lazy)
+#    test_clone_vol_same_uuid(lazy)
     test_recover_snapshot(lazy)
     return "finally"
 
