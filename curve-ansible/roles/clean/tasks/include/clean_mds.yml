@@ -17,3 +17,4 @@
 
 - name: clean mds log dir
   shell: sudo rm -rf {{ mds_log_dir }}
+  when: clean_log_when_clean

@@ -17,3 +17,4 @@
 
 - name: clean snapshotcloneserver log dir
   shell: sudo rm -rf {{ snapshot_clone_server_log_dir }}
+  when: clean_log_when_clean

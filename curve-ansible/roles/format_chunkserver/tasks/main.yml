@@ -21,4 +21,4 @@
 
 - name: deploy chunkserver without format disk
   include_tasks: "include/prepare_chunkserver_without_disk_format.yml"
-  when: not {{ chunkserver_format_disk }}
+  when: not chunkserver_format_disk
