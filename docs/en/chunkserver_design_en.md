@@ -10,7 +10,7 @@ The development of Curve aims at implementing a unified distributed storage syst
 
 ### 1.2 System Overview
 
-Chunkserver is designed referring to the structure of GFS, based on and encapsulated ext4 file system, serves as the data node of CURVE and provides interface of data I/O (read, write, snapshot etc.) and nodes management (fetching Chunkserver status, collecting metrical data, modifying runtime parameters of different modules etc.). Interacts with Client and MDS, Chunkserver execute I/O requests from client efficiently, and responds to the requests like scheduling and allocation, data migration and recovering, I/O Qos and status inquiries or client controlling, and maintain data reliability and the consensus of replicas.
+Chunkserver is designed referring to the structure of GFS, based on and encapsulated ext4 file system, serves as the data node of CURVE and provides interface of data I/O (read, write, snapshot etc.) and nodes management (fetching Chunkserver status, collecting metrical data, modifying runtime parameters of different modules etc.). Interacts with Client and MetaServer, Chunkserver execute I/O requests from client efficiently, and responds to the MetaServer requests like scheduling and allocation, data migration and recovering, I/O Qos and status inquiries or client controlling, and maintain data reliability and the consensus of replicas.
 
 ### 1.3 Design Goals
 
@@ -30,7 +30,7 @@ As a service provider in the I/O path of unified storage system, especially a hi
 
 Now let's focus on some important concepts in the design of Chunkserver.
 
-Management domain: The management domain of a Chunkserver is a disk, and there are more than one disk on a server. Every disk correnponds to a Chunkserver instance, and every Chunkserver instance can be reflected as a user mode service. We have implemented a process level isolation between Chunkservers, which means the running of the server will not be affected by the failure of single Chunkserver, and the influence of the performance issue caused by single disk unstable or software defect will be limited in that single disk.
+Management domain: The management domain of a Chunkserver is a disk, and there are more than one disk on a server. Every disk correnponds to a Chunkserver instance, and every Chunkserver instance can be reflected as a user mode process. We have implemented a process level isolation between Chunkservers, which means the running of the server will not be affected by the failure of single Chunkserver, and the influence of the performance issue caused by single disk unstable or software defect will be limited in that single disk.
 
 Copyset: Copyset serves as the unit of replication and consensus management of I/O data blocks. In order to balance the data recovering time and for load balancing and failure isolation, copysets are distributed evenly in every disks. For nodes in a copyset, one of them will be elected as the leader, and the others are followers. When writing data to data nodes, the client will send the data to the leader node according to the copyset info it has, and data replicas will be sent to followers by the leader. After receiving the acknowledgement from followers, leader will return the result to client.
 
@@ -61,7 +61,7 @@ Figure 1 shows the general structure of Chunkserver. The RPC network layer recei
 
   - CliService
 
-    Provides Raft configuration changing relative RPC services, including AddPeer，RemovePeer，ChangePeer、GetLeader、ChangeLeader and ResetPeer. CliService is implemented by calling Braft configuration changing interface.
+    Provides some Raft configuration changing RPC services, including AddPeer，RemovePeer，ChangePeer、GetLeader、ChangeLeader and ResetPeer. CliService is implemented by calling Braft configuration changing interface.
 
   - CopySetService
 
@@ -83,7 +83,7 @@ Figure 1 shows the general structure of Chunkserver. The RPC network layer recei
 
     - CloneManager
 
-      CloneManage is for the cloning service, with a thread pool inside. This module is mainly for completing the data of cloned chunks asynchronously. For more details about cloning, please refer to this [doc](www.163.com).
+      CloneManage is for the cloning service, with a thread pool inside. This module is mainly for completing the data of cloned chunks asynchronously. For more details about cloning, please refer to [snapshotcloneserver](./snapshotcloneserver_en.md).
 
     - CopysetNode
 
@@ -122,16 +122,16 @@ Chunkserver only register once. At its first time joining the cluster, it sends 
 
 Here's what the Chunkserver will do when starting:
 
-+ Detect whether there's any Chunkserver ID on local disk, if it does, skip the processes below since it has been registered.
-+ Construct ChunkServerRegistRequest, and uses the interface RegistChunkServer to send the message to MDS.
-+ If the request time out, or an MDS unavailable reply is received, return to step 2 retry. If received a reply with the status code marking invalid registration, the Chunkserver will quit.
-+ Executes Chunkserver ID and token persistence, then finish.
++ Detect the Chunkserver ID on the disk corresponding to the local Chunkserver, if it exists, it means that it has been registered, and skip the next steps directly.
++ Construct ChunkServerRegistRequest message and send it to MDS using RegistChunkServer interface.
++ If the response times out, it may mean that the MDS is temporarily unavailable, go back to step 2 and try again; if the statusCode means invalid registration, etc., chunkserver exits.
++ Persist the chunkserverID and token to the disk, and the registration is complete.
 
 #### Persistence of Registration Info：
 
 The data format of persisted data will varies according to the file system it stored in. For ext4, data are stored in file chunkserver.dat under the root data directory. When storing, a checksum for Chunkserver ID, token and data epoch will be calculated and stored in a JSON data structure called ChunkserverPersistentData in chunkserver.dat.
 
-When reading, the checksum in ChunkserverPersistentData will first be inspected in case there's any data corruption, and make sure that the epoch is supported.
+When reading, the checksum in ChunkserverPersistentData will first be inspected in case there's any data corruption, and make sure that the version is supported.
 
 #### Chunkserver Copyset Reconstruction
 
@@ -145,7 +145,9 @@ By scanning sub-directory "LogicPoolId/CopysetId" when starting, Chunkserver can
 
 Live messages are required by MDS for monitoring the liveness of Chunkservers. Also, MDS create instruction for Chunkserver and copyset according to the status and statistical data reported.
 
-These messages are reported by regular heartbeat to MDS. On the heartbeat message, not only the latest status is reported, but also the result of the execution of last instruction from MDS sent by the heartbeat reply.
+Chunkserver completes the above functions in the form of heartbeats. Through periodic heartbeat messages, it updates the information of Chunkserver and Copyset, feeds back the command execution results of the previous heartbeat, and accepts, parses and executes new heartbeat response messages.
+
+Chunkserver regularly updates status information of Chunkserver, Copyset and disk, configuration change command execution status and other information to MDS through heartbeat messages. After MDS receives the request, it adds the new copyset configuration change command to the message response according to the scheduling logic.
 
 Figure 2 shows the entire procedure of heartbeat.
 
@@ -201,7 +203,7 @@ FSMCaller is for applying the commits when receive committed entries from RaftNo
 
 ChunkFilePool is located in DataStore Level, using local file system based on ext4. Since there will be considerable I/O amplification during the writing, a certain space for files will be pre-allocated when creating chunk files by calling fallocate. But if only use fallocate metadata will still be change when writing new blocks and thus amplification still exist.
 
-What CURVE did is using files already written. Chunk file and snapshot of Chunkserver have fixed size, thus we can use fallocate to pre-allocate some spaces and write empty data on it. When chunk files or snapshot files are created, we can just fetch files on this file 'pool' and rename. When deleting, we do it reversely by renaming. These pre-allocated files are what we call the chunk file pool.
+What CURVE did is using files already written. Chunk file and snapshot of Chunkserver have fixed size, thus we can use fallocate to pre-allocate some spaces and write empty data on it. When chunk files or snapshot files are created, we can just fetch files on this file 'pool' and rename. When deleting, we do it reversely by renaming. These pre-allocated files are what we call the *chunkfilepool*.
 
 Here we show the directory structure of Chunkserver:
 
