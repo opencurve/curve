@@ -49,6 +49,7 @@ cc_binary(
         "//external:leveldb",
         "//external:brpc",
         "//external:braft",
+        "//external:butil",
         "//external:protobuf",
         "//src/common:curve_common",
         "//include/client:include_client",

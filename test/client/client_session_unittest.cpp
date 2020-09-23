@@ -185,7 +185,7 @@ TEST(ClientSession, LeaseTaskTest) {
 
     ioSleepTime = TimeUtility::GetTimeofDayUs();
 
-    ASSERT_EQ(0, fileinstance.AioRead(&aioctx2));
+    ASSERT_EQ(0, fileinstance.AioRead(&aioctx2, UserDataType::RawBuffer));
 
     std::this_thread::sleep_for(std::chrono::seconds(SLEEP_TIME_S));
 

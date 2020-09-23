@@ -130,28 +130,42 @@ int IOManager4File::Read(char* buf, off_t offset,
     MetricHelper::IncremUserRPSCount(fileMetric_, OpType::READ);
     FlightIOGuard guard(this);
 
+    butil::IOBuf data;
+
     IOTracker temp(this, &mc_, scheduler_, fileMetric_);
-    temp.StartRead(nullptr, buf, offset, length, mdsclient,
-                   this->GetFileInfo());
+    temp.SetUserDataType(UserDataType::IOBuffer);
+    temp.StartRead(&data, offset, length, mdsclient, this->GetFileInfo());
 
     int rc = temp.Wait();
-    return rc;
+
+    if (rc < 0) {
+        return rc;
+    } else {
+        size_t nc = data.copy_to(buf, length);
+        return nc == length ? rc : -LIBCURVE_ERROR::FAILED;
+    }
 }
 
-int IOManager4File::Write(const char* buf, off_t offset,
-    size_t length, MDSClient* mdsclient) {
+int IOManager4File::Write(const char* buf,
+                          off_t offset,
+                          size_t length,
+                          MDSClient* mdsclient) {
     MetricHelper::IncremUserRPSCount(fileMetric_, OpType::WRITE);
     FlightIOGuard guard(this);
 
+    butil::IOBuf data;
+    data.append_user_data(const_cast<char*>(buf), length, TrivialDeleter);
+
     IOTracker temp(this, &mc_, scheduler_, fileMetric_);
-    temp.StartWrite(nullptr, buf, offset, length, mdsclient,
-                    this->GetFileInfo());
+    temp.SetUserDataType(UserDataType::IOBuffer);
+    temp.StartWrite(&data, offset, length, mdsclient, this->GetFileInfo());
 
     int rc = temp.Wait();
     return rc;
 }
 
-int IOManager4File::AioRead(CurveAioContext* ctx, MDSClient* mdsclient) {
+int IOManager4File::AioRead(CurveAioContext* ctx, MDSClient* mdsclient,
+                            UserDataType dataType) {
     MetricHelper::IncremUserRPSCount(fileMetric_, OpType::READ);
 
     IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_,
@@ -163,18 +177,18 @@ int IOManager4File::AioRead(CurveAioContext* ctx, MDSClient* mdsclient) {
         return LIBCURVE_ERROR::OK;
     }
 
+    temp->SetUserDataType(dataType);
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
-        temp->StartRead(ctx, static_cast<char*>(ctx->buf),
-                        ctx->offset, ctx->length, mdsclient,
-                        this->GetFileInfo());
+        temp->StartAioRead(ctx, mdsclient, this->GetFileInfo());
     };
 
     taskPool_.Enqueue(task);
     return LIBCURVE_ERROR::OK;
 }
 
-int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient) {
+int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
+                             UserDataType dataType) {
     MetricHelper::IncremUserRPSCount(fileMetric_, OpType::WRITE);
 
     IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_,
@@ -186,11 +200,10 @@ int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient) {
         return LIBCURVE_ERROR::OK;
     }
 
+    temp->SetUserDataType(dataType);
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
-        temp->StartWrite(ctx, static_cast<const char*>(ctx->buf),
-                         ctx->offset, ctx->length, mdsclient,
-                         this->GetFileInfo());
+        temp->StartAioWrite(ctx, mdsclient, this->GetFileInfo());
     };
 
     taskPool_.Enqueue(task);

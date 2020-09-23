@@ -35,8 +35,6 @@ using curve::common::TimeUtility;
 namespace curve {
 namespace client {
 
-static void EmptyDeleter(void* ptr) {}
-
 int RequestSender::Init(const IOSenderOption_t& ioSenderOpt) {
     if (0 != channel_.Init(serverEndPoint_, NULL)) {
         LOG(ERROR) << "failed to init channel to server, id: " << chunkServerId_
@@ -96,7 +94,7 @@ int RequestSender::ReadChunk(ChunkIDInfo idinfo,
 
 int RequestSender::WriteChunk(ChunkIDInfo idinfo,
                               uint64_t sn,
-                              const char *buf,
+                              const butil::IOBuf& data,
                               off_t offset,
                               size_t length,
                               const RequestSourceInfo& sourceInfo,
@@ -108,11 +106,11 @@ int RequestSender::WriteChunk(ChunkIDInfo idinfo,
     rc->SetStartTime(TimeUtility::GetTimeofDayUs());
 
     DVLOG(9) << "Sending request, buf header: "
-             << " buf: " << *(unsigned int *)buf;
+             << " buf: " << *(unsigned int *)(data.fetch1());
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(
-    std::max(rc->GetNextTimeoutMS(),
-        iosenderopt_.failRequestOpt.chunkserverRPCTimeoutMS));
+        std::max(rc->GetNextTimeoutMS(),
+                 iosenderopt_.failRequestOpt.chunkserverRPCTimeoutMS));
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -133,8 +131,7 @@ int RequestSender::WriteChunk(ChunkIDInfo idinfo,
         request.set_clonefileoffset(sourceInfo.cloneFileOffset);
     }
 
-    cntl->request_attachment().append_user_data(
-        const_cast<char*>(buf), length, EmptyDeleter);
+    cntl->request_attachment().append(data);
     ChunkService_Stub stub(&channel_);
     stub.WriteChunk(cntl, &request, response, doneGuard.release());
 

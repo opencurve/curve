@@ -53,11 +53,14 @@ void IOManager4Chunk::UnInitialize() {
     scheduler_ = nullptr;
 }
 
-int IOManager4Chunk::ReadSnapChunk(const ChunkIDInfo &chunkidinfo,
-    uint64_t seq, uint64_t offset, uint64_t len,
-    char *buf, SnapCloneClosure* scc) {
-
+int IOManager4Chunk::ReadSnapChunk(const ChunkIDInfo& chunkidinfo,
+                                   uint64_t seq,
+                                   uint64_t offset,
+                                   uint64_t len,
+                                   char* buf,
+                                   SnapCloneClosure* scc) {
     IOTracker* temp = new IOTracker(this, &mc_, scheduler_);
+    temp->SetUserDataType(UserDataType::RawBuffer);
     temp->ReadSnapChunk(chunkidinfo, seq, offset, len, buf, scc);
     return 0;
 }

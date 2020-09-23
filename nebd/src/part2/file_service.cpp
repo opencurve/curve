@@ -23,6 +23,8 @@
 #include <brpc/closure_guard.h>
 #include <brpc/controller.h>
 
+#include <butil/iobuf.h>
+
 #include "nebd/src/part2/file_service.h"
 
 namespace nebd {
@@ -30,22 +32,17 @@ namespace server {
 
 using nebd::client::RetCode;
 
-static void AioReadDeleter(void* m) {
-    delete[] reinterpret_cast<char*>(m);
-}
-
 void NebdFileServiceCallback(NebdServerAioContext* context) {
     CHECK(context != nullptr);
     std::unique_ptr<NebdServerAioContext> contextGuard(context);
+    std::unique_ptr<butil::IOBuf> iobufGuard(
+        reinterpret_cast<butil::IOBuf*>(context->buf));
     brpc::ClosureGuard doneGuard(context->done);
     switch (context->op) {
         case LIBAIO_OP::LIBAIO_OP_READ:
         {
             nebd::client::ReadResponse* response =
                 dynamic_cast<nebd::client::ReadResponse*>(context->response);
-            butil::IOBuf readBuf;
-            readBuf.append_user_data(
-                context->buf, context->size, AioReadDeleter);
             if (context->ret < 0) {
                 response->set_retcode(RetCode::kNoOK);
                 LOG(ERROR) << "Read file failed. "
@@ -53,7 +50,8 @@ void NebdFileServiceCallback(NebdServerAioContext* context) {
             } else {
                 brpc::Controller* cntl =
                     dynamic_cast<brpc::Controller *>(context->cntl);
-                cntl->response_attachment().append(readBuf);
+                cntl->response_attachment() =
+                    *reinterpret_cast<butil::IOBuf*>(context->buf);
                 response->set_retcode(RetCode::kOK);
             }
             break;
@@ -69,7 +67,6 @@ void NebdFileServiceCallback(NebdServerAioContext* context) {
             } else {
                 response->set_retcode(RetCode::kOK);
             }
-            delete[] reinterpret_cast<char*>(context->buf);
             break;
         }
         case LIBAIO_OP::LIBAIO_OP_FLUSH:
@@ -141,19 +138,21 @@ void NebdFileServiceImpl::Write(
     aioContext->cb = NebdFileServiceCallback;
 
     brpc::Controller* cntl = dynamic_cast<brpc::Controller *>(cntl_base);
-    aioContext->buf = new char[aioContext->size];
-    size_t copySize =
-        cntl->request_attachment().copy_to(aioContext->buf, aioContext->size);
+
+    std::unique_ptr<butil::IOBuf> buf(new butil::IOBuf());
+    *buf = cntl->request_attachment();
+
+    size_t copySize = buf->size();
     if (copySize != aioContext->size) {
         LOG(ERROR) << "Copy attachment failed. "
                    << "fd: " << request->fd()
                    << ", offset: " << request->offset()
                    << ", size: " << request->size()
                    << ", copy size: " << copySize;
-        delete[] reinterpret_cast<char*>(aioContext->buf);
         return;
     }
 
+    aioContext->buf = buf.get();
     aioContext->response = response;
     aioContext->done = done;
     aioContext->cntl = cntl_base;
@@ -164,8 +163,8 @@ void NebdFileServiceImpl::Write(
                    << ", offset: " << request->offset()
                    << ", size: " << request->size()
                    << ", return code: " << rc;
-        delete[] reinterpret_cast<char*>(aioContext->buf);
     } else {
+        buf.release();
         doneGuard.release();
     }
 }
@@ -184,7 +183,10 @@ void NebdFileServiceImpl::Read(
     aioContext->size = request->size();
     aioContext->op = LIBAIO_OP::LIBAIO_OP_READ;
     aioContext->cb = NebdFileServiceCallback;
-    aioContext->buf = new char[request->size()];
+
+    std::unique_ptr<butil::IOBuf> buf(new butil::IOBuf());
+    aioContext->buf = buf.get();
+
     aioContext->response = response;
     aioContext->done = done;
     aioContext->cntl = cntl_base;
@@ -195,8 +197,8 @@ void NebdFileServiceImpl::Read(
                    << ", offset: " << request->offset()
                    << ", size: " << request->size()
                    << ", return code: " << rc;
-        delete[] reinterpret_cast<char*>(aioContext->buf);
     } else {
+        buf.release();
         doneGuard.release();
     }
 }

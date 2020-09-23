@@ -176,7 +176,8 @@ int CurveRequestExecutor::AioRead(
         return -1;
     }
 
-    ret = client_->AioRead(curveFd,  &curveCombineCtx->curveCtx);
+    ret = client_->AioRead(curveFd, &curveCombineCtx->curveCtx,
+                           curve::client::UserDataType::IOBuffer);
     if (ret !=  LIBCURVE_ERROR::OK) {
         delete curveCombineCtx;
         return -1;
@@ -200,7 +201,8 @@ int CurveRequestExecutor::AioWrite(
         return -1;
     }
 
-    ret = client_->AioWrite(curveFd,  &curveCombineCtx->curveCtx);
+    ret = client_->AioWrite(curveFd, &curveCombineCtx->curveCtx,
+                            curve::client::UserDataType::IOBuffer);
     if (ret !=  LIBCURVE_ERROR::OK) {
         delete curveCombineCtx;
         return -1;

@@ -114,16 +114,16 @@ int FileInstance::Write(const char* buf, off_t offset, size_t len) {
     return iomanager4file_.Write(buf, offset, len, mdsclient_);
 }
 
-int FileInstance::AioRead(CurveAioContext* aioctx) {
-    return iomanager4file_.AioRead(aioctx, mdsclient_);
+int FileInstance::AioRead(CurveAioContext* aioctx, UserDataType dataType) {
+    return iomanager4file_.AioRead(aioctx, mdsclient_, dataType);
 }
 
-int FileInstance::AioWrite(CurveAioContext* aioctx) {
+int FileInstance::AioWrite(CurveAioContext* aioctx, UserDataType dataType) {
     if (readonly_) {
         DVLOG(9) << "open with read only, do not support write!";
         return -1;
     }
-    return iomanager4file_.AioWrite(aioctx, mdsclient_);
+    return iomanager4file_.AioWrite(aioctx, mdsclient_, dataType);
 }
 
 // 两种场景会造成在Open的时候返回LIBCURVE_ERROR::FILE_OCCUPIED

@@ -35,6 +35,15 @@
 namespace curve {
 namespace client {
 
+extern std::string mdsMetaServerAddr;
+extern uint32_t chunk_size;
+extern std::string configpath;
+extern curve::client::FileClient* globalclient;
+
+using curve::mds::CurveFSService;
+using curve::mds::topology::TopologyService;
+using curve::mds::topology::GetChunkServerListInCopySetsResponse;
+
 TEST(LeaseExecutorBaseTest, test_StartFailed) {
     UserInfo_t userInfo;
     MDSClient mdsClient;

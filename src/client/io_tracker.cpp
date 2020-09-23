@@ -59,65 +59,119 @@ IOTracker::IOTracker(IOManager* iomanager,
     opStartTimePoint_ = curve::common::TimeUtility::GetTimeofDayUs();
 }
 
-void IOTracker::StartRead(CurveAioContext* aioctx, char* buf,
-    off_t offset, size_t length, MDSClient* mdsclient, const FInfo_t* fi) {
-    data_   = buf;
+void IOTracker::StartRead(void* buf, off_t offset, size_t length,
+                          MDSClient* mdsclient, const FInfo_t* fileInfo) {
+    data_ = buf;
     offset_ = offset;
     length_ = length;
-    aioctx_ = aioctx;
-    type_   = OpType::READ;
+    type_ = OpType::READ;
 
-    DVLOG(9)  << "read op, offset = " << offset
-              << ", length = " << length;
+    DVLOG(9) << "read op, offset = " << offset << ", length = " << length;
 
-    int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, data_,
-                                        offset_, length_, mdsclient, fi);
+    DoRead(mdsclient, fileInfo);
+}
+
+void IOTracker::StartAioRead(CurveAioContext* ctx, MDSClient* mdsclient,
+                             const FInfo_t* fileInfo) {
+    aioctx_ = ctx;
+    data_ = ctx->buf;
+    offset_ = ctx->offset;
+    length_ = ctx->length;
+    type_ = OpType::READ;
+
+    DVLOG(9) << "aioread op, offset = " << ctx->offset
+             << ", length = " << ctx->length;
+
+    DoRead(mdsclient, fileInfo);
+}
+
+void IOTracker::DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo) {
+    int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, nullptr, offset_,
+                                        length_, mdsclient, fileInfo);
     if (ret == 0) {
+        PrepareReadIOBuffers(reqlist_.size());
+        uint32_t subIoIndex = 0;
+
         reqcount_.store(reqlist_.size(), std::memory_order_release);
         std::for_each(reqlist_.begin(), reqlist_.end(), [&](RequestContext* r) {
             r->done_->SetFileMetric(fileMetric_);
             r->done_->SetIOManager(iomanager_);
+            r->subIoIndex_ = subIoIndex++;
         });
+
         ret = scheduler_->ScheduleRequest(reqlist_);
     } else {
         LOG(ERROR) << "splitor read io failed, "
-                   << "offset = " << offset_
-                   << ", length = " << length_;
+                   << "offset = " << offset_ << ", length = " << length_;
     }
 
     if (ret == -1) {
-        LOG(ERROR) << "split or schedule failed, return and recyle resource!";
+        LOG(ERROR) << "split or schedule failed, return and recycle resource!";
         ReturnOnFail();
     }
 }
 
-void IOTracker::StartWrite(CurveAioContext* aioctx, const char* buf,
-    off_t offset, size_t length, MDSClient* mdsclient,  const FInfo_t* fi) {
-    data_   = buf;
+void IOTracker::StartWrite(const void* buf, off_t offset, size_t length,
+                           MDSClient* mdsclient, const FInfo_t* fileInfo) {
+    data_ = const_cast<void*>(buf);
     offset_ = offset;
     length_ = length;
-    aioctx_ = aioctx;
-    type_   = OpType::WRITE;
+    type_ = OpType::WRITE;
 
-    DVLOG(9) << "write op, offset = " << offset
-             << ", length = " << length;
-    int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, data_, offset_,
-                                        length_, mdsclient, fi);
+    DVLOG(9) << "write op, offset = " << offset << ", length = " << length;
+
+    DoWrite(mdsclient, fileInfo);
+}
+
+void IOTracker::StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
+                              const FInfo_t* fileInfo) {
+    aioctx_ = ctx;
+    data_ = ctx->buf;
+    offset_ = ctx->offset;
+    length_ = ctx->length;
+    type_ = OpType::WRITE;
+
+    DVLOG(9) << "aiowrite op, offset = " << ctx->offset
+             << ", length = " << ctx->length;
+
+    DoWrite(mdsclient, fileInfo);
+}
+
+void IOTracker::DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo) {
+    if (nullptr == data_) {
+        ReturnOnFail();
+        return;
+    }
+
+    switch (userDataType_) {
+        case UserDataType::RawBuffer:
+            writeData_.append_user_data(data_, length_,
+                                        TrivialDeleter);
+            break;
+        case UserDataType::IOBuffer:
+            writeData_ = *reinterpret_cast<const butil::IOBuf*>(data_);
+            break;
+    }
+
+    int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, &writeData_,
+                                        offset_, length_, mdsclient, fileInfo);
     if (ret == 0) {
+        uint32_t subIoIndex = 0;
+
         reqcount_.store(reqlist_.size(), std::memory_order_release);
         std::for_each(reqlist_.begin(), reqlist_.end(), [&](RequestContext* r) {
             r->done_->SetFileMetric(fileMetric_);
             r->done_->SetIOManager(iomanager_);
+            r->subIoIndex_ = subIoIndex++;
         });
         ret = scheduler_->ScheduleRequest(reqlist_);
     } else {
         LOG(ERROR) << "splitor write io failed, "
-                   << "offset = " << offset_
-                   << ", length = " << length_;
+                   << "offset = " << offset_ << ", length = " << length_;
     }
 
     if (ret == -1) {
-        LOG(ERROR) << "split or schedule failed, return and recyle resource!";
+        LOG(ERROR) << "split or schedule failed, return and recycle resource!";
         ReturnOnFail();
     }
 }
@@ -133,16 +187,23 @@ void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo,
 
     int ret = -1;
     do {
-        ret = Splitor::SingleChunkIO2ChunkRequests(this, mc_, &reqlist_, cinfo,
-                                            data_, offset_, length_, seq);
+        ret = Splitor::SingleChunkIO2ChunkRequests(
+            this, mc_, &reqlist_, cinfo, nullptr, offset_, length_, seq);
         if (ret == 0) {
+            PrepareReadIOBuffers(reqlist_.size());
+            uint32_t subIoIndex = 0;
             reqcount_.store(reqlist_.size(), std::memory_order_release);
+
+            for (auto& req : reqlist_) {
+                req->subIoIndex_ = subIoIndex++;
+            }
+
             ret = scheduler_->ScheduleRequest(reqlist_);
         }
     } while (false);
 
     if (ret == -1) {
-        LOG(ERROR) << "split or schedule failed, return and recyle resource!";
+        LOG(ERROR) << "split or schedule failed, return and recycle resource!";
         ReturnOnFail();
     }
 }
@@ -169,7 +230,7 @@ void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
 
     if (ret == -1) {
         LOG(ERROR) << "DeleteSnapChunkOrCorrectSn request schedule failed,"
-                   << "return and recyle resource!";
+                   << "return and recycle resource!";
         ReturnOnFail();
     }
 }
@@ -196,7 +257,7 @@ void IOTracker::GetChunkInfo(const ChunkIDInfo &cinfo,
 
     if (ret == -1) {
         LOG(ERROR) << "GetChunkInfo request schedule failed,"
-                   << " return and recyle resource!";
+                   << " return and recycle resource!";
         ReturnOnFail();
     }
 }
@@ -229,7 +290,7 @@ void IOTracker::CreateCloneChunk(const std::string& location,
 
     if (ret == -1) {
         LOG(ERROR) << "CreateCloneChunk request schedule failed,"
-                   << "return and recyle resource!";
+                   << "return and recycle resource!";
         ReturnOnFail();
     }
 }
@@ -258,7 +319,7 @@ void IOTracker::RecoverChunk(const ChunkIDInfo& cinfo, uint64_t offset,
 
     if (ret == -1) {
         LOG(ERROR) << "RecoverChunk request schedule failed,"
-                   << " return and recyle resource!";
+                   << " return and recycle resource!";
         ReturnOnFail();
     }
 }
@@ -276,6 +337,11 @@ void IOTracker::HandleResponse(RequestContext* reqctx) {
                                    &errcode_);
     }
 
+    // copy read data
+    if (OpType::READ == type_ || OpType::READ_SNAP == type_) {
+        SetReadData(reqctx->subIoIndex_, reqctx->readData_);
+    }
+
     if (1 == reqcount_.fetch_sub(1, std::memory_order_acq_rel)) {
         Done();
     }
@@ -290,6 +356,40 @@ void IOTracker::Done() {
         uint64_t duration = TimeUtility::GetTimeofDayUs() - opStartTimePoint_;
         MetricHelper::UserLatencyRecord(fileMetric_, duration, type_);
         MetricHelper::IncremUserQPSCount(fileMetric_, length_, type_);
+
+        // copy read data to user buffer
+        if (OpType::READ == type_ || OpType::READ_SNAP == type_) {
+            butil::IOBuf readData;
+            for (const auto& buf : readDatas_) {
+                readData.append(buf);
+            }
+
+            switch (userDataType_) {
+                case UserDataType::RawBuffer: {
+                    size_t nc = readData.copy_to(data_, readData.size());
+                    if (nc != length_) {
+                        errcode_ = LIBCURVE_ERROR::FAILED;
+                    }
+                    break;
+                }
+                case UserDataType::IOBuffer: {
+                    butil::IOBuf* userData =
+                        reinterpret_cast<butil::IOBuf*>(data_);
+                    *userData = readData;
+                    if (userData->size() != length_) {
+                        errcode_ = LIBCURVE_ERROR::FAILED;
+                    }
+                    break;
+                }
+            }
+
+            if (errcode_ != LIBCURVE_ERROR::OK) {
+                LOG(ERROR) << "IO Error, copy data to read buffer failed, "
+                           << ", filename: " << fileMetric_->filename
+                           << ", offset: " << offset_
+                           << ", length: " << length_;
+            }
+        }
     } else {
         MetricHelper::IncremUserEPSCount(fileMetric_, type_);
         if (type_ == OpType::READ || type_ == OpType::WRITE) {

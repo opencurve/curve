@@ -28,7 +28,7 @@
 
 #include <set>
 #include <atomic>
-#include <list>
+#include <vector>
 #include <string>
 #include <thread>    // NOLINT
 #include <chrono>    // NOLINT
@@ -50,15 +50,15 @@ class Schedule {
     }
 
     int ScheduleRequest(
-         const std::list<curve::client::RequestContext*> reqlist);
+        const std::vector<curve::client::RequestContext*>& reqlist);
 
     bool enableScheduleFailed;
 };
 
 class MockRequestScheduler : public curve::client::RequestScheduler {
  public:
-    using REQ = std::list<curve::client::RequestContext*>;
-    MOCK_METHOD1(ScheduleRequest, int(const REQ));
+    using REQ = std::vector<curve::client::RequestContext*>;
+    MOCK_METHOD1(ScheduleRequest, int(const REQ&));
 
     void DelegateToFake() {
         ON_CALL(*this, ScheduleRequest(_))

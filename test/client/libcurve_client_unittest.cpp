@@ -41,11 +41,10 @@ extern std::string configpath;
 namespace curve {
 namespace client {
 
-using curve::client::EndPoint;
 using ::testing::_;
 using ::testing::Return;
 
-const uint32_t kBufSize = 4 * 1024;
+const uint32_t kBufSize = 128 * 1024;  // 128KB
 const uint64_t kFileSize = 10ul * 1024 * 1024 * 1024;
 const uint64_t kNewSize = 20ul * 1024 * 1024 * 1024;
 const char* kFileName = "1_userinfo_test.img";
@@ -148,14 +147,14 @@ TEST_F(CurveClientTest, AioReadWriteTest) {
     memset(buffer, 'a', kBufSize);
 
     event.Reset(1);
-    ASSERT_EQ(0, client_.AioWrite(fd, &aioctx));
+    ASSERT_EQ(0, client_.AioWrite(fd, &aioctx, UserDataType::RawBuffer));
     event.Wait();
     ASSERT_EQ(aioctx.ret, aioctx.length);
 
     aioctx.op = LIBCURVE_OP_READ;
     memset(buffer, '0', kBufSize);
     event.Reset(1);
-    ASSERT_EQ(0, client_.AioRead(fd, &aioctx));
+    ASSERT_EQ(0, client_.AioRead(fd, &aioctx, UserDataType::RawBuffer));
     event.Wait();
     ASSERT_EQ(aioctx.ret, aioctx.length);
 

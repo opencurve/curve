@@ -22,7 +22,9 @@
 #ifndef SRC_CLIENT_SPLITOR_H_
 #define SRC_CLIENT_SPLITOR_H_
 
-#include <list>
+#include <butil/iobuf.h>
+
+#include <vector>
 #include <string>
 
 #include "src/client/metacache.h"
@@ -43,7 +45,7 @@ class Splitor {
      * @param: iotracker大IO上下文信息
      * @param: mc是io拆分过程中需要使用的缓存信息
      * @param: targetlist大IO被拆分之后的小IO存储列表
-     * @param: data是待读写的数据
+     * @param: data 是待写的数据
      * @param: offset用户下发IO的其实偏移
      * @param: length数据长度
      * @param: mdsclient在查找metacahe失败时，通过mdsclient查找信息
@@ -51,8 +53,8 @@ class Splitor {
      */
     static int IO2ChunkRequests(IOTracker* iotracker,
                            MetaCache* mc,
-                           std::list<RequestContext*>* targetlist,
-                           const char* data,
+                           std::vector<RequestContext*>* targetlist,
+                           butil::IOBuf* data,
                            off_t offset,
                            size_t length,
                            MDSClient* mdsclient,
@@ -63,16 +65,16 @@ class Splitor {
      * @param: mc是io拆分过程中需要使用的缓存信息
      * @param: targetlist大IO被拆分之后的小IO存储列表
      * @param: cid是当前chunk的ID信息
-     * @param: data是待读写的数据
+     * @param: data是待写的数据
      * @param: offset是当前chunk内的偏移
      * @param: length数据长度
      * @param: seq是当前chunk的版本号
      */
     static int SingleChunkIO2ChunkRequests(IOTracker* iotracker,
                            MetaCache* mc,
-                           std::list<RequestContext*>* targetlist,
+                           std::vector<RequestContext*>* targetlist,
                            const ChunkIDInfo_t cid,
-                           const char* data,
+                           butil::IOBuf* data,
                            off_t offset,
                            size_t length,
                            uint64_t seq);
@@ -94,7 +96,7 @@ class Splitor {
      * @param: iotracker大IO上下文信息
      * @param: mc是io拆分过程中需要使用的缓存信息
      * @param: targetlist大IO被拆分之后的小IO存储列表
-     * @param: data是待读写的数据
+     * @param: data 是待写的数据
      * @param: offset用户下发IO的其实偏移
      * @param: length数据长度
      * @param: mdsclient在查找metacahe失败时，通过mdsclient查找信息
@@ -103,8 +105,8 @@ class Splitor {
      */
     static bool AssignInternal(IOTracker* iotracker,
                            MetaCache* mc,
-                           std::list<RequestContext*>* targetlist,
-                           const char* data,
+                           std::vector<RequestContext*>* targetlist,
+                           butil::IOBuf* data,
                            off_t offset,
                            uint64_t length,
                            MDSClient* mdsclient,

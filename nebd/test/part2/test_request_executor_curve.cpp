@@ -267,7 +267,7 @@ TEST_F(TestReuqestExecutorCurve, test_AioRead) {
     // 1. nebdFileIns不是CurveFileInstance类型, 异步读失败
     {
         auto nebdFileIns = new NebdFileInstance();
-        EXPECT_CALL(*curveClient_, AioRead(_, _)).Times(0);
+        EXPECT_CALL(*curveClient_, AioRead(_, _, _)).Times(0);
         ASSERT_EQ(-1, executor.AioRead(nebdFileIns, &aiotcx));
     }
 
@@ -275,7 +275,7 @@ TEST_F(TestReuqestExecutorCurve, test_AioRead) {
     {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fd = -1;
-        EXPECT_CALL(*curveClient_, AioRead(_, _)).Times(0);
+        EXPECT_CALL(*curveClient_, AioRead(_, _, _)).Times(0);
         ASSERT_EQ(-1, executor.AioRead(curveFileIns, &aiotcx));
     }
 
@@ -288,7 +288,7 @@ TEST_F(TestReuqestExecutorCurve, test_AioRead) {
         aiotcx.op = LIBAIO_OP::LIBAIO_OP_READ;
         curveFileIns->fd = 1;
         curveFileIns->fileName = curveFilename;
-        EXPECT_CALL(*curveClient_, AioRead(1, _))
+        EXPECT_CALL(*curveClient_, AioRead(1, _, _))
             .WillOnce(Return(LIBCURVE_ERROR::FAILED));
         ASSERT_EQ(-1, executor.AioRead(curveFileIns, &aiotcx));
     }
@@ -299,7 +299,7 @@ TEST_F(TestReuqestExecutorCurve, test_AioRead) {
         curveFileIns->fd = 1;
         curveFileIns->fileName = curveFilename;
         CurveAioContext* curveCtx;
-        EXPECT_CALL(*curveClient_, AioRead(1, _))
+        EXPECT_CALL(*curveClient_, AioRead(1, _, _))
             .WillOnce(DoAll(SaveArg<1>(&curveCtx),
                             Return(LIBCURVE_ERROR::OK)));
         ASSERT_EQ(0, executor.AioRead(curveFileIns, &aiotcx));
@@ -316,7 +316,7 @@ TEST_F(TestReuqestExecutorCurve, test_AioWrite) {
     // 1. nebdFileIns不是CurveFileInstance类型, 异步写失败
     {
         auto nebdFileIns = new NebdFileInstance();
-        EXPECT_CALL(*curveClient_, AioWrite(_, _)).Times(0);
+        EXPECT_CALL(*curveClient_, AioWrite(_, _, _)).Times(0);
         ASSERT_EQ(-1, executor.AioWrite(nebdFileIns, &aiotcx));
     }
 
@@ -324,7 +324,7 @@ TEST_F(TestReuqestExecutorCurve, test_AioWrite) {
     {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fd = -1;
-        EXPECT_CALL(*curveClient_, AioWrite(_, _)).Times(0);
+        EXPECT_CALL(*curveClient_, AioWrite(_, _, _)).Times(0);
         ASSERT_EQ(-1, executor.AioWrite(curveFileIns, &aiotcx));
     }
 
@@ -337,7 +337,7 @@ TEST_F(TestReuqestExecutorCurve, test_AioWrite) {
         aiotcx.op = LIBAIO_OP::LIBAIO_OP_READ;
         curveFileIns->fd = 1;
         curveFileIns->fileName = curveFilename;
-        EXPECT_CALL(*curveClient_, AioWrite(1, _))
+        EXPECT_CALL(*curveClient_, AioWrite(1, _, _))
             .WillOnce(Return(LIBCURVE_ERROR::FAILED));
         ASSERT_EQ(-1, executor.AioWrite(curveFileIns, &aiotcx));
     }
@@ -348,7 +348,7 @@ TEST_F(TestReuqestExecutorCurve, test_AioWrite) {
         curveFileIns->fd = 1;
         curveFileIns->fileName = curveFilename;
         CurveAioContext* curveCtx;
-        EXPECT_CALL(*curveClient_, AioWrite(1, _))
+        EXPECT_CALL(*curveClient_, AioWrite(1, _, _))
             .WillOnce(DoAll(SaveArg<1>(&curveCtx),
                             Return(LIBCURVE_ERROR::OK)));
         ASSERT_EQ(0, executor.AioWrite(curveFileIns, &aiotcx));

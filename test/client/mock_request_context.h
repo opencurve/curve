@@ -57,12 +57,15 @@ class FakeRequestClosure : public RequestClosure {
             cond_->Signal();
         }
     }
+
     void SetFailed(int err) override {
         errcode_ = err;
     }
+
     int GetErrorCode() override {
         return errcode_;
     }
+
     RequestContext *GetReqCtx() override {
         return reqCtx_;
     }

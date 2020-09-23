@@ -137,8 +137,9 @@ TEST_F(CloneCopyerTest, BasicTest) {
         context.location = "test:0@cs";
         EXPECT_CALL(*curveClient_, Open4ReadOnly("test", _))
             .WillOnce(Return(1));
-        EXPECT_CALL(*curveClient_, AioRead(_, _))
-            .WillOnce(Invoke([](int fd, CurveAioContext* context){
+        EXPECT_CALL(*curveClient_, AioRead(_, _, _))
+            .WillOnce(Invoke([](int fd, CurveAioContext* context,
+                                curve::client::UserDataType dataType) {
                 context->ret = 1024;
                 context->cb(context);
                 return LIBCURVE_ERROR::OK;
@@ -154,8 +155,9 @@ TEST_F(CloneCopyerTest, BasicTest) {
         context.location = "test:0@cs";
         EXPECT_CALL(*curveClient_, Open4ReadOnly(_, _))
             .Times(0);
-        EXPECT_CALL(*curveClient_, AioRead(_, _))
-            .WillOnce(Invoke([](int fd, CurveAioContext* context){
+        EXPECT_CALL(*curveClient_, AioRead(_, _, _))
+            .WillOnce(Invoke([](int fd, CurveAioContext* context,
+                                curve::client::UserDataType dataType) {
                 context->ret = -1;
                 context->cb(context);
                 return LIBCURVE_ERROR::OK;
@@ -171,7 +173,7 @@ TEST_F(CloneCopyerTest, BasicTest) {
         context.location = "test2:0@cs";
         EXPECT_CALL(*curveClient_, Open4ReadOnly("test2", _))
             .WillOnce(Return(-1));
-        EXPECT_CALL(*curveClient_, AioRead(_, _))
+        EXPECT_CALL(*curveClient_, AioRead(_, _, _))
             .Times(0);
         copyer.DownloadAsync(&closure);
         ASSERT_TRUE(closure.IsRun());
@@ -184,7 +186,7 @@ TEST_F(CloneCopyerTest, BasicTest) {
         context.location = "test2:0@cs";
         EXPECT_CALL(*curveClient_, Open4ReadOnly("test2", _))
             .WillOnce(Return(2));
-        EXPECT_CALL(*curveClient_, AioRead(_, _))
+        EXPECT_CALL(*curveClient_, AioRead(_, _, _))
             .WillOnce(Return(-1 * LIBCURVE_ERROR::FAILED));
         copyer.DownloadAsync(&closure);
         ASSERT_TRUE(closure.IsRun());
@@ -268,7 +270,7 @@ TEST_F(CloneCopyerTest, DisableTest) {
         context.location = "test:0@cs";
         EXPECT_CALL(*curveClient_, Open4ReadOnly(_, _))
             .Times(0);
-        EXPECT_CALL(*curveClient_, AioRead(_, _))
+        EXPECT_CALL(*curveClient_, AioRead(_, _, _))
             .Times(0);
         copyer.DownloadAsync(&closure);
         ASSERT_TRUE(closure.IsRun());
