@@ -41,6 +41,7 @@
 #include "proto/heartbeat.pb.h"
 #include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
 #include "test/chunkserver/mock_curve_filesystem_adaptor.h"
+#include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 
 namespace curve {
 namespace chunkserver {
@@ -60,6 +61,7 @@ using ::testing::SaveArgPointee;
 using curve::fs::MockLocalFileSystem;
 using curve::fs::FileSystemType;
 using curve::fs::MockLocalFileSystem;
+using curve::chunkserver::concurrent::ConcurrentApplyOption;
 
 const char copysetUri[] = "local://./copyset_node_test";
 const int port = 9044;
@@ -133,7 +135,8 @@ class CopysetNodeTest : public ::testing::Test {
         defaultOptions_.finishLoadMargin = 1000;
 
         defaultOptions_.concurrentapply = &concurrentModule_;
-        defaultOptions_.concurrentapply->Init(2, 1);
+        ConcurrentApplyOption opt{2, 1, 2, 1};
+        defaultOptions_.concurrentapply->Init(opt);
         std::shared_ptr<LocalFileSystem> fs =
             LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
         ASSERT_TRUE(nullptr != fs);

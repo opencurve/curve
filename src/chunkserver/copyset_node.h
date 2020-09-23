@@ -30,7 +30,7 @@
 #include <climits>
 #include <memory>
 
-#include "src/chunkserver/concurrent_apply.h"
+#include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 #include "src/chunkserver/datastore/chunkserver_datastore.h"
 #include "src/chunkserver/conf_epoch_file.h"
 #include "src/chunkserver/config_info.h"

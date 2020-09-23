@@ -47,6 +47,7 @@ using ::curve::fs::LocalFileSystem;
 using ::curve::fs::LocalFileSystemOption;
 using ::curve::fs::LocalFsFactory;
 using ::curve::fs::FileSystemType;
+using ::curve::chunkserver::concurrent::ConcurrentApplyModule;
 
 DEFINE_string(conf, "ChunkServer.conf", "Path of configuration file");
 DEFINE_string(chunkServerIp, "127.0.0.1", "chunkserver ip");
@@ -104,11 +105,9 @@ int ChunkServer::Run(int argc, char** argv) {
 
     // 初始化并发持久模块
     ConcurrentApplyModule concurrentapply;
-    int size;
-    LOG_IF(FATAL, !conf.GetIntValue("concurrentapply.size", &size));
-    int qdepth;
-    LOG_IF(FATAL, !conf.GetIntValue("concurrentapply.queuedepth", &qdepth));
-    LOG_IF(FATAL, false == concurrentapply.Init(size, qdepth))
+    ConcurrentApplyOption concurrentApplyOptions;
+    InitConcurrentApplyOptions(&conf, &concurrentApplyOptions);
+    LOG_IF(FATAL, false == concurrentapply.Init(concurrentApplyOptions))
         << "Failed to initialize concurrentapply module!";
 
     // 初始化本地文件系统
@@ -380,6 +379,8 @@ void ChunkServer::Stop() {
     brpc::AskToQuit();
 }
 
+
+
 void ChunkServer::InitChunkFilePoolOptions(
     common::Configuration *conf, ChunkfilePoolOptions *chunkFilePoolOptions) {
     LOG_IF(FATAL, !conf->GetUInt32Value("global.chunk_size",
@@ -406,6 +407,18 @@ void ChunkServer::InitChunkFilePoolOptions(
         ::memcpy(
             chunkFilePoolOptions->metaPath, metaUri.c_str(), metaUri.size());
     }
+}
+
+void ChunkServer::InitConcurrentApplyOptions(common::Configuration *conf,
+        ConcurrentApplyOption *concurrentApplyOptions) {
+    LOG_IF(FATAL, !conf->GetIntValue(
+        "rconcurrentapply.size", &concurrentApplyOptions->rconcurrentsize));
+    LOG_IF(FATAL, !conf->GetIntValue(
+        "wconcurrentapply.size", &concurrentApplyOptions->wconcurrentsize));
+    LOG_IF(FATAL, !conf->GetIntValue(
+        "rconcurrentapply.queuedepth", &concurrentApplyOptions->rqueuedepth));
+    LOG_IF(FATAL, !conf->GetIntValue(
+        "wconcurrentapply.queuedepth", &concurrentApplyOptions->wqueuedepth));
 }
 
 void ChunkServer::InitCopysetNodeOptions(

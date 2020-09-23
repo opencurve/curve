@@ -141,11 +141,14 @@ storeng.sync_write=false
 
 #
 # Concurrent apply module
-#
-# 并发模块的并发度，一般是10
-concurrentapply.size=10
-# 并发模块线程的队列深度
-concurrentapply.queuedepth=1
+# 并发模块写线程的并发度，一般是10
+wconcurrentapply.size=10
+# 并发模块写线程的队列深度
+wconcurrentapply.queuedepth=1
+# 并发模块读线程的并发度，一般是5
+rconcurrentapply.size=5
+# 并发模块读线程的队列深度
+rconcurrentapply.queuedepth=1
 
 #
 # Chunkfile pool

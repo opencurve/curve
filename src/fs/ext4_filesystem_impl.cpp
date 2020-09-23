@@ -249,7 +249,7 @@ int Ext4FileSystemImpl::List(const string& dirName,
                              vector<std::string> *names) {
     DIR *dir = posixWrapper_->opendir(dirName.c_str());
     if (nullptr == dir) {
-        LOG(WARNING) << "opendir failed: " << strerror(errno);
+        LOG(WARNING) << "opendir:" << dirName << " failed:" << strerror(errno);
         return -errno;
     }
     struct dirent *dirIter;

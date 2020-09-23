@@ -24,7 +24,7 @@
 
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/datastore/chunkfile_pool.h"
-#include "src/chunkserver/concurrent_apply.h"
+#include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 
 namespace curve {
 namespace chunkserver {
