@@ -23,6 +23,7 @@
 #define SRC_CHUNKSERVER_DATASTORE_CHUNKSERVER_CHUNKFILE_H_
 
 #include <glog/logging.h>
+#include <butil/iobuf.h>
 #include <string>
 #include <vector>
 #include <set>
@@ -147,7 +148,7 @@ class CSChunkFile {
      * @return: 返回错误码
      */
     CSErrorCode Write(SequenceNum sn,
-                      const char * buf,
+                      const butil::IOBuf& buf,
                       off_t offset,
                       size_t length,
                       uint32_t* cost);
@@ -271,6 +272,25 @@ class CSChunkFile {
     }
 
     inline int writeData(const char* buf, off_t offset, size_t length) {
+        int rc = lfs_->Write(fd_, buf, offset + pageSize_, length);
+        if (rc < 0) {
+            return rc;
+        }
+        // 如果是clone chunk，需要判断是否需要更改bitmap并更新metapage
+        if (isCloneChunk_) {
+            uint32_t beginIndex = offset / pageSize_;
+            uint32_t endIndex = (offset + length - 1) / pageSize_;
+            for (uint32_t i = beginIndex; i <= endIndex; ++i) {
+                // 记录dirty page
+                if (!metaPage_.bitmap->Test(i)) {
+                    dirtyPages_.insert(i);
+                }
+            }
+        }
+        return rc;
+    }
+
+    inline int writeData(const butil::IOBuf& buf, off_t offset, size_t length) {
         int rc = lfs_->Write(fd_, buf, offset + pageSize_, length);
         if (rc < 0) {
             return rc;

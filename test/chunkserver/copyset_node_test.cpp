@@ -50,6 +50,7 @@ using ::testing::_;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::AnyNumber;
+using ::testing::Matcher;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
@@ -186,7 +187,7 @@ TEST_F(CopysetNodeTest, error_test) {
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(10));
-        EXPECT_CALL(*mockfs, Write(_, _, _, _)).Times(1)
+        EXPECT_CALL(*mockfs, Write(_, Matcher<const char*>(_), _, _)).Times(1)
             .WillOnce(Return(jsonStr.size()));
         EXPECT_CALL(*mockfs, Fsync(_)).Times(1).WillOnce(Return(0));
         EXPECT_CALL(*mockfs, Close(_)).Times(1).WillOnce(Return(0));
@@ -245,7 +246,7 @@ TEST_F(CopysetNodeTest, error_test) {
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(10));
-        EXPECT_CALL(*mockfs, Write(_, _, _, _)).Times(1)
+        EXPECT_CALL(*mockfs, Write(_, Matcher<const char*>(_), _, _)).Times(1)
             .WillOnce(Return(jsonStr.size()));
         EXPECT_CALL(*mockfs, Fsync(_)).Times(1).WillOnce(Return(0));
         EXPECT_CALL(*mockfs, Close(_)).Times(1).WillOnce(Return(0));

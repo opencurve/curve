@@ -209,7 +209,7 @@ CSErrorCode CSDataStore::CreateChunkFile(const ChunkOptions & options,
 
 CSErrorCode CSDataStore::WriteChunk(ChunkID id,
                             SequenceNum sn,
-                            const char * buf,
+                            const butil::IOBuf& buf,
                             off_t offset,
                             size_t length,
                             uint32_t* cost,

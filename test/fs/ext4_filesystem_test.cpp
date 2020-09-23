@@ -443,6 +443,55 @@ TEST_F(Ext4LocalFileSystemTest, WriteTest) {
     ASSERT_EQ(lfs->Write(666, buf, 0, 3), 3);
 }
 
+TEST_F(Ext4LocalFileSystemTest, WriteIOBufTest) {
+    auto posixWrapper = std::make_shared<PosixWrapper>();
+    lfs->SetPosixWrapper(posixWrapper);
+
+    {
+        // invalid fd
+        butil::IOBuf data;
+        data.resize(4096);
+
+        ASSERT_LE(lfs->Write(1234567, data, 0, data.size()), 0);
+    }
+
+    {
+        int fd = posixWrapper->open("/dev/null", O_WRONLY, 0644);
+        ASSERT_GE(fd, 0);
+
+        butil::IOBuf data;
+        data.resize(4096);
+
+        ASSERT_EQ(lfs->Write(fd, data, 0, 4096), 4096);
+
+        posixWrapper->close(fd);
+    }
+
+    {
+        const char* filename = "ext4_write_iobuf_test.data";
+
+        int fd = posixWrapper->open(filename, O_RDWR | O_CREAT | O_TRUNC, 0644);
+        ASSERT_GE(fd, 0) << strerror(errno);
+
+        butil::IOBuf data;
+        data.resize(1024, 'a');  //  a...a
+        data.resize(2048, 'b');  //  a...ab...b
+        data.resize(4096, 'c');  //  a...ab...bc......c
+
+        std::string expectedData = data.to_string();
+
+        ASSERT_EQ(lfs->Write(fd, data, 512, 4096), 4096);
+
+        char readBuffer[4096];
+        ASSERT_EQ(lfs->Read(fd, readBuffer, 512, 4096), 4096);
+
+        ASSERT_EQ(std::string(readBuffer, 4096), expectedData);
+
+        posixWrapper->close(fd);
+        posixWrapper->remove(filename);
+    }
+}
+
 // test Fallocate
 TEST_F(Ext4LocalFileSystemTest, FallocateTest) {
     // success

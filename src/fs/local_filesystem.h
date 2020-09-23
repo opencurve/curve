@@ -26,6 +26,7 @@
 #include <inttypes.h>
 #include <assert.h>
 #include <sys/stat.h>
+#include <butil/iobuf.h>
 #include <memory>
 #include <vector>
 #include <map>
@@ -160,6 +161,17 @@ class LocalFileSystem {
     virtual int Write(int fd, const char* buf, uint64_t offset, int length) = 0;
 
     /**
+     * 向文件指定区域写入数据
+     * @param fd：文件句柄id，通过Open接口获取
+     * @param buf：待写入数据
+     * @param offset：写入区域的起始偏移
+     * @param length：写入数据的长度
+     * @return 返回成功写入的数据长度，失败返回-1
+     */
+    virtual int Write(int fd, butil::IOBuf buf, uint64_t offset,
+                      int length) = 0;
+
+    /**
      * 向文件末尾追加数据
      * @param fd：文件句柄id，通过Open接口获取
      * @param buf：待追加数据的buffer
@@ -218,4 +230,3 @@ class LocalFsFactory {
 }  // namespace fs
 }  // namespace curve
 #endif  // SRC_FS_LOCAL_FILESYSTEM_H_
-

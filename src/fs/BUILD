@@ -28,7 +28,8 @@ cc_library(
     ]),
     deps = [
                 "//src/common:curve_common",
-                "//external:glog"
+                "//external:glog",
+                "//external:butil",
             ],
     visibility = ["//visibility:public"],
 )

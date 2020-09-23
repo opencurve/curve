@@ -47,6 +47,7 @@ class MockLocalFileSystem : public LocalFileSystem {
     MOCK_METHOD2(List, int(const string&, vector<string>*));
     MOCK_METHOD4(Read, int(int, char*, uint64_t, int));
     MOCK_METHOD4(Write, int(int, const char*, uint64_t, int));
+    MOCK_METHOD4(Write, int(int, butil::IOBuf, uint64_t, int));
     MOCK_METHOD3(Append, int(int, const char*, int));
     MOCK_METHOD4(Fallocate, int(int, int, uint64_t, int));
     MOCK_METHOD2(Fstat, int(int, struct stat*));

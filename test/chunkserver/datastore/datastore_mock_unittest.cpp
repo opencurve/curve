@@ -44,6 +44,7 @@ using ::testing::Ge;
 using ::testing::Gt;
 using ::testing::Return;
 using ::testing::NotNull;
+using ::testing::Matcher;
 using ::testing::Mock;
 using ::testing::Truly;
 using ::testing::DoAll;
@@ -207,7 +208,10 @@ class CSDataStore_test : public testing::Test {
             ON_CALL(*lfs_, Read(Ge(1), NotNull(), Ge(0), Gt(0)))
                 .WillByDefault(ReturnArg<3>());
             // fake Write
-            ON_CALL(*lfs_, Write(Ge(1), NotNull(), Ge(0), Gt(0)))
+            ON_CALL(*lfs_,
+                    Write(Ge(1), Matcher<const char*>(NotNull()), Ge(0), Gt(0)))
+                .WillByDefault(ReturnArg<3>());
+            ON_CALL(*lfs_, Write(Ge(1), Matcher<butil::IOBuf>(_), Ge(0), Gt(0)))
                 .WillByDefault(ReturnArg<3>());
             // fake read chunk1 metapage
             FakeEncodeChunk(chunk1MetaPage, 0, 2);
@@ -693,7 +697,8 @@ TEST_F(CSDataStore_test, WriteChunkTest1) {
                         chunk3MetaPage + PAGE_SIZE),
                         Return(PAGE_SIZE)));
     // will write data
-    EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_,
+                Write(4, Matcher<butil::IOBuf>(_), PAGE_SIZE + offset, length))
         .Times(1);
 
     EXPECT_EQ(CSErrorCode::Success, dataStore->WriteChunk(id,
@@ -853,8 +858,10 @@ TEST_F(CSDataStore_test, WriteChunkTest4) {
     memset(buf, 0, sizeof(buf));
 
     // will write data
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_,
+                Write(3, Matcher<butil::IOBuf>(_), PAGE_SIZE + offset, length))
         .Times(1);
+
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->WriteChunk(id,
                                     sn,
@@ -869,7 +876,7 @@ TEST_F(CSDataStore_test, WriteChunkTest4) {
 
     // return InvalidArgError if offset+length > CHUNK_SIZE
     offset = CHUNK_SIZE;
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), _, __amd64))
+    EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), _, __amd64))
         .Times(0);
     EXPECT_EQ(CSErrorCode::InvalidArgError,
               dataStore->WriteChunk(id,
@@ -881,7 +888,7 @@ TEST_F(CSDataStore_test, WriteChunkTest4) {
     // return InvalidArgError if length not aligned
     offset = PAGE_SIZE;
     length = PAGE_SIZE - 1;
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), _, _))
+    EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), _, _))
         .Times(0);
     EXPECT_EQ(CSErrorCode::InvalidArgError,
               dataStore->WriteChunk(id,
@@ -893,7 +900,7 @@ TEST_F(CSDataStore_test, WriteChunkTest4) {
     // return InvalidArgError if offset not aligned
     offset = PAGE_SIZE + 1;
     length = PAGE_SIZE;
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), _, _))
+    EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), _, _))
         .Times(0);
     EXPECT_EQ(CSErrorCode::InvalidArgError,
               dataStore->WriteChunk(id,
@@ -937,10 +944,11 @@ TEST_F(CSDataStore_test, WriteChunkTest6) {
     char buf[length];  // NOLINT
     memset(buf, 0, sizeof(buf));
     // will update metapage
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     // will write data
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_, Write(3, Matcher<butil::IOBuf>(_),
+                             PAGE_SIZE + offset, length))
         .Times(1);
 
     EXPECT_EQ(CSErrorCode::Success,
@@ -1001,18 +1009,20 @@ TEST_F(CSDataStore_test, WriteChunkTest7) {
                         metapage + PAGE_SIZE),
                         Return(PAGE_SIZE)));
     // will update metapage
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     // will copy on write
     EXPECT_CALL(*lfs_, Read(3, NotNull(), PAGE_SIZE + offset, length))
         .Times(1);
-    EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()),
+                             PAGE_SIZE + offset, length))
         .Times(1);
     // will update snapshot metapage
-    EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     // will write data
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_, Write(3, Matcher<butil::IOBuf>(_),
+                             PAGE_SIZE + offset, length))
         .Times(1);
 
     EXPECT_EQ(CSErrorCode::Success,
@@ -1028,7 +1038,8 @@ TEST_F(CSDataStore_test, WriteChunkTest7) {
     ASSERT_EQ(2, info.snapSn);
 
     // 再次写同一个page的数据，不再进行cow，而是直接写入数据
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_, Write(3, Matcher<butil::IOBuf>(_),
+                             PAGE_SIZE + offset, length))
         .Times(1);
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->WriteChunk(id,
@@ -1078,13 +1089,15 @@ TEST_F(CSDataStore_test, WriteChunkTest9) {
     // will copy on write
     EXPECT_CALL(*lfs_, Read(1, NotNull(), PAGE_SIZE + offset, length))
         .Times(1);
-    EXPECT_CALL(*lfs_, Write(2, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_, Write(2, Matcher<const char*>(NotNull()),
+                             PAGE_SIZE + offset, length))
         .Times(1);
     // will update snapshot metapage
-    EXPECT_CALL(*lfs_, Write(2, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(2, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     // will write data
-    EXPECT_CALL(*lfs_, Write(1, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_,
+                Write(1, Matcher<butil::IOBuf>(_), PAGE_SIZE + offset, length))
         .Times(1);
 
     EXPECT_EQ(CSErrorCode::Success,
@@ -1132,11 +1145,12 @@ TEST_F(CSDataStore_test, WriteChunkTest10) {
     char buf[length];  // NOLINT
     memset(buf, 0, sizeof(buf));
     // will update metapage
-    EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(1, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     // will not cow
     // will write data
-    EXPECT_CALL(*lfs_, Write(1, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_,
+                Write(1, Matcher<butil::IOBuf>(_), PAGE_SIZE + offset, length))
         .Times(1);
 
     EXPECT_EQ(CSErrorCode::Success,
@@ -1233,6 +1247,7 @@ TEST_F(CSDataStore_test, WriteChunkTest13) {
     CSChunkInfo info;
     // 创建 clone chunk
     {
+        LOG(INFO) << "case 1";
         char chunk3MetaPage[PAGE_SIZE];
         memset(chunk3MetaPage, 0, sizeof(chunk3MetaPage));
         shared_ptr<Bitmap> bitmap =
@@ -1264,14 +1279,18 @@ TEST_F(CSDataStore_test, WriteChunkTest13) {
 
     // case1:chunk存在，且是clone chunk，写入区域之前未写过
     {
+        LOG(INFO) << "case 2";
         id = 3;  // not exist
         offset = PAGE_SIZE;
         length = 2 * PAGE_SIZE;
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE + offset, length))
+        EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_),
+                                 PAGE_SIZE + offset, length))
             .Times(1);
         // update metapage
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_,
+                    Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
             .Times(1);
+
         ASSERT_EQ(CSErrorCode::Success,
                   dataStore->WriteChunk(id,
                                         sn,
@@ -1289,13 +1308,17 @@ TEST_F(CSDataStore_test, WriteChunkTest13) {
 
     // case2:chunk存在，且是clone chunk，写入区域之前已写过
     {
+        LOG(INFO) << "case 3";
         id = 3;  // not exist
         offset = PAGE_SIZE;
         length = 2 * PAGE_SIZE;
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE + offset, length))
+        EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_),
+                                 PAGE_SIZE + offset, length))
             .Times(1);
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_,
+                    Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
             .Times(0);
+
         ASSERT_EQ(CSErrorCode::Success,
                   dataStore->WriteChunk(id,
                                         sn,
@@ -1313,18 +1336,25 @@ TEST_F(CSDataStore_test, WriteChunkTest13) {
 
     // case3:chunk存在，且是clone chunk，部分区域已写过，部分未写过
     {
+        LOG(INFO) << "case 4";
         id = 3;  // not exist
         offset = 0;
         length = 4 * PAGE_SIZE;
+
+        std::unique_ptr<char[]> buf(new char[length]);
+
         // [2 * PAGE_SIZE, 4 * PAGE_SIZE)区域已写过，[0, PAGE_SIZE)为metapage
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), offset + PAGE_SIZE, length))
+        EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_),
+                                 offset + PAGE_SIZE, length))
             .Times(1);
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_,
+                    Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
             .Times(1);
+
         ASSERT_EQ(CSErrorCode::Success,
                   dataStore->WriteChunk(id,
                                         sn,
-                                        buf,
+                                        buf.get(),
                                         offset,
                                         length,
                                         nullptr));
@@ -1338,18 +1368,25 @@ TEST_F(CSDataStore_test, WriteChunkTest13) {
 
     // case4:遍写整个chunk
     {
+        LOG(INFO) << "case 5";
         id = 3;  // not exist
         offset = 0;
         length = CHUNK_SIZE;
+
+        std::unique_ptr<char[]> buf(new char[length]);
+
         // [PAGE_SIZE, 4 * PAGE_SIZE)区域已写过，[0, PAGE_SIZE)为metapage
-         EXPECT_CALL(*lfs_, Write(4, NotNull(), offset + PAGE_SIZE, length))
+        EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_),
+                                 offset + PAGE_SIZE, length))
             .Times(1);
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_,
+                    Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
             .Times(1);
+
         ASSERT_EQ(CSErrorCode::Success,
                   dataStore->WriteChunk(id,
                                         sn,
-                                        buf,
+                                        buf.get(),
                                         offset,
                                         length,
                                         nullptr));
@@ -1434,8 +1471,10 @@ TEST_F(CSDataStore_test, WriteChunkTest14) {
 
     // case1:clone chunk存在
     {
+        LOG(INFO) << "case 1";
         // sn == chunk.sn, sn < chunk.correctedSn
         sn = 2;
+
         ASSERT_EQ(CSErrorCode::BackwardRequestError,
                   dataStore->WriteChunk(id,
                                         sn,
@@ -1457,15 +1496,19 @@ TEST_F(CSDataStore_test, WriteChunkTest14) {
 
     // case2:chunk存在，且是clone chunk，
     {
+        LOG(INFO) << "case 2";
         id = 3;
         offset = PAGE_SIZE;
         length = 2 * PAGE_SIZE;
         sn = 3;  // sn > chunk.sn;sn == correctedsn
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE + offset, length))
+        EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_),
+                                 PAGE_SIZE + offset, length))
             .Times(1);
         // update metapage
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_,
+                    Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
             .Times(2);
+
         ASSERT_EQ(CSErrorCode::Success,
                   dataStore->WriteChunk(id,
                                         sn,
@@ -1487,17 +1530,24 @@ TEST_F(CSDataStore_test, WriteChunkTest14) {
     // case3:chunk存在，且是clone chunk
     // sn > chunk.sn;sn == correctedsn
     {
+        LOG(INFO) << "case 3";
         offset = 0;
         length = 4 * PAGE_SIZE;
+
+        std::unique_ptr<char[]> buf(new char[length]);
+
         // [2 * PAGE_SIZE, 4 * PAGE_SIZE)区域已写过，[0, PAGE_SIZE)为metapage
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), offset + PAGE_SIZE, length))
+        EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_),
+                                 offset + PAGE_SIZE, length))
             .Times(1);
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_,
+                    Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
             .Times(1);
+
         ASSERT_EQ(CSErrorCode::Success,
                   dataStore->WriteChunk(id,
                                         sn,
-                                        buf,
+                                        buf.get(),
                                         offset,
                                         length,
                                         nullptr));
@@ -1515,14 +1565,18 @@ TEST_F(CSDataStore_test, WriteChunkTest14) {
     // case3:chunk存在，且是clone chunk
     // sn > chunk.sn;sn > correctedsn
     {
+        LOG(INFO) << "case 4";
         sn = 4;
         // 不会写数据
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), _, _))
+        EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_), _, _))
             .Times(0);
+
+        std::unique_ptr<char[]> buf(new char[length]);
+
         ASSERT_EQ(CSErrorCode::StatusConflictError,
                   dataStore->WriteChunk(id,
                                         sn,
-                                        buf,
+                                        buf.get(),
                                         offset,
                                         length,
                                         nullptr));
@@ -1583,10 +1637,11 @@ TEST_F(CSDataStore_test, WriteChunkTest15) {
     memset(buf, 0, sizeof(buf));
     // will not create snapshot
     // will not copy on write
-    EXPECT_CALL(*lfs_, Write(2, NotNull(), _, _))
+    EXPECT_CALL(*lfs_, Write(2, Matcher<const char*>(NotNull()), _, _))
         .Times(0);
     // will write data
-    EXPECT_CALL(*lfs_, Write(1, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_,
+                Write(1, Matcher<butil::IOBuf>(_), PAGE_SIZE + offset, length))
         .Times(1);
 
     EXPECT_EQ(CSErrorCode::Success,
@@ -1641,13 +1696,14 @@ TEST_F(CSDataStore_test, WriteChunkTest16) {
     memset(buf, 0, sizeof(buf));
     // will not create snapshot
     // will not copy on write
-    EXPECT_CALL(*lfs_, Write(2, NotNull(), _, _))
+    EXPECT_CALL(*lfs_, Write(2, Matcher<const char*>(NotNull()), _, _))
         .Times(0);
     // will update sn
-    EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(1, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     // will write data
-    EXPECT_CALL(*lfs_, Write(1, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_,
+                Write(1, Matcher<butil::IOBuf>(_), PAGE_SIZE + offset, length))
         .Times(1);
 
     EXPECT_EQ(CSErrorCode::Success,
@@ -1690,6 +1746,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest1) {
         .WillOnce(Return(false));
     EXPECT_CALL(*fpool_, GetChunk(snapPath, NotNull()))
         .WillOnce(Return(-UT_ERRNO));
+
     EXPECT_EQ(CSErrorCode::InternalError,
               dataStore->WriteChunk(id,
                                     sn,
@@ -1785,8 +1842,9 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest2) {
                         metapage + PAGE_SIZE),
                         Return(PAGE_SIZE)));
     // write chunk metapage failed
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .WillOnce(Return(-UT_ERRNO));
+
     EXPECT_EQ(CSErrorCode::InternalError,
               dataStore->WriteChunk(id,
                                     sn,
@@ -1846,11 +1904,14 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest3) {
                         metapage + PAGE_SIZE),
                         Return(PAGE_SIZE)));
     // will update metapage
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
+
+    LOG(INFO) << "case 1";
     // copy data failed
     EXPECT_CALL(*lfs_, Read(3, NotNull(), PAGE_SIZE + offset, length))
         .WillOnce(Return(-UT_ERRNO));
+
     EXPECT_EQ(CSErrorCode::InternalError,
               dataStore->WriteChunk(id,
                                     sn,
@@ -1863,11 +1924,13 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest3) {
     ASSERT_EQ(3, info.curSn);
     ASSERT_EQ(2, info.snapSn);
 
+    LOG(INFO) << "case 2";
     // copy data success
     EXPECT_CALL(*lfs_, Read(3, NotNull(), PAGE_SIZE + offset, length))
         .Times(1);
     // write data to snapshot failed
-    EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()),
+                             PAGE_SIZE + offset, length))
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_EQ(CSErrorCode::InternalError,
               dataStore->WriteChunk(id,
@@ -1880,14 +1943,16 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest3) {
     ASSERT_EQ(3, info.curSn);
     ASSERT_EQ(2, info.snapSn);
 
+    LOG(INFO) << "case 3";
     // copy data success
     EXPECT_CALL(*lfs_, Read(3, NotNull(), PAGE_SIZE + offset, length))
         .Times(1);
     // write data to snapshot success
-    EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_,
+                Write(4, Matcher<const char*>(_), PAGE_SIZE + offset, length))
         .Times(1);
     // update snapshot metapage failed
-    EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_EQ(CSErrorCode::InternalError,
               dataStore->WriteChunk(id,
@@ -1902,17 +1967,21 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest3) {
 
     // 再次写入仍会cow
     // will copy on write
+    LOG(INFO) << "case 4";
     EXPECT_CALL(*lfs_, Read(3, NotNull(), PAGE_SIZE + offset, length))
         .Times(1);
-    EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()),
+                             PAGE_SIZE + offset, length))
         .Times(1);
     // will update snapshot metapage
-    EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     // will write data
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_,
+                Write(3, Matcher<butil::IOBuf>(_), PAGE_SIZE + offset, length))
         .Times(1);
 
+    LOG(INFO) << "case 5";
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->WriteChunk(id,
                                     sn,
@@ -1967,19 +2036,22 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest4) {
                         metapage + PAGE_SIZE),
                         Return(PAGE_SIZE)));
     // will update metapage
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     // will copy on write
     EXPECT_CALL(*lfs_, Read(3, NotNull(), PAGE_SIZE + offset, length))
         .Times(1);
-    EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()),
+                             PAGE_SIZE + offset, length))
         .Times(1);
     // will update snapshot metapage
-    EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     // write chunk failed
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_,
+                Write(3, Matcher<butil::IOBuf>(_), PAGE_SIZE + offset, length))
         .WillOnce(Return(-UT_ERRNO));
+
     EXPECT_EQ(CSErrorCode::InternalError,
               dataStore->WriteChunk(id,
                                     sn,
@@ -1989,7 +2061,8 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest4) {
                                     nullptr));
     // 再次写入直接写chunk文件
     // will write data
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_,
+                Write(3, Matcher<butil::IOBuf>(_), PAGE_SIZE + offset, length))
         .Times(1);
 
     EXPECT_EQ(CSErrorCode::Success,
@@ -2034,6 +2107,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest5) {
         .WillOnce(Return(false));
     EXPECT_CALL(*fpool_, GetChunk(chunk3Path, NotNull()))
         .WillOnce(Return(-UT_ERRNO));
+
     EXPECT_EQ(CSErrorCode::InternalError, dataStore->WriteChunk(id,
                                                                 sn,
                                                                 buf,
@@ -2194,10 +2268,12 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest6) {
         id = 3;  // not exist
         offset = PAGE_SIZE;
         length = 2 * PAGE_SIZE;
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE + offset, length))
+        EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_),
+                                 PAGE_SIZE + offset, length))
             .WillOnce(Return(-UT_ERRNO));
         // update metapage
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_,
+                    Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
             .Times(0);
         ASSERT_EQ(CSErrorCode::InternalError,
                   dataStore->WriteChunk(id,
@@ -2216,10 +2292,12 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest6) {
         id = 3;  // not exist
         offset = PAGE_SIZE;
         length = 2 * PAGE_SIZE;
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE + offset, length))
+        EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_),
+                                 PAGE_SIZE + offset, length))
             .Times(1);
         // update metapage
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_,
+                    Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
             .WillOnce(Return(-UT_ERRNO));
         ASSERT_EQ(CSErrorCode::InternalError,
                   dataStore->WriteChunk(id,
@@ -2602,13 +2680,15 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkTest3) {
     // data in [PAGE_SIZE, 2*PAGE_SIZE) will be cow
     EXPECT_CALL(*lfs_, Read(1, NotNull(), offset + PAGE_SIZE, length))
         .Times(1);
-    EXPECT_CALL(*lfs_, Write(2, NotNull(), offset + PAGE_SIZE, length))
+    EXPECT_CALL(*lfs_, Write(2, Matcher<const char*>(NotNull()),
+                             offset + PAGE_SIZE, length))
         .Times(1);
     // will update snapshot metapage
-    EXPECT_CALL(*lfs_, Write(2, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(2, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     // will write data
-    EXPECT_CALL(*lfs_, Write(1, NotNull(), offset + PAGE_SIZE, length))
+    EXPECT_CALL(*lfs_,
+                Write(1, Matcher<butil::IOBuf>(_), offset + PAGE_SIZE, length))
         .Times(1);
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->WriteChunk(id,
@@ -2706,13 +2786,15 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkErrorTest1) {
     // data in [PAGE_SIZE, 2*PAGE_SIZE) will be cow
     EXPECT_CALL(*lfs_, Read(1, NotNull(), offset + PAGE_SIZE, length))
         .Times(1);
-    EXPECT_CALL(*lfs_, Write(2, NotNull(), offset + PAGE_SIZE, length))
+    EXPECT_CALL(*lfs_, Write(2, Matcher<const char*>(NotNull()),
+                             offset + PAGE_SIZE, length))
         .Times(1);
     // will update snapshot metapage
-    EXPECT_CALL(*lfs_, Write(2, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(2, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     // will write data
-    EXPECT_CALL(*lfs_, Write(1, NotNull(), offset + PAGE_SIZE, length))
+    EXPECT_CALL(*lfs_,
+                Write(1, Matcher<butil::IOBuf>(_), offset + PAGE_SIZE, length))
         .Times(1);
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->WriteChunk(id,
@@ -3010,7 +3092,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest2) {
     EXPECT_CALL(*fpool_, RecycleChunk(chunk1snap1Path))
         .Times(1);
     // chunk's metapage should not be updated
-    EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(1, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(0);
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->DeleteSnapshotChunkOrCorrectSn(id, fileSn));
@@ -3048,7 +3130,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest3) {
     EXPECT_CALL(*lfs_, Close(2))
         .Times(0);
     // chunk's metapage should not be updated
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(0);
     EXPECT_EQ(CSErrorCode::BackwardRequestError,
               dataStore->DeleteSnapshotChunkOrCorrectSn(id, fileSn));
@@ -3065,7 +3147,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest3) {
     EXPECT_CALL(*fpool_, RecycleChunk(chunk1snap1Path))
         .Times(1);
     // chunk's metapage should not be updated
-    EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(1, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(0);
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->DeleteSnapshotChunkOrCorrectSn(id, fileSn));
@@ -3098,7 +3180,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest4) {
     EXPECT_CALL(*fpool_, RecycleChunk(chunk1snap1Path))
         .Times(1);
     // chunk's metapage will be updated
-    EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(1, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->DeleteSnapshotChunkOrCorrectSn(id, fileSn));
@@ -3125,7 +3207,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest5) {
     // fileSn > correctedSn
     SequenceNum fileSn = 2;
     // chunk's metapage should not be updated
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(0);
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->DeleteSnapshotChunkOrCorrectSn(id, fileSn));
@@ -3154,7 +3236,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest6) {
     // fileSn > correctedSn
     SequenceNum fileSn = 4;
     // chunk's metapage will be updated
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->DeleteSnapshotChunkOrCorrectSn(id, fileSn));
@@ -3269,7 +3351,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest8) {
     EXPECT_CALL(*fpool_, RecycleChunk(chunk1snap1Path))
         .Times(0);
     // chunk's metapage should be updated
-    EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(1, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->DeleteSnapshotChunkOrCorrectSn(id, fileSn));
@@ -3320,7 +3402,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest9) {
     EXPECT_CALL(*fpool_, RecycleChunk(chunk1snap1Path))
         .Times(0);
     // chunk's metapage should not be updated
-    EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(1, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(0);
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->DeleteSnapshotChunkOrCorrectSn(id, fileSn));
@@ -3349,13 +3431,13 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnErrorTest1) {
     SequenceNum fileSn = 3;
 
     // write chunk metapage failed
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_EQ(CSErrorCode::InternalError,
               dataStore->DeleteSnapshotChunkOrCorrectSn(id, fileSn));
 
     // chunk's metapage will be updated
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->DeleteSnapshotChunkOrCorrectSn(id, fileSn));
@@ -3389,7 +3471,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnErrorTest2) {
     EXPECT_CALL(*fpool_, RecycleChunk(chunk1snap1Path))
         .WillOnce(Return(-1));
     // chunk's metapage will be updated
-    EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Write(1, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(0);
     EXPECT_EQ(CSErrorCode::InternalError,
               dataStore->DeleteSnapshotChunkOrCorrectSn(id, fileSn));
@@ -3732,7 +3814,7 @@ TEST_F(CSDataStore_test, PasteChunkTest1) {
 
     // case3:chunk存在，但不是clone chunk
     {
-        EXPECT_CALL(*lfs_, Write(_, NotNull(), _, _))
+        EXPECT_CALL(*lfs_, Write(_, Matcher<const char*>(NotNull()), _, _))
             .Times(0);
 
         // 快照不存在
@@ -3760,10 +3842,12 @@ TEST_F(CSDataStore_test, PasteChunkTest1) {
         id = 3;  // not exist
         offset = PAGE_SIZE;
         length = 2 * PAGE_SIZE;
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE + offset, length))
+        EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()),
+                                 PAGE_SIZE + offset, length))
             .Times(1);
         // update metapage
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_,
+                    Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
             .Times(1);
         ASSERT_EQ(CSErrorCode::Success,
                   dataStore->PasteChunk(id,
@@ -3783,9 +3867,11 @@ TEST_F(CSDataStore_test, PasteChunkTest1) {
         id = 3;  // not exist
         offset = PAGE_SIZE;
         length = 2 * PAGE_SIZE;
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE + offset, length))
+        EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()),
+                                 PAGE_SIZE + offset, length))
             .Times(0);
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_,
+                    Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
             .Times(0);
         ASSERT_EQ(CSErrorCode::Success,
                   dataStore->PasteChunk(id,
@@ -3805,11 +3891,14 @@ TEST_F(CSDataStore_test, PasteChunkTest1) {
         offset = 0;
         length = 4 * PAGE_SIZE;
         // [2 * PAGE_SIZE, 4 * PAGE_SIZE)区域已写过，[0, PAGE_SIZE)为metapage
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE, PAGE_SIZE))
+        EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()), PAGE_SIZE,
+                                 PAGE_SIZE))
             .Times(1);
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), 4 * PAGE_SIZE, PAGE_SIZE))
+        EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()),
+                                 4 * PAGE_SIZE, PAGE_SIZE))
             .Times(1);
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_,
+                    Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
             .Times(1);
         ASSERT_EQ(CSErrorCode::Success,
                   dataStore->PasteChunk(id,
@@ -3830,11 +3919,12 @@ TEST_F(CSDataStore_test, PasteChunkTest1) {
         length = CHUNK_SIZE;
         // [PAGE_SIZE, 4 * PAGE_SIZE)区域已写过，[0, PAGE_SIZE)为metapage
         EXPECT_CALL(*lfs_, Write(4,
-                                 NotNull(),
+                                 Matcher<const char*>(NotNull()),
                                  5 * PAGE_SIZE,
                                  CHUNK_SIZE - 4 * PAGE_SIZE))
             .Times(1);
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_,
+                    Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
             .Times(1);
         ASSERT_EQ(CSErrorCode::Success,
                   dataStore->PasteChunk(id,
@@ -3912,10 +4002,12 @@ TEST_F(CSDataStore_test, PasteChunkErrorTest1) {
         id = 3;  // not exist
         offset = PAGE_SIZE;
         length = 2 * PAGE_SIZE;
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE + offset, length))
+        EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()),
+                                 PAGE_SIZE + offset, length))
             .WillOnce(Return(-UT_ERRNO));
         // update metapage
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_,
+                    Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
             .Times(0);
         ASSERT_EQ(CSErrorCode::InternalError,
                   dataStore->PasteChunk(id,
@@ -3932,10 +4024,12 @@ TEST_F(CSDataStore_test, PasteChunkErrorTest1) {
         id = 3;  // not exist
         offset = PAGE_SIZE;
         length = 2 * PAGE_SIZE;
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE + offset, length))
+        EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()),
+                                 PAGE_SIZE + offset, length))
             .Times(1);
         // update metapage
-        EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_,
+                    Write(4, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
             .WillOnce(Return(-UT_ERRNO));
         ASSERT_EQ(CSErrorCode::InternalError,
                   dataStore->PasteChunk(id,

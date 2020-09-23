@@ -449,7 +449,7 @@ void WriteChunkRequest::OnApply(uint64_t index,
 
     auto ret = datastore_->WriteChunk(request_->chunkid(),
                                       request_->sn(),
-                                      cntl_->request_attachment().to_string().c_str(),  //NOLINT
+                                      cntl_->request_attachment(),
                                       request_->offset(),
                                       request_->size(),
                                       &cost,
@@ -513,7 +513,7 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
 
     auto ret = datastore->WriteChunk(request.chunkid(),
                                      request.sn(),
-                                     data.to_string().c_str(),
+                                     data,
                                      request.offset(),
                                      request.size(),
                                      &cost,

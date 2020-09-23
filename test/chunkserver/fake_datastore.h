@@ -130,7 +130,7 @@ class FakeCSDataStore : public CSDataStore {
 
     CSErrorCode WriteChunk(ChunkID id,
                            SequenceNum sn,
-                           const char *buf,
+                           const butil::IOBuf& buf,
                            off_t offset,
                            size_t length,
                            uint32_t *cost,
@@ -139,7 +139,7 @@ class FakeCSDataStore : public CSDataStore {
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
         }
-        ::memcpy(chunk_+offset, buf, length);
+        ::memcpy(chunk_+offset, buf.to_string().c_str(), length);
         *cost = length;
         chunkIds_.insert(id);
         sn_ = sn;

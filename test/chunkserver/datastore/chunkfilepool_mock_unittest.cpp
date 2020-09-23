@@ -38,6 +38,7 @@ using ::testing::Ge;
 using ::testing::Gt;
 using ::testing::Return;
 using ::testing::NotNull;
+using ::testing::Matcher;
 using ::testing::Mock;
 using ::testing::Truly;
 using ::testing::DoAll;
@@ -161,7 +162,7 @@ TEST_F(CSChunkfilePoolMockTest, PersistEnCodeMetaInfoTest) {
     {
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(-1));
-        EXPECT_CALL(*lfs_, Write(_, _, _, _))
+        EXPECT_CALL(*lfs_, Write(_, Matcher<const char*>(_), _, _))
             .Times(0);
         EXPECT_CALL(*lfs_, Close(_))
             .Times(0);
@@ -176,7 +177,7 @@ TEST_F(CSChunkfilePoolMockTest, PersistEnCodeMetaInfoTest) {
     {
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(1));
-        EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, 4096))
+        EXPECT_CALL(*lfs_, Write(1, Matcher<const char*>(NotNull()), 0, 4096))
             .WillOnce(Return(-1));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
@@ -191,7 +192,7 @@ TEST_F(CSChunkfilePoolMockTest, PersistEnCodeMetaInfoTest) {
     {
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(1));
-        EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, 4096))
+        EXPECT_CALL(*lfs_, Write(1, Matcher<const char*>(NotNull()), 0, 4096))
             .WillOnce(Return(4096));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
@@ -770,7 +771,8 @@ TEST_F(CSChunkfilePoolMockTest, GetChunkTest) {
         EXPECT_CALL(*lfs_, Fallocate(1, 0, 0, fileSize))
             .Times(retryTimes)
             .WillRepeatedly(Return(0));
-        EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, fileSize))
+        EXPECT_CALL(*lfs_,
+                    Write(1, Matcher<const char*>(NotNull()), 0, fileSize))
             .Times(retryTimes)
             .WillRepeatedly(Return(-1));
         EXPECT_CALL(*lfs_, Close(1))
@@ -787,7 +789,8 @@ TEST_F(CSChunkfilePoolMockTest, GetChunkTest) {
         EXPECT_CALL(*lfs_, Fallocate(1, 0, 0, fileSize))
             .Times(retryTimes)
             .WillRepeatedly(Return(0));
-        EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, fileSize))
+        EXPECT_CALL(*lfs_,
+                    Write(1, Matcher<const char*>(NotNull()), 0, fileSize))
             .Times(retryTimes)
             .WillRepeatedly(Return(fileSize));
         EXPECT_CALL(*lfs_, Fsync(1))
@@ -807,7 +810,8 @@ TEST_F(CSChunkfilePoolMockTest, GetChunkTest) {
         EXPECT_CALL(*lfs_, Fallocate(1, 0, 0, fileSize))
             .Times(retryTimes)
             .WillRepeatedly(Return(0));
-        EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, fileSize))
+        EXPECT_CALL(*lfs_,
+                    Write(1, Matcher<const char*>(NotNull()), 0, fileSize))
             .Times(retryTimes)
             .WillRepeatedly(Return(fileSize));
         EXPECT_CALL(*lfs_, Fsync(1))
