@@ -36,19 +36,19 @@ TEST(ClientClosure, OverLoadBackOffTest) {
 
     ClientClosure::SetFailureRequestOption(failopt);
 
-    WriteChunkClosure cc(nullptr, nullptr);
-
     for (int i = 1; i < 1000; i++) {
         if (i < ClientClosure::backoffParam_.maxOverloadPow) {
             uint64_t curTime =
                 failopt.chunkserverOPRetryIntervalUS * std::pow(2, i);
-            ASSERT_LT(cc.OverLoadBackOff(i), curTime + 0.1 * curTime);
-            ASSERT_GT(cc.OverLoadBackOff(i), curTime - 0.1 * curTime);
+            ASSERT_LE(ClientClosure::OverLoadBackOff(i),
+                      curTime + 0.1 * curTime);
+            ASSERT_GE(ClientClosure::OverLoadBackOff(i),
+                      curTime - 0.1 * curTime);
         } else {
-            ASSERT_LT(cc.OverLoadBackOff(i),
+            ASSERT_LE(ClientClosure::OverLoadBackOff(i),
                       failopt.chunkserverMaxRetrySleepIntervalUS +
                           0.1 * failopt.chunkserverMaxRetrySleepIntervalUS);
-            ASSERT_GT(cc.OverLoadBackOff(i),
+            ASSERT_GE(ClientClosure::OverLoadBackOff(i),
                       failopt.chunkserverMaxRetrySleepIntervalUS -
                           0.1 * failopt.chunkserverMaxRetrySleepIntervalUS);
         }
@@ -63,13 +63,15 @@ TEST(ClientClosure, OverLoadBackOffTest) {
         if (i < ClientClosure::backoffParam_.maxOverloadPow) {
             uint64_t curTime =
                 failopt.chunkserverOPRetryIntervalUS * std::pow(2, i);
-            ASSERT_LT(cc.OverLoadBackOff(i), curTime + 0.1 * curTime);
-            ASSERT_GT(cc.OverLoadBackOff(i), curTime - 0.1 * curTime);
+            ASSERT_LE(ClientClosure::OverLoadBackOff(i),
+                      curTime + 0.1 * curTime);
+            ASSERT_GE(ClientClosure::OverLoadBackOff(i),
+                      curTime - 0.1 * curTime);
         } else {
-            ASSERT_LT(cc.OverLoadBackOff(i),
+            ASSERT_LE(ClientClosure::OverLoadBackOff(i),
                       failopt.chunkserverMaxRetrySleepIntervalUS +
                           0.1 * failopt.chunkserverMaxRetrySleepIntervalUS);
-            ASSERT_GT(cc.OverLoadBackOff(i),
+            ASSERT_GE(ClientClosure::OverLoadBackOff(i),
                       failopt.chunkserverMaxRetrySleepIntervalUS -
                           0.1 * failopt.chunkserverMaxRetrySleepIntervalUS);
         }
@@ -83,14 +85,12 @@ TEST(ClientClosure, TimeoutBackOffTest) {
 
     ClientClosure::SetFailureRequestOption(failopt);
 
-    WriteChunkClosure cc(nullptr, nullptr);
-
     for (int i = 1; i < 1000; i++) {
         if (i < ClientClosure::backoffParam_.maxTimeoutPow) {
             uint64_t curTime = failopt.chunkserverRPCTimeoutMS * std::pow(2, i);
-            ASSERT_EQ(cc.TimeoutBackOff(i), curTime);
+            ASSERT_EQ(ClientClosure::TimeoutBackOff(i), curTime);
         } else {
-            ASSERT_EQ(cc.TimeoutBackOff(i), 2000);
+            ASSERT_EQ(ClientClosure::TimeoutBackOff(i), 2000);
         }
     }
 
@@ -102,9 +102,9 @@ TEST(ClientClosure, TimeoutBackOffTest) {
     for (int i = 1; i < 1000; i++) {
         if (i < ClientClosure::backoffParam_.maxTimeoutPow) {
             uint64_t curTime = failopt.chunkserverRPCTimeoutMS * std::pow(2, i);
-            ASSERT_EQ(cc.TimeoutBackOff(i), curTime);
+            ASSERT_EQ(ClientClosure::TimeoutBackOff(i), curTime);
         } else {
-            ASSERT_EQ(cc.TimeoutBackOff(i), 4000);
+            ASSERT_EQ(ClientClosure::TimeoutBackOff(i), 4000);
         }
     }
 }
