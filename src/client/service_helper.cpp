@@ -24,7 +24,6 @@
 
 #include <bthread/condition_variable.h>
 #include <bthread/mutex.h>
-#include <bthread/types.h>
 
 #include <memory>
 #include <set>
@@ -85,7 +84,7 @@ class GetLeaderProxy : public std::enable_shared_from_this<GetLeaderProxy> {
     friend struct GetLeaderClosure;
  public:
     GetLeaderProxy()
-        : proxyId_(getLeaderProxyId.fetch_add(1)),
+        : proxyId_(getLeaderProxyId.fetch_add(1, std::memory_order_relaxed)),
           finish_(false),
           success_(false) {}
 

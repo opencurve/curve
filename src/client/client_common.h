@@ -25,11 +25,9 @@
 
 #include <butil/endpoint.h>
 #include <butil/status.h>
-#include <brpc/closure_guard.h>
+#include <google/protobuf/stubs/callback.h>
 
-#include <unistd.h>
 #include <string>
-#include <atomic>
 #include <vector>
 
 #include "include/client/libcurve.h"
@@ -37,6 +35,7 @@
 
 namespace curve {
 namespace client {
+
 using ChunkID       = uint64_t;
 using CopysetID     = uint32_t;
 using LogicPoolID   = uint32_t;
@@ -73,35 +72,19 @@ enum class FileStatus {
 };
 
 typedef struct ChunkIDInfo {
-    ChunkID         cid_;
-    CopysetID       cpid_;
-    LogicPoolID     lpid_;
-    ChunkIDInfo() {
-        cid_  = 0;
-        lpid_ = 0;
-        cpid_ = 0;
-    }
+    ChunkID         cid_ = 0;
+    CopysetID       cpid_ = 0;
+    LogicPoolID     lpid_ = 0;
 
-    ChunkIDInfo(ChunkID cid, LogicPoolID lpid, CopysetID cpid) {
-        cid_  = cid;
-        lpid_ = lpid;
-        cpid_ = cpid;
-    }
+    ChunkIDInfo() = default;
 
-    ChunkIDInfo(const ChunkIDInfo& chunkinfo) {
-        cid_  = chunkinfo.cid_;
-        lpid_ = chunkinfo.lpid_;
-        cpid_ = chunkinfo.cpid_;
-    }
+    ChunkIDInfo(ChunkID cid, LogicPoolID lpid, CopysetID cpid)
+        : cid_(cid), cpid_(cpid), lpid_(lpid) {}
 
-    ChunkIDInfo& operator=(const ChunkIDInfo& chunkinfo) {
-        cid_  = chunkinfo.cid_;
-        lpid_ = chunkinfo.lpid_;
-        cpid_ = chunkinfo.cpid_;
-        return *this;
-    }
+    ChunkIDInfo(const ChunkIDInfo& chunkinfo) = default;
+    ChunkIDInfo& operator=(const ChunkIDInfo& chunkinfo) = default;
 
-    bool Valid() {
+    bool Valid() const {
         return lpid_ > 0 && cpid_ > 0;
     }
 } ChunkIDInfo_t;
@@ -212,7 +195,7 @@ struct ChunkServerAddr {
         return std::string(str);
     }
 
-    bool operator==(const ChunkServerAddr& other) {
+    bool operator==(const ChunkServerAddr& other) const {
         return addr_ == other.addr_;
     }
 };

@@ -65,7 +65,7 @@ using curve::client::ChunkID;
 using curve::client::LogicPoolID;
 using curve::client::CopysetID;
 using curve::client::ChunkIDInfo;
-using curve::client::CopysetInfo_t;
+using curve::client::CopysetPeerInfo;
 using curve::client::MetaCache;
 using curve::client::LogicalPoolCopysetIDInfo;
 
@@ -88,9 +88,9 @@ int main(int argc, char ** argv) {
         }
     }
 
-    ClientConfigOption_t opt;
+    ClientConfigOption opt;
     opt.metaServerOpt.chunkserverRPCTimeoutMS = 500;
-    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:6666");
+    opt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:6666");
     opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;

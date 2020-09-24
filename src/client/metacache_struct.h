@@ -25,93 +25,68 @@
 
 #include <atomic>
 #include <string>
-#include <list>
-#include <map>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 #include "include/curve_compiler_specific.h"
 #include "src/client/client_common.h"
 #include "src/common/concurrent/spinlock.h"
 
-using curve::common::SpinLock;
-
 namespace curve {
 namespace client {
 
-static inline bool
-operator==(const ChunkServerAddr& addr1, const ChunkServerAddr& addr2) {
-    return (addr1.addr_ == addr2.addr_);
-}
+using curve::common::SpinLock;
 
 // copyset内的chunkserver节点的基本信息
 // 包含当前chunkserver的id信息，以及chunkserver的地址信息
-typedef struct CURVE_CACHELINE_ALIGNMENT CopysetPeerInfo {
+struct CURVE_CACHELINE_ALIGNMENT CopysetPeerInfo {
     // 当前chunkserver节点的ID
-    ChunkServerID chunkserverID;
+    ChunkServerID chunkserverID = 0;
     // 当前chunkserver节点的内部地址
     ChunkServerAddr internalAddr;
     // 当前chunkserver节点的外部地址
     ChunkServerAddr externalAddr;
 
-    CopysetPeerInfo() : chunkserverID(0) {
-    }
+    CopysetPeerInfo() = default;
+    CopysetPeerInfo& operator=(const CopysetPeerInfo& other) = default;
 
-    CopysetPeerInfo(const ChunkServerID& cid, const ChunkServerAddr& internal,
+    CopysetPeerInfo(const ChunkServerID& cid,
+                    const ChunkServerAddr& internal,
                     const ChunkServerAddr& external)
-                        : chunkserverID(cid),
-                          internalAddr(internal),
-                          externalAddr(external) {}
+        : chunkserverID(cid), internalAddr(internal), externalAddr(external) {}
 
-    CopysetPeerInfo& operator=(const CopysetPeerInfo& other) {
-        this->chunkserverID = other.chunkserverID;
-        this->internalAddr = other.internalAddr;
-        this->externalAddr = other.externalAddr;
-        return *this;
+    bool operator==(const CopysetPeerInfo& other) const {
+        return this->internalAddr == other.internalAddr &&
+               this->externalAddr == other.externalAddr;
     }
 
-    bool operator==(const CopysetPeerInfo& other) {
-        return this->internalAddr == other.internalAddr
-               && this->externalAddr == other.externalAddr;
+    bool IsEmpty() const {
+        return this->chunkserverID == 0 && this->internalAddr.IsEmpty() &&
+               this->externalAddr.IsEmpty();
     }
-
-    bool IsEmpty() {
-        return this->chunkserverID == 0
-               && this->internalAddr.IsEmpty()
-               && this->externalAddr.IsEmpty();
-    }
-} CopysetPeerInfo_t;
+};
 
 // copyset的基本信息，包含peer信息、leader信息、appliedindex信息
-typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
+struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     // leader存在变更可能标志位
-    bool leaderMayChange_;
+    bool leaderMayChange_ = false;
     // 当前copyset的节点信息
-    std::vector<CopysetPeerInfo_t> csinfos_;
+    std::vector<CopysetPeerInfo> csinfos_;
     // 当前节点的apply信息，在read的时候需要，用来避免读IO进入raft
     std::atomic<uint64_t> lastappliedindex_{0};
     // leader在本copyset信息中的索引，用于后面避免重复尝试同一个leader
-    int16_t     leaderindex_;
+    int16_t leaderindex_ = -1;
     // 当前copyset的id信息
-    CopysetID   cpid_;
+    CopysetID cpid_ = 0;
     // 用于保护对copyset信息的修改
-    SpinLock    spinlock_;
+    SpinLock spinlock_;
 
-    CopysetInfo() {
-        csinfos_.clear();
-        leaderindex_ = -1;
-        lastappliedindex_ = 0;
-        leaderMayChange_ = false;
-    }
-
-    ~CopysetInfo() {
-        csinfos_.clear();
-        leaderindex_ = -1;
-    }
+    CopysetInfo() = default;
+    ~CopysetInfo() = default;
 
     CopysetInfo& operator=(const CopysetInfo& other) {
         this->cpid_ = other.cpid_;
-        this->csinfos_.assign(other.csinfos_.begin(), other.csinfos_.end());
+        this->csinfos_ = other.csinfos_;
         this->leaderindex_ = other.leaderindex_;
         this->lastappliedindex_.store(other.lastappliedindex_);
         this->leaderMayChange_ = other.leaderMayChange_;
@@ -137,7 +112,7 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
         leaderMayChange_ = false;
     }
 
-    bool LeaderMayChange() {
+    bool LeaderMayChange() const {
         return leaderMayChange_;
     }
 
@@ -164,11 +139,11 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     /**
      * 获取当前leader的索引
      */
-    int16_t GetCurrentLeaderIndex() {
+    int16_t GetCurrentLeaderIndex() const {
         return leaderindex_;
     }
 
-    bool GetCurrentLeaderServerID(ChunkServerID* id) {
+    bool GetCurrentLeaderServerID(ChunkServerID* id) const {
         if (leaderindex_ >= 0) {
             if (csinfos_.size() < leaderindex_) {
                 return false;
@@ -186,7 +161,7 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
      * @param: addr为新的leader的地址信息
      */
     int UpdateLeaderInfo(const ChunkServerAddr& addr,
-                         CopysetPeerInfo_t csInfo = CopysetPeerInfo()) {
+                         CopysetPeerInfo csInfo = CopysetPeerInfo()) {
         spinlock_.Lock();
         bool exists = false;
         uint16_t tempindex = 0;
@@ -241,7 +216,7 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     /**
      * 当前CopysetInfo是否合法
      */
-    bool IsValid() {
+    bool IsValid() const {
         return !csinfos_.empty();
     }
 
@@ -266,42 +241,30 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
 
         return false;
     }
-} CopysetInfo_t;
+};
 
-typedef struct CopysetIDInfo {
-    LogicPoolID lpid;
-    CopysetID   cpid;
+struct CopysetIDInfo {
+    LogicPoolID lpid = 0;
+    CopysetID cpid = 0;
 
-    CopysetIDInfo(LogicPoolID logicpoolid, CopysetID copysetid) {
-        lpid = logicpoolid;
-        cpid = copysetid;
-    }
+    CopysetIDInfo(LogicPoolID logicpoolid, CopysetID copysetid)
+        : lpid(logicpoolid), cpid(copysetid) {}
 
-    CopysetIDInfo(const CopysetIDInfo& other) {
-        lpid = other.lpid;
-        cpid = other.cpid;
-    }
+    CopysetIDInfo(const CopysetIDInfo& other) = default;
+    CopysetIDInfo& operator=(const CopysetIDInfo& other) = default;
+};
 
-    CopysetIDInfo& operator=(const CopysetIDInfo& other) {
-        lpid = other.lpid;
-        cpid = other.cpid;
-        return *this;
-    }
-} CopysetIDInfo_t;
-
-static inline bool
-operator<(const CopysetIDInfo& cpidinfo1, const CopysetIDInfo& cpidinfo2) {
-        return cpidinfo1.lpid <= cpidinfo2.lpid &&
-               cpidinfo1.cpid < cpidinfo2.cpid;
+inline bool operator<(const CopysetIDInfo& cpidinfo1,
+                      const CopysetIDInfo& cpidinfo2) {
+    return cpidinfo1.lpid <= cpidinfo2.lpid && cpidinfo1.cpid < cpidinfo2.cpid;
 }
 
-static inline bool
-operator==(const CopysetIDInfo& cpidinfo1, const CopysetIDInfo& cpidinfo2) {
-    return cpidinfo1.cpid == cpidinfo2.cpid &&
-           cpidinfo1.lpid == cpidinfo2.lpid;
+inline bool operator==(const CopysetIDInfo& cpidinfo1,
+                       const CopysetIDInfo& cpidinfo2) {
+    return cpidinfo1.cpid == cpidinfo2.cpid && cpidinfo1.lpid == cpidinfo2.lpid;
 }
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve
 
 #endif  // SRC_CLIENT_METACACHE_STRUCT_H_

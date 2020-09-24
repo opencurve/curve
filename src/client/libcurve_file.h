@@ -36,13 +36,11 @@
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/uuid.h"
 
-using curve::common::BthreadRWLock;
-
 // TODO(tongguangxun) :添加关键函数trace功能
 namespace curve {
 namespace client {
 
-void InitLogging(const std::string& confpath);
+using curve::common::BthreadRWLock;
 
 class LoggerGuard {
  public:
@@ -274,13 +272,10 @@ class FileClient {
  private:
     bool StartDummyServer();
 
-    inline bool CheckAligned(off_t offset, size_t length);
-
-    // 获取一个初始化的FileInstance对象
-    // return: 成功返回指向对象的指针,否则返回nullptr
-    FileInstance* GetInitedFileInstance(const std::string& filename,
-                                        const UserInfo& userinfo,
-                                        bool readonly);
+    bool CheckAligned(off_t offset, size_t length) {
+        return (offset % IO_ALIGNED_BLOCK_SIZE == 0) &&
+               (length % IO_ALIGNED_BLOCK_SIZE == 0);
+    }
 
  private:
     BthreadRWLock rwlock_;
@@ -303,6 +298,8 @@ class FileClient {
     // 挂载文件数量
     bvar::Adder<uint64_t> openedFileNum_;
 };
+
 }  // namespace client
 }  // namespace curve
+
 #endif  // SRC_CLIENT_LIBCURVE_FILE_H_

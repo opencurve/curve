@@ -23,12 +23,12 @@
 #ifndef SRC_CLIENT_REQUEST_SENDER_MANAGER_H_
 #define SRC_CLIENT_REQUEST_SENDER_MANAGER_H_
 
-#include <mutex>    //NOLINT
-#include <unordered_map>
 #include <memory>
+#include <unordered_map>
 
 #include "src/client/client_common.h"
 #include "src/client/config_info.h"
+#include "src/common/concurrent/rw_lock.h"
 #include "src/common/uncopyable.h"
 
 namespace curve {
@@ -44,7 +44,7 @@ class RequestSender;
 class RequestSenderManager : public Uncopyable {
  public:
     using SenderPtr = std::shared_ptr<RequestSender>;
-    RequestSenderManager() : lock_(), senderPool_() {}
+    RequestSenderManager() : rwlock_(), senderPool_() {}
 
     /**
      * 获取指定leader id的sender，如果没有则根据leader
@@ -53,9 +53,9 @@ class RequestSenderManager : public Uncopyable {
      * @param leaderAddr:leader的地址
      * @return nullptr:get或者create失败，否则成功
      */
-    SenderPtr GetOrCreateSender(const ChunkServerID &leaderId,
-                                const butil::EndPoint &leaderAddr,
-                                IOSenderOption_t senderopt);
+    SenderPtr GetOrCreateSender(const ChunkServerID& leaderId,
+                                const butil::EndPoint& leaderAddr,
+                                const IOSenderOption& senderopt);
 
     /**
      * @brief 如果csId对应的RequestSender不健康，就进行重置
@@ -64,8 +64,8 @@ class RequestSenderManager : public Uncopyable {
     void ResetSenderIfNotHealth(const ChunkServerID& csId);
 
  private:
-    // 互斥锁，保护senderPool_
-    mutable std::mutex lock_;
+    // 读写锁，保护senderPool_
+    curve::common::BthreadRWLock rwlock_;
     // 请求发送链接的map，以ChunkServer ID为key
     std::unordered_map<ChunkServerID, SenderPtr> senderPool_;
 };

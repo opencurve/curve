@@ -16,6 +16,8 @@ request.rpcHostDownRetryIntervalUs={{ nebd_client_rpc_hostdown_retry_inverval_us
 request.rpcHealthCheckIntervalS={{ nebd_client_health_check_internal_s }}
 # brpc从rpc失败到进行健康检查的最大时间间隔，单位ms
 request.rpcMaxDelayHealthCheckIntervalMs={{ nebd_client_delay_health_check_internal_ms }}
+# rpc发送执行队列个数
+request.rpcSendExecQueueNum={{ nebd_client_rpc_send_exec_queue_num }}
 
 # heartbeat间隔
 heartbeat.intervalS={{ nebd_client_heartbeat_inverval_s }}

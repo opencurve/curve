@@ -42,7 +42,7 @@ int CloneManager::Run() {
         return 0;
     // 启动线程池
     LOG(INFO) << "Begin to run clone manager.";
-    tp_ = std::make_shared<TaskThreadPool>();
+    tp_ = std::make_shared<TaskThreadPool<>>();
     int ret = tp_->Start(options_.threadNum, options_.queueCapacity);
     if (ret < 0) {
         LOG(ERROR) << "clone manager start error."

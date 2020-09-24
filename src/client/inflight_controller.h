@@ -25,23 +25,23 @@
 
 #include "src/common/concurrent/concurrent.h"
 
+namespace curve {
+namespace client {
+
 using curve::common::Mutex;
 using curve::common::ConditionVariable;
 
-namespace curve {
-namespace client {
 class InflightControl {
  public:
-    InflightControl() {
-        curInflightIONum_.store(0);
-    }
+    InflightControl() = default;
 
     void SetMaxInflightNum(uint64_t maxInflightNum) {
         maxInflightNum_ = maxInflightNum;
     }
 
     /**
-     * 调用该接口等待inflight全部回来，这段期间是hang的
+     * @brief 调用该接口等待inflight全部回来，这段期间是hang的,
+     *        在close文件时调用
      */
     void WaitInflightAllComeBack() {
         LOG(INFO) << "wait inflight to complete, count = " << curInflightIONum_;
@@ -53,33 +53,36 @@ class InflightControl {
     }
 
     /**
-     * 调用该接口等待inflight回来，这段期间是hang的
+     * @brief 调用该接口等待inflight回来，这段期间是hang的
      */
     void WaitInflightComeBack() {
-        if (curInflightIONum_.load() >= maxInflightNum_) {
+        if (curInflightIONum_.load(std::memory_order_acquire) >=
+            maxInflightNum_) {
             std::unique_lock<Mutex> lk(inflightComeBackmtx_);
             inflightComeBackcv_.wait(lk, [this]() {
-                return curInflightIONum_.load() < maxInflightNum_;
+                return curInflightIONum_.load(std::memory_order_acquire) <
+                       maxInflightNum_;
             });
         }
     }
 
     /**
-     * 递增inflight num
+     * @brief 递增inflight num
      */
     void IncremInflightNum() {
         curInflightIONum_.fetch_add(1, std::memory_order_release);
     }
 
     /**
-     * 递减inflight num
+     * @brief 递减inflight num
      */
     void DecremInflightNum() {
         std::lock_guard<Mutex> lk(inflightComeBackmtx_);
         {
             std::lock_guard<Mutex> lk(inflightAllComeBackmtx_);
-            curInflightIONum_.fetch_sub(1, std::memory_order_release);
-            if (curInflightIONum_.load() == 0) {
+            const auto cnt =
+                curInflightIONum_.fetch_sub(1, std::memory_order_acq_rel);
+            if (cnt == 1) {
                 inflightAllComeBackcv_.notify_all();
             }
         }
@@ -106,13 +109,17 @@ class InflightControl {
         DecremInflightNum();
     }
 
+    /**
+     * @brief Get current inflight io num, only use in test code
+     */
     uint64_t GetCurrentInflightNum() const {
-        return curInflightIONum_;
+        return curInflightIONum_.load(std::memory_order_acquire);
     }
 
  private:
-    uint64_t              maxInflightNum_;
-    std::atomic<uint64_t> curInflightIONum_;
+    uint64_t              maxInflightNum_ = 0;
+    std::atomic<uint64_t> curInflightIONum_{0};
+
     Mutex                 inflightComeBackmtx_;
     ConditionVariable     inflightComeBackcv_;
     Mutex                 inflightAllComeBackmtx_;

@@ -41,36 +41,15 @@
 extern std::string mdsMetaServerAddr;
 extern std::string configpath;
 
-using curve::client::MDSClient;
-using curve::client::UserInfo_t;
-using curve::client::ClientConfig;
-using curve::client::FileClient;
-using curve::client::FileInstance;
-using curve::client::SegmentInfo;
-using curve::client::ChunkInfoDetail;
-using curve::client::SnapshotClient;
-using curve::client::ChunkID;
-using curve::client::LogicPoolID;
-using curve::client::CopysetID;
-using curve::client::ChunkIDInfo_t;
-using curve::client::CopysetInfo_t;
-using curve::client::MetaCache;
-using curve::client::IOManager4Chunk;
-using curve::client::LogicalPoolCopysetIDInfo;
-using curve::client::FileMetric;
-
-/*
-void sessioncallback(CurveAioContext* aioctx) {
-    ASSERT_EQ(-LIBCURVE_ERROR::DISABLEIO, aioctx->ret);
-}
-*/
+namespace curve {
+namespace client {
 
 class CurveClientUserAuthFail : public ::testing::Test {
  public:
     void SetUp() {
-        metaopt.metaaddrvec.push_back("127.0.0.1:9104");
+        metaopt.mdsAddrs.push_back("127.0.0.1:9104");
 
-        metaopt.metaaddrvec.push_back("127.0.0.1:9104");
+        metaopt.mdsAddrs.push_back("127.0.0.1:9104");
         metaopt.mdsRPCTimeoutMs = 500;
         metaopt.mdsRPCRetryIntervalUS = 200;
 
@@ -96,7 +75,7 @@ class CurveClientUserAuthFail : public ::testing::Test {
     }
 
     brpc::Server        server;
-    MetaServerOption_t  metaopt;
+    MetaServerOption  metaopt;
     FakeMDSCurveFSService curvefsservice;
     FakeMDSTopologyService topologyservice;
 };
@@ -235,9 +214,9 @@ TEST_F(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
 }
 
 TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
-    ClientConfigOption_t opt;
+    ClientConfigOption opt;
     opt.metaServerOpt.mdsRPCTimeoutMs = 500;
-    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
+    opt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9104");
     opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
@@ -369,9 +348,9 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
 
 // root user测试
 TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
-    ClientConfigOption_t opt;
+    ClientConfigOption opt;
     opt.metaServerOpt.mdsRPCTimeoutMs = 500;
-    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
+    opt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9104");
     opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
@@ -503,3 +482,6 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     delete listfakeret;
     delete delfakeret;
 }
+
+}  // namespace client
+}  // namespace curve

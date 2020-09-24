@@ -24,7 +24,6 @@
 
 #include <butil/iobuf.h>
 
-#include <set>
 #include <atomic>
 #include <string>
 #include <vector>

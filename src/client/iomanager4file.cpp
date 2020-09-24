@@ -20,7 +20,6 @@
  * Author: tongguangxun
  */
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include <chrono>   // NOLINT
@@ -38,7 +37,7 @@ IOManager4File::IOManager4File(): scheduler_(nullptr), exit_(false) {
 }
 
 bool IOManager4File::Initialize(const std::string& filename,
-                                const IOOption_t& ioOpt,
+                                const IOOption& ioOpt,
                                 MDSClient* mdsclient) {
     ioopt_ = ioOpt;
 

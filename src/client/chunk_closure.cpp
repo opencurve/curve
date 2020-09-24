@@ -22,75 +22,27 @@
 
 #include "src/client/chunk_closure.h"
 
-#include <cmath>
 #include <string>
 #include <memory>
-#include <cstdlib>
 #include <algorithm>
 
 #include "src/client/client_common.h"
-#include "src/client/request_sender.h"
-#include "src/client/request_sender_manager.h"
 #include "src/client/copyset_client.h"
 #include "src/client/metacache.h"
 #include "src/client/request_closure.h"
 #include "src/client/request_context.h"
+#include "src/client/service_helper.h"
 #include "src/client/io_tracker.h"
 
 // TODO(tongguangxun) :优化重试逻辑，将重试逻辑与RPC返回逻辑拆开
 namespace curve {
 namespace client {
+
 ClientClosure::BackoffParam  ClientClosure::backoffParam_;
-FailureRequestOption_t  ClientClosure::failReqOpt_;
-
-UnstableState UnstableHelper::GetCurrentUnstableState(
-    ChunkServerID csId,
-    const butil::EndPoint& csEndPoint) {
-
-    std::string ip = butil::ip2str(csEndPoint.ip).c_str();
-
-    lock_.Lock();
-    // 如果当前ip已经超过阈值，则直接返回chunkserver unstable
-    int unstabled = serverUnstabledChunkservers_[ip].size();
-    if (unstabled >= option_.serverUnstableThreshold) {
-        serverUnstabledChunkservers_[ip].emplace(csId);
-        lock_.UnLock();
-        return UnstableState::ChunkServerUnstable;
-    }
-
-    bool exceed =
-        timeoutTimes_[csId] > option_.maxStableChunkServerTimeoutTimes;
-    lock_.UnLock();
-
-    if (exceed == false) {
-        return UnstableState::NoUnstable;
-    }
-
-    bool health = CheckChunkServerHealth(csEndPoint);
-    if (health) {
-        ClearTimeout(csId, csEndPoint);
-        return UnstableState::NoUnstable;
-    }
-
-    lock_.Lock();
-    auto ret = serverUnstabledChunkservers_[ip].emplace(csId);
-    unstabled = serverUnstabledChunkservers_[ip].size();
-    lock_.UnLock();
-
-    if (ret.second && unstabled == option_.serverUnstableThreshold) {
-        return UnstableState::ServerUnstable;
-    } else {
-        return UnstableState::ChunkServerUnstable;
-    }
-}
+FailureRequestOption  ClientClosure::failReqOpt_;
 
 void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
-    RequestClosure *reqDone = dynamic_cast<RequestClosure *>(done_);
-
-    RequestContext *reqCtx = reqDone->GetReqCtx();
-    LogicPoolID logicPoolId = reqCtx->idinfo_.lpid_;
-    CopysetID copysetId = reqCtx->idinfo_.cpid_;
-    ChunkID chunkid = reqCtx->idinfo_.cid_;
+    RequestClosure* reqDone = static_cast<RequestClosure*>(done_);
 
     // 如果对应的cooysetId leader可能发生变更
     // 那么设置这次重试请求超时时间为默认值
@@ -103,7 +55,7 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
         uint64_t nextTimeout = 0;
         uint64_t retriedTimes = reqDone->GetRetriedTimes();
         bool leaderMayChange = metaCache_->IsLeaderMayChange(
-            logicPoolId, copysetId);
+            chunkIdInfo_.lpid_, chunkIdInfo_.cpid_);
 
         // 当某一个IO重试超过一定次数后，超时时间一定进行指数退避
         // 当底层chunkserver压力大时，可能也会触发unstable
@@ -120,27 +72,29 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
 
         reqDone->SetNextTimeOutMS(nextTimeout);
         LOG(WARNING) << "rpc timeout, next timeout = " << nextTimeout
-                  << ", " << *reqCtx
+                  << ", " << *reqCtx_
                   << ", retried times = " << reqDone->GetRetriedTimes()
                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
-                  << ", request id = " << reqCtx->id_
-                  << ", remote side = " << remoteAddress_;
+                  << ", request id = " << reqCtx_->id_
+                  << ", remote side = "
+                  << butil::endpoint2str(cntl_->remote_side()).c_str();
         return;
     }
 
     if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD) {
         uint64_t nextsleeptime = OverLoadBackOff(reqDone->GetRetriedTimes());
         LOG(WARNING) << "chunkserver overload, sleep(us) = " << nextsleeptime
-                  << ", " << *reqCtx
+                  << ", " << *reqCtx_
                   << ", retried times = " << reqDone->GetRetriedTimes()
                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
-                  << ", request id = " << reqCtx->id_
-                  << ", remote side = " << remoteAddress_;
+                  << ", request id = " << reqCtx_->id_
+                  << ", remote side = "
+                  << butil::endpoint2str(cntl_->remote_side()).c_str();
         bthread_usleep(nextsleeptime);
         return;
     }
 
-    auto nextSleepUS = 0;
+    uint64_t nextSleepUS = 0;
 
     if (!retryDirectly_) {
         nextSleepUS = failReqOpt_.chunkserverOPRetryIntervalUS;
@@ -153,14 +107,15 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
         << "Rpc failed "
         << (retryDirectly_ ? "retry directly, "
                            : "sleep " + std::to_string(nextSleepUS) + " us, ")
-        << *reqCtx << ", cntl status = " << cntlstatus
+        << *reqCtx_ << ", cntl status = " << cntlstatus
         << ", response status = "
         << curve::chunkserver::CHUNK_OP_STATUS_Name(
                static_cast<curve::chunkserver::CHUNK_OP_STATUS>(rpcstatus))
         << ", retried times = " << reqDone->GetRetriedTimes()
         << ", IO id = " << reqDone->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx->id_
-        << ", remote side = " << remoteAddress_;
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = "
+        << butil::endpoint2str(cntl_->remote_side()).c_str();
 
     if (nextSleepUS != 0) {
         bthread_usleep(nextSleepUS);
@@ -168,29 +123,31 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
 }
 
 uint64_t ClientClosure::OverLoadBackOff(uint64_t currentRetryTimes) {
-    uint64_t curpowTime = std::min(currentRetryTimes,
-                          backoffParam_.maxOverloadPow);
+    uint64_t curpowTime =
+        std::min(currentRetryTimes, backoffParam_.maxOverloadPow);
 
-    uint64_t nextsleeptime = failReqOpt_.chunkserverOPRetryIntervalUS
-                           * std::pow(2, curpowTime);
+    uint64_t nextsleeptime =
+        failReqOpt_.chunkserverOPRetryIntervalUS * (1 << curpowTime);
 
-    int random_time = std::rand() % (nextsleeptime/5 + 1);
-    random_time -= nextsleeptime/10;
+    // 20 percent jitter
+    uint64_t random_time = std::rand() % (nextsleeptime / 5 + 1);
+    random_time -= nextsleeptime / 10;
     nextsleeptime += random_time;
 
-    nextsleeptime = std::min(nextsleeptime, failReqOpt_.chunkserverMaxRetrySleepIntervalUS);   // NOLINT
-    nextsleeptime = std::max(nextsleeptime, failReqOpt_.chunkserverOPRetryIntervalUS);   // NOLINT
+    nextsleeptime = std::min(nextsleeptime, failReqOpt_.chunkserverMaxRetrySleepIntervalUS);  // NOLINT
+    nextsleeptime = std::max(nextsleeptime, failReqOpt_.chunkserverOPRetryIntervalUS);        // NOLINT
 
     return nextsleeptime;
 }
 
 uint64_t ClientClosure::TimeoutBackOff(uint64_t currentRetryTimes) {
-    uint64_t curpowTime = std::min(currentRetryTimes,
-                          backoffParam_.maxTimeoutPow);
+    uint64_t curpowTime =
+        std::min(currentRetryTimes, backoffParam_.maxTimeoutPow);
 
-    uint64_t nextTimeout = failReqOpt_.chunkserverRPCTimeoutMS
-                         * std::pow(2, curpowTime);
-    nextTimeout = std::min(nextTimeout, failReqOpt_.chunkserverMaxRPCTimeoutMS);   // NOLINT
+    uint64_t nextTimeout =
+        failReqOpt_.chunkserverRPCTimeoutMS * (1 << curpowTime);
+
+    nextTimeout = std::min(nextTimeout, failReqOpt_.chunkserverMaxRPCTimeoutMS);
     nextTimeout = std::max(nextTimeout, failReqOpt_.chunkserverRPCTimeoutMS);
 
     return nextTimeout;
@@ -206,13 +163,12 @@ void ClientClosure::Run() {
     brpc::ClosureGuard doneGuard(done_);
 
     metaCache_ = client_->GetMetaCache();
-    reqDone_ = dynamic_cast<RequestClosure*>(done_);
+    reqDone_ = static_cast<RequestClosure*>(done_);
     fileMetric_ = reqDone_->GetMetric();
     reqCtx_ = reqDone_->GetReqCtx();
     chunkIdInfo_ = reqCtx_->idinfo_;
     status_ = -1;
     cntlstatus_ = cntl_->ErrorCode();
-    remoteAddress_ = butil::endpoint2str(cntl_->remote_side()).c_str();
 
     bool needRetry = false;
 
@@ -221,7 +177,7 @@ void ClientClosure::Run() {
         OnRpcFailed();
     } else {
         // 只要rpc正常返回，就清空超时计数器
-        UnstableHelper::GetInstance().ClearTimeout(
+        metaCache_->GetUnstableHelper().ClearTimeout(
             chunkserverID_, chunkserverEndPoint_);
 
         status_ = GetResponseStatus();
@@ -268,7 +224,8 @@ void ClientClosure::Run() {
                     << ", retried times = " << reqDone_->GetRetriedTimes()
                     << ", IO id = " << reqDone_->GetIOTracker()->GetID()
                     << ", request id = " << reqCtx_->id_
-                    << ", remote side = " << remoteAddress_;
+                    << ", remote side = "
+                    << butil::endpoint2str(cntl_->remote_side()).c_str();
             }
             break;
 
@@ -287,7 +244,8 @@ void ClientClosure::Run() {
                 << ", retried times = " << reqDone_->GetRetriedTimes()
                 << ", IO id = " << reqDone_->GetIOTracker()->GetID()
                 << ", request id = " << reqCtx_->id_
-                << ", remote side = " << remoteAddress_;
+                << ", remote side = "
+                << butil::endpoint2str(cntl_->remote_side()).c_str();
         }
     }
 
@@ -305,7 +263,7 @@ void ClientClosure::OnRpcFailed() {
     // 如果连接失败，再等一定时间再重试
     if (cntlstatus_ == brpc::ERPCTIMEDOUT) {
         // 如果RPC超时, 对应的chunkserver超时请求次数+1
-        UnstableHelper::GetInstance().IncreTimeout(chunkserverID_);
+        metaCache_->GetUnstableHelper().IncreTimeout(chunkserverID_);
         MetricHelper::IncremTimeOutRPCCount(fileMetric_, reqCtx_->optype_);
     }
 
@@ -317,7 +275,8 @@ void ClientClosure::OnRpcFailed() {
         << ", retried times = " << reqDone_->GetRetriedTimes()
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
         << ", request id = " << reqCtx_->id_
-        << ", remote side = " << remoteAddress_;
+        << ", remote side = "
+        << butil::endpoint2str(cntl_->remote_side()).c_str();
 
     // it will be invoked in brpc's bthread
     if (reqCtx_->optype_ == OpType::WRITE) {
@@ -329,8 +288,9 @@ void ClientClosure::OnRpcFailed() {
 }
 
 void ClientClosure::ProcessUnstableState() {
-    UnstableState state = UnstableHelper::GetInstance().GetCurrentUnstableState(
-        chunkserverID_, chunkserverEndPoint_);
+    UnstableState state =
+        metaCache_->GetUnstableHelper().GetCurrentUnstableState(
+            chunkserverID_, chunkserverEndPoint_);
 
     switch (state) {
     case UnstableState::ServerUnstable: {
@@ -359,7 +319,7 @@ void ClientClosure::ProcessUnstableState() {
 void ClientClosure::OnSuccess() {
     reqDone_->SetFailed(0);
 
-    auto duration = TimeUtility::GetTimeofDayUs() - reqDone_->GetStartTime();
+    auto duration = cntl_->latency_us();
     MetricHelper::LatencyRecord(fileMetric_, duration, reqCtx_->optype_);
     MetricHelper::IncremRPCQPSCount(
         fileMetric_, reqCtx_->rawlength_, reqCtx_->optype_);
@@ -374,9 +334,10 @@ void ClientClosure::OnChunkNotExist() {
         << ", retried times = " << reqDone_->GetRetriedTimes()
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
         << ", request id = " << reqCtx_->id_
-        << ", remote side = " << remoteAddress_;
+        << ", remote side = "
+        << butil::endpoint2str(cntl_->remote_side()).c_str();
 
-    auto duration = TimeUtility::GetTimeofDayUs() - reqDone_->GetStartTime();
+    auto duration = cntl_->latency_us();
     MetricHelper::LatencyRecord(fileMetric_, duration, reqCtx_->optype_);
     MetricHelper::IncremRPCQPSCount(
         fileMetric_, reqCtx_->rawlength_, reqCtx_->optype_);
@@ -391,7 +352,8 @@ void ClientClosure::OnChunkExist() {
         << ", retried times = " << reqDone_->GetRetriedTimes()
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
         << ", request id = " << reqCtx_->id_
-        << ", remote side = " << remoteAddress_;
+        << ", remote side = "
+        << butil::endpoint2str(cntl_->remote_side()).c_str();
 }
 
 void ClientClosure::OnRedirected() {
@@ -403,7 +365,8 @@ void ClientClosure::OnRedirected() {
         << ", request id = " << reqCtx_->id_
         << ", redirect leader is "
         << (response_->has_redirect() ? response_->redirect() : "empty")
-        << ", remote side = " << remoteAddress_;
+        << ", remote side = "
+        << butil::endpoint2str(cntl_->remote_side()).c_str();
 
     if (response_->has_redirect()) {
         int ret = UpdateLeaderWithRedirectInfo(response_->redirect());
@@ -422,7 +385,8 @@ void ClientClosure::OnCopysetNotExist() {
         << ", retried times = " << reqDone_->GetRetriedTimes()
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
         << ", request id = " << reqCtx_->id_
-        << ", remote side = " << remoteAddress_;
+        << ", remote side = "
+        << butil::endpoint2str(cntl_->remote_side()).c_str();
 
     RefreshLeader();
 }
@@ -484,7 +448,8 @@ void ClientClosure::OnBackward() {
         << ", retried times = " << reqDone_->GetRetriedTimes()
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
         << ", request id = " << reqCtx_->id_
-        << ", remote side = " << remoteAddress_;
+        << ", remote side = "
+        << butil::endpoint2str(cntl_->remote_side()).c_str();
 
     reqCtx_->seq_ = latestSn;
 }
@@ -497,7 +462,8 @@ void ClientClosure::OnInvalidRequest() {
         << ", retried times = " << reqDone_->GetRetriedTimes()
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
         << ", request id = " << reqCtx_->id_
-        << ", remote side = " << remoteAddress_;
+        << ", remote side = "
+        << butil::endpoint2str(cntl_->remote_side()).c_str();
     MetricHelper::IncremFailRPCCount(fileMetric_, reqCtx_->optype_);
 }
 
@@ -591,7 +557,8 @@ void GetChunkInfoClosure::OnRedirected() {
         << ", redirect leader is "
         << (chunkinforesponse_->has_redirect() ? chunkinforesponse_->redirect()
                                                : "empty")
-        << ", remote side = " << remoteAddress_;
+        << ", remote side = "
+        << butil::endpoint2str(cntl_->remote_side()).c_str();
 
     if (chunkinforesponse_->has_redirect()) {
         int ret = UpdateLeaderWithRedirectInfo(chunkinforesponse_->redirect());

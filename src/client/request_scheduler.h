@@ -61,7 +61,7 @@ class RequestScheduler : public Uncopyable {
      * @param: metacache为meta信息
      * @param: filematric为文件的metric信息
      */
-    virtual int Init(const RequestScheduleOption_t& reqSchdulerOpt,
+    virtual int Init(const RequestScheduleOption& reqSchdulerOpt,
                      MetaCache *metaCache,
                      FileMetric* fileMetric = nullptr);
     /**
@@ -109,9 +109,9 @@ class RequestScheduler : public Uncopyable {
      * 后续的IO调度会被阻塞
      */
     void LeaseTimeoutBlockIO() {
-       std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
-       blockIO_.store(true);
-       client_.StartRecycleRetryRPC();
+        std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
+        blockIO_.store(true);
+        client_.StartRecycleRetryRPC();
     }
 
     /**
@@ -119,17 +119,17 @@ class RequestScheduler : public Uncopyable {
      * IO调度被恢复
      */
     void RefeshSuccAndResumeIO() {
-       std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
-       blockIO_.store(false);
-       leaseRefreshcv_.notify_all();
-       client_.ResumeRPCRetry();
+        std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
+        blockIO_.store(false);
+        leaseRefreshcv_.notify_all();
+        client_.ResumeRPCRetry();
     }
 
     /**
      * 测试使用，获取队列
      */
-    BoundedBlockingDeque<BBQItem<RequestContext *>>* GetQueue() {
-       return &queue_;
+    BoundedBlockingDeque<BBQItem<RequestContext*>>* GetQueue() {
+        return &queue_;
     }
 
  private:
@@ -138,19 +138,21 @@ class RequestScheduler : public Uncopyable {
      */
     void Process();
 
-    inline void WaitValidSession() {
-      // lease续约失败的时候需要阻塞IO直到续约成功
-      if (blockIO_.load(std::memory_order_acquire) && blockingQueue_) {
-         std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
-         leaseRefreshcv_.wait(lk, [&]()->bool{
-               return !blockIO_.load() || !blockingQueue_;
-         });
-      }
+    void ProcessOne(RequestContext* ctx);
+
+    void WaitValidSession() {
+        // lease续约失败的时候需要阻塞IO直到续约成功
+        if (blockIO_.load(std::memory_order_acquire) && blockingQueue_) {
+            std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
+            leaseRefreshcv_.wait(lk, [&]() -> bool {
+                return !blockIO_.load() || !blockingQueue_;
+            });
+        }
     }
 
  private:
     // 线程池和queue容量的配置参数
-    RequestScheduleOption_t reqschopt_;
+    RequestScheduleOption reqschopt_;
     // 存放 request 的队列
     BoundedBlockingDeque<BBQItem<RequestContext *>> queue_;
     // 处理 request 的线程池

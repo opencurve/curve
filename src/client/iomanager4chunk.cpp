@@ -30,7 +30,7 @@ namespace client {
 IOManager4Chunk::IOManager4Chunk() {
 }
 
-bool IOManager4Chunk::Initialize(IOOption_t ioOpt, MDSClient* mdsclient) {
+bool IOManager4Chunk::Initialize(IOOption ioOpt, MDSClient* mdsclient) {
     ioopt_ = ioOpt;
     mc_.Init(ioopt_.metaCacheOpt, mdsclient);
     Splitor::Init(ioopt_.ioSplitOpt);

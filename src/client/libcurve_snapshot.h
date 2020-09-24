@@ -23,13 +23,9 @@
 #ifndef SRC_CLIENT_LIBCURVE_SNAPSHOT_H_
 #define SRC_CLIENT_LIBCURVE_SNAPSHOT_H_
 
-#include <unistd.h>
-
 #include <map>
 #include <string>
-#include <atomic>
 #include <vector>
-#include <unordered_map>
 
 #include "src/client/mds_client.h"
 #include "src/client/config_info.h"
@@ -48,7 +44,7 @@ class SnapshotClient {
    * @param: opt为外围配置选项
    * @return：0为成功，-1为失败
    */
-  int Init(ClientConfigOption_t opt);
+  int Init(ClientConfigOption opt);
 
   /**
    * file对象初始化函数

@@ -205,7 +205,7 @@ class CopysetNodeManager : public curve::common::Uncopyable {
     // 复制组配置选项
     CopysetNodeOptions copysetNodeOptions_;
     // 控制copyset并发启动的数量
-    std::shared_ptr<TaskThreadPool> copysetLoader_;
+    std::shared_ptr<TaskThreadPool<>> copysetLoader_;
     // 表示copyset node manager当前是否正在运行
     Atomic<bool> running_;
     // 表示copyset node manager当前是否已经完成加载

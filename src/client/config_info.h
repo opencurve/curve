@@ -27,29 +27,26 @@
 #include <string>
 #include <vector>
 
+namespace curve {
+namespace client {
+
 /**
  * log的基本配置信息
  * @logLevel: 是log打印等级
  * @logPath: log打印位置
  */
-typedef struct LogInfo {
-    int         logLevel;
+struct LogInfo {
+    int logLevel = 2;
     std::string logPath;
-    LogInfo() {
-        logLevel = 2;
-    }
-} LogInfo_t;
+};
 
 /**
  * in flight IO控制信息
  * @fileMaxInFlightRPCNum: 为一个文件中最大允许的inflight IO数量
  */
-typedef struct InFlightIOCntlInfo {
-    uint64_t    fileMaxInFlightRPCNum;
-    InFlightIOCntlInfo() {
-        fileMaxInFlightRPCNum = 2048;
-    }
-} InFlightIOCntlInfo_t;
+struct InFlightIOCntlInfo {
+    uint64_t fileMaxInFlightRPCNum = 2048;
+};
 
 /**
  * mds client的基本配置
@@ -62,23 +59,16 @@ typedef struct InFlightIOCntlInfo {
  *                      mds重试，不会立即重试请求，而是选择睡眠一小段时间之后再去发RPC。
  * @mdsMaxFailedTimesBeforeChangeMDS: 如果重试的rpc在一个mds节点上连续失败超过该值
  *                       就需要主动触发切换mds再重试。
- * @metaaddrvec: mds server地址，存放mds集群的多个地址信息
+ * @mdsAddrs: mds server地址，存放mds集群的多个地址信息
  */
-typedef struct MetaServerOption {
-    uint64_t mdsMaxRetryMS;
-    uint64_t mdsRPCTimeoutMs;
-    uint64_t mdsMaxRPCTimeoutMS;
-    uint32_t mdsRPCRetryIntervalUS;
-    uint32_t mdsMaxFailedTimesBeforeChangeMDS;
-    std::vector<std::string> metaaddrvec;
-    MetaServerOption() {
-        mdsMaxRetryMS = 8000;
-        mdsMaxRPCTimeoutMS = 2000;
-        mdsRPCTimeoutMs = 500;
-        mdsRPCRetryIntervalUS = 50000;
-        mdsMaxFailedTimesBeforeChangeMDS = 5;
-    }
-} MetaServerOption_t;
+struct MetaServerOption {
+    uint64_t mdsMaxRetryMS = 8000;
+    uint64_t mdsMaxRPCTimeoutMS = 2000;
+    uint64_t mdsRPCTimeoutMs = 500;
+    uint32_t mdsRPCRetryIntervalUS = 50000;
+    uint32_t mdsMaxFailedTimesBeforeChangeMDS = 5;
+    std::vector<std::string> mdsAddrs;
+};
 
 /**
  * 租约基本配置
@@ -88,12 +78,9 @@ typedef struct MetaServerOption {
  *                           那么client认为当前mds存在异常，会阻塞后续的IO，直到
  *                           续约成功。
  */
-typedef struct LeaseOption {
-    uint32_t mdsRefreshTimesPerLease;
-    LeaseOption() {
-        mdsRefreshTimesPerLease = 5;
-    }
-} LeaseOption_t;
+struct LeaseOption {
+    uint32_t mdsRefreshTimesPerLease = 5;
+};
 
 /**
  * rpc超时，判断是否unstable的参数
@@ -107,9 +94,9 @@ typedef struct LeaseOption {
  *     整个server上的所有chunkserver都标记为unstable
  */
 struct ChunkServerUnstableOption {
-    uint32_t maxStableChunkServerTimeoutTimes{64};
-    uint32_t checkHealthTimeoutMS{100};
-    uint32_t serverUnstableThreshold{3};
+    uint32_t maxStableChunkServerTimeoutTimes = 64;
+    uint32_t checkHealthTimeoutMS = 100;
+    uint32_t serverUnstableThreshold = 3;
 };
 
 /**
@@ -144,26 +131,15 @@ struct ChunkServerUnstableOption {
  *                          失败超过该阈值的时候，可以认为当前IO处于悬挂状态，通过metric
  *                          向上报警。
  */
-typedef struct FailureRequestOption {
-    uint32_t chunkserverOPMaxRetry;
-    uint64_t chunkserverOPRetryIntervalUS;
-    uint64_t chunkserverRPCTimeoutMS;
-    uint64_t chunkserverMaxRPCTimeoutMS;
-    uint64_t chunkserverMaxRetrySleepIntervalUS;
-    uint64_t chunkserverMinRetryTimesForceTimeoutBackoff;
-    uint64_t chunkserverMaxRetryTimesBeforeConsiderSuspend;
-    ChunkServerUnstableOption chunkserverUnstableOption;
-
-    FailureRequestOption() {
-        chunkserverOPMaxRetry = 3;
-        chunkserverOPRetryIntervalUS = 200;
-        chunkserverRPCTimeoutMS = 1000;
-        chunkserverMaxRPCTimeoutMS = 64000;
-        chunkserverMaxRetrySleepIntervalUS = 64 * 1000 * 1000;
-        chunkserverMinRetryTimesForceTimeoutBackoff = 5;
-        chunkserverMaxRetryTimesBeforeConsiderSuspend = 20;
-    }
-} FailureRequestOption_t;
+struct FailureRequestOption {
+    uint32_t chunkserverOPMaxRetry = 3;
+    uint64_t chunkserverOPRetryIntervalUS = 200;
+    uint64_t chunkserverRPCTimeoutMS = 1000;
+    uint64_t chunkserverMaxRPCTimeoutMS = 64000;
+    uint64_t chunkserverMaxRetrySleepIntervalUS = 64ull * 1000 * 1000;
+    uint64_t chunkserverMinRetryTimesForceTimeoutBackoff = 5;
+    uint64_t chunkserverMaxRetryTimesBeforeConsiderSuspend = 20;
+};
 
 /**
  * 发送rpc给chunkserver的配置
@@ -171,11 +147,11 @@ typedef struct FailureRequestOption {
  * @inflightOpt: 一个文件向chunkserver发送请求时的inflight 请求控制配置
  * @failRequestOpt: rpc发送失败之后，需要进行rpc重试的相关配置
  */
-typedef struct IOSenderOption {
+struct IOSenderOption {
     bool chunkserverEnableAppliedIndexRead;
-    InFlightIOCntlInfo_t inflightOpt;
-    FailureRequestOption_t failRequestOpt;
-} IOSenderOption_t;
+    InFlightIOCntlInfo inflightOpt;
+    FailureRequestOption failRequestOpt;
+};
 
 /**
  * scheduler模块基本配置信息，schedule模块是用于分发用户请求，每个文件有自己的schedule
@@ -183,15 +159,11 @@ typedef struct IOSenderOption {
  * @scheduleQueueCapacity: schedule模块配置的队列深度
  * @scheduleThreadpoolSize: schedule模块线程池大小
  */
-typedef struct RequestScheduleOption {
-    uint32_t scheduleQueueCapacity;
-    uint32_t scheduleThreadpoolSize;
-    IOSenderOption_t ioSenderOpt;
-    RequestScheduleOption() {
-        scheduleQueueCapacity = 1024;
-        scheduleThreadpoolSize = 2;
-    }
-} RequestScheduleOption_t;
+struct RequestScheduleOption {
+    uint32_t scheduleQueueCapacity = 1024;
+    uint32_t scheduleThreadpoolSize = 2;
+    IOSenderOption ioSenderOpt;
+};
 
 /**
  * metaccache模块配置信息
@@ -211,32 +183,23 @@ typedef struct RequestScheduleOption {
  * @metacacheGetLeaderBackupRequestLbName: 为getleader backup rpc
  *                            选择底层服务节点的策略
  */
-typedef struct MetaCacheOption {
-    uint32_t metacacheGetLeaderRetry;
-    uint32_t metacacheRPCRetryIntervalUS;
-    uint32_t metacacheGetLeaderRPCTimeOutMS;
-    uint32_t metacacheGetLeaderBackupRequestMS;
-    std::string metacacheGetLeaderBackupRequestLbName;
-    MetaCacheOption() {
-        metacacheGetLeaderRetry = 3;
-        metacacheRPCRetryIntervalUS = 500;
-        metacacheGetLeaderRPCTimeOutMS = 1000;
-        metacacheGetLeaderBackupRequestMS = 100;
-        metacacheGetLeaderBackupRequestLbName = "rr";
-    }
-} MetaCacheOption_t;
+struct MetaCacheOption {
+    uint32_t metacacheGetLeaderRetry = 3;
+    uint32_t metacacheRPCRetryIntervalUS = 500;
+    uint32_t metacacheGetLeaderRPCTimeOutMS = 1000;
+    uint32_t metacacheGetLeaderBackupRequestMS = 100;
+    std::string metacacheGetLeaderBackupRequestLbName = "rr";
+    ChunkServerUnstableOption chunkserverUnstableOption;
+};
 
 /**
  * IO 拆分模块配置信息
  * @fileIOSplitMaxSizeKB: 用户下发IO大小client没有限制，但是client会将用户的IO进行拆分，
  *                        发向同一个chunkserver的请求锁携带的数据大小不能超过该值。
  */
-typedef struct IOSplitOPtion {
-    uint64_t  fileIOSplitMaxSizeKB;
-    IOSplitOPtion() {
-        fileIOSplitMaxSizeKB = 64;
-    }
-} IOSplitOPtion_t;
+struct IOSplitOption {
+    uint64_t fileIOSplitMaxSizeKB = 64;
+};
 
 /**
  * 线程隔离任务队列配置信息
@@ -245,25 +208,21 @@ typedef struct IOSplitOPtion {
  * @isolationTaskQueueCapacity: 隔离线程池的队列深度
  * @isolationTaskThreadPoolSize: 隔离线程池容量
  */
-typedef struct TaskThreadOption {
-    uint64_t    isolationTaskQueueCapacity;
-    uint32_t    isolationTaskThreadPoolSize;
-    TaskThreadOption() {
-        isolationTaskQueueCapacity = 500000;
-        isolationTaskThreadPoolSize = 1;
-    }
-} TaskThreadOption_t;
+struct TaskThreadOption {
+    uint64_t isolationTaskQueueCapacity = 500000;
+    uint32_t isolationTaskThreadPoolSize = 1;
+};
 
 /**
  * IOOption存储了当前io 操作所需要的所有配置信息
  */
-typedef struct IOOption {
-    IOSplitOPtion_t         ioSplitOpt;
-    IOSenderOption_t        ioSenderOpt;
-    MetaCacheOption_t       metaCacheOpt;
-    TaskThreadOption_t      taskThreadOpt;
-    RequestScheduleOption_t reqSchdulerOpt;
-} IOOption_t;
+struct IOOption {
+    IOSplitOption ioSplitOpt;
+    IOSenderOption ioSenderOpt;
+    MetaCacheOption metaCacheOpt;
+    TaskThreadOption taskThreadOpt;
+    RequestScheduleOption reqSchdulerOpt;
+};
 
 /**
  * client一侧常规的共同的配置信息
@@ -272,30 +231,33 @@ typedef struct IOOption {
  *                    ip和端口信息发送给mds。
  * @turnOffHealthCheck: 是否关闭健康检查
  */
-typedef struct CommonConfigOpt {
-    bool mdsRegisterToMDS{false};
-    bool turnOffHealthCheck{false};
-} CommonConfigOpt_t;
+struct CommonConfigOpt {
+    bool mdsRegisterToMDS = false;
+    bool turnOffHealthCheck = false;
+};
 
 /**
  * ClientConfigOption是外围快照系统需要设置的配置信息
  */
-typedef struct ClientConfigOption {
-    LogInfo_t                  loginfo;
-    IOOption_t                 ioOpt;
-    CommonConfigOpt_t          commonOpt;
-    MetaServerOption_t         metaServerOpt;
-} ClientConfigOption_t;
+struct ClientConfigOption {
+    LogInfo loginfo;
+    IOOption ioOpt;
+    CommonConfigOpt commonOpt;
+    MetaServerOption metaServerOpt;
+};
 
 /**
  * FileServiceOption是QEMU侧总体配置信息
  */
-typedef struct FileServiceOption {
-    LogInfo_t                 loginfo;
-    IOOption_t                ioOpt;
-    LeaseOption_t             leaseOpt;
-    CommonConfigOpt_t         commonOpt;
-    MetaServerOption_t        metaServerOpt;
-} FileServiceOption_t;
+struct FileServiceOption {
+    LogInfo loginfo;
+    IOOption ioOpt;
+    LeaseOption leaseOpt;
+    CommonConfigOpt commonOpt;
+    MetaServerOption metaServerOpt;
+};
+
+}  // namespace client
+}  // namespace curve
 
 #endif  // SRC_CLIENT_CONFIG_INFO_H_

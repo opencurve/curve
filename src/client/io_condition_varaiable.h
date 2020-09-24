@@ -70,6 +70,8 @@ class IOConditionVariable {
     // 条件变量用于等待
     std::condition_variable cv_;
 };
+
 }   // namespace client
 }   // namespace curve
+
 #endif  // SRC_CLIENT_IO_CONDITION_VARAIABLE_H_

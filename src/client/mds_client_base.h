@@ -29,13 +29,16 @@
 #include <string>
 #include <vector>
 
-#include "proto/topology.pb.h"
-#include "proto/nameserver2.pb.h"
 #include "include/client/libcurve.h"
+#include "proto/nameserver2.pb.h"
+#include "proto/topology.pb.h"
 #include "src/client/client_common.h"
 #include "src/client/config_info.h"
-#include "src/common/timeutility.h"
 #include "src/common/authenticator.h"
+#include "src/common/timeutility.h"
+
+namespace curve {
+namespace client {
 
 using curve::common::Authenticator;
 
@@ -88,8 +91,6 @@ using curve::mds::topology::ListChunkServerResponse;
 
 extern const char* kRootUserName;
 
-namespace curve {
-namespace client {
 // MDSClientBase将所有与mds的RPC接口抽离，与业务逻辑解耦
 // 这里只负责rpc的发送，具体的业务处理逻辑通过reponse和controller向上
 // 返回给调用者，有调用者处理
@@ -99,7 +100,7 @@ class MDSClientBase {
      * @param: metaServerOpt为mdsclient的配置信息
      * @return: 成功0， 否则-1
      */
-    int Init(const MetaServerOption_t& metaServerOpt);
+    int Init(const MetaServerOption& metaServerOpt);
 
     /**
      * 打开文件
@@ -142,11 +143,11 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void CloseFile(const std::string& filename,
-                    const UserInfo_t& userinfo,
-                    const std::string& sessionid,
-                    CloseFileResponse* response,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+                   const UserInfo_t& userinfo,
+                   const std::string& sessionid,
+                   CloseFileResponse* response,
+                   brpc::Controller* cntl,
+                   brpc::Channel* channel);
     /**
      * 获取文件信息，fi是出参
      * @param: filename是文件名
@@ -156,10 +157,10 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void GetFileInfo(const std::string& filename,
-                    const UserInfo_t& userinfo,
-                    GetFileInfoResponse* response,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+                     const UserInfo_t& userinfo,
+                     GetFileInfoResponse* response,
+                     brpc::Controller* cntl,
+                     brpc::Channel* channel);
     /**
      * 创建版本号为seq的快照
      * @param: userinfo是用户信息
@@ -169,10 +170,10 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void CreateSnapShot(const std::string& filename,
-                    const UserInfo_t& userinfo,
-                    CreateSnapShotResponse* response,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+                        const UserInfo_t& userinfo,
+                        CreateSnapShotResponse* response,
+                        brpc::Controller* cntl,
+                        brpc::Channel* channel);
     /**
      * 删除版本号为seq的快照
      * @param: userinfo是用户信息
@@ -183,11 +184,11 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void DeleteSnapShot(const std::string& filename,
-                    const UserInfo_t& userinfo,
-                    uint64_t seq,
-                    DeleteSnapShotResponse* response,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+                        const UserInfo_t& userinfo,
+                        uint64_t seq,
+                        DeleteSnapShotResponse* response,
+                        brpc::Controller* cntl,
+                        brpc::Channel* channel);
     /**
      * 以列表的形式获取版本号为seq的snapshot文件信息，snapif是出参
      * @param: filename是要快照的文件名
@@ -198,11 +199,11 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void ListSnapShot(const std::string& filename,
-                    const UserInfo_t& userinfo,
-                    const std::vector<uint64_t>* seq,
-                    ListSnapShotFileInfoResponse* response,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+                      const UserInfo_t& userinfo,
+                      const std::vector<uint64_t>* seq,
+                      ListSnapShotFileInfoResponse* response,
+                      brpc::Controller* cntl,
+                      brpc::Channel* channel);
     /**
      * 获取快照的chunk信息并更新到metacache，segInfo是出参
      * @param: filename是要快照的文件名
@@ -214,12 +215,12 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void GetSnapshotSegmentInfo(const std::string& filename,
-                    const UserInfo_t& userinfo,
-                    uint64_t seq,
-                    uint64_t offset,
-                    GetOrAllocateSegmentResponse* response,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+                                const UserInfo_t& userinfo,
+                                uint64_t seq,
+                                uint64_t offset,
+                                GetOrAllocateSegmentResponse* response,
+                                brpc::Controller* cntl,
+                                brpc::Channel* channel);
 
     /**
      * 文件接口在打开文件的时候需要与mds保持心跳，refresh用来续约
@@ -246,11 +247,11 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void CheckSnapShotStatus(const std::string& filename,
-                    const UserInfo_t& userinfo,
-                    uint64_t seq,
-                    CheckSnapShotStatusResponse* response,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+                             const UserInfo_t& userinfo,
+                             uint64_t seq,
+                             CheckSnapShotStatusResponse* response,
+                             brpc::Controller* cntl,
+                             brpc::Channel* channel);
     /**
      * 获取copysetid对应的serverlist信息并更新到metacache
      * @param: logicPoolId逻辑池信息
@@ -260,10 +261,10 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void GetServerList(const LogicPoolID& logicalpooid,
-                    const std::vector<CopysetID>& copysetidvec,
-                    GetChunkServerListInCopySetsResponse* response,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+                       const std::vector<CopysetID>& copysetidvec,
+                       GetChunkServerListInCopySetsResponse* response,
+                       brpc::Controller* cntl,
+                       brpc::Channel* channel);
 
     /**
      * 获取mds对应的cluster id
@@ -289,9 +290,13 @@ class MDSClientBase {
      */
     void CreateCloneFile(const std::string& source,
                          const std::string& destination,
-                         const UserInfo_t& userinfo, uint64_t size, uint64_t sn,
-                         uint32_t chunksize, CreateCloneFileResponse* response,
-                         brpc::Controller* cntl, brpc::Channel* channel);
+                         const UserInfo_t& userinfo,
+                         uint64_t size,
+                         uint64_t sn,
+                         uint32_t chunksize,
+                         CreateCloneFileResponse* response,
+                         brpc::Controller* cntl,
+                         brpc::Channel* channel);
 
     /**
      * @brief 通知mds完成Clone Meta
@@ -303,13 +308,13 @@ class MDSClientBase {
      * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
      * @param[in]:channel是当前与mds建立的通道
      */
-    void SetCloneFileStatus(const std::string &filename,
-                    const FileStatus& filestatus,
-                    const UserInfo_t& userinfo,
-                    uint64_t fileID,
-                    SetCloneFileStatusResponse* response,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+    void SetCloneFileStatus(const std::string& filename,
+                            const FileStatus& filestatus,
+                            const UserInfo_t& userinfo,
+                            uint64_t fileID,
+                            SetCloneFileStatusResponse* response,
+                            brpc::Controller* cntl,
+                            brpc::Channel* channel);
     /**
      * 获取segment的chunk信息，并更新到Metacache
      * @param: allocate为true的时候mds端发现不存在就分配，为false的时候不分配
@@ -320,11 +325,11 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void GetOrAllocateSegment(bool allocate,
-                    uint64_t offset,
-                    const FInfo_t* fi,
-                    GetOrAllocateSegmentResponse* response,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+                              uint64_t offset,
+                              const FInfo_t* fi,
+                              GetOrAllocateSegmentResponse* response,
+                              brpc::Controller* cntl,
+                              brpc::Channel* channel);
     /**
      * @brief 重名文件
      * @param:userinfo 用户信息
@@ -354,11 +359,11 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void Extend(const std::string& filename,
-                    const UserInfo_t& userinfo,
-                    uint64_t newsize,
-                    ExtendFileResponse* response,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+                const UserInfo_t& userinfo,
+                uint64_t newsize,
+                ExtendFileResponse* response,
+                brpc::Controller* cntl,
+                brpc::Channel* channel);
     /**
      * 删除文件
      * @param: userinfo是用户信息
@@ -386,11 +391,11 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void ChangeOwner(const std::string& filename,
-                    const std::string& newOwner,
-                    const UserInfo_t& userinfo,
-                    ChangeOwnerResponse* response,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+                     const std::string& newOwner,
+                     const UserInfo_t& userinfo,
+                     ChangeOwnerResponse* response,
+                     brpc::Controller* cntl,
+                     brpc::Channel* channel);
     /**
      * 枚举目录内容
      * @param: userinfo是用户信息
@@ -400,10 +405,10 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
       */
     void Listdir(const std::string& dirpath,
-                    const UserInfo_t& userinfo,
-                    ListDirResponse* response,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+                 const UserInfo_t& userinfo,
+                 ListDirResponse* response,
+                 brpc::Controller* cntl,
+                 brpc::Channel* channel);
     /**
      * 获取chunkserverID信息
      * @param[in]: ip为当前client的监听地址
@@ -413,10 +418,10 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void GetChunkServerInfo(const std::string& ip,
-                    uint16_t port,
-                    GetChunkServerInfoResponse* reponse,
-                    brpc::Controller* cntl,
-                    brpc::Channel* channel);
+                            uint16_t port,
+                            GetChunkServerInfoResponse* reponse,
+                            brpc::Controller* cntl,
+                            brpc::Channel* channel);
 
     /**
      * 获取server上的所有chunkserver的id
@@ -425,11 +430,10 @@ class MDSClientBase {
      * @param[in|out]: cntl既是入参也是出参
      * @param[in]: channel是当前与mds建立的通道
      */
-    void ListChunkServerInServer(
-       const std::string& ip,
-       ListChunkServerResponse* response,
-       brpc::Controller* cntl,
-       brpc::Channel* channel);
+    void ListChunkServerInServer(const std::string& ip,
+                                 ListChunkServerResponse* response,
+                                 brpc::Controller* cntl,
+                                 brpc::Channel* channel);
 
  private:
     /**
@@ -445,15 +449,16 @@ class MDSClientBase {
     }
 
  private:
-    inline bool IsRootUserAndHasPassword(const UserInfo& userinfo) const {
-       return userinfo.owner == kRootUserName && !userinfo.password.empty();
+    bool IsRootUserAndHasPassword(const UserInfo& userinfo) const {
+        return userinfo.owner == kRootUserName && !userinfo.password.empty();
     }
 
     std::string CalcSignature(const UserInfo& userinfo, uint64_t date) const;
 
     // 当前模块的初始化option配置
-    MetaServerOption_t metaServerOpt_;
+    MetaServerOption metaServerOpt_;
 };
+
 }   //  namespace client
 }   //  namespace curve
 

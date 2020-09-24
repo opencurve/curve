@@ -16,35 +16,28 @@
 
 /*
  * Project: curve
- * File Created: Tuesday, 23rd October 2018 4:46:29 pm
- * Author: tongguangxun
+ * Created Date: Sun Sep  6 17:13:58 CST 2020
  */
 
-#ifndef SRC_CLIENT_CLIENT_CONFIG_H_
-#define SRC_CLIENT_CLIENT_CONFIG_H_
+#ifndef SRC_COMMON_MATH_UTIL_H_
+#define SRC_COMMON_MATH_UTIL_H_
 
-#include "src/client/config_info.h"
-#include "src/common/configuration.h"
+#include <cmath>
+#include <cstdint>
 
 namespace curve {
-namespace client {
+namespace common {
 
-class ClientConfig {
- public:
-    int Init(const char* configpath);
-
-    FileServiceOption GetFileServiceOption() const {
-        return fileServiceOption_;
+inline uint64_t MaxPowerTimesLessEqualValue(uint64_t value) {
+    uint64_t pow = 0;
+    while (value > 1) {
+        value >>= 1;
+        pow++;
     }
+    return pow;
+}
 
-    uint16_t GetDummyserverStartPort();
-
- private:
-    FileServiceOption fileServiceOption_;
-    common::Configuration conf_;
-};
-
-}  // namespace client
+}  // namespace common
 }  // namespace curve
 
-#endif  // SRC_CLIENT_CLIENT_CONFIG_H_
+#endif  // SRC_COMMON_MATH_UTIL_H_

@@ -25,9 +25,7 @@
 
 #include <bvar/bvar.h>
 
-#include <unistd.h>
 #include <string>
-#include <atomic>
 #include <vector>
 
 #include "src/common/timeutility.h"
@@ -50,6 +48,7 @@ static uint64_t GetUnInt64Value(void* arg) {
 struct IOSuspendMetric {
     // 当前persecond计数总数
     bvar::Adder<uint64_t> count;
+
     IOSuspendMetric(const std::string& prefix, const std::string& name)
         : count(prefix, name + "_total_count") {}
 };
@@ -60,6 +59,7 @@ struct PerSecondMetric {
     bvar::Adder<uint64_t> count;
     // persecond真实数据，这个数据依赖于count
     bvar::PerSecond<bvar::Adder<uint64_t>> value;
+
     PerSecondMetric(const std::string& prefix, const std::string& name)
         : count(prefix, name + "_total_count"),
           value(prefix, name, &count, 1) {}
@@ -94,16 +94,17 @@ struct InterfaceMetric {
 
 // 文件级别metric信息统计
 struct FileMetric {
+    const std::string prefix = "curve_client";
+
     // 当前metric归属于哪个文件
     std::string filename;
-    const std::string prefix = "curve client";
 
     // 当前文件inflight io数量
     bvar::Adder<int64_t> inflightRPCNum;
 
     // 当前文件请求的最大请求字节数，这种统计方式可以很方便的看到最大值，分位值
-    bvar::LatencyRecorder writeSizeRecorder;
     bvar::LatencyRecorder readSizeRecorder;
+    bvar::LatencyRecorder writeSizeRecorder;
 
     // libcurve最底层read rpc接口统计信息metric统计
     InterfaceMetric readRPC;
@@ -121,20 +122,20 @@ struct FileMetric {
 
     explicit FileMetric(const std::string& name)
         : filename(name),
-          userRead(prefix, filename + "_read"),
-          userWrite(prefix, filename + "_write"),
+          inflightRPCNum(prefix, filename + "_inflight_rpc_num"),
+          readSizeRecorder(prefix, filename + "_read_request_size_recoder"),
+          writeSizeRecorder(prefix, filename + "_write_request_size_recoder"),
           readRPC(prefix, filename + "_read_rpc"),
           writeRPC(prefix, filename + "_write_rpc"),
-          inflightRPCNum(prefix, filename + "_inflight_rpc_num"),
+          userRead(prefix, filename + "_read"),
+          userWrite(prefix, filename + "_write"),
           getLeaderRetryQPS(prefix, filename + "_get_leader_retry_rpc"),
-          writeSizeRecorder(prefix, filename + "_write_request_size_recoder"),
-          readSizeRecorder(prefix, filename + "_read_request_size_recoder"),
           suspendRPCMetric(prefix, filename + "_suspend_io_num") {}
 };
 
 // 用于全局mds接口统计信息调用信息统计
 struct MDSClientMetric {
-    const std::string prefix = "curve mds client";
+    const std::string prefix = "curve_mds_client";
 
     // mds的地址信息
     std::string metaserverAddr;
@@ -177,7 +178,6 @@ struct MDSClientMetric {
     MDSClientMetric()
         : metaserverAddress(prefix, "current_metaserver_addr", GetStringValue,
                             &metaserverAddr),
-          mdsServerChangeTimes(prefix, "mds_server_change_times"),
           openFile(prefix, "openFile"),
           createFile(prefix, "createFile"),
           closeFile(prefix, "closeFile"),
@@ -192,20 +192,21 @@ struct MDSClientMetric {
           listDir(prefix, "listDir"),
           registerClient(prefix, "registerClient"),
           getChunkServerId(prefix, "GetChunkServerId"),
-          listChunkserverInServer(prefix, "ListChunkServerInServer") {}
+          listChunkserverInServer(prefix, "ListChunkServerInServer"),
+          mdsServerChangeTimes(prefix, "mds_server_change_times") {}
 };
 
 struct LatencyGuard {
     bvar::LatencyRecorder* latencyRec;
-    uint64_t timeelapse;
+    uint64_t startTimeUs;
+
     explicit LatencyGuard(bvar::LatencyRecorder* latency) {
         latencyRec = latency;
-        timeelapse = TimeUtility::GetTimeofDayUs();
+        startTimeUs = TimeUtility::GetTimeofDayUs();
     }
 
     ~LatencyGuard() {
-        timeelapse = TimeUtility::GetTimeofDayUs() - timeelapse;
-        *latencyRec << timeelapse;
+        *latencyRec << (TimeUtility::GetTimeofDayUs() - startTimeUs);
     }
 };
 

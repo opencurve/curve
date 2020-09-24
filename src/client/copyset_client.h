@@ -24,29 +24,22 @@
 #define SRC_CLIENT_COPYSET_CLIENT_H_
 
 #include <google/protobuf/stubs/callback.h>
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <brpc/channel.h>
 #include <butil/iobuf.h>
 
 #include <string>
 #include <memory>
 
-#include "src/common/concurrent/concurrent.h"
-#include "src/client/client_metric.h"
-#include "src/client/request_context.h"
-#include "src/client/client_common.h"
-#include "src/client/config_info.h"
-#include "src/common/uncopyable.h"
-#include "src/client/request_sender_manager.h"
 #include "include/curve_compiler_specific.h"
-#include "src/client/inflight_controller.h"
+#include "src/client/client_common.h"
+#include "src/client/client_metric.h"
+#include "src/client/config_info.h"
+#include "src/client/request_context.h"
+#include "src/client/request_sender_manager.h"
+#include "src/common/concurrent/concurrent.h"
 
 namespace curve {
 namespace client {
 
-using curve::common::Mutex;
-using curve::common::ConditionVariable;
 using curve::common::Uncopyable;
 using ::google::protobuf::Closure;
 
@@ -57,7 +50,7 @@ class RequestScheduler;
  * 负责管理 ChunkServer 的链接，向上层提供访问
  * 指定 copyset 的 chunk 的 read/write 等接口
  */
-class CopysetClient : public Uncopyable {
+class CopysetClient {
  public:
     CopysetClient() :
         sessionNotValid_(false),
@@ -66,19 +59,24 @@ class CopysetClient : public Uncopyable {
         scheduler_(nullptr),
         exitFlag_(false) {}
 
+    CopysetClient(const CopysetClient&) = delete;
+    CopysetClient& operator=(const CopysetClient&) = delete;
+
     virtual ~CopysetClient() {
         delete senderManager_;
         senderManager_ = nullptr;
     }
 
     int Init(MetaCache *metaCache,
-             const IOSenderOption_t& ioSenderOpt,
+             const IOSenderOption& ioSenderOpt,
              RequestScheduler* scheduler = nullptr,
              FileMetric* fileMetic = nullptr);
     /**
      * 返回依赖的Meta Cache
      */
-    MetaCache *GetMetaCache() { return metaCache_; }
+    MetaCache* GetMetaCache() {
+        return metaCache_;
+    }
 
     /**
      * 读Chunk
@@ -194,7 +192,6 @@ class CopysetClient : public Uncopyable {
         sessionNotValid_ = true;
     }
 
-
     /**
      * session恢复通知不再回收重试的RPC
      */
@@ -241,7 +238,7 @@ class CopysetClient : public Uncopyable {
     // 所有ChunkServer的链接管理者
     RequestSenderManager *senderManager_;
     // 配置
-    IOSenderOption_t iosenderopt_;
+    IOSenderOption iosenderopt_;
 
     // session是否有效，如果session无效那么需要将重试的RPC停住
     // RPC停住通过将这个rpc重新push到request scheduler队列，这样不会

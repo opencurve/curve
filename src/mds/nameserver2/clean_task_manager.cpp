@@ -69,7 +69,7 @@ bool CleanTaskManager::Start(void) {
     stopFlag_ = false;
 
     // start worker thread
-    cleanWorkers_ =  new ::curve::common::TaskThreadPool();
+    cleanWorkers_ =  new ::curve::common::TaskThreadPool<>();
 
     if (cleanWorkers_->Start(threadNum_) != 0) {
         LOG(ERROR) << "thread pool start error";

@@ -47,33 +47,33 @@ int TestAdd2(int a, double b, CountDownEvent *cond) {
 TEST(TaskThreadPool, basic) {
     /* 测试线程池 start 入参 */
     {
-        TaskThreadPool taskThreadPool;
+        TaskThreadPool<> taskThreadPool;
         ASSERT_EQ(-1, taskThreadPool.Start(2, 0));
     }
 
     {
-        TaskThreadPool taskThreadPool;
+        TaskThreadPool<> taskThreadPool;
         ASSERT_EQ(-1, taskThreadPool.Start(2, -4));
     }
 
     {
-        TaskThreadPool taskThreadPool;
+        TaskThreadPool<> taskThreadPool;
         ASSERT_EQ(-1, taskThreadPool.Start(0, 1));
     }
 
     {
-        TaskThreadPool taskThreadPool;
+        TaskThreadPool<> taskThreadPool;
         ASSERT_EQ(-1, taskThreadPool.Start(-2, 1));
     }
 
     {
-        TaskThreadPool taskThreadPool;
+        TaskThreadPool<> taskThreadPool;
         ASSERT_EQ(-1, taskThreadPool.Start(-2, -1));
     }
 
     {
         /* 测试不设置，此时为 INT_MAX */
-        TaskThreadPool taskThreadPool;
+        TaskThreadPool<> taskThreadPool;
         ASSERT_EQ(0, taskThreadPool.Start(4));
         ASSERT_EQ(INT_MAX, taskThreadPool.QueueCapacity());
         ASSERT_EQ(4, taskThreadPool.ThreadOfNums());
@@ -82,7 +82,7 @@ TEST(TaskThreadPool, basic) {
     }
 
     {
-        TaskThreadPool taskThreadPool;
+        TaskThreadPool<> taskThreadPool;
         ASSERT_EQ(0, taskThreadPool.Start(4, 15));
         ASSERT_EQ(15, taskThreadPool.QueueCapacity());
         ASSERT_EQ(4, taskThreadPool.ThreadOfNums());
@@ -112,7 +112,7 @@ TEST(TaskThreadPool, basic) {
             cond.Signal();
         };
 
-        TaskThreadPool taskThreadPool;
+        TaskThreadPool<> taskThreadPool;
         ASSERT_EQ(0, taskThreadPool.Start(kThreadNums, kQueueCapacity));
         ASSERT_EQ(kQueueCapacity, taskThreadPool.QueueCapacity());
         ASSERT_EQ(kThreadNums, taskThreadPool.ThreadOfNums());
@@ -162,7 +162,7 @@ TEST(TaskThreadPool, basic) {
             runTaskCount.fetch_add(1, std::memory_order_acq_rel);
         };
 
-        TaskThreadPool taskThreadPool;
+        TaskThreadPool<> taskThreadPool;
         ASSERT_EQ(0, taskThreadPool.Start(kThreadNums, kQueueCapacity));
         ASSERT_EQ(kQueueCapacity, taskThreadPool.QueueCapacity());
         ASSERT_EQ(kThreadNums, taskThreadPool.ThreadOfNums());

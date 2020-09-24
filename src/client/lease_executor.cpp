@@ -29,7 +29,7 @@ using curve::common::TimeUtility;
 
 namespace curve {
 namespace client {
-LeaseExecutor::LeaseExecutor(const LeaseOption_t& leaseOpt,
+LeaseExecutor::LeaseExecutor(const LeaseOption& leaseOpt,
                            UserInfo_t userinfo,
                            MDSClient* mdsclient,
                            IOManager4File* iomanager):

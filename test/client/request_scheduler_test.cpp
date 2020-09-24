@@ -39,7 +39,7 @@ namespace client {
 using ::testing::AnyNumber;
 
 TEST(RequestSchedulerTest, fake_server_test) {
-    RequestScheduleOption_t opt;
+    RequestScheduleOption opt;
     opt.scheduleQueueCapacity = 4096;
     opt.scheduleThreadpoolSize = 2;
     opt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 200;

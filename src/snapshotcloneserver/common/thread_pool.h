@@ -74,7 +74,7 @@ class ThreadPool {
     /**
      * @brief 通用线程池
      */
-    curve::common::TaskThreadPool threadPool_;
+    curve::common::TaskThreadPool<> threadPool_;
     /**
      * @brief 线程数
      */

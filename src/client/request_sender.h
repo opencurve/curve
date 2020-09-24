@@ -58,7 +58,7 @@ class RequestSender {
           channel_() {}
     virtual ~RequestSender() {}
 
-    int Init(const IOSenderOption_t& ioSenderOpt);
+    int Init(const IOSenderOption& ioSenderOpt);
 
     /**
      * 读Chunk
@@ -181,7 +181,7 @@ class RequestSender {
 
  private:
     // Rpc stub配置
-    IOSenderOption_t iosenderopt_;
+    IOSenderOption iosenderopt_;
     // ChunkServer 的唯一标识 id
     ChunkServerID chunkServerId_;
     // ChunkServer 的地址

@@ -24,10 +24,12 @@
 #define NEBD_SRC_PART1_NEBD_CLIENT_H_
 
 #include <brpc/channel.h>
+#include <bthread/execution_queue.h>
 
 #include <functional>
 #include <string>
 #include <memory>
+#include <vector>
 
 #include "nebd/src/part1/nebd_common.h"
 #include "nebd/src/common/configuration.h"
@@ -35,6 +37,8 @@
 #include "nebd/src/part1/libnebd.h"
 #include "nebd/src/part1/heartbeat_manager.h"
 #include "nebd/src/part1/nebd_metacache.h"
+
+#include "include/curve_compiler_specific.h"
 
 namespace nebd {
 namespace client {
@@ -171,6 +175,24 @@ class NebdClient {
     brpc::Channel channel_;
 
     std::atomic<uint64_t> logId_{1};
+
+ private:
+    using AsyncRpcTask = std::function<void()>;
+
+    std::vector<bthread::ExecutionQueueId<AsyncRpcTask>> rpcTaskQueues_;
+
+    static int ExecAsyncRpcTask(void* meta, bthread::TaskIterator<AsyncRpcTask>& iter);  // NOLINT
+
+    void PushAsyncTask(const AsyncRpcTask& task) {
+        static thread_local unsigned int seed = time(nullptr);
+
+        int idx = rand_r(&seed) % rpcTaskQueues_.size();
+        int rc = bthread::execution_queue_execute(rpcTaskQueues_[idx], task);
+
+        if (CURVE_UNLIKELY(rc != 0)) {
+            task();
+        }
+    }
 };
 
 extern NebdClient &nebdClient;

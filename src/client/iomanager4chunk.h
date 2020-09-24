@@ -41,7 +41,7 @@ class IOManager4Chunk : public IOManager {
  public:
     IOManager4Chunk();
     ~IOManager4Chunk() = default;
-    bool Initialize(IOOption_t  ioOpt, MDSClient* mdsclient);
+    bool Initialize(IOOption  ioOpt, MDSClient* mdsclient);
 
    /**
     * 读取seq版本号的快照数据
@@ -133,7 +133,7 @@ class IOManager4Chunk : public IOManager {
 
  private:
     // 每个IOManager都有其IO配置，保存在iooption里
-    IOOption_t ioopt_;
+    IOOption ioopt_;
 
     // metacache存储当前snapshot client元数据信息
     MetaCache  mc_;

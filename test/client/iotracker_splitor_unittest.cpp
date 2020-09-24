@@ -81,7 +81,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
  public:
     void SetUp() {
         fiu_init(0);
-        fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
+        fopt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9104");
         fopt.metaServerOpt.mdsRPCTimeoutMs = 500;
         fopt.metaServerOpt.mdsRPCRetryIntervalUS = 50000;
         fopt.loginfo.logLevel = 0;
@@ -248,7 +248,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
             ++count;
         }
 
-        std::vector<CopysetInfo_t> cpinfoVec;
+        std::vector<CopysetInfo> cpinfoVec;
         mdsclient_.GetServerList(lpcsIDInfo.lpid,
                                  lpcsIDInfo.cpidVec, &cpinfoVec);
 
@@ -259,7 +259,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
 
     UserInfo_t userinfo;
     MDSClient mdsclient_;
-    FileServiceOption_t fopt;
+    FileServiceOption fopt;
     curve::client::ClientConfig cc;
     FileInstance*    fileinstance_;
     brpc::Server server;

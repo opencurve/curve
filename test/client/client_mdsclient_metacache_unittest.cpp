@@ -58,28 +58,12 @@ extern uint32_t chunk_size;
 extern std::string configpath;
 extern curve::client::FileClient* globalclient;
 
-using curve::client::MDSClient;
-using curve::client::UserInfo_t;
-using curve::client::CopysetPeerInfo;
-using curve::client::CopysetInfo_t;
-using curve::client::SegmentInfo;
-using curve::client::FInfo;
-using curve::client::LeaseSession;
-using curve::client::LogicalPoolCopysetIDInfo_t;
-using curve::client::MetaCacheErrorType;
-using curve::client::MDSClient;
-using curve::client::ServiceHelper;
-using curve::client::FileClient;
-using curve::client::LogicPoolID;
-using curve::client::CopysetID;
-using curve::client::ChunkServerID;
-using curve::client::ChunkServerAddr;
-using curve::client::FileInstance;
+namespace curve {
+namespace client {
+
 using curve::mds::CurveFSService;
 using curve::mds::topology::TopologyService;
-using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
-using curve::client::GetLeaderInfo;
-using curve::client::GetLeaderRpcOption;
+using curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::DiskState;
 using curve::mds::topology::OnlineState;
@@ -87,8 +71,8 @@ using curve::mds::topology::OnlineState;
 class MDSClientTest : public ::testing::Test {
  public:
     void SetUp() {
-        metaopt.metaaddrvec.push_back("127.0.0.1:9104");
-        metaopt.metaaddrvec.push_back("127.0.0.1:9104");
+        metaopt.mdsAddrs.push_back("127.0.0.1:9104");
+        metaopt.mdsAddrs.push_back("127.0.0.1:9104");
 
         metaopt.mdsMaxRetryMS = 1000;
         metaopt.mdsRPCTimeoutMs = 500;
@@ -148,7 +132,7 @@ class MDSClientTest : public ::testing::Test {
     FileClient          fileClient_;
     UserInfo_t          userinfo;
     MDSClient           mdsclient_;
-    MetaServerOption_t  metaopt;
+    MetaServerOption  metaopt;
     FakeTopologyService topologyservice;
     FakeMDSCurveFSService curvefsservice;
     static int i;
@@ -993,7 +977,7 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
         ++count;
     }
 
-    std::vector<CopysetInfo_t> cpinfoVec;
+    std::vector<CopysetInfo> cpinfoVec;
     mdsclient_.GetServerList(segInfo.lpcpIDInfo.lpid,
                             segInfo.lpcpIDInfo.cpidVec, &cpinfoVec);
     for (auto iter : cpinfoVec) {
@@ -1060,7 +1044,7 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
     ASSERT_EQ(0, mc.GetAppliedIndex(1111, 0));
 
     // test applied index update
-    curve::client::CopysetInfo_t csinfo;
+    curve::client::CopysetInfo csinfo;
     mc.UpdateCopysetInfo(111, 123, csinfo);
     ASSERT_EQ(0, mc.GetAppliedIndex(111, 123));
     mc.UpdateAppliedIndex(111, 123, 4);
@@ -1130,7 +1114,7 @@ TEST_F(MDSClientTest, GetServerList) {
         cpidvec.push_back(i);
     }
 
-    std::vector<CopysetInfo_t> cpinfoVec;
+    std::vector<CopysetInfo> cpinfoVec;
     curve::client::MetaCache mc;
     ASSERT_NE(LIBCURVE_ERROR::FAILED,
                 mdsclient_.GetServerList(1234, cpidvec, &cpinfoVec));
@@ -1209,7 +1193,7 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     curve::client::MetaCache mc;
     MetaCacheOption mcOpt;
     mc.Init(mcOpt, &mdsclient_);
-    curve::client::CopysetInfo_t cslist;
+    curve::client::CopysetInfo cslist;
 
     curve::client::ChunkServerAddr pd1;
     pd1.Parse("10.182.26.2:9120:0");
@@ -1343,9 +1327,9 @@ TEST_F(MDSClientTest, GetLeaderTest) {
 
     mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
 
-    CopysetInfo_t cpinfo = mc.GetServerList(1234, 1234);
+    CopysetInfo cpinfo = mc.GetServerList(1234, 1234);
     ASSERT_EQ(cpinfo.csinfos_.size(), 5);
-    curve::client::CopysetPeerInfo_t cpeer;
+    curve::client::CopysetPeerInfo cpeer;
     cpeer.internalAddr.Parse("10.182.26.2:9124:0");
     cpeer.externalAddr.Parse("127.0.0.1:9124:0");
     auto it = std::find(cpinfo.csinfos_.begin(), cpinfo.csinfos_.end(), cpeer);
@@ -2221,9 +2205,6 @@ TEST_F(MDSClientTest, StatFileStatusTest) {
     }
 }
 
-namespace curve {
-namespace client {
-
 using ::testing::_;
 using ::testing::DoAll;
 using ::testing::ElementsAre;
@@ -2274,7 +2255,7 @@ TEST_F(MDSClientRefreshSessionTest, StartDummyServerTest) {
 
     MDSClient mdsClient;
     MetaServerOption opt;
-    opt.metaaddrvec.push_back(kServerAddress);
+    opt.mdsAddrs.push_back(kServerAddress);
     ASSERT_EQ(0, mdsClient.Initialize(opt));
 
     curve::mds::ReFreshSessionRequest request;
@@ -2302,7 +2283,7 @@ TEST_F(MDSClientRefreshSessionTest, NoStartDummyServerTest) {
 
     MDSClient mdsClient;
     MetaServerOption opt;
-    opt.metaaddrvec.push_back(kServerAddress);
+    opt.mdsAddrs.push_back(kServerAddress);
     ASSERT_EQ(0, mdsClient.Initialize(opt));
 
     curve::mds::ReFreshSessionRequest request;

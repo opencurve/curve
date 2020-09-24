@@ -51,6 +51,7 @@ cc_library(
         "//external:brpc",
         "//nebd/src/common:nebd_common",
         "//nebd/proto:client_cc_proto",
+        "//include:include-common"
     ],
     copts = COPTS,
     linkopts = ["-Wl,-rpath=/usr/lib/nebd"],

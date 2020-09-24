@@ -169,7 +169,7 @@ client_metacache_get_leader_timeout_ms: 500
 client_metacache_get_leader_retry: 5
 client_metacache_rpc_retry_interval_us: 100000
 client_schedule_queue_capacity: 1000000
-client_schedule_threadpool_size: 1
+client_schedule_threadpool_size: 2
 client_isolation_task_queue_capacity: 1000000
 client_isolation_task_thread_pool_size: 1
 client_chunkserver_op_retry_interval_us: 100000
@@ -183,7 +183,7 @@ client_chunkserver_check_health_timeout_ms: 100
 client_chunkserver_server_stable_threshold: 3
 client_chunkserver_min_retry_times_force_timeout_backoff: 5
 client_chunkserver_max_retry_times_before_consider_suspend: 20
-client_file_max_inflight_rpc_num: 64
+client_file_max_inflight_rpc_num: 128
 client_file_io_split_max_size_kb: 64
 client_log_level: 0
 client_log_path: /data/log/curve/
@@ -198,6 +198,7 @@ nebd_client_rpc_retry_max_inverval_us: 64000000
 nebd_client_rpc_hostdown_retry_inverval_us: 10000
 nebd_client_health_check_internal_s: 1
 nebd_client_delay_health_check_internal_ms: 100
+nebd_client_rpc_send_exec_queue_num: 2
 nebd_client_heartbeat_inverval_s: 5
 nebd_client_heartbeat_rpc_timeout_ms: 500
 nebd_server_heartbeat_timeout_s: 30

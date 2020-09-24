@@ -63,8 +63,8 @@ const std::vector<std::string> clientConf {
 };
 
 TEST(MetricTest, ChunkServer_MetricTest) {
-    MetaServerOption_t  metaopt;
-    metaopt.metaaddrvec.push_back(mdsMetaServerAddr);
+    MetaServerOption  metaopt;
+    metaopt.mdsAddrs.push_back(mdsMetaServerAddr);
     metaopt.mdsRPCTimeoutMs = 500;
     metaopt.mdsRPCRetryIntervalUS = 200;
 
@@ -181,8 +181,8 @@ void cb(CurveAioContext* ctx) {
 }
 
 TEST(MetricTest, SuspendRPC_MetricTest) {
-    MetaServerOption_t  metaopt;
-    metaopt.metaaddrvec.push_back(mdsMetaServerAddr);
+    MetaServerOption  metaopt;
+    metaopt.mdsAddrs.push_back(mdsMetaServerAddr);
     metaopt.mdsRPCTimeoutMs = 500;
     metaopt.mdsRPCRetryIntervalUS = 200;
 
@@ -208,7 +208,7 @@ TEST(MetricTest, SuspendRPC_MetricTest) {
     UserInfo_t userinfo;
     userinfo.owner = "test";
 
-    FileServiceOption_t opt;
+    FileServiceOption opt;
     opt.ioOpt.reqSchdulerOpt.
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 50;
     opt.ioOpt.reqSchdulerOpt.

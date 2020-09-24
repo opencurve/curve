@@ -39,11 +39,12 @@ namespace client {
 
 class Splitor {
  public:
-    static void Init(IOSplitOPtion_t ioSplitOpt);
+    static void Init(const IOSplitOption& ioSplitOpt);
+
     /**
      * 用户IO拆分成Chunk级别的IO
      * @param: iotracker大IO上下文信息
-     * @param: mc是io拆分过程中需要使用的缓存信息
+     * @param: metaCache是io拆分过程中需要使用的缓存信息
      * @param: targetlist大IO被拆分之后的小IO存储列表
      * @param: data 是待写的数据
      * @param: offset用户下发IO的其实偏移
@@ -52,7 +53,7 @@ class Splitor {
      * @param: fi存储当前IO的一些基本信息，比如chunksize等
      */
     static int IO2ChunkRequests(IOTracker* iotracker,
-                           MetaCache* mc,
+                           MetaCache* metaCache,
                            std::vector<RequestContext*>* targetlist,
                            butil::IOBuf* data,
                            off_t offset,
@@ -62,7 +63,7 @@ class Splitor {
     /**
      * 对单ChunkIO进行细粒度拆分
      * @param: iotracker大IO上下文信息
-     * @param: mc是io拆分过程中需要使用的缓存信息
+     * @param: metaCache是io拆分过程中需要使用的缓存信息
      * @param: targetlist大IO被拆分之后的小IO存储列表
      * @param: cid是当前chunk的ID信息
      * @param: data是待写的数据
@@ -71,9 +72,9 @@ class Splitor {
      * @param: seq是当前chunk的版本号
      */
     static int SingleChunkIO2ChunkRequests(IOTracker* iotracker,
-                           MetaCache* mc,
+                           MetaCache* metaCache,
                            std::vector<RequestContext*>* targetlist,
-                           const ChunkIDInfo_t cid,
+                           const ChunkIDInfo& cid,
                            butil::IOBuf* data,
                            off_t offset,
                            size_t length,
@@ -104,7 +105,7 @@ class Splitor {
      * @param: chunkidx是当前chunk在vdisk中的索引值
      */
     static bool AssignInternal(IOTracker* iotracker,
-                           MetaCache* mc,
+                           MetaCache* metaCache,
                            std::vector<RequestContext*>* targetlist,
                            butil::IOBuf* data,
                            off_t offset,
@@ -113,11 +114,15 @@ class Splitor {
                            const FInfo_t* fi,
                            ChunkIndex chunkidx);
 
-    static RequestContext* GetInitedRequestContext();
+    static bool GetOrAllocateSegment(bool allocateIfNotExist,
+                                     uint64_t offset,
+                                     MDSClient* mdsClient,
+                                     MetaCache* metaCache,
+                                     const FInfo* fileInfo);
 
  private:
     // IO拆分模块所使用的配置信息
-    static IOSplitOPtion_t iosplitopt_;
+    static IOSplitOption iosplitopt_;
 };
 }   // namespace client
 }   // namespace curve

@@ -31,22 +31,22 @@
 #include "src/client/request_closure.h"
 #include "src/common/timeutility.h"
 
-using curve::chunkserver::CHUNK_OP_STATUS;
-
 namespace curve {
 namespace client {
+
+using curve::chunkserver::CHUNK_OP_STATUS;
 
 std::atomic<uint64_t> IOTracker::tracekerID_(1);
 
 IOTracker::IOTracker(IOManager* iomanager,
-                        MetaCache* mc,
-                        RequestScheduler* scheduler,
-                        FileMetric* clientMetric):
-                        mc_(mc),
-                        iomanager_(iomanager),
-                        scheduler_(scheduler),
-                        fileMetric_(clientMetric) {
-    id_         = tracekerID_.fetch_add(1);
+                     MetaCache* mc,
+                     RequestScheduler* scheduler,
+                     FileMetric* clientMetric)
+    : mc_(mc),
+      iomanager_(iomanager),
+      scheduler_(scheduler),
+      fileMetric_(clientMetric) {
+    id_         = tracekerID_.fetch_add(1, std::memory_order_relaxed);
     scc_        = nullptr;
     aioctx_     = nullptr;
     data_       = nullptr;
@@ -214,7 +214,7 @@ void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
 
     int ret = -1;
     do {
-        RequestContext* newreqNode = GetInitedRequestContext();
+        RequestContext* newreqNode = RequestContext::NewInitedRequestContext();
         if (newreqNode == nullptr) {
             break;
         }
@@ -241,7 +241,7 @@ void IOTracker::GetChunkInfo(const ChunkIDInfo &cinfo,
 
     int ret = -1;
     do {
-        RequestContext* newreqNode = GetInitedRequestContext();
+        RequestContext* newreqNode = RequestContext::NewInitedRequestContext();
         if (newreqNode == nullptr) {
             break;
         }
@@ -271,7 +271,7 @@ void IOTracker::CreateCloneChunk(const std::string& location,
 
     int ret = -1;
     do {
-        RequestContext* newreqNode = GetInitedRequestContext();
+        RequestContext* newreqNode = RequestContext::NewInitedRequestContext();
         if (newreqNode == nullptr) {
             break;
         }
@@ -302,7 +302,7 @@ void IOTracker::RecoverChunk(const ChunkIDInfo& cinfo, uint64_t offset,
 
     int ret = -1;
     do {
-        RequestContext* newreqNode = GetInitedRequestContext();
+        RequestContext* newreqNode = RequestContext::NewInitedRequestContext();
         if (newreqNode == nullptr) {
             break;
         }
@@ -466,17 +466,6 @@ void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
         default:
             *errout = LIBCURVE_ERROR::FAILED;
             break;
-    }
-}
-
-RequestContext* IOTracker::GetInitedRequestContext() const {
-    RequestContext* reqNode = new (std::nothrow) RequestContext();
-    if (reqNode != nullptr && reqNode->Init()) {
-        return reqNode;
-    } else {
-        LOG(ERROR) << "allocate req node failed!";
-        delete reqNode;
-        return nullptr;
     }
 }
 

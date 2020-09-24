@@ -20,20 +20,19 @@
  * Author: tongguangxun
  */
 
-#include <gflags/gflags.h>
+#include "src/client/libcurve_snapshot.h"
+
 #include <glog/logging.h>
 
-#include <mutex>    // NOLINT
+#include "include/curve_compiler_specific.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
-#include "src/client/libcurve_snapshot.h"
-#include "include/curve_compiler_specific.h"
 
 namespace curve {
 namespace client {
 SnapshotClient::SnapshotClient() {}
 
-int SnapshotClient::Init(ClientConfigOption_t clientopt) {
+int SnapshotClient::Init(ClientConfigOption clientopt) {
     google::SetCommandLineOption("minloglevel",
             std::to_string(clientopt.loginfo.logLevel).c_str());
     int ret = -LIBCURVE_ERROR::FAILED;
@@ -152,7 +151,7 @@ int SnapshotClient::GetSnapshotSegmentInfo(const std::string& filename,
 
 int SnapshotClient::GetServerList(const LogicPoolID& lpid,
                                         const std::vector<CopysetID>& csid) {
-    std::vector<CopysetInfo_t> cpinfoVec;
+    std::vector<CopysetInfo> cpinfoVec;
     int ret = mdsclient_.GetServerList(lpid, csid, &cpinfoVec);
 
     for (auto iter : cpinfoVec) {

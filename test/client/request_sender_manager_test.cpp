@@ -29,7 +29,7 @@ namespace curve {
 namespace client {
 
 TEST(RequestSenderManagerTest, basic_test) {
-    IOSenderOption_t ioSenderOpt;
+    IOSenderOption ioSenderOpt;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
     ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
@@ -50,7 +50,7 @@ TEST(RequestSenderManagerTest, basic_test) {
 }
 
 TEST(RequestSenderManagerTest, fail_test) {
-    IOSenderOption_t ioSenderOpt;
+    IOSenderOption ioSenderOpt;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
     ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
