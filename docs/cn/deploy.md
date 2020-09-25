@@ -103,12 +103,12 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 
    ```
    # 如下几个tar包可替换为其他版本（如您采用方式2自行打包，则不需要下载，拷贝相关tar包即可），下载命令仅供参考
-   wget https://github.com/opencurve/curve/releases/download/v0.1.1/curve_0.1.1+4b930380.tar.gz
-   wget https://github.com/opencurve/curve/releases/download/v0.1.1/nbd_0.1.1+4b930380.tar.gz
-   wget https://github.com/opencurve/curve/releases/download/v0.1.1/nebd_0.1.1+4b930380.tar.gz
-   tar zxvf curve_0.1.1+4b930380.tar.gz
-   tar zxvf nbd_0.1.1+4b930380.tar.gz
-   tar zxvf nebd_0.1.1+4b930380.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v{version}/curve_{version}.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v{version}/nbd_{version}.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v{version}/nebd_{version}.tar.gz
+   tar zxvf curve_{version}.tar.gz
+   tar zxvf nbd_{version}.tar.gz
+   tar zxvf nebd_{version}.tar.gz
    cd curve/curve-ansible
    ```
 3. 部署集群并启动服务，如果需要使用快照克隆功能，请先设置server.ini中的disable_snapshot_clone=false再执行脚本。
@@ -269,12 +269,12 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 
    ```
    # 如下几个tar包可替换为其他版本（如您采用方式2自行打包，则不需要下载，拷贝相关tar包即可），下载命令仅供参考
-   wget https://github.com/opencurve/curve/releases/download/v0.1.1/curve_0.1.1+4b930380.tar.gz
-   wget https://github.com/opencurve/curve/releases/download/v0.1.1/nbd_0.1.1+4b930380.tar.gz
-   wget https://github.com/opencurve/curve/releases/download/v0.1.1/nebd_0.1.1+4b930380.tar.gz
-   tar zxvf curve_0.1.1+4b930380.tar.gz
-   tar zxvf nbd_0.1.1+4b930380.tar.gz
-   tar zxvf nebd_0.1.1+4b930380.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v{version}/curve_{version}.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v{version}/nbd_{version}.tar.gz
+   wget https://github.com/opencurve/curve/releases/download/v{version}/nebd_{version}.tar.gz
+   tar zxvf curve_{version}.tar.gz
+   tar zxvf nbd_{version}.tar.gz
+   tar zxvf nebd_{version}.tar.gz
    cd curve/curve-ansible
    ```
 
