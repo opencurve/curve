@@ -129,7 +129,7 @@ uint64_t ClientClosure::OverLoadBackOff(uint64_t currentRetryTimes) {
     uint64_t nextsleeptime =
         failReqOpt_.chunkserverOPRetryIntervalUS * (1 << curpowTime);
 
-    // 20 percent jitter
+    // -10% ~ 10% jitter
     uint64_t random_time = std::rand() % (nextsleeptime / 5 + 1);
     random_time -= nextsleeptime / 10;
     nextsleeptime += random_time;
