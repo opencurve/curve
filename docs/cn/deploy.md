@@ -102,7 +102,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
       2. 自行通过编译环境打tar包，该方式可以让您体验测试最新代码：[编译开发环境搭建](build_and_run.md)
 
    ```
-   # 如下几个tar包可替换为其他版本（如您采用方式2自行打包，则不需要下载，拷贝相关tar包即可），下载命令仅供参考
+   # 如下几个tar包可替换为其他版本（如您采用方式2自行打包，则不需要下载，拷贝相关tar包即可），下载命令仅供参考，请使用最新版本
    wget https://github.com/opencurve/curve/releases/download/v{version}/curve_{version}.tar.gz
    wget https://github.com/opencurve/curve/releases/download/v{version}/nbd_{version}.tar.gz
    wget https://github.com/opencurve/curve/releases/download/v{version}/nebd_{version}.tar.gz
@@ -268,7 +268,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
       2. 自行通过编译环境打tar包，该方式可以让您体验测试最新代码：[编译开发环境搭建](build_and_run.md)
 
    ```
-   # 如下几个tar包可替换为其他版本（如您采用方式2自行打包，则不需要下载，拷贝相关tar包即可），下载命令仅供参考
+   # 如下几个tar包可替换为其他版本（如您采用方式2自行打包，则不需要下载，拷贝相关tar包即可），下载命令仅供参考，请使用最新版本
    wget https://github.com/opencurve/curve/releases/download/v{version}/curve_{version}.tar.gz
    wget https://github.com/opencurve/curve/releases/download/v{version}/nbd_{version}.tar.gz
    wget https://github.com/opencurve/curve/releases/download/v{version}/nebd_{version}.tar.gz
