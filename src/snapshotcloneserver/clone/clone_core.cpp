@@ -60,54 +60,61 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     // 查询数据库中是否有任务正在执行
     std::vector<CloneInfo> cloneInfoList;
     metaStore_->GetCloneInfoByFileName(destination, &cloneInfoList);
-    bool maybeExist = false;
+    bool needJudgeFileExist = false;
     CloneInfo existCloneInfo;
     for (auto &info : cloneInfoList) {
-        if ((taskType == CloneTaskType::kClone) &&
-            (info.GetTaskType() == CloneTaskType::kClone)) {
-            if (info.GetStatus() == CloneStatus::done ||
-                info.GetStatus() == CloneStatus::error ||
-                info.GetStatus() == CloneStatus::metaInstalled ||
-                info.GetStatus() == CloneStatus::cloning ||
-                info.GetStatus() == CloneStatus::retrying) {
-                LOG(INFO) << "CloneOrRecoverPre find same clone task"
-                          << ", source = " << source
-                          << ", user = " << user
-                          << ", destination = " << destination
-                          << ", Exist CloneInfo : " << info;
-                if ((info.GetUser() == user) &&
-                    (info.GetIsLazy() == lazyFlag) &&
-                    (info.GetTaskType() == taskType)) {
-                    // 视为同一个clone，可能克隆过，还需判断文件是否存在
-                    existCloneInfo = info;
-                    maybeExist = true;
-                } else {
-                    // 视为不同的克隆，那么文件实际上已被占用，返回文件已存在
-                    return kErrCodeFileExist;
-                }
-            } else {
-                // 此时，有个相同的克隆任务正在删除中, 返回文件被占用
-                return kErrCodeFileExist;
-            }
-        } else {
+        LOG(INFO) << "CloneOrRecoverPre find same clone task"
+                  << ", source = " << source
+                  << ", user = " << user
+                  << ", destination = " << destination
+                  << ", Exist CloneInfo : " << info;
+        // is clone
+        if (taskType == CloneTaskType::kClone) {
             if (info.GetStatus() == CloneStatus::cloning ||
-                info.GetStatus() == CloneStatus::recovering ||
                 info.GetStatus() == CloneStatus::retrying) {
-                LOG(INFO) << "CloneOrRecoverPre find some task in progress"
-                          << ", source = " << source
-                          << ", user = " << user
-                          << ", destination = " << destination
-                          << ", Exist CloneInfo : " << info;
                 if ((info.GetUser() == user) &&
                     (info.GetSrc() == source) &&
                     (info.GetIsLazy() == lazyFlag) &&
                     (info.GetTaskType() == taskType)) {
-                    // 视为同一个clone，返回任务已存在
+                    // 视为同一个clone
+                    *cloneInfo = info;
                     return kErrCodeTaskExist;
                 } else {
                     // 视为不同的克隆，那么文件实际上已被占用，返回文件已存在
                     return kErrCodeFileExist;
                 }
+            } else if (info.GetStatus() == CloneStatus::done ||
+                       info.GetStatus() == CloneStatus::error ||
+                       info.GetStatus() == CloneStatus::metaInstalled) {
+                // 可能已经删除，需要再判断文件存不存在，
+                // 在已删除的条件下，允许再克隆
+                existCloneInfo = info;
+                needJudgeFileExist = true;
+            } else {
+                // 此时，有个相同的克隆任务正在删除中, 返回文件被占用
+                return kErrCodeFileExist;
+            }
+        } else {  // is recover
+            if (info.GetStatus() == CloneStatus::recovering ||
+                info.GetStatus() == CloneStatus::retrying) {
+                if ((info.GetUser() == user) &&
+                    (info.GetSrc() == source) &&
+                    (info.GetIsLazy() == lazyFlag) &&
+                    (info.GetTaskType() == taskType)) {
+                    // 视为同一个clone，返回任务已存在
+                    *cloneInfo = info;
+                    return kErrCodeTaskExist;
+                } else {
+                    // 视为不同的克隆，那么文件实际上已被占用，返回文件已存在
+                    return kErrCodeFileExist;
+                }
+            } else if (info.GetStatus() == CloneStatus::done ||
+                       info.GetStatus() == CloneStatus::error ||
+                       info.GetStatus() == CloneStatus::metaInstalled) {
+                // nothing
+            } else {
+                // 此时，有个相同的任务正在删除中, 返回文件被占用
+                return kErrCodeFileExist;
             }
         }
     }
@@ -118,7 +125,7 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     switch (ret) {
         case LIBCURVE_ERROR::OK:
             if (CloneTaskType::kClone == taskType) {
-                if (maybeExist) {
+                if (needJudgeFileExist) {
                     *cloneInfo = existCloneInfo;
                     return kErrCodeTaskExist;
                 } else {

@@ -234,6 +234,7 @@ const std::vector<std::string> snapshotcloneConf{
 
 const std::vector<std::string> clientConfigOptions{
     std::string("mds.listen.addr=") + kMdsIpPort,
+    std::string("global.logPath=") + kLogPath,
 };
 
 const char *testFile1_ = "/RcvItUser1/file1";
