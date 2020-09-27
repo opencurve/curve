@@ -111,7 +111,7 @@ cc_test(
         "//src/chunkserver:chunkserver-test-lib",
         "//src/common:curve_common",
         "//src/mds/topology:topology",
-    "//src/mds/copyset:copyset",
+        "//src/mds/copyset:copyset",
         "//test/chunkserver/datastore:chunkfilepool_helper",
         "//test/integration/common:integration-test-common",
         "//test/integration/client/common:client_integration_common_lib",
