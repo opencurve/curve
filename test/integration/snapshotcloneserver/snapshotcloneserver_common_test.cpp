@@ -955,7 +955,7 @@ TEST_F(SnapshotCloneServerTest, TestSnapAndCloneWhenSnapHasError) {
 
 // [线上问题修复]克隆失败，回滚删除克隆卷，再次创建同样的uuid的卷的场景
 TEST_F(SnapshotCloneServerTest, TestCloneHasSameDest) {
-    std::string uuid1, uuid2, uuid3, uuid4;
+    std::string uuid1, uuid2, uuid3, uuid4, uuid5, uuid6, uuid7;
     // 操作1：testUser1_ clone 镜像testFile1_，fileName=CloneHasSameDestUUID
     // 预期1  返回克隆成功
     std::string dstFile = "/ItUser1/CloneHasSameDest";
@@ -1000,6 +1000,49 @@ TEST_F(SnapshotCloneServerTest, TestCloneHasSameDest) {
     // 预期4  返回克隆成功
     ret =
         CloneOrRecover("Clone", testUser1_, testFile2_, dstFile, true, &uuid4);
+    ASSERT_EQ(0, ret);
+
+    // 验证数据正确性
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
+
+    // 验证再次克隆lazyflag不同的情况
+    // 操作5：testUser1_ clone 镜像testFile1_，fileName=CloneHasSameDest3
+    // 预期5  返回克隆成功
+    dstFile = "/ItUser1/CloneHasSameDest3";
+    ret =
+        CloneOrRecover("Clone", testUser1_, testFile1_, dstFile, true, &uuid5);
+    ASSERT_EQ(0, ret);
+
+    // 删除克隆卷
+    UserInfo_t userinfo3;
+    userinfo2.owner = testUser1_;
+    ret2 = fileClient_->Unlink(dstFile, userinfo2, false);
+    ASSERT_EQ(0, ret2);
+
+    // 操作6：testUser1_ 再次非lazy clone 镜像testFile2_，
+    // fileName=CloneHasSameDest3
+    // 预期6  返回克隆成功
+    ret =
+        CloneOrRecover("Clone", testUser1_, testFile2_, dstFile, false, &uuid6);
+    ASSERT_EQ(0, ret);
+
+    bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid6, true);
+    ASSERT_TRUE(success1);
+
+    // 验证数据正确性
+    ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
+
+    // 删除克隆卷
+    UserInfo_t userinfo4;
+    userinfo2.owner = testUser1_;
+    ret2 = fileClient_->Unlink(dstFile, userinfo2, false);
+    ASSERT_EQ(0, ret2);
+
+    // 操作7：testUser1_ 再次非lazy clone 镜像testFile2_，
+    // fileName=CloneHasSameDest3
+    // 预期7  返回克隆成功
+    ret =
+        CloneOrRecover("Clone", testUser1_, testFile2_, dstFile, true, &uuid7);
     ASSERT_EQ(0, ret);
 
     // 验证数据正确性
