@@ -16,4 +16,4 @@
 #
 
 - name: clean chunkserver data dir
-  shell: sudo rm -rf {{ chunkserver_data_dir }}
+  shell: sudo rm -rf {{ chunkserver_data_dir }}/chunkserver*
