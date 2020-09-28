@@ -29,6 +29,7 @@
 #include "src/chunkserver/copyset_node.h"
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/chunkserver/uri_paser.h"
+#include "src/chunkserver/raftlog/define.h"
 
 using ::curve::chunkserver::RAFT_DATA_DIR;
 using ::curve::chunkserver::RAFT_META_DIR;
@@ -55,6 +56,7 @@ int Trash::Init(TrashOptions options) {
     scanPeriodSec_ = options.scanPeriodSec;
     localFileSystem_ = options.localFileSystem;
     chunkFilePool_ = options.chunkFilePool;
+    walPool_ = options.walPool;
     chunkNum_.store(0);
 
      // 读取trash目录下的所有目录
@@ -163,8 +165,7 @@ void Trash::DeleteEligibleFileInTrash() {
             continue;
         }
 
-        // 回收copyset目录下的chunk
-        if (!RecycleChunksInDir(copysetDir, file)) {
+        if (!RecycleChunksAndWALInDir(copysetDir, file)) {
             continue;
         }
 
@@ -220,12 +221,18 @@ bool Trash::IsChunkOrSnapShotFile(const std::string &chunkName) {
         FileNameOperator::ParseFileName(chunkName).type;
 }
 
-bool Trash::RecycleChunksInDir(
+bool Trash::RecycleChunksAndWALInDir(
     const std::string &copysetPath, const std::string &filename) {
     bool isDir = localFileSystem_->DirExists(copysetPath);
     // 是文件看是否需要回收
     if (!isDir) {
-        return RecycleIfChunkfile(copysetPath, filename);
+        if (IsChunkOrSnapShotFile(filename)) {
+            return RecycleChunkfile(copysetPath, filename);
+        } else if (IsWALFile(filename)) {
+            return RecycleWAL(copysetPath, filename);
+        } else {
+            return true;
+        }
     }
 
     // 是目录，继续list
@@ -236,24 +243,19 @@ bool Trash::RecycleChunksInDir(
     }
 
     // 遍历子文件
+    bool ret = true;
     for (auto &file : files) {
         std::string filePath = copysetPath + "/" + file;
-        if (!RecycleChunksInDir(filePath, file)) {
-            return false;
+        // recycle 失败不应该中断其他文件的recycle
+        if (!RecycleChunksAndWALInDir(filePath, file)) {
+            ret = false;
         }
     }
-
-    return true;
+    return ret;
 }
 
-bool Trash::RecycleIfChunkfile(
+bool Trash::RecycleChunkfile(
     const std::string &filepath, const std::string &filename) {
-    // 不是chunkfile或者snapshotfile
-    if (!IsChunkOrSnapShotFile(filename)) {
-        return true;
-    }
-
-    // 是chunkfile, 回收到FilePool中
     if (0 != chunkFilePool_->RecycleFile(filepath)) {
         LOG(ERROR) << "Trash  failed recycle chunk " << filepath
                     << " to FilePool";
@@ -262,6 +264,39 @@ bool Trash::RecycleIfChunkfile(
 
     chunkNum_.fetch_sub(1);
     return true;
+}
+
+bool Trash::RecycleWAL(
+    const std::string &filepath, const std::string &filename) {
+    if (0 != chunkFilePool_->RecycleFile(filepath)) {
+        LOG(ERROR) << "Trash  failed recycle WAL " << filepath
+                    << " to WALPool";
+        return false;
+    }
+    return true;
+}
+
+bool Trash::IsWALFile(const std::string &fileName) {
+    int match = 0;
+    int64_t first_index = 0;
+    int64_t last_index = 0;
+    match = sscanf(fileName.c_str(), CURVE_SEGMENT_CLOSED_PATTERN,
+                  &first_index, &last_index);
+    if (match == 2) {
+        LOG(INFO) << "recycle closed segment wal file, path: " << fileName
+                  << " first_index: " << first_index
+                  << " last_index: " << last_index;
+        return true;
+    }
+
+    match = sscanf(fileName.c_str(), CURVE_SEGMENT_OPEN_PATTERN,
+                   &first_index);
+    if (match == 1) {
+        LOG(INFO) << "recycle open segment wal file, path: " << fileName
+                  << " first_index: " << first_index;
+        return true;
+    }
+    return false;
 }
 
 uint32_t Trash::CountChunkNumInCopyset(const std::string &copysetPath) {

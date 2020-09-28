@@ -189,6 +189,7 @@ int ChunkServer::Run(int argc, char** argv) {
     InitTrashOptions(&conf, &trashOptions);
     trashOptions.localFileSystem = fs;
     trashOptions.chunkFilePool = chunkfilePool;
+    trashOptions.walPool = kWalFilePool;
     trash_ = std::make_shared<Trash>();
     LOG_IF(FATAL, trash_->Init(trashOptions) != 0)
         << "Failed to init Trash";
