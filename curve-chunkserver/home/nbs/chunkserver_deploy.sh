@@ -216,7 +216,6 @@ function deploy_all {
     fstab_record;
     meta_record;
     chunkfile_pool_prep;
-    walfile_pool_prep;
 }
 
 function deploy_one {
@@ -296,11 +295,6 @@ function deploy_one {
   -filePoolDir=$dirname/chunkfilepool \
   -filePoolMetaPath=$dirname/chunkfilepool.meta \
   -fileSystemPath=$dirname/chunkfilepool  &
-  # prepare walfile pool
-  curve-format -allocatePercent=10 \
-  -filePoolDir=$dirname/walfilepool \
-  -filePoolMetaPath=$dirname/walfilepool.meta \
-  -fileSystemPath=$dirname/walfilepool  &
   wait
   exit
 }

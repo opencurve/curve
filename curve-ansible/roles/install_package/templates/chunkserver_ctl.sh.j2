@@ -276,33 +276,31 @@ function status_one() {
 
 confirm=true
 
+function do_confirm_if_need() {
+    if [ "$1" != "--noConfirm" ]
+    then
+        do_confirm
+    fi
+}
+
 function deploy() {
     if [ $# -lt 1 ]
     then
         help
         return 1
     fi
-    if [ "$1" = "all" ]
+
+    if [[ "$1" = "all" && $# -gt 1 ]]
     then
-        if [ $# -gt 1 ] && ([ "$2" = "-nc" ] || [ "$2" = "--noConfirm" ])
-        then
-	        confirm=false
-        fi
-    else
-        if [ $# -gt 2 ] && ([ "$3" = "-nc" ] || [ "$3" = "--noConfirm" ])
-        then
-	        confirm=false
-        fi
+        do_confirm_if_need $2
     fi
-    if $confirm
-    then
-        do_confirm;
-    fi
+
     if [ "$1" = "all" ]
     then
         deploy_all;
         return $?
     fi
+
     if [ $# -ge 2 ]
     then
         deploy_one $@;
@@ -327,11 +325,18 @@ function deploy-wal-pool() {
         help
         return 1
     fi
+
+    if [[ "$1" = "all" && $# -gt 1 ]]
+    then
+        do_confirm_if_need $2
+    fi
+
     if [ "$1" = "all" ]
     then
-        walfile_pool_prep
+        walfile_pool_prep;
         return $?
     fi
+
     deploy_one_walfile_pool $1
     wait
 }
