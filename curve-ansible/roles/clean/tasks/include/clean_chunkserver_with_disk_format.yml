@@ -15,21 +15,10 @@
 #  limitations under the License.
 #
 
-- name: clear data dir contents and log dir of each chunkserver
-  vars:
-    end_seq: "{{ chunkserver_num | int - 1}}"
-  shell: sudo rm -rf {{ chunkserver_data_dir }}/chunkserver{{ item }}/* && sudo rm -rf {{ chunkserver_data_dir }}/log/chunkserver{{ item }}
-  with_sequence: start=0 end={{ end_seq }}
+- name: clean chunkserver but retain chunkfilepool
+  include_tasks: clean_chunkserver_retain_chunkfilepool.yml
+  when: retain_pool
 
-- name: umount dir
-  ignore_errors: true
-  vars:
-    end_seq: "{{ chunkserver_num | int - 1}}"
-  shell: sudo umount {{ chunkserver_data_dir }}/chunkserver{{ item }}
-  with_sequence: start=0 end={{ end_seq }}
-
-- name: clear data dir
-  vars:
-    end_seq: "{{ chunkserver_num | int - 1}}"
-  shell: sudo rm -rf {{ chunkserver_data_dir }}/chunkserver{{ item }}
-  with_sequence: start=0 end={{ end_seq }}
+- name: clean chunkserver totally
+  include_tasks: clean_chunkserver_totally.yml
+  when: not {{ retain_pool }}

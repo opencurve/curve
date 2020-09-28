@@ -15,9 +15,15 @@
 #  limitations under the License.
 #
 
-- name: clean nebd data dir
-  shell: sudo rm -rf {{ nebd_data_dir }}
+- name: umount dir
+  ignore_errors: true
+  vars:
+    end_seq: "{{ chunkserver_num | int - 1}}"
+  shell: sudo umount {{ chunkserver_data_dir }}/chunkserver{{ item }}
+  with_sequence: start=0 end={{ end_seq }}
 
-- name: clean nebd log dir
-  shell: sudo rm -rf {{ nebd_log_dir }}
-  when: clean_log_when_clean
+- name: clear data dir
+  vars:
+    end_seq: "{{ chunkserver_num | int - 1}}"
+  shell: sudo rm -rf {{ chunkserver_data_dir }}/chunkserver{{ item }}
+  with_sequence: start=0 end={{ end_seq }}

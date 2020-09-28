@@ -37,7 +37,7 @@
   roles:
     - { role: clean, module_name: etcd }
 
-############################## deploy mds ##############################
+############################## clean mds ##############################
 - name: clean mds
   hosts: mds
   any_errors_fatal: true

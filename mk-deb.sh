@@ -125,6 +125,12 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
+cp ./curve-ansible/roles/clean/files/recycle_chunks.sh build/curve-chunkserver/home/nbs
+if [ $? -ne 0 ]
+then
+	exit
+fi
+
 cp -r curve-sdk build/
 if [ $? -ne 0 ]
 then

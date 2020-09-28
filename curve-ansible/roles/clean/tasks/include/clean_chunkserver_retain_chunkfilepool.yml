@@ -15,19 +15,17 @@
 #  limitations under the License.
 #
 
-- name: set sudo
-  set_fact:
-    sudo: "sudo"
-  when: command_need_sudo
-
-- name: stop chunkserver
-  ignore_errors: true
-  shell:  chdir={{ deploy_dir }} {{ sudo }} ./chunkserver_ctl.sh stop all
-
-- name: wait until chunkserver is down
+- name: clean chunkserver dat
   vars:
     end_seq: "{{ chunkserver_num | int - 1}}"
-    ping_port: "{{ chunkserver_base_port | int + item | int }}"
-    wait_timeout: "{{ wait_service_timeout }}"
-  include_tasks: "common_tasks/wait_until_server_down.yml"
+  shell: sudo rm -rf {{ chunkserver_data_dir }}/chunkserver{{ item }}/chunkserver.dat
   with_sequence: start=0 end={{ end_seq }}
+
+- name: recycle copysets chunks and wals to same pool
+  script: recycle_chunks.sh -d {{ chunkserver_data_dir }} -chunks chunkfilepool -wals chunkfilepool
+  when: walfilepool_use_chunk_file_pool
+
+- name: recycle copysets chunks and wals to different pool
+  script: recycle_chunks.sh -d {{ chunkserver_data_dir }} -chunks chunkfilepool -wals walfilepool
+  when: not {{ walfilepool_use_chunk_file_pool }}
+

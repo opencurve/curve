@@ -121,6 +121,7 @@ chunkserver_rconcurrentapply_queuedepth: 1
 chunkserver_chunkfilepool_chunk_file_pool_dir: ./0/
 chunkserver_chunkfilepool_cpmeta_file_size: 4096
 chunkserver_chunkfilepool_retry_times: 5
+walfilepool_use_chunk_file_pool: true
 chunkserver_walfilepool_file_pool_dir: ./0/
 chunkserver_walfilepool_meta_path: ./walfilepool.meta
 chunkserver_walfilepool_segment_size: 8388608
