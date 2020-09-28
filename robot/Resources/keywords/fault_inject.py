@@ -651,6 +651,19 @@ def get_all_chunk_num():
         logger.info("now num is %d"%(num)) 
     return num
 
+def get_all_walfile_chunk_num():
+    chunkserver_list = config.chunkserver_list
+    num = 0
+    for host in chunkserver_list:
+        ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+        cs_status = get_chunkserver_status(host)
+        for cs in cs_status["up"]:
+            ori_cmd = "ls /data/chunkserver%d/walfilepool/ |wc -l"%cs
+            rs = shell_operator.ssh_exec(ssh, ori_cmd)
+            assert rs[3] == 0
+            num = num + int("".join(rs[1]).strip())
+        logger.info("now num is %d"%(num)) 
+    return num
 
 def check_nbd_iops(limit_iops=3000):
     ssh = shell_operator.create_ssh_connect(config.client_list[0],1046, config.abnormal_user)

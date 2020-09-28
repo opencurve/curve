@@ -19,6 +19,7 @@ ${fio_vdsize}     10
 ${vdbench_vdsize}   10
 ${vm_iops_limit}   8000
 ${chunk_num}   0
+${wal_chunk_num}   0
 
 *** Test Cases ***
 #test up all cs
@@ -507,6 +508,9 @@ init failover cluster
      ${begin_num}    get all chunk num
      ${begin_num}    Convert To Integer   ${begin_num}
      Set Global Variable  ${chunk_num}    ${begin_num} 
+     ${wal_begin_num}    get all walfile chunk num
+     ${wal_begin_num}    Convert To Integer   ${wal_begin_num}
+     Set Global Variable  ${wal_chunk_num}    ${wal_begin_num} 
      init rw cloud disk
      init nbd vol
      begin snapshot test
@@ -546,3 +550,6 @@ clean failover env
      ${final_num}    get all chunk num
      ${final_num}    Convert To Integer   ${final_num}
      should be equal    ${final_num}   ${chunk_num}
+     ${wal_final_num}    get all walfile chunk num
+     ${wal_final_num}    Convert To Integer   ${wal_final_num}
+     should be equal    ${wal_final_num}   ${wal_chunk_num}
