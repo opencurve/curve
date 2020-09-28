@@ -22,3 +22,7 @@
 - name: clean chunkserver without format disk
   include_tasks: "include/clean_chunkserver_without_disk_format.yml"
   when: not {{ chunkserver_format_disk }}
+
+- name: clean log file
+  shell: sudo rm -rf {{ chunkserver_data_dir }}/log/chunkserver*
+  when: clean_log_when_clean

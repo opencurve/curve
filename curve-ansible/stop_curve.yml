@@ -21,20 +21,6 @@
     - always
   import_playbook: check_ansible_version.yml
 
-############################## stop etcd ##############################
-- name: stop etcd
-  hosts: etcd
-  any_errors_fatal: true
-  gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
-  tags:
-    - etcd
-  roles:
-    - { role: stop_service, service_name: etcd, command_need_sudo: "{{ etcd_need_sudo }}" }
-
-
 ############################## stop mds ##############################
 - name: start mds
   hosts: mds
@@ -47,8 +33,6 @@
     - mds
   roles:
     - { role: stop_service, service_name: mds, command_need_sudo: "{{ mds_need_sudo }}" }
-
-
 
 ############################## stop chunkserver ##############################
 - name: start chunkserver
@@ -91,3 +75,17 @@
     - never
   roles:
     - { role: stop_service, service_name: snapshotcloneserver_nginx }
+
+
+############################## stop etcd ##############################
+- name: stop etcd
+  hosts: etcd
+  any_errors_fatal: true
+  gather_facts: no
+  become: yes
+  become_user: "{{ sudo_user }}"
+  become_flags: -iu {{ sudo_user }}
+  tags:
+    - etcd
+  roles:
+    - { role: stop_service, service_name: etcd, command_need_sudo: "{{ etcd_need_sudo }}" }

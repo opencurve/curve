@@ -207,7 +207,6 @@ function deploy_all {
     fstab_record;
     meta_record;
     chunkfile_pool_prep;
-    walfile_pool_prep;
 }
 
 function deploy_one {
@@ -265,15 +264,10 @@ function deploy_one {
   echo "uuid=$uuid" > $dirname/disk.meta
   echo "uuidmd5=$uuidmd5" >> $dirname/disk.meta
   #格式化chunkfile pool
-  curve-format -allocatePercent=80 \
+  curve-format -allocatePercent={{ chunk_alloc_percent }} \
   -filePoolDir=$dirname/chunkfilepool \
   -filePoolMetaPath=$dirname/chunkfilepool.meta \
   -fileSystemPath=$dirname/chunkfilepool  &
-  # prepare walfile pool
-  curve-format -allocatePercent=10 \
-  -filePoolDir=$dirname/walfilepool \
-  -filePoolMetaPath=$dirname/walfilepool.meta \
-  -fileSystemPath=$dirname/walfilepool  &
   wait
   exit
 }

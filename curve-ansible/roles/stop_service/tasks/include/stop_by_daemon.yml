@@ -21,7 +21,12 @@
   when: command_need_sudo
 
 - name: stop by daemon
+  ignore_errors: true
   shell: chdir={{ ch_dir }} {{ sudo }} {{ daemon_script }} stop
+  register: stopres
+
+- debug:
+    msg: "{{ stopres.stdout }}"
 
 - name: wait until server is down
   ping_port: "{{ service_port }}"

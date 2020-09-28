@@ -17,3 +17,4 @@
 
 - name: clean curve_sdk log dir
   shell: sudo rm -rf {{ curve_sdk_log_dir }}
+  when: clean_log_when_clean
