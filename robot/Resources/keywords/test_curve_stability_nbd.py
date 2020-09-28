@@ -192,15 +192,6 @@ def flatten_clone_vol(clone_uuid):
     payload['UUID'] = clone_uuid
     payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
     http = R'http://%s:5555/SnapshotCloneService' % snap_server
-def flatten_clone_vol(clone_uuid):
-    snap_server = config.snapshot_vip
-    payload = {}
-    payload['Action'] = 'Flatten'
-    payload['Version'] = config.snap_version
-    payload['User'] = 'test'
-    payload['UUID'] = clone_uuid
-    payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
-    http = R'http://%s:5555/SnapshotCloneService' % snap_server
     logger2.info("exec requests:%s %s"%(http,payload))
     r = requests.get(http, params=payload_str)
     logger2.info("exec requests url:%s"%(r.url))
