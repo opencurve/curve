@@ -30,7 +30,7 @@ class NbdThrash:
         assert rs[3] == 0,"create nbd fail：%s"%rs[1]
 
     def nbd_map(self):
-        cmd = "sudo curve-nbd map cbd:pool1//%s_%s_ >/dev/null 2>&1"%(self.name,self.user)
+        cmd = "sudo curve-nbd map cbd:pool1//%s_%s_ > /data/log/curve/curve-nbd.console.log 2>&1"%(self.name,self.user)
         rs = shell_operator.ssh_exec(self.ssh, cmd)
         assert rs[3] == 0,"map nbd fail：%s"%rs[1]
     
