@@ -130,6 +130,7 @@ const std::vector<std::string> chunkserverConfigOptions{
     std::string("s3.config_path=") + kS3ConfigPath,
     std::string("curve.root_username") + mdsRootUser_,
     std::string("curve.root_password") + mdsRootPassword_,
+    "walfilepool.use_chunk_file_pool=false",
     "walfilepool.enable_get_segment_from_pool=false"
 };
 

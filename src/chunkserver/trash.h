@@ -46,6 +46,7 @@ struct TrashOptions{
 
     std::shared_ptr<LocalFileSystem> localFileSystem;
     std::shared_ptr<FilePool> chunkFilePool;
+    std::shared_ptr<FilePool> walPool;
 };
 
 class Trash {
@@ -105,22 +106,45 @@ class Trash {
     bool IsChunkOrSnapShotFile(const std::string &chunkName);
 
     /*
-    * @brief RecycleChunksInCopyset 回收指定文件下的chunk
+    * @brief Recycle Chunkfile and wal file in Copyset
     *
-    * @param[in] copysetDir 文件路径
-    * @param[in] filename 文件名
+    * @param[in] copysetDir copyset dir
+    * @param[in] filename filename
     */
-    bool RecycleChunksInDir(
+    bool RecycleChunksAndWALInDir(
         const std::string &copysetDir, const std::string &filename);
 
     /*
-    * @brief RecycleIfChunkfile 如果是chunk文件则回收
+    * @brief Recycle Chunkfile
     *
     * @param[in] filepath 文件路径
     * @param[in] filename 文件名
     */
-    bool RecycleIfChunkfile(
+    bool RecycleChunkfile(
         const std::string &filepath, const std::string &filename);
+
+    /**
+     * @brief Recycle WAL
+     *
+     * @param copysetPath copyset dir
+     * @param filename file name
+     *
+     * @retval true   success
+     * @retval false  failure
+     */
+    bool RecycleWAL(
+        const std::string &filepath, const std::string &filename);
+
+
+    /**
+     * @brief is WAL or not ?
+     *
+     * @param fileName file name
+     *
+     * @retval true yes
+     * @retval false no
+     */
+    bool IsWALFile(const std::string &fileName);
 
     /*
     * @brief 统计copyset目录中的chunk个数
@@ -145,6 +169,9 @@ class Trash {
 
     // chunk池子
     std::shared_ptr<FilePool> chunkFilePool_;
+
+    // wal pool
+    std::shared_ptr<FilePool> walPool_;
 
     // 回收站全路径
     std::string trashPath_;
