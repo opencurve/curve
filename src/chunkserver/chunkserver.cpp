@@ -135,12 +135,24 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(FATAL, false == chunkfilePool->Initialize(chunkFilePoolOptions))
         << "Failed to init chunk file pool";
 
+
+
     // Init Wal file pool
-    FilePoolOptions walFilePoolOptions;
-    InitWalFilePoolOptions(&conf, &walFilePoolOptions);
-    kWalFilePool = std::make_shared<FilePool>(fs);
-    LOG_IF(FATAL, false == kWalFilePool->Initialize(walFilePoolOptions))
-        << "Failed to init wal file pool";
+    bool useChunkFilePool = true;
+    LOG_IF(FATAL, !conf.GetBoolValue(
+        "walfilepool.use_chunk_file_pool",
+        &useChunkFilePool));
+
+    if (!useChunkFilePool) {
+        FilePoolOptions walFilePoolOptions;
+        InitWalFilePoolOptions(&conf, &walFilePoolOptions);
+        kWalFilePool = std::make_shared<FilePool>(fs);
+        LOG_IF(FATAL, false == kWalFilePool->Initialize(walFilePoolOptions))
+            << "Failed to init wal file pool";
+    } else {
+        kWalFilePool = chunkfilePool;
+        LOG(INFO) << "initialize to use chunkfilePool as walpool success.";
+    }
 
     // 远端拷贝管理模块选项
     CopyerOptions copyerOptions;

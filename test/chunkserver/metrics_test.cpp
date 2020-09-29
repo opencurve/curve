@@ -107,6 +107,7 @@ class CSMetricTest : public ::testing::Test {
         copysetNodeOptions.chunkFilePool = chunkFilePool_;
         copysetNodeOptions.maxChunkSize = CHUNK_SIZE;
         copysetNodeOptions.trash = trash_;
+        copysetNodeOptions.locationLimit = 3000;
         ASSERT_EQ(0, copysetMgr_->Init(copysetNodeOptions));
         ASSERT_EQ(0, copysetMgr_->Run());
 

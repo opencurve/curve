@@ -167,6 +167,8 @@ chunkfilepool.retry_times=5
 #
 # WAL file pool
 #
+# walpool是否共用chunkfilepool，如果为true，则以下配置无效
+walfilepool.use_chunk_file_pool=true
 # 是否开启从walfilepool获取chunk，一般是true
 walfilepool.enable_get_segment_from_pool=true
 # walpool目录

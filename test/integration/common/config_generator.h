@@ -70,6 +70,7 @@ class CSTConfigGenerator : public ConfigGenerator {
         SetKV("walfilepool.file_pool_dir", walPoolDir);
         SetKV("walfilepool.meta_path", walPoolMetaPath);
         SetKV("walfilepool.enable_get_segment_from_pool", "false");
+        SetKV("walfilepool.use_chunk_file_pool", "false");
 
         SetKV("chunkserver.common.logDir", DEFAULT_LOG_DIR);
 
