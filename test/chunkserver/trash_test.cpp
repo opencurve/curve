@@ -380,9 +380,11 @@ TEST_F(TrashTest, recycle_wal_success) {
     std::vector<std::string> raftfiles{RAFT_LOG_DIR,
         RAFT_SNAP_DIR, RAFT_META_DIR, RAFT_DATA_DIR, "hello"};
     std::vector<std::string> logfiles{"curve_log_10086_10087",
-        "curve_log_inprogress_10088", "log_10083_10084", "log_inprogress_10085"};
+        "curve_log_inprogress_10088",
+        "log_10083_10084",
+        "log_inprogress_10085"};
     std::vector<std::string> empty;
-        EXPECT_CALL(*lfs, DirExists(_))
+    EXPECT_CALL(*lfs, DirExists(_))
         .WillOnce(Return(true))
         .WillOnce(Return(true))
         .WillOnce(Return(true))
@@ -417,10 +419,10 @@ TEST_F(TrashTest, recycle_wal_success) {
     EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/raft_meta", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
 
-    EXPECT_CALL(*pool,
+    EXPECT_CALL(*walPool,
         RecycleFile("./0/trash/4294967493.55555/log/curve_log_10086_10087"))
         .WillOnce(Return(0));
-    EXPECT_CALL(*pool,
+    EXPECT_CALL(*walPool,
         RecycleFile(
         "./0/trash/4294967493.55555/log/curve_log_inprogress_10088"))
         .WillOnce(Return(0));
@@ -433,9 +435,11 @@ TEST_F(TrashTest, recycle_wal_failed) {
     std::vector<std::string> raftfiles{RAFT_LOG_DIR,
         RAFT_SNAP_DIR, RAFT_META_DIR, RAFT_DATA_DIR, "hello"};
     std::vector<std::string> logfiles{"curve_log_10086_10087",
-        "curve_log_inprogress_10088", "log_10083_10084", "log_inprogress_10085"};
+        "curve_log_inprogress_10088",
+        "log_10083_10084",
+        "log_inprogress_10085"};
     std::vector<std::string> empty;
-        EXPECT_CALL(*lfs, DirExists(_))
+    EXPECT_CALL(*lfs, DirExists(_))
         .WillOnce(Return(true))
         .WillOnce(Return(true))
         .WillOnce(Return(true))
@@ -468,10 +472,10 @@ TEST_F(TrashTest, recycle_wal_failed) {
     EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/raft_meta", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
 
-    EXPECT_CALL(*pool,
+    EXPECT_CALL(*walPool,
         RecycleFile("./0/trash/4294967493.55555/log/curve_log_10086_10087"))
         .WillOnce(Return(0));
-    EXPECT_CALL(*pool,
+    EXPECT_CALL(*walPool,
         RecycleFile(
         "./0/trash/4294967493.55555/log/curve_log_inprogress_10088"))
         .WillOnce(Return(-1));
