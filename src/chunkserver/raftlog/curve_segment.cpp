@@ -90,7 +90,8 @@ int CurveSegment::create() {
                            << "' with fd=" << _fd;
     if (FLAGS_enableWalDirectWrite) {
         _direct_fd = ::open(path.c_str(), O_RDWR|O_NOATIME|O_DIRECT, 0644);
-        LOG_IF(FATAL, _direct_fd < 0) << "failed to open file with O_DIRECT";
+        LOG_IF(FATAL, _direct_fd < 0) << "failed to open file with O_DIRECT"
+                                         ", error: " << strerror(errno);
         butil::make_close_on_exec(_direct_fd);
     }
     _meta.bytes += _meta_page_size;
