@@ -2,25 +2,25 @@
 
 ## Introduction
 
-The quality control of Curve is the key to the maintenance and development of the project. In the following chapters, we'll introduce in theories and procedures.
+The quality control of Curve is the key to the maintenance and development of the project. It includes two parts: quality control theories and process control.
 
 ### Quality control theories
 Different levels of tests are included in Curve for testing the correctness of newly introduced and current functions more efficiently. These tests includes:
 
 - **Unit test**
 
-  Unit test can help us find out problems at the least cost when testing the correctness of a module, a function or a class.
+  Unit test can help us find out problems in the code at the least cost when testing the correctness of a module, a function or a class.
 
 - **Integration test**
 
   Based on unit testing, integration test is for testing whether all the software units achieve the technical specifications when assembled into modules, subsystems or systems according to the design.
 
-  The goal of integration test is to construct the program using components that already passed unit test according to the design requirements, since a single high quality module is not enough to guarantee the quality of the entire system. Many hidden failures are caused by unexpected interactions between high quality modules. Thus, the test will try to ensure that the units are combined to operate in accordance with the intended intention and the incremental behavior is correct by testing the interface between the units and the integrated functions.
+  The goal of integration test is to construct the program using components that already passed unit test according to the design requirements, since a single high quality module is not enough to guarantee the quality of the entire system. Many hidden failures are caused by unexpected interactions between high quality modules. Thus, the test will try to ensure that the units are combined to operate in accordance with the intended functionality, and the incremental behavior is correct, by testing the interface between the units and the integrated functions.
 
 - **System test**
   
 
-System test is a "black box" test based on the software requirements specification. It's a thorough test of the integrated system for verifying that the correctness and performance of the behavior and output, rather than a simple task, of the software system can meet the requirements. Thus, it's called the "prophet question" of testing.  Therefore, system test should be carried out in accordance with the test plan, and its input, output, and other dynamic operating behaviors should be compared with the software specification.  There are many methods for this test, including functional test, performance test, random testing, etc.
+System test is a "black box" test based on the software requirements specification. It's a thorough test of the integrated system to verify whether the correctness and performance of the system meets the requirements specified in the specification, and check whether the behavior and output Correct. Not a simple task, it's called the "prophet question" of testing.  Therefore, system test should be carried out in accordance with the test plan, and its input, output, and other dynamic operating behaviors should be compared with the software specification.  There are many methods for this test, including functional test, performance test, random testing, etc.
 
 <p align="center">
     <img src="../images/quality-theory.png" alt="quality-theory.png" width="650" />
@@ -57,21 +57,21 @@ The issues to be considered in the integration test are mainly the problems afte
 - Whether the sub-modules will affect each other;
 - Whether the error accumulation of a single module will be amplified to an unacceptable level; 
 
-Therefore, it is necessary to conduct a integration test to find and eliminate the problems above that may occur in the module connection after the unit test, and finally construct the required software subsystem or system.
+Therefore, it is necessary to conduct a integration test to find and eliminate the above problems, which may occur in the module connection after the unit test, and finally construct the required software subsystem or system.
 
 #### Content
 
 - **Function test**
   
-  Function test is to conduct a comprehensive test on the functions provided by the module from user's prospective. Before the test, it is necessary to design sufficient test cases, considering various system states and parameter input to decide whether the module can still work as usual, and return the expected results. In this process, a scientific test cases design method is required to consider various input scenarios, and complete the test process with least cases and execution steps.
+  Function test is to conduct a comprehensive test on the functions provided by the module from user's prospective. Before the test, it is necessary to design sufficient test cases, considering various system states and parameter input to decide whether the module can still work normally, and return the expected results. In this process, a scientific test cases design method is required to consider various input scenarios, and complete the test process with least cases and execution steps.
   
 - **Exception test**
   
-  Different from function test and performance test, exception test is another test for discovering performance bottlenecks caused by exceptions such as system exception, dependencies exception and the exception of the application itself in order to improve the stability of the system. Common exceptions include disk errors, network errors, data errors or program restarts, etc.  We use software to simulate exceptions in the development stage, such as "libfiu" in C++ and "gofail'' in go, which can simulate various exceptions.
+  Different from function test and performance test, exception test is another test method for discovering performance bottlenecks caused by exceptions such as system exception, dependencies exception and the exception of the application itself in order to improve the stability of the system. Common exceptions include disk errors, network errors, data errors or program restarts, etc.  We use software to simulate various exceptions in the development stage, such as "libfiu" in C++ and "gofail'' in go, which can simulate various exceptions.
 
 - **Scale test**
   
-  This is to test whether the module can work normally under a certain scale, and whether it will crash or shows exceptions by observing the utilization of system resources. For example, test whether there will be errors when opening a large number of files and whether the memory usage will be too large.
+  This is to test whether the module can work normally under a certain scale, and whether it will crash or work unexpectedly by observing the utilization of system resources. For example, test whether errors will occurred when opening a large number of files and whether the memory usage will be too large.
 
 - **Concurrent/pressure test**
 
@@ -83,9 +83,9 @@ Here we provide an [example of the test case for datastore module](quality-integ
 
 ### System test
 
-As mentioned at the beginning, the system test is a black box test. The system test of Curve usually conducted by QA. Tests include are: normal test, performance test, stability test, exception test and chaos test.
+As mentioned at the beginning, the system test is a black box test. The system test of Curve usually conducted by QA. Including: normal test, performance test, stability test, exception test and chaos test.
 
-- Normal test is basically manual test for newly added functions;
+- Normal test is basically manual test for new features;
 
 - Performance test is for testing the performance;
 
@@ -93,10 +93,10 @@ As mentioned at the beginning, the system test is a black box test. The system t
 
 - Anomaly test injects software and hardware exception into the normal process
 
-- Chaos test is to randomly combine software and hardware exceptions in normal process  
+- Chaos test is to randomly combine software and hardware exceptions into normal process  
 
 
-Unit tests and integration tests are usually coded by developers in code development and can be accumulated continuously. In the process of system testing, we also hope to automate test cases as much as possible to reduce manual regression costs, so that test cases can continue to accumulate.
+Unit tests and integration tests are usually coded by developers in development stage and can be accumulated continuously. In the process of system testing, we also hope to automate test cases as much as possible to reduce manual regression costs, so that test cases can continue to accumulate.
       There is also a very important reason: many hidden problems are occasional, and cannot be triggered frequently by manual test.
       Currently, **exception test and chaos test** are automated in Curve.
 
