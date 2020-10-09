@@ -73,14 +73,14 @@ class BAIDU_CACHELINE_ALIGNMENT CurveSegment:
     CurveSegment(const std::string& path, const int64_t first_index,
                  int checksum_type)
         : _path(path), _meta(CurveSegmentMeta()),
-        _fd(-1), _is_open(true),
+        _fd(-1), _direct_fd(-1), _is_open(true),
         _first_index(first_index), _last_index(first_index - 1),
         _checksum_type(checksum_type),
         _meta_page_size(kWalFilePool->GetFilePoolOpt().metaPageSize) {}
     CurveSegment(const std::string& path, const int64_t first_index,
             const int64_t last_index, int checksum_type)
         : _path(path), _meta(CurveSegmentMeta()),
-        _fd(-1), _is_open(false),
+        _fd(-1), _direct_fd(-1), _is_open(false),
         _first_index(first_index), _last_index(last_index),
         _checksum_type(checksum_type),
         _meta_page_size(kWalFilePool->GetFilePoolOpt().metaPageSize) {
@@ -89,6 +89,10 @@ class BAIDU_CACHELINE_ALIGNMENT CurveSegment:
         if (_fd >= 0) {
             ::close(_fd);
             _fd = -1;
+        }
+        if (_direct_fd >= 0) {
+            ::close(_direct_fd);
+            _direct_fd = -1;
         }
     }
 
