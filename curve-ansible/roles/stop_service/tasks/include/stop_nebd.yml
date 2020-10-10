@@ -20,5 +20,10 @@
     sudo: "sudo"
   when: command_need_sudo
 
-- name: stop nebd
+- name: stop nebd with daemon
   shell: chdir={{ deploy_dir }} {{ sudo }} nebd-daemon stop
+  when: start_by_daemon
+
+- name: stop nebd without daemon
+  ignore_errors: true
+  shell: killall {{ curve_bin_dir }}/nebd-server

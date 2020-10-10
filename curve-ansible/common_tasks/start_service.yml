@@ -20,12 +20,24 @@
     sudo: "sudo"
   when: command_need_sudo
 
-- name: start by daemon
-  shell: chdir={{ ch_dir }} {{ sudo }} {{ daemon_script }} start
-  register: outres
+- name: set sudo no
+  set_fact:
+    sudo: ""
+  when: not {{ command_need_sudo }}
 
-- debug:
-    msg: "{{ outres.stdout }}"
+- name: start service with daemon
+  block:
+    - name: start by daemon
+      shell: chdir={{ ch_dir }} {{ sudo }} {{ daemon_script }} start
+      register: outres
+    - debug:
+        msg: "{{ outres.stdout }}"
+  when: start_by_daemon
+
+- name: start service without daemon
+  shell: >
+    chdir={{ ch_dir }} {{ sudo }} {{ start_cmd }}
+  when: not {{ start_by_daemon }}
 
 - name: start service without daemon
   shell: >

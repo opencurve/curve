@@ -20,4 +20,6 @@
     ch_dir: "{{ deploy_dir }}"
     daemon_script: ./mds-daemon.sh
     service_port: "{{ mds_dummy_port }}"
-  include_tasks: stop_by_daemon.yml
+    process_name: >
+      "{{ curve_bin_dir }}"/curve-mds
+  include_tasks: common_tasks/stop_service.yml

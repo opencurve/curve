@@ -22,7 +22,7 @@
   import_playbook: check_ansible_version.yml
 
 ############################## stop mds ##############################
-- name: start mds
+- name: stop mds
   hosts: mds
   any_errors_fatal: true
   gather_facts: no
@@ -32,7 +32,7 @@
     - { role: stop_service, service_name: mds, command_need_sudo: "{{ mds_need_sudo }}" }
 
 ############################## stop chunkserver ##############################
-- name: start chunkserver
+- name: stop chunkserver
   hosts: chunkservers
   any_errors_fatal: true
   gather_facts: no

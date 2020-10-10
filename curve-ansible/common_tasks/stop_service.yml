@@ -15,18 +15,31 @@
 #  limitations under the License.
 #
 
-- name: set sudo or not
+- name: set sudo yes
   set_fact:
     sudo: "sudo"
   when: command_need_sudo
 
-- name: stop by daemon
-  ignore_errors: true
-  shell: chdir={{ ch_dir }} {{ sudo }} {{ daemon_script }} stop
-  register: stopres
+- name: set sudo no
+  set_fact:
+    sudo: ""
+  when: not {{ command_need_sudo }}
 
-- debug:
-    msg: "{{ stopres.stdout }}"
+- name: stop service with daemon
+  block:
+    - name: stop by daemon
+      ignore_errors: true
+      shell: chdir={{ ch_dir }} {{ sudo }} {{ daemon_script }} stop
+      register: stopres
+    - debug:
+        msg: "{{ stopres.stdout }}"
+  when: start_by_daemon
+
+- name: stop service without daemon
+  ignore_errors: true
+  shell: >
+    "{{ sudo }}" killall {{ process_name }}
+  when: not {{ start_by_daemon }}
 
 - name: wait until server is down
   ping_port: "{{ service_port }}"
