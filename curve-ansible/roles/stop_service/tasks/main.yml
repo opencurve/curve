@@ -16,5 +16,5 @@
 #
 
 # 启动对应的服务
-- name: start_service
+- name: stop_service
   include_tasks: "include/stop_{{ service_name }}.yml"

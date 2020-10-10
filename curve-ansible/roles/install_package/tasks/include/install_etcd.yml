@@ -52,7 +52,6 @@
       register: install_etcd_res
 
     - name: install etcd with sudo
-      ignore_errors: true
       shell: >
           chdir={{ etcd_download_dir }}/etcd-{{ etcd_version }}-linux-amd64
           sudo mv etcd {{ install_etcd_dir }} &&
