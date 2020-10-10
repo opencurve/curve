@@ -20,4 +20,6 @@
     ch_dir: "{{ deploy_dir }}"
     daemon_script: ./etcd-daemon.sh
     service_port: "{{ etcd_listen_client_port }}"
-  include_tasks: start_by_daemon.yml
+    start_cmd: >
+      nohup {{ install_etcd_dir }}/etcd --config-file {{ etcd_config_path }} > etcd-console.log 2>&1 &
+  include_tasks: common_tasks/start_service.yml

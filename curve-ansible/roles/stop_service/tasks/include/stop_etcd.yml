@@ -20,4 +20,6 @@
     ch_dir: "{{ deploy_dir }}"
     daemon_script: ./etcd-daemon.sh
     service_port: "{{ etcd_listen_client_port }}"
-  include_tasks: stop_by_daemon.yml
+    process_name: >
+      "{{ install_etcd_dir }}"/etcd
+  include_tasks: common_tasks/stop_service.yml
