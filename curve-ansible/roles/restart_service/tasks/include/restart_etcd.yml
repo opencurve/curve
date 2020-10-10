@@ -15,9 +15,8 @@
 #  limitations under the License.
 #
 
-- name: restart etcd
-  vars:
-    ch_dir: "{{ deploy_dir }}"
-    daemon_script: ./etcd-daemon.sh
-    service_port: "{{ etcd_listen_client_port }}"
-  include_tasks: restart_by_daemon.yml
+- name: stop etcd
+  include_tasks: roles/stop_service/tasks/include/stop_etcd.yml
+
+- name: start etcd
+  include_tasks: roles/start_service/tasks/include/start_etcd.yml

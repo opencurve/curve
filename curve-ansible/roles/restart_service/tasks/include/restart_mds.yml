@@ -28,9 +28,9 @@
   when: curve_version == expected_curve_version
 
 - name: restart mds
-  vars:
-    ch_dir: "{{ deploy_dir }}"
-    daemon_script: ./mds-daemon.sh
-    service_port: "{{ mds_dummy_port }}"
-  include_tasks: restart_by_daemon.yml
+  block:
+    - name: stop mds
+      include_tasks: roles/stop_service/tasks/include/stop_mds.yml
+    - name: start mds
+      include_tasks: roles/start_service/tasks/include/start_mds.yml
   when: need_restart

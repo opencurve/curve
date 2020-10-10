@@ -221,7 +221,7 @@
         prompt: "Confirm restart snapshotclone in {{ inventory_hostname }}. ENTER to continue or CTRL-C A to quit"
       when: need_confirm
     - vars:
-        package_version: "{{ mds_package_version }}"
+        package_version: "{{ snapshot_package_version }}"
         software_version:
       include_tasks: "common_tasks/get_software_version_from_package_version.yml"
 

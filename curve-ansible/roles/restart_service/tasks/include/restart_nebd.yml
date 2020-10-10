@@ -38,9 +38,15 @@
   when: need_restart
 
 - name: restart nebd-server
-  vars:
-    ch_dir: "{{ deploy_dir }}"
-    daemon_script: nebd-daemon
-    service_port: "{{ nebd_port }}"
-  include_tasks: restart_by_daemon.yml
+  block:
+    - name: stop nebd-server
+      vars:
+        ch_dir: "{{ deploy_dir }}"
+        daemon_script: nebd-daemon
+        service_port: "{{ nebd_port }}"
+        process_name: >
+          {{ curve_bin_dir }}/nebd-server
+      include_tasks: common_tasks/stop_service.yml
+    - name: start mds
+      include_tasks: roles/start_service/tasks/include/start_nebd.yml
   when: need_restart

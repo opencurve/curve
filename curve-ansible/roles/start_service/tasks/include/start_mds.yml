@@ -20,4 +20,8 @@
     ch_dir: "{{ deploy_dir }}"
     daemon_script: ./mds-daemon.sh
     service_port: "{{ mds_dummy_port }}"
-  include_tasks: start_by_daemon.yml
+    start_cmd: >
+      nohup "{{ curve_bin_dir }}"/curve-mds -confPath={{ mds_config_path }}
+      -mdsAddr={{ ansible_ssh_host }}:{{ mds_port }} -log_dir={{ mds_log_dir }} -graceful_quit_on_sigterm=true
+      -stderrthreshold=3 > mds-console.log 2>&1 &
+  include_tasks: common_tasks/start_service.yml
