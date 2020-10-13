@@ -177,7 +177,7 @@ class RaftSnapshotTest : public testing::Test {
 
         // 配置默认raft client option
         defaultCliOpt_.max_retry = 3;
-        defaultCliOpt_.timeout_ms = 3000;
+        defaultCliOpt_.timeout_ms = 10000;
     }
 
     virtual void TearDown() {
@@ -306,7 +306,7 @@ TEST_F(RaftSnapshotTest, AddPeerRecoverFromSnapshot) {
     ASSERT_EQ(0, cluster.StartPeer(peer4_,
                                    PeerCluster::PeerToId(peer4_)));
     status = AddPeer(logicPoolId, copysetId, conf, peer4_, defaultCliOpt_);
-    ASSERT_TRUE(status.ok());
+    ASSERT_TRUE(status.ok()) << status;
     // transfer leader 到peer4_，并读出来验证
     TransferLeaderAssertSuccess(&cluster, peer4_, defaultCliOpt_);
     leaderPeer = peer4_;
