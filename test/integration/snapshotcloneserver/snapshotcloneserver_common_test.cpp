@@ -193,6 +193,8 @@ const std::vector<std::string> snapshotcloneConf{
 
 const std::vector<std::string> clientConfigOptions{
     std::string("mds.listen.addr=") + kMdsIpPort,
+    std::string("global.logPath=") + kLogPath,
+    std::string("mds.rpcTimeoutMS=4000"),
 };
 
 const char* testFile1_ = "/ItUser1/file1";

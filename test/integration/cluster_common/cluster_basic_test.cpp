@@ -173,7 +173,7 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     ASSERT_GT(pid, 0);
     // 初始化mdsclient
     MetaServerOption_t op;
-    op.mdsRPCTimeoutMs = 500;
+    op.mdsRPCTimeoutMs = 4000;
     op.metaaddrvec = std::vector<std::string>{ "127.0.0.1:3333" };
     ASSERT_EQ(0, curveCluster_->InitMdsClient(op));
 
