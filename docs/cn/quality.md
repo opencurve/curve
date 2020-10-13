@@ -1,3 +1,5 @@
+[English version](../en/quality_en.md)
+
 # 质量体系
 
 ## 概述

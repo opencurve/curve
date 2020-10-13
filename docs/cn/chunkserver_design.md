@@ -1,3 +1,4 @@
+[English version](../en/chunkserver_design_en.md)
 
 # 1 ChunkServer 概述
 
@@ -83,7 +84,7 @@ Chunk Server概要结构如下所示，通过网络消息收发层统一接收�
 
     - CloneManager
 
-      CloneManager主要负责克隆相关的功能，内部是一个线程池，主要负责异步完成克隆chunk的数据补全。关于克隆相关的内容将会在快照克隆相关介绍文档中详细介绍。（附链接）
+      CloneManager主要负责克隆相关的功能，内部是一个线程池，主要负责异步完成克隆chunk的数据补全。关于克隆相关的内容详见[克隆快照文档](./snapshotcloneserver.md)。
 
     - CopysetNode
 
@@ -219,4 +220,3 @@ chunkserver/
 + GetChunk接口从chunkpool池子中取出一个闲置的chunk，如果池子里没有闲置的文件了，那么同步创建文件，如果池子的水位到达低水位，那么发起一个异步任务进行异步文件分配。
 + 文件分配的操作基于的是文件系统的rename，rename操作可以保证原子性，因此保证了创建文件的原子性。
 + 回收chunk：当外部删除chunk的时候，需要回收chunk，并将chunk置位。回收chunk避免了重新分配
-
