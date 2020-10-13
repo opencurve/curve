@@ -38,7 +38,6 @@ namespace chunkserver {
 using curve::fs::LocalFileSystem;
 using curve::chunkserver::concurrent::ConcurrentApplyModule;
 
-class ConcurrentApplyModule;
 class FilePool;
 class CopysetNodeManager;
 class CloneManager;
