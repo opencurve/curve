@@ -86,7 +86,7 @@ Use Write request as an example, and figure3 is the flow chart of the request:
   - If disconnection occurs of unable to connect, wait for a while and retry.
     
 <p align="center">
-    <img src="../images/nebd-part1-write-request-en.png" alt="images\nebd-part1-write-request-en" width="300" /><br>
+    <img src="../images/nebd-part1-write-request-en.png" alt="images\nebd-part1-write-request-en" width="400" /><br>
     <font size=3> Figure 3: Flow chart of write request sent by NEBD client</font>
 </p>
 
