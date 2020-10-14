@@ -6,7 +6,7 @@
 
 ### 1.1 Intro to Curve snapshot
 
-Snapshot is the read-only copy of the entire data of a cloud disk at a certain moment, and is an convenient and efficient way for data disaster tolerance, commonly used in data backup, creating mirrors and application disaster tolerance. Snapshot system provides users an snapshot service interface, by which users can create, delete or cancel a snapshot, or recover data from snapshot, and even create their own mirror.
+Snapshot is the read-only copy of the entire data of a cloud disk at a certain moment, and is an convenient and efficient way for data disaster tolerance, commonly used in data backup, creating images and application disaster tolerance. Snapshot system provides users an snapshot service interface, by which users can create, delete or cancel a snapshot, or recover data from snapshot, and even create their own image.
 
 The snapshot service works as an independent component from core services of Curve, and it supports multi-level snapshot, which means a full backup for the first snapshot and incremental snapshot for the following ones. In the first snapshot, data will be stored entirely on S3, and only the modified data will be stored in the following tasks for saving spaces. The storing of snapshot data to S3 is asynchronous. Leader election and a high availability is implemanted by Etcd, and unfinished tasks will be resume automatically when the service restart.
 
@@ -21,14 +21,14 @@ Figure 1 shows the architecture of Curve snapshot service.
 
 #### Snapshot System
 
-After receiving requests from users, the system will create temporary snapshot by calling the interfaces of CurveFS, then it will store the temporary data to object storage system and persist metadata of the snapshot to database. The functions of snapshot system can be concluded into two parts:
+After receiving requests from users, the system will create temporary snapshot by calling the interfaces of CurveFS, then it will dump the temporary data to object storage system and persist metadata of the snapshot to database. The functions of snapshot system can be concluded into two parts:
 
-1. Provides snapshot interface for user to operate the snapshot datat.
+1. Provides snapshot interface for user to operate the snapshot data.
 2. Managing the snapshot data, and control the snapshot data flow in the system using the interface from CurveFS and object storage system.
 
 #### CurveFS
 
-CurveFS provides RPC interface used by snapshot system for creating, deleting and reading snapshot. On the creation of the snapshot, CurveFS is the provider of the snapshot data for snapshot system to store in object storage system, and in the recovering process from snapshot, CurveFS is the receiver of the snapshot fetched from object storage system.
+CurveFS provides RPC interface used by snapshot system for creating, deleting and reading snapshot. When the snapshot is created, CurveFS is the provider of the snapshot data for snapshot system to store in object storage system, and in the recovering process from snapshot, CurveFS is the receiver of the snapshot fetched from object storage system.
 
 #### Object Storage
 
@@ -38,21 +38,21 @@ Object storage provides storage capabilities for snapshot data, and only provide
 
 ### 1.3 Snapshot Procedure
 
-Here's what would happen when the user initiates a snapshot request to the snapshot system. The request will goes to the HTTP service layer, in which a specific snap task will be generated and handed over to the snapshot task manager for scheduling. The process of taking a snapshot is that a temporary snapshot in CurveFS will first be generated, then dumped to the object storage system, and finally deleted.
+Here's what would happen when the user sends a snapshot request to the snapshot system. The request will goes to the HTTP service layer, in which a specific snapshot task will be generated and handed over to the snapshot task manager for scheduling. The process of taking a snapshot is that a temporary snapshot in CurveFS will first be generated, then dumped to the object storage system, and finally deleted.
 
 The following steps are for creating a snapshot:
 
 1. Generate snapshot records and persist them to Etcd. Several judgments are required for this step: For the same volume, there can only be one snapshot being taken at the same time, so it is necessary to judge whether the volume has a snapshot request being processed. Theoretically, unlimited snapshots are supported by the system, and in the implementation we put a limit to the depth of snapshot, which can be modified in the configuration file. For this reason, we also need to determine whether the number of snapshot exceeds the limit. If every thing works well, the metadata of the original volume will be read from MDS and a snapshot record will be generated and persisted to Etcd. The status of the snapshot generated in this step is 'pending'.
 
-2. Create temporary snapshot on CurveFS, retuen seqNum of the snapshot created, then update the seqNum of the snapshot record.
+2. Create temporary snapshot on CurveFS, return seqNum of the snapshot created, then update the seqNum of the snapshot record.
 4. Create snapshot mapping table (see 1.4.1), and save it to object storage S3.
-6. Store snapshot data from CurveFS to object storage S3. When storing, the snapshot system first reads the snapshot data from CurveFS, then uploads the data to the S3.
+6. Dump snapshot data from CurveFS to object storage S3. When storing, the snapshot system first reads the snapshot data from CurveFS, then uploads the data to the S3.
 8. Delete the temporary snapshot.
 10. Update snapshot status to 'done'.
 
 ### 1.4 Organization of Snapshot Data
 
-Each snapshot has a corresponding record in the snapshot system and a persisted one in Etcd, and a uuid as the unique identifier.
+Each snapshot has a corresponding record in the snapshot system which persisted in Etcd and use a uuid as unique identifier.
 
 #### 1.4.1 Organization of snapshot data on S3
 
@@ -76,9 +76,9 @@ Please refer to the [document](../cn/snapshotcloneserver_interface.md) of snapsh
 
 ### 2.1 Intro to Curve Clone Module
 
-In section 1 we introduced the snapshot system, which is for creating snapshots of  files of CurveFS and incrementally dump the data to S3. But for a complete snapshot system, supporting only the snapshot creation is not enough, file recovery and cloning is the reason why take snapshot. In this section we introduce Curve cloning (recovering can be considered as cloning to some extend).
+In section 1 we introduced the snapshot system, which is for creating snapshots of  files of CurveFS and incrementally dump the data to S3. But for a complete snapshot system, supporting only the snapshot creation is not enough, file recovery and cloning is the reason why take snapshot. In this section we introduce Curve cloning systerm(recovering can be considered as cloning to some extend).
 
-According to the data source, there are two kinds of cloning, including cloning from snapshot and cloning from mirror, and if dividing by whether the data is entirely cloned before the service is provided, it can be divided into delayed cloning and non-delayed cloning.
+According to the data source, there are two kinds of cloning, including cloning from snapshot and cloning from image, and if dividing by whether the data is entirely cloned before the service is provided, it can be divided into Lazy Clone and Not-Lazy Clone.
 
 ### 2.2 Architecture of Curve Cloning
 
@@ -97,7 +97,7 @@ SnapshotCloneServer: Take charge of the management of snapshot and clone task in
 
 S3 Object Storage: For storing snapshot data.
 
-Chunk Server: The actual place that stores the file data, and supports "Lazy Clone"  by using copy-on-read mechanism. When the Client initiates a read request to data on a cloned volume, if the area of target data has not been written, the system will copy data from the mirror (stored in CurveFS) or snapshot (stored in S3), return the data to the Client and write it to the chunk file asynchronously.
+Chunk Server: The actual place that stores the file data, and supports "Lazy Clone"  by using copy-on-read mechanism. When the Client initiates a read request to data on a cloned volume, if the area of target data has not been written, the system will copy data from the image (stored in CurveFS) or snapshot (stored in S3), return the data to the Client and write it to the chunk file asynchronously.
 
 ### 2.3. Clone Procedure
 
@@ -111,7 +111,7 @@ Here are steps for creating a clone of a volume
 
 2. After receiving the request, the SnapshotCloneServer obtains data from  locally saved snapshot information of the snapshot clone system (currently persisted to Etcd) or from MDS according to whether the cloned object is a snapshot or a file.
 3. The SnapshotCloneServer will then send a 'CreateCloneFile' request to MDS. For the newly created file, the initial version should be set to 1. After receiving the request, MDS will create a new file and set the status of the file to 'Cloning' (the meaning of different file status will be explained in the following chapters).  It should be noted that the file created at the beginning will be placed in a temporary directory. For example, if the file that the user request to clone is named 'des', then this step will create the file with the name '/clone/des'.
-4. After the creation of the file, SnapshotCloneServer will queries the location info of each chunk: If the cloned object is a file, only the file name is needed, and as for snapshot, the server will first obtain the meta object on S3 for analysis to obtain the information of the chunk, then allocates copyset for chunks on each segment through MDS. After that, the server will calls the 'CreateCloneChunk' interface of ChunkServer to create a new chunk file with the version 1 for each acquired chunk. Source location information is recorded in the chunk, if the cloned object is a file, format '/filename/offset@cs' will be used as the location ('filename' means the name of the data source file, and @cs indicates that the file data is on the chunk server), and if the cloned object is a snapshot, the server use 'url@s3' as the location ('url' means the source data url on S3, @s3 indicates that the source data is on S3)
+4. After the creation of the file, SnapshotCloneServer will queries the location info of each chunk: If the clone source is a image, only the file name is needed, and as for snapshot, the server will first obtain the meta object on S3 for analysis to obtain the information of the chunk, then allocates copyset for chunks on each segment through MDS. After that, the server will calls the 'CreateCloneChunk' interface of ChunkServer to create a new chunk file with the version 1 for each acquired chunk. Source location information is recorded in the chunk, if the clone source is a image, format '/filename/offset@cs' will be used as the location ('filename' means the name of the data source file, and @cs indicates that the file data is on the chunk server), and if the cloned object is a snapshot, the server use 'url@s3' as the location ('url' means the source data url on S3, @s3 indicates that the source data is on S3)
 5. After creating all chunks on the chunk server and recording the source data information, the SnapshotCloneServer will modifies the status of the file to 'CloneMetaInstalled' through 'CompleteCloneMeta' interface. Up till this step, the process of the lazy and non-lazy method are the same, and their difference  will be reflected in the following steps.
 6. If the user specifies a lazy clone, the SnapshotCloneServer will first rename the previously created file from '/clone/des' to "des", in this way the user can access the newly created file and mount it for reading and writing. Lazy clone will not continue the following data copy unless the 'flatten' interface of the snapshot system is called explicitly. Then, the SnapshotCloneServer will continue to call 'RecoverChunk' circularly to asynchronously trigger the copy of the chunk data on the chunk server. After all chunks are successfully copied, interface 'CompleteCloneFile' will be called with the specified file name 'des' (the file has been renamed earlier) to change the status of the file to 'Cloned'. 
 7. If lazy clone is not specified, that means the service will be provided only after the synchronization of all the data. The SnapshotCloneServer first circularly calls 'RecoverChunk' to trigger the copy of the chunk data on the chunk server, and when all the chunk data is copied, it will calls 'CompleteCloneFile' with specified file name '/clone/des' to change the status of the file to 'Cloned'. Then, file '/clone/des' will be renamed to 'des' for using.
@@ -127,7 +127,7 @@ Essencially, the recovery operation is based on cloning. To explain cloning in a
 
 #### 2.3.3 Writing Cloned Volume
 
-The writing process of a cloned volume is just like writing a normal volume. The difference is that the chunk of the cloned volume will record the bitmap. When data is written, the bit in the corresponding position will be set to 1 in order to distinguish the unwritten area that need to be read from the clone source.
+The writing process of a cloned volume is just like writing a normal volume. The difference is that the writing of the cloned volume will record the bitmap. When data is written, the bit in the corresponding position will be set to 1 in order to distinguish the unwritten area that need to be read from the clone source.
 
 #### 2.3.4 Reading Cloned Volume
 
@@ -156,7 +156,7 @@ At this stage for the cloning, there will be a file under the '/clone' directory
   
 - CloneMetaInstalled
 
-  The file is in this status means that the source location information of chunk has been loaded successfully. If the user specifies the lazy method, the file in this status can be provided for external mounting. During this status, the SnapshotCloneServer will trigger data coping from the data source for each chunk, and snapshot is not allowed.
+  The file is in this status means that the metadata of chunk has been loaded successfully. If the user specifies the lazy method, the file in this status can be provided for external mounting. During this status, the SnapshotCloneServer will trigger data coping from the data source for each chunk, and snapshot is not allowed.
 
   In this status, if the clone is lazy, the file will be moved to the actual directory, and the origin file will be removed first if it is file recovering. For non-lazy, the location of the file will be the same as the 'Cloning' status.
 
