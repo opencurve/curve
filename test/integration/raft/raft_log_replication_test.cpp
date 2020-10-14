@@ -41,6 +41,8 @@ using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 
+const char kRaftLogRepTestLogDir[] = "./runlog/RaftLogRep";
+
 static char* raftLogParam[5][16] = {
     {
         "chunkserver",
@@ -153,12 +155,15 @@ class RaftLogReplicationTest : public testing::Test {
         mkdir4 += std::to_string(PeerCluster::PeerToId(peer4));
         std::string mkdir5("mkdir ");
         mkdir5 += std::to_string(PeerCluster::PeerToId(peer5));
+        std::string mkdir6("mkdir ");
+        mkdir6 += kRaftLogRepTestLogDir;
 
         ::system(mkdir1.c_str());
         ::system(mkdir2.c_str());
         ::system(mkdir3.c_str());
         ::system(mkdir4.c_str());
         ::system(mkdir5.c_str());
+        ::system(mkdir6.c_str());
 
         electionTimeoutMs = 1000;
         snapshotIntervalS = 20;
@@ -173,22 +178,32 @@ class RaftLogReplicationTest : public testing::Test {
             std::to_string(electionTimeoutMs));
         cg1.SetKV("copyset.snapshot_interval_s",
             std::to_string(snapshotIntervalS));
+        cg1.SetKV("chunkserver.common.logDir",
+            kRaftLogRepTestLogDir);
         cg2.SetKV("copyset.election_timeout_ms",
             std::to_string(electionTimeoutMs));
         cg2.SetKV("copyset.snapshot_interval_s",
             std::to_string(snapshotIntervalS));
+        cg2.SetKV("chunkserver.common.logDir",
+            kRaftLogRepTestLogDir);
         cg3.SetKV("copyset.election_timeout_ms",
             std::to_string(electionTimeoutMs));
         cg3.SetKV("copyset.snapshot_interval_s",
             std::to_string(snapshotIntervalS));
+        cg3.SetKV("chunkserver.common.logDir",
+            kRaftLogRepTestLogDir);
         cg4.SetKV("copyset.election_timeout_ms",
             std::to_string(electionTimeoutMs));
         cg4.SetKV("copyset.snapshot_interval_s",
             std::to_string(snapshotIntervalS));
+        cg4.SetKV("chunkserver.common.logDir",
+            kRaftLogRepTestLogDir);
         cg5.SetKV("copyset.election_timeout_ms",
             std::to_string(electionTimeoutMs));
         cg5.SetKV("copyset.snapshot_interval_s",
             std::to_string(snapshotIntervalS));
+        cg5.SetKV("chunkserver.common.logDir",
+            kRaftLogRepTestLogDir);
         ASSERT_TRUE(cg1.Generate());
         ASSERT_TRUE(cg2.Generate());
         ASSERT_TRUE(cg3.Generate());

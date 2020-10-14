@@ -40,6 +40,8 @@ using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 
+const char kRaftVoteTestLogDir[] = "./runlog/RaftVote";
+
 static char* raftVoteParam[3][16] = {
     {
         "chunkserver",
@@ -110,10 +112,13 @@ class RaftVoteTest : public testing::Test {
         mkdir2 += std::to_string(PeerCluster::PeerToId(peer2));
         std::string mkdir3("mkdir ");
         mkdir3 += std::to_string(PeerCluster::PeerToId(peer3));
+        std::string mkdir4("mkdir ");
+        mkdir4 += kRaftVoteTestLogDir;
 
         ::system(mkdir1.c_str());
         ::system(mkdir2.c_str());
         ::system(mkdir3.c_str());
+        ::system(mkdir4.c_str());
 
         electionTimeoutMs = 1000;
         snapshotIntervalS = 60;
@@ -126,14 +131,20 @@ class RaftVoteTest : public testing::Test {
             std::to_string(electionTimeoutMs));
         cg1.SetKV("copyset.snapshot_interval_s",
             std::to_string(snapshotIntervalS));
+        cg1.SetKV("chunkserver.common.logDir",
+            kRaftVoteTestLogDir);
         cg2.SetKV("copyset.election_timeout_ms",
             std::to_string(electionTimeoutMs));
         cg2.SetKV("copyset.snapshot_interval_s",
             std::to_string(snapshotIntervalS));
+        cg2.SetKV("chunkserver.common.logDir",
+            kRaftVoteTestLogDir);
         cg3.SetKV("copyset.election_timeout_ms",
             std::to_string(electionTimeoutMs));
         cg3.SetKV("copyset.snapshot_interval_s",
             std::to_string(snapshotIntervalS));
+        cg3.SetKV("chunkserver.common.logDir",
+            kRaftVoteTestLogDir);
         ASSERT_TRUE(cg1.Generate());
         ASSERT_TRUE(cg2.Generate());
         ASSERT_TRUE(cg3.Generate());
