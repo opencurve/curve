@@ -1,7 +1,7 @@
 {
     "logicalpools": [
         {
-            "copysetnum": 300,
+            "copysetnum": 30,
             "name": "logicalPool1",
             "physicalpool": "pool1",
             "replicasnum": 3,
@@ -40,4 +40,3 @@
         }
     ]
 }
-
