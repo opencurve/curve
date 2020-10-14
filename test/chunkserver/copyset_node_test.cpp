@@ -549,6 +549,7 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         std::shared_ptr<MockNode> mockNode
             = std::make_shared<MockNode>(logicPoolID,
                                          copysetID);
+        ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         copysetNode.SetCopysetNode(mockNode);
 
         ConfigChangeType type;
@@ -569,6 +570,7 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         std::shared_ptr<MockNode> mockNode
             = std::make_shared<MockNode>(logicPoolID,
                                          copysetID);
+        ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         copysetNode.SetCopysetNode(mockNode);
 
         ConfigChangeType type;
@@ -606,6 +608,7 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         std::shared_ptr<MockNode> mockNode
             = std::make_shared<MockNode>(logicPoolID,
                                          copysetID);
+        ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         copysetNode.SetCopysetNode(mockNode);
 
         ConfigChangeType type;
@@ -643,6 +646,7 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         std::shared_ptr<MockNode> mockNode
             = std::make_shared<MockNode>(logicPoolID,
                                          copysetID);
+        ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         copysetNode.SetCopysetNode(mockNode);
 
         ConfigChangeType type;
@@ -680,6 +684,7 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         std::shared_ptr<MockNode> mockNode
             = std::make_shared<MockNode>(logicPoolID,
                                          copysetID);
+        ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         copysetNode.SetCopysetNode(mockNode);
 
         ConfigChangeType type;
@@ -712,6 +717,7 @@ TEST_F(CopysetNodeTest, get_conf_change) {
     // leader term小于0
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         ConfigChangeType type;
         Configuration oldConf;
         Peer alterPeer;
