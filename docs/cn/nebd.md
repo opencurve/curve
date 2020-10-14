@@ -1,3 +1,5 @@
+[English version](../en/nebd_en.md)
+
 ### 概要
 
 Curve Client作为Curve集群的入口，是以链接库的形式提供给Qemu/Curve-NBD等上层使用，所以在Curve Client需要升级的时候，需要对Qemu/Curve-NBD进行重启。
