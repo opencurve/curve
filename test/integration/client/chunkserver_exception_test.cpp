@@ -237,7 +237,7 @@ class CSModuleException : public ::testing::Test {
         ASSERT_NE(fd, -1);
 
         // 8. 先睡眠10s，让chunkserver选出leader
-        std::this_thread::sleep_for(std::chrono::seconds(5));
+        std::this_thread::sleep_for(std::chrono::seconds(10));
     }
 
     void TearDown() {
@@ -245,7 +245,9 @@ class CSModuleException : public ::testing::Test {
         UnInit();
         ASSERT_EQ(0, cluster->StopCluster());
         delete cluster;
-        system("rm -rf moduleException6 moduleException4 moduleException5");
+        system(
+            "rm -rf moduleException6 moduleException4 moduleException5 "
+            "module_exception_test_chunkserver.etcd");
     }
 
     void CreateOpenFileBackend() {
