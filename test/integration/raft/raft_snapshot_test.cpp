@@ -40,6 +40,8 @@ using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 
+const char kRaftSnapshotTestLogDir[] = "./runlog/RaftSnapshot";
+
 static char *raftVoteParam[4][16] = {
     {
         "chunkserver",
@@ -131,11 +133,14 @@ class RaftSnapshotTest : public testing::Test {
         mkdir3 += std::to_string(PeerCluster::PeerToId(peer3_));
         std::string mkdir4("mkdir ");
         mkdir4 += std::to_string(PeerCluster::PeerToId(peer4_));
+        std::string mkdir5("mkdir ");
+        mkdir5 += kRaftSnapshotTestLogDir;
 
         ::system(mkdir1.c_str());
         ::system(mkdir2.c_str());
         ::system(mkdir3.c_str());
         ::system(mkdir4.c_str());
+        ::system(mkdir5.c_str());
 
         electionTimeoutMs_ = 1000;
         snapshotIntervalS_ = 20;
@@ -148,18 +153,26 @@ class RaftSnapshotTest : public testing::Test {
                   std::to_string(electionTimeoutMs_));
         cg1_.SetKV("copyset.snapshot_interval_s",
                   std::to_string(snapshotIntervalS_));
+        cg1_.SetKV("chunkserver.common.logDir",
+            kRaftSnapshotTestLogDir);
         cg2_.SetKV("copyset.election_timeout_ms",
                   std::to_string(electionTimeoutMs_));
         cg2_.SetKV("copyset.snapshot_interval_s",
                   std::to_string(snapshotIntervalS_));
+        cg2_.SetKV("chunkserver.common.logDir",
+            kRaftSnapshotTestLogDir);
         cg3_.SetKV("copyset.election_timeout_ms",
                   std::to_string(electionTimeoutMs_));
         cg3_.SetKV("copyset.snapshot_interval_s",
                   std::to_string(snapshotIntervalS_));
+        cg3_.SetKV("chunkserver.common.logDir",
+            kRaftSnapshotTestLogDir);
         cg4_.SetKV("copyset.election_timeout_ms",
                   std::to_string(electionTimeoutMs_));
         cg4_.SetKV("copyset.snapshot_interval_s",
                   std::to_string(snapshotIntervalS_));
+        cg4_.SetKV("chunkserver.common.logDir",
+            kRaftSnapshotTestLogDir);
         ASSERT_TRUE(cg1_.Generate());
         ASSERT_TRUE(cg2_.Generate());
         ASSERT_TRUE(cg3_.Generate());
