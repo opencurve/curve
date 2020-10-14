@@ -83,7 +83,7 @@ Figure 1 shows the general structure of Chunkserver. The RPC network layer recei
 
     - CloneManager
 
-      CloneManage is for the cloning service, with a thread pool inside. This module is mainly for completing the data of cloned chunks asynchronously. For more details about cloning, please refer to [snapshotcloneserver](./snapshotcloneserver_en.md).
+      CloneManage is for the cloning service, with a thread pool inside. This module is mainly for completing the data of cloned chunks asynchronously. For more details about cloning, please refer to [snapshotcloneserver](snapshotcloneserver_en.md).
 
     - CopysetNode
 

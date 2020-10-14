@@ -84,7 +84,7 @@ Chunk Server概要结构如下所示，通过网络消息收发层统一接收�
 
     - CloneManager
 
-      CloneManager主要负责克隆相关的功能，内部是一个线程池，主要负责异步完成克隆chunk的数据补全。关于克隆相关的内容详见[克隆快照文档](./snapshotcloneserver.md)。
+      CloneManager主要负责克隆相关的功能，内部是一个线程池，主要负责异步完成克隆chunk的数据补全。关于克隆相关的内容详见[克隆快照文档](snapshotcloneserver.md)。
 
     - CopysetNode
 
