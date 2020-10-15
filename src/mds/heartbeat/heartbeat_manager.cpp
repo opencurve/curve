@@ -98,7 +98,7 @@ void HeartbeatManager::ChunkServerHealthyChecker() {
 
 void HeartbeatManager::UpdateChunkServerDiskStatus(
     const ChunkServerHeartbeatRequest &request) {
-    // 更新ChunkServerState数据
+    // update ChunkServerState status (disk status)
     ChunkServerState state;
     if (request.diskstate().errtype() != 0) {
         state.SetDiskState(curve::mds::topology::DISKERROR);
@@ -108,6 +108,7 @@ void HeartbeatManager::UpdateChunkServerDiskStatus(
     } else {
         state.SetDiskState(curve::mds::topology::DISKNORMAL);
     }
+
     state.SetDiskCapacity(request.diskcapacity());
     state.SetDiskUsed(request.diskused());
     int ret = topology_->UpdateChunkServerDiskStatus(state,
@@ -123,7 +124,7 @@ void HeartbeatManager::UpdateChunkServerStatistics(
     ChunkServerStat stat;
     stat.leaderCount = request.leadercount();
     stat.copysetCount = request.copysetcount();
-    // 更新到topologyStat
+    // update chunkserver status to topologyStat
     if (request.has_stats()) {
         stat.readRate = request.stats().readrate();
         stat.writeRate = request.stats().writerate();
@@ -138,7 +139,7 @@ void HeartbeatManager::UpdateChunkServerStatistics(
             cstat.logicalPoolId = request.copysetinfos(i).logicalpoolid();
             cstat.copysetId = request.copysetinfos(i).copysetid();
 
-            // TODO(xuchaojie) : 后续支持新的协议之后可直接使用id
+            // TODO(xuchaojie): use id instead when new protocol supported
             std::string leaderPeer =
                 request.copysetinfos(i).leaderpeer().address();
             std::string leaderIp;
@@ -183,7 +184,7 @@ void HeartbeatManager::ChunkServerHeartbeat(
     const ChunkServerHeartbeatRequest &request,
     ChunkServerHeartbeatResponse *response) {
     response->set_statuscode(HeartbeatStatusCode::hbOK);
-    // 检查request的合法性
+    // check validity of heartbeat request
     HeartbeatStatusCode ret = CheckRequest(request);
     if (ret != HeartbeatStatusCode::hbOK) {
         LOG(ERROR) << "heartbeatManager get error request";
@@ -191,33 +192,33 @@ void HeartbeatManager::ChunkServerHeartbeat(
         return;
     }
 
-    // 将chunksever中记录的startUpTime记录到到topology中
+    // record startUpTime data from chunkserver to topology
     if (request.has_starttime()) {
         topology_->UpdateChunkServerStartUpTime(
             request.starttime(), request.chunkserverid());
     }
 
-    // 将心跳上报时间点pass到chunkserver健康检查模块
+    // pass heartbeat timestamp to chunkserver health checker
     healthyChecker_->UpdateLastReceivedHeartbeatTime(request.chunkserverid(),
                                     steady_clock::now());
 
     UpdateChunkServerDiskStatus(request);
 
     UpdateChunkServerStatistics(request);
-    // request里面没有copyset信息
+    // no copyset info in the request
     if (request.copysetinfos_size() == 0) {
         response->set_statuscode(HeartbeatStatusCode::hbRequestNoCopyset);
     }
-    // 处理心跳中的copyset
+    // dealing with copysets included in the heartbeat request
     for (auto &value : request.copysetinfos()) {
-        // 逻辑池不可用时，不处理该逻辑池的copyset信息
+        // discard copysets of invalid logical pool
         ::curve::mds::topology::LogicalPool lPool;
         if (topology_->GetLogicalPool(value.logicalpoolid(), &lPool)) {
             if (lPool.GetLogicalPoolAvaliableFlag() != true) {
                 continue;
             }
         }
-        // heartbeat中copysetInfo格式转化为topology的格式
+        // convert copysetInfo from heartbeat format to topology format
         ::curve::mds::topology::CopySetInfo reportCopySetInfo;
         if (!FromHeartbeatCopySetInfoToTopologyOne(value,
                 &reportCopySetInfo)) {
@@ -230,7 +231,7 @@ void HeartbeatManager::ChunkServerHeartbeat(
             continue;
         }
 
-        // 把上报的copyset的信息转发到CopysetConfGenerator模块处理
+        // forward reported copyset info to CopysetConfGenerator
         CopySetConf conf;
         ConfigChangeInfo configChInfo;
         if (copysetConfGenerator_->GenCopysetConf(
@@ -240,7 +241,8 @@ void HeartbeatManager::ChunkServerHeartbeat(
             *res = conf;
         }
 
-        // 如果是leader, 根据leader上报的信息
+        // if a copyset is the leader, update (e.g. epoch) topology according
+        // to its info
         if (request.chunkserverid() == reportCopySetInfo.GetLeader()) {
             topoUpdater_->UpdateTopo(reportCopySetInfo);
         }
@@ -250,14 +252,14 @@ void HeartbeatManager::ChunkServerHeartbeat(
 HeartbeatStatusCode HeartbeatManager::CheckRequest(
     const ChunkServerHeartbeatRequest &request) {
     ChunkServer chunkServer;
-    // 所有的字段是否都初始化
+    // check for any uninitialize field
     if (!request.IsInitialized()) {
         LOG(ERROR) << "heartbeatManager receive heartbeat from unknown"
                    " chunkServer not all required field is initialized: "
                    << request.InitializationErrorString();
         return HeartbeatStatusCode::hbParamUnInitialized;
     }
-
+    // check for validity of chunkserver id
     if (!topology_->GetChunkServer(request.chunkserverid(), &chunkServer)) {
         LOG(ERROR) << "heartbeatManager receive heartbeat from chunkServer: "
                    << request.chunkserverid()
@@ -273,13 +275,15 @@ HeartbeatStatusCode HeartbeatManager::CheckRequest(
         return HeartbeatStatusCode::hbChunkserverRetired;
     }
 
-    // TODO(lixiaocui): 这种情况具体如何处理
-    // ip和port如果变化，涉及到的变更信息如下：
-    // 1. chunkserver本身ip和port要变，topology中需要体现这个
-    // 2. mds记录的副本关系和raft中记录的副本关系就不一致了，
-    //    正常情况副本关系都应该以raft中的为准，这种情况应该要通知raft去
-    //    更正正确的副本位置，这里具体的实现方式还不知道
-    // chunkserver上报的ip和mds记录的不匹配
+    // TODO(lixiaocui): How to deal with this situation?
+    // if there's any change on ip address or port, certain things will change:
+    // 1. ip address and port of chunkserver itself will change, this should be
+    //    reflected on topology
+    // 2. copy relationship that recorded on mds and raft will be different.
+    //    in normal cases the one that recorded on raft should be the standard
+    //    and we should acknowledge raft (in this case) to update the location
+    //    of eplicas, but we still have no idea how to implement.
+    // mismatch ip address reported by chunkserver and mds record
     if (request.ip() != chunkServer.GetHostIp()
             || request.port() != chunkServer.GetPort()) {
         LOG(ERROR) << "heartbeatManager receive heartbeat from chunkServer: "
@@ -291,7 +295,7 @@ HeartbeatStatusCode HeartbeatManager::CheckRequest(
         return HeartbeatStatusCode::hbChunkserverIpPortNotMatch;
     }
 
-    // chunkserver上报的token和mds记录的不匹配
+    // mismatch token reported by chunkserver and mds record
     if (request.token() != chunkServer.GetToken()) {
         LOG(ERROR) << "heartbeatManager receive heartbeat from chunkServer"
                    << request.chunkserverid() << ", but fine report token:"
@@ -308,10 +312,10 @@ bool HeartbeatManager::FromHeartbeatCopySetInfoToTopologyOne(
     ::curve::mds::topology::CopySetInfo *out) {
     ::curve::mds::topology::CopySetInfo topoCopysetInfo(
         static_cast<PoolIdType>(info.logicalpoolid()), info.copysetid());
-    // 设置 epoch
+    // set epoch
     topoCopysetInfo.SetEpoch(info.epoch());
 
-    // 设置 peers
+    // set peers
     std::set<ChunkServerIdType> peers;
     ChunkServerIdType leader;
     for (auto value : info.peers()) {
@@ -329,10 +333,10 @@ bool HeartbeatManager::FromHeartbeatCopySetInfoToTopologyOne(
     }
     topoCopysetInfo.SetCopySetMembers(peers);
 
-    // 设置 leader
+    // set leader
     topoCopysetInfo.SetLeader(leader);
 
-    // 设置配置变更信息
+    // set info of configuration changes
     if (info.configchangeinfo().IsInitialized()) {
         ChunkServerIdType res =
             GetChunkserverIdByPeerStr(info.configchangeinfo().peer().address());
@@ -350,7 +354,7 @@ bool HeartbeatManager::FromHeartbeatCopySetInfoToTopologyOne(
 
 ChunkServerIdType HeartbeatManager::GetChunkserverIdByPeerStr(
     std::string peer) {
-    // 解析string, 获取ip, port, id
+    // resolute peer string for ip, port and chunkserverid
     std::string ip;
     uint32_t port, id;
     bool ok = curve::mds::topology::SplitPeerId(peer, &ip, &port, &id);
@@ -359,7 +363,7 @@ ChunkServerIdType HeartbeatManager::GetChunkserverIdByPeerStr(
         return false;
     }
 
-    // 根据ip:port获取chunkserverId
+    // fetch chunkserverId according to ip:port pair
     ChunkServer chunkServer;
     if (topology_->GetChunkServerNotRetired(ip, port, &chunkServer)) {
         return chunkServer.GetId();

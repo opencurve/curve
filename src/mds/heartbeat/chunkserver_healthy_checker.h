@@ -48,25 +48,26 @@ struct HeartbeatOption {
         this->offLineTimeOutMs = offLineTimeout;
     }
 
-    // heartbeatIntervalMs: 正常心跳间隔.
-    // chunkServer每隔heartbeatInterval的时间会给mds发送心跳
+    // heartbeatIntervalMs: normal heartbeat interval.
+    // heartbeat sent to mds by chunkservers in every heartbeatInterval
     uint64_t heartbeatIntervalMs;
 
-    // heartbeatMissTimeoutMs: 心跳超时时间
-    // 网络抖动总是存在的，后台线程在检测过程如果发现chunkserver
-    // 在heartbeatMissTimeOut的时间内没有心跳, 做报警处理
+    // network jitter is unavoidable, and for this reason
+    // background process will alarm during the inspection once it
+    // finds out that heartbeat is missed after heartbeatMissTimeOut peroid
     uint64_t heartbeatMissTimeOutMs;
 
-    // offLineTimeOutMs: 在offlineTimeOut的时间内如果没有收到chunkserver上报的心跳，//NOLINT
-    // 把chunkserver的状态置为offline, 并报警。
-    // schedule根据chunkserver的状态进行调度。
+    // offLineTimeOutMs:
+    // the maximun peroid that heartbeat is missed without
+    // setting the chunkserver to offline status and alarm.
+    // scheduling will depend on the status of chunkserver
     uint64_t offLineTimeOutMs;
 
-    // cleanFollowerAfterMs： mds启动cleanFollowerAfterMs时间后
-    // 开启清理chunkserver上copyset的功能
+    // start cleaning copysets on chunkservers after
+    // running mds for this peroid of time
     uint64_t cleanFollowerAfterMs;
 
-    // mdsStartTime: mds启动时间
+    // the time when the mds start (fetch from system)
     steady_clock::time_point mdsStartTime;
 };
 
@@ -94,27 +95,32 @@ class ChunkserverHealthyChecker {
     ~ChunkserverHealthyChecker() {}
 
     /**
-     * @brief UpdateLastReceivedHeartbeatTime 更新最近一次心跳到达时间
+     * @brief Update last time to receive a heartbeat
      *
      * @param[in] csId chunkserver ID
-     * @param[in] time 收到心跳的时间
+     * @param[in] time time that heartbeat received
      *
      */
     void UpdateLastReceivedHeartbeatTime(ChunkServerIdType csId,
                                         const steady_clock::time_point &time);
 
     /**
-     * @brief CheckHeartBeatInterval 执行心跳超时检查，offline检查
-     * 使用一定时器，每隔heartbeatMissTimeOut_周期时间执行如下检查：
-     * 1. OnlineFlag 初始值为false
-     * 2. 当OnlineFlag 值为false时，
-     *   若当前时间 - 上次心跳到达时间 <= heartbeatMissTimeOut_,
-     *   则置OnlineFlag为true,并更新topology中OnlineState为ONLINE
-     * 3. 当OnlineFlag 值为true时，
-     *   若当前时间 - 上次心跳到达时间 > heartbeatMissTimeOut_，
-     *   则报心跳miss报警
-     * 4. 若当前时间 - 上次心跳到达时间 > offLineTimeOut_,
-     *   则置OnlineFlag为false, 并更新topology中OnlineState为OFFLINE, 并报警
+     * @brief CheckHeartBeatInterval: For heartbeat timeout and offline
+     * detection
+     * This function uses a timer and executes inspections below:
+     * 1. default value of OnlineFlag is false
+     * 2. When OnlineFlag has a false value:
+     *     If current-time - last-heartbeat-received-time <=
+     *     heartbeatMissTimeOut_:
+     *         Set OnlineFlag to true, and update OnlineState to ONLINE
+     *         in topology
+     * 3. When OnlineFlag has a true value:
+     *     If current-time - last-heartbeat-received-time >
+     *     heartbeatMissTimeOut_:
+     *         Alarm for missing heartbeat
+     *     If current-time - last-heartbeat-received-time > offLineTimeOut_:
+     *         Set OnlineFlag to false and update OnlineState to OFFLINE in
+     *         topology, then alarm
      */
     void CheckHeartBeatInterval();
 
@@ -122,6 +128,7 @@ class ChunkserverHealthyChecker {
     bool GetHeartBeatInfo(ChunkServerIdType id, HeartbeatInfo *info);
 
  private:
+
     bool ChunkServerStateNeedUpdate(
         const HeartbeatInfo &info, OnlineState *newState);
 
