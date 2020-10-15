@@ -26,29 +26,29 @@
 #include <cstdint>
 #include <string>
 
-// TODO(xuchaojie): 统一MDS中类型定义和错误码定义
+// TODO(xuchaojie): Unify the type definition and error code definition in MDS
 
 namespace curve {
 namespace mds {
-// 错误码：MDS 通用执行成功
+// error code: MDS execution succeeded (general)
 const int kMdsSuccess = 0;
-// 错误码：MDS 通用执行失败
+// error code: MDS execution failed (general)
 const int kMdsFail = -1;
-// 错误码：chunkserverclient内部错误
+// error code: chunkserverclient internal error
 const int kCsClientInternalError = -2;
-// 错误码：chunkserverclient请求非leader
+// error code: chunkserverclient request is not from the leader
 const int kCsClientNotLeader = -3;
-// 错误码: brpc channel init fail
+// error code: brpc channel init fail
 const int kRpcChannelInitFail = -4;
-// 错误码： rpc fail
+// error code: RPC fail
 const int kRpcFail = -5;
-// 错误码： chunkserverclient请求返回失败
+// error code: chunkserverclient request return fail
 const int kCsClientReturnFail = -5;
-// 错误码： chunkserver offline
+// error code: chunkserver offline
 const int kCsClientCSOffline = -6;
 
-
-// kStaledRequestTimeIntervalUs表示request的过期时间，防止request被截取并回放
+// kStaledRequestTimeIntervalUs indicates the expiration time of the request
+// to prevent the request from being intercepted and played back
 const uint64_t kStaledRequestTimeIntervalUs = 15 * 1000 * 1000u;
 
 }  // namespace mds
@@ -130,11 +130,11 @@ extern uint64_t DefaultSegmentSize;
 extern uint64_t kMiniFileLength;
 const uint64_t kMaxFileLength = 4 * kTB;
 
-// curve默认root目录&inodeid
+// curve default root path and inodeid
 const InodeID ROOTINODEID = 0;
 const char ROOTFILENAME[] = "/";
 
-// curvefs内部垃圾回收站目录&inodeid
+// directory and inodeid of the recycle bin of curvefs
 const InodeID RECYCLEBININODEID = 1;
 const std::string RECYCLEBINDIRNAME = "RecycleBin"; //NOLINT
 const std::string RECYCLEBINDIR = "/" + RECYCLEBINDIRNAME;  //NOLINT
