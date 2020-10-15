@@ -128,7 +128,6 @@ class ChunkserverHealthyChecker {
     bool GetHeartBeatInfo(ChunkServerIdType id, HeartbeatInfo *info);
 
  private:
-
     bool ChunkServerStateNeedUpdate(
         const HeartbeatInfo &info, OnlineState *newState);
 
