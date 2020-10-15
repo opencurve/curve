@@ -36,8 +36,9 @@ bool CopysetConfGenerator::GenCopysetConf(
     const ::curve::mds::topology::CopySetInfo &reportCopySetInfo,
     const ::curve::mds::heartbeat::ConfigChangeInfo &configChInfo,
     ::curve::mds::heartbeat::CopySetConf *copysetConf) {
-    // topolgy不存在上报的copyset,
-    // 发一个空配置指导chunkserver将其删除
+    // reported copyset not exist on topology
+    // in this case an empty configuration will be sent to chunkserver
+    // to delete it
     ::curve::mds::topology::CopySetInfo recordCopySetInfo;
     if (!topo_->GetCopySet(
         reportCopySetInfo.GetCopySetKey(), &recordCopySetInfo)) {
@@ -54,23 +55,23 @@ bool CopysetConfGenerator::GenCopysetConf(
     if (reportCopySetInfo.GetLeader() == reportId) {
         ChunkServerIdType candidate =
             LeaderGenCopysetConf(reportCopySetInfo, configChInfo, copysetConf);
-        // 有配置下发，把candidate及时更新到topology中
+        // new config to dispatch available, update candidate to topology
         if (candidate != ::curve::mds::topology::UNINTIALIZE_ID) {
             auto newCopySetInfo = reportCopySetInfo;
             newCopySetInfo.SetCandidate(candidate);
             int updateCode = topo_->UpdateCopySetTopo(newCopySetInfo);
             if (::curve::mds::topology::kTopoErrCodeSuccess != updateCode) {
-                // 更新到内存失败
+                // error occurs when update to memory of topology
                 LOG(WARNING) << "topoUpdater update copyset("
                         << reportCopySetInfo.GetLogicalPoolId()
                         << "," << reportCopySetInfo.GetId()
                         << ") got error code: " << updateCode;
                 return false;
             } else {
-                // 更新到内存成功
+                // update to memory successfully
                 return true;
             }
-        // 没有配置下发
+        // no config to dispatch
         } else {
             return false;
         }
@@ -84,7 +85,7 @@ ChunkServerIdType CopysetConfGenerator::LeaderGenCopysetConf(
     const ::curve::mds::topology::CopySetInfo &copySetInfo,
     const ::curve::mds::heartbeat::ConfigChangeInfo &configChInfo,
     ::curve::mds::heartbeat::CopySetConf *copysetConf) {
-    // 转发给调度模块
+    // pass date to scheduler
     return coordinator_->CopySetHeartbeat(
         copySetInfo, configChInfo, copysetConf);
 }
@@ -93,22 +94,25 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
     const ::curve::mds::topology::CopySetInfo &reportCopySetInfo,
     const ::curve::mds::topology::CopySetInfo &recordCopySetInfo,
     ::curve::mds::heartbeat::CopySetConf *copysetConf) {
-    // 如果copyset上面没有candidate, 并且MDS的Epoch>=非leader副本上报上来的Epoch， //NOLINT
-    // 可以根据MDS的配置来删除副本
+    // if there's no candidate on a copyset, and epoch on MDS is larger or equal to what non-leader copy report,                //NOLINT
+    // copy(ies) can be deleted according to the configuration of MDS
 
-    // mds记录的epoch >= 上报的epoch
+    // epoch that MDS recorded >= epoch reported
     if (recordCopySetInfo.GetEpoch() >= reportCopySetInfo.GetEpoch()) {
-        // 延迟清理数据, 避免以下场景发生,copyset的初始配置 ABC, A是leader，epoch=8 //NOLINT
-        // 1. mds生成operator, ABC+D, 下发给A
-        // 2. A 成功安装快照到 D， 并开复制日志
-        // 3. D复制日志的过程中，apply复制组的旧有配置，比如为：epoch=5, ABE
-        // 4. 此时mds重启，operator丢失
-        // 5. mds启动后首先收到follower-D上报的信息，(ABE, epoch-5), 按照正常的流程，//NOLINT
-        //    follower上报的epoch小于mds记录的epoch，mds下发空配置指导D删除copyset, //NOLINT
-        //    但此时D已经是复制组的成员了，相当于人为删除了一个副本的数
-        // 上述情况可以通过延迟清理避免, 一方面等待一段时间后，leader的心跳会上报D， //NOLINT
-        //  D不会被误删。 另一方面，等待一段时间后，日志回放完整，D上报的配置是最新的，//NOLINT
-        //  不会被误删。
+        // delay cleaning is for avoiding cases like the example below:
+        // the initial config of a copyset is ABC, in which A is the leader, and epoch = 8                                      //NOLINT
+        // 1. MDS gereration an operator ABC+D and dispatch to A
+        // 2. A installed snapshot to D successfully, and start copying journal
+        // 3. When D is copying the journal, old config of the copyset is applied (e.g. ABE, epoch = 5)                         //NOLINT
+        // 4. MDS restart now and operator is lost
+        // 5. After the MDS has restarted, it first receive heartbeat from follower-id (ABE, epoch = 5).                        //NOLINT
+        //    In normal cases (without delay cleaning), this copyset on D will be deleted since its epoch number is lower,      //NOLINT
+        //    but it will be a problem in our case since D is already a member of the copyset, and the deletion of D means      //NOLINT
+        //    the elimination of copies.
+        // here's how delay cleaning works:
+        //    In one way leader will report the existence of D, which promise that D will not be deleted by mistake. In another //NOLINT
+        //    way, the configuration that D report will be up-to-date since the journal replay has completed                    //NOLINT
+
         steady_clock::duration timePass = steady_clock::now() - mdsStartTime_;
         if (steady_clock::now() - mdsStartTime_ <
                 milliseconds(cleanFollowerAfterMs_)) {
@@ -117,7 +121,8 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
                                  << " seconds of mds start";
             return false;
         }
-        // 判断该chunkserver是否在配置组中 或者是 candidate 或者是 即将成为Add的目的节点 //NOLINT
+        // judge whether the reporting chunkserver is in the copyset it reported, and whether this                             //NOLINT
+        // chunkserver is a candidate or going to be added into the copyset
         bool exist = recordCopySetInfo.HasMember(reportId);
         if (exist || reportId == recordCopySetInfo.GetCandidate() ||
             coordinator_->ChunkserverGoingToAdd(
@@ -130,7 +135,7 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
                          << "," << recordCopySetInfo.GetId() << ")";
         }
 
-        // 如果既不在配置组中又不是candidate, 把mds上copyset的配置下发
+        // if the chunkserver doesn't belong to any of the copyset, MDS will dispatch the configuration                        //NOLINT
         copysetConf->set_logicalpoolid(recordCopySetInfo.GetLogicalPoolId());
         copysetConf->set_copysetid(recordCopySetInfo.GetId());
         copysetConf->set_epoch(recordCopySetInfo.GetEpoch());
@@ -143,7 +148,7 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
             auto replica = new ::curve::common::Peer();
             replica->set_id(recordCopySetInfo.GetCandidate());
             replica->set_address(candidate);
-            // replica不需要析构，内存由proto接管负责释放
+            // memory of replica will be free by proto
             copysetConf->set_allocated_configchangeitem(replica);
         }
 

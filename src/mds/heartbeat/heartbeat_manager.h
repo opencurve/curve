@@ -55,17 +55,22 @@ using ::curve::common::InterruptibleSleeper;
 namespace curve {
 namespace mds {
 namespace heartbeat {
-// HeartbeatManager: 主要处三种类型的任务
-// 1. 后台检查线程。
-//    - 更新chunkserver最近一次心跳时间
-//    - 定时检查chunkserver的在线状态
-// 3. 下发copyset的配置信息。
-//    - mds不存在上报的copyset，下发空配置指导chunkserver清理该copyset数据
-//    - 将copyset的信息pass到scheduler模块，check是否有配置变更需要下发
-//    - follower copyset的配置不包含chunkserver, 下发空配置指导chunkserver清理
-// 2. 更新topology信息。
-//    - 根据chunkserver上报的copyset的信息，更新topology中copyset的epoch,
-//      副本关系, 统计信息等
+
+// the responsibilities of heartbeat manager including:
+// 1. background threads inspection
+//    - update lastest heartbeat timestamp of chunkserver
+//    - regular chunkserver status inspection
+// 2. distribute copyset instruction, in cases like:
+//    - copyset reported by a chunkserver doesn't exist in mds, send 'empty'
+//      config to certain chunkserver for cleaning corresponding copyset
+//    - passing copyset information to scheduler (see UpdateChunkServerDiskStatus),   //NOLINT
+//      check for any possible configuration changes
+//    - chunkserver not included in follower copyset configuration,
+//      send 'empty' config to certain chunkservers for cleaning
+// 3. update topology information
+//    - update epoch, copy relationship and other statistical data of topology
+//      according to the copyset information reported by the chunkserver
+
 class HeartbeatManager {
  public:
     HeartbeatManager(HeartbeatOption option,
@@ -77,105 +82,110 @@ class HeartbeatManager {
         Stop();
     }
 
-    /*
-    * @brief Init 用于mds初始化心跳模块, 把所有chunkserver注册到chunkserver健康
-    *             检查模块(class ChunkserverHealthyChecker)，chunkserver初始均设为
-    *             online状态
-    */
+    /**
+     * @brief Init Used by mds to initialize heartbeat module.
+     *             It registers all chunkservers to chunkserver health
+     *             checking module (class ChunkserverHealthyChecker),
+     *             and initializes them to online status
+     */
     void Init();
 
-    /*
-    * @brief Run 起一个子线程运行健康检查模块，定时检查chunkserver的心跳是否miss
-    */
+    /**
+     * @brief Run Create a child thread for health checking module, which
+     *            inspect missing heartbeat of the chunkserver
+     */
     void Run();
 
     /*
-    * @brief Stop 停止心跳后端线程
+    * @brief Stop Stop background thread of heartbeat module
     */
     void Stop();
 
     /**
-     * @brief ChunkServerHeartbeat处理心跳请求
+     * @brief ChunkServerHeartbeat Manage heartbeat request
      *
-     * @param[in] request 心跳rpc请求
-     * @param[out] response 心跳处理结果
+     * @param[in] request RPC heartbeat request
+     * @param[out] response Response of heartbeat request
      */
     void ChunkServerHeartbeat(const ChunkServerHeartbeatRequest &request,
                                 ChunkServerHeartbeatResponse *response);
 
  private:
     /**
-     * @brief 更新chunkserver磁盘状态数据
+     * @brief Update disk status data of chunkserver
      *
-     * @param request 请求报文
+     * @param request Heartbeat request
      */
     void UpdateChunkServerDiskStatus(
         const ChunkServerHeartbeatRequest &request);
 
     /**
-     * @brief 更新chunkserver统计数据
+     * @brief Update statistical data of chunkserver
      *
-     * @param request 请求报文
-     * @param response 回复报文
+     * @param request Heartbeat request
+     * @param response response of heartbeat request
      */
     void UpdateChunkServerStatistics(
         const ChunkServerHeartbeatRequest &request);
 
     /**
-     * @brief ChunkServerHealthyChecker 心跳超时检查后端线程
+     * @brief Background thread for heartbeat timeout inspection
      */
     void ChunkServerHealthyChecker();
 
     /**
-     * @brief CheckRequest 检查心跳上报的request内容是否合法
+     * @brief CheckRequest Check the validity of a heartbeat request
      *
-     * @return 合法返回HeartbeatStatusCode::hbOK, 否则返回对应的错误码
+     * @return Return HeartbeatStatusCode::hbOK when valid, otherwise return
+     *         corresponding error code
      */
     HeartbeatStatusCode CheckRequest(const ChunkServerHeartbeatRequest &request);  // NOLINT
 
     // TODO(lixiaocui): 优化，统一heartbeat和topology中两个CopySetInfo的名字
     /**
-     * @brief FromHeartbeatCopySetInfoToTopologyOne 把心跳中copyset struct转化成
-     *        topology中copyset struct
+     * @brief Convert copyset data structure from heartbeat format
+     *        to topology format
      *
-     * @param[in] info 心跳上报的copyset信息
-     * @param[out] out topology中的心跳结构
+     * @param[in] info Copyset data reported by heartbeat
+     * @param[out] out Copyset data structure of topology module
      *
-     * @return 转化成功为true, 失败为false
+     * @return Return true if succeeded, false if failed
      */
     bool FromHeartbeatCopySetInfoToTopologyOne(
         const ::curve::mds::heartbeat::CopySetInfo &info,
         ::curve::mds::topology::CopySetInfo *out);
 
     /**
-     * @brief GetChunkserverIdByPeerStr 心跳上报上来的chunkserver是ip:port:id的形式，
-     *       该函数从string中解析出ip,port,并根据ip,port从topo中获取对应的chunkserverId
+     * @brief Extract ip address and port number from string, and fetch
+     *        corresponding chunkserverID from topology. This is for receiving
+     *        heartbeat message since it's a string in format of 'ip:port:id'
      *
-     * @param[in] peer ip:port:id形式的chunkserver信息
+     * @param[in] peer Chunkserver info in form of string 'ip:port:id'
      *
-     * @return 根据ip:port获取的chunkserverId
+     * @return chunkserverId fetch by ip address and port number
      */
     ChunkServerIdType GetChunkserverIdByPeerStr(std::string peer);
 
  private:
-    // heartbeat相关依赖
+    // Dependencies of heartbeat
     std::shared_ptr<Topology> topology_;
     std::shared_ptr<TopologyStat> topologyStat_;
     std::shared_ptr<Coordinator> coordinator_;
 
-    // healthyChecker_ 后台线程checker逻辑
+    // healthyChecker_ health checker running in background thread
     std::shared_ptr<ChunkserverHealthyChecker> healthyChecker_;
-    // topoUpdater_ 更新topo中copyset的epoch, 复制组关系等信息
+    // topoUpdater_ update epoch, copyset relationship of topology
     std::shared_ptr<TopoUpdater> topoUpdater_;
-    // CopysetConfGenerator 根据新旧copyset的信息确认是否需要生成命令下发给chunkserver //NOLINT
-    // 处理如下几种情况:
-    // 1. chunkserver上报的copyset在mds中不存在
+    // Decides whether an instruction to chunkserver is necessary according to old and new copyset info //NOLINT
+    // It can deal with cases below:
+    // 1. copyset reported by chunkserver doesn't exist in mds
     // 2. leader copyset
-    // 3. copyset的最新复制组中不包含该chunkserver
+    // 3. chunkserver in not included in latest copyset
     std::shared_ptr<CopysetConfGenerator> copysetConfGenerator_;
 
-    // 管理chunkserverHealthyChecker线程
+    // Manage chunkserverHealthyChecker threads
     Thread backEndThread_;
+
     Atomic<bool> isStop_;
     InterruptibleSleeper sleeper_;
     int chunkserverHealthyCheckerRunInter_;
