@@ -45,33 +45,36 @@ class CopysetManager {
     ~CopysetManager() {}
 
     /**
-     * @brief 初始化
+     * @brief initialization
      *
-     * @param constrait copyset约束
+     * @param constrait copyset constraint
      *
-     * @return 若当前约束不支持，则返回false，否则返回true
+     * @return return 'false' if the constraint is not supported, 
+     *         otherwise 'true'.
      */
     bool Init(const CopysetConstrait &constrait);
 
     /**
-     * @brief 生成copyset
+     * @brief generate copyset
      *
      * @detail
-     * 1. 若copysetNum和scatterWidth为0，则执行失败
-     * 2. 若只提供copysetNum，则根据copysetNum生成copyset
-     * 3. 若同时提供copysetNum和scatterWidth,
-     * 则首先通过copysetNum生成copyset，并验证scatterWidth是否满足。
-     * 4. 若只提供scatterWidth， 则根据scatterWidth
-     * 生成足够数量满足scatterWidth的copyset
+     * 1. if copysetNum and scatterWidth are 0, execution fail
+     * 2. if only copysetNum provided, generate copyset according to 
+     *    copyset number
+     * 3. if copysetNum and scatterWidth both provided,
+     *    then we first generate copyset using copysetNum, 
+     *    and verify whether scatterWidth is satisfied
+     * 4. if only scatterWidth provided, generate certain amount of copysets 
+     *    that will satisfy scatterWidth requirement
      *
-     * @param cluster 集群信息
-     * @param numCopysets copyset数量
-     * @param[in][out] scatterWidth 入参为目标scatterWidth,
-     *   出参返回实际scatterWidth
-     * @param out copyset列表
+     * @param cluster cluster information
+     * @param numCopysets copyset numbers 
+     * @param[in][out] scatterWidth carry in target scatter width as an input, 
+     *                 and carry out actual scatter width as an output
+     * @param out copyset list
      *
-     * @retval true 成功
-     * @retval false 失败
+     * @retval true if succeeded
+     * @retval false if failed
      */
     bool GenCopyset(const ClusterInfo& cluster,
         int numCopysets,
@@ -80,14 +83,14 @@ class CopysetManager {
 
  private:
     /**
-     * @brief 根据copysetNum生成copyset
+     * @brief generate copyset according to copysetNum
      *
-     * @param cluster 集群信息
-     * @param numCopysets copyset数量
-     * @param out copyset列表
+     * @param cluster cluster information
+     * @param numCopysets copyset number
+     * @param out copyset list
      *
-     * @retval true 成功
-     * @retval false 失败
+     * @retval true if succeeded
+     * @retval false if failed
      */
     bool GenCopyset(const ClusterInfo& cluster,
         int numCopysets,

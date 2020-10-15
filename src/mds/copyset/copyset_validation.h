@@ -40,34 +40,36 @@ class CopysetValidation{
     : option_(option) {}
 
     /**
-     * @brief 验证copysets列表是否满足CopysetOption中配置的方差等度量指标
+     * @brief validate whether the copyset list satisfy the metrics of 
+     *        CopysetOption
      *
-     * @param copysets copysets列表
+     * @param copysets copysets list
      *
-     * @retval true 成功
-     * @retval false 失败
+     * @retval true if succeeded
+     * @retval false if failed
      */
     bool Validate(const std::vector<Copyset> &copysets) const;
 
     /**
-     * @brief 验证copysets的平均scatterWidth 是否满足目标scatterWidth
+     * @brief validate whether average scatter width of copyset satisfy 
+     *        target scatterwidth
      *
-     * @param scatterWidth 目标scatterWidth
-     * @param scatterWidthOut 实际平均scatterWidth
-     * @param copysets copyset列表
+     * @param scatterWidth target scatterWidth
+     * @param scatterWidthOut actual average scatterWidth
+     * @param copysets copyset list
      *
-     * @retval true 成功
-     * @retval false 失败
+     * @retval true if succeeded
+     * @retval false if failed
      */
     bool ValidateScatterWidth(uint32_t scatterWidth,
         uint32_t *scatterWidthOut,
         const std::vector<Copyset> &copysets) const;
 
     /**
-     * @brief 计算copysets的scatterWidth map
+     * @brief calculate scatter width map of copyset
      *
-     * @param copysets copysets列表
-     * @param scatterWidthMap chunkserver id -> scatterWidth 的map
+     * @param copysets copysets list
+     * @param scatterWidthMap map<chunkserver id, scatterWidth>
      */
     void CalcScatterWidth(
         const std::vector<Copyset> &copysets,
@@ -80,49 +82,49 @@ class CopysetValidation{
 class StatisticsTools {
  public:
      /**
-      * @brief 计算均值
+      * @brief calculate average number
       *
-      * @param values 值列表
+      * @param values value list
       *
-      * @return 均值
+      * @return average value
       */
      static double CalcAverage(const std::vector<double> &values);
      /**
-      * @brief 计算方差
+      * @brief calculate variance
       *
-      * @param values 值列表
-      * @param average 均值
+      * @param values value list
+      * @param average average value
       *
-      * @return 方差
+      * @return variance
       */
      static double CalcVariance(const std::vector<double> &values,
             double average);
      /**
-      * @brief 计算标准差
+      * @brief calculate standard deviation
       *
-      * @param variance 方差
+      * @param variance variance value
       *
-      * @return 标准差
+      * @return standard deviation
       */
      static double CalcStandardDevation(double variance);
      /**
-      * @brief 计算标准差
+      * @brief calculate standard deviation
       *
-      * @param values 值列表
-      * @param average 均值
+      * @param values value list
+      * @param average average value
       *
-      * @return 标准差
+      * @return standard deviation
       */
      static double CalcStandardDevation(const std::vector<double> &values,
             double average);
      /**
-      * @brief 计算极差
+      * @brief calculate range
       *
-      * @param values 值列表
-      * @param minValue 最小值
-      * @param maxValue 最大值
+      * @param values value list
+      * @param minValue minimum value
+      * @param maxValue maximum value
       *
-      * @return 极差
+      * @return range value
       */
      static double CalcRange(const std::vector<double> &values,
             double *minValue,

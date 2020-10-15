@@ -58,7 +58,7 @@ bool CopysetManager::GenCopyset(const ClusterInfo& cluster,
 
     int numChunkServers = cluster.GetClusterSize();
     if (*scatterWidth >= (numChunkServers - 1)) {
-        // scatterWidth大于上限不可能达到
+        // It's impossible that scatterWidth is lager than cluster size
         return false;
     }
 
@@ -85,10 +85,12 @@ bool CopysetManager::GenCopyset(const ClusterInfo& cluster,
             targetScatterWidth,
             constrait_.replicaNum,
             &numCopysets);
-        // 设置while循环上限防止死循环,
-        // 每轮permutation 产生 N/R个copyset,
-        // 假设最多能容忍每10次permutation产生1个scatter-width,
-        // 那么需要P=10S次permutation， 产生10SN/R个copyset。
+        // set an upper limit here to avoid infinite loop,
+        // for every permutation N/R copysets are generated,
+        // assume that we can tolerate generating only one scatter-width for
+        // every 10 permutation, we need P=10S permutations for 10SN/R copysets.
+        // P: permutations S: scatter width
+        // N: number of chunkservers R: number of replicas
         int maxRetryNum =
             10 * targetScatterWidth * numChunkServers / constrait_.replicaNum;
         while (numCopysets <= maxRetryNum) {
