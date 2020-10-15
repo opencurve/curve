@@ -25,7 +25,7 @@
 namespace curve {
 namespace mds {
 
-// TODO(xuchaojie): 后续放到配置文件里去
+// TODO(xuchaojie): these should be in the configuration file later
 uint64_t DefaultSegmentSize = kGB * 1;
 uint64_t kMiniFileLength = DefaultSegmentSize * 10;
 
