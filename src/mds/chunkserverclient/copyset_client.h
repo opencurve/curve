@@ -41,7 +41,7 @@ namespace chunkserverclient {
 class CopysetClient {
  public:
      /**
-      * @brief 构造函数
+      * @brief constructor
       *
       * @param topology
       */
@@ -60,15 +60,17 @@ class CopysetClient {
     }
 
     /**
-     * @brief 删除此次转储时产生的或者历史遗留的快照
-     *        如果转储过程中没有产生快照，则修改chunk的correctedSn
+     * @brief delete the snapshot generated during the dump or from history left
+     *        over. If no snapshot is generated during the dump, modify the
+     *        correctedSn of the chunk
      *
-     * @param logicPoolId 逻辑池id
-     * @param copysetId 复制组id
-     * @param chunkId Chunk文件id
-     * @param correctedSn chunk不存在快照文件时需要修正的版本号
+     * @param logicPoolId
+     * @param copysetId
+     * @param chunkId
+     * @param correctedSn the version number that needs to be corrected when
+     *                    there is no snapshot file in the chunk
      *
-     * @return 错误码
+     * @return error code
      */
     int DeleteChunkSnapshotOrCorrectSn(LogicalPoolID logicalPoolId,
         CopysetID copysetId,
@@ -76,14 +78,14 @@ class CopysetClient {
         uint64_t correctedSn);
 
     /**
-     * @brief 删除非快照文件的Chunk文件
+     * @brief delete chunk files that are not snapshot files
      *
-     * @param logicPoolId 逻辑池id
-     * @param copysetId 复制组id
-     * @param chunkId Chunk文件id
-     * @param sn 文件版本号
+     * @param logicPoolId
+     * @param copysetId
+     * @param chunkId
+     * @param sn file version number
      *
-     * @return 错误码
+     * @return error code
      */
     int DeleteChunk(LogicalPoolID logicalPoolId,
         CopysetID copysetId,
@@ -91,11 +93,11 @@ class CopysetClient {
         uint64_t sn);
 
     /**
-     * @brief 更新leader
+     * @brief update leader
      *
      * @param[int][out] copyset
      *
-     * @return 错误码
+     * @return error code
      */
     int UpdateLeader(CopySetInfo *copyset);
 

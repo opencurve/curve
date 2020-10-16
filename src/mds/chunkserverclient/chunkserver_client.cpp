@@ -285,7 +285,7 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
                   << ". [GetLeaderResponse] "
                   << response.DebugString();
 
-        // TODO(xuchaojie) : 后续支持新的协议之后可直接使用id
+        // TODO(xuchaojie): use ID directly when new protocol supported
         std::string leaderPeer = response.leader().address();
         std::string leaderIp;
         uint32_t leaderPort;

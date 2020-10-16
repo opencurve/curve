@@ -116,8 +116,8 @@ int CopysetClient::DeleteChunk(LogicalPoolID logicalPoolId,
         }
     }
 
-    // delete Chunk在kCsClientCSOffline、kRpcFail、kCsClientNotLeader
-    // 这三种返回值时需要进行重试
+    // delete Chunk needs to retry when kCsClientCSOffline 
+    // or kRpcFail or kCsClientNotLeader returned
     uint32_t retry = 0;
     while ((retry < updateLeaderRetryTimes_) &&
            ((UNINTIALIZE_ID == leaderId) ||
