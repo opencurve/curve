@@ -32,7 +32,7 @@
       "panels": [
         {
           "columns": [],
-          "description": "mds的配置",
+          "description": "mds configuration",
           "fontSize": "100%",
           "gridPos": {
             "h": 11,
@@ -52,7 +52,7 @@
           },
           "styles": [
             {
-              "alias": "实例",
+              "alias": "instance",
               "colorMode": null,
               "colors": [
                 "rgba(245, 54, 54, 0.9)",
@@ -68,7 +68,7 @@
               "unit": "short"
             },
             {
-              "alias": "配置项",
+              "alias": "config item",
               "colorMode": null,
               "colors": [
                 "rgba(245, 54, 54, 0.9)",
@@ -84,7 +84,7 @@
               "unit": "short"
             },
             {
-              "alias": "配置值",
+              "alias": "config value",
               "colorMode": null,
               "colors": [
                 "rgba(245, 54, 54, 0.9)",
@@ -125,12 +125,12 @@
           ],
           "timeFrom": null,
           "timeShift": null,
-          "title": "mds配置",
+          "title": "mds config",
           "transform": "table",
           "type": "table"
         }
       ],
-      "title": "mds配置",
+      "title": "mds config",
       "type": "row"
     },
     {
