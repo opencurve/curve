@@ -14,7 +14,7 @@ Curve provides block storage service based on its underlying distributed filesys
 
 When the user creates a 1T block device, this block device corresponds to a 1T size file on CurveFS.
 
-> It should be noticed that this 1T file is nothing but only a logical concept, and only Curve client and MDS will notice its existence. This file is impercetible for chunk servers.
+> It should be noticed that this 1T file is nothing but only a logical concept, and only Curve client and MDS will notice its existence. This file is impercetible for Chunkserver.
 
 <p align="center">
 <img src="../images/curve-file.png" alt="curve-file" width="700" /><br>
@@ -109,7 +109,7 @@ Curve client trigger metadata update also by RPC. The metadata being updated inc
 
 1. Leader information of the Raft group
 
-   The request of the client will be sent to the leader of the Raft group, and the client will fetch the leader info of current Raft group (cached in meta cache). If a request was sent to the Chunkserver that is no longer the leader, the client will initiate a GetLeader request to other chunk servers in current Raft group. This request can be sent to any of them since every node will know the leader if a new one has been elected. After knowing the new leader, the client will update the meta cache, then resend the request to the new leader.
+   The request of the client will be sent to the leader of the Raft group, and the client will fetch the leader info of current Raft group (cached in meta cache). If a request was sent to the Chunkserver that is no longer the leader, the client will initiate a GetLeader request to other Chunkserver in current Raft group. This request can be sent to any of them since every node will know the leader if a new one has been elected. After knowing the new leader, the client will update the meta cache, then resend the request to the new leader.
 
 2. Peer info in Raft group
 
@@ -132,6 +132,6 @@ There will be pre-processing for the RPC retries in two cases:
 
 2. RPC Timeout
 
-   There are many explanations for this result, but timeout caused by the overload of chunk servers due to too many requests is usually the most common case.
+   There are many explanations for this result, but timeout caused by the overload of Chunkserver due to too many requests is usually the most common case.
 
    In this scenario, if the threshold for RPC timeout remain unchanged, the same thing would probably happen again, and the user's I/O request will not return even after a long time. Thus, the retry will first increase the threshold in this case.
