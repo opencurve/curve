@@ -48,7 +48,7 @@ enum class StoreStatus {
 };
 std::ostream& operator << (std::ostream & os, StoreStatus &s);
 
-// TODO(hzsunjianliang): may be storage need high level abstruction
+// TODO(hzsunjianliang): may be storage need high level abstraction
 // put the encoding internal, not external
 
 
@@ -58,144 +58,150 @@ class NameServerStorage {
   virtual ~NameServerStorage(void) {}
 
     /**
-     * @brief PutFile 存储fileInfo信息
+     * @brief PutFile Store fileInfo
      *
-     * @param[in] fileInfo 文件元信息
+     * @param[in] fileInfo
      *
-     * @return StoreStatus 错误码
+     * @return StoreStatus: error code
      */
     virtual StoreStatus PutFile(const FileInfo & fileInfo) = 0;
 
     /**
-     * @brief GetFile 获取指定file的元数据信息
+     * @brief GetFile Get metadata of the specified file
      *
-     * @param[in] id 需要获取信息的文件parent inode id
-     * @param[in] filename需要获取信息的文件名
-     * @param[out] 从storage中获得的元数据信息
+     * @param[in] id: Parent inode ID of the file to be obtained
+     * @param[in] filename
+     * @param[out] file info obtained
      *
-     * @return StoreStatus 错误码
+     * @return StoreStatus: error code
      */
     virtual StoreStatus GetFile(InodeID id,
                                 const std::string &filename,
                                 FileInfo * fileInfo) = 0;
 
     /**
-     * @brief DeleteFile 删除文件
+     * @brief DeleteFile
      *
-     * @param[in] id 待删除文件parent inode id
-     * @param[in] filename 待删除文件的name
+     * @param[in] id: Parent inode ID of the file to be deleted
+     * @param[in] filename
      *
-     * @retuen StoreStatus 错误码
+     * @return StoreStatus: error code
      */
     virtual StoreStatus DeleteFile(InodeID id,
                                 const std::string &filename) = 0;
 
     /**
-     * @brief DeleteSnapshotFile 删除快照文件
+     * @brief DeleteSnapshotFile
      *
-     * @param[in] id 需要获取文件信息的文件parent inode id
-     * @param[in] filename需要获取文件信息的文件名
+     * @param[in] id: Parent inode ID of the target file
+     * @param[in] filename
      *
-     * @retuen StoreStatus 错误码
+     * @return StoreStatus: error code
      */
     virtual StoreStatus DeleteSnapshotFile(InodeID id,
                                 const std::string &filename) = 0;
 
     /**
-     * @brief RenameFile 事务，存储新的file的元数据信息，删除旧的元数据信息
+     * @brief RenameFile: Transaction for storing metadata of new file and
+     *                    delete old metadata
      *
      * @param[in] oldFileInfo
      * @param[in] newFileInfo
      *
-     * @return StoreStaus 错误码
+     * @return StoreStaus: error code
      */
     virtual StoreStatus RenameFile(const FileInfo &oldfileInfo,
                                     const FileInfo &newfileInfo) = 0;
     /**
-     * @brief RenameFile 事务，存储新的file的元数据信息，删除旧的元数据信息。
-     *        新的file已被conflictFInfo占用，需要把被占用的文件移到回收站。
+     * @brief ReplaceFileAndRecycleOldFile Transaction for storing the metadata
+     *                                     of the new file and delete the old
+     *                                     one. The new file has been occupied
+     *                                     by conflictFInfo, and the occupied
+     *                                     file needs to be moved to the recycle
+     *                                     bin.
      *
      * @param[in] oldFileInfo
      * @param[in] newFileInfo
      * @param[in] conflictFInfo
      * @param[in] recycleFInfo
      *
-     * @return StoreStaus 错误码
+     * @return StoreStaus: error code
      */
     virtual StoreStatus ReplaceFileAndRecycleOldFile(
         const FileInfo &oldFInfo, const FileInfo &newFInfo,
         const FileInfo &conflictFInfo, const FileInfo &recycleFInfo) = 0;
 
     /**
-     * @brief MoveFileToRecycle 事务， 删除旧的元数据, 原有文件的类型变为recycle
+     * @brief MoveFileToRecycle Transaction for deleting the old metadata, and
+     *                          the original file will becomes recycle file
      *
-     * @param[in] originFileInfo待删除文件
-     * @param[in] recycleFileInfo 类型变更后的元数据
+     * @param[in] originFileInfo: Files to be deleted
+     * @param[in] recycleFileInfo: Files to be placed in recycle bin (same file)
      *
-     * @return StoreStaus 错误码
+     * @return StoreStaus: error code
      */
     virtual StoreStatus MoveFileToRecycle(
         const FileInfo &originFileInfo, const FileInfo &recycleFileInfo) = 0;
 
     /**
-     * @brief ListFile 获取[startid, endid)之间的所有文件
+     * @brief ListFile: Get all files between [startid, endid)
      *
-     * @param[in] startidid为起始id
-     * @param[in] endid为结束id
-     * @param[out] files 所有文件列表
+     * @param[in] startidid
+     * @param[in] endid
+     * @param[out] files
      *
-     * @return StoreStatus 错误码
+     * @return StoreStatus: error code
      */
     virtual StoreStatus ListFile(InodeID startid,
                                 InodeID endid,
                                 std::vector<FileInfo> * files) = 0;
 
     /**
-     * @brief ListSegment 获取[startid, endid)之间的所有segment
+     * @brief ListSegment: Get all the segments between [startid, endid)
      *
-     * @param[in] id 文件的inode id
-     * @param[out] segments segment列表
+     * @param[in] id: Inode ID of the file
+     * @param[out] segments: Segment list
      *
-     * @return StoreStatus 错误码
+     * @return StoreStatus: error code
      */
     virtual StoreStatus ListSegment(InodeID id,
                                     std::vector<PageFileSegment> *segments) = 0;
 
     /**
-     * @brief ListSnapshotFile 获取[startid, endid)之间的所有快照文件
+     * @brief ListSnapshotFile: Get all snapshot files between [startid, endid)
      *
-     * @param[in] startidid为起始id
-     * @param[in] endid为结束id
-     * @param[out] files 所有文件列表
+     * @param[in] startidid
+     * @param[in] endid
+     * @param[out] files
      *
-     * @return StoreStatus 错误码
+     * @return StoreStatus: error code
      */
     virtual StoreStatus ListSnapshotFile(InodeID startid,
                                 InodeID endid,
                                 std::vector<FileInfo> * files) = 0;
 
     /**
-     * @brief GetSegment 获取指定segment信息
+     * @brief GetSegment: Obtain specified segment information
      *
-     * @param[in] id为当前文件的inode
-     * @param[in] off为当前segment的偏移
-     * @param[out] segment segment信息
+     * @param[in] id: Inode ID of the target file
+     * @param[in] off: Offset of the target segment
+     * @param[out] segment: Segment info
      *
-     * @return StoreStatus 错误码
+     * @return StoreStatus: error code
      */
     virtual StoreStatus GetSegment(InodeID id,
                                     uint64_t off,
                                     PageFileSegment *segment) = 0;
 
     /**
-     * @brief PutSegment 存储指定的segment信息
+     * @brief PutSegment: Store specified segment information
      *
-     * @param[in] id为当前文件的inode
-     * @param[in] off为当前segment的偏移
-     * @param[out] segment segment信息
-     * @param[out] revision 本次put的版本号
+     * @param[in] id: Inode ID of the target file
+     * @param[in] off: Offset of the target segment
+     * @param[out] segment: Segment info
+     * @param[out] revision: The version number of this operation
      *
-     * @return StoreStatus 错误码
+     * @return StoreStatus: error code
      */
     virtual StoreStatus PutSegment(InodeID id,
                                     uint64_t off,
@@ -203,34 +209,35 @@ class NameServerStorage {
                                     int64_t *revision) = 0;
 
     /**
-     * @brief DeleteSegment 删除指定的segment元数据
+     * @brief DeleteSegment: Delete the specified segment metadata
      *
-     * @param[in] id为当前文件的inode
-     * @param[in] off为当前segment的偏移
-     * @param[out] revision 本次delete的版本号
+     * @param[in] id: Inode ID of the target file
+     * @param[in] off: Offset of the target segment
+     * @param[out] revision: The version number of this operation
      *
-     * @return StoreStatus 错误码
+     * @return StoreStatus: error code
      */
     virtual StoreStatus DeleteSegment(
         InodeID id, uint64_t off, int64_t *revision) = 0;
 
     /**
-     * @brief SnapShotFile 事务，存储snapshotFile的元数据信息，更新源文件元数据
+     * @brief SnapShotFile: Transaction for storing metadata of snapshotFile,
+     *                      and update source file metadata
      *
-     * @param[in] originalFileInfo 打快照的源文件元信息
-     * @param[in] snapshotFileInfo 快照文件元信息
+     * @param[in] originalFileInfo: Metadata of the source file to take snapshot
+     * @param[in] snapshotFileInfo: Metadata of the snapshot file
      *
-     * @return StoreStatus 错误码
+     * @return StoreStatus: error code
      */
     virtual StoreStatus SnapShotFile(const FileInfo *originalFileInfo,
                                     const FileInfo *snapshotFileInfo) = 0;
 
     /**
-     * @brief LoadSnapShotFile 加载所有snapshotFile元信息
+     * @brief LoadSnapShotFile: Load all snapshotFile metadata
      *
-     * @param[out] snapshotFiles 快照元信息列表
+     * @param[out] snapshotFiles: Snapshot metadata list
      *
-     * @retrun StoreStatus 错误码
+     * @retrun StoreStatus: error code
      */
     virtual StoreStatus LoadSnapShotFile(
                                     std::vector<FileInfo> *snapShotFiles) = 0;
@@ -304,10 +311,10 @@ class NameServerStorageImp : public NameServerStorage {
     StoreStatus getErrorCode(int errCode);
 
  private:
-    // namespace-meta缓存
+    // namespace-meta cache
     std::shared_ptr<Cache> cache_;
 
-    // 底层存储介质
+    // underlying storage
     std::shared_ptr<KVStorageClient> client_;
 };
 }  // namespace mds

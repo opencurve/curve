@@ -41,9 +41,9 @@ using curve::common::WriteLockGuard;
 using ClientIpPortType = std::pair<std::string, uint32_t>;
 
 struct FileRecordOptions {
-    // file record过期时间，单位us
+    // file record expire time (in μs)
     uint32_t fileRecordExpiredTimeUs;
-    // 后台扫描file record map的时间间隔，单位us
+    // time interval of scanning file record map (in μs)
     uint32_t scanIntervalTimeUs;
 };
 
@@ -74,8 +74,8 @@ class FileRecord {
     }
 
     /**
-     * @brief 是否已经更新超时
-     * @return true/超时 false/未超时
+     * @brief determine whether the request has timeout
+     * @return true if timeout, false if not
      */
     bool IsTimeout() const {
         curve::common::LockGuard lk(mtx_);
@@ -84,7 +84,7 @@ class FileRecord {
     }
 
     /**
-     * @brief 更新时间
+     * @brief Update time
      */
     void Update(const std::string& clientVersion, const std::string& clientIP,
                 uint32_t clientPort) {
@@ -96,7 +96,7 @@ class FileRecord {
     }
 
     /**
-     * @brief 更新版本号
+     * @brief Update version number
      */
     void Update(const std::string& clientVersion) {
         curve::common::LockGuard lk(mtx_);
@@ -104,8 +104,8 @@ class FileRecord {
     }
 
     /**
-     * @brief 获取上次更新时间
-     * @return 上次更新时间
+     * @brief Get the time last updated
+     * @return last updated time
      */
     uint64_t GetUpdateTime() const {
         curve::common::LockGuard lk(mtx_);
@@ -113,8 +113,8 @@ class FileRecord {
     }
 
     /**
-     * @brief 获取当前打开文件的client版本号
-     * @return 版本号, 没有为空
+     * @brief Get the client version of currently opened file
+     * @return version number, null if has no version
      */
     std::string GetClientVersion() const {
         return clientVersion_;
@@ -125,31 +125,31 @@ class FileRecord {
     }
 
  private:
-    // 最新更新时间，单位us
+    // latest update time in μs
     uint64_t updateTimeUs_;
-    // 超时时间
+    // timeout
     uint64_t timeoutUs_;
-    // client版本号
+    // client version
     std::string clientVersion_;
-    // client地址
+    // client IP address
     std::string clientIP_;
-    // client端口
+    // client port
     uint32_t clientPort_;
-    // 更新时间锁
+    // mutex for updating the time
     mutable curve::common::Mutex mtx_;
 };
 
 class FileRecordManager {
  public:
     /**
-     * @brief 初始化
-     * @param[in] sessionOption session配置项
+     * @brief initialization
+     * @param[in] sessionOption session configuration
      */
     void Init(const FileRecordOptions& fileRecordOptions);
 
     /**
-     * @brief 获取当前已打开文件数量
-     * @return 当前已打开文件数量
+     * @brief Get the opened file number
+     * @return the number of the opened files
      */
     uint64_t GetOpenFileNum() const {
         ReadLockGuard lk(rwlock_);
@@ -157,16 +157,16 @@ class FileRecordManager {
     }
 
     /**
-     * @brief 获取文件过期时间
-     * @return 文件过期时间
+     * @brief Get the expired time of the file
+     * @return the expired time
      */
     uint32_t GetFileRecordExpiredTimeUs() const {
         return fileRecordOptions_.fileRecordExpiredTimeUs;
     }
 
     /**
-     * @brief 更新filename对应的文件记录
-     * @param[in] filename文件名
+     * @brief Update the file record corresponding to the input filename
+     * @param[in] filename
      */
     void UpdateFileRecord(const std::string& filename,
                           const std::string& clientVersion,
@@ -174,25 +174,25 @@ class FileRecordManager {
                           uint32_t clientPort);
 
     /**
-     * @brief 获取filename对应的client version
-     * @param[in] filename文件名
+     * @brief Get the client version corresponding to the input file
+     * @param[in] filename
      */
     bool GetFileClientVersion(
         const std::string& fileName, std::string *clientVersion) const;
 
     /**
-     * @brief 启动FileRecordManager
+     * @brief start FileRecordManager
      */
     void Start();
 
     /**
-     * @brief 停止FileRecordManager
+     * @brief stop FileRecordManager
      */
     void Stop();
 
     /**
-     * @brief 根据配置项，设置protoSession
-     * @param[out] protoSession需要设置的参数
+     * @brief Set protoSession according to the configuration
+     * @param[out] protoSession: Params to configure
      */
     void GetRecordParam(ProtoSession* protoSession) const;
 
@@ -203,15 +203,15 @@ class FileRecordManager {
 
  private:
     /**
-     * @brief 定期扫描函数，删除已经超时的文件记录
+     * @brief Function for periodic scanning, it deletes timed-out file records
      */
     void Scan();
 
-    // 文件记录
+    // file recoreds
     std::unordered_map<std::string, FileRecord> fileRecords_;
-    // 保护fileRecords_的读写锁
+    // rwlock for fileRecords_
     mutable curve::common::RWLock rwlock_;
-    // 后台扫描执行线程
+    // the thread for scanning in backend
     curve::common::Thread scanThread_;
 
     FileRecordOptions fileRecordOptions_;

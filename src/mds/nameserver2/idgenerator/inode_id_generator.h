@@ -43,11 +43,11 @@ class InodeIDGenerator {
     virtual ~InodeIDGenerator() {}
 
     /*
-    * @brief GenInodeId 生成全局递增的id
+    * @brief GenInodeId Generate a globally incremented ID
     *
-    * @param[out] 生成的id
+    * @param[out] ID generated
     *
-    * @return true表示生成成功， false表示生成失败
+    * @return true if succeeded, false if failed
     */
     virtual bool GenInodeID(InodeID * id) = 0;
 };
