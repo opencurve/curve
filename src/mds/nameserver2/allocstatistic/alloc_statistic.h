@@ -202,7 +202,7 @@ class AllocStatistic {
     RWLock existSegmentAllocValuesLock_;
 
     // At the beginning, stores allocation data of the segment before specified revision //NOLINT
-    //Later, stores the merged value
+    // Later, stores the merged value
     std::map<PoolIdType, int64_t> segmentAlloc_;
     RWLock segmentAllocLock_;
     Atomic<bool> segmentAllocFromEtcdOK_;
