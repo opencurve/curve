@@ -45,32 +45,35 @@ namespace mds {
 using ::curve::kvstorage::EtcdClientImp;
 
 /**
- * AllocStatistic 用于统计当前已分配出去的segment量
- * 思路
- * 统计分为两部分:
+ * AllocStatistic is for counting the number of segments allocated currently
+ * The statistics are divided into two parts:
  * part1:
- *    ①统计指定revision之前的分配量
- *    ②记录mds启动以来，每个revision对应的segment分配量
- *    ③合并①和②中的数据
- * part2: 后台定期持久化part1中合并以后的数据
+ *     ①statistics of the allocation amount before the designated revision
+ *     ②record the segment allocation amount of each revision since mds started
+ *     ③combine the data in ① and ②
+ * part2: the background periodically persists the merged data in part1
  *
- * 涉及到的几个map:
- * existSegmentAllocValues_: mds上次退出持久化在etcd中的数据+mds启动以来segment的变化
- * segmentAlloc_: 最终存放part1部分完成合并之后数据
+ * maps involved:
+ * existSegmentAllocValues_: data persisted in Etcd in the last time mds exited
+ *                           + the segment change since mds started
+ * segmentAlloc_: store the data after the part1 is merged
  *
- * 根据当前的统计状态给外部提供segment分配量:
- * 1. 如果part1部分全部完成，从mergeMap_中获取数据
- * 2. 如果part1部分未完成，从existSegmentAllocValues_中获取数据
+ * provide segment allocation data according to current statistical status:
+ * 1. If all of part1 are completed, get data from mergeMap_
+ * 2. If part1 is not completed, get data from existSegmentAllocValues_
  */
+
 class AllocStatistic {
  public:
     /**
-     * @brief UsageStatistic 构造函数
+     * @brief UsageStatistic constructor
      *
-     * @param[in] periodicPersistInterMs
-     *            将内存中各logicalPool的segment使用量向etcd持久化的时间间隔
-     * @param[in] retryInterMs 从etcd中获取指定revision的segmennt失败后的重试间隔
-     * @param[in] client etcdClient
+     * @param[in] periodicPersistInterMs Time interval for persisting the
+     *                                   segment usage of each logicalPool in
+     *                                   memory to Etcd
+     * @param[in] retryInterMs Retry time interval after the failure of getting
+     *                         segment of the specified revision from Etcd
+     * @param[in] client Etcd client
      */
     AllocStatistic(uint64_t periodicPersistInterMs, uint64_t retryInterMs,
         std::shared_ptr<EtcdClientImp> client) :
@@ -86,142 +89,151 @@ class AllocStatistic {
     }
 
     /**
-     * @brief Init 从etcd中获取定期持久化的每个physical-pool对应的已分配的segment信息
-     *             以及recycleBin中的信息
+     * @brief Init Obtains the allocated segment information and information in
+     *             recycleBin periodically persisted corresponding to each
+     *             physical-pool from Etcd
      *
-     * @return 0-init成功 1-init失败
+     * @return 0-init succeeded 1-init failed
      */
     int Init();
 
-    /**
-     * @brief Run 一是获取指定revision下的所有segment,
-     *            二是定期持久化内存中的统计的各logcailPool下的已分配的segment大小
+   /**
+     * @brief Run 1. get all the segments under the specified revision
+     *            2. persist the statistics of allocated segment size in memory
+     *               under each logicalPool regularly
      */
     void Run();
 
     /**
-     * @brief Stop 用于等待后台线程的退出
+     * @brief Stop Waiting for the exit of background threads
      */
     void Stop();
 
     /**
-     * @brief GetAllocByLogicalPool 获取指定逻辑池已分配出去的容量
-     *        若还未统计结束(currentValueAvalible_=false)，使用旧值，否则使用新值
+     * @brief GetAllocByLogicalPool Get the allocated capacity of the specified
+     *                             logical pool. If the statistics are not over
+     *                              (currentValueAvalible_=false) then use the
+     *                              old value, otherwise use the new one
      *
-     * @param[in] lid 指定逻辑池id
-     * @param[out] alloc lid已分配的segment大小
+     * @param[in] lid Specifies the logical pool id
+     * @param[out] alloc Allocated segment size of lid
      *
-     * @return false表示未获取成功，true表示获取成功
+     * @return false if acquisition failed, true if succeeded
      */
     virtual bool GetAllocByLogicalPool(PoolIdType lid, int64_t *alloc);
 
     /**
-     * @brief AllocSpace put segment后更新
+     * @brief AllocSpace Update after putting segment
      *
-     * @param[in] lid segment所在的logicalpoolId
-     * @param[in] changeSize segment增加量
-     * @param[in] revison 本次变化对应的版本
+     * @param[in] lid ID of the logicalpool in which the segment is located
+     * @param[in] changeSize segment increase
+     * @param[in] revision Version corresponding to this change
      */
     virtual void AllocSpace(PoolIdType, int64_t changeSize, int64_t revision);
 
     /**
-     * @brief DeAllocSpace delete segment后更新
+     * @brief DeAllocSpace Update after deleting segment
      *
-     * @param[in] lid segment所在的logicalpoolId
-     * @param[in] changeSize segment减少量
-     * @param[in] revison 本次变化对应的版本
+     * @param[in] lid LogicalpoolId where the segment is located
+     * @param[in] changeSize Segment reduction
+     * @param[in] revision Version corresponding to this change
      */
     virtual void DeAllocSpace(
         PoolIdType, int64_t changeSize, int64_t revision);
 
  private:
      /**
-     * @brief CalculateSegmentAlloc 从etcd中获取指定revision的所有segment记录
+     * @brief CalculateSegmentAlloc Get all the segment records of the
+     *                         specified revision from Etcd
      */
     void CalculateSegmentAlloc();
 
     /**
-     * @brief PeriodicPersist
-     *        定期持久化内存中的统计的各logcailPool下的已分配的segment大小
+     * @brief PeriodicPersist Periodically persist the allocated segment size
+     *                        data under each logicalPool in RAM
      */
     void PeriodicPersist();
 
      /**
-     * @brief HandleResult
-     *        用于处理获取指定revision的所有segment记录过程中发生错误的情况
+     * @brief HandleResult Dealing with the situation that error occur when
+     *                     obtaining all segment records of specified revision
      */
     bool HandleResult(int res);
 
     /**
-     * @brief DoMerge 对于每个logicalPool, 合并变化量和etcd中读取的数据
+     * @brief DoMerge For each logicalPool, merge the change amount and data read in Etcd //NOLINT
      */
     void DoMerge();
 
     /**
-     * @brief GetLatestSegmentAllocInfo
-     *        用于获取当前需要持久化到etcd中的值.
+     * @brief GetLatestSegmentAllocInfo For getting the value needs to be
+     *                                  persisted to Etcd currently of each
+     *                                  logical pool
      *
-     * @return 当前每个logicalPool需要持久化到etcd中的值
+     * @return current value needs to be persisted to Etcd of each logicalPool
      */
     std::map<PoolIdType, int64_t> GetLatestSegmentAllocInfo();
 
     /**
-     * @brief UpdateSegmentAllocByCurrrevision 合并变化量和etcd中读取的数据
+     * @brief UpdateSegmentAllocByCurrrevision Merge the value changes and
+     *                                         data read from Etcd
      *
      * @param[in] lid logicalPoolId
-     * @paran[out] 该logicalpool的segment分配量
+     * @param[out] The segment allocation of the logicalpool
      */
     void UpdateSegmentAllocByCurrrevision(PoolIdType lid);
 
     /**
-     * @brief GetCurrentLogicalPools 获取当前所有的logicalPool
+     * @brief GetCurrentLogicalPools Get all current logicalPool
      *
-     * @return 返回logical pool集合
+     * @return logical pool collection
      */
     std::set<PoolIdType> GetCurrentLogicalPools();
 
  private:
-    // etcd模块
+    // etcd module
     std::shared_ptr<EtcdClientImp> client_;
 
-    // 当前正在统计的segment的revision
+    // revision of the segment currently being counted
     int64_t curRevision_;
 
-    // mds启动前最后一次持久化的值
+    // Last persistent value before mds started
     std::map<PoolIdType, int64_t> existSegmentAllocValues_;
     RWLock existSegmentAllocValuesLock_;
 
-    // 前期存放统计指定revision前segment的分配量
-    // 后期存放合并之后的量
+    // At the beginning, stores allocation data of the segment before specified revision //NOLINT
+    //Later, stores the merged value
     std::map<PoolIdType, int64_t> segmentAlloc_;
     RWLock segmentAllocLock_;
     Atomic<bool> segmentAllocFromEtcdOK_;
 
-    // mds启动后segment的变化
+    // Segment changes after mds started
     // PoolIdType: poolId
-    // std::map<int64_t, int64_t> first表示版本, second表示变化量
+    // std::map<int64_t, int64_t> first value is the version, and the second is
+    //                            the value change
     std::map<PoolIdType, std::map<int64_t, int64_t>> segmentChange_;
     RWLock segmentChangeLock_;
 
-    // segmentAlloc_中的值是否可以使用
-    // 经过至少一次合并之后即可用
+    // Decide whether the value in segmentAlloc_ be used
+    // It can be used after at least one merge
     Atomic<bool> currentValueAvalible_;
 
-    // 出错情况下的重试间隔,单位ms
+    // Retry interval in case of error in ms
     uint64_t retryInterMs_;
 
-    // 持久化间隔, 单位ms
+    // Persistence interval in ms
     uint64_t periodicPersistInterMs_;
 
-    // stop_为true的时候停止持久化线程和统计etcd中segment分配量的统计线程
+    // When stop_ is true, stop the persistent thread and the statistical
+    // thread that counts the segment allocation in Etcd
     Atomic<bool> stop_;
 
     InterruptibleSleeper sleeper_;
 
-    // 定期持久化每个逻辑池已分配的segment大小的线程
+    // thread for periodically persisting allocated segment size of each logical pool //NOLINT
     Thread periodicPersist_;
 
-    // 统计指定revision下已分配segment大小的线程
+    // thread for calculating allocated segment size under specified revision
     Thread calculateAlloc_;
 };
 }  // namespace mds

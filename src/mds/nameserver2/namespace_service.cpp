@@ -363,8 +363,9 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
     ExpiredTime expiredTime;
 
-    // IsRenamePathValid判断rename的路径能够加锁。不能对这种情况进行rename，
-    // rename /a/b -> /b或者/a/b -> /a，一个路径不能包含另一个路径。
+    // IsRenamePathValid determines whether the rename path is able to lock
+    // case like this is not allow: rename /a/b -> /b or rename /a/b -> /a.
+    // A path cannot include another
     if (!isPathValid(request->oldfilename())
         || !isPathValid(request->newfilename())
         || !IsRenamePathValid(request->oldfilename(), request->newfilename())) {
@@ -430,7 +431,7 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
         return;
     }
 
-    // oldFileID和newFileID如果未传入，使用默认值，表示不比较file id
+    // use default value if not passed in
     uint64_t oldFileId = kUnitializedFileID;
     uint64_t newFileId = kUnitializedFileID;
     if (request->has_oldfileid()) {
@@ -574,7 +575,7 @@ void NameSpaceService::ChangeOwner(
     FileWriteLockGuard guard(fileLockManager_, request->filename());
 
     StatusCode retCode;
-    // ChangeOwner()接口，只允许root用户调用
+    // interface ChangeOwner() is only capable for root user
     retCode = kCurveFS.CheckRootOwner(request->filename(), request->rootowner(),
                                       request->signature(), request->date());
     if (retCode != StatusCode::kOK) {
@@ -1451,8 +1452,7 @@ bool isPathValid(const std::string path) {
         }
     }
 
-    // 将来如果有path有其他限制，可以在此处继续添加
-
+    // if some other limits to path can add here in the future
     return true;
 }
 
@@ -1464,7 +1464,8 @@ bool IsRenamePathValid(const std::string& oldFileName,
     std::vector<std::string> newFilePaths;
     ::curve::common::SplitString(newFileName, "/", &newFilePaths);
 
-    // 不允许对根目录rename或者rename到根目录
+    // rename to the root directory or rename to the root directory
+    // is not allowed
     if (oldFilePaths.size() == 0 || newFilePaths.size() == 0) {
         return false;
     }
@@ -1473,7 +1474,7 @@ bool IsRenamePathValid(const std::string& oldFileName,
         return true;
     }
 
-    // 不允许一个fileName包含另一个fileName
+    // do not allow one fileName to contain another
     uint32_t minSize = oldFilePaths.size() > newFilePaths.size()
                         ? newFilePaths.size() : oldFilePaths.size();
     for (uint32_t i = 0; i < minSize; i++) {
@@ -1502,7 +1503,7 @@ void NameSpaceService::CreateCloneFile(
             << ", owner = " << request->owner()
             << ", chunksize = " << request->chunksize();
 
-    // chunksize 必须得设置
+    // chunksize must be set
     if (!request->has_chunksize()) {
         LOG(INFO) << "logid = " << cntl->log_id()
             << "CreateCloneFile error, chunksize not setted"
@@ -1511,7 +1512,7 @@ void NameSpaceService::CreateCloneFile(
         return;
     }
 
-    // TODO(hzsunjianliang): 只允许root用户进行创建cloneFile
+    // TODO(hzsunjianliang): only root user is allowed to create cloneFile
     std::string signature = "";
     if (request->has_signature()) {
         signature = request->signature();
@@ -1520,7 +1521,7 @@ void NameSpaceService::CreateCloneFile(
     FileWriteLockGuard guard(fileLockManager_, request->filename());
 
 
-    // 检查权限
+    // check authority
     StatusCode ret = kCurveFS.CheckPathOwner(request->filename(),
                                              request->owner(),
                                              signature, request->date());
@@ -1543,7 +1544,7 @@ void NameSpaceService::CreateCloneFile(
         return;
     }
 
-    // 创建clone文件
+    // create clone file
     ret = kCurveFS.CreateCloneFile(request->filename(),
                             request->owner(),
                             request->filetype(),
@@ -1596,8 +1597,7 @@ void NameSpaceService::SetCloneFileStatus(
     }
 
     // TODO(hzsunjianliang): lock the filepath&name
-
-    // TODO(hzsunjianliang): 只允许root用户进行创建cloneFile
+    // TODO(hzsunjianliang): only root user is allowed to create cloneFile
     std::string signature = "";
     if (request->has_signature()) {
         signature = request->signature();

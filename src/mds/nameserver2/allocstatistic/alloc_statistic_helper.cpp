@@ -35,13 +35,11 @@ using ::curve::common::SEGMENTALLOCSIZEKEYEND;
 using ::curve::common::SEGMENTALLOCSIZEKEY;
 using ::curve::common::SEGMENTINFOKEYPREFIX;
 using ::curve::common::SEGMENTINFOKEYEND;
-
 const int GETBUNDLE = 1000;
-
 int AllocStatisticHelper::GetExistSegmentAllocValues(
     std::map<PoolIdType, int64_t> *out,
     const std::shared_ptr<EtcdClientImp> &client) {
-    // 从etcd中获取logicalPool对应的segmentSize统计值
+    // Obtain the segmentSize value of corresponding logical pools from Etcd
     std::vector<std::string> allocVec;
     int res = client->List(
         SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND, &allocVec);
@@ -52,7 +50,7 @@ int AllocStatisticHelper::GetExistSegmentAllocValues(
         return -1;
     }
 
-    // 解析
+    // recode the string
     for (auto &item : allocVec) {
         PoolIdType lid;
         uint64_t alloc;
@@ -71,18 +69,19 @@ int AllocStatisticHelper::CalculateSegmentAlloc(
     int64_t revision, const std::shared_ptr<EtcdClientImp> &client,
     std::map<PoolIdType, int64_t> *out) {
     LOG(INFO) << "start calculate segment alloc, revision: " << revision
-              << ", buldle size: " << GETBUNDLE;
+              << ", bundle size: " << GETBUNDLE;
     uint64_t startTime = ::curve::common::TimeUtility::GetTimeofDayMs();
 
     std::string startKey = SEGMENTINFOKEYPREFIX;
     std::vector<std::string> values;
     std::string lastKey;
     do {
-        // 清理数据
+        // clear data
         values.clear();
         lastKey.clear();
 
-        // 从etcd中批量获取segment
+        // get segments in bundles from Etcd, GETBUNDLE is the number of items
+        // to fetch
         int res = client->ListWithLimitAndRevision(
            startKey, SEGMENTINFOKEYEND, GETBUNDLE, revision, &values, &lastKey);
         if (res != EtcdErrCode::EtcdOK) {
@@ -93,7 +92,7 @@ int AllocStatisticHelper::CalculateSegmentAlloc(
             return -1;
         }
 
-        // 对获取的值进行解析
+        // decode the obtained value
         int startPos = 1;
         if (startKey == SEGMENTINFOKEYPREFIX) {
             startPos = 0;

@@ -36,48 +36,53 @@
 
 namespace curve {
 namespace mds {
-// FileLockManager完成对path进行加锁解锁逻辑
+// FileLockManager is for locking and unlocking path
 class FileLockManager {
  public:
     /**
-     * @brief FileLockManager的构造函数，FileLockManager使用<path, lockEntry>的
-     *        map方式进行组织，并用mutex对map进行保护。为了减少对map并发访问的冲突，
-     *        把map按照hash(path)的方式打散到不同的lock bucket中。
-     * @param bucketNum bucket的个数
+     * @brief constructor of FileLockManager，FileLockManager is organized in
+     *        map<path, lockEntry>, and there's a mutex for protecting the map.
+     *        In order to relief conflicts caused by the concurrent visits
+     *        toward this map, the map is scattered into different lock buckets
+     *        using a hash function hash(path).
+     * @param bucketNum
      */
     explicit FileLockManager(int bucketNum);
     ~FileLockManager();
 
     /**
-     * @brief 对filePath加读锁，从根目录开始，对每层路径分别加读锁，
-     *        以对文件"/dir1/dir2/file1"加读锁为例：
-     *        第一步，先对根目录"/"加读锁。
-     *        第二步，对"/dir1"加读锁。
-     *        第三步，对"/dir1/dir2"加读锁。
-     *        第四步，对"/dir1/dir2/file1"加读锁。
-     * @param filePath 需要加锁的path
+     * @brief When apply read lock on a path, every level of it start from
+     *        the root will be locked.
+     *        Here's an example of applying read lock on file "/dir1/dir2/file1"
+     *        1. apply read lock on root path "/"
+     *        2. apply read lock on path "/dir1"
+     *        3. apply read lock on path "/dir1/dir2"
+     *        4. apply read lock on "/dir1/dir2/file1"
+     * @param filePath: the file path on which the read lock will be applied
      */
     void ReadLock(const std::string& filePath);
 
     /**
-     * @brief 对filePath加写锁，从根目录开始，对每层路径分别加读锁，最后那层加写锁
-     *        只有根目录，只对根目录加写锁。
-     *        以对文件"/dir1/dir2/file1"加写锁为例：
-     *        第一步，先对根目录"/"加读锁。
-     *        第二步，对"/dir1"加读锁。
-     *        第三步，对"/dir1/dir2"加读锁。
-     *        第四步，对"/dir1/dir2/file1"加写锁。
-     * @param filePath 需要加锁的path
+     * @brief For write lock, it's similar with read lock, but only the last
+     *        level will be applied a write lock. For case when there's only
+     *        root path input, apply write on the root path.
+     *        Here we also provide a similar example: apply write lock on file
+     *        "/dir1/dir2/file1":
+     *        1. apply read lock on root path "/"
+     *        2. apply read lock on path "/dir1"
+     *        3. apply read lock on path "/dir1/dir2"
+     *        4. apply write lock on "/dir1/dir2/file1"
+     * @param filePath: the file path on which the write lock will be applied
      */
     void WriteLock(const std::string& filePath);
 
     /**
-     * @brief 对filePath解锁
-     * @param filePath 需要解锁的path
+     * @brief unlock for filePath
+     * @param filePath: to be unlocked
      */
     void Unlock(const std::string& filePath);
 
-    // 为了方便单元测试
+    // method for unit test
     size_t GetLockEntryNum();
 
  private:
@@ -101,19 +106,20 @@ class FileLockManager {
     std::vector<LockBucket*> locks_;
 };
 
-// 对path加读锁逻辑进行封装，构造函数中对path进行加锁，析构函数中对path进行解锁
+// encapsulation of applying read lock logic on a path
+// the path will be locked in the constructor, and unlock in the destructor
 class FileReadLockGuard {
  public:
     /**
-     * @brief 构造函数对path加读锁
-     * @param fileLockManager 进行加锁的FileLockManager
-     * @param path 需要加锁的path
+     * @brief constructor that applies read lock on the path
+     * @param fileLockManager FileLockManager that applies the lock
+     * @param path the path on which the lock applied
      */
     FileReadLockGuard(FileLockManager *fileLockManager,
                             const std::string &path);
 
     /**
-     * @brief 析构函数对path解锁
+     * @brief the destructor will be responsible for unlocking
      */
     ~FileReadLockGuard();
  private:
@@ -121,34 +127,36 @@ class FileReadLockGuard {
     std::string path_;
 };
 
-// 对path加写锁逻辑进行封装，构造函数中对path进行加锁，析构函数中对path进行解锁
+// encapsulation of applying write lock logic on a path
+// the path will be locked in the constructor, and unlock in the destructor
 class FileWriteLockGuard {
  public:
     /**
-     * @brief 构造函数对path加写锁
-     * @param fileLockManager 进行加锁的FileLockManager
-     * @param path 需要加锁的path
+     * @brief constructor that applies write lock on the path
+     * @param fileLockManager FileLockManager that applies the lock
+     * @param path the path on which the lock applied
      */
     FileWriteLockGuard(FileLockManager *fileLockManager,
                         const std::string &path);
 
-    /**
-     * @brief 构造函数对两个path加写锁，传入两个path，该接口用来在rename的时候，
-     *        对newfile和oldfile同时加锁。
-     *        对path加锁，按照path1和path2的字典序进行加锁。
-     *        如果path1 == path2，只对path1加锁
-     *        如果path1 < path2，先对path1加锁，再对path2加锁
-     *        如果path1 > path2，先对path2加锁，再对path1加锁
-     * @param fileLockManager 进行加锁的FileLockManager
-     * @param path1 需要加锁的path之一
-     *        path2 需要加锁的path之一
+   /**
+     * @brief another constructor that applies write lock on two paths. This
+     *        is for rename operation that two files are involved.
+     *        The order of applying write lock will be based on the
+     *        lexicographical order of two paths:
+     *        if order(path1) == order(path2), apply write lock only on path1
+     *        if order(path1) < order(path2), apply the lock on path1 then path2
+     *        if order(path1) < order(path2), vice versa
+     * @param fileLockManager
+     * @param path1
+     * @param path2
      */
     FileWriteLockGuard(FileLockManager *fileLockManager,
                                 const std::string &path1,
                                 const std::string &path2);
 
     /**
-     * @brief 析构函数对path解锁
+     * @brief destructor for unlocking
      */
     ~FileWriteLockGuard();
 

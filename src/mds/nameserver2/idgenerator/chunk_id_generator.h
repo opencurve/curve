@@ -43,11 +43,11 @@ class ChunkIDGenerator {
     virtual  ~ChunkIDGenerator() {}
 
     /*
-    * @brief GenChunkID 生成全局递增的id
+    * @brief GenChunkID Generate a globally incremented ID
     *
-    * @param[out] 生成的id
+    * @param[out] ID generated
     *
-    * @return true表示生成成功， false表示生成失败
+    * @return true if succeeded, false if failed
     */
     virtual bool GenChunkID(ChunkID *id) = 0;
 };

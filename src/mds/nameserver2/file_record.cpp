@@ -71,7 +71,7 @@ void FileRecordManager::UpdateFileRecord(const std::string& fileName,
             break;
         }
 
-        // 更新record
+        // update record
         it->second.Update(clientVersion, clientIP, clientPort);
         return;
     } while (0);

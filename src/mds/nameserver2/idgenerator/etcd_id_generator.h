@@ -48,11 +48,11 @@ class EtcdIdGenerator {
 
  private:
     /*
-    * @brief 从storage中批量申请ID
+    * @brief apply for IDs in batches from storage
     *
-    * @param[in] requiredNum 需要申请的id个数
+    * @param[in] requiredNum Number of IDs that need to be applied
     *
-    * @param[out] false表示申请失败，true表示申请成功
+    * @param[out] false if failed, true if succeeded
     */
     bool AllocateBundleIds(int requiredNum);
 
