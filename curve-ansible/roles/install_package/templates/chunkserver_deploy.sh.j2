@@ -232,6 +232,13 @@ function deploy_one {
     echo "$dirname is being used"
     exit 1
   fi
+  # remove mount from fstab
+  line_num=`grep -n $dirname /etc/fstab`
+  if [ -n "$line_num" ]
+  then
+    sed -i ''${line_num}'d' /etc/fstab
+  fi
+  # mkfs
   mkfs.ext4 -F $diskname 2>&1 > /dev/null &
   while [ 1 ]
   do
@@ -255,8 +262,6 @@ function deploy_one {
     exit 1
   fi
   uuid=`ls -l /dev/disk/by-uuid/|grep -w ${short_diskname}|awk '{print $9}'`
-  line_num=`grep -n $dirname /etc/fstab`
-  sed -i ''${line_num}'d' /etc/fstab
   echo "UUID=$uuid    $dirname    ext4  rw,errors=remount-ro    0    0" >> /etc/fstab
   # 将uuid及其md5写到diskmeta中
   uuidmd5=`echo -n $uuid | md5sum | cut -d ' ' -f1`
@@ -267,6 +272,7 @@ function deploy_one {
   curve-format -allocatePercent={{ chunk_alloc_percent }} \
   -filePoolDir=$dirname/chunkfilepool \
   -filePoolMetaPath=$dirname/chunkfilepool.meta \
+  -fileSize={{ chunkserver_walfilepool_segment_size }} \
   -fileSystemPath=$dirname/chunkfilepool  &
   wait
   exit
