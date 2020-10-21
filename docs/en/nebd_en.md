@@ -2,7 +2,7 @@
 
 ### Overview
 
-CURVE client serves as the entrance of the services provided by CURVE, providing dynamic link library for QEMU/CURVE-NBD for calling. As a result, restarting QEMU/CURVE-NBD is necessary when CURVE Client needs to be updated.
+CURVE client serves as the entrance of the services provided by CURVE, providing dynamic link library for QEMU/CURVE-NBD. As a result, restarting QEMU/CURVE-NBD is necessary when CURVE Client needs to be updated.
 
 In order to relief the impact of updating on applications based on CURVE, we decoupled CURVE client and its applications, and imported the hot upgrade module **NEBD** in between.
 
@@ -20,7 +20,7 @@ Figure1 shows the deployment structure of NEBD.
 - NEBD Server(**part2** in source code directory)：NEBD Server is responsible for receiving the requests from part1, then call CURVE client for corresponding operations. An NEBD server can receive requests from different NEBD clients.
 
 
-Also, figure 1 shows that instead of CURVE client, NEBD client is now the component that serves the application above. In this case, the applications will still be influenced when NEBD client is being upgraded. So in our design, we simplified the processing logic of NEBD client as much as possible, which means it will only be responsible for request forwarding and limited retries for requests if needed.
+Also, figure 1 shows that instead of CURVE client, NEBD client is now the component that serves the application above. In this case, the applications will still be influenced when NEBD client is being upgraded. So in our design, we simplified the business logic of NEBD client as much as possible, which means it will only be responsible for request forwarding and limited retries for requests if needed.
 
 There are few steps for NEBD server/CURVE client's upgrade:
 
@@ -31,7 +31,7 @@ There are few steps for NEBD server/CURVE client's upgrade:
 
 In our practice, we use daemon to monitor the processes of part2, and start them if not exist.
 
-Also, notice that from the stop of processes of part2 to the start of the new ones, only 1 to 5 seconds are required in our test and production environment.
+Also, notice that from the stop of process of part2 to the start of the new one, only 1 to 5 seconds are required in our test and production environment.
 
 #### Structure of Modules
 
@@ -68,13 +68,13 @@ Figure 2 show the components of NEBD client and NEBD server.
 
 ### Key Points
 
-1. Retry procedure of part1:
+1. Retry policy of part1:
 
    As what we've mentioned above, part1 only execute limited retries, and this characteristic can be reflected in two aspects:
 
    1. There's no time out for RPC requests from part1.
 
-   2. Part1 only executes retries for errors of RPC requests themselves, and forward error      codes return by RPC to upper level directly.
+   2. Part1 only executes retries for errors of RPC requests themselves, and forward error codes returned by RPC to upper level directly.
 
 
 Use Write request as an example, and figure3 is the flow chart of the request:
