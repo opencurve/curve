@@ -28,7 +28,6 @@ then
 	exit
 elif [ ! "$nbddevice" ]
 then
-	echo "curve-nbd map cbd:pool//${filename}_${user}_"
 	sudo curve-nbd map cbd:pool//${filename}_${user}_
 fi
 
@@ -47,6 +46,7 @@ fi
 
 
 #mount nbd device to /data
+format=$(sudo blkid -s TYPE ${nbddevice} | awk -F '"' '{print $2}')
 hasmount=$(df -T | grep ${nbddevice})
 if [ "$format" != "ext4" ]
 then
