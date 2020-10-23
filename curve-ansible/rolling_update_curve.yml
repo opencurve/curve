@@ -26,9 +26,6 @@
   hosts: etcd
   any_errors_fatal: true
   gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - etcd
     - never
@@ -51,9 +48,6 @@
   any_errors_fatal: true
   gather_facts: no
   serial: 1
-  become: true
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - etcd
     - never
@@ -69,9 +63,6 @@
   hosts: mds
   any_errors_fatal: true
   gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - prepare
     - mds
@@ -104,9 +95,6 @@
   any_errors_fatal: true
   gather_facts: no
   serial: 1
-  become: true
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - restart
     - mds
@@ -130,9 +118,6 @@
   hosts: chunkservers
   any_errors_fatal: true
   gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - prepare
     - chunkserver
@@ -153,9 +138,6 @@
   any_errors_fatal: true
   gather_facts: no
   serial: 1
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - restart
     - chunkserver
@@ -179,9 +161,6 @@
   hosts: snapshotclone
   any_errors_fatal: true
   gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - prepare
     - snapshotclone
@@ -210,9 +189,6 @@
   any_errors_fatal: true
   gather_facts: no
   serial: 1
-  become: true
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - restart
     - snapshotclone

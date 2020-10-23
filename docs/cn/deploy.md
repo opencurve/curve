@@ -307,6 +307,9 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    server2 ansible_ssh_host=10.192.100.2 // 改动
    server3 ansible_ssh_host=10.192.100.3 // 改动
 
+   [monitor]
+   localhost ansible_ssh_host=127.0.0.1  // 部署监控的机器，可以根据需要改动
+
    [mds:vars]
    mds_dummy_port=6667
    mds_port=6666
@@ -352,7 +355,6 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 
    [chunkservers:vars]
    wait_service_timeout=60
-   env_name=pubt1
    check_copysets_status_times=1000
    check_copysets_status_interval=1
    cs_package_version="0.0.6.1+160be351"
@@ -372,6 +374,8 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    chunkserver_conf_path=/etc/curve/chunkserver.conf
    chunkserver_data_dir=/data          // 改动，chunkserver想要挂载的目录，如果有两个盘，则会被分别挂载到/data/chunkserver0，/data/chunkserver1这些目录
    chunkserver_subnet=10.192.100.1/22                      // 改动
+   global_enable_external_server=true
+   chunkserver_external_subnet=10.192.0.1/22               // 改动，如果机器有两个ip，就设置成和chunkserver_subnet不同的，如果只有一个，保持一致即可
    chunkserver_s3_config_path=/etc/curve/cs_s3.conf
    # chunkserver使用的client相关的配置
    chunkserver_client_config_path=/etc/curve/cs_client.conf
@@ -380,6 +384,10 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    client_chunkserver_max_stable_timeout_times=64
    client_turn_off_health_check=false
    disable_snapshot_clone=true                           // 改动，这一项取决于是否需要使用快照克隆功能，需要的话设置为false，并提供s3_ak和s3_sk
+   chunk_size=16777216
+   chunkserver_walfilepool_segment_size=8388608
+   retain_pool=false                                     // 改动，设置为true的话可以保留chunkfilepool，清理再重新部署的时候可以加速
+   walfilepool_use_chunk_file_pool=true
 
    [snapshotclone_nginx:vars]
    snapshotcloneserver_nginx_dir=/etc/curve/nginx
@@ -388,13 +396,24 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    nginx_docker_internal_port=80
    nginx_docker_external_port=5555
 
+   [monitor:vars]
+   monitor_work_dir=/etc/curve/monitor
+   monitor_retention_time=7d
+   monitor_retention_size=256GB
+   prometheus_listen_port=9090
+   prometheus_scrape_interval=3s
+   prometheus_evaluation_interval=15s
+   grafana_username=curve
+   grafana_password=123
+   grafana_listen_port=3000
+   monitor_package_version="0.0.6.1.1+7af4d6a4"
+
    [all:vars]
    need_confirm=true
    curve_ops_tool_config=/etc/curve/tools.conf
-   need_update_config=true
-   wait_service_timeout=10
-   sudo_user=curve
-   deploy_dir=/home/curve
+   snap_tool_config_path=/etc/curve/snapshot_tools.conf
+   wait_service_timeout=20
+   deploy_dir="${HOME}"
    s3_ak=""                                            // 如果需要快照克隆服务，则修改成自己s3账号对应的值
    s3_sk=""                                            // 如果需要快照克隆服务，则修改成自己s3账号对应的值
    s3_nos_address=""                                   // 如果需要快照克隆服务，则修改成s3服务的地址
@@ -405,6 +424,16 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    lib_install_prefix=/usr/local
    bin_install_prefix=/usr
    ansible_connection=ssh                              // 改动
+   check_health=false
+   clean_log_when_clean=false                          // clean的时候是否要清理日志
+   snapshot_nginx_vip=127.0.0.1
+   nginx_docker_external_port=5555
+   curve_bin_dir=/usr/bin
+   start_by_daemon=true                                // 可以选择是否用daemon启动
+   ansible_become=true                                 // 如果当前用户可以执行sudo，可以改为false
+   ansible_become_user=curve
+   ansible_become_flags=-iu curve
+   update_config_with_puppet=false
 
    ```
 
@@ -442,10 +471,14 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    [all:vars]
    need_confirm=true
    need_update_config=true
+   update_config_with_puppet=false
    ansible_ssh_port=22
    lib_install_prefix=/usr/local
    bin_install_prefix=/usr
    ansible_connection=ssh            // 改动
+   wait_service_timeout=20
+   curve_bin_dir=/usr/bin
+   start_by_daemon=true              // 是否用daemon的方式启动nebd-server
    ```
 
 
