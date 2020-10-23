@@ -343,6 +343,8 @@ ansible-playbook stop_nebd_server.yml -i client.ini
 │   ├── get_nebd_version_from_metric.yml                    # 从metric获取nebd版本
 │   ├── get_software_version_from_package_version.yml       # 从包版本获取软件版本
 │   ├── install_with_yum_apt.yml                            # 用apt或yum的方式安装
+│   ├── start_service.yml                                   # 启动服务
+│   ├── stop_service.yml                                    # 停止服务
 │   ├── update_package.yml                                  # 更新包
 │   ├── wait_copysets_status_healthy.yml                    # 在一段时间内循环检查copyset健康状态
 │   ├── wait_until_server_down.yml                          # 等待直到server停掉
@@ -354,17 +356,19 @@ ansible-playbook stop_nebd_server.yml -i client.ini
 │   └── localhost.yml                                       # 属于localhost的变量，host_vars优先级高于group_vars
 ├── roles                                                   # roles也是用来存放可以复用的代码，一个role内的task存在关联
 │   ├── clean                                               # 清理数据的role
-│   │   ├── include
-│   │   │   ├── clean_chunkserver_with_disk_format.yml      # 在格式化磁盘的情况下清理chunkserver（需要umount）
-│   │   │   ├── clean_chunkserver_without_disk_format.yml   # 在不格式化的情况下清理chunkserver（删除目录即可）
-│   │   │   ├── clean_chunkserver.yml                       # 清理chunkserver
-│   │   │   ├── clean_curve_sdk.yml                         # 清理curve_sdk残留数据
-│   │   │   ├── clean_etcd.yml                              # 清理etcd残留数据
-│   │   │   ├── clean_mds.yml                               # 清理mds残留数据
-│   │   │   ├── clean_nebd.yml                              # 清理nebd残留数据
-│   │   │   ├── clean_snapshotcloneserver_nginx.yml         # 清理快照克隆Nginx数据
-│   │   │   └── clean_snapshotcloneserver.yml               # 清理快照克隆
 │   │   └── tasks
+│   │       ├── include
+│   │       │   ├── clean_chunkserver_retain_chunkfilepool.yml  # 清理集群，但是保留chunkfilepool
+│   │       │   ├── clean_chunkserver_totally.yml               # 完全清理集群
+│   │       |   ├── clean_chunkserver_with_disk_format.yml      # 在格式化磁盘的情况下清理chunkserver（需要umount）
+│   │       |   ├── clean_chunkserver_without_disk_format.yml   # 在不格式化的情况下清理chunkserver（删除目录即可）
+│   │       |   ├── clean_chunkserver.yml                       # 清理chunkserver
+│   │       |   ├── clean_curve_sdk.yml                         # 清理curve_sdk残留数据
+│   │       |   ├── clean_etcd.yml                              # 清理etcd残留数据
+│   │       |   ├── clean_mds.yml                               # 清理mds残留数据
+│   │       |   ├── clean_nebd.yml                              # 清理nebd残留数据
+│   │       |   ├── clean_snapshotcloneserver_nginx.yml         # 清理快照克隆Nginx数据
+│   │       |   └── clean_snapshotcloneserver.yml               # 清理快照克隆
 │   │       └── main.yml
 │   ├── format_chunkserver                                  # 用来格式化chunkserver的role
 │   │   ├── defaults
@@ -380,7 +384,6 @@ ansible-playbook stop_nebd_server.yml -i client.ini
 │   ├── restart_service                                     # 用来重启服务的role
 │   │   ├── tasks                                           # 存放重启服务的task，main.yml是入口，其他的被main引用
 │   │   │   ├── include
-│   │   │   │   ├── restart_by_daemon.yml                   # 用daemon重启服务
 │   │   │   │   ├── restart_chunkserver.yml                 # 重启chunkserver
 │   │   │   │   ├── restart_etcd.yml                        # 重启etcd
 │   │   │   │   ├── restart_mds.yml                         # 重启etcd
@@ -437,6 +440,9 @@ ansible-playbook stop_nebd_server.yml -i client.ini
 │   │   ├── defaults                                        # 存放有默认值的变量
 │   │   │   └── main.yml
 │   │   ├── tasks
+│   │   │   ├── include
+│   │   │   │   ├── generate_config_with_template.yml       # 根据模板生成配置文件
+│   │   │   │   └── update_config_with_puppet.yml           # 使用puppet更新配置（内部使用）
 │   │   │   └── main.yml
 │   │   ├── templates                                       # 配置文件的模板
 │   │   │   ├── chunkserver.conf.j2
@@ -463,7 +469,6 @@ ansible-playbook stop_nebd_server.yml -i client.ini
 │   ├── stop_service                                       # 停止服务的role
 │   │   ├── tasks
 │   │   │   ├── include
-│   │   │   │   ├── stop_by_daemon.yml                    # 通过daemon停止服务
 │   │   │   │   ├── stop_chunkserver.yml                  # 停止chunkserver
 │   │   │   │   ├── stop_etcd.yml                         # 停止etcd
 │   │   │   │   ├── stop_mds.yml                          # 停止mds
@@ -476,36 +481,36 @@ ansible-playbook stop_nebd_server.yml -i client.ini
 │   └── start_service                                      # 启动服务的role
 │       ├── tasks
 │       │   ├── include
-│       │   │   ├── start_by_daemon.yml                    # 通过daemon启动服务
 │       │   │   ├── start_chunkserver.yml                  # 启动chunkserver
 │       │   │   ├── start_etcd.yml                         # 启动etcd
 │       │   │   ├── start_mds.yml                          # 启动mds
+│       │   │   ├── start_monitor.yml                      # 启动监控
 │       │   │   ├── start_nebd.yml                         # 启动nebd
 │       │   │   ├── start_snapshotcloneserver_nginx.yml    # 启动Nginx
 │       │   │   └── start_snapshotcloneserver.yml          # 启动快照克隆
 │       │   └── main.yml
 │       └── vars
 │           └── main.yml
-├── rolling_update_chunkserver.yml                          # 升级chunkserver
-├── rolling_update_mds.yml                                  # 升级mds
 ├── rolling_update_nebd.yml                                 # 升级nebd-server
+├── rolling_update_nbd.yml                                  # 升级curve-nbd
 ├── rolling_update_curve_sdk.yml                            # 升级curve sdk
-├── rolling_update_snapshotclone.yml                        # 升级快照克隆
-├── rolling_update_etcd.yml                                 # 升级etcd的命令
 ├── rolling_update_curve.yml                                # 一键升级curve集群
+├── check_ansible_version.yml                               # 检查ansible的版本
 ├── check_chunkserver.yml                                   # 检查chunkserver所在机器配置
 ├── check_mds.yml                                           # 检查mds所在机器配置
-├── deploy_chunkserver.yml                                  # 部署chunkserver
 ├── deploy_curve_sdk.yml                                    # 部署curve-sdk
 ├── deploy_curve.yml                                        # 一键部署curve集群
-├── deploy_etcd.yml                                         # 部署etcd
-├── deploy_mds.yml                                          # 部署mds
 ├── deploy_monitor.yml                                      # 部署监控服务
 ├── deploy_nbd.yml                                          # 部署nbd
 ├── deploy_nebd.yml                                         # 部署nebd
-├── deploy_snapshotcloneserver_nginx.yml                    # 部署快照克隆所用Nginx
-├── deploy_snapshotcloneserver.yml                          # 部署快照克隆
+├── deploy_walpool.yml                                      # 准备walpool
+├── release_disk_5%_space.yml                               # 释放chunkserver磁盘占用的空间
 ├── README                                                  # 本帮助文档
 ├── client.ini                                              # client的inventory文件
-└── server.ini                                              # server的列表，包括mds，快照克隆，etcd，chunkserver
+├── server.ini                                              # server的列表，包括mds，快照克隆，etcd，chunkserver
+├── start_curve.yml                                         # 启动curve集群
+├── start_nebd_server.yml                                   # 启动nebd-server
+├── stop_curve.yml                                          # 停止curve集群
+└── stop_nebd_server.yml                                    # 停止nebd-server
+
 ```
