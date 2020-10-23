@@ -32,6 +32,11 @@
     need_restart: false
   when: nebd_version == expected_nebd_version
 
+- name: set need_restart true
+  set_fact:
+    need_restart: true
+  when: nebd_version != expected_nebd_version
+
 - name: get nebd_port
   nebd_port: ""
   include_tasks: get_nebd_port.yml

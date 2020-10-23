@@ -15,28 +15,24 @@
 #  limitations under the License.
 #
 
-- name: create remote dir
+- name: get config dir
+  shell: dirname {{ conf_path }}
+  register: dirname_res
+
+- name: create config dir
   vars:
-    dir_name: "{{ remote_dir_name }}"
+    dir_name: "{{ dirname_res.stdout }}"
   include_tasks: common_tasks/create_dir.yml
 
-- name: copy file directly
+- name: generate configuration file directly
   ignore_errors: true
-  become: false
-  copy: src={{ local_file_path }} dest={{ remote_dir_name }} mode={{ file_mode }}
-  register: copy_file_res
+  template: src={{ template_name }}.j2 dest={{ conf_path }} mode=0644
+  register: template_res
 
-- name: copy file with sudo
+- name: generate configuration file with sudo
   block:
-    - name: clear tmp dir
-      shell: sudo rm -rf {{ tmp_dir }}
-    - name: create tmp dir
-      become: false
-      shell: mkdir -p {{ tmp_dir }}
-    - name: copy files to tempory directory
-      become: false
-      copy: src={{ local_file_path }} dest={{ tmp_dir }} mode={{ file_mode }}
-    - name: mv file
-      shell: sudo cp -rf {{ tmp_dir }}/* {{ remote_dir_name }}
-  when: copy_file_res.failed
-
+    - name: generate configuration file at /tmp
+      template: src={{ template_name }}.j2 dest=/tmp/{{ template_name }} mode=0644
+    - name: mv config file
+      shell: sudo mv /tmp/{{ template_name }} {{ conf_path }}
+  when: template_res.failed

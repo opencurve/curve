@@ -14,10 +14,13 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-# The config check of curve
 
-- name: check mds config
-  hosts: mds
+- name: update config
+  ignore_errors: true
+  shell: sudo puppet agent -t
+  register: result
 
-  tasks:
-    - include_tasks: "common_tasks/check_mds.yml"
+- name: fail when return code is not 2
+  fail:
+    msg: "puppet agent -t return code is {{ result.rc }}"
+  when: result.rc != 2

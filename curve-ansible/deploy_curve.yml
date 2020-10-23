@@ -37,9 +37,6 @@
   hosts: all
   any_errors_fatal: true
   gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - always
   roles:
@@ -50,9 +47,6 @@
   hosts: etcd
   any_errors_fatal: true
   gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - etcd
   roles:
@@ -63,9 +57,6 @@
   hosts: etcd
   any_errors_fatal: true
   gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - etcd
   roles:
@@ -77,9 +68,6 @@
   hosts: mds
   any_errors_fatal: true
   gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - mds
   roles:
@@ -100,9 +88,6 @@
   hosts: mds
   any_errors_fatal: true
   gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - mds
   roles:
@@ -126,9 +111,6 @@
   hosts: chunkservers
   any_errors_fatal: true
   gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - chunkserver
   roles:
@@ -146,9 +128,6 @@
   hosts: chunkservers
   any_errors_fatal: true
   gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - chunkserver
   roles:
@@ -171,9 +150,6 @@
   hosts: snapshotclone
   any_errors_fatal: true
   gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - snapshotclone
     - never
@@ -191,9 +167,6 @@
   hosts: snapshotclone
   any_errors_fatal: true
   gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - snapshotclone
     - never
@@ -216,9 +189,6 @@
   hosts: snapshotclone_nginx
   any_errors_fatal: true
   gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - snapshotclone_nginx
     - never
@@ -235,9 +205,6 @@
   hosts: snapshotclone_nginx
   any_errors_fatal: true
   gather_facts: no
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
   tags:
     - snapshotclone_nginx
     - never
