@@ -129,6 +129,7 @@ int EtcdClientImp::List(const std::string &startKey, const std::string &endKey,
                 out->emplace_back(
                     std::string(objRes.r1, objRes.r1 + objRes.r2));
                 free(objRes.r1);
+                free(objRes.r3);
             }
             EtcdClientRemoveObject(res.r1);
         }
