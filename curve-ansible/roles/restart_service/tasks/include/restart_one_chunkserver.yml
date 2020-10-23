@@ -27,6 +27,11 @@
     need_restart: false
   when: curve_version == expected_curve_version
 
+- name: set need_restart true
+  set_fact:
+    need_restart: true
+  when: curve_version != expected_curve_version
+
 - name: set sudo
   set_fact:
     sudo: "sudo"

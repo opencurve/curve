@@ -18,9 +18,6 @@
 
 - name: check chunkserver config
   hosts: chunkservers
-  become: yes
-  become_user: "{{ sudo_user }}"
-  become_flags: -iu {{ sudo_user }}
 
   tasks:
     - include_tasks: "common_tasks/check_chunkserver.yml"
