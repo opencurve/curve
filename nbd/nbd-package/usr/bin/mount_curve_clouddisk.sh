@@ -41,22 +41,22 @@ fi
 
 # format the nbd device to ext4 filesystem
 nbddevice=$(sudo curve-nbd list-mapped | grep ${filename} | cut -d " " -f 3)
-format=$(sudo blkid -s TYPE ${nbddevice} | awk -F '"' '{print $2}')
+fstype=$(sudo blkid -s TYPE ${nbddevice} | awk -F '"' '{print $2}')
 if [ ! "$nbddevice" ]
 then
     echo "map curve volume to nbd device error!"
     exit
-elif [ "$format" != "ext4" ]
+elif [ "$fstype" != "ext4" ]
 then
     sudo mkfs.ext4 ${nbddevice}
 fi
 
 # mount nbd device to /data
-format=$(sudo blkid -s TYPE ${nbddevice} | awk -F '"' '{print $2}')
+fstype=$(sudo blkid -s TYPE ${nbddevice} | awk -F '"' '{print $2}')
 hasmount=$(df -T | grep ${nbddevice})
-if [ "$format" != "ext4" ]
+if [ "$fstype" != "ext4" ]
 then
-    echo "nbd device: ${nbddevice} format error!"
+    echo "nbd device: ${nbddevice} fstype error!"
     exit
 elif [ ! "$hasmount" ]
 then
