@@ -37,13 +37,13 @@ Figure 1 shows the topological diagram of CURVE and the explanation of correspon
 Learned from the design of Ceph, CURVE introduced the concept of logical pool on top of a physical pool in order to satisfy the requirement of building a unified storage system. In our design, we support the coexist of block storage (based on multi-replica), online object storage (based on three replicas storage that support appends, to be implemented) and nearline object storage (based on Erasure Code storage that support appends, to be implemented).
 
 <p align="center">
-    <img src="../images/mds-topology-all.png" alt="mds-topology-l.png" width="600"><br>
+    <img src="../images/mds-topology-l.png" alt="mds-topology-l.png" width="600"><br>
     <font size=3> Figure 2: An example of the relation between logical pool and physical pool</font>
 </p>
 
-Figure 2 is an example of the N:1 relation between logical pool and physical pool, and many types file can be stored in a physical pool. Multi pools are also supported by CURVE, which means you can configure a single physical pool for only one logical pool. 
+Figure 2 is an example of the N:1 relation between logical pool and physical pool, and many types file can be stored in a physical pool. Multi pools are supported by CURVE, but you can also configure a single physical pool for only one logical pool.
 
-With the help of CURVE client system, logical pool can achieve a physical isolation of data from different users by specifying and restricting their behaviors (to be developed).
+With the help of CURVE user system, logical pool can achieve a physical isolation of data from different users by specifying and restricting their behaviors (to be developed).
 
 **logicalPool**: A logical pool is for building pools of different characteristics on logical aspect (e.g. ). AppendECFile pool, AppendEC pool and PageFile pool shown in the figure above). This is for user level data isolation and sharing.
 
@@ -71,7 +71,7 @@ Namespace info is rather intuitive, which is the hierachy of files:
     <font size=3> Figure 4: Example of namespace data and operations </font>
 </p>
 
-Figure 4 illustrates how namespace info is stored in form of KV pairs. The key consists of parent directory ID and target directory ID (seperated by a '/'), and the value is the ID of the target file. In this way we struck a great balance between the workload of some of the operations we implemented:
+Figure 4 illustrates how namespace info is stored in form of KV pairs. The key consists of parent directory ID and target name (seperated by a '/'), and the value is the ID of the target file. In this way we struck a great balance between the workload of some of the operations we implemented:
 
 1. List: List all file and directories under a certain directory.
 2. Find: Find a specific file under a location
