@@ -50,7 +50,7 @@ int AllocStatisticHelper::GetExistSegmentAllocValues(
         return -1;
     }
 
-    // recode the string
+    // decode the string
     for (auto &item : allocVec) {
         PoolIdType lid;
         uint64_t alloc;

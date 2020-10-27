@@ -819,7 +819,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
         }
         return StatusCode::kOK;
     } else if (ret3 == StatusCode::kFileNotExists) {
-        // newFileName does not exist, renamevdirectly
+        // newFileName does not exist, rename directly
         FileInfo newFileInfo;
         newFileInfo.CopyFrom(oldFileInfo);
         newFileInfo.set_parentid(parentFileInfo.id());

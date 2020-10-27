@@ -48,9 +48,9 @@ using ::curve::kvstorage::EtcdClientImp;
  * AllocStatistic is for counting the number of segments allocated currently
  * The statistics are divided into two parts:
  * part1:
- *     ①statistics of the allocation amount before the designated revision
- *     ②record the segment allocation amount of each revision since mds started
- *     ③combine the data in ① and ②
+ *     1. statistics of the allocation amount before the designated revision
+ *     2. record the segment allocation amount of each revision since mds started
+ *     3. combine the data in 1 and 2
  * part2: the background periodically persists the merged data in part1
  *
  * maps involved:
@@ -150,7 +150,7 @@ class AllocStatistic {
 
     /**
      * @brief PeriodicPersist Periodically persist the allocated segment size
-     *                        data under each logicalPool in RAM
+     *                        data under each logicalPool in memory
      */
     void PeriodicPersist();
 

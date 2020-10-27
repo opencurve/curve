@@ -89,7 +89,7 @@ bool AllocStatistic::GetAllocByLogicalPool(PoolIdType lid, int64_t *alloc) {
 
 void AllocStatistic::AllocSpace(
     PoolIdType lid, int64_t changeSize, int64_t revision) {
-    // segmentAlloc_ value is not available, change needs to be updated to existSegmentAllocValues_ //NOLINT
+    // segmentAlloc_ value is not available, changeSize needs to be updated to existSegmentAllocValues_ //NOLINT
     if (false == currentValueAvalible_.load()) {
         WriteLockGuard guarg(existSegmentAllocValuesLock_);
         existSegmentAllocValues_[lid] += changeSize;
@@ -99,7 +99,7 @@ void AllocStatistic::AllocSpace(
     if (true == segmentAllocFromEtcdOK_.load()) {
         WriteLockGuard guard(segmentAllocLock_);
         segmentAlloc_[lid] += changeSize;
-    // if the Etcd data has not been counted, update change to segmentChange_
+    // if the Etcd data has not been counted, update changeSize to segmentChange_
     } else {
         WriteLockGuard guard(segmentChangeLock_);
         segmentChange_[lid][revision] = changeSize;
@@ -132,7 +132,7 @@ void AllocStatistic::CalculateSegmentAlloc() {
 
     LOG(INFO) << "calculate segment alloc revision not bigger than "
               << curRevision_ << " ok";
-    // set to get data from etcd
+    // set fetch data from etcd success
     segmentAllocFromEtcdOK_.store(true);
 
     // sleep for 5s to avoid data remain in segmentChange_ after the merge
@@ -249,7 +249,7 @@ void AllocStatistic::UpdateSegmentAllocByCurrrevision(PoolIdType lid) {
         // get the map corresponding to the specified lid
         auto liter = segmentChange_.find(lid);
         if (liter != segmentChange_.end()) {
-            // there's no data in the change, delete directly
+            // there's no data in the segmentChange_, delete directly
             // The data wil be updated to the segment later
             if (liter->second.empty()) {
                 segmentChange_.erase(liter);
