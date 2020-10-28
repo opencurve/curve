@@ -41,8 +41,8 @@
 - name: restart chunkserver
   shell:  chdir={{ deploy_dir }} {{ sudo }} ./chunkserver_ctl.sh restart {{ chunkserver_seq }}
   register: restart_chunkserver_res
-  async: "{{ chunkserver_async }}"
-  poll: "{{ chunkserver_poll }}"
+  async: "{{ service_async }}"
+  poll: "{{ service_poll }}"
   when: need_restart
   failed_when: restart_chunkserver_res.rc != 0 or "down" in restart_chunkserver_res.stdout
 
