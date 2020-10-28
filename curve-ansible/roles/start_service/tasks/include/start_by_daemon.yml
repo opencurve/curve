@@ -27,6 +27,13 @@
 - debug:
     msg: "{{ outres.stdout }}"
 
+- name: start service without daemon
+  shell: >
+    chdir={{ ch_dir }} {{ sudo }} {{ start_cmd }}
+  async: "{{ service_async }}"
+  poll: "{{ service_poll }}"
+  when: not {{ start_by_daemon }}
+
 - name: wait until server is up
   vars:
     ping_port: "{{ service_port }}"
