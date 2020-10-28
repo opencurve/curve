@@ -60,7 +60,7 @@ NameServer is for managing metadata of namespace, including (for more details pl
 Figure 3 below shows the relation between segment and chunk:
 
 <p align="center">
-    <img src="../images/mds-segment-chunk.png" alt="mds-segment-chunk.png" width="900"><br>
+    <img src="../images/mds-segment-chunk-en.png" alt="mds-segment-chunk-en.png" width="900"><br>
     <font size=3> Figure 3: Relation between segment and chunk</font>
 </p>
 
