@@ -23,8 +23,8 @@
 - name: start chunkserver
   shell:  chdir={{ deploy_dir }} {{ sudo }} ./chunkserver_ctl.sh start all
   register: start_chunkserver_res
-  async: "{{ chunkserver_async }}"
-  poll: "{{ chunkserver_poll }}"
+  async: "{{ service_async }}"
+  poll: "{{ service_poll }}"
   failed_when: start_chunkserver_res.rc != 0 or "down" in start_chunkserver_res.stdout
 
 # 打印控制台输出

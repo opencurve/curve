@@ -171,7 +171,7 @@ function chunkfile_pool_prep {
 ret=`lsblk|grep chunkserver|wc -l`
 for i in `seq 0 $((${ret}-1))`
 do
-  curve-format -allocatePercent=80 \
+  curve-format -allocatePercent=90 \
   -filePoolDir=/data/chunkserver$i/chunkfilepool \
   -filePoolMetaPath=/data/chunkserver$i/chunkfilepool.meta \
   -fileSystemPath=/data/chunkserver$i/chunkfilepool  &
