@@ -49,28 +49,26 @@ class Coordinator {
     Coordinator() = default;
     explicit Coordinator(const std::shared_ptr<TopoAdapter> &topo);
     ~Coordinator();
-
     /**
-     * @brief 处理chunkServer上报的copySet信息
+     * @brief deal with copyset info reported by the chunkserver
      *
-     * @param[in] originInfo 心跳传递过来的copySet信息
-     * @param[out] newConf   处理过后返还给chunkServer的copyset信息
+     * @param[in] originInfo Copyset info reported by heartbeat
+     * @param[out] newConf   Configuration change generated for chunkserver
      *
-     * @return 如果有新的配置生成，返回candaidate Id，如果没有返回UNINTIALIZE_ID
+     * @return candidate ID if there's any new configuration generated,
+     *         UNINTIALIZE_ID if not
      */
     virtual ChunkServerIdType CopySetHeartbeat(
         const ::curve::mds::topology::CopySetInfo &originInfo,
         const ::curve::mds::heartbeat::ConfigChangeInfo &configChInfo,
         ::curve::mds::heartbeat::CopySetConf *newConf);
-
     /**
-     * @brief 处理快速leader均衡的请求
+     * @brief deal with rapid leader balancing request
      *
-     * @param[in] lpid 需要进行快速leader均衡的logicalpool
+     * @param[in] lpid The logical pool that require rapid leader balance
      *
-     * @return 返回值有两种:
-     *         kScheduleErrCodeSuccess 成功生成了一批transferleader的operator
-     *         kScheduleErrCodeInvalidLogicalPool 指定logicalpool在集群中不存在
+     * @return kScheduleErrCodeSuccess If transferleader operators generated successfully //NOLINT
+     *         kScheduleErrCodeInvalidLogicalPool If logical pool not exist
      */
     virtual int RapidLeaderSchedule(PoolIdType lpid);
 
@@ -79,93 +77,97 @@ class Coordinator {
         std::map<ChunkServerIdType, bool> *statusMap);
 
     /**
-     * @brief 判断指定chunkserver是否为指定copyset上
-     *                              已有AddOperator的target
+     * @brief determine whether the specified chunkserver is the target of the
+     *        AddOperator of specified copyset
      *
-     * @param[in] csId 指定chunkserver
-     * @param[in] key 指定chunserver
+     * @param[in] csId Chunkserver specified
+     * @param[in] key Copyset specified
      */
     virtual bool ChunkserverGoingToAdd(ChunkServerIdType csId, CopySetKey key);
 
     /**
-     * @brief 根据配置初始化scheduler
+     * @brief Initialize the scheduler according to the configuration
      *
-     * @param[in] conf, scheduler配置信息
-     * @param[in] metrics, scheduleMetric用于operator增加/减少时进行统计
+     * @param[in] conf
+     * @param[in] metrics ScheduleMetric for calculation when
+     *                    adding/delecting operator
      */
     void InitScheduler(
         const ScheduleOption &conf, std::shared_ptr<ScheduleMetrics> metrics);
 
     /**
-     * @brief 根据scheduler的配置在后台运行各种scheduler
+     * @brief run schedulers in background according to scheduler configuration
      */
     void Run();
 
     /**
-     * @brief 停止scheduler的后台线程
+     * @brief stop background scheduler threads
      */
     void Stop();
 
-    // TODO(lixiaocui): 对外接口,根据运维需求增加
+    // TODO(lixiaocui): external interface, and add according to the requirement
+    //                  of operation and mantainance
     /**
-     * @brief 给管理员提供的接口
+     * @brief interface for the administrator
      *
-     * @param[in] id: cpoysetID
-     * @param[in] type: 配置变更类型: transfer-leader/add-peer/remove-peer
-     * @param[in] item: 变更项. tansfer-leader时是新leader的id, add-peer时是
-     *                  add target, remove-peer时是removew target
+     * @param[in] id CopysetID
+     * @param[in] type Config change type: transfer-leader/add-peer/remove-peer
+     * @param[in] item Item changed. It would be new leader ID when
+     *                 transfer-leader, add target when add-peer, removed target
+     *                 when remove a peer
      */
     void DoConfigChange(CopySetKey id,
                         ConfigChangeType type,
                         ChunkServerIdType item);
 
     /**
-    * @brief 提供给单元测试使用
+    * @brief For test unit
     */
     std::shared_ptr<OperatorController> GetOpController();
 
  private:
     /**
-     * @brief  SetScheduleRunning，如果设置为false,则停止所有的scheduelr
+     * @brief SetScheduleRunning Stop all the schedulers if set to false
      *
-     * @param[in] flag 为false，所有sheduler会停止
+     * @param[in] flag
      */
     void SetSchedulerRunning(bool flag);
 
     /**
-     * @brief 定时任务, 运行不同的scheduler
+     * @brief regular task for running different scheduler
      *
-     * @param[in] s 定时运行scheduler
-     * @param[in] type scheduler类型
+     * @param[in] s Schedulers for running
+     * @param[in] type Scheduler type
      */
     void RunScheduler(const std::shared_ptr<Scheduler> &s, SchedulerType type);
 
     /**
-     * @brief BuildCopySetConf 构建下发给chunkserver的copyset配置
+     * @brief BuildCopySetConf Build copyset configuration for chunkserver
      *
-     * @param[in] res applyOperator的结果
-     * @param[out] 处理过后返还给chunkServer的copyset信息
+     * @param[in] res Result of applyOperator
+     * @param[out] copyset configuration for chunkserver
      *
-     * @return true-构建成功 false-构建失败
+     * @return true if succeeded and false if failed
      */
     bool BuildCopySetConf(
         const CopySetConf &res, ::curve::mds::heartbeat::CopySetConf *out);
 
     /**
-     * @brief ScheduleNeedRun 指定类型的调度器是否允许运行
+     * @brief ScheduleNeedRun Determine whether specific type of scheduler is
+     *                        allowed to run
      *
-     * @param[in] type 调度器类型
+     * @param[in] type Scheduler type
      *
-     * @return true-允许运行, false-不允许运行
+     * @return true if allow, false is not
      */
     bool ScheduleNeedRun(SchedulerType type);
 
     /**
-     * @brief ScheduleName 指定类型的调度器的名字
+     * @brief ScheduleName Name of specific type of scheduler
      *
-     * @param[in] type 调度器类型
+     * @param[in] type Scheduler type
      *
-     * @return 调度器名字
+     * @return scheduler name
      */
     std::string ScheduleName(SchedulerType type);
 

@@ -54,9 +54,9 @@ class OperatorController {
     /**
      * @brief execute operator
      *
-     * @param op 入参, 需要执行的operator
-     * @param originInfo 入参, chunkserver上报的copyset的信息
-     * @param newConf 出参, 下发给copyset的配置信息
+     * @param op the operator to be executed
+     * @param originInfo copyset info reported by chunkserver
+     * @param newConf configuration generated for copyset
      *
      * @return if newConf is assigned return true else return false
      */
@@ -64,23 +64,24 @@ class OperatorController {
                         CopySetConf *newConf);
 
     /**
-     * @brief ChunkServerExceed chunksevrer上的operator是否达到设置的并发度
+     * @brief ChunkServerExceed Check whether the number of operator on
+     *                          chunkserver has reach the concurrency limit
      *
-     * @param[in] id 指定chunkserver id
+     * @param[in] id ID of chunkserv specified
      *
-     * @return false-未达到上限 true-已达到并发度
+     * @return true if reach the limit, false if not
      */
     bool ChunkServerExceed(ChunkServerIdType id);
 
  private:
     /**
-     * @brief update influence about replace operator
+     * @brief update influence of replacing operator
      */
     void UpdateReplaceOpInfluenceLocked(const Operator &oldOp,
                                         const Operator &newOp);
 
     /**
-     * @brief update influence about add operator
+     * @brief update the influence of adding an operator
      */
     void UpdateAddOpInfluenceLocked(const Operator &op);
 
@@ -96,7 +97,8 @@ class OperatorController {
                                             const Operator &newOp);
 
     /**
-     * @brief judge the operator will exceed concurrency if replace
+     * @brief judge whether the operator will
+     *        exceed concurrency limit if replace
      */
     bool AddOpInfluencePreJudgeLocked(const Operator &op);
 

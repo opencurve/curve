@@ -115,13 +115,14 @@ struct CopySetInfo {
     std::string CopySetInfoStr() const;
 
     CopySetKey id;
-    // 环境初始化的时copyset全部创建完成logicalPool可用,创建过程中不可用
+    // during the initialization, the logical pool will be available after all
+    // copyset are created, and will be unavailable during the creation
     bool logicalPoolWork;
     EpochType epoch;
     ChunkServerIdType leader;
     std::vector<PeerInfo> peers;
 
-    // TODO(chaojie): candidateInfo 增加到topology中
+    // TODO(chaojie): add candidateInfo to Topology
     PeerInfo candidatePeerInfo;
     ConfigChangeInfo configChangeInfo;
     CopysetStatistics statisticsInfo;
@@ -155,163 +156,166 @@ struct ChunkServerInfo {
 };
 
 /**
- * @brief TopoAdapter为接口, 提供topology相关信息
+ * @brief TopoAdapter is the interface for providing topology info
  */
 class TopoAdapter {
  public:
     /**
-     * @brief GetLogicalpools 获取集群中逻辑池集合
+     * @brief get logical pools
      *
-     * @return 逻辑池列表
+     * @return logical pool list
      */
     virtual std::vector<PoolIdType> GetLogicalpools() = 0;
 
     /**
-     * @brief GetCopySetInfo 获取指定copyset信息
+     * @brief Get_x_Info get info of specified x
      *
-     * @param[in] id copysetId
-     * @param[out] copyset信息
+     * @param[in] id ID of x
+     * @param[out] info of x
      *
-     * @return false-未获取到指定copyset的信息 true-获取成功
+     * @return true if succeeded, false if failed
      */
     virtual bool GetCopySetInfo(const CopySetKey &id, CopySetInfo *info) = 0;
 
     /**
-     * @brief GetCopySetInfos 获取所有logicalPoolId可用的copyset信息
+     * @brief Get_x_Infos Get info of every available x
      *
-     * @return copyset信息列表
+     * @return x info list
      */
     virtual std::vector<CopySetInfo> GetCopySetInfos() = 0;
 
     /**
-     * @brief GetCopySetInfosInChunkServer获取指定chunkserver上的copyset信息
+     * @brief Get_x_InfosIn_y_ Get info of x on specified y
      *
-     * @param[in] id 指定chunkserverId
+     * @param[in] id ID of y
      *
-     * @return 指定chunkserver上copyset列表
+     * @return list of info of x
      */
     virtual std::vector<CopySetInfo> GetCopySetInfosInChunkServer(
         ChunkServerIdType id) = 0;
 
-    /**
-     * @brief GetCopySetInfosInLogicalPlol获取指定逻辑池中的copyset信息
-     *
-     * @param[in] lid 指定逻辑池id
-     *
-     * @return 指定逻辑池中copyset列表
-     */
     virtual std::vector<CopySetInfo> GetCopySetInfosInLogicalPool(
         PoolIdType lid) = 0;
 
     /**
-     * @brief GetChunkServerInfo 获取指定chunkserver信息
+     * @brief GetChunkServerInfo get the specified chunkserver info
      *
-     * @param[in] id 指定chunkserver id
-     * @param[in] info 指定chunkserver的信息
+     * @param[in] id ID of the specified chunkserver
+     * @param[in] info information of the chunkserver
      *
-     * @return false-获取失败，true-获取成功
+     * @return false if failed, true if succeeded
      */
     virtual bool GetChunkServerInfo(
         ChunkServerIdType id, ChunkServerInfo *info) = 0;
 
     /**
-     * @brief GetChunkServerInfos 获取所有chunkserver的信息
+     * @brief GetChunkServerInfos get infos of all the chunkservers
      *
-     * @return chunkserver信息列表
+     * @return chunkservers info list
      */
     virtual std::vector<ChunkServerInfo> GetChunkServerInfos() = 0;
 
     /**
-     * @brief GetChunkServersInLogicalPool 获取指定逻辑池中所有chunkserver
+     * @brief GetChunkServersInLogicalPool get all the chunkservers in the
+     *                                     specified logical pool
      *
-     * @prarm[in] lid 指定逻辑池id
+     * @prarm[in] lid the id of the logical pool
      *
-     * @return 指定逻辑池中chunkserver列表
+     * @return the chunkserver list of the logocal pool
      */
     virtual std::vector<ChunkServerInfo> GetChunkServersInLogicalPool(
         PoolIdType lid) = 0;
 
     /**
-     * @brief GetStandardZoneNumInLogicalPool 获取指定逻辑池中标准zone值
+     * @brief GetStandardZoneNumInLogicalPool get the standard zone num of the
+     *                                        logical pool
      *
-     * @return 指定逻辑池中标准zone值
+     * @return the zone num of the logical pool
      */
     virtual int GetStandardZoneNumInLogicalPool(PoolIdType id) = 0;
 
     /**
      * @brief GetAvgScatterWidthInLogicalPool
-     *        获取指定逻辑池中chunkserver平均scatter-width
+     *        get the average scatter-width of chunkservers in the logical pool
      *
-     * @ param[in] id 逻辑池id
+     * @ param[in] id ID of logical pool
      *
-     * @return 指定逻辑池中chunkserver上平均scatter-width的值
+     * @return the average scatter-width of chunkservers
      */
     virtual int GetAvgScatterWidthInLogicalPool(PoolIdType id) = 0;
 
     /**
-     * @brief GetStandardReplicaNumInLogicalPool 获取指定逻辑池中标准副本数量
+     * @brief GetStandardReplicaNumInLogicalPool get the standard replica
+     *                                           num in logical pool
      *
-     * @return 指定逻辑池中标准副本数量
+     * @return the standard replica num
      */
     virtual int GetStandardReplicaNumInLogicalPool(PoolIdType id) = 0;
 
     /**
-     * @brief CreateCopySetAtChunkServer 在csID上创建copyset.
-     *        raft的add-configuration需要节点上启动raft服务，
-     *        所以在下发配置变更命令之前先要通知chunkserver启动copyset的raft服务
+     * @brief CreateCopySetAtChunkServer Create copyset on chunkserver csID.
+     *                                   command add-configuration of Raft
+     *                                   require Raft service on the node. thus
+     *                                   before dispatching config changing
+     *                                   command, chunkserver should be
+     *                                   informed to start Raft service of
+     *                                   copyset.
+     * @param[in] id Copyset key
+     * @param[in] csID ID of chunkserver to create copyset on
      *
-     * @param[in] id copyset key
-     * @param[in] 在csID上创建copyset
-     *
-     * @return false-创建失败 true-创建成功
+     * @return false if failed, true if succeeded
      */
     virtual bool CreateCopySetAtChunkServer(
         CopySetKey id, ChunkServerIdType csID) = 0;
 
     /**
-     * @brief CopySetFromTopoToSchedule 把topology中copyset转化为schedule中的类型
+     * @brief CopySetFromTopoToSchedule Transfer copyset info format from
+     *                                  topology module to schedule module
      *
-     * @param[in] origin topology中copyset类型
-     * @param[out] out shedule中copyset类型
+     * @param[in] origin Copyset info in format of Topology
+     * @param[out] out Copyset info in format of Schedule
      *
-     * @return false-转化失败 true-转化成功
+     * @return false if failed, true if succeeded
      */
     virtual bool CopySetFromTopoToSchedule(
         const ::curve::mds::topology::CopySetInfo &origin,
         ::curve::mds::schedule::CopySetInfo *out) = 0;
 
     /**
-     * @brief ChunkServerFromTopoToSchedule
-     *        把topology中chunkserver转化为schedule中的类型
+     * @brief ChunkServerFromTopoToSchedule Transfer chunkserver info format from //NOLINT
+     *                                      topology module to schedule module
      *
-     * @param[in] origin topology中chunkserver类型
-     * @param[out] out shedule中chunkserver类型
+     * @param[in] origin Chunkserver info in format of Topology
+     * @param[out] out Chunkserver info in format of Schedule
      *
-     * @return false-转化失败 true-转化成功
+     * @return false if failed, true if succeeded
      */
     virtual bool ChunkServerFromTopoToSchedule(
         const ::curve::mds::topology::ChunkServer &origin,
         ::curve::mds::schedule::ChunkServerInfo *out) = 0;
 
     /**
-     * @brief GetChunkServerScatterMap 获取指定chunkserver的scatter-width map
+     * @brief GetChunkServerScatterMap Get scatter-width map of
+     *                                 specified chunkserver
      *
-     * @param[in] cs 指定chunkserver id
-     * @param[out] out scatter-width map, 其中key表示指定chunkserver上的所有copyset //NOLINT
-     *             其他副本列表，value表示key上包含指定chunkserver上copyset的个数 //NOLINT
+     * @param[in] cs Chunkserver ID specified
+     * @param[out] out Scatter-width map, in this map, key is the other
+     *                 chunkservers in copyset on the specified chunkserver.
+     *                 and value is the number of copyset that both the key and
+     *                 the specified chunkserver have. here's an example below.
      *  e.g. chunkserver1: copyset1{1,2,3} copyset2{2,3,4} copyset3{4,5,6}
-     *       scatter-width map为:
+     *       scatter-width map:
      *       {{2, 2}, {3, 2}, {4, 2}, {5, 1}, {6, 1}}
-     *       chunkserver2上有copyset1和copyset2
-     *       chunkserver3上有copyset1和copyset2
-     *       chunkserver4上有copyset2和copyset3
-     *       依次类推
+     *       chunkserver2 contains copyset1 and copyset2
+     *       chunkserver3 contains copyset1 and copyset2
+     *       chunkserver4 contains copyset2 and copyset3
+     *       and so on
      */
     virtual void GetChunkServerScatterMap(const ChunkServerIdType &cs,
         std::map<ChunkServerIdType, int> *out) = 0;
 };
 
-// adapter实现
+// implementation of virtual class TopoAdapter
 class TopoAdapterImpl : public TopoAdapter {
  public:
     TopoAdapterImpl() = default;

@@ -45,7 +45,7 @@ int LeaderScheduler::Schedule() {
 int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
     int oneRoundGenOp = 0;
 
-    // 找出leader数目最多和最少的chunkServer
+    // find chunkserver with maximum and minimum number of leaders
     int maxLeaderCount = -1;
     int maxId = -1;
     int minLeaderCount = -1;
@@ -67,7 +67,8 @@ int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
         }
 
         if (minLeaderCount == -1 || csInfo.leaderCount < minLeaderCount) {
-            // 因为只有minLeaderCount的才会作为目标节点，这里只需要判断目标节点是否刚启动
+            // the chunkserver with the start up time within the cooling time
+            // can not be the leader
             if (!coolingTimeExpired(csInfo.startUpTime)) {
                 continue;
             }
@@ -80,7 +81,7 @@ int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
               << ", maxLeaderCount:" << maxLeaderCount << "), (id:" << minId
               << ", minleaderCount:" << minLeaderCount << ")";
 
-    // leader (最大值-最小值 <= 1) 的时候无需进行transfer
+    // leader scheduling is not required when (maxLeaderCount-minLeaderCount <= 1) //NOLINT
     if (maxLeaderCount >= 0 &&
         minLeaderCount >= 0 &&
         maxLeaderCount - minLeaderCount <= 1) {
@@ -88,8 +89,10 @@ int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
         return oneRoundGenOp;
     }
 
-    // leader数目较多的chunkserver, 随机一个选择leader copyset
-    // 将它的leader transfer到其他副本上
+    // for chunkserver that has the most leaders, pick a leader copyset (the
+    // copyset with the chunkserver as its leader) randomly and transfer the
+    // leader replica (the leader role) to the replica (in the same copyset)
+    // that has the least leader number
     if (maxId > 0) {
         Operator transferLeaderOutOp;
         CopySetInfo selectedCopySet;
@@ -106,8 +109,9 @@ int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
         }
     }
 
-    // leader数目较少的chunkserver，选择follower copyset
-    // 将它的leader tansfer到该chunkserver上
+    // for the chunkserver that has the least leaders, choose a follower copyset
+    // (the copyset that has a follower replica on the chunkserver) randomly and
+    // transfer the leader (role) to this chunkserver
     if (minId > 0) {
         Operator transferLeaderInOp;
         CopySetInfo selectedCopySet;
@@ -129,15 +133,15 @@ int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
 
 bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source, int count,
     PoolIdType lid, Operator *op, CopySetInfo *selectedCopySet) {
-    // 找出该chunkserver上所有的leaderCopyset作为备选
+    // find all copyset with source chunkserver as its leader as the candidate
     std::vector<CopySetInfo> candidateInfos;
     for (auto &cInfo : topo_->GetCopySetInfosInLogicalPool(lid)) {
-        // 跳过follower copyset
+        // skip those copysets that the source is the follower in it
         if (cInfo.leader != source) {
            continue;
         }
 
-        // 跳过正在变更的copyset
+        // skip the copyset under configuration changing
         if (cInfo.HasCandidate()) {
             LOG(INFO) << cInfo.CopySetInfoStr() << " is on config change";
             continue;
@@ -152,11 +156,10 @@ bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source, int count,
 
     int retryTimes = 1;
     while (retryTimes < maxRetryTransferLeader) {
-        // 任意选择一个copyset
+        // select a copyset from candidates randomly
         srand((unsigned)time(NULL));
         *selectedCopySet = candidateInfos[rand()%candidateInfos.size()];
-
-        // 从follower中选择leader数目最少
+        // choose the chunkserver with least leaders from follower
         ChunkServerIdType targetId = UNINTIALIZE_ID;
         uint32_t targetLeaderCount = std::numeric_limits<uint32_t>::max();
         uint64_t targetStartUpTime = 0;
@@ -168,7 +171,8 @@ bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source, int count,
                 return false;
             }
 
-            // 跳过有副本不在线的copyset
+            // if any of the chunkserver is offline in the selected copyset,
+            // stop this round and retry until reach the retry time.
             if (csInfo.IsOffline()) {
                 break;
             }
@@ -203,21 +207,22 @@ bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source, int count,
 
 bool LeaderScheduler::transferLeaderIn(ChunkServerIdType target, int count,
     PoolIdType lid, Operator *op, CopySetInfo *selectedCopySet) {
-    // 从target中选择follower copyset, 把它的leader迁移到target上
+    // find the copyset on follower and transfer leader to the target
     std::vector<CopySetInfo> candidateInfos;
     for (auto &cInfo : topo_->GetCopySetInfosInLogicalPool(lid)) {
-        // 跳过leader copyset
+        // skip those copyset with the target chunkserver as its leader and
+        // and without the copyset
         if (cInfo.leader == target || !cInfo.ContainPeer(target)) {
             continue;
         }
 
-        // 跳过正在配置变更的copyset
+        // skip copyset with configuration changing undergoing
         if (cInfo.HasCandidate()) {
             LOG(INFO) << cInfo.CopySetInfoStr() << " is on config change";
             continue;
         }
 
-        // 有副本不在线也要跳过
+        // skip copyset with any offline chunkserver
         if (copySetHealthy(cInfo)) {
             candidateInfos.emplace_back(cInfo);
         }
@@ -230,10 +235,11 @@ bool LeaderScheduler::transferLeaderIn(ChunkServerIdType target, int count,
     srand((unsigned)time(NULL));
     int retryTimes = 1;
     while (retryTimes < maxRetryTransferLeader) {
-        // 从candidate中随机选取一个copyset
+        // select a copyset randomly from candidates
         *selectedCopySet = candidateInfos[rand()%candidateInfos.size()];
 
-        // 获取selectedCopySet的leader上的leaderCount 和 target上的leaderCount
+        // fetch the leader number of the leader of the selected copyset and
+        // the target
         ChunkServerInfo sourceInfo;
         if (!topo_->GetChunkServerInfo(selectedCopySet->leader, &sourceInfo)) {
             LOG(ERROR) << "leaderScheduler cannot get info of chukServer:"
@@ -247,7 +253,7 @@ bool LeaderScheduler::transferLeaderIn(ChunkServerIdType target, int count,
             continue;
         }
 
-        // 把leader tansfer到target上
+        // transfer leader to the target
         *op = operatorFactory.CreateTransferLeaderOperator(
             *selectedCopySet, target, OperatorPriority::NormalPriority);
         op->timeLimit = std::chrono::seconds(transTimeSec_);

@@ -33,7 +33,7 @@ namespace schedule {
 int RapidLeaderScheduler::Schedule() {
     std::vector<PoolIdType> existLpoolsVec = topo_->GetLogicalpools();
 
-    // lpid_为0, 在所有logicalpool做快速leader均衡
+    // schedule for every logical pool ID when lpid is uninitialized (0)
     if (lpoolId_ == UNINTIALIZE_ID) {
         for (PoolIdType lid : existLpoolsVec) {
             DoRapidLeaderSchedule(lid);
@@ -42,8 +42,7 @@ int RapidLeaderScheduler::Schedule() {
         return kScheduleErrCodeSuccess;
     }
 
-
-    // lpid_大于0, 在指定logicalpool做快速leader均衡
+    // for specified logical pool when logical pool ID is larger than 0
     bool exist = (std::find(existLpoolsVec.begin(),
         existLpoolsVec.end(), lpoolId_) != existLpoolsVec.end());
     if (!exist) {
@@ -57,7 +56,7 @@ int RapidLeaderScheduler::Schedule() {
 }
 
 void RapidLeaderScheduler::DoRapidLeaderSchedule(LogicalPoolIdType lid) {
-    // 统计当前逻辑池中leader的分布情况
+    // calculate the leader distribution of current logical pool
     LeaderStatInLogicalPool stat;
     stat.lid = lid;
     if (!LeaderStatInSpecifiedLogicalPool(&stat)) {
@@ -70,24 +69,24 @@ void RapidLeaderScheduler::DoRapidLeaderSchedule(LogicalPoolIdType lid) {
         std::vector<CopySetInfo> copysetInfosInCS = copysetInChunkserver.second;
 
         for (auto copysetInfoItem : copysetInfosInCS) {
-            // 该copyset有operator
+            // operator exist for this copyset
             Operator op;
             if (opController_->GetOperatorById(copysetInfoItem.id, &op)) {
                 continue;
             }
 
-            // 选择目的迁移节点
+            // chose the target peer to transfer
             ChunkServerIdType target = SelectTargetPeer(
                 curChunkServer, copysetInfoItem, stat);
             if (target == UNINTIALIZE_ID) {
                 continue;
             }
 
-            // 生成operator
+            // generate operator
             bool success = GenerateLeaderChangeOperatorForCopySet(
                 copysetInfoItem, target);
 
-            // 更新chunkserver上leader的数目
+            // update leader number on chunkserver
             if (success) {
                 stat.leaderNumInChunkServer[target] += 1;
                 stat.leaderNumInChunkServer[curChunkServer] -= 1;
@@ -103,7 +102,7 @@ void RapidLeaderScheduler::DoRapidLeaderSchedule(LogicalPoolIdType lid) {
 
 bool RapidLeaderScheduler::LeaderStatInSpecifiedLogicalPool(
     LeaderStatInLogicalPool *stat) {
-    // 获取chunkserverInfo list 和 copyset list
+    // get chunkserverInfo list and copyset list
     auto chunkserverVec =
         topo_->GetChunkServersInLogicalPool(stat->lid);
     auto copysetVec =
@@ -115,16 +114,16 @@ bool RapidLeaderScheduler::LeaderStatInSpecifiedLogicalPool(
         return false;
     }
 
-    // 获取每个chunkserver上面leader的数量
+    // get leader number on every chunkserver
     for (const auto &info : chunkserverVec) {
         stat->leaderNumInChunkServer[info.info.id] = info.leaderCount;
     }
 
-    // 获取每个chunkserver上面的copysetInfo list
+    // get copyset info list for every chunkserver
     SchedulerHelper::CopySetDistributionInOnlineChunkServer(
         copysetVec, chunkserverVec, &stat->distribute);
 
-    // 计算每个chunkserver上leader均值
+    // calculate average leader number for every chunkserver
     stat->avgLeaderNum = copysetVec.size() / chunkserverVec.size();
 
     return true;
@@ -135,25 +134,25 @@ ChunkServerIdType RapidLeaderScheduler::SelectTargetPeer(
     const LeaderStatInLogicalPool &stat) {
     ChunkServerIdType selected = UNINTIALIZE_ID;
 
-    // curChunkServerId 上不是leader副本
+    // return uninitialize ID if current chunkserver is not the leader replica
     bool curChunkServerIsLeader = (info.leader == curChunkServerId);
     if (!curChunkServerIsLeader) {
         return selected;
     }
 
-    // copyset的副本数目小于等于1个
+    // also return uninitialize ID if peers number is no more than 1
     bool copysetPeerNumMoreThanOne = (info.peers.size() > 1);
     if (!copysetPeerNumMoreThanOne) {
         return selected;
     }
 
-    // copyset所有副本中leader数目最小的副本
+    // the replica with least leader number
     int possibleSelected = MinLeaderNumInCopySetPeers(info, stat);
     if (possibleSelected == curChunkServerId) {
         return selected;
     }
 
-    // 判断是否可以迁移到leader数目最小的副本上
+    // determine whether the replica with least leader number is a possible target //NOLINT
     if (!PossibleTargetPeerConfirm(curChunkServerId, possibleSelected, stat)) {
         return selected;
     }
@@ -179,9 +178,9 @@ ChunkServerIdType RapidLeaderScheduler::MinLeaderNumInCopySetPeers(
 bool RapidLeaderScheduler::PossibleTargetPeerConfirm(
     ChunkServerIdType origLeader, ChunkServerIdType targetLeader,
     const LeaderStatInLogicalPool &stat) {
-    // 目的节点需要满足以下条件：
-    // 1. 源节点和目的节点上leader的数量差大于1
-    // 2. 源节点上当前leader的数量大于均值
+    // the target chunkserver should satisfy the requrement below:
+    // 1. the difference of leader number between source and target is greater than 1. //NOLINT
+    // 2. current number of leader on a source node should be greater than the average value //NOLINT
     int leaderNumInOriginCS = stat.leaderNumInChunkServer.at(origLeader);
     int leaderNumInTargetCS = stat.leaderNumInChunkServer.at(targetLeader);
 
@@ -191,12 +190,12 @@ bool RapidLeaderScheduler::PossibleTargetPeerConfirm(
 
 bool RapidLeaderScheduler::GenerateLeaderChangeOperatorForCopySet(
     const CopySetInfo &info, ChunkServerIdType targetLeader) {
-    // 生成operator
+    //  create operator
     auto op = operatorFactory.CreateTransferLeaderOperator(
         info, targetLeader, OperatorPriority::NormalPriority);
     op.timeLimit = std::chrono::seconds(transTimeSec_);
 
-    // 添加到controller
+    // add the operator to controller
     if (!opController_->AddOperator(op)) {
         LOG(WARNING) << "leaderScheduler generatre operator "
                     << op.OpToString()

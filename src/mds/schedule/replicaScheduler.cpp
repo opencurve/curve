@@ -33,15 +33,16 @@ int ReplicaScheduler::Schedule() {
     LOG(INFO) << "replicaScheduelr begin.";
     int oneRoundGenOp = 0;
     for (auto info : topo_->GetCopySetInfos()) {
-        // 如果copyset上面已经有operator,跳过
+        // skip if there's any operator on a copyset
         Operator op;
         if (opController_->GetOperatorById(info.id, &op)) {
             continue;
         }
 
-        // 如果copyset有配置变更的信息(增加副本，减少副本，leader变更)，跳过
-        // 这种情况发生在mds重启的时候, operator不做持久化会丢失，
-        // 实际正在进行配置变更
+        // it will be skipped if there's any configuration change on a copyset.
+        // this case would happen when the MDS is restarted, and the operator
+        // without persistence will lost.
+        // configuration change is actually happening.
         if (info.HasCandidate()) {
             LOG(WARNING) << info.CopySetInfoStr()
                          << " has candidate " << info.candidatePeerInfo.id
@@ -54,10 +55,11 @@ int ReplicaScheduler::Schedule() {
         int copysetReplicaNum = info.peers.size();
 
         if (copysetReplicaNum == standardReplicaNum) {
-            // 副本数量等于标准值
+            // replica number is equal to the standard
             continue;
         } else if (copysetReplicaNum < standardReplicaNum) {
-            // 副本数量小于标准值， 一次增加一个副本
+            // add one replica a time when the replica number is smaller than
+            // the standard.
             LOG(ERROR) << "replicaScheduler find "
                        << info.CopySetInfoStr()
                        << " replicaNum:" << copysetReplicaNum
@@ -66,7 +68,7 @@ int ReplicaScheduler::Schedule() {
 
             ChunkServerIdType csId =
                 SelectBestPlacementChunkServer(info, UNINTIALIZE_ID);
-            // 未能找到合适的目标节点
+            // can't find a suitable chunkserver for the new replica
             if (csId == UNINTIALIZE_ID) {
                 LOG(WARNING) << "replicaScheduler can not select chunkServer"
                              "to repair "
@@ -87,7 +89,7 @@ int ReplicaScheduler::Schedule() {
                              << standardReplicaNum << " but cannot apply"
                              "operator right now";
                 continue;
-            // 在目标节点上创建copyset
+            // create copyset on target chunkserver
             } else if (!topo_->CreateCopySetAtChunkServer(info.id, csId)) {
                 LOG(WARNING) << "replicaScheduler create "
                                << info.CopySetInfoStr()
@@ -102,7 +104,8 @@ int ReplicaScheduler::Schedule() {
                       << op.OpToString();
             oneRoundGenOp += 1;
         } else {
-            // 副本数量大于标准值， 一次移除一个副本
+            // remove one replica a time when the replica number is larger than
+            // the standard.
             LOG(WARNING) << "replicaScheduler find " << info.CopySetInfoStr()
                        << " replicaNum:" << copysetReplicaNum
                        << " larger than standardReplicaNum:"
