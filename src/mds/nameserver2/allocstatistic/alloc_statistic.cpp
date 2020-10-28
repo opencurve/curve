@@ -99,7 +99,8 @@ void AllocStatistic::AllocSpace(
     if (true == segmentAllocFromEtcdOK_.load()) {
         WriteLockGuard guard(segmentAllocLock_);
         segmentAlloc_[lid] += changeSize;
-    // if the Etcd data has not been counted, update changeSize to segmentChange_
+    // if the Etcd data has not been counted, update changeSize
+    // to segmentChange_
     } else {
         WriteLockGuard guard(segmentChangeLock_);
         segmentChange_[lid][revision] = changeSize;
