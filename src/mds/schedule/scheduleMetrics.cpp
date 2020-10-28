@@ -50,33 +50,27 @@ void ScheduleMetrics::UpdateAddMetric(const Operator &op) {
 
     // add operator
     if (dynamic_cast<AddPeer *>(op.step.get()) != nullptr) {
-        // 更新计数
+        // update the counter
         addOpNum << 1;
-        // 更新operators map
+        // update operators map
         AddUpdateOperatorsMap(op, ADDPEER, op.step->GetTargetPeer());
     }
 
     // remove operator
     if (dynamic_cast<RemovePeer *>(op.step.get()) != nullptr) {
-        // 更新计数
         removeOpNum << 1;
-        // 更新operators map
         AddUpdateOperatorsMap(op, REMOVEPEER, op.step->GetTargetPeer());
     }
 
     // transfer leader operator
     if (dynamic_cast<TransferLeader *>(op.step.get()) != nullptr) {
-        // 更新计数
         transferOpNum << 1;
-        // 更新operators map
         AddUpdateOperatorsMap(op, TRANSFERLEADER, op.step->GetTargetPeer());
     }
 
     // change peer operator
      if (dynamic_cast<ChangePeer *>(op.step.get()) != nullptr) {
-        // 更新计数
         changeOpNum << 1;
-        // 更新operators map
         AddUpdateOperatorsMap(op, CHANGEPEER, op.step->GetTargetPeer());
     }
 }
@@ -97,34 +91,26 @@ void ScheduleMetrics::UpdateRemoveMetric(const Operator &op) {
 
     // add operator
     if (dynamic_cast<AddPeer *>(op.step.get()) != nullptr) {
-        // 更新计数
         addOpNum << -1;
-        // 更新operators map
         RemoveUpdateOperatorsMap(op, ADDPEER, op.step->GetTargetPeer());
     }
 
     // remove operator
     if (dynamic_cast<RemovePeer *>(op.step.get()) != nullptr) {
-        // 更新计数
         removeOpNum << -1;
-        // 更新operators map
         RemoveUpdateOperatorsMap(op, REMOVEPEER, op.step->GetTargetPeer());
     }
 
     // transfer leader operator
     if (dynamic_cast<TransferLeader *>(op.step.get()) != nullptr) {
-        // 更新计数
         transferOpNum << -1;
-        // 更新operators map
         RemoveUpdateOperatorsMap(
             op, TRANSFERLEADER, op.step->GetTargetPeer());
     }
 
     // change peer operator
     if (dynamic_cast<ChangePeer *>(op.step.get()) != nullptr) {
-        // 更新计数
         changeOpNum << -1;
-        // 更新operators map
         RemoveUpdateOperatorsMap(
             op, CHANGEPEER, op.step->GetTargetPeer());
     }
@@ -147,7 +133,7 @@ void ScheduleMetrics::AddUpdateOperatorsMap(
         return;
     }
 
-    // 加入map中
+    // add operator to the map
     UpdateOperatorsMap(op, type, target);
 }
 
@@ -216,21 +202,21 @@ void ScheduleMetrics::UpdateOperatorsMap(
 }
 
 std::string ScheduleMetrics::GetHostNameAndPortById(ChunkServerIdType csid) {
-    // 获取所在的chunkserver
+    // get target chunkserver
     ::curve::mds::topology::ChunkServer cs;
     if (!topo_->GetChunkServer(csid, &cs)) {
         LOG(INFO) << "get chunkserver " << csid << " err";
         return "";
     }
 
-    // 获取chunkserver所在的server
+    // get the server of the target chunkserver
     ::curve::mds::topology::Server server;
     if (!topo_->GetServer(cs.GetServerId(), &server)) {
         LOG(INFO) << "get server " << cs.GetServerId() << " err";
         return "";
     }
 
-    // 获取chunkserver的hostName
+    // get hostName of the chunkserver
     return server.GetHostName() + ":" + std::to_string(cs.GetPort());
 }
 

@@ -42,8 +42,8 @@ int CopySetScheduler::Schedule() {
 }
 
 int CopySetScheduler::DoCopySetSchedule(PoolIdType lid) {
-    // 1. 获取集群中copyset 和 chunkserver列表
-    //    统计每个online状态chunkserver上的copyset
+    // 1. collect the chunkserver list and copyset list of the cluster, then
+    //    collect copyset on every online chunkserver
     auto copysetList = topo_->GetCopySetInfosInLogicalPool(lid);
     auto chunkserverList = topo_->GetChunkServersInLogicalPool(lid);
     std::map<ChunkServerIdType, std::vector<CopySetInfo>> distribute;
@@ -54,23 +54,33 @@ int CopySetScheduler::DoCopySetSchedule(PoolIdType lid) {
         return UNINTIALIZE_ID;
     }
 
-    // 2. 获取chunkserver上copyset数量的均值，极差，标准差
+    // 2. measure the average, range and standard deviation of number of copyset
+    //    on chunkservers
     float avg;
     int range;
     float stdvariance;
     StatsCopysetDistribute(distribute, &avg, &range, &stdvariance);
-
-    // 3. 设置迁移条件
-    // 条件：极差在均值的百分比范围内，开始迁移
-    // 源和目的的选择：
-    // - copyset数量多 迁移到 copyset数量少
-    // - copyset成员发生变化后，成员上的scatter-with的变化要满足一定的要求
-    //   * 成员上的[scatter-with < 最小值]，变动不能使得scatter-with减小
-    //   * 成员上的[scatter-with > 最大值]，变动不能使scatter-with更大 //NOLINT
-    //   * 成员上的[ 最小值 <= scatter-with <= 最大值]，可以随意变动
-    // 最大值和最小值的确定：
-    // - 最小值由参数配置
-    // - 最大值为最小值上浮一定百分比， 这种确定方式使得极差在一定范围之内
+    /**
+     * 3. Set migration condition
+     *    condition: range and average volume fall into a certain percentage
+     *    defined, selection of source and target should be based on the number
+     *    of copyset on chunkserver.
+     *
+     * consider a scenario:
+     * - transfer a copyset from the chunkserver with more copysets to a
+     *   chunkserver with less copysets. The scatter-width changes of peers
+     *   in this copyset should satisfy following requirements:
+     *   * if (scatter-width < minValue) of any peers, the change should not
+     *     make the scatter-width smaller
+     *   * if (scatter-width > maxValue) of any peers, the change should not
+     *     make the scatter-width larger
+     *   * if (minValue <= scatter-with <= maxValue) of any peers, the change
+     *     should be fine
+     * - the definition of minValue and maxValue:
+     *   * the minValue is from the configuration
+     *   * the maxValue is the number larger than minValue by a certain
+     *     percentage, and this makes the range falls into a certain scope
+     **/
     ChunkServerIdType source = UNINTIALIZE_ID;
     if (range <= avg * copysetNumRangePercent_) {
         return source;
@@ -79,7 +89,7 @@ int CopySetScheduler::DoCopySetSchedule(PoolIdType lid) {
     Operator op;
     ChunkServerIdType target = UNINTIALIZE_ID;
     CopySetInfo choose;
-    // 选出copyset、source和target
+    // this function call will select the source, target and the copyset
     if (CopySetMigration(distribute, &op, &source, &target, &choose)) {
         // add operator
         if (!opController_->AddOperator(op)) {
@@ -87,7 +97,7 @@ int CopySetScheduler::DoCopySetSchedule(PoolIdType lid) {
                       << " fail, copyset has already has operator";
         }
 
-        // 创建copyset
+        // create copyset
         if (!topo_->CreateCopySetAtChunkServer(choose.id, target)) {
             LOG(ERROR) << "copysetScheduler create " << choose.CopySetInfoStr()
                        << " on chunkServer: " << target
@@ -129,17 +139,17 @@ void CopySetScheduler::StatsCopysetDistribute(
         }
     }
 
-    // 均值
+    // average
     *avg = static_cast<float>(num) / distribute.size();
 
-    // 方差
+    // variance
     for (auto &item : distribute) {
         variance += std::pow(static_cast<int>(item.second.size()) - *avg, 2);
     }
-    // 极差
+    // range
     *range = max - min;
 
-    // 均方差
+    // average variance
     variance /= distribute.size();
     *stdvariance = std::sqrt(variance);
     LOG(INFO) << "copyset scheduler stats copyset distribute (avg:"
@@ -148,47 +158,40 @@ void CopySetScheduler::StatsCopysetDistribute(
               << "}, range:" << *range << ", stdvariance:" << *stdvariance
               << ", variance:" << variance << ")";
 }
-
 /**
- * 迁移过程说明:
-    chukserverList(chunkserver按照所有copyset的数量从小到大排列):
-    {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}[chunkserver-1上copyset数量最少]
-
- * 目的: 从上述chunkserver中选择chunkserver-n(2<=n<=11),
-       从chunkserver-n上选择copyset-m,
-       将copyset-m从chunkserver-n迁移到chunkserver-1上,
-       即 operator(copyset-m, +chunkserver-1, -chunkserver-n)
-
- * 问题: 1. 如何确定chunkserver-n   2. 找到chunkserver-n后如何确定copyset-m //NOLINT
-
- * 步骤:
-  for chunkserver-n in {11, 10, 9, 8, 7, 6, 5, 4, 3, 2} (从copyset数量多的开始选) //NOLINT
-    for copyset-m in chunkserver-n
-        copyset-m的成员(a, b, n)
-        1. operator(+1, -n)会对chunkserver{a, b, n 以及 1}上的scatter-width_map造成影响 //NOLINT
-           - scatter-width_map的定义是 std::map<chunkserverIdType, int>
-           - scatter-width即为len(scatter-width_map)
-           - 详细说明:
-           chunkserver-a的scatter-width_map:
-                key: chunkserver-a上copyset的其他副本所在的chunkserver
-                value: key上拥有chunkserver-a上copyset的个数
-            例如: chunkserver-a上有copyset-1{a, 1, 2}, copyset-2{a, 2, 3}
-            则: scatter-width_map为{{1, 1}, {2, 2}, {3, 1}}, chunkserver-1上
-                有copyset-1, 所以value=1; chunkserver-2上有copyset-1和copyset-2, //NOLINT
-                所以value=2; chunkserver-3上有copyset-2, 所以value=1.
-
-        2. 对于1(记为target, copyset迁入方)来说: 1的scatter-width_map中key{a,b}对应的value分别+1 //NOLINT
-           对于n(记为source, copyset迁出方)来说: n的scatter-width_map中key{a,b}对应的value分别-1 //NOLINT
-           对于a和b(记为other)来说: a和b的scatter-width_map中key{1}对应的value+1,{n}对应的value-1 //NOLINT
-
-        3. 判断条件:
-           如果迁移之后即copyset-m的成员变为(a, b, 1)后, {a, b, 1, n}的scatter-width //NOLINT
-           满足一定的条件, 生成Operator(copyset-m, +chunkserver-1), 等待下发。 //NOLINT
-           该operator执行完成之后，replicaScheduler会根据类似的规则选择一个副本将copyset迁出, //NOLINT
-           在稳定的情况下，replicaScheduler会选择chunkserver-n迁出.
-    done
-  done
-*/
+ * Migration Procedure:
+ *      Purpose:
+ *      for a chunkserver list (ranked chunkserver by the number of copyset they have).
+ *      example: {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}[chunkserver-1 has the least copyset].
+ *      we are now trying to find chunkserver-n (2<=n<=11) from chunkservers above,
+ *      then choose copyset-m on chunkserver-n, transfer copyset-m from
+ *      chunkserver-n to chunkserver-1: operator(copyset-m, +chunkserver-1, -chunkserver-n)
+ *      Question:
+ *      1. how to decide the chunkserver-n?
+ *      2. how to decide the copyset-m after finding chunkserver-n?
+ *      Steps in pseudocode:
+ *      for chunkserver-n in {11, 10, 9, 8, 7, 6, 5, 4, 3, 2} (pick from the chunkserver with most copysets) //NOLINT
+ *          for copyset-m in chunkserver-n
+ *               copyset-m peers (a, b, n)
+ *               1. operator(+1, -n) will effect the scatter-width map of chunkserver{a, b, n, 1}            //NOLINT
+ *                  for the definition and example of scatter-width map, pls refer to scheduler.cpp          //NOLINT
+ *               2. for chunkserver 1 (mark as the target of the copyset migration):                         //NOLINT
+ *                  value of key{a,b} in the scatter-width map will increase 1
+ *                  for chunkserver n (mark as the source of the copyset migration):                         //NOLINT
+ *                  value of key{a,b} in the scatter-width map will decrease 1
+ *                  for chunkserver a and b (mark as the other):
+ *                  value of key{1} will increase 1, and key{n} will decrease 1
+ *               3. condition:
+ *                  if the peers of copyset-m become (a, b, 1) after the migration,                          //NOLINT
+ *                  and the scatter-width of {a, b, 1, n} satisfy the condition,
+ *                  generate Operator(copyset-m, +chunkserver-1) and wait for distribution.                  //NOLINT
+ *                  after the execution of this operator, replicaScheduler will
+ *                  select a replica to migrate the copyset out according to
+ *                  similar rule. In a stable condition, the replicaScheduler
+ *                  will migrate will pick chunkserver-n
+ *          done
+ *      done
+ **/
 bool CopySetScheduler::CopySetMigration(
     const std::map<ChunkServerIdType, std::vector<CopySetInfo>> &distribute,
     Operator *op, ChunkServerIdType *source, ChunkServerIdType *target,
@@ -197,12 +200,11 @@ bool CopySetScheduler::CopySetMigration(
         return false;
     }
 
-    // 对distribute进行排序
+    // sort for distribute
     std::vector<std::pair<ChunkServerIdType, std::vector<CopySetInfo>>> desc;
     SchedulerHelper::SortDistribute(distribute, &desc);
-
-    // 选择copyset数量最少的作为target, 并获取 info 和 target scatter-with_map
-    LOG(INFO) << "copyset schduler after sort (max:" << desc[0].second.size()
+    // select the chunkserver with the least number of copysets as the target
+    LOG(INFO) << "copyset scheduler after sort (max:" << desc[0].second.size()
         << ",maxCsId:" << desc[0].first
         << "), (min:" << desc[desc.size() - 1].second.size()
         << ",minCsId:" << desc[desc.size() - 1].first << ")";
@@ -214,10 +216,11 @@ bool CopySetScheduler::CopySetMigration(
         return false;
     }
 
-    // 筛选copyset和source
+    // select copyset and source
     *source = UNINTIALIZE_ID;
     for (auto it = desc.begin(); it != desc.end()--; it++) {
-        // possible souce 和 target上copyset数量相差1, 不应该迁移
+        // there shouldn't be any migration if the difference of copyset number
+        // on possible source and target is less than 1
         ChunkServerIdType possibleSource = it->first;
         int copysetNumInPossible = it->second.size();
         if (copysetNumInPossible - copysetNumInTarget <= 1) {
@@ -225,12 +228,13 @@ bool CopySetScheduler::CopySetMigration(
         }
 
         for (auto info : it->second) {
-            // 不满足基本迁移条件
+            // does not meet the basic conditions
             if (!CopySetSatisfiyBasicMigrationCond(info)) {
                 continue;
             }
 
-            // 该copyset +target,-source之后的各replica的scatter-with是否符合条件 //NOLINT
+            // determine whether the scatter-width of every replica in the
+            // copyset fulfill the requirement after +target, -source
             if (!SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
                     topo_, *target, possibleSource, info,
                     GetMinScatterWidth(info.id.first),
@@ -261,7 +265,7 @@ bool CopySetScheduler::CopySetMigration(
 
 bool CopySetScheduler::CopySetSatisfiyBasicMigrationCond(
     const CopySetInfo &info) {
-    // copyset上存在operator，不考虑
+    // operator exists on copyset
     Operator exist;
     if (opController_->GetOperatorById(info.id, &exist)) {
         return false;
@@ -272,13 +276,13 @@ bool CopySetScheduler::CopySetSatisfiyBasicMigrationCond(
         return false;
     }
 
-    // copyset的replica不是标准数量，不考虑
+    // the replica num of copyset is not standard
     if (info.peers.size() !=
         topo_->GetStandardReplicaNumInLogicalPool(info.id.first)) {
         return false;
     }
 
-    // scatter-width在topology中还未设置
+    // scatter-width has not be set on topology
     int minScatterWidth = GetMinScatterWidth(info.id.first);
     if (minScatterWidth <= 0) {
         LOG(WARNING) << "minScatterWith in logical pool "
@@ -286,7 +290,7 @@ bool CopySetScheduler::CopySetSatisfiyBasicMigrationCond(
         return false;
     }
 
-    // copyset有副本不在线，不考虑
+    // some peers are offline
     if (!CopysetAllPeersOnline(info)) {
         return false;
     }

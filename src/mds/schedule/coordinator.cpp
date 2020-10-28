@@ -31,8 +31,8 @@ namespace curve {
 namespace mds {
 namespace schedule {
 /**
- * 使用curl -L mdsIp:port/flags/enableCopySetScheduler?setvalue=true
- * 可以实现动态修改参数
+ * use curl -L mdsIp:port/flags/enableCopySetScheduler?setvalue=true
+ * for dynamic parameter configuration
  */
 static bool pass_bool(const char*, bool) { return true; }
 DEFINE_bool(enableCopySetScheduler, true, "switch of copyset scheduler");
@@ -106,7 +106,7 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
     const ::curve::mds::topology::CopySetInfo &originInfo,
     const ::curve::mds::heartbeat::ConfigChangeInfo &configChInfo,
     ::curve::mds::heartbeat::CopySetConf *out) {
-    // 将toplogy中copyset转换成schedule中copyset的形式
+    // transfer copyset info format from topology to scheduler
     CopySetInfo info;
     if (!topo_->CopySetFromTopoToSchedule(originInfo, &info)) {
         LOG(ERROR) << "coordinator cannot convert copyset("
@@ -117,7 +117,7 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
     }
     info.configChangeInfo = configChInfo;
 
-    // 查看指定copyset上是否有operator
+    // check if there's any operator on specified copyset
     Operator op;
     if (!opController_->GetOperatorById(info.id, &op)) {
         return ::curve::mds::topology::UNINTIALIZE_ID;
@@ -125,15 +125,19 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
     LOG(INFO) << "find operator on" << info.CopySetInfoStr() << "), operator: "
               << op.OpToString();
 
-    // 根据leader上报的copyset信息更新operator的状态
-    // 如果有新的配置要下发，返回为true
+    // Update the status of the operator according to the copyset information
+    // reported by the leader, return true if there's any new configuration
     CopySetConf res;
     bool hasOrder = opController_->ApplyOperator(info, &res);
     if (hasOrder) {
         LOG(INFO) << "going to order operator " << op.OpToString();
-        // 判断epoch和startEpoch是否一致，如果不一致，operator不下发
-        // 场景： 如果mds已经下发了operator, 并且copyset完成，但心跳还未上报；
-        // 此时mds重启，在该copyset生成新的operator，不下发并移除该operator
+        // determine whether the epoch and startEpoch are the same,
+        // if not, the operator will not be dispatched
+        // scenario: The MDS has already dispatch the operator, and the
+        //           copyset has finished but not yet report. At this time
+        //           the MDS restart and generate new operator on this copyset.
+        //           this operator should not be dispatched and should be
+        //           removed
         if (info.epoch != op.startEpoch) {
             LOG(WARNING) << "Operator " << op.OpToString()
                          << "on " << info.CopySetInfoStr()
@@ -142,7 +146,8 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
             return ::curve::mds::topology::UNINTIALIZE_ID;
         }
 
-        // 如果addpeer或者transferLeader或者changepeer的candidate是offline状态，operator不应该下发 //NOLINT
+        // the operator should not be dispacthed if the candidate
+        // of addPeer or transferLeader or changePeer is offline
         ChunkServerInfo chunkServer;
         if (!topo_->GetChunkServerInfo(res.configChangeItem, &chunkServer)) {
             LOG(ERROR) << "coordinator can not get chunkServer "
@@ -160,7 +165,8 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
             return ::curve::mds::topology::UNINTIALIZE_ID;
         }
 
-        // build心跳中需要返回的copysetConf, 如果build失败, 移除operator
+        // build the copysetConf need to be returned in heartbeat
+        // if build failed, remove the operator
         if (!BuildCopySetConf(res, out)) {
             LOG(ERROR) << "build copyset conf for " << info.CopySetInfoStr()
                        << ") fail, remove operator";
@@ -187,7 +193,7 @@ int Coordinator::QueryChunkServerRecoverStatus(
     std::map<ChunkServerIdType, bool> *statusMap) {
     std::vector<ChunkServerInfo> infos;
 
-    // 获取指定的chunkserver
+    // to get the chunkserver infos if the input is a empty vector
     if (idList.empty()) {
         infos = topo_->GetChunkServerInfos();
     }
@@ -201,8 +207,8 @@ int Coordinator::QueryChunkServerRecoverStatus(
         infos.emplace_back(info);
     }
 
-    // 查询每个chunkserver是否正在恢复
-    // 正在恢复：offline且有恢复任务；其他均为未在恢复
+    // Iterate whether each chunkserver is recovering
+    // recovering: chunkserver offline but has recover task on it //NOLINT
     for (const ChunkServerInfo &info : infos) {
         bool recover = IsChunkServerRecover(info);
         if (recover) {
@@ -227,7 +233,7 @@ void Coordinator::RunScheduler(
 
 bool Coordinator::BuildCopySetConf(
     const CopySetConf &res, ::curve::mds::heartbeat::CopySetConf *out) {
-    // build心跳中需要返回的copysetConf
+    // build the copysetConf need to be returned in heartbeat
     out->set_logicalpoolid(res.id.first);
     out->set_copysetid(res.id.second);
     out->set_epoch(res.epoch);
@@ -262,7 +268,7 @@ bool Coordinator::BuildCopySetConf(
         out->set_allocated_oldpeer(replica);
     }
 
-    // set 副本
+    // set peers
     for (auto peer : res.peers) {
         auto replica = out->add_peers();
         replica->set_id(peer.id);
@@ -276,12 +282,12 @@ bool Coordinator::BuildCopySetConf(
 bool Coordinator::ChunkserverGoingToAdd(
     ChunkServerIdType csId, CopySetKey key) {
     Operator op;
-    // copyset上没有需要变更的operator,
+    // no operator on copyset
     if (!opController_->GetOperatorById(key, &op)) {
         return false;
     }
 
-    // 该operator是add类型, 并且add=csId
+    // the operator type is 'add' and new chunkserve = csId
     AddPeer *res = dynamic_cast<AddPeer *>(op.step.get());
     LOG(INFO) << "find operator " << op.OpToString();
     if (res != nullptr && csId == res->GetTargetPeer()) {
@@ -290,7 +296,7 @@ bool Coordinator::ChunkserverGoingToAdd(
         return true;
     }
 
-    // 该operator是change类型, 并且target=csId
+    // the operator type is 'change' and target = csId
     ChangePeer *cres = dynamic_cast<ChangePeer *>(op.step.get());
     LOG(INFO) << "find operator " << op.OpToString();
     if (cres != nullptr && csId == cres->GetTargetPeer()) {
@@ -339,12 +345,13 @@ std::shared_ptr<OperatorController> Coordinator::GetOpController() {
 }
 
 bool Coordinator::IsChunkServerRecover(const ChunkServerInfo &info) {
-    // 非offline状态，一定不会恢复
+    // Non-offline state, it will not be recovered
     if (!info.IsOffline()) {
         return false;
     }
 
-    // offline状态，查看是否有对应的高优先级changepeer任务
+    // if the chunkserver is offline, check if there's any corresponding high
+    // priority changePeer task
     std::vector<Operator> opList = opController_->GetOperators();
     for (Operator &op : opList) {
         if (op.priority != OperatorPriority::HighPriority) {
@@ -361,7 +368,7 @@ bool Coordinator::IsChunkServerRecover(const ChunkServerInfo &info) {
         }
     }
 
-    // 查看chunkserver上的copyset是否有正在迁移的
+    // check if there's any migrating copyset on the chunkserver
     std::vector<CopySetInfo> copysetInfos =
         topo_->GetCopySetInfosInChunkServer(info.info.id);
     for (CopySetInfo &csInfo : copysetInfos) {
