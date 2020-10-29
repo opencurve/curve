@@ -56,21 +56,23 @@ void MDS::InitMdsOptions(std::shared_ptr<Configuration> conf) {
         "mds.segment.alloc.periodic.persistInterMs",
         &options_.periodicPersistInterMs);
 
-    // namestorage的缓存大小
+    // cache size of namestorage
     conf_->GetValueFatalIfFail("mds.cache.count", &options_.mdsCacheCount);
 
-    // 获取mds监听地址
+    // fetch the address that mds listen to
     conf_->GetValueFatalIfFail("mds.listen.addr", &options_.mdsListenAddr);
-    // 获取dummy server的端口
+
+    // fetch dummy server port
     conf_->GetValueFatalIfFail(
         "mds.dummy.listen.port", &options_.dummyListenPort);
-    // 获取mds的文件锁桶大小
+
+    // fetch file lock bucket size of mds
     conf_->GetValueFatalIfFail(
         "mds.filelock.bucketNum", &options_.mdsFilelockBucketNum);
 }
 
 void MDS::StartDummy() {
-    // 暴露版本信息,配置信息和角色（是否是leader）
+    // expose version, configuration and role (leader or follower)
     LOG(INFO) << "mds version: " << curve::common::CurveVersion();
     curve::common::ExposeCurveVersion();
     conf_->ExposeMetric("mds_config");
@@ -86,8 +88,8 @@ void MDS::StartDummy() {
 }
 
 void MDS::StartCompaginLeader() {
-    // 初始化etcdclient
-    // TODO(lixiaocui): 为什么不把配置都放在EtcdConf中?
+    // initialize etcd client
+    // TODO(lixiaocui): why not store the configuration in EtcdConf?
     int etcdTimeout;
     conf_->GetValueFatalIfFail(
         "mds.etcd.operation.timeoutMs", &etcdTimeout);
@@ -97,7 +99,7 @@ void MDS::StartCompaginLeader() {
     InitEtcdConf(&etcdConf);
     InitEtcdClient(etcdConf, etcdTimeout, etcdRetryTimes);
 
-    // 进行leader选举
+    // leader election
     LeaderElectionOptions leaderElectionOp;
     InitMdsLeaderElectionOption(&leaderElectionOp);
     leaderElectionOp.etcdCli = etcdClient_;
@@ -113,10 +115,10 @@ void MDS::StartCompaginLeader() {
 }
 
 void MDS::Init() {
-    // 初始化Segment统计模块
+    // initialize segment statistic module
     InitSegmentAllocStatistic(options_.retryInterTimes,
                               options_.periodicPersistInterMs);
-    // 初始化NameServer存储模块
+    // initialize NameServer storage module
     InitNameServerStorage(options_.mdsCacheCount);
     // init topology
     InitTopology(options_.topologyOption);
@@ -128,11 +130,11 @@ void MDS::Init() {
     InitTopologyMetricService(options_.topologyOption);
     // init topologyServiceManager
     InitTopologyServiceManager(options_.topologyOption);
-    // 初始化curveFs:
+    // initialize curveFs:
     InitCurveFS(options_.curveFSOptions);
-    // 初始化调度模块
+    // initialize scheduler module
     InitCoordinator();
-    // 初始化心跳模块
+    // initialize heartbeat module
     InitHeartbeatManager();
 
     fileLockManager_ =
@@ -146,22 +148,22 @@ void MDS::Run() {
         LOG(ERROR) << "MDS not inited yet!";
         return;
     }
-    // 启动segmentAllocStatistic
+    // start segmentAllocStatistic
     segmentAllocStatistic_->Run();
-    // 启动topology
+    // start topology module
     LOG_IF(FATAL, topology_->Run()) << "run topology module fail";
-    // 启动topologyMetricService
+    // run topologyMetricService
     LOG_IF(FATAL, topologyMetricService_->Run() < 0)
         << "topologyMetricService start run fail";
-    // 启动curveFs
+    // run curveFs
     kCurveFS.Run();
     // start clean manager
     LOG_IF(FATAL, !cleanManager_->Start()) << "start cleanManager fail.";
-    // 恢复未完成的任务
+    // recover unfinished tasks
     cleanManager_->RecoverCleanTasks();
-    // 启动调度模块
+    // start scheduler module
     coordinator_->Run();
-    // 开启brpc server
+    // start brpc server
     StartServer();
 }
 
@@ -172,31 +174,31 @@ void MDS::Stop() {
     }
     brpc::AskToQuit();
 
-    // 在退出之前把自己的节点删除
+    // delete the node before stop running
     leaderElection_->LeaderResign();
     LOG(INFO) << "resign success";
-    // 停止心跳模块
+    // stop heartbeat module
     heartbeatManager_->Stop();
 
-    // 停止调度模块
+    // stop scheduler module
     coordinator_->Stop();
 
-    // 反初始化kCurveFS
+    // uninitialize curvefs (stop file record manager, reset pointers to NULL)
     kCurveFS.Uninit();
 
-    // 停止cleanManager
+    // stop cleanManager
     cleanManager_->Stop();
 
-    // 停止topologyMetricService
+    // stop topologyMetricService
     topologyMetricService_->Stop();
 
-    // 停止topology模块
+    // stop topology module
     topology_->Stop();
 
-    // 停止segment统计模块
+    // stop segment allocation and statistic module
     segmentAllocStatistic_->Stop();
 
-    // 关闭etcd client
+    // close etcd client
     etcdClient_->CloseClient();
 }
 
@@ -244,7 +246,7 @@ void MDS::StartServer() {
         << "start brpc server error";
     running_ = true;
 
-    // 要想实现SIGTERM的优雅退出，启动进程时需要指定参数：
+    // To achieve the graceful exit of SIGTERM, you need to specify parameters when starting the process: //NOLINT
     // --graceful_quit_on_sigterm
     server.RunUntilAskedToQuit();
 }
