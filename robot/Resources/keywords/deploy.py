@@ -255,11 +255,15 @@ def initial_chunkserver(host):
         time.sleep(30)
         ori_cmd = "ps -ef|grep -v grep | grep -v curve-chunkserver.log | grep -w curve-chunkserver | awk '{print $2}'"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[1] == [], "kill chunkserver fail"
-        ori_cmd = "sudo find /data/ -name chunkserver.dat -exec rm -rf {} \;sh recycle_chunks.sh -d /data -chunks chunkfilepool -wals chunkfilepool"
+        assert rs[1] == [], "kill chunkserver fail"       
+        ori_cmd = "sudo find /data/ -name chunkserver.dat -exec rm -rf {} \;"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         logger.debug("delete dat ,return is %s"%rs[1])
         assert rs[3] == 0,"rm %s dat fail"%host
+        ori_cmd = "sh recycle_chunks.sh -d /data -chunks chunkfilepool -wals chunkfilepool"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        logger.debug("recycle chunk ,return is %s"%rs[1])
+        assert rs[3] == 0,"recycle %s chunk  fail"%host
         ssh.close()
     except Exception as e:
         logger.error("%s" % e)
