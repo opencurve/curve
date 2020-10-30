@@ -92,9 +92,9 @@ class TopologyStorageEtcd : public TopologyStorage {
     bool StorageClusterInfo(const ClusterInformation &info) override;
 
  private:
-    // 底层存储介质
+    // underlying storage media
     std::shared_ptr<KVStorageClient> client_;
-    // 编码模块
+    // codec module
     std::shared_ptr<TopologyStorageCodec> codec_;
 };
 

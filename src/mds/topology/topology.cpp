@@ -129,14 +129,14 @@ int TopologyImpl::AddServer(const Server &data) {
 }
 
 int TopologyImpl::AddChunkServer(const ChunkServer &data) {
-    // 先找到所属物理池
+    // find the physical pool that the chunkserver belongs to
     PoolIdType belongPhysicalPoolId = UNINTIALIZE_ID;
     int ret = GetBelongPhysicalPoolIdByServerId(
         data.GetServerId(), &belongPhysicalPoolId);
     if (ret != kTopoErrCodeSuccess) {
         return ret;
     }
-    // 锁住物理池和server，chunkserver
+    // fetch lock on physical pool, server and chunkserver
     WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
     uint64_t csCapacity = 0;
     {
@@ -158,7 +158,7 @@ int TopologyImpl::AddChunkServer(const ChunkServer &data) {
             return kTopoErrCodeServerNotFound;
         }
     }
-    // 更新物理池
+    // update physical pool
     auto it = physicalPoolMap_.find(belongPhysicalPoolId);
     if (it != physicalPoolMap_.end()) {
         uint64_t totalCapacity = it->second.GetDiskCapacity();
@@ -346,19 +346,19 @@ int TopologyImpl::UpdateChunkServerTopo(const ChunkServer &data) {
 
 int TopologyImpl::UpdateChunkServerRwState(const ChunkServerStatus &rwState,
                               ChunkServerIdType id) {
-    // 先找到所属物理池
+    // find physical pool that it belongs to
     PoolIdType belongPhysicalPoolId = UNINTIALIZE_ID;
     int ret = GetBelongPhysicalPoolId(id, &belongPhysicalPoolId);
     if (ret != kTopoErrCodeSuccess) {
         return ret;
     }
-    // 锁住物理池和chunkserver
+    // fetch write lock on physical pool and read lock on chunkserver map
     WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
     ChunkServerStatus lastRwState;
     uint64_t csCapacity = 0;
     {
         ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
-        // 更新chunkserver
+        // update chunkserver
         auto it = chunkServerMap_.find(id);
         if (it == chunkServerMap_.end()) {
             return kTopoErrCodeChunkServerNotFound;
@@ -370,10 +370,12 @@ int TopologyImpl::UpdateChunkServerRwState(const ChunkServerStatus &rwState,
             it->second.SetDirtyFlag(true);
         }
     }
-    // 更新物理池
+    // update physical pool
     switch (lastRwState) {
         case ChunkServerStatus::READWRITE:
         case ChunkServerStatus::PENDDING:
+            // a disk is going to retire, remove corresponding capacity
+            // from physical pool
             if (ChunkServerStatus::RETIRED == rwState) {
                 auto it = physicalPoolMap_.find(belongPhysicalPoolId);
                 if (it != physicalPoolMap_.end()) {
@@ -387,6 +389,7 @@ int TopologyImpl::UpdateChunkServerRwState(const ChunkServerStatus &rwState,
             }
             break;
         case ChunkServerStatus::RETIRED:
+            // disk recover from retired status, add corresponding capacity
             if (ChunkServerStatus::READWRITE == rwState ||
                 ChunkServerStatus::PENDDING == rwState) {
                 auto it = physicalPoolMap_.find(belongPhysicalPoolId);
@@ -456,14 +459,14 @@ int TopologyImpl::UpdateChunkServerOnlineState(const OnlineState &onlineState,
 
 int TopologyImpl::UpdateChunkServerDiskStatus(const ChunkServerState &state,
                                    ChunkServerIdType id) {
-    // 先找到所属物理池
+    // find physical pool it belongs to
     PoolIdType belongPhysicalPoolId = UNINTIALIZE_ID;
     int ret = GetBelongPhysicalPoolId(id, &belongPhysicalPoolId);
     if (ret != kTopoErrCodeSuccess) {
         return ret;
     }
 
-    // 锁住物理池和chunkserver
+    // fetch write lock of the physical pool and read lock of chunkserver map
     WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
     int64_t diff = 0;
     {
@@ -473,14 +476,15 @@ int TopologyImpl::UpdateChunkServerDiskStatus(const ChunkServerState &state,
             WriteLockGuard wlockChunkServer(it->second.GetRWLockRef());
             diff = state.GetDiskCapacity() -
                 it->second.GetChunkServerState().GetDiskCapacity();
-            // 心跳数据，只更新内存，后台定期刷入数据库
+            // only data in RAM is updated, data will be synchronized to
+            // database by background process regularly
             it->second.SetChunkServerState(state);
             it->second.SetDirtyFlag(true);
         } else {
             return kTopoErrCodeChunkServerNotFound;
         }
     }
-    // 更新物理池
+    // update physical pool
     auto it = physicalPoolMap_.find(belongPhysicalPoolId);
     if (it != physicalPoolMap_.end()) {
         uint64_t totalCapacity = it->second.GetDiskCapacity();
@@ -906,7 +910,7 @@ int TopologyImpl::Init(const TopologyOption &option) {
     LOG(INFO) << "[TopologyImpl::init], LoadChunkServer success, "
               << "chunkserver num = " << chunkServerMap_.size();
 
-    // 更新物理池容量
+    // update physical pool volume
     for (auto pair : chunkServerMap_) {
         ServerIdType serverId = pair.second.GetServerId();
         auto itServer = serverMap_.find(serverId);
@@ -1164,7 +1168,7 @@ void TopologyImpl::FlushCopySetToStorage() {
     {
         ReadLockGuard rlockCopySetMap(copySetMutex_);
         for (auto &c : copySetMap_) {
-            // 只更新DirtyFlag，加读锁就可以了
+            // we only update DirtyFlag here, thus only read lock is needed
             ReadLockGuard rlockCopySet(c.second.GetRWLockRef());
             if (c.second.GetDirtyFlag()) {
                 c.second.SetDirtyFlag(false);
@@ -1185,7 +1189,7 @@ void TopologyImpl::FlushChunkServerToStorage() {
     {
         ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
         for (auto &c : chunkServerMap_) {
-            // 只更新DirtyFlag，加读锁就可以了
+            // update DirtyFlag only, thus only read lock is needed
             ReadLockGuard rlockChunkServer(c.second.GetRWLockRef());
             if (c.second.GetDirtyFlag()) {
                 c.second.SetDirtyFlag(false);

@@ -31,6 +31,7 @@ namespace curve {
 namespace mds {
 namespace topology {
 
+// generate a token consists of 8 lower case letters
 std::string DefaultTokenGenerator::GenToken() {
     std::string ret = "";
     for (int i = 0; i < 8; i++) {
