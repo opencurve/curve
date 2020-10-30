@@ -39,9 +39,9 @@ namespace mds {
 namespace topology {
 
 enum class ChoosePoolPolicy {
-    // 随机选pool
+    // choose pools randomly
     kRandom = 0,
-    // 剩余容量作为权值选pool
+    // use available capacity as the weight for choosing pools
     kWeight,
 };
 
@@ -76,15 +76,15 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
 
 
     /**
-     * @brief 在单个逻辑池中随机分配若干个chunk
+     * @brief allocate chunks randomly in a single logical pool
      *
-     * @param fileType 文件类型
-     * @param chunkNumber 分配chunk数
-     * @param chunkSize chunk的大小
-     * @param infos 分配到的copyset列表
+     * @param fileType file type
+     * @param chunkNumber number of chunks to allocate
+     * @param chunkSize size of a chunk
+     * @param infos copyset list that chunks allocated to
      *
-     * @retval true 分配成功
-     * @retval false 分配失败
+     * @retval true if succeeded
+     * @retval false if failed
      */
     bool AllocateChunkRandomInSingleLogicalPool(
         curve::mds::FileType fileType,
@@ -93,15 +93,15 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
         std::vector<CopysetIdInfo> *infos) override;
 
     /**
-     * @brief 在单个逻辑池中以RoundRobin分配若干个chunk
+     * @brief allocate chunks by round robin in a single logical pool
      *
-     * @param fileType 文件类型
-     * @param chunkNumber 分配chunk数
-     * @param chunkSize chunk的大小
-     * @param infos 分配到的copyset列表
+     * @param fileType file type
+     * @param chunkNumber number of chunks to allocate
+     * @param chunkSize size of a chunk
+     * @param infos copyset list that chunks allocated to
      *
-     * @retval true 分配成功
-     * @retval false 分配失败
+     * @retval true if succeeded
+     * @retval false if failed
      */
     bool AllocateChunkRoundRobinInSingleLogicalPool(
         curve::mds::FileType fileType,
@@ -111,13 +111,13 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
 
  private:
     /**
-     * @brief 从集群中选择一个逻辑池
+     * @brief select a logical pool in the cluster
      *
-     * @param fileType 文件类型
-     * @param[out] poolOut 选择的逻辑池
+     * @param fileType file type
+     * @param[out] poolOut logical pool chosen
      *
-     * @retval true 分配成功
-     * @retval false 分配失败
+     * @retval true if succeeded
+     * @retval false if failed
      */
     bool ChooseSingleLogicalPool(curve::mds::FileType fileType,
         PoolIdType *poolOut);
@@ -125,40 +125,40 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
  private:
     std::shared_ptr<Topology> topology_;
 
-    // 分配统计模块
+    // allocation statistic module
     std::shared_ptr<AllocStatistic> allocStatistic_;
 
-    // pool使用百分比上限
+    // usage limit of pool
     uint32_t poolUsagePercentLimit_;
 
     /**
-     * @brief RoundRobin各逻辑池起始点map
+     * @brief starting point of round robin for (copysets of) every logical pool
      */
     std::map<PoolIdType, uint32_t> nextIndexMap_;
     /**
-     * @brief 保护上述map的锁
+     * @brief mutex for nextIndexMap_
      */
     ::curve::common::Mutex nextIndexMapLock_;
-    // 选pool策略
+    // policy for choosing pool
     ChoosePoolPolicy policy_;
 };
 
 /**
- * @brief chunk分配策略
+ * @brief chunk allocation policies
  */
 class AllocateChunkPolicy {
  public:
     AllocateChunkPolicy() {}
     /**
-     * @brief  在单个逻辑池中随机分配若干个chunk
+     * @brief  allocate chunks in a single logical pool
      *
-     * @param copySetIds 指定逻辑池内的copysetId列表
-     * @param logicalPoolId 逻辑池Id
-     * @param chunkNumber 分配chunk数
-     * @param infos 分配到的copyset列表
+     * @param copySetIds copyset id list in designated logical pool
+     * @param logicalPoolId logical pool id
+     * @param chunkNumber number of chunks to allocate
+     * @param infos copyset list that chunks allocated to
      *
-     * @retval true 分配成功
-     * @retval false 分配失败
+     * @retval true if succeeded
+     * @retval false if failed
      */
     static bool AllocateChunkRandomInSingleLogicalPool(
         std::vector<CopySetIdType> copySetIds,
@@ -166,18 +166,22 @@ class AllocateChunkPolicy {
         uint32_t chunkNumber,
         std::vector<CopysetIdInfo> *infos);
 
-
     /**
-     * @brief 在单个逻辑池中使用RoundRobin的方式分配若干个chunk
+     * @brief allocate chunks by round robin in a single logical pool
      *
-     * @param copySetIds 指定逻辑池内的copysetId列表
-     * @param logicalPoolId 逻辑池Id
-     * @param[in][out] nextIndex 分配起始位置,分配完毕后返回下一个位置
-     * @param chunkNumber 分配chunk数
-     * @param infos 分配到的copyset列表
+     * @param copySetIds copyset id list in designated logical pool
+     * @param logicalPoolId target logical pool id
+     * @param[in][out] nextIndex the starting index for the copysets in a
+     *                           logical pool in round robin implementation.
+     *                           It should be mentioned that this value will be
+     *                           updated (to become the index of next copyset
+     *                           of the last chosen copyset of that round)
+     *                           after each round of chunk allocation.
+     * @param chunkNumber number of chunks to allocate
+     * @param infos copyset list that chunks allocated to
      *
-     * @retval true 分配成功
-     * @retval false 分配失败
+     * @retval true if succeeded
+     * @retval false if failed
      */
     static bool AllocateChunkRoundRobinInSingleLogicalPool(
         std::vector<CopySetIdType> copySetIds,
@@ -187,26 +191,26 @@ class AllocateChunkPolicy {
         std::vector<CopysetIdInfo> *infos);
 
     /**
-     * @brief 根据权值选择单个逻辑池
+     * @brief choose a logical pool according to their weight
      *
-     * @param poolWeightMap 逻辑池的权值表
-     * @param[out] poolIdOut 选择的poolId
+     * @param poolWeightMap map of the weight of every logical pool
+     * @param[out] poolIdOut id of the chosen pool
      *
-     * @retval true 成功
-     * @retval false 失败
+     * @retval true if succeeded
+     * @retval false if failed
      */
     static bool ChooseSingleLogicalPoolByWeight(
         const std::map<PoolIdType, double> &poolWeightMap,
         PoolIdType *poolIdOut);
 
     /**
-     * @brief 随机选择单个逻辑池
+     * @brief choose a logical pool randomly
      *
-     * @param pools 逻辑池列表
-     * @param[out] poolIdOut 选择的poolId
+     * @param pools logical pool list
+     * @param[out] poolIdOut id of the chosen pool
      *
-     * @retval true 成功
-     * @retval false 失败
+     * @retval true if succeeded
+     * @retval false if failed
      */
     static bool ChooseSingleLogicalPoolRandom(
         const std::vector<PoolIdType> &pools,

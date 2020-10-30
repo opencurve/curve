@@ -129,12 +129,12 @@ class TopologyServiceManager {
           GetClusterInfoResponse* response);
 
     /**
-     * @brief 调用rpc接口在chunkserver上创建copysetnode
+     * @brief RPC calling for creating copysetnode on chunkserver
      *
-     * @param id 目标chunkserver
-     * @param copysetInfos 需在该chunkserver上创建的copyset列表
+     * @param id target chunkserver
+     * @param copysetInfos copysets going to be created on target chunkserver
      *
-     * @return 错误码
+     * @return error code
      */
     virtual bool CreateCopysetNodeOnChunkServer(
         ChunkServerIdType id,
@@ -142,14 +142,14 @@ class TopologyServiceManager {
 
  private:
     /**
-    * @brief 为logicalpool创建copyset
+    * @brief create copyset for logical pool
     *
-    * @param lPool 逻辑池
-    * @param[in][out] scatterWidth 入参为目标scatterWidth,
-    *   出参返回实际scatterWidth
-    * @param[out] copysetInfos 创建的copyset信息
+    * @param lPool target logical pool
+    * @param[in][out] scatterWidth target scatterWidth as input,
+    *                              actual scatterWidth as output
+    * @param[out] copysetInfos Info of copyset to be created
     *
-    * @return 错误码
+    * @return error code
     */
     int CreateCopysetForLogicalPool(
         const LogicalPool &lPool,
@@ -157,14 +157,14 @@ class TopologyServiceManager {
         std::vector<CopySetInfo> *copysetInfos);
 
     /**
-    * @brief 为PageFilePool创建copyset
+    * @brief create copyset for PageFilePool
     *
-    * @param lPool 逻辑池
-    * @param[in][out] scatterWidth 入参为目标scatterWidth,
-    *   出参返回实际scatterWidth
-    * @param[out] copysetInfos 创建的copyset信息
+    * @param lPool target logical pool
+    * @param[in][out] scatterWidth target scatterWidth as input,
+    *                              actual scatterWidth as output
+    * @param[out] copysetInfos Info of copyset to be created
     *
-    * @return 错误码
+    * @return error code
     */
     int GenCopysetForPageFilePool(
         const LogicalPool &lPool,
@@ -172,44 +172,46 @@ class TopologyServiceManager {
         std::vector<CopySetInfo> *copysetInfos);
 
     /**
-     * @brief 在copyset列表中的所有copyset为其在chunkserver上创建copysetnode
+     * @brief create copysetnode on chunkserver for
+     *        every copyset in the copyset list.
      *
-     * @param copysetInfos copyset列表
+     * @param copysetInfos copyset list
      *
-     * @return 错误码
+     * @return error code
      */
     int CreateCopysetNodeOnChunkServer(
         const std::vector<CopySetInfo> &copysetInfos);
 
     /**
-     * @brief 移除logicalpool及其相关copyset
+     * @brief remove target logical pool and corresponding copyset
      *
-     * @param pool 逻辑池
-     * @param copysetInfos copyset列表
+     * @param pool target logical pool
+     * @param copysetInfos copyset list
      *
-     * @return 错误码
+     * @return error code
      */
     int RemoveErrLogicalPoolAndCopyset(const LogicalPool &pool,
         const std::vector<CopySetInfo> *copysetInfos);
 
  private:
     /**
-     * @brief 拓扑模块
+     * @brief topology module
      */
     std::shared_ptr<Topology> topology_;
 
     /**
-     * @brief copyset管理模块
+     * @brief copyset manager module
      */
     std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager_;
 
     /**
-     * @brief 注册chunkserver保护锁，防止并发注册chunkserver造成重复注册
+     * @brief register mutex for chunkserver, preventing duplicate registration
+     *        in concurrent scenario
      */
     ::curve::common::NameLock registCsMutex;
 
     /**
-     * @brief 拓扑配置项
+     * @brief topology options
      */
     TopologyOption option_;
 };

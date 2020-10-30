@@ -62,7 +62,10 @@ void TopologyServiceManager::RegistChunkServer(
     ::curve::common::NameLockGuard lock(registCsMutex,
         hostIp + ":" + std::to_string(port));
 
-    // 需要为Retired或offline情况才能换盘，否则视为ipPort重复的chunkserver
+    // here we get chunkserver already registered in the cluster that have
+    // the same ip and port as what we're trying to register and are running
+    // normally (not in retired or offline status), which is regarded as
+    // duplicated chunkserver
     std::vector<ChunkServerIdType> list =
         topology_->GetChunkServerInCluster(
             [&hostIp, &port](const ChunkServer &cs){
@@ -72,7 +75,8 @@ void TopologyServiceManager::RegistChunkServer(
                        (cs.GetPort() == port);
             });
     if (1 == list.size()) {
-        // 处理重复的注册报文，保证接口的幂等性
+        // report duplicated register (already a chunkserver with same ip and
+        // port in the cluster) to promise the idempotence of the interface
         ChunkServer cs;
         topology_->GetChunkServer(list[0], &cs);
         response->set_statuscode(kTopoErrCodeSuccess);
@@ -83,6 +87,7 @@ void TopologyServiceManager::RegistChunkServer(
                       << ", port = " << port;
         return;
     } else if (list.size() > 1) {
+        // more than one chunkserver with same ip:port found, internal error
         response->set_statuscode(kTopoErrCodeInternalError);
         LOG(ERROR) << "Topology has counter an internal error: "
             "Found chunkServer data ipPort duplicated.";
@@ -314,7 +319,7 @@ void TopologyServiceManager::RegistServer(const ServerRegistRequest *request,
         externalPort = request->externalport();
     }
 
-    // 检查ip Port是否重复
+    // check whether there's any duplicated ip&port
     if (topology_->FindServerByHostIpPort(
         request->internalip(), internalPort) !=
         static_cast<ServerIdType>(UNINTIALIZE_ID)) {
@@ -923,7 +928,7 @@ bool TopologyServiceManager::CreateCopysetNodeOnChunkServer(
     }
     CopysetService_Stub stub(&channel);
 
-    // 调用chunkserver接口创建copyset
+    // create copyset by calling chunkserver interface
     brpc::Controller cntl;
 
     CopysetRequest2 copysetRequest;
@@ -1126,7 +1131,7 @@ void TopologyServiceManager::CreateLogicalPool(
         } else {
             lPool.SetLogicalPoolAvaliableFlag(true);
             lPool.SetScatterWidth(scatterWidth);
-            // 更新copysetnum
+            // update copysetnum
             switch (lPool.GetLogicalPoolType()) {
                 case LogicalPoolType::PAGEFILE: {
                     rap.pageFileRAP.copysetNum =  copysetInfos.size();

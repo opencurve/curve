@@ -40,19 +40,19 @@ namespace mds {
 namespace topology {
 
 struct CopysetStat {
-    // 逻辑池id
+    // logical pool id
     PoolIdType logicalPoolId;
-    // copysetid
+    // Copyset id
     CopySetIdType copysetId;
-    // leader id
+    // Leader id
     ChunkServerIdType leader;
-    // 读带宽
+    // Reading bandwidth
     uint32_t readRate;
-    // 写带宽
+    // Writing bandwidth
     uint32_t writeRate;
-    // 读iops
+    // Reading IOPS
     uint32_t readIOPS;
-    // 写iops
+    // Writing IOPS
     uint32_t writeIOPS;
     CopysetStat() :
         logicalPoolId(UNINTIALIZE_ID),
@@ -65,26 +65,26 @@ struct CopysetStat {
 };
 
 struct ChunkServerStat {
-    // 心跳上报的leader数量
+    // Leader number the heartbeat reported
     uint32_t leaderCount;
-    // 心跳上报的copyset数量
+    // Copyset number the heartbeat reported
     uint32_t copysetCount;
-    // 读带宽
+    // Reading Bandwidth
     uint32_t readRate;
-    // 写带宽
+    // Writing bandwidth
     uint32_t writeRate;
-    // 读iops
+    // Reading IOPS
     uint32_t readIOPS;
-    // 写iops
+    // Writing IOPS
     uint32_t writeIOPS;
-    // 已使用的chunk占用的磁盘空间
+    // Size of chunks already used
     uint64_t chunkSizeUsedBytes;
-    // chunkfilepool中未使用的chunk占用的磁盘空间
+    // Size of chunks unused
     uint64_t chunkSizeLeftBytes;
-    // 回收站中chunk占用的磁盘空间
+    // Size of chunks in recycle bin
     uint64_t chunkSizeTrashedBytes;
 
-    // copyset数据
+    // Copyset statistic
     std::vector<CopysetStat> copysetStats;
 
     ChunkServerStat() :
@@ -97,31 +97,29 @@ struct ChunkServerStat {
 };
 
 /**
- * @brief Topology统计模块，负责处理各种统计数据
+ * @brief Topology statistic module for managing its stats
  */
 class TopologyStat {
  public:
     TopologyStat() {}
     ~TopologyStat() {}
 
-    // 心跳来源
-
     /**
-     * @brief 更新心跳来源的chunkserver统计数据
+     * @brief Update the statistic of the chunkservers that sent heartbeat
      *
      * @param csId chunkserverId
-     * @param stat 心跳传来的chunkserver统计数据
+     * @param stat statistic brought by the heartbeat
      */
     virtual void UpdateChunkServerStat(ChunkServerIdType csId,
         const ChunkServerStat &stat) = 0;
     /**
-     * @brief 获取心跳来源的chunkserver统计数据
+     * @brief fetch the statistic information of chunkservers that sent by heartbeat
      *
      * @param csId chunkserverId
-     * @param[out] stat 心跳传来的chunkserver统计数据
+     * @param[out] stat statistic of the chunkserver
      *
-     * @retval true 获取成功
-     * @retval false 未找到
+     * @retval true if succeeded
+     * @retval false if failed
      */
     virtual bool GetChunkServerStat(ChunkServerIdType csId,
         ChunkServerStat *stat) = 0;
@@ -141,16 +139,16 @@ class TopologyStatImpl : public TopologyStat {
 
  private:
     /**
-     * @brief 心跳来源的chunkserver统计数据
+     * @brief chunkserver statistic
      */
     std::map<ChunkServerIdType, ChunkServerStat>  chunkServerStats_;
     /**
-     * @brief 保护chunkServerStats_并发访问的锁
+     * @brief the lock for protecting concurrent visit of chunkServerStats_
      */
     mutable curve::common::RWLock statsLock_;
 
     /**
-     * @brief topology模块
+     * @brief topology module
      */
     std::shared_ptr<Topology> topo_;
 };
