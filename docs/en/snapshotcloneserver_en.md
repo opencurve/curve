@@ -47,7 +47,7 @@ The following steps are for creating a snapshot:
 2. Create temporary snapshot on curvefs, return seqNum of the snapshot created, then update the seqNum of the snapshot record.
 4. Create snapshot mapping table (see 1.4.1), and save it to object storage S3.
 6. Dump snapshot data from curvefs to object storage S3. When storing, the snapshot system first reads the snapshot data from curvefs, then uploads the data to the S3.
-8. Delete the temporary snapshot.
+8. Delete the temporary snapshot from curvefs.
 10. Update snapshot status to 'done'.
 
 ### 1.4 Organization of Snapshot Data
