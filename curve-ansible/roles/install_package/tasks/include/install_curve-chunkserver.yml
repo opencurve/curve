@@ -53,6 +53,10 @@
     jemalloc_path: "{{ lib_install_prefix }}/lib/libjemalloc.so.1"
   template: src=chunkserver_ctl.sh.j2 dest={{ deploy_dir }}/chunkserver_ctl.sh mode=0755
 
+- name: auto get disk list
+  include_tasks: common_tasks/auto_get_disk_list.yml
+  when: auto_get_disk_list
+
 - name: generate chunkserver_deploy.sh
   template: src=chunkserver_deploy.sh.j2 dest={{ deploy_dir }}/chunkserver_deploy.sh mode=0644
 
