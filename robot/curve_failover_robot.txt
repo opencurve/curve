@@ -520,11 +520,12 @@ init abnormal test env
      destroy snapshotclone server
      stop nebd
      drop all chunkserver dat
-     install deb
-     add config 
-     start abnormal test services
-     create pool
-     start nebd
+     use ansibe deploy
+#     install deb
+#     add config 
+#     start abnormal test services
+#     create pool
+#     start nebd
 
 init rw cloud disk
      map nbd
