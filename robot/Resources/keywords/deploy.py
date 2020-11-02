@@ -287,6 +287,9 @@ def use_ansible_deploy():
         cmd = "cp robot/ansible_deploy.sh . && bash ansible_deploy.sh"
         ret = shell_operator.run_exec(cmd)
         assert ret == 0 ,"ansible deploy fail"
+    except Exception:
+        logger.error("deploy curve fail.")
+        raise
 
 def install_deb():
     try:

@@ -520,7 +520,7 @@ init abnormal test env
      destroy snapshotclone server
      stop nebd
      drop all chunkserver dat
-     use ansibe deploy
+     use ansible deploy
 #     install deb
 #     add config 
 #     start abnormal test services
