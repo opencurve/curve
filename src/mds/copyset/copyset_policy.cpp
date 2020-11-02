@@ -121,7 +121,7 @@ void CopysetZoneShufflePolicy::GetMinCopySetFromScatterWidth(
 
     // estimation of copyset number needed for scatter width S
     // 1. N/R copysets generated every permutation
-    // 2. for every permutation scatter width grow R-1 at most
+    // 2. Scatter width grow R-1 at most for every permutation
     // so we need at lease P = S/(R—1) permutations,
     // and (S/(R-1))(N/R) copysets are generated.
     // thus the lower bound of copyset number is (S/(R-1))(N/R)
