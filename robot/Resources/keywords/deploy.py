@@ -255,7 +255,7 @@ def initial_chunkserver(host):
         time.sleep(30)
         ori_cmd = "ps -ef|grep -v grep | grep -v curve-chunkserver.log | grep -w curve-chunkserver | awk '{print $2}'"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[1] == [], "kill chunkserver fail"       
+        assert rs[1] == [], "kill chunkserver fail"
         ori_cmd = "sudo find /data/ -name chunkserver.dat -exec rm -rf {} \;"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         logger.debug("delete dat ,return is %s"%rs[1])
@@ -281,6 +281,12 @@ def drop_all_chunkserver_dat():
     for t in thread:
         logger.debug("drop cs dat get result is %d" % t.get_result())
         assert t.get_result() == 0
+
+def use_ansible_deploy():
+    try:
+        cmd = "cp robot/ansible_deploy.sh . && bash ansible_deploy.sh"
+        ret = shell_operator.run_exec(cmd)
+        assert ret == 0 ,"ansible deploy fail"
 
 def install_deb():
     try:
