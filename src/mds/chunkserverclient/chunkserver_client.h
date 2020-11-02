@@ -97,7 +97,7 @@ class ChunkServerClient {
     /**
      * @brief get the leader
      * @detail
-     *   send a message to the target chunk server to query the leader
+     *   send a message to the target chunkserver to query the leader
      *
      * @param csId ID of target chunkserver
      * @param logicalPoolId

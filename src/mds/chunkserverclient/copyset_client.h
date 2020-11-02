@@ -68,7 +68,7 @@ class CopysetClient {
      * @param copysetId
      * @param chunkId
      * @param correctedSn the version number that needs to be corrected when
-     *                    there is no snapshot file in the chunk
+     *                    there is no snapshot file for the chunk
      *
      * @return error code
      */
