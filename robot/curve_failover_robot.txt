@@ -515,11 +515,11 @@ init failover cluster
 
 init abnormal test env
      clean env
-     destroy etcd
-     destroy mds
-     destroy snapshotclone server
-     stop nebd
-     drop all chunkserver dat
+#     destroy etcd
+#     destroy mds
+#     destroy snapshotclone server
+#     stop nebd
+#     drop all chunkserver dat
      use ansible deploy
 #     install deb
 #     add config 
