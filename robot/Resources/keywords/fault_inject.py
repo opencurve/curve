@@ -578,22 +578,29 @@ def kill_etcd_process(host):
         assert rs[3] == 0,"kill etcd fail"
 
 def start_etcd_process(host):
-    ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-    ori_cmd = "ps -ef|grep -v grep | grep etcd | awk '{print $2}'"
-    rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    if rs[1] != []:
-        logger.debug("etcd already up")
-        return
+#    ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+#    ori_cmd = "ps -ef|grep -v grep | grep etcd | awk '{print $2}'"
+#    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+#    if rs[1] != []:
+#        logger.debug("etcd already up")
+#        return
 #    mkdir_cmd = "sudo rm -rf /etcd/default.etcd"
 #    rs = shell_operator.ssh_exec(ssh, mkdir_cmd)
-    up_cmd = " cd etcdrun && sudo nohup  ./run.sh existing &"
-    shell_operator.ssh_background_exec2(ssh, up_cmd)
-    logger.debug("exec %s"%(up_cmd))
-    time.sleep(2)
-    rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    if rs[1] == []:
-        assert False, "etcd up fail"
-
+#    up_cmd = " cd etcdrun && sudo nohup  ./run.sh existing &"
+ #   shell_operator.ssh_background_exec2(ssh, up_cmd)
+#    logger.debug("exec %s"%(up_cmd))
+#    time.sleep(2)
+#    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+#    if rs[1] == []:
+#        assert False, "etcd up fail"
+    try:
+       cmd = "ansible-playbook -i curve/curve-ansible/server.ini curve/curve-ansible/start_curve.yml --tags etcd"
+       ret = shell_operator.run_exec(cmd)
+       assert ret == 0 ,"ansible start etcd fail"
+    except Exception:
+       logger.error("ansible start etcd fail.")
+       raise       
+       
 def stop_mysql_process(host):
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     ori_cmd = "ps -ef|grep -v grep | grep mysql"
