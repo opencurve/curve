@@ -21,6 +21,9 @@
     - always
   import_playbook: check_ansible_version.yml
 
+- name: stop nebd-server
+  import_playbook: stop_nebd_server.yml
+
 - name: clean nebd
   hosts: client
   gather_facts: no
