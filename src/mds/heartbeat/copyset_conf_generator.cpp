@@ -36,7 +36,7 @@ bool CopysetConfGenerator::GenCopysetConf(
     const ::curve::mds::topology::CopySetInfo &reportCopySetInfo,
     const ::curve::mds::heartbeat::ConfigChangeInfo &configChInfo,
     ::curve::mds::heartbeat::CopySetConf *copysetConf) {
-    // reported copyset not exist on topology
+    // reported copyset not exist in topology
     // in this case an empty configuration will be sent to chunkserver
     // to delete it
     ::curve::mds::topology::CopySetInfo recordCopySetInfo;
