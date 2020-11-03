@@ -21,7 +21,7 @@
     - always
   import_playbook: check_ansible_version.yml
 
-- name: start nebd server
+- name: stop nebd server
   hosts: client
   gather_facts: no
   any_errors_fatal: true
