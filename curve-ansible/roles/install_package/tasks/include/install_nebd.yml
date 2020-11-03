@@ -75,7 +75,7 @@
 
 - name: copy nebd-daemon
   vars:
-    remote_dir_name: "{{ deploy_dir }}"
+    remote_dir_name: "{{ curve_bin_dir }}"
     local_file_path: "/tmp/nebd-daemon"
     file_mode: 0755
   include_tasks: copy_file_to_remote.yml
