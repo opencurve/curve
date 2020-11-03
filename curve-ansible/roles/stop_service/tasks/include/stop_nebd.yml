@@ -27,3 +27,4 @@
 - name: stop nebd without daemon
   ignore_errors: true
   shell: killall {{ curve_bin_dir }}/nebd-server
+  when: not {{ start_by_daemon }}
