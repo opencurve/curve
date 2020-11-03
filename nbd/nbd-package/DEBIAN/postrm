@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e
+
+rm -f /etc/init.d/mount_curve_clouddisk.sh
+update-rc.d mount_curve_clouddisk.sh remove
+
+exit 0

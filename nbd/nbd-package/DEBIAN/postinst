@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -e
+
+chmod +x /usr/bin/mount_curve_clouddisk.sh 
+cp /usr/bin/mount_curve_clouddisk.sh /etc/init.d
+update-rc.d mount_curve_clouddisk.sh defaults
+
+exit 
