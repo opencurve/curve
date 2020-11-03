@@ -141,7 +141,7 @@ class HeartbeatManager {
      */
     HeartbeatStatusCode CheckRequest(const ChunkServerHeartbeatRequest &request);  // NOLINT
 
-    // TODO(lixiaocui): 优化，统一heartbeat和topology中两个CopySetInfo的名字
+    // TODO(lixiaocui): optimize, unify the names of the two CopySetInfo in heartbeat and topology // NOLINT
     /**
      * @brief Convert copyset data structure from heartbeat format
      *        to topology format

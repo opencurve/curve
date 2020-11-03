@@ -60,11 +60,11 @@ struct HeartbeatOption {
     // offLineTimeOutMs:
     // the maximun peroid that heartbeat is missed without
     // setting the chunkserver to offline status and alarm.
-    // scheduling will depend on the status of chunkserver
+    // scheduling will depend on this status of chunkserver
     uint64_t offLineTimeOutMs;
 
     // start cleaning copysets on chunkservers after
-    // running mds for this peroid of time
+    // starting mds for this peroid of time
     uint64_t cleanFollowerAfterMs;
 
     // the time when the mds start (fetch from system)
