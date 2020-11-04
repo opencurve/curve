@@ -141,6 +141,8 @@ class FileRecord {
 
 class FileRecordManager {
  public:
+    virtual ~FileRecordManager() = default;
+
     /**
      * @brief initialization
      * @param[in] sessionOption session configuration
@@ -160,7 +162,7 @@ class FileRecordManager {
      * @brief Get the expired time of the file
      * @return the expired time
      */
-    uint32_t GetFileRecordExpiredTimeUs() const {
+    virtual uint32_t GetFileRecordExpiredTimeUs() const {
         return fileRecordOptions_.fileRecordExpiredTimeUs;
     }
 
@@ -172,6 +174,12 @@ class FileRecordManager {
                           const std::string& clientVersion,
                           const std::string& clientIP,
                           uint32_t clientPort);
+
+    /**
+     * @brief remove file record corresponding to filename
+     * @param filename file record that to be deleted
+     */
+    void RemoveFileRecord(const std::string& filename);
 
     /**
      * @brief Get the client version corresponding to the input file
@@ -198,8 +206,8 @@ class FileRecordManager {
 
     std::set<ClientIpPortType> ListAllClient() const;
 
-    bool FindFileMountPoint(const std::string& fileName,
-                            ClientIpPortType* ipPort) const;
+    virtual bool FindFileMountPoint(const std::string& fileName,
+                                    ClientIpPortType* ipPort) const;
 
  private:
     /**

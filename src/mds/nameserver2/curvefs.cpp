@@ -33,8 +33,6 @@
 #include "src/mds/common/mds_define.h"
 
 using curve::common::TimeUtility;
-using ::std::chrono::steady_clock;
-using ::std::chrono::microseconds;
 using curve::mds::topology::LogicalPool;
 
 namespace curve {
@@ -91,7 +89,7 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
                 const struct CurveFSOption &curveFSOptions,
                 std::shared_ptr<Topology> topology,
                 std::shared_ptr<SnapshotCloneClient> snapshotCloneClient) {
-    startTime_ = steady_clock::now();
+    startTime_ = std::chrono::steady_clock::now();
     storage_ = storage;
     InodeIDGenerator_ = InodeIDGenerator;
     chunkSegAllocator_ = chunkSegAllocator;
@@ -483,13 +481,8 @@ StatusCode CurveFS::isDirectoryEmpty(const FileInfo &fileInfo, bool *result) {
 }
 
 StatusCode CurveFS::IsSnapshotAllowed(const std::string &fileName) {
-    // whether the startup time is sufficient for the client to perform
-    // at least one refresh session
-    steady_clock::duration timePass = steady_clock::now() - startTime_;
-    int32_t expiredUs = fileRecordManager_->GetFileRecordExpiredTimeUs();
-    if (timePass < 10 * microseconds(expiredUs)) {
-        LOG(INFO) << "snapshot is not allowed now, fileName = " << fileName
-                  << ", time pass = " << timePass.count();
+    if (!IsStartEnoughTime(10)) {
+        LOG(INFO) << "snapshot is not allowed now, fileName = " << fileName;
         return StatusCode::kSnapshotFrozen;
     }
 
@@ -716,6 +709,24 @@ StatusCode CurveFS::CheckFileCanChange(const std::string &fileName,
         LOG(WARNING) << "CheckFileCanChange, file is being Cloned, "
                    << "need check first, fileName = " << fileName;
         return StatusCode::kDeleteFileBeingCloned;
+    }
+
+    // since the file record is not persistent, after mds switching the leader,
+    // file record manager is empty
+    // after file is opened, there will be refresh session requests in each
+    // file record expiration time
+    // so wait for a file record expiration time to make sure that
+    // the file record is updated
+    if (!IsStartEnoughTime(1)) {
+        LOG(WARNING) << "MDS doesn't start enough time";
+        return StatusCode::kNotSupported;
+    }
+
+    ClientIpPortType mountPoint;
+    if (fileRecordManager_->FindFileMountPoint(fileName, &mountPoint)) {
+        LOG(WARNING) << fileName << " is mounting on " << mountPoint.first
+                     << ":" << mountPoint.second;
+        return StatusCode::kFileOccupied;
     }
 
     return StatusCode::kOK;
@@ -1381,6 +1392,9 @@ StatusCode CurveFS::CloseFile(const std::string &fileName,
                    << ", errName = " << StatusCode_Name(ret);
         return  ret;
     }
+
+    // remove file record
+    fileRecordManager_->RemoveFileRecord(fileName);
 
     return StatusCode::kOK;
 }

@@ -96,14 +96,7 @@ bool FileInstance::Initialize(const std::string& filename,
 }
 
 void FileInstance::UnInitialize() {
-    // 文件在退出的时候需要先将io manager退出，再退出lease续约线程。
-    // 因为如果后台集群重新部署了，需要通过lease续约来获取当前session状态
-    // 这样在session过期后才能将inflight RPC正确回收掉。
     iomanager4file_.UnInitialize();
-    if (leaseExecutor_ != nullptr) {
-        leaseExecutor_->Stop();
-        leaseExecutor_.reset();
-    }
 }
 
 int FileInstance::Read(char* buf, off_t offset, size_t length) {
@@ -173,9 +166,13 @@ int FileInstance::Close() {
         return 0;
     }
 
+    if (leaseExecutor_ != nullptr) {
+        leaseExecutor_->Stop();
+        leaseExecutor_.reset();
+    }
+
     LIBCURVE_ERROR ret =
-        mdsclient_->CloseFile(finfo_.fullPathName, finfo_.userinfo,
-                              leaseExecutor_->GetLeaseSessionID());
+        mdsclient_->CloseFile(finfo_.fullPathName, finfo_.userinfo, "");
     return -ret;
 }
 

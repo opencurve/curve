@@ -237,6 +237,10 @@ class MetaCache {
         return unstableHelper_;
     }
 
+    uint64_t InodeId() const {
+        return fileInfo_.id;
+    }
+
  private:
     /**
      * @brief 从mds更新copyset复制组信息
