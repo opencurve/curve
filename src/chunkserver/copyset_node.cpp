@@ -444,7 +444,7 @@ void CopysetNode::on_leader_stop(const butil::Status &status) {
 }
 
 void CopysetNode::on_error(const ::braft::Error &e) {
-    LOG(ERROR) << "Copyset: " << GroupIdString()
+    LOG(FATAL) << "Copyset: " << GroupIdString()
                << ", peer id: " << peerId_.to_string()
                << " meet raft error: " << e;
 }

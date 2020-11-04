@@ -432,8 +432,7 @@ TEST_F(CopysetNodeTest, error_test) {
         Configuration conf;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         braft::Error error;
-        copysetNode.on_error(error);
-        ASSERT_EQ(1, 1);
+        ASSERT_DEATH(copysetNode.on_error(error), ".*raft error.*");
     }
     /* Fini, raftNode is null */
     {
