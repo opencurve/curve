@@ -129,9 +129,14 @@ LIBCURVE_ERROR MDSClient::MDSRPCExcutor::DoRPCTask(RPCFunc rpctask,
     }
 
     // 4. 重试超限，向上返回
-    return retcode == -LIBCURVE_ERROR::FILE_OCCUPIED
-                    ?  LIBCURVE_ERROR::FILE_OCCUPIED
-                    :  LIBCURVE_ERROR::FAILED;
+    switch (retcode) {
+        case -LIBCURVE_ERROR::NOT_SUPPORT:
+            return LIBCURVE_ERROR::NOT_SUPPORT;
+        case -LIBCURVE_ERROR::FILE_OCCUPIED:
+            return LIBCURVE_ERROR::FILE_OCCUPIED;
+        default:
+            return LIBCURVE_ERROR::FAILED;
+    }
 }
 
 bool MDSClient::MDSRPCExcutor::GoOnRetry(uint64_t startTimeMS,
@@ -954,6 +959,12 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
                 << ", error msg = "
                 << StatusCode_Name(stcode)
                 << ", log id = " << cntl->log_id();
+
+        // MDS does not currently support rename file, retry again
+        if (retcode == LIBCURVE_ERROR::NOT_SUPPORT) {
+            return -retcode;
+        }
+
         return retcode;
     };
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
@@ -1020,6 +1031,12 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
                 << ", errocde = " << retcode
                 << ", error msg = " << StatusCode_Name(stcode)
                 << ", log id = " << cntl->log_id();
+
+        // MDS does not currently support delete file, retry again
+        if (retcode == LIBCURVE_ERROR::NOT_SUPPORT) {
+            return -retcode;
+        }
+
         return retcode;
     };
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
@@ -1052,6 +1069,12 @@ LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string& filename,
                 << ", errocde = " << retcode
                 << ", error msg = " << StatusCode_Name(stcode)
                 << ", log id = " << cntl->log_id();
+
+        // MDS does not currently support change file owner, retry again
+        if (retcode == LIBCURVE_ERROR::NOT_SUPPORT) {
+            return -retcode;
+        }
+
         return retcode;
     };
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);

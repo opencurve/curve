@@ -613,6 +613,19 @@ class CurveFS {
                                  const std::string &owner,
                                  bool *isHasCloneRely);
 
+    /**
+     * @brief check whether mds has started for enough time, based on the
+     *        file record expiration time(mds.file.expiredTimeUs)
+     * @param times multiple of file record expiration time
+     * @return return true if ok, otherwise return false
+     */
+    bool IsStartEnoughTime(int times) const {
+        std::chrono::steady_clock::duration timePass =
+            std::chrono::steady_clock::now() - startTime_;
+        uint32_t expiredUs = fileRecordManager_->GetFileRecordExpiredTimeUs();
+        return timePass >= times * std::chrono::microseconds(expiredUs);
+    }
+
  private:
     FileInfo rootFileInfo_;
     std::shared_ptr<NameServerStorage> storage_;

@@ -830,6 +830,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
         }
     }
 
+    fileinstance_.Close();
     fileinstance_.UnInitialize();
     mdsclient_.UnInitialize();
     mds.UnInitialize();
@@ -942,6 +943,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     ASSERT_GE(elapsedMs, 52 * 1000);
     ASSERT_LE(elapsedMs, 55 * 1000);
 
+    fileinstance_.Close();
     fileinstance_.UnInitialize();
     mdsclient_.UnInitialize();
     mds.UnInitialize();

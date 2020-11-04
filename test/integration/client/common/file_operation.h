@@ -34,6 +34,8 @@ class FileCommonOperation {
    * 指定文件名，打开文件，如果没创建则先创建，返回fd
    */
     static int Open(const std::string& filename, const std::string& owner);
+
+    static void Close(int fd);
 };
 }   //  namespace test
 }   //  namespace curve

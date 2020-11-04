@@ -196,6 +196,7 @@ int FileClient::Open(const std::string& filename,
         fileserviceMap_[fd] = fileserv;
     }
 
+    LOG(INFO) << "Open success, filname = " << filename << ", fd = " << fd;
     openedFileNum_ << 1;
 
     return fd;
@@ -277,6 +278,8 @@ int FileClient::Read(int fd, char* buf, off_t offset, size_t len) {
     }
 
     if (CheckAligned(offset, len) == false) {
+        LOG(ERROR) << "Read request not aligned, length = " << len
+                   << ", offset = " << offset << ", fd = " << fd;
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
@@ -296,6 +299,8 @@ int FileClient::Write(int fd, const char* buf, off_t offset, size_t len) {
     }
 
     if (CheckAligned(offset, len) == false) {
+        LOG(ERROR) << "Write request not aligned, length = " << len
+                   << ", offset = " << offset << ", fd = " << fd;
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
@@ -316,6 +321,8 @@ int FileClient::AioRead(int fd, CurveAioContext* aioctx,
     }
 
     if (CheckAligned(aioctx->offset, aioctx->length) == false) {
+        LOG(ERROR) << "AioRead request not aligned, length = " << aioctx->length
+                   << ", offset = " << aioctx->offset << ", fd = " << fd;
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
@@ -339,6 +346,9 @@ int FileClient::AioWrite(int fd, CurveAioContext* aioctx,
     }
 
     if (CheckAligned(aioctx->offset, aioctx->length) == false) {
+        LOG(ERROR) << "AioWrite request not aligned, length = "
+                   << aioctx->length << ", offset = " << aioctx->offset
+                   << ", fd = " << fd;
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 

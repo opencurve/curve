@@ -112,6 +112,7 @@ TEST(ClientSession, LeaseTaskTest) {
     se->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);
 
     finfo->set_filename(filename);
+    finfo->set_id(1);
     openresponse.set_statuscode(::curve::mds::StatusCode::kOK);
     openresponse.set_allocated_protosession(se);
     openresponse.set_allocated_fileinfo(finfo);
@@ -233,8 +234,57 @@ TEST(ClientSession, LeaseTaskTest) {
     }
     ASSERT_TRUE(lease->LeaseValid());
 
-    // 9. set refresh success
+    {
+        std::unique_lock<std::mutex> lk(sessionMtx);
+        sessionCV.wait(lk, [&]() { return sessionFlag; });
+    }
+
+    // 9. set inode id changed
+    refreshresp.set_allocated_fileinfo(nullptr);  // clear existing file info
+
+    curve::mds::FileInfo* newFileInfo = new curve::mds::FileInfo;
+    newFileInfo->set_filename(filename);
+    newFileInfo->set_seqnum(2);
+    newFileInfo->set_id(100);
+    newFileInfo->set_parentid(0);
+    newFileInfo->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+    newFileInfo->set_chunksize(4 * 1024 * 1024);
+    newFileInfo->set_length(4 * 1024 * 1024 * 1024ul);
+    newFileInfo->set_ctime(12345678);
+
+    refreshresp.set_allocated_fileinfo(newFileInfo);
     refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
+
+    FakeReturn* refreshFakeRetWithNewInodeId = new FakeReturn(
+        nullptr, static_cast<void*>(&refreshresp));
+    curvefsservice->SetRefreshSession(
+        refreshFakeRetWithNewInodeId, refresht);
+
+    {
+        std::unique_lock<std::mutex> lk(mtx);
+        refreshcv.wait(lk);
+    }
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    lease = fileinstance.GetLeaseExecutor();
+    ASSERT_FALSE(lease->LeaseValid());
+
+    // 10. set refresh success
+    refreshresp.set_allocated_fileinfo(nullptr);  // clear existing file info
+
+    newFileInfo = new curve::mds::FileInfo;
+    newFileInfo->set_filename(filename);
+    newFileInfo->set_seqnum(2);
+    newFileInfo->set_id(1);
+    newFileInfo->set_parentid(0);
+    newFileInfo->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+    newFileInfo->set_chunksize(4 * 1024 * 1024);
+    newFileInfo->set_length(4 * 1024 * 1024 * 1024ul);
+    newFileInfo->set_ctime(12345678);
+
+    refreshresp.set_allocated_fileinfo(newFileInfo);
+    refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
+
     FakeReturn* refreshfakeretOK4 =
         new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
     curvefsservice->SetRefreshSession(refreshfakeretOK4, refresht);
@@ -251,7 +301,7 @@ TEST(ClientSession, LeaseTaskTest) {
     std::unique_lock<std::mutex> lk(sessionMtx);
     sessionCV.wait(lk, [&]() { return sessionFlag; });
 
-    // 10. set fake close return
+    // 11. set fake close return
     ::curve::mds::CloseFileResponse closeresp;
     closeresp.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* closefileret
@@ -259,6 +309,7 @@ TEST(ClientSession, LeaseTaskTest) {
     curvefsservice->SetCloseFile(closefileret);
 
     LOG(INFO) << "uninit fileinstance";
+    fileinstance.Close();
     fileinstance.UnInitialize();
 
     LOG(INFO) << "stop server";

@@ -68,10 +68,8 @@ class LeaseExecutor {
      * @param: mdsclient是与mds续约的client
      * @param: iomanager会在续约失败或者版本变更的时候进行io调度
      */
-    LeaseExecutor(const LeaseOption& leaseOpt,
-                 UserInfo_t userinfo,
-                 MDSClient* mdscllent,
-                 IOManager4File* iomanager);
+    LeaseExecutor(const LeaseOption& leaseOpt, UserInfo_t userinfo,
+                  MDSClient* mdscllent, IOManager4File* iomanager);
 
     ~LeaseExecutor();
 

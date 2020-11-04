@@ -116,6 +116,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
 
     void TearDown() {
         writeData.clear();
+        fileinstance_->Close();
         fileinstance_->UnInitialize();
         mdsclient_.UnInitialize();
         delete fileinstance_;
@@ -309,6 +310,13 @@ class IOTrackerSplitorTest : public ::testing::Test {
         for (auto iter : cpinfoVec) {
             mc->UpdateCopysetInfo(lpcsIDInfo.lpid, iter.cpid_, iter);
         }
+
+        // 5. set close response
+        auto* closeResp = new ::curve::mds::CloseFileResponse();
+        closeResp->set_statuscode(::curve::mds::StatusCode::kOK);
+        auto* closeFakeRet =
+            new FakeReturn(nullptr, static_cast<void*>(closeResp));
+        curvefsservice.SetCloseFile(closeFakeRet);
     }
 
     FileClient *fileClient_;
@@ -765,6 +773,7 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
     if (waitthread.joinable()) {
         waitthread.join();
     }
+    fileserv->Close();
     fileserv->UnInitialize();
     delete fileserv;
     delete mockschuler;

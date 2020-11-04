@@ -175,6 +175,14 @@ class IOManager4File : public IOManager {
         mc_.SetLatestFileSn(newSn);
     }
 
+    /**
+     * @brief get current file inodeid
+     * @return file inodeid
+     */
+    uint64_t InodeId() const {
+        return mc_.InodeId();
+    }
+
  private:
     friend class LeaseExecutor;
     friend class FlightIOGuard;
@@ -187,7 +195,7 @@ class IOManager4File : public IOManager {
     /**
      * 当lease又续约成功的时候，LeaseExecutor调用该接口恢复IO
      */
-    void RefeshSuccAndResumeIO();
+    void ResumeIO();
 
     /**
      * 当lesaeexcutor发现版本变更，调用该接口开始等待inflight回来，这段期间IO是hang的

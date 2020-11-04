@@ -235,6 +235,11 @@ bool FakeMDS::StartService() {
     ::curve::mds::ReFreshSessionResponse* refreshresp = new ::curve::mds::ReFreshSessionResponse();      // NOLINT
     refreshresp->set_statuscode(::curve::mds::StatusCode::kOK);
     refreshresp->set_sessionid("1234");
+
+    auto* refreshFileInfo = new ::curve::mds::FileInfo();
+    refreshFileInfo->set_id(1);
+    refreshresp->set_allocated_fileinfo(refreshFileInfo);
+
     FakeReturn* refreshfakeret = new FakeReturn(nullptr, static_cast<void*>(refreshresp));      // NOLINT
     fakecurvefsservice_.SetRefreshSession(refreshfakeret, nullptr);
 

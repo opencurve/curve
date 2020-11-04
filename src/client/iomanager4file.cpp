@@ -227,10 +227,10 @@ void IOManager4File::LeaseTimeoutBlockIO() {
     }
 }
 
-void IOManager4File::RefeshSuccAndResumeIO() {
+void IOManager4File::ResumeIO() {
     std::unique_lock<std::mutex> lk(exitMtx_);
     if (exit_ == false) {
-        scheduler_->RefeshSuccAndResumeIO();
+        scheduler_->ResumeIO();
     } else {
         LOG(WARNING) << "io manager already exit, no need resume io!";
     }
