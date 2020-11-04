@@ -238,7 +238,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
                 curve::mds::FileInfo * info = new curve::mds::FileInfo;
                 info->set_seqnum(seq++);
                 info->set_filename("_filename_");
-                info->set_id(1);
+                info->set_id(resp->fileinfo().id());
                 info->set_parentid(0);
                 info->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
                 info->set_chunksize(4 * 1024 * 1024);
