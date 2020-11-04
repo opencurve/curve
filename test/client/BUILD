@@ -46,6 +46,7 @@ cc_test(
                 "libcbd_libcurve_test.cpp",
                 "inflight_rpc_control_test.cpp",
                 "mds_failover_test.cpp",
+                "mds_client_test.cpp",
                 "libcurve_client_unittest.cpp",
                 "lease_executor_test.cpp",
                 "request_sender_test.cpp",
@@ -335,4 +336,30 @@ cc_library(
             "//src/client:curve_client",
             ],
     visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "client_mds_client_test",
+    srcs = [
+        "mds_client_test.cpp"],
+    copts = COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:braft",
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
+        "//external:leveldb",
+        "//external:protobuf",
+        "//include/client:include_client",
+        "//proto:chunkserver-cc-protos",
+        "//proto:nameserver2_cc_proto",
+        "//proto:topology_cc_proto",
+        "//src/client:curve_client",
+        "//src/common:curve_common",
+        "//src/common/concurrent:curve_concurrent",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//test/client/mock:curve_client_mock"
+    ],
 )

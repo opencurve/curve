@@ -263,6 +263,7 @@ class UnstableCSModuleException : public ::testing::Test {
             th.join();
         }
 
+        curve::test::FileCommonOperation::Close(fd);
         LOG(INFO) << "stop all write thread, filename " << filename;
     }
 

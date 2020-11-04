@@ -578,7 +578,7 @@ class CSCloneRecoverTest : public ::testing::Test {
         ASSERT_EQ(0, strncmp(chunkData2_.c_str(), temp.get(), kChunkSize));
 
         LOG(INFO) << "Prepare curveFS file done";
-        ::close(fd_);
+        curve::test::FileCommonOperation::Close(fd_);
     }
 
     void prepareSourceDataInS3() {

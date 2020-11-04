@@ -48,7 +48,7 @@ LeaseExecutor::~LeaseExecutor() {
     }
 }
 
-bool LeaseExecutor::Start(const FInfo_t& fi, const LeaseSession_t&  lease) {
+bool LeaseExecutor::Start(const FInfo_t& fi, const LeaseSession_t& lease) {
     fullFileName_ = fi.fullPathName;
 
     leasesession_ = lease;
@@ -104,10 +104,20 @@ bool LeaseExecutor::RefreshLease() {
     }
 
     if (response.status == LeaseRefreshResult::Status::OK) {
+        if (iomanager_->InodeId() != response.finfo.id) {
+            LOG(ERROR) << fullFileName_ << " inode id changed, current id = "
+                       << iomanager_->InodeId()
+                       << ", but mds response id = " << response.finfo.id
+                       << ", block IO";
+            iomanager_->LeaseTimeoutBlockIO();
+            isleaseAvaliable_.store(false);
+            return false;
+        }
+
         CheckNeedUpdateVersion(response.finfo.seqnum);
         failedrefreshcount_.store(0);
         isleaseAvaliable_.store(true);
-        iomanager_->RefeshSuccAndResumeIO();
+        iomanager_->ResumeIO();
         return true;
     } else if (response.status == LeaseRefreshResult::Status::NOT_EXIST) {
         iomanager_->LeaseTimeoutBlockIO();
@@ -149,10 +159,10 @@ void LeaseExecutor::IncremRefreshFailed() {
 void LeaseExecutor::CheckNeedUpdateVersion(uint64_t newversion) {
     const uint64_t currentFileSn = iomanager_->GetLatestFileSn();
 
-    DVLOG(9) << "new file version = " << newversion
-        << ", current version = " << currentFileSn
-        << ", filename = " << fullFileName_;
     if (newversion > currentFileSn) {
+        LOG(INFO) << fullFileName_
+                  << " version changed, old version = " << currentFileSn
+                  << ", new version = " << newversion;
         iomanager_->SetLatestFileSn(newversion);
     }
 }

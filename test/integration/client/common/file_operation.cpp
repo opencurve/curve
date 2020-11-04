@@ -61,5 +61,10 @@ int FileCommonOperation::Open(const std::string& filename,
 
     return fd;
 }
+
+void FileCommonOperation::Close(int fd) {
+    ::Close(fd);
+}
+
 }   //  namespace test
 }   //  namespace curve

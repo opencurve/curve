@@ -118,7 +118,7 @@ class RequestScheduler : public Uncopyable {
      * 当lease又续约成功的时候，LeaseExecutor调用该接口恢复IO,
      * IO调度被恢复
      */
-    void RefeshSuccAndResumeIO() {
+    void ResumeIO() {
         std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
         blockIO_.store(false);
         leaseRefreshcv_.notify_all();

@@ -338,7 +338,9 @@ int CurveFsClientImpl::RenameCloneFile(
     };
     RetryCondition condition = [] (int ret) {
         return ret != LIBCURVE_ERROR::OK &&
-               ret != -LIBCURVE_ERROR::NOTEXIST;
+               ret != -LIBCURVE_ERROR::NOTEXIST &&
+               ret != -LIBCURVE_ERROR::NOT_SUPPORT &&
+               ret != -LIBCURVE_ERROR::FILE_OCCUPIED;  // file is in-use
     };
     RetryHelper retryHelper(method, condition);
     return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
@@ -356,7 +358,9 @@ int CurveFsClientImpl::DeleteFile(
     };
     RetryCondition condition = [] (int ret) {
         return ret != LIBCURVE_ERROR::OK &&
-               ret != -LIBCURVE_ERROR::NOTEXIST;
+               ret != -LIBCURVE_ERROR::NOTEXIST &&
+               ret != -LIBCURVE_ERROR::NOT_SUPPORT &&
+               ret != -LIBCURVE_ERROR::FILE_OCCUPIED;
     };
     RetryHelper retryHelper(method, condition);
     return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
@@ -385,7 +389,9 @@ int CurveFsClientImpl::ChangeOwner(const std::string& filename,
         return fileClient_->ChangeOwner(filename, newOwner, userInfo);
     };
     RetryCondition condition = [] (int ret) {
-        return ret != LIBCURVE_ERROR::OK;
+        return ret != LIBCURVE_ERROR::OK &&
+            ret != LIBCURVE_ERROR::NOT_SUPPORT &&
+            ret != LIBCURVE_ERROR::FILE_OCCUPIED;
     };
     RetryHelper retryHelper(method, condition);
     return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,

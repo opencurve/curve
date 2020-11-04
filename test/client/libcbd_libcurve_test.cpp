@@ -100,6 +100,7 @@ class TestLibcbdLibcurve : public ::testing::Test {
             usleep(100 * 1000);
         }
         ASSERT_EQ(ret, 0);
+        Close(ret);
     }
 
     void TearDown() {
