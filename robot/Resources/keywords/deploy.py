@@ -287,7 +287,7 @@ def use_ansible_deploy():
         cmd = "cp robot/ansible_deploy.sh . && bash ansible_deploy.sh"
         ret = shell_operator.run_exec(cmd)
         assert ret == 0 ,"ansible deploy fail"
-        host = config.client_host[0]
+        host = config.client_list[0]
         cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 %s:/etc/curve/client.conf ."%\
             (config.pravie_key_path,host)
         ret = shell_operator.run_exec(cmd)
