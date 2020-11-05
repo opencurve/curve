@@ -37,7 +37,7 @@ daemonLog=${baseLogPath}/nebd-server-daemon.log
 consoleLog=${baseLogPath}/nebd-server-console.log
 
 function get_nebd_server_pid() {
-    local tmp=`ps -ef | grep nebd-server | grep -v grep | grep -v daemon | awk '{print $2}'`
+    local tmp=`pidof nebd-server`
     echo $tmp
 }
 
@@ -146,6 +146,27 @@ function stop() {
     then
         echo "stop may not success!"
     else
+        # wait 3s
+        retry_times=0
+        while [ $retry_times -le 3 ]
+        do
+            ((retry_times=$retry_times+1))
+            pidof nebd-server > /dev/null 2>&1
+            if [ $? -eq 0 ]
+            then
+                sleep 1
+            else
+                break
+            fi
+        done
+
+        pidof nebd-server > /dev/null 2>&1
+        if [ $? -eq 0 ]
+        then
+            echo "nebd-server still exists after 3s, now kill it with SIGKILL"
+            kill -9 `pidof nebd-server`
+        fi
+
         echo "nebd-server exit success!"
         echo "daemon exit success!"
     fi
@@ -170,7 +191,7 @@ function restart() {
 
     if [ $old_pid == $new_pid ]
     then
-        echo "restart nebd-server may failed, try kill -9 nebd-server"
+        echo "restart nebd-server may failed, now kill it with SIGKILL"
         kill -9 $old_pid
     fi
 }
