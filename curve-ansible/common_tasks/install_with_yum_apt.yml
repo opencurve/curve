@@ -21,12 +21,26 @@
   include_tasks: common_tasks/get_distro_name.yml
 
 - name: Debian/Ubuntu - install lib
-  shell: sudo apt-get -y install {{ apt_lib_name }}
+  block:
+    - name: determine if lib installed with dpkg
+      shell: dpkg -s {{ apt_lib_name }}
+      ignore_errors: true
+      register: result
+    - name: install lib with apt
+      shell: sudo apt-get -y install {{ apt_lib_name }}
+      when: result.rc != 0
   when:
     - "'Ubuntu' in distro or 'Debian' in distro"
 
 - name: Redhat/CentOS - install lib
-  shell: sudo yum -y install {{ yum_lib_name }}
+  block:
+    - name: determine if lib installed with yum
+      shell: yum list installed | grep {{ yum_lib_name }}
+      ignore_errors: true
+      register: result
+    - name: install lib with yum
+      shell: sudo yum -y install {{ yum_lib_name }}
+      when: result.rc != 0
   when:
     - "'CentOS' in distro"
 
