@@ -2,8 +2,11 @@
 
 set -e
 
-chmod +x /usr/bin/mount_curve_clouddisk.sh 
+chmod +x /usr/bin/mount_curve_clouddisk.sh
 cp /usr/bin/mount_curve_clouddisk.sh /etc/init.d
 update-rc.d mount_curve_clouddisk.sh defaults
 
-exit 
+filename=$HOSTNAME"_curvefile"
+sed -i "s/filename=curvefile/filename=$filename/g" /etc/nbd/k8s_curve.conf
+
+exit 0
