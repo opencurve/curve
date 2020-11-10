@@ -59,14 +59,11 @@ void MDS::InitMdsOptions(std::shared_ptr<Configuration> conf) {
     // cache size of namestorage
     conf_->GetValueFatalIfFail("mds.cache.count", &options_.mdsCacheCount);
 
-    // fetch the address that mds listen to
     conf_->GetValueFatalIfFail("mds.listen.addr", &options_.mdsListenAddr);
 
-    // fetch dummy server port
     conf_->GetValueFatalIfFail(
         "mds.dummy.listen.port", &options_.dummyListenPort);
 
-    // fetch file lock bucket size of mds
     conf_->GetValueFatalIfFail(
         "mds.filelock.bucketNum", &options_.mdsFilelockBucketNum);
 }
@@ -89,7 +86,7 @@ void MDS::StartDummy() {
 
 void MDS::StartCompaginLeader() {
     // initialize etcd client
-    // TODO(lixiaocui): why not store the configuration in EtcdConf?
+    // TODO(lixiaocui): why not store all configuration in EtcdConf?
     int etcdTimeout;
     conf_->GetValueFatalIfFail(
         "mds.etcd.operation.timeoutMs", &etcdTimeout);
@@ -115,26 +112,16 @@ void MDS::StartCompaginLeader() {
 }
 
 void MDS::Init() {
-    // initialize segment statistic module
     InitSegmentAllocStatistic(options_.retryInterTimes,
                               options_.periodicPersistInterMs);
-    // initialize NameServer storage module
     InitNameServerStorage(options_.mdsCacheCount);
-    // init topology
     InitTopology(options_.topologyOption);
-    // init TopologyStat
     InitTopologyStat();
-    // init TopologyChunkAllocator
     InitTopologyChunkAllocator(options_.topologyOption);
-    // init topologyMetricService
     InitTopologyMetricService(options_.topologyOption);
-    // init topologyServiceManager
     InitTopologyServiceManager(options_.topologyOption);
-    // initialize curveFs:
     InitCurveFS(options_.curveFSOptions);
-    // initialize scheduler module
     InitCoordinator();
-    // initialize heartbeat module
     InitHeartbeatManager();
 
     fileLockManager_ =
@@ -148,16 +135,11 @@ void MDS::Run() {
         LOG(ERROR) << "MDS not inited yet!";
         return;
     }
-    // start segmentAllocStatistic
     segmentAllocStatistic_->Run();
-    // start topology module
     LOG_IF(FATAL, topology_->Run()) << "run topology module fail";
-    // run topologyMetricService
     LOG_IF(FATAL, topologyMetricService_->Run() < 0)
         << "topologyMetricService start run fail";
-    // run curveFs
     kCurveFS.Run();
-    // start clean manager
     LOG_IF(FATAL, !cleanManager_->Start()) << "start cleanManager fail.";
     // recover unfinished tasks
     cleanManager_->RecoverCleanTasks();
@@ -174,31 +156,23 @@ void MDS::Stop() {
     }
     brpc::AskToQuit();
 
-    // delete the node before stop running
     leaderElection_->LeaderResign();
     LOG(INFO) << "resign success";
-    // stop heartbeat module
+
     heartbeatManager_->Stop();
 
-    // stop scheduler module
     coordinator_->Stop();
 
-    // uninitialize curvefs (stop file record manager, reset pointers to NULL)
     kCurveFS.Uninit();
 
-    // stop cleanManager
     cleanManager_->Stop();
 
-    // stop topologyMetricService
     topologyMetricService_->Stop();
 
-    // stop topology module
     topology_->Stop();
 
-    // stop segment allocation and statistic module
     segmentAllocStatistic_->Stop();
 
-    // close etcd client
     etcdClient_->CloseClient();
 }
 
@@ -246,8 +220,8 @@ void MDS::StartServer() {
         << "start brpc server error";
     running_ = true;
 
-    // To achieve the graceful exit of SIGTERM, you need to specify parameters when starting the process: //NOLINT
-    // --graceful_quit_on_sigterm
+    // To achieve the graceful exit of SIGTERM, you need to specify parameters
+    // when starting the process: --graceful_quit_on_sigterm
     server.RunUntilAskedToQuit();
 }
 
