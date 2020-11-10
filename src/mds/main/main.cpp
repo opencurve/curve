@@ -25,7 +25,6 @@
 #include "src/mds/server/mds.h"
 #include "src/mds/common/mds_define.h"
 
-// (argument name, default value, description)
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
 DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds listen addr");
 DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd client");
@@ -111,16 +110,15 @@ int main(int argc, char **argv) {
     // initialize MDS options
     mds.InitMdsOptions(conf);
 
-    // start MDS dummy server for master-slave liveness probe and Metric exportation of MDS //NOLINT
+    // start MDS dummy server for liveness probe and metric exportation of MDS
     mds.StartDummy();
 
-    // leader election (for leader MDS)
     mds.StartCompaginLeader();
 
-    // initialize other modules after master selection
+    // Initialize other modules after winning election
     mds.Init();
 
-    // start mds service
+    // start mds server and wait CTRL+C to quit
     mds.Run();
 
     // stop server and background threads

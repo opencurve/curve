@@ -92,7 +92,6 @@ struct MDSOptions {
     uint64_t periodicPersistInterMs;
     // cache size of namestorage
     int mdsCacheCount;
-    // bucket size of mds file lock
     int mdsFilelockBucketNum;
 
     FileRecordOptions fileRecordOptions;
@@ -112,14 +111,13 @@ class MDS {
     ~MDS();
 
     /**
-     * @brief initialize mds options (read) from configuration files
+     * @brief initialize mds options from configuration files
      */
     void InitMdsOptions(std::shared_ptr<Configuration> conf);
 
     /**
-     * @brief start MDS DummyServer for liveness probe and flags fetching
-     *        between master and slave MDS servers (for exposing program
-     *        version, fetching configuration from files etc.)
+     * @brief start MDS DummyServer for liveness probe for all mds
+     *        and get metrics like version and configuration  
      */
     void StartDummy();
 
@@ -145,153 +143,57 @@ class MDS {
     void Stop();
 
  private:
-    /**
-     * @brief initialize session options
-     * @param fileRecordOptions session related options
-     */
     void InitFileRecordOptions(FileRecordOptions *fileRecordOptions);
 
-    /**
-     * @brief initialize authentication options
-     * @param authOptions authentication options
-     */
     void InitAuthOptions(RootAuthOption *authOptions);
 
-    /**
-     * @brief initialize curveFS options
-     * @param curveFSOptions curveFS options
-     */
     void InitCurveFSOptions(CurveFSOption *curveFSOptions);
 
-    /**
-     * @brief initialize scheduling options
-     * @param[out] scheduleOption scheduling options
-     */
     void InitScheduleOption(ScheduleOption *scheduleOption);
 
-    /**
-     * @brief initialize heartbeat options
-     * @param[out] heartbeatOption heartbeat options
-     */
     void InitHeartbeatOption(HeartbeatOption* heartbeatOption);
 
-    /**
-     * @brief initialize etcd configurations
-     * @param[out] etcdConf etcd configurations
-     */
     void InitEtcdConf(EtcdConf* etcdConf);
 
-    /**
-     * @brief initialize leader election options
-     * @[out] electionOp leader election options
-     */
     void InitMdsLeaderElectionOption(LeaderElectionOptions* electionOp);
 
-    /**
-     * @brief initialize topology options
-     * @param[out] topologyOption topology options
-     */
     void InitTopologyOption(TopologyOption *topologyOption);
 
-    /**
-     * @brief initialize copyset options
-     * @param[out] copysetOption copyset options
-     */
     void InitCopysetOption(CopysetOption *copysetOption);
 
-    /**
-     * @brief initialize chunkserver client option
-     * @param[out] option chunkserver client option
-     */
     void InitChunkServerClientOption(ChunkServerClientOption *option);
 
-    /**
-     * @brief initialize etcd client
-     * @param etcdConf etcd configuration
-     * @param etcdTimeout timeout peroid
-     * @param retryTimes retry times
-     */
     void InitEtcdClient(const EtcdConf& etcdConf,
                         int etcdTimeout,
                         int retryTimes);
 
-    /**
-     * @brief initialize leader election module
-     * @param leaderElectionOp leader election options
-     */
     void InitLeaderElection(const LeaderElectionOptions& leaderElectionOp);
 
-    /**
-     * @brief initialize segment allocation and statistic module
-     * @param retryInterTimes retry interval
-     * @param periodicPersistInterMs time interval of RAM data persistance (ms)
-     */
     void InitSegmentAllocStatistic(uint64_t retryInterTimes,
                                    uint64_t periodicPersistInterMs);
 
-    /**
-     * @brief initialize nameserver storage module
-     * @param mdsCacheCount cache size
-     */
     void InitNameServerStorage(int mdsCacheCount);
 
-    /**
-     * @brief run BRPC module
-     */
     void StartServer();
 
-    /**
-     * @brief initialize topology related modules
-     */
     void InitTopologyModule();
 
-    /**
-     * @brief initialize Topology module
-     * @param option topology options
-     */
     void InitTopology(const TopologyOption& option);
 
-    /**
-     * @brief initialize Topology statistics module
-     */
     void InitTopologyStat();
 
-    /**
-     * @brief initialize the topology metric module
-     * @param option topology related options
-     */
     void InitTopologyMetricService(const TopologyOption& option);
 
-    /**
-     * @brief initialize topology service managing module
-     * @param option topology related options
-     */
     void InitTopologyServiceManager(const TopologyOption& option);
 
-    /**
-     * @brief initialize the chunk allocation module
-     * @param option topology related options
-     */
     void InitTopologyChunkAllocator(const TopologyOption& option);
 
-    /**
-     * @brief initialize curveFS
-     */
     void InitCurveFS(const CurveFSOption& curveFSOptions);
 
-    /**
-     * @brief initialize the asynchronous cleanup module
-     */
     void InitCleanManager();
 
-    /**
-     * @brief initialize the scheduling module
-     */
     void InitCoordinator();
 
-    /**
-     * @brief initialize the heartbeat module
-     */
     void InitHeartbeatManager();
 
  private:
@@ -303,36 +205,21 @@ class MDS {
     bool running_;
     // mds status, leader or follower
     bvar::Status<std::string> status_;
-    // mds related options
     MDSOptions options_;
 
-    // client interacting with etcd
     std::shared_ptr<EtcdClientImp> etcdClient_;
-    // leader election module
     std::shared_ptr<LeaderElection> leaderElection_;
-    // segment distribution statistics module
     std::shared_ptr<AllocStatistic> segmentAllocStatistic_;
-    // NameServer storage module
     std::shared_ptr<NameServerStorage> nameServerStorage_;
-    // topology module for persisting topology data in memory periodically
     std::shared_ptr<TopologyImpl> topology_;
-    // topology statistics module
     std::shared_ptr<TopologyStatImpl> topologyStat_;
-    // chunk allocation module
     std::shared_ptr<TopologyChunkAllocator> topologyChunkAllocator_;
-    // topology metric
     std::shared_ptr<TopologyMetricService> topologyMetricService_;
-    // topology service management module
     std::shared_ptr<TopologyServiceManager> topologyServiceManager_;
-    // asynchronous cleanup module
     std::shared_ptr<CleanManager> cleanManager_;
-    // scheduling module
     std::shared_ptr<Coordinator> coordinator_;
-    // heartbeat module
     std::shared_ptr<HeartbeatManager> heartbeatManager_;
-    // etcd node information (logic in Go)
     char* etcdEndpoints_;
-    // file lock management object
     FileLockManager* fileLockManager_;
 };
 
