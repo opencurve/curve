@@ -34,6 +34,7 @@ then
 	exit
 fi
 
+#step2 获取tag版本和git提交版本信息
 #获取tag版本
 tag_version=`git status | grep -w "HEAD detached at" | awk '{print $NF}' | awk -F"v" '{print $2}'`
 if [ -z ${tag_version} ]
@@ -42,7 +43,32 @@ then
 	tag_version=9.9.9
 fi
 
-#step2 执行编译
+#获取git提交版本信息
+commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
+if [ "$1" = "debug" ]
+then
+	debug="+debug"
+else
+	debug=""
+fi
+
+curve_version=${tag_version}+${commit_id}${debug}
+
+#step3 执行编译
+bazel_version=`bazel version | head -n 1 | awk '{print $3}'`
+if [ -z ${bazel_version} ]
+then
+    echo "please install bazel 0.17.2 first"
+    exit
+fi
+if [ ${bazel_version} != "0.17.2" ]
+then
+    echo "bazel version must 0.17.2"
+    echo "now version is ${bazel_version}"
+    exit
+fi
+echo "bazel version : ${bazel_version}"
+
 echo "start compile"
 cd ${dir}/thirdparties/etcdclient
 make clean
@@ -67,7 +93,7 @@ if [ "$1" = "debug" ]
 then
 bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
--Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${tag_version} \
+-Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_version} \
 --linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
@@ -84,7 +110,7 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --compilation_mode=dbg 
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
 --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
--L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${tag_version} \
+-L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
 --linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
@@ -94,7 +120,7 @@ fi
 else
 bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
--Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${tag_version} \
+-Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_version} \
 --linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
@@ -111,7 +137,7 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --copt -O2 -s \
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
 --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
--L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${tag_version} \
+-L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
 --linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
@@ -121,7 +147,7 @@ fi
 fi
 echo "end compile"
 
-#step3 创建临时目录，拷贝二进制、lib库和配置模板
+#step4 创建临时目录，拷贝二进制、lib库和配置模板
 echo "start copy"
 mkdir -p build/curve/
 if [ $? -ne 0 ]
@@ -333,7 +359,7 @@ then
 fi
 echo "end copy"
 
-# step 3.1 prepare for nebd-package
+# step 4.1 prepare for nebd-package
 mkdir -p build/nebd-package/bin
 mkdir -p build/nebd-package/lib/nebd
 
@@ -344,35 +370,26 @@ done
 
 cp bazel-bin/nebd/src/part2/nebd-server build/nebd-package/bin
 
-# step 3.2 prepare for curve-nbd package
+# step 4.2 prepare for curve-nbd package
 mkdir -p build/nbd-package/bin
 cp bazel-bin/nbd/src/curve-nbd build/nbd-package/bin
-
-#step4 获取git提交版本信息
-commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
-if [ "$1" = "debug" ]
-then
-	debug="+debug"
-else
-	debug=""
-fi
 
 #step5 打包tar包
 echo "start make tarball"
 cd ${dir}/build
-curve_name="curve_${tag_version}+${commit_id}${debug}.tar.gz"
+curve_name="curve_${curve_version}.tar.gz"
 echo "curve_name: ${curve_name}"
 tar zcvf ${curve_name} curve
 cp ${curve_name} $dir
-monitor_name="curve-monitor_${tag_version}+${commit_id}${debug}.tar.gz"
+monitor_name="curve-monitor_${curve_version}.tar.gz"
 echo "curve_name: ${curve_name}"
 tar zcvf ${monitor_name} curve-monitor
 cp ${monitor_name} $dir
-nebd_name="nebd_${tag_version}+${commit_id}${debug}.tar.gz"
+nebd_name="nebd_${curve_version}.tar.gz"
 echo "nebd_name: ${nebd_name}"
 tar zcvf ${nebd_name} nebd-package
 cp ${nebd_name} $dir
-nbd_name="nbd_${tag_version}+${commit_id}${debug}.tar.gz"
+nbd_name="nbd_${curve_version}.tar.gz"
 echo "nbd_name: ${nbd_name}"
 tar zcvf ${nbd_name} nbd-package
 cp ${nbd_name} $dir
@@ -404,7 +421,7 @@ do
 done
 
 # 替换curvefs setup.py中的版本号
-sed -i "s/version-anchor/${tag_version}+${commit_id}${debug}/g" setup.py
+sed -i "s/version-anchor/${curve_version}/g" setup.py
 
 python2 setup.py bdist_wheel
 cp dist/*whl $dir

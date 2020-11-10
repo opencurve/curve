@@ -83,13 +83,19 @@ bash ./mk-deb.sh
 ```
 注意：基于deb包的安装部署流程正在整理中，目前不推荐使用deb包安装部署
 
+仅编译全部模块，不进行打包，可以执行命令：
+
+```
+bash ./build.sh
+```
+
 ## 测试用例编译及执行
 
 ### 编译全部模块
 
 仅编译全部模块，不进行打包
 ```
-bazel build ... --compilation_mode=dbg -s --collect_code_coverage  --jobs=32 --copt   -DHAVE_ZLIB=1 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX
+bash ./build.sh
 ```
 
 ### 编译对应模块的代码和运行测试
