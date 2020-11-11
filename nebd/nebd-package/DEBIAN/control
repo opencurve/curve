@@ -1,7 +1,7 @@
 Package: nebd
 Section:
 Priority: optional
-Depends: libunwind8, libjemalloc1(= 3.6.0-9.1)
+Depends: libunwind8, libjemalloc1(= 3.6.0-9.1) | libjemalloc2(>= 5.1.0-3)
 Suggests:
 Architecture:amd64
 Installed-Size:
