@@ -103,11 +103,11 @@ function start() {
         exit 1
     fi
 
-    jemallocpath=/usr/lib/x86_64-linux-gnu/libjemalloc.so.1
     # 检查jemalloc库文件
-    if [ ! -f ${jemallocpath} ]
+    jemallocpath=`find /usr/ -name "libjemalloc.so*" -print -quit`
+    if [ "${jemallocpath}" = "" ]
     then
-        echo "Not found jemalloc library, Path is ${jemallocpath}"
+        echo "Not found jemalloc library in /usr/"
         exit 1
     fi
 
