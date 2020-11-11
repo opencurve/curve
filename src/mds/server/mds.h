@@ -197,7 +197,7 @@ class MDS {
     void InitHeartbeatManager();
 
  private:
-    //mds configuration items
+    // mds configuration items
     std::shared_ptr<Configuration> conf_;
     // initialized or not
     bool inited_;
