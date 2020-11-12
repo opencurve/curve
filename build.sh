@@ -25,8 +25,8 @@ rm -rf curvefs_python/tmplib/
 git submodule update --init
 if [ $? -ne 0 ]
 then
-	echo "submodule init failed"
-	exit
+    echo "submodule init failed"
+    exit
 fi
 
 #step2 获取tag版本和git提交版本信息
@@ -35,23 +35,24 @@ tag_version=`git status | grep -w "HEAD detached at" | awk '{print $NF}' | awk -
 if [ -z ${tag_version} ]
 then
     echo "not found version info, set version to 9.9.9"
-	tag_version=9.9.9
+    tag_version=9.9.9
 fi
 
 #获取git提交版本信息
 commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
 if [ "$1" = "debug" ]
 then
-	debug="+debug"
+    debug="+debug"
 else
-	debug=""
+    debug=""
 fi
 
 curve_version=${tag_version}+${commit_id}${debug}
 
 
 #step3 执行编译
-bazel_version=`bazel version | head -n 1 | awk '{print $3}'`
+# check bazel verion, bazel vesion must = 0.17.2
+bazel_version=`bazel version | grep "Build label" | awk '{print $3}'`
 if [ -z ${bazel_version} ]
 then
     echo "please install bazel 0.17.2 first"
@@ -64,6 +65,29 @@ then
     exit
 fi
 echo "bazel version : ${bazel_version}"
+
+# check gcc version, gcc version must >= 4.8.5
+gcc_version_major=`gcc -dumpversion | awk -F'.' '{print $1}'`
+gcc_version_minor=`gcc -dumpversion | awk -F'.' '{print $2}'`
+gcc_version_pathlevel=`gcc -dumpversion | awk -F'.' '{print $3}'`
+if [ ${gcc_version_major} -lt 4 ]
+then
+    echo "gcc version must >= 4.8.5, current version is "`gcc -dumpversion`
+    exit
+fi
+
+if [[ ${gcc_version_major} -eq 4 ]] && [[ ${gcc_version_minor} -lt 8 ]]
+then
+    echo "gcc version must >= 4.8.5, current version is "`gcc -dumpversion`
+    exit
+fi
+
+if  [[ ${gcc_version_major} -eq 4 ]] && [[ ${gcc_version_minor} -eq 8 ]] && [[ ${gcc_version_pathlevel} -lt 5 ]]
+then
+    echo "gcc version must >= 4.8.5, current version is "`gcc -dumpversion`
+    exit
+fi
+echo "gcc version : "`gcc -dumpversion`
 
 echo "start compile"
 cd ${dir}/thirdparties/etcdclient
@@ -93,14 +117,14 @@ bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glo
 --linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
-	echo "build phase1 failed"
-	exit
+    echo "build phase1 failed"
+    exit
 fi
 bash ./curvefs_python/configure.sh
 if [ $? -ne 0 ]
 then
-	echo "configure failed"
-	exit
+    echo "configure failed"
+    exit
 fi
 bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s \
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
@@ -110,8 +134,8 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --compilation_mode=dbg 
 --linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
-	echo "build phase2 failed"
-	exit
+    echo "build phase2 failed"
+    exit
 fi
 else
 bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
@@ -120,14 +144,14 @@ bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
 --linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
-	echo "build phase1 failed"
-	exit
+    echo "build phase1 failed"
+    exit
 fi
 bash ./curvefs_python/configure.sh
 if [ $? -ne 0 ]
 then
-	echo "configure failed"
-	exit
+    echo "configure failed"
+    exit
 fi
 bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --copt -O2 -s \
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
@@ -137,8 +161,8 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --copt -O2 -s \
 --linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
-	echo "build phase2 failed"
-	exit
+    echo "build phase2 failed"
+    exit
 fi
 fi
 echo "end compile"

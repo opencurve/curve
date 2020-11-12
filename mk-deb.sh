@@ -30,8 +30,8 @@ rm -rf build
 git submodule update --init
 if [ $? -ne 0 ]
 then
-	echo "submodule init failed"
-	exit
+    echo "submodule init failed"
+    exit
 fi
 
 #step2 获取tag版本和git提交版本信息
@@ -40,22 +40,22 @@ tag_version=`git status | grep -w "HEAD detached at" | awk '{print $NF}' | awk -
 if [ -z ${tag_version} ]
 then
     echo "not found version info, set version to 9.9.9"
-	tag_version=9.9.9
+    tag_version=9.9.9
 fi
 
 #获取git提交版本信息
 commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
 if [ "$1" = "debug" ]
 then
-	debug="+debug"
+    debug="+debug"
 else
-	debug=""
+    debug=""
 fi
 
 curve_version=${tag_version}+${commit_id}${debug}
 
 #step3 执行编译
-bazel_version=`bazel version | head -n 1 | awk '{print $3}'`
+bazel_version=`bazel version | grep "Build label" | awk '{print $3}'`
 if [ -z ${bazel_version} ]
 then
     echo "please install bazel 0.17.2 first"
@@ -68,6 +68,29 @@ then
     exit
 fi
 echo "bazel version : ${bazel_version}"
+
+# check gcc version, gcc version must >= 4.8.5
+gcc_version_major=`gcc -dumpversion | awk -F'.' '{print $1}'`
+gcc_version_minor=`gcc -dumpversion | awk -F'.' '{print $2}'`
+gcc_version_pathlevel=`gcc -dumpversion | awk -F'.' '{print $3}'`
+if [ ${gcc_version_major} -lt 4 ]
+then
+    echo "gcc version must >= 4.8.5, current version is "`gcc -dumpversion`
+    exit
+fi
+
+if [[ ${gcc_version_major} -eq 4 ]] && [[ ${gcc_version_minor} -lt 8 ]]
+then
+    echo "gcc version must >= 4.8.5, current version is "`gcc -dumpversion`
+    exit
+fi
+
+if  [[ ${gcc_version_major} -eq 4 ]] && [[ ${gcc_version_minor} -eq 8 ]] && [[ ${gcc_version_pathlevel} -lt 5 ]]
+then
+    echo "gcc version must >= 4.8.5, current version is "`gcc -dumpversion`
+    exit
+fi
+echo "gcc version : "`gcc -dumpversion`
 
 cd ${dir}/thirdparties/etcdclient
 make clean
@@ -88,14 +111,14 @@ bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glo
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_version}
 if [ $? -ne 0 ]
 then
-	echo "build phase1 failed"
-	exit
+    echo "build phase1 failed"
+    exit
 fi
 bash ./curvefs_python/configure.sh
 if [ $? -ne 0 ]
 then
-	echo "configure failed"
-	exit
+    echo "configure failed"
+    exit
 fi
 bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s \
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
@@ -104,8 +127,8 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --compilation_mode=dbg 
 -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version}
 if [ $? -ne 0 ]
 then
-	echo "build phase2 failed"
-	exit
+    echo "build phase2 failed"
+    exit
 fi
 else
 bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
@@ -113,14 +136,14 @@ bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_version}
 if [ $? -ne 0 ]
 then
-	echo "build phase1 failed"
-	exit
+    echo "build phase1 failed"
+    exit
 fi
 bash ./curvefs_python/configure.sh
 if [ $? -ne 0 ]
 then
-	echo "configure failed"
-	exit
+    echo "configure failed"
+    exit
 fi
 bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --copt -O2 -s \
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
@@ -129,8 +152,8 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --copt -O2 -s \
 -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version}
 if [ $? -ne 0 ]
 then
-	echo "build phase2 failed"
-	exit
+    echo "build phase2 failed"
+    exit
 fi
 fi
 
@@ -138,74 +161,74 @@ fi
 mkdir build
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp -r curve-mds build/
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp -r curve-chunkserver build/
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp ./curve-ansible/roles/clean/files/recycle_chunks.sh build/curve-chunkserver/home/nbs
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 
 cp -r curve-sdk build/
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp -r curve-tools build/
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp -r curve-monitor build/
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp -r curve-snapshotcloneserver build/
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp -r curve-nginx build/
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 
 mkdir -p build/curve-mds/usr/bin
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve-mds/etc/curve
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve-mds/usr/lib
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve-tools/usr/bin
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp ./bazel-bin/src/mds/main/curvemds build/curve-mds/usr/bin/curve-mds
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 #cp ./bazel-bin/src/tools/curve_status_tool \
 #build/curve-mds/usr/bin/curve_status_tool
@@ -217,7 +240,7 @@ cp thirdparties/etcdclient/libetcdclient.so \
 build/curve-mds/usr/lib/libetcdclient.so
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 #cp ./conf/mds.conf build/curve-mds/etc/curve/mds.conf
 #if [ $? -ne 0 ]
@@ -227,7 +250,7 @@ fi
 cp ./bazel-bin/tools/curvefsTool build/curve-mds/usr/bin/curve-tool
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp -r tools/snaptool build/curve-tools/usr/bin/snaptool-lib
 cp tools/snaptool/snaptool build/curve-tools/usr/bin/snaptool
@@ -240,29 +263,29 @@ cp ./bazel-bin/src/tools/curve_tool \
 build/curve-tools/usr/bin/curve_ops_tool
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve-chunkserver/usr/bin
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve-chunkserver/etc/curve
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp ./bazel-bin/src/chunkserver/chunkserver \
 build/curve-chunkserver/usr/bin/curve-chunkserver
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp ./bazel-bin/src/tools/curve_chunkserver_tool \
 build/curve-chunkserver/usr/bin/curve_chunkserver_tool
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 #cp ./conf/chunkserver.conf.example \
 #build/curve-chunkserver/etc/curve/chunkserver.conf
@@ -280,28 +303,28 @@ cp ./bazel-bin/src/tools/curve_format \
 build/curve-chunkserver/usr/bin/curve-format
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 
 mkdir -p build/curve-sdk/usr/curvefs
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve-sdk/usr/bin
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve-sdk/etc/curve
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve-sdk/usr/lib
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve-sdk/usr/include
 if [ $? -ne 0 ]
@@ -312,38 +335,38 @@ cp ./bazel-bin/curvefs_python/libcurvefs.so \
 build/curve-sdk/usr/curvefs/_curvefs.so
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp curvefs_python/curvefs.py build/curve-sdk/usr/curvefs/curvefs.py
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp curvefs_python/__init__.py build/curve-sdk/usr/curvefs/__init__.py
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp curvefs_python/curvefs_tool.py build/curve-sdk/usr/curvefs/curvefs_tool.py
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp curvefs_python/parser.py build/curve-sdk/usr/curvefs/parser.py
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp curvefs_python/curve build/curve-sdk/usr/bin/curve
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 chmod a+x build/curve-sdk/usr/bin/curve
 cp curvefs_python/tmplib/* build/curve-sdk/usr/lib/
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp ./bazel-bin/src/client/libcurve.so build/curve-sdk/usr/lib
 cp include/client/libcurve.h build/curve-sdk/usr/include
@@ -359,68 +382,68 @@ fi
 mkdir -p build/curve-monitor/usr/bin
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve-monitor/etc/curve/monitor
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp monitor/curve-monitor.sh build/curve-monitor/usr/bin/curve-monitor.sh
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp -r monitor/* build/curve-monitor/etc/curve/monitor
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve-snapshotcloneserver/usr/bin
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp ./bazel-bin/src/snapshotcloneserver/snapshotcloneserver \
 build/curve-snapshotcloneserver/usr/bin/curve-snapshotcloneserver
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 
 mkdir -p build/curve-nginx/etc/curve/nginx/app/etc
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp -r ./curve-snapshotcloneserver-nginx/app/lib \
 build/curve-nginx/etc/curve/nginx/app
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp -r ./curve-snapshotcloneserver-nginx/app/src \
 build/curve-nginx/etc/curve/nginx/app
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve-nginx/etc/curve/nginx/conf
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp ./curve-snapshotcloneserver-nginx/conf/mime.types \
 build/curve-nginx/etc/curve/nginx/conf/
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp -r ./curve-snapshotcloneserver-nginx/docker \
 build/curve-nginx/etc/curve/nginx/
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 # step 4.1 prepare for nebd-package
 cp -r nebd/nebd-package build/
