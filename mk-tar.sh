@@ -30,8 +30,8 @@ rm -rf build
 git submodule update --init
 if [ $? -ne 0 ]
 then
-	echo "submodule init failed"
-	exit
+    echo "submodule init failed"
+    exit
 fi
 
 #step2 获取tag版本和git提交版本信息
@@ -40,22 +40,22 @@ tag_version=`git status | grep -w "HEAD detached at" | awk '{print $NF}' | awk -
 if [ -z ${tag_version} ]
 then
     echo "not found version info, set version to 9.9.9"
-	tag_version=9.9.9
+    tag_version=9.9.9
 fi
 
 #获取git提交版本信息
 commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
 if [ "$1" = "debug" ]
 then
-	debug="+debug"
+    debug="+debug"
 else
-	debug=""
+    debug=""
 fi
 
 curve_version=${tag_version}+${commit_id}${debug}
 
 #step3 执行编译
-bazel_version=`bazel version | head -n 1 | awk '{print $3}'`
+bazel_version=`bazel version | grep "Build label" | awk '{print $3}'`
 if [ -z ${bazel_version} ]
 then
     echo "please install bazel 0.17.2 first"
@@ -68,6 +68,29 @@ then
     exit
 fi
 echo "bazel version : ${bazel_version}"
+
+# check gcc version, gcc version must >= 4.8.5
+gcc_version_major=`gcc -dumpversion | awk -F'.' '{print $1}'`
+gcc_version_minor=`gcc -dumpversion | awk -F'.' '{print $2}'`
+gcc_version_pathlevel=`gcc -dumpversion | awk -F'.' '{print $3}'`
+if [ ${gcc_version_major} -lt 4 ]
+then
+    echo "gcc version must >= 4.8.5, current version is "`gcc -dumpversion`
+    exit
+fi
+
+if [[ ${gcc_version_major} -eq 4 ]] && [[ ${gcc_version_minor} -lt 8 ]]
+then
+    echo "gcc version must >= 4.8.5, current version is "`gcc -dumpversion`
+    exit
+fi
+
+if  [[ ${gcc_version_major} -eq 4 ]] && [[ ${gcc_version_minor} -eq 8 ]] && [[ ${gcc_version_pathlevel} -lt 5 ]]
+then
+    echo "gcc version must >= 4.8.5, current version is "`gcc -dumpversion`
+    exit
+fi
+echo "gcc version : "`gcc -dumpversion`
 
 echo "start compile"
 cd ${dir}/thirdparties/etcdclient
@@ -97,14 +120,14 @@ bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glo
 --linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
-	echo "build phase1 failed"
-	exit
+    echo "build phase1 failed"
+    exit
 fi
 bash ./curvefs_python/configure.sh
 if [ $? -ne 0 ]
 then
-	echo "configure failed"
-	exit
+    echo "configure failed"
+    exit
 fi
 bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s \
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
@@ -114,8 +137,8 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --compilation_mode=dbg 
 --linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
-	echo "build phase2 failed"
-	exit
+    echo "build phase2 failed"
+    exit
 fi
 else
 bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
@@ -124,14 +147,14 @@ bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
 --linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
-	echo "build phase1 failed"
-	exit
+    echo "build phase1 failed"
+    exit
 fi
 bash ./curvefs_python/configure.sh
 if [ $? -ne 0 ]
 then
-	echo "configure failed"
-	exit
+    echo "configure failed"
+    exit
 fi
 bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --copt -O2 -s \
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
@@ -141,8 +164,8 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --copt -O2 -s \
 --linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
-	echo "build phase2 failed"
-	exit
+    echo "build phase2 failed"
+    exit
 fi
 fi
 echo "end compile"
@@ -152,46 +175,46 @@ echo "start copy"
 mkdir -p build/curve/
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 # curve-mds
 mkdir -p build/curve/curve-mds/bin
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve/curve-mds/lib
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp ./bazel-bin/src/mds/main/curvemds build/curve/curve-mds/bin/curve-mds
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp thirdparties/etcdclient/libetcdclient.so \
 build/curve/curve-mds/lib/libetcdclient.so
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp ./bazel-bin/tools/curvefsTool build/curve/curve-mds/bin/curve-tool
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 # curve-tools
 mkdir -p build/curve/curve-tools/bin
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp ./bazel-bin/src/tools/curve_tool \
 build/curve/curve-tools/bin/curve_ops_tool
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp -r tools/snaptool build/curve/curve-tools/bin/snaptool-lib
 cp tools/snaptool/snaptool build/curve/curve-tools/bin/snaptool
@@ -204,41 +227,41 @@ fi
 mkdir -p build/curve/curve-chunkserver/bin
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp ./bazel-bin/src/chunkserver/chunkserver \
 build/curve/curve-chunkserver/bin/curve-chunkserver
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp ./bazel-bin/src/tools/curve_chunkserver_tool \
 build/curve/curve-chunkserver/bin/curve_chunkserver_tool
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp ./bazel-bin/src/tools/curve_format \
 build/curve/curve-chunkserver/bin/curve-format
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 # curve-sdk
 mkdir -p build/curve/curve-sdk/curvefs
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve/curve-sdk/bin
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve/curve-sdk/lib
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve/curve-sdk/include
 if [ $? -ne 0 ]
@@ -249,38 +272,38 @@ cp ./bazel-bin/curvefs_python/libcurvefs.so \
 build/curve/curve-sdk/curvefs/_curvefs.so
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp curvefs_python/curvefs.py build/curve/curve-sdk/curvefs/curvefs.py
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp curvefs_python/__init__.py build/curve/curve-sdk/curvefs/__init__.py
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp curvefs_python/curvefs_tool.py build/curve/curve-sdk/curvefs/curvefs_tool.py
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp curvefs_python/parser.py build/curve/curve-sdk/curvefs/parser.py
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp curvefs_python/curve build/curve/curve-sdk/bin/curve
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 chmod a+x build/curve/curve-sdk/bin/curve
 cp curvefs_python/tmplib/* build/curve/curve-sdk/lib/
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp ./bazel-bin/src/client/libcurve.so build/curve/curve-sdk/lib/
 cp include/client/libcurve.h build/curve/curve-sdk/include
@@ -292,61 +315,61 @@ fi
 mkdir -p build/curve/curve-snapshotcloneserver/bin
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp ./bazel-bin/src/snapshotcloneserver/snapshotcloneserver \
 build/curve/curve-snapshotcloneserver/bin/curve-snapshotcloneserver
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve/curve-snapshotcloneserver/lib
 cp thirdparties/etcdclient/libetcdclient.so \
 build/curve/curve-snapshotcloneserver/lib/libetcdclient.so
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 # curve-nginx
 mkdir -p build/curve/curve-nginx/app/etc
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp -r ./curve-snapshotcloneserver-nginx/app/lib \
 build/curve/curve-nginx/app
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp -r ./curve-snapshotcloneserver-nginx/app/src \
 build/curve/curve-nginx/app
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 mkdir -p build/curve/curve-nginx/conf
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp ./curve-snapshotcloneserver-nginx/conf/mime.types \
 build/curve/curve-nginx/conf/
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 cp -r ./curve-snapshotcloneserver-nginx/docker \
 build/curve/curve-nginx/
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 # ansible
 cp -r curve-ansible build/curve/
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 # README
 
@@ -355,7 +378,7 @@ mkdir -p build/curve-monitor
 cp -r monitor/* build/curve-monitor/
 if [ $? -ne 0 ]
 then
-	exit
+    exit
 fi
 echo "end copy"
 
