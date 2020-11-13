@@ -1,0 +1,12 @@
+[Unit]
+Description=mount /data
+After=create_curve_volume.service
+
+[Mount]
+What=
+Where=/data
+Type=ext4
+Options=rw
+
+[Install]
+WantedBy=multi-user.target

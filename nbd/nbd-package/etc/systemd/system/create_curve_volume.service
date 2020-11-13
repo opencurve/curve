@@ -1,0 +1,11 @@
+[Unit]
+Description=monut curve cloud disk for k8s calculate node
+After=nebd-daemon.service
+Requires=nebd-daemon.service
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/mount_curve_clouddisk.sh
+
+[Install]
+WantedBy=multi-user.target
