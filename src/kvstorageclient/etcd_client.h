@@ -67,11 +67,11 @@ class KVStorageClient {
     virtual int Get(const std::string &key, std::string *out) = 0;
 
     /**
-     * @brief List Get all the value values ​​between [startKey, endKey)
+     * @brief List Get all the values ​​between [startKey, endKey)
      *
      * @param[in] startKey
      * @param[in] endKey
-     * @param[out] values Length of endKey
+     * @param[out] values between [startKey, endKey)
      *
      * @return error code
      */
@@ -180,12 +180,11 @@ class EtcdClientImp : public KVStorageClient {
         std::vector<std::string> *values, std::string *lastKey);
 
     /**
-     * @brief CampaignLeader leader campaign in etcd, success: return
-     *                       failed:
-     *                         return fail if electionTimeoutMs>0
-     *                         the process will be blocked until
-     *                         become leader or fatal error occurs if
-     *                         electionTimeoutMs=0
+     * @brief CampaignLeader Leader campaign through etcd, return directly if
+     *                       the election is successful. Otherwise, if
+     *                       electionTimeoutMs>0, it will return failure; if
+     *                       electionTimeoutMs=0, it will block until become
+     *                       leader or fatal error appears.
      *
      * @param[in] pfx the key for leader campaign
      * @param[in] leaderName leader name, the form ip+port is suggested
