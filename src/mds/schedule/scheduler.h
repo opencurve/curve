@@ -458,7 +458,8 @@ class RapidLeaderScheduler : public Scheduler {
 
     /**
      * @brief Execute leader balancing in a granularity of logical pool
-     * @return kScheduleErrCodeSuccess
+     * @return kScheduleErrCodeSuccess create some operators of transferleader
+     *                                 successfully
      */
     int Schedule() override;
 

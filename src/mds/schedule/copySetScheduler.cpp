@@ -62,9 +62,9 @@ int CopySetScheduler::DoCopySetSchedule(PoolIdType lid) {
     StatsCopysetDistribute(distribute, &avg, &range, &stdvariance);
     /**
      * 3. Set migration condition
-     *    condition: range and average volume fall into a certain percentage
-     *    defined, selection of source and target should be based on the number
-     *    of copyset on chunkserver.
+     *    condition: range over a certain percentage of average start to
+     *    transfer, selection of source and target should be based on the
+     *    number of copyset on chunkserver.
      *
      * consider a scenario:
      * - transfer a copyset from the chunkserver with more copysets to a

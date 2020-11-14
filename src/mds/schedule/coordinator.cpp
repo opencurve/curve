@@ -207,7 +207,7 @@ int Coordinator::QueryChunkServerRecoverStatus(
         infos.emplace_back(info);
     }
 
-    // Iterate whether each chunkserver is recovering
+    // Iterate to check whether each chunkserver is recovering
     // recovering: chunkserver offline but has recover task on it //NOLINT
     for (const ChunkServerInfo &info : infos) {
         bool recover = IsChunkServerRecover(info);

@@ -38,15 +38,15 @@ namespace schedule {
  * satisfy one of the conditions below:
  * 1. for A,B,C
  *   ① minScatterWidth<=newValue<=maxScatterWidth
- *   ② newValue<minScatterWidth, but the scatter-width didn't drop
+ *   ② if newValue<minScatterWidth, the scatter-width should not decrease
  *     (newValue-oldValue>=0)
- *   ③ newValue>maxScatterWidth, but the scatter-width didn't increase
+ *   ③ if newValue>maxScatterWidth, the scatter-width should not increase
  *     (newValue-oldValue<=0)
  * 2. for D
  *   ① minScatterWidth<=newValue<=maxScatterWidth
- *   ② newValue<minScatterWidth, but the scatter-width increased at least 1
+ *   ② if newValue<minScatterWidth, the scatter-width should increase at least 1
  *     (newValue-oldValue>=1)
- *   ③ newValue>maxScatterWidth, but the scatter-width decreased at least 1
+ *   ③ if newValue>maxScatterWidth, the scatter-width should decrease at least 1
  *     (newValue-oldValue<=-1)
  */
 bool SchedulerHelper::SatisfyScatterWidth(
@@ -84,7 +84,6 @@ bool SchedulerHelper::SatisfyScatterWidth(
             }
         }
     }
-    // the newValue falls inside [min, max]
     return true;
 }
 
