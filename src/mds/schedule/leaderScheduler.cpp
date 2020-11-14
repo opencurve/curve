@@ -67,8 +67,8 @@ int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
         }
 
         if (minLeaderCount == -1 || csInfo.leaderCount < minLeaderCount) {
-            // the chunkserver with the start up time within the cooling time
-            // can not be the leader
+            // the chunkserver with minLeaderCount and not in coolingTime
+            // can be the transfer target
             if (!coolingTimeExpired(csInfo.startUpTime)) {
                 continue;
             }

@@ -70,7 +70,7 @@ int RecoverScheduler::Schedule() {
             }
         }
 
-        // do nothing if all replicas are offline
+        // do nothing if all replicas are online
         if (offlinelists.size() == 0) {
             continue;
         }
@@ -104,7 +104,7 @@ int RecoverScheduler::Schedule() {
             continue;
         }
 
-        // recover onr of the offline replica
+        // recover one of the offline replica
         Operator fixRes;
         ChunkServerIdType target;
         // failed to recover the replica
