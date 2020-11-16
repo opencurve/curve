@@ -108,7 +108,6 @@ class AddPeer : public OperatorStep {
 
 class RemovePeer : public OperatorStep {
  public:
-
     explicit RemovePeer(ChunkServerIdType peerID);
     /**
      * @brief possible scenario and reaction:
