@@ -153,7 +153,7 @@ class Topology {
                          ChunkServerIdType id) = 0;
 
     /**
-     * @brief update copyset topology info
+     * @brief update copyset info
      * @detail
      * - for updating copyset data reported by heartbeat regularly like
      *   epoch and leader
@@ -521,7 +521,7 @@ class TopologyImpl : public Topology {
             return true;}) const override;
 
     /**
-     * @brief get physicalPool Id that the chunksever belongs to
+     * @brief get physicalPool Id that the chunkserver belongs to
      *
      * @param csId chunkserver Id
      * @param[out] physicalPoolIdOut physicalPool Id
