@@ -638,6 +638,7 @@ def test_recover_snapshot(lazy="true"):
         try:
             first_md5 = get_vol_md5(vol_id)
             config.snapshot_thrash.write_data(10)
+            config.snapshot_thrash.nbd_unmap()
             recover_task = recover_snapshot(vol_id,snapshot_uuid,lazy)
             final_recover = False
             time.sleep(5)
@@ -671,6 +672,8 @@ def test_recover_snapshot(lazy="true"):
             else:
                 assert False,"recover vol %s fail in %d s"%(vol_id,config.snapshot_timeout)
             assert first_md5 == second_md5,"vol md5 not same after recover,fisrt is %s,recovered is %s"(first_md5,second_md5)
+            config.snapshot_thrash.nbd_map()
+            config.snapshot_thrash.nbd_getdev()
         except:
             raise
     delete_vol_snapshot(vol_id,snapshot_uuid)
