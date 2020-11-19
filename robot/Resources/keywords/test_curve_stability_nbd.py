@@ -705,6 +705,7 @@ def test_snapshot_all(vol_uuid):
     test_clone_iovol_consistency(lazy)
 #    test_clone_vol_same_uuid(lazy)
     test_recover_snapshot(lazy)
+    config.snapshot_thrash.nbd_delete()
     return "finally"
 
 def begin_snapshot_test():
