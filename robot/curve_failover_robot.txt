@@ -543,6 +543,7 @@ clean failover env
      delete nbd
      sleep  10
      clear RecycleBin
+     recycle chunk
      sleep  60 
      ${final_num}    get all chunk num
      ${final_num}    Convert To Integer   ${final_num}
