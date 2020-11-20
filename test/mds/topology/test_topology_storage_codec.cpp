@@ -187,12 +187,16 @@ TEST(TestTopologyStorageCodec,
         encodeKey = testObj.EncodeChunkServerKey(i);
         keySet.insert(encodeKey);
     }
+
+    int keyRow = 10;
     for (int i = 0; i < keyNum; i++) {
-        encodeKey = testObj.EncodeCopySetKey({i, i});
-        keySet.insert(encodeKey);
+        for (int j = 0; j < keyRow; j++) {
+            encodeKey = testObj.EncodeCopySetKey({j, i});
+            keySet.insert(encodeKey);
+        }
     }
 
-    ASSERT_EQ(6 * keyNum, keySet.size());
+    ASSERT_EQ(5 * keyNum + keyNum * keyRow, keySet.size());
 }
 
 }  // namespace topology

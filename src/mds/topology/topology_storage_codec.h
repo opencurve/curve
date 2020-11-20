@@ -28,7 +28,19 @@
 #include "src/common/namespace_define.h"
 #include "src/mds/topology/topology_item.h"
 
-using ::curve::common::TOPOLOGYITEMPRIFIX;
+using ::curve::common::LOGICALPOOLKEYPREFIX;
+using ::curve::common::LOGICALPOOLKEYEND;
+using ::curve::common::PHYSICALPOOLKEYPREFIX;
+using ::curve::common::PHYSICALPOOLKEYEND;
+using ::curve::common::ZONEKEYPREFIX;
+using ::curve::common::ZONEKEYEND;
+using ::curve::common::SERVERKEYPREFIX;
+using ::curve::common::SERVERKEYEND;
+using ::curve::common::CHUNKSERVERKEYPREFIX;
+using ::curve::common::CHUNKSERVERKEYEND;
+using ::curve::common::CLUSTERINFOKEY;
+using ::curve::common::COPYSETKEYPREFIX;
+using ::curve::common::COPYSETKEYEND;
 
 namespace curve {
 namespace mds {
@@ -76,66 +88,6 @@ class TopologyStorageCodec {
         const ClusterInformation &data, std::string *value);
     bool DecodeCluserInfoData(const std::string &value,
         ClusterInformation *data);
-
- public:
-    static std::string GetLogicalPoolKeyPrefix() {
-        static std::string key = std::string(TOPOLOGYITEMPRIFIX) + "01";
-        return key;
-    }
-
-    static std::string GetPhysicalPoolKeyPrefix() {
-        static std::string key = std::string(TOPOLOGYITEMPRIFIX) + "02";
-        return key;
-    }
-
-    static std::string GetZoneKeyPrefix() {
-        static std::string key = std::string(TOPOLOGYITEMPRIFIX) + "03";
-         return key;
-    }
-
-    static std::string GetServerKeyPrefix() {
-        static std::string key = std::string(TOPOLOGYITEMPRIFIX) + "04";
-        return key;
-    }
-
-    static std::string GetChunkServerKeyPrefix() {
-        static std::string key = std::string(TOPOLOGYITEMPRIFIX) + "05";
-        return key;
-    }
-
-    static std::string GetCopysetKeyPrefix() {
-        static std::string key = std::string(TOPOLOGYITEMPRIFIX) + "06";
-        return key;
-    }
-
-    static std::string GetClusterInfoKey() {
-        static std::string key = std::string(TOPOLOGYITEMPRIFIX) + "07";
-        return key;
-    }
-
-    static std::string GetLogicalPoolKeyEnd() {
-        return GetPhysicalPoolKeyPrefix();
-    }
-
-    static std::string GetPhysicalPoolKeyEnd() {
-        return GetZoneKeyPrefix();
-    }
-
-    static std::string GetZoneKeyEnd() {
-        return GetServerKeyPrefix();
-    }
-
-    static std::string GetServerKeyEnd() {
-        return GetChunkServerKeyPrefix();
-    }
-
-    static std::string GetChunkServerKeyEnd() {
-        return GetCopysetKeyPrefix();
-    }
-
-    static std::string GetCopysetKeyEnd() {
-        return GetClusterInfoKey();
-    }
 };
 
 
