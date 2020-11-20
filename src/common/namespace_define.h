@@ -39,7 +39,20 @@ const char CHUNKSTOREKEYEND[] = "06";
 const char LEADERCAMPAIGNNPFX[] = "07leader";
 const char SEGMENTALLOCSIZEKEY[] = "08";
 const char SEGMENTALLOCSIZEKEYEND[] = "09";
-const char TOPOLOGYITEMPRIFIX[] = "10";
+
+const char LOGICALPOOLKEYPREFIX[] = "1001";
+const char LOGICALPOOLKEYEND[] = "1002";
+const char PHYSICALPOOLKEYPREFIX[] = "1002";
+const char PHYSICALPOOLKEYEND[] = "1003";
+const char ZONEKEYPREFIX[] = "1003";
+const char ZONEKEYEND[] = "1004";
+const char SERVERKEYPREFIX[] = "1004";
+const char SERVERKEYEND[] = "1005";
+const char CHUNKSERVERKEYPREFIX[] = "1005";
+const char CHUNKSERVERKEYEND[] = "1006";
+const char CLUSTERINFOKEY[] = "1007";
+const char COPYSETKEYPREFIX[] = "1008";
+const char COPYSETKEYEND[] = "1009";
 
 const char SNAPINFOKEYPREFIX[] = "11";
 const char SNAPINFOKEYEND[] = "12";
