@@ -34,12 +34,10 @@ namespace topology {
 bool TopologyStorageEtcd::LoadLogicalPool(
     std::unordered_map<PoolIdType, LogicalPool> *logicalPoolMap,
     PoolIdType *maxLogicalPoolId) {
-    std::string startKey = TopologyStorageCodec::GetLogicalPoolKeyPrefix();
-    std::string endKey = TopologyStorageCodec::GetLogicalPoolKeyEnd();
     std::vector<std::string> out;
     logicalPoolMap->clear();
     *maxLogicalPoolId = 0;
-    int errCode = client_->List(startKey, endKey, &out);
+    int errCode = client_->List(LOGICALPOOLKEYPREFIX, LOGICALPOOLKEYEND, &out);
     if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         return true;
     }
@@ -72,12 +70,11 @@ bool TopologyStorageEtcd::LoadLogicalPool(
 bool TopologyStorageEtcd::LoadPhysicalPool(
     std::unordered_map<PoolIdType, PhysicalPool> *physicalPoolMap,
     PoolIdType *maxPhysicalPoolId) {
-    std::string startKey = TopologyStorageCodec::GetPhysicalPoolKeyPrefix();
-    std::string endKey = TopologyStorageCodec::GetPhysicalPoolKeyEnd();
     std::vector<std::string> out;
     physicalPoolMap->clear();
     *maxPhysicalPoolId = 0;
-    int errCode = client_->List(startKey, endKey, &out);
+    int errCode = client_->List(
+        PHYSICALPOOLKEYPREFIX, PHYSICALPOOLKEYEND, &out);
     if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         return true;
     }
@@ -110,12 +107,10 @@ bool TopologyStorageEtcd::LoadPhysicalPool(
 bool TopologyStorageEtcd::LoadZone(
     std::unordered_map<ZoneIdType, Zone> *zoneMap,
     ZoneIdType *maxZoneId) {
-    std::string startKey = TopologyStorageCodec::GetZoneKeyPrefix();
-    std::string endKey = TopologyStorageCodec::GetZoneKeyEnd();
     std::vector<std::string> out;
     zoneMap->clear();
     *maxZoneId = 0;
-    int errCode = client_->List(startKey, endKey, &out);
+    int errCode = client_->List(ZONEKEYPREFIX, ZONEKEYEND, &out);
     if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         return true;
     }
@@ -148,12 +143,10 @@ bool TopologyStorageEtcd::LoadZone(
 bool TopologyStorageEtcd::LoadServer(
     std::unordered_map<ServerIdType, Server> *serverMap,
     ServerIdType *maxServerId) {
-    std::string startKey = TopologyStorageCodec::GetServerKeyPrefix();
-    std::string endKey = TopologyStorageCodec::GetServerKeyEnd();
     std::vector<std::string> out;
     serverMap->clear();
     *maxServerId = 0;
-    int errCode = client_->List(startKey, endKey, &out);
+    int errCode = client_->List(SERVERKEYPREFIX, SERVERKEYEND, &out);
     if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         return true;
     }
@@ -186,12 +179,10 @@ bool TopologyStorageEtcd::LoadServer(
 bool TopologyStorageEtcd::LoadChunkServer(
     std::unordered_map<ChunkServerIdType, ChunkServer> *chunkServerMap,
     ChunkServerIdType *maxChunkServerId) {
-    std::string startKey = TopologyStorageCodec::GetChunkServerKeyPrefix();
-    std::string endKey = TopologyStorageCodec::GetChunkServerKeyEnd();
     std::vector<std::string> out;
     chunkServerMap->clear();
     *maxChunkServerId = 0;
-    int errCode = client_->List(startKey, endKey, &out);
+    int errCode = client_->List(CHUNKSERVERKEYPREFIX, CHUNKSERVERKEYEND, &out);
     if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         return true;
     }
@@ -226,12 +217,10 @@ bool TopologyStorageEtcd::LoadChunkServer(
 bool TopologyStorageEtcd::LoadCopySet(
     std::map<CopySetKey, CopySetInfo> *copySetMap,
     std::map<PoolIdType, CopySetIdType> *copySetIdMaxMap) {
-    std::string startKey = TopologyStorageCodec::GetCopysetKeyPrefix();
-    std::string endKey = TopologyStorageCodec::GetCopysetKeyEnd();
     std::vector<std::string> out;
     copySetMap->clear();
     copySetIdMaxMap->clear();
-    int errCode = client_->List(startKey, endKey, &out);
+    int errCode = client_->List(COPYSETKEYPREFIX, COPYSETKEYEND, &out);
     if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         return true;
     }
@@ -481,9 +470,8 @@ bool TopologyStorageEtcd::UpdateCopySet(const CopySetInfo &data) {
 
 bool TopologyStorageEtcd::LoadClusterInfo(
     std::vector<ClusterInformation> *info) {
-    std::string key = TopologyStorageCodec::GetClusterInfoKey();
     std::string value;
-    int errCode = client_->Get(key, &value);
+    int errCode = client_->Get(CLUSTERINFOKEY, &value);
     if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         return true;
     }
@@ -503,7 +491,7 @@ bool TopologyStorageEtcd::LoadClusterInfo(
 }
 
 bool TopologyStorageEtcd::StorageClusterInfo(const ClusterInformation &info) {
-    std::string key = TopologyStorageCodec::GetClusterInfoKey();
+    std::string key = CLUSTERINFOKEY;
     std::string value;
     if (codec_->EncodeClusterInfoData(info, &value)
         != true) {

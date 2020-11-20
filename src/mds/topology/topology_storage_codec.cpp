@@ -33,7 +33,7 @@ namespace topology {
 
 std::string TopologyStorageCodec::EncodeLogicalPoolKey(
     LogicalPoolIdType id) {
-    std::string key = TopologyStorageCodec::GetLogicalPoolKeyPrefix();
+    std::string key = LOGICALPOOLKEYPREFIX;
     size_t prefixLen = key.size();
     key.resize(prefixLen + sizeof(uint64_t));
     ::curve::common::EncodeBigEndian(&(key[prefixLen]), id);
@@ -52,7 +52,7 @@ bool TopologyStorageCodec::DecodeLogicalPoolData(
 
 std::string TopologyStorageCodec::EncodePhysicalPoolKey(
     PhysicalPoolIdType id) {
-    std::string key = TopologyStorageCodec::GetPhysicalPoolKeyPrefix();
+    std::string key = PHYSICALPOOLKEYPREFIX;
     size_t prefixLen = key.size();
     key.resize(prefixLen + sizeof(uint64_t));
     ::curve::common::EncodeBigEndian(&(key[prefixLen]), id);
@@ -71,7 +71,7 @@ bool TopologyStorageCodec::DecodePhysicalPoolData(
 
 std::string TopologyStorageCodec::EncodeZoneKey(
     ZoneIdType id) {
-    std::string key = TopologyStorageCodec::GetZoneKeyPrefix();
+    std::string key = ZONEKEYPREFIX;
     size_t prefixLen = key.size();
     key.resize(prefixLen + sizeof(uint64_t));
     ::curve::common::EncodeBigEndian(&(key[prefixLen]), id);
@@ -90,7 +90,7 @@ bool TopologyStorageCodec::DecodeZoneData(
 
 std::string TopologyStorageCodec::EncodeServerKey(
     ServerIdType id) {
-    std::string key = TopologyStorageCodec::GetServerKeyPrefix();
+    std::string key = SERVERKEYPREFIX;
     size_t prefixLen = key.size();
     key.resize(prefixLen + sizeof(uint64_t));
     ::curve::common::EncodeBigEndian(&(key[prefixLen]), id);
@@ -109,7 +109,7 @@ bool TopologyStorageCodec::DecodeServerData(
 
 std::string TopologyStorageCodec::EncodeChunkServerKey(
     ChunkServerIdType id) {
-    std::string key = TopologyStorageCodec::GetChunkServerKeyPrefix();
+    std::string key = CHUNKSERVERKEYPREFIX;
     size_t prefixLen = key.size();
     key.resize(prefixLen + sizeof(uint64_t));
     ::curve::common::EncodeBigEndian(&(key[prefixLen]), id);
@@ -128,11 +128,11 @@ bool TopologyStorageCodec::DecodeChunkServerData(
 
 std::string TopologyStorageCodec::EncodeCopySetKey(
     const CopySetKey &id) {
-    std::string key = TopologyStorageCodec::GetCopysetKeyPrefix();
+    std::string key = COPYSETKEYPREFIX;
     size_t prefixLen = key.size();
     key.resize(prefixLen + sizeof(uint64_t) + sizeof(uint64_t));
     ::curve::common::EncodeBigEndian(&(key[prefixLen]), id.first);
-    ::curve::common::EncodeBigEndian(&(key[prefixLen + sizeof(id.first)]),
+    ::curve::common::EncodeBigEndian(&(key[prefixLen + sizeof(uint64_t)]),
         id.second);
     return key;
 }
