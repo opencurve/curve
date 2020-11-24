@@ -450,17 +450,27 @@ cp -r nebd/nebd-package build/
 mkdir -p build/nebd-package/usr/bin
 mkdir -p build/nebd-package/usr/lib/nebd
 
+cp -r k8s/nebd/nebd-package build/k8s-nebd-package
+mkdir -p build/k8s-nebd-package/usr/bin
+mkdir -p build/k8s-nebd-package/usr/lib/nebd
+
 for i in `find bazel-bin/|grep -w so|grep -v solib|grep -v params|grep -v test|grep -v fake`
 do
     cp -f $i build/nebd-package/usr/lib/nebd
+    cp -f $i build/k8s-nebd-package/usr/lib/nebd
 done
 
 cp bazel-bin/nebd/src/part2/nebd-server build/nebd-package/usr/bin
+cp bazel-bin/nebd/src/part2/nebd-server build/k8s-nebd-package/usr/bin
 
 # step 4.2 prepare for curve-nbd package
 cp -r nbd/nbd-package build
 mkdir -p build/nbd-package/usr/bin
 cp bazel-bin/nbd/src/curve-nbd build/nbd-package/usr/bin
+
+cp -r k8s/nbd/nbd-package build/k8s-nbd-package
+mkdir -p build/k8s-nbd-package/usr/bin
+cp bazel-bin/nbd/src/curve-nbd build/k8s-nbd-package/usr/bin
 
 #step5 记录到debian包的配置文件，打包debian包
 version="Version: ${curve_version}"
@@ -472,7 +482,9 @@ echo ${version} >> build/curve-monitor/DEBIAN/control
 echo ${version} >> build/curve-snapshotcloneserver/DEBIAN/control
 echo ${version} >> build/curve-nginx/DEBIAN/control
 echo ${version} >> build/nebd-package/DEBIAN/control
+echo ${version} >> build/k8s-nebd-package/DEBIAN/control
 echo ${version} >> build/nbd-package/DEBIAN/control
+echo ${version} >> build/k8s-nbd-package/DEBIAN/control
 
 dpkg-deb -b build/curve-mds .
 dpkg-deb -b build/curve-sdk .
@@ -482,7 +494,9 @@ dpkg-deb -b build/curve-monitor .
 dpkg-deb -b build/curve-snapshotcloneserver .
 dpkg-deb -b build/curve-nginx .
 dpkg-deb -b build/nebd-package .
+dpkg-deb -b build/k8s-nebd-package .
 dpkg-deb -b build/nbd-package .
+dpkg-deb -b build/k8s-nbd-package .
 
 #step6 清理libetcdclient.so编译出现的临时文件
 cd ${dir}/thirdparties/etcdclient

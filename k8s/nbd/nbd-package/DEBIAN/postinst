@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -e
+
+chmod +x /usr/bin/mount_curve_clouddisk.sh
+
+filename=$HOSTNAME"_curvefile"
+sed -i "s/filename=curvefile/filename=$filename/g" /etc/nbd/k8s_curve.conf
+
+systemctl daemon-reload
+systemctl enable create_curve_volume.service
+systemctl start create_curve_volume.service
+
+systemctl daemon-reload
+systemctl enable data.mount
+systemctl start data.mount
+
+exit 0

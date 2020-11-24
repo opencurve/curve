@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -e
+
+chown -R root:root /var/lib/nebd
+chown -R root:root /var/log/nebd
+
+chmod -R 777 /var/lib/nebd
+chmod -R 777 /var/log/nebd
+
+systemctl daemon-reload
+systemctl enable nebd-daemon.service
+systemctl start nebd-daemon.service
+
+exit 0

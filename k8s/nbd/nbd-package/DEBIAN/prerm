@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e
+
+systemctl disable create_curve_volume.service
+systemctl disable data.mount
+
+exit 0

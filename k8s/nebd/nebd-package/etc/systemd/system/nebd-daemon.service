@@ -1,0 +1,15 @@
+[Unit]
+Description=nebd-daemon
+After=local-fs.target remote-fs.target network.target
+
+
+[Service]
+Type=forking
+KillMode=process
+ExecStart=/usr/bin/nebd-daemon start
+ExecStop=/usr/bin/nebd-daemon stop
+ExecReload=/usr/bin/nebd-daemon restart
+
+
+[Install]
+WantedBy=multi-user.target
