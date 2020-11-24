@@ -108,11 +108,36 @@ function recycle_copysets() {
         done
     done
 
+    # recycle chunks in raft_snapshot
+    maxChunkId=`ls -vr $chunkfilepool | head -1`
+    for copyset in `ls $2`
+    do
+        copysetPath=${dataDir}/chunkserver$1/copysets/${copyset}
+        chunkfilepool=${dataDir}/chunkserver$1/${chunksRecycleTo}
+        chunksize=`ls -l $chunkfilepool | tail -1 | awk -F" " '{print $5}'`
+
+        chunks=`sudo ls -l $copysetPath/raft_snapshot | grep $chunksize | awk -F" " '{print $9}'`
+        for chunk in $chunks
+        do
+            maxChunkId=`expr $maxChunkId + 1`
+            sudo mv $copysetPath/raft_snapshot/${chunk} $chunkfilepool/${maxChunkId}
+            rchunkSum=`expr $rchunkSum + 1`
+        done
+
+        chunks=`sudo ls -l $copysetPath/raft_snapshot/temp | grep $chunksize | awk -F" " '{print $9}'`
+        for chunk in $chunks
+        do
+            maxChunkId=`expr $maxChunkId + 1`
+            sudo mv $copysetPath/raft_snapshot/temp/${chunk} $chunkfilepool/${maxChunkId}
+            rchunkSum=`expr $rchunkSum + 1`
+        done
+    done
+
     echo chunkserver$1 actual recycle chunk=$rchunkSum, segment=$rsegmentSum
 }
 
 function recycle() {
-    # recycle chunk and segment under copysets
+    # recycle chunk/segment/snapshot under copysets
     if [ ! -d ${dataDir}/chunkserver$1/copysets ]
     then
         return
@@ -121,7 +146,7 @@ function recycle() {
     recycle_copysets $1 $copysets
     sudo rm -rf ${dataDir}/chunkserver$1/copysets/
 
-    # recycle chunk and segment under trash
+    # recycle chunk/segment/snapshot under trash
     if [ ! -d ${dataDir}/chunkserver$1/recycler ]
     then
         return
