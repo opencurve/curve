@@ -1,0 +1,271 @@
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides:          nebd-daemon
+# Required-Start:    $local_fs $remote_fs $network
+# Required-Stop:     $local_fs $remote_fs $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: nebd-daemon service
+# Description:       Start the nebd-daemon service and associated helpers
+### END INIT INFO
+
+# 检查脚本执行是否通过root权限执行
+if [[ $(id -u) -ne 0 ]]
+then
+    echo "Please run with sudo"
+    exit 1
+fi
+
+# nebd-server路径
+bin=/usr/bin/nebd-server
+
+# 默认配置文件
+confPath=/etc/nebd/nebd-server.conf
+
+# 日志文件路径
+baseLogPath=/var/log/nebd
+logPath=${baseLogPath}/server
+
+# pidfile
+pidFile=${baseLogPath}/nebd-server.pid
+
+# daemon log
+daemonLog=${baseLogPath}/nebd-server-daemon.log
+
+# console output
+consoleLog=${baseLogPath}/nebd-server-console.log
+
+function get_nebd_server_pid() {
+    local tmp=`pidof nebd-server`
+    echo $tmp
+}
+
+# 启动nebd-server
+function start() {
+    # 检查daemon
+    if ! type daemon &> /dev/null
+    then
+        echo "No daemon installed"
+        exit 1
+    fi
+
+    # 检查nebd-server
+    if [ ! -f ${bin} ]
+    then
+        echo "No nebd-server installed"
+        exit 1
+    fi
+
+    # 检查配置文件
+    if [ ! -f ${confPath} ]
+    then
+        echo "Not found nebd-server.conf, Path is ${confPath}"
+        exit 1
+    fi
+
+    # 判断是否已经通过daemon启动了nebd-server
+    daemon --name nebd-server --pidfile ${pidFile} --running
+    if [ $? -eq 0 ]
+    then
+        echo "Already started nebd-server by daemon"
+        exit 0
+    fi
+
+    # 创建logPath
+    mkdir -p ${logPath} > /dev/null 2>&1
+    if [ $? -ne 0 ]
+    then
+        echo "Create log dir failed: ${logPath}"
+        exit 1
+    fi
+
+    # 检查logPath是否有写权限
+    if [ ! -w ${logPath} ]
+    then
+        echo "Write permission denied: ${logPath}"
+        exit 1
+    fi
+
+    # 检查consoleLog是否可写或者是否能够创建
+    touch ${consoleLog} > /dev/null 2>&1
+    if [ $? -ne 0 ]
+    then
+        echo "Can't Write or Create console Log: ${consoleLog}"
+        exit 1
+    fi
+
+    # 检查daemonLog是否可写或者是否能够创建
+    touch ${daemonLog} > /dev/null 2>&1
+    if [ $? -ne 0 ]
+    then
+        echo "Can't Write or Create daemon logfile: ${daemonLog}"
+        exit 1
+    fi
+
+    # 检查jemalloc库文件
+    jemallocpath=`find /usr/ -name "libjemalloc.so*" -print -quit`
+    if [ "${jemallocpath}" = "" ]
+    then
+        echo "Not found jemalloc library in /usr/"
+        exit 1
+    fi
+
+    # 记录运行daemon前的daemonLog的行数
+    line1=`cat ${daemonLog} | wc -l`
+
+    LD_PRELOAD=${jemallocpath} daemon --name nebd-server --core --inherit \
+           --respawn --attempts 10 --delay 10 --acceptable 10\
+           --pidfile ${pidFile} \
+           --errlog ${daemonLog} \
+           --output ${consoleLog} \
+           -- ${bin} -confPath=${confPath} -log_dir=${logPath} -graceful_quit_on_sigterm=true -stderrthreshold=3
+
+    # sleep 1秒检测daemonLog是否有变化，如果有变化，说明启动遇到问题
+    sleep 1
+    line2=`cat ${daemonLog} | wc -l`
+    if [ $line1 != $line2 ]
+    then
+        echo "start nebd-server met error!"
+        stop
+    fi
+}
+
+# 停止daemon进程，且停止nebd-server
+function stop() {
+    # 判断是否已经通过daemon启动了nebd-server
+    daemon --name nebd-server --pidfile ${pidFile} --running
+    if [ $? -ne 0 ]
+    then
+        echo "Didn't start nebd-server by daemon"
+        exit 0
+    fi
+
+    daemon --name nebd-server --pidfile ${pidFile} --stop
+    if [ $? -ne 0 ]
+    then
+        echo "stop may not success!"
+    else
+        # wait 3s
+        retry_times=0
+        while [ $retry_times -le 3 ]
+        do
+            ((retry_times=$retry_times+1))
+            pidof nebd-server > /dev/null 2>&1
+            if [ $? -eq 0 ]
+            then
+                sleep 1
+            else
+                break
+            fi
+        done
+
+        pidof nebd-server > /dev/null 2>&1
+        if [ $? -eq 0 ]
+        then
+            echo "nebd-server still exists after 3s, now kill it with SIGKILL"
+            kill -9 `pidof nebd-server`
+        fi
+
+        echo "nebd-server exit success!"
+        echo "daemon exit success!"
+    fi
+}
+
+# restart
+function restart() {
+    # 判断是否已经通过daemon启动了nebd-server
+    daemon --name nebd-server --pidfile ${pidFile} --running
+    if [ $? -ne 0 ]
+    then
+        echo "Didn't start nebd-server by daemon"
+        exit 1
+    fi
+
+    old_pid=$(get_nebd_server_pid)
+
+    daemon --name nebd-server --pidfile ${pidFile} --restart
+
+    sleep 1
+    new_pid=$(get_nebd_server_pid)
+
+    if [ $old_pid == $new_pid ]
+    then
+        echo "restart nebd-server may failed, now kill it with SIGKILL"
+        kill -9 $old_pid
+    fi
+}
+
+# status
+function status() {
+    daemon --name nebd-server --pidfile ${pidFile} --running
+    if [ $? -ne 0 ]
+    then
+        echo "Didn't start nebd-server by daemon"
+    else
+        echo "nebd-server is running by daemon"
+    fi
+}
+
+# 使用方式
+function usage() {
+    echo "Usage:"
+    echo "  nebd-daemon start -- start deamon process and watch on nebd-server process"
+    echo "    [-c|--confPath path]    conf path"
+    echo "    [-l|--logPath  path]    log path"
+    echo "  nebd-daemon stop  -- stop daemon process and nebd-server"
+    echo "  nebd-daemon restart -- restart nebd-server"
+    echo "  nebd-daemon status -- show if the nebd-server is running by daemon"
+    echo "Examples:"
+    echo "  nebd-daemon start -c /etc/nebd/nebd-server.conf -l ${HOME}/"
+}
+
+# 检查参数启动参数，最少1个
+if [ $# -lt 1 ]
+then
+    usage
+    exit
+fi
+
+case $1 in
+"start")
+    shift # pass first argument
+
+    # 解析参数
+    while [[ $# -gt 1 ]]
+    do
+        key=$1
+
+        case $key in
+        -c|--confPath)
+            confPath=`realpath $2`
+            shift # pass key
+            shift # pass value
+            ;;
+        -l|--logPath)
+            logPath=`realpath $2`
+            shift # pass key
+            shift # pass value
+            ;;
+        *)
+            usage
+            exit
+            ;;
+        esac
+    done
+
+    start
+    ;;
+"stop")
+    stop
+    ;;
+"restart")
+    restart
+    ;;
+"status")
+    status
+    ;;
+*)
+    usage
+    ;;
+esac

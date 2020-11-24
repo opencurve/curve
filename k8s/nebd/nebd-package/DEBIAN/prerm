@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e
+
+systemctl stop nebd-daemon.service
+systemctl disable nebd-daemon.service
+
+exit 0

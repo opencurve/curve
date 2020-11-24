@@ -1,0 +1,10 @@
+Package: k8s-curve-nbd
+Section:
+Priority: optional
+Depends: libunwind8, libnl-3-dev, libnl-genl-3-dev
+Suggests:
+Architecture: amd64
+Installed-Size:
+Maintainer: curve-dev
+Provides:
+Description: NBD-based client for curve
