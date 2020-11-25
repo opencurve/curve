@@ -91,6 +91,7 @@ function recycle_copysets() {
             rchunkSum=`expr $rchunkSum + 1`
         done
     done
+    echo chunkserver$1 actual recycle under data chunk=$rchunkSum
 
     # recycle wal segments
     maxSegmentId=`ls -vr $walfilepool | head -1`
@@ -107,8 +108,10 @@ function recycle_copysets() {
             rsegmentSum=`expr $rsegmentSum + 1`
         done
     done
+    echo chunkserver$1 actual recycle under log segment=$rsegmentSum
 
     # recycle chunks in raft_snapshot
+    rchunkSum=0
     maxChunkId=`ls -vr $chunkfilepool | head -1`
     for copyset in `ls $2`
     do
@@ -124,16 +127,17 @@ function recycle_copysets() {
             rchunkSum=`expr $rchunkSum + 1`
         done
 
-        chunks=`sudo ls -l $copysetPath/raft_snapshot/temp | grep $chunksize | awk -F" " '{print $9}'`
-        for chunk in $chunks
-        do
-            maxChunkId=`expr $maxChunkId + 1`
-            sudo mv $copysetPath/raft_snapshot/temp/${chunk} $chunkfilepool/${maxChunkId}
-            rchunkSum=`expr $rchunkSum + 1`
-        done
+        if [ -d "$copysetPath/raft_snapshot/temp" ];then
+            chunks=`sudo ls -l $copysetPath/raft_snapshot/temp | grep $chunksize | awk -F" " '{print $9}'`
+            for chunk in $chunks
+            do
+                maxChunkId=`expr $maxChunkId + 1`
+                sudo mv $copysetPath/raft_snapshot/temp/${chunk} $chunkfilepool/${maxChunkId}
+                rchunkSum=`expr $rchunkSum + 1`
+            done
+        fi
     done
-
-    echo chunkserver$1 actual recycle chunk=$rchunkSum, segment=$rsegmentSum
+    echo chunkserver$1 actual recycle under raft_snapshot chunk=$rchunkSum
 }
 
 function recycle() {
