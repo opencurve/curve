@@ -271,17 +271,9 @@ def initial_chunkserver(host):
     return 0
 
 def recycle_chunk():
-    for host in config.chunkserver_list:
-        ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-        try:
-            ori_cmd = "sh recycle_chunks.sh -d /data -chunks chunkfilepool -wals chunkfilepool"
-            rs = shell_operator.ssh_exec(ssh, ori_cmd)
-            logger.debug("recycle chunk ,return is %s"%rs[1])
-            assert rs[3] == 0,"recycle %s chunk  fail"%host
-            ssh.close()
-        except Exception as e:
-            logger.error("%s" % e)
-            raise
+    cmd = "ansible-playbook -i curve/curve-ansible/server.ini curve/curve-ansible/clean_curve.yml --tags chunkserver"
+    ret = shell_operator.run_exec(cmd)
+    assert ret == 0 ,"ansible clean chunk fail"
 
 def drop_all_chunkserver_dat():
     thread = []
