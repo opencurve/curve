@@ -501,8 +501,7 @@ inject cluster stress test
 *** Keywords ***
 
 init failover cluster
-     clean nbd
-     recycle chunk     
+     clean nbd 
      ${begin_num}    get all chunk num
      ${begin_num}    Convert To Integer   ${begin_num}
      Set Global Variable  ${chunk_num}    ${begin_num} 
