@@ -65,19 +65,26 @@ int IOManager4Chunk::ReadSnapChunk(const ChunkIDInfo& chunkidinfo,
     return 0;
 }
 
-int IOManager4Chunk::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &chunkidinfo,
-    uint64_t correctedSeq) {
-
+int IOManager4Chunk::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo& chunkidinfo,
+                                                uint64_t correctedSeq) {
     IOTracker temp(this, &mc_, scheduler_);
-    temp.DeleteSnapChunkOrCorrectSn(chunkidinfo, correctedSeq);
-    return temp.Wait();
+
+    if (0 == temp.DeleteSnapChunkOrCorrectSn(chunkidinfo, correctedSeq)) {
+        return temp.Wait();
+    }
+
+    return -1;
 }
 
 int IOManager4Chunk::GetChunkInfo(const ChunkIDInfo &chunkidinfo,
                                   ChunkInfoDetail *chunkInfo) {
     IOTracker temp(this, &mc_, scheduler_);
-    temp.GetChunkInfo(chunkidinfo, chunkInfo);
-    return temp.Wait();
+
+    if (0 == temp.GetChunkInfo(chunkidinfo, chunkInfo)) {
+        return temp.Wait();
+    }
+
+    return -1;
 }
 
 int IOManager4Chunk::CreateCloneChunk(const std::string &location,

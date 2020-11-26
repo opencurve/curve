@@ -59,19 +59,27 @@ IOTracker::IOTracker(IOManager* iomanager,
     opStartTimePoint_ = curve::common::TimeUtility::GetTimeofDayUs();
 }
 
-void IOTracker::StartRead(void* buf, off_t offset, size_t length,
+int IOTracker::StartRead(void* buf, off_t offset, size_t length,
                           MDSClient* mdsclient, const FInfo_t* fileInfo) {
     data_ = buf;
     offset_ = offset;
     length_ = length;
     type_ = OpType::READ;
 
+    iocv_.reset(new (std::nothrow) IOConditionVariable());
+    if (CURVE_UNLIKELY(iocv_ == nullptr)) {
+        LOG(ERROR) << "StartRead new IOConditionVariable failed";
+        return -1;
+    }
+
     DVLOG(9) << "read op, offset = " << offset << ", length = " << length;
 
     DoRead(mdsclient, fileInfo);
+
+    return 0;
 }
 
-void IOTracker::StartAioRead(CurveAioContext* ctx, MDSClient* mdsclient,
+int IOTracker::StartAioRead(CurveAioContext* ctx, MDSClient* mdsclient,
                              const FInfo_t* fileInfo) {
     aioctx_ = ctx;
     data_ = ctx->buf;
@@ -83,6 +91,7 @@ void IOTracker::StartAioRead(CurveAioContext* ctx, MDSClient* mdsclient,
              << ", length = " << ctx->length;
 
     DoRead(mdsclient, fileInfo);
+    return 0;
 }
 
 void IOTracker::DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo) {
@@ -111,19 +120,26 @@ void IOTracker::DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo) {
     }
 }
 
-void IOTracker::StartWrite(const void* buf, off_t offset, size_t length,
+int IOTracker::StartWrite(const void* buf, off_t offset, size_t length,
                            MDSClient* mdsclient, const FInfo_t* fileInfo) {
     data_ = const_cast<void*>(buf);
     offset_ = offset;
     length_ = length;
     type_ = OpType::WRITE;
 
+    iocv_.reset(new (std::nothrow) IOConditionVariable());
+    if (CURVE_UNLIKELY(iocv_ == nullptr)) {
+        LOG(ERROR) << "StartWrite new IOConditionVariable failed";
+        return -1;
+    }
+
     DVLOG(9) << "write op, offset = " << offset << ", length = " << length;
 
     DoWrite(mdsclient, fileInfo);
+    return 0;
 }
 
-void IOTracker::StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
+int IOTracker::StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
                               const FInfo_t* fileInfo) {
     aioctx_ = ctx;
     data_ = ctx->buf;
@@ -135,6 +151,8 @@ void IOTracker::StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
              << ", length = " << ctx->length;
 
     DoWrite(mdsclient, fileInfo);
+
+    return 0;
 }
 
 void IOTracker::DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo) {
@@ -208,10 +226,16 @@ void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo,
     }
 }
 
-void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
-    uint64_t correctedSeq) {
-    type_ = OpType::DELETE_SNAP;
+int IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo& cinfo,
+                                          uint64_t correctedSeq) {
+    iocv_.reset(new (std::nothrow) IOConditionVariable());
+    if (CURVE_UNLIKELY(iocv_ == nullptr)) {
+        LOG(ERROR)
+            << "DeleteSnapChunkOrCorrectSn new IOConditionVariable failed";
+        return -1;
+    }
 
+    type_ = OpType::DELETE_SNAP;
     int ret = -1;
     do {
         RequestContext* newreqNode = RequestContext::NewInitedRequestContext();
@@ -233,12 +257,19 @@ void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
                    << "return and recycle resource!";
         ReturnOnFail();
     }
+
+    return 0;
 }
 
-void IOTracker::GetChunkInfo(const ChunkIDInfo &cinfo,
-    ChunkInfoDetail *chunkInfo) {
-    type_ = OpType::GET_CHUNK_INFO;
+int IOTracker::GetChunkInfo(const ChunkIDInfo& cinfo,
+                            ChunkInfoDetail* chunkInfo) {
+    iocv_.reset(new (std::nothrow) IOConditionVariable());
+    if (CURVE_UNLIKELY(iocv_ == nullptr)) {
+        LOG(ERROR) << "GetChunkInfo new IOConditionVariable failed";
+        return -1;
+    }
 
+    type_ = OpType::GET_CHUNK_INFO;
     int ret = -1;
     do {
         RequestContext* newreqNode = RequestContext::NewInitedRequestContext();
@@ -260,6 +291,8 @@ void IOTracker::GetChunkInfo(const ChunkIDInfo &cinfo,
                    << " return and recycle resource!";
         ReturnOnFail();
     }
+
+    return 0;
 }
 
 void IOTracker::CreateCloneChunk(const std::string& location,
@@ -348,7 +381,11 @@ void IOTracker::HandleResponse(RequestContext* reqctx) {
 }
 
 int IOTracker::Wait() {
-    return iocv_.Wait();
+    if (iocv_) {
+        return iocv_->Wait();
+    }
+
+    return -1;
 }
 
 void IOTracker::Done() {
@@ -406,8 +443,8 @@ void IOTracker::Done() {
 
     // scc_和aioctx都为空的时候肯定是个同步调用
     if (scc_ == nullptr && aioctx_ == nullptr) {
-        errcode_ == LIBCURVE_ERROR::OK ? iocv_.Complete(length_)
-                                       : iocv_.Complete(-errcode_);
+        errcode_ == LIBCURVE_ERROR::OK ? iocv_->Complete(length_)
+                                       : iocv_->Complete(-errcode_);
         return;
     }
 

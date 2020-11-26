@@ -133,9 +133,14 @@ int IOManager4File::Read(char* buf, off_t offset,
 
     IOTracker temp(this, &mc_, scheduler_, fileMetric_);
     temp.SetUserDataType(UserDataType::IOBuffer);
-    temp.StartRead(&data, offset, length, mdsclient, this->GetFileInfo());
 
-    int rc = temp.Wait();
+    int rc =
+        temp.StartRead(&data, offset, length, mdsclient, this->GetFileInfo());
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = temp.Wait();
 
     if (rc < 0) {
         return rc;
@@ -157,19 +162,23 @@ int IOManager4File::Write(const char* buf,
 
     IOTracker temp(this, &mc_, scheduler_, fileMetric_);
     temp.SetUserDataType(UserDataType::IOBuffer);
-    temp.StartWrite(&data, offset, length, mdsclient, this->GetFileInfo());
 
-    int rc = temp.Wait();
-    return rc;
+    int rc =
+        temp.StartWrite(&data, offset, length, mdsclient, this->GetFileInfo());
+    if (rc != 0) {
+        return rc;
+    }
+
+    return temp.Wait();
 }
 
 int IOManager4File::AioRead(CurveAioContext* ctx, MDSClient* mdsclient,
                             UserDataType dataType) {
     MetricHelper::IncremUserRPSCount(fileMetric_, OpType::READ);
 
-    IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_,
-                                                   scheduler_, fileMetric_);
-    if (temp == nullptr) {
+    IOTracker* temp =
+        new (std::nothrow) IOTracker(this, &mc_, scheduler_, fileMetric_);
+    if (CURVE_UNLIKELY(temp == nullptr)) {
         ctx->ret = -LIBCURVE_ERROR::FAILED;
         ctx->cb(ctx);
         LOG(ERROR) << "allocate tracker failed!";
@@ -190,9 +199,9 @@ int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
                              UserDataType dataType) {
     MetricHelper::IncremUserRPSCount(fileMetric_, OpType::WRITE);
 
-    IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_,
-                                                   scheduler_, fileMetric_);
-    if (temp == nullptr) {
+    IOTracker* temp =
+        new (std::nothrow) IOTracker(this, &mc_, scheduler_, fileMetric_);
+    if (CURVE_UNLIKELY(temp == nullptr)) {
         ctx->ret = -LIBCURVE_ERROR::FAILED;
         ctx->cb(ctx);
         LOG(ERROR) << "allocate tracker failed!";

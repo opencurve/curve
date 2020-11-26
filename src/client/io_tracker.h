@@ -27,6 +27,7 @@
 #include <atomic>
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "src/client/metacache.h"
 #include "src/client/mds_client.h"
@@ -67,8 +68,9 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * @param length 读长度
      * @param mdsclient 透传给splitor，与mds通信
      * @param fileInfo 当前io对应文件的基本信息
+     * @return 成功返回0，失败返回-1
      */
-    void StartRead(void* buf, off_t offset, size_t length, MDSClient* mdsclient,
+    int StartRead(void* buf, off_t offset, size_t length, MDSClient* mdsclient,
                    const FInfo_t* fileInfo);
 
     /**
@@ -78,8 +80,9 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * @param length 写长度
      * @param mdsclient 透传给splitor，与mds通信
      * @param fileInfo 当前io对应文件的基本信息
+     * @return 成功返回0，失败返回-1
      */
-    void StartWrite(const void* buf, off_t offset, size_t length,
+    int StartWrite(const void* buf, off_t offset, size_t length,
                     MDSClient* mdsclient, const FInfo_t* fileInfo);
 
     /**
@@ -87,8 +90,9 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * @param ctx async read context
      * @param mdsclient used to communicate with MDS
      * @param fileInfo current file info
+     * @return 成功返回0，失败返回-1
      */
-    void StartAioRead(CurveAioContext* ctx, MDSClient* mdsclient,
+    int StartAioRead(CurveAioContext* ctx, MDSClient* mdsclient,
                       const FInfo_t* fileInfo);
 
     /**
@@ -96,8 +100,9 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * @param ctx async write context
      * @param mdsclient used to communicate with MDS
      * @param fileInfo current file info
+     * @return 成功返回0，失败返回-1
      */
-    void StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
+    int StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
                        const FInfo_t* fileInfo);
     /**
      * chunk相关接口是提供给snapshot使用的，上层的snapshot和file
@@ -122,15 +127,14 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * @param:chunkidinfo 目标chunk
      * @param: seq是需要修正的版本号
      */
-    void DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
-                     uint64_t correctedSeq);
+    int DeleteSnapChunkOrCorrectSn(const ChunkIDInfo& cinfo,
+                                   uint64_t correctedSeq);
     /**
      * 获取chunk的版本信息，chunkInfo是出参
      * @param:chunkidinfo 目标chunk
      * @param: chunkInfo是快照的详细信息
      */
-    void GetChunkInfo(const ChunkIDInfo &cinfo,
-                     ChunkInfoDetail *chunkInfo);
+    int GetChunkInfo(const ChunkIDInfo& cinfo, ChunkInfoDetail* chunkInfo);
 
     /**
      * @brief lazy 创建clone chunk
@@ -164,15 +168,19 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * @return: 返回读写信息，异步IO的时候返回0或-1.0代表成功，-1代表失败
      *          同步IO返回length或-1，length代表真实读写长度，-1代表读写失败
      */
-    int  Wait();
+    int Wait();
 
     /**
      * 每个request都要有自己的OP类型，这里提供接口可以在io拆分的时候获取类型
      */
-    OpType Optype() {return type_;}
+    OpType Optype() const {
+        return type_;
+    }
 
     // 设置操作类型，测试使用
-    void SetOpType(OpType type) { type_ = type; }
+    void SetOpType(OpType type) {
+        type_ = type;
+    }
 
     /**
      * 因为client的IO都是异步发送的，且一个IO被拆分成多个Request，因此在异步
@@ -272,7 +280,11 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     // 当用户下发的是同步IO的时候，其需要在上层进行等待，因为client的
     // IO发送流程全部是异步的，因此这里需要用条件变量等待，待异步IO返回
     // 之后才将这个等待的条件变量唤醒，然后向上返回。
-    IOConditionVariable  iocv_;
+    // in most cases, requests are asynchronous, and in some performance tests,
+    // it's found that the IOConditionVariable's destructor takes up a lot of CPU,  // NOLINT
+    // because each IO request creates an IOTracker, and destruct after the end of the request  // NOLINT
+    // so, change it from member variable to a pointer, and create it in synchronous requests   // NOLINT
+    std::unique_ptr<IOConditionVariable> iocv_;
 
     // 异步IO的context，在异步IO返回时，通过调用aioctx
     // 的异步回调进行返回。
