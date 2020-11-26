@@ -37,6 +37,13 @@ class ClientConfig {
         return fileServiceOption_;
     }
 
+    /**
+     * test use, set the fileServiceOption_
+     */
+    void SetFileServiceOption(FileServiceOption opt) {
+        fileServiceOption_ = opt;
+    }
+
     uint16_t GetDummyserverStartPort();
 
  private:

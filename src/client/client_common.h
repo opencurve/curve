@@ -76,6 +76,8 @@ typedef struct ChunkIDInfo {
     CopysetID       cpid_ = 0;
     LogicPoolID     lpid_ = 0;
 
+    bool chunkExist = true;
+
     ChunkIDInfo() = default;
 
     ChunkIDInfo(ChunkID cid, LogicPoolID lpid, CopysetID cpid)

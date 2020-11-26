@@ -118,7 +118,8 @@ class Splitor {
                                      uint64_t offset,
                                      MDSClient* mdsClient,
                                      MetaCache* metaCache,
-                                     const FInfo* fileInfo);
+                                     const FInfo* fileInfo,
+                                     ChunkIndex chunkidx);
 
  private:
     // IO拆分模块所使用的配置信息

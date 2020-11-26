@@ -44,11 +44,9 @@ int Schedule::ScheduleRequest(
     // LOG(INFO) << "ENTER MOCK ScheduleRequest";
     char fakedate[10] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'k'};
     curve::client::OpType type = curve::client::OpType::UNKNOWN;
-    int size = reqlist.size();
     int processed = 0;
     int totallength = 0;
     std::vector<datastruct> datavec;
-    LOG(ERROR) << size;
 
     if (enableScheduleFailed) {
         return -1;
@@ -64,6 +62,13 @@ int Schedule::ScheduleRequest(
               func(););
 
     for (auto iter : reqlist) {
+        if (!iter->idinfo_.chunkExist) {
+            if (iter->sourceInfo_.cloneFileSource.empty()) {
+                iter->done_->Run();
+            }
+            continue;
+        }
+
         auto req = iter->done_->GetReqCtx();
         if (iter->optype_ == curve::client::OpType::READ_SNAP) {
             char buf[iter->rawlength_];  // NOLINT
@@ -105,12 +110,6 @@ int Schedule::ScheduleRequest(
         //            << iter->offset_
         //            << ", length = "
         //            << iter->rawlength_;
-
-        if (processed >= size) {
-            iter->done_->SetFailed(0);
-            iter->done_->Run();
-            break;
-        }
         iter->done_->SetFailed(0);
         iter->done_->Run();
     }

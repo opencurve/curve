@@ -246,6 +246,15 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     // perform read operation
     void DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo);
 
+    /**
+     *  read from the source
+     *  @param: reqCtxVec the read request context vector
+     *  @param: the user info
+     *  @return 0 success; -1 fail
+     */
+    int ReadFromSource(std::vector<RequestContext*> reqCtxVec,
+                       const UserInfo_t& userInfo);
+
     // perform write operation
     void DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo);
 

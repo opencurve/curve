@@ -269,6 +269,31 @@ class FileClient {
         return openedFileNum_.get_value();
     }
 
+    /**
+     * test use, set the mdsclient_
+     */
+    void SetMdsClient(MDSClient* client) {
+        mdsClient_ = client;
+    }
+
+    /**
+     * test use, set the clientconfig_
+     */
+    void SetClientConfig(ClientConfig cfg) {
+        clientconfig_ = cfg;
+    }
+
+    const ClientConfig& GetClientConfig() {
+        return clientconfig_;
+    }
+
+    /**
+     * test use, get the fileserviceMap_
+     */
+    std::unordered_map<int, FileInstance*>& GetFileServiceMap() {
+        return fileserviceMap_;
+    }
+
  private:
     bool StartDummyServer();
 

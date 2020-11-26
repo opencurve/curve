@@ -179,11 +179,16 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
     MetaCacheErrorType errCode =
         metaCache->GetChunkInfoByIndex(chunkidx, &chunkIdInfo);
 
-    if (errCode == MetaCacheErrorType::CHUNKINFO_NOT_FOUND) {
+
+    if (errCode == MetaCacheErrorType::CHUNKINFO_NOT_FOUND ||
+       (errCode == MetaCacheErrorType::OK && !chunkIdInfo.chunkExist &&
+       iotracker->Optype() == OpType::WRITE)) {
+        bool isAllocateSegment =
+            iotracker->Optype() == OpType::READ ? false : true;
         if (false == GetOrAllocateSegment(
-                         true,
+                         isAllocateSegment,
                          static_cast<uint64_t>(chunkidx) * fileinfo->chunksize,
-                         mdsclient, metaCache, fileinfo)) {
+                         mdsclient, metaCache, fileinfo, chunkidx)) {
             return false;
         }
 
@@ -227,7 +232,8 @@ bool Splitor::GetOrAllocateSegment(bool allocateIfNotExist,
                                    uint64_t offset,
                                    MDSClient* mdsClient,
                                    MetaCache* metaCache,
-                                   const FInfo* fileInfo) {
+                                   const FInfo* fileInfo,
+                                   ChunkIndex chunkidx) {
     SegmentInfo segmentInfo;
     LIBCURVE_ERROR errCode = mdsClient->GetOrAllocateSegment(
         allocateIfNotExist, offset, fileInfo, &segmentInfo);
@@ -237,6 +243,12 @@ bool Splitor::GetOrAllocateSegment(bool allocateIfNotExist,
         LOG(ERROR) << "GetOrAllocateSegmen failed, filename: "
                    << fileInfo->filename << ", offset: " << offset;
         return false;
+    } else if (errCode == LIBCURVE_ERROR::NOT_ALLOCATE) {
+        // this chunkIdInfo(0, 0, 0) identify the unallocated chunk when read
+        ChunkIDInfo chunkIdInfo(0, 0, 0);
+        chunkIdInfo.chunkExist = false;
+        metaCache->UpdateChunkInfoByIndex(chunkidx, chunkIdInfo);
+        return true;
     }
 
     const auto chunksize = fileInfo->chunksize;
