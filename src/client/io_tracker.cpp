@@ -30,6 +30,8 @@
 #include "src/client/request_scheduler.h"
 #include "src/client/request_closure.h"
 #include "src/common/timeutility.h"
+#include "src/client/libcurve_file.h"
+#include "src/client/source_reader.h"
 
 namespace curve {
 namespace client {
@@ -91,15 +93,34 @@ void IOTracker::DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo) {
     if (ret == 0) {
         PrepareReadIOBuffers(reqlist_.size());
         uint32_t subIoIndex = 0;
+        std::vector<RequestContext*> originReadVec;
 
-        reqcount_.store(reqlist_.size(), std::memory_order_release);
         std::for_each(reqlist_.begin(), reqlist_.end(), [&](RequestContext* r) {
+            // fake subrequest
+            if (!r->idinfo_.chunkExist) {
+                // the clone source is empty
+                if (r->sourceInfo_.cloneFileSource.empty()) {
+                    // add zero data
+                    r->readData_.resize(r->rawlength_, 0);
+                    r->done_->SetFailed(LIBCURVE_ERROR::OK);
+                } else {
+                    // read from original volume
+                    originReadVec.emplace_back(r);
+                }
+            }
+
             r->done_->SetFileMetric(fileMetric_);
             r->done_->SetIOManager(iomanager_);
             r->subIoIndex_ = subIoIndex++;
         });
 
-        ret = scheduler_->ScheduleRequest(reqlist_);
+        reqcount_.store(reqlist_.size(), std::memory_order_release);
+        if (scheduler_->ScheduleRequest(reqlist_) == 0 &&
+            ReadFromSource(originReadVec, fileInfo->userinfo) == 0) {
+            ret = 0;
+        } else {
+            ret = -1;
+        }
     } else {
         LOG(ERROR) << "splitor read io failed, "
                    << "offset = " << offset_ << ", length = " << length_;
@@ -109,6 +130,11 @@ void IOTracker::DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo) {
         LOG(ERROR) << "split or schedule failed, return and recycle resource!";
         ReturnOnFail();
     }
+}
+
+int IOTracker::ReadFromSource(std::vector<RequestContext*> reqCtxVec,
+                              const UserInfo_t& userInfo) {
+    return SourceReader::GetInstance().Read(reqCtxVec, userInfo);
 }
 
 void IOTracker::StartWrite(const void* buf, off_t offset, size_t length,

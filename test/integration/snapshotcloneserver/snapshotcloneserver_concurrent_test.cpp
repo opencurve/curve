@@ -32,10 +32,12 @@
 #include "test/integration/snapshotcloneserver/test_snapshotcloneserver_helpler.h"
 #include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"
+#include "src/client/source_reader.h"
 
 using curve::CurveCluster;
 using curve::client::FileClient;
 using curve::client::UserInfo_t;
+using curve::client::SourceReader;
 
 const std::string kTestPrefix = "ConSCSTest";  // NOLINT
 
@@ -334,6 +336,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
         fileClient_ = new FileClient();
         fileClient_->Init(kClientConfigPath);
+        SourceReader::GetInstance().Init(kClientConfigPath);
 
         UserInfo_t userinfo;
         userinfo.owner = "concurrentItUser1";

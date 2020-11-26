@@ -131,7 +131,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
                        ::google::protobuf::Closure* done) {
         brpc::ClosureGuard done_guard(done);
         if (fakeGetFileInforet_->controller_ != nullptr &&
-             fakeGetFileInforet_->controller_->Failed()) {
+            fakeGetFileInforet_->controller_->Failed()) {
             controller->SetFailed("failed");
         }
 
@@ -190,9 +190,14 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
 
         fiu_do_on("test/client/fake/fakeMDS.GetOrAllocateSegment",
                  checkFullpath());
-
-        auto resp = static_cast<::curve::mds::GetOrAllocateSegmentResponse*>(
+        curve::mds::GetOrAllocateSegmentResponse* resp;
+        if (request->filename() ==  "/clonesource") {
+            resp = static_cast<::curve::mds::GetOrAllocateSegmentResponse*>(
+                    fakeGetOrAllocateSegmentretForClone_->response_);
+        } else {
+            resp = static_cast<::curve::mds::GetOrAllocateSegmentResponse*>(
                     fakeGetOrAllocateSegmentret_->response_);
+        }
         response->CopyFrom(*resp);
     }
 
@@ -601,6 +606,10 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         fakeGetOrAllocateSegmentret_ = fakeret;
     }
 
+    void SetGetOrAllocateSegmentFakeReturnForClone(FakeReturn* fakeret) {
+        fakeGetOrAllocateSegmentretForClone_ = fakeret;
+    }
+
     void SetOpenFile(FakeReturn* fakeret) {
         fakeopenfile_ = fakeret;
     }
@@ -707,6 +716,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
     FakeReturn* fakeGetFileInforet_;
     FakeReturn* fakeGetAllocatedSizeRet_;
     FakeReturn* fakeGetOrAllocateSegmentret_;
+    FakeReturn* fakeGetOrAllocateSegmentretForClone_;
     FakeReturn* fakeopenfile_;
     FakeReturn* fakeclosefile_;
     FakeReturn* fakerenamefile_;

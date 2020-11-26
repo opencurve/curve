@@ -214,6 +214,16 @@ struct TaskThreadOption {
 };
 
 /**
+ * timed close fd thread in SourceReader config
+ * @fdTimeout: sourcereader fd timeout
+ * @fdCloseTimeInterval: close sourcereader fd time interval
+ */
+struct CloseFdThreadOption {
+    uint32_t fdTimeout = 300;
+    uint32_t fdCloseTimeInterval = 600;
+};
+
+/**
  * IOOption存储了当前io 操作所需要的所有配置信息
  */
 struct IOOption {
@@ -222,6 +232,7 @@ struct IOOption {
     MetaCacheOption metaCacheOpt;
     TaskThreadOption taskThreadOpt;
     RequestScheduleOption reqSchdulerOpt;
+    CloseFdThreadOption closeFdThreadOption;
 };
 
 /**

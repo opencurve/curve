@@ -91,6 +91,14 @@ int RequestScheduler::ScheduleRequest(
     if (running_.load(std::memory_order_acquire)) {
         /* TODO(wudemiao): 后期考虑 qos */
         for (auto it : requests) {
+            // skip the fake request
+            if (!it->idinfo_.chunkExist) {
+                if (it->sourceInfo_.cloneFileSource.empty()) {
+                    it->done_->Run();
+                }
+                continue;
+            }
+
             BBQItem<RequestContext *> req(it);
             queue_.PutBack(req);
         }

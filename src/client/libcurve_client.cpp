@@ -22,6 +22,7 @@
 
 #include "include/client/libcurve.h"
 #include "src/client/libcurve_file.h"
+#include "src/client/source_reader.h"
 
 namespace curve {
 namespace client {
@@ -34,7 +35,14 @@ CurveClient::~CurveClient() {
 }
 
 int CurveClient::Init(const std::string& configPath) {
-    return fileClient_->Init(configPath);
+    if (0 == fileClient_->Init(configPath) &&
+       0 == SourceReader::GetInstance().Init(configPath)) {
+        SourceReader::GetInstance().Run();
+        return LIBCURVE_ERROR::OK;
+    } else {
+        LOG(ERROR) << "Curve Client Or SourceReader Init failed!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
 }
 
 void CurveClient::UnInit() {
