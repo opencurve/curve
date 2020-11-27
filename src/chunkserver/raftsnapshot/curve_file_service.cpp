@@ -67,8 +67,6 @@ void CurveFileService::get_file(::google::protobuf::RpcController* controller,
          * 的uri format为:remote://ip:port/reader_id，所以使用ENXIO
          * 代表reader id不存在的错误
          */
-        LOG(ERROR) << "reader " << request->reader_id()
-                   << " not found in reader map";
         cntl->SetFailed(ENXIO, "Fail to find reader=%" PRId64,
                                     request->reader_id());
         return;
@@ -82,7 +80,6 @@ void CurveFileService::get_file(::google::protobuf::RpcController* controller,
               << request->count();
 
     if (request->count() <= 0 || request->offset() < 0) {
-        LOG(ERROR) << "request count or offset elegal";
         cntl->SetFailed(brpc::EREQUEST, "Invalid request=%s",
                         request->ShortDebugString().c_str());
         return;
@@ -160,8 +157,6 @@ void CurveFileService::get_file(::google::protobuf::RpcController* controller,
                                 &read_count,
                                 &is_eof);
         if (rc != 0) {
-            LOG(ERROR) << "Fail to read file " << reader->path() << "/"
-                       << request->filename() << " error code: " << rc;
             cntl->SetFailed(rc, "Fail to read from path=%s filename=%s : %s",
                             reader->path().c_str(),
                             request->filename().c_str(), berror(rc));
