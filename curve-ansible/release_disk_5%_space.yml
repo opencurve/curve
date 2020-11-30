@@ -20,6 +20,7 @@
   hosts: chunkservers
   any_errors_fatal: true
   gather_facts: no
+  become: "{{ sudo_or_not }}"
   tasks:
     - name: init wal pool
       shell: sudo tune2fs -m 0 /dev/{{ item }}

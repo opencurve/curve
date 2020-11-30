@@ -15,6 +15,12 @@
 #  limitations under the License.
 #
 
+- name: clean data under data dir
+  vars:
+    end_seq: "{{ chunkserver_num | int - 1}}"
+  shell: sudo rm -rf {{ chunkserver_data_dir }}/chunkserver{{ item }}/*
+  with_sequence: start=0 end={{ end_seq }}
+
 - name: umount dir
   ignore_errors: true
   vars:

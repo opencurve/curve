@@ -15,22 +15,23 @@
 #  limitations under the License.
 #
 
-# 获取mds的版本
-- name: get curve version
-  vars:
-    metric_port: "{{ mds_dummy_port }}"
-    curve_version:
-  include_tasks: common_tasks/get_curve_version_from_metric.yml
-
-- name: set need_restart false
-  set_fact:
-    need_restart: false
-  when: curve_version == expected_curve_version
-
-- name: set need_restart true
-  set_fact:
-    need_restart: true
-  when: curve_version != expected_curve_version
+- name: Determine need restart or not
+  block:
+    # 获取mds的版本
+    - name: get curve version
+      vars:
+        metric_port: "{{ mds_dummy_port }}"
+        curve_version:
+      include_tasks: common_tasks/get_curve_version_from_metric.yml
+    - name: set need_restart false
+      set_fact:
+        need_restart: false
+      when: curve_version == expected_curve_version
+    - name: set need_restart true
+      set_fact:
+        need_restart: true
+      when: curve_version != expected_curve_version
+  when: not restart_directly
 
 - name: restart mds
   block:
@@ -38,4 +39,4 @@
       include_tasks: roles/stop_service/tasks/include/stop_mds.yml
     - name: start mds
       include_tasks: roles/start_service/tasks/include/start_mds.yml
-  when: need_restart
+  when: need_restart or restart_directly

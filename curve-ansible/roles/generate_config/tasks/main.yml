@@ -17,8 +17,3 @@
 
 - name: generate config with template
   include_tasks: include/generate_config_with_template.yml
-  when: not {{ update_config_with_puppet }}
-
-- name: update config with puppet
-  include_tasks: include/update_config_with_puppet.yml
-  when: update_config_with_puppet

@@ -192,8 +192,7 @@ ansible-playbook deploy_monitor.yml -i server.ini
 ansible-playbook rolling_update_curve.yml -i server.ini
 ```
 
-
-快照克隆服务需要提供s3账号和密码才能够部署，因此一键升级默认不会升级快照克隆和快照克隆Nginx。升级这两个组件需要额外操作。另外etcd也不会经常更新，通常是etcd-daemon和配置文件可能需要更新，因此一键升级中也不包含etcd的升级，升级的话需要额外操作。
+etcd不会经常更新，通常是etcd-daemon和配置文件可能需要更新，因此一键升级中不包含etcd的升级，升级的话需要额外操作。
 
 #### 2.2 升级etcd
 etcd升级需要需要先升级follower，再升级leader，这个逻辑在yml文件中已经包含了，使用的时候只需要交互确认一下即可。
@@ -211,9 +210,10 @@ mds升级同样需要先升级备，再升级主，这个逻辑在yml文件中�
   (3) 重复上一步直到所有mds升级完毕
 
 #### 2.4 升级chunkserver
+升级chunkserver是按照zone分批重启的。升级过程中重启一批机器的时候，会把这批机器的名字用逗号分隔打出来。
   (1) `ansible-playbook rolling_update_curve.yml -i server.ini --tags chunkserver`
-  (2) 此时会打出"Confirm restart chunkserver in pubt1-curve1. ENTER to continue or CTRL-C A to quit:"
-      确认无误（集群healthy，io恢复）后输入回车继续
+  (2) 此时会打出"Confirm restart chunkserver in pubt1-curve1, pubt1-curve2. ENTER to continue or CTRL-C A to quit:"
+      确认无误（集群healthy，io恢复，列出来的机器在同一个zone）后输入回车继续
   (3) 重复上一步直到所有chunkserver升级完毕
 
 #### 2.5 升级快照克隆
@@ -325,6 +325,39 @@ ansible-playbook stop_curve.yml -i server.ini
 ansible-playbook stop_nebd_server.yml -i client.ini
 ```
 
+#### 4.4 重启集群
+重启集群可以通过rolling_update_curve.yml脚本完成，但是需要额外在命令行指定一些参数。**需要注意，ansible的tag之间是并集的关系而不是交集，因此重启chunkserver不能指定--tags restart, chunkserver，这样指定后所有带restart的脚本都会执行，导致所有服务一起重启，因此针对单个服务，定义了额外的tag**
+
+（1）一键重启curve集群
+
+```shell
+ansible-playbook -i server.ini rolling_update_curve.yml --tags restart --extra-vars restart_directly=true
+```
+（2）重启mds
+
+```shell
+ansible-playbook -i server.ini rolling_update_curve.yml --tags restart_mds --extra-vars restart_directly=true
+```
+（3）重启chunkserver
+
+```shell
+ansible-playbook -i server.ini rolling_update_curve.yml --tags restart_chunkserver --extra-vars restart_directly=true
+```
+（4）重启快照克隆
+
+```shell
+ansible-playbook -i server.ini rolling_update_curve.yml --tags restart_snapshotclone --extra-vars restart_directly=true
+```
+（5）重启etcd
+```shell
+ansible-playbook -i server.ini rolling_update_curve.yml --tags restart_etcd --extra-vars restart_directly=true
+```
+（6）重启nebd-server
+
+```shell
+ansible-playbook rolling_update_nebd.yml -i client.ini --tags restart
+```
+
 三、目录结构说明
 
 ```
@@ -345,6 +378,7 @@ ansible-playbook stop_nebd_server.yml -i client.ini
 │   ├── install_with_yum_apt.yml                            # 用apt或yum的方式安装
 │   ├── start_service.yml                                   # 启动服务
 │   ├── stop_service.yml                                    # 停止服务
+│   ├── update_config_with_puppet.yml                       # 使用puppet更新配置
 │   ├── update_package.yml                                  # 更新包
 │   ├── wait_copysets_status_healthy.yml                    # 在一段时间内循环检查copyset健康状态
 │   ├── wait_until_server_down.yml                          # 等待直到server停掉
@@ -384,11 +418,11 @@ ansible-playbook stop_nebd_server.yml -i client.ini
 │   ├── restart_service                                     # 用来重启服务的role
 │   │   ├── tasks                                           # 存放重启服务的task，main.yml是入口，其他的被main引用
 │   │   │   ├── include
+│   │   │   │   ├── append_need_restart_cs_list.yml         # 根据版本判断chunkserver是否需要重启并追加到重启列表中
 │   │   │   │   ├── restart_chunkserver.yml                 # 重启chunkserver
 │   │   │   │   ├── restart_etcd.yml                        # 重启etcd
 │   │   │   │   ├── restart_mds.yml                         # 重启etcd
 │   │   │   │   ├── restart_nebd.yml                        # 重启nebd server
-│   │   │   │   ├── restart_one_chunkserver.yml             # 重启单个chunkserver
 │   │   │   │   └── restart_snapshotclone.yml               # 重启快照克隆
 │   │   │   └── main.yml                                    # main.yml的所有task会被include到使用role的地方
 │   │   └── vars
@@ -420,6 +454,7 @@ ansible-playbook stop_nebd_server.yml -i client.ini
 │   │   ├── templates                                       # 存放模板
 │   │   │   ├── chunkserver_ctl.sh.j2                       # chunkserver启动脚本的模板
 │   │   │   ├── chunkserver_deploy.sh.j2                    # chunkserver格式化脚本的模板
+│   │   │   ├── curve-monitor.sh.j2                         # 启动监控服务的脚本模板
 │   │   │   ├── etcd-daemon.sh.j2                           # etcd启动脚本的模板
 │   │   │   ├── mds-daemon.sh.j2                            # mds启动脚本的模板
 │   │   │   ├── nebd-daemon.j2                              # nebd-server启动脚本的模板

@@ -26,6 +26,7 @@
   hosts: etcd
   any_errors_fatal: true
   gather_facts: no
+  become: "{{ sudo_or_not }}"
   tags:
     - etcd
     - never
@@ -47,10 +48,12 @@
   hosts: etcd_servers_followers, etcd_servers_leader
   any_errors_fatal: true
   gather_facts: no
+  become: "{{ sudo_or_not }}"
   serial: 1
   tags:
     - etcd
     - never
+    - restart_etcd
   pre_tasks:
     - pause:
         prompt: "Confirm update etcd in {{ inventory_hostname }}. ENTER to continue or 'CTRL-C A' to quit"
@@ -63,6 +66,7 @@
   hosts: mds
   any_errors_fatal: true
   gather_facts: no
+  become: "{{ sudo_or_not }}"
   tags:
     - prepare
     - mds
@@ -86,6 +90,7 @@
   tags:
     - restart
     - mds
+    - restart_mds
   roles:
     - { role: set_leader_and_follower_list, service_name: mds }
 
@@ -94,9 +99,10 @@
   hosts: mds_servers_followers, mds_servers_leader
   any_errors_fatal: true
   gather_facts: no
+  become: "{{ sudo_or_not }}"
   serial: 1
   tags:
-    - restart
+    - restart_mds
     - mds
   pre_tasks:
     - pause:
@@ -118,6 +124,7 @@
   hosts: chunkservers
   any_errors_fatal: true
   gather_facts: no
+  become: "{{ sudo_or_not }}"
   tags:
     - prepare
     - chunkserver
@@ -137,13 +144,15 @@
   hosts: chunkservers
   any_errors_fatal: true
   gather_facts: no
-  serial: 1
+  become: "{{ sudo_or_not }}"
+  serial: "{{ groups.zone1 | length }}"
   tags:
     - restart
     - chunkserver
+    - restart_chunkserver
   pre_tasks:
     - pause:
-        prompt: "Confirm restart chunkserver in {{ inventory_hostname }}. ENTER to continue or CTRL-C A to quit"
+        prompt: "Confirm restart chunkserver in {{ play_hosts | join(',') }}. ENTER to continue or CTRL-C A to quit"
       when: need_confirm
     - vars:
         package_version: "{{ cs_package_version }}"
@@ -161,6 +170,7 @@
   hosts: snapshotclone
   any_errors_fatal: true
   gather_facts: no
+  become: "{{ sudo_or_not }}"
   tags:
     - prepare
     - snapshotclone
@@ -181,6 +191,7 @@
   tags:
     - restart
     - snapshotclone
+    - restart_snapshotclone
   roles:
     - { role: set_leader_and_follower_list, service_name: snapshot }
 
@@ -188,10 +199,12 @@
   hosts: snapshot_servers_followers, snapshot_servers_leader
   any_errors_fatal: true
   gather_facts: no
+  become: "{{ sudo_or_not }}"
   serial: 1
   tags:
     - restart
     - snapshotclone
+    - restart_snapshotclone
   pre_tasks:
     - pause:
         prompt: "Confirm restart snapshotclone in {{ inventory_hostname }}. ENTER to continue or CTRL-C A to quit"

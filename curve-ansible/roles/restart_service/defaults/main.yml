@@ -15,4 +15,10 @@
 #  limitations under the License.
 #
 
-check_health: false
+check_health: False
+# 启动一个chunkserver需要的最大时间
+restart_chunkserver_async: 100
+restart_chunkserver_check_delay: 5
+restart_chunkserver_check_times: 20
+restart_cs_list: []
+restart_directly: False
