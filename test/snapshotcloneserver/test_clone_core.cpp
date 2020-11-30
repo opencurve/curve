@@ -434,6 +434,90 @@ TEST_F(TestCloneCoreImpl, TestClonePreDestinationExist) {
     ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
 }
 
+TEST_F(TestCloneCoreImpl, TestClonePreDestinationAndTaskExist) {
+    const UUID &source = "fi1e1";
+    const std::string user = "user1";
+    const std::string destination = "destination1";
+    bool lazyFlag = true;
+    CloneInfo cloneInfoOut;
+    uint64_t destId = 10086;
+
+    std::vector<CloneInfo> cloneInfoList;
+    CloneInfo info1("taskid1",
+        user,
+        CloneTaskType::kClone,
+        source,
+        destination,
+        100,
+        destId,
+        0,
+        CloneFileType::kFile,
+        lazyFlag,
+        CloneStep::kRecoverChunk,
+        CloneStatus::metaInstalled);
+    cloneInfoList.push_back(info1);
+    EXPECT_CALL(*metaStore_, GetCloneInfoByFileName(destination, _))
+        .WillOnce(DoAll(
+                SetArgPointee<1>(cloneInfoList),
+                Return(kErrCodeSuccess)));
+
+    FInfo fInfo;
+    fInfo.id = destId;
+    EXPECT_CALL(*client_, GetFileInfo(destination, option.mdsRootUser, _))
+        .WillOnce(DoAll(
+                SetArgPointee<2>(fInfo),
+                Return(LIBCURVE_ERROR::OK)));
+
+    int ret = core_->CloneOrRecoverPre(
+        source, user, destination, lazyFlag,
+        CloneTaskType::kClone, &cloneInfoOut);
+    ASSERT_EQ(kErrCodeTaskExist, ret);
+    ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
+    ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
+}
+
+TEST_F(TestCloneCoreImpl, TestClonePreDestinationExistButInodeidNotEqual) {
+    const UUID &source = "fi1e1";
+    const std::string user = "user1";
+    const std::string destination = "destination1";
+    bool lazyFlag = true;
+    CloneInfo cloneInfoOut;
+    uint64_t destId = 10086;
+
+    std::vector<CloneInfo> cloneInfoList;
+    CloneInfo info1("taskid1",
+        user,
+        CloneTaskType::kClone,
+        source,
+        destination,
+        100,
+        destId,
+        0,
+        CloneFileType::kFile,
+        lazyFlag,
+        CloneStep::kRecoverChunk,
+        CloneStatus::metaInstalled);
+    cloneInfoList.push_back(info1);
+    EXPECT_CALL(*metaStore_, GetCloneInfoByFileName(destination, _))
+        .WillOnce(DoAll(
+                SetArgPointee<1>(cloneInfoList),
+                Return(kErrCodeSuccess)));
+
+    FInfo fInfo;
+    fInfo.id = destId + 1;
+    EXPECT_CALL(*client_, GetFileInfo(destination, option.mdsRootUser, _))
+        .WillOnce(DoAll(
+                SetArgPointee<2>(fInfo),
+                Return(LIBCURVE_ERROR::OK)));
+
+    int ret = core_->CloneOrRecoverPre(
+        source, user, destination, lazyFlag,
+        CloneTaskType::kClone, &cloneInfoOut);
+    ASSERT_EQ(kErrCodeFileExist, ret);
+    ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
+    ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
+}
+
 TEST_F(TestCloneCoreImpl, TestRecoverPreDestinationNotExist) {
     const UUID &source = "fi1e1";
     const std::string user = "user1";
