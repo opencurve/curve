@@ -35,11 +35,25 @@ function run() {
     if [ "$hasmount" ]
     then
         sudo umount $nbddevice
+        hasmount=$(df -T | grep ${nbddevice})
+        if [ "$hasmount" ]
+        then
+            echo "ERROR: umount nbddevice failed!"
+        else
+            echo "umount nbddevice success"
+        fi
     fi
 
     if [ "$nbddevice" ]
     then
         sudo curve-nbd unmap $nbddevice
+        nbddevice=$(sudo curve-nbd list-mapped | grep ${filename} | cut -d " " -f 3)
+        if [ "$nbddevice" ]
+        then
+            echo "ERROR: unmap nbddevice failed!"
+        else
+            echo "unmap nbddevice success"
+        fi
     fi
 
     if [ "$curvevolume" ]
@@ -48,7 +62,13 @@ function run() {
         case $input in
             [yY][eE][sS]|[yY])
                 sudo curve delete --filename /$filename --user $user
-                echo "Delete curvevolume done"
+                curvevolume=$(sudo curve_ops_tool list --fileName=/ | grep ${filename})
+                if [ "$curvevolume" ]
+                then
+                    echo "ERROR: delete curve volume failed!"
+                else
+                    echo "delete curve volume success"
+                fi
                 ;;
             [nN][oO]|[nN])
                 exit 1
@@ -65,7 +85,6 @@ function run() {
 function getOptions() {
     filename=`cat ${confPath} | grep -v '#' | grep filename= | awk -F "=" '{print $2}'`
     user=`cat ${confPath} | grep -v '#' | grep user= | awk -F "=" '{print $2}'`
-    mountpoint=`cat ${confPath} | grep -v '#' | grep mountpoint= | awk -F "=" '{print $2}'`
 }
 
 count=1
@@ -102,10 +121,6 @@ else
             ;;
         --user)
             user="$2"
-            shift 2
-            ;;
-        --mountpoint)
-            mountpoint="$2"
             shift 2
             ;;
         *)

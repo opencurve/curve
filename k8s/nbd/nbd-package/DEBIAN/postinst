@@ -4,8 +4,17 @@ set -e
 
 chmod +x /usr/bin/mount_curve_clouddisk.sh
 
+# default confpath
+confPath=/etc/nbd/k8s_curve.conf
+
 filename=$HOSTNAME"_curvefile"
-sed -i "s/filename=curvefile/filename=$filename/g" /etc/nbd/k8s_curve.conf
+
+if [ ! -f ${confPath} ]
+then
+	echo "ERROR: not found configuration file, confPath is ${confPath}!"
+	exit
+fi
+sed -i "s/filename=curvefile/filename=$filename/g" $confPath
 
 systemctl daemon-reload
 systemctl enable create_curve_volume.service
