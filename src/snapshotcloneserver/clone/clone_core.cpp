@@ -61,7 +61,7 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     std::vector<CloneInfo> cloneInfoList;
     metaStore_->GetCloneInfoByFileName(destination, &cloneInfoList);
     bool needJudgeFileExist = false;
-    CloneInfo existCloneInfo;
+    std::vector<CloneInfo> existCloneInfos;
     for (auto &info : cloneInfoList) {
         LOG(INFO) << "CloneOrRecoverPre find same clone task"
                   << ", source = " << source
@@ -88,7 +88,7 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                        info.GetStatus() == CloneStatus::metaInstalled) {
                 // 可能已经删除，需要再判断文件存不存在，
                 // 在已删除的条件下，允许再克隆
-                existCloneInfo = info;
+                existCloneInfos.push_back(info);
                 needJudgeFileExist = true;
             } else {
                 // 此时，有个相同的克隆任务正在删除中, 返回文件被占用
@@ -126,9 +126,29 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
         case LIBCURVE_ERROR::OK:
             if (CloneTaskType::kClone == taskType) {
                 if (needJudgeFileExist) {
-                    *cloneInfo = existCloneInfo;
-                    return kErrCodeTaskExist;
+                    bool match = false;
+                    //  找出inodeid匹配的cloneInfo
+                    for (auto& existInfo : existCloneInfos) {
+                        if (destFInfo.id == existInfo.GetDestId()) {
+                            *cloneInfo = existInfo;
+                            match = true;
+                            break;
+                        }
+                    }
+                    if (match) {
+                        return kErrCodeTaskExist;
+                    } else {
+                        // 如果没找到，那么dest file都不是这些clone任务创建的，
+                        // 意味着文件重名了
+                        LOG(ERROR) << "Clone dest file exist, "
+                                   << "but task not match! "
+                                   << "source = " << source
+                                   << ", user = " << user
+                                   << ", destination = " << destination;
+                        return kErrCodeFileExist;
+                    }
                 } else {
+                    // 没有对应的cloneInfo，意味着文件重名了
                     LOG(ERROR) << "Clone dest file must not exist"
                                << ", source = " << source
                                << ", user = " << user
