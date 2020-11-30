@@ -15,9 +15,37 @@
 #  limitations under the License.
 #
 
-- name: restart chunkserver
+- name: Determine need restart or not
+  include_tasks: append_need_restart_cs_list.yml
+  with_sequence: start=0 end={{ chunkserver_num | int - 1}}
+  when: not restart_directly
+
+- name: set restart_cs_list as all
   vars:
-    end_seq: "{{ chunkserver_num | int - 1}}"
-    chunkserver_seq: "{{ item }}"
-  include_tasks: "restart_one_chunkserver.yml"
-  with_sequence: start=0 end={{ end_seq }}
+    all_cs: all
+  set_fact:
+    restart_cs_list: "{{ restart_cs_list + [all_cs] }}"
+  when: restart_directly
+
+- name: set sudo
+  set_fact:
+    sudo: "sudo"
+  when: command_need_sudo
+
+- name: restart chunkserver
+  shell: chdir={{ deploy_dir }} {{ sudo }} ./chunkserver_ctl.sh restart {{ item }}
+  async: "{{ restart_chunkserver_async }}"
+  poll: 0
+  register: restart_cs_res
+  with_items: "{{ restart_cs_list }}"
+  when: restart_cs_list != ""
+
+- name: wait for restart finish
+  async_status:
+    jid: "{{ item.ansible_job_id }}"
+  register: jobs
+  until: jobs.finished
+  delay: "{{ restart_chunkserver_check_delay }}"
+  retries: "{{ restart_chunkserver_check_times }}"
+  with_items: "{{ restart_cs_res.results }}"
+  when: restart_cs_list != "" or restart_directly

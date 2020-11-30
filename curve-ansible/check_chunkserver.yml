@@ -18,6 +18,6 @@
 
 - name: check chunkserver config
   hosts: chunkservers
-
+  become: "{{ sudo_or_not }}"
   tasks:
     - include_tasks: "common_tasks/check_chunkserver.yml"

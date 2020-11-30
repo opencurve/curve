@@ -1,0 +1,12 @@
+---
+
+- name: get chunkserver version
+  vars:
+    metric_port: "{{ chunkserver_base_port | int + item | int }}"
+    curve_version:
+  include_tasks: common_tasks/get_curve_version_from_metric.yml
+
+- name: append need restart chunkserver id
+  set_fact:
+    restart_cs_list: "{{ restart_cs_list + [item] }}"
+  when: curve_version != expected_curve_version

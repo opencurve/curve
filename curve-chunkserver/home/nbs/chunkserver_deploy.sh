@@ -64,7 +64,7 @@ diskinfo=./diskinfo
 function record_diskinfo {
   for i in `lsblk -O|grep ATA|awk '{print $1}'`
   do
-    wwn=`lsblk -O|grep ATA|grep $i|awk '{print $32}'`
+    wwn=`lsblk -o NAME,WWN|grep $i|awk '{print $2}'`
     disk_map["$i"]=$wwn
   done
 

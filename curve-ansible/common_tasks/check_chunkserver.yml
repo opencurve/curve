@@ -95,7 +95,7 @@
   when: "'Disabled' not in jbod_res.stdout"
 
 - name: check the RAID firmware
-  shell: sudo /usr/sbin/megacli -AdpAllInfo -aALL  | grep "FW Package Build" | awk -F ' ' '{print $2}'
+  shell: sudo /usr/sbin/megacli -AdpAllInfo -aALL  | grep "FW Package Build" | awk -F ' ' '{print $4}'
   register: firmware_version
 
 - name: check kernel version

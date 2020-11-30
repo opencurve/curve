@@ -111,7 +111,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    tar zxvf nebd_{version}.tar.gz
    cd curve/curve-ansible
    ```
-3. 部署集群并启动服务，如果需要使用快照克隆功能，请先设置server.ini中的disable_snapshot_clone=false再执行脚本。
+3. 部署集群并启动服务，如果需要使用快照克隆功能，请先设置server.ini中的disable_snapshot_clone=False再执行脚本。
 
    ```
    ansible-playbook -i server.ini deploy_curve.yml
@@ -302,10 +302,20 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    nginx1 ansible_ssh_host=10.192.100.1 // 改动
    nginx2 ansible_ssh_host=10.192.100.2 // 改动
 
-   [chunkservers]
+   [zone1]
    server1 ansible_ssh_host=10.192.100.1 // 改动
+
+   [zone2]
    server2 ansible_ssh_host=10.192.100.2 // 改动
+
+   [zone3]
    server3 ansible_ssh_host=10.192.100.3 // 改动
+
+   # 请确保zone内机器数量一致
+   [chunkservers:children]
+   zone1
+   zone2                                // 改动
+   zone3                                // 改动
 
    [monitor]
    localhost ansible_ssh_host=127.0.0.1  // 部署监控的机器，可以根据需要改动
@@ -318,9 +328,8 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    mds_package_version="0.0.6.1+160be351"
    tool_package_version="0.0.6.1+160be351"
    # 启动命令是否用sudo
-   mds_need_sudo=true
+   mds_need_sudo=True
    mds_config_path=/etc/curve/mds.conf
-   tool_config_path=/etc/curve/tools.conf
    mds_log_dir=/data/log/curve/mds
    topo_file_path=/etc/curve/topo.json
 
@@ -328,7 +337,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    etcd_listen_client_port=2379
    etcd_listen_peer_port=2380
    etcd_name="etcd"
-   etcd_need_sudo=true
+   etcd_need_sudo=True
    defined_healthy_status="cluster is healthy"
    etcd_config_path=/etc/curve/etcd.conf.yml
    etcd_log_dir=/data/log/curve/etcd
@@ -341,16 +350,15 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    snapshot_subnet=10.192.100.0/22                      // 改成想要启动mds服务的ip对应的子网
    defined_healthy_status="cluster is healthy"
    snapshot_package_version="0.0.6.1.1+7af4d6a4"
-   snapshot_need_sudo=true
+   snapshot_need_sudo=True
    snapshot_config_path=/etc/curve/snapshot_clone_server.conf
    snap_s3_config_path=/etc/curve/s3.conf
    snap_client_config_path=/etc/curve/snap_client.conf
-   snap_tool_config_path=/etc/curve/snapshot_tools.conf
-   client_register_to_mds=false
+   client_register_to_mds=False
    client_chunkserver_op_max_retry=50
    client_chunkserver_max_rpc_timeout_ms=16000
    client_chunkserver_max_stable_timeout_times=64
-   client_turn_off_health_check=false
+   client_turn_off_health_check=False
    snapshot_clone_server_log_dir=/data/log/curve/snapshotclone
 
    [chunkservers:vars]
@@ -358,36 +366,33 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    check_copysets_status_times=1000
    check_copysets_status_interval=1
    cs_package_version="0.0.6.1+160be351"
-   aws_package_version="1.0"
    defined_copysets_status="Copysets are healthy"
    chunkserver_base_port=8200
-   chunkserver_format_disk=true        // 改动，为了更好的性能，实际生产环境需要将chunkserver上的磁盘全部预格式化，这个过程比较耗时1T的盘格式80%化大概需要1个小时
+   chunkserver_format_disk=True        // 改动，为了更好的性能，实际生产环境需要将chunkserver上的磁盘全部预格式化，这个过程比较耗时1T的盘格式80%化大概需要1个小时
+   auto_get_disk_list=False             // 改动，如果需要自动获取要格式化的磁盘，而不是在group_vars中指定的话改为true
+   get_disk_list_cmd="lsscsi |grep ATA|awk '{print $7}'|awk -F/ '{print $3}'"   // 改动，自动获取磁盘列表的命令，根据需要可调整
    chunk_alloc_percent=80              // 预创的chunkFilePool占据磁盘空间的比例，比例越大，格式化越慢
+   wal_segment_alloc_percent=10        // 如果使用wal覆盖写，且文件池和chunkfilepool分开则需要指定
    # 每台机器上的chunkserver的数量
    chunkserver_num=3                                      // 改动，修改成机器上需要部署chunkserver的磁盘的数量
-   chunkserver_need_sudo=true
-   # 启动chunkserver要用到ansible的异步操作，否则ansible退出后chunkserver也会退出
-   # 异步等待结果的总时间
-   chunkserver_async=5
-   # 异步查询结果的间隔
-   chunkserver_poll=1
+   chunkserver_need_sudo=True
    chunkserver_conf_path=/etc/curve/chunkserver.conf
    chunkserver_data_dir=/data          // 改动，chunkserver想要挂载的目录，如果有两个盘，则会被分别挂载到/data/chunkserver0，/data/chunkserver1这些目录
    chunkserver_subnet=10.192.100.1/22                      // 改动
-   global_enable_external_server=true
+   global_enable_external_server=True
    chunkserver_external_subnet=10.192.0.1/22               // 改动，如果机器有两个ip，就设置成和chunkserver_subnet不同的，如果只有一个，保持一致即可
    chunkserver_s3_config_path=/etc/curve/cs_s3.conf
    # chunkserver使用的client相关的配置
    chunkserver_client_config_path=/etc/curve/cs_client.conf
-   client_register_to_mds=false
+   client_register_to_mds=False
    client_chunkserver_op_max_retry=3
    client_chunkserver_max_stable_timeout_times=64
-   client_turn_off_health_check=false
-   disable_snapshot_clone=true                           // 改动，这一项取决于是否需要使用快照克隆功能，需要的话设置为false，并提供s3_ak和s3_sk
+   client_turn_off_health_check=False
+   disable_snapshot_clone=True                           // 改动，这一项取决于是否需要使用快照克隆功能，需要的话设置为False，并提供s3_ak和s3_sk
    chunk_size=16777216
    chunkserver_walfilepool_segment_size=8388608
-   retain_pool=false                                     // 改动，设置为true的话可以保留chunkfilepool，清理再重新部署的时候可以加速
-   walfilepool_use_chunk_file_pool=true
+   retain_pool=False                                     // 改动，设置为True的话可以保留chunkfilepool，清理再重新部署的时候可以加速
+   walfilepool_use_chunk_file_pool=True
 
    [snapshotclone_nginx:vars]
    snapshotcloneserver_nginx_dir=/etc/curve/nginx
@@ -409,7 +414,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    monitor_package_version="0.0.6.1.1+7af4d6a4"
 
    [all:vars]
-   need_confirm=true
+   need_confirm=True
    curve_ops_tool_config=/etc/curve/tools.conf
    snap_tool_config_path=/etc/curve/snapshot_tools.conf
    wait_service_timeout=20
@@ -424,16 +429,23 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    lib_install_prefix=/usr/local
    bin_install_prefix=/usr
    ansible_connection=ssh                              // 改动
-   check_health=false
-   clean_log_when_clean=false                          // clean的时候是否要清理日志
+   check_health=False
+   clean_log_when_clean=False                          // clean的时候是否要清理日志
    snapshot_nginx_vip=127.0.0.1
    nginx_docker_external_port=5555
    curve_bin_dir=/usr/bin
-   start_by_daemon=true                                // 可以选择是否用daemon启动
-   ansible_become=true                                 // 如果当前用户可以执行sudo，可以改为false
+   start_by_daemon=True                                // 可以选择是否用daemon启动
+   sudo_or_not=True                                    // 如果当前用户可以执行sudo，可以改为False
    ansible_become_user=curve
    ansible_become_flags=-iu curve
-   update_config_with_puppet=false
+   update_config_with_puppet=False
+   # 启动服务要用到ansible的异步操作，否则ansible退出后chunkserver也会退出
+   # 异步等待结果的总时间
+   service_async=5
+   # 异步查询结果的间隔
+   service_poll=1
+   install_with_deb=False
+   restart_directly=False
 
    ```
 
@@ -457,7 +469,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    deploy_dir=/usr/bin
    nebd_start_port=9000
    nebd_port_max_range=5
-   nebd_need_sudo=true
+   nebd_need_sudo=True
    client_config_path=/etc/curve/client.conf
    nebd_client_config_path=/etc/nebd/nebd-client.conf
    nebd_server_config_path=/etc/nebd/nebd-server.conf
@@ -469,16 +481,16 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    mds_port=6666
 
    [all:vars]
-   need_confirm=true
-   need_update_config=true
-   update_config_with_puppet=false
+   need_confirm=True
+   need_update_config=True
+   update_config_with_puppet=False
    ansible_ssh_port=22
    lib_install_prefix=/usr/local
    bin_install_prefix=/usr
    ansible_connection=ssh            // 改动
    wait_service_timeout=20
    curve_bin_dir=/usr/bin
-   start_by_daemon=true              // 是否用daemon的方式启动nebd-server
+   start_by_daemon=True              // 是否用daemon的方式启动nebd-server
    ```
 
 
@@ -547,7 +559,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 5. 如果需要使用快照克隆功能，需要有S3账号，可以使用[网易云的对象存储](https://www.163yun.com/product/nos)  同上
 
    ```
-   1. 在 server.ini 中，填写s3_nos_address，s3_snapshot_bucket_name，s3_ak和s3_sk disable_snapshot_clone=false
+   1. 在 server.ini 中，填写s3_nos_address，s3_snapshot_bucket_name，s3_ak和s3_sk disable_snapshot_clone=False
    2. 安装快照克隆服务
       ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone
       ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone_nginx

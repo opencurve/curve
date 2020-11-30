@@ -15,33 +15,6 @@
 #  limitations under the License.
 #
 
-# 获取nebd的版本
-
-- name: get nebd_port
-  nebd_port: ""
-  include_tasks: get_nebd_port.yml
-
-- name: get nebd version
-  vars:
-    metric_port: "{{ nebd_port }}"
-    nebd_version:
-  include_tasks: common_tasks/get_nebd_version_from_metric.yml
-
-- name: set need restart false
-  set_fact:
-    need_restart: false
-  when: nebd_version == expected_nebd_version
-
-- name: set need_restart true
-  set_fact:
-    need_restart: true
-  when: nebd_version != expected_nebd_version
-
-- name: get nebd_port
-  nebd_port: ""
-  include_tasks: get_nebd_port.yml
-  when: need_restart
-
 - name: restart nebd-server
   block:
     - name: stop nebd-server
@@ -52,6 +25,5 @@
         process_name: >
           {{ curve_bin_dir }}/nebd-server
       include_tasks: common_tasks/stop_service.yml
-    - name: start mds
+    - name: start nebd-server
       include_tasks: roles/start_service/tasks/include/start_nebd.yml
-  when: need_restart

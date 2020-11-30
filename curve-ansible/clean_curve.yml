@@ -29,6 +29,7 @@
   hosts: etcd
   any_errors_fatal: true
   gather_facts: no
+  become: "{{ sudo_or_not }}"
   tags:
     - etcd
   roles:
@@ -39,6 +40,7 @@
   hosts: mds
   any_errors_fatal: true
   gather_facts: no
+  become: "{{ sudo_or_not }}"
   tags:
     - mds
   roles:
@@ -50,6 +52,7 @@
   hosts: chunkservers
   any_errors_fatal: true
   gather_facts: no
+  become: "{{ sudo_or_not }}"
   tags:
     - chunkserver
   roles:
@@ -60,6 +63,7 @@
   hosts: snapshotclone
   any_errors_fatal: true
   gather_facts: no
+  become: "{{ sudo_or_not }}"
   tags:
     - snapshotclone
     - never
@@ -71,6 +75,7 @@
   hosts: snapshotclone_nginx
   any_errors_fatal: true
   gather_facts: no
+  become: "{{ sudo_or_not }}"
   tags:
     - snapshotclone_nginx
     - never

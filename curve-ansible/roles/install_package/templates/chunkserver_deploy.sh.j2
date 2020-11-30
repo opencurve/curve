@@ -14,12 +14,14 @@ function do_confirm {
   fi
 }
 
+{% if not auto_get_disk_list %}
 {% set dlist=[] -%}
 {% for disk in disk_list -%}
   {% set _ = dlist.append("%s" % (disk)) -%}
 {% endfor -%}
-
-diskList=({{ dlist | join(' ') }})
+diskList="{{ dlist | join('\n') }}"
+{% set get_disk_list_cmd="echo $diskList" %}
+{% endif %}
 
 function deploy_prep {
 #清理/etc/fstab残留信息
@@ -30,7 +32,7 @@ function deploy_prep {
     sed -i '/chunkserver/d' /etc/fstab
   fi
 #将数据盘挂载的目录都卸载掉，为下一步格式化磁盘做准备
-  for i in ${diskList[@]}
+  for i in `{{ get_disk_list_cmd }}`
   do
     mntdir=`lsblk|grep $i|awk '{print $7}'`
     if [ -z $mntdir ]
@@ -47,19 +49,18 @@ function deploy_prep {
     fi
   done
 }
-{% raw %}
 #记录磁盘的盘符信息和磁盘的wwn信息，将信息持久化到diskinfo文件
 declare -A disk_map
 diskinfo=./diskinfo
 function record_diskinfo {
-  for i in ${diskList[@]}
+  for i in `{{ get_disk_list_cmd }}`
   do
-    wwn=`lsblk -O|grep ATA|grep $i|awk '{print $32}'`
+    wwn=`lsblk -o NAME,WWN|grep $i|awk '{print $2}'`
     disk_map["$i"]=$wwn
   done
-
+{% raw %}
   echo "disk_map length: " ${#disk_map[@]}
-
+{% endraw %}
   [ -e $diskinfo ] && rm -r diskinfo
 
   for m in ${!disk_map[@]}
@@ -80,17 +81,18 @@ function chunk_dir_prep {
     fi
   fi
   mkdir -p ${dataDir}
-  echo $((${#diskList[@]}-1))
-  for i in `seq 0 $((${#diskList[@]}-1))`
+{% raw %}
+  echo $((${#disk_map[@]}-1))
+  for i in `seq 0 $((${#disk_map[@]}-1))`
+{% endraw %}
   do
     mkdir -p ${dataDir}/chunkserver$i
     mkdir -p ${dataDir}/log/chunkserver$i
   done
 }
-{% endraw %}
 #格式化磁盘文件系统
 function disk_format {
-  for disk in ${diskList[@]}
+  for disk in ${!disk_map[@]}
   do
     echo $disk
     mkfs.ext4 -F /dev/$disk 2>&1 > /dev/null &
@@ -112,7 +114,7 @@ function mount_dir {
   done
 
   j=0
-  for i in ${diskList[@]}
+  for i in `cat $diskinfo |awk '{print $1}'|awk -F":" '{print $2}'`
   do
   mount /dev/$i $dataDir/chunkserver$j
     if [ $? -ne 0 ]
