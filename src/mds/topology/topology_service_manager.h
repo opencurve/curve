@@ -124,6 +124,10 @@ class TopologyServiceManager {
                       const GetCopySetsInChunkServerRequest* request,
                       GetCopySetsInChunkServerResponse* response);
 
+    virtual void GetCopySetsInCluster(
+                      const GetCopySetsInClusterRequest* request,
+                      GetCopySetsInClusterResponse* response);
+
     virtual void GetClusterInfo(
           const GetClusterInfoRequest* request,
           GetClusterInfoResponse* response);

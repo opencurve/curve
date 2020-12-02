@@ -303,6 +303,13 @@ class MDSClient {
                                  std::vector<CopysetInfo>* copysets);
 
     /**
+     *  @brief 获取集群中的所有copyset
+     *  @param[out] copysets 集群中copyset的列表
+     *  @return 成功返回0，失败返回-1
+     */
+    virtual int GetCopySetsInCluster(std::vector<CopysetInfo>* copysets);
+
+    /**
      *  @brief 列出集群中的所有server
      *  @param[out] servers server信息的列表，返回值为0时有效
      *  @return 成功返回0，失败返回-1

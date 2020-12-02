@@ -1373,6 +1373,19 @@ void TopologyServiceManager::GetCopySetsInChunkServer(
     }
 }
 
+void TopologyServiceManager::GetCopySetsInCluster(
+                      const GetCopySetsInClusterRequest* request,
+                      GetCopySetsInClusterResponse* response) {
+    response->set_statuscode(kTopoErrCodeSuccess);
+    std::vector<CopySetKey> copysets =
+                    topology_->GetCopySetsInCluster();
+    for (const CopySetKey& copyset : copysets) {
+        CopysetInfo *info = response->add_copysetinfos();
+        info->set_logicalpoolid(copyset.first);
+        info->set_copysetid(copyset.second);
+    }
+}
+
 void TopologyServiceManager::GetClusterInfo(
     const GetClusterInfoRequest* request,
     GetClusterInfoResponse* response) {

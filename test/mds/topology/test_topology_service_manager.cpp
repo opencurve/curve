@@ -2783,6 +2783,41 @@ TEST_F(TestTopologyServiceManager,
     ASSERT_EQ(0, response.copysetinfos_size());
 }
 
+TEST_F(TestTopologyServiceManager, test_GetCopySetsInCluster) {
+    PoolIdType logicalPoolId1 = 0x1;
+    PoolIdType physicalPoolId1 = 0x11;
+    PrepareAddPhysicalPool(physicalPoolId1);
+    PrepareAddLogicalPool(logicalPoolId1, "logicalPool1", physicalPoolId1);
+    PoolIdType logicalPoolId2 = 0x2;
+    PoolIdType physicalPoolId2 = 0x12;
+    PrepareAddPhysicalPool(physicalPoolId2);
+    PrepareAddLogicalPool(logicalPoolId2, "logicalPool2", physicalPoolId2);
+
+    std::set<ChunkServerIdType> members = {1, 2, 3};
+    for (int i = 1; i <= 10; ++i) {
+        PrepareAddCopySet(i, logicalPoolId1, members);
+    }
+    for (int i = 11; i <= 20; ++i) {
+        PrepareAddCopySet(i, logicalPoolId2, members);
+    }
+
+    GetCopySetsInClusterRequest request;
+    GetCopySetsInClusterResponse response;
+    serviceManager_->GetCopySetsInCluster(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+    ASSERT_EQ(20, response.copysetinfos_size());
+    for (int i = 0; i < 20; i++) {
+        if (i < 10) {
+            ASSERT_EQ(1, response.copysetinfos(i).logicalpoolid());
+        } else {
+            ASSERT_EQ(2, response.copysetinfos(i).logicalpoolid());
+        }
+        ASSERT_EQ(i + 1, response.copysetinfos(i).copysetid());
+    }
+}
+
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

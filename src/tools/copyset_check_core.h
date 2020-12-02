@@ -391,6 +391,8 @@ class CopysetCheckCore {
     void UpdateChunkServerCopysets(const std::string& csAddr,
                             const CopySetInfosType& copysetInfos);
 
+    int CheckCopysetsWithMds();
+
  private:
     // 向mds发送RPC的client
     std::shared_ptr<MDSClient> mdsClient_;
