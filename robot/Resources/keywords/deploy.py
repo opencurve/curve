@@ -256,15 +256,24 @@ def initial_chunkserver(host):
         ori_cmd = "ps -ef|grep -v grep | grep -v curve-chunkserver.log | grep -w curve-chunkserver | awk '{print $2}'"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[1] == [], "kill chunkserver fail"
-        ori_cmd = "sudo find /data/ -name chunkserver.dat -exec rm -rf {} \;sh recycle_chunks.sh -d /data -chunks chunkfilepool -wals chunkfilepool"
+        ori_cmd = "sudo find /data/ -name chunkserver.dat -exec rm -rf {} \;"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         logger.debug("delete dat ,return is %s"%rs[1])
         assert rs[3] == 0,"rm %s dat fail"%host
+        ori_cmd = "sh recycle_chunks.sh -d /data -chunks chunkfilepool -wals chunkfilepool"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        logger.debug("recycle chunk ,return is %s"%rs[1])
+        assert rs[3] == 0,"recycle %s chunk  fail"%host
         ssh.close()
     except Exception as e:
         logger.error("%s" % e)
         raise
     return 0
+
+def recycle_chunk():
+    cmd = "ansible-playbook -i curve/curve-ansible/server.ini curve/curve-ansible/clean_curve.yml --tags chunkserver"
+    ret = shell_operator.run_exec(cmd)
+    assert ret == 0 ,"ansible clean chunk fail"
 
 def drop_all_chunkserver_dat():
     thread = []
@@ -277,6 +286,20 @@ def drop_all_chunkserver_dat():
     for t in thread:
         logger.debug("drop cs dat get result is %d" % t.get_result())
         assert t.get_result() == 0
+
+def use_ansible_deploy():
+    try:
+        cmd = "cp robot/ansible_deploy.sh . && bash ansible_deploy.sh"
+        ret = shell_operator.run_exec(cmd)
+        assert ret == 0 ,"ansible deploy fail"
+        host = config.client_list[0]
+        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 %s:/etc/curve/client.conf ."%\
+            (config.pravie_key_path,host)
+        ret = shell_operator.run_exec(cmd)
+        assert ret == 0 ,"cp client.conf fail"
+    except Exception:
+        logger.error("deploy curve fail.")
+        raise
 
 def install_deb():
     try:

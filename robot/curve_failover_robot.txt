@@ -501,12 +501,12 @@ inject cluster stress test
 *** Keywords ***
 
 init failover cluster
-     clean nbd
-     init abnormal test env
-     check chunkserver online
+     clean nbd 
      ${begin_num}    get all chunk num
      ${begin_num}    Convert To Integer   ${begin_num}
      Set Global Variable  ${chunk_num}    ${begin_num} 
+     init abnormal test env
+     check chunkserver online
      init rw cloud disk
      init nbd vol
      begin snapshot test
@@ -515,16 +515,17 @@ init failover cluster
 
 init abnormal test env
      clean env
-     destroy etcd
-     destroy mds
-     destroy snapshotclone server
-     stop nebd
-     drop all chunkserver dat
-     install deb
-     add config 
-     start abnormal test services
-     create pool
-     start nebd
+#     destroy etcd
+#     destroy mds
+#     destroy snapshotclone server
+#     stop nebd
+#     drop all chunkserver dat
+     use ansible deploy
+#     install deb
+#     add config 
+#     start abnormal test services
+#     create pool
+#     start nebd
 
 init rw cloud disk
      map nbd
@@ -542,6 +543,7 @@ clean failover env
      delete nbd
      sleep  10
      clear RecycleBin
+     recycle chunk
      sleep  60 
      ${final_num}    get all chunk num
      ${final_num}    Convert To Integer   ${final_num}
