@@ -1458,6 +1458,62 @@ TEST_F(TestTopologyService, test_GetCopySetsInChunkServer_fail) {
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
 }
 
+TEST_F(TestTopologyService, test_GetCopySetsInCluster_success) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    GetCopySetsInClusterRequest request;
+
+    GetCopySetsInClusterResponse response;
+
+    GetCopySetsInClusterResponse reps;
+    reps.set_statuscode(kTopoErrCodeSuccess);
+    EXPECT_CALL(*manager_, GetCopySetsInCluster(_, _))
+    .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.GetCopySetsInCluster(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_GetCopySetsInCluster_fail) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    GetCopySetsInClusterRequest request;
+
+    GetCopySetsInClusterResponse response;
+
+    GetCopySetsInClusterResponse reps;
+    reps.set_statuscode(kTopoErrCodeInvalidParam);
+    EXPECT_CALL(*manager_, GetCopySetsInCluster(_, _))
+    .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.GetCopySetsInCluster(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

@@ -798,6 +798,15 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterNormal) {
         .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<1>(0),
                         Return(0)));
+    std::vector<CopysetInfo> copysetsInMds;
+    CopysetInfo copyset;
+    copyset.set_logicalpoolid(1);
+    copyset.set_copysetid(100);
+    copysetsInMds.emplace_back(copyset);
+    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_))
+        .Times(1)
+        .WillRepeatedly(DoAll(SetArgPointee<0>(copysetsInMds),
+                        Return(0)));
     CopysetCheckCore copysetCheck1(mdsClient_, csClient_);
     ASSERT_EQ(0, copysetCheck1.CheckCopysetsInCluster());
     ASSERT_EQ(0, copysetCheck1.GetCopysetStatistics().unhealthyRatio);
@@ -832,9 +841,15 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterError) {
     EXPECT_CALL(*mdsClient_, ListChunkServersOnServer(1, _))
         .Times(1)
         .WillOnce(Return(-1));
+    std::vector<CopysetInfo> copysetsInMds;
+    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_))
+        .Times(1)
+        .WillRepeatedly(DoAll(SetArgPointee<0>(copysetsInMds),
+                        Return(0)));
     CopysetCheckCore copysetCheck2(mdsClient_, csClient_);
     ASSERT_EQ(-1, copysetCheck2.CheckCopysetsInCluster());
     ASSERT_EQ(0, copysetCheck2.GetCopysetStatistics().unhealthyRatio);
+    expectedRes[kTotal] = {};
     ASSERT_EQ(expectedRes, copysetCheck2.GetCopysetsRes());
 
     // 3、GetMetric失败
@@ -859,6 +874,14 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterError) {
         .WillOnce(Return(-1))
         .WillRepeatedly(DoAll(SetArgPointee<1>(10),
                         Return(0)));
+    CopysetInfo copyset;
+    copyset.set_logicalpoolid(1);
+    copyset.set_copysetid(100);
+    copysetsInMds.emplace_back(copyset);
+    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<0>(copysetsInMds),
+                        Return(0)));
     // 获取operator失败
     CopysetCheckCore copysetCheck3(mdsClient_, csClient_);
     ASSERT_EQ(-1, copysetCheck3.CheckCopysetsInCluster());
@@ -869,6 +892,50 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterError) {
     ASSERT_EQ(-1, copysetCheck4.CheckCopysetsInCluster());
     ASSERT_EQ(0, copysetCheck4.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedRes, copysetCheck4.GetCopysetsRes());
+
+    // 4、比较chunkserver跟mds的copyset失败
+    EXPECT_CALL(*mdsClient_, ListServersInCluster(_))
+        .Times(3)
+        .WillRepeatedly(DoAll(SetArgPointee<0>(servers),
+                        Return(0)));
+    EXPECT_CALL(*mdsClient_, ListChunkServersOnServer(1, _))
+        .Times(3)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(chunkservers),
+                        Return(0)));
+    EXPECT_CALL(*csClient_, Init(_))
+        .Times(9)
+        .WillRepeatedly(Return(0));
+    EXPECT_CALL(*csClient_, GetRaftStatus(_))
+        .Times(9)
+        .WillRepeatedly(DoAll(SetArgPointee<0>(iobuf),
+                        Return(0)));
+    // 从获取copyset失败
+    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_))
+        .Times(1)
+        .WillRepeatedly(Return(-1));
+    ASSERT_EQ(-1, copysetCheck4.CheckCopysetsInCluster());
+    ASSERT_EQ(0, copysetCheck4.GetCopysetStatistics().unhealthyRatio);
+    // copyset数量不一致
+    copysetsInMds.clear();
+    copyset.set_logicalpoolid(1);
+    copyset.set_copysetid(101);
+    copysetsInMds.emplace_back(copyset);
+    copyset.set_copysetid(100);
+    copysetsInMds.emplace_back(copyset);
+    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_))
+        .Times(1)
+        .WillRepeatedly(DoAll(SetArgPointee<0>(copysetsInMds),
+                        Return(0)));
+    ASSERT_EQ(-1, copysetCheck4.CheckCopysetsInCluster());
+    ASSERT_EQ(0, copysetCheck4.GetCopysetStatistics().unhealthyRatio);
+    // copyset数量一致，但是内容不一致
+    copysetsInMds.pop_back();
+    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_))
+        .Times(1)
+        .WillRepeatedly(DoAll(SetArgPointee<0>(copysetsInMds),
+                        Return(0)));
+    ASSERT_EQ(-1, copysetCheck4.CheckCopysetsInCluster());
+    ASSERT_EQ(0, copysetCheck4.GetCopysetStatistics().unhealthyRatio);
 }
 
 TEST_F(CopysetCheckCoreTest, CheckOperator) {

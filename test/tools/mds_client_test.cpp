@@ -40,6 +40,8 @@ using curve::mds::topology::GetChunkServerListInCopySetsRequest;
 using curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using curve::mds::topology::GetCopySetsInChunkServerRequest;
 using curve::mds::topology::GetCopySetsInChunkServerResponse;
+using curve::mds::topology::GetCopySetsInClusterRequest;
+using curve::mds::topology::GetCopySetsInClusterResponse;
 using curve::mds::schedule::RapidLeaderScheduleResponse;
 using curve::mds::schedule::QueryChunkServerRecoverStatusRequest;
 using curve::mds::schedule::QueryChunkServerRecoverStatusResponse;
@@ -1009,6 +1011,62 @@ TEST_F(ToolMDSClientTest, GetCopySetsInChunkServer) {
     ASSERT_EQ(-1, mdsClient.GetCopySetsInChunkServer(csAddr, &copysets));
     csAddr = "127.0.0.1:%*";
     ASSERT_EQ(-1, mdsClient.GetCopySetsInChunkServer(csAddr, &copysets));
+}
+
+TEST_F(ToolMDSClientTest, GetCopySetsInCluster) {
+    std::vector<CopysetInfo> copysets;
+
+    // 发送rpc失败
+    EXPECT_CALL(*topoService, GetCopySetsInCluster(_, _, _, _))
+        .Times(6)
+        .WillRepeatedly(Invoke([](RpcController *controller,
+                        const GetCopySetsInClusterRequest *request,
+                        GetCopySetsInClusterResponse *response,
+                        Closure *done){
+                        brpc::ClosureGuard doneGuard(done);
+                        brpc::Controller *cntl =
+                            dynamic_cast<brpc::Controller *>(controller);
+                        cntl->SetFailed("test");
+                    }));
+    ASSERT_EQ(-1, mdsClient.GetCopySetsInCluster(&copysets));
+
+    // 返回码不为OK
+    GetCopySetsInClusterResponse response;
+    response.set_statuscode(curve::mds::topology::kTopoErrCodeInitFail);
+    EXPECT_CALL(*topoService, GetCopySetsInCluster(_, _, _, _))
+        .Times(1)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                Invoke([](RpcController *controller,
+                const GetCopySetsInClusterRequest *request,
+                GetCopySetsInClusterResponse *response,
+                Closure *done){
+                    brpc::ClosureGuard doneGuard(done);
+                    })));
+    ASSERT_EQ(-1, mdsClient.GetCopySetsInCluster(&copysets));
+
+    // 正常情况
+    response.set_statuscode(kTopoErrCodeSuccess);
+    for (int i = 0; i < 5; ++i) {
+        auto copysetInfo = response.add_copysetinfos();
+        copysetInfo->set_logicalpoolid(1);
+        copysetInfo->set_copysetid(1000 + i);
+    }
+    EXPECT_CALL(*topoService, GetCopySetsInCluster(_, _, _, _))
+        .Times(1)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                Invoke([](RpcController *controller,
+                const GetCopySetsInClusterRequest *request,
+                GetCopySetsInClusterResponse *response,
+                Closure *done){
+                    brpc::ClosureGuard doneGuard(done);
+                    })));
+    ASSERT_EQ(0, mdsClient.GetCopySetsInCluster(&copysets));
+    ASSERT_EQ(5, copysets.size());
+    copysets.clear();
+    for (int i = 0; i < 5; ++i) {
+        ASSERT_EQ(1, copysets[i].logicalpoolid());
+        ASSERT_EQ(1000 + i, copysets[i].copysetid());
+    }
 }
 
 TEST_F(ToolMDSClientTest, RapidLeaderSchedule) {

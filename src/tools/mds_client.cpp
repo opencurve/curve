@@ -739,6 +739,36 @@ int MDSClient::GetCopySetsInChunkServer(
     return -1;
 }
 
+int MDSClient::GetCopySetsInCluster(std::vector<CopysetInfo>* copysets) {
+    assert(copysets != nullptr);
+    curve::mds::topology::GetCopySetsInClusterRequest request;
+    curve::mds::topology::GetCopySetsInClusterResponse response;
+    curve::mds::topology::TopologyService_Stub stub(&channel_);
+
+    void (curve::mds::topology::TopologyService_Stub::*fp)(
+                google::protobuf::RpcController*,
+                const curve::mds::topology::GetCopySetsInClusterRequest*,
+                curve::mds::topology::GetCopySetsInClusterResponse*,
+                google::protobuf::Closure*);
+    fp = &curve::mds::topology::TopologyService_Stub::GetCopySetsInCluster;
+    if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
+        std::cout << "GetCopySetsInCluster from all mds fail!"
+                  << std::endl;
+        return -1;
+    }
+
+    if (response.has_statuscode() &&
+                response.statuscode() == kTopoErrCodeSuccess) {
+        for (int i =0; i < response.copysetinfos_size(); ++i) {
+            copysets->emplace_back(response.copysetinfos(i));
+        }
+        return 0;
+    }
+    std::cout << "GetCopySetsInCluster fail with errCode: "
+              << response.statuscode() << std::endl;
+    return -1;
+}
+
 int MDSClient::ListServersInCluster(std::vector<ServerInfo>* servers) {
     assert(servers != nullptr);
     // 先列出逻辑池

@@ -400,6 +400,12 @@ int CopysetCheckCore::CheckCopysetsInCluster() {
             isHealthy = false;
         }
     }
+    // 检查从chunkserver上获取的copyset数量与mds记录的数量是否一致
+    res = CheckCopysetsWithMds();
+    if (res != 0) {
+        std::cout << "CheckCopysetNumWithMds fail!" << std::endl;
+        return -1;
+    }
     // 如果不健康，直接返回，如果健康，还需要对operator作出判断
     if (!isHealthy) {
         return -1;
@@ -414,6 +420,59 @@ int CopysetCheckCore::CheckCopysetsInCluster() {
         }
     }
     return 0;
+}
+
+int CopysetCheckCore::CheckCopysetsWithMds() {
+    std::vector<CopysetInfo> copysetsInMds;
+    int res = mdsClient_->GetCopySetsInCluster(&copysetsInMds);
+    if (res != 0) {
+        std::cout << "GetCopySetsInCluster fail!" << std::endl;
+        return -1;
+    }
+    CopysetStatistics statistics = GetCopysetStatistics();
+    if (copysetsInMds.size() != copysets_[kTotal].size()) {
+        std::cout << "Copyset numbers in chunkservers not consistent"
+                     " with mds, please check! copysets on chunkserver: "
+                     << copysets_[kTotal].size() << ", copysets in mds: "
+                     << copysetsInMds.size() << std::endl;
+        return -1;
+    }
+    std::set<std::string> copysetsInMdsGid;
+    for (const auto& copyset : copysetsInMds) {
+        std::string gId = ToGroupId(copyset.logicalpoolid(),
+                                    copyset.copysetid());
+        copysetsInMdsGid.insert(gId);
+    }
+    int ret = 0;
+    std::vector<std::string> copysetsInMdsNotInCs(10);
+    auto iter = std::set_difference(copysetsInMdsGid.begin(),
+                    copysetsInMdsGid.end(), copysets_[kTotal].begin(),
+                    copysets_[kTotal].end(), copysetsInMdsNotInCs.begin());
+    copysetsInMdsNotInCs.resize(iter - copysetsInMdsNotInCs.begin());
+    if (!copysetsInMdsNotInCs.empty()) {
+        std::cout << "There are " << copysetsInMdsNotInCs.size()
+                  << " copysets on mds not found on chunkserver, defail:";
+        for (const auto& copyset : copysetsInMdsNotInCs) {
+            std::cout << " " << copyset;
+        }
+        std::cout << std::endl;
+        ret = -1;
+    }
+    std::vector<std::string> copysetsInCsNotInMds(10);
+    iter = std::set_difference(copysets_[kTotal].begin(),
+                copysets_[kTotal].end(), copysetsInMdsGid.begin(),
+                    copysetsInMdsGid.end(), copysetsInCsNotInMds.begin());
+    copysetsInCsNotInMds.resize(iter - copysetsInCsNotInMds.begin());
+    if (!copysetsInCsNotInMds.empty()) {
+        std::cout << "There are " << copysetsInCsNotInMds.size()
+                  << " copysets on chunkserver not found on Mds, defail:";
+        for (const auto& copyset : copysetsInCsNotInMds) {
+            std::cout << " " << copyset;
+        }
+        std::cout << std::endl;
+        ret = -1;
+    }
+    return ret;
 }
 
 int CopysetCheckCore::CheckOperator(const std::string& opName,

@@ -34,7 +34,10 @@ const char* kHelpStr = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
         "etcd-status : show the etcd status\n"
         "snapshot-clone-status : show the snapshot clone server status\n"
         "copysets-status : check the health state of all copysets\n"
-        "chunkserver-list : show curve chunkserver-list, list all chunkserver infomation\n"  //NOLINT
+        "chunkserver-list : show curve chunkserver-list, list all chunkserver information\n"  //NOLINT
+        "server-list : list all server information\n"
+        "logical-pool-list : list all logical pool information\n"
+        "cluster-status : show cluster status\n"
         "get : show the file info and the actual space of file\n"
         "list : list the file info of files in the directory\n"
         "seginfo : list the segments info of the file\n"
