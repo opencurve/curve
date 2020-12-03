@@ -80,13 +80,12 @@ def kill_process(process_name):
     pids = shell_operator.run_exec2(grep_cmd)
     logger.info("pid=%s" %pids)
     if pids:
-        for pid in pids:
-            kill_cmd = "sudo kill -9 %s" % pid
-            ret_code = shell_operator.run_exec(kill_cmd)
-            if ret_code == 0:
-                return 0
-            else:
-                logger.error("kill process fail %s" % process_name )
+        kill_cmd = "ps -ef | grep %s | grep -v grep | awk '{print $2}' | sudo xargs kill -9" % process_name
+        ret_code = shell_operator.run_exec(kill_cmd)
+        if ret_code == 0:
+            return 0
+        else:
+            logger.error("kill process fail %s" % process_name )
     else:
         logger.debug("process %s not start." %process_name)
 
