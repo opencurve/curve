@@ -450,6 +450,8 @@ cp -r nebd/nebd-package build/
 mkdir -p build/nebd-package/usr/bin
 mkdir -p build/nebd-package/usr/lib/nebd
 
+cp nebd/nebd-package/usr/bin/nebd-daemon k8s/nebd/nebd-package/usr/bin
+sed -i '/^baseLogPath=/cbaseLogPath=/var/log/nebd' k8s/nebd/nebd-package/usr/bin/nebd-daemon
 cp -r k8s/nebd/nebd-package build/k8s-nebd-package
 mkdir -p build/k8s-nebd-package/usr/bin
 mkdir -p build/k8s-nebd-package/usr/lib/nebd
