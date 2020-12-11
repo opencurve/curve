@@ -47,6 +47,7 @@ using ::testing::AllOf;
 using ::testing::SetArgPointee;
 using ::testing::Invoke;
 using ::testing::DoAll;
+using ::testing::Matcher;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -569,7 +570,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     std::vector<std::string> cloneOut;
     cloneOut.push_back(cloneValue);
 
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
+    EXPECT_CALL(*kvStorageClient_, List(_, _, Matcher<std::vector<std::string>*>(_)))  // NOLINT
         .WillOnce(DoAll(SetArgPointee<2>(out),
             Return(EtcdErrCode::EtcdOK)))
         .WillOnce(DoAll(SetArgPointee<2>(cloneOut),
@@ -581,7 +582,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestInitListSnapshotFail) {
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
+    EXPECT_CALL(*kvStorageClient_, List(_, _, Matcher<std::vector<std::string>*>(_)))  // NOLINT
         .WillOnce(Return(EtcdErrCode::EtcdUnknown));
 
     int ret = metaStore_->Init();
@@ -599,7 +600,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     std::vector<std::string> out;
     out.push_back(value);
 
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
+    EXPECT_CALL(*kvStorageClient_, List(_, _, Matcher<std::vector<std::string>*>(_)))  // NOLINT
         .WillOnce(DoAll(SetArgPointee<2>(out),
             Return(EtcdErrCode::EtcdOK)))
         .WillOnce(Return(EtcdErrCode::EtcdUnknown));
@@ -613,7 +614,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     std::vector<std::string> out;
     out.push_back("xxx");
 
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
+    EXPECT_CALL(*kvStorageClient_, List(_, _, Matcher<std::vector<std::string>*>(_)))  // NOLINT
         .WillOnce(DoAll(SetArgPointee<2>(out),
             Return(EtcdErrCode::EtcdOK)));
 
@@ -634,7 +635,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 
     std::vector<std::string> out2;
     out2.push_back("xxx");
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
+    EXPECT_CALL(*kvStorageClient_, List(_, _, Matcher<std::vector<std::string>*>(_)))  // NOLINT
         .WillOnce(DoAll(SetArgPointee<2>(out),
             Return(EtcdErrCode::EtcdOK)))
         .WillOnce(DoAll(SetArgPointee<2>(out2),

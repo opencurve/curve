@@ -28,7 +28,7 @@
 #include <string>
 #include <unordered_map>
 #include "src/common/concurrent/concurrent.h"
-#include "src/mds/nameserver2/nameserverMetrics.h"
+#include "src/mds/nameserver2/metric.h"
 
 namespace curve {
 namespace mds {

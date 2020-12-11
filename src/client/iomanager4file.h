@@ -42,6 +42,7 @@
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/task_thread_pool.h"
 #include "src/common/throttle.h"
+#include "src/client/discard_task.h"
 
 namespace curve {
 namespace client {
@@ -65,6 +66,11 @@ class IOManager4File : public IOManager {
     bool Initialize(const std::string& filename,
                     const IOOption& ioOpt,
                     MDSClient* mdsclient);
+
+    /**
+     * @brief Recycle resources
+     */
+    void UnInitialize();
 
     /**
      * 同步模式读
@@ -105,9 +111,21 @@ class IOManager4File : public IOManager {
                  UserDataType dataType);
 
     /**
-     * 析构，回收资源
+     * @brief Synchronous discard operation
+     * @param offset discard offset
+     * @param length discard length
+     * @return On success, returns 0.
+     *         On error, returns a negative value.
      */
-    void UnInitialize();
+    int Discard(off_t offset, size_t length, MDSClient* mdsclient);
+
+    /**
+     * @brief Asynchronous discard operation
+     * @param aioctx async request context
+     * @param mdsclient for communicate with MDS
+     * @return 0 means success, otherwise it means failure
+     */
+    int AioDiscard(CurveAioContext* aioctx, MDSClient* mdsclient);
 
     /**
      * @brief 获取rpc发送令牌
@@ -232,6 +250,8 @@ class IOManager4File : public IOManager {
         IOManager4File* iomanager;
     };
 
+    bool IsNeedDiscard(size_t len) const;
+
  private:
     // 每个IOManager都有其IO配置，保存在iooption里
     IOOption ioopt_;
@@ -276,6 +296,8 @@ class IOManager4File : public IOManager {
     // chunkserver use client to read clone source file,
     // because client's IO requests already transformed by stripe parameters
     bool disableStripe_;
+
+    std::unique_ptr<DiscardTaskManager> discardTaskManager_;
 };
 
 }  // namespace client

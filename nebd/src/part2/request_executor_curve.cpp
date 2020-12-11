@@ -152,13 +152,33 @@ int CurveRequestExecutor::GetInfo(
     return 0;
 }
 
-int CurveRequestExecutor::Discard(
-    NebdFileInstance* fd, NebdServerAioContext* aioctx) {
+int CurveRequestExecutor::Discard(NebdFileInstance* fd,
+                                  NebdServerAioContext* aioctx) {
+    int curveFd = GetCurveFdFromNebdFileInstance(fd);
+    if (curveFd < 0) {
+        LOG(ERROR) << "Parse curve fd failed";
+        return -1;
+    }
 
-    aioctx->ret = 0;
-    aioctx->cb(aioctx);
+    CurveAioCombineContext* curveCombineCtx = new CurveAioCombineContext();
+    curveCombineCtx->nebdCtx = aioctx;
+    int ret = FromNebdCtxToCurveCtx(aioctx, &curveCombineCtx->curveCtx);
+    if (ret < 0) {
+        LOG(ERROR) << "Convert nebd aio context to curve aio context failed, "
+                      "curve fd: "
+                   << curveFd;
+        delete curveCombineCtx;
+        return -1;
+    }
 
-    return 0;
+    ret = client_->AioDiscard(curveFd, &curveCombineCtx->curveCtx);
+    if (ret == LIBCURVE_ERROR::OK) {
+        return 0;
+    }
+
+    LOG(ERROR) << "Curve client return failed, curve fd: " << curveFd;
+    delete curveCombineCtx;
+    return -1;
 }
 
 int CurveRequestExecutor::AioRead(
@@ -271,7 +291,9 @@ int CurveRequestExecutor::FromNebdOpToCurveOp(LIBAIO_OP op, LIBCURVE_OP *out) {
     case LIBAIO_OP::LIBAIO_OP_WRITE:
         *out = LIBCURVE_OP_WRITE;
         return 0;
-
+    case LIBAIO_OP::LIBAIO_OP_DISCARD:
+        *out = LIBCURVE_OP_DISCARD;
+        return 0;
     default:
         return -1;
     }

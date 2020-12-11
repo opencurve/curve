@@ -96,6 +96,12 @@ class NameSpaceService: public CurveFSService {
                        ::curve::mds::GetOrAllocateSegmentResponse* response,
                        ::google::protobuf::Closure* done) override;
 
+    void DeAllocateSegment(
+        ::google::protobuf::RpcController* controller,
+        const ::curve::mds::DeAllocateSegmentRequest* request,
+        ::curve::mds::DeAllocateSegmentResponse* response,
+        ::google::protobuf::Closure* done) override;
+
     void RenameFile(::google::protobuf::RpcController* controller,
                        const ::curve::mds::RenameFileRequest* request,
                        ::curve::mds::RenameFileResponse* response,

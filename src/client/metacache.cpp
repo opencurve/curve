@@ -67,6 +67,12 @@ MetaCacheErrorType MetaCache::GetChunkInfoByIndex(ChunkIndex chunkidx,
     return MetaCacheErrorType::CHUNKINFO_NOT_FOUND;
 }
 
+void MetaCache::UpdateChunkInfoByIndex(ChunkIndex cindex,
+                                       const ChunkIDInfo& cinfo) {
+    WriteLockGuard wrlk(rwlock4ChunkInfo_);
+    chunkindex2idMap_[cindex] = cinfo;
+}
+
 bool MetaCache::IsLeaderMayChange(LogicPoolID logicPoolId,
                                   CopysetID copysetId) {
     rwlock4ChunkInfo_.RDLock();
@@ -262,12 +268,6 @@ int MetaCache::UpdateLeader(LogicPoolID logicPoolId,
     return iter->second.UpdateLeaderInfo(csAddr);
 }
 
-void MetaCache::UpdateChunkInfoByIndex(ChunkIndex cindex,
-                                       const ChunkIDInfo& cinfo) {
-    WriteLockGuard wrlk(rwlock4ChunkInfo_);
-    chunkindex2idMap_[cindex] = cinfo;
-}
-
 void MetaCache::UpdateCopysetInfo(LogicPoolID logicPoolid, CopysetID copysetid,
                                   const CopysetInfo& csinfo) {
     const auto key = CalcLogicPoolCopysetID(logicPoolid, copysetid);
@@ -413,6 +413,40 @@ CopysetInfo MetaCache::GetCopysetinfo(LogicPoolID lpid, CopysetID csid) {
         return cpinfo->second;
     }
     return CopysetInfo();
+}
+
+FileSegment* MetaCache::GetFileSegment(SegmentIndex segmentIndex) {
+    {
+        ReadLockGuard lk(rwlock4Segments_);
+        auto iter = segments_.find(segmentIndex);
+        if (iter != segments_.end()) {
+            return &iter->second;
+        }
+    }
+
+    WriteLockGuard lk(rwlock4Segments_);
+    auto ret = segments_.emplace(
+        std::piecewise_construct,
+        std::forward_as_tuple(segmentIndex),
+        std::forward_as_tuple(segmentIndex,
+                              fileInfo_.segmentsize,
+                              metacacheopt_.discardGranularity));
+
+    return &(ret.first->second);
+}
+
+void MetaCache::CleanChunksInSegment(SegmentIndex segmentIndex) {
+    WriteLockGuard lk(rwlock4chunkInfoMap_);
+    ChunkIndex beginChunkIndex = static_cast<uint64_t>(segmentIndex) *
+                                 fileInfo_.segmentsize / fileInfo_.chunksize;
+    ChunkIndex endChunkIndex = static_cast<uint64_t>(segmentIndex + 1) *
+                               fileInfo_.segmentsize / fileInfo_.chunksize;
+
+    auto currentIndex = beginChunkIndex;
+    while (currentIndex < endChunkIndex) {
+        chunkindex2idMap_.erase(currentIndex);
+        ++currentIndex;
+    }
 }
 
 }   // namespace client

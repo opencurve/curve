@@ -945,11 +945,13 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
                       iotracker, mc, &reqlist, nullptr, offset, length,
                       &mdsclient_, &fi));
 
+    // ASSERT_EQ(-1, Splitor::CalcDiscardSegments(nullptr));
+
     delete iotracker;
     delete[] buf;
 }
 
-TEST(SplitorTest, RequestSourceInfoTest) {
+TEST_F(IOTrackerSplitorTest, RequestSourceInfoTest) {
     IOTracker ioTracker(nullptr, nullptr, nullptr);
     ioTracker.SetOpType(OpType::READ);
 

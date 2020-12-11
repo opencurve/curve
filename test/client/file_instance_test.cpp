@@ -59,5 +59,24 @@ TEST(FileInstanceTest, CommonTest) {
     fi4.UnInitialize();
 }
 
+TEST(FileInstanceTest, OpenReadonlyAndDiscardTest) {
+    FileInstance instance;
+    FileServiceOption opt;
+    MDSClient mdsClient;
+    UserInfo userInfo{"hello", "world"};
+
+    ASSERT_TRUE(
+        instance.Initialize("/FileInstanceTest-OpenReadonlyAndDiscardTest",
+                            &mdsClient, userInfo, opt, true));
+
+    ASSERT_EQ(-1, instance.Discard(0, 0));
+
+    CurveAioContext aioctx;
+    aioctx.op = LIBCURVE_OP::LIBCURVE_OP_DISCARD;
+    aioctx.offset = 0;
+    aioctx.length = 0;
+    ASSERT_EQ(-1, instance.AioDiscard(&aioctx));
+}
+
 }  // namespace client
 }  // namespace curve

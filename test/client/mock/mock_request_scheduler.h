@@ -5,8 +5,8 @@
  * Copyright (c) 2020 NetEase
  */
 
-#ifndef TEST_CLIENT_MOCK_REQUEST_SCHEDULER_H_
-#define TEST_CLIENT_MOCK_REQUEST_SCHEDULER_H_
+#ifndef TEST_CLIENT_MOCK_MOCK_REQUEST_SCHEDULER_H_
+#define TEST_CLIENT_MOCK_MOCK_REQUEST_SCHEDULER_H_
 
 #include "src/client/request_scheduler.h"
 
@@ -23,4 +23,4 @@ class MockRequestScheduler : public RequestScheduler {
 }  // namespace client
 }  // namespace curve
 
-#endif  // TEST_CLIENT_MOCK_REQUEST_SCHEDULER_H_
+#endif  // TEST_CLIENT_MOCK_MOCK_REQUEST_SCHEDULER_H_

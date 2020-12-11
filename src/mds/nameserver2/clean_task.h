@@ -25,6 +25,7 @@
 
 #include <functional>
 #include <memory>  //NOLINT
+#include <string>
 #include <brpc/closure_guard.h>  //NOLINT
 #include <brpc/controller.h>    //NOLINT
 #include "proto/nameserver2.pb.h"
@@ -158,6 +159,28 @@ class CommonFileCleanTask: public Task {
  private:
     std::shared_ptr<CleanCore> cleanCore_;
     FileInfo fileInfo_;
+};
+
+class SegmentCleanTask : public Task {
+ public:
+    SegmentCleanTask(std::shared_ptr<CleanCore> cleanCore,
+                     const std::string& cleanSegmentKey,
+                     const DiscardSegmentInfo& discardSegmentInfo)
+        : Task(),
+          cleanCore_(cleanCore),
+          cleanSegmentKey_(cleanSegmentKey),
+          discardSegmentInfo_(discardSegmentInfo) {}
+
+    void Run() override {
+        cleanCore_->CleanDiscardSegment(cleanSegmentKey_, discardSegmentInfo_,
+                                        GetMutableTaskProgress());
+        return;
+    }
+
+ private:
+    std::shared_ptr<CleanCore> cleanCore_;
+    std::string cleanSegmentKey_;
+    DiscardSegmentInfo discardSegmentInfo_;
 };
 
 }  // namespace mds

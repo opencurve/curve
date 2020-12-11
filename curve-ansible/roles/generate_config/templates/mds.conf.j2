@@ -34,6 +34,8 @@ mds.segment.alloc.periodic.persistInterMs={{ mds_segment_alloc_periodic_persist_
 # 出错情况下的重试间隔,单位ms
 mds.segment.alloc.retryInterMs={{ mds_segment_alloc_retry_inter_ms }}
 
+mds.segment.discard.scanIntevalMs={{ mds_segment_discard_scan_interval_ms }}
+
 
 # leader竞选时会创建session, 单位是秒(go端代码的接口这个值的单位就是s)
 # 该值和etcd集群election timeout相关.

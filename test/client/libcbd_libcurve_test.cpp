@@ -49,11 +49,19 @@ using curve::client::EndPoint;
 
 #define filename    "1_userinfo_test.img"
 
+const uint64_t GiB = 1024ull * 1024 * 1024;
+
 DECLARE_string(chunkserver_list);
 
 extern std::string configpath;
 void LibcbdLibcurveTestCallback(CurveAioContext* context) {
     context->op = LIBCURVE_OP_MAX;
+}
+
+std::atomic<bool> discardComplete(false);
+void AioDiscardCallback(CurveAioContext* context) {
+    ASSERT_EQ(context->ret, 0);
+    discardComplete.store(true, std::memory_order_release);
 }
 
 class TestLibcbdLibcurve : public ::testing::Test {
@@ -201,6 +209,26 @@ TEST_F(TestLibcbdLibcurve, ReadWriteTest) {
     ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 }
 
+TEST_F(TestLibcbdLibcurve, DiscardTest) {
+    int fd;
+    CurveOptions opts;
+    memset(&opts, 0, sizeof(opts));
+
+    opts.conf = const_cast<char*>(configpath.c_str());
+    ASSERT_EQ(LIBCURVE_ERROR::OK, cbd_lib_init(&opts));
+
+    fd = cbd_lib_open(filename);
+    ASSERT_GE(fd, 0);
+
+    ASSERT_EQ(0, cbd_lib_pdiscard(fd, 0, 4096));
+    ASSERT_EQ(0, cbd_lib_pdiscard(fd, 1 * GiB, 1 * GiB));
+
+    sleep(1);
+
+    ASSERT_EQ(LIBCURVE_ERROR::OK, cbd_lib_close(fd));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, cbd_lib_fini());
+}
+
 TEST_F(TestLibcbdLibcurve, AioReadWriteTest) {
     int ret;
     int fd;
@@ -258,6 +286,52 @@ TEST_F(TestLibcbdLibcurve, AioReadWriteTest) {
 
     ret = cbd_lib_fini();
     ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
+}
+
+TEST_F(TestLibcbdLibcurve, TestAioDiscard) {
+    int fd;
+    CurveOptions opts;
+    memset(&opts, 0, sizeof(opts));
+    opts.conf = const_cast<char*>(configpath.c_str());
+
+    ASSERT_EQ(LIBCURVE_ERROR::OK, cbd_lib_init(&opts));
+
+    fd = cbd_lib_open(filename);
+    ASSERT_GE(fd, 0);
+
+    {
+        CurveAioContext aioctx;
+        aioctx.op = LIBCURVE_OP_DISCARD;
+        aioctx.offset = 0;
+        aioctx.length = 4096;
+        aioctx.cb = AioDiscardCallback;
+
+        discardComplete.store(false);
+        ASSERT_EQ(LIBCURVE_ERROR::OK, cbd_lib_aio_pdiscard(fd, &aioctx));
+
+        while (discardComplete.load(std::memory_order_consume) != true) {
+            usleep(100);
+        }
+    }
+
+    {
+        CurveAioContext aioctx;
+        aioctx.op = LIBCURVE_OP_DISCARD;
+        aioctx.offset = 1 * GiB;
+        aioctx.length = 1 * GiB;
+        aioctx.cb = AioDiscardCallback;
+
+        discardComplete.store(false);
+        ASSERT_EQ(LIBCURVE_ERROR::OK, cbd_lib_aio_pdiscard(fd, &aioctx));
+
+        while (discardComplete.load(std::memory_order_consume) != true) {
+            usleep(100);
+        }
+    }
+
+    sleep(1);
+    ASSERT_EQ(LIBCURVE_ERROR::OK, cbd_lib_close(fd));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, cbd_lib_fini());
 }
 
 TEST_F(TestLibcbdLibcurve, StatFileTest) {
@@ -344,6 +418,7 @@ const std::vector<std::string> clientConf {
     std::string("metacache.rpcRetryIntervalUS=500"),
     std::string("mds.rpcRetryIntervalUS=500"),
     std::string("schedule.threadpoolSize=2"),
+    std::string("discard.discardTaskDelayMs=10")
 };
 
 int main(int argc, char ** argv) {

@@ -23,15 +23,20 @@
 #ifndef SRC_MDS_NAMESERVER2_CLEAN_MANAGER_H_
 #define SRC_MDS_NAMESERVER2_CLEAN_MANAGER_H_
 
+#include <map>
 #include <memory>
+#include <string>
 #include "proto/nameserver2.pb.h"
 #include "src/mds/nameserver2/clean_task_manager.h"
 #include "src/mds/nameserver2/clean_core.h"
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/async_delete_snapshot_entity.h"
+#include "src/common/concurrent/concurrent.h"
 
 namespace  curve {
 namespace mds {
+
+class CleanDiscardSegmentTask;
 
 class CleanManagerInterface {
  public:
@@ -40,6 +45,10 @@ class CleanManagerInterface {
       std::shared_ptr<AsyncDeleteSnapShotEntity> entity) = 0;
     virtual std::shared_ptr<Task> GetTask(TaskIDType id) = 0;
     virtual bool SubmitDeleteCommonFileJob(const FileInfo&) = 0;
+
+    virtual bool SubmitCleanDiscardSegmentJob(
+        const std::string& cleanSegmentKey,
+        const DiscardSegmentInfo& discardSegmentInfo) = 0;
 };
 /**
  * CleanManager 用于异步清理 删除快照对应的数据
@@ -61,6 +70,10 @@ class CleanManager : public CleanManagerInterface {
 
     bool SubmitDeleteCommonFileJob(const FileInfo&fileInfo) override;
 
+    bool SubmitCleanDiscardSegmentJob(
+        const std::string& cleanSegmentKey,
+        const DiscardSegmentInfo& discardSegmentInfo) override;
+
     bool RecoverCleanTasks(void);
 
     std::shared_ptr<Task> GetTask(TaskIDType id) override;
@@ -71,6 +84,35 @@ class CleanManager : public CleanManagerInterface {
     std::shared_ptr<CleanTaskManager> taskMgr_;
 };
 
+class CleanDiscardSegmentTask {
+ public:
+    CleanDiscardSegmentTask(std::shared_ptr<CleanManagerInterface> cleanManager,
+                            std::shared_ptr<NameServerStorage> storage,
+                            uint32_t scanIntervalMs)
+        : cleanManager_(cleanManager),
+          storage_(storage),
+          scanIntervalMs_(scanIntervalMs),
+          sleeper_(),
+          running_(false),
+          taskThread_() {}
+
+    bool Start();
+
+    bool Stop();
+
+ private:
+    void ScanAndExecTask();
+
+ private:
+    std::shared_ptr<CleanManagerInterface> cleanManager_;
+    std::shared_ptr<NameServerStorage> storage_;
+    uint32_t scanIntervalMs_;
+    curve::common::InterruptibleSleeper sleeper_;
+    curve::common::Atomic<bool> running_;
+    curve::common::Thread taskThread_;
+};
+
 }  // namespace mds
 }  // namespace curve
+
 #endif  // SRC_MDS_NAMESERVER2_CLEAN_MANAGER_H_

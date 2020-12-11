@@ -48,6 +48,7 @@ using curve::mds::DeleteFileResponse;
 using curve::mds::RecoverFileResponse;
 using curve::mds::GetFileInfoResponse;
 using curve::mds::GetOrAllocateSegmentResponse;
+using curve::mds::DeAllocateSegmentResponse;
 using curve::mds::RenameFileResponse;
 using curve::mds::ExtendFileResponse;
 using curve::mds::ChangeOwnerResponse;
@@ -961,6 +962,42 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
         return LIBCURVE_ERROR::OK;
     };
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMsInIOPath);
+}
+
+LIBCURVE_ERROR MDSClient::DeAllocateSegment(const FInfo* fileInfo,
+                                            uint64_t offset) {
+    auto task = RPCTaskDefine {
+        DeAllocateSegmentResponse response;
+        mdsClientMetric_.deAllocateSegment.qps.count << 1;
+        LatencyGuard lg(&mdsClientMetric_.deAllocateSegment.latency);
+        mdsClientBase_.DeAllocateSegment(fileInfo, offset, &response, cntl,
+                                         channel);
+
+        if (cntl->Failed()) {
+            mdsClientMetric_.deAllocateSegment.eps.count << 1;
+            LOG(WARNING) << "DeAllocateSegment failed, error = "
+                         << cntl->ErrorText()
+                         << ", filename = " << fileInfo->fullPathName
+                         << ", offset = " << offset;
+            return -cntl->ErrorCode();
+        }
+
+        auto statusCode = response.statuscode();
+        if (statusCode == StatusCode::kOK ||
+            statusCode == StatusCode::kSegmentNotAllocated) {
+            return LIBCURVE_ERROR::OK;
+        } else {
+            LOG(WARNING) << "DeAllocateSegment mds return failed, error = "
+                         << mds::StatusCode_Name(statusCode)
+                         << ", filename = " << fileInfo->fullPathName
+                         << ", offset = " << offset;
+            LIBCURVE_ERROR errCode;
+            MDSStatusCode2LibcurveError(statusCode, &errCode);
+            return errCode;
+        }
+    };
+
+    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
 }
 
 LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,

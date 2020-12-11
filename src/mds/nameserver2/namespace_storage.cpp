@@ -21,12 +21,15 @@
  */
 
 #include <glog/logging.h>
+#include <utility>
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/common/namespace_define.h"
 
 using ::curve::common::SNAPSHOTFILEINFOKEYPREFIX;
 using ::curve::common::SNAPSHOTFILEINFOKEYEND;
+using ::curve::common::DISCARDSEGMENTKEYPREFIX;
+using ::curve::common::DISCARDSEGMENTKEYEND;
 
 namespace curve {
 namespace mds {
@@ -37,10 +40,8 @@ std::ostream& operator << (std::ostream & os, StoreStatus &s) {
 }
 
 NameServerStorageImp::NameServerStorageImp(
-    std::shared_ptr<KVStorageClient> client, std::shared_ptr<Cache> cache) {
-    this->client_ = client;
-    this->cache_ = cache;
-}
+    std::shared_ptr<KVStorageClient> client, std::shared_ptr<Cache> cache)
+    : client_(client), cache_(cache), discardMetric_() {}
 
 StoreStatus NameServerStorageImp::PutFile(const FileInfo &fileInfo) {
     std::string storeKey;
@@ -522,6 +523,93 @@ StoreStatus NameServerStorageImp::DeleteSegment(
         LOG(ERROR) << "delete segment of inodeid: " << id
                    << "off: " << off << ", err:" << errCode;
     }
+    return getErrorCode(errCode);
+}
+
+StoreStatus NameServerStorageImp::ListDiscardSegment(
+    std::map<std::string, DiscardSegmentInfo>* discardSegments) {
+    assert(discardSegments != nullptr);
+
+    std::vector<std::pair<std::string, std::string>> out;
+    int err =
+        client_->List(DISCARDSEGMENTKEYPREFIX, DISCARDSEGMENTKEYEND, &out);
+    if (err != EtcdErrCode::EtcdOK) {
+        LOG(ERROR) << "ListDiscardSegment return error, err = " << err;
+        return StoreStatus::InternalError;
+    }
+
+    for (const auto& kv : out) {
+        DiscardSegmentInfo info;
+        if (!NameSpaceStorageCodec::DecodeDiscardSegment(kv.second, &info)) {
+            LOG(ERROR) << "Decode DiscardSegment failed";
+            return StoreStatus::InternalError;
+        }
+
+        discardSegments->emplace(kv.first, std::move(info));
+    }
+
+    return StoreStatus::OK;
+}
+
+StoreStatus NameServerStorageImp::DiscardSegment(
+    const FileInfo& fileInfo, const PageFileSegment& segment) {
+    const uint64_t inodeId = fileInfo.id();
+    const uint64_t offset = segment.startoffset();
+    const std::string segmentKey =
+        NameSpaceStorageCodec::EncodeSegmentStoreKey(inodeId, offset);
+    const std::string cleanSegmentKey =
+        NameSpaceStorageCodec::EncodeDiscardSegmentStoreKey(inodeId, offset);
+
+    std::string encodeSegment;
+    if (!NameSpaceStorageCodec::EncodeSegment(segment, &encodeSegment)) {
+        return StoreStatus::InternalError;
+    }
+
+    std::string encodeDiscardSegment;
+    DiscardSegmentInfo discardInfo;
+    discardInfo.set_allocated_fileinfo(new FileInfo(fileInfo));
+    discardInfo.set_allocated_pagefilesegment(new PageFileSegment(segment));
+    if (!NameSpaceStorageCodec::EncodeDiscardSegment(discardInfo,
+                                                     &encodeDiscardSegment)) {
+        return StoreStatus::InternalError;
+    }
+
+    Operation op1{
+        OpType::OpDelete,
+        const_cast<char*>(segmentKey.c_str()),
+        const_cast<char*>(encodeSegment.c_str()),
+        segmentKey.size(), encodeSegment.size()};
+    Operation op2{
+        OpType::OpPut,
+        const_cast<char*>(cleanSegmentKey.c_str()),
+        const_cast<char*>(encodeDiscardSegment.c_str()),
+        cleanSegmentKey.size(), encodeDiscardSegment.size()};
+
+    std::vector<Operation> ops{op1, op2};
+    auto errCode = client_->TxnN(ops);
+    if (errCode != EtcdErrCode::EtcdOK) {
+        LOG(ERROR) << "Discard segment failed, filename: "
+                   << fileInfo.filename() << ", inodeid = " << inodeId
+                   << ", offset: " << offset << ", errCode: " << errCode;
+    } else {
+        cache_->Remove(segmentKey);
+        discardMetric_.OnReceiveDiscardRequest(segment.segmentsize());
+    }
+
+    return getErrorCode(errCode);
+}
+
+StoreStatus NameServerStorageImp::CleanDiscardSegment(uint64_t segmentSize,
+                                                      const std::string& key,
+                                                      int64_t* revision) {
+    int errCode = client_->DeleteRewithRevision(key, revision);
+    if (errCode != EtcdErrCode::EtcdOK) {
+        LOG(ERROR) << "CleanDiscardSegment failed, key = " << key
+                   << ", err = " << errCode;
+    } else {
+        discardMetric_.OnDiscardFinish(segmentSize);
+    }
+
     return getErrorCode(errCode);
 }
 

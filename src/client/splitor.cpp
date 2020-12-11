@@ -131,9 +131,28 @@ int Splitor::SingleChunkIO2ChunkRequests(
 bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
                              std::vector<RequestContext*>* targetlist,
                              butil::IOBuf* data, off_t off, size_t len,
-                             MDSClient* mdsclient, const FInfo_t* fileinfo,
+                             MDSClient* mdsclient, const FInfo_t* fileInfo,
                              ChunkIndex chunkidx) {
     const auto maxSplitSizeBytes = 1024 * iosplitopt_.fileIOSplitMaxSizeKB;
+
+    lldiv_t res = std::div(
+        static_cast<long long>(chunkidx) * fileInfo->chunksize,  // NOLINT
+        static_cast<long long>(fileInfo->segmentsize));          // NOLINT
+
+    SegmentIndex segmentIndex = res.quot;
+    uint64_t startOffset = res.rem + off;
+
+    FileSegment* fileSegment = metaCache->GetFileSegment(segmentIndex);
+
+    if (iotracker->Optype() == OpType::DISCARD) {
+        return MarkDiscardBitmap(iotracker, fileSegment, segmentIndex,
+                                 startOffset, len);
+    }
+
+    FileSegmentReadLockGuard lk(fileSegment);
+
+    // clear discard bitmap
+    fileSegment->ClearBitmap(startOffset, len);
 
     ChunkIDInfo chunkIdInfo;
     MetaCacheErrorType errCode =
@@ -147,8 +166,8 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
             iotracker->Optype() == OpType::READ ? false : true;
         if (false == GetOrAllocateSegment(
                          isAllocateSegment,
-                         static_cast<uint64_t>(chunkidx) * fileinfo->chunksize,
-                         mdsclient, metaCache, fileinfo, chunkidx)) {
+                         static_cast<uint64_t>(chunkidx) * fileInfo->chunksize,
+                         mdsclient, metaCache, fileInfo, chunkidx)) {
             return false;
         }
 
@@ -168,7 +187,7 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
         std::vector<RequestContext*> templist;
         ret = SingleChunkIO2ChunkRequests(iotracker, metaCache, &templist,
                                           chunkIdInfo, data, off, len,
-                                          fileinfo->seqnum);
+                                          fileInfo->seqnum);
 
         for (auto& ctx : templist) {
             ctx->appliedindex_ = appliedindex_;
@@ -178,6 +197,12 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
 
         targetlist->insert(targetlist->end(), templist.begin(),
                             templist.end());
+
+        if (ret == 0) {
+            // acquire filesegment read lock
+            fileSegment->AcquireReadLock();
+            iotracker->segmentLocks_.emplace_back(fileSegment);
+        }
 
         return ret == 0;
     }
@@ -353,6 +378,19 @@ int Splitor::SplitForStripe(IOTracker* iotracker, MetaCache* metaCache,
     }
 
     return 0;
+}
+
+bool Splitor::MarkDiscardBitmap(IOTracker* iotracker, FileSegment* fileSegment,
+                                SegmentIndex segmentIndex, uint64_t offset,
+                                uint64_t len) {
+    FileSegmentWriteLockGuard lk(fileSegment);
+    fileSegment->SetBitmap(offset, len);
+
+    if (fileSegment->IsAllBitSet()) {
+        iotracker->discardSegments_.push_back(segmentIndex);
+    }
+
+    return true;
 }
 
 RequestSourceInfo Splitor::CalcRequestSourceInfo(IOTracker* ioTracker,

@@ -47,7 +47,7 @@ cc_binary(
         "//test/client/fake:fake_lib",
         "//test/fs:fs_mock",
         "//test/common:common_mock",
-        "//test/client/mock:curve_client_mock",
+        "//test/client/mock:client_mock_lib",
         "//test/tools/mock:curve_tool_mock",
     ],
     copts = COPTS

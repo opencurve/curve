@@ -42,6 +42,23 @@ using curve::mds::topology::CopySetIdType;
 
 namespace curve {
 namespace mds {
+
+inline bool CurveFS::CheckSegmentOffset(const FileInfo& fileInfo,
+                                        uint64_t offset) const {
+    if (offset % fileInfo.segmentsize() != 0) {
+        LOG(ERROR) << "offset not align with segment, offset = " << offset
+                   << ", file segmentsize = " << fileInfo.segmentsize();
+        return false;
+    }
+
+    if (offset + fileInfo.segmentsize() > fileInfo.length()) {
+        LOG(ERROR) << "bigger than file length";
+        return false;
+    }
+
+    return true;
+}
+
 bool CurveFS::InitRecycleBinDir() {
     FileInfo recyclebinFileInfo;
 
@@ -1158,6 +1175,74 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
     }  else {
         return StatusCode::KInternalError;
     }
+}
+
+StatusCode CurveFS::DeAllocateSegment(const std::string& fileName,
+                                      uint64_t offset) {
+    FileInfo fileInfo;
+    auto ret = GetFileInfo(fileName, &fileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "get source file error, errCode = " << ret;
+        return ret;
+    }
+
+    if (fileInfo.filetype() != FileType::INODE_PAGEFILE) {
+        LOG(ERROR) << "Only PAGEFILE support discard, filename = " << fileName
+                   << ", offset = " << offset;
+        return StatusCode::kNotSupported;
+    }
+
+    if (CheckSegmentOffset(fileInfo, offset) == false) {
+        LOG(ERROR) << "DeAllocateSegment check offset failed, filename = "
+                   << fileName << ", offset = " << offset;
+        return StatusCode::kParaError;
+    }
+
+    if (fileInfo.filestatus() == FileStatus::kFileBeingCloned) {
+        LOG(WARNING)
+            << "DeAllocateSegment failed, file is being cloned, filename = "
+            << fileName << ", offset = " << offset;
+        return StatusCode::kNotSupported;
+    }
+
+    PageFileSegment segment;
+    auto storeRet = storage_->GetSegment(fileInfo.id(), offset, &segment);
+    if (StoreStatus::KeyNotExist == storeRet) {
+        LOG(WARNING) << "DeAllocateSegment segment not exist, filename = "
+                     << fileName << ", offset = " << offset;
+        return StatusCode::kSegmentNotAllocated;
+    }
+
+    if (segment.startoffset() != offset) {
+        LOG(ERROR)
+            << "DeAllocateSegment check offset failed, segment startoffset = "
+            << segment.startoffset() << ", request offset = " << offset
+            << ", filename = " << fileName;
+        return StatusCode::kParaError;
+    }
+
+    std::vector<FileInfo> snapShotFiles;
+    if (storage_->ListSnapshotFile(fileInfo.id(), fileInfo.id() + 1,
+                                   &snapShotFiles) != StoreStatus::OK) {
+        LOG(WARNING) << fileName << " list snapshot failed";
+        return StatusCode::kStorageError;
+    }
+
+    if (!snapShotFiles.empty()) {
+        LOG(WARNING) << fileName
+                     << " exist snapshot, num = " << snapShotFiles.size();
+        return StatusCode::kFileUnderSnapShot;
+    }
+
+    storeRet = storage_->DiscardSegment(fileInfo, segment);
+    if (storeRet != StoreStatus::OK) {
+        LOG(WARNING) << "Storage CleanSegment return error, filename = "
+                   << fileName << ", offset = " << offset
+                   << ", error = " << storeRet;
+        return StatusCode::kStorageError;
+    }
+
+    return StatusCode::kOK;
 }
 
 StatusCode CurveFS::CreateSnapShotFile(const std::string &fileName,

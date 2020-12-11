@@ -43,11 +43,16 @@ using CopysetID     = uint32_t;
 using LogicPoolID   = uint32_t;
 using ChunkServerID = uint32_t;
 using ChunkIndex    = uint32_t;
+using SegmentIndex  = uint32_t;
 
 using EndPoint  = butil::EndPoint;
 using Status    = butil::Status;
 
 using IOManagerID = uint64_t;
+
+constexpr uint64_t KiB = 1024;
+constexpr uint64_t MiB = 1024 * KiB;
+constexpr uint64_t GiB = 1024 * MiB;
 
 // 操作类型
 enum class OpType {
@@ -58,6 +63,7 @@ enum class OpType {
     CREATE_CLONE,
     RECOVER_CHUNK,
     GET_CHUNK_INFO,
+    DISCARD,
     UNKNOWN
 };
 
@@ -245,6 +251,8 @@ inline const char* OpTypeToString(OpType optype) {
         return "RecoverChunk";
     case OpType::GET_CHUNK_INFO:
         return "GetChunkInfo";
+    case OpType::DISCARD:
+        return "Discard";
     case OpType::UNKNOWN:
     default:
         return "Unknown";

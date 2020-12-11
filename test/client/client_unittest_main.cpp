@@ -26,6 +26,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
+#include <vector>
 
 #include "test/integration/cluster_common/cluster.h"
 

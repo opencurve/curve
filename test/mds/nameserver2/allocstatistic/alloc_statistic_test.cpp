@@ -31,6 +31,7 @@ using ::testing::_;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
+using ::testing::Matcher;
 
 using ::curve::common::SEGMENTALLOCSIZEKEYEND;
 using ::curve::common::SEGMENTALLOCSIZEKEY;
@@ -70,8 +71,9 @@ TEST_F(AllocStatisticTest, test_Init) {
         LOG(INFO) << "test2......";
         EXPECT_CALL(*mockEtcdClient_, GetCurrentRevision(_)).
             WillOnce(Return(EtcdErrCode::EtcdOK));
-        EXPECT_CALL(*mockEtcdClient_, List(
-            SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND, _))
+        EXPECT_CALL(*mockEtcdClient_,
+                    List(SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND,
+                         Matcher<std::vector<std::string>*>(_)))
             .WillOnce(Return(EtcdErrCode::EtcdCanceled));
         ASSERT_EQ(-1, allocStatistic_->Init());
         int64_t alloc;
@@ -84,8 +86,9 @@ TEST_F(AllocStatisticTest, test_Init) {
             NameSpaceStorageCodec::EncodeSegmentAllocValue(1, 1024)};
         EXPECT_CALL(*mockEtcdClient_, GetCurrentRevision(_)).
             WillOnce(DoAll(SetArgPointee<0>(2), Return(EtcdErrCode::EtcdOK)));
-        EXPECT_CALL(*mockEtcdClient_, List(
-            SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND, _))
+        EXPECT_CALL(*mockEtcdClient_,
+                    List(SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND,
+                         Matcher<std::vector<std::string>*>(_)))
             .WillOnce(
                 DoAll(SetArgPointee<2>(values), Return(EtcdErrCode::EtcdOK)));
         ASSERT_EQ(0, allocStatistic_->Init());
@@ -102,8 +105,9 @@ TEST_F(AllocStatisticTest, test_PeriodicPersist_CalculateSegmentAlloc) {
             NameSpaceStorageCodec::EncodeSegmentAllocValue(1, 1024)};
     EXPECT_CALL(*mockEtcdClient_, GetCurrentRevision(_))
         .WillOnce(DoAll(SetArgPointee<0>(2), Return(EtcdErrCode::EtcdOK)));
-    EXPECT_CALL(*mockEtcdClient_, List(
-        SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND, _))
+    EXPECT_CALL(*mockEtcdClient_,
+                List(SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND,
+                     Matcher<std::vector<std::string>*>(_)))
         .WillOnce(DoAll(SetArgPointee<2>(values), Return(EtcdErrCode::EtcdOK)));
     ASSERT_EQ(0, allocStatistic_->Init());
 

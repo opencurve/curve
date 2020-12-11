@@ -113,6 +113,7 @@ const char* ErrorNum2ErrorName(LIBCURVE_ERROR err);
 typedef enum LIBCURVE_OP {
     LIBCURVE_OP_READ,
     LIBCURVE_OP_WRITE,
+    LIBCURVE_OP_DISCARD,
     LIBCURVE_OP_MAX,
 } LIBCURVE_OP;
 
@@ -234,6 +235,16 @@ int Read(int fd, char* buf, off_t offset, size_t length);
 int Write(int fd, const char* buf, off_t offset, size_t length);
 
 /**
+ * @brief Synchronous discard operation
+ * @param fd file descriptor
+ * @param offset discard offset
+ * @param length discard length
+ * @return On success, return 0.
+ *         On error, returns a negative value.
+ */
+int Discard(int fd, off_t offset, size_t length);
+
+/**
  * 异步模式读
  * @param: fd为当前open返回的文件描述符
  * @param: aioctx为异步读写的io上下文，保存基本的io信息
@@ -248,6 +259,14 @@ int AioRead(int fd, CurveAioContext* aioctx);
  * @return: 成功返回 0,否则-LIBCURVE_ERROR::FAILED
  */
 int AioWrite(int fd, CurveAioContext* aioctx);
+
+/**
+ * @brief Asynchronous discard operation
+ * @param fd file descriptor
+ * @param aioctx async request context
+ * @return 0 means success, otherwise it means failure
+ */
+int AioDiscard(int fd, CurveAioContext* aioctx);
 
 /**
  * 重命名文件
@@ -509,6 +528,14 @@ class CurveClient {
      */
     virtual int AioWrite(int fd, CurveAioContext* aioctx,
                          UserDataType dataType);
+
+    /**
+     * @brief Async Discard
+     * @param fd file descriptor
+     * @param aioctx async request context
+     * @return return error code, 0(LIBCURVE_ERROR::OK) means success
+     */
+    virtual int AioDiscard(int fd, CurveAioContext* aioctx);
 
     /**
      * 测试使用，设置fileclient

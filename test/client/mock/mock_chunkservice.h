@@ -20,8 +20,8 @@
  * Author: wudemiao
  */
 
-#ifndef TEST_CLIENT_MOCK_CHUNKSERVICE_H_
-#define TEST_CLIENT_MOCK_CHUNKSERVICE_H_
+#ifndef TEST_CLIENT_MOCK_MOCK_CHUNKSERVICE_H_
+#define TEST_CLIENT_MOCK_MOCK_CHUNKSERVICE_H_
 
 #include <brpc/controller.h>
 #include <brpc/server.h>
@@ -192,4 +192,4 @@ class MockChunkServiceImpl : public ChunkService {
 }   // namespace client
 }   // namespace curve
 
-#endif  // TEST_CLIENT_MOCK_CHUNKSERVICE_H_
+#endif  // TEST_CLIENT_MOCK_MOCK_CHUNKSERVICE_H_

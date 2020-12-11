@@ -45,6 +45,7 @@ class MockCurveClient : public ::curve::client::CurveClient {
                  int(int, CurveAioContext*, curve::client::UserDataType));
     MOCK_METHOD3(AioWrite,
                  int(int, CurveAioContext*, curve::client::UserDataType));
+    MOCK_METHOD2(AioDiscard, int(int, CurveAioContext*));
 };
 
 }  // namespace server

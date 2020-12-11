@@ -72,6 +72,10 @@ using curve::mds::CreateCloneFileRequest;
 using curve::mds::CreateCloneFileResponse;
 using curve::mds::SetCloneFileStatusRequest;
 using curve::mds::SetCloneFileStatusResponse;
+using curve::mds::GetOrAllocateSegmentRequest;
+using curve::mds::GetOrAllocateSegmentResponse;
+using curve::mds::DeAllocateSegmentRequest;
+using curve::mds::DeAllocateSegmentResponse;
 using curve::mds::CheckSnapShotStatusRequest;
 using curve::mds::CheckSnapShotStatusResponse;
 using curve::mds::ListSnapShotFileInfoRequest;
@@ -332,6 +336,11 @@ class MDSClientBase {
                               GetOrAllocateSegmentResponse* response,
                               brpc::Controller* cntl,
                               brpc::Channel* channel);
+
+    void DeAllocateSegment(const FInfo* fileInfo, uint64_t segmentOffset,
+                           DeAllocateSegmentResponse* response,
+                           brpc::Controller* cntl, brpc::Channel* channel);
+
     /**
      * @brief 重名文件
      * @param:userinfo 用户信息

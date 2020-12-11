@@ -23,6 +23,8 @@
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <memory>
+#include <sstream>
 
 #include "src/client/splitor.h"
 #include "src/client/iomanager.h"
@@ -30,8 +32,9 @@
 #include "src/client/request_scheduler.h"
 #include "src/client/request_closure.h"
 #include "src/common/timeutility.h"
-#include "src/client/libcurve_file.h"
 #include "src/client/source_reader.h"
+#include "src/client/metacache_struct.h"
+#include "src/client/discard_task.h"
 
 namespace curve {
 namespace client {
@@ -39,6 +42,7 @@ namespace client {
 using curve::chunkserver::CHUNK_OP_STATUS;
 
 std::atomic<uint64_t> IOTracker::tracekerID_(1);
+DiscardOption IOTracker::discardOption_;
 
 IOTracker::IOTracker(IOManager* iomanager,
                      MetaCache* mc,
@@ -61,6 +65,12 @@ IOTracker::IOTracker(IOManager* iomanager,
     reqlist_.clear();
     reqcount_.store(0, std::memory_order_release);
     opStartTimePoint_ = curve::common::TimeUtility::GetTimeofDayUs();
+}
+
+void IOTracker::ReleaseAllSegmentLocks() {
+    for (auto& readlock : segmentLocks_) {
+        readlock->ReleaseLock();
+    }
 }
 
 void IOTracker::StartRead(void* buf, off_t offset, size_t length,
@@ -219,6 +229,55 @@ void IOTracker::DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo,
         LOG(ERROR) << "split or schedule failed, return and recycle resource!";
         ReturnOnFail();
     }
+}
+
+void IOTracker::StartDiscard(off_t offset, size_t length, MDSClient* mdsclient,
+                             const FInfo* fileInfo,
+                             DiscardTaskManager* taskManager) {
+    offset_ = offset;
+    length_ = length;
+    type_ = OpType::DISCARD;
+
+    DoDiscard(mdsclient, fileInfo, taskManager);
+}
+
+void IOTracker::StartAioDiscard(CurveAioContext* ctx, MDSClient* mdsclient,
+                                const FInfo_t* fileInfo,
+                                DiscardTaskManager* taskManager) {
+    aioctx_ = ctx;
+    offset_ = ctx->offset;
+    length_ = ctx->length;
+    type_ = OpType::DISCARD;
+
+    DoDiscard(mdsclient, fileInfo, taskManager);
+}
+
+void IOTracker::DoDiscard(MDSClient* mdsClient, const FInfo* fileInfo,
+                          DiscardTaskManager* taskManager) {
+    int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, nullptr, offset_,
+                                        length_, mdsClient, fileInfo);
+
+    if (ret == 0 && !discardSegments_.empty()) {
+        for (auto index : discardSegments_) {
+            timespec abstime =
+                butil::milliseconds_from_now(discardOption_.taskDelayMs);
+            bool ret =
+                taskManager->ScheduleTask(index, mc_, mdsClient, abstime);
+            std::ostringstream taskinfo;
+            taskinfo << "filename = " << fileInfo->fullPathName
+                     << ", segment index = " << index
+                     << ", segment offset = " << index * GiB;
+            if (!ret) {
+                LOG(ERROR) << "Schedule discard task failed, "
+                           << taskinfo.str();
+            } else {
+                LOG(INFO) << "Schedule discard task, " << taskinfo.str();
+            }
+        }
+    }
+
+    errcode_ = LIBCURVE_ERROR::OK;
+    Done();
 }
 
 void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo,
@@ -392,11 +451,19 @@ void IOTracker::HandleResponse(RequestContext* reqctx) {
     }
 }
 
+void IOTracker::InitDiscardOption(const DiscardOption& opt) {
+    discardOption_ = opt;
+}
+
 int IOTracker::Wait() {
     return iocv_.Wait();
 }
 
 void IOTracker::Done() {
+    if (type_ == OpType::READ || type_ == OpType::WRITE) {
+        ReleaseAllSegmentLocks();
+    }
+
     if (errcode_ == LIBCURVE_ERROR::OK) {
         uint64_t duration = TimeUtility::GetTimeofDayUs() - opStartTimePoint_;
         MetricHelper::UserLatencyRecord(fileMetric_, duration, type_);
@@ -457,18 +524,16 @@ void IOTracker::Done() {
 
     // scc_和aioctx都为空的时候肯定是个同步调用
     if (scc_ == nullptr && aioctx_ == nullptr) {
-        errcode_ == LIBCURVE_ERROR::OK ? iocv_.Complete(length_)
-                                       : iocv_.Complete(-errcode_);
+        iocv_.Complete(ToReturnCode());
         return;
     }
 
     // 异步函数调用，在此处发起回调
     if (aioctx_ != nullptr) {
-        aioctx_->ret = errcode_ == LIBCURVE_ERROR::OK ? length_ : -errcode_;
+        aioctx_->ret = ToReturnCode();
         aioctx_->cb(aioctx_);
     } else {
-        int ret = errcode_ == LIBCURVE_ERROR::OK ? length_ : -errcode_;
-        scc_->SetRetCode(ret);
+        scc_->SetRetCode(ToReturnCode());
         scc_->Run();
     }
 

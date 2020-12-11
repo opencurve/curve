@@ -2666,7 +2666,124 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     server.Join();
 }
 
+TEST_F(NameSpaceServiceTest, TestDeAllocateSegment) {
+    brpc::Server server;
+
+    NameSpaceService nameSpaceSerivce(new FileLockManager(13));
+
+    ASSERT_EQ(0, server.AddService(&nameSpaceSerivce,
+                                   brpc::SERVER_DOESNT_OWN_SERVICE));
+
+    brpc::ServerOptions opt;
+    opt.idle_timeout_sec = -1;
+    ASSERT_EQ(0, server.Start("127.0.0.1", {8900, 8999}, &opt));
+
+    // init channel
+    brpc::Channel channel;
+    ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
+
+    CurveFSService_Stub stub(&channel);
+    brpc::Controller cntl;
+    uint64_t fileLength = 100 * kGB;
+    std::string filename = "/TestDeAllocateSegment";
+    std::string owner = "curve";
+
+    // create file and allocate segment
+    {
+        CreateFileRequest createRequest;
+        CreateFileResponse createResponse;
+        createRequest.set_filename(filename);
+        createRequest.set_owner(owner);
+        createRequest.set_date(TimeUtility::GetTimeofDayUs());
+        createRequest.set_filetype(INODE_PAGEFILE);
+        createRequest.set_filelength(fileLength);
+
+        cntl.set_log_id(1);
+        stub.CreateFile(&cntl, &createRequest, &createResponse, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kOK, createResponse.statuscode());
+
+        // allocate segment
+        cntl.Reset();
+        GetOrAllocateSegmentRequest allocateRequest;
+        GetOrAllocateSegmentResponse allocateResponse;
+
+        allocateRequest.set_filename(filename);
+        allocateRequest.set_offset(50ull * kGB);
+        allocateRequest.set_allocateifnotexist(true);
+        allocateRequest.set_owner(owner);
+        allocateRequest.set_date(TimeUtility::GetTimeofDayUs());
+
+        stub.GetOrAllocateSegment(&cntl, &allocateRequest, &allocateResponse,
+                                  nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kOK, allocateResponse.statuscode());
+    }
+
+    // 1. filename not valid
+    {
+        cntl.Reset();
+        DeAllocateSegmentRequest request;
+        DeAllocateSegmentResponse response;
+
+        request.set_filename(filename + "/");
+        request.set_offset(0);
+        request.set_owner("curve");
+        request.set_date(TimeUtility::GetTimeofDayUs());
+
+        stub.DeAllocateSegment(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kParaError, response.statuscode());
+    }
+
+    // 2. segment not allocated
+    {
+        cntl.Reset();
+        DeAllocateSegmentRequest request;
+        DeAllocateSegmentResponse response;
+
+        request.set_filename(filename);
+        request.set_offset(0);
+        request.set_owner(owner);
+        request.set_date(TimeUtility::GetTimeofDayUs());
+
+        stub.DeAllocateSegment(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kSegmentNotAllocated, response.statuscode());
+    }
+
+    // 3. deallocate success
+    {
+        cntl.Reset();
+        DeAllocateSegmentRequest request;
+        DeAllocateSegmentResponse response;
+
+        request.set_filename(filename);
+        request.set_offset(50ull * kGB);
+        request.set_owner(owner);
+        request.set_date(TimeUtility::GetTimeofDayUs());
+
+        stub.DeAllocateSegment(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kOK, response.statuscode());
+    }
+
+    // 4. retry rpc
+    {
+        cntl.Reset();
+        DeAllocateSegmentRequest request;
+        DeAllocateSegmentResponse response;
+
+        request.set_filename(filename);
+        request.set_offset(50ull * kGB);
+        request.set_owner(owner);
+        request.set_date(TimeUtility::GetTimeofDayUs());
+
+        stub.DeAllocateSegment(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kSegmentNotAllocated, response.statuscode());
+    }
+}
+
 }  // namespace mds
 }  // namespace curve
-
-

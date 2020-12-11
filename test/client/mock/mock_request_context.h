@@ -20,8 +20,8 @@
  * Author: wudemiao
  */
 
-#ifndef TEST_CLIENT_MOCK_REQUEST_CONTEXT_H_
-#define TEST_CLIENT_MOCK_REQUEST_CONTEXT_H_
+#ifndef TEST_CLIENT_MOCK_MOCK_REQUEST_CONTEXT_H_
+#define TEST_CLIENT_MOCK_MOCK_REQUEST_CONTEXT_H_
 
 #include "src/client/client_common.h"
 #include "src/client/request_context.h"
@@ -86,4 +86,4 @@ class FakeRequestClosure : public RequestClosure {
 }   // namespace client
 }   // namespace curve
 
-#endif  // TEST_CLIENT_MOCK_REQUEST_CONTEXT_H_
+#endif  // TEST_CLIENT_MOCK_MOCK_REQUEST_CONTEXT_H_

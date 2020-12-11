@@ -109,6 +109,21 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
      */
     int AioWrite(CurveAioContext* aioctx, UserDataType dataType);
 
+    /**
+     * @param offset discard offset
+     * @param length discard length
+     * @return On success, returns 0.
+     *         On error, returns a negative value.
+     */
+    int Discard(off_t offset, size_t length);
+
+    /**
+     * @brief Asynchronous discard operation
+     * @param aioctx async request context
+     * @return 0 means success, otherwise it means failure
+     */
+    int AioDiscard(CurveAioContext* aioctx);
+
     int Close();
 
     void UnInitialize();

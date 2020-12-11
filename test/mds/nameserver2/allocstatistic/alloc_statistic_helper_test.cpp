@@ -31,6 +31,7 @@ using ::testing::_;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
+using ::testing::Matcher;
 
 using ::curve::common::SEGMENTALLOCSIZEKEYEND;
 using ::curve::common::SEGMENTALLOCSIZEKEY;
@@ -44,8 +45,9 @@ TEST(TestAllocStatisticHelper, test_GetExistSegmentAllocValues) {
 
     {
         // 1. list失败
-        EXPECT_CALL(*mockEtcdClient, List(
-            SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND, _))
+        EXPECT_CALL(*mockEtcdClient,
+                    List(SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND,
+                         Matcher<std::vector<std::string>*>(_)))
             .WillOnce(Return(EtcdErrCode::EtcdCanceled));
         std::map<PoolIdType, int64_t> out;
         ASSERT_EQ(-1, AllocStatisticHelper::GetExistSegmentAllocValues(
@@ -55,8 +57,9 @@ TEST(TestAllocStatisticHelper, test_GetExistSegmentAllocValues) {
     {
         // 2. list成功，解析失败
         std::vector<std::string> values{"hello"};
-        EXPECT_CALL(*mockEtcdClient, List(
-            SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND, _))
+        EXPECT_CALL(*mockEtcdClient,
+                    List(SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND,
+                         Matcher<std::vector<std::string>*>(_)))
             .WillOnce(
                 DoAll(SetArgPointee<2>(values), Return(EtcdErrCode::EtcdOK)));
         std::map<PoolIdType, int64_t> out;
@@ -67,8 +70,9 @@ TEST(TestAllocStatisticHelper, test_GetExistSegmentAllocValues) {
         // 3. 获取已有的segment alloc value成功
         std::vector<std::string> values{
             NameSpaceStorageCodec::EncodeSegmentAllocValue(1, 1024)};
-        EXPECT_CALL(*mockEtcdClient, List(
-            SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND, _))
+        EXPECT_CALL(*mockEtcdClient,
+                    List(SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND,
+                         Matcher<std::vector<std::string>*>(_)))
             .WillOnce(
                 DoAll(SetArgPointee<2>(values), Return(EtcdErrCode::EtcdOK)));
         std::map<PoolIdType, int64_t> out;

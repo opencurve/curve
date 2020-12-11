@@ -24,8 +24,8 @@
 
 #include "src/client/client_common.h"
 
-using curve::client::EndPoint;
-using curve::client::ChunkServerAddr;
+namespace curve {
+namespace client {
 
 TEST(ClientCommon, ChunkServerAddrTest) {
     // 默认构造函数创建的成员变量内容为空
@@ -70,3 +70,6 @@ TEST(ClientCommon, ChunkServerAddrTest) {
     str2endpoint("127.0.0.1:9000", &ep1);
     ASSERT_EQ(caddr2.addr_, ep1);
 }
+
+}  // namespace client
+}  // namespace curve

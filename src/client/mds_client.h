@@ -56,7 +56,8 @@ struct LeaseRefreshResult;
 class MDSClient {
  public:
     explicit MDSClient(const std::string& metricPrefix = "");
-    ~MDSClient() = default;
+
+    virtual ~MDSClient() = default;
 
     using RPCFunc =
         std::function<int(int, uint64_t, brpc::Channel*, brpc::Controller*)>;
@@ -129,6 +130,16 @@ class MDSClient {
                                         uint64_t offset,
                                         const FInfo_t* fi,
                                         SegmentInfo* segInfo);
+
+    /**
+     * @brief Send DeAllocateSegment request to current working MDS
+     * @param fileInfo current file info
+     * @param offset segment start offset
+     * @return LIBCURVE_ERROR::OK means success, other value means fail
+     */
+    virtual LIBCURVE_ERROR DeAllocateSegment(const FInfo* fileInfo,
+                                             uint64_t offset);
+
     /**
      * 获取文件信息，fi是出参
      * @param: filename是文件名

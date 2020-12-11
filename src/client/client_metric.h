@@ -40,10 +40,6 @@ static void GetStringValue(std::ostream& os, void* arg) {
     os << *static_cast<std::string*>(arg);
 }
 
-static uint64_t GetUnInt64Value(void* arg) {
-    return *static_cast<uint64_t*>(arg);
-}
-
 // 悬挂IO统计，文件级别统计，方便定位
 struct IOSuspendMetric {
     // 当前persecond计数总数
@@ -92,6 +88,19 @@ struct InterfaceMetric {
           latency(prefix, name + "_lat") {}
 };
 
+struct DiscardMetric {
+    explicit DiscardMetric(const std::string& prefix)
+        : totalSuccess(prefix, "discard_total_success"),
+          totalError(prefix, "discard_total_error"),
+          totalCanceled(prefix, "discard_total_canceled"),
+          pending(prefix, "discard_pending") {}
+
+    bvar::Adder<int64_t> totalSuccess;
+    bvar::Adder<int64_t> totalError;
+    bvar::Adder<int64_t> totalCanceled;
+    bvar::Adder<int64_t> pending;
+};
+
 // 文件级别metric信息统计
 struct FileMetric {
     const std::string prefix = "curve_client";
@@ -105,6 +114,7 @@ struct FileMetric {
     // 当前文件请求的最大请求字节数，这种统计方式可以很方便的看到最大值，分位值
     bvar::LatencyRecorder readSizeRecorder;
     bvar::LatencyRecorder writeSizeRecorder;
+    bvar::LatencyRecorder discardSizeRecorder;
 
     // libcurve最底层read rpc接口统计信息metric统计
     InterfaceMetric readRPC;
@@ -114,23 +124,31 @@ struct FileMetric {
     InterfaceMetric userRead;
     // 用户写请求qps、eps、rps
     InterfaceMetric userWrite;
+    // user's discard request
+    InterfaceMetric userDiscard;
+
     // get leader失败重试qps
     PerSecondMetric getLeaderRetryQPS;
 
     // 当前文件上的悬挂IO数量
     IOSuspendMetric suspendRPCMetric;
 
+    DiscardMetric discardMetric;
+
     explicit FileMetric(const std::string& name)
         : filename(name),
           inflightRPCNum(prefix, filename + "_inflight_rpc_num"),
           readSizeRecorder(prefix, filename + "_read_request_size_recoder"),
           writeSizeRecorder(prefix, filename + "_write_request_size_recoder"),
+          discardSizeRecorder(prefix, filename + "_discard_request_size_recoder"),  // NOLINT
           readRPC(prefix, filename + "_read_rpc"),
           writeRPC(prefix, filename + "_write_rpc"),
           userRead(prefix, filename + "_read"),
           userWrite(prefix, filename + "_write"),
+          userDiscard(prefix, filename + "_discard"),
           getLeaderRetryQPS(prefix, filename + "_get_leader_retry_rpc"),
-          suspendRPCMetric(prefix, filename + "_suspend_io_num") {}
+          suspendRPCMetric(prefix, filename + "_suspend_io_num"),
+          discardMetric(prefix + filename) {}
 };
 
 // 用于全局mds接口统计信息调用信息统计
@@ -155,6 +173,8 @@ struct MDSClientMetric {
     InterfaceMetric getServerList;
     // GetOrAllocateSegment接口统计信息
     InterfaceMetric getOrAllocateSegment;
+    // DeAllocateSegment接口统计信息
+    InterfaceMetric deAllocateSegment;
     // RenameFile接口统计信息
     InterfaceMetric renameFile;
     // Extend接口统计信息
@@ -191,6 +211,7 @@ struct MDSClientMetric {
           refreshSession(prefix, "refreshSession"),
           getServerList(prefix, "getServerList"),
           getOrAllocateSegment(prefix, "getOrAllocateSegment"),
+          deAllocateSegment(prefix, "deAllocateSegment"),
           renameFile(prefix, "renameFile"),
           extendFile(prefix, "extendFile"),
           deleteFile(prefix, "deleteFile"),
@@ -250,6 +271,10 @@ class MetricHelper {
                     fm->userWrite.bps.count << length;
                     fm->writeSizeRecorder << length;
                     break;
+                case OpType::DISCARD:
+                    fm->userDiscard.qps.count << 1;
+                    fm->userDiscard.bps.count << length;
+                    fm->discardSizeRecorder << length;
                 default:
                     break;
             }
@@ -270,6 +295,8 @@ class MetricHelper {
                 case OpType::WRITE:
                     fm->userWrite.eps.count << 1;
                     break;
+                case OpType::DISCARD:
+                    fm->userDiscard.eps.count << 1;
                 default:
                     break;
             }
@@ -294,6 +321,8 @@ class MetricHelper {
                 case OpType::WRITE:
                     fm->userWrite.rps.count << 1;
                     break;
+                case OpType::DISCARD:
+                    fm->userDiscard.rps.count << 1;
                 default:
                     break;
             }
@@ -435,6 +464,8 @@ class MetricHelper {
                 case OpType::WRITE:
                     fm->userWrite.latency << duration;
                     break;
+                case OpType::DISCARD:
+                    fm->userDiscard.latency << duration;
                 default:
                     break;
             }

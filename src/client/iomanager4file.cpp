@@ -33,8 +33,7 @@
 namespace curve {
 namespace client {
 Atomic<uint64_t> IOManager::idRecorder_(1);
-IOManager4File::IOManager4File(): scheduler_(nullptr), exit_(false) {
-}
+IOManager4File::IOManager4File() : scheduler_(nullptr), exit_(false) {}
 
 bool IOManager4File::Initialize(const std::string& filename,
                                 const IOOption& ioOpt,
@@ -43,6 +42,8 @@ bool IOManager4File::Initialize(const std::string& filename,
     disableStripe_ = false;
 
     mc_.Init(ioopt_.metaCacheOpt, mdsclient);
+
+    IOTracker::InitDiscardOption(ioopt_.discardOption);
     Splitor::Init(ioopt_.ioSplitOpt);
 
     inflightRpcCntl_.SetMaxInflightNum(
@@ -83,6 +84,9 @@ bool IOManager4File::Initialize(const std::string& filename,
         return false;
     }
 
+    discardTaskManager_.reset(
+        new DiscardTaskManager(&(fileMetric_->discardMetric)));
+
     LOG(INFO) << "iomanager init success! conf info: "
               << "isolationTaskThreadPoolSize = "
               << ioopt_.taskThreadOpt.isolationTaskThreadPoolSize
@@ -120,6 +124,8 @@ void IOManager4File::UnInitialize() {
         inflightCntl_.WaitInflightAllComeBack();
         scheduler_->Fini();
     }
+
+    discardTaskManager_->Stop();
 
     {
         // 这个锁保证设置exit_和delete scheduler_是原子的
@@ -223,6 +229,50 @@ int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
     return LIBCURVE_ERROR::OK;
 }
 
+int IOManager4File::Discard(off_t offset, size_t length, MDSClient* mdsclient) {
+    MetricHelper::IncremUserRPSCount(fileMetric_, OpType::DISCARD);
+
+    if (!IsNeedDiscard(length)) {
+        return 0;
+    }
+
+    FlightIOGuard guard(this);
+
+    IOTracker tracker(this, &mc_, scheduler_, fileMetric_);
+    tracker.StartDiscard(offset, length, mdsclient, GetFileInfo(),
+                         discardTaskManager_.get());
+    return tracker.Wait();
+}
+
+int IOManager4File::AioDiscard(CurveAioContext* aioctx, MDSClient* mdsclient) {
+    MetricHelper::IncremUserRPSCount(fileMetric_, OpType::DISCARD);
+
+    if (!IsNeedDiscard(aioctx->length)) {
+        aioctx->ret = 0;
+        aioctx->cb(aioctx);
+        return LIBCURVE_ERROR::OK;
+    }
+
+    IOTracker* ioTracker =
+        new (std::nothrow) IOTracker(this, &mc_, scheduler_, fileMetric_);
+
+    if (ioTracker == nullptr) {
+        aioctx->ret = -LIBCURVE_ERROR::FAILED;
+        aioctx->cb(aioctx);
+        LOG(ERROR) << "allocate tracker failed!";
+        return LIBCURVE_ERROR::OK;
+    }
+
+    inflightCntl_.IncremInflightNum();
+    auto task = [this, aioctx, mdsclient, ioTracker]() {
+        ioTracker->StartAioDiscard(aioctx, mdsclient, this->GetFileInfo(),
+                                   discardTaskManager_.get());
+    };
+
+    taskPool_.Enqueue(task);
+    return LIBCURVE_ERROR::OK;
+}
+
 void IOManager4File::UpdateFileInfo(const FInfo_t& fi) {
     mc_.UpdateFileInfo(fi);
 }
@@ -241,6 +291,15 @@ void IOManager4File::SetDisableStripe() {
 void IOManager4File::HandleAsyncIOResponse(IOTracker* iotracker) {
     inflightCntl_.DecremInflightNum();
     delete iotracker;
+}
+
+bool IOManager4File::IsNeedDiscard(size_t len) const {
+    if (ioopt_.discardOption.enable &&
+        len >= ioopt_.metaCacheOpt.discardGranularity) {
+        return true;
+    }
+
+    return false;
 }
 
 void IOManager4File::LeaseTimeoutBlockIO() {

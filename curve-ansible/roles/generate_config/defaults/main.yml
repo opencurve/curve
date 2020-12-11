@@ -30,6 +30,7 @@ mds_etcd_operation_timeout_ms: 5000
 mds_etcd_retry_times: 3
 mds_segment_alloc_periodic_persist_inter_ms: 10000
 mds_segment_alloc_retry_inter_ms: 1000
+mds_segment_discard_scan_interval_ms: 5000
 mds_leader_session_inter_sec: 5
 mds_leader_election_timeout_ms: 0
 mds_enable_copyset_scheduler: true
@@ -220,6 +221,9 @@ client_session_map_path: ./session_map.json
 client_closefd_timeout_sec: 300
 client_closefd_time_interval_sec: 600
 client_throttle_enable: false
+client_discard_enable: true
+client_discard_granularity: 4096
+client_discard_task_delay_ms: 60000
 
 # nebd默认配置
 client_config_path: /etc/curve/client.conf

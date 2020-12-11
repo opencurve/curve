@@ -225,6 +225,7 @@ class MDS {
     std::shared_ptr<TopologyMetricService> topologyMetricService_;
     std::shared_ptr<TopologyServiceManager> topologyServiceManager_;
     std::shared_ptr<CleanManager> cleanManager_;
+    std::shared_ptr<CleanDiscardSegmentTask> cleanDiscardSegmentTask_;
     std::shared_ptr<Coordinator> coordinator_;
     std::shared_ptr<HeartbeatManager> heartbeatManager_;
     char* etcdEndpoints_;

@@ -75,6 +75,10 @@ int cbd_ext4_pwrite(int fd, const void* buf, off_t offset, size_t length) {
     return pwrite(fd, buf, length, offset);
 }
 
+int cbd_ext4_pdiscard(int fd, off_t offset, size_t length) {
+    return 0;
+}
+
 void cbd_ext4_aio_callback(union sigval sigev_value) {
     CurveAioContext* context = (CurveAioContext *)sigev_value.sival_ptr;    //NOLINT
     context->cb(context);
@@ -118,6 +122,12 @@ int cbd_ext4_aio_pwrite(int fd, CurveAioContext* context) {
     cb->aio_sigevent.sigev_notify_function = cbd_ext4_aio_callback;
 
     return aio_write(cb);
+}
+
+int cbd_ext4_aio_pdiscard(int fd, CurveAioContext* aioctx) {
+    aioctx->ret = aioctx->length;
+    aioctx->cb(aioctx);
+    return 0;
 }
 
 int cbd_ext4_sync(int fd) {

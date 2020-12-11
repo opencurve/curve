@@ -20,8 +20,8 @@
  * Author: wudemiao
  */
 
-#ifndef TEST_CLIENT_MOCK_META_CACHE_H_
-#define TEST_CLIENT_MOCK_META_CACHE_H_
+#ifndef TEST_CLIENT_MOCK_MOCK_META_CACHE_H_
+#define TEST_CLIENT_MOCK_MOCK_META_CACHE_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -75,6 +75,8 @@ class MockMetaCache : public MetaCache {
                                   &FakeMetaCache::UpdateLeader));
     }
 
+    MOCK_METHOD1(CleanChunksInSegment, void(SegmentIndex));
+
  private:
     FakeMetaCache fakeMetaCache_;
 };
@@ -82,4 +84,4 @@ class MockMetaCache : public MetaCache {
 }   // namespace client
 }   // namespace curve
 
-#endif  // TEST_CLIENT_MOCK_META_CACHE_H_
+#endif  // TEST_CLIENT_MOCK_MOCK_META_CACHE_H_

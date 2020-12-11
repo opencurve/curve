@@ -132,6 +132,12 @@ class Splitor {
                               butil::IOBuf* data, off_t offset, size_t length,
                               MDSClient* mdsclient, const FInfo_t* fileInfo);
 
+    static bool MarkDiscardBitmap(IOTracker* iotracker,
+                                  FileSegment* fileSegment,
+                                  SegmentIndex segmentIndex,
+                                  uint64_t offset,
+                                  uint64_t len);
+
  private:
     // IO拆分模块所使用的配置信息
     static IOSplitOption iosplitopt_;

@@ -96,8 +96,26 @@ int EtcdClientImp::Get(const std::string &key, std::string *out) {
     return errCode;
 }
 
-int EtcdClientImp::List(const std::string &startKey, const std::string &endKey,
-    std::vector<std::string> *out) {
+int EtcdClientImp::List(const std::string& startKey, const std::string& endKey,
+                        std::vector<std::string>* out) {
+    assert(out != nullptr);
+    out->clear();
+
+    std::vector<std::pair<std::string, std::string>> kvs;
+    int errCode = List(startKey, endKey, &kvs);
+    if (errCode != EtcdErrCode::EtcdOK) {
+        return errCode;
+    }
+
+    for (const auto& kv : kvs) {
+        out->push_back(kv.second);
+    }
+
+    return errCode;
+}
+
+int EtcdClientImp::List(const std::string& startKey, const std::string& endKey,
+                        std::vector<std::pair<std::string, std::string>>* out) {
     assert(out != nullptr);
     out->clear();
 
@@ -113,8 +131,9 @@ int EtcdClientImp::List(const std::string &startKey, const std::string &endKey,
         needRetry = NeedRetry(errCode);
         if (res.r0 != EtcdErrCode::EtcdOK) {
             LOG(WARNING) << "list file of [start:" << startKey
-                       << ", end:" << endKey << "] err: " << res.r0
-                       << ", retry: " << retry << ", needRetry: " << needRetry;
+                         << ", end:" << endKey << "] err: " << res.r0
+                         << ", retry: " << retry
+                         << ", needRetry: " << needRetry;
         } else {
             for (int i = 0; i < res.r2; i++) {
                 EtcdClientGetMultiObject_return objRes =
@@ -127,6 +146,7 @@ int EtcdClientImp::List(const std::string &startKey, const std::string &endKey,
                 }
 
                 out->emplace_back(
+                    std::string(objRes.r3, objRes.r3 + objRes.r4),
                     std::string(objRes.r1, objRes.r1 + objRes.r2));
                 free(objRes.r1);
                 free(objRes.r3);

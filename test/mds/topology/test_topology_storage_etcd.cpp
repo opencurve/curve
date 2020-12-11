@@ -36,6 +36,7 @@ using ::testing::AllOf;
 using ::testing::SetArgPointee;
 using ::testing::Invoke;
 using ::testing::DoAll;
+using ::testing::Matcher;
 
 namespace curve {
 namespace mds {
@@ -77,9 +78,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadLogicalPool_success) {
     ASSERT_TRUE(codec_->EncodeLogicalPoolData(data, &value));
     std::vector<std::string> list;
     list.push_back(value);
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::unordered_map<PoolIdType, LogicalPool> logicalPoolMap;
     PoolIdType maxLogicalPoolId;
@@ -92,7 +93,8 @@ TEST_F(TestTopologyStorageEtcd, test_LoadLogicalPool_success) {
 }
 
 TEST_F(TestTopologyStorageEtcd, test_LoadLogicalPool_success_ListEtcdEmpty) {
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
         .WillOnce(Return(EtcdErrCode::EtcdKeyNotExist));
 
     std::unordered_map<PoolIdType, LogicalPool> logicalPoolMap;
@@ -105,7 +107,8 @@ TEST_F(TestTopologyStorageEtcd, test_LoadLogicalPool_success_ListEtcdEmpty) {
 }
 
 TEST_F(TestTopologyStorageEtcd, test_LoadLogicalPool_ListEtcdFail) {
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
         .WillOnce(Return(EtcdErrCode::EtcdUnknown));
 
     std::unordered_map<PoolIdType, LogicalPool> logicalPoolMap;
@@ -120,9 +123,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadLogicalPool_ListEtcdFail) {
 TEST_F(TestTopologyStorageEtcd, test_LoadLogicalPool_decodeError) {
     std::vector<std::string> list;
     list.push_back("xxx");
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::unordered_map<PoolIdType, LogicalPool> logicalPoolMap;
     PoolIdType maxLogicalPoolId;
@@ -147,9 +150,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadLogicalPool_IdDuplicated) {
     std::vector<std::string> list;
     list.push_back(value);
     list.push_back(value);
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::unordered_map<PoolIdType, LogicalPool> logicalPoolMap;
     PoolIdType maxLogicalPoolId;
@@ -166,9 +169,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadPhysicalPool_success) {
 
     std::vector<std::string> list;
     list.push_back(value);
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::unordered_map<PoolIdType, PhysicalPool> physicalPoolMap;
     PoolIdType maxPhysicalPoolId;
@@ -182,7 +185,8 @@ TEST_F(TestTopologyStorageEtcd, test_LoadPhysicalPool_success) {
 }
 
 TEST_F(TestTopologyStorageEtcd, test_LoadPhysicalPool_success_listEtcdEmpty) {
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
         .WillOnce(Return(EtcdErrCode::EtcdKeyNotExist));
 
     std::unordered_map<PoolIdType, PhysicalPool> physicalPoolMap;
@@ -198,9 +202,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadPhysicalPool_success_listEtcdEmpty) {
 TEST_F(TestTopologyStorageEtcd, test_LoadPhysicalPool_success_decodeError) {
     std::vector<std::string> list;
     list.push_back("xxx");
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::unordered_map<PoolIdType, PhysicalPool> physicalPoolMap;
     PoolIdType maxPhysicalPoolId;
@@ -219,9 +223,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadPhysicalPool_IdDuplicated) {
     std::vector<std::string> list;
     list.push_back(value);
     list.push_back(value);
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::unordered_map<PoolIdType, PhysicalPool> physicalPoolMap;
     PoolIdType maxPhysicalPoolId;
@@ -239,9 +243,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadZone_success) {
 
     std::vector<std::string> list;
     list.push_back(value);
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::unordered_map<ZoneIdType, Zone> zoneMap;
     ZoneIdType maxZoneId;
@@ -256,9 +260,10 @@ TEST_F(TestTopologyStorageEtcd, test_LoadZone_success) {
 
 TEST_F(TestTopologyStorageEtcd, test_LoadZone_success_listEtcdEmpty) {
     std::vector<std::string> list;
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
         .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdKeyNotExist)));
+                        Return(EtcdErrCode::EtcdKeyNotExist)));
 
     std::unordered_map<ZoneIdType, Zone> zoneMap;
     ZoneIdType maxZoneId;
@@ -273,9 +278,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadZone_success_listEtcdEmpty) {
 TEST_F(TestTopologyStorageEtcd, test_LoadZone_decodeError) {
     std::vector<std::string> list;
     list.push_back("xxx");
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::unordered_map<ZoneIdType, Zone> zoneMap;
     ZoneIdType maxZoneId;
@@ -294,9 +299,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadZone_IdDuplicated) {
     std::vector<std::string> list;
     list.push_back(value);
     list.push_back(value);
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::unordered_map<ZoneIdType, Zone> zoneMap;
     ZoneIdType maxZoneId;
@@ -315,9 +320,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadServer_success) {
 
     std::vector<std::string> list;
     list.push_back(value);
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::unordered_map<ServerIdType, Server> serverMap;
     ServerIdType maxServerId;
@@ -332,9 +337,10 @@ TEST_F(TestTopologyStorageEtcd, test_LoadServer_success) {
 
 TEST_F(TestTopologyStorageEtcd, test_LoadServer_success_listEtcdEmpty) {
     std::vector<std::string> list;
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
         .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdKeyNotExist)));
+                        Return(EtcdErrCode::EtcdKeyNotExist)));
 
     std::unordered_map<ServerIdType, Server> serverMap;
     ServerIdType maxServerId;
@@ -349,9 +355,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadServer_success_listEtcdEmpty) {
 TEST_F(TestTopologyStorageEtcd, test_LoadServer_decodeError) {
     std::vector<std::string> list;
     list.push_back("xxx");
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::unordered_map<ServerIdType, Server> serverMap;
     ServerIdType maxServerId;
@@ -371,9 +377,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadServer_IdDuplicated) {
     std::vector<std::string> list;
     list.push_back(value);
     list.push_back(value);
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::unordered_map<ServerIdType, Server> serverMap;
     ServerIdType maxServerId;
@@ -399,9 +405,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadChunkServer_success) {
 
     std::vector<std::string> list;
     list.push_back(value);
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::unordered_map<ChunkServerIdType, ChunkServer> chunkServerMap;
     ChunkServerIdType maxChunkServerId;
@@ -417,9 +423,10 @@ TEST_F(TestTopologyStorageEtcd, test_LoadChunkServer_success) {
 
 TEST_F(TestTopologyStorageEtcd, test_LoadChunkServer_success_listEtcdEmpty) {
     std::vector<std::string> list;
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
         .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdKeyNotExist)));
+                        Return(EtcdErrCode::EtcdKeyNotExist)));
 
     std::unordered_map<ChunkServerIdType, ChunkServer> chunkServerMap;
     ChunkServerIdType maxChunkServerId;
@@ -434,9 +441,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadChunkServer_success_listEtcdEmpty) {
 TEST_F(TestTopologyStorageEtcd, test_LoadChunkServer_decodeError) {
     std::vector<std::string> list;
     list.push_back("xxx");
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::unordered_map<ChunkServerIdType, ChunkServer> chunkServerMap;
     ChunkServerIdType maxChunkServerId;
@@ -463,9 +470,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadChunkServer_IdDuplcated) {
     std::vector<std::string> list;
     list.push_back(value);
     list.push_back(value);
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::unordered_map<ChunkServerIdType, ChunkServer> chunkServerMap;
     ChunkServerIdType maxChunkServerId;
@@ -486,9 +493,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadCopyset_success) {
 
     std::vector<std::string> list;
     list.push_back(value);
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::map<CopySetKey, CopySetInfo> copySetMap;
     std::map<PoolIdType, CopySetIdType> copySetIdMaxMap;
@@ -505,9 +512,10 @@ TEST_F(TestTopologyStorageEtcd, test_LoadCopyset_success) {
 
 TEST_F(TestTopologyStorageEtcd, test_LoadCopyset_success_listEtcdEmpty) {
     std::vector<std::string> list;
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
         .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdKeyNotExist)));
+                        Return(EtcdErrCode::EtcdKeyNotExist)));
 
     std::map<CopySetKey, CopySetInfo> copySetMap;
     std::map<PoolIdType, CopySetIdType> copySetIdMaxMap;
@@ -522,9 +530,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadCopyset_success_listEtcdEmpty) {
 TEST_F(TestTopologyStorageEtcd, test_LoadCopyset_decodeError) {
     std::vector<std::string> list;
     list.push_back("xxx");
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::map<CopySetKey, CopySetInfo> copySetMap;
     std::map<PoolIdType, CopySetIdType> copySetIdMaxMap;
@@ -546,9 +554,9 @@ TEST_F(TestTopologyStorageEtcd, test_LoadCopyset_IdDuplicated) {
     std::vector<std::string> list;
     list.push_back(value);
     list.push_back(value);
-    EXPECT_CALL(*kvStorageClient_, List(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(list),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*kvStorageClient_,
+                List(_, _, Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(DoAll(SetArgPointee<2>(list), Return(EtcdErrCode::EtcdOK)));
 
     std::map<CopySetKey, CopySetInfo> copySetMap;
     std::map<PoolIdType, CopySetIdType> copySetIdMaxMap;

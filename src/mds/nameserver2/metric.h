@@ -20,8 +20,8 @@
  * Author: lixiaocui
  */
 
-#ifndef SRC_MDS_NAMESERVER2_NAMESERVERMETRICS_H_
-#define SRC_MDS_NAMESERVER2_NAMESERVERMETRICS_H_
+#ifndef SRC_MDS_NAMESERVER2_METRIC_H_
+#define SRC_MDS_NAMESERVER2_METRIC_H_
 
 #include <bvar/bvar.h>
 #include <string>
@@ -62,8 +62,31 @@ class NameserverCacheMetrics {
     bvar::Adder<uint64_t> cacheMiss;
 };
 
+class SegmentDiscardMetric {
+ public:
+    SegmentDiscardMetric()
+        : prefix_("mds_nameserver_discard"),
+          totalCleanedSegments_(prefix_ + "total_cleaned_segment_count"),
+          pendingSegments_(prefix_ + "pending_segment_count"),
+          totalCleanedSize_(prefix_ + "total_cleaned_size"),
+          pendingSize_(prefix_ + "pending_size") {}
+
+    ~SegmentDiscardMetric() = default;
+
+    void OnReceiveDiscardRequest(uint64_t size);
+    void OnDiscardFinish(uint64_t size);
+
+ public:
+    const std::string prefix_;
+
+    bvar::Adder<int64_t> totalCleanedSegments_;
+    bvar::Adder<int64_t> pendingSegments_;
+
+    bvar::Adder<int64_t> totalCleanedSize_;
+    bvar::Adder<int64_t> pendingSize_;
+};
+
 }  // namespace mds
 }  // namespace curve
 
-#endif  // SRC_MDS_NAMESERVER2_NAMESERVERMETRICS_H_
-
+#endif  // SRC_MDS_NAMESERVER2_METRIC_H_

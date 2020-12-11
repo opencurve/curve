@@ -184,6 +184,11 @@ message PageFileSegment {
     repeated  PageFileChunkInfo chunks = 5;
 }
 
+message DiscardSegmentInfo {
+    required FileInfo fileInfo = 1;
+    required PageFileSegment pageFileSegment = 2;
+}
+
 message CreateFileRequest {
     required string     fileName = 1;
     required FileType   fileType = 3;
@@ -252,6 +257,18 @@ message GetOrAllocateSegmentRequest {
 message GetOrAllocateSegmentResponse {
     required StatusCode statusCode = 1;
     optional PageFileSegment pageFileSegment = 2;
+}
+
+message DeAllocateSegmentRequest {
+    required string fileName = 1;
+    required string owner = 2;
+    required uint64 offset = 3;
+    optional string signature = 4;
+    required uint64 date = 5;
+}
+
+message DeAllocateSegmentResponse {
+    required StatusCode statusCode = 1;
 }
 
 message RenameFileRequest {
@@ -569,6 +586,7 @@ service CurveFSService {
     rpc     GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
     rpc     GetOrAllocateSegment(GetOrAllocateSegmentRequest)
                 returns (GetOrAllocateSegmentResponse);
+    rpc     DeAllocateSegment(DeAllocateSegmentRequest) returns (DeAllocateSegmentResponse);
     rpc     RenameFile(RenameFileRequest) returns (RenameFileResponse);
     rpc     ExtendFile(ExtendFileRequest) returns (ExtendFileResponse);
     rpc     ChangeOwner(ChangeOwnerRequest) returns (ChangeOwnerResponse);

@@ -120,25 +120,15 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
             return StatusCode::kCommonFileDeleteError;
         }
 
-        // delete chunks in chunkserver
-        LogicalPoolID logicalPoolID = segment.logicalpoolid();
-        uint32_t chunkNum = segment.chunks_size();
-        for (uint32_t j = 0; j != chunkNum; j++) {
-            SeqNum seq = commonFile.seqnum();
-            int ret = copysetClient_->DeleteChunk(logicalPoolID,
-                segment.chunks()[j].copysetid(),
-                segment.chunks()[j].chunkid(),
-                seq);
-            if (ret != 0) {
-                LOG(ERROR) << "Clean common File Error: "
-                    << "DeleteChunk Error"
-                    << ", ret = " << ret
-                    << ", inodeid = " << commonFile.id()
-                    << ", filename = " << commonFile.filename()
-                    << ", sequenceNum = " << seq;
-                progress->SetStatus(TaskStatus::FAILED);
-                return StatusCode::kCommonFileDeleteError;
-            }
+        int ret = DeleteChunksInSegment(segment, commonFile.seqnum());
+        if (ret != 0) {
+            LOG(ERROR) << "Clean common File Error: "
+                       << ", ret = " << ret
+                       << ", inodeid = " << commonFile.id()
+                       << ", filename = " << commonFile.filename()
+                       << ", sequenceNum = " << commonFile.seqnum();
+            progress->SetStatus(TaskStatus::FAILED);
+            return StatusCode::kCommonFileDeleteError;
         }
 
         // delete segment
@@ -176,5 +166,81 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
     progress->SetStatus(TaskStatus::SUCCESS);
     return StatusCode::kOK;
 }
+
+StatusCode CleanCore::CleanDiscardSegment(
+    const std::string& cleanSegmentKey,
+    const DiscardSegmentInfo& discardSegmentInfo, TaskProgress* progress) {
+    const FileInfo& fileInfo = discardSegmentInfo.fileinfo();
+    const PageFileSegment& segment = discardSegmentInfo.pagefilesegment();
+    const LogicalPoolID logicalPoolId = segment.logicalpoolid();
+    const SeqNum seq = fileInfo.seqnum();
+
+    LOG(INFO) << "Start CleanDiscardSegment, filename = " << fileInfo.filename()
+              << ", inodeid = " << fileInfo.id()
+              << ", segment offset = " << segment.startoffset();
+
+    butil::Timer timer;
+    timer.start();
+
+    // delete chunks
+    int ret = DeleteChunksInSegment(segment, seq);
+    if (ret != 0) {
+        LOG(ERROR) << "CleanDiscardSegment failed, DeleteChunk Error, ret = "
+                   << ret << ", filename = " << fileInfo.filename()
+                   << ", inodeid = " << fileInfo.id()
+                   << ", segment offset = " << segment.startoffset();
+        progress->SetStatus(TaskStatus::FAILED);
+        return StatusCode::KInternalError;
+    }
+
+    // delete segment
+    int64_t revision;
+    auto storeRet = storage_->CleanDiscardSegment(segment.segmentsize(),
+                                                  cleanSegmentKey, &revision);
+    if (storeRet != StoreStatus::OK) {
+        LOG(ERROR) << "CleanDiscardSegment failed, filename = "
+                   << fileInfo.filename()
+                   << ", offset = " << segment.startoffset();
+        progress->SetStatus(TaskStatus::FAILED);
+        return StatusCode::KInternalError;
+    }
+
+    allocStatistic_->DeAllocSpace(segment.logicalpoolid(),
+                                  segment.segmentsize(), revision);
+    progress->SetProgress(100);
+    progress->SetStatus(TaskStatus::SUCCESS);
+
+    timer.stop();
+    LOG(INFO) << "CleanDiscardSegment success, filename = "
+              << fileInfo.filename() << ", inodeid = " << fileInfo.id()
+              << ", segment offset = " << segment.startoffset() << ", cost "
+              << timer.m_elapsed(1.0) << " ms";
+
+    return StatusCode::kOK;
+}
+
+int CleanCore::DeleteChunksInSegment(const PageFileSegment& segment,
+                                     const SeqNum& seq) {
+    const LogicalPoolID logicalPoolId = segment.logicalpoolid();
+    for (int i = 0; i < segment.chunks_size(); ++i) {
+        int ret = copysetClient_->DeleteChunk(
+            logicalPoolId,
+            segment.chunks()[i].copysetid(),
+            segment.chunks()[i].chunkid(),
+            seq);
+
+        if (ret != 0) {
+            LOG(ERROR) << "DeleteChunk failed, ret = " << ret
+                       << ", logicalpoolid = " << logicalPoolId
+                       << ", copysetid = " << segment.chunks()[i].copysetid()
+                       << ", chunkid = " << segment.chunks()[i].chunkid()
+                       << ", seq = " << seq;
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
 }  // namespace mds
 }  // namespace curve

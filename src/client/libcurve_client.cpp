@@ -119,6 +119,10 @@ int CurveClient::AioWrite(int fd, CurveAioContext* aioctx,
     return fileClient_->AioWrite(fd, aioctx, dataType);
 }
 
+int CurveClient::AioDiscard(int fd, CurveAioContext* aioctx) {
+    return fileClient_->AioDiscard(fd, aioctx);
+}
+
 void CurveClient::SetFileClient(FileClient* client) {
     delete fileClient_;
     fileClient_ = client;

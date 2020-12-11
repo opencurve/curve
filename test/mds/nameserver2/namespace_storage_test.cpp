@@ -34,6 +34,7 @@ using ::testing::Return;
 using ::testing::AtLeast;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
+using ::testing::Matcher;
 
 namespace curve {
 namespace mds {
@@ -298,7 +299,7 @@ TEST_F(TestNameServerStorageImp, test_MoveFileToRecycle) {
 TEST_F(TestNameServerStorageImp, test_ListFile) {
     // 1. list err
     std::vector<FileInfo> listRes;
-    EXPECT_CALL(*client_, List(_, _, _))
+    EXPECT_CALL(*client_, List(_, _, Matcher<std::vector<std::string>*>(_)))
         .WillOnce(Return(EtcdErrCode::EtcdCanceled));
     ASSERT_EQ(StoreStatus::InternalError, storage_->ListFile(0, 0, &listRes));
 
@@ -309,7 +310,7 @@ TEST_F(TestNameServerStorageImp, test_ListFile) {
     GetFileInfoForTest(&fileinfo);
     ASSERT_TRUE(NameSpaceStorageCodec::EncodeFileInfo(fileinfo,
                                                       &encodeFileinfo));
-    EXPECT_CALL(*client_, List(_, _, _))
+    EXPECT_CALL(*client_, List(_, _, Matcher<std::vector<std::string>*>(_)))
         .WillOnce(DoAll(
             SetArgPointee<2>(std::vector<std::string>{encodeFileinfo}),
             Return(EtcdErrCode::EtcdOK)));
@@ -322,7 +323,7 @@ TEST_F(TestNameServerStorageImp, test_ListFile) {
 TEST_F(TestNameServerStorageImp, test_ListSnapshotFile) {
     // 1. list err
     std::vector<FileInfo> listRes;
-    EXPECT_CALL(*client_, List(_, _, _))
+    EXPECT_CALL(*client_, List(_, _, Matcher<std::vector<std::string>*>(_)))
         .WillOnce(Return(EtcdErrCode::EtcdCanceled));
     ASSERT_EQ(
         StoreStatus::InternalError, storage_->ListSnapshotFile(1, 2, &listRes));
@@ -339,10 +340,11 @@ TEST_F(TestNameServerStorageImp, test_ListSnapshotFile) {
     std::string endStoreKey =
         NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(2, "");
 
-    EXPECT_CALL(*client_, List(startStoreKey, endStoreKey, _))
-        .WillOnce(DoAll(
-            SetArgPointee<2>(std::vector<std::string>{encodeFileinfo}),
-            Return(EtcdErrCode::EtcdOK)));
+    EXPECT_CALL(*client_, List(startStoreKey, endStoreKey,
+                               Matcher<std::vector<std::string>*>(_)))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(std::vector<std::string>{encodeFileinfo}),
+                  Return(EtcdErrCode::EtcdOK)));
     ASSERT_EQ(StoreStatus::OK, storage_->ListSnapshotFile(1, 2, &listRes));
     ASSERT_EQ(1, listRes.size());
     ASSERT_EQ(fileinfo.filename(), listRes[0].filename());
@@ -420,7 +422,7 @@ TEST_F(TestNameServerStorageImp, test_Snapshotfile) {
 TEST_F(TestNameServerStorageImp, test_ListSegment) {
     // 1. list err
     std::vector<PageFileSegment> segments;
-    EXPECT_CALL(*client_, List(_, _, _))
+    EXPECT_CALL(*client_, List(_, _, Matcher<std::vector<std::string>*>(_)))
         .WillOnce(Return(EtcdErrCode::EtcdCanceled));
     ASSERT_EQ(StoreStatus::InternalError, storage_->ListSegment(0, &segments));
 
@@ -430,13 +432,145 @@ TEST_F(TestNameServerStorageImp, test_ListSegment) {
     PageFileSegment segment;
     GetPageFileSegmentForTest(&key, &segment);
     ASSERT_TRUE(NameSpaceStorageCodec::EncodeSegment(segment, &encodeSegment));
-    EXPECT_CALL(*client_, List(_, _, _))
+    EXPECT_CALL(*client_, List(_, _, Matcher<std::vector<std::string>*>(_)))
         .WillOnce(DoAll(
             SetArgPointee<2>(std::vector<std::string>{encodeSegment}),
             Return(EtcdErrCode::EtcdOK)));
     ASSERT_EQ(StoreStatus::OK, storage_->ListSegment(0, &segments));
     ASSERT_EQ(1, segments.size());
     ASSERT_EQ(segment.DebugString(), segments[0].DebugString());
+}
+
+TEST_F(TestNameServerStorageImp, test_DiscardSegment) {
+    const uint32_t chunkSize = 16 * 1024 * 1024;
+
+    FileInfo fileInfo;
+    fileInfo.set_filename("test_DiscardSegment");
+
+    PageFileSegment segment;
+    segment.set_logicalpoolid(0);
+    segment.set_segmentsize(chunkSize);
+    segment.set_chunksize(chunkSize);
+    segment.set_startoffset(0);
+    auto* chunk = segment.add_chunks();
+    chunk->set_copysetid(1);
+    chunk->set_chunkid(2);
+
+    // transaction failed
+    {
+        EXPECT_CALL(*client_, TxnN(_))
+            .WillOnce(Return(EtcdErrCode::EtcdTxnUnkownOp));
+
+        ASSERT_EQ(StoreStatus::InternalError,
+                  storage_->DiscardSegment(fileInfo, segment));
+    }
+
+    // ok
+    {
+        EXPECT_CALL(*client_, TxnN(_)).WillOnce(Return(EtcdErrCode::EtcdOK));
+        EXPECT_CALL(*cache_, Remove(_)).Times(1);
+
+        ASSERT_EQ(StoreStatus::OK, storage_->DiscardSegment(fileInfo, segment));
+    }
+}
+
+TEST_F(TestNameServerStorageImp, test_CleanDisardSegment) {
+    // delete failed
+    {
+        EXPECT_CALL(*client_, DeleteRewithRevision(_, _))
+            .WillOnce(Return(EtcdErrCode::EtcdUnknown));
+
+        std::string key = "fakekey";
+        int64_t revision;
+        ASSERT_EQ(StoreStatus::InternalError,
+                  storage_->CleanDiscardSegment(1, key, &revision));
+    }
+
+    // delete ok
+    {
+        EXPECT_CALL(*client_, DeleteRewithRevision(_, _))
+            .WillOnce(
+                DoAll(SetArgPointee<1>(100), Return(EtcdErrCode::EtcdOK)));
+
+        std::string key = "fakekey";
+        int64_t revision;
+        ASSERT_EQ(StoreStatus::OK,
+                  storage_->CleanDiscardSegment(1, key, &revision));
+        ASSERT_EQ(100, revision);
+    }
+}
+
+TEST_F(TestNameServerStorageImp, test_ListDiscardSegment) {
+    // list failed
+    {
+        EXPECT_CALL(
+            *client_,
+            List(_, _,
+                 Matcher<std::vector<std::pair<std::string, std::string>>*>(_)))
+            .WillOnce(Return(EtcdErrCode::EtcdUnknown));
+
+        std::map<std::string, DiscardSegmentInfo> out;
+        ASSERT_EQ(StoreStatus::InternalError,
+                  storage_->ListDiscardSegment(&out));
+    }
+
+    // decode failed
+    {
+        std::vector<std::pair<std::string, std::string>> kvs{
+            {"hello", "world"}};
+
+        EXPECT_CALL(
+            *client_,
+            List(_, _,
+                 Matcher<std::vector<std::pair<std::string, std::string>>*>(_)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(kvs), Return(EtcdErrCode::EtcdOK)));
+
+        std::map<std::string, DiscardSegmentInfo> out;
+        ASSERT_EQ(StoreStatus::InternalError,
+                  storage_->ListDiscardSegment(&out));
+    }
+
+    // ok
+    {
+        const uint32_t chunkSize = 16 * 1024 * 1024;
+
+        FileInfo fileInfo;
+        fileInfo.set_filename("test_DiscardSegment");
+
+        PageFileSegment segment;
+        segment.set_logicalpoolid(0);
+        segment.set_segmentsize(chunkSize);
+        segment.set_chunksize(chunkSize);
+        segment.set_startoffset(0);
+        auto* chunk = segment.add_chunks();
+        chunk->set_copysetid(1);
+        chunk->set_chunkid(2);
+
+        DiscardSegmentInfo discardSegmentInfo;
+        discardSegmentInfo.set_allocated_fileinfo(new FileInfo(fileInfo));
+        discardSegmentInfo.set_allocated_pagefilesegment(
+            new PageFileSegment(segment));
+
+        std::string encodeDiscardSegmentInfo;
+        ASSERT_TRUE(NameSpaceStorageCodec::EncodeDiscardSegment(
+            discardSegmentInfo, &encodeDiscardSegmentInfo));
+
+        std::vector<std::pair<std::string, std::string>> kvs{
+            {"hello", encodeDiscardSegmentInfo}};
+
+        EXPECT_CALL(
+            *client_,
+            List(_, _,
+                 Matcher<std::vector<std::pair<std::string, std::string>>*>(_)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(kvs), Return(EtcdErrCode::EtcdOK)));
+
+        std::map<std::string, DiscardSegmentInfo> out;
+        ASSERT_EQ(StoreStatus::OK, storage_->ListDiscardSegment(&out));
+
+        ASSERT_EQ(discardSegmentInfo.DebugString(), out["hello"].DebugString());
+    }
 }
 
 }  // namespace mds

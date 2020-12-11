@@ -374,6 +374,25 @@ void MDSClientBase::GetOrAllocateSegment(bool allocate,
     stub.GetOrAllocateSegment(cntl, &request, response, NULL);
 }
 
+void MDSClientBase::DeAllocateSegment(const FInfo* fileInfo,
+                                      uint64_t segmentOffset,
+                                      DeAllocateSegmentResponse* response,
+                                      brpc::Controller* cntl,
+                                      brpc::Channel* channel) {
+    DeAllocateSegmentRequest request;
+    request.set_filename(fileInfo->fullPathName);
+    request.set_offset(segmentOffset);
+
+    FillUserInfo(&request, fileInfo->userinfo);
+
+    LOG(INFO) << "DeAllocateSegment: filename = " << fileInfo->fullPathName
+              << ", offset = " << segmentOffset
+              << ", logid = " << cntl->log_id();
+
+    curve::mds::CurveFSService_Stub stub(channel);
+    stub.DeAllocateSegment(cntl, &request, response, nullptr);
+}
+
 void MDSClientBase::RenameFile(const UserInfo_t& userinfo,
                                const std::string& origin,
                                const std::string& destination,
