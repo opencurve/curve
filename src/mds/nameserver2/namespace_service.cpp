@@ -486,6 +486,85 @@ void NameSpaceService::GetOrAllocateSegment(
     return;
 }
 
+void NameSpaceService::DeAllocateSegment(
+    ::google::protobuf::RpcController* controller,
+    const ::curve::mds::DeAllocateSegmentRequest* request,
+    ::curve::mds::DeAllocateSegmentResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+    butil::Timer timer;
+    timer.start();
+
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                   << ", DeAllocateSegment request path is invalid, "
+                   << request->ShortDebugString();
+        return;
+    }
+
+    LOG(INFO) << "logid = " << cntl->log_id() << ", DeAllocateSegment request, "
+              << request->ShortDebugString();
+
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
+    if (request->has_signature()) {
+        signature = request->signature();
+    }
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                         << ", DeAllocateSegment CheckFileOwner fail, "
+                         << request->ShortDebugString()
+                         << ", retCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                       << ", DeAllocateSegment CheckFileOwner fail, "
+                       << request->ShortDebugString()
+                       << ", retCode = " << retCode;
+        }
+
+        return;
+    }
+
+    retCode =
+        kCurveFS.DeAllocateSegment(request->filename(), request->offset());
+
+    timer.stop();
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                         << ", DeAllocateSegment fail, "
+                         << request->ShortDebugString()
+                         << ", statusCode = " << retCode
+                         << ", StatusCode_Name = " << StatusCode_Name(retCode)
+                         << ", cost " << timer.m_elapsed(0.0) << " ms";
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                       << ", DeAllocateSegment fail, "
+                       << request->ShortDebugString()
+                       << ", statusCode = " << retCode
+                       << ", StatusCode_Name = " << StatusCode_Name(retCode)
+                       << ", cost " << timer.m_elapsed(0.0) << " ms";
+        }
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id() << ", DeAllocateSegment ok, "
+                  << request->ShortDebugString() << ", cost "
+                  << timer.m_elapsed(0.0) << " ms";
+    }
+
+    return;
+}
+
 void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
                          const ::curve::mds::RenameFileRequest* request,
                          ::curve::mds::RenameFileResponse* response,

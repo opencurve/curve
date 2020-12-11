@@ -26,6 +26,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <memory>
+#include <string>
 #include "src/mds/nameserver2/clean_manager.h"
 #include "src/mds/nameserver2/async_delete_snapshot_entity.h"
 
@@ -39,6 +40,8 @@ class MockCleanManager: public CleanManagerInterface {
         std::shared_ptr<AsyncDeleteSnapShotEntity>));
     MOCK_METHOD1(GetTask, std::shared_ptr<Task>(TaskIDType id));
     MOCK_METHOD1(SubmitDeleteCommonFileJob, bool(const FileInfo&));
+    MOCK_METHOD2(SubmitCleanDiscardSegmentJob,
+                 bool(const std::string&, const DiscardSegmentInfo&));
 };
 
 }  // namespace mds

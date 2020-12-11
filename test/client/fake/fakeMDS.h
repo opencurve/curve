@@ -201,6 +201,22 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         response->CopyFrom(*resp);
     }
 
+    void DeAllocateSegment(google::protobuf::RpcController* cntl_base,
+                           const curve::mds::DeAllocateSegmentRequest* request,
+                           curve::mds::DeAllocateSegmentResponse* response,
+                           google::protobuf::Closure* done) {
+        brpc::ClosureGuard doneGuard(done);
+        if (fakeDeAllocateSegment_->controller_ != nullptr &&
+            fakeDeAllocateSegment_->controller_->Failed()) {
+            cntl_base->SetFailed("failed");
+            return;
+        }
+
+        auto fakeResponse =
+            static_cast<decltype(response)>(fakeDeAllocateSegment_->response_);
+        response->CopyFrom(*fakeResponse);
+    }
+
     void OpenFile(::google::protobuf::RpcController* controller,
                 const ::curve::mds::OpenFileRequest* request,
                 ::curve::mds::OpenFileResponse* response,
@@ -610,6 +626,10 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         fakeGetOrAllocateSegmentretForClone_ = fakeret;
     }
 
+    void SetDeAllocateSegmentFakeReturn(FakeReturn* fakeret) {
+        fakeDeAllocateSegment_ = fakeret;
+    }
+
     void SetOpenFile(FakeReturn* fakeret) {
         fakeopenfile_ = fakeret;
     }
@@ -717,6 +737,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
     FakeReturn* fakeGetAllocatedSizeRet_;
     FakeReturn* fakeGetOrAllocateSegmentret_;
     FakeReturn* fakeGetOrAllocateSegmentretForClone_;
+    FakeReturn* fakeDeAllocateSegment_;
     FakeReturn* fakeopenfile_;
     FakeReturn* fakeclosefile_;
     FakeReturn* fakerenamefile_;

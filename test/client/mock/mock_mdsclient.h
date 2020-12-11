@@ -14,31 +14,27 @@
  *  limitations under the License.
  */
 
-/*
+/**
  * Project: curve
- * Created Date: 20191217
- * Author: lixiaocui
+ * Date: Sat Dec 19 23:01:09 CST 2020
  */
 
-#include "src/mds/nameserver2/nameserverMetrics.h"
+#ifndef TEST_CLIENT_MOCK_MOCK_MDSCLIENT_H_
+#define TEST_CLIENT_MOCK_MOCK_MDSCLIENT_H_
+
+#include <gmock/gmock.h>
+
+#include "src/client/mds_client.h"
 
 namespace curve {
-namespace mds {
-void NameserverCacheMetrics::UpdateAddToCacheCount() {
-    cacheCount << 1;
-}
+namespace client {
 
-void NameserverCacheMetrics::UpdateRemoveFromCacheCount() {
-    cacheCount << -1;
-}
+class MockMDSClient : public MDSClient {
+ public:
+    MOCK_METHOD2(DeAllocateSegment, LIBCURVE_ERROR(const FInfo*, uint64_t));
+};
 
-void NameserverCacheMetrics::UpdateAddToCacheBytes(uint64_t size) {
-    cacheBytes << size;
-}
-
-void NameserverCacheMetrics::UpdateRemoveFromCacheBytes(uint64_t size) {
-    cacheBytes << (0 - size);
-}
-
-}  // namespace mds
+}  // namespace client
 }  // namespace curve
+
+#endif  // TEST_CLIENT_MOCK_MOCK_MDSCLIENT_H_

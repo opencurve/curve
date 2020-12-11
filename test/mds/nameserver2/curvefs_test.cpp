@@ -2222,6 +2222,218 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
     }
 }
 
+TEST_F(CurveFSTest, TestDeAllocateSegment) {
+    const std::string filename = "/TestDeAllocateSegment";
+    const uint64_t offset = 1ull * 1024 * 1024 * 1024;
+
+    // GetFileInfo failed
+    {
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(StatusCode::kStorageError,
+                  curvefs_->DeAllocateSegment(filename, offset));
+    }
+
+    // file type not support
+    {
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
+
+        ASSERT_EQ(StatusCode::kNotSupported,
+                  curvefs_->DeAllocateSegment(filename, offset));
+    }
+
+    // segment offset wrong
+    {
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_length(100 * kGB);
+        fileInfo.set_segmentsize(1 * kGB);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
+
+        ASSERT_EQ(StatusCode::kParaError,
+                  curvefs_->DeAllocateSegment(filename, 100 * kGB));
+        ASSERT_EQ(StatusCode::kParaError,
+                  curvefs_->DeAllocateSegment(filename, 1 * kGB + 1));
+    }
+
+    // file is being cloned
+    {
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_length(kMiniFileLength);
+        fileInfo.set_segmentsize(DefaultSegmentSize);
+        fileInfo.set_filestatus(FileStatus::kFileBeingCloned);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
+
+        ASSERT_EQ(StatusCode::kNotSupported,
+                  curvefs_->DeAllocateSegment(filename, offset));
+    }
+
+    // segment not exists
+    {
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_length(kMiniFileLength);
+        fileInfo.set_segmentsize(DefaultSegmentSize);
+        fileInfo.set_filestatus(FileStatus::kFileCreated);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        ASSERT_EQ(StatusCode::kSegmentNotAllocated,
+                  curvefs_->DeAllocateSegment(filename, offset));
+    }
+
+    // segment offset not equal to argument
+    {
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_length(kMiniFileLength);
+        fileInfo.set_segmentsize(DefaultSegmentSize);
+        fileInfo.set_filestatus(FileStatus::kFileCreated);
+
+        PageFileSegment segment;
+        segment.set_startoffset(0ull);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(segment), Return(StoreStatus::OK)));
+
+        ASSERT_EQ(StatusCode::kParaError,
+                  curvefs_->DeAllocateSegment(filename, offset));
+    }
+
+    // list snapshot failed
+    {
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_length(kMiniFileLength);
+        fileInfo.set_segmentsize(DefaultSegmentSize);
+        fileInfo.set_filestatus(FileStatus::kFileCreated);
+
+        PageFileSegment segment;
+        segment.set_startoffset(offset);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(segment), Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+            .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(StatusCode::kStorageError,
+                  curvefs_->DeAllocateSegment(filename, offset));
+    }
+
+    // file under snapshot
+    {
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_length(kMiniFileLength);
+        fileInfo.set_segmentsize(DefaultSegmentSize);
+        fileInfo.set_filestatus(FileStatus::kFileCreated);
+
+        PageFileSegment segment;
+        segment.set_startoffset(offset);
+
+        std::vector<FileInfo> snapshotFiles;
+        snapshotFiles.push_back(FileInfo());
+        snapshotFiles.push_back(FileInfo());
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(segment), Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(snapshotFiles),
+                            Return(StoreStatus::OK)));
+
+        ASSERT_EQ(StatusCode::kFileUnderSnapShot,
+                  curvefs_->DeAllocateSegment(filename, offset));
+    }
+
+    // storage discard segment failed
+    {
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_length(kMiniFileLength);
+        fileInfo.set_segmentsize(DefaultSegmentSize);
+        fileInfo.set_filestatus(FileStatus::kFileCreated);
+
+        PageFileSegment segment;
+        segment.set_startoffset(offset);
+
+        std::vector<FileInfo> snapshotFiles;
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(segment), Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(snapshotFiles),
+                            Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, DiscardSegment(_, _))
+            .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(StatusCode::kStorageError,
+                  curvefs_->DeAllocateSegment(filename, offset));
+    }
+
+    // storage discard segment success
+    {
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_length(kMiniFileLength);
+        fileInfo.set_segmentsize(DefaultSegmentSize);
+        fileInfo.set_filestatus(FileStatus::kFileCreated);
+
+        PageFileSegment segment;
+        segment.set_startoffset(offset);
+
+        std::vector<FileInfo> snapshotFiles;
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(segment), Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(snapshotFiles),
+                            Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, DiscardSegment(_, _))
+            .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(StatusCode::kOK,
+                  curvefs_->DeAllocateSegment(filename, offset));
+    }
+}
+
 TEST_F(CurveFSTest, testCreateSnapshotFile) {
     {
         // test client time not expired

@@ -27,6 +27,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include <string>
+#include <map>
 #include "src/mds/nameserver2/namespace_storage.h"
 
 namespace curve {
@@ -84,6 +85,13 @@ class MockNameServerStorage : public NameServerStorage {
         StoreStatus(std::vector<FileInfo> *snapShotFiles));
     MOCK_METHOD2(ListSegment,
         StoreStatus(InodeID, std::vector<PageFileSegment>*));
+
+    MOCK_METHOD2(DiscardSegment,
+                 StoreStatus(const FileInfo&, const PageFileSegment&));
+    MOCK_METHOD3(CleanDiscardSegment,
+                 StoreStatus(uint64_t, const std::string&, int64_t*));
+    MOCK_METHOD1(ListDiscardSegment,
+                 StoreStatus(std::map<std::string, DiscardSegmentInfo>*));
 };
 
 }  // namespace mds

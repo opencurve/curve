@@ -24,6 +24,7 @@
 #define SRC_MDS_NAMESERVER2_CLEAN_CORE_H_
 
 #include <memory>
+#include <string>
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/task_progress.h"
@@ -65,7 +66,17 @@ class CleanCore {
     StatusCode CleanFile(const FileInfo & commonFile,
                         TaskProgress* progress);
 
+    /**
+     * @brief clean discarded segment and chunks
+     */
+    StatusCode CleanDiscardSegment(const std::string& cleanSegmentKey,
+                                   const DiscardSegmentInfo& discardSegmentInfo,
+                                   TaskProgress* progress);
+
  private:
+    int DeleteChunksInSegment(const PageFileSegment& segment,
+                              const SeqNum& seq);
+
     std::shared_ptr<NameServerStorage> storage_;
     std::shared_ptr<CopysetClient> copysetClient_;
     std::shared_ptr<AllocStatistic> allocStatistic_;

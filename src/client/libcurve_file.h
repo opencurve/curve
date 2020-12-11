@@ -149,6 +149,16 @@ class FileClient {
     virtual int Write(int fd, const char* buf, off_t offset, size_t length);
 
     /**
+     * @brief Synchronous discard operation
+     * @param fd file descriptor
+     * @param offset discard offset
+     * @param length discard length
+     * @return On success, returns 0.
+     *         On error, returns a negative value.
+     */
+    virtual int Discard(int fd, off_t offset, size_t length);
+
+    /**
      * 异步模式读
      * @param: fd为当前open返回的文件描述符
      * @param: aioctx为异步读写的io上下文，保存基本的io信息
@@ -167,6 +177,14 @@ class FileClient {
      */
     virtual int AioWrite(int fd, CurveAioContext* aioctx,
                          UserDataType dataType = UserDataType::RawBuffer);
+
+    /**
+     * @brief Asynchronous discard operation
+     * @param fd file descriptor
+     * @param aioctx async request context
+     * @return 0 means success, otherwise it means failure
+     */
+    virtual int AioDiscard(int fd, CurveAioContext* aioctx);
 
     /**
      * 重命名文件
@@ -324,7 +342,7 @@ class FileClient {
  private:
     bool StartDummyServer();
 
-    bool CheckAligned(off_t offset, size_t length) {
+    bool CheckAligned(off_t offset, size_t length) const {
         return (offset % IO_ALIGNED_BLOCK_SIZE == 0) &&
                (length % IO_ALIGNED_BLOCK_SIZE == 0);
     }

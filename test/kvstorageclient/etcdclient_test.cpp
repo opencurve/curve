@@ -184,12 +184,14 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
 
     // 3. list file, 可以list到file0~file9
     std::vector<std::string> listRes;
-    int errCode = client_->List("01", "02", &listRes);
+    std::vector<std::pair<std::string, std::string>> listRes2;
+    int errCode = client_->List("01", "02", &listRes2);
     ASSERT_EQ(EtcdErrCode::EtcdOK, errCode);
-    ASSERT_EQ(keyMap.size(), listRes.size());
-    for (int i = 0; i < listRes.size(); i++) {
+    ASSERT_EQ(keyMap.size(), listRes2.size());
+    for (int i = 0; i < listRes2.size(); i++) {
         FileInfo finfo;
-        ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(listRes[i], &finfo));
+        ASSERT_TRUE(
+            NameSpaceStorageCodec::DecodeFileInfo(listRes2[i].second, &finfo));
         ASSERT_EQ(fileName[i], finfo.filename());
     }
 

@@ -82,6 +82,12 @@ class MetaCache {
                                                    ChunkIDInfo_t* chunkinfo);
 
     /**
+     * @brief Update cached chunk info by chunk index
+     */
+    virtual void UpdateChunkInfoByIndex(ChunkIndex cindex,
+                                        const ChunkIDInfo& chunkinfo);
+
+    /**
      * sender发送数据的时候需要知道对应的leader然后发送给对应的chunkserver
      * 如果get不到的时候，外围设置refresh为true，然后向chunkserver端拉取最新的
      * server信息，然后更新metacache。
@@ -121,13 +127,8 @@ class MetaCache {
     virtual void UpdateCopysetInfo(LogicPoolID logicPoolId,
                                    CopysetID copysetId,
                                    const CopysetInfo& csinfo);
-    /**
-     * 通过chunk index更新chunkid信息
-     * @param: index为待更新的chunk index
-     * @param: chunkinfo为需要更新的info信息
-     */
-    virtual void UpdateChunkInfoByIndex(ChunkIndex cindex,
-                                        const ChunkIDInfo& chunkinfo);
+
+
     /**
      * 通过chunk id更新chunkid信息
      * @param: cid为chunkid
@@ -247,6 +248,16 @@ class MetaCache {
         return fileInfo_.id;
     }
 
+    /**
+     * @brief Get file segment info about the segmentIndex
+     */
+    FileSegment* GetFileSegment(SegmentIndex segmentIndex);
+
+    /**
+     * @brief Clean chunks of this segment
+     */
+    virtual void CleanChunksInSegment(SegmentIndex segmentIndex);
+
  private:
     /**
      * @brief 从mds更新copyset复制组信息
@@ -285,6 +296,9 @@ class MetaCache {
 
     // chunkindex到chunkidinfo的映射表
     CURVE_CACHELINE_ALIGNMENT ChunkIndexInfoMap     chunkindex2idMap_;
+
+    CURVE_CACHELINE_ALIGNMENT RWLock rwlock4Segments_;
+    CURVE_CACHELINE_ALIGNMENT std::unordered_map<SegmentIndex, FileSegment> segments_;  // NOLINT
 
     // logicalpoolid和copysetid到copysetinfo的映射表
     CURVE_CACHELINE_ALIGNMENT CopysetInfoMap        lpcsid2CopsetInfoMap_;

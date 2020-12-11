@@ -411,6 +411,55 @@ class FakeNameServerStorage : public NameServerStorage {
         return StoreStatus::OK;
     }
 
+    StoreStatus DiscardSegment(const FileInfo& fileInfo,
+                               const PageFileSegment& segment) override {
+        std::lock_guard<std::mutex> guard(lock_);
+        std::string segmentKey = NameSpaceStorageCodec::EncodeSegmentStoreKey(
+            fileInfo.id(), segment.startoffset());
+        std::string cleanSegmentKey =
+            NameSpaceStorageCodec::EncodeDiscardSegmentStoreKey(
+                fileInfo.id(), segment.startoffset());
+
+        std::string encodeSegment;
+        if (!NameSpaceStorageCodec::EncodeSegment(segment, &encodeSegment)) {
+            return StoreStatus::InternalError;
+        }
+
+        std::string encodeDiscardSegment;
+        DiscardSegmentInfo discardInfo;
+        discardInfo.set_allocated_fileinfo(new FileInfo(fileInfo));
+        discardInfo.set_allocated_pagefilesegment(new PageFileSegment(segment));
+        if (!NameSpaceStorageCodec::EncodeDiscardSegment(
+                discardInfo, &encodeDiscardSegment)) {
+            return StoreStatus::InternalError;
+        }
+
+        if (memKvMap_.count(segmentKey) == 0) {
+            return StoreStatus::KeyNotExist;
+        }
+
+        memKvMap_.erase(segmentKey);
+        memKvMap_.emplace(cleanSegmentKey, encodeDiscardSegment);
+
+        return StoreStatus::OK;
+    }
+
+    StoreStatus CleanDiscardSegment(uint64_t size, const std::string& key,
+                                    int64_t* revision) override {
+        std::lock_guard<std::mutex> guard(lock_);
+        if (memKvMap_.count(key) == 0) {
+            return StoreStatus::KeyNotExist;
+        }
+
+        memKvMap_.erase(key);
+        return StoreStatus::OK;
+    }
+
+    StoreStatus ListDiscardSegment(
+        std::map<std::string, DiscardSegmentInfo>* out) override {
+        return StoreStatus::OK;
+    }
+
  private:
     std::mutex lock_;
     std::map<std::string, std::string> memKvMap_;

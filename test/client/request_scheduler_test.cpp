@@ -28,9 +28,9 @@
 
 #include "src/client/request_scheduler.h"
 #include "src/client/client_common.h"
-#include "test/client/mock_meta_cache.h"
-#include "test/client/mock_chunkservice.h"
-#include "test/client/mock_request_context.h"
+#include "test/client/mock/mock_meta_cache.h"
+#include "test/client/mock/mock_chunkservice.h"
+#include "test/client/mock/mock_request_context.h"
 #include "src/common/concurrent/count_down_event.h"
 
 namespace curve {

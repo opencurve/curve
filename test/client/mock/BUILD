@@ -34,15 +34,13 @@ COPTS = [
 ]
 
 cc_library(
-    name = "curve_client_mock",
-    srcs = glob(
-        ["*.h"]
-    ),
-    visibility = ["//visibility:public"],
-    deps = [
-        "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
-        "//external:gflags",
+    name="client_mock_lib",
+    srcs=glob([
+        "*.h"
+    ]),
+    deps=[
+        "//src/client:curve_client",
     ],
-    copts = COPTS
+    copts=COPTS,
+    visibility = ["//visibility:public"],
 )

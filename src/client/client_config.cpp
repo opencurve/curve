@@ -39,6 +39,9 @@ namespace curve {
 namespace client {
 int ClientConfig::Init(const char* configpath) {
     conf_.SetConfigPath(configpath);
+
+    LOG(INFO) << "Init config from " << configpath;
+
     if (!conf_.LoadConfig()) {
         LOG(ERROR) << "Load config failed, config path = " << configpath;
         return -1;
@@ -250,6 +253,23 @@ int ClientConfig::Init(const char* configpath) {
     LOG_IF(WARNING, ret == false)
         << "config no throttle.enable info, using default value "
         << fileServiceOption_.ioOpt.throttleOption.enable;
+
+    ret = conf_.GetBoolValue("discard.enable",
+                             &fileServiceOption_.ioOpt.discardOption.enable);
+    LOG_IF(ERROR, ret == false) << "config no discard.enable info";
+    RETURN_IF_FALSE(ret);
+
+    ret = conf_.GetUInt32Value(
+        "discard.granularity",
+        &fileServiceOption_.ioOpt.metaCacheOpt.discardGranularity);
+    LOG_IF(ERROR, ret == false) << "config no discard.granularity info";
+    RETURN_IF_FALSE(ret);
+
+    ret = conf_.GetUInt32Value(
+        "discard.taskDelayMs",
+        &fileServiceOption_.ioOpt.discardOption.taskDelayMs);
+    LOG_IF(ERROR, ret == false) << "config no discard.taskDelayMs info";
+    RETURN_IF_FALSE(ret);
 
     return 0;
 }

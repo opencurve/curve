@@ -34,6 +34,7 @@
 #include "src/mds/common/mds_define.h"
 #include "src/kvstorageclient/etcd_client.h"
 #include "src/mds/nameserver2/namespace_storage_cache.h"
+#include "src/mds/nameserver2/metric.h"
 
 namespace curve {
 namespace mds {
@@ -221,6 +222,37 @@ class NameServerStorage {
         InodeID id, uint64_t off, int64_t *revision) = 0;
 
     /**
+     * @brief Move segment metadata from SegmentTable to DiscardSegmentTable,
+     *        another background task will delete all chunks and delete segment
+     *        in DiscardSegmentTable
+     * @param[in] id: Inode ID of the target file
+     * @param[in] off: Offset of the target segment
+     *
+     * @return StoreStatus: error code
+     */
+    virtual StoreStatus DiscardSegment(const FileInfo& fileInfo,
+                                       const PageFileSegment& segment) = 0;
+
+    /**
+     * @brief Remove discard segment from DiscardSegmentTable
+     * @param[in] segmentSize segment's size
+     * @param[in] key discard segment's key
+     * @param[out] revision: the version number of this operation
+     * @return On success, return StoreStatus::OK
+     */
+    virtual StoreStatus CleanDiscardSegment(uint64_t segmentSize,
+                                            const std::string& key,
+                                            int64_t* revision) = 0;
+
+    /**
+     * @brief list all segment from DiscardSegmentTable
+     * @param[out] store key and values
+     * @return On success, return StoreStatus::OK
+     */
+    virtual StoreStatus ListDiscardSegment(
+        std::map<std::string, DiscardSegmentInfo>* out) = 0;
+
+    /**
      * @brief SnapShotFile: Transaction for storing metadata of snapshotFile,
      *                      and update source file metadata
      *
@@ -245,9 +277,9 @@ class NameServerStorage {
 
 class NameServerStorageImp : public NameServerStorage {
  public:
-  explicit NameServerStorageImp(
-      std::shared_ptr<KVStorageClient> client, std::shared_ptr<Cache> cache);
-  ~NameServerStorageImp() {}
+    explicit NameServerStorageImp(
+        std::shared_ptr<KVStorageClient> client, std::shared_ptr<Cache> cache);
+    ~NameServerStorageImp() {}
 
     StoreStatus PutFile(const FileInfo & fileInfo) override;
 
@@ -295,6 +327,16 @@ class NameServerStorageImp : public NameServerStorage {
     StoreStatus DeleteSegment(
         InodeID id, uint64_t off, int64_t *revision) override;
 
+    StoreStatus DiscardSegment(const FileInfo& fileInfo,
+                             const PageFileSegment& segment) override;
+
+    StoreStatus CleanDiscardSegment(uint64_t segmentSize,
+                                    const std::string& key,
+                                    int64_t* revision) override;
+
+    StoreStatus ListDiscardSegment(
+        std::map<std::string, DiscardSegmentInfo>* out) override;
+
     StoreStatus SnapShotFile(const FileInfo *originalFileInfo,
                             const FileInfo * snapshotFileInfo) override;
 
@@ -316,6 +358,9 @@ class NameServerStorageImp : public NameServerStorage {
 
     // underlying storage
     std::shared_ptr<KVStorageClient> client_;
+
+    // metric for discard
+    SegmentDiscardMetric discardMetric_;
 };
 }  // namespace mds
 }  // namespace curve

@@ -26,7 +26,7 @@
 #include "src/client/client_common.h"
 #include "src/client/request_sender.h"
 #include "src/common/concurrent/count_down_event.h"
-#include "test/client/mock_chunkservice.h"
+#include "test/client/mock/mock_chunkservice.h"
 
 namespace curve {
 namespace client {

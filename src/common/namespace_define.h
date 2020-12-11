@@ -59,10 +59,14 @@ const char SNAPINFOKEYEND[] = "12";
 const char CLONEINFOKEYPREFIX[] = "12";
 const char CLONEINFOKEYEND[] = "13";
 
+const char DISCARDSEGMENTKEYPREFIX[] = "13";
+const char DISCARDSEGMENTKEYEND[] = "14";
+
 // TODO(hzsunjianliang): if use single prefix for snapshot file?
 const int COMMON_PREFIX_LENGTH = 2;
 const int LEADER_PREFIX_LENGTH = 8;
 const int SEGMENTKEYLEN = 18;
+const int DISCARDSEGMENTKEYLEN = 26;
 
 }  // namespace common
 }  // namespace curve

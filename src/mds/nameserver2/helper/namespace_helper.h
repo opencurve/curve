@@ -38,6 +38,8 @@ class NameSpaceStorageCodec {
     static std::string EncodeSnapShotFileStoreKey(uint64_t parentID,
                                 const std::string &fileName);
     static std::string EncodeSegmentStoreKey(uint64_t inodeID, offset_t offset);
+    static std::string EncodeDiscardSegmentStoreKey(const InodeID inodeId,
+                                                    const uint64_t offset);
 
     static bool EncodeFileInfo(const FileInfo &finlInfo, std::string *out);
     static bool DecodeFileInfo(const std::string info, FileInfo *fileInfo);
@@ -45,6 +47,11 @@ class NameSpaceStorageCodec {
     static bool DecodeSegment(const std::string info, PageFileSegment *segment);
     static std::string EncodeID(uint64_t value);
     static bool DecodeID(const std::string &value, uint64_t *out);
+
+    static bool EncodeDiscardSegment(const DiscardSegmentInfo& info,
+                                     std::string* out);
+    static bool DecodeDiscardSegment(const std::string& info,
+                                     DiscardSegmentInfo* discardSegmentInfo);
 
     static std::string EncodeSegmentAllocKey(uint16_t lid);
     static std::string EncodeSegmentAllocValue(uint16_t lid, uint64_t alloc);

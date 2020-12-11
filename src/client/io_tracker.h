@@ -46,11 +46,15 @@ namespace client {
 using curve::common::Throttle;
 
 class IOManager;
+class FileSegment;
+class DiscardTaskManager;
 
 // IOTracker用于跟踪一个用户IO，因为一个用户IO可能会跨chunkserver，
 // 因此在真正下发的时候会被拆分成多个小IO并发的向下发送，因此我们需要
 // 跟踪发送的request的执行情况。
 class CURVE_CACHELINE_ALIGNMENT IOTracker {
+    friend class Splitor;
+
  public:
     IOTracker(IOManager* iomanager,
               MetaCache* mc,
@@ -100,6 +104,14 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      */
     void StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
                        const FInfo_t* fileInfo, Throttle* throttle = nullptr);
+
+    void StartDiscard(off_t offset, size_t length, MDSClient* mdsclient,
+                      const FInfo_t* fileInfo, DiscardTaskManager* taskManager);
+
+    void StartAioDiscard(CurveAioContext* ctx, MDSClient* mdsclient,
+                         const FInfo_t* fileInfo,
+                         DiscardTaskManager* taskManager);
+
     /**
      * chunk相关接口是提供给snapshot使用的，上层的snapshot和file
      * 接口是分开的，在IOTracker这里会将其统一，这样对下层来说不用
@@ -165,7 +177,7 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * @return: 返回读写信息，异步IO的时候返回0或-1.0代表成功，-1代表失败
      *          同步IO返回length或-1，length代表真实读写长度，-1代表读写失败
      */
-    int  Wait();
+    int Wait();
 
     /**
      * 每个request都要有自己的OP类型，这里提供接口可以在io拆分的时候获取类型
@@ -211,7 +223,11 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
         return disableStripe_;
     }
 
+    static void InitDiscardOption(const DiscardOption& opt);
+
  private:
+    void ReleaseAllSegmentLocks();
+
     /**
      * 当IO返回的时候调用done，由done负责向上返回
      */
@@ -266,6 +282,15 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     void DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo,
                  Throttle* throttle);
 
+    void DoDiscard(MDSClient* mdsclient, const FInfo_t* fileInfo,
+                   DiscardTaskManager* taskManager);
+
+    int ToReturnCode() const {
+        return errcode_ == LIBCURVE_ERROR::OK
+                   ? (type_ != OpType::DISCARD ? length_ : 0)
+                   : (-errcode_);
+    }
+
  private:
     // io 类型
     OpType  type_;
@@ -304,6 +329,8 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     // 大IO被拆分成多个request，这些request放在reqlist中国保存
     std::vector<RequestContext*>   reqlist_;
 
+    std::vector<SegmentIndex> discardSegments_;
+
     // scheduler用来将用户线程与client自己的线程切分
     // 大IO被切分之后，将切分的reqlist传给scheduler向下发送
     RequestScheduler* scheduler_;
@@ -329,8 +356,14 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
 
     bool disableStripe_;
 
+    // read/write operations will hold segment's read lock,
+    // so store corresponding segment lock and release after operations finished
+    std::vector<FileSegment*> segmentLocks_;
+
     // id生成器
     static std::atomic<uint64_t> tracekerID_;
+
+    static DiscardOption discardOption_;
 };
 }   // namespace client
 }   // namespace curve

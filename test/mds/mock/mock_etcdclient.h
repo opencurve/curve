@@ -27,6 +27,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include <string>
+#include <utility>
 #include "src/kvstorageclient/etcd_client.h"
 #include "src/mds/nameserver2/namespace_storage_cache.h"
 
@@ -42,6 +43,8 @@ class MockEtcdClient : public EtcdClientImp {
     MOCK_METHOD2(Get, int(const std::string&, std::string*));
     MOCK_METHOD3(List,
         int(const std::string&, const std::string&, std::vector<std::string>*));
+    MOCK_METHOD3(List, int(const std::string&, const std::string&,
+                           std::vector<std::pair<std::string, std::string>>*));
     MOCK_METHOD1(Delete, int(const std::string&));
     MOCK_METHOD1(TxnN, int(const std::vector<Operation>&));
     MOCK_METHOD3(CompareAndSwap, int(const std::string&, const std::string&,

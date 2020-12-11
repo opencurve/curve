@@ -73,12 +73,20 @@ int cbd_libcurve_pwrite(int fd, const void* buf, off_t offset, size_t length) {
     return Write(fd, reinterpret_cast<const char*>(buf), offset, length);
 }
 
+int cbd_libcurve_pdiscard(int fd, off_t offset, size_t length) {
+    return Discard(fd, offset, length);
+}
+
 int cbd_libcurve_aio_pread(int fd, CurveAioContext* context) {
     return AioRead(fd, context);
 }
 
 int cbd_libcurve_aio_pwrite(int fd, CurveAioContext* context) {
     return AioWrite(fd, context);
+}
+
+int cbd_libcurve_aio_pdiscard(int fd, CurveAioContext* context) {
+    return AioDiscard(fd, context);
 }
 
 int cbd_libcurve_sync(int fd) {

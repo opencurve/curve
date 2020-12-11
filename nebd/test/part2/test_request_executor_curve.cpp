@@ -358,20 +358,58 @@ TEST_F(TestReuqestExecutorCurve, test_AioWrite) {
 
 TEST_F(TestReuqestExecutorCurve, test_Discard) {
     auto executor = CurveRequestExecutor::GetInstance();
+    NebdServerAioContext aioctx;
+    aioctx.cb = NebdUnitTestCallback;
     std::string curveFilename("/cinder/volume-1234_cinder_");
-    std::unique_ptr<CurveFileInstance> curveFileIns(new CurveFileInstance());
-    NebdServerAioContext* aioctx = new NebdServerAioContext();
-    nebd::client::DiscardResponse response;
-    TestReuqestExecutorCurveClosure done;
 
-    aioctx->op = LIBAIO_OP::LIBAIO_OP_DISCARD;
-    aioctx->cb = NebdFileServiceCallback;
-    aioctx->response = &response;
-    aioctx->done = &done;
+    // 1. not an curve volume
+    {
+        std::unique_ptr<NebdFileInstance> nebdFileIns(new NebdFileInstance());
+        EXPECT_CALL(*curveClient_, AioDiscard(_, _))
+            .Times(0);
+        ASSERT_EQ(-1, executor.Discard(nebdFileIns.get(), &aioctx));
+    }
 
-    ASSERT_EQ(0, executor.Discard(curveFileIns.get(), aioctx));
-    ASSERT_TRUE(done.IsRunned());
-    ASSERT_EQ(response.retcode(), nebd::client::RetCode::kOK);
+    // 2. fd is invalid
+    {
+        std::unique_ptr<CurveFileInstance> curveFileIns(
+            new CurveFileInstance());
+        curveFileIns->fd = -1;
+        EXPECT_CALL(*curveClient_, AioDiscard(_, _))
+            .Times(0);
+        ASSERT_EQ(-1, executor.Discard(curveFileIns.get(), &aioctx));
+    }
+
+    // 3. curve client return failed
+    {
+        std::unique_ptr<CurveFileInstance> curveFileIns(
+            new CurveFileInstance());
+        aioctx.size = 1;
+        aioctx.offset = 0;
+        aioctx.op = LIBAIO_OP::LIBAIO_OP_DISCARD;
+        curveFileIns->fd = 1;
+        curveFileIns->fileName = curveFilename;
+        EXPECT_CALL(*curveClient_, AioDiscard(_, _))
+            .WillOnce(Return(LIBCURVE_ERROR::FAILED));
+        ASSERT_EQ(-1, executor.Discard(curveFileIns.get(), &aioctx));
+    }
+
+    // 4. ok
+    {
+        std::unique_ptr<CurveFileInstance> curveFileIns(
+            new CurveFileInstance());
+        aioctx.size = 1;
+        aioctx.offset = 0;
+        aioctx.op = LIBAIO_OP::LIBAIO_OP_DISCARD;
+        curveFileIns->fd = 1;
+        curveFileIns->fileName = curveFilename;
+        CurveAioContext* curveCtx;
+        EXPECT_CALL(*curveClient_, AioDiscard(_, _))
+            .WillOnce(DoAll(SaveArg<1>(&curveCtx),
+                            Return(LIBCURVE_ERROR::OK)));
+        ASSERT_EQ(0, executor.Discard(curveFileIns.get(), &aioctx));
+        curveCtx->cb(curveCtx);
+    }
 }
 
 TEST_F(TestReuqestExecutorCurve, test_Flush) {

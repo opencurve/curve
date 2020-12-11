@@ -198,6 +198,7 @@ struct MetaCacheOption {
     uint32_t metacacheRPCRetryIntervalUS = 500;
     uint32_t metacacheGetLeaderRPCTimeOutMS = 1000;
     uint32_t metacacheGetLeaderBackupRequestMS = 100;
+    uint32_t discardGranularity = 4096;
     std::string metacacheGetLeaderBackupRequestLbName = "rr";
     ChunkServerUnstableOption chunkserverUnstableOption;
 };
@@ -221,6 +222,12 @@ struct IOSplitOption {
 struct TaskThreadOption {
     uint64_t isolationTaskQueueCapacity = 500000;
     uint32_t isolationTaskThreadPoolSize = 1;
+};
+
+// for discard
+struct DiscardOption {
+    bool enable = false;
+    uint32_t taskDelayMs = 1000 * 60;  // 1 min
 };
 
 /**
@@ -248,6 +255,7 @@ struct IOOption {
     RequestScheduleOption reqSchdulerOpt;
     CloseFdThreadOption closeFdThreadOption;
     ThrottleOption throttleOption;
+    DiscardOption discardOption;
 };
 
 /**

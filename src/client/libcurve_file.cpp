@@ -332,6 +332,17 @@ int FileClient::Write(int fd, const char* buf, off_t offset, size_t len) {
     return fileserviceMap_[fd]->Write(buf, offset, len);
 }
 
+int FileClient::Discard(int fd, off_t offset, size_t length) {
+    ReadLockGuard lk(rwlock_);
+    auto iter = fileserviceMap_.find(fd);
+    if (CURVE_UNLIKELY(iter == fileserviceMap_.end())) {
+        LOG(ERROR) << "invalid fd, fd = " << fd;
+        return -LIBCURVE_ERROR::BAD_FD;
+    }
+
+    return iter->second->Discard(offset, length);
+}
+
 int FileClient::AioRead(int fd, CurveAioContext* aioctx,
                         UserDataType dataType) {
     // 长度为0，直接返回，不做任何操作
@@ -381,6 +392,18 @@ int FileClient::AioWrite(int fd, CurveAioContext* aioctx,
     }
 
     return ret;
+}
+
+int FileClient::AioDiscard(int fd, CurveAioContext* aioctx) {
+    int ret = -LIBCURVE_ERROR::FAILED;
+    ReadLockGuard lk(rwlock_);
+    auto iter = fileserviceMap_.find(fd);
+    if (CURVE_UNLIKELY(iter == fileserviceMap_.end())) {
+        LOG(ERROR) << "invalid fd";
+        return -LIBCURVE_ERROR::BAD_FD;
+    } else {
+        return iter->second->AioDiscard(aioctx);
+    }
 }
 
 int FileClient::Rename(const UserInfo_t& userinfo,
@@ -742,6 +765,15 @@ int Write(int fd, const char* buf, off_t offset, size_t length) {
     return globalclient->Write(fd, buf, offset, length);
 }
 
+int Discard(int fd, off_t offset, size_t length) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "Not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    return globalclient->Discard(fd, offset, length);
+}
+
 int AioRead(int fd, CurveAioContext* aioctx) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
@@ -765,6 +797,15 @@ int AioWrite(int fd, CurveAioContext* aioctx) {
         << " op: " << aioctx->op
         << " buf: " << *(unsigned int*)aioctx->buf;
     return globalclient->AioWrite(fd, aioctx);
+}
+
+int AioDiscard(int fd, CurveAioContext* aioctx) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "Not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    return globalclient->AioDiscard(fd, aioctx);
 }
 
 int Create(const char* filename, const C_UserInfo_t* userinfo, size_t size) {

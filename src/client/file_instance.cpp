@@ -123,6 +123,24 @@ int FileInstance::AioWrite(CurveAioContext* aioctx, UserDataType dataType) {
     return iomanager4file_.AioWrite(aioctx, mdsclient_, dataType);
 }
 
+int FileInstance::Discard(off_t offset, size_t length) {
+    if (!readonly_) {
+        return iomanager4file_.Discard(offset, length, mdsclient_);
+    }
+
+    LOG(ERROR) << "Open with read only, not support Discard";
+    return -1;
+}
+
+int FileInstance::AioDiscard(CurveAioContext* aioctx) {
+    if (!readonly_) {
+        return iomanager4file_.AioDiscard(aioctx, mdsclient_);
+    }
+
+    LOG(ERROR) << "Open with read only, not support AioDiscard";
+    return -1;
+}
+
 // 两种场景会造成在Open的时候返回LIBCURVE_ERROR::FILE_OCCUPIED
 // 1. 强制重启qemu不会调用close逻辑，然后启动的时候原来的文件sessio还没过期.
 //    导致再次去发起open的时候，返回被占用，这种情况可以通过load sessionmap

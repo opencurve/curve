@@ -65,8 +65,10 @@ int cbd_ext4_open(const char* filename);
 int cbd_ext4_close(int fd);
 int cbd_ext4_pread(int fd, void* buf, off_t offset, size_t length);
 int cbd_ext4_pwrite(int fd, const void* buf, off_t offset, size_t length);
+int cbd_ext4_pdiscard(int fd, off_t offset, size_t length);
 int cbd_ext4_aio_pread(int fd, CurveAioContext* context);
 int cbd_ext4_aio_pwrite(int fd, CurveAioContext* context);
+int cbd_ext4_aio_pdiscard(int fd, CurveAioContext* context);
 int cbd_ext4_sync(int fd);
 int64_t cbd_ext4_filesize(const char* filename);
 
@@ -76,35 +78,41 @@ int cbd_libcurve_open(const char* filename);
 int cbd_libcurve_close(int fd);
 int cbd_libcurve_pread(int fd, void* buf, off_t offset, size_t length);
 int cbd_libcurve_pwrite(int fd, const void* buf, off_t offset, size_t length);
+int cbd_libcurve_pdiscard(int fd, off_t offset, size_t length);
 int cbd_libcurve_aio_pread(int fd, CurveAioContext* context);
 int cbd_libcurve_aio_pwrite(int fd, CurveAioContext* context);
+int cbd_libcurve_aio_pdiscard(int fd, CurveAioContext* context);
 int cbd_libcurve_sync(int fd);
 int64_t cbd_libcurve_filesize(const char* filename);
 int cbd_libcurve_resize(const char* filename, int64_t size);
 
 #ifndef CBD_BACKEND_FAKE
-#define cbd_lib_init        cbd_libcurve_init
-#define cbd_lib_fini        cbd_libcurve_fini
-#define cbd_lib_open        cbd_libcurve_open
-#define cbd_lib_close       cbd_libcurve_close
-#define cbd_lib_pread       cbd_libcurve_pread
-#define cbd_lib_pwrite      cbd_libcurve_pwrite
-#define cbd_lib_aio_pread   cbd_libcurve_aio_pread
-#define cbd_lib_aio_pwrite  cbd_libcurve_aio_pwrite
-#define cbd_lib_sync        cbd_libcurve_sync
-#define cbd_lib_filesize    cbd_libcurve_filesize
-#define cbd_lib_resize      cbd_libcurve_resize
+#define cbd_lib_init            cbd_libcurve_init
+#define cbd_lib_fini            cbd_libcurve_fini
+#define cbd_lib_open            cbd_libcurve_open
+#define cbd_lib_close           cbd_libcurve_close
+#define cbd_lib_pread           cbd_libcurve_pread
+#define cbd_lib_pwrite          cbd_libcurve_pwrite
+#define cbd_lib_pdiscard        cbd_libcurve_pdiscard
+#define cbd_lib_aio_pread       cbd_libcurve_aio_pread
+#define cbd_lib_aio_pwrite      cbd_libcurve_aio_pwrite
+#define cbd_lib_aio_pdiscard    cbd_libcurve_aio_pdiscard
+#define cbd_lib_sync            cbd_libcurve_sync
+#define cbd_lib_filesize        cbd_libcurve_filesize
+#define cbd_lib_resize          cbd_libcurve_resize
 #else
-#define cbd_lib_init        cbd_ext4_init
-#define cbd_lib_fini        cbd_ext4_fini
-#define cbd_lib_open        cbd_ext4_open
-#define cbd_lib_close       cbd_ext4_close
-#define cbd_lib_pread       cbd_ext4_pread
-#define cbd_lib_pwrite      cbd_ext4_pwrite
-#define cbd_lib_aio_pread   cbd_ext4_aio_pread
-#define cbd_lib_aio_pwrite  cbd_ext4_aio_pwrite
-#define cbd_lib_sync        cbd_ext4_sync
-#define cbd_lib_filesize    cbd_ext4_filesize
+#define cbd_lib_init            cbd_ext4_init
+#define cbd_lib_fini            cbd_ext4_fini
+#define cbd_lib_open            cbd_ext4_open
+#define cbd_lib_close           cbd_ext4_close
+#define cbd_lib_pread           cbd_ext4_pread
+#define cbd_lib_pwrite          cbd_ext4_pwrite
+#define cbd_lib_pdiscard        cbd_ext4_pdiscard
+#define cbd_lib_aio_pread       cbd_ext4_aio_pread
+#define cbd_lib_aio_pwrite      cbd_ext4_aio_pwrite
+#define cbd_lib_aio_pdiscard    cbd_ext4_aio_pdiscard
+#define cbd_lib_sync            cbd_ext4_sync
+#define cbd_lib_filesize        cbd_ext4_filesize
 #endif
 
 #ifdef __cplusplus

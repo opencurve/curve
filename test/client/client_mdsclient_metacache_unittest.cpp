@@ -51,7 +51,8 @@
 #include "src/common/net_common.h"
 #include "test/integration/cluster_common/cluster.h"
 #include "test/util/config_generator.h"
-#include "test/client/mock_curvefs_service.h"
+// #include "test/client/mock_curvefs_service.h"
+#include "test/client/mock/mock_namespace_service.h"
 
 extern std::string mdsMetaServerAddr;
 extern uint32_t chunk_size;
@@ -83,20 +84,20 @@ class MDSClientTest : public ::testing::Test {
         userinfo.owner = "test";
 
         if (server.AddService(&topologyservice,
-                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-            LOG(FATAL) << "Fail to add service";
+                              brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+            ASSERT_TRUE(false) << "Fail to add service";
         }
 
         if (server.AddService(&curvefsservice,
-                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-            LOG(FATAL) << "Fail to add service";
+                              brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+            ASSERT_TRUE(false) << "Fail to add service";
         }
 
-        curve::mds::topology::GetChunkServerInfoResponse* response
-        = new curve::mds::topology::GetChunkServerInfoResponse();
+        curve::mds::topology::GetChunkServerInfoResponse* response =
+            new curve::mds::topology::GetChunkServerInfoResponse();
         response->set_statuscode(0);
-        curve::mds::topology::ChunkServerInfo* serverinfo
-        = new curve::mds::topology::ChunkServerInfo();
+        curve::mds::topology::ChunkServerInfo* serverinfo =
+            new curve::mds::topology::ChunkServerInfo();
         serverinfo->set_chunkserverid(888);
         serverinfo->set_disktype("nvme");
         serverinfo->set_hostip("10.182.26.2");
@@ -117,7 +118,6 @@ class MDSClientTest : public ::testing::Test {
         LOG(INFO) << "meta server addr = " << mdsMetaServerAddr.c_str();
         ASSERT_EQ(server.Start(mdsMetaServerAddr.c_str(), &options), 0);
 
-        LOG(INFO) << configpath.c_str();
         ASSERT_EQ(0, Init(configpath.c_str()))
             << "Fail to init config, path = " << configpath;
     }
@@ -2223,6 +2223,67 @@ TEST_F(MDSClientTest, StatFileStatusTest) {
     }
 }
 
+TEST_F(MDSClientTest, DeAllocateSegmentTest) {
+    FInfo fileInfo;
+    fileInfo.fullPathName = "/DeAllocateSegmentTest";
+
+    // rpc failed
+    {
+        brpc::Controller cntl;
+        cntl.SetFailed(-1, "rpc failed");
+
+        FakeReturn* fakeRet = new FakeReturn(&cntl, nullptr);
+        curvefsservice.SetDeAllocateSegmentFakeReturn(fakeRet);
+
+        uint64_t startMs = curve::common::TimeUtility::GetTimeofDayMs();
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsclient_.DeAllocateSegment(&fileInfo, 0ull));
+        uint64_t endMs = curve::common::TimeUtility::GetTimeofDayMs();
+        ASSERT_GE(endMs - startMs, metaopt.mdsMaxRetryMS);
+    }
+
+    // rpc return ok
+    {
+        curve::mds::DeAllocateSegmentResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kOK);
+        FakeReturn* fakeRet = new FakeReturn(nullptr, &response);
+        curvefsservice.SetDeAllocateSegmentFakeReturn(fakeRet);
+
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsclient_.DeAllocateSegment(&fileInfo, 0ull));
+    }
+
+    // rpc return segment not allocated
+    {
+        curve::mds::DeAllocateSegmentResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kSegmentNotAllocated);
+        FakeReturn* fakeRet = new FakeReturn(nullptr, &response);
+        curvefsservice.SetDeAllocateSegmentFakeReturn(fakeRet);
+
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsclient_.DeAllocateSegment(&fileInfo, 0ull));
+    }
+
+    // other error code
+    {
+        std::vector<curve::mds::StatusCode> errorCodes{
+            curve::mds::StatusCode::kOwnerAuthFail,
+            curve::mds::StatusCode::kParaError,
+            curve::mds::StatusCode::kNotSupported,
+            curve::mds::StatusCode::kFileUnderSnapShot};
+
+        for (auto err : errorCodes) {
+            curve::mds::DeAllocateSegmentResponse response;
+            response.set_statuscode(err);
+            FakeReturn* fakeRet = new FakeReturn(nullptr, &response);
+            curvefsservice.SetDeAllocateSegmentFakeReturn(fakeRet);
+
+            ASSERT_NE(LIBCURVE_ERROR::OK,
+                      mdsclient_.DeAllocateSegment(&fileInfo, 0ull));
+        }
+    }
+}
+
 using ::testing::_;
 using ::testing::DoAll;
 using ::testing::ElementsAre;
@@ -2263,7 +2324,7 @@ class MDSClientRefreshSessionTest : public ::testing::Test {
     const uint32_t kTestPort = 1234;
 
     brpc::Server server_;
-    curve::client::MockCurveFsService curveFsService_;
+    curve::mds::MockNameService curveFsService_;
 };
 
 TEST_F(MDSClientRefreshSessionTest, StartDummyServerTest) {

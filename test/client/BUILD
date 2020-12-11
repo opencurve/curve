@@ -75,6 +75,7 @@ cc_test(
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "//test/integration/cluster_common:integration_cluster_common",
+        "//test/client/mock:client_mock_lib",
     ],
 )
 
@@ -147,7 +148,7 @@ cc_test(
     deps = [
         "//include/client:include_client",
         "//src/client:curve_client",
-        "//test/client/mock:curve_client_mock",
+        "//test/client/mock:client_mock_lib",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
     ],
@@ -175,6 +176,7 @@ cc_test(
         "//proto:topology_cc_proto",
         "//src/client:curve_client",
         "//src/common:curve_common",
+        "//src/client:cbd",
         "//test/client/fake:fake_lib",
         "//src/common/concurrent:curve_concurrent",
         "@com_google_googletest//:gtest",
@@ -260,6 +262,7 @@ cc_test(
         "//src/client:curve_client",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+        "//test/client/mock:client_mock_lib"
     ],
 )
 
@@ -336,6 +339,6 @@ cc_test(
         "//src/common/concurrent:curve_concurrent",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
-        "//test/client/mock:curve_client_mock"
+        "//test/client/mock:client_mock_lib"
     ],
 )

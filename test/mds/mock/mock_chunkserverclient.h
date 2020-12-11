@@ -20,8 +20,8 @@
  * Author: xuchaojie
  */
 
-#ifndef TEST_MDS_CHUNKSERVERCLIENT_MOCK_CHUNKSERVERCLIENT_H_
-#define TEST_MDS_CHUNKSERVERCLIENT_MOCK_CHUNKSERVERCLIENT_H_
+#ifndef TEST_MDS_MOCK_MOCK_CHUNKSERVERCLIENT_H_
+#define TEST_MDS_MOCK_MOCK_CHUNKSERVERCLIENT_H_
 
 #include <memory>
 #include "src/mds/chunkserverclient/chunkserver_client.h"
@@ -65,4 +65,4 @@ class MockChunkServerClient : public ChunkServerClient {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // TEST_MDS_CHUNKSERVERCLIENT_MOCK_CHUNKSERVERCLIENT_H_
+#endif  // TEST_MDS_MOCK_MOCK_CHUNKSERVERCLIENT_H_

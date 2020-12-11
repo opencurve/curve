@@ -23,6 +23,7 @@
 #include <vector>
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/common/string_util.h"
+#include "src/common/timeutility.h"
 #include "src/common/namespace_define.h"
 
 using ::curve::common::COMMON_PREFIX_LENGTH;
@@ -31,6 +32,9 @@ using ::curve::common::SNAPSHOTFILEINFOKEYPREFIX;
 using ::curve::common::SEGMENTKEYLEN;
 using ::curve::common::SEGMENTINFOKEYPREFIX;
 using ::curve::common::SEGMENTALLOCSIZEKEY;
+using ::curve::common::DISCARDSEGMENTKEYLEN;
+using ::curve::common::DISCARDSEGMENTKEYPREFIX;
+using ::curve::common::DISCARDSEGMENTKEYEND;
 
 namespace curve {
 namespace mds {
@@ -65,6 +69,18 @@ std::string NameSpaceStorageCodec::EncodeSegmentStoreKey(uint64_t inodeID,
     memcpy(&(storeKey[0]), SEGMENTINFOKEYPREFIX,  COMMON_PREFIX_LENGTH);
     ::curve::common::EncodeBigEndian(&(storeKey[2]), inodeID);
     ::curve::common::EncodeBigEndian(&(storeKey[10]), offset);
+    return storeKey;
+}
+
+std::string NameSpaceStorageCodec::EncodeDiscardSegmentStoreKey(
+    const InodeID inodeId, const uint64_t offset) {
+    std::string storeKey;
+    storeKey.resize(DISCARDSEGMENTKEYLEN);
+    ::memcpy(&(storeKey[0]), DISCARDSEGMENTKEYPREFIX, COMMON_PREFIX_LENGTH);
+    ::curve::common::EncodeBigEndian(&(storeKey[2]), inodeId);
+    ::curve::common::EncodeBigEndian(&(storeKey[10]), offset);
+    ::curve::common::EncodeBigEndian(
+        &(storeKey[18]), curve::common::TimeUtility::GetTimeofDayUs());
     return storeKey;
 }
 
@@ -132,5 +148,16 @@ bool NameSpaceStorageCodec::DecodeSegmentAllocValue(
 
     return true;
 }
+
+bool NameSpaceStorageCodec::EncodeDiscardSegment(const DiscardSegmentInfo& info,
+                                                 std::string* out) {
+    return info.SerializeToString(out);
+}
+
+bool NameSpaceStorageCodec::DecodeDiscardSegment(
+    const std::string& info, DiscardSegmentInfo* discardSegmentInfo) {
+    return discardSegmentInfo->ParseFromString(info);
+}
+
 }   // namespace mds
 }   // namespace curve

@@ -30,14 +30,14 @@
 #include <chrono>   // NOLINT
 
 #include "src/client/copyset_client.h"
-#include "test/client/mock_meta_cache.h"
+#include "test/client/mock/mock_meta_cache.h"
 #include "src/common/concurrent/count_down_event.h"
-#include "test/client/mock_chunkservice.h"
-#include "test/client/mock_request_context.h"
+#include "test/client/mock/mock_chunkservice.h"
+#include "test/client/mock/mock_request_context.h"
 #include "src/client/chunk_closure.h"
 #include "src/common/timeutility.h"
 #include "test/client/fake/fakeChunkserver.h"
-#include "test/client/mock_request_scheduler.h"
+#include "test/client/mock/mock_request_scheduler.h"
 #include "src/client/request_closure.h"
 #include "src/client/metacache.h"
 
@@ -3549,11 +3549,12 @@ TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
     const std::string& configPath = "./conf/client.conf";
     cc.Init(configPath.c_str());
     FileInstance fileinstance;
-    UserInfo_t userinfo;
+    UserInfo userinfo;
     userinfo.owner = "userinfo";
 
     MDSClient mdsclient;
-    mdsclient.Initialize(cc.GetFileServiceOption().metaServerOpt);
+    ASSERT_EQ(LIBCURVE_ERROR::OK,
+              mdsclient.Initialize(cc.GetFileServiceOption().metaServerOpt));
     ASSERT_TRUE(fileinstance.Initialize("/test", &mdsclient, userinfo,
                                         cc.GetFileServiceOption()));
 
@@ -3573,8 +3574,8 @@ TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
         << "Fail to start server add 127.0.0.1:9102";
 
     // fill metacache
-    curve::client::MetaCache* mc
-        = fileinstance.GetIOManager4File()->GetMetaCache();
+    curve::client::MetaCache* mc =
+        fileinstance.GetIOManager4File()->GetMetaCache();
     curve::client::ChunkIDInfo_t chunkinfo(1, 2, 3);
     mc->UpdateChunkInfoByIndex(0, chunkinfo);
     curve::client::CopysetInfo cpinfo;

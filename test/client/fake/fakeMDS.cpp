@@ -150,6 +150,15 @@ bool FakeMDS::StartService() {
     FakeReturn* fakeGetFileInforet = new FakeReturn(nullptr, static_cast<void*>(getfileinforesponse));      // NOLINT
     fakecurvefsservice_.SetGetFileInfoFakeReturn(fakeGetFileInforet);
 
+    // set DeAllocateSegment fake return
+    auto* deAllocateSegmentResponse =
+        new curve::mds::DeAllocateSegmentResponse();
+    deAllocateSegmentResponse->set_statuscode(curve::mds::StatusCode::kOK);
+    auto* deAllocateSegmentFakeRet =
+        new FakeReturn(nullptr, deAllocateSegmentResponse);
+    fakecurvefsservice_.SetDeAllocateSegmentFakeReturn(
+        deAllocateSegmentFakeRet);
+
     /**
      * set GetOrAllocateSegment fake return
      */

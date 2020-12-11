@@ -27,6 +27,8 @@
 
 namespace curve {
 namespace common {
+
+// NOTE: value passed to this function will convert to `uint64_t'
 static inline void EncodeBigEndian(char* buf, uint64_t value) {
     buf[0] = (value >> 56) & 0xff;
     buf[1] = (value >> 48) & 0xff;
@@ -37,6 +39,7 @@ static inline void EncodeBigEndian(char* buf, uint64_t value) {
     buf[6] = (value >> 8) & 0xff;
     buf[7] = value & 0xff;
 }
+
 }  // namespace common
 }  // namespace curve
 
