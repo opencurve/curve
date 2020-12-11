@@ -20,6 +20,7 @@
  * Author: wudemiao
  */
 
+#include <vector>
 #include "src/tools/curve_cli.h"
 #include "src/tools/common.h"
 
@@ -38,6 +39,7 @@ DEFINE_string(new_conf,
 DEFINE_bool(affirm, true,
             "If true, command line interactive affirmation is required."
             " Only set false in unit test");
+DECLARE_string(mdsAddr);
 
 namespace curve {
 namespace tool {
@@ -53,7 +55,12 @@ namespace tool {
 
 bool CurveCli::SupportCommand(const std::string& command) {
     return  (command == kResetPeerCmd || command == kRemovePeerCmd
-                                      || command == kTransferLeaderCmd);
+                                      || command == kTransferLeaderCmd
+                                      || command == kDoSnapshot);
+}
+
+int CurveCli::Init() {
+    return mdsClient_->Init(FLAGS_mdsAddr);
 }
 
 int CurveCli::RemovePeer() {
@@ -206,6 +213,64 @@ int CurveCli::ResetPeer() {
     return 0;
 }
 
+int CurveCli::DoSnapshot() {
+    CHECK_FLAG(peer);
+    braft::PeerId requestPeerId;
+    if (requestPeerId.parse(FLAGS_peer) != 0) {
+        std::cout << "Fail to parse --peer" << std::endl;
+        return -1;
+    }
+    curve::common::Peer requestPeer;
+    requestPeer.set_address(requestPeerId.to_string());
+    return DoSnapshot(FLAGS_logicalPoolId, FLAGS_copysetId, requestPeer);
+}
+
+int CurveCli::DoSnapshot(uint32_t lgPoolId, uint32_t copysetId,
+                         const curve::common::Peer& peer) {
+    braft::cli::CliOptions opt;
+    opt.timeout_ms = FLAGS_timeout_ms;
+    opt.max_retry = FLAGS_max_retry;
+    butil::Status st = curve::chunkserver::Snapshot(
+                                FLAGS_logicalPoolId,
+                                FLAGS_copysetId,
+                                peer,
+                                opt);
+    if (!st.ok()) {
+        std::cout << "Do snapshot of copyset "
+                  << "(" << FLAGS_logicalPoolId << ", "
+                  << FLAGS_copysetId << ")"
+                  << " fail, requestPeer: " << peer.address()
+                  << ", detail: " << st << std::endl;
+        return -1;
+    }
+    return 0;
+}
+
+int CurveCli::DoSnapshotAll() {
+    std::vector<ChunkServerInfo> chunkservers;
+    int res = mdsClient_->ListChunkServersInCluster(&chunkservers);
+    if (res != 0) {
+        std::cout << "ListChunkServersInCluster fail!" << std::endl;
+        return -1;
+    }
+    for (const auto& chunkserver : chunkservers) {
+        braft::cli::CliOptions opt;
+        opt.timeout_ms = FLAGS_timeout_ms;
+        opt.max_retry = FLAGS_max_retry;
+        std::string csAddr = chunkserver.hostip() + ":" +
+                                std::to_string(chunkserver.port());
+        curve::common::Peer peer;
+        peer.set_address(csAddr);
+        butil::Status st = curve::chunkserver::SnapshotAll(peer, opt);
+        if (!st.ok()) {
+            std::cout << "Do all snapshot of chunkserver " << csAddr
+                      << " fail, error: " << st.error_str() << std::endl;
+            res = -1;
+        }
+    }
+    return res;
+}
+
 void CurveCli::PrintHelp(const std::string &cmd) {
     std::cout << "Example " << std::endl;
     if (cmd == kResetPeerCmd) {
@@ -214,12 +279,21 @@ void CurveCli::PrintHelp(const std::string &cmd) {
     } else if (cmd == kRemovePeerCmd || cmd == kTransferLeaderCmd) {
         std::cout << "curve_ops_tool " << cmd << " -logicalPoolId=1 -copysetId=10001 -peer=127.0.0.1:8080:0 "  // NOLINT
         "-conf=127.0.0.1:8080:0,127.0.0.1:8081:0,127.0.0.1:8082:0 -max_retry=3 -timeout_ms=100" << std::endl;  // NOLINT
+    } else if (cmd == kDoSnapshot) {
+        std::cout << "curve_ops_tool " << cmd << " -logicalPoolId=1 -copysetId=10001 -peer=127.0.0.1:8080:0 "  // NOLINT
+        "-max_retry=3 -timeout_ms=100" << std::endl;
+    } else if (cmd == kDoSnapshotAll) {
+        std::cout << "curve_ops_tool " << cmd << std::endl;
     } else {
         std::cout << "Command not supported!" << std::endl;
     }
 }
 
 int CurveCli::RunCommand(const std::string &cmd) {
+    if (Init() != 0) {
+        std::cout << "Init CurveCli tool failed" << std::endl;
+        return -1;
+    }
     if (cmd == kRemovePeerCmd) {
         return RemovePeer();
     }
@@ -228,6 +302,12 @@ int CurveCli::RunCommand(const std::string &cmd) {
     }
     if (cmd == kResetPeerCmd) {
         return ResetPeer();
+    }
+    if (cmd == kDoSnapshot) {
+        return DoSnapshot();
+    }
+    if (cmd == kDoSnapshotAll) {
+        return DoSnapshotAll();
     }
     std::cout << "Command not supported!" << std::endl;
     return -1;

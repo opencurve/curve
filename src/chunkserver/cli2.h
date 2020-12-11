@@ -77,6 +77,16 @@ butil::Status ResetPeer(const LogicPoolID &logicPoolId,
                         const Peer& requestPeer,
                         const braft::cli::CliOptions& options);
 
+// 触发快照
+butil::Status Snapshot(const LogicPoolID &logicPoolId,
+                       const CopysetID &copysetId,
+                       const Peer& peer,
+                       const braft::cli::CliOptions& options);
+
+// 给chunkserver上全部copyset副本触发快照
+butil::Status SnapshotAll(const Peer& peer,
+                          const braft::cli::CliOptions& options);
+
 }  // namespace chunkserver
 }  // namespace curve
 

@@ -75,7 +75,8 @@ std::shared_ptr<ConsistencyCheck> CurveToolFactory::GenerateConsistencyCheck() {
 }
 
 std::shared_ptr<CurveCli> CurveToolFactory::GenerateCurveCli() {
-    return std::make_shared<CurveCli>();
+    auto mdsClient = std::make_shared<MDSClient>();
+    return std::make_shared<CurveCli>(mdsClient);
 }
 
 std::shared_ptr<CopysetCheck> CurveToolFactory::GenerateCopysetCheck() {

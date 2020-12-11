@@ -27,6 +27,7 @@
 #include <string>
 #include "src/tools/curve_cli.h"
 #include "test/tools/mock/mock_cli_service.h"
+#include "test/tools/mock/mock_mds_client.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -50,6 +51,7 @@ class CurveCliTest : public ::testing::Test {
  protected:
     CurveCliTest() {}
     void SetUp() {
+        mdsClient_ = std::make_shared<MockMDSClient>();
         server = new brpc::Server();
         mockCliService = new MockCliService();
         ASSERT_EQ(0, server->AddService(mockCliService,
@@ -69,10 +71,21 @@ class CurveCliTest : public ::testing::Test {
     MockCliService *mockCliService;
     const std::string conf = "127.0.0.1:9192:0";
     const std::string peer = "127.0.0.1:9192:0";
+    std::shared_ptr<MockMDSClient> mdsClient_;
 };
 
+TEST_F(CurveCliTest, Init) {
+    EXPECT_CALL(*mdsClient_, Init(_))
+        .Times(2)
+        .WillOnce(Return(0))
+        .WillOnce(Return(-1));
+    curve::tool::CurveCli curveCli(mdsClient_);
+    ASSERT_EQ(0, curveCli.Init());
+    ASSERT_EQ(-1, curveCli.Init());
+}
+
 TEST_F(CurveCliTest, SupportCommand) {
-    curve::tool::CurveCli curveCli;
+    curve::tool::CurveCli curveCli(mdsClient_);
     ASSERT_TRUE(curveCli.SupportCommand("remove-peer"));
     ASSERT_TRUE(curveCli.SupportCommand("reset-peer"));
     ASSERT_TRUE(curveCli.SupportCommand("transfer-leader"));
@@ -80,7 +93,7 @@ TEST_F(CurveCliTest, SupportCommand) {
 }
 
 TEST_F(CurveCliTest, RemovePeer) {
-    curve::tool::CurveCli curveCli;
+    curve::tool::CurveCli curveCli(mdsClient_);
     curveCli.PrintHelp("remove-peer");
     curveCli.PrintHelp("test");
     curveCli.RunCommand("test");
@@ -135,7 +148,7 @@ TEST_F(CurveCliTest, RemovePeer) {
 }
 
 TEST_F(CurveCliTest, TransferLeader) {
-    curve::tool::CurveCli curveCli;
+    curve::tool::CurveCli curveCli(mdsClient_);
     curveCli.PrintHelp("transfer-leader");
     // peer为空
     FLAGS_peer = "";
@@ -182,7 +195,7 @@ TEST_F(CurveCliTest, TransferLeader) {
 }
 
 TEST_F(CurveCliTest, ResetPeer) {
-    curve::tool::CurveCli curveCli;
+    curve::tool::CurveCli curveCli(mdsClient_);
     curveCli.PrintHelp("reset-peer");
     // peer为空
     FLAGS_peer = "";
@@ -227,6 +240,79 @@ TEST_F(CurveCliTest, ResetPeer) {
                           cntl->SetFailed("test");
                     }));
     ASSERT_EQ(-1, curveCli.RunCommand("reset-peer"));
+}
+
+TEST_F(CurveCliTest, DoSnapshot) {
+    curve::tool::CurveCli curveCli(mdsClient_);
+    curveCli.PrintHelp("do-snapshot");
+    // peer为空
+    FLAGS_peer = "";
+    ASSERT_EQ(-1, curveCli.RunCommand("do-snapshot"));
+    // 解析peer失败
+    FLAGS_peer = "1234";
+    ASSERT_EQ(-1, curveCli.RunCommand("do-snapshot"));
+    // 执行变更成功
+    FLAGS_peer = peer;
+    EXPECT_CALL(*mockCliService, Snapshot(_, _, _, _))
+        .WillOnce(Invoke([](RpcController *controller,
+                          const SnapshotRequest2 *request,
+                          SnapshotResponse2 *response,
+                          Closure *done){
+                          brpc::ClosureGuard doneGuard(done);
+                    }));
+    ASSERT_EQ(0, curveCli.RunCommand("do-snapshot"));
+    // 执行变更失败
+     EXPECT_CALL(*mockCliService, Snapshot(_, _, _, _))
+        .WillOnce(Invoke([](RpcController *controller,
+                          const SnapshotRequest2 *request,
+                          SnapshotResponse2 *response,
+                          Closure *done){
+                          brpc::ClosureGuard doneGuard(done);
+                          brpc::Controller *cntl =
+                            dynamic_cast<brpc::Controller *>(controller);
+                          cntl->SetFailed("test");
+                    }));
+    ASSERT_EQ(-1, curveCli.RunCommand("do-snapshot"));
+}
+
+TEST_F(CurveCliTest, DoSnapshotAll) {
+    curve::tool::CurveCli curveCli(mdsClient_);
+    curveCli.PrintHelp("do-snapshot-all");
+    // 执行变更成功
+    std::vector<ChunkServerInfo> chunkservers;
+    ChunkServerInfo csInfo;
+    csInfo.set_hostip("127.0.0.1");
+    csInfo.set_port(9192);
+    chunkservers.emplace_back(csInfo);
+    EXPECT_CALL(*mdsClient_, Init(_))
+        .Times(2)
+        .WillRepeatedly(Return(0));
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<0>(chunkservers),
+                        Return(0)));
+    EXPECT_CALL(*mockCliService, SnapshotAll(_, _, _, _))
+        .Times(1)
+        .WillOnce(Invoke([](RpcController *controller,
+                          const SnapshotAllRequest *request,
+                          SnapshotAllResponse *response,
+                          Closure *done){
+                          brpc::ClosureGuard doneGuard(done);
+                    }));
+    ASSERT_EQ(0, curveCli.RunCommand("do-snapshot-all"));
+    // 执行变更失败
+     EXPECT_CALL(*mockCliService, SnapshotAll(_, _, _, _))
+        .Times(1)
+        .WillOnce(Invoke([](RpcController *controller,
+                          const SnapshotAllRequest *request,
+                          SnapshotAllResponse *response,
+                          Closure *done){
+                          brpc::ClosureGuard doneGuard(done);
+                          brpc::Controller *cntl =
+                            dynamic_cast<brpc::Controller *>(controller);
+                          cntl->SetFailed("test");
+                    }));
+    ASSERT_EQ(-1, curveCli.RunCommand("do-snapshot-all"));
 }
 
 }  // namespace tool

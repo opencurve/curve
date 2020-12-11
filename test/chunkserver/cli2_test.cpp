@@ -83,7 +83,7 @@ class Cli2Test : public testing::Test {
 
 butil::AtExitManager atExitManager;
 
-TEST_F(Cli2Test, DISABLED_basic) {
+TEST_F(Cli2Test, basic) {
     const char *ip = "127.0.0.1";
     int port = 9033;
     const char *confs = "127.0.0.1:9033:0,127.0.0.1:9034:0,127.0.0.1:9035:0";
@@ -497,6 +497,39 @@ TEST_F(Cli2Test, DISABLED_basic) {
                                                              peer,
                                                              opt);
         LOG(INFO) << "reset peer: "
+                  << status.error_code() << ", " << status.error_str();
+        ASSERT_EQ(EHOSTDOWN, status.error_code());
+    }
+    /* snapshot peer地址非法  */
+    {
+        Peer peer;
+        peer.set_address("127.0.0.1:65540:0");
+        butil::Status status = curve::chunkserver::Snapshot(logicPoolId,
+                                                            copysetId,
+                                                            peer,
+                                                            opt);
+        LOG(INFO) << "snapshot: "
+                  << status.error_code() << ", " << status.error_str();
+        ASSERT_EQ(-1, status.error_code());
+    }
+    /* snapshot peer地址不存在  */
+    {
+        Peer peer;
+        peer.set_address("127.0.0.1:9040:0");
+        butil::Status status = curve::chunkserver::Snapshot(logicPoolId,
+                                                            copysetId,
+                                                            peer,
+                                                            opt);
+        LOG(INFO) << "snapshot: "
+                  << status.error_code() << ", " << status.error_str();
+        ASSERT_EQ(EHOSTDOWN, status.error_code());
+    }
+    /* snapshot all normal  */
+    {
+        Peer peer;
+        peer.set_address("127.0.0.1:9040:0");
+        butil::Status status = curve::chunkserver::SnapshotAll(peer, opt);
+        LOG(INFO) << "snapshot: "
                   << status.error_code() << ", " << status.error_str();
         ASSERT_EQ(EHOSTDOWN, status.error_code());
     }

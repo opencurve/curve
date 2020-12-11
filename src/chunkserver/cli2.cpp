@@ -318,5 +318,53 @@ butil::Status ResetPeer(const LogicPoolID &logicPoolId,
     return butil::Status::OK();
 }
 
+butil::Status Snapshot(const LogicPoolID &logicPoolId,
+                       const CopysetID &copysetId,
+                       const Peer& peer,
+                       const braft::cli::CliOptions& options) {
+    brpc::Channel channel;
+    PeerId peerId(peer.address());
+    if (channel.Init(peerId.addr, NULL) != 0) {
+        return butil::Status(-1, "Fail to init channel to %s",
+                                peerId.to_string().c_str());
+    }
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(options.timeout_ms);
+    cntl.set_max_retry(options.max_retry);
+    SnapshotRequest2 request;
+    request.set_logicpoolid(logicPoolId);
+    request.set_copysetid(copysetId);
+    Peer *peerPtr = new Peer(peer);
+    request.set_allocated_peer(peerPtr);
+    SnapshotResponse2 response;
+    CliService2_Stub stub(&channel);
+    stub.Snapshot(&cntl, &request, &response, NULL);
+    if (cntl.Failed()) {
+        return butil::Status(cntl.ErrorCode(), cntl.ErrorText());
+    }
+    return butil::Status::OK();
+}
+
+butil::Status SnapshotAll(const Peer& peer,
+                          const braft::cli::CliOptions& options) {
+    brpc::Channel channel;
+    PeerId peerId(peer.address());
+    if (channel.Init(peerId.addr, NULL) != 0) {
+        return butil::Status(-1, "Fail to init channel to %s",
+                                peerId.to_string().c_str());
+    }
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(options.timeout_ms);
+    cntl.set_max_retry(options.max_retry);
+    SnapshotAllRequest request;
+    SnapshotAllResponse response;
+    CliService2_Stub stub(&channel);
+    stub.SnapshotAll(&cntl, &request, &response, NULL);
+    if (cntl.Failed()) {
+        return butil::Status(cntl.ErrorCode(), cntl.ErrorText());
+    }
+    return butil::Status::OK();
+}
+
 }  // namespace chunkserver
 }  // namespace curve

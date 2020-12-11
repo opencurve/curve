@@ -2815,6 +2815,12 @@ TEST_F(TestTopologyServiceManager, test_GetCopySetsInCluster) {
         }
         ASSERT_EQ(i + 1, response.copysetinfos(i).copysetid());
     }
+    GetCopySetsInClusterResponse response2;
+    serviceManager_->GetCopySetsInCluster(&request, &response2);
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response2.statuscode());
+    ASSERT_EQ(20, response2.copysetinfos_size());
+    ASSERT_EQ(1, response2.copysetinfos(0).copysetid());
 }
 
 
