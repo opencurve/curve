@@ -134,11 +134,13 @@ TEST_F(CopysetCheckTest, SupportCommand) {
     ASSERT_TRUE(copysetCheck.SupportCommand("check-chunkserver"));
     ASSERT_TRUE(copysetCheck.SupportCommand("check-server"));
     ASSERT_TRUE(copysetCheck.SupportCommand("copysets-status"));
+    ASSERT_TRUE(copysetCheck.SupportCommand("check-operator"));
     ASSERT_FALSE(copysetCheck.SupportCommand("check-nothing"));
 }
 
 TEST_F(CopysetCheckTest, CheckOneCopyset) {
     CopysetCheck copysetCheck(core_);
+    copysetCheck.PrintHelp("check-copyset");
     butil::IOBuf iobuf;
     GetIoBufForTest(&iobuf, "4294967396", true);
     std::vector<std::string> peersInCopyset =
@@ -196,6 +198,7 @@ TEST_F(CopysetCheckTest, CheckOneCopyset) {
 
 TEST_F(CopysetCheckTest, testCheckChunkServer) {
     CopysetCheck copysetCheck(core_);
+    copysetCheck.PrintHelp("check-chunkserver");
     EXPECT_CALL(*core_, Init(_))
         .Times(1)
         .WillOnce(Return(0));
@@ -265,6 +268,7 @@ TEST_F(CopysetCheckTest, testCheckChunkServer) {
 
 TEST_F(CopysetCheckTest, testCheckServer) {
     CopysetCheck copysetCheck(core_);
+    copysetCheck.PrintHelp("check-server");
     std::vector<std::string> chunkservers =
             {"127.0.0.1:9091", "127.0.0.1:9092", "127.0.0.1:9093"};
     EXPECT_CALL(*core_, Init(_))
@@ -339,6 +343,7 @@ TEST_F(CopysetCheckTest, testCheckServer) {
 
 TEST_F(CopysetCheckTest, testCheckCluster) {
     CopysetCheck copysetCheck(core_);
+    copysetCheck.PrintHelp("copysets-status");
     EXPECT_CALL(*core_, Init(_))
         .Times(1)
         .WillOnce(Return(0));
@@ -382,6 +387,7 @@ TEST_F(CopysetCheckTest, testCheckCluster) {
 
 TEST_F(CopysetCheckTest, testCheckOperator) {
     CopysetCheck copysetCheck(core_);
+    copysetCheck.PrintHelp("check-operator");
     EXPECT_CALL(*core_, Init(_))
         .Times(1)
         .WillOnce(Return(0));

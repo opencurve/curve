@@ -68,6 +68,21 @@ message ChangePeersResponse2 {
     repeated common.Peer newPeers   = 2;
 }
 
+message SnapshotRequest2 {
+    required uint32 logicPoolId = 1;
+    required uint32 copysetId = 2;
+    optional common.Peer peer = 3;
+};
+
+message SnapshotResponse2 {
+}
+
+message SnapshotAllRequest {
+};
+
+message SnapshotAllResponse {
+};
+
 message GetLeaderRequest2 {
     required uint32 logicPoolId     = 1;
     required uint32 copysetId       = 2;
@@ -97,4 +112,6 @@ service CliService2 {
     rpc GetLeader(GetLeaderRequest2) returns (GetLeaderResponse2);
     rpc TransferLeader(TransferLeaderRequest2) returns (TransferLeaderResponse2);
     rpc ResetPeer(ResetPeerRequest2) returns (ResetPeerResponse2);
+    rpc Snapshot(SnapshotRequest2) returns (SnapshotResponse2);
+    rpc SnapshotAll(SnapshotAllRequest) returns (SnapshotAllResponse);
 };

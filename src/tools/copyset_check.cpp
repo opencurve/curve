@@ -218,6 +218,10 @@ void CopysetCheck::PrintHelp(const std::string& command) {
         std::cout << "curve_ops_tool copysets-status [-mdsAddr=127.0.0.1:6666] "
                   << "[-margin=1000] [-operatorMaxPeriod=30] [-checkOperator] "
                   << "[-confPath=/etc/curve/tools.conf]" << std::endl << std::endl;  // NOLINT
+    } else if (command == kCheckOperatorCmd) {
+        std::cout << "curve_ops_tool check-operator -opName=" << kTotalOpName
+                  << "/" << kChangeOpName << "/" << kAddOpName << "/"
+                  << kRemoveOpName << "/" << kTransferOpName << std::endl;
     } else {
         std::cout << "Command not supported!" << std::endl;
     }

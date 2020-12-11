@@ -41,6 +41,10 @@ using ::curve::chunkserver::TransferLeaderRequest2;
 using ::curve::chunkserver::TransferLeaderResponse2;
 using ::curve::chunkserver::ResetPeerRequest2;
 using ::curve::chunkserver::ResetPeerResponse2;
+using ::curve::chunkserver::SnapshotRequest2;
+using ::curve::chunkserver::SnapshotResponse2;
+using ::curve::chunkserver::SnapshotAllRequest;
+using ::curve::chunkserver::SnapshotAllResponse;
 
 class MockCliService : public CliService2 {
  public:
@@ -66,6 +70,18 @@ class MockCliService : public CliService2 {
         void(RpcController *controller,
         const ResetPeerRequest2 *request,
         ResetPeerResponse2 *response,
+        Closure *done));
+
+    MOCK_METHOD4(Snapshot,
+        void(RpcController *controller,
+        const SnapshotRequest2 *request,
+        SnapshotResponse2 *response,
+        Closure *done));
+
+    MOCK_METHOD4(SnapshotAll,
+        void(RpcController *controller,
+        const SnapshotAllRequest *request,
+        SnapshotAllResponse *response,
         Closure *done));
 };
 }  // namespace tool

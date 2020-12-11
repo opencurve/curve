@@ -37,6 +37,8 @@
 #include "proto/copyset.pb.h"
 #include "test/chunkserver/chunkserver_test_util.h"
 #include "src/common/uuid.h"
+#include "src/common/timeutility.h"
+#include "src/fs/local_filesystem.h"
 
 namespace curve {
 namespace chunkserver {
@@ -70,7 +72,7 @@ class BraftCliService2Test : public testing::Test {
     const char *ip    = "127.0.0.1";
     int port          = 9310;
     const char *confs = "127.0.0.1:9310:0,127.0.0.1:9311:0,127.0.0.1:9312:0";
-    int snapshotInterval  = 600;
+    int snapshotInterval  = 3600;  // 防止自动打快照
     int electionTimeoutMs = 3000;
 
     pid_t pid1;
@@ -527,6 +529,93 @@ TEST_F(BraftCliService2Test, basic2) {
                   << cntl2.ErrorText();
         ASSERT_FALSE(cntl2.Failed());
         ASSERT_EQ(0, cntl2.ErrorCode());
+    }
+    /* snapshot - 非法copyset */
+    {
+        PeerId peer(peer1.address());
+        brpc::Channel channel;
+        ASSERT_EQ(0, channel.Init(peer.addr, NULL));
+
+        SnapshotRequest2 request;
+        /* 非法 copyset */
+        request.set_logicpoolid(logicPoolId + 1);
+        request.set_copysetid(copysetId);
+        Peer *peerPtr = new Peer();
+        *peerPtr = peer1;
+        request.set_allocated_peer(peerPtr);
+
+        SnapshotResponse2 response;
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(options.timeout_ms);
+        cntl.set_max_retry(options.max_retry);
+
+        CliService2_Stub stub(&channel);
+        stub.Snapshot(&cntl, &request, &response, NULL);
+        LOG(INFO) << "snapshot: " << cntl.ErrorCode() << ", "
+                  << cntl.ErrorText();
+        ASSERT_TRUE(cntl.Failed());
+        ASSERT_EQ(ENOENT, cntl.ErrorCode());
+    }
+    /* snapshot - normal */
+    {
+        // 初始状态快照不为空
+        std::string copysetDataDir = dir1 + "/" +
+                ToGroupId(logicPoolId, copysetId) + "/" + RAFT_LOG_DIR;
+        std::shared_ptr<LocalFileSystem> fs(
+        LocalFsFactory::CreateFs(curve::fs::FileSystemType::EXT4, ""));
+        std::vector<std::string> files;
+        fs->List(copysetDataDir.c_str(), &files);
+        ASSERT_GE(files.size(), 1);
+        PeerId peer(peer1.address());
+        brpc::Channel channel;
+        ASSERT_EQ(0, channel.Init(peer.addr, NULL));
+
+        SnapshotRequest2 request;
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        Peer *peerPtr = new Peer();
+        *peerPtr = peer1;
+        request.set_allocated_peer(peerPtr);
+
+        SnapshotResponse2 response;
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(options.timeout_ms);
+        cntl.set_max_retry(options.max_retry);
+
+        CliService2_Stub stub(&channel);
+        stub.Snapshot(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed()) << "Do snapshot fail, error: "
+                                    << cntl.ErrorText();
+        // 需要连续打两次快照才能删除第一次快照时的log
+        sleep(5);
+        cntl.Reset();
+        stub.Snapshot(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed()) << "Do snapshot fail, error: "
+                                    << cntl.ErrorText();
+        sleep(10);
+        // 打完快照应该只剩下meta信息
+        files.clear();
+        fs->List(copysetDataDir.c_str(), &files);
+        for (const auto& file : files) {
+            LOG(INFO) << file;
+        }
+        ASSERT_EQ(1, files.size());
+    }
+    /* snapshot all - normal */
+    {
+        SnapshotAllRequest request;
+        SnapshotAllResponse response;
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(options.timeout_ms);
+        cntl.set_max_retry(options.max_retry);
+        brpc::Channel channel;
+        PeerId peer(peer1.address());
+        ASSERT_EQ(0, channel.Init(peer.addr, NULL));
+
+        CliService2_Stub stub(&channel);
+        stub.SnapshotAll(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed()) << "Do snapshot all fail, error: "
+                                    << cntl.ErrorText();
     }
     /* reset peer - 非法 copyset */
     {

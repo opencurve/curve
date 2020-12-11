@@ -338,5 +338,53 @@ void BRaftCliServiceImpl2::ResetPeer(RpcController* controller,
     }
 }
 
+static void snapshot_returned(brpc::Controller* cntl,
+                              scoped_refptr<braft::NodeImpl> node,
+                              ::google::protobuf::Closure* done,
+                              const butil::Status& st) {
+    brpc::ClosureGuard done_guard(done);
+    if (!st.ok()) {
+        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
+    }
+}
+
+void BRaftCliServiceImpl2::Snapshot(RpcController* controller,
+                                    const SnapshotRequest2* request,
+                                    SnapshotResponse2* response,
+                                    Closure* done) {
+    brpc::Controller* cntl = (brpc::Controller*)controller;
+    brpc::ClosureGuard done_guard(done);
+    scoped_refptr<braft::NodeImpl> node;
+    LogicPoolID logicPoolId = request->logicpoolid();
+    CopysetID copysetId = request->copysetid();
+    butil::Status st =
+        get_node(&node, logicPoolId, copysetId,
+                                request->peer().address());
+    if (!st.ok()) {
+        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
+        return;
+    }
+
+    braft::Closure* snapshot_done = NewCallback(snapshot_returned, cntl, node,
+                                         done_guard.release());
+    return node->snapshot(snapshot_done);
+}
+
+void BRaftCliServiceImpl2::SnapshotAll(RpcController* controller,
+                                       const SnapshotAllRequest* request,
+                                       SnapshotAllResponse* response,
+                                       Closure* done) {
+    brpc::Controller* cntl = (brpc::Controller*)controller;
+    brpc::ClosureGuard done_guard(done);
+    braft::NodeManager *const nm = braft::NodeManager::GetInstance();
+    std::vector<scoped_refptr<braft::NodeImpl>> nodes;
+    nm->get_all_nodes(&nodes);
+    for (const auto& node : nodes) {
+        braft::Closure* snapshot_done = NewCallback(snapshot_returned, cntl,
+                                    node, done_guard.release());
+        node->snapshot(snapshot_done);
+    }
+}
+
 }  // namespace chunkserver
 }  // namespace curve

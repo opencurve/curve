@@ -202,5 +202,28 @@ butil::Status TransferLeader(const LogicPoolID &logicPoolId,
     return butil::Status::OK();
 }
 
+butil::Status Snapshot(const LogicPoolID &logicPoolId,
+                       const CopysetID &copysetId,
+                       const PeerId &peer,
+                       const braft::cli::CliOptions &options) {
+    brpc::Channel channel;
+    if (channel.Init(peer.addr, NULL) != 0) {
+        return butil::Status(-1, "Fail to init channel to %s",
+                                peer.to_string().c_str());
+    }
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(options.timeout_ms);
+    cntl.set_max_retry(options.max_retry);
+    SnapshotRequest request;
+    request.set_peer_id(peer.to_string());
+    SnapshotResponse response;
+    CliService_Stub stub(&channel);
+    stub.snapshot(&cntl, &request, &response, NULL);
+    if (cntl.Failed()) {
+        return butil::Status(cntl.ErrorCode(), cntl.ErrorText());
+    }
+    return butil::Status::OK();
+}
+
 }  // namespace chunkserver
 }  // namespace curve

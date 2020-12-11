@@ -231,5 +231,14 @@ void BRaftCliServiceImpl::transfer_leader(
     }
 }
 
+static void snapshot_returned(brpc::Controller* cntl,
+                              scoped_refptr<braft::NodeImpl> node,
+                              ::google::protobuf::Closure* done,
+                              const butil::Status& st) {
+    brpc::ClosureGuard done_guard(done);
+    if (!st.ok()) {
+        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
+    }
+}
 }  // namespace chunkserver
 }  // namespace curve

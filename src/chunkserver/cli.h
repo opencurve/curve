@@ -63,6 +63,12 @@ butil::Status TransferLeader(const LogicPoolID &logicPoolId,
                              const PeerId &peer,
                              const braft::cli::CliOptions &options);
 
+// 触发快照
+butil::Status Snapshot(const LogicPoolID &logicPoolId,
+                       const CopysetID &copysetId,
+                       const PeerId &peer,
+                       const braft::cli::CliOptions &options);
+
 }  // namespace chunkserver
 }  // namespace curve
 

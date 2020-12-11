@@ -78,6 +78,18 @@ class BRaftCliServiceImpl2 : public CliService2 {
                    ResetPeerResponse2* response,
                    Closure* done);
 
+    // 触发快照
+    void Snapshot(RpcController* controller,
+                  const SnapshotRequest2* request,
+                  SnapshotResponse2* response,
+                  Closure* done);
+
+    // 给当前chunkserver上全部copyset的副本打快照
+    void SnapshotAll(RpcController* controller,
+                     const SnapshotAllRequest* request,
+                     SnapshotAllResponse* response,
+                     Closure* done);
+
  private:
     /**
      * @brief: 查询指定的raft node

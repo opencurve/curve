@@ -31,16 +31,27 @@
 #include <map>
 #include <string>
 #include <iostream>
+#include <memory>
 
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/cli2.h"
 #include "src/tools/curve_tool.h"
 #include "src/tools/curve_tool_define.h"
+#include "src/tools/mds_client.h"
 
 namespace curve {
 namespace tool {
 class CurveCli : public CurveTool {
  public:
+    explicit CurveCli(std::shared_ptr<MDSClient> mdsClient) :
+                                       mdsClient_(mdsClient) {}
+
+    /**
+     *  @brief 初始化mds client
+     *  @return 成功返回0，失败返回-1
+     */
+    int Init();
+
     /**
      *  @brief 打印help信息
      *  @param 无
@@ -78,11 +89,37 @@ class CurveCli : public CurveTool {
     int TransferLeader();
 
     /**
+     *  @brief 触发打快照
+     *  @param 无
+     *  @return 成功返回0，失败返回-1
+     */
+    int DoSnapshot();
+
+    /**
+     *  @brief 触发打快照
+     *  @param lgPoolId 逻辑池id
+     *  @param copysetId 复制组id
+     *  @param peer 复制组成员
+     *  @return 成功返回0，失败返回-1
+     */
+    int DoSnapshot(uint32_t lgPoolId, uint32_t copysetId,
+                   const curve::common::Peer& peer);
+
+    /**
+     *  @brief 给集群中全部copyset node触发打快照
+     *  @param 无
+     *  @return 成功返回0，失败返回-1
+     */
+    int DoSnapshotAll();
+
+    /**
      *  @brief 重置配置组成员，目前只支持reset成一个成员
      *  @param 无
      *  @return 成功返回0，失败返回-1
      */
     int ResetPeer();
+
+    std::shared_ptr<MDSClient> mdsClient_;
 };
 }  // namespace tool
 }  // namespace curve
