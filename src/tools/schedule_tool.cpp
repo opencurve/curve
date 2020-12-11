@@ -25,8 +25,9 @@
 #include "src/tools/schedule_tool.h"
 #include "src/tools/curve_tool_define.h"
 
-DEFINE_int32(logical_pool_id, 1, "logical pool");
+DEFINE_uint32(logical_pool_id, 1, "logical pool");
 DECLARE_string(mdsAddr);
+DEFINE_bool(scheduleAll, true, "schedule all logical pool or not");
 
 namespace curve {
 namespace tool {
@@ -46,7 +47,11 @@ void ScheduleTool::PrintHelp(const std::string& cmd) {
 void ScheduleTool::PrintRapidLeaderScheduleHelp() {
     std::cout << "Example :" << std::endl
         << "curve_ops_tool " << kRapidLeaderSchedule
-        << " -logicalPoolId=1 [-mdsAddr=127.0.0.1:6666]"
+        << " -logical_pool_id=1 -scheduleAll=false [-mdsAddr=127.0.0.1:6666]"
+        << " [-confPath=/etc/curve/tools.conf]"
+        << std::endl;
+    std::cout << "curve_ops_tool " << kRapidLeaderSchedule
+        << " [-mdsAddr=127.0.0.1:6666]"
         << " [-confPath=/etc/curve/tools.conf]"
         << std::endl;
 }
@@ -55,24 +60,48 @@ int ScheduleTool::RunCommand(const std::string &cmd) {
     if (kRapidLeaderSchedule == cmd) {
         return DoRapidLeaderSchedule();
     }
-
+    std::cout << "Command not supported!" << std::endl;
     return -1;
 }
 
 int ScheduleTool::DoRapidLeaderSchedule() {
-    // 初始化mds client
-    if (0 != mdsClient_->Init(FLAGS_mdsAddr)) {
+     if (0 != mdsClient_->Init(FLAGS_mdsAddr)) {
+        std::cout << "Init mds client fail!" << std::endl;
         return -1;
     }
-
-    // 解析逻辑池id
-    if (FLAGS_logical_pool_id < 0) {
-        std::cout << "logicalPoolId must >=0" << std::endl;
-        return -1;
+    if (FLAGS_scheduleAll) {
+        return ScheduleAll();
+    } else {
+        return ScheduleOne(FLAGS_logical_pool_id);
     }
+}
 
+int ScheduleTool::ScheduleOne(PoolIdType lpoolId) {
     // 给mds发送rpc
-    return mdsClient_->RapidLeaderSchedule(FLAGS_logical_pool_id);
+    int res = mdsClient_->RapidLeaderSchedule(lpoolId);
+    if (res != 0) {
+        std::cout << "RapidLeaderSchedule pool " << lpoolId
+                  << " fail" << std::endl;
+        return -1;
+    }
+    return 0;
+}
+
+int ScheduleTool::ScheduleAll() {
+    std::vector<LogicalPoolInfo> pools;
+    int res = mdsClient_->ListLogicalPoolsInCluster(&pools);
+    if (res != 0) {
+        std::cout << "ListLogicalPoolsInCluster fail" << std::endl;
+        return -1;
+    }
+    for (const auto& pool : pools) {
+        if (mdsClient_->RapidLeaderSchedule(pool.logicalpoolid()) != 0) {
+            std::cout << "RapidLeaderSchedule pool " << pool.logicalpoolid()
+                      << " fail" << std::endl;
+            res = -1;
+        }
+    }
+    return res;
 }
 
 }  // namespace tool

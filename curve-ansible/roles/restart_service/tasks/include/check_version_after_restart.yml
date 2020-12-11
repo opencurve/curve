@@ -15,8 +15,12 @@
 #  limitations under the License.
 #
 
-- name: get cluster healthy status
-  shell: curve_ops_tool status --confPath={{ curve_ops_tool_config }} | grep "cluster is"
-  register: result
-  failed_when: result.stdout != defined_healthy_status
-  delegate_to: "{{ groups.mds[0] }}"
+- name: get curve version
+  vars:
+    curve_version:
+  include_tasks: common_tasks/get_curve_version_from_metric.yml
+
+- name: fail if version not match
+  fail:
+    msg: "{{ service_name }} version not match! expected: {{ expected_curve_version }}, actual: {{ curve_version }}"
+  when: curve_version != expected_curve_version

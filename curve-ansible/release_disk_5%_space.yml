@@ -22,6 +22,5 @@
   gather_facts: no
   become: "{{ sudo_or_not }}"
   tasks:
-    - name: init wal pool
-      shell: sudo tune2fs -m 0 /dev/{{ item }}
-      with_items: "{{ disk_list }}"
+    - name: release reserved 5%
+      shell: for disk in `{{ get_disk_list_cmd }}`;do sudo tune2fs -m 0 /dev/${disk};done

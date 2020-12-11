@@ -17,9 +17,9 @@
 
 # 等待copyset健康，每个一段时间检查一次，一共检查若干次，成功则break，如果一直不健康则报错
 - name: check copysets status until healthy
-  local_action: shell curve_ops_tool copysets-status --confPath={{ curve_ops_tool_config }} | grep "{{ defined_copysets_status }}"
+  shell: curve_ops_tool copysets-status --confPath={{ curve_ops_tool_config }} | grep "{{ defined_copysets_status }}"
   register: result
   until: result.rc == 0
   retries: "{{ check_copysets_status_times }}"
   delay: "{{ check_copysets_status_interval }}"
-
+  delegate_to: "{{ groups.mds[0] }}"

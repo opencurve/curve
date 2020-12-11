@@ -152,7 +152,6 @@
   tasks:
     - include_tasks: "common_tasks/create_logical_pool.yml"
 
-
 ############################## deploy snapshotcloneserver ##############################
 - name: prepare snapshotcloneserver
   hosts: snapshotclone
@@ -222,3 +221,14 @@
     - never
   roles:
     - { role: start_service, service_name: snapshotcloneserver_nginx }
+
+############################## rapid leader schedule ##############################
+- name: rapid leader schedule
+  hosts: mds[0]
+  any_errors_fatal: true
+  gather_facts: no
+  become: "{{ sudo_or_not }}"
+  tags:
+    - rapid_leader_schedule
+  roles:
+    - rapid_leader_schedule

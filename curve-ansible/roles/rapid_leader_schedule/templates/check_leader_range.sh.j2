@@ -1,4 +1,5 @@
----
+#!/bin/bash
+
 #
 #  Copyright (c) 2020 NetEase Inc.
 #
@@ -15,8 +16,13 @@
 #  limitations under the License.
 #
 
-- name: get cluster healthy status
-  shell: curve_ops_tool status --confPath={{ curve_ops_tool_config }} | grep "cluster is"
-  register: result
-  failed_when: result.stdout != defined_healthy_status
-  delegate_to: "{{ groups.mds[0] }}"
+for i in `curl -s http://{{ leader_ip }}:{{ mds_port }}/vars/ | grep leadernum_range  | awk -F ': ' '{print $2}' | awk -F '.' '{print $1}'`
+do
+    if (($i > {{ target_leader_range }}))
+    then
+        echo "leader range not ok!"
+        exit 0
+    fi
+done
+        
+echo "leader range ok!"

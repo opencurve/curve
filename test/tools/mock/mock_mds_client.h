@@ -87,6 +87,7 @@ class MockMDSClient : public MDSClient {
                     const std::map<std::string, std::string>&());
     MOCK_METHOD2(ListClient, int(std::vector<std::string>*, bool));
     MOCK_METHOD1(ListLogicalPoolsInCluster, int(std::vector<LogicalPoolInfo>*));
+    MOCK_METHOD1(RapidLeaderSchedule, int(PoolIdType));
 };
 }  // namespace tool
 }  // namespace curve

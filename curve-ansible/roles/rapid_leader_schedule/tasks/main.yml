@@ -15,13 +15,20 @@
 #  limitations under the License.
 #
 
-- name: get chunkserver version
-  vars:
-    metric_port: "{{ chunkserver_base_port | int + item | int }}"
-    curve_version:
-  include_tasks: common_tasks/get_curve_version_from_metric.yml
+- name: rapid leader schedule with curve_ops_tool
+  include: include/rapid_leader_schedule_with_tool.yml
 
-- name: append need restart chunkserver id
-  set_fact:
-    restart_cs_list: "{{ restart_cs_list + [item] }}"
-  when: curve_version != expected_curve_version
+- name: get leader ip
+  vars:
+    leader_ip:
+  include_tasks: roles/set_leader_and_follower_list/tasks/include/get_mds_leader_ip.yml
+
+- name: generate check leader range script
+  template: src=check_leader_range.sh.j2 dest=/tmp/check_leader_range.sh mode=0755
+
+- name: wait until leader range ok
+  shell: sh /tmp/check_leader_range.sh
+  register: check_leader_res
+  until: check_leader_res.stdout=="leader range ok!"
+  retries: "{{ check_leader_range_times }}"
+  delay: "{{ check_leader_range_interval }}"
