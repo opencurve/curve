@@ -30,6 +30,9 @@
 
 namespace curve {
 namespace tool {
+
+using curve::mds::topology::PoolIdType;
+
 class ScheduleTool : public CurveTool {
  public:
     explicit ScheduleTool(std::shared_ptr<MDSClient> mdsClient)
@@ -66,6 +69,10 @@ class ScheduleTool : public CurveTool {
      * @brief DoRapidLeaderSchedule 向mds发送rpc进行快速transfer leader
      */
     int DoRapidLeaderSchedule();
+
+    int ScheduleOne(PoolIdType lpoolId);
+
+    int ScheduleAll();
 
  private:
     std::shared_ptr<MDSClient> mdsClient_;

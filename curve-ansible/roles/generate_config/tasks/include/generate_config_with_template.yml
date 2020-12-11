@@ -26,13 +26,39 @@
 
 - name: generate configuration file directly
   ignore_errors: true
-  template: src={{ template_name }}.j2 dest={{ conf_path }} mode=0644
+  template: src={{ template_name }}.j2 dest={{ conf_path }} mode=0644 backup=true
   register: template_res
+
+- name: print diff if config file change
+  block:
+    - name: diff two files
+      ignore_errors: true
+      shell: diff {{ template_res.backup_file }} {{ conf_path }}
+      register: diff_res
+    - name: print diff
+      debug:
+        var: diff_res.stdout_lines
+  when: template_res.backup_file is defined
 
 - name: generate configuration file with sudo
   block:
     - name: generate configuration file at /tmp
       template: src={{ template_name }}.j2 dest=/tmp/{{ template_name }} mode=0644
+    - name: set backup true
+      set_fact:
+        backup: true
+    - name: backup config file
+      shell: sudo cp {{ conf_path }} {{ conf_path }}.bak
+      when: backup is defined
     - name: mv config file
       shell: sudo mv /tmp/{{ template_name }} {{ conf_path }}
+    - name: diff two files
+      ignore_errors: true
+      shell: diff {{ conf_path }}.bak {{ conf_path }}
+      register: diff_res
+      when: backup is defined
+    - name: print diff
+      debug:
+        var: diff_res.stdout_lines
+      when: backup is defined and diff_res.rc != 0
   when: template_res.failed

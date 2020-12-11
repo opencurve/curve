@@ -40,3 +40,9 @@
     - name: start mds
       include_tasks: roles/start_service/tasks/include/start_mds.yml
   when: need_restart or restart_directly
+
+- name: check mds version after restart
+  vars:
+        metric_port: "{{ mds_dummy_port }}"
+  include_tasks: check_version_after_restart.yml
+  when: not restart_directly

@@ -104,6 +104,7 @@
   tags:
     - restart_mds
     - mds
+    - restart
   pre_tasks:
     - pause:
         prompt: "Confirm restart mds in {{ inventory_hostname }}. ENTER to continue or CTRL-C A to quit"

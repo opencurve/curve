@@ -16,11 +16,12 @@
 #
 
 - name: get etcd leader
-  local_action: >
-    shell curve_ops_tool etcd-status --confPath={{ curve_ops_tool_config }} |
+  shell: >
+    curve_ops_tool etcd-status --confPath={{ curve_ops_tool_config }} |
     grep "current etcd" | awk '{print $3}' | awk -F ":" '{print $1}'
   register: result
   failed_when: result.stdout == ""
+  delegate_to: "{{ groups.mds[0] }}"
 
 - name: set etcd leader ip
   set_fact:

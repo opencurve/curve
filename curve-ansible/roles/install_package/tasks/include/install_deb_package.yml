@@ -15,7 +15,17 @@
 #  limitations under the License.
 #
 
+- name: determine if package exist
+  shell: apt policy {{ package_name }} | grep {{ package_version }}
+  ignore_errors: true
+  register: package_res
+
+- name: apt update
+  shell: sudo apt update
+  ignore_errors: true
+  when: package_res.rc!=0
+
 - name: update pkg
-  shell: sudo aptitude install -y -o Aptitude::Cmdline::ignore-trust-violations=true -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold {{ update_component }}
+  shell: sudo aptitude install -y -o Aptitude::Cmdline::ignore-trust-violations=true -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold {{ package_name }}={{ package_version }}
   register: result
   failed_when: result.rc != 0

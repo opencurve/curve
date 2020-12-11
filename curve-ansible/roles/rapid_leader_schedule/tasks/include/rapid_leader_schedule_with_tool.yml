@@ -15,8 +15,9 @@
 #  limitations under the License.
 #
 
-- name: get cluster healthy status
-  shell: curve_ops_tool status --confPath={{ curve_ops_tool_config }} | grep "cluster is"
-  register: result
-  failed_when: result.stdout != defined_healthy_status
-  delegate_to: "{{ groups.mds[0] }}"
+- name: rapid leader schedule with curve_ops_tool
+  shell: >
+    curve_ops_tool rapid-leader-schedule && 
+    if (({{ rapid_leader_schedule_times }}>1 && {{ item }}=={{ rapid_leader_schedule_times }}));
+    then sleep {{ rapid_leader_schedule_times }}; fi
+  with_sequence: start=1 end={{ rapid_leader_schedule_times }}
