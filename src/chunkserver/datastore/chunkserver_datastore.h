@@ -49,10 +49,10 @@ using CSChunkFilePtr = std::shared_ptr<CSChunkFile>;
 inline void TrivialDeleter(void* ptr) {}
 
 /**
- * DataStore的配置参数
- * baseDir:DataStore管理的目录路径
- * chunkSize:DataStore中chunk文件或快照文件的大小
- * pageSize:最小读写单元的大小
+ * DataStore configuration parameters
+ * baseDir: Directory path managed by DataStore
+ * chunkSize: The size of the chunk file or snapshot file in the DataStore
+ * pageSize: the size of the smallest read-write unit
  */
 struct DataStoreOptions {
     std::string                         baseDir;
@@ -62,10 +62,10 @@ struct DataStoreOptions {
 };
 
 /**
- * DataStore的内部状态,用于返回给上层
- * chunkFileCount:DataStore中chunk的数量
- * snapshotCount:DataStore中快照的数量
- * cloneChunkCount:clone chunk的数量
+ * The internal state of the DataStore, used to return to the upper layer
+ * chunkFileCount: the number of chunks in the DataStore
+ * snapshotCount: the number of snapshots in the DataStore
+ * cloneChunkCount: the number of clone chunks
  */
 struct DataStoreStatus {
     uint32_t chunkFileCount;
@@ -77,10 +77,10 @@ struct DataStoreStatus {
 };
 
 /**
- * DataStore的内部状态信息
- * chunkFileCount:DataStore中chunk的数量
- * snapshotCount:DataStore中快照的数量
- * cloneChunkCount:clone chunk的数量
+ * Internal status information of DataStore
+ * chunkFileCount: the number of chunks in the DataStore
+ * snapshotCount: the number of snapshots in the DataStore
+ * cloneChunkCount: the number of clone chunks
  */
 struct DataStoreMetric {
     bvar::Adder<uint32_t> chunkFileCount;
@@ -90,7 +90,8 @@ struct DataStoreMetric {
 using DataStoreMetricPtr = std::shared_ptr<DataStoreMetric>;
 
 using ChunkMap = std::unordered_map<ChunkID, CSChunkFilePtr>;
-// 为chunkid到chunkfile的映射，使用读写锁对map的操作进行保护
+// For the mapping from chunkid to chunkfile,
+// use read-write lock to protect the map operation
 class CSMetaCache {
  public:
     CSMetaCache() {}
@@ -111,7 +112,8 @@ class CSMetaCache {
 
     CSChunkFilePtr Set(ChunkID id, CSChunkFilePtr chunkFile) {
         WriteLockGuard writeGuard(rwLock_);
-        // 当两个写请求并发去创建chunk文件时，返回先Set的chunkFile
+       // When two write requests are concurrently created to create a chunk
+       // file, return the first set chunkFile
         if (chunkMap_.find(id) == chunkMap_.end()) {
             chunkMap_[id] = chunkFile;
         }
@@ -145,36 +147,40 @@ class CSDataStore {
                 const DataStoreOptions& options);
     virtual ~CSDataStore();
     /**
-     * copyset初始化时调用
-     * 初始化时遍历当前copyset目录下的所有文件，读取metapage加载到metacache
-     * @return：成功返回true，失败返回false
+     * Called when copyset is initialized
+     * During initialization, all files in the current copyset directory are
+     * traversed, metapage is read and loaded into metacache
+     * @return: return true on success, false on failure
      */
     virtual bool Initialize();
     /**
-     * 删除当前chunk文件
-     * @param id：要删除的chunk的id
-     * @param sn：用于记录trace，如果sn<chunk的sn，则不允许删除
-     * @return：返回错误码
+     * Delete the current chunk file
+     * @param id: the id of the chunk to be deleted
+     * @param sn: used to record trace, if sn<chunk sn, delete is not allowed
+     * @return: return error code
      */
     virtual CSErrorCode DeleteChunk(ChunkID id, SequenceNum sn);
     /**
-     * 删除此次转储时产生的或者历史遗留的快照
-     * 如果转储过程中没有产生快照，则修改chunk的correctedSn
-     * @param id：要删除的快照的chunk id
-     * @param correctedSn：需要修正的版本号
-     * 快照不存在的情况下，需要修改chunk的correctedSn为此参数值
-     * @return：返回错误码
+     * Delete snapshots generated during this dump or before
+     * If no snapshot is generated during the dump, modify the correctedSn
+     * of the chunk
+     * @param id: the chunk id of the snapshot to be deleted
+     * @param correctedSn: the sequence number that needs to be corrected
+     * If the snapshot does not exist, you need to modify the correctedSn
+     * of the chunk to this parameter value
+     * @return: return error code
      */
     virtual CSErrorCode DeleteSnapshotChunkOrCorrectSn(
         ChunkID id, SequenceNum correctedSn);
     /**
-     * 读当前chunk的内容
-     * @param id：要读取的chunk id
-     * @param sn：用于记录trace，实际逻辑处理用不到，表示当前用户文件的版本号
-     * @param buf：读取到的数据内容
-     * @param offset：请求读取的数据在chunk中的逻辑偏移
-     * @param length：请求读取的数据长度
-     * @return：返回错误码
+     * Read the contents of the current chunk
+     * @param id: the chunk id to be read
+     * @param sn: used to record trace, not used in actual logic processing,
+     *             indicating the sequence number of the current user file
+     * @param buf: the content of the data read
+     * @param offset: the logical offset of the data requested to be read in the chunk
+     * @param length: the length of the data requested to be read
+     * @return: return error code
      */
     virtual CSErrorCode ReadChunk(ChunkID id,
                                   SequenceNum sn,
@@ -182,13 +188,15 @@ class CSDataStore {
                                   off_t offset,
                                   size_t length);
     /**
-     * 读指定版本的数据，可能读当前chunk文件，也有可能读快照文件
-     * @param id：要读取的chunk id
-     * @param sn：要读取得chunk的版本号
-     * @param buf：读取到的数据内容
-     * @param offset：请求读取的数据在chunk中的逻辑偏移
-     * @param length：请求读取的数据长度
-     * @return：返回错误码
+     * Read the data of the specified sequence, it may read the current
+     * chunk file, or it may read the snapshot file
+     * @param id: the chunk id to be read
+     * @param sn: the sequence number of the chunk to be read
+     * @param buf: the content of the data read
+     * @param offset: the logical offset of the data requested
+     *                to be read in the chunk
+     * @param length: the length of the data requested to be read
+     * @return: return error code
      */
     virtual CSErrorCode ReadSnapshotChunk(ChunkID id,
                                           SequenceNum sn,
@@ -196,15 +204,16 @@ class CSDataStore {
                                           off_t offset,
                                           size_t length);
     /**
-     * 写数据
-     * @param id：要写入的chunk id
-     * @param sn：当前写请求发出时用户文件的版本号
-     * @param buf：要写入的数据内容
-     * @param offset：请求写入的偏移地址
-     * @param length：请求写入的数据长度
-     * @param cost：实际产生的IO次数，用于QOS控制
-     * @param cloneSource：表示从curvefs clone的地址
-     * @return：返回错误码
+     * Write data
+     * @param id: the chunk id to be written
+     * @param sn: The sequence number of the user file when the current
+     *            write request is issued
+     * @param buf: the content of the data to be written
+     * @param offset: the offset address requested to write
+     * @param length: the length of the data requested to be written
+     * @param cost: the actual number of IOs generated, used for QOS control
+     * @param cloneSource: indicates the address of the clone from curvefs
+     * @return: return error code
      */
     virtual CSErrorCode WriteChunk(ChunkID id,
                                 SequenceNum sn,
@@ -227,15 +236,18 @@ class CSDataStore {
     }
 
     /**
-     * 创建克隆的Chunk，chunk中记录数据源位置信息
-     * 该接口需要保证幂等性，重复以相同参数进行创建返回成功
-     * 如果Chunk已存在，且Chunk的信息与参数不符，则返回失败
-     * @param id：要创建的chunk id
-     * @param sn：要创建的chunk的版本号
-     * @param correctedSn：修改chunk的correctedSn
-     * @param size：要创建的chunk大小
-     * @param location：数据源位置信息
-     * @return：返回错误码
+     * Create a cloned Chunk, record the data source location information
+     * in the chunk
+     * The interface needs to be idempotent, and repeated creation with the
+     * same parameters will return success
+     * If the Chunk already exists and the information of the Chunk does not
+     * match the parameters, it will return failure
+     * @param id: the chunk id to be created
+     * @param sn: the sequence number of the chunk to be created
+     * @param correctedSn: modify the correctedSn of the chunk
+     * @param size: the chunk size to be created
+     * @param location: data source location information
+     * @return: return error code
      */
     virtual CSErrorCode CreateCloneChunk(ChunkID id,
                                          SequenceNum sn,
@@ -243,37 +255,39 @@ class CSDataStore {
                                          ChunkSizeType size,
                                          const string& location);
     /**
-     * 将从源端拷贝的数据写到本地，不会覆盖已写入的数据区域
-     * @param id：要写入的chunk id
-     * @param buf：要写入的数据内容
-     * @param offset：请求写入的偏移地址
-     * @param length：请求写入的数据长度
-     * @return：返回错误码
+     * Write the data copied from the source to the local without overwriting
+     * the written data area
+     * @param id: the chunk id to be written
+     * @param buf: the content of the data to be written
+     * @param offset: the offset address requested to write
+     * @param length: the length of the data requested to be written
+     * @return: return error code
      */
     virtual CSErrorCode PasteChunk(ChunkID id,
                                    const char* buf,
                                    off_t offset,
                                    size_t length);
     /**
-     * 获取Chunk的详细信息
-     * @param id：请求获取的chunk的id
-     * @param chunkInfo：chunk的详细信息
+     * Get detailed information about Chunk
+     * @param id: the id of the chunk requested
+     * @param chunkInfo: detailed information about chunk
      */
     virtual CSErrorCode GetChunkInfo(ChunkID id,
                                      CSChunkInfo* chunkInfo);
 
     /**
-     * 获取Chunk的hash值
+     * Get the hash value of Chunk
      * @param id[in]: chunk id
-     * @param hash[out]: chunk hash值
-     * @return: 返回错误码
+     * @param hash[out]: chunk hash value
+     * @return: return error code
      */
     virtual CSErrorCode GetChunkHash(ChunkID id,
                                      off_t offset,
                                      size_t length,
                                      std::string* hash);
-    /** 获取DataStore的内部统计信息
-     * @return：datastore的内部统计信息
+    /**
+     * Get internal statistics of DataStore
+     * @return: internal statistics of datastore
      */
     virtual DataStoreStatus GetStatus();
 
@@ -283,21 +297,22 @@ class CSDataStore {
                                 CSChunkFilePtr* chunkFile);
 
  private:
-    // 每个chunk的大小
+    // The size of each chunk
     ChunkSizeType chunkSize_;
-    // page大小，为最小原子读写单元
+    // page size, which is the smallest atomic read and write unit
     PageSizeType pageSize_;
-    // clone chunk location长度限制
+    // clone chunk location length limit
     uint32_t locationLimit_;
-    // datastore的管理目录
+    // datastore management directory
     std::string baseDir_;
-    // 为chunkid->chunkfile的映射
+    // the mapping of chunkid->chunkfile
     CSMetaCache metaCache_;
-    // chunkfile池，依赖该池子创建回收chunk文件或快照文件
-    std::shared_ptr<FilePool>          chunkFilePool_;
-    // 本地文件系统
-    std::shared_ptr<LocalFileSystem>        lfs_;
-    // datastore的内部统计信息
+    // chunkfile pool, rely on this pool to create and recycle chunk files
+    // or snapshot files
+    std::shared_ptr<FilePool> chunkFilePool_;
+    // local file system
+    std::shared_ptr<LocalFileSystem> lfs_;
+    // internal statistics of datastore
     DataStoreMetricPtr metric_;
 };
 

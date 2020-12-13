@@ -40,12 +40,12 @@ int DatastoreFileHelper::ListFiles(const string& baseDir,
         FileNameOperator::FileInfo info =
             FileNameOperator::ParseFileName(file);
         if (info.type == FileNameOperator::FileType::CHUNK) {
-            // 如果chunkFiles为nullptr，则不返回chunk文件名
+            // If chunkFiles is nullptr, the chunk file name is not returned
             if (chunkFiles != nullptr) {
                 chunkFiles->emplace_back(file);
             }
         } else if (info.type == FileNameOperator::FileType::SNAPSHOT) {
-            // 如果snapFiles为nullptr，则不返回快照文件名
+            // If snapFiles is nullptr, the snapshot file name is not returned
             if (snapFiles != nullptr) {
                 snapFiles->emplace_back(file);
             }

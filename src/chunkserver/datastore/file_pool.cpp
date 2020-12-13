@@ -289,13 +289,17 @@ int FilePool::GetFile(const std::string& targetpath, char* metapage) {
         LOG(INFO) << "src path = " << srcpath.c_str()
                   << ", dist path = " << targetpath.c_str();
         if (rc) {
-            // 这里使用RENAME_NOREPLACE模式来rename文件当目标文件存在时，不允许被覆盖
-            // 也就是说通过FilePool创建文件需要保证目标文件不存在datastore可能存
-            // 在并发创建文件的场景通过rename一来保证文件创建的原子性，二来保证不会覆盖已
-            // 有文件
+            // Here, the RENAME_NOREPLACE mode is used to rename the file.
+            // When the target file exists, it is not allowed to be overwritten.
+            // That is to say, creating a file through FilePool needs to ensure
+            // that the target file does not exist. Datastore may have scenarios
+            // where files are created concurrently. Rename is used to ensure
+            // the atomicity of file creation, and to ensure that existing files
+            // will not be overwritten.
             ret = fsptr_->Rename(srcpath.c_str(), targetpath.c_str(),
                                  RENAME_NOREPLACE);
-            // 目标文件已存在，直接退出当前逻辑，并删除已写过的文件
+            // The target file already exists, exit the current logic directly,
+            // and delete the written file
             if (ret == -EEXIST) {
                 LOG(ERROR) << targetpath << ", already exists! src path = "
                            << srcpath;
@@ -401,7 +405,8 @@ int FilePool::RecycleFile(const std::string& chunkpath) {
             return -1;
         }
     } else {
-        // 检查该待回收的文件大小是否符合要求，不符合就直接删掉
+        // Check whether the size of the file to be recovered meets the
+        // requirements, and delete it if it does not
         uint64_t chunklen = poolOpt_.fileSize+poolOpt_.metaPageSize;
         int fd = fsptr_->Open(chunkpath.c_str(), O_RDWR);
         if (fd < 0) {

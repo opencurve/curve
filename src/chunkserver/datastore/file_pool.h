@@ -84,7 +84,7 @@ struct FilePoolOptions {
 };
 
 typedef struct FilePoolState {
-    // 预分配的chunk还有多少没有被datastore使用
+    // How many pre-allocated chunks are not used by the datastore
     uint64_t    preallocatedChunksLeft;
     // chunksize
     uint32_t    chunkSize;
@@ -100,14 +100,14 @@ class FilePoolHelper {
     static const char* kCRC;
     static const uint32_t kPersistSize;
 
-     /**
-     * 持久化chunkfile pool meta信息
-     * @param[in]: 用于持久化的文件系统
-     * @param[in]: chunkSize每个chunk的大小
-     * @param[in]: metaPageSize每个chunkfile的metapage大小
-     * @param[in]: FilePool_path是chunk池的路径
-     * @param[in]: persistPathmeta信息要持久化的路径
-     * @return: 成功0， 否则-1
+    /**
+     * Persistent chunkfile pool meta information
+     * @param[in]: File system used for persistence
+     * @param[in]: chunkSize The size of each chunk
+     * @param[in]: metaPageSize The metapage size of each chunkfile
+     * @param[in]: FilePool_path is the path of the chunk pool
+     * @param[in]: The path where persistPathmeta information is to be persisted
+     * @return: success 0, otherwise -1
      */
     static int PersistEnCodeMetaInfo(std::shared_ptr<LocalFileSystem> fsptr,
                                uint32_t fileSize,
@@ -116,14 +116,14 @@ class FilePoolHelper {
                                const std::string& persistPath);
 
     /**
-     * 从持久化的meta数据中解析出当前chunk池子的信息
-     * @param[in]: 用于持久化的文件系统
-     * @param[in]: metafile路径
-     * @param[in]: meta文件大小
-     * @param[out]: chunkSize每个chunk的大小
-     * @param[out]: metaPageSize每个chunkfile的metapage大小
-     * @param[out]: FilePool_path是chunk池的路径
-     * @return: 成功0， 否则-1
+     * Parse the current chunk pool information from the persistent meta data
+     * @param[in]: File system used for persistence
+     * @param[in]: metafile path
+     * @param[in]: meta file size
+     * @param[out]: chunkSize The size of each chunk
+     * @param[out]: metaPageSize The metapage size of each chunkfile
+     * @param[out]: FilePool_path is the path of the chunk pool
+     * @return: success 0, otherwise -1
      */
     static int DecodeMetaInfoFromMetaFile(
                                   std::shared_ptr<LocalFileSystem> fsptr,
@@ -140,42 +140,43 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
     virtual ~FilePool() = default;
 
     /**
-     * 初始化函数
-     * @param: cfop是配置选项
+     * Initialization function
+     * @param: cfop is a configuration option
      */
     virtual bool Initialize(const FilePoolOptions& cfop);
     /**
-     * datastore通过GetChunk接口获取新的chunk，GetChunk内部会将metapage原子赋值后返回。
-     * @param: chunkpath是新的chunkfile路径
-     * @param: metapage是新的chunk的metapage信息
+     * The datastore obtains a new chunk through the GetChunk interface,
+     * and GetChunk internally assigns the metapage atom and returns it.
+     * @param: chunkpath is the new chunkfile path
+     * @param: metapage is the metapage information of the new chunk
      */
     virtual int GetFile(const std::string& chunkpath, char* metapage);
     /**
-     * datastore删除chunk直接回收，不真正删除
-     * @param: chunkpath是需要回收的chunk路径
+     * Datastore deletes chunks and recycles directly, not really deleted
+     * @param: chunkpath is the chunk path that needs to be recycled
      */
     virtual int RecycleFile(const std::string& chunkpath);
     /**
-     * 获取当前chunkfile pool大小
+     * Get the current chunkfile pool size
      */
     virtual size_t Size();
     /**
-     * 获取FilePool的分配状态
+     * Get the allocation status of FilePool
      */
     virtual FilePoolState_t GetState();
     /**
-     * 获取当前FilePool的option配置信息
+     * Get the option configuration information of the current FilePool
      */
     virtual FilePoolOptions GetFilePoolOpt() {
         return poolOpt_;
     }
     /**
-     * 析构,释放资源
+     * Deconstruction, release resources
      */
     virtual void UnInitialize();
 
     /**
-     * 测试使用
+     * Test use
      */
     virtual void SetLocalFileSystem(std::shared_ptr<LocalFileSystem> fs) {
         CHECK(fs != nullptr) << "fs ptr allocate failed!";
@@ -183,44 +184,46 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
     }
 
  private:
-    // 从chunkfile pool目录中遍历预分配的chunk信息
+    // Traverse the pre-allocated chunk information from the
+    // chunkfile pool directory
     bool ScanInternal();
-    // 检查chunkfile pool预分配是否合法
+    // Check whether the chunkfile pool pre-allocation is legal
     bool CheckValid();
     /**
-     * 为新的chunkfile进行metapage赋值
-     * @param: sourcepath为要写入的文件路径
-     * @param: page为要写入的metapage信息
-     * @return: 成功返回true，否则返回false
+     * Perform metapage assignment for the new chunkfile
+     * @param: sourcepath is the file path to be written
+     * @param: page is the metapage information to be written
+     * @return: returns true if successful, otherwise false
      */
     bool WriteMetaPage(const std::string& sourcepath, char* page);
     /**
-     * 直接分配chunk，不从FilePool获取
-     * @param: chunkpath为datastore中chunk文件的路径
-     * @return: 成功返回0，否则返回小于0
+     * Directly allocate chunks, not from FilePool
+     * @param: chunkpath is the path of the chunk file in the datastore
+     * @return: return 0 if successful, otherwise return less than 0
      */
     int AllocateChunk(const std::string& chunkpath);
 
  private:
-    // 保护tmpChunkvec_
+    // Protect tmpChunkvec_
     std::mutex mtx_;
 
-    // 当前FilePool的预分配文件，文件夹路径
+    // Current FilePool pre-allocated files, folder path
     std::string currentdir_;
 
-    // chunkserver端封装的底层文件系统接口，提供操作文件的基本接口
+    // The underlying file system interface encapsulated by the chunkserver,
+    // which provides the basic interface for manipulating files
     std::shared_ptr<LocalFileSystem> fsptr_;
 
-    // 内存中持有的chunkfile pool中的文件名的数字格式
+    // The numeric format of the file name in the chunkfile pool held in memory
     std::vector<uint64_t> tmpChunkvec_;
 
-    // 当前最大的文件名数字格式
+    // The current largest file name number format
     std::atomic<uint64_t> currentmaxfilenum_;
 
-    // FilePool配置选项
+    // FilePool configuration options
     FilePoolOptions poolOpt_;
 
-    // FilePool分配状态
+    // FilePool allocation status
     FilePoolState_t currentState_;
 };
 }   // namespace chunkserver
