@@ -67,10 +67,10 @@ class FileNameOperator {
         FileInfo info;
         info.type = FileType::UNKNOWN;
 
-        // chunk文件名为 chunk_id的格式
-        // 快照文件名为 chunk_id_snap_sn 的格式
-        // 以“_”分隔文件名，解析文件信息
-        // 如果不符合上述格式，则文件类型为UNKNOWN
+        // The format of the chunk file name is chunk_id
+        // The format of snapshot file name is chunk_id_snap_sn
+        // Separate file names with "_" and parse file information
+        // If the above format is not met, the file type is UNKNOWN
         if (elements.size() == 2
             && elements[0].compare("chunk") == 0) {
             info.id = std::stoull(elements[1]);

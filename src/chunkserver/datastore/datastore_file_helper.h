@@ -40,7 +40,7 @@ using curve::fs::Ext4FileSystemImpl;
 class DatastoreFileHelper {
  public:
     DatastoreFileHelper() {
-        // 默认使用 Ext4FileSystemImpl
+        // Use Ext4FileSystemImpl by default
         fs_ = Ext4FileSystemImpl::getInstance();
     }
 
@@ -50,27 +50,31 @@ class DatastoreFileHelper {
     virtual ~DatastoreFileHelper() {}
 
     /**
-     * 用于获取指定copyset目录下的chunk文件名和快照文件名
-     * @param baseDir: copyset的数据文件所在目录
-     * @param chunkFiles[out]: 返回目录下的所有chunk文件名；可以为nullptr
-     * @param snapFiles[out]: 返回目录下的所有快照文件名；可以为nullptr
-     * @return：成功返回0，失败返回-1
+     * Used to get the chunk file name and snapshot file name in the specified
+     * copyset directory
+     * @param baseDir: The directory where the data file of the copyset is
+     *                 located
+     * @param chunkFiles[out]: Returns the names of all chunk files in the
+     *                         directory; it can be nullptr
+     * @param snapFiles[out]: Returns the names of all snapshot files in the
+     *                        directory; it can be nullptr
+     * @return: return 0 on success, return -1 on failure
      */
     int ListFiles(const string& baseDir,
                   vector<string>* chunkFiles,
                   vector<string>* snapFiles);
 
     /**
-     * 判断文件是否为chunk的snapshot文件
-     * @param fileName: 文件名
-     * @return true-是snapshot文件，false-不是snapshot文件
+     * Determine whether the file is a snapshot file of a chunk
+     * @param fileName: file name
+     * @return true-is a snapshot file, false-not a snapshot file
      */
     static bool IsSnapshotFile(const string& fileName);
 
     /**
-     * 判断文件是否为chunk文件
-     * @param fileName: 文件名
-     * @return true-是chunk文件，false-不是chunk文件
+     * Determine whether the file is a chunk file
+     * @param fileName: file name
+     * @return true-is a chunk file, false-not a chunk file
      */
     static bool IsChunkFile(const string& fileName);
 

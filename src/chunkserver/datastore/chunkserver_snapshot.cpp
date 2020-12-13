@@ -62,13 +62,14 @@ CSErrorCode SnapshotMetaPage::decode(const char* buf) {
     uint32_t crc =  ::curve::common::CRC32(buf, len);
     uint32_t recordCrc;
     memcpy(&recordCrc, buf + len, sizeof(recordCrc));
-    // 校验crc，校验失败返回错误码
+    // Verify crc, return an error code if the verification fails
     if (crc != recordCrc) {
         LOG(ERROR) << "Checking Crc32 failed.";
         return CSErrorCode::CrcCheckError;
     }
 
-    // TODO(yyk) 判断版本兼容性，当前简单处理，后续详细实现
+    // TODO(yyk) judge version compatibility, simple processing at present,
+    // detailed implementation later
     if (version != FORMAT_VERSION) {
         LOG(ERROR) << "File format version incompatible."
                     << "file version: "
@@ -137,9 +138,11 @@ CSSnapshot::~CSSnapshot() {
 
 CSErrorCode CSSnapshot::Open(bool createFile) {
     string snapshotPath = path();
-    // 创建新文件,如果快照文件已经存在则不用再创建
-    // 快照文件存在可能由以下情况引起:
-    // getchunk成功，但是后面stat或者loadmetapage时失败，下载再open的时候；
+    // Create a new file, if the snapshot file already exists,
+    // no need to create it
+    // The existence of snapshot files may be caused by the following conditions
+    // getchunk succeeded, but failed later in stat or loadmetapage,
+    // when the download is opened again;
     if (createFile
         && !lfs_->FileExists(snapshotPath)
         && metaPage_.sn > 0) {
@@ -177,7 +180,7 @@ CSErrorCode CSSnapshot::Open(bool createFile) {
 }
 
 CSErrorCode CSSnapshot::Read(char * buf, off_t offset, size_t length) {
-    // TODO(yyk) 是否需要对比偏移对应bit状态
+    // TODO(yyk) Do you need to compare the bit state of the offset?
     int rc = readData(buf, offset, length);
     if (rc < 0) {
         LOG(ERROR) << "Error occured when reading snapshot."

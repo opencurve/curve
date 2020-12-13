@@ -57,13 +57,13 @@ struct DataStoreMetric;
  * padding: (4096 - 18 - (bits + 8 - 1) / 8) bytes
  */
 struct SnapshotMetaPage {
-    // 文件格式版本号
+    // File format version number
     uint8_t version;
-    // 表示当前快照是否已损坏
+    // Indicates whether the current snapshot is damaged
     bool damaged;
-    // 快照版本号
+    // Snapshot sequence number
     SequenceNum sn;
-    // 表示当前快照page状态的位图表
+    // bitmap  representing the current snapshot page status
     std::shared_ptr<Bitmap> bitmap;
 
     SnapshotMetaPage() : version(FORMAT_VERSION)
@@ -83,59 +83,65 @@ class CSSnapshot {
                const ChunkOptions& options);
     virtual ~CSSnapshot();
     /**
-     * open快照文件，启动加载快照文件或者新建快照文件时调用
-     * @param createFile：true表示创建新文件，false则不创建文件
-     * @return: 返回错误码
+     * open snapshot file, called when starting to load snapshot file or create
+     * new snapshot file
+     * @param createFile: true means to create a new file,
+     *                    false to not create a file
+     * @return: return error code
      */
     CSErrorCode Open(bool createFile);
     /**
-     * 将数据写入快照文件，数据写完后不立即更新bitmap，
-     * 需要通过调用Flush来更新
-     * @param buf: 请求写入的数据
-     * @param offset: 请求写入的其实偏移
-     * @param length: 请求写入的数据长度
-     * @return: 返回错误码
+     * Write the data into the snapshot file, the bitmap will not be updated
+     * immediately after the data is written,
+     * Need to be updated by calling Flush
+     * @param buf: data requested to be written
+     * @param offset: The actual offset requested to be written
+     * @param length: The length of the data requested to be written
+     * @return: return error code
      */
     CSErrorCode Write(const char * buf, off_t offset, size_t length);
     /**
-     * 读快照数据，根据bitmap来判断是否要从chunk文件中读数据
-     * @param buf: 读到的快照数据
-     * @param offset: 请求读取的起始偏移
-     * @param length: 请求读取的数据长度
-     * @return: 返回错误码
+     * Read the snapshot data, according to the bitmap to determine whether to read the data from the chunk file
+     * @param buf: Snapshot data read
+     * @param offset: the starting offset of the request to read
+     * @param length: The length of the data requested to be read
+     * @return: return error code
      */
     CSErrorCode Read(char * buf, off_t offset, size_t length);
     /**
-     * 删除快照文件
-     * @return: 返回错误码
+     * Delete snapshot files
+     * @return: return error code
      */
     CSErrorCode Delete();
     /**
-     * 将快照的metapage写到pagecache中，并将快照加到sync队列
-     * @return: 成功返回0，失败返回错误码，错误码为负数
+     * Write the metapage of the snapshot to pagecache, and add the
+     * snapshot to the sync queue
+     * @return: Returns 0 if successful, returns an error code on failure,
+     * and the error code is a negative number
      */
     CSErrorCode Flush();
     /**
-     * 获取快照版本号
-     * @return: 返回快照版本号
+     * Get the snapshot sequence number
+     * @return: Return the snapshot sequence number
      */
     SequenceNum GetSn() const;
     /**
-     * 获取表示快照文件的page状态的位图表
-     * @return: 返回位图表
+     * Get a bitmap representing the page status of the snapshot file
+     * @return: return bitmap
      */
     std::shared_ptr<const Bitmap> GetPageStatus() const;
 
  private:
     /**
-     * 将metapage持久化
-     * @param metaPage:需要持久化到磁盘的metapage,
-     *                 如果成功持久化，会更改当前内存的metapage
-     *                 如果失败，则不会更改
+     * Persist metapage
+     * @param metaPage: the metapage that needs to be persisted to disk,
+     * If it is successfully persisted, the metapage of the current memory
+     * will be changed
+     * If it fails, it will not be changed
      */
     CSErrorCode updateMetaPage(SnapshotMetaPage* metaPage);
     /**
-     * 将metapage加载到内存
+     * Load metapage into memory
      */
     CSErrorCode loadMetaPage();
 
@@ -165,25 +171,27 @@ class CSSnapshot {
     }
 
  private:
-    // 快照文件资源描述符
+    // Snapshot file descriptor
     int fd_;
-    // 快照所属chunk的id
+    // The id of the chunk to which the snapshot belongs
     ChunkID chunkId_;
-    // 快照文件逻辑大小，不包括metapage
+    // Logical size of the snapshot file, excluding metapage
     ChunkSizeType size_;
-    // 最小原子读写单元,同时也是metapage的大小
+    // The smallest atomic read and write unit, which is also the size of
+    // the metapage
     PageSizeType pageSize_;
-    // 快照文件所在目录
+    // The directory where the snapshot file is located
     std::string baseDir_;
-    // 快照文件的metapage
+    // The metapage of the snapshot file
     SnapshotMetaPage metaPage_;
-    // 被写过但还未更新到metapage中的page索引
+    // page index has been written but has not yet been updated to the in
+    // the metapage
     std::set<uint32_t> dirtyPages_;
-    // 依赖本地文件系统操作文件
+    // Rely on the local file system to manipulate files
     std::shared_ptr<LocalFileSystem> lfs_;
-    // 依赖FilePool创建删除文件
+    // Rely on FilePool to create and delete files
     std::shared_ptr<FilePool> chunkFilePool_;
-    // datastore内部统计指标
+    // datastore internal statistical indicators
     std::shared_ptr<DataStoreMetric> metric_;
 };
 
