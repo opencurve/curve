@@ -19,6 +19,62 @@ function usage() {
     echo "  ./umount_curve_clouddisk.sh --filename curvefile --user k8s //use specify OPTIONS"
 }
 
+function umount() {
+    sudo umount $nbddevice
+    hasmount=$(df -T | grep ${nbddevice})
+    if [ "$hasmount" ]
+    then
+        echo "ERROR: umount nbddevice failed!"
+        exit
+    else
+        echo "umount nbddevice success"
+    fi
+}
+
+function unmap() {
+    sudo curve-nbd unmap $nbddevice
+    cnt=$(ps -ef | grep -E "curve-nbd map cbd:pool/${filepath}" | grep -v grep | wc -l)
+    while [ ! "$cnt" -eq 0 ]
+    do
+        sleep 0.5
+        cnt=$(ps -ef | grep -E "curve-nbd map cbd:pool/${filepath}" | grep -v grep | wc -l)
+    done
+
+    nbddevice=$(sudo curve-nbd list-mapped | grep ${filepath} | cut -d " " -f 3)
+    if [ "$nbddevice" ]
+    then
+        echo "ERROR: unmap nbddevice failed!"
+        exit
+    else
+        echo "unmap nbddevice success"
+    fi
+}
+
+function delvolume() {
+    read -r -p "Delete curvevolume filename=${filepath}, user=${user}. Are You Sure? [Y/n] " input
+    case $input in
+        [yY][eE][sS]|[yY])
+            sudo curve delete --filename $filepath --user $user
+            curvevolume=$(sudo curve list --user ${user} --dirname /${user} | grep -E "^${filename}$")
+            vexist=$(sudo curve list --user root --dirname / --password root_password | grep -E "^${filename}$")
+            if [ "$curvevolume" -o "$vexist" ]
+            then
+                echo "ERROR: delete curve volume failed!"
+                exit
+            else
+                echo "delete curve volume success"
+            fi
+            ;;
+        [nN][oO]|[nN])
+            exit 1
+            ;;
+        *)
+        echo "Invalid input..."
+        exit 1
+        ;;
+    esac
+}
+
 function run() {
     # check required OPTIONS
     if [ ! "$filename" -o ! "$user" ]
@@ -28,56 +84,42 @@ function run() {
         exit
     fi
 
-    curvevolume=$(sudo curve_ops_tool list --fileName=/ | grep ${filename})
-    nbddevice=$(sudo curve-nbd list-mapped | grep ${filename} | cut -d " " -f 3)
-    hasmount=$(df -T | grep ${nbddevice})
-
-    if [ "$hasmount" ]
+    curvevolume=$(sudo curve list --user ${user} --dirname /${user} | grep -E "^${filename}$")
+    vexist=$(sudo curve list --user root --dirname / --password root_password | grep -E "^${filename}$")
+    if [ ! "$curvevolume" -a ! "$vexist" ]
     then
-        sudo umount $nbddevice
-        hasmount=$(df -T | grep ${nbddevice})
-        if [ "$hasmount" ]
+        echo "clean success"
+        exit
+    elif [ "$curvevolume" -a "$vexist" ]
+    then
+        echo "ERROR: volume: ${filename} exist both in root dir and /${user} dir"
+        exit
+    else
+        if [ "$vexist" ]
         then
-            echo "ERROR: umount nbddevice failed!"
+            filepath=/${filename}
         else
-            echo "umount nbddevice success"
+            filepath=/${user}/${filename}
         fi
-    fi
 
-    if [ "$nbddevice" ]
-    then
-        sudo curve-nbd unmap $nbddevice
-        nbddevice=$(sudo curve-nbd list-mapped | grep ${filename} | cut -d " " -f 3)
-        if [ "$nbddevice" ]
+        nbddevice=$(sudo curve-nbd list-mapped | grep ${filepath} | cut -d " " -f 3)
+        if [ ! "$nbddevice" ]
         then
-            echo "ERROR: unmap nbddevice failed!"
+            delvolume
         else
-            echo "unmap nbddevice success"
+            hasmount=$(df -T | grep ${nbddevice})
+            if [ ! "$hasmount" ]
+            then
+                unmap
+                delvolume
+                echo "clean success"
+            else
+                umount
+                unmap
+                delvolume
+                echo "clean success"
+            fi
         fi
-    fi
-
-    if [ "$curvevolume" ]
-    then
-        read -r -p "Delete curvevolume filename=${filename}, user=${user}. Are You Sure? [Y/n] " input
-        case $input in
-            [yY][eE][sS]|[yY])
-                sudo curve delete --filename /$filename --user $user
-                curvevolume=$(sudo curve_ops_tool list --fileName=/ | grep ${filename})
-                if [ "$curvevolume" ]
-                then
-                    echo "ERROR: delete curve volume failed!"
-                else
-                    echo "delete curve volume success"
-                fi
-                ;;
-            [nN][oO]|[nN])
-                exit 1
-                ;;
-            *)
-            echo "Invalid input..."
-            exit 1
-            ;;
-        esac
     fi
 }
 
