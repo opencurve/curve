@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -e
+
+mkdir -p /var/lib/nebd/lock
+mkdir -p /var/log/nebd/client
+mkdir -p /var/log/nebd/server
+mkdir -p /var/log/curve
+
+chown -R root:root /var/log/curve
+chmod -R 777 /var/log/curve
+
+exit 0
