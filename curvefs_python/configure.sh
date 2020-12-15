@@ -30,6 +30,32 @@ cd $curve_path/curvefs_python/
 echo "Prepare bazel build file"
 cp BUILD_bak BUILD -f
 
+usage() {
+    echo "Usage: ./configure.sh [python2|python3]"
+}
+
+PYTHON_VER=python2
+
+if [ $# -ge 1 ]; then
+    PYTHON_VER=$1
+fi
+
+echo "${PYTHON_VER}"
+
+if [ "${PYTHON_VER}" = "python2" ] || [ "${PYTHON_VER}" = "python3" ]; then
+    PYTHON_H_DIR=`find /usr/include/ -name "${PYTHON_VER}*" | grep "/usr/include/${PYTHON_VER}*" | head -n1`
+else
+    usage
+    exit 1
+fi
+
+if [ -z $PYTHON_H_DIR ] || [ ! -f $PYTHON_H_DIR/Python.h ]; then
+    echo "Not found include path for Python.h"
+    exit 1
+fi
+
+sed -i "s%PYTHON_H_DIR%${PYTHON_H_DIR}%g" ${PWD}/BUILD
+
 echo "copy libs to tmplib directory"
 libs=`cat BUILD | tr -d "[:blank:]" | grep "^\"-l" | sed 's/[",]//g' | awk '{ print substr($0, 3) }'`
 
