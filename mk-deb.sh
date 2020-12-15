@@ -54,6 +54,67 @@ fi
 
 curve_version=${tag_version}+${commit_id}${debug}
 
+function create_python_wheel() {
+    PYTHON_VER=$(basename $1)
+    curdir=$(pwd)
+    basedir="build/curvefs_${PYTHON_VER}/"
+
+    mkdir -p ${basedir}/tmplib
+    mkdir -p ${basedir}/curvefs
+
+    cp ./curvefs_python/tmplib/* ${basedir}/tmplib
+    cp ./curvefs_python/setup.py ${basedir}/setup.py
+    cp ./curvefs_python/__init__.py ${basedir}/curvefs
+    cp ./curvefs_python/curvefs.py ${basedir}/curvefs
+    cp ./bazel-bin/curvefs_python/libcurvefs.so ${basedir}/curvefs/_curvefs.so
+
+    cd ${basedir}
+    sed -i "s/version-anchor/${curve_version}/g" setup.py
+
+    deps=$(ldd curvefs/_curvefs.so | awk '{ print $1 }' | sed '/^$/d')
+    for i in $(find tmplib/ -name "lib*so"); do
+        basename=$(basename $i)
+        if [[ $deps =~ $basename ]]; then
+            echo $i
+            cp $i curvefs
+        fi
+    done
+
+    ${1} setup.py bdist_wheel
+    cp dist/*whl ${curdir}
+
+    cd ${curdir}
+}
+
+function build_curvefs_python() {
+    for bin in "/usr/bin/python2" "/usr/bin/python3"; do
+        if [ ! -f ${bin} ]; then
+            echo "${bin} not exist"
+            continue
+        fi
+
+        rm curvefs_python/BUILD
+        rm -rf curvefs_python/tmplib
+        rm -rf ./bazel-bin/curvefs_python
+
+        bash ./curvefs_python/configure.sh $(basename ${bin})
+
+        if [ "$1" = "release" ]; then
+            bazel build curvefs_python:curvefs --copt -DHAVE_ZLIB=1 --copt -O2 -s \
+                --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
+                --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
+                -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version}
+        else
+            bazel build curvefs_python:curvefs --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s \
+                --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
+                --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
+                -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version}
+        fi
+
+        create_python_wheel ${bin}
+    done
+}
+
 #step3 执行编译
 bazel_version=`bazel version | grep "Build label" | awk '{print $3}'`
 if [ -z ${bazel_version} ]
@@ -114,7 +175,7 @@ then
     echo "build phase1 failed"
     exit
 fi
-bash ./curvefs_python/configure.sh
+bash ./curvefs_python/configure.sh python2
 if [ $? -ne 0 ]
 then
     echo "configure failed"
@@ -139,7 +200,7 @@ then
     echo "build phase1 failed"
     exit
 fi
-bash ./curvefs_python/configure.sh
+bash ./curvefs_python/configure.sh python2
 if [ $? -ne 0 ]
 then
     echo "configure failed"
@@ -503,29 +564,7 @@ dpkg-deb -b build/k8s-nbd-package .
 #step6 清理libetcdclient.so编译出现的临时文件
 cd ${dir}/thirdparties/etcdclient
 make clean
-
-# step7 打包python whell
 cd ${dir}
-cp curve-sdk*deb build/
-cd build/
-dpkg-deb -X curve-sdk*deb python-wheel
-cp ${dir}/curvefs_python/setup.py python-wheel/usr
-cd python-wheel/usr
 
-# 复制依赖的so文件到curvefs
-deps=`ldd curvefs/_curvefs.so | awk '{ print $1 }' | sed '/^$/d'`
-for i in `find lib/ -name "lib*so"`
-do
-    basename=$(basename $i)
-    if [[ $deps =~ $basename ]]
-    then
-        echo $i
-        cp $i curvefs
-    fi
-done
-
-# 替换curvefs setup.py中的版本号
-sed -i "s/version-anchor/${curve_version}/g" setup.py
-
-python2 setup.py bdist_wheel
-cp dist/*whl $dir
+# step7 打包python wheel
+build_curvefs_python $1

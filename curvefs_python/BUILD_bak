@@ -33,6 +33,7 @@ COPTS = [
     "-Wnon-virtual-dtor",
     "-Wno-missing-field-initializers",
     "-std=c++11",
+    "-I PYTHON_H_DIR",
 ]
 
 cc_library(

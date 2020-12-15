@@ -183,10 +183,10 @@ template <typename T> T SwigValueInit() {
 #if defined(_DEBUG) && defined(SWIG_PYTHON_INTERPRETER_NO_DEBUG)
 /* Use debug wrappers with the Python release dll */
 # undef _DEBUG
-# include <python2.7/Python.h>
+# include <Python.h>
 # define _DEBUG
 #else
-# include <python2.7/Python.h>
+# include <Python.h>
 #endif
 
 /* -----------------------------------------------------------------------------
