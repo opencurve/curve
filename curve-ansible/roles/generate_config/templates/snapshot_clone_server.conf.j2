@@ -64,6 +64,10 @@ server.cloneTempDir={{ snap_clone_temp_dir }}
 server.createCloneChunkConcurrency={{ snap_create_clone_chunk_concurrency }}
 # RecoverChunk同时进行的异步请求数量
 server.recoverChunkConcurrency={{ snap_recover_chunk_concurrency }}
+# CloneServiceManager引用计数后台扫描每条记录间隔
+server.backEndReferenceRecordScanIntervalMs={{ snap_clone_backend_ref_record_scan_interval_ms }}
+# CloneServiceManager引用计数后台扫描每轮记录间隔
+server.backEndReferenceFuncScanIntervalMs={{ snap_clone_backend_ref_func_scan_interval_ms }}
 
 #
 # etcd相关配置

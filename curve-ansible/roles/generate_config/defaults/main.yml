@@ -156,6 +156,9 @@ snap_clone_chunk_split_size: 65536
 snap_clone_temp_dir: /clone
 snap_create_clone_chunk_concurrency: 64
 snap_recover_chunk_concurrency: 64
+snap_clone_backend_ref_record_scan_interval_ms: 500
+snap_clone_backend_ref_func_scan_interval_ms: 3600000
+
 snap_etcd_dailtimeout_ms: 5000
 snap_etcd_operation_timeout_ms: 5000
 snap_etcd_retry_times: 3
