@@ -1,5 +1,8 @@
 [English version](README_en.md)
 
+
+<img src="docs/images/curve-logo1.png"/>
+
 # CURVE
 
 [![Jenkins Coverage](https://img.shields.io/jenkins/coverage/cobertura?jobUrl=http%3A%2F%2F59.111.93.165%3A8080%2Fjob%2Fcurve_untest_job%2F)](http://59.111.93.165:8080/job/curve_untest_job/HTML_20Report/)
