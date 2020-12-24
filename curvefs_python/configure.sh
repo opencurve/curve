@@ -21,18 +21,13 @@ echo "***********Prepare for curvefs python API build env.****************"
 echo "********************************************************************"
 echo "First of all, you must build curve all. Then you can run this script."
 
-curve_path=$PWD
-
-echo "curve workspace path is $curve_path"
-
-cd $curve_path/curvefs_python/
-
-echo "Prepare bazel build file"
-cp BUILD_bak BUILD -f
-
 usage() {
     echo "Usage: ./configure.sh [python2|python3]"
 }
+
+curve_path=$PWD
+
+echo "curve workspace path is $curve_path"
 
 PYTHON_VER=python2
 
@@ -40,7 +35,7 @@ if [ $# -ge 1 ]; then
     PYTHON_VER=$1
 fi
 
-echo "${PYTHON_VER}"
+echo "configure for ${PYTHON_VER}"
 
 if [ "${PYTHON_VER}" = "python2" ] || [ "${PYTHON_VER}" = "python3" ]; then
     PYTHON_H_DIR=`find /usr/include/ -name "${PYTHON_VER}*" | grep "/usr/include/${PYTHON_VER}*" | head -n1`
@@ -54,11 +49,17 @@ if [ -z $PYTHON_H_DIR ] || [ ! -f $PYTHON_H_DIR/Python.h ]; then
     exit 1
 fi
 
+cd $curve_path/curvefs_python/
+
+echo "Prepare bazel build file"
+cp BUILD_bak BUILD -f
+
 sed -i "s%PYTHON_H_DIR%${PYTHON_H_DIR}%g" ${PWD}/BUILD
 
 echo "copy libs to tmplib directory"
 libs=`cat BUILD | tr -d "[:blank:]" | grep "^\"-l" | sed 's/[",]//g' | awk '{ print substr($0, 3) }'`
 
+rm -rf tmplib
 mkdir tmplib
 for i in `find $curve_path/bazel-bin/|grep -w so|grep -v solib|grep -v params`
   do
@@ -73,3 +74,4 @@ for i in `find $curve_path/bazel-bin/|grep -w so|grep -v solib|grep -v params`
 
 echo "Prepare env done, you can build curvefs now."
 echo "Plesae add --linkopt -L/path/to/tmplib to bazel build command line."
+

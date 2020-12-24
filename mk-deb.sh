@@ -87,17 +87,20 @@ function create_python_wheel() {
 }
 
 function build_curvefs_python() {
-    for bin in "/usr/bin/python2" "/usr/bin/python3"; do
+    for bin in "/usr/bin/python3" "/usr/bin/python2"; do
         if [ ! -f ${bin} ]; then
             echo "${bin} not exist"
             continue
         fi
 
-        rm curvefs_python/BUILD
-        rm -rf curvefs_python/tmplib
-        rm -rf ./bazel-bin/curvefs_python
-
         bash ./curvefs_python/configure.sh $(basename ${bin})
+
+        if [ $? -ne 0 ]; then
+            echo "configure for ${bin} failed"
+            continue
+        fi
+
+        rm -rf ./bazel-bin/curvefs_python
 
         if [ "$1" = "release" ]; then
             bazel build curvefs_python:curvefs --copt -DHAVE_ZLIB=1 --copt -O2 -s \
@@ -568,3 +571,4 @@ cd ${dir}
 
 # step7 打包python wheel
 build_curvefs_python $1
+
