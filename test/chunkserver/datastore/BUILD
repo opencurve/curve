@@ -53,7 +53,6 @@ cc_test(
     copts = ["-std=c++11"],
     deps = [
         "@com_google_googletest//:gtest",
-        "//external:braft",
         "//external:gflags",
         "//include:include-common",
         "//include/chunkserver:include-chunkserver",
