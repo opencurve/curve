@@ -424,11 +424,11 @@ void IOTracker::Done() {
         MetricHelper::IncremUserEPSCount(fileMetric_, type_);
         if (type_ == OpType::READ || type_ == OpType::WRITE) {
             LOG(ERROR) << "file [" << fileMetric_->filename << "]"
-                    << ", IO Error, OpType = " << static_cast<int>(type_)
+                    << ", IO Error, OpType = " << OpTypeToString(type_)
                     << ", offset = " << offset_
                     << ", length = " << length_;
         } else {
-            LOG(ERROR) << ", IO Error, OpType = " << static_cast<int>(type_);
+            LOG(ERROR) << "IO Error, OpType = " << OpTypeToString(type_);
         }
     }
 
