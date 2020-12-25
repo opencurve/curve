@@ -227,6 +227,7 @@ class UnstableCSModuleException : public ::testing::Test {
         UnInit();
         ASSERT_EQ(0, cluster->StopCluster());
         // 清理文件夹
+        system("rm -rf module_exception_curve_unstable_cs.etcd");
         system("rm -rf module_exception_curve_unstable_cs");
         system("rm -rf ttt");
     }

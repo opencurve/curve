@@ -20,26 +20,29 @@
  * Author: lixiaocui
  */
 
-#include <gtest/gtest.h>
-#include <memory>
 #include "src/chunkserver/trash.h"
-#include "test/fs/mock_local_filesystem.h"
-#include "test/chunkserver/datastore/mock_file_pool.h"
+
+#include <gtest/gtest.h>
+
+#include <memory>
+
 #include "src/chunkserver/copyset_node.h"
+#include "test/chunkserver/datastore/mock_file_pool.h"
+#include "test/fs/mock_local_filesystem.h"
 
 using ::testing::_;
+using ::testing::DoAll;
+using ::testing::ElementsAre;
 using ::testing::Ge;
 using ::testing::Gt;
-using ::testing::Return;
-using ::testing::NotNull;
 using ::testing::Mock;
-using ::testing::Truly;
-using ::testing::DoAll;
+using ::testing::NotNull;
+using ::testing::Return;
 using ::testing::ReturnArg;
-using ::testing::ElementsAre;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
+using ::testing::Truly;
 
 using curve::fs::MockLocalFileSystem;
 
@@ -54,13 +57,14 @@ class TrashTest : public ::testing::Test {
         ops.localFileSystem = lfs;
         ops.chunkFilePool = pool;
         ops.walPool = walPool;
-        ops.trashPath = "local://./0/trash";
+        ops.trashPath = "local://./runlog/trash_test0/trash";
         ops.expiredAfterSec = 1;
         ops.scanPeriodSec = 1;
 
         trash = std::make_shared<Trash>();
 
-        EXPECT_CALL(*lfs, List("./0/trash", _)).WillOnce(Return(0));
+        EXPECT_CALL(*lfs, List("./runlog/trash_test0/trash", _))
+            .WillOnce(Return(0));
         trash->Init(ops);
         ASSERT_EQ(0, trash->GetChunkNum());
     }
@@ -71,16 +75,17 @@ class TrashTest : public ::testing::Test {
         EXPECT_CALL(*lfs, Mkdir(_)).WillRepeatedly(Return(0));
         EXPECT_CALL(*lfs, Rename(_, _, 0)).WillRepeatedly(Return(0));
         for (int i = 0; i < 50; i++) {
-            ASSERT_EQ(0, trash->RecycleCopySet("./0/copysets/12345678"));
+            ASSERT_EQ(0, trash->RecycleCopySet(
+                             "./runlog/trash_test0/copysets/12345678"));
         }
     }
 
     void CleanFiles() {
         std::vector<std::string> files{"12345678"};
-        std::string trashPath = "./0/trash";
-        std::string copysetDir = "./0/trash/12345678";
-        std::vector<std::string> raftfiles{RAFT_LOG_DIR,
-            RAFT_SNAP_DIR, RAFT_META_DIR, RAFT_DATA_DIR, "hello"};
+        std::string trashPath = "./runlog/trash_test0/trash";
+        std::string copysetDir = "./runlog/trash_test0/trash/12345678";
+        std::vector<std::string> raftfiles{
+            RAFT_LOG_DIR, RAFT_SNAP_DIR, RAFT_META_DIR, RAFT_DATA_DIR, "hello"};
         std::string log = copysetDir + RAFT_LOG_DIR;
         std::string snap = copysetDir + RAFT_SNAP_DIR;
         std::string meta = copysetDir + RAFT_META_DIR;
@@ -90,9 +95,9 @@ class TrashTest : public ::testing::Test {
         std::string chunks2 = data + chunks[1];
         EXPECT_CALL(*lfs, DirExists(trashPath)).WillRepeatedly(Return(true));
         EXPECT_CALL(*lfs, List(trashPath, _))
-                .WillRepeatedly(DoAll(SetArgPointee<1>(files), Return(0)));
+            .WillRepeatedly(DoAll(SetArgPointee<1>(files), Return(0)));
         EXPECT_CALL(*lfs, List(copysetDir, _))
-                .WillRepeatedly(DoAll(SetArgPointee<1>(raftfiles), Return(0)));
+            .WillRepeatedly(DoAll(SetArgPointee<1>(raftfiles), Return(0)));
         EXPECT_CALL(*lfs, Open(copysetDir, _)).WillRepeatedly(Return(10));
         struct stat info;
         time(&info.st_ctime);
@@ -114,8 +119,7 @@ class TrashTest : public ::testing::Test {
 
     void SetCopysetNeedDelete(const std::string& copysetdir, bool needDelete) {
         int fd = needDelete ? 1 : 2;
-        EXPECT_CALL(*lfs, Open(copysetdir, _))
-            .WillOnce(Return(fd));
+        EXPECT_CALL(*lfs, Open(copysetdir, _)).WillOnce(Return(fd));
         struct stat info;
         time(&info.st_ctime);
         if (needDelete) {
@@ -150,7 +154,7 @@ TEST_F(TrashTest, test_copysetDir_open_fail) {
     EXPECT_CALL(*lfs, DirExists(_)).WillOnce(Return(true));
     EXPECT_CALL(*lfs, List(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-    EXPECT_CALL(*lfs, Open("./0/trash/4294967493.55555", _))
+    EXPECT_CALL(*lfs, Open("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(Return(-1));
 
     trash->DeleteEligibleFileInTrash();
@@ -161,7 +165,7 @@ TEST_F(TrashTest, test_copysetDir_stat_err) {
     EXPECT_CALL(*lfs, DirExists(_)).WillOnce(Return(true));
     EXPECT_CALL(*lfs, List(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-    EXPECT_CALL(*lfs, Open("./0/trash/4294967493.55555", _))
+    EXPECT_CALL(*lfs, Open("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(Return(10));
     EXPECT_CALL(*lfs, Fstat(10, _)).WillOnce(Return(-1));
     EXPECT_CALL(*lfs, Close(10)).WillOnce(Return(0));
@@ -174,7 +178,7 @@ TEST_F(TrashTest, test_copysetDir_timeNotEnough) {
     EXPECT_CALL(*lfs, DirExists(_)).WillOnce(Return(true));
     EXPECT_CALL(*lfs, List(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-    EXPECT_CALL(*lfs, Open("./0/trash/4294967493.55555", _))
+    EXPECT_CALL(*lfs, Open("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(Return(10));
     struct stat info;
     time(&info.st_ctime);
@@ -191,7 +195,7 @@ TEST_F(TrashTest, test_cleanCopySet_list_err) {
     EXPECT_CALL(*lfs, List(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)))
         .WillOnce(Return(-1));
-    EXPECT_CALL(*lfs, Open("./0/trash/4294967493.55555", _))
+    EXPECT_CALL(*lfs, Open("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(Return(10));
     struct stat info;
     time(&info.st_ctime);
@@ -208,9 +212,9 @@ TEST_F(TrashTest, test_cleanCopySet_list_empty_delete_err) {
     EXPECT_CALL(*lfs, DirExists(_)).Times(2).WillRepeatedly(Return(true));
     EXPECT_CALL(*lfs, List(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)))
-        .WillOnce(DoAll(SetArgPointee<1>(std::vector<std::string>{}),
-                        Return(0)));
-    EXPECT_CALL(*lfs, Open("./0/trash/4294967493.55555", _))
+        .WillOnce(
+            DoAll(SetArgPointee<1>(std::vector<std::string>{}), Return(0)));
+    EXPECT_CALL(*lfs, Open("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(Return(10));
     struct stat info;
     time(&info.st_ctime);
@@ -218,7 +222,7 @@ TEST_F(TrashTest, test_cleanCopySet_list_empty_delete_err) {
     EXPECT_CALL(*lfs, Fstat(10, _))
         .WillOnce(DoAll(SetArgPointee<1>(info), Return(0)));
     EXPECT_CALL(*lfs, Close(10)).WillOnce(Return(0));
-    EXPECT_CALL(*lfs, Delete("./0/trash/4294967493.55555"))
+    EXPECT_CALL(*lfs, Delete("./runlog/trash_test0/trash/4294967493.55555"))
         .WillOnce(Return(-1));
 
     trash->DeleteEligibleFileInTrash();
@@ -229,9 +233,9 @@ TEST_F(TrashTest, test_cleanCopySet_list_empty_delete_success) {
     EXPECT_CALL(*lfs, DirExists(_)).Times(2).WillRepeatedly(Return(true));
     EXPECT_CALL(*lfs, List(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)))
-        .WillOnce(DoAll(SetArgPointee<1>(std::vector<std::string>{}),
-                        Return(0)));
-    EXPECT_CALL(*lfs, Open("./0/trash/4294967493.55555", _))
+        .WillOnce(
+            DoAll(SetArgPointee<1>(std::vector<std::string>{}), Return(0)));
+    EXPECT_CALL(*lfs, Open("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(Return(10));
     struct stat info;
     time(&info.st_ctime);
@@ -239,7 +243,7 @@ TEST_F(TrashTest, test_cleanCopySet_list_empty_delete_success) {
     EXPECT_CALL(*lfs, Fstat(10, _))
         .WillOnce(DoAll(SetArgPointee<1>(info), Return(0)));
     EXPECT_CALL(*lfs, Close(10)).WillOnce(Return(0));
-    EXPECT_CALL(*lfs, Delete("./0/trash/4294967493.55555"))
+    EXPECT_CALL(*lfs, Delete("./runlog/trash_test0/trash/4294967493.55555"))
         .WillOnce(Return(0));
 
     trash->DeleteEligibleFileInTrash();
@@ -247,8 +251,8 @@ TEST_F(TrashTest, test_cleanCopySet_list_empty_delete_success) {
 
 TEST_F(TrashTest, test_cleanCopySet_list_noEmpty_recycleChunks_list_err) {
     std::vector<std::string> files{"4294967493.55555"};
-    std::vector<std::string> raftfiles{RAFT_LOG_DIR,
-        RAFT_SNAP_DIR, RAFT_META_DIR, RAFT_DATA_DIR, "hello"};
+    std::vector<std::string> raftfiles{RAFT_LOG_DIR, RAFT_SNAP_DIR,
+                                       RAFT_META_DIR, RAFT_DATA_DIR, "hello"};
     std::vector<std::string> empty;
     EXPECT_CALL(*lfs, DirExists(_))
         .WillOnce(Return(true))
@@ -258,40 +262,44 @@ TEST_F(TrashTest, test_cleanCopySet_list_noEmpty_recycleChunks_list_err) {
         .WillOnce(Return(true))
         .WillOnce(Return(true))
         .WillOnce(Return(false));
-    EXPECT_CALL(*lfs, Open("./0/trash/4294967493.55555", _))
+    EXPECT_CALL(*lfs, Open("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(Return(10));
     struct stat info;
     time(&info.st_ctime);
     info.st_ctime -= ops.expiredAfterSec * 2 * 3600;
     EXPECT_CALL(*lfs, Fstat(10, _))
         .WillOnce(DoAll(SetArgPointee<1>(info), Return(0)));
-    EXPECT_CALL(*lfs, Delete("./0/trash/4294967493.55555"))
+    EXPECT_CALL(*lfs, Delete("./runlog/trash_test0/trash/4294967493.55555"))
         .WillOnce(Return(-1));
     EXPECT_CALL(*lfs, Close(10)).WillOnce(Return(0));
-    EXPECT_CALL(*lfs, List("./0/trash", _))
+    EXPECT_CALL(*lfs, List("./runlog/trash_test0/trash", _))
         .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555", _))
+    EXPECT_CALL(*lfs, List("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(DoAll(SetArgPointee<1>(raftfiles), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/log", _))
+    EXPECT_CALL(*lfs,
+                List("./runlog/trash_test0/trash/4294967493.55555/log", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/data", _))
+    EXPECT_CALL(*lfs,
+                List("./runlog/trash_test0/trash/4294967493.55555/data", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/raft_snapshot", _))
+    EXPECT_CALL(
+        *lfs,
+        List("./runlog/trash_test0/trash/4294967493.55555/raft_snapshot", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/raft_meta", _))
+    EXPECT_CALL(
+        *lfs, List("./runlog/trash_test0/trash/4294967493.55555/raft_meta", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
-
 
     trash->DeleteEligibleFileInTrash();
 }
 
 TEST_F(TrashTest,
-    test_cleanCopySet_list_noEmpty_recycleChunks_list_empty_deleteOk) {
+       test_cleanCopySet_list_noEmpty_recycleChunks_list_empty_deleteOk) {
     std::vector<std::string> files{"4294967493.55555"};
-    std::vector<std::string> raftfiles{RAFT_LOG_DIR,
-        RAFT_SNAP_DIR, RAFT_META_DIR, RAFT_DATA_DIR, "hello"};
+    std::vector<std::string> raftfiles{RAFT_LOG_DIR, RAFT_SNAP_DIR,
+                                       RAFT_META_DIR, RAFT_DATA_DIR, "hello"};
     std::vector<std::string> empty;
-        EXPECT_CALL(*lfs, DirExists(_))
+    EXPECT_CALL(*lfs, DirExists(_))
         .WillOnce(Return(true))
         .WillOnce(Return(true))
         .WillOnce(Return(true))
@@ -299,7 +307,7 @@ TEST_F(TrashTest,
         .WillOnce(Return(true))
         .WillOnce(Return(true))
         .WillOnce(Return(false));
-    EXPECT_CALL(*lfs, Open("./0/trash/4294967493.55555", _))
+    EXPECT_CALL(*lfs, Open("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(Return(10));
     struct stat info;
     time(&info.st_ctime);
@@ -307,32 +315,37 @@ TEST_F(TrashTest,
     EXPECT_CALL(*lfs, Fstat(10, _))
         .WillOnce(DoAll(SetArgPointee<1>(info), Return(0)));
     EXPECT_CALL(*lfs, Close(10)).WillOnce(Return(0));
-    EXPECT_CALL(*lfs, Delete("./0/trash/4294967493.55555"))
+    EXPECT_CALL(*lfs, Delete("./runlog/trash_test0/trash/4294967493.55555"))
         .WillOnce(Return(0));
-    EXPECT_CALL(*lfs, List("./0/trash", _))
+    EXPECT_CALL(*lfs, List("./runlog/trash_test0/trash", _))
         .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555", _))
+    EXPECT_CALL(*lfs, List("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(DoAll(SetArgPointee<1>(raftfiles), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/log", _))
+    EXPECT_CALL(*lfs,
+                List("./runlog/trash_test0/trash/4294967493.55555/log", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/data", _))
+    EXPECT_CALL(*lfs,
+                List("./runlog/trash_test0/trash/4294967493.55555/data", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/raft_snapshot", _))
+    EXPECT_CALL(
+        *lfs,
+        List("./runlog/trash_test0/trash/4294967493.55555/raft_snapshot", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/raft_meta", _))
+    EXPECT_CALL(
+        *lfs, List("./runlog/trash_test0/trash/4294967493.55555/raft_meta", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
 
     trash->DeleteEligibleFileInTrash();
 }
 
 TEST_F(TrashTest,
-    test_cleanCopySet_list_noEmpty_recycleChunks_validFile_recycle) {
+       test_cleanCopySet_list_noEmpty_recycleChunks_validFile_recycle) {
     std::vector<std::string> files{"4294967493.55555"};
-    std::vector<std::string> raftfiles{RAFT_LOG_DIR,
-        RAFT_SNAP_DIR, RAFT_META_DIR, RAFT_DATA_DIR, "hello"};
+    std::vector<std::string> raftfiles{RAFT_LOG_DIR, RAFT_SNAP_DIR,
+                                       RAFT_META_DIR, RAFT_DATA_DIR, "hello"};
     std::vector<std::string> chunks{"chunk_123", "chunk_345"};
     std::vector<std::string> empty;
-        EXPECT_CALL(*lfs, DirExists(_))
+    EXPECT_CALL(*lfs, DirExists(_))
         .WillOnce(Return(true))
         .WillOnce(Return(true))
         .WillOnce(Return(true))
@@ -342,7 +355,7 @@ TEST_F(TrashTest,
         .WillOnce(Return(false))
         .WillOnce(Return(false))
         .WillOnce(Return(false));
-    EXPECT_CALL(*lfs, Open("./0/trash/4294967493.55555", _))
+    EXPECT_CALL(*lfs, Open("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(Return(10));
     struct stat info;
     time(&info.st_ctime);
@@ -350,26 +363,35 @@ TEST_F(TrashTest,
     EXPECT_CALL(*lfs, Fstat(10, _))
         .WillOnce(DoAll(SetArgPointee<1>(info), Return(0)));
     EXPECT_CALL(*lfs, Close(10)).WillOnce(Return(0));
-    EXPECT_CALL(*lfs, Delete("./0/trash/4294967493.55555"))
+    EXPECT_CALL(*lfs, Delete("./runlog/trash_test0/trash/4294967493.55555"))
         .WillOnce(Return(0));
-    EXPECT_CALL(*lfs, List("./0/trash", _))
+    EXPECT_CALL(*lfs, List("./runlog/trash_test0/trash", _))
         .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555", _))
+    EXPECT_CALL(*lfs, List("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(DoAll(SetArgPointee<1>(raftfiles), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/log", _))
+    EXPECT_CALL(*lfs,
+                List("./runlog/trash_test0/trash/4294967493.55555/log", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/data", _))
+    EXPECT_CALL(*lfs,
+                List("./runlog/trash_test0/trash/4294967493.55555/data", _))
         .WillOnce(DoAll(SetArgPointee<1>(chunks), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/raft_snapshot", _))
+    EXPECT_CALL(
+        *lfs,
+        List("./runlog/trash_test0/trash/4294967493.55555/raft_snapshot", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/raft_meta", _))
+    EXPECT_CALL(
+        *lfs, List("./runlog/trash_test0/trash/4294967493.55555/raft_meta", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
 
-    EXPECT_CALL(*pool,
-        RecycleFile("./0/trash/4294967493.55555/data/chunk_123"))
+    EXPECT_CALL(
+        *pool,
+        RecycleFile(
+            "./runlog/trash_test0/trash/4294967493.55555/data/chunk_123"))
         .WillOnce(Return(0));
-    EXPECT_CALL(*pool,
-        RecycleFile("./0/trash/4294967493.55555/data/chunk_345"))
+    EXPECT_CALL(
+        *pool,
+        RecycleFile(
+            "./runlog/trash_test0/trash/4294967493.55555/data/chunk_345"))
         .WillOnce(Return(0));
 
     trash->DeleteEligibleFileInTrash();
@@ -377,12 +399,11 @@ TEST_F(TrashTest,
 
 TEST_F(TrashTest, recycle_wal_success) {
     std::vector<std::string> files{"4294967493.55555"};
-    std::vector<std::string> raftfiles{RAFT_LOG_DIR,
-        RAFT_SNAP_DIR, RAFT_META_DIR, RAFT_DATA_DIR, "hello"};
-    std::vector<std::string> logfiles{"curve_log_10086_10087",
-        "curve_log_inprogress_10088",
-        "log_10083_10084",
-        "log_inprogress_10085"};
+    std::vector<std::string> raftfiles{RAFT_LOG_DIR, RAFT_SNAP_DIR,
+                                       RAFT_META_DIR, RAFT_DATA_DIR, "hello"};
+    std::vector<std::string> logfiles{
+        "curve_log_10086_10087", "curve_log_inprogress_10088",
+        "log_10083_10084", "log_inprogress_10085"};
     std::vector<std::string> empty;
     EXPECT_CALL(*lfs, DirExists(_))
         .WillOnce(Return(true))
@@ -396,7 +417,7 @@ TEST_F(TrashTest, recycle_wal_success) {
         .WillOnce(Return(true))
         .WillOnce(Return(true))
         .WillOnce(Return(false));
-    EXPECT_CALL(*lfs, Open("./0/trash/4294967493.55555", _))
+    EXPECT_CALL(*lfs, Open("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(Return(10));
     struct stat info;
     time(&info.st_ctime);
@@ -404,27 +425,33 @@ TEST_F(TrashTest, recycle_wal_success) {
     EXPECT_CALL(*lfs, Fstat(10, _))
         .WillOnce(DoAll(SetArgPointee<1>(info), Return(0)));
     EXPECT_CALL(*lfs, Close(10)).WillOnce(Return(0));
-    EXPECT_CALL(*lfs, Delete("./0/trash/4294967493.55555"))
+    EXPECT_CALL(*lfs, Delete("./runlog/trash_test0/trash/4294967493.55555"))
         .WillOnce(Return(0));
-    EXPECT_CALL(*lfs, List("./0/trash", _))
+    EXPECT_CALL(*lfs, List("./runlog/trash_test0/trash", _))
         .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555", _))
+    EXPECT_CALL(*lfs, List("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(DoAll(SetArgPointee<1>(raftfiles), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/log", _))
+    EXPECT_CALL(*lfs,
+                List("./runlog/trash_test0/trash/4294967493.55555/log", _))
         .WillOnce(DoAll(SetArgPointee<1>(logfiles), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/data", _))
+    EXPECT_CALL(*lfs,
+                List("./runlog/trash_test0/trash/4294967493.55555/data", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/raft_snapshot", _))
+    EXPECT_CALL(
+        *lfs,
+        List("./runlog/trash_test0/trash/4294967493.55555/raft_snapshot", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/raft_meta", _))
+    EXPECT_CALL(
+        *lfs, List("./runlog/trash_test0/trash/4294967493.55555/raft_meta", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
 
     EXPECT_CALL(*walPool,
-        RecycleFile("./0/trash/4294967493.55555/log/curve_log_10086_10087"))
+                RecycleFile("./runlog/trash_test0/trash/4294967493.55555/log/"
+                            "curve_log_10086_10087"))
         .WillOnce(Return(0));
     EXPECT_CALL(*walPool,
-        RecycleFile(
-        "./0/trash/4294967493.55555/log/curve_log_inprogress_10088"))
+                RecycleFile("./runlog/trash_test0/trash/4294967493.55555/log/"
+                            "curve_log_inprogress_10088"))
         .WillOnce(Return(0));
 
     trash->DeleteEligibleFileInTrash();
@@ -432,12 +459,11 @@ TEST_F(TrashTest, recycle_wal_success) {
 
 TEST_F(TrashTest, recycle_wal_failed) {
     std::vector<std::string> files{"4294967493.55555"};
-    std::vector<std::string> raftfiles{RAFT_LOG_DIR,
-        RAFT_SNAP_DIR, RAFT_META_DIR, RAFT_DATA_DIR, "hello"};
-    std::vector<std::string> logfiles{"curve_log_10086_10087",
-        "curve_log_inprogress_10088",
-        "log_10083_10084",
-        "log_inprogress_10085"};
+    std::vector<std::string> raftfiles{RAFT_LOG_DIR, RAFT_SNAP_DIR,
+                                       RAFT_META_DIR, RAFT_DATA_DIR, "hello"};
+    std::vector<std::string> logfiles{
+        "curve_log_10086_10087", "curve_log_inprogress_10088",
+        "log_10083_10084", "log_inprogress_10085"};
     std::vector<std::string> empty;
     EXPECT_CALL(*lfs, DirExists(_))
         .WillOnce(Return(true))
@@ -451,7 +477,7 @@ TEST_F(TrashTest, recycle_wal_failed) {
         .WillOnce(Return(true))
         .WillOnce(Return(true))
         .WillOnce(Return(false));
-    EXPECT_CALL(*lfs, Open("./0/trash/4294967493.55555", _))
+    EXPECT_CALL(*lfs, Open("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(Return(10));
     struct stat info;
     time(&info.st_ctime);
@@ -459,66 +485,75 @@ TEST_F(TrashTest, recycle_wal_failed) {
     EXPECT_CALL(*lfs, Fstat(10, _))
         .WillOnce(DoAll(SetArgPointee<1>(info), Return(0)));
     EXPECT_CALL(*lfs, Close(10)).WillOnce(Return(0));
-    EXPECT_CALL(*lfs, List("./0/trash", _))
+    EXPECT_CALL(*lfs, List("./runlog/trash_test0/trash", _))
         .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555", _))
+    EXPECT_CALL(*lfs, List("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(DoAll(SetArgPointee<1>(raftfiles), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/log", _))
+    EXPECT_CALL(*lfs,
+                List("./runlog/trash_test0/trash/4294967493.55555/log", _))
         .WillOnce(DoAll(SetArgPointee<1>(logfiles), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/data", _))
+    EXPECT_CALL(*lfs,
+                List("./runlog/trash_test0/trash/4294967493.55555/data", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/raft_snapshot", _))
+    EXPECT_CALL(
+        *lfs,
+        List("./runlog/trash_test0/trash/4294967493.55555/raft_snapshot", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/raft_meta", _))
+    EXPECT_CALL(
+        *lfs, List("./runlog/trash_test0/trash/4294967493.55555/raft_meta", _))
         .WillOnce(DoAll(SetArgPointee<1>(empty), Return(0)));
 
     EXPECT_CALL(*walPool,
-        RecycleFile("./0/trash/4294967493.55555/log/curve_log_10086_10087"))
+                RecycleFile("./runlog/trash_test0/trash/4294967493.55555/log/"
+                            "curve_log_10086_10087"))
         .WillOnce(Return(0));
     EXPECT_CALL(*walPool,
-        RecycleFile(
-        "./0/trash/4294967493.55555/log/curve_log_inprogress_10088"))
+                RecycleFile("./runlog/trash_test0/trash/4294967493.55555/log/"
+                            "curve_log_inprogress_10088"))
         .WillOnce(Return(-1));
 
     //失败的情况下不应删除
-    EXPECT_CALL(*lfs, Delete("./0/trash/4294967493.55555"))
+    EXPECT_CALL(*lfs, Delete("./runlog/trash_test0/trash/4294967493.55555"))
         .Times(0);
 
     trash->DeleteEligibleFileInTrash();
 }
 
 TEST_F(TrashTest, recycle_copyset_dir_noExist_createErr) {
-    std::string dirPath = "./0/copysets/12345678";
-    std::string trashPath = "./0/trash";
+    std::string dirPath = "./runlog/trash_test0/copysets/12345678";
+    std::string trashPath = "./runlog/trash_test0/trash";
     EXPECT_CALL(*lfs, DirExists(trashPath)).WillOnce(Return(false));
     EXPECT_CALL(*lfs, Mkdir(trashPath)).WillOnce(Return(-1));
     ASSERT_EQ(-1, trash->RecycleCopySet(dirPath));
 }
 
 TEST_F(TrashTest, recycle_copyset_dir_trash_exist) {
-    std::string dirPath = "./0/copysets/12345678";
-    std::string trashPath = "./0/trash";
+    std::string dirPath = "./runlog/trash_test0/copysets/12345678";
+    std::string trashPath = "./runlog/trash_test0/trash";
     EXPECT_CALL(*lfs, DirExists(_))
-        .WillOnce(Return(false)).WillOnce(Return(true));
+        .WillOnce(Return(false))
+        .WillOnce(Return(true));
     EXPECT_CALL(*lfs, Mkdir(trashPath)).WillOnce(Return(0));
     ASSERT_EQ(-1, trash->RecycleCopySet(dirPath));
 }
 
 TEST_F(TrashTest, recycle_copyset_dir_rename_err) {
-    std::string dirPath = "./0/copysets/12345678";
-    std::string trashPath = "./0/trash";
+    std::string dirPath = "./runlog/trash_test0/copysets/12345678";
+    std::string trashPath = "./runlog/trash_test0/trash";
     EXPECT_CALL(*lfs, DirExists(_))
-        .WillOnce(Return(false)).WillOnce(Return(false));
+        .WillOnce(Return(false))
+        .WillOnce(Return(false));
     EXPECT_CALL(*lfs, Mkdir(trashPath)).WillOnce(Return(0));
     EXPECT_CALL(*lfs, Rename(dirPath, _, 0)).WillOnce(Return(-1));
     ASSERT_EQ(-1, trash->RecycleCopySet(dirPath));
 }
 
 TEST_F(TrashTest, recycle_copyset_dir_list_err) {
-    std::string dirPath = "./0/copysets/12345678";
-    std::string trashPath = "./0/trash";
+    std::string dirPath = "./runlog/trash_test0/copysets/12345678";
+    std::string trashPath = "./runlog/trash_test0/trash";
     EXPECT_CALL(*lfs, DirExists(_))
-        .WillOnce(Return(false)).WillOnce(Return(false));
+        .WillOnce(Return(false))
+        .WillOnce(Return(false));
     EXPECT_CALL(*lfs, Mkdir(trashPath)).WillOnce(Return(0));
     EXPECT_CALL(*lfs, Rename(dirPath, _, 0)).WillOnce(Return(0));
     EXPECT_CALL(*lfs, List(_, _)).WillOnce(Return(-1));
@@ -526,10 +561,11 @@ TEST_F(TrashTest, recycle_copyset_dir_list_err) {
 }
 
 TEST_F(TrashTest, recycle_copyset_dir_ok) {
-    std::string dirPath = "./0/copysets/12345678";
-    std::string trashPath = "./0/trash";
+    std::string dirPath = "./runlog/trash_test0/copysets/12345678";
+    std::string trashPath = "./runlog/trash_test0/trash";
     EXPECT_CALL(*lfs, DirExists(_))
-        .WillOnce(Return(false)).WillOnce(Return(false));
+        .WillOnce(Return(false))
+        .WillOnce(Return(false));
     EXPECT_CALL(*lfs, Mkdir(trashPath)).WillOnce(Return(0));
     EXPECT_CALL(*lfs, Rename(dirPath, _, 0)).WillOnce(Return(0));
     EXPECT_CALL(*lfs, List(_, _)).WillOnce(Return(0));
@@ -544,27 +580,27 @@ TEST_F(TrashTest, DISABLED_test_concurrenct) {
 }
 
 TEST_F(TrashTest, test_chunk_num_statistic) {
-    std::string trashPath = "./0/trash";
+    std::string trashPath = "./runlog/trash_test0/trash";
     std::vector<std::string> copysets{"4294967493.55555", "4294967494.55555"};
-    std::vector<std::string> chunks1{"chunk_123",
-                                     "chunk_345"};
-    std::vector<std::string> chunks2{"chunk_111",
-                                     "chunk_222",
+    std::vector<std::string> chunks1{"chunk_123", "chunk_345"};
+    std::vector<std::string> chunks2{"chunk_111", "chunk_222",
                                      "chunk_222_snap_1"};
 
     // chunk exists when init
     EXPECT_CALL(*lfs, List(trashPath, _))
         .WillOnce(DoAll(SetArgPointee<1>(copysets), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/data", _))
+    EXPECT_CALL(*lfs,
+                List("./runlog/trash_test0/trash/4294967493.55555/data", _))
         .WillOnce(DoAll(SetArgPointee<1>(chunks1), Return(0)));
-    EXPECT_CALL(*lfs, List("./0/trash/4294967494.55555/data", _))
+    EXPECT_CALL(*lfs,
+                List("./runlog/trash_test0/trash/4294967494.55555/data", _))
         .WillOnce(DoAll(SetArgPointee<1>(chunks2), Return(0)));
 
     trash->Init(ops);
     ASSERT_EQ(5, trash->GetChunkNum());
 
     // recycle copyset
-    std::string copysetDir = "./0/copysets/4294967495";
+    std::string copysetDir = "./runlog/trash_test0/copysets/4294967495";
     EXPECT_CALL(*lfs, DirExists(_))
         .WillOnce(Return(true))
         .WillOnce(Return(false));
@@ -587,13 +623,18 @@ TEST_F(TrashTest, test_chunk_num_statistic) {
     std::vector<std::string> raftfiles{RAFT_DATA_DIR};
 
     EXPECT_CALL(*lfs, DirExists(trashPath)).WillOnce(Return(true));
-    EXPECT_CALL(*lfs, DirExists("./0/trash/4294967493.55555"))
+    EXPECT_CALL(*lfs, DirExists("./runlog/trash_test0/trash/4294967493.55555"))
         .WillOnce(Return(true));
-    EXPECT_CALL(*lfs, DirExists("./0/trash/4294967493.55555/data"))
+    EXPECT_CALL(*lfs,
+                DirExists("./runlog/trash_test0/trash/4294967493.55555/data"))
         .WillOnce(Return(true));
-    EXPECT_CALL(*lfs, DirExists("./0/trash/4294967493.55555/data/chunk_123"))
+    EXPECT_CALL(
+        *lfs,
+        DirExists("./runlog/trash_test0/trash/4294967493.55555/data/chunk_123"))
         .WillOnce(Return(false));
-    EXPECT_CALL(*lfs, DirExists("./0/trash/4294967493.55555/data/chunk_345"))
+    EXPECT_CALL(
+        *lfs,
+        DirExists("./runlog/trash_test0/trash/4294967493.55555/data/chunk_345"))
         .WillOnce(Return(false));
     EXPECT_CALL(*lfs, List(trashPath, _))
         .WillOnce(DoAll(SetArgPointee<1>(copysets), Return(0)));
@@ -602,18 +643,23 @@ TEST_F(TrashTest, test_chunk_num_statistic) {
     SetCopysetNeedDelete(trashPath + "/" + copysets[1], notNeedDelete);
     SetCopysetNeedDelete(trashPath + "/" + copysets[2], notNeedDelete);
 
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555", _))
+    EXPECT_CALL(*lfs, List("./runlog/trash_test0/trash/4294967493.55555", _))
         .WillOnce(DoAll(SetArgPointee<1>(raftfiles), Return(0)));
 
-    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/data", _))
+    EXPECT_CALL(*lfs,
+                List("./runlog/trash_test0/trash/4294967493.55555/data", _))
         .WillOnce(DoAll(SetArgPointee<1>(chunks1), Return(0)));
-    EXPECT_CALL(*pool,
-        RecycleFile("./0/trash/4294967493.55555/data/chunk_123"))
+    EXPECT_CALL(
+        *pool,
+        RecycleFile(
+            "./runlog/trash_test0/trash/4294967493.55555/data/chunk_123"))
         .WillOnce(Return(0));
-    EXPECT_CALL(*pool,
-        RecycleFile("./0/trash/4294967493.55555/data/chunk_345"))
+    EXPECT_CALL(
+        *pool,
+        RecycleFile(
+            "./runlog/trash_test0/trash/4294967493.55555/data/chunk_345"))
         .WillOnce(Return(-1));
-    EXPECT_CALL(*lfs, Delete("./0/trash/4294967493.55555"))
+    EXPECT_CALL(*lfs, Delete("./runlog/trash_test0/trash/4294967493.55555"))
         .Times(0);
 
     trash->DeleteEligibleFileInTrash();

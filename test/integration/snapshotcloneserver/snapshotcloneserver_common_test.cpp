@@ -237,7 +237,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         ASSERT_NE(nullptr, cluster_);
 
         // 初始化db
-        system(std::string("rm -rf " + kTestPrefix + "t.etcd").c_str());
+        system(std::string("rm -rf " + kTestPrefix + ".etcd").c_str());
         system(std::string("rm -rf " + kTestPrefix + "1").c_str());
         system(std::string("rm -rf " + kTestPrefix + "2").c_str());
         system(std::string("rm -rf " + kTestPrefix + "3").c_str());
@@ -453,7 +453,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         ASSERT_EQ(0, cluster_->StopCluster());
         delete cluster_;
         cluster_ = nullptr;
-        system(std::string("rm -rf " + kTestPrefix + "t.etcd").c_str());
+        system(std::string("rm -rf " + kTestPrefix + ".etcd").c_str());
         system(std::string("rm -rf " + kTestPrefix + "1").c_str());
         system(std::string("rm -rf " + kTestPrefix + "2").c_str());
         system(std::string("rm -rf " + kTestPrefix + "3").c_str());

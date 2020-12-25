@@ -255,6 +255,10 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     ASSERT_EQ(0, curveCluster_->StopMDS(1));
     // 停掉etcd
     ASSERT_EQ(0, curveCluster_->StopEtcd(1));
+
+    system((std::string("rm -fr ") + commonDir).c_str());
+    system("rm -fr test_start_stop_module2.etcd");
+    system("rm -fr basic*");
 }
 
 TEST_F(ClusterBasicTest, test_multi_mds_and_etcd) {
@@ -340,5 +344,8 @@ TEST_F(ClusterBasicTest, test_multi_mds_and_etcd) {
     ASSERT_EQ(0, curveCluster_->StopEtcd(1));
     ASSERT_EQ(0, curveCluster_->StopEtcd(2));
     ASSERT_EQ(0, curveCluster_->StopEtcd(3));
+
+    system("rm -fr test_multi_etcd_node*.etcd");
+    system(("rm -fr " + commonDir).c_str());
 }
 }  // namespace curve
