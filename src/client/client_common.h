@@ -227,6 +227,8 @@ inline const char* OpTypeToString(OpType optype) {
         return "ReadSnapshot";
     case OpType::DELETE_SNAP:
         return "DeleteSnapshot";
+    case OpType::CREATE_CLONE:
+        return "CreateCloneChunk";
     case OpType::RECOVER_CHUNK:
         return "RecoverChunk";
     case OpType::GET_CHUNK_INFO:
