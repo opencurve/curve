@@ -37,13 +37,6 @@
 namespace curve {
 namespace client {
 
-using curve::chunkserver::ChunkRequest;
-using curve::chunkserver::ChunkResponse;
-using curve::chunkserver::GetChunkInfoRequest;
-using curve::chunkserver::GetChunkInfoResponse;
-using curve::chunkserver::ChunkService_Stub;
-using ::google::protobuf::Closure;
-
 /**
  * 一个RequestSender负责管理一个ChunkServer的所有
  * connection，目前一个ChunkServer仅有一个connection
@@ -69,7 +62,7 @@ class RequestSender {
      * @param sourceInfo 数据源信息
      * @param done:上一层异步回调的closure
      */
-    int ReadChunk(ChunkIDInfo idinfo,
+    int ReadChunk(const ChunkIDInfo& idinfo,
                   uint64_t sn,
                   off_t offset,
                   size_t length,
@@ -87,7 +80,7 @@ class RequestSender {
    * @param sourceInfo 数据源信息
    * @param done:上一层异步回调的closure
    */
-    int WriteChunk(ChunkIDInfo idinfo,
+    int WriteChunk(const ChunkIDInfo& idinfo,
                    uint64_t sn,
                    const char *buf,
                    off_t offset,
@@ -103,7 +96,7 @@ class RequestSender {
      * @param length:读的长度
      * @param done:上一层异步回调的closure
      */
-    int ReadChunkSnapshot(ChunkIDInfo idinfo,
+    int ReadChunkSnapshot(const ChunkIDInfo& idinfo,
                           uint64_t sn,
                           off_t offset,
                           size_t length,
@@ -116,7 +109,7 @@ class RequestSender {
      * @param correctedSn:chunk需要修正的版本号
      * @param done:上一层异步回调的closure
      */
-    int DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo idinfo,
+    int DeleteChunkSnapshotOrCorrectSn(const ChunkIDInfo& idinfo,
                             uint64_t correctedSn,
                             ClientClosure *done);
 
@@ -126,7 +119,7 @@ class RequestSender {
      * @param done:上一层异步回调的closure
      * @param retriedTimes:已经重试了几次
      */
-    int GetChunkInfo(ChunkIDInfo idinfo,
+    int GetChunkInfo(const ChunkIDInfo& idinfo,
                      ClientClosure *done);
 
     /**
@@ -146,7 +139,7 @@ class RequestSender {
     *
     * @return 错误码
     */
-    int CreateCloneChunk(ChunkIDInfo idinfo,
+    int CreateCloneChunk(const ChunkIDInfo& idinfo,
                   ClientClosure *done,
                   const std::string &location,
                   uint64_t sn,
@@ -177,6 +170,12 @@ class RequestSender {
     bool IsSocketHealth() {
        return channel_.CheckHealth() == 0;
     }
+
+ private:
+    void UpdateRpcRPS(ClientClosure* done, OpType type) const;
+
+    void SetRpcStuff(ClientClosure* done, brpc::Controller* cntl,
+                     google::protobuf::Message* rpcResponse) const;
 
  private:
     // Rpc stub配置
