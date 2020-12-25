@@ -75,6 +75,7 @@ class EtcdClientTest : public ::testing::Test {
     void TearDown() {
         system(("kill " + std::to_string(etcdPid)).c_str());
         std::this_thread::sleep_for(std::chrono::seconds(2));
+        system("rm -rf toolEtcdClientTest.etcd");
     }
 
     pid_t etcdPid;

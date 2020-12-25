@@ -99,6 +99,8 @@ class TestEtcdClinetImp : public ::testing::Test {
         client_ = nullptr;
         system(("kill " + std::to_string(etcdPid)).c_str());
         std::this_thread::sleep_for(std::chrono::seconds(2));
+
+        system("rm -fr testEtcdClinetImp.etcd");
     }
 
  protected:

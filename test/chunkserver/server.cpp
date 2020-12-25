@@ -57,7 +57,8 @@ DEFINE_string(ip,
               "127.0.0.1",
               "Initial configuration of the replication group");
 DEFINE_int32(port, 8200, "Listen port of this peer");
-DEFINE_string(copyset_dir, "local://./0", "copyset data dir");
+DEFINE_string(copyset_dir, "local://./runlog/chunkserver_test0",
+             "copyset data dir");
 DEFINE_string(conf,
               "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0",
               "Initial configuration of the replication group");

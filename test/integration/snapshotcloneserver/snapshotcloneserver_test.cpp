@@ -169,6 +169,9 @@ class SnapshotCloneServerMainTest : public ::testing::Test {
         ASSERT_EQ(0, cluster_->StopCluster());
         delete cluster_;
         cluster_ = nullptr;
+
+        std::string rmcmd = "rm -rf " + std::string(kEtcdName) + ".etcd";
+        system(rmcmd.c_str());
     }
 
  public:

@@ -87,6 +87,7 @@ class MDSTest : public ::testing::Test {
         system(("kill " + std::to_string(etcdPid)).c_str());
         std::this_thread::sleep_for(std::chrono::seconds(2));
         fiu_disable("src/mds/leaderElection/observeLeader");
+        system("rm -fr testMds.etcd");
     }
 
     brpc::Channel channel_;

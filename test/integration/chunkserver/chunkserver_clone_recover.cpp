@@ -368,6 +368,11 @@ class CSCloneRecoverTest : public ::testing::Test {
             s3Adapter_.DeleteObject("test2");
         }
         s3Adapter_.Deinit();
+
+        system(("rm -rf " + ETCD_NAME + ".etcd").c_str());
+        system(("rm -rf " + CHUNKSERVER0_BASE_DIR).c_str());
+        system(("rm -rf " + CHUNKSERVER1_BASE_DIR).c_str());
+        system(("rm -rf " + CHUNKSERVER2_BASE_DIR).c_str());
     }
 
     void InitCloneRecoverTestDir() {
