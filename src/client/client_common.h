@@ -218,6 +218,7 @@ struct ChunkServerAddr {
 };
 
 const char* OpTypeToString(OpType optype);
+
 struct ClusterContext {
     std::string clusterId;
 };
