@@ -650,7 +650,8 @@ def get_all_chunk_num():
     for host in chunkserver_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
         cs_status = get_chunkserver_status(host)
-        for cs in cs_status["up"]:
+        cs_list = cs_status["up"] + cs_status["down"]
+        for cs in cs_list:
             ori_cmd = "ls /data/chunkserver%d/chunkfilepool/ |wc -l"%cs
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[3] == 0
