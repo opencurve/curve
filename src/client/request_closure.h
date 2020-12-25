@@ -127,7 +127,7 @@ class RequestClosure : public ::google::protobuf::Closure {
     /**
      * 获取下一次rpc超时时间, rpc超时时间实现了指数退避的策略
      */
-    uint64_t GetNextTimeoutMS() {
+    uint64_t GetNextTimeoutMS() const {
        return nextTimeoutMS_;
     }
 
