@@ -139,7 +139,8 @@ class StatusTool : public CurveTool {
     int PrintClientStatus();
     int ClientListCmd();
     void PrintCsLeftSizeStatistics(const std::string& name,
-                                   const std::vector<uint64_t>& leftSize);
+                        const std::map<PoolIdType,
+                        std::vector<uint64_t>>& poolLeftSize);
     int PrintSnapshotCloneStatus();
 
     /**

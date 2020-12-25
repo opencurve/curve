@@ -325,6 +325,14 @@ class MDSClient {
                         std::vector<ChunkServerInfo>* chunkservers);
 
     /**
+     *  @brief list all the chunkservers with poolid in cluster
+     *  @param[out] chunkservers chunkserver info
+     *  @return succeed return 0; failed return -1;
+     */
+    virtual int ListChunkServersInCluster(std::map<PoolIdType,
+                            std::vector<ChunkServerInfo>>* chunkservers);
+
+    /**
      *  @brief 获取mds的某个metric的值
      *  @param metricName metric的名字
      *  @param[out] value metric的值，返回值为0时有效

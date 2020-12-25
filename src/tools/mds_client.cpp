@@ -771,7 +771,7 @@ int MDSClient::GetCopySetsInCluster(std::vector<CopysetInfo>* copysets) {
 
 int MDSClient::ListServersInCluster(std::vector<ServerInfo>* servers) {
     assert(servers != nullptr);
-    // 先列出逻辑池
+    // list physicalpools
     std::vector<PhysicalPoolInfo> phyPools;
     if (ListPhysicalPoolsInCluster(&phyPools) != 0) {
         std::cout << "ListPhysicalPoolsInCluster fail!" << std::endl;
@@ -807,6 +807,34 @@ int MDSClient::ListChunkServersInCluster(
         if (ListChunkServersOnServer(server.serverid(), chunkservers) != 0) {
             std::cout << "ListChunkServersOnServer fail!" << std::endl;
             return -1;
+        }
+    }
+    return 0;
+}
+
+int MDSClient::ListChunkServersInCluster(std::map<PoolIdType,
+                            std::vector<ChunkServerInfo>>* chunkservers) {
+    assert(chunkservers != nullptr);
+    std::vector<ServerInfo> servers;
+    if (ListServersInCluster(&servers) != 0) {
+        std::cout << "ListServersInCluster fail!" << std::endl;
+        return -1;
+    }
+
+    for (const auto& server : servers) {
+        std::vector<ChunkServerInfo> chunkserverList;
+        if (ListChunkServersOnServer(server.serverid(),
+                                &chunkserverList) != 0) {
+            std::cout << "ListChunkServersOnServer fail!" << std::endl;
+            return -1;
+        }
+
+        auto iter = chunkservers->find(server.physicalpoolid());
+        if (iter != chunkservers->end()) {
+            iter->second.insert(iter->second.end(), chunkserverList.begin(),
+                                                    chunkserverList.end());
+        } else {
+            chunkservers->emplace(server.physicalpoolid(), chunkserverList);
         }
     }
     return 0;

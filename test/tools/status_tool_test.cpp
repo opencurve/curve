@@ -20,6 +20,7 @@
  * Author: charisu
  */
 #include <gtest/gtest.h>
+#include <map>
 #include "src/tools/status_tool.h"
 #include "test/tools/mock/mock_namespace_tool_core.h"
 #include "test/tools/mock/mock_copyset_check_core.h"
@@ -333,7 +334,8 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
         .WillOnce(Return(0));
 
     // 正常情况，有一个chunkserver的UnhealthyRatio大于0
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
                         Return(0)));
@@ -349,14 +351,16 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
 
     // 只显示offline的
     FLAGS_offline = true;
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
                         Return(0)));
     ASSERT_EQ(0, statusTool.RunCommand("chunkserver-list"));
 
     // 只显示unhealthy ratio大于0的
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
                         Return(0)));
@@ -373,7 +377,8 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
     ASSERT_EQ(0, statusTool.RunCommand("chunkserver-list"));
 
     // list chunkserver失败
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("chunkserver-list"));
@@ -381,7 +386,8 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
     // FLAGS_checkCSAlive为true的时候，会发送rpc检查chunkserver在线状态
     FLAGS_checkHealth = false;
     FLAGS_checkCSAlive = true;
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
                         Return(0)));
@@ -426,11 +432,13 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
                                                {"127.0.0.1:2383", true}};
 
     ChunkServerInfo csInfo;
-    std::vector<ChunkServerInfo> chunkservers;
+    std::vector<ChunkServerInfo> chunkserverList;
+    std::map<PoolIdType, std::vector<ChunkServerInfo>> chunkservers;
     for (uint64_t i = 1; i <= 3; ++i) {
         GetCsInfoForTest(&csInfo, i, i == 1);
-        chunkservers.emplace_back(csInfo);
+        chunkserverList.emplace_back(csInfo);
     }
+    chunkservers.emplace(1, chunkserverList);
 
     // 设置Init的期望
     EXPECT_CALL(*mdsClient_, Init(_, _))
@@ -525,7 +533,8 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
         .WillRepeatedly(SetArgPointee<0>(onlineState));
 
     // 4、设置chunkserver status的输出
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::map<PoolIdType, std::vector<ChunkServerInfo>>*>()))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
                         Return(0)));
@@ -542,7 +551,8 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
     ASSERT_EQ(0, statusTool.RunCommand("status"));
 
     // 5、设置chunkserver status的输出
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::map<PoolIdType, std::vector<ChunkServerInfo>>*>()))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
                         Return(0)));
@@ -652,7 +662,8 @@ TEST_F(StatusToolTest, StatusCmdError) {
     // 4、获取chunkserver version失败并ListChunkServersInCluster失败
     EXPECT_CALL(*versionTool_, GetAndCheckChunkServerVersion(_, _))
         .WillOnce(Return(-1));
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::map<PoolIdType, std::vector<ChunkServerInfo>>*>()))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("status"));
@@ -674,7 +685,8 @@ TEST_F(StatusToolTest, StatusCmdError) {
         .WillOnce(DoAll(SetArgPointee<0>("0.0.1"),
                   SetArgPointee<1>(failedList),
                   Return(0)));
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::map<PoolIdType, std::vector<ChunkServerInfo>>*>()))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("chunkserver-status"));

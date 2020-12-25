@@ -683,8 +683,8 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
             ret = -1;
         }
     }
-    std::vector<ChunkServerInfo> chunkservers;
-    res = mdsClient_->ListChunkServersInCluster(&chunkservers);
+    std::map<PoolIdType, std::vector<ChunkServerInfo>> poolChunkservers;
+    res = mdsClient_->ListChunkServersInCluster(&poolChunkservers);
     if (res != 0) {
         std::cout << "ListChunkServersInCluster fail!" << std::endl;
         return -1;
@@ -692,47 +692,55 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     uint64_t total = 0;
     uint64_t online = 0;
     uint64_t offline = 0;
-    std::vector<uint64_t> chunkLeftSize;
-    std::vector<uint64_t> walSegmentLeftSize;
+    std::map<PoolIdType, std::vector<uint64_t>> poolChunkLeftSize;
+    std::map<PoolIdType, std::vector<uint64_t>> poolWalSegmentLeftSize;
     std::vector<ChunkServerIdType> offlineCs;
     // 获取chunkserver的online状态
-    for (const auto& chunkserver : chunkservers) {
-        total++;
-        std::string csAddr = chunkserver.hostip()
-                        + ":" + std::to_string(chunkserver.port());
-        if (copysetCheckCore_->CheckChunkServerOnline(csAddr)) {
-            online++;
-        } else {
-            offline++;
-            offlineCs.emplace_back(chunkserver.chunkserverid());
+    for (const auto& poolChunkserver : poolChunkservers) {
+        std::vector<uint64_t> chunkLeftSize;
+        std::vector<uint64_t> walSegmentLeftSize;
+        for (const auto& chunkserver : poolChunkserver.second) {
+            total++;
+            std::string csAddr = chunkserver.hostip()
+                            + ":" + std::to_string(chunkserver.port());
+            if (copysetCheckCore_->CheckChunkServerOnline(csAddr)) {
+                online++;
+            } else {
+                offline++;
+                offlineCs.emplace_back(chunkserver.chunkserverid());
+            }
+            if (!checkLeftSize) {
+                continue;
+            }
+            std::string metricName = GetCSLeftChunkName(csAddr);
+            uint64_t chunkNum;
+            MetricRet res = metricClient_->GetMetricUint(csAddr,
+                                                        metricName, &chunkNum);
+            if (res != MetricRet::kOK) {
+                std::cout << "Get left chunk size of chunkserver " << csAddr
+                        << " fail!" << std::endl;
+                ret = -1;
+                continue;
+            }
+            uint64_t size = chunkNum * FLAGS_chunkSize;
+            chunkLeftSize.emplace_back(size / mds::kGB);
+            // walfilepool left size
+            metricName = GetCSLeftWalSegmentName(csAddr);
+            uint64_t walSegmentNum;
+            res = metricClient_->GetMetricUint(csAddr, metricName,
+                                                    &walSegmentNum);
+            if (res != MetricRet::kOK) {
+                std::cout << "Get left wal segment size of chunkserver "
+                          << csAddr << " fail!" << std::endl;
+                ret = -1;
+                continue;
+            }
+            size = walSegmentNum * FLAGS_walSegmentSize;
+            walSegmentLeftSize.emplace_back(size / mds::kGB);
         }
-        if (!checkLeftSize) {
-            continue;
-        }
-        std::string metricName = GetCSLeftChunkName(csAddr);
-        uint64_t chunkNum;
-        MetricRet res = metricClient_->GetMetricUint(csAddr,
-                                                     metricName, &chunkNum);
-        if (res != MetricRet::kOK) {
-            std::cout << "Get left chunk size of chunkserver " << csAddr
-                      << " fail!" << std::endl;
-            ret = -1;
-            continue;
-        }
-        uint64_t size = chunkNum * FLAGS_chunkSize;
-        chunkLeftSize.emplace_back(size / mds::kGB);
-        // walfilepool left size
-        metricName = GetCSLeftWalSegmentName(csAddr);
-        uint64_t walSegmentNum;
-        res = metricClient_->GetMetricUint(csAddr, metricName, &walSegmentNum);
-        if (res != MetricRet::kOK) {
-            std::cout << "Get left wal segment size of chunkserver " << csAddr
-                      << " fail!" << std::endl;
-            ret = -1;
-            continue;
-        }
-        size = walSegmentNum * FLAGS_walSegmentSize;
-        walSegmentLeftSize.emplace_back(size / mds::kGB);
+        poolChunkLeftSize.emplace(poolChunkserver.first, chunkLeftSize);
+        poolWalSegmentLeftSize.emplace(poolChunkserver.first,
+                                                    walSegmentLeftSize);
     }
     // 获取offline chunkserver的恢复状态
     std::vector<ChunkServerIdType> offlineRecover;
@@ -773,46 +781,48 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
         return ret;
     }
 
-    PrintCsLeftSizeStatistics("chunkfilepool", chunkLeftSize);
-    PrintCsLeftSizeStatistics("walfilepool", walSegmentLeftSize);
+    PrintCsLeftSizeStatistics("chunkfilepool", poolChunkLeftSize);
+    PrintCsLeftSizeStatistics("walfilepool", poolWalSegmentLeftSize);
     return ret;
 }
 
-void StatusTool::PrintCsLeftSizeStatistics(
-                        const std::string& name,
-                        const std::vector<uint64_t>& leftSize) {
-    if (leftSize.empty()) {
+void StatusTool::PrintCsLeftSizeStatistics(const std::string& name,
+                                    const std::map<PoolIdType,
+                                    std::vector<uint64_t>>& poolLeftSize) {
+    if (poolLeftSize.empty()) {
         std::cout << "No " << name << " left size found!" << std::endl;
         return;
     }
-    uint64_t min = leftSize[0];
-    uint64_t max = leftSize[0];
-    double sum = 0;
-    for (const auto& size : leftSize) {
-        sum += size;
-        if (size < min) {
-            min = size;
+    for (const auto& leftSize : poolLeftSize) {
+        uint64_t min = leftSize.second[0];
+        uint64_t max = leftSize.second[0];
+        double sum = 0;
+        for (const auto& size : leftSize.second) {
+            sum += size;
+            if (size < min) {
+                min = size;
+            }
+            if (size > max) {
+                max = size;
+            }
         }
-        if (size > max) {
-            max = size;
+        uint64_t range = max - min;
+        double avg = sum / leftSize.second.size();
+        sum = 0;
+        for (const auto& size : leftSize.second) {
+            sum += (size - avg) * (size - avg);
         }
-    }
-    uint64_t range = max - min;
-    double avg = sum / leftSize.size();
-    sum = 0;
-    for (const auto& size : leftSize) {
-        sum += (size - avg) * (size - avg);
-    }
 
-    double var = sum / leftSize.size();
-    std:: cout.setf(std::ios::fixed);
-    std::cout<< std::setprecision(2);
-    std::cout<< name;
-    std::cout << " left size: min = " << min << "GB"
-              << ", max = " << max << "GB"
-              << ", average = " << avg << "GB"
-              << ", range = " << range << "GB"
-              << ", variance = " << var << std::endl;
+        double var = sum / leftSize.second.size();
+        std:: cout.setf(std::ios::fixed);
+        std::cout<< std::setprecision(2);
+        std::cout<< "pool" << leftSize.first << " " << name;
+        std::cout << " left size: min = " << min << "GB"
+                    << ", max = " << max << "GB"
+                    << ", average = " << avg << "GB"
+                    << ", range = " << range << "GB"
+                    << ", variance = " << var << std::endl;
+    }
 }
 
 int StatusTool::GetPoolsInCluster(std::vector<PhysicalPoolInfo>* phyPools,

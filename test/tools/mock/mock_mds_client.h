@@ -77,7 +77,9 @@ class MockMDSClient : public MDSClient {
     MOCK_METHOD1(GetCopySetsInCluster, int(std::vector<CopysetInfo>*));
     MOCK_METHOD1(ListServersInCluster,  int(std::vector<ServerInfo>*));
     MOCK_METHOD1(ListChunkServersInCluster,
-                 int(std::vector<ChunkServerInfo>*));
+                    int(std::vector<ChunkServerInfo>*));
+    MOCK_METHOD1(ListChunkServersInCluster, int(std::map<PoolIdType,
+                    std::vector<ChunkServerInfo>>*));
     MOCK_METHOD2(GetMetric, int(const std::string&, uint64_t*));
     MOCK_CONST_METHOD0(GetMdsAddrVec, const std::vector<std::string>&());
     MOCK_METHOD0(GetCurrentMds, std::vector<std::string>());
