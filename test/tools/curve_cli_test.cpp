@@ -34,6 +34,7 @@ using ::testing::Return;
 using ::testing::Invoke;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
+using ::testing::An;
 
 DECLARE_int32(timeout_ms);
 DECLARE_int32(max_retry);
@@ -287,7 +288,8 @@ TEST_F(CurveCliTest, DoSnapshotAll) {
     EXPECT_CALL(*mdsClient_, Init(_))
         .Times(2)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::vector<ChunkServerInfo>*>()))
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<0>(chunkservers),
                         Return(0)));

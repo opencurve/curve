@@ -32,6 +32,7 @@ using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
+using ::testing::An;
 using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::DiskState;
 using curve::mds::topology::OnlineState;
@@ -151,7 +152,8 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
     }
 
     // 1、正常情况
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
                         Return(0)));
@@ -167,14 +169,16 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
     ASSERT_TRUE(failedList.empty());
 
     // 2、ListChunkServersInCluster失败
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, versionTool.GetAndCheckChunkServerVersion(&version,
                                                             &failedList));
 
     // 3、获取metric失败
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
                         Return(0)));
@@ -189,7 +193,8 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
     ASSERT_EQ(expectList, failedList);
 
     // 4、chunkserverList为空
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(std::vector<ChunkServerInfo>()),
                         Return(0)));
@@ -200,7 +205,8 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
     ASSERT_TRUE(failedList.empty());
 
     // 5、version不一致
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
                         Return(0)));
@@ -216,7 +222,8 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
     ASSERT_TRUE(failedList.empty());
 
     // 6、老版本
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
                         Return(0)));
