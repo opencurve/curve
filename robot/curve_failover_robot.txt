@@ -93,15 +93,6 @@ inject restart two chunkserver
 #    check copies consistency
     [Teardown]	 wait cluster healthy    ${vm_iops_limit}
 
-inject kill diff host chunkserver
-    [Tags]    P1    base    first release   failover
-    test kill diff host chunkserver
-    wait health ok
-    check nbd iops
-    check data consistency
-#    check copies consistency
-    [Teardown]	 wait cluster healthy    ${vm_iops_limit}
-
 inject reboot nebd
     [Tags]   P1  base   first release   failover
     test reboot nebd
@@ -425,6 +416,15 @@ test mds delay package 50ms
     check data consistency
 #    check copies consistency
     [Teardown]	   wait cluster healthy   ${vm_iops_limit}
+
+inject kill diff host chunkserver
+    [Tags]    P1    base    first release   failover
+    test kill diff host chunkserver
+    wait health ok
+    check nbd iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	 wait cluster healthy    ${vm_iops_limit}
 
 inject kill all mds
     [Tags]    P1    base    first release   failover
