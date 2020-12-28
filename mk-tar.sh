@@ -106,12 +106,14 @@ function build_curvefs_python() {
             bazel build curvefs_python:curvefs --copt -DHAVE_ZLIB=1 --copt -O2 -s \
                 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
                 --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
-                -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version}
+                -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
+		${bazelflags}
         else
             bazel build curvefs_python:curvefs --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s \
                 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
                 --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
-                -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version}
+                -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
+		${bazelflags}
         fi
 
         create_python_wheel ${bin}

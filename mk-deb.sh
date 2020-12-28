@@ -106,12 +106,14 @@ function build_curvefs_python() {
             bazel build curvefs_python:curvefs --copt -DHAVE_ZLIB=1 --copt -O2 -s \
                 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
                 --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
-                -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version}
+                -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
+	        ${bazelflags}
         else
             bazel build curvefs_python:curvefs --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s \
                 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
                 --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
-                -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version}
+                -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
+		${bazelflags}
         fi
 
         create_python_wheel ${bin}
@@ -155,6 +157,7 @@ then
     exit
 fi
 echo "gcc version : "`gcc -dumpversion`
+echo "start compile"
 
 cd ${dir}/thirdparties/etcdclient
 make clean
@@ -167,12 +170,19 @@ fi
 cd ${dir}
 
 cp ${dir}/thirdparties/etcdclient/libetcdclient.h ${dir}/include/etcdclient/etcdclient.h
+if [ `gcc -dumpversion | awk -F'.' '{print $1}'` -le 6 ]
+then
+    bazelflags=''
+else
+    bazelflags='--copt -faligned-new'
+fi
 
 if [ "$1" = "debug" ]
 then
 bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
--Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_version}
+-Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_version} \
+--linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
     echo "build phase1 failed"
@@ -188,7 +198,8 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --compilation_mode=dbg 
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
 --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
--L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version}
+-L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
+--linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
     echo "build phase2 failed"
@@ -197,7 +208,8 @@ fi
 else
 bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
--Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_version}
+-Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_version} \
+--linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
     echo "build phase1 failed"
@@ -213,13 +225,15 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --copt -O2 -s \
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
 --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
--L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version}
+-L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
+--linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
     echo "build phase2 failed"
     exit
 fi
 fi
+echo "end compile"
 
 #step4 创建临时目录，拷贝二进制、lib库和配置模板
 mkdir build
