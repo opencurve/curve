@@ -163,8 +163,8 @@ struct ChunkserverParam {
 };
 
 class UnstableCSModuleException : public ::testing::Test {
- public:
-    void SetUp() {
+ protected:
+    static void SetUpTestCase() {
         // 清理文件夹
         system("rm -rf module_exception_curve_unstable_cs.etcd");
         system("rm -rf ttt");
@@ -223,14 +223,15 @@ class UnstableCSModuleException : public ::testing::Test {
         std::this_thread::sleep_for(std::chrono::seconds(10));
     }
 
-    void TearDown() {
+    static void TearDownTestCase() {
         UnInit();
         ASSERT_EQ(0, cluster->StopCluster());
         // 清理文件夹
         system("rm -rf module_exception_curve_unstable_cs");
+        system("rm -rf ttt");
     }
 
-    void StartAllChunkserver() {
+    static void StartAllChunkserver() {
         int id = 1;
         for (auto port : chunkserverPorts) {
             ChunkserverParam param(id, port);
@@ -282,11 +283,39 @@ class UnstableCSModuleException : public ::testing::Test {
         }
     }
 
-    // std::vector<int> fds;
-    int fd;
-    std::unique_ptr<CurveCluster> cluster;
-    std::unordered_map<int, ChunkserverParam> chunkServers;
+    void SetUp() override {}
+
+    void TearDown() override {}
+
+    static int fd;
+    static std::unique_ptr<CurveCluster> cluster;
+    static std::unordered_map<int, ChunkserverParam> chunkServers;
 };
+
+int UnstableCSModuleException::fd = 0;
+std::unique_ptr<CurveCluster> UnstableCSModuleException::cluster;
+std::unordered_map<int, ChunkserverParam> UnstableCSModuleException::chunkServers; // NOLINT
+
+TEST_F(UnstableCSModuleException, TestCommonReadAndWrite) {
+    const std::string filename = "/TestCommonReadAndWrite";
+    constexpr size_t length = 4ull * 1024 * 1024;
+    constexpr off_t offset = 4ull * 1024 * 1024;
+    std::unique_ptr<char[]> readBuff(new char[length]);
+
+    C_UserInfo_t info;
+
+    snprintf(info.owner, sizeof(info.owner), "curve");
+    info.password[0] = 0;
+
+    ::Create(filename.c_str(), &info, 10ull * 1024 * 1024 * 1024);
+    int fd = ::Open(filename.c_str(), &info);
+    int ret = ::Read(fd, readBuff.get(), offset, length);
+    LOG(INFO) << "Read finish, here";
+    ret = ::Write(fd, readBuff.get(), offset, length);
+    LOG(INFO) << "Write finish, here";
+
+    ::Close(fd);
+}
 
 // 集群拓扑结构
 //     1个client
