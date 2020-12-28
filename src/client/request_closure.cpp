@@ -41,11 +41,12 @@ void RequestClosure::GetInflightRPCToken() {
     if (ioManager_ != nullptr) {
         ioManager_->GetInflightRpcToken();
         MetricHelper::IncremInflightRPC(metric_);
+        ownInflight_ = true;
     }
 }
 
 void RequestClosure::ReleaseInflightRPCToken() {
-    if (ioManager_ != nullptr) {
+    if (ioManager_ != nullptr && ownInflight_) {
         ioManager_->ReleaseInflightRpcToken();
         MetricHelper::DecremInflightRPC(metric_);
     }

@@ -134,6 +134,10 @@ void IOTracker::DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo) {
 
 int IOTracker::ReadFromSource(std::vector<RequestContext*> reqCtxVec,
                               const UserInfo_t& userInfo) {
+    if (reqCtxVec.empty()) {
+        return 0;
+    }
+
     return SourceReader::GetInstance().Read(reqCtxVec, userInfo);
 }
 

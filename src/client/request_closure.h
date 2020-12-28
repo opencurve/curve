@@ -153,6 +153,9 @@ class CURVE_CACHELINE_ALIGNMENT RequestClosure
     // suspend io标志
     bool suspendRPC_ = false;
 
+    // whether own inflight count
+    bool ownInflight_ = false;
+
     // 当前request的错误码
     int errcode_ = -1;
 
