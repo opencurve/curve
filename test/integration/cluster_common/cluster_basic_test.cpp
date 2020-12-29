@@ -312,7 +312,7 @@ TEST_F(ClusterBasicTest, test_multi_mds_and_etcd) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     auto copy2 = mdsConf;
-    copy1.emplace_back(" --etcdAddr=" + etcdClinetAddrs);
+    copy2.emplace_back(" --etcdAddr=" + etcdClinetAddrs);
     copy2.emplace_back(" -log_dir=" + mds2Dir);
     pid =
         curveCluster_->StartSingleMDS(2, "127.0.0.1:2311", 2314, copy2, false);
@@ -320,7 +320,7 @@ TEST_F(ClusterBasicTest, test_multi_mds_and_etcd) {
     ASSERT_GT(pid, 0);
 
     auto copy3 = mdsConf;
-    copy1.emplace_back(" --etcdAddr=" + etcdClinetAddrs);
+    copy3.emplace_back(" --etcdAddr=" + etcdClinetAddrs);
     copy3.emplace_back(" -log_dir=" + mds3Dir);
     pid =
         curveCluster_->StartSingleMDS(3, "127.0.0.1:2312", 2315, copy3, false);
