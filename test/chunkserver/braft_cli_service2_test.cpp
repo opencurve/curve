@@ -109,7 +109,7 @@ class WaitpidGuard {
     pid_t pid3_;
 };
 
-TEST_F(BraftCliService2Test, DISABLE_basic2) {
+TEST_F(BraftCliService2Test, DISABLED_basic2) {
     Peer peer1;
     peer1.set_address("127.0.0.1:9310:0");
     Peer peer2;
