@@ -124,7 +124,7 @@ class IOManager4File : public IOManager {
         return &mc_;
     }
     /**
-     * 设置scahuler，测试代码使用
+     * 设置scheduler，测试代码使用
      */
     void SetRequestScheduler(RequestScheduler* scheduler) {
         scheduler_ = scheduler;

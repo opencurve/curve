@@ -340,7 +340,6 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
         fileClient_ = new FileClient();
         fileClient_->Init(kClientConfigPath);
-        SourceReader::GetInstance().Init(kClientConfigPath);
 
         UserInfo_t userinfo;
         userinfo.owner = "ItUser1";
