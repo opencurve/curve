@@ -184,6 +184,8 @@ const std::vector<std::string> clientConf{
     std::string("metacache.rpcRetryIntervalUS=500"),
     std::string("mds.rpcRetryIntervalUS=500"),
     std::string("schedule.threadpoolSize=2"),
+    std::string("closefd.timeout=3"),
+    std::string("closefd.timeInterval=10"),
 };
 
 int main(int argc, char** argv) {

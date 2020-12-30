@@ -38,6 +38,7 @@
 #include "src/client/file_instance.h"
 #include "src/client/iomanager4file.h"
 #include "src/client/service_helper.h"
+#include "src/client/source_reader.h"
 #include "src/common/curve_version.h"
 #include "src/common/net_common.h"
 #include "src/common/uuid.h"
@@ -132,6 +133,9 @@ int FileClient::Init(const std::string& configpath) {
     if (clientconfig_.GetFileServiceOption().commonOpt.turnOffHealthCheck) {
         brpc::FLAGS_health_check_interval = -1;
     }
+
+    // set option for source reader
+    SourceReader::GetInstance().SetOption(clientconfig_.GetFileServiceOption());
 
     bool rc = StartDummyServer();
     if (rc == false) {
@@ -231,32 +235,20 @@ int FileClient::ReOpen(const std::string& filename,
 
 int FileClient::Open4ReadOnly(const std::string& filename,
     const UserInfo_t& userinfo) {
-    FileInstance* fileserv = FileInstance::NewInitedFileInstance(
-        clientconfig_.GetFileServiceOption(), mdsClient_, filename, userinfo,
-        true);
-    if (fileserv == nullptr) {
-        LOG(ERROR) << "NewInitedFileInstance fail";
+
+    FileInstance* instance = FileInstance::Open4Readonly(
+        clientconfig_.GetFileServiceOption(), mdsClient_, filename, userinfo);
+
+    if (instance == nullptr) {
+        LOG(ERROR) << "Open4Readonly failed, filename = " << filename;
         return -1;
     }
-
-    FInfo_t finfo;
-    int ret = fileserv->GetFileInfo(filename, &finfo);
-    if (ret != 0) {
-        LOG(ERROR) << "get file info failed! Open4ReadOnly failed!";
-        fileserv->UnInitialize();
-        delete fileserv;
-        return -1;
-    }
-
-    finfo.userinfo = userinfo;
-    finfo.fullPathName = filename;
-    fileserv->GetIOManager4File()->UpdateFileInfo(finfo);
 
     int fd = fdcount_.fetch_add(1, std::memory_order_relaxed);
 
     {
         WriteLockGuard lk(rwlock_);
-        fileserviceMap_[fd] = fileserv;
+        fileserviceMap_[fd] = instance;
     }
 
     openedFileNum_ << 1;

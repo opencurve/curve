@@ -142,6 +142,11 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
         const UserInfo& userInfo,
         bool readonly);
 
+    static FileInstance* Open4Readonly(const FileServiceOption& opt,
+                                       MDSClient* mdsclient,
+                                       const std::string& filename,
+                                       const UserInfo& userInfo);
+
  private:
     // 保存当前file的文件信息
     FInfo_t                 finfo_;

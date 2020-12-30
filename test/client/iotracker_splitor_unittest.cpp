@@ -97,8 +97,8 @@ class IOTrackerSplitorTest : public ::testing::Test {
         fopt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
         fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
         fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
-        fopt.ioOpt.closeFdThreadOption.fdTimeout = 300;
-        fopt.ioOpt.closeFdThreadOption.fdCloseTimeInterval = 600;
+        fopt.ioOpt.closeFdThreadOption.fdTimeout = 3;
+        fopt.ioOpt.closeFdThreadOption.fdCloseTimeInterval = 5;
         fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
 
         fileinstance_ = new FileInstance();
@@ -106,17 +106,12 @@ class IOTrackerSplitorTest : public ::testing::Test {
         userinfo.password = "12345";
 
         mdsclient_.Initialize(fopt.metaServerOpt);
-        fileinstance_->Initialize("/1_userinfo_.txt",
-                                    &mdsclient_, userinfo, fopt);
-
-        SourceReader::GetInstance().Init(configpath);
-        fileClient_ = new FileClient();
-        fileClient_->SetMdsClient(&mdsclient_);
-        ClientConfig clientConfig;
-        clientConfig.SetFileServiceOption(fopt);
-        fileClient_->SetClientConfig(clientConfig);
-        SourceReader::GetInstance().SetFileClient(fileClient_);
+        fileinstance_->Initialize("/test", &mdsclient_, userinfo, fopt);
         InsertMetaCache();
+
+        SourceReader::GetInstance().SetOption(fopt);
+        SourceReader::GetInstance().SetReadHandlers({});
+        SourceReader::GetInstance().Run();
     }
 
     void TearDown() {
@@ -124,6 +119,9 @@ class IOTrackerSplitorTest : public ::testing::Test {
         fileinstance_->UnInitialize();
         mdsclient_.UnInitialize();
         delete fileinstance_;
+
+        SourceReader::GetInstance().Stop();
+
         LOG(INFO) << "DONE!";
         server.Stop(0);
         server.Join();
@@ -1151,18 +1149,21 @@ TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegmentFromOrigin) {
     mockschuler->DelegateToFake();
 
     FileInstance* fileinstance2 = new FileInstance();
-    userinfo.owner = "cloneuser";
+    userinfo.owner = "cloneuser-test1";
     userinfo.password = "12345";
     mdsclient_.Initialize(fopt.metaServerOpt);
     fileinstance2->Initialize("/clonesource", &mdsclient_, userinfo, fopt);
-    std::unordered_map<std::string, std::pair<int, std::atomic<time_t>>>& fdmap
-                                    = SourceReader::GetInstance().GetFdMap();
-    fdmap["/clonesource"] = std::make_pair(1234, time(0));
-    std::unordered_map<int, FileInstance*>& fileservicemap =
-                            SourceReader::GetInstance().
-                            GetFileClient()->GetFileServiceMap();
-    fileservicemap[1234] = fileinstance2;
-    fileinstance2->GetIOManager4File()->SetRequestScheduler(mockschuler);
+
+    MockRequestScheduler* mockschuler2 = new MockRequestScheduler;
+    mockschuler2->DelegateToFake();
+
+    fileinstance2->GetIOManager4File()->SetRequestScheduler(mockschuler2);
+
+    auto& handlers = SourceReader::GetInstance().GetReadHandlers();
+    handlers.emplace(
+        std::piecewise_construct,
+        std::forward_as_tuple("/clonesource"),
+        std::forward_as_tuple(fileinstance2, ::time(nullptr), false));
 
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
     MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
@@ -1200,6 +1201,11 @@ TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegmentFromOrigin) {
     ASSERT_EQ('d', data[4 * 1024 + chunk_size - 1]);
     ASSERT_EQ('a', data[4 * 1024 + chunk_size]);
     ASSERT_EQ('a', data[length - 1]);
+
+
+    fileinstance2->UnInitialize();
+    delete fileinstance2;
+
     delete[] data;
 }
 
@@ -1211,18 +1217,21 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegmentFromOrigin) {
     mockschuler->DelegateToFake();
 
     FileInstance* fileinstance2 = new FileInstance();
-    userinfo.owner = "cloneuser";
+    userinfo.owner = "cloneuser-test2";
     userinfo.password = "12345";
     mdsclient_.Initialize(fopt.metaServerOpt);
     fileinstance2->Initialize("/clonesource", &mdsclient_, userinfo, fopt);
-    std::unordered_map<std::string, std::pair<int, std::atomic<time_t>>>& fdmap
-                                    = SourceReader::GetInstance().GetFdMap();
-    fdmap["/clonesource"] = std::make_pair(1234, time(0));
-    std::unordered_map<int, FileInstance*>& fileservicemap =
-                            SourceReader::GetInstance().
-                            GetFileClient()->GetFileServiceMap();
-    fileservicemap[1234] = fileinstance2;
-    fileinstance2->GetIOManager4File()->SetRequestScheduler(mockschuler);
+
+    MockRequestScheduler* mockschuler2 = new MockRequestScheduler;
+    mockschuler2->DelegateToFake();
+
+    fileinstance2->GetIOManager4File()->SetRequestScheduler(mockschuler2);
+
+    auto& handlers = SourceReader::GetInstance().GetReadHandlers();
+    handlers.emplace(
+        std::piecewise_construct,
+        std::forward_as_tuple("/clonesource"),
+        std::forward_as_tuple(fileinstance2, ::time(nullptr), false));
 
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
     MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
@@ -1263,29 +1272,43 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegmentFromOrigin) {
     ASSERT_EQ('d', data[4 * 1024 + chunk_size - 1]);
     ASSERT_EQ('a', data[4 * 1024 + chunk_size]);
     ASSERT_EQ('a', data[aioctx.length - 1]);
+
+    fileinstance2->UnInitialize();
+    delete fileinstance2;
     delete[] data;
 }
 
 TEST_F(IOTrackerSplitorTest, TimedCloseFd) {
-    FileInstance* fileinstance2 = new FileInstance();
-    MDSClient mdsclient_;
-    userinfo.owner = "userinfo";
-    userinfo.password = "12345";
-    mdsclient_.Initialize(fopt.metaServerOpt);
-    fileinstance2->Initialize("/test", &mdsclient_, userinfo, fopt);
-    std::unordered_map<std::string, std::pair<int, std::atomic<time_t>>>& fdmap
-                                    = SourceReader::GetInstance().GetFdMap();
-    fdmap.clear();
-    fdmap["/test"] = std::make_pair(1234, time(0) -
-                        fopt.ioOpt.closeFdThreadOption.fdTimeout - 5);
-    std::unordered_map<int, FileInstance*>& fileservicemap =
-                            SourceReader::GetInstance().
-                            GetFileClient()->GetFileServiceMap();
-    fileservicemap[1234] = fileinstance2;
-    SourceReader::GetInstance().Run();
-    ::sleep(2);
+    std::unordered_map<std::string, SourceReader::ReadHandler> fakeHandlers;
+    fakeHandlers.emplace(
+        std::piecewise_construct,
+        std::forward_as_tuple("/1"),
+        std::forward_as_tuple(
+            nullptr,
+            ::time(nullptr) - fopt.ioOpt.closeFdThreadOption.fdTimeout,
+            true));
+    fakeHandlers.emplace(
+        std::piecewise_construct,
+        std::forward_as_tuple("/2"),
+        std::forward_as_tuple(
+            nullptr,
+            ::time(nullptr) - fopt.ioOpt.closeFdThreadOption.fdTimeout,
+            false));
+
+    FileInstance* instance = new FileInstance();
+    fakeHandlers.emplace(
+        std::piecewise_construct,
+        std::forward_as_tuple("/3"),
+        std::forward_as_tuple(
+            instance,
+            ::time(nullptr) - fopt.ioOpt.closeFdThreadOption.fdTimeout,
+            false));
+
+    SourceReader::GetInstance().SetReadHandlers(fakeHandlers);
+
+    std::this_thread::sleep_for(std::chrono::seconds(30));
     SourceReader::GetInstance().Stop();
-    ASSERT_EQ(0, fdmap.size());
+    ASSERT_EQ(0, SourceReader::GetInstance().GetReadHandlers().size());
 }
 
 }  // namespace client

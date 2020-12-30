@@ -35,14 +35,7 @@ CurveClient::~CurveClient() {
 }
 
 int CurveClient::Init(const std::string& configPath) {
-    if (0 == fileClient_->Init(configPath) &&
-       0 == SourceReader::GetInstance().Init(configPath)) {
-        SourceReader::GetInstance().Run();
-        return LIBCURVE_ERROR::OK;
-    } else {
-        LOG(ERROR) << "Curve Client Or SourceReader Init failed!";
-        return -LIBCURVE_ERROR::FAILED;
-    }
+    return fileClient_->Init(configPath);
 }
 
 void CurveClient::UnInit() {

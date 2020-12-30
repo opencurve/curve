@@ -116,7 +116,7 @@ void IOTracker::DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo) {
 
         reqcount_.store(reqlist_.size(), std::memory_order_release);
         if (scheduler_->ScheduleRequest(reqlist_) == 0 &&
-            ReadFromSource(originReadVec, fileInfo->userinfo) == 0) {
+            ReadFromSource(originReadVec, fileInfo->userinfo, mdsclient) == 0) {
             ret = 0;
         } else {
             ret = -1;
@@ -132,13 +132,14 @@ void IOTracker::DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo) {
     }
 }
 
-int IOTracker::ReadFromSource(std::vector<RequestContext*> reqCtxVec,
-                              const UserInfo_t& userInfo) {
+int IOTracker::ReadFromSource(const std::vector<RequestContext*>& reqCtxVec,
+                              const UserInfo_t& userInfo,
+                              MDSClient* mdsClient) {
     if (reqCtxVec.empty()) {
         return 0;
     }
 
-    return SourceReader::GetInstance().Read(reqCtxVec, userInfo);
+    return SourceReader::GetInstance().Read(reqCtxVec, userInfo, mdsClient);
 }
 
 void IOTracker::StartWrite(const void* buf, off_t offset, size_t length,

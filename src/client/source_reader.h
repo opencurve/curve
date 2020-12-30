@@ -23,46 +23,51 @@
 #ifndef SRC_CLIENT_SOURCE_READER_H_
 #define SRC_CLIENT_SOURCE_READER_H_
 
-#include <mutex>
-#include <unordered_map>
-#include <thread>
 #include <atomic>
-#include <vector>
+#include <mutex>
 #include <string>
+#include <thread>
+#include <unordered_map>
 #include <utility>
-#include "include/client/libcurve.h"
-#include "src/client/libcurve_file.h"
-#include "src/client/request_closure.h"
-#include "src/common/interruptible_sleeper.h"
+#include <vector>
+#include <memory>
 
-using curve::client::ClusterContext;
-using curve::client::FileClient;
-using curve::client::RequestContext;
-using curve::client::UserInfo_t;
+#include "src/client/config_info.h"
+#include "src/common/interruptible_sleeper.h"
 
 namespace curve {
 namespace client {
 
+class FileInstance;
+class RequestContext;
+class UserInfo;
+class MDSClient;
+
 class SourceReader {
  public:
-    static SourceReader& GetInstance();
+    class ReadHandler {
+        friend class SourceReader;
 
-    void SetFileClient(FileClient *client) {
-        fileClient_ = client;
+     public:
+        ReadHandler(FileInstance* file, time_t t, bool ownfile)
+            : file_(file), lastUsedSec_(t), ownfile_(ownfile) {}
+        ~ReadHandler();
+
+        ReadHandler(const ReadHandler&) = delete;
+        ReadHandler& operator=(const ReadHandler&) = delete;
+
+     private:
+        FileInstance* file_;
+        std::atomic<time_t> lastUsedSec_;
+        bool ownfile_;
+    };
+
+    static SourceReader& GetInstance() {
+        static SourceReader reader;
+        return reader;
     }
 
-    FileClient* GetFileClient() {
-        return fileClient_;
-    }
-
-    std::unordered_map<std::string,
-                       std::pair<int, std::atomic<time_t>>>& GetFdMap() {
-        return fdMap_;
-    }
-
-    int Init(const std::string& configPath);
-
-    void Uinit();
+    void SetOption(const FileServiceOption& opt);
 
     /**
      * run the timed stop fd thread
@@ -75,40 +80,51 @@ class SourceReader {
     void Stop();
 
     /**
-     *  read from the origin
-     *  @param: reqCtxVec the read request context vector
-     *  @param: the user info
+     *  @brief read from the source
+     *  @param reqCtxVec the read request context vector
+     *  @param userInfo the user info
+     *  @param mdsclient interact with metadata server
      *  @return 0 success; -1 fail
      */
-    int Read(std::vector<RequestContext*> reqCtxVec,
-                       const UserInfo_t& userInfo);
+    int Read(const std::vector<RequestContext*>& reqCtxVec,
+             const UserInfo& userInfo, MDSClient* mdsClinet);
+
+    // for unit-test
+    std::unordered_map<std::string, ReadHandler>& GetReadHandlers();
+
+    // for unit-test
+    void SetReadHandlers(
+        const std::unordered_map<std::string, ReadHandler>& handlers);
 
  private:
-    SourceReader();
+    SourceReader() = default;
     ~SourceReader();
-    SourceReader(const SourceReader &);
-    SourceReader& operator=(const SourceReader &);
+    SourceReader(const SourceReader&);
+    SourceReader& operator=(const SourceReader&);
 
     /**
      * close the timeout fd with timed thread
      */
-    int Closefd();
+    void Closefd();
 
-    /**
-     * get fd
-     */
-    int Getfd(const std::string& fileName, const UserInfo_t& userInfo);
+    ReadHandler* GetReadHandler(const std::string& fileName,
+                                const UserInfo& userInfo, MDSClient* mdsclient);
 
-    FileClient *fileClient_{nullptr};
-    // the mutex lock for fdMap_
-    curve::common::RWLock  rwLock_;
-    // first: filename; second: <fd,timestamp>
-    std::unordered_map<std::string, std::pair<int, std::atomic<time_t>>> fdMap_;
+ private:
+    // the mutex lock for readHandlers_
+    curve::common::RWLock rwLock_;
+
+    // store file read handlers
+    // key: filename, value: file read handler
+    std::unordered_map<std::string, ReadHandler> readHandlers_;
+
     // is initialized
     bool inited_ = false;
-    std::thread fdCloseThread_;
     std::atomic<bool> running_;
-    curve::common::InterruptibleSleeper sleeper_;
+    std::unique_ptr<std::thread> fdCloseThread_;
+    std::unique_ptr<curve::common::InterruptibleSleeper> sleeper_;
+
+    FileServiceOption fileOption_;
 };
 
 }  // namespace client

@@ -22,6 +22,11 @@
 
 #include "src/client/source_reader.h"
 
+#include "include/client/libcurve.h"
+#include "src/client/libcurve_file.h"
+#include "src/client/request_closure.h"
+#include "src/client/file_instance.h"
+
 namespace curve {
 namespace client {
 
@@ -45,17 +50,23 @@ void CurveAioCallback(struct CurveAioContext* context) {
     brpc::ClosureGuard doneGuard(done);
 }
 
-SourceReader::SourceReader() : fileClient_(new FileClient()) {}
+SourceReader::ReadHandler::~ReadHandler() {
+    if (ownfile_ && file_ != nullptr) {
+        file_->UnInitialize();
+        delete file_;
+        file_ = nullptr;
+    }
+}
 
 SourceReader::~SourceReader() {
     Stop();
-    Uinit();
 }
 
 void SourceReader::Run() {
     if (!running_) {
+        sleeper_.reset(new common::InterruptibleSleeper());
+        fdCloseThread_.reset(new std::thread(&SourceReader::Closefd, this));
         running_ = true;
-        fdCloseThread_ = std::thread(&SourceReader::Closefd, this);
         LOG(INFO) << "SourceReader fdCloseThread run successfully";
     } else {
         LOG(WARNING) << "SourceReader fdCloseThread is running!";
@@ -64,132 +75,134 @@ void SourceReader::Run() {
 
 void SourceReader::Stop() {
     if (running_) {
+        sleeper_->interrupt();
+        fdCloseThread_->join();
+        sleeper_.reset();
+        fdCloseThread_.reset();
         running_ = false;
-        sleeper_.interrupt();
-        fdCloseThread_.join();
         LOG(INFO) << "SourceReader fdCloseThread stoped successfully";
     } else {
         LOG(WARNING) << "SourceReader fdCloseThread already stopped!";
     }
 }
 
-int SourceReader::Init(const std::string& configPath) {
-    if (inited_) {
-        LOG(WARNING) << "SourceReader already inited!";
+void SourceReader::SetOption(const FileServiceOption& opt) {
+    fileOption_ = opt;
+}
+
+std::unordered_map<std::string, SourceReader::ReadHandler>&
+SourceReader::GetReadHandlers() {
+    return readHandlers_;
+}
+
+void SourceReader::SetReadHandlers(
+    const std::unordered_map<std::string, ReadHandler>& handlers) {
+    curve::common::WriteLockGuard wlk(rwLock_);
+    readHandlers_.clear();
+
+    for (const auto& handler : handlers) {
+        readHandlers_.emplace(std::piecewise_construct,
+                              std::forward_as_tuple(handler.first),
+                              std::forward_as_tuple(handler.second.file_,
+                                                    handler.second.lastUsedSec_,
+                                                    handler.second.ownfile_));
+    }
+}
+
+SourceReader::ReadHandler* SourceReader::GetReadHandler(
+    const std::string& fileName, const UserInfo& userInfo,
+    MDSClient* mdsclient) {
+    {
+        ReadLockGuard rlk(rwLock_);
+        auto iter = readHandlers_.find(fileName);
+        if (iter != readHandlers_.end()) {
+            iter->second.lastUsedSec_.store(::time(nullptr),
+                                            std::memory_order_relaxed);
+            return &iter->second;
+        }
+    }
+
+    FileInstance* instance =
+        FileInstance::Open4Readonly(fileOption_, mdsclient, fileName, userInfo);
+    if (instance == nullptr) {
+        return nullptr;
+    }
+
+    curve::common::WriteLockGuard wlk(rwLock_);
+    auto res = readHandlers_.emplace(
+        std::piecewise_construct,
+        std::forward_as_tuple(fileName),
+        std::forward_as_tuple(instance, ::time(nullptr), true));
+
+    if (res.second == false) {
+        instance->UnInitialize();
+        delete instance;
+    }
+
+    return &res.first->second;
+}
+
+int SourceReader::Read(const std::vector<RequestContext*>& reqCtxVec,
+                       const UserInfo& userInfo, MDSClient* mdsClient) {
+    if (reqCtxVec.empty()) {
         return 0;
     }
 
-    if (LIBCURVE_ERROR::OK == fileClient_->Init(configPath)) {
-        inited_ = true;
-        return LIBCURVE_ERROR::OK;
-    }
-    return -LIBCURVE_ERROR::FAILED;
-}
-
-void SourceReader::Uinit() {
-    if (!inited_) {
-        LOG(WARNING) << "SourceReader not inited!";
-        return;
-    }
-    if (fileClient_ != nullptr) {
-        for (auto &pair : fdMap_) {
-            if (LIBCURVE_ERROR::OK != fileClient_->Close(pair.second.first)) {
-                LOG(ERROR) << "Close fd failed, fd = " << pair.second.first;
-                return;
-            }
-        }
-        fdMap_.clear();
-        fileClient_->UnInit();
-        delete fileClient_;
-        fileClient_ = nullptr;
-        inited_ = false;
-    }
-}
-
-SourceReader& SourceReader::GetInstance() {
-    static SourceReader originReader;
-    return originReader;
-}
-
-int SourceReader::Getfd(const std::string& fileName,
-                        const UserInfo_t& userInfo) {
-    {
-        curve::common::ReadLockGuard readLockGuard(rwLock_);
-        auto iter = fdMap_.find(fileName);
-        if (iter != fdMap_.end()) {
-            iter->second.second = time(0);
-            return iter->second.first;
-        }
-    }
-    {
-        int fd = 0;
-        curve::common::WriteLockGuard writeLockGuard(rwLock_);
-        auto iter = fdMap_.find(fileName);
-        if (iter != fdMap_.end()) {
-            return iter->second.first;
-        } else {
-            fd = fileClient_->Open4ReadOnly(fileName, userInfo);
-            fdMap_.emplace(fileName, std::make_pair(fd, time(0)));
-            return fd;
-        }
-    }
-    LOG(ERROR) << "Getfd failed in fdMap_!";
-    return -1;
-}
-
-int SourceReader::Read(std::vector<RequestContext*> reqCtxVec,
-                                 const UserInfo_t& userInfo) {
-    if (reqCtxVec.size() <= 0) {
-        return 0;
-    }
+    static std::once_flag flag;
+    std::call_once(flag, []() { GetInstance().Run(); });
 
     for (auto reqCtx : reqCtxVec) {
         brpc::ClosureGuard doneGuard(reqCtx->done_);
         std::string fileName = reqCtx->sourceInfo_.cloneFileSource;
-        CurveAioCombineContext *curveCombineCtx = new CurveAioCombineContext();
+        CurveAioCombineContext* curveCombineCtx = new CurveAioCombineContext();
         curveCombineCtx->done = reqCtx->done_;
-        curveCombineCtx->curveCtx.offset = reqCtx->sourceInfo_.cloneFileOffset
-                                            + reqCtx->offset_;
+        curveCombineCtx->curveCtx.offset =
+            reqCtx->sourceInfo_.cloneFileOffset + reqCtx->offset_;
         curveCombineCtx->curveCtx.length = reqCtx->rawlength_;
         curveCombineCtx->curveCtx.buf = &reqCtx->readData_;
         curveCombineCtx->curveCtx.op = LIBCURVE_OP::LIBCURVE_OP_READ;
         curveCombineCtx->curveCtx.cb = CurveAioCallback;
 
-        int ret = fileClient_->AioRead(Getfd(fileName, userInfo),
-                            &curveCombineCtx->curveCtx, UserDataType::IOBuffer);
-        if (ret !=  LIBCURVE_ERROR::OK) {
-            LOG(ERROR) << "Read curve file failed."
-                    << "file name: " << fileName
-                    << " ,error code: " << ret;
+        ReadHandler* handler = GetReadHandler(fileName, userInfo, mdsClient);
+        if (handler == nullptr) {
+            LOG(ERROR) << "Get ReadHandler failed, filename = " << fileName;
+            return -1;
+        }
+
+        int ret = handler->file_->AioRead(&curveCombineCtx->curveCtx,
+                                          UserDataType::IOBuffer);
+        if (ret != LIBCURVE_ERROR::OK) {
+            LOG(ERROR) << "Read curve failed failed, filename = " << fileName
+                       << ", error = " << ret;
             delete curveCombineCtx;
             return -1;
         } else {
             doneGuard.release();
         }
     }
+
     return 0;
 }
 
-int SourceReader::Closefd() {
-    while (running_) {
-        {
-            curve::common::WriteLockGuard writeLockGuard(rwLock_);
-            for (auto iter = fdMap_.begin(); iter != fdMap_.end();) {
-                int fd = iter->second.first;
-                time_t timestamp = iter->second.second;
-                if (time(0) - timestamp > fileClient_->GetClientConfig().
-                                        GetFileServiceOption().
-                                        ioOpt.closeFdThreadOption.fdTimeout) {
-                    fileClient_->Close(fd);
-                    iter = fdMap_.erase(iter);
-                } else {
-                    iter++;
-                }
+void SourceReader::Closefd() {
+    const std::chrono::seconds sleepSec(
+        fileOption_.ioOpt.closeFdThreadOption.fdCloseTimeInterval);
+    const uint32_t fdTimeout = fileOption_.ioOpt.closeFdThreadOption.fdTimeout;
+
+    while (sleeper_->wait_for(sleepSec)) {
+        LOG(INFO) << "Scan read handlers...";
+        curve::common::WriteLockGuard writeLockGuard(rwLock_);
+        auto iter = readHandlers_.begin();
+        while (iter != readHandlers_.end()) {
+            time_t lastUsedSec = iter->second.lastUsedSec_;
+            if (::time(nullptr) - lastUsedSec > fdTimeout) {
+                LOG(INFO) << iter->first
+                          << " timedout, last used: " << lastUsedSec;
+                iter = readHandlers_.erase(iter);
+            } else {
+                ++iter;
             }
         }
-
-        sleeper_.wait_for(std::chrono::seconds(fileClient_->GetClientConfig().
-        GetFileServiceOption().ioOpt.closeFdThreadOption.fdCloseTimeInterval));
     }
 }
 

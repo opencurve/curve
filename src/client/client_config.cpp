@@ -218,6 +218,20 @@ int ClientConfig::Init(const char* configpath) {
         << "config no global.turnOffHealthCheck info, using default value "
         << fileServiceOption_.commonOpt.turnOffHealthCheck;
 
+    ret = conf_.GetUInt32Value(
+        "closefd.timeout",
+        &fileServiceOption_.ioOpt.closeFdThreadOption.fdTimeout);
+    LOG_IF(WARNING, ret == false)
+        << "config no closefd.timeout info, using default value "
+        << fileServiceOption_.ioOpt.closeFdThreadOption.fdTimeout;
+
+    ret = conf_.GetUInt32Value(
+        "closefd.timeInterval",
+        &fileServiceOption_.ioOpt.closeFdThreadOption.fdCloseTimeInterval);
+    LOG_IF(WARNING, ret == false)
+        << "config no closefd.timeInterval info, using default value "
+        << fileServiceOption_.ioOpt.closeFdThreadOption.fdCloseTimeInterval;
+
     return 0;
 }
 

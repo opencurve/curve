@@ -205,5 +205,32 @@ FileInstance* FileInstance::NewInitedFileInstance(
     return instance;
 }
 
+FileInstance* FileInstance::Open4Readonly(const FileServiceOption& opt,
+                                          MDSClient* mdsclient,
+                                          const std::string& filename,
+                                          const UserInfo& userInfo) {
+    FileInstance* instance = FileInstance::NewInitedFileInstance(
+        opt, mdsclient, filename, userInfo, true);
+    if (instance == nullptr) {
+        LOG(ERROR) << "NewInitedFileInstance failed, filename = " << filename;
+        return nullptr;
+    }
+
+    FInfo fileInfo;
+    int ret = instance->GetFileInfo(filename, &fileInfo);
+    if (ret != 0) {
+        LOG(ERROR) << "Get file info failed!";
+        instance->UnInitialize();
+        delete instance;
+        return nullptr;
+    }
+
+    fileInfo.userinfo = userInfo;
+    fileInfo.fullPathName = filename;
+    instance->GetIOManager4File()->UpdateFileInfo(fileInfo);
+
+    return instance;
+}
+
 }   // namespace client
 }   // namespace curve
