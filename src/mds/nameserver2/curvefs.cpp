@@ -1225,7 +1225,7 @@ StatusCode CurveFS::CheckSnapShotFileStatus(const std::string &fileName,
     FileInfo snapShotFileInfo;
     StatusCode ret =  GetSnapShotFileInfo(fileName, seq, &snapShotFileInfo);
     if (ret != StatusCode::kOK) {
-        LOG(ERROR) << "GetSnapShotFileInfo file fail, fileName = "
+        LOG(WARNING) << "GetSnapShotFileInfo file fail, fileName = "
                    << fileName << ", seq = " << seq << ", ret = " << ret;
         return ret;
     }
@@ -1270,7 +1270,7 @@ StatusCode CurveFS::GetSnapShotFileSegment(
     FileInfo snapShotFileInfo;
     StatusCode ret = GetSnapShotFileInfo(fileName, seq, &snapShotFileInfo);
     if (ret != StatusCode::kOK) {
-        LOG(ERROR) << "GetSnapShotFileInfo file fail, fileName = "
+        LOG(WARNING) << "GetSnapShotFileInfo file fail, fileName = "
                    << fileName << ", seq = " << seq << ", ret = " << ret;
         return ret;
     }

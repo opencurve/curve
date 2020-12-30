@@ -1815,6 +1815,7 @@ uint32_t GetMdsLogLevel(StatusCode code) {
         case StatusCode::kFileIdNotMatch:
         case StatusCode::kSessionNotExist:
         case StatusCode::kFileOccupied:
+        case StatusCode::kFileExists:
         case StatusCode::kFileNotExists:
         case StatusCode::kParaError:
             return google::WARNING;

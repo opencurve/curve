@@ -877,7 +877,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
                                             &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.getOrAllocateSegment.eps.count << 1;
-            LOG_EVERY_SECOND(ERROR)
+            LOG(WARNING)
                 << "allocate segment failed, error code = "
                 << cntl->ErrorCode()
                 << ", error content:" << cntl->ErrorText()
