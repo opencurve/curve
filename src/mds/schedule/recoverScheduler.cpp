@@ -221,7 +221,7 @@ void RecoverScheduler::CalculateExcludesChunkServer(
         if (item.second.size() < chunkserverFailureTolerance_) {
             continue;
         }
-        LOG(ERROR) << "server " << item.first << " has "
+        LOG(WARNING) << "server " << item.first << " has "
                     << item.second.size() << " offline chunkservers";
         for (auto cs : item.second) {
             excludes->emplace(cs);
