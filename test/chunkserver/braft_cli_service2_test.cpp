@@ -54,18 +54,24 @@ class BraftCliService2Test : public testing::Test {
         LOG(INFO) << "BraftCliServiceTest " << "TearDownTestCase";
     }
     virtual void SetUp() {
+        peer1.set_address("127.0.0.1:9310:0");
+        peer2.set_address("127.0.0.1:9311:0");
+        peer3.set_address("127.0.0.1:9312:0");
         UUIDGenerator uuidGenerator;
-        dir1 = uuidGenerator.GenerateUUID();
-        dir2 = uuidGenerator.GenerateUUID();
-        dir3 = uuidGenerator.GenerateUUID();
-        Exec(("mkdir " + dir1).c_str());
-        Exec(("mkdir " + dir2).c_str());
-        Exec(("mkdir " + dir3).c_str());
+        std::string dir = uuidGenerator.GenerateUUID();
+        dirMap[peer1.address()] = dir;
+        Exec(("mkdir " + dir).c_str());
+        dir = uuidGenerator.GenerateUUID();
+        dirMap[peer2.address()] = dir;
+        Exec(("mkdir " + dir).c_str());
+        dir = uuidGenerator.GenerateUUID();
+        dirMap[peer3.address()] = dir;
+        Exec(("mkdir " + dir).c_str());
     }
     virtual void TearDown() {
-        Exec(("rm -fr " + dir1).c_str());
-        Exec(("rm -fr " + dir2).c_str());
-        Exec(("rm -fr " + dir3).c_str());
+        for (const auto& item : dirMap) {
+            Exec(("rm -fr " + item.second).c_str());
+        }
     }
 
  public:
@@ -78,10 +84,10 @@ class BraftCliService2Test : public testing::Test {
     pid_t pid1;
     pid_t pid2;
     pid_t pid3;
-
-    std::string dir1;
-    std::string dir2;
-    std::string dir3;
+    Peer peer1;
+    Peer peer2;
+    Peer peer3;
+    std::map<std::string, std::string> dirMap;
 };
 
 butil::AtExitManager atExitManager;
@@ -109,14 +115,7 @@ class WaitpidGuard {
     pid_t pid3_;
 };
 
-TEST_F(BraftCliService2Test, DISABLED_basic2) {
-    Peer peer1;
-    peer1.set_address("127.0.0.1:9310:0");
-    Peer peer2;
-    peer2.set_address("127.0.0.1:9311:0");
-    Peer peer3;
-    peer3.set_address("127.0.0.1:9312:0");
-
+TEST_F(BraftCliService2Test, basic2) {
     PeerId leaderId;
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
@@ -128,7 +127,7 @@ TEST_F(BraftCliService2Test, DISABLED_basic2) {
         std::cerr << "fork chunkserver 1 failed" << std::endl;
         ASSERT_TRUE(false);
     } else if (0 == pid1) {
-        std::string copysetdir = "local://./" + dir1;
+        std::string copysetdir = "local://./" + dirMap[peer1.address()];
         StartChunkserver(ip,
                          port + 0,
                          copysetdir.c_str(),
@@ -143,7 +142,7 @@ TEST_F(BraftCliService2Test, DISABLED_basic2) {
         std::cerr << "fork chunkserver 2 failed" << std::endl;
         ASSERT_TRUE(false);
     } else if (0 == pid2) {
-        std::string copysetdir = "local://./" + dir2;
+        std::string copysetdir = "local://./" + dirMap[peer2.address()];
         StartChunkserver(ip,
                          port + 1,
                          copysetdir.c_str(),
@@ -158,7 +157,7 @@ TEST_F(BraftCliService2Test, DISABLED_basic2) {
         std::cerr << "fork chunkserver 3 failed" << std::endl;
         ASSERT_TRUE(false);
     } else if (0 == pid3) {
-        std::string copysetdir = "local://./" + dir3;
+        std::string copysetdir = "local://./" + dirMap[peer3.address()];
         StartChunkserver(ip,
                          port + 2,
                          copysetdir.c_str(),
@@ -559,22 +558,24 @@ TEST_F(BraftCliService2Test, DISABLED_basic2) {
     /* snapshot - normal */
     {
         // 初始状态快照不为空
-        std::string copysetDataDir = dir1 + "/" +
+        std::string copysetDataDir = dirMap[gLeader.address()] + "/" +
                 ToGroupId(logicPoolId, copysetId) + "/" + RAFT_LOG_DIR;
         std::shared_ptr<LocalFileSystem> fs(
         LocalFsFactory::CreateFs(curve::fs::FileSystemType::EXT4, ""));
         std::vector<std::string> files;
         fs->List(copysetDataDir.c_str(), &files);
         ASSERT_GE(files.size(), 1);
-        PeerId peer(peer1.address());
+
         brpc::Channel channel;
-        ASSERT_EQ(0, channel.Init(peer.addr, NULL));
+        PeerId leaderId;
+        ASSERT_EQ(0, leaderId.parse(gLeader.address()));
+        ASSERT_EQ(0, channel.Init(leaderId.addr, NULL));
 
         SnapshotRequest2 request;
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         Peer *peerPtr = new Peer();
-        *peerPtr = peer1;
+        peerPtr->set_address(leaderId.to_string());
         request.set_allocated_peer(peerPtr);
 
         SnapshotResponse2 response;
@@ -582,6 +583,7 @@ TEST_F(BraftCliService2Test, DISABLED_basic2) {
         cntl.set_timeout_ms(options.timeout_ms);
         cntl.set_max_retry(options.max_retry);
 
+        LOG(INFO) << "Start do snapshot";
         CliService2_Stub stub(&channel);
         stub.Snapshot(&cntl, &request, &response, NULL);
         ASSERT_FALSE(cntl.Failed()) << "Do snapshot fail, error: "
@@ -589,15 +591,18 @@ TEST_F(BraftCliService2Test, DISABLED_basic2) {
         // 需要连续打两次快照才能删除第一次快照时的log
         sleep(5);
         cntl.Reset();
+        LOG(INFO) << "Start do snapshot";
         stub.Snapshot(&cntl, &request, &response, NULL);
         ASSERT_FALSE(cntl.Failed()) << "Do snapshot fail, error: "
                                     << cntl.ErrorText();
-        sleep(10);
-        // 打完快照应该只剩下meta信息
-        files.clear();
-        fs->List(copysetDataDir.c_str(), &files);
-        for (const auto& file : files) {
-            LOG(INFO) << file;
+        for (int i = 0; i < 60; ++i) {
+            files.clear();
+            fs->List(copysetDataDir.c_str(), &files);
+            // 打完快照应该只剩下meta信息
+            if (files.size() == 1) {
+                break;
+            }
+            sleep(1);
         }
         ASSERT_EQ(1, files.size());
     }
