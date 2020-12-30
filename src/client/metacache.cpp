@@ -125,7 +125,7 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
     }
 
     if (ret == -1) {
-        LOG_EVERY_N(ERROR, 10) << "get leader failed after retry!"
+        LOG(WARNING) << "get leader failed after retry!"
             << ", copyset id = " << copysetId
             << ", logicpool id = " << logicPoolId;
         return -1;
@@ -149,7 +149,7 @@ int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
         getLeaderInfo, &leaderaddr, &csid, fm);
 
     if (ret == -1) {
-        LOG_EVERY_N(ERROR, 10) << "get leader failed!"
+        LOG(WARNING) << "get leader failed!"
             << ", copyset id = " << copysetId
             << ", logicpool id = " << logicPoolId;
         return -1;
