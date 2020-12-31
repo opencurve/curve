@@ -170,6 +170,9 @@ class BAIDU_CACHELINE_ALIGNMENT CurveSegment:
     int _checksum_type;
     std::vector<std::pair<int64_t, int64_t> > _offset_and_term;
     uint32_t _meta_page_size;
+
+    std::vector<std::pair<char*, size_t>> _io_vec;
+    std::vector<int64_t> _term_to_add;
 };
 
 }  // namespace chunkserver

@@ -373,7 +373,7 @@ int CurveSegment::_load_entry(off_t offset, EntryHeader* head,
 int CurveSegment::append(const braft::LogEntry* entry) {
     if (BAIDU_UNLIKELY(!entry || !_is_open)) {
         return EINVAL;
-    } else if (entry->id.index !=
+    } else if (entry->id.index <
                     _last_index.load(butil::memory_order_consume) + 1) {
         CHECK(false) << "entry->index=" << entry->id.index
                   << " _last_index=" << _last_index
@@ -435,12 +435,7 @@ int CurveSegment::append(const braft::LogEntry* entry) {
                   _checksum_type, write_buf, kEntryHeaderSize - 4));
     if (FLAGS_enableWalDirectWrite) {
         data.copy_to(write_buf + kEntryHeaderSize, real_length);
-        int ret = ::pwrite(_direct_fd, write_buf, to_write, _meta.bytes);
-        free(write_buf);
-        if (ret != to_write) {
-            LOG(ERROR) << "Fail to write directly to fd=" << _direct_fd;
-            return -1;
-        }
+        _io_vec.emplace_back(write_buf, to_write);
     } else {
         butil::IOBuf header;
         header.append(write_buf, kEntryHeaderSize);
@@ -461,13 +456,16 @@ int CurveSegment::append(const braft::LogEntry* entry) {
                     ++start) {}
         }
     }
-    {
+    if (!FLAGS_enableWalDirectWrite) {
         BAIDU_SCOPED_LOCK(_mutex);
         _offset_and_term.push_back(std::make_pair(_meta.bytes, entry->id.term));
         _last_index.fetch_add(1, butil::memory_order_relaxed);
         _meta.bytes += to_write;
+        return _update_meta_page();
+    } else {
+        _term_to_add.push_back(entry->id.term);
+        return 0;
     }
-    return _update_meta_page();
 }
 
 int CurveSegment::_update_meta_page() {
@@ -576,6 +574,12 @@ int CurveSegment::_get_meta(int64_t index, LogMeta* meta) const {
     meta->offset = entry_cursor;
     meta->term = _offset_and_term[meta_index].second;
     meta->length = next_cursor - entry_cursor;
+    LOG(INFO) << "offset = " << entry_cursor << ", term = " << meta->term
+              << ", length = " <<  meta->length
+              << ", index = " << index
+              << "_last_index="
+              << _last_index.load(butil::memory_order_relaxed)
+              << " _first_index=" << _first_index;
     return 0;
 }
 
@@ -607,6 +611,41 @@ int CurveSegment::close(bool will_sync) {
         if (FLAGS_raftSyncSegments && will_sync &&
                                 !FLAGS_enableWalDirectWrite) {
             ret = braft::raft_fsync(_fd);
+        } else if (FLAGS_enableWalDirectWrite) {
+            struct iovec vec[1024];  // 定义iovec
+            size_t nvec = 0;
+            size_t to_write = 0;
+            for (size_t i = 0; i < _io_vec.size(); i++, ++nvec) {
+                vec[nvec].iov_base = _io_vec[i].first;
+                vec[nvec].iov_len = _io_vec[i].second;
+                to_write += _io_vec[i].second;
+            }
+
+            ret = pwritev(_direct_fd, vec, nvec, _meta.bytes);
+            LOG(INFO) << "close pwritev : nvec = " << nvec
+                      << ", offset = " <<  _meta.bytes;
+
+            if (ret != to_write) {
+                LOG(ERROR) << "Fail to write directly to fd=" << _direct_fd;
+                return -1;
+            }
+
+            {
+                BAIDU_SCOPED_LOCK(_mutex);
+                for (size_t i = 0; i < _io_vec.size(); i++) {
+                    _offset_and_term.push_back(
+                            std::make_pair(_meta.bytes, _term_to_add[i]));
+                    _last_index.fetch_add(1, butil::memory_order_relaxed);
+                    _meta.bytes += _io_vec[i].second;
+                }
+            }
+
+            ret = _update_meta_page();
+            for (size_t i = 0; i < _io_vec.size(); i++) {
+                free(_io_vec[i].first);
+            }
+            _io_vec.clear();
+            _term_to_add.clear();
         }
     }
     if (ret == 0) {
@@ -623,14 +662,46 @@ int CurveSegment::close(bool will_sync) {
 }
 
 int CurveSegment::sync(bool will_sync) {
-    if (_last_index > _first_index) {
-        // CHECK(_is_open);
-        if (!FLAGS_enableWalDirectWrite && braft::FLAGS_raft_sync
-                                            && will_sync) {
-            return braft::raft_fsync(_fd);
-        } else {
-            return 0;
+    // CHECK(_is_open);
+    if (!FLAGS_enableWalDirectWrite && braft::FLAGS_raft_sync
+                                        && will_sync) {
+        return braft::raft_fsync(_fd);
+    } else if (FLAGS_enableWalDirectWrite) {
+        struct iovec vec[1024];  // 定义iovec
+        size_t nvec = 0;
+        size_t to_write = 0;
+        for (size_t i = 0; i < _io_vec.size(); i++, ++nvec) {
+            vec[nvec].iov_base = _io_vec[i].first;
+            vec[nvec].iov_len = _io_vec[i].second;
+            to_write += _io_vec[i].second;
         }
+
+        int ret = pwritev(_direct_fd, vec, nvec, _meta.bytes);
+        LOG(INFO) << "sync pwritev : nvec = " << nvec
+                  << ", offset = " <<  _meta.bytes;
+
+        if (ret != to_write) {
+            LOG(ERROR) << "Fail to write directly to fd=" << _direct_fd;
+            return -1;
+        }
+
+        {
+            BAIDU_SCOPED_LOCK(_mutex);
+            for (size_t i = 0; i < _io_vec.size(); i++) {
+                _offset_and_term.push_back(
+                        std::make_pair(_meta.bytes, _term_to_add[i]));
+                _last_index.fetch_add(1, butil::memory_order_relaxed);
+                _meta.bytes += _io_vec[i].second;
+            }
+        }
+
+        ret = _update_meta_page();
+        for (size_t i = 0; i < _io_vec.size(); i++) {
+            free(_io_vec[i].first);
+        }
+        _io_vec.clear();
+        _term_to_add.clear();
+        return ret;
     } else {
         return 0;
     }

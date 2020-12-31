@@ -402,9 +402,10 @@ int CurveSegmentLogStorage::append_entry(const braft::LogEntry* entry) {
     if (EEXIST == ret && entry->id.term != get_term(entry->id.index)) {
         return EINVAL;
     }
+    ret = segment->sync(_enable_sync);
     _last_log_index.fetch_add(1, butil::memory_order_release);
 
-    return segment->sync(_enable_sync);
+    return ret;
 }
 
 int CurveSegmentLogStorage::append_entries(
@@ -431,10 +432,10 @@ int CurveSegmentLogStorage::append_entries(
         if (0 != ret) {
             return i;
         }
-        _last_log_index.fetch_add(1, butil::memory_order_release);
         last_segment = segment;
     }
     last_segment->sync(_enable_sync);
+    _last_log_index.fetch_add(entries.size(), butil::memory_order_release);
     return entries.size();
 }
 
