@@ -130,6 +130,8 @@ class MDSClientBase {
                     const UserInfo_t& userinfo,
                     size_t size,
                     bool normalFile,
+                    const uint64_t stripeUnit,
+                    const uint64_t stripeCount,
                     CreateFileResponse* response,
                     brpc::Controller* cntl,
                     brpc::Channel* channel);

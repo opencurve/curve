@@ -156,7 +156,12 @@ typedef struct FInfo {
     std::string     filename;
     std::string     fullPathName;
     FileStatus      filestatus;
+
     CloneSourceInfo sourceInfo;
+    std::string     cloneSource;
+    uint64_t        cloneLength{0};
+    uint64_t        stripeUnit;
+    uint64_t        stripeCount;
 
     FInfo() {
         id = 0;
@@ -165,6 +170,8 @@ typedef struct FInfo {
         length = 0;
         chunksize = 4 * 1024 * 1024;
         segmentsize = 1 * 1024 * 1024 * 1024ul;
+        stripeUnit = 0;
+        stripeCount = 0;
     }
 } FInfo_t;
 

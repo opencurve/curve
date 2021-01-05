@@ -3615,6 +3615,29 @@ SWIG_From_unsigned_SS_long_SS_long  (unsigned long long value)
 #endif
 
 
+SWIGINTERN int
+SWIG_AsVal_unsigned_SS_int (PyObject * obj, unsigned int *val)
+{
+  unsigned long v;
+  int res = SWIG_AsVal_unsigned_SS_long (obj, &v);
+  if (SWIG_IsOK(res)) {
+    if ((v > UINT_MAX)) {
+      return SWIG_OverflowError;
+    } else {
+      if (val) *val = static_cast< unsigned int >(v);
+    }
+  }
+  return res;
+}
+
+
+SWIGINTERNINLINE PyObject*
+  SWIG_From_unsigned_SS_int  (unsigned int value)
+{
+  return PyInt_FromSize_t((size_t) value);
+}
+
+
 
 
 
@@ -4579,15 +4602,119 @@ SWIGINTERN PyObject *_wrap_FileInfo_t_fileStatus_get(PyObject *SWIGUNUSEDPARM(se
   int res1 = 0 ;
   PyObject * obj0 = 0 ;
   int result;
-  
+
   if (!PyArg_ParseTuple(args,(char *)"O:FileInfo_t_fileStatus_get",&obj0)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_fileStatus_get" "', argument " "1"" of type '" "FileInfo *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_fileStatus_get" "', argument " "1"" of type '" "FileInfo *""'");
   }
   arg1 = reinterpret_cast< FileInfo * >(argp1);
   result = (int) ((arg1)->fileStatus);
   resultobj = SWIG_From_int(static_cast< int >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_FileInfo_t_stripeUnit_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  FileInfo *arg1 = (FileInfo *) 0 ;
+  uint32_t arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  unsigned int val2 ;
+  int ecode2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+
+  if (!PyArg_ParseTuple(args,(char *)"OO:FileInfo_t_stripeUnit_set",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_stripeUnit_set" "', argument " "1"" of type '" "FileInfo *""'");
+  }
+  arg1 = reinterpret_cast< FileInfo * >(argp1);
+  ecode2 = SWIG_AsVal_unsigned_SS_int(obj1, &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "FileInfo_t_stripeUnit_set" "', argument " "2"" of type '" "uint32_t""'");
+  }
+  arg2 = static_cast< uint32_t >(val2);
+  if (arg1) (arg1)->stripeUnit = arg2;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_FileInfo_t_stripeUnit_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  FileInfo *arg1 = (FileInfo *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  uint32_t result;
+
+  if (!PyArg_ParseTuple(args,(char *)"O:FileInfo_t_stripeUnit_get",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_stripeUnit_get" "', argument " "1"" of type '" "FileInfo *""'");
+  }
+  arg1 = reinterpret_cast< FileInfo * >(argp1);
+  result = (uint64_t) ((arg1)->stripeUnit);
+  resultobj = SWIG_From_unsigned_SS_int(static_cast< unsigned int >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_FileInfo_t_stripeCount_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  FileInfo *arg1 = (FileInfo *) 0 ;
+  uint32_t arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  unsigned int val2 ;
+  int ecode2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+
+  if (!PyArg_ParseTuple(args,(char *)"OO:FileInfo_t_stripeCount_set",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_stripeCount_set" "', argument " "1"" of type '" "FileInfo *""'");
+  }
+  arg1 = reinterpret_cast< FileInfo * >(argp1);
+  ecode2 = SWIG_AsVal_unsigned_SS_int(obj1, &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "FileInfo_t_stripeCount_set" "', argument " "2"" of type '" "uint32_t""'");
+  }
+  arg2 = static_cast< uint32_t >(val2);
+  if (arg1) (arg1)->stripeCount = arg2;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_FileInfo_t_stripeCount_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  FileInfo *arg1 = (FileInfo *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  uint32_t result;
+
+  if (!PyArg_ParseTuple(args,(char *)"O:FileInfo_t_stripeCount_get",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_stripeCount_get" "', argument " "1"" of type '" "FileInfo *""'");
+  }
+  arg1 = reinterpret_cast< FileInfo * >(argp1);
+  result = (uint64_t) ((arg1)->stripeCount);
+  resultobj = SWIG_From_unsigned_SS_int(static_cast< unsigned int >(result));
   return resultobj;
 fail:
   return NULL;
@@ -5696,7 +5823,7 @@ SWIGINTERN PyObject *_wrap_GetClusterId(PyObject *SWIGUNUSEDPARM(self), PyObject
   PyObject * obj1 = 0 ;
   int result;
   int retlen;
-  
+
   if (!PyArg_ParseTuple(args,(char *)"|OO:GetClusterId",&obj0,&obj1)) SWIG_fail;
   if (obj0) {
     res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
@@ -5840,7 +5967,7 @@ SWIGINTERN PyObject *_wrap_CBDClient_Open(PyObject *SWIGUNUSEDPARM(self), PyObje
   PyObject * obj1 = 0 ;
   PyObject * obj2 = 0 ;
   int result;
-  
+
   if (!PyArg_ParseTuple(args,(char *)"OOO:CBDClient_Open",&obj0,&obj1,&obj2)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CBDClient, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
@@ -5938,9 +6065,79 @@ SWIGINTERN PyObject *_wrap_CBDClient_Create(PyObject *SWIGUNUSEDPARM(self), PyOb
   ecode4 = SWIG_AsVal_size_t(obj3, &val4);
   if (!SWIG_IsOK(ecode4)) {
     SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "CBDClient_Create" "', argument " "4"" of type '" "size_t""'");
-  } 
+  }
   arg4 = static_cast< size_t >(val4);
   result = (int)(arg1)->Create((char const *)arg2,arg3,arg4);
+  resultobj = SWIG_From_int(static_cast< int >(result));
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+  return resultobj;
+fail:
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CBDClient_Create2(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CBDClient *arg1 = (CBDClient *) 0 ;
+  char *arg2 = (char *) 0 ;
+  UserInfo_t *arg3 = (UserInfo_t *) 0 ;
+  size_t arg4 ;
+  uint32_t arg5 ;
+  uint32_t arg6 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  size_t val4 ;
+  int ecode4 = 0 ;
+  unsigned int val5 ;
+  int ecode5 = 0 ;
+  unsigned int val6 ;
+  int ecode6 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  PyObject * obj2 = 0 ;
+  PyObject * obj3 = 0 ;
+  PyObject * obj4 = 0 ;
+  PyObject * obj5 = 0 ;
+  int result;
+
+  if (!PyArg_ParseTuple(args,(char *)"OOOOOO:CBDClient_Create2",&obj0,&obj1,&obj2,&obj3,&obj4,&obj5)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CBDClient, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CBDClient_Create2" "', argument " "1"" of type '" "CBDClient *""'");
+  }
+  arg1 = reinterpret_cast< CBDClient * >(argp1);
+  res2 = SWIG_AsCharPtrAndSize(obj1, &buf2, NULL, &alloc2);
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "CBDClient_Create2" "', argument " "2"" of type '" "char const *""'");
+  }
+  arg2 = reinterpret_cast< char * >(buf2);
+  res3 = SWIG_ConvertPtr(obj2, &argp3,SWIGTYPE_p_UserInfo, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "CBDClient_Create2" "', argument " "3"" of type '" "UserInfo_t *""'");
+  }
+  arg3 = reinterpret_cast< UserInfo_t * >(argp3);
+  ecode4 = SWIG_AsVal_size_t(obj3, &val4);
+  if (!SWIG_IsOK(ecode4)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "CBDClient_Create2" "', argument " "4"" of type '" "size_t""'");
+  }
+  arg4 = static_cast< size_t >(val4);
+  ecode5 = SWIG_AsVal_unsigned_SS_int(obj4, &val5);
+  if (!SWIG_IsOK(ecode5)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "CBDClient_Create2" "', argument " "5"" of type '" "uint32_t""'");
+  }
+  arg5 = static_cast< uint32_t >(val5);
+  ecode6 = SWIG_AsVal_unsigned_SS_int(obj5, &val6);
+  if (!SWIG_IsOK(ecode6)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode6), "in method '" "CBDClient_Create2" "', argument " "6"" of type '" "uint32_t""'");
+  }
+  arg6 = static_cast< uint32_t >(val6);
+  result = (int)(arg1)->Create2((char const *)arg2,arg3,arg4,arg5,arg6);
   resultobj = SWIG_From_int(static_cast< int >(result));
   if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
   return resultobj;
@@ -6748,6 +6945,10 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"FileInfo_t_owner_get", _wrap_FileInfo_t_owner_get, METH_VARARGS, NULL},
 	 { (char *)"FileInfo_t_fileStatus_set", _wrap_FileInfo_t_fileStatus_set, METH_VARARGS, NULL},
 	 { (char *)"FileInfo_t_fileStatus_get", _wrap_FileInfo_t_fileStatus_get, METH_VARARGS, NULL},
+	 { (char *)"FileInfo_t_stripeUnit_set", _wrap_FileInfo_t_stripeUnit_set, METH_VARARGS, NULL},
+	 { (char *)"FileInfo_t_stripeUnit_get", _wrap_FileInfo_t_stripeUnit_get, METH_VARARGS, NULL},
+	 { (char *)"FileInfo_t_stripeCount_set", _wrap_FileInfo_t_stripeCount_set, METH_VARARGS, NULL},
+	 { (char *)"FileInfo_t_stripeCount_get", _wrap_FileInfo_t_stripeCount_get, METH_VARARGS, NULL},
 	 { (char *)"new_FileInfo_t", _wrap_new_FileInfo_t, METH_VARARGS, NULL},
 	 { (char *)"delete_FileInfo_t", _wrap_delete_FileInfo_t, METH_VARARGS, NULL},
 	 { (char *)"FileInfo_t_swigregister", FileInfo_t_swigregister, METH_VARARGS, NULL},
@@ -6792,6 +6993,7 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"CBDClient_Open", _wrap_CBDClient_Open, METH_VARARGS, NULL},
 	 { (char *)"CBDClient_Close", _wrap_CBDClient_Close, METH_VARARGS, NULL},
 	 { (char *)"CBDClient_Create", _wrap_CBDClient_Create, METH_VARARGS, NULL},
+	 { (char *)"CBDClient_Create2", _wrap_CBDClient_Create2, METH_VARARGS, NULL},
 	 { (char *)"CBDClient_Unlink", _wrap_CBDClient_Unlink, METH_VARARGS, NULL},
 	 { (char *)"CBDClient_DeleteForce", _wrap_CBDClient_DeleteForce, METH_VARARGS, NULL},
 	 { (char *)"CBDClient_Rename", _wrap_CBDClient_Rename, METH_VARARGS, NULL},
