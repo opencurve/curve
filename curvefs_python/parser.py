@@ -33,6 +33,8 @@ def get_parser():
     subparser.add_argument("--length", help='length of file(GB)', type=long, required=True)
     subparser.add_argument("--user", help='user of file', type=str, required=True)
     subparser.add_argument("--password", help='password of user', type=str)
+    subparser.add_argument("--stripeUnit", help='stripe unit size', type=long)
+    subparser.add_argument("--stripeCount", help='stripe width', type=long)
 
     # delete option
     subparser = subparsers.add_parser("delete", help="delete file")

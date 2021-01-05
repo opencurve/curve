@@ -208,7 +208,8 @@ StatusCode CurveFS::SnapShotFile(const FileInfo * origFileInfo,
 
 StatusCode CurveFS::CreateFile(const std::string & fileName,
                                const std::string& owner,
-                               FileType filetype, uint64_t length) {
+                               FileType filetype, uint64_t length,
+                               uint64_t stripeUnit, uint64_t stripeCount) {
     FileInfo parentFileInfo;
     std::string lastEntry;
 
@@ -243,7 +244,11 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         }
     }
 
-    auto ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
+    auto ret = CheckStripeParam(stripeUnit, stripeCount);
+    if (ret != StatusCode::kOK) {
+        return ret;
+    }
+    ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
     if ( ret != StatusCode::kOK ) {
         return ret;
     }
@@ -277,6 +282,8 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
         fileInfo.set_seqnum(kStartSeqNum);
         fileInfo.set_filestatus(FileStatus::kFileCreated);
+        fileInfo.set_stripeunit(stripeUnit);
+        fileInfo.set_stripecount(stripeCount);
 
         ret = PutFile(fileInfo);
         return ret;
@@ -1991,6 +1998,35 @@ uint64_t CurveFS::GetOpenFileNum() {
 
 uint64_t CurveFS::GetDefaultChunkSize() {
     return defaultChunkSize_;
+}
+
+StatusCode CurveFS::CheckStripeParam(uint64_t stripeUnit,
+                           uint64_t stripeCount) {
+    if ((stripeUnit == 0) && (stripeCount == 0 )) {
+        return StatusCode::kOK;
+    }
+
+    if ((stripeUnit && !stripeCount) ||
+    (!stripeUnit && stripeCount)) {
+        LOG(ERROR) << "can't just one is zero. stripeUnit:"
+        << stripeUnit << ",stripeCount:" << stripeCount;
+        return StatusCode::kParaError;
+    }
+
+    if (stripeUnit > defaultChunkSize_) {
+        LOG(ERROR) << "stripeUnit more than chunksize.stripeUnit:"
+                                                   << stripeUnit;
+        return StatusCode::kParaError;
+    }
+
+    if ((defaultChunkSize_ % stripeUnit != 0) ||
+                 (defaultChunkSize_ % stripeCount != 0)) {
+        LOG(ERROR) << "is not divisible by chunksize. stripeUnit:"
+           << stripeUnit << ",stripeCount:" << stripeCount;
+        return StatusCode::kParaError;
+    }
+
+    return StatusCode::kOK;
 }
 
 CurveFS &kCurveFS = CurveFS::GetInstance();

@@ -259,6 +259,14 @@ class FileInfo_t(_object):
     __swig_getmethods__["fileStatus"] = _curvefs.FileInfo_t_fileStatus_get
     if _newclass:
         fileStatus = _swig_property(_curvefs.FileInfo_t_fileStatus_get, _curvefs.FileInfo_t_fileStatus_set)
+    __swig_setmethods__["stripeUnit"] = _curvefs.FileInfo_t_stripeUnit_set
+    __swig_getmethods__["stripeUnit"] = _curvefs.FileInfo_t_stripeUnit_get
+    if _newclass:
+        stripeUnit = _swig_property(_curvefs.FileInfo_t_stripeUnit_get, _curvefs.FileInfo_t_stripeUnit_set)
+    __swig_setmethods__["stripeCount"] = _curvefs.FileInfo_t_stripeCount_set
+    __swig_getmethods__["stripeCount"] = _curvefs.FileInfo_t_stripeCount_get
+    if _newclass:
+        stripeCount = _swig_property(_curvefs.FileInfo_t_stripeCount_get, _curvefs.FileInfo_t_stripeCount_set)
 
     def __init__(self):
         this = _curvefs.new_FileInfo_t()
@@ -419,6 +427,9 @@ class CBDClient(_object):
 
     def Create(self, filename, userInfo, size):
         return _curvefs.CBDClient_Create(self, filename, userInfo, size)
+
+    def Create2(self, filename, userInfo, size, stripeUnit, stripeCount):
+        return _curvefs.CBDClient_Create2(self, filename, userInfo, size, stripeUnit, stripeCount)
 
     def Unlink(self, filename, info):
         return _curvefs.CBDClient_Unlink(self, filename, info)

@@ -271,6 +271,22 @@ int FileClient::Create(const std::string& filename,
     return -ret;
 }
 
+int FileClient::Create2(const std::string& filename,
+    const UserInfo_t& userinfo, size_t size,
+    uint64_t stripeUnit, uint64_t stripeCount) {
+    LIBCURVE_ERROR ret;
+    if (mdsClient_ != nullptr) {
+        ret = mdsClient_->CreateFile(filename, userinfo, size, true,
+                                     stripeUnit, stripeCount);
+        LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
+            << "Create file failed, filename: " << filename << ", ret: " << ret;
+    } else {
+        LOG(ERROR) << "global mds client not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    return -ret;
+}
+
 int FileClient::Read(int fd, char* buf, off_t offset, size_t len) {
     // 长度为0，直接返回，不做任何操作
     if (len == 0) {
@@ -431,6 +447,8 @@ int FileClient::StatFile(const std::string& filename,
         finfo->ctime    = fi.ctime;
         finfo->length   = fi.length;
         finfo->filetype = fi.filetype;
+        finfo->stripeUnit = fi.stripeUnit;
+        finfo->stripeCount = fi.stripeCount;
 
         memcpy(finfo->filename, fi.filename.c_str(),
                 std::min(sizeof(finfo->filename), fi.filename.size() + 1));
@@ -731,6 +749,18 @@ int Create(const char* filename, const C_UserInfo_t* userinfo, size_t size) {
 
     return globalclient->Create(filename,
             UserInfo(userinfo->owner, userinfo->password), size);
+}
+
+int Create2(const char* filename, const C_UserInfo_t* userinfo, size_t size,
+                                uint64_t stripeUnit, uint64_t stripeCount) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    return globalclient->Create2(filename,
+            UserInfo(userinfo->owner, userinfo->password),
+                       size, stripeUnit, stripeCount);
 }
 
 int Rename(const C_UserInfo_t* userinfo,

@@ -36,6 +36,9 @@ class FileCommonOperation {
     static int Open(const std::string& filename, const std::string& owner);
 
     static void Close(int fd);
+
+    static int Open(const std::string& filename, const std::string& owner,
+                              uint64_t stripeUnit, uint64_t stripeCount);
 };
 }   //  namespace test
 }   //  namespace curve
