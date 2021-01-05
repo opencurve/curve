@@ -46,6 +46,8 @@ uint64_t ioFailedCount = 0;
 std::mutex resumeMtx;
 std::condition_variable resumeCV;
 curve::client::InflightControl inflightContl;
+bool testIOWrite = false;
+bool testIORead = false;
 
 using curve::CurveCluster;
 const std::vector<std::string> mdsConf{
@@ -384,6 +386,87 @@ class MDSModuleException : public ::testing::Test {
         context->cb = writeCallBack;
 
         return AioWrite(fd, context) == 0;
+    }
+
+    /** 下发一个写请求并读取进行数据验证
+     *  @param: fd 卷fd
+     *  @param: 当前需要下发io的偏移
+     *  @param：下发io的大小
+     *  @return: 数据是否一致
+    */
+    void VerifyDataConsistency(int fd, uint64_t offset, uint64_t size) {
+        char* writebuf = new char[size];
+        char* readbuf = new char[size];
+        unsigned int i;
+
+        LOG(INFO) << "VerifyDataConsistency(): offset " <<
+                                offset << ", size " << size;
+        for (i = 0; i < size; i++) {
+            writebuf[i] = ('a' + std::rand() % 26);
+        }
+
+        // 开始写
+        auto wcb = [](CurveAioContext* context) {
+            if (context->ret == context->length) {
+                testIOWrite = true;
+            }
+            std::unique_lock<std::mutex> lk(resumeMtx);
+            resumeCV.notify_all();
+            delete context;
+        };
+
+        auto writefunc = [&]() {
+            CurveAioContext* context = new CurveAioContext;;
+            context->op = LIBCURVE_OP::LIBCURVE_OP_WRITE;
+            context->offset = offset;
+            context->length = size;
+            context->buf = writebuf;
+            context->cb = wcb;
+            ASSERT_EQ(LIBCURVE_ERROR::OK, AioWrite(fd, context));
+        };
+
+        std::thread writeThtread(writefunc);
+        {
+            std::unique_lock<std::mutex> lk(resumeMtx);
+            resumeCV.wait_for(lk, std::chrono::seconds(300));
+        }
+
+        writeThtread.join();
+        ASSERT_TRUE(testIOWrite);
+
+        // 开始读
+        auto rcb = [](CurveAioContext* context) {
+            if (context->ret == context->length) {
+                testIORead = true;
+            }
+            std::unique_lock<std::mutex> lk(resumeMtx);
+            resumeCV.notify_all();
+            delete context;
+        };
+
+        auto readfunc = [&]() {
+            CurveAioContext* context = new CurveAioContext;;
+            context->op = LIBCURVE_OP::LIBCURVE_OP_READ;
+            context->offset = offset;
+            context->length = size;
+            context->buf = readbuf;
+            context->cb = rcb;
+            ASSERT_EQ(LIBCURVE_ERROR::OK, AioRead(fd, context));
+        };
+
+        std::thread readThread(readfunc);
+        {
+            std::unique_lock<std::mutex> lk(resumeMtx);
+            resumeCV.wait_for(lk, std::chrono::seconds(300));
+        }
+
+        readThread.join();
+        ASSERT_TRUE(testIORead);
+        ASSERT_EQ(strcmp(writebuf, readbuf), 0);
+
+        delete[] writebuf;
+        delete[] readbuf;
+        return;
     }
 
     int fd;
@@ -924,4 +1007,50 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
 
     // 10. 对集群没有影响
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
+}
+
+TEST_F(MDSModuleException, StripeMDSExceptionTest) {
+    LOG(INFO) << "current case: StripeMDSExceptionTest";
+    // 1. 创建一个条带的卷
+    int stripefd = curve::test::FileCommonOperation::Open("/test2",
+                                       "curve", 1024 * 1024, 8);
+    ASSERT_NE(stripefd, -1);
+    uint64_t offset = std::rand() % 5 * segment_size;
+
+    // 2. 进行数据的读写校验
+    VerifyDataConsistency(stripefd, offset, 128 *1024 *1024);
+    std::this_thread::sleep_for(std::chrono::seconds(60));
+    // 3. kill 一台当前为leader的mds
+    LOG(INFO) << "stop mds.";
+    int serviceMDSID = 0;
+    cluster->CurrentServiceMDS(&serviceMDSID);
+    ASSERT_EQ(0, cluster->StopMDS(serviceMDSID));
+    // 4. 启动后台挂卸载线程
+    CreateOpenFileBackend();
+
+    // 5. 继续随机写数据进行校验
+    offset = std::rand() % 5 * segment_size;
+    LOG(INFO) << "when stop mds, write and read data.";
+    VerifyDataConsistency(stripefd, offset, 128 *1024 *1024);
+
+    // 6. 等待挂卸载检测结果
+    WaitBackendCreateDone();
+
+    // 7. 挂卸载服务正常
+    ASSERT_TRUE(createOrOpenFailed);
+
+    LOG(INFO) <<"start mds.";
+    pid_t pid = cluster->StartSingleMDS(serviceMDSID, ipmap[serviceMDSID],
+                                        22240 + serviceMDSID,
+                                        configmap[serviceMDSID], false);
+    LOG(INFO) << "mds " << serviceMDSID << " started on " << ipmap[serviceMDSID]
+              << ", pid = " << pid;
+    ASSERT_GT(pid, 0);
+
+
+    LOG(INFO) << "start mds, write and read data.";
+    offset = std::rand() % 5 * segment_size;
+    VerifyDataConsistency(stripefd, offset, 128 *1024 *1024);
+
+    ::Close(stripefd);
 }

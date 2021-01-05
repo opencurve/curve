@@ -1047,6 +1047,95 @@ TEST(SplitorTest, RequestSourceInfoTest) {
     ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
 }
 
+TEST_F(IOTrackerSplitorTest, stripeTest) {
+    MockRequestScheduler mockschuler;
+    mockschuler.DelegateToFake();
+
+    FInfo_t fi;
+    uint64_t offset = 1 * 1024 * 1024 - 64 * 1024;
+    uint64_t length = 128 * 1024;
+    butil::IOBuf dataCopy;
+    char* buf = new char[length];
+
+    fi.seqnum = 0;
+    fi.chunksize = 4 * 1024 * 1024;
+    fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
+    fi.stripeUnit = 1 * 1024 * 1024;
+    fi.stripeCount = 4;
+    memset(buf, 'a', length);              // 64KB
+    dataCopy.append(buf, length);
+    curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
+    MetaCache* mc = iomana->GetMetaCache();
+
+    IOTracker* iotracker = new IOTracker(iomana, mc, &mockschuler);
+    iotracker->SetOpType(OpType::WRITE);
+    curve::client::ChunkIDInfo chinfo(1, 2, 3);
+    curve::client::ChunkIDInfo chinfo1(4, 5, 6);
+    mc->UpdateChunkInfoByIndex(0, chinfo);
+    mc->UpdateChunkInfoByIndex(1, chinfo1);
+
+    std::vector<RequestContext*> reqlist;
+    ASSERT_EQ(0, curve::client::Splitor::IO2ChunkRequests(iotracker, mc,
+                                                            &reqlist,
+                                                            &dataCopy,
+                                                            offset,
+                                                            length,
+                                                            &mdsclient_,
+                                                            &fi));
+
+    ASSERT_EQ(2, reqlist.size());
+    RequestContext* first = reqlist.front();
+    reqlist.erase(reqlist.begin());
+    RequestContext* second = reqlist.front();
+    reqlist.erase(reqlist.begin());
+
+    ASSERT_EQ(1, first->idinfo_.cid_);
+    ASSERT_EQ(3, first->idinfo_.cpid_);
+    ASSERT_EQ(2, first->idinfo_.lpid_);
+    ASSERT_EQ(1 * 1024 * 1024 - 64 * 1024, first->offset_);
+    ASSERT_EQ(64 * 1024, first->rawlength_);
+
+    ASSERT_EQ(4, second->idinfo_.cid_);
+    ASSERT_EQ(6, second->idinfo_.cpid_);
+    ASSERT_EQ(5, second->idinfo_.lpid_);
+    ASSERT_EQ(0, second->offset_);
+    ASSERT_EQ(64 * 1024, second->rawlength_);
+
+    reqlist.clear();
+    offset = 16 * 1024 * 1024 - 64 * 1024;
+    length = 128 * 1024;
+    memset(buf, 'b', length);
+    dataCopy.append(buf, length);
+    mc->UpdateChunkInfoByIndex(3, chinfo);
+    mc->UpdateChunkInfoByIndex(4, chinfo1);
+    ASSERT_EQ(0, curve::client::Splitor::IO2ChunkRequests(iotracker, mc,
+                                                            &reqlist,
+                                                            &dataCopy,
+                                                            offset,
+                                                            length,
+                                                            &mdsclient_,
+                                                            &fi));
+    ASSERT_EQ(2, reqlist.size());
+    first = reqlist.front();
+    reqlist.erase(reqlist.begin());
+    second = reqlist.front();
+    reqlist.erase(reqlist.begin());
+
+    ASSERT_EQ(1, first->idinfo_.cid_);
+    ASSERT_EQ(3, first->idinfo_.cpid_);
+    ASSERT_EQ(2, first->idinfo_.lpid_);
+    ASSERT_EQ(4 * 1024 * 1024 - 64 * 1024, first->offset_);
+    ASSERT_EQ(64 * 1024, first->rawlength_);
+
+    ASSERT_EQ(4, second->idinfo_.cid_);
+    ASSERT_EQ(6, second->idinfo_.cpid_);
+    ASSERT_EQ(5, second->idinfo_.lpid_);
+    ASSERT_EQ(0, second->offset_);
+    ASSERT_EQ(64 * 1024, second->rawlength_);
+
+    delete[] buf;
+}
+
 // read the chunks all haven't been write from normal volume with no clonesource
 TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegment) {
     curvefsservice.SetGetOrAllocateSegmentFakeReturn(notallocatefakeret);

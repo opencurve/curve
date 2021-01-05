@@ -123,6 +123,8 @@ typedef struct FileInfo {
     char          filename[256];
     char          owner[256];
     int           fileStatus;
+    uint64_t        stripeUnit;
+    uint64_t        stripeCount;
 } FileInfo_t;
 
 typedef struct DirInfos {

@@ -122,16 +122,18 @@ class CurveFSTest: public ::testing::Test {
 TEST_F(CurveFSTest, testCreateFile1) {
     // test parm error
     ASSERT_EQ(curvefs_->CreateFile("/file1", "owner1", FileType::INODE_PAGEFILE,
-                    kMiniFileLength - 1), StatusCode::kFileLengthNotSupported);
+                    kMiniFileLength - 1, 0, 0),
+                    StatusCode::kFileLengthNotSupported);
 
     ASSERT_EQ(curvefs_->CreateFile("/file1", "owner1", FileType::INODE_PAGEFILE,
-                    kMaxFileLength + 1), StatusCode::kFileLengthNotSupported);
+                    kMaxFileLength + 1, 0, 0),
+                    StatusCode::kFileLengthNotSupported);
 
     ASSERT_EQ(curvefs_->CreateFile("/flie1", "owner1", FileType::INODE_PAGEFILE,
-                                   kMiniFileLength + 1),
+                                   kMiniFileLength + 1, 0, 0),
               StatusCode::kFileLengthNotSupported);
 
-    ASSERT_EQ(curvefs_->CreateFile("/", "", FileType::INODE_DIRECTORY, 0),
+    ASSERT_EQ(curvefs_->CreateFile("/", "", FileType::INODE_DIRECTORY, 0, 0, 0),
               StatusCode::kFileExists);
 
     {
@@ -141,7 +143,7 @@ TEST_F(CurveFSTest, testCreateFile1) {
         .WillOnce(Return(StoreStatus::OK));
 
         auto statusCode = curvefs_->CreateFile("/file1", "owner1",
-                    FileType::INODE_PAGEFILE, kMiniFileLength);
+                    FileType::INODE_PAGEFILE, kMiniFileLength, 0, 0);
         ASSERT_EQ(statusCode, StatusCode::kFileExists);
     }
 
@@ -152,7 +154,7 @@ TEST_F(CurveFSTest, testCreateFile1) {
         .WillOnce(Return(StoreStatus::InternalError));
 
         auto statusCode = curvefs_->CreateFile("/file1", "owner1",
-                    FileType::INODE_PAGEFILE, kMiniFileLength);
+                    FileType::INODE_PAGEFILE, kMiniFileLength, 0, 0);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
 
@@ -171,7 +173,7 @@ TEST_F(CurveFSTest, testCreateFile1) {
         .WillOnce(Return(true));
 
         auto statusCode = curvefs_->CreateFile("/file1", "owner1",
-                    FileType::INODE_PAGEFILE, kMiniFileLength);
+                    FileType::INODE_PAGEFILE, kMiniFileLength, 0, 0);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
 
@@ -191,7 +193,7 @@ TEST_F(CurveFSTest, testCreateFile1) {
 
 
         auto statusCode = curvefs_->CreateFile("/file1", "owner1",
-            FileType::INODE_PAGEFILE, kMiniFileLength);
+            FileType::INODE_PAGEFILE, kMiniFileLength, 0, 0);
         ASSERT_EQ(statusCode, StatusCode::kOK);
     }
 
@@ -206,8 +208,53 @@ TEST_F(CurveFSTest, testCreateFile1) {
         .WillOnce(Return(false));
 
         auto statusCode = curvefs_->CreateFile("/file1", "owner1",
-                FileType::INODE_PAGEFILE, kMiniFileLength);
+                FileType::INODE_PAGEFILE, kMiniFileLength, 0, 0);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
+    }
+}
+
+TEST_F(CurveFSTest, testCreateStripeFile) {
+    {
+        // test create ok
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(AtLeast(1))
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        EXPECT_CALL(*storage_, PutFile(_))
+        .Times(AtLeast(1))
+        .WillOnce(Return(StoreStatus::OK));
+
+        EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
+        .Times(1)
+        .WillOnce(Return(true));
+
+        ASSERT_EQ(curvefs_->CreateFile("/file1", "owner1",
+                  FileType::INODE_PAGEFILE, kMiniFileLength,
+                  1 * 1024 * 1024, 4), StatusCode::kOK);
+    }
+
+    {
+        // test stripeStripe and stripeCount is not all zero
+        ASSERT_EQ(curvefs_->CreateFile("/file1", "owner1",
+                   FileType::INODE_PAGEFILE, kMiniFileLength, 0, 1),
+                    StatusCode::kParaError);
+        ASSERT_EQ(curvefs_->CreateFile("/file1", "owner1",
+                    FileType::INODE_PAGEFILE, kMiniFileLength, 1024*1024ul, 0),
+                                   StatusCode::kParaError);
+    }
+
+    {
+        // test stripeUnit more then chunksize
+        ASSERT_EQ(curvefs_->CreateFile("/file1", "owner1",
+        FileType::INODE_PAGEFILE, kMiniFileLength, 16*1024*1024ul + 1, 0),
+                    StatusCode::kParaError);
+    }
+
+    {
+        // test stripeUnit is not divisible by chunksize
+        ASSERT_EQ(curvefs_->CreateFile("/file1", "owner1",
+            FileType::INODE_PAGEFILE,  kMiniFileLength,
+            4*1024*1024ul + 1, 0), StatusCode::kParaError);
     }
 }
 

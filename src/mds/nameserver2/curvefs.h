@@ -119,12 +119,16 @@ class CurveFS {
      *         owner: the owner of the file
      *         filetype：the type of the file
      *         length：file length
+     *         stripeUnit: the smallest unit of stripe
+     *         stripeCount: stripe width
      *  @return return StatusCode::kOK if succeeded
      */
     StatusCode CreateFile(const std::string & fileName,
                           const std::string& owner,
                           FileType filetype,
-                          uint64_t length);
+                          uint64_t length,
+                          uint64_t stripeUnit,
+                          uint64_t stripeCount);
     /**
      *  @brief get file information
      *  @param filename
@@ -624,6 +628,7 @@ class CurveFS {
                                  const std::string &owner,
                                  bool *isHasCloneRely);
 
+
     /**
      *  @brief List all files recursively
      *  @param: inodeId The inode id of directory
@@ -653,6 +658,10 @@ class CurveFS {
      */
     StatusCode ListCloneSourceFileSegments(
         const FileInfo* fileInfo, CloneSourceSegment* cloneSourceSegment) const;
+
+    StatusCode CheckStripeParam(uint64_t stripeUnit,
+                           uint64_t stripeCount);
+
 
  private:
     FileInfo rootFileInfo_;
