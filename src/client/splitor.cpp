@@ -60,34 +60,30 @@ int Splitor::IO2ChunkRequests(IOTracker* iotracker, MetaCache* metaCache,
     targetlist->reserve(length / (iosplitopt_.fileIOSplitMaxSizeKB * 1024) + 1);
 
     const uint64_t chunksize = fileInfo->chunksize;
-    uint64_t currentChunkIndex = offset / chunksize;
-    const uint64_t endChunkIndex = (offset + length - 1) / chunksize;
-    uint64_t currentRequestOffset = offset;
-    const uint64_t endRequestOffest = offset + length;
-    uint64_t currentChunkOffset = offset % chunksize;
-    uint64_t dataOffset = 0;
+    uint64_t stripeUnit = fileInfo->stripeUnit;
+    const uint64_t stripeCount = fileInfo->stripeCount;
+    bool isStripe = true;
 
-    while (currentChunkIndex <= endChunkIndex) {
-        const uint64_t currentChunkEndOffset =
+    if (((stripeUnit == 0) && (stripeCount == 0)) || stripeCount == 1) {
+        isStripe = false;
+    }
+
+    if (!isStripe) {
+        uint64_t currentChunkIndex = offset / chunksize;
+        const uint64_t endChunkIndex = (offset + length - 1) / chunksize;
+        uint64_t currentRequestOffset = offset;
+        const uint64_t endRequestOffest = offset + length;
+        uint64_t currentChunkOffset = offset % chunksize;
+        uint64_t dataOffset = 0;
+
+        while (currentChunkIndex <= endChunkIndex) {
+            const uint64_t currentChunkEndOffset =
             chunksize * (currentChunkIndex + 1);
-        uint64_t requestLength =
+            uint64_t requestLength =
             std::min(currentChunkEndOffset, endRequestOffest) -
             currentRequestOffset;
 
-        DVLOG(9) << "request split"
-                 << ", off = " << currentChunkOffset
-                 << ", len = " << requestLength
-                 << ", seqnum = " << fileInfo->seqnum
-                 << ", endoff = " << endRequestOffest
-                 << ", chunkendpos = " << currentChunkEndOffset
-                 << ", chunksize = " << chunksize
-                 << ", chunkindex = " << currentChunkIndex
-                 << ", endchunkindex = " << endChunkIndex;
-
-        if (!AssignInternal(iotracker, metaCache, targetlist, data,
-                            currentChunkOffset, requestLength, mdsclient,
-                            fileInfo, currentChunkIndex)) {
-            LOG(ERROR)  << "request split failed"
+            DVLOG(9) << "request split"
                         << ", off = " << currentChunkOffset
                         << ", len = " << requestLength
                         << ", seqnum = " << fileInfo->seqnum
@@ -96,16 +92,63 @@ int Splitor::IO2ChunkRequests(IOTracker* iotracker, MetaCache* metaCache,
                         << ", chunksize = " << chunksize
                         << ", chunkindex = " << currentChunkIndex
                         << ", endchunkindex = " << endChunkIndex;
-            return -1;
+
+            if (!AssignInternal(iotracker, metaCache, targetlist, data,
+                                currentChunkOffset, requestLength, mdsclient,
+                                fileInfo, currentChunkIndex)) {
+                LOG(ERROR)  << "request split failed"
+                                << ", off = " << currentChunkOffset
+                                << ", len = " << requestLength
+                                << ", seqnum = " << fileInfo->seqnum
+                                << ", endoff = " << endRequestOffest
+                                << ", chunkendpos = " << currentChunkEndOffset
+                                << ", chunksize = " << chunksize
+                                << ", chunkindex = " << currentChunkIndex
+                                << ", endchunkindex = " << endChunkIndex;
+                return -1;
+            }
+
+            currentChunkOffset = 0;
+            currentChunkIndex++;
+
+            dataOffset += requestLength;
+            currentRequestOffset += requestLength;
         }
+    } else {
+        const uint64_t stripesPerChunk = chunksize / stripeUnit;
+        uint64_t cur = offset;
+        uint64_t left = length;
+        uint64_t curChunkIndex = 0;
+        while (left > 0) {
+            uint64_t blockIndex = cur / stripeUnit;
+            uint64_t stripeIndex = blockIndex / stripeCount;
+            uint64_t stripepos = blockIndex % stripeCount;
+            uint64_t curChunkSetIndex = stripeIndex / stripesPerChunk;
+            uint64_t curChunkIndex = curChunkSetIndex * stripeCount + stripepos;
 
-        currentChunkOffset = 0;
-        currentChunkIndex++;
+            uint64_t blockInChunkStartOff = (stripeIndex % stripesPerChunk)
+                                                           * stripeUnit;
+            uint64_t blockOff = cur % stripeUnit;
+            uint64_t curChunkOffset = blockInChunkStartOff + blockOff;
+            uint64_t requestLength = std::min((stripeUnit - blockOff), left);
 
-        dataOffset += requestLength;
-        currentRequestOffset += requestLength;
+            if (!AssignInternal(iotracker, metaCache, targetlist, data,
+                            curChunkOffset, requestLength, mdsclient,
+                            fileInfo, curChunkIndex)) {
+                LOG(ERROR)  << "request split failed"
+                        << ", off = " << curChunkOffset
+                        << ", len = " << requestLength
+                        << ", seqnum = " << fileInfo->seqnum
+                        << ", chunksize = " << chunksize
+                        << ", chunkindex = " << curChunkIndex;
+
+                return -1;
+            }
+
+            left -= requestLength;
+            cur += requestLength;
+        }
     }
-
     return 0;
 }
 

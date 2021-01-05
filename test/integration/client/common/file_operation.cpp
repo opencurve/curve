@@ -66,5 +66,31 @@ void FileCommonOperation::Close(int fd) {
     ::Close(fd);
 }
 
+int FileCommonOperation::Open(const std::string& filename,
+                              const std::string& owner,
+                              uint64_t stripeUnit, uint64_t stripeCount) {
+    C_UserInfo_t userinfo;
+    memset(userinfo.owner, 0, 256);
+    memcpy(userinfo.owner, owner.c_str(), owner.size());
+
+    // 先创建文件
+    int ret = ::Create2(filename.c_str(), &userinfo,
+               100*1024*1024*1024ul, stripeUnit, stripeCount);
+    if (ret != LIBCURVE_ERROR::OK && ret != -LIBCURVE_ERROR::EXISTS) {
+        LOG(ERROR) << "file create failed! " << ret
+                   << ", filename = " << filename;
+        return -1;
+    }
+
+    // 再打开文件
+    int fd = ::Open(filename.c_str(), &userinfo);
+    if (fd < 0 && ret != -LIBCURVE_ERROR::FILE_OCCUPIED) {
+        LOG(ERROR) << "Open file failed!";
+        return -1;
+    }
+
+    return fd;
+}
+
 }   //  namespace test
 }   //  namespace curve

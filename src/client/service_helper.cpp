@@ -72,6 +72,12 @@ void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
     if (finfo.has_filestatus()) {
         fi->filestatus = (FileStatus)finfo.filestatus();
     }
+    if (finfo.has_stripeunit()) {
+        fi->stripeUnit = finfo.stripeunit();
+    }
+    if (finfo.has_stripecount()) {
+        fi->stripeCount = finfo.stripecount();
+    }
 }
 
 void ServiceHelper::ProtoCloneSourceInfo2Local(

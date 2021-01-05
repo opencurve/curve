@@ -81,7 +81,9 @@ class MDSClient {
     LIBCURVE_ERROR CreateFile(const std::string& filename,
                               const UserInfo_t& userinfo,
                               size_t size = 0,
-                              bool normalFile = true);
+                              bool normalFile = true,
+                              uint64_t stripeUnit = 0,
+                              uint64_t stripeCount = 0);
     /**
      * 打开文件
      * @param: filename是文件名

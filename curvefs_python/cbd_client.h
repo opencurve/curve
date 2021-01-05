@@ -48,6 +48,8 @@ class CBDClient {
     int Close(int fd);
 
     int Create(const char* filename, UserInfo_t* userInfo, size_t size);
+    int Create2(const char* filename, UserInfo_t* userInfo, size_t size,
+                                uint64_t stripeUnit, uint64_t stripeCount);
     int Unlink(const char* filename, UserInfo_t* info);
     int DeleteForce(const char* filename, UserInfo_t* info);
     int Rename(UserInfo_t* info, const char* oldpath, const char* newpath);

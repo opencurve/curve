@@ -55,6 +55,8 @@ void MDSClientBase::CreateFile(const std::string& filename,
                                const UserInfo_t& userinfo,
                                size_t size,
                                bool normalFile,
+                               uint64_t stripeUnit,
+                               uint64_t stripeCount,
                                CreateFileResponse* response,
                                brpc::Controller* cntl,
                                brpc::Channel* channel) {
@@ -67,12 +69,16 @@ void MDSClientBase::CreateFile(const std::string& filename,
         request.set_filetype(curve::mds::FileType::INODE_DIRECTORY);
     }
 
+    request.set_stripeunit(stripeUnit);
+    request.set_stripecount(stripeCount);
     FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "CreateFile: filename = " << filename
                 << ", owner = " << userinfo.owner
                 << ", is nomalfile: " << normalFile
-                << ", log id = " << cntl->log_id();
+                << ", log id = " << cntl->log_id()
+                << ", stripeUnit = " << stripeUnit
+                << ", stripeCount = " << stripeCount;
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.CreateFile(cntl, &request, response, NULL);
