@@ -32,71 +32,83 @@ namespace server {
 
 using nebd::client::RetCode;
 
-void NebdFileServiceCallback(NebdServerAioContext* context) {
-    CHECK(context != nullptr);
-    std::unique_ptr<NebdServerAioContext> contextGuard(context);
-    std::unique_ptr<butil::IOBuf> iobufGuard(
-        reinterpret_cast<butil::IOBuf*>(context->buf));
-    brpc::ClosureGuard doneGuard(context->done);
+/**
+ * use curl -L clientIp:nebd-serverPort/flags/dropRpc?setvalue=true
+ * to modify the parameter dynamic
+ */
+static bool pass_bool(const char*, bool) { return true; }
+DEFINE_bool(dropRpc, false, "drop the request rpc");
+DEFINE_validator(dropRpc, &pass_bool);
+
+void SetResponse(NebdServerAioContext* context, RetCode retCode) {
     switch (context->op) {
         case LIBAIO_OP::LIBAIO_OP_READ:
         {
             nebd::client::ReadResponse* response =
                 dynamic_cast<nebd::client::ReadResponse*>(context->response);
-            if (context->ret < 0) {
-                response->set_retcode(RetCode::kNoOK);
-                LOG(ERROR) << "Read file failed. "
-                           << "return code: " << context->ret;
-            } else {
+            response->set_retcode(retCode);
+            if (context->ret >= 0) {
                 brpc::Controller* cntl =
                     dynamic_cast<brpc::Controller *>(context->cntl);
                 cntl->response_attachment() =
                     *reinterpret_cast<butil::IOBuf*>(context->buf);
-                response->set_retcode(RetCode::kOK);
             }
+
             break;
         }
         case LIBAIO_OP::LIBAIO_OP_WRITE:
         {
             nebd::client::WriteResponse* response =
                 dynamic_cast<nebd::client::WriteResponse*>(context->response);
-            if (context->ret < 0) {
-                response->set_retcode(RetCode::kNoOK);
-                LOG(ERROR) << "Write file failed. "
-                           << "return code: " << context->ret;
-            } else {
-                response->set_retcode(RetCode::kOK);
-            }
+            response->set_retcode(retCode);
             break;
         }
         case LIBAIO_OP::LIBAIO_OP_FLUSH:
         {
             nebd::client::FlushResponse* response =
                 dynamic_cast<nebd::client::FlushResponse*>(context->response);
-            if (context->ret < 0) {
-                response->set_retcode(RetCode::kNoOK);
-                LOG(ERROR) << "Flush file failed. "
-                           << "return code: " << context->ret;
-            } else {
-                response->set_retcode(RetCode::kOK);
-            }
+            response->set_retcode(retCode);
             break;
         }
         case LIBAIO_OP::LIBAIO_OP_DISCARD:
         {
             nebd::client::DiscardResponse* response =
                 dynamic_cast<nebd::client::DiscardResponse*>(context->response);
-            if (context->ret < 0) {
-                response->set_retcode(RetCode::kNoOK);
-                LOG(ERROR) << "Discard file failed. "
-                           << "return code: " << context->ret;
-            } else {
-                response->set_retcode(RetCode::kOK);
-            }
+            response->set_retcode(retCode);
             break;
         }
         default:
             break;
+    }
+}
+
+void NebdFileServiceCallback(NebdServerAioContext* context) {
+    CHECK(context != nullptr);
+    std::unique_ptr<NebdServerAioContext> contextGuard(context);
+    std::unique_ptr<butil::IOBuf> iobufGuard(
+        reinterpret_cast<butil::IOBuf*>(context->buf));
+    brpc::ClosureGuard doneGuard(context->done);
+    // for test
+    if (FLAGS_dropRpc) {
+        doneGuard.release();
+        delete context->done;
+        LOG(ERROR) << Op2Str(context->op)
+                    << " file failed and drop the request rpc.";
+        return;
+    }
+
+    if (context->ret < 0 && !context->returnRpcWhenIoError) {
+        LOG(ERROR) << *context;
+        // drop the rpc to ensure not return ioerror
+        doneGuard.release();
+        delete context->done;
+        LOG(ERROR) << Op2Str(context->op)
+                    << " file failed and drop the request rpc.";
+    } else if (context->ret < 0) {
+        LOG(ERROR) << *context;
+        SetResponse(context, RetCode::kNoOK);
+    } else {
+        SetResponse(context, RetCode::kOK);
     }
 }
 
@@ -136,6 +148,7 @@ void NebdFileServiceImpl::Write(
     aioContext->size = request->size();
     aioContext->op = LIBAIO_OP::LIBAIO_OP_WRITE;
     aioContext->cb = NebdFileServiceCallback;
+    aioContext->returnRpcWhenIoError = returnRpcWhenIoError_;
 
     brpc::Controller* cntl = dynamic_cast<brpc::Controller *>(cntl_base);
 
@@ -183,6 +196,7 @@ void NebdFileServiceImpl::Read(
     aioContext->size = request->size();
     aioContext->op = LIBAIO_OP::LIBAIO_OP_READ;
     aioContext->cb = NebdFileServiceCallback;
+    aioContext->returnRpcWhenIoError = returnRpcWhenIoError_;
 
     std::unique_ptr<butil::IOBuf> buf(new butil::IOBuf());
     aioContext->buf = buf.get();
@@ -218,6 +232,7 @@ void NebdFileServiceImpl::Flush(
     aioContext->response = response;
     aioContext->done = done;
     aioContext->cntl = cntl_base;
+    aioContext->returnRpcWhenIoError = returnRpcWhenIoError_;
     int rc = fileManager_->Flush(request->fd(), aioContext);
     if (rc < 0) {
         LOG(ERROR) << "Flush file failed. "
@@ -245,6 +260,7 @@ void NebdFileServiceImpl::Discard(
     aioContext->response = response;
     aioContext->done = done;
     aioContext->cntl = cntl_base;
+    aioContext->returnRpcWhenIoError = returnRpcWhenIoError_;
     int rc = fileManager_->Discard(request->fd(), aioContext);
     if (rc < 0) {
         LOG(ERROR) << "Flush file failed. "

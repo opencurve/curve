@@ -39,8 +39,10 @@ void NebdFileServiceCallback(NebdServerAioContext* context);
 
 class NebdFileServiceImpl : public nebd::client::NebdFileService {
  public:
-    explicit NebdFileServiceImpl(std::shared_ptr<NebdFileManager> fileManager)
-        : fileManager_(fileManager) {}
+    explicit NebdFileServiceImpl(std::shared_ptr<NebdFileManager> fileManager,
+                                 const bool returnRpcWhenIoError)
+                                 : fileManager_(fileManager),
+                                 returnRpcWhenIoError_(returnRpcWhenIoError) {}
 
     virtual ~NebdFileServiceImpl() {}
 
@@ -91,6 +93,7 @@ class NebdFileServiceImpl : public nebd::client::NebdFileService {
 
  private:
     std::shared_ptr<NebdFileManager> fileManager_;
+    const bool returnRpcWhenIoError_;
 };
 
 }  // namespace server
