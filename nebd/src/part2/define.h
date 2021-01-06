@@ -94,6 +94,8 @@ struct NebdServerAioContext {
     Closure *done = nullptr;
     // rpc请求的controller
     RpcController* cntl = nullptr;
+    // return rpc when io error
+    bool returnRpcWhenIoError = false;
 };
 
 struct NebdFileInfo {
@@ -119,6 +121,7 @@ const char METAFILEPATH[] = "meta.file.path";
 const char HEARTBEATTIMEOUTSEC[] = "heartbeat.timeout.sec";
 const char HEARTBEATCHECKINTERVALMS[] = "heartbeat.check.interval.ms";
 const char CURVECLIENTCONFPATH[] = "curveclient.confPath";
+const char RESPONSERETURNRPCWHENIOERROR[] = "response.returnRpcWhenIoError";
 
 }  // namespace server
 }  // namespace nebd

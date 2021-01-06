@@ -73,6 +73,7 @@ std::ostream& operator<<(std::ostream& os, const NebdServerAioContext& c) {
        << ", offset: " << c.offset
        << ", size: " << c.size
        << ", ret: " << c.ret
+       << ", returnRpcWhenIoError: " << c.returnRpcWhenIoError
        << "]";
     return os;
 }
