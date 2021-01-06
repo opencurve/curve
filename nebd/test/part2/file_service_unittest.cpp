@@ -72,7 +72,8 @@ class FileServiceTest : public ::testing::Test {
  public:
     void SetUp() {
         fileManager_ = std::make_shared<MockFileManager>();
-        fileService_ = std::make_shared<NebdFileServiceImpl>(fileManager_);
+        fileService_ = std::make_shared<NebdFileServiceImpl>(fileManager_,
+                                                             false);
     }
     void TearDown() {}
  protected:
@@ -354,22 +355,41 @@ TEST_F(FileServiceTest, CallbackTest) {
         ASSERT_TRUE(done.IsRunned());
         ASSERT_EQ(response.retcode(), RetCode::kOK);
     }
-    // read failed
+    // read failed return rpc
     {
         brpc::Controller cntl;
         nebd::client::ReadResponse response;
-        FileServiceTestClosure done;
+        FileServiceTestClosure* done = new FileServiceTestClosure();
         NebdServerAioContext* context = new NebdServerAioContext;
         context->op = LIBAIO_OP::LIBAIO_OP_READ;
         context->cntl = &cntl;
         context->response = &response;
         context->offset = 0;
         context->size = 4096;
-        context->done = &done;
+        context->done = done;
         context->buf = new butil::IOBuf();
         context->ret = -1;
+        context->returnRpcWhenIoError = true;
         NebdFileServiceCallback(context);
-        ASSERT_TRUE(done.IsRunned());
+        ASSERT_TRUE(done->IsRunned());
+        ASSERT_EQ(response.retcode(), RetCode::kNoOK);
+    }
+    // read failed don't return rpc
+    {
+        brpc::Controller cntl;
+        nebd::client::ReadResponse response;
+        FileServiceTestClosure* done = new FileServiceTestClosure();
+        NebdServerAioContext* context = new NebdServerAioContext;
+        context->op = LIBAIO_OP::LIBAIO_OP_READ;
+        context->cntl = &cntl;
+        context->response = &response;
+        context->offset = 0;
+        context->size = 4096;
+        context->done = done;
+        context->buf = new butil::IOBuf();
+        context->ret = -1;
+        context->returnRpcWhenIoError = false;
+        NebdFileServiceCallback(context);
         ASSERT_EQ(response.retcode(), RetCode::kNoOK);
     }
     // write success
@@ -390,22 +410,41 @@ TEST_F(FileServiceTest, CallbackTest) {
         ASSERT_TRUE(done.IsRunned());
         ASSERT_EQ(response.retcode(), RetCode::kOK);
     }
-    // write failed
+    // write failed return rpc
     {
         brpc::Controller cntl;
         nebd::client::WriteResponse response;
-        FileServiceTestClosure done;
+        FileServiceTestClosure* done = new FileServiceTestClosure();
         NebdServerAioContext* context = new NebdServerAioContext;
         context->op = LIBAIO_OP::LIBAIO_OP_WRITE;
         context->cntl = &cntl;
         context->response = &response;
         context->offset = 0;
         context->size = 4096;
-        context->done = &done;
+        context->done = done;
         context->buf = new butil::IOBuf();
         context->ret = -1;
+        context->returnRpcWhenIoError = true;
         NebdFileServiceCallback(context);
-        ASSERT_TRUE(done.IsRunned());
+        ASSERT_TRUE(done->IsRunned());
+        ASSERT_EQ(response.retcode(), RetCode::kNoOK);
+    }
+    // write failed don't return rpc
+    {
+        brpc::Controller cntl;
+        nebd::client::WriteResponse response;
+        FileServiceTestClosure* done = new FileServiceTestClosure();
+        NebdServerAioContext* context = new NebdServerAioContext;
+        context->op = LIBAIO_OP::LIBAIO_OP_WRITE;
+        context->cntl = &cntl;
+        context->response = &response;
+        context->offset = 0;
+        context->size = 4096;
+        context->done = done;
+        context->buf = new butil::IOBuf();
+        context->ret = -1;
+        context->returnRpcWhenIoError = false;
+        NebdFileServiceCallback(context);
         ASSERT_EQ(response.retcode(), RetCode::kNoOK);
     }
     // flush success
@@ -423,19 +462,35 @@ TEST_F(FileServiceTest, CallbackTest) {
         ASSERT_TRUE(done.IsRunned());
         ASSERT_EQ(response.retcode(), RetCode::kOK);
     }
-    // flush failed
+    // flush failed return rpc
     {
         brpc::Controller cntl;
         nebd::client::FlushResponse response;
-        FileServiceTestClosure done;
+        FileServiceTestClosure* done = new FileServiceTestClosure();
         NebdServerAioContext* context = new NebdServerAioContext;
         context->op = LIBAIO_OP::LIBAIO_OP_FLUSH;
         context->cntl = &cntl;
         context->response = &response;
-        context->done = &done;
+        context->done = done;
         context->ret = -1;
+        context->returnRpcWhenIoError = true;
         NebdFileServiceCallback(context);
-        ASSERT_TRUE(done.IsRunned());
+        ASSERT_TRUE(done->IsRunned());
+        ASSERT_EQ(response.retcode(), RetCode::kNoOK);
+    }
+    // flush failed don't return rpc
+    {
+        brpc::Controller cntl;
+        nebd::client::FlushResponse response;
+        FileServiceTestClosure* done = new FileServiceTestClosure();
+        NebdServerAioContext* context = new NebdServerAioContext;
+        context->op = LIBAIO_OP::LIBAIO_OP_FLUSH;
+        context->cntl = &cntl;
+        context->response = &response;
+        context->done = done;
+        context->ret = -1;
+        context->returnRpcWhenIoError = false;
+        NebdFileServiceCallback(context);
         ASSERT_EQ(response.retcode(), RetCode::kNoOK);
     }
     // discard success
@@ -453,19 +508,35 @@ TEST_F(FileServiceTest, CallbackTest) {
         ASSERT_TRUE(done.IsRunned());
         ASSERT_EQ(response.retcode(), RetCode::kOK);
     }
-    // discard failed
+    // discard failed return rpc
     {
         brpc::Controller cntl;
         nebd::client::DiscardResponse response;
-        FileServiceTestClosure done;
+        FileServiceTestClosure* done = new FileServiceTestClosure();
         NebdServerAioContext* context = new NebdServerAioContext;
         context->op = LIBAIO_OP::LIBAIO_OP_DISCARD;
         context->cntl = &cntl;
         context->response = &response;
-        context->done = &done;
+        context->done = done;
         context->ret = -1;
+        context->returnRpcWhenIoError = true;
         NebdFileServiceCallback(context);
-        ASSERT_TRUE(done.IsRunned());
+        ASSERT_TRUE(done->IsRunned());
+        ASSERT_EQ(response.retcode(), RetCode::kNoOK);
+    }
+    // discard failed don't return rpc
+    {
+        brpc::Controller cntl;
+        nebd::client::DiscardResponse response;
+        FileServiceTestClosure* done = new FileServiceTestClosure();
+        NebdServerAioContext* context = new NebdServerAioContext;
+        context->op = LIBAIO_OP::LIBAIO_OP_DISCARD;
+        context->cntl = &cntl;
+        context->response = &response;
+        context->done = done;
+        context->ret = -1;
+        context->returnRpcWhenIoError = false;
+        NebdFileServiceCallback(context);
         ASSERT_EQ(response.retcode(), RetCode::kNoOK);
     }
 }

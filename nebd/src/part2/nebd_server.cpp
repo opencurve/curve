@@ -210,7 +210,15 @@ bool NebdServer::InitHeartbeatManager() {
 
 bool NebdServer::StartServer() {
     // add service
-    NebdFileServiceImpl fileService(fileManager_);
+    bool returnRpcWhenIoError;
+    bool ret = conf_.GetBoolValue(RESPONSERETURNRPCWHENIOERROR,
+                                  &returnRpcWhenIoError);
+    if (false == ret) {
+        LOG(ERROR) << "get " << RESPONSERETURNRPCWHENIOERROR << " fail";
+        return false;
+    }
+
+    NebdFileServiceImpl fileService(fileManager_, returnRpcWhenIoError);
     int addFileServiceRes = server_.AddService(
         &fileService, brpc::SERVER_DOESNT_OWN_SERVICE);
     if (0 != addFileServiceRes) {
