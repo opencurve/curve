@@ -35,6 +35,24 @@ COPTS = [
     #"-faligned-new"
 ]
 
+ARM64_COPTS = [
+    "-DGFLAGS=gflags",
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-DNDEBUG",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-pthread",
+    "-Wsign-compare",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+    "-Woverloaded-virtual",
+    "-Wnon-virtual-dtor",
+    "-Wno-missing-field-initializers",
+    "-std=c++11",
+    #"-faligned-new"
+]
+
 cc_test(
     name = "client_test_unittest",
     srcs = glob([
@@ -54,7 +72,11 @@ cc_test(
                 "splitor_test.cpp",
                 ]
     ),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     defines = ["UNIT_TEST", "FIU_ENABLE"],
     linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
@@ -84,7 +106,11 @@ cc_test(
     name = "client_mds_failover_test",
     srcs = [
         "mds_failover_test.cpp"],
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     defines = ["UNIT_TEST", "FIU_ENABLE"],
     linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
@@ -115,7 +141,11 @@ cc_test(
         "*.h",
         "inflight_rpc_control_test.cpp"]
     ),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     defines = ["UNIT_TEST", "FIU_ENABLE"],
     linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
@@ -143,7 +173,11 @@ cc_test(
     srcs = glob([
         "libcurve_client_unittest.cpp"
     ]),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
@@ -160,7 +194,11 @@ cc_test(
     srcs = glob([
         "libcbd_libcurve_test.cpp"
     ]),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     defines = ["UNIT_TEST"],
     linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
@@ -190,7 +228,11 @@ cc_test(
     srcs = glob([
         "client_session_unittest.cpp"
     ]),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
@@ -220,7 +262,11 @@ cc_test(
         "*.h",
         "snapshot_service_unittest.cpp"]
     ),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     defines = ["UNIT_TEST"],
     linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
@@ -251,7 +297,11 @@ cc_test(
         "*.h",
         "request_sender_test.cpp"]
     ),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
@@ -271,7 +321,11 @@ cc_test(
         "*.h",
         "lease_executor_test.cpp"]
     ),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
@@ -292,7 +346,11 @@ cc_test(
         "*.h",
         "client_metric_test.cpp"]
     ),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     defines = ["UNIT_TEST"],
     linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
@@ -356,4 +414,14 @@ cc_test(
         "//src/client:curve_client",
         "@com_google_googletest//:gtest",
     ]
+)
+
+config_setting(
+    name = "arm64_build",
+    values = {"cpu": "aarch64"},
+)
+
+config_setting(
+    name = "x86_build",
+    values = {"cpu": "x86_64"},
 )

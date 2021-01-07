@@ -35,17 +35,32 @@ class EtcdClientTest : public ::testing::Test {
         if (0 > etcdPid) {
             ASSERT_TRUE(false);
         } else if (0 == etcdPid) {
-            std::string runEtcd =
-                std::string("etcd --listen-client-urls") +
-                std::string(" http://127.0.0.1:2366") +
-                std::string(" --advertise-client-urls") +
-                std::string(" http://127.0.0.1:2366") +
-                std::string(" --listen-peer-urls http://127.0.0.1:2367") +
-                std::string(" --initial-advertise-peer-urls "
-                                                "http://127.0.0.1:2367") +
-                std::string(" --initial-cluster toolEtcdClientTest="
-                                                "http://127.0.0.1:2367") +
-                std::string(" --name toolEtcdClientTest");
+            #ifdef __aarch64__
+              std::string runEtcd =
+                  std::string("ETCD_UNSUPPORTED_ARCH=arm64") +
+                  std::string(" etcd --listen-client-urls") +
+                  std::string(" http://127.0.0.1:2366") +
+                  std::string(" --advertise-client-urls") +
+                  std::string(" http://127.0.0.1:2366") +
+                  std::string(" --listen-peer-urls http://127.0.0.1:2367") +
+                  std::string(" --initial-advertise-peer-urls "
+                                                  "http://127.0.0.1:2367") +
+                  std::string(" --initial-cluster toolEtcdClientTest="
+                                                  "http://127.0.0.1:2367") +
+                  std::string(" --name toolEtcdClientTest");
+            #else
+              std::string runEtcd =
+                  std::string("etcd --listen-client-urls") +
+                  std::string(" http://127.0.0.1:2366") +
+                  std::string(" --advertise-client-urls") +
+                  std::string(" http://127.0.0.1:2366") +
+                  std::string(" --listen-peer-urls http://127.0.0.1:2367") +
+                  std::string(" --initial-advertise-peer-urls "
+                                                  "http://127.0.0.1:2367") +
+                  std::string(" --initial-cluster toolEtcdClientTest="
+                                                  "http://127.0.0.1:2367") +
+                  std::string(" --name toolEtcdClientTest");
+            #endif
             /**
              *  重要提示！！！！
              *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
