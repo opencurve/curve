@@ -36,10 +36,31 @@ COPTS = [
     "-std=c++11",
 ]
 
+ARM64_COPTS = [
+    "-DGFLAGS=gflags",
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-DNDEBUG",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-pthread",
+    "-Wsign-compare",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+    "-Woverloaded-virtual",
+    "-Wnon-virtual-dtor",
+    "-Wno-missing-field-initializers",
+    "-std=c++11",
+]
+
 cc_test(
     name = "createFile",
     srcs = ["createtool.cpp"],
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     visibility = ["//visibility:public"],
     deps = [
         "//external:braft",
@@ -84,7 +105,11 @@ cc_binary(
     name = "curve_tool",
     srcs = ["curve_tool_main.cpp"],
 
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     linkopts = [
     ],
     visibility = ["//visibility:public"],
@@ -98,7 +123,11 @@ cc_binary(
     name = "curve_chunkserver_tool",
     srcs = ["chunkserver_tool_main.cpp"],
 
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     linkopts = [
     ],
     visibility = ["//visibility:public"],
@@ -123,7 +152,11 @@ cc_library(
     hdrs = glob([
         "*.h",
     ]),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     visibility = ["//visibility:public"],
     deps = [
         "//external:gflags",
@@ -147,4 +180,14 @@ cc_library(
         "//include/client:include_client",
         "//include/chunkserver:include-chunkserver",
     ],
+)
+
+config_setting(
+    name = "arm64_build",
+    values = {"cpu": "aarch64"},
+)
+
+config_setting(
+    name = "x86_build",
+    values = {"cpu": "x86_64"},
 )

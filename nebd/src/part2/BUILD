@@ -38,6 +38,28 @@ COPTS = [
     "-Wnon-virtual-dtor"
 ]
 
+ARM64_COPTS = [
+    "-DGFLAGS=gflags",
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-DHAVE_ZLIB",
+    "-DNDEBUG",
+    "-std=c++11",
+    "-pipe",
+    "-W",
+    "-Wall",
+    "-Wno-unused-parameter",
+    "-fPIC",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-pthread",
+    "-Wsign-compare",
+    "-Wno-unused-variable",
+    "-Wno-missing-field-initializers",
+    "-Woverloaded-virtual",
+    "-Wnon-virtual-dtor"
+]
+
 cc_library(
     name = "nebdserver",
     srcs = glob([
@@ -55,7 +77,11 @@ cc_library(
         "//nebd/src/common:nebd_common",
         "//nebd/proto:client_cc_proto"
     ],
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
 )
 
 cc_binary(
@@ -67,6 +93,20 @@ cc_binary(
     deps = [
         "//nebd/src/part2:nebdserver",
     ],
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     linkopts = ["-Wl,-rpath=/usr/lib/nebd"],
+)
+
+config_setting(
+    name = "arm64_build",
+    values = {"cpu": "aarch64"},
+)
+
+config_setting(
+    name = "x86_build",
+    values = {"cpu": "x86_64"},
 )

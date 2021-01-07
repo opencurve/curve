@@ -877,8 +877,15 @@ TEST_F(CSDataStore_test, WriteChunkTest4) {
 
     // return InvalidArgError if offset+length > CHUNK_SIZE
     offset = CHUNK_SIZE;
-    EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), _, __amd64))
-        .Times(0);
+
+    #ifdef __aarch64__
+      EXPECT_CALL(*lfs_, Write(
+          3, Matcher<const char*>(NotNull()), _, __aarch64__)).Times(0);
+    #else
+      EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), _, __amd64))
+          .Times(0);
+    #endif
+
     EXPECT_EQ(CSErrorCode::InvalidArgError,
               dataStore->WriteChunk(id,
                                     sn,
