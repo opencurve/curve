@@ -36,6 +36,24 @@ COPTS = [
     "-I /usr/include/libnl3",
 ]
 
+ARM64_COPTS = [
+    "-DGFLAGS=gflags",
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-DNDEBUG",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-pthread",
+    "-Wsign-compare",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+    "-Woverloaded-virtual",
+    "-Wnon-virtual-dtor",
+    "-Wno-missing-field-initializers",
+    "-std=c++11",
+    "-I /usr/include/libnl3",
+]
+
 cc_library(
     name = "mock_lib",
     srcs = glob([
@@ -47,7 +65,11 @@ cc_library(
         "//external:gtest",
         "//nbd/src:curvenbd",
     ],
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     visibility = ["//visibility:public"],
 )
 
@@ -60,5 +82,19 @@ cc_binary(
         "//nbd/src:curvenbd",
         "//nbd/test:mock_lib"
     ],
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
+)
+
+config_setting(
+    name = "arm64_build",
+    values = {"cpu": "aarch64"},
+)
+
+config_setting(
+    name = "x86_build",
+    values = {"cpu": "x86_64"},
 )
