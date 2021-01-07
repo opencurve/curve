@@ -33,13 +33,33 @@ COPTS = [
     "-Wno-missing-field-initializers"
 ]
 
+ARM64_COPTS = [
+    "-DGFLAGS=gflags",
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-DNDEBUG",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-pthread",
+    "-Wsign-compare",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+    "-Woverloaded-virtual",
+    "-Wnon-virtual-dtor",
+    "-Wno-missing-field-initializers"
+]
+
 cc_library(
     name = "client_integration_common_lib",
     srcs = glob([
         "*.h",
         "*.cpp"],
     ),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     defines = ["FIU_ENABLE"],
     linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
@@ -57,4 +77,14 @@ cc_library(
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
     ],
+)
+
+config_setting(
+    name = "arm64_build",
+    values = {"cpu": "aarch64"},
+)
+
+config_setting(
+    name = "x86_build",
+    values = {"cpu": "x86_64"},
 )

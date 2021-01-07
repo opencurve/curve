@@ -22,6 +22,8 @@ git_repository(
     name = "com_github_baidu_braft",
     remote = "https://github.com/baidu/braft",
     commit = "e255c0e4b18d1a8a5d484d4b647f41ff1385ef1e",
+    patch_args = ["-p1"],
+    patches = ["//:thirdparties/braft/arm64.patch"],
 )
 
 bind(
@@ -103,7 +105,7 @@ git_repository(
     name = "com_github_apache_brpc",
     remote = "https://github.com/apache/incubator-brpc",
     commit = "1b9e00641cbec1c8803da6a1f7f555398c954cb0",
-    patches = ["//:thirdparties/brpc/brpc.patch"],
+    patches = ["//:thirdparties/brpc/brpc.patch", "//:thirdparties/brpc/arm64.patch"],
     patch_args = ["-p1"],
 )
 
