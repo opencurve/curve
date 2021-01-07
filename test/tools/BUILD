@@ -33,6 +33,23 @@ COPTS = [
     "-std=c++11",
 ]
 
+ARM64_COPTS = [
+    "-DGFLAGS=gflags",
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-DNDEBUG",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-pthread",
+    "-Wsign-compare",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+    "-Woverloaded-virtual",
+    "-Wnon-virtual-dtor",
+    "-Wno-missing-field-initializers",
+    "-std=c++11",
+]
+
 cc_binary(
     name = "curve_tool_test",
     srcs = glob([
@@ -50,5 +67,19 @@ cc_binary(
         "//test/client:client_mock",
         "//test/tools/mock:curve_tool_mock",
     ],
-    copts = COPTS
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    })
+)
+
+config_setting(
+    name = "arm64_build",
+    values = {"cpu": "aarch64"},
+)
+
+config_setting(
+    name = "x86_build",
+    values = {"cpu": "x86_64"},
 )

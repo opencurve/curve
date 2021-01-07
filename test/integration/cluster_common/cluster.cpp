@@ -310,14 +310,26 @@ int CurveCluster::StartSingleEtcd(int id, const std::string &clientIpPort,
     } else if (0 == pid) {
         // 在子进程中起一个etcd
         // ip netns exec integ_etcd1 etcd
-        std::string cmd_dir =
-            std::string(" etcd --listen-peer-urls http://") + peerIpPort +
-            std::string(" --initial-advertise-peer-urls http://") + peerIpPort +
-            std::string(" --listen-client-urls http://") + clientIpPort +
-            std::string(" --advertise-client-urls http://") + clientIpPort +
-            std::string(" --pre-vote") +
-            std::string(" --election-timeout 3000") +
-            std::string(" --heartbeat-interval 300");
+        #ifdef __aarch64__
+          std::string cmd_dir =
+              std::string("ETCD_UNSUPPORTED_ARCH=arm64") +
+              std::string(" etcd --listen-peer-urls http://") + peerIpPort +
+              std::string(" --initial-advertise-peer-urls http://") + peerIpPort +
+              std::string(" --listen-client-urls http://") + clientIpPort +
+              std::string(" --advertise-client-urls http://") + clientIpPort +
+              std::string(" --pre-vote") +
+              std::string(" --election-timeout 3000") +
+              std::string(" --heartbeat-interval 300");
+        #else
+          std::string cmd_dir =
+              std::string(" etcd --listen-peer-urls http://") + peerIpPort +
+              std::string(" --initial-advertise-peer-urls http://") + peerIpPort +
+              std::string(" --listen-client-urls http://") + clientIpPort +
+              std::string(" --advertise-client-urls http://") + clientIpPort +
+              std::string(" --pre-vote") +
+              std::string(" --election-timeout 3000") +
+              std::string(" --heartbeat-interval 300");
+        #endif
         for (auto &item : etcdConf) {
             cmd_dir += item;
         }
