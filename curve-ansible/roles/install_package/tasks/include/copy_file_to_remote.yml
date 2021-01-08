@@ -37,6 +37,6 @@
       become: false
       copy: src={{ local_file_path }} dest={{ tmp_dir }} mode={{ file_mode }}
     - name: mv file
-      shell: sudo mv {{ tmp_dir }}/* {{ remote_dir_name }}
+      shell: sudo mv -b {{ tmp_dir }}/* {{ remote_dir_name }}
   when: copy_file_res.failed
 
