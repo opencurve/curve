@@ -100,6 +100,11 @@ function build_curvefs_python() {
             continue
         fi
 
+        # backup and recover python depends shared libraries
+        mkdir -p ./build/py_deps_libs
+        cp ./curvefs_python/tmplib/* ./build/py_deps_libs/
+        cp ./build/py_deps_libs/* ./curvefs_python/tmplib/
+
         rm -rf ./bazel-bin/curvefs_python
 
         if [ "$1" = "release" ]; then
@@ -107,13 +112,13 @@ function build_curvefs_python() {
                 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
                 --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
                 -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
-	        ${bazelflags}
+                ${bazelflags}
         else
             bazel build curvefs_python:curvefs --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s \
                 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
                 --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
                 -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
-		${bazelflags}
+                ${bazelflags}
         fi
 
         create_python_wheel ${bin}
@@ -585,4 +590,3 @@ cd ${dir}
 
 # step7 打包python wheel
 build_curvefs_python $1
-
