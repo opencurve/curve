@@ -95,6 +95,12 @@ function build_curvefs_python() {
 
         bash ./curvefs_python/configure.sh $(basename ${bin})
 
+        # Backup tmp so files
+        mkdir -p /tmp/curve_python_tmp
+        cp ./curvefs_python/tmplib/* /tmp/curve_python_tmp
+        # Recover tmp so file
+        cp /tmp/curve_python_tmp/* ./curvefs_python/tmplib
+
         if [ $? -ne 0 ]; then
             echo "configure for ${bin} failed"
             continue
