@@ -16,9 +16,7 @@
 #
 
 leader_range: []
-rapid_leader_schedule_interval_s: 30
-rapid_leader_schedule_times: 2
 leader_range_ok: false
 target_leader_range: 3
 check_leader_range_times: 100
-check_leader_range_interval: 3
+check_leader_range_interval: 10

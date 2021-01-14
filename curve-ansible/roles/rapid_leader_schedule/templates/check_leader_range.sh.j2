@@ -16,11 +16,13 @@
 #  limitations under the License.
 #
 
+curve_ops_tool rapid-leader-schedule
+
 for i in `curl -s http://{{ leader_ip }}:{{ mds_port }}/vars/ | grep leadernum_range  | awk -F ': ' '{print $2}' | awk -F '.' '{print $1}'`
 do
     if (($i > {{ target_leader_range }}))
     then
-        echo "leader range not ok!"
+        echo "leader range not ok! is $i"
         exit 0
     fi
 done

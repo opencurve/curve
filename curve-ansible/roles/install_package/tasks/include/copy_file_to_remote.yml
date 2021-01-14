@@ -36,7 +36,12 @@
     - name: copy files to tempory directory
       become: false
       copy: src={{ local_file_path }} dest={{ tmp_dir }} mode={{ file_mode }}
+    - name: list all file under local file path
+      shell: ls {{ tmp_dir }}
+      register: ls_res
+    - name: rename duplicate file under target dir
+      shell: sudo rm -rf {{ remote_dir_name }}/{{ item }}
+      with_items: "{{ ls_res.stdout_lines }}"
     - name: mv file
       shell: sudo mv -b {{ tmp_dir }}/* {{ remote_dir_name }}
   when: copy_file_res.failed
-
