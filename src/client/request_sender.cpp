@@ -95,7 +95,7 @@ int RequestSender::ReadChunk(const ChunkIDInfo& idinfo,
     request.set_offset(offset);
     request.set_size(length);
 
-    if (!sourceInfo.cloneFileSource.empty()) {
+    if (sourceInfo.IsValid()) {
         request.set_clonefilesource(sourceInfo.cloneFileSource);
         request.set_clonefileoffset(sourceInfo.cloneFileOffset);
     }
@@ -136,7 +136,7 @@ int RequestSender::WriteChunk(const ChunkIDInfo& idinfo,
     request.set_offset(offset);
     request.set_size(length);
 
-    if (!sourceInfo.cloneFileSource.empty()) {
+    if (sourceInfo.IsValid()) {
         request.set_clonefilesource(sourceInfo.cloneFileSource);
         request.set_clonefileoffset(sourceInfo.cloneFileOffset);
     }
