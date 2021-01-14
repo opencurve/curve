@@ -316,7 +316,8 @@ class CurveFS {
     StatusCode OpenFile(const std::string &fileName,
                         const std::string &clientIP,
                         ProtoSession *protoSession,
-                        FileInfo  *fileInfo);
+                        FileInfo  *fileInfo,
+                        CloneSourceSegment* cloneSourceSegment = nullptr);
 
     /**
      *  @brief close file
@@ -626,6 +627,15 @@ class CurveFS {
         return timePass >= times * std::chrono::microseconds(expiredUs);
     }
 
+    /**
+     * @brief list clone source file's segment,
+     *        if current file status is in kFileCloneMetaInstalled
+     * @param fileInfo current file info
+     * @param[out] cloneSourceSegment source file allocated segments
+     */
+    StatusCode ListCloneSourceFileSegments(
+        const FileInfo* fileInfo, CloneSourceSegment* cloneSourceSegment) const;
+
  private:
     FileInfo rootFileInfo_;
     std::shared_ptr<NameServerStorage> storage_;
@@ -645,4 +655,3 @@ extern CurveFS &kCurveFS;
 }   // namespace mds
 }   // namespace curve
 #endif   // SRC_MDS_NAMESERVER2_CURVEFS_H_
-
