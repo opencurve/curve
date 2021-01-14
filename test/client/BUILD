@@ -49,6 +49,7 @@ cc_test(
                 "libcurve_client_unittest.cpp",
                 "lease_executor_test.cpp",
                 "request_sender_test.cpp",
+                "mds_client_test.cpp"
                 ]
     ),
     copts = COPTS,
