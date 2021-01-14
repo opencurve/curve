@@ -281,6 +281,23 @@ int TopologyImpl::UpdateLogicalPool(const LogicalPool &data) {
     }
 }
 
+int TopologyImpl::UpdateLogicalPoolAllocateStatus(const AllocateStatus &status,
+                                    PoolIdType id) {
+    WriteLockGuard wlockLogicalPool(logicalPoolMutex_);
+    auto it = logicalPoolMap_.find(id);
+    if (it != logicalPoolMap_.end()) {
+        LogicalPool temp = it->second;
+        temp.SetStatus(status);
+        if (!storage_->UpdateLogicalPool(temp)) {
+            return kTopoErrCodeStorgeFail;
+        }
+        it->second.SetStatus(status);
+        return kTopoErrCodeSuccess;
+    } else {
+        return kTopoErrCodeLogicalPoolNotFound;
+    }
+}
+
 int TopologyImpl::UpdatePhysicalPool(const PhysicalPool &data) {
     WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
     auto it = physicalPoolMap_.find(data.GetId());
