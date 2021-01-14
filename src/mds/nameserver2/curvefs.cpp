@@ -1332,7 +1332,8 @@ StatusCode CurveFS::GetSnapShotFileSegment(
 StatusCode CurveFS::OpenFile(const std::string &fileName,
                              const std::string &clientIP,
                              ProtoSession *protoSession,
-                             FileInfo  *fileInfo) {
+                             FileInfo  *fileInfo,
+                             CloneSourceSegment** cloneSourceSegment) {
     // check the existence of the file
     StatusCode ret;
     ret = GetFileInfo(fileName, fileInfo);
@@ -1358,6 +1359,62 @@ StatusCode CurveFS::OpenFile(const std::string &fileName,
     }
 
     fileRecordManager_->GetRecordParam(protoSession);
+
+    // clone file
+    if (fileInfo->has_clonesource()) {
+        if (!cloneSourceSegment) {
+            LOG(ERROR) << "OpenFile failed, file has clone source, but "
+                          "cloneSourceSegments is nullptr, filename = "
+                       << fileName;
+            return StatusCode::kParaError;
+        }
+
+        if (fileInfo->filestatus() == FileStatus::kFileCloned) {
+            *cloneSourceSegment = new CloneSourceSegment();
+            (*cloneSourceSegment)->set_segmentsize(fileInfo->segmentsize());
+            return StatusCode::kOK;
+        }
+
+        FileInfo cloneSourceFileInfo;
+        StatusCode ret =
+            GetFileInfo(fileInfo->clonesource(), &cloneSourceFileInfo);
+        if (ret != StatusCode::kOK) {
+            LOG(ERROR)
+                << "OpenFile failed, Get clone source file info failed, ret = "
+                << StatusCode_Name(ret) << ", filename = " << fileName
+                << ", clone source = " << fileInfo->clonesource()
+                << ", file status = "
+                << FileStatus_Name(fileInfo->filestatus());
+            return ret;
+        }
+
+        std::vector<PageFileSegment> segments;
+        StoreStatus status =
+            storage_->ListSegment(cloneSourceFileInfo.id(), &segments);
+        if (status != StoreStatus::OK) {
+            LOG(ERROR) << "OpenFile failed, list clone source segment failed, "
+                          "filename = "
+                       << fileName
+                       << ", source file name = " << fileInfo->clonesource()
+                       << ", ret = " << status;
+            return StatusCode::kStorageError;
+        }
+
+        if (segments.empty()) {
+            LOG(WARNING) << "Clone source file has no segments, filename = "
+                         << fileInfo->clonesource();
+        }
+
+        *cloneSourceSegment = new CloneSourceSegment();
+        (*cloneSourceSegment)->set_segmentsize(fileInfo->segmentsize());
+
+        for (const auto& segment : segments) {
+            (*cloneSourceSegment)
+                ->add_allocatedsegmentoffset(segment.startoffset());
+        }
+
+        return StatusCode::kOK;
+    }
 
     return StatusCode::kOK;
 }

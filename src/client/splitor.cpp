@@ -297,23 +297,41 @@ bool Splitor::GetOrAllocateSegment(bool allocateIfNotExist,
 RequestSourceInfo Splitor::CalcRequestSourceInfo(IOTracker* ioTracker,
                                                  MetaCache* metaCache,
                                                  ChunkIndex chunkIdx) {
-    const FInfo* fileInfo = metaCache->GetFileInfo();
-    if (fileInfo->cloneSource.empty()) {
-        return {};
-    }
-
     OpType type = ioTracker->Optype();
     if (type != OpType::READ && type != OpType::WRITE) {
         return {};
     }
 
-    uint64_t offset = static_cast<uint64_t>(chunkIdx) * fileInfo->chunksize;
+    const FInfo* fileInfo = metaCache->GetFileInfo();
+    const CloneSourceInfo& sourceInfo = fileInfo->sourceInfo;
 
-    if (offset >= fileInfo->cloneLength) {
+    if (sourceInfo.name.empty()) {
         return {};
     }
 
-    return {fileInfo->cloneSource, offset};
+    uint64_t offset = static_cast<uint64_t>(chunkIdx) * fileInfo->chunksize;
+    if (sourceInfo.IsSegmentAllocated(offset)) {
+        return {sourceInfo.name, offset};
+    } else {
+        return {};
+    }
+
+    // if (fileInfo->cloneSource.empty()) {
+    //     return {};
+    // }
+
+    // OpType type = ioTracker->Optype();
+    // if (type != OpType::READ && type != OpType::WRITE) {
+    //     return {};
+    // }
+
+    // uint64_t offset = static_cast<uint64_t>(chunkIdx) * fileInfo->chunksize;
+
+    // if (offset >= fileInfo->cloneLength) {
+    //     return {};
+    // }
+
+    // return {fileInfo->cloneSource, offset};
 }
 
 }   // namespace client

@@ -34,49 +34,59 @@
 namespace curve {
 namespace client {
 
-void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo* finfo,
+void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
                                         FInfo_t* fi) {
-    if (finfo->has_owner()) {
-        fi->owner = finfo->owner();
+    if (finfo.has_owner()) {
+        fi->owner = finfo.owner();
     }
-    if (finfo->has_filename()) {
-        fi->filename = finfo->filename();
+    if (finfo.has_filename()) {
+        fi->filename = finfo.filename();
     }
-    if (finfo->has_id()) {
-        fi->id = finfo->id();
+    if (finfo.has_id()) {
+        fi->id = finfo.id();
     }
-    if (finfo->has_parentid()) {
-        fi->parentid = finfo->parentid();
+    if (finfo.has_parentid()) {
+        fi->parentid = finfo.parentid();
     }
-    if (finfo->has_filetype()) {
-        fi->filetype = static_cast<FileType>(finfo->filetype());
+    if (finfo.has_filetype()) {
+        fi->filetype = static_cast<FileType>(finfo.filetype());
     }
-    if (finfo->has_chunksize()) {
-        fi->chunksize = finfo->chunksize();
+    if (finfo.has_chunksize()) {
+        fi->chunksize = finfo.chunksize();
     }
-    if (finfo->has_length()) {
-        fi->length = finfo->length();
+    if (finfo.has_length()) {
+        fi->length = finfo.length();
     }
-    if (finfo->has_ctime()) {
-        fi->ctime = finfo->ctime();
+    if (finfo.has_ctime()) {
+        fi->ctime = finfo.ctime();
     }
-    if (finfo->has_chunksize()) {
-        fi->chunksize = finfo->chunksize();
+    if (finfo.has_chunksize()) {
+        fi->chunksize = finfo.chunksize();
     }
-    if (finfo->has_segmentsize()) {
-        fi->segmentsize = finfo->segmentsize();
+    if (finfo.has_segmentsize()) {
+        fi->segmentsize = finfo.segmentsize();
     }
-    if (finfo->has_seqnum()) {
-        fi->seqnum = finfo->seqnum();
+    if (finfo.has_seqnum()) {
+        fi->seqnum = finfo.seqnum();
     }
-    if (finfo->has_filestatus()) {
-        fi->filestatus = (FileStatus)finfo->filestatus();
+    if (finfo.has_filestatus()) {
+        fi->filestatus = (FileStatus)finfo.filestatus();
     }
-    if (finfo->has_clonesource()) {
-        fi->cloneSource = finfo->clonesource();
-    }
-    if (finfo->has_clonelength()) {
-        fi->cloneLength = finfo->clonelength();
+}
+
+void ServiceHelper::ProtoCloneSourceInfo2Local(
+    const curve::mds::OpenFileResponse& openFileResponse,
+    CloneSourceInfo* info) {
+    const curve::mds::FileInfo& fileInfo = openFileResponse.fileinfo();
+    const curve::mds::CloneSourceSegment& sourceSegment =
+        openFileResponse.clonesourcesegment();
+
+    info->name = fileInfo.clonesource();
+    info->length = fileInfo.clonelength();
+    info->segmentSize = sourceSegment.segmentsize();
+    for (int i = 0; i < sourceSegment.allocatedsegmentoffset_size(); ++i) {
+        info->allocatedSegmentOffsets.insert(
+            sourceSegment.allocatedsegmentoffset(i));
     }
 }
 

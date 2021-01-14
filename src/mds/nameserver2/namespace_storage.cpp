@@ -21,6 +21,7 @@
  */
 
 #include <glog/logging.h>
+#include <utility>
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/common/namespace_define.h"
@@ -402,7 +403,7 @@ StoreStatus NameServerStorageImp::ListSegment(InodeID id,
         bool decodeOK = NameSpaceStorageCodec::DecodeSegment(out[i],
                                                              &segment);
         if (decodeOK) {
-            segments->emplace_back(segment);
+            segments->emplace_back(std::move(segment));
         } else {
             LOG(ERROR) << "decode one segment err";
             return StoreStatus::InternalError;

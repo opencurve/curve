@@ -2799,6 +2799,122 @@ TEST_F(CurveFSTest, testOpenFile) {
             curvefs_->OpenFile("/file1", "127.0.0.1", &protoSession, &fileInfo),
             StatusCode::kOK);
     }
+
+    // open clone file, cloneSourceSegments is nullptr
+    {
+        ProtoSession protoSession;
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_clonesource("/clonefile");
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1", &protoSession,
+                                     &fileInfo, nullptr),
+                  StatusCode::kParaError);
+    }
+
+    // open clone file, get clone file info failed
+    {
+        ProtoSession protoSession;
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_clonesource("/clonefile");
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(Return(StoreStatus::OK))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        CloneSourceSegment* sourceSegment = nullptr;
+        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1", &protoSession,
+                                     &fileInfo, &sourceSegment),
+                  StatusCode::kFileNotExists);
+    }
+
+    // open clone file, list clone file segment failed
+    {
+        ProtoSession protoSession;
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_clonesource("/clonefile");
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .Times(2)
+            .WillRepeatedly(Return(StoreStatus::OK));
+
+        EXPECT_CALL(*storage_, ListSegment(_, _))
+            .WillOnce(Return(StoreStatus::InternalError));
+
+        CloneSourceSegment* sourceSegment = nullptr;
+        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1", &protoSession,
+                                     &fileInfo, &sourceSegment),
+                  StatusCode::kStorageError);
+    }
+
+    // open clone file, clone source file has no segments
+    {
+        ProtoSession protoSession;
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_clonesource("/clonefile");
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .Times(2)
+            .WillRepeatedly(Return(StoreStatus::OK));
+
+        std::vector<PageFileSegment> segments;
+        EXPECT_CALL(*storage_, ListSegment(_, _))
+            .WillOnce(
+                DoAll(SetArgPointee<1>(segments), Return(StoreStatus::OK)));
+
+        CloneSourceSegment* sourceSegment = nullptr;
+        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1", &protoSession,
+                                     &fileInfo, &sourceSegment),
+                  StatusCode::kOK);
+
+        ASSERT_EQ(0, sourceSegment->allocatedsegmentoffset_size());
+    }
+
+    // open clone file success
+    {
+        ProtoSession protoSession;
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_clonesource("/clonefile");
+
+        FileInfo cloneSourceFileInfo;
+        cloneSourceFileInfo.set_segmentsize(1 * kGB);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(Return(StoreStatus::OK))
+            .WillOnce(DoAll(SetArgPointee<2>(cloneSourceFileInfo),
+                            Return(StoreStatus::OK)));
+
+        PageFileSegment segment1;
+        segment1.set_logicalpoolid(1);
+        segment1.set_segmentsize(1 * kGB);
+        segment1.set_chunksize(16 * kMB);
+        segment1.set_startoffset(0 * kGB);
+
+        PageFileSegment segment2;
+        segment2.set_logicalpoolid(1);
+        segment2.set_segmentsize(1 * kGB);
+        segment2.set_chunksize(16 * kMB);
+        segment2.set_startoffset(1 * kGB);
+
+        std::vector<PageFileSegment> segments{segment1, segment2};
+
+        EXPECT_CALL(*storage_, ListSegment(_, _))
+            .WillOnce(
+                DoAll(SetArgPointee<1>(segments), Return(StoreStatus::OK)));
+
+        CloneSourceSegment* sourceSegment = nullptr;
+        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1", &protoSession,
+                                     &fileInfo, &sourceSegment),
+                  StatusCode::kOK);
+
+        ASSERT_EQ(2, sourceSegment->allocatedsegmentoffset_size());
+        ASSERT_EQ(0 * kGB, sourceSegment->allocatedsegmentoffset(0));
+        ASSERT_EQ(1 * kGB, sourceSegment->allocatedsegmentoffset(1));
+        ASSERT_EQ(1 * kGB, sourceSegment->segmentsize());
+    }
 }
 
 TEST_F(CurveFSTest, testCloseFile) {

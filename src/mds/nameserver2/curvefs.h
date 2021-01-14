@@ -316,7 +316,8 @@ class CurveFS {
     StatusCode OpenFile(const std::string &fileName,
                         const std::string &clientIP,
                         ProtoSession *protoSession,
-                        FileInfo  *fileInfo);
+                        FileInfo  *fileInfo,
+                        CloneSourceSegment** cloneSourceSegment = nullptr);
 
     /**
      *  @brief close file

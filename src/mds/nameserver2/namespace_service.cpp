@@ -1180,10 +1180,12 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
 
     ProtoSession *protoSession = new ProtoSession();
     FileInfo *fileInfo = new FileInfo();
+    CloneSourceSegment* cloneSourceSegment = nullptr;
     retCode = kCurveFS.OpenFile(request->filename(),
                                 clientIP,
                                 protoSession,
-                                fileInfo);
+                                fileInfo,
+                                &cloneSourceSegment);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
@@ -1212,6 +1214,11 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
         response->set_allocated_protosession(protoSession);
         response->set_allocated_fileinfo(fileInfo);
         response->set_statuscode(StatusCode::kOK);
+
+        if (cloneSourceSegment != nullptr) {
+            response->set_allocated_clonesourcesegment(cloneSourceSegment);
+        }
+
         LOG(INFO) << "logid = " << cntl->log_id()
                   << ", OpenFile ok, filename = " << request->filename()
                   << ", clientip = " << clientIP

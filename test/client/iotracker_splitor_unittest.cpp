@@ -950,9 +950,18 @@ TEST(SplitorTest, RequestSourceInfoTest) {
     MetaCache metaCache;
     FInfo_t fileInfo;
     fileInfo.chunksize = 16 * 1024 * 1024;          // 16M
-    fileInfo.cloneLength = 10ull * 1024 * 1024 * 1024;  // 10G
-    fileInfo.cloneSource = "/clonesource";
 
+    CloneSourceInfo cloneSourceInfo;
+    cloneSourceInfo.name = "/clonesource";
+    cloneSourceInfo.length = 10ull * 1024 * 1024 * 1024;      // 10GB
+    cloneSourceInfo.segmentSize = 1ull * 1024 * 1024 * 1024;  // 1GB
+
+    // 源卷只分配了第一个和最后一个segment
+    cloneSourceInfo.allocatedSegmentOffsets.insert(0);
+    cloneSourceInfo.allocatedSegmentOffsets.insert(cloneSourceInfo.length -
+                                                   cloneSourceInfo.segmentSize);
+
+    fileInfo.sourceInfo = cloneSourceInfo;
     metaCache.UpdateFileInfo(fileInfo);
 
     ChunkIndex chunkIdx = 0;
@@ -961,23 +970,35 @@ TEST(SplitorTest, RequestSourceInfoTest) {
     // 第一个chunk
     sourceInfo =
         Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
-    ASSERT_EQ(sourceInfo.cloneFileSource, fileInfo.cloneSource);
+    ASSERT_EQ(sourceInfo.cloneFileSource, fileInfo.sourceInfo.name);
     ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
 
     // 克隆卷最后一个chunk
-    chunkIdx = fileInfo.cloneLength / fileInfo.chunksize - 1;
-    LOG(INFO) << "clone length = " << fileInfo.cloneLength
+    chunkIdx = fileInfo.sourceInfo.length / fileInfo.chunksize - 1;
+    LOG(INFO) << "clone length = " << fileInfo.sourceInfo.length
               << ", chunk size = " << fileInfo.chunksize
               << ", chunk idx = " << chunkIdx;
 
     // offset = 10*1024*1024*1024 - 16 * 1024 * 1024 = 10720641024
     sourceInfo =
         Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
-    ASSERT_EQ(sourceInfo.cloneFileSource, fileInfo.cloneSource);
+    ASSERT_EQ(sourceInfo.cloneFileSource, fileInfo.sourceInfo.name);
     ASSERT_EQ(sourceInfo.cloneFileOffset, 10720641024);
 
+    // 源卷未分配segment
+    // 读取每个segment的第一个chunk
+    for (int i = 1; i < 9; ++i) {
+        ChunkIndex chunkIdx =
+            i * cloneSourceInfo.segmentSize / fileInfo.chunksize;
+        RequestSourceInfo sourceInfo = Splitor::CalcRequestSourceInfo(
+            &ioTracker, &metaCache, chunkIdx);
+
+        ASSERT_TRUE(sourceInfo.cloneFileSource.empty());
+        ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
+    }
+
     // 超过长度
-    chunkIdx = fileInfo.cloneLength / fileInfo.chunksize;
+    chunkIdx = fileInfo.sourceInfo.length / fileInfo.chunksize;
 
     sourceInfo =
         Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
@@ -992,8 +1013,7 @@ TEST(SplitorTest, RequestSourceInfoTest) {
     ASSERT_TRUE(sourceInfo.cloneFileSource.empty());
     ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
 
-    fileInfo.cloneSource.clear();
-    fileInfo.cloneLength = 0;
+    fileInfo.sourceInfo = CloneSourceInfo();
     metaCache.UpdateFileInfo(fileInfo);
 
     chunkIdx = 0;
@@ -1172,10 +1192,15 @@ TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegmentFromOrigin) {
 
     FInfo_t fileInfo;
     fileInfo.chunksize = 4 * 1024 * 1024;               // 4M
-    fileInfo.cloneLength = 10ull * 1024 * 1024 * 1024;  // 10G
     fileInfo.fullPathName = "/1_userinfo_.txt";
     fileInfo.owner = "userinfo";
-    fileInfo.cloneSource = "/clonesource";
+    fileInfo.sourceInfo.name = "/clonesource";
+    fileInfo.sourceInfo.segmentSize = 1ull * 1024 * 1024 * 1024;
+    fileInfo.sourceInfo.length = 10ull * 1024 * 1024 * 1024;
+    for (uint64_t i = 0; i < fileInfo.sourceInfo.length;
+         i += fileInfo.sourceInfo.segmentSize) {
+        fileInfo.sourceInfo.allocatedSegmentOffsets.insert(i);
+    }
     fileInfo.userinfo = userinfo;
     mc->UpdateFileInfo(fileInfo);
 
@@ -1240,10 +1265,15 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegmentFromOrigin) {
 
     FInfo_t fileInfo;
     fileInfo.chunksize = 4 * 1024 * 1024;
-    fileInfo.cloneLength = 10ull * 1024 * 1024 * 1024;
     fileInfo.filename = "1_userinfo_.txt";
     fileInfo.owner = "userinfo";
-    fileInfo.cloneSource = "/clonesource";
+    fileInfo.sourceInfo.name = "/clonesource";
+    fileInfo.sourceInfo.segmentSize = 1ull * 1024 * 1024 * 1024;
+    fileInfo.sourceInfo.length = 10ull * 1024 * 1024 * 1024;
+    for (uint64_t i = 0; i < fileInfo.sourceInfo.length;
+         i += fileInfo.sourceInfo.segmentSize) {
+        fileInfo.sourceInfo.allocatedSegmentOffsets.insert(i);
+    }
     fileInfo.userinfo = userinfo;
     mc->UpdateFileInfo(fileInfo);
 

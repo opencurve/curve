@@ -29,6 +29,7 @@
 
 #include <string>
 #include <vector>
+#include <set>
 
 #include "include/client/libcurve.h"
 #include "src/common/net_common.h"
@@ -122,6 +123,22 @@ typedef struct SegmentInfo {
     LogicalPoolCopysetIDInfo lpcpIDInfo;
 } SegmentInfo_t;
 
+struct CloneSourceInfo {
+    std::string name;
+    uint64_t length = 0;
+    uint64_t segmentSize = 0;
+    std::set<uint64_t> allocatedSegmentOffsets;
+
+    /**
+     * @brief Determine whether the segment where the offset is located is
+     *        allocated
+     */
+    bool IsSegmentAllocated(uint64_t offset) const {
+        uint64_t segmentOffset = offset / segmentSize * segmentSize;
+        return allocatedSegmentOffsets.count(segmentOffset) != 0;
+    }
+};
+
 typedef struct FInfo {
     uint64_t        id;
     uint64_t        parentid;
@@ -138,8 +155,7 @@ typedef struct FInfo {
     std::string     filename;
     std::string     fullPathName;
     FileStatus      filestatus;
-    std::string     cloneSource;
-    uint64_t        cloneLength{0};
+    CloneSourceInfo sourceInfo;
 
     FInfo() {
         id = 0;
