@@ -28,6 +28,7 @@
 #include "src/mds/nameserver2/file_lock.h"
 #include "src/common/string_util.h"
 #include "src/common/timeutility.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
 
 namespace curve {
 namespace mds {
@@ -1179,10 +1180,12 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
 
     ProtoSession *protoSession = new ProtoSession();
     FileInfo *fileInfo = new FileInfo();
+    CloneSourceSegment* cloneSourceSegment = new CloneSourceSegment();
     retCode = kCurveFS.OpenFile(request->filename(),
                                 clientIP,
                                 protoSession,
-                                fileInfo);
+                                fileInfo,
+                                cloneSourceSegment);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
@@ -1206,11 +1209,19 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
         }
         delete protoSession;
         delete fileInfo;
+        delete cloneSourceSegment;
         return;
     } else {
         response->set_allocated_protosession(protoSession);
         response->set_allocated_fileinfo(fileInfo);
         response->set_statuscode(StatusCode::kOK);
+
+        if (cloneSourceSegment->IsInitialized()) {
+            response->set_allocated_clonesourcesegment(cloneSourceSegment);
+        } else {
+            delete cloneSourceSegment;
+        }
+
         LOG(INFO) << "logid = " << cntl->log_id()
                   << ", OpenFile ok, filename = " << request->filename()
                   << ", clientip = " << clientIP
@@ -1428,32 +1439,6 @@ void NameSpaceService::RefreshSession(
     }
 
     return;
-}
-
-bool isPathValid(const std::string path) {
-    if (path.empty() || path[0] != '/') {
-        return false;
-    }
-
-    if (path.size() > 1U && path[path.size() - 1] == '/') {
-        return false;
-    }
-
-    bool slash = false;
-    for (uint32_t i = 0; i < path.size(); i++) {
-        if (path[i] == '/') {
-            if (slash) {
-                return false;
-            }
-            slash = true;
-        } else {
-            slash = false;
-        }
-    }
-
-    // 将来如果有path有其他限制，可以在此处继续添加
-
-    return true;
 }
 
 bool IsRenamePathValid(const std::string& oldFileName,
