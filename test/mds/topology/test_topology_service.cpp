@@ -1342,6 +1342,66 @@ TEST_F(TestTopologyService, test_ListLogicalPool_fail) {
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
 }
 
+TEST_F(TestTopologyService, test_SetLogicalPool_success) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    SetLogicalPoolRequest request;
+    request.set_logicalpoolid(3);
+    request.set_status(AllocateStatus::ALLOW);
+
+    SetLogicalPoolResponse response;
+
+    SetLogicalPoolResponse reps;
+    reps.set_statuscode(kTopoErrCodeSuccess);
+    EXPECT_CALL(*manager_, SetLogicalPool(_, _))
+    .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.SetLogicalPool(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_SetLogicalPool_fail) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    SetLogicalPoolRequest request;
+    request.set_logicalpoolid(3);
+    request.set_status(AllocateStatus::ALLOW);
+
+    SetLogicalPoolResponse response;
+
+    SetLogicalPoolResponse reps;
+    reps.set_statuscode(kTopoErrCodeInvalidParam);
+    EXPECT_CALL(*manager_, SetLogicalPool(_, _))
+    .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.SetLogicalPool(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
+}
+
 TEST_F(TestTopologyService, test_GetChunkServerListInCopySets_success) {
     brpc::Channel channel;
     if (channel.Init(listenAddr_, NULL) != 0) {

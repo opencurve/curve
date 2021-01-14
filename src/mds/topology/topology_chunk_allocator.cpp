@@ -146,6 +146,7 @@ bool TopologyChunkAllocatorImpl::ChooseSingleLogicalPool(
     auto logicalPoolFilter =
     [poolType] (const LogicalPool &pool) {
         return pool.GetLogicalPoolAvaliableFlag() &&
+            AllocateStatus::ALLOW == pool.GetStatus() &&
             pool.GetLogicalPoolType() == poolType;
     };
 
