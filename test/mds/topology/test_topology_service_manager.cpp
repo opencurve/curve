@@ -2538,6 +2538,39 @@ TEST_F(TestTopologyServiceManager, test_ListLogicalPool_InvalidParam) {
     ASSERT_EQ(0, response.logicalpoolinfos_size());
 }
 
+TEST_F(TestTopologyServiceManager, test_SetLogicalPool_success) {
+    PoolIdType physicalPoolId = 0x11;
+    PrepareAddPhysicalPool(physicalPoolId);
+    PoolIdType id = 0x01;
+    PrepareAddLogicalPool(id, "name", physicalPoolId, PAGEFILE);
+
+    SetLogicalPoolRequest request;
+    request.set_logicalpoolid(id);
+    request.set_status(AllocateStatus::DENY);
+
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
+        .WillOnce(Return(true));
+
+    SetLogicalPoolResponse response;
+    serviceManager_->SetLogicalPool(&request, &response);
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+}
+
+TEST_F(TestTopologyServiceManager, test_SetLogicalPool_LogicalPoolNotFound) {
+    PoolIdType physicalPoolId = 0x11;
+    PrepareAddPhysicalPool(physicalPoolId);
+    PoolIdType id = 0x01;
+    PrepareAddLogicalPool(id, "name", physicalPoolId, PAGEFILE);
+
+    SetLogicalPoolRequest request;
+    request.set_logicalpoolid(id + 1);
+    request.set_status(AllocateStatus::DENY);
+
+    SetLogicalPoolResponse response;
+    serviceManager_->SetLogicalPool(&request, &response);
+    ASSERT_EQ(kTopoErrCodeLogicalPoolNotFound, response.statuscode());
+}
+
 TEST_F(TestTopologyServiceManager,
     test_GetChunkServerListInCopySets_success) {
     PoolIdType logicalPoolId = 0x01;
