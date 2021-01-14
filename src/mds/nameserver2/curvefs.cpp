@@ -31,6 +31,7 @@
 #include "src/common/timeutility.h"
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/common/mds_define.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
 
 using curve::common::TimeUtility;
 using ::std::chrono::steady_clock;
@@ -1308,8 +1309,9 @@ StatusCode CurveFS::GetSnapShotFileSegment(
 StatusCode CurveFS::OpenFile(const std::string &fileName,
                              const std::string &clientIP,
                              ProtoSession *protoSession,
-                             FileInfo  *fileInfo) {
-    // 检查文件是否存在
+                             FileInfo  *fileInfo,
+                             CloneSourceSegment* cloneSourceSegment) {
+    // check the existence of the file
     StatusCode ret;
     ret = GetFileInfo(fileName, fileInfo);
     if (ret == StatusCode::kFileNotExists) {
@@ -1326,6 +1328,8 @@ StatusCode CurveFS::OpenFile(const std::string &fileName,
         return ret;
     }
 
+    LOG(INFO) << "FileInfo, " << fileInfo->DebugString();
+
     if (fileInfo->filetype() != FileType::INODE_PAGEFILE) {
         LOG(ERROR) << "OpenFile file type not support, fileName = " << fileName
                    << ", clientIP = " << clientIP
@@ -1334,6 +1338,11 @@ StatusCode CurveFS::OpenFile(const std::string &fileName,
     }
 
     fileRecordManager_->GetRecordParam(protoSession);
+
+    // clone file
+    if (fileInfo->has_clonesource() && isPathValid(fileInfo->clonesource())) {
+        return ListCloneSourceFileSegments(fileInfo, cloneSourceSegment);
+    }
 
     return StatusCode::kOK;
 }
@@ -1804,6 +1813,61 @@ StatusCode CurveFS::ListClient(bool listAllClient,
         info.set_port(c.second);
 
         clientInfos->emplace_back(std::move(info));
+    }
+
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::ListCloneSourceFileSegments(
+    const FileInfo* fileInfo, CloneSourceSegment* cloneSourceSegment) const {
+    if (fileInfo->filestatus() != FileStatus::kFileCloneMetaInstalled) {
+        LOG(INFO) << fileInfo->filename()
+                  << " hash clone source, but file status is "
+                  << FileStatus_Name(fileInfo->filestatus())
+                  << ", return empty CloneSourceSegment";
+        return StatusCode::kOK;
+    }
+
+    if (!cloneSourceSegment) {
+        LOG(ERROR) << "OpenFile failed, file has clone source, but "
+                      "cloneSourceSegments is nullptr, filename = "
+                   << fileInfo->filename();
+        return StatusCode::kParaError;
+    }
+
+    FileInfo cloneSourceFileInfo;
+    StatusCode ret = GetFileInfo(fileInfo->clonesource(), &cloneSourceFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR)
+            << "OpenFile failed, Get clone source file info failed, ret = "
+            << StatusCode_Name(ret) << ", filename = " << fileInfo->filename()
+            << ", clone source = " << fileInfo->clonesource()
+            << ", file status = " << FileStatus_Name(fileInfo->filestatus());
+        return ret;
+    }
+
+    std::vector<PageFileSegment> segments;
+    StoreStatus status =
+        storage_->ListSegment(cloneSourceFileInfo.id(), &segments);
+    if (status != StoreStatus::OK) {
+        LOG(ERROR) << "OpenFile failed, list clone source segment failed, "
+                      "filename = "
+                   << fileInfo->filename()
+                   << ", source file name = " << fileInfo->clonesource()
+                   << ", ret = " << status;
+        return StatusCode::kStorageError;
+    }
+
+    cloneSourceSegment->set_segmentsize(fileInfo->segmentsize());
+
+    if (segments.empty()) {
+        LOG(WARNING) << "Clone source file has no segments, filename = "
+                     << fileInfo->clonesource();
+    } else {
+        for (const auto& segment : segments) {
+            cloneSourceSegment->add_allocatedsegmentoffset(
+                segment.startoffset());
+        }
     }
 
     return StatusCode::kOK;

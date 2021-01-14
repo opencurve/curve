@@ -1464,8 +1464,8 @@ TEST_F(MDSClientTest, CreateCloneFile) {
                                          10 * 1024 * 1024, 0, 4 * 1024 * 1024,
                                          &finfo));
     ASSERT_EQ(5, finfo.id);
-    ASSERT_EQ(cloneSource, finfo.cloneSource);
-    ASSERT_EQ(cloneLength, finfo.cloneLength);
+    ASSERT_EQ(cloneSource, finfo.sourceInfo.name);
+    ASSERT_EQ(cloneLength, finfo.sourceInfo.length);
 }
 
 TEST_F(MDSClientTest, CompleteCloneMeta) {

@@ -237,6 +237,12 @@ class MetaCache {
         fileInfo_.seqnum = newSn;
     }
 
+    FileStatus GetLatestFileStatus() const { return fileInfo_.filestatus; }
+
+    void SetLatestFileStatus(FileStatus status) {
+        fileInfo_.filestatus = status;
+    }
+
     /**
      * 获取对应的copyset的LeaderMayChange标志
      */

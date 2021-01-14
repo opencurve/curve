@@ -279,8 +279,23 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
             lease->leaseTime     = leasesession.leasetime();
             lease->createTime    = leasesession.createtime();
 
-            FileInfo finfo = response.fileinfo();
-            ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
+            const curve::mds::FileInfo& protoFileInfo = response.fileinfo();
+            ServiceHelper::ProtoFileInfo2Local(protoFileInfo, fi);
+
+            if (protoFileInfo.has_clonesource() &&
+                protoFileInfo.filestatus() ==
+                    curve::mds::FileStatus::kFileCloneMetaInstalled) {
+                if (!response.has_clonesourcesegment()) {
+                    LOG(WARNING) << filename
+                                 << " has clone source and status is "
+                                    "CloneMetaInstalled, but response does not "
+                                    "contains clone source segment";
+                    return retcode;
+                }
+
+                ServiceHelper::ProtoCloneSourceInfo2Local(response,
+                                                          &fi->sourceInfo);
+            }
         } else {
             LOG(ERROR) << "mds response has no file info or session info!";
             return LIBCURVE_ERROR::FAILED;
@@ -371,8 +386,7 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
         }
 
         if (response.has_fileinfo()) {
-            FileInfo finfo = response.fileinfo();
-            ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
+            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(), fi);
         }
 
         LIBCURVE_ERROR retcode;
@@ -410,8 +424,7 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
              stcode == StatusCode::kFileUnderSnapShot) &&
             hasinfo) {
             FInfo_t* fi = new (std::nothrow) FInfo_t;
-            curve::mds::FileInfo finfo = response.snapshotfileinfo();
-            ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
+            ServiceHelper::ProtoFileInfo2Local(response.snapshotfileinfo(), fi);
             *seq = fi->seqnum;
             delete fi;
             if (stcode == StatusCode::kOK) {
@@ -426,7 +439,7 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
 
         if (hasinfo) {
             FInfo_t fi;
-            ServiceHelper::ProtoFileInfo2Local(&response.snapshotfileinfo(), &fi);  // NOLINT
+            ServiceHelper::ProtoFileInfo2Local(response.snapshotfileinfo(), &fi);  // NOLINT
             *seq = fi.seqnum;
         }
 
@@ -501,8 +514,7 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
 
         for (int i = 0; i < response.fileinfo_size(); i++) {
             FInfo_t tempInfo;
-            FileInfo finfo = response.fileinfo(i);
-            ServiceHelper::ProtoFileInfo2Local(&finfo, &tempInfo);
+            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(i), &tempInfo);
             snapif->insert(std::make_pair(tempInfo.seqnum, tempInfo));
         }
 
@@ -621,8 +633,8 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
                 break;
             case StatusCode::kOK:
                 if (response.has_fileinfo()) {
-                    FileInfo finfo = response.fileinfo();
-                    ServiceHelper::ProtoFileInfo2Local(&finfo, &resp->finfo);
+                    ServiceHelper::ProtoFileInfo2Local(response.fileinfo(),
+                                                       &resp->finfo);
                     resp->status = LeaseRefreshResult::Status::OK;
                 } else {
                     LOG(WARNING) << "session response has no fileinfo!";
@@ -799,8 +811,9 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string& source,
             << ", log id = " << cntl->log_id();
 
         if (stcode == StatusCode::kOK) {
-            FileInfo finfo = response.fileinfo();
-            ServiceHelper::ProtoFileInfo2Local(&finfo, fileinfo);
+            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(), fileinfo);
+            fileinfo->sourceInfo.name = response.fileinfo().clonesource();
+            fileinfo->sourceInfo.length = response.fileinfo().clonelength();
         }
 
         return retcode;
