@@ -125,10 +125,11 @@ class LeaseExecutor {
     void IncremRefreshFailed();
 
     /**
-     * 每次续约会携带新的文件信息，该函数检查当前文件是否需要更新版本信息
-     * @param: newversion是lease续约后从mds端携带回来的版本号
+     * @brief Updating local file information consistent with MDS record.
+     *        Currently, only seqnum and file status are updated
+     * @param fileInfo Latest file information returned by refresh session RPC
      */
-    void CheckNeedUpdateVersion(uint64_t newversion);
+    void CheckNeedUpdateFileInfo(const FInfo& fileInfo);
 
  private:
     // 与mds进行lease续约的文件名

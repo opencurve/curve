@@ -33,6 +33,11 @@ namespace mds {
 
 class MockNameService : public CurveFSService {
  public:
+    MOCK_METHOD4(OpenFile, void(google::protobuf::RpcController* cntl,
+                                const OpenFileRequest* request,
+                                OpenFileResponse* response,
+                                google::protobuf::Closure* done));
+
     MOCK_METHOD4(DeleteFile, void(google::protobuf::RpcController* cntl,
                                   const DeleteFileRequest* request,
                                   DeleteFileResponse* response,
