@@ -285,23 +285,21 @@ bool Splitor::GetOrAllocateSegment(bool allocateIfNotExist,
 RequestSourceInfo Splitor::CalcRequestSourceInfo(IOTracker* ioTracker,
                                                  MetaCache* metaCache,
                                                  ChunkIndex chunkIdx) {
-    const FInfo* fileInfo = metaCache->GetFileInfo();
-    if (fileInfo->cloneSource.empty()) {
-        return {};
-    }
-
     OpType type = ioTracker->Optype();
     if (type != OpType::READ && type != OpType::WRITE) {
         return {};
     }
 
-    uint64_t offset = static_cast<uint64_t>(chunkIdx) * fileInfo->chunksize;
-
-    if (offset >= fileInfo->cloneLength) {
-        return {};
+    const FInfo* fileInfo = metaCache->GetFileInfo();
+    if (fileInfo->filestatus == FileStatus::CloneMetaInstalled) {
+        const CloneSourceInfo& sourceInfo = fileInfo->sourceInfo;
+        uint64_t offset = static_cast<uint64_t>(chunkIdx) * fileInfo->chunksize;
+        if (sourceInfo.IsSegmentAllocated(offset)) {
+            return {sourceInfo.name, offset};
+        }
     }
 
-    return {fileInfo->cloneSource, offset};
+    return {};
 }
 
 }   // namespace client

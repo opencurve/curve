@@ -307,7 +307,8 @@ class CurveFS {
     StatusCode OpenFile(const std::string &fileName,
                         const std::string &clientIP,
                         ProtoSession *protoSession,
-                        FileInfo  *fileInfo);
+                        FileInfo  *fileInfo,
+                        CloneSourceSegment* cloneSourceSegment = nullptr);
 
     /**
      *  @brief 关闭文件
@@ -592,6 +593,15 @@ class CurveFS {
     StatusCode GetFileSize(const std::string& fileName,
                            const FileInfo& fileInfo,
                            uint64_t* fileSize);
+
+    /**
+     * @brief list clone source file's segment,
+     *        if current file status is in kFileCloneMetaInstalled
+     * @param fileInfo current file info
+     * @param[out] cloneSourceSegment source file allocated segments
+     */
+    StatusCode ListCloneSourceFileSegments(
+        const FileInfo* fileInfo, CloneSourceSegment* cloneSourceSegment) const;
 
  private:
     FileInfo rootFileInfo_;

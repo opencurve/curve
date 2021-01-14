@@ -884,18 +884,25 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
 }
 
 TEST(SplitorTest, RequestSourceInfoTest) {
-    using curve::client::ChunkIndex;
-    using curve::client::RequestSourceInfo;
-
     IOTracker ioTracker(nullptr, nullptr, nullptr);
     ioTracker.SetOpType(OpType::READ);
 
     MetaCache metaCache;
     FInfo_t fileInfo;
     fileInfo.chunksize = 16 * 1024 * 1024;          // 16M
-    fileInfo.cloneLength = 10ull * 1024 * 1024 * 1024;  // 10G
-    fileInfo.cloneSource = "/clonesource";
+    fileInfo.filestatus = FileStatus::CloneMetaInstalled;
 
+    CloneSourceInfo cloneSourceInfo;
+    cloneSourceInfo.name = "/clonesource";
+    cloneSourceInfo.length = 10ull * 1024 * 1024 * 1024;      // 10GB
+    cloneSourceInfo.segmentSize = 1ull * 1024 * 1024 * 1024;  // 1GB
+
+    // 源卷只分配了第一个和最后一个segment
+    cloneSourceInfo.allocatedSegmentOffsets.insert(0);
+    cloneSourceInfo.allocatedSegmentOffsets.insert(cloneSourceInfo.length -
+                                                   cloneSourceInfo.segmentSize);
+
+    fileInfo.sourceInfo = cloneSourceInfo;
     metaCache.UpdateFileInfo(fileInfo);
 
     ChunkIndex chunkIdx = 0;
@@ -904,26 +911,51 @@ TEST(SplitorTest, RequestSourceInfoTest) {
     // 第一个chunk
     sourceInfo =
         Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
-    ASSERT_EQ(sourceInfo.cloneFileSource, fileInfo.cloneSource);
+    ASSERT_TRUE(sourceInfo.IsValid());
+    ASSERT_EQ(sourceInfo.cloneFileSource, fileInfo.sourceInfo.name);
     ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
 
     // 克隆卷最后一个chunk
-    chunkIdx = fileInfo.cloneLength / fileInfo.chunksize - 1;
-    LOG(INFO) << "clone length = " << fileInfo.cloneLength
+    chunkIdx = fileInfo.sourceInfo.length / fileInfo.chunksize - 1;
+    LOG(INFO) << "clone length = " << fileInfo.sourceInfo.length
               << ", chunk size = " << fileInfo.chunksize
               << ", chunk idx = " << chunkIdx;
 
     // offset = 10*1024*1024*1024 - 16 * 1024 * 1024 = 10720641024
     sourceInfo =
         Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
-    ASSERT_EQ(sourceInfo.cloneFileSource, fileInfo.cloneSource);
+    ASSERT_TRUE(sourceInfo.IsValid());
+    ASSERT_EQ(sourceInfo.cloneFileSource, fileInfo.sourceInfo.name);
     ASSERT_EQ(sourceInfo.cloneFileOffset, 10720641024);
 
+    // 源卷未分配segment
+    // 读取每个segment的第一个chunk
+    for (int i = 1; i < 9; ++i) {
+        ChunkIndex chunkIdx =
+            i * cloneSourceInfo.segmentSize / fileInfo.chunksize;
+        RequestSourceInfo sourceInfo = Splitor::CalcRequestSourceInfo(
+            &ioTracker, &metaCache, chunkIdx);
+        ASSERT_FALSE(sourceInfo.IsValid());
+        ASSERT_TRUE(sourceInfo.cloneFileSource.empty());
+        ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
+    }
+
     // 超过长度
-    chunkIdx = fileInfo.cloneLength / fileInfo.chunksize;
+    chunkIdx = fileInfo.sourceInfo.length / fileInfo.chunksize;
 
     sourceInfo =
         Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
+    ASSERT_FALSE(sourceInfo.IsValid());
+    ASSERT_TRUE(sourceInfo.cloneFileSource.empty());
+    ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
+
+    // 源卷长度为0
+    chunkIdx = 0;
+    fileInfo.sourceInfo.length = 0;
+    metaCache.UpdateFileInfo(fileInfo);
+    sourceInfo =
+        Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
+    ASSERT_FALSE(sourceInfo.IsValid());
     ASSERT_TRUE(sourceInfo.cloneFileSource.empty());
     ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
 
@@ -932,11 +964,11 @@ TEST(SplitorTest, RequestSourceInfoTest) {
     ioTracker.SetOpType(OpType::READ_SNAP);
     sourceInfo =
         Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
+    ASSERT_FALSE(sourceInfo.IsValid());
     ASSERT_TRUE(sourceInfo.cloneFileSource.empty());
     ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
 
-    fileInfo.cloneSource.clear();
-    fileInfo.cloneLength = 0;
+    fileInfo.filestatus = FileStatus::Cloned;
     metaCache.UpdateFileInfo(fileInfo);
 
     chunkIdx = 0;
@@ -944,6 +976,7 @@ TEST(SplitorTest, RequestSourceInfoTest) {
     // 不是克隆卷
     sourceInfo =
         Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
+    ASSERT_FALSE(sourceInfo.IsValid());
     ASSERT_TRUE(sourceInfo.cloneFileSource.empty());
     ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
 }
