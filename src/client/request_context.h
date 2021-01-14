@@ -37,19 +37,22 @@ namespace client {
 
 struct RequestSourceInfo {
     std::string cloneFileSource;
-    uint64_t cloneFileOffset{0};
+    uint64_t cloneFileOffset = 0;
+    bool valid = false;
 
     RequestSourceInfo() = default;
     RequestSourceInfo(const std::string& source, uint64_t offset)
-        : cloneFileSource(source), cloneFileOffset(offset) {}
+        : cloneFileSource(source), cloneFileOffset(offset), valid(true) {}
+
+    bool IsValid() const { return valid; }
 };
 
 inline std::ostream& operator<<(std::ostream& os,
                                 const RequestSourceInfo& location) {
-    if (location.cloneFileSource.empty()) {
-        os << "empty";
-    } else {
+    if (location.IsValid()) {
         os << location.cloneFileSource << ":" << location.cloneFileOffset;
+    } else {
+        os << "empty";
     }
 
     return os;

@@ -194,6 +194,7 @@ TEST_F(RequestSenderTest, TestWriteChunkSourceInfo) {
 
         sourceInfo.cloneFileSource = "/test_WriteChunkSourceInfo";
         sourceInfo.cloneFileOffset = 0;
+        sourceInfo.valid = true;
 
         requestSender.WriteChunk(ChunkIDInfo(), 0, {}, 0, 0,
                                  sourceInfo, &closure);
@@ -247,6 +248,7 @@ TEST_F(RequestSenderTest, TestReadChunkSourceInfo) {
 
         sourceInfo.cloneFileSource = "/test_ReadChunkSourceInfo";
         sourceInfo.cloneFileOffset = 0;
+        sourceInfo.valid = true;
 
         requestSender.ReadChunk(ChunkIDInfo(), 0, 0, 0, appliedIndex,
                                 sourceInfo, &closure);

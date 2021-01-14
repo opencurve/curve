@@ -51,6 +51,32 @@ class NameSpaceStorageCodec {
     static bool DecodeSegmentAllocValue(
         const std::string &value, uint16_t *lid, uint64_t *alloc);
 };
+
+inline bool isPathValid(const std::string path) {
+    if (path.empty() || path[0] != '/') {
+        return false;
+    }
+
+    if (path.size() > 1U && path[path.size() - 1] == '/') {
+        return false;
+    }
+
+    bool slash = false;
+    for (uint32_t i = 0; i < path.size(); i++) {
+        if (path[i] == '/') {
+            if (slash) {
+                return false;
+            }
+            slash = true;
+        } else {
+            slash = false;
+        }
+    }
+
+    // if some other limits to path can add here in the future
+    return true;
+}
+
 }   // namespace mds
 }   // namespace curve
 

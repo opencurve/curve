@@ -349,6 +349,11 @@ message ProtoSession {
     // other useful infos
 };
 
+message CloneSourceSegment {
+    required uint64 segmentSize = 1;
+    repeated uint64 allocatedSegmentOffset = 2;
+}
+
 message OpenFileRequest {
     required string fileName = 1;
     required string owner = 2;
@@ -367,6 +372,7 @@ message OpenFileResponse {
     required StatusCode statusCode = 1;
     optional ProtoSession protoSession = 2;
     optional FileInfo   fileInfo = 3;
+    optional CloneSourceSegment cloneSourceSegment = 4;
 };
 
 message CloseFileRequest {
