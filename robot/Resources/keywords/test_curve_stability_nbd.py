@@ -693,6 +693,81 @@ def random_kill_snapshot():
     ori_cmd = "cd snapshot/temp && sudo nohup curve-snapshotcloneserver -conf=/etc/curve/snapshot_clone_server.conf &"
     shell_operator.ssh_background_exec2(ssh, ori_cmd)
 
+#test bug: https://ep.netease.com/v2/my_workbench/bugdetail/Bug-3835
+def test_lazy_clone_flatten_snapshot_fail():
+    ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
+    try:
+        lazy = "true"
+        name = "volume-flatten"
+        thrash = NbdThrash(ssh,name)
+        vol_size = 10
+        thrash.nbd_create(vol_size)
+        thrash.nbd_map()
+        time.sleep(5)
+        thrash.nbd_getdev()
+        write_size = 3
+        thrash.write_data(write_size)
+        time.sleep(60)
+        vol_id = name
+        destination = vol_id + "-" + lazy
+        clone_vol_uuid = clone_vol_from_file(vol_id,lazy)
+        time.sleep(1)
+        if lazy == "true":
+            rc = check_clone_vol_exist(destination)
+            assert rc,"clone vol volume-%s not create ok in 2s"%destination
+        starttime = time.time()
+        status = 0
+        final = False
+        if lazy == "true":
+            status = 7
+        while time.time() - starttime < config.snapshot_timeout:
+            rc = get_clone_status(clone_vol_uuid)
+            if rc["TaskStatus"] == status and rc["TaskType"] == 0:
+                final = True
+                break
+            else:
+               time.sleep(60)
+        if final == True:
+            try:
+               if lazy == "true":
+                   flatten_clone_vol(clone_vol_uuid)
+                   starttime = time.time()
+                   final = False
+                   while time.time() - starttime < config.snapshot_timeout:
+                       rc = get_clone_status(clone_vol_uuid)
+                       if rc["TaskStatus"] == 0 and rc["TaskType"] == 0:
+                           final = True
+                           break
+                       else:
+                           time.sleep(60)
+        thrash_clone = NbdThrash(ssh,destination)
+        thrash_clone.nbd_map()
+        time.sleep(5)
+        thrash_clone.nbd_getdev()
+        thrash_clone.write_data(10)
+        snapshot_uuid = create_vol_snapshot(destination)
+        starttime = time.time()
+        final = False
+        time.sleep(5)
+        while time.time() - starttime < config.snapshot_timeout:
+            rc = get_snapshot_status(destination,snapshot_uuid)
+            if rc["Progress"] == 100 and rc["Status"] == 0 :
+                final = True
+                break
+            else:
+                time.sleep(60)
+        if final == True:
+            logger.info("test case bug-3835 pass!!!")
+        else:
+            assert False,"create lazy clone file snapshot fail"
+    except:
+        logger2.error("test case bug-3835 fail")
+        raise
+    delete_vol_snapshot(destination,snapshot_uuid)
+    check_snapshot_delete(destination,snapshot_uuid)
+    unlink_clone_vol(destination)
+    unlink_clone_vol(vol_id)
+
 def test_snapshot_all(vol_uuid):
     lazy="true"
     test_clone_vol_from_file(lazy)
