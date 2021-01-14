@@ -15,9 +15,6 @@
 #  limitations under the License.
 #
 
-- name: rapid leader schedule with curve_ops_tool
-  include: include/rapid_leader_schedule_with_tool.yml
-
 - name: get leader ip
   vars:
     leader_ip:
@@ -32,3 +29,7 @@
   until: check_leader_res.stdout=="leader range ok!"
   retries: "{{ check_leader_range_times }}"
   delay: "{{ check_leader_range_interval }}"
+
+- name: print check leader range result
+  debug:
+    var: check_leader_res.stdout
