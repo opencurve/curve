@@ -149,6 +149,12 @@ class TopologyServiceImpl : public TopologyService {
                       ListLogicalPoolResponse* response,
                       google::protobuf::Closure* done);
 
+    virtual void SetLogicalPool(
+        google::protobuf::RpcController* cntl_base,
+        const SetLogicalPoolRequest* request,
+        SetLogicalPoolResponse* response,
+        google::protobuf::Closure* done);
+
     virtual void GetChunkServerListInCopySets(
                       google::protobuf::RpcController* cntl_base,
                       const GetChunkServerListInCopySetsRequest* request,

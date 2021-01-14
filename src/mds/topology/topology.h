@@ -86,6 +86,18 @@ class Topology {
     virtual int RemoveCopySet(CopySetKey key) = 0;
 
     virtual int UpdateLogicalPool(const LogicalPool &data) = 0;
+
+    /**
+     * @brief update logicalPoolId allocate status
+     *
+     * @param status allocate status
+     * @param id logicalPoolId
+     *
+     * @return error code
+     */
+    virtual int UpdateLogicalPoolAllocateStatus(const AllocateStatus &status,
+                                        PoolIdType id) = 0;
+
     virtual int UpdatePhysicalPool(const PhysicalPool &data) = 0;
     virtual int UpdateZone(const Zone &data) = 0;
     virtual int UpdateServer(const Server &data) = 0;
@@ -357,6 +369,8 @@ class TopologyImpl : public Topology {
     int RemoveCopySet(CopySetKey key) override;
 
     int UpdateLogicalPool(const LogicalPool &data) override;
+    int UpdateLogicalPoolAllocateStatus(const AllocateStatus &status,
+                                        PoolIdType id) override;
     int UpdatePhysicalPool(const PhysicalPool &data) override;
     int UpdateZone(const Zone &data) override;
     int UpdateServer(const Server &data) override;

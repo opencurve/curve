@@ -1084,7 +1084,6 @@ TEST_F(TestTopology, UpdateLogicalPool_LogicalPoolNotFound) {
     ASSERT_EQ(kTopoErrCodeLogicalPoolNotFound, ret);
 }
 
-
 TEST_F(TestTopology, UpdateLogicalPool_StorageFail) {
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
@@ -1114,6 +1113,87 @@ TEST_F(TestTopology, UpdateLogicalPool_StorageFail) {
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
+TEST_F(TestTopology, UpdateLogicalPoolAllocateStatus_success) {
+    PoolIdType logicalPoolId = 0x01;
+    PoolIdType physicalPoolId = 0x11;
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddLogicalPool(logicalPoolId,
+            "name1",
+            physicalPoolId,
+            PAGEFILE,
+            LogicalPool::RedundanceAndPlaceMentPolicy(),
+            LogicalPool::UserPolicy(),
+            0);
+
+    LogicalPool pool2;
+    topology_->GetLogicalPool(logicalPoolId, &pool2);
+    ASSERT_EQ(AllocateStatus::ALLOW, pool2.GetStatus());
+
+    // update to deny
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
+        .WillOnce(Return(true));
+
+    int ret = topology_->UpdateLogicalPoolAllocateStatus(
+        AllocateStatus::DENY, logicalPoolId);
+
+    ASSERT_EQ(kTopoErrCodeSuccess, ret);
+
+    LogicalPool pool3;
+    topology_->GetLogicalPool(logicalPoolId, &pool3);
+    ASSERT_EQ(AllocateStatus::DENY, pool3.GetStatus());
+
+    // update to allow
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
+        .WillOnce(Return(true));
+
+    ret = topology_->UpdateLogicalPoolAllocateStatus(
+        AllocateStatus::ALLOW, logicalPoolId);
+
+    ASSERT_EQ(kTopoErrCodeSuccess, ret);
+
+    LogicalPool pool4;
+    topology_->GetLogicalPool(logicalPoolId, &pool4);
+    ASSERT_EQ(AllocateStatus::ALLOW, pool4.GetStatus());
+}
+
+TEST_F(TestTopology, UpdateLogicalPoolAllocateStatus_LogicalPoolNotFound) {
+    PoolIdType logicalPoolId = 0x01;
+    PoolIdType physicalPoolId = 0x11;
+    LogicalPool pool(logicalPoolId,
+            "name1",
+            physicalPoolId,
+            APPENDFILE,
+            LogicalPool::RedundanceAndPlaceMentPolicy(),
+            LogicalPool::UserPolicy(),
+            0,
+            true);
+
+    int ret = topology_->UpdateLogicalPoolAllocateStatus(
+        AllocateStatus::ALLOW, logicalPoolId);
+
+    ASSERT_EQ(kTopoErrCodeLogicalPoolNotFound, ret);
+}
+
+TEST_F(TestTopology, UpdateLogicalPoolAllocateStatus_StorageFail) {
+    PoolIdType logicalPoolId = 0x01;
+    PoolIdType physicalPoolId = 0x11;
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddLogicalPool(logicalPoolId,
+            "name1",
+            physicalPoolId,
+            PAGEFILE,
+            LogicalPool::RedundanceAndPlaceMentPolicy(),
+            LogicalPool::UserPolicy(),
+            0);
+
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
+        .WillOnce(Return(false));
+
+    int ret = topology_->UpdateLogicalPoolAllocateStatus(
+        AllocateStatus::ALLOW, logicalPoolId);
+
+    ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
+}
 
 TEST_F(TestTopology, UpdatePhysicalPool_success) {
     PoolIdType physicalPoolId = 0x11;

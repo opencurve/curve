@@ -193,7 +193,6 @@ message SetChunkServerStatusResponse {
     required sint32 statusCode = 1;
 }
 
-
 //server message
 message ServerInfo {
     required uint32 serverID = 1;
@@ -345,6 +344,7 @@ message CreateLogicalPoolRequest {
     required bytes redundanceAndPlaceMentPolicy = 5;  //json body
     required bytes userPolicy = 6;                    //json body
     optional uint32 scatterWidth = 7;      //生成copyset依据的scatterWidth平均值
+    optional AllocateStatus status = 8;
 }
 
 message CreateLogicalPoolResponse {
@@ -387,6 +387,14 @@ message ListLogicalPoolResponse {
     repeated LogicalPoolInfo logicalPoolInfos = 2;
 }
 
+message SetLogicalPoolRequest {
+    required uint32 logicalPoolID = 1;
+    required AllocateStatus status = 2;
+}
+
+message SetLogicalPoolResponse {
+    required sint32 statusCode = 1;
+}
 
 //for client interface
 
@@ -473,6 +481,7 @@ service TopologyService {
     rpc DeleteLogicalPool(DeleteLogicalPoolRequest)    returns (DeleteLogicalPoolResponse);
     rpc GetLogicalPool(GetLogicalPoolRequest)           returns (GetLogicalPoolResponse);
     rpc ListLogicalPool(ListLogicalPoolRequest)         returns (ListLogicalPoolResponse);
+    rpc SetLogicalPool(SetLogicalPoolRequest) returns(SetLogicalPoolResponse);
 
     rpc GetChunkServerListInCopySets(GetChunkServerListInCopySetsRequest) returns (GetChunkServerListInCopySetsResponse);
     rpc GetCopySetsInChunkServer(GetCopySetsInChunkServerRequest) returns (GetCopySetsInChunkServerResponse);
