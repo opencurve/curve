@@ -26,7 +26,7 @@
 - name: wait until leader range ok
   shell: sh /tmp/check_leader_range.sh
   register: check_leader_res
-  until: check_leader_res.stdout=="leader range ok!"
+  until: '"leader range ok!" in check_leader_res.stdout'
   retries: "{{ check_leader_range_times }}"
   delay: "{{ check_leader_range_interval }}"
 
