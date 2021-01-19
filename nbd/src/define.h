@@ -81,6 +81,10 @@ struct NBDConfig {
     std::string imgname;
     // 指定需要映射的nbd设备路径
     std::string devpath;
+    // unmap等待进程退出的重试次数
+    int retry_times = 25;
+    // unmap重试之间的睡眠间隔
+    int sleep_ms = 200;
 };
 
 // 用户命令类型
