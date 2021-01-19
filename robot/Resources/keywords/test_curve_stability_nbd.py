@@ -59,7 +59,7 @@ class NbdThrash:
         assert rs[3] == 0,"delete fail：%s"%rs[1]
 
     def write_data(self,size):
-        ori_cmd = "sudo fio -name=%s -direct=1 -iodepth=8 -rw=write -ioengine=libaio -bs=1024k -size=%dG -numjobs=1 -time_based"%(self.dev,size)
+        ori_cmd = "sudo fio -name=%s -direct=1 -iodepth=8 -rw=randwrite -ioengine=libaio -bs=64k -size=%dM -numjobs=1 -time_based"%(self.dev,size)
         rs = shell_operator.ssh_exec(self.ssh, ori_cmd)
         assert rs[3] == 0,"write fio fail"
 
@@ -394,7 +394,7 @@ def init_nbd_vol():
     try:
         name = "volume-snapshot"
         thrash = NbdThrash(ssh,name)
-        vol_size = 10
+        vol_size = 5000
         thrash.nbd_create(vol_size)
         thrash.nbd_map()
         time.sleep(5)
@@ -607,7 +607,7 @@ def test_clone_vol_same_uuid(lazy):
 
 def test_cancel_snapshot():
     logger2.info("------------begin test cancel snapshot----------")
-    config.snapshot_thrash.write_data(10)
+    config.snapshot_thrash.write_data(1000)
     ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
     vol_id = config.snapshot_volid
     snapshot_uuid = create_vol_snapshot(vol_id)
@@ -637,7 +637,7 @@ def test_recover_snapshot(lazy="true"):
     if final == True:
         try:
             first_md5 = get_vol_md5(vol_id)
-            config.snapshot_thrash.write_data(10)
+            config.snapshot_thrash.write_data(8000)
             config.snapshot_thrash.nbd_unmap()
             recover_task = recover_snapshot(vol_id,snapshot_uuid,lazy)
             final_recover = False
@@ -705,7 +705,7 @@ def test_lazy_clone_flatten_snapshot_fail():
         thrash.nbd_map()
         time.sleep(5)
         thrash.nbd_getdev()
-        write_size = 3
+        write_size = 500
         thrash.write_data(write_size)
         time.sleep(60)
         vol_id = name
@@ -740,11 +740,14 @@ def test_lazy_clone_flatten_snapshot_fail():
                            break
                        else:
                            time.sleep(60)
+            except:
+               logger2.error("faltten clone file fail")
+               raise
         thrash_clone = NbdThrash(ssh,destination)
         thrash_clone.nbd_map()
         time.sleep(5)
         thrash_clone.nbd_getdev()
-        thrash_clone.write_data(10)
+        thrash_clone.write_data(2500)
         snapshot_uuid = create_vol_snapshot(destination)
         starttime = time.time()
         final = False
@@ -765,6 +768,8 @@ def test_lazy_clone_flatten_snapshot_fail():
         raise
     delete_vol_snapshot(destination,snapshot_uuid)
     check_snapshot_delete(destination,snapshot_uuid)
+    thrash.nbd_unmap()
+    thrash_clone.nbd_unmap()
     unlink_clone_vol(destination)
     unlink_clone_vol(vol_id)
 
