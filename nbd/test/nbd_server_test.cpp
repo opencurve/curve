@@ -58,7 +58,7 @@ class NBDServerTest : public ::testing::Test {
 
         image_ = std::make_shared<MockImageInstance>();
         safeIO_ = std::make_shared<MockSafeIO>();
-        server_.reset(new NBDServer(fd_[1], nullptr, image_));
+        server_.reset(new NBDServer(fd_[1], nullptr, &nbdConfig, image_));
     }
 
     void TearDown() override {
@@ -71,6 +71,7 @@ class NBDServerTest : public ::testing::Test {
     std::shared_ptr<MockSafeIO> safeIO_;
 
     std::unique_ptr<NBDServer> server_;
+    NBDConfig nbdConfig;
     char handle_[8] = {0};
 
     struct nbd_request request_;
@@ -120,7 +121,8 @@ TEST_F(NBDServerTest, InvalidRequestMagicTest) {
 
 TEST_F(NBDServerTest, ReadRequestErrorTest) {
     auto fakeSafeIO = std::make_shared<FakeSafeIO>();
-    server_.reset(new NBDServer(fd_[1], nullptr, image_, fakeSafeIO));
+    server_.reset(
+        new NBDServer(fd_[1], nullptr, &nbdConfig, image_, fakeSafeIO));
 
     fakeSafeIO->SetReadExactTask(
         [](int fd, void* buf, size_t count) { return -1; });
@@ -144,21 +146,21 @@ TEST_F(NBDServerTest, AioReadTest) {
     request_.magic = htonl(NBD_REQUEST_MAGIC);
     memcpy(&request_.handle, &handle_, sizeof(request_.handle));
 
-    NebdClientAioContext* nebdContext;
+    AioRequestContext* aioContext;
     EXPECT_CALL(*image_, AioRead(_))
         .Times(1)
-        .WillOnce(SaveArg<0>(&nebdContext));
+        .WillOnce(SaveArg<0>(&aioContext));
 
     ASSERT_EQ(NBDRequestSize, write(fd_[0], &request_, NBDRequestSize));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(kSleepTime));
 
-    ASSERT_EQ(nebdContext->offset, request_.from);
-    ASSERT_EQ(nebdContext->length, ntohl(request_.len));
-    ASSERT_EQ(nebdContext->op, LIBAIO_OP::LIBAIO_OP_READ);
+    ASSERT_EQ(aioContext->nebdAioCtx.offset, request_.from);
+    ASSERT_EQ(aioContext->nebdAioCtx.length, ntohl(request_.len));
+    ASSERT_EQ(aioContext->nebdAioCtx.op, LIBAIO_OP::LIBAIO_OP_READ);
 
-    memcpy(nebdContext->buf, handle_, sizeof(handle_));
-    nebdContext->cb(nebdContext);
+    memcpy(aioContext->nebdAioCtx.buf, handle_, sizeof(handle_));
+    aioContext->nebdAioCtx.cb(&aioContext->nebdAioCtx);
 
     char readbuf[8];
     ASSERT_EQ(NBDReplySize, read(fd_[0], &reply_, NBDReplySize));
@@ -176,22 +178,22 @@ TEST_F(NBDServerTest, AioWriteTest) {
     request_.magic = htonl(NBD_REQUEST_MAGIC);
     memcpy(&request_.handle, &handle_, sizeof(request_.handle));
 
-    NebdClientAioContext* nebdContext;
+    AioRequestContext* aioContext;
     EXPECT_CALL(*image_, AioWrite(_))
         .Times(1)
-        .WillOnce(SaveArg<0>(&nebdContext));
+        .WillOnce(SaveArg<0>(&aioContext));
 
     ASSERT_EQ(NBDRequestSize, write(fd_[0], &request_, NBDRequestSize));
     ASSERT_EQ(8, write(fd_[0], "hello, world", 8));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(kSleepTime));
 
-    ASSERT_EQ(nebdContext->offset, request_.from);
-    ASSERT_EQ(nebdContext->length, ntohl(request_.len));
-    ASSERT_EQ(nebdContext->op, LIBAIO_OP::LIBAIO_OP_WRITE);
+    ASSERT_EQ(aioContext->nebdAioCtx.offset, request_.from);
+    ASSERT_EQ(aioContext->nebdAioCtx.length, ntohl(request_.len));
+    ASSERT_EQ(aioContext->nebdAioCtx.op, LIBAIO_OP::LIBAIO_OP_WRITE);
 
-    memcpy(nebdContext->buf, handle_, sizeof(handle_));
-    nebdContext->cb(nebdContext);
+    memcpy(aioContext->nebdAioCtx.buf, handle_, sizeof(handle_));
+    aioContext->nebdAioCtx.cb(&aioContext->nebdAioCtx);
 
     ASSERT_EQ(NBDReplySize, read(fd_[0], &reply_, NBDReplySize));
     ASSERT_EQ(0, reply_.error);
@@ -206,17 +208,17 @@ TEST_F(NBDServerTest, FlushTest) {
     request_.magic = htonl(NBD_REQUEST_MAGIC);
     memcpy(&request_.handle, &handle_, sizeof(request_.handle));
 
-    NebdClientAioContext* nebdContext;
+    AioRequestContext* aioContext;
     EXPECT_CALL(*image_, Flush(_))
         .Times(1)
-        .WillOnce(SaveArg<0>(&nebdContext));
+        .WillOnce(SaveArg<0>(&aioContext));
 
     ASSERT_EQ(NBDRequestSize, write(fd_[0], &request_, NBDRequestSize));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(kSleepTime));
 
-    ASSERT_EQ(nebdContext->op, LIBAIO_OP::LIBAIO_OP_FLUSH);
-    nebdContext->cb(nebdContext);
+    ASSERT_EQ(aioContext->nebdAioCtx.op, LIBAIO_OP::LIBAIO_OP_FLUSH);
+    aioContext->nebdAioCtx.cb(&aioContext->nebdAioCtx);
 
     ASSERT_EQ(NBDReplySize, read(fd_[0], &reply_, NBDReplySize));
     ASSERT_EQ(0, reply_.error);
@@ -231,17 +233,17 @@ TEST_F(NBDServerTest, TrimTest) {
     request_.magic = htonl(NBD_REQUEST_MAGIC);
     memcpy(&request_.handle, &handle_, sizeof(request_.handle));
 
-    NebdClientAioContext* nebdContext;
+    AioRequestContext* aioContext;
     EXPECT_CALL(*image_, Trim(_))
         .Times(1)
-        .WillOnce(SaveArg<0>(&nebdContext));
+        .WillOnce(SaveArg<0>(&aioContext));
 
     ASSERT_EQ(NBDRequestSize, write(fd_[0], &request_, NBDRequestSize));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(kSleepTime));
 
-    ASSERT_EQ(nebdContext->op, LIBAIO_OP::LIBAIO_OP_DISCARD);
-    nebdContext->cb(nebdContext);
+    ASSERT_EQ(aioContext->nebdAioCtx.op, LIBAIO_OP::LIBAIO_OP_DISCARD);
+    aioContext->nebdAioCtx.cb(&aioContext->nebdAioCtx);
 
     struct nbd_reply reply;
     ASSERT_EQ(sizeof(reply), read(fd_[0], &reply, sizeof(reply)));
@@ -266,7 +268,8 @@ TEST_F(NBDServerTest, DisconnectTest) {
 
 TEST_F(NBDServerTest, ReadWriteDataErrorTest) {
     auto fakeSafeIO = std::make_shared<FakeSafeIO>();
-    server_.reset(new NBDServer(fd_[1], nullptr, image_, fakeSafeIO));
+    server_.reset(
+        new NBDServer(fd_[1], nullptr, &nbdConfig, image_, fakeSafeIO));
 
     request_.from = 0;
     request_.len = htonl(8);
@@ -294,6 +297,61 @@ TEST_F(NBDServerTest, ReadWriteDataErrorTest) {
     std::this_thread::sleep_for(std::chrono::milliseconds(kSleepTime));
 
     ASSERT_TRUE(server_->IsTerminated());
+}
+
+DECLARE_bool(useNebd);
+
+TEST_F(NBDServerTest, FillRequestContextTest) {
+    IOContext ioCtx;
+    ioCtx.data.reset(new char[4096]);
+    ioCtx.request.from = 4096;
+    ioCtx.request.len = 4096;
+
+    {
+        NBDConfig config;
+        config.use_curveclient = false;
+
+        NBDServer::FillRequestContext(NBD_CMD_WRITE, &ioCtx, &config);
+        ASSERT_EQ(ioCtx.aioRequestCtx.nebdAioCtx.op, LIBAIO_OP_WRITE);
+        ASSERT_EQ(ioCtx.aioRequestCtx.nebdAioCtx.offset, ioCtx.request.from);
+        ASSERT_EQ(ioCtx.aioRequestCtx.nebdAioCtx.length, ioCtx.request.len);
+
+        NBDServer::FillRequestContext(NBD_CMD_READ, &ioCtx, &config);
+        ASSERT_EQ(ioCtx.aioRequestCtx.nebdAioCtx.op, LIBAIO_OP_READ);
+        ASSERT_EQ(ioCtx.aioRequestCtx.nebdAioCtx.offset, ioCtx.request.from);
+        ASSERT_EQ(ioCtx.aioRequestCtx.nebdAioCtx.length, ioCtx.request.len);
+
+        NBDServer::FillRequestContext(NBD_CMD_FLUSH, &ioCtx, &config);
+        ASSERT_EQ(ioCtx.aioRequestCtx.nebdAioCtx.op, LIBAIO_OP_FLUSH);
+
+        NBDServer::FillRequestContext(NBD_CMD_TRIM, &ioCtx, &config);
+        ASSERT_EQ(ioCtx.aioRequestCtx.nebdAioCtx.op, LIBAIO_OP_DISCARD);
+        ASSERT_EQ(ioCtx.aioRequestCtx.nebdAioCtx.offset, ioCtx.request.from);
+        ASSERT_EQ(ioCtx.aioRequestCtx.nebdAioCtx.length, ioCtx.request.len);
+    }
+
+    {
+        NBDConfig config;
+        config.use_curveclient = true;
+
+        NBDServer::FillRequestContext(NBD_CMD_WRITE, &ioCtx, &config);
+        ASSERT_EQ(ioCtx.aioRequestCtx.curveAioCtx.op, LIBCURVE_OP_WRITE);
+        ASSERT_EQ(ioCtx.aioRequestCtx.curveAioCtx.offset, ioCtx.request.from);
+        ASSERT_EQ(ioCtx.aioRequestCtx.curveAioCtx.length, ioCtx.request.len);
+
+        NBDServer::FillRequestContext(NBD_CMD_READ, &ioCtx, &config);
+        ASSERT_EQ(ioCtx.aioRequestCtx.curveAioCtx.op, LIBCURVE_OP_READ);
+        ASSERT_EQ(ioCtx.aioRequestCtx.curveAioCtx.offset, ioCtx.request.from);
+        ASSERT_EQ(ioCtx.aioRequestCtx.curveAioCtx.length, ioCtx.request.len);
+
+        NBDServer::FillRequestContext(NBD_CMD_FLUSH, &ioCtx, &config);
+        ASSERT_EQ(ioCtx.aioRequestCtx.curveAioCtx.op, LIBCURVE_OP_FLUSH);
+
+        NBDServer::FillRequestContext(NBD_CMD_TRIM, &ioCtx, &config);
+        ASSERT_EQ(ioCtx.aioRequestCtx.curveAioCtx.op, LIBCURVE_OP_DISCARD);
+        ASSERT_EQ(ioCtx.aioRequestCtx.curveAioCtx.offset, ioCtx.request.from);
+        ASSERT_EQ(ioCtx.aioRequestCtx.curveAioCtx.length, ioCtx.request.len);
+    }
 }
 
 }  // namespace nbd

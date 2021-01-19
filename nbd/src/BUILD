@@ -47,6 +47,8 @@ cc_library(
         "//external:gflags",
         "//external:glog",
         "//nebd/src/part1:nebdclient",
+        "//include/client:include_client",
+        "//src/client:curve"
     ],
     copts = COPTS,
     linkopts = [

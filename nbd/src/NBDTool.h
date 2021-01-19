@@ -66,7 +66,7 @@ class NBDTool {
     NBDServerPtr StartServer(int sockfd, NBDControllerPtr nbdCtrl,
                              ImagePtr imageInstance);
     // 生成image instance
-    ImagePtr GenerateImage(const std::string& imageName);
+    ImagePtr GenerateImage(const std::string& imageName, NBDConfig* cfg);
 
  private:
     class NBDSocketPair {

@@ -81,6 +81,8 @@ struct NBDConfig {
     std::string imgname;
     // 指定需要映射的nbd设备路径
     std::string devpath;
+    // 是否使用curve-client
+    bool use_curveclient = false;
 };
 
 // 用户命令类型

@@ -74,10 +74,11 @@ class NBDToolTest : public ::testing::Test {
             .WillRepeatedly(Return(true));
         EXPECT_CALL(*image_, GetImageSize())
             .WillRepeatedly(Return(1 * kGB));
-        NebdClientAioContext aioCtx;
         EXPECT_CALL(*image_, AioRead(_))
-            .WillRepeatedly(Invoke([](NebdClientAioContext* context){
-                context->cb(context);
+            .WillRepeatedly(Invoke([](AioRequestContext* context){
+                context->nebdAioCtx.ret = 0;
+                context->nebdAioCtx.cb(&context->nebdAioCtx);
+                return true;
             }));
         nbdThread_ = std::thread(task, config, &isRunning_, &tool_);
 
@@ -87,23 +88,25 @@ class NBDToolTest : public ::testing::Test {
 
     void AssertWriteSuccess(const std::string& devpath) {
         char buf[4096];
-        NebdClientAioContext tempContext;
+        AioRequestContext tempContext;
         EXPECT_CALL(*image_, AioWrite(_))
-            .WillOnce(Invoke([&](NebdClientAioContext* context){
+            .WillOnce(Invoke([&](AioRequestContext* context){
                 tempContext = *context;
-                context->cb(context);
+                context->nebdAioCtx.cb(&context->nebdAioCtx);
+                return true;
             }));
         EXPECT_CALL(*image_, Flush(_))
-            .WillOnce(Invoke([](NebdClientAioContext* context){
-                context->cb(context);
+            .WillOnce(Invoke([](AioRequestContext* context) {
+                context->nebdAioCtx.cb(&context->nebdAioCtx);
+                return true;
             }));
 
         int fd = open(devpath.c_str(), O_RDWR | O_SYNC);
         ASSERT_GT(fd, 0);
         ASSERT_EQ(4096, pwrite(fd, buf, 4096, 4096));
-        ASSERT_EQ(tempContext.offset, 4096);
-        ASSERT_EQ(tempContext.length, 4096);
-        ASSERT_EQ(tempContext.op, LIBAIO_OP::LIBAIO_OP_WRITE);
+        ASSERT_EQ(tempContext.nebdAioCtx.offset, 4096);
+        ASSERT_EQ(tempContext.nebdAioCtx.length, 4096);
+        ASSERT_EQ(tempContext.nebdAioCtx.op, LIBAIO_OP::LIBAIO_OP_WRITE);
         close(fd);
     }
 
@@ -111,12 +114,13 @@ class NBDToolTest : public ::testing::Test {
         std::thread timeoutThread;
         char buf[4096];
         EXPECT_CALL(*image_, AioWrite(_))
-            .WillOnce(Invoke([&](NebdClientAioContext* context){
-                auto callback = [&](NebdClientAioContext* ctx) {
+            .WillOnce(Invoke([&](AioRequestContext* context){
+                auto callback = [&](AioRequestContext* ctx) {
                     sleep(timeout);
-                    ctx->cb(ctx);
+                    ctx->nebdAioCtx.cb(&ctx->nebdAioCtx);
                 };
                 timeoutThread = std::thread(callback, context);
+                return true;
             }));
 
         int fd = open(devpath.c_str(), O_RDWR | O_SYNC);

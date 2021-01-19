@@ -90,6 +90,7 @@ static void Usage() {
         << "  --max_part <limit>      Override for module param max_part\n"
         << "  --timeout <seconds>     Set nbd request timeout\n"
         << "  --try-netlink           Use the nbd netlink interface\n"
+        << "  --use-curve-client      User curve-client instead of nebd\n"
         << std::endl;
 }
 
