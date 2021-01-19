@@ -66,7 +66,7 @@ static void HandleSignal(int signum) {
     std::cout << "Got signal " << sys_siglist[signum] << "\n"
               << ", disconnect now" << std::endl;
 
-    ret = nbdTool->Disconnect(nbdConfig->devpath);
+    ret = nbdTool->Disconnect(nbdConfig.get());
     if (ret != 0) {
         std::cout << "curve-nbd: disconnect failed. Error: " << ret
                   << std::endl;
@@ -77,12 +77,9 @@ static void HandleSignal(int signum) {
 
 static void Usage() {
     std::cout
-        << "Usage: curve-nbd [options] map <image>  Map an image "
-           "to nbd device\n"  // NOLINT
-        << "                 unmap <device|image>   Unmap nbd "
-           "device\n"  // NOLINT
-        << "                 [options] list-mapped  List mapped "
-           "nbd devices\n"  // NOLINT
+        << "Usage: curve-nbd [options] map <image>  Map an image to nbd device\n"  // NOLINT
+        << "                 [options] unmap <device|image>   Unmap nbd device\n"  // NOLINT
+        << "                 [options] list-mapped  List mapped nbd devices\n"     // NOLINT
         << "Map options:\n"
         << "  --device <device path>  Specify nbd device path (/dev/nbd{num})\n"
         << "  --read-only             Map read-only\n"
@@ -90,6 +87,11 @@ static void Usage() {
         << "  --max_part <limit>      Override for module param max_part\n"
         << "  --timeout <seconds>     Set nbd request timeout\n"
         << "  --try-netlink           Use the nbd netlink interface\n"
+        << "Unmap options:\n"
+        << "  --retry_times <limit>       The number of retries waiting for the process to exit\n"  // NOLINT
+        << "                              (default: " << nbdConfig->retry_times << ")\n"            // NOLINT
+        << "  --sleep_ms <milliseconds>   Retry interval in milliseconds\n"                         // NOLINT
+        << "                              (default: " << nbdConfig->sleep_ms << ")\n"               // NOLINT
         << std::endl;
 }
 
@@ -185,7 +187,7 @@ static int CurveNbdMain(int argc, const char* argv[]) {
             break;
         }
         case Command::Disconnect: {
-            r = nbdTool->Disconnect(nbdConfig->devpath);
+            r = nbdTool->Disconnect(nbdConfig.get());
             if (r < 0) {
                 return -EINVAL;
             }

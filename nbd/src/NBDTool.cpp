@@ -110,9 +110,27 @@ int NBDTool::Connect(NBDConfig *cfg) {
     return 0;
 }
 
-int NBDTool::Disconnect(const std::string& devpath) {
+int NBDTool::Disconnect(const NBDConfig* config) {
+    pid_t devpid = -1;
+    std::vector<DeviceInfo> devices;
+
+    int ret = List(&devices);
+    for (const auto& device : devices) {
+        if (device.config.devpath == config->devpath) {
+            devpid = device.pid;
+            break;
+        }
+    }
+
     NBDControllerPtr nbdCtrl = GetController(false);
-    return nbdCtrl->DisconnectByPath(devpath);
+    ret = nbdCtrl->DisconnectByPath(config->devpath);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = WaitForTerminate(devpid, config);
+
+    return 0;
 }
 
 int NBDTool::List(std::vector<DeviceInfo>* infos) {
@@ -137,6 +155,8 @@ void NBDTool::RunServerUntilQuit() {
     } else {
         ctrl->RunUntilQuit();
     }
+
+    nbdWatchCtx_->StopWatch();
 }
 
 ImagePtr g_test_image = nullptr;
@@ -148,6 +168,30 @@ ImagePtr NBDTool::GenerateImage(const std::string& imageName) {
         result = std::make_shared<ImageInstance>(imageName);
     }
     return result;
+}
+
+int NBDTool::WaitForTerminate(pid_t pid, const NBDConfig* config) {
+    if (pid < 0) {
+        return 0;
+    }
+
+    int times = config->retry_times;
+    while (times-- > 0) {
+        if (kill(pid, 0) == -1) {
+            if (errno == ESRCH) {
+                return 0;
+            }
+            std::cerr << "curve-nbd test device failed, dev: "
+                      << config->devpath << ", err = " << cpp_strerror(-errno)
+                      << std::endl;
+            return -errno;
+        }
+
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(config->sleep_ms));
+    }
+
+    return -ETIMEDOUT;
 }
 
 }  // namespace nbd
