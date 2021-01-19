@@ -147,7 +147,7 @@ TEST_F(NBDToolTest, ioctl_connect_test) {
     StartInAnotherThread(&config);
     ASSERT_TRUE(isRunning_);
     AssertWriteSuccess(config.devpath);
-    ASSERT_EQ(0, tool_.Disconnect(config.devpath));
+    ASSERT_EQ(0, tool_.Disconnect(&config));
     sleep(1);
     ASSERT_FALSE(isRunning_);
 }
@@ -158,7 +158,7 @@ TEST_F(NBDToolTest, netlink_connect_test) {
     config.try_netlink = true;
     StartInAnotherThread(&config);
     ASSERT_TRUE(isRunning_);
-    ASSERT_EQ(0, tool_.Disconnect(config.devpath));
+    ASSERT_EQ(0, tool_.Disconnect(&config));
     sleep(1);
     ASSERT_FALSE(isRunning_);
 }
@@ -170,7 +170,7 @@ TEST_F(NBDToolTest, readonly_test) {
     StartInAnotherThread(&config);
     ASSERT_TRUE(isRunning_);
     AssertWriteFailed(config.devpath);
-    ASSERT_EQ(0, tool_.Disconnect(config.devpath));
+    ASSERT_EQ(0, tool_.Disconnect(&config));
     sleep(1);
     ASSERT_FALSE(isRunning_);
 }
@@ -183,7 +183,7 @@ TEST_F(NBDToolTest, timeout_test) {
     ASSERT_TRUE(isRunning_);
     AssertWriteTimeout(config.devpath, 5);
     // io timeout 情况下，nbd_do_it这边会退出，所以这里disconnect会失败
-    ASSERT_EQ(-1, tool_.Disconnect(config.devpath));
+    ASSERT_EQ(-1, tool_.Disconnect(&config));
 }
 
 }  // namespace nbd

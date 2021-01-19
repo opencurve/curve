@@ -201,6 +201,24 @@ int parse_args(std::vector<const char*>& args, std::ostream *err_msg,   // NOLIN
             }
         } else if (argparse_flag(args, i, "--try-netlink", (char *)NULL)) { // NOLINT
             cfg->try_netlink = true;
+        } else if (argparse_witharg(args, i, &cfg->retry_times, err, "--retry_times", (char*)(NULL))) {  // NOLINT
+            if (!err.str().empty()) {
+                *err_msg << "curve-nbd: " << err.str();
+                return -EINVAL;
+            }
+            if (cfg->retry_times < 0) {
+                *err_msg << "curve-nbd: Invalid argument for retry_times!";
+                return -EINVAL;
+            }
+        } else if (argparse_witharg(args, i, &cfg->sleep_ms, err, "--sleep_ms", (char*)(NULL))) {  // NOLINT
+            if (!err.str().empty()) {
+                *err_msg << "curve-nbd: " << err.str();
+                return -EINVAL;
+            }
+            if (cfg->sleep_ms < 0) {
+                *err_msg << "curve-nbd: Invalid argument for sleep_ms!";
+                return -EINVAL;
+            }
         } else {
             ++i;
         }
