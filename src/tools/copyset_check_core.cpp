@@ -308,8 +308,8 @@ int CopysetCheckCore::CheckIfChunkServerInCopysets(const std::string& csAddr,
             std::cout << "parse group id fail: " << groupId << std::endl;
             continue;
         }
-        logicPoolId = groupId >> 32;
-        CopySetIdType copysetId = groupId & (((uint64_t)1 << 32) - 1);
+        logicPoolId = GetPoolID(groupId);
+        CopySetIdType copysetId = GetCopysetID(groupId);
         copysetIds.push_back(copysetId);
     }
 
@@ -497,12 +497,6 @@ int CopysetCheckCore::CheckOperator(const std::string& opName,
     } while (curve::common::TimeUtility::GetTimeofDaySec() -
                                         startTime < checkTimeSec);
     return 0;
-}
-
-std::string CopysetCheckCore::ToGroupId(const PoolIdType& logicPoolId,
-                                           const CopySetIdType& copysetId) {
-    uint64_t groupId = (static_cast<uint64_t>(logicPoolId) << 32) | copysetId;
-    return std::to_string(groupId);
 }
 
 // 每个copyset的信息都会存储在一个map里面，map的key有
@@ -828,5 +822,57 @@ void CopysetCheckCore::Clear() {
     chunkserverCopysets_.clear();
     copysetsDetail_.clear();
 }
+
+int CopysetCheckCore::ListMayBrokenVolumes(
+                    std::vector<std::string>* fileNames) {
+    int res = CheckCopysetsOnOfflineChunkServer();
+    if (res != 0) {
+        std::cout << "CheckCopysetsOnOfflineChunkServer fail" << std::endl;
+        return -1;
+    }
+    if (copysets_[kMajorityPeerNotOnline].empty()) {
+        std::cout << "No majority-peers-offline copysets" << std::endl;
+        return 0;
+    }
+    std::vector<common::CopysetInfo> copysets;
+    for (auto iter = copysets_[kMajorityPeerNotOnline].begin();
+                    iter != copysets_[kMajorityPeerNotOnline].end(); ++iter) {
+        std::string gid = *iter;
+        uint64_t groupId;
+        if (!curve::common::StringToUll(gid, &groupId)) {
+            std::cout << "parse group id fail: " << groupId << std::endl;
+            continue;
+        }
+        PoolIdType lgId = GetPoolID(groupId);
+        CopySetIdType csId = GetCopysetID(groupId);
+        common::CopysetInfo copyset;
+        copyset.set_logicalpoolid(lgId);
+        copyset.set_copysetid(csId);
+        copysets.emplace_back(copyset);
+    }
+    res = mdsClient_->ListVolumesOnCopyset(copysets, fileNames);
+    if (res != 0) {
+        std::cout << "ListVolumesOnCopyset fail" << std::endl;
+        return -1;
+    }
+    return 0;
+}
+
+int CopysetCheckCore::CheckCopysetsOnOfflineChunkServer() {
+    std::vector<ChunkServerInfo> chunkservers;
+    int res = mdsClient_->ListChunkServersInCluster(&chunkservers);
+    if (res != 0) {
+        std::cout << "ListChunkServersInCluster fail" << std::endl;
+        return -1;
+    }
+    for (const auto& cs : chunkservers) {
+        std::string csAddr = cs.hostip() + std::to_string(cs.port());
+        if (!CheckChunkServerOnline(csAddr)) {
+            UpdatePeerNotOnlineCopysets(csAddr);
+        }
+    }
+    return 0;
+}
+
 }  // namespace tool
 }  // namespace curve
