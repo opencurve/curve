@@ -70,7 +70,6 @@ mds_chunkserverclient_rpc_retry_times: 5
 mds_chunkserverclient_rpc_retry_interval_ms: 500
 mds_chunkserverclient_update_leader_retry_times: 5
 mds_chunkserverclient_update_leader_retry_interval_ms: 5000
-mds_snapshotcloneclient_addr: 127.0.0.1:5555
 mds_common_log_dir: ./
 
 # chunkserver配置默认值
