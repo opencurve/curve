@@ -115,12 +115,7 @@ int MDSClient::GetFileInfo(const std::string &fileName,
     FillUserInfo(&request);
     curve::mds::CurveFSService_Stub stub(&channel_);
 
-    void (curve::mds::CurveFSService_Stub::*fp)(
-                            google::protobuf::RpcController*,
-                            const curve::mds::GetFileInfoRequest*,
-                            curve::mds::GetFileInfoResponse*,
-                            google::protobuf::Closure*);
-    fp = &curve::mds::CurveFSService_Stub::GetFileInfo;
+    auto fp = &curve::mds::CurveFSService_Stub::GetFileInfo;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "GetFileInfo info from all mds fail!" << std::endl;
         return -1;
@@ -143,12 +138,7 @@ int MDSClient::GetAllocatedSize(const std::string& fileName,
     request.set_filename(fileName);
     curve::mds::CurveFSService_Stub stub(&channel_);
 
-    void (curve::mds::CurveFSService_Stub::*fp)(
-                            google::protobuf::RpcController*,
-                            const curve::mds::GetAllocatedSizeRequest*,
-                            curve::mds::GetAllocatedSizeResponse*,
-                            google::protobuf::Closure*);
-    fp = &curve::mds::CurveFSService_Stub::GetAllocatedSize;
+    auto fp = &curve::mds::CurveFSService_Stub::GetAllocatedSize;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "GetAllocatedSize info from all mds fail!" << std::endl;
         return -1;
@@ -176,12 +166,7 @@ int MDSClient::GetFileSize(const std::string& fileName,
     request.set_filename(fileName);
     curve::mds::CurveFSService_Stub stub(&channel_);
 
-    void (curve::mds::CurveFSService_Stub::*fp)(
-                            google::protobuf::RpcController*,
-                            const curve::mds::GetFileSizeRequest*,
-                            curve::mds::GetFileSizeResponse*,
-                            google::protobuf::Closure*);
-    fp = &curve::mds::CurveFSService_Stub::GetFileSize;
+    auto fp = &curve::mds::CurveFSService_Stub::GetFileSize;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "GetFileSize info from all mds fail!" << std::endl;
         return -1;
@@ -207,12 +192,7 @@ int MDSClient::ListDir(const std::string& dirName,
     FillUserInfo(&request);
     curve::mds::CurveFSService_Stub stub(&channel_);
 
-    void (curve::mds::CurveFSService_Stub::*fp)(
-                            google::protobuf::RpcController*,
-                            const curve::mds::ListDirRequest*,
-                            curve::mds::ListDirResponse*,
-                            google::protobuf::Closure*);
-    fp = &curve::mds::CurveFSService_Stub::ListDir;
+    auto fp = &curve::mds::CurveFSService_Stub::ListDir;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "ListDir from all mds fail!" << std::endl;
         return -1;
@@ -245,12 +225,7 @@ GetSegmentRes MDSClient::GetSegmentInfo(const std::string& fileName,
     FillUserInfo(&request);
     curve::mds::CurveFSService_Stub stub(&channel_);
 
-    void (curve::mds::CurveFSService_Stub::*fp)(
-                            google::protobuf::RpcController*,
-                            const curve::mds::GetOrAllocateSegmentRequest*,
-                            curve::mds::GetOrAllocateSegmentResponse*,
-                            google::protobuf::Closure*);
-    fp = &curve::mds::CurveFSService_Stub::GetOrAllocateSegment;
+    auto fp = &curve::mds::CurveFSService_Stub::GetOrAllocateSegment;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "GetOrAllocateSegment from all mds fail!" << std::endl;
         return GetSegmentRes::kOtherError;
@@ -276,12 +251,7 @@ int MDSClient::DeleteFile(const std::string& fileName, bool forcedelete) {
     FillUserInfo(&request);
     curve::mds::CurveFSService_Stub stub(&channel_);
 
-    void (curve::mds::CurveFSService_Stub::*fp)(
-                            google::protobuf::RpcController*,
-                            const curve::mds::DeleteFileRequest*,
-                            curve::mds::DeleteFileResponse*,
-                            google::protobuf::Closure*);
-    fp = &curve::mds::CurveFSService_Stub::DeleteFile;
+    auto fp = &curve::mds::CurveFSService_Stub::DeleteFile;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "DeleteFile from all mds fail!" << std::endl;
         return -1;
@@ -307,12 +277,7 @@ int MDSClient::CreateFile(const std::string& fileName, uint64_t length) {
     FillUserInfo(&request);
     curve::mds::CurveFSService_Stub stub(&channel_);
 
-    void (curve::mds::CurveFSService_Stub::*fp)(
-                            google::protobuf::RpcController*,
-                            const curve::mds::CreateFileRequest*,
-                            curve::mds::CreateFileResponse*,
-                            google::protobuf::Closure*);
-    fp = &curve::mds::CurveFSService_Stub::CreateFile;
+    auto fp = &curve::mds::CurveFSService_Stub::CreateFile;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "CreateFile from all mds fail!" << std::endl;
         return -1;
@@ -323,6 +288,35 @@ int MDSClient::CreateFile(const std::string& fileName, uint64_t length) {
         return 0;
     }
     std::cout << "CreateFile fail with errCode: "
+              << response.statuscode() << std::endl;
+    return -1;
+}
+
+int MDSClient::ListVolumesOnCopyset(
+                        const std::vector<common::CopysetInfo>& copysets,
+                        std::vector<std::string>* fileNames) {
+    curve::mds::ListVolumesOnCopysetsRequest request;
+    curve::mds::ListVolumesOnCopysetsResponse response;
+    for (const auto& copyset : copysets) {
+        auto copysetPtr = request.add_copysets();
+        *copysetPtr = copyset;
+    }
+    curve::mds::CurveFSService_Stub stub(&channel_);
+
+    auto fp = &curve::mds::CurveFSService_Stub::ListVolumesOnCopysets;
+    if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
+        std::cout << "ListVolumesOnCopyset from all mds fail!" << std::endl;
+        return -1;
+    }
+
+    if (response.has_statuscode() &&
+                response.statuscode() == StatusCode::kOK) {
+        for (int i = 0; i < response.filenames_size(); ++i) {
+            fileNames->emplace_back(response.filenames(i));
+        }
+        return 0;
+    }
+    std::cout << "ListVolumesOnCopyset fail with errCode: "
               << response.statuscode() << std::endl;
     return -1;
 }
@@ -339,13 +333,7 @@ int MDSClient::ListClient(std::vector<std::string>* clientAddrs,
     if (listClientsInRepo) {
         request.set_listallclient(true);
     }
-
-    void (curve::mds::CurveFSService_Stub::*fp)(
-                            google::protobuf::RpcController*,
-                            const curve::mds::ListClientRequest*,
-                            curve::mds::ListClientResponse*,
-                            google::protobuf::Closure*);
-    fp = &curve::mds::CurveFSService_Stub::ListClient;
+    auto fp = &curve::mds::CurveFSService_Stub::ListClient;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "ListClient from all mds fail!" << std::endl;
         return -1;
@@ -402,12 +390,7 @@ int MDSClient::GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
     }
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
-    void (curve::mds::topology::TopologyService_Stub::*fp)(
-            google::protobuf::RpcController*,
-            const curve::mds::topology::GetChunkServerListInCopySetsRequest*,
-            curve::mds::topology::GetChunkServerListInCopySetsResponse*,
-            google::protobuf::Closure*);
-    fp = &curve::mds::topology::TopologyService_Stub::GetChunkServerListInCopySets;  // NOLINT
+    auto fp = &curve::mds::topology::TopologyService_Stub::GetChunkServerListInCopySets;  // NOLINT
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "GetChunkServerListInCopySets from all mds fail!"
                   << std::endl;
@@ -436,12 +419,7 @@ int MDSClient::ListPhysicalPoolsInCluster(
     curve::mds::topology::ListPhysicalPoolResponse response;
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
-    void (curve::mds::topology::TopologyService_Stub::*fp)(
-                google::protobuf::RpcController*,
-                const curve::mds::topology::ListPhysicalPoolRequest*,
-                curve::mds::topology::ListPhysicalPoolResponse*,
-                google::protobuf::Closure*);
-    fp = &curve::mds::topology::TopologyService_Stub::ListPhysicalPool;
+    auto fp = &curve::mds::topology::TopologyService_Stub::ListPhysicalPool;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "ListPhysicalPool from all mds fail!"
                   << std::endl;
@@ -489,12 +467,7 @@ int MDSClient::ListLogicalPoolsInPhysicalPool(const PoolIdType& id,
     request.set_physicalpoolid(id);
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
-    void (curve::mds::topology::TopologyService_Stub::*fp)(
-                google::protobuf::RpcController*,
-                const curve::mds::topology::ListLogicalPoolRequest*,
-                curve::mds::topology::ListLogicalPoolResponse*,
-                google::protobuf::Closure*);
-    fp = &curve::mds::topology::TopologyService_Stub::ListLogicalPool;
+    auto fp = &curve::mds::topology::TopologyService_Stub::ListLogicalPool;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "ListLogicalPool from all mds fail!"
                   << std::endl;
@@ -521,12 +494,7 @@ int MDSClient::ListZoneInPhysicalPool(const PoolIdType& id,
     request.set_physicalpoolid(id);
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
-    void (curve::mds::topology::TopologyService_Stub::*fp)(
-                google::protobuf::RpcController*,
-                const curve::mds::topology::ListPoolZoneRequest*,
-                curve::mds::topology::ListPoolZoneResponse*,
-                google::protobuf::Closure*);
-    fp = &curve::mds::topology::TopologyService_Stub::ListPoolZone;
+    auto fp = &curve::mds::topology::TopologyService_Stub::ListPoolZone;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "ListPoolZone from all mds fail!"
                   << std::endl;
@@ -553,12 +521,7 @@ int MDSClient::ListServersInZone(const ZoneIdType& id,
     request.set_zoneid(id);
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
-    void (curve::mds::topology::TopologyService_Stub::*fp)(
-                google::protobuf::RpcController*,
-                const curve::mds::topology::ListZoneServerRequest*,
-                curve::mds::topology::ListZoneServerResponse*,
-                google::protobuf::Closure*);
-    fp = &curve::mds::topology::TopologyService_Stub::ListZoneServer;
+    auto fp = &curve::mds::topology::TopologyService_Stub::ListZoneServer;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "ListZoneServer from all mds fail!"
                   << std::endl;
@@ -597,12 +560,7 @@ int MDSClient::ListChunkServersOnServer(ListChunkServerRequest* request,
     curve::mds::topology::ListChunkServerResponse response;
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
-    void (curve::mds::topology::TopologyService_Stub::*fp)(
-                google::protobuf::RpcController*,
-                const curve::mds::topology::ListChunkServerRequest*,
-                curve::mds::topology::ListChunkServerResponse*,
-                google::protobuf::Closure*);
-    fp = &curve::mds::topology::TopologyService_Stub::ListChunkServer;
+    auto fp = &curve::mds::topology::TopologyService_Stub::ListChunkServer;
     if (SendRpcToMds(request, &response, &stub, fp) != 0) {
         std::cout << "ListChunkServer from all mds fail!"
                   << std::endl;
@@ -659,12 +617,7 @@ int MDSClient::GetChunkServerInfo(GetChunkServerInfoRequest* request,
     curve::mds::topology::GetChunkServerInfoResponse response;
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
-    void (curve::mds::topology::TopologyService_Stub::*fp)(
-                google::protobuf::RpcController*,
-                const curve::mds::topology::GetChunkServerInfoRequest*,
-                curve::mds::topology::GetChunkServerInfoResponse*,
-                google::protobuf::Closure*);
-    fp = &curve::mds::topology::TopologyService_Stub::GetChunkServer;
+    auto fp = &curve::mds::topology::TopologyService_Stub::GetChunkServer;
     if (SendRpcToMds(request, &response, &stub, fp) != 0) {
         std::cout << "GetChunkServer from all mds fail!"
                   << std::endl;
@@ -715,12 +668,7 @@ int MDSClient::GetCopySetsInChunkServer(
     curve::mds::topology::GetCopySetsInChunkServerResponse response;
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
-    void (curve::mds::topology::TopologyService_Stub::*fp)(
-                google::protobuf::RpcController*,
-                const curve::mds::topology::GetCopySetsInChunkServerRequest*,
-                curve::mds::topology::GetCopySetsInChunkServerResponse*,
-                google::protobuf::Closure*);
-    fp = &curve::mds::topology::TopologyService_Stub::GetCopySetsInChunkServer;
+    auto fp = &curve::mds::topology::TopologyService_Stub::GetCopySetsInChunkServer;  // NOLINT
     if (SendRpcToMds(request, &response, &stub, fp) != 0) {
         std::cout << "GetCopySetsInChunkServer from all mds fail!"
                   << std::endl;
@@ -745,12 +693,7 @@ int MDSClient::GetCopySetsInCluster(std::vector<CopysetInfo>* copysets) {
     curve::mds::topology::GetCopySetsInClusterResponse response;
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
-    void (curve::mds::topology::TopologyService_Stub::*fp)(
-                google::protobuf::RpcController*,
-                const curve::mds::topology::GetCopySetsInClusterRequest*,
-                curve::mds::topology::GetCopySetsInClusterResponse*,
-                google::protobuf::Closure*);
-    fp = &curve::mds::topology::TopologyService_Stub::GetCopySetsInCluster;
+    auto fp = &curve::mds::topology::TopologyService_Stub::GetCopySetsInCluster;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "GetCopySetsInCluster from all mds fail!"
                   << std::endl;
@@ -938,12 +881,7 @@ int MDSClient::RapidLeaderSchedule(PoolIdType lpoolId) {
 
     request.set_logicalpoolid(lpoolId);
 
-    void (curve::mds::schedule::ScheduleService_Stub::*fp)(
-        google::protobuf::RpcController*,
-        const ::curve::mds::schedule::RapidLeaderScheduleRequst *,
-        ::curve::mds::schedule::RapidLeaderScheduleResponse*,
-        google::protobuf::Closure*);
-    fp = &::curve::mds::schedule::ScheduleService_Stub::RapidLeaderSchedule;
+    auto fp = &::curve::mds::schedule::ScheduleService_Stub::RapidLeaderSchedule; // NOLINT
     if (0 != SendRpcToMds(&request, &response, &stub, fp)) {
         std::cout << "RapidLeaderSchedule fail" << std::endl;
         return -1;
@@ -970,12 +908,7 @@ int MDSClient::QueryChunkServerRecoverStatus(
         request.add_chunkserverid(id);
     }
 
-    void (curve::mds::schedule::ScheduleService_Stub::*fp)(
-        google::protobuf::RpcController*,
-        const ::curve::mds::schedule::QueryChunkServerRecoverStatusRequest*,
-        ::curve::mds::schedule::QueryChunkServerRecoverStatusResponse*,
-        google::protobuf::Closure*);
-    fp = &::curve::mds::schedule::ScheduleService_Stub::QueryChunkServerRecoverStatus; // NOLINT
+    auto fp = &::curve::mds::schedule::ScheduleService_Stub::QueryChunkServerRecoverStatus; // NOLINT
     if (0 != SendRpcToMds(&request, &response, &stub, fp)) {
         std::cout << "QueryChunkServerRecoverStatus fail" << std::endl;
         return -1;

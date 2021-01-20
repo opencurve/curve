@@ -59,7 +59,7 @@ using curve::mds::topology::ServerInfo;
 using curve::mds::topology::ZoneInfo;
 using curve::mds::topology::PhysicalPoolInfo;
 using curve::mds::topology::LogicalPoolInfo;
-using curve::mds::topology::CopysetInfo;
+using curve::common::CopysetInfo;
 using curve::mds::topology::ServerIdType;
 using curve::mds::topology::ZoneIdType;
 using curve::mds::topology::PoolIdType;
@@ -173,6 +173,16 @@ class MDSClient {
      *  @return 成功返回0，失败返回-1
      */
     virtual int CreateFile(const std::string& fileName, uint64_t length);
+
+    /**
+     *  @brief List all volumes on copysets
+     *  @param copysets
+     *  @param[out] fileNames volumes name
+     *  @return return 0 when success, -1 when fail
+     */
+    virtual int ListVolumesOnCopyset(
+                        const std::vector<common::CopysetInfo>& copysets,
+                        std::vector<std::string>* fileNames);
 
     /**
      *  @brief 列出client的dummyserver的地址

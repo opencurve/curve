@@ -460,6 +460,16 @@ class CurveFS {
                                   ClientInfo* clientInfo);
 
     /**
+     * @brief List volumes on copysets
+     * @param copysets
+     * @param[fileNames] volumes on copysets
+     * @return StatusCode::kOK if succeeded, StatusCode::kFileNotExists if failed //NOLINT
+     */
+    StatusCode ListVolumesOnCopyset(
+                        const std::vector<common::CopysetInfo>& copysets,
+                        std::vector<std::string>* fileNames);
+
+    /**
      *  @brief Get the number of opened files
      *  @param
      *  @return return 0 of CurveFS has not been initialized
@@ -613,6 +623,14 @@ class CurveFS {
     StatusCode CheckHasCloneRely(const std::string & filename,
                                  const std::string &owner,
                                  bool *isHasCloneRely);
+
+    /**
+     *  @brief List all files recursively
+     *  @param: inodeId The inode id of directory
+     *  @param[out]: files All file info
+     *  @return StatusCode::kOK if succeeded
+     */
+    StatusCode ListAllFiles(uint64_t inodeId, std::vector<FileInfo>* files);
 
     /**
      * @brief check whether mds has started for enough time, based on the

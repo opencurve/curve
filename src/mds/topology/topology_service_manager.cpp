@@ -52,6 +52,7 @@ using ::curve::chunkserver::COPYSET_OP_STATUS;
 using ::curve::mds::copyset::ClusterInfo;
 using ::curve::mds::copyset::Copyset;
 using ::curve::mds::copyset::CopysetConstrait;
+using ::curve::common::CopysetInfo;
 
 void TopologyServiceManager::RegistChunkServer(
     const ChunkServerRegistRequest *request,

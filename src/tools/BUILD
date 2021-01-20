@@ -145,5 +145,6 @@ cc_library(
         "//src/chunkserver:chunkserver-lib",
         "//src/client:curve_client",
         "//include/client:include_client",
+        "//include/chunkserver:include-chunkserver",
     ],
 )

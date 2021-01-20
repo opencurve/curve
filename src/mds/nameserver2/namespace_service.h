@@ -169,6 +169,11 @@ class NameSpaceService: public CurveFSService {
         const ::curve::mds::FindFileMountPointRequest* request,
         ::curve::mds::FindFileMountPointResponse* response,
         ::google::protobuf::Closure* done) override;
+    void ListVolumesOnCopysets(
+                ::google::protobuf::RpcController* controller,
+                const ::curve::mds::ListVolumesOnCopysetsRequest* request,
+                ::curve::mds::ListVolumesOnCopysetsResponse* response,
+                ::google::protobuf::Closure* done) override;
 
  private:
     FileLockManager *fileLockManager_;

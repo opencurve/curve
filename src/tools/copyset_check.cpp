@@ -54,7 +54,8 @@ namespace tool {
 bool CopysetCheck::SupportCommand(const std::string& command) {
     return (command == kCheckCopysetCmd || command == kCheckChunnkServerCmd
             || command == kCheckServerCmd || command == kCopysetsStatusCmd
-            || command == kCheckOperatorCmd);
+            || command == kCheckOperatorCmd
+            || command == kListMayBrokenVolumes);
 }
 
 int CopysetCheck::Init() {
@@ -98,6 +99,8 @@ int CopysetCheck::RunCommand(const std::string& command) {
             return -1;
         }
         return CheckOperator(FLAGS_opName);
+    } else if (command == kListMayBrokenVolumes) {
+        return PrintMayBrokenVolumes();
     } else {
         PrintHelp(command);
         return -1;
@@ -222,6 +225,8 @@ void CopysetCheck::PrintHelp(const std::string& command) {
         std::cout << "curve_ops_tool check-operator -opName=" << kTotalOpName
                   << "/" << kChangeOpName << "/" << kAddOpName << "/"
                   << kRemoveOpName << "/" << kTransferOpName << std::endl;
+    } else if (command == kListMayBrokenVolumes) {
+        std::cout << "curve_ops_tool list-majoroff-vol" << std::endl;
     } else {
         std::cout << "Command not supported!" << std::endl;
     }
@@ -291,8 +296,8 @@ void CopysetCheck::PrintCopySet(const std::set<std::string>& set) {
             std::cout << "parse group id fail: " << groupId << std::endl;
             continue;
         }
-        PoolIdType lgId = groupId >> 32;
-        CopySetIdType csId = groupId & (((uint64_t)1 << 32) - 1);
+        PoolIdType lgId = GetPoolID(groupId);
+        CopySetIdType csId = GetCopysetID(groupId);
         std::cout << "(grouId: " << gid << ", logicalPoolId: "
                   << std::to_string(lgId) << ", copysetId: "
                   << std::to_string(csId) << ")";
@@ -322,5 +327,20 @@ void CopysetCheck::PrintExcepChunkservers() {
         std::cout << "}" << std::endl;
     }
 }
+
+int CopysetCheck::PrintMayBrokenVolumes() {
+    std::vector<std::string> fileNames;
+    int res = core_->ListMayBrokenVolumes(&fileNames);
+    if (res != 0) {
+        std::cout << "ListMayBrokenVolumes fail" << std::endl;
+        return -1;
+    }
+    for (const auto& fileName : fileNames) {
+        std::cout << fileName << std::endl;
+    }
+    std::cout << "total count: " << fileNames.size() << std::endl;
+    return 0;
+}
+
 }  // namespace tool
 }  // namespace curve

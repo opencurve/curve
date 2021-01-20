@@ -21,6 +21,7 @@
  */
 
 syntax="proto2";
+import "proto/common.proto";
 package curve.mds.topology;
 // HTTP web can use https://github.com/dcodeIO/protobuf.js to use proto buffer
 
@@ -420,11 +421,6 @@ message GetChunkServerListInCopySetsResponse {
     repeated CopySetServerInfo csInfo = 2;
 }
 
-message CopysetInfo {
-    required uint32 logicalPoolId = 1;
-    required uint32 copysetId = 2;
-}
-
 message GetCopySetsInChunkServerRequest {
     //use either chunkServerID  or  hostIp&port to get copusets on chunkserver
     optional uint32 chunkServerID = 1;
@@ -434,7 +430,7 @@ message GetCopySetsInChunkServerRequest {
 
 message GetCopySetsInChunkServerResponse {
     required sint32 statusCode = 1;
-    repeated CopysetInfo copysetInfos = 2;
+    repeated common.CopysetInfo copysetInfos = 2;
 }
 
 message GetClusterInfoRequest {
@@ -450,7 +446,7 @@ message GetCopySetsInClusterRequest {
 
 message GetCopySetsInClusterResponse {
     required sint32 statusCode = 1;
-    repeated CopysetInfo copysetInfos = 2;
+    repeated common.CopysetInfo copysetInfos = 2;
 }
 
 //TODO(hzsunjianliang): update userPolicy and so on
