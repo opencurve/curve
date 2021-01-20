@@ -296,7 +296,6 @@ function deploy_one {
   curve-format -allocatePercent=80 \
   -filePoolDir=$dirname/chunkfilepool \
   -filePoolMetaPath=$dirname/chunkfilepool.meta \
-  -fileSize=8388608 \
   -fileSystemPath=$dirname/chunkfilepool  &
   wait
   exit

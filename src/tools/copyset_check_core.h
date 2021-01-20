@@ -42,6 +42,7 @@
 #include "src/tools/chunkserver_client.h"
 #include "src/tools/metric_name.h"
 #include "src/tools/curve_tool_define.h"
+#include "include/chunkserver/chunkserver_common.h"
 
 using curve::mds::topology::PoolIdType;
 using curve::mds::topology::CopySetIdType;
@@ -50,6 +51,9 @@ using curve::mds::topology::ServerIdType;
 using curve::mds::topology::kTopoErrCodeSuccess;
 using curve::mds::topology::OnlineState;
 using curve::mds::topology::ChunkServerStatus;
+using curve::chunkserver::ToGroupId;
+using curve::chunkserver::GetPoolID;
+using curve::chunkserver::GetCopysetID;
 
 namespace curve {
 namespace tool {
@@ -229,18 +233,16 @@ class CopysetCheckCore {
     */
     virtual bool CheckChunkServerOnline(const std::string& chunkserverAddr);
 
- private:
     /**
-    * @brief 将逻辑池Id和copyset Id转换成groupId
+    * @brief List volumes on majority peers offline copysets
     *
-    * @param logicalPoolId 逻辑池Id
-    * @param copysetId 复制组Id
+    * @param fileNames affected volumes
     *
-    * @return 返回groupId
+    * @return return 0 when sucess, otherwise return -1
     */
-    std::string ToGroupId(const PoolIdType& logicalPoolId,
-                          const CopySetIdType& copysetId);
+    virtual int ListMayBrokenVolumes(std::vector<std::string>* fileNames);
 
+ private:
     /**
     * @brief 从iobuf分析出指定groupId的复制组的信息，
     *        每个复制组的信息都放到一个map里面
@@ -281,6 +283,11 @@ class CopysetCheckCore {
                                    const std::string& chunkserverAddr,
                                    const std::set<std::string>& groupIds,
                                    bool queryLeader = true);
+
+    /**
+    * @brief Check copysets on offline chunkservers
+    */
+    int CheckCopysetsOnOfflineChunkServer();
 
     /**
     * @brief 检查某个server上的所有copyset的健康状态

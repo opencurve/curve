@@ -26,6 +26,7 @@
 #include <chrono>    //NOLINT
 #include <set>
 #include <utility>
+#include <map>
 #include "src/common/string_util.h"
 #include "src/common/encode.h"
 #include "src/common/timeutility.h"
@@ -35,6 +36,8 @@
 
 using curve::common::TimeUtility;
 using curve::mds::topology::LogicalPool;
+using curve::mds::topology::LogicalPoolIdType;
+using curve::mds::topology::CopySetIdType;
 
 namespace curve {
 namespace mds {
@@ -1979,6 +1982,72 @@ StatusCode CurveFS::FindFileMountPoint(
     }
 
     return StatusCode::kFileNotExists;
+}
+
+StatusCode CurveFS::ListVolumesOnCopyset(
+                        const std::vector<common::CopysetInfo>& copysets,
+                        std::vector<std::string>* fileNames) {
+    std::vector<FileInfo> files;
+    StatusCode ret = ListAllFiles(ROOTINODEID, &files);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "List all files in root directory fail";
+        return ret;
+    }
+    std::map<LogicalPoolIdType, std::set<CopySetIdType>> copysetMap;
+    for (const auto& copyset : copysets) {
+        copysetMap[copyset.logicalpoolid()].insert(copyset.copysetid());
+    }
+    for (const auto& file : files) {
+        std::vector<PageFileSegment> segments;
+        StoreStatus ret = storage_->ListSegment(file.id(), &segments);
+        if (ret != StoreStatus::OK) {
+            LOG(ERROR) << "List segments of " << file.filename() << " fail";
+            return StatusCode::kStorageError;
+        }
+        bool found = false;
+        for (const auto& segment : segments) {
+            if (copysetMap.find(segment.logicalpoolid()) == copysetMap.end()) {
+                continue;
+            }
+            for (int i = 0; i < segment.chunks_size(); i++) {
+                auto copysetId = segment.chunks(i).copysetid();
+                if (copysetMap[segment.logicalpoolid()].count(copysetId) != 0) {
+                    fileNames->emplace_back(file.filename());
+                    found = true;
+                    break;
+                }
+            }
+            if (found) {
+                break;
+            }
+        }
+    }
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::ListAllFiles(uint64_t inodeId,
+                                 std::vector<FileInfo>* files) {
+    std::vector<FileInfo> tempFiles;
+    StoreStatus ret = storage_->ListFile(inodeId, inodeId + 1, &tempFiles);
+    if (ret != StoreStatus::OK) {
+        return StatusCode::kStorageError;
+    }
+    for (const auto& file : tempFiles) {
+        if (file.filetype() == FileType::INODE_PAGEFILE) {
+            files->emplace_back(file);
+        } else if (file.filetype() == FileType::INODE_DIRECTORY) {
+            std::vector<FileInfo> tempFiles2;
+            StatusCode ret = ListAllFiles(file.id(), &tempFiles2);
+            if (ret == StatusCode::kOK) {
+                files->insert(files->end(), tempFiles2.begin(),
+                              tempFiles2.end());
+            } else {
+                LOG(ERROR) << "ListAllFiles in file " << inodeId << " fail";
+                return ret;
+            }
+        }
+    }
+    return StatusCode::kOK;
 }
 
 uint64_t CurveFS::GetOpenFileNum() {

@@ -61,6 +61,7 @@ class MockCopysetCheckCore : public CopysetCheckCore {
                        const std::set<std::string>&());
     MOCK_METHOD2(CheckOperator, int(const std::string&, uint64_t));
     MOCK_METHOD1(CheckChunkServerOnline, bool(const std::string&));
+    MOCK_METHOD1(ListMayBrokenVolumes, int(std::vector<std::string>*));
 };
 }  // namespace tool
 }  // namespace curve

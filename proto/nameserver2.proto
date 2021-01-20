@@ -15,6 +15,7 @@
  */
 
 syntax="proto2";
+import "proto/common.proto";
 package curve.mds;
 
 option cc_generic_services = true;
@@ -495,6 +496,15 @@ message FindFileMountPointResponse {
     optional ClientInfo clientInfo = 2;
 }
 
+message ListVolumesOnCopysetsRequest {
+    repeated common.CopysetInfo copysets = 1;
+}
+
+message ListVolumesOnCopysetsResponse {
+    required StatusCode statusCode = 1;
+    repeated string fileNames = 2;
+}
+
 service CurveFSService {
     // basic rpcs
     rpc     CreateFile(CreateFileRequest) returns (CreateFileResponse);
@@ -534,4 +544,5 @@ service CurveFSService {
     rpc     GetFileSize(GetFileSizeRequest) returns (GetFileSizeResponse);
     rpc     ListClient(ListClientRequest) returns (ListClientResponse);
     rpc     FindFileMountPoint(FindFileMountPointRequest) returns (FindFileMountPointResponse);
+    rpc     ListVolumesOnCopysets(ListVolumesOnCopysetsRequest) returns (ListVolumesOnCopysetsResponse);
 }

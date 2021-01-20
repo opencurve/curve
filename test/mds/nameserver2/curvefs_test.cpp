@@ -3757,6 +3757,95 @@ TEST_F(CurveFSTest, ListClient) {
     ASSERT_EQ(2, clientInfos.size());
 }
 
+TEST_F(CurveFSTest, ListAllVolumesOnCopyset) {
+    FileInfo file1;
+    file1.set_filetype(FileType::INODE_PAGEFILE);
+    file1.set_filename("file1");
+    FileInfo dir1;
+    dir1.set_filetype(FileType::INODE_DIRECTORY);
+    dir1.set_filename("dir1");
+    FileInfo file2;
+    file2.set_filetype(FileType::INODE_PAGEFILE);
+    file2.set_filename("file2");
+    FileInfo file3;
+    file3.set_filetype(FileType::INODE_PAGEFILE);
+    file3.set_filename("file3");
+    std::vector<FileInfo> fileVec1;
+    fileVec1.emplace_back(file1);
+    fileVec1.emplace_back(dir1);
+    std::vector<FileInfo> fileVec2;
+    fileVec2.emplace_back(file2);
+    fileVec2.emplace_back(file3);
+    PageFileSegment segment;
+    uint64_t segmentSize = 1 * 1024 * 1024 * 1024ul;
+    segment.set_logicalpoolid(1);
+    segment.set_segmentsize(segmentSize);
+    segment.set_chunksize(curvefs_->GetDefaultChunkSize());
+    segment.set_startoffset(0);
+    common::CopysetInfo copyset;
+    copyset.set_logicalpoolid(1);
+    copyset.set_copysetid(100);
+    std::vector<common::CopysetInfo> copysetVec = {copyset};
+    std::vector<std::string> fileNames;
+    {
+        // normal test
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<2>(fileVec1),
+                    Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileVec2),
+                    Return(StoreStatus::OK)));
+        PageFileSegment segment2 = segment;
+        PageFileSegment segment3 = segment;
+        auto chunk = segment.add_chunks();
+        chunk->set_copysetid(100);
+        chunk->set_chunkid(200);
+        segment2.set_logicalpoolid(2);
+        chunk = segment3.add_chunks();
+        chunk->set_copysetid(101);
+        chunk->set_chunkid(200);
+        std::vector<PageFileSegment> segVec1 = {segment};
+        std::vector<PageFileSegment> segVec2 = {segment2};
+        std::vector<PageFileSegment> segVec3 = {segment3};
+        EXPECT_CALL(*storage_, ListSegment(_, _))
+        .Times(3)
+        .WillOnce(DoAll(SetArgPointee<1>(segVec1),
+                    Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(segVec2),
+                    Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(segVec3),
+                    Return(StoreStatus::OK)));
+        ASSERT_EQ(StatusCode::kOK,
+                    curvefs_->ListVolumesOnCopyset(copysetVec, &fileNames));
+        ASSERT_EQ(1, fileNames.size());
+        ASSERT_EQ("file1", fileNames[0]);
+    }
+    // list file fail
+    {
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<2>(fileVec1),
+                    Return(StoreStatus::OK)))
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+        ASSERT_EQ(StatusCode::kStorageError,
+                    curvefs_->ListVolumesOnCopyset(copysetVec, &fileNames));
+    }
+    // list segment fail
+    {
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<2>(fileVec1),
+                    Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileVec2),
+                    Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, ListSegment(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+        ASSERT_EQ(StatusCode::kStorageError,
+                    curvefs_->ListVolumesOnCopyset(copysetVec, &fileNames));
+    }
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);

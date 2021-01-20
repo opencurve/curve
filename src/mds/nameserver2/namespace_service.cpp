@@ -1787,6 +1787,39 @@ void NameSpaceService::FindFileMountPoint(
     return;
 }
 
+void NameSpaceService::ListVolumesOnCopysets(
+                ::google::protobuf::RpcController* controller,
+                const ::curve::mds::ListVolumesOnCopysetsRequest* request,
+                ::curve::mds::ListVolumesOnCopysetsResponse* response,
+                ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+    LOG(INFO) << "logid = " << cntl->log_id()
+              << ", ListAllVolumesOnCopysets request";
+
+    std::vector<std::string> fileNames;
+    std::vector<common::CopysetInfo> copysets;
+    for (int i = 0; i < request->copysets_size(); i++) {
+        copysets.emplace_back(request->copysets(i));
+    }
+
+    auto retCode = kCurveFS.ListVolumesOnCopyset(copysets, &fileNames);
+    if (retCode != StatusCode::kOK)  {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", ListAllVolumesOnCopysets fail, statusCode = "
+            << retCode << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        return;
+    }
+    response->set_statuscode(StatusCode::kOK);
+    for (const auto& fileName : fileNames) {
+        response->add_filenames(fileName);
+    }
+    LOG(INFO) << "logid = " << cntl->log_id()
+              << ", ListAllVolumesOnCopysets ok, volume num: "
+              << fileNames.size();
+}
+
 uint32_t GetMdsLogLevel(StatusCode code) {
     switch (code) {
         case StatusCode::kSegmentNotAllocated:

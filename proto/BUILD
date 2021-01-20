@@ -14,6 +14,17 @@
 #  limitations under the License.
 #
 
+proto_library(
+    name = "common_proto",
+    srcs = ["common.proto"],
+)
+
+cc_proto_library(
+    name = "common_cc_proto",
+    deps = [":common_proto"],
+    visibility = ["//visibility:public"],
+)
+
 cc_proto_library(
     name = "nameserver2_cc_proto",
     visibility = ["//visibility:public"],
@@ -23,6 +34,7 @@ cc_proto_library(
 proto_library(
     name = "nameserver2_proto",
     srcs = ["nameserver2.proto"],
+    deps = [":common_proto"],
 )
 
 cc_proto_library(
@@ -34,6 +46,7 @@ cc_proto_library(
 proto_library(
     name = "topology_proto",
     srcs = ["topology.proto"],
+    deps = [":common_proto"],
 )
 
 cc_proto_library(
@@ -46,7 +59,6 @@ proto_library(
     name = "chunkserver-protos",
     srcs = glob([
         "heartbeat.proto",
-        "common.proto",
         "chunk.proto",
         "cli.proto",
         "cli2.proto",
@@ -56,6 +68,7 @@ proto_library(
         "chunkserver.proto",
         "curve_storage.proto",
     ]),
+    deps = [":common_proto"],
     visibility = ["//visibility:public"],
 )
 

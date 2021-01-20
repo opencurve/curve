@@ -2012,6 +2012,37 @@ TEST_F(NameSpaceServiceTest, FindFileMountPointTest) {
     server.Join();
 }
 
+TEST_F(NameSpaceServiceTest, ListVolumesOnCopysets) {
+    brpc::Server server;
+
+    // start server
+    NameSpaceService namespaceService(new FileLockManager(8));
+    ASSERT_EQ(server.AddService(&namespaceService,
+            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+
+    brpc::ServerOptions option;
+    option.idle_timeout_sec = -1;
+    ASSERT_EQ(0, server.Start("127.0.0.1", {8900, 8999}, &option));
+
+    // init client
+    brpc::Channel channel;
+    ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
+
+    CurveFSService_Stub stub(&channel);
+    ListVolumesOnCopysetsRequest request;
+    ListVolumesOnCopysetsResponse response;
+    for (int i = 1; i <= 3; ++i) {
+        auto copyset = request.add_copysets();
+        copyset->set_logicalpoolid(i);
+        copyset->set_copysetid(100 + i);
+    }
+    brpc::Controller cntl;
+    stub.ListVolumesOnCopysets(&cntl, &request, &response, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(StatusCode::kOK, response.statuscode());
+    ASSERT_EQ(0, response.filenames_size());
+}
+
 }  // namespace mds
 }  // namespace curve
 

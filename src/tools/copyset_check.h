@@ -130,6 +130,9 @@ class CopysetCheck : public CurveTool {
     // 打印有问题的chunkserver列表
     void PrintExcepChunkservers();
 
+    // 打印大多数不在线的副本上面的卷
+    int PrintMayBrokenVolumes();
+
  private:
     // 检查copyset的核心逻辑
     std::shared_ptr<CopysetCheckCore> core_;

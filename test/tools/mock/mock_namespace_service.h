@@ -129,6 +129,11 @@ class MockNameService: public CurveFSService {
         const FindFileMountPointRequest *request,
         FindFileMountPointResponse *response,
         Closure *done));
+    MOCK_METHOD4(ListVolumesOnCopysets,
+        void(RpcController *controller,
+        const ListVolumesOnCopysetsRequest *request,
+        ListVolumesOnCopysetsResponse *response,
+        Closure *done));
 };
 }  // namespace mds
 }  // namespace curve
