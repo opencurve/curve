@@ -1265,5 +1265,57 @@ TEST_F(ToolMDSClientTest, ListClient) {
         ASSERT_EQ(expected, clientAddrs[i]);
     }
 }
+
+TEST_F(ToolMDSClientTest, ListVolumesOnCopyset) {
+    std::vector<common::CopysetInfo> copysets;
+    std::vector<std::string> fileNames;
+
+    // send rpc fail
+    EXPECT_CALL(*nameService, ListVolumesOnCopysets(_, _, _, _))
+        .Times(6)
+        .WillRepeatedly(Invoke([](RpcController *controller,
+                        const curve::mds::ListVolumesOnCopysetsRequest *request,
+                        curve::mds::ListVolumesOnCopysetsResponse *response,
+                        Closure *done){
+                        brpc::ClosureGuard doneGuard(done);
+                        brpc::Controller *cntl =
+                            dynamic_cast<brpc::Controller *>(controller);
+                        cntl->SetFailed("test");
+                    }));
+    ASSERT_EQ(-1, mdsClient.ListVolumesOnCopyset(copysets, &fileNames));
+
+    // return code not ok
+    curve::mds::ListVolumesOnCopysetsResponse response;
+    response.set_statuscode(curve::mds::StatusCode::kParaError);
+    EXPECT_CALL(*nameService, ListVolumesOnCopysets(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke([](RpcController *controller,
+                        const curve::mds::ListVolumesOnCopysetsRequest *request,
+                        curve::mds::ListVolumesOnCopysetsResponse *response,
+                        Closure *done){
+                        brpc::ClosureGuard doneGuard(done);
+                    })));
+    ASSERT_EQ(-1, mdsClient.ListVolumesOnCopyset(copysets, &fileNames));
+
+    // normal
+    response.set_statuscode(curve::mds::StatusCode::kOK);
+    for (int i = 0; i < 5; i++) {
+        auto fileName = response.add_filenames();
+        *fileName = "file" + std::to_string(i);
+    }
+    EXPECT_CALL(*nameService, ListVolumesOnCopysets(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke([](RpcController *controller,
+                        const curve::mds::ListVolumesOnCopysetsRequest *request,
+                        curve::mds::ListVolumesOnCopysetsResponse *response,
+                        Closure *done){
+                        brpc::ClosureGuard doneGuard(done);
+                    })));
+    ASSERT_EQ(0, mdsClient.ListVolumesOnCopyset(copysets, &fileNames));
+    ASSERT_EQ(response.filenames_size(), fileNames.size());
+    for (int i = 0; i < 5; i++) {
+        ASSERT_EQ(response.filenames(i), fileNames[i]);
+    }
+}
 }  // namespace tool
 }  // namespace curve

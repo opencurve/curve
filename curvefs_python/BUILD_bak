@@ -52,6 +52,7 @@ cc_library(
         "//include/client:include_client",
         "//include:include-common",
         "//proto:nameserver2_cc_proto",
+        "//proto:common_cc_proto",
         "//proto:topology_cc_proto",
         "//proto:chunkserver-cc-protos",
         "//src/client:curve_client"
@@ -77,6 +78,7 @@ cc_library(
         "-lgflags",
         "-lnameserver2_proto",
         "-ltopology_proto",
+        "-lcommon_proto",
         "-lchunkserver-protos",
         "-lprotobuf",
         "-lprotobuf_lite",
