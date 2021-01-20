@@ -191,7 +191,7 @@ mds.chunkserverclient.updateLeaderRetryIntervalMs={{ mds_chunkserverclient_updat
 # snapshotclone config
 #
 # snapshot clone server 地址
-mds.snapshotcloneclient.addr={{ mds_snapshotcloneclient_addr }}
+mds.snapshotcloneclient.addr={{ snapshot_nginx_vip }}:{{ nginx_docker_external_port }}
 
 #
 # common options
