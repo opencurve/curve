@@ -23,6 +23,7 @@ class NbdThrash:
         self.ssh = ssh
         self.user = "test"
         self.dev = ""
+        self.check_md5 = ""
 
     def nbd_create(self,vol_size):
         cmd = "curve create --filename /%s --length %s --user test"%(self.name,vol_size)
@@ -60,6 +61,11 @@ class NbdThrash:
 
     def write_data(self,size):
         ori_cmd = "sudo fio -name=%s -direct=1 -iodepth=8 -rw=randwrite -ioengine=libaio -bs=64k -size=%dM -numjobs=1 -time_based"%(self.dev,size)
+        rs = shell_operator.ssh_exec(self.ssh, ori_cmd)
+        assert rs[3] == 0,"write fio fail"
+
+    def write_data_full(self,size):
+        ori_cmd = "sudo fio -name=%s -direct=1 -iodepth=8 -rw=write -ioengine=libaio -bs=1024k -size=%dM -numjobs=1 -time_based"%(self.dev,size)
         rs = shell_operator.ssh_exec(self.ssh, ori_cmd)
         assert rs[3] == 0,"write fio fail"
 
@@ -387,23 +393,29 @@ def diff_vol_consistency(vol_uuid,clone_uuid):
     context2 = get_vol_md5(clone_uuid)
     if context1 != context2:
         logger2.error("check md5 consistency fail ,vol is %s,clone vol is %s"%(vol_uuid,clone_uuid))
-    assert context1 == context2,"vol and clone vol not same"
+    if config.snapshot_thrash.check_md5 == True:
+        assert context1 == context2,"vol and clone vol not same"
 
-def init_nbd_vol():
+def init_nbd_vol(check_md5=True):
     ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
     try:
         name = "volume-snapshot"
         thrash = NbdThrash(ssh,name)
-        vol_size = 10
+        vol_size = 10 #GB
         thrash.nbd_create(vol_size)
         thrash.nbd_map()
         time.sleep(5)
         thrash.nbd_getdev()
-        init_data = 5000
-        thrash.write_data(init_data)
+        if check_md5 == True:
+            init_data = vol_size * 1024
+            thrash.write_data_full(init_data)
+        else:
+            init_data = 5000 #MB
+            thrash.write_data(init_data)
         time.sleep(60)
         config.snapshot_volid = name
         config.snapshot_thrash = thrash
+        thrash.check_md5 = check_md5
     except:
         logger2.error("create snapshot nbd fail")
         raise
@@ -672,7 +684,8 @@ def test_recover_snapshot(lazy="true"):
                 second_md5 = get_vol_md5(vol_id)
             else:
                 assert False,"recover vol %s fail in %d s"%(vol_id,config.snapshot_timeout)
-            assert first_md5 == second_md5,"vol md5 not same after recover,fisrt is %s,recovered is %s"(first_md5,second_md5)
+            if config.snapshot_thrash.check_md5 == True:
+                assert first_md5 == second_md5,"vol md5 not same after recover,fisrt is %s,recovered is %s"(first_md5,second_md5)
             config.snapshot_thrash.nbd_map()
             config.snapshot_thrash.nbd_getdev()
         except:
@@ -775,19 +788,21 @@ def test_lazy_clone_flatten_snapshot_fail():
     unlink_clone_vol(vol_id)
 
 def test_snapshot_all(vol_uuid):
-    lazy="true"
-    test_clone_vol_from_file(lazy)
-    test_clone_vol_same_uuid(lazy)
-    test_clone_iovol_consistency(lazy)
-    test_recover_snapshot(lazy)
-    test_cancel_snapshot()
-    lazy="false"
-#    test_clone_vol_from_file(lazy)
-    test_clone_iovol_consistency(lazy)
-#    test_clone_vol_same_uuid(lazy)
-    test_recover_snapshot(lazy)
-    config.snapshot_thrash.nbd_unmap()
-    config.snapshot_thrash.nbd_delete()
+    check_md5_all = [True,False]
+    lazy_all = ["true","false"]
+    for check_md5 in check_md5_all:
+        for lazy in lazy_all:
+            test_clone_vol_from_file(lazy)
+            test_clone_vol_same_uuid(lazy)
+            test_clone_iovol_consistency(lazy)
+            test_recover_snapshot(lazy)
+            test_cancel_snapshot()
+            test_clone_vol_from_file(lazy)
+            test_clone_iovol_consistency(lazy)
+            test_clone_vol_same_uuid(lazy)
+            test_recover_snapshot(lazy)
+        config.snapshot_thrash.nbd_unmap()
+        config.snapshot_thrash.nbd_delete()
     return "finally"
 
 def begin_snapshot_test():
