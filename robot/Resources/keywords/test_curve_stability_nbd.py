@@ -394,12 +394,13 @@ def init_nbd_vol():
     try:
         name = "volume-snapshot"
         thrash = NbdThrash(ssh,name)
-        vol_size = 5000
+        vol_size = 10
         thrash.nbd_create(vol_size)
         thrash.nbd_map()
         time.sleep(5)
         thrash.nbd_getdev()
-        thrash.write_data(vol_size)
+        init_data = 5000
+        thrash.write_data(init_data)
         time.sleep(60)
         config.snapshot_volid = name
         config.snapshot_thrash = thrash
