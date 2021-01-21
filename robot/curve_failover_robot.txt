@@ -501,12 +501,12 @@ inject cluster stress test
 *** Keywords ***
 
 init failover cluster
-     clean nbd 
-     ${begin_num}    get all chunk num
-     ${begin_num}    Convert To Integer   ${begin_num}
-     Set Global Variable  ${chunk_num}    ${begin_num} 
+     clean nbd  
      init abnormal test env
      check chunkserver online
+     ${begin_num}    get all chunk num
+     ${begin_num}    Convert To Integer   ${begin_num}
+     Set Global Variable  ${chunk_num}    ${begin_num}
      init rw cloud disk
      init nbd vol
      begin snapshot test
