@@ -788,7 +788,7 @@ def test_lazy_clone_flatten_snapshot_fail():
     unlink_clone_vol(vol_id)
 
 def test_snapshot_all(vol_uuid):
-    check_md5_all = [True,False]
+    check_md5_all = [True]
     lazy_all = ["true","false"]
     for check_md5 in check_md5_all:
         for lazy in lazy_all:
