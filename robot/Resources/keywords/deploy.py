@@ -287,6 +287,16 @@ def drop_all_chunkserver_dat():
         logger.debug("drop cs dat get result is %d" % t.get_result())
         assert t.get_result() == 0
 
+def destroy_test_env():
+    try:
+        cmd = "cp robot/init_env.sh . && bash init_env.sh"
+        ret = shell_operator.run_exec(cmd)
+        assert ret == 0 ,"init env fail"
+        host = config.client_list[0]
+    except Exception:
+        logger.error("init env fail.")
+        raise
+
 def use_ansible_deploy():
     try:
         cmd = "cp robot/ansible_deploy.sh . && bash ansible_deploy.sh"

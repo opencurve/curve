@@ -404,6 +404,10 @@ stop snapshot test
     [Tags]    P1    base    first release   failover  
     stop snapshot test
 
+test lazy clone fail flatten and snapshot
+    [Tags]    P1    base    first release   failover   no-need
+    test lazy clone flatten snapshot fail 
+    
 test mds delay package 50ms
     [Tags]    P1    base    first release   failover   
     ${ms}  evaluate  int(50)
@@ -502,13 +506,13 @@ inject cluster stress test
 
 init failover cluster
      clean nbd  
-     init abnormal test env
-     check chunkserver online
+     destroy test env 
      ${begin_num}    get all chunk num
      ${begin_num}    Convert To Integer   ${begin_num}
      Set Global Variable  ${chunk_num}    ${begin_num}
+     init abnormal test env
+     check chunkserver online
      init rw cloud disk
-     init nbd vol
      begin snapshot test
      begin kill snapshotserver
      loop map unmap file

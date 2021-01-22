@@ -23,6 +23,7 @@ class NbdThrash:
         self.ssh = ssh
         self.user = "test"
         self.dev = ""
+        self.check_md5 = ""
 
     def nbd_create(self,vol_size):
         cmd = "curve create --filename /%s --length %s --user test"%(self.name,vol_size)
@@ -59,7 +60,12 @@ class NbdThrash:
         assert rs[3] == 0,"delete fail：%s"%rs[1]
 
     def write_data(self,size):
-        ori_cmd = "sudo fio -name=%s -direct=1 -iodepth=8 -rw=write -ioengine=libaio -bs=1024k -size=%dG -numjobs=1 -time_based"%(self.dev,size)
+        ori_cmd = "sudo fio -name=%s -direct=1 -iodepth=8 -rw=randwrite -ioengine=libaio -bs=64k -size=%dM -numjobs=1 -time_based"%(self.dev,size)
+        rs = shell_operator.ssh_exec(self.ssh, ori_cmd)
+        assert rs[3] == 0,"write fio fail"
+
+    def write_data_full(self,size):
+        ori_cmd = "sudo fio -name=%s -direct=1 -iodepth=8 -rw=write -ioengine=libaio -bs=1024k -size=%dM -numjobs=1 -time_based"%(self.dev,size)
         rs = shell_operator.ssh_exec(self.ssh, ori_cmd)
         assert rs[3] == 0,"write fio fail"
 
@@ -387,22 +393,29 @@ def diff_vol_consistency(vol_uuid,clone_uuid):
     context2 = get_vol_md5(clone_uuid)
     if context1 != context2:
         logger2.error("check md5 consistency fail ,vol is %s,clone vol is %s"%(vol_uuid,clone_uuid))
-    assert context1 == context2,"vol and clone vol not same"
+    if config.snapshot_thrash.check_md5 == True:
+        assert context1 == context2,"vol and clone vol not same"
 
-def init_nbd_vol():
+def init_nbd_vol(check_md5=True):
     ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
     try:
         name = "volume-snapshot"
         thrash = NbdThrash(ssh,name)
-        vol_size = 10
+        vol_size = 10 #GB
         thrash.nbd_create(vol_size)
         thrash.nbd_map()
         time.sleep(5)
         thrash.nbd_getdev()
-        thrash.write_data(vol_size)
+        if check_md5 == True:
+            init_data = vol_size * 1024
+            thrash.write_data_full(init_data)
+        else:
+            init_data = 5000 #MB
+            thrash.write_data(init_data)
         time.sleep(60)
         config.snapshot_volid = name
         config.snapshot_thrash = thrash
+        thrash.check_md5 = check_md5
     except:
         logger2.error("create snapshot nbd fail")
         raise
@@ -607,7 +620,7 @@ def test_clone_vol_same_uuid(lazy):
 
 def test_cancel_snapshot():
     logger2.info("------------begin test cancel snapshot----------")
-    config.snapshot_thrash.write_data(10)
+    config.snapshot_thrash.write_data(1000)
     ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
     vol_id = config.snapshot_volid
     snapshot_uuid = create_vol_snapshot(vol_id)
@@ -637,7 +650,7 @@ def test_recover_snapshot(lazy="true"):
     if final == True:
         try:
             first_md5 = get_vol_md5(vol_id)
-            config.snapshot_thrash.write_data(10)
+            config.snapshot_thrash.write_data(8000)
             config.snapshot_thrash.nbd_unmap()
             recover_task = recover_snapshot(vol_id,snapshot_uuid,lazy)
             final_recover = False
@@ -671,7 +684,8 @@ def test_recover_snapshot(lazy="true"):
                 second_md5 = get_vol_md5(vol_id)
             else:
                 assert False,"recover vol %s fail in %d s"%(vol_id,config.snapshot_timeout)
-            assert first_md5 == second_md5,"vol md5 not same after recover,fisrt is %s,recovered is %s"(first_md5,second_md5)
+            if config.snapshot_thrash.check_md5 == True:
+                assert first_md5 == second_md5,"vol md5 not same after recover,fisrt is %s,recovered is %s"(first_md5,second_md5)
             config.snapshot_thrash.nbd_map()
             config.snapshot_thrash.nbd_getdev()
         except:
@@ -693,20 +707,103 @@ def random_kill_snapshot():
     ori_cmd = "cd snapshot/temp && sudo nohup curve-snapshotcloneserver -conf=/etc/curve/snapshot_clone_server.conf &"
     shell_operator.ssh_background_exec2(ssh, ori_cmd)
 
+#test bug: https://ep.netease.com/v2/my_workbench/bugdetail/Bug-3835
+def test_lazy_clone_flatten_snapshot_fail():
+    ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
+    try:
+        lazy = "true"
+        name = "volume-flatten"
+        thrash = NbdThrash(ssh,name)
+        vol_size = 10
+        thrash.nbd_create(vol_size)
+        thrash.nbd_map()
+        time.sleep(5)
+        thrash.nbd_getdev()
+        write_size = 500
+        thrash.write_data(write_size)
+        time.sleep(60)
+        vol_id = name
+        destination = vol_id + "-" + lazy
+        clone_vol_uuid = clone_vol_from_file(vol_id,lazy)
+        time.sleep(1)
+        if lazy == "true":
+            rc = check_clone_vol_exist(destination)
+            assert rc,"clone vol volume-%s not create ok in 2s"%destination
+        starttime = time.time()
+        status = 0
+        final = False
+        if lazy == "true":
+            status = 7
+        while time.time() - starttime < config.snapshot_timeout:
+            rc = get_clone_status(clone_vol_uuid)
+            if rc["TaskStatus"] == status and rc["TaskType"] == 0:
+                final = True
+                break
+            else:
+               time.sleep(60)
+        if final == True:
+            try:
+               if lazy == "true":
+                   flatten_clone_vol(clone_vol_uuid)
+                   starttime = time.time()
+                   final = False
+                   while time.time() - starttime < config.snapshot_timeout:
+                       rc = get_clone_status(clone_vol_uuid)
+                       if rc["TaskStatus"] == 0 and rc["TaskType"] == 0:
+                           final = True
+                           break
+                       else:
+                           time.sleep(60)
+            except:
+               logger2.error("faltten clone file fail")
+               raise
+        thrash_clone = NbdThrash(ssh,destination)
+        thrash_clone.nbd_map()
+        time.sleep(5)
+        thrash_clone.nbd_getdev()
+        thrash_clone.write_data(2500)
+        snapshot_uuid = create_vol_snapshot(destination)
+        starttime = time.time()
+        final = False
+        time.sleep(5)
+        while time.time() - starttime < config.snapshot_timeout:
+            rc = get_snapshot_status(destination,snapshot_uuid)
+            if rc["Progress"] == 100 and rc["Status"] == 0 :
+                final = True
+                break
+            else:
+                time.sleep(60)
+        if final == True:
+            logger.info("test case bug-3835 pass!!!")
+        else:
+            assert False,"create lazy clone file snapshot fail"
+    except:
+        logger2.error("test case bug-3835 fail")
+        raise
+    delete_vol_snapshot(destination,snapshot_uuid)
+    check_snapshot_delete(destination,snapshot_uuid)
+    thrash.nbd_unmap()
+    thrash_clone.nbd_unmap()
+    unlink_clone_vol(destination)
+    unlink_clone_vol(vol_id)
+
 def test_snapshot_all(vol_uuid):
-    lazy="true"
-    test_clone_vol_from_file(lazy)
-    test_clone_vol_same_uuid(lazy)
-    test_clone_iovol_consistency(lazy)
-    test_recover_snapshot(lazy)
-    test_cancel_snapshot()
-    lazy="false"
-#    test_clone_vol_from_file(lazy)
-    test_clone_iovol_consistency(lazy)
-#    test_clone_vol_same_uuid(lazy)
-    test_recover_snapshot(lazy)
-    config.snapshot_thrash.nbd_unmap()
-    config.snapshot_thrash.nbd_delete()
+    check_md5_all = [True]
+    lazy_all = ["true","false"]
+    for check_md5 in check_md5_all:
+        init_nbd_vol(check_md5)
+        for lazy in lazy_all:
+            test_clone_vol_from_file(lazy)
+            test_clone_vol_same_uuid(lazy)
+            test_clone_iovol_consistency(lazy)
+            test_recover_snapshot(lazy)
+            test_cancel_snapshot()
+            test_clone_vol_from_file(lazy)
+            test_clone_iovol_consistency(lazy)
+            test_clone_vol_same_uuid(lazy)
+            test_recover_snapshot(lazy)
+        config.snapshot_thrash.nbd_unmap()
+        config.snapshot_thrash.nbd_delete()
     return "finally"
 
 def begin_snapshot_test():
