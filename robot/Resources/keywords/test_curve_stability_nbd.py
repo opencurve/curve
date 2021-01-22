@@ -791,6 +791,7 @@ def test_snapshot_all(vol_uuid):
     check_md5_all = [True]
     lazy_all = ["true","false"]
     for check_md5 in check_md5_all:
+        init_nbd_vol(check_md5)
         for lazy in lazy_all:
             test_clone_vol_from_file(lazy)
             test_clone_vol_same_uuid(lazy)
