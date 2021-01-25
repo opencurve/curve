@@ -396,10 +396,10 @@ def diff_vol_consistency(vol_uuid,clone_uuid):
     if config.snapshot_thrash.check_md5 == True:
         assert context1 == context2,"vol and clone vol not same"
 
-def init_nbd_vol(check_md5=True):
+def init_nbd_vol(check_md5=True,lazy="True"):
     ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
     try:
-        name = "volume-snapshot"
+        name = "volume-snapshot" + "-" + str(check_md5) + "-" + lazy
         thrash = NbdThrash(ssh,name)
         vol_size = 10 #GB
         thrash.nbd_create(vol_size)
@@ -792,7 +792,7 @@ def test_snapshot_all(vol_uuid):
     lazy_all = ["true","false"]
     for check_md5 in check_md5_all: 
         for lazy in lazy_all:
-            init_nbd_vol(check_md5)
+            init_nbd_vol(check_md5,lazy)
             test_clone_vol_from_file(lazy)
             test_clone_vol_same_uuid(lazy)
             test_clone_iovol_consistency(lazy)
