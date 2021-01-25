@@ -790,20 +790,16 @@ def test_lazy_clone_flatten_snapshot_fail():
 def test_snapshot_all(vol_uuid):
     check_md5_all = [True]
     lazy_all = ["true","false"]
-    for check_md5 in check_md5_all:
-        init_nbd_vol(check_md5)
+    for check_md5 in check_md5_all: 
         for lazy in lazy_all:
+            init_nbd_vol(check_md5)
             test_clone_vol_from_file(lazy)
             test_clone_vol_same_uuid(lazy)
             test_clone_iovol_consistency(lazy)
             test_recover_snapshot(lazy)
             test_cancel_snapshot()
-            test_clone_vol_from_file(lazy)
-            test_clone_iovol_consistency(lazy)
-            test_clone_vol_same_uuid(lazy)
-            test_recover_snapshot(lazy)
-        config.snapshot_thrash.nbd_unmap()
-        config.snapshot_thrash.nbd_delete()
+            config.snapshot_thrash.nbd_unmap()
+            config.snapshot_thrash.nbd_delete()
     return "finally"
 
 def begin_snapshot_test():
