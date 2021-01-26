@@ -77,6 +77,28 @@ class NthSuccessTask : public Task {
     int Nth_;
 };
 
+class NthFailTask : public Task {
+ public:
+    NthFailTask(TaskIDType id, int Nth) {
+        SetTaskProgress(TaskProgress());
+        SetTaskID(id);
+        RunTimes_ = 0;
+        Nth_ = Nth;
+    }
+
+    void Run(void) override {
+        RunTimes_++;
+        TaskProgress* progress = GetMutableTaskProgress();
+        progress->SetProgress(0);
+        progress->SetStatus(TaskStatus::FAILED);
+        return;
+    }
+
+ public:
+    int RunTimes_;
+    int Nth_;
+};
+
 TEST(CleanTaskManger, SimpleTask) {
     int threadNum = 10;
     int checkPeriod = 1000;
@@ -135,6 +157,7 @@ TEST(CleanTaskManger, NthSuccessTask) {
 
     // task manager not started, push error
     auto nthSuccessTask = std::make_shared<NthSuccessTask>(taskID, Nth);
+    nthSuccessTask->SetRetryTimes(Nth);
     ASSERT_EQ(taskManager->PushTask(nthSuccessTask), false);
 
     // task manager started, get not found, not push ok
@@ -170,6 +193,60 @@ TEST(CleanTaskManger, NthSuccessTask) {
     ASSERT_EQ(nthSuccessTask->GetTaskProgress().GetProgress(), 100);
     ASSERT_EQ(nthSuccessTask->GetTaskProgress().GetStatus(),
         TaskStatus::SUCCESS);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(checkPeriod));
+    auto task = taskManager->GetTask(taskID);
+    ASSERT_TRUE(task == nullptr);
+
+    taskManager->Stop();
+}
+
+TEST(CleanTaskManger, NthFailTask) {
+    int threadNum = 10;
+    int checkPeriod = 1000;
+    auto channelPool = std::make_shared<ChannelPool>();
+    auto taskManager = new CleanTaskManager(channelPool, threadNum,
+                                                checkPeriod);
+    TaskIDType taskID = 1;
+    int Nth = 3;
+
+    // task manager not started, push error
+    auto nthFailTask = std::make_shared<NthFailTask>(taskID, Nth);
+    nthFailTask->SetRetryTimes(Nth);
+    ASSERT_EQ(taskManager->PushTask(nthFailTask), false);
+
+    // task manager started, get not found, not push ok
+    ASSERT_TRUE(taskManager->Start());
+    // wait the check thread to run
+    std::this_thread::sleep_for(std::chrono::milliseconds(checkPeriod/4));
+
+    ASSERT_EQ(taskManager->GetTask(taskID), nullptr);
+    ASSERT_EQ(taskManager->PushTask(nthFailTask), true);
+
+    // task duplicated
+    ASSERT_EQ(taskManager->PushTask(nthFailTask), false);
+
+    // task have runed
+    // wait the thread pool to run
+    std::this_thread::sleep_for(std::chrono::milliseconds(checkPeriod/2));
+    LOG(INFO) << "check to see if task have runed";
+    ASSERT_EQ(1, nthFailTask->RunTimes_);
+    ASSERT_EQ(nthFailTask->GetTaskProgress().GetProgress(), 0);
+    ASSERT_EQ(nthFailTask->GetTaskProgress().GetStatus(),
+        TaskStatus::FAILED);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(checkPeriod));
+    LOG(INFO) << "check to see if task have runed";
+    ASSERT_EQ(2, nthFailTask->RunTimes_);
+    ASSERT_EQ(nthFailTask->GetTaskProgress().GetProgress(), 0);
+    ASSERT_EQ(nthFailTask->GetTaskProgress().GetStatus(),
+        TaskStatus::FAILED);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(checkPeriod));
+    LOG(INFO) << "check to see if task have runed";
+    ASSERT_EQ(3, nthFailTask->RunTimes_);
+    ASSERT_EQ(nthFailTask->GetTaskProgress().GetStatus(),
+        TaskStatus::FAILED);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(checkPeriod));
     auto task = taskManager->GetTask(taskID);

@@ -37,8 +37,13 @@ namespace mds {
 
 typedef  uint64_t TaskIDType;
 
+// default clean task retry times
+const uint32_t kDefaultTaskRetryTimes = 5;
+
 class Task {
  public:
+    Task() : taskID_(0), progress_(), retry_(1) {}
+
     virtual void Run(void) = 0;
 
     std::function<void()> Closure() {
@@ -67,9 +72,24 @@ class Task {
         return taskID_;
     }
 
+    void SetRetryTimes(uint32_t retry) {
+        retry_ = retry;
+    }
+
+    void Retry() {
+        retry_--;
+        progress_ = TaskProgress();
+    }
+
+    bool RetryTimesExceed() {
+        return retry_ == 0;
+    }
+
  protected:
     TaskIDType taskID_;
     TaskProgress progress_;
+    // 任务最大重试次数
+    uint32_t retry_;
 };
 
 class SnapShotCleanTask: public Task {
@@ -82,6 +102,7 @@ class SnapShotCleanTask: public Task {
         SetTaskProgress(TaskProgress());
         SetTaskID(taskID);
         asyncEntity_ = entity;
+        SetRetryTimes(kDefaultTaskRetryTimes);
     }
     void Run(void) override {
         StatusCode ret = cleanCore_->CleanSnapShotFile(fileInfo_,
@@ -126,6 +147,7 @@ class CommonFileCleanTask: public Task {
         fileInfo_ = fileInfo;
         SetTaskProgress(TaskProgress());
         SetTaskID(taskID);
+        SetRetryTimes(kDefaultTaskRetryTimes);
     }
 
     void Run(void) override {

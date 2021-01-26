@@ -47,10 +47,22 @@ void CleanTaskManager::CheckCleanResult(void) {
                     iter = cleanTasks_.erase(iter);
                     continue;
                 } else if (taskProgress.GetStatus() == TaskStatus::FAILED) {
-                    LOG(WARNING) << "CleanTaskManager find Task Failed, retry,"
-                                 << " taskID = " << iter->second->GetTaskID();
-                    iter->second->SetTaskProgress(TaskProgress());
-                    cleanWorkers_->Enqueue(iter->second->Closure());
+                    iter->second->Retry();
+                    if (!iter->second->RetryTimesExceed()) {
+                        LOG(WARNING) << "CleanTaskManager find Task Failed,"
+                                     << " retry,"
+                                     << " taskID = "
+                                     << iter->second->GetTaskID();
+                        cleanWorkers_->Enqueue(iter->second->Closure());
+                    } else {
+                        LOG(ERROR) << "CleanTaskManager find Task Failed,"
+                                     << " retry times exceed,"
+                                     << " going to remove task,"
+                                     << " taskID = "
+                                     << iter->second->GetTaskID();
+                        iter = cleanTasks_.erase(iter);
+                        continue;
+                    }
                 }
                 ++iter;
             }
