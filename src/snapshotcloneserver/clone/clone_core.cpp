@@ -610,7 +610,11 @@ int CloneCoreImpl::CreateCloneFile(
     uint64_t fileLength = fInfo.length;
     uint64_t seqNum = fInfo.seqnum;
     uint32_t chunkSize = fInfo.chunksize;
-    std::string source = task->GetCloneInfo().GetSrc();
+    std::string source = "";
+    // 只有从文件克隆才带clone source
+    if (CloneFileType::kFile == task->GetCloneInfo().GetFileType()) {
+        source = task->GetCloneInfo().GetSrc();
+    }
 
     FInfo fInfoOut;
     int ret = client_->CreateCloneFile(source, fileName,
