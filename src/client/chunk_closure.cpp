@@ -279,7 +279,7 @@ void ClientClosure::Run() {
 
         default:
             needRetry = true;
-            LOG_EVERY_N(ERROR, 10) << OpTypeToString(reqCtx_->optype_)
+            LOG(WARNING) << OpTypeToString(reqCtx_->optype_)
                 << " failed for UNKNOWN reason, " << *reqCtx_
                 << ", status="
                 << curve::chunkserver::CHUNK_OP_STATUS_Name(
@@ -309,7 +309,7 @@ void ClientClosure::OnRpcFailed() {
         MetricHelper::IncremTimeOutRPCCount(fileMetric_, reqCtx_->optype_);
     }
 
-    LOG_EVERY_N(ERROR, 10) << OpTypeToString(reqCtx_->optype_)
+    LOG_EVERY_SECOND(WARNING) << OpTypeToString(reqCtx_->optype_)
         << " failed, error code: "
         << cntl_->ErrorCode()
         << ", error: " << cntl_->ErrorText()
@@ -444,7 +444,7 @@ void ClientClosure::OnRetry() {
         failReqOpt_.chunkserverMaxRetryTimesBeforeConsiderSuspend) {
         reqDone_->SetSuspendRPCFlag();
         MetricHelper::IncremIOSuspendNum(fileMetric_);
-        LOG(WARNING) << "IO Retried "
+        LOG(ERROR) << "IO Retried "
                     << failReqOpt_.chunkserverMaxRetryTimesBeforeConsiderSuspend
                     << " times, set suspend flag! " << *reqCtx_
                     << ", IO id = " << reqDone_->GetIOTracker()->GetID()

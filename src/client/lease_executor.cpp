@@ -97,14 +97,14 @@ bool LeaseExecutor::RefreshLease() {
         return true;
     } else if (LIBCURVE_ERROR::AUTHFAIL == ret) {
         iomanager_->LeaseTimeoutBlockIO();
-        LOG(WARNING) << "Refresh session auth fail, block io. "
-                     << "session id = " << leasesession_.sessionID
-                     << ", filename = " << fullFileName_;
+        LOG(ERROR) << "Refresh session auth fail, block io. "
+                   << "session id = " << leasesession_.sessionID
+                   << ", filename = " << fullFileName_;
         return true;
     }
 
     if (response.status == LeaseRefreshResult::Status::OK) {
-        CheckNeedUpdateVersion(response.finfo.seqnum);
+        CheckNeedUpdateFileInfo(response.finfo);
         failedrefreshcount_.store(0);
         isleaseAvaliable_.store(true);
         iomanager_->RefeshSuccAndResumeIO();
@@ -112,12 +112,12 @@ bool LeaseExecutor::RefreshLease() {
     } else if (response.status == LeaseRefreshResult::Status::NOT_EXIST) {
         iomanager_->LeaseTimeoutBlockIO();
         isleaseAvaliable_.store(false);
-        LOG(WARNING) << "session or file not exists, no longer refresh!"
-                     << ", sessionid = " << leasesession_.sessionID
-                     << ", filename = " << fullFileName_;
+        LOG(ERROR) << "session or file not exists, no longer refresh!"
+                   << ", sessionid = " << leasesession_.sessionID
+                   << ", filename = " << fullFileName_;
         return false;
     } else {
-        LOG(WARNING) << "Refresh session failed, filename = " << fullFileName_;
+        LOG(ERROR) << "Refresh session failed, filename = " << fullFileName_;
         return true;
     }
     return true;
@@ -146,14 +146,27 @@ void LeaseExecutor::IncremRefreshFailed() {
     }
 }
 
-void LeaseExecutor::CheckNeedUpdateVersion(uint64_t newversion) {
-    const uint64_t currentFileSn = iomanager_->GetLatestFileSn();
+void LeaseExecutor::CheckNeedUpdateFileInfo(const FInfo& fileInfo) {
+    MetaCache* metaCache = iomanager_->GetMetaCache();
 
-    DVLOG(9) << "new file version = " << newversion
-        << ", current version = " << currentFileSn
-        << ", filename = " << fullFileName_;
-    if (newversion > currentFileSn) {
-        iomanager_->SetLatestFileSn(newversion);
+    uint64_t currentFileSn = metaCache->GetLatestFileSn();
+    uint64_t newSn = fileInfo.seqnum;
+    if (newSn > currentFileSn) {
+        LOG(INFO) << "Update file sn, new file sn = " << newSn
+                  << ", current sn = " << currentFileSn
+                  << ", filename = " << fullFileName_;
+        metaCache->SetLatestFileSn(newSn);
+    }
+
+    FileStatus currentFileStatus = metaCache->GetLatestFileStatus();
+    FileStatus newFileStatus = fileInfo.filestatus;
+    if (newFileStatus != currentFileStatus) {
+        LOG(INFO) << "Update file status, new status = "
+                  << FileStatusToName(newFileStatus)
+                  << ", current file status = "
+                  << FileStatusToName(currentFileStatus)
+                  << ", filename = " << fullFileName_;
+        metaCache->SetLatestFileStatus(newFileStatus);
     }
 }
 

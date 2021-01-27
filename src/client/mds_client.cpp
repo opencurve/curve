@@ -232,7 +232,7 @@ int MDSClient::MDSRPCExcutor::ExcuteTask(
     brpc::Channel channel;
     int ret = channel.Init(mdsaddr.c_str(), nullptr);
     if (ret != 0) {
-        LOG(WARNING) << "Init channel failed! addr = " << mdsaddr.c_str();
+        LOG(WARNING) << "Init channel failed! addr = " << mdsaddr;
         // 返回EHOSTDOWN给上层调用者，促使其切换mds
         return -EHOSTDOWN;
     }
@@ -265,8 +265,8 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
         LIBCURVE_ERROR retcode = LIBCURVE_ERROR::FAILED;
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-            << "OpenFile: filename = " << filename.c_str()
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+            << "OpenFile: filename = " << filename
             << ", owner = " << userinfo.owner
             << ", errocde = " << retcode
             << ", error msg = " << StatusCode_Name(stcode)
@@ -279,10 +279,25 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
             lease->leaseTime     = leasesession.leasetime();
             lease->createTime    = leasesession.createtime();
 
-            FileInfo finfo = response.fileinfo();
-            ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
+            const curve::mds::FileInfo& protoFileInfo = response.fileinfo();
+            ServiceHelper::ProtoFileInfo2Local(protoFileInfo, fi);
+
+            if (protoFileInfo.has_clonesource() &&
+                protoFileInfo.filestatus() ==
+                    curve::mds::FileStatus::kFileCloneMetaInstalled) {
+                if (!response.has_clonesourcesegment()) {
+                    LOG(WARNING) << filename
+                                 << " has clone source and status is "
+                                    "CloneMetaInstalled, but response does not "
+                                    "contains clone source segment";
+                    return retcode;
+                }
+
+                ServiceHelper::ProtoCloneSourceInfo2Local(response,
+                                                          &fi->sourceInfo);
+            }
         } else {
-            LOG(ERROR) << "mds response has no file info or session info!";
+            LOG(WARNING) << "mds response has no file info or session info!";
             return LIBCURVE_ERROR::FAILED;
         }
 
@@ -311,8 +326,8 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
         LIBCURVE_ERROR retcode;
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-            << "CreateFile: filename = " << filename.c_str()
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+            << "CreateFile: filename = " << filename
             << ", owner = " << userinfo.owner
             << ", is nomalfile: " << normalFile
             << ", errocde = " << retcode
@@ -343,8 +358,8 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string& filename,
         LIBCURVE_ERROR retcode;
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-            << "CloseFile: filename = " << filename.c_str()
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+            << "CloseFile: filename = " << filename
             << ", owner = " << userinfo.owner
             << ", sessionid = " << sessionid
             << ", errocde = " << retcode
@@ -371,15 +386,14 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
         }
 
         if (response.has_fileinfo()) {
-            FileInfo finfo = response.fileinfo();
-            ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
+            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(), fi);
         }
 
         LIBCURVE_ERROR retcode;
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-            << "GetFileInfo: filename = " << filename.c_str()
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+            << "GetFileInfo: filename = " << filename
             << ", owner = " << uinfo.owner
             << ", errocde = " << retcode
             << ", error msg = " << StatusCode_Name(stcode)
@@ -410,8 +424,7 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
              stcode == StatusCode::kFileUnderSnapShot) &&
             hasinfo) {
             FInfo_t* fi = new (std::nothrow) FInfo_t;
-            curve::mds::FileInfo finfo = response.snapshotfileinfo();
-            ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
+            ServiceHelper::ProtoFileInfo2Local(response.snapshotfileinfo(), fi);
             *seq = fi->seqnum;
             delete fi;
             if (stcode == StatusCode::kOK) {
@@ -426,14 +439,14 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
 
         if (hasinfo) {
             FInfo_t fi;
-            ServiceHelper::ProtoFileInfo2Local(&response.snapshotfileinfo(), &fi);  // NOLINT
+            ServiceHelper::ProtoFileInfo2Local(response.snapshotfileinfo(), &fi);  // NOLINT
             *seq = fi.seqnum;
         }
 
         LIBCURVE_ERROR retcode;
         MDSStatusCode2LibcurveError(stcode, &retcode);
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                << "CreateSnapShot: filename = " << filename.c_str()
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+                << "CreateSnapShot: filename = " << filename
                 << ", owner = " << userinfo.owner
                 << ", errocde = " << retcode
                 << ", error msg = " << StatusCode_Name(stcode)
@@ -460,8 +473,8 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
         LIBCURVE_ERROR retcode;
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                << "DeleteSnapShot: filename = " << filename.c_str()
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+                << "DeleteSnapShot: filename = " << filename
                 << ", owner = " << userinfo.owner
                 << ", seqnum = " << seq << ", errocde = " << retcode
                 << ", error msg = " << StatusCode_Name(stcode)
@@ -489,8 +502,8 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
         LIBCURVE_ERROR retcode;
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                << "ListSnapShot: filename = " << filename.c_str()
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+                << "ListSnapShot: filename = " << filename
                 << ", owner = " << userinfo.owner
                 << ", errocde = " << retcode
                 << ", error msg = " << StatusCode_Name(stcode);
@@ -501,8 +514,7 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
 
         for (int i = 0; i < response.fileinfo_size(); i++) {
             FInfo_t tempInfo;
-            FileInfo finfo = response.fileinfo(i);
-            ServiceHelper::ProtoFileInfo2Local(&finfo, &tempInfo);
+            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(i), &tempInfo);
             snapif->insert(std::make_pair(tempInfo.seqnum, tempInfo));
         }
 
@@ -522,7 +534,7 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
     auto task = RPCTaskDefine {
         GetOrAllocateSegmentResponse response;
         mdsClientBase_.GetSnapshotSegmentInfo(filename, userinfo, seq, offset,
-                                             &response, cntl, channel);
+                                              &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "get snap file segment info failed, errcorde = "
                 << cntl->ErrorCode()
@@ -533,8 +545,8 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
         LIBCURVE_ERROR retcode;
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                << "GetSnapshotSegmentInfo: filename = " << filename.c_str()
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+                << "GetSnapshotSegmentInfo: filename = " << filename
                 << ", owner = " << userinfo.owner
                 << ", offset = " << offset
                 << ", seqnum = " << seq
@@ -542,7 +554,7 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
                 << ", error msg = " << StatusCode_Name(stcode);
 
         if (stcode != StatusCode::kOK) {
-            LOG(ERROR) << "GetSnapshotSegmentInfo return error, "
+            LOG(WARNING) << "GetSnapshotSegmentInfo return error, "
                        << ", filename = " << filename
                        << ", seq = " << seq;
             return retcode;
@@ -561,7 +573,7 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
 
         int chunksNum = pfs.chunks_size();
         if (chunksNum == 0) {
-            LOG(ERROR) << "mds allocate segment, but no chunk!";
+            LOG(WARNING) << "mds allocate segment, but no chunk!";
             return LIBCURVE_ERROR::FAILED;
         }
 
@@ -597,18 +609,19 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
         }
 
         StatusCode stcode = response.statuscode();
-        LOG_IF(WARNING, stcode != StatusCode::kOK)
-            << "RefreshSession NOT OK: filename = "
-            << filename.c_str() << ", owner = "
-            << userinfo.owner << ", sessionid = "
-            << sessionid << ", status code = "
-            << StatusCode_Name(stcode);
-
-        LOG_EVERY_N(INFO, 10) << "RefreshSession returned: filename = "
-            << filename.c_str() << ", owner = "
-            << userinfo.owner << ", sessionid = "
-            << sessionid << ", status code = "
-            << StatusCode_Name(stcode);
+        if (stcode != StatusCode::kOK) {
+            LOG(WARNING)
+                << "RefreshSession NOT OK: filename = " << filename
+                << ", owner = " << userinfo.owner
+                << ", sessionid = " << sessionid
+                << ", status code = " << StatusCode_Name(stcode);
+        } else {
+            LOG_EVERY_SECOND(INFO)
+                << "RefreshSession returned: filename = " << filename
+                << ", owner = " << userinfo.owner
+                << ", sessionid = " << sessionid
+                << ", status code = " << StatusCode_Name(stcode);
+        }
 
         switch (stcode) {
             case StatusCode::kSessionNotExist:
@@ -621,8 +634,8 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
                 break;
             case StatusCode::kOK:
                 if (response.has_fileinfo()) {
-                    FileInfo finfo = response.fileinfo();
-                    ServiceHelper::ProtoFileInfo2Local(&finfo, &resp->finfo);
+                    ServiceHelper::ProtoFileInfo2Local(response.fileinfo(),
+                                                       &resp->finfo);
                     resp->status = LeaseRefreshResult::Status::OK;
                 } else {
                     LOG(WARNING) << "session response has no fileinfo!";
@@ -630,7 +643,7 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
                 }
                 if (nullptr != lease) {
                     if (!response.has_protosession()) {
-                        LOG(ERROR) << "session response has no protosession";
+                        LOG(WARNING) << "session response has no protosession";
                         return LIBCURVE_ERROR::FAILED;
                     }
                     ProtoSession leasesession = response.protosession();
@@ -671,8 +684,8 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
         LIBCURVE_ERROR retcode;
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-            << "CheckSnapShotStatus: filename = " << filename.c_str()
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+            << "CheckSnapShotStatus: filename = " << filename
             << ", owner = " << userinfo.owner
             << ", seqnum = " << seq << ", errocde = " << retcode
             << ", error msg = " << StatusCode_Name(stcode);
@@ -732,10 +745,10 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
             }
             cpinfoVec->push_back(copysetseverl);
             DVLOG(9) << "copyset id : " << copysetseverl.cpid_
-                     << ", peer info : " << copyset_peer.c_str();
+                     << ", peer info : " << copyset_peer;
         }
 
-        LOG_IF(ERROR, response.statuscode() != 0)
+        LOG_IF(WARNING, response.statuscode() != 0)
             << "GetServerList failed"
             << ", errocde = " << response.statuscode()
             << ", log id = " << cntl->log_id();
@@ -752,10 +765,9 @@ LIBCURVE_ERROR MDSClient::GetClusterInfo(ClusterContext* clsctx) {
         mdsClientBase_.GetClusterInfo(&response, cntl, channel);
 
         if (cntl->Failed()) {
-            LOG(ERROR)  << "get cluster info from mds failed, status code = "
-                << cntl->ErrorCode()
-                << ", error content: "
-                << cntl->ErrorText();
+            LOG(WARNING) << "get cluster info from mds failed, status code = "
+                       << cntl->ErrorCode()
+                       << ", error content: " << cntl->ErrorText();
             return -cntl->ErrorCode();
         }
 
@@ -789,18 +801,19 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string& source,
         LIBCURVE_ERROR retcode;
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
             << "CreateCloneFile: source = " << source
             << ", destination = " << destination
-            << ", owner = " << userinfo.owner.c_str() << ", seqnum = " << sn
+            << ", owner = " << userinfo.owner << ", seqnum = " << sn
             << ", size = " << size << ", chunksize = " << chunksize
             << ", errocde = " << retcode
             << ", error msg = " << StatusCode_Name(stcode)
             << ", log id = " << cntl->log_id();
 
         if (stcode == StatusCode::kOK) {
-            FileInfo finfo = response.fileinfo();
-            ServiceHelper::ProtoFileInfo2Local(&finfo, fileinfo);
+            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(), fileinfo);
+            fileinfo->sourceInfo.name = response.fileinfo().clonesource();
+            fileinfo->sourceInfo.length = response.fileinfo().clonelength();
         }
 
         return retcode;
@@ -835,9 +848,9 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
         LIBCURVE_ERROR retcode;
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                << "SetCloneFileStatus failed, filename = " << filename.c_str()
-                << ", owner = " << userinfo.owner.c_str()
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+                << "SetCloneFileStatus failed, filename = " << filename
+                << ", owner = " << userinfo.owner
                 << ", filestatus = " << static_cast<int>(filestatus)
                 << ", fileID = " << fileID
                 << ", errocde = " << retcode
@@ -858,7 +871,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate, uint64_t offset,
                                             &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.getOrAllocateSegment.eps.count << 1;
-            LOG_EVERY_SECOND(ERROR)
+            LOG(WARNING)
                 << "allocate segment failed, error code = "
                 << cntl->ErrorCode()
                 << ", error content:" << cntl->ErrorText()
@@ -869,7 +882,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate, uint64_t offset,
         auto statuscode = response.statuscode();
         switch (statuscode) {
             case StatusCode::kOwnerAuthFail:
-                LOG(ERROR) << "GetOrAllocateSegment Auth failed!";
+                LOG(WARNING) << "GetOrAllocateSegment Auth failed!";
                 return LIBCURVE_ERROR::AUTHFAIL;
                 break;
             case StatusCode::kSegmentNotAllocated:
@@ -888,7 +901,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate, uint64_t offset,
 
         int chunksNum = pfs.chunks_size();
         if (allocate && chunksNum <= 0) {
-            LOG(ERROR) << "MDS allocate segment, but no chunkinfo!";
+            LOG(WARNING) << "MDS allocate segment, but no chunkinfo!";
             return LIBCURVE_ERROR::FAILED;
         }
 
@@ -923,12 +936,12 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
         LIBCURVE_ERROR retcode;
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                << "RenameFile: origin = " << origin.c_str()
-                << ", destination = " << destination.c_str()
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+                << "RenameFile: origin = " << origin
+                << ", destination = " << destination
                 << ", originId = " << originId
                 << ", destinationId = " << destinationId
-                << ", owner = " << userinfo.owner.c_str()
+                << ", owner = " << userinfo.owner
                 << ", errocde = " << retcode
                 << ", error msg = "
                 << StatusCode_Name(stcode)
@@ -959,9 +972,9 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
         LIBCURVE_ERROR retcode;
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                    << "Extend: filename = " << filename.c_str()
-                    << ", owner = " << userinfo.owner.c_str()
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+                    << "Extend: filename = " << filename
+                    << ", owner = " << userinfo.owner
                     << ", newsize = " << newsize
                     << ", errocde = " << retcode
                     << ", error msg = " << StatusCode_Name(stcode)
@@ -990,9 +1003,9 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
         LIBCURVE_ERROR retcode;
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                << "DeleteFile: filename = " << filename.c_str()
-                << ", owner = " << userinfo.owner.c_str()
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+                << "DeleteFile: filename = " << filename
+                << ", owner = " << userinfo.owner
                 << ", errocde = " << retcode
                 << ", error msg = " << StatusCode_Name(stcode)
                 << ", log id = " << cntl->log_id();
@@ -1020,10 +1033,10 @@ LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string& filename,
         LIBCURVE_ERROR retcode;
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                << "ChangeOwner: filename = " << filename.c_str()
-                << ", owner = " << userinfo.owner.c_str()
-                << ", new owner = " << newOwner.c_str()
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+                << "ChangeOwner: filename = " << filename
+                << ", owner = " << userinfo.owner
+                << ", new owner = " << newOwner
                 << ", errocde = " << retcode
                 << ", error msg = " << StatusCode_Name(stcode)
                 << ", log id = " << cntl->log_id();
@@ -1051,9 +1064,9 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
         LIBCURVE_ERROR retcode;
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                << "Listdir: filename = " << dirpath.c_str()
-                << ", owner = " << userinfo.owner.c_str()
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+                << "Listdir: filename = " << dirpath
+                << ", owner = " << userinfo.owner
                 << ", errocde = " << retcode
                 << ", error msg = " << StatusCode_Name(stcode)
                 << ", log id = " << cntl->log_id();
@@ -1072,7 +1085,7 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
                 memcpy(filestat.owner, finfo.owner().c_str(), NAME_MAX_SIZE);
                 memset(filestat.filename, 0, NAME_MAX_SIZE);
                 memcpy(filestat.filename, finfo.filename().c_str(),
-                NAME_MAX_SIZE);
+                       NAME_MAX_SIZE);
                 filestatVec->push_back(filestat);
             }
         }
@@ -1116,7 +1129,7 @@ LIBCURVE_ERROR MDSClient::GetChunkServerInfo(const ChunkServerAddr& csAddr,
         }
 
         int statusCode = response.statuscode();
-        LOG_IF(ERROR, statusCode != 0)
+        LOG_IF(WARNING, statusCode != 0)
                 << "GetChunkServerInfo: errocde = " << statusCode
                 << ", log id = " << cntl->log_id();
 
@@ -1163,7 +1176,7 @@ LIBCURVE_ERROR MDSClient::ListChunkServerInServer(
         }
 
         int statusCode = response.statuscode();
-        LOG_IF(ERROR, statusCode != 0)
+        LOG_IF(WARNING, statusCode != 0)
             << "ListChunkServerInServer failed, "
             << "errorcode = " << response.statuscode()
             << ", chunkserver ip = " << serverIp

@@ -307,7 +307,8 @@ class CurveFS {
     StatusCode OpenFile(const std::string &fileName,
                         const std::string &clientIP,
                         ProtoSession *protoSession,
-                        FileInfo  *fileInfo);
+                        FileInfo  *fileInfo,
+                        CloneSourceSegment* cloneSourceSegment = nullptr);
 
     /**
      *  @brief 关闭文件
@@ -592,6 +593,28 @@ class CurveFS {
     StatusCode GetFileSize(const std::string& fileName,
                            const FileInfo& fileInfo,
                            uint64_t* fileSize);
+
+    /**
+     * @brief check whether mds has started for enough time, based on the
+     *        file record expiration time(mds.file.expiredTimeUs)
+     * @param times multiple of file record expiration time
+     * @return return true if ok, otherwise return false
+     */
+    bool IsStartEnoughTime(int times) const {
+        std::chrono::steady_clock::duration timePass =
+            std::chrono::steady_clock::now() - startTime_;
+        uint32_t expiredUs = fileRecordManager_->GetFileRecordExpiredTimeUs();
+        return timePass >= times * std::chrono::microseconds(expiredUs);
+    }
+
+    /**
+     * @brief list clone source file's segment,
+     *        if current file status is in kFileCloneMetaInstalled
+     * @param fileInfo current file info
+     * @param[out] cloneSourceSegment source file allocated segments
+     */
+    StatusCode ListCloneSourceFileSegments(
+        const FileInfo* fileInfo, CloneSourceSegment* cloneSourceSegment) const;
 
  private:
     FileInfo rootFileInfo_;
