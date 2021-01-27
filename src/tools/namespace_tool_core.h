@@ -154,6 +154,12 @@ class NameSpaceToolCore {
      */
     virtual int CleanRecycleBin(const std::string& dirName = "");
 
+    virtual int UpdateFileThrottle(const std::string& fileName,
+                                   const std::string& throttleType,
+                                   const uint64_t limit,
+                                   const int64_t burst,
+                                   const int64_t burstLength);
+
  private:
     /**
      *  @brief 获取文件的segment信息并输出到segments里面

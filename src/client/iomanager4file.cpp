@@ -87,6 +87,9 @@ bool IOManager4File::Initialize(const std::string& filename,
 }
 
 void IOManager4File::UnInitialize() {
+    // stop throttle first
+    throttle_.Stop();
+
     bool exitFlag = false;
     std::mutex exitMtx;
     std::condition_variable exitCv;
@@ -133,7 +136,8 @@ int IOManager4File::Read(char* buf, off_t offset,
 
     IOTracker temp(this, &mc_, scheduler_, fileMetric_);
     temp.SetUserDataType(UserDataType::IOBuffer);
-    temp.StartRead(&data, offset, length, mdsclient, this->GetFileInfo());
+    temp.StartRead(&data, offset, length, mdsclient, this->GetFileInfo(),
+                   &throttle_);
 
     int rc = temp.Wait();
 
@@ -157,7 +161,8 @@ int IOManager4File::Write(const char* buf,
 
     IOTracker temp(this, &mc_, scheduler_, fileMetric_);
     temp.SetUserDataType(UserDataType::IOBuffer);
-    temp.StartWrite(&data, offset, length, mdsclient, this->GetFileInfo());
+    temp.StartWrite(&data, offset, length, mdsclient, this->GetFileInfo(),
+                    &throttle_);
 
     int rc = temp.Wait();
     return rc;
@@ -179,7 +184,7 @@ int IOManager4File::AioRead(CurveAioContext* ctx, MDSClient* mdsclient,
     temp->SetUserDataType(dataType);
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
-        temp->StartAioRead(ctx, mdsclient, this->GetFileInfo());
+        temp->StartAioRead(ctx, mdsclient, this->GetFileInfo(), &throttle_);
     };
 
     taskPool_.Enqueue(task);
@@ -202,7 +207,7 @@ int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
     temp->SetUserDataType(dataType);
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
-        temp->StartAioWrite(ctx, mdsclient, this->GetFileInfo());
+        temp->StartAioWrite(ctx, mdsclient, this->GetFileInfo(), &throttle_);
     };
 
     taskPool_.Enqueue(task);
@@ -211,6 +216,11 @@ int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
 
 void IOManager4File::UpdateFileInfo(const FInfo_t& fi) {
     mc_.UpdateFileInfo(fi);
+}
+
+void IOManager4File::UpdateFileThrottleParams(
+    const common::ReadWriteThrottleParams& params) {
+    throttle_.UpdateThrottleParams(params);
 }
 
 void IOManager4File::HandleAsyncIOResponse(IOTracker* iotracker) {

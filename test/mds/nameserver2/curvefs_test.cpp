@@ -44,6 +44,7 @@ using ::testing::Return;
 using ::testing::ReturnArg;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
+using ::testing::SaveArg;
 using curve::common::Authenticator;
 
 using curve::common::TimeUtility;
@@ -4036,6 +4037,78 @@ TEST_F(CurveFSTest, ListAllVolumesOnCopyset) {
         .WillOnce(Return(StoreStatus::KeyNotExist));
         ASSERT_EQ(StatusCode::kStorageError,
                     curvefs_->ListVolumesOnCopyset(copysetVec, &fileNames));
+    }
+}
+
+TEST_F(CurveFSTest, TestUpdateFileThrottleParams) {
+    // GetFileInfo failed
+    {
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        ASSERT_EQ(
+            StatusCode::kFileNotExists,
+            curvefs_->UpdateFileThrottleParams("/hello", ThrottleParams{}));
+    }
+
+    // test add new one throttle
+    {
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+
+        FileInfo updatedFileInfo;
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+                            Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, PutFile(_))
+            .WillOnce(
+                DoAll(SaveArg<0>(&updatedFileInfo), Return(StoreStatus::OK)));
+
+        ThrottleParams params;
+        params.set_type(ThrottleType::IOPS_TOTAL);
+        ASSERT_EQ(StatusCode::kOK,
+                  curvefs_->UpdateFileThrottleParams("/hello", params));
+        ASSERT_EQ(1, updatedFileInfo.throttleparams().throttleparams_size());
+        ASSERT_EQ(ThrottleType::IOPS_TOTAL,
+                  updatedFileInfo.throttleparams().throttleparams(0).type());
+    }
+
+    // test update existing throttle
+    {
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        auto* throttleParams = fileInfo.mutable_throttleparams();
+
+        ThrottleParams existParams;
+        existParams.set_type(ThrottleType::IOPS_TOTAL);
+        existParams.set_limit(100);
+        *throttleParams->add_throttleparams() = existParams;
+
+        FileInfo updatedFileInfo;
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, PutFile(_))
+            .WillOnce(
+                DoAll(SaveArg<0>(&updatedFileInfo), Return(StoreStatus::OK)));
+
+        ThrottleParams newParams;
+        newParams.set_type(ThrottleType::IOPS_TOTAL);
+        newParams.set_limit(2000);
+        newParams.set_burst(10000);
+        newParams.set_burstlength(10);
+        ASSERT_EQ(StatusCode::kOK,
+                  curvefs_->UpdateFileThrottleParams("/hello", newParams));
+        ASSERT_EQ(1, updatedFileInfo.throttleparams().throttleparams_size());
+        ASSERT_EQ(ThrottleType::IOPS_TOTAL,
+                  updatedFileInfo.throttleparams().throttleparams(0).type());
+        ASSERT_EQ(2000,
+                  updatedFileInfo.throttleparams().throttleparams(0).limit());
+        ASSERT_EQ(10000,
+                  updatedFileInfo.throttleparams().throttleparams(0).burst());
+        ASSERT_EQ(
+            10,
+            updatedFileInfo.throttleparams().throttleparams(0).burstlength());
     }
 }
 

@@ -34,6 +34,11 @@ DECLARE_string(mdsAddr);
 DEFINE_bool(showAllocMap, false, "If specified, the allocated size in each"
                                  " logical pool will be print");
 
+DEFINE_string(throttleType, "", "throttle type");
+DEFINE_uint64(limit, 0, "throttle limit");
+DEFINE_int64(burst, -1, "throttle burst");
+DEFINE_int64(burstLength, -1, "throttle burst length");
+
 namespace curve {
 namespace tool {
 
@@ -55,7 +60,8 @@ bool NameSpaceTool::SupportCommand(const std::string& command) {
                                || command == kDeleteCmd
                                || command == kCreateCmd
                                || command == kCleanRecycleCmd
-                               || command == kChunkLocatitonCmd);
+                               || command == kChunkLocatitonCmd
+                               || command == kUpdateThrottle);
 }
 
 // 根据命令行参数选择对应的操作
@@ -105,6 +111,10 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
         return core_->CreateFile(fileName, FLAGS_fileLength * mds::kGB);
     } else if (cmd == kChunkLocatitonCmd) {
         return PrintChunkLocation(fileName, FLAGS_offset);
+    } else if (cmd == kUpdateThrottle) {
+        return core_->UpdateFileThrottle(fileName, FLAGS_throttleType,
+                                         FLAGS_limit, FLAGS_burst,
+                                         FLAGS_burstLength);
     } else {
         std::cout << "Command not support!" << std::endl;
         return -1;
@@ -127,6 +137,8 @@ void NameSpaceTool::PrintHelp(const std::string &cmd) {
         std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -forcedelete=true  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
     } else if (cmd == kChunkLocatitonCmd) {
         std::cout << "curve_ops_tool " << cmd << " -fileName=/test -offset=16777216 [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+    } else if (cmd == kUpdateThrottle) {
+        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -throttleType=(IOPS_TOTAL|IOPS_READ|IOPS_WRITE|BPS_TOTAL|BPS_READ|BPS_WRITE) -limit=20000 [-burst=30000] [-burstLength=10]" << std::endl;  // NOLINT
     } else {
         std::cout << "command not found!" << std::endl;
     }

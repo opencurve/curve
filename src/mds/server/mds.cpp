@@ -454,6 +454,20 @@ void MDS::InitAuthOptions(RootAuthOption *authOptions) {
         "mds.auth.rootPassword", &authOptions->rootPassword);
 }
 
+void MDS::InitThrottleOption(ThrottleOption* option) {
+    conf_->GetValueFatalIfFail("mds.throttle.iopsMin", &option->iopsMin);
+    conf_->GetValueFatalIfFail("mds.throttle.iopsMax", &option->iopsMax);
+    conf_->GetValueFatalIfFail("mds.throttle.iopsPerGB", &option->iopsPerGB);
+
+    conf_->GetValueFatalIfFail("mds.throttle.bpsMinInMB", &option->bpsMin);
+    conf_->GetValueFatalIfFail("mds.throttle.bpsMaxInMB", &option->bpsMax);
+    conf_->GetValueFatalIfFail("mds.throttle.bpsPerGBInMB", &option->bpsPerGB);
+
+    option->bpsMin *= kMB;
+    option->bpsMax *= kMB;
+    option->bpsPerGB *= kMB;
+}
+
 void MDS::InitCurveFSOptions(CurveFSOption *curveFSOptions) {
     conf_->GetValueFatalIfFail(
         "mds.curvefs.defaultChunkSize", &curveFSOptions->defaultChunkSize);
@@ -462,6 +476,8 @@ void MDS::InitCurveFSOptions(CurveFSOption *curveFSOptions) {
 
     RootAuthOption authOptions;
     InitAuthOptions(&curveFSOptions->authOptions);
+
+    InitThrottleOption(&curveFSOptions->throttleOption);
 }
 
 void MDS::InitCleanManager() {

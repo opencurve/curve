@@ -24,6 +24,8 @@
 
 #include <cmath>
 #include <cstdint>
+#include <algorithm>
+#include <numeric>
 
 namespace curve {
 namespace common {
@@ -35,6 +37,30 @@ inline uint64_t MaxPowerTimesLessEqualValue(uint64_t value) {
         pow++;
     }
     return pow;
+}
+
+/**
+ * @brief clamp value between low and high
+ * @return if value compares less than low, return low;
+ *         otherwise, if value compares greater then high, return high;
+ *         otherwise, return value.
+ */
+template <typename T, typename Compare>
+inline const T& Clamp(const T& value, const T& low, const T& high,
+                      Compare comp) {
+    return comp(value, low) ? low : (comp(high, value) ? high : value);
+}
+
+/**
+ * @brief clamp value between low and high
+ * @return if value compares less than low, return low;
+ *         otherwise, if value compares greater then high, return high;
+ *         otherwise, return value.
+ */
+template <typename T>
+inline const T& Clamp(const T& value, const T& low, const T& high) {
+    return Clamp(value, low, high,
+                 [](const T& a, const T& b) { return a < b ? true : false; });
 }
 
 }  // namespace common

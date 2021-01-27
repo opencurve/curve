@@ -58,6 +58,7 @@ const char* kHelpStr = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
         "check-operator : check the operators\n"
         "list-may-broken-vol: list all volumes on majority offline copysets\n"
         "set-copyset-availflag: set copysets available flags\n"
+        "update-throttle: update file throttle params\n"
         "rapid-leader-schedule: rapid leader schedule in cluster in logicalpool\n\n"  //NOLINT
         "You can specify the config path by -confPath to avoid typing too many options\n";  //NOLINT
 
@@ -130,4 +131,3 @@ int main(int argc, char** argv) {
     }
     return curveTool->RunCommand(command);
 }
-

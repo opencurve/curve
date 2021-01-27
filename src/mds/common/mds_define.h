@@ -168,4 +168,3 @@ const uint32_t kInvalidPort = 0;
 
 
 #endif  // SRC_MDS_COMMON_MDS_DEFINE_H_
-

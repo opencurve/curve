@@ -93,6 +93,7 @@ TEST_F(NameSpaceToolTest, SupportCommand) {
     ASSERT_TRUE(namespaceTool.SupportCommand("clean-recycle"));
     ASSERT_TRUE(namespaceTool.SupportCommand("create"));
     ASSERT_TRUE(namespaceTool.SupportCommand("chunk-location"));
+    ASSERT_TRUE(namespaceTool.SupportCommand("update-throttle"));
     ASSERT_FALSE(namespaceTool.SupportCommand("none"));
 }
 

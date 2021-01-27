@@ -156,6 +156,36 @@ int NameSpaceToolCore::CleanRecycleBin(const std::string& dirName) {
     return -1;
 }
 
+int NameSpaceToolCore::UpdateFileThrottle(const std::string& fileName,
+                                          const std::string& throttleType,
+                                          const uint64_t limit,
+                                          const int64_t burst,
+                                          const int64_t burstLength) {
+    curve::mds::ThrottleType type;
+    if (!curve::mds::ThrottleType_Parse(throttleType, &type)) {
+        std::cout
+            << "Parse throttle type '" << throttleType
+            << "' failed, only support "
+               "IOPS_TOTAL|IOPS_READ|IOPS_WRITE|BPS_TOTAL|BPS_READ|BPS_WRITE"
+            << std::endl;
+        return -1;
+    }
+
+    curve::mds::ThrottleParams params;
+    params.set_limit(limit);
+    params.set_type(type);
+    if (burst >= 0) {
+        if (burst < limit) {
+            std::cout << "burst should greater equal to limit" << std::endl;
+            return -1;
+        }
+        params.set_burst(burst);
+        params.set_burstlength(burstLength > 0 ? burstLength : 1);
+    }
+
+    return client_->UpdateFileThrottleParams(fileName, params);
+}
+
 int NameSpaceToolCore::QueryChunkCopyset(const std::string& fileName,
                                      uint64_t offset,
                                      uint64_t* chunkId,

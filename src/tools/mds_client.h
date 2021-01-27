@@ -432,6 +432,9 @@ class MDSClient {
         const std::vector<ChunkServerIdType>& cs,
         std::map<ChunkServerIdType, bool> *statusMap);
 
+    virtual int UpdateFileThrottleParams(
+        const std::string& fileName, const curve::mds::ThrottleParams& params);
+
  private:
     /**
      *  @brief 切换mds
