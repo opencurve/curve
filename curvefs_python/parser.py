@@ -42,6 +42,13 @@ def get_parser():
     subparser.add_argument("--filename", help='name of file', type=str, required=True)
     subparser.add_argument("--password", help='password of user', type=str)
 
+    # recover option
+    subparser = subparsers.add_parser("recover", help="recover file")
+    subparser.add_argument("--user", help='user of file', type=str, required=True)
+    subparser.add_argument("--filename", help='name of file', type=str, required=True)
+    subparser.add_argument("--id", help='inodeid of file', type=int)
+    subparser.add_argument("--password", help='password of user', type=str)
+
     # extend option
     subparser = subparsers.add_parser("extend", help="extend file")
     subparser.add_argument("--user", help='user of file', type=str, required=True)
