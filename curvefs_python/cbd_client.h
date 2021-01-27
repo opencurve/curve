@@ -52,6 +52,7 @@ class CBDClient {
                                 uint64_t stripeUnit, uint64_t stripeCount);
     int Unlink(const char* filename, UserInfo_t* info);
     int DeleteForce(const char* filename, UserInfo_t* info);
+    int Recover(const char* filename, UserInfo_t* info, uint64_t fileId);
     int Rename(UserInfo_t* info, const char* oldpath, const char* newpath);
     int Extend(const char* filename, UserInfo_t* info, uint64_t size);
 

@@ -328,6 +328,46 @@ StatusCode CurveFS::GetFileInfo(const std::string & filename,
     }
 }
 
+StatusCode CurveFS::GetRecoverFileInfo(const std::string& originFileName,
+                                       const uint64_t fileId,
+                                       FileInfo* recoverFileInfo) {
+    std::vector<FileInfo> fileInfoList;
+    recoverFileInfo->set_ctime(0);
+    bool findRecoverFile = false;
+
+    StatusCode retCode = ReadDir(RECYCLEBINDIR, &fileInfoList);
+    if (retCode != StatusCode::kOK)  {
+        LOG(ERROR) <<"ReadDir fail, filename = " <<  RECYCLEBINDIR
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        return retCode;
+    } else {
+        if (fileId != kUnitializedFileID) {
+            for (auto iter = fileInfoList.begin(); iter != fileInfoList.end();
+                 ++iter) {
+                // recover the specified file
+                if (fileId == iter->id()) {
+                    recoverFileInfo->CopyFrom(*iter);
+                    return StatusCode::kOK;
+                }
+            }
+        }
+        for (auto iter = fileInfoList.begin(); iter != fileInfoList.end();
+                ++iter) {
+            // recover the newer file
+            if (iter->originalfullpathname() == originFileName &&
+                iter->ctime() > recoverFileInfo->ctime()) {
+                recoverFileInfo->CopyFrom(*iter);
+                findRecoverFile = true;
+            }
+        }
+        if (findRecoverFile != true) {
+            return StatusCode::kFileNotExists;
+        }
+    }
+    return StatusCode::kOK;
+}
+
 AllocatedSize& AllocatedSize::operator+=(const AllocatedSize& rhs) {
     total += rhs.total;
     for (const auto& item : rhs.allocSizeMap) {
@@ -686,6 +726,77 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
     }
 }
 
+StatusCode CurveFS::RecoverFile(const std::string & originFileName,
+                                const std::string & recycleFileName,
+                                uint64_t fileId) {
+    // check the same file exists
+    FileInfo parentFileInfo;
+    std::string lastEntry;
+    auto ret = WalkPath(originFileName, &parentFileInfo, &lastEntry);
+    if ( ret != StatusCode::kOK ) {
+        LOG(WARNING) << "WalkPath failed, the middle path of "
+                     << originFileName << " is not exist";
+        return ret;
+    }
+
+    FileInfo fileInfo;
+    ret = LookUpFile(parentFileInfo, lastEntry, &fileInfo);
+    if (ret == StatusCode::kOK) {
+        return StatusCode::kFileExists;
+    }
+
+    FileInfo  recycleFileInfo;
+    ret = GetFileInfo(recycleFileName, &recycleFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(INFO) << "get recycle file error, recycleFilename = "
+                  << recycleFileName << ", errCode = " << ret;
+        return ret;
+    }
+
+    if (fileId != kUnitializedFileID && fileId != recycleFileInfo.id()) {
+        LOG(WARNING) << "recover fail, recycleFileId missmatch"
+                     << ", recycleFileName = " << recycleFileName
+                     << ", originFileName = " << originFileName
+                     << ", recycleFileInfo.id = " << recycleFileInfo.id()
+                     << ", fileId = " << fileId;
+        return StatusCode::kFileIdNotMatch;
+    }
+
+    // determine whether recycleFileName can be recovered
+    switch (recycleFileInfo.filestatus()) {
+        case FileStatus::kFileDeleting:
+            LOG(ERROR) << "recover fail, can not recover file under deleting"
+                    << ", recycleFileName = " << recycleFileName;
+            return StatusCode::kFileUnderDeleting;
+        case FileStatus::kFileCloneMetaInstalled:
+            LOG(ERROR) << "recover fail, can not recover file "
+                    << "cloneMetaInstalled, recycleFileName = "
+                    << recycleFileName;
+            return StatusCode::kRecoverFileCloneMetaInstalled;
+        case FileStatus::kFileCloning:
+            LOG(ERROR) << "recover fail, can not recover file cloning"
+                    << ", recycleFileName = " << recycleFileName;
+            return StatusCode::kRecoverFileError;
+        default:
+            break;
+    }
+
+    FileInfo recoverFileInfo;
+    recoverFileInfo.CopyFrom(recycleFileInfo);
+    recoverFileInfo.set_parentid(parentFileInfo.id());
+    recoverFileInfo.set_filename(lastEntry);
+    recoverFileInfo.clear_originalfullpathname();
+    if (recycleFileInfo.filestatus() == FileStatus::kFileBeingCloned) {
+        recycleFileInfo.set_filestatus(FileStatus::kFileCreated);
+    }
+
+    auto ret1 = storage_->RenameFile(recycleFileInfo, recoverFileInfo);
+    if ( ret1 != StoreStatus::OK ) {
+        LOG(ERROR) << "storage_ recoverfile error, error = " << ret1;
+        return StatusCode::kStorageError;
+    }
+    return StatusCode::kOK;
+}
 
 StatusCode CurveFS::IncreaseFileEpoch(const std::string &filename,
     FileInfo *fileInfo,
@@ -1941,6 +2052,52 @@ StatusCode CurveFS::CheckEpoch(const std::string &filename,
         return StatusCode::kEpochTooOld;
     }
     return StatusCode::kOK;
+}
+
+StatusCode CurveFS::CheckRecycleFileOwner(const std::string &filename,
+                                          const std::string &owner,
+                                          const std::string &signature,
+                                          uint64_t date) {
+    if (owner.empty()) {
+        LOG(ERROR) << "file owner is empty, filename = " << filename
+                   << ", owner = " << owner;
+        return StatusCode::kOwnerAuthFail;
+    }
+
+    StatusCode ret = StatusCode::kOwnerAuthFail;
+
+    if (!CheckDate(date)) {
+        LOG(ERROR) << "check date fail, request is staled.";
+        return ret;
+    }
+
+    if (owner == GetRootOwner()) {
+        ret = CheckSignature(owner, signature, date)
+              ? StatusCode::kOK : StatusCode::kOwnerAuthFail;
+        LOG_IF(ERROR, ret == StatusCode::kOwnerAuthFail)
+              << "check root owner fail, signature auth fail.";
+        return ret;
+    }
+
+    std::vector<std::string> paths;
+    ::curve::common::SplitString(filename, "/", &paths);
+    if (paths.size() != 2 || paths[0] != RECYCLEBINDIRNAME) {
+        return StatusCode::kOwnerAuthFail;
+    }
+
+    FileInfo  fileInfo;
+    auto ret1 = storage_->GetFile(RECYCLEBININODEID, paths[1], &fileInfo);
+
+    if (ret1 == StoreStatus::OK) {
+        if (fileInfo.owner() != owner) {
+            return StatusCode::kOwnerAuthFail;
+        }
+        return StatusCode::kOK;
+    } else if  (ret1 == StoreStatus::KeyNotExist) {
+        return StatusCode::kFileNotExists;
+    } else {
+        return StatusCode::kStorageError;
+    }
 }
 
 // kStaledRequestTimeIntervalUs represents the expiration time of the request

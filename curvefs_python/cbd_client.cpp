@@ -68,6 +68,10 @@ int CBDClient::DeleteForce(const char* filename, UserInfo_t* userInfo) {
     return client_->Unlink(filename, ToCurveClientUserInfo(userInfo), true);
 }
 
+int CBDClient::Recover(const char* filename, UserInfo_t* userInfo, uint64_t fileId) { // NOLINT
+    return client_->Recover(filename, ToCurveClientUserInfo(userInfo), fileId);
+}
+
 int CBDClient::Rename(UserInfo_t* userInfo, const char* oldPath,
                       const char* newPath) {
     return client_->Rename(ToCurveClientUserInfo(userInfo), oldPath, newPath);

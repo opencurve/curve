@@ -184,6 +184,17 @@ class MDSClient : public MDSClientBase,
                               const UserInfo_t& userinfo,
                               bool deleteforce = false,
                               uint64_t id = 0);
+
+    /**
+     * recover file
+     * @param: userinfo
+     * @param: filename
+     * @param: fileId is inodeid，default 0
+     */
+    LIBCURVE_ERROR RecoverFile(const std::string& filename,
+                              const UserInfo_t& userinfo,
+                              uint64_t fileId);
+
     /**
      * 创建版本号为seq的快照
      * @param: userinfo是用户信息

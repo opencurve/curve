@@ -5590,6 +5590,49 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Recover(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  char *arg1 = (char *) 0 ;
+  UserInfo_t *arg2 = (UserInfo_t *) 0 ;
+  uint64_t arg3 ;
+  int res1 ;
+  char *buf1 = 0 ;
+  int alloc1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  unsigned long long val3 ;
+  int ecode3 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  PyObject * obj2 = 0 ;
+  int result;
+
+  if (!PyArg_ParseTuple(args,(char *)"OOO:Recover",&obj0,&obj1,&obj2)) SWIG_fail;
+  res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Recover" "', argument " "1"" of type '" "char const *""'");
+  }
+  arg1 = reinterpret_cast< char * >(buf1);
+  res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_UserInfo, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Recover" "', argument " "2"" of type '" "UserInfo_t *""'");
+  }
+  arg2 = reinterpret_cast< UserInfo_t * >(argp2);
+  ecode3 = SWIG_AsVal_unsigned_SS_long_SS_long(obj2, &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Recover" "', argument " "3"" of type '" "uint64_t""'");
+  }
+  arg3 = static_cast< uint64_t >(val3);
+  result = (int)Recover((char const *)arg1,arg2,arg3);
+  resultobj = SWIG_From_int(static_cast< int >(result));
+  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
+  return resultobj;
+fail:
+  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_DeleteForce(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   char *arg1 = (char *) 0 ;
@@ -6232,6 +6275,56 @@ fail:
   return NULL;
 }
 
+SWIGINTERN PyObject *_wrap_CBDClient_Recover(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CBDClient *arg1 = (CBDClient *) 0 ;
+  char *arg2 = (char *) 0 ;
+  UserInfo_t *arg3 = (UserInfo_t *) 0 ;
+  uint64_t arg4 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  unsigned long long val4 ;
+  int ecode4 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  PyObject * obj2 = 0 ;
+  PyObject * obj3 = 0 ;
+  int result;
+
+  if (!PyArg_ParseTuple(args,(char *)"OOOO:CBDClient_Recover",&obj0,&obj1,&obj2,&obj3)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CBDClient, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CBDClient_Recover" "', argument " "1"" of type '" "CBDClient *""'");
+  }
+  arg1 = reinterpret_cast< CBDClient * >(argp1);
+  res2 = SWIG_AsCharPtrAndSize(obj1, &buf2, NULL, &alloc2);
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "CBDClient_Recover" "', argument " "2"" of type '" "char const *""'");
+  }
+  arg2 = reinterpret_cast< char * >(buf2);
+  res3 = SWIG_ConvertPtr(obj2, &argp3,SWIGTYPE_p_UserInfo, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "CBDClient_Recover" "', argument " "3"" of type '" "UserInfo_t *""'");
+  }
+  arg3 = reinterpret_cast< UserInfo_t * >(argp3);
+  ecode4 = SWIG_AsVal_unsigned_SS_long_SS_long(obj3, &val4);
+  if (!SWIG_IsOK(ecode4)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "CBDClient_Recover" "', argument " "4"" of type '" "uint64_t""'");
+  }
+  arg4 = static_cast< uint64_t >(val4);
+  result = (int)(arg1)->Recover((char const *)arg2,arg3,arg4);
+  resultobj = SWIG_From_int(static_cast< int >(result));
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+  return resultobj;
+fail:
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+  return NULL;
+}
 
 SWIGINTERN PyObject *_wrap_CBDClient_Rename(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
@@ -6979,6 +7072,7 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"Extend", _wrap_Extend, METH_VARARGS, NULL},
 	 { (char *)"Unlink", _wrap_Unlink, METH_VARARGS, NULL},
 	 { (char *)"DeleteForce", _wrap_DeleteForce, METH_VARARGS, NULL},
+	 { (char *)"Recover", _wrap_Recover, METH_VARARGS, NULL},
 	 { (char *)"OpenDir", _wrap_OpenDir, METH_VARARGS, NULL},
 	 { (char *)"CloseDir", _wrap_CloseDir, METH_VARARGS, NULL},
 	 { (char *)"Listdir", _wrap_Listdir, METH_VARARGS, NULL},
@@ -6996,6 +7090,7 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"CBDClient_Create2", _wrap_CBDClient_Create2, METH_VARARGS, NULL},
 	 { (char *)"CBDClient_Unlink", _wrap_CBDClient_Unlink, METH_VARARGS, NULL},
 	 { (char *)"CBDClient_DeleteForce", _wrap_CBDClient_DeleteForce, METH_VARARGS, NULL},
+	 { (char *)"CBDClient_Recover", _wrap_CBDClient_Recover, METH_VARARGS, NULL},
 	 { (char *)"CBDClient_Rename", _wrap_CBDClient_Rename, METH_VARARGS, NULL},
 	 { (char *)"CBDClient_Extend", _wrap_CBDClient_Extend, METH_VARARGS, NULL},
 	 { (char *)"CBDClient_Read", _wrap_CBDClient_Read, METH_VARARGS, NULL},

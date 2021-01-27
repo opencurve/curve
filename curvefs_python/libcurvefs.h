@@ -55,6 +55,7 @@ int Close(int fd);
 int Rename(UserInfo_t* info, const char* oldpath, const char* newpath);
 int Extend(const char* filename, UserInfo_t* info, uint64_t size);
 int Unlink(const char* filename, UserInfo_t* info);
+int Recover(const char* filename, UserInfo_t* info, uint64_t fileId);
 int DeleteForce(const char* filename, UserInfo_t* info);
 DirInfos_t* OpenDir(const char* dirpath, UserInfo_t* userinfo);
 void CloseDir(DirInfos_t* dirinfo);
