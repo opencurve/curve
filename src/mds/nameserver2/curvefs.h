@@ -52,10 +52,21 @@ struct RootAuthOption {
     std::string rootPassword;
 };
 
+struct ThrottleOption {
+    uint64_t iopsMin;
+    uint64_t iopsMax;
+    double iopsPerGB;
+
+    uint64_t bpsMin;
+    uint64_t bpsMax;
+    double bpsPerGB;
+};
+
 struct CurveFSOption {
     uint64_t defaultChunkSize;
     RootAuthOption authOptions;
     FileRecordOptions fileRecordOptions;
+    ThrottleOption throttleOption;
 };
 
 struct AllocatedSize {
@@ -513,6 +524,15 @@ class CurveFS {
                         std::vector<std::string>* fileNames);
 
     /**
+     * @brief Update file throttle params
+     * @param filename
+     * @param param throttle params
+     * @return StatusCode::kOK if succeeded
+     */
+    StatusCode UpdateFileThrottleParams(const std::string& fileName,
+                                        ThrottleParams params);
+
+    /**
      *  @brief Get the number of opened files
      *  @param
      *  @return return 0 of CurveFS has not been initialized
@@ -701,6 +721,7 @@ class CurveFS {
     StatusCode CheckStripeParam(uint64_t stripeUnit,
                            uint64_t stripeCount);
 
+    FileThrottleParams GenerateThrottleParams(uint64_t length) const;
 
  private:
     FileInfo rootFileInfo_;
@@ -713,6 +734,7 @@ class CurveFS {
     std::shared_ptr<Topology> topology_;
     std::shared_ptr<SnapshotCloneClient> snapshotCloneClient_;
     struct RootAuthOption       rootAuthOptions_;
+    ThrottleOption throttleOption_;
 
     uint64_t defaultChunkSize_;
     std::chrono::steady_clock::time_point startTime_;

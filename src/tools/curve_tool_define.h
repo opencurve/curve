@@ -62,6 +62,7 @@ const char kDeleteCmd[] = "delete";
 const char kCreateCmd[] = "create";
 const char kCleanRecycleCmd[] = "clean-recycle";
 const char kChunkLocatitonCmd[] = "chunk-location";
+const char kUpdateThrottle[] = "update-throttle";
 
 // CopysetCheck相关命令
 const char kCheckCopysetCmd[] = "check-copyset";

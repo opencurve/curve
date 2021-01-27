@@ -28,6 +28,7 @@ using ::testing::_;
 using ::testing::Return;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
+using ::testing::SaveArg;
 using curve::tool::GetSegmentRes;
 
 DECLARE_bool(isTest);
@@ -348,3 +349,67 @@ TEST_F(NameSpaceToolCoreTest, GetFileSize) {
     ASSERT_EQ(0, namespaceTool.GetFileSize("/test", &size));
 }
 
+TEST_F(NameSpaceToolCoreTest, TestUpdateThrottle) {
+    curve::tool::NameSpaceToolCore namespaceTool(client_);
+
+    // 1. throttle type is invalid
+    {
+        EXPECT_CALL(*client_, UpdateFileThrottleParams(_, _))
+            .Times(0);
+
+        ASSERT_EQ(-1, namespaceTool.UpdateFileThrottle("/test", "hello", 10000,
+                                                       0, 0));
+    }
+
+    // 2. burst and burstLength is not specified
+    {
+        curve::mds::ThrottleParams params;
+        EXPECT_CALL(*client_, UpdateFileThrottleParams(_, _))
+            .WillOnce(
+                DoAll(SaveArg<1>(&params), Return(0)));
+
+        ASSERT_EQ(0, namespaceTool.UpdateFileThrottle("/test", "BPS_TOTAL",
+                                                       10000, -1, -1));
+        ASSERT_EQ(10000, params.limit());
+        ASSERT_FALSE(params.has_burst());
+        ASSERT_FALSE(params.has_burstlength());
+    }
+
+    // 3. burst lower than limit
+    {
+        curve::mds::ThrottleParams params;
+        EXPECT_CALL(*client_, UpdateFileThrottleParams(_, _))
+            .Times(0);
+
+        ASSERT_EQ(-1, namespaceTool.UpdateFileThrottle("/test", "BPS_TOTAL",
+                                                       10000, 5000, -1));
+    }
+
+    // 4. burstLength is not specified
+    {
+        curve::mds::ThrottleParams params;
+        EXPECT_CALL(*client_, UpdateFileThrottleParams(_, _))
+            .Times(1)
+            .WillOnce(DoAll(SaveArg<1>(&params), Return(0)));
+
+        ASSERT_EQ(0, namespaceTool.UpdateFileThrottle("/test", "BPS_TOTAL",
+                                                       10000, 50000, -1));
+        ASSERT_EQ(10000, params.limit());
+        ASSERT_EQ(50000, params.burst());
+        ASSERT_EQ(1, params.burstlength());
+    }
+
+    // 5. burst and burstLength is specified
+    {
+        curve::mds::ThrottleParams params;
+        EXPECT_CALL(*client_, UpdateFileThrottleParams(_, _))
+            .Times(1)
+            .WillOnce(DoAll(SaveArg<1>(&params), Return(0)));
+
+        ASSERT_EQ(0, namespaceTool.UpdateFileThrottle("/test", "BPS_TOTAL",
+                                                       10000, 50000, 10));
+        ASSERT_EQ(10000, params.limit());
+        ASSERT_EQ(50000, params.burst());
+        ASSERT_EQ(10, params.burstlength());
+    }
+}

@@ -180,6 +180,12 @@ class NameSpaceService: public CurveFSService {
                 ::curve::mds::ListVolumesOnCopysetsResponse* response,
                 ::google::protobuf::Closure* done) override;
 
+    void UpdateFileThrottleParams(
+        ::google::protobuf::RpcController* controller,
+        const ::curve::mds::UpdateFileThrottleParamsRequest* request,
+        ::curve::mds::UpdateFileThrottleParamsResponse* response,
+        ::google::protobuf::Closure* done) override;
+
  private:
     FileLockManager *fileLockManager_;
 };

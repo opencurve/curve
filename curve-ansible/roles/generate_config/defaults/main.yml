@@ -72,6 +72,12 @@ mds_chunkserverclient_rpc_retry_interval_ms: 500
 mds_chunkserverclient_update_leader_retry_times: 5
 mds_chunkserverclient_update_leader_retry_interval_ms: 5000
 mds_common_log_dir: ./
+throttle_iops_min: 2000
+throttle_iops_max: 26000
+throttle_iops_per_GB: 30
+throttle_bps_min_in_MB: 120
+throttle_bps_max_in_MB: 260
+throttle_bps_per_GB_in_MB: 0.3
 
 # chunkserver配置默认值
 chunkserver_enable_external_server: true

@@ -34,6 +34,48 @@
 namespace curve {
 namespace client {
 
+common::ReadWriteThrottleParams ServiceHelper::ProtoFileThrottleParamsToLocal(
+    const mds::FileThrottleParams& params) {
+    common::ReadWriteThrottleParams localParams;
+    for (int i = 0; i < params.throttleparams_size(); ++i) {
+        ParseProtoThrottleParams(params.throttleparams(i), &localParams);
+    }
+
+    return localParams;
+}
+
+void ServiceHelper::ParseProtoThrottleParams(
+    const curve::mds::ThrottleParams& params,
+    common::ReadWriteThrottleParams* localParams) {
+    auto type = params.type();
+    switch (type) {
+        case curve::mds::ThrottleType::IOPS_TOTAL:
+            localParams->iopsTotal = curve::common::ThrottleParams(
+                params.limit(), params.burst(), params.burstlength());
+            return;
+        case curve::mds::ThrottleType::IOPS_READ:
+            localParams->iopsRead = curve::common::ThrottleParams(
+                params.limit(), params.burst(), params.burstlength());
+            return;
+        case curve::mds::ThrottleType::IOPS_WRITE:
+            localParams->iopsWrite = curve::common::ThrottleParams(
+                params.limit(), params.burst(), params.burstlength());
+            return;
+        case curve::mds::ThrottleType::BPS_TOTAL:
+            localParams->bpsTotal = curve::common::ThrottleParams(
+                params.limit(), params.burst(), params.burstlength());
+            return;
+        case curve::mds::ThrottleType::BPS_READ:
+            localParams->bpsRead = curve::common::ThrottleParams(
+                params.limit(), params.burst(), params.burstlength());
+            return;
+        case curve::mds::ThrottleType::BPS_WRITE:
+            localParams->bpsWrite = curve::common::ThrottleParams(
+                params.limit(), params.burst(), params.burstlength());
+            return;
+    }
+}
+
 void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
                                         FInfo_t* fi) {
     if (finfo.has_owner()) {
@@ -77,6 +119,11 @@ void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
     }
     if (finfo.has_stripecount()) {
         fi->stripeCount = finfo.stripecount();
+    }
+
+    if (finfo.has_throttleparams()) {
+        fi->throttleParams =
+            ProtoFileThrottleParamsToLocal(finfo.throttleparams());
     }
 }
 

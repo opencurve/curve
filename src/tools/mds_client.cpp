@@ -976,6 +976,32 @@ int MDSClient::QueryChunkServerRecoverStatus(
     return -1;
 }
 
+int MDSClient::UpdateFileThrottleParams(
+    const std::string& fileName, const curve::mds::ThrottleParams& params) {
+    curve::mds::UpdateFileThrottleParamsRequest request;
+    curve::mds::UpdateFileThrottleParamsResponse response;
+
+    request.set_filename(fileName);
+    request.set_allocated_throttleparams(new mds::ThrottleParams(params));
+    FillUserInfo(&request);
+
+    curve::mds::CurveFSService_Stub stub(&channel_);
+
+    auto fn = &curve::mds::CurveFSService_Stub::UpdateFileThrottleParams;
+    if (SendRpcToMds(&request, &response, &stub, fn) != 0) {
+        std::cout << "UpdateFileThrottleParams from all mds fail!" << std::endl;
+        return -1;
+    }
+
+    if (response.statuscode() == StatusCode::kOK) {
+        return 0;
+    }
+
+    std::cout << "UpdateFileThrottleParams fail with errCode: "
+              << curve::mds::StatusCode_Name(response.statuscode())
+              << std::endl;
+    return -1;
+}
 
 template <typename T, typename Request, typename Response>
 int MDSClient::SendRpcToMds(Request* request, Response* response, T* obp,

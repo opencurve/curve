@@ -137,6 +137,13 @@ class ServiceHelper {
      */
     static int CheckChunkServerHealth(const butil::EndPoint& endPoint,
                                       int32_t requestTimeoutMs);
+
+    static common::ReadWriteThrottleParams ProtoFileThrottleParamsToLocal(
+        const curve::mds::FileThrottleParams& params);
+
+    static void ParseProtoThrottleParams(
+        const curve::mds::ThrottleParams& params,
+        common::ReadWriteThrottleParams* localParams);
 };
 
 }   // namespace client

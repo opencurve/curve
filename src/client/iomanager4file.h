@@ -40,6 +40,7 @@
 #include "src/client/request_scheduler.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/task_thread_pool.h"
+#include "src/common/throttle.h"
 
 namespace curve {
 namespace client {
@@ -183,6 +184,9 @@ class IOManager4File : public IOManager {
         return mc_.InodeId();
     }
 
+    void UpdateFileThrottleParams(
+        const common::ReadWriteThrottleParams& params);
+
  private:
     friend class LeaseExecutor;
     friend class FlightIOGuard;
@@ -247,6 +251,8 @@ class IOManager4File : public IOManager {
 
     // inflight rpc控制
     InflightControl inflightRpcCntl_;
+
+    common::Throttle throttle_;
 
     // 是否退出
     bool exit_;

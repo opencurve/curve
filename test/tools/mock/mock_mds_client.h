@@ -96,6 +96,8 @@ class MockMDSClient : public MDSClient {
     MOCK_METHOD2(SetCopysetsAvailFlag, int(const std::vector<CopysetInfo>,
                                            bool));
     MOCK_METHOD1(ListUnAvailCopySets, int(std::vector<CopysetInfo>*));
+    MOCK_METHOD2(UpdateFileThrottleParams,
+                 int(const std::string&, const curve::mds::ThrottleParams&));
 };
 }  // namespace tool
 }  // namespace curve

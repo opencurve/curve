@@ -33,6 +33,7 @@
 
 #include "include/client/libcurve.h"
 #include "src/common/net_common.h"
+#include "src/common/throttle.h"
 
 namespace curve {
 namespace client {
@@ -162,6 +163,8 @@ typedef struct FInfo {
     uint64_t        cloneLength{0};
     uint64_t        stripeUnit;
     uint64_t        stripeCount;
+
+    common::ReadWriteThrottleParams throttleParams;
 
     FInfo() {
         id = 0;

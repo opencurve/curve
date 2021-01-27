@@ -69,6 +69,10 @@ class TimeUtility {
         strftime(now, 64, "%Y-%m-%d %H:%M:%S", &p);
         return now;
     }
+
+    static const uint64_t MilliSecondsPerSecond = 1000ull;
+    static const uint64_t MicroSecondsPerSecond = 1000ull * 1000;
+    static const uint64_t NanoSecondsPerSecond = 1000ull * 1000 * 1000;
 };
 
 class ExpiredTime {

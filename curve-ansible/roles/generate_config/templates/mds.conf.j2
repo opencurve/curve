@@ -202,3 +202,15 @@ mds.snapshotcloneclient.addr={{ snapshot_nginx_vip }}:{{ nginx_docker_external_p
 mds.common.logDir={{ mds_common_log_dir }}
 # 单元测试情况下
 # mds.common.logDir=./runlog/
+
+#
+#### throttle options ####
+#
+# iops
+mds.throttle.iopsMin={{ throttle_iops_min }}
+mds.throttle.iopsMax={{ throttle_iops_max }}
+mds.throttle.iopsPerGB={{ throttle_iops_per_GB }}
+# bps
+mds.throttle.bpsMinInMB={{ throttle_bps_min_in_MB }}
+mds.throttle.bpsMaxInMB={{ throttle_bps_max_in_MB }}
+mds.throttle.bpsPerGBInMB={{ throttle_bps_per_GB_in_MB }}

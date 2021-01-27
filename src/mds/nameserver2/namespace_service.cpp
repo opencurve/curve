@@ -1950,6 +1950,87 @@ void NameSpaceService::ListVolumesOnCopysets(
               << fileNames.size();
 }
 
+void NameSpaceService::UpdateFileThrottleParams(
+    ::google::protobuf::RpcController* controller,
+    const ::curve::mds::UpdateFileThrottleParamsRequest* request,
+    ::curve::mds::UpdateFileThrottleParamsResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+    ExpiredTime expiredTime;
+
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR)
+            << "logid = " << cntl->log_id()
+            << ", UpdateFileThrottleParams request path is invalid, filename = "
+            << request->filename();
+        return;
+    }
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+              << ", UpdateFileThrottleParams request, filename = "
+              << request->filename() << ", update "
+              << ThrottleType_Name(request->throttleparams().type()) << " to "
+              << request->throttleparams().ShortDebugString();
+
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
+    if (request->has_signature()) {
+        signature = request->signature();
+    }
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING)
+                << "logid = " << cntl->log_id()
+                << ", UpdateFileThrottleParams CheckFileOwner fail, filename = "
+                << request->filename() << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR)
+                << "logid = " << cntl->log_id()
+                << ", UpdateFileThrottleParams CheckFileOwner fail, filename = "
+                << request->filename() << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
+        return;
+    }
+
+    retCode = kCurveFS.UpdateFileThrottleParams(request->filename(),
+                                                request->throttleparams());
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                         << ", UpdateFileThrottleParams fail, filename = "
+                         << request->filename() << ", statusCode = " << retCode
+                         << ", StatusCode_Name = " << StatusCode_Name(retCode)
+                         << ", cost " << expiredTime.ExpiredMs() << " ms";
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                       << ", UpdateFileThrottleParams fail, filename = "
+                       << request->filename() << ", statusCode = " << retCode
+                       << ", StatusCode_Name = " << StatusCode_Name(retCode)
+                       << ", cost " << expiredTime.ExpiredMs() << " ms";
+        }
+        return;
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id()
+                  << ", UpdateFileThrottleParams ok, filename = "
+                  << request->filename() << ", cost " << expiredTime.ExpiredMs()
+                  << " ms";
+    }
+
+    return;
+}
+
 uint32_t GetMdsLogLevel(StatusCode code) {
     switch (code) {
         case StatusCode::kSegmentNotAllocated:

@@ -33,6 +33,7 @@
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
+#include "src/common/math_util.h"
 
 using curve::common::TimeUtility;
 using curve::mds::topology::LogicalPool;
@@ -101,7 +102,7 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
     allocStatistic_ = allocStatistic;
     fileRecordManager_ = fileRecordManager;
     rootAuthOptions_ = curveFSOptions.authOptions;
-
+    throttleOption_ = curveFSOptions.throttleOption;
     defaultChunkSize_ = curveFSOptions.defaultChunkSize;
     topology_ = topology;
     snapshotCloneClient_ = snapshotCloneClient;
@@ -288,6 +289,8 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         fileInfo.set_stripeunit(stripeUnit);
         fileInfo.set_stripecount(stripeCount);
 
+        fileInfo.set_allocated_throttleparams(
+            new FileThrottleParams(GenerateThrottleParams(length)));
         ret = PutFile(fileInfo);
         return ret;
     }
@@ -2211,7 +2214,47 @@ StatusCode CurveFS::ListAllFiles(uint64_t inodeId,
             }
         }
     }
+
     return StatusCode::kOK;
+}
+
+StatusCode CurveFS::UpdateFileThrottleParams(const std::string& fileName,
+                                             ThrottleParams params) {
+    FileInfo fileInfo;
+    StatusCode ret = GetFileInfo(fileName, &fileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(INFO) << "Get file info failed, ret = " << ret
+                  << ", filename = " << fileName;
+        return ret;
+    }
+
+    if (fileInfo.filetype() != FileType::INODE_PAGEFILE) {
+        LOG(WARNING)
+            << "Only INODE_PAGEFILE can update throttle params, filename = "
+            << fileName;
+        return StatusCode::kNotSupported;
+    }
+
+    bool found = false;
+    FileThrottleParams* fileThrottleParams = fileInfo.mutable_throttleparams();
+    for (int i = 0; i < fileThrottleParams->throttleparams_size(); ++i) {
+        if (fileThrottleParams->throttleparams(i).type() != params.type()) {
+            continue;
+        }
+
+        found = true;
+        auto* existParams = fileThrottleParams->mutable_throttleparams(i);
+        *existParams = std::move(params);
+        break;
+    }
+
+    // if throttle is not found, add one
+    if (!found) {
+        auto* newParams = fileThrottleParams->add_throttleparams();
+        *newParams = std::move(params);
+    }
+
+    return PutFile(fileInfo);
 }
 
 uint64_t CurveFS::GetOpenFileNum() {
@@ -2253,6 +2296,31 @@ StatusCode CurveFS::CheckStripeParam(uint64_t stripeUnit,
     }
 
     return StatusCode::kOK;
+}
+
+FileThrottleParams CurveFS::GenerateThrottleParams(uint64_t length) const {
+    FileThrottleParams params;
+
+    ThrottleParams iopsTotal;
+    uint64_t iopsLimit = common::Clamp<uint64_t>(
+        length / kGB * throttleOption_.iopsPerGB,
+        throttleOption_.iopsMin,
+        throttleOption_.iopsMax);
+    iopsTotal.set_type(ThrottleType::IOPS_TOTAL);
+    iopsTotal.set_limit(iopsLimit);
+
+    ThrottleParams bpsTotal;
+    uint64_t bpsLimit = common::Clamp<uint64_t>(
+        length / kGB * throttleOption_.bpsPerGB,
+        throttleOption_.bpsMin,
+        throttleOption_.bpsMax);
+    bpsTotal.set_type(ThrottleType::BPS_TOTAL);
+    bpsTotal.set_limit(bpsLimit);
+
+    *params.add_throttleparams() = std::move(iopsTotal);
+    *params.add_throttleparams() = std::move(bpsTotal);
+
+    return params;
 }
 
 CurveFS &kCurveFS = CurveFS::GetInstance();

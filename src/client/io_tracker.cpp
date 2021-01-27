@@ -62,7 +62,8 @@ IOTracker::IOTracker(IOManager* iomanager,
 }
 
 void IOTracker::StartRead(void* buf, off_t offset, size_t length,
-                          MDSClient* mdsclient, const FInfo_t* fileInfo) {
+                          MDSClient* mdsclient, const FInfo_t* fileInfo,
+                          Throttle* throttle) {
     data_ = buf;
     offset_ = offset;
     length_ = length;
@@ -70,11 +71,11 @@ void IOTracker::StartRead(void* buf, off_t offset, size_t length,
 
     DVLOG(9) << "read op, offset = " << offset << ", length = " << length;
 
-    DoRead(mdsclient, fileInfo);
+    DoRead(mdsclient, fileInfo, throttle);
 }
 
 void IOTracker::StartAioRead(CurveAioContext* ctx, MDSClient* mdsclient,
-                             const FInfo_t* fileInfo) {
+                             const FInfo_t* fileInfo, Throttle* throttle) {
     aioctx_ = ctx;
     data_ = ctx->buf;
     offset_ = ctx->offset;
@@ -84,10 +85,15 @@ void IOTracker::StartAioRead(CurveAioContext* ctx, MDSClient* mdsclient,
     DVLOG(9) << "aioread op, offset = " << ctx->offset
              << ", length = " << ctx->length;
 
-    DoRead(mdsclient, fileInfo);
+    DoRead(mdsclient, fileInfo, throttle);
 }
 
-void IOTracker::DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo) {
+void IOTracker::DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo,
+                       Throttle* throttle) {
+    if (throttle) {
+        throttle->Add(true, length_);
+    }
+
     int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, nullptr, offset_,
                                         length_, mdsclient, fileInfo);
     if (ret == 0) {
@@ -143,7 +149,8 @@ int IOTracker::ReadFromSource(const std::vector<RequestContext*>& reqCtxVec,
 }
 
 void IOTracker::StartWrite(const void* buf, off_t offset, size_t length,
-                           MDSClient* mdsclient, const FInfo_t* fileInfo) {
+                           MDSClient* mdsclient, const FInfo_t* fileInfo,
+                           Throttle* throttle) {
     data_ = const_cast<void*>(buf);
     offset_ = offset;
     length_ = length;
@@ -151,11 +158,11 @@ void IOTracker::StartWrite(const void* buf, off_t offset, size_t length,
 
     DVLOG(9) << "write op, offset = " << offset << ", length = " << length;
 
-    DoWrite(mdsclient, fileInfo);
+    DoWrite(mdsclient, fileInfo, throttle);
 }
 
 void IOTracker::StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
-                              const FInfo_t* fileInfo) {
+                              const FInfo_t* fileInfo, Throttle* throttle) {
     aioctx_ = ctx;
     data_ = ctx->buf;
     offset_ = ctx->offset;
@@ -165,10 +172,11 @@ void IOTracker::StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
     DVLOG(9) << "aiowrite op, offset = " << ctx->offset
              << ", length = " << ctx->length;
 
-    DoWrite(mdsclient, fileInfo);
+    DoWrite(mdsclient, fileInfo, throttle);
 }
 
-void IOTracker::DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo) {
+void IOTracker::DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo,
+                        Throttle* throttle) {
     if (nullptr == data_) {
         ReturnOnFail();
         return;
@@ -182,6 +190,10 @@ void IOTracker::DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo) {
         case UserDataType::IOBuffer:
             writeData_ = *reinterpret_cast<const butil::IOBuf*>(data_);
             break;
+    }
+
+    if (throttle) {
+        throttle->Add(false, length_);
     }
 
     int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, &writeData_,
