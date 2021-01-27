@@ -139,6 +139,10 @@ enum  StatusCode {
     kSnapshotCloneConnectFail = 136;
     // 快照克隆服务未初始化
     kSnapshotCloneServerNotInit = 137;
+    // recover file status is CloneMetaInstalled
+    kRecoverFileCloneMetaInstalled = 138;
+    // recover file fail
+    kRecoverFileError = 139;
 
     // epoch too old
     kEpochTooOld = 140;
@@ -189,6 +193,18 @@ message DeleteFileRequest {
 };
 
 message DeleteFileResponse {
+    required StatusCode statusCode = 1;
+}
+
+message RecoverFileRequest {
+    required string     fileName = 1;
+    required string     owner = 2;
+    optional string     signature = 3;
+    required uint64     date = 4;
+    optional uint64     fileId = 5;
+};
+
+message RecoverFileResponse {
     required StatusCode statusCode = 1;
 }
 
@@ -539,6 +555,7 @@ service CurveFSService {
     // basic rpcs
     rpc     CreateFile(CreateFileRequest) returns (CreateFileResponse);
     rpc     DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+    rpc     RecoverFile(RecoverFileRequest) returns (RecoverFileResponse);
     rpc     GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
     rpc     GetOrAllocateSegment(GetOrAllocateSegmentRequest)
                 returns (GetOrAllocateSegmentResponse);

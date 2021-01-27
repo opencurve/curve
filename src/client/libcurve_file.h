@@ -199,6 +199,16 @@ class FileClient {
                        bool deleteforce = false);
 
     /**
+     * recycle file
+     * @param: userinfo
+     * @param: filename
+     * @param: fileId
+     */
+    virtual int Recover(const std::string& filename,
+                        const UserInfo_t& userinfo,
+                        uint64_t fileId);
+
+    /**
      * 枚举目录内容
      * @param: userinfo是用户信息
      * @param: dirpath是目录路径

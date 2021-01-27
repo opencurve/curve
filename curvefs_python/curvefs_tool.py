@@ -24,6 +24,7 @@ import time
 fileType = ["INODE_DIRECTORY", "INODE_PAGEFILE", "INODE_APPENDFILE", "INODE_APPENDECFILE", "INODE_SNAPSHOT_PAGEFILE"]
 fileStatus = ["Created", "Deleting", "Cloning", "CloneMetaInstalled", "Cloned", "BeingCloned"]
 kGB = 1024 * 1024 * 1024
+kUnitializedFileID = 0
 
 # 参照curve/include/client/libcurve.h
 retCode = { 0 : "OK",
@@ -80,6 +81,8 @@ if __name__ == '__main__':
     if args.password:
         user.password = args.password
 
+    fileId = kUnitializedFileID
+
     if args.optype == "create":
         if args.stripeUnit or args.stripeCount:
             ret = cbd.Create2(args.filename, user, args.length * kGB, args.stripeUnit, args.stripeCount)
@@ -87,6 +90,10 @@ if __name__ == '__main__':
             ret = cbd.Create(args.filename, user, args.length * kGB)
     elif args.optype == "delete":
         ret = cbd.Unlink(args.filename, user)
+    elif args.optype == "recover":
+        if args.id:
+            fileId = args.id
+        ret = cbd.Recover(args.filename, user, fileId)
     elif args.optype == "extend":
         ret = cbd.Extend(args.filename, user, args.length * kGB)
     elif args.optype == "stat":

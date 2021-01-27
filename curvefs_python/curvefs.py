@@ -378,6 +378,10 @@ def DeleteForce(filename, info):
     return _curvefs.DeleteForce(filename, info)
 DeleteForce = _curvefs.DeleteForce
 
+def Recover(filename, info, fileId):
+    return _curvefs.Recover(filename, info, fileId)
+Recover = _curvefs.Recover
+
 def Listdir(dirpath, info):
     return _curvefs.Listdir(dirpath, info)
 Listdir = _curvefs.Listdir
@@ -436,6 +440,9 @@ class CBDClient(_object):
 
     def DeleteForce(self, filename, info):
         return _curvefs.CBDClient_DeleteForce(self, filename, info)
+
+    def Recover(self, filename, info, fileId):
+        return _curvefs.CBDClient_Recover(self, filename, info, fileId)
 
     def Rename(self, info, oldpath, newpath):
         return _curvefs.CBDClient_Rename(self, info, oldpath, newpath)

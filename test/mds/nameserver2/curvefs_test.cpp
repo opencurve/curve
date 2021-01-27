@@ -1160,6 +1160,152 @@ TEST_F(CurveFSTest, testReadDir) {
     }
 }
 
+TEST_F(CurveFSTest, testRecoverFile) {
+    // recover ok
+    {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(3)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, RenameFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
+                  StatusCode::kOK);
+    }
+
+    // the upper dir not exist, can not recover
+    {
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        ASSERT_EQ(curvefs_->RecoverFile("/k8s/file1",
+                  "/RecycleBin/k8s/file1-10", 2),
+                  StatusCode::kFileNotExists);
+    }
+
+    // the same file exist, can not recover
+    {
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(AtLeast(1))
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
+                  StatusCode::kFileExists);
+    }
+
+    // the inodeid and recyclefilename mismatch, can not recover
+    {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_id(1);
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(3)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 2),
+                  StatusCode::kFileIdNotMatch);
+    }
+
+    // the fileStatus is deleting in recyclebin, can not recover
+    {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo1.set_filestatus(FileStatus::kFileDeleting);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(3)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
+                  StatusCode::kFileUnderDeleting);
+    }
+
+    // kRecoverFileCloneMetaInstalled in recyclebin, can not recover
+    {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo1.set_filestatus(FileStatus::kFileCloneMetaInstalled);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(3)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
+                  StatusCode::kRecoverFileCloneMetaInstalled);
+    }
+
+    // the fileStatus is cloning in recyclebin, can not recover
+    {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo1.set_filestatus(FileStatus::kFileCloning);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(3)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
+                  StatusCode::kRecoverFileError);
+    }
+
+    // storage recoverfile fail
+    {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(3)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, RenameFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
+                  StatusCode::kStorageError);
+    }
+}
 
 TEST_F(CurveFSTest, testRenameFile) {
     // test rename ok
