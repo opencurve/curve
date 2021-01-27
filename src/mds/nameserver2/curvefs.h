@@ -141,6 +141,20 @@ class CurveFS {
     StatusCode GetFileInfo(const std::string & filename,
                            FileInfo * inode) const;
 
+    /**
+     * @brief get the fileInfo in recycleBin based on original filename
+     * @param originFilename
+     * @param fileId
+     * @param recoverFileInfo: return the obtained fileInfo
+     * @return status codes below:
+     *          StatusCode::kOK                if succeeded
+     *          StatusCode::kFileNotExists     if target file doesn't exist
+     *          StatusCode::kStorageError      if failed to get file metadata
+     */
+    StatusCode GetRecoverFileInfo(const std::string& originFileName,
+                                  const uint64_t fileId,
+                                  FileInfo* recoverFileInfo);
+
      /**
      *  @brief get the allocated file size
      *  @param: fileName
@@ -170,6 +184,18 @@ class CurveFS {
      */
     StatusCode DeleteFile(const std::string & filename, uint64_t fileId,
         bool deleteForce = false);
+
+    /**
+     *  @brief recover file
+     *  @param[in] originFilename: filename before delete
+     *  @param[in] recycleFilename: filename after delete
+     *  @param[in] fileId: there will be inodeID verification on recovered files
+     *                     except when kUnitializedFileID is passed.
+     *  @return StatusCode::kOK if succeeded
+     */
+    StatusCode RecoverFile(const std::string & originFileName,
+                           const std::string & recycleFileName,
+                           uint64_t fileId);
 
     /**
      *  @brief get information of all files in the directory
@@ -444,6 +470,19 @@ class CurveFS {
                               const std::string &owner,
                               const std::string &signature,
                               uint64_t date);
+
+    /**
+     *  @brief check the owner of the file in recycleBin
+     *  @param filename
+     *  @param owner: file owner to check
+     *  @param signature: signature for verification from user
+     *  @param date: indicates the time that the request arrives
+     *  @return StatusCode::kOK if succeeded, StatusCode::kOwnerAuthFail if failed //NOLINT
+     */
+    StatusCode CheckRecycleFileOwner(const std::string &filename,
+                                     const std::string &owner,
+                                     const std::string &signature,
+                                     uint64_t date);
 
     /**
      *  @brief Get the client information in fileRecord

@@ -428,6 +428,21 @@ int FileClient::Unlink(const std::string& filename,
     return -ret;
 }
 
+int FileClient::Recover(const std::string& filename,
+    const UserInfo_t& userinfo, uint64_t fileId) {
+    LIBCURVE_ERROR ret;
+    if (mdsClient_ != nullptr) {
+        ret = mdsClient_->RecoverFile(filename, userinfo, fileId);
+        LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
+            << "Recover failed, filename: " << filename
+            << ", ret: " << ret;
+    } else {
+        LOG(ERROR) << "global mds client not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    return -ret;
+}
+
 int FileClient::StatFile(const std::string& filename,
     const UserInfo_t& userinfo, FileStatInfo* finfo) {
     FInfo_t fi;
@@ -804,6 +819,18 @@ int DeleteForce(const char* filename, const C_UserInfo_t* userinfo) {
     return globalclient->Unlink(filename,
             UserInfo(userinfo->owner, userinfo->password),
             true);
+}
+
+int Recover(const char* filename, const C_UserInfo_t* userinfo,
+                                  uint64_t fileId) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    return globalclient->Recover(filename,
+            UserInfo(userinfo->owner, userinfo->password),
+            fileId);
 }
 
 DirInfo_t* OpenDir(const char* dirpath, const C_UserInfo_t* userinfo) {

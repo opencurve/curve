@@ -297,6 +297,17 @@ int Unlink(const char* filename, const C_UserInfo_t* userinfo);
 int DeleteForce(const char* filename, const C_UserInfo_t* userinfo);
 
 /**
+ * recover file
+ * @param: userinfo
+ * @param: filename
+ * @param: fileid
+ * @return: success 0, otherwise return
+ *          -LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED and so on
+ */
+int Recover(const char* filename, const C_UserInfo_t* userinfo,
+                                  uint64_t fileId);
+
+/**
  * 在获取目录内容之前先打开文件夹
  * @param: userinfo是用户信息
  * @param: dirpath是目录路径

@@ -161,6 +161,8 @@ struct MDSClientMetric {
     InterfaceMetric extendFile;
     // DeleteFile接口统计信息
     InterfaceMetric deleteFile;
+    // RecoverFile interface metric
+    InterfaceMetric recoverFile;
     // changeowner接口统计信息
     InterfaceMetric changeOwner;
     // listdir接口统计信息
@@ -192,6 +194,7 @@ struct MDSClientMetric {
           renameFile(prefix, "renameFile"),
           extendFile(prefix, "extendFile"),
           deleteFile(prefix, "deleteFile"),
+          recoverFile(prefix, "recoverFile"),
           changeOwner(prefix, "changeOwner"),
           listDir(prefix, "listDir"),
           registerClient(prefix, "registerClient"),

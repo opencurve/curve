@@ -441,6 +441,25 @@ void MDSClientBase::DeleteFile(const std::string& filename,
     stub.DeleteFile(cntl, &request, response, NULL);
 }
 
+void MDSClientBase::RecoverFile(const std::string& filename,
+                               const UserInfo_t& userinfo,
+                               uint64_t fileid,
+                               RecoverFileResponse* response,
+                               brpc::Controller* cntl,
+                               brpc::Channel* channel) {
+    RecoverFileRequest request;
+    request.set_filename(filename);
+    request.set_fileid(fileid);
+    FillUserInfo(&request, userinfo);
+
+    LOG(INFO) << "RecoverFile: filename = " << filename
+                << ", owner = " << userinfo.owner
+                << ", log id = " << cntl->log_id();
+
+    curve::mds::CurveFSService_Stub stub(channel);
+    stub.RecoverFile(cntl, &request, response, NULL);
+}
+
 void MDSClientBase::ChangeOwner(const std::string& filename,
                                 const std::string& newOwner,
                                 const UserInfo_t& userinfo,
