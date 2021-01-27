@@ -23,6 +23,7 @@
 #ifndef SRC_TOOLS_CURVE_TOOL_DEFINE_H_
 #define SRC_TOOLS_CURVE_TOOL_DEFINE_H_
 
+#include <gflags/gflags.h>
 #include <string>
 
 DECLARE_string(mdsAddr);
@@ -69,6 +70,9 @@ const char kCheckServerCmd[] = "check-server";
 const char kCopysetsStatusCmd[] = "copysets-status";
 const char kCheckOperatorCmd[] = "check-operator";
 const char kListMayBrokenVolumes[] = "list-may-broken-vol";
+
+// CopysetTool相关命令
+const char kSetCopysetAvailFlag[] = "set-copyset-availflag";
 
 // 一致性检查命令
 const char kCheckConsistencyCmd[] = "check-consistency";

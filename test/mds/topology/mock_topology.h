@@ -264,6 +264,14 @@ class MockTopologyServiceManager : public TopologyServiceManager {
     MOCK_METHOD2(GetClusterInfo,
                  void(const GetClusterInfoRequest* request,
                       GetClusterInfoResponse* response));
+
+    MOCK_METHOD2(SetCopysetsAvailFlag,
+                 void(const SetCopysetsAvailFlagRequest*,
+                      SetCopysetsAvailFlagResponse*));
+
+    MOCK_METHOD2(ListUnAvailCopySets,
+                 void(const ListUnAvailCopySetsRequest*,
+                      ListUnAvailCopySetsResponse*));
 };
 
 class MockTopologyServiceImpl : public TopologyService {
@@ -286,18 +294,6 @@ class MockTopologyServiceImpl : public TopologyService {
                       const PhysicalPoolRequest* request,
                       PhysicalPoolResponse* response,
                       google::protobuf::Closure* done));
-};
-
-class MockTopologyStat : public TopologyStat {
- public:
-    MockTopologyStat() {}
-    MOCK_METHOD2(UpdateChunkServerStat,
-                 void(ChunkServerIdType csId,
-                      const ChunkServerStat &stat));
-
-    MOCK_METHOD2(GetChunkServerStat,
-                 bool(ChunkServerIdType csId,
-                      ChunkServerStat *stat));
 };
 
 }  // namespace topology

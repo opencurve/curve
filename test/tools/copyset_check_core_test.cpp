@@ -203,7 +203,7 @@ TEST_F(CopysetCheckCoreTest, CheckOneCopysetNormal) {
         .WillRepeatedly(DoAll(SetArgPointee<0>(followerBuf),
                         Return(0)));
     CopysetCheckCore copysetCheck(mdsClient_, csClient_);
-    ASSERT_EQ(0, copysetCheck.CheckOneCopyset(1, 100));
+    ASSERT_EQ(CheckResult::kHealthy, copysetCheck.CheckOneCopyset(1, 100));
     butil::IOBuf iobuf;
     iobuf.append("\r\n");
     iobuf.append(leaderBuf);
@@ -236,7 +236,7 @@ TEST_F(CopysetCheckCoreTest, CheckOneCopysetError) {
         .Times(1)
         .WillOnce(Return(-1));
     CopysetCheckCore copysetCheck1(mdsClient_, csClient_);
-    ASSERT_EQ(-1, copysetCheck1.CheckOneCopyset(1, 100));
+    ASSERT_EQ(CheckResult::kOtherErr, copysetCheck1.CheckOneCopyset(1, 100));
 
     // 2、copyset不健康
     GetIoBufForTest(&followerBuf, "4294967396", "FOLLOWER", true);
@@ -252,7 +252,7 @@ TEST_F(CopysetCheckCoreTest, CheckOneCopysetError) {
         .WillRepeatedly(DoAll(SetArgPointee<0>(followerBuf),
                         Return(0)));
     CopysetCheckCore copysetCheck2(mdsClient_, csClient_);
-    ASSERT_EQ(-1, copysetCheck2.CheckOneCopyset(1, 100));
+    ASSERT_EQ(CheckResult::kOtherErr, copysetCheck2.CheckOneCopyset(1, 100));
 
     // 3、有peer不在线，一个是chunkserver不在线，一个是copyset不在线
     GetIoBufForTest(&followerBuf, "4294967397");
@@ -261,17 +261,18 @@ TEST_F(CopysetCheckCoreTest, CheckOneCopysetError) {
         .WillOnce(DoAll(SetArgPointee<2>(csLocs),
                         Return(0)));
     EXPECT_CALL(*csClient_, Init(_))
-        .Times(5)
+        .Times(4)
         .WillOnce(Return(-1))
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, GetRaftStatus(_))
-        .Times(4)
+        .Times(3)
         .WillOnce(DoAll(SetArgPointee<0>(leaderBuf),
                         Return(0)))
         .WillRepeatedly(DoAll(SetArgPointee<0>(followerBuf),
                         Return(0)));
     CopysetCheckCore copysetCheck3(mdsClient_, csClient_);
-    ASSERT_EQ(-1, copysetCheck3.CheckOneCopyset(1, 100));
+    ASSERT_EQ(CheckResult::kMajorityPeerNotOnline,
+                    copysetCheck3.CheckOneCopyset(1, 100));
 }
 
 

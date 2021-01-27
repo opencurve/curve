@@ -34,6 +34,7 @@
 #include "src/tools/curve_cli.h"
 #include "src/tools/copyset_check.h"
 #include "src/tools/schedule_tool.h"
+#include "src/tools/copyset_tool.h"
 
 namespace curve {
 namespace tool {
@@ -78,6 +79,8 @@ class CurveToolFactory {
      *  @brief 获取ScheduleTool实例
      */
     static std::shared_ptr<ScheduleTool> GenerateScheduleTool();
+
+    static std::shared_ptr<CopysetTool> GenerateCopysetTool();
 };
 }  // namespace tool
 }  // namespace curve

@@ -135,6 +135,14 @@ class TopologyServiceManager {
           const GetClusterInfoRequest* request,
           GetClusterInfoResponse* response);
 
+    virtual void SetCopysetsAvailFlag(
+          const SetCopysetsAvailFlagRequest* request,
+          SetCopysetsAvailFlagResponse* response);
+
+    virtual void ListUnAvailCopySets(
+          const ListUnAvailCopySetsRequest* request,
+          ListUnAvailCopySetsResponse* response);
+
     /**
      * @brief RPC calling for creating copysetnode on chunkserver
      *

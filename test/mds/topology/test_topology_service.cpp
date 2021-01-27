@@ -54,6 +54,7 @@ using ::curve::chunkserver::COPYSET_OP_STATUS;
 
 using ::curve::mds::copyset::CopysetManager;
 using ::curve::mds::copyset::CopysetOption;
+using ::curve::common::CopysetInfo;
 
 class TestTopologyService : public ::testing::Test {
  protected:
@@ -1572,6 +1573,124 @@ TEST_F(TestTopologyService, test_GetCopySetsInCluster_fail) {
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_SetCopysetsAvailFlag_success) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    SetCopysetsAvailFlagRequest request;
+    request.set_availflag(false);
+    for (int i = 1; i <= 10; ++i) {
+        CopysetInfo* copyset = request.add_copysets();
+        copyset->set_logicalpoolid(1);
+        copyset->set_copysetid(i);
+    }
+    SetCopysetsAvailFlagResponse response;
+
+    SetCopysetsAvailFlagResponse reps;
+    reps.set_statuscode(kTopoErrCodeSuccess);
+    EXPECT_CALL(*manager_, SetCopysetsAvailFlag(_, _))
+    .WillOnce(SetArgPointee<1>(reps));
+
+    stub.SetCopysetsAvailFlag(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_SetCopysetsAvailFlag_fail) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    SetCopysetsAvailFlagRequest request;
+    request.set_availflag(false);
+    CopysetInfo* copyset = request.add_copysets();
+    copyset->set_logicalpoolid(1);
+    copyset->set_copysetid(100);
+    SetCopysetsAvailFlagResponse response;
+
+    SetCopysetsAvailFlagResponse reps;
+    reps.set_statuscode(kTopoErrCodeStorgeFail);
+    EXPECT_CALL(*manager_, SetCopysetsAvailFlag(_, _))
+    .WillOnce(SetArgPointee<1>(reps));
+
+    stub.SetCopysetsAvailFlag(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeStorgeFail, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_ListUnAvailCopySets) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    ListUnAvailCopySetsRequest request;
+    ListUnAvailCopySetsResponse response;
+
+    ListUnAvailCopySetsResponse reps;
+    reps.set_statuscode(kTopoErrCodeSuccess);
+    EXPECT_CALL(*manager_, ListUnAvailCopySets(_, _))
+    .WillOnce(SetArgPointee<1>(reps));
+
+    stub.ListUnAvailCopySets(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_ListUnAvailCopySets_fail) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    ListUnAvailCopySetsRequest request;
+    ListUnAvailCopySetsResponse response;
+
+    ListUnAvailCopySetsResponse reps;
+    reps.set_statuscode(kTopoErrCodeStorgeFail);
+    EXPECT_CALL(*manager_, ListUnAvailCopySets(_, _))
+    .WillOnce(SetArgPointee<1>(reps));
+
+    stub.ListUnAvailCopySets(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeStorgeFail, response.statuscode());
 }
 
 }  // namespace topology

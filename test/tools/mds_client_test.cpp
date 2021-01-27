@@ -42,6 +42,10 @@ using curve::mds::topology::GetCopySetsInChunkServerRequest;
 using curve::mds::topology::GetCopySetsInChunkServerResponse;
 using curve::mds::topology::GetCopySetsInClusterRequest;
 using curve::mds::topology::GetCopySetsInClusterResponse;
+using curve::mds::topology::SetCopysetsAvailFlagRequest;
+using curve::mds::topology::SetCopysetsAvailFlagResponse;
+using curve::mds::topology::ListUnAvailCopySetsRequest;
+using curve::mds::topology::ListUnAvailCopySetsResponse;
 using curve::mds::schedule::RapidLeaderScheduleResponse;
 using curve::mds::schedule::QueryChunkServerRecoverStatusRequest;
 using curve::mds::schedule::QueryChunkServerRecoverStatusResponse;
@@ -1317,5 +1321,100 @@ TEST_F(ToolMDSClientTest, ListVolumesOnCopyset) {
         ASSERT_EQ(response.filenames(i), fileNames[i]);
     }
 }
+
+TEST_F(ToolMDSClientTest, SetCopysetsAvailFlag) {
+    std::vector<CopysetInfo> copysets;
+    for (int i = 1; i < 10; i++) {
+        CopysetInfo copyset;
+        copyset.set_logicalpoolid(1);
+        copyset.set_copysetid(i);
+    }
+    // send rpc fail
+    EXPECT_CALL(*topoService, SetCopysetsAvailFlag(_, _, _, _))
+        .Times(6)
+        .WillRepeatedly(Invoke([](RpcController *controller,
+                        const SetCopysetsAvailFlagRequest *request,
+                        SetCopysetsAvailFlagResponse *response,
+                        Closure *done){
+                        brpc::ClosureGuard doneGuard(done);
+                        brpc::Controller *cntl =
+                            dynamic_cast<brpc::Controller *>(controller);
+                        cntl->SetFailed("test");
+                    }));
+    ASSERT_EQ(-1, mdsClient.SetCopysetsAvailFlag(copysets, false));
+
+    // return code not ok
+    SetCopysetsAvailFlagResponse response;
+    response.set_statuscode(curve::mds::topology::kTopoErrCodeStorgeFail);
+    EXPECT_CALL(*topoService, SetCopysetsAvailFlag(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke([](RpcController *controller,
+                        const SetCopysetsAvailFlagRequest *request,
+                        SetCopysetsAvailFlagResponse *response,
+                        Closure *done){
+                        brpc::ClosureGuard doneGuard(done);
+                    })));
+    ASSERT_EQ(-1, mdsClient.SetCopysetsAvailFlag(copysets, false));
+
+    // normal
+    response.set_statuscode(kTopoErrCodeSuccess);
+    EXPECT_CALL(*topoService, SetCopysetsAvailFlag(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke([](RpcController *controller,
+                        const SetCopysetsAvailFlagRequest *request,
+                        SetCopysetsAvailFlagResponse *response,
+                        Closure *done){
+                        brpc::ClosureGuard doneGuard(done);
+                    })));
+    ASSERT_EQ(0, mdsClient.SetCopysetsAvailFlag(copysets, false));
+}
+
+TEST_F(ToolMDSClientTest, ListUnAvailCopySets) {
+    std::vector<CopysetInfo> copysets;
+    // send rpc fail
+    EXPECT_CALL(*topoService, ListUnAvailCopySets(_, _, _, _))
+        .Times(6)
+        .WillRepeatedly(Invoke([](RpcController *controller,
+                        const ListUnAvailCopySetsRequest *request,
+                        ListUnAvailCopySetsResponse *response,
+                        Closure *done){
+                        brpc::ClosureGuard doneGuard(done);
+                        brpc::Controller *cntl =
+                            dynamic_cast<brpc::Controller *>(controller);
+                        cntl->SetFailed("test");
+                    }));
+    ASSERT_EQ(-1, mdsClient.ListUnAvailCopySets(&copysets));
+
+    // return code not ok
+    ListUnAvailCopySetsResponse response;
+    response.set_statuscode(curve::mds::topology::kTopoErrCodeStorgeFail);
+    EXPECT_CALL(*topoService, ListUnAvailCopySets(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke([](RpcController *controller,
+                        const ListUnAvailCopySetsRequest *request,
+                        ListUnAvailCopySetsResponse *response,
+                        Closure *done){
+                        brpc::ClosureGuard doneGuard(done);
+                    })));
+    ASSERT_EQ(-1, mdsClient.ListUnAvailCopySets(&copysets));
+
+    // normal
+    response.set_statuscode(kTopoErrCodeSuccess);
+    for (int i = 1; i < 10; i++) {
+        auto cp = response.add_copysets();
+        cp->set_logicalpoolid(1);
+        cp->set_copysetid(i);
+    }
+    EXPECT_CALL(*topoService, ListUnAvailCopySets(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke([](RpcController *controller,
+                        const ListUnAvailCopySetsRequest *request,
+                        ListUnAvailCopySetsResponse *response,
+                        Closure *done){
+                        brpc::ClosureGuard doneGuard(done);
+                    })));
+    ASSERT_EQ(0, mdsClient.ListUnAvailCopySets(&copysets));
+}
+
 }  // namespace tool
 }  // namespace curve

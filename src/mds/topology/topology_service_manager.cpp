@@ -1413,6 +1413,40 @@ void TopologyServiceManager::GetClusterInfo(
     }
 }
 
+void TopologyServiceManager::SetCopysetsAvailFlag(
+          const SetCopysetsAvailFlagRequest* request,
+          SetCopysetsAvailFlagResponse* response) {
+    for (int i = 0; i < request->copysets_size(); ++i) {
+        auto& copyset = request->copysets(i);
+        CopySetKey key(copyset.logicalpoolid(), copyset.copysetid());
+        int res = topology_->SetCopySetAvalFlag(key, request->availflag());
+        if (res != kTopoErrCodeSuccess) {
+            LOG(ERROR) << "Topology set copyset aval flag fail";
+            response->set_statuscode(res);
+            return;
+        }
+    }
+    response->set_statuscode(kTopoErrCodeSuccess);
+}
+
+void TopologyServiceManager::ListUnAvailCopySets(
+          const ListUnAvailCopySetsRequest* request,
+          ListUnAvailCopySetsResponse* response) {
+    std::vector<CopySetKey> copysets =
+                    topology_->GetCopySetsInCluster();
+    for (const CopySetKey& copyset : copysets) {
+        CopySetInfo csInfo;
+        if (topology_->GetCopySet(copyset, &csInfo)) {
+            if (!csInfo.IsAvailable()) {
+                CopysetInfo *info = response->add_copysets();
+                info->set_logicalpoolid(copyset.first);
+                info->set_copysetid(copyset.second);
+            }
+        }
+    }
+    response->set_statuscode(kTopoErrCodeSuccess);
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

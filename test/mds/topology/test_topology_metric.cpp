@@ -27,6 +27,7 @@
 #include "src/mds/topology/topology_metric.h"
 #include "test/mds/topology/mock_topology.h"
 #include "test/mds/mock/mock_alloc_statistic.h"
+#include "test/mds/mock/mock_topology.h"
 
 namespace curve {
 namespace mds {

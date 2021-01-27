@@ -168,7 +168,7 @@ TEST_F(CopysetCheckTest, CheckOneCopyset) {
     // 健康的情况
     EXPECT_CALL(*core_, CheckOneCopyset(_, _))
         .Times(1)
-        .WillOnce(Return(0));
+        .WillOnce(Return(CheckResult::kHealthy));
     EXPECT_CALL(*core_, GetCopysetDetail())
         .Times(1)
         .WillOnce(ReturnRef(copysetDetail));
@@ -183,7 +183,7 @@ TEST_F(CopysetCheckTest, CheckOneCopyset) {
     // copyset不健康的情况
     EXPECT_CALL(*core_, CheckOneCopyset(_, _))
         .Times(1)
-        .WillOnce(Return(-1));
+        .WillOnce(Return(CheckResult::kLogIndexGapTooBig));
     EXPECT_CALL(*core_, GetCopysetDetail())
         .Times(1)
         .WillOnce(ReturnRef(copysetDetail));

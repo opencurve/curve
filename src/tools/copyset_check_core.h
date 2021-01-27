@@ -75,7 +75,8 @@ enum class CheckResult {
     // 少数副本不在线
     kMinorityPeerNotOnline = -5,
     // 大多数副本不在线
-    kMajorityPeerNotOnline = -6
+    kMajorityPeerNotOnline = -6,
+    kOtherErr = -7
 };
 
 enum class ChunkServerHealthStatus {
@@ -116,14 +117,14 @@ class CopysetCheckCore {
     virtual int Init(const std::string& mdsAddr);
 
     /**
-    * @brief 检查单个copyset的健康状态
+    * @brief check health of one copyset
     *
-    * @param logicalPoolId 逻辑池Id
-    * @param copysetId 复制组Id
+    * @param logicalPoolId
+    * @param copysetId
     *
-    * @return 健康返回0，不健康返回-1
+    * @return error code
     */
-    virtual int CheckOneCopyset(const PoolIdType& logicalPoolId,
+    virtual CheckResult CheckOneCopyset(const PoolIdType& logicalPoolId,
                         const CopySetIdType& copysetId);
 
     /**
@@ -144,6 +145,11 @@ class CopysetCheckCore {
     * @return 健康返回0，不健康返回-1
     */
     virtual int CheckCopysetsOnChunkServer(const std::string& chunkserverAddr);
+
+    /**
+    * @brief Check copysets on offline chunkservers
+    */
+    virtual int CheckCopysetsOnOfflineChunkServer();
 
     /**
     * @brief 检查某个server上的所有copyset的健康状态
@@ -197,6 +203,12 @@ class CopysetCheckCore {
                                                             const {
         return copysets_;
     }
+
+    /**
+     * @brief Get copysets info for specified copysets
+     */
+    virtual void GetCopysetInfos(const char* key,
+                        std::vector<CopysetInfo>* copysets);
 
     /**
      *  @brief 获取copyset的详细信息
@@ -283,11 +295,6 @@ class CopysetCheckCore {
                                    const std::string& chunkserverAddr,
                                    const std::set<std::string>& groupIds,
                                    bool queryLeader = true);
-
-    /**
-    * @brief Check copysets on offline chunkservers
-    */
-    int CheckCopysetsOnOfflineChunkServer();
 
     /**
     * @brief 检查某个server上的所有copyset的健康状态
