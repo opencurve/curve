@@ -100,5 +100,11 @@ TEST(CurveToolFactoryTest, GetCopysetCheck) {
     curveTool = CurveToolFactory::GenerateCurveTool("list-may-broken-vol");
     ASSERT_TRUE(dynamic_cast<CopysetCheck *>(curveTool.get()) != nullptr);
 }
+
+TEST(CurveToolFactoryTest, GetCopysetTool) {
+    auto curveTool =
+        CurveToolFactory::GenerateCurveTool("set-copyset-availflag");
+    ASSERT_TRUE(dynamic_cast<CopysetTool *>(curveTool.get()) != nullptr);
+}
 }  // namespace tool
 }  // namespace curve

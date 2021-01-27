@@ -29,6 +29,7 @@
 #include "src/mds/topology/topology_chunk_allocator.h"
 #include "src/mds/common/mds_define.h"
 #include "test/mds/topology/mock_topology.h"
+#include "test/mds/mock/mock_topology.h"
 #include "proto/nameserver2.pb.h"
 #include "src/common/timeutility.h"
 #include "test/mds/mock/mock_alloc_statistic.h"
@@ -176,10 +177,12 @@ class TestTopologyChunkAllocator : public ::testing::Test {
 
     void PrepareAddCopySet(CopySetIdType copysetId,
         PoolIdType logicalPoolId,
-        const std::set<ChunkServerIdType> &members) {
+        const std::set<ChunkServerIdType> &members,
+        bool availFlag = true) {
         CopySetInfo cs(logicalPoolId,
             copysetId);
         cs.SetCopySetMembers(members);
+        cs.SetAvailableFlag(availFlag);
         EXPECT_CALL(*storage_, StorageCopySet(_))
             .WillOnce(Return(true));
         int ret = topology_->AddCopySet(cs);
@@ -195,7 +198,6 @@ class TestTopologyChunkAllocator : public ::testing::Test {
     std::shared_ptr<Topology> topology_;
     std::shared_ptr<TopologyChunkAllocatorImpl> testObj_;
 };
-
 
 TEST_F(TestTopologyChunkAllocator,
     Test_AllocateChunkRandomInSingleLogicalPool_success) {
@@ -222,21 +224,24 @@ TEST_F(TestTopologyChunkAllocator,
     replicas.insert(0x42);
     replicas.insert(0x43);
     PrepareAddCopySet(copysetId, logicalPoolId, replicas);
+    PrepareAddCopySet(copysetId + 1, logicalPoolId, replicas, false);
 
     EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_, _))
         .WillRepeatedly(Return(true));
 
     bool ret =
         testObj_->AllocateChunkRandomInSingleLogicalPool(INODE_PAGEFILE,
-            1,
+            2,
             1024,
             &infos);
 
     ASSERT_TRUE(ret);
 
-    ASSERT_EQ(1, infos.size());
+    ASSERT_EQ(2, infos.size());
     ASSERT_EQ(logicalPoolId, infos[0].logicalPoolId);
     ASSERT_EQ(copysetId, infos[0].copySetId);
+    ASSERT_EQ(logicalPoolId, infos[1].logicalPoolId);
+    ASSERT_EQ(copysetId, infos[1].copySetId);
 }
 
 TEST_F(TestTopologyChunkAllocator,
@@ -276,7 +281,7 @@ TEST_F(TestTopologyChunkAllocator,
     replicas.insert(0x43);
     PrepareAddCopySet(0x51, logicalPoolId, replicas);
     PrepareAddCopySet(0x52, logicalPoolId, replicas);
-    PrepareAddCopySet(0x53, logicalPoolId, replicas);
+    PrepareAddCopySet(0x53, logicalPoolId, replicas, false);
     PrepareAddCopySet(0x54, logicalPoolId, replicas);
     PrepareAddCopySet(0x55, logicalPoolId, replicas);
 
@@ -314,34 +319,34 @@ TEST_F(TestTopologyChunkAllocator,
 
     if (0x51 == infos[0].copySetId) {
         ASSERT_EQ(0x52, infos[1].copySetId);
-        ASSERT_EQ(0x53, infos[2].copySetId);
-        ASSERT_EQ(0x54, infos2[0].copySetId);
-        ASSERT_EQ(0x55, infos2[1].copySetId);
-        ASSERT_EQ(0x51, infos2[2].copySetId);
-    } else if (0x52 == infos[0].copySetId) {
-        ASSERT_EQ(0x53, infos[1].copySetId);
         ASSERT_EQ(0x54, infos[2].copySetId);
         ASSERT_EQ(0x55, infos2[0].copySetId);
         ASSERT_EQ(0x51, infos2[1].copySetId);
         ASSERT_EQ(0x52, infos2[2].copySetId);
+    } else if (0x52 == infos[0].copySetId) {
+        ASSERT_EQ(0x54, infos[1].copySetId);
+        ASSERT_EQ(0x55, infos[2].copySetId);
+        ASSERT_EQ(0x51, infos2[0].copySetId);
+        ASSERT_EQ(0x52, infos2[1].copySetId);
+        ASSERT_EQ(0x54, infos2[2].copySetId);
     } else if (0x53 == infos[0].copySetId) {
         ASSERT_EQ(0x54, infos[1].copySetId);
         ASSERT_EQ(0x55, infos[2].copySetId);
         ASSERT_EQ(0x51, infos2[0].copySetId);
         ASSERT_EQ(0x52, infos2[1].copySetId);
-        ASSERT_EQ(0x53, infos2[2].copySetId);
+        ASSERT_EQ(0x54, infos2[2].copySetId);
     } else if (0x54 == infos[0].copySetId) {
         ASSERT_EQ(0x55, infos[1].copySetId);
         ASSERT_EQ(0x51, infos[2].copySetId);
         ASSERT_EQ(0x52, infos2[0].copySetId);
-        ASSERT_EQ(0x53, infos2[1].copySetId);
-        ASSERT_EQ(0x54, infos2[2].copySetId);
+        ASSERT_EQ(0x54, infos2[1].copySetId);
+        ASSERT_EQ(0x55, infos2[2].copySetId);
     } else if (0x55 == infos[0].copySetId) {
         ASSERT_EQ(0x51, infos[1].copySetId);
         ASSERT_EQ(0x52, infos[2].copySetId);
-        ASSERT_EQ(0x53, infos2[0].copySetId);
-        ASSERT_EQ(0x54, infos2[1].copySetId);
-        ASSERT_EQ(0x55, infos2[2].copySetId);
+        ASSERT_EQ(0x54, infos2[0].copySetId);
+        ASSERT_EQ(0x55, infos2[1].copySetId);
+        ASSERT_EQ(0x51, infos2[2].copySetId);
     } else {
         FAIL();
     }
@@ -477,7 +482,6 @@ TEST(TestAllocateChunkPolicy, TestAllocateChunkRandomInSingleLogicalPoolTps) {
     for (int i = 0; i < 2000; i++) {
         copySetIds.push_back(i);
     }
-
 
     uint64_t startime = curve::common::TimeUtility::GetTimeofDayUs();
     for (int i = 0; i < 100000; i++) {

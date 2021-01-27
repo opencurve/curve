@@ -331,6 +331,7 @@ bool CopySetInfo::SerializeToString(std::string *value) const {
     for (ChunkServerIdType csId : peers_) {
         data.add_chunkserverids(csId);
     }
+    data.set_availflag(available_);
     return data.SerializeToString(value);
 }
 
@@ -340,6 +341,11 @@ bool CopySetInfo::ParseFromString(const std::string &value) {
     logicalPoolId_ = data.logicalpoolid();
     copySetId_ = data.copysetid();
     epoch_ = data.epoch();
+    if (data.has_availflag()) {
+        available_ = data.availflag();
+    } else {
+        available_ = true;
+    }
     peers_.clear();
     for (int i = 0; i < data.chunkserverids_size(); i++) {
         peers_.insert(data.chunkserverids(i));

@@ -127,6 +127,8 @@ class MockTopology : public Topology {
     MOCK_METHOD1(UpdateCopySetTopo,
         int(const ::curve::mds::topology::CopySetInfo &data));
 
+    MOCK_METHOD2(SetCopySetAvalFlag, int(const CopySetKey &, bool));
+
     MOCK_METHOD3(UpdateCopySetAllocInfo,
         int(CopySetKey key, uint32_t allocChunkNum, uint64_t allocSize));
 
@@ -162,6 +164,7 @@ class MockTopology : public Topology {
     MOCK_CONST_METHOD2(GetCopySet,
         bool(CopySetKey key, ::curve::mds::topology::CopySetInfo
             *out));
+    MOCK_CONST_METHOD1(IsCopySetAvailable, bool(CopySetKey key));
 
     MOCK_CONST_METHOD3(GetLogicalPool,
         bool(const std::string &logicalPoolName,
