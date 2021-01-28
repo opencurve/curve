@@ -134,7 +134,7 @@ struct FileMetric {
 
 // 用于全局mds接口统计信息调用信息统计
 struct MDSClientMetric {
-    const std::string prefix = "curve mds client";
+    std::string prefix;
 
     // mds的地址信息
     std::string metaserverAddr;
@@ -174,8 +174,12 @@ struct MDSClientMetric {
     // 切换mds server总次数
     bvar::Adder<uint64_t> mdsServerChangeTimes;
 
-    MDSClientMetric()
-        : metaserverAddress(prefix, "current_metaserver_addr", GetStringValue,
+    explicit MDSClientMetric(const std::string& prefix_ = "")
+        : prefix(!prefix_.empty()
+                     ? prefix_
+                     : "curve_mds_client_" +
+                           std::to_string(reinterpret_cast<uint64_t>(this))),
+          metaserverAddress(prefix, "current_metaserver_addr", GetStringValue,
                             &metaserverAddr),
           mdsServerChangeTimes(prefix, "mds_server_change_times"),
           openFile(prefix, "openFile"),

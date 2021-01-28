@@ -70,7 +70,8 @@ using curve::mds::topology::GetChunkServerListInCopySetsResponse;
 
 namespace curve {
 namespace client {
-MDSClient::MDSClient() {
+MDSClient::MDSClient(const std::string& metricPrefix)
+    : mdsClientMetric_(metricPrefix) {
     inited_   = false;
 }
 
