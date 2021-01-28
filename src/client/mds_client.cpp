@@ -66,6 +66,10 @@ using curve::mds::topology::CopySetServerInfo;
 using curve::mds::topology::ChunkServerLocation;
 using curve::mds::topology::GetChunkServerListInCopySetsResponse;
 
+MDSClient::MDSClient(const std::string& metricPrefix)
+    : mdsClientMetric_(metricPrefix) {
+    inited_   = false;
+}
 
 LIBCURVE_ERROR MDSClient::Initialize(const MetaServerOption& metaServerOpt) {
     if (inited_) {
