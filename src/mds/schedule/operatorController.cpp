@@ -139,10 +139,10 @@ bool OperatorController::ApplyOperator(const CopySetInfo &originInfo,
         auto res = operators_[originInfo.id].Apply(originInfo, newConf);
         switch (res) {
             case ApplyStatus::Failed:
-                LOG(ERROR) << "apply operator"
-                           << operators_[originInfo.id].OpToString()
-                           << " on " << originInfo.CopySetInfoStr()
-                           << " failed";
+                LOG(WARNING) << "apply operator"
+                             << operators_[originInfo.id].OpToString()
+                             << " on " << originInfo.CopySetInfoStr()
+                             << " failed";
                 RemoveOperatorLocked(originInfo.id);
                 return false;
             case ApplyStatus::Finished:
