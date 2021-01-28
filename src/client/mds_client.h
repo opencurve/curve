@@ -55,7 +55,7 @@ struct LeaseRefreshResult;
 // MDSClient是client与MDS通信的唯一窗口
 class MDSClient {
  public:
-    MDSClient() = default;
+    explicit MDSClient(const std::string& metricPrefix = "");
     ~MDSClient() = default;
 
     using RPCFunc =
