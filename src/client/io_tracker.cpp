@@ -429,7 +429,13 @@ void IOTracker::Done() {
                     << ", offset = " << offset_
                     << ", length = " << length_;
         } else {
-            LOG(ERROR) << "IO Error, OpType = " << OpTypeToString(type_);
+            if (OpType::CREATE_CLONE == type_ &&
+                LIBCURVE_ERROR::EXISTS == errcode_) {
+                // if CreateCloneChunk return Exists
+                // no error should be reported
+            } else {
+                LOG(ERROR) << "IO Error, OpType = " << OpTypeToString(type_);
+            }
         }
     }
 
