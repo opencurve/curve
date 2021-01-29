@@ -214,6 +214,7 @@ nebd_client_heartbeat_inverval_s: 5
 nebd_client_heartbeat_rpc_timeout_ms: 500
 nebd_server_heartbeat_timeout_s: 30
 nebd_server_heartbeat_check_interval_ms: 3000
+nebd_server_response_return_rpc_when_io_error: false
 
 # s3配置默认值
 s3_http_scheme: 0
