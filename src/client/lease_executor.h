@@ -24,6 +24,8 @@
 #define SRC_CLIENT_LEASE_EXECUTOR_H_
 
 #include <brpc/periodic_task.h>
+#include <bthread/condition_variable.h>
+#include <bthread/mutex.h>
 
 #include <memory>
 #include <string>
@@ -198,7 +200,7 @@ class RefreshSessionTask : public brpc::PeriodicTask {
      *         false 停止执行当前任务
      */
     bool OnTriggeringTask(timespec* next_abstime) override {
-        std::lock_guard<std::mutex> lk(stopMtx_);
+        std::lock_guard<bthread::Mutex> lk(stopMtx_);
         if (stopped_) {
             return false;
         }
@@ -211,7 +213,7 @@ class RefreshSessionTask : public brpc::PeriodicTask {
      * @brief 停止再次执行当前任务
      */
     void Stop() {
-        std::lock_guard<std::mutex> lk(stopMtx_);
+        std::lock_guard<bthread::Mutex> lk(stopMtx_);
         stopped_ = true;
     }
 
@@ -219,7 +221,7 @@ class RefreshSessionTask : public brpc::PeriodicTask {
      * @brief 任务停止后调用
      */
     void OnDestroyingTask() override {
-        std::unique_lock<std::mutex> lk(terminatedMtx_);
+        std::unique_lock<bthread::Mutex> lk(terminatedMtx_);
         terminated_ = true;
         terminatedCv_.notify_one();
     }
@@ -228,8 +230,10 @@ class RefreshSessionTask : public brpc::PeriodicTask {
      * @brief 等待任务退出
      */
     void WaitTaskExit() {
-        std::unique_lock<std::mutex> lk(terminatedMtx_);
-        terminatedCv_.wait(lk, [this]() { return terminated_ == true; });
+        std::unique_lock<bthread::Mutex> lk(terminatedMtx_);
+        while (terminated_ != true) {
+            terminatedCv_.wait(lk);
+        }
     }
 
     /**
@@ -245,11 +249,11 @@ class RefreshSessionTask : public brpc::PeriodicTask {
     uint64_t refreshIntervalUs_;
 
     bool stopped_;
-    std::mutex stopMtx_;
+    bthread::Mutex stopMtx_;
 
     bool terminated_;
-    std::mutex terminatedMtx_;
-    std::condition_variable terminatedCv_;
+    bthread::Mutex terminatedMtx_;
+    bthread::ConditionVariable terminatedCv_;
 };
 
 }   // namespace client
