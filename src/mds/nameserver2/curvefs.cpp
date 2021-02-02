@@ -1247,25 +1247,35 @@ StatusCode CurveFS::CheckSnapShotFileStatus(const std::string &fileName,
         TaskIDType taskID = static_cast<TaskIDType>(snapShotFileInfo.id());
         auto task = cleanManager_->GetTask(taskID);
         if (task == nullptr) {
-            *progress = 100;
-            return StatusCode::kOK;
+            // GetSnapShotFileInfo again
+            StatusCode ret2 =
+                GetSnapShotFileInfo(fileName, seq, &snapShotFileInfo);
+            // if not exist, means delete succeed.
+            if (StatusCode::kSnapshotFileNotExists == ret2) {
+                *progress = 100;
+                return StatusCode::kSnapshotFileNotExists;
+            // else the snapshotFile still exist,
+            // means delete failed and retry times exceed.
+            } else {
+                *progress = 0;
+                LOG(ERROR) << "snapshot file delete fail, fileName = "
+                           << fileName << ", seq = " << seq;
+                return StatusCode::kSnapshotFileDeleteError;
+            }
         }
 
         TaskStatus taskStatus = task->GetTaskProgress().GetStatus();
         switch (taskStatus) {
             case TaskStatus::PROGRESSING:
+            case TaskStatus::FAILED:  // FAILED task will retry
                 *progress = task->GetTaskProgress().GetProgress();
                 break;
-            case TaskStatus::FAILED:
-                *progress = 0;
-                LOG(ERROR) << "snapshot file delete fail, fileName = "
-                           << fileName << ", seq = " << seq;
-                return StatusCode::kSnapshotFileDeleteError;
             case TaskStatus::SUCCESS:
                 *progress = 100;
                 break;
         }
     } else {
+        // means delete haven't begin.
         *progress = 0;
     }
 
