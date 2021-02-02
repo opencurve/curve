@@ -129,7 +129,7 @@ bool OperatorController::ApplyOperator(const CopySetInfo &originInfo,
 
     // operator timeout or finish
     if (operators_[originInfo.id].IsTimeout()) {
-        LOG(ERROR) << "apply operator: "
+        LOG(WARNING) << "apply operator: "
                    << operators_[originInfo.id].OpToString()
                    << " on " << originInfo.CopySetInfoStr()
                    << " fail, operator is timeout";
