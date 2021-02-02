@@ -616,15 +616,12 @@ int SnapshotCoreImpl::DeleteSnapshotOnCurvefs(const SnapshotInfo &info) {
                   << ", seqNum = " << seqNum
                   << ", status = " << static_cast<int>(status)
                   << ", uuid = " << info.GetUuid();
+        // NOTEXIST means delete succeed.
         if (-LIBCURVE_ERROR::NOTEXIST == ret) {
             LOG(INFO) << "Check snapShot delete success"
                       << ", uuid = " << info.GetUuid();
             break;
-        // 目前mds删除快照失败会重试, 失败返回错误码DELETE_ERROR,
-        // 返回其他错误码一律InternalError
-        } else if (LIBCURVE_ERROR::OK == ret ||
-            -LIBCURVE_ERROR::DELETE_ERROR == ret) {
-            // nothing
+        } else if (LIBCURVE_ERROR::OK == ret) {
             if (status != FileStatus::Deleting) {
                 LOG(ERROR) << "CheckSnapShotStatus fail"
                            << ", ret = " << ret
@@ -640,8 +637,7 @@ int SnapshotCoreImpl::DeleteSnapshotOnCurvefs(const SnapshotInfo &info) {
         }
         std::this_thread::sleep_for(
             std::chrono::milliseconds(checkSnapshotStatusIntervalMs_));
-    } while (LIBCURVE_ERROR::OK == ret ||
-            -LIBCURVE_ERROR::DELETE_ERROR == ret);
+    } while (LIBCURVE_ERROR::OK == ret);
     return kErrCodeSuccess;
 }
 
