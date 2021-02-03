@@ -405,7 +405,7 @@ stop snapshot test
     stop snapshot test
 
 test lazy clone fail flatten and snapshot
-    [Tags]    P1    base    first release   failover   no-need
+    [Tags]    P1    base    first release   failover   
     test lazy clone flatten snapshot fail 
     
 test mds delay package 50ms
