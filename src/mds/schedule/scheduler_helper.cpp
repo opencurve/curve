@@ -353,7 +353,7 @@ bool SchedulerHelper::InvovledReplicasSatisfyScatterWidthAfterMigration(
     return allSatisfy;
 }
 
-void SchedulerHelper::CopySetDistributionInOnlineChunkServer(
+void SchedulerHelper::GetCopySetDistributionInOnlineChunkServer(
         const std::vector<CopySetInfo> &copysetList,
         const std::vector<ChunkServerInfo> &chunkserverList,
         std::map<ChunkServerIdType, std::vector<CopySetInfo>> *out) {
@@ -370,15 +370,30 @@ void SchedulerHelper::CopySetDistributionInOnlineChunkServer(
 
     // remove offline chunkserver, and report empty list for empty chunkserver
     for (auto item : chunkserverList) {
+        // remove offline chunkserver
         if (item.IsOffline()) {
             out->erase(item.info.id);
             continue;
         }
+
+        // report empty list for chunkserver with no copyset
         if (out->find(item.info.id) == out->end()) {
             (*out)[item.info.id] = std::vector<CopySetInfo>{};
         }
     }
 }
+
+void SchedulerHelper::FilterCopySetDistributions(const ChunkServerStatus status,
+        const std::vector<ChunkServerInfo> &chunkserverList,
+        std::map<ChunkServerIdType, std::vector<CopySetInfo>> *distributions) {
+    for (auto item : chunkserverList) {
+        if (item.status != status) {
+            distributions->erase(item.info.id);
+        }
+    }
+    return;
+}
+
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

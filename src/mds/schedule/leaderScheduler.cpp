@@ -34,12 +34,15 @@ namespace curve {
 namespace mds {
 namespace schedule {
 int LeaderScheduler::Schedule() {
-    LOG(INFO) << "leaderScheduler begin.";
-
+    LOG(INFO) << "schedule: leaderScheduler begin.";
+    int oneRoundGenOp = 0;
     for (auto lid : topo_->GetLogicalpools()) {
-        DoLeaderSchedule(lid);
+        oneRoundGenOp += DoLeaderSchedule(lid);
     }
-    return 1;
+
+    LOG(INFO) << "schedule: leaderScheduler end, generate operator num "
+              << oneRoundGenOp;
+    return oneRoundGenOp;
 }
 
 int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
@@ -57,7 +60,8 @@ int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
     std::shuffle(csInfos.begin(), csInfos.end(), g);
 
     for (auto csInfo : csInfos) {
-        if (csInfo.IsOffline()) {
+        // skip offline chunkserver or pendding chunkserver
+        if (csInfo.IsOffline() || csInfo.IsPendding()) {
             continue;
         }
 
@@ -177,6 +181,12 @@ bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source, int count,
                 break;
             }
 
+            // can not transfer to pendding chunkserver
+            if (csInfo.IsPendding()) {
+                continue;
+            }
+
+            // can not transfer to myself
             if (source == peerInfo.id) {
                 continue;
             }
