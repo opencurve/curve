@@ -162,16 +162,27 @@ class SchedulerHelper {
 
     /**
      * @brief CopySetDistribution Calculate the copyset number on
-     *                            chunkserver in online status
+     *                      chunkserver in online status
      *
      * @param[in] copysetList Copyset list in topo info
      * @param[in] chunkserverList Chunkserver list in topo info
      * @param[out] out List of copyset on chunkserver
      */
-    static void CopySetDistributionInOnlineChunkServer(
+    static void GetCopySetDistributionInOnlineChunkServer(
         const std::vector<CopySetInfo> &copysetList,
         const std::vector<ChunkServerInfo> &chunkserverList,
         std::map<ChunkServerIdType, std::vector<CopySetInfo>> *out);
+
+    /**
+     * @brief fileter the CopySetDistribution with status
+     *
+     * @param[in] status filter the chunkserver in status
+     * @param[in] chunkserverList Chunkserver list in topo info
+     * @param[out] out List of copyset on chunkserver
+     */
+    static void FilterCopySetDistributions(const ChunkServerStatus status,
+        const std::vector<ChunkServerInfo> &chunkserverList,
+        std::map<ChunkServerIdType, std::vector<CopySetInfo>> *distributions);
 };
 }  // namespace schedule
 }  // namespace mds

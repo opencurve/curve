@@ -32,33 +32,97 @@ namespace curve {
 namespace mds {
 namespace schedule {
 int CopySetScheduler::Schedule() {
-    LOG(INFO) << "copysetScheduler begin";
+    LOG(INFO) << "schedule: copysetScheduler begin";
 
-    int res = 0;
+    int oneRoundGenOp = 0;
     for (auto lid : topo_->GetLogicalpools()) {
-        res = DoCopySetSchedule(lid);
+        oneRoundGenOp += DoCopySetSchedule(lid);
     }
-    return res;
+
+    LOG(INFO) << "schedule: copysetScheduler end, generate operator num "
+              << oneRoundGenOp;
+    return oneRoundGenOp;
 }
 
-int CopySetScheduler::DoCopySetSchedule(PoolIdType lid) {
-    // 1. collect the chunkserver list and copyset list of the cluster, then
-    //    collect copyset on every online chunkserver
-    auto copysetList = topo_->GetCopySetInfosInLogicalPool(lid);
-    auto chunkserverList = topo_->GetChunkServersInLogicalPool(lid);
-    std::map<ChunkServerIdType, std::vector<CopySetInfo>> distribute;
-    SchedulerHelper::CopySetDistributionInOnlineChunkServer(
-        copysetList, chunkserverList, &distribute);
-    if (distribute.empty()) {
-        LOG(WARNING) << "no not-retired chunkserver in topology";
-        return UNINTIALIZE_ID;
+int CopySetScheduler::PenddingCopySetSchedule(const std::map<ChunkServerIdType,
+                                    std::vector<CopySetInfo>> &distribute) {
+    int oneRoundGenOp = 0;
+    // for every chunkserver, find one copyset to migrate out
+    for (auto it = distribute.begin(); it != distribute.end(); it++) {
+        ChunkServerIdType source = it->first;
+        int copysetNum = it->second.size();
+        if (copysetNum == 0) {
+            continue;
+        }
+
+        // find one copyset to migrate out from source chunkserver
+        for (auto info : it->second) {
+            // does not meet the basic conditions
+            if (!CopySetSatisfiyBasicMigrationCond(info)) {
+                continue;
+            }
+
+            auto target = SelectBestPlacementChunkServer(info, source);
+            if (target == UNINTIALIZE_ID) {
+                LOG(WARNING) << "copysetScheduler can not select chunkServer "
+                                "to migrate " << info.CopySetInfoStr()
+                            << ", which replica: " << source << " is pendding";
+                continue;
+            }
+
+            Operator op = operatorFactory.CreateChangePeerOperator(
+                info, source, target, OperatorPriority::HighPriority);
+            op.timeLimit = std::chrono::seconds(changeTimeSec_);
+
+            if (AddOperatorAndCreateCopyset(op, info, target)) {
+                oneRoundGenOp++;
+            }
+        }
     }
 
+    if (oneRoundGenOp != 0) {
+        LOG(INFO) << "pendding copyset scheduler migrate " << oneRoundGenOp
+                        << " copyset at this round";
+    }
+
+    return oneRoundGenOp;
+}
+
+bool CopySetScheduler::AddOperatorAndCreateCopyset(const Operator &op,
+                                            const CopySetInfo &choose,
+                                            const ChunkServerIdType &target) {
+    // add operator
+    if (!opController_->AddOperator(op)) {
+        LOG(INFO) << "copysetSchduler add op " << op.OpToString()
+                    << " fail, copyset has already has operator"
+                    << " or operator num exceeds the limit.";
+        return false;
+    }
+
+    // create copyset
+    if (!topo_->CreateCopySetAtChunkServer(choose.id, target)) {
+        LOG(ERROR) << "copysetScheduler create " << choose.CopySetInfoStr()
+                    << " on chunkServer: " << target
+                    << " error, delete operator" << op.OpToString();
+        opController_->RemoveOperator(choose.id);
+        return false;
+    }
+
+    LOG(INFO) << "copysetScheduler create " << choose.CopySetInfoStr()
+                << "on chunkserver:" << target
+                << " success. generator op: "
+                << op.OpToString() << "success";
+    return true;
+}
+
+int CopySetScheduler::NormalCopySetSchedule(const std::map<ChunkServerIdType,
+                                    std::vector<CopySetInfo>> &distribute) {
     // 2. measure the average, range and standard deviation of number of copyset
     //    on chunkservers
     float avg;
     int range;
     float stdvariance;
+    int oneRoundGenOp = 0;
     StatsCopysetDistribute(distribute, &avg, &range, &stdvariance);
     /**
      * 3. Set migration condition
@@ -83,7 +147,7 @@ int CopySetScheduler::DoCopySetSchedule(PoolIdType lid) {
      **/
     ChunkServerIdType source = UNINTIALIZE_ID;
     if (range <= avg * copysetNumRangePercent_) {
-        return source;
+        return oneRoundGenOp;
     }
 
     Operator op;
@@ -91,29 +155,45 @@ int CopySetScheduler::DoCopySetSchedule(PoolIdType lid) {
     CopySetInfo choose;
     // this function call will select the source, target and the copyset
     if (CopySetMigration(distribute, &op, &source, &target, &choose)) {
-        // add operator
-        if (!opController_->AddOperator(op)) {
-            LOG(INFO) << "copysetSchduler add op " << op.OpToString()
-                      << " fail, copyset has already has operator";
-        }
-
-        // create copyset
-        if (!topo_->CreateCopySetAtChunkServer(choose.id, target)) {
-            LOG(ERROR) << "copysetScheduler create " << choose.CopySetInfoStr()
-                       << " on chunkServer: " << target
-                       << " error, delete operator" << op.OpToString();
-            opController_->RemoveOperator(choose.id);
-        } else {
-            LOG(INFO) << "copysetScheduler create " << choose.CopySetInfoStr()
-                      << "on chunkserver:" << target
-                      << " success. generator op: "
-                      << op.OpToString() << "success";
+        if (AddOperatorAndCreateCopyset(op, choose, target)) {
+            oneRoundGenOp++;
         }
     }
 
-    LOG_EVERY_N(INFO, 20) << "copysetScheduler is continually adjusting";
-    LOG(INFO) << "copysetScheduler end.";
-    return static_cast<int>(source);
+    return oneRoundGenOp;
+}
+
+int CopySetScheduler::DoCopySetSchedule(PoolIdType lid) {
+    // 1. collect the chunkserver list and copyset list of the cluster, then
+    //    collect copyset on every online chunkserver
+    auto copysetList = topo_->GetCopySetInfosInLogicalPool(lid);
+    auto chunkserverList = topo_->GetChunkServersInLogicalPool(lid);
+
+    std::map<ChunkServerIdType, std::vector<CopySetInfo>> penddingDistribute;
+    SchedulerHelper::GetCopySetDistributionInOnlineChunkServer(
+        copysetList, chunkserverList, &penddingDistribute);
+    SchedulerHelper::FilterCopySetDistributions(ChunkServerStatus::PENDDING,
+                    chunkserverList, &penddingDistribute);
+    if (!penddingDistribute.empty()) {
+        int oneRoundGenOp = PenddingCopySetSchedule(penddingDistribute);
+        // If generate pendding copy set schedule, return here.
+        if (oneRoundGenOp != 0) {
+            return oneRoundGenOp;
+        }
+    }
+
+    // If no pendding copyset schedule operator generated,
+    // run NormalCopySetSchedule
+    std::map<ChunkServerIdType, std::vector<CopySetInfo>> normalDistribute;
+    SchedulerHelper::GetCopySetDistributionInOnlineChunkServer(
+        copysetList, chunkserverList, &normalDistribute);
+    SchedulerHelper::FilterCopySetDistributions(ChunkServerStatus::READWRITE,
+                    chunkserverList, &normalDistribute);
+    if (normalDistribute.empty()) {
+        LOG(WARNING) << "no not-retired chunkserver in topology";
+        return 0;
+    }
+    return NormalCopySetSchedule(normalDistribute);
 }
 
 void CopySetScheduler::StatsCopysetDistribute(
