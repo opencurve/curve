@@ -216,6 +216,38 @@ TEST_F(TestRapidLeaderSchedule, test_rapid_schedule_success) {
     ASSERT_EQ(3, operators[2].copysetID.second);
 }
 
+TEST_F(TestRapidLeaderSchedule, test_rapid_schedule_pendding) {
+    // 快速均衡成功
+    //      chunkserver-1        chunkserver-2        chunkserver-3
+    //      copyset-1(leader)      copyset-1            copyset-1
+    //      copyset-2(leader)      copyset-2            copyset-2
+    //      copyset-3(leader)      copyset-3            copyset-3
+    std::shared_ptr<RapidLeaderScheduler> rapidLeaderScheduler;
+    rapidLeaderScheduler = std::make_shared<RapidLeaderScheduler>(
+        opt_, topoAdapter_, opController_, 1);
+
+    EXPECT_CALL(*topoAdapter_, GetLogicalpools())
+        .WillOnce(Return(std::vector<PoolIdType>{1}));
+    auto chunkserverInfosBak = chunkServerInfos_;
+    chunkserverInfosBak[0].leaderCount = 3;
+    chunkserverInfosBak[0].status = ChunkServerStatus::PENDDING;
+    EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(1))
+            .WillOnce(Return(chunkserverInfosBak));
+
+    auto copyset1 = GetCopySetInfoForTest();
+    auto copyset2 = GetCopySetInfoForTest();
+    copyset2.id = CopySetKey{1, 2};
+    auto copyset3 = GetCopySetInfoForTest();
+    copyset3.id = CopySetKey{1, 3};
+    EXPECT_CALL(*topoAdapter_, GetCopySetInfosInLogicalPool(1))
+            .WillOnce(Return(
+                std::vector<CopySetInfo>{copyset1, copyset2, copyset3}));
+
+    ASSERT_EQ(kScheduleErrCodeSuccess, rapidLeaderScheduler->Schedule());
+    auto operators = opController_->GetOperators();
+    ASSERT_EQ(0, operators.size());
+}
+
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

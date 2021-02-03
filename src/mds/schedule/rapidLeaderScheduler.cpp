@@ -120,9 +120,10 @@ bool RapidLeaderScheduler::LeaderStatInSpecifiedLogicalPool(
     }
 
     // get copyset info list for every chunkserver
-    SchedulerHelper::CopySetDistributionInOnlineChunkServer(
+    SchedulerHelper::GetCopySetDistributionInOnlineChunkServer(
         copysetVec, chunkserverVec, &stat->distribute);
-
+    SchedulerHelper::FilterCopySetDistributions(ChunkServerStatus::READWRITE,
+                    chunkserverVec, &stat->distribute);
     // calculate average leader number for every chunkserver
     stat->avgLeaderNum = copysetVec.size() / chunkserverVec.size();
 

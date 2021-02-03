@@ -175,7 +175,7 @@ class CopySetScheduler : public Scheduler {
      * @brief Schedule Generating operator according to
      *        the condition of the cluster
      *
-     * @return chunkserver to add, a value for POC
+     * @return operator num generated
      */
     int Schedule() override;
 
@@ -248,6 +248,36 @@ class CopySetScheduler : public Scheduler {
      *         false if any of it does not
      */
     bool CopySetSatisfiyBasicMigrationCond(const CopySetInfo &info);
+
+    /**
+     * @brief migrate one copyset between online & no pendding chunkservers
+     *
+     * @param[in] distribute Copyset on every online && no pendding chunkserver
+     *
+     * @return Source node of the migration
+     */
+    int NormalCopySetSchedule(const std::map<ChunkServerIdType,
+                                    std::vector<CopySetInfo>> &distribute);
+
+    /**
+     * @brief migrate one copyset from online && pendding chunkserver to
+     *        other healty chunkserver
+     * @param[in] distribute Copyset on every online && pendding chunkserver
+     * @return migrate copyset num
+     */
+    int PenddingCopySetSchedule(const std::map<ChunkServerIdType,
+                                    std::vector<CopySetInfo>> &distribute);
+
+    /**
+     * @brief add op to opController and create copyset at chunkserver
+     * @param[in] op the oprator to add to opController
+     * @param[in] choose the copyset need to schedule
+     * @param[in] target the chunkserver want to add to this copyset
+     * @return return true if sucess, retrun false if not
+     */
+    bool AddOperatorAndCreateCopyset(const Operator &op,
+                                     const CopySetInfo &choose,
+                                     const ChunkServerIdType &target);
 
  private:
     // Running interval of CopySetScheduler

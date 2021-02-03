@@ -208,13 +208,25 @@ int StatusTool::ChunkServerListCmd() {
         std::cout << "ListChunkserversInCluster fail!" << std::endl;
         return -1;
     }
+
     std::cout << "curve chunkserver list: " << std::endl;
     uint64_t total = 0;
     uint64_t online = 0;
     uint64_t offline = 0;
     uint64_t unstable = 0;
+    uint64_t pendding = 0;
+    uint64_t retired = 0;
+    uint64_t penddingCopyset = 0;
     for (auto& chunkserver : chunkservers) {
         auto csId = chunkserver.chunkserverid();
+        std::vector<CopysetInfo> copysets;
+        int ret = mdsClient_->GetCopySetsInChunkServer(csId, &copysets);
+        if (ret != 0) {
+            std::cout << "GetCopySetsInChunkServer fail, chunkserver id = "
+                      << csId;
+            return -1;
+        }
+
         double unhealthyRatio;
         if (FLAGS_checkCSAlive) {
             // 发RPC重置online状态
@@ -251,6 +263,13 @@ int StatusTool::ChunkServerListCmd() {
             }
             online++;
         }
+        if (chunkserver.status() == ChunkServerStatus::PENDDING) {
+            pendding++;
+            penddingCopyset += copysets.size();
+        }
+        if (chunkserver.status() == ChunkServerStatus::RETIRED) {
+            retired++;
+        }
         total++;
         std::cout << "chunkServerID = " << csId
                   << ", diskType = " << chunkserver.disktype()
@@ -262,6 +281,7 @@ int StatusTool::ChunkServerListCmd() {
                   << DiskState_Name(chunkserver.diskstatus())
                   << ", onlineState = "
                   << OnlineState_Name(chunkserver.onlinestate())
+                  << ", copysetNum = " << copysets.size()
                   << ", mountPoint = " << chunkserver.mountpoint()
                   << ", diskCapacity = " << chunkserver.diskcapacity()
                             / curve::mds::kGB << " GB"
@@ -281,6 +301,10 @@ int StatusTool::ChunkServerListCmd() {
         std::cout <<", unstable: " << unstable;
     }
     std::cout << ", offline: " << offline << std::endl;
+
+    std::cout << "pendding: " << pendding
+              << ", penddingCopyset: " << penddingCopyset
+              << ", retired:" << retired << std::endl;
     return 0;
 }
 
