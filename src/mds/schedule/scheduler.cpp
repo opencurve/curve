@@ -256,7 +256,8 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
     // the one to remove should be selected from BCDE
     // 2.2 greater
     // any chunkserver to remove will satisfy the requirement, thus we first
-    // consider the one not online, then consider the scatter-width
+    // consider the one not online, then the one is pendding ,
+    // then consider the scatter-width
     // for example, if the replicas are:
     // A(zone1) B(zone2) C(zone3) D(zone4) E(zone4)
     // we can remove anyone of it
@@ -273,7 +274,7 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
         }
     }
 
-    // consider offline chunkservers first
+    // consider offline or pendding chunkservers first
     for (auto cs : candidateChunkServer) {
         ChunkServerInfo csInfo;
         if (!topo_->GetChunkServerInfo(cs, &csInfo)) {
@@ -283,15 +284,22 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
             return UNINTIALIZE_ID;
         }
 
-        // chunkserver is not offline
+        // chunkserver is offline
         if (csInfo.IsOffline()) {
             LOG(WARNING) << "scheduler choose to remove offline chunkServer "
                          << cs << " from " << copySetInfo.CopySetInfoStr();
             return cs;
         }
+
+        // chunkserver is pendding
+        if (csInfo.IsPendding()) {
+            LOG(WARNING) << "scheduler choose to remove pendding chunkServer "
+                         << cs << " from " << copySetInfo.CopySetInfoStr();
+            return cs;
+        }
     }
 
-    // if all chunkserver are online, select according to the impact on scatter-width //NOLINT
+    // if all chunkserver are online and not pendding, select according to the impact on scatter-width //NOLINT
     // first rank chunkser by the number of copyset on it
     std::map<ChunkServerIdType, std::vector<CopySetInfo>> distribute;
     std::vector<std::pair<ChunkServerIdType, std::vector<CopySetInfo>>> desc;

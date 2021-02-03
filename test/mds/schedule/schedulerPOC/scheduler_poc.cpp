@@ -395,7 +395,11 @@ class CopysetSchedulerPOC : public testing::Test {
             ChunkServer chunkserver;
             ASSERT_TRUE(topo_->GetChunkServer(it, &chunkserver));
             if (chunkserver.GetOnlineState() == OnlineState::OFFLINE) {
-                LOG(INFO) << "chunkserver " << it << "is offline";
+                LOG(INFO) << "chunkserver " << it << " is offline";
+                continue;
+            }
+            if (chunkserver.GetStatus() == ChunkServerStatus::PENDDING) {
+                LOG(INFO) << "chunkserver " << it << " is pendding";
                 continue;
             }
 
@@ -484,6 +488,9 @@ class CopysetSchedulerPOC : public testing::Test {
             ChunkServer chunkserver;
             ASSERT_TRUE(topo_->GetChunkServer(it, &chunkserver));
             if (chunkserver.GetOnlineState() == OnlineState::OFFLINE) {
+                continue;
+            }
+            if (chunkserver.GetStatus() == ChunkServerStatus::PENDDING) {
                 continue;
             }
             int number = topo_->GetCopySetsInChunkServer(it).size();
@@ -1054,11 +1061,14 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_1) { //NOLIN
     // 2. chunkserver-choose恢复成online状态
     SetChunkServerOnline(choose);
     BuildCopySetScheduler(1);
-    int removeOne = 0;
+    std::vector<ChunkServerIdType> csList;
+    csList = topo_->GetChunkServerInCluster();
+    std::set<ChunkServerIdType> csSet(csList.begin(), csList.end());
+    int operatorCount = 0;
     do {
-        removeOne = copySetScheduler_->Schedule();
-        ApplyOperatorsInOpController(std::set<ChunkServerIdType>{removeOne});
-    } while (removeOne > 0);
+        operatorCount = copySetScheduler_->Schedule();
+        ApplyOperatorsInOpController(csSet);
+    } while (operatorCount > 0);
     PrintScatterWithInLogicalPool();
     PrintCopySetNumInLogicalPool();
     LOG(INFO) << "offline one:" << choose;
@@ -1192,14 +1202,16 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_3) { //NOLIN
     // 2. chunkserver恢复成online状态
     SetChunkServerOnline(idlist);
     BuildCopySetScheduler(1);
-    int removeOne = 0;
+    std::vector<ChunkServerIdType> csList;
+    csList = topo_->GetChunkServerInCluster();
+    std::set<ChunkServerIdType> csSet(csList.begin(), csList.end());
+    int operatorCount = 0;
     do {
-        removeOne = copySetScheduler_->Schedule();
-        if (removeOne > 0) {
-            ApplyOperatorsInOpController(
-                std::set<ChunkServerIdType>{removeOne});
+        operatorCount = copySetScheduler_->Schedule();
+        if (operatorCount > 0) {
+            ApplyOperatorsInOpController(csSet);
         }
-    } while (removeOne > 0);
+    } while (operatorCount > 0);
     PrintScatterWithInLogicalPool();
     PrintCopySetNumInLogicalPool();
 
@@ -1215,6 +1227,63 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_3) { //NOLIN
     // 均值：100.556, 方差：8.18025, 标准差： 2.86011, 最大值：107, 最小值：91
     // ###print copyset-num in cluster###
     // 均值：100, 方差：1, 标准差： 1, 最大值： 101, 最小值：91
+}
+
+TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_4) { //NOLINT
+    // set one chunkserver status from online to pendding, and the copyset on it will schedule out  //NOLINT
+
+    // set one chunkserver status to pendding
+    auto chunkserverlist = topo_->GetChunkServerInServer(1);
+    ChunkServerIdType target = *chunkserverlist.begin();
+    topo_->UpdateChunkServerRwState(ChunkServerStatus::PENDDING, target);
+
+    int opNum = 0;
+    int targetOpNum = topo_->GetCopySetsInChunkServer(target).size();
+    BuilRecoverScheduler(1);
+    BuildCopySetScheduler(1);
+    int removeOne = 0;
+    do {
+        removeOne = copySetScheduler_->Schedule();
+        opNum += removeOne;
+        if (removeOne > 0) {
+            ApplyOperatorsInOpController(
+                std::set<ChunkServerIdType>{target});
+        }
+    } while (removeOne > 0);
+    ASSERT_EQ(opNum, targetOpNum);
+    ASSERT_EQ(0, topo_->GetCopySetsInChunkServer(target).size());
+    PrintScatterWithInOnlineChunkServer();
+    PrintCopySetNumInOnlineChunkServer();
+}
+
+TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_5) { //NOLINT
+    // set two chunkserver status from online to pendding, and the copyset on it will schedule out  //NOLINT
+
+    // set two chunkserver status to pendding
+    auto chunkserverlist = topo_->GetChunkServerInServer(1);
+    ChunkServerIdType target = *chunkserverlist.begin();
+    topo_->UpdateChunkServerRwState(ChunkServerStatus::PENDDING, target);
+    topo_->UpdateChunkServerRwState(ChunkServerStatus::PENDDING, target + 1);
+
+    int opNum = 0;
+    int targetOpNum = topo_->GetCopySetsInChunkServer(target).size();
+    targetOpNum += topo_->GetCopySetsInChunkServer(target + 1).size();
+    BuilRecoverScheduler(1);
+    BuildCopySetScheduler(1);
+    int removeCount = 0;
+    do {
+        removeCount = copySetScheduler_->Schedule();
+        opNum += removeCount;
+        if (removeCount > 0) {
+            LOG(INFO) << "removeCount = " << removeCount;
+            ApplyOperatorsInOpController(
+                std::set<ChunkServerIdType>{target, target + 1});
+        }
+    } while (removeCount > 0);
+    ASSERT_EQ(opNum, targetOpNum);
+    ASSERT_EQ(0, topo_->GetCopySetsInChunkServer(target).size());
+    PrintScatterWithInOnlineChunkServer();
+    PrintCopySetNumInOnlineChunkServer();
 }
 
 TEST_F(CopysetSchedulerPOC, DISABLED_test_leader_rebalance) {
