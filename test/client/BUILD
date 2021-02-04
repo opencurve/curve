@@ -68,7 +68,8 @@ cc_test(
                 "libcurve_client_unittest.cpp",
                 "lease_executor_test.cpp",
                 "request_sender_test.cpp",
-                "mds_client_test.cpp"
+                "mds_client_test.cpp",
+                "splitor_test.cpp",
                 ]
     ),
     copts = select({
@@ -97,6 +98,7 @@ cc_test(
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "//test/integration/cluster_common:integration_cluster_common",
+        "//test/client/mock:curve_client_mock",
     ],
 )
 
@@ -177,27 +179,13 @@ cc_test(
         "//conditions:default": COPTS,
     }),
     defines = ["UNIT_TEST"],
-    linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
     deps = [
-        "//external:braft",
-        "//external:brpc",
-        "//external:gflags",
-        "//external:glog",
-        "//external:leveldb",
-        "//external:protobuf",
         "//include/client:include_client",
-        "//proto:chunkserver-cc-protos",
-        "//proto:nameserver2_cc_proto",
-        "//proto:topology_cc_proto",
         "//src/client:curve_client",
-        "//src/common:curve_common",
-        "//test/client/fake:fake_lib",
-        "//test/client:client_mock",
-        "//src/common/concurrent:curve_concurrent",
+        "//test/client/mock:curve_client_mock",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
-        "//test/integration/cluster_common:integration_cluster_common",
     ],
 )
 
@@ -348,6 +336,7 @@ cc_test(
         "//src/client:curve_client",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+        "//test/client/mock:curve_client_mock",
     ],
 )
 
@@ -386,17 +375,6 @@ cc_test(
     ],
 )
 
-cc_library(
-    name = "client_mock",
-    srcs = [
-            "mock_file_client.h",
-            ],
-    deps = [
-            "//src/client:curve_client",
-            ],
-    visibility = ["//visibility:public"],
-)
-
 config_setting(
     name = "arm64_build",
     values = {"cpu": "aarch64"},
@@ -411,7 +389,11 @@ cc_test(
     name = "client_mds_client_test",
     srcs = [
         "mds_client_test.cpp"],
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     visibility = ["//visibility:public"],
     deps = [
         "//external:braft",
@@ -431,4 +413,23 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "//test/client/mock:curve_client_mock"
     ],
+)
+
+cc_test(
+    name = "client_splitor_test",
+    srcs = [
+        "splitor_test.cpp"
+    ],
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
+    defines = ["UNIT_TEST", "FIU_ENABLE"],
+    linkopts = ["-lfiu"],
+    deps = [
+        "//include/client:include_client",
+        "//src/client:curve_client",
+        "@com_google_googletest//:gtest",
+    ]
 )
