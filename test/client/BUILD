@@ -143,27 +143,13 @@ cc_test(
     ]),
     copts = COPTS,
     defines = ["UNIT_TEST"],
-    linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
     deps = [
-        "//external:braft",
-        "//external:brpc",
-        "//external:gflags",
-        "//external:glog",
-        "//external:leveldb",
-        "//external:protobuf",
         "//include/client:include_client",
-        "//proto:chunkserver-cc-protos",
-        "//proto:nameserver2_cc_proto",
-        "//proto:topology_cc_proto",
         "//src/client:curve_client",
-        "//src/common:curve_common",
-        "//test/client/fake:fake_lib",
-        "//test/client:client_mock",
-        "//src/common/concurrent:curve_concurrent",
+        "//test/client/mock:curve_client_mock",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
-        "//test/integration/cluster_common:integration_cluster_common",
     ],
 )
 
@@ -326,17 +312,6 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "//test/integration/cluster_common:integration_cluster_common",
     ],
-)
-
-cc_library(
-    name = "client_mock",
-    srcs = [
-            "mock_file_client.h",
-            ],
-    deps = [
-            "//src/client:curve_client",
-            ],
-    visibility = ["//visibility:public"],
 )
 
 cc_test(

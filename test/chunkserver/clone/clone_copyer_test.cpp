@@ -28,7 +28,7 @@
 #include "src/chunkserver/clone_copyer.h"
 #include "src/chunkserver/clone_core.h"
 #include "test/chunkserver/clone/clone_test_util.h"
-#include "test/client/mock_file_client.h"
+#include "test/client/mock/mock_file_client.h"
 #include "test/common/mock_s3_adapter.h"
 
 namespace curve {

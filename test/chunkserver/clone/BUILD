@@ -36,7 +36,7 @@ cc_test(
         "//test/chunkserver/datastore:datastore_mock",
         "//test/chunkserver:chunkserver_mock",
         "//test/chunkserver/clone:clone_mock",
-        "//test/client:client_mock",
+        "//test/client/mock:curve_client_mock",
         "//test/common:common_mock",
     ],
 )
