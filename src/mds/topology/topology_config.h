@@ -44,6 +44,8 @@ struct TopologyOption {
     uint32_t PoolUsagePercentLimit;
     // policy of pool choosing
     int choosePoolPolicy;
+    // enable LogicalPool ALLOW/DENY status
+    bool enableLogicalPoolStatus;
 
     TopologyOption()
         : TopologyUpdateToRepoSec(0),
@@ -52,7 +54,8 @@ struct TopologyOption {
           CreateCopysetRpcRetrySleepTimeMs(500),
           UpdateMetricIntervalSec(0),
           PoolUsagePercentLimit(100),
-          choosePoolPolicy(0) {}
+          choosePoolPolicy(0),
+          enableLogicalPoolStatus(false) {}
 };
 
 }  // namespace topology
