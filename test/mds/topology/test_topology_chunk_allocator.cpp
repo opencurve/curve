@@ -56,6 +56,7 @@ class TestTopologyChunkAllocator : public ::testing::Test {
                                                tokenGenerator_,
                                                storage_);
         TopologyOption option;
+        option.enableLogicalPoolStatus = true;
         allocStatistic_ = std::make_shared<MockAllocStatistic>();
         testObj_ = std::make_shared<TopologyChunkAllocatorImpl>(topology_,
         allocStatistic_,
@@ -369,6 +370,53 @@ TEST_F(TestTopologyChunkAllocator,
     bool ret =
         testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
             1,
+            1024,
+            &infos);
+
+    ASSERT_FALSE(ret);
+}
+
+TEST_F(TestTopologyChunkAllocator,
+    Test_AllocateChunkRoundRobinInSingleLogicalPool_logicalPoolIsDENY) {
+    std::vector<CopysetIdInfo> infos;
+
+    PoolIdType logicalPoolId = 0x01;
+    PoolIdType physicalPoolId = 0x11;
+
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(0x21, "zone1", physicalPoolId);
+    PrepareAddZone(0x22, "zone2", physicalPoolId);
+    PrepareAddZone(0x23, "zone3", physicalPoolId);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
+    PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId,
+        PAGEFILE);
+    std::set<ChunkServerIdType> replicas;
+    replicas.insert(0x41);
+    replicas.insert(0x42);
+    replicas.insert(0x43);
+    PrepareAddCopySet(0x51, logicalPoolId, replicas);
+    PrepareAddCopySet(0x52, logicalPoolId, replicas);
+    PrepareAddCopySet(0x53, logicalPoolId, replicas);
+    PrepareAddCopySet(0x54, logicalPoolId, replicas);
+    PrepareAddCopySet(0x55, logicalPoolId, replicas);
+
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
+        .WillOnce(Return(true));
+
+    topology_->UpdateLogicalPoolAllocateStatus(
+        AllocateStatus::DENY, logicalPoolId);
+
+    EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_, _))
+        .WillRepeatedly(Return(true));
+
+    bool ret =
+        testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
+            3,
             1024,
             &infos);
 
