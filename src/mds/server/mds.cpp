@@ -298,6 +298,9 @@ void MDS::InitTopologyOption(TopologyOption *topologyOption) {
     conf_->GetValueFatalIfFail(
         "mds.topology.choosePoolPolicy",
         &topologyOption->choosePoolPolicy);
+    conf_->GetValueFatalIfFail(
+        "mds.topology.enableLogicalPoolStatus",
+        &topologyOption->enableLogicalPoolStatus);
 }
 
 void MDS::InitTopology(const TopologyOption& option) {
