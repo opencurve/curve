@@ -69,7 +69,8 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
         : topology_(topology),
         allocStatistic_(allocStatistic),
         poolUsagePercentLimit_(option.PoolUsagePercentLimit),
-        policy_(static_cast<ChoosePoolPolicy>(option.choosePoolPolicy)) {
+        policy_(static_cast<ChoosePoolPolicy>(option.choosePoolPolicy)),
+        enableLogicalPoolStatus_(option.enableLogicalPoolStatus) {
         std::srand(std::time(nullptr));
     }
     ~TopologyChunkAllocatorImpl() {}
@@ -141,6 +142,8 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
     ::curve::common::Mutex nextIndexMapLock_;
     // policy for choosing pool
     ChoosePoolPolicy policy_;
+    // enableLogicalPoolStatus
+    bool enableLogicalPoolStatus_;
 };
 
 /**
