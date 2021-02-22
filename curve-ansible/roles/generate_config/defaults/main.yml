@@ -60,6 +60,7 @@ mds_topology_create_copyset_rpc_retry_sleep_time_ms: 1000
 mds_topology_update_metric_interval_sec: 60
 mds_topology_pool_usage_percent_limit: 85
 mds_topology_choose_pool_policy: 0
+mds_topology_enable_logicalpool_status: true
 mds_copyset_copyset_retry_times: 10
 mds_copyset_scatterwidth_variance: 0
 mds_copyset_scatterwidth_standard_devation: 0
