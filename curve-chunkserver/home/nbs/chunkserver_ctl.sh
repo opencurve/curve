@@ -141,7 +141,7 @@ function start_one() {
         return 1
     fi
 
-    ps -efl|grep -w "/data/chunkserver$1"|grep -v grep
+    ps -efl|grep -E "curve-chunkserver .*${DATA_DIR}/chunkserver$1 "|grep -v grep
     if [ $? -eq 0 ]
     then
         echo "chunkserver$1 is already active!"
@@ -216,7 +216,7 @@ function stop() {
     fi
 
     echo "kill chunkserver $1"
-    kill `ps -efl|grep -w /data/chunkserver$1|grep -v grep|awk '{print $4}'`
+    kill `ps -efl|grep -E "curve-chunkserver .*${DATA_DIR}/chunkserver$1 "|grep -v grep|awk '{print $4}'`
 }
 
 function restart() {
@@ -252,7 +252,7 @@ function wait_stop() {
     while [ $retry_times -le 3 ]
     do
         ((retry_times=$retry_times+1))
-        ps -efl|grep -w "/data/chunkserver$1"|grep -v grep > /dev/null 2>&1
+        ps -efl|grep -E "curve-chunkserver .*${DATA_DIR}/chunkserver$1 "|grep -v grep > /dev/null 2>&1
         if [ $? -eq 0 ]
         then
             sleep 1
@@ -262,11 +262,11 @@ function wait_stop() {
         fi
     done
     # 如果进程还在，就kill -9
-    ps -efl|grep -w "/data/chunkserver$1"|grep -v grep > /dev/null 2>&1
+    ps -efl|grep -E "curve-chunkserver .*${DATA_DIR}/chunkserver$1 "|grep -v grep > /dev/null 2>&1
     if [ $? -eq 0 ]
     then
         echo "The process of chunkserver$1 still exists after 3s, now kill -9 it"
-        kill -9 `ps -efl|grep -w /data/chunkserver$1|grep -v grep|awk '{print $4}'`
+        kill -9 `ps -efl|grep -E "curve-chunkserver .*${DATA_DIR}/chunkserver$1 "|grep -v grep|awk '{print $4}'`
     fi
 }
 
@@ -294,7 +294,7 @@ function status_one() {
         echo "chunkserver num $1 is not ok"
         return 1
     fi
-    ps -efl|grep -w "/data/chunkserver$1"|grep -v grep > /dev/null 2>&1
+    ps -efl|grep -E "curve-chunkserver .*${DATA_DIR}/chunkserver$1 "|grep -v grep > /dev/null 2>&1
     if [ $? -eq 0 ]
     then
         echo "chunkserver$1 is active!"
