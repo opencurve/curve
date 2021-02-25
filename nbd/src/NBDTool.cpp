@@ -61,6 +61,8 @@ int NBDTool::Connect(NBDConfig *cfg) {
     // init socket pair
     int ret = socketPair_.Init();
     if (ret < 0) {
+        dout << "init socker pair failed, imgname = " << cfg->imgname
+             << std::endl;
         return ret;
     }
 
@@ -68,24 +70,27 @@ int NBDTool::Connect(NBDConfig *cfg) {
     ImagePtr imageInstance = GenerateImage(cfg->imgname);
     bool openSuccess = imageInstance->Open();
     if (!openSuccess) {
-        cerr << "curve-nbd: Could not open image." << std::endl;
+        dout << "curve-nbd: Could not open image, imgname = " << cfg->imgname
+             << std::endl;
         return -1;
     }
 
     // 判断文件大小是否符合预期
     int64_t fileSize = imageInstance->GetImageSize();
     if (fileSize <= 0) {
-        cerr << "curve-nbd: Get file size failed." << std::endl;
+        dout << "curve-nbd: Get file size failed." << std::endl;
         return -1;
     } else if ( (uint64_t)fileSize > ULONG_MAX ) {
-        cerr << "curve-nbd: image is too large (" << (uint64_t)fileSize
-             << ", max is " << ULONG_MAX << ")" << std::endl;
+        dout << "curve-nbd: image is too large (" << (uint64_t)fileSize
+             << ", max is " << ULONG_MAX << ") imgname = " << cfg->imgname
+             << std::endl;
         return -1;
     }
 
     // load nbd module
     ret = load_module(cfg);
     if (ret < 0) {
+        dout << "load module failed, imgname = " << cfg->imgname << std::endl;
         return ret;
     }
 
@@ -101,6 +106,8 @@ int NBDTool::Connect(NBDConfig *cfg) {
     }
     ret = nbdCtrl->SetUp(cfg, socketPair_.First(), fileSize, flags);
     if (ret < 0) {
+        dout << "nbd controller setup failed, imgname = " << cfg->imgname
+             << std::endl;
         return -1;
     }
 
@@ -181,9 +188,8 @@ int NBDTool::WaitForTerminate(pid_t pid, const NBDConfig* config) {
             if (errno == ESRCH) {
                 return 0;
             }
-            std::cerr << "curve-nbd test device failed, dev: "
-                      << config->devpath << ", err = " << cpp_strerror(-errno)
-                      << std::endl;
+            dout << "curve-nbd test device failed, dev: " << config->devpath
+                 << ", err = " << cpp_strerror(-errno) << std::endl;
             return -errno;
         }
 

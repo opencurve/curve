@@ -68,7 +68,7 @@ int parse_nbd_index(const std::string& devpath) {
         if (ret == 0) {
             ret = -EINVAL;
         }
-        cerr << "curve-nbd: invalid device path: " <<  devpath
+        dout << "curve-nbd: invalid device path: " <<  devpath
              << " (expected /dev/nbd{num})" << std::endl;
         return ret;
     }
@@ -98,7 +98,7 @@ std::string find_unused_nbd_device() {
 
     int ret = socketpair(AF_UNIX, SOCK_STREAM, 0, sockfd);
     if (ret < 0) {
-        cerr << "curve-ndb: failed to create socket pair." << std::endl;
+        dout << "curve-ndb: failed to create socket pair." << std::endl;
         return "";
     }
 
@@ -111,7 +111,7 @@ std::string find_unused_nbd_device() {
                 ++index;
                 continue;
             }
-            cerr << "curve-ndb: failed to find unused device, "
+            dout << "curve-ndb: failed to find unused device, "
                  << cpp_strerror(errno) << std::endl;
             break;
         }
@@ -330,7 +330,7 @@ int check_size_from_file(const std::string& path, uint64_t expected_size) {
     std::ifstream ifs;
     ifs.open(path.c_str(), std::ifstream::in);
     if (!ifs.is_open()) {
-        cerr << "curve-nbd: failed to open " << path << std::endl;
+        dout << "curve-nbd: failed to open " << path << std::endl;
         return -EINVAL;
     }
 
@@ -345,7 +345,7 @@ int check_size_from_file(const std::string& path, uint64_t expected_size) {
     }
 
     if (size != expected_size) {
-        cerr << "curve-nbd: kernel reported invalid size (" << size
+        dout << "curve-nbd: kernel reported invalid size (" << size
             << ", expected " << expected_size << ")" << std::endl;
         return -EINVAL;
     }
@@ -424,7 +424,7 @@ int load_module(NBDConfig *cfg) {
 
     if (!access("/sys/module/nbd", F_OK)) {
         if (cfg->nbds_max || cfg->set_max_part) {
-            cerr << "curve-nbd: ignoring kernel module parameter options:"
+            dout << "curve-nbd: ignoring kernel module parameter options:"
                  << " nbd module already loaded. "
                  << "nbds_max: " << cfg->nbds_max
                  << ", set_max_part: " << cfg->set_max_part << std::endl;
@@ -434,7 +434,7 @@ int load_module(NBDConfig *cfg) {
 
     ret = module_load("nbd", param.str().c_str());
     if (ret < 0) {
-        cerr << "curve-nbd: failed to load nbd kernel module: "
+        dout << "curve-nbd: failed to load nbd kernel module: "
              << cpp_strerror(-ret) << std::endl;
     }
 

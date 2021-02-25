@@ -59,19 +59,19 @@ static void HandleSignal(int signum) {
     int ret = 0;
 
     if (signum != SIGINT && signum != SIGTERM) {
-        std::cerr << "Catch unexpected signal : " << signum;
+        dout << "Catch unexpected signal : " << signum;
         return;
     }
 
-    std::cout << "Got signal " << sys_siglist[signum] << "\n"
+    dout << "Got signal " << sys_siglist[signum] << "\n"
               << ", disconnect now" << std::endl;
 
     ret = nbdTool->Disconnect(nbdConfig.get());
     if (ret != 0) {
-        std::cout << "curve-nbd: disconnect failed. Error: " << ret
+        dout << "curve-nbd: disconnect failed. Error: " << ret
                   << std::endl;
     } else {
-        std::cout << "curve-nbd: disconnected";
+        dout << "curve-nbd: disconnected";
     }
 }
 
