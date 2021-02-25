@@ -28,21 +28,19 @@ namespace chunkserver {
 
 void ChunkClosure::Run() {
     /**
-     * 在Run结束之后，自动析构自己，这样可以避免
-     * 析构函数漏调
+     * After Run，deconstruct itself，to avoid the bugs of the deconstructor
      */
     std::unique_ptr<ChunkClosure> selfGuard(this);
     /**
-     * 确保done能够被调用，目的是保证rpc一定会返回
+     * Make sure done be called，so that rpc will definitely return
      */
     brpc::ClosureGuard doneGuard(request_->Closure());
     /**
-     * 尽管在request propose给copyset的之前已经
-     * 对leader身份进行了确认，但是在copyset处理
-     * request的时候，当前copyset的身份还是有可能
-     * 变成非leader，所以需要判断ChunkClosure被调
-     * 用的时候，request的status，如果 ok，说明是
-     * 正常的apply处理，否则将请求转发
+     * Although leader's indentification has been confirmed before the request is
+     * proposed to copyset, it's status may turn into non-leader while copyset is
+     * processing the request. So, we need to check the status of the request when
+     * ChunkClosure is called. If the status is ok, it means everything goes well.
+     * Otherwise, Redirect is needed.
      */
     if (status().ok()) {
         return;

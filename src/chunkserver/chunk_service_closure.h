@@ -34,7 +34,8 @@
 namespace curve {
 namespace chunkserver {
 
-// chunk service层的闭包，对rpc的闭包再做一层封装，用于请求返回时统计metric信息
+// chunk service layer closures, which encapsulates rpc closures,
+// is used to count metric information on request return
 class ChunkServiceClosure : public braft::Closure {
  public:
     explicit ChunkServiceClosure(
@@ -47,43 +48,44 @@ class ChunkServiceClosure : public braft::Closure {
         , response_(response)
         , brpcDone_(done)
         , receivedTimeUs_(common::TimeUtility::GetTimeofDayUs()) {
-            // closure创建的什么加1，closure调用的时候减1
+            // Subtract 1 when closure is called, add 1 when closure is created
             if (nullptr != inflightThrottle_) {
                 inflightThrottle_->Increment();
             }
-            // 统计请求数量
+            // Count requests
             OnRequest();
         }
 
     ~ChunkServiceClosure() = default;
 
     /**
-     * 该闭包的guard生命周期结束时会调用该函数
-     * 该函数内目前主要是对读写请求返回结果的一些metric统计
-     * 后面如果有类似的场景（在service请求结束时做一些处理）可以在内部添加逻辑
+     * This function is called at the end of the life of the closure's guard
+     * This function currently focuses on some metric statistics for the results returned from read and write requests
+     * If there is a similar scenario (doing some processing at the end of a service request) you can add logic to it internally
      */
     void Run() override;
 
  private:
     /**
-     * 统计请求数量和速率
+     * count the number and rate of requests
      */
     void OnRequest();
     /**
-     * 记录请求处理的结果，例如请求是否出错、请求的延时等
+     * Log the results of the request processing,
+     * e.g. whether the request was in error, the delay of the request, etc.
      */
     void OnResonse();
 
  private:
-    // inflight流控
+    // inflight Throttle
     std::shared_ptr<InflightThrottle> inflightThrottle_;
-    // rpc请求的request
+    // Request of rpc request
     const ChunkRequest *request_;
-    // rpc请求的response
+    // Response of rpc request
     ChunkResponse *response_;
-    // rpc请求回调
+    // rpc request callback
     google::protobuf::Closure *brpcDone_;
-    // 接受到请求的时间
+    // Time of receiving the request
     uint64_t receivedTimeUs_;
 };
 

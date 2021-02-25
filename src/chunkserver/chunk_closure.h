@@ -32,11 +32,11 @@ namespace curve {
 namespace chunkserver {
 
 /**
- * 携带op request的所有上下文的closure，通过braft::Task传递给raft处理，
- * 调用会有两个地方：
- * 1.op request正常的被raft处理，最后on apply的时候会调用返回
- * 2.op request被打包给raft处理之后，但是还没有来得及处理就出错了，例如leader
- *   step down变为了非leader，那么会明确的提前向client返回错误
+ * The closure which carries all contexts of op request，is processed by raft through braft::Task
+ * Calls occur in two places：
+ * 1.op request which is processed by raft normally，will call return when on apply
+ * 2.if op request goes wrong without any error handling after it is processed by raft (eg. leader
+ *   steps down into non-leader)，it will return error to client in advance
  */
 class ChunkClosure : public braft::Closure {
  public:
@@ -48,7 +48,7 @@ class ChunkClosure : public braft::Closure {
     void Run() override;
 
  public:
-    // 包含了op request 的上下文信息
+    // contain all contexts of op request
     std::shared_ptr<ChunkOpRequest> request_;
 };
 

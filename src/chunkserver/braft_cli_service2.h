@@ -38,53 +38,53 @@ using ::google::protobuf::RpcController;
 using ::google::protobuf::Closure;
 
 /**
- * braft配置变更Rpc Service
+ * braft's configuration about Rpc Service
  */
 class BRaftCliServiceImpl2 : public CliService2 {
  public:
-    // 增加一个peer
+    // add a peer
     void AddPeer(RpcController *controller,
                  const AddPeerRequest2 *request,
                  AddPeerResponse2 *response,
                  Closure *done);
 
-    // 移除一个peer
+    // remove a peer
     void RemovePeer(RpcController *controller,
                     const RemovePeerRequest2 *request,
                     RemovePeerResponse2 *response,
                     Closure *done);
 
-    // 变更配置
+    // change peers
     void ChangePeers(RpcController *controller,
                      const ChangePeersRequest2 *request,
                      ChangePeersResponse2 *response,
                      Closure *done);
 
-    // 获取copyset的leader
+    // get copyset's leader
     void GetLeader(RpcController *controller,
                    const GetLeaderRequest2 *request,
                    GetLeaderResponse2 *response,
                    Closure *done);
 
-    // 转移leader
+    // transfer leader
     void TransferLeader(RpcController *controller,
                         const TransferLeaderRequest2 *request,
                         TransferLeaderResponse2 *response,
                         Closure *done);
 
-    // 重置复制组成员
+    // reset copyset's peer
     void ResetPeer(RpcController* controller,
                    const ResetPeerRequest2* request,
                    ResetPeerResponse2* response,
                    Closure* done);
 
-    // 触发快照
+    // trigger snapshot
     void Snapshot(RpcController* controller,
                   const SnapshotRequest2* request,
                   SnapshotResponse2* response,
                   Closure* done);
 
-    // 给当前chunkserver上全部copyset的副本打快照
+    // make snapshots of all copysets on current chunkserver
     void SnapshotAll(RpcController* controller,
                      const SnapshotAllRequest* request,
                      SnapshotAllResponse* response,
@@ -92,12 +92,12 @@ class BRaftCliServiceImpl2 : public CliService2 {
 
  private:
     /**
-     * @brief: 查询指定的raft node
-     * @param node[out]: 查询到的raft node
-     * @param logicPoolId[in]: 逻辑池id
-     * @param copysetId[in]: 复制组id
+     * @brief: get specific raft node
+     * @param node[out]: result raft node
+     * @param logicPoolId[in]: logicpool id
+     * @param copysetId[in]: copysetpool id
      * @param peer_id[in]: peer id
-     * @return 成功，返回Status::OK()；否则，返回非Status::OK()
+     * @return if succeeded，return Status::OK()；otherwise，return a non- Status::OK() value
      */
     butil::Status get_node(scoped_refptr<braft::NodeImpl> *node,
                            const LogicPoolID &logicPoolId,

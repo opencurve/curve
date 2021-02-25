@@ -63,9 +63,9 @@ void CurveFileService::get_file(::google::protobuf::RpcController* controller,
     if (iter == _reader_map.end()) {
         lck.unlock();
         /**
-         * 为了和文件不存在的错误区分开来，且考虑到install snapshot
-         * 的uri format为:remote://ip:port/reader_id，所以使用ENXIO
-         * 代表reader id不存在的错误
+         * To distinguish it from a non-existent file error, and given that
+         * the uri format of the install snapshot is :remote://ip:port/reader_id,
+         * a non-existent reader id error is represented by ENXIO
          */
         cntl->SetFailed(ENXIO, "Fail to find reader=%" PRId64,
                                     request->reader_id());
@@ -88,10 +88,10 @@ void CurveFileService::get_file(::google::protobuf::RpcController* controller,
     butil::IOBuf buf;
     bool is_eof = false;
     size_t read_count = 0;
-    // 1. 如果是read attch meta file
+    // 1. if it is a read attach meta file
     if (request->filename() == BRAFT_SNAPSHOT_ATTACH_META_FILE) {
-        // 如果没有设置snapshot attachment，那么read文件的长度为零
-        // 表示没有 snapshot attachment文件列表
+        // If snapshot attachment is not set, the length of the read file is zero
+        // to indicate that there is no snapshot attachment file list
         bool snapshotAttachmentExist = false;
         {
             std::unique_lock<braft::raft_mutex_t> lck(_mutex);
@@ -104,7 +104,7 @@ void CurveFileService::get_file(::google::protobuf::RpcController* controller,
             }
         }
         if (snapshotAttachmentExist) {
-            // 否则获取snapshot attachment file list
+            // otherwise, get snapshot attachment file list
             std::vector<std::string> files;
             _snapshot_attachment->list_attach_files(&files, reader->path());
             CurveSnapshotAttachMetaTable attachMetaTable;
@@ -135,7 +135,7 @@ void CurveFileService::get_file(::google::protobuf::RpcController* controller,
             }
 
             if (0 != attachMetaTable.save_to_iobuf_as_remote(&buf)) {
-                // 内部错误: EINTERNAL
+                // Internal error: EINTERNAL
                 LOG(ERROR) << "Fail to serialize "
                                 "LocalSnapshotAttachMetaTable as iobuf";
                 cntl->SetFailed(brpc::EINTERNAL,
@@ -149,7 +149,7 @@ void CurveFileService::get_file(::google::protobuf::RpcController* controller,
             read_count = buf.size();
         }
     } else {
-        // 2. 否则其它文件下载继续走raft原先的文件下载流程
+        // 2. Otherwise, downloads of other files will continue with raft's original file download process
         const int rc = reader->read_file(
                                 &buf, request->filename(),
                                 request->offset(), request->count(),

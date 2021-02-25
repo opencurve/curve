@@ -30,32 +30,32 @@ namespace chunkserver {
 
 void ChunkServiceClosure::Run() {
     /**
-     * 在Run结束之后，自动析构自己，这样可以避免
-     * 析构函数漏调
+     * After Run，deconstruct itself，to avoid the bugs of the deconstructor
      */
     std::unique_ptr<ChunkServiceClosure> selfGuard(this);
 
     {
-        // 所有brpcDone_调用之前要做的操作都放到这个生命周期内
+        // All operations to be done before the brpcDone_ call are put into this lifecycle
         brpc::ClosureGuard doneGuard(brpcDone_);
-        // 记录请求处理结果，收集到metric中
+        // Log the results of the request processing and collect them into the metric
         OnResonse();
     }
 
-    // closure调用的时候减1，closure创建的什么加1
-    // 这一行必须放在brpcDone_调用之后，ut里需要测试inflightio超过限制时的表现
-    // 会在传进来的closure里面加一个sleep来控制inflightio个数
+    // Subtract 1 when closure is called, add 1 when closure is created
+    // This line must be placed after the brpcDone_ call. ut needs to
+    // test the performance of inflightio when the limit is exceeded.
+    // A sleep will be added to the incoming closure to control the number of inflightio
     if (nullptr != inflightThrottle_) {
         inflightThrottle_->Decrement();
     }
 }
 
 void ChunkServiceClosure::OnRequest() {
-    // 如果request或者response为空就不统计metric
+    // If request or response is empty, metric is not counted
     if (request_ == nullptr || response_ == nullptr)
         return;
 
-    // 根据request类型统计请求数量
+    // count the number of requests by request type
     ChunkServerMetric* metric = ChunkServerMetric::GetInstance();
     switch (request_->optype()) {
         case CHUNK_OP_TYPE::CHUNK_OP_READ: {
@@ -88,18 +88,18 @@ void ChunkServiceClosure::OnRequest() {
 }
 
 void ChunkServiceClosure::OnResonse() {
-    // 如果request或者response为空就不统计metric
+    // If request or response is empty, metric is not counted
     if (request_ == nullptr || response_ == nullptr)
         return;
 
-    // 可以根据response中的返回值来统计此次请求的处理结果
+    // Count the results of this request based on the return value in the response
     ChunkServerMetric* metric = ChunkServerMetric::GetInstance();
     bool hasError = false;
     uint64_t latencyUs =
         common::TimeUtility::GetTimeofDayUs() - receivedTimeUs_;
     switch (request_->optype()) {
         case CHUNK_OP_TYPE::CHUNK_OP_READ: {
-            // 如果是read请求，返回CHUNK_OP_STATUS_CHUNK_NOTEXIST也认为是正确的
+            // If it is a read request, the return CHUNK_OP_STATUS_CHUNK_NOTEXIST is also considered correct
             hasError = (response_->status()
                         != CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS) &&
                         (response_->status()

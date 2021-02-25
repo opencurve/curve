@@ -67,7 +67,7 @@ void ChunkServiceImpl::DeleteChunk(RpcController *controller,
         return;
     }
 
-    // 判断copyset是否存在
+    // check the existence of the copyset
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                                        request->copysetid());
     if (nullptr == nodePtr) {
@@ -114,7 +114,7 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
              << *(unsigned int *) cntl->request_attachment().to_string().c_str()
              << " attachement size " << cntl->request_attachment().size();
 
-    // 判断request参数是否合法
+    // check whether the params of the request are legal
     if (!CheckRequestOffsetAndLength(request->offset(), request->size())) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         DVLOG(9) << "I/O request, op: " << request->optype()
@@ -124,7 +124,7 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
         return;
     }
 
-    // 判断copyset是否存在
+    // check the existence of the copyset
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                                        request->copysetid());
     if (nullptr == nodePtr) {
@@ -164,7 +164,7 @@ void ChunkServiceImpl::CreateCloneChunk(RpcController *controller,
         return;
     }
 
-    // 请求创建的chunk大小和copyset配置的大小不一致
+    // the size of the chunk doesn't match the size configured in the copyset
     if (request->size() != maxChunkSize_) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         DVLOG(9) << "Invalid chunk size: " << request->optype()
@@ -173,7 +173,7 @@ void ChunkServiceImpl::CreateCloneChunk(RpcController *controller,
         return;
     }
 
-    // 判断copyset是否存在
+    // check the existence of the copyset
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                                        request->copysetid());
     if (nullptr == nodePtr) {
@@ -222,7 +222,7 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
         return;
     }
 
-    // 判断request参数是否合法
+    // check whether the params of the request are legal
     auto maxSize = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
     if (!CheckRequestOffsetAndLength(request->offset(), request->size())) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
@@ -233,7 +233,7 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
         return;
     }
 
-    // 判断copyset是否存在
+    // check the existence of the copyset
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                                        request->copysetid());
     if (nullptr == nodePtr) {
@@ -274,7 +274,7 @@ void ChunkServiceImpl::RecoverChunk(RpcController *controller,
         return;
     }
 
-    // 判断request参数是否合法
+    // check whether the params of the request are legal
     if (!CheckRequestOffsetAndLength(request->offset(), request->size())) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         LOG(ERROR) << "I/O request, op: " << request->optype()
@@ -284,7 +284,7 @@ void ChunkServiceImpl::RecoverChunk(RpcController *controller,
         return;
     }
 
-    // 判断copyset是否存在
+    // check the existence of the copyset
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                                        request->copysetid());
     if (nullptr == nodePtr) {
@@ -294,7 +294,7 @@ void ChunkServiceImpl::RecoverChunk(RpcController *controller,
         return;
     }
 
-    // RecoverChunk请求和ReadChunk请求共用ReadChunkRequest
+    // RecoverChunk request shares ReadChunkRequest with ReadChunk request
     std::shared_ptr<ReadChunkRequest> req =
         std::make_shared<ReadChunkRequest>(nodePtr,
                                            chunkServiceOptions_.cloneManager,
@@ -326,13 +326,13 @@ void ChunkServiceImpl::ReadChunkSnapshot(RpcController *controller,
         return;
     }
 
-    // 判断request参数是否合法
+    // check whether the params of the request are legal
     if (!CheckRequestOffsetAndLength(request->offset(), request->size())) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         return;
     }
 
-    // 判断copyset是否存在
+    // check the existence of the copyset
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                                        request->copysetid());
     if (nullptr == nodePtr) {
@@ -380,7 +380,7 @@ void ChunkServiceImpl::DeleteChunkSnapshotOrCorrectSn(
         return;
     }
 
-    // 判断copyset是否存在
+    // check the existence of the copyset
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                                        request->copysetid());
     if (nullptr == nodePtr) {
@@ -402,9 +402,10 @@ void ChunkServiceImpl::DeleteChunkSnapshotOrCorrectSn(
 }
 
 /**
- * 当前GetChunkInfo在rpc service层定义和Chunk Service分离的，
- * 且其并不经过QoS或者raft一致性协议，所以这里没有让其继承
- * OpRequest或者QoSRequest来重新封装，而是直接原地处理掉了
+ * Since GetChunkInfo's definition in rpc service layer is split from Chunk Service,
+ * and it doesn't take QoS or raft into consideration，GetChunkInfo is not repackaged
+ * by having it inherit from OpRequest or QoSRequest. On the contrary, we process it
+ * in-situ directly.
  */
 void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
                                     const GetChunkInfoRequest *request,
@@ -427,7 +428,7 @@ void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
         return;
     }
 
-    // 判断copyset是否存在
+    // check the existence of the copyset
     auto nodePtr =
         copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                             request->copysetid());
@@ -438,7 +439,7 @@ void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
         return;
     }
 
-    // 检查任期和自己是不是Leader
+    // check the term and whether it is Leader
     if (!nodePtr->IsLeaderTerm()) {
         PeerId leader = nodePtr->GetLeaderId();
         if (!leader.is_empty()) {
@@ -454,16 +455,16 @@ void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
     ret = nodePtr->GetDataStore()->GetChunkInfo(request->chunkid(), &chunkInfo);
 
     if (CSErrorCode::Success == ret) {
-        // 1.成功，此时chunk文件肯定存在
+        // 1.success，chunk file must exist
         response->add_chunksn(chunkInfo.curSn);
         if (chunkInfo.snapSn > 0)
             response->add_chunksn(chunkInfo.snapSn);
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     } else if (CSErrorCode::ChunkNotExistError == ret) {
-        // 2.chunk文件不存在，返回的版本集合为空
+        // 2.chunk file not exist，the returned set is empty
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     } else {
-        // 3.其他错误
+        // 3.other errors
         LOG(ERROR) << "get chunk info failed, "
                    << " logic pool id: " << request->logicpoolid()
                    << " copyset id: " << request->copysetid()
@@ -481,7 +482,7 @@ void ChunkServiceImpl::GetChunkHash(RpcController *controller,
                                     Closure *done) {
     brpc::ClosureGuard doneGuard(done);
 
-    // 判断request参数是否合法
+    // check whether the params of the request are legal
     if (!CheckRequestOffsetAndLength(request->offset(), request->length())) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         LOG(ERROR) << "GetChunkHash illegal parameter:"
@@ -494,7 +495,7 @@ void ChunkServiceImpl::GetChunkHash(RpcController *controller,
         return;
     }
 
-    // 判断copyset是否存在
+    // check the existence of the copyset
     auto nodePtr =
         copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                             request->copysetid());
@@ -514,15 +515,15 @@ void ChunkServiceImpl::GetChunkHash(RpcController *controller,
                                                 &hash);
 
     if (CSErrorCode::Success == ret) {
-        // 1.成功
+        // 1.error
         response->set_hash(hash);
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     } else if (CSErrorCode::ChunkNotExistError == ret) {
-        // 2.chunk文件不存在，返回0的hash值
+        // 2.chunk file not exist，return 0's hash value
         response->set_hash("0");
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     } else {
-        // 3.其他错误
+        // 3.other errors
         LOG(ERROR) << "get chunk hash failed, "
                    << " logic pool id: " << request->logicpoolid()
                    << " copyset id: " << request->copysetid()
@@ -536,17 +537,17 @@ void ChunkServiceImpl::GetChunkHash(RpcController *controller,
 
 bool ChunkServiceImpl::CheckRequestOffsetAndLength(uint32_t offset,
                                                    uint32_t len) {
-    // 检查offset+len是否越界
+    // check offset+len is out of boundary or not
     if (offset + len > maxChunkSize_) {
         return false;
     }
 
-    // 检查offset是否对齐
+    // check offset is aligned or not
     if (offset % kOpRequestAlignSize != 0) {
         return false;
     }
 
-    // 检查len是否对齐
+    // check len is aligned or not
     if (len % kOpRequestAlignSize != 0) {
         return false;
     }

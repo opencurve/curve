@@ -69,18 +69,21 @@ braft::FileAdaptor* CurveFilesystemAdaptor::open(const std::string& path,
     if (cloexec && !local_s_support_cloexec_on_open) {
         oflag &= (~O_CLOEXEC);
     }
-    // Open就使用sync标志是为了避免集中在close一次性sync，对于16MB的chunk文件可能会造成抖动
+    // The sync flag is used on open to avoid a one-time，simultaneous sync on close operation,
+    // which may cause jitter for 16MB chunk files
     oflag |= O_SYNC;
 
-    // 先判断当前文件是否需要过滤，如果需要过滤，就直接走下面逻辑，不走chunkfilepool
-    // 如果open操作携带create标志，则从chunkfilepool取，否则保持原来语意
-    // 如果待打开的文件已经存在，则直接使用原有语意
+    // Check whether the current file needs to be filtered,
+    // if so, ignore chunkfilepool and go directly to the following logic.
+    // If the open operation carries the create flag, then fetch from the chunkfilepool,
+    // otherwise maintain the original semantics.
+    // If the file to be opened already exists, use the original semantics directly.
     if (!NeedFilter(path) &&
         (oflag & O_CREAT) &&
         false == lfs_->FileExists(path)) {
-        // 从chunkfile pool中取出chunk返回
+        // fetch chunk from chunkfilepool, return
         int rc = chunkFilePool_->GetFile(path, tempMetaPageContent);
-        // 如果从FilePool中取失败，返回错误。
+        // if fail to fetch from Filepool, return error
         if (rc != 0) {
             LOG(ERROR) << "get chunk from chunkfile pool failed!";
             return NULL;
@@ -116,9 +119,11 @@ braft::FileAdaptor* CurveFilesystemAdaptor::open(const std::string& path,
 
 bool CurveFilesystemAdaptor::delete_file(const std::string& path,
                                                 bool recursive) {
-    // 1. 如果是目录且recursive=true，那么遍历目录内容回收
-    // 2. 如果是目录且recursive=false，那么判断目录内容是否为空，不为空返回false
-    // 3. 如果是文件直接回收
+    // 1. If it is a directory and recursive=true,
+    //    iterate the contents of the directory to recycle
+    // 2. If it is a directory and recursive=false，
+    //    check whether the contents of the directory is empty，if not so return false
+    // 3. If it is a file, recycle directly
     if (lfs_->DirExists(path)) {
         std::vector<std::string> dircontent;
         lfs_->List(path, &dircontent);
@@ -130,11 +135,12 @@ bool CurveFilesystemAdaptor::delete_file(const std::string& path,
         }
     } else {
         if (lfs_->FileExists(path)) {
-             // 如果在过滤名单里，就直接删除
+             // If it is in the filter list, delete it
              if (NeedFilter(path)) {
                  return lfs_->Delete(path) == 0;
              } else {
-                // chunkfilepool内部会检查path对应文件合法性，如果不符合就直接删除
+                // The chunkfilepool will internally check the legality of the file corresponding to path
+                // and delete it directly if it is not legal
                 return chunkFilePool_->RecycleFile(path) == 0;
              }
         }
@@ -152,7 +158,7 @@ bool CurveFilesystemAdaptor::RecycleDirRecursive(
         if (lfs_->DirExists(todeletePath)) {
             RecycleDirRecursive(todeletePath);
         } else {
-            // 如果在过滤名单里，就直接删除
+            // If it is in the filter list, delete it
             if (NeedFilter(todeletePath)) {
                 if (lfs_->Delete(todeletePath) != 0) {
                     LOG(ERROR) << "delete " << todeletePath << ", failed!";
@@ -175,7 +181,8 @@ bool CurveFilesystemAdaptor::RecycleDirRecursive(
 bool CurveFilesystemAdaptor::rename(const std::string& old_path,
                                             const std::string& new_path) {
     if (!NeedFilter(new_path) && lfs_->FileExists(new_path)) {
-        // chunkfilepool内部会检查path对应文件合法性，如果不符合就直接删除
+        // The chunkfilepool will internally check the legality of the file corresponding to path
+        // and delete it directly if it is not legal
         chunkFilePool_->RecycleFile(new_path);
     }
     return lfs_->Rename(old_path, new_path) == 0;

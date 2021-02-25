@@ -93,10 +93,10 @@ class ChunkServiceImpl : public ChunkService {
 
  private:
     /**
-     * 验证op request的offset和length是否越界和对齐
+     * check whether op request's offset and length is out of boundary or aligned
      * @param offset[in]: op request' offset
      * @param len[in]: op request' length
-     * @return true，说明合法，否则返回false
+     * @return true，means legal，otherwise return false
      */
     bool CheckRequestOffsetAndLength(uint32_t offset, uint32_t len);
 

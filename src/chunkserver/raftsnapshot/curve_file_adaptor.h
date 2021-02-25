@@ -31,7 +31,7 @@ namespace chunkserver {
 class CurveFileAdaptor : public braft::PosixFileAdaptor {
  public:
     explicit CurveFileAdaptor(int fd) : PosixFileAdaptor(fd) {}
-    // close之前必须先sync，保证数据落盘，其他逻辑不变
+    // sync must come before close to make sure data on disk, no change to other logic
     bool close() override {
         return sync() && braft::PosixFileAdaptor::close();
     }
