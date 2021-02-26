@@ -298,6 +298,114 @@ def get_cs_copyset_num(host,cs_id):
     else:
         return -1 
 
+def stop_vm(ssh,uuid):
+    stop_cmd = "source OPENRC && nova stop %s"%uuid
+    rs = shell_operator.ssh_exec(ssh, stop_cmd)
+    assert rs[3] == 0,"stop vm fail,error is %s"%rs[2]
+    time.sleep(5)
+
+def start_vm(ssh,uuid):
+    start_cmd = "source OPENRC && nova start %s"%uuid
+    rs = shell_operator.ssh_exec(ssh, start_cmd)
+    assert rs[3] == 0,"start vm fail,error is %s"%rs[2]
+
+def restart_vm(ssh,uuid):
+    restart_cmd = "source OPENRC && nova reboot %s"%uuid
+    rs = shell_operator.ssh_exec(ssh, restart_cmd)
+    assert rs[3] == 0,"reboot vm fail,error is %s"%rs[2]
+
+def check_vm_status(ssh,uuid):
+    ori_cmd = "source OPENRC && nova list|grep %s|awk '{print $6}'"%uuid
+    i = 0
+    while i < 180:
+       rs = shell_operator.ssh_exec(ssh, ori_cmd)
+       if "".join(rs[1]).strip() == "ACTIVE":
+           return True
+       elif "".join(rs[1]).strip() == "ERROR":
+           return False
+       else:
+           time.sleep(5)
+           i = i + 5
+    assert False,"start vm fail"
+
+def check_vm_vd(ip,nova_ssh,uuid):
+    i = 0
+    while i < 300:
+        try:
+            ssh = shell_operator.create_ssh_connect(ip, 22, config.vm_user)
+            ori_cmd = "lsblk |grep vdc | awk '{print $1}'"
+            rs = shell_operator.ssh_exec(ssh, ori_cmd)
+            output = "".join(rs[1]).strip()
+            if output == "vdc":
+                ori_cmd = "source OPENRC &&  nova reboot %s --hard"%uuid
+                shell_operator.ssh_exec(nova_ssh,ori_cmd)
+            elif output == "":
+                break
+        except:
+            i = i + 5
+            time.sleep(5)
+    assert rs[3] == 0,"start vm fail,ori_cmd is %s" % rs[1]
+
+def init_vm():
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    ori_cmd = "source OPENRC && nova list|grep %s | awk '{print $2}'"%config.vm_host
+    ori_cmd2 = "source OPENRC && nova list|grep %s | awk '{print $2}'"%config.vm_stability_host
+    try:
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        rs2 = shell_operator.ssh_exec(ssh, ori_cmd2)
+        logger.debug("exec %s" % ori_cmd)
+        logger.debug("exec %s" % ori_cmd2)
+        uuid = "".join(rs[1]).strip()
+        uuid2 = "".join(rs2[1]).strip()
+
+        for i in range(1,10):
+            ori_cmd = "bash curve_test.sh delete"
+            shell_operator.ssh_exec(ssh, ori_cmd)
+            ori_cmd = "source OPENRC &&  nova reboot %s --hard"%uuid
+            ori_cmd2 = "source OPENRC &&  nova reboot %s --hard"%uuid2
+            rs = shell_operator.ssh_exec(ssh,ori_cmd)
+            rs2 = shell_operator.ssh_exec(ssh,ori_cmd2)
+            time.sleep(60)
+            rs1 = check_vm_status(ssh,uuid)
+            rs2 = check_vm_status(ssh,uuid2)
+            if rs1 == True and rs2 == True:
+                break
+        assert rs1 == True,"hard reboot vm fail"
+        assert rs2 == True,"hard reboot vm fail"
+
+        check_vm_vd(config.vm_host,ssh,uuid)
+        check_vm_vd(config.vm_stability_host,ssh,uuid2)
+    except:
+        logger.error("init vm error")
+        raise
+    ssh.close()
+
+
+def remove_vm_key():
+    cmd = "ssh-keygen -f ~/.ssh/known_hosts -R %s"%config.vm_host
+    shell_operator.run_exec(cmd)
+    print cmd
+
+def attach_new_vol(fio_size,vdbench_size):
+    ori_cmd = "bash curve_test.sh create %d %d"%(int(fio_size),int(vdbench_size))
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    logger.info("exec cmd %s" % ori_cmd)
+    assert rs[3] == 0,"attach vol fail,return is %s"%rs[2]
+    logger.info("exec cmd %s"%ori_cmd)
+    get_vol_uuid()
+    ssh.close()
+
+def detach_vol():
+    stop_rwio()
+    ori_cmd = "bash curve_test.sh delete"
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    logger.info("exec cmd %s" % ori_cmd)
+    assert rs[3] == 0,"retcode is %d,error is %s"%(rs[3],rs[2])
+    logger.info("exec cmd %s"%ori_cmd)
+    ssh.close()
+
 def clean_nbd():
     for client_ip in config.client_list:
         logger.info("|------begin test clean client %s------|"%(client_ip))
