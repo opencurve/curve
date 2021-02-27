@@ -274,14 +274,15 @@ butil::Status TransferLeader(const LogicPoolID &logicPoolId,
     return butil::Status::OK();
 }
 
-// reset peer不走一致性协议，直接将peers重置，因此存在一定的风险
-// 应用场景：大多数节点挂掉的极端情况。在这种情况下，该copyset将无法写入，直
-// 到半小时后mds将挂掉的副本上的copyset迁移，因此有一段时间不可用，为了应对这种场景，引入了
-// reset peer工具，直接将复制组成员reset成只包含存活的副本。
-// 注意事项：
-// 1、reset peer之前，需要通过check-copyset工具确认复制组中的大多数副本确实挂掉
-// 2、reset peer的时候，要确保剩下的副本有最新的数据，不然存在丢数据的风险
-// 3、reset peer适用于其他两个副本不能恢复的情况，不然可能会扰乱集群
+// reset peer does not follow the consistency protocol and resets peers directly, so there is some risk
+// Application scenario: the extreme case where most nodes fail. In this case, the copyset will not be able to write
+// until half an hour later when mds migrate the copyset on the failed replica and is therefore unavailable for some time.
+// To cope with this scenario, the reset peer tool was introduced, which directly resets the peers
+// to contain only the surviving replicas.
+// Cautions:
+// 1、Before you reset the peer, you need to confirm that most of the replicas in the copyset are indeed failed by using the check-copyset tool
+// 2、When you reset the peer, make sure the remaining replicas have the latest data, otherwise there is a risk of losing data
+// 3、reset peer is used when the other two replicas cannot be recovered, otherwise the cluster may be disrupted
 butil::Status ResetPeer(const LogicPoolID &logicPoolId,
                         const CopysetID &copysetId,
                         const Configuration& newPeers,

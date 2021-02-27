@@ -69,84 +69,84 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
     virtual ~ChunkOpRequest() = default;
 
     /**
-     * 处理request，实际上是Propose给相应的copyset
+     * Process the request and actually propose it to the corresponding copyset
      */
     virtual void Process();
 
     /**
-     * request正常情况从内存中获取上下文on apply逻辑
-     * @param index:此op log entry的index
-     * @param done:对应的ChunkClosure
+     * request normally fetches the on apply logic from memory
+     * @param index:op log entry's index
+     * @param done:corresponding ChunkClosure
      */
     virtual void OnApply(uint64_t index,
                          ::google::protobuf::Closure *done) = 0;
 
     /**
-     * NOTE: 子类实现过程中优先使用参数传入的datastore/request
-     * 从log entry反序列之后得到request详细信息进行处理，request
-     * 相关的上下文和依赖的data store都是从参数传递进去的
-     * 1.重启回放日志，从磁盘读取op log entry然后执行on apply逻辑
-     * 2. follower执行on apply的逻辑
-     * @param datastore:chunk数据持久化层
-     * @param request:反序列化后得到的request 细信息
-     * @param data:反序列化后得到的request要处理的数据
+     * NOTE: The subclass implementation prefers to use the datastore/request passed in as a
+     * parameter, getting the request details from the log entry after deserialisation.
+     * The request-related context and the dependent data store are passed in from the parameters.
+     * 1. Restart the replay log, read the op log entry from disk and then execute the on apply logic
+     * 2. follower performs the logic of on apply
+     * @param datastore:chunk data persistence layer
+     * @param request:The request details after deserialization
+     * @param data:The data to be processed by the request after deserialization
      */
     virtual void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                 const ChunkRequest &request,
                                 const butil::IOBuf &data) = 0;
 
     /**
-     * 返回request的done成员
+     * Return the request's done member
      */
     ::google::protobuf::Closure *Closure() { return done_; }
 
     /**
-     * 返回chunk id
+     * Return chunk id
      */
     ChunkID ChunkId() { return request_->chunkid(); }
 
     /**
-     * 返回请求类型
+     * Return request type
      */
     CHUNK_OP_TYPE OpType() { return request_->optype(); }
 
     /**
-     * 返回请求大小
+     * Return the request size
      */
     uint32_t RequestSize() { return request_->size(); }
 
     /**
-     * 转发request给leader
+     * Redirect request to leader
      */
     virtual void RedirectChunkRequest();
 
  public:
     /**
-     * Op序列化工具函数
+     * Op Serialisation tool function
      * |            data                 |
      * |      op meta       |   op data  |
      * | op request length  | op request |
      * |     32 bit         |  ....      |
-     * 各个字段解释如下：
-     * data: encode之后的数据，实际上就是一条op log entry的data
-     * op meta: 就是op的元数据，这里是op request部分的长度
-     * op data: 就是request通过protobuf序列化后的数据
+     * The fields are explained below：
+     * data: The data after encoding, it is actually the data of an op log entry
+     * op meta: The metadata of the op, here the length of the op request section
+     * op data: Data after request serialization via protobuf
      * @param request:Chunk Request
-     * @param data:请求中包含的数据内容
-     * @param log:出参，存放序列化好的数据，用户自己保证data!=nullptr
-     * @return 0成功，-1失败
+     * @param data:Content of the data contained in the request
+     * @param log:Store the serialized data, the user himself ensures that data!=nullptr
+     * @return 0 for success, -1 for failure
      */
     static int Encode(const ChunkRequest *request,
                       const butil::IOBuf *data,
                       butil::IOBuf *log);
 
     /**
-     * 反序列化，从log entry得到ChunkOpRequest，当前反序列出的ChunkRequest和data
-     * 都会从出参传出去，而不会放在ChunkOpRequest的成员变量里面
+     * Deserialize, get ChunkOpRequest from log entry, the current deserialized ChunkRequest
+     * and data will be passed out, not in the ChunkOpRequest member variable
      * @param log:op log entry
-     * @param request: 出参，存放反序列上下文
-     * @param data:出参，op操作的数据
-     * @return nullptr,失败，否则返回相应的ChunkOpRequest
+     * @param request: out parameter，Store the deserial context
+     * @param data:out parameter，data for op operations
+     * @return nullptr,fail, otherwise return the corresponding ChunkOpRequest
      */
     static std::shared_ptr<ChunkOpRequest> Decode(butil::IOBuf log,
                                                   ChunkRequest *request,
@@ -154,24 +154,24 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
 
  protected:
     /**
-     * 打包request为braft::task，propose给相应的复制组
+     * Package the request as braft::task and propose it to the corresponding copyset
      * @param request:Chunk Request
-     * @param data:请求中包含的数据内容
-     * @return 0成功，-1失败
+     * @param data:Content of the data contained in the request
+     * @return 0 for success,-1 for failure
      */
     int Propose(const ChunkRequest *request,
                 const butil::IOBuf *data);
 
  protected:
-    // chunk持久化接口
+    // chunk persistence interface
     std::shared_ptr<CSDataStore> datastore_;
-    // 复制组
+    // copyset
     std::shared_ptr<CopysetNode> node_;
     // rpc controller
     brpc::Controller *cntl_;
-    // rpc 请求
+    // rpc request
     const ChunkRequest *request_;
-    // rpc 返回
+    // rpc response
     ChunkResponse *response_;
     // rpc done closure
     ::google::protobuf::Closure *done_;
@@ -226,16 +226,16 @@ class ReadChunkRequest : public ChunkOpRequest {
     }
 
  private:
-    // 根据chunk信息判断是否需要拷贝数据
+    // Check if data needs to be copied based on chunk information
     bool NeedClone(const CSChunkInfo& chunkInfo);
-    // 从chunk文件中读数据
+    // read file from chunk
     void ReadChunk();
 
  private:
     CloneManager* cloneMgr_;
-    // 并发模块
+    // concurrent module
     ConcurrentApplyModule* concurrentApplyModule_;
-    // 保存 apply index
+    // save apply index
     uint64_t applyIndex;
 };
 

@@ -37,11 +37,11 @@ using ::curve::common::InterruptibleSleeper;
 namespace curve {
 namespace chunkserver {
 struct TrashOptions{
-    // copyset的trash路径
+    // copyset trash path
     std::string trashPath;
-    // 文件在放入trash中expiredAfteSec秒后，可以被物理回收
+    // Files can be physically recycled after being placed in trash for expiredAfteSec seconds
     int expiredAfterSec;
-    // 扫描trash目录的时间间隔
+    // Time interval for scanning the trash directory
     int scanPeriodSec;
 
     std::shared_ptr<LocalFileSystem> localFileSystem;
@@ -58,50 +58,50 @@ class Trash {
     int Fini();
 
     /*
-    * @brief DeleteEligibleFileInTrash 回收trash目录下的物理空间
+    * @brief DeleteEligibleFileInTrash Physical space in the trash directory
     */
     void DeleteEligibleFileInTrash();
 
     int RecycleCopySet(const std::string &dirPath);
 
     /*
-    * @brief 获取回收站中chunk的个数
+    * @brief Get the number of chunks in the trash
     *
-    * @return chunk个数
+    * @return the number of chunks
     */
     uint32_t GetChunkNum() {return chunkNum_.load();}
 
  private:
     /*
-    * @brief DeleteEligibleFileInTrashInterval 每隔一段时间进行trash物理空间回收
+    * @brief DeleteEligibleFileInTrashInterval Perform trash physical space recycle at certain time intervals
     */
     void DeleteEligibleFileInTrashInterval();
 
     /*
-    * @brief NeedDelete 文件是否需要删除，放入trash的时间大于
-    *        trash中expiredAfterSec可以删除
+    * @brief Whether the file needs to be deleted, it can be deleted if it has been in the trash for
+    *        longer than the expiredAfterSec in the trash.
     *
-    * @param[in] copysetDir copyset的目录路径
+    * @param[in] copysetDir copyset directory path
     *
-    * @return true-可以被删除
+    * @return true-can be deleted
     */
     bool NeedDelete(const std::string &copysetDir);
 
     /*
-    * @brief IsCopysetInTrash 是否为回收站中的copyset的目录
+    * @brief IsCopysetInTrash whether it is the directory of the copyset in the trash
     *
-    * @param[in] dirName 文目录路径
+    * @param[in] dirName Directory path
     *
-    * @return true-符合copyset目录命名规则
+    * @return true-Conform to copyset directory naming rules
     */
     bool IsCopysetInTrash(const std::string &dirName);
 
     /*
-    * @brief IsChunkOrSnapShotFile 是否为chunk或snapshot文件
+    * @brief IsChunkOrSnapShotFile Whether it is a chunk or snapshot file
     *
-    * @param[in] chunkName 文件名
+    * @param[in] chunkName File name
     *
-    * @return true-符合chunk或snapshot文件命名规则
+    * @return true-Conform to chunk or snapshot file naming rules
     */
     bool IsChunkOrSnapShotFile(const std::string &chunkName);
 
@@ -117,8 +117,8 @@ class Trash {
     /*
     * @brief Recycle Chunkfile
     *
-    * @param[in] filepath 文件路径
-    * @param[in] filename 文件名
+    * @param[in] filepath file path
+    * @param[in] filename file name
     */
     bool RecycleChunkfile(
         const std::string &filepath, const std::string &filename);
@@ -147,39 +147,39 @@ class Trash {
     bool IsWALFile(const std::string &fileName);
 
     /*
-    * @brief 统计copyset目录中的chunk个数
+    * @brief Count the number of chunks in the copyset directory
     *
-    * @param[in] copysetPath chunk所在目录
-    * @return 返回chunk个数
+    * @param[in] copysetPath chunk directory
+    * @return Return the number of chunks
     */
     uint32_t CountChunkNumInCopyset(const std::string &copysetPath);
 
  private:
-    // 文件在放入trash中expiredAfteSec秒后，可以被物理回收
+    // Files can be physically recycled after being placed in trash for expiredAfteSec seconds
     int expiredAfterSec_;
 
-    // 扫描trash目录的时间间隔
+    // Time interval for scanning the trash directory
     int scanPeriodSec_;
 
-    // 回收站中chunk的个数
+    // Number of chunks in the recycle bin
     Atomic<uint32_t> chunkNum_;
 
-    // 本地文件系统
+    // Local file system
     std::shared_ptr<LocalFileSystem> localFileSystem_;
 
-    // chunk池子
+    // chunk pool
     std::shared_ptr<FilePool> chunkFilePool_;
 
     // wal pool
     std::shared_ptr<FilePool> walPool_;
 
-    // 回收站全路径
+    // trash pool
     std::string trashPath_;
 
-    // 后台清理回收站的线程
+    // Backend threads to clean up the trash
     Thread recycleThread_;
 
-    // false-开始后台任务，true-停止后台任务
+    // false-Start background tasks，true-Stop background tasks
     Atomic<bool> isStop_;
 
     InterruptibleSleeper sleeper_;

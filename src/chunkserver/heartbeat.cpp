@@ -67,13 +67,13 @@ int Heartbeat::Init(const HeartbeatOptions &options) {
     csEp_ = butil::EndPoint(csIp, options_.port);
     LOG(INFO) << "Chunkserver address: " << options_.ip << ":" << options_.port;
 
-    // mdsEps不能为空
+    // mdsEps cannot be empty
     ::curve::common::SplitString(options_.mdsListenAddr, ",", &mdsEps_);
     if (mdsEps_.empty()) {
         LOG(ERROR) << "Invalid mds ip provided: " << options_.mdsListenAddr;
         return -1;
     }
-    // 检查每个地址的合法性
+    // Check the legitimacy of each address
     for (auto addr : mdsEps_) {
         butil::EndPoint endpt;
         if (butil::str2endpoint(addr.c_str(), &endpt) < 0) {
@@ -87,10 +87,10 @@ int Heartbeat::Init(const HeartbeatOptions &options) {
 
     copysetMan_ = options.copysetNodeManager;
 
-    // 初始化timer
+    // Initialize timer
     waitInterval_.Init(options_.intervalSec * 1000);
 
-    // 获取当前unix时间戳
+    // Get the current unix timestamp
     startUpTime_ = ::curve::common::TimeUtility::GetTimeofDaySec();
     return 0;
 }
@@ -389,13 +389,13 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
         CopysetNodePtr copyset = copysetMan_->GetCopysetNode(
                 conf.logicalpoolid(), conf.copysetid());
 
-        // 判断copyconf是否合法
+        // Check if copyconf is legal
         if (!HeartbeatHelper::CopySetConfValid(conf, copyset)) {
             continue;
         }
 
-        // 解析该chunkserver上的copyset是否需要删除
-        // 需要删除则清理copyset
+        // Check whether the copyset on this chunkserver need to be removed
+        // Clean up copyset if it does
         if (HeartbeatHelper::NeedPurge(csEp_, conf, copyset)) {
             LOG(INFO) << "Clean peer " << csEp_ << " of copyset("
                 << conf.logicalpoolid() << "," << conf.copysetid()
@@ -405,7 +405,7 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
             continue;
         }
 
-        // 解析是否有配置变更需要执行
+        // Check whether there are configuration changes to be implemented
         if (!conf.has_type()) {
             LOG(INFO) << "Failed to parse task for copyset("
                 << conf.logicalpoolid() << "," << conf.copysetid()
@@ -414,7 +414,7 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
             continue;
         }
 
-        // 如果有配置变更需要执行，下发变更到copyset
+        // If there are configuration changes to be implemented, send the changes to copyset
         if (!HeartbeatHelper::PeerVaild(conf.configchangeitem().address())) {
             continue;
         }
@@ -430,7 +430,7 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
             continue;
         }
 
-        // 根据不同的变更类型下发配置
+        // Send configurations according to different change types
         switch (conf.type()) {
         case curve::mds::heartbeat::TRANSFER_LEADER:
             {
@@ -496,7 +496,7 @@ void Heartbeat::HeartbeatWorker() {
 
     LOG(INFO) << "Starting Heartbeat worker thread.";
 
-    // 处理配置等于0等异常情况
+    // Handle exceptions such as configuration equal to 0
     if (options_.intervalSec <= 4) {
         errorIntervalSec = 2;
     } else {

@@ -34,8 +34,8 @@ namespace curve {
 namespace chunkserver {
 
 /**
- * 用于获取snapshot attachment files的接口，一般用于一些下载
- * 快照获取需要额外下载的文件list
+ * Interface for getting snapshot attachment files, generally used for some downloads
+ * Snapshot gets a list of files that need to be downloaded additionally
  */
 class SnapshotAttachment :
                public butil::RefCountedThreadSafe<SnapshotAttachment> {
@@ -44,24 +44,26 @@ class SnapshotAttachment :
     virtual ~SnapshotAttachment() = default;
 
     /**
-     * 获取snapshot attachment文件列表
-     * @param files[out]: attachment文件列表
-     * @param snapshotPath[in]: braft快照的路径
+     * Get a list of snapshot attachment files
+     * @param files[out]: attachment file list
+     * @param snapshotPath[in]: braft snapshot path
      */
     virtual void list_attach_files(std::vector<std::string> *files,
         const std::string& raftSnapshotPath) = 0;
 };
 
-// SnapshotAttachment接口的实现，用于raft加载快照时，获取chunk快照文件列表
+// Implementation of the SnapshotAttachment interface is for
+// getting a list of chunk snapshot files when a snapshot is loaded by raft
 class CurveSnapshotAttachment : public SnapshotAttachment {
  public:
     explicit CurveSnapshotAttachment(std::shared_ptr<LocalFileSystem> fs);
     virtual ~CurveSnapshotAttachment() = default;
     /**
-     * 获取raft snapshot的attachment，这里就是获取chunk的快照文件列表
-     * @param files[out]: data目录下的chunk快照文件列表
-     * @param raftSnapshotPath: braft快照的路径
-     * 返回的文件路径使用 绝对路径:相对路径 的格式,相对路径包含data目录
+     * Get the attachment of the raft snapshot, in this case get the list of snapshot files of the chunk
+     * @param files[out]: List of chunk snapshot files in the data directory
+     * @param raftSnapshotPath: Path of braft snapshot
+     * The returned file paths use the absolute path:relative path format,
+     * with the relative path containing the data directory
      */
     void list_attach_files(std::vector<std::string> *files,
                            const std::string& raftSnapshotPath) override;
@@ -70,12 +72,12 @@ class CurveSnapshotAttachment : public SnapshotAttachment {
 };
 
 /*
-* @brif 通过具体的某个raft的snapshot实例地址获取raft实例基础地址
-* @param[in] specificSnapshotDir 某个具体snapshot的目录
-        比如/data/chunkserver1/copysets/4294967812/raft_snapshot/snapshot_805455/
-* @param[in] raftSnapshotRelativeDir 上层业务指的所有snapshot的相对基地址
-        比如raft_snapshot
-* @return 返回raft实例的绝对基地址，/data/chunkserver1/copysets/4294967812/
+* @brif Get the base address of a raft instance from the snapshot instance address of a specific raft
+* @param[in] specificSnapshotDir The directory of a specific snapshot
+        e.g. /data/chunkserver1/copysets/4294967812/raft_snapshot/snapshot_805455/
+* @param[in] raftSnapshotRelativeDir Relative base address of all snapshots referred to by upper layer operations
+        e.g. raft_snapshot
+* @return Return the absolute base address of the raft instance, /data/chunkserver1/copysets/4294967812/
 */
 inline std::string getCurveRaftBaseDir(std::string specificSnapshotDir,
     std::string raftSnapshotRelativeDir) {

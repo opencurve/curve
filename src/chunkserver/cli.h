@@ -33,37 +33,38 @@ namespace curve {
 namespace chunkserver {
 
 /**
- * Cli就是配置变更相关接口的封装，方便使用，避免直接操作RPC
+ * Cli is the encapsulation of the interface related to configuration changes
+ * for ease of use and to avoid direct RPC manipulation
  */
 
-// 获取leader
+// Get a leader
 butil::Status GetLeader(const LogicPoolID &logicPoolId,
                         const CopysetID &copysetId,
                         const Configuration &conf,
                         PeerId *leaderId);
 
-// 增加一个peer
+// Add a peer
 butil::Status AddPeer(const LogicPoolID &logicPoolId,
                       const CopysetID &copysetId,
                       const Configuration &conf,
                       const PeerId &peer_id,
                       const braft::cli::CliOptions &options);
 
-// 移除一个peer
+// Remove a peer
 butil::Status RemovePeer(const LogicPoolID &logicPoolId,
                          const CopysetID &copysetId,
                          const Configuration &conf,
                          const PeerId &peer_id,
                          const braft::cli::CliOptions &options);
 
-// 转移leader
+// Transfer a leader
 butil::Status TransferLeader(const LogicPoolID &logicPoolId,
                              const CopysetID &copysetId,
                              const Configuration &conf,
                              const PeerId &peer,
                              const braft::cli::CliOptions &options);
 
-// 触发快照
+// Trigger snapshot
 butil::Status Snapshot(const LogicPoolID &logicPoolId,
                        const CopysetID &copysetId,
                        const PeerId &peer,

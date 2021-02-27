@@ -71,7 +71,7 @@ void *CurveSnapshotCopier::start_copy(void* arg) {
 
 void CurveSnapshotCopier::copy() {
     do {
-        // 下载snapshot meta中记录的文件
+        // Download the files recorded in the snapshot meta
         load_meta_table();
         if (!ok()) {
             break;
@@ -86,7 +86,7 @@ void CurveSnapshotCopier::copy() {
             copy_file(files[i]);
         }
 
-        // 下载snapshot attachment文件
+        // Download snapshot attachment file
         load_attach_meta_table();
         if (!ok()) {
             break;
@@ -169,7 +169,7 @@ void CurveSnapshotCopier::load_attach_meta_table() {
         return;
     }
 
-    // 如果attach meta table为空，那么说明没有snapshot attachment files
+    // If the attach meta table is empty, then there are no snapshot attachment files
     if (0 == meta_buf.size()) {
         return;
     }
@@ -355,7 +355,7 @@ void CurveSnapshotCopier::copy_file(const std::string& filename, bool attch) {
     _cur_session = NULL;
     lck.unlock();
     if (!session->status().ok()) {
-        // 如果是文件不存在，那么删除刚开始open的文件
+        // If the file does not exist, then delete the file that was just opened
         if (session->status().error_code() == ENOENT) {
             bool rc = _fs->delete_file(file_path, false);
             if (!rc) {
@@ -371,7 +371,7 @@ void CurveSnapshotCopier::copy_file(const std::string& filename, bool attch) {
                   session->status().error_cstr());
         return;
     }
-    // 如果是attach file，那么不需要持久化file meta信息
+    // If it is an attach file, then there is no need to persist the file meta information
     if (!attch && _writer->add_file(filename, &meta) != 0) {
         set_error(EIO, "Fail to add file to writer");
         return;

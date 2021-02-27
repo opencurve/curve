@@ -296,7 +296,7 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
                      << ",correctedSn: " << metaPage_.correctedSn;
         return CSErrorCode::BackwardRequestError;
     }
-    // Determine whether to create a snapshot file
+    // Check whether to create a snapshot file
     if (needCreateSnapshot(sn)) {
         // There are historical snapshots that have not been deleted
         if (snapshot_ != nullptr) {

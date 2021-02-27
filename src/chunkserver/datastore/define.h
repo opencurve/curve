@@ -121,7 +121,7 @@ struct CSChunkInfo {
             if (*bitmap != *rhs.bitmap)
                 return false;
         } else {
-            // Determine whether both are nullptr
+            // Check whether both are nullptr
             if (bitmap != rhs.bitmap)
                 return false;
         }

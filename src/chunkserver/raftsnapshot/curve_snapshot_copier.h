@@ -75,7 +75,8 @@ class CurveSnapshotCopier : public braft::SnapshotCopier {
                            braft::SnapshotReader* last_snapshot);
     void filter();
     void copy_file(const std::string& filename, bool attach = false);
-    // 这里的filename是相对于快照目录的路径，为了先把文件下载到临时目录，需要把前面的..去掉
+    // Here filename is the path relative to the snapshot directory, in order to
+    // download the files to the temporary directory first, you need to remove the ... in the front
     std::string get_rfilename(const std::string& filename);
 
     braft::raft_mutex_t _mutex;

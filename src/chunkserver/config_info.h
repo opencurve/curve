@@ -43,85 +43,86 @@ class CopysetNodeManager;
 class CloneManager;
 
 /**
- * copyset node的配置选项
+ * copyset node configuration options
  */
 struct CopysetNodeOptions {
-    // follower to candidate 超时时间，单位ms，默认是1000ms
+    // follower to candidate timeout, in ms, default is 1000ms
     int electionTimeoutMs;
 
-    // 定期打快照的时间间隔，默认3600s，也就是1小时
+    // Regular snapshot interval, default 3600s, i.e. 1 hour
     int snapshotIntervalS;
 
-    // 如果follower和leader日志相差超过catchupMargin，
-    // 就会执行install snapshot进行恢复，默认: 1000
+    // If the difference between follower and leader logs exceeds the catchupMargin,
+    // an install snapshot will be executed for recovery, default: 1000
     int catchupMargin;
 
-    // 是否开启pthread执行用户代码，默认false
+    // Whether to enable pthread execution of user code, default false
     bool usercodeInPthread;
 
-    // 所有uri个格式: ${protocol}://${绝对或者相对路径}
+    // All uri formats: ${protocol}://${Absolute or relative path}
     // eg:
     // posix: local
     // bluestore: bluestore
 
-    // raft log uri, 默认raft_log
+    // raft log uri, default raft_log
     std::string logUri;
 
-    // raft meta uri, 默认raft_meta
+    // raft meta uri, default raft_meta
     std::string raftMetaUri;
 
-    // raft snapshot uri，默认raft_snpashot
+    // raft snapshot uri，default raft_snpashot
     std::string raftSnapshotUri;
 
-    // chunk data uri，默认data
+    // chunk data uri，default data
     std::string chunkDataUri;
 
-    // chunk snapshot uri，默认snapshot
+    // chunk snapshot uri，default snapshot
     std::string chunkSnapshotUri;
 
-    // copyset data recycling uri，默认recycler
+    // copyset data recycling uri，default recycler
     std::string recyclerUri;
 
     std::string ip;
     uint32_t port;
-    // chunk文件的大小
+    // Size of chunk file
     uint32_t maxChunkSize;
-    // chunk文件的page大小
+    // Page size of chunk file
     uint32_t pageSize;
-    // clone chunk的location长度限制
+    // Location length limit for clone chunk
     uint32_t locationLimit;
 
-    // 并发模块
+    // Concurrency module
     ConcurrentApplyModule *concurrentapply;
-    // Chunk file池子
+    // Chunk file pool
     std::shared_ptr<FilePool> chunkFilePool;
-    // 文件系统适配层
+    // File System Adaptation Layer
     std::shared_ptr<LocalFileSystem> localFileSystem;
-    // 回收站, 心跳模块判断该chunkserver不在copyset配置组时，
-    // 通知copysetManager将copyset目录移动至回收站
-    // 一段时间后实际回收物理空间
+    // When the trash and heartbeat module determines that the chunkserver is not in the copyset configuration group,
+    // it notifies the copysetManager to move the copyset directory to the trash
+    // Actual recovery of physical space after a period of time
     std::shared_ptr<Trash> trash;
 
-    // snapshot流控
+    // Snapshot Throttle
     scoped_refptr<SnapshotThrottle> *snapshotThrottle;
 
-    // 限制chunkserver启动时copyset并发恢复加载的数量,为0表示不限制
+    // Limit the number of copyset concurrent recovery when the chunkserver starts, 0 means no limit
     uint32_t loadConcurrency = 0;
-    // 检查copyset是否加载完成出现异常时的最大重试次数
-    // 可能的异常：1.当前大多数副本还没起来；2.网络问题等导致无法获取leader
-    // 3.其他的原因导致无法获取到leader的committed index
+    // Maximum number of retries when checking if copyset is loaded
+    // Possible exceptions: 1. Most copies are not available at the moment;
+    // 2. Network problems etc. prevent access to the leader
+    // 3. Other reasons for not getting the leader's committed index
     uint32_t checkRetryTimes = 3;
-    // 当前peer的applied_index与leader上的committed_index差距小于该值
-    // 则判定copyset已经加载完成
+    // If the difference between the applied_index of the current peer and the committed_index
+    // on the leader is less than this value, then we can say the copyset is loaded
     uint32_t finishLoadMargin = 2000;
-    // 循环判定copyset是否加载完成的内部睡眠时间
+    // Internal sleep time to loop to check if copyset is loaded
     uint32_t checkLoadMarginIntervalMs = 1000;
 
     CopysetNodeOptions();
 };
 
 /**
- * ChunkServiceManager 的依赖项
+ * ChunkServiceManager dependencies
  */
 struct ChunkServiceOptions {
     CopysetNodeManager *copysetNodeManager;

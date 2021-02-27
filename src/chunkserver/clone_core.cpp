@@ -51,7 +51,7 @@ DownloadClosure::DownloadClosure(std::shared_ptr<ReadChunkRequest> readRequest,
     , cloneCore_(cloneCore)
     , downloadCtx_(downloadCtx)
     , done_(done) {
-    // 记录初始metric
+    // record initial metric
     if (readRequest_ != nullptr) {
         const ChunkRequest* request = readRequest_->GetChunkRequest();
         ChunkServerMetric* csMetric = ChunkServerMetric::GetInstance();
@@ -70,7 +70,7 @@ void DownloadClosure::Run() {
         downloadCtx_->buf, downloadCtx_->size, ReadBufferDeleter);
 
     CHECK(readRequest_ != nullptr) << "read request is nullptr.";
-    // 记录结束metric
+    // Record ending metric
     const ChunkRequest* request = readRequest_->GetChunkRequest();
     ChunkServerMetric* csMetric = ChunkServerMetric::GetInstance();
     uint64_t latencyUs = TimeUtility::GetTimeofDayUs() - beginTime_;
@@ -81,7 +81,7 @@ void DownloadClosure::Run() {
                          latencyUs,
                          isFailed_);
 
-    // 从源端拷贝数据失败
+    // Fail to copy data from source
     if (isFailed_) {
         LOG(ERROR) << "download origin data failed: "
                     << " logic pool id: " << request->logicpoolid()
@@ -94,17 +94,17 @@ void DownloadClosure::Run() {
     }
 
     if (CHUNK_OP_TYPE::CHUNK_OP_RECOVER == request->optype()) {
-        // release doneGuard，将closure交给paste请求处理
+        // release doneGuard，hand closure to paste request
         cloneCore_->PasteCloneData(readRequest_,
                                    &copyData,
                                    downloadCtx_->offset,
                                    downloadCtx_->size,
                                    doneGuard.release());
     } else if (CHUNK_OP_TYPE::CHUNK_OP_READ == request->optype()) {
-        // 出错或处理结束调用closure返回给用户
+        // If an error occurs or processing is completed, the closure is returned to the user
         cloneCore_->SetReadChunkResponse(readRequest_, &copyData);
 
-        // paste clone data是异步操作，很快就能处理完
+        // paste clone data is an asynchronous operation and can be processed very quickly
         cloneCore_->PasteCloneData(readRequest_,
                                    &copyData,
                                    downloadCtx_->offset,
@@ -114,12 +114,12 @@ void DownloadClosure::Run() {
 }
 
 void CloneClosure::Run() {
-    // 释放资源
+    // free resources
     std::unique_ptr<CloneClosure> selfGuard(this);
     std::unique_ptr<ChunkRequest> requestGuard(request_);
     std::unique_ptr<ChunkResponse> responseGuard(response_);
     brpc::ClosureGuard doneGuard(done_);
-    // 如果userResponse不为空，需要将response_中的相关内容赋值给userResponse
+    // If userResponse is not empty, you need to assign the relevant content in response_ to userResponse
     if (userResponse_ != nullptr) {
         if (response_->has_status()) {
             userResponse_->set_status(response_->status());
@@ -142,7 +142,7 @@ int CloneCore::CloneReadByLocalInfo(
     size_t length = request->size();
     uint32_t pageSize = chunkInfo.pageSize;
 
-    // offset 和 length 必须与 pageSize 对齐
+    // offset and length must be aligned with pageSize
     if (offset % pageSize != 0 || length % pageSize != 0) {
         LOG(ERROR) << "Invalid offset or length: "
                    << " logic pool id: " << request->logicpoolid()
@@ -159,16 +159,18 @@ int CloneCore::CloneReadByLocalInfo(
     uint32_t beginIndex = offset / pageSize;
     uint32_t endIndex = (offset + length - 1) / pageSize;
 
-    // 请求提交到CloneManager的时候，chunk一定是clone chunk
-    // 但是由于有其他请求操作相同的chunk，此时chunk有可能已经被遍写过了
-    // 所以此处要先判断chunk是否是clone chunk，如果是再判断是否要拷贝数据
+    // When the request is submitted to the CloneManager, the chunk must be a clone chunk,
+    // but it is possible that the chunk has already been traversed at this point because
+    // there are other requests that operate on the same chunk. So here we have to check
+    // if the chunk is a clone chunk, and if so, whether we want to copy the data.
     bool needClone = chunkInfo.isClone &&
                     (chunkInfo.bitmap->NextClearBit(beginIndex, endIndex)
                      != Bitmap::NO_POS);
     if (needClone) {
-        // TODO(yyk) 这一块可以优化，但是优化方法判断条件可能比较复杂
-        // 目前只根据是否存在未写过的page来决定是否要触发拷贝
-        // chunk中请求读取范围内的数据存在page未被写过，则需要从源端拷贝数据
+        // TODO(yyk) This place can be optimised, but the optimisation method may be complicated to check the conditions
+        // Currently only the presence of unwritten pages determines whether a copy should be triggered
+        // If there is a page within the requested read range in the chunk that has not been written,
+        // the data needs to be copied from the source
         AsyncDownloadContext* downloadCtx =
             new (std::nothrow) AsyncDownloadContext;
         downloadCtx->location = chunkInfo.location;
@@ -184,12 +186,12 @@ int CloneCore::CloneReadByLocalInfo(
         return 0;
     }
 
-    // 执行到这一步说明不需要拷贝数据，如果是recover请求可以直接返回成功
-    // 如果是ReadChunk请求，则直接读chunk并返回
+    // Running at this steo means that there is no need to copy the data, if it is a recover request it can just return success
+    // If it is a ReadChunk request, the chunk is read directly and returned
     if (CHUNK_OP_TYPE::CHUNK_OP_RECOVER == request->optype()) {
         SetResponse(readRequest, CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     } else if (CHUNK_OP_TYPE::CHUNK_OP_READ == request->optype()) {
-        // 出错或处理结束调用closure返回给用户
+        // Call closure to return to the user when an error occurs or when processing is completed
         return ReadChunk(readRequest);
     }
     return 0;
@@ -225,17 +227,17 @@ int CloneCore::HandleReadRequest(
     brpc::ClosureGuard doneGuard(done);
     const ChunkRequest* request = readRequest->request_;
 
-    // 获取chunk信息
+    // get chunk info
     CSChunkInfo chunkInfo;
     ChunkID id = readRequest->ChunkId();
     std::shared_ptr<CSDataStore> dataStore = readRequest->datastore_;
     CSErrorCode errorCode = dataStore->GetChunkInfo(id, &chunkInfo);
 
     /*
-    * chunk存在:按照查看分析bitmap判断是否可以本地读
-    * chunk不存在:如包含clone信息则从clonesource读，否则返回错误
-    *            因为上层ReadChunkRequest::OnApply已经处理了NoExist
-    *            并且cloneinfo不存在的情况
+    * The chunk exists: check the analysis bitmap to see if it can be read locally.
+    * The chunk not exists:Read from clonesource if it contains clone
+    *            information, otherwise return an error because the upper level ReadChunkRequest::OnApply
+    *            has already handled the NoExist and cloneinfo not exist case
     */
     switch (errorCode) {
     case CSErrorCode::Success:
@@ -246,7 +248,7 @@ int CloneCore::HandleReadRequest(
             CloneReadByRequestInfo(readRequest, doneGuard.release());
             return 0;
         }
-        // 否则fallthrough直接返回错误
+        // Otherwise fallthrough returns an error directly
     default:
         LOG(ERROR) << "get chunkinfo failed: "
                    << " logic pool id: " << request->logicpoolid()
@@ -284,9 +286,9 @@ int CloneCore::ReadChunk(std::shared_ptr<ReadChunkRequest> readRequest) {
         return -1;
     }
 
-    // 读成功后需要更新 apply index
+    // You need to update the apply index after a successful read.
     readRequest->node_->UpdateAppliedIndex(readRequest->applyIndex);
-    // Return 完成数据读取后可以将结果返回给用户
+    // Return the results to the user once the data has been read
     readRequest->cntl_->response_attachment().append(
         chunkData.get(), length);
     SetResponse(readRequest, CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -302,13 +304,13 @@ int CloneCore::SetReadChunkResponse(
     std::shared_ptr<CSDataStore> dataStore = readRequest->datastore_;
     CSErrorCode errorCode = dataStore->GetChunkInfo(id, &chunkInfo);
 
-    // 如果chunk不存在，需要判断请求是否带源chunk的信息
-    // 如果带了源chunk信息，说明用了lazy分配chunk机制，可以直接返回clone data
-    // 有一种情况，当请求的chunk是lazy allocate的，请求时chunk在本地是存在的，
-    // 并且请求读取的部分区域已经被写过，在从源端拷贝数据的时候，chunk又被删除了
-    // 这种情况下会被当成正常请求返回，但是返回的数据不符合预期
-    // 由于当前我们的curve file都是延迟删除的，文件真正删除时能够确保没有用户IO
-    // 如果后续添加了一些改动触发到这个问题，则需要进行修复
+    // If the chunk does not exist, you need to check if the request has information about the source chunk
+    // If the source chunk information is provided, it means that the lazy chunk allocation mechanism is used and the clone data can be returned directly.
+    // There is a case when the requested chunk is lazy allocate and the chunk exists locally at the time of the request,
+    // and part of the area requested to be read has already been written, and the chunk is deleted again when the data is copied from the source
+    // In this case it will be returned as a normal request, but the data returned is not as expected
+    // Since our current curve files are deleted on a delayed basis, no user IO can be ensured when the file is actually deleted.
+    // If subsequent changes are added that trigger this issue, a fix will be required
     // TODO(yyk) fix it
     bool expect = errorCode == CSErrorCode::Success ||
                   (errorCode == CSErrorCode::ChunkNotExistError &&
@@ -326,7 +328,7 @@ int CloneCore::SetReadChunkResponse(
 
     size_t length = request->size();
     butil::IOBuf responseData;
-    // 如果chunk存在，则要从chunk中读取已经写过的区域合并后返回
+    // If the chunk exists, read the already written area from the chunk and merge it back
     if (errorCode == CSErrorCode::Success) {
         char* chunkData = new (std::nothrow) char[length];
         int ret = ReadThenMerge(
@@ -342,7 +344,7 @@ int CloneCore::SetReadChunkResponse(
     }
     readRequest->cntl_->response_attachment().append(responseData);
 
-    // 读成功后需要更新 apply index
+    // You need to update the apply index after a successful read.
     readRequest->node_->UpdateAppliedIndex(readRequest->applyIndex);
     SetResponse(readRequest, CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     return 0;
@@ -361,7 +363,7 @@ int CloneCore::ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
     uint32_t pageSize = chunkInfo.pageSize;
     uint32_t beginIndex = offset / pageSize;
     uint32_t endIndex = (offset + length - 1) / pageSize;
-    // 获取chunk文件已经写过和未被写过的区域
+    // Get the areas of the chunk file that have been written to and not written to
     std::vector<BitRange> copiedRanges;
     std::vector<BitRange> uncopiedRanges;
     if (chunkInfo.isClone) {
@@ -376,13 +378,13 @@ int CloneCore::ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
         copiedRanges.push_back(range);
     }
 
-    // 需要读取的起始位置在chunk中的偏移
+    // Offset of the starting position in the chunk to be read
     off_t readOff;
-    // 读取到的数据要拷贝到缓冲区中的相对偏移
+    // Relative offset of the read data to be copied into the buffer
     off_t relativeOff;
-    // 每次从chunk读取的数据长度
+    // Length of data read from chunk at a time
     size_t readSize;
-    // 1.Read 对于已写过的区域，从chunk文件中读取
+    // 1.Read from the chunk file for areas that have been written
     CSErrorCode errorCode;
     for (auto& range : copiedRanges) {
         readOff = range.beginIndex * pageSize;
@@ -405,7 +407,7 @@ int CloneCore::ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
         }
     }
 
-    // 2.Merge 对于未写过的区域，从源端下载的区域中拷贝出来进行merge
+    // 2.Copy and merge from the source download for unwritten regions
     for (auto& range : uncopiedRanges) {
         readOff = range.beginIndex * pageSize;
         readSize = (range.endIndex - range.beginIndex + 1) * pageSize;
@@ -425,7 +427,7 @@ void CloneCore::PasteCloneData(std::shared_ptr<ReadChunkRequest> readRequest,
                      && !enablePaste_;
     if (dontPaste) return;
 
-    // 数据拷贝完成以后，需要将产生PaseChunkRequest将数据Paste到chunk文件
+    // Once the data has been copied, a PaseChunkRequest needs to be generated to paste the data into the chunk file
     ChunkRequest* pasteRequest = new ChunkRequest();
     pasteRequest->set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_PASTE);
     pasteRequest->set_logicpoolid(request->logicpoolid());
@@ -440,7 +442,7 @@ void CloneCore::PasteCloneData(std::shared_ptr<ReadChunkRequest> readRequest,
     closure->SetRequest(pasteRequest);
     closure->SetResponse(pasteResponse);
     closure->SetClosure(done);
-    // 如果是recover chunk的请求，需要将paste的结果通过rpc返回
+    // In the case of a recover chunk request, the result of the paste should be returned via rpc
     if (CHUNK_OP_TYPE::CHUNK_OP_RECOVER == request->optype()) {
         closure->SetUserResponse(readRequest->response_);
     }

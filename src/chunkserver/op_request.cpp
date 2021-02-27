@@ -63,8 +63,8 @@ ChunkOpRequest::ChunkOpRequest(std::shared_ptr<CopysetNode> nodePtr,
 void ChunkOpRequest::Process() {
     brpc::ClosureGuard doneGuard(done_);
     /**
-     * 如果propose成功，说明request成功交给了raft处理，
-     * 那么done_就不能被调用，只有propose失败了才需要提前返回
+     * If propose succeeds, it means that the request was successfully handed over to raft for processing.
+     * Then done_ cannot be called, and only if the propose fails does it need to return early
      */
     const butil::IOBuf& data = cntl_->request_attachment();
     if (0 == Propose(request_, &data)) {
@@ -74,12 +74,12 @@ void ChunkOpRequest::Process() {
 
 int ChunkOpRequest::Propose(const ChunkRequest *request,
                             const butil::IOBuf *data) {
-    // 检查任期和自己是不是Leader
+    // Check term and whether it is leader
     if (!node_->IsLeaderTerm()) {
         RedirectChunkRequest();
         return -1;
     }
-    // 打包op request为task
+    // Pack op request as task
     braft::Task task;
     butil::IOBuf log;
     if (0 != Encode(request, data, &log)) {
@@ -90,10 +90,10 @@ int ChunkOpRequest::Propose(const ChunkRequest *request,
     task.data = &log;
     task.done = new ChunkClosure(shared_from_this());
     /**
-     * 由于apply是异步的，有可能某个节点在term1是leader，apply了一条log，
-     * 但是中间发生了主从切换，在很短的时间内这个节点又变为term3的leader，
-     * 之前apply的日志才开始进行处理，这种情况下要实现严格意义上的复制状态
-     * 机，需要解决这种ABA问题，可以在apply的时候设置leader当时的term
+     * Since apply is asynchronous, it is possible that a node is the leader at term1 and applies a log, but then
+     * a master-slave switch occurs and the node becomes the leader at term3 again after a short period
+     * of time, at which point the previously applied logs start to be processed. To achieve a strictly replicated
+     * state machine in this case, this ABA problem needs to be solved by setting the leader's term at the time of apply
      */
     task.expected_term = node_->LeaderTerm();
 
@@ -103,8 +103,8 @@ int ChunkOpRequest::Propose(const ChunkRequest *request,
 }
 
 void ChunkOpRequest::RedirectChunkRequest() {
-    // 编译时加上 --copt -DUSE_BTHREAD_MUTEX
-    // 否则可能发生死锁: CLDCFS-1120
+    // Compile with --copt -DUSE_BTHREAD_MUTEX
+    // Otherwise a deadlock may occur: CLDCFS-1120
     // PeerId leader = node_->GetLeaderId();
     // if (!leader.is_empty()) {
     //     response_->set_redirect(leader.to_string());
@@ -204,7 +204,7 @@ void DeleteChunkRequest::OnApply(uint64_t index,
 void DeleteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                         const ChunkRequest &request,
                                         const butil::IOBuf &data) {
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
+    // datastore/request passed in as a parameter is preferred in the process
     auto ret = datastore->DeleteChunk(request.chunkid(),
                                       request.sn());
     if (CSErrorCode::Success == ret)
@@ -246,38 +246,39 @@ void ReadChunkRequest::Process() {
     }
 
     /**
-     * 如果携带了applied index，且小于当前copyset node
-     * 的最新applied index，或者 op类型为CHUNK_OP_RECOVER
-     * 那么不需要走一致性协议
+     * If the applied index is carried and is less than the latest applied index of
+     * the current copyset node, or if the op type is CHUNK_OP_RECOVER, then the
+     * consistency protocol does not need to be followed
      */
     if ((request_->has_appliedindex()
         && node_->GetAppliedIndex() >= request_->appliedindex())
         || request_->optype() == CHUNK_OP_TYPE::CHUNK_OP_RECOVER) {
         /**
-         * 构造shared_ptr<ReadChunkRequest>，因为在ChunkOpRequest只指定了
-         * std::enable_shared_from_this<ChunkOpRequest>，所以
-         * shared_from_this()返回的是shared_ptr<ChunkOpRequest>
+         * Build shared_ptr<ReadChunkRequest>.
+         * Since only std::: enable_shared_from_this<ChunkOpRequest> is provided in ChunkOpRequest,
+         * shared_from_this() returns shared_ptr<ChunkOpRequest>
          */
         auto thisPtr
             = std::dynamic_pointer_cast<ReadChunkRequest>(shared_from_this());
         /*
-         * 将read扔给并发层出于两个原因：
-         *  (1). 将read I/O操作和write等其它I/O操作都放在并发层处理，以便隔离
-         *  disk I/O和其他逻辑
-         *  (2). 为了保证线性一致性read的语义。因为当前apply是并发的，所以applied
-         *  index更新也是并发的，尽管applied index更新能够保证单调的，但是可能会存
-         *  在更新跳跃的情况，例如，index=6,7的2个op同时进入并发模块，并且都执行成
-         *  功返回了，这个时候leader挂了，new leader选出来，new leader上面有
-         *  index=6,7两个op的日志，但是没有apply，那么new leader必然需要回放这两
-         *  条日志，因为是并发的，所以index=7的op log可能先于index=6的被apply，然后
-         *  new leader的applied index会被更新为7，这个时候client来了一个想读index=6
-         *  的op写下的数据，携带的是applied index=7，这个时候ChunkServer比较携带的
-         *  applied index和Chunkserver的applied index，那么会判定通过走直接读，但是
-         *  ChunkServer实际上index=6的数据还没落盘。那么就会出现stale read。解决方法
-         *  就是read也进并发层排队，那么需要read index=6的read request，必定会排在
-         *  index=6的op的后面，也就是它们操作的是同一个chunk，并发层会将它们放在同一个
-         *  队列中，这样就能保证index=6的op apply之后，read才会被执行，这样就不会出现
-         *  stale read，保证了read的线性一致性
+         *  read is thrown to the concurrency layer for two reasons：
+         *  (1). Place read I/O operations and other I/O operations such as write in the
+         *  concurrency layer to isolate disk I/O from other logic
+         *  (2). This is to ensure the semantics of a linearly consistent read. Since the current apply is
+         *  concurrent, the applied index update is also concurrent. Although applied index updates are
+         *  guaranteed to be monotonic, there may be jumps in updates. For example, if two op's with index=6,7
+         *  enter the concurrent module at the same time and both execute successfully and return, but then the leader
+         *  dies.  After the new leader is elected, the new leader has the logs of the two op's with index=6,7,
+         *  but not applied yet, so the new leader must play back these two logs. Because apply is concurrent,
+         *  the op log with index=7 may be applied before the one with index=6, and then the new
+         *  leader's applied index will be updated to 7. This time the client comes to read the data
+         *  written by the op with index=6, carrying the applied index=7. ChunkServer compares the applied index
+         *  carried with the Chunkserver's applied index, then it decides to go through with the direct read,
+         *  but ChunkServer actually has not yet dropped the data on disk with index=6. Then a stale read will occur.
+         *  The solution is that the read is also queued up at the concurrency layer, so that the read request
+         *  with index=6 must be queued up after the op with index=6, i.e. they are operating on the same chunk.
+         *  The concurrency layer will put them in the same queue to ensure that the read is executed after the op
+         *  apply with index=6, so that there is no stale read and the linear consistency of the read is guaranteed
          */
         auto task = std::bind(&ReadChunkRequest::OnApply,
                               thisPtr,
@@ -289,7 +290,7 @@ void ReadChunkRequest::Process() {
     }
 
     /**
-     * 如果没有携带applied index，那么走raft一致性协议read
+     * If it does not carry an applied index, then read via the raft consistency protocol
      */
     if (0 == Propose(request_, nullptr)) {
         doneGuard.release();
@@ -298,7 +299,7 @@ void ReadChunkRequest::Process() {
 
 void ReadChunkRequest::OnApply(uint64_t index,
                                ::google::protobuf::Closure *done) {
-    // 先清除response中的status，以保证CheckForward后的判断的正确性
+    // Clear the status in the response first to ensure the correctness of the judgement after CheckForward
     response_->clear_status();
 
     CSChunkInfo chunkInfo;
@@ -306,7 +307,8 @@ void ReadChunkRequest::OnApply(uint64_t index,
                                                      &chunkInfo);
     do {
         bool needLazyClone = false;
-        // 如果需要Read的chunk不存在，但是请求包含Clone源信息，则尝试从Clone源读取数据
+        // If the chunk to be Read does not exist, but the request contains information
+        // about the Clone source, try to read the data from the Clone source
         if (CSErrorCode::ChunkNotExistError == errorCode) {
             if (existCloneInfo(request_)) {
                 needLazyClone = true;
@@ -324,14 +326,15 @@ void ReadChunkRequest::OnApply(uint64_t index,
                 CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
             break;
         }
-        // 如果需要从源端拷贝数据，需要将请求转发给clone manager处理
+        // If you need to copy data from the source, you need to redirect
+        // the request to the clone manager for processing
         if ( needLazyClone || NeedClone(chunkInfo) ) {
             applyIndex = index;
             std::shared_ptr<CloneTask> cloneTask =
             cloneMgr_->GenerateCloneTask(
                 std::dynamic_pointer_cast<ReadChunkRequest>(shared_from_this()),
                 done);
-            // TODO(yyk) 尽量不能阻塞队列，后面要具体考虑
+            // TODO(yyk) Try not to block the queue, specific considerations to be made later
             bool result = cloneMgr_->IssueCloneTask(cloneTask);
             if (!result) {
                 LOG(ERROR) << "issue clone task failed: "
@@ -342,14 +345,14 @@ void ReadChunkRequest::OnApply(uint64_t index,
                     CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
                 break;
             }
-            // 如果请求成功转发给了clone manager就可以直接返回了
+            // If the request is successfully redirected to the clone manager, it can be returned directly
             return;
         }
-        // 如果是ReadChunk请求还需要从本地读取数据
+        // If it is a ReadChunk request it also needs to read the data locally
         if (request_->optype() == CHUNK_OP_TYPE::CHUNK_OP_READ) {
             ReadChunk();
         }
-        // 如果是recover请求，说明请求区域已经被写过了，可以直接返回成功
+        // If the request is a recover request, the request area has already been written and can be returned as success
         if (request_->optype() == CHUNK_OP_TYPE::CHUNK_OP_RECOVER) {
             response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         }
@@ -368,19 +371,19 @@ void ReadChunkRequest::OnApply(uint64_t index,
 void ReadChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                       const ChunkRequest &request,
                                       const butil::IOBuf &data) {
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
-    // read什么都不用做
+    // NOTE: datastore/request passed in as a parameter is preferred in the process
+    // read needs to do nothing
 }
 
 bool ReadChunkRequest::NeedClone(const CSChunkInfo& chunkInfo) {
-    // 如果不是 clone chunk，就不需要拷贝
+    // If it is not a clone chunk, there is no need to copy
     if (chunkInfo.isClone) {
         off_t offset = request_->offset();
         size_t length = request_->size();
         uint32_t pageSize = chunkInfo.pageSize;
         uint32_t beginIndex = offset / pageSize;
         uint32_t endIndex = (offset + length - 1) / pageSize;
-        // 如果是clone chunk，且存在未被写过的page，就需要拷贝
+        // If it is a clone chunk and there is an unwritten page, it needs to be copied
         if (chunkInfo.bitmap->NextClearBit(beginIndex, endIndex)
             != Bitmap::NO_POS) {
             return true;
@@ -459,8 +462,8 @@ void WriteChunkRequest::OnApply(uint64_t index,
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         node_->UpdateAppliedIndex(index);
     } else if (CSErrorCode::BackwardRequestError == ret) {
-        // 打快照那一刻是有可能出现旧版本的请求
-        // 返回错误给客户端，让客户端带新版本来重试
+        // There is a possibility that an old version of the request will appear at the moment the snapshot is taken
+        // Return an error to the client and ask the client to retry with a new version
         LOG(WARNING) << "write failed: "
                      << " logic pool id: " << request_->logicpoolid()
                      << " copyset id: " << request_->copysetid()
@@ -473,9 +476,9 @@ void WriteChunkRequest::OnApply(uint64_t index,
                CSErrorCode::CrcCheckError == ret ||
                CSErrorCode::FileFormatError == ret) {
         /**
-         * internalerror一般是磁盘错误,为了防止副本不一致,让进程退出
-         * TODO(yyk): 当前遇到write错误直接fatal退出整个
-         * ChunkServer后期考虑仅仅标坏这个copyset，保证较好的可用性
+         * internalerror is usually a disk error, to prevent inconsistent copies and to make the process exit
+         * TODO(yyk): When a write error is encountered, simply exit fatal
+         * ChunkServer later considers just marking this copyset bad to ensure better availability
         */
         LOG(FATAL) << "write failed: "
                    << " logic pool id: " << request_->logicpoolid()
@@ -501,7 +504,7 @@ void WriteChunkRequest::OnApply(uint64_t index,
 void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                        const ChunkRequest &request,
                                        const butil::IOBuf &data) {
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
+    // NOTE: datastore/request passed in as a parameter is preferred in the process
     uint32_t cost;
     std::string  cloneSourceLocation;
     if (existCloneInfo(&request)) {
@@ -564,7 +567,7 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
 
     do {
         /**
-         * 1.成功
+         * 1.success
          */
         if (CSErrorCode::Success == ret) {
             cntl_->response_attachment().append(wrapper);
@@ -594,7 +597,7 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
                        << " data store return: " << ret;
         }
         /**
-         * 4.其他错误
+         * 4.other error
          */
         LOG(ERROR) << "read snapshot failed: "
                    << " logic pool id: " << request_->logicpoolid()
@@ -617,8 +620,8 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
 void ReadSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                          const ChunkRequest &request,
                                          const butil::IOBuf &data) {
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
-    // read什么都不用做
+    // NOTE: datastore/request passed in as a parameter is preferred in the process
+    // read needs to do nothing
 }
 
 void DeleteSnapshotRequest::OnApply(uint64_t index,
@@ -663,7 +666,7 @@ void DeleteSnapshotRequest::OnApply(uint64_t index,
 void DeleteSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
                                            const ChunkRequest &request,
                                            const butil::IOBuf &data) {
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
+    // NOTE: datastore/request passed in as a parameter is preferred in the process
     auto ret = datastore->DeleteSnapshotChunkOrCorrectSn(
         request.chunkid(), request.correctedsn());
     if (CSErrorCode::Success == ret) {
@@ -709,8 +712,8 @@ void CreateCloneChunkRequest::OnApply(uint64_t index,
                CSErrorCode::CrcCheckError == ret ||
                CSErrorCode::FileFormatError == ret) {
         /**
-         * TODO(yyk): 当前遇到createclonechunk错误直接fatal退出整个
-         * ChunkServer后期考虑仅仅标坏这个copyset，保证较好的可用性
+         * TODO(yyk): When a write error is encountered, simply exit fatal
+         * ChunkServer later considers just marking this copyset bad to ensure better availability
          */
         LOG(FATAL) << "create clone failed: "
                    << " logic pool id: " << request_->logicpoolid()
@@ -750,7 +753,7 @@ void CreateCloneChunkRequest::OnApply(uint64_t index,
 void CreateCloneChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
                                              const ChunkRequest &request,
                                              const butil::IOBuf &data) {
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
+    // NOTE: datastore/request passed in as a parameter is preferred in the process
     auto ret = datastore->CreateCloneChunk(request.chunkid(),
                                            request.sn(),
                                            request.correctedsn(),
@@ -794,8 +797,8 @@ void CreateCloneChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datast
 void PasteChunkInternalRequest::Process() {
     brpc::ClosureGuard doneGuard(done_);
     /**
-     * 如果propose成功，说明request成功交给了raft处理，
-     * 那么done_就不能被调用，只有propose失败了才需要提前返回
+     * If propose succeeds, the request is successfully handed over to raft, then
+     * done_ cannot be called, and only if propose fails does it need to return early
      */
     if (0 == Propose(request_, &data_)) {
         doneGuard.release();
@@ -840,7 +843,7 @@ void PasteChunkInternalRequest::OnApply(uint64_t index,
 void PasteChunkInternalRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
                                                const ChunkRequest &request,
                                                const butil::IOBuf &data) {
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
+    // NOTE: datastore/request passed in as a parameter is preferred in the process
     auto ret = datastore->PasteChunk(request.chunkid(),
                                      data.to_string().c_str(),
                                      request.offset(),

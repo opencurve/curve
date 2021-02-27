@@ -31,48 +31,48 @@ namespace curve {
 namespace chunkserver {
 
     /**
-     * 获取datastore中chunk文件的数量
-     * @param arg: datastore的对象指针
+     * Get the number of chunk files in the datastore
+     * @param arg: datastore's object pointer
      */
     uint32_t GetDatastoreChunkCountFunc(void* arg);
     /**
-     * 获取datastore中快照chunk的数量
-     * @param arg: datastore的对象指针
+     * Get the number of snapshot chunks in the datastore
+     * @param arg: datastore's object pointer
      */
     uint32_t GetDatastoreSnapshotCountFunc(void* arg);
     /**
-     * 获取datastore中clone chunk的数量
-     * @param arg: datastore的对象指针
+     * Get the number of clone chunks in the datastore
+     * @param arg: datastore's object pointer
      */
     uint32_t GetDatastoreCloneChunkCountFunc(void* arg);
     /**
-     * 获取chunkserver上chunk文件的数量
+     * Get the number of chunk files on the chunkserver
      * @param arg: nullptr
      */
     uint32_t GetTotalChunkCountFunc(void* arg);
     /**
-     * 获取chunkserver上快照chunk的数量
+     * Get the number of snapshot chunks on the chunkserver
      * @param arg: nullptr
      */
     uint32_t GetTotalSnapshotCountFunc(void* arg);
     /**
-     * 获取chunkserver上clone chunk的数量
+     * Get the number of clone chunks on the chunkserver
      * @param arg: nullptr
      */
     uint32_t GetTotalCloneChunkCountFunc(void* arg);
     /**
-     * 获取chunkfilepool中剩余chunk的数量
-     * @param arg: chunkfilepool的对象指针
+     * Get the number of remaining chunks on the chunkfilepool
+     * @param arg: chunkfilepool's object pointer
      */
     uint32_t GetChunkLeftFunc(void* arg);
     /**
-     * 获取walfilepool中剩余chunk的数量
-     * @param arg: walfilepool的对象指针
+     * Get the number of remaining chunks on the walfilepool
+     * @param arg: walfilepool's object pointer
      */
     uint32_t GetWalSegmentLeftFunc(void* arg);
     /**
-     * 获取trash中chunk的数量
-     * @param arg: trash的对象指针
+     * Get the number of chunks on the trash
+     * @param arg: trash's object pointer
      */
     uint32_t GetChunkTrashedFunc(void* arg);
 

@@ -38,8 +38,8 @@ using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 
 /**
- * 配置版本序列化和反序列化的工具类
- * TODO(wudemiao): 后期替换采用json编码
+ * Tool classes for epoch serialisation and deserialisation
+ * TODO(wudemiao): replace it with json encoding afterwards
  */
 class ConfEpochFile {
  public:
@@ -47,12 +47,12 @@ class ConfEpochFile {
         : fs_(fs) {}
 
     /**
-     * 加载快照文件中的配置版本
-     * @param path:文件路径
-     * @param logicPoolID:逻辑池id
-     * @param copysetID:复制组id
-     * @param epoch:配置版本，出参，返回读取的epoch值
-     * @return 0，成功； -1失败
+     * Load the configuration epoch in the snapshot file
+     * @param path:File path
+     * @param logicPoolID:Logic pool id
+     * @param copysetID:Copyset id
+     * @param epoch:Configure the epoch, the params, and return the epoch value
+     * @return Return 0 for success, -1 for failure
      */
     int Load(const std::string &path,
              LogicPoolID *logicPoolID,
@@ -60,17 +60,17 @@ class ConfEpochFile {
              uint64_t *epoch);
 
     /**
-     * 保存配置版本信息到快照文件中序列化的格式如下，处理head表示长度，使用二
-     * 进制，其它都是文本格式，便于必要的时候能够直接用查看，sync保证数据落盘
-     * |              head           |          配置版本信息                |
-     * | 8 bytes size_t   | uint32_t |              变 长文本              |
+     * The configuration epoch information is saved to the snapshot file in the following serialised format, with head indicating length
+     * and using binary. Everything else is in text format, so that it can be viewed directly if necessary, and sync ensures that the data falls on disk
+     * |              head           |          configuration epoch information      |
+     * | 8 bytes size_t   | uint32_t |              Variable text              |
      * |     length       |   crc32  | logic pool id | copyset id | epoch |
-     * 上面的持久化使用 ‘：’ 分隔
-     * @param path:文件路径
-     * @param logicPoolID:逻辑池id
-     * @param copysetID:复制组id
-     * @param epoch:配置版本
-     * @return 0成功； -1失败
+     * The persistence above is separated by ':'
+     * @param path:File path
+     * @param logicPoolID:Logic pool id
+     * @param copysetID:Copyset id
+     * @param epoch:Configure the epoch,
+     * @return Return 0 for success, -1 for failure
      */
     int Save(const std::string &path,
              const LogicPoolID logicPoolID,

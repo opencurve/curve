@@ -59,7 +59,7 @@ static uint64_t GetAtomicUint64(void* arg) {
 }
 
 /**
- * 心跳子系统选项
+ * Heatbeat subsystem options
  */
 struct HeartbeatOptions {
     ChunkServerID           chunkserverId;
@@ -76,7 +76,7 @@ struct HeartbeatOptions {
 };
 
 /**
- * 心跳子系统处理模块
+ * Heartbeat subsystem processing module
  */
 class Heartbeat {
  public:
@@ -84,107 +84,107 @@ class Heartbeat {
     ~Heartbeat() {}
 
     /**
-     * @brief 初始化心跳子系统
-     * @param[in] options 心跳子系统选项
-     * @return 0:成功，非0失败
+     * @brief Initialize the heartbeat subsystem
+     * @param[in] options Heatbeat subsystem options
+     * @return 0 for success, non 0 for failure
      */
     int Init(const HeartbeatOptions& options);
 
     /**
-     * @brief 清理心跳子系统
-     * @return 0:成功，非0失败
+     * @brief Clear heartbeat subsystem
+     * @return 0 for success, non 0 for failure
      */
     int Fini();
 
     /**
-     * @brief 启动心跳子系统
-     * @return 0:成功，非0失败
+     * @brief Run heartbeat subsystem
+     * @return 0 for success, non 0 for failure
      */
     int Run();
 
  private:
     /**
-     * @brief 停止心跳子系统
-     * @return 0:成功，非0失败
+     * @brief Stop heartbeat subsystem
+     * @return 0 for success, non 0 for failure
      */
     int Stop();
 
     /*
-     * 心跳工作线程
+     * Heartbeat Worker Threads
      */
     void HeartbeatWorker();
 
     /*
-     * 获取Chunkserver存储空间信息
+     * Get information about Chunkserver file system space
      */
     int GetFileSystemSpaces(size_t* capacity, size_t* free);
 
     /*
-     * 构建心跳消息的Copyset信息项
+     * Build dopyset information for heartbeat messages
      */
     int BuildCopysetInfo(curve::mds::heartbeat::CopySetInfo* info,
                          CopysetNodePtr copyset);
 
     /*
-     * 构建心跳请求
+     * Build heartbeat request
      */
     int BuildRequest(HeartbeatRequest* request);
 
     /*
-     * 发送心跳消息
+     * Send heartbeat request
      */
     int SendHeartbeat(const HeartbeatRequest& request,
                       HeartbeatResponse* response);
 
     /*
-     * 执行心跳任务
+     * Execute heartbeat tasks
      */
     int ExecTask(const HeartbeatResponse& response);
 
     /*
-     * 输出心跳请求信息
+     * Dump heatbeat request information
      */
     void DumpHeartbeatRequest(const HeartbeatRequest& request);
 
     /*
-     * 输出心跳回应信息
+     * Dump heartbeat response information
      */
     void DumpHeartbeatResponse(const HeartbeatResponse& response);
 
     /*
-     * 清理复制组实例及持久化数据
+     * Purge copyset instances and persistent data
      */
     TaskStatus PurgeCopyset(LogicPoolID poolId, CopysetID copysetId);
 
  private:
-    // 心跳线程
+    // Heartbeat thread
     Thread hbThread_;
 
-    // 控制心跳模块运行或停止
+    // Control the heartbeat module to run or stop
     std::atomic<bool> toStop_;
 
-    // 使用定时器
+    // Use timers
     ::curve::common::WaitInterval waitInterval_;
 
-    // Copyset管理模块
+    // Copyset management module
     CopysetNodeManager* copysetMan_;
 
-    // ChunkServer目录
+    // ChunkServer directory
     std::string storePath_;
 
-    // 心跳选项
+    // heartbeat options
     HeartbeatOptions options_;
 
-    // MDS的地址
+    // MDS address
     std::vector<std::string> mdsEps_;
 
-    // 当前供服务的mds
+    // Current mds providing services
     int inServiceIndex_;
 
-    // ChunkServer本身的地址
+    // ChunkServer address
     butil::EndPoint csEp_;
 
-    // 模块初始化时间, unix时间
+    // Module initialization time, unix time
     uint64_t startUpTime_;
 };
 

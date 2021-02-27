@@ -35,7 +35,7 @@ namespace curve {
 namespace chunkserver {
 const uint32_t CURRENT_METADATA_VERSION = 0x01;
 
-// register配置选项
+// register configuration options
 struct RegisterOptions {
     std::string mdsListenAddr;
     std::string chunkserverInternalIp;
@@ -57,14 +57,14 @@ class Register {
     ~Register() {}
 
     /**
-     * @brief RegisterToMDS 向mds注册
+     * @brief RegisterToMDS register to mds
      *
-     * @param[out] metadata 注册获取的chunkserver元数据信息
+     * @param[out] metadata Acquired chunkserver metadata information by registration
      */
     int RegisterToMDS(ChunkServerMetadata *metadata);
 
     /**
-     * @brief 持久化ChunkServer元数据
+     * @brief Persistent ChunkServer metadata
      *
      * @param[in] metadata
      */

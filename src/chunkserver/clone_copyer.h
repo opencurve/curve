@@ -51,26 +51,26 @@ using std::string;
 class DownloadClosure;
 
 struct CopyerOptions {
-    // curvefs上的root用户信息
+    // root user information of curvefs
     UserInfo curveUser;
-    // curvefs 的配置文件路径
+    // configuration file path of curvefs
     std::string curveConf;
-    // s3adapter 的配置文件路径
+    // configuration file path of s3adapter
     std::string s3Conf;
-    // curve client的对象指针
+    // object pointer to curve client
     std::shared_ptr<FileClient> curveClient;
-    // s3 adapter的对象指针
+    // object pointer to s3 adapter
     std::shared_ptr<S3Adapter> s3Client;
 };
 
 struct AsyncDownloadContext {
-    // 源chunk的位置信息
+    // Location information of the source chunk
     string location;
-    // 请求下载数据在对象中的相对偏移
+    // Relative offset of the downloaded data in the object
     off_t offset;
-    // 请求下载数据的的长度
+    // Length of downloaded data
     size_t size;
-    // 存放下载数据的缓冲区
+    // Buffer for downloaded data
     char* buf;
 };
 
@@ -82,22 +82,22 @@ class OriginCopyer {
     virtual ~OriginCopyer() = default;
 
     /**
-     * 初始化资源
-     * @param options: 配置信息
-     * @return: 成功返回0，失败返回-1
+     * init resources
+     * @param options: configuration info
+     * @return: Return 0 for success, -1 for failure
      */
     virtual int Init(const CopyerOptions& options);
 
     /**
-     * 释放资源
-     * @return: 成功返回0，失败返回-1
+     * free resources
+     * @return: Return 0 for success, -1 for failure
      */
     virtual int Fini();
 
     /**
-     * 异步地从源端拷贝数据
-     * @param done：包含下载请求的上下文信息，
-     * 数据下载完成后执行该closure进行回调
+     * Copy data from the source asynchronously
+     * @param done：Contain the contexts of the download request，
+     * execute this closure for a callback after the data has been downloaded
      */
     virtual void DownloadAsync(DownloadClosure* done);
 
@@ -114,15 +114,15 @@ class OriginCopyer {
                           DownloadClosure* done);
 
  private:
-    // curvefs上的root用户信息
+    // root user information of curvefs
     UserInfo curveUser_;
-    // 负责跟curve交互
+    // Responsible for communicating with curves
     std::shared_ptr<FileClient> curveClient_;
-    // 负责跟s3交互
+    // Responsible for communicating with s3
     std::shared_ptr<S3Adapter>  s3Client_;
-    // 保护fdMap_的互斥锁
+    // Mutex lock which protects fdMap_
     std::mutex  mtx_;
-    // 文件名->文件fd 的映射
+    // File name->file fd map
     std::unordered_map<std::string, int> fdMap_;
 };
 
