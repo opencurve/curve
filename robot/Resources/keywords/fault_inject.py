@@ -1912,7 +1912,7 @@ def init_create_curve_vm(num):
     salt = ''.join(random.sample(string.ascii_letters + string.digits, 8))
     logger.info("vm name is thrash-%s"%salt)
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
-    ori_cmd = "source OPENRC && nova boot --flavor 10 --image %s --vnc-password 000000  --availability-zone %s \
+    ori_cmd = "source OPENRC && nova boot --flavor 400 --image %s --vnc-password 000000  --availability-zone %s \
             --key-name  cyh  --nic vpc-net=ff89c80a-585d-4b19-992a-462f4d2ddd27:77a410be-1cf4-4992-8894-0c0bc67f5e48 \
             --meta use-vpc=True --meta instance_image_type=curve thrash-%s"%(config.image_id,config.avail_zone,salt)
     rs = shell_operator.ssh_exec(ssh,ori_cmd)
@@ -1934,7 +1934,7 @@ def init_create_curve_vm(num):
     new_image_id = create_vm_image(vm_name)
     config.vm_prefix = vm_name
     for i in range(1,num):
-        ori_cmd = "source OPENRC && nova boot --flavor 10 --image %s --vnc-password 000000  --availability-zone %s \
+        ori_cmd = "source OPENRC && nova boot --flavor 400 --image %s --vnc-password 000000  --availability-zone %s \
             --key-name  cyh  --nic vpc-net=ff89c80a-585d-4b19-992a-462f4d2ddd27:77a410be-1cf4-4992-8894-0c0bc67f5e48 \
             --meta use-vpc=True --meta instance_image_type=curve thrash-%s-%d"%(new_image_id,config.avail_zone,salt,i)
         rs = shell_operator.ssh_exec(ssh,ori_cmd)
