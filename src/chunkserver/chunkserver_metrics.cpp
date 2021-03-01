@@ -228,8 +228,9 @@ ChunkServerMetric::ChunkServerMetric()
 ChunkServerMetric* ChunkServerMetric::self_ = nullptr;
 
 ChunkServerMetric* ChunkServerMetric::GetInstance() {
-    // The chunkserver metric is created initially when the chunkserver is started.
-    // Therefore there is no competition at creation time and no need for lock protection
+    // The chunkserver metric is created initially when the chunkserver is
+    // started. Therefore there is no competition at creation time and no need
+    // for lock protection
     if (self_ == nullptr) {
         self_ = new ChunkServerMetric;
     }
@@ -334,7 +335,8 @@ int ChunkServerMetric::RemoveCopysetMetric(const LogicPoolID& logicPoolId,
                                            const CopysetID& copysetId) {
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
     // Here the copyset metric is saved first and then freed when it is removed
-    // to prevent deadlocks caused by manipulating the metric inside the read/write lock
+    // to prevent deadlocks caused by manipulating the metric inside the
+    // read/write lock
     auto metric = copysetMetricMap_.Get(groupId);
     copysetMetricMap_.Remove(groupId);
     return 0;

@@ -202,7 +202,7 @@ class CopysetNode : public braft::StateMachine,
     virtual uint64_t GetConfEpoch() const;
 
     /**
-     * Uodate applied index，only for those that are bigger than the original one
+     * Uodate applied index，only for those that are bigger than the original
      * @param index
      */
     virtual void UpdateAppliedIndex(uint64_t index);
@@ -225,14 +225,16 @@ class CopysetNode : public braft::StateMachine,
                               Peer *alterPeer);
 
     /**
-     * @brief: Get the state value of the copyset node for comparing data consistency across multiple copies
+     * @brief: Get the state value of the copyset node for comparing data
+     * consistency across multiple copies
      * @param hash[out]: copyset node status value
      * @return Return 0 for success, -1 for failure
      */
     virtual int GetHash(std::string *hash);
 
     /**
-     * @brief: Get copyset node's status，actually call the get_status interface of the raft node
+     * @brief: Get copyset node's status，actually call the get_status interface
+     * of the raft node
      * @param status[out]: copyset node status
      */
     virtual void GetStatus(NodeStatus *status);
@@ -269,7 +271,8 @@ class CopysetNode : public braft::StateMachine,
     void ListPeers(std::vector<Peer>* peers);
 
     /**
-     * The following interfaces are all interfaces that inherit from the StateMachine implementation
+     * The following interfaces are all interfaces that inherit from the
+     * StateMachine implementation
      */
  public:
     /**
@@ -284,28 +287,34 @@ class CopysetNode : public braft::StateMachine,
     void on_shutdown() override;
 
     /**
-     * raft snapshot-related interface, which only holds raft snapshot meta and the list of
-     * snapshot files, does not copy the actual data here, as all operations in a block storage
-     * scenario are idempotent, so no real data is copied
+     * raft snapshot-related interface, which only holds raft snapshot meta
+     * and the list of snapshot files, does not copy the actual data here,
+     * as all operations in a block storage scenario are idempotent, so no
+     * real data is copied
      */
     void on_snapshot_save(::braft::SnapshotWriter *writer,
                           ::braft::Closure *done) override;
 
     /**
      *  The load log has two scenarios:
-     *  1. Follower node Install snapshot catches up with the leader, at this time, there is chunk
-     *  data and snapshot data under the snapshot directory
-     *  2. The node restarts, it performs a snapshot load and then plays back the logs,
-     *  at this time there is no data in the snapshot directory and nothing needs to be done
-     *  TODO(wudemiao): There is a possibility of a space double when installing snapshot.
-     *  Consider the following scenario, where follower falls behind and then restores data by installing snapshot from leader.
-     *  It will first download all the data from the leader and then call snapshot load to load the snapshot,
-     *  which doubles the space in the meantime. Later on, we need to control the number of install snapshot on a single disk.
+     *  1. Follower node Install snapshot catches up with the leader, at this
+     *  time, there is chunk data and snapshot data under the snapshot directory
+     *  2. The node restarts, it performs a snapshot load and then plays back
+     *  the logs, at this time there is no data in the snapshot directory and
+     *  nothing needs to be done
+     *  TODO(wudemiao): There is a possibility of a space double when
+     *   installing  snapshot.
+     *  Consider the following scenario, where follower falls behind and then
+     *  restores data by installing snapshot from leader. It will first download
+     *  all the data from the leader and then call snapshot load to load the
+     *  snapshot, which doubles the space in the meantime. Later on, we need to
+     *   control the number of install snapshot on a single disk.
      */
     int on_snapshot_load(::braft::SnapshotReader *reader) override;
 
     /**
-     * This interface is called by the new leader after apply noop, indicating that the leader is ready to provide read/write services.
+     * This interface is called by the new leader after apply noop,
+     * indicating that the leader is ready to provide read/write services.
      * @param term:Current leader term
      */
     void on_leader_start(int64_t term) override;
@@ -323,8 +332,9 @@ class CopysetNode : public braft::StateMachine,
     void on_error(const ::braft::Error &e) override;
 
     /**
-     * This function is called when the configuration changelog entry applies, and this interface is
-     * currently used to update the configuration epoch values
+     * This function is called when the configuration changelog entry
+     * applies, and this interface is currently used to update the
+     * configuration epoch values
      * @param conf:The latest configuration of the current copyset
      * @param index log index
      */
@@ -338,7 +348,8 @@ class CopysetNode : public braft::StateMachine,
 
     /**
      * Called by Follower or Candidate when a new leader is found
-     * @param ctx:When the leader changes, you can get the new leader and the reason for starting following
+     * @param ctx:When the leader changes, you can get the new leader and the
+     * reason for starting following
      */
     void on_start_following(const ::braft::LeaderChangeContext &ctx) override;
 

@@ -82,7 +82,7 @@ int ChunkServer::Run(int argc, char** argv) {
 
     RegisterCurveSegmentLogStorageOrDie();
 
-    // ==========================Loading Configuration===============================//
+    // ==========================Loading Configuration=====================//
     LOG(INFO) << "Loading Configuration.";
     common::Configuration conf;
     conf.SetConfigPath(FLAGS_conf.c_str());
@@ -101,7 +101,7 @@ int ChunkServer::Run(int argc, char** argv) {
     conf.PrintConfig();
     curve::common::ExposeCurveVersion();
 
-    // ============================Initializing ChunkServer modules==========================//
+    // ============================Initializing ChunkServer modules=========//
     LOG(INFO) << "Initializing ChunkServer modules";
 
     // Initialize metric collection module first
@@ -220,10 +220,12 @@ int ChunkServer::Run(int argc, char** argv) {
            !conf.GetIntValue("chunkserver.snapshot_throttle_throughput_bytes",
                              &snapshotThroughputBytes));
     /**
-     * checkCycles is for more precise bandwidth control, take snapshotThroughputBytes=100MB
-     * checkCycles=10 as an example, it can guarantee 10MB bandwidth every 1/10 second and
-     * not accumulate. For example, the first 1/10 second's bandwidth is 10MB, but then it expires,
-     * in the second 1/10 second, the bandwidth is still only 10MB, not 20MB
+     * checkCycles is for more precise bandwidth control, take
+     * snapshotThroughputBytes=100MB checkCycles=10 as an example, it can
+     * guarantee 10MB bandwidth every 1/10 second and
+     * not accumulate. For example, the first 1/10 second's bandwidth is 10MB,
+     * but then it expires, in the second 1/10 second, the bandwidth is still
+     * only 10MB, not 20MB
      */
     int checkCycles;
     LOG_IF(FATAL,
@@ -333,8 +335,8 @@ int ChunkServer::Run(int argc, char** argv) {
         return -1;
     }
     /* Start external server
-       External server is used to provide services externally to clients, tools etc.
-       It is different from communication between mds and chunkserver*/
+       External server is used to provide services externally to clients,tools
+       etc. It is different from communication between mds and chunkserver */
     if (registerOptions.enableExternalServer) {
         ret = externalServer.AddService(&copysetService,
                         brpc::SERVER_DOESNT_OWN_SERVICE);
@@ -361,11 +363,13 @@ int ChunkServer::Run(int argc, char** argv) {
         }
     }
 
-    // =======================Start chunkserver modules==================================//
+    // =======================Start chunkserver modules=====================//
     LOG(INFO) << "ChunkServer starts.";
     /**
-     * Put the module startup after the rpc service startup, mainly to solve the memory growth problem
-     * Control the number of copysets recovered concurrently, copyset recovery relies on the rpc service being started first
+     * Put the module startup after the rpc service startup, mainly to solve
+     * the memory growth problem
+     * Control the number of copysets recovered concurrently, copyset recovery
+     * relies on the rpc service being started first
      */
     LOG_IF(FATAL, trash_->Run() != 0)
         << "Failed to start trash.";
@@ -376,7 +380,7 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(FATAL, copysetNodeManager_->Run() != 0)
         << "Failed to start CopysetNodeManager.";
 
-    // =======================Wait for the process to exit==================================//
+    // =======================Wait for the process to exit==================//
     while (!brpc::IsAskedToQuit()) {
         bthread_usleep(1000000L);
     }
@@ -616,7 +620,8 @@ void ChunkServer::InitMetricOptions(
 }
 
 void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
-    // If the command line is set, the command line overrides the fields in the configuration file
+    // If the command line is set, the command line overrides the fields in
+    // the configuration file
     google::CommandLineFlagInfo info;
     if (GetCommandLineFlagInfo("chunkServerIp", &info) && !info.is_default) {
         conf->SetStringValue("global.ip", FLAGS_chunkServerIp);

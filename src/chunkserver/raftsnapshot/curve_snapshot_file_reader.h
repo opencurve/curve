@@ -55,8 +55,9 @@ namespace curve {
 namespace chunkserver {
 
 /**
- * snapshot attachment file metadata table, together with the above CurveSnapshotAttachMetaTable
- * interface, mainly provides the attach file metadata information query, serialization and deserialization interfaces
+ * snapshot attachment file metadata table, together with the above
+ * CurveSnapshotAttachMetaTable interface, mainly provides the attach file
+ * metadata information query, serialization and deserialization interfaces
  */
 class CurveSnapshotAttachMetaTable {
  public:

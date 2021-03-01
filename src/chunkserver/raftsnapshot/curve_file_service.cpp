@@ -64,7 +64,7 @@ void CurveFileService::get_file(::google::protobuf::RpcController* controller,
         lck.unlock();
         /**
          * To distinguish it from a non-existent file error, and given that
-         * the uri format of the install snapshot is :remote://ip:port/reader_id,
+         * the uri format of the install snapshot is:remote://ip:port/reader_id,
          * a non-existent reader id error is represented by ENXIO
          */
         cntl->SetFailed(ENXIO, "Fail to find reader=%" PRId64,
@@ -90,7 +90,7 @@ void CurveFileService::get_file(::google::protobuf::RpcController* controller,
     size_t read_count = 0;
     // 1. if it is a read attach meta file
     if (request->filename() == BRAFT_SNAPSHOT_ATTACH_META_FILE) {
-        // If snapshot attachment is not set, the length of the read file is zero
+        // If snapshot attachment is not set,the length of the read file is zero
         // to indicate that there is no snapshot attachment file list
         bool snapshotAttachmentExist = false;
         {
@@ -149,7 +149,8 @@ void CurveFileService::get_file(::google::protobuf::RpcController* controller,
             read_count = buf.size();
         }
     } else {
-        // 2. Otherwise, downloads of other files will continue with raft's original file download process
+        // 2. Otherwise, downloads of other files will continue with raft's
+        // original file download process
         const int rc = reader->read_file(
                                 &buf, request->filename(),
                                 request->offset(), request->count(),

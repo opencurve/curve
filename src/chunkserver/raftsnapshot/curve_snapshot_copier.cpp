@@ -169,7 +169,8 @@ void CurveSnapshotCopier::load_attach_meta_table() {
         return;
     }
 
-    // If the attach meta table is empty, then there are no snapshot attachment files
+    // If the attach meta table is empty, then there are no snapshot attachment
+    // files
     if (0 == meta_buf.size()) {
         return;
     }
@@ -371,7 +372,8 @@ void CurveSnapshotCopier::copy_file(const std::string& filename, bool attch) {
                   session->status().error_cstr());
         return;
     }
-    // If it is an attach file, then there is no need to persist the file meta information
+    // If it is an attach file, then there is no need to persist the file meta
+    // information
     if (!attch && _writer->add_file(filename, &meta) != 0) {
         set_error(EIO, "Fail to add file to writer");
         return;

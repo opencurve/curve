@@ -39,12 +39,15 @@ using CopysetNodePtr = std::shared_ptr<CopysetNode>;
 class HeartbeatHelper {
  public:
     /**
-     * Build a new configuration of the specified copyset for ChangePeer based on the conf issued by mds
+     * Build a new configuration of the specified copyset for ChangePeer
+     * based on the conf issued by mds
      *
      * @param[in] conf mds issued change command needupdatecopyset[i]
-     * @param[out] newPeers specifies the target configuration of the replication group
+     * @param[out] newPeers specifies the target configuration of the
+     * replication group
      *
-     * @return false-Failure to generate newpeers true-Successfully generate newpeers
+     * @return false-Failure to generate newpeers true-Successfully generate
+     * newpeers
      */
     static bool BuildNewPeers(
         const CopySetConf &conf, std::vector<Peer> *newPeers);
@@ -59,9 +62,11 @@ class HeartbeatHelper {
     static bool PeerVaild(const std::string &peer);
 
     /**
-     * Determine if the copysetConf sent from mds is legal, the following two cases are not legal:
+     * Determine if the copysetConf sent from mds is legal, the following two
+     * cases are not legal:
      * 1. The copyset does not exist in the chunkserver
-     * 2. The epoch recorded in the copyset sent by mds is less than the epoch of the copyset on the chunkserver
+     * 2. The epoch recorded in the copyset sent by mds is less than the
+     * epoch of the copyset on the chunkserver
      *
      * @param[in] conf mds's change command needupdatecopyset[i]
      * @param[in] copyset The corresponding copyset on the chunkserver
@@ -72,13 +77,14 @@ class HeartbeatHelper {
         const CopySetConf &conf, const CopysetNodePtr &copyset);
 
     /**
-     * Determine if the specified copyset in chunkserver(csEp) needs to be deleted
+     * Determine if the specified copyset in chunkserver(csEp) needs to be
+     * deleted
      *
      * @param[in] csEp 该chunkserver的ip:port
      * @param[in] conf mds's change command needupdatecopyset[i]
      * @param[in] copyset The corresponding copyset on the chunkserver
      *
-     * @return false-The copyset on this chunkserver does not need to be cleaned;
+     * @return false-The copyset on this chunkserver does not need to be cleaned
      *         true-The copyset on this chunkserver needs to be cleaned
      */
     static bool NeedPurge(const butil::EndPoint &csEp, const CopySetConf &conf,

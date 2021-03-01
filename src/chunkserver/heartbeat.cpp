@@ -414,7 +414,8 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
             continue;
         }
 
-        // If there are configuration changes to be implemented, send the changes to copyset
+        // If there are configuration changes to be implemented, send the
+        // changes to copyset
         if (!HeartbeatHelper::PeerVaild(conf.configchangeitem().address())) {
             continue;
         }

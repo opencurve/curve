@@ -52,8 +52,9 @@ struct CopysetNodeOptions {
     // Regular snapshot interval, default 3600s, i.e. 1 hour
     int snapshotIntervalS;
 
-    // If the difference between follower and leader logs exceeds the catchupMargin,
-    // an install snapshot will be executed for recovery, default: 1000
+    // If the difference between follower and leader logs exceeds the
+    // catchupMargin, an install snapshot will be executed for recovery,
+    // default: 1000
     int catchupMargin;
 
     // Whether to enable pthread execution of user code, default false
@@ -97,23 +98,26 @@ struct CopysetNodeOptions {
     std::shared_ptr<FilePool> chunkFilePool;
     // File System Adaptation Layer
     std::shared_ptr<LocalFileSystem> localFileSystem;
-    // When the trash and heartbeat module determines that the chunkserver is not in the copyset configuration group,
-    // it notifies the copysetManager to move the copyset directory to the trash
+    // When the trash and heartbeat module determines that the chunkserver is
+    // not in the copyset configuration group, it notifies the copysetManager
+    // to move the copyset directory to the trash
     // Actual recovery of physical space after a period of time
     std::shared_ptr<Trash> trash;
 
     // Snapshot Throttle
     scoped_refptr<SnapshotThrottle> *snapshotThrottle;
 
-    // Limit the number of copyset concurrent recovery when the chunkserver starts, 0 means no limit
+    // Limit the number of copyset concurrent recovery when the chunkserver
+    // starts, 0 means no limit
     uint32_t loadConcurrency = 0;
     // Maximum number of retries when checking if copyset is loaded
     // Possible exceptions: 1. Most copies are not available at the moment;
     // 2. Network problems etc. prevent access to the leader
     // 3. Other reasons for not getting the leader's committed index
     uint32_t checkRetryTimes = 3;
-    // If the difference between the applied_index of the current peer and the committed_index
-    // on the leader is less than this value, then we can say the copyset is loaded
+    // If the difference between the applied_index of the current peer and
+    // the committed_index on the leader is less than this value, then we can
+    // say the copyset is loaded
     uint32_t finishLoadMargin = 2000;
     // Internal sleep time to loop to check if copyset is loaded
     uint32_t checkLoadMarginIntervalMs = 1000;

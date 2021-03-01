@@ -274,15 +274,20 @@ butil::Status TransferLeader(const LogicPoolID &logicPoolId,
     return butil::Status::OK();
 }
 
-// reset peer does not follow the consistency protocol and resets peers directly, so there is some risk
-// Application scenario: the extreme case where most nodes fail. In this case, the copyset will not be able to write
-// until half an hour later when mds migrate the copyset on the failed replica and is therefore unavailable for some time.
-// To cope with this scenario, the reset peer tool was introduced, which directly resets the peers
-// to contain only the surviving replicas.
+// reset peer does not follow the consistency protocol and resets peers
+// directly, so there is some risk Application scenario: the extreme case
+// where most nodes fail. In this case, the copyset will not be able to write
+// until half an hour later when mds migrate the copyset on the failed replica
+// and is therefore unavailable for some time.
+// To cope with this scenario, the reset peer tool was introduced, which
+// directly resets the peers to contain only the surviving replicas.
 // Cautions:
-// 1、Before you reset the peer, you need to confirm that most of the replicas in the copyset are indeed failed by using the check-copyset tool
-// 2、When you reset the peer, make sure the remaining replicas have the latest data, otherwise there is a risk of losing data
-// 3、reset peer is used when the other two replicas cannot be recovered, otherwise the cluster may be disrupted
+// 1、Before you reset the peer, you need to confirm that most of the replicas
+// in the copyset are indeed failed by using the check-copyset tool
+// 2、When you reset the peer, make sure the remaining replicas have the latest
+// data, otherwise there is a risk of losing data
+// 3、reset peer is used when the other two replicas cannot be recovered,
+// otherwise the cluster may be disrupted
 butil::Status ResetPeer(const LogicPoolID &logicPoolId,
                         const CopysetID &copysetId,
                         const Configuration& newPeers,

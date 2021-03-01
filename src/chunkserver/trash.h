@@ -39,7 +39,8 @@ namespace chunkserver {
 struct TrashOptions{
     // copyset trash path
     std::string trashPath;
-    // Files can be physically recycled after being placed in trash for expiredAfteSec seconds
+    // Files can be physically recycled after being placed in trash for
+    // expiredAfteSec seconds
     int expiredAfterSec;
     // Time interval for scanning the trash directory
     int scanPeriodSec;
@@ -73,13 +74,14 @@ class Trash {
 
  private:
     /*
-    * @brief DeleteEligibleFileInTrashInterval Perform trash physical space recycle at certain time intervals
+    * @brief DeleteEligibleFileInTrashInterval Perform trash physical space
+     *       recycle at certain time intervals
     */
     void DeleteEligibleFileInTrashInterval();
 
     /*
-    * @brief Whether the file needs to be deleted, it can be deleted if it has been in the trash for
-    *        longer than the expiredAfterSec in the trash.
+    * @brief Whether the file needs to be deleted, it can be deleted if it has
+    *       been in the trash for longer than the expiredAfterSec in the trash.
     *
     * @param[in] copysetDir copyset directory path
     *
@@ -88,7 +90,8 @@ class Trash {
     bool NeedDelete(const std::string &copysetDir);
 
     /*
-    * @brief IsCopysetInTrash whether it is the directory of the copyset in the trash
+    * @brief IsCopysetInTrash whether it is the directory of the copyset in the
+    *        trash
     *
     * @param[in] dirName Directory path
     *
@@ -155,7 +158,8 @@ class Trash {
     uint32_t CountChunkNumInCopyset(const std::string &copysetPath);
 
  private:
-    // Files can be physically recycled after being placed in trash for expiredAfteSec seconds
+    // Files can be physically recycled after being placed in trash for
+    // expiredAfteSec seconds
     int expiredAfterSec_;
 
     // Time interval for scanning the trash directory

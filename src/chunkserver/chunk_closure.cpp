@@ -36,11 +36,11 @@ void ChunkClosure::Run() {
      */
     brpc::ClosureGuard doneGuard(request_->Closure());
     /**
-     * Although leader's indentification has been confirmed before the request is
-     * proposed to copyset, it's status may turn into non-leader while copyset is
-     * processing the request. So, we need to check the status of the request when
-     * ChunkClosure is called. If the status is ok, it means everything goes well.
-     * Otherwise, Redirect is needed.
+     * Although leader's indentification has been confirmed before the request
+     * is proposed to copyset, it's status may turn into non-leader while
+     * copyset is processing the request. So, we need to check the status of the
+     * request when ChunkClosure is called. If the status is ok, it means
+     * everything goes well. Otherwise, Redirect is needed.
      */
     if (status().ok()) {
         return;

@@ -64,7 +64,8 @@ bool HeartbeatHelper::PeerVaild(const std::string &peer) {
 
 bool HeartbeatHelper::CopySetConfValid(
     const CopySetConf &conf, const CopysetNodePtr &copyset) {
-    // The copyset to be changed does not exist in the chunkserver, alarm is raised
+    // The copyset to be changed does not exist in the chunkserver, alarm is
+    // raised
     if (copyset == nullptr) {
         LOG(ERROR) << "Failed to find copyset(" << conf.logicalpoolid()
             << "," <<  conf.copysetid() << "), groupId: "
@@ -89,7 +90,8 @@ bool HeartbeatHelper::CopySetConfValid(
 
 bool HeartbeatHelper::NeedPurge(const butil::EndPoint &csEp,
     const CopySetConf &conf, const CopysetNodePtr &copyset) {
-    // CLDCFS-1004 bug-fix: mds sends copyset, whose epoch is 0, configuration is empty
+    // CLDCFS-1004 bug-fix: mds sends copyset, whose epoch is 0,
+    // configuration is empty
     if (0 == conf.epoch() && conf.peers().empty()) {
         LOG(INFO) << "Clean copyset "
             << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid())
@@ -98,7 +100,8 @@ bool HeartbeatHelper::NeedPurge(const butil::EndPoint &csEp,
         return true;
     }
 
-    // This chunkserrver is not in the copyset configuration and needs to be cleaned up
+    // This chunkserrver is not in the copyset configuration and needs to be
+    // cleaned up
     std::string chunkserverEp = std::string(butil::endpoint2str(csEp).c_str());
     for (int i = 0; i < conf.peers_size(); i++) {
         if (conf.peers(i).address().find(chunkserverEp) != std::string::npos) {

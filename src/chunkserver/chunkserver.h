@@ -103,7 +103,8 @@ class ChunkServer {
     // cloneManager_ manages cloning tasks
     CloneManager cloneManager_;
 
-    // heartbeat_ is responsible for sending regular heartbeats to mds and issuing tasks in the heartbeat
+    // heartbeat_ is responsible for sending regular heartbeats to mds and
+    // issuing tasks in the heartbeat
     Heartbeat heartbeat_;
 
     // trash_ recycles the physical space in the trash on a regular basis

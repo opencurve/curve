@@ -101,7 +101,8 @@ class CSSnapshot {
      */
     CSErrorCode Write(const char * buf, off_t offset, size_t length);
     /**
-     * Read the snapshot data, according to the bitmap to determine whether to read the data from the chunk file
+     * Read the snapshot data, according to the bitmap to determine whether
+     * to read the data from the chunk file
      * @param buf: Snapshot data read
      * @param offset: the starting offset of the request to read
      * @param length: The length of the data requested to be read

@@ -34,7 +34,8 @@ using ::google::protobuf::Closure;
 class CopysetNodeManager;
 
 /**
- * Rpc service for copyset management, currently only available for creating copysets
+ * Rpc service for copyset management, currently only available for creating
+ * copysets
  */
 class CopysetServiceImpl : public CopysetService {
  public:

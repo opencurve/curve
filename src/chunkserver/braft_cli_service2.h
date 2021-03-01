@@ -97,7 +97,8 @@ class BRaftCliServiceImpl2 : public CliService2 {
      * @param logicPoolId[in]: logicpool id
      * @param copysetId[in]: copysetpool id
      * @param peer_id[in]: peer id
-     * @return if succeeded，return Status::OK()；otherwise，return a non- Status::OK() value
+     * @return if succeeded，return Status::OK()；otherwise，return a non-
+     * Status::OK() value
      */
     butil::Status get_node(scoped_refptr<braft::NodeImpl> *node,
                            const LogicPoolID &logicPoolId,

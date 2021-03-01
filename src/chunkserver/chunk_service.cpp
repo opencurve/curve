@@ -402,10 +402,10 @@ void ChunkServiceImpl::DeleteChunkSnapshotOrCorrectSn(
 }
 
 /**
- * Since GetChunkInfo's definition in rpc service layer is split from Chunk Service,
- * and it doesn't take QoS or raft into consideration，GetChunkInfo is not repackaged
- * by having it inherit from OpRequest or QoSRequest. On the contrary, we process it
- * in-situ directly.
+ * Since GetChunkInfo's definition in rpc service layer is split from Chunk
+ * Service, and it doesn't take QoS or raft into consideration，GetChunkInfo is
+ * not repackaged by having it inherit from OpRequest or QoSRequest. On the
+ * contrary, we process it in-situ directly.
  */
 void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
                                     const GetChunkInfoRequest *request,

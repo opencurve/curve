@@ -88,7 +88,8 @@ class CloneManager {
     /**
      * Generate clone tasks
      * @param request[in]:Request info
-     * @return:Return the generated clone task, or nullptr if the generation fails
+     * @return:Return the generated clone task, or nullptr if the generation
+     * fails
      */
     virtual std::shared_ptr<CloneTask> GenerateCloneTask(
         std::shared_ptr<ReadChunkRequest> request,
@@ -102,7 +103,8 @@ class CloneManager {
     virtual bool IssueCloneTask(std::shared_ptr<CloneTask> cloneTask);
 
  private:
-    // Clone task management related options and initialize them when calling Init
+    // Clone task management related options and initialize them when calling
+    // Init
     CloneOptions options_;
     // Asynchronous thread pool for handling cloning tasks
     std::shared_ptr<TaskThreadPool<>> tp_;

@@ -32,11 +32,14 @@ namespace curve {
 namespace chunkserver {
 
 /**
- * The closure which carries all contexts of op request，is processed by raft through braft::Task
+ * The closure which carries all contexts of op request，is processed by raft
+ * through braft::Task
  * Calls occur in two places：
- * 1.op request which is processed by raft normally，will call return when on apply
- * 2.if op request goes wrong without any error handling after it is processed by raft (eg. leader
- *   steps down into non-leader)，it will return error to client in advance
+ * 1.op request which is processed by raft normally，will call return when on
+ *   apply
+ * 2.if op request goes wrong without any error handling after it is
+ *   processed by raft (eg. leader steps down into non-leader)，it will return
+ *   error to client in advance
  */
 class ChunkClosure : public braft::Closure {
  public:

@@ -43,8 +43,9 @@ void CurveSnapshotAttachment::list_attach_files(
 
     std::vector<std::string> snapFiles;
     int rc = fileHelper_.ListFiles(dataDir, nullptr, &snapFiles);
-    //  A list error is generally considered to be a disk problem, in which case the process will simply hang
-    // Attention: More careful consideration is needed here
+    //  A list error is generally considered to be a disk problem, in which case
+    //  the process will simply hang
+    //  Attention: More careful consideration is needed here
     CHECK(rc == 0) << "List dir failed.";
 
     files->clear();

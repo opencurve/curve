@@ -59,7 +59,8 @@ class Register {
     /**
      * @brief RegisterToMDS register to mds
      *
-     * @param[out] metadata Acquired chunkserver metadata information by registration
+     * @param[out] metadata Acquired chunkserver metadata information by
+     * registration
      */
     int RegisterToMDS(ChunkServerMetadata *metadata);
 

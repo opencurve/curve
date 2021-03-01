@@ -78,16 +78,18 @@ class CopysetNodeManager : public curve::common::Uncopyable {
                            const Configuration &conf);
 
     /**
-     * Both functions create copyset and currently exist simultaneously, keep just one later
+     * Both functions create copyset and currently exist simultaneously, keep
+     * just one later
      */
     bool CreateCopysetNode(const LogicPoolID &logicPoolId,
                            const CopysetID &copysetId,
                            const std::vector<Peer> peers);
 
     /**
-     * Delete the copyset node memory instance (Stop copyset, destroy the copyset memory
-     * instance and clear the copyset table entries from the copyset table in the
-     * copysetmanager. It does not affect the copyset persistent data on the disk)
+     * Delete the copyset node memory instance (Stop copyset, destroy the
+     * copyset memory instance and clear the copyset table entries from the
+     * copyset table in the copysetmanager. It does not affect the copyset
+     * persistent data on the disk)
      * @param logicPoolId:logicPool id
      * @param copysetId:copyset id
      * @return true for success, false for failure
@@ -96,9 +98,10 @@ class CopysetNodeManager : public curve::common::Uncopyable {
                            const CopysetID &copysetId);
 
     /**
-     * Delete the copyset node memory data (Stop copyset, destroy the copyset memory
-     * instance and clear the copyset table entries from the copyset table in the
-     * copysetmanager. It does not affect the copyset persistent data on the disk)
+     * Delete the copyset node memory data (Stop copyset, destroy the copyset
+     * memory instance and clear the copyset table entries from the copyset
+     * table in the copysetmanager. It does not affect the copyset persistent
+     * data on the disk)
      * @param logicPoolId:logicPool id
      * @param copysetId:copyset id
      * @return true for success, false for failure
@@ -147,15 +150,18 @@ class CopysetNodeManager : public curve::common::Uncopyable {
      * Load a copyset, including creating a new copyset or restarting a copyset
      * @param logicPoolId: logicPool id
      * @param copysetId: copyset id
-     * @param needCheckLoadFinished: whether need to check if copyset loading is complete
+     * @param needCheckLoadFinished: whether need to check if copyset loading is
+     * complete
      */
     void LoadCopyset(const LogicPoolID &logicPoolId,
                      const CopysetID &copysetId,
                      bool needCheckLoadFinished);
     /**
-     * Check the status of the specified copyset until the copyset is loaded or an exception occurs
+     * Check the status of the specified copyset until the copyset is loaded or
+     * an exception occurs
      * @param node: Specific copyset node
-     * @return true means the load was successful, false means an exception occurred
+     * @return true means the load was successful, false means an exception
+     * occurred
      */
     bool CheckCopysetUntilLoadFinished(std::shared_ptr<CopysetNode> node);
 
@@ -173,7 +179,8 @@ class CopysetNodeManager : public curve::common::Uncopyable {
 
  private:
     /**
-     * If the specified copyset does not exist, insert the copyset into the map (thread-safe)
+     * If the specified copyset does not exist, insert the copyset into the map
+     * (thread-safe)
      * @param logicPoolId:logicPool id
      * @param copysetId:copyset id
      * @param node: copysetnode to be inserted
@@ -189,7 +196,8 @@ class CopysetNodeManager : public curve::common::Uncopyable {
      * @param logicPoolId:logicPool id
      * @param copysetId:copyset id
      * @param conf:Configuration peers of this copyset
-     * @return Return copysetnode if created or loaded successfully, otherwise returns nullptr
+     * @return Return copysetnode if created or loaded successfully, otherwise
+     * returns nullptr
      */
     std::shared_ptr<CopysetNode> CreateCopysetNodeUnlocked(
         const LogicPoolID &logicPoolId,

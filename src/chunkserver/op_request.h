@@ -82,10 +82,13 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
                          ::google::protobuf::Closure *done) = 0;
 
     /**
-     * NOTE: The subclass implementation prefers to use the datastore/request passed in as a
-     * parameter, getting the request details from the log entry after deserialisation.
-     * The request-related context and the dependent data store are passed in from the parameters.
-     * 1. Restart the replay log, read the op log entry from disk and then execute the on apply logic
+     * NOTE: The subclass implementation prefers to use the datastore/request
+     * passed in as a parameter, getting the request details from the log
+     * entry after deserialisation.
+     * The request-related context and the dependent data store are passed in
+     * from the parameters.
+     * 1. Restart the replay log, read the op log entry from disk and then
+     * execute the on apply logic
      * 2. follower performs the logic of on apply
      * @param datastore:chunk data persistence layer
      * @param request:The request details after deserialization
@@ -133,7 +136,8 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
      * op data: Data after request serialization via protobuf
      * @param request:Chunk Request
      * @param data:Content of the data contained in the request
-     * @param log:Store the serialized data, the user himself ensures that data!=nullptr
+     * @param log:Store the serialized data, the user himself ensures that
+     * data!=nullptr
      * @return 0 for success, -1 for failure
      */
     static int Encode(const ChunkRequest *request,
@@ -141,8 +145,9 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
                       butil::IOBuf *log);
 
     /**
-     * Deserialize, get ChunkOpRequest from log entry, the current deserialized ChunkRequest
-     * and data will be passed out, not in the ChunkOpRequest member variable
+     * Deserialize, get ChunkOpRequest from log entry, the current deserialized
+     * ChunkRequest and data will be passed out, not in the ChunkOpRequest
+     * member variable
      * @param log:op log entry
      * @param request: out parameter，Store the deserial context
      * @param data:out parameter，data for op operations
@@ -154,7 +159,8 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
 
  protected:
     /**
-     * Package the request as braft::task and propose it to the corresponding copyset
+     * Package the request as braft::task and propose it to the corresponding
+     * copyset
      * @param request:Chunk Request
      * @param data:Content of the data contained in the request
      * @return 0 for success,-1 for failure

@@ -76,7 +76,8 @@ class CurveSnapshotCopier : public braft::SnapshotCopier {
     void filter();
     void copy_file(const std::string& filename, bool attach = false);
     // Here filename is the path relative to the snapshot directory, in order to
-    // download the files to the temporary directory first, you need to remove the ... in the front
+    // download the files to the temporary directory first, you need to remove
+    // the ... in the front
     std::string get_rfilename(const std::string& filename);
 
     braft::raft_mutex_t _mutex;

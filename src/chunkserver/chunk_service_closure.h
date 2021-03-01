@@ -60,8 +60,10 @@ class ChunkServiceClosure : public braft::Closure {
 
     /**
      * This function is called at the end of the life of the closure's guard
-     * This function currently focuses on some metric statistics for the results returned from read and write requests
-     * If there is a similar scenario (doing some processing at the end of a service request) you can add logic to it internally
+     * This function currently focuses on some metric statistics for the
+     * results returned from read and write requests
+     * If there is a similar scenario (doing some processing at the end of a
+     * service request) you can add logic to it internally
      */
     void Run() override;
 

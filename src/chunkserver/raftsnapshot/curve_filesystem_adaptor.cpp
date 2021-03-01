@@ -69,15 +69,15 @@ braft::FileAdaptor* CurveFilesystemAdaptor::open(const std::string& path,
     if (cloexec && !local_s_support_cloexec_on_open) {
         oflag &= (~O_CLOEXEC);
     }
-    // The sync flag is used on open to avoid a one-time，simultaneous sync on close operation,
-    // which may cause jitter for 16MB chunk files
+    // The sync flag is used on open to avoid a one-time，simultaneous sync on
+    // close operation, which may cause jitter for 16MB chunk files
     oflag |= O_SYNC;
 
     // Check whether the current file needs to be filtered,
     // if so, ignore chunkfilepool and go directly to the following logic.
-    // If the open operation carries the create flag, then fetch from the chunkfilepool,
-    // otherwise maintain the original semantics.
-    // If the file to be opened already exists, use the original semantics directly.
+    // If the open operation carries the create flag, then fetch from the
+    // chunkfilepool, otherwise maintain the original semantics. If the file
+    // to be opened already exists, use the original semantics directly.
     if (!NeedFilter(path) &&
         (oflag & O_CREAT) &&
         false == lfs_->FileExists(path)) {
@@ -122,7 +122,8 @@ bool CurveFilesystemAdaptor::delete_file(const std::string& path,
     // 1. If it is a directory and recursive=true,
     //    iterate the contents of the directory to recycle
     // 2. If it is a directory and recursive=false，
-    //    check whether the contents of the directory is empty，if not so return false
+    //    check whether the contents of the directory is empty，if not so return
+    //    false
     // 3. If it is a file, recycle directly
     if (lfs_->DirExists(path)) {
         std::vector<std::string> dircontent;
@@ -139,8 +140,9 @@ bool CurveFilesystemAdaptor::delete_file(const std::string& path,
              if (NeedFilter(path)) {
                  return lfs_->Delete(path) == 0;
              } else {
-                // The chunkfilepool will internally check the legality of the file corresponding to path
-                // and delete it directly if it is not legal
+                // The chunkfilepool will internally check the legality of the
+                // file corresponding to path and delete it directly if it is
+                // not legal
                 return chunkFilePool_->RecycleFile(path) == 0;
              }
         }
@@ -181,8 +183,8 @@ bool CurveFilesystemAdaptor::RecycleDirRecursive(
 bool CurveFilesystemAdaptor::rename(const std::string& old_path,
                                             const std::string& new_path) {
     if (!NeedFilter(new_path) && lfs_->FileExists(new_path)) {
-        // The chunkfilepool will internally check the legality of the file corresponding to path
-        // and delete it directly if it is not legal
+        // The chunkfilepool will internally check the legality of the file
+        // corresponding to path and delete it directly if it is not legal
         chunkFilePool_->RecycleFile(new_path);
     }
     return lfs_->Rename(old_path, new_path) == 0;

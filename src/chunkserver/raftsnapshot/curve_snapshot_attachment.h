@@ -34,8 +34,9 @@ namespace curve {
 namespace chunkserver {
 
 /**
- * Interface for getting snapshot attachment files, generally used for some downloads
- * Snapshot gets a list of files that need to be downloaded additionally
+ * Interface for getting snapshot attachment files, generally used for some
+ * downloads.
+ * Snapshot gets a list of files that need to be downloaded additionally.
  */
 class SnapshotAttachment :
                public butil::RefCountedThreadSafe<SnapshotAttachment> {
@@ -59,7 +60,8 @@ class CurveSnapshotAttachment : public SnapshotAttachment {
     explicit CurveSnapshotAttachment(std::shared_ptr<LocalFileSystem> fs);
     virtual ~CurveSnapshotAttachment() = default;
     /**
-     * Get the attachment of the raft snapshot, in this case get the list of snapshot files of the chunk
+     * Get the attachment of the raft snapshot, in this case get the list of
+     * snapshot files of the chunk
      * @param files[out]: List of chunk snapshot files in the data directory
      * @param raftSnapshotPath: Path of braft snapshot
      * The returned file paths use the absolute path:relative path format,
@@ -72,12 +74,14 @@ class CurveSnapshotAttachment : public SnapshotAttachment {
 };
 
 /*
-* @brif Get the base address of a raft instance from the snapshot instance address of a specific raft
+* @brief Get the base address of a raft instance from the snapshot instance
+* address of a specific raft
 * @param[in] specificSnapshotDir The directory of a specific snapshot
-        e.g. /data/chunkserver1/copysets/4294967812/raft_snapshot/snapshot_805455/
-* @param[in] raftSnapshotRelativeDir Relative base address of all snapshots referred to by upper layer operations
-        e.g. raft_snapshot
-* @return Return the absolute base address of the raft instance, /data/chunkserver1/copysets/4294967812/
+       e.g./data/chunkserver1/copysets/4294967812/raft_snapshot/snapshot_805455/
+* @param[in] raftSnapshotRelativeDir Relative base address of all snapshots
+*            referred to by upper layer operations e.g. raft_snapshot
+* @return Return the absolute base address of the raft instance,
+*         /data/chunkserver1/copysets/4294967812/
 */
 inline std::string getCurveRaftBaseDir(std::string specificSnapshotDir,
     std::string raftSnapshotRelativeDir) {

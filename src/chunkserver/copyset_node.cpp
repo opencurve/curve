@@ -164,7 +164,8 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     butil::str2ip(options.ip.c_str(), &ip);
     butil::EndPoint addr(ip, options.port);
     /**
-     * idx is default zero, and multiple copies of the same copyset are not allowed for one process in chunkserver
+     * idx is default zero, and multiple copies of the same copyset are not
+     * allowed for one process in chunkserver
      * this is different from braft
      */
     peerId_ = PeerId(addr, 0);
@@ -212,14 +213,16 @@ void CopysetNode::Fini() {
     }
     if (nullptr != concurrentapply_) {
         // Drop unflushed data to disk, if not flushed
-        // When transferring a copyset, it may be wrong to perform a WriteChunk operation after the copyset has been removed.
+        // When transferring a copyset, it may be wrong to perform a WriteChunk
+        // operation after the copyset has been removed.
         concurrentapply_->Flush();
     }
 }
 
 void CopysetNode::on_apply(::braft::Iterator &iter) {
     for (; iter.valid(); iter.next()) {
-        // Asynchronous execution in bthread is to avoid blocking the execution of the current state machine
+        // Asynchronous execution in bthread is to avoid blocking the execution
+        // of the current state machine
         braft::AsyncClosureGuard doneGuard(iter.done());
 
         /**
@@ -249,8 +252,9 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
             butil::IOBuf log = iter.data();
             /**
              * 2.When closure is null，there are two cases：
-             * 2.1. The node restarts and plays back the apply, where the Op log entry
-             * is deserialized and then the Op information is retrieved for apply
+             * 2.1. The node restarts and plays back the apply, where the Op log
+             * entry is deserialized and then the Op information is retrieved
+             * for apply
              * 2.2. follower apply
              */
             ChunkRequest request;
@@ -281,7 +285,8 @@ void CopysetNode::on_snapshot_save(::braft::SnapshotWriter *writer,
     concurrentapply_->Flush();
 
     /**
-     * 2.Save the configuration epoch: conf.epoch, note that conf.epoch is stored in the data directory
+     * 2.Save the configuration epoch: conf.epoch, note that conf.epoch is
+     * stored in the data directory
      */
     std::string
         filePathTemp = writer->get_path() + "/" + kCurveConfEpochFilename;
@@ -300,14 +305,17 @@ void CopysetNode::on_snapshot_save(::braft::SnapshotWriter *writer,
     std::vector<std::string> files;
     if (0 == fs_->List(chunkDataApath_, &files)) {
         for (const auto& fileName : files) {
-            // When raft saves a snapshot, it is not necessary to save a list of snapshot files in the meta message
-            // After downloading the chunk, raft will fetch the snapshot list separately
+            // When raft saves a snapshot, it is not necessary to save a list
+            // of snapshot files in the meta message
+            // After downloading the chunk, raft will fetch the snapshot list
+            // separately
             bool isSnapshot = DatastoreFileHelper::IsSnapshotFile(fileName);
             if (isSnapshot) {
                 continue;
             }
             std::string chunkApath;
-            // Calculate the path relative to the snapshot directory from the absolute path
+            // Calculate the path relative to the snapshot directory from the
+            // absolute path
             chunkApath.append(chunkDataApath_);
             chunkApath.append("/").append(fileName);
             std::string filePath = curve::common::CalcRelativePath(
@@ -341,13 +349,16 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
     snapshotChunkDataDir.append("/").append(chunkDataRpath_);
     LOG(INFO) << "load snapshot data path: " << snapshotChunkDataDir
               << ", Copyset: " << GroupIdString();
-    // If the data directory does not exist, then the load snapshot data section does not need to be processed
+    // If the data directory does not exist, then the load snapshot data section
+    // does not need to be processed
     if (fs_->DirExists(snapshotChunkDataDir)) {
-        // Clean up the files in the copyset data directory before loading the snapshot data,
-        // otherwise there may be some remaining data after the snapshot is loaded.
-        // If delete_file fails or rename fails, the current node status will be set to ERROR
-        // If the process is restarted during delete_file or rename, the snapshot will be loaded when copyset is available
-        // Since rename guarantees atomicity, the data directory will definitely be restored after the snapshot is loaded
+        // Clean up the files in the copyset data directory before loading the
+        // snapshot data,otherwise there may be some remaining data after the
+        // snapshot is loaded. If delete_file fails or rename fails, the current
+        // node status will be set to ERROR. If the process is restarted during
+        // delete_file or rename, the snapshot will be loaded when copyset is
+        // available. Since rename guarantees atomicity, the data directory
+        // will definitely be restored after the snapshot is loaded
         bool ret = nodeOptions_.snapshot_file_system_adaptor->get()->
                                 delete_file(chunkDataApath_, true);
         if (!ret) {
@@ -392,17 +403,21 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
     /**
      * 3.Reinit data store, example of scenario:
      *
-     * (1) For example, if we first add a peer and then read it, the data store will return that the chunk does
-     * not exist, because the new peer did not have any data when it was first added. At this point the data
-     * store initiates, then the added peer is not sensed by the data store after the leader has recovered
-     * the data.
+     * (1) For example, if we first add a peer and then read it, the data
+     * store  will return that the chunk does not exist, because the new peer
+     * did not have any data when it was first added. At this point the data
+     * store initiates, then the added peer is not sensed by the data store
+     * after the leader has recovered the data.
      *
-     * (2) The peer restores all the data by installing snapshot, which is done by rename. If a file was
-     * previously opened by the data store, then rename will work. But the old file can only be deleted
-     * when the data store closes the old file, so you need to re-init data store and close the fd of the
-     * file, and then re-open the new file, otherwise the data store will always be operating on the old file.
-     * Once the data store has closed the corresponding fd once, the data written later will be lost. In
-     * addition, if the datastore init does not re-open the file, it will not read the recovered data, but the old
+     * (2) The peer restores all the data by installing snapshot, which is
+     * done by rename. If a file was previously opened by the data store,
+     * then rename will work. But the old file can only be deleted when the
+     * data store closes the old file, so you need to re-init data store and
+     * close the fd of the file, and then re-open the new file, otherwise the
+     * data store will always be operating on the old file.
+     * Once the data store has closed the corresponding fd once, the data
+     * written later will be lost. In addition, if the datastore init does
+     * not re-open the file, it will not read the recovered data, but the old
      * data.
      */
     if (!dataStore_->Initialize()) {
@@ -412,8 +427,9 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
     }
 
     /**
-     * 4.If conf is stored in snapshot, then load the initialization, ensuring that no
-     * on_configuration_committed is needed. note that the joint stage log is ignored here.
+     * 4.If conf is stored in snapshot, then load the initialization,
+     * ensuring that no on_configuration_committed is needed. Note that the
+     * joint stage log is ignored here.
      */
     braft::SnapshotMeta meta;
     reader->load_meta(&meta);
@@ -703,10 +719,13 @@ void CopysetNode::UpdateAppliedIndex(uint64_t index) {
     if (index > curIndex) {
         /**
          * compare_exchange_strong explanation：
-         * First we compare whether the curIndex is equal to the appliedIndex, if it is, then no one has modified
-         * the appliedindex. then the index is used to modify the appliedIndex and the update succeeds.
-         * If it is not equal, then someone has updated the appliedindex, so the current appliedindex is
-         * returned by curIndex and false is returned.The whole process is atomic。
+         * First we compare whether the curIndex is equal to the
+         * appliedIndex,  if it is, then no one has modified the appliedindex.
+         * Then the index is used to modify the appliedIndex and the update
+         * succeeds.
+         * If it is not equal, then someone has updated the appliedindex, so the
+         * current appliedindex is returned by curIndex and false is returned.
+         * The whole process is atomic。
          */
         while (!appliedIndex_.compare_exchange_strong(curIndex,
                                                       index,
@@ -738,16 +757,18 @@ int CopysetNode::GetConfChange(ConfigChangeType *type,
                                Configuration *oldConf,
                                Peer *alterPeer) {
     /**
-     * To avoid a situation where the epoch and configuration of the new leader may not
-     * match before the noop entry is submitted and after the leader has been elected, consider
-     * the following scenario:
-     *
-     * A three-member copyset {ABC}, current epoch=5, A is the leader and receives configuration +D.
-     * Suppose B receives a configuration change log for {ABC+D}, then leader A fails, and B is elected as new leader.
-     * Before B commits a noop entry, the maximum possible epoch value on B is 5, and the configuration queried is indeed {ABCD}.
-     * So here, before new leader B submits the noop entry, that is, before the configuration change log {ABC+D} is submitted,
-     * the configuration and configuration change information is not allowed to be returned to the user
-     * to avoid inconsistency between epoch and configuration information.
+     * To avoid a situation where the epoch and configuration of the new
+     * leader may not match before the noop entry is submitted and after the
+     * leader has been elected, consider the following scenario:
+     * A three-member copyset {ABC}, current epoch=5, A is the leader and
+     * receives configuration +D. Suppose B receives a configuration change
+     * log for {ABC+D}, then leader A fails, and B is elected as new leader.
+     * Before B commits a noop entry, the maximum possible epoch value on B is
+     * 5, and the configuration queried is indeed {ABCD}. So here, before new
+     * leader B submits the noop entry, that is, before the configuration change
+     * log {ABC+D} is submitted, the configuration and configuration change
+     * information is not allowed to be returned to the user to avoid
+     * inconsistency between epoch and configuration information.
      */
     if (leaderTerm_.load(std::memory_order_acquire) <= 0) {
         *type = ConfigChangeType::NONE;
@@ -785,7 +806,8 @@ int CopysetNode::GetHash(std::string *hash) {
         return -1;
     }
 
-    // To calculate the crc of all chunk files, you need to ensure that the order of calculation is the same.
+    // To calculate the crc of all chunk files, you need to ensure that the
+    // order of calculation is the same.
     std::sort(files.begin(), files.end());
 
     for (std::string file : files) {

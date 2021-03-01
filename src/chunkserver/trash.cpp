@@ -178,7 +178,8 @@ void Trash::DeleteEligibleFileInTrash() {
 }
 
 bool Trash::IsCopysetInTrash(const std::string &dirName) {
-    // Legal copyset directory: high 32 bits consist of PoolId(>0), low 32 bits consist of copysetId(>0)
+    // Legal copyset directory: high 32 bits consist of PoolId(>0), low 32 bits
+    // consist of copysetId(>0)
     // The directory is in decimal form
     // e.g.：2860448220024 (poolId: 666, copysetId: 888)
     uint64_t groupId;

@@ -29,8 +29,10 @@ namespace chunkserver {
 const char RAFT_DATA_DIR[] = "data";
 const char RAFT_META_DIR[] = "raft_meta";
 
-// TODO(all:fix it): RAFT_SNAP_DIR Note that this current directory address cannot be changed
-// It is strongly coupled to the current external dependency curve-braft code (hard-coded coupling on both sides)
+// TODO(all:fix it): RAFT_SNAP_DIR Note that this current directory address
+//  cannot be changed
+// It is strongly coupled to the current external dependency curve-braft code
+// (hard-coded coupling on both sides)
 const char RAFT_SNAP_DIR[] = "raft_snapshot";
 const char RAFT_LOG_DIR[]  = "log";
 #define BRAFT_SNAPSHOT_PATTERN "snapshot_%020" PRId64

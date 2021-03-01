@@ -132,8 +132,9 @@ class CloneCore : public std::enable_shared_from_this<CloneCore> {
 
  protected:
     /**
-     * If the local chunk file exists, the data is read according to the clone and bitmap information
-     * recorded locally, which involves reading the remote file and merging the local file to return the result.
+     * If the local chunk file exists, the data is read according to the
+     * clone and bitmap information recorded locally, which involves reading the
+     * remote file and merging the local file to return the result.
      * @param[in/out] readRequest: User request & response contexts
      * @param[in] chunkInfo: Local chunkinfo
      * @return Return 0 for success, a negative number for failure
@@ -142,7 +143,8 @@ class CloneCore : public std::enable_shared_from_this<CloneCore> {
         const CSChunkInfo &chunkInfo, Closure* done);
 
     /**
-     * If the local chunk file does not exist, the data is read according to the clonesource information carried in the user request context
+     * If the local chunk file does not exist, the data is read according to
+     * the clonesource information carried in the user request context
      * No merge local results involved
      * @param[in/out] readRequest: User request & response contexts
      */
@@ -157,17 +159,20 @@ class CloneCore : public std::enable_shared_from_this<CloneCore> {
     int ReadChunk(std::shared_ptr<ReadChunkRequest> readRequest);
 
     /**
-     * Set the response for the read chunk type, including the data returned and other return parameters
+     * Set the response for the read chunk type, including the data returned
+     * and other return parameters
      * Read written areas from local chunk, unwritten areas from cloned data
      * then merge data in memory.
      * @param readRequest: User's ReadRequest
-     * @param cloneData: Data copied from the source, starting at the same offset as in the request
+     * @param cloneData: Data copied from the source, starting at the same
+     * offset as in the request
      * @return: Return 0 for success, -1 for failure
      */
     int SetReadChunkResponse(std::shared_ptr<ReadChunkRequest> readRequest,
                              const butil::IOBuf* cloneData);
 
-    // Read written areas from the local chunk and merge them into the clone data
+    // Read written areas from the local chunk and merge them into the clone
+    // data
     int ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
                       const CSChunkInfo& chunkInfo,
                       const butil::IOBuf* cloneData,
@@ -193,7 +198,8 @@ class CloneCore : public std::enable_shared_from_this<CloneCore> {
  private:
     // Size of slice per copy
     uint32_t sliceSize_;
-    // Check if a read chunk request requires paste, true means yes, false means no
+    // Check if a read chunk request requires paste, true means yes, false
+    // means no
     bool enablePaste_;
     // Responsible for downloading data from the source
     std::shared_ptr<OriginCopyer> copyer_;

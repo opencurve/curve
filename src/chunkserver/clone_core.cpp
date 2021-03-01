@@ -101,10 +101,12 @@ void DownloadClosure::Run() {
                                    downloadCtx_->size,
                                    doneGuard.release());
     } else if (CHUNK_OP_TYPE::CHUNK_OP_READ == request->optype()) {
-        // If an error occurs or processing is completed, the closure is returned to the user
+        // If an error occurs or processing is completed, the closure is
+        // returned to the user
         cloneCore_->SetReadChunkResponse(readRequest_, &copyData);
 
-        // paste clone data is an asynchronous operation and can be processed very quickly
+        // paste clone data is an asynchronous operation and can be processed
+        // very quickly
         cloneCore_->PasteCloneData(readRequest_,
                                    &copyData,
                                    downloadCtx_->offset,
@@ -119,7 +121,8 @@ void CloneClosure::Run() {
     std::unique_ptr<ChunkRequest> requestGuard(request_);
     std::unique_ptr<ChunkResponse> responseGuard(response_);
     brpc::ClosureGuard doneGuard(done_);
-    // If userResponse is not empty, you need to assign the relevant content in response_ to userResponse
+    // If userResponse is not empty, you need to assign the relevant content
+    // in response_ to userResponse
     if (userResponse_ != nullptr) {
         if (response_->has_status()) {
             userResponse_->set_status(response_->status());
@@ -159,18 +162,21 @@ int CloneCore::CloneReadByLocalInfo(
     uint32_t beginIndex = offset / pageSize;
     uint32_t endIndex = (offset + length - 1) / pageSize;
 
-    // When the request is submitted to the CloneManager, the chunk must be a clone chunk,
-    // but it is possible that the chunk has already been traversed at this point because
-    // there are other requests that operate on the same chunk. So here we have to check
-    // if the chunk is a clone chunk, and if so, whether we want to copy the data.
+    // When the request is submitted to the CloneManager, the chunk must be a
+    // clone chunk, but it is possible that the chunk has already been traversed
+    // at this point because there are other requests that operate on the same
+    // chunk. So here we have to check if the chunk is a clone chunk, and if so,
+    // whether we want to copy the data.
     bool needClone = chunkInfo.isClone &&
                     (chunkInfo.bitmap->NextClearBit(beginIndex, endIndex)
                      != Bitmap::NO_POS);
     if (needClone) {
-        // TODO(yyk) This place can be optimised, but the optimisation method may be complicated to check the conditions
-        // Currently only the presence of unwritten pages determines whether a copy should be triggered
-        // If there is a page within the requested read range in the chunk that has not been written,
-        // the data needs to be copied from the source
+        // TODO(yyk) This place can be optimised, but the optimisation method
+        //  may be complicated to check the conditions
+        // Currently only the presence of unwritten pages determines whether a
+        // copy should be triggered If there is a page within the requested read
+        // range in the chunk that has not been written, the data needs to be
+        // copied from the source
         AsyncDownloadContext* downloadCtx =
             new (std::nothrow) AsyncDownloadContext;
         downloadCtx->location = chunkInfo.location;
@@ -186,12 +192,14 @@ int CloneCore::CloneReadByLocalInfo(
         return 0;
     }
 
-    // Running at this steo means that there is no need to copy the data, if it is a recover request it can just return success
+    // Running at this steo means that there is no need to copy the data, if it
+    // is a recover request it can just return success
     // If it is a ReadChunk request, the chunk is read directly and returned
     if (CHUNK_OP_TYPE::CHUNK_OP_RECOVER == request->optype()) {
         SetResponse(readRequest, CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     } else if (CHUNK_OP_TYPE::CHUNK_OP_READ == request->optype()) {
-        // Call closure to return to the user when an error occurs or when processing is completed
+        // Call closure to return to the user when an error occurs or when
+        // processing is completed
         return ReadChunk(readRequest);
     }
     return 0;
@@ -234,9 +242,11 @@ int CloneCore::HandleReadRequest(
     CSErrorCode errorCode = dataStore->GetChunkInfo(id, &chunkInfo);
 
     /*
-    * The chunk exists: check the analysis bitmap to see if it can be read locally.
+    * The chunk exists: check the analysis bitmap to see if it can be read
+    *                   locally.
     * The chunk not exists:Read from clonesource if it contains clone
-    *            information, otherwise return an error because the upper level ReadChunkRequest::OnApply
+    *            information, otherwise return an error because the upper
+    *            level  ReadChunkRequest::OnApply
     *            has already handled the NoExist and cloneinfo not exist case
     */
     switch (errorCode) {
@@ -304,13 +314,18 @@ int CloneCore::SetReadChunkResponse(
     std::shared_ptr<CSDataStore> dataStore = readRequest->datastore_;
     CSErrorCode errorCode = dataStore->GetChunkInfo(id, &chunkInfo);
 
-    // If the chunk does not exist, you need to check if the request has information about the source chunk
-    // If the source chunk information is provided, it means that the lazy chunk allocation mechanism is used and the clone data can be returned directly.
-    // There is a case when the requested chunk is lazy allocate and the chunk exists locally at the time of the request,
-    // and part of the area requested to be read has already been written, and the chunk is deleted again when the data is copied from the source
-    // In this case it will be returned as a normal request, but the data returned is not as expected
-    // Since our current curve files are deleted on a delayed basis, no user IO can be ensured when the file is actually deleted.
-    // If subsequent changes are added that trigger this issue, a fix will be required
+    // If the chunk does not exist, you need to check if the request has
+    // information about the source chunk If the source chunk information is
+    // provided, it means that the lazy chunk allocation mechanism is used and
+    // the clone data can be returned directly. There is a case when the
+    // requested chunk is lazy allocate and the chunk exists locally at the time
+    // of the request, and part of the area requested to be read has already
+    // been written, and the chunk is deleted again when the data is copied
+    // from the source. In this case it will be returned as a normal request,
+    // but the data returned is not as expected. Since our current curve
+    // files are deleted on a delayed basis, no user IO can be ensured when the
+    // file is actually deleted. If subsequent changes are added that trigger
+    // this issue, a fix will be required
     // TODO(yyk) fix it
     bool expect = errorCode == CSErrorCode::Success ||
                   (errorCode == CSErrorCode::ChunkNotExistError &&
@@ -328,7 +343,8 @@ int CloneCore::SetReadChunkResponse(
 
     size_t length = request->size();
     butil::IOBuf responseData;
-    // If the chunk exists, read the already written area from the chunk and merge it back
+    // If the chunk exists, read the already written area from the chunk and
+    // merge it back
     if (errorCode == CSErrorCode::Success) {
         char* chunkData = new (std::nothrow) char[length];
         int ret = ReadThenMerge(
@@ -363,7 +379,8 @@ int CloneCore::ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
     uint32_t pageSize = chunkInfo.pageSize;
     uint32_t beginIndex = offset / pageSize;
     uint32_t endIndex = (offset + length - 1) / pageSize;
-    // Get the areas of the chunk file that have been written to and not written to
+    // Get the areas of the chunk file that have been written to and not written
+    // to
     std::vector<BitRange> copiedRanges;
     std::vector<BitRange> uncopiedRanges;
     if (chunkInfo.isClone) {
@@ -427,7 +444,8 @@ void CloneCore::PasteCloneData(std::shared_ptr<ReadChunkRequest> readRequest,
                      && !enablePaste_;
     if (dontPaste) return;
 
-    // Once the data has been copied, a PaseChunkRequest needs to be generated to paste the data into the chunk file
+    // Once the data has been copied, a PaseChunkRequest needs to be generated
+    // to paste the data into the chunk file
     ChunkRequest* pasteRequest = new ChunkRequest();
     pasteRequest->set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_PASTE);
     pasteRequest->set_logicpoolid(request->logicpoolid());
@@ -442,7 +460,8 @@ void CloneCore::PasteCloneData(std::shared_ptr<ReadChunkRequest> readRequest,
     closure->SetRequest(pasteRequest);
     closure->SetResponse(pasteResponse);
     closure->SetClosure(done);
-    // In the case of a recover chunk request, the result of the paste should be returned via rpc
+    // In the case of a recover chunk request, the result of the paste should be
+    // returned via rpc
     if (CHUNK_OP_TYPE::CHUNK_OP_RECOVER == request->optype()) {
         closure->SetUserResponse(readRequest->response_);
     }

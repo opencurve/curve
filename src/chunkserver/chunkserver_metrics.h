@@ -55,8 +55,9 @@ using PassiveStatusPtr = std::shared_ptr<bvar::PassiveStatus<Tp>>;
 template <typename Tp>
 using AdderPtr = std::shared_ptr<bvar::Adder<Tp>>;
 
-// Use the LatencyRecorder implementation to count the size of read and write requests
-// Quantile, maximum, median, mean, etc. can be counted
+// Use the LatencyRecorder implementation to count the size of read and write
+// requests.
+// Quantile, maximum, median, mean, etc. can be counted.
 using IOSizeRecorder = bvar::LatencyRecorder;
 
 // io related statistics
@@ -148,7 +149,8 @@ class CSIOMetric {
     /**
      * Get the specified type of IOMetric
      * @param type: Corresponding metric type
-     * @return Return the IOMetric pointer of the specified type, or nullptr if the type does not exist
+     * @return Return the IOMetric pointer of the specified type, or nullptr
+     * if the type does not exist
      */
     IOMetricPtr GetIOMetric(CSIOMetricType type);
 
@@ -225,7 +227,8 @@ class CSCopysetMetric {
     /**
      * Get the specified type of IOMetric
      * @param type: Corresponding metric types
-     * @return Return the IOMetric pointer of the specified type, or nullptr if the type does not exist
+     * @return Return the IOMetric pointer of the specified type, or nullptr
+     *         if the type does not exist
      */
     IOMetricPtr GetIOMetric(CSIOMetricType type) {
         return ioMetrics_.GetIOMetric(type);
@@ -365,7 +368,7 @@ class ChunkServerMetric : public Uncopyable {
 
     /**
      * Record metric before request
-     * @param logicPoolId: The logical pool id where this io operation is located
+     * @param logicPoolId:The logical pool id where this io operation is located
      * @param copysetId: The copysetid where this io operation is located
      * @param type: Request type
      */
@@ -394,7 +397,8 @@ class ChunkServerMetric : public Uncopyable {
      * If collectMetric is false, it returns 0, but does not actually create
      * @param logicPoolId: The id of the logical pool to which copyset belongs
      * @param copysetId: copyset id
-     * @return Return 0 for success, -1 for failure, or failure if the specified metric already exists
+     * @return Return 0 for success, -1 for failure, or failure if the
+     * specified metric already exists
      */
     int CreateCopysetMetric(const LogicPoolID& logicPoolId,
                             const CopysetID& copysetId);
@@ -403,7 +407,8 @@ class ChunkServerMetric : public Uncopyable {
      * Get the metric of the specified copyset
      * @param logicPoolId: The id of the logical pool to which copyset belongs
      * @param copysetId: copyset id
-     * @return Return the specified copyset metric for success, nullptr for failure
+     * @return Return the specified copyset metric for success, nullptr for
+     * failure
      */
     CopysetMetricPtr GetCopysetMetric(const LogicPoolID& logicPoolId,
                                       const CopysetID& copysetId);
@@ -418,13 +423,15 @@ class ChunkServerMetric : public Uncopyable {
                             const CopysetID& copysetId);
 
     /**
-     * Monitor the chunk allocation pool, mainly monitor the number of chunks in the pool
+     * Monitor the chunk allocation pool, mainly monitor the number of chunks
+     * in the pool
      * @param chunkFilePool: Object pointer to chunkfilePool
      */
     void MonitorChunkFilePool(FilePool* chunkFilePool);
 
     /**
-     * Monitor the wal segment allocation pool, mainly monitor the number of segments in the pool
+     * Monitor the wal segment allocation pool, mainly monitor the number of
+     * segments in the pool
      * @param walFilePool: Object pointer to walfilePool
      */
     void MonitorWalFilePool(FilePool* walFilePool);
@@ -454,7 +461,8 @@ class ChunkServerMetric : public Uncopyable {
     /**
      * Get the specified type of IOMetric
      * @param type: The corresponding metric type
-     * @return Return the IOMetric pointer of the specified type, or nullptr if the type does not exist
+     * @return Return the IOMetric pointer of the specified type, or nullptr
+     * if the type does not exist
      */
     IOMetricPtr GetIOMetric(CSIOMetricType type) {
         return ioMetrics_.GetIOMetric(type);

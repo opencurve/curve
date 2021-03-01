@@ -178,7 +178,8 @@ class CSDataStore {
      * @param sn: used to record trace, not used in actual logic processing,
      *             indicating the sequence number of the current user file
      * @param buf: the content of the data read
-     * @param offset: the logical offset of the data requested to be read in the chunk
+     * @param offset: the logical offset of the data requested to be read in the
+     *                chunk
      * @param length: the length of the data requested to be read
      * @return: return error code
      */

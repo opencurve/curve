@@ -93,7 +93,8 @@ class ChunkServiceImpl : public ChunkService {
 
  private:
     /**
-     * check whether op request's offset and length is out of boundary or aligned
+     * check whether op request's offset and length is out of boundary or
+     * aligned
      * @param offset[in]: op request' offset
      * @param len[in]: op request' length
      * @return true，means legal，otherwise return false

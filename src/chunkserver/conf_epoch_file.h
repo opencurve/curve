@@ -60,9 +60,11 @@ class ConfEpochFile {
              uint64_t *epoch);
 
     /**
-     * The configuration epoch information is saved to the snapshot file in the following serialised format, with head indicating length
-     * and using binary. Everything else is in text format, so that it can be viewed directly if necessary, and sync ensures that the data falls on disk
-     * |              head           |          configuration epoch information      |
+     * The configuration epoch information is saved to the snapshot file in
+     * the following serialised format, with head indicating length and
+     * using binary. Everything else is in text format, so that it can be viewed
+     * directly if necessary, and sync ensures that the data falls on disk
+     * |              head           |          configuration epoch information|
      * | 8 bytes size_t   | uint32_t |              Variable text              |
      * |     length       |   crc32  | logic pool id | copyset id | epoch |
      * The persistence above is separated by ':'

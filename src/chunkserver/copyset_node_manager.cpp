@@ -149,13 +149,16 @@ int CopysetNodeManager::ReloadCopysets() {
         }
     }
 
-    // If the load is successful, wait for all copysets to finish loading and close the thread pool
+    // If the load is successful, wait for all copysets to finish loading and
+    // close the thread pool
     if (copysetLoader_ != nullptr) {
         while (copysetLoader_->QueueSize() != 0) {
             ::sleep(1);
         }
-        // The queue size is 0, but the threads in the pool may still be executing
-        // Stop will internally join thread to ensure that all tasks are executed before exiting
+        // The queue size is 0, but the threads in the pool may still be
+        // executing.
+        // Stop will internally join thread to ensure that all tasks are
+        // executed before exiting.
         copysetLoader_->Stop();
         copysetLoader_ = nullptr;
     }
@@ -176,8 +179,10 @@ void CopysetNodeManager::LoadCopyset(const LogicPoolID &logicPoolId,
               << (needCheckLoadFinished ? "Yes." : "No.");
 
     uint64_t beginTime = TimeUtility::GetTimeofDayMs();
-    // External requests to create a copyset are rejected when the chunkserver starts loading the copyset
-    // So no other threads will load or create the same copyset, no lock is needed at this point
+    // External requests to create a copyset are rejected when the
+    // chunkserver  starts loading the copyset.
+    // So no other threads will load or create the same copyset, no lock is
+    // needed at this point.
     Configuration conf;
     std::shared_ptr<CopysetNode> copysetNode =
         CreateCopysetNodeUnlocked(logicPoolId, copysetId, conf);
@@ -217,10 +222,12 @@ bool CopysetNodeManager::CheckCopysetUntilLoadFinished(
         }
         NodeStatus leaderStaus;
         bool getSuccess = node->GetLeaderStatus(&leaderStaus);
-        // Failure to get the leader status is usually due to the fact that no leader has been elected or
-        // the leader heartbeat has not been sent to the current node.
-        // The leader information can be obtained through several retries, if it is not obtained
-        // through several retries, the copyset may not be able to select a leader at the moment and will exit directly.
+        // Failure to get the leader status is usually due to the fact that
+        // no leader has been elected or the leader heartbeat has not been sent
+        // to the current node.
+        // The leader information can be obtained through several retries,
+        // if it is not obtained through several retries, the copyset may not
+        // be able to select a leader at the moment and will exit directly.
         if (!getSuccess) {
             ++retryTimes;
             ::usleep(1000 * copysetNodeOptions_.electionTimeoutMs);
@@ -229,8 +236,10 @@ bool CopysetNodeManager::CheckCopysetUntilLoadFinished(
 
         NodeStatus status;
         node->GetStatus(&status);
-        // The last log of the current copy lags behind the first log saved on the leader
-        // In this case the copy will be restored by installing a snapshot, which can be ignored to avoid blocking the check thread
+        // The last log of the current copy lags behind the first log saved
+        // on the leader
+        // In this case the copy will be restored by installing a snapshot,
+        // which can be ignored to avoid blocking the check thread
         bool mayInstallSnapshot = leaderStaus.first_index > status.last_index;
         if (mayInstallSnapshot) {
             LOG(WARNING) << "Copyset "
@@ -244,7 +253,8 @@ bool CopysetNodeManager::CheckCopysetUntilLoadFinished(
             return false;
         }
 
-        // Check if the applied log of the current copy is close to the one that has been committed
+        // Check if the applied log of the current copy is close to the one
+        // that has been committed
         int64_t margin = leaderStaus.committed_index
                        - status.known_applied_index;
         bool catchupLeader = margin
@@ -293,14 +303,17 @@ bool CopysetNodeManager::CreateCopysetNode(const LogicPoolID &logicPoolId,
                                            const CopysetID &copysetId,
                                            const Configuration &conf) {
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
-    // External copyset creation is not allowed if the local copyset has not yet been fully loaded
+    // External copyset creation is not allowed if the local copyset has not
+    // yet been fully loaded
     if (!loadFinished_.load(std::memory_order_acquire)) {
         LOG(WARNING) << "Create copyset failed: load unfinished "
                      << ToGroupIdString(logicPoolId, copysetId);
         return false;
     }
-    // The copysetnode will call shutdown when it is destructed, which may cause the concurrent process to cut out
-    // So when the creation of a copysetnode fails, you can't hold the write lock and wait for it to be released before destructing
+    // The copysetnode will call shutdown when it is destructed, which may
+    // cause the concurrent process to cut out
+    // So when the creation of a copysetnode fails, you can't hold the write
+    // lock and wait for it to be released before destructing
     std::shared_ptr<CopysetNode> copysetNode = nullptr;
     /* Add write lock */
     WriteLockGuard writeLockGuard(rwLock_);
@@ -425,7 +438,8 @@ bool CopysetNodeManager::DeleteCopysetNode(const LogicPoolID &logicPoolId,
         ReadLockGuard readLockGuard(rwLock_);
         auto it = copysetNodeMap_.find(groupId);
         if (copysetNodeMap_.end() != it) {
-            // TODO(yyk) This part may be at risk of deadlock and will need to be assessed subsequently
+            // TODO(yyk) This part may be at risk of deadlock and will need
+            //  to be assessed subsequently
             it->second->Fini();
             ret = true;
         }
@@ -457,7 +471,8 @@ bool CopysetNodeManager::PurgeCopysetNodeData(const LogicPoolID &logicPoolId,
         ReadLockGuard readLockGuard(rwLock_);
         auto it = copysetNodeMap_.find(groupId);
         if (copysetNodeMap_.end() != it) {
-            // TODO(yyk) 这This part may be at risk of deadlock and will need to be assessed subsequently
+            // TODO(yyk) 这This part may be at risk of deadlock and will need
+            //  to be assessed subsequently
             it->second->Fini();
             ret = true;
         }

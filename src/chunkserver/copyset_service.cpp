@@ -180,9 +180,10 @@ void CopysetServiceImpl::GetCopysetStatus(RpcController *controller,
     response->set_epoch(nodePtr->GetConfEpoch());
 
     /**
-     * Query hash needs to read all the chunk data of the copyset and then calculate the hash value.
-     * This is a very time consuming operation, so the query hash field will be set in the request,
-     * and if it is false, then there is no need to query the copyset for the hash value
+     * Query hash needs to read all the chunk data of the copyset and then
+     * calculate the hash value. This is a very time consuming operation,
+     * so the query hash field will be set in the request, and if it is false,
+     * then there is no need to query the copyset for the hash value
      */
     if (request->queryhash()) {
         std::string hash;

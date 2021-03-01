@@ -35,16 +35,19 @@ void ChunkServiceClosure::Run() {
     std::unique_ptr<ChunkServiceClosure> selfGuard(this);
 
     {
-        // All operations to be done before the brpcDone_ call are put into this lifecycle
+        // All operations to be done before the brpcDone_ call are put
+        // into this lifecycle
         brpc::ClosureGuard doneGuard(brpcDone_);
-        // Log the results of the request processing and collect them into the metric
+        // Log the results of the request processing and collect them
+        // into the metric
         OnResonse();
     }
 
     // Subtract 1 when closure is called, add 1 when closure is created
     // This line must be placed after the brpcDone_ call. ut needs to
     // test the performance of inflightio when the limit is exceeded.
-    // A sleep will be added to the incoming closure to control the number of inflightio
+    // A sleep will be added to the incoming closure to control the
+    // number of inflightio
     if (nullptr != inflightThrottle_) {
         inflightThrottle_->Decrement();
     }
@@ -92,14 +95,15 @@ void ChunkServiceClosure::OnResonse() {
     if (request_ == nullptr || response_ == nullptr)
         return;
 
-    // Count the results of this request based on the return value in the response
+    // Count results of this request based on the return value in the response
     ChunkServerMetric* metric = ChunkServerMetric::GetInstance();
     bool hasError = false;
     uint64_t latencyUs =
         common::TimeUtility::GetTimeofDayUs() - receivedTimeUs_;
     switch (request_->optype()) {
         case CHUNK_OP_TYPE::CHUNK_OP_READ: {
-            // If it is a read request, the return CHUNK_OP_STATUS_CHUNK_NOTEXIST is also considered correct
+            // If it is a read request, the return
+            // CHUNK_OP_STATUS_CHUNK_NOTEXIST is also considered correct
             hasError = (response_->status()
                         != CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS) &&
                         (response_->status()
