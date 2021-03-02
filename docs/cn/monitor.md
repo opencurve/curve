@@ -1,3 +1,5 @@
+[English version](../en/monitor_en.md)
+
 # 监控体系
 
 ## 概述
@@ -12,9 +14,9 @@ CURVE 中使用到的 bvar 数据模型有：
 
 `bvar::Adder<T>` : 计数器，默认0，varname << N相当于varname += N。
 
-`bvar::Maxer<T>` : 求最大值，默认std::numeric_limits::min()，varname << N相当于varname = max(varname, N)。
+`bvar::Maxer<T>` : 求最大值，默认std::numeric_limits::max()，varname << N相当于varname = max(varname, N)。
 
-`bvar::Miner<T>` : 求最小值，默认std::numeric_limits::max()，varname << N相当于varname = min(varname, N)。
+`bvar::Miner<T>` : 求最小值，默认std::numeric_limits::min()，varname << N相当于varname = min(varname, N)。
 
 `bvar::IntRecorder` : 求自使用以来的平均值。注意这里的定语不是“一段时间内”。一般要通过Window衍生出时间窗口内的平均值。
 
@@ -22,7 +24,7 @@ CURVE 中使用到的 bvar 数据模型有：
 
 `bvar::PerSecond<VAR>` : 获得某个bvar在一段时间内平均每秒的累加值。PerSecond也是会自动更新的衍生变量。
 
-`bvar::LatencyRecorder` : 专用于记录延时和qps的变量。输入延时，平均延时/最大延时/qps/总次数 都有了。
+`bvar::LatencyRecorder` : 专用于记录延时和qps的变量。输入延时，平均延时/最大延时/qps/总次数都有了。
 
 CURVE 中 bvar 的具体使用方式可以查看:
 
