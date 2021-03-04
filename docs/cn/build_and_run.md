@@ -1,3 +1,4 @@
+[English version](../en/build_and_run_en.md)
 
 # 编译环境搭建
 
@@ -23,7 +24,7 @@ docker pull opencurve/curvebuild:centos8
 docker build -t opencurve/curvebuild:centos8 .
 ```
 
-注意：上述操作不建议在curve工程目录执行，否则构建镜像时会把当前目录的文件都复制到docker镜像中，建议把Dockerfile拷贝到新建的干净目录下进行docker镜像的构建。
+注意：上述操作不建议在CURVE工程目录执行，否则构建镜像时会把当前目录的文件都复制到docker镜像中，建议把Dockerfile拷贝到新建的干净目录下进行docker镜像的构建。
 
 
 
@@ -41,14 +42,14 @@ bash mk-tar.sh
 
 ## 在物理机上编译
 
-curve编译依赖的包括：
+CURVE编译依赖的包括：
 
 | 依赖 | 版本 |
 |:-- |:-- |
 | bazel | 0.17.2 |
 | gcc   | 支持c++11的兼容版本 |
 
-curve的其他依赖项，均由bazel去管理，可不单独安装。
+CURVE的其他依赖项，均由bazel去管理，可不单独安装。
 
 ### 安装依赖
 
@@ -67,7 +68,7 @@ sudo yum install bazel git gcc-c++ make
 
 ### 一键编译和打包
 
-opencurve 提供一键编译脚本，mk-tar.sh 生成所需的全部tar二进制包，命令如下：
+CURVE提供一键编译脚本，mk-tar.sh 生成所需的全部tar二进制包，命令如下：
 
 ```
 # （可选步骤）将外部依赖替换为国内下载点或镜像仓库，可以加快编译速度： bash replace-curve-repo.sh
@@ -76,7 +77,7 @@ bash ./mk-tar.sh
 
 基于tar包的安装部署流程可参考：[集群部署](deploy.md)
 
-特别的，由于curve内部版本使用在debian系统上，因此特别提供debian的版本，命令如下：
+特别的，由于CURVE内部版本使用在debian系统上，因此特别提供debian的版本，命令如下：
 
 ```
 bash ./mk-deb.sh
@@ -148,13 +149,12 @@ cd etcd-v3.4.10-linux-amd64 && cp etcd etcdctl /usr/bin
 #### 运行单元/集成测试
 
 bazel 编译后的可执行程序都在 `./bazel-bin` 目录下，例如 test/common 目录下的测试代码对应的测试程序为 `./bazel-bin/test/common/common-test`，可以直接运行程序进行测试。
-- curve相关单元测试程序目录在 ./bazel-bin/test 目录下，集成测试在 ./bazel-bin/test/integration 目录下
-- nebd相关单元测试程序在 ./bazel-bin/nebd/test 目录下
-- nbd相关单元测试程序在 ./bazel-bin/nbd/test 目录下
+- CURVE相关单元测试程序目录在 ./bazel-bin/test 目录下，集成测试在 ./bazel-bin/test/integration 目录下
+- NEBD相关单元测试程序在 ./bazel-bin/nebd/test 目录下
+- NBD相关单元测试程序在 ./bazel-bin/nbd/test 目录下
 
 如果想运行所有的单元测试和集成测试，可以执行工程目录下的ut.sh脚本：
 
 ```bash
 bash ut.sh
 ```
-
