@@ -148,7 +148,7 @@ function stop_server() {
     if [ $? -ne 0 ]
     then
         echo "Didn't start curve-snapshotcloneserver by daemon"
-        exit 1
+        exit 0
     fi
 
     daemon --name curve-snapshotcloneserver --pidfile ${pidFile} --stop

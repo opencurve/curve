@@ -65,7 +65,7 @@ function start_mds() {
   if [ $? -eq 0 ]
   then
     echo "Already started curve-mds by daemon"
-    exit 1
+    exit
   fi
 
   # 创建logPath
@@ -148,7 +148,7 @@ function stop_mds() {
   if [ $? -ne 0 ]
   then
     echo "Didn't start curve-mds by daemon"
-    exit 1
+    exit 0
   fi
 
   daemon --name curve-mds --pidfile ${pidFile} --stop
