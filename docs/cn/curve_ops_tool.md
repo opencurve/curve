@@ -1,3 +1,5 @@
+[English version](../en/curve_ops_tool_en.md)
+
 <head><meta charset="UTF-8"></head>
 
 ## curve_ops_tool 工具使用说明
@@ -10,13 +12,17 @@ Commands:
    
       space: 展示curve磁盘所有类型的空间，包括总的空间和已使用空间。
       status: 展示集群的所有状态信息。
+      cluster-status：展示整个集群状态信息。
       chunkserver-status: 展示chunkserver在线状态信息。
       mds-status: 展示mds状态信息。
       client-status: 展示客户端状态信息。
+      client-list：列出所有客户端。
       etcd-status: 展示etcd状态信息。
       snapshot-clone-status: 展示快照克隆服务器状态。
       copysets-status: 检查所有copyset的健康状态。
       chunkserver-list: 展示chunkserver列表和chunkserver信息。
+      server-list : 列出所有server信息。
+      logical-pool-list：列出所有逻辑池信息。
       get: 展示文件信息和文件的真实空间。
       list: 列出目录下所有文件的文件信息。
       seginfo: 展示文件的segment信息。
@@ -28,11 +34,14 @@ Commands:
       remove-peer: 从copyset中移除节点。
       transfer-leader: 转换copyset上的leader角色给一个节点。
       reset-peer: 重置copyset配置，仅支持针对一个节点的重置。
+      do-snapshot：对该节点上的copyset打快照。
+      do-snapshot-all：对所有节点上的所有copyset打快照。
       check-chunkserver: 检查一个chunkserver的健康状态。
       check-copyset: 检查一个copyset的健康状态。
       check-server: 检查一个server的健康状态。
       check-operator: 检查操作者。
+      list-may-broken-vol：列出所有大多数副本挂掉的卷
       rapid-leader-schedule: 逻辑池中集群的快速leader调度。
-	  
+
      可以在配置文件中进行配置，避免携带太多可选项，工具默认配置文件在 /etc/curve/tools.conf，自定义路径可以通过 -confPath 来指定配置文件。
      注意：显式指定的参数和-confPath指定的配置文件同时存在时，显式指定参数会覆盖配置文件参数。

@@ -1,22 +1,22 @@
-[English version](../en/k8s_csi_interface_en.md)
+[中文版](../cn/k8s_csi_interface.md)
 
-目前，curve可以通过CSI插件的方式对接Kubernetes。本文给出的是CSI插件开发指导说明。curve csi插件源码请见[curve-csi](https://github.com/opencurve/curve-csi)。
+Currently, Curve can be connected to Kubernetes through the CSI plugin. This article gives instructions on the development of CSI plugin. For the source code of the Curve CSI plugin, please see [curve-csi](https://github.com/opencurve/curve-csi).
 
 ## Curve Interface
 
-curve提供命令行管理工具curve，用来创建、删除卷等管理操作。具体接口如下：
+Curve provides a command line management tool curve, which is used to create and delete volumes and other management operations. The specific interface is as follows:
 
-- 创建卷：`curve create [-h] --filename FILENAME --length LENGTH --user USER`
-- 删除卷：`curve delete [-h] --user USER --filename FILENAME`
-- 恢复卷：`curve recover [-h] --user USER --filename FILENAME [--id ID]`
-- 扩容卷：`curve extend [-h] --user USER --filename FILENAME --length LENGTH`
-- 查询卷：`curve stat [-h] --user USER --filename FILENAME`
-- rename卷：`curve rename [-h] --user USER --filename FILENAME --newname NEWNAME`
-- 创建目录：`curve mkdir [-h] --user USER --dirname DIRNAME`
-- 删除目录：`curve rmdir [-h] --user USER --dirname DIRNAME`
-- 查询目录下所有文件：`curve list [-h] --user USER --dirname DIRNAME`
+- create volume: `curve create [-h] --filename FILENAME --length LENGTH --user USER`
+- delete volume: `curve delete [-h] --user USER --filename FILENAME`
+- recover volume: `curve recover [-h] --user USER --filename FILENAME [--id ID]`
+- extend volume: `curve extend [-h] --user USER --filename FILENAME --length LENGTH`
+- get volume info: `curve stat [-h] --user USER --filename FILENAME`
+- rename volume: `curve rename [-h] --user USER --filename FILENAME --newname NEWNAME`
+- create directory: `curve mkdir [-h] --user USER --dirname DIRNAME`
+- delete directory: `curve rmdir [-h] --user USER --dirname DIRNAME`
+- list files in the directory：`curve list [-h] --user USER --dirname DIRNAME`
 
-提供curve-nbd工具，在node节点上提供map，unmap，list功能:
+Provide curve-nbd tool to map, unmap, list on node:
 
 ```bash
 Usage: curve-nbd [options] map <image>           (Map an image to nbd device)
@@ -59,33 +59,33 @@ CSI spec:
                 +------------+
 ```
 
-CSI插件的对应：
+In CSI plugin:
 
 - CreateVolume:
-  - curve mkdir: DIRNAME在`k8s storageClass`定义
-  - curve create: FILENAME为`k8s persistentVolume name`
-  - curve stat: 等待卷ready
+  - curve mkdir: DIRNAME defined in `k8s storageClass`
+  - curve create: FILENAME is `k8s persistentVolume name`
+  - curve stat: wait volume ready
 - Controller Publish Volume:
   - Nothing to do
 - Node Stage Volume:
-  - curve-nbd list-mapped: 查看是否已经被挂载
-  - curve-nbd map: 挂载
+  - curve-nbd list-mapped: check if it has been mounted
+  - curve-nbd map: mount
 - Node Publish Volume:
   - mount the stagePath to the publishPath
 - Node Unpublish Volume:
   - umount publishPath
 - Node Unstage Volume:
-  - curve-nbd list-mapped: 查看是否已经被卸载
-  - curve-nbd unmap: 卸载
+  - curve-nbd list-mapped: check if it has been umounted
+  - curve-nbd unmap: umount
 - Controller Unpublish Volume:
   - Nothing to do
 - DeleteVolume:
   - curve delete
 
-其他可选支持：
+Other optional support:
 
-- 扩容：
+- Extend：
   - ControllerExpandVolume: curve extend
   - NodeExpandVolume: resize2fs/xfs_growfs
 
-- 快照：暂未支持
+- Snapshot: not yet supported
