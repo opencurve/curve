@@ -178,7 +178,7 @@ function start_one() {
             -chunkServerStoreUri=local:///data/chunkserver$1/ \
             -copySetUri=local:///data/chunkserver$1/copysets \
             -raftSnapshotUri=curve:///data/chunkserver$1/copysets \
-            -raftLogUri=curve:///data/chunkserver$1/copysets \
+            -raftLogUri=local:///data/chunkserver$1/copysets \
             -recycleUri=local:///data/chunkserver$1/recycler \
             -raft_sync_segments=true \
             -graceful_quit_on_sigterm=true \
