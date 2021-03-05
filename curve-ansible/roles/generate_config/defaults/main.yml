@@ -200,6 +200,8 @@ client_log_path: /data/log/curve/
 client_metric_dummy_server_start_port: 9000
 client_turn_off_health_check: true
 client_session_map_path: ./session_map.json
+client_closefd_timeout_sec: 300
+client_closefd_time_interval_sec: 600
 
 # nebd默认配置
 client_config_path: /etc/curve/client.conf
