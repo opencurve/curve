@@ -109,13 +109,9 @@
     - pause:
         prompt: "Confirm restart mds in {{ inventory_hostname }}. ENTER to continue or CTRL-C A to quit"
       when: need_confirm
-    - vars:
-        package_version: "{{ mds_package_version }}"
-        software_version:
-      include_tasks: "common_tasks/get_software_version_from_package_version.yml"
   # 重启mds
   roles:
-    - { role: restart_service, service_name: mds, expected_curve_version: "{{ software_version }}",
+    - { role: restart_service, service_name: mds, expected_curve_version: "{{ mds_package_version }}",
         command_need_sudo: "{{ mds_need_sudo }}"}
 
 
@@ -155,12 +151,8 @@
     - pause:
         prompt: "Confirm restart chunkserver in {{ play_hosts | join(',') }}. ENTER to continue or CTRL-C A to quit"
       when: need_confirm
-    - vars:
-        package_version: "{{ cs_package_version }}"
-        software_version:
-      include_tasks: "common_tasks/get_software_version_from_package_version.yml"
   roles:
-    - { role: restart_service, service_name: chunkserver, expected_curve_version: "{{ software_version }}",
+    - { role: restart_service, service_name: chunkserver, expected_curve_version: "{{ cs_package_version }}",
         command_need_sudo: "{{ chunkserver_need_sudo }}"}
   tasks:
     - include_tasks: "common_tasks/wait_copysets_status_healthy.yml"
@@ -210,12 +202,7 @@
     - pause:
         prompt: "Confirm restart snapshotclone in {{ inventory_hostname }}. ENTER to continue or CTRL-C A to quit"
       when: need_confirm
-    - vars:
-        package_version: "{{ snapshot_package_version }}"
-        software_version:
-      include_tasks: "common_tasks/get_software_version_from_package_version.yml"
-
   # 重启snapshot clone
   roles:
-    - { role: restart_service, service_name: snapshotclone, expected_curve_version: "{{ software_version }}",
+    - { role: restart_service, service_name: snapshotclone, expected_curve_version: "{{ snapshot_package_version }}",
         command_need_sudo: "{{ snapshot_need_sudo }}" }

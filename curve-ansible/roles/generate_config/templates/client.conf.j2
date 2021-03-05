@@ -134,6 +134,14 @@ global.logPath={{ client_log_path }}
 # logpath=./runlog/
 
 #
+################# read from source conf ###############
+#
+# close timeout fd which read from source file
+closefd.timeout={{ client_closefd_timeout_sec }}
+# timeInterval of backend thread iterates the fdMap to close the timeout fd
+closefd.timeInterval={{ client_closefd_time_interval_sec }}
+
+#
 ############### metric 配置信息 #############
 #
 global.metricDummyServerStartPort={{ client_metric_dummy_server_start_port }}

@@ -374,7 +374,6 @@ ansible-playbook rolling_update_nebd.yml -i client.ini --tags restart
 │   ├── get_curve_version_from_metric.yml                   # 从metric获取curve版本
 │   ├── get_distro_name.yml                                 # 获取系统版本
 │   ├── get_nebd_version_from_metric.yml                    # 从metric获取nebd版本
-│   ├── get_software_version_from_package_version.yml       # 从包版本获取软件版本
 │   ├── install_with_yum_apt.yml                            # 用apt或yum的方式安装
 │   ├── start_service.yml                                   # 启动服务
 │   ├── stop_service.yml                                    # 停止服务
