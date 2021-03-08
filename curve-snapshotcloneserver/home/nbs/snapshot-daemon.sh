@@ -189,7 +189,7 @@ function show_status() {
     fi
 
     # 查询leader的IP
-    leaderAddr=`tac ${consoleLog}|grep -m 1 -B 1000000 "Logging before InitGoogleLogging()"|grep "leader"|grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}"|head -n1`
+    leaderAddr=`tac ${consoleLog}|grep -a -m 1 -B 1000000 "Logging before InitGoogleLogging()"|grep "leader"|grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}"|head -n1`
 
     # 如果load configuration之后的日志，没有leader相关日志
     # 那么leaderAddr为空, snapshotcloneserver应该没有起来
