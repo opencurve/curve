@@ -81,7 +81,7 @@ if __name__ == '__main__':
         user.password = args.password
 
     if args.optype == "create":
-        if args.stripeUnit and args.stripeCount:
+        if args.stripeUnit or args.stripeCount:
             ret = cbd.Create2(args.filename, user, args.length * kGB, args.stripeUnit, args.stripeCount)
         else:
             ret = cbd.Create(args.filename, user, args.length * kGB)
