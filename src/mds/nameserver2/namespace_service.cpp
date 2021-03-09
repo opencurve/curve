@@ -1967,6 +1967,8 @@ uint32_t GetMdsLogLevel(StatusCode code) {
         case StatusCode::kFileExists:
         case StatusCode::kFileNotExists:
         case StatusCode::kParaError:
+        case StatusCode::kDeleteFileBeingCloned:
+        case StatusCode::kFileUnderDeleting:
             return google::WARNING;
 
         default:
