@@ -354,6 +354,9 @@ int StatusTool::LogicalPoolListCmd() {
                   << ", physicalPoolID = " << lgPool.physicalpoolid()
                   << ", type = "
                   << curve::mds::topology::LogicalPoolType_Name(lgPool.type())
+                  << ", allocateStatus = "
+                  << curve::mds::topology::
+                  AllocateStatus_Name(lgPool.allocatestatus())
                   << ", total space = " << totalSize / curve::mds::kGB << "GB"
                   << ", used space = " << usedSize / curve::mds::kGB << "GB"
                   << "(" << usedRatio * 100 << "%, can be recycled = "
