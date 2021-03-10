@@ -56,7 +56,8 @@ namespace tool {
 bool CurveCli::SupportCommand(const std::string& command) {
     return  (command == kResetPeerCmd || command == kRemovePeerCmd
                                       || command == kTransferLeaderCmd
-                                      || command == kDoSnapshot);
+                                      || command == kDoSnapshot
+                                      || command == kDoSnapshotAll);
 }
 
 int CurveCli::Init() {
