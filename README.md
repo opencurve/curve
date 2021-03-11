@@ -19,7 +19,7 @@ CURVE是网易自主设计研发的高性能、高可用、高可靠分布式存
 
 ## 设计文档
 
-- 通过 [CURVE概述](https://opencurve.github.io/) 可以了解 CURVE 架构
+- 通过 [CURVE概述](https://www.opencurve.io/) 可以了解 CURVE 架构
 - CURVE相关文档
   - [NEBD](docs/cn/nebd.md)
   - [MDS](docs/cn/mds.md)
