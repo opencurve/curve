@@ -268,7 +268,7 @@ bool Trash::RecycleChunkfile(
 
 bool Trash::RecycleWAL(
     const std::string &filepath, const std::string &filename) {
-    if (0 != walPool_->RecycleFile(filepath)) {
+    if (walPool_ != nullptr && 0 != walPool_->RecycleFile(filepath)) {
         LOG(ERROR) << "Trash  failed recycle WAL " << filepath
                     << " to WALPool";
         return false;
