@@ -74,6 +74,8 @@ DEFINE_string(walFilePoolDir, "./0/", "WAL filepool location");
 DEFINE_string(walFilePoolMetaPath, "./walfilepool.meta",
                                     "WAL filepool meta path");
 
+const char* kProtocalCurve = "curve";
+
 namespace curve {
 namespace chunkserver {
 
@@ -138,20 +140,26 @@ int ChunkServer::Run(int argc, char** argv) {
 
 
     // Init Wal file pool
-    bool useChunkFilePool = true;
-    LOG_IF(FATAL, !conf.GetBoolValue(
-        "walfilepool.use_chunk_file_pool",
-        &useChunkFilePool));
+    std::string raftLogUri;
+    LOG_IF(FATAL, !conf.GetStringValue("copyset.raft_log_uri", &raftLogUri));
+    std::string raftLogProtocol = UriParser::GetProtocolFromUri(raftLogUri);
+    bool useChunkFilePoolAsWalPool = true;
+    if (raftLogProtocol == kProtocalCurve) {
+        LOG_IF(FATAL, !conf.GetBoolValue(
+            "walfilepool.use_chunk_file_pool",
+            &useChunkFilePoolAsWalPool));
 
-    if (!useChunkFilePool) {
-        FilePoolOptions walFilePoolOptions;
-        InitWalFilePoolOptions(&conf, &walFilePoolOptions);
-        kWalFilePool = std::make_shared<FilePool>(fs);
-        LOG_IF(FATAL, false == kWalFilePool->Initialize(walFilePoolOptions))
-            << "Failed to init wal file pool";
-    } else {
-        kWalFilePool = chunkfilePool;
-        LOG(INFO) << "initialize to use chunkfilePool as walpool success.";
+        if (!useChunkFilePoolAsWalPool) {
+            FilePoolOptions walFilePoolOptions;
+            InitWalFilePoolOptions(&conf, &walFilePoolOptions);
+            kWalFilePool = std::make_shared<FilePool>(fs);
+            LOG_IF(FATAL, false == kWalFilePool->Initialize(walFilePoolOptions))
+                << "Failed to init wal file pool";
+            LOG(INFO) << "initialize walpool success.";
+        } else {
+            kWalFilePool = chunkfilePool;
+            LOG(INFO) << "initialize to use chunkfilePool as walpool success.";
+        }
     }
 
     // 远端拷贝管理模块选项
@@ -260,7 +268,9 @@ int ChunkServer::Run(int argc, char** argv) {
     // 监控部分模块的metric指标
     metric->MonitorTrash(trash_.get());
     metric->MonitorChunkFilePool(chunkfilePool.get());
-    metric->MonitorWalFilePool(kWalFilePool.get());
+    if (raftLogProtocol == kProtocalCurve && !useChunkFilePoolAsWalPool) {
+        metric->MonitorWalFilePool(kWalFilePool.get());
+    }
     metric->ExposeConfigMetric(&conf);
 
     // ========================添加rpc服务===============================//
