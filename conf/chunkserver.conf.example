@@ -192,9 +192,34 @@ trash.expire_afterSec=300
 # chunkserver检查回收数据过期时间的周期
 trash.scan_periodSec=120
 
+#
+# watchdog settings
+#
+# switch for watchdog
+watchdog.enable=false
+# watchdog check period in seconds
+watchdog.check_period_sec=20
+# timeout for a watchdog check operation
+watchdog.check_timeout_sec=30
+# watchdog latency check period in seconds
+watchdog.latency_check_period_sec=1
+# watchdog latency check window
+watchdog.latency_check_window=60
+# watchdog latency excess threshold in ms
+watchdog.latency_excess_ms=16
+# watchdog latency abnormal threshold in ms
+watchdog.latency_abnormal_ms=64
+# watchdog latency windows ratio threshold to judge slow disk
+watchdog.latency_window_slow_ratio=20
+# whether to kill chunkserver process if error detected by watchdog
+watchdog.kill_chunkserver_on_error=false
+# timeout to forcibly kill chunkserver
+watchdog.kill_timeout_sec=30
+
 # common option
 #
 # chunkserver 日志存放文件夹
 chunkserver.common.logDir=./
 # 单元测试情况下
 # chunkserver.common.logDir=./runlog/
+

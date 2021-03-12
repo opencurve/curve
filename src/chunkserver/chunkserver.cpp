@@ -43,6 +43,7 @@
 #include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
 #include "src/chunkserver/raftlog/curve_segment_log_storage.h"
 #include "src/common/curve_version.h"
+#include "src/chunkserver/watchdog/dog_keeper.h"
 
 using ::curve::fs::LocalFileSystem;
 using ::curve::fs::LocalFileSystemOption;
@@ -76,6 +77,54 @@ DEFINE_string(walFilePoolMetaPath, "./walfilepool.meta",
 
 namespace curve {
 namespace chunkserver {
+static bool ValidateTimeInterval(const char* flagname, uint32_t time) {
+    if (time < kWatchdogTimeIntvMin || time > kWatchdogTimeIntvMax) {
+        LOG(ERROR) << flagname << " is invalid: " << time << ", must in range ["
+                   << kWatchdogTimeIntvMin << ", " << kWatchdogTimeIntvMax
+                   << "]";
+        return false;
+    } else {
+        return true;
+    }
+}
+
+static bool ValidateRatio(const char* flagname, uint32_t ratio) {
+    if (ratio > kWatchdogMaxRatio) {
+        LOG(ERROR) << flagname << " is invalid: " << ratio
+                   << ", must in range [0, " << kWatchdogMaxRatio << "]";
+        return false;
+    } else {
+        return true;
+    }
+}
+
+DEFINE_uint32(watchdogCheckPeriodSec, kWatchdogCheckPeriod,
+              "time interval to check chunkserver");
+DEFINE_validator(watchdogCheckPeriodSec, &ValidateTimeInterval);
+DEFINE_uint32(watchdogCheckTimeoutSec, kWatchdogCheckTimeout,
+              "max time for a check operation");
+DEFINE_validator(watchdogCheckTimeoutSec, &ValidateTimeInterval);
+DEFINE_uint32(watchdogLatencyCheckPeriodSec, kWatchdogLatencyCheckPeriod,
+              "IO latency check period");
+DEFINE_validator(watchdogLatencyCheckPeriodSec, &ValidateTimeInterval);
+DEFINE_uint32(watchdogLatencyCheckWindow, kWatchdogLatencyCheckWindow,
+              "IO latency check window size");
+DEFINE_validator(watchdogLatencyCheckWindow, &ValidateTimeInterval);
+DEFINE_uint32(watchdogLatencyExcessMs, kWatchdogLatencyExcessMs,
+              "IO latency excess threshold");
+DEFINE_validator(watchdogLatencyExcessMs, &ValidateTimeInterval);
+DEFINE_uint32(watchdogLatencyAbnormalMs, kWatchdogLatencyAbnormalMs,
+              "IO latency abnormal threshold");
+DEFINE_validator(watchdogLatencyAbnormalMs, &ValidateTimeInterval);
+DEFINE_uint32(watchdogLatencyWindowSlowRatio, kWatchdogLatencySlowRatio,
+              "slow IO ratio in a check window to determine slow disk");
+DEFINE_validator(watchdogLatencyWindowSlowRatio, &ValidateRatio);
+DEFINE_bool(watchdogKillOnErr, kWatchdogKillOnErr,
+            "whether kill chunkserver if error detected");
+DEFINE_uint32(watchdogKillTimeoutSec, kWatchdogKillTimeout,
+              "max time for killing chunkserver");
+DEFINE_validator(watchdogKillTimeoutSec, &ValidateTimeInterval);
+DEFINE_bool(watchdogRevive, false, "manually revive watchdog");
 
 int ChunkServer::Run(int argc, char** argv) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -126,6 +175,25 @@ int ChunkServer::Run(int argc, char** argv) {
         "fs.enable_renameat2", &lfsOption.enableRenameat2));
     LOG_IF(FATAL, 0 != fs->Init(lfsOption))
         << "Failed to initialize local filesystem module!";
+
+    bool enableWatchdog = false;
+    std::shared_ptr<DogKeeper> dogKeeper;
+    if (conf.GetBoolValue("watchdog.enable", &enableWatchdog) &&
+        enableWatchdog) {
+        LOG(INFO) << "watchdog enabled";
+        WatchConf watchdogOptions;
+        enableWatchdog = InitWatchdogOptions(&conf, &watchdogOptions);
+        if (enableWatchdog) {
+            std::shared_ptr<WatchdogHelper> helper =
+                std::make_shared<WatchdogHelper>();
+            std::shared_ptr<Dog> dog = std::make_shared<Dog>(helper);
+            dogKeeper = std::make_shared<DogKeeper>(dog, watchdogOptions);
+            if (dogKeeper->Init() < 0) {
+                LOG(ERROR) << "watchdog init failed, disabled";
+                enableWatchdog = false;
+            }
+        }
+    }
 
     // 初始化chunk文件池
     FilePoolOptions chunkFilePoolOptions;
@@ -375,6 +443,13 @@ int ChunkServer::Run(int argc, char** argv) {
         << "Failed to start heartbeat manager.";
     LOG_IF(FATAL, copysetNodeManager_->Run() != 0)
         << "Failed to start CopysetNodeManager.";
+    if (enableWatchdog) {
+        if (dogKeeper->Run() < 0)
+            LOG(ERROR) << "Failed to start watchdog, ignored";
+        else
+            LOG(INFO) << "watchdog is running for chunkserver in "
+                      << dogKeeper->conf_.storDir;
+    }
 
     // =======================等待进程退出==================================//
     while (!brpc::IsAskedToQuit()) {
@@ -448,6 +523,63 @@ void ChunkServer::InitConcurrentApplyOptions(common::Configuration *conf,
         "rconcurrentapply.queuedepth", &concurrentApplyOptions->rqueuedepth));
     LOG_IF(FATAL, !conf->GetIntValue(
         "wconcurrentapply.queuedepth", &concurrentApplyOptions->wqueuedepth));
+}
+
+bool ChunkServer::InitWatchdogOptions(common::Configuration* conf,
+                                      WatchConf* watchOptions) {
+    if (!conf->GetUInt32Value("watchdog.check_period_sec",
+                              &watchOptions->watchdogCheckPeriodSec))
+        watchOptions->watchdogCheckPeriodSec = kWatchdogCheckPeriod;
+    if (!conf->GetUInt32Value("watchdog.check_timeout_sec",
+                              &watchOptions->watchdogCheckTimeoutSec))
+        watchOptions->watchdogCheckTimeoutSec = kWatchdogCheckTimeout;
+    if (!conf->GetUInt32Value("watchdog.latency_check_period_sec",
+                              &watchOptions->watchdogLatencyCheckPeriodSec))
+        watchOptions->watchdogLatencyCheckPeriodSec =
+            kWatchdogLatencyCheckPeriod;
+    if (!conf->GetUInt32Value("watchdog.latency_check_window",
+                              &watchOptions->watchdogLatencyCheckWindow))
+        watchOptions->watchdogLatencyCheckWindow =
+            kWatchdogLatencyCheckWindow;
+    if (!conf->GetUInt32Value("watchdog.latency_window_slow_ratio",
+                              &watchOptions->watchdogLatencyWindowSlowRatio))
+        watchOptions->watchdogLatencyWindowSlowRatio =
+            kWatchdogLatencySlowRatio;
+    if (!conf->GetUInt32Value("watchdog.latency_excess_ms",
+                              &watchOptions->watchdogLatencyExcessMs))
+        watchOptions->watchdogLatencyExcessMs = kWatchdogLatencyExcessMs;
+    if (!conf->GetUInt32Value("watchdog.latency_abnormal_ms",
+                              &watchOptions->watchdogLatencyAbnormalMs))
+        watchOptions->watchdogLatencyAbnormalMs = kWatchdogLatencyAbnormalMs;
+    if (!conf->GetBoolValue("watchdog.kill_chunkserver_on_error",
+                            &watchOptions->watchdogKillOnErr))
+        watchOptions->watchdogKillOnErr = kWatchdogKillOnErr;
+    if (!conf->GetUInt32Value("watchdog.kill_timeout_sec",
+                              &watchOptions->watchdogKillTimeoutSec))
+        watchOptions->watchdogKillTimeoutSec = kWatchdogKillTimeout;
+
+    if (watchOptions->watchdogLatencyExcessMs >=
+        watchOptions->watchdogLatencyAbnormalMs) {
+        LOG(ERROR) << "watchdog latency threshold ["
+                   << watchOptions->watchdogLatencyExcessMs << ", "
+                   << watchOptions->watchdogLatencyAbnormalMs
+                   << "] is invalid, reset to [" << kWatchdogLatencyExcessMs
+                   << ", " << kWatchdogLatencyAbnormalMs << "]";
+        watchOptions->watchdogLatencyExcessMs = kWatchdogLatencyExcessMs;
+        watchOptions->watchdogLatencyAbnormalMs = kWatchdogLatencyAbnormalMs;
+    }
+    LOG_IF(FATAL, !conf->GetStringValue("chunkserver.stor_uri",
+                                        &watchOptions->storDir));
+    watchOptions->storDir =
+        curve::chunkserver::UriParser::GetPathFromUri(watchOptions->storDir);
+    watchOptions->device = PathToDeviceName(&watchOptions->storDir);
+    if (watchOptions->device.empty()) {
+        LOG(ERROR) << "Failed to get mount point for " << watchOptions->storDir
+                   << ", disable watchdog";
+        return false;
+    }
+
+    return true;
 }
 
 void ChunkServer::InitWalFilePoolOptions(
@@ -753,6 +885,52 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
         !info.is_default) {
         conf->SetIntValue("copyset.load_concurrency",
             FLAGS_copysetLoadConcurrency);
+    }
+
+    if (GetCommandLineFlagInfo("watchdogCheckPeriodSec", &info) &&
+        !info.is_default) {
+        conf->SetIntValue("watchdog.check_period_sec",
+                          FLAGS_watchdogCheckPeriodSec);
+    }
+    if (GetCommandLineFlagInfo("watchdogCheckTimeoutSec", &info) &&
+        !info.is_default) {
+        conf->SetIntValue("watchdog.check_timeout_sec",
+                          FLAGS_watchdogCheckTimeoutSec);
+    }
+    if (GetCommandLineFlagInfo("watchdogLatencyCheckPeriodSec", &info) &&
+        !info.is_default) {
+        conf->SetIntValue("watchdog.latency_check_period_sec",
+                          FLAGS_watchdogLatencyCheckPeriodSec);
+    }
+    if (GetCommandLineFlagInfo("watchdogLatencyCheckWindow", &info) &&
+        !info.is_default) {
+        conf->SetIntValue("watchdog.latency_check_window",
+                          FLAGS_watchdogLatencyCheckWindow);
+    }
+    if (GetCommandLineFlagInfo("watchdogLatencyExcessMs", &info) &&
+        !info.is_default) {
+        conf->SetIntValue("watchdog.latency_excess_ms",
+                          FLAGS_watchdogLatencyExcessMs);
+    }
+    if (GetCommandLineFlagInfo("watchdogLatencyAbnormalMs", &info) &&
+        !info.is_default) {
+        conf->SetIntValue("watchdog.latency_abnormal_ms",
+                          FLAGS_watchdogLatencyAbnormalMs);
+    }
+    if (GetCommandLineFlagInfo("watchdogLatencyWindowSlowRatio", &info) &&
+        !info.is_default) {
+        conf->SetIntValue("watchdog.latency_window_slow_ratio",
+                          FLAGS_watchdogLatencyWindowSlowRatio);
+    }
+    if (GetCommandLineFlagInfo("watchdogKillOnErr", &info) &&
+        !info.is_default) {
+        conf->SetBoolValue("watchdog.kill_chunkserver_on_error",
+                           FLAGS_watchdogKillOnErr);
+    }
+    if (GetCommandLineFlagInfo("watchdogKillTimeoutSec", &info) &&
+        !info.is_default) {
+        conf->SetIntValue("watchdog.kill_timeout_sec",
+                          FLAGS_watchdogKillTimeoutSec);
     }
 }
 

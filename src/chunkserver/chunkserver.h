@@ -33,6 +33,7 @@
 #include "src/chunkserver/trash.h"
 #include "src/chunkserver/chunkserver_metrics.h"
 #include "src/chunkserver/concurrent_apply/concurrent_apply.h"
+#include "src/chunkserver/watchdog/common.h"
 
 using ::curve::chunkserver::concurrent::ConcurrentApplyOption;
 
@@ -85,6 +86,9 @@ class ChunkServer {
 
     void InitMetricOptions(common::Configuration *conf,
         ChunkServerMetricOptions *metricOptions);
+
+    bool InitWatchdogOptions(common::Configuration* conf,
+                             WatchConf* watchOptions);
 
     void LoadConfigFromCmdline(common::Configuration *conf);
 
