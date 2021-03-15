@@ -34,11 +34,16 @@
   when: not restart_directly
 
 - name: restart mds
-  block:
-    - name: stop mds
-      include_tasks: roles/stop_service/tasks/include/stop_mds.yml
-    - name: start mds
-      include_tasks: roles/start_service/tasks/include/start_mds.yml
+  vars:
+    ch_dir: "{{ deploy_dir }}"
+    daemon_script: ./mds-daemon.sh
+    service_port: "{{ mds_dummy_port }}"
+    process_name: curve-mds
+    start_cmd: >
+      nohup "{{ curve_bin_dir }}"/curve-mds -confPath={{ mds_config_path }}
+      -mdsAddr={{ ansible_ssh_host }}:{{ mds_port }} -log_dir={{ mds_log_dir }} -graceful_quit_on_sigterm=true
+      -stderrthreshold=3 > mds-console.log 2>&1 &
+  include_tasks: common_tasks/restart_service.yml
   when: need_restart or restart_directly
 
 - name: check mds version after restart
