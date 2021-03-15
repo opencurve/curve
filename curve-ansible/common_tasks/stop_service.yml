@@ -23,7 +23,7 @@
 - name: set sudo no
   set_fact:
     sudo: ""
-  when: not {{ command_need_sudo }}
+  when: not command_need_sudo
 
 - name: stop service with daemon
   block:
@@ -39,7 +39,7 @@
   ignore_errors: true
   shell: >
     "{{ sudo }}" killall {{ process_name }}
-  when: not {{ start_by_daemon }}
+  when: not start_by_daemon
 
 - name: wait until server is down
   ping_port: "{{ service_port }}"

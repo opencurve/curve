@@ -27,5 +27,5 @@
 
 - name: recycle copysets chunks and wals to different pool
   script: recycle_chunks.sh -d {{ chunkserver_data_dir }} -chunks chunkfilepool -wals walfilepool
-  when: not {{ walfilepool_use_chunk_file_pool }}
+  when: not walfilepool_use_chunk_file_pool
 
