@@ -171,7 +171,7 @@ function chunkfile_pool_prep {
 ret=`lsblk|grep chunkserver|wc -l`
 for i in `seq 0 $((${ret}-1))`
 do
-  curve-format -allocatePercent=90 \
+  curve-format -allocatePercent=85 \
   -filePoolDir=/data/chunkserver$i/chunkfilepool \
   -filePoolMetaPath=/data/chunkserver$i/chunkfilepool.meta \
   -fileSystemPath=/data/chunkserver$i/chunkfilepool  &
@@ -293,7 +293,7 @@ function deploy_one {
   echo "uuid=$uuid" > $dirname/disk.meta
   echo "uuidmd5=$uuidmd5" >> $dirname/disk.meta
   #格式化chunkfile pool
-  curve-format -allocatePercent=80 \
+  curve-format -allocatePercent=85 \
   -filePoolDir=$dirname/chunkfilepool \
   -filePoolMetaPath=$dirname/chunkfilepool.meta \
   -fileSystemPath=$dirname/chunkfilepool  &
