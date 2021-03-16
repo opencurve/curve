@@ -1963,6 +1963,22 @@ def clean_curve_data():
     ori_cmd = "vm=`source OPENRC && nova list|grep %s | awk '{print $2}'`;source OPENRC;for i in $vm;do nova delete $i;done"%config.vm_prefix
     rs = shell_operator.ssh_exec(ssh,ori_cmd)
     assert rs[3] == 0,"delete vm fail,rs is %s"%rs[1]
+    ori_cmd = "source OPENRC && nova image-list |grep image-%s | awk '{print $2}'"%config.vm_prefix
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    image_id = "".join(rs[1]).strip()
+    ori_cmd = "source OPENRC && nova image-delete %s"%(image_id)
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    assert rs[3] == 0,"delete image fail,rs is %s"%rs
+    time.sleep(30)
+    ori_cmd = "curve_ops_tool list -fileName=/nova |grep Total"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    if "".join(rs[1]).strip() == "Total file number: 0":
+        return pass
+    else:
+        ori_cmd = "curve_ops_tool list -fileName=/nova"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        logger.error("No deleted files: %s"%rs[1])
+        assert  False,"vm or image not be deleted"
 
 def do_thrasher(action):
     #start level1
