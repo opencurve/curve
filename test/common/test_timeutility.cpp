@@ -30,8 +30,8 @@ TEST(ExpiredTimeTest, CommonTest) {
         ExpiredTime expiredTime;
         std::this_thread::sleep_for(std::chrono::microseconds(1000000));
         auto expiredUs = expiredTime.ExpiredUs();
-        ASSERT_TRUE(expiredUs >= (1000000 - 100) &&
-                    expiredUs <= (1000000 + 100));
+        ASSERT_TRUE(expiredUs >= (1000000 - 200) &&
+                    expiredUs <= (1000000 + 200));
     }
 }
 

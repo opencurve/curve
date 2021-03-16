@@ -118,6 +118,7 @@ message CopysetData {
     required uint32 logicalPoolId = 2;
     required uint64 epoch = 3;
     repeated uint32 chunkserverIds = 4;
+    optional bool availFlag = 5;
 }
 
 // rpc struct defination
@@ -449,6 +450,23 @@ message GetCopySetsInClusterResponse {
     repeated common.CopysetInfo copysetInfos = 2;
 }
 
+message SetCopysetsAvailFlagRequest {
+    required bool availFlag = 1;
+    repeated common.CopysetInfo copysets = 2;
+}
+
+message SetCopysetsAvailFlagResponse {
+    required sint32 statusCode = 1;
+}
+
+message ListUnAvailCopySetsRequest {
+}
+
+message ListUnAvailCopySetsResponse {
+    required sint32 statusCode = 1;
+    repeated common.CopysetInfo copysets = 2;
+}
+
 //TODO(hzsunjianliang): update userPolicy and so on
 service TopologyService {
     rpc RegistChunkServer(ChunkServerRegistRequest) returns (ChunkServerRegistResponse);
@@ -483,5 +501,7 @@ service TopologyService {
     rpc GetCopySetsInChunkServer(GetCopySetsInChunkServerRequest) returns (GetCopySetsInChunkServerResponse);
     rpc GetCopySetsInCluster(GetCopySetsInClusterRequest) returns (GetCopySetsInClusterResponse);
     rpc GetClusterInfo(GetClusterInfoRequest) returns (GetClusterInfoResponse);
+    rpc SetCopysetsAvailFlag(SetCopysetsAvailFlagRequest) returns (SetCopysetsAvailFlagResponse);
+    rpc ListUnAvailCopySets(ListUnAvailCopySetsRequest) returns (ListUnAvailCopySetsResponse);
 }
 

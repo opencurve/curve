@@ -46,7 +46,7 @@ int IOController::InitDevAttr(int devfd, NBDConfig* config, int sockfd,
                               uint64_t size, uint64_t flags) {
     int ret = ioctl(devfd, NBD_SET_SOCK, sockfd);
     if (ret < 0) {
-        cerr << "curve-ndb: the device " << config->devpath
+        dout << "curve-ndb: the device " << config->devpath
              << " is busy" << std::endl;
         return -errno;
     }
@@ -66,7 +66,7 @@ int IOController::InitDevAttr(int devfd, NBDConfig* config, int sockfd,
 
         ret = CheckSetReadOnly(devfd, flags);
         if (ret < 0) {
-            cerr << "curve-nbd: Check and set read only flag failed."
+            dout << "curve-nbd: Check and set read only flag failed."
                  << cpp_strerror(ret) << std::endl;
             break;
         }
@@ -74,7 +74,7 @@ int IOController::InitDevAttr(int devfd, NBDConfig* config, int sockfd,
         if (config->timeout >= 0) {
             ret = ioctl(devfd, NBD_SET_TIMEOUT, (unsigned long)config->timeout);  // NOLINT
             if (ret < 0) {
-                cerr << "curve-ndb: failed to set timeout: "
+                dout << "curve-ndb: failed to set timeout: "
                      << cpp_strerror(ret) << std::endl;
                 break;
             }
@@ -95,6 +95,7 @@ int IOController::SetUp(NBDConfig* config, int sockfd,
     }
 
     if (config->devpath.empty()) {
+        dout << "devpath is empty" << std::endl;
         return -1;
     }
 
@@ -106,7 +107,7 @@ int IOController::SetUp(NBDConfig* config, int sockfd,
 
     ret = open(config->devpath.c_str(), O_RDWR);
     if (ret < 0) {
-        cerr << "curve-ndb: failed to open device: "
+        dout << "curve-ndb: failed to open device: "
              << config->devpath << std::endl;
         return ret;
     }
@@ -117,7 +118,7 @@ int IOController::SetUp(NBDConfig* config, int sockfd,
         ret = check_device_size(index, size);
     }
     if (ret < 0) {
-        cerr << "curve-ndb: failed to map, status: "
+        dout << "curve-ndb: failed to map, status: "
              << cpp_strerror(ret) << std::endl;
         close(devfd);
         return ret;
@@ -131,14 +132,14 @@ int IOController::SetUp(NBDConfig* config, int sockfd,
 int IOController::DisconnectByPath(const std::string& devpath) {
     int devfd = open(devpath.c_str(), O_RDWR);
     if (devfd < 0) {
-        cerr << "curve-ndb: failed to open device: "
+        dout << "curve-ndb: failed to open device: "
              << devpath << ", error = " << cpp_strerror(errno) << std::endl;
         return devfd;
     }
 
     int ret = ioctl(devfd, NBD_DISCONNECT);
     if (ret < 0) {
-        cerr << "curve-ndb: the device is not used. "
+        dout << "curve-ndb: the device is not used. "
              << cpp_strerror(errno) << std::endl;
     }
 
@@ -148,32 +149,32 @@ int IOController::DisconnectByPath(const std::string& devpath) {
 
 int IOController::Resize(uint64_t size) {
     if (nbdFd_ < 0) {
-        cerr << "resize failed: nbd controller is not setup." << std::endl;
+        dout << "resize failed: nbd controller is not setup." << std::endl;
         return -1;
     }
     int ret = ioctl(nbdFd_, NBD_SET_SIZE, size);
     if (ret < 0) {
-        cerr << "resize failed: " << cpp_strerror(errno) << std::endl;
+        dout << "resize failed: " << cpp_strerror(errno) << std::endl;
     }
     return ret;
 }
 
 int NetLinkController::Init() {
     if (sock_ != nullptr) {
-        cerr << "curve-nbd: Could not allocate netlink socket." << std::endl;
+        dout << "curve-nbd: Could not allocate netlink socket." << std::endl;
         return 0;
     }
 
     struct nl_sock* sock = nl_socket_alloc();
     if (sock == nullptr) {
-        cerr << "curve-nbd: Could not alloc netlink socket. Error "
+        dout << "curve-nbd: Could not alloc netlink socket. Error "
              << cpp_strerror(errno) << std::endl;
         return -1;
     }
 
     int ret = genl_connect(sock);
     if (ret < 0) {
-        cerr << "curve-nbd: Could not connect netlink socket. Error "
+        dout << "curve-nbd: Could not connect netlink socket. Error "
              << nl_geterror(ret) << std::endl;
         nl_socket_free(sock);
         return -1;
@@ -181,7 +182,7 @@ int NetLinkController::Init() {
 
     nlId_ = genl_ctrl_resolve(sock, "nbd");
     if (nlId_ < 0) {
-        cerr << "curve-nbd: Could not resolve netlink socket. Error "
+        dout << "curve-nbd: Could not resolve netlink socket. Error "
              << nl_geterror(nlId_) << std::endl;
         nl_close(sock);
         nl_socket_free(sock);
@@ -205,7 +206,7 @@ int NetLinkController::SetUp(NBDConfig* config, int sockfd,
                              uint64_t size, uint64_t flags) {
     int ret = Init();
     if (ret < 0) {
-        cerr << "curve-nbd: Netlink interface not supported."
+        dout << "curve-nbd: Netlink interface not supported."
              << " Using ioctl interface." << std::endl;
         return ret;
     }
@@ -231,14 +232,14 @@ int NetLinkController::SetUp(NBDConfig* config, int sockfd,
 
     int fd = open(config->devpath.c_str(), O_RDWR);
     if (fd < 0) {
-        cerr << "curve-nbd: failed to open device: "
+        dout << "curve-nbd: failed to open device: "
              << config->devpath << std::endl;
         return fd;
     }
 
     ret = CheckSetReadOnly(fd, flags);
     if (ret < 0) {
-        cerr << "curve-nbd: Check and set read only flag failed."
+        dout << "curve-nbd: Check and set read only flag failed."
              << std::endl;
         close(fd);
         return ret;
@@ -257,7 +258,7 @@ int NetLinkController::DisconnectByPath(const std::string& devpath) {
 
     int ret = Init();
     if (ret < 0) {
-        cerr << "curve-nbd: Netlink interface not supported."
+        dout << "curve-nbd: Netlink interface not supported."
              << " Using ioctl interface." << std::endl;
         return ret;
     }
@@ -269,13 +270,13 @@ int NetLinkController::DisconnectByPath(const std::string& devpath) {
 
 int NetLinkController::Resize(uint64_t size) {
     if (nbdIndex_ < 0) {
-        cerr << "resize failed: nbd controller is not setup." << std::endl;
+        dout << "resize failed: nbd controller is not setup." << std::endl;
         return -1;
     }
 
     int ret = Init();
     if (ret < 0) {
-        cerr << "curve-nbd: Netlink interface not supported."
+        dout << "curve-nbd: Netlink interface not supported."
              << " Using ioctl interface." << std::endl;
         return ret;
     }
@@ -288,7 +289,7 @@ int NetLinkController::Resize(uint64_t size) {
 bool NetLinkController::Support() {
     int ret = Init();
     if (ret < 0) {
-        cerr << "curve-nbd: Netlink interface not supported."
+        dout << "curve-nbd: Netlink interface not supported."
              << " Using ioctl interface." << std::endl;
         return false;
     }
@@ -305,12 +306,12 @@ static int netlink_connect_cb(struct nl_msg *msg, void *arg) {
     ret = nla_parse(msg_attr, NBD_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
                     genlmsg_attrlen(gnlh, 0), NULL);
     if (ret) {
-        cerr << "curve-nbd: Unsupported netlink reply" << std::endl;
+        dout << "curve-nbd: Unsupported netlink reply" << std::endl;
         return -NLE_MSGTYPE_NOSUPPORT;
     }
 
     if (!msg_attr[NBD_ATTR_INDEX]) {
-        cerr << "curve-nbd: netlink connect reply missing device index."
+        dout << "curve-nbd: netlink connect reply missing device index."
              << std::endl;
         return -NLE_MSGTYPE_NOSUPPORT;
     }
@@ -332,14 +333,14 @@ int NetLinkController::ConnectInternal(NBDConfig* config, int sockfd,
                         netlink_connect_cb, config);
     msg = nlmsg_alloc();
     if (msg == nullptr) {
-        cerr << "curve-nbd: Could not allocate netlink message." << std::endl;
+        dout << "curve-nbd: Could not allocate netlink message." << std::endl;
         return -ENOMEM;
     }
 
     auto user_hdr = genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ,
                                 nlId_, 0, 0, NBD_CMD_CONNECT, 0);
     if (user_hdr == nullptr) {
-        cerr << "curve-nbd: Could not setup message." << std::endl;
+        dout << "curve-nbd: Could not setup message." << std::endl;
         goto nla_put_failure;
     }
 
@@ -359,14 +360,14 @@ int NetLinkController::ConnectInternal(NBDConfig* config, int sockfd,
 
     sock_attr = nla_nest_start(msg, NBD_ATTR_SOCKETS);
     if (sock_attr == nullptr) {
-        cerr << "curve-nbd: Could not init sockets in netlink message."
+        dout << "curve-nbd: Could not init sockets in netlink message."
              << std::endl;
         goto nla_put_failure;
     }
 
     sock_opt = nla_nest_start(msg, NBD_SOCK_ITEM);
     if (sock_opt == nullptr) {
-        cerr << "curve-nbd: Could not init sock in netlink message."
+        dout << "curve-nbd: Could not init sock in netlink message."
              << std::endl;
         goto nla_put_failure;
     }
@@ -377,7 +378,7 @@ int NetLinkController::ConnectInternal(NBDConfig* config, int sockfd,
 
     ret = nl_send_sync(sock_, msg);
     if (ret < 0) {
-        cerr << "curve-nbd: netlink connect failed: " << nl_geterror(ret)
+        dout << "curve-nbd: netlink connect failed: " << nl_geterror(ret)
              << std::endl;
         return -EIO;
     }
@@ -396,14 +397,14 @@ int NetLinkController::DisconnectInternal(int index) {
                         genl_handle_msg, NULL);
     msg = nlmsg_alloc();
     if (msg == nullptr) {
-        cerr << "curve-ndb: Could not allocate netlink message." << std::endl;
+        dout << "curve-ndb: Could not allocate netlink message." << std::endl;
         return -EIO;
     }
 
     auto user_hdr = genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ,
                                 nlId_, 0, 0, NBD_CMD_DISCONNECT, 0);
     if (user_hdr == nullptr) {
-        cerr << "curve-nbd: Could not setup message." << std::endl;
+        dout << "curve-nbd: Could not setup message." << std::endl;
         goto nla_put_failure;
     }
 
@@ -411,7 +412,7 @@ int NetLinkController::DisconnectInternal(int index) {
 
     ret = nl_send_sync(sock_, msg);
     if (ret < 0) {
-        cerr << "curve-ndb: netlink disconnect failed: "
+        dout << "curve-ndb: netlink disconnect failed: "
              << nl_geterror(ret) << std::endl;
         return -EIO;
     }
@@ -431,14 +432,14 @@ int NetLinkController::ResizeInternal(int nbdIndex, uint64_t size) {
                         genl_handle_msg, NULL);
     msg = nlmsg_alloc();
     if (msg == nullptr) {
-        cerr << "curve-ndb: Could not allocate netlink message." << std::endl;
+        dout << "curve-ndb: Could not allocate netlink message." << std::endl;
         return -EIO;
     }
 
     auto user_hdr = genlmsg_put(msg, NL_AUTO_PORT, NL_AUTO_SEQ,
                                 nlId_, 0, 0, NBD_CMD_RECONFIGURE, 0);
     if (user_hdr == nullptr) {
-        cerr << "curve-nbd: Could not setup message." << std::endl;
+        dout << "curve-nbd: Could not setup message." << std::endl;
         goto nla_put_failure;
     }
 
@@ -447,7 +448,7 @@ int NetLinkController::ResizeInternal(int nbdIndex, uint64_t size) {
 
     ret = nl_send_sync(sock_, msg);
     if (ret < 0) {
-        cerr << "curve-ndb: netlink resize failed: "
+        dout << "curve-ndb: netlink resize failed: "
              << nl_geterror(ret) << std::endl;
         return -EIO;
     }

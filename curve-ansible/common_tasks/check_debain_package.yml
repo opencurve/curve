@@ -14,10 +14,18 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
+#  Check curve debain package
 
-- name: restart nebd-server
-  block:
-    - name: stop nebd-server
-      include_tasks: roles/stop_service/tasks/include/stop_nebd.yml
-    - name: start nebd-server
-      include_tasks: roles/start_service/tasks/include/start_nebd.yml
+- name: check {{ package_name }} debain package
+  shell: apt-cache policy {{ package_name }} | grep {{ version }}
+  ignore_errors: true
+  register: has_debain_package
+
+- name: apt update
+  shell: sudo apt-get update
+  ignore_errors: true
+  when: has_debain_package.rc != 0
+
+- name: recheck {{ package_name }} debain package
+  shell: apt-cache policy {{ package_name }} | grep {{ version }}
+  when: has_debain_package.rc != 0

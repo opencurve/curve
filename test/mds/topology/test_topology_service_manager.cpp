@@ -45,6 +45,7 @@ using ::curve::chunkserver::MockCopysetServiceImpl;
 using ::curve::chunkserver::CopysetResponse2;
 using ::curve::chunkserver::COPYSET_OP_STATUS;
 using ::curve::mds::copyset::CopysetOption;
+using ::curve::common::CopysetInfo;
 
 class TestTopologyServiceManager : public ::testing::Test {
  protected:
@@ -2856,6 +2857,117 @@ TEST_F(TestTopologyServiceManager, test_GetCopySetsInCluster) {
     ASSERT_EQ(1, response2.copysetinfos(0).copysetid());
 }
 
+TEST_F(TestTopologyServiceManager, test_SetCopysetsAvailFlag) {
+    PoolIdType logicalPoolId1 = 0x1;
+    PoolIdType physicalPoolId1 = 0x11;
+    PrepareAddPhysicalPool(physicalPoolId1);
+    PrepareAddLogicalPool(logicalPoolId1, "logicalPool1", physicalPoolId1);
+    std::set<ChunkServerIdType> replicas;
+    replicas.insert(0x41);
+    replicas.insert(0x42);
+    replicas.insert(0x43);
+    for (int i = 1; i <= 20; i++) {
+        PrepareAddCopySet(i, logicalPoolId1, replicas);
+    }
+    std::vector<CopySetInfo> copysets =
+                topology_->GetCopySetInfosInLogicalPool(logicalPoolId1);
+    for (const auto copyset : copysets) {
+        ASSERT_TRUE(copyset.IsAvailable());
+    }
+    // success
+    {
+        SetCopysetsAvailFlagRequest request;
+        request.set_availflag(false);
+        for (int i = 1; i <= 10; ++i) {
+            CopysetInfo* copyset = request.add_copysets();
+            copyset->set_logicalpoolid(logicalPoolId1);
+            copyset->set_copysetid(i);
+        }
+        SetCopysetsAvailFlagResponse response;
+        EXPECT_CALL(*storage_, UpdateCopySet(_))
+            .Times(10)
+            .WillRepeatedly(Return(true));
+        serviceManager_->SetCopysetsAvailFlag(&request, &response);
+        ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+        copysets = topology_->GetCopySetInfosInLogicalPool(logicalPoolId1);
+        for (const auto copyset : copysets) {
+            if (copyset.GetId() <= 10) {
+                ASSERT_FALSE(copyset.IsAvailable());
+            } else {
+                ASSERT_TRUE(copyset.IsAvailable());
+            }
+        }
+        request.set_availflag(true);
+        EXPECT_CALL(*storage_, UpdateCopySet(_))
+            .Times(10)
+            .WillRepeatedly(Return(true));
+        serviceManager_->SetCopysetsAvailFlag(&request, &response);
+        ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+        copysets = topology_->GetCopySetInfosInLogicalPool(logicalPoolId1);
+        for (const auto copyset : copysets) {
+            ASSERT_TRUE(copyset.IsAvailable());
+        }
+    }
+    // copyset not found
+    {
+        SetCopysetsAvailFlagRequest request;
+        SetCopysetsAvailFlagResponse response;
+        request.set_availflag(false);
+        CopysetInfo* copyset = request.add_copysets();
+        copyset->set_logicalpoolid(logicalPoolId1);
+        copyset->set_copysetid(100);
+        serviceManager_->SetCopysetsAvailFlag(&request, &response);
+        ASSERT_EQ(kTopoErrCodeCopySetNotFound, response.statuscode());
+    }
+    // storage fail!
+    {
+        SetCopysetsAvailFlagRequest request;
+        SetCopysetsAvailFlagResponse response;
+        request.set_availflag(false);
+        CopysetInfo* copyset = request.add_copysets();
+        copyset->set_logicalpoolid(logicalPoolId1);
+        copyset->set_copysetid(10);
+        EXPECT_CALL(*storage_, UpdateCopySet(_))
+            .WillOnce(Return(false));
+        serviceManager_->SetCopysetsAvailFlag(&request, &response);
+        ASSERT_EQ(kTopoErrCodeStorgeFail, response.statuscode());
+    }
+}
+
+TEST_F(TestTopologyServiceManager, test_ListUnAvailCopySets) {
+    PoolIdType logicalPoolId1 = 0x1;
+    PoolIdType physicalPoolId1 = 0x11;
+    PrepareAddPhysicalPool(physicalPoolId1);
+    PrepareAddLogicalPool(logicalPoolId1, "logicalPool1", physicalPoolId1);
+    std::set<ChunkServerIdType> replicas;
+    replicas.insert(0x41);
+    replicas.insert(0x42);
+    replicas.insert(0x43);
+    for (int i = 1; i <= 20; i++) {
+        PrepareAddCopySet(i, logicalPoolId1, replicas);
+    }
+    SetCopysetsAvailFlagRequest request;
+    request.set_availflag(false);
+    for (int i = 1; i <= 10; ++i) {
+        CopysetInfo* copyset = request.add_copysets();
+        copyset->set_logicalpoolid(logicalPoolId1);
+        copyset->set_copysetid(i);
+    }
+    SetCopysetsAvailFlagResponse response;
+    EXPECT_CALL(*storage_, UpdateCopySet(_))
+        .Times(10)
+        .WillRepeatedly(Return(true));
+    serviceManager_->SetCopysetsAvailFlag(&request, &response);
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+    ListUnAvailCopySetsRequest request2;
+    ListUnAvailCopySetsResponse response2;
+    serviceManager_->ListUnAvailCopySets(&request2, &response2);
+    ASSERT_EQ(kTopoErrCodeSuccess, response2.statuscode());
+    ASSERT_EQ(10, response2.copysets_size());
+    for (int i = 1; i <= 10; ++i) {
+        ASSERT_EQ(i, response2.copysets(i - 1).copysetid());
+    }
+}
 
 }  // namespace topology
 }  // namespace mds

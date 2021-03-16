@@ -671,7 +671,8 @@ class CopySetInfo {
         epoch_(0),
         hasCandidate_(false),
         candidate_(UNINTIALIZE_ID),
-        dirty_(false) {}
+        dirty_(false),
+        available_(true) {}
 
     CopySetInfo(PoolIdType logicalPoolId,
                 CopySetIdType id) :
@@ -681,7 +682,8 @@ class CopySetInfo {
         epoch_(0),
         hasCandidate_(false),
         candidate_(UNINTIALIZE_ID),
-        dirty_(false) {}
+        dirty_(false),
+        available_(true) {}
 
     CopySetInfo(const CopySetInfo &v) :
         logicalPoolId_(v.logicalPoolId_),
@@ -691,7 +693,8 @@ class CopySetInfo {
         peers_(v.peers_),
         hasCandidate_(v.hasCandidate_),
         candidate_(v.candidate_),
-        dirty_(v.dirty_) {}
+        dirty_(v.dirty_),
+        available_(v.available_) {}
 
     CopySetInfo& operator= (const CopySetInfo &v) {
         if (&v == this) {
@@ -705,6 +708,7 @@ class CopySetInfo {
         hasCandidate_ = v.hasCandidate_;
         candidate_ = v.candidate_;
         dirty_ = v.dirty_;
+        available_ = v.available_;
         return *this;
     }
 
@@ -781,6 +785,14 @@ class CopySetInfo {
         dirty_ = dirty;
     }
 
+    bool IsAvailable() const {
+        return available_;
+    }
+
+    void SetAvailableFlag(bool aval) {
+        available_ = aval;
+    }
+
     ::curve::common::RWLock& GetRWLockRef() const {
         return mutex_;
     }
@@ -802,6 +814,12 @@ class CopySetInfo {
      * @brief to mark whether data is dirty, for writing to storage regularly
      */
     bool dirty_;
+
+    /**
+     * @brief To mark whether the copyset is available. If not available,
+     *        will stop allocating chunks into this copyset.
+     */
+    bool available_;
 
     /**
      * @brief chunkserver read/write lock, for protecting concurrent

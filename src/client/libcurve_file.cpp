@@ -495,8 +495,16 @@ int FileClient::Mkdir(const std::string& dirpath, const UserInfo_t& userinfo) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->CreateFile(dirpath, userinfo, 0, false);
-        LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
-            << "Create file failed, filename: " << dirpath << ", ret: " << ret;
+        if (ret != LIBCURVE_ERROR::OK) {
+            if (ret == LIBCURVE_ERROR::EXISTS) {
+                LOG(WARNING) << "Create directory failed, " << dirpath
+                             << " already exists";
+            } else {
+                LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
+                    << "Create directory failed, dir: " << dirpath
+                    << ", ret: " << ret;
+            }
+        }
     } else {
         LOG(ERROR) << "global mds client not inited!";
         return -LIBCURVE_ERROR::FAILED;

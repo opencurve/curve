@@ -46,7 +46,7 @@ CopysetStatistics::CopysetStatistics(uint64_t total, uint64_t unhealthy)
     }
 }
 
-int CopysetCheckCore::CheckOneCopyset(const PoolIdType& logicalPoolId,
+CheckResult CopysetCheckCore::CheckOneCopyset(const PoolIdType& logicalPoolId,
                                   const CopySetIdType& copysetId) {
     Clear();
     std::vector<ChunkServerLocation> chunkserverLocation;
@@ -55,9 +55,11 @@ int CopysetCheckCore::CheckOneCopyset(const PoolIdType& logicalPoolId,
     if (res != 0) {
         std::cout << "GetChunkServerListInCopySet from mds fail!"
                   << std::endl;
-        return -1;
+        return CheckResult::kOtherErr;
     }
-    bool isHealthy = true;
+    int majority = chunkserverLocation.size() / 2 + 1;
+    int offlinePeers = 0;
+    CheckResult checkRes = CheckResult::kHealthy;
     for (const auto& csl : chunkserverLocation) {
         std::string hostIp = csl.hostip();
         uint64_t port = csl.port();
@@ -69,7 +71,7 @@ int CopysetCheckCore::CheckOneCopyset(const PoolIdType& logicalPoolId,
             // 如果查询chunkserver失败，认为不在线
             serviceExceptionChunkServers_.emplace(csAddr);
             chunkserverCopysets_[csAddr] = {};
-            isHealthy = false;
+            ++offlinePeers;
             continue;
         }
         std::vector<std::map<std::string, std::string>> copysetInfos;
@@ -78,26 +80,28 @@ int CopysetCheckCore::CheckOneCopyset(const PoolIdType& logicalPoolId,
             std::cout << "copyset not found on chunkserver " << csAddr
                       << std::endl;
             copysetLoacExceptionChunkServers_.emplace(csAddr);
+            ++offlinePeers;
             continue;
         }
         auto copysetInfo = copysetInfos[0];
         if (copysetInfo[kState] == kStateLeader) {
             CheckResult res = CheckHealthOnLeader(&copysetInfo);
             if (res != CheckResult::kHealthy) {
-                isHealthy = false;
+                return res;
             }
         } else {
             if (copysetInfo.count(kLeader) == 0 ||
                             copysetInfo[kLeader] == kEmptyAddr) {
-                isHealthy = false;
+                checkRes = CheckResult::kOtherErr;
             }
         }
     }
-    if (isHealthy) {
-        return 0;
-    }  else {
-        return -1;
+    if (offlinePeers >= majority) {
+        checkRes = CheckResult::kMajorityPeerNotOnline;
+    } else if (offlinePeers > 0) {
+        checkRes = CheckResult::kMinorityPeerNotOnline;
     }
+    return checkRes;
 }
 
 int CopysetCheckCore::CheckCopysetsOnChunkServer(
@@ -830,11 +834,22 @@ int CopysetCheckCore::ListMayBrokenVolumes(
         std::cout << "CheckCopysetsOnOfflineChunkServer fail" << std::endl;
         return -1;
     }
-    if (copysets_[kMajorityPeerNotOnline].empty()) {
+    std::vector<CopysetInfo> copysets;
+    GetCopysetInfos(kMajorityPeerNotOnline, &copysets);
+    if (copysets.empty()) {
         std::cout << "No majority-peers-offline copysets" << std::endl;
         return 0;
     }
-    std::vector<common::CopysetInfo> copysets;
+    res = mdsClient_->ListVolumesOnCopyset(copysets, fileNames);
+    if (res != 0) {
+        std::cout << "ListVolumesOnCopyset fail" << std::endl;
+        return -1;
+    }
+    return 0;
+}
+
+void CopysetCheckCore::GetCopysetInfos(const char* key,
+                                std::vector<CopysetInfo>* copysets) {
     for (auto iter = copysets_[kMajorityPeerNotOnline].begin();
                     iter != copysets_[kMajorityPeerNotOnline].end(); ++iter) {
         std::string gid = *iter;
@@ -848,14 +863,8 @@ int CopysetCheckCore::ListMayBrokenVolumes(
         common::CopysetInfo copyset;
         copyset.set_logicalpoolid(lgId);
         copyset.set_copysetid(csId);
-        copysets.emplace_back(copyset);
+        copysets->emplace_back(copyset);
     }
-    res = mdsClient_->ListVolumesOnCopyset(copysets, fileNames);
-    if (res != 0) {
-        std::cout << "ListVolumesOnCopyset fail" << std::endl;
-        return -1;
-    }
-    return 0;
 }
 
 int CopysetCheckCore::CheckCopysetsOnOfflineChunkServer() {
@@ -866,7 +875,7 @@ int CopysetCheckCore::CheckCopysetsOnOfflineChunkServer() {
         return -1;
     }
     for (const auto& cs : chunkservers) {
-        std::string csAddr = cs.hostip() + std::to_string(cs.port());
+        std::string csAddr = cs.hostip() + ":" + std::to_string(cs.port());
         if (!CheckChunkServerOnline(csAddr)) {
             UpdatePeerNotOnlineCopysets(csAddr);
         }

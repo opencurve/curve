@@ -178,6 +178,8 @@ class Topology {
      */
     virtual int UpdateCopySetTopo(const CopySetInfo &data) = 0;
 
+    virtual int SetCopySetAvalFlag(const CopySetKey &key, bool aval) = 0;
+
     virtual PoolIdType
         FindLogicalPool(const std::string &logicalPoolName,
                         const std::string &physicalPoolName) const = 0;
@@ -386,6 +388,8 @@ class TopologyImpl : public Topology {
                          ChunkServerIdType id) override;
 
     int UpdateCopySetTopo(const CopySetInfo &data) override;
+
+    int SetCopySetAvalFlag(const CopySetKey &key, bool aval) override;
 
     PoolIdType FindLogicalPool(const std::string &logicalPoolName,
         const std::string &physicalPoolName) const override;
