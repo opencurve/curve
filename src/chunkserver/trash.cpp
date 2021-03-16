@@ -121,13 +121,15 @@ int Trash::RecycleCopySet(const std::string &dirPath) {
                      << trashPath_;
         return -1;
     }
-
-    if (0 != localFileSystem_->Rename(dirPath, dst)) {
-        LOG(ERROR) << "rename " << dirPath << " to " << dst << " error";
-        return -1;
+    {
+        LockGuard lg(mtx_);
+        if (0 != localFileSystem_->Rename(dirPath, dst)) {
+            LOG(ERROR) << "rename " << dirPath << " to " << dst << " error";
+            return -1;
+        }
+        uint32_t chunkNum = CountChunkNumInCopyset(dst);
+        chunkNum_.fetch_add(chunkNum);
     }
-    uint32_t chunkNum = CountChunkNumInCopyset(dst);
-    chunkNum_.fetch_add(chunkNum);
     LOG(INFO) << "Recycle copyset success. Copyset path: " << dst
               << ", current num of chunks in trash: " << chunkNum_.load();
     return 0;
@@ -256,6 +258,7 @@ bool Trash::RecycleChunksAndWALInDir(
 
 bool Trash::RecycleChunkfile(
     const std::string &filepath, const std::string &filename) {
+    LockGuard lg(mtx_);
     if (0 != chunkFilePool_->RecycleFile(filepath)) {
         LOG(ERROR) << "Trash  failed recycle chunk " << filepath
                     << " to FilePool";

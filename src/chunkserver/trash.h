@@ -32,6 +32,8 @@
 
 using ::curve::common::Thread;
 using ::curve::common::Atomic;
+using ::curve::common::Mutex;
+using ::curve::common::LockGuard;
 using ::curve::common::InterruptibleSleeper;
 
 namespace curve {
@@ -163,6 +165,8 @@ class Trash {
 
     // 回收站中chunk的个数
     Atomic<uint32_t> chunkNum_;
+
+    Mutex mtx_;
 
     // 本地文件系统
     std::shared_ptr<LocalFileSystem> localFileSystem_;
