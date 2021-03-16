@@ -32,6 +32,22 @@ COPTS = [
     "-std=c++11",
 ]
 
+ARM64_COPTS = [
+    "-DGFLAGS=gflags",
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-pthread",
+    "-Wsign-compare",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+    "-Woverloaded-virtual",
+    "-Wnon-virtual-dtor",
+    "-Wno-missing-field-initializers",
+    "-std=c++11",
+]
+
 cc_library(
     name = "chunkserver-lib",
     srcs = glob(
@@ -43,7 +59,11 @@ cc_library(
     hdrs = glob([
         "*.h",
     ]),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     linkopts = [
         "-lrt",
         "-lssl",
@@ -87,7 +107,11 @@ cc_library(
     hdrs = glob([
         "*.h",
     ]),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     defines = ["UNIT_TEST"],
     linkopts = [
         "-lrt",
@@ -126,7 +150,11 @@ cc_binary(
     srcs = glob([
         "chunkserver_main.cpp",
     ]),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     linkopts = [
         "-lrt",
         "-lssl",
@@ -155,4 +183,14 @@ cc_binary(
         "//src/common:curve_s3_adapter",
         "//src/fs:lfs",
     ],
+)
+
+config_setting(
+    name = "arm64_build",
+    values = {"cpu": "aarch64"},
+)
+
+config_setting(
+    name = "x86_build",
+    values = {"cpu": "x86_64"},
 )

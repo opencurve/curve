@@ -34,6 +34,23 @@ COPTS = [
     "-std=c++11",
 ]
 
+ARM64_COPTS = [
+    "-DGFLAGS=gflags",
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-DNDEBUG",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-pthread",
+    "-Wsign-compare",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+    "-Woverloaded-virtual",
+    "-Wnon-virtual-dtor",
+    "-Wno-missing-field-initializers",
+    "-std=c++11",
+]
+
 cc_binary(
     name = "curve_client_workflow",
     srcs = glob(["*.cpp",
@@ -58,7 +75,11 @@ cc_binary(
         "//proto:schedule_cc_proto",
         "//src/client:curve_client"
     ],
-    copts = COPTS
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    })
 )
 
 # https://docs.bazel.build/versions/master/be/c-cpp.html#cc_library
@@ -90,7 +111,11 @@ cc_library(
         "//src/client:curve_client"
     ],
     visibility = ["//visibility:public"],
-    copts = COPTS
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    })
 )
 
 
@@ -116,7 +141,11 @@ cc_binary(
         "//proto:schedule_cc_proto",
         "//src/client:curve_client"
     ],
-    copts = COPTS
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    })
 )
 
 #CI不需要跑snap workflow
@@ -141,5 +170,19 @@ cc_binary(
 #        "//proto:chunkserver-cc-protos",
 #        "//src/client:curve_client"
 #    ],
-#    copts = COPTS
+#    copts = select({
+#        ":arm64_build": ARM64_COPTS,
+#        ":x86_build": COPTS,
+#        "//conditions:default": COPTS,
+#    })
 #)
+
+config_setting(
+    name = "arm64_build",
+    values = {"cpu": "aarch64"},
+)
+
+config_setting(
+    name = "x86_build",
+    values = {"cpu": "x86_64"},
+)

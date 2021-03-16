@@ -33,6 +33,23 @@ COPTS = [
     "-std=c++11",
 ]
 
+ARM64_COPTS = [
+    "-DGFLAGS=gflags",
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-DNDEBUG",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-pthread",
+    "-Wsign-compare",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+    "-Woverloaded-virtual",
+    "-Wnon-virtual-dtor",
+    "-Wno-missing-field-initializers",
+    "-std=c++11",
+]
+
 cc_library(
     name = "snapshot_server_lib",
     srcs = glob([
@@ -48,7 +65,11 @@ cc_library(
     exclude = [
         "main.cpp",
     ]),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     linkopts = [
         "-lrt",
         "-lssl",
@@ -90,7 +111,11 @@ cc_binary(
         "*.cpp",
         "*.h"
     ]),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     linkopts = [
         "-lrt",
         "-lssl",
@@ -118,4 +143,14 @@ cc_binary(
         "//src/client:curve_client",
         "//src/leader_election:leader_election"
     ],
+)
+
+config_setting(
+    name = "arm64_build",
+    values = {"cpu": "aarch64"},
+)
+
+config_setting(
+    name = "x86_build",
+    values = {"cpu": "x86_64"},
 )

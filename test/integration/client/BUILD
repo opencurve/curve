@@ -33,13 +33,33 @@ COPTS = [
     "-Wno-missing-field-initializers"
 ]
 
+ARM64_COPTS = [
+    "-DGFLAGS=gflags",
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-DNDEBUG",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-pthread",
+    "-Wsign-compare",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+    "-Woverloaded-virtual",
+    "-Wnon-virtual-dtor",
+    "-Wno-missing-field-initializers"
+]
+
 cc_test(
     name = "client_integration_test_mds",
     srcs = glob([
         "*.h",
         "mds_exception_test.cpp"],
     ),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     defines = ["FIU_ENABLE"],
     linkopts = ["-lfiu",
     ],
@@ -70,7 +90,11 @@ cc_test(
         "chunkserver_exception_test.cpp"
         ],
     ),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     defines = ["FIU_ENABLE"],
     linkopts = ["-lfiu",
     ],
@@ -100,7 +124,11 @@ cc_test(
         "unstable_chunkserver_exception_test.cpp"
         ],
     ),
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     defines = ["FIU_ENABLE"],
     linkopts = ["-lfiu",
     ],
@@ -121,4 +149,14 @@ cc_test(
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
     ],
+)
+
+config_setting(
+    name = "arm64_build",
+    values = {"cpu": "aarch64"},
+)
+
+config_setting(
+    name = "x86_build",
+    values = {"cpu": "x86_64"},
 )

@@ -1,0 +1,97 @@
+diff --git a/BUILD b/BUILD
+index 74f594e..2926c61 100644
+--- a/BUILD
++++ b/BUILD
+@@ -4,6 +4,47 @@ exports_files(["LICENSE"])
+ 
+ load(":bazel/braft.bzl", "braft_proto_library")
+ 
++COPTS = [
++    "-DGFLAGS=gflags",
++    "-DOS_LINUX",
++    "-DSNAPPY",
++    "-DHAVE_SSE42",
++    "-DNDEBUG",
++    "-D__STDC_FORMAT_MACROS",
++    "-fno-omit-frame-pointer",
++    "-momit-leaf-frame-pointer",
++    "-msse4.2",
++    "-pthread",
++    "-Werror",
++    "-Wsign-compare",
++    "-Wno-unused-parameter",
++    "-Wno-unused-variable",
++    "-Woverloaded-virtual",
++    "-Wnon-virtual-dtor",
++    "-Wno-missing-field-initializers",
++    "-std=c++11",
++]
++
++ARM64_COPTS = [
++    "-DGFLAGS=gflags",
++    "-DOS_LINUX",
++    "-DSNAPPY",
++    "-DNDEBUG",
++    "-D__STDC_FORMAT_MACROS",
++    "-fno-omit-frame-pointer",
++    "-momit-leaf-frame-pointer",
++    "-pthread",
++    "-Werror",
++    "-Wsign-compare",
++    "-Wno-aligned-new",
++    "-Wno-unused-parameter",
++    "-Wno-unused-variable",
++    "-Woverloaded-virtual",
++    "-Wnon-virtual-dtor",
++    "-Wno-missing-field-initializers",
++    "-std=c++11",
++]
++
+ cc_library(
+     name = "braft",
+     srcs = glob([
+@@ -18,26 +59,11 @@ cc_library(
+         "src",
+     ],
+     defines = [],
+-    copts = [
+-        "-DGFLAGS=gflags",
+-        "-DOS_LINUX",
+-        "-DSNAPPY",
+-        "-DHAVE_SSE42",
+-        "-DNDEBUG",
+-        "-D__STDC_FORMAT_MACROS",
+-        "-fno-omit-frame-pointer",
+-        "-momit-leaf-frame-pointer",
+-        "-msse4.2",
+-        "-pthread",
+-        "-Werror",
+-        "-Wsign-compare",
+-        "-Wno-unused-parameter",
+-        "-Wno-unused-variable",
+-        "-Woverloaded-virtual",
+-        "-Wnon-virtual-dtor",
+-        "-Wno-missing-field-initializers",
+-        "-std=c++11",
+-    ],
++    copts = select({
++        ":arm64_build": ARM64_COPTS,
++        ":x86_build": COPTS,
++        "//conditions:default": COPTS,
++    }),
+     linkopts = [
+         "-lm",
+         "-lpthread",
+@@ -62,3 +88,12 @@ braft_proto_library(
+     visibility = ["//visibility:public"],
+ )
+ 
++config_setting(
++    name = "arm64_build",
++    values = {"cpu": "aarch64"},
++)
++
++config_setting(
++    name = "x86_build",
++    values = {"cpu": "x86_64"},
++)

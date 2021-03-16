@@ -106,13 +106,13 @@ function build_curvefs_python() {
             bazel build curvefs_python:curvefs --copt -DHAVE_ZLIB=1 --copt -O2 -s \
                 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
                 --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
-                -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
+                -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} --cpu ${arch} \
 		${bazelflags}
         else
             bazel build curvefs_python:curvefs --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s \
                 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
                 --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
-                -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
+                -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} --cpu ${arch} \
 		${bazelflags}
         fi
 
@@ -178,12 +178,18 @@ else
     bazelflags='--copt -faligned-new'
 fi
 
+if [[ `uname -i` == 'aarch64' || `uname -m` == 'aarch64' ]]; then
+  arch=aarch64
+else
+  arch=x86_64
+fi
+
 if [ "$1" = "debug" ]
 then
 bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_version} \
---linkopt -L/usr/local/lib ${bazelflags}
+--linkopt -L/usr/local/lib --cpu ${arch} ${bazelflags}
 if [ $? -ne 0 ]
 then
     echo "build phase1 failed"
@@ -200,7 +206,7 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --compilation_mode=dbg 
 --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
 -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
---linkopt -L/usr/local/lib ${bazelflags}
+--linkopt -L/usr/local/lib --cpu ${arch} ${bazelflags}
 if [ $? -ne 0 ]
 then
     echo "build phase2 failed"
@@ -210,7 +216,7 @@ else
 bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_version} \
---linkopt -L/usr/local/lib ${bazelflags}
+--linkopt -L/usr/local/lib --cpu ${arch} ${bazelflags}
 if [ $? -ne 0 ]
 then
     echo "build phase1 failed"
@@ -227,7 +233,7 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --copt -O2 -s \
 --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
 -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
---linkopt -L/usr/local/lib ${bazelflags}
+--linkopt -L/usr/local/lib --cpu ${arch} ${bazelflags}
 if [ $? -ne 0 ]
 then
     echo "build phase2 failed"

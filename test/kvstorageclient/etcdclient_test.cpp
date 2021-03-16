@@ -62,13 +62,24 @@ class TestEtcdClinetImp : public ::testing::Test {
         if (0 > etcdPid) {
             ASSERT_TRUE(false);
         } else if (0 == etcdPid) {
-            std::string runEtcd =
-                std::string("etcd --listen-client-urls") +
-                std::string(" 'http://localhost:2377'") +
-                std::string(" --advertise-client-urls") +
-                std::string(" 'http://localhost:2377'") +
-                std::string(" --listen-peer-urls 'http://localhost:2376'") +
-                std::string(" --name testEtcdClinetImp");
+            #ifdef __aarch64__
+              std::string runEtcd =
+                  std::string("ETCD_UNSUPPORTED_ARCH=arm64") +
+                  std::string(" etcd --listen-client-urls") +
+                  std::string(" 'http://localhost:2377'") +
+                  std::string(" --advertise-client-urls") +
+                  std::string(" 'http://localhost:2377'") +
+                  std::string(" --listen-peer-urls 'http://localhost:2376'") +
+                  std::string(" --name testEtcdClinetImp");
+            #else
+              std::string runEtcd =
+                  std::string("etcd --listen-client-urls") +
+                  std::string(" 'http://localhost:2377'") +
+                  std::string(" --advertise-client-urls") +
+                  std::string(" 'http://localhost:2377'") +
+                  std::string(" --listen-peer-urls 'http://localhost:2376'") +
+                  std::string(" --name testEtcdClinetImp");
+            #endif
             /**
              *  重要提示！！！！
              *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！

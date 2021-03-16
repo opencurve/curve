@@ -35,6 +35,23 @@ COPTS = [
     "-std=c++11",
 ]
 
+ARM64_COPTS = [
+    "-DGFLAGS=gflags",
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-DNDEBUG",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-pthread",
+    "-Wsign-compare",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+    "-Woverloaded-virtual",
+    "-Wnon-virtual-dtor",
+    "-Wno-missing-field-initializers",
+    "-std=c++11",
+]
+
 cc_library(
     name = "curve_client",
     srcs = glob(["*.cpp"],
@@ -60,9 +77,45 @@ cc_library(
     linkopts = [
         "-luuid"
     ],
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     visibility = ["//visibility:public"],
 )
+
+CBD_COPTS = [
+    "-DGFLAGS=gflags",
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-DHAVE_ZLIB",
+    "-DHAVE_SSE42",
+    "-DNDEBUG",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-msse4.2",
+    "-pthread",
+    "-Wsign-compare",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+    "-Wno-missing-field-initializers",
+]
+
+ARM64_CBD_COPTS = [
+    "-DGFLAGS=gflags",
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-DHAVE_ZLIB",
+    "-DNDEBUG",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-pthread",
+    "-Wsign-compare",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+    "-Wno-missing-field-initializers",
+]
 
 cc_library(
     name = "cbd",
@@ -73,22 +126,11 @@ cc_library(
     hdrs = glob([
         "libcbd.h",
     ]),
-    copts = [
-        "-DGFLAGS=gflags",
-        "-DOS_LINUX",
-        "-DSNAPPY",
-        "-DHAVE_ZLIB",
-        "-DHAVE_SSE42",
-        "-DNDEBUG",
-        "-fno-omit-frame-pointer",
-        "-momit-leaf-frame-pointer",
-        "-msse4.2",
-        "-pthread",
-        "-Wsign-compare",
-        "-Wno-unused-parameter",
-        "-Wno-unused-variable",
-        "-Wno-missing-field-initializers",
-    ],
+    copts = select({
+        ":arm64_build": ARM64_CBD_COPTS,
+        ":x86_build": CBD_COPTS,
+        "//conditions:default": CBD_COPTS,
+    }),
     linkopts = [
         "-lrt",
         "-lssl",
@@ -131,6 +173,20 @@ cc_library(
         "//proto:chunkserver-cc-protos",
         "//src/client:curve_client"
     ],
-    copts = COPTS,
+    copts = select({
+        ":arm64_build": ARM64_COPTS,
+        ":x86_build": COPTS,
+        "//conditions:default": COPTS,
+    }),
     visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "arm64_build",
+    values = {"cpu": "aarch64"},
+)
+
+config_setting(
+    name = "x86_build",
+    values = {"cpu": "x86_64"},
 )
