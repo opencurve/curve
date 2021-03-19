@@ -46,6 +46,7 @@
 #include "src/tools/metric_client.h"
 #include "src/tools/metric_name.h"
 #include "src/tools/snapshot_clone_client.h"
+#include "src/chunkserver/uri_paser.h"
 
 using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::DiskState;
