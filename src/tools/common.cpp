@@ -38,5 +38,15 @@ void TrimMetricString(std::string* str) {
     str->erase(str->find_last_not_of("\"") + 1);
 }
 
+bool StringToBool(const std::string& strValue, bool defaultValue) {
+    std::string str = strValue;
+    transform(str.begin(), str.end(), str.begin(), ::tolower);
+
+    bool istrue = (str == "true") || (str == "yes") || (str == "1");
+    bool isfalse = (str == "false") || (str == "no") || (str == "0");
+    bool ret = istrue ? true : isfalse ? false : defaultValue;
+    return ret;
+}
+
 }  // namespace tool
 }  // namespace curve
