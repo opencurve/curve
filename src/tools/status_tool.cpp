@@ -37,6 +37,8 @@ DECLARE_string(etcdAddr);
 DECLARE_string(mdsDummyPort);
 DECLARE_bool(detail);
 
+const char* kProtocalCurve = "curve";
+
 namespace curve {
 namespace tool {
 
@@ -669,93 +671,78 @@ int StatusTool::ClientListCmd() {
     return 0;
 }
 
-int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
-    std::cout << "ChunkServer status:" << std::endl;
-    std::string version;
-    std::vector<std::string> failedList;
-    int res = versionTool_->GetAndCheckChunkServerVersion(&version,
-                                                          &failedList);
+int CheckUseWalPool(const std::map<PoolIdType, std::vector<ChunkServerInfo>>
+                     &poolChunkservers,
+                     bool *useWalPool,
+                     bool *useChunkFilePoolAsWalPool,
+                     std::shared_ptr<MetricClient> metricClient) {
     int ret = 0;
-    if (res != 0) {
-        std::cout << "GetAndCheckChunkserverVersion fail" << std::endl;
-        ret = -1;
-    } else {
-        std::cout << "version: " << version << std::endl;
-        if (!failedList.empty()) {
-            versionTool_->PrintFailedList(failedList);
+    if (!poolChunkservers.empty()) {
+        ChunkServerInfo chunkserver = poolChunkservers.begin()->second[0];
+        std::string csAddr = chunkserver.hostip()
+                            + ":" + std::to_string(chunkserver.port());
+        // check whether use chunkfilepool
+        std::string metricValue;
+        std::string metricName = GetUseWalPoolName(csAddr);
+        MetricRet res = metricClient->GetConfValueFromMetric(csAddr,
+                                            metricName, &metricValue);
+        if (res != MetricRet::kOK) {
+            std::cout << "Get use chunkfilepool conf "
+                    << csAddr << " fail!" << std::endl;
             ret = -1;
         }
+        std::string raftLogProtocol = curve::chunkserver::UriParser
+                                      ::GetProtocolFromUri(metricValue);
+        *useWalPool =  kProtocalCurve == raftLogProtocol ? true : false;
+
+        // check whether use chunkfilepool as walpool from chunkserver conf metric  // NOLINT
+        metricName = GetUseChunkFilePoolAsWalPoolName(csAddr);
+        res = metricClient->GetConfValueFromMetric(csAddr, metricName,
+                                                    &metricValue);
+        if (res != MetricRet::kOK) {
+            std::cout << "Get use chunkfilepool as walpool conf "
+                    << csAddr << " fail!" << std::endl;
+            ret = -1;
+        }
+        *useChunkFilePoolAsWalPool = StringToBool(metricValue,
+                                                 useChunkFilePoolAsWalPool);
     }
-    std::map<PoolIdType, std::vector<ChunkServerInfo>> poolChunkservers;
-    res = mdsClient_->ListChunkServersInCluster(&poolChunkservers);
-    if (res != 0) {
-        std::cout << "ListChunkServersInCluster fail!" << std::endl;
-        return -1;
-    }
+    return ret;
+}
+
+int PrintChunkserverOnlineStatus(
+    const std::map<PoolIdType, std::vector<ChunkServerInfo>> &poolChunkservers,
+    std::shared_ptr<CopysetCheckCore> copysetCheckCore,
+    std::shared_ptr<MDSClient> mdsClient) {
+    int ret = 0;
     uint64_t total = 0;
     uint64_t online = 0;
     uint64_t offline = 0;
-    std::map<PoolIdType, std::vector<uint64_t>> poolChunkLeftSize;
-    std::map<PoolIdType, std::vector<uint64_t>> poolWalSegmentLeftSize;
     std::vector<ChunkServerIdType> offlineCs;
-    // 获取chunkserver的online状态
     for (const auto& poolChunkserver : poolChunkservers) {
-        std::vector<uint64_t> chunkLeftSize;
-        std::vector<uint64_t> walSegmentLeftSize;
         for (const auto& chunkserver : poolChunkserver.second) {
             total++;
             std::string csAddr = chunkserver.hostip()
                             + ":" + std::to_string(chunkserver.port());
-            if (copysetCheckCore_->CheckChunkServerOnline(csAddr)) {
+            if (copysetCheckCore->CheckChunkServerOnline(csAddr)) {
                 online++;
             } else {
                 offline++;
                 offlineCs.emplace_back(chunkserver.chunkserverid());
             }
-            if (!checkLeftSize) {
-                continue;
-            }
-            std::string metricName = GetCSLeftChunkName(csAddr);
-            uint64_t chunkNum;
-            MetricRet res = metricClient_->GetMetricUint(csAddr,
-                                                        metricName, &chunkNum);
-            if (res != MetricRet::kOK) {
-                std::cout << "Get left chunk size of chunkserver " << csAddr
-                        << " fail!" << std::endl;
-                ret = -1;
-                continue;
-            }
-            uint64_t size = chunkNum * FLAGS_chunkSize;
-            chunkLeftSize.emplace_back(size / mds::kGB);
-            // walfilepool left size
-            metricName = GetCSLeftWalSegmentName(csAddr);
-            uint64_t walSegmentNum;
-            res = metricClient_->GetMetricUint(csAddr, metricName,
-                                                    &walSegmentNum);
-            if (res != MetricRet::kOK) {
-                std::cout << "Get left wal segment size of chunkserver "
-                          << csAddr << " fail!" << std::endl;
-                ret = -1;
-                continue;
-            }
-            size = walSegmentNum * FLAGS_walSegmentSize;
-            walSegmentLeftSize.emplace_back(size / mds::kGB);
         }
-        poolChunkLeftSize.emplace(poolChunkserver.first, chunkLeftSize);
-        poolWalSegmentLeftSize.emplace(poolChunkserver.first,
-                                                    walSegmentLeftSize);
     }
-    // 获取offline chunkserver的恢复状态
+    // get the recover status of offline chunkservers
     std::vector<ChunkServerIdType> offlineRecover;
     if (offlineCs.size() > 0) {
-        // 获取offline中的chunkserver恢复状态
         std::map<ChunkServerIdType, bool> statusMap;
-        int res = mdsClient_->QueryChunkServerRecoverStatus(
+        int res = mdsClient->QueryChunkServerRecoverStatus(
             offlineCs, &statusMap);
         if (res != 0) {
             std::cout << "query offlinne chunkserver recover status fail";
+            ret =  -1;
         } else {
-            // 区分正在恢复的和未恢复的
+            // Distinguish between recovering and unrecovered
             for (auto it = statusMap.begin(); it != statusMap.end(); ++it) {
                 if (it->second) {
                     offlineRecover.emplace_back(it->first);
@@ -763,7 +750,6 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
             }
         }
     }
-
     std::cout << "chunkserver: total num = " << total
             << ", online = " << online
             << ", offline = " << offline
@@ -780,12 +766,121 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
         }
     }
     std::cout << "])" << std::endl;
+    return ret;
+}
+
+int GetChunkserverLeftSize(
+    const std::map<PoolIdType, std::vector<ChunkServerInfo>> &poolChunkservers,
+    std::map<PoolIdType, std::vector<uint64_t>> *poolChunkLeftSize,
+    std::map<PoolIdType, std::vector<uint64_t>> *poolWalSegmentLeftSize,
+    bool useWalPool,
+    bool useChunkFilePoolAsWalPool,
+    std::shared_ptr<MetricClient> metricClient) {
+    int ret = 0;
+    for (const auto& poolChunkserver : poolChunkservers) {
+        std::vector<uint64_t> chunkLeftSize;
+        std::vector<uint64_t> walSegmentLeftSize;
+        for (const auto& chunkserver : poolChunkserver.second) {
+            std::string csAddr = chunkserver.hostip()
+                            + ":" + std::to_string(chunkserver.port());
+            std::string metricName = GetCSLeftChunkName(csAddr);
+            uint64_t chunkNum;
+            MetricRet res = metricClient->GetMetricUint(csAddr,
+                                                        metricName, &chunkNum);
+            if (res != MetricRet::kOK) {
+                std::cout << "Get left chunk size of chunkserver " << csAddr
+                        << " fail!" << std::endl;
+                ret = -1;
+                continue;
+            }
+            uint64_t size = chunkNum * FLAGS_chunkSize;
+            chunkLeftSize.emplace_back(size / mds::kGB);
+
+            // walfilepool left size
+            if (useWalPool && !useChunkFilePoolAsWalPool) {
+                metricName = GetCSLeftWalSegmentName(csAddr);
+                uint64_t walSegmentNum;
+                res = metricClient->GetMetricUint(csAddr, metricName,
+                                                        &walSegmentNum);
+                if (res != MetricRet::kOK) {
+                    std::cout << "Get left wal segment size of chunkserver "
+                            << csAddr << " fail!" << std::endl;
+                    ret = -1;
+                    continue;
+                }
+                size = walSegmentNum * FLAGS_walSegmentSize;
+                walSegmentLeftSize.emplace_back(size / mds::kGB);
+            }
+        }
+        poolChunkLeftSize->emplace(poolChunkserver.first, chunkLeftSize);
+        poolWalSegmentLeftSize->emplace(poolChunkserver.first,
+                                                    walSegmentLeftSize);
+    }
+    return ret;
+}
+
+int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
+    // get and check chunkserver version
+    std::cout << "ChunkServer status:" << std::endl;
+    std::string version;
+    std::vector<std::string> failedList;
+    int res = versionTool_->GetAndCheckChunkServerVersion(&version,
+                                                          &failedList);
+    int ret = 0;
+    if (res != 0) {
+        std::cout << "GetAndCheckChunkserverVersion fail" << std::endl;
+        ret = -1;
+    } else {
+        std::cout << "version: " << version << std::endl;
+        if (!failedList.empty()) {
+            versionTool_->PrintFailedList(failedList);
+            ret = -1;
+        }
+    }
+    // list chunkservers in cluster group by poolid
+    std::map<PoolIdType, std::vector<ChunkServerInfo>> poolChunkservers;
+    res = mdsClient_->ListChunkServersInCluster(&poolChunkservers);
+    if (res != 0) {
+        std::cout << "ListChunkServersInCluster fail!" << std::endl;
+        return -1;
+    }
+
+    // get chunkserver online status
+    ret = PrintChunkserverOnlineStatus(poolChunkservers,
+                                       copysetCheckCore_,
+                                       mdsClient_);
     if (!checkLeftSize) {
         return ret;
     }
 
+    bool useWalPool = false;
+    bool useChunkFilePoolAsWalPool = true;
+    // check use walpool
+    ret = CheckUseWalPool(poolChunkservers, &useWalPool,
+                          &useChunkFilePoolAsWalPool, metricClient_);
+    // get chunkserver left size
+    std::map<PoolIdType, std::vector<uint64_t>> poolChunkLeftSize;
+    std::map<PoolIdType, std::vector<uint64_t>> poolWalSegmentLeftSize;
+    ret = GetChunkserverLeftSize(poolChunkservers,
+                                 &poolChunkLeftSize,
+                                 &poolWalSegmentLeftSize,
+                                 useWalPool,
+                                 useChunkFilePoolAsWalPool,
+                                 metricClient_);
+    if (0 != ret) {
+        return ret;
+    }
+    // print filepool left size
     PrintCsLeftSizeStatistics("chunkfilepool", poolChunkLeftSize);
-    PrintCsLeftSizeStatistics("walfilepool", poolWalSegmentLeftSize);
+    if (useWalPool && !useChunkFilePoolAsWalPool) {
+        PrintCsLeftSizeStatistics("walfilepool", poolWalSegmentLeftSize);
+    } else if (useChunkFilePoolAsWalPool) {
+        std::cout << "No walpool left size fount, "
+                  << "use chunkfilepool as walpool!\n";
+    } else {
+        std::cout << "No walpool left size fount, "
+                  << "no walpool used!\n";
+    }
     return ret;
 }
 

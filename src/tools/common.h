@@ -25,6 +25,7 @@
 
 #include <gflags/gflags.h>
 #include <string>
+#include <algorithm>
 
 DECLARE_uint32(logicalPoolId);
 DECLARE_uint32(copysetId);
@@ -38,6 +39,14 @@ namespace tool {
  *  @param[out] str 要格式化的string
  */
 void TrimMetricString(std::string* str);
+
+/**
+ *  @brief convert string to bool
+ *  @param str: the bool string, true/True etc.
+ *  @param value: the default boolvalue
+ *  @return bool value
+ */
+bool StringToBool(const std::string& strValue, bool defaultValue);
 
 }  // namespace tool
 }  // namespace curve
