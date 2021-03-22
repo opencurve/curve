@@ -30,8 +30,11 @@ class NbdThrash:
         rs = shell_operator.ssh_exec(self.ssh, cmd)
         assert rs[3] == 0,"create nbd fail：%s"%rs[1]
 
-    def nbd_map(self):
-        cmd = "sudo curve-nbd map cbd:pool1//%s_%s_ >> /data/log/curve/curve-nbd.console.log 2>&1"%(self.name,self.user)
+    def nbd_map(self,dev=None):
+        if dev:
+            cmd = "sudo curve-nbd map cbd:pool1//%s_%s_ --device /dev/%s  >> /data/log/curve/curve-nbd.console.log 2>&1"%(self.name,self.user,dev)
+        else:
+            cmd = "sudo curve-nbd map cbd:pool1//%s_%s_   >> /data/log/curve/curve-nbd.console.log 2>&1"%(self.name,self.user)
         rs = shell_operator.ssh_exec(self.ssh, cmd)
         assert rs[3] == 0,"map nbd fail：%s"%rs[1]
     
@@ -403,7 +406,8 @@ def init_nbd_vol(check_md5=True,lazy="True"):
         thrash = NbdThrash(ssh,name)
         vol_size = 10 #GB
         thrash.nbd_create(vol_size)
-        thrash.nbd_map()
+        nbd_dev = "nbd3"
+        thrash.nbd_map(nbd_dev)
         time.sleep(5)
         thrash.nbd_getdev()
         if check_md5 == True:
