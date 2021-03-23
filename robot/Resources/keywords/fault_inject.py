@@ -1973,7 +1973,7 @@ def clean_curve_data():
     ori_cmd = "curve_ops_tool list -fileName=/nova |grep Total"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     if "".join(rs[1]).strip() == "Total file number: 0":
-        return pass
+        return True
     else:
         ori_cmd = "curve_ops_tool list -fileName=/nova"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
