@@ -26,7 +26,7 @@ class NbdThrash:
         self.check_md5 = ""
 
     def nbd_create(self,vol_size):
-        cmd = "curve create --filename /%s --length %s --user test"%(self.name,vol_size)
+        cmd = "curve create --filename /%s --length %s --user test --stripeUnit 2097152  --stripeCount 4"%(self.name,vol_size)
         rs = shell_operator.ssh_exec(self.ssh, cmd)
         assert rs[3] == 0,"create nbd fail：%s"%rs[1]
 

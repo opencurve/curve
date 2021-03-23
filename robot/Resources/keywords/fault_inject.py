@@ -426,10 +426,10 @@ def clean_nbd():
 def map_nbd():
     client_host = config.client_list[0]
     ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
-    cmd = "curve create --filename /fiofile --length 10 --user test"
+    cmd = "curve create --filename /fiofile --length 10 --user test --stripeUnit 2097152  --stripeCount 4"
     rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"create /fiofile fail：%s"%rs[2]
-    cmd = "curve create --filename /vdbenchfile --length 10 --user test"
+    cmd = "curve create --filename /vdbenchfile --length 10 --user test --stripeUnit 2097152  --stripeCount 4"
     rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"create /vdbenchfile fail：%s"%rs[2]
     time.sleep(3)
@@ -1973,7 +1973,7 @@ def clean_curve_data():
     ori_cmd = "curve_ops_tool list -fileName=/nova |grep Total"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     if "".join(rs[1]).strip() == "Total file number: 0":
-        return pass
+        return True
     else:
         ori_cmd = "curve_ops_tool list -fileName=/nova"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
