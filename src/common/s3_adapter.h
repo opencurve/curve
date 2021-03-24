@@ -50,6 +50,7 @@
 #include <aws/s3/model/CreateBucketConfiguration.h>  //NOLINT
 #include <aws/core/utils/threading/Executor.h> // NOLINT
 #include "src/common/configuration.h"
+#include "src/common/throttle.h"
 
 namespace curve {
 namespace common {
@@ -111,10 +112,14 @@ class S3Adapter {
      */
     virtual int PutObject(const Aws::String &key, const std::string &data);
     /**
-     * 从对象存储读取数据
-     * @param 对象名
-     * @param 保存数据的指针
-     * @return 0 读取成功/ -1 读取失败
+     * Get object from s3,
+     * note：this function is only used for control plane to get small data,
+     * it only has qps limit and dosn't have bandwidth limit.
+     * For the data plane, please use the following two function.
+     *
+     * @param object name
+     * @param pointer which contain the data
+     * @return 0 success / -1 fail
      */
     virtual int GetObject(const Aws::String &key, std::string *data);
     /**
@@ -212,6 +217,8 @@ class S3Adapter {
     Aws::Client::ClientConfiguration *clientCfg_;
     Aws::S3::S3Client *s3Client_;
     Configuration conf_;
+
+    Throttle *throttle_;
 };
 }  // namespace common
 }  // namespace curve
