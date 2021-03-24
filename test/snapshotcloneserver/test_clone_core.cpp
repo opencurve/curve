@@ -761,7 +761,7 @@ TEST_F(TestCloneCoreImpl,
     uint64_t time = 100;
     Status status = Status::done;
     SnapshotInfo info(uuid, user, fileName, desc,
-        seqnum, chunksize, segmentsize, filelength, time, status);
+        seqnum, chunksize, segmentsize, filelength, 0, 0, time, status);
 
     EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
         .WillRepeatedly(DoAll(
@@ -1131,7 +1131,7 @@ void TestCloneCoreImpl::MockBuildFileInfoFromSnapshotSuccess(
     uint64_t time = 100;
     Status status = Status::done;
     SnapshotInfo info(uuid, user, fileName, desc,
-        seqnum, chunksize, segmentsize, filelength, time, status);
+        seqnum, chunksize, segmentsize, filelength, 0, 0, time, status);
 
     EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
         .WillRepeatedly(DoAll(
@@ -1189,8 +1189,8 @@ void TestCloneCoreImpl::MockCreateCloneFileSuccess(
     std::shared_ptr<CloneTaskInfo> task) {
     FInfo fInfoOut;
     fInfoOut.id = 100;
-    EXPECT_CALL(*client_, CreateCloneFile(_, _, _, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<6>(fInfoOut),
+    EXPECT_CALL(*client_, CreateCloneFile(_, _, _, _, _, _, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<8>(fInfoOut),
                 Return(LIBCURVE_ERROR::OK)));
 }
 
@@ -1304,7 +1304,7 @@ void TestCloneCoreImpl::MockBuildFileInfoFromSnapshotFail(
     uint64_t time = 100;
     Status status = Status::done;
     SnapshotInfo info(uuid, user, fileName, desc,
-        seqnum, chunksize, segmentsize, filelength, time, status);
+        seqnum, chunksize, segmentsize, filelength, 0, 0, time, status);
 
     EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
         .WillRepeatedly(DoAll(
@@ -1351,8 +1351,8 @@ void TestCloneCoreImpl::MockCreateCloneFileFail(
     std::shared_ptr<CloneTaskInfo> task) {
     FInfo fInfoOut;
     fInfoOut.id = 100;
-    EXPECT_CALL(*client_, CreateCloneFile(_, _, _, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<6>(fInfoOut),
+    EXPECT_CALL(*client_, CreateCloneFile(_, _, _, _, _, _, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<8>(fInfoOut),
             Return(-LIBCURVE_ERROR::FAILED)));
 }
 

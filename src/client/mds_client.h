@@ -272,6 +272,8 @@ class MDSClient {
      * @param:size 文件大小
      * @param:sn 版本号
      * @param:chunksize是创建文件的chunk大小
+     * @param stripeUnit stripe size
+     * @param stripeCount stripe count
      * @param[out] destFileId 创建的目标文件的Id
      *
      * @return 错误码
@@ -282,6 +284,8 @@ class MDSClient {
                                    uint64_t size,
                                    uint64_t sn,
                                    uint32_t chunksize,
+                                   uint64_t stripeUnit,
+                                   uint64_t stripeCount,
                                    FInfo* fileinfo);
 
     /**

@@ -128,10 +128,11 @@ TEST_F(TestCurveFsClientImpl, TestClientInterfaceFail) {
     ASSERT_LT(ret, 0);
 
     ret = client_->CreateCloneFile(
-        "source1", "file1", "user1", 1024, 1, 1024, &fInfo);
+        "source1", "file1", "user1", 1024, 1, 1024, 0, 0, &fInfo);
     ASSERT_LT(ret, 0);
     ret = client_->CreateCloneFile(
-        "source1", "file1", clientOption_.mdsRootUser, 1024, 1, 1024, &fInfo);
+        "source1", "file1", clientOption_.mdsRootUser, 1024, 1, 1024,
+        0, 0, &fInfo);
     ASSERT_LT(ret, 0);
 
     TestClosure *cb = new TestClosure();

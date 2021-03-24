@@ -1667,6 +1667,8 @@ void NameSpaceService::CreateCloneFile(
                             request->filelength(),
                             request->seq(),
                             request->chunksize(),
+                            request->stripeunit(),
+                            request->stripecount(),
                             response->mutable_fileinfo(),
                             request->clonesource(),
                             request->filelength());
