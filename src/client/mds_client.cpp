@@ -809,11 +809,15 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string& source,
                                           const std::string& destination,
                                           const UserInfo_t& userinfo,
                                           uint64_t size, uint64_t sn,
-                                          uint32_t chunksize, FInfo* fileinfo) {
+                                          uint32_t chunksize,
+                                          uint64_t stripeUnit,
+                                          uint64_t stripeCount,
+                                          FInfo* fileinfo) {
     auto task = RPCTaskDefine {
         CreateCloneFileResponse response;
         mdsClientBase_.CreateCloneFile(source, destination, userinfo, size, sn,
-                                       chunksize, &response, cntl, channel);
+                                       chunksize, stripeUnit, stripeCount,
+                                       &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "Create clone file failed, errcorde = "
                          << cntl->ErrorCode()

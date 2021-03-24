@@ -1414,6 +1414,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
               mdsclient_.CreateCloneFile("source", "destination", userinfo,
                                          10 * 1024 * 1024, 0, 4 * 1024 * 1024,
+                                         0, 0,
                                          &finfo));
     // 认证失败
     curve::mds::CreateCloneFileResponse response1;
@@ -1427,6 +1428,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
     ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL,
               mdsclient_.CreateCloneFile("source", "destination", userinfo,
                                          10 * 1024 * 1024, 0, 4 * 1024 * 1024,
+                                         0, 0,
                                          &finfo));
     // 请求成功
     info->set_id(5);
@@ -1446,6 +1448,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
     ASSERT_EQ(LIBCURVE_ERROR::OK,
               mdsclient_.CreateCloneFile("source", "destination", userinfo,
                                          10 * 1024 * 1024, 0, 4 * 1024 * 1024,
+                                         0, 0,
                                          &finfo));
     ASSERT_EQ(5, finfo.id);
     ASSERT_EQ(cloneSource, finfo.sourceInfo.name);
