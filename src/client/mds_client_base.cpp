@@ -296,6 +296,8 @@ void MDSClientBase::CreateCloneFile(const std::string& source,
                                     uint64_t size,
                                     uint64_t sn,
                                     uint32_t chunksize,
+                                    uint64_t stripeUnit,
+                                    uint64_t stripeCount,
                                     CreateCloneFileResponse* response,
                                     brpc::Controller* cntl,
                                     brpc::Channel* channel) {
@@ -306,6 +308,8 @@ void MDSClientBase::CreateCloneFile(const std::string& source,
     request.set_chunksize(chunksize);
     request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
     request.set_clonesource(source);
+    request.set_stripeunit(stripeUnit);
+    request.set_stripecount(stripeCount);
     FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "CreateCloneFile: source = " << source

@@ -361,6 +361,8 @@ class CurveFS {
      * @param length
      * @param seq: version number
      * @param ChunkSizeType: The chunk size of the clone file
+     * @param stripeUnit: stripe size
+     * @param stripeCount: stripe count
      * @param cloneSource: Source file address, only supports CurveFS currently
      * @param cloneLength: Length of source file
      * @param[out] fileInfo: fileInfo of the clone file created
@@ -372,6 +374,8 @@ class CurveFS {
                             uint64_t length,
                             FileSeqType seq,
                             ChunkSizeType chunksize,
+                            uint64_t stripeUnit,
+                            uint64_t stripeCount,
                             FileInfo *fileInfo,
                             const std::string & cloneSource = "",
                             uint64_t cloneLength = 0);
