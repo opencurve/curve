@@ -180,13 +180,15 @@ int CurveFsClientImpl::CreateCloneFile(
     uint64_t size,
     uint64_t sn,
     uint32_t chunkSize,
+    uint64_t stripeUnit,
+    uint64_t stripeCount,
     FInfo* fileInfo) {
     UserInfo userInfo = GetUserInfo(user);
     RetryMethod method = [this, &source, &filename,
-        userInfo, size, sn, chunkSize, fileInfo] () {
+        userInfo, size, sn, chunkSize, stripeUnit, stripeCount, fileInfo] () {
             return snapClient_->CreateCloneFile(source, filename,
                 userInfo, size,
-                sn, chunkSize, fileInfo);
+                sn, chunkSize, stripeUnit, stripeCount, fileInfo);
     };
     RetryCondition condition = [] (int ret) {
         return ret != LIBCURVE_ERROR::OK &&

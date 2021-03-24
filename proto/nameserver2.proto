@@ -434,6 +434,8 @@ message  CreateCloneFileRequest {
     optional string     signature = 7;
     required uint64     date =8;
     required string     cloneSource = 9;
+    optional uint64     stripeUnit = 10;
+    optional uint64     stripeCount = 11;
 }
 
 message CreateCloneFileResponse {

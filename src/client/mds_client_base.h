@@ -286,6 +286,8 @@ class MDSClientBase {
      * @param:size 文件大小
      * @param:sn 版本号
      * @param:chunksize是创建文件的chunk大小
+     * @param stripeUnit stripe size
+     * @param stripeCount stripe count
      * @param[out]: response为该rpc的response，提供给外部处理
      * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
      * @param[in]:channel是当前与mds建立的通道
@@ -296,6 +298,8 @@ class MDSClientBase {
                          uint64_t size,
                          uint64_t sn,
                          uint32_t chunksize,
+                         uint64_t stripeUnit,
+                         uint64_t stripeCount,
                          CreateCloneFileResponse* response,
                          brpc::Controller* cntl,
                          brpc::Channel* channel);
