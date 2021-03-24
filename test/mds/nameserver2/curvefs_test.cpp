@@ -3396,12 +3396,12 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
     // test parm error
     ASSERT_EQ(curvefs_->CreateCloneFile("/file1", "owner1",
                 FileType::INODE_DIRECTORY, kMiniFileLength, kStartSeqNum,
-                curvefs_->GetDefaultChunkSize(), nullptr),
+                curvefs_->GetDefaultChunkSize(), 0, 0, nullptr),
                 StatusCode::kParaError);
 
     ASSERT_EQ(curvefs_->CreateCloneFile("/file1", "owner1",
                 FileType::INODE_PAGEFILE, kMiniFileLength - 1, kStartSeqNum,
-                curvefs_->GetDefaultChunkSize(), nullptr),
+                curvefs_->GetDefaultChunkSize(), 0, 0, nullptr),
                 StatusCode::kParaError);
 
     {
@@ -3412,7 +3412,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
 
         auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    curvefs_->GetDefaultChunkSize(), nullptr);
+                    curvefs_->GetDefaultChunkSize(), 0, 0, nullptr);
         ASSERT_EQ(statusCode, StatusCode::kFileExists);
     }
 
@@ -3424,7 +3424,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
 
         auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    curvefs_->GetDefaultChunkSize(), nullptr);
+                    curvefs_->GetDefaultChunkSize(), 0, 0, nullptr);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
 
@@ -3440,7 +3440,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
 
         auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    curvefs_->GetDefaultChunkSize(), nullptr);
+                    curvefs_->GetDefaultChunkSize(), 0, 0, nullptr);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
 
@@ -3460,7 +3460,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
 
         auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    curvefs_->GetDefaultChunkSize(), nullptr);
+                    curvefs_->GetDefaultChunkSize(), 0, 0, nullptr);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
     {
@@ -3480,7 +3480,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
         FileInfo fileInfo;
         auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    curvefs_->GetDefaultChunkSize(), &fileInfo);
+                    curvefs_->GetDefaultChunkSize(), 0, 0, &fileInfo);
         ASSERT_EQ(statusCode, StatusCode::kOK);
         ASSERT_EQ(fileInfo.filename(), "file1");
         ASSERT_EQ(fileInfo.owner(), "owner1");

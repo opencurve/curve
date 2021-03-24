@@ -219,6 +219,8 @@ class CurveFsClient {
      * @param size 文件大小
      * @param sn 版本号
      * @param chunkSize chunk大小
+     * @param stripeUnit stripe size
+     * @param stripeCount stripe count
      * @param[out] fileInfo 文件信息
      *
      * @return 错误码
@@ -230,6 +232,8 @@ class CurveFsClient {
         uint64_t size,
         uint64_t sn,
         uint32_t chunkSize,
+        uint64_t stripeUnit,
+        uint64_t stripeCount,
         FInfo* fileInfo) = 0;
 
     /**
@@ -452,6 +456,8 @@ class CurveFsClientImpl : public CurveFsClient {
         uint64_t size,
         uint64_t sn,
         uint32_t chunkSize,
+        uint64_t stripeUnit,
+        uint64_t stripeCount,
         FInfo* fileInfo) override;
 
     int CreateCloneChunk(

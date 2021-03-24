@@ -568,6 +568,8 @@ int SnapshotCoreImpl::CreateSnapshotOnCurvefs(
     info->SetChunkSize(snapInfo.chunksize);
     info->SetSegmentSize(snapInfo.segmentsize);
     info->SetFileLength(snapInfo.length);
+    info->SetStripeUnit(snapInfo.stripeUnit);
+    info->SetStripeCount(snapInfo.stripeCount);
     info->SetCreateTime(snapInfo.ctime);
 
     ret = metaStore_->UpdateSnapshot(*info);

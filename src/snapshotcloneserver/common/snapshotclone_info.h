@@ -266,6 +266,8 @@ class SnapshotInfo {
         chunkSize_(0),
         segmentSize_(0),
         fileLength_(0),
+        stripeUnit_(0),
+        stripeCount_(0),
         time_(0),
         status_(Status::pending) {}
 
@@ -281,6 +283,8 @@ class SnapshotInfo {
         chunkSize_(0),
         segmentSize_(0),
         fileLength_(0),
+        stripeUnit_(0),
+        stripeCount_(0),
         time_(0),
         status_(Status::pending) {}
     SnapshotInfo(UUID uuid,
@@ -291,6 +295,8 @@ class SnapshotInfo {
             uint32_t chunksize,
             uint64_t segmentsize,
             uint64_t filelength,
+            uint64_t stripeUnit,
+            uint64_t stripeCount,
             uint64_t time,
             Status status)
         :uuid_(uuid),
@@ -301,6 +307,8 @@ class SnapshotInfo {
         chunkSize_(chunksize),
         segmentSize_(segmentsize),
         fileLength_(filelength),
+        stripeUnit_(stripeUnit),
+        stripeCount_(stripeCount),
         time_(time),
         status_(status) {}
 
@@ -368,6 +376,22 @@ class SnapshotInfo {
         return fileLength_;
     }
 
+    void SetStripeUnit(uint64_t stripeUnit) {
+        stripeUnit_ = stripeUnit;
+    }
+
+    uint64_t GetStripeUnit() const {
+        return stripeUnit_;
+    }
+
+    void SetStripeCount(uint64_t stripeCount) {
+        stripeCount_ = stripeCount;
+    }
+
+    uint64_t GetStripeCount() const {
+        return stripeCount_;
+    }
+
     void SetCreateTime(uint64_t createTime) {
         time_ = createTime;
     }
@@ -405,6 +429,10 @@ class SnapshotInfo {
     uint64_t segmentSize_;
     //文件大小
     uint64_t fileLength_;
+    // stripe size
+    uint64_t stripeUnit_;
+    // stripe count
+    uint64_t stripeCount_;
     // 快照创建时间
     uint64_t time_;
     // 快照处理的状态

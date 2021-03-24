@@ -92,6 +92,8 @@ bool SnapshotInfo::SerializeToString(std::string *value) const {
     data.set_chunksize(chunkSize_);
     data.set_segmentsize(segmentSize_);
     data.set_filelength(fileLength_);
+    data.set_stripeunit(stripeUnit_);
+    data.set_stripecount(stripeCount_);
     data.set_time(time_);
     data.set_status(static_cast<int>(status_));
     return data.SerializeToString(value);
@@ -108,6 +110,16 @@ bool SnapshotInfo::ParseFromString(const std::string &value) {
     chunkSize_ = data.chunksize();
     segmentSize_ = data.segmentsize();
     fileLength_ = data.filelength();
+    if (data.has_stripeunit()) {
+        stripeUnit_ = data.stripeunit();
+    } else {
+        stripeUnit_ = 0;
+    }
+    if (data.has_stripecount()) {
+        stripeCount_ = data.stripecount();
+    } else {
+        stripeCount_ = 0;
+    }
     time_ = data.time();
     status_ = static_cast<Status>(data.status());
     return ret;
@@ -122,6 +134,8 @@ std::ostream& operator<<(std::ostream& os, const SnapshotInfo &snapshotInfo) {
     os << ", chunkSize : " << snapshotInfo.GetChunkSize();
     os << ", segementSize : " << snapshotInfo.GetSegmentSize();
     os << ", fileLength : " << snapshotInfo.GetFileLength();
+    os << ", stripeUnit :" << snapshotInfo.GetStripeUnit();
+    os << ", stripeCount :" << snapshotInfo.GetStripeCount();
     os << ", time : " << snapshotInfo.GetCreateTime();
     os << ", status : " << static_cast<int>(snapshotInfo.GetStatus());
     os << " }";
