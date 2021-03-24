@@ -171,6 +171,8 @@ int FakeCurveFsClient::CreateCloneFile(
     uint64_t size,
     uint64_t sn,
     uint32_t chunkSize,
+    uint64_t stripeUnit,
+    uint64_t stripeCount,
     FInfo* fileInfo) {
     fiu_return_on(
         "test/integration/snapshotcloneserver/FakeCurveFsClient.CreateCloneFile", -LIBCURVE_ERROR::FAILED);  // NOLINT
@@ -188,6 +190,8 @@ int FakeCurveFsClient::CreateCloneFile(
     fileInfo->filename = filename;
     fileInfo->fullPathName = filename;
     fileInfo->filestatus = FileStatus::Cloning;
+    fileInfo->stripeUnit = stripeUnit;
+    fileInfo->stripeCount = stripeCount;
 
     LOG(INFO) << "CreateCloneFile " << filename;
     fileMap_.emplace(filename, *fileInfo);

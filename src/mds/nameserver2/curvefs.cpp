@@ -1475,6 +1475,8 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
                             uint64_t length,
                             FileSeqType seq,
                             ChunkSizeType chunksize,
+                            uint64_t stripeUnit,
+                            uint64_t stripeCount,
                             FileInfo *retFileInfo,
                             const std::string & cloneSource,
                             uint64_t cloneLength) {
@@ -1492,10 +1494,15 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         return StatusCode::kParaError;
     }
 
+    auto ret = CheckStripeParam(stripeUnit, stripeCount);
+    if (ret != StatusCode::kOK) {
+        return ret;
+    }
+
     // check the existence of the file
     FileInfo parentFileInfo;
     std::string lastEntry;
-    auto ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
+    ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
     if ( ret != StatusCode::kOK ) {
         return ret;
     }
@@ -1537,6 +1544,8 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         fileInfo.set_clonelength(cloneLength);
 
         fileInfo.set_filestatus(FileStatus::kFileCloning);
+        fileInfo.set_stripeunit(stripeUnit);
+        fileInfo.set_stripecount(stripeCount);
 
         ret = PutFile(fileInfo);
         if (ret == StatusCode::kOK && retFileInfo != nullptr) {

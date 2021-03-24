@@ -205,6 +205,8 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoSuccess) {
          1024,
          1024,
          2048,
+         0,
+         0,
          100,
          Status::pending);
     info.SetSnapshotInfo(sinfo);
@@ -342,6 +344,8 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotListSuccess) {
          1024,
          1024,
          2048,
+         0,
+         0,
          100,
          Status::pending);
     info.SetSnapshotInfo(sinfo);
