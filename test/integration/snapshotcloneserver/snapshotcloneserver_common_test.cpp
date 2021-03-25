@@ -914,7 +914,7 @@ TEST_F(SnapshotCloneServerTest, TestImageNotLazyClone) {
 TEST_F(SnapshotCloneServerTest, TestSnapAndCloneWhenSnapHasError) {
     std::string snapId = "errorSnapUuid";
     SnapshotInfo snapInfo(snapId, testUser1_, testFile4_, "snapxxx", 0, 0, 0, 0,
-                        0, Status::error);
+                        0, 0, 0, Status::error);
 
     cluster_->metaStore_->AddSnapshot(snapInfo);
 
