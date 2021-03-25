@@ -147,8 +147,10 @@ class IOController : public NBDController {
     int Resize(uint64_t size) override;
 
  private:
-    int InitDevAttr(int devfd, NBDConfig* config, int sockfd,
-                    uint64_t size, uint64_t flags);
+    int InitDevAttr(NBDConfig* config, uint64_t size, uint64_t flags);
+    int MapOnUnusedNbdDevice(int sockfd, std::string* devpath);
+    int MapOnNbdDeviceByDevPath(int sockfd, const std::string& devpath,
+                                bool logWhenError = true);
 };
 
 class NetLinkController : public NBDController {

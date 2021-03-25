@@ -89,54 +89,6 @@ int get_nbd_max_count() {
     return nbds_max;
 }
 
-std::string find_unused_nbd_device() {
-    int index = 0;
-    int devfd = 0;
-    int nbds_max = get_nbd_max_count();
-    char dev[64];
-    int sockfd[2];
-
-    int ret = socketpair(AF_UNIX, SOCK_STREAM, 0, sockfd);
-    if (ret < 0) {
-        dout << "curve-ndb: failed to create socket pair." << std::endl;
-        return "";
-    }
-
-    while (true) {
-        snprintf(dev, sizeof(dev), "/dev/nbd%d", index);
-
-        ret = open(dev, O_RDWR);
-        if (ret < 0) {
-            if (ret == -EPERM && nbds_max != -1 && index < (nbds_max-1)) {
-                ++index;
-                continue;
-            }
-            dout << "curve-ndb: failed to find unused device, "
-                 << cpp_strerror(errno) << std::endl;
-            break;
-        }
-
-        devfd = ret;
-        ret = ioctl(devfd, NBD_SET_SOCK, sockfd[0]);
-        if (ret < 0) {
-            close(devfd);
-            ++index;
-            continue;
-        }
-        break;
-    }
-
-    std::string result = "";
-    if (ret == 0) {
-        result = dev;
-        ioctl(devfd, NBD_CLEAR_SOCK);
-        close(devfd);
-    }
-    close(sockfd[0]);
-    close(sockfd[1]);
-    return result;
-}
-
 static bool find_mapped_dev_by_spec(NBDConfig *cfg) {
     int pid;
     NBDConfig c;
