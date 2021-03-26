@@ -30,6 +30,7 @@
 #include <condition_variable>  // NOLINT
 #include <mutex>               // NOLINT
 #include <string>
+#include <memory>
 
 #include "include/curve_compiler_specific.h"
 #include "src/client/client_common.h"
@@ -252,7 +253,7 @@ class IOManager4File : public IOManager {
     // inflight rpc控制
     InflightControl inflightRpcCntl_;
 
-    common::Throttle throttle_;
+    std::unique_ptr<common::Throttle> throttle_;
 
     // 是否退出
     bool exit_;

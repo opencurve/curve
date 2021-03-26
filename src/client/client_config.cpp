@@ -232,6 +232,13 @@ int ClientConfig::Init(const char* configpath) {
         << "config no closefd.timeInterval info, using default value "
         << fileServiceOption_.ioOpt.closeFdThreadOption.fdCloseTimeInterval;
 
+    ret = conf_.GetBoolValue(
+        "throttle.enable",
+        &fileServiceOption_.ioOpt.throttleOption.enable);
+    LOG_IF(WARNING, ret == false)
+        << "config no throttle.enable info, using default value "
+        << fileServiceOption_.ioOpt.throttleOption.enable;
+
     return 0;
 }
 

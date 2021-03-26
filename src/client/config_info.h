@@ -223,6 +223,10 @@ struct CloseFdThreadOption {
     uint32_t fdCloseTimeInterval = 600;
 };
 
+struct ThrottleOption {
+    bool enable = false;
+};
+
 /**
  * IOOption存储了当前io 操作所需要的所有配置信息
  */
@@ -233,6 +237,7 @@ struct IOOption {
     TaskThreadOption taskThreadOpt;
     RequestScheduleOption reqSchdulerOpt;
     CloseFdThreadOption closeFdThreadOption;
+    ThrottleOption throttleOption;
 };
 
 /**
