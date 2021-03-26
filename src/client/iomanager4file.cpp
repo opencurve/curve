@@ -71,6 +71,10 @@ bool IOManager4File::Initialize(const std::string& filename,
     }
     scheduler_->Run();
 
+    if (ioopt_.throttleOption.enable) {
+        throttle_.reset(new common::Throttle());
+    }
+
     ret = taskPool_.Start(ioopt_.taskThreadOpt.isolationTaskThreadPoolSize,
                           ioopt_.taskThreadOpt.isolationTaskQueueCapacity);
     if (ret != 0) {
@@ -88,7 +92,9 @@ bool IOManager4File::Initialize(const std::string& filename,
 
 void IOManager4File::UnInitialize() {
     // stop throttle first
-    throttle_.Stop();
+    if (throttle_) {
+        throttle_->Stop();
+    }
 
     bool exitFlag = false;
     std::mutex exitMtx;
@@ -137,7 +143,7 @@ int IOManager4File::Read(char* buf, off_t offset,
     IOTracker temp(this, &mc_, scheduler_, fileMetric_);
     temp.SetUserDataType(UserDataType::IOBuffer);
     temp.StartRead(&data, offset, length, mdsclient, this->GetFileInfo(),
-                   &throttle_);
+                   throttle_.get());
 
     int rc = temp.Wait();
 
@@ -162,7 +168,7 @@ int IOManager4File::Write(const char* buf,
     IOTracker temp(this, &mc_, scheduler_, fileMetric_);
     temp.SetUserDataType(UserDataType::IOBuffer);
     temp.StartWrite(&data, offset, length, mdsclient, this->GetFileInfo(),
-                    &throttle_);
+                    throttle_.get());
 
     int rc = temp.Wait();
     return rc;
@@ -184,7 +190,8 @@ int IOManager4File::AioRead(CurveAioContext* ctx, MDSClient* mdsclient,
     temp->SetUserDataType(dataType);
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
-        temp->StartAioRead(ctx, mdsclient, this->GetFileInfo(), &throttle_);
+        temp->StartAioRead(ctx, mdsclient, this->GetFileInfo(),
+                           throttle_.get());
     };
 
     taskPool_.Enqueue(task);
@@ -207,7 +214,8 @@ int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
     temp->SetUserDataType(dataType);
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
-        temp->StartAioWrite(ctx, mdsclient, this->GetFileInfo(), &throttle_);
+        temp->StartAioWrite(ctx, mdsclient, this->GetFileInfo(),
+                            throttle_.get());
     };
 
     taskPool_.Enqueue(task);
@@ -220,7 +228,9 @@ void IOManager4File::UpdateFileInfo(const FInfo_t& fi) {
 
 void IOManager4File::UpdateFileThrottleParams(
     const common::ReadWriteThrottleParams& params) {
-    throttle_.UpdateThrottleParams(params);
+    if (throttle_) {
+        throttle_->UpdateThrottleParams(params);
+    }
 }
 
 void IOManager4File::HandleAsyncIOResponse(IOTracker* iotracker) {
