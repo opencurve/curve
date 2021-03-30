@@ -188,6 +188,8 @@ class IOManager4File : public IOManager {
     void UpdateFileThrottleParams(
         const common::ReadWriteThrottleParams& params);
 
+    void SetDisableStripe();
+
  private:
     friend class LeaseExecutor;
     friend class FlightIOGuard;
@@ -268,6 +270,12 @@ class IOManager4File : public IOManager {
     // 不会有并发的情况，保证在资源被析构的时候lease续约
     // 线程不会再用到这些资源.
     std::mutex exitMtx_;
+
+    // enable/disable stripe for read/write of stripe file
+    // currently only one scenario set this field to true:
+    // chunkserver use client to read clone source file,
+    // because client's IO requests already transformed by stripe parameters
+    bool disableStripe_;
 };
 
 }  // namespace client

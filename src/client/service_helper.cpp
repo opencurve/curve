@@ -339,11 +339,12 @@ void GetLeaderClosure::Run() {
     bool success = false;
     if (cntl.Failed()) {
         success = false;
-        LOG(WARNING) << "GetLeader failed from " << cntl.remote_side()
-                        << ", logicpool id = " << logicPoolId
-                        << ", copyset id = " << copysetId
-                        << ", proxy id = " << proxy->proxyId_
-                        << ", error = " << cntl.ErrorText();
+        LOG_IF(WARNING, cntl.ErrorCode() != ECANCELED)
+            << "GetLeader failed from " << cntl.remote_side()
+            << ", logicpool id = " << logicPoolId
+            << ", copyset id = " << copysetId
+            << ", proxy id = " << proxy->proxyId_
+            << ", error = " << cntl.ErrorText();
     } else {
         success = true;
         LOG(INFO) << "GetLeader returned from " << cntl.remote_side()

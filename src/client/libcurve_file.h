@@ -94,10 +94,12 @@ class FileClient {
      * 这个Open接口主要是提供给快照克隆镜像系统做数据拷贝使用
      * @param: filename文件名
      * @param: userinfo当前用户信息
+     * @param disableStripe enable/disable stripe feature for a stripe file
      * @return: 返回文件fd
      */
     virtual int Open4ReadOnly(const std::string& filename,
-                              const UserInfo_t& userinfo);
+                              const UserInfo_t& userinfo,
+                              bool disableStripe = false);
 
     /**
      * 创建文件
