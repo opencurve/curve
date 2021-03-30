@@ -2119,6 +2119,14 @@ StatusCode CurveFS::CheckStripeParam(uint64_t stripeUnit,
         return StatusCode::kParaError;
     }
 
+     // chunkserver check req offset and len align as 4k,
+     // such as ChunkServiceImpl::CheckRequestOffsetAndLength
+    if (stripeUnit % 4096 != 0) {
+        LOG(ERROR) << "stripeUnit is not aligned as 4k. stripeUnit:"
+           << stripeUnit << ",stripeCount:" << stripeCount;
+        return StatusCode::kParaError;
+    }
+
     return StatusCode::kOK;
 }
 
