@@ -271,11 +271,14 @@ bool Trash::RecycleChunkfile(
 
 bool Trash::RecycleWAL(
     const std::string &filepath, const std::string &filename) {
+    LockGuard lg(mtx_);
     if (walPool_ != nullptr && 0 != walPool_->RecycleFile(filepath)) {
         LOG(ERROR) << "Trash  failed recycle WAL " << filepath
                     << " to WALPool";
         return false;
     }
+
+    chunkNum_.fetch_sub(1);
     return true;
 }
 
@@ -303,25 +306,30 @@ bool Trash::IsWALFile(const std::string &fileName) {
 }
 
 uint32_t Trash::CountChunkNumInCopyset(const std::string &copysetPath) {
-    std::string dataPath = copysetPath + "/" + RAFT_DATA_DIR;
-    std::vector<std::string> chunks;
-    localFileSystem_->List(dataPath, &chunks);
+    auto count = [&](const std::string& path) {
+        std::vector<std::string> chunks;
+        localFileSystem_->List(path, &chunks);
 
-    uint32_t chunkNum = 0;
-    // 遍历data下面的chunk
-    for (auto &chunk : chunks) {
-        // 不是chunkfile或者snapshotfile
-        if (!IsChunkOrSnapShotFile(chunk)) {
-            LOG(WARNING) << "Trash find a illegal file:"
-                         << chunk << " in " << dataPath
-                         << ", filename: " << chunk;
-            continue;
+        uint32_t chunkNum = 0;
+        for (auto& chunk : chunks) {
+            // valid: chunkfile, snapshotfile, walfile
+            if (!(IsChunkOrSnapShotFile(chunk) || IsWALFile(chunk))) {
+                LOG(WARNING) << "Trash find a illegal file:"
+                             << chunk << " in " << path
+                             << ", filename: " << chunk;
+                continue;
+            }
+            ++chunkNum;
         }
-        ++chunkNum;
-    }
-    return chunkNum;
+
+        return chunkNum;
+    };
+
+    return count(copysetPath + "/" + RAFT_DATA_DIR)
+        + count(copysetPath + "/" + RAFT_LOG_DIR);
 }
 
 }  // namespace chunkserver
 }  // namespace curve
+
 
