@@ -730,10 +730,9 @@ LIBCURVE_ERROR MDSClient::GetServerList(
                                      cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.getServerList.eps.count << 1;
-            LOG_EVERY_SECOND(ERROR)
-                << "get server list from mds failed, status code = "
-                << cntl->ErrorCode() << ", error content:"
-                << cntl->ErrorText();
+            LOG(WARNING) << "get server list from mds failed, error is "
+                         << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
 

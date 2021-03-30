@@ -128,6 +128,8 @@ SourceReader::ReadHandler* SourceReader::GetReadHandler(
         return nullptr;
     }
 
+    instance->GetIOManager4File()->SetDisableStripe();
+
     curve::common::WriteLockGuard wlk(rwLock_);
     auto res = readHandlers_.emplace(
         std::piecewise_construct,
