@@ -135,7 +135,7 @@ TEST_F(CloneCopyerTest, BasicTest) {
          * 预期:调用Open和Read读取数据
          */
         context.location = "test:0@cs";
-        EXPECT_CALL(*curveClient_, Open4ReadOnly("test", _))
+        EXPECT_CALL(*curveClient_, Open4ReadOnly("test", _, true))
             .WillOnce(Return(1));
         EXPECT_CALL(*curveClient_, AioRead(_, _, _))
             .WillOnce(Invoke([](int fd, CurveAioContext* context,
@@ -153,7 +153,7 @@ TEST_F(CloneCopyerTest, BasicTest) {
          * 预期:直接Read，返回失败
          */
         context.location = "test:0@cs";
-        EXPECT_CALL(*curveClient_, Open4ReadOnly(_, _))
+        EXPECT_CALL(*curveClient_, Open4ReadOnly(_, _, true))
             .Times(0);
         EXPECT_CALL(*curveClient_, AioRead(_, _, _))
             .WillOnce(Invoke([](int fd, CurveAioContext* context,
@@ -171,7 +171,7 @@ TEST_F(CloneCopyerTest, BasicTest) {
          * 预期:返回-1
          */
         context.location = "test2:0@cs";
-        EXPECT_CALL(*curveClient_, Open4ReadOnly("test2", _))
+        EXPECT_CALL(*curveClient_, Open4ReadOnly("test2", _, true))
             .WillOnce(Return(-1));
         EXPECT_CALL(*curveClient_, AioRead(_, _, _))
             .Times(0);
@@ -184,7 +184,7 @@ TEST_F(CloneCopyerTest, BasicTest) {
          * 预期:返回-1
          */
         context.location = "test2:0@cs";
-        EXPECT_CALL(*curveClient_, Open4ReadOnly("test2", _))
+        EXPECT_CALL(*curveClient_, Open4ReadOnly("test2", _, true))
             .WillOnce(Return(2));
         EXPECT_CALL(*curveClient_, AioRead(_, _, _))
             .WillOnce(Return(-1 * LIBCURVE_ERROR::FAILED));
@@ -268,7 +268,7 @@ TEST_F(CloneCopyerTest, DisableTest) {
         /* 用例:读curve上的数据，读取失败
          */
         context.location = "test:0@cs";
-        EXPECT_CALL(*curveClient_, Open4ReadOnly(_, _))
+        EXPECT_CALL(*curveClient_, Open4ReadOnly(_, _, true))
             .Times(0);
         EXPECT_CALL(*curveClient_, AioRead(_, _, _))
             .Times(0);
