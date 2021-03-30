@@ -43,11 +43,13 @@ std::atomic<uint64_t> IOTracker::tracekerID_(1);
 IOTracker::IOTracker(IOManager* iomanager,
                      MetaCache* mc,
                      RequestScheduler* scheduler,
-                     FileMetric* clientMetric)
+                     FileMetric* clientMetric,
+                     bool disableStripe)
     : mc_(mc),
       iomanager_(iomanager),
       scheduler_(scheduler),
-      fileMetric_(clientMetric) {
+      fileMetric_(clientMetric),
+      disableStripe_(disableStripe) {
     id_         = tracekerID_.fetch_add(1, std::memory_order_relaxed);
     scc_        = nullptr;
     aioctx_     = nullptr;

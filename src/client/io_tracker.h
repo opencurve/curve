@@ -48,16 +48,12 @@ class IOManager;
 // 跟踪发送的request的执行情况。
 class CURVE_CACHELINE_ALIGNMENT IOTracker {
  public:
-    /**
-     * 构造函数
-     * @param: iomanager负责回收当前iotracker
-     * @param: mc用于获取chunk信息
-     * @param: scheduler用于分发请求
-     */
     IOTracker(IOManager* iomanager,
               MetaCache* mc,
               RequestScheduler* scheduler,
-              FileMetric* clientMetric = nullptr);
+              FileMetric* clientMetric = nullptr,
+              bool disableStripe = false);
+
     ~IOTracker() = default;
 
     /**
@@ -206,6 +202,10 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
         readDatas_[subIoIndex] = data;
     }
 
+    bool IsStripeDisabled() const {
+        return disableStripe_;
+    }
+
  private:
     /**
      * 当IO返回的时候调用done，由done负责向上返回
@@ -319,6 +319,8 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
 
     // 快照克隆系统异步调用回调指针
     SnapCloneClosure* scc_;
+
+    bool disableStripe_;
 
     // id生成器
     static std::atomic<uint64_t> tracekerID_;

@@ -60,6 +60,7 @@ class Splitor {
                            size_t length,
                            MDSClient* mdsclient,
                            const FInfo_t* fi);
+
     /**
      * 对单ChunkIO进行细粒度拆分
      * @param: iotracker大IO上下文信息
@@ -120,6 +121,16 @@ class Splitor {
                                      MetaCache* metaCache,
                                      const FInfo* fileInfo,
                                      ChunkIndex chunkidx);
+
+    static int SplitForNormal(IOTracker* iotracker, MetaCache* metaCache,
+                              std::vector<RequestContext*>* targetlist,
+                              butil::IOBuf* data, off_t offset, size_t length,
+                              MDSClient* mdsclient, const FInfo_t* fileInfo);
+
+    static int SplitForStripe(IOTracker* iotracker, MetaCache* metaCache,
+                              std::vector<RequestContext*>* targetlist,
+                              butil::IOBuf* data, off_t offset, size_t length,
+                              MDSClient* mdsclient, const FInfo_t* fileInfo);
 
  private:
     // IO拆分模块所使用的配置信息
