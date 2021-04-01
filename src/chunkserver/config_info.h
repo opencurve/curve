@@ -86,6 +86,8 @@ struct CopysetNodeOptions {
     uint32_t port;
     // chunk文件的大小
     uint32_t maxChunkSize;
+    // WAL segment file size
+    uint32_t maxWalSegmentSize;
     // chunk文件的page大小
     uint32_t pageSize;
     // clone chunk的location长度限制
