@@ -406,8 +406,8 @@ def init_nbd_vol(check_md5=True,lazy="True"):
         thrash = NbdThrash(ssh,name)
         vol_size = 10 #GB
         thrash.nbd_create(vol_size)
-        nbd_dev = "nbd3"
-        thrash.nbd_map(nbd_dev)
+#        nbd_dev = "nbd3"
+        thrash.nbd_map()
         time.sleep(5)
         thrash.nbd_getdev()
         if check_md5 == True:
