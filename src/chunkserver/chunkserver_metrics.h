@@ -501,6 +501,12 @@ class ChunkServerMetric : public Uncopyable {
         return chunkLeft_->get_value();
     }
 
+    const uint32_t GetWalSegmentLeftCount() const {
+        if (walSegmentLeft_ == nullptr)
+            return 0;
+        return walSegmentLeft_->get_value();
+    }
+
     const uint32_t GetChunkTrashedCount() const {
         if (chunkTrashed_ == nullptr)
             return 0;
