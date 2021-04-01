@@ -221,6 +221,11 @@ int ChunkServer::Run(int argc, char** argv) {
     copysetNodeOptions.chunkFilePool = chunkfilePool;
     copysetNodeOptions.localFileSystem = fs;
     copysetNodeOptions.trash = trash_;
+    if (kWalFilePool != nullptr) {
+        FilePoolState_t currentStat = chunkFilePoolPtr_->GetState();
+        uint32_t maxWalSegmentSize = currentStat.chunkSize + currentStat.metaPageSize;
+        copysetNodeOptions.maxWalSegmentSize = maxWalSegmentSize;
+    }
 
     // install snapshot的带宽限制
     int snapshotThroughputBytes;
