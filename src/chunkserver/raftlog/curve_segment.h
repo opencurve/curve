@@ -41,6 +41,7 @@
 #ifndef  SRC_CHUNKSERVER_RAFTLOG_CURVE_SEGMENT_H_
 #define  SRC_CHUNKSERVER_RAFTLOG_CURVE_SEGMENT_H_
 
+#include <glog/logging.h>
 #include <butil/memory/ref_counted.h>
 #include <butil/atomicops.h>
 #include <butil/iobuf.h>
@@ -60,8 +61,6 @@ namespace chunkserver {
 
 DECLARE_bool(enableWalDirectWrite);
 
-extern std::shared_ptr<FilePool> kWalFilePool;
-
 struct CurveSegmentMeta {
     CurveSegmentMeta() : bytes(0) {}
     int64_t bytes;
@@ -71,19 +70,25 @@ class BAIDU_CACHELINE_ALIGNMENT CurveSegment:
           public Segment {
  public:
     CurveSegment(const std::string& path, const int64_t first_index,
-                 int checksum_type)
+                 int checksum_type, std::shared_ptr<FilePool> walFilePool)
         : _path(path), _meta(CurveSegmentMeta()),
         _fd(-1), _direct_fd(-1), _is_open(true),
         _first_index(first_index), _last_index(first_index - 1),
         _checksum_type(checksum_type),
-        _meta_page_size(kWalFilePool->GetFilePoolOpt().metaPageSize) {}
+        _walFilePool(walFilePool),
+        _meta_page_size(walFilePool->GetFilePoolOpt().metaPageSize) {
+            CHECK(nullptr != _walFilePool) << "wal file pool is null";
+    }
     CurveSegment(const std::string& path, const int64_t first_index,
-            const int64_t last_index, int checksum_type)
+                 const int64_t last_index, int checksum_type,
+                 std::shared_ptr<FilePool> walFilePool)
         : _path(path), _meta(CurveSegmentMeta()),
         _fd(-1), _direct_fd(-1), _is_open(false),
         _first_index(first_index), _last_index(last_index),
         _checksum_type(checksum_type),
-        _meta_page_size(kWalFilePool->GetFilePoolOpt().metaPageSize) {
+        _walFilePool(walFilePool),
+        _meta_page_size(walFilePool->GetFilePoolOpt().metaPageSize) {
+            CHECK(nullptr != _walFilePool) << "wal file pool is null";
     }
     ~CurveSegment() {
         if (_fd >= 0) {
@@ -169,6 +174,7 @@ class BAIDU_CACHELINE_ALIGNMENT CurveSegment:
     butil::atomic<int64_t> _last_index;
     int _checksum_type;
     std::vector<std::pair<int64_t, int64_t> > _offset_and_term;
+    std::shared_ptr<FilePool> _walFilePool;
     uint32_t _meta_page_size;
 };
 
