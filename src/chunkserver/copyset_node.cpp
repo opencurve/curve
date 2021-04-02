@@ -34,6 +34,7 @@
 #include <cassert>
 
 #include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
+#include "src/chunkserver/raftlog/curve_segment_log_storage.h"
 #include "src/chunkserver/chunk_closure.h"
 #include "src/chunkserver/op_request.h"
 #include "src/fs/fs_common.h"
@@ -187,6 +188,10 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
         // TODO(yyk) 后续考虑添加datastore层面的io metric
         metric_->MonitorDataStore(dataStore_.get());
     }
+
+    // In order to get more copysetNode's information in CurveSegmentLogStorage
+    // without using global variables.
+    BindForCurveSegmentLogStorage(options.walFilePool);
 
     return 0;
 }
