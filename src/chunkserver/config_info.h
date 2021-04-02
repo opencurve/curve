@@ -97,6 +97,8 @@ struct CopysetNodeOptions {
     ConcurrentApplyModule *concurrentapply;
     // Chunk file池子
     std::shared_ptr<FilePool> chunkFilePool;
+    // WAL file pool
+    std::shared_ptr<FilePool> walFilePool;
     // 文件系统适配层
     std::shared_ptr<LocalFileSystem> localFileSystem;
     // 回收站, 心跳模块判断该chunkserver不在copyset配置组时，

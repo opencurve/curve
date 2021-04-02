@@ -52,12 +52,10 @@ class CurveSegmentLogStorageTest : public testing::Test {
     void SetUp() {
         lfs = std::make_shared<MockLocalFileSystem>();
         file_pool = std::make_shared<MockFilePool>(lfs);
-        kWalFilePool = file_pool;
         std::string cmd = std::string("mkdir ") + kRaftLogDataDir;
         ::system(cmd.c_str());
     }
     void TearDown() {
-        kWalFilePool = nullptr;
         std::string cmd = std::string("rm -rf ") + kRaftLogDataDir;
         ::system(cmd.c_str());
     }
@@ -103,7 +101,8 @@ class CurveSegmentLogStorageTest : public testing::Test {
 };
 
 TEST_F(CurveSegmentLogStorageTest, basic_test) {
-    auto storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir);
+    auto storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
+            true, file_pool);
     EXPECT_CALL(*file_pool, GetFilePoolOpt())
         .WillRepeatedly(Return(fp_option));
     EXPECT_CALL(*file_pool, GetFile(_, _))
@@ -202,7 +201,8 @@ TEST_F(CurveSegmentLogStorageTest, basic_test) {
     // re load
     std::string cmd = std::string("rm -rf ") + kRaftLogDataDir + "/log_meta";
     ::system(cmd.c_str());
-    auto storage2 = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir);
+    auto storage2 = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
+            true, file_pool);
     ASSERT_EQ(0, storage2->init(new braft::ConfigurationManager()));
     ASSERT_EQ(1, storage2->first_log_index());
     ASSERT_EQ(0, storage2->last_log_index());
@@ -213,7 +213,8 @@ TEST_F(CurveSegmentLogStorageTest, append_close_load_append) {
         .WillRepeatedly(Return(fp_option));
     EXPECT_CALL(*file_pool, GetFile(_, _))
         .WillRepeatedly(Return(0));
-    auto storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir);
+    auto storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
+            true, file_pool);
     braft::ConfigurationManager* configuration_manager =
                                 new braft::ConfigurationManager;
     ASSERT_EQ(0, storage->init(configuration_manager));
@@ -231,7 +232,8 @@ TEST_F(CurveSegmentLogStorageTest, append_close_load_append) {
     delete configuration_manager;
 
     // reinit
-    storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir);
+    storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
+            true, file_pool);
     configuration_manager = new braft::ConfigurationManager;
     ASSERT_EQ(0, storage->init(configuration_manager));
 
@@ -286,7 +288,8 @@ TEST_F(CurveSegmentLogStorageTest, data_lost) {
         .WillRepeatedly(Return(fp_option));
     EXPECT_CALL(*file_pool, GetFile(_, _))
         .WillRepeatedly(Return(0));
-    auto storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir);
+    auto storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
+            true, file_pool);
     braft::ConfigurationManager* configuration_manager =
                             new braft::ConfigurationManager;
     ASSERT_EQ(0, storage->init(configuration_manager));
@@ -305,7 +308,8 @@ TEST_F(CurveSegmentLogStorageTest, data_lost) {
     char data[4096];
     memset(data, 0, 4096);
     ASSERT_EQ(4096, ::pwrite(fd, data, 4096, 8192));
-    storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir);
+    storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
+            true, file_pool);
     configuration_manager = new braft::ConfigurationManager;
     ASSERT_NE(0, storage->init(configuration_manager));
 
@@ -331,7 +335,8 @@ TEST_F(CurveSegmentLogStorageTest, compatibility) {
     delete configuration_manager;
 
     // reinit
-    auto storage2 = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir);
+    auto storage2 = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
+            true, file_pool);
     configuration_manager = new braft::ConfigurationManager;
     ASSERT_EQ(0, storage2->init(configuration_manager));
 
@@ -382,7 +387,8 @@ TEST_F(CurveSegmentLogStorageTest, compatibility) {
 
 TEST_F(CurveSegmentLogStorageTest, basic_test_without_direct) {
     FLAGS_enableWalDirectWrite = false;
-    auto storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir);
+    auto storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
+            true, file_pool);
     EXPECT_CALL(*file_pool, GetFilePoolOpt())
         .WillRepeatedly(Return(fp_option));
     EXPECT_CALL(*file_pool, GetFile(_, _))
@@ -481,7 +487,8 @@ TEST_F(CurveSegmentLogStorageTest, basic_test_without_direct) {
     // re load
     std::string cmd = std::string("rm -rf ") + kRaftLogDataDir + "/log_meta";
     ::system(cmd.c_str());
-    auto storage2 = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir);
+    auto storage2 = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
+            true, file_pool);
     ASSERT_EQ(0, storage2->init(new braft::ConfigurationManager()));
     ASSERT_EQ(1, storage2->first_log_index());
     ASSERT_EQ(0, storage2->last_log_index());
