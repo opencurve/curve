@@ -47,14 +47,14 @@
 namespace curve {
 namespace chunkserver {
 
-std::shared_ptr<FilePool> BindForCurveSegmentLogStorage(
-        std::shared_ptr<FilePool> walFilePool) {
-    static std::shared_ptr<FilePool> walFilePool_ = nullptr;
-    if (nullptr != walFilePool) {
-        walFilePool_ = walFilePool;
+std::shared_ptr<LogStorageOptions> StoreOptForCurveSegmentLogStorage(
+    std::shared_ptr<LogStorageOptions> options) {
+    static std::shared_ptr<LogStorageOptions> options_ = options;
+    if (nullptr != options) {
+        options_ = options;
     }
 
-    return walFilePool_;
+    return options_;
 }
 
 void RegisterCurveSegmentLogStorageOrDie() {
@@ -203,8 +203,9 @@ int CurveSegmentLogStorage::list_segments(bool is_empty) {
                       << " first_index: " << first_index
                       << " last_index: " << last_index;
             CurveSegment* segment = new CurveSegment(_path, first_index,
-                                            last_index, _checksum_type,
-                                            _walFilePool);
+                                                     last_index,
+                                                     _checksum_type,
+                                                     _walFilePool);
             _segments[first_index] = segment;
             continue;
         }
@@ -217,7 +218,7 @@ int CurveSegmentLogStorage::list_segments(bool is_empty) {
             if (!_open_segment) {
                 _open_segment =
                     new CurveSegment(_path, first_index, _checksum_type,
-                            _walFilePool);
+                                     _walFilePool);
                 continue;
             } else {
                 LOG(WARNING) << "open segment conflict, path: " << _path
@@ -676,11 +677,17 @@ void CurveSegmentLogStorage::sync() {
 }
 
 braft::LogStorage* CurveSegmentLogStorage::new_instance(
-                            const std::string& uri) const {
-    std::shared_ptr<FilePool> walFilePool =
-        BindForCurveSegmentLogStorage(nullptr);
+    const std::string& uri) const {
+    std::shared_ptr<LogStorageOptions> options =
+        StoreOptForCurveSegmentLogStorage(nullptr);
 
-    return new CurveSegmentLogStorage(uri, true, walFilePool);
+    CHECK(nullptr != options->walFilePool) << "wal file pool is null";
+
+    CurveSegmentLogStorage* logStorage = new CurveSegmentLogStorage(
+        uri, true, options->walFilePool);
+    options->monitorMetricCb(logStorage);
+
+    return logStorage;
 }
 
 scoped_refptr<Segment> CurveSegmentLogStorage::open_segment(
@@ -697,7 +704,7 @@ scoped_refptr<Segment> CurveSegmentLogStorage::open_segment(
             }
         }
         uint32_t maxTotalFileSize = _walFilePool->GetFilePoolOpt().fileSize
-                                + _walFilePool->GetFilePoolOpt().metaPageSize;
+                                  + _walFilePool->GetFilePoolOpt().metaPageSize;
         if (_open_segment->bytes() + to_write > maxTotalFileSize) {
             _segments[_open_segment->first_index()] = _open_segment;
             prev_open_segment.swap(_open_segment);
@@ -724,6 +731,12 @@ scoped_refptr<Segment> CurveSegmentLogStorage::open_segment(
         }
     } while (0);
     return _open_segment;
+}
+
+LogStorageStatus CurveSegmentLogStorage::GetStatus() {
+    uint32_t count = (uint32_t)(_segments.size())
+                   + (nullptr != _open_segment ? 1 : 0);
+    return LogStorageStatus(count);
 }
 
 }  // namespace chunkserver

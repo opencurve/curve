@@ -221,9 +221,9 @@ int ChunkServer::Run(int argc, char** argv) {
     copysetNodeOptions.walFilePool = walFilePool;
     copysetNodeOptions.localFileSystem = fs;
     copysetNodeOptions.trash = trash_;
-    if (kWalFilePool != nullptr) {
-        FilePoolState_t currentStat = chunkFilePoolPtr_->GetState();
-        uint32_t maxWalSegmentSize = currentStat.chunkSize + currentStat.metaPageSize;
+    if (nullptr != walFilePool) {
+        FilePoolOptions poolOpt = walFilePool->GetFilePoolOpt();
+        uint32_t maxWalSegmentSize = poolOpt.fileSize + poolOpt.metaPageSize;
         copysetNodeOptions.maxWalSegmentSize = maxWalSegmentSize;
     }
 

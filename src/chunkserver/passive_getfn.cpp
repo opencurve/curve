@@ -58,6 +58,16 @@ uint32_t GetDatastoreChunkCountFunc(void* arg) {
     return chunkCount;
 }
 
+uint32_t GetLogStorageWalSegmentCountFunc(void* arg) {
+    CurveSegmentLogStorage* logStorage
+        = reinterpret_cast<CurveSegmentLogStorage*>(arg);
+    uint32_t walSegmentCount = 0;
+    if (nullptr != logStorage) {
+        walSegmentCount = logStorage->GetStatus().walSegmentFileCount;
+    }
+    return walSegmentCount;
+}
+
 uint32_t GetDatastoreSnapshotCountFunc(void* arg) {
     CSDataStore* dataStore = reinterpret_cast<CSDataStore*>(arg);
     uint32_t snapshotCount = 0;
@@ -95,6 +105,16 @@ uint32_t GetTotalChunkCountFunc(void* arg) {
         chunkCount += metricPair.second->GetChunkCount();
     }
     return chunkCount;
+}
+
+uint32_t GetTotalWalSegmentCountFunc(void* arg) {
+    uint32_t walSegmentCount = 0;
+    ChunkServerMetric* csMetric = reinterpret_cast<ChunkServerMetric*>(arg);
+    auto copysetMetricMap = csMetric->GetCopysetMetricMap()->GetMap();
+    for (auto metricPair : copysetMetricMap) {
+        walSegmentCount += metricPair.second->GetWalSegmentCount();
+    }
+    return walSegmentCount;
 }
 
 uint32_t GetTotalSnapshotCountFunc(void* arg) {
