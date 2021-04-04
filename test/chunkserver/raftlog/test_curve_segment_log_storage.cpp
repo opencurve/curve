@@ -26,10 +26,15 @@
 // Author: WangYao (fisherman), wangyao02@baidu.com
 // Date: 2015/10/08 17:00:05
 
-#include <fcntl.h>
 #include <gtest/gtest.h>
 #include <braft/log.h>
+#include <fcntl.h>
+
+#include <cstdio>
 #include <memory>
+#include <string>
+#include <array>
+
 #include "src/chunkserver/raftlog/curve_segment_log_storage.h"
 #include "src/chunkserver/raftlog/define.h"
 #include "test/fs/mock_local_filesystem.h"
@@ -41,6 +46,7 @@ namespace chunkserver {
 
 using curve::fs::MockLocalFileSystem;
 using ::testing::Return;
+using ::testing::Invoke;
 using ::testing::_;
 
 class CurveSegmentLogStorageTest : public testing::Test {
@@ -54,6 +60,17 @@ class CurveSegmentLogStorageTest : public testing::Test {
         file_pool = std::make_shared<MockFilePool>(lfs);
         std::string cmd = std::string("mkdir ") + kRaftLogDataDir;
         ::system(cmd.c_str());
+
+        auto recycleFile = [this](const std::string& chunkpath)->int {
+            std::string cmd = "rm -rf " + chunkpath;
+            execShell(cmd);
+        };
+        EXPECT_CALL(*file_pool, GetFilePoolOpt())
+            .WillRepeatedly(Return(fp_option));
+        EXPECT_CALL(*file_pool, GetFile(_, _))
+            .WillRepeatedly(Return(0));
+        EXPECT_CALL(*file_pool, RecycleFile(_))
+            .WillRepeatedly(Invoke(recycleFile));
     }
     void TearDown() {
         std::string cmd = std::string("rm -rf ") + kRaftLogDataDir;
@@ -95,6 +112,30 @@ class CurveSegmentLogStorageTest : public testing::Test {
             ASSERT_EQ(data_buf, entry->data.to_string());
         }
     }
+
+    std::string execShell(const string& cmd) {
+        std::array<char, 128> buffer;
+        std::string result;
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"),
+                                                      pclose);
+        if (!pipe) {
+            throw std::runtime_error("popen() failed!");
+        }
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            result += buffer.data();
+        }
+        return result;
+    }
+
+    int countWalSegmentFile() {
+        char cmd[128];
+        snprintf(cmd, sizeof(cmd),
+            "ls %s | grep -E '^(curve_)?log_(inprogress|[0-9]+)_[0-9]+$' -c",
+            kRaftLogDataDir);
+        std::string output = execShell(string(cmd));
+        return "" != output ? std::stoi(output) : 0;
+    }
+
     std::shared_ptr<MockLocalFileSystem> lfs;
     std::shared_ptr<MockFilePool> file_pool;
     FilePoolOptions fp_option;
@@ -103,16 +144,13 @@ class CurveSegmentLogStorageTest : public testing::Test {
 TEST_F(CurveSegmentLogStorageTest, basic_test) {
     auto storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
             true, file_pool);
-    EXPECT_CALL(*file_pool, GetFilePoolOpt())
-        .WillRepeatedly(Return(fp_option));
-    EXPECT_CALL(*file_pool, GetFile(_, _))
-        .WillRepeatedly(Return(0));
-    EXPECT_CALL(*file_pool, RecycleFile(_))
-        .WillRepeatedly(Return(0));
+
     // init
     ASSERT_EQ(0, storage->init(new braft::ConfigurationManager()));
     ASSERT_EQ(1, storage->first_log_index());
     ASSERT_EQ(0, storage->last_log_index());
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
+
     // append entry
     std::string path = kRaftLogDataDir;
     butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 1);
@@ -127,13 +165,15 @@ TEST_F(CurveSegmentLogStorageTest, basic_test) {
 
     // read entry
     read_entries(storage, 0, 5000);
-
     ASSERT_EQ(storage->first_log_index(), 1);
     ASSERT_EQ(storage->last_log_index(), 5000);
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
+
     // truncate prefix
     ASSERT_EQ(0, storage->truncate_prefix(1001));
     ASSERT_EQ(storage->first_log_index(), 1001);
     ASSERT_EQ(storage->last_log_index(), 5000);
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
 
     // boundary truncate prefix
     {
@@ -154,6 +194,7 @@ TEST_F(CurveSegmentLogStorageTest, basic_test) {
     ASSERT_EQ(storage->first_log_index(), 2100);
     ASSERT_EQ(storage->last_log_index(), 5000);
     read_entries(storage, 2100, 5000);
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
 
     // append
     path = kRaftLogDataDir;
@@ -174,9 +215,11 @@ TEST_F(CurveSegmentLogStorageTest, basic_test) {
     // truncate suffix
     ASSERT_EQ(2100, storage->first_log_index());
     ASSERT_EQ(7000, storage->last_log_index());
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
     ASSERT_EQ(0, storage->truncate_suffix(6200));
     ASSERT_EQ(2100, storage->first_log_index());
     ASSERT_EQ(6200, storage->last_log_index());
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
 
     // boundary truncate suffix
     {
@@ -197,27 +240,34 @@ TEST_F(CurveSegmentLogStorageTest, basic_test) {
 
     // read
     read_entries(storage, 2100, storage->last_log_index());
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
 
-    // re load
-    std::string cmd = std::string("rm -rf ") + kRaftLogDataDir + "/log_meta";
-    ::system(cmd.c_str());
+    // reload from the existing log data
     auto storage2 = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
             true, file_pool);
     ASSERT_EQ(0, storage2->init(new braft::ConfigurationManager()));
-    ASSERT_EQ(1, storage2->first_log_index());
-    ASSERT_EQ(0, storage2->last_log_index());
+    ASSERT_EQ(storage->first_log_index(), storage2->first_log_index());
+    ASSERT_EQ(storage->last_log_index(), storage2->last_log_index());
+    ASSERT_EQ(countWalSegmentFile(), storage2->GetStatus().walSegmentFileCount);
+
+    // reload from empty log data
+    std::string cmd = std::string("rm -rf ") + kRaftLogDataDir + "/log_meta";
+    execShell(cmd);
+    auto storage3 = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
+            true, file_pool);
+    ASSERT_EQ(0, storage3->init(new braft::ConfigurationManager()));
+    ASSERT_EQ(1, storage3->first_log_index());
+    ASSERT_EQ(0, storage3->last_log_index());
+    ASSERT_EQ(countWalSegmentFile(), storage3->GetStatus().walSegmentFileCount);
 }
 
 TEST_F(CurveSegmentLogStorageTest, append_close_load_append) {
-    EXPECT_CALL(*file_pool, GetFilePoolOpt())
-        .WillRepeatedly(Return(fp_option));
-    EXPECT_CALL(*file_pool, GetFile(_, _))
-        .WillRepeatedly(Return(0));
     auto storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
             true, file_pool);
     braft::ConfigurationManager* configuration_manager =
                                 new braft::ConfigurationManager;
     ASSERT_EQ(0, storage->init(configuration_manager));
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
 
     // append entry
     std::string path = kRaftLogDataDir;
@@ -227,6 +277,7 @@ TEST_F(CurveSegmentLogStorageTest, append_close_load_append) {
     butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 2049);
     ASSERT_EQ(0,  prepare_segment(path));
     append_entries(storage, 600, 5);
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
 
     storage = nullptr;
     delete configuration_manager;
@@ -236,6 +287,7 @@ TEST_F(CurveSegmentLogStorageTest, append_close_load_append) {
             true, file_pool);
     configuration_manager = new braft::ConfigurationManager;
     ASSERT_EQ(0, storage->init(configuration_manager));
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
 
     // append entry
     path = kRaftLogDataDir;
@@ -263,6 +315,7 @@ TEST_F(CurveSegmentLogStorageTest, append_close_load_append) {
     // check and read
     ASSERT_EQ(storage->first_log_index(), 1);
     ASSERT_EQ(storage->last_log_index(), 5000);
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
 
     for (int i = 0; i < 5000; i++) {
         int64_t index = i + 1;
@@ -284,21 +337,19 @@ TEST_F(CurveSegmentLogStorageTest, append_close_load_append) {
 }
 
 TEST_F(CurveSegmentLogStorageTest, data_lost) {
-    EXPECT_CALL(*file_pool, GetFilePoolOpt())
-        .WillRepeatedly(Return(fp_option));
-    EXPECT_CALL(*file_pool, GetFile(_, _))
-        .WillRepeatedly(Return(0));
     auto storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
             true, file_pool);
     braft::ConfigurationManager* configuration_manager =
                             new braft::ConfigurationManager;
     ASSERT_EQ(0, storage->init(configuration_manager));
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
 
     // append entry
     std::string path = kRaftLogDataDir;
     butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 1);
     ASSERT_EQ(0,  prepare_segment(path));
     append_entries(storage, 100, 5);
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
 
     delete configuration_manager;
 
@@ -312,16 +363,12 @@ TEST_F(CurveSegmentLogStorageTest, data_lost) {
             true, file_pool);
     configuration_manager = new braft::ConfigurationManager;
     ASSERT_NE(0, storage->init(configuration_manager));
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
 
     delete configuration_manager;
 }
 
 TEST_F(CurveSegmentLogStorageTest, compatibility) {
-    EXPECT_CALL(*file_pool, GetFilePoolOpt())
-        .WillRepeatedly(Return(fp_option));
-    EXPECT_CALL(*file_pool, GetFile(_, _))
-        .WillRepeatedly(Return(0));
-
     auto storage1 = std::make_shared<braft::SegmentLogStorage>(kRaftLogDataDir);
     // init
     braft::ConfigurationManager* configuration_manager =
@@ -339,6 +386,7 @@ TEST_F(CurveSegmentLogStorageTest, compatibility) {
             true, file_pool);
     configuration_manager = new braft::ConfigurationManager;
     ASSERT_EQ(0, storage2->init(configuration_manager));
+    ASSERT_EQ(countWalSegmentFile(), storage2->GetStatus().walSegmentFileCount);
 
     // append entry
     std::string path = kRaftLogDataDir;
@@ -365,6 +413,7 @@ TEST_F(CurveSegmentLogStorageTest, compatibility) {
     // check and read
     ASSERT_EQ(storage2->first_log_index(), 1);
     ASSERT_EQ(storage2->last_log_index(), 5000);
+    ASSERT_EQ(countWalSegmentFile(), storage2->GetStatus().walSegmentFileCount);
 
     for (int i = 0; i < 5000; i++) {
         int64_t index = i + 1;
@@ -389,16 +438,13 @@ TEST_F(CurveSegmentLogStorageTest, basic_test_without_direct) {
     FLAGS_enableWalDirectWrite = false;
     auto storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
             true, file_pool);
-    EXPECT_CALL(*file_pool, GetFilePoolOpt())
-        .WillRepeatedly(Return(fp_option));
-    EXPECT_CALL(*file_pool, GetFile(_, _))
-        .WillRepeatedly(Return(0));
-    EXPECT_CALL(*file_pool, RecycleFile(_))
-        .WillRepeatedly(Return(0));
+
     // init
     ASSERT_EQ(0, storage->init(new braft::ConfigurationManager()));
     ASSERT_EQ(1, storage->first_log_index());
     ASSERT_EQ(0, storage->last_log_index());
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
+
     // append entry
     std::string path = kRaftLogDataDir;
     butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 1);
@@ -413,13 +459,15 @@ TEST_F(CurveSegmentLogStorageTest, basic_test_without_direct) {
 
     // read entry
     read_entries(storage, 0, 5000);
-
     ASSERT_EQ(storage->first_log_index(), 1);
     ASSERT_EQ(storage->last_log_index(), 5000);
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
+
     // truncate prefix
     ASSERT_EQ(0, storage->truncate_prefix(1001));
     ASSERT_EQ(storage->first_log_index(), 1001);
     ASSERT_EQ(storage->last_log_index(), 5000);
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
 
     // boundary truncate prefix
     {
@@ -440,6 +488,7 @@ TEST_F(CurveSegmentLogStorageTest, basic_test_without_direct) {
     ASSERT_EQ(storage->first_log_index(), 2100);
     ASSERT_EQ(storage->last_log_index(), 5000);
     read_entries(storage, 2100, 5000);
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
 
     // append
     path = kRaftLogDataDir;
@@ -460,9 +509,11 @@ TEST_F(CurveSegmentLogStorageTest, basic_test_without_direct) {
     // truncate suffix
     ASSERT_EQ(2100, storage->first_log_index());
     ASSERT_EQ(7000, storage->last_log_index());
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
     ASSERT_EQ(0, storage->truncate_suffix(6200));
     ASSERT_EQ(2100, storage->first_log_index());
     ASSERT_EQ(6200, storage->last_log_index());
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
 
     // boundary truncate suffix
     {
@@ -483,6 +534,7 @@ TEST_F(CurveSegmentLogStorageTest, basic_test_without_direct) {
 
     // read
     read_entries(storage, 2100, storage->last_log_index());
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
 
     // re load
     std::string cmd = std::string("rm -rf ") + kRaftLogDataDir + "/log_meta";
@@ -492,6 +544,7 @@ TEST_F(CurveSegmentLogStorageTest, basic_test_without_direct) {
     ASSERT_EQ(0, storage2->init(new braft::ConfigurationManager()));
     ASSERT_EQ(1, storage2->first_log_index());
     ASSERT_EQ(0, storage2->last_log_index());
+    ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
 }
 
 

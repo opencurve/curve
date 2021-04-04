@@ -25,6 +25,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <brpc/server.h>
+#include <braft/log_entry.h>
 #include <memory>
 #include <iostream>
 #include <fstream>
@@ -36,6 +37,7 @@
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/datastore/file_pool.h"
 #include "src/fs/local_filesystem.h"
+#include "src/chunkserver/raftlog/curve_segment_log_storage.h"
 #include "test/chunkserver/datastore/filepool_helper.h"
 
 namespace curve {
@@ -54,16 +56,31 @@ const LogicPoolID logicId = 1;
 
 const string baseDir = "./data_csmetric";    // NOLINT
 const string copysetDir = "local://./data_csmetric";  // NOLINT
-const string poolDir = "./chunkfilepool_csmetric";  // NOLINT
-const string poolMetaPath = "./chunkfilepool_csmetric.meta";  // NOLINT
+const string logDir = "curve://./data_csmetric";  // NOLINT
+const string chunkPoolDir = "./chunkfilepool_csmetric";  // NOLINT
+const string chunkPoolMetaPath = "./chunkfilepool_csmetric.meta";  // NOLINT
+const string walPoolDir = "./walfilepool_csmetric";  // NOLINT
+const string walPoolMetaPath = "./walfilepool_csmetric.meta";  // NOLINT
 const string trashPath = "./trash_csmetric";  // NOLINT
+
 
 class CSMetricTest : public ::testing::Test {
  public:
     CSMetricTest() {}
     ~CSMetricTest() {}
 
-    void InitFilePool() {
+    void InitCurveSegmentLogStorage() {
+        static bool inited = false;
+        if (false == inited) {
+            // Only for once, otherwise an error will be reported
+            RegisterCurveSegmentLogStorageOrDie();
+            inited = true;
+        }
+    }
+
+    void InitFilePool(std::shared_ptr<FilePool> filePool,
+                      const std::string& poolDir,
+                      const std::string& poolMetaPath) {
         FilePoolHelper::PersistEnCodeMetaInfo(lfs_,
                                                    CHUNK_SIZE,
                                                    PAGE_SIZE,
@@ -77,8 +94,8 @@ class CSMetricTest : public ::testing::Test {
         if (lfs_->DirExists(poolDir))
             lfs_->Delete(poolDir);
         allocateChunk(lfs_, chunkNum, poolDir, CHUNK_SIZE);
-        ASSERT_TRUE(chunkFilePool_->Initialize(cfop));
-        ASSERT_EQ(chunkNum, chunkFilePool_->Size());
+        ASSERT_TRUE(filePool->Initialize(cfop));
+        ASSERT_EQ(chunkNum, filePool->Size());
     }
 
     void InitTrash() {
@@ -99,12 +116,13 @@ class CSMetricTest : public ::testing::Test {
         copysetNodeOptions.catchupMargin = 50;
         copysetNodeOptions.chunkDataUri = copysetDir;
         copysetNodeOptions.chunkSnapshotUri = copysetDir;
-        copysetNodeOptions.logUri = copysetDir;
+        copysetNodeOptions.logUri = logDir;
         copysetNodeOptions.raftMetaUri = copysetDir;
         copysetNodeOptions.raftSnapshotUri = copysetDir;
         copysetNodeOptions.concurrentapply = new ConcurrentApplyModule();
         copysetNodeOptions.localFileSystem = lfs_;
         copysetNodeOptions.chunkFilePool = chunkFilePool_;
+        copysetNodeOptions.walFilePool = chunkFilePool_;  // default: share
         copysetNodeOptions.maxChunkSize = CHUNK_SIZE;
         copysetNodeOptions.trash = trash_;
         copysetNodeOptions.locationLimit = 3000;
@@ -142,6 +160,8 @@ class CSMetricTest : public ::testing::Test {
     }
 
     void SetUp() {
+        InitCurveSegmentLogStorage();
+
         copysetMgr_ = &CopysetNodeManager::GetInstance();
         lfs_ = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
         ASSERT_NE(lfs_, nullptr);
@@ -149,8 +169,11 @@ class CSMetricTest : public ::testing::Test {
         ASSERT_NE(trash_, nullptr);
         chunkFilePool_ = std::make_shared<FilePool>(lfs_);
         ASSERT_NE(chunkFilePool_, nullptr);
+        walFilePool_ = std::make_shared<FilePool>(lfs_);
+        ASSERT_NE(walFilePool_, nullptr);
 
-        InitFilePool();
+        InitFilePool(chunkFilePool_, chunkPoolDir, chunkPoolMetaPath);
+        InitFilePool(walFilePool_, walPoolDir, walPoolMetaPath);
         InitTrash();
         InitCopysetManager();
         InitChunkServerMetric();
@@ -159,10 +182,12 @@ class CSMetricTest : public ::testing::Test {
 
     void TearDown() {
         ASSERT_EQ(0, metric_->Fini());
-        lfs_->Delete(poolDir);
         lfs_->Delete(baseDir);
         lfs_->Delete(trashPath);
-        lfs_->Delete(poolMetaPath);
+        lfs_->Delete(chunkPoolDir);
+        lfs_->Delete(chunkPoolMetaPath);
+        lfs_->Delete(walPoolDir);
+        lfs_->Delete(walPoolMetaPath);
         lfs_->Delete(confFile_);
         chunkFilePool_->UnInitialize();
         ASSERT_EQ(0, copysetMgr_->Fini());
@@ -175,6 +200,7 @@ class CSMetricTest : public ::testing::Test {
     std::shared_ptr<Trash> trash_;
     CopysetNodeManager* copysetMgr_;
     std::shared_ptr<FilePool> chunkFilePool_;
+    std::shared_ptr<FilePool> walFilePool_;
     std::shared_ptr<LocalFileSystem> lfs_;
     ChunkServerMetric* metric_;
     std::string confFile_;
@@ -446,10 +472,12 @@ TEST_F(CSMetricTest, CountTest) {
     // 初始状态下，没有copyset，FilePool中有chunkNum个chunk
     ASSERT_EQ(0, metric_->GetCopysetCount());
     ASSERT_EQ(10, metric_->GetChunkLeftCount());
+    // Shared with chunk file pool
+    ASSERT_EQ(0, metric_->GetWalSegmentLeftCount());
 
     // 创建copyset
     Configuration conf;
-    CopysetID copysetId;
+    CopysetID copysetId = 1;
     ASSERT_TRUE(copysetMgr_->CreateCopysetNode(logicId, copysetId, conf));
     ASSERT_EQ(1, metric_->GetCopysetCount());
     // 此时copyset下面没有chunk和快照
@@ -457,9 +485,55 @@ TEST_F(CSMetricTest, CountTest) {
     ASSERT_EQ(0, copysetMetric->GetChunkCount());
     ASSERT_EQ(0, copysetMetric->GetSnapshotCount());
     ASSERT_EQ(0, copysetMetric->GetCloneChunkCount());
+    ASSERT_EQ(0, copysetMetric->GetWalSegmentCount());
     ASSERT_EQ(0, metric_->GetTotalChunkCount());
     ASSERT_EQ(0, metric_->GetTotalSnapshotCount());
     ASSERT_EQ(0, metric_->GetTotalCloneChunkCount());
+    ASSERT_EQ(0, metric_->GetTotalWalSegmentCount());
+
+    auto appendEntry = [](CurveSegmentLogStorage* logStorage) {
+        braft::LogEntry* entry = new braft::LogEntry();
+        entry->type = braft::ENTRY_TYPE_DATA;
+        entry->id.term = 1;
+        entry->id.index = 1;
+        char buffer[128];
+        snprintf(buffer, sizeof(buffer), "Hello world");
+        entry->data.append(buffer);
+        ASSERT_EQ(0, logStorage->append_entry(entry));
+    };
+
+    // Create WAL segment file
+    CurveSegmentLogStorage* logStorage =
+        copysetMgr_->GetCopysetNode(logicId, copysetId)->GetLogStorage();
+    appendEntry(logStorage);
+    ASSERT_EQ(9, metric_->GetChunkLeftCount());
+    ASSERT_EQ(0, metric_->GetWalSegmentLeftCount());
+    ASSERT_EQ(1, copysetMetric->GetWalSegmentCount());
+    ASSERT_EQ(1, metric_->GetTotalWalSegmentCount());
+
+    // Create WAL segment file in another copyset
+    // and use independent wal file pool
+    CopysetID copysetId2 = copysetId + 1;
+    CopysetNodeOptions copysetNodeOptions =
+        copysetMgr_->GetCopysetNodeOptions();
+    copysetNodeOptions.walFilePool = walFilePool_;  // independent wal file pool
+    copysetMgr_->SetCopysetNodeOptions(copysetNodeOptions);
+
+    metric_->MonitorWalFilePool(walFilePool_.get());
+    ASSERT_EQ(10, metric_->GetWalSegmentLeftCount());
+    ASSERT_TRUE(copysetMgr_->CreateCopysetNode(logicId, copysetId2, conf));
+    ASSERT_EQ(2, metric_->GetCopysetCount());
+    CopysetMetricPtr copysetMetric2 = metric_->GetCopysetMetric(logicId, copysetId2);  // NOLINT
+    ASSERT_EQ(0, copysetMetric2->GetWalSegmentCount());
+    ASSERT_EQ(1, metric_->GetTotalWalSegmentCount());
+
+    CurveSegmentLogStorage* logStorage2 =
+        copysetMgr_->GetCopysetNode(logicId, copysetId2)->GetLogStorage();
+    appendEntry(logStorage2);
+    ASSERT_EQ(9, metric_->GetChunkLeftCount());
+    ASSERT_EQ(9, metric_->GetWalSegmentLeftCount());
+    ASSERT_EQ(1, copysetMetric2->GetWalSegmentCount());
+    ASSERT_EQ(2, metric_->GetTotalWalSegmentCount());
 
     // 写入数据生成chunk
     std::shared_ptr<CSDataStore> datastore =
@@ -537,10 +611,14 @@ TEST_F(CSMetricTest, CountTest) {
 
     // 模拟copyset放入回收站测试
     ASSERT_TRUE(copysetMgr_->PurgeCopysetNodeData(logicId, copysetId));
+    ASSERT_TRUE(copysetMgr_->PurgeCopysetNodeData(logicId, copysetId2));
     ASSERT_EQ(nullptr, metric_->GetCopysetMetric(logicId, copysetId));
+    ASSERT_EQ(nullptr, metric_->GetCopysetMetric(logicId, copysetId2));
     ASSERT_EQ(0, metric_->GetTotalChunkCount());
     ASSERT_EQ(0, metric_->GetTotalSnapshotCount());
-    ASSERT_EQ(2, metric_->GetChunkTrashedCount());
+    // copysetId1: 1(chunk) + 2(wal)
+    // copysetId2: 1(wal)
+    ASSERT_EQ(4, metric_->GetChunkTrashedCount());
 
     // 测试leader count计数
     ASSERT_EQ(0, metric_->GetLeaderCount());
@@ -585,6 +663,7 @@ TEST_F(CSMetricTest, OnOffTest) {
         metricOptions.collectMetric = false;
         ASSERT_EQ(0, metric_->Init(metricOptions));
         metric_->MonitorChunkFilePool(chunkFilePool_.get());
+        metric_->MonitorWalFilePool(walFilePool_.get());
         common::Configuration conf;
         conf.SetConfigPath(confFile_);
         int ret = conf.LoadConfig();
@@ -605,6 +684,7 @@ TEST_F(CSMetricTest, OnOffTest) {
         ASSERT_EQ(metric_->GetTotalChunkCount(), 0);
         ASSERT_EQ(metric_->GetTotalSnapshotCount(), 0);
         ASSERT_EQ(metric_->GetTotalCloneChunkCount(), 0);
+        ASSERT_EQ(metric_->GetTotalWalSegmentCount(), 0);
     }
     // 创建copyset的metric返回成功，但实际并未创建
     {
