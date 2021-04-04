@@ -35,6 +35,7 @@
 #include "src/chunkserver/conf_epoch_file.h"
 #include "src/chunkserver/config_info.h"
 #include "src/chunkserver/chunkserver_metrics.h"
+#include "src/chunkserver/raftlog/curve_segment_log_storage.h"
 #include "src/chunkserver/raftsnapshot/define.h"
 #include "src/chunkserver/raftsnapshot/curve_snapshot_writer.h"
 #include "src/common/string_util.h"
@@ -251,6 +252,12 @@ class CopysetNode : public braft::StateMachine,
     virtual std::shared_ptr<CSDataStore> GetDataStore() const;
 
     /**
+     * @brief: Get braft log storage
+     * @return: The pointer to CurveSegmentLogStorage
+     */
+    virtual CurveSegmentLogStorage* GetLogStorage() const;
+
+    /**
      * 返回ConcurrentApplyModule
      */
     virtual ConcurrentApplyModule* GetConcurrentApplyModule() const;
@@ -413,6 +420,8 @@ class CopysetNode : public braft::StateMachine,
     std::shared_ptr<LocalFileSystem> fs_;
     // Chunk持久化操作接口
     std::shared_ptr<CSDataStore> dataStore_;
+    // The log storage for braft
+    CurveSegmentLogStorage* logStorage_;
     // 并发模块
     ConcurrentApplyModule *concurrentapply_;
     // 配置版本持久化工具接口

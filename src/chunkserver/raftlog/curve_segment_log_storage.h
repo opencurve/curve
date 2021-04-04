@@ -50,6 +50,8 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <functional>
+#include <memory>
 #include "src/chunkserver/datastore/file_pool.h"
 #include "src/chunkserver/raftlog/segment.h"
 #include "src/chunkserver/raftlog/curve_segment.h"
@@ -58,8 +60,28 @@
 namespace curve {
 namespace chunkserver {
 
-std::shared_ptr<FilePool> BindForCurveSegmentLogStorage(
-        std::shared_ptr<FilePool> walFilePool);
+class CurveSegmentLogStorage;
+
+struct LogStorageOptions {
+    std::shared_ptr<FilePool> walFilePool;
+    std::function<void(CurveSegmentLogStorage*)> monitorMetricCb;
+
+    LogStorageOptions(std::shared_ptr<FilePool> walFilePool,
+        std::function<void(CurveSegmentLogStorage*)> monitorMetricCb)
+        : walFilePool(walFilePool), monitorMetricCb(monitorMetricCb) {
+    }
+};
+
+struct LogStorageStatus {
+    explicit LogStorageStatus(uint32_t walSegmentFileCount)
+        : walSegmentFileCount(walSegmentFileCount) {
+    }
+
+    uint32_t walSegmentFileCount;
+};
+
+std::shared_ptr<LogStorageOptions> StoreOptForCurveSegmentLogStorage(
+    std::shared_ptr<LogStorageOptions> options);
 
 void RegisterCurveSegmentLogStorageOrDie();
 
@@ -76,8 +98,8 @@ class CurveSegmentLogStorage : public braft::LogStorage {
     typedef std::map<int64_t, scoped_refptr<Segment> > SegmentMap;
 
     explicit CurveSegmentLogStorage(const std::string& path,
-            bool enable_sync = true,
-            std::shared_ptr<FilePool> walFilePool = nullptr)
+        bool enable_sync = true,
+        std::shared_ptr<FilePool> walFilePool = nullptr)
         : _path(path)
         , _first_log_index(1)
         , _last_log_index(0)
@@ -137,6 +159,8 @@ class CurveSegmentLogStorage : public braft::LogStorage {
     void list_files(std::vector<std::string>* seg_files);
 
     void sync();
+
+    LogStorageStatus GetStatus();
 
  private:
     scoped_refptr<Segment> open_segment(size_t to_write);
