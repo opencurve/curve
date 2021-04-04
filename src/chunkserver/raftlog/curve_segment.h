@@ -77,7 +77,6 @@ class BAIDU_CACHELINE_ALIGNMENT CurveSegment:
         _checksum_type(checksum_type),
         _walFilePool(walFilePool),
         _meta_page_size(walFilePool->GetFilePoolOpt().metaPageSize) {
-            CHECK(nullptr != _walFilePool) << "wal file pool is null";
     }
     CurveSegment(const std::string& path, const int64_t first_index,
                  const int64_t last_index, int checksum_type,
@@ -88,7 +87,6 @@ class BAIDU_CACHELINE_ALIGNMENT CurveSegment:
         _checksum_type(checksum_type),
         _walFilePool(walFilePool),
         _meta_page_size(walFilePool->GetFilePoolOpt().metaPageSize) {
-            CHECK(nullptr != _walFilePool) << "wal file pool is null";
     }
     ~CurveSegment() {
         if (_fd >= 0) {

@@ -34,7 +34,6 @@
 #include <cassert>
 
 #include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
-#include "src/chunkserver/raftlog/curve_segment_log_storage.h"
 #include "src/chunkserver/chunk_closure.h"
 #include "src/chunkserver/op_request.h"
 #include "src/fs/fs_common.h"
@@ -189,9 +188,18 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
         metric_->MonitorDataStore(dataStore_.get());
     }
 
+    auto monitorMetricCb = [this](CurveSegmentLogStorage* logStorage) {
+        logStorage_ = logStorage;
+        metric_->MonitorCurveSegmentLogStorage(logStorage);
+    };
+
+    std::shared_ptr<LogStorageOptions> lsOptions =
+        std::make_shared<LogStorageOptions>(options.walFilePool,
+                                            monitorMetricCb);
+
     // In order to get more copysetNode's information in CurveSegmentLogStorage
     // without using global variables.
-    BindForCurveSegmentLogStorage(options.walFilePool);
+    StoreOptForCurveSegmentLogStorage(lsOptions);
 
     return 0;
 }
@@ -729,6 +737,10 @@ uint64_t CopysetNode::GetAppliedIndex() const {
 
 std::shared_ptr<CSDataStore> CopysetNode::GetDataStore() const {
     return dataStore_;
+}
+
+CurveSegmentLogStorage* CopysetNode::GetLogStorage() const {
+    return logStorage_;
 }
 
 ConcurrentApplyModule *CopysetNode::GetConcurrentApplyModule() const {
