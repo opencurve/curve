@@ -143,6 +143,14 @@ class CopysetNodeManager : public curve::common::Uncopyable {
     }
 
     /**
+     * @brief: Only for test
+     */
+    void SetCopysetNodeOptions(
+        const CopysetNodeOptions& copysetNodeOptions) {
+        copysetNodeOptions_ = copysetNodeOptions;
+    }
+
+    /**
      * 加载copyset，包括新建一个copyset或者重启一个copyset
      * @param logicPoolId: 逻辑池id
      * @param copysetId: copyset id
