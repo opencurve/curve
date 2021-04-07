@@ -1136,6 +1136,55 @@ TEST_F(IOTrackerSplitorTest, stripeTest) {
     delete[] buf;
 }
 
+TEST_F(IOTrackerSplitorTest, TestDisableStripeForStripeFile) {
+    MockRequestScheduler scheduler;
+    scheduler.DelegateToFake();
+
+    FInfo fi;
+    fi.seqnum = 0;
+    fi.chunksize = 4 * 1024 * 1024;
+    fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
+    fi.stripeUnit = 1 * 1024 * 1024;
+    fi.stripeCount = 4;
+
+    uint64_t offset = 1 * 1024 * 1024 - 64 * 1024;
+    uint64_t length = 128 * 1024;
+    std::unique_ptr<char[]> buf(new char[length]);
+    memset(buf.get(), 'a', length);
+
+    butil::IOBuf dataCopy;
+    dataCopy.append(buf.get(), length);
+
+    auto* iomanager = fileinstance_->GetIOManager4File();
+    MetaCache* cache = iomanager->GetMetaCache();
+    curve::client::ChunkIDInfo chinfo(1, 2, 3);
+    curve::client::ChunkIDInfo chinfo1(4, 5, 6);
+    cache->UpdateChunkInfoByIndex(0, chinfo);
+    cache->UpdateChunkInfoByIndex(1, chinfo1);
+
+    IOTracker ioTracker(iomanager, cache, &scheduler, nullptr, true);
+    std::vector<RequestContext*> reqlist;
+    ASSERT_EQ(0,
+              Splitor::IO2ChunkRequests(&ioTracker, cache, &reqlist, &dataCopy,
+                                        offset, length, &mdsclient_, &fi));
+
+    ASSERT_EQ(2, reqlist.size());
+    auto* first = reqlist[0];
+
+    ASSERT_EQ(1, first->idinfo_.cid_);
+    ASSERT_EQ(3, first->idinfo_.cpid_);
+    ASSERT_EQ(2, first->idinfo_.lpid_);
+    ASSERT_EQ(1 * 1024 * 1024 - 64 * 1024, first->offset_);
+    ASSERT_EQ(length / 2, first->rawlength_);
+
+    auto* second = reqlist[1];
+    ASSERT_EQ(1, second->idinfo_.cid_);
+    ASSERT_EQ(3, second->idinfo_.cpid_);
+    ASSERT_EQ(2, second->idinfo_.lpid_);
+    ASSERT_EQ(1 * 1024 * 1024, second->offset_);
+    ASSERT_EQ(length / 2, second->rawlength_);
+}
+
 // read the chunks all haven't been write from normal volume with no clonesource
 TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegment) {
     curvefsservice.SetGetOrAllocateSegmentFakeReturn(notallocatefakeret);

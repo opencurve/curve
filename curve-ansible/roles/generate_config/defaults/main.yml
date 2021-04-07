@@ -234,6 +234,12 @@ s3_connect_timeout: 60000
 s3_request_timeout: 10000
 s3_loglevel: 4
 s3_async_thread_num: 64
+s3_throttle_iopsTotalLimit: 5000
+s3_throttle_iopsReadLimit: 5000
+s3_throttle_iopsWriteLimit: 5000
+s3_throttle_bpsTotalLimit: 1280
+s3_throttle_bpsReadLimit: 1280
+s3_throttle_bpsWriteLimit: 1280
 
 # 运维工具默认值
 tool_rpc_timeout: 500

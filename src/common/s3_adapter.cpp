@@ -24,6 +24,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include "src/common/curve_define.h"
 
 namespace curve {
 namespace common {
@@ -60,6 +61,37 @@ void S3Adapter::Init(const std::string &path) {
             *clientCfg_,
             Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never,
             false);
+
+    uint64_t iopsTotalLimit = 0;
+    uint64_t iopsReadLimit = 0;
+    uint64_t iopsWriteLimit = 0;
+    uint64_t bpsTotalMB = 0;
+    uint64_t bpsReadMB = 0;
+    uint64_t bpsWriteMB = 0;
+
+    LOG_IF(FATAL,
+        !conf_.GetUInt64Value("s3.throttle.iopsTotalLimit", &iopsTotalLimit));
+    LOG_IF(FATAL,
+        !conf_.GetUInt64Value("s3.throttle.iopsReadLimit", &iopsTotalLimit));
+    LOG_IF(FATAL,
+        !conf_.GetUInt64Value("s3.throttle.iopsWriteLimit", &iopsTotalLimit));
+    LOG_IF(FATAL,
+        !conf_.GetUInt64Value("s3.throttle.bpsTotalMB", &iopsTotalLimit));
+    LOG_IF(FATAL,
+        !conf_.GetUInt64Value("s3.throttle.bpsReadMB", &iopsTotalLimit));
+    LOG_IF(FATAL,
+        !conf_.GetUInt64Value("s3.throttle.bpsWriteMB", &iopsTotalLimit));
+
+    ReadWriteThrottleParams params;
+    params.iopsTotal.limit = iopsTotalLimit;
+    params.iopsRead.limit = iopsReadLimit;
+    params.iopsWrite.limit = iopsWriteLimit;
+    params.bpsTotal.limit = bpsTotalMB * kMB;
+    params.bpsRead.limit = bpsReadMB * kMB;
+    params.bpsWrite.limit = bpsWriteMB * kMB;
+
+    throttle_ = new Throttle();
+    throttle_->UpdateThrottleParams(params);
 }
 
 void S3Adapter::Deinit() {
@@ -67,6 +99,7 @@ void S3Adapter::Deinit() {
     Aws::Delete<Aws::SDKOptions>(options_);
     Aws::Delete<Aws::Client::ClientConfiguration>(clientCfg_);
     Aws::Delete<Aws::S3::S3Client>(s3Client_);
+    delete throttle_;
 }
 
 int S3Adapter::CreateBucket() {
@@ -156,6 +189,11 @@ int S3Adapter::PutObject(const Aws::String &key,
                 Aws::MakeShared<Aws::StringStream>("stream");
     *input_data << data;
     request.SetBody(input_data);
+
+    if (throttle_) {
+        throttle_->Add(false, data.size());
+    }
+
     auto response = s3Client_->PutObject(request);
     if (response.IsSuccess()) {
         return 0;
@@ -203,6 +241,9 @@ int S3Adapter::GetObject(const Aws::String &key,
     request.SetBucket(bucketName_);
     request.SetKey(key);
     std::stringstream ss;
+    if (throttle_) {
+        throttle_->Add(true,  1);
+    }
     auto response = s3Client_->GetObject(request);
     if (response.IsSuccess()) {
         ss << response.GetResult().GetBody().rdbuf();
@@ -224,6 +265,9 @@ int S3Adapter::GetObject(const std::string &key,
     request.SetBucket(bucketName_);
     request.SetKey(key.c_str());
     request.SetRange(("bytes=" + std::to_string(offset) + "-" + std::to_string(offset+len)).c_str()); //NOLINT
+    if (throttle_) {
+        throttle_->Add(true, len);
+    }
     auto response = s3Client_->GetObject(request);
     if (response.IsSuccess()) {
         response.GetResult().GetBody().rdbuf()->sgetn(buf, len);
@@ -266,6 +310,9 @@ void S3Adapter::GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) {
         }
         ctx->cb(this, ctx);
     };
+    if (throttle_) {
+        throttle_->Add(true, context->len);
+    }
     s3Client_->GetObjectAsync(request, handler, context);
 }
 
@@ -377,6 +424,9 @@ Aws::S3::Model::CompletedPart S3Adapter:: UploadOnePart(
             Aws::MakeShared<Aws::StringStream>("UploadPartStream");
     *input_data << *str;
     request.SetBody(input_data);
+    if (throttle_) {
+        throttle_->Add(false, partSize);
+    }
     auto result = s3Client_->UploadPart(request);
     if (result.IsSuccess()) {
         return Aws::S3::Model::CompletedPart()

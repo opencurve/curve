@@ -26,7 +26,7 @@ class NbdThrash:
         self.check_md5 = ""
 
     def nbd_create(self,vol_size):
-        cmd = "curve create --filename /%s --length %s --user test"%(self.name,vol_size)
+        cmd = "curve create --filename /%s --length %s --user test --stripeUnit 2097152  --stripeCount 4"%(self.name,vol_size)
         rs = shell_operator.ssh_exec(self.ssh, cmd)
         assert rs[3] == 0,"create nbd fail：%s"%rs[1]
 
@@ -406,8 +406,8 @@ def init_nbd_vol(check_md5=True,lazy="True"):
         thrash = NbdThrash(ssh,name)
         vol_size = 10 #GB
         thrash.nbd_create(vol_size)
-        nbd_dev = "nbd3"
-        thrash.nbd_map(nbd_dev)
+#        nbd_dev = "nbd3"
+        thrash.nbd_map()
         time.sleep(5)
         thrash.nbd_getdev()
         if check_md5 == True:

@@ -235,14 +235,17 @@ int FileClient::ReOpen(const std::string& filename,
 }
 
 int FileClient::Open4ReadOnly(const std::string& filename,
-    const UserInfo_t& userinfo) {
-
+                              const UserInfo_t& userinfo, bool disableStripe) {
     FileInstance* instance = FileInstance::Open4Readonly(
         clientconfig_.GetFileServiceOption(), mdsClient_, filename, userinfo);
 
     if (instance == nullptr) {
         LOG(ERROR) << "Open4Readonly failed, filename = " << filename;
         return -1;
+    }
+
+    if (disableStripe) {
+        instance->GetIOManager4File()->SetDisableStripe();
     }
 
     int fd = fdcount_.fetch_add(1, std::memory_order_relaxed);
