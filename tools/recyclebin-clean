@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+
+# Copyright (C) Jingli Chen (Wine93)
+
+############################  GLOBAL VARIABLES
+force=0
+percent=100
+
+############################  FUNCTIONS
+msg() {
+    printf '%b' "$1" >&2
+}
+
+success() {
+    msg "\33[32m[✔]\33[0m ${1}${2}"
+}
+
+die() {
+    msg "\33[31m[✘]\33[0m ${1}${2}"
+    exit 1
+}
+
+now() {
+    printf `date '+%Y-%m-%d %H:%M:%S'`
+}
+
+program_must_exist() {
+    local ret='0'
+    command -v $1 >/dev/null 2>&1 || { local ret='1'; }
+
+    if [ "$ret" -ne 0 ]; then
+        die "You must have '$1' installed to continue.\n"
+    fi
+}
+
+curve_tool() {
+    local subcmd="$1"
+
+    if [ "$subcmd" = "space" ]; then
+        curve_ops_tool $subcmd 2>&1
+    elif [ "$subcmd" = "clean-recycle" ]; then
+        echo "yes" | curve_ops_tool $subcmd 2>&1
+    fi
+}
+
+calc_recyclable() {
+    curve_tool "space" | \
+    awk '{
+        REG_SPACE = "can be recycled = [0-9]+GB\\(([0-9]+)\\.[0-9]+%\\)"
+        REG_ERROR = "GetAllocatedSize of RecycleBin fail!"
+        if (match($0, REG_SPACE, mu)) {
+            recyclable = mu[1]
+        } else if (match($0, REG_ERROR)) {
+            recyclable = -1
+        } else {
+            recyclable = 0
+        }
+    }
+    END {
+        print recyclable
+    }'
+}
+
+get_options() {
+    while getopts "fhp:" opts
+    do
+        case $opts in
+            f)
+                force=1
+                ;;
+            h)
+                usage
+                exit 0
+                ;;
+            p)
+                percent=$OPTARG
+                if [ "$percent" -gt 100 ]; then
+                    percent=100
+                fi
+                ;;
+            \?)
+                usage
+                exit 1
+                ;;
+        esac
+    done
+}
+
+usage () {
+    cat << _EOC_
+Usage:
+    recyclebin-clean [options]
+
+Options:
+    -f               Force clean recycle bin when get space info error
+    -p <percent>     Specify the percent of recyclable to trigger the cleanup. (default: 100)
+
+Examples:
+    recyclebin-clean -f
+    recyclebin-clean -p 90
+_EOC_
+}
+
+main() {
+    get_options "$@"
+
+    program_must_exist "curve_ops_tool"
+
+    # Clean recycle bin
+    local ret=0
+    local action=0
+    local recyclable=`calc_recyclable`
+
+    if [ "$recyclable" -eq -1 ]; then  # Error
+        if [ "$force" -eq 1 ]; then
+            curve_tool "clean-recycle"
+            ret=$?; action=1
+        fi
+    elif [ "$recyclable" -gt 0 ]; then
+        if [ "$recyclable" -ge "$percent" ]; then
+            curve_tool "clean-recycle"
+            ret=$?; action=1
+        fi
+    fi
+
+    # Summary
+    if [ "$ret" -ne 0 ]; then
+        die "[$(now)] recyclable(${recyclable}%): clean recyclebin fail\n"
+    fi
+
+    if [ $action -eq 1 ]; then
+        success "[$(now)] recyclable(${recyclable}% => 0%): clean recyclbin success\n"
+    else
+        success "[$(now)] recyclable(${recyclable}%): nothing to do\n"
+    fi
+}
+
+############################  MAIN()
+main "$@"
