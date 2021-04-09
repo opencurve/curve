@@ -66,6 +66,7 @@ struct LogStorageOptions {
     std::shared_ptr<FilePool> walFilePool;
     std::function<void(CurveSegmentLogStorage*)> monitorMetricCb;
 
+    LogStorageOptions() = default;
     LogStorageOptions(std::shared_ptr<FilePool> walFilePool,
         std::function<void(CurveSegmentLogStorage*)> monitorMetricCb)
         : walFilePool(walFilePool), monitorMetricCb(monitorMetricCb) {
@@ -80,8 +81,8 @@ struct LogStorageStatus {
     uint32_t walSegmentFileCount;
 };
 
-std::shared_ptr<LogStorageOptions> StoreOptForCurveSegmentLogStorage(
-    std::shared_ptr<LogStorageOptions> options);
+LogStorageOptions StoreOptForCurveSegmentLogStorage(
+    LogStorageOptions options);
 
 void RegisterCurveSegmentLogStorageOrDie();
 
