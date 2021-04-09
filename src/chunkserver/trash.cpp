@@ -331,5 +331,3 @@ uint32_t Trash::CountChunkNumInCopyset(const std::string &copysetPath) {
 
 }  // namespace chunkserver
 }  // namespace curve
-
-
