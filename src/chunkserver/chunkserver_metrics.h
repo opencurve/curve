@@ -185,7 +185,8 @@ class CSCopysetMetric {
         , copysetId_(0)
         , chunkCount_(nullptr)
         , snapshotCount_(nullptr)
-        , cloneChunkCount_(nullptr) {}
+        , cloneChunkCount_(nullptr)
+        , walSegmentCount_(nullptr) {}
 
     ~CSCopysetMetric() {}
 

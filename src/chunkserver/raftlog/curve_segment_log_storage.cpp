@@ -47,10 +47,10 @@
 namespace curve {
 namespace chunkserver {
 
-std::shared_ptr<LogStorageOptions> StoreOptForCurveSegmentLogStorage(
-    std::shared_ptr<LogStorageOptions> options) {
-    static std::shared_ptr<LogStorageOptions> options_ = options;
-    if (nullptr != options) {
+LogStorageOptions StoreOptForCurveSegmentLogStorage(
+    LogStorageOptions options) {
+    static LogStorageOptions options_;
+    if (nullptr != options.walFilePool) {
         options_ = options;
     }
 
@@ -678,14 +678,14 @@ void CurveSegmentLogStorage::sync() {
 
 braft::LogStorage* CurveSegmentLogStorage::new_instance(
     const std::string& uri) const {
-    std::shared_ptr<LogStorageOptions> options =
-        StoreOptForCurveSegmentLogStorage(nullptr);
+    LogStorageOptions options = StoreOptForCurveSegmentLogStorage(
+        LogStorageOptions());
 
-    CHECK(nullptr != options->walFilePool) << "wal file pool is null";
+    CHECK(nullptr != options.walFilePool) << "wal file pool is null";
 
     CurveSegmentLogStorage* logStorage = new CurveSegmentLogStorage(
-        uri, true, options->walFilePool);
-    options->monitorMetricCb(logStorage);
+        uri, true, options.walFilePool);
+    options.monitorMetricCb(logStorage);
 
     return logStorage;
 }

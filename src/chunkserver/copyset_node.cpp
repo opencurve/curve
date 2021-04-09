@@ -193,9 +193,7 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
         metric_->MonitorCurveSegmentLogStorage(logStorage);
     };
 
-    std::shared_ptr<LogStorageOptions> lsOptions =
-        std::make_shared<LogStorageOptions>(options.walFilePool,
-                                            monitorMetricCb);
+    LogStorageOptions lsOptions(options.walFilePool, monitorMetricCb);
 
     // In order to get more copysetNode's information in CurveSegmentLogStorage
     // without using global variables.
