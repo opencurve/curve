@@ -45,7 +45,6 @@ using curve::mds::topology::GetCopySetsInClusterResponse;
 using curve::mds::schedule::RapidLeaderScheduleResponse;
 using curve::mds::schedule::QueryChunkServerRecoverStatusRequest;
 using curve::mds::schedule::QueryChunkServerRecoverStatusResponse;
-using curve::mds::DefaultSegmentSize;
 
 using ::testing::_;
 using ::testing::Return;
@@ -198,6 +197,7 @@ class ToolMDSClientTest : public ::testing::Test {
     curve::mds::schedule::MockScheduleService* scheduleService;
     MDSClient mdsClient;
     const uint64_t kChunkSize = 16777216;
+    const uint64_t DefaultSegmentSize = 1024 * 1024 * 1024;
 };
 
 TEST(MDSClientInitTest, Init) {
