@@ -70,6 +70,9 @@ class CurveFSTest: public ::testing::Test {
         authOptions_.rootPassword = "root_password";
 
         curveFSOptions_.defaultChunkSize = 16 * kMB;
+        curveFSOptions_.defaultSegmentSize = 1 * kGB;
+        curveFSOptions_.minFileLength = 10 * kGB;
+        curveFSOptions_.maxFileLength = 20 * kTB;
         curveFSOptions_.authOptions = authOptions_;
         curveFSOptions_.fileRecordOptions = fileRecordOptions_;
 
@@ -93,6 +96,9 @@ class CurveFSTest: public ::testing::Test {
                         allocStatistic_,
                         curveFSOptions_,
                         topology_);
+        DefaultSegmentSize = curvefs_->GetDefaultSegmentSize();
+        kMiniFileLength = curvefs_->GetMinFileLength();
+        kMaxFileLength = curvefs_->GetMaxFileLength();
         curvefs_->Run();
     }
 
@@ -112,6 +118,9 @@ class CurveFSTest: public ::testing::Test {
     struct FileRecordOptions fileRecordOptions_;
     struct RootAuthOption authOptions_;
     struct CurveFSOption curveFSOptions_;
+    uint64_t DefaultSegmentSize;
+    uint64_t kMiniFileLength;
+    uint64_t kMaxFileLength;
 };
 
 TEST_F(CurveFSTest, testCreateFile1) {

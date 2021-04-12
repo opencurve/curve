@@ -35,12 +35,12 @@ DEFINE_uint32(dummyPort, 6667, "dummy server port");
 
 using ::curve::mds::kMB;
 using ::curve::mds::kGB;
-using ::curve::mds::DefaultSegmentSize;
-using ::curve::mds::kMiniFileLength;
+using ::curve::mds::kTB;
 
 DEFINE_uint64(chunkSize, 16 * kMB, "chunk size");
 DEFINE_uint64(segmentSize, 1 * kGB, "segment size");
-DEFINE_uint64(minFileLength, 10 * kGB, "min filglength");
+DEFINE_uint64(minFileLength, 10 * kGB, "min filelength");
+DEFINE_uint64(maxFileLength, 20 * kTB, "max filelength");
 
 void LoadConfigFromCmdline(Configuration *conf) {
     google::CommandLineFlagInfo info;
@@ -57,11 +57,16 @@ void LoadConfigFromCmdline(Configuration *conf) {
     }
 
     if (GetCommandLineFlagInfo("segmentSize", &info) && !info.is_default) {
-        DefaultSegmentSize = FLAGS_segmentSize;
+        conf->SetUInt64Value(
+                    "mds.curvefs.defaultSegmentSize", FLAGS_segmentSize);
     }
 
     if (GetCommandLineFlagInfo("minFileLength", &info) && !info.is_default) {
-        kMiniFileLength = FLAGS_minFileLength;
+        conf->SetUInt64Value("mds.curvefs.minFileLength", FLAGS_minFileLength);
+     }
+
+    if (GetCommandLineFlagInfo("maxFileLength", &info) && !info.is_default) {
+        conf->SetUInt64Value("mds.curvefs.maxFileLength", FLAGS_maxFileLength);
     }
 
     if (GetCommandLineFlagInfo("mdsDbName", &info) && !info.is_default) {

@@ -95,6 +95,9 @@ class NameSpaceServiceTest : public ::testing::Test {
         authOptions.rootPassword = "root_password";
 
         curveFSOptions.defaultChunkSize = 16 * kMB;
+        curveFSOptions.defaultSegmentSize = 1 * kGB;
+        curveFSOptions.minFileLength = 10 * kGB;
+        curveFSOptions.maxFileLength = 20 * kTB;
         curveFSOptions.fileRecordOptions = fileRecordOptions;
         curveFSOptions.authOptions = authOptions;
 
@@ -103,6 +106,16 @@ class NameSpaceServiceTest : public ::testing::Test {
                         fileRecordManager_,
                         allocStatistic_,
                         curveFSOptions, topology_);
+
+        ASSERT_EQ(curveFSOptions.defaultChunkSize,
+                       kCurveFS.GetDefaultChunkSize());
+        ASSERT_EQ(curveFSOptions.defaultSegmentSize,
+                       kCurveFS.GetDefaultSegmentSize());
+        ASSERT_EQ(curveFSOptions.minFileLength, kCurveFS.GetMinFileLength());
+        ASSERT_EQ(curveFSOptions.maxFileLength, kCurveFS.GetMaxFileLength());
+        DefaultSegmentSize = kCurveFS.GetDefaultSegmentSize();
+        kMiniFileLength = kCurveFS.GetMinFileLength();
+
         kCurveFS.Run();
 
         std::this_thread::sleep_for(std::chrono::microseconds(
@@ -131,6 +144,8 @@ class NameSpaceServiceTest : public ::testing::Test {
     struct FileRecordOptions fileRecordOptions;
     struct RootAuthOption authOptions;
     struct CurveFSOption curveFSOptions;
+    uint64_t DefaultSegmentSize;
+    uint64_t kMiniFileLength;
 };
 
 TEST_F(NameSpaceServiceTest, test1) {
