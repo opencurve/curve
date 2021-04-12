@@ -19,6 +19,9 @@
 curve_root_username: root
 curve_root_password: root_password
 chunk_size: 16777216
+segment_size: 1073741824
+min_file_length: 10737418240
+max_file_length: 21990232555520
 file_expired_time_us: 5000000
 
 # mds配置默认值
