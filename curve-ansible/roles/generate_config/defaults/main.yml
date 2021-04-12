@@ -174,6 +174,8 @@ snap_clone_backend_ref_func_scan_interval_ms: 3600000
 snap_etcd_dailtimeout_ms: 5000
 snap_etcd_operation_timeout_ms: 5000
 snap_etcd_retry_times: 3
+snap_etcd_dlock_timeout_ms: 10000
+snap_etcd_dlock_ttl_sec: 10
 snap_leader_campagin_prefix: snapshotcloneserverleaderlock
 snap_leader_session_inter_sec: 5
 snap_leader_election_timeout_ms: 0

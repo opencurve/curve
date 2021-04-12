@@ -106,6 +106,13 @@ void InitSnapshotCloneServerOptions(std::shared_ptr<Configuration> conf,
                         &serverOption->backEndReferenceRecordScanIntervalMs);
     conf->GetValueFatalIfFail("server.backEndReferenceFuncScanIntervalMs",
                         &serverOption->backEndReferenceFuncScanIntervalMs);
+
+    conf->GetValueFatalIfFail("etcd.retry.times",
+                        &(serverOption->dlockOpts.retryTimes));
+    conf->GetValueFatalIfFail("etcd.dlock.timeoutMs",
+                        &(serverOption->dlockOpts.ctx_timeoutMS));
+    conf->GetValueFatalIfFail("etcd.dlock.ttlSec",
+                        &(serverOption->dlockOpts.ttlSec));
 }
 
 void InitEtcdConf(std::shared_ptr<Configuration> conf, EtcdConf* etcdConf) {
