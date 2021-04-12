@@ -35,7 +35,7 @@ typedef struct { const char *p; ptrdiff_t n; } _GoString_;
 /* Start of preamble from import "C" comments.  */
 
 
-#line 3 "etcdclient.go"
+#line 19 "etcdclient.go"
 
 #include <stdlib.h>
 
@@ -245,6 +245,14 @@ struct EtcdClientGetMultiObject_return {
 extern struct EtcdClientGetMultiObject_return EtcdClientGetMultiObject(GoUint64 p0, GoInt p1);
 
 extern void EtcdClientRemoveObject(GoUint64 p0);
+
+extern int64_t NewEtcdMutex(char* p0, int p1, GoInt p2);
+
+extern GoUint32 EtcdMutexLock(int p0, int64_t p1);
+
+extern GoUint32 EtcdMutexUnlock(int p0, int64_t p1);
+
+extern void DestoryEtcdMutex(int64_t p0);
 
 #ifdef __cplusplus
 }
