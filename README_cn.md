@@ -82,7 +82,7 @@ CURVE编码规范严格按照[Google C++开源项目编码指南](https://zh-goo
 - [FAQ](https://github.com/openCURVE/CURVE/wiki/CURVE-FAQ)：主要根据User group中常见问题整理，还在逐步完善中
 - User group：当前为微信群，由于群人数过多，需要先添加以下个人微信，再邀请进群。
 
-<img src="https://raw.githubusercontent.com/opencurve/opencurve.github.io/master/image/curve-wechat.jpeg" style="zoom: 75%;" />
+<img src="docs/images/curve-wechat.jpeg" style="zoom: 75%;" />
 
 
 
