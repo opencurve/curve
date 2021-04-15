@@ -33,15 +33,26 @@
 #include <deque>
 #include <atomic>
 
+#include "src/common/concurrent/concurrent.h"
+#include "src/common/interruptible_sleeper.h"
+#include "src/common/throttle.h"
 #include "src/fs/local_filesystem.h"
 #include "include/curve_compiler_specific.h"
 
 using curve::fs::LocalFileSystem;
+using curve::common::Thread;
+using curve::common::Atomic;
+using curve::common::InterruptibleSleeper;
+using curve::common::ReadWriteThrottleParams;
+using curve::common::ThrottleParams;
+using curve::common::Throttle;
 namespace curve {
 namespace chunkserver {
 
 struct FilePoolOptions {
     bool        getFileFromPool;
+    bool        needClean;
+    uint32_t    iops4clean;
     // it should be set when getFileFromPool=false
     char        filePoolDir[256];
     uint32_t    fileSize;
@@ -53,6 +64,8 @@ struct FilePoolOptions {
 
     FilePoolOptions() {
         getFileFromPool = true;
+        needClean = false;
+        iops4clean = -1;
         metaFileSize = 4096;
         fileSize = 0;
         metaPageSize = 0;
@@ -62,10 +75,12 @@ struct FilePoolOptions {
     }
 
     FilePoolOptions& operator=(const FilePoolOptions& other) {
-        getFileFromPool   = other.getFileFromPool;
-        metaFileSize     = other.metaFileSize;
-        fileSize    = other.fileSize;
-        retryTimes   = other.retryTimes;
+        getFileFromPool = other.getFileFromPool;
+        needClean = other.needClean;
+        iops4clean = other.iops4clean;
+        metaFileSize = other.metaFileSize;
+        fileSize = other.fileSize;
+        retryTimes = other.retryTimes;
         metaPageSize = other.metaPageSize;
         ::memcpy(metaPath, other.metaPath, 256);
         ::memcpy(filePoolDir, other.filePoolDir, 256);
@@ -73,10 +88,12 @@ struct FilePoolOptions {
     }
 
     FilePoolOptions(const FilePoolOptions& other) {
-        getFileFromPool   = other.getFileFromPool;
-        metaFileSize     = other.metaFileSize;
-        fileSize    = other.fileSize;
-        retryTimes   = other.retryTimes;
+        getFileFromPool = other.getFileFromPool;
+        needClean = other.needClean;
+        iops4clean = other.iops4clean;
+        metaFileSize = other.metaFileSize;
+        fileSize = other.fileSize;
+        retryTimes = other.retryTimes;
         metaPageSize = other.metaPageSize;
         ::memcpy(metaPath, other.metaPath, 256);
         ::memcpy(filePoolDir, other.filePoolDir, 256);
@@ -149,8 +166,11 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
      * and GetChunk internally assigns the metapage atom and returns it.
      * @param: chunkpath is the new chunkfile path
      * @param: metapage is the metapage information of the new chunk
+     * @param: needClean is whether chunk need fill zero
+     * @param: metapageV2 is the metapage information of the zeroed chunk
      */
-    virtual int GetFile(const std::string& chunkpath, char* metapage);
+    virtual int GetFile(const std::string& chunkpath, char* metapage,
+        bool needClean = false, char* metapageV2 = nullptr);
     /**
      * Datastore deletes chunks and recycles directly, not really deleted
      * @param: chunkpath is the chunk path that needs to be recycled
@@ -183,6 +203,10 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
         fsptr_ = fs;
     }
 
+    bool StartCleaning();
+
+    bool StopCleaning();
+
  private:
     // Traverse the pre-allocated chunk information from the
     // chunkfile pool directory
@@ -203,8 +227,22 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
      */
     int AllocateChunk(const std::string& chunkpath);
 
+    uint64_t GetChunk(bool needClean, bool& isCleaned);
+
+    int CleanChunk(uint64_t chunkid, bool onlyMarked);
+
+    void CleaningChunk();
+
+    void CleanWorker();
+
+
  private:
-    // Protect tmpChunkvec_
+    static const string cleanChunkSuffix_;
+    static const int bytesPerWrite_;
+    // Sets a pause between iterations
+    static const std::chrono::milliseconds cleanSleepMsec_;
+
+    // Protect dirtyChunks_, cleanChunks_
     std::mutex mtx_;
 
     // Current FilePool pre-allocated files, folder path
@@ -215,7 +253,9 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
     std::shared_ptr<LocalFileSystem> fsptr_;
 
     // The numeric format of the file name in the chunkfile pool held in memory
-    std::vector<uint64_t> tmpChunkvec_;
+    std::vector<uint64_t> dirtyChunks_;
+
+    std::vector<uint64_t> cleanChunks_;
 
     // The current largest file name number format
     std::atomic<uint64_t> currentmaxfilenum_;
@@ -225,6 +265,14 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
 
     // FilePool allocation status
     FilePoolState_t currentState_;
+
+    Atomic<bool> cleanAlived_;
+
+    Thread cleanThread_;
+
+    Throttle cleanThrottle_;
+
+    InterruptibleSleeper cleanSleeper_;
 };
 }   // namespace chunkserver
 }   // namespace curve

@@ -34,7 +34,9 @@
 #include <memory>
 #include <vector>
 
+#include "src/common/throttle.h"
 #include "src/common/configuration.h"
+#include "src/common/string_util.h"
 #include "src/common/crc32.h"
 #include "src/common/curve_define.h"
 
@@ -47,6 +49,9 @@ const char* FilePoolHelper::kMetaPageSize = "metaPageSize";
 const char* FilePoolHelper::kFilePoolPath = "chunkfilepool_path";
 const char* FilePoolHelper::kCRC = "crc";
 const uint32_t FilePoolHelper::kPersistSize = 4096;
+const string FilePool::cleanChunkSuffix_ = ".0";
+const int FilePool::bytesPerWrite_ = 4 * 1024;
+const std::chrono::milliseconds FilePool::cleanSleepMsec_(500);
 
 int FilePoolHelper::PersistEnCodeMetaInfo(
     std::shared_ptr<LocalFileSystem> fsptr, uint32_t chunkSize,
@@ -199,7 +204,10 @@ FilePool::FilePool(std::shared_ptr<LocalFileSystem> fsptr)
     : currentmaxfilenum_(0) {
     CHECK(fsptr != nullptr) << "fs ptr allocate failed!";
     fsptr_ = fsptr;
-    tmpChunkvec_.clear();
+    cleanAlived_ = false;
+    dirtyChunks_.clear();
+    cleanChunks_.clear();
+
 }
 
 bool FilePool::Initialize(const FilePoolOptions& cfopt) {
@@ -244,24 +252,189 @@ bool FilePool::CheckValid() {
     return true;
 }
 
-int FilePool::GetFile(const std::string& targetpath, char* metapage) {
+int FilePool::CleanChunk(uint64_t chunkid, bool onlyMarked) {
+    std::string chunkpath = currentdir_ + "/" + std::to_string(chunkid);
+    int ret = fsptr_->Open(chunkpath.c_str(), O_RDWR);
+    if (ret < 0) {
+        LOG(ERROR) << "Open file failed: " << chunkpath.c_str();
+        return -1;
+    }
+
+    int fd = ret;
+    uint64_t chunklen = poolOpt_.fileSize + poolOpt_.metaPageSize;
+
+    if (onlyMarked) {
+        ret = fsptr_->Fallocate(fd, FALLOC_FL_ZERO_RANGE, 0, chunklen);
+        LOG(INFO) << "<<<<<<< marked: " << ret;
+        if (ret < 0) {
+            fsptr_->Close(fd);
+            LOG(ERROR) << "Fallocate file failed: " << chunkpath.c_str();
+            return -1;
+        }
+    } else {
+        int nbytes;
+        uint64_t nwrite = 0;
+        uint64_t ntotal = chunklen;
+        char buffer[bytesPerWrite_];
+        memset(buffer, 0, bytesPerWrite_);
+
+        while (nwrite < ntotal) {
+            nbytes = fsptr_->Write(fd, buffer, nwrite,
+                                   std::min(ntotal - nwrite, (uint64_t)bytesPerWrite_));
+            if (nbytes < 0) {
+                fsptr_->Close(fd);
+                LOG(ERROR) << "Write file failed: " << chunkpath.c_str();
+                return -1;
+            }
+
+            cleanThrottle_.Add(false, bytesPerWrite_);
+            nwrite += nbytes;
+        }
+    }
+
+    std::string targetpath = chunkpath + cleanChunkSuffix_;
+    ret = fsptr_->Rename(chunkpath.c_str(), targetpath.c_str());
+    if (ret < 0) {
+        fsptr_->Close(fd);
+        LOG(ERROR) << "Rename file failed: " << chunkpath.c_str();
+        return -1;
+    }
+
+    return 0;
+}
+
+void FilePool::CleaningChunk() {
+    auto popBack = [this](std::vector<uint64_t>& chunks) -> uint64_t {
+        std::unique_lock<std::mutex> lk(mtx_);
+        if (0 == chunks.size()) {
+            return 0;
+        }
+
+        uint64_t chunkid = chunks.back();
+        chunks.pop_back();
+        return chunkid;
+    };
+
+    auto pushBack = [this](std::vector<uint64_t>& chunks,
+        uint64_t chunkid) {
+        std::unique_lock<std::mutex> lk(mtx_);
+        chunks.push_back(chunkid);
+    };
+
+    uint64_t chunkid = popBack(dirtyChunks_);
+    if (0 == chunkid) {
+        return;
+    }
+
+    // Fill zero to specify chunk
+    int ret = CleanChunk(chunkid, false);
+    if (ret < 0) {
+        pushBack(dirtyChunks_, chunkid);
+        return;
+    }
+
+    LOG(INFO) << "Clean chunk success: " << chunkid;
+    pushBack(cleanChunks_, chunkid);
+}
+
+void FilePool::CleanWorker() {
+    while (cleanSleeper_.wait_for(cleanSleepMsec_)) {
+        CleaningChunk();
+    }
+}
+
+bool FilePool::StartCleaning() {
+    if (poolOpt_.needClean && !cleanAlived_.exchange(true)) {
+        ReadWriteThrottleParams params;
+        params.iopsTotal = ThrottleParams(poolOpt_.iops4clean, 0, 0);
+        cleanThrottle_.UpdateThrottleParams(params);
+
+        cleanThread_ = Thread(&FilePool::CleanWorker, this);
+        LOG(INFO) << "Start clean thread ok.";
+        return true;
+    }
+
+    return false;
+}
+
+bool FilePool::StopCleaning() {
+    if (cleanAlived_.exchange(false)) {
+        LOG(INFO) << "Stop cleaning...";
+        cleanSleeper_.interrupt();
+        cleanThread_.join();
+    }
+
+    LOG(INFO) << "Stop clean thread ok.";
+    return true;
+}
+
+uint64_t FilePool::GetChunk(bool needClean, bool& isCleaned) {
+    auto smartPop = [this](std::vector<uint64_t>& chunks1,
+        std::vector<uint64_t>& chunks2, int& from) -> uint64_t {
+        std::unique_lock<std::mutex> lk(mtx_);
+        from = 0;
+        uint64_t chunkid = 0;
+        if (chunks1.size() > 0) {
+            from = 1;
+            chunkid = chunks1.back();
+            chunks1.pop_back();
+        } else if (chunks2.size() > 0) {
+            from = 2;
+            chunkid = chunks2.back();
+            chunks2.pop_back();
+        }
+
+        return chunkid;
+    };
+
+    int from;
+    uint64_t chunkid;
+
+    if (!needClean) {
+        chunkid = smartPop(dirtyChunks_, cleanChunks_, from);
+        isCleaned = (2 == from);
+        return chunkid;
+    }
+
+    isCleaned = false;
+    chunkid = smartPop(cleanChunks_, dirtyChunks_, from);
+
+    LOG(INFO) << "<<<<<<< from=" << from;
+
+    if (1 == from || (2 == from && 0 == CleanChunk(chunkid, true))) {
+        isCleaned = true;
+    }
+
+
+    return chunkid;
+}
+
+int FilePool::GetFile(const std::string& targetpath,
+                      char* metapage,
+                      bool needClean,
+                      char* metapageV2) {
     int ret = -1;
     int retry = 0;
+    bool isCleaned = false;
 
     while (retry < poolOpt_.retryTimes) {
         uint64_t chunkID;
         std::string srcpath;
         if (poolOpt_.getFileFromPool) {
-            std::unique_lock<std::mutex> lk(mtx_);
-            if (tmpChunkvec_.empty()) {
+            chunkID = GetChunk(needClean, isCleaned);
+            if (0 == chunkID) {
                 LOG(ERROR) << "no avaliable chunk!";
                 break;
             }
-            chunkID = tmpChunkvec_.back();
             srcpath = currentdir_ + "/" + std::to_string(chunkID);
-            tmpChunkvec_.pop_back();
+            if (isCleaned) {
+                srcpath = srcpath + cleanChunkSuffix_;
+            }
             --currentState_.preallocatedChunksLeft;
+            LOG(ERROR) << "<<<<<<< 111: " << isCleaned;
         } else {
+            LOG(ERROR) << "<<<<<<< 222";
+            isCleaned = true;
             srcpath = currentdir_ + "/" +
                       std::to_string(currentmaxfilenum_.fetch_add(1));
             int r = AllocateChunk(srcpath);
@@ -272,7 +445,7 @@ int FilePool::GetFile(const std::string& targetpath, char* metapage) {
             }
         }
 
-        bool rc = WriteMetaPage(srcpath, metapage);
+        bool rc = WriteMetaPage(srcpath, isCleaned ? metapageV2 : metapage);
         if (rc) {
             // Here, the RENAME_NOREPLACE mode is used to rename the file.
             // When the target file exists, it is not allowed to be overwritten.
@@ -294,7 +467,7 @@ int FilePool::GetFile(const std::string& targetpath, char* metapage) {
             } else {
                 LOG(INFO) << "get file " << targetpath
                           << " success! now pool size = "
-                          << tmpChunkvec_.size();
+                          << currentState_.preallocatedChunksLeft;
                 break;
             }
         } else {
@@ -436,10 +609,10 @@ int FilePool::RecycleFile(const std::string& chunkpath) {
             return -1;
         } else {
             LOG(INFO) << "Recycle " << chunkpath.c_str() << ", success!"
-                      << ", now chunkpool size = " << tmpChunkvec_.size() + 1;
+                      << ", now chunkpool size = " << dirtyChunks_.size() + 1;
         }
         std::unique_lock<std::mutex> lk(mtx_);
-        tmpChunkvec_.push_back(newfilenum);
+        dirtyChunks_.push_back(newfilenum);
         ++currentState_.preallocatedChunksLeft;
     }
     return 0;
@@ -449,7 +622,8 @@ void FilePool::UnInitialize() {
     currentdir_ = "";
 
     std::unique_lock<std::mutex> lk(mtx_);
-    tmpChunkvec_.clear();
+    dirtyChunks_.clear();
+    cleanChunks_.clear();
 }
 
 bool FilePool::ScanInternal() {
@@ -464,8 +638,15 @@ bool FilePool::ScanInternal() {
         LOG(INFO) << "list file pool dir done, size = " << tmpvec.size();
     }
 
+    size_t suffixLen = cleanChunkSuffix_.size();
     uint64_t chunklen = poolOpt_.fileSize + poolOpt_.metaPageSize;
     for (auto& iter : tmpvec) {
+        bool isCleaned = false;
+        if (::curve::common::StringEndsWith(iter, cleanChunkSuffix_)) {
+            isCleaned = true;
+            iter = iter.substr(0, iter.size() - suffixLen);
+        }
+
         auto it = std::find_if(iter.begin(), iter.end(), [](unsigned char c) {
             return !std::isdigit(c);
         });
@@ -498,25 +679,30 @@ bool FilePool::ScanInternal() {
         fsptr_->Close(fd);
         uint64_t filenum = atoll(iter.c_str());
         if (filenum != 0) {
-            tmpChunkvec_.push_back(filenum);
+            if (isCleaned) {
+                cleanChunks_.push_back(filenum);
+            } else {
+                dirtyChunks_.push_back(filenum);
+            }
             if (filenum > maxnum) {
                 maxnum = filenum;
             }
         }
     }
 
-    currentState_.preallocatedChunksLeft = tmpvec.size();
+    uint64_t preallocatedChunksLeft = cleanChunks_.size() + dirtyChunks_.size();
+    currentState_.preallocatedChunksLeft = preallocatedChunksLeft;
 
     std::unique_lock<std::mutex> lk(mtx_);
     currentmaxfilenum_.store(maxnum + 1);
 
-    LOG(INFO) << "scan done, pool size = " << tmpChunkvec_.size();
+    LOG(INFO) << "scan done, pool size = " << preallocatedChunksLeft;
     return true;
 }
 
 size_t FilePool::Size() {
     std::unique_lock<std::mutex> lk(mtx_);
-    return tmpChunkvec_.size();
+    return currentState_.preallocatedChunksLeft;
 }
 
 FilePoolState_t FilePool::GetState() {

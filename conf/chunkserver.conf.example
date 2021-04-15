@@ -163,6 +163,10 @@ chunkfilepool.chunk_file_pool_dir=./0/
 chunkfilepool.cpmeta_file_size=4096
 # chunkfilepool get chunk最大重试次数
 chunkfilepool.retry_times=5
+#
+chunkfilepool.need_clean=true
+#
+chunkfilepool.clean_throttle_iops=2000
 
 #
 # WAL file pool

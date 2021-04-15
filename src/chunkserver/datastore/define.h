@@ -35,6 +35,7 @@ namespace chunkserver {
 using curve::common::Bitmap;
 
 const uint8_t FORMAT_VERSION = 1;
+const uint8_t FORMAT_VERSION_V2 = 2;
 const SequenceNum kInvalidSeq = 0;
 
 // define error code

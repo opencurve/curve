@@ -390,6 +390,8 @@ int ChunkServer::Run(int argc, char** argv) {
         << "Failed to start heartbeat manager.";
     LOG_IF(FATAL, copysetNodeManager_->Run() != 0)
         << "Failed to start CopysetNodeManager.";
+    LOG_IF(FATAL, chunkfilePool->StartCleaning() != 0)
+        << "Failed to start file pool clean worker.";
 
     // =======================等待进程退出==================================//
     while (!brpc::IsAskedToQuit()) {
@@ -413,6 +415,8 @@ int ChunkServer::Run(int argc, char** argv) {
         << "Failed to shutdown clone copyer.";
     LOG_IF(ERROR, trash_->Fini() != 0)
         << "Failed to shutdown trash.";
+    LOG_IF(ERROR, chunkfilePool->StopCleaning() != 0)
+        << "Failed to shutdown file pool clean worker.";
     concurrentapply.Stop();
 
     google::ShutdownGoogleLogging();
@@ -450,6 +454,10 @@ void ChunkServer::InitChunkFilePoolOptions(
             "chunkfilepool.meta_path", &metaUri));
         ::memcpy(
             chunkFilePoolOptions->metaPath, metaUri.c_str(), metaUri.size());
+        LOG_IF(FATAL, !conf->GetBoolValue("chunkfilepool.need_clean",
+            &chunkFilePoolOptions->needClean));
+        LOG_IF(FATAL, !conf->GetUInt32Value("chunkfilepool.clean_throttle_iops",
+            &chunkFilePoolOptions->iops4clean));
     }
 }
 
