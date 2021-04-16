@@ -104,6 +104,9 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
     rootAuthOptions_ = curveFSOptions.authOptions;
     throttleOption_ = curveFSOptions.throttleOption;
     defaultChunkSize_ = curveFSOptions.defaultChunkSize;
+    defaultSegmentSize_ = curveFSOptions.defaultSegmentSize;
+    minFileLength_ = curveFSOptions.minFileLength;
+    maxFileLength_ = curveFSOptions.maxFileLength;
     topology_ = topology;
     snapshotCloneClient_ = snapshotCloneClient;
 
@@ -226,24 +229,24 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
 
     // check param
     if (filetype == FileType::INODE_PAGEFILE) {
-        if  (length < kMiniFileLength) {
-            LOG(ERROR) << "file Length < MinFileLength " << kMiniFileLength
+        if  (length < minFileLength_) {
+            LOG(ERROR) << "file Length < MinFileLength " << minFileLength_
                        << ", length = " << length;
             return StatusCode::kFileLengthNotSupported;
         }
 
-        if (length > kMaxFileLength) {
+        if (length > maxFileLength_) {
             LOG(ERROR) << "CreateFile file length > maxFileLength, fileName = "
                        << fileName << ", length = " << length
-                       << ", maxFileLength = " << kMaxFileLength;
+                       << ", maxFileLength = " << maxFileLength_;
             return StatusCode::kFileLengthNotSupported;
         }
 
-        if (length % DefaultSegmentSize != 0) {
+        if (length % defaultSegmentSize_ != 0) {
             LOG(ERROR) << "Create file length not align to segment size, "
                        << "fileName = " << fileName
                        << ", length = " << length
-                       << ", segment size = " << DefaultSegmentSize;
+                       << ", segment size = " << defaultSegmentSize_;
             return StatusCode::kFileLengthNotSupported;
         }
     }
@@ -281,7 +284,7 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         fileInfo.set_filetype(filetype);
         fileInfo.set_owner(owner);
         fileInfo.set_chunksize(defaultChunkSize_);
-        fileInfo.set_segmentsize(DefaultSegmentSize);
+        fileInfo.set_segmentsize(defaultSegmentSize_);
         fileInfo.set_length(length);
         fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
         fileInfo.set_seqnum(kStartSeqNum);
@@ -1007,10 +1010,10 @@ StatusCode CurveFS::ExtendFile(const std::string &filename,
         return StatusCode::kNotSupported;
     }
 
-    if (newLength > kMaxFileLength) {
+    if (newLength > maxFileLength_) {
         LOG(ERROR) << "ExtendFile newLength > maxFileLength, fileName = "
                        << filename << ", newLength = " << newLength
-                       << ", maxFileLength = " << kMaxFileLength;
+                       << ", maxFileLength = " << maxFileLength_;
             return StatusCode::kFileLengthNotSupported;
     }
 
@@ -1601,9 +1604,9 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         return StatusCode::kParaError;
     }
 
-    if  (length < kMiniFileLength || seq < kStartSeqNum) {
+    if  (length < minFileLength_ || seq < kStartSeqNum) {
         LOG(WARNING) << "CreateCloneFile err, filename = " << fileName
-                    << "file Length < MinFileLength " << kMiniFileLength
+                    << "file Length < MinFileLength " << minFileLength_
                     << ", length = " << length;
         return StatusCode::kParaError;
     }
@@ -1649,7 +1652,7 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         fileInfo.set_owner(owner);
 
         fileInfo.set_chunksize(chunksize);
-        fileInfo.set_segmentsize(DefaultSegmentSize);
+        fileInfo.set_segmentsize(defaultSegmentSize_);
         fileInfo.set_length(length);
         fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
 
@@ -2278,6 +2281,18 @@ uint64_t CurveFS::GetDefaultChunkSize() {
     return defaultChunkSize_;
 }
 
+uint64_t CurveFS::GetDefaultSegmentSize() {
+    return defaultSegmentSize_;
+}
+
+uint64_t CurveFS::GetMinFileLength() {
+    return minFileLength_;
+}
+
+uint64_t CurveFS::GetMaxFileLength() {
+    return maxFileLength_;
+}
+
 StatusCode CurveFS::CheckStripeParam(uint64_t stripeUnit,
                            uint64_t stripeCount) {
     if ((stripeUnit == 0) && (stripeCount == 0 )) {
@@ -2300,6 +2315,14 @@ StatusCode CurveFS::CheckStripeParam(uint64_t stripeUnit,
     if ((defaultChunkSize_ % stripeUnit != 0) ||
                  (defaultChunkSize_ % stripeCount != 0)) {
         LOG(ERROR) << "is not divisible by chunksize. stripeUnit:"
+           << stripeUnit << ",stripeCount:" << stripeCount;
+        return StatusCode::kParaError;
+    }
+
+     // chunkserver check req offset and len align as 4k,
+     // such as ChunkServiceImpl::CheckRequestOffsetAndLength
+    if (stripeUnit % 4096 != 0) {
+        LOG(ERROR) << "stripeUnit is not aligned as 4k. stripeUnit:"
            << stripeUnit << ",stripeCount:" << stripeCount;
         return StatusCode::kParaError;
     }

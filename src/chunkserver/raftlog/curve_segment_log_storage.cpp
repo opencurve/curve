@@ -41,10 +41,21 @@
 #include <braft/protobuf_file.h>
 #include <braft/local_storage.pb.h>
 #include "src/chunkserver/raftlog/curve_segment_log_storage.h"
+#include "src/chunkserver/datastore/file_pool.h"
 #include "src/chunkserver/raftlog/define.h"
 
 namespace curve {
 namespace chunkserver {
+
+LogStorageOptions StoreOptForCurveSegmentLogStorage(
+    LogStorageOptions options) {
+    static LogStorageOptions options_;
+    if (nullptr != options.walFilePool) {
+        options_ = options;
+    }
+
+    return options_;
+}
 
 void RegisterCurveSegmentLogStorageOrDie() {
     static CurveSegmentLogStorage logStorage;
@@ -192,7 +203,9 @@ int CurveSegmentLogStorage::list_segments(bool is_empty) {
                       << " first_index: " << first_index
                       << " last_index: " << last_index;
             CurveSegment* segment = new CurveSegment(_path, first_index,
-                                            last_index, _checksum_type);
+                                                     last_index,
+                                                     _checksum_type,
+                                                     _walFilePool);
             _segments[first_index] = segment;
             continue;
         }
@@ -204,7 +217,8 @@ int CurveSegmentLogStorage::list_segments(bool is_empty) {
                 << " first_index: " << first_index;
             if (!_open_segment) {
                 _open_segment =
-                    new CurveSegment(_path, first_index, _checksum_type);
+                    new CurveSegment(_path, first_index, _checksum_type,
+                                     _walFilePool);
                 continue;
             } else {
                 LOG(WARNING) << "open segment conflict, path: " << _path
@@ -663,8 +677,17 @@ void CurveSegmentLogStorage::sync() {
 }
 
 braft::LogStorage* CurveSegmentLogStorage::new_instance(
-                            const std::string& uri) const {
-    return new CurveSegmentLogStorage(uri);
+    const std::string& uri) const {
+    LogStorageOptions options = StoreOptForCurveSegmentLogStorage(
+        LogStorageOptions());
+
+    CHECK(nullptr != options.walFilePool) << "wal file pool is null";
+
+    CurveSegmentLogStorage* logStorage = new CurveSegmentLogStorage(
+        uri, true, options.walFilePool);
+    options.monitorMetricCb(logStorage);
+
+    return logStorage;
 }
 
 scoped_refptr<Segment> CurveSegmentLogStorage::open_segment(
@@ -674,14 +697,14 @@ scoped_refptr<Segment> CurveSegmentLogStorage::open_segment(
         BAIDU_SCOPED_LOCK(_mutex);
         if (!_open_segment) {
             _open_segment = new CurveSegment(_path, last_log_index() + 1,
-                                             _checksum_type);
+                                             _checksum_type, _walFilePool);
             if (_open_segment->create() != 0) {
                 _open_segment = NULL;
                 return NULL;
             }
         }
-        uint32_t maxTotalFileSize = kWalFilePool->GetFilePoolOpt().fileSize
-                                + kWalFilePool->GetFilePoolOpt().metaPageSize;
+        uint32_t maxTotalFileSize = _walFilePool->GetFilePoolOpt().fileSize
+                                  + _walFilePool->GetFilePoolOpt().metaPageSize;
         if (_open_segment->bytes() + to_write > maxTotalFileSize) {
             _segments[_open_segment->first_index()] = _open_segment;
             prev_open_segment.swap(_open_segment);
@@ -692,7 +715,7 @@ scoped_refptr<Segment> CurveSegmentLogStorage::open_segment(
             if (prev_open_segment->close(_enable_sync) == 0) {
                 BAIDU_SCOPED_LOCK(_mutex);
                 _open_segment = new CurveSegment(_path, last_log_index() + 1,
-                                                 _checksum_type);
+                                                 _checksum_type, _walFilePool);
                 if (_open_segment->create() == 0) {
                     // success
                     break;
@@ -708,6 +731,12 @@ scoped_refptr<Segment> CurveSegmentLogStorage::open_segment(
         }
     } while (0);
     return _open_segment;
+}
+
+LogStorageStatus CurveSegmentLogStorage::GetStatus() {
+    uint32_t count = (uint32_t)(_segments.size())
+                   + (nullptr != _open_segment ? 1 : 0);
+    return LogStorageStatus(count);
 }
 
 }  // namespace chunkserver

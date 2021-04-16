@@ -188,6 +188,17 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
         metric_->MonitorDataStore(dataStore_.get());
     }
 
+    auto monitorMetricCb = [this](CurveSegmentLogStorage* logStorage) {
+        logStorage_ = logStorage;
+        metric_->MonitorCurveSegmentLogStorage(logStorage);
+    };
+
+    LogStorageOptions lsOptions(options.walFilePool, monitorMetricCb);
+
+    // In order to get more copysetNode's information in CurveSegmentLogStorage
+    // without using global variables.
+    StoreOptForCurveSegmentLogStorage(lsOptions);
+
     return 0;
 }
 
@@ -724,6 +735,10 @@ uint64_t CopysetNode::GetAppliedIndex() const {
 
 std::shared_ptr<CSDataStore> CopysetNode::GetDataStore() const {
     return dataStore_;
+}
+
+CurveSegmentLogStorage* CopysetNode::GetLogStorage() const {
+    return logStorage_;
 }
 
 ConcurrentApplyModule *CopysetNode::GetConcurrentApplyModule() const {

@@ -87,4 +87,4 @@ All the developments will be done under master branch. If there's any new versio
 - [FAQ](https://github.com/openCURVE/CURVE/wiki/CURVE-FAQ)：Frequently asked question in our user group, and we'll keep working on it.
 - User group：We use Wechat group currently.
 
-<img src="https://raw.githubusercontent.com/opencurve/opencurve.github.io/master/image/curve-wechat.jpeg" style="zoom: 75%;" />
+<img src="docs/images/curve-wechat.jpeg" style="zoom: 75%;" />

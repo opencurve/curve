@@ -45,6 +45,7 @@ CopysetNodeOptions::CopysetNodeOptions()
       pageSize(4096),
       concurrentapply(nullptr),
       chunkFilePool(nullptr),
+      walFilePool(nullptr),
       localFileSystem(nullptr),
       snapshotThrottle(nullptr) {
 }
