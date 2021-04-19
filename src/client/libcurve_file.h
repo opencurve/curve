@@ -54,34 +54,35 @@ class LoggerGuard {
     static void InitInternal(const std::string& confpath);
 };
 
-// FileClient是vdisk的管理类，一个QEMU对应多个vdisk
+// FileClient is the management class of vdisk,
+// a QEMU corresponds to multiple vdisks
 class FileClient {
  public:
     FileClient();
     virtual ~FileClient() = default;
 
     /**
-     * file对象初始化函数
-     * @param: 配置文件路径
+     * initialization function of the file object
+     * @param: configuration file path
      */
     virtual int Init(const std::string& configpath);
 
     /**
-     * 打开或创建文件
-     * @param: filename文件名
-     * @param: userinfo是操作文件的用户信息
-     * @return: 返回文件fd
+     * open or create a file
+     * @param: filename filename
+     * @param: userinfo user info
+     * @return: fd
      */
     virtual int Open(const std::string& filename,
                      const UserInfo_t& userinfo,
                      std::string* sessionId = nullptr);
 
     /**
-     * 重新打开文件
-     * @param: filename文件名
-     * @param: sessionId是上次打开该文件时返回的sessionId
-     * @param: userInfo是操作文件的用户信息
-     * @return: 返回文件fd
+     * reopen the file
+     * @param: filename filename
+     * @param: sessionId the sessionId returned when the file was opened last time
+     * @param: userinfo user info
+     * @return: fd
      */
 
     virtual int ReOpen(const std::string& filename,
@@ -90,37 +91,41 @@ class FileClient {
                        std::string* newSessionId);
 
     /**
-     * 打开文件，这个打开只是创建了一个fd，并不与mds交互，没有session续约
-     * 这个Open接口主要是提供给快照克隆镜像系统做数据拷贝使用
-     * @param: filename文件名
-     * @param: userinfo当前用户信息
+     * open the file, it just creates an fd, but does not interact with
+     * mds, so there is no session renewal
+     * 
+     * this Open interface is mainly provided to the snapshot clone mirroring system
+     * for data copy use
+     * @param: filename filename
+     * @param: userinfo user info
      * @param disableStripe enable/disable stripe feature for a stripe file
-     * @return: 返回文件fd
+     * @return: fd
      */
     virtual int Open4ReadOnly(const std::string& filename,
                               const UserInfo_t& userinfo,
                               bool disableStripe = false);
 
     /**
-     * 创建文件
-     * @param: filename文件名
-     * @param: userinfo是当前打开或创建时携带的user信息
-     * @param: size文件长度，当create为true的时候以size长度创建文件
-     * @return: 成功返回0, 失败可能有多种可能
-     *          比如内部错误，或者文件已存在
+     * create a file
+     * @param: filename filename
+     * @param: userinfo user info
+     * @param: size file size
+     * @return: success return 0, fail return less than 0, and there
+     *          could be different returned values for different
+     *          reasons (e.g. internal error, file already exists)
      */
     virtual int Create(const std::string& filename,
                        const UserInfo_t& userinfo,
                        size_t size);
 
     /**
-     * create file with stripe
+     * create a file with stripe
      * @param: filename file name
      * @param: userinfo user info
      * @param: size file size
      * @param: stripeUnit block in stripe size
      * @param  stripeCount stripe count in one stripe
-     * @return: success return 0,  fail return less than 0
+     * @return: success return 0, fail return less than 0
      *
      */
     virtual int Create2(const std::string& filename,
@@ -129,70 +134,71 @@ class FileClient {
                         uint64_t stripeCount);
 
     /**
-     * 同步模式读
-     * @param: fd为当前open返回的文件描述符
-     * @param: buf为当前待读取的缓冲区
-     * @param：offset文件内的便宜
-     * @parma：length为待读取的长度
-     * @return: 成功返回读取字节数,否则返回小于0的错误码
+     * synchronous read
+     * @param: fd fd returned by open
+     * @param: buf buffer to be read
+     * @param：offset offset within the file
+     * @param：length length to be read
+     * @return: success return bytes read, fail return error code less than 0
      */
     virtual int Read(int fd, char* buf, off_t offset, size_t length);
 
     /**
-     * 同步模式写
-     * @param: fd为当前open返回的文件描述符
-     * @param: buf为当前待写入的缓冲区
-     * @param：offset文件内的便宜
-     * @parma：length为待读取的长度
-     * @return: 成功返回写入字节数,否则返回小于0的错误码
+     * synchronous write
+     * @param: fd fd returned by open
+     * @param: buf buffer to be written
+     * @param：offset offset within the file
+     * @param：length length to be read
+     * @return: success return bytes written, fail return error code less than 0
      */
     virtual int Write(int fd, const char* buf, off_t offset, size_t length);
 
     /**
-     * 异步模式读
-     * @param: fd为当前open返回的文件描述符
-     * @param: aioctx为异步读写的io上下文，保存基本的io信息
+     * asynchronous read
+     * @param: fd fd returned by open
+     * @param: aioctx I/O context of the async read/write, saving the basic I/O info
      * @param dataType type of aioctx->buf, default is `UserDataType::RawBuffer`
-     * @return: 成功返回读取字节数,否则返回小于0的错误码
+     * @return: success return bytes read, fail return error code less than 0
      */
     virtual int AioRead(int fd, CurveAioContext* aioctx,
                         UserDataType dataType = UserDataType::RawBuffer);
 
     /**
-     * 异步模式写
-     * @param: fd为当前open返回的文件描述符
-     * @param: aioctx为异步读写的io上下文，保存基本的io信息
+     * asynchronous write
+     * @param: fd fd returned by open
+     * @param: aioctx I/O context of the async read/write, saving the basic I/O info
      * @param dataType type of aioctx->buf, default is `UserDataType::RawBuffer`
-     * @return: 成功返回写入字节数,否则返回小于0的错误码
+     * @return: success return bytes written, fail return error code less than 0
      */
     virtual int AioWrite(int fd, CurveAioContext* aioctx,
                          UserDataType dataType = UserDataType::RawBuffer);
 
     /**
-     * 重命名文件
-     * @param: userinfo是用户信息
-     * @param: oldpath源路劲
-     * @param: newpath目标路径
+     * rename the file
+     * @param: userinfo user info
+     * @param: oldpath source path
+     * @param: newpath target path
      */
     virtual int Rename(const UserInfo_t& userinfo,
                        const std::string& oldpath,
                        const std::string& newpath);
 
     /**
-     * 扩展文件
-     * @param: userinfo是用户信息
-     * @param: filename文件名
-     * @param: newsize新的size
+     * extend the file
+     * @param: userinfo user info
+     * @param: filename filename
+     * @param: newsize new size
      */
     virtual int Extend(const std::string& filename,
                        const UserInfo_t& userinfo,
                        uint64_t newsize);
 
     /**
-     * 删除文件
-     * @param: userinfo是用户信息
-     * @param: filename待删除的文件名
-     * @param: deleteforce=true只能用于从回收站删除,false为放入垃圾箱
+     * delete the file
+     * @param: userinfo user info
+     * @param: filename filename of the file to be deleted
+     * @param: deleteforce delete without putting into the trash if true, otherwise
+     *         just put the file into the trash
      */
     virtual int Unlink(const std::string& filename,
                        const UserInfo_t& userinfo,
@@ -200,97 +206,98 @@ class FileClient {
 
     /**
      * recycle file
-     * @param: userinfo
-     * @param: filename
-     * @param: fileId
+     * @param: userinfo user info
+     * @param: filename filename
+     * @param: fileId file id
      */
     virtual int Recover(const std::string& filename,
                         const UserInfo_t& userinfo,
                         uint64_t fileId);
 
     /**
-     * 枚举目录内容
-     * @param: userinfo是用户信息
-     * @param: dirpath是目录路径
-     * @param[out]: filestatVec当前文件夹内的文件信息
+     * list all the contents in the directory
+     * @param: userinfo user info
+     * @param: dirpath target path
+     * @param[out]: filestatVec file informations in the current directory
      */
     virtual int Listdir(const std::string& dirpath,
                         const UserInfo_t& userinfo,
                         std::vector<FileStatInfo>* filestatVec);
 
     /**
-     * 创建目录
-     * @param: userinfo是用户信息
-     * @param: dirpath是目录路径
+     * create a directory
+     * @param: userinfo user info
+     * @param: dirpath target path
      */
     virtual int Mkdir(const std::string& dirpath, const UserInfo_t& userinfo);
 
     /**
-     * 删除目录
-     * @param: userinfo是用户信息
-     * @param: dirpath是目录路径
+     * delete the directory
+     * @param: userinfo user info
+     * @param: dirpath target path
      */
     virtual int Rmdir(const std::string& dirpath, const UserInfo_t& userinfo);
 
     /**
-     * 获取文件信息
-     * @param: filename文件名
-     * @param: userinfo是用户信息
-     * @param: finfo是出参，携带当前文件的基础信息
-     * @return: 成功返回int::OK,否则返回小于0的错误码
+     * get the file info
+     * @param: filename filename
+     * @param: userinfo user info
+     * @param[out]: finfo basic infomations of the file
+     * @return: success return int::OK, fail return error code less than 0
      */
     virtual int StatFile(const std::string& filename,
                          const UserInfo_t& userinfo,
                          FileStatInfo* finfo);
 
     /**
-     * 变更owner
-     * @param: filename待变更的文件名
-     * @param: newOwner新的owner信息
-     * @param: userinfo执行此操作的user信息，只有root用户才能执行变更
-     * @return: 成功返回0，
-     *          否则返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+     * change the owner of the file
+     * @param: filename filename
+     * @param: newOwner new owner
+     * @param: userinfo user info that made the operation, only root user
+     *         could change it
+     * @return: success return 0, fail return error code less than 0, like
+     *          -LIBCURVE_ERROR::FAILED, -LIBCURVE_ERROR::AUTHFAILED
      */
     virtual int ChangeOwner(const std::string& filename,
                             const std::string& newOwner,
                             const UserInfo_t& userinfo);
     /**
-     * close通过fd找到对应的instance进行删除
-     * @param: fd为当前open返回的文件描述符
-     * @return: 成功返回int::OK,否则返回小于0的错误码
+     * find the corresponding instance with fd and delete it
+     * @param: fd fd returned by open
+     * @return: success return int::OK, fail return error code less than 0
      */
     virtual int Close(int fd);
 
     /**
-     * 析构，回收资源
+     * destructuring, and recycling resources
      */
     virtual void UnInit();
 
     /**
-     * @brief: 获取集群id
-     * @param: buf存放集群id
-     * @param: buf的长度
-     * @return: 成功返回0, 失败返回-LIBCURVE_ERROR::FAILED
+     * @brief: get cluster id
+     * @param: buf put the cluster id in this
+     * @param: len size of the buf
+     * @return: success return 0, fail return -LIBCURVE_ERROR::FAILED
      */
     int GetClusterId(char* buf, int len);
 
     /**
-     * @brief 获取集群id
-     * @return 成功返回集群id，失败返回空
+     * @brief get cluster id
+     * @return success return the cluster id, fail return nullptr
      */
     std::string GetClusterId();
 
     /**
-     * @brief 获取文件信息，测试使用
-     * @param fd 文件句柄
-     * @param[out] finfo 文件信息
-     * @return 成功返回0，失败返回-LIBCURVE_ERROR::FAILED
+     * test use, get file info
+     * @param fd fd
+     * @param[out] finfo file info
+     * @return success return 0, fail return -LIBCURVE_ERROR::FAILED
      */
     int GetFileInfo(int fd, FInfo* finfo);
 
     /**
-     * 测试使用，获取当前挂载文件数量
-     * @return 返回当前挂载文件数量
+     * test use, get the number of mounted files
+     * @return return the number of mounted files
      */
     uint64_t GetOpenedFileNum() const {
         return openedFileNum_.get_value();
@@ -332,22 +339,24 @@ class FileClient {
  private:
     BthreadRWLock rwlock_;
 
-    // 向上返回的文件描述符，对于QEMU来说，一个vdisk对应一个文件描述符
+    // count for file descriptor, for QEMU a vdisk corresponds
+    // to a file descriptor
     std::atomic<uint64_t> fdcount_;
 
-    // 每个vdisk都有一个FileInstance，通过返回的fd映射到对应的instance
+    // each vdisk has a FileInstance, which is mapped to the corresponding
+    // instance through the returned fd
     std::unordered_map<int, FileInstance*> fileserviceMap_;
 
-    // FileClient配置
+    // FileClient config
     ClientConfig clientconfig_;
 
-    // fileclient对应的全局mdsclient
+    // the global mdsclient corresponding to the fileclient
     MDSClient* mdsClient_;
 
-    // 是否初始化成功
+    // init success or not
     bool inited_;
 
-    // 挂载文件数量
+    // the number of mounted files
     bvar::Adder<uint64_t> openedFileNum_;
 };
 
