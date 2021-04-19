@@ -62,27 +62,27 @@ class FileClient {
     virtual ~FileClient() = default;
 
     /**
-     * initialization function of the file object
-     * @param: configuration file path
+     * @brief initialization
+     * @param config file path
      */
     virtual int Init(const std::string& configpath);
 
     /**
-     * open or create a file
-     * @param: filename filename
-     * @param: userinfo user info
-     * @return: fd
+     * @brief open or create file
+     * @param filename filename
+     * @param userinfo user info
+     * @return fd
      */
     virtual int Open(const std::string& filename,
                      const UserInfo_t& userinfo,
                      std::string* sessionId = nullptr);
 
     /**
-     * reopen the file
-     * @param: filename filename
-     * @param: sessionId the sessionId returned when the file was opened last time
-     * @param: userinfo user info
-     * @return: fd
+     * @brief reopen file
+     * @param filename filename
+     * @param sessionId the sessionId returned when the file was opened last time
+     * @param userinfo user info
+     * @return fd
      */
 
     virtual int ReOpen(const std::string& filename,
@@ -91,26 +91,26 @@ class FileClient {
                        std::string* newSessionId);
 
     /**
-     * open the file, it just creates an fd, but does not interact with
+     * @brief open file, it just creates an fd, but does not interact with
      * mds, so there is no session renewal
      * 
      * this Open interface is mainly provided to the snapshot clone mirroring system
      * for data copy use
-     * @param: filename filename
-     * @param: userinfo user info
+     * @param filename filename
+     * @param userinfo user info
      * @param disableStripe enable/disable stripe feature for a stripe file
-     * @return: fd
+     * @return fd
      */
     virtual int Open4ReadOnly(const std::string& filename,
                               const UserInfo_t& userinfo,
                               bool disableStripe = false);
 
     /**
-     * create a file
-     * @param: filename filename
-     * @param: userinfo user info
-     * @param: size file size
-     * @return: success return 0, fail return less than 0, and there
+     * @brief create file
+     * @param filename filename
+     * @param userinfo user info
+     * @param size file size
+     * @return success return 0, fail return less than 0, and there
      *          could be different returned values for different
      *          reasons (e.g. internal error, file already exists)
      */
@@ -119,13 +119,13 @@ class FileClient {
                        size_t size);
 
     /**
-     * create a file with stripe
-     * @param: filename file name
-     * @param: userinfo user info
-     * @param: size file size
-     * @param: stripeUnit block in stripe size
-     * @param  stripeCount stripe count in one stripe
-     * @return: success return 0, fail return less than 0
+     * @brief create file with stripe
+     * @param filename file name
+     * @param userinfo user info
+     * @param size file size
+     * @param stripeUnit block in stripe size
+     * @param stripeCount stripe count in one stripe
+     * @return success return 0, fail return less than 0
      *
      */
     virtual int Create2(const std::string& filename,
@@ -134,70 +134,70 @@ class FileClient {
                         uint64_t stripeCount);
 
     /**
-     * synchronous read
-     * @param: fd fd returned by open
-     * @param: buf buffer to be read
-     * @param：offset offset within the file
-     * @param：length length to be read
-     * @return: success return bytes read, fail return error code less than 0
+     * @brief synchronous read
+     * @param fd fd returned by open
+     * @param buf buffer to be read
+     * @param offset offset within the file
+     * @param length length to be read
+     * @return success return bytes read, fail return error code less than 0
      */
     virtual int Read(int fd, char* buf, off_t offset, size_t length);
 
     /**
-     * synchronous write
-     * @param: fd fd returned by open
-     * @param: buf buffer to be written
-     * @param：offset offset within the file
-     * @param：length length to be read
-     * @return: success return bytes written, fail return error code less than 0
+     * @brief synchronous write
+     * @param fd fd returned by open
+     * @param buf buffer to be written
+     * @param offset offset within the file
+     * @param length length to be written
+     * @return success return bytes written, fail return error code less than 0
      */
     virtual int Write(int fd, const char* buf, off_t offset, size_t length);
 
     /**
-     * asynchronous read
-     * @param: fd fd returned by open
-     * @param: aioctx I/O context of the async read/write, saving the basic I/O info
+     * @brief asynchronous read
+     * @param fd fd returned by open
+     * @param aioctx I/O context of the async read/write, saving the basic I/O info
      * @param dataType type of aioctx->buf, default is `UserDataType::RawBuffer`
-     * @return: success return bytes read, fail return error code less than 0
+     * @return success return bytes read, fail return error code less than 0
      */
     virtual int AioRead(int fd, CurveAioContext* aioctx,
                         UserDataType dataType = UserDataType::RawBuffer);
 
     /**
-     * asynchronous write
-     * @param: fd fd returned by open
-     * @param: aioctx I/O context of the async read/write, saving the basic I/O info
+     * @brief asynchronous write
+     * @param fd fd returned by open
+     * @param aioctx I/O context of the async read/write, saving the basic I/O info
      * @param dataType type of aioctx->buf, default is `UserDataType::RawBuffer`
-     * @return: success return bytes written, fail return error code less than 0
+     * @return success return bytes written, fail return error code less than 0
      */
     virtual int AioWrite(int fd, CurveAioContext* aioctx,
                          UserDataType dataType = UserDataType::RawBuffer);
 
     /**
-     * rename the file
-     * @param: userinfo user info
-     * @param: oldpath source path
-     * @param: newpath target path
+     * @brief rename file
+     * @param userinfo user info
+     * @param oldpath source path
+     * @param newpath target path
      */
     virtual int Rename(const UserInfo_t& userinfo,
                        const std::string& oldpath,
                        const std::string& newpath);
 
     /**
-     * extend the file
-     * @param: userinfo user info
-     * @param: filename filename
-     * @param: newsize new size
+     * @brief extend file
+     * @param userinfo user info
+     * @param filename filename
+     * @param newsize new size
      */
     virtual int Extend(const std::string& filename,
                        const UserInfo_t& userinfo,
                        uint64_t newsize);
 
     /**
-     * delete the file
-     * @param: userinfo user info
-     * @param: filename filename of the file to be deleted
-     * @param: deleteforce delete without putting into the trash if true, otherwise
+     * @brief delete file
+     * @param userinfo user info
+     * @param filename filename of the file to be deleted
+     * @param deleteforce delete without putting into the trash if true, otherwise
      *         just put the file into the trash
      */
     virtual int Unlink(const std::string& filename,
@@ -205,79 +205,79 @@ class FileClient {
                        bool deleteforce = false);
 
     /**
-     * recycle file
-     * @param: userinfo user info
-     * @param: filename filename
-     * @param: fileId file id
+     * @brief recycle file
+     * @param userinfo user info
+     * @param filename filename
+     * @param fileId file id
      */
     virtual int Recover(const std::string& filename,
                         const UserInfo_t& userinfo,
                         uint64_t fileId);
 
     /**
-     * list all the contents in the directory
-     * @param: userinfo user info
-     * @param: dirpath target path
-     * @param[out]: filestatVec file informations in the current directory
+     * @brief list all the contents in the directory
+     * @param userinfo user info
+     * @param dirpath target path
+     * @param[out] filestatVec file information in the current directory
      */
     virtual int Listdir(const std::string& dirpath,
                         const UserInfo_t& userinfo,
                         std::vector<FileStatInfo>* filestatVec);
 
     /**
-     * create a directory
-     * @param: userinfo user info
-     * @param: dirpath target path
+     * @brief create directory
+     * @param userinfo user info
+     * @param dirpath target path
      */
     virtual int Mkdir(const std::string& dirpath, const UserInfo_t& userinfo);
 
     /**
-     * delete the directory
-     * @param: userinfo user info
-     * @param: dirpath target path
+     * @brief delete directory
+     * @param userinfo user info
+     * @param dirpath target path
      */
     virtual int Rmdir(const std::string& dirpath, const UserInfo_t& userinfo);
 
     /**
-     * get the file info
-     * @param: filename filename
-     * @param: userinfo user info
-     * @param[out]: finfo basic infomations of the file
-     * @return: success return int::OK, fail return error code less than 0
+     * @brief get file info
+     * @param filename filename
+     * @param userinfo user info
+     * @param[out] finfo basic infomations of the file
+     * @return success return int::OK, fail return error code less than 0
      */
     virtual int StatFile(const std::string& filename,
                          const UserInfo_t& userinfo,
                          FileStatInfo* finfo);
 
     /**
-     * change the owner of the file
-     * @param: filename filename
-     * @param: newOwner new owner
-     * @param: userinfo user info that made the operation, only root user
+     * @brief change the owner of the file
+     * @param filename filename
+     * @param newOwner new owner
+     * @param userinfo user info that made the operation, only root user
      *         could change it
-     * @return: success return 0, fail return error code less than 0, like
+     * @return success return 0, fail return error code less than 0, like
      *          -LIBCURVE_ERROR::FAILED, -LIBCURVE_ERROR::AUTHFAILED
      */
     virtual int ChangeOwner(const std::string& filename,
                             const std::string& newOwner,
                             const UserInfo_t& userinfo);
     /**
-     * find the corresponding instance with fd and delete it
-     * @param: fd fd returned by open
-     * @return: success return int::OK, fail return error code less than 0
+     * @brief find the corresponding instance with fd and delete it
+     * @param fd fd returned by open
+     * @return success return int::OK, fail return error code less than 0
      */
     virtual int Close(int fd);
 
     /**
-     * destructuring, and recycling resources
+     * @brief destructuring, and recycling resources
      */
     virtual void UnInit();
 
     /**
-     * @brief: get cluster id
-     * @param: buf put the cluster id in this
-     * @param: len size of the buf
-     * @return: success return 0, fail return -LIBCURVE_ERROR::FAILED
+     * @brief get cluster id
+     * @param buf put the cluster id in this
+     * @param len size of the buf
+     * @return success return 0, fail return -LIBCURVE_ERROR::FAILED
      */
     int GetClusterId(char* buf, int len);
 
@@ -288,7 +288,7 @@ class FileClient {
     std::string GetClusterId();
 
     /**
-     * test use, get file info
+     * @brief test use, get file info
      * @param fd fd
      * @param[out] finfo file info
      * @return success return 0, fail return -LIBCURVE_ERROR::FAILED
@@ -296,7 +296,7 @@ class FileClient {
     int GetFileInfo(int fd, FInfo* finfo);
 
     /**
-     * test use, get the number of mounted files
+     * @brief test use, get the number of mounted files
      * @return return the number of mounted files
      */
     uint64_t GetOpenedFileNum() const {
@@ -304,14 +304,14 @@ class FileClient {
     }
 
     /**
-     * test use, set the mdsclient_
+     * @brief test use, set the mdsclient_
      */
     void SetMdsClient(MDSClient* client) {
         mdsClient_ = client;
     }
 
     /**
-     * test use, set the clientconfig_
+     * @brief test use, set the clientconfig_
      */
     void SetClientConfig(ClientConfig cfg) {
         clientconfig_ = cfg;
@@ -322,7 +322,7 @@ class FileClient {
     }
 
     /**
-     * test use, get the fileserviceMap_
+     * @brief test use, get the fileserviceMap_
      */
     std::unordered_map<int, FileInstance*>& GetFileServiceMap() {
         return fileserviceMap_;
@@ -339,7 +339,7 @@ class FileClient {
  private:
     BthreadRWLock rwlock_;
 
-    // count for file descriptor, for QEMU a vdisk corresponds
+    // file descriptor to be returned, for QEMU a vdisk corresponds
     // to a file descriptor
     std::atomic<uint64_t> fdcount_;
 

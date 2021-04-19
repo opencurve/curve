@@ -1351,7 +1351,7 @@ void MDSClient::MDSStatusCode2LibcurveError(const StatusCode& status,
             *errcode = LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT;
             break;
         case ::curve::mds::StatusCode::kSnapshotFrozen:
-            *errcode = LIBCURVE_ERROR::SNAPSTHO_FROZEN;
+            *errcode = LIBCURVE_ERROR::SNAPSHOT_FROZEN;
             break;
         default:
             *errcode = LIBCURVE_ERROR::UNKNOWN;

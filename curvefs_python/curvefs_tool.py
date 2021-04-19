@@ -56,7 +56,7 @@ retCode = { 0 : "OK",
             26 : "STATUS_NOT_MATCH",
             27 : "DELETE_BEING_CLONED",
             28 : "CLIENT_NOT_SUPPORT_SNAPSHOT",
-            29 : "SNAPSTHO_FROZEN",
+            29 : "SNAPSHOT_FROZEN",
             100 : "UNKNOWN"}
 
 def getRetCodeMsg(ret):

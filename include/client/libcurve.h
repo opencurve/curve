@@ -42,67 +42,67 @@ enum FileType {
 };
 
 enum LIBCURVE_ERROR {
-    // 操作成功
+    // operation succeed
     OK                      = 0,
-    // 文件或者目录已存在
+    // file or directory already exists
     EXISTS                  = 1,
-    // 操作失败
+    // operation failed
     FAILED                  = 2,
-    // 禁止IO
+    // disable IO
     DISABLEIO               = 3,
-    // 认证失败
+    // authentication failed
     AUTHFAIL                = 4,
-    // 正在删除
+    // deleting
     DELETING                = 5,
-    // 文件不存在
+    // file not exists
     NOTEXIST                = 6,
-    // 快照中
+    // under snapshot
     UNDER_SNAPSHOT          = 7,
-    // 非快照期间
+    // not under snapshot
     NOT_UNDERSNAPSHOT       = 8,
-    // 删除错误
+    // delete error
     DELETE_ERROR            = 9,
-    // segment未分配
+    // segment not allocated
     NOT_ALLOCATE            = 10,
-    // 操作不支持
+    // operation not supported
     NOT_SUPPORT             = 11,
-    // 目录非空
+    // directory not empty
     NOT_EMPTY               = 12,
-    // 禁止缩容
+    // disable shrinkage
     NO_SHRINK_BIGGER_FILE   = 13,
-    // session不存在
+    // session not exists
     SESSION_NOTEXISTS       = 14,
-    // 文件被占用
+    // file occupied
     FILE_OCCUPIED           = 15,
-    // 参数错误
+    // param error
     PARAM_ERROR             = 16,
-    // MDS一侧存储错误
+    // MDS storage error
     INTERNAL_ERROR           = 17,
-    // crc检查错误
+    // crc check error
     CRC_ERROR               = 18,
-    // request参数存在问题
+    // invalid request param
     INVALID_REQUEST         = 19,
-    // 磁盘存在问题
+    // disk error
     DISK_FAIL               = 20,
-    // 空间不足
+    // space not enough
     NO_SPACE                = 21,
-    // IO未对齐
+    // IO not aligned
     NOT_ALIGNED             = 22,
-    // 文件正在被关闭，fd不可用
+    // fd under close, not available
     BAD_FD                  = 23,
-    // 文件长度不满足要求
+    // file length not supported
     LENGTH_NOT_SUPPORT      = 24,
-    // session不存在
+    // session not exists
     SESSION_NOT_EXIST       = 25,
-    // 状态异常
+    // invalid status
     STATUS_NOT_MATCH        = 26,
-    // 删除文件正常被克隆
+    // deleted file being cloned
     DELETE_BEING_CLONED     = 27,
-    // client版本不支持快照
+    // snapshot not supported at this client version
     CLIENT_NOT_SUPPORT_SNAPSHOT = 28,
-    // snapshot功能禁用中
-    SNAPSTHO_FROZEN = 29,
-    // 未知错误
+    // disable snapshot
+    SNAPSHOT_FROZEN = 29,
+    // unknown error
     UNKNOWN                 = 100
 };
 
@@ -138,24 +138,25 @@ typedef struct FileStatInfo {
     uint64_t        stripeCount;
 } FileStatInfo_t;
 
-// 存储用户信息
+// store user information
 typedef struct C_UserInfo {
-    // 当前执行的owner信息, owner信息需要以'\0'结尾
+    // information of the current owner, which should be '\0' terminated
     char owner[NAME_MAX_SIZE];
-    // 当owner="root"的时候，需要提供password作为计算signature的key
-    // password信息需要以'\0'结尾
+    // when owner="root", you need to provide the password as the key
+    // to calculate the signature
+    // password should also be '\0' terminated
     char password[NAME_MAX_SIZE];
 } C_UserInfo_t;
 
 typedef struct DirInfo {
-    // 当前listdir的目录路径
+    // directory path
     char*            dirpath;
-    // 当前listdir操作的用户信息
+    // user info
     C_UserInfo_t*    userinfo;
-    // 当前dir大小，也就是文件数量
+    // directory size (i.e. number of files)
     uint64_t         dirSize;
-    // 当前dir的内的文件信息内容，是一个数组
-    // fileStat是这个数组的头，数组大小为dirSize
+    // an array of file infos within this directory
+    // fileStat is the head of this array, while dirSize is the size
     FileStatInfo_t*  fileStat;
 } DirInfo_t;
 
@@ -164,237 +165,239 @@ extern "C" {
 #endif
 
 /**
- * 初始化系统
- * @param: path为配置文件路径
- * @return: 成功返回0，否则返回-1.
+ * @brief Initialize the system
+ * @param path config file path
+ * @return success return 0, fail return -1
  */
 int Init(const char* path);
 
 /**
- * 打开文件，qemu打开文件的方式
- * @param: filename文件名, filename中包含用户信息
- *         例如：/1.img_userinfo_
- * @return: 返回文件fd
+ * @brief open file (for QEMU)
+ * @param filename filename, which contains user info (e.g. /1.img_userinfo_)
+ * @return fd
  */
 int Open4Qemu(const char* filename);
 
 /**
- * 打开文件，非qemu场景
- * @param: filename文件名
- * @param: userinfo为要打开的文件的用户信息
- * @return: 返回文件fd
+ * @brief open file (for non-QEMU)
+ * @param filename filename
+ * @param userinfo user info of the opened file
+ * @return fd
  */
 int Open(const char* filename, const C_UserInfo_t* userinfo);
 
 /**
- * 创建文件
- * @param: filename文件名
- * @param: userinfo是当前打开或创建时携带的user信息
- * @param: size文件长度，当create为true的时候以size长度创建文件
- * @return: 成功返回 0, 失败返回小于0，可能有多种可能，比如内部错误，或者文件已存在
+ * @brief create file
+ * @param filename filename
+ * @param userinfo user info
+ * @param size file size
+ * @return success return 0, fail return less than 0, and there
+ *          could be different returned values for different
+ *          reasons (e.g. internal error, file already exists)
  */
 int Create(const char* filename,
            const C_UserInfo_t* userinfo,
            size_t size);
 
 /**
- * create file with stripe
- * @param: filename  file name
- * @param: userinfo  user info
- * @param: size      file size
- * @param: stripeUnit block in stripe size
- * @param: stripeCount stripe count in one stripe
+ * @brief create file with stripe
+ * @param filename  file name
+ * @param userinfo  user info
+ * @param size      file size
+ * @param stripeUnit block in stripe size
+ * @param stripeCount stripe count in one stripe
  *
- * @return: success return 0, fail return less than 0
+ * @return success return 0, fail return less than 0
  */
 int Create2(const char* filename,
            const C_UserInfo_t* userinfo,
            size_t size, uint64_t stripeUnit, uint64_t stripeCount);
 
 /**
- * 同步模式读
- * @param: fd为当前open返回的文件描述符
- * @param: buf为当前待读取的缓冲区
- * @param：offset文件内的偏移
- * @parma：length为待读取的长度
- * @return: 成功返回读取长度, 否则-LIBCURVE_ERROR::FAILED等
+ * @brief synchronous read
+ * @param fd fd returned by open
+ * @param buf buffer to be read
+ * @param offset offset within the file
+ * @param length length to be read
+ * @return success return bytes read, fail return error code less than 0 like -LIBCURVE_ERROR::FAILED
  */
 int Read(int fd, char* buf, off_t offset, size_t length);
 
 /**
- * 同步模式写
- * @param: fd为当前open返回的文件描述符
- * @param: buf为当前待写入的缓冲区
- * @param：offset文件内的偏移
- * @parma：length为待读取的长度
- * @return: 成功返回 写入长度,否则-LIBCURVE_ERROR::FAILED等
+ * @brief synchronous write
+ * @param fd fd returned by open
+ * @param buf buffer to be written
+ * @param offset offset within the file
+ * @param length length to be written
+ * @return success return bytes written, fail return error code less than 0 like -LIBCURVE_ERROR::FAILED
  */
 int Write(int fd, const char* buf, off_t offset, size_t length);
 
 /**
- * 异步模式读
- * @param: fd为当前open返回的文件描述符
- * @param: aioctx为异步读写的io上下文，保存基本的io信息
- * @return: 成功返回 0,否则-LIBCURVE_ERROR::FAILED
+ * @brief asynchronous read
+ * @param fd fd returned by open
+ * @param aioctx I/O context of the async read/write, saving the basic I/O info
+ * @return success return 0, fail return -LIBCURVE_ERROR::FAILED
  */
 int AioRead(int fd, CurveAioContext* aioctx);
 
 /**
- * 异步模式写
- * @param: fd为当前open返回的文件描述符
- * @param: aioctx为异步读写的io上下文，保存基本的io信息
- * @return: 成功返回 0,否则-LIBCURVE_ERROR::FAILED
+ * @brief asynchronous write
+ * @param fd fd returned by open
+ * @param aioctx I/O context of the async read/write, saving the basic I/O info
+ * @return success return 0, fail return -LIBCURVE_ERROR::FAILED
  */
 int AioWrite(int fd, CurveAioContext* aioctx);
 
 /**
- * 重命名文件
- * @param: userinfo是用户信息
- * @param: oldpath源路径
- * @param: newpath目标路径
- * @return: 成功返回 0,
- *          否则可能返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+ * @brief rename file
+ * @param userinfo user info
+ * @param oldpath source path
+ * @param newpath target path
+ * @return success return 0, otherwise return
+ *          -LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED and so on
  */
 int Rename(const C_UserInfo_t* userinfo, const char* oldpath, const char* newpath);   // NOLINT
 
 /**
- * 扩展文件
- * @param: userinfo是用户信息
- * @param: filename文件名
- * @param: newsize新的size
- * @return: 成功返回 0,
- *          否则可能返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+ * @brief extend file (for non-QEMU)
+ * @param userinfo user info
+ * @param filename filename
+ * @param newsize new size
+ * @return success return 0, otherwise return
+ *          -LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED and so on
  */
 int Extend(const char* filename, const C_UserInfo_t* userinfo, uint64_t newsize);     // NOLINT
 
 /**
- * 扩展文件,Qemu场景在线扩容
- * @param: filename文件名
- * @param: newsize新的size
- * @return: 成功返回 0,
- *          否则可能返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+ * @brief extend file (for QEMU)
+ * @param filename filename
+ * @param newsize new size
+ * @return success return 0, otherwise return
+ *          -LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED and so on
  */
 int Extend4Qemu(const char* filename, int64_t newsize);     // NOLINT
 
 
 /**
- * 删除文件
- * @param: userinfo是用户信息
- * @param: filename待删除的文件名
- * @return: 成功返回 0,
- *          否则可能返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+ * @brief delete file
+ * @param userinfo user info
+ * @param filename filename of the file to be deleted
+ * @return success return 0, otherwise return
+ *          -LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED and so on
  */
 int Unlink(const char* filename, const C_UserInfo_t* userinfo);
 
 /**
- * 强制删除文件, unlink删除文件在mds一侧并不是真正的删除，
- * 而是放到了垃圾回收站，当使用DeleteForce接口删除的时候是直接删除
- * @param: userinfo是用户信息
- * @param: filename待删除的文件名
- * @return: 成功返回 0,
- *          否则可能返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+ * @brief forced delete file, unlink just put file into trash rather than delete
+ * it on MDS side, while DeleteForce delete file exactly on MDS side 
+ * @param userinfo user info
+ * @param filename filename of the file to be deleted
+ * @return success return 0, otherwise return
+ *          -LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED and so on
  */
 int DeleteForce(const char* filename, const C_UserInfo_t* userinfo);
 
 /**
- * recover file
- * @param: userinfo
- * @param: filename
- * @param: fileid
- * @return: success 0, otherwise return
+ * @brief recover file
+ * @param userinfo user info
+ * @param filename filename
+ * @param fileid file id
+ * @return success return 0, otherwise return
  *          -LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED and so on
  */
 int Recover(const char* filename, const C_UserInfo_t* userinfo,
                                   uint64_t fileId);
 
 /**
- * 在获取目录内容之前先打开文件夹
- * @param: userinfo是用户信息
- * @param: dirpath是目录路径
- * @return: 成功返回一个非空的DirInfo_t指针，否则返回一个空指针
+ * @brief open directory before getting the content
+ * @param userinfo user info
+ * @param dirpath directory path
+ * @return success return a non-null pointer DirInfo_t, otherwise return nullptr
  */
 DirInfo_t* OpenDir(const char* dirpath, const C_UserInfo_t* userinfo);
 
 /**
- * 枚举目录内容, 用户OpenDir成功之后才能list
- * @param[in][out]: dirinfo为OpenDir返回的指针, 内部会将mds返回的信息放入次结构中
- * @return: 成功返回 0,
- *          否则可能返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+ * @brief list all the contents in the directory, only could be called after calling OpenDir successfully
+ * @param[in][out] dirinfo is the pointer returned by OpenDir, which contains info returned from MDS
+ * @return success return 0, otherwise return
+ *          -LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED and so on
  */
 int Listdir(DirInfo_t* dirinfo);
 
 /**
- * 关闭打开的文件夹
- * @param: dirinfo为opendir返回的dir信息
+ * @brief close opened directory
+ * @param dirinfo is the directory info returned by OpenDir
  */
 void CloseDir(DirInfo_t* dirinfo);
 
 /**
- * 创建目录
- * @param: userinfo是用户信息
- * @param: dirpath是目录路径
- * @return: 成功返回 0,
- *          否则可能返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+ * @brief create directory
+ * @param userinfo user info
+ * @param dirpath target path
+ * @return success return 0, otherwise return
+ *          -LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED and so on
  */
 int Mkdir(const char* dirpath, const C_UserInfo_t* userinfo);
 
 /**
- * 删除目录
- * @param: userinfo是用户信息
- * @param: dirpath是目录路径
- * @return: 成功返回 0,
- *          否则可能返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+ * @brief delete directory
+ * @param userinfo user info
+ * @param dirpath directory path
+ * @return success return 0, otherwise return
+ *          -LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED and so on
  */
 int Rmdir(const char* dirpath, const C_UserInfo_t* userinfo);
 
 /**
- * 获取文件信息
- * @param: filename文件名
- * @param: userinfo是用户信息
- * @param: finfo是出参，携带当前文件的基础信息
- * @return: 成功返回 0,
- *          否则可能返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+ * @brief get file info (for non-QEMU)
+ * @param filename filename
+ * @param userinfo user info
+ * @param[out] finfo basic infomations of the file
+ * @return success return 0, otherwise return
+ *          -LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED and so on
  */
 int StatFile(const char* filename,
              const C_UserInfo_t* userinfo,
              FileStatInfo* finfo);
 
 /**
- * 获取文件信息
- * @param: filename文件名
- * @param: finfo是出参，携带当前文件的基础信息
- * @return: 成功返回 0,
- *          否则可能返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+ * @brief get file info (for QEMU)
+ * @param filename filename
+ * @param[out] finfo basic infomations of the file
+ * @return success return 0, otherwise return
+ *          -LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED and so on
  */
 int StatFile4Qemu(const char* filename, FileStatInfo* finfo);
 
 /**
- * 变更owner
- * @param: filename待变更的文件名
- * @param: newOwner新的owner信息
- * @param: userinfo执行此操作的user信息，只有root用户才能执行变更
- * @return: 成功返回0，
- *          否则返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+ * @brief change the owner of the file
+ * @param filename filename
+ * @param newOwner new owner
+ * @param userinfo user info that made the operation, only root user
+ *         could change it
+ * @return success return 0, otherwise return
+ *          -LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED and so on
  */
 int ChangeOwner(const char* filename,
                 const char* newOwner,
                 const C_UserInfo_t* userinfo);
 
 /**
- * close通过fd找到对应的instance进行删除
- * @param: fd为当前open返回的文件描述符
- * @return: 成功返回 0,
- *          否则可能返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+ * @brief find the corresponding instance with fd and delete it
+ * @param fd fd returned by open
+ * @return success return 0, otherwise return
+ *          -LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED and so on
  */
 int Close(int fd);
 
 void UnInit();
 
 /**
- * @brief: 获取集群id, id用UUID标识
- * @param: buf存放集群id
- * @param: buf的长度
- * @return: 成功返回0, 否则返回-LIBCURVE_ERROR::FAILED
+ * @brief get cluster id, which is identified by UUID
+ * @param buf put the cluster id here
+ * @param len size of the buf
+ * @return success return 0, otherwise return -LIBCURVE_ERROR::FAILED
  */
 int GetClusterId(char* buf, int len);
 
@@ -412,11 +415,12 @@ enum class UserDataType {
     IOBuffer   // butil::IOBuf*
 };
 
-// 存储用户信息
+// Store user info
 typedef struct UserInfo {
-    // 当前执行的owner信息
+    // info of the current owner
     std::string owner;
-    // 当owner=root的时候，需要提供password作为计算signature的key
+    // when owner="root", you need to provide the password as the key
+    // to calculate the signature
     std::string password;
 
     UserInfo() = default;
@@ -435,82 +439,82 @@ class CurveClient {
     virtual ~CurveClient();
 
     /**
-     * 初始化
-     * @param configPath 配置文件路径
-     * @return 返回错误码
+     * @brief Initialization
+     * @param configPath config file path
+     * @return error code
      */
     virtual int Init(const std::string& configPath);
 
     /**
-     * 反初始化
+     * @brief Uninitialization
      */
     virtual void UnInit();
 
     /**
-     * 打开文件
-     * @param filename 文件名，格式为：文件名_用户名_
+     * @brief open file
+     * @param filename filename, format: filename_username_
      * @param[out] sessionId session Id
-     * @return 成功返回fd，失败返回-1
+     * @return success return fd, fail return -1
      */
     virtual int Open(const std::string& filename,
                      std::string* sessionId);
 
     /**
-     * 重新打开文件
-     * @param filename 文件名，格式为：文件名_用户名_
+     * @brief reopen file
+     * @param filename filename, format: filename_username_
      * @param sessionId session Id
-     * @param[out] newSessionId reOpen之后的新sessionId
-     * @return 成功返回fd，失败返回-1
+     * @param[out] newSessionId new sessionId after reOpen
+     * @return success return fd, fail return -1
      */
     virtual int ReOpen(const std::string& filename,
                        const std::string& sessionId,
                        std::string* newSessionId);
 
     /**
-     * 关闭文件
-     * @param fd 文件fd
-     * @return 返回错误码
+     * @brief close file
+     * @param fd fd
+     * @return error code
      */
     virtual int Close(int fd);
 
     /**
-     * 扩展文件
-     * @param filename 文件名，格式为：文件名_用户名_
-     * @param newsize 扩展后的大小
-     * @return 返回错误码
+     * @brief extendd file
+     * @param filename filename, format: filename_username_
+     * @param newsize new size after extending
+     * @return error code
      */
     virtual int Extend(const std::string& filename,
                        int64_t newsize);
 
     /**
-     * 获取文件大小
-     * @param filename 文件名，格式为：文件名_用户名_
-     * @return 返回错误码
+     * @brief get file size
+     * @param filename filename, format: filename_username_
+     * @return error code
      */
     virtual int64_t StatFile(const std::string& filename);
 
     /**
-     * 异步读
-     * @param fd 文件fd
-     * @param aioctx 异步读写的io上下文
+     * @brief asynchronous read
+     * @param fd fd
+     * @param aioctx aioctx I/O context of the async read/write
      * @param dataType type of user buffer
-     * @return 返回错误码
+     * @return error code
      */
     virtual int AioRead(int fd, CurveAioContext* aioctx, UserDataType dataType);
 
     /**
-     * 异步写
-     * @param fd 文件fd
-     * @param aioctx 异步读写的io上下文
+     * @brief asynchronous write
+     * @param fd fd
+     * @param aioctx aioctx I/O context of the async read/write
      * @param dataType type of user buffer
-     * @return 返回错误码
+     * @return error code
      */
     virtual int AioWrite(int fd, CurveAioContext* aioctx,
                          UserDataType dataType);
 
     /**
-     * 测试使用，设置fileclient
-     * @param client 需要设置的fileclient
+     * @brief test use, set the fileclient
+     * @param client fileclient to be set
      */
     void SetFileClient(FileClient* client);
 
