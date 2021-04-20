@@ -37,6 +37,9 @@ using ::curve::mds::chunkserverclient::ChunkServerClientOption;
 namespace curve {
 namespace mds {
 
+const uint64_t DefaultSegmentSize = kGB * 1;
+const uint64_t kMiniFileLength = 10 * kGB;
+
 TEST(CleanCore, testcleansnapshotfile) {
     auto storage = std::make_shared<MockNameServerStorage>();
     auto topology = std::make_shared<MockTopology>();

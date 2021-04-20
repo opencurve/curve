@@ -40,6 +40,7 @@ namespace curve {
 namespace mds {
 
 const uint64_t DefaultChunkSize = 16 * kMB;
+const uint64_t DefaultSegmentSize = kGB * 1;
 
 class ChunkAllocatorTest: public ::testing::Test {
  protected:

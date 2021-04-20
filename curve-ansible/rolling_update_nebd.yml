@@ -30,9 +30,9 @@
   roles:
     - { role: install_package, package_name: nebd, package_version: "{{ nebd_package_version }}",
             tags: ["install_package"] }
-    - { role: generate_config, template_name: client.conf, conf_path: "{{ client_config_path }}", when: "not {{ update_config_with_puppet }}" }
-    - { role: generate_config, template_name: nebd-client.conf, conf_path: "{{ nebd_client_config_path }}", when: "not {{ update_config_with_puppet }}" }
-    - { role: generate_config, template_name: nebd-server.conf, conf_path: "{{ nebd_server_config_path }}", when: "not {{ update_config_with_puppet }}" }
+    - { role: generate_config, template_name: client.conf, conf_path: "{{ client_config_path }}", when: "not update_config_with_puppet" }
+    - { role: generate_config, template_name: nebd-client.conf, conf_path: "{{ nebd_client_config_path }}", when: "not update_config_with_puppet" }
+    - { role: generate_config, template_name: nebd-server.conf, conf_path: "{{ nebd_server_config_path }}", when: "not update_config_with_puppet" }
   tasks:
     - name: update config with puppet
       include_tasks: "common_tasks/update_config_with_puppet.yml"

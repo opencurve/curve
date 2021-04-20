@@ -426,10 +426,12 @@ def clean_nbd():
 def map_nbd():
     client_host = config.client_list[0]
     ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
-    cmd = "curve create --filename /fiofile --length 10 --user test --stripeUnit 2097152  --stripeCount 4"
+    stripeUnit = [524288,1048576,2097152,4194304]
+    stripeCount = [1,2,4,8,16]
+    cmd = "curve create --filename /fiofile --length 10 --user test --stripeUnit %d  --stripeCount %d"%(random.choice(stripeUnit),random.choice(stripeCount))
     rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"create /fiofile fail：%s"%rs[2]
-    cmd = "curve create --filename /vdbenchfile --length 10 --user test --stripeUnit 2097152  --stripeCount 4"
+    cmd = "curve create --filename /vdbenchfile --length 10 --user test --stripeUnit %d  --stripeCount %d"%(random.choice(stripeUnit),random.choice(stripeCount))
     rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"create /vdbenchfile fail：%s"%rs[2]
     time.sleep(3)

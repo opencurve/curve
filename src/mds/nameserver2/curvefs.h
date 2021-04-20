@@ -64,6 +64,9 @@ struct ThrottleOption {
 
 struct CurveFSOption {
     uint64_t defaultChunkSize;
+    uint64_t defaultSegmentSize;
+    uint64_t minFileLength;
+    uint64_t maxFileLength;
     RootAuthOption authOptions;
     FileRecordOptions fileRecordOptions;
     ThrottleOption throttleOption;
@@ -550,6 +553,27 @@ class CurveFS {
      */
     uint64_t GetDefaultChunkSize();
 
+    /**
+     *  @brief get the defaultSegmentSize info of curvefs
+     *  @param:
+     *  @return return defaultSegmentSize info obtained
+     */
+    uint64_t GetDefaultSegmentSize();
+
+    /**
+     *  @brief get the minFileLength info of curvefs
+     *  @param:
+     *  @return return minFileLength info obtained
+     */
+    uint64_t GetMinFileLength();
+
+    /**
+     *  @brief get the maxFileLength info of curvefs
+     *  @param:
+     *  @return return maxFileLength info obtained
+     */
+    uint64_t GetMaxFileLength();
+
  private:
     CurveFS() = default;
 
@@ -741,6 +765,9 @@ class CurveFS {
     ThrottleOption throttleOption_;
 
     uint64_t defaultChunkSize_;
+    uint64_t defaultSegmentSize_;
+    uint64_t minFileLength_;
+    uint64_t maxFileLength_;
     std::chrono::steady_clock::time_point startTime_;
 };
 extern CurveFS &kCurveFS;

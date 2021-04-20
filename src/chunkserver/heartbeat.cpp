@@ -238,12 +238,19 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
     }
     CopysetNodeOptions opt = copysetMan_->GetCopysetNodeOptions();
     uint64_t chunkFileSize = opt.maxChunkSize;
+    uint64_t walSegmentFileSize = opt.maxWalSegmentSize;
     uint64_t usedChunkSize = metric->GetTotalSnapshotCount() * chunkFileSize
                            + metric->GetTotalChunkCount() * chunkFileSize;
+    uint64_t usedWalSegmentSize = metric->GetTotalWalSegmentCount()
+                                * walSegmentFileSize;
     uint64_t trashedChunkSize = metric->GetChunkTrashedCount() * chunkFileSize;
     uint64_t leftChunkSize = metric->GetChunkLeftCount() * chunkFileSize;
-    stats->set_chunksizeusedbytes(usedChunkSize);
-    stats->set_chunksizeleftbytes(leftChunkSize);
+    // leftWalSegmentSize will be 0 when CHUNK and WAL share file pool
+    uint64_t leftWalSegmentSize = metric->GetWalSegmentLeftCount()
+                                * walSegmentFileSize;
+
+    stats->set_chunksizeusedbytes(usedChunkSize+usedWalSegmentSize);
+    stats->set_chunksizeleftbytes(leftChunkSize+leftWalSegmentSize);
     stats->set_chunksizetrashedbytes(trashedChunkSize);
     req->set_allocated_stats(stats);
 

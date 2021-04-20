@@ -471,6 +471,12 @@ void MDS::InitThrottleOption(ThrottleOption* option) {
 void MDS::InitCurveFSOptions(CurveFSOption *curveFSOptions) {
     conf_->GetValueFatalIfFail(
         "mds.curvefs.defaultChunkSize", &curveFSOptions->defaultChunkSize);
+    conf_->GetValueFatalIfFail(
+        "mds.curvefs.defaultSegmentSize", &curveFSOptions->defaultSegmentSize);
+    conf_->GetValueFatalIfFail(
+        "mds.curvefs.minFileLength", &curveFSOptions->minFileLength);
+    conf_->GetValueFatalIfFail(
+        "mds.curvefs.maxFileLength", &curveFSOptions->maxFileLength);
     FileRecordOptions fileRecordOptions;
     InitFileRecordOptions(&curveFSOptions->fileRecordOptions);
 
