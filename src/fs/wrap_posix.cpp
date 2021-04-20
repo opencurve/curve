@@ -101,7 +101,16 @@ int PosixWrapper::fstat(int fd, struct stat *buf) {
 }
 
 int PosixWrapper::fallocate(int fd, int mode, off_t offset, off_t len) {
-    return ::posix_fallocate(fd, offset, len);
+    /**
+     * Not all filesystems support FALLOC_FL_ZERO_RANGE; if a filesystem
+     * doesn't support the operation, an error is returned. The
+     * operation is supported on at least the following filesystems:
+     *   XFS (since Linux 3.15)
+     *   ext4, for extent-based files (since Linux 3.15)
+     *   SMB3 (since Linux 3.17)
+     *   Btrfs (since Linux 4.16)
+     */
+    return ::syscall(SYS_fallocate, fd, mode, offset, len);
 }
 
 int PosixWrapper::fsync(int fd) {
