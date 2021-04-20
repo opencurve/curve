@@ -266,7 +266,7 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
              */
             ChunkRequest request;
             butil::IOBuf data;
-            auto opReq = ChunkOpRequest::Decode(log, &request, &data);
+            auto opReq = ChunkOpRequest::Decode(log, &request, &data, iter.index(), GetLeaderId());
             auto chunkId = request.chunkid();
             auto task = std::bind(&ChunkOpRequest::OnApplyFromLog,
                                   opReq,

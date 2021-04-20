@@ -117,7 +117,7 @@ class CloneCoreTest : public testing::Test {
                    char* buf) {
         butil::IOBuf data;
         ChunkRequest request;
-        auto req = ChunkOpRequest::Decode(*task.data, &request, &data);
+        auto req = ChunkOpRequest::Decode(*task.data, &request, &data, 0, PeerId("0"));
         auto preq = dynamic_cast<PasteChunkInternalRequest*>(req.get());
         ASSERT_TRUE(preq != nullptr);
 

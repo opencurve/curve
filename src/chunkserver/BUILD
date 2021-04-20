@@ -73,6 +73,7 @@ cc_library(
         "//src/fs:lfs",
         "//src/client:curve_client",
 	"//include/client:include_client",
+        "//proto:scan_cc_proto",
     ],
 )
 
@@ -117,6 +118,7 @@ cc_library(
         "//src/common:curve_s3_adapter",
         "//src/fs:lfs",
         "//src/client:curve_client",
+        "//proto:scan_cc_proto",
     ],
 )
 

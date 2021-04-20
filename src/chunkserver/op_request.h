@@ -33,6 +33,7 @@
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 #include "src/chunkserver/datastore/define.h"
+#include "src/chunkserver/scan_manager.h"
 
 using ::google::protobuf::RpcController;
 using ::curve::chunkserver::concurrent::ConcurrentApplyModule;
@@ -150,7 +151,9 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
      */
     static std::shared_ptr<ChunkOpRequest> Decode(butil::IOBuf log,
                                                   ChunkRequest *request,
-                                                  butil::IOBuf *data);
+                                                  butil::IOBuf *data,
+                                                  uint64_t index,
+                                                  PeerId GetLeaderId);
 
  protected:
     /**
@@ -355,6 +358,36 @@ class PasteChunkInternalRequest : public ChunkOpRequest {
 
  private:
     butil::IOBuf data_;
+};
+
+class ScanChunkRequest : public ChunkOpRequest {
+ public:
+    ScanChunkRequest(uint64_t index, PeerId peer) :
+       ChunkOpRequest(), index_(index), peer_(peer) {}
+    ScanChunkRequest(std::shared_ptr<CopysetNode> nodePtr,
+                     ScanManager* scanManager,
+                     const ChunkRequest *request,
+                     ChunkResponse *response,
+                     ::google::protobuf::Closure *done) :
+        ChunkOpRequest(nodePtr,
+                      NULL,
+                      request,
+                      response,
+                      done),
+                      scanManager_(scanManager) {}
+    virtual ~ScanChunkRequest() = default;
+
+    void OnApply(uint64_t index, ::google::protobuf::Closure *done) override;
+    void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
+                        const ChunkRequest &request,
+                        const butil::IOBuf &data) override;
+ private:
+    void BuildRepScanMap(LogicPoolID pollId, ChunkID chunkId, uint64_t index, 
+                         uint64_t offset, uint64_t len, char* readBuf);
+    void SendScanMapToLeader();
+    ScanManager* scanManager_;     
+    uint64_t index_;
+    PeerId peer_;
 };
 
 }  // namespace chunkserver

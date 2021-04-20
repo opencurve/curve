@@ -487,6 +487,45 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
                 }
             }
             break;
+        
+        case curve::mds::heartbeat::START_SCAN_PEER:
+            {
+                ConfigChangeType type;
+                Configuration confTemp;
+                Peer peer;
+                LogicPoolID poolId = conf.logicalpoolid();
+                CopysetID copysetId = conf.copysetid();
+                int ret = 0;
+
+                if (ret = copyset->GetConfChange(&type, &confTemp, &peer) != 0) {
+                    LOG(ERROR) << "Failed to get config change state of copyset "
+                    << ToGroupIdStr(poolId, copysetId);
+                    return ret;
+                }  else if (type == curve::mds::heartbeat::NONE) {
+                    LOG(INFO) << "Scan peer " << conf.configchangeitem().address()
+                    << "to copyset " 
+                    << ToGroupIdStr(poolId, copysetId);
+                    if (!scanMan_->IsRepeatReq(poolId, copysetId)) {
+                        scanMan_->Enqueue(poolId, copysetId);
+                    } else {
+                        LOG(INFO) << "Scan peer repeat request";
+                    }
+                }  else {
+                    LOG(INFO) << "drop Scan peer, because exist config change, ConfigChangeType:" << type;
+                }
+                
+            }
+            break;
+        
+        case curve::mds::heartbeat::CANCEL_SCAN_PEER:
+            {
+                //todo Abnormal scenario
+                int ret;
+                LogicPoolID poolId = conf.logicalpoolid();
+                CopysetID copysetId = conf.copysetid();
+                ret = scanMan_->CancelScanJob(poolId, copysetId);
+            }
+            break;
 
         default:
             LOG(ERROR) << "Invalid configchange type: " << conf.type();

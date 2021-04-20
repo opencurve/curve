@@ -523,6 +523,72 @@ class RapidLeaderScheduler : public Scheduler {
     PoolIdType lpoolId_;
 };
 
+class ScanScheduler : public Scheduler {
+ public:
+    ScanScheduler(
+        const ScheduleOption &opt,
+        const std::shared_ptr<TopoAdapter> &topo,
+        const std::shared_ptr<OperatorController> &opController) 
+        : Scheduler(opt, topo, opController) {
+        runInterval_ = opt.scanSchedulerIntervalSec;
+        scanMaxCount_ = opt.scanSchedulerScanMaxCount;
+        scanInterval_ = opt.scanSchedulerScanIntervalSec;
+        scanStartHour_ = opt.scanSchedulerScanStartHour;
+        scanEndHour_ = opt.scanSchedulerScanEndHour;
+    }
+
+    /**
+     * @brief Schedule Generate operators according to the status of the cluster
+     *
+     * @return number of operators generated
+     */
+    int Schedule() override;
+
+    /**
+     * @brief Get running interval of LeaderScheduler
+     *
+     * @return time interval
+     */
+    int64_t GetRunningInterval() override;
+
+    std::set<CopysetID> getScaningCopyset(LogicalPoolIdType id) {
+        return scaning_[id];      
+    }
+    
+ private:
+     /**
+     * @brief Select one copyset for scan
+     *
+     * @param[out] scanChunkServer chunk server for scan
+     * 
+     * @param[out] groupId copysetId and LogicalPoolIdType for scan
+     *
+     * @return return true if find copyset for scan, false if not
+     */
+    bool selectScanCopySet(ChunkServerIdType &scanChunkServer, LogicalPoolIdType &lpid, CopysetID &copysetId);
+
+    /**
+     * @brief Select a group copysets for scan
+     *
+     * @param[out] scanInfo a group copysets and chunkserver for scan
+     *
+     * @return return true if scanInfo size is not zero, false if not
+     */
+    bool selectScanCopySets(std::map<ChunkServerIdType, std::pair<LogicalPoolIdType, CopysetID>> &scanInfo);
+    uint32_t runInterval_;
+    // the same time max scan copysets count
+    uint32_t scanMaxCount_;
+    // copyset scan interval time
+    uint32_t scanInterval_;
+    // scan start time and end time in one day, range 0~24
+    uint32_t scanStartHour_;
+    uint32_t scanEndHour_;
+    // set cancel flag pools
+    std::set<LogicalPoolIdType> cancelPools_;
+    // scaning copysets
+    std::map<LogicalPoolIdType, std::set<CopysetID>> scaning_;
+};
+
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

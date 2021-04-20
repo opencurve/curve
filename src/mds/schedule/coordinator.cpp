@@ -26,6 +26,7 @@
 #include <thread>  //NOLINT
 #include "src/mds/schedule/coordinator.h"
 #include "src/mds/topology/topology_item.h"
+#include "src/mds/schedule/operatorFactory.h"
 
 namespace curve {
 namespace mds {
@@ -81,6 +82,12 @@ void Coordinator::InitScheduler(
         schedulerController_[SchedulerType::ReplicaSchedulerType] =
             std::make_shared<ReplicaScheduler>(conf, topo_, opController_);
         LOG(INFO) << "init replica scheduler ok!";
+    }
+
+    if (conf.enableScanScheduler) {
+        schedulerController_[SchedulerType::ScanSchedulerType] =
+            std::make_shared<ScanScheduler>(conf, topo_, opController_);
+        LOG(INFO) << "init replica scheduler ok!";    
     }
 }
 
@@ -378,6 +385,30 @@ bool Coordinator::IsChunkServerRecover(const ChunkServerInfo &info) {
     }
 
     return false;
+}
+
+int Coordinator::CancelScanSchedule(PoolIdType lpid) {
+    std::set<CopysetID> copysetIds;
+    std::shared_ptr<ScanScheduler> scheduler = std::dynamic_pointer_cast<ScanScheduler> (schedulerController_[SchedulerType::ScanSchedulerType]);
+    copysetIds = scheduler->getScaningCopyset(lpid);
+    CopySetInfo info;
+
+    for (auto& id : copysetIds) {
+        CopySetKey key;
+        key.first = lpid;
+        key.second = id;
+        if (topo_->GetCopySetInfo(key, &info)) {
+            auto op = operatorFactory.CreateCancelScanPeerOperator(info, info.leader, OperatorPriority::HighPriority);
+            if (opController_->AddOperator(op)) {
+                LOG(INFO) << "rpc generate operator " << op.OpToString()
+                << " for " << info.CopySetInfoStr();
+            }
+        } else {
+            LOG(INFO) << "get copyset info fail. poolid:" << lpid << ", copyset id:" << id;
+        }
+    }
+    
+    return 0;
 }
 }  // namespace schedule
 }  // namespace mds

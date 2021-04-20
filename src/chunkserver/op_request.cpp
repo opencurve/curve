@@ -136,7 +136,9 @@ int ChunkOpRequest::Encode(const ChunkRequest *request,
 
 std::shared_ptr<ChunkOpRequest> ChunkOpRequest::Decode(butil::IOBuf log,
                                                        ChunkRequest *request,
-                                                       butil::IOBuf *data) {
+                                                       butil::IOBuf *data,
+                                                       uint64_t index,
+                                                       PeerId GetLeaderId) {
     uint32_t metaSize = 0;
     log.cutn(&metaSize, sizeof(uint32_t));
     metaSize = butil::NetToHost32(metaSize);
@@ -167,6 +169,8 @@ std::shared_ptr<ChunkOpRequest> ChunkOpRequest::Decode(butil::IOBuf log,
             return std::make_shared<PasteChunkInternalRequest>();
         case CHUNK_OP_TYPE::CHUNK_OP_CREATE_CLONE:
             return std::make_shared<CreateCloneChunkRequest>();
+        case CHUNK_OP_TYPE::CHUNK_OP_SCAN:
+            return std::make_shared<ScanChunkRequest>(index, GetLeaderId);
         default:LOG(ERROR) << "Unknown chunk op";
             return nullptr;
     }
@@ -865,5 +869,40 @@ void PasteChunkInternalRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> data
     }
 }
 
+void ScanChunkRequest::OnApply(uint64_t index,
+                                        ::google::protobuf::Closure *done) {
+    scanManager_->SetScanJobType(ScanType::BuildMap);
+    scanManager_->GenScanJob();
+}
+
+void ScanChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
+                                               const ChunkRequest &request,
+                                               const butil::IOBuf &data) {
+    char *readBuffer = nullptr;
+    size_t size = request.size();
+    readBuffer = new(std::nothrow)char[size];
+    CHECK(nullptr != readBuffer)
+        << "new readBuffer failed " << strerror(errno);
+
+    auto ret = datastore->ReadChunk(request.chunkid(),
+                                    request.sn(),
+                                    readBuffer,
+                                    request.offset(),
+                                    size);
+
+    BuildRepScanMap(request.logicpoolid(), request.chunkid(), index_, 
+                    request.offset(), request.size(), readBuffer);
+    SendScanMapToLeader();
+    return;                                               
+}
+
+void ScanChunkRequest::BuildRepScanMap(LogicPoolID pollId, ChunkID chunkId, uint64_t index, 
+                                       uint64_t offset, uint64_t len, char* readBuf) {
+    return;
+}
+
+void ScanChunkRequest::SendScanMapToLeader() {
+    return;        
+}
 }  // namespace chunkserver
 }  // namespace curve
