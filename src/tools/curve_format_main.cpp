@@ -107,6 +107,7 @@ struct AllocateStruct {
     bool* checkwrong;
     std::mutex* mtx;
     uint64_t chunknum;
+    std::string cleanChunkSuffix;
 };
 
 int AllocateFiles(AllocateStruct* allocatestruct) {
@@ -122,8 +123,8 @@ int AllocateFiles(AllocateStruct* allocatestruct) {
             filename = std::to_string(
                             allocatestruct->allocateChunknum->load());
         }
-        std::string tmpchunkfilepath
-                    = FLAGS_filePoolDir + "/" + filename;
+        std::string tmpchunkfilepath = FLAGS_filePoolDir + "/"
+            + filename + allocatestruct->cleanChunkSuffix;
 
         int ret = allocatestruct->fsptr->Open(tmpchunkfilepath.c_str(),
                                              O_RDWR | O_CREAT);
@@ -236,6 +237,8 @@ int main(int argc, char** argv) {
     allocateStruct.checkwrong = &checkwrong;
     allocateStruct.mtx = &mtx;
     allocateStruct.chunknum = threadAllocateNum;
+    allocateStruct.cleanChunkSuffix =
+        curve::chunkserver::FilePool::GetCleanChunkSuffix();
 
     thvec.push_back(std::move(std::thread(AllocateFiles, &allocateStruct)));
     thvec.push_back(std::move(std::thread(AllocateFiles, &allocateStruct)));

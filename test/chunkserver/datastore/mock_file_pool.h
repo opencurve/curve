@@ -23,6 +23,7 @@
 #ifndef TEST_CHUNKSERVER_DATASTORE_MOCK_FILE_POOL_H_
 #define TEST_CHUNKSERVER_DATASTORE_MOCK_FILE_POOL_H_
 
+#include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <string>
 #include <memory>
@@ -38,11 +39,17 @@ class MockFilePool : public FilePool {
         : FilePool(lfs) {}
     ~MockFilePool() {}
     MOCK_METHOD1(Initialize, bool(FilePoolOptions));
-    MOCK_METHOD2(GetFile, int(const std::string&, char*));
+    MOCK_METHOD2(GetFileImpl, int(const std::string&, char*));
     MOCK_METHOD1(RecycleFile, int(const std::string&  chunkpath));
     MOCK_METHOD0(UnInitialize, void());
     MOCK_METHOD0(Size, size_t());
     MOCK_METHOD0(GetFilePoolOpt, FilePoolOptions());
+
+    int GetFile(const std::string& chunkpath,
+                char* metapage,
+                bool needClean = false) override {
+        return GetFileImpl(chunkpath, metapage);
+    };
 };
 
 }  // namespace chunkserver

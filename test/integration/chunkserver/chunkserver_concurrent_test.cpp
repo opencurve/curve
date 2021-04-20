@@ -204,7 +204,10 @@ class ChunkServerConcurrentFromFilePoolTest : public testing::Test {
                                                    poolDir,
                                                    metaDir);
 
-        allocateChunk(lfs, kChunkNum, poolDir, kChunkSize);
+        // There maybe one chunk in cleaning, so you should allocate
+        // (kChunkNum + 1) chunks in start if you want to use kChunkNum chunks.
+        // This situation will not occur in the production environment
+        allocateChunk(lfs, kChunkNum+1, poolDir, kChunkSize);
     }
     virtual void TearDown() {
         std::string rmdir1("rm -fr ");

@@ -170,6 +170,12 @@ chunkfilepool.chunk_file_pool_dir={{ chunkserver_chunkfilepool_chunk_file_pool_d
 chunkfilepool.cpmeta_file_size={{ chunkserver_chunkfilepool_cpmeta_file_size }}
 # chunkfilepool get chunk最大重试次数
 chunkfilepool.retry_times=5
+# Enable clean chunk
+chunkfilepool.clean.enable={{ chunkserver_chunkfilepool_clean_enable }}
+# The bytes per write for cleaning chunk (max: 1MB)
+chunkfilepool.clean.bytes_per_write={{ chunkserver_chunkfilepool_clean_bytes_per_write }}
+# The throttle iops for cleaning chunk (4KB/IO)
+chunkfilepool.clean.throttle_iops={{ chunkserver_chunkfilepool_clean_throttle_iops }}
 
 #
 # WAL file pool
