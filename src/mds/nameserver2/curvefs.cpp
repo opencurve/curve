@@ -880,7 +880,8 @@ StatusCode CurveFS::RenameFile(const std::string & sourceFileName,
         return ret;
     }
 
-    if (sourceFileId != kUnitializedFileID && sourceFileId != sourceFileInfo.id()) {
+    if (sourceFileId != kUnitializedFileID &&
+        sourceFileId != sourceFileInfo.id()) {
         LOG(WARNING) << "rename file, sourceFileId missmatch"
                    << ", sourceFileName = " << sourceFileName
                    << ", destFileName = " << destFileName
