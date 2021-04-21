@@ -165,9 +165,7 @@ void SnapShotCloneServer::StartDummy() {
 
 bool SnapShotCloneServer::InitEtcdClient(void) {
     etcdClient_ = std::make_shared<EtcdClientImp>();
-    auto res = etcdClient_->Init(snapshotCloneServerOptions_.etcdConf,
-        snapshotCloneServerOptions_.etcdClientTimeout,
-        snapshotCloneServerOptions_.etcdRetryTimes);
+    auto res = etcdClient_->Init(snapshotCloneServerOptions_.etcdConf);
     if (res != EtcdErrCode::EtcdOK) {
         LOG(ERROR)
         << "init etcd client err! "

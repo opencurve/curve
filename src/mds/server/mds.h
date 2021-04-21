@@ -167,9 +167,7 @@ class MDS {
 
     void InitSnapshotCloneClientOption(SnapshotCloneClientOption *option);
 
-    void InitEtcdClient(const EtcdConf& etcdConf,
-                        int etcdTimeout,
-                        int retryTimes);
+    void InitEtcdClient(const EtcdConf& etcdConf);
 
     void InitLeaderElection(const LeaderElectionOptions& leaderElectionOp);
 

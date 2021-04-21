@@ -87,15 +87,9 @@ void MDS::StartDummy() {
 
 void MDS::StartCompaginLeader() {
     // initialize etcd client
-    // TODO(lixiaocui): why not store all configuration in EtcdConf?
-    int etcdTimeout;
-    conf_->GetValueFatalIfFail(
-        "mds.etcd.operation.timeoutMs", &etcdTimeout);
-    int etcdRetryTimes;
-    conf_->GetValueFatalIfFail("mds.etcd.retry.times", &etcdRetryTimes);
     EtcdConf etcdConf;
     InitEtcdConf(&etcdConf);
-    InitEtcdClient(etcdConf, etcdTimeout, etcdRetryTimes);
+    InitEtcdClient(etcdConf);
 
     // leader election
     LeaderElectionOptions leaderElectionOp;
@@ -178,6 +172,10 @@ void MDS::Stop() {
 }
 
 void MDS::InitEtcdConf(EtcdConf* etcdConf) {
+    conf_->GetValueFatalIfFail(
+        "mds.etcd.operation.timeoutMs", &etcdConf->Timeout);
+    conf_->GetValueFatalIfFail(
+        "mds.etcd.retry.times", &etcdConf->RetryTimes);
     std::string endpoint;
     conf_->GetValueFatalIfFail("mds.etcd.endpoint", &endpoint);
     etcdEndpoints_ = new char[endpoint.size()];
@@ -226,18 +224,16 @@ void MDS::StartServer() {
     server.RunUntilAskedToQuit();
 }
 
-void MDS::InitEtcdClient(const EtcdConf& etcdConf,
-                         int etcdTimeout,
-                         int retryTimes) {
+void MDS::InitEtcdClient(const EtcdConf& etcdConf) {
     etcdClient_ = std::make_shared<EtcdClientImp>();
-    auto res = etcdClient_->Init(etcdConf, etcdTimeout, retryTimes);
+    auto res = etcdClient_->Init(etcdConf);
     LOG_IF(FATAL, res != EtcdErrCode::EtcdOK)
         << "init etcd client err! "
         << "etcdaddr: " << etcdConf.Endpoints
         << ", etcdaddr len: " << etcdConf.len
         << ", etcdtimeout: " << etcdConf.DialTimeout
-        << ", operation timeout: " << etcdTimeout
-        << ", etcd retrytimes: " << retryTimes;
+        << ", operation timeout: " << etcdConf.Timeout
+        << ", etcd retrytimes: " << etcdConf.RetryTimes;
 
 
     std::string out;
@@ -250,8 +246,8 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
             << "etcdaddr: " << etcdConf.Endpoints
             << ", etcdaddr len: " << etcdConf.len
             << ", etcdtimeout: " << etcdConf.DialTimeout
-            << ", operation timeout: " << etcdTimeout
-            << ", etcd retrytimes: " << retryTimes;
+            << ", operation timeout: " << etcdConf.Timeout
+            << ", etcd retrytimes: " << etcdConf.RetryTimes;
 }
 
 void MDS::InitLeaderElection(const LeaderElectionOptions& leaderElectionOp) {

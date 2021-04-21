@@ -27,9 +27,9 @@
 
 namespace curve {
 namespace kvstorage {
-int EtcdClientImp::Init(EtcdConf conf, int timeout, int retryTimes) {
-    this->timeout_ = timeout;
-    this->retryTimes_ = retryTimes;
+int EtcdClientImp::Init(EtcdConf conf) {
+    this->timeout_ = conf.Timeout;
+    this->retryTimes_ = conf.RetryTimes;
     return NewEtcdClientV3(conf);
 }
 

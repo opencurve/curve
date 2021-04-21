@@ -132,12 +132,10 @@ class EtcdClientImp : public KVStorageClient {
      * @brief Init init the etcdclient, a global var in go
      *
      * @param[in] conf the configuration for init etcdclient
-     * @param[in] timeout
-     * @param[in] retryTimes
      *
      * @return return error code EtcdErrCode
      */
-    int Init(EtcdConf conf, int timeout, int retryTiems);
+    int Init(EtcdConf conf);
 
     void CloseClient();
 

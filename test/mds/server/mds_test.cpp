@@ -64,11 +64,12 @@ class MDSTest : public ::testing::Test {
         }
         // 一定时间内尝试init直到etcd完全起来
         auto client = std::make_shared<EtcdClientImp>();
-        EtcdConf conf = { kEtcdAddr, strlen(kEtcdAddr), 1000 };
+        EtcdConf conf = { kEtcdAddr, strlen(kEtcdAddr), 1000, 0, 3 };
+
         uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
         bool initSuccess = false;
         while (::curve::common::TimeUtility::GetTimeofDaySec() - now <= 5) {
-            if (0 == client->Init(conf, 0, 3)) {
+            if (0 == client->Init(conf)) {
                 initSuccess = true;
                 break;
             }
