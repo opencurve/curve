@@ -90,7 +90,6 @@ int64_t cbd_libcurve_filesize(const char* filename) {
     struct FileStatInfo info;
     memset(&info, 0, sizeof(info));
 
-    // TODO(wuhanqing): 判断返回值
     int ret = StatFile4Qemu(filename, &info);
     if (!ret) {
         return ret;
