@@ -91,7 +91,7 @@ int64_t cbd_libcurve_filesize(const char* filename) {
     memset(&info, 0, sizeof(info));
 
     int ret = StatFile4Qemu(filename, &info);
-    if (!ret) {
+    if (ret != 0) {
         return ret;
     } else {
         return info.length;
