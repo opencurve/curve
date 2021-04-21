@@ -224,17 +224,17 @@ class CurveFS {
      *  @brief rename file
      *  @param sourceFileName
      *  @param destFileName
-     *  @param oldFileId: there will be inodeID verification, except when
+     *  @param sourceFileId: there will be inodeID verification, except when
      *                    kUnitializedFileID is passed.
-     *  @param newFileId: there will be inodeID verification, except when
+     *  @param destFileId: there will be inodeID verification, except when
      *                    kUnitializedFileID is passed.
      *  @return StatusCode::kOK if succeeded
      */
     // TODO(hzsunjianliang): Add inode parameters of the source file for checking //NOLINT
     StatusCode RenameFile(const std::string & sourceFileName,
                           const std::string & destFileName,
-                          uint64_t oldFileId,
-                          uint64_t newFileId);
+                          uint64_t sourceFileId,
+                          uint64_t destFileId);
 
     /**
      *  @brief extend file
