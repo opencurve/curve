@@ -862,7 +862,7 @@ StatusCode CurveFS::CheckFileCanChange(const std::string &fileName,
 
 StatusCode CurveFS::RenameFile(const std::string & sourceFileName,
                                const std::string & destFileName,
-                               uint64_t oldFileId, uint64_t newFileId) {
+                               uint64_t sourceFileId, uint64_t destFileId) {
     if (sourceFileName == "/" || destFileName  == "/") {
         return StatusCode::kParaError;
     }
@@ -873,33 +873,33 @@ StatusCode CurveFS::RenameFile(const std::string & sourceFileName,
         return StatusCode::kFileExists;
     }
 
-    FileInfo  oldFileInfo;
-    StatusCode ret = GetFileInfo(sourceFileName, &oldFileInfo);
+    FileInfo  sourceFileInfo;
+    StatusCode ret = GetFileInfo(sourceFileName, &sourceFileInfo);
     if (ret != StatusCode::kOK) {
         LOG(INFO) << "get source file error, errCode = " << ret;
         return ret;
     }
 
-    if (oldFileId != kUnitializedFileID && oldFileId != oldFileInfo.id()) {
-        LOG(WARNING) << "rename file, oldFileId missmatch"
+    if (sourceFileId != kUnitializedFileID && sourceFileId != sourceFileInfo.id()) {
+        LOG(WARNING) << "rename file, sourceFileId missmatch"
                    << ", sourceFileName = " << sourceFileName
                    << ", destFileName = " << destFileName
-                   << ", oldFileInfo.id() = " << oldFileInfo.id()
-                   << ", oldFileId = " << oldFileId;
+                   << ", sourceFileInfo.id() = " << sourceFileInfo.id()
+                   << ", sourceFileId = " << sourceFileId;
         return StatusCode::kFileIdNotMatch;
     }
 
     // only the rename of INODE_PAGEFILE is supported
-    if (oldFileInfo.filetype() != FileType::INODE_PAGEFILE) {
+    if (sourceFileInfo.filetype() != FileType::INODE_PAGEFILE) {
         LOG(ERROR) << "rename sourceFileName = " << sourceFileName
                    << ", fileType not support, fileType = "
-                   << oldFileInfo.filetype();
+                   << sourceFileInfo.filetype();
         return StatusCode::kNotSupported;
     }
 
     // determine whether sourceFileName can be renamed (whether being used,
     // during snapshot or being cloned)
-    ret = CheckFileCanChange(sourceFileName, oldFileInfo);
+    ret = CheckFileCanChange(sourceFileName, sourceFileInfo);
     if (ret != StatusCode::kOK) {
         LOG(ERROR) << "rename fail, can not rename file"
                 << ", sourceFileName = " << sourceFileName
@@ -915,32 +915,32 @@ StatusCode CurveFS::RenameFile(const std::string & sourceFileName,
         return StatusCode::kFileNotExists;
     }
 
-    FileInfo existNewFileInfo;
-    auto ret3 = LookUpFile(parentFileInfo, lastEntry, &existNewFileInfo);
+    FileInfo existDestFileInfo;
+    auto ret3 = LookUpFile(parentFileInfo, lastEntry, &existDestFileInfo);
     if (ret3 == StatusCode::kOK) {
-        if (newFileId != kUnitializedFileID
-            && newFileId != existNewFileInfo.id()) {
-            LOG(WARNING) << "rename file, newFileId missmatch"
+        if (destFileId != kUnitializedFileID
+            && destFileId != existDestFileInfo.id()) {
+            LOG(WARNING) << "rename file, destFileId missmatch"
                         << ", sourceFileName = " << sourceFileName
                         << ", destFileName = " << destFileName
-                        << ", newFileInfo.id() = " << existNewFileInfo.id()
-                        << ", newFileId = " << newFileId;
+                        << ", destFileInfo.id() = " << existDestFileInfo.id()
+                        << ", destFileId = " << destFileId;
             return StatusCode::kFileIdNotMatch;
         }
 
         // determine whether it can be covered. Judge the file type first
-         if (existNewFileInfo.filetype() != FileType::INODE_PAGEFILE) {
+         if (existDestFileInfo.filetype() != FileType::INODE_PAGEFILE) {
             LOG(ERROR) << "rename sourceFileName = " << sourceFileName
                        << " to destFileName = " << destFileName
                        << "file type mismatch. old fileType = "
-                       << oldFileInfo.filetype() << ", new fileType = "
-                       << existNewFileInfo.filetype();
+                       << sourceFileInfo.filetype() << ", new fileType = "
+                       << existDestFileInfo.filetype();
             return StatusCode::kFileExists;
         }
 
         // determine whether destFileName can be renamed (whether being used,
         // during snapshot or being cloned)
-        StatusCode ret = CheckFileCanChange(destFileName, existNewFileInfo);
+        StatusCode ret = CheckFileCanChange(destFileName, existDestFileInfo);
         if (ret != StatusCode::kOK) {
             LOG(ERROR) << "cannot rename file"
                         << ", destFileName = " << destFileName
@@ -948,23 +948,23 @@ StatusCode CurveFS::RenameFile(const std::string & sourceFileName,
             return ret;
         }
 
-        // move existNewFileInfo to the recycle bin
+        // move existDestFileInfo to the recycle bin
         FileInfo recycleFileInfo;
-        recycleFileInfo.CopyFrom(existNewFileInfo);
+        recycleFileInfo.CopyFrom(existDestFileInfo);
         recycleFileInfo.set_parentid(RECYCLEBININODEID);
         recycleFileInfo.set_filename(recycleFileInfo.filename() + "-" +
                 std::to_string(recycleFileInfo.id()));
         recycleFileInfo.set_originalfullpathname(destFileName);
 
         // rename!
-        FileInfo newFileInfo;
-        newFileInfo.CopyFrom(oldFileInfo);
-        newFileInfo.set_parentid(parentFileInfo.id());
-        newFileInfo.set_filename(lastEntry);
+        FileInfo destFileInfo;
+        destFileInfo.CopyFrom(sourceFileInfo);
+        destFileInfo.set_parentid(parentFileInfo.id());
+        destFileInfo.set_filename(lastEntry);
 
-        auto ret1 = storage_->ReplaceFileAndRecycleOldFile(oldFileInfo,
-                                                        newFileInfo,
-                                                        existNewFileInfo,
+        auto ret1 = storage_->ReplaceFileAndRecycleOldFile(sourceFileInfo,
+                                                        destFileInfo,
+                                                        existDestFileInfo,
                                                         recycleFileInfo);
         if (ret1 != StoreStatus::OK) {
             LOG(ERROR) << "storage_ ReplaceFileAndRecycleOldFile error"
@@ -977,12 +977,12 @@ StatusCode CurveFS::RenameFile(const std::string & sourceFileName,
         return StatusCode::kOK;
     } else if (ret3 == StatusCode::kFileNotExists) {
         // destFileName does not exist, rename directly
-        FileInfo newFileInfo;
-        newFileInfo.CopyFrom(oldFileInfo);
-        newFileInfo.set_parentid(parentFileInfo.id());
-        newFileInfo.set_filename(lastEntry);
+        FileInfo destFileInfo;
+        destFileInfo.CopyFrom(sourceFileInfo);
+        destFileInfo.set_parentid(parentFileInfo.id());
+        destFileInfo.set_filename(lastEntry);
 
-        auto ret = storage_->RenameFile(oldFileInfo, newFileInfo);
+        auto ret = storage_->RenameFile(sourceFileInfo, destFileInfo);
         if ( ret != StoreStatus::OK ) {
             LOG(ERROR) << "storage_ renamefile error, error = " << ret;
             return StatusCode::kStorageError;
