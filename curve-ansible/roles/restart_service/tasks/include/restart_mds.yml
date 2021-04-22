@@ -31,7 +31,7 @@
       set_fact:
         need_restart: true
       when: curve_version != expected_curve_version
-  when: not restart_directly
+  when: not restart_directly | bool
 
 - name: restart mds
   vars:
@@ -44,10 +44,10 @@
       -mdsAddr={{ ansible_ssh_host }}:{{ mds_port }} -log_dir={{ mds_log_dir }} -graceful_quit_on_sigterm=true
       -stderrthreshold=3 > mds-console.log 2>&1 &
   include_tasks: common_tasks/restart_service.yml
-  when: need_restart or restart_directly
+  when: need_restart or restart_directly | bool
 
 - name: check mds version after restart
   vars:
         metric_port: "{{ mds_dummy_port }}"
   include_tasks: check_version_after_restart.yml
-  when: not restart_directly
+  when: not restart_directly | bool

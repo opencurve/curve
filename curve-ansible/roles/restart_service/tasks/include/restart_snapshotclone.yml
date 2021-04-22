@@ -31,7 +31,7 @@
       set_fact:
         need_restart: true
       when: curve_version != expected_curve_version
-  when: not restart_directly
+  when: not restart_directly | bool
 
 - name: restart snapshot-clone
   vars:
@@ -43,10 +43,10 @@
       nohup {{ curve_bin_dir }}/curve-snapshotcloneserver -conf={{ snapshot_config_path }} -addr={{ ansible_ssh_host }}:{{ snapshot_port }}
       -log_dir={{ snapshot_clone_server_log_dir }} -stderrthreshold=3 -graceful_quit_on_sigterm=true > snapshot-console.log 2>&1 &
   include_tasks: common_tasks/restart_service.yml
-  when: need_restart or restart_directly
+  when: need_restart or restart_directly | bool
 
 - name: check snapshotclone version after restart
   vars:
         metric_port: "{{ snapshot_dummy_port }}"
   include_tasks: check_version_after_restart.yml
-  when: not restart_directly
+  when: not restart_directly | bool
