@@ -32,7 +32,7 @@
   hosts: monitor
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   roles:
     - { role: install_package, package_name: curve-monitor, package_version: "{{ monitor_package_version }}",
             tags: ["install_package", "install_monitor_package"] }
@@ -51,7 +51,7 @@
   hosts: monitor
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - start
   roles:
@@ -61,7 +61,7 @@
   hosts: monitor
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - grafana_settings
   roles:

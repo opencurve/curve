@@ -20,4 +20,4 @@
 
 - name: clean nebd log dir
   shell: sudo rm -rf {{ nebd_log_dir }}
-  when: clean_log_when_clean
+  when: clean_log_when_clean | bool
