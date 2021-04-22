@@ -33,13 +33,13 @@
       register: stopres
     - debug:
         msg: "{{ stopres.stdout }}"
-  when: start_by_daemon
+  when: start_by_daemon | bool
 
 - name: stop service without daemon
   ignore_errors: true
   shell: >
     "{{ sudo }}" killall {{ process_name }}
-  when: not start_by_daemon
+  when: not start_by_daemon | bool
 
 - name: wait until server is down
   ping_port: "{{ service_port }}"

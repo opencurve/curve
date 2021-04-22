@@ -18,6 +18,6 @@
 
 - name: check mds config
   hosts: mds
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tasks:
     - include_tasks: "common_tasks/check_mds.yml"
