@@ -20,7 +20,7 @@
   hosts: chunkservers
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tasks:
     - name: init wal pool
       shell: chdir={{ deploy_dir }} sudo ./chunkserver_ctl.sh deploy-wal-pool all --noConfirm

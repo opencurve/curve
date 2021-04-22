@@ -17,8 +17,8 @@
 
 - name: deploy chunkserver with format disk
   include_tasks: "include/prepare_chunkserver_with_disk_format.yml"
-  when: chunkserver_format_disk
+  when: chunkserver_format_disk | bool
 
 - name: deploy chunkserver without format disk
   include_tasks: "include/prepare_chunkserver_without_disk_format.yml"
-  when: not chunkserver_format_disk
+  when: not chunkserver_format_disk | bool

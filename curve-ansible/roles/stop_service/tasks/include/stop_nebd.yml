@@ -22,9 +22,9 @@
 
 - name: stop nebd with daemon
   shell: chdir={{ deploy_dir }} {{ sudo }} nebd-daemon stop
-  when: start_by_daemon
+  when: start_by_daemon | bool
 
 - name: stop nebd without daemon
   ignore_errors: true
   shell: killall {{ curve_bin_dir }}/nebd-server
-  when: not start_by_daemon
+  when: not start_by_daemon | bool

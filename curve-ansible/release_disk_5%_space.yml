@@ -20,7 +20,7 @@
   hosts: chunkservers
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tasks:
     - name: release reserved 5%
       shell: for disk in `{{ get_disk_list_cmd }}`;do sudo tune2fs -m 0 /dev/${disk};done

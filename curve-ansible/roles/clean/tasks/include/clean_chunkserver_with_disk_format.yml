@@ -17,8 +17,8 @@
 
 - name: clean chunkserver but retain chunkfilepool
   include_tasks: clean_chunkserver_retain_chunkfilepool.yml
-  when: retain_pool
+  when: retain_pool | bool
 
 - name: clean chunkserver totally
   include_tasks: clean_chunkserver_totally.yml
-  when: not retain_pool
+  when: not retain_pool | bool
