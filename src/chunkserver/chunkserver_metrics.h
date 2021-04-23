@@ -34,6 +34,7 @@
 #include "src/common/uncopyable.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/configuration.h"
+#include "src/chunkserver/datastore/file_pool.h"
 
 using curve::common::Uncopyable;
 using curve::common::RWLock;
@@ -47,6 +48,7 @@ namespace chunkserver {
 class CopysetNodeManager;
 class FilePool;
 class CSDataStore;
+class CurveSegmentLogStorage;
 class Trash;
 
 template <typename Tp>
@@ -184,7 +186,8 @@ class CSCopysetMetric {
         , copysetId_(0)
         , chunkCount_(nullptr)
         , snapshotCount_(nullptr)
-        , cloneChunkCount_(nullptr) {}
+        , cloneChunkCount_(nullptr)
+        , walSegmentCount_(nullptr) {}
 
     ~CSCopysetMetric() {}
 
@@ -201,6 +204,12 @@ class CSCopysetMetric {
      * @param datastore: Pointer to the datastore under this copyset
      */
     void MonitorDataStore(CSDataStore* datastore);
+
+    /**
+     * @brief: Monitor log storage's metric, like the number of WAL segment file
+     * @param logStorage: The pointer to CurveSegmentLogStorage
+     */
+    void MonitorCurveSegmentLogStorage(CurveSegmentLogStorage* logStorage);
 
     /**
      * Record metric before executing request
@@ -241,6 +250,13 @@ class CSCopysetMetric {
         return chunkCount_->get_value();
     }
 
+    const uint32_t GetWalSegmentCount() const {
+        if (nullptr == walSegmentCount_) {
+            return 0;
+        }
+        return walSegmentCount_->get_value();
+    }
+
     const uint32_t GetSnapshotCount() const {
         if (snapshotCount_ == nullptr) {
             return 0;
@@ -270,6 +286,8 @@ class CSCopysetMetric {
     CopysetID copysetId_;
     // Number of chunks on copyset
     PassiveStatusPtr<uint32_t> chunkCount_;
+    // The total number of WAL segment in copyset
+    PassiveStatusPtr<uint32_t> walSegmentCount_;
     // Number of snapshots on copyset
     PassiveStatusPtr<uint32_t> snapshotCount_;
     // Number of clone chunks on copyset
@@ -500,10 +518,22 @@ class ChunkServerMetric : public Uncopyable {
         return cloneChunkCount_->get_value();
     }
 
+    const uint32_t GetTotalWalSegmentCount() {
+        if (nullptr == walSegmentCount_)
+            return 0;
+        return walSegmentCount_->get_value();
+    }
+
     const uint32_t GetChunkLeftCount() const {
         if (chunkLeft_ == nullptr)
             return 0;
         return chunkLeft_->get_value();
+    }
+
+    const uint32_t GetWalSegmentLeftCount() const {
+        if (nullptr == walSegmentLeft_)
+            return 0;
+        return walSegmentLeft_->get_value();
     }
 
     const uint32_t GetChunkTrashedCount() const {
@@ -534,6 +564,8 @@ class ChunkServerMetric : public Uncopyable {
     PassiveStatusPtr<uint32_t> chunkTrashed_;
     // Number of chunks in the chunkserver
     PassiveStatusPtr<uint32_t> chunkCount_;
+    // The total number of WAL segment in chunkserver
+    PassiveStatusPtr<uint32_t> walSegmentCount_;
     // Number of snapshot files on chunkserver
     PassiveStatusPtr<uint32_t> snapshotCount_;
     // Number of clone chunk on chunkserver

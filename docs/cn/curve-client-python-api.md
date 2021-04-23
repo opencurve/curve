@@ -1,3 +1,5 @@
+[English version](../en/curve-client-python-api_en.md)
+
 #### 获取一个与curve集群交互的CBDClient对象
 
 ```python
@@ -13,7 +15,7 @@ cbd2 = curvefs.CBDClient()
 ```python
 import curvefs
 cbd = curvefs.CBDClient()
-  
+
 # 参数：curve-client配置文件的绝对路径
 # 返回值：返回0表示初始化成功，-1表示初始化失败
 cbd.Init("/etc/curve/client.conf")
@@ -25,7 +27,7 @@ cbd.Init("/etc/curve/client.conf")
 import curvefs
 cbd = curvefs.CBDClient()
 cbd.Init("/etc/curve/client.conf")  # 后续示例省略初始化过程
- 
+
 # 参数：三个参数分别为
 #      文件全路径
 #      文件所属用户信息
@@ -39,7 +41,7 @@ user.password = ""  # 密码为空时，可以省略
 
 # 调用Create接口创建文件
 cbd.Create("/curve", user, 10*1024*1024*1024)
-  
+
 # UserInfo定义如下
 typedef struct UserInfo {
     char owner[256];      # 用户名
@@ -68,10 +70,10 @@ cbd.StatFile("/curve", user, finfo)
 print finfo.filetype
 print finfo.length
 print finfo.ctime
-  
+
 # FileInfo定义如下
 typedef struct FileInfo {
-    uint64_t      id;          
+    uint64_t      id;
     uint64_t      parentid;
     int           filetype;   # 卷类型
     uint64_t      length;     # 卷大小
@@ -80,7 +82,7 @@ typedef struct FileInfo {
     char          owner[256];      # 卷所属用户
     int           fileStatus;      # 卷状态
 } FileInfo_t;
- 
+
 # 文件状态
 #define CURVE_FILE_CREATED            0
 #define CURVE_FILE_DELETING           1
@@ -127,7 +129,7 @@ user.owner = "user1"
 
 # 打开文件，返回fd
 fd = cbd.Open("/tmp1", user)
-  
+
 # 关闭文件
 # 参数：打开文件时返回的fd
 # 返回值：关闭成功返回0，否则返回错误码
@@ -155,7 +157,7 @@ fd = cbd.Open("/tmp1", user)
 # 写文件(目前读写都需要4k对齐)
 cbd.Write(fd, "aaaaaaaa"*512, 0, 4096)
 cbd.Write(fd, "bbbbbbbb"*512, 4096, 4096)
-  
+
 # 读文件
 # 参数：四个参数分别为
 #      文件fd
@@ -176,7 +178,7 @@ cbd.Close(fd)
 #### 删除文件
 
 ```python
-# 参数：两个参数分别为 
+# 参数：两个参数分别为
 #      文件名
 #      用户信息
 # 返回值：删除成功返回0，否则返回错误码
@@ -187,6 +189,22 @@ user.owner = "curve"
 
 # 删除文件
 cbd.Unlink("/curve", user)
+```
+#### 恢复文件
+
+```python
+# 参数：三个参数分别为
+#      文件名
+#      用户信息
+#      文件id（可选，默认为0）
+# 返回值：恢复成功返回0，否则返回错误码
+
+# 构造user信息
+user = curvefs.UserInfo_t()
+user.owner = "curve"
+
+# 恢复文件
+cbd.Recover("/curve", user, 0)
 ```
 
 #### 重命名文件
@@ -228,7 +246,7 @@ cbd.Mkdir("/curvedir", user)
 #      目录路径
 #      用户信息
 # 返回值：成功返回0，否则返回错误码
-  
+
 # 构造user信息
 user = curvefs.UserInfo_t()
 user.owner = "curve"

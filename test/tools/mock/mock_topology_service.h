@@ -146,6 +146,16 @@ class MockTopologyService : public TopologyService {
         const GetClusterInfoRequest *request,
         GetClusterInfoResponse *response,
         Closure *done));
+    MOCK_METHOD4(SetCopysetsAvailFlag,
+        void(RpcController *controller,
+        const SetCopysetsAvailFlagRequest *request,
+        SetCopysetsAvailFlagResponse *response,
+        Closure *done));
+    MOCK_METHOD4(ListUnAvailCopySets,
+        void(RpcController *controller,
+        const ListUnAvailCopySetsRequest *request,
+        ListUnAvailCopySetsResponse *response,
+        Closure *done));
 };
 }  // namespace topology
 }  // namespace mds

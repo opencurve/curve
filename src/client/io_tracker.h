@@ -36,11 +36,15 @@
 #include "src/client/request_scheduler.h"
 #include "include/curve_compiler_specific.h"
 #include "src/client/io_condition_varaiable.h"
+#include "src/common/throttle.h"
 
 #include "proto/chunk.pb.h"
 
 namespace curve {
 namespace client {
+
+using curve::common::Throttle;
+
 class IOManager;
 
 // IOTracker用于跟踪一个用户IO，因为一个用户IO可能会跨chunkserver，
@@ -48,16 +52,12 @@ class IOManager;
 // 跟踪发送的request的执行情况。
 class CURVE_CACHELINE_ALIGNMENT IOTracker {
  public:
-    /**
-     * 构造函数
-     * @param: iomanager负责回收当前iotracker
-     * @param: mc用于获取chunk信息
-     * @param: scheduler用于分发请求
-     */
     IOTracker(IOManager* iomanager,
               MetaCache* mc,
               RequestScheduler* scheduler,
-              FileMetric* clientMetric = nullptr);
+              FileMetric* clientMetric = nullptr,
+              bool disableStripe = false);
+
     ~IOTracker() = default;
 
     /**
@@ -69,7 +69,7 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * @param fileInfo 当前io对应文件的基本信息
      */
     void StartRead(void* buf, off_t offset, size_t length, MDSClient* mdsclient,
-                   const FInfo_t* fileInfo);
+                   const FInfo_t* fileInfo, Throttle* throttle = nullptr);
 
     /**
      * @brief StartWrite同步写
@@ -80,7 +80,8 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * @param fileInfo 当前io对应文件的基本信息
      */
     void StartWrite(const void* buf, off_t offset, size_t length,
-                    MDSClient* mdsclient, const FInfo_t* fileInfo);
+                    MDSClient* mdsclient, const FInfo_t* fileInfo,
+                    Throttle* throttle = nullptr);
 
     /**
      * @brief start an async read operation
@@ -89,7 +90,7 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * @param fileInfo current file info
      */
     void StartAioRead(CurveAioContext* ctx, MDSClient* mdsclient,
-                      const FInfo_t* fileInfo);
+                      const FInfo_t* fileInfo, Throttle* throttle = nullptr);
 
     /**
      * @brief start an async write operation
@@ -98,7 +99,7 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * @param fileInfo current file info
      */
     void StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
-                       const FInfo_t* fileInfo);
+                       const FInfo_t* fileInfo, Throttle* throttle = nullptr);
     /**
      * chunk相关接口是提供给snapshot使用的，上层的snapshot和file
      * 接口是分开的，在IOTracker这里会将其统一，这样对下层来说不用
@@ -206,6 +207,10 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
         readDatas_[subIoIndex] = data;
     }
 
+    bool IsStripeDisabled() const {
+        return disableStripe_;
+    }
+
  private:
     /**
      * 当IO返回的时候调用done，由done负责向上返回
@@ -244,7 +249,8 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     RequestContext* GetInitedRequestContext() const;
 
     // perform read operation
-    void DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo);
+    void DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo,
+                Throttle* throttle);
 
     /**
      * @brief read from the source
@@ -257,7 +263,8 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
                        const UserInfo_t& userInfo, MDSClient* mdsClient);
 
     // perform write operation
-    void DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo);
+    void DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo,
+                 Throttle* throttle);
 
  private:
     // io 类型
@@ -319,6 +326,8 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
 
     // 快照克隆系统异步调用回调指针
     SnapCloneClosure* scc_;
+
+    bool disableStripe_;
 
     // id生成器
     static std::atomic<uint64_t> tracekerID_;

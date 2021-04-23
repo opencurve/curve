@@ -196,6 +196,135 @@ void NameSpaceService::DeleteFile(::google::protobuf::RpcController* controller,
     return;
 }
 
+void NameSpaceService::RecoverFile(
+                       ::google::protobuf::RpcController* controller,
+                       const ::curve::mds::RecoverFileRequest* request,
+                       ::curve::mds::RecoverFileResponse* response,
+                       ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+    ExpiredTime expiredTime;
+
+    // check the filename is valid
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", RecoverFile request path is invalid, filename = "
+            << request->filename();
+        return;
+    }
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", RecoverFile request, filename = " << request->filename();
+
+    // find the recoverFile in the RecycleBin
+    FileInfo recoverFileInfo;
+    std::string recoverFileName;
+    StatusCode retCode;
+    uint64_t fileId = kUnitializedFileID;
+    if (request->has_fileid()) {
+        fileId = request->fileid();
+    }
+
+    {
+        FileReadLockGuard guard(fileLockManager_, RECYCLEBINDIR);
+        retCode = kCurveFS.GetRecoverFileInfo(request->filename(), fileId,
+                                              &recoverFileInfo);
+        if (retCode != StatusCode::kOK) {
+            response->set_statuscode(retCode);
+            if (google::ERROR != GetMdsLogLevel(retCode)) {
+                LOG(WARNING) << "logid = " << cntl->log_id()
+                    << ", GetRecoverFileInfo fail, filename = "
+                    <<  request->filename()
+                    << ", owner = " << request->owner()
+                    << ", statusCode = " << retCode;
+            } else {
+                LOG(ERROR) << "logid = " << cntl->log_id()
+                    << ", GetRecoverFileInfo fail, filename = "
+                    <<  request->filename()
+                    << ", owner = " << request->owner()
+                    << ", statusCode = " << retCode;
+            }
+            return;
+        }
+    }
+
+    recoverFileName = RECYCLEBINDIR + "/" + recoverFileInfo.filename();
+    FileWriteLockGuard guard(fileLockManager_, recoverFileName,
+                             recoverFileInfo.originalfullpathname());
+    std::string signature;
+    if (request->has_signature()) {
+        signature = request->signature();
+    }
+
+    retCode = kCurveFS.CheckRecycleFileOwner(recoverFileName,
+                                      request->owner(), signature,
+                                      request->date());
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " << recoverFileName
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " << recoverFileName
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
+        return;
+    }
+
+    retCode = kCurveFS.CheckDestinationOwner(
+                                        recoverFileInfo.originalfullpathname(),
+                                        request->owner(), signature,
+                                        request->date());
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING)  << "logid = " << cntl->log_id()
+                        << ", CheckOriginFileOwner fail, filename = "
+                        <<  recoverFileInfo.originalfullpathname()
+                        << ", owner = " << request->owner()
+                        << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR)  << "logid = " << cntl->log_id()
+                        << ", CheckOriginFileOwner fail, filename = "
+                        <<  recoverFileInfo.originalfullpathname()
+                        << ", owner = " << request->owner()
+                        << ", statusCode = " << retCode;
+        }
+        return;
+    }
+
+    retCode = kCurveFS.RecoverFile(request->filename(),
+                                   recoverFileName, fileId);
+    if (retCode != StatusCode::kOK)  {
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", RecoverFile fail, filename = " <<  request->filename()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode)
+                << ", cost " << expiredTime.ExpiredMs() << " ms";
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", RecoverFile fail, filename = " <<  request->filename()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode)
+                << ", cost " << expiredTime.ExpiredMs() << " ms";
+        }
+        return;
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id()
+                  << ", RecoverFile ok, filename = " << request->filename()
+                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+    }
+    return;
+}
+
 void NameSpaceService::GetFileInfo(
                         ::google::protobuf::RpcController* controller,
                         const ::curve::mds::GetFileInfoRequest* request,
@@ -1538,6 +1667,8 @@ void NameSpaceService::CreateCloneFile(
                             request->filelength(),
                             request->seq(),
                             request->chunksize(),
+                            request->stripeunit(),
+                            request->stripecount(),
                             response->mutable_fileinfo(),
                             request->clonesource(),
                             request->filelength());
@@ -1821,6 +1952,87 @@ void NameSpaceService::ListVolumesOnCopysets(
               << fileNames.size();
 }
 
+void NameSpaceService::UpdateFileThrottleParams(
+    ::google::protobuf::RpcController* controller,
+    const ::curve::mds::UpdateFileThrottleParamsRequest* request,
+    ::curve::mds::UpdateFileThrottleParamsResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+    ExpiredTime expiredTime;
+
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR)
+            << "logid = " << cntl->log_id()
+            << ", UpdateFileThrottleParams request path is invalid, filename = "
+            << request->filename();
+        return;
+    }
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+              << ", UpdateFileThrottleParams request, filename = "
+              << request->filename() << ", update "
+              << ThrottleType_Name(request->throttleparams().type()) << " to "
+              << request->throttleparams().ShortDebugString();
+
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
+    if (request->has_signature()) {
+        signature = request->signature();
+    }
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING)
+                << "logid = " << cntl->log_id()
+                << ", UpdateFileThrottleParams CheckFileOwner fail, filename = "
+                << request->filename() << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR)
+                << "logid = " << cntl->log_id()
+                << ", UpdateFileThrottleParams CheckFileOwner fail, filename = "
+                << request->filename() << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
+        return;
+    }
+
+    retCode = kCurveFS.UpdateFileThrottleParams(request->filename(),
+                                                request->throttleparams());
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                         << ", UpdateFileThrottleParams fail, filename = "
+                         << request->filename() << ", statusCode = " << retCode
+                         << ", StatusCode_Name = " << StatusCode_Name(retCode)
+                         << ", cost " << expiredTime.ExpiredMs() << " ms";
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                       << ", UpdateFileThrottleParams fail, filename = "
+                       << request->filename() << ", statusCode = " << retCode
+                       << ", StatusCode_Name = " << StatusCode_Name(retCode)
+                       << ", cost " << expiredTime.ExpiredMs() << " ms";
+        }
+        return;
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id()
+                  << ", UpdateFileThrottleParams ok, filename = "
+                  << request->filename() << ", cost " << expiredTime.ExpiredMs()
+                  << " ms";
+    }
+
+    return;
+}
+
 uint32_t GetMdsLogLevel(StatusCode code) {
     switch (code) {
         case StatusCode::kSegmentNotAllocated:
@@ -1838,6 +2050,8 @@ uint32_t GetMdsLogLevel(StatusCode code) {
         case StatusCode::kFileExists:
         case StatusCode::kFileNotExists:
         case StatusCode::kParaError:
+        case StatusCode::kDeleteFileBeingCloned:
+        case StatusCode::kFileUnderDeleting:
             return google::WARNING;
 
         default:

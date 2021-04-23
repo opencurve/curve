@@ -54,8 +54,8 @@ using curve::mds::ExtendFileRequest;
 using curve::mds::ExtendFileResponse;
 using curve::mds::DeleteFileRequest;
 using curve::mds::DeleteFileResponse;
-using curve::mds::DeleteFileRequest;
-using curve::mds::DeleteFileResponse;
+using curve::mds::RecoverFileRequest;
+using curve::mds::RecoverFileResponse;
 using curve::mds::GetFileInfoRequest;
 using curve::mds::GetFileInfoResponse;
 using curve::mds::DeleteSnapShotRequest;
@@ -70,12 +70,8 @@ using curve::mds::CreateSnapShotRequest;
 using curve::mds::CreateSnapShotResponse;
 using curve::mds::CreateCloneFileRequest;
 using curve::mds::CreateCloneFileResponse;
-using curve::mds::CreateCloneFileRequest;
-using curve::mds::CreateCloneFileResponse;
 using curve::mds::SetCloneFileStatusRequest;
 using curve::mds::SetCloneFileStatusResponse;
-using curve::mds::GetOrAllocateSegmentRequest;
-using curve::mds::GetOrAllocateSegmentResponse;
 using curve::mds::CheckSnapShotStatusRequest;
 using curve::mds::CheckSnapShotStatusResponse;
 using curve::mds::ListSnapShotFileInfoRequest;
@@ -286,6 +282,8 @@ class MDSClientBase {
      * @param:size 文件大小
      * @param:sn 版本号
      * @param:chunksize是创建文件的chunk大小
+     * @param stripeUnit stripe size
+     * @param stripeCount stripe count
      * @param[out]: response为该rpc的response，提供给外部处理
      * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
      * @param[in]:channel是当前与mds建立的通道
@@ -296,6 +294,8 @@ class MDSClientBase {
                          uint64_t size,
                          uint64_t sn,
                          uint32_t chunksize,
+                         uint64_t stripeUnit,
+                         uint64_t stripeCount,
                          CreateCloneFileResponse* response,
                          brpc::Controller* cntl,
                          brpc::Channel* channel);
@@ -383,6 +383,23 @@ class MDSClientBase {
                     DeleteFileResponse* response,
                     brpc::Controller* cntl,
                     brpc::Channel* channel);
+
+    /**
+     * recover file
+     * @param: userinfo
+     * @param: filename
+     * @param: fileid default 0
+     * @param[out]: response, is the rpc response
+     * @param[in|out]: cntl, return RPC status
+     * @param[in]:channel
+     */
+    void RecoverFile(const std::string& filename,
+                    const UserInfo_t& userinfo,
+                    uint64_t fileid,
+                    RecoverFileResponse* response,
+                    brpc::Controller* cntl,
+                    brpc::Channel* channel);
+
     /**
      * 变更owner
      * @param: filename待变更的文件名

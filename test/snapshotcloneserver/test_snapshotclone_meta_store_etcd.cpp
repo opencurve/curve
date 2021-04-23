@@ -101,6 +101,8 @@ bool JudgeSnapshotInfoEqual(const SnapshotInfo &left,
         left.GetChunkSize() == right.GetChunkSize() &&
         left.GetSegmentSize() == right.GetSegmentSize() &&
         left.GetFileLength() == right.GetFileLength() &&
+        left.GetStripeUnit() == right.GetStripeUnit() &&
+        left.GetStripeCount() == right.GetStripeCount() &&
         left.GetCreateTime() == right.GetCreateTime() &&
         left.GetStatus() == right.GetStatus()) {
         return true;
@@ -113,7 +115,7 @@ bool JudgeSnapshotInfoEqual(const SnapshotInfo &left,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestAddSnapInfoAndGetSuccess) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0,
+                        1024, 2048, 4096, 0, 0, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -132,7 +134,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestAddSnapshotInfoPutInfoEtcdFail) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0,
+                        1024, 2048, 4096, 0, 0, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -145,7 +147,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestDeleteSnapshotSuccess) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0,
+                        1024, 2048, 4096, 0, 0, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -165,7 +167,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestDeleteSnapshotDeleteFromEtcdFail) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0,
+                        1024, 2048, 4096, 0, 0, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -185,7 +187,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestUpdateSnapshotAndGetSuccess) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0,
+                        1024, 2048, 4096, 0, 0, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -195,7 +197,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     ASSERT_EQ(0, ret);
 
     SnapshotInfo snapInfo2("snapuuid", "snapuser2", "file2", "snapxxx2", 101,
-                        1025, 2049, 4097, 1,
+                        1025, 2049, 4097, 1, 0, 0,
                         Status::done);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -214,7 +216,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestUpdateSnapshotPutInfoEtcdFail) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0,
+                        1024, 2048, 4096, 0, 0, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -224,7 +226,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     ASSERT_EQ(0, ret);
 
     SnapshotInfo snapInfo2("snapuuid", "snapuser2", "file2", "snapxxx2", 101,
-                        1025, 2049, 4097, 1,
+                        1025, 2049, 4097, 0, 0, 1,
                         Status::done);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -237,7 +239,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestUpdateSnapshotNotExistAndGetSuccess) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0,
+                        1024, 2048, 4096, 0, 0, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -263,7 +265,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestGetSnapshotList1Success) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0,
+                        1024, 2048, 4096, 0, 0, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -290,7 +292,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestGetSnapshotList2Success) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0,
+                        1024, 2048, 4096, 0, 0, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -547,7 +549,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestInitSuccess) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0,
+                        1024, 2048, 4096, 0, 0, 0,
                         Status::pending);
     SnapshotCloneCodec codec;
     std::string value;
@@ -589,7 +591,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestInitListCloneInfoFail) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0,
+                        1024, 2048, 4096, 0, 0, 0,
                         Status::pending);
     SnapshotCloneCodec codec;
     std::string value;
@@ -622,7 +624,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestInitDecodeCloneInfoFail) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0,
+                        1024, 2048, 4096, 0, 0, 0,
                         Status::pending);
     SnapshotCloneCodec codec;
     std::string value;

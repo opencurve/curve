@@ -1,3 +1,5 @@
+[English version](../en/k8s_csi_interface_en.md)
+
 目前，curve可以通过CSI插件的方式对接Kubernetes。本文给出的是CSI插件开发指导说明。curve csi插件源码请见[curve-csi](https://github.com/opencurve/curve-csi)。
 
 ## Curve Interface
@@ -6,6 +8,7 @@ curve提供命令行管理工具curve，用来创建、删除卷等管理操作�
 
 - 创建卷：`curve create [-h] --filename FILENAME --length LENGTH --user USER`
 - 删除卷：`curve delete [-h] --user USER --filename FILENAME`
+- 恢复卷：`curve recover [-h] --user USER --filename FILENAME [--id ID]`
 - 扩容卷：`curve extend [-h] --user USER --filename FILENAME --length LENGTH`
 - 查询卷：`curve stat [-h] --user USER --filename FILENAME`
 - rename卷：`curve rename [-h] --user USER --filename FILENAME --newname NEWNAME`

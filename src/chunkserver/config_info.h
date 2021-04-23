@@ -87,6 +87,8 @@ struct CopysetNodeOptions {
     uint32_t port;
     // Size of chunk file
     uint32_t maxChunkSize;
+    // WAL segment file size
+    uint32_t maxWalSegmentSize;
     // Page size of chunk file
     uint32_t pageSize;
     // Location length limit for clone chunk
@@ -96,6 +98,8 @@ struct CopysetNodeOptions {
     ConcurrentApplyModule *concurrentapply;
     // Chunk file pool
     std::shared_ptr<FilePool> chunkFilePool;
+    // WAL file pool
+    std::shared_ptr<FilePool> walFilePool;
     // File System Adaptation Layer
     std::shared_ptr<LocalFileSystem> localFileSystem;
     // When the trash and heartbeat module determines that the chunkserver is

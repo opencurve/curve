@@ -81,6 +81,11 @@ class NameSpaceService: public CurveFSService {
                        ::curve::mds::DeleteFileResponse* response,
                        ::google::protobuf::Closure* done) override;
 
+    void RecoverFile(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::RecoverFileRequest* request,
+                       ::curve::mds::RecoverFileResponse* response,
+                       ::google::protobuf::Closure* done) override;
+
     void GetFileInfo(::google::protobuf::RpcController* controller,
                        const ::curve::mds::GetFileInfoRequest* request,
                        ::curve::mds::GetFileInfoResponse* response,
@@ -174,6 +179,12 @@ class NameSpaceService: public CurveFSService {
                 const ::curve::mds::ListVolumesOnCopysetsRequest* request,
                 ::curve::mds::ListVolumesOnCopysetsResponse* response,
                 ::google::protobuf::Closure* done) override;
+
+    void UpdateFileThrottleParams(
+        ::google::protobuf::RpcController* controller,
+        const ::curve::mds::UpdateFileThrottleParamsRequest* request,
+        ::curve::mds::UpdateFileThrottleParamsResponse* response,
+        ::google::protobuf::Closure* done) override;
 
  private:
     FileLockManager *fileLockManager_;

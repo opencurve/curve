@@ -298,6 +298,114 @@ def get_cs_copyset_num(host,cs_id):
     else:
         return -1 
 
+def stop_vm(ssh,uuid):
+    stop_cmd = "source OPENRC && nova stop %s"%uuid
+    rs = shell_operator.ssh_exec(ssh, stop_cmd)
+    assert rs[3] == 0,"stop vm fail,error is %s"%rs[2]
+    time.sleep(5)
+
+def start_vm(ssh,uuid):
+    start_cmd = "source OPENRC && nova start %s"%uuid
+    rs = shell_operator.ssh_exec(ssh, start_cmd)
+    assert rs[3] == 0,"start vm fail,error is %s"%rs[2]
+
+def restart_vm(ssh,uuid):
+    restart_cmd = "source OPENRC && nova reboot %s"%uuid
+    rs = shell_operator.ssh_exec(ssh, restart_cmd)
+    assert rs[3] == 0,"reboot vm fail,error is %s"%rs[2]
+
+def check_vm_status(ssh,uuid):
+    ori_cmd = "source OPENRC && nova list|grep %s|awk '{print $6}'"%uuid
+    i = 0
+    while i < 180:
+       rs = shell_operator.ssh_exec(ssh, ori_cmd)
+       if "".join(rs[1]).strip() == "ACTIVE":
+           return True
+       elif "".join(rs[1]).strip() == "ERROR":
+           return False
+       else:
+           time.sleep(5)
+           i = i + 5
+    assert False,"start vm fail"
+
+def check_vm_vd(ip,nova_ssh,uuid):
+    i = 0
+    while i < 300:
+        try:
+            ssh = shell_operator.create_ssh_connect(ip, 22, config.vm_user)
+            ori_cmd = "lsblk |grep vdc | awk '{print $1}'"
+            rs = shell_operator.ssh_exec(ssh, ori_cmd)
+            output = "".join(rs[1]).strip()
+            if output == "vdc":
+                ori_cmd = "source OPENRC &&  nova reboot %s --hard"%uuid
+                shell_operator.ssh_exec(nova_ssh,ori_cmd)
+            elif output == "":
+                break
+        except:
+            i = i + 5
+            time.sleep(5)
+    assert rs[3] == 0,"start vm fail,ori_cmd is %s" % rs[1]
+
+def init_vm():
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    ori_cmd = "source OPENRC && nova list|grep %s | awk '{print $2}'"%config.vm_host
+    ori_cmd2 = "source OPENRC && nova list|grep %s | awk '{print $2}'"%config.vm_stability_host
+    try:
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        rs2 = shell_operator.ssh_exec(ssh, ori_cmd2)
+        logger.debug("exec %s" % ori_cmd)
+        logger.debug("exec %s" % ori_cmd2)
+        uuid = "".join(rs[1]).strip()
+        uuid2 = "".join(rs2[1]).strip()
+
+        for i in range(1,10):
+            ori_cmd = "bash curve_test.sh delete"
+            shell_operator.ssh_exec(ssh, ori_cmd)
+            ori_cmd = "source OPENRC &&  nova reboot %s --hard"%uuid
+            ori_cmd2 = "source OPENRC &&  nova reboot %s --hard"%uuid2
+            rs = shell_operator.ssh_exec(ssh,ori_cmd)
+            rs2 = shell_operator.ssh_exec(ssh,ori_cmd2)
+            time.sleep(60)
+            rs1 = check_vm_status(ssh,uuid)
+            rs2 = check_vm_status(ssh,uuid2)
+            if rs1 == True and rs2 == True:
+                break
+        assert rs1 == True,"hard reboot vm fail"
+        assert rs2 == True,"hard reboot vm fail"
+
+        check_vm_vd(config.vm_host,ssh,uuid)
+        check_vm_vd(config.vm_stability_host,ssh,uuid2)
+    except:
+        logger.error("init vm error")
+        raise
+    ssh.close()
+
+
+def remove_vm_key():
+    cmd = "ssh-keygen -f ~/.ssh/known_hosts -R %s"%config.vm_host
+    shell_operator.run_exec(cmd)
+    print cmd
+
+def attach_new_vol(fio_size,vdbench_size):
+    ori_cmd = "bash curve_test.sh create %d %d"%(int(fio_size),int(vdbench_size))
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    logger.info("exec cmd %s" % ori_cmd)
+    assert rs[3] == 0,"attach vol fail,return is %s"%rs[2]
+    logger.info("exec cmd %s"%ori_cmd)
+    get_vol_uuid()
+    ssh.close()
+
+def detach_vol():
+    stop_rwio()
+    ori_cmd = "bash curve_test.sh delete"
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    logger.info("exec cmd %s" % ori_cmd)
+    assert rs[3] == 0,"retcode is %d,error is %s"%(rs[3],rs[2])
+    logger.info("exec cmd %s"%ori_cmd)
+    ssh.close()
+
 def clean_nbd():
     for client_ip in config.client_list:
         logger.info("|------begin test clean client %s------|"%(client_ip))
@@ -318,10 +426,12 @@ def clean_nbd():
 def map_nbd():
     client_host = config.client_list[0]
     ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
-    cmd = "curve create --filename /fiofile --length 10 --user test"
+    stripeUnit = [524288,1048576,2097152,4194304]
+    stripeCount = [1,2,4,8,16]
+    cmd = "curve create --filename /fiofile --length 10 --user test --stripeUnit %d  --stripeCount %d"%(random.choice(stripeUnit),random.choice(stripeCount))
     rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"create /fiofile fail：%s"%rs[2]
-    cmd = "curve create --filename /vdbenchfile --length 10 --user test"
+    cmd = "curve create --filename /vdbenchfile --length 10 --user test --stripeUnit %d  --stripeCount %d"%(random.choice(stripeUnit),random.choice(stripeCount))
     rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"create /vdbenchfile fail：%s"%rs[2]
     time.sleep(3)
@@ -1804,7 +1914,7 @@ def init_create_curve_vm(num):
     salt = ''.join(random.sample(string.ascii_letters + string.digits, 8))
     logger.info("vm name is thrash-%s"%salt)
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
-    ori_cmd = "source OPENRC && nova boot --flavor 10 --image %s --vnc-password 000000  --availability-zone %s \
+    ori_cmd = "source OPENRC && nova boot --flavor 400 --image %s --vnc-password 000000  --availability-zone %s \
             --key-name  cyh  --nic vpc-net=ff89c80a-585d-4b19-992a-462f4d2ddd27:77a410be-1cf4-4992-8894-0c0bc67f5e48 \
             --meta use-vpc=True --meta instance_image_type=curve thrash-%s"%(config.image_id,config.avail_zone,salt)
     rs = shell_operator.ssh_exec(ssh,ori_cmd)
@@ -1826,7 +1936,7 @@ def init_create_curve_vm(num):
     new_image_id = create_vm_image(vm_name)
     config.vm_prefix = vm_name
     for i in range(1,num):
-        ori_cmd = "source OPENRC && nova boot --flavor 10 --image %s --vnc-password 000000  --availability-zone %s \
+        ori_cmd = "source OPENRC && nova boot --flavor 400 --image %s --vnc-password 000000  --availability-zone %s \
             --key-name  cyh  --nic vpc-net=ff89c80a-585d-4b19-992a-462f4d2ddd27:77a410be-1cf4-4992-8894-0c0bc67f5e48 \
             --meta use-vpc=True --meta instance_image_type=curve thrash-%s-%d"%(new_image_id,config.avail_zone,salt,i)
         rs = shell_operator.ssh_exec(ssh,ori_cmd)
@@ -1855,6 +1965,22 @@ def clean_curve_data():
     ori_cmd = "vm=`source OPENRC && nova list|grep %s | awk '{print $2}'`;source OPENRC;for i in $vm;do nova delete $i;done"%config.vm_prefix
     rs = shell_operator.ssh_exec(ssh,ori_cmd)
     assert rs[3] == 0,"delete vm fail,rs is %s"%rs[1]
+    ori_cmd = "source OPENRC && nova image-list |grep image-%s | awk '{print $2}'"%config.vm_prefix
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    image_id = "".join(rs[1]).strip()
+    ori_cmd = "source OPENRC && nova image-delete %s"%(image_id)
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    assert rs[3] == 0,"delete image fail,rs is %s"%rs
+    time.sleep(30)
+    ori_cmd = "curve_ops_tool list -fileName=/nova |grep Total"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    if "".join(rs[1]).strip() == "Total file number: 0":
+        return True
+    else:
+        ori_cmd = "curve_ops_tool list -fileName=/nova"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        logger.error("No deleted files: %s"%rs[1])
+        assert  False,"vm or image not be deleted"
 
 def do_thrasher(action):
     #start level1

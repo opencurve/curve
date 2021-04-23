@@ -32,6 +32,8 @@
 
 using ::curve::common::Thread;
 using ::curve::common::Atomic;
+using ::curve::common::Mutex;
+using ::curve::common::LockGuard;
 using ::curve::common::InterruptibleSleeper;
 
 namespace curve {
@@ -167,6 +169,8 @@ class Trash {
 
     // Number of chunks in the recycle bin
     Atomic<uint32_t> chunkNum_;
+
+    Mutex mtx_;
 
     // Local file system
     std::shared_ptr<LocalFileSystem> localFileSystem_;

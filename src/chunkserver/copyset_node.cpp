@@ -96,8 +96,8 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     }
 
     /**
-     * Init copyset node's configuration about chunk server .
-     * Both of these must be initialized before draftNode_.init
+     * Init copyset node config related to chunk server, the
+     * following two inits should be ahead of raftNode_.init
      */
     chunkDataApath_.append(copysetDirPath_).append("/").append(groupId);
     copysetDirPath_.append("/").append(groupId);
@@ -125,39 +125,9 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
 
     recyclerUri_ = options.recyclerUri;
 
-    // TODO(wudemiao): Put in the init of nodeOptions
-    /**
-     * Init copyset's corresponding raft node options
-     */
-    nodeOptions_.initial_conf = conf_;
-    nodeOptions_.election_timeout_ms = options.electionTimeoutMs;
-    nodeOptions_.fsm = this;
-    nodeOptions_.node_owns_fsm = false;
-    nodeOptions_.snapshot_interval_s = options.snapshotIntervalS;
-    nodeOptions_.log_uri = options.logUri;
-    nodeOptions_.log_uri.append("/").append(groupId)
-        .append("/").append(RAFT_LOG_DIR);
-    nodeOptions_.raft_meta_uri = options.raftMetaUri;
-    nodeOptions_.raft_meta_uri.append("/").append(groupId)
-        .append("/").append(RAFT_META_DIR);
-    nodeOptions_.snapshot_uri = options.raftSnapshotUri;
-    nodeOptions_.snapshot_uri.append("/").append(groupId)
-        .append("/").append(RAFT_SNAP_DIR);
-    nodeOptions_.usercode_in_pthread = options.usercodeInPthread;
-    nodeOptions_.snapshot_throttle = options.snapshotThrottle;
 
-    CurveFilesystemAdaptor* cfa =
-        new CurveFilesystemAdaptor(options.chunkFilePool,
-                                   options.localFileSystem);
-    std::vector<std::string> filterList;
-    std::string snapshotMeta(BRAFT_SNAPSHOT_META_FILE);
-    filterList.push_back(kCurveConfEpochFilename);
-    filterList.push_back(snapshotMeta);
-    filterList.push_back(snapshotMeta.append(BRAFT_PROTOBUF_FILE_TEMP));
-    cfa->SetFilterList(filterList);
-
-    nodeOptions_.snapshot_file_system_adaptor =
-        new scoped_refptr<braft::FileSystemAdaptor>(cfa);
+    // initialize raft node options corresponding to the copy set node
+    InitRaftNodeOptions(options);
 
     /* init peer id */
     butil::ip_t ip;
@@ -189,6 +159,17 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
         metric_->MonitorDataStore(dataStore_.get());
     }
 
+    auto monitorMetricCb = [this](CurveSegmentLogStorage* logStorage) {
+        logStorage_ = logStorage;
+        metric_->MonitorCurveSegmentLogStorage(logStorage);
+    };
+
+    LogStorageOptions lsOptions(options.walFilePool, monitorMetricCb);
+
+    // In order to get more copysetNode's information in CurveSegmentLogStorage
+    // without using global variables.
+    StoreOptForCurveSegmentLogStorage(lsOptions);
+
     return 0;
 }
 
@@ -217,6 +198,39 @@ void CopysetNode::Fini() {
         // operation after the copyset has been removed.
         concurrentapply_->Flush();
     }
+}
+
+void CopysetNode::InitRaftNodeOptions(const CopysetNodeOptions &options) {
+    auto groupId = GroupId();
+    nodeOptions_.initial_conf = conf_;
+    nodeOptions_.election_timeout_ms = options.electionTimeoutMs;
+    nodeOptions_.fsm = this;
+    nodeOptions_.node_owns_fsm = false;
+    nodeOptions_.snapshot_interval_s = options.snapshotIntervalS;
+    nodeOptions_.log_uri = options.logUri;
+    nodeOptions_.log_uri.append("/").append(groupId)
+        .append("/").append(RAFT_LOG_DIR);
+    nodeOptions_.raft_meta_uri = options.raftMetaUri;
+    nodeOptions_.raft_meta_uri.append("/").append(groupId)
+        .append("/").append(RAFT_META_DIR);
+    nodeOptions_.snapshot_uri = options.raftSnapshotUri;
+    nodeOptions_.snapshot_uri.append("/").append(groupId)
+        .append("/").append(RAFT_SNAP_DIR);
+    nodeOptions_.usercode_in_pthread = options.usercodeInPthread;
+    nodeOptions_.snapshot_throttle = options.snapshotThrottle;
+
+    CurveFilesystemAdaptor* cfa =
+        new CurveFilesystemAdaptor(options.chunkFilePool,
+                                   options.localFileSystem);
+    std::vector<std::string> filterList;
+    std::string snapshotMeta(BRAFT_SNAPSHOT_META_FILE);
+    filterList.push_back(kCurveConfEpochFilename);
+    filterList.push_back(snapshotMeta);
+    filterList.push_back(snapshotMeta.append(BRAFT_PROTOBUF_FILE_TEMP));
+    cfa->SetFilterList(filterList);
+
+    nodeOptions_.snapshot_file_system_adaptor =
+        new scoped_refptr<braft::FileSystemAdaptor>(cfa);
 }
 
 void CopysetNode::on_apply(::braft::Iterator &iter) {
@@ -743,6 +757,10 @@ uint64_t CopysetNode::GetAppliedIndex() const {
 
 std::shared_ptr<CSDataStore> CopysetNode::GetDataStore() const {
     return dataStore_;
+}
+
+CurveSegmentLogStorage* CopysetNode::GetLogStorage() const {
+    return logStorage_;
 }
 
 ConcurrentApplyModule *CopysetNode::GetConcurrentApplyModule() const {

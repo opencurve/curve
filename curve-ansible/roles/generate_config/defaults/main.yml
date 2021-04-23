@@ -19,6 +19,9 @@
 curve_root_username: root
 curve_root_password: root_password
 chunk_size: 16777216
+segment_size: 1073741824
+min_file_length: 10737418240
+max_file_length: 21990232555520
 file_expired_time_us: 5000000
 
 # mds配置默认值
@@ -60,6 +63,7 @@ mds_topology_create_copyset_rpc_retry_sleep_time_ms: 1000
 mds_topology_update_metric_interval_sec: 60
 mds_topology_pool_usage_percent_limit: 85
 mds_topology_choose_pool_policy: 0
+mds_topology_enable_logicalpool_status: true
 mds_copyset_copyset_retry_times: 10
 mds_copyset_scatterwidth_variance: 0
 mds_copyset_scatterwidth_standard_devation: 0
@@ -71,6 +75,12 @@ mds_chunkserverclient_rpc_retry_interval_ms: 500
 mds_chunkserverclient_update_leader_retry_times: 5
 mds_chunkserverclient_update_leader_retry_interval_ms: 5000
 mds_common_log_dir: ./
+throttle_iops_min: 2000
+throttle_iops_max: 26000
+throttle_iops_per_GB: 30
+throttle_bps_min_in_MB: 120
+throttle_bps_max_in_MB: 260
+throttle_bps_per_GB_in_MB: 0.3
 
 # chunkserver配置默认值
 chunkserver_enable_external_server: true
@@ -199,6 +209,9 @@ client_log_path: /data/log/curve/
 client_metric_dummy_server_start_port: 9000
 client_turn_off_health_check: true
 client_session_map_path: ./session_map.json
+client_closefd_timeout_sec: 300
+client_closefd_time_interval_sec: 600
+client_throttle_enable: false
 
 # nebd默认配置
 client_config_path: /etc/curve/client.conf
@@ -224,6 +237,12 @@ s3_connect_timeout: 60000
 s3_request_timeout: 10000
 s3_loglevel: 4
 s3_async_thread_num: 64
+s3_throttle_iopsTotalLimit: 5000
+s3_throttle_iopsReadLimit: 5000
+s3_throttle_iopsWriteLimit: 5000
+s3_throttle_bpsTotalLimit: 1280
+s3_throttle_bpsReadLimit: 1280
+s3_throttle_bpsWriteLimit: 1280
 
 # 运维工具默认值
 tool_rpc_timeout: 500

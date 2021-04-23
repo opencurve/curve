@@ -30,9 +30,9 @@
   roles:
     - { role: install_package, package_name: nebd, package_version: "{{ nebd_package_version }}",
             tags: ["install_package"] }
-    - { role: generate_config, template_name: client.conf, conf_path: "{{ client_config_path }}", when: "not {{ update_config_with_puppet }}" }
-    - { role: generate_config, template_name: nebd-client.conf, conf_path: "{{ nebd_client_config_path }}", when: "not {{ update_config_with_puppet }}" }
-    - { role: generate_config, template_name: nebd-server.conf, conf_path: "{{ nebd_server_config_path }}", when: "not {{ update_config_with_puppet }}" }
+    - { role: generate_config, template_name: client.conf, conf_path: "{{ client_config_path }}", when: "not update_config_with_puppet" }
+    - { role: generate_config, template_name: nebd-client.conf, conf_path: "{{ nebd_client_config_path }}", when: "not update_config_with_puppet" }
+    - { role: generate_config, template_name: nebd-server.conf, conf_path: "{{ nebd_server_config_path }}", when: "not update_config_with_puppet" }
   tasks:
     - name: update config with puppet
       include_tasks: "common_tasks/update_config_with_puppet.yml"
@@ -49,10 +49,6 @@
     - pause:
         prompt: "Confirm restart nebd-server in {{ inventory_hostname }}. ENTER to continue or CTRL-C A to quit"
       when: need_confirm
-    - vars:
-        package_version: "{{ nebd_package_version }}"
-        software_version:
-      include_tasks: "common_tasks/get_software_version_from_package_version.yml"
   roles:
-    - { role: restart_service, service_name: nebd, expected_nebd_version: "{{ software_version }}",
+    - { role: restart_service, service_name: nebd, expected_nebd_version: "{{ nebd_package_version }}",
         command_need_sudo: "{{ nebd_need_sudo }}" }

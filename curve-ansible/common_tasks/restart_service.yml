@@ -1,0 +1,72 @@
+---
+#
+#  Copyright (c) 2020 NetEase Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+- name: set sudo or not
+  set_fact:
+    sudo: "sudo"
+  when: command_need_sudo
+
+- name: set sudo no
+  set_fact:
+    sudo: ""
+  when: not command_need_sudo
+
+- name: restart service with daemon
+  block:
+    - name: restart by daemon
+      shell: chdir={{ ch_dir }} {{ sudo }} {{ daemon_script }} restart
+      register: outres
+    - debug:
+        msg: "{{ outres.stdout }}"
+  when: start_by_daemon
+
+- name: restart service without daemon
+  block:
+    - name: stop service without daemon
+      ignore_errors: true
+      shell: >
+        "{{ sudo }}" killall {{ process_name }}
+    - name: wait until server is down
+      vars:
+        ping_port: "{{ service_port }}"
+        wait_timeout: "{{ wait_service_timeout }}"
+      include_tasks: common_tasks/wait_until_server_up.yml
+      when: service_port > 0
+    - name: wait nebd-server is down
+      shell: pidof nebd-server
+      register: pid
+      failed_when: result.stdout == ""
+      when: service_port == 0
+    - name: start service without daemon
+      shell: >
+        chdir={{ ch_dir }} {{ sudo }} {{ start_cmd }}
+      async: "{{ service_async }}"
+      poll: "{{ service_poll }}"
+  when: not start_by_daemon
+
+- name: wait until server is up
+  vars:
+    ping_port: "{{ service_port }}"
+    wait_timeout: "{{ wait_service_timeout }}"
+  include_tasks: common_tasks/wait_until_server_up.yml
+  when: service_port > 0
+
+- name: wait nebd-server is up
+  shell: pidof nebd-server
+  register: pid
+  failed_when: result.stdout == ""
+  when: service_port == 0

@@ -48,8 +48,6 @@ extern std::string cpp_strerror(int err);
 extern int parse_nbd_index(const std::string& devpath);
 // 获取当前系统能够支持的最大nbd设备数量
 extern int get_nbd_max_count();
-// 获取一个当前还未映射的nbd设备名
-extern std::string find_unused_nbd_device();
 // 解析用户输入的命令参数
 extern int parse_args(std::vector<const char*>& args,   // NOLINT
                       std::ostream *err_msg,

@@ -95,6 +95,18 @@ enum class Command {
     List
 };
 
+inline std::string TimeStampToStandard(time_t timeStamp) {
+    char now[64];
+    struct tm p;
+    p = *localtime_r(&timeStamp, &p);
+    strftime(now, 64, "%Y-%m-%d %H:%M:%S", &p);
+    return now;
+}
+
+#define dout \
+    std::cout << TimeStampToStandard(::time(nullptr)) \
+        << " " << ::getpid() << " " << __FILE__ << ":" << __LINE__ << "] "
+
 }  // namespace nbd
 }  // namespace curve
 

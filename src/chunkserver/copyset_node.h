@@ -35,6 +35,7 @@
 #include "src/chunkserver/conf_epoch_file.h"
 #include "src/chunkserver/config_info.h"
 #include "src/chunkserver/chunkserver_metrics.h"
+#include "src/chunkserver/raftlog/curve_segment_log_storage.h"
 #include "src/chunkserver/raftsnapshot/define.h"
 #include "src/chunkserver/raftsnapshot/curve_snapshot_writer.h"
 #include "src/common/string_util.h"
@@ -253,6 +254,12 @@ class CopysetNode : public braft::StateMachine,
     virtual std::shared_ptr<CSDataStore> GetDataStore() const;
 
     /**
+     * @brief: Get braft log storage
+     * @return: The pointer to CurveSegmentLogStorage
+     */
+    virtual CurveSegmentLogStorage* GetLogStorage() const;
+
+    /**
      * Return ConcurrentApplyModule
      */
     virtual ConcurrentApplyModule* GetConcurrentApplyModule() const;
@@ -271,7 +278,14 @@ class CopysetNode : public braft::StateMachine,
     void ListPeers(std::vector<Peer>* peers);
 
     /**
-     * The following interfaces are all interfaces that inherit from the
+     * @brief initialize raft node options corresponding to the copyset node
+     * @param options
+     * @return
+     */
+    void InitRaftNodeOptions(const CopysetNodeOptions &options);
+
+    /**
+     * The following  are the interfaces that inherit from the
      * StateMachine implementation
      */
  public:
@@ -421,6 +435,8 @@ class CopysetNode : public braft::StateMachine,
     std::shared_ptr<LocalFileSystem> fs_;
     // Chunk persistence interface
     std::shared_ptr<CSDataStore> dataStore_;
+    // The log storage for braft
+    CurveSegmentLogStorage* logStorage_;
     // Concurrent modules
     ConcurrentApplyModule *concurrentapply_;
     // Configuration epoch persistence tool interface

@@ -296,6 +296,8 @@ void MDSClientBase::CreateCloneFile(const std::string& source,
                                     uint64_t size,
                                     uint64_t sn,
                                     uint32_t chunksize,
+                                    uint64_t stripeUnit,
+                                    uint64_t stripeCount,
                                     CreateCloneFileResponse* response,
                                     brpc::Controller* cntl,
                                     brpc::Channel* channel) {
@@ -306,6 +308,8 @@ void MDSClientBase::CreateCloneFile(const std::string& source,
     request.set_chunksize(chunksize);
     request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
     request.set_clonesource(source);
+    request.set_stripeunit(stripeUnit);
+    request.set_stripecount(stripeCount);
     FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "CreateCloneFile: source = " << source
@@ -439,6 +443,25 @@ void MDSClientBase::DeleteFile(const std::string& filename,
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.DeleteFile(cntl, &request, response, NULL);
+}
+
+void MDSClientBase::RecoverFile(const std::string& filename,
+                               const UserInfo_t& userinfo,
+                               uint64_t fileid,
+                               RecoverFileResponse* response,
+                               brpc::Controller* cntl,
+                               brpc::Channel* channel) {
+    RecoverFileRequest request;
+    request.set_filename(filename);
+    request.set_fileid(fileid);
+    FillUserInfo(&request, userinfo);
+
+    LOG(INFO) << "RecoverFile: filename = " << filename
+                << ", owner = " << userinfo.owner
+                << ", log id = " << cntl->log_id();
+
+    curve::mds::CurveFSService_Stub stub(channel);
+    stub.RecoverFile(cntl, &request, response, NULL);
 }
 
 void MDSClientBase::ChangeOwner(const std::string& filename,

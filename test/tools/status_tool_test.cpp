@@ -38,7 +38,6 @@ using ::testing::SetArgPointee;
 using ::testing::An;
 using curve::mds::topology::LogicalPoolType;
 using curve::mds::topology::AllocateStatus;
-using curve::mds::DefaultSegmentSize;
 
 DECLARE_bool(offline);
 DECLARE_bool(unhealthy);
@@ -134,6 +133,7 @@ class StatusToolTest : public ::testing::Test {
     std::shared_ptr<MockVersionTool> versionTool_;
     std::shared_ptr<MockMetricClient> metricClient_;
     std::shared_ptr<MockSnapshotCloneClient> snapshotClient_;
+    const uint64_t DefaultSegmentSize = 1024 * 1024 * 1024;
 };
 
 TEST_F(StatusToolTest, InitAndSupportCommand) {
@@ -282,7 +282,7 @@ TEST_F(StatusToolTest, SpaceCmd) {
                         Return(0)));
     EXPECT_CALL(*mdsClient_, GetMetric(_, _))
         .WillOnce(Return(-1))
-        .WillOnce(DoAll(SetArgPointee<1>(300 * curve::mds::DefaultSegmentSize),
+        .WillOnce(DoAll(SetArgPointee<1>(300 * DefaultSegmentSize),
                         Return(0)))
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("space"));
@@ -295,7 +295,7 @@ TEST_F(StatusToolTest, SpaceCmd) {
                         Return(0)));
     EXPECT_CALL(*mdsClient_, GetFileSize(_, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(150 * curve::mds::DefaultSegmentSize),
+        .WillOnce(DoAll(SetArgPointee<1>(150 * DefaultSegmentSize),
                         Return(0)));
     EXPECT_CALL(*mdsClient_, GetMetric(_, _))
         .Times(4)
@@ -476,7 +476,7 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
                         Return(0)));
     EXPECT_CALL(*mdsClient_, GetFileSize(_, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(150 * curve::mds::DefaultSegmentSize),
+        .WillOnce(DoAll(SetArgPointee<1>(150 * DefaultSegmentSize),
                         Return(0)));
     EXPECT_CALL(*mdsClient_, GetMetric(_, _))
         .Times(4)
@@ -490,7 +490,7 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
                         Return(0)));
     EXPECT_CALL(*mdsClient_, GetAllocatedSize(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(10 * curve::mds::DefaultSegmentSize),
+        .WillOnce(DoAll(SetArgPointee<1>(10 * DefaultSegmentSize),
                         Return(0)));
 
     // 设置client status的输出
@@ -542,7 +542,7 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
         .WillOnce(DoAll(SetArgPointee<0>("0.0.1"),
                         Return(0)));
     EXPECT_CALL(*metricClient_, GetMetricUint(_, _, _))
-        .Times(6)
+        .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<2>(1000),
                         Return(MetricRet::kOK)));
     EXPECT_CALL(*copysetCheck_, CheckChunkServerOnline(_))

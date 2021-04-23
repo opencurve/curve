@@ -54,8 +54,11 @@ bool TopologyChunkAllocatorImpl::AllocateChunkRandomInSingleLogicalPool(
         return false;
     }
 
+    CopySetFilter filter = [](const CopySetInfo& copyset) {
+            return copyset.IsAvailable();
+    };
     std::vector<CopySetIdType> copySetIds =
-        topology_->GetCopySetsInLogicalPool(logicalPoolChosenId);
+        topology_->GetCopySetsInLogicalPool(logicalPoolChosenId, filter);
 
     if (0 == copySetIds.size()) {
         LOG(ERROR) << "[AllocateChunkRandomInSingleLogicalPool]:"
@@ -88,8 +91,11 @@ bool TopologyChunkAllocatorImpl::AllocateChunkRoundRobinInSingleLogicalPool(
         return false;
     }
 
+    CopySetFilter filter = [](const CopySetInfo& copyset) {
+            return copyset.IsAvailable();
+    };
     std::vector<CopySetIdType> copySetIds =
-        topology_->GetCopySetsInLogicalPool(logicalPoolChosenId);
+        topology_->GetCopySetsInLogicalPool(logicalPoolChosenId, filter);
 
     if (0 == copySetIds.size()) {
         LOG(ERROR) << "[AllocateChunkRoundRobinInSingleLogicalPool]:"
@@ -144,9 +150,10 @@ bool TopologyChunkAllocatorImpl::ChooseSingleLogicalPool(
     }
 
     auto logicalPoolFilter =
-    [poolType] (const LogicalPool &pool) {
+    [poolType, this] (const LogicalPool &pool) {
         return pool.GetLogicalPoolAvaliableFlag() &&
-            AllocateStatus::ALLOW == pool.GetStatus() &&
+            (!this->enableLogicalPoolStatus_ ||
+            AllocateStatus::ALLOW == pool.GetStatus()) &&
             pool.GetLogicalPoolType() == poolType;
     };
 

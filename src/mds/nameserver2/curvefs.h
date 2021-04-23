@@ -52,10 +52,24 @@ struct RootAuthOption {
     std::string rootPassword;
 };
 
+struct ThrottleOption {
+    uint64_t iopsMin;
+    uint64_t iopsMax;
+    double iopsPerGB;
+
+    uint64_t bpsMin;
+    uint64_t bpsMax;
+    double bpsPerGB;
+};
+
 struct CurveFSOption {
     uint64_t defaultChunkSize;
+    uint64_t defaultSegmentSize;
+    uint64_t minFileLength;
+    uint64_t maxFileLength;
     RootAuthOption authOptions;
     FileRecordOptions fileRecordOptions;
+    ThrottleOption throttleOption;
 };
 
 struct AllocatedSize {
@@ -141,6 +155,20 @@ class CurveFS {
     StatusCode GetFileInfo(const std::string & filename,
                            FileInfo * inode) const;
 
+    /**
+     * @brief get the fileInfo in recycleBin based on original filename
+     * @param originFilename
+     * @param fileId
+     * @param recoverFileInfo: return the obtained fileInfo
+     * @return status codes below:
+     *          StatusCode::kOK                if succeeded
+     *          StatusCode::kFileNotExists     if target file doesn't exist
+     *          StatusCode::kStorageError      if failed to get file metadata
+     */
+    StatusCode GetRecoverFileInfo(const std::string& originFileName,
+                                  const uint64_t fileId,
+                                  FileInfo* recoverFileInfo);
+
      /**
      *  @brief get the allocated file size
      *  @param: fileName
@@ -172,6 +200,18 @@ class CurveFS {
         bool deleteForce = false);
 
     /**
+     *  @brief recover file
+     *  @param[in] originFilename: filename before delete
+     *  @param[in] recycleFilename: filename after delete
+     *  @param[in] fileId: there will be inodeID verification on recovered files
+     *                     except when kUnitializedFileID is passed.
+     *  @return StatusCode::kOK if succeeded
+     */
+    StatusCode RecoverFile(const std::string & originFileName,
+                           const std::string & recycleFileName,
+                           uint64_t fileId);
+
+    /**
      *  @brief get information of all files in the directory
      *  @param dirname
      *  @param files: results found
@@ -182,19 +222,19 @@ class CurveFS {
 
     /**
      *  @brief rename file
-     *  @param oldFileName
-     *  @param newFileName
-     *  @param oldFileId: there will be inodeID verification, except when
+     *  @param sourceFileName
+     *  @param destFileName
+     *  @param sourceFileId: there will be inodeID verification, except when
      *                    kUnitializedFileID is passed.
-     *  @param newFileId: there will be inodeID verification, except when
+     *  @param destFileId: there will be inodeID verification, except when
      *                    kUnitializedFileID is passed.
      *  @return StatusCode::kOK if succeeded
      */
     // TODO(hzsunjianliang): Add inode parameters of the source file for checking //NOLINT
-    StatusCode RenameFile(const std::string & oldFileName,
-                          const std::string & newFileName,
-                          uint64_t oldFileId,
-                          uint64_t newFileId);
+    StatusCode RenameFile(const std::string & sourceFileName,
+                          const std::string & destFileName,
+                          uint64_t sourceFileId,
+                          uint64_t destFileId);
 
     /**
      *  @brief extend file
@@ -361,6 +401,8 @@ class CurveFS {
      * @param length
      * @param seq: version number
      * @param ChunkSizeType: The chunk size of the clone file
+     * @param stripeUnit: stripe size
+     * @param stripeCount: stripe count
      * @param cloneSource: Source file address, only supports CurveFS currently
      * @param cloneLength: Length of source file
      * @param[out] fileInfo: fileInfo of the clone file created
@@ -372,6 +414,8 @@ class CurveFS {
                             uint64_t length,
                             FileSeqType seq,
                             ChunkSizeType chunksize,
+                            uint64_t stripeUnit,
+                            uint64_t stripeCount,
                             FileInfo *fileInfo,
                             const std::string & cloneSource = "",
                             uint64_t cloneLength = 0);
@@ -446,6 +490,19 @@ class CurveFS {
                               uint64_t date);
 
     /**
+     *  @brief check the owner of the file in recycleBin
+     *  @param filename
+     *  @param owner: file owner to check
+     *  @param signature: signature for verification from user
+     *  @param date: indicates the time that the request arrives
+     *  @return StatusCode::kOK if succeeded, StatusCode::kOwnerAuthFail if failed //NOLINT
+     */
+    StatusCode CheckRecycleFileOwner(const std::string &filename,
+                                     const std::string &owner,
+                                     const std::string &signature,
+                                     uint64_t date);
+
+    /**
      *  @brief Get the client information in fileRecord
      *  @param listAllClient: Whether to list all client information
      *  @param[out]: List of client info
@@ -474,6 +531,15 @@ class CurveFS {
                         std::vector<std::string>* fileNames);
 
     /**
+     * @brief Update file throttle params
+     * @param filename
+     * @param param throttle params
+     * @return StatusCode::kOK if succeeded
+     */
+    StatusCode UpdateFileThrottleParams(const std::string& fileName,
+                                        ThrottleParams params);
+
+    /**
      *  @brief Get the number of opened files
      *  @param
      *  @return return 0 of CurveFS has not been initialized
@@ -486,6 +552,27 @@ class CurveFS {
      *  @return return defaultChunkSize info obtained
      */
     uint64_t GetDefaultChunkSize();
+
+    /**
+     *  @brief get the defaultSegmentSize info of curvefs
+     *  @param:
+     *  @return return defaultSegmentSize info obtained
+     */
+    uint64_t GetDefaultSegmentSize();
+
+    /**
+     *  @brief get the minFileLength info of curvefs
+     *  @param:
+     *  @return return minFileLength info obtained
+     */
+    uint64_t GetMinFileLength();
+
+    /**
+     *  @brief get the maxFileLength info of curvefs
+     *  @param:
+     *  @return return maxFileLength info obtained
+     */
+    uint64_t GetMaxFileLength();
 
  private:
     CurveFS() = default;
@@ -662,6 +749,7 @@ class CurveFS {
     StatusCode CheckStripeParam(uint64_t stripeUnit,
                            uint64_t stripeCount);
 
+    FileThrottleParams GenerateThrottleParams(uint64_t length) const;
 
  private:
     FileInfo rootFileInfo_;
@@ -674,8 +762,12 @@ class CurveFS {
     std::shared_ptr<Topology> topology_;
     std::shared_ptr<SnapshotCloneClient> snapshotCloneClient_;
     struct RootAuthOption       rootAuthOptions_;
+    ThrottleOption throttleOption_;
 
     uint64_t defaultChunkSize_;
+    uint64_t defaultSegmentSize_;
+    uint64_t minFileLength_;
+    uint64_t maxFileLength_;
     std::chrono::steady_clock::time_point startTime_;
 };
 extern CurveFS &kCurveFS;

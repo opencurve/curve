@@ -16,14 +16,13 @@
 #
 
 - name: restart nebd-server
-  block:
-    - name: stop nebd-server
-      vars:
-        ch_dir: "{{ deploy_dir }}"
-        daemon_script: nebd-daemon
-        service_port: "{{ nebd_port }}"
-        process_name: >
-          {{ curve_bin_dir }}/nebd-server
-      include_tasks: common_tasks/stop_service.yml
-    - name: start nebd-server
-      include_tasks: roles/start_service/tasks/include/start_nebd.yml
+  vars:
+    ch_dir: "{{ deploy_dir }}"
+    daemon_script: ./nebd-daemon
+    service_port: 0
+    process_name: nebd-server
+    start_cmd: >
+      nohup {{ curve_bin_dir }}/nebd-server -confPath={{ nebd_server_config_path }}
+        -log_dir={{ nebd_log_dir }}/server -graceful_quit_on_sigterm=true -stderrthreshold=3
+        > nebd-console.log 2>&1 &
+  include_tasks: common_tasks/restart_service.yml

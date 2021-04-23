@@ -343,6 +343,22 @@ class MDSClient {
                             std::vector<ChunkServerInfo>>* chunkservers);
 
     /**
+     *  @brief set copysets available flag
+     *  @param copysets copysets going to be set available flag
+     *  @param availFlag availble or not
+     *  @return succeed return 0; failed return -1;
+     */
+    virtual int SetCopysetsAvailFlag(const std::vector<CopysetInfo> copysets,
+                                     bool availFlag);
+
+    /**
+     *  @brief list all copysets that are unavailable
+     *  @param[out] copysets copysets that are not availble currently
+     *  @return succeed return 0; failed return -1;
+     */
+    virtual int ListUnAvailCopySets(std::vector<CopysetInfo>* copysets);
+
+    /**
      *  @brief 获取mds的某个metric的值
      *  @param metricName metric的名字
      *  @param[out] value metric的值，返回值为0时有效
@@ -415,6 +431,9 @@ class MDSClient {
     int QueryChunkServerRecoverStatus(
         const std::vector<ChunkServerIdType>& cs,
         std::map<ChunkServerIdType, bool> *statusMap);
+
+    virtual int UpdateFileThrottleParams(
+        const std::string& fileName, const curve::mds::ThrottleParams& params);
 
  private:
     /**

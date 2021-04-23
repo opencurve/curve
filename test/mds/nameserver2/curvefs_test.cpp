@@ -44,6 +44,7 @@ using ::testing::Return;
 using ::testing::ReturnArg;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
+using ::testing::SaveArg;
 using curve::common::Authenticator;
 
 using curve::common::TimeUtility;
@@ -73,6 +74,9 @@ class CurveFSTest: public ::testing::Test {
         authOptions_.rootPassword = "root_password";
 
         curveFSOptions_.defaultChunkSize = 16 * kMB;
+        curveFSOptions_.defaultSegmentSize = 1 * kGB;
+        curveFSOptions_.minFileLength = 10 * kGB;
+        curveFSOptions_.maxFileLength = 20 * kTB;
         curveFSOptions_.authOptions = authOptions_;
         curveFSOptions_.fileRecordOptions = fileRecordOptions_;
 
@@ -97,6 +101,9 @@ class CurveFSTest: public ::testing::Test {
                         curveFSOptions_,
                         topology_,
                         snapshotClient_);
+        DefaultSegmentSize = curvefs_->GetDefaultSegmentSize();
+        kMiniFileLength = curvefs_->GetMinFileLength();
+        kMaxFileLength = curvefs_->GetMaxFileLength();
         curvefs_->Run();
     }
 
@@ -117,6 +124,9 @@ class CurveFSTest: public ::testing::Test {
     struct FileRecordOptions fileRecordOptions_;
     struct RootAuthOption authOptions_;
     struct CurveFSOption curveFSOptions_;
+    uint64_t DefaultSegmentSize;
+    uint64_t kMiniFileLength;
+    uint64_t kMaxFileLength;
 };
 
 TEST_F(CurveFSTest, testCreateFile1) {
@@ -1149,6 +1159,152 @@ TEST_F(CurveFSTest, testReadDir) {
     }
 }
 
+TEST_F(CurveFSTest, testRecoverFile) {
+    // recover ok
+    {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(3)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, RenameFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
+                  StatusCode::kOK);
+    }
+
+    // the upper dir not exist, can not recover
+    {
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        ASSERT_EQ(curvefs_->RecoverFile("/k8s/file1",
+                  "/RecycleBin/k8s/file1-10", 2),
+                  StatusCode::kFileNotExists);
+    }
+
+    // the same file exist, can not recover
+    {
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(AtLeast(1))
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
+                  StatusCode::kFileExists);
+    }
+
+    // the inodeid and recyclefilename mismatch, can not recover
+    {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_id(1);
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(3)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 2),
+                  StatusCode::kFileIdNotMatch);
+    }
+
+    // the fileStatus is deleting in recyclebin, can not recover
+    {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo1.set_filestatus(FileStatus::kFileDeleting);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(3)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
+                  StatusCode::kFileUnderDeleting);
+    }
+
+    // kRecoverFileCloneMetaInstalled in recyclebin, can not recover
+    {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo1.set_filestatus(FileStatus::kFileCloneMetaInstalled);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(3)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
+                  StatusCode::kRecoverFileCloneMetaInstalled);
+    }
+
+    // the fileStatus is cloning in recyclebin, can not recover
+    {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo1.set_filestatus(FileStatus::kFileCloning);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(3)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
+                  StatusCode::kRecoverFileError);
+    }
+
+    // storage recoverfile fail
+    {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(3)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, RenameFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
+                  StatusCode::kStorageError);
+    }
+}
 
 TEST_F(CurveFSTest, testRenameFile) {
     // test rename ok
@@ -3396,12 +3552,12 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
     // test parm error
     ASSERT_EQ(curvefs_->CreateCloneFile("/file1", "owner1",
                 FileType::INODE_DIRECTORY, kMiniFileLength, kStartSeqNum,
-                curvefs_->GetDefaultChunkSize(), nullptr),
+                curvefs_->GetDefaultChunkSize(), 0, 0, nullptr),
                 StatusCode::kParaError);
 
     ASSERT_EQ(curvefs_->CreateCloneFile("/file1", "owner1",
                 FileType::INODE_PAGEFILE, kMiniFileLength - 1, kStartSeqNum,
-                curvefs_->GetDefaultChunkSize(), nullptr),
+                curvefs_->GetDefaultChunkSize(), 0, 0, nullptr),
                 StatusCode::kParaError);
 
     {
@@ -3412,7 +3568,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
 
         auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    curvefs_->GetDefaultChunkSize(), nullptr);
+                    curvefs_->GetDefaultChunkSize(), 0, 0, nullptr);
         ASSERT_EQ(statusCode, StatusCode::kFileExists);
     }
 
@@ -3424,7 +3580,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
 
         auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    curvefs_->GetDefaultChunkSize(), nullptr);
+                    curvefs_->GetDefaultChunkSize(), 0, 0, nullptr);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
 
@@ -3440,7 +3596,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
 
         auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    curvefs_->GetDefaultChunkSize(), nullptr);
+                    curvefs_->GetDefaultChunkSize(), 0, 0, nullptr);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
 
@@ -3460,7 +3616,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
 
         auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    curvefs_->GetDefaultChunkSize(), nullptr);
+                    curvefs_->GetDefaultChunkSize(), 0, 0, nullptr);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
     {
@@ -3480,7 +3636,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
         FileInfo fileInfo;
         auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    curvefs_->GetDefaultChunkSize(), &fileInfo);
+                    curvefs_->GetDefaultChunkSize(), 0, 0, &fileInfo);
         ASSERT_EQ(statusCode, StatusCode::kOK);
         ASSERT_EQ(fileInfo.filename(), "file1");
         ASSERT_EQ(fileInfo.owner(), "owner1");
@@ -3890,6 +4046,78 @@ TEST_F(CurveFSTest, ListAllVolumesOnCopyset) {
         .WillOnce(Return(StoreStatus::KeyNotExist));
         ASSERT_EQ(StatusCode::kStorageError,
                     curvefs_->ListVolumesOnCopyset(copysetVec, &fileNames));
+    }
+}
+
+TEST_F(CurveFSTest, TestUpdateFileThrottleParams) {
+    // GetFileInfo failed
+    {
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        ASSERT_EQ(
+            StatusCode::kFileNotExists,
+            curvefs_->UpdateFileThrottleParams("/hello", ThrottleParams{}));
+    }
+
+    // test add new one throttle
+    {
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+
+        FileInfo updatedFileInfo;
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+                            Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, PutFile(_))
+            .WillOnce(
+                DoAll(SaveArg<0>(&updatedFileInfo), Return(StoreStatus::OK)));
+
+        ThrottleParams params;
+        params.set_type(ThrottleType::IOPS_TOTAL);
+        ASSERT_EQ(StatusCode::kOK,
+                  curvefs_->UpdateFileThrottleParams("/hello", params));
+        ASSERT_EQ(1, updatedFileInfo.throttleparams().throttleparams_size());
+        ASSERT_EQ(ThrottleType::IOPS_TOTAL,
+                  updatedFileInfo.throttleparams().throttleparams(0).type());
+    }
+
+    // test update existing throttle
+    {
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        auto* throttleParams = fileInfo.mutable_throttleparams();
+
+        ThrottleParams existParams;
+        existParams.set_type(ThrottleType::IOPS_TOTAL);
+        existParams.set_limit(100);
+        *throttleParams->add_throttleparams() = existParams;
+
+        FileInfo updatedFileInfo;
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
+        EXPECT_CALL(*storage_, PutFile(_))
+            .WillOnce(
+                DoAll(SaveArg<0>(&updatedFileInfo), Return(StoreStatus::OK)));
+
+        ThrottleParams newParams;
+        newParams.set_type(ThrottleType::IOPS_TOTAL);
+        newParams.set_limit(2000);
+        newParams.set_burst(10000);
+        newParams.set_burstlength(10);
+        ASSERT_EQ(StatusCode::kOK,
+                  curvefs_->UpdateFileThrottleParams("/hello", newParams));
+        ASSERT_EQ(1, updatedFileInfo.throttleparams().throttleparams_size());
+        ASSERT_EQ(ThrottleType::IOPS_TOTAL,
+                  updatedFileInfo.throttleparams().throttleparams(0).type());
+        ASSERT_EQ(2000,
+                  updatedFileInfo.throttleparams().throttleparams(0).limit());
+        ASSERT_EQ(10000,
+                  updatedFileInfo.throttleparams().throttleparams(0).burst());
+        ASSERT_EQ(
+            10,
+            updatedFileInfo.throttleparams().throttleparams(0).burstlength());
     }
 }
 

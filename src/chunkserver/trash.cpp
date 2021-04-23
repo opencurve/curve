@@ -121,13 +121,15 @@ int Trash::RecycleCopySet(const std::string &dirPath) {
                      << trashPath_;
         return -1;
     }
-
-    if (0 != localFileSystem_->Rename(dirPath, dst)) {
-        LOG(ERROR) << "rename " << dirPath << " to " << dst << " error";
-        return -1;
+    {
+        LockGuard lg(mtx_);
+        if (0 != localFileSystem_->Rename(dirPath, dst)) {
+            LOG(ERROR) << "rename " << dirPath << " to " << dst << " error";
+            return -1;
+        }
+        uint32_t chunkNum = CountChunkNumInCopyset(dst);
+        chunkNum_.fetch_add(chunkNum);
     }
-    uint32_t chunkNum = CountChunkNumInCopyset(dst);
-    chunkNum_.fetch_add(chunkNum);
     LOG(INFO) << "Recycle copyset success. Copyset path: " << dst
               << ", current num of chunks in trash: " << chunkNum_.load();
     return 0;
@@ -257,6 +259,7 @@ bool Trash::RecycleChunksAndWALInDir(
 
 bool Trash::RecycleChunkfile(
     const std::string &filepath, const std::string &filename) {
+    LockGuard lg(mtx_);
     if (0 != chunkFilePool_->RecycleFile(filepath)) {
         LOG(ERROR) << "Trash  failed recycle chunk " << filepath
                     << " to FilePool";
@@ -269,11 +272,14 @@ bool Trash::RecycleChunkfile(
 
 bool Trash::RecycleWAL(
     const std::string &filepath, const std::string &filename) {
-    if (0 != walPool_->RecycleFile(filepath)) {
+    LockGuard lg(mtx_);
+    if (walPool_ != nullptr && 0 != walPool_->RecycleFile(filepath)) {
         LOG(ERROR) << "Trash  failed recycle WAL " << filepath
                     << " to WALPool";
         return false;
     }
+
+    chunkNum_.fetch_sub(1);
     return true;
 }
 
@@ -301,25 +307,28 @@ bool Trash::IsWALFile(const std::string &fileName) {
 }
 
 uint32_t Trash::CountChunkNumInCopyset(const std::string &copysetPath) {
-    std::string dataPath = copysetPath + "/" + RAFT_DATA_DIR;
-    std::vector<std::string> chunks;
-    localFileSystem_->List(dataPath, &chunks);
+    auto count = [&](const std::string& path) {
+        std::vector<std::string> chunks;
+        localFileSystem_->List(path, &chunks);
 
-    uint32_t chunkNum = 0;
-    // Traverse the chunk under data
-    for (auto &chunk : chunks) {
-        // Not chunkfile or snapshotfile
-        if (!IsChunkOrSnapShotFile(chunk)) {
-            LOG(WARNING) << "Trash find a illegal file:"
-                         << chunk << " in " << dataPath
-                         << ", filename: " << chunk;
-            continue;
+        uint32_t chunkNum = 0;
+        for (auto& chunk : chunks) {
+            // valid: chunkfile, snapshotfile, walfile
+            if (!(IsChunkOrSnapShotFile(chunk) || IsWALFile(chunk))) {
+                LOG(WARNING) << "Trash find a illegal file:"
+                             << chunk << " in " << path
+                             << ", filename: " << chunk;
+                continue;
+            }
+            ++chunkNum;
         }
-        ++chunkNum;
-    }
-    return chunkNum;
+
+        return chunkNum;
+    };
+
+    return count(copysetPath + "/" + RAFT_DATA_DIR)
+        + count(copysetPath + "/" + RAFT_LOG_DIR);
 }
 
 }  // namespace chunkserver
 }  // namespace curve
-

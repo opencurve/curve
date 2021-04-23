@@ -18,20 +18,25 @@ TEST(ExpiredTimeTest, CommonTest) {
         ExpiredTime expiredTime;
         std::this_thread::sleep_for(std::chrono::seconds(2));
         auto expiredSec = expiredTime.ExpiredSec();
-        ASSERT_TRUE(expiredSec >= 1.8 && expiredSec <= 2.2);
+        double expected = 2;
+        ASSERT_GE(expiredSec, expected * 0.9);
+        ASSERT_LE(expiredSec, expected * 1.1);
     }
     {
         ExpiredTime expiredTime;
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         auto expiredMs = expiredTime.ExpiredMs();
-        ASSERT_TRUE(expiredMs >= (1000 - 10) && expiredMs <= (1000 + 10));
+        double expected = 1000;
+        ASSERT_GE(expiredMs, expected * 0.9);
+        ASSERT_LE(expiredMs, expected * 1.1);
     }
     {
         ExpiredTime expiredTime;
         std::this_thread::sleep_for(std::chrono::microseconds(1000000));
         auto expiredUs = expiredTime.ExpiredUs();
-        ASSERT_TRUE(expiredUs >= (1000000 - 100) &&
-                    expiredUs <= (1000000 + 100));
+        double expected = 1000000;
+        ASSERT_GE(expiredUs, expected * 0.9);
+        ASSERT_LE(expiredUs, expected * 1.1);
     }
 }
 

@@ -178,6 +178,9 @@ void LeaseExecutor::CheckNeedUpdateFileInfo(const FInfo& fileInfo) {
                   << ", filename = " << fullFileName_;
         metaCache->SetLatestFileStatus(newFileStatus);
     }
+
+    // update throttle params
+    iomanager_->UpdateFileThrottleParams(fileInfo.throttleParams);
 }
 
 void LeaseExecutor::ResetRefreshSessionTask() {

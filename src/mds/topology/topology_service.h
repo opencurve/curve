@@ -179,6 +179,17 @@ class TopologyServiceImpl : public TopologyService {
                       GetClusterInfoResponse* response,
                       google::protobuf::Closure* done);
 
+    virtual void SetCopysetsAvailFlag(
+                      google::protobuf::RpcController* cntl_base,
+                      const SetCopysetsAvailFlagRequest* request,
+                      SetCopysetsAvailFlagResponse* response,
+                      google::protobuf::Closure* done);
+    virtual void ListUnAvailCopySets(
+                      google::protobuf::RpcController* cntl_base,
+                      const ListUnAvailCopySetsRequest* request,
+                      ListUnAvailCopySetsResponse* response,
+                      google::protobuf::Closure* done);
+
  private:
     std::shared_ptr<TopologyServiceManager> topology_;
 };

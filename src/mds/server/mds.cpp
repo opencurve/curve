@@ -298,6 +298,9 @@ void MDS::InitTopologyOption(TopologyOption *topologyOption) {
     conf_->GetValueFatalIfFail(
         "mds.topology.choosePoolPolicy",
         &topologyOption->choosePoolPolicy);
+    conf_->GetValueFatalIfFail(
+        "mds.topology.enableLogicalPoolStatus",
+        &topologyOption->enableLogicalPoolStatus);
 }
 
 void MDS::InitTopology(const TopologyOption& option) {
@@ -451,14 +454,36 @@ void MDS::InitAuthOptions(RootAuthOption *authOptions) {
         "mds.auth.rootPassword", &authOptions->rootPassword);
 }
 
+void MDS::InitThrottleOption(ThrottleOption* option) {
+    conf_->GetValueFatalIfFail("mds.throttle.iopsMin", &option->iopsMin);
+    conf_->GetValueFatalIfFail("mds.throttle.iopsMax", &option->iopsMax);
+    conf_->GetValueFatalIfFail("mds.throttle.iopsPerGB", &option->iopsPerGB);
+
+    conf_->GetValueFatalIfFail("mds.throttle.bpsMinInMB", &option->bpsMin);
+    conf_->GetValueFatalIfFail("mds.throttle.bpsMaxInMB", &option->bpsMax);
+    conf_->GetValueFatalIfFail("mds.throttle.bpsPerGBInMB", &option->bpsPerGB);
+
+    option->bpsMin *= kMB;
+    option->bpsMax *= kMB;
+    option->bpsPerGB *= kMB;
+}
+
 void MDS::InitCurveFSOptions(CurveFSOption *curveFSOptions) {
     conf_->GetValueFatalIfFail(
         "mds.curvefs.defaultChunkSize", &curveFSOptions->defaultChunkSize);
+    conf_->GetValueFatalIfFail(
+        "mds.curvefs.defaultSegmentSize", &curveFSOptions->defaultSegmentSize);
+    conf_->GetValueFatalIfFail(
+        "mds.curvefs.minFileLength", &curveFSOptions->minFileLength);
+    conf_->GetValueFatalIfFail(
+        "mds.curvefs.maxFileLength", &curveFSOptions->maxFileLength);
     FileRecordOptions fileRecordOptions;
     InitFileRecordOptions(&curveFSOptions->fileRecordOptions);
 
     RootAuthOption authOptions;
     InitAuthOptions(&curveFSOptions->authOptions);
+
+    InitThrottleOption(&curveFSOptions->throttleOption);
 }
 
 void MDS::InitCleanManager() {

@@ -46,6 +46,26 @@ enum FileStatus {
     kFileBeingCloned = 5;
 }
 
+enum ThrottleType {
+    IOPS_TOTAL = 1;
+    IOPS_READ = 2;
+    IOPS_WRITE = 3;
+    BPS_TOTAL = 4;
+    BPS_READ = 5;
+    BPS_WRITE = 6;
+}
+
+message ThrottleParams {
+    required ThrottleType type = 1;
+    required uint64 limit = 2;
+    optional uint64 burst = 3;
+    optional uint64 burstLength = 4;
+}
+
+message FileThrottleParams {
+    repeated ThrottleParams throttleParams = 1;
+}
+
 message FileInfo {
     optional    uint64      id = 1;
     optional    string      fileName = 2;
@@ -70,6 +90,8 @@ message FileInfo {
     optional    uint64      cloneLength =  14;
     optional    uint64      stripeUnit = 15;
     optional    uint64      stripeCount = 16;
+
+    optional    FileThrottleParams throttleParams = 17;
 }
 
 // status code
@@ -137,6 +159,10 @@ enum  StatusCode {
     kSnapshotCloneConnectFail = 136;
     // 快照克隆服务未初始化
     kSnapshotCloneServerNotInit = 137;
+    // recover file status is CloneMetaInstalled
+    kRecoverFileCloneMetaInstalled = 138;
+    // recover file fail
+    kRecoverFileError = 139;
 
     // 元数据存储错误
     kStorageError = 501;
@@ -184,6 +210,18 @@ message DeleteFileRequest {
 };
 
 message DeleteFileResponse {
+    required StatusCode statusCode = 1;
+}
+
+message RecoverFileRequest {
+    required string     fileName = 1;
+    required string     owner = 2;
+    optional string     signature = 3;
+    required uint64     date = 4;
+    optional uint64     fileId = 5;
+};
+
+message RecoverFileResponse {
     required StatusCode statusCode = 1;
 }
 
@@ -434,6 +472,8 @@ message  CreateCloneFileRequest {
     optional string     signature = 7;
     required uint64     date =8;
     required string     cloneSource = 9;
+    optional uint64     stripeUnit = 10;
+    optional uint64     stripeCount = 11;
 }
 
 message CreateCloneFileResponse {
@@ -509,10 +549,23 @@ message ListVolumesOnCopysetsResponse {
     repeated string fileNames = 2;
 }
 
+message UpdateFileThrottleParamsRequest {
+    required string fileName = 1;
+    required string owner = 2;
+    optional string signature = 3;
+    required uint64 date = 4;
+    required ThrottleParams throttleParams = 5;
+}
+
+message UpdateFileThrottleParamsResponse {
+    required StatusCode statusCode = 1;
+}
+
 service CurveFSService {
     // basic rpcs
     rpc     CreateFile(CreateFileRequest) returns (CreateFileResponse);
     rpc     DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+    rpc     RecoverFile(RecoverFileRequest) returns (RecoverFileResponse);
     rpc     GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
     rpc     GetOrAllocateSegment(GetOrAllocateSegmentRequest)
                 returns (GetOrAllocateSegmentResponse);
@@ -549,4 +602,5 @@ service CurveFSService {
     rpc     ListClient(ListClientRequest) returns (ListClientResponse);
     rpc     FindFileMountPoint(FindFileMountPointRequest) returns (FindFileMountPointResponse);
     rpc     ListVolumesOnCopysets(ListVolumesOnCopysetsRequest) returns (ListVolumesOnCopysetsResponse);
+    rpc     UpdateFileThrottleParams(UpdateFileThrottleParamsRequest) returns (UpdateFileThrottleParamsResponse);
 }

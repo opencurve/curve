@@ -147,6 +147,8 @@ mds.topology.UpdateMetricIntervalSec={{ mds_topology_update_metric_interval_sec 
 mds.topology.PoolUsagePercentLimit={{ mds_topology_pool_usage_percent_limit }}
 # 多pool选pool策略 0:Random, 1:Weight
 mds.topology.choosePoolPolicy={{ mds_topology_choose_pool_policy }}
+# enable LogicalPool ALLOW/DENY status
+mds.topology.enableLogicalPoolStatus={{ mds_topology_enable_logicalpool_status}}
 
 #
 # copyset config
@@ -173,6 +175,12 @@ mds.copyset.scatterWidthFloatingPercentage={{ mds_copyset_scatterwidth_floating_
 #
 # curvefs的默认chunk size大小，16MB = 16*1024*1024 = 16777216
 mds.curvefs.defaultChunkSize={{ chunk_size }}
+# curvefs的默认segment size大小，1GB = 1*1024*1024*1024 = 1073741824
+mds.curvefs.defaultSegmentSize={{ segment_size }}
+# curvefs的默认最小文件大小，10GB = 10*1024*1024*1024 = 10737418240
+mds.curvefs.minFileLength={{ min_file_length }}
+# curvefs的默认最大文件大小，20TB = 20*1024*1024*1024*1024 = 21990232555520
+mds.curvefs.maxFileLength={{ max_file_length }}
 
 #
 # chunkseverclient config
@@ -200,3 +208,15 @@ mds.snapshotcloneclient.addr={{ snapshot_nginx_vip }}:{{ nginx_docker_external_p
 mds.common.logDir={{ mds_common_log_dir }}
 # 单元测试情况下
 # mds.common.logDir=./runlog/
+
+#
+#### throttle options ####
+#
+# iops
+mds.throttle.iopsMin={{ throttle_iops_min }}
+mds.throttle.iopsMax={{ throttle_iops_max }}
+mds.throttle.iopsPerGB={{ throttle_iops_per_GB }}
+# bps
+mds.throttle.bpsMinInMB={{ throttle_bps_min_in_MB }}
+mds.throttle.bpsMaxInMB={{ throttle_bps_max_in_MB }}
+mds.throttle.bpsPerGBInMB={{ throttle_bps_per_GB_in_MB }}

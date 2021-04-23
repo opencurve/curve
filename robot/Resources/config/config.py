@@ -111,7 +111,7 @@ fake_mds_false = "false"
 fake_chunkserver_false = "false"
 
 #nova_host
-nova_host ="10.187.0.10"
+nova_host ="10.182.2.25"
 nova_user = "nbs"
 ssh_key = "/home/nbs/rsa/id_rsa"
 #vm_host
@@ -125,8 +125,9 @@ snapshot_file_name = "/lc"
 snapshot_s3_object_location = "snapshot_test_chunk_data@s3"
 
 #curve thrash 
-image_id = "94f54f29-af1e-4afd-acc9-8481c560356b"
-avail_zone = "dongguan1.curve1:pubbeta2-curve17.dg.163.org"
+#image_id = "94f54f29-af1e-4afd-acc9-8481c560356b"
+image_id = "ecd25866-b3d1-4e84-bd74-ddd5544f1809"
+avail_zone = "dongguan1.curve2:pubbeta2-curve2.dg.163.org"
 vm_prefix = ""
 
 level1 = [('test_kill_chunkserver_num',1),\
@@ -138,7 +139,7 @@ level1 = [('test_kill_chunkserver_num',1),\
           ('test_kill_etcd',1),\
           ('test_reboot_nebd')]
 level2 = [('reboot_curve_vm'),\
-          ('test_ipmitool_restart_client'),\
+#          ('test_ipmitool_restart_client'),\
           ('test_chunkserver_cpu_stress',95),\
           ('test_mds_cpu_stress',95),\
           ('test_client_cpu_stress',95),\

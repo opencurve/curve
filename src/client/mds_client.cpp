@@ -45,6 +45,7 @@ using curve::mds::PageFileChunkInfo;
 using curve::mds::PageFileSegment;
 using curve::mds::CreateFileResponse;
 using curve::mds::DeleteFileResponse;
+using curve::mds::RecoverFileResponse;
 using curve::mds::GetFileInfoResponse;
 using curve::mds::GetOrAllocateSegmentResponse;
 using curve::mds::RenameFileResponse;
@@ -730,10 +731,9 @@ LIBCURVE_ERROR MDSClient::GetServerList(
                                      cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.getServerList.eps.count << 1;
-            LOG_EVERY_SECOND(ERROR)
-                << "get server list from mds failed, status code = "
-                << cntl->ErrorCode() << ", error content:"
-                << cntl->ErrorText();
+            LOG(WARNING) << "get server list from mds failed, error is "
+                         << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
 
@@ -808,11 +808,15 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string& source,
                                           const std::string& destination,
                                           const UserInfo_t& userinfo,
                                           uint64_t size, uint64_t sn,
-                                          uint32_t chunksize, FInfo* fileinfo) {
+                                          uint32_t chunksize,
+                                          uint64_t stripeUnit,
+                                          uint64_t stripeCount,
+                                          FInfo* fileinfo) {
     auto task = RPCTaskDefine {
         CreateCloneFileResponse response;
         mdsClientBase_.CreateCloneFile(source, destination, userinfo, size, sn,
-                                       chunksize, &response, cntl, channel);
+                                       chunksize, stripeUnit, stripeCount,
+                                       &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "Create clone file failed, errcorde = "
                          << cntl->ErrorCode()
@@ -1054,6 +1058,37 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
             return -retcode;
         }
 
+        return retcode;
+    };
+    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
+}
+
+LIBCURVE_ERROR MDSClient::RecoverFile(const std::string& filename,
+                                     const UserInfo_t& userinfo,
+                                     uint64_t fileid) {
+    auto task = RPCTaskDefine {
+        RecoverFileResponse response;
+        mdsClientMetric_.recoverFile.qps.count << 1;
+        LatencyGuard lg(&mdsClientMetric_.recoverFile.latency);
+        mdsClientBase_.RecoverFile(filename, userinfo, fileid,
+                                   &response, cntl, channel);
+        if (cntl->Failed()) {
+            mdsClientMetric_.recoverFile.eps.count << 1;
+            LOG(WARNING) << "RecoverFile invoke failed, errcorde = "
+                << cntl->ErrorCode() << ", error content:"
+                << cntl->ErrorText() << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        LIBCURVE_ERROR retcode;
+        StatusCode stcode = response.statuscode();
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+                << "RecoverFile: filename = " << filename
+                << ", owner = " << userinfo.owner
+                << ", errocde = " << retcode
+                << ", error msg = " << StatusCode_Name(stcode)
+                << ", log id = " << cntl->log_id();
         return retcode;
     };
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);

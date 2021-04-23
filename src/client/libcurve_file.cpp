@@ -235,14 +235,17 @@ int FileClient::ReOpen(const std::string& filename,
 }
 
 int FileClient::Open4ReadOnly(const std::string& filename,
-    const UserInfo_t& userinfo) {
-
+                              const UserInfo_t& userinfo, bool disableStripe) {
     FileInstance* instance = FileInstance::Open4Readonly(
         clientconfig_.GetFileServiceOption(), mdsClient_, filename, userinfo);
 
     if (instance == nullptr) {
         LOG(ERROR) << "Open4Readonly failed, filename = " << filename;
         return -1;
+    }
+
+    if (disableStripe) {
+        instance->GetIOManager4File()->SetDisableStripe();
     }
 
     int fd = fdcount_.fetch_add(1, std::memory_order_relaxed);
@@ -428,6 +431,21 @@ int FileClient::Unlink(const std::string& filename,
     return -ret;
 }
 
+int FileClient::Recover(const std::string& filename,
+    const UserInfo_t& userinfo, uint64_t fileId) {
+    LIBCURVE_ERROR ret;
+    if (mdsClient_ != nullptr) {
+        ret = mdsClient_->RecoverFile(filename, userinfo, fileId);
+        LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
+            << "Recover failed, filename: " << filename
+            << ", ret: " << ret;
+    } else {
+        LOG(ERROR) << "global mds client not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    return -ret;
+}
+
 int FileClient::StatFile(const std::string& filename,
     const UserInfo_t& userinfo, FileStatInfo* finfo) {
     FInfo_t fi;
@@ -480,8 +498,16 @@ int FileClient::Mkdir(const std::string& dirpath, const UserInfo_t& userinfo) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->CreateFile(dirpath, userinfo, 0, false);
-        LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
-            << "Create file failed, filename: " << dirpath << ", ret: " << ret;
+        if (ret != LIBCURVE_ERROR::OK) {
+            if (ret == LIBCURVE_ERROR::EXISTS) {
+                LOG(WARNING) << "Create directory failed, " << dirpath
+                             << " already exists";
+            } else {
+                LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
+                    << "Create directory failed, dir: " << dirpath
+                    << ", ret: " << ret;
+            }
+        }
     } else {
         LOG(ERROR) << "global mds client not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -804,6 +830,18 @@ int DeleteForce(const char* filename, const C_UserInfo_t* userinfo) {
     return globalclient->Unlink(filename,
             UserInfo(userinfo->owner, userinfo->password),
             true);
+}
+
+int Recover(const char* filename, const C_UserInfo_t* userinfo,
+                                  uint64_t fileId) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    return globalclient->Recover(filename,
+            UserInfo(userinfo->owner, userinfo->password),
+            fileId);
 }
 
 DirInfo_t* OpenDir(const char* dirpath, const C_UserInfo_t* userinfo) {

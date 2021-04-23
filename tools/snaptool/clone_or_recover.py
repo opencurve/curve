@@ -17,7 +17,7 @@ def __check_ok():
 def __print_records(records):
     print('%d tasks list to be clean:' % len(records))
     for record in records:
-        print('UUID=%s, User=%s, Src=%s, Dest=%s' % (record['UUID'], record['User'], record['Src'], record['Dest']))
+        print('UUID=%s, User=%s, Src=%s, Dest=%s' % (record['UUID'], record['User'], record['Src'], record['File']))
 
 def __query_clone_or_recover_by(args, tasktype):
     status = None

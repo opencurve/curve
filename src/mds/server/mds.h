@@ -202,6 +202,8 @@ class MDS {
 
     void InitSnapshotCloneClient();
 
+    void InitThrottleOption(ThrottleOption* option);
+
  private:
     // mds configuration items
     std::shared_ptr<Configuration> conf_;

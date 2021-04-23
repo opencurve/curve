@@ -20,11 +20,11 @@
  * Author: xuchaojie
  */
 #include "src/mds/topology/topology.h"
-
 #include <glog/logging.h>
-#include <chrono>  //NOLINT
-
+#include "src/common/timeutility.h"
 #include "src/common/uuid.h"
+
+#include <chrono>  //NOLINT
 
 using ::curve::common::UUIDGenerator;
 
@@ -1091,6 +1091,28 @@ int TopologyImpl::UpdateCopySetTopo(const CopySetInfo &data) {
     }
 }
 
+int TopologyImpl::SetCopySetAvalFlag(const CopySetKey &key, bool aval) {
+    ReadLockGuard rlockCopySetMap(copySetMutex_);
+    auto it = copySetMap_.find(key);
+    if (it != copySetMap_.end()) {
+        WriteLockGuard wlockCopySet(it->second.GetRWLockRef());
+        auto copysetInfo = it->second;
+        copysetInfo.SetAvailableFlag(aval);
+        bool ret = storage_->UpdateCopySet(copysetInfo);
+        if (!ret) {
+            LOG(ERROR) << "UpdateCopySet met storage error";
+            return kTopoErrCodeStorgeFail;
+        }
+        it->second.SetAvailableFlag(aval);
+        return kTopoErrCodeSuccess;
+    } else {
+        LOG(WARNING) << "SetCopySetAvalFlag can not find copyset, "
+                     << "logicalPoolId = " << key.first
+                     << ", copysetId = " << key.second;
+        return kTopoErrCodeCopySetNotFound;
+    }
+}
+
 bool TopologyImpl::GetCopySet(CopySetKey key, CopySetInfo *out) const {
     ReadLockGuard rlockCopySetMap(copySetMutex_);
     auto it = copySetMap_.find(key);
@@ -1181,22 +1203,20 @@ void TopologyImpl::BackEndFunc() {
 }
 
 void TopologyImpl::FlushCopySetToStorage() {
-    std::vector<CopySetInfo> toUpdate;
-    {
+    std::vector<PoolIdType> pools = GetLogicalPoolInCluster();
+    for (const auto poolId : pools) {
         ReadLockGuard rlockCopySetMap(copySetMutex_);
         for (auto &c : copySetMap_) {
-            // we only update DirtyFlag here, thus only read lock is needed
-            ReadLockGuard rlockCopySet(c.second.GetRWLockRef());
-            if (c.second.GetDirtyFlag()) {
+            WriteLockGuard wlockCopySet(c.second.GetRWLockRef());
+            if (c.second.GetDirtyFlag() &&
+                        c.second.GetLogicalPoolId() == poolId) {
                 c.second.SetDirtyFlag(false);
-                toUpdate.push_back(c.second);
+                if (!storage_->UpdateCopySet(c.second)) {
+                    LOG(WARNING) << "update copyset("
+                                 << c.second.GetLogicalPoolId()
+                                 << "," << c.second.GetId() << ") to repo fail";
+                }
             }
-        }
-    }
-    for (auto &v : toUpdate) {
-        if (!storage_->UpdateCopySet(v)) {
-            LOG(WARNING) << "update copyset{" << v.GetLogicalPoolId()
-                         << "," << v.GetId() << "} to repo fail";
         }
     }
 }

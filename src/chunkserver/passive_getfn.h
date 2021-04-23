@@ -26,6 +26,7 @@
 #include "src/chunkserver/trash.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/datastore/file_pool.h"
+#include "src/chunkserver/raftlog/curve_segment_log_storage.h"
 
 namespace curve {
 namespace chunkserver {
@@ -35,6 +36,11 @@ namespace chunkserver {
      * @param arg: datastore's object pointer
      */
     uint32_t GetDatastoreChunkCountFunc(void* arg);
+    /**
+     * @brief: Get the number of WAL segment in CurveSegmentLogStorage
+     * @param arg: The pointer to CurveSegmentLogStorage
+     */
+    uint32_t GetLogStorageWalSegmentCountFunc(void* arg);
     /**
      * Get the number of snapshot chunks in the datastore
      * @param arg: datastore's object pointer
@@ -50,6 +56,12 @@ namespace chunkserver {
      * @param arg: nullptr
      */
     uint32_t GetTotalChunkCountFunc(void* arg);
+    /**
+     * @brief: Get the total number of WAL segment in chunkserver
+     * @param arg: The pointer to ChunkServerMetric
+     */
+    uint32_t GetTotalWalSegmentCountFunc(void* arg);
+
     /**
      * Get the number of snapshot chunks on the chunkserver
      * @param arg: nullptr

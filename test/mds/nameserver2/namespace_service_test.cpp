@@ -95,6 +95,9 @@ class NameSpaceServiceTest : public ::testing::Test {
         authOptions.rootPassword = "root_password";
 
         curveFSOptions.defaultChunkSize = 16 * kMB;
+        curveFSOptions.defaultSegmentSize = 1 * kGB;
+        curveFSOptions.minFileLength = 10 * kGB;
+        curveFSOptions.maxFileLength = 20 * kTB;
         curveFSOptions.fileRecordOptions = fileRecordOptions;
         curveFSOptions.authOptions = authOptions;
 
@@ -104,6 +107,15 @@ class NameSpaceServiceTest : public ::testing::Test {
                         allocStatistic_,
                         curveFSOptions, topology_,
                         nullptr);
+
+        ASSERT_EQ(curveFSOptions.defaultChunkSize,
+                       kCurveFS.GetDefaultChunkSize());
+        ASSERT_EQ(curveFSOptions.defaultSegmentSize,
+                       kCurveFS.GetDefaultSegmentSize());
+        ASSERT_EQ(curveFSOptions.minFileLength, kCurveFS.GetMinFileLength());
+        ASSERT_EQ(curveFSOptions.maxFileLength, kCurveFS.GetMaxFileLength());
+        DefaultSegmentSize = kCurveFS.GetDefaultSegmentSize();
+        kMiniFileLength = kCurveFS.GetMinFileLength();
         kCurveFS.Run();
 
         std::this_thread::sleep_for(std::chrono::microseconds(
@@ -132,6 +144,8 @@ class NameSpaceServiceTest : public ::testing::Test {
     struct FileRecordOptions fileRecordOptions;
     struct RootAuthOption authOptions;
     struct CurveFSOption curveFSOptions;
+    uint64_t DefaultSegmentSize;
+    uint64_t kMiniFileLength;
 };
 
 TEST_F(NameSpaceServiceTest, test1) {
@@ -2041,6 +2055,615 @@ TEST_F(NameSpaceServiceTest, ListVolumesOnCopysets) {
     ASSERT_FALSE(cntl.Failed());
     ASSERT_EQ(StatusCode::kOK, response.statuscode());
     ASSERT_EQ(0, response.filenames_size());
+}
+
+TEST_F(NameSpaceServiceTest, testRecoverFile) {
+    brpc::Server server;
+
+    // start server
+    NameSpaceService namespaceService(new FileLockManager(8));
+    ASSERT_EQ(server.AddService(&namespaceService,
+            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+
+    brpc::ServerOptions option;
+    option.idle_timeout_sec = -1;
+    ASSERT_EQ(0, server.Start("127.0.0.1", {8900, 8999}, &option));
+
+    // init client
+    brpc::Channel channel;
+    ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
+
+    CurveFSService_Stub stub(&channel);
+
+    // create file /file1，dir /dir1 and file /dir1/file2
+    CreateFileRequest createRequest;
+    CreateFileResponse createResponse;
+    brpc::Controller cntl;
+    uint64_t fileLength = kMiniFileLength;
+    createRequest.set_filename("/file1");
+    createRequest.set_owner("owner");
+    createRequest.set_date(TimeUtility::GetTimeofDayUs());
+    createRequest.set_filetype(INODE_PAGEFILE);
+    createRequest.set_filelength(fileLength);
+    stub.CreateFile(&cntl,  &createRequest, &createResponse,  NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(createResponse.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    createRequest.set_filename("/dir1");
+    createRequest.set_owner("owner");
+    createRequest.set_date(TimeUtility::GetTimeofDayUs());
+    createRequest.set_filetype(INODE_DIRECTORY);
+    createRequest.set_filelength(0);
+    stub.CreateFile(&cntl, &createRequest, &createResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(createResponse.statuscode(), StatusCode::kOK);
+    } else {
+        FAIL();
+    }
+
+    cntl.Reset();
+    createRequest.set_filename("/dir1/file2");
+    createRequest.set_owner("owner");
+    createRequest.set_date(TimeUtility::GetTimeofDayUs());
+    createRequest.set_filetype(INODE_PAGEFILE);
+    createRequest.set_filelength(fileLength);
+    stub.CreateFile(&cntl, &createRequest, &createResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(createResponse.statuscode(), StatusCode::kOK);
+    } else {
+        FAIL();
+    }
+
+    // check file status, /file1，/dir1，/dir1/file2
+    cntl.Reset();
+    GetFileInfoRequest getRequest;
+    GetFileInfoResponse getResponse;
+    getRequest.set_filename("/file1");
+    getRequest.set_owner("owner");
+    getRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.GetFileInfo(&cntl, &getRequest, &getResponse, NULL);
+    if (!cntl.Failed()) {
+        FileInfo  file = getResponse.fileinfo();
+        ASSERT_EQ(getResponse.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(file.id(), 1);
+        ASSERT_EQ(file.filename(), "file1");
+        ASSERT_EQ(file.parentid(), 0);
+        ASSERT_EQ(file.filetype(), INODE_PAGEFILE);
+        ASSERT_EQ(file.chunksize(), curveFSOptions.defaultChunkSize);
+        ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
+        ASSERT_EQ(file.length(), fileLength);
+        ASSERT_EQ(file.seqnum(), 1);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    getRequest.set_filename("/dir1");
+    getRequest.set_owner("owner");
+    getRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.GetFileInfo(&cntl, &getRequest, &getResponse, NULL);
+    if (!cntl.Failed()) {
+        FileInfo  file = getResponse.fileinfo();
+        ASSERT_EQ(getResponse.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(file.id(), 2);
+        ASSERT_EQ(file.filename(), "dir1");
+        ASSERT_EQ(file.parentid(), 0);
+        ASSERT_EQ(file.filetype(), INODE_DIRECTORY);
+        ASSERT_EQ(file.seqnum(), 1);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    getRequest.set_filename("/dir1/file2");
+    getRequest.set_owner("owner");
+    getRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.GetFileInfo(&cntl, &getRequest, &getResponse, NULL);
+    if (!cntl.Failed()) {
+        FileInfo file = getResponse.fileinfo();
+        ASSERT_EQ(getResponse.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(file.id(), 3);
+        ASSERT_EQ(file.filename(), "file2");
+        ASSERT_EQ(file.filetype(), INODE_PAGEFILE);
+        ASSERT_EQ(file.chunksize(), curveFSOptions.defaultChunkSize);
+        ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
+        ASSERT_EQ(file.length(), fileLength);
+        ASSERT_EQ(file.seqnum(), 1);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // /dir1/file2 apply segment
+    GetOrAllocateSegmentRequest allocRequest;
+    GetOrAllocateSegmentResponse allocResponse;
+    for (int i = 0; i < 10; i++) {
+        cntl.Reset();
+        allocRequest.set_filename("/dir1/file2");
+        allocRequest.set_owner("owner");
+        allocRequest.set_date(TimeUtility::GetTimeofDayUs());
+        allocRequest.set_offset(DefaultSegmentSize * i);
+        allocRequest.set_allocateifnotexist(true);
+        stub.GetOrAllocateSegment(&cntl, &allocRequest, &allocResponse, NULL);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(allocResponse.statuscode(),
+                                        StatusCode::kOK);
+        } else {
+            ASSERT_TRUE(false);
+        }
+    }
+
+    // recover file successfully
+    // 1. delete file /dir1/file2
+    cntl.Reset();
+    DeleteFileRequest deleteRequest;
+    DeleteFileResponse deleteResponse;
+    deleteRequest.set_filename("/dir1/file2");
+    deleteRequest.set_owner("owner");
+    deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.DeleteFile(&cntl, &deleteRequest, &deleteResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // 2. check the RecycleBIn
+    cntl.Reset();
+    ListDirRequest listRequest;
+    ListDirResponse listResponse;
+    uint64_t date = TimeUtility::GetTimeofDayUs();
+    std::string str2sig = Authenticator::GetString2Signature(date,
+                                            authOptions.rootOwner);
+    std::string sig = Authenticator::CalcString2Signature(str2sig,
+                                            authOptions.rootPassword);
+    listRequest.set_signature(sig);
+    listRequest.set_filename(RECYCLEBINDIR);
+    listRequest.set_owner(authOptions.rootOwner);
+    listRequest.set_date(date);
+    stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
+        FileInfo file = listResponse.fileinfo(0);
+        ASSERT_EQ(file.filename(), "file2-3");
+        ASSERT_EQ(file.owner(), "owner");
+        ASSERT_EQ(file.originalfullpathname(), "/dir1/file2");
+        ASSERT_EQ(file.filestatus(), FileStatus::kFileCreated);
+        ASSERT_EQ(listResponse.fileinfo_size(), 1);
+        } else {
+        ASSERT_TRUE(false);
+    }
+
+    // 3. recover file
+    cntl.Reset();
+    RecoverFileRequest recoverRequest;
+    RecoverFileResponse recoverRresponse;
+    recoverRequest.set_filename("/dir1/file2");
+    recoverRequest.set_owner("owner");
+    recoverRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.RecoverFile(&cntl, &recoverRequest, &recoverRresponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(recoverRresponse.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // 4. check the file recovered successfully
+    cntl.Reset();
+    date = TimeUtility::GetTimeofDayUs();
+    listRequest.set_filename("/dir1");
+    listRequest.set_owner("owner");
+    listRequest.set_date(date);
+    stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
+        FileInfo file = listResponse.fileinfo(0);
+        ASSERT_EQ(file.filename(), "file2");
+        ASSERT_EQ(file.filestatus(), FileStatus::kFileCreated);
+        ASSERT_EQ(listResponse.fileinfo_size(), 1);
+        } else {
+        ASSERT_TRUE(false);
+    }
+
+    // the same file exit, recover fail
+    // 1. delete file /dir1/file2
+    cntl.Reset();
+    deleteRequest.set_filename("/dir1/file2");
+    deleteRequest.set_owner("owner");
+    deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.DeleteFile(&cntl, &deleteRequest, &deleteResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // 2. make the file /dir1/file2
+    cntl.Reset();
+    createRequest.set_filename("/dir1/file2");
+    createRequest.set_owner("owner");
+    createRequest.set_date(TimeUtility::GetTimeofDayUs());
+    createRequest.set_filetype(INODE_PAGEFILE);
+    createRequest.set_filelength(fileLength);
+    stub.CreateFile(&cntl, &createRequest, &createResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(createResponse.statuscode(), StatusCode::kOK);
+    } else {
+        FAIL();
+    }
+
+    // 3. recover file /dir1/file2
+    cntl.Reset();
+    recoverRequest.set_filename("/dir1/file2");
+    recoverRequest.set_owner("owner");
+    recoverRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.RecoverFile(&cntl, &recoverRequest, &recoverRresponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(recoverRresponse.statuscode(), StatusCode::kFileExists);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // delete the files with same name and recover the new one
+    // 1. delete file /dir1/file2
+    cntl.Reset();
+    deleteRequest.set_filename("/dir1/file2");
+    deleteRequest.set_owner("owner");
+    deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.DeleteFile(&cntl, &deleteRequest, &deleteResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // 2. recover the file /dir1/file2
+    cntl.Reset();
+    recoverRequest.set_filename("/dir1/file2");
+    recoverRequest.set_owner("owner");
+    recoverRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.RecoverFile(&cntl, &recoverRequest, &recoverRresponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(recoverRresponse.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // 3. check the ctime of recovered file is greater than the other in recyclebin //NOLINT
+    FileInfo recycleFile;
+    cntl.Reset();
+    date = TimeUtility::GetTimeofDayUs();
+    str2sig = Authenticator::GetString2Signature(date,
+                                            authOptions.rootOwner);
+    sig = Authenticator::CalcString2Signature(str2sig,
+                                            authOptions.rootPassword);
+    listRequest.set_signature(sig);
+    listRequest.set_filename(RECYCLEBINDIR);
+    listRequest.set_owner(authOptions.rootOwner);
+    listRequest.set_date(date);
+    stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
+        recycleFile = listResponse.fileinfo(0);
+        ASSERT_EQ(recycleFile.owner(), "owner");
+        ASSERT_EQ(recycleFile.originalfullpathname(), "/dir1/file2");
+        ASSERT_EQ(listResponse.fileinfo_size(), 1);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    date = TimeUtility::GetTimeofDayUs();
+    listRequest.set_filename("/dir1");
+    listRequest.set_owner("owner");
+    listRequest.set_date(date);
+    stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(listResponse.fileinfo_size(), 1);
+        FileInfo file = listResponse.fileinfo(0);
+        ASSERT_EQ(file.filename(), "file2");
+        ASSERT_EQ(file.id(), 4);
+        ASSERT_GT(file.ctime(), recycleFile.ctime());
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // delete the files by fileId
+    // 1. delete file /dir1/file2(id=4)
+    cntl.Reset();
+    deleteRequest.set_filename("/dir1/file2");
+    deleteRequest.set_owner("owner");
+    deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.DeleteFile(&cntl, &deleteRequest, &deleteResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // 2. recover the file /dir1/file2(id=3)
+    cntl.Reset();
+    recoverRequest.set_filename("/dir1/file2");
+    recoverRequest.set_owner("owner");
+    recoverRequest.set_date(TimeUtility::GetTimeofDayUs());
+    recoverRequest.set_fileid(3);
+    stub.RecoverFile(&cntl, &recoverRequest, &recoverRresponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(recoverRresponse.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // 3. check the fileId of recovered file 3 and not recovered is 4
+    cntl.Reset();
+    date = TimeUtility::GetTimeofDayUs();
+    str2sig = Authenticator::GetString2Signature(date,
+                                            authOptions.rootOwner);
+    sig = Authenticator::CalcString2Signature(str2sig,
+                                            authOptions.rootPassword);
+    listRequest.set_signature(sig);
+    listRequest.set_filename(RECYCLEBINDIR);
+    listRequest.set_owner(authOptions.rootOwner);
+    listRequest.set_date(date);
+    stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
+        recycleFile = listResponse.fileinfo(0);
+        ASSERT_EQ(recycleFile.owner(), "owner");
+        ASSERT_EQ(recycleFile.originalfullpathname(), "/dir1/file2");
+        ASSERT_EQ(recycleFile.id(), 4);
+        ASSERT_EQ(listResponse.fileinfo_size(), 1);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    date = TimeUtility::GetTimeofDayUs();
+    listRequest.set_filename("/dir1");
+    listRequest.set_owner("owner");
+    listRequest.set_date(date);
+    stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(listResponse.fileinfo_size(), 1);
+        FileInfo file = listResponse.fileinfo(0);
+        ASSERT_EQ(file.filename(), "file2");
+        ASSERT_EQ(file.id(), 3);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // recover file which upper dir not exist
+    // 1. delete file /dir1/file2
+    cntl.Reset();
+    deleteRequest.set_filename("/dir1/file2");
+    deleteRequest.set_owner("owner");
+    deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.DeleteFile(&cntl, &deleteRequest, &deleteResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // 2. delete dir /dir1
+    cntl.Reset();
+    deleteRequest.set_filename("/dir1");
+    deleteRequest.set_owner("owner");
+    deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.DeleteFile(&cntl, &deleteRequest, &deleteResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // 3. recover file /dir1/file2
+    cntl.Reset();
+    recoverRequest.set_filename("/dir1/file2");
+    recoverRequest.set_owner("owner");
+    recoverRequest.set_fileid(0);
+    recoverRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.RecoverFile(&cntl, &recoverRequest, &recoverRresponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(recoverRresponse.statuscode(), StatusCode::kFileNotExists);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // recover file not exist in recyclebin
+    cntl.Reset();
+    recoverRequest.set_filename("/file3");
+    recoverRequest.set_owner("owner");
+    recoverRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.RecoverFile(&cntl, &recoverRequest, &recoverRresponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(recoverRresponse.statuscode(), StatusCode::kFileNotExists);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // recover filename is invalid
+    cntl.Reset();
+    recoverRequest.set_filename("//file1");
+    recoverRequest.set_owner("owner");
+    recoverRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.RecoverFile(&cntl, &recoverRequest, &recoverRresponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(recoverRresponse.statuscode(), StatusCode::kParaError);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // recover file in cloneMetaInstalled status
+    // 1. create clone file /file3
+    CreateCloneFileRequest createCloneRequest;
+    CreateCloneFileResponse createCloneResponse;
+    createCloneRequest.set_filename("/file3");
+    createCloneRequest.set_filetype(FileType::INODE_PAGEFILE);
+    createCloneRequest.set_filelength(kMiniFileLength);
+    createCloneRequest.set_seq(10);
+    createCloneRequest.set_chunksize(curveFSOptions.defaultChunkSize);
+    createCloneRequest.set_date(TimeUtility::GetTimeofDayUs());
+    createCloneRequest.set_owner("owner");
+    createCloneRequest.set_clonesource("/sourcefile1");
+    cntl.Reset();
+    stub.CreateCloneFile(&cntl, &createCloneRequest,
+                         &createCloneResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(createCloneResponse.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // 2. set the filestatus
+    SetCloneFileStatusRequest setRequest;
+    SetCloneFileStatusResponse setResponse;
+    cntl.Reset();
+    setRequest.set_filename("/file3");
+    setRequest.set_owner("owner");
+    setRequest.set_date(TimeUtility::GetTimeofDayUs());
+    setRequest.set_filestatus(FileStatus::kFileCloneMetaInstalled);
+    stub.SetCloneFileStatus(&cntl, &setRequest, &setResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(setResponse.statuscode(), StatusCode::kOK);
+    } else {
+        FAIL();
+    }
+
+    // 3. delete the file /file3
+    cntl.Reset();
+    deleteRequest.set_filename("/file3");
+    deleteRequest.set_owner("owner");
+    deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.DeleteFile(&cntl, &deleteRequest, &deleteResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // 4. recover file
+    cntl.Reset();
+    recoverRequest.set_filename("/file3");
+    recoverRequest.set_owner("owner");
+    recoverRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.RecoverFile(&cntl, &recoverRequest, &recoverRresponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(recoverRresponse.statuscode(),
+        StatusCode::kRecoverFileCloneMetaInstalled);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // recover file in cloning status
+    // 1. create clone file /file4
+    createCloneRequest.set_filename("/file4");
+    createCloneRequest.set_filetype(FileType::INODE_PAGEFILE);
+    createCloneRequest.set_filelength(kMiniFileLength);
+    createCloneRequest.set_seq(10);
+    createCloneRequest.set_chunksize(curveFSOptions.defaultChunkSize);
+    createCloneRequest.set_date(TimeUtility::GetTimeofDayUs());
+    createCloneRequest.set_owner("owner");
+    createCloneRequest.set_clonesource("/sourcefile1");
+    cntl.Reset();
+    stub.CreateCloneFile(&cntl, &createCloneRequest,
+                         &createCloneResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(createCloneResponse.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // 2. set the filestatus
+    cntl.Reset();
+    setRequest.set_filename("/file4");
+    setRequest.set_owner("owner");
+    setRequest.set_date(TimeUtility::GetTimeofDayUs());
+    setRequest.set_filestatus(FileStatus::kFileCloning);
+    stub.SetCloneFileStatus(&cntl, &setRequest, &setResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(setResponse.statuscode(), StatusCode::kOK);
+    } else {
+        FAIL();
+    }
+
+    // 3. delete the file /file4
+    cntl.Reset();
+    deleteRequest.set_filename("/file4");
+    deleteRequest.set_owner("owner");
+    deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.DeleteFile(&cntl, &deleteRequest, &deleteResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // 4. recover file
+    cntl.Reset();
+    recoverRequest.set_filename("/file4");
+    recoverRequest.set_owner("owner");
+    recoverRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.RecoverFile(&cntl, &recoverRequest, &recoverRresponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(recoverRresponse.statuscode(),
+        StatusCode::kRecoverFileError);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // recover file with mismatch inodeid
+    // 1. delete file /file1
+    cntl.Reset();
+    deleteRequest.set_filename("/file1");
+    deleteRequest.set_owner("owner");
+    deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.DeleteFile(&cntl, &deleteRequest, &deleteResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // 2. recover file with mismatch inodeid
+    cntl.Reset();
+    recoverRequest.set_filename("/file1");
+    recoverRequest.set_owner("owner");
+    recoverRequest.set_fileid(1000);
+    recoverRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.RecoverFile(&cntl, &recoverRequest, &recoverRresponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(recoverRresponse.statuscode(), StatusCode::kFileIdNotMatch);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    server.Stop(10);
+    server.Join();
 }
 
 }  // namespace mds

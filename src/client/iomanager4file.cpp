@@ -40,6 +40,7 @@ bool IOManager4File::Initialize(const std::string& filename,
                                 const IOOption& ioOpt,
                                 MDSClient* mdsclient) {
     ioopt_ = ioOpt;
+    disableStripe_ = false;
 
     mc_.Init(ioopt_.metaCacheOpt, mdsclient);
     Splitor::Init(ioopt_.ioSplitOpt);
@@ -71,6 +72,10 @@ bool IOManager4File::Initialize(const std::string& filename,
     }
     scheduler_->Run();
 
+    if (ioopt_.throttleOption.enable) {
+        throttle_.reset(new common::Throttle());
+    }
+
     ret = taskPool_.Start(ioopt_.taskThreadOpt.isolationTaskThreadPoolSize,
                           ioopt_.taskThreadOpt.isolationTaskQueueCapacity);
     if (ret != 0) {
@@ -87,6 +92,11 @@ bool IOManager4File::Initialize(const std::string& filename,
 }
 
 void IOManager4File::UnInitialize() {
+    // stop throttle first
+    if (throttle_) {
+        throttle_->Stop();
+    }
+
     bool exitFlag = false;
     std::mutex exitMtx;
     std::condition_variable exitCv;
@@ -131,9 +141,10 @@ int IOManager4File::Read(char* buf, off_t offset,
 
     butil::IOBuf data;
 
-    IOTracker temp(this, &mc_, scheduler_, fileMetric_);
+    IOTracker temp(this, &mc_, scheduler_, fileMetric_, disableStripe_);
     temp.SetUserDataType(UserDataType::IOBuffer);
-    temp.StartRead(&data, offset, length, mdsclient, this->GetFileInfo());
+    temp.StartRead(&data, offset, length, mdsclient, this->GetFileInfo(),
+                   throttle_.get());
 
     int rc = temp.Wait();
 
@@ -155,9 +166,10 @@ int IOManager4File::Write(const char* buf,
     butil::IOBuf data;
     data.append_user_data(const_cast<char*>(buf), length, TrivialDeleter);
 
-    IOTracker temp(this, &mc_, scheduler_, fileMetric_);
+    IOTracker temp(this, &mc_, scheduler_, fileMetric_, disableStripe_);
     temp.SetUserDataType(UserDataType::IOBuffer);
-    temp.StartWrite(&data, offset, length, mdsclient, this->GetFileInfo());
+    temp.StartWrite(&data, offset, length, mdsclient, this->GetFileInfo(),
+                    throttle_.get());
 
     int rc = temp.Wait();
     return rc;
@@ -167,8 +179,8 @@ int IOManager4File::AioRead(CurveAioContext* ctx, MDSClient* mdsclient,
                             UserDataType dataType) {
     MetricHelper::IncremUserRPSCount(fileMetric_, OpType::READ);
 
-    IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_,
-                                                   scheduler_, fileMetric_);
+    IOTracker* temp = new (std::nothrow)
+        IOTracker(this, &mc_, scheduler_, fileMetric_, disableStripe_);
     if (temp == nullptr) {
         ctx->ret = -LIBCURVE_ERROR::FAILED;
         ctx->cb(ctx);
@@ -179,7 +191,8 @@ int IOManager4File::AioRead(CurveAioContext* ctx, MDSClient* mdsclient,
     temp->SetUserDataType(dataType);
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
-        temp->StartAioRead(ctx, mdsclient, this->GetFileInfo());
+        temp->StartAioRead(ctx, mdsclient, this->GetFileInfo(),
+                           throttle_.get());
     };
 
     taskPool_.Enqueue(task);
@@ -190,8 +203,8 @@ int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
                              UserDataType dataType) {
     MetricHelper::IncremUserRPSCount(fileMetric_, OpType::WRITE);
 
-    IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_,
-                                                   scheduler_, fileMetric_);
+    IOTracker* temp = new (std::nothrow)
+        IOTracker(this, &mc_, scheduler_, fileMetric_, disableStripe_);
     if (temp == nullptr) {
         ctx->ret = -LIBCURVE_ERROR::FAILED;
         ctx->cb(ctx);
@@ -202,7 +215,8 @@ int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
     temp->SetUserDataType(dataType);
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
-        temp->StartAioWrite(ctx, mdsclient, this->GetFileInfo());
+        temp->StartAioWrite(ctx, mdsclient, this->GetFileInfo(),
+                            throttle_.get());
     };
 
     taskPool_.Enqueue(task);
@@ -211,6 +225,17 @@ int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
 
 void IOManager4File::UpdateFileInfo(const FInfo_t& fi) {
     mc_.UpdateFileInfo(fi);
+}
+
+void IOManager4File::UpdateFileThrottleParams(
+    const common::ReadWriteThrottleParams& params) {
+    if (throttle_) {
+        throttle_->UpdateThrottleParams(params);
+    }
+}
+
+void IOManager4File::SetDisableStripe() {
+    disableStripe_ = true;
 }
 
 void IOManager4File::HandleAsyncIOResponse(IOTracker* iotracker) {

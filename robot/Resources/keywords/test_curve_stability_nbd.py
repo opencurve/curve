@@ -26,12 +26,19 @@ class NbdThrash:
         self.check_md5 = ""
 
     def nbd_create(self,vol_size):
-        cmd = "curve create --filename /%s --length %s --user test"%(self.name,vol_size)
+        stripeUnit = [524288,1048576,2097152,4194304]
+        stripeCount = [1,2,4,8,16]
+        unit = random.choice(stripeUnit)
+        count = random.choice(stripeCount)
+        cmd = "curve create --filename /%s --length %s --user test --stripeUnit %d  --stripeCount %d"%(self.name,vol_size,unit,count)
         rs = shell_operator.ssh_exec(self.ssh, cmd)
         assert rs[3] == 0,"create nbd fail：%s"%rs[1]
 
-    def nbd_map(self):
-        cmd = "sudo curve-nbd map cbd:pool1//%s_%s_ >/dev/null 2>&1"%(self.name,self.user)
+    def nbd_map(self,dev=None):
+        if dev:
+            cmd = "sudo curve-nbd map cbd:pool1//%s_%s_ --device /dev/%s  >> /data/log/curve/curve-nbd.console.log 2>&1"%(self.name,self.user,dev)
+        else:
+            cmd = "sudo curve-nbd map cbd:pool1//%s_%s_   >> /data/log/curve/curve-nbd.console.log 2>&1"%(self.name,self.user)
         rs = shell_operator.ssh_exec(self.ssh, cmd)
         assert rs[3] == 0,"map nbd fail：%s"%rs[1]
     
@@ -403,6 +410,7 @@ def init_nbd_vol(check_md5=True,lazy="True"):
         thrash = NbdThrash(ssh,name)
         vol_size = 10 #GB
         thrash.nbd_create(vol_size)
+#        nbd_dev = "nbd3"
         thrash.nbd_map()
         time.sleep(5)
         thrash.nbd_getdev()

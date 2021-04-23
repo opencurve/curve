@@ -30,6 +30,7 @@
 #include <condition_variable>  // NOLINT
 #include <mutex>               // NOLINT
 #include <string>
+#include <memory>
 
 #include "include/curve_compiler_specific.h"
 #include "src/client/client_common.h"
@@ -40,6 +41,7 @@
 #include "src/client/request_scheduler.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/task_thread_pool.h"
+#include "src/common/throttle.h"
 
 namespace curve {
 namespace client {
@@ -183,6 +185,11 @@ class IOManager4File : public IOManager {
         return mc_.InodeId();
     }
 
+    void UpdateFileThrottleParams(
+        const common::ReadWriteThrottleParams& params);
+
+    void SetDisableStripe();
+
  private:
     friend class LeaseExecutor;
     friend class FlightIOGuard;
@@ -248,6 +255,8 @@ class IOManager4File : public IOManager {
     // inflight rpc控制
     InflightControl inflightRpcCntl_;
 
+    std::unique_ptr<common::Throttle> throttle_;
+
     // 是否退出
     bool exit_;
 
@@ -261,6 +270,12 @@ class IOManager4File : public IOManager {
     // 不会有并发的情况，保证在资源被析构的时候lease续约
     // 线程不会再用到这些资源.
     std::mutex exitMtx_;
+
+    // enable/disable stripe for read/write of stripe file
+    // currently only one scenario set this field to true:
+    // chunkserver use client to read clone source file,
+    // because client's IO requests already transformed by stripe parameters
+    bool disableStripe_;
 };
 
 }  // namespace client

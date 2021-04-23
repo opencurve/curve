@@ -108,17 +108,19 @@ int CopysetCheck::RunCommand(const std::string& command) {
 }
 
 int CopysetCheck::CheckCopyset() {
-    int res = core_->CheckOneCopyset(FLAGS_logicalPoolId, FLAGS_copysetId);
-    if (res == 0) {
+    auto res = core_->CheckOneCopyset(FLAGS_logicalPoolId, FLAGS_copysetId);
+    int ret = 0;
+    if (res == CheckResult::kHealthy) {
         std::cout << "Copyset is healthy!" << std::endl;
     } else {
+        ret = -1;
         std::cout << "Copyset is not healthy!" << std::endl;
     }
     if (FLAGS_detail) {
         std::cout << core_->GetCopysetDetail() << std::endl;
         PrintExcepChunkservers();
     }
-    return res;
+    return ret;
 }
 
 int CopysetCheck::CheckChunkServer() {

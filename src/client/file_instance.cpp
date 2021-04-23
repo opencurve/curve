@@ -139,6 +139,7 @@ int FileInstance::Open(const std::string& filename,
 
     ret = mdsclient_->OpenFile(filename, finfo_.userinfo, &finfo_, &lease);
     if (ret == LIBCURVE_ERROR::OK) {
+        iomanager4file_.UpdateFileThrottleParams(finfo_.throttleParams);
         ret = leaseExecutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
                                                    : LIBCURVE_ERROR::FAILED;
         if (nullptr != sessionId) {

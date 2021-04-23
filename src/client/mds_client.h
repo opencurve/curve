@@ -160,6 +160,17 @@ class MDSClient {
                               const UserInfo_t& userinfo,
                               bool deleteforce = false,
                               uint64_t id = 0);
+
+    /**
+     * recover file
+     * @param: userinfo
+     * @param: filename
+     * @param: fileId is inodeid，default 0
+     */
+    LIBCURVE_ERROR RecoverFile(const std::string& filename,
+                              const UserInfo_t& userinfo,
+                              uint64_t fileId);
+
     /**
      * 创建版本号为seq的快照
      * @param: userinfo是用户信息
@@ -261,6 +272,8 @@ class MDSClient {
      * @param:size 文件大小
      * @param:sn 版本号
      * @param:chunksize是创建文件的chunk大小
+     * @param stripeUnit stripe size
+     * @param stripeCount stripe count
      * @param[out] destFileId 创建的目标文件的Id
      *
      * @return 错误码
@@ -271,6 +284,8 @@ class MDSClient {
                                    uint64_t size,
                                    uint64_t sn,
                                    uint32_t chunksize,
+                                   uint64_t stripeUnit,
+                                   uint64_t stripeCount,
                                    FInfo* fileinfo);
 
     /**

@@ -215,6 +215,13 @@ void CSCopysetMetric::MonitorDataStore(CSDataStore* datastore) {
         cloneChunkCountPrefix, GetDatastoreCloneChunkCountFunc, datastore);
 }
 
+void CSCopysetMetric::MonitorCurveSegmentLogStorage(
+    CurveSegmentLogStorage* logStorage) {
+    std::string walSegmentCountPrefix = Prefix() + "_walsegment_count";
+    walSegmentCount_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
+        walSegmentCountPrefix, GetLogStorageWalSegmentCountFunc, logStorage);
+}
+
 ChunkServerMetric::ChunkServerMetric()
     : hasInited_(false)
     , leaderCount_(nullptr)
@@ -223,7 +230,8 @@ ChunkServerMetric::ChunkServerMetric()
     , chunkTrashed_(nullptr)
     , chunkCount_(nullptr)
     , snapshotCount_(nullptr)
-    , cloneChunkCount_(nullptr) {}
+    , cloneChunkCount_(nullptr)
+    , walSegmentCount_(nullptr) {}
 
 ChunkServerMetric* ChunkServerMetric::self_ = nullptr;
 
@@ -265,6 +273,10 @@ int ChunkServerMetric::Init(const ChunkServerMetricOptions& option) {
     chunkCount_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
         chunkCountPrefix, GetTotalChunkCountFunc, this);
 
+    std::string walSegmentCountPrefix = Prefix() + "_walsegment_count";
+    walSegmentCount_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
+        walSegmentCountPrefix, GetTotalWalSegmentCountFunc, this);
+
     std::string snapshotCountPrefix = Prefix() + "_snapshot_count";
     snapshotCount_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
         snapshotCountPrefix, GetTotalSnapshotCountFunc, this);
@@ -288,6 +300,7 @@ int ChunkServerMetric::Fini() {
     chunkCount_ = nullptr;
     snapshotCount_ = nullptr;
     cloneChunkCount_ = nullptr;
+    walSegmentCount_ = nullptr;
     copysetMetricMap_.Clear();
     hasInited_ = false;
     return 0;

@@ -33,6 +33,7 @@
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
+#include "src/common/math_util.h"
 
 using curve::common::TimeUtility;
 using curve::mds::topology::LogicalPool;
@@ -101,8 +102,11 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
     allocStatistic_ = allocStatistic;
     fileRecordManager_ = fileRecordManager;
     rootAuthOptions_ = curveFSOptions.authOptions;
-
+    throttleOption_ = curveFSOptions.throttleOption;
     defaultChunkSize_ = curveFSOptions.defaultChunkSize;
+    defaultSegmentSize_ = curveFSOptions.defaultSegmentSize;
+    minFileLength_ = curveFSOptions.minFileLength;
+    maxFileLength_ = curveFSOptions.maxFileLength;
     topology_ = topology;
     snapshotCloneClient_ = snapshotCloneClient;
 
@@ -225,24 +229,24 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
 
     // check param
     if (filetype == FileType::INODE_PAGEFILE) {
-        if  (length < kMiniFileLength) {
-            LOG(ERROR) << "file Length < MinFileLength " << kMiniFileLength
+        if  (length < minFileLength_) {
+            LOG(ERROR) << "file Length < MinFileLength " << minFileLength_
                        << ", length = " << length;
             return StatusCode::kFileLengthNotSupported;
         }
 
-        if (length > kMaxFileLength) {
+        if (length > maxFileLength_) {
             LOG(ERROR) << "CreateFile file length > maxFileLength, fileName = "
                        << fileName << ", length = " << length
-                       << ", maxFileLength = " << kMaxFileLength;
+                       << ", maxFileLength = " << maxFileLength_;
             return StatusCode::kFileLengthNotSupported;
         }
 
-        if (length % DefaultSegmentSize != 0) {
+        if (length % defaultSegmentSize_ != 0) {
             LOG(ERROR) << "Create file length not align to segment size, "
                        << "fileName = " << fileName
                        << ", length = " << length
-                       << ", segment size = " << DefaultSegmentSize;
+                       << ", segment size = " << defaultSegmentSize_;
             return StatusCode::kFileLengthNotSupported;
         }
     }
@@ -280,7 +284,7 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         fileInfo.set_filetype(filetype);
         fileInfo.set_owner(owner);
         fileInfo.set_chunksize(defaultChunkSize_);
-        fileInfo.set_segmentsize(DefaultSegmentSize);
+        fileInfo.set_segmentsize(defaultSegmentSize_);
         fileInfo.set_length(length);
         fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
         fileInfo.set_seqnum(kStartSeqNum);
@@ -288,6 +292,8 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         fileInfo.set_stripeunit(stripeUnit);
         fileInfo.set_stripecount(stripeCount);
 
+        fileInfo.set_allocated_throttleparams(
+            new FileThrottleParams(GenerateThrottleParams(length)));
         ret = PutFile(fileInfo);
         return ret;
     }
@@ -311,6 +317,46 @@ StatusCode CurveFS::GetFileInfo(const std::string & filename,
         }
         return LookUpFile(parentFileInfo, lastEntry, fileInfo);
     }
+}
+
+StatusCode CurveFS::GetRecoverFileInfo(const std::string& originFileName,
+                                       const uint64_t fileId,
+                                       FileInfo* recoverFileInfo) {
+    std::vector<FileInfo> fileInfoList;
+    recoverFileInfo->set_ctime(0);
+    bool findRecoverFile = false;
+
+    StatusCode retCode = ReadDir(RECYCLEBINDIR, &fileInfoList);
+    if (retCode != StatusCode::kOK)  {
+        LOG(ERROR) <<"ReadDir fail, filename = " <<  RECYCLEBINDIR
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        return retCode;
+    } else {
+        if (fileId != kUnitializedFileID) {
+            for (auto iter = fileInfoList.begin(); iter != fileInfoList.end();
+                 ++iter) {
+                // recover the specified file
+                if (fileId == iter->id()) {
+                    recoverFileInfo->CopyFrom(*iter);
+                    return StatusCode::kOK;
+                }
+            }
+        }
+        for (auto iter = fileInfoList.begin(); iter != fileInfoList.end();
+                ++iter) {
+            // recover the newer file
+            if (iter->originalfullpathname() == originFileName &&
+                iter->ctime() > recoverFileInfo->ctime()) {
+                recoverFileInfo->CopyFrom(*iter);
+                findRecoverFile = true;
+            }
+        }
+        if (findRecoverFile != true) {
+            return StatusCode::kFileNotExists;
+        }
+    }
+    return StatusCode::kOK;
 }
 
 AllocatedSize& AllocatedSize::operator+=(const AllocatedSize& rhs) {
@@ -671,6 +717,77 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
     }
 }
 
+StatusCode CurveFS::RecoverFile(const std::string & originFileName,
+                                const std::string & recycleFileName,
+                                uint64_t fileId) {
+    // check the same file exists
+    FileInfo parentFileInfo;
+    std::string lastEntry;
+    auto ret = WalkPath(originFileName, &parentFileInfo, &lastEntry);
+    if ( ret != StatusCode::kOK ) {
+        LOG(WARNING) << "WalkPath failed, the middle path of "
+                     << originFileName << " is not exist";
+        return ret;
+    }
+
+    FileInfo fileInfo;
+    ret = LookUpFile(parentFileInfo, lastEntry, &fileInfo);
+    if (ret == StatusCode::kOK) {
+        return StatusCode::kFileExists;
+    }
+
+    FileInfo  recycleFileInfo;
+    ret = GetFileInfo(recycleFileName, &recycleFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(INFO) << "get recycle file error, recycleFilename = "
+                  << recycleFileName << ", errCode = " << ret;
+        return ret;
+    }
+
+    if (fileId != kUnitializedFileID && fileId != recycleFileInfo.id()) {
+        LOG(WARNING) << "recover fail, recycleFileId missmatch"
+                     << ", recycleFileName = " << recycleFileName
+                     << ", originFileName = " << originFileName
+                     << ", recycleFileInfo.id = " << recycleFileInfo.id()
+                     << ", fileId = " << fileId;
+        return StatusCode::kFileIdNotMatch;
+    }
+
+    // determine whether recycleFileName can be recovered
+    switch (recycleFileInfo.filestatus()) {
+        case FileStatus::kFileDeleting:
+            LOG(ERROR) << "recover fail, can not recover file under deleting"
+                    << ", recycleFileName = " << recycleFileName;
+            return StatusCode::kFileUnderDeleting;
+        case FileStatus::kFileCloneMetaInstalled:
+            LOG(ERROR) << "recover fail, can not recover file "
+                    << "cloneMetaInstalled, recycleFileName = "
+                    << recycleFileName;
+            return StatusCode::kRecoverFileCloneMetaInstalled;
+        case FileStatus::kFileCloning:
+            LOG(ERROR) << "recover fail, can not recover file cloning"
+                    << ", recycleFileName = " << recycleFileName;
+            return StatusCode::kRecoverFileError;
+        default:
+            break;
+    }
+
+    FileInfo recoverFileInfo;
+    recoverFileInfo.CopyFrom(recycleFileInfo);
+    recoverFileInfo.set_parentid(parentFileInfo.id());
+    recoverFileInfo.set_filename(lastEntry);
+    recoverFileInfo.clear_originalfullpathname();
+    if (recycleFileInfo.filestatus() == FileStatus::kFileBeingCloned) {
+        recycleFileInfo.set_filestatus(FileStatus::kFileCreated);
+    }
+
+    auto ret1 = storage_->RenameFile(recycleFileInfo, recoverFileInfo);
+    if ( ret1 != StoreStatus::OK ) {
+        LOG(ERROR) << "storage_ recoverfile error, error = " << ret1;
+        return StatusCode::kStorageError;
+    }
+    return StatusCode::kOK;
+}
 
 // TODO(hzsunjianliang): CheckNormalFileDeleteStatus?
 
@@ -743,131 +860,130 @@ StatusCode CurveFS::CheckFileCanChange(const std::string &fileName,
     return StatusCode::kOK;
 }
 
-// TODO(hzchenwei3): change oldFileName to sourceFileName
-//                   and newFileName to destFileName)
-StatusCode CurveFS::RenameFile(const std::string & oldFileName,
-                               const std::string & newFileName,
-                               uint64_t oldFileId, uint64_t newFileId) {
-    if (oldFileName == "/" || newFileName  == "/") {
+StatusCode CurveFS::RenameFile(const std::string & sourceFileName,
+                               const std::string & destFileName,
+                               uint64_t sourceFileId, uint64_t destFileId) {
+    if (sourceFileName == "/" || destFileName  == "/") {
         return StatusCode::kParaError;
     }
 
-    if (!oldFileName.compare(newFileName)) {
-        LOG(INFO) << "rename same name, oldFileName = " << oldFileName
-                  << ", newFileName = " << newFileName;
+    if (!sourceFileName.compare(destFileName)) {
+        LOG(INFO) << "rename same name, sourceFileName = " << sourceFileName
+                  << ", destFileName = " << destFileName;
         return StatusCode::kFileExists;
     }
 
-    FileInfo  oldFileInfo;
-    StatusCode ret = GetFileInfo(oldFileName, &oldFileInfo);
+    FileInfo  sourceFileInfo;
+    StatusCode ret = GetFileInfo(sourceFileName, &sourceFileInfo);
     if (ret != StatusCode::kOK) {
         LOG(INFO) << "get source file error, errCode = " << ret;
         return ret;
     }
 
-    if (oldFileId != kUnitializedFileID && oldFileId != oldFileInfo.id()) {
-        LOG(WARNING) << "rename file, oldFileId missmatch"
-                   << ", oldFileName = " << oldFileName
-                   << ", newFileName = " << newFileName
-                   << ", oldFileInfo.id() = " << oldFileInfo.id()
-                   << ", oldFileId = " << oldFileId;
+    if (sourceFileId != kUnitializedFileID &&
+        sourceFileId != sourceFileInfo.id()) {
+        LOG(WARNING) << "rename file, sourceFileId missmatch"
+                   << ", sourceFileName = " << sourceFileName
+                   << ", destFileName = " << destFileName
+                   << ", sourceFileInfo.id() = " << sourceFileInfo.id()
+                   << ", sourceFileId = " << sourceFileId;
         return StatusCode::kFileIdNotMatch;
     }
 
     // only the rename of INODE_PAGEFILE is supported
-    if (oldFileInfo.filetype() != FileType::INODE_PAGEFILE) {
-        LOG(ERROR) << "rename oldFileName = " << oldFileName
+    if (sourceFileInfo.filetype() != FileType::INODE_PAGEFILE) {
+        LOG(ERROR) << "rename sourceFileName = " << sourceFileName
                    << ", fileType not support, fileType = "
-                   << oldFileInfo.filetype();
+                   << sourceFileInfo.filetype();
         return StatusCode::kNotSupported;
     }
 
-    // determine whether oldFileName can be renamed (whether being used,
+    // determine whether sourceFileName can be renamed (whether being used,
     // during snapshot or being cloned)
-    ret = CheckFileCanChange(oldFileName, oldFileInfo);
+    ret = CheckFileCanChange(sourceFileName, sourceFileInfo);
     if (ret != StatusCode::kOK) {
         LOG(ERROR) << "rename fail, can not rename file"
-                << ", oldFileName = " << oldFileName
+                << ", sourceFileName = " << sourceFileName
                 << ", ret = " << ret;
         return ret;
     }
 
     FileInfo parentFileInfo;
     std::string  lastEntry;
-    auto ret2 = WalkPath(newFileName, &parentFileInfo, &lastEntry);
+    auto ret2 = WalkPath(destFileName, &parentFileInfo, &lastEntry);
     if (ret2 != StatusCode::kOK) {
         LOG(WARNING) << "dest middle dir not exist";
         return StatusCode::kFileNotExists;
     }
 
-    FileInfo existNewFileInfo;
-    auto ret3 = LookUpFile(parentFileInfo, lastEntry, &existNewFileInfo);
+    FileInfo existDestFileInfo;
+    auto ret3 = LookUpFile(parentFileInfo, lastEntry, &existDestFileInfo);
     if (ret3 == StatusCode::kOK) {
-        if (newFileId != kUnitializedFileID
-            && newFileId != existNewFileInfo.id()) {
-            LOG(WARNING) << "rename file, newFileId missmatch"
-                        << ", oldFileName = " << oldFileName
-                        << ", newFileName = " << newFileName
-                        << ", newFileInfo.id() = " << existNewFileInfo.id()
-                        << ", newFileId = " << newFileId;
+        if (destFileId != kUnitializedFileID
+            && destFileId != existDestFileInfo.id()) {
+            LOG(WARNING) << "rename file, destFileId missmatch"
+                        << ", sourceFileName = " << sourceFileName
+                        << ", destFileName = " << destFileName
+                        << ", destFileInfo.id() = " << existDestFileInfo.id()
+                        << ", destFileId = " << destFileId;
             return StatusCode::kFileIdNotMatch;
         }
 
         // determine whether it can be covered. Judge the file type first
-         if (existNewFileInfo.filetype() != FileType::INODE_PAGEFILE) {
-            LOG(ERROR) << "rename oldFileName = " << oldFileName
-                       << " to newFileName = " << newFileName
+         if (existDestFileInfo.filetype() != FileType::INODE_PAGEFILE) {
+            LOG(ERROR) << "rename sourceFileName = " << sourceFileName
+                       << " to destFileName = " << destFileName
                        << "file type mismatch. old fileType = "
-                       << oldFileInfo.filetype() << ", new fileType = "
-                       << existNewFileInfo.filetype();
+                       << sourceFileInfo.filetype() << ", new fileType = "
+                       << existDestFileInfo.filetype();
             return StatusCode::kFileExists;
         }
 
-        // determine whether newFileName can be renamed (whether being used,
+        // determine whether destFileName can be renamed (whether being used,
         // during snapshot or being cloned)
-        StatusCode ret = CheckFileCanChange(newFileName, existNewFileInfo);
+        StatusCode ret = CheckFileCanChange(destFileName, existDestFileInfo);
         if (ret != StatusCode::kOK) {
             LOG(ERROR) << "cannot rename file"
-                        << ", newFileName = " << newFileName
+                        << ", destFileName = " << destFileName
                         << ", ret = " << ret;
             return ret;
         }
 
-        // move existNewFileInfo to the recycle bin
+        // move existDestFileInfo to the recycle bin
         FileInfo recycleFileInfo;
-        recycleFileInfo.CopyFrom(existNewFileInfo);
+        recycleFileInfo.CopyFrom(existDestFileInfo);
         recycleFileInfo.set_parentid(RECYCLEBININODEID);
         recycleFileInfo.set_filename(recycleFileInfo.filename() + "-" +
                 std::to_string(recycleFileInfo.id()));
-        recycleFileInfo.set_originalfullpathname(newFileName);
+        recycleFileInfo.set_originalfullpathname(destFileName);
 
         // rename!
-        FileInfo newFileInfo;
-        newFileInfo.CopyFrom(oldFileInfo);
-        newFileInfo.set_parentid(parentFileInfo.id());
-        newFileInfo.set_filename(lastEntry);
+        FileInfo destFileInfo;
+        destFileInfo.CopyFrom(sourceFileInfo);
+        destFileInfo.set_parentid(parentFileInfo.id());
+        destFileInfo.set_filename(lastEntry);
 
-        auto ret1 = storage_->ReplaceFileAndRecycleOldFile(oldFileInfo,
-                                                        newFileInfo,
-                                                        existNewFileInfo,
+        auto ret1 = storage_->ReplaceFileAndRecycleOldFile(sourceFileInfo,
+                                                        destFileInfo,
+                                                        existDestFileInfo,
                                                         recycleFileInfo);
         if (ret1 != StoreStatus::OK) {
             LOG(ERROR) << "storage_ ReplaceFileAndRecycleOldFile error"
-                        << ", oldFileName = " << oldFileName
-                        << ", newFileName = " << newFileName
+                        << ", sourceFileName = " << sourceFileName
+                        << ", destFileName = " << destFileName
                         << ", ret = " << ret1;
 
             return StatusCode::kStorageError;
         }
         return StatusCode::kOK;
     } else if (ret3 == StatusCode::kFileNotExists) {
-        // newFileName does not exist, rename directly
-        FileInfo newFileInfo;
-        newFileInfo.CopyFrom(oldFileInfo);
-        newFileInfo.set_parentid(parentFileInfo.id());
-        newFileInfo.set_filename(lastEntry);
+        // destFileName does not exist, rename directly
+        FileInfo destFileInfo;
+        destFileInfo.CopyFrom(sourceFileInfo);
+        destFileInfo.set_parentid(parentFileInfo.id());
+        destFileInfo.set_filename(lastEntry);
 
-        auto ret = storage_->RenameFile(oldFileInfo, newFileInfo);
+        auto ret = storage_->RenameFile(sourceFileInfo, destFileInfo);
         if ( ret != StoreStatus::OK ) {
             LOG(ERROR) << "storage_ renamefile error, error = " << ret;
             return StatusCode::kStorageError;
@@ -893,10 +1009,10 @@ StatusCode CurveFS::ExtendFile(const std::string &filename,
         return StatusCode::kNotSupported;
     }
 
-    if (newLength > kMaxFileLength) {
+    if (newLength > maxFileLength_) {
         LOG(ERROR) << "ExtendFile newLength > maxFileLength, fileName = "
                        << filename << ", newLength = " << newLength
-                       << ", maxFileLength = " << kMaxFileLength;
+                       << ", maxFileLength = " << maxFileLength_;
             return StatusCode::kFileLengthNotSupported;
     }
 
@@ -1475,6 +1591,8 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
                             uint64_t length,
                             FileSeqType seq,
                             ChunkSizeType chunksize,
+                            uint64_t stripeUnit,
+                            uint64_t stripeCount,
                             FileInfo *retFileInfo,
                             const std::string & cloneSource,
                             uint64_t cloneLength) {
@@ -1485,17 +1603,22 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         return StatusCode::kParaError;
     }
 
-    if  (length < kMiniFileLength || seq < kStartSeqNum) {
+    if  (length < minFileLength_ || seq < kStartSeqNum) {
         LOG(WARNING) << "CreateCloneFile err, filename = " << fileName
-                    << "file Length < MinFileLength " << kMiniFileLength
+                    << "file Length < MinFileLength " << minFileLength_
                     << ", length = " << length;
         return StatusCode::kParaError;
+    }
+
+    auto ret = CheckStripeParam(stripeUnit, stripeCount);
+    if (ret != StatusCode::kOK) {
+        return ret;
     }
 
     // check the existence of the file
     FileInfo parentFileInfo;
     std::string lastEntry;
-    auto ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
+    ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
     if ( ret != StatusCode::kOK ) {
         return ret;
     }
@@ -1528,7 +1651,7 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         fileInfo.set_owner(owner);
 
         fileInfo.set_chunksize(chunksize);
-        fileInfo.set_segmentsize(DefaultSegmentSize);
+        fileInfo.set_segmentsize(defaultSegmentSize_);
         fileInfo.set_length(length);
         fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
 
@@ -1537,6 +1660,8 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         fileInfo.set_clonelength(cloneLength);
 
         fileInfo.set_filestatus(FileStatus::kFileCloning);
+        fileInfo.set_stripeunit(stripeUnit);
+        fileInfo.set_stripecount(stripeCount);
 
         ret = PutFile(fileInfo);
         if (ret == StatusCode::kOK && retFileInfo != nullptr) {
@@ -1841,6 +1966,52 @@ StatusCode CurveFS::CheckFileOwner(const std::string &filename,
     }
 }
 
+StatusCode CurveFS::CheckRecycleFileOwner(const std::string &filename,
+                                          const std::string &owner,
+                                          const std::string &signature,
+                                          uint64_t date) {
+    if (owner.empty()) {
+        LOG(ERROR) << "file owner is empty, filename = " << filename
+                   << ", owner = " << owner;
+        return StatusCode::kOwnerAuthFail;
+    }
+
+    StatusCode ret = StatusCode::kOwnerAuthFail;
+
+    if (!CheckDate(date)) {
+        LOG(ERROR) << "check date fail, request is staled.";
+        return ret;
+    }
+
+    if (owner == GetRootOwner()) {
+        ret = CheckSignature(owner, signature, date)
+              ? StatusCode::kOK : StatusCode::kOwnerAuthFail;
+        LOG_IF(ERROR, ret == StatusCode::kOwnerAuthFail)
+              << "check root owner fail, signature auth fail.";
+        return ret;
+    }
+
+    std::vector<std::string> paths;
+    ::curve::common::SplitString(filename, "/", &paths);
+    if (paths.size() != 2 || paths[0] != RECYCLEBINDIRNAME) {
+        return StatusCode::kOwnerAuthFail;
+    }
+
+    FileInfo  fileInfo;
+    auto ret1 = storage_->GetFile(RECYCLEBININODEID, paths[1], &fileInfo);
+
+    if (ret1 == StoreStatus::OK) {
+        if (fileInfo.owner() != owner) {
+            return StatusCode::kOwnerAuthFail;
+        }
+        return StatusCode::kOK;
+    } else if  (ret1 == StoreStatus::KeyNotExist) {
+        return StatusCode::kFileNotExists;
+    } else {
+        return StatusCode::kStorageError;
+    }
+}
+
 // kStaledRequestTimeIntervalUs represents the expiration time of the request
 // to prevent the request from being intercepted and played back
 bool CurveFS::CheckDate(uint64_t date) {
@@ -2054,7 +2225,47 @@ StatusCode CurveFS::ListAllFiles(uint64_t inodeId,
             }
         }
     }
+
     return StatusCode::kOK;
+}
+
+StatusCode CurveFS::UpdateFileThrottleParams(const std::string& fileName,
+                                             ThrottleParams params) {
+    FileInfo fileInfo;
+    StatusCode ret = GetFileInfo(fileName, &fileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(INFO) << "Get file info failed, ret = " << ret
+                  << ", filename = " << fileName;
+        return ret;
+    }
+
+    if (fileInfo.filetype() != FileType::INODE_PAGEFILE) {
+        LOG(WARNING)
+            << "Only INODE_PAGEFILE can update throttle params, filename = "
+            << fileName;
+        return StatusCode::kNotSupported;
+    }
+
+    bool found = false;
+    FileThrottleParams* fileThrottleParams = fileInfo.mutable_throttleparams();
+    for (int i = 0; i < fileThrottleParams->throttleparams_size(); ++i) {
+        if (fileThrottleParams->throttleparams(i).type() != params.type()) {
+            continue;
+        }
+
+        found = true;
+        auto* existParams = fileThrottleParams->mutable_throttleparams(i);
+        *existParams = std::move(params);
+        break;
+    }
+
+    // if throttle is not found, add one
+    if (!found) {
+        auto* newParams = fileThrottleParams->add_throttleparams();
+        *newParams = std::move(params);
+    }
+
+    return PutFile(fileInfo);
 }
 
 uint64_t CurveFS::GetOpenFileNum() {
@@ -2067,6 +2278,18 @@ uint64_t CurveFS::GetOpenFileNum() {
 
 uint64_t CurveFS::GetDefaultChunkSize() {
     return defaultChunkSize_;
+}
+
+uint64_t CurveFS::GetDefaultSegmentSize() {
+    return defaultSegmentSize_;
+}
+
+uint64_t CurveFS::GetMinFileLength() {
+    return minFileLength_;
+}
+
+uint64_t CurveFS::GetMaxFileLength() {
+    return maxFileLength_;
 }
 
 StatusCode CurveFS::CheckStripeParam(uint64_t stripeUnit,
@@ -2095,7 +2318,40 @@ StatusCode CurveFS::CheckStripeParam(uint64_t stripeUnit,
         return StatusCode::kParaError;
     }
 
+     // chunkserver check req offset and len align as 4k,
+     // such as ChunkServiceImpl::CheckRequestOffsetAndLength
+    if (stripeUnit % 4096 != 0) {
+        LOG(ERROR) << "stripeUnit is not aligned as 4k. stripeUnit:"
+           << stripeUnit << ",stripeCount:" << stripeCount;
+        return StatusCode::kParaError;
+    }
+
     return StatusCode::kOK;
+}
+
+FileThrottleParams CurveFS::GenerateThrottleParams(uint64_t length) const {
+    FileThrottleParams params;
+
+    ThrottleParams iopsTotal;
+    uint64_t iopsLimit = common::Clamp<uint64_t>(
+        length / kGB * throttleOption_.iopsPerGB,
+        throttleOption_.iopsMin,
+        throttleOption_.iopsMax);
+    iopsTotal.set_type(ThrottleType::IOPS_TOTAL);
+    iopsTotal.set_limit(iopsLimit);
+
+    ThrottleParams bpsTotal;
+    uint64_t bpsLimit = common::Clamp<uint64_t>(
+        length / kGB * throttleOption_.bpsPerGB,
+        throttleOption_.bpsMin,
+        throttleOption_.bpsMax);
+    bpsTotal.set_type(ThrottleType::BPS_TOTAL);
+    bpsTotal.set_limit(bpsLimit);
+
+    *params.add_throttleparams() = std::move(iopsTotal);
+    *params.add_throttleparams() = std::move(bpsTotal);
+
+    return params;
 }
 
 CurveFS &kCurveFS = CurveFS::GetInstance();

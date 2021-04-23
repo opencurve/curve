@@ -662,6 +662,55 @@ int MDSClient::GetCopySetsInChunkServer(const std::string& csAddr,
     return GetCopySetsInChunkServer(&request, copysets);
 }
 
+int MDSClient::SetCopysetsAvailFlag(const std::vector<CopysetInfo> copysets,
+                                     bool availFlag) {
+    curve::mds::topology::SetCopysetsAvailFlagRequest request;
+    curve::mds::topology::SetCopysetsAvailFlagResponse response;
+    curve::mds::topology::TopologyService_Stub stub(&channel_);
+    for (const auto& copyset : copysets) {
+        auto copysetPtr = request.add_copysets();
+        *copysetPtr = copyset;
+    }
+    request.set_availflag(availFlag);
+    auto fp = &curve::mds::topology::TopologyService_Stub::SetCopysetsAvailFlag;
+    if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
+        std::cout << "SetCopysetsAvailFlag from all mds fail!"
+                  << std::endl;
+        return -1;
+    }
+
+    if (response.has_statuscode() &&
+                response.statuscode() == kTopoErrCodeSuccess) {
+        return 0;
+    }
+    std::cout << "SetCopysetsAvailFlag fail with errCode: "
+              << response.statuscode() << std::endl;
+    return -1;
+}
+
+int MDSClient::ListUnAvailCopySets(std::vector<CopysetInfo>* copysets) {
+    curve::mds::topology::ListUnAvailCopySetsRequest request;
+    curve::mds::topology::ListUnAvailCopySetsResponse response;
+    curve::mds::topology::TopologyService_Stub stub(&channel_);
+    auto fp = &curve::mds::topology::TopologyService_Stub::ListUnAvailCopySets;
+    if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
+        std::cout << "ListUnAvailCopySets from all mds fail!"
+                  << std::endl;
+        return -1;
+    }
+
+    if (response.has_statuscode() &&
+                response.statuscode() == kTopoErrCodeSuccess) {
+        for (int i = 0; i < response.copysets_size(); ++i) {
+            copysets->emplace_back(response.copysets(i));
+        }
+        return 0;
+    }
+    std::cout << "ListUnAvailCopySets fail with errCode: "
+              << response.statuscode() << std::endl;
+    return -1;
+}
+
 int MDSClient::GetCopySetsInChunkServer(
                             GetCopySetsInChunkServerRequest* request,
                             std::vector<CopysetInfo>* copysets) {
@@ -927,6 +976,32 @@ int MDSClient::QueryChunkServerRecoverStatus(
     return -1;
 }
 
+int MDSClient::UpdateFileThrottleParams(
+    const std::string& fileName, const curve::mds::ThrottleParams& params) {
+    curve::mds::UpdateFileThrottleParamsRequest request;
+    curve::mds::UpdateFileThrottleParamsResponse response;
+
+    request.set_filename(fileName);
+    request.set_allocated_throttleparams(new mds::ThrottleParams(params));
+    FillUserInfo(&request);
+
+    curve::mds::CurveFSService_Stub stub(&channel_);
+
+    auto fn = &curve::mds::CurveFSService_Stub::UpdateFileThrottleParams;
+    if (SendRpcToMds(&request, &response, &stub, fn) != 0) {
+        std::cout << "UpdateFileThrottleParams from all mds fail!" << std::endl;
+        return -1;
+    }
+
+    if (response.statuscode() == StatusCode::kOK) {
+        return 0;
+    }
+
+    std::cout << "UpdateFileThrottleParams fail with errCode: "
+              << curve::mds::StatusCode_Name(response.statuscode())
+              << std::endl;
+    return -1;
+}
 
 template <typename T, typename Request, typename Response>
 int MDSClient::SendRpcToMds(Request* request, Response* response, T* obp,

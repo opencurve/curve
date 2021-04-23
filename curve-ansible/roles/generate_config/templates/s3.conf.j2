@@ -15,3 +15,10 @@ s3.request_timeout={{ s3_request_timeout }}
 # Off = 0,Fatal = 1,Error = 2,Warn = 3,Info = 4,Debug = 5,Trace = 6
 s3.loglevel={{ s3_loglevel }}
 s3.async_thread_num={{ s3_async_thread_num }}
+# throttle
+s3.throttle.iopsTotalLimit={{ s3_throttle_iopsTotalLimit }}
+s3.throttle.iopsReadLimit={{ s3_throttle_iopsReadLimit }}
+s3.throttle.iopsWriteLimit={{ s3_throttle_iopsWriteLimit }}
+s3.throttle.bpsTotalMB= {{ s3_throttle_bpsTotalLimit }}
+s3.throttle.bpsReadMB= {{ s3_throttle_bpsReadLimit }}
+s3.throttle.bpsWriteMB= {{ s3_throttle_bpsWriteLimit }}

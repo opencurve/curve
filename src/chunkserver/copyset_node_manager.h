@@ -147,6 +147,14 @@ class CopysetNodeManager : public curve::common::Uncopyable {
     }
 
     /**
+     * @brief: Only for test
+     */
+    void SetCopysetNodeOptions(
+        const CopysetNodeOptions& copysetNodeOptions) {
+        copysetNodeOptions_ = copysetNodeOptions;
+    }
+
+    /**
      * Load a copyset, including creating a new copyset or restarting a copyset
      * @param logicPoolId: logicPool id
      * @param copysetId: copyset id

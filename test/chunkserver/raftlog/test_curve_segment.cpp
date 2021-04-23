@@ -52,12 +52,10 @@ class CurveSegmentTest : public testing::Test {
     void SetUp() {
         lfs = std::make_shared<MockLocalFileSystem>();
         file_pool = std::make_shared<MockFilePool>(lfs);
-        kWalFilePool = file_pool;
         std::string cmd = std::string("mkdir ") + kRaftLogDataDir;
         ::system(cmd.c_str());
     }
     void TearDown() {
-        kWalFilePool = nullptr;
         std::string cmd = std::string("rm -rf ") + kRaftLogDataDir;
         ::system(cmd.c_str());
     }
@@ -129,7 +127,7 @@ TEST_F(CurveSegmentTest, open_segment) {
     EXPECT_CALL(*file_pool, RecycleFile(_))
         .WillOnce(Return(0));
     scoped_refptr<CurveSegment> seg1 =
-                new CurveSegment(kRaftLogDataDir, 1, 0);
+                new CurveSegment(kRaftLogDataDir, 1, 0, file_pool);
 
     // not open
     braft::LogEntry* entry = seg1->get(1);
@@ -158,7 +156,7 @@ TEST_F(CurveSegmentTest, open_segment) {
                                 new braft::ConfigurationManager;
     // load open segment
     scoped_refptr<CurveSegment> seg2 =
-                        new CurveSegment(kRaftLogDataDir, 1, 0);
+                        new CurveSegment(kRaftLogDataDir, 1, 0, file_pool);
     ASSERT_EQ(0, seg2->load(configuration_manager));
 
     read_entries_curve_segment(seg2);
@@ -189,7 +187,7 @@ TEST_F(CurveSegmentTest, closed_segment) {
     EXPECT_CALL(*file_pool, RecycleFile(_))
         .WillOnce(Return(0));
     scoped_refptr<CurveSegment> seg1 =
-                new CurveSegment(kRaftLogDataDir, 1, 0);
+                new CurveSegment(kRaftLogDataDir, 1, 0, file_pool);
 
     // create and open
     std::string path = kRaftLogDataDir;
@@ -215,7 +213,7 @@ TEST_F(CurveSegmentTest, closed_segment) {
                                 new braft::ConfigurationManager;
     // load closed segment
     scoped_refptr<CurveSegment> seg2 =
-                        new CurveSegment(kRaftLogDataDir, 1, 10, 0);
+                        new CurveSegment(kRaftLogDataDir, 1, 10, 0, file_pool);
     ASSERT_EQ(0, seg2->load(configuration_manager));
 
     read_entries_curve_segment(seg2);
