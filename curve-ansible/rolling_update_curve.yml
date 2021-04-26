@@ -133,7 +133,7 @@
     - { role: generate_config, template_name: client.conf, conf_path: "{{ chunkserver_client_config_path }}",
                 tags: ["generate_config", "generage_chunkserver_client_conf"] }
     - { role: generate_config, template_name: s3.conf, conf_path: "{{ chunkserver_s3_config_path }}",
-                tags: ["generate_config", "generage_s3_conf"] }
+                tags: ["generate_config", "generage_cs_s3_conf"] }
 
 # 逐个重启chunkserver，每重启完一个需要等待copyset健康
 # 继续操作下一个的的时候还需要一个命令行交互确认
@@ -175,7 +175,7 @@
     - { role: generate_config, template_name: client.conf, conf_path: "{{ snap_client_config_path }}",
             tags: ["generate_config", "generate_snap_client_conf"] }
     - { role: generate_config, template_name: s3.conf, conf_path: "{{ snap_s3_config_path }}",
-                tags: ["generate_config", "generage_s3_conf"] }
+                tags: ["generate_config", "generage_snap_s3_conf"] }
 
 - name: set leader and follower list
   hosts: snapshotclone
