@@ -192,6 +192,33 @@ walfilepool.meta_file_size={{ chunkserver_walfilepool_meta_file_size }}
 walfilepool.retry_times={{ chunkserver_walfilepool_retry_times }}
 
 #
+# Watchdog settings
+# 
+#  switch for watchdog
+watchdog.enable= {{  chunkserver_watchdog_enable }}
+# watchdog check period in seconds
+watchdog.check_period_sec= {{ chunkserver_watchdog_check_period }}
+# timeout for a watchdog check operation
+watchdog.check_timeout_sec=  {{ chunkserver_watchdog_check_timeout }}
+# whether to kill chunkserver process if error detected by watchdog
+watchdog.kill_chunkserver_on_error= {{ chunkserver_watchdog_kill_on_error }}
+# timeout to forcibly kill chunkserver
+watchdog.kill_timeout_sec= {{ chunkserver_watchdog_kill_timeout }}
+#
+# ----- reserved for latency check --------
+#
+# watchdog latency check period in seconds
+watchdog.latency_check_period_sec=1
+# watchdog latency check window
+watchdog.latency_check_window=60
+# watchdog latency excess threshold in ms
+watchdog.latency_excess_ms=16
+# watchdog latency abnormal threshold in ms
+watchdog.latency_abnormal_ms=64
+# watchdog latency windows ratio threshold to judge slow disk
+watchdog.latency_window_slow_ratio=20
+
+#
 # trash settings
 #
 # chunkserver回收数据彻底删除的过期时间
