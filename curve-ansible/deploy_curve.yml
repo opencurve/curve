@@ -127,9 +127,9 @@
     - { role: generate_config, template_name: chunkserver.conf, conf_path: "{{ chunkserver_conf_path }}",
                 tags: ["generate_config", "generage_chunkserver_conf"] }
     - { role: generate_config, template_name: client.conf, conf_path: "{{ chunkserver_client_config_path }}",
-                tags: ["generate_config", "generage_chunkserver_conf"] }
+                tags: ["generate_config", "generage_chunkserver_client_conf"] }
     - { role: generate_config, template_name: s3.conf, conf_path: "{{ chunkserver_s3_config_path }}",
-                tags: ["generate_config", "generage_s3_conf"] }
+                tags: ["generate_config", "generage_cs_s3_conf"] }
 
 - name: start chunkserver
   hosts: chunkservers
@@ -169,7 +169,7 @@
     - { role: generate_config, template_name: client.conf, conf_path: "{{ snap_client_config_path }}",
             tags: ["generate_config", "generate_snap_client_conf"] }
     - { role: generate_config, template_name: s3.conf, conf_path: "{{ snap_s3_config_path }}",
-                tags: ["generate_config", "generage_s3_conf"] }
+                tags: ["generate_config", "generage_snap_s3_conf"] }
 
 - name: start snapshotcloneserver
   hosts: snapshotclone
