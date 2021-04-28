@@ -172,6 +172,14 @@ done
 wait
 }
 
+function release_disk_reserved_space {
+  disks=`{{ get_disk_list_cmd }}`
+  for disk in ${disks}
+  do
+    sudo tune2fs -m 0 /dev/$disk
+  done
+}
+
 function deploy_one_walfile_pool {
   curve-format -allocatePercent={{ wal_segment_alloc_percent }} \
   -filePoolDir=/data/chunkserver$1/walfilepool \
@@ -210,6 +218,7 @@ function deploy_all {
     fstab_record;
     meta_record;
     chunkfile_pool_prep;
+    release_disk_reserved_space;
 }
 
 function deploy_one {
@@ -279,5 +288,7 @@ function deploy_one {
   -fileSize={{ chunk_size }} \
   -fileSystemPath=$dirname/chunkfilepool  &
   wait
+  # release disk reserved space
+  sudo tune2fs -m 0 $diskname
   exit
 }
