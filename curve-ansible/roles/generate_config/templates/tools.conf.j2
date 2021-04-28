@@ -20,6 +20,7 @@ rpcRetryTimes={{ tool_rpc_retry_times }}
   {% set _ = etcd_address.append("%s:%s" % (etcd_ip, etcd_port)) -%}
 {% endfor -%}
 etcdAddr={{ etcd_address | join(',') }}
+{% if groups.snapshotclone is defined and groups.snapshotclone[0] is defined %}
 # snapshot clone server 地址
 {% set snap_address=[] -%}
 {% for host in groups.snapshotclone -%}
@@ -30,3 +31,4 @@ etcdAddr={{ etcd_address | join(',') }}
 snapshotCloneAddr={{ snap_address | join(',') }}
 # snapshot clone server dummy port
 snapshotCloneDummyPort={{ hostvars[groups.snapshotclone[0]].snapshot_dummy_port }}
+{% endif -%}

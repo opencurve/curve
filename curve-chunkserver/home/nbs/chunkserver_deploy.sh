@@ -187,6 +187,14 @@ function deploy_one_walfile_pool {
   -fileSystemPath=/data/chunkserver$1/walfilepool  &
 }
 
+function release_disk_reserved_space {
+  disks=`lsscsi |grep ATA|awk '{print $7}'|awk -F/ '{print $3}'`
+  for disk in ${disks}
+  do
+    sudo tune2fs -m 0 /dev/$disk
+  done
+}
+
 # format walfile pool
 function walfile_pool_prep {
   ret=`lsblk|grep chunkserver|wc -l`
@@ -216,6 +224,7 @@ function deploy_all {
     fstab_record;
     meta_record;
     chunkfile_pool_prep;
+    release_disk_reserved_space;
 }
 
 function deploy_one {
@@ -298,5 +307,7 @@ function deploy_one {
   -filePoolMetaPath=$dirname/chunkfilepool.meta \
   -fileSystemPath=$dirname/chunkfilepool  &
   wait
+  # release disk reserved space
+  sudo tune2fs -m 0 $diskname
   exit
 }

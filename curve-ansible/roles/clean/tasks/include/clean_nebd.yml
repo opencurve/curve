@@ -21,3 +21,18 @@
 - name: clean nebd log dir
   shell: sudo rm -rf {{ nebd_log_dir }}
   when: clean_log_when_clean | bool
+
+- name: clean nebd auto start at boot
+  block:
+    - name: get distro name
+      vars:
+        distro:
+      include_tasks: common_tasks/get_distro_name.yml
+    - name: disable on debain ubuntu
+      shell: sudo update-rc.d -f nebd-daemon remove
+      when: "'Ubuntu' in distro or 'Debian' in distro"
+    - name: disable on centos
+      shell: sudo chkconfig nebd-daemon off && sudo chkconfig --del nebd-daemon
+      when: "'CentOS' in distro"
+    - name: remove nebd-daemon in init.d
+      shell: sudo rm -f /etc/init.d/nebd-daemon
