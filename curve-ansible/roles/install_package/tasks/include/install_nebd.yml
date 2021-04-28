@@ -85,3 +85,22 @@
     local_file_path: "/tmp/nebd-daemon"
     file_mode: 0755
   include_tasks: copy_file_to_remote.yml
+
+- name: add nebd auto start at boot
+  block:
+    - name: get distro name
+      vars:
+        distro:
+      include_tasks: common_tasks/get_distro_name.yml
+    - name: copy nebd-daemon to init.d
+      vars:
+        remote_dir_name: "/etc/init.d"
+        local_file_path: "/tmp/nebd-daemon"
+        file_mode: 0755
+      include_tasks: copy_file_to_remote.yml
+    - name: enable on debain ubuntu
+      shell: sudo update-rc.d nebd-daemon defaults
+      when: "'Ubuntu' in distro or 'Debian' in distro"
+    - name: enable on centos
+      shell: sudo chkconfig --add nebd-daemon && sudo chkconfig nebd-daemon on
+      when: "'CentOS' in distro"
