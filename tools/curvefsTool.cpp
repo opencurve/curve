@@ -20,22 +20,7 @@
  * Author: xuchaojie
  */
 
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <brpc/server.h>
-#include <brpc/channel.h>
-#include <butil/endpoint.h>
-#include <json/json.h>
-
-#include <fstream>
-#include <map>
-#include <set>
-#include <list>
-
-#include "proto/topology.pb.h"
-#include "src/mds/common/mds_define.h"
-#include "src/common/string_util.h"
-#include "src/common/configuration.h"
+#include "tools/curvefsTool.h"
 
 DEFINE_string(mds_addr, "127.0.0.1:6666",
     "mds ip and port list, separated by \",\"");
@@ -85,100 +70,6 @@ using ::curve::common::SplitString;
 namespace curve {
 namespace mds {
 namespace topology {
-
-struct CurveServerData {
-    std::string serverName;
-    std::string internalIp;
-    uint32_t internalPort;
-    std::string externalIp;
-    uint32_t externalPort;
-    std::string zoneName;
-    std::string physicalPoolName;
-};
-
-struct CurveLogicalPoolData {
-    std::string name;
-    std::string physicalPoolName;
-    curve::mds::topology::LogicalPoolType type;
-    AllocateStatus status;
-    uint32_t replicasNum;
-    uint64_t copysetNum;
-    uint32_t zoneNum;
-    uint32_t scatterwidth;
-};
-
-struct CurveZoneData {
-    std::string zoneName;
-    std::string physicalPoolName;
-    PoolIdType physicalPoolId;
-};
-
-struct CurvePhysicalPoolData {
-    std::string physicalPoolName;
-};
-
-class CurvefsTools {
- public:
-    CurvefsTools() {}
-    ~CurvefsTools() {}
-
-    int Init();
-
-    int HandleCreateLogicalPool();
-    int HandleBuildCluster();
-    int SetChunkServer();
-    int SetLogicalPool();
-
-    int GetMaxTry() {
-        return mdsAddressStr_.size();
-    }
-
-    int TryAnotherMdsAddress();
-
-    static const std::string clusterMapSeprator;
-
- private:
-    int ReadClusterMap();
-    int InitServerData();
-    int InitLogicalPoolData();
-    int ScanCluster();
-    int ScanLogicalPool();
-    int CreatePhysicalPool();
-    int CreateZone();
-    int CreateServer();
-
-    int ClearPhysicalPool();
-    int ClearZone();
-    int ClearServer();
-
-    int ListPhysicalPool(
-        std::list<PhysicalPoolInfo> *physicalPoolInfos);
-
-    int ListLogicalPool(const std::string& phyPoolName,
-        std::list<LogicalPoolInfo> *logicalPoolInfos);
-
-    int AddListPoolZone(PoolIdType poolid,
-        std::list<ZoneInfo> *zoneInfos);
-
-    int AddListZoneServer(ZoneIdType zoneid,
-        std::list<ServerInfo> *serverInfos);
-
- private:
-    std::list<CurveServerData> serverDatas;
-    std::list<CurveLogicalPoolData> lgPoolDatas;
-    std::list<CurvePhysicalPoolData> physicalPoolToAdd;
-    std::list<CurveZoneData> zoneToAdd;
-    std::list<CurveServerData> serverToAdd;
-
-    std::list<PoolIdType> physicalPoolToDel;
-    std::list<ZoneIdType> zoneToDel;
-    std::list<ServerIdType> serverToDel;
-
-    std::vector<std::string> mdsAddressStr_;
-    int mdsAddressIndex_;
-    brpc::Channel channel_;
-    Json::Value clusterMap_;
-};
 
 const std::string CurvefsTools::clusterMapSeprator = " ";  // NOLINT
 
@@ -233,16 +124,28 @@ int CurvefsTools::TryAnotherMdsAddress() {
     return ret;
 }
 
+int CurvefsTools::DealFailedRet(int ret, std::string operation) {
+    if (kRetCodeRedirectMds == ret) {
+        LOG(WARNING) << operation << " fail on mds: "
+                   << mdsAddressStr_[mdsAddressIndex_];
+    } else {
+        LOG(ERROR) << operation << " fail.";
+    }
+    return ret;
+}
+
 int CurvefsTools::HandleCreateLogicalPool() {
     int ret = ReadClusterMap();
     if (ret < 0) {
-        LOG(ERROR) << "read cluster map fail";
-        return ret;
+        return DealFailedRet(ret, "read cluster map");
     }
     ret = InitLogicalPoolData();
     if (ret < 0) {
-        LOG(ERROR) << "init logical pool data fail";
-        return ret;
+        return DealFailedRet(ret, "init logical pool data");
+    }
+    ret = ScanLogicalPool();
+    if (ret < 0) {
+        return DealFailedRet(ret, "scan logical pool");
     }
     for (const auto& lgPool : lgPoolDatas) {
         TopologyService_Stub stub(&channel_);
@@ -297,8 +200,8 @@ int CurvefsTools::HandleCreateLogicalPool() {
 }
 
 int CurvefsTools::ScanLogicalPool() {
-    // get all phsicalpool and compare
-    // 去重
+    // get all logicalpool and compare
+    // De-duplication
     std::set<std::string> phyPools;
     for (const auto& lgPool : lgPoolDatas) {
         phyPools.insert(lgPool.physicalPoolName);
@@ -351,48 +254,39 @@ int CurvefsTools::ListLogicalPool(const std::string& phyPoolName,
 int CurvefsTools::HandleBuildCluster() {
     int ret = ReadClusterMap();
     if (ret < 0) {
-        LOG(ERROR) << "read cluster map fail";
-        return ret;
+        return DealFailedRet(ret, "read cluster map");
     }
     ret = InitServerData();
     if (ret < 0) {
-        LOG(ERROR) << "init server data fail";
-        return ret;
+        return DealFailedRet(ret, "init server data");
     }
     ret = ScanCluster();
     if (ret < 0) {
-        LOG(ERROR) << "scan cluster fail";
-        return ret;
+        return DealFailedRet(ret, "scan cluster");
     }
     ret = ClearServer();
     if (ret < 0) {
-        LOG(ERROR) << "clear server fail.";
-        return ret;
+        return DealFailedRet(ret, "clear server");
     }
     ret = ClearZone();
     if (ret < 0) {
-        LOG(ERROR) << "clear zone fail.";
-        return ret;
+        return DealFailedRet(ret, "clear zone");
     }
     ret = ClearPhysicalPool();
     if (ret < 0) {
-        LOG(ERROR) << "clear physicalpool fail.";
-        return ret;
+        return DealFailedRet(ret, "clear physicalpool");
     }
     ret = CreatePhysicalPool();
     if (ret < 0) {
-        LOG(ERROR) << "create physicalpool fail.";
-        return ret;
+        return DealFailedRet(ret, "create physicalpool");
     }
     ret = CreateZone();
     if (ret < 0) {
-        LOG(ERROR) << "create zone fail.";
-        return ret;
+        return DealFailedRet(ret, "create zone");
     }
     ret = CreateServer();
     if (ret < 0) {
-        LOG(ERROR) << "create server fail.";
-        return ret;
+        return DealFailedRet(ret, "create server");
     }
     return ret;
 }
@@ -640,7 +534,7 @@ int CurvefsTools::AddListZoneServer(ZoneIdType zoneid,
 
 int CurvefsTools::ScanCluster() {
     // get all phsicalpool and compare
-    // 去重
+    // De-duplication
     for (auto server : serverDatas) {
         if (std::find_if(physicalPoolToAdd.begin(),
             physicalPoolToAdd.end(),
@@ -678,7 +572,7 @@ int CurvefsTools::ScanCluster() {
     }
 
     // get zone and compare
-    // 去重
+    // De-duplication
     for (auto server : serverDatas) {
         if (std::find_if(zoneToAdd.begin(),
             zoneToAdd.end(),
@@ -739,7 +633,7 @@ int CurvefsTools::ScanCluster() {
     }
 
     // get server and compare
-    // 去重
+    // De-duplication
     for (auto server : serverDatas) {
         if (std::find_if(serverToAdd.begin(),
             serverToAdd.end(),
