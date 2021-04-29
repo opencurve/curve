@@ -38,29 +38,29 @@ using ::google::protobuf::RpcController;
 using ::google::protobuf::Closure;
 
 /**
- * braft配置变更Rpc Service
+ * brief: This is a service for braft configuration changes.
  */
 class BRaftCliServiceImpl : public CliService {
  public:
-    // 增加一个peer
+    // @brief: Add a peer.
     void add_peer(RpcController *controller,
                   const AddPeerRequest *request,
                   AddPeerResponse *response,
                   Closure *done);
 
-    // 移除一个peer
+    // @brief: Remove peer.
     void remove_peer(RpcController *controller,
                      const RemovePeerRequest *request,
                      RemovePeerResponse *response,
                      Closure *done);
 
-    // 获取copyset的leader
+    // @brief: Get the leader of copyset.
     void get_leader(RpcController *controller,
                     const GetLeaderRequest *request,
                     GetLeaderResponse *response,
                     Closure *done);
 
-    // 转移leader
+    // @brief: Transfer leader.
     void transfer_leader(RpcController *controller,
                          const TransferLeaderRequest *request,
                          TransferLeaderResponse *response,
