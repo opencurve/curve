@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e
+
+update-rc.d nebd-daemon remove
+rm -f /etc/init.d/nebd-daemon
+
+exit 0
