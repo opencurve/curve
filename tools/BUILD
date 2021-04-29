@@ -16,7 +16,8 @@
 
 cc_binary(
         name = "curvefsTool",
-        srcs = ["curvefsTool.cpp"],
+        srcs = ["curvefsTool.cpp",
+                "curvefsTool.h"],
         deps = ["//proto:topology_cc_proto",
                 "//external:gflags",
                 "//external:json",
