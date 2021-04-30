@@ -33,7 +33,7 @@ function chunkfilepoolinfo() {
     fi
 
     # chunkfilepool
-    maxChunkId=`ls -vr $chunkfilepool | head -1`
+    maxChunkId=`ls $chunkfilepool | grep -oE '^([0-9]+)' | sort -rh | head -n 1`
     leftChunkNum=`ls $chunkfilepool | wc -l`
 
     # chunknum to be recycled
@@ -77,7 +77,8 @@ function recycle_copysets() {
     rsegmentSum=0
 
     # recycle chunks
-    maxChunkId=`ls -vr $chunkfilepool | head -1`
+    maxChunkId=`ls $chunkfilepool | grep -oE '^([0-9]+)' | sort -rh | head -n 1`
+
     for copyset in `ls $2`
     do
         copysetPath=${dataDir}/chunkserver$1/copysets/${copyset}
@@ -112,7 +113,7 @@ function recycle_copysets() {
 
     # recycle chunks in raft_snapshot
     rchunkSum=0
-    maxChunkId=`ls -vr $chunkfilepool | head -1`
+    maxChunkId=`ls $chunkfilepool | grep -oE '^([0-9]+)' | sort -rh | head -n 1`
     for copyset in `ls $2`
     do
         copysetPath=${dataDir}/chunkserver$1/copysets/${copyset}
