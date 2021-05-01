@@ -144,7 +144,7 @@ void MDSClientBase::DeleteSnapShot(const std::string& filename,
                                    DeleteSnapShotResponse* response,
                                    brpc::Controller* cntl,
                                    brpc::Channel* channel) {
-    DeleteSnapShotRequest request;;
+    DeleteSnapShotRequest request;
     request.set_seq(seq);
     request.set_filename(filename);
     FillUserInfo(&request, userinfo);
