@@ -192,6 +192,9 @@ client_mds_rpc_retry_interval_us: 100000
 client_metacache_get_leader_timeout_ms: 500
 client_metacache_get_leader_retry: 5
 client_metacache_rpc_retry_interval_us: 100000
+client_mds_normal_retry_times_before_trigger_wait: 3
+client_mds_max_retry_ms_in_io_path: 86400000
+client_mds_wait_sleep_ms: 10000
 client_schedule_queue_capacity: 1000000
 client_schedule_threadpool_size: 2
 client_isolation_task_queue_capacity: 1000000
