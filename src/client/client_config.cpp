@@ -211,6 +211,18 @@ int ClientConfig::Init(const char* configpath) {
         &fileServiceOption_.metaServerOpt.mdsMaxFailedTimesBeforeChangeMDS);
     LOG_IF(ERROR, ret == false) << "config no mds.maxFailedTimesBeforeChangeMDS info";  // NOLINT
 
+    ret = conf_.GetUInt64Value("mds.normalRetryTimesBeforeTriggerWait",
+        &fileServiceOption_.metaServerOpt.mdsNormalRetryTimesBeforeTriggerWait);
+    LOG_IF(ERROR, ret == false) << "config no mds.normalRetryTimesBeforeTriggerWait info";  // NOLINT
+
+    ret = conf_.GetUInt64Value("mds.maxRetryMsInIOPath",
+        &fileServiceOption_.metaServerOpt.mdsMaxRetryMsInIOPath);
+    LOG_IF(ERROR, ret == false) << "config no mds.maxRetryMsInIOPath info";
+
+    ret = conf_.GetUInt64Value("mds.waitSleepMs",
+        &fileServiceOption_.metaServerOpt.mdsWaitSleepMs);
+    LOG_IF(ERROR, ret == false) << "config no mds.waitSleepMs info";
+
     ret = conf_.GetBoolValue("mds.registerToMDS",
         &fileServiceOption_.commonOpt.mdsRegisterToMDS);
     LOG_IF(ERROR, ret == false) << "config no mds.registerToMDS info";
