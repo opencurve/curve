@@ -67,6 +67,16 @@ struct MetaServerOption {
     uint64_t mdsRPCTimeoutMs = 500;
     uint32_t mdsRPCRetryIntervalUS = 50000;
     uint32_t mdsMaxFailedTimesBeforeChangeMDS = 5;
+
+    /**
+     * When the failed times except RPC error 
+     * greater than mdsNormalRetryTimesBeforeTriggerWait,
+     * it will trigger wait strategy, and sleep long time before retry
+     */
+    uint64_t mdsNormalRetryTimesBeforeTriggerWait = 3;  // 3 times
+    uint64_t mdsMaxRetryMsInIOPath = 86400000;  // 1 day
+    uint64_t mdsWaitSleepMs = 10000;  // 10 seconds
+
     std::vector<std::string> mdsAddrs;
 };
 
