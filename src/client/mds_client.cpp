@@ -114,6 +114,9 @@ LIBCURVE_ERROR MDSClient::MDSRPCExcutor::DoRPCTask(RPCFunc rpctask,
     // rpc超时时间
     uint64_t rpcTimeOutMS = metaServerOpt_.mdsRPCTimeoutMs;
 
+    // The count of normal retry
+    uint64_t normalRetryCount = 0;
+
     int retcode = -1;
     bool needChangeMDS = false;
     while (GoOnRetry(startTime, maxRetryTimeMS)) {
@@ -122,7 +125,7 @@ LIBCURVE_ERROR MDSClient::MDSRPCExcutor::DoRPCTask(RPCFunc rpctask,
 
         // 2. 根据rpc返回值进行预处理
         if (retcode < 0) {
-            curRetryMDSIndex = PreProcessBeforeRetry(retcode,
+            curRetryMDSIndex = PreProcessBeforeRetry(retcode, &normalRetryCount,
                                &currentMDSRetryCount, curRetryMDSIndex,
                                &lastWorkingMDSIndex, &rpcTimeOutMS);
             continue;
@@ -151,6 +154,7 @@ bool MDSClient::MDSRPCExcutor::GoOnRetry(uint64_t startTimeMS,
 }
 
 int MDSClient::MDSRPCExcutor::PreProcessBeforeRetry(int status,
+                                                    uint64_t* normalRetryCount,
                                                     uint64_t* curMDSRetryCount,
                                                     int curRetryMDSIndex,
                                                     int* lastWorkingMDSIndex,
@@ -158,19 +162,27 @@ int MDSClient::MDSRPCExcutor::PreProcessBeforeRetry(int status,
     int nextMDSIndex = 0;
     bool rpcTimeout = false;
     bool needChangeMDS = false;
+
+    // It's not a RPC error, but we must retry it until success
+    if (status == -LIBCURVE_ERROR::RETRY_UNTIL_SUCCESS) {
+        if (++(*normalRetryCount) >
+            metaServerOpt_.mdsNormalRetryTimesBeforeTriggerWait) {
+            bthread_usleep(metaServerOpt_.mdsWaitSleepMs * 1000);
+        }
+
     // 1. 访问存在的IP地址，但无人监听：ECONNREFUSED
     // 2. 正常发送RPC情况下，对端进程挂掉了：EHOSTDOWN
     // 3. 对端server调用了Stop：ELOGOFF
     // 4. 对端链接已关闭：ECONNRESET
     // 5. 在一个mds节点上rpc失败超过限定次数
     // 在这几种场景下，主动切换mds。
-    if (status == -EHOSTDOWN || status == -ECONNRESET ||
+    } else if (status == -EHOSTDOWN || status == -ECONNRESET ||
         status == -ECONNREFUSED || status == -brpc::ELOGOFF ||
         *curMDSRetryCount >= metaServerOpt_.mdsMaxFailedTimesBeforeChangeMDS) {
         needChangeMDS = true;
 
         // 在开启健康检查的情况下，在底层tcp连接失败时
-        // rpc请求会本地直接返回 EHOSTSOWN
+        // rpc请求会本地直接返回 EHOSTDOWN
         // 这种情况下，增加一些睡眠时间，避免大量的重试请求占满bthread
         // TODO(wuhanqing): 关闭健康检查
         if (status == -EHOSTDOWN) {
@@ -717,8 +729,6 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
 }
 
-#define IOPathMaxRetryMS UINT64_MAX
-
 LIBCURVE_ERROR MDSClient::GetServerList(
     const LogicPoolID& logicalpooid,
     const std::vector<CopysetID>& copysetidvec,
@@ -780,7 +790,7 @@ LIBCURVE_ERROR MDSClient::GetServerList(
         return response.statuscode() == 0 ? LIBCURVE_ERROR::OK :
                LIBCURVE_ERROR::FAILED;
     };
-    return rpcExcutor.DoRPCTask(task, IOPathMaxRetryMS);
+    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMsInIOPath);
 }
 
 LIBCURVE_ERROR MDSClient::GetClusterInfo(ClusterContext* clsctx) {
@@ -913,14 +923,18 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
 
         auto statuscode = response.statuscode();
         switch (statuscode) {
+            case StatusCode::kParaError:
+                LOG(WARNING) << "GetOrAllocateSegment: error param!";
+                return LIBCURVE_ERROR::FAILED;
             case StatusCode::kOwnerAuthFail:
-                LOG(WARNING) << "GetOrAllocateSegment Auth failed!";
+                LOG(WARNING) << "GetOrAllocateSegment: auth failed!";
                 return LIBCURVE_ERROR::AUTHFAIL;
-                break;
+            case StatusCode::kFileNotExists:
+                LOG(WARNING) << "GetOrAllocateSegment: file not exists!";
+                return LIBCURVE_ERROR::FAILED;
             case StatusCode::kSegmentNotAllocated:
-                LOG(WARNING) << "segment not allocated!";
+                LOG(WARNING) << "GetOrAllocateSegment: segment not allocated!";
                 return LIBCURVE_ERROR::NOT_ALLOCATE;
-                break;
             default: break;
         }
 
@@ -934,7 +948,8 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
         int chunksNum = pfs.chunks_size();
         if (allocate && chunksNum <= 0) {
             LOG(WARNING) << "MDS allocate segment, but no chunkinfo!";
-            return LIBCURVE_ERROR::FAILED;
+            // Now, we will retry until allocate segment success
+            return -LIBCURVE_ERROR::RETRY_UNTIL_SUCCESS;
         }
 
         for (int i = 0; i < chunksNum; i++) {
@@ -945,7 +960,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
         }
         return LIBCURVE_ERROR::OK;
     };
-    return rpcExcutor.DoRPCTask(task, IOPathMaxRetryMS);
+    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMsInIOPath);
 }
 
 LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
