@@ -78,6 +78,7 @@ class MDSClientTest : public ::testing::Test {
         metaopt.mdsRPCTimeoutMs = 500;
         metaopt.mdsRPCRetryIntervalUS = 200;
         metaopt.mdsRPCTimeoutMs = 2000;
+        metaopt.mdsMaxRetryMsInIOPath = 10000;
         mdsclient_.Initialize(metaopt);
         userinfo.owner = "test";
 
@@ -916,6 +917,17 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
     fi.chunksize   = 4 * 1024 * 1024;
     fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
 
+    std::chrono::system_clock::time_point start, end;
+    auto startTimer = [&start]() { start = std::chrono::system_clock::now(); };
+    auto endTimer = [&end]() { end = std::chrono::system_clock::now(); };
+    auto checkTimer = [&start, &end](uint64_t min, uint64_t max) {
+        auto elpased =  std::chrono::duration_cast<std::chrono::milliseconds>(
+            end - start).count();
+        ASSERT_GE(elpased, min);
+        ASSERT_LE(elpased, max);
+    };
+
+    // TEST CASE: GetOrAllocateSegment failed, wait 10 seconds
     curve::mds::GetOrAllocateSegmentResponse resp;
     resp.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* fakeres = new FakeReturn(nullptr,
@@ -923,8 +935,11 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
     curvefsservice.SetGetOrAllocateSegmentFakeReturn(fakeres);
 
     SegmentInfo seg;
+    startTimer();
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-    mdsclient_.GetOrAllocateSegment(true, 0, &fi, &seg));
+        mdsclient_.GetOrAllocateSegment(true, 0, &fi, &seg));
+    endTimer();
+    checkTimer(10000, 11000);
 
     curve::mds::GetOrAllocateSegmentResponse response;
     curve::mds::PageFileSegment* pfs = new curve::mds::PageFileSegment;

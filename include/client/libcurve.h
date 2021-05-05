@@ -102,6 +102,8 @@ enum LIBCURVE_ERROR {
     CLIENT_NOT_SUPPORT_SNAPSHOT = 28,
     // snapshot功能禁用中
     SNAPSTHO_FROZEN = 29,
+    // You must retry it until success
+    RETRY_UNTIL_SUCCESS = 30,
     // 未知错误
     UNKNOWN                 = 100
 };

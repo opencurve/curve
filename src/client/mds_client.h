@@ -432,6 +432,7 @@ class MDSClient {
          * 2. 如果上一次rpc返回not connect等返回值，会主动触发切换mds地址重试
          * 3. 更新重试信息，比如在当前mds上连续重试的次数
          * @param[in]: status为当前rpc的失败返回的状态
+         * @param normalRetryCount The total count of normal retry
          * @param[in][out]: curMDSRetryCount当前mds节点上的重试次数，如果切换mds
          *             该值会被重置为1.
          * @param[in]: curRetryMDSIndex代表当前正在重试的mds索引
@@ -441,6 +442,7 @@ class MDSClient {
          * @return: 返回下一次重试的mds索引
          */
         int PreProcessBeforeRetry(int status,
+                                  uint64_t* normalRetryCount,
                                   uint64_t* curMDSRetryCount,
                                   int curRetryMDSIndex,
                                   int* lastWorkingMDSIndex,
