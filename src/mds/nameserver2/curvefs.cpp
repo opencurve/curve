@@ -646,10 +646,14 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
         if (deleteForce == false) {
             // move the file to the recycle bin
             FileInfo recycleFileInfo;
+            // fileName: file-14376-1620453738
+            auto now = ::curve::common::TimeUtility::GetTimeofDaySec();
+            std::string fileName = fileInfo.filename()
+                + "-" + std::to_string(recycleFileInfo.id())
+                + "-" + std::to_string(now);
             recycleFileInfo.CopyFrom(fileInfo);
             recycleFileInfo.set_parentid(RECYCLEBININODEID);
-            recycleFileInfo.set_filename(fileInfo.filename() + "-" +
-                std::to_string(recycleFileInfo.id()));
+            recycleFileInfo.set_filename(fileName);
             recycleFileInfo.set_originalfullpathname(filename);
 
             StoreStatus ret1 =

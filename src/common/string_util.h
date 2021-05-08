@@ -106,6 +106,33 @@ static bool StringEndsWith(const std::string& value,
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 }
 
+static bool StringToTime(const std::string& value, uint64_t* expireTime) {
+    *expireTime = 0;
+    size_t length = value.length();
+    if (0 == length) {
+        return false;
+    }
+
+    uint64_t base;
+    switch (value[length - 1]) {
+    case 's': base = 1; break;
+    case 'm': base = 60; break;
+    case 'h': base = 3600; break;
+    case 'd': base = 24 * 3600; break;
+    case 'M': base = 30 * 24 * 3600; break;
+    case 'y': base = 365 * 24 * 3600; break;
+    default: base = 0;
+    }
+
+    uint64_t num;
+    if (0 == base || !StringToUll(value.substr(0, length-1), &num)) {
+        return false;
+    }
+
+    *expireTime = num * base;
+    return true;
+}
+
 }  // namespace common
 }  // namespace curve
 

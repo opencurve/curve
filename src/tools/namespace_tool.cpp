@@ -23,6 +23,8 @@
 #include "src/tools/namespace_tool.h"
 
 DEFINE_string(fileName, "", "file name");
+DEFINE_string(expireTime, "3d", "Time for file in recyclebin exceed expire time "
+                                "will be deleted (default: 3d)");
 DEFINE_bool(forcedelete, false, "force delete file or not");
 DEFINE_uint64(fileLength, 20, "file length (GB)");
 DEFINE_bool(isTest, false, "is unit test or not");
@@ -94,15 +96,22 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
             return 0;
         }
     } else if (cmd == kCleanRecycleCmd) {
+        uint64_t expireTime;
+        if (!::curve::common::StringToTime(FLAGS_expireTime, &expireTime)) {
+            std::cout << "Clean recyclebin: invalid expireTime!" << std::endl;
+            return 0;
+        }
+
         if (FLAGS_isTest) {
-            return core_->CleanRecycleBin(fileName);
+            return core_->CleanRecycleBin(fileName.empty() ? "/" : fileName, 
+                                          expireTime);
         }
         std::cout << "Are you sure you want to clean the RecycleBin?"
                   << "(yes/no)" << std::endl;
         std::string str;
         std::cin >> str;
         if (str == "yes") {
-            return core_->CleanRecycleBin();;
+            return core_->CleanRecycleBin("/", expireTime);
         } else {
             std::cout << "Clean RecycleBin cancled!" << std::endl;
             return 0;
@@ -129,8 +138,10 @@ void NameSpaceTool::PrintHelp(const std::string &cmd) {
     } else if (cmd == kSegInfoCmd) {
         std::cout << "curve_ops_tool " << cmd << " -fileName=/test [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
     } else if (cmd == kCleanRecycleCmd) {
-        std::cout << "curve_ops_tool " << cmd << " [-fileName=/cinder] [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
-        std::cout << "If -fileName is specified, delete the files in recyclebin that the original directory is fileName" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " [-fileName=/cinder] [-expireTime=1(s|m|h|d|M|y)] [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+        std::cout << "If -fileName is specified, delete the files in recyclebin "
+                     "that the original directory is fileName (default: /)"
+                  << std::endl;
     } else if (cmd == kCreateCmd) {
         std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -fileLength=20‬  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
     } else if (cmd == kDeleteCmd) {

@@ -21,6 +21,7 @@
  */
 
 #include <gtest/gtest.h>
+#include "src/common/timeutility.h"
 #include "src/tools/namespace_tool_core.h"
 #include "test/tools/mock/mock_mds_client.h"
 
@@ -203,42 +204,104 @@ TEST_F(NameSpaceToolCoreTest, GetChunkServerListInCopySet) {
 
 TEST_F(NameSpaceToolCoreTest, CleanRecycleBin) {
     curve::tool::NameSpaceToolCore namespaceTool(client_);
-    FileInfo fileInfo;
-    GetFileInfoForTest(&fileInfo);
+
     std::vector<FileInfo> files;
-    for (uint64_t i = 0; i < 3; ++i) {
-        files.emplace_back(fileInfo);
+    uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
+    auto expireTimes = std::vector<uint64_t>{ 
+        0,               // now 
+        3,               // 3 seconds
+        3 * 60,          // 3 minutes
+        3 * 3600,        // 3 hours
+        3 * 24 * 3600,   // 3 days
+        90 * 24 * 3600,  // 3 months
+    };
+
+    for (auto& expireTime : expireTimes) {
+        FileInfo fileInfo;
+        GetFileInfoForTest(&fileInfo);
+        std::string fileName = "test-1-" + std::to_string(now - expireTime);
+        fileInfo.set_filename(fileName);
+        files.push_back(fileInfo);
     }
 
-    // 1、正常情况
+    auto parseArg = [&](const std::string& value) -> uint64_t {
+        uint64_t expireTime;
+        ::curve::common::StringToTime(value, &expireTime);
+        return expireTime;
+    };
+
+    // CASE 1: clean recycle bin success
     EXPECT_CALL(*client_, ListDir(_, _))
-        .Times(2)
+        .Times(1)
         .WillRepeatedly(DoAll(SetArgPointee<1>(files),
-                        Return(0)));
+                              Return(0)));
     EXPECT_CALL(*client_, DeleteFile(_, _))
         .Times(6)
         .WillRepeatedly(Return(0));
-    FLAGS_fileName = "";
-    ASSERT_EQ(0, namespaceTool.CleanRecycleBin());
-    // 带fileName清理RecycleBin
-    ASSERT_EQ(0, namespaceTool.CleanRecycleBin("/cinder"));
+    ASSERT_EQ(0, namespaceTool.CleanRecycleBin("/", parseArg("0s")));
 
-    // 2、list RecycleBin失败
-    EXPECT_CALL(*client_, ListDir(_, _))
-        .Times(1)
-        .WillOnce(Return(-1));
-    ASSERT_EQ(-1, namespaceTool.CleanRecycleBin());
-
-    // 3、删除失败
+    // CASE 2: clean recycle bin fail
     EXPECT_CALL(*client_, ListDir(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(files),
                         Return(0)));
     EXPECT_CALL(*client_, DeleteFile(_, _))
-        .Times(3)
+        .Times(6)
         .WillOnce(Return(-1))
         .WillRepeatedly(Return(0));
-    ASSERT_EQ(-1, namespaceTool.CleanRecycleBin());
+    ASSERT_EQ(-1, namespaceTool.CleanRecycleBin("/", parseArg("0s")));
+
+    // CASE 3: list dir fail
+    EXPECT_CALL(*client_, ListDir(_, _))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, namespaceTool.CleanRecycleBin("/", parseArg("0s")));
+
+    // CASE 4: clean recycle bin with expireTime is "3s"
+    EXPECT_CALL(*client_, ListDir(_, _))
+        .Times(1)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(files),
+                              Return(0)));
+    EXPECT_CALL(*client_, DeleteFile(_, _))
+        .Times(5)
+        .WillRepeatedly(Return(0));
+    ASSERT_EQ(0, namespaceTool.CleanRecycleBin("/", parseArg("3s")));
+
+    // CASE 5: clean recycle bin with expireTime is "3m"
+    EXPECT_CALL(*client_, ListDir(_, _))
+        .Times(1)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(files),
+                              Return(0)));
+    EXPECT_CALL(*client_, DeleteFile(_, _))
+        .Times(4)
+        .WillRepeatedly(Return(0));
+    ASSERT_EQ(0, namespaceTool.CleanRecycleBin("/", parseArg("3m")));
+
+    // CASE 6: clean recycle bin with expireTime is "3d"
+    EXPECT_CALL(*client_, ListDir(_, _))
+        .Times(1)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(files),
+                              Return(0)));
+    EXPECT_CALL(*client_, DeleteFile(_, _))
+        .Times(2)
+        .WillRepeatedly(Return(0));
+    ASSERT_EQ(0, namespaceTool.CleanRecycleBin("/", parseArg("3d")));
+
+    // CASE 7: clean recycle bin with dirname is "/cinder"
+    EXPECT_CALL(*client_, ListDir(_, _))
+        .Times(1)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(files),
+                              Return(0)));
+    ASSERT_EQ(0, namespaceTool.CleanRecycleBin("/dir", parseArg("3d")));
+
+    EXPECT_CALL(*client_, ListDir(_, _))
+        .Times(1)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(files),
+                              Return(0)));
+    EXPECT_CALL(*client_, DeleteFile(_, _))
+        .Times(6)
+        .WillRepeatedly(Return(0));
+    ASSERT_EQ(0, namespaceTool.CleanRecycleBin("/cinder", parseArg("0s")));
 }
 
 
