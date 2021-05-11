@@ -338,13 +338,13 @@ TEST_F(NameSpaceToolTest, CleanRecycle) {
         .WillOnce(Return(0));
 
     // 1、正常情况
-    EXPECT_CALL(*core_, CleanRecycleBin(_))
+    EXPECT_CALL(*core_, CleanRecycleBin(_, _))
         .Times(1)
         .WillOnce(Return(0));
     ASSERT_EQ(0, namespaceTool.RunCommand("clean-recycle"));
 
     // 2、失败
-    EXPECT_CALL(*core_, CleanRecycleBin(_))
+    EXPECT_CALL(*core_, CleanRecycleBin(_, _))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.RunCommand("clean-recycle"));

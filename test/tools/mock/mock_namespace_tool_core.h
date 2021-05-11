@@ -55,7 +55,7 @@ class MockNameSpaceToolCore : public NameSpaceToolCore {
     MOCK_METHOD4(QueryChunkCopyset, int(const std::string&, uint64_t,
                           uint64_t*,
                           std::pair<uint32_t, uint32_t>*));
-    MOCK_METHOD1(CleanRecycleBin, int(const std::string&));
+    MOCK_METHOD2(CleanRecycleBin, int(const std::string&, uint64_t expireTime));
     MOCK_METHOD2(GetFileSize, int(const std::string&, uint64_t*));
 };
 }  // namespace tool

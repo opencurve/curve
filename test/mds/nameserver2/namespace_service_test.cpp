@@ -29,6 +29,7 @@
 #include "src/mds/nameserver2/chunk_allocator.h"
 #include "src/common/timeutility.h"
 #include "src/common/configuration.h"
+#include "src/common/string_util.h"
 #include "test/mds/nameserver2/fakes.h"
 #include "test/mds/nameserver2/mock/mock_clean_manager.h"
 #include "src/mds/nameserver2/clean_manager.h"
@@ -55,6 +56,17 @@ namespace curve {
 namespace mds {
 
 class NameSpaceServiceTest : public ::testing::Test {
+ public:
+    struct RequestOption {
+        bool isRootUser = false;
+        bool forceDelete = false;
+
+        RequestOption() = default;
+
+        RequestOption(bool isRootUser, bool forceDelete)
+            : isRootUser(isRootUser), forceDelete(forceDelete) {}
+    };
+
  protected:
     void SetUp() override {
         // init the kcurvefs, use the fake element
@@ -130,6 +142,91 @@ class NameSpaceServiceTest : public ::testing::Test {
         }
     }
 
+    template<typename T>
+    void SetRequestAuth(T* request, RequestOption option) {
+        uint64_t date = TimeUtility::GetTimeofDayUs();
+        request->set_date(date);
+
+        if (!option.isRootUser) {
+            request->set_owner("owner");
+        } else {
+            auto signature = Authenticator::CalcString2Signature(
+                Authenticator::GetString2Signature(date, authOptions.rootOwner),
+                authOptions.rootPassword);
+            request->set_owner(authOptions.rootOwner);
+            request->set_signature(signature);
+        }
+    }
+
+    bool CheckFilename(const std::string& filename, uint64_t dtime) {
+        // filename: file-14376-1620453738
+        std::vector<std::string> items;
+        ::curve::common::SplitString(filename, "-", &items);
+
+        uint64_t time;
+        auto n = items.size();
+        if (n <= 2 || !::curve::common::StringToUll(items[n - 1], &time)
+            || time < dtime || time - dtime > 1) {
+            LOG(INFO) << "unexpected filename: " << filename
+                      << ", dtime: " << dtime
+                      << ", time in file: " << time;
+            return false;
+        }
+        return true;
+    }
+
+    bool DeleteFile(const std::string& filename,
+                    RequestOption option,
+                    DeleteFileResponse* response) {
+        brpc::Controller cntl;
+        DeleteFileRequest request;
+
+        request.set_filename(filename);
+        request.set_forcedelete(option.forceDelete);
+        SetRequestAuth(&request, option);
+        stub_->DeleteFile(&cntl, &request, response, NULL);
+
+        if (cntl.Failed()) {
+            LOG(INFO) << "RPC error for DeleteFile: " << cntl.ErrorText();
+            return false;
+        }
+        return true;
+    }
+
+    bool GetFileInfo(const std::string& filename,
+                     RequestOption option,
+                     GetFileInfoResponse* response) {
+        brpc::Controller cntl;
+        GetFileInfoRequest request;
+
+        request.set_filename(filename);
+        SetRequestAuth(&request, option);
+        stub_->GetFileInfo(&cntl, &request, response, NULL);
+
+        if (cntl.Failed()) {
+            LOG(INFO) << "RPC error for GetFileInfo: " << cntl.ErrorText();
+            return false;
+        }
+        return true;
+    }
+
+    bool ListDir(const std::string& dirname,
+                 RequestOption option,
+                 ListDirResponse* response) {
+        brpc::Controller cntl;
+        ListDirRequest request;
+
+        request.set_filename(dirname);
+        SetRequestAuth(&request, option);
+        stub_->ListDir(&cntl, &request, response, NULL);
+
+        if (cntl.Failed()) {
+            LOG(INFO) << "RPC error for ListDir: " << cntl.ErrorText();
+            return false;
+        }
+        return true;
+    }
+
  public:
     std::shared_ptr<NameServerStorage> storage_;
     std::shared_ptr<InodeIDGenerator> inodeGenerator_;
@@ -141,6 +238,7 @@ class NameSpaceServiceTest : public ::testing::Test {
     std::shared_ptr<MockTopology> topology_;
     std::shared_ptr<AllocStatistic> allocStatistic_;
     std::shared_ptr<FileRecordManager> fileRecordManager_;
+    std::shared_ptr<CurveFSService_Stub> stub_;
     struct FileRecordOptions fileRecordOptions;
     struct RootAuthOption authOptions;
     struct CurveFSOption curveFSOptions;
@@ -1552,6 +1650,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     request3.set_owner("owner");
     request3.set_date(TimeUtility::GetTimeofDayUs());
 
+    auto dtime = TimeUtility::GetTimeofDaySec();
     stub.DeleteFile(&cntl, &request3, &response3, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response3.statuscode(), StatusCode::kOK);
@@ -1589,7 +1688,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
         ASSERT_EQ(listResponse.fileinfo_size(), 1);
         FileInfo file = listResponse.fileinfo(0);
-        ASSERT_EQ(file.filename(), "file1-1");
+        ASSERT_TRUE(CheckFilename(file.filename(), dtime));  // file1-1-${dtime}
         ASSERT_EQ(file.filestatus(), FileStatus::kFileCreated);
         } else {
         ASSERT_TRUE(false);
@@ -1623,158 +1722,79 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
                           brpc::ClosureGuard doneGuard(done);
                     })));
 
-    cntl.Reset();
-    request3.set_filename("/dir1/file2");
-    request3.set_owner("owner");
-    request3.set_date(TimeUtility::GetTimeofDayUs());
+    stub_ = std::make_shared<CurveFSService_Stub>(&channel);
 
-    stub.DeleteFile(&cntl, &request3, &response3, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response3.statuscode(), StatusCode::kOK);
-    } else {
-        std::cout << cntl.ErrorText();
-        ASSERT_TRUE(false);
+    // Delete "/dir1/file2"
+    dtime = TimeUtility::GetTimeofDaySec();
+    {
+        RequestOption option;
+        DeleteFileResponse response;
+        ASSERT_TRUE(DeleteFile("/dir1/file2", option, &response));
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+
+        GetFileInfoResponse response2;
+        ASSERT_TRUE(GetFileInfo("/dir1/file2", option, &response2));
+        ASSERT_EQ(response2.statuscode(), StatusCode::kFileNotExists);
     }
 
-    cntl.Reset();
-    request1.set_filename("/dir1/file2");
-    request1.set_owner("owner");
-    request1.set_date(TimeUtility::GetTimeofDayUs());
-    stub.GetFileInfo(&cntl, &request1, &response1, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response1.statuscode(), StatusCode::kFileNotExists);
-    } else {
-        ASSERT_TRUE(false);
+    // Delete "/dir1"
+    {
+        RequestOption option;
+        DeleteFileResponse response;
+        ASSERT_TRUE(DeleteFile("/dir1", option, &response));
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+
+        GetFileInfoResponse response2;
+        ASSERT_TRUE(GetFileInfo("/dir1", option, &response2));
+        ASSERT_EQ(response2.statuscode(), StatusCode::kFileNotExists);
     }
 
-    cntl.Reset();
-    request3.set_filename("/dir1");
-    request3.set_owner("owner");
-    request3.set_date(TimeUtility::GetTimeofDayUs());
+    // List recycle bin
+    std::vector<std::string> dfiles;
+    {
+        RequestOption option(true, false);
+        ListDirResponse response;
+        ASSERT_TRUE(ListDir(RECYCLEBINDIR, option, &response));
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(response.fileinfo_size(), 2);
 
-    stub.DeleteFile(&cntl, &request3, &response3, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response3.statuscode(), StatusCode::kOK);
-    } else {
-        std::cout << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    cntl.Reset();
-    request1.set_filename("/dir1");
-    request1.set_owner("owner");
-    request1.set_date(TimeUtility::GetTimeofDayUs());
-    stub.GetFileInfo(&cntl, &request1, &response1, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response1.statuscode(), StatusCode::kFileNotExists);
-    } else {
-        ASSERT_TRUE(false);
-    }
-
-    // 查询垃圾箱
-    cntl.Reset();
-    date = TimeUtility::GetTimeofDayUs();
-    str2sig = Authenticator::GetString2Signature(date,
-                                            authOptions.rootOwner);
-    sig = Authenticator::CalcString2Signature(str2sig,
-                                            authOptions.rootPassword);
-    listRequest.set_signature(sig);
-    listRequest.set_filename(RECYCLEBINDIR);
-    listRequest.set_owner(authOptions.rootOwner);
-    listRequest.set_date(date);
-    stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
-        FileInfo file = listResponse.fileinfo(0);
-        ASSERT_EQ(file.filename(), "file1-1");
-        ASSERT_EQ(listResponse.fileinfo(0).filestatus(),
-                                        FileStatus::kFileCreated);
-        ASSERT_EQ(listResponse.fileinfo(1).filestatus(),
-                                        FileStatus::kFileCreated);
-        ASSERT_EQ(listResponse.fileinfo_size(), 2);
-        } else {
-        ASSERT_TRUE(false);
-    }
-
-    // 从垃圾箱真正删除文件
-    cntl.Reset();
-    date = TimeUtility::GetTimeofDayUs();
-    str2sig = Authenticator::GetString2Signature(date,
-                                            authOptions.rootOwner);
-    sig = Authenticator::CalcString2Signature(str2sig,
-                                            authOptions.rootPassword);
-    request3.set_signature(sig);
-    request3.set_owner(authOptions.rootOwner);
-    request3.set_date(date);
-    request3.set_filename(RECYCLEBINDIR + "/" + "file1-1");
-    request3.set_forcedelete(true);
-
-    stub.DeleteFile(&cntl, &request3, &response3, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response3.statuscode(), StatusCode::kOK);
-    } else {
-        std::cout << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    cntl.Reset();
-    date = TimeUtility::GetTimeofDayUs();
-    str2sig = Authenticator::GetString2Signature(date,
-                                            authOptions.rootOwner);
-    sig = Authenticator::CalcString2Signature(str2sig,
-                                            authOptions.rootPassword);
-    request3.set_signature(sig);
-    request3.set_owner(authOptions.rootOwner);
-    request3.set_date(date);
-    request3.set_filename(RECYCLEBINDIR + "/" + "file2-3");
-    request3.set_forcedelete(true);
-
-    stub.DeleteFile(&cntl, &request3, &response3, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response3.statuscode(), StatusCode::kOK);
-    } else {
-        std::cout << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    attempts = 0;
-    while (attempts < 100) {
-        cntl.Reset();
-        date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
-                                            authOptions.rootOwner);
-        sig = Authenticator::CalcString2Signature(str2sig,
-                                            authOptions.rootPassword);
-        listRequest.set_signature(sig);
-        listRequest.set_filename(RECYCLEBINDIR);
-        listRequest.set_owner(authOptions.rootOwner);
-        listRequest.set_date(date);
-        stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
-        if (!cntl.Failed() && listResponse.statuscode() == StatusCode::kOK) {
-            if (listResponse.fileinfo_size() == 0) {
-                break;
-            } else {
-                sleep(1);
-                ++attempts;
-            }
-        } else {
-            ASSERT_TRUE(false);
+        for (int i = 0; i < 2; i++) {
+            FileInfo file = response.fileinfo(i);
+            ASSERT_TRUE(CheckFilename(file.filename(), dtime));
+            ASSERT_EQ(response.fileinfo(i).filestatus(),
+                      FileStatus::kFileCreated);
+            dfiles.push_back(RECYCLEBINDIR + "/" + file.filename());
         }
     }
-    ASSERT_LE(attempts, 100) << "max attempts for list /RecycleBin exhausted";
 
-    // 删除文件时，如果文件名不满足要求，会返回失败
-    cntl.Reset();
-    request3.set_filename("/file1/");
-    request3.set_owner("owner");
-    request3.set_date(TimeUtility::GetTimeofDayUs());
+    // Force delete file in recycle bin, then list it
+    {
+        RequestOption option(true, true);
+        DeleteFileResponse response;
+        ASSERT_TRUE(DeleteFile(dfiles[0], option, &response));
+        ASSERT_TRUE(DeleteFile(dfiles[1], option, &response));
 
-    stub.DeleteFile(&cntl, &request3, &response3, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response3.statuscode(), StatusCode::kParaError);
-    } else {
-        std::cout << cntl.ErrorText();
-        ASSERT_TRUE(false);
+        // Wait for clean task done
+        ListDirResponse response2;
+        bool success = false;
+        for (int i = 1; i <= 100; i++) {
+            ASSERT_TRUE(ListDir(RECYCLEBINDIR, option, &response2));
+            if (0 == response2.fileinfo_size()) {
+                success = true;
+                break;
+            }
+            sleep(1);
+        }
+
+        ASSERT_TRUE(success) << "max attempts for list /RecycleBin exhausted";
+    }
+
+    // Delete file failed with invalid filename
+    {
+        RequestOption option;
+        DeleteFileResponse response;
+        ASSERT_TRUE(DeleteFile("/file1/", option, &response));
+        ASSERT_EQ(response.statuscode(), StatusCode::kParaError);
     }
 
     server.Stop(10);
@@ -2199,6 +2219,7 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     // recover file successfully
     // 1. delete file /dir1/file2
     cntl.Reset();
+    auto dtime = TimeUtility::GetTimeofDaySec();
     DeleteFileRequest deleteRequest;
     DeleteFileResponse deleteResponse;
     deleteRequest.set_filename("/dir1/file2");
@@ -2229,7 +2250,7 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     if (!cntl.Failed()) {
         ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
         FileInfo file = listResponse.fileinfo(0);
-        ASSERT_EQ(file.filename(), "file2-3");
+        ASSERT_TRUE(CheckFilename(file.filename(), dtime));  // file2-3-${dtime}
         ASSERT_EQ(file.owner(), "owner");
         ASSERT_EQ(file.originalfullpathname(), "/dir1/file2");
         ASSERT_EQ(file.filestatus(), FileStatus::kFileCreated);
