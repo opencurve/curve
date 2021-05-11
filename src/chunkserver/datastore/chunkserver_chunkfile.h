@@ -236,14 +236,14 @@ class CSChunkFile {
 
  private:
     /**
-     * Determine whether you need to create a new snapshot
+     * Check whether you need to create a new snapshot
      * @param sn: write request sequence number
      * @return: true means to create a snapshot;
      *          false means no need to create a snapshot
      */
     bool needCreateSnapshot(SequenceNum sn);
     /**
-     * Determine whether to copy on write
+     * Check whether to copy on write
      * @param sn: write request sequence number
      * @return: true means cow is required; false means cow is not required
      */
@@ -301,7 +301,7 @@ class CSChunkFile {
         if (rc < 0) {
             return rc;
         }
-        // If it is a clone chunk, you need to determine whether you need to
+        // If it is a clone chunk, you need to check whether you need to
         // change the bitmap and update the metapage
         if (isCloneChunk_) {
             uint32_t beginIndex = offset / pageSize_;
@@ -321,7 +321,7 @@ class CSChunkFile {
         if (rc < 0) {
             return rc;
         }
-        // If it is a clone chunk, you need to determine whether you need to
+        // If it is a clone chunk, you need to check whether you need to
         // change the bitmap and update the metapage
         if (isCloneChunk_) {
             uint32_t beginIndex = offset / pageSize_;

@@ -30,7 +30,7 @@
 namespace curve {
 namespace chunkserver {
 
-// conf.epoch文件最大长度
+// conf.epoch file's max length
 const uint32_t kConfEpochFileMaxSize = 4096;
 const uint64_t kConfEpochFileMagic = 0x6225929368674119;
 
@@ -49,7 +49,7 @@ int ConfEpochFile::Load(const std::string &path,
     char json[kConfEpochFileMaxSize] = {0};
     int size = 0;
 
-    // 1. read数据
+    // 1. Read data
     size = fs_->Read(fd, json, 0, kConfEpochFileMaxSize);
     if (size <= 0) {
         LOG(ERROR) << "LoadConfEpoch read failed: " << path
@@ -60,7 +60,7 @@ int ConfEpochFile::Load(const std::string &path,
     }
     fs_->Close(fd);
 
-    // 2.反序列化
+    // 2.Deserialization
     ConfEpoch confEpoch;
     std::string jsonStr(json);
     std::string err;
@@ -73,7 +73,7 @@ int ConfEpochFile::Load(const std::string &path,
         return -1;
     }
 
-    // 3. 验证crc
+    // 3. Verify crc
     uint32_t crc32c = ConfEpochCrc(confEpoch);
     if (crc32c != confEpoch.checksum()) {
         LOG(ERROR) << "conf epoch crc error: " << jsonStr;
@@ -96,13 +96,13 @@ int ConfEpochFile::Save(const std::string &path,
                         const LogicPoolID logicPoolID,
                         const CopysetID copysetID,
                         const uint64_t epoch) {
-    // 1. 转换成conf message
+    // 1. Convert to conf message
     ConfEpoch confEpoch;
     confEpoch.set_logicpoolid(logicPoolID);
     confEpoch.set_copysetid(copysetID);
     confEpoch.set_epoch(epoch);
 
-    // 计算crc
+    // Calculate crc
     uint32_t crc32c = ConfEpochCrc(confEpoch);
     confEpoch.set_checksum(crc32c);
 
@@ -117,7 +117,7 @@ int ConfEpochFile::Save(const std::string &path,
         return -1;
     }
 
-    // 2. open文件
+    // 2. Open file
     int fd = fs_->Open(path.c_str(), O_RDWR | O_CREAT);
     if (0 > fd) {
         LOG(ERROR) << "LoadConfEpoch failed open file " << path
@@ -126,7 +126,7 @@ int ConfEpochFile::Save(const std::string &path,
         return -1;
     }
 
-    // 3. write文件
+    // 3. Write file
     if (out.size() != fs_->Write(fd, out.c_str(), 0, out.size())) {
         LOG(ERROR) << "SaveConfEpoch write failed, path: " << path
                    << ", errno: " << errno
@@ -135,7 +135,7 @@ int ConfEpochFile::Save(const std::string &path,
         return -1;
     }
 
-    // 4. 落盘
+    // 4. On-disk
     if (0 != fs_->Fsync(fd)) {
         LOG(ERROR) << "SaveConfEpoch sync failed, path: " << path
                    << ", errno: " << errno

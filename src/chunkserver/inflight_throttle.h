@@ -30,7 +30,7 @@ namespace curve {
 namespace chunkserver {
 
 /**
- * 负责控制最大inflight request数量
+ * Control the maximum number of inflight requests
  */
 class InflightThrottle {
  public:
@@ -40,8 +40,8 @@ class InflightThrottle {
     virtual ~InflightThrottle() = default;
 
     /**
-     * @brief: 判断是否过载
-     * @return true，过载，false没有过载
+     * @brief: Determine if it is overloaded
+     * @return true，overload，false, not overload
      */
     inline bool IsOverLoad() {
         if (kMaxInflightRequest_ >=
@@ -53,23 +53,23 @@ class InflightThrottle {
     }
 
     /**
-     * @brief: inflight request计数加1
+     * @brief: inflight request add 1
      */
     inline void Increment() {
         inflightRequestCount_.fetch_add(1, std::memory_order_relaxed);
     }
 
     /**
-     * @brief: inflight request计数减1
+     * @brief: inflight request minus 1
      */
     inline void Decrement() {
         inflightRequestCount_.fetch_sub(1, std::memory_order_relaxed);
     }
 
  private:
-    // 当前inflight request数量
+    // Current number of inflight requests
     std::atomic<uint64_t> inflightRequestCount_;
-    // 最大的inflight request数量
+    // Maximum number of inflight requests
     const uint64_t kMaxInflightRequest_;
 };
 

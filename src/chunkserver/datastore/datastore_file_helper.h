@@ -65,14 +65,14 @@ class DatastoreFileHelper {
                   vector<string>* snapFiles);
 
     /**
-     * Determine whether the file is a snapshot file of a chunk
+     * Check whether the file is a snapshot file of a chunk
      * @param fileName: file name
      * @return true-is a snapshot file, false-not a snapshot file
      */
     static bool IsSnapshotFile(const string& fileName);
 
     /**
-     * Determine whether the file is a chunk file
+     * Check whether the file is a chunk file
      * @param fileName: file name
      * @return true-is a chunk file, false-not a chunk file
      */

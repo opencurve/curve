@@ -286,7 +286,7 @@ CSErrorCode CSDataStore::CreateCloneChunk(ChunkID id,
             return errorCode;
         }
     }
-    // Determine whether the specified parameters match the information
+    // Check whether the specified parameters match the information
     // in the existing Chunk
     // No need to put in else, because users may call this interface at the
     // same time
