@@ -65,6 +65,11 @@ static std::string CalcRelativePath(const std::string& path1,
     return rpath;
 }
 
+// Check whether the path2 is the subpath of path1
+static bool IsSubPath(const std::string& path1,
+                      const std::string& path2) {
+    return StringStartWith(CalcRelativePath(path1, path2), "./");
+}
 
 }  // namespace common
 }  // namespace curve

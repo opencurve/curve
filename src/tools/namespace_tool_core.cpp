@@ -125,30 +125,51 @@ int NameSpaceToolCore::GetFileSegments(const std::string& fileName,
     return 0;
 }
 
-int NameSpaceToolCore::CleanRecycleBin(const std::string& dirName) {
+int NameSpaceToolCore::CleanRecycleBin(const std::string& dirName,
+                                       const uint64_t expireTime) {
     std::vector<FileInfo> files;
     int res = client_->ListDir(curve::mds::RECYCLEBINDIR, &files);
     if (res != 0) {
         std::cout << "List RecycleBin fail!" << std::endl;
         return -1;
     }
-    bool success = true;
-    for (const auto& fileInfo : files) {
-        std::string fileName = curve::mds::RECYCLEBINDIR + "/"
-                                + fileInfo.filename();
-        // 如果指定了dirName，就只删除原来在这个目录下的文件
-        if (!dirName.empty()) {
-            std::string originPath = fileInfo.originalfullpathname();
-            if (originPath.find(dirName) != 0) {
-                continue;
-            }
+
+    auto needDelete = [](const FileInfo &fileInfo,
+                         uint64_t now,
+                         uint64_t expireTime) -> bool {
+        auto filename = fileInfo.filename();
+        std::vector<std::string> items;
+        ::curve::common::SplitString(filename, "-", &items);
+
+        uint64_t dtime;
+        auto n = items.size();
+        auto id = std::to_string(fileInfo.id());
+        if (n >= 2 && items[n - 2] == id
+            && ::curve::common::StringToUll(items[n - 1], &dtime)
+            && now - dtime < expireTime) {
+            return false;
         }
-        res = client_->DeleteFile(fileName, true);
+
+        return true;
+    };
+
+    bool success = true;
+    uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
+    for (const auto& fileInfo : files) {
+        auto originPath = fileInfo.originalfullpathname();
+        if (!::curve::common::IsSubPath(dirName, originPath) ||
+            !needDelete(fileInfo, now, expireTime)) {
+            continue;
+        }
+
+        auto filename = curve::mds::RECYCLEBINDIR + "/" + fileInfo.filename();
+        res = client_->DeleteFile(filename, true);
         if (res != 0) {
-            std::cout << "DeleteFile " << fileName << " fail!" << std::endl;
+            std::cout << "Delete " << filename << " fail!" << std::endl;
             success = false;
         }
     }
+
     if (success) {
         std::cout << "CleanRecycleBin success!" << std::endl;
         return 0;

@@ -103,9 +103,27 @@ class FakeNameServerStorage : public NameServerStorage {
  public:
     StoreStatus PutFile(const FileInfo & fileInfo) override {
         std::lock_guard<std::mutex> guard(lock_);
-        std::string storeKey = NameSpaceStorageCodec::EncodeFileStoreKey(
-                                                        fileInfo.parentid(),
-                                                        fileInfo.filename());
+
+        std::string storeKey;
+        auto filetype = fileInfo.filetype();
+        auto id = fileInfo.parentid();
+        auto filename = fileInfo.filename();
+
+        switch (filetype) {
+        case FileType::INODE_PAGEFILE:
+        case FileType::INODE_DIRECTORY:
+            storeKey = NameSpaceStorageCodec::EncodeFileStoreKey(id, filename);
+            break;
+        case FileType::INODE_SNAPSHOT_PAGEFILE:
+            storeKey = NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(
+                id, filename);
+            break;
+        default:
+            LOG(ERROR) << "filetype: " << filetype
+                       << " of " << filename << " not exist";
+            return StoreStatus::InternalError;
+        }
+
         auto iter = memKvMap_.find(storeKey);
         if (iter != memKvMap_.end()) {
             memKvMap_.erase(iter);

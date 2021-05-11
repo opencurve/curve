@@ -38,6 +38,7 @@
 #include "proto/topology.pb.h"
 #include "src/common/timeutility.h"
 #include "src/common/string_util.h"
+#include "src/common/fs_util.h"
 #include "src/mds/common/mds_define.h"
 #include "src/tools/mds_client.h"
 
@@ -148,11 +149,14 @@ class NameSpaceToolCore {
                           std::pair<uint32_t, uint32_t>* copyset);
 
     /**
-     *  @brief 清空回收站
-     *  @param fileName 可选参数，如果指定了，就只删除原来在fileName目录下的文件
-     *  @return 成功返回0，失败返回-1
+     *  @brief clean recycle bin
+     *  @param dirName only clean file in the dirName if dirName is not empty
+     *  @param expireTime time for file in recycle bin exceed expireTime
+               will be deleted
+     *  @return return 0 if success, else return -1
      */
-    virtual int CleanRecycleBin(const std::string& dirName = "");
+    virtual int CleanRecycleBin(const std::string& dirName,
+                                const uint64_t expireTime);
 
     virtual int UpdateFileThrottle(const std::string& fileName,
                                    const std::string& throttleType,
