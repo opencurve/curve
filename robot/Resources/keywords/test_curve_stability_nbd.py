@@ -396,12 +396,15 @@ def check_clone_vol_exist(clonevol_uuid):
     return False
 
 def diff_vol_consistency(vol_uuid,clone_uuid):
-    context1 = get_vol_md5(vol_uuid)
-    context2 = get_vol_md5(clone_uuid)
-    if context1 != context2:
-        logger2.error("check md5 consistency fail ,vol is %s,clone vol is %s"%(vol_uuid,clone_uuid))
     if config.snapshot_thrash.check_md5 == True:
+        context1 = get_vol_md5(vol_uuid)
+        context2 = get_vol_md5(clone_uuid)
+        if context1 != context2:
+            logger2.error("check md5 consistency fail ,vol is %s,clone vol is %s"%(vol_uuid,clone_uuid))
         assert context1 == context2,"vol and clone vol not same"
+    else:
+        logger2.info("do not get md5")
+        return True
 
 def init_nbd_vol(check_md5=True,lazy="True"):
     ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
