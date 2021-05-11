@@ -118,12 +118,11 @@ CSErrorCode ChunkFileMetaPage::decode(const char* buf) {
 
     // TODO(yyk) check version compatibility, currrent simple error handing,
     // need detailed implementation later
-    if (version != FORMAT_VERSION) {
+    if (!(version == FORMAT_VERSION || version == FORMAT_VERSION_V2)) {
         LOG(ERROR) << "File format version incompatible."
-                    << "file version: "
-                    << static_cast<uint32_t>(version)
-                    << ", format version: "
-                    << static_cast<uint32_t>(FORMAT_VERSION);
+                   << "file version: " << version
+                   << ", valid version: [" << FORMAT_VERSION
+                   << ", " << FORMAT_VERSION_V2 << "]";
         return CSErrorCode::IncompatibleError;
     }
     return CSErrorCode::Success;
@@ -188,8 +187,10 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
         && metaPage_.sn > 0) {
         char buf[pageSize_];  // NOLINT
         memset(buf, 0, sizeof(buf));
+        metaPage_.version = FORMAT_VERSION_V2;
         metaPage_.encode(buf);
-        int rc = chunkFilePool_->GetFile(chunkFilePath, buf);
+
+        int rc = chunkFilePool_->GetFile(chunkFilePath, buf, true);
         // When creating files concurrently, the previous thread may have been
         // created successfully, then -EEXIST will be returned here. At this
         // point, you can continue to open the generated file

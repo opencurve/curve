@@ -131,6 +131,9 @@ chunkserver_rconcurrentapply_queuedepth: 1
 chunkserver_chunkfilepool_chunk_file_pool_dir: ./0/
 chunkserver_chunkfilepool_cpmeta_file_size: 4096
 chunkserver_chunkfilepool_retry_times: 5
+chunkserver_chunkfilepool_clean_enable: true
+chunkserver_chunkfilepool_clean_bytes_per_write: 4096
+chunkserver_chunkfilepool_clean_throttle_iops: 500
 walfilepool_use_chunk_file_pool: true
 chunkserver_walfilepool_file_pool_dir: ./0/
 chunkserver_walfilepool_meta_path: ./walfilepool.meta
@@ -171,6 +174,8 @@ snap_clone_backend_ref_func_scan_interval_ms: 3600000
 snap_etcd_dailtimeout_ms: 5000
 snap_etcd_operation_timeout_ms: 5000
 snap_etcd_retry_times: 3
+snap_etcd_dlock_timeout_ms: 10000
+snap_etcd_dlock_ttl_sec: 10
 snap_leader_campagin_prefix: snapshotcloneserverleaderlock
 snap_leader_session_inter_sec: 5
 snap_leader_election_timeout_ms: 0
@@ -187,6 +192,9 @@ client_mds_rpc_retry_interval_us: 100000
 client_metacache_get_leader_timeout_ms: 500
 client_metacache_get_leader_retry: 5
 client_metacache_rpc_retry_interval_us: 100000
+client_mds_normal_retry_times_before_trigger_wait: 3
+client_mds_max_retry_ms_in_io_path: 86400000
+client_mds_wait_sleep_ms: 10000
 client_schedule_queue_capacity: 1000000
 client_schedule_threadpool_size: 2
 client_isolation_task_queue_capacity: 1000000

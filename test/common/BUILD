@@ -27,6 +27,8 @@ cc_test(
         "//src/common:curve_auth",
         "//src/common:curve_s3_adapter",
         "//src/common/concurrent:curve_concurrent",
+        "//src/kvstorageclient:kvstorage_client",
+        "//src/common/concurrent:curve_dlock",
         "@com_google_googletest//:gtest_main",
     ],
 )

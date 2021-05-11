@@ -26,9 +26,13 @@
 
 #include<string>
 #include <vector>
+#include "src/common/concurrent/dlock.h"
 
 namespace curve {
 namespace snapshotcloneserver {
+
+using curve::common::DLockOpts;
+
 // curve client options
 struct CurveClientOptions {
     // config path
@@ -90,6 +94,8 @@ struct SnapshotCloneServerOptions {
     uint32_t backEndReferenceRecordScanIntervalMs;
     // 引用计数后台扫描每轮间隔
     uint32_t backEndReferenceFuncScanIntervalMs;
+    // dlock options
+    DLockOpts dlockOpts;
 };
 
 }  // namespace snapshotcloneserver

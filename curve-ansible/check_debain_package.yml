@@ -20,7 +20,7 @@
   hosts: mds
   gather_facts: no
   tags: mds
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   vars:
     - package_name: curve-mds
     - version: "{{ mds_package_version }}"
@@ -31,7 +31,7 @@
   hosts: snapshotclone
   gather_facts: no
   tags: snapshotclone
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   vars:
     - package_name: curve-snapshotcloneserver
     - version: "{{ snapshot_package_version }}"
@@ -42,7 +42,7 @@
   hosts: chunkservers
   gather_facts: no
   tags: chunkserver
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   vars:
     - package_name: curve-chunkserver
     - version: "{{ cs_package_version }}"
@@ -53,7 +53,7 @@
   hosts: monitor
   gather_facts: no
   tags: monitor
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   vars:
     - package_name: curve-monitor
     - version: "{{ monitor_package_version }}"

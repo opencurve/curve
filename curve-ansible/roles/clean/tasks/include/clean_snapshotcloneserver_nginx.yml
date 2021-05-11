@@ -17,4 +17,4 @@
 
 - name: clean snapshotcloneserver nginx log dir
   shell: sudo rm -rf {{ snapshotcloneserver_nginx_dir }}/logs
-  when: clean_log_when_clean
+  when: clean_log_when_clean | bool

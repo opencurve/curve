@@ -36,6 +36,7 @@
 #include "src/snapshotcloneserver/clone/clone_service_manager.h"
 #include "src/snapshotcloneserver/common/config.h"
 #include "src/kvstorageclient/etcd_client.h"
+#include "src/common/concurrent/dlock.h"
 
 using ::curve::kvstorage::KVStorageClient;
 
@@ -436,6 +437,14 @@ class MockKVStorageClient : public KVStorageClient {
     MOCK_METHOD3(PutRewithRevision, int(const std::string &,
         const std::string &, int64_t *));
     MOCK_METHOD2(DeleteRewithRevision, int(const std::string &, int64_t *));
+};
+
+class MockDLock : public DLock {
+ public:
+    explicit MockDLock(const DLockOpts& opts) : DLock(opts) {}
+    MOCK_METHOD0(Init, int64_t());
+    MOCK_METHOD0(Lock, int());
+    MOCK_METHOD0(UnLock, int());
 };
 
 }  // namespace snapshotcloneserver

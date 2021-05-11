@@ -99,6 +99,13 @@ static bool StringToInt(const std::string &value, int32_t *out) {
     }
 }
 
+static bool StringEndsWith(const std::string& value,
+                           const std::string& ending) {
+    if (ending.size() > value.size())
+        return false;
+    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+}
+
 }  // namespace common
 }  // namespace curve
 

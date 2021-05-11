@@ -122,7 +122,7 @@ class CurveSegmentTest : public testing::Test {
 TEST_F(CurveSegmentTest, open_segment) {
     EXPECT_CALL(*file_pool, GetFilePoolOpt())
         .WillRepeatedly(Return(fp_option));
-    EXPECT_CALL(*file_pool, GetFile(_, _))
+    EXPECT_CALL(*file_pool, GetFileImpl(_, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*file_pool, RecycleFile(_))
         .WillOnce(Return(0));
@@ -182,7 +182,7 @@ TEST_F(CurveSegmentTest, open_segment) {
 TEST_F(CurveSegmentTest, closed_segment) {
     EXPECT_CALL(*file_pool, GetFilePoolOpt())
         .WillRepeatedly(Return(fp_option));
-    EXPECT_CALL(*file_pool, GetFile(_, _))
+    EXPECT_CALL(*file_pool, GetFileImpl(_, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*file_pool, RecycleFile(_))
         .WillOnce(Return(0));

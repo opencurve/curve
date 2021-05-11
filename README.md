@@ -35,7 +35,7 @@ So far, we have implemented a high performance block storage system, which suppo
 
 ## Quick Start
 
-Want to try on it? Take it easy! We'll help you step by step, but make sure you've read this [Special Statement](docs/en/deploy_en.md#special-statement) before you start.
+Want to try on it? Take it easy! We'll help you step by step, but make sure you've read this [Tips](docs/en/deploy_en.md#Tips) before you start.
 
 ### Deploy an all-in-one environment (to try how CURVE works)
 

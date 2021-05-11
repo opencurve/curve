@@ -32,10 +32,12 @@
 #include "src/common/snapshotclone/snapshotclone_define.h"
 #include "json/json.h"
 #include "src/common/concurrent/name_lock.h"
+#include "src/common/concurrent/dlock.h"
 
 using ::google::protobuf::RpcController;
 using ::google::protobuf::Closure;
 using ::curve::common::NameLockGuard;
+using ::curve::common::DLock;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -78,6 +80,10 @@ class CloneClosure : public Closure {
         lock_ = lock;
     }
 
+    void SetDLock(std::shared_ptr<DLock> lock) {
+        dlock_ = lock;
+    }
+
     void SetDestFileName(const std::string &destFileName) {
         destFileName_ = destFileName;
     }
@@ -115,10 +121,15 @@ class CloneClosure : public Closure {
         if (lock_ != nullptr) {
             lock_->Unlock(destFileName_);
         }
+
+        if (dlock_ != nullptr) {
+            dlock_->Unlock();
+        }
     }
 
  private:
     std::shared_ptr<NameLock> lock_;
+    std::shared_ptr<DLock> dlock_;
     std::string destFileName_;
     brpc::Controller *bcntl_;
     Closure* done_;

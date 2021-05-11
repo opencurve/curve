@@ -158,8 +158,9 @@ class ChunkServerIoTest : public testing::Test {
         int ret = 0;
         const SequenceNum sn1 = 1;
         std::string data(length * 4, 0);
-        // 用例初始化时chunk文件以'0'填充，因此这里同样以'0'填充
-        std::string chunkData(kChunkSize, '0');
+        // Now we will zeroing chunk file, even though it fill '0' in start
+        std::string chunkData(kChunkSize, '\0');
+
         std::string leader = "";
         PeerCluster cluster("InitShutdown-cluster", logicPoolId_, copysetId_,
                         peers_, params_, paramsIndexs_);

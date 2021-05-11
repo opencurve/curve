@@ -185,7 +185,7 @@ class CSDataStore_test : public testing::Test {
             EXPECT_CALL(*lfs_, Open(chunk2Path, Truly(hasCreatFlag)))
                 .Times(0);
             // fake fpool->GetFile()
-            ON_CALL(*fpool_, GetFile(_, NotNull()))
+            ON_CALL(*fpool_, GetFileImpl(_, NotNull()))
                 .WillByDefault(Return(0));
             EXPECT_CALL(*fpool_, RecycleFile(_))
                 .WillRepeatedly(Return(0));
@@ -683,7 +683,7 @@ TEST_F(CSDataStore_test, WriteChunkTest1) {
     // expect call chunkfile pool GetFile
     EXPECT_CALL(*lfs_, FileExists(chunk3Path))
         .WillOnce(Return(false));
-    EXPECT_CALL(*fpool_, GetFile(chunk3Path, NotNull()))
+    EXPECT_CALL(*fpool_, GetFileImpl(chunk3Path, NotNull()))
                 .WillOnce(Return(0));
     EXPECT_CALL(*lfs_, Open(chunk3Path, _))
         .Times(1)
@@ -996,7 +996,7 @@ TEST_F(CSDataStore_test, WriteChunkTest7) {
     EXPECT_CALL(*lfs_, FileExists(snapPath))
         .WillOnce(Return(false));
     // expect call chunkfile pool GetFile
-    EXPECT_CALL(*fpool_, GetFile(snapPath, NotNull()))
+    EXPECT_CALL(*fpool_, GetFileImpl(snapPath, NotNull()))
                 .WillOnce(Return(0));
     EXPECT_CALL(*lfs_, Open(snapPath, _))
         .WillOnce(Return(4));
@@ -1259,7 +1259,7 @@ TEST_F(CSDataStore_test, WriteChunkTest13) {
         // expect call chunkfile pool GetFile
         EXPECT_CALL(*lfs_, FileExists(chunk3Path))
             .WillOnce(Return(false));
-        EXPECT_CALL(*fpool_, GetFile(chunk3Path, NotNull()))
+        EXPECT_CALL(*fpool_, GetFileImpl(chunk3Path, NotNull()))
             .WillOnce(Return(0));
         EXPECT_CALL(*lfs_, Open(chunk3Path, _))
             .Times(1)
@@ -1444,7 +1444,7 @@ TEST_F(CSDataStore_test, WriteChunkTest14) {
         // expect call chunkfile pool GetFile
         EXPECT_CALL(*lfs_, FileExists(chunk3Path))
             .WillOnce(Return(false));
-        EXPECT_CALL(*fpool_, GetFile(chunk3Path, NotNull()))
+        EXPECT_CALL(*fpool_, GetFileImpl(chunk3Path, NotNull()))
             .WillOnce(Return(0));
         EXPECT_CALL(*lfs_, Open(chunk3Path, _))
             .Times(1)
@@ -1744,7 +1744,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest1) {
     // getchunk failed
     EXPECT_CALL(*lfs_, FileExists(snapPath))
         .WillOnce(Return(false));
-    EXPECT_CALL(*fpool_, GetFile(snapPath, NotNull()))
+    EXPECT_CALL(*fpool_, GetFileImpl(snapPath, NotNull()))
         .WillOnce(Return(-UT_ERRNO));
 
     EXPECT_EQ(CSErrorCode::InternalError,
@@ -1762,7 +1762,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest1) {
     // expect call chunkfile pool GetFile
     EXPECT_CALL(*lfs_, FileExists(snapPath))
         .WillOnce(Return(false));
-    EXPECT_CALL(*fpool_, GetFile(snapPath, NotNull()))
+    EXPECT_CALL(*fpool_, GetFileImpl(snapPath, NotNull()))
         .WillOnce(Return(0));
     // open snapshot failed
     EXPECT_CALL(*lfs_, Open(snapPath, _))
@@ -1829,7 +1829,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest2) {
     // expect call chunk file pool GetFile
     EXPECT_CALL(*lfs_, FileExists(snapPath))
         .WillOnce(Return(false));
-    EXPECT_CALL(*fpool_, GetFile(snapPath, NotNull()))
+    EXPECT_CALL(*fpool_, GetFileImpl(snapPath, NotNull()))
         .WillOnce(Return(0));
     EXPECT_CALL(*lfs_, Open(snapPath, _))
         .WillOnce(Return(4));
@@ -1891,7 +1891,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest3) {
     // expect call chunk file pool GetFile
     EXPECT_CALL(*lfs_, FileExists(snapPath))
         .WillOnce(Return(false));
-    EXPECT_CALL(*fpool_, GetFile(snapPath, NotNull()))
+    EXPECT_CALL(*fpool_, GetFileImpl(snapPath, NotNull()))
         .WillOnce(Return(0));
     EXPECT_CALL(*lfs_, Open(snapPath, _))
         .WillOnce(Return(4));
@@ -2023,7 +2023,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest4) {
     // expect call chunk file pool GetFile
     EXPECT_CALL(*lfs_, FileExists(snapPath))
         .WillOnce(Return(false));
-    EXPECT_CALL(*fpool_, GetFile(snapPath, NotNull()))
+    EXPECT_CALL(*fpool_, GetFileImpl(snapPath, NotNull()))
         .WillOnce(Return(0));
     EXPECT_CALL(*lfs_, Open(snapPath, _))
         .WillOnce(Return(4));
@@ -2105,7 +2105,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest5) {
     // expect call chunk file pool GetFile
     EXPECT_CALL(*lfs_, FileExists(chunk3Path))
         .WillOnce(Return(false));
-    EXPECT_CALL(*fpool_, GetFile(chunk3Path, NotNull()))
+    EXPECT_CALL(*fpool_, GetFileImpl(chunk3Path, NotNull()))
         .WillOnce(Return(-UT_ERRNO));
 
     EXPECT_EQ(CSErrorCode::InternalError, dataStore->WriteChunk(id,
@@ -2118,7 +2118,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest5) {
     // getchunk success
     EXPECT_CALL(*lfs_, FileExists(chunk3Path))
         .WillOnce(Return(false));
-    EXPECT_CALL(*fpool_, GetFile(chunk3Path, NotNull()))
+    EXPECT_CALL(*fpool_, GetFileImpl(chunk3Path, NotNull()))
         .WillOnce(Return(0));
     // set open chunk file failed
     EXPECT_CALL(*lfs_, Open(chunk3Path, _))
@@ -2246,7 +2246,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest6) {
         // expect call chunkfile pool GetFile
         EXPECT_CALL(*lfs_, FileExists(chunk3Path))
             .WillOnce(Return(false));
-        EXPECT_CALL(*fpool_, GetFile(chunk3Path, NotNull()))
+        EXPECT_CALL(*fpool_, GetFileImpl(chunk3Path, NotNull()))
             .WillOnce(Return(0));
         EXPECT_CALL(*lfs_, Open(chunk3Path, _))
             .Times(1)
@@ -2469,7 +2469,7 @@ TEST_F(CSDataStore_test, ReadChunkTest4) {
     // expect call chunkfile pool GetFile
     EXPECT_CALL(*lfs_, FileExists(chunk3Path))
         .WillOnce(Return(false));
-    EXPECT_CALL(*fpool_, GetFile(chunk3Path, NotNull()))
+    EXPECT_CALL(*fpool_, GetFileImpl(chunk3Path, NotNull()))
         .WillOnce(Return(0));
     EXPECT_CALL(*lfs_, Open(chunk3Path, _))
         .Times(1)
@@ -3274,7 +3274,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest7) {
     // expect call chunkfile pool GetFile
     EXPECT_CALL(*lfs_, FileExists(chunk3Path))
         .WillOnce(Return(false));
-    EXPECT_CALL(*fpool_, GetFile(chunk3Path, NotNull()))
+    EXPECT_CALL(*fpool_, GetFileImpl(chunk3Path, NotNull()))
         .WillOnce(Return(0));
     EXPECT_CALL(*lfs_, Open(chunk3Path, _))
         .Times(1)
@@ -3546,7 +3546,7 @@ TEST_F(CSDataStore_test, CreateCloneChunkTest) {
         // expect call chunkfile pool GetFile
         EXPECT_CALL(*lfs_, FileExists(chunk3Path))
             .WillOnce(Return(false));
-        EXPECT_CALL(*fpool_, GetFile(chunk3Path, NotNull()))
+        EXPECT_CALL(*fpool_, GetFileImpl(chunk3Path, NotNull()))
             .WillOnce(Return(0));
         EXPECT_CALL(*lfs_, Open(chunk3Path, _))
             .Times(1)
@@ -3696,7 +3696,7 @@ TEST_F(CSDataStore_test, CreateCloneChunkErrorTest) {
     // expect call chunk file pool GetFile
     EXPECT_CALL(*lfs_, FileExists(chunk3Path))
         .WillOnce(Return(false));
-    EXPECT_CALL(*fpool_, GetFile(chunk3Path, NotNull()))
+    EXPECT_CALL(*fpool_, GetFileImpl(chunk3Path, NotNull()))
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_EQ(CSErrorCode::InternalError,
               dataStore->CreateCloneChunk(id,
@@ -3759,7 +3759,7 @@ TEST_F(CSDataStore_test, PasteChunkTest1) {
         // expect call chunkfile pool GetFile
         EXPECT_CALL(*lfs_, FileExists(chunk3Path))
             .WillOnce(Return(false));
-        EXPECT_CALL(*fpool_, GetFile(chunk3Path, NotNull()))
+        EXPECT_CALL(*fpool_, GetFileImpl(chunk3Path, NotNull()))
             .WillOnce(Return(0));
         EXPECT_CALL(*lfs_, Open(chunk3Path, _))
             .Times(1)
@@ -3980,7 +3980,7 @@ TEST_F(CSDataStore_test, PasteChunkErrorTest1) {
         // expect call chunkfile pool GetFile
         EXPECT_CALL(*lfs_, FileExists(chunk3Path))
             .WillOnce(Return(false));
-        EXPECT_CALL(*fpool_, GetFile(chunk3Path, NotNull()))
+        EXPECT_CALL(*fpool_, GetFileImpl(chunk3Path, NotNull()))
             .WillOnce(Return(0));
         EXPECT_CALL(*lfs_, Open(chunk3Path, _))
             .Times(1)

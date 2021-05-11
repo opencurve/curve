@@ -87,6 +87,10 @@ etcd.dailtimeoutMs={{ snap_etcd_dailtimeout_ms }}
 etcd.operation.timeoutMs={{ snap_etcd_operation_timeout_ms }}
 # client操作失败可以重试的次数
 etcd.retry.times={{ snap_etcd_retry_times }}
+# wait dlock timeout
+etcd.dlock.timeoutMs={{ snap_etcd_dlock_timeout_ms }}
+# dlock lease timeout
+etcd.dlock.ttlSec={{ snap_etcd_dlock_ttl_sec }}
 
 #
 # leader选举相关参数
