@@ -17,15 +17,27 @@
 
 - name: install libunwind
   vars:
-    apt_lib_name: libunwind8 libunwind8-dev
-    yum_lib_name: libunwind libunwind-devel
+    apt_lib_name: libunwind8
+    yum_lib_name: libunwind
+  include_tasks: common_tasks/install_with_yum_apt.yml
+
+- name: install libunwind-dev
+  vars:
+    apt_lib_name: libunwind8-dev
+    yum_lib_name: libunwind-devel
   include_tasks: common_tasks/install_with_yum_apt.yml
 
 - name: install libuuid
   vars:
-    apt_lib_name: libuuid1 uuid-dev
-    yum_lib_name: libuuid libuuid-devel
+    apt_lib_name: libuuid1
+    yum_lib_name: libuuid
   include_tasks: common_tasks/install_with_yum_apt.yml
+
+- name: install libuuid-dev
+  vars:
+    apt_lib_name: uuid-dev
+    yum_lib_name: libuuid-devel
+  include_tasks: common_tasks/install_with_yum_apt.yml  
 
 - name: install daemon
   include_tasks: install_daemon.yml

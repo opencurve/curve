@@ -20,8 +20,8 @@
  * Author: huyao
  */
 
-#ifndef SRC_SCAN_SERVICE_H_
-#define SRC_SCAN_SERVICE_H_
+#ifndef SRC_CHUNKSERVER_SCAN_SERVICE_H_
+#define SRC_CHUNKSERVER_SCAN_SERVICE_H_
 
 #include "proto/scan.pb.h"
 #include "src/chunkserver/scan_manager.h"
@@ -35,7 +35,7 @@ using ::google::protobuf::Closure;
 class ScanServiceImpl : public ScanService {
  public:
     explicit  ScanServiceImpl(ScanManager* scanManager) :
-           scanManager_(scanManager) {}  
+           scanManager_(scanManager) {}
     ~ScanServiceImpl() {}
     void FollowScanMap(RpcController *controller,
                        const FollowScanMapRequest *request,
@@ -44,6 +44,6 @@ class ScanServiceImpl : public ScanService {
  private:
     ScanManager* scanManager_;
 };
-}
-}
-#endif
+}  // namespace chunkserver
+}  // namespace curve
+#endif  // SRC_CHUNKSERVER_SCAN_SERVICE_H_

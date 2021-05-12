@@ -71,7 +71,7 @@ class Coordinator {
      *         kScheduleErrCodeInvalidLogicalPool If logical pool not exist
      */
     virtual int RapidLeaderSchedule(PoolIdType lpid);
-    
+
     /**
      * @brief cancel scan request
      *
@@ -81,7 +81,7 @@ class Coordinator {
      *         kScheduleErrCodeInvalidLogicalPool If logical pool not exist
      */
     virtual int CancelScanSchedule(PoolIdType lpid);
-    
+
     virtual int QueryChunkServerRecoverStatus(
         const std::vector<ChunkServerIdType> &idList,
         std::map<ChunkServerIdType, bool> *statusMap);

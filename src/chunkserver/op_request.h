@@ -381,11 +381,12 @@ class ScanChunkRequest : public ChunkOpRequest {
     void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                         const ChunkRequest &request,
                         const butil::IOBuf &data) override;
+
  private:
-    void BuildRepScanMap(LogicPoolID pollId, ChunkID chunkId, uint64_t index, 
+    void BuildRepScanMap(LogicPoolID pollId, ChunkID chunkId, uint64_t index,
                          uint64_t offset, uint64_t len, char* readBuf);
     void SendScanMapToLeader();
-    ScanManager* scanManager_;     
+    ScanManager* scanManager_;
     uint64_t index_;
     PeerId peer_;
 };

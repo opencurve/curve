@@ -96,17 +96,23 @@ import (
 )
 
 const (
-	EtcdNewClient = "NewCient"
-	EtcdPut       = "Put"
-	EtcdGet       = "Get"
-	EtcdList      = "List"
-	EtcdDelete    = "Delete"
-	EtcdTxn2      = "Txn2"
-	EtcdTxn3      = "Txn3"
-	EtcdCmpAndSwp = "CmpAndSwp"
+	EtcdNewClient  = "NewCient"
+	EtcdPut        = "Put"
+	EtcdGet        = "Get"
+	EtcdList       = "List"
+	EtcdDelete     = "Delete"
+	EtcdTxn2       = "Txn2"
+	EtcdTxn3       = "Txn3"
+	EtcdCmpAndSwp  = "CmpAndSwp"
+	EtcdNewMutex   = "NewMutex"
+	EtcdNewSession = "NewSession"
+	EtcdLock       = "Lock"
+	EtcdTryLock    = "TryLock"
+	EtcdUnlock     = "Unlock"
 )
 
 var globalClient *clientv3.Client
+var etcdMutex = map[clientv3.LeaseID]*concurrency.Mutex{}
 
 func GetEndpoint(endpoints string) []string {
 	sub := strings.Split(endpoints, ",")
@@ -605,4 +611,59 @@ func GetLeaderElection(leaderOid uint64) *concurrency.Election {
 
 	return election
 }
+
+//export NewEtcdMutex
+func NewEtcdMutex(pfx *C.char, pfxLen C.int, ttl int) C.int64_t {
+	var err error
+	goPfx := C.GoStringN(pfx, pfxLen)
+
+	var sessionOpts concurrency.SessionOption = concurrency.WithTTL(ttl)
+	session, err := concurrency.NewSession(globalClient, sessionOpts)
+	if err != nil {
+		log.Printf("%v new session err: %v", goPfx, err)
+		return 0
+	}
+
+	// create Mutex
+	mutex := concurrency.NewMutex(session, goPfx)
+	etcdMutex[session.Lease()] = mutex
+	return C.int64_t(session.Lease())
+}
+
+//export EtcdMutexLock
+func EtcdMutexLock(timeout C.int, id C.int64_t) C.enum_EtcdErrCode {
+	ctx, cancel := context.WithTimeout(context.Background(),
+		time.Duration(int(timeout))*time.Millisecond)
+	defer cancel()
+
+	err := etcdMutex[clientv3.LeaseID(id)].Lock(ctx)
+	return GetErrCode(EtcdLock, err)
+}
+
+// TODO(wanghai01): if etcd used updated to v3.5, the TryLock can be used
+// //export EtcdMutexTryLock (not support at etcd v3.4)
+// func EtcdMutexTryLock(timeout C.int, id C.int64_t) C.enum_EtcdErrCode {
+// 	ctx, cancel := context.WithTimeout(context.Background(),
+// 	   time.Duration(int(timeout))*time.Millisecond)
+//    	defer cancel()
+
+//     err := etcdMutex[clientv3.LeaseID(id)].TryLock(ctx)
+//    	return GetErrCode(EtcdTryLock, err)
+// }
+
+//export EtcdMutexUnlock
+func EtcdMutexUnlock(timeout C.int, id C.int64_t) C.enum_EtcdErrCode {
+   ctx, cancel := context.WithTimeout(context.Background(),
+	   time.Duration(int(timeout))*time.Millisecond)
+   defer cancel()
+
+   err := etcdMutex[clientv3.LeaseID(id)].Unlock(ctx)
+   return GetErrCode(EtcdUnlock, err)
+}
+
+//export DestoryEtcdMutex
+func DestoryEtcdMutex(id C.int64_t) {
+	delete(etcdMutex, clientv3.LeaseID(id))
+}
+
 func main() {}

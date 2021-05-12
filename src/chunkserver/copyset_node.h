@@ -276,6 +276,13 @@ class CopysetNode : public braft::StateMachine,
     void ListPeers(std::vector<Peer>* peers);
 
     /**
+     * @brief initialize raft node options corresponding to the copyset node
+     * @param options
+     * @return
+     */
+    void InitRaftNodeOptions(const CopysetNodeOptions &options);
+
+    /**
      * 下面的接口都是继承StateMachine实现的接口
      */
  public:

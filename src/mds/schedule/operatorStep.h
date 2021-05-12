@@ -166,7 +166,7 @@ class StartScanPeer : public OperatorStep {
 
     ApplyStatus Apply(const CopySetInfo &originInfo,
                         CopySetConf *newConf) override;
-    
+
     std::string OperatorStepToString() override;
 
     ChunkServerIdType GetTargetPeer() const override;

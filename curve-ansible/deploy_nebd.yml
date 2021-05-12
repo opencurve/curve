@@ -50,4 +50,4 @@
   tags:
     - start
   roles:
-    - { role: start_service, service_name: nebd, command_need_sudo: "{{ nebd_need_sudo }}" }
+    - { role: start_service, service_name: nebd, command_need_sudo: "{{ nebd_need_sudo | bool }}" }

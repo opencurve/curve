@@ -528,7 +528,7 @@ class ScanScheduler : public Scheduler {
     ScanScheduler(
         const ScheduleOption &opt,
         const std::shared_ptr<TopoAdapter> &topo,
-        const std::shared_ptr<OperatorController> &opController) 
+        const std::shared_ptr<OperatorController> &opController)
         : Scheduler(opt, topo, opController) {
         runInterval_ = opt.scanSchedulerIntervalSec;
         scanMaxCount_ = opt.scanSchedulerScanMaxCount;
@@ -552,20 +552,21 @@ class ScanScheduler : public Scheduler {
     int64_t GetRunningInterval() override;
 
     std::set<CopysetID> getScaningCopyset(LogicalPoolIdType id) {
-        return scaning_[id];      
+        return scaning_[id];
     }
-    
+
  private:
      /**
      * @brief Select one copyset for scan
      *
      * @param[out] scanChunkServer chunk server for scan
      * 
-     * @param[out] groupId copysetId and LogicalPoolIdType for scan
+     * @param[out] LogicalPoolIdType and copysetId for scan
      *
      * @return return true if find copyset for scan, false if not
      */
-    bool selectScanCopySet(ChunkServerIdType &scanChunkServer, LogicalPoolIdType &lpid, CopysetID &copysetId);
+    bool selectScanCopySet(ChunkServerIdType *scanChunkServer,
+                           LogicalPoolIdType *lpid, CopysetID *copysetId);
 
     /**
      * @brief Select a group copysets for scan
@@ -574,7 +575,8 @@ class ScanScheduler : public Scheduler {
      *
      * @return return true if scanInfo size is not zero, false if not
      */
-    bool selectScanCopySets(std::map<ChunkServerIdType, std::pair<LogicalPoolIdType, CopysetID>> &scanInfo);
+    bool selectScanCopySets(std::map<ChunkServerIdType,
+                            std::pair<LogicalPoolIdType, CopysetID>> *scanInfo);
     uint32_t runInterval_;
     // the same time max scan copysets count
     uint32_t scanMaxCount_;

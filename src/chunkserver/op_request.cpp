@@ -890,19 +890,20 @@ void ScanChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  /
                                     request.offset(),
                                     size);
 
-    BuildRepScanMap(request.logicpoolid(), request.chunkid(), index_, 
+    BuildRepScanMap(request.logicpoolid(), request.chunkid(), index_,
                     request.offset(), request.size(), readBuffer);
     SendScanMapToLeader();
-    return;                                               
+    return;
 }
 
-void ScanChunkRequest::BuildRepScanMap(LogicPoolID pollId, ChunkID chunkId, uint64_t index, 
-                                       uint64_t offset, uint64_t len, char* readBuf) {
+void ScanChunkRequest::BuildRepScanMap(LogicPoolID pollId, ChunkID chunkId,
+                                       uint64_t index,  uint64_t offset,
+                                       uint64_t len, char* readBuf) {
     return;
 }
 
 void ScanChunkRequest::SendScanMapToLeader() {
-    return;        
+    return;
 }
 }  // namespace chunkserver
 }  // namespace curve

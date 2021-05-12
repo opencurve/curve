@@ -62,6 +62,12 @@ class TestCloneServiceManager : public ::testing::Test {
         option_.cloneTaskManagerScanIntervalMs = 100;
         option_.backEndReferenceRecordScanIntervalMs = 100;
         option_.backEndReferenceFuncScanIntervalMs = 1000;
+        option_.dlockOpts.pfx = "0";
+        option_.dlockOpts.retryTimes = 3;
+        option_.dlockOpts.ctx_timeoutMS = 5000;
+        option_.dlockOpts.ttlSec = 5;
+
+        dlock_ = std::make_shared<MockDLock>(option_.dlockOpts);
 
         manager_ = std::make_shared<CloneServiceManager>(
             cloneTaskMgr_, cloneCore_, cloneServiceManagerBackend_);
@@ -76,6 +82,7 @@ class TestCloneServiceManager : public ::testing::Test {
             .Times(1);
         ASSERT_EQ(0, manager_->Start())
             << "manager start fail.";
+        manager_->SetDLock(dlock_);
     }
 
     virtual void TearDown() {
@@ -86,6 +93,7 @@ class TestCloneServiceManager : public ::testing::Test {
         cloneCore_ = nullptr;
         cloneMetric_ = nullptr;
         manager_ = nullptr;
+        dlock_ = nullptr;
     }
 
  protected:
@@ -94,6 +102,7 @@ class TestCloneServiceManager : public ::testing::Test {
     std::shared_ptr<CloneMetric> cloneMetric_;
     std::shared_ptr<MockCloneServiceManagerBackend> cloneServiceManagerBackend_;
     SnapshotCloneServerOptions option_;
+    std::shared_ptr<MockDLock> dlock_;
 };
 
 
@@ -136,6 +145,8 @@ TEST_F(TestCloneServiceManager,
 
     EXPECT_CALL(*cloneCore_, FlattenPre(user, taskId, _))
         .WillOnce(Return(kErrCodeSuccess));
+
+    EXPECT_CALL(*dlock_, Lock()).WillOnce(Return(EtcdErrCode::EtcdOK));
 
     // Flatten
     ret = manager_->Flatten(user, taskId);
@@ -320,6 +331,8 @@ TEST_F(TestCloneServiceManager,
 
     EXPECT_CALL(*cloneCore_, FlattenPre(user, taskId, _))
         .WillOnce(Return(kErrCodeSuccess));
+
+    EXPECT_CALL(*dlock_, Lock()).WillOnce(Return(EtcdErrCode::EtcdOK));
 
     // Flatten
     ret = manager_->Flatten(user, taskId);

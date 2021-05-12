@@ -24,6 +24,7 @@
 #include <string>
 #include <memory>
 #include <thread>  //NOLINT
+#include <set>
 #include "src/mds/schedule/coordinator.h"
 #include "src/mds/topology/topology_item.h"
 #include "src/mds/schedule/operatorFactory.h"
@@ -87,7 +88,7 @@ void Coordinator::InitScheduler(
     if (conf.enableScanScheduler) {
         schedulerController_[SchedulerType::ScanSchedulerType] =
             std::make_shared<ScanScheduler>(conf, topo_, opController_);
-        LOG(INFO) << "init replica scheduler ok!";    
+        LOG(INFO) << "init scan scheduler ok!";
     }
 }
 
@@ -389,7 +390,8 @@ bool Coordinator::IsChunkServerRecover(const ChunkServerInfo &info) {
 
 int Coordinator::CancelScanSchedule(PoolIdType lpid) {
     std::set<CopysetID> copysetIds;
-    std::shared_ptr<ScanScheduler> scheduler = std::dynamic_pointer_cast<ScanScheduler> (schedulerController_[SchedulerType::ScanSchedulerType]);
+    std::shared_ptr<ScanScheduler> scheduler = std::dynamic_pointer_cast<ScanScheduler> (  //NOLINT
+                schedulerController_[SchedulerType::ScanSchedulerType]);
     copysetIds = scheduler->getScaningCopyset(lpid);
     CopySetInfo info;
 
@@ -398,16 +400,18 @@ int Coordinator::CancelScanSchedule(PoolIdType lpid) {
         key.first = lpid;
         key.second = id;
         if (topo_->GetCopySetInfo(key, &info)) {
-            auto op = operatorFactory.CreateCancelScanPeerOperator(info, info.leader, OperatorPriority::HighPriority);
+            auto op = operatorFactory.CreateCancelScanPeerOperator(info,
+                           info.leader, OperatorPriority::HighPriority);
             if (opController_->AddOperator(op)) {
                 LOG(INFO) << "rpc generate operator " << op.OpToString()
                 << " for " << info.CopySetInfoStr();
             }
         } else {
-            LOG(INFO) << "get copyset info fail. poolid:" << lpid << ", copyset id:" << id;
+            LOG(INFO) << "get copyset info fail. poolid:"
+                      << lpid << ", copyset id:" << id;
         }
     }
-    
+
     return 0;
 }
 }  // namespace schedule

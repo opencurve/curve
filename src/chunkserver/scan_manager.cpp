@@ -32,7 +32,7 @@ ScanManager::~ScanManager() {
 int ScanManager::Init(const ScanManagerOptions options) {
     toStop_.store(false, std::memory_order_release);
     scanSize = options.scanSize;
-    scanThread_ = Thread(&ScanManager::Run, this);  
+    scanThread_ = Thread(&ScanManager::Run, this);
     waitInterval_.Init(options.intervalSec * 1000);
     return 0;
 }
@@ -70,7 +70,7 @@ void ScanManager::Enqueue(LogicPoolID poolId, CopysetID id) {
 
 ScanKey ScanManager::Dequeue() {
     ScanKey key;
-    ReadLockGuard writeGuard(rwLock_);
+    WriteLockGuard writeGuard(rwLock_);
     key = *(waitScanSet.begin());
     waitScanSet.erase(waitScanSet.begin());
     return key;
@@ -89,12 +89,12 @@ void ScanManager::StartScanJob(ScanKey key) {
     job_.id = key.second;
     job_.type = ScanType::Init;
     job_.currentChunkId = 0;
-    job_.startTime = 0;//todo
-    GenScanJob();        
+    job_.startTime = 0;
+    GenScanJob();
 }
 
 void ScanManager::GenScanJob() {
-    bool done = false; 
+    bool done = false;
 
     while (!done) {
         switch (job_.type) {
@@ -107,7 +107,7 @@ void ScanManager::GenScanJob() {
                     ChunkMap::iterator iter;
                     iter = chunkMap_.find(job_.currentChunkId);
                     if (iter == chunkMap_.end()) {
-                        job_.currentChunkId = chunkMap_.begin()->first;   
+                        job_.currentChunkId = chunkMap_.begin()->first;
                     }
 
                     ScanChunkReqProcess();
@@ -120,7 +120,7 @@ void ScanManager::GenScanJob() {
                 done = true;
                 break;
             case ScanType::WaitRep:
-                if (job_.watingNum == 0) {
+                if (job_.waitingNum == 0) {
                     job_.type = ScanType::CompareMap;
                     break;
                 }
@@ -132,19 +132,21 @@ void ScanManager::GenScanJob() {
                     job_.type = ScanType::Finish;
                 } else {
                     job_.type = ScanType::NewMap;
-                    job_.currentChunkId = GetNextScanChunk();    
-                }   
+                    job_.currentChunkId = GetNextScanChunk();
+                }
                 break;
             case ScanType::Finish:
                 ScanJobFinish();
                 done = true;
+                break;
+            default:
                 break;
         }
     }
 }
 
 ChunkID ScanManager::GetNextScanChunk() {
-    return 1;        
+    return 1;
 }
 
 void ScanManager::ScanError() {
@@ -156,19 +158,19 @@ void ScanManager::ScanChunkReqProcess() {
 }
 
 void ScanManager::BuildLocalScanMap() {
-
+    return;
 }
 
 void ScanManager::ScanJobFinish() {
-
+    return;
 }
 
 void ScanManager::CompareMap() {
-
+    return;
 }
 
 bool ScanManager::isCurrentJobFinish() {
-
+    return true;
 }
-}
-}
+}  // namespace chunkserver
+}  // namespace curve

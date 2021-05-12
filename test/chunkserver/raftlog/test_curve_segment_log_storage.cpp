@@ -67,7 +67,7 @@ class CurveSegmentLogStorageTest : public testing::Test {
         };
         EXPECT_CALL(*file_pool, GetFilePoolOpt())
             .WillRepeatedly(Return(fp_option));
-        EXPECT_CALL(*file_pool, GetFile(_, _))
+        EXPECT_CALL(*file_pool, GetFileImpl(_, _))
             .WillRepeatedly(Return(0));
         EXPECT_CALL(*file_pool, RecycleFile(_))
             .WillRepeatedly(Invoke(recycleFile));

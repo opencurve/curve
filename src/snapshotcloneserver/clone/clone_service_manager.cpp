@@ -36,6 +36,7 @@ namespace curve {
 namespace snapshotcloneserver {
 
 int CloneServiceManager::Init(const SnapshotCloneServerOptions &option) {
+    dlockOpts_ = std::make_shared<DLockOpts>(option.dlockOpts);
     std::shared_ptr<ThreadPool> stage1Pool =
         std::make_shared<ThreadPool>(option.stage1PoolThreadNum);
     std::shared_ptr<ThreadPool> stage2Pool =
@@ -231,6 +232,26 @@ int CloneServiceManager::Flatten(
 
     auto cloneInfoMetric = std::make_shared<CloneInfoMetric>(taskId);
     auto closure = std::make_shared<CloneClosure>();
+
+    // init dlock
+    std::string lockPrefix = std::to_string(cloneInfo.GetDestId());
+    if (nullptr == dlock_ || lockPrefix != dlock_->GetPrefix()) {
+        dlockOpts_->pfx = lockPrefix;
+        dlock_ = std::make_shared<DLock>(*dlockOpts_);
+        if (0 == dlock_->Init()) {
+            LOG(ERROR) << "Init DLock error"
+                    << ", pfx = " << dlockOpts_->pfx
+                    << ", retryTimes = " << dlockOpts_->retryTimes
+                    << ", timeout = " << dlockOpts_->ctx_timeoutMS
+                    << ", ttl = " << dlockOpts_->ttlSec;
+            return kErrCodeInternalError;
+        }
+    }
+
+    DLockGuard dlockGuard(dlock_);
+    closure->SetDLock(dlock_);
+    dlockGuard.Release();
+
     std::shared_ptr<CloneTaskInfo> taskInfo =
         std::make_shared<CloneTaskInfo>(
             cloneInfo, cloneInfoMetric, closure);

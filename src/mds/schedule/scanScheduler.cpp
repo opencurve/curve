@@ -34,14 +34,16 @@ int64_t ScanScheduler::GetRunningInterval() {
     return runInterval_;
 }
 
-bool ScanScheduler::selectScanCopySet(ChunkServerIdType &scanChunkServer, LogicalPoolIdType &lpid, CopysetID &copysetId) {
+bool ScanScheduler::selectScanCopySet(ChunkServerIdType *scanChunkServer,
+                        LogicalPoolIdType *lpid, CopysetID *copysetId) {
     return true;
 }
 
-bool selectScanCopySets(std::map<ChunkServerIdType, std::pair<LogicalPoolIdType, CopysetID>> &scanInfo) {
-    return true;        
+bool selectScanCopySets(std::map<ChunkServerIdType,
+                        std::pair<LogicalPoolIdType, CopysetID>> *scanInfo) {
+    return true;
 }
 
-}
-}
-}
+}  // namespace schedule
+}  // namespace mds
+}  // namespace curve

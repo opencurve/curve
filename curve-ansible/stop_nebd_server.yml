@@ -26,4 +26,4 @@
   gather_facts: no
   any_errors_fatal: true
   roles:
-    - { role: stop_service, service_name: nebd, command_need_sudo: "{{ nebd_need_sudo }}" }
+    - { role: stop_service, service_name: nebd, command_need_sudo: "{{ nebd_need_sudo | bool }}" }

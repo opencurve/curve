@@ -28,8 +28,13 @@
 
 #include "test/integration/snapshotcloneserver/snapshotcloneserver_module.h"
 #include "test/integration/snapshotcloneserver/test_snapshotcloneserver_helpler.h"
+#include "test/integration/cluster_common/cluster.h"
+
+using curve::CurveCluster;
 
 const char* kSnapshotCloneServerIpPort = "127.0.0.1:10030";
+const char* kEtcdClientIpPort = "127.0.0.1:10049";
+const char* kEtcdPeerIpPort = "127.0.0.1:10050";
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -58,15 +63,33 @@ class SnapshotCloneServerTest : public ::testing::Test {
         options_->clientAsyncMethodRetryTimeSec = 1;
         options_->backEndReferenceRecordScanIntervalMs = 100;
         options_->backEndReferenceFuncScanIntervalMs = 1000;
+        options_->dlockOpts.retryTimes = 3;
+        options_->dlockOpts.ctx_timeoutMS = 10000;
+        options_->dlockOpts.ttlSec = 10;
 
         server_ = new SnapshotCloneServerModule();
         server_->Start(*options_);
+
+        cluster_ = new CurveCluster();
+        ASSERT_NE(nullptr, cluster_);
+        system(std::string("rm -rf ExcSCSTest.etcd").c_str());
+        pid_t pid = cluster_->StartSingleEtcd(1, kEtcdClientIpPort,
+            kEtcdPeerIpPort,
+            std::vector<std::string>{ " --name ExcSCSTest"});
+        LOG(INFO) << "etcd 1 started on " << kEtcdPeerIpPort
+                  << ", pid = " << pid;
+        ASSERT_GT(pid, 0);
+        cluster_->InitSnapshotCloneMetaStoreEtcd(kEtcdClientIpPort);
     }
 
     static void TearDownTestCase() {
         server_->Stop();
+        ASSERT_EQ(0, cluster_->StopAllEtcd());
         delete server_;
         delete options_;
+        delete cluster_;
+        cluster_ = nullptr;
+        system(std::string("rm -rf ExcSCSTest.etcd").c_str());
     }
 
     void SetUp() override {
@@ -245,10 +268,12 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
     static SnapshotCloneServerModule *server_;
     static SnapshotCloneServerOptions *options_;
+    static CurveCluster* cluster_;
 };
 
 SnapshotCloneServerModule * SnapshotCloneServerTest::server_ = nullptr;
 SnapshotCloneServerOptions * SnapshotCloneServerTest::options_ = nullptr;
+CurveCluster * SnapshotCloneServerTest::cluster_ = nullptr;
 
 TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnCurvefs) {
     std::string uuid;

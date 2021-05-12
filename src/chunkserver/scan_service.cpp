@@ -31,5 +31,5 @@ void ScanServiceImpl::FollowScanMap(RpcController *controller,
                        Closure *done) {
     return;
 }
-}
-}
+}  // namespace chunkserver
+}  // namespace curve

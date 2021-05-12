@@ -163,6 +163,12 @@ chunkfilepool.chunk_file_pool_dir=./0/
 chunkfilepool.cpmeta_file_size=4096
 # chunkfilepool get chunk最大重试次数
 chunkfilepool.retry_times=5
+# Enable clean chunk
+chunkfilepool.clean.enable=true
+# The bytes per write for cleaning chunk (max: 1MB)
+chunkfilepool.clean.bytes_per_write=4096
+# The throttle iops for cleaning chunk (4KB/IO)
+chunkfilepool.clean.throttle_iops=500
 
 #
 # WAL file pool

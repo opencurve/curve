@@ -73,7 +73,7 @@ cc_library(
         "//src/fs:lfs",
         "//src/client:curve_client",
 	"//include/client:include_client",
-        "//proto:scan_cc_proto",
+	"//proto:scan_cc_proto",
     ],
 )
 

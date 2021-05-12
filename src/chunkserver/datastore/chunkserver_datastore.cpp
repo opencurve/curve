@@ -386,7 +386,7 @@ CSErrorCode CSDataStore::loadChunkFile(ChunkID id) {
 }
 
 ChunkMap CSDataStore::GetChunkMap() {
-    return metaCache_.GetMap();         
+    return metaCache_.GetMap();
 }
 
 }  // namespace chunkserver

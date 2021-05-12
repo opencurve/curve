@@ -109,7 +109,7 @@ void ScheduleServiceImpl::CancelScanSchedule(
         CancelScanScheduleResponse* response,
         google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
-    
+
     brpc::Controller* cntl =
         static_cast<brpc::Controller*>(cntl_base);
 

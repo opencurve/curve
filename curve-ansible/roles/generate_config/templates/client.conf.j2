@@ -32,6 +32,15 @@ mds.refreshTimesPerLease={{ client_mds_refresh_times_per_lease }}
 # mds RPC接口每次重试之前需要先睡眠一段时间
 mds.rpcRetryIntervalUS={{ client_mds_rpc_retry_interval_us }}
 
+# The normal retry times for trigger wait strategy
+mds.normalRetryTimesBeforeTriggerWait={{ client_mds_normal_retry_times_before_trigger_wait }}
+
+# Max retry time for IO-Path request (milliseconds)
+mds.maxRetryMsInIOPath={{ client_mds_max_retry_ms_in_io_path }}
+
+# Sleep interval for wait (milliseconds)
+mds.waitSleepMs={{ client_mds_wait_sleep_ms }}
+
 #
 ################# metacache配置信息 ################
 #

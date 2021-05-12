@@ -33,9 +33,13 @@
 #include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/config.h"
 #include "src/snapshotcloneserver/clone/clone_closure.h"
+#include "src/common/concurrent/dlock.h"
 
 namespace curve {
 namespace snapshotcloneserver {
+
+using DLockOpts = ::curve::common::DLockOpts;
+using DLockGuard = ::curve::common::DLockGuard;
 
 class TaskCloneInfo {
  public:
@@ -362,6 +366,11 @@ class CloneServiceManager {
      */
     virtual int RecoverCloneTask();
 
+    // for test
+    void SetDLock(std::shared_ptr<DLock> dlock) {
+        dlock_ = dlock;
+    }
+
  private:
     /**
      * @brief 从给定的任务列表中获取指定用户的任务集
@@ -444,6 +453,8 @@ class CloneServiceManager {
         std::shared_ptr<CloneClosure> closure);
 
  private:
+    std::shared_ptr<DLockOpts> dlockOpts_;
+    std::shared_ptr<DLock> dlock_;
     std::shared_ptr<NameLock> destFileLock_;
     std::shared_ptr<CloneTaskManager> cloneTaskMgr_;
     std::shared_ptr<CloneCore> cloneCore_;

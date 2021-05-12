@@ -38,7 +38,7 @@ cc_library(
     srcs = glob([
         "*.h",
         "*.cpp",
-    ]),
+    ],exclude = ["dlock.*"]),
     copts = COPTS,
     visibility = ["//visibility:public"],
     deps = [
@@ -46,5 +46,16 @@ cc_library(
         "//src/common:curve_uncopy",
         "//include:include-common",
         "//external:bthread"
+    ],
+)
+
+cc_library(
+    name = "curve_dlock",
+    srcs = glob(["dlock.h",
+                 "dlock.cpp"]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:glog",
+        "//src/kvstorageclient:kvstorage_client",
     ],
 )

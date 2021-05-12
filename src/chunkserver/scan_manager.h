@@ -24,6 +24,10 @@
 #define SRC_CHUNKSERVER_SCAN_MANAGER_H_
 
 #include <vector>
+#include <memory>
+#include <utility>
+#include <set>
+
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/wait_interval.h"
@@ -40,12 +44,19 @@ namespace chunkserver {
 
 typedef std::pair<LogicPoolID, CopysetID> ScanKey;
 
+/**
+ * scan manager options
+ */
 struct ScanManagerOptions {
     ChunkServerID chunkserverId;
     uint32_t intervalSec;
+    // once scan buf size
     uint64_t scanSize;
 };
 
+/**
+ *  scan state machine type
+ */
 enum ScanType {
     Init,
     NewMap,
@@ -62,7 +73,7 @@ struct ScanJob {
     uint64_t startTime;
     ScanMap localMap;
     std::vector<ScanMap> repMap;
-    uint8_t watingNum;
+    uint8_t waitingNum;
     ChunkID currentChunkId;
     ScanJob() : type(ScanType::Init) {}
 };
@@ -87,16 +98,40 @@ class ScanManager {
      * @return 0:successful, non-zero failed
      */
     int Run();
-
+     /**
+     * @brief scan req in queue
+     * @param[in] poolId: logicPool id
+     * @param[in] id: copyset id 
+     * @return 
+     */
     void Enqueue(LogicPoolID poolId, CopysetID id);
+    /**
+     * @brief scan req out queue
+     * @param[in] poolId: logicPool id
+     * @param[in] id: copyset id 
+     * @return ScanKey
+     */
     ScanKey Dequeue();
+    /**
+     * @brief cancel scan job
+     * @param[in] poolId: logicPool id
+     * @param[in] id: copyset id
+     * @return 0:successful, non-zero failed
+     */
     int CancelScanJob(LogicPoolID poolId, CopysetID id);
+    /**
+     * @brief scan req is in enqueue or req scaning
+     * @param[in] poolId: logicPool id
+     * @param[in] id: copyset id 
+     * @return ScanKey
+     */
     bool IsRepeatReq(LogicPoolID poolId, CopysetID id);
     void StartScanJob(ScanKey job);
     void SetScanJobType(ScanType type) {
-        job_.type = type;        
+        job_.type = type;
     }
     void GenScanJob();
+
  private:
     ChunkID GetNextScanChunk();
     void ScanError();
@@ -107,7 +142,7 @@ class ScanManager {
     void CompareMap();
     // scan process thread
     Thread scanThread_;
-    
+
     std::atomic<bool> toStop_;
     std::set<ScanKey> waitScanSet;
     RWLock rwLock_;
@@ -118,7 +153,6 @@ class ScanManager {
     CopysetNodeManager *copysetNodeManager_;
     int scanSize;
 };
-}
-}
-
-#endif
+}  // namespace chunkserver
+}  // namespace curve
+#endif  // SRC_CHUNKSERVER_SCAN_MANAGER_H_

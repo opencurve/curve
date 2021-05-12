@@ -18,14 +18,14 @@
 - name: Determine need restart or not
   include_tasks: append_need_restart_cs_list.yml
   with_sequence: start=0 end={{ chunkserver_num | int - 1}}
-  when: not restart_directly
+  when: not restart_directly | bool
 
 - name: set restart_cs_list as all
   vars:
     all_cs: all
   set_fact:
     restart_cs_list: "{{ restart_cs_list + [all_cs] }}"
-  when: restart_directly
+  when: restart_directly | bool
 
 - name: set sudo
   set_fact:
@@ -48,11 +48,11 @@
   delay: "{{ restart_chunkserver_check_delay }}"
   retries: "{{ restart_chunkserver_check_times }}"
   with_items: "{{ restart_cs_res.results }}"
-  when: restart_cs_list != "" or restart_directly
+  when: restart_cs_list != "" or restart_directly | bool
 
 - name: check chunkserver version after restart
   vars:
     metric_port: "{{ chunkserver_base_port | int + item | int }}"
   include_tasks: check_version_after_restart.yml
   with_items: "{{ restart_cs_list }}"
-  when: restart_cs_list != "" and not restart_directly
+  when: restart_cs_list != "" and not restart_directly | bool

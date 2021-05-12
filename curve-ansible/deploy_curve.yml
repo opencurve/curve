@@ -38,7 +38,7 @@
   hosts: all
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - prepare_software_env
   roles:
@@ -49,7 +49,7 @@
   hosts: etcd
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - etcd
   roles:
@@ -60,11 +60,11 @@
   hosts: etcd
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - etcd
   roles:
-    - { role: start_service, service_name: etcd, command_need_sudo: "{{ etcd_need_sudo }}" }
+    - { role: start_service, service_name: etcd, command_need_sudo: "{{ etcd_need_sudo | bool }}" }
 
 
 ############################## deploy mds ##############################
@@ -72,7 +72,7 @@
   hosts: mds
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - mds
   roles:
@@ -93,11 +93,11 @@
   hosts: mds
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - mds
   roles:
-    - { role: start_service, service_name: mds, command_need_sudo: "{{ mds_need_sudo }}" }
+    - { role: start_service, service_name: mds, command_need_sudo: "{{ mds_need_sudo | bool }}" }
 
 
 ############################## create physical pool ##############################
@@ -117,7 +117,7 @@
   hosts: chunkservers
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - chunkserver
   roles:
@@ -127,19 +127,19 @@
     - { role: generate_config, template_name: chunkserver.conf, conf_path: "{{ chunkserver_conf_path }}",
                 tags: ["generate_config", "generage_chunkserver_conf"] }
     - { role: generate_config, template_name: client.conf, conf_path: "{{ chunkserver_client_config_path }}",
-                tags: ["generate_config", "generage_chunkserver_conf"] }
+                tags: ["generate_config", "generage_chunkserver_client_conf"] }
     - { role: generate_config, template_name: s3.conf, conf_path: "{{ chunkserver_s3_config_path }}",
-                tags: ["generate_config", "generage_s3_conf"] }
+                tags: ["generate_config", "generage_cs_s3_conf"] }
 
 - name: start chunkserver
   hosts: chunkservers
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - chunkserver
   roles:
-    - { role: start_service, service_name: chunkserver, command_need_sudo: "{{ chunkserver_need_sudo }}" }
+    - { role: start_service, service_name: chunkserver, command_need_sudo: "{{ chunkserver_need_sudo | bool }}" }
 
 
 ############################## create logical pool ##############################
@@ -157,7 +157,7 @@
   hosts: snapshotclone
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - snapshotclone
     - never
@@ -169,18 +169,18 @@
     - { role: generate_config, template_name: client.conf, conf_path: "{{ snap_client_config_path }}",
             tags: ["generate_config", "generate_snap_client_conf"] }
     - { role: generate_config, template_name: s3.conf, conf_path: "{{ snap_s3_config_path }}",
-                tags: ["generate_config", "generage_s3_conf"] }
+                tags: ["generate_config", "generage_snap_s3_conf"] }
 
 - name: start snapshotcloneserver
   hosts: snapshotclone
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - snapshotclone
     - never
   roles:
-    - { role: start_service, service_name: snapshotcloneserver, command_need_sudo: "{{ snapshot_need_sudo }}" }
+    - { role: start_service, service_name: snapshotcloneserver, command_need_sudo: "{{ snapshot_need_sudo | bool }}" }
 
 
 ############################## deploy snapshotcloneserver_nginx ##############################
@@ -188,7 +188,7 @@
   hosts: snapshotclone_nginx
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - snapshotclone_nginx
     - never
@@ -215,7 +215,7 @@
   hosts: snapshotclone_nginx
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - snapshotclone_nginx
     - never
@@ -227,7 +227,7 @@
   hosts: mds[0]
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - rapid_leader_schedule
   roles:

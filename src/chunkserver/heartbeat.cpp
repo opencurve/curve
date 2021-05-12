@@ -487,7 +487,7 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
                 }
             }
             break;
-        
+
         case curve::mds::heartbeat::START_SCAN_PEER:
             {
                 ConfigChangeType type;
@@ -496,14 +496,16 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
                 LogicPoolID poolId = conf.logicalpoolid();
                 CopysetID copysetId = conf.copysetid();
                 int ret = 0;
-
-                if (ret = copyset->GetConfChange(&type, &confTemp, &peer) != 0) {
-                    LOG(ERROR) << "Failed to get config change state of copyset "
+                // if copyset happen conf change, can't scan and wait retry
+                if (ret = copyset->GetConfChange(&type,
+                                                &confTemp, &peer) != 0) {
+                    LOG(ERROR) << "Failed to get config change state of copyset"
                     << ToGroupIdStr(poolId, copysetId);
                     return ret;
                 }  else if (type == curve::mds::heartbeat::NONE) {
-                    LOG(INFO) << "Scan peer " << conf.configchangeitem().address()
-                    << "to copyset " 
+                    LOG(INFO) << "Scan peer "
+                    << conf.configchangeitem().address()
+                    << "to copyset "
                     << ToGroupIdStr(poolId, copysetId);
                     if (!scanMan_->IsRepeatReq(poolId, copysetId)) {
                         scanMan_->Enqueue(poolId, copysetId);
@@ -511,15 +513,15 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
                         LOG(INFO) << "Scan peer repeat request";
                     }
                 }  else {
-                    LOG(INFO) << "drop Scan peer, because exist config change, ConfigChangeType:" << type;
+                    LOG(INFO) << "drop Scan peer, "
+                    <<"because exist config change, ConfigChangeType:" << type;
                 }
-                
             }
             break;
-        
+
         case curve::mds::heartbeat::CANCEL_SCAN_PEER:
             {
-                //todo Abnormal scenario
+                // todo Abnormal scenario
                 int ret;
                 LogicPoolID poolId = conf.logicalpoolid();
                 CopysetID copysetId = conf.copysetid();
