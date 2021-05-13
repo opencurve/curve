@@ -346,7 +346,10 @@ cp bazel-bin/nebd/src/part2/nebd-server build/nebd-package/bin
 
 # step 3.2 prepare for curve-nbd package
 mkdir -p build/nbd-package/bin
+mkdir -p build/nbd-package/etc
 cp bazel-bin/nbd/src/curve-nbd build/nbd-package/bin
+cp nbd/nbd-package/usr/bin/map_curve_disk.sh build/nbd-package/bin
+cp nbd/nbd-package/etc/curve/curvetab build/nbd-package/etc
 
 #step4 获取git提交版本信息
 commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
