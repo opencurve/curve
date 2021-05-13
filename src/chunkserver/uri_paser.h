@@ -32,9 +32,31 @@ namespace chunkserver {
 
 class UriParser {
  public:
-    static std::string ParseUri(const std::string& uri,
-                             std::string * param) {
+    // Other error codes can be added later.
+    enum ParseUrlErrorCode{
+        SUCESS = 0,
+        EPROTOCALEMPTY = 1,
+        EPROTOCALINVAILD = 2,
+    };
+
+    static ParseUrlErrorCode ParseUri(const std::string& uri,
+                            std::string* param) {
         // ${protocol}://${parameters}
+        std::string protocol;
+        do {
+            size_t pos = uri.find("://");
+            if (pos == std::string::npos) {
+                return EPROTOCALEMPTY;
+            }
+            protocol = uri.substr(0, pos);
+            *param = uri.substr(pos+3, uri.find_last_not_of(" "));
+        } while (0);
+
+        return (protocol == "curve" || protocol == "local")
+            ? SUCESS : EPROTOCALINVAILD;
+    }
+
+    static std::string GetProtocolFromUri(const std::string& uri) {
         std::string protocol;
         do {
             size_t pos = uri.find("://");
@@ -42,19 +64,19 @@ class UriParser {
                 break;
             }
             protocol = uri.substr(0, pos);
-            *param = uri.substr(pos+3, uri.find_last_not_of(" "));
         } while (0);
         return protocol;
     }
 
-    static std::string GetProtocolFromUri(const std::string& uri) {
-        std::string path;
-        return ParseUri(uri, &path);
-    }
-
     static std::string GetPathFromUri(const std::string& uri) {
         std::string path;
-        ParseUri(uri, &path);
+        do {
+            size_t pos = uri.find("://");
+            if (pos == std::string::npos) {
+                break;
+            }
+            path = uri.substr(pos+3, uri.find_last_not_of(" "));
+        } while (0);
         return path;
     }
 

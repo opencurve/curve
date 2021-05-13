@@ -85,10 +85,10 @@ CopysetNode::~CopysetNode() {
 int CopysetNode::Init(const CopysetNodeOptions &options) {
     std::string groupId = GroupId();
 
-    std::string protocol = UriParser::ParseUri(options.chunkDataUri,
-                                                &copysetDirPath_);
-    if (protocol.empty()) {
-        // TODO(wudemiao): 增加必要的错误码并返回
+    UriParser::ParseUrlErrorCode errorCode
+        = UriParser::ParseUri(options.chunkDataUri, &copysetDirPath_);
+
+    if (errorCode != UriParser::SUCESS) {
         LOG(ERROR) << "not support chunk data uri's protocol"
                    << " error chunkDataDir is: " << options.chunkDataUri
                    << ". Copyset: " << GroupIdString();

@@ -41,7 +41,8 @@ namespace chunkserver {
 int Trash::Init(TrashOptions options) {
     isStop_ = true;
 
-    if (UriParser::ParseUri(options.trashPath, &trashPath_).empty()) {
+    if (UriParser::ParseUri(options.trashPath, &trashPath_)
+        != UriParser::SUCESS) {
         LOG(ERROR) << "not support trash uri's protocol"
                    << " error trashPath is: " << options.trashPath;
         return -1;
