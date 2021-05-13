@@ -461,7 +461,10 @@ cp bazel-bin/nebd/src/part2/nebd-server build/nebd-package/bin
 
 # step 4.2 prepare for curve-nbd package
 mkdir -p build/nbd-package/bin
+mkdir -p build/nbd-package/etc
 cp bazel-bin/nbd/src/curve-nbd build/nbd-package/bin
+cp nbd/nbd-package/usr/bin/map_curve_disk.sh build/nbd-package/bin
+cp nbd/nbd-package/etc/curve/curvetab build/nbd-package/etc
 
 #step5 打包tar包
 echo "start make tarball"

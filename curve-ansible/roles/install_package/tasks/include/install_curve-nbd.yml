@@ -45,3 +45,29 @@
     local_file_path: "{{ local_nbd_package_path }}/bin/"
     file_mode: 0755
   include_tasks: copy_file_to_remote.yml
+
+- name: install curvetab
+  vars:
+    remote_dir_name: "{{ curvetab_path }}"
+    local_file_path: "{{ local_nbd_package_path }}/etc/"
+    file_mode: 0755
+  include_tasks: copy_file_to_remote.yml
+
+- name: add nbd auto start at boot
+  block:
+    - name: get distro name
+      vars:
+        distro:
+      include_tasks: common_tasks/get_distro_name.yml
+    - name: copy map_curve_disk.sh to init.d
+      vars:
+        remote_dir_name: "/etc/init.d"
+        local_file_path: "{{ curve_bin_dir }}/map_curve_disk.sh"
+        file_mode: 0755
+      include_tasks: copy_file_to_remote.yml
+    - name: enable on debain ubuntu
+      shell: sudo update-rc.d map_curve_disk.sh defaults
+      when: "'Ubuntu' in distro or 'Debian' in distro"
+    - name: enable on centos
+      shell: sudo chkconfig --add map_curve_disk.sh && sudo chkconfig map_curve_disk.sh on
+      when: "'CentOS' in distro"
