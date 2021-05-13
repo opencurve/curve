@@ -61,6 +61,7 @@ namespace nbd {
 #define PROCESS_NAME "curve-nbd"
 #define NBD_PATH_PREFIX "/sys/block/nbd"
 #define DEV_PATH_PREFIX "/dev/nbd"
+#define CURVETAB_PATH "/etc/curve/curvetab"
 
 using std::cerr;
 
