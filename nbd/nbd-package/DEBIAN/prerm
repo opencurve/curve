@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e
+
+update-rc.d map_curve_disk.sh remove
+rm -f /etc/init.d/map_curve_disk.sh
+
+exit 0
