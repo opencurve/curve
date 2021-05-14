@@ -90,6 +90,7 @@ static void Usage() {
         << "  --block-size            NBD Devices's block size, default is 4096, support 512 and 4096\n"  // NOLINT
         << "  --nebd-conf             LibNebd config file\n"
         << "Unmap options:\n"
+        << "  -f, --force                 Force unmap even if the device is mounted\n"              // NOLINT
         << "  --retry_times <limit>       The number of retries waiting for the process to exit\n"  // NOLINT
         << "                              (default: " << nbdConfig->retry_times << ")\n"            // NOLINT
         << "  --sleep_ms <milliseconds>   Retry interval in milliseconds\n"                         // NOLINT

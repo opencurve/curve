@@ -201,6 +201,8 @@ int parse_args(std::vector<const char*>& args, std::ostream *err_msg,   // NOLIN
             }
         } else if (argparse_flag(args, i, "--try-netlink", (char *)NULL)) { // NOLINT
             cfg->try_netlink = true;
+        }  else if (argparse_flag(args, i, "-f", "--force", (char *)NULL)) {  // NOLINT
+            cfg->force_unmap = true;
         } else if (argparse_witharg(args, i, &cfg->retry_times, err, "--retry_times", (char*)(NULL))) {  // NOLINT
             if (!err.str().empty()) {
                 *err_msg << "curve-nbd: " << err.str();
@@ -340,6 +342,38 @@ int get_mapped_info(int pid, NBDConfig *cfg) {
     }
 
     return 0;
+}
+
+int check_dev_can_unmap(const NBDConfig *cfg) {
+    std::ifstream ifs("/proc/mounts", std::ifstream::in);
+
+    if (!ifs.is_open()) {
+        dout << "curve-nbd: failed to open /proc/mounts" << std::endl;
+        return -EINVAL;
+    }
+
+    std::string line, device, mountPath;
+    bool mounted = false;
+    while (std::getline(ifs, line)) {
+        std::istringstream iss(line);
+        iss >> device >> mountPath;
+        if (device == cfg->devpath) {
+            mounted = true;
+            break;
+        }
+    }
+
+    if (!mounted) {
+        return 0;
+    } else if (cfg->force_unmap) {
+        dout << "curve-nbd: the " << device << " is still mount on "
+             << mountPath << ", force unmap it" << std::endl;
+        return 0;
+    }
+
+    dout << "curve-nbd: the " << device << " is still mount on " << mountPath
+         << ", you can't unmap it or specify -f parameter" << std::endl;
+    return -EINVAL;
 }
 
 int check_size_from_file(const std::string& path, uint64_t expected_size) {
