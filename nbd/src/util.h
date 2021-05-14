@@ -60,6 +60,8 @@ extern int check_block_size(int nbd_index, uint64_t expected_size);
 extern int check_device_size(int nbd_index, uint64_t expected_size);
 // 如果当前系统还未加载nbd模块，则进行加载；如果已经加载，则不作任何操作
 extern int load_module(NBDConfig *cfg);
+// Check whether the device can be unmap
+int check_dev_can_unmap(const NBDConfig *cfg);
 
 // 安全读写文件或socket，对异常情况进行处理后返回
 ssize_t safe_read_exact(int fd, void* buf, size_t count);

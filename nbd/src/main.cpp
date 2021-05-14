@@ -88,6 +88,7 @@ static void Usage() {
         << "  --timeout <seconds>     Set nbd request timeout\n"
         << "  --try-netlink           Use the nbd netlink interface\n"
         << "Unmap options:\n"
+        << "  -f, --force                 Force unmap even if the device is mounted\n"              // NOLINT
         << "  --retry_times <limit>       The number of retries waiting for the process to exit\n"  // NOLINT
         << "                              (default: " << nbdConfig->retry_times << ")\n"            // NOLINT
         << "  --sleep_ms <milliseconds>   Retry interval in milliseconds\n"                         // NOLINT
