@@ -502,6 +502,15 @@ void MDS::InitCurveFSOptions(CurveFSOption *curveFSOptions) {
     InitThrottleOption(&curveFSOptions->throttleOption);
 }
 
+void MDS::InitDLockOption(std::shared_ptr<DLockOpts> dlockOpts) {
+    conf_->GetValueFatalIfFail(
+        "mds.etcd.retry.times", &dlockOpts->retryTimes);
+    conf_->GetValueFatalIfFail(
+        "mds.etcd.dlock.timeoutMs", &dlockOpts->ctx_timeoutMS);
+    conf_->GetValueFatalIfFail(
+        "mds.etcd.dlock.ttlSec", &dlockOpts->ttlSec);
+}
+
 void MDS::InitCleanManager() {
     // TODO(hzsunjianliang): should add threadpoolsize & checktime from config
     auto channelPool = std::make_shared<ChannelPool>();
@@ -517,8 +526,13 @@ void MDS::InitCleanManager() {
                                                  copysetClient,
                                                  segmentAllocStatistic_);
 
+    // init dlock options
+    auto dlockOpts = std::make_shared<DLockOpts>();
+    InitDLockOption(dlockOpts);
+
     cleanManager_ = std::make_shared<CleanManager>(cleanCore,
                                             taskManager, nameServerStorage_);
+    cleanManager_->InitDLockOptions(dlockOpts);
     LOG(INFO) << "init CleanManager success.";
 }
 

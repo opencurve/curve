@@ -32,6 +32,10 @@
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/async_delete_snapshot_entity.h"
 #include "src/common/concurrent/concurrent.h"
+#include "src/common/concurrent/dlock.h"
+
+using curve::common::DLock;
+using curve::common::DLockOpts;
 
 namespace  curve {
 namespace mds {
@@ -78,10 +82,14 @@ class CleanManager : public CleanManagerInterface {
 
     std::shared_ptr<Task> GetTask(TaskIDType id) override;
 
+    void InitDLockOptions(std::shared_ptr<DLockOpts> dlockOpts);
+
  private:
     std::shared_ptr<NameServerStorage> storage_;
     std::shared_ptr<CleanCore> cleanCore_;
     std::shared_ptr<CleanTaskManager> taskMgr_;
+    std::shared_ptr<DLockOpts> dlockOpts_;
+    std::shared_ptr<DLock> dlock_;
 };
 
 class CleanDiscardSegmentTask {

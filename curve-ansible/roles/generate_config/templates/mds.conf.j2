@@ -25,6 +25,10 @@ mds.etcd.dailtimeoutMs={{ mds_etcd_dailtimeout_ms }}
 mds.etcd.operation.timeoutMs={{ mds_etcd_operation_timeout_ms }}
 # client操作失败可以重试的次数
 mds.etcd.retry.times={{ mds_etcd_retry_times }}
+# wait dlock timeout
+mds.etcd.dlock.timeoutMs={{ mds_etcd_dlock_timeout_ms }}
+# dlock lease timeout
+mds.etcd.dlock.ttlSec={{ mds_etcd_dlock_ttl_sec }}
 
 #
 # segment分配量统计相关配置

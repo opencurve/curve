@@ -56,6 +56,7 @@
 #include "src/common/curve_version.h"
 #include "src/common/channel_pool.h"
 #include "src/mds/schedule/scheduleService/scheduleService.h"
+#include "src/common/concurrent/dlock.h"
 
 using ::curve::mds::topology::TopologyChunkAllocatorImpl;
 using ::curve::mds::topology::TopologyServiceImpl;
@@ -79,6 +80,7 @@ using ::curve::mds::snapshotcloneclient::SnapshotCloneClientOption;
 using ::curve::election::LeaderElectionOptions;
 using ::curve::election::LeaderElection;
 using ::curve::common::Configuration;
+using ::curve::common::DLockOpts;
 
 namespace curve {
 namespace mds {
@@ -203,6 +205,8 @@ class MDS {
     void InitSnapshotCloneClient();
 
     void InitThrottleOption(ThrottleOption* option);
+
+    void InitDLockOption(std::shared_ptr<DLockOpts> dlockOpts);
 
  private:
     // mds configuration items

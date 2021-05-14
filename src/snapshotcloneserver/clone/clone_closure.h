@@ -50,6 +50,7 @@ class CloneClosure : public Closure {
           done_(done),
           requestId_(""),
           taskId_(""),
+          dlock_(nullptr),
           retCode_(kErrCodeInternalError) {}
 
     brpc::Controller * GetController() {
@@ -82,6 +83,10 @@ class CloneClosure : public Closure {
 
     void SetDLock(std::shared_ptr<DLock> lock) {
         dlock_ = lock;
+    }
+
+    std::shared_ptr<DLock> GetDLock() {
+        return dlock_;
     }
 
     void SetDestFileName(const std::string &destFileName) {

@@ -40,6 +40,10 @@ bool CleanManager::Stop(void) {
     return taskMgr_->Stop();
 }
 
+void CleanManager::InitDLockOptions(std::shared_ptr<DLockOpts> dlockOpts) {
+    dlockOpts_ = dlockOpts;
+}
+
 bool CleanManager::SubmitDeleteSnapShotFileJob(const FileInfo &fileInfo,
                             std::shared_ptr<AsyncDeleteSnapShotEntity> entity) {
     auto taskID = static_cast<TaskIDType>(fileInfo.id());
@@ -60,8 +64,20 @@ bool CleanManager::SubmitDeleteCommonFileJob(const FileInfo &fileInfo) {
 bool CleanManager::SubmitCleanDiscardSegmentJob(
     const std::string& cleanSegmentKey,
     const DiscardSegmentInfo& discardSegmentInfo) {
+    // get dlock
+    dlockOpts_->pfx = std::to_string(discardSegmentInfo.fileinfo().id());
+    dlock_ = std::make_shared<DLock>(*dlockOpts_);
+    if (0 == dlock_->Init()) {
+        LOG(ERROR) << "Init DLock error"
+                << ", pfx = " << dlockOpts_->pfx
+                << ", retryTimes = " << dlockOpts_->retryTimes
+                << ", ctx_timeoutMS = " << dlockOpts_->ctx_timeoutMS
+                << ", ttlSec = " << dlockOpts_->ttlSec;
+        return false;
+    }
+
     auto task = std::make_shared<SegmentCleanTask>(
-        cleanCore_, cleanSegmentKey, discardSegmentInfo);
+        cleanCore_, cleanSegmentKey, discardSegmentInfo, dlock_);
     task->SetTaskID(reinterpret_cast<TaskIDType>(task.get()));
     return taskMgr_->PushTask(task);
 }
