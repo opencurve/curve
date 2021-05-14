@@ -505,7 +505,7 @@ std::string CopysetNode::GetCopysetDir() const {
 
 uint64_t CopysetNode::GetConfEpoch() const {
     std::lock_guard<std::mutex> lockguard(confLock_);
-    return epoch_.load(std::memory_order_relaxed);
+    return epoch_.load(std::memory_order_acquire);
 }
 
 int CopysetNode::LoadConfEpoch(const std::string &filePath) {
@@ -526,7 +526,7 @@ int CopysetNode::LoadConfEpoch(const std::string &filePath) {
                        << ", Copyset: " << GroupIdString();
             ret = -1;
         } else {
-            epoch_.store(loadEpoch, std::memory_order_relaxed);
+            epoch_.store(loadEpoch, std::memory_order_release);
         }
     }
 
