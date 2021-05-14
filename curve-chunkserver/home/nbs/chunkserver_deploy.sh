@@ -142,7 +142,7 @@ function fstab_record {
   if [ $? -ne 0 ]
   then
   echo "#curvefs" >> /etc/fstab
-  for i in `lsblk|grep chunkserver|awk '{print $1}'`
+  for i in `lsblk|grep chunkserver|awk '{print $1}' | grep -Eo 'sd.*|vd.*'`
   do
     echo "UUID=`ls -l /dev/disk/by-uuid/|grep $i|awk '{print $9}'`    `lsblk|grep $i|awk '{print $7}'`    ext4  rw,errors=remount-ro    0    0" >> /etc/fstab
   done
