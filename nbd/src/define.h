@@ -89,6 +89,8 @@ struct NBDConfig {
     std::string imgname;
     // 指定需要映射的nbd设备路径
     std::string devpath;
+    // force unmap even if the device is mounted
+    bool force_unmap = false;
     // unmap等待进程退出的重试次数
     int retry_times = 25;
     // unmap重试之间的睡眠间隔
