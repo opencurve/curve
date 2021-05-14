@@ -27,6 +27,7 @@
 #include <memory>
 #include <string>
 #include "nbd/src/NBDTool.h"
+#include "nbd/src/util.h"
 #include "nbd/src/argparse.h"
 #include "nbd/src/texttable.h"
 
@@ -121,7 +122,12 @@ int NBDTool::Disconnect(const NBDConfig* config) {
     pid_t devpid = -1;
     std::vector<DeviceInfo> devices;
 
-    int ret = List(&devices);
+    auto ret = check_dev_can_unmap(config);
+    if (0 != ret) {
+        return ret;
+    }
+
+    ret = List(&devices);
     for (const auto& device : devices) {
         if (device.config.devpath == config->devpath) {
             devpid = device.pid;
