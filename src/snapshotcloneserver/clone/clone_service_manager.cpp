@@ -230,9 +230,6 @@ int CloneServiceManager::Flatten(
         return ret;
     }
 
-    auto cloneInfoMetric = std::make_shared<CloneInfoMetric>(taskId);
-    auto closure = std::make_shared<CloneClosure>();
-
     // init dlock
     std::string lockPrefix = std::to_string(cloneInfo.GetDestId());
     if (nullptr == dlock_ || lockPrefix != dlock_->GetPrefix()) {
@@ -248,9 +245,9 @@ int CloneServiceManager::Flatten(
         }
     }
 
-    DLockGuard dlockGuard(dlock_);
+    auto cloneInfoMetric = std::make_shared<CloneInfoMetric>(taskId);
+    auto closure = std::make_shared<CloneClosure>();
     closure->SetDLock(dlock_);
-    dlockGuard.Release();
 
     std::shared_ptr<CloneTaskInfo> taskInfo =
         std::make_shared<CloneTaskInfo>(

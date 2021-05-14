@@ -39,7 +39,6 @@ namespace curve {
 namespace snapshotcloneserver {
 
 using DLockOpts = ::curve::common::DLockOpts;
-using DLockGuard = ::curve::common::DLockGuard;
 
 class TaskCloneInfo {
  public:

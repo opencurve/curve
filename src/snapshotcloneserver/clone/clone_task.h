@@ -33,6 +33,9 @@
 #include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 #include "src/snapshotcloneserver/common/curvefs_client.h"
 #include "src/snapshotcloneserver/clone/clone_closure.h"
+#include "src/common/concurrent/dlock.h"
+
+using ::curve::common::DLock;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -101,6 +104,19 @@ class CloneTask : public CloneTaskBase {
         : CloneTaskBase(taskId, taskInfo, core) {}
 
     void Run() override {
+        // get dlock
+        std::shared_ptr<CloneClosure> closure = taskInfo_->GetClosure();
+        if (nullptr != closure) {
+            std::shared_ptr<DLock> dlock = closure->GetDLock();
+            if (nullptr != dlock) {
+                if (EtcdErrCode::EtcdOK != dlock->Lock()) {
+                    LOG(ERROR) << "Get dlock failed in CloneTask, "
+                               << "dlock key is " << dlock->GetPrefix();
+                    return;
+                }
+            }
+        }
+
         core_->HandleCloneOrRecoverTask(taskInfo_);
     }
 };

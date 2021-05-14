@@ -32,6 +32,9 @@
 #include "src/mds/nameserver2/task_progress.h"
 #include "src/mds/nameserver2/clean_core.h"
 #include "src/mds/nameserver2/async_delete_snapshot_entity.h"
+#include "src/common/concurrent/dlock.h"
+
+using curve::common::DLock;
 
 namespace curve {
 namespace mds {
@@ -165,15 +168,25 @@ class SegmentCleanTask : public Task {
  public:
     SegmentCleanTask(std::shared_ptr<CleanCore> cleanCore,
                      const std::string& cleanSegmentKey,
-                     const DiscardSegmentInfo& discardSegmentInfo)
+                     const DiscardSegmentInfo& discardSegmentInfo,
+                     std::shared_ptr<DLock> dlock)
         : Task(),
           cleanCore_(cleanCore),
           cleanSegmentKey_(cleanSegmentKey),
-          discardSegmentInfo_(discardSegmentInfo) {}
+          discardSegmentInfo_(discardSegmentInfo),
+          dlock_(dlock) {}
 
     void Run() override {
+        if (EtcdErrCode::EtcdOK != dlock_->Lock()) {
+            LOG(ERROR) << "Get dlock failed in SegmentCleanTask, "
+                       << "dlock key is " << dlock_->GetPrefix();
+            return;
+        }
         cleanCore_->CleanDiscardSegment(cleanSegmentKey_, discardSegmentInfo_,
                                         GetMutableTaskProgress());
+        if (nullptr != dlock_) {
+            dlock_->Unlock();
+        }
         return;
     }
 
@@ -181,6 +194,7 @@ class SegmentCleanTask : public Task {
     std::shared_ptr<CleanCore> cleanCore_;
     std::string cleanSegmentKey_;
     DiscardSegmentInfo discardSegmentInfo_;
+    std::shared_ptr<DLock> dlock_;
 };
 
 }  // namespace mds

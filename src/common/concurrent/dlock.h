@@ -97,28 +97,6 @@ class DLock : public Uncopyable {
     const DLockOpts &opts_;
 };
 
-class DLockGuard : public Uncopyable {
- public:
-    explicit DLockGuard(std::shared_ptr<DLock> lock): lock_(lock) {
-        lock_->Lock();
-    }
-
-    ~DLockGuard() {
-        if (!release_) {
-            lock_->Unlock();
-        }
-    }
-
-    void Release() {
-        release_ = true;
-    }
-
- private:
-    std::shared_ptr<DLock> lock_;
-    bool release_;
-};
-
-
 }   // namespace common
 }   // namespace curve
 

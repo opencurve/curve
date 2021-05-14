@@ -28,6 +28,8 @@ file_expired_time_us: 5000000
 mds_etcd_dailtimeout_ms: 5000
 mds_etcd_operation_timeout_ms: 5000
 mds_etcd_retry_times: 3
+mds_etcd_dlock_timeout_ms: 10000
+mds_etcd_dlock_ttl_sec: 10
 mds_segment_alloc_periodic_persist_inter_ms: 10000
 mds_segment_alloc_retry_inter_ms: 1000
 mds_segment_discard_scan_interval_ms: 5000

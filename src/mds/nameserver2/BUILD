@@ -26,6 +26,7 @@ cc_library(
             "//external:brpc",
             "//proto:nameserver2_cc_proto",
             "//src/common:curve_common",
+            "//src/common/concurrent:curve_dlock",
             "//src/mds/topology:topology",
             "//src/mds/nameserver2/allocstatistic:alloc_statistic",
             "//src/mds/chunkserverclient:chunkserverclient",
