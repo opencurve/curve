@@ -482,6 +482,8 @@ The following steps only need to be executed on the central control machine：
    nebd_data_dir=/data/nebd
    nebd_log_dir=/data/log/nebd
    curve_sdk_log_dir=/data/log/curve
+   py_client_config_path=/etc/curve/py_client.conf
+   clean_log_when_clean=false
 
    [mds:vars]
    mds_port=6666
