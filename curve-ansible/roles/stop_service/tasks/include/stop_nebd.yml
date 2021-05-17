@@ -26,5 +26,5 @@
 
 - name: stop nebd without daemon
   ignore_errors: true
-  shell: {{ sudo }} killall nebd-server
+  shell: "{{ sudo }}" killall nebd-server
   when: not start_by_daemon | bool
