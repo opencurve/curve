@@ -130,7 +130,7 @@ TEST_F(OpRequestTest, CreateCloneTest) {
         ASSERT_EQ(0, opReq->Encode(request, &cntl->request_attachment(), &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, request, &data);
+        auto req = ChunkOpRequest::Decode(log, request, &data, 0, PeerId("0"));
         auto req1 = dynamic_cast<CreateCloneChunkRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 
@@ -357,7 +357,7 @@ TEST_F(OpRequestTest, PasteChunkTest) {
         ASSERT_EQ(0, opReq->Encode(request, &input, &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, request, &data);
+        auto req = ChunkOpRequest::Decode(log, request, &data, 0, PeerId("0"));
         auto req1 = dynamic_cast<PasteChunkInternalRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 
@@ -572,7 +572,7 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         ASSERT_EQ(0, opReq->Encode(request, &cntl->request_attachment(), &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, request, &data);
+        auto req = ChunkOpRequest::Decode(log, request, &data, 0, PeerId("0"));
         auto req1 = dynamic_cast<ReadChunkRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 
@@ -1011,7 +1011,7 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         ASSERT_EQ(0, opReq->Encode(request, &cntl->request_attachment(), &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, request, &data);
+        auto req = ChunkOpRequest::Decode(log, request, &data, 0, PeerId("0"));
         auto req1 = dynamic_cast<ReadChunkRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 

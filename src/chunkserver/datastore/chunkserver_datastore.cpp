@@ -385,5 +385,9 @@ CSErrorCode CSDataStore::loadChunkFile(ChunkID id) {
     return CSErrorCode::Success;
 }
 
+ChunkMap CSDataStore::GetChunkMap() {
+    return metaCache_.GetMap();
+}
+
 }  // namespace chunkserver
 }  // namespace curve
