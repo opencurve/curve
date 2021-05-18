@@ -87,7 +87,8 @@ TEST(ChunkOpRequestTest, encode) {
                                    &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req = ChunkOpRequest::Decode(log, &request,
+                   &data, 0, PeerId("127.0.0.1:9010:0"));
         auto req1 = dynamic_cast<WriteChunkRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 
@@ -113,7 +114,8 @@ TEST(ChunkOpRequestTest, encode) {
                                    &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req = ChunkOpRequest::Decode(log, &request,
+                   &data, 0, PeerId("127.0.0.1:9010:0"));
         auto req1 = dynamic_cast<WriteChunkRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 
@@ -144,7 +146,8 @@ TEST(ChunkOpRequestTest, encode) {
                                    &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req = ChunkOpRequest::Decode(log, &request,
+                        &data, 0, PeerId("127.0.0.1:9010:0"));
         auto req1 = dynamic_cast<PasteChunkInternalRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 
@@ -176,7 +179,8 @@ TEST(ChunkOpRequestTest, encode) {
                                    &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req = ChunkOpRequest::Decode(log, &request,
+                        &data, 0, PeerId("127.0.0.1:9010:0"));
         auto req1 = dynamic_cast<ReadChunkRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 
@@ -201,7 +205,8 @@ TEST(ChunkOpRequestTest, encode) {
                                    &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req = ChunkOpRequest::Decode(log, &request,
+                        &data, 0, PeerId("127.0.0.1:9010:0"));
         auto req1 = dynamic_cast<DeleteChunkRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 
@@ -225,7 +230,8 @@ TEST(ChunkOpRequestTest, encode) {
                                    &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req = ChunkOpRequest::Decode(log, &request,
+                                &data, 0, PeerId("127.0.0.1:9010:0"));
         auto req1 = dynamic_cast<ReadSnapshotRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 
@@ -255,7 +261,8 @@ TEST(ChunkOpRequestTest, encode) {
                                    &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req = ChunkOpRequest::Decode(log, &request,
+                        &data, 0, PeerId("127.0.0.1:9010:0"));
         auto req1 = dynamic_cast<DeleteSnapshotRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 
@@ -286,7 +293,8 @@ TEST(ChunkOpRequestTest, encode) {
                                    &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req = ChunkOpRequest::Decode(log, &request,
+                        &data, 0, PeerId("127.0.0.1:9010:0"));
         auto req1 = dynamic_cast<CreateCloneChunkRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 
@@ -314,7 +322,8 @@ TEST(ChunkOpRequestTest, encode) {
                                    &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req = ChunkOpRequest::Decode(log, &request,
+                        &data, 0, PeerId("127.0.0.1:9010:0"));
         ASSERT_TRUE(req == nullptr);
 
         ASSERT_EQ(CHUNK_OP_TYPE::CHUNK_OP_UNKNOWN, request.optype());

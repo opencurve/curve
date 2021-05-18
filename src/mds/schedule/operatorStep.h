@@ -159,6 +159,36 @@ class ChangePeer : public OperatorStep {
     ChunkServerIdType old_;
     ChunkServerIdType new_;
 };
+
+class StartScanPeer : public OperatorStep {
+ public:
+    explicit StartScanPeer(ChunkServerIdType peerID) : scan_(peerID) {}
+
+    ApplyStatus Apply(const CopySetInfo &originInfo,
+                        CopySetConf *newConf) override;
+
+    std::string OperatorStepToString() override;
+
+    ChunkServerIdType GetTargetPeer() const override;
+
+ private:
+    ChunkServerIdType scan_;
+};
+
+class CancelScanPeer : public OperatorStep {
+ public:
+    explicit CancelScanPeer(ChunkServerIdType peerID) : scan_(peerID) {}
+
+    ApplyStatus Apply(const CopySetInfo &originInfo,
+                        CopySetConf *newConf) override;
+
+    std::string OperatorStepToString() override;
+
+    ChunkServerIdType GetTargetPeer() const override;
+
+ private:
+    ChunkServerIdType scan_;
+};
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve
