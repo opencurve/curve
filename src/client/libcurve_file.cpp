@@ -29,6 +29,7 @@
 #include <memory>
 #include <mutex>   // NOLINT
 #include <thread>  // NOLINT
+#include <utility>
 
 #include "include/client/libcurve.h"
 #include "include/curve_compiler_specific.h"
@@ -100,11 +101,14 @@ void InitLogging(const std::string& confPath) {
     static LoggerGuard guard(confPath);
 }
 
-FileClient::FileClient(): fdcount_(0), openedFileNum_("opened_file_num") {
-    inited_ = false;
-    mdsClient_ = nullptr;
-    fileserviceMap_.clear();
-}
+FileClient::FileClient()
+    : rwlock_(),
+      fdcount_(0),
+      fileserviceMap_(),
+      clientconfig_(),
+      mdsClient_(),
+      inited_(false),
+      openedFileNum_(common::ToHexString(this)) {}
 
 bool FileClient::CheckAligned(off_t offset, size_t length) const {
     return common::is_aligned(offset, kMinIOAlignment) &&
@@ -125,17 +129,13 @@ int FileClient::Init(const std::string& configpath) {
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    mdsClient_ = new (std::nothrow) MDSClient();
-    if (mdsClient_ == nullptr) {
-        return -LIBCURVE_ERROR::FAILED;
-    }
 
-    auto ret = mdsClient_->Initialize(clientconfig_.
-               GetFileServiceOption().metaServerOpt);
+    auto tmpMdsClient = std::make_shared<MDSClient>();
+
+    auto ret = tmpMdsClient->Initialize(
+        clientconfig_.GetFileServiceOption().metaServerOpt);
     if (LIBCURVE_ERROR::OK != ret) {
         LOG(ERROR) << "Init global mds client failed!";
-        delete mdsClient_;
-        mdsClient_ = nullptr;
         return -LIBCURVE_ERROR::FAILED;
     }
 
@@ -148,12 +148,10 @@ int FileClient::Init(const std::string& configpath) {
 
     bool rc = StartDummyServer();
     if (rc == false) {
-        mdsClient_->UnInitialize();
-        delete mdsClient_;
-        mdsClient_ = nullptr;
         return -LIBCURVE_ERROR::FAILED;
     }
 
+    mdsClient_ = std::move(tmpMdsClient);
     inited_ = true;
     return LIBCURVE_ERROR::OK;
 }
@@ -170,11 +168,7 @@ void FileClient::UnInit() {
     }
     fileserviceMap_.clear();
 
-    if (mdsClient_ != nullptr) {
-        mdsClient_->UnInitialize();
-        delete mdsClient_;
-        mdsClient_ = nullptr;
-    }
+    mdsClient_.reset();
     inited_ = false;
 }
 

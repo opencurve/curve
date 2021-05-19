@@ -94,9 +94,9 @@ TEST(ClientSession, LeaseTaskTest) {
     UserInfo_t userinfo;
     userinfo.owner = "userinfo";
 
-    MDSClient mdsclient;
-    mdsclient.Initialize(cc.GetFileServiceOption().metaServerOpt);
-    ASSERT_TRUE(fileinstance.Initialize(filename, &mdsclient, userinfo,
+    std::shared_ptr<MDSClient> mdsclient = std::make_shared<MDSClient>();
+    mdsclient->Initialize(cc.GetFileServiceOption().metaServerOpt);
+    ASSERT_TRUE(fileinstance.Initialize(filename, mdsclient, userinfo,
                                         cc.GetFileServiceOption()));
 
     brpc::Server server;
