@@ -3552,10 +3552,10 @@ TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
     UserInfo userinfo;
     userinfo.owner = "userinfo";
 
-    MDSClient mdsclient;
+    std::shared_ptr<MDSClient> mdsclient = std::make_shared<MDSClient>();
     ASSERT_EQ(LIBCURVE_ERROR::OK,
-              mdsclient.Initialize(cc.GetFileServiceOption().metaServerOpt));
-    ASSERT_TRUE(fileinstance.Initialize("/test", &mdsclient, userinfo,
+              mdsclient->Initialize(cc.GetFileServiceOption().metaServerOpt));
+    ASSERT_TRUE(fileinstance.Initialize("/test", mdsclient, userinfo,
                                         cc.GetFileServiceOption()));
 
     // create fake chunkserver service

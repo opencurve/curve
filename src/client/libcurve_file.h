@@ -28,6 +28,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <memory>
 
 #include "include/client/libcurve.h"
 #include "src/client/client_common.h"
@@ -314,31 +315,6 @@ class FileClient {
         return openedFileNum_.get_value();
     }
 
-    /**
-     * test use, set the mdsclient_
-     */
-    void SetMdsClient(MDSClient* client) {
-        mdsClient_ = client;
-    }
-
-    /**
-     * test use, set the clientconfig_
-     */
-    void SetClientConfig(ClientConfig cfg) {
-        clientconfig_ = cfg;
-    }
-
-    const ClientConfig& GetClientConfig() {
-        return clientconfig_;
-    }
-
-    /**
-     * test use, get the fileserviceMap_
-     */
-    std::unordered_map<int, FileInstance*>& GetFileServiceMap() {
-        return fileserviceMap_;
-    }
-
  private:
     bool StartDummyServer();
 
@@ -360,7 +336,7 @@ class FileClient {
     ClientConfig clientconfig_;
 
     // fileclient对应的全局mdsclient
-    MDSClient* mdsClient_;
+    std::shared_ptr<MDSClient> mdsClient_;
 
     // 是否初始化成功
     bool inited_;

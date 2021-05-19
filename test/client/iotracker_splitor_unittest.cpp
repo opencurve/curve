@@ -105,8 +105,9 @@ class IOTrackerSplitorTest : public ::testing::Test {
         userinfo.owner = "userinfo";
         userinfo.password = "12345";
 
-        mdsclient_.Initialize(fopt.metaServerOpt);
-        fileinstance_->Initialize("/test", &mdsclient_, userinfo, fopt);
+        mdsclient_ = std::make_shared<MDSClient>();
+        mdsclient_->Initialize(fopt.metaServerOpt);
+        fileinstance_->Initialize("/test", mdsclient_, userinfo, fopt);
         InsertMetaCache();
 
         SourceReader::GetInstance().SetOption(fopt);
@@ -118,7 +119,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
         writeData.clear();
         fileinstance_->Close();
         fileinstance_->UnInitialize();
-        mdsclient_.UnInitialize();
+        mdsclient_.reset();
         delete fileinstance_;
 
         SourceReader::GetInstance().Stop();
@@ -294,7 +295,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
         fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
         SegmentInfo sinfo;
         LogicalPoolCopysetIDInfo_t lpcsIDInfo;
-        mdsclient_.GetOrAllocateSegment(true, 0, &fi, &sinfo);
+        mdsclient_->GetOrAllocateSegment(true, 0, &fi, &sinfo);
         int count = 0;
         for (auto iter : sinfo.chunkvec) {
             uint64_t index = (sinfo.startoffset + count*fi.chunksize )
@@ -304,8 +305,8 @@ class IOTrackerSplitorTest : public ::testing::Test {
         }
 
         std::vector<CopysetInfo> cpinfoVec;
-        mdsclient_.GetServerList(lpcsIDInfo.lpid,
-                                    lpcsIDInfo.cpidVec, &cpinfoVec);
+        mdsclient_->GetServerList(lpcsIDInfo.lpid, lpcsIDInfo.cpidVec,
+                                  &cpinfoVec);
 
         for (auto iter : cpinfoVec) {
             mc->UpdateCopysetInfo(lpcsIDInfo.lpid, iter.cpid_, iter);
@@ -321,7 +322,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
 
     FileClient *fileClient_;
     UserInfo_t userinfo;
-    MDSClient mdsclient_;
+    std::shared_ptr<MDSClient> mdsclient_;
     FileServiceOption fopt;
     FileInstance *fileinstance_;
     brpc::Server server;
@@ -350,7 +351,7 @@ TEST_F(IOTrackerSplitorTest, AsyncStartRead) {
 
     ioreadflag = false;
     char* data = static_cast<char*>(aioctx.buf);
-    iomana->AioRead(&aioctx, &mdsclient_, UserDataType::RawBuffer);
+    iomana->AioRead(&aioctx, mdsclient_.get(), UserDataType::RawBuffer);
 
     {
         std::unique_lock<std::mutex> lk(readmtx);
@@ -392,7 +393,7 @@ TEST_F(IOTrackerSplitorTest, AsyncStartWrite) {
     fi.chunksize = 4 * 1024 * 1024;
     fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
     iowriteflag = false;
-    iomana->AioWrite(&aioctx, &mdsclient_, UserDataType::RawBuffer);
+    iomana->AioWrite(&aioctx, mdsclient_.get(), UserDataType::RawBuffer);
 
     {
         std::unique_lock<std::mutex> lk(writemtx);
@@ -426,7 +427,7 @@ TEST_F(IOTrackerSplitorTest, StartRead) {
     char* data = new char[length];
 
     auto threadfunc = [&]() {
-        iomana->Read(data, offset, length, &mdsclient_);
+        iomana->Read(data, offset, length, mdsclient_.get());
     };
     std::thread process(threadfunc);
 
@@ -461,7 +462,7 @@ TEST_F(IOTrackerSplitorTest, StartWrite) {
     memset(buf + 4 * 1024 + chunk_size, 'c', 4 * 1024);
 
     auto threadfunc = [&]() {
-        iomana->Write(buf, offset, length, &mdsclient_);
+        iomana->Write(buf, offset, length, mdsclient_.get());
     };
     std::thread process(threadfunc);
 
@@ -498,7 +499,7 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartRead) {
 
     ioreadflag = false;
     char* data = static_cast<char*>(aioctx->buf);
-    ioctxmana->AioRead(aioctx, &mdsclient_, UserDataType::RawBuffer);
+    ioctxmana->AioRead(aioctx, mdsclient_.get(), UserDataType::RawBuffer);
 
     {
         std::unique_lock<std::mutex> lk(readmtx);
@@ -535,7 +536,7 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWrite) {
     memset(data + 4 * 1024 + chunk_size, 'c', 4 * 1024);
 
     iowriteflag = false;
-    ioctxmana->AioWrite(aioctx, &mdsclient_, UserDataType::RawBuffer);
+    ioctxmana->AioWrite(aioctx, mdsclient_.get(), UserDataType::RawBuffer);
 
     {
         std::unique_lock<std::mutex> lk(writemtx);
@@ -663,10 +664,8 @@ TEST_F(IOTrackerSplitorTest, ManagerStartRead) {
     char* data = new char[length];
 
     auto threadfunc = [&]() {
-        ASSERT_EQ(length, ioctxmana->Read(data,
-                                        offset,
-                                        length,
-                                        &mdsclient_));
+        ASSERT_EQ(length,
+                  ioctxmana->Read(data, offset, length, mdsclient_.get()));
     };
     std::thread process(threadfunc);
 
@@ -700,10 +699,7 @@ TEST_F(IOTrackerSplitorTest, ManagerStartWrite) {
     memset(buf + 4 * 1024 + chunk_size, 'c', 4 * 1024);
 
     auto threadfunc = [&]() {
-        ioctxmana->Write(buf,
-                        offset,
-                        length,
-                        &mdsclient_);
+        ioctxmana->Write(buf, offset, length, mdsclient_.get());
     };
     std::thread process(threadfunc);
 
@@ -736,7 +732,7 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
     rootuserinfo.owner = "root";
     rootuserinfo.password = "root_password";
 
-    ASSERT_TRUE(fileserv->Initialize("/test", &mdsclient_, rootuserinfo, fopt));
+    ASSERT_TRUE(fileserv->Initialize("/test", mdsclient_, rootuserinfo, fopt));
     ASSERT_EQ(LIBCURVE_ERROR::OK, fileserv->Open("1_userinfo_.txt", userinfo));
     curve::client::IOManager4File* iomana = fileserv->GetIOManager4File();
     MetaCache* mc = fileserv->GetIOManager4File()->GetMetaCache();
@@ -756,8 +752,7 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
 
     auto threadfunc = [&]() {
         iotracker->SetUserDataType(UserDataType::RawBuffer);
-        iotracker->StartWrite(
-            nullptr, offset, length, &mdsclient_, &fi);
+        iotracker->StartWrite(nullptr, offset, length, mdsclient_.get(), &fi);
     };
 
     std::thread process(threadfunc);
@@ -765,7 +760,7 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
 
     uint64_t off = 4 * 1024 * 1024 * 1024ul - 4 * 1024;
     uint64_t len = 4 * 1024 * 1024 + 8 * 1024;
-    iomana->Write(buf, off, len, &mdsclient_);
+    iomana->Write(buf, off, len, mdsclient_.get());
 
     if (process.joinable()) {
         process.join();
@@ -799,10 +794,8 @@ TEST_F(IOTrackerSplitorTest, BoundaryTEST) {
     memset(buf + 4 * 1024 + chunk_size, 'c', 4 * 1024);
 
     auto threadfunc = [&]() {
-        ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, ioctxmana->Write(buf,
-                                                                offset,
-                                                                length,
-                                                                &mdsclient_));
+        ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED,
+                  ioctxmana->Write(buf, offset, length, mdsclient_.get()));
     };
     std::thread process(threadfunc);
 
@@ -843,13 +836,9 @@ TEST_F(IOTrackerSplitorTest, largeIOTest) {
 
     std::vector<RequestContext*> reqlist;
     auto dataCopy = writeData;
-    ASSERT_EQ(0, curve::client::Splitor::IO2ChunkRequests(iotracker, mc,
-                                                            &reqlist,
-                                                            &dataCopy,
-                                                            offset,
-                                                            length,
-                                                            &mdsclient_,
-                                                            &fi));
+    ASSERT_EQ(0, curve::client::Splitor::IO2ChunkRequests(
+                     iotracker, mc, &reqlist, &dataCopy, offset, length,
+                     mdsclient_.get(), &fi));
     ASSERT_EQ(2, reqlist.size());
 
     RequestContext* first = reqlist.front();
@@ -896,7 +885,7 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       nullptr, mc, &reqlist, &iobuf, offset, length,
-                      &mdsclient_, &fi));
+                      mdsclient_.get(), &fi));
 
     ASSERT_EQ(-1, curve::client::Splitor::SingleChunkIO2ChunkRequests(
                       nullptr, mc,
@@ -904,7 +893,7 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, nullptr, &reqlist, &iobuf, offset, length,
-                      &mdsclient_, nullptr));
+                      mdsclient_.get(), nullptr));
 
     ASSERT_EQ(-1, curve::client::Splitor::SingleChunkIO2ChunkRequests(
                       iotracker, nullptr,
@@ -912,7 +901,7 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, mc, &reqlist, &iobuf, offset, length,
-                      &mdsclient_, nullptr));
+                      mdsclient_.get(), nullptr));
 
     ASSERT_EQ(
         -1, curve::client::Splitor::IO2ChunkRequests(
@@ -924,7 +913,7 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, mc, nullptr, &iobuf, offset, length,
-                      &mdsclient_, nullptr));
+                      mdsclient_.get(), nullptr));
 
     ASSERT_EQ(-1, curve::client::Splitor::SingleChunkIO2ChunkRequests(
                       iotracker, mc,
@@ -932,7 +921,7 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, mc, &reqlist, nullptr, offset, length,
-                      &mdsclient_, nullptr));
+                      mdsclient_.get(), nullptr));
 
     iotracker->SetOpType(OpType::WRITE);
     ASSERT_EQ(-1,
@@ -943,7 +932,7 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
     iotracker->SetOpType(OpType::WRITE);
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, mc, &reqlist, nullptr, offset, length,
-                      &mdsclient_, &fi));
+                      mdsclient_.get(), &fi));
 
     // ASSERT_EQ(-1, Splitor::CalcDiscardSegments(nullptr));
 
@@ -1077,13 +1066,9 @@ TEST_F(IOTrackerSplitorTest, stripeTest) {
     mc->UpdateChunkInfoByIndex(1, chinfo1);
 
     std::vector<RequestContext*> reqlist;
-    ASSERT_EQ(0, curve::client::Splitor::IO2ChunkRequests(iotracker, mc,
-                                                            &reqlist,
-                                                            &dataCopy,
-                                                            offset,
-                                                            length,
-                                                            &mdsclient_,
-                                                            &fi));
+    ASSERT_EQ(0, curve::client::Splitor::IO2ChunkRequests(
+                     iotracker, mc, &reqlist, &dataCopy, offset, length,
+                     mdsclient_.get(), &fi));
 
     ASSERT_EQ(2, reqlist.size());
     RequestContext* first = reqlist.front();
@@ -1110,13 +1095,9 @@ TEST_F(IOTrackerSplitorTest, stripeTest) {
     dataCopy.append(buf, length);
     mc->UpdateChunkInfoByIndex(3, chinfo);
     mc->UpdateChunkInfoByIndex(4, chinfo1);
-    ASSERT_EQ(0, curve::client::Splitor::IO2ChunkRequests(iotracker, mc,
-                                                            &reqlist,
-                                                            &dataCopy,
-                                                            offset,
-                                                            length,
-                                                            &mdsclient_,
-                                                            &fi));
+    ASSERT_EQ(0, curve::client::Splitor::IO2ChunkRequests(
+                     iotracker, mc, &reqlist, &dataCopy, offset, length,
+                     mdsclient_.get(), &fi));
     ASSERT_EQ(2, reqlist.size());
     first = reqlist.front();
     reqlist.erase(reqlist.begin());
@@ -1168,7 +1149,7 @@ TEST_F(IOTrackerSplitorTest, TestDisableStripeForStripeFile) {
     std::vector<RequestContext*> reqlist;
     ASSERT_EQ(0,
               Splitor::IO2ChunkRequests(&ioTracker, cache, &reqlist, &dataCopy,
-                                        offset, length, &mdsclient_, &fi));
+                                        offset, length, mdsclient_.get(), &fi));
 
     ASSERT_EQ(2, reqlist.size());
     auto* first = reqlist[0];
@@ -1202,7 +1183,7 @@ TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegment) {
     char* data = new char[length];
 
     auto threadfunc = [&]() {
-        iomana->Read(data, offset, length, &mdsclient_);
+        iomana->Read(data, offset, length, mdsclient_.get());
     };
     std::thread process(threadfunc);
 
@@ -1235,7 +1216,7 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegment) {
 
     ioreadflag = false;
     char* data = static_cast<char*>(aioctx.buf);
-    iomana->AioRead(&aioctx, &mdsclient_, UserDataType::RawBuffer);
+    iomana->AioRead(&aioctx, mdsclient_.get(), UserDataType::RawBuffer);
 
     {
         std::unique_lock<std::mutex> lk(readmtx);
@@ -1266,7 +1247,7 @@ TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegment2) {
     char* data = new char[length];
 
     auto threadfunc = [&]() {
-        iomana->Read(data, offset, length, &mdsclient_);
+        iomana->Read(data, offset, length, mdsclient_.get());
     };
     std::thread process(threadfunc);
 
@@ -1305,7 +1286,7 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegment2) {
 
     ioreadflag = false;
     char* data = static_cast<char*>(aioctx.buf);
-    iomana->AioRead(&aioctx, &mdsclient_, UserDataType::RawBuffer);
+    iomana->AioRead(&aioctx, mdsclient_.get(), UserDataType::RawBuffer);
 
     {
         std::unique_lock<std::mutex> lk(readmtx);
@@ -1333,8 +1314,8 @@ TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegmentFromOrigin) {
     FileInstance* fileinstance2 = new FileInstance();
     userinfo.owner = "cloneuser-test1";
     userinfo.password = "12345";
-    mdsclient_.Initialize(fopt.metaServerOpt);
-    fileinstance2->Initialize("/clonesource", &mdsclient_, userinfo, fopt);
+    mdsclient_->Initialize(fopt.metaServerOpt);
+    fileinstance2->Initialize("/clonesource", mdsclient_, userinfo, fopt);
 
     MockRequestScheduler* mockschuler2 = new MockRequestScheduler;
     mockschuler2->DelegateToFake();
@@ -1374,7 +1355,7 @@ TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegmentFromOrigin) {
     char* data = new char[length];
 
     auto threadfunc = [&]() {
-        iomana->Read(data, offset, length, &mdsclient_);
+        iomana->Read(data, offset, length, mdsclient_.get());
     };
     std::thread process(threadfunc);
 
@@ -1407,8 +1388,8 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegmentFromOrigin) {
     FileInstance* fileinstance2 = new FileInstance();
     userinfo.owner = "cloneuser-test2";
     userinfo.password = "12345";
-    mdsclient_.Initialize(fopt.metaServerOpt);
-    fileinstance2->Initialize("/clonesource", &mdsclient_, userinfo, fopt);
+    mdsclient_->Initialize(fopt.metaServerOpt);
+    fileinstance2->Initialize("/clonesource", mdsclient_, userinfo, fopt);
 
     MockRequestScheduler* mockschuler2 = new MockRequestScheduler;
     mockschuler2->DelegateToFake();
@@ -1453,7 +1434,7 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegmentFromOrigin) {
 
     ioreadflag = false;
     char* data = static_cast<char*>(aioctx.buf);
-    iomana->AioRead(&aioctx, &mdsclient_, UserDataType::RawBuffer);
+    iomana->AioRead(&aioctx, mdsclient_.get(), UserDataType::RawBuffer);
 
     {
         std::unique_lock<std::mutex> lk(readmtx);

@@ -138,6 +138,12 @@ static bool StringToTime(const std::string& value, uint64_t* expireTime) {
     return true;
 }
 
+inline std::string ToHexString(void* p) {
+    std::ostringstream oss;
+    oss << "0x" << std::hex << reinterpret_cast<uint64_t>(p);
+    return oss.str();
+}
+
 }  // namespace common
 }  // namespace curve
 
