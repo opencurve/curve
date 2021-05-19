@@ -24,6 +24,7 @@
 
 #include <butil/endpoint.h>
 #include <glog/logging.h>
+#include <utility>
 
 #include "proto/nameserver2.pb.h"
 #include "proto/topology.pb.h"
@@ -50,7 +51,7 @@ FileInstance::FileInstance()
       readonly_(false) {}
 
 bool FileInstance::Initialize(const std::string& filename,
-                              MDSClient* mdsclient,
+                              std::shared_ptr<MDSClient> mdsclient,
                               const UserInfo_t& userinfo,
                               const FileServiceOption& fileservicopt,
                               bool readonly) {
@@ -69,11 +70,12 @@ bool FileInstance::Initialize(const std::string& filename,
         }
 
         finfo_.userinfo = userinfo;
-        mdsclient_ = mdsclient;
+        mdsclient_ = std::move(mdsclient);
 
         finfo_.fullPathName = filename;
 
-        if (!iomanager4file_.Initialize(filename, fileopt_.ioOpt, mdsclient_)) {
+        if (!iomanager4file_.Initialize(filename, fileopt_.ioOpt,
+                                        mdsclient_.get())) {
             LOG(ERROR) << "Init io context manager failed, filename = "
                        << filename;
             break;
@@ -82,7 +84,8 @@ bool FileInstance::Initialize(const std::string& filename,
         iomanager4file_.UpdateFileInfo(finfo_);
 
         leaseExecutor_.reset(new (std::nothrow) LeaseExecutor(
-            fileopt_.leaseOpt, finfo_.userinfo, mdsclient_, &iomanager4file_));
+            fileopt_.leaseOpt, finfo_.userinfo, mdsclient_.get(),
+            &iomanager4file_));
         if (CURVE_UNLIKELY(leaseExecutor_ == nullptr)) {
             LOG(ERROR) << "Allocate LeaseExecutor failed, filename = "
                        << filename;
@@ -97,10 +100,13 @@ bool FileInstance::Initialize(const std::string& filename,
 
 void FileInstance::UnInitialize() {
     iomanager4file_.UnInitialize();
+
+    // release the ownership of mdsclient
+    mdsclient_.reset();
 }
 
 int FileInstance::Read(char* buf, off_t offset, size_t length) {
-    return iomanager4file_.Read(buf, offset, length, mdsclient_);
+    return iomanager4file_.Read(buf, offset, length, mdsclient_.get());
 }
 
 int FileInstance::Write(const char* buf, off_t offset, size_t len) {
@@ -108,11 +114,11 @@ int FileInstance::Write(const char* buf, off_t offset, size_t len) {
         DVLOG(9) << "open with read only, do not support write!";
         return -1;
     }
-    return iomanager4file_.Write(buf, offset, len, mdsclient_);
+    return iomanager4file_.Write(buf, offset, len, mdsclient_.get());
 }
 
 int FileInstance::AioRead(CurveAioContext* aioctx, UserDataType dataType) {
-    return iomanager4file_.AioRead(aioctx, mdsclient_, dataType);
+    return iomanager4file_.AioRead(aioctx, mdsclient_.get(), dataType);
 }
 
 int FileInstance::AioWrite(CurveAioContext* aioctx, UserDataType dataType) {
@@ -120,7 +126,7 @@ int FileInstance::AioWrite(CurveAioContext* aioctx, UserDataType dataType) {
         DVLOG(9) << "open with read only, do not support write!";
         return -1;
     }
-    return iomanager4file_.AioWrite(aioctx, mdsclient_, dataType);
+    return iomanager4file_.AioWrite(aioctx, mdsclient_.get(), dataType);
 }
 
 // 两种场景会造成在Open的时候返回LIBCURVE_ERROR::FILE_OCCUPIED
@@ -178,7 +184,7 @@ int FileInstance::Close() {
 
 FileInstance* FileInstance::NewInitedFileInstance(
     const FileServiceOption& fileServiceOption,
-    MDSClient* mdsClient,
+    std::shared_ptr<MDSClient> mdsClient,
     const std::string& filename,
     const UserInfo& userInfo,
     bool readonly) {
@@ -188,7 +194,7 @@ FileInstance* FileInstance::NewInitedFileInstance(
         return nullptr;
     }
 
-    bool ret = instance->Initialize(filename, mdsClient, userInfo,
+    bool ret = instance->Initialize(filename, std::move(mdsClient), userInfo,
                                     fileServiceOption, readonly);
     if (!ret) {
         LOG(ERROR) << "FileInstance initialize failed"
@@ -203,11 +209,11 @@ FileInstance* FileInstance::NewInitedFileInstance(
 }
 
 FileInstance* FileInstance::Open4Readonly(const FileServiceOption& opt,
-                                          MDSClient* mdsclient,
+                                          std::shared_ptr<MDSClient> mdsclient,
                                           const std::string& filename,
                                           const UserInfo& userInfo) {
     FileInstance* instance = FileInstance::NewInitedFileInstance(
-        opt, mdsclient, filename, userInfo, true);
+        opt, std::move(mdsclient), filename, userInfo, true);
     if (instance == nullptr) {
         LOG(ERROR) << "NewInitedFileInstance failed, filename = " << filename;
         return nullptr;

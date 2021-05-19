@@ -30,6 +30,8 @@
 namespace curve {
 namespace client {
 
+using curve::common::ReadLockGuard;
+
 struct CurveAioCombineContext {
     RequestClosure* done;
     CurveAioContext curveCtx;
@@ -122,8 +124,8 @@ SourceReader::ReadHandler* SourceReader::GetReadHandler(
         }
     }
 
-    FileInstance* instance =
-        FileInstance::Open4Readonly(fileOption_, mdsclient, fileName, userInfo);
+    FileInstance* instance = FileInstance::Open4Readonly(
+        fileOption_, mdsclient->shared_from_this(), fileName, userInfo);
     if (instance == nullptr) {
         return nullptr;
     }

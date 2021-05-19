@@ -29,12 +29,12 @@ namespace client {
 
 TEST(FileInstanceTest, CommonTest) {
     UserInfo userInfo{"test", "passwd"};
-    MDSClient mdsClient;
+    std::shared_ptr<MDSClient> mdsclient = std::make_shared<MDSClient>();
 
     // user info invlaid
     FileInstance fi;
-    ASSERT_FALSE(fi.Initialize(
-        "/test", &mdsClient, UserInfo{}, FileServiceOption{}));
+    ASSERT_FALSE(
+        fi.Initialize("/test", mdsclient, UserInfo{}, FileServiceOption{}));
 
     // mdsclient is nullptr
     FileInstance fi2;
@@ -47,13 +47,12 @@ TEST(FileInstanceTest, CommonTest) {
     opts.ioOpt.taskThreadOpt.isolationTaskQueueCapacity = 0;
     opts.ioOpt.taskThreadOpt.isolationTaskThreadPoolSize = 0;
 
-    ASSERT_FALSE(fi3.Initialize(
-        "/test", &mdsClient, userInfo, opts));
+    ASSERT_FALSE(fi3.Initialize("/test", mdsclient, userInfo, opts));
 
     // readonly
     FileInstance fi4;
-    ASSERT_TRUE(fi4.Initialize(
-        "/test", &mdsClient, userInfo, FileServiceOption{}, true));
+    ASSERT_TRUE(fi4.Initialize("/test", mdsclient, userInfo,
+                               FileServiceOption{}, true));
     ASSERT_EQ(-1, fi4.Write("", 0, 0));
 
     fi4.UnInitialize();
