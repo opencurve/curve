@@ -652,7 +652,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     std::string filename = "/1_userinfo_";
 
     UserInfo_t userinfo;
-    MDSClient mdsclient_;
+    std::shared_ptr<MDSClient> mdsclient_ = std::make_shared<MDSClient>();
     FileServiceOption fopt;
     FileInstance    fileinstance_;
 
@@ -682,9 +682,9 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     //     fopt.ioOpt.ioSenderOpt.failRequestOpt);
     LOG(INFO) << "here";
 
-    mdsclient_.Initialize(fopt.metaServerOpt);
+    mdsclient_->Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize(
-        "/UnstableChunkserverTest", &mdsclient_, userinfo, fopt);
+        "/UnstableChunkserverTest", mdsclient_, userinfo, fopt);
 
     // 设置leaderid
     EndPoint ep;
@@ -832,7 +832,6 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
 
     fileinstance_.Close();
     fileinstance_.UnInitialize();
-    mdsclient_.UnInitialize();
     mds.UnInitialize();
     delete[] buffer;
 }
@@ -841,7 +840,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     std::string filename = "/1_userinfo_";
 
     UserInfo_t userinfo;
-    MDSClient mdsclient_;
+    std::shared_ptr<MDSClient> mdsclient_ = std::make_shared<MDSClient>();
     FileServiceOption fopt;
     FileInstance    fileinstance_;
 
@@ -867,9 +866,9 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
     fopt.ioOpt.metaCacheOpt.chunkserverUnstableOption.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
 
-    mdsclient_.Initialize(fopt.metaServerOpt);
+    mdsclient_->Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize(
-        "/ResumeTimeoutBackoff", &mdsclient_, userinfo, fopt);
+        "/ResumeTimeoutBackoff", mdsclient_, userinfo, fopt);
 
     // 设置leaderid
     EndPoint ep;
@@ -945,7 +944,6 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
 
     fileinstance_.Close();
     fileinstance_.UnInitialize();
-    mdsclient_.UnInitialize();
     mds.UnInitialize();
     delete[] buffer;
 }

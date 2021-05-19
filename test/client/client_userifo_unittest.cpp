@@ -94,13 +94,13 @@ TEST_F(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     userinfo.owner = "userinfo";
     UserInfo_t emptyuserinfo;
 
-    MDSClient mdsclient;
-    mdsclient.Initialize(cc.GetFileServiceOption().metaServerOpt);
+    std::shared_ptr<MDSClient> mdsclient = std::make_shared<MDSClient>();
+    mdsclient->Initialize(cc.GetFileServiceOption().metaServerOpt);
 
     FileInstance fileinstance;
-    ASSERT_FALSE(fileinstance.Initialize(filename, &mdsclient, emptyuserinfo,
-                                        cc.GetFileServiceOption()));
-    ASSERT_TRUE(fileinstance.Initialize(filename, &mdsclient, userinfo,
+    ASSERT_FALSE(fileinstance.Initialize(filename, mdsclient, emptyuserinfo,
+                                         cc.GetFileServiceOption()));
+    ASSERT_TRUE(fileinstance.Initialize(filename, mdsclient, userinfo,
                                         cc.GetFileServiceOption()));
 
     // set openfile response
@@ -209,7 +209,6 @@ TEST_F(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL, fileinstance.Close());
 
     fileinstance.UnInitialize();
-    mdsclient.UnInitialize();
     UnInit();
 }
 
