@@ -123,7 +123,6 @@ class MDSClientTest : public ::testing::Test {
     }
 
     void TearDown() {
-        mdsclient_.UnInitialize();
         UnInit();
         ASSERT_EQ(0, server.Stop(0));
         ASSERT_EQ(0, server.Join());
