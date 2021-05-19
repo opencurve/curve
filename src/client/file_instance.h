@@ -52,7 +52,7 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
      * @return: 成功返回true、否则返回false
      */
     bool Initialize(const std::string& filename,
-                    MDSClient* mdsclient,
+                    std::shared_ptr<MDSClient> mdsclient,
                     const UserInfo_t& userinfo,
                     const FileServiceOption& fileservicopt,
                     bool readonly = false);
@@ -152,13 +152,13 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
 
     static FileInstance* NewInitedFileInstance(
         const FileServiceOption& fileServiceOption,
-        MDSClient* mdsClient,
+        std::shared_ptr<MDSClient> mdsClient,
         const std::string& filename,
         const UserInfo& userInfo,
         bool readonly);
 
     static FileInstance* Open4Readonly(const FileServiceOption& opt,
-                                       MDSClient* mdsclient,
+                                       std::shared_ptr<MDSClient> mdsclient,
                                        const std::string& filename,
                                        const UserInfo& userInfo);
 
@@ -170,7 +170,7 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     FileServiceOption       fileopt_;
 
     // MDSClient是FileInstance与mds通信的唯一出口
-    MDSClient*              mdsclient_;
+    std::shared_ptr<MDSClient> mdsclient_;
 
     // 每个文件都持有与MDS通信的lease，LeaseExecutor是续约执行者
     std::unique_ptr<LeaseExecutor> leaseExecutor_;

@@ -33,14 +33,10 @@
 #include "proto/nameserver2.pb.h"
 #include "proto/topology.pb.h"
 #include "src/client/client_common.h"
-#include "src/client/config_info.h"
-#include "src/common/authenticator.h"
 #include "src/common/timeutility.h"
 
 namespace curve {
 namespace client {
-
-using curve::common::Authenticator;
 
 using curve::mds::OpenFileRequest;
 using curve::mds::OpenFileResponse;
@@ -96,12 +92,6 @@ extern const char* kRootUserName;
 // 返回给调用者，有调用者处理
 class MDSClientBase {
  public:
-    /**
-     * @param: metaServerOpt为mdsclient的配置信息
-     * @return: 成功0， 否则-1
-     */
-    int Init(const MetaServerOption& metaServerOpt);
-
     /**
      * 打开文件
      * @param: filename是文件名
@@ -468,7 +458,7 @@ class MDSClientBase {
      * 为不同的request填充user信息
      * @param: request是待填充的变量指针
      */
-    template <class T>
+    template <typename T>
     void FillUserInfo(T* request, const UserInfo_t& userinfo) {
         uint64_t date = curve::common::TimeUtility::GetTimeofDayUs();
         request->set_owner(userinfo.owner);
@@ -482,9 +472,6 @@ class MDSClientBase {
     }
 
     std::string CalcSignature(const UserInfo& userinfo, uint64_t date) const;
-
-    // 当前模块的初始化option配置
-    MetaServerOption metaServerOpt_;
 };
 
 }   //  namespace client

@@ -25,7 +25,6 @@
 
 #include <brpc/channel.h>
 #include <brpc/controller.h>
-#include <brpc/errno.pb.h>
 
 #include <map>
 #include <string>
@@ -39,25 +38,19 @@
 #include "src/client/client_metric.h"
 #include "src/client/mds_client_base.h"
 #include "src/client/metacache_struct.h"
-#include "src/common/concurrent/concurrent.h"
-#include "src/common/concurrent/rw_lock.h"
 
 namespace curve {
 namespace client {
 
-using curve::common::RWLock;
-using curve::common::ReadLockGuard;
-using curve::common::Authenticator;
-
-class MetaCache;
 struct LeaseRefreshResult;
 
 // MDSClient是client与MDS通信的唯一窗口
-class MDSClient {
+class MDSClient : public MDSClientBase,
+                  public std::enable_shared_from_this<MDSClient> {
  public:
     explicit MDSClient(const std::string& metricPrefix = "");
 
-    virtual ~MDSClient() = default;
+    virtual ~MDSClient();
 
     using RPCFunc =
         std::function<int(int, uint64_t, brpc::Channel*, brpc::Controller*)>;
@@ -407,18 +400,11 @@ class MDSClient {
      */
     void UnInitialize();
 
-    // 测试使用
-    MDSClientMetric* GetMetric() {
-       return &mdsClientMetric_;
-    }
-
  protected:
     class MDSRPCExcutor {
      public:
-        MDSRPCExcutor() {
-            cntlID_.store(1);
-            currentWorkingMDSAddrIndex_.store(0);
-        }
+        MDSRPCExcutor()
+            : metaServerOpt_(), currentWorkingMDSAddrIndex_(0), cntlID_(1) {}
 
         void SetOption(const MetaServerOption& option) {
             metaServerOpt_ = option;
@@ -547,12 +533,9 @@ class MDSClient {
     // client与mds通信的metric统计
     MDSClientMetric mdsClientMetric_;
 
-    // MDSClientBase是真正的rpc发送逻辑
-    // MDSClient是在RPC上层的一些业务逻辑封装，比如metric，或者重试逻辑
-    MDSClientBase mdsClientBase_;
-
     MDSRPCExcutor rpcExcutor;
 };
+
 }   // namespace client
 }   // namespace curve
 
