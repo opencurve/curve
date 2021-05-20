@@ -62,7 +62,7 @@
     - name: copy map_curve_disk.sh to init.d
       vars:
         remote_dir_name: "/etc/init.d"
-        local_file_path: "{{ curve_bin_dir }}/map_curve_disk.sh"
+        local_file_path: "{{ local_nbd_package_path }}/bin/map_curve_disk.sh"
         file_mode: 0755
       include_tasks: copy_file_to_remote.yml
     - name: enable on debain ubuntu
