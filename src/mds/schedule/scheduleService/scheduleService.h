@@ -52,10 +52,10 @@ class ScheduleServiceImpl : public ScheduleService {
         QueryChunkServerRecoverStatusResponse *response,
         google::protobuf::Closure* done);
 
-    virtual void CancelScanSchedule(
+    virtual void SetLogicalPoolScanState(
         google::protobuf::RpcController* cntl_base,
-        const CancelScanScheduleRequest* request,
-        CancelScanScheduleResponse* response,
+        const SetLogicalPoolScanStateRequest* request,
+        SetLogicalPoolScanStateResponse* response,
         google::protobuf::Closure* done);
 
  private:

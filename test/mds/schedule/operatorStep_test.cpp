@@ -22,6 +22,7 @@
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+#include "src/common/timeutility.h"
 #include "test/mds/schedule/common.h"
 
 namespace curve {
@@ -298,6 +299,294 @@ TEST(OperatorStepTest, OperatorStepTest_ChangePeer_Test) {
                 changePeer->Apply(testCopySetInfo, &copySetConf));
     }
 }
+
+TEST(OperatorStepTest, TestStartScanPeer) {
+    // GetCopySetInfoForTest() return copyset:
+    //   logicalPoolId: 1
+    //   copysetId: 1
+    //   leaderPeerId: 1
+    //   peers:
+    //     chunkserverId: [1-3],
+    //     zoneId: [1-3],
+    //     serverId: [1-3],
+    //     ip: 192.168.10.[1-3],
+    //     port: 9000
+    //   epoch: 1
+    //   scaning: false
+    //   lastScanSec: 0
+    //   candidatePeerInfo: ...
+    //   configChangeInfo: ...
+
+    std::shared_ptr<OperatorStep> step =
+        std::make_shared<ScanPeer>(1, ConfigChangeType::START_SCAN_PEER);
+
+    auto newConfigChange = []() -> ConfigChangeInfo {
+        ConfigChangeInfo configChangeInfo;
+
+        // peer
+        auto peer = new ::curve::common::Peer();
+        peer->set_id(1);
+        peer->set_address("192.10.12.1:9000:0");
+        configChangeInfo.set_allocated_peer(peer);
+        // type
+        configChangeInfo.set_type(ConfigChangeType::START_SCAN_PEER);
+        // finished
+        configChangeInfo.set_finished(false);
+        // err
+        auto err = new CandidateError();
+        err->set_errtype(1);
+        err->set_errmsg(std::string("There is a copyset is in scaning"));
+        configChangeInfo.set_allocated_err(err);
+
+        return configChangeInfo;
+    };
+
+    // CASE 1: copyset is in scaning -> Finished
+    {
+        CopySetConf copysetConf;
+        auto copysetInfo = GetCopySetInfoForTest();
+        copysetInfo.scaning = true;
+        copysetInfo.lastScanSec = 0;
+
+        auto ret = step->Apply(copysetInfo, &copysetConf);
+        ASSERT_EQ(ret, ApplyStatus::Finished);
+    }
+
+    // CASE 2: copyset just completes scan -> Finished
+    {
+        CopySetConf copysetConf;
+        auto copysetInfo = GetCopySetInfoForTest();
+        copysetInfo.scaning = true;
+        copysetInfo.lastScanSec =
+            ::curve::common::TimeUtility::GetTimeofDaySec();
+
+        auto ret = step->Apply(copysetInfo, &copysetConf);
+        ASSERT_EQ(ret, ApplyStatus::Finished);
+    }
+
+    // CASE 3: copyset has no config change -> Ordered
+    {
+        CopySetConf copysetConf;
+        auto copysetInfo = GetCopySetInfoForTest();
+
+        auto ret = step->Apply(copysetInfo, &copysetConf);
+        ASSERT_EQ(ret, ApplyStatus::Ordered);
+        ASSERT_EQ(copysetConf.id.first, 1);  // logical pool id
+        ASSERT_EQ(copysetConf.id.second, 1);  // copyset id
+        ASSERT_EQ(copysetConf.epoch, 1);  // epoch
+        ASSERT_EQ(copysetConf.peers, copysetInfo.peers);  // peers
+        ASSERT_EQ(copysetConf.type, ConfigChangeType::START_SCAN_PEER);  // type
+        ASSERT_EQ(copysetConf.configChangeItem, 1);  // chunkserver id
+    }
+
+    // CASE 4: copyset has config change but the change type
+    //         is not START_SCAN_PEER -> Failed
+    {
+        CopySetConf copysetConf;
+        auto copysetInfo = GetCopySetInfoForTest();
+        // candidatePeerInfo
+        copysetInfo.candidatePeerInfo = PeerInfo(1, 1, 1, "192.168.10.1", 9000);
+        // configChangeInfo
+        auto configChangeInfo = newConfigChange();
+        configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
+        configChangeInfo.clear_err();
+        copysetInfo.configChangeInfo = configChangeInfo;
+
+        auto ret = step->Apply(copysetInfo, &copysetConf);
+        ASSERT_EQ(ret, ApplyStatus::Failed);
+    }
+
+    // CASE 5: copyset starting scan on other chunkserver -> Failed
+    {
+        CopySetConf copysetConf;
+        auto copysetInfo = GetCopySetInfoForTest();
+        // candidatePeerInfo
+        copysetInfo.candidatePeerInfo = PeerInfo(2, 2, 2, "192.168.10.2", 9000);
+        // configChangeInfo
+        auto configChangeInfo = newConfigChange();
+        configChangeInfo.clear_err();
+        copysetInfo.configChangeInfo = configChangeInfo;
+
+        auto ret = step->Apply(copysetInfo, &copysetConf);
+        ASSERT_EQ(ret, ApplyStatus::Failed);
+    }
+
+    // CASE 6: There is an error on copyset starting scan -> Failed
+    {
+        CopySetConf copysetConf;
+        auto copysetInfo = GetCopySetInfoForTest();
+        // candidatePeerInfo
+        copysetInfo.candidatePeerInfo = PeerInfo(1, 1, 1, "192.168.10.1", 9000);
+        // configChangeInfo
+        auto configChangeInfo = newConfigChange();
+        copysetInfo.configChangeInfo = configChangeInfo;
+
+        auto ret = step->Apply(copysetInfo, &copysetConf);
+        ASSERT_EQ(ret, ApplyStatus::Failed);
+    }
+
+    // CASE 7: copyset is in starting scan -> OnGoing
+    {
+        CopySetConf copysetConf;
+        auto copysetInfo = GetCopySetInfoForTest();
+        // candidatePeerInfo
+        copysetInfo.candidatePeerInfo = PeerInfo(1, 1, 1, "192.168.10.1", 9000);
+        // configChangeInfo
+        auto configChangeInfo = newConfigChange();
+        configChangeInfo.clear_err();
+        copysetInfo.configChangeInfo = configChangeInfo;
+
+        auto ret = step->Apply(copysetInfo, &copysetConf);
+        ASSERT_EQ(ret, ApplyStatus::OnGoing);
+    }
+}
+
+TEST(OperatorStepTest, TestCancelScanPeer) {
+    // GetCopySetInfoForTest() return copyset:
+    //   logicalPoolId: 1
+    //   copysetId: 1
+    //   leaderPeerId: 1
+    //   peers:
+    //     chunkserverId: [1-3],
+    //     zoneId: [1-3],
+    //     serverId: [1-3],
+    //     ip: 192.168.10.[1-3],
+    //     port: 9000
+    //   epoch: 1
+    //   scaning: false
+    //   lastScanSec: 0
+    //   candidatePeerInfo: ...
+    //   configChangeInfo: ...
+
+    std::shared_ptr<OperatorStep> step =
+        std::make_shared<ScanPeer>(1, ConfigChangeType::CANCEL_SCAN_PEER);
+
+    auto newConfigChange = []() -> ConfigChangeInfo {
+        ConfigChangeInfo configChangeInfo;
+
+        // peer
+        auto peer = new ::curve::common::Peer();
+        peer->set_id(1);
+        peer->set_address("192.10.12.1:9000:0");
+        configChangeInfo.set_allocated_peer(peer);
+        // type
+        configChangeInfo.set_type(ConfigChangeType::CANCEL_SCAN_PEER);
+        // finished
+        configChangeInfo.set_finished(false);
+        // err
+        auto err = new CandidateError();
+        err->set_errtype(1);
+        err->set_errmsg(std::string("There is an error on cancel scan"));
+        configChangeInfo.set_allocated_err(err);
+
+        return configChangeInfo;
+    };
+
+    // CASE 1: copyset is not in scaning -> Finished
+    {
+        CopySetConf copysetConf;
+        auto copysetInfo = GetCopySetInfoForTest();
+        copysetInfo.scaning = false;
+        copysetInfo.lastScanSec = 0;
+
+        auto ret = step->Apply(copysetInfo, &copysetConf);
+        ASSERT_EQ(ret, ApplyStatus::Finished);
+    }
+
+    // CASE 2: copyset just completes scan -> Finished
+    {
+        CopySetConf copysetConf;
+        auto copysetInfo = GetCopySetInfoForTest();
+        copysetInfo.scaning = true;
+        copysetInfo.lastScanSec =
+            ::curve::common::TimeUtility::GetTimeofDaySec();
+
+        auto ret = step->Apply(copysetInfo, &copysetConf);
+        ASSERT_EQ(ret, ApplyStatus::Finished);
+    }
+
+    // CASE 3: copyset has no config change -> Ordered
+    {
+        CopySetConf copysetConf;
+        auto copysetInfo = GetCopySetInfoForTest();
+        copysetInfo.scaning = true;
+
+        auto ret = step->Apply(copysetInfo, &copysetConf);
+        ASSERT_EQ(ret, ApplyStatus::Ordered);
+        ASSERT_EQ(copysetConf.id.first, 1);  // logical pool id
+        ASSERT_EQ(copysetConf.id.second, 1);  // copyset id
+        ASSERT_EQ(copysetConf.epoch, 1);  // epoch
+        ASSERT_EQ(copysetConf.peers, copysetInfo.peers);  // peers
+        ASSERT_EQ(copysetConf.type, ConfigChangeType::CANCEL_SCAN_PEER);  // type // NOLINT
+        ASSERT_EQ(copysetConf.configChangeItem, 1);  // chunkserver id
+    }
+
+    // CASE 4: copyset has config change but the change type
+    //         is not CANCEL_SCAN_PEER -> FAILED
+    {
+        CopySetConf copysetConf;
+        auto copysetInfo = GetCopySetInfoForTest();
+        copysetInfo.scaning = true;
+        // candidatePeerInfo
+        copysetInfo.candidatePeerInfo = PeerInfo(1, 1, 1, "192.168.10.1", 9000);
+        // configChangeInfo
+        auto configChangeInfo = newConfigChange();
+        configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
+        configChangeInfo.clear_err();
+        copysetInfo.configChangeInfo = configChangeInfo;
+
+        auto ret = step->Apply(copysetInfo, &copysetConf);
+        ASSERT_EQ(ret, ApplyStatus::Failed);
+    }
+
+    // CASE 5: copyset canceling scan on other chunkserver -> FAILED
+    {
+        CopySetConf copysetConf;
+        auto copysetInfo = GetCopySetInfoForTest();
+        copysetInfo.scaning = true;
+        // candidatePeerInfo
+        copysetInfo.candidatePeerInfo = PeerInfo(2, 2, 2, "192.168.10.2", 9000);
+        // configChangeInfo
+        auto configChangeInfo = newConfigChange();
+        configChangeInfo.clear_err();
+        copysetInfo.configChangeInfo = configChangeInfo;
+
+        auto ret = step->Apply(copysetInfo, &copysetConf);
+        ASSERT_EQ(ret, ApplyStatus::Failed);
+    }
+
+    // CASE 6: There is an error on copyset starting scan -> FAILED
+    {
+        CopySetConf copysetConf;
+        auto copysetInfo = GetCopySetInfoForTest();
+        copysetInfo.scaning = true;
+        // candidatePeerInfo
+        copysetInfo.candidatePeerInfo = PeerInfo(1, 1, 1, "192.168.10.1", 9000);
+        // configChangeInfo
+        auto configChangeInfo = newConfigChange();
+        copysetInfo.configChangeInfo = configChangeInfo;
+
+        auto ret = step->Apply(copysetInfo, &copysetConf);
+        ASSERT_EQ(ret, ApplyStatus::Failed);
+    }
+
+    // CASE 7: copyset is in canceling scan -> OnGoing
+    {
+        CopySetConf copysetConf;
+        auto copysetInfo = GetCopySetInfoForTest();
+        copysetInfo.scaning = true;
+        // candidatePeerInfo
+        copysetInfo.candidatePeerInfo = PeerInfo(1, 1, 1, "192.168.10.1", 9000);
+        // configChangeInfo
+        auto configChangeInfo = newConfigChange();
+        configChangeInfo.clear_err();
+        copysetInfo.configChangeInfo = configChangeInfo;
+
+        auto ret = step->Apply(copysetInfo, &copysetConf);
+        ASSERT_EQ(ret, ApplyStatus::OnGoing);
+    }
+}
+
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

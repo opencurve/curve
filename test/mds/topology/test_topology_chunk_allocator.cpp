@@ -89,6 +89,7 @@ class TestTopologyChunkAllocator : public ::testing::Test {
                 rap,
                 policy,
                 createTime,
+                true,
                 true);
 
         EXPECT_CALL(*storage_, StorageLogicalPool(_))

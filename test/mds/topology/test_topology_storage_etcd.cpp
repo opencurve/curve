@@ -69,7 +69,7 @@ TEST_F(TestTopologyStorageEtcd, test_LoadLogicalPool_success) {
     rap.pageFileRAP.zoneNum = 3;
     LogicalPool::UserPolicy policy;
     LogicalPool data(0x11, "lpool", 0x21, LogicalPoolType::PAGEFILE,
-        rap, policy, 100, true);
+        rap, policy, 100, true, true);
     data.SetScatterWidth(100);
     data.SetStatus(AllocateStatus::ALLOW);
 
@@ -140,7 +140,7 @@ TEST_F(TestTopologyStorageEtcd, test_LoadLogicalPool_IdDuplicated) {
     rap.pageFileRAP.zoneNum = 3;
     LogicalPool::UserPolicy policy;
     LogicalPool data(0x11, "lpool", 0x21, LogicalPoolType::PAGEFILE,
-        rap, policy, 100, true);
+        rap, policy, 100, true, true);
     data.SetScatterWidth(100);
     data.SetStatus(AllocateStatus::ALLOW);
 
@@ -572,7 +572,7 @@ TEST_F(TestTopologyStorageEtcd, test_StotageLogicalPool_success) {
     rap.pageFileRAP.zoneNum = 3;
     LogicalPool::UserPolicy policy;
     LogicalPool data(0x11, "lpool", 0x21, LogicalPoolType::PAGEFILE,
-        rap, policy, 100, true);
+        rap, policy, 100, true, true);
     data.SetScatterWidth(100);
     data.SetStatus(AllocateStatus::ALLOW);
 
@@ -590,7 +590,7 @@ TEST_F(TestTopologyStorageEtcd, test_StotageLogicalPool_putInfoEtcdFail) {
     rap.pageFileRAP.zoneNum = 3;
     LogicalPool::UserPolicy policy;
     LogicalPool data(0x11, "lpool", 0x21, LogicalPoolType::PAGEFILE,
-        rap, policy, 100, true);
+        rap, policy, 100, true, true);
     data.SetScatterWidth(100);
     data.SetStatus(AllocateStatus::ALLOW);
 

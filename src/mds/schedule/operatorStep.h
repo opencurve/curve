@@ -160,34 +160,29 @@ class ChangePeer : public OperatorStep {
     ChunkServerIdType new_;
 };
 
-class StartScanPeer : public OperatorStep {
+class ScanPeer : public OperatorStep {
  public:
-    explicit StartScanPeer(ChunkServerIdType peerID) : scan_(peerID) {}
+    explicit ScanPeer(ChunkServerIdType peerID, ConfigChangeType opType)
+        : scan_(peerID), opType_(opType) {}
 
-    ApplyStatus Apply(const CopySetInfo &originInfo,
-                        CopySetConf *newConf) override;
+    ApplyStatus Apply(const CopySetInfo& originInfo,
+                      CopySetConf* newConf) override;
 
     std::string OperatorStepToString() override;
 
     ChunkServerIdType GetTargetPeer() const override;
 
- private:
-    ChunkServerIdType scan_;
-};
+    bool IsStartScan() {
+        return opType_ == ConfigChangeType::START_SCAN_PEER;
+    }
 
-class CancelScanPeer : public OperatorStep {
- public:
-    explicit CancelScanPeer(ChunkServerIdType peerID) : scan_(peerID) {}
-
-    ApplyStatus Apply(const CopySetInfo &originInfo,
-                        CopySetConf *newConf) override;
-
-    std::string OperatorStepToString() override;
-
-    ChunkServerIdType GetTargetPeer() const override;
+    bool IsCancelScan() {
+        return opType_ == ConfigChangeType::CANCEL_SCAN_PEER;
+    }
 
  private:
     ChunkServerIdType scan_;
+    ConfigChangeType opType_;
 };
 }  // namespace schedule
 }  // namespace mds

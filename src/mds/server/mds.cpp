@@ -557,6 +557,8 @@ void MDS::InitScheduleOption(ScheduleOption *scheduleOption) {
         &scheduleOption->enableRecoverScheduler);
     conf_->GetValueFatalIfFail("mds.enable.replica.scheduler",
         &scheduleOption->enableReplicaScheduler);
+    conf_->GetValueFatalIfFail("mds.enable.scan.scheduler",
+        &scheduleOption->enableScanScheduler);
 
     conf_->GetValueFatalIfFail("mds.copyset.scheduler.intervalSec",
         &scheduleOption->copysetSchedulerIntervalSec);
@@ -566,6 +568,9 @@ void MDS::InitScheduleOption(ScheduleOption *scheduleOption) {
         &scheduleOption->recoverSchedulerIntervalSec);
     conf_->GetValueFatalIfFail("mds.replica.scheduler.intervalSec",
         &scheduleOption->replicaSchedulerIntervalSec);
+    conf_->GetValueFatalIfFail("mds.scan.scheduler.intervalSec",
+        &scheduleOption->scanSchedulerIntervalSec);
+
     conf_->GetValueFatalIfFail("mds.schduler.operator.concurrent",
         &scheduleOption->operatorConcurrent);
     conf_->GetValueFatalIfFail("mds.schduler.transfer.limitSec",
@@ -576,6 +581,9 @@ void MDS::InitScheduleOption(ScheduleOption *scheduleOption) {
         &scheduleOption->removePeerTimeLimitSec);
     conf_->GetValueFatalIfFail("mds.scheduler.change.limitSec",
         &scheduleOption->changePeerTimeLimitSec);
+    conf_->GetValueFatalIfFail("mds.scheduler.scan.limitSec",
+        &scheduleOption->scanPeerTimeLimitSec);
+
     conf_->GetValueFatalIfFail("mds.scheduler.copysetNumRangePercent",
         &scheduleOption->copysetNumRangePercent);
     conf_->GetValueFatalIfFail("mds.schduler.scatterWidthRangePerent",
@@ -584,6 +592,14 @@ void MDS::InitScheduleOption(ScheduleOption *scheduleOption) {
         &scheduleOption->chunkserverFailureTolerance);
     conf_->GetValueFatalIfFail("mds.scheduler.chunkserver.cooling.timeSec",
         &scheduleOption->chunkserverCoolingTimeSec);
+    conf_->GetValueFatalIfFail("mds.scheduler.scan.startHour",
+        &scheduleOption->scanStartHour);
+    conf_->GetValueFatalIfFail("mds.scheduler.scan.endHour",
+        &scheduleOption->scanEndHour);
+    conf_->GetValueFatalIfFail("mds.scheduler.scan.concurrent.per.pool",
+        &scheduleOption->scanConcurrentPerPool);
+    conf_->GetValueFatalIfFail("mds.scheduler.scan.concurrent.per.chunkserver",
+        &scheduleOption->scanConcurrentPerChunkserver);
 }
 
 void MDS::InitHeartbeatManager() {

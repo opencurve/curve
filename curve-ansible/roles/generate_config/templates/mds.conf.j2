@@ -57,6 +57,8 @@ mds.enable.leader.scheduler={{ mds_enable_leader_scheduler }}
 mds.enable.recover.scheduler={{ mds_enable_recover_scheduler }}
 # replicaScheduler开关
 mds.enable.replica.scheduler={{ mds_enable_replica_scheduler }}
+# Scan scheduler switch
+mds.enable.scan.scheduler={{ mds_enable_scan_scheduler }}
 # copysetScheduler 轮次间隔，单位是s
 mds.copyset.scheduler.intervalSec={{ mds_copyset_scheduler_interval_sec }}
 # replicaScheduler 轮次间隔，单位是s
@@ -65,6 +67,8 @@ mds.replica.scheduler.intervalSec={{ mds_replica_scheduler_interval_sec }}
 mds.leader.scheduler.intervalSec={{ mds_leader_scheduler_interval_sec }}
 # recoverScheduler 轮次间隔，单位是s
 mds.recover.scheduler.intervalSec={{ mds_recover_scheduler_interval_sec }}
+# Scan scheduler run interval (seconds)
+mds.scan.scheduler.intervalSec={{ mds_scan_scheduler_interval_sec }}
 # 每块磁盘上operator的并发度
 mds.schduler.operator.concurrent={{ mds_schduler_operator_concurrent }}
 # leader变更超时时间, 超时后mds从内存移除该operator
@@ -75,6 +79,8 @@ mds.scheduler.remove.limitSec={{ mds_scheduler_remove_limit_sec }}
 mds.scheduler.add.limitSec={{ mds_scheduler_add_limit_sec }}
 # change一个副本超时时间, 超时后mds从内存移除该operator
 mds.scheduler.change.limitSec={{ mds_scheduler_change_limit_sec }}
+# Scan operator timeout (seconds)
+mds.scheduler.scan.limitSec={{ mds_scheduler_scan_limit_sec }}
 # copyset数量极差不能超过均值的百分比
 mds.scheduler.copysetNumRangePercent={{ mds_scheduler_copyset_mum_range_percent }}
 # chunkserver上copyset的scatte-rwidth不能超过最小值的百分比
@@ -84,6 +90,16 @@ mds.chunkserver.failure.tolerance={{ mds_chunkserver_failure_tolerance }}
 # chunkserver启动coolingTimeSec_后才可以作为target leader, 单位是s
 # TODO(lixiaocui): 续得一定程度上与快照的时间间隔方面做到相关
 mds.scheduler.chunkserver.cooling.timeSec={{ mds_scheduler_chunkserver_cooling_time_sec }}
+# ScanScheduler: scan start hour in one day ([0-23])
+mds.scheduler.scan.startHour={{ mds_scheduler_scan_start_hour }}
+# ScanScheduler: scan end hour in one day ([0-23])
+mds.scheduler.scan.endHour={{ mds_scheduler_scan_end_hour }}
+# ScanScheduler: scan interval for the same copyset (seconds)
+mds.scheduler.scan.intervalSec={{ mds_scheduler_scan_interval_sec }}
+# ScanScheduler: maximum number of scan copysets at the same time for every logical pool
+mds.scheduler.scan.concurrent.per.pool={{ mds_scheduler_scan_concurrent_per_pool }}
+# ScanScheduler: maximum number of scan copysets at the same time for every chunkserver
+mds.scheduler.scan.concurrent.per.chunkserver={{ mds_scheduler_scan_concurrent_per_chunkserver }}
 
 #
 # 心跳相关配置,单位为ms

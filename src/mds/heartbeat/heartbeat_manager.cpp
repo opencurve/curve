@@ -348,6 +348,17 @@ bool HeartbeatManager::FromHeartbeatCopySetInfoToTopologyOne(
         }
         topoCopysetInfo.SetCandidate(res);
     }
+
+    // set scaning
+    if (info.has_scaning()) {
+        topoCopysetInfo.SetScaning(info.scaning());
+    }
+
+    // set last scan
+    if (info.has_lastscansec()) {
+        topoCopysetInfo.SetLastScanSec(info.lastscansec());
+    }
+
     *out = topoCopysetInfo;
     return true;
 }

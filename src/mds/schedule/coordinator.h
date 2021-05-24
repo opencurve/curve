@@ -72,16 +72,6 @@ class Coordinator {
      */
     virtual int RapidLeaderSchedule(PoolIdType lpid);
 
-    /**
-     * @brief cancel scan request
-     *
-     * @param[in] lpid The logical pool that require cancel scan 
-     *
-     * @return kScheduleErrCodeSuccess If cancelscan operator generated successfully //NOLINT
-     *         kScheduleErrCodeInvalidLogicalPool If logical pool not exist
-     */
-    virtual int CancelScanSchedule(PoolIdType lpid);
-
     virtual int QueryChunkServerRecoverStatus(
         const std::vector<ChunkServerIdType> &idList,
         std::map<ChunkServerIdType, bool> *statusMap);
@@ -94,6 +84,15 @@ class Coordinator {
      * @param[in] key Copyset specified
      */
     virtual bool ChunkserverGoingToAdd(ChunkServerIdType csId, CopySetKey key);
+
+    /**
+     * @brief Set specify logical pool to enable/disable scan
+     * @param[in] lpid logical pool id
+     * @param[in] scanEnable enable(true)/disable(false) scan
+     * @return kScheduleErrCodeSuccess if set success,
+     *         kScheduleErrCodeInvalidLogicalPool if logical pool not exist
+     */
+    virtual int SetLogicalPoolScanState(PoolIdType lpid, bool scanEnable);
 
     /**
      * @brief Initialize the scheduler according to the configuration

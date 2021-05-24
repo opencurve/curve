@@ -39,6 +39,12 @@ message CopySetInfo {
     optional ConfigChangeInfo configChangeInfo = 6;
     // copyset的性能信息
     optional CopysetStatistics stats = 7;
+
+    // whether the current copyset is on scaning
+    optional bool scaning = 8;
+
+    // timestamp for last success scan (seconds)
+    optional uint64 lastScanSec = 9;
 };
 
 message ConfigChangeInfo {
@@ -111,8 +117,9 @@ enum ConfigChangeType {
     NONE = 4;
     // 配置变更命令：change复制组一个成员
     CHANGE_PEER = 5;
-    // Scan operator, scan chunks in copyset
+    // start scan on the peer  
     START_SCAN_PEER = 6;
+    // cancel scan on the peer
     CANCEL_SCAN_PEER = 7;
 };
 

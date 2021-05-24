@@ -134,6 +134,35 @@ TEST_F(TestScheduleService, test_QueryChunkServerRecoverStatus) {
     }
 }
 
+TEST_F(TestScheduleService, TestSetLogicalPoolScanState) {
+    brpc::Channel channel;
+    ASSERT_EQ(0, channel.Init(listenAddr_, NULL));
+    ScheduleService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    SetLogicalPoolScanStateRequest request;
+    SetLogicalPoolScanStateResponse response;
+
+    // CASE 1: SetLogicalPoolScanState success
+    EXPECT_CALL(*coordinator_, SetLogicalPoolScanState(1, false))
+        .WillOnce(Return(kScheduleErrCodeSuccess));
+    request.set_logicalpoolid(1);
+    request.set_scanenable(false);
+    stub.SetLogicalPoolScanState(&cntl, &request, &response, nullptr);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response.statuscode(), kScheduleErrCodeSuccess);
+
+    // CASE 2: SetLogicalPoolScanState failed: invalid logical pool id
+    EXPECT_CALL(*coordinator_, SetLogicalPoolScanState(10, true))
+        .WillOnce(Return(kScheduleErrCodeInvalidLogicalPool));
+    request.set_logicalpoolid(10);
+    request.set_scanenable(true);
+    cntl.Reset();
+    stub.SetLogicalPoolScanState(&cntl, &request, &response, nullptr);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response.statuscode(), kScheduleErrCodeInvalidLogicalPool);
+}
+
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

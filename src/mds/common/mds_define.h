@@ -68,6 +68,7 @@ typedef uint32_t UserIdType;
 typedef uint32_t CopySetIdType;
 typedef uint64_t EpochType;
 typedef uint64_t ChunkIdType;
+typedef uint64_t LastScanSecType;
 
 const uint32_t UNINTIALIZE_ID = 0u;
 

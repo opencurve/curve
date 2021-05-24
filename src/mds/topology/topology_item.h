@@ -104,7 +104,8 @@ class LogicalPool {
           initialScatterWidth_(0),
           createTime_(0),
           status_(AllocateStatus::ALLOW),
-          avaliable_(false) {}
+          avaliable_(false),
+          scanEnable_(true) {}
     LogicalPool(PoolIdType id,
                 const std::string &name,
                 PoolIdType phyPoolId,
@@ -112,7 +113,8 @@ class LogicalPool {
                 const RedundanceAndPlaceMentPolicy &rap,
                 const UserPolicy &policy,
                 uint64_t createTime,
-                bool avaliable)
+                bool avaliable,
+                bool scanEnable)
         : id_(id),
           name_(name),
           physicalPoolId_(phyPoolId),
@@ -122,7 +124,8 @@ class LogicalPool {
           initialScatterWidth_(0),
           createTime_(createTime),
           status_(AllocateStatus::ALLOW),
-          avaliable_(avaliable) {}
+          avaliable_(avaliable),
+          scanEnable_(scanEnable) {}
 
     PoolIdType GetId() const {
         return id_;
@@ -200,6 +203,14 @@ class LogicalPool {
 
     bool ParseFromString(const std::string &value);
 
+    void SetScanEnable(bool scanEnable) {
+        scanEnable_ = scanEnable;
+    }
+
+    bool ScanEnable() const {
+        return scanEnable_;
+    }
+
  private:
     PoolIdType id_;
 
@@ -216,6 +227,7 @@ class LogicalPool {
     uint64_t createTime_;
     AllocateStatus status_;
     bool avaliable_;
+    bool scanEnable_;
 };
 
 class PhysicalPool {
@@ -671,6 +683,8 @@ class CopySetInfo {
         epoch_(0),
         hasCandidate_(false),
         candidate_(UNINTIALIZE_ID),
+        scaning_(false),
+        lastScanSec_(0),
         dirty_(false),
         available_(true) {}
 
@@ -682,6 +696,8 @@ class CopySetInfo {
         epoch_(0),
         hasCandidate_(false),
         candidate_(UNINTIALIZE_ID),
+        scaning_(false),
+        lastScanSec_(0),
         dirty_(false),
         available_(true) {}
 
@@ -693,6 +709,8 @@ class CopySetInfo {
         peers_(v.peers_),
         hasCandidate_(v.hasCandidate_),
         candidate_(v.candidate_),
+        scaning_(v.scaning_),
+        lastScanSec_(v.lastScanSec_),
         dirty_(v.dirty_),
         available_(v.available_) {}
 
@@ -707,6 +725,8 @@ class CopySetInfo {
         peers_ = v.peers_;
         hasCandidate_ = v.hasCandidate_;
         candidate_ = v.candidate_;
+        scaning_ = v.scaning_;
+        lastScanSec_ = v.lastScanSec_;
         dirty_ = v.dirty_;
         available_ = v.available_;
         return *this;
@@ -773,6 +793,22 @@ class CopySetInfo {
         }
     }
 
+    void SetScaning(bool scaning) {
+        scaning_ = scaning;
+    }
+
+    bool GetScaning() const {
+        return scaning_;
+    }
+
+    void SetLastScanSec(LastScanSecType lastScanSec) {
+        lastScanSec_ = lastScanSec;
+    }
+
+    LastScanSecType GetLastScanSec() const {
+        return lastScanSec_;
+    }
+
     void ClearCandidate() {
         hasCandidate_ = false;
     }
@@ -809,7 +845,13 @@ class CopySetInfo {
     std::set<ChunkServerIdType> peers_;
     bool hasCandidate_;
     ChunkServerIdType candidate_;
-    uint64_t lastScan_;
+
+    // whether the current copyset is on scaning
+    bool scaning_;
+
+    // timestamp for last success scan (seconds)
+    LastScanSecType lastScanSec_;
+
     /**
      * @brief to mark whether data is dirty, for writing to storage regularly
      */

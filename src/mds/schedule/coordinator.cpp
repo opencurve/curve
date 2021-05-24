@@ -45,6 +45,8 @@ DEFINE_bool(enableReplicaScheduler, true, "switch of replica scheduler");
 DEFINE_validator(enableReplicaScheduler, &pass_bool);
 DEFINE_bool(enableRecoverScheduler, true, "switch of recover scheduler");
 DEFINE_validator(enableRecoverScheduler, &pass_bool);
+DEFINE_bool(enableScanScheduler, true, "switch of scan scheduler");
+DEFINE_validator(enableScanScheduler, &pass_bool);
 
 Coordinator::Coordinator(const std::shared_ptr<TopoAdapter> &topo) {
     this->topo_ = topo;
@@ -154,8 +156,9 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
             return ::curve::mds::topology::UNINTIALIZE_ID;
         }
 
-        // the operator should not be dispacthed if the candidate
-        // of addPeer or transferLeader or changePeer is offline
+        // if the candidate is offline,
+        // the operators (addPeer, transferLeader, changePeer, scanPeer)
+        // should not be dispacthed
         ChunkServerInfo chunkServer;
         if (!topo_->GetChunkServerInfo(res.configChangeItem, &chunkServer)) {
             LOG(ERROR) << "coordinator can not get chunkServer "
@@ -164,8 +167,10 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
             return ::curve::mds::topology::UNINTIALIZE_ID;
         }
         bool needCheckType = (res.type == ConfigChangeType::ADD_PEER ||
-            res.type == ConfigChangeType::TRANSFER_LEADER ||
-            res.type == ConfigChangeType::CHANGE_PEER);
+                              res.type == ConfigChangeType::TRANSFER_LEADER ||
+                              res.type == ConfigChangeType::CHANGE_PEER ||
+                              res.type == ConfigChangeType::START_SCAN_PEER ||
+                              res.type == ConfigChangeType::CANCEL_SCAN_PEER);
         if (needCheckType && chunkServer.IsOffline()) {
             LOG(WARNING) << "candidate chunkserver " << chunkServer.info.id
                        << " is offline, abort config change";
@@ -329,6 +334,12 @@ bool Coordinator::ScheduleNeedRun(SchedulerType type) {
 
         case SchedulerType::ReplicaSchedulerType:
             return FLAGS_enableReplicaScheduler;
+
+        case SchedulerType::ScanSchedulerType:
+            return FLAGS_enableScanScheduler;
+
+        default:
+            return false;
     }
 }
 
@@ -345,6 +356,12 @@ std::string Coordinator::ScheduleName(SchedulerType type) {
 
         case SchedulerType::ReplicaSchedulerType:
             return "ReplicaScheduler";
+
+        case SchedulerType::ScanSchedulerType:
+            return "ScanScheduler";
+
+        default:
+            return "Unknown";
     }
 }
 
@@ -388,31 +405,15 @@ bool Coordinator::IsChunkServerRecover(const ChunkServerInfo &info) {
     return false;
 }
 
-int Coordinator::CancelScanSchedule(PoolIdType lpid) {
-    std::set<CopysetID> copysetIds;
-    std::shared_ptr<ScanScheduler> scheduler = std::dynamic_pointer_cast<ScanScheduler> (  //NOLINT
-                schedulerController_[SchedulerType::ScanSchedulerType]);
-    copysetIds = scheduler->getScaningCopyset(lpid);
-    CopySetInfo info;
-
-    for (auto& id : copysetIds) {
-        CopySetKey key;
-        key.first = lpid;
-        key.second = id;
-        if (topo_->GetCopySetInfo(key, &info)) {
-            auto op = operatorFactory.CreateCancelScanPeerOperator(info,
-                           info.leader, OperatorPriority::HighPriority);
-            if (opController_->AddOperator(op)) {
-                LOG(INFO) << "rpc generate operator " << op.OpToString()
-                << " for " << info.CopySetInfoStr();
-            }
-        } else {
-            LOG(INFO) << "get copyset info fail. poolid:"
-                      << lpid << ", copyset id:" << id;
-        }
+int Coordinator::SetLogicalPoolScanState(PoolIdType lpid, bool scanEnable) {
+    ::curve::mds::topology::LogicalPool lpool;
+    if (topo_->GetLogicalPool(lpid, &lpool)) {
+        lpool.SetScanEnable(scanEnable);  // without lock
+        return kScheduleErrCodeSuccess;
     }
 
-    return 0;
+    LOG(WARNING) << "ScanSchedule unfind logicalpool: " << lpid;
+    return kScheduleErrCodeInvalidLogicalPool;
 }
 }  // namespace schedule
 }  // namespace mds

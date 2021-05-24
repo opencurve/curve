@@ -54,6 +54,16 @@ TEST(OperatorFactoryTest, test_change_peer) {
         copySetInfo, 3, 4, OperatorPriority::NormalPriority);
     ASSERT_TRUE(dynamic_cast<ChangePeer *>(resOp.step.get()) != nullptr);
 }
+
+TEST(OperatorFactoryTest, TestScanPeer) {
+    auto copysetInfo = GetCopySetInfoForTest();
+    auto op = operatorFactory.CreateScanPeerOperator(
+        copysetInfo,
+        1,
+        OperatorPriority::LowPriority,
+        ConfigChangeType::START_SCAN_PEER);
+    ASSERT_TRUE(dynamic_cast<ScanPeer*>(op.step.get()) != nullptr);
+}
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

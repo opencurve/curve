@@ -47,6 +47,9 @@ class MockCoordinator : public ::curve::mds::schedule::Coordinator {
     MOCK_METHOD2(QueryChunkServerRecoverStatus,
         int(const std::vector<ChunkServerIdType> &,
             std::map<ChunkServerIdType, bool> *));
+
+    MOCK_METHOD2(SetLogicalPoolScanState,
+                 int(PoolIdType lpid, bool scanEnable));
 };
 }  // namespace mds
 }  // namespace curve

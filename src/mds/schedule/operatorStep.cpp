@@ -324,29 +324,59 @@ ApplyStatus ChangePeer::Apply(
     return ApplyStatus::OnGoing;
 }
 
-ApplyStatus StartScanPeer::Apply(const CopySetInfo &originInfo,
-                        CopySetConf *newConf) {
-    return ApplyStatus::OnGoing;
+ApplyStatus ScanPeer::Apply(const CopySetInfo& originInfo,
+                            CopySetConf *newConf) {
+    // (1) copyset success on start/cancel scan
+    // NOTE: If lastScanSec > 0, it means copyset just finished scaning
+    if (IsStartScan() == originInfo.scaning || originInfo.lastScanSec > 0) {
+        return ApplyStatus::Finished;
     }
 
-std::string StartScanPeer::OperatorStepToString() {
-    return "";
-}
-
-ChunkServerIdType StartScanPeer::GetTargetPeer() const {
-    return scan_;
-}
-
-ApplyStatus CancelScanPeer::Apply(const CopySetInfo &originInfo,
-                        CopySetConf *newConf) {
-    return ApplyStatus::OnGoing;
+    // (2) copyset has no config change, instruct it to start/cancel scan
+    if (!originInfo.configChangeInfo.IsInitialized()) {
+        newConf->id.first = originInfo.id.first;
+        newConf->id.second = originInfo.id.second;
+        newConf->epoch = originInfo.epoch;
+        newConf->peers = originInfo.peers;
+        newConf->type = opType_;
+        newConf->configChangeItem = scan_;
+        return ApplyStatus::Ordered;
     }
 
-std::string CancelScanPeer::OperatorStepToString() {
-    return "";
+    // (3) copyset current config change doesn't match the new config change,
+    //     drop the new config change
+    auto configChangeCsId = originInfo.candidatePeerInfo.id;
+    auto configChangeType = originInfo.configChangeInfo.type();
+    if (configChangeCsId != scan_ || configChangeType != opType_) {
+        LOG(WARNING)
+            << originInfo.CopySetInfoStr() << " " << OperatorStepToString()
+            << " failed, report config change does't match the new one: "
+            << "report candidate id is " << configChangeCsId
+            << ", the new is " << scan_
+            << "; report change type is " << configChangeType
+            << ", the new is " << opType_;
+        return ApplyStatus::Failed;
+    }
+
+    // (4) there is an error on starting/canceling scan, drop the config change
+    if (!originInfo.configChangeInfo.finished() &&
+        originInfo.configChangeInfo.has_err()) {
+        LOG(ERROR) << originInfo.CopySetInfoStr() << " "
+                   << OperatorStepToString() << " failed, report err: "
+                   << originInfo.configChangeInfo.err().errmsg();
+        return ApplyStatus::Failed;
+    }
+
+    // (5) copyset is on starting/canceling scan
+    return ApplyStatus::OnGoing;
 }
 
-ChunkServerIdType CancelScanPeer::GetTargetPeer() const {
+std::string ScanPeer::OperatorStepToString() {
+    std::string opstr = IsStartScan() ? "start" : "cancel";
+    return opstr + " scan on " + std::to_string(scan_);
+}
+
+ChunkServerIdType ScanPeer::GetTargetPeer() const {
     return scan_;
 }
 }  // namespace schedule
