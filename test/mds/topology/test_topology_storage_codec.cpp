@@ -51,7 +51,7 @@ TEST(TestTopologyStorageCodec,
     rap.pageFileRAP.zoneNum = 3;
     LogicalPool::UserPolicy policy;
     LogicalPool data(0x11, "lpool", 0x21, LogicalPoolType::PAGEFILE,
-        rap, policy, 100, true);
+        rap, policy, 100, true, true);
     data.SetScatterWidth(100);
     data.SetStatus(AllocateStatus::ALLOW);
 

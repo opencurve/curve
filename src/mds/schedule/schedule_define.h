@@ -84,14 +84,23 @@ struct ScheduleOption {
     // operation arrive, the operation will wait for the replay and will be
     // stuck and exceed the 'leadertimeout' if the replay takes too long time.
     uint32_t chunkserverCoolingTimeSec;
-    // for scanScheduler
-    // the same time max scan copysets count
-    uint32_t scanSchedulerScanMaxCount;
-    // copyset scan interval time
-    uint32_t scanSchedulerScanIntervalSec;
-    // scan start time and end time in one day, range 0~24
-    uint32_t scanSchedulerScanStartHour;
-    uint32_t scanSchedulerScanEndHour;
+
+    // ScanScheduler: scan start hour in one day ([0-23])
+    uint32_t scanStartHour;
+
+    // ScanScheduler: scan end hour in one day ([0-23])
+    uint32_t scanEndHour;
+
+    // ScanScheduler: scan interval for the same copyset
+    uint32_t scanIntervalSec;
+
+    // ScanScheduler: maximum number of scan copysets at the same time
+    // for every logical pool
+    uint32_t scanConcurrentPerPool;
+
+    // ScanScheduler: maximum number of scan copysets at the same time
+    // for every chunkserver
+    uint32_t scanConcurrentPerChunkserver;
 };
 
 }  // namespace schedule

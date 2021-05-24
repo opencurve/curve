@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <memory>
 #include <set>
 #include "src/mds/schedule/schedule_define.h"
@@ -76,6 +77,7 @@ class Scheduler {
         removeTimeSec_ = opt.removePeerTimeLimitSec;
         changeTimeSec_ = opt.changePeerTimeLimitSec;
         addTimeSec_ = opt.addPeerTimeLimitSec;
+        scanTimeSec_ = opt.scanPeerTimeLimitSec;
         scatterWidthRangePerent_ = opt.scatterWithRangePerent;
     }
 
@@ -153,6 +155,8 @@ class Scheduler {
     int removeTimeSec_;
     // maximum estimated time for changing peer, alarm if exceeded
     int changeTimeSec_;
+    // maximum estimated time for start/cancel scan peer, alarm if exceeded
+    int scanTimeSec_;
 };
 
 // scheduler for balancing copyset number and chunkserver scatter width
@@ -525,70 +529,103 @@ class RapidLeaderScheduler : public Scheduler {
 
 class ScanScheduler : public Scheduler {
  public:
+    using CopySetInfos = std::vector<CopySetInfo>;
+    using Selected = std::unordered_map<ChunkServerIdType, int>;
+
+ public:
     ScanScheduler(
         const ScheduleOption &opt,
         const std::shared_ptr<TopoAdapter> &topo,
         const std::shared_ptr<OperatorController> &opController)
         : Scheduler(opt, topo, opController) {
         runInterval_ = opt.scanSchedulerIntervalSec;
-        scanMaxCount_ = opt.scanSchedulerScanMaxCount;
-        scanInterval_ = opt.scanSchedulerScanIntervalSec;
-        scanStartHour_ = opt.scanSchedulerScanStartHour;
-        scanEndHour_ = opt.scanSchedulerScanEndHour;
+        scanStartHour_ = opt.scanStartHour;
+        scanEndHour_ = opt.scanEndHour;
+        scanIntervalSec_ = opt.scanIntervalSec;
+        scanConcurrentPerPool_ = opt.scanConcurrentPerPool;
+        scanConcurrentPerChunkserver_ = opt.scanConcurrentPerChunkserver;
     }
 
     /**
      * @brief Schedule Generate operators according to the status of the cluster
-     *
      * @return number of operators generated
      */
     int Schedule() override;
 
     /**
-     * @brief Get running interval of LeaderScheduler
-     *
+     * @brief Get running interval of ScanScheduler
      * @return time interval
      */
     int64_t GetRunningInterval() override;
 
-    std::set<CopysetID> getScaningCopyset(LogicalPoolIdType id) {
-        return scaning_[id];
-    }
-
  private:
-     /**
-     * @brief Select one copyset for scan
-     *
-     * @param[out] scanChunkServer chunk server for scan
-     * 
-     * @param[out] LogicalPoolIdType and copysetId for scan
-     *
-     * @return return true if find copyset for scan, false if not
+    /**
+     * @brief Check whether the specify copyset is start/ready to scan
+     * @param[in] copysetInfo the specify copyset
+     * @return true if the copyset is start/ready to scan, else return false
      */
-    bool selectScanCopySet(ChunkServerIdType *scanChunkServer,
-                           LogicalPoolIdType *lpid, CopysetID *copysetId);
+    bool StartOrReadyToScan(const CopySetInfo& copysetInfo);
 
     /**
-     * @brief Select a group copysets for scan
-     *
-     * @param[out] scanInfo a group copysets and chunkserver for scan
-     *
-     * @return return true if scanInfo size is not zero, false if not
+     * @brief Select copysets to start scan
+     * @param[in] copysetInfos copysets to be selected
+     * @param[in] count the number of copysets should be selected
+     * @param[in] selected the selected chunkserver id
+     * @param[out] copysets2start the selected copysets
      */
-    bool selectScanCopySets(std::map<ChunkServerIdType,
-                            std::pair<LogicalPoolIdType, CopysetID>> *scanInfo);
+    void SelectCopysetsToStartScan(CopySetInfos* copysetInfos,
+                                   int count,
+                                   Selected* selected,
+                                   CopySetInfos* copysets2start);
+
+    /**
+     * @brief Select copysets to cancel scan
+     * @param[in] copysetInfos copysets to be selected
+     * @param[in] count the number of copysets should be selected
+     * @param[out] copysets2cancel the selected copysets
+     */
+    void SelectCopysetsToCancelScan(CopySetInfos* copysetInfos,
+                                    int count,
+                                    CopySetInfos* copysets2cancel);
+
+    /**
+     * @brief Select copysets to start/cancel scan
+     * @param[in] copysetInfos copysets to be selected
+     * @param[out] copysets2start the selected copysets to start scan
+     * @param[out] copysets2cancel the selected copysets to cancel scan
+     */
+    void SelectCopysetsForScan(const CopySetInfos& copysetInfos,
+                               CopySetInfos* copysets2start,
+                               CopySetInfos* copysets2cancel);
+
+    /**
+     * @brief Generate operator for the specify copysets
+     * @param[in] copysetInfos copysets need to generate operator
+     * @param[in] opType operator type, support
+     *            (ConfigChangeType::[START|CANCEL]_SCAN_PEER)
+     * @return the number of operators generated
+     */
+    int GenScanOperator(const CopySetInfos& copysetInfos,
+                        ConfigChangeType opType);
+
+ private:
+    // scan scheduler run interval
     uint32_t runInterval_;
-    // the same time max scan copysets count
-    uint32_t scanMaxCount_;
-    // copyset scan interval time
-    uint32_t scanInterval_;
-    // scan start time and end time in one day, range 0~24
+
+    // scan start hour in one day ([0-23])
     uint32_t scanStartHour_;
+
+    // scan end hour in one day ([0-23])
     uint32_t scanEndHour_;
-    // set cancel flag pools
-    std::set<LogicalPoolIdType> cancelPools_;
-    // scaning copysets
-    std::map<LogicalPoolIdType, std::set<CopysetID>> scaning_;
+
+    // scan interval for the same copyset (seconds)
+    uint32_t scanIntervalSec_;
+
+    // maximum number of scan copysets at the same time for every logical pool
+    uint32_t scanConcurrentPerPool_;
+
+    // maximum number of scan copysets at the same time for every chunkserver
+    uint32_t scanConcurrentPerChunkserver_;
 };
 
 }  // namespace schedule

@@ -438,25 +438,29 @@ TEST(CoordinatorTest, test_SchedulerSwitch) {
     scheduleOption.enableLeaderScheduler = true;
     scheduleOption.enableRecoverScheduler = true;
     scheduleOption.enableReplicaScheduler = true;
+    scheduleOption.enableScanScheduler = true;
     scheduleOption.copysetSchedulerIntervalSec = 0;
     scheduleOption.leaderSchedulerIntervalSec = 0;
     scheduleOption.recoverSchedulerIntervalSec = 0;
     scheduleOption.replicaSchedulerIntervalSec = 0;
+    scheduleOption.scanSchedulerIntervalSec = 0;
     scheduleOption.operatorConcurrent = 2;
     scheduleOption.transferLeaderTimeLimitSec = 1;
     scheduleOption.addPeerTimeLimitSec = 1;
     scheduleOption.removePeerTimeLimitSec = 1;
+    scheduleOption.scanPeerTimeLimitSec = 1;
     coordinator->InitScheduler(scheduleOption, metric);
 
     EXPECT_CALL(*topoAdapter, GetCopySetInfos()).Times(0);
     EXPECT_CALL(*topoAdapter, GetLogicalpools()).Times(0);
     EXPECT_CALL(*topoAdapter, GetChunkServerInfos()).Times(0);
 
-    // 设置flag都为false
+    // Set all switch flag to false
     gflags::SetCommandLineOption("enableCopySetScheduler", "false");
     gflags::SetCommandLineOption("enableLeaderScheduler", "false");
     gflags::SetCommandLineOption("enableReplicaScheduler", "false");
     gflags::SetCommandLineOption("enableRecoverScheduler", "false");
+    gflags::SetCommandLineOption("enableScanScheduler", "false");
 
     coordinator->Run();
     ::sleep(1);

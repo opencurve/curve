@@ -75,6 +75,7 @@ class TestTopology : public ::testing::Test {
                 rap,
                 policy,
                 createTime,
+                true,
                 true);
 
         EXPECT_CALL(*storage_, StorageLogicalPool(_))
@@ -203,7 +204,7 @@ TEST_F(TestTopology, test_init_success) {
     logicalPoolMap_[0x01] = LogicalPool(0x01, "lpool1", 0x11, PAGEFILE,
         LogicalPool::RedundanceAndPlaceMentPolicy(),
         LogicalPool::UserPolicy(),
-        0, false);
+        0, false, true);
     physicalPoolMap_[0x11] = PhysicalPool(0x11, "pPool1", "des1");
     zoneMap_[0x21] = Zone(0x21, "zone1", 0x11, "desc1");
     serverMap_[0x31] = Server(0x31, "server1", "127.0.0.1", 8200,
@@ -430,6 +431,7 @@ TEST_F(TestTopology, test_AddLogicalPool_success) {
             LogicalPool::RedundanceAndPlaceMentPolicy(),
             LogicalPool::UserPolicy(),
             0,
+            true,
             true);
 
     EXPECT_CALL(*storage_, StorageLogicalPool(_))
@@ -453,6 +455,7 @@ TEST_F(TestTopology, test_AddLogicalPool_IdDuplicated) {
             LogicalPool::RedundanceAndPlaceMentPolicy(),
             LogicalPool::UserPolicy(),
             0,
+            true,
             true);
 
     int ret = topology_->AddLogicalPool(pool);
@@ -470,6 +473,7 @@ TEST_F(TestTopology, test_AddLogicalPool_StorageFail) {
             LogicalPool::RedundanceAndPlaceMentPolicy(),
             LogicalPool::UserPolicy(),
             0,
+            true,
             true);
 
     EXPECT_CALL(*storage_, StorageLogicalPool(_))
@@ -490,6 +494,7 @@ TEST_F(TestTopology, test_AddLogicalPool_PhysicalPoolNotFound) {
             LogicalPool::RedundanceAndPlaceMentPolicy(),
             LogicalPool::UserPolicy(),
             0,
+            true,
             true);
 
 
@@ -1053,6 +1058,7 @@ TEST_F(TestTopology, UpdateLogicalPool_success) {
             LogicalPool::RedundanceAndPlaceMentPolicy(),
             LogicalPool::UserPolicy(),
             0,
+            true,
             true);
 
     EXPECT_CALL(*storage_, UpdateLogicalPool(_))
@@ -1077,6 +1083,7 @@ TEST_F(TestTopology, UpdateLogicalPool_LogicalPoolNotFound) {
             LogicalPool::RedundanceAndPlaceMentPolicy(),
             LogicalPool::UserPolicy(),
             0,
+            true,
             true);
 
     int ret = topology_->UpdateLogicalPool(pool);
@@ -1103,6 +1110,7 @@ TEST_F(TestTopology, UpdateLogicalPool_StorageFail) {
             LogicalPool::RedundanceAndPlaceMentPolicy(),
             LogicalPool::UserPolicy(),
             0,
+            true,
             true);
 
     EXPECT_CALL(*storage_, UpdateLogicalPool(_))
@@ -1166,6 +1174,7 @@ TEST_F(TestTopology, UpdateLogicalPoolAllocateStatus_LogicalPoolNotFound) {
             LogicalPool::RedundanceAndPlaceMentPolicy(),
             LogicalPool::UserPolicy(),
             0,
+            true,
             true);
 
     int ret = topology_->UpdateLogicalPoolAllocateStatus(

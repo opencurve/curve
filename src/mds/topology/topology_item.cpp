@@ -176,6 +176,7 @@ bool LogicalPool::SerializeToString(std::string *value) const {
         this->GetRedundanceAndPlaceMentPolicyJsonStr());
     data.set_userpolicy(this->GetUserPolicyJsonStr());
     data.set_availflag(avaliable_);
+    data.set_scanenable(scanEnable_);
     return data.SerializeToString(value);
 }
 
@@ -194,6 +195,7 @@ bool LogicalPool::ParseFromString(const std::string &value) {
     createTime_ = data.createtime();
     status_ = data.status();
     avaliable_ = data.availflag();
+    scanEnable_ = data.has_scanenable() ? data.scanenable() : true;
     return ret;
 }
 
@@ -332,6 +334,7 @@ bool CopySetInfo::SerializeToString(std::string *value) const {
         data.add_chunkserverids(csId);
     }
     data.set_availflag(available_);
+    data.set_lastscansec(lastScanSec_);
     return data.SerializeToString(value);
 }
 
@@ -350,6 +353,7 @@ bool CopySetInfo::ParseFromString(const std::string &value) {
     for (int i = 0; i < data.chunkserverids_size(); i++) {
         peers_.insert(data.chunkserverids(i));
     }
+    lastScanSec_ = data.has_lastscansec() ? data.lastscansec() : 0;
     return ret;
 }
 

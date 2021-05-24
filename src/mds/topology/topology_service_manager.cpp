@@ -1114,7 +1114,8 @@ void TopologyServiceManager::CreateLogicalPool(
     rap,
     userPolicy,
     cTime,
-    false);
+    false,
+    true);
     lPool.SetStatus(status);
 
     int errcode = topology_->AddLogicalPool(lPool);

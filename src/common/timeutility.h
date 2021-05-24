@@ -51,6 +51,11 @@ class TimeUtility {
         return tm.tv_sec;
     }
 
+    static uint64_t GetCurrentHour() {
+        auto now = time(0);
+        return localtime(&now)->tm_hour;
+    }
+
     // 时间戳转成标准时间输出在standard里面,时间戳单位为秒
     static inline void TimeStampToStandard(time_t timeStamp,
                                            std::string* standard) {

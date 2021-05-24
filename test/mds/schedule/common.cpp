@@ -112,8 +112,9 @@ std::vector<::curve::mds::topology::Server> GetServerForTest() {
     policy.pageFileRAP.zoneNum = 3;
     policy.pageFileRAP.copysetNum = 10;
     ::curve::mds::topology::LogicalPool::UserPolicy userPolicy;
-    ::curve::mds::topology::LogicalPool logicalPool
-        (1, "", 1, LogicalPoolType::PAGEFILE, policy, userPolicy, 1000, true);
+    ::curve::mds::topology::LogicalPool logicalPool(
+        1, "", 1, LogicalPoolType::PAGEFILE,
+        policy, userPolicy, 1000, true, true);
     return logicalPool;
 }
 ::curve::mds::topology::LogicalPool GetAppendFileLogicalPoolForTest() {
@@ -122,8 +123,9 @@ std::vector<::curve::mds::topology::Server> GetServerForTest() {
     policy.appendFileRAP.zoneNum = 3;
     policy.appendFileRAP.copysetNum = 10;
     ::curve::mds::topology::LogicalPool::UserPolicy userPolicy;
-    ::curve::mds::topology::LogicalPool logicalPool
-        (1, "", 1, LogicalPoolType::APPENDFILE, policy, userPolicy, 1000, true);
+    ::curve::mds::topology::LogicalPool logicalPool(
+        1, "", 1, LogicalPoolType::APPENDFILE,
+        policy, userPolicy, 1000, true, true);
     return logicalPool;
 }
 ::curve::mds::topology::LogicalPool GetAppendECFileLogicalPoolForTest() {
@@ -133,7 +135,7 @@ std::vector<::curve::mds::topology::Server> GetServerForTest() {
     policy.appendECFileRAP.cSegmentNum = 10;
     ::curve::mds::topology::LogicalPool::UserPolicy userPolicy;
     ::curve::mds::topology::LogicalPool logicalPool(1, "", 1,
-        LogicalPoolType::APPENDECFILE, policy, userPolicy, 1000, true);
+        LogicalPoolType::APPENDECFILE, policy, userPolicy, 1000, true, true);
     return logicalPool;
 }
 }  // namespace schedule

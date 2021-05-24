@@ -74,6 +74,8 @@ CopySetInfo::CopySetInfo(const CopySetInfo &in) {
     this->epoch = in.epoch;
     this->leader = in.leader;
     this->peers = in.peers;
+    this->scaning = in.scaning;
+    this->lastScanSec = in.lastScanSec;
     this->candidatePeerInfo = in.candidatePeerInfo;
     this->configChangeInfo = in.configChangeInfo;
     this->statisticsInfo = in.statisticsInfo;
@@ -159,6 +161,11 @@ TopoAdapterImpl::TopoAdapterImpl(
 
 std::vector<PoolIdType> TopoAdapterImpl::GetLogicalpools() {
     return topo_->GetLogicalPoolInCluster();
+}
+
+bool TopoAdapterImpl::GetLogicalPool(
+    PoolIdType id, ::curve::mds::topology::LogicalPool* lpool) {
+    return topo_->GetLogicalPool(id, lpool);
 }
 
 bool TopoAdapterImpl::GetCopySetInfo(const CopySetKey &id, CopySetInfo *info) {
@@ -338,6 +345,8 @@ bool TopoAdapterImpl::CopySetFromTopoToSchedule(
     out->id.second = origin.GetId();
     out->epoch = origin.GetEpoch();
     out->leader = origin.GetLeader();
+    out->scaning = origin.GetScaning();
+    out->lastScanSec = origin.GetLastScanSec();
 
     for (auto id : origin.GetCopySetMembers()) {
         PeerInfo peerInfo;

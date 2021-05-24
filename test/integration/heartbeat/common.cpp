@@ -200,7 +200,7 @@ void HeartbeatIntegrationCommon::PrepareBasicCluseter() {
     rap.pageFileRAP.zoneNum = 3;
     LogicalPool lpool(logicalPoolId, "testLogicalPool", physicalPoolId,
                       LogicalPoolType::PAGEFILE, rap, LogicalPool::UserPolicy(),
-                      0x888, true);
+                      0x888, true, true);
     PrepareAddLogicalPool(lpool);
 
     // add 3 zones

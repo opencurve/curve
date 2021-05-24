@@ -72,23 +72,16 @@ Operator OperatorFactory::CreateChangePeerOperator(const CopySetInfo &info,
         std::make_shared<ChangePeer>(rmPeer, addPeer));
 }
 
-Operator OperatorFactory::CreateStartScanPeerOperator(const CopySetInfo &info,
-    ChunkServerIdType startScanPeer, OperatorPriority pri) {
+Operator OperatorFactory::CreateScanPeerOperator(const CopySetInfo& info,
+                                                 ChunkServerIdType scanPeer,
+                                                 OperatorPriority pri,
+                                                 ConfigChangeType opType) {
     return Operator(
         info.epoch,
-        info.id,
+        info.id,  // CopySetKey (logical pool id, copyset id)
         pri,
         steady_clock::now(),
-        std::make_shared<StartScanPeer>(startScanPeer));
-}
-Operator OperatorFactory::CreateCancelScanPeerOperator(const CopySetInfo &info,
-    ChunkServerIdType cancelScanPeer, OperatorPriority pri) {
-    return Operator(
-        info.epoch,
-        info.id,
-        pri,
-        steady_clock::now(),
-        std::make_shared<CancelScanPeer>(cancelScanPeer));
+        std::make_shared<ScanPeer>(scanPeer, opType));
 }
 }  // namespace schedule
 }  // namespace mds

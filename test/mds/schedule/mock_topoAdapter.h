@@ -69,6 +69,10 @@ class MockTopoAdapter : public TopoAdapter {
 
     MOCK_METHOD0(GetLogicalpools, std::vector<PoolIdType>());
 
+    MOCK_METHOD2(
+        GetLogicalPool,
+        bool(PoolIdType id, ::curve::mds::topology::LogicalPool* lpool));
+
     MOCK_METHOD1(GetCopySetInfosInLogicalPool,
         std::vector<CopySetInfo>(PoolIdType));
 

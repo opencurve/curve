@@ -71,6 +71,7 @@ message LogicalPoolData {
     required string redundanceAndPlacementPolicy = 8;
     required string userPolicy = 9;
     required bool availFlag = 10;
+    optional bool scanEnable = 11;
 }
 
 message PhysicalPoolData {
@@ -119,6 +120,7 @@ message CopysetData {
     required uint64 epoch = 3;
     repeated uint32 chunkserverIds = 4;
     optional bool availFlag = 5;
+    optional uint64 lastScanSec = 6;
 }
 
 // rpc struct defination

@@ -20,6 +20,7 @@
  * Author: lixiaocui
  */
 
+#include <sstream>
 #include <vector>
 #include <map>
 #include "src/mds/schedule/scheduleService/scheduleService.h"
@@ -103,38 +104,36 @@ void ScheduleServiceImpl::QueryChunkServerRecoverStatus(
     }
 }
 
-void ScheduleServiceImpl::CancelScanSchedule(
-        google::protobuf::RpcController* cntl_base,
-        const CancelScanScheduleRequest* request,
-        CancelScanScheduleResponse* response,
-        google::protobuf::Closure* done) {
+void ScheduleServiceImpl::SetLogicalPoolScanState(
+    google::protobuf::RpcController* cntl_base,
+    const SetLogicalPoolScanStateRequest* request,
+    SetLogicalPoolScanStateResponse* response,
+    google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    brpc::Controller* cntl =
-        static_cast<brpc::Controller*>(cntl_base);
+    auto localAddr = cntl->local_side();
+    auto remoteAddr = cntl->remote_side();
+    LOG(INFO)
+        << "Received request[log_id=" << cntl->log_id()
+        << "] from " << remoteAddr << " to " << localAddr
+        << ". [SetLogicalPoolScanStateRequest] " << request->DebugString();
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [CancelScanScheduleRequest] "
-              << request->DebugString();
-    int errCode = coordinator_->CancelScanSchedule(request->logicalpoolid());
+    auto poolId = request->logicalpoolid();
+    auto scanEnable = request->scanenable();
+    auto errCode = coordinator_->SetLogicalPoolScanState(poolId, scanEnable);
     response->set_statuscode(errCode);
-    if (errCode == kScheduleErrCodeSuccess) {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [CancelScanScheduleResponse] "
-                  << response->DebugString();
-    } else {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [CancelScanScheduleResponse] "
-                   << response->DebugString();
-    }
 
-    return;
+    std::ostringstream errMsg;
+    errMsg << "Send response[log_id=" << cntl->log_id()
+           << "] from " << localAddr << " to " << remoteAddr
+           << ". [SetLogicalPoolScanStateResponse] " << response->DebugString();
+
+    if (errCode == kScheduleErrCodeSuccess) {
+        LOG(INFO) << errMsg.str();
+    } else {
+        LOG(ERROR) << errMsg.str();
+    }
 }
 
 }  // namespace schedule

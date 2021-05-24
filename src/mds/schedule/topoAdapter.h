@@ -39,6 +39,7 @@ using ::curve::mds::topology::PoolIdType;
 using ::curve::mds::topology::ServerIdType;
 using ::curve::mds::topology::ZoneIdType;
 using ::curve::mds::topology::EpochType;
+using ::curve::mds::topology::LastScanSecType;
 using ::curve::mds::topology::CopySetKey;
 using ::curve::mds::topology::CopySetIdType;
 using ::curve::mds::topology::OnlineState;
@@ -72,6 +73,14 @@ struct PeerInfo {
     ServerIdType serverId;
     std::string ip;
     uint32_t port;
+
+    bool operator == (const PeerInfo& other) const {
+        return id == other.id &&
+               zoneId == other.zoneId &&
+               serverId == other.serverId &&
+               ip == other.ip &&
+               port == other.port;
+    }
 };
 
 struct CopySetConf {
@@ -91,8 +100,9 @@ struct CopySetConf {
 };
 
 struct CopySetInfo {
- public:
     CopySetInfo() : logicalPoolWork(false) {}
+
+    // Only called for test
     CopySetInfo(CopySetKey id,
                 EpochType epoch,
                 ChunkServerIdType leader,
@@ -104,6 +114,8 @@ struct CopySetInfo {
         this->epoch = epoch;
         this->leader = leader;
         this->peers = peers;
+        this->scaning = false;
+        this->lastScanSec = 0;
         this->configChangeInfo = info;
         this->statisticsInfo = statistics;
     }
@@ -121,6 +133,12 @@ struct CopySetInfo {
     EpochType epoch;
     ChunkServerIdType leader;
     std::vector<PeerInfo> peers;
+
+    // whether the current copyset is in scaning
+    bool scaning;
+
+    // timestamp for last scan (seconds)
+    LastScanSecType lastScanSec;
 
     // TODO(chaojie): add candidateInfo to Topology
     PeerInfo candidatePeerInfo;
@@ -166,6 +184,14 @@ class TopoAdapter {
      * @return logical pool list
      */
     virtual std::vector<PoolIdType> GetLogicalpools() = 0;
+
+    /**
+     * @brief Get logical pool for specify logical pool id
+     * @return logical pool
+     */
+    virtual bool GetLogicalPool(
+        PoolIdType id,
+        ::curve::mds::topology::LogicalPool* lpool) = 0;
 
     /**
      * @brief Get_x_Info get info of specified x
@@ -324,6 +350,10 @@ class TopoAdapterImpl : public TopoAdapter {
                              std::shared_ptr<TopologyStat> stat);
 
     std::vector<PoolIdType> GetLogicalpools() override;
+
+    bool GetLogicalPool(
+        PoolIdType id,
+        ::curve::mds::topology::LogicalPool* lpool) override;
 
     bool GetCopySetInfo(
         const CopySetKey &id, CopySetInfo *info) override;
