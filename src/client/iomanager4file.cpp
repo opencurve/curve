@@ -87,7 +87,7 @@ bool IOManager4File::Initialize(const std::string& filename,
     discardTaskManager_.reset(
         new DiscardTaskManager(&(fileMetric_->discardMetric)));
 
-    LOG(INFO) << "iomanager init success! conf info: "
+    LOG(INFO) << "iomanager init success, conf info: "
               << "isolationTaskThreadPoolSize = "
               << ioopt_.taskThreadOpt.isolationTaskThreadPoolSize
               << ", isolationTaskQueueCapacity = "

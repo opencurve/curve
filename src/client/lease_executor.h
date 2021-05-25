@@ -70,7 +70,7 @@ class LeaseExecutor {
      * @param: mdsclient是与mds续约的client
      * @param: iomanager会在续约失败或者版本变更的时候进行io调度
      */
-    LeaseExecutor(const LeaseOption& leaseOpt, UserInfo_t userinfo,
+    LeaseExecutor(const LeaseOption& leaseOpt, const UserInfo& userinfo,
                   MDSClient* mdscllent, IOManager4File* iomanager);
 
     ~LeaseExecutor();
@@ -83,11 +83,6 @@ class LeaseExecutor {
      * @return: 成功返回true，否则返回false
      */
     bool Start(const FInfo_t& fi, const LeaseSession_t&  lease);
-
-    /**
-     * 获取当前lease的sessionid信息，外围close文件的时候需要用到
-     */
-    std::string GetLeaseSessionID();
 
     /**
      * 停止续约
