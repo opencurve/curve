@@ -312,6 +312,7 @@ cc_test(
         "//src/client:curve_client",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+        "//test/client/mock:curve_client_mock",
     ],
 )
 

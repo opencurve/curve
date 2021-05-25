@@ -26,13 +26,8 @@
 #include <glog/logging.h>
 #include <utility>
 
-#include "proto/nameserver2.pb.h"
-#include "proto/topology.pb.h"
 #include "src/client/iomanager4file.h"
 #include "src/client/mds_client.h"
-#include "src/client/metacache.h"
-#include "src/client/request_scheduler.h"
-#include "src/client/request_sender_manager.h"
 #include "src/common/timeutility.h"
 
 namespace curve {
@@ -99,6 +94,8 @@ bool FileInstance::Initialize(const std::string& filename,
 }
 
 void FileInstance::UnInitialize() {
+    StopLease();
+
     iomanager4file_.UnInitialize();
 
     // release the ownership of mdsclient
@@ -172,10 +169,7 @@ int FileInstance::Close() {
         return 0;
     }
 
-    if (leaseExecutor_ != nullptr) {
-        leaseExecutor_->Stop();
-        leaseExecutor_.reset();
-    }
+    StopLease();
 
     LIBCURVE_ERROR ret =
         mdsclient_->CloseFile(finfo_.fullPathName, finfo_.userinfo, "");
@@ -233,6 +227,13 @@ FileInstance* FileInstance::Open4Readonly(const FileServiceOption& opt,
     instance->GetIOManager4File()->UpdateFileInfo(fileInfo);
 
     return instance;
+}
+
+void FileInstance::StopLease() {
+    if (leaseExecutor_) {
+        leaseExecutor_->Stop();
+        leaseExecutor_.reset();
+    }
 }
 
 }   // namespace client
