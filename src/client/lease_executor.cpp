@@ -30,20 +30,21 @@ using curve::common::TimeUtility;
 namespace curve {
 namespace client {
 LeaseExecutor::LeaseExecutor(const LeaseOption& leaseOpt,
-                           UserInfo_t userinfo,
-                           MDSClient* mdsclient,
-                           IOManager4File* iomanager):
-                           isleaseAvaliable_(true),
-                           failedrefreshcount_(0) {
-    userinfo_    = userinfo;
-    mdsclient_   = mdsclient;
-    iomanager_   = iomanager;
-    leaseoption_ = leaseOpt;
-    task_ = nullptr;
-}
+                             const UserInfo& userinfo, MDSClient* mdsclient,
+                             IOManager4File* iomanager)
+    : fullFileName_(),
+      mdsclient_(mdsclient),
+      userinfo_(userinfo),
+      iomanager_(iomanager),
+      leaseoption_(leaseOpt),
+      leasesession_(),
+      isleaseAvaliable_(true),
+      failedrefreshcount_(0),
+      task_() {}
 
 LeaseExecutor::~LeaseExecutor() {
     if (task_) {
+        task_->Stop();
         task_->WaitTaskExit();
     }
 }
@@ -77,6 +78,9 @@ bool LeaseExecutor::Start(const FInfo_t& fi, const LeaseSession_t& lease) {
 
     timespec abstime = butil::microseconds_from_now(interval);
     brpc::PeriodicTaskManager::StartTaskAt(task_.get(), abstime);
+
+    LOG(INFO) << "LeaseExecutor for " << fullFileName_
+              << " started, lease interval is " << interval << " us";
 
     return true;
 }
@@ -133,13 +137,11 @@ bool LeaseExecutor::RefreshLease() {
     return true;
 }
 
-std::string LeaseExecutor::GetLeaseSessionID() {
-    return leasesession_.sessionID;
-}
-
 void LeaseExecutor::Stop() {
     if (task_ != nullptr) {
         task_->Stop();
+
+        LOG(INFO) << "LeaseExecutor for " << fullFileName_ << " stopped";
     }
 }
 
