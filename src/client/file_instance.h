@@ -148,6 +148,9 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
                                        const UserInfo& userInfo);
 
  private:
+    void StopLease();
+
+ private:
     // 保存当前file的文件信息
     FInfo_t                 finfo_;
 
