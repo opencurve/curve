@@ -45,8 +45,7 @@ void MetaCache::Init(const MetaCacheOption& metaCacheOpt,
                      MDSClient* mdsclient) {
     mdsclient_ = mdsclient;
     metacacheopt_ = metaCacheOpt;
-    LOG(INFO) << "metacache init success!"
-              << ", get leader retry times = "
+    LOG(INFO) << "metacache init success, get leader retry times = "
               << metacacheopt_.metacacheGetLeaderRetry
               << ", get leader retry interval us = "
               << metacacheopt_.metacacheRPCRetryIntervalUS

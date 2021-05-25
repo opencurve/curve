@@ -54,7 +54,7 @@ int CopysetClient::Init(MetaCache *metaCache,
     iosenderopt_ = ioSenderOpt;
 
     LOG(INFO) << "CopysetClient init success, conf info: "
-              << ", chunkserverOPRetryIntervalUS = "
+                 "chunkserverOPRetryIntervalUS = "
               << iosenderopt_.failRequestOpt.chunkserverOPRetryIntervalUS
               << ", chunkserverOPMaxRetry = "
               << iosenderopt_.failRequestOpt.chunkserverOPMaxRetry
