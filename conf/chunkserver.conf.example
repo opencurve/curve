@@ -77,7 +77,7 @@ copyset.catchup_margin=1000
 # copyset chunk数据目录
 copyset.chunk_data_uri=local://./0/copysets
 # raft wal log目录
-copyset.raft_log_uri=local://./0/copysets
+copyset.raft_log_uri=curve://./0/copysets
 # raft元数据目录
 copyset.raft_meta_uri=local://./0/copysets
 # raft snapshot目录
