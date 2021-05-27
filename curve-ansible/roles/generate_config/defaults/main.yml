@@ -100,9 +100,9 @@ chunkserver_copyset_election_timeout_ms: 1000
 chunkserver_copyset_snapshot_interval_s: 1800
 chunkserver_copyset_catchup_margin: 1000
 chunkserver_copyset_chunk_data_uri: local://./0/copysets
-chunkserver_copyset_raft_log_uri: local://./0/copysets
+chunkserver_copyset_raft_log_uri: curve://./0/copysets
 chunkserver_copyset_raft_meta_uri: local://./0/copysets
-chunkserver_copyset_raft_snapshot_uri: local://./0/copysets
+chunkserver_copyset_raft_snapshot_uri: curve://./0/copysets
 chunkserver_copyset_recycler_uri: local://./0/recycler
 chunkserver_copyset_max_inflight_requests: 5000
 chunkserver_copyset_load_concurrency: 10
