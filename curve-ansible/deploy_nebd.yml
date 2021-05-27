@@ -25,6 +25,7 @@
   hosts: client
   any_errors_fatal: true
   gather_facts: no
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - prepare_software_env
   roles:
@@ -34,6 +35,7 @@
   hosts: client
   gather_facts: no
   any_errors_fatal: true
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - prepare
   roles:
