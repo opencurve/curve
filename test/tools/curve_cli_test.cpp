@@ -27,6 +27,7 @@
 #include <string>
 #include "src/tools/curve_cli.h"
 #include "test/tools/mock/mock_cli_service.h"
+#include "test/tools/mock/mock_copyset_service.h"
 #include "test/tools/mock/mock_mds_client.h"
 
 using ::testing::_;
@@ -43,10 +44,19 @@ DECLARE_string(peer);
 DECLARE_string(new_conf);
 DECLARE_uint32(logic_pool_id);
 DECLARE_uint32(copyset_id);
+DECLARE_bool(remove_copyset);
 DECLARE_bool(affirm);
 
 namespace curve {
 namespace tool {
+
+template<typename Req, typename Resp>
+void callback(RpcController* controller,
+              const Req* request,
+              Resp* response,
+              Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+}
 
 class CurveCliTest : public ::testing::Test {
  protected:
@@ -55,8 +65,11 @@ class CurveCliTest : public ::testing::Test {
         mdsClient_ = std::make_shared<MockMDSClient>();
         server = new brpc::Server();
         mockCliService = new MockCliService();
+        mockCopysetService_ = std::make_shared<MockCopysetService>();
         ASSERT_EQ(0, server->AddService(mockCliService,
                                       brpc::SERVER_DOESNT_OWN_SERVICE));
+        ASSERT_EQ(0, server->AddService(mockCopysetService_.get(),
+                                        brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server->Start("127.0.0.1:9192", nullptr));
         FLAGS_affirm = false;
     }
@@ -68,8 +81,10 @@ class CurveCliTest : public ::testing::Test {
         delete mockCliService;
         mockCliService = nullptr;
     }
+
     brpc::Server *server;
     MockCliService *mockCliService;
+    std::shared_ptr<MockCopysetService> mockCopysetService_;
     const std::string conf = "127.0.0.1:9192:0";
     const std::string peer = "127.0.0.1:9192:0";
     std::shared_ptr<MockMDSClient> mdsClient_;
@@ -146,6 +161,50 @@ TEST_F(CurveCliTest, RemovePeer) {
                           cntl->SetFailed("test");
                     }));
     ASSERT_EQ(-1, curveCli.RunCommand("remove-peer"));
+
+    // TEST CASES: remove broken copyset after remove peer
+    {
+        auto getLeaderFunc = callback<GetLeaderRequest2, GetLeaderResponse2>;
+        auto removePeerFunc = callback<RemovePeerRequest2, RemovePeerResponse2>;
+        auto removeCopysetFunc = callback<CopysetRequest, CopysetResponse>;
+
+        // GetLeaderResponse2
+        GetLeaderResponse2 getLeaderResp;
+        auto leader = new curve::common::Peer;
+        leader->set_address(peer);
+        getLeaderResp.set_allocated_leader(leader);
+
+        // CopysetResponse
+        CopysetResponse copysetSuccResp, copysetFailResp;
+        copysetSuccResp.set_status(COPYSET_OP_STATUS_SUCCESS);
+        copysetFailResp.set_status(COPYSET_OP_STATUS_FAILURE_UNKNOWN);
+
+        EXPECT_CALL(*mockCliService, GetLeader(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(getLeaderResp),
+                                  Invoke(getLeaderFunc)));
+        EXPECT_CALL(*mockCliService, RemovePeer(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(Invoke(removePeerFunc));
+        EXPECT_CALL(*mockCopysetService_, DeleteBrokenCopyset(_, _, _, _))
+            .Times(2)
+            .WillOnce(DoAll(SetArgPointee<2>(copysetFailResp),
+                            Invoke(removeCopysetFunc)))
+            .WillOnce(DoAll(SetArgPointee<2>(copysetSuccResp),
+                            Invoke(removeCopysetFunc)));
+
+        // CASE 1: disable remove copyset
+        FLAGS_peer = peer;
+        FLAGS_conf = conf;
+        ASSERT_EQ(0, curveCli.RunCommand("remove-peer"));
+
+        // CASE 2: remove copyset node fail
+        FLAGS_remove_copyset = true;
+        ASSERT_EQ(-1, curveCli.RunCommand("remove-peer"));
+
+        // CASE 3: remove copyset node success
+        ASSERT_EQ(0, curveCli.RunCommand("remove-peer"));
+    }
 }
 
 TEST_F(CurveCliTest, TransferLeader) {
