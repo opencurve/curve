@@ -42,6 +42,7 @@ enum COPYSET_OP_STATUS {
     COPYSET_OP_STATUS_EXIST             = 1;  // copyset node 已经存在
     COPYSET_OP_STATUS_COPYSET_NOTEXIST  = 2;
     COPYSET_OP_STATUS_FAILURE_UNKNOWN   = 3;
+    COPYSET_OP_STATUS_COPYSET_IS_HEALTHY = 4;
 };
 
 message CopysetResponse {
@@ -94,6 +95,8 @@ service CopysetService {
     rpc CreateCopysetNode (CopysetRequest) returns (CopysetResponse);
 
     rpc CreateCopysetNode2 (CopysetRequest2) returns (CopysetResponse2);
+
+    rpc DeleteBrokenCopyset(CopysetRequest) returns (CopysetResponse);
 
     rpc GetCopysetStatus (CopysetStatusRequest) returns (CopysetStatusResponse);
 };
