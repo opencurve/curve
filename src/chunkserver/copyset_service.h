@@ -58,6 +58,14 @@ class CopysetServiceImpl : public CopysetService {
                             CopysetResponse2 *response,
                             Closure *done);
 
+    /**
+     * @brief Delete broken copyset
+     */
+    void DeleteBrokenCopyset(RpcController* controller,
+                             const CopysetRequest* request,
+                             CopysetResponse* response,
+                             Closure* done);
+
     void GetCopysetStatus(RpcController *controller,
                           const CopysetStatusRequest *request,
                           CopysetStatusResponse *response,
