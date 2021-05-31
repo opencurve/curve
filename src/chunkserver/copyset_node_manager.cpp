@@ -485,6 +485,30 @@ bool CopysetNodeManager::PurgeCopysetNodeData(const LogicPoolID &logicPoolId,
     return ret;
 }
 
+bool CopysetNodeManager::DeleteBrokenCopyset(const LogicPoolID& poolId,
+                                             const CopysetID& copysetId) {
+    auto groupId = ToGroupId(poolId, copysetId);
+    // if copyset node exist in the manager means its data is complete
+    if (copysetNodeMap_.find(groupId) != copysetNodeMap_.end()) {
+        return false;
+    }
+
+    std::string copysetsDir;
+    auto trash = copysetNodeOptions_.trash;
+    auto chunkDataUri = copysetNodeOptions_.chunkDataUri;
+    auto protocol = UriParser::ParseUri(chunkDataUri, &copysetsDir);
+    if (protocol.empty()) {
+        LOG(ERROR) << "Not support chunk data uri's protocol: " << chunkDataUri;
+        return false;
+    } else if (0 != trash->RecycleCopySet(copysetsDir + "/" + groupId)) {
+        LOG(ERROR) << "Failed to recycle broken copyset "
+                   << ToGroupIdString(poolId, copysetId);
+        return false;
+    }
+
+    return true;
+}
+
 bool CopysetNodeManager::IsExist(const LogicPoolID &logicPoolId,
                                  const CopysetID &copysetId) {
     /* 加读锁 */
