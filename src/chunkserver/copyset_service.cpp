@@ -134,6 +134,31 @@ void CopysetServiceImpl::CreateCopysetNode2(RpcController *controller,
     LOG(INFO) << "Create " << request->copysets().size() << " copysets success";
 }
 
+void CopysetServiceImpl::DeleteBrokenCopyset(RpcController* controller,
+                                             const CopysetRequest* request,
+                                             CopysetResponse* response,
+                                             Closure* done) {
+    LOG(INFO) << "Receive delete broken copyset request";
+
+    brpc::ClosureGuard doneGuard(done);
+
+    auto poolId = request->logicpoolid();
+    auto copysetId = request->copysetid();
+    auto groupId = ToGroupIdString(poolId, copysetId);
+
+    // if copyset node exist in the manager means its data is complete
+    if (copysetNodeManager_->IsExist(poolId, copysetId)) {
+        response->set_status(COPYSET_OP_STATUS_COPYSET_IS_HEALTHY);
+        LOG(WARNING) << "Delete broken copyset, " << groupId  << " is healthy";
+    } else if (!copysetNodeManager_->DeleteBrokenCopyset(poolId, copysetId)) {
+        response->set_status(COPYSET_OP_STATUS_FAILURE_UNKNOWN);
+        LOG(ERROR) << "Delete broken copyset " << groupId << " failed";
+    } else {
+        response->set_status(COPYSET_OP_STATUS_SUCCESS);
+        LOG(INFO) << "Delete broken copyset " << groupId << " success";
+    }
+}
+
 void CopysetServiceImpl::GetCopysetStatus(RpcController *controller,
                                         const CopysetStatusRequest *request,
                                         CopysetStatusResponse *response,

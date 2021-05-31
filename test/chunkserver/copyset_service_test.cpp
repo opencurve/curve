@@ -29,6 +29,7 @@
 
 #include <cstdint>
 
+#include "src/chunkserver/trash.h"
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/cli.h"
@@ -57,11 +58,20 @@ class CopysetServiceTest : public testing::Test {
  public:
     void SetUp() {
         testDir = "CopysetServiceTestData";
-        rmCmd = "rm -rf CopysetServiceTestData";
+        rmCmd = "rm -rf CopysetServiceTestData trash";
         copysetDir = "local://./CopysetServiceTestData";
         copysetDirPattern = "local://./CopysetServiceTestData/%d";
         Exec(rmCmd.c_str());
+
+        // prepare trash
+        TrashOptions opt;
+        opt.trashPath = "local://./trash";
+        opt.localFileSystem =
+            LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
+        trash_ = std::make_shared<Trash>();
+        trash_->Init(opt);
     }
+
     void TearDown() {
         Exec(rmCmd.c_str());
     }
@@ -71,6 +81,7 @@ class CopysetServiceTest : public testing::Test {
     std::string rmCmd;
     std::string copysetDir;
     std::string copysetDirPattern;
+    std::shared_ptr<Trash> trash_;
 };
 
 butil::AtExitManager atExitManager;
@@ -106,6 +117,7 @@ TEST_F(CopysetServiceTest, basic) {
     copysetNodeOptions.localFileSystem = fs;
     copysetNodeOptions.chunkFilePool =
         std::make_shared<FilePool>(fs);
+    copysetNodeOptions.trash = trash_;
     ASSERT_EQ(0, copysetNodeManager->Init(copysetNodeOptions));
     ASSERT_EQ(0, copysetNodeManager->Run());
 
@@ -173,6 +185,41 @@ TEST_F(CopysetServiceTest, basic) {
             std::cout << cntl.ErrorText() << std::endl;
         }
         ASSERT_EQ(cntl.ErrorCode(), EINVAL);
+    }
+
+    // TEST CASES: remove copyset node
+    {
+        brpc::Controller cntl;
+        CopysetRequest request;
+        CopysetResponse response;
+        CopysetStatusRequest statusReq;
+        CopysetStatusResponse statusResp;
+        cntl.set_timeout_ms(3000);
+
+        // CASE 1: copyset is healthy
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        stub.DeleteBrokenCopyset(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(response.status(), COPYSET_OP_STATUS_COPYSET_IS_HEALTHY);
+
+        // CASE 2: copyset is not exist -> delete failed
+        cntl.Reset();
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId + 1);
+        stub.DeleteBrokenCopyset(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(response.status(), COPYSET_OP_STATUS_FAILURE_UNKNOWN);
+
+        // CASE 3: delete broken copyset success
+        ASSERT_TRUE(copysetNodeManager->
+                    DeleteCopysetNode(logicPoolId, copysetId));
+        cntl.Reset();
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        stub.DeleteBrokenCopyset(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(response.status(), COPYSET_OP_STATUS_SUCCESS);
     }
 
     ASSERT_EQ(0, server.Stop(0));
