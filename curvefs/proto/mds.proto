@@ -22,9 +22,14 @@ option cc_generic_services = true;
 enum FSStatusCode {
     OK = 0;
     UNKNOWN_ERROR = 1;
-    NOSPACE = 2;
-    FS_NOT_FOUND = 3;
+    FS_EXIST = 2;
+    NOT_FOUND = 3;
     PARAM_ERROR = 4;
+    MOUNT_POINT_EXIST = 5;
+    RPC_ERROR = 6;
+    INIT_SPACE_ERROR = 7;
+    UNINIT_SPACE_ERROR = 8;
+    FS_BUSY = 9;
 }
 
 // fs interface
@@ -33,7 +38,7 @@ message GetFsInfoRequest {
     optional string fsName = 2;   // Globally unique, no duplicates allowed
 }
 
-message mountPoint {
+message MountPoint {
     required string host = 1;
     required string mountDir = 2;     // use full path
 }
@@ -46,7 +51,7 @@ message FsInfo {
     required uint64 blockSize = 5;
     required common.Volume volume = 6;
     required uint32 mountNum = 7;
-    repeated mountPoint mountpoints = 8;
+    repeated MountPoint mountpoints = 8;
 }
 
 message GetFsInfoResponse {
@@ -67,7 +72,7 @@ message CreateFsResponse {
 
 message MountFsRequest {
     required string fsName = 1;
-    required mountPoint mountpoint = 2;
+    required MountPoint mountpoint = 2;
 }
 
 message MountFsResponse {
@@ -77,7 +82,7 @@ message MountFsResponse {
 
 message UmountFsRequest {
     required string fsName = 1;
-    required mountPoint mountpoint = 2;
+    required MountPoint mountpoint = 2;
 }
 
 message UmountFsResponse {

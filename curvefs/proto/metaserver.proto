@@ -22,6 +22,10 @@ enum MetaStatusCode {
     OK = 0;
     UNKNOWN_ERROR = 1;
     PARAM_ERROR = 2;
+    NOT_FOUND = 3;
+    INODE_EXIST = 4;
+    DENTRY_EXIST = 5;
+    SYM_LINK_EMPTY = 6;
 }
 
 // dentry interface
@@ -63,6 +67,7 @@ message CreateDentryResponse {
     required MetaStatusCode statusCode = 1;
 }
 
+/*
 message UpdateDentryRequest {
     required Dentry dentry = 1;
 }
@@ -70,6 +75,7 @@ message UpdateDentryRequest {
 message UpdateDentryResponse {
     required MetaStatusCode statusCode = 1;
 }
+*/
 
 message DeleteDentryRequest {
     required uint32 fsId = 1;
@@ -170,7 +176,7 @@ service MetaServerService {
     rpc GetDentry(GetDentryRequest) returns (GetDentryResponse);
     rpc ListDentry(ListDentryRequest) returns (ListDentryResponse);
     rpc CreateDentry(CreateDentryRequest) returns (CreateDentryResponse);
-    rpc UpdateDentry(UpdateDentryRequest) returns (UpdateDentryResponse);
+    // rpc UpdateDentry(UpdateDentryRequest) returns (UpdateDentryResponse);
     rpc DeleteDentry(DeleteDentryRequest) returns (DeleteDentryResponse);
 
     // inode interface
