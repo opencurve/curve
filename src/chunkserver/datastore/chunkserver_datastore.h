@@ -291,8 +291,6 @@ class CSDataStore {
      */
     virtual DataStoreStatus GetStatus();
 
-    virtual ChunkMap GetChunkMap();
-
  private:
     CSErrorCode loadChunkFile(ChunkID id);
     CSErrorCode CreateChunkFile(const ChunkOptions & ops,

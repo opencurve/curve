@@ -111,9 +111,6 @@ enum ConfigChangeType {
     NONE = 4;
     // 配置变更命令：change复制组一个成员
     CHANGE_PEER = 5;
-    // Scan operator, scan chunks in copyset
-    START_SCAN_PEER = 6;
-    CANCEL_SCAN_PEER = 7;
 };
 
 message CopySetConf {
@@ -125,7 +122,6 @@ message CopySetConf {
     // configchangeItem 是目标节点
     // 对于TRANSFER_LEADER: 表示目标节点; 对于ADD_PEER: 表示待加入节点
     // 对于REMOVE_PEER: 表示待删除节点; 对于CHANGE_PEER: 表示待加入节点
-    // SCAN_PEER: to scan the node
     optional common.Peer configchangeItem = 6;
     // oldPeer, 这个只在ConfigChangeType=对于CHANGE_PEER的情况下会赋值，
     // 表示待删除节点。

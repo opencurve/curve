@@ -94,14 +94,3 @@ proto_library(
     srcs = ["schedule.proto"],
 )
 
-cc_proto_library(
-    name = "scan_cc_proto",
-    visibility = ["//visibility:public"],
-    deps = [":scan_proto"],        
-)
-
-proto_library(
-    name = "scan_proto",
-    srcs = ["scan.proto"],        
-)
-

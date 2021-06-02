@@ -43,16 +43,7 @@ message QueryChunkServerRecoverStatusResponse {
     map<uint32, bool> recoverStatusMap = 2;
 }
 
-message CancelScanScheduleRequest {
-    required  uint32 logicalPoolID = 1;        
-}
-
-message CancelScanScheduleResponse {
-    required sint32 statusCode = 1;    
-}
-
 service ScheduleService {
     rpc RapidLeaderSchedule(RapidLeaderScheduleRequst) returns (RapidLeaderScheduleResponse);
     rpc QueryChunkServerRecoverStatus(QueryChunkServerRecoverStatusRequest) returns (QueryChunkServerRecoverStatusResponse);
-    rpc CancelScanSchedule(CancelScanScheduleRequest) returns (CancelScanScheduleResponse);
 }
