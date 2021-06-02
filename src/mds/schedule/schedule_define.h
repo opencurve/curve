@@ -33,7 +33,6 @@ enum SchedulerType {
   RecoverSchedulerType,
   ReplicaSchedulerType,
   RapidLeaderSchedulerType,
-  ScanSchedulerType,
 };
 
 struct ScheduleOption {
@@ -46,15 +45,12 @@ struct ScheduleOption {
     bool enableRecoverScheduler;
     // replica switch
     bool enableReplicaScheduler;
-    // scan switch
-    bool enableScanScheduler;
 
     // xxxSchedulerIntervalSec: time interval of calculation for xxx scheduling
     uint32_t copysetSchedulerIntervalSec;
     uint32_t leaderSchedulerIntervalSec;
     uint32_t recoverSchedulerIntervalSec;
     uint32_t replicaSchedulerIntervalSec;
-    uint32_t scanSchedulerIntervalSec;
 
     // number of copyset that can operate configuration changing at the same time on single chunkserver //NOLINT
     uint32_t operatorConcurrent;
@@ -65,7 +61,6 @@ struct ScheduleOption {
     uint32_t addPeerTimeLimitSec;
     uint32_t removePeerTimeLimitSec;
     uint32_t changePeerTimeLimitSec;
-    uint32_t scanPeerTimeLimitSec;
 
     // for copysetScheduler, the (range of the number of copyset on chunkserver)
     // should not exceed (average number of copyset on chunkserver * copysetNumRangePercent) //NOLINT
@@ -84,14 +79,6 @@ struct ScheduleOption {
     // operation arrive, the operation will wait for the replay and will be
     // stuck and exceed the 'leadertimeout' if the replay takes too long time.
     uint32_t chunkserverCoolingTimeSec;
-    // for scanScheduler
-    // the same time max scan copysets count
-    uint32_t scanSchedulerScanMaxCount;
-    // copyset scan interval time
-    uint32_t scanSchedulerScanIntervalSec;
-    // scan start time and end time in one day, range 0~24
-    uint32_t scanSchedulerScanStartHour;
-    uint32_t scanSchedulerScanEndHour;
 };
 
 }  // namespace schedule

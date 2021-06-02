@@ -71,25 +71,6 @@ Operator OperatorFactory::CreateChangePeerOperator(const CopySetInfo &info,
         steady_clock::now(),
         std::make_shared<ChangePeer>(rmPeer, addPeer));
 }
-
-Operator OperatorFactory::CreateStartScanPeerOperator(const CopySetInfo &info,
-    ChunkServerIdType startScanPeer, OperatorPriority pri) {
-    return Operator(
-        info.epoch,
-        info.id,
-        pri,
-        steady_clock::now(),
-        std::make_shared<StartScanPeer>(startScanPeer));
-}
-Operator OperatorFactory::CreateCancelScanPeerOperator(const CopySetInfo &info,
-    ChunkServerIdType cancelScanPeer, OperatorPriority pri) {
-    return Operator(
-        info.epoch,
-        info.id,
-        pri,
-        steady_clock::now(),
-        std::make_shared<CancelScanPeer>(cancelScanPeer));
-}
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

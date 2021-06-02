@@ -38,7 +38,6 @@
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/common/wait_interval.h"
 #include "src/common/concurrent/concurrent.h"
-#include "src/chunkserver/scan_manager.h"
 #include "proto/heartbeat.pb.h"
 
 using ::curve::common::Thread;
@@ -187,11 +186,10 @@ class Heartbeat {
 
     // 模块初始化时间, unix时间
     uint64_t startUpTime_;
-
-    ScanManager *scanMan_;
 };
 
 }  // namespace chunkserver
 }  // namespace curve
 
 #endif  // SRC_CHUNKSERVER_HEARTBEAT_H_
+

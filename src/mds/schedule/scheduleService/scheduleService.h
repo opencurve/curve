@@ -52,12 +52,6 @@ class ScheduleServiceImpl : public ScheduleService {
         QueryChunkServerRecoverStatusResponse *response,
         google::protobuf::Closure* done);
 
-    virtual void CancelScanSchedule(
-        google::protobuf::RpcController* cntl_base,
-        const CancelScanScheduleRequest* request,
-        CancelScanScheduleResponse* response,
-        google::protobuf::Closure* done);
-
  private:
     std::shared_ptr<Coordinator> coordinator_;
 };

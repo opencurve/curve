@@ -103,40 +103,6 @@ void ScheduleServiceImpl::QueryChunkServerRecoverStatus(
     }
 }
 
-void ScheduleServiceImpl::CancelScanSchedule(
-        google::protobuf::RpcController* cntl_base,
-        const CancelScanScheduleRequest* request,
-        CancelScanScheduleResponse* response,
-        google::protobuf::Closure* done) {
-    brpc::ClosureGuard done_guard(done);
-
-    brpc::Controller* cntl =
-        static_cast<brpc::Controller*>(cntl_base);
-
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [CancelScanScheduleRequest] "
-              << request->DebugString();
-    int errCode = coordinator_->CancelScanSchedule(request->logicalpoolid());
-    response->set_statuscode(errCode);
-    if (errCode == kScheduleErrCodeSuccess) {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [CancelScanScheduleResponse] "
-                  << response->DebugString();
-    } else {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [CancelScanScheduleResponse] "
-                   << response->DebugString();
-    }
-
-    return;
-}
-
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

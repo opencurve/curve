@@ -809,7 +809,7 @@ class CopySetInfo {
     std::set<ChunkServerIdType> peers_;
     bool hasCandidate_;
     ChunkServerIdType candidate_;
-    uint64_t lastScan_;
+
     /**
      * @brief to mark whether data is dirty, for writing to storage regularly
      */

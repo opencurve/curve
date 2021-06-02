@@ -49,12 +49,6 @@ class OperatorFactory {
     Operator CreateChangePeerOperator(const CopySetInfo &info,
         ChunkServerIdType rmPeer, ChunkServerIdType addPeer,
         OperatorPriority pri);
-
-    Operator CreateStartScanPeerOperator(const CopySetInfo &info,
-        ChunkServerIdType startScanPeer, OperatorPriority pri);
-
-    Operator CreateCancelScanPeerOperator(const CopySetInfo &info,
-        ChunkServerIdType cancelScanPeer, OperatorPriority pri);
 };
 
 extern OperatorFactory operatorFactory;
