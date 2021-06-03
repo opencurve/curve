@@ -128,8 +128,8 @@ class CopysetNodeManager : public curve::common::Uncopyable {
      * @param copysetId:复制组id
      * @return nullptr则为没查询到
      */
-    CopysetNodePtr GetCopysetNode(const LogicPoolID &logicPoolId,
-                                  const CopysetID &copysetId) const;
+    virtual CopysetNodePtr GetCopysetNode(const LogicPoolID &logicPoolId,
+                                          const CopysetID &copysetId) const;
 
     /**
      * 查询所有的copysets
@@ -147,7 +147,7 @@ class CopysetNodeManager : public curve::common::Uncopyable {
     int AddService(brpc::Server *server,
                    const butil::EndPoint &listenAddress);
 
-    const CopysetNodeOptions &GetCopysetNodeOptions() const {
+    virtual const CopysetNodeOptions &GetCopysetNodeOptions() const {
         return copysetNodeOptions_;
     }
 

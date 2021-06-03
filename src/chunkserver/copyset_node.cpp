@@ -65,6 +65,8 @@ CopysetNode::CopysetNode(const LogicPoolID &logicPoolId,
     chunkDataRpath_(),
     appliedIndex_(0),
     leaderTerm_(-1),
+    scaning_(false),
+    lastScanSec_(0),
     configChange_(std::make_shared<ConfigurationChange>()) {
 }
 
@@ -498,6 +500,22 @@ LogicPoolID CopysetNode::GetLogicPoolId() const {
 
 CopysetID CopysetNode::GetCopysetId() const {
     return copysetId_;
+}
+
+void CopysetNode::SetScan(bool scan) {
+    scaning_ = scan;
+}
+
+bool CopysetNode::GetScan() const {
+    return scaning_;
+}
+
+void CopysetNode::SetLastScan(uint64_t time) {
+    lastScanSec_ = time;
+}
+
+uint64_t CopysetNode::GetLastScan() const {
+    return lastScanSec_;
 }
 
 std::string CopysetNode::GetCopysetDir() const {

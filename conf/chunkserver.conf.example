@@ -92,6 +92,16 @@ copyset.check_retrytimes=3
 copyset.finishload_margin=2000
 # 循环判定copyset是否加载完成的内部睡眠时间
 copyset.check_loadmargin_interval_ms=1000
+# scan copyset interval
+copyset.scan_interval_sec=5
+# the size each scan 4MB
+copyset.scan_size_byte=4194304
+# the follower send scanmap to leader rpc timeout
+copyset.scan_rpc_timeout_ms=1000
+# the follower send scanmap to leader rpc retry times
+copyset.scan_rpc_retry_times=3
+# the follower send scanmap to leader rpc retry interval
+copyset.scan_rpc_retry_interval_us=100000
 
 #
 # Clone settings

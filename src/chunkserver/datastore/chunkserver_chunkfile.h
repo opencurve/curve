@@ -233,6 +233,17 @@ class CSChunkFile {
     CSErrorCode GetHash(off_t offset,
                         size_t length,
                         std::string *hash);
+    /**
+     * Get chunkFileMetaPage
+     * @return: metapage
+     */
+    virtual const ChunkFileMetaPage& GetChunkFileMetaPage() {
+        return metaPage_;
+    }
+
+    void SetChunkFileMetaPage(ChunkFileMetaPage metaPage) {
+        metaPage_ = metaPage;
+    }
 
  private:
     /**

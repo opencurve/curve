@@ -27,6 +27,7 @@
 #include <memory>
 
 #include "src/chunkserver/op_request.h"
+#include "proto/chunk.pb.h"
 
 namespace curve {
 namespace chunkserver {
@@ -50,6 +51,51 @@ class ChunkClosure : public braft::Closure {
  public:
     // 包含了op request 的上下文信息
     std::shared_ptr<ChunkOpRequest> request_;
+};
+
+class ScanChunkClosure : public google::protobuf::Closure {
+ public:
+    ScanChunkClosure(ChunkRequest *request, ChunkResponse *response) :
+                     request_(request), response_(response) {}
+
+    ~ScanChunkClosure() = default;
+
+    void Run() override;
+
+ public:
+    ChunkRequest *request_;
+    ChunkResponse *response_;
+};
+
+class SendScanMapClosure : public google::protobuf::Closure {
+ public:
+    SendScanMapClosure(FollowScanMapRequest * request,
+                       FollowScanMapResponse *response,
+                       uint64_t timeout,
+                       uint32_t retry,
+                       uint64_t retryIntervalUs,
+                       brpc::Controller* cntl,
+                       brpc::Channel *channel) :
+                       request_(request), response_(response),
+                       rpcTimeoutMs_(timeout), retry_(retry),
+                       retryIntervalUs_(retryIntervalUs),
+                       cntl_(cntl), channel_(channel) {}
+
+    ~SendScanMapClosure() = default;
+
+    void Run() override;
+
+ private:
+    void Guard();
+
+ public:
+    FollowScanMapRequest *request_;
+    FollowScanMapResponse *response_;
+    uint64_t rpcTimeoutMs_;
+    uint32_t retry_;
+    uint64_t retryIntervalUs_;
+    brpc::Controller *cntl_;
+    brpc::Channel *channel_;
 };
 
 }  // namespace chunkserver

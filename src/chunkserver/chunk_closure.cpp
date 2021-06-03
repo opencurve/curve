@@ -51,5 +51,57 @@ void ChunkClosure::Run() {
     request_->RedirectChunkRequest();
 }
 
+void ScanChunkClosure::Run() {
+    // after run destory
+    std::unique_ptr<ScanChunkClosure> selfGuard(this);
+    std::unique_ptr<ChunkRequest> requestGuard(request_);
+    std::unique_ptr<ChunkResponse> responseGuard(response_);
+
+    switch (response_->status()) {
+        case CHUNK_OP_STATUS_CHUNK_NOTEXIST:
+            LOG(WARNING) << "scan chunk failed, read chunk not exist. "
+                         << request_->ShortDebugString();
+        break;
+        case CHUNK_OP_STATUS_FAILURE_UNKNOWN:
+            LOG(ERROR) << "scan chunk failed, read chunk unknown failure. "
+                       << request_->ShortDebugString();
+        break;
+    default:
+        break;
+    }
+}
+
+void SendScanMapClosure::Guard() {
+    std::unique_ptr<SendScanMapClosure> selfGuard(this);
+    std::unique_ptr<FollowScanMapRequest> requestGuard(request_);
+    std::unique_ptr<FollowScanMapResponse> responseGuard(response_);
+    std::unique_ptr<brpc::Controller> cntlGuard(cntl_);
+    std::unique_ptr<brpc::Channel> channelGuard(channel_);
+}
+
+void SendScanMapClosure::Run() {
+    if (cntl_->Failed()) {
+        if (retry_ > 0) {
+            LOG(WARNING) << "Send scanmap to leader rpc failed."
+                         << " cntl errorCode: " << cntl_->ErrorCode()
+                         << " cntl error: " << cntl_->ErrorText()
+                         << ", then will retry " << retry_ << " times.";
+            retry_--;
+            bthread_usleep(retryIntervalUs_);
+            cntl_->Reset();
+            cntl_->set_timeout_ms(rpcTimeoutMs_);
+            ScanService_Stub stub(channel_);
+            stub.FollowScanMap(cntl_, request_, response_, this);
+        } else {
+            LOG(ERROR) << " Send scanmap to leader rpc failed after retry,"
+                       << " cntl errorCode: " << cntl_->ErrorCode()
+                       << " cntl error: " << cntl_->ErrorText();
+            Guard();
+        }
+    } else {
+        Guard();
+    }
+}
+
 }  // namespace chunkserver
 }  // namespace curve

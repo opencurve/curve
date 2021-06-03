@@ -46,6 +46,7 @@ class CSDataStore;
 class CloneManager;
 class CloneCore;
 class CloneTask;
+class ScanManager;
 
 
 inline bool existCloneInfo(const ChunkRequest *request) {
@@ -153,7 +154,7 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
                                                   ChunkRequest *request,
                                                   butil::IOBuf *data,
                                                   uint64_t index,
-                                                  PeerId GetLeaderId);
+                                                  PeerId leaderId);
 
  protected:
     /**
@@ -370,7 +371,7 @@ class ScanChunkRequest : public ChunkOpRequest {
                      ChunkResponse *response,
                      ::google::protobuf::Closure *done) :
         ChunkOpRequest(nodePtr,
-                      NULL,
+                      nullptr,
                       request,
                       response,
                       done),
@@ -383,9 +384,8 @@ class ScanChunkRequest : public ChunkOpRequest {
                         const butil::IOBuf &data) override;
 
  private:
-    void BuildRepScanMap(LogicPoolID pollId, ChunkID chunkId, uint64_t index,
-                         uint64_t offset, uint64_t len, char* readBuf);
-    void SendScanMapToLeader();
+    void BuildAndSendScanMap(const ChunkRequest &request, uint64_t index,
+                             uint32_t crc);
     ScanManager* scanManager_;
     uint64_t index_;
     PeerId peer_;

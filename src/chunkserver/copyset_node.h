@@ -144,6 +144,14 @@ class CopysetNode : public braft::StateMachine,
      */
     CopysetID GetCopysetId() const;
 
+    virtual void SetScan(bool scan);
+
+    virtual bool GetScan() const;
+
+    virtual void SetLastScan(uint64_t time);
+
+    virtual uint64_t GetLastScan() const;
+
     /**
      * 返回复制组数据目录
      * @return
@@ -446,6 +454,10 @@ class CopysetNode : public braft::StateMachine,
     // transfer leader的目标，状态为TRANSFERRING时有效
     Peer transferee_;
     int64_t lastSnapshotIndex_;
+    // scan status
+    bool scaning_;
+    // last scan time
+    uint64_t lastScanSec_;
 };
 
 }  // namespace chunkserver

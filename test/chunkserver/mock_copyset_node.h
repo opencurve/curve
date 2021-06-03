@@ -32,6 +32,7 @@
 namespace curve {
 namespace chunkserver {
 
+
 class MockCopysetNode : public CopysetNode {
  public:
     MockCopysetNode() = default;
@@ -52,6 +53,10 @@ class MockCopysetNode : public CopysetNode {
     MOCK_CONST_METHOD0(GetDataStore, std::shared_ptr<CSDataStore>());
     MOCK_CONST_METHOD0(GetConcurrentApplyModule, ConcurrentApplyModule*());
     MOCK_METHOD1(Propose, void(const braft::Task&));
+    MOCK_METHOD1(SetScan, void(bool));
+    MOCK_CONST_METHOD0(GetScan, bool());
+    MOCK_METHOD1(SetLastScan, void(uint64_t));
+    MOCK_CONST_METHOD0(GetLastScan, uint64_t());
 
     MOCK_METHOD1(on_apply, void(::braft::Iterator&));
     MOCK_METHOD0(on_shutdown, void());

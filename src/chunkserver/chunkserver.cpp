@@ -260,6 +260,13 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(FATAL, copysetNodeManager_->Init(copysetNodeOptions) != 0)
         << "Failed to initialize CopysetNodeManager.";
 
+    // init scan model
+    ScanManagerOptions scanOpts;
+    InitScanOptions(&conf, &scanOpts);
+    scanOpts.copysetNodeManager = copysetNodeManager_;
+    LOG_IF(FATAL, scanManager_.Init(scanOpts) != 0)
+        << "Failed to init scan manager.";
+
     // 心跳模块初始化
     HeartbeatOptions heartbeatOptions;
     InitHeartbeatOptions(&conf, &heartbeatOptions);
@@ -267,6 +274,7 @@ int ChunkServer::Run(int argc, char** argv) {
     heartbeatOptions.fs = fs;
     heartbeatOptions.chunkserverId = metadata.id();
     heartbeatOptions.chunkserverToken = metadata.token();
+    heartbeatOptions.scanManager = &scanManager_;
     LOG_IF(FATAL, heartbeat_.Init(heartbeatOptions) != 0)
         << "Failed to init Heartbeat manager.";
 
@@ -340,6 +348,12 @@ int ChunkServer::Run(int argc, char** argv) {
         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add ChunkServerService";
 
+    // scan copyset service
+    ScanServiceImpl scanCopysetService(&scanManager_);
+    ret = server.AddService(&scanCopysetService,
+        brpc::SERVER_DOESNT_OWN_SERVICE);
+    CHECK(0 == ret) << "Fail to add ScanCopysetService";
+
     // 启动rpc service
     LOG(INFO) << "Internal server is going to serve on: "
               << copysetNodeOptions.ip << ":" << copysetNodeOptions.port;
@@ -390,6 +404,8 @@ int ChunkServer::Run(int argc, char** argv) {
         << "Failed to start heartbeat manager.";
     LOG_IF(FATAL, copysetNodeManager_->Run() != 0)
         << "Failed to start CopysetNodeManager.";
+    LOG_IF(FATAL, scanManager_.Run() != 0)
+        << "Failed to start scan manager.";
     LOG_IF(FATAL, !chunkfilePool->StartCleaning())
         << "Failed to start file pool clean worker.";
 
@@ -405,6 +421,8 @@ int ChunkServer::Run(int argc, char** argv) {
     server.Join();
 
     LOG(INFO) << "ChunkServer is going to quit.";
+    LOG_IF(ERROR, scanManager_.Fini() != 0)
+        << "Failed to shutdown scan manager.";
     LOG_IF(ERROR, heartbeat_.Fini() != 0)
         << "Failed to shutdown heartbeat manager.";
     LOG_IF(ERROR, copysetNodeManager_->Fini() != 0)
@@ -587,6 +605,20 @@ void ChunkServer::InitCloneOptions(
         &cloneOptions->threadNum));
     LOG_IF(FATAL, !conf->GetUInt32Value("clone.queue_depth",
         &cloneOptions->queueCapacity));
+}
+
+void ChunkServer::InitScanOptions(
+    common::Configuration *conf, ScanManagerOptions *scanOptions) {
+    LOG_IF(FATAL, !conf->GetUInt32Value("copyset.scan_interval_sec",
+        &scanOptions->intervalSec));
+    LOG_IF(FATAL, !conf->GetUInt64Value("copyset.scan_size_byte",
+        &scanOptions->scanSize));
+    LOG_IF(FATAL, !conf->GetUInt64Value("copyset.scan_rpc_timeout_ms",
+        &scanOptions->timeoutMs));
+    LOG_IF(FATAL, !conf->GetUInt32Value("copyset.scan_rpc_retry_times",
+        &scanOptions->retry));
+    LOG_IF(FATAL, !conf->GetUInt64Value("copyset.scan_rpc_retry_interval_us",
+        &scanOptions->retryIntervalUs));
 }
 
 void ChunkServer::InitHeartbeatOptions(

@@ -20,7 +20,7 @@ package curve.chunkserver;
 option cc_generic_services = true;
 
 message ScanMap {
-    required uint32 logicPoolId = 1;
+    required uint32 logicalPoolId = 1;
     required uint32 copysetId = 2;
     required uint64 chunkId = 3;
     required uint64 index = 4;

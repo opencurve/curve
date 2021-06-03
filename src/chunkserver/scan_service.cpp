@@ -29,7 +29,8 @@ void ScanServiceImpl::FollowScanMap(RpcController *controller,
                        const FollowScanMapRequest *request,
                        FollowScanMapResponse *response,
                        Closure *done) {
-    return;
+    brpc::ClosureGuard doneGuard(done);
+    scanManager_->DealFollowerScanMap(*request, response);
 }
 }  // namespace chunkserver
 }  // namespace curve

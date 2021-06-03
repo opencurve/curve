@@ -126,6 +126,11 @@ chunkserver_copyset_load_concurrency: 10
 chunkserver_copyset_check_retrytimes: 3
 chunkserver_copyset_finishload_margin: 2000
 chunkserver_copyset_check_loadmargin_interval_ms: 1000
+chunkserver_copyset_scan_interval_sec: 5
+chunkserver_copyset_scan_size_byte: 4194304
+chunkserver_copyset_scan_rpc_timeout_ms: 1000
+chunkserver_copyset_scan_rpc_retry_times: 3
+chunkserver_copyset_scan_rpc_retry_interval_us: 100000
 chunkserver_clone_slice_size: 1048576
 chunkserver_clone_enable_paste: false
 chunkserver_clone_thread_num: 10
