@@ -772,7 +772,7 @@ def get_all_chunk_num():
 
 def check_nbd_iops(limit_iops=3000):
     ssh = shell_operator.create_ssh_connect(config.client_list[0],1046, config.abnormal_user)
-    ori_cmd = "iostat -d nb0 1 2 |grep nb0 | awk 'END {print $6}'"
+    ori_cmd = "iostat -d nb0 3 2 |grep nb0 | awk 'END {print $6}'"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     kb_wrtn = "".join(rs[1]).strip()
     iops = int(kb_wrtn) / int(config.fio_iosize)
@@ -1698,7 +1698,7 @@ def test_ipmitool_restart_chunkserver():
     start_host_cs_process(chunkserver_host)
 
 def test_ipmitool_restart_client():
-    client_host = config.client_list[1]
+    client_host = config.client_list[0]
     logger.info("|------begin test client ipmitool cycle,host %s------|"%(client_host))
     ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
     ipmitool_cycle_restart_host(ssh)
