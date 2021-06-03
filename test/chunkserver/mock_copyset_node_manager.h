@@ -34,6 +34,9 @@ class MockCopysetNodeManager : public CopysetNodeManager {
     ~MockCopysetNodeManager() {}
 
     MOCK_METHOD0(LoadFinished, bool());
+    MOCK_CONST_METHOD0(GetCopysetNodeOptions, const CopysetNodeOptions&());
+    MOCK_CONST_METHOD2(GetCopysetNode, CopysetNodePtr(const LogicPoolID&,
+                       const CopysetID&));
 };
 }  // namespace chunkserver
 }  // namespace curve

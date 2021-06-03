@@ -66,8 +66,8 @@ void ChunkOpRequest::Process() {
      * 如果propose成功，说明request成功交给了raft处理，
      * 那么done_就不能被调用，只有propose失败了才需要提前返回
      */
-    const butil::IOBuf& data = cntl_->request_attachment();
-    if (0 == Propose(request_, &data)) {
+    if (0 == Propose(request_, cntl_ ? &cntl_->request_attachment() :
+                     nullptr)) {
         doneGuard.release();
     }
 }
@@ -118,19 +118,16 @@ int ChunkOpRequest::Encode(const ChunkRequest *request,
     // 1.append request length
     const uint32_t metaSize = butil::HostToNet32(request->ByteSize());
     log->append(&metaSize, sizeof(uint32_t));
-
     // 2.append op request
     butil::IOBufAsZeroCopyOutputStream wrapper(log);
     if (!request->SerializeToZeroCopyStream(&wrapper)) {
         LOG(ERROR) << "Fail to serialize request";
         return -1;
     }
-
     // 3.append op data
     if (data != nullptr) {
         log->append(*data);
     }
-
     return 0;
 }
 
@@ -138,7 +135,7 @@ std::shared_ptr<ChunkOpRequest> ChunkOpRequest::Decode(butil::IOBuf log,
                                                        ChunkRequest *request,
                                                        butil::IOBuf *data,
                                                        uint64_t index,
-                                                       PeerId GetLeaderId) {
+                                                       PeerId leaderId) {
     uint32_t metaSize = 0;
     log.cutn(&metaSize, sizeof(uint32_t));
     metaSize = butil::NetToHost32(metaSize);
@@ -170,7 +167,7 @@ std::shared_ptr<ChunkOpRequest> ChunkOpRequest::Decode(butil::IOBuf log,
         case CHUNK_OP_TYPE::CHUNK_OP_CREATE_CLONE:
             return std::make_shared<CreateCloneChunkRequest>();
         case CHUNK_OP_TYPE::CHUNK_OP_SCAN:
-            return std::make_shared<ScanChunkRequest>(index, GetLeaderId);
+            return std::make_shared<ScanChunkRequest>(index, leaderId);
         default:LOG(ERROR) << "Unknown chunk op";
             return nullptr;
     }
@@ -870,40 +867,137 @@ void PasteChunkInternalRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> data
 }
 
 void ScanChunkRequest::OnApply(uint64_t index,
-                                        ::google::protobuf::Closure *done) {
-    scanManager_->SetScanJobType(ScanType::BuildMap);
-    scanManager_->GenScanJob();
+                               ::google::protobuf::Closure *done) {
+    brpc::ClosureGuard doneGuard(done);
+
+    // read and calculate crc, build scanmap
+    uint32_t crc = 0;
+    size_t size = request_->size();
+    std::unique_ptr<char[]> readBuffer(new(std::nothrow)char[size]);
+    CHECK(nullptr != readBuffer)
+        << "new readBuffer failed " << strerror(errno);
+
+    auto ret = datastore_->ReadChunk(request_->chunkid(),
+                                     request_->sn(),
+                                     readBuffer.get(),
+                                     request_->offset(),
+                                     size);
+    if (CSErrorCode::Success == ret) {
+        crc = ::curve::common::CRC32(readBuffer.get(), size);
+        // build scanmap
+        ScanMap scanMap;
+        scanMap.set_logicalpoolid(request_->logicpoolid());
+        scanMap.set_copysetid(request_->copysetid());
+        scanMap.set_chunkid(request_->chunkid());
+        scanMap.set_index(index);
+        scanMap.set_crc(crc);
+        scanMap.set_offset(request_->offset());
+        scanMap.set_len(size);
+
+        ScanKey jobKey(request_->logicpoolid(), request_->copysetid());
+        scanManager_->SetLocalScanMap(jobKey, scanMap);
+        scanManager_->SetScanJobType(jobKey, ScanType::WaitMap);
+        scanManager_->GenScanJobs(jobKey);
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+    } else if (CSErrorCode::ChunkNotExistError == ret) {
+        response_->set_status(
+            CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
+    } else if (CSErrorCode::InternalError == ret) {
+        LOG(FATAL) << "scan chunk failed, read chunk internal error"
+                   << " logic pool id: " << request_->logicpoolid()
+                   << " copyset id: " << request_->copysetid()
+                   << " chunkid: " << request_->chunkid()
+                   << " offset: " << request_->offset()
+                   << " read len :" << request_->size();
+    } else {
+        response_->set_status(
+            CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+    }
 }
 
 void ScanChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
                                                const ChunkRequest &request,
                                                const butil::IOBuf &data) {
-    char *readBuffer = nullptr;
+    uint32_t crc = 0;
     size_t size = request.size();
-    readBuffer = new(std::nothrow)char[size];
+    std::unique_ptr<char[]> readBuffer(new(std::nothrow)char[size]);
     CHECK(nullptr != readBuffer)
         << "new readBuffer failed " << strerror(errno);
 
     auto ret = datastore->ReadChunk(request.chunkid(),
                                     request.sn(),
-                                    readBuffer,
+                                    readBuffer.get(),
                                     request.offset(),
                                     size);
-
-    BuildRepScanMap(request.logicpoolid(), request.chunkid(), index_,
-                    request.offset(), request.size(), readBuffer);
-    SendScanMapToLeader();
-    return;
+    if (CSErrorCode::Success == ret) {
+        crc = ::curve::common::CRC32(readBuffer.get(), size);
+        BuildAndSendScanMap(request, index_, crc);
+    } else if (CSErrorCode::ChunkNotExistError == ret) {
+        LOG(ERROR) << "scan failed: chunk not exist, "
+                   << " logic pool id: " << request.logicpoolid()
+                   << " copyset id: " << request.copysetid()
+                   << " chunkid: " << request.chunkid()
+                   << " offset: " << request.offset()
+                   << " read len :" << size
+                   << " datastore return: " << ret;
+    } else if (CSErrorCode::InternalError == ret) {
+        LOG(FATAL) << "scan failed: "
+                   << " logic pool id: " << request.logicpoolid()
+                   << " copyset id: " << request.copysetid()
+                   << " chunkid: " << request.chunkid()
+                   << " offset: " << request.offset()
+                   << " read len :" << size
+                   << " datastore return: " << ret;
+    } else {
+        LOG(ERROR) << "scan failed: "
+                   << " logic pool id: " << request.logicpoolid()
+                   << " copyset id: " << request.copysetid()
+                   << " chunkid: " << request.chunkid()
+                   << " offset: " << request.offset()
+                   << " read len :" << size
+                   << " datastore return: " << ret;
+    }
 }
 
-void ScanChunkRequest::BuildRepScanMap(LogicPoolID pollId, ChunkID chunkId,
-                                       uint64_t index,  uint64_t offset,
-                                       uint64_t len, char* readBuf) {
-    return;
+void ScanChunkRequest::BuildAndSendScanMap(const ChunkRequest &request,
+                                           uint64_t index, uint32_t crc) {
+    // send rpc to leader
+    brpc::Channel *channel = new brpc::Channel();
+    if (channel->Init(peer_.addr, NULL) != 0) {
+        LOG(ERROR) << "Fail to init channel to chunkserver for send scanmap: "
+                   << peer_;
+        delete channel;
+        return;
+    }
+
+    // build scanmap
+    ScanMap *scanMap = new ScanMap();
+    scanMap->set_logicalpoolid(request.logicpoolid());
+    scanMap->set_copysetid(request.copysetid());
+    scanMap->set_chunkid(request.chunkid());
+    scanMap->set_index(index);
+    scanMap->set_crc(crc);
+    scanMap->set_offset(request.offset());
+    scanMap->set_len(request.size());
+
+    FollowScanMapRequest *scanMapRequest = new FollowScanMapRequest();
+    scanMapRequest->set_allocated_scanmap(scanMap);
+
+    ScanService_Stub stub(channel);
+    brpc::Controller* cntl = new brpc::Controller();
+    cntl->set_timeout_ms(request.sendscanmaptimeoutms());
+    FollowScanMapResponse *scanMapResponse = new FollowScanMapResponse();
+    SendScanMapClosure *done = new SendScanMapClosure(
+                                   scanMapRequest,
+                                   scanMapResponse,
+                                   request.sendscanmaptimeoutms(),
+                                   request.sendscanmapretrytimes(),
+                                   request.sendscanmapretryintervalus(),
+                                   cntl, channel);
+    LOG(INFO) << "Sending scanmap: " << scanMap->ShortDebugString()
+              << " to leader: " << peer_.addr;
+    stub.FollowScanMap(cntl, scanMapRequest, scanMapResponse, done);
 }
 
-void ScanChunkRequest::SendScanMapToLeader() {
-    return;
-}
 }  // namespace chunkserver
 }  // namespace curve

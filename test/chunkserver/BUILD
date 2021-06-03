@@ -163,6 +163,14 @@ cc_test(
          + ["//test/chunkserver:chunkserver-test-util-lib"],
 )
 
+cc_test(
+    name = "scan-manager-test",
+    srcs = ["scan_manager_test.cpp",
+            "mock_copyset_node_manager.h"],
+    copts = ["-std=c++11"],
+    deps = DEPS,
+)
+
 # server exec for unit test
 cc_binary(
     name = "server-test",

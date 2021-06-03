@@ -28,11 +28,13 @@
 #include "src/common/configuration.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/heartbeat.h"
+#include "src/chunkserver/scan_manager.h"
 #include "src/chunkserver/clone_manager.h"
 #include "src/chunkserver/register.h"
 #include "src/chunkserver/trash.h"
 #include "src/chunkserver/chunkserver_metrics.h"
 #include "src/chunkserver/concurrent_apply/concurrent_apply.h"
+#include "src/chunkserver/scan_service.h"
 
 using ::curve::chunkserver::concurrent::ConcurrentApplyOption;
 
@@ -74,6 +76,9 @@ class ChunkServer {
     void InitCloneOptions(common::Configuration *conf,
         CloneOptions *cloneOptions);
 
+    void InitScanOptions(common::Configuration *conf,
+        ScanManagerOptions *scanOptions);
+
     void InitHeartbeatOptions(common::Configuration *conf,
         HeartbeatOptions *heartbeatOptions);
 
@@ -102,6 +107,9 @@ class ChunkServer {
 
     // cloneManager_ 管理克隆任务
     CloneManager cloneManager_;
+
+    // scan copyset manager
+    ScanManager scanManager_;
 
     // heartbeat_ 负责向mds定期发送心跳，并下发心跳中任务
     Heartbeat heartbeat_;

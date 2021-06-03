@@ -1091,6 +1091,8 @@ int TopologyImpl::UpdateCopySetTopo(const CopySetInfo &data) {
         }
 
         it->second.SetDirtyFlag(true);
+        it->second.SetScaning(data.GetScaning());
+        it->second.SetLastScanSec(data.GetLastScanSec());
         return kTopoErrCodeSuccess;
     } else {
         LOG(WARNING) << "UpdateCopySetTopo can not find copyset, "

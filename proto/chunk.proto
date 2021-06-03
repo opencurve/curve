@@ -43,8 +43,8 @@ enum CHUNK_OP_TYPE {
     CHUNK_OP_CREATE_CLONE = 5;      // 创建clone chunk
     CHUNK_OP_RECOVER = 6;           // 恢复clone chunk
     CHUNK_OP_PASTE = 7;             // paste chunk 内部请求
-    CHUNK_OP_SCAN = 8;              // scan oprequest 
-    CHUNK_OP_UNKNOWN = 9;           // 未知 Op
+    CHUNK_OP_UNKNOWN = 8;           // unknown Op
+    CHUNK_OP_SCAN = 9;              // scan oprequest
 };
 
 // read/write 的实际数据在 rpc 的 attachment 中
@@ -62,6 +62,9 @@ message ChunkRequest {
     optional string location = 11;      // for CreateCloneChunk
     optional string cloneFileSource = 12;   // for write/read
     optional uint64 cloneFileOffset = 13;   // for write/read
+    optional uint64 sendScanMapTimeoutMs = 14;         // for scan chunk
+    optional uint32 sendScanMapRetryTimes= 15;         // for scan chunk
+    optional uint64 sendScanMapRetryIntervalUs = 16;   // for scan chunk
 };
 
 enum CHUNK_OP_STATUS {

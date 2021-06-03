@@ -92,10 +92,14 @@ int Heartbeat::Init(const HeartbeatOptions &options) {
 
     // 获取当前unix时间戳
     startUpTime_ = ::curve::common::TimeUtility::GetTimeofDaySec();
+
+    // init scanManager
+    scanMan_ = options.scanManager;
     return 0;
 }
 
 int Heartbeat::Run() {
+    // start scan thread
     hbThread_ = Thread(&Heartbeat::HeartbeatWorker, this);
     return 0;
 }
@@ -113,7 +117,7 @@ int Heartbeat::Stop() {
 
 int Heartbeat::Fini() {
     Stop();
-
+    // stop scan thread
     LOG(INFO) << "Heartbeat manager cleaned up.";
     return 0;
 }
@@ -144,6 +148,12 @@ int Heartbeat::BuildCopysetInfo(curve::mds::heartbeat::CopySetInfo* info,
     info->set_logicalpoolid(poolId);
     info->set_copysetid(copysetId);
     info->set_epoch(copyset->GetConfEpoch());
+
+    // for scan
+    info->set_scaning(copyset->GetScan());
+    if (copyset->GetLastScan() > 0) {
+        info->set_lastscansec(copyset->GetLastScan());
+    }
 
     std::vector<Peer> peers;
     copyset->ListPeers(&peers);
@@ -491,30 +501,27 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
         case curve::mds::heartbeat::START_SCAN_PEER:
             {
                 ConfigChangeType type;
-                Configuration confTemp;
+                Configuration tmpConf;
                 Peer peer;
                 LogicPoolID poolId = conf.logicalpoolid();
                 CopysetID copysetId = conf.copysetid();
-                int ret = 0;
+                int ret = copyset->GetConfChange(&type, &tmpConf, &peer);
                 // if copyset happen conf change, can't scan and wait retry
-                if (ret = copyset->GetConfChange(&type,
-                                                &confTemp, &peer) != 0) {
+                if (0 != ret) {
                     LOG(ERROR) << "Failed to get config change state of copyset"
-                    << ToGroupIdStr(poolId, copysetId);
+                               << ToGroupIdStr(poolId, copysetId);
                     return ret;
-                }  else if (type == curve::mds::heartbeat::NONE) {
-                    LOG(INFO) << "Scan peer "
-                    << conf.configchangeitem().address()
-                    << "to copyset "
-                    << ToGroupIdStr(poolId, copysetId);
-                    if (!scanMan_->IsRepeatReq(poolId, copysetId)) {
-                        scanMan_->Enqueue(poolId, copysetId);
-                    } else {
-                        LOG(INFO) << "Scan peer repeat request";
-                    }
+                }  else if (type != curve::mds::heartbeat::NONE) {
+                    LOG(INFO) << "drop scan peer request to copyset: "
+                              << ToGroupIdStr(poolId, copysetId)
+                              << " because exist config"
+                              << " ConfigChangeType: " << type;
                 }  else {
-                    LOG(INFO) << "drop Scan peer, "
-                    <<"because exist config change, ConfigChangeType:" << type;
+                    LOG(INFO) << "Scan peer "
+                              << conf.configchangeitem().address()
+                              << "to copyset "
+                              << ToGroupIdStr(poolId, copysetId);
+                    scanMan_->Enqueue(poolId, copysetId);
                 }
             }
             break;
@@ -522,10 +529,17 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
         case curve::mds::heartbeat::CANCEL_SCAN_PEER:
             {
                 // todo Abnormal scenario
-                int ret;
                 LogicPoolID poolId = conf.logicalpoolid();
                 CopysetID copysetId = conf.copysetid();
-                ret = scanMan_->CancelScanJob(poolId, copysetId);
+                int ret = scanMan_->CancelScanJob(poolId, copysetId);
+                if (ret < 0) {
+                    LOG(ERROR) << "cancel scan peer failed, "
+                               << "peer address: "
+                               << conf.configchangeitem().address()
+                               << "copyset groupId: "
+                               << ToGroupIdStr(poolId, copysetId);
+                }
+                return ret;
             }
             break;
 

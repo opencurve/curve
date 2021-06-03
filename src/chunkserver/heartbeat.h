@@ -72,6 +72,7 @@ struct HeartbeatOptions {
     uint32_t                intervalSec;
     uint32_t                timeout;
     CopysetNodeManager*     copysetNodeManager;
+    ScanManager*            scanManager;
 
     std::shared_ptr<LocalFileSystem> fs;
 };

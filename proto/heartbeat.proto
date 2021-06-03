@@ -39,10 +39,8 @@ message CopySetInfo {
     optional ConfigChangeInfo configChangeInfo = 6;
     // copyset的性能信息
     optional CopysetStatistics stats = 7;
-
     // whether the current copyset is on scaning
     optional bool scaning = 8;
-
     // timestamp for last success scan (seconds)
     optional uint64 lastScanSec = 9;
 };

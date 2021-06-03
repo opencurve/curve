@@ -52,6 +52,7 @@ TEST(ChunkOpRequestTest, encode) {
     size_t offset = 0;
     uint32_t size = 16;
     uint64_t sn = 1;
+    uint32_t followScanRpcTimeoutMs = 1000;
 
     ChunkRequest request;
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
@@ -307,6 +308,38 @@ TEST(ChunkOpRequestTest, encode) {
         ASSERT_EQ(sn, request.sn());
         delete opReq;
     }
+    /* for scan */
+    request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_SCAN);
+    request.set_offset(offset);
+    request.set_size(size);
+    request.set_clonefileoffset(followScanRpcTimeoutMs);
+    {
+        ChunkOpRequest *opReq
+            = new ScanChunkRequest(nodePtr,
+                                   nullptr,
+                                   &request,
+                                   nullptr,
+                                   nullptr);
+
+        butil::IOBuf log;
+        ASSERT_EQ(0, opReq->Encode(&request,
+                                   nullptr,
+                                   &log));
+
+        butil::IOBuf data;
+        auto req = ChunkOpRequest::Decode(log, &request,
+                        &data, 0, PeerId("127.0.0.1:9010:0"));
+        auto req1 = dynamic_cast<ScanChunkRequest*>(req.get());
+        ASSERT_TRUE(req1 != nullptr);
+
+        ASSERT_EQ(CHUNK_OP_TYPE::CHUNK_OP_SCAN, request.optype());
+        ASSERT_EQ(logicPoolId, request.logicpoolid());
+        ASSERT_EQ(copysetId, request.copysetid());
+        ASSERT_EQ(chunkId, request.chunkid());
+        ASSERT_EQ(offset, request.offset());
+        ASSERT_EQ(size, request.size());
+        delete opReq;
+    }
     /* for unknown op */
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_UNKNOWN);
     {
@@ -342,6 +375,7 @@ TEST(ChunkOpRequestTest, OnApplyErrorTest) {
     uint32_t size = 16;
     uint64_t sn = 1;
     uint64_t appliedIndex = 12;
+    uint32_t followScanRpcTimeoutMs = 1000;
 
     Configuration conf;
     std::shared_ptr<CopysetNode> nodePtr =
@@ -610,6 +644,92 @@ TEST(ChunkOpRequestTest, OnApplyErrorTest) {
         delete opReq;
         delete cntl;
     }
+    // scan: data store internal error
+    {
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_SCAN);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_offset(offset);
+        request.set_size(size);
+        request.set_clonefileoffset(followScanRpcTimeoutMs);
+        brpc::Controller *cntl = new brpc::Controller();
+        ScanManager *scanManager = new ScanManager();
+        ChunkOpRequest *opReq
+            = new ScanChunkRequest(nodePtr,
+                                   scanManager,
+                                   &request,
+                                   &response,
+                                   nullptr);
+        dataStore->InjectError();
+        OpFakeClosure done;
+        ASSERT_DEATH(opReq->OnApply(appliedIndex, &done), "");
+        delete opReq;
+        delete cntl;
+        delete scanManager;
+    }
+    // scan: data store other error
+    {
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_SCAN);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_offset(offset);
+        request.set_size(size);
+        request.set_clonefileoffset(followScanRpcTimeoutMs);
+        brpc::Controller *cntl = new brpc::Controller();
+        ScanManager *scanManager = new ScanManager();
+        ChunkOpRequest *opReq
+            = new ScanChunkRequest(nodePtr,
+                                   scanManager,
+                                   &request,
+                                   &response,
+                                   nullptr);
+        dataStore->InjectError(CSErrorCode::FileFormatError);
+        OpFakeClosure done;
+        opReq->OnApply(appliedIndex, &done);
+        ASSERT_FALSE(cntl->Failed());
+        ASSERT_EQ(0, cntl->ErrorCode());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
+                  response.status());
+        delete opReq;
+        delete cntl;
+        delete scanManager;
+    }
+    // scan: chunk not exist
+    {
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_SCAN);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_offset(offset);
+        request.set_size(size);
+        request.set_clonefileoffset(followScanRpcTimeoutMs);
+        brpc::Controller *cntl = new brpc::Controller();
+        ScanManager *scanManager = new ScanManager();
+        ChunkOpRequest *opReq
+            = new ScanChunkRequest(nodePtr,
+                                   scanManager,
+                                   &request,
+                                   &response,
+                                   nullptr);
+        dataStore->InjectError(CSErrorCode::ChunkNotExistError);
+        OpFakeClosure done;
+        opReq->OnApply(appliedIndex, &done);
+        ASSERT_FALSE(cntl->Failed());
+        ASSERT_EQ(0, cntl->ErrorCode());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST,
+                  response.status());
+        delete opReq;
+        delete cntl;
+        delete scanManager;
+    }
 }
 
 TEST(ChunkOpRequestTest, OnApplyFromLogTest) {
@@ -620,6 +740,7 @@ TEST(ChunkOpRequestTest, OnApplyFromLogTest) {
     uint32_t size = 16;
     uint64_t sn = 1;
     uint64_t appliedIndex = 12;
+    uint32_t followScanRpcTimeoutMs = 1000;
 
     Configuration conf;
     std::shared_ptr<CopysetNode> nodePtr =
@@ -694,6 +815,21 @@ TEST(ChunkOpRequestTest, OnApplyFromLogTest) {
         request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP);
         butil::IOBuf data;
         DeleteSnapshotRequest req;
+        req.OnApplyFromLog(dataStore, request, data);
+        ASSERT_FALSE(dataStore->HasInjectError());
+    }
+    // scan
+    {
+        ChunkRequest request;
+        request.set_logicpoolid(1);
+        request.set_copysetid(10001);
+        request.set_chunkid(12345);
+        request.set_offset(0);
+        request.set_size(16);
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_SCAN);
+        request.set_clonefileoffset(followScanRpcTimeoutMs);
+        butil::IOBuf data;
+        ScanChunkRequest req(1, PeerId("127.0.0.1:9010:0"));
         req.OnApplyFromLog(dataStore, request, data);
         ASSERT_FALSE(dataStore->HasInjectError());
     }
