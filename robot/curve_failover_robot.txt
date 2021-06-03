@@ -430,6 +430,16 @@ inject kill diff host chunkserver
 #    check copies consistency
     [Teardown]	 wait cluster healthy    ${vm_iops_limit}
 
+test ipmitool restart client node
+   [Tags]    P1    base    first release   failover  ipmitool
+   test ipmitool restart client
+   run rwio
+   sleep  60
+   check nbd iops
+   check data consistency
+   test start mds
+   [Teardown]    wait cluster healthy   ${vm_iops_limit}
+
 inject kill all mds
     [Tags]    P1    base    first release   failover
     ${num}   evaluate  int(3)
@@ -534,7 +544,7 @@ init abnormal test env
 init rw cloud disk
      map nbd
      stop rwio
-     write full disk  ${fio_vdsize}
+#     write full disk  ${fio_vdsize}
      run rwio
      clean kernel log
 
