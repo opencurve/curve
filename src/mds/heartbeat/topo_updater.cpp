@@ -28,12 +28,14 @@ namespace mds {
 namespace heartbeat {
 void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
     CopySetInfo recordCopySetInfo;
+
     if (!topo_->GetCopySet(
         reportCopySetInfo.GetCopySetKey(), &recordCopySetInfo)) {
-        LOG(ERROR) << "topoUpdater receive copyset("
-                   << reportCopySetInfo.GetLogicalPoolId()
-                   << "," << reportCopySetInfo.GetId()
-                   << ") information, but can not get info from topology";
+        LOG(ERROR) << "chunkserver " << reportCopySetInfo.GetLeader()
+            << " heartbeat, topoUpdater receive copyset("
+            << reportCopySetInfo.GetLogicalPoolId()
+            << "," << reportCopySetInfo.GetId()
+            << ") information, but can not get info from topology";
         return;
     }
     // here we compare epoch number reported by heartbeat and stored in mds
@@ -47,18 +49,25 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
     //    recording candidate to mds may be needed
     // 3. report epoch < mds epoch
     //    this case should not occurs normally since epoch number in raft is
-    //    always the most up-to-date. this case may caused by bugs,
-    //    alarm is neened.
+    //    always the most up-to-date. But there is a case in addition:
+    //    - copyset(1-2-3), leader is chunkserver1
+    //    - chunkserver1 report heartbeat, mds do not handle
+    //    - copyset(1-2-3) transferleader, leader is chunkserver2
+    //    - chunkserver2 report heartbeat, mds handled
+    //    - mds handle chunkserver1 heartbeat
+    //    - the result is report.epoch < mds.epoch
+    //    So be warned in this case. Except for this situation, alarm is needed.
 
     // mds epoch fall behind, update needed:
     bool needUpdate = false;
     if (recordCopySetInfo.GetEpoch() < reportCopySetInfo.GetEpoch()) {
-        LOG(INFO) << "topoUpdater find report copyset("
-                  << reportCopySetInfo.GetLogicalPoolId()
-                  << "," << reportCopySetInfo.GetId()
-                  << ") epoch:" << reportCopySetInfo.GetEpoch()
-                  << " > recordEpoch:"
-                  << recordCopySetInfo.GetEpoch() << " need to update";
+        LOG(INFO) << "chunkserver " << reportCopySetInfo.GetLeader()
+            << " heartbeat, topoUpdater find report copyset("
+            << reportCopySetInfo.GetLogicalPoolId()
+            << "," << reportCopySetInfo.GetId()
+            << ") epoch:" << reportCopySetInfo.GetEpoch()
+            << " > recordEpoch:"
+            << recordCopySetInfo.GetEpoch() << " need to update";
         needUpdate = true;
     } else if (recordCopySetInfo.GetEpoch() == reportCopySetInfo.GetEpoch()) {
         // epoch reported is equal to epoch stored in mds
@@ -75,15 +84,16 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
         // should be different
         if (reportCopySetInfo.GetCopySetMembers() !=
             recordCopySetInfo.GetCopySetMembers()) {
-            LOG(ERROR) << "topoUpdater find report copyset("
-                       << reportCopySetInfo.GetLogicalPoolId()
-                       << "," << reportCopySetInfo.GetId()
-                       << ") member list: "
-                       << reportCopySetInfo.GetCopySetMembersStr()
-                       << " is not same as record one: "
-                       << recordCopySetInfo.GetCopySetMembersStr()
-                       << ", but epoch is same: "
-                       << recordCopySetInfo.GetEpoch();
+            LOG(ERROR) << "chunkserver " << reportCopySetInfo.GetLeader()
+                << " heartbeat, topoUpdater find report copyset("
+                << reportCopySetInfo.GetLogicalPoolId()
+                << "," << reportCopySetInfo.GetId()
+                << ") member list: "
+                << reportCopySetInfo.GetCopySetMembersStr()
+                << " is not same as record one: "
+                << recordCopySetInfo.GetCopySetMembersStr()
+                << ", but epoch is same: "
+                << recordCopySetInfo.GetEpoch();
             return;
         }
 
@@ -91,12 +101,12 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
         if (!reportCopySetInfo.HasCandidate()) {
             // configuration changes on mds (has candidate)
             if (recordCopySetInfo.HasCandidate()) {
-                LOG(WARNING) << "topoUpdater find report"
-                             " copyset("
-                             << reportCopySetInfo.GetLogicalPoolId()
-                             << "," << reportCopySetInfo.GetId()
-                             << ") no candidate but record has candidate: "
-                             << recordCopySetInfo.GetCandidate();
+                LOG(WARNING) << "chunkserver " << reportCopySetInfo.GetLeader()
+                        << " heartbeat,topoUpdater find report copyset("
+                        << reportCopySetInfo.GetLogicalPoolId()
+                        << "," << reportCopySetInfo.GetId()
+                        << ") no candidate but record has candidate: "
+                        << recordCopySetInfo.GetCandidate();
                 needUpdate = true;
             }
         } else if (!recordCopySetInfo.HasCandidate()) {
@@ -105,25 +115,40 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
         } else if (reportCopySetInfo.GetCandidate() !=
                    recordCopySetInfo.GetCandidate()) {
             // reported data and mds record have different configuration changes
-            LOG(WARNING) << "topoUpdater find report candidate "
-                         << reportCopySetInfo.GetCandidate()
-                         << ", record candidate: "
-                         << recordCopySetInfo.GetCandidate()
-                         << " on copyset("
-                         << reportCopySetInfo.GetLogicalPoolId()
-                         << "," << reportCopySetInfo.GetId()
-                         << ") not same";
+            LOG(WARNING) << "chunkserver " << reportCopySetInfo.GetLeader()
+                    << " heartbeat, topoUpdater find report candidate "
+                    << reportCopySetInfo.GetCandidate()
+                    << ", record candidate: "
+                    << recordCopySetInfo.GetCandidate()
+                    << " on copyset("
+                    << reportCopySetInfo.GetLogicalPoolId()
+                    << "," << reportCopySetInfo.GetId()
+                    << ") not same";
             needUpdate = true;
         }
     } else if (recordCopySetInfo.GetEpoch() > reportCopySetInfo.GetEpoch()) {
-        // this case will trigger an alarm since epoch of copyset leader should
-        // always larger or equal than the epoch of mds record
-        LOG(ERROR) << "topoUpdater find copyset("
-                   << reportCopySetInfo.GetLogicalPoolId()
-                   << "," << reportCopySetInfo.GetId()
-                   << "), record epoch:" << recordCopySetInfo.GetEpoch()
-                   << " bigger than report epoch:"
-                   << reportCopySetInfo.GetEpoch();
+        if (recordCopySetInfo.GetLeader() != reportCopySetInfo.GetLeader()) {
+            LOG(WARNING) << "chunkserver " << reportCopySetInfo.GetLeader()
+                    << " heartbeat, topoUpdater find copyset("
+                    << reportCopySetInfo.GetLogicalPoolId()
+                    << "," << reportCopySetInfo.GetId()
+                    << "), record epoch:" << recordCopySetInfo.GetEpoch()
+                    << " bigger than report epoch:"
+                    << reportCopySetInfo.GetEpoch()
+                    << ", may be staled heartbeat";
+        } else {
+            // this case will trigger an alarm since epoch of copyset leader
+            // should always larger or equal than the epoch of mds record
+            LOG(ERROR) << "chunkserver " << reportCopySetInfo.GetLeader()
+                    << " heartbeat, find copyset("
+                    << reportCopySetInfo.GetLogicalPoolId()
+                    << "," << reportCopySetInfo.GetId()
+                    << "), record epoch:" << recordCopySetInfo.GetEpoch()
+                    << " bigger than report epoch:"
+                    << reportCopySetInfo.GetEpoch();
+        }
+
+
         return;
     }
 
