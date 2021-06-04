@@ -15,9 +15,14 @@
 #  limitations under the License.
 #
 
-- name: install snapshotcloneserver_nginx
+- name: install package via deb
+  include_tasks: "install_deb_package.yml"
+  when: install_with_deb | bool
+
+- name: install snapshotcloneserver_nginx via tar
   vars:
     remote_dir_name: "{{ snapshotcloneserver_nginx_dir }}"
     local_file_path: "{{ local_snapshotcloneserver_nginx_package_path }}/"
     file_mode: 0644
   include_tasks: copy_file_to_remote.yml
+  when: not install_with_deb | bool

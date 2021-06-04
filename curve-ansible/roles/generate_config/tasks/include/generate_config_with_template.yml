@@ -47,9 +47,13 @@
     - name: set backup true
       set_fact:
         backup: true
+    - name: check config file exist
+      stat:
+        path: "{{ conf_path }}"
+      register: file_status
     - name: backup config file
       shell: sudo cp {{ conf_path }} {{ conf_path }}.bak
-      when: backup is defined
+      when: backup is defined and file_status.stat.exists
     - name: mv config file
       shell: sudo mv /tmp/{{ template_name }} {{ conf_path }}
     - name: diff two files

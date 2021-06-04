@@ -15,27 +15,27 @@
 #  limitations under the License.
 #
 
-- name: pull prom/prometheus:latest
-  shell: sudo docker image pull prom/prometheus:latest
+- name: install package via deb
+  include_tasks: "install_deb_package.yml"
+  when: install_with_deb | bool
 
-- name: pull grafana/grafana:latest
-  shell: sudo docker image pull grafana/grafana:latest
-
-- name: promoon/reporter:latest
-  shell: sudo docker image pull promoon/reporter:latest
-
-- name: install jq
-  vars:
-    apt_lib_name: jq
-    yum_lib_name: jq
-  include_tasks: common_tasks/install_with_yum_apt.yml
-
-- name: install monitor work space
-  vars:
-    remote_dir_name: "{{ monitor_work_dir }}"
-    local_file_path: "{{ local_monitor_package_path }}/"
-    file_mode: 0777
-  include_tasks: copy_file_to_remote.yml
-
-- name: generate curve-monitor.sh
-  template: src=curve-monitor.sh.j2 dest={{ deploy_dir }}/curve-monitor.sh mode=0755
+- name: install package via tar
+  block:
+    - name: pull prom/prometheus:latest
+      shell: sudo docker image pull prom/prometheus:latest
+    - name: pull grafana/grafana:latest
+      shell: sudo docker image pull grafana/grafana:latest
+    - name: promoon/reporter:latest
+      shell: sudo docker image pull promoon/reporter:latest
+    - name: install jq
+      vars:
+        apt_lib_name: jq
+        yum_lib_name: jq
+      include_tasks: common_tasks/install_with_yum_apt.yml
+    - name: install monitor work space
+      vars:
+        remote_dir_name: "{{ monitor_work_dir }}"
+        local_file_path: "{{ local_monitor_package_path }}/"
+        file_mode: 0777
+      include_tasks: copy_file_to_remote.yml
+  when: not install_with_deb | bool
