@@ -24,6 +24,9 @@
   ignore_errors: true
   shell:  chdir={{ deploy_dir }} {{ sudo }} ./chunkserver_ctl.sh stop all
 
+- name: get chunkserver number
+  include_tasks: "common_tasks/get_chunkserver_number.yml"
+
 - name: wait until chunkserver is down
   vars:
     end_seq: "{{ chunkserver_num | int - 1}}"
