@@ -32,6 +32,9 @@
   debug:
     var: start_chunkserver_res.stdout_lines
 
+- name: get chunkserver number
+  include_tasks: "common_tasks/get_chunkserver_number.yml"
+
 - name: wait until chunkserver is up
   vars:
     end_seq: "{{ chunkserver_num | int - 1}}"

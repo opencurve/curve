@@ -15,18 +15,23 @@
 #  limitations under the License.
 #
 
-- name: install tool bin
-  vars:
-    remote_dir_name: "{{ curve_bin_dir }}"
-    local_file_path: "{{ local_tool_package_path }}/bin/"
-    file_mode: 0755
-  include_tasks: copy_file_to_remote.yml
+- name: install package via deb
+  include_tasks: "install_deb_package.yml"
+  when: install_with_deb | bool
 
-- name: pip install requests
-  ignore_errors: true
-  shell: sudo pip install requests
-  register: pip_requests_res
-
-- name: pip2 install requests
-  shell: sudo pip2 install requests
-  when: pip_requests_res.failed
+- name: install package via tar
+  block:
+    - name: install tool bin
+      vars:
+        remote_dir_name: "{{ curve_bin_dir }}"
+        local_file_path: "{{ local_tool_package_path }}/bin/"
+        file_mode: 0755
+      include_tasks: copy_file_to_remote.yml
+    - name: pip install requests
+      ignore_errors: true
+      shell: sudo pip install requests
+      register: pip_requests_res
+    - name: pip2 install requests
+      shell: sudo pip2 install requests
+      when: pip_requests_res.failed
+  when: not install_with_deb | bool
