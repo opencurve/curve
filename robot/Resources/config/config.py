@@ -64,6 +64,7 @@ offline_timeout = 100
 vol_uuid = ""
 thrash_map = True
 thrash_thread = []
+recover_vol_md5 = ""
 #snapshot_test
 snap_server_list = ["10.182.26.25","10.182.26.16","10.182.26.17"]
 snap_version = '2019-08-01'
