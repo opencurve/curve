@@ -256,11 +256,6 @@ if [ $? -ne 0 ]
 then
     exit
 fi
-cp ./curve-ansible/roles/clean/files/recycle_chunks.sh build/curve-chunkserver/home/nbs
-if [ $? -ne 0 ]
-then
-    exit
-fi
 
 cp -r curve-sdk build/
 if [ $? -ne 0 ]
@@ -462,17 +457,7 @@ fi
 #then
 #	exit
 #fi
-mkdir -p build/curve-monitor/usr/bin
-if [ $? -ne 0 ]
-then
-    exit
-fi
 mkdir -p build/curve-monitor/etc/curve/monitor
-if [ $? -ne 0 ]
-then
-    exit
-fi
-cp monitor/curve-monitor.sh build/curve-monitor/usr/bin/curve-monitor.sh
 if [ $? -ne 0 ]
 then
     exit

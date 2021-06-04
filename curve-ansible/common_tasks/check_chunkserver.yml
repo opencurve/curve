@@ -103,10 +103,13 @@
     that:
       - firmware_version.stdout|version_compare('24.3.0-0050', '>=')
 
+- name: get chunkserver number
+  include_tasks: "get_chunkserver_number.yml"
+
 - name: check the disk schedule algorithm
   shell:  cat /sys/block/sd*/queue/scheduler  | grep "\[noop\]" | wc -l
   register: result
-  failed_when: result.stdout | int != chunkserver_num
+  failed_when: result.stdout | int < chunkserver_num | int
 
 - name: check if the disk cache closed
   shell:  sudo /sbin/hdparm -W /dev/sd*  | grep "write-caching"

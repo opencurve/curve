@@ -16,7 +16,7 @@
 #
 
 - name: start monitor
-  shell:  chdir={{ deploy_dir }} sudo ./curve-monitor.sh start
+  shell:  chdir={{ monitor_work_dir }} sudo ./curve-monitor.sh start
 
 - name: wait until prometheus is up
   vars:
