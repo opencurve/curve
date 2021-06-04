@@ -18,10 +18,5 @@
 - name: set curve_lib_dir
   include_tasks: "include/set_curve_lib_dir.yml"
 
-- name: install package with deb
-  include_tasks: "include/install_deb_package.yml"
-  when: install_with_deb | bool
-
-- name: install package without deb
+- name: install package
   include_tasks: "include/install_{{ package_name }}.yml"
-  when: not install_with_deb | bool

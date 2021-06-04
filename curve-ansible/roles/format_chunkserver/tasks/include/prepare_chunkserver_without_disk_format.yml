@@ -18,6 +18,9 @@
 - name: clear data dir
   shell: sudo rm -rf {{ chunkserver_data_dir }}/chunkserver*
 
+- name: get chunkserver number
+  include_tasks: "common_tasks/get_chunkserver_number.yml"
+
 - name: create data dir and log dir for each chunkserver
   vars:
     end_seq: "{{ chunkserver_num | int - 1}}"

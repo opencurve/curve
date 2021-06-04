@@ -15,6 +15,12 @@
 #  limitations under the License.
 #
 
+- name: install gcc
+  vars:
+    apt_lib_name: gcc
+    yum_lib_name: gcc
+  include_tasks: common_tasks/install_with_yum_apt.yml
+
 - name: get gcc version
   shell: gcc -dumpversion
   register: gcc_version
