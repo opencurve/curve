@@ -1,6 +1,6 @@
 ---
 #
-#  Copyright (c) 2020 NetEase Inc.
+#  Copyright (c) 2021 NetEase Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,22 +14,17 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-# The deploy playbook of Curve
+# Get chunkserver number
 
-- name: check_ansible_version
-  tags:
-    - always
-  import_playbook: check_ansible_version.yml
+- name: get chunkserver number not get disk automatically
+  set_fact:
+    chunkserver_num: "{{ disk_list | length }}"
+  when: not auto_get_disk_list | bool
 
-- name: stop nebd-server
-  import_playbook: stop_nebd_server.yml
-
-- name: clean nebd
-  hosts: client
-  gather_facts: no
-  any_errors_fatal: true
-  become: "{{ sudo_or_not | bool }}"
-  tags:
-    - prepare
-  roles:
-    - { role: clean, module_name: nebd }
+- name: get chunkserver number get disk automatically
+  block:
+    - shell: echo '{{ get_disk_list_cmd }} | wc -l'
+      register: result
+    - set_fact:
+        chunkserver_num: "{{ result.stdout }}"
+  when: auto_get_disk_list | bool

@@ -15,6 +15,9 @@
 #  limitations under the License.
 #
 
+- name: get chunkserver number
+  include_tasks: "common_tasks/get_chunkserver_number.yml"
+
 - name: clean chunkserver dat
   vars:
     end_seq: "{{ chunkserver_num | int - 1}}"

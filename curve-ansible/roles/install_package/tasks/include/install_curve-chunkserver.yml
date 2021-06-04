@@ -15,43 +15,45 @@
 #  limitations under the License.
 #
 
-- name: install libunwind
-  vars:
-    apt_lib_name: libunwind8
-    yum_lib_name: libunwind
-  include_tasks: common_tasks/install_with_yum_apt.yml
+- name: install package via deb
+  include_tasks: "install_deb_package.yml"
+  when: install_with_deb | bool
 
-- name: install libunwind-dev
-  vars:
-    apt_lib_name: libunwind8-dev
-    yum_lib_name: libunwind-devel
-  include_tasks: common_tasks/install_with_yum_apt.yml
-
-- name: install bzip2
-  vars:
-    apt_lib_name: bzip2
-    yum_lib_name: bzip2
-  include_tasks: common_tasks/install_with_yum_apt.yml
-
-- name: install jemalloc
-  vars:
-    lib_name: jemalloc
-    download_url: "{{ jemalloc_download_url }}"
-  include_tasks: install_jemalloc.yml
-
-- name: install psmisc
-  vars:
-    apt_lib_name: psmisc
-    yum_lib_name: psmisc
-  include_tasks: common_tasks/install_with_yum_apt.yml
-  when: chunkserver_format_disk | bool
-
-- name: install chunkserver bin
-  vars:
-    remote_dir_name: "{{ curve_bin_dir }}"
-    local_file_path: "{{ local_chunkserver_package_path }}/bin/"
-    file_mode: 0755
-  include_tasks: copy_file_to_remote.yml
+- name: install package via tar
+  block:
+    - name: install libunwind
+      vars:
+        apt_lib_name: libunwind8
+        yum_lib_name: libunwind
+      include_tasks: common_tasks/install_with_yum_apt.yml
+    - name: install libunwind-dev
+      vars:
+        apt_lib_name: libunwind8-dev
+        yum_lib_name: libunwind-devel
+      include_tasks: common_tasks/install_with_yum_apt.yml
+    - name: install bzip2
+      vars:
+        apt_lib_name: bzip2
+        yum_lib_name: bzip2
+      include_tasks: common_tasks/install_with_yum_apt.yml
+    - name: install jemalloc
+      vars:
+        lib_name: jemalloc
+        download_url: "{{ jemalloc_download_url }}"
+      include_tasks: install_jemalloc.yml
+    - name: install psmisc
+      vars:
+        apt_lib_name: psmisc
+        yum_lib_name: psmisc
+      include_tasks: common_tasks/install_with_yum_apt.yml
+      when: chunkserver_format_disk | bool
+    - name: install chunkserver bin
+      vars:
+        remote_dir_name: "{{ curve_bin_dir }}"
+        local_file_path: "{{ local_chunkserver_package_path }}/bin/"
+        file_mode: 0755
+      include_tasks: copy_file_to_remote.yml
+  when: not install_with_deb | bool
 
 - name: generate chunkserver_ctl.sh
   vars:
