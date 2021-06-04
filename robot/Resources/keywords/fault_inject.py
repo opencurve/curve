@@ -266,11 +266,26 @@ def run_rwio():
 #    assert rs[3] == 0,"start rwio fail"
     ssh.close()
 
-def write_full_disk(fio_size):
-    ori_cmd = "sudo fio -name=/dev/nbd0 -direct=1 -iodepth=32 -rw=write -ioengine=libaio -bs=1024k -size=%dG -numjobs=1 -time_based"%int(fio_size)
+def init_recover_disk(fio_size):
+    ori_cmd = "sudo fio -name=/dev/nbd2 -direct=1 -iodepth=32 -rw=write -ioengine=libaio -bs=1024k -size=%dG -numjobs=1 -time_based"%int(fio_size)
     ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[3] == 0,"write fio fail"
+    cmd = "sudo curve-nbd unmap cbd:pool1//recover_test_ >/dev/null 2>&1"
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    assert rs[3] == 0,"unmap recover fail：%s"%rs[2]
+    md5 = test_curve_stability_nbd.get_vol_md5("recover")
+    config.recover_vol_md5 = md5
+    cmd = "curve delete --filename /recover --user test"
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    assert rs[3] == 0,"delete /recover fail：%s"%rs[2]
+
+def recover_disk():
+    cmd = "sudo curve recover --user test --filename /recover"
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    assert rs[3] == 0,"recover file fail：%s"%rs[2]
+    md5 = test_curve_stability_nbd.get_vol_md5("recover")
+    assert md5 == config.recover_vol_md5,"Data is inconsistent after translation,md5 is %s,recover md5 is %s"%(config.recover_vol_md5,md5)
    
 def get_chunkserver_id(host,cs_id):
     client_host = config.client_list[0]
@@ -434,6 +449,10 @@ def map_nbd():
     cmd = "curve create --filename /vdbenchfile --length 10 --user test --stripeUnit %d  --stripeCount %d"%(random.choice(stripeUnit),random.choice(stripeCount))
     rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"create /vdbenchfile fail：%s"%rs[2]
+    #test recover recyclebin file
+    cmd = "curve create --filename /recover --length 10 --user test --stripeUnit %d  --stripeCount %d"%(random.choice(stripeUnit),random.choice(stripeCount))
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    assert rs[3] == 0,"create /recover fail：%s"%rs[2]
     time.sleep(3)
     cmd = "sudo curve-nbd map cbd:pool1//fiofile_test_ >/dev/null 2>&1"
     rs = shell_operator.ssh_exec(ssh, cmd)
@@ -441,6 +460,9 @@ def map_nbd():
     cmd = "sudo curve-nbd map cbd:pool1//vdbenchfile_test_ >/dev/null 2>&1"
     rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"map vdbenchfile fail：%s"%rs[2]
+    cmd = "sudo curve-nbd map cbd:pool1//recover_test_ >/dev/null 2>&1"
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    assert rs[3] == 0,"map recover fail：%s"%rs[2]
 
 def delete_nbd():
     client_host = config.client_list[0]
@@ -451,6 +473,9 @@ def delete_nbd():
     cmd = "curve delete --filename /vdbenchfile --user test"
     rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"delete /vdbenchfile fail：%s"%rs[2]
+    cmd = "curve delete --filename /recover --user test"
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    assert rs[3] == 0,"delete /recover fail：%s"%rs[2]
 
 def check_host_connect(ip):
     cmd = "ping %s -w3"%ip

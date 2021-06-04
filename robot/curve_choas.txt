@@ -123,7 +123,7 @@ init abnormal test env
 init rw cloud disk
      map nbd
      stop rwio
-     write full disk  ${fio_vdsize}
+#     write full disk  ${fio_vdsize}
      run rwio
      clean kernel log
 

@@ -544,11 +544,12 @@ init abnormal test env
 init rw cloud disk
      map nbd
      stop rwio
-#     write full disk  ${fio_vdsize}
+     init recover disk  ${fio_vdsize}
      run rwio
      clean kernel log
 
 clean failover env
+     recover disk
      stop rwio
      check io error
      stop scheduler
