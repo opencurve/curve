@@ -323,6 +323,32 @@ ApplyStatus ChangePeer::Apply(
     // configuration change undergoing, do nothing
     return ApplyStatus::OnGoing;
 }
+
+ApplyStatus StartScanPeer::Apply(const CopySetInfo &originInfo,
+                        CopySetConf *newConf) {
+    return ApplyStatus::OnGoing;
+    }
+
+std::string StartScanPeer::OperatorStepToString() {
+    return "";
+}
+
+ChunkServerIdType StartScanPeer::GetTargetPeer() const {
+    return scan_;
+}
+
+ApplyStatus CancelScanPeer::Apply(const CopySetInfo &originInfo,
+                        CopySetConf *newConf) {
+    return ApplyStatus::OnGoing;
+    }
+
+std::string CancelScanPeer::OperatorStepToString() {
+    return "";
+}
+
+ChunkServerIdType CancelScanPeer::GetTargetPeer() const {
+    return scan_;
+}
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

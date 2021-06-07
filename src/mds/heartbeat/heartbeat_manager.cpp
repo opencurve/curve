@@ -317,7 +317,7 @@ bool HeartbeatManager::FromHeartbeatCopySetInfoToTopologyOne(
 
     // set peers
     std::set<ChunkServerIdType> peers;
-    ChunkServerIdType leader;
+    ChunkServerIdType leader = UNINTIALIZE_ID;
     for (auto value : info.peers()) {
         ChunkServerIdType res = GetChunkserverIdByPeerStr(value.address());
         if (UNINTIALIZE_ID == res) {
