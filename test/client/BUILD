@@ -50,7 +50,8 @@ cc_test(
                 "libcurve_client_unittest.cpp",
                 "lease_executor_test.cpp",
                 "request_sender_test.cpp",
-                "mds_client_test.cpp"
+                "mds_client_test.cpp",
+                "client_mdsclient_metacache_unittest.cpp"
                 ]
     ),
     copts = COPTS,
@@ -341,4 +342,22 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "//test/client/mock:client_mock_lib"
     ],
+)
+
+cc_test(
+    name = "client_mdsclient_metacache_unittest",
+    srcs = [
+        "client_mdsclient_metacache_unittest.cpp"
+    ],
+    copts = COPTS,
+    defines = ["UNIT_TEST", "FIU_ENABLE"],
+    linkopts = ["-lfiu"],
+    deps = [
+        "//include/client:include_client",
+        "//src/client:curve_client",
+        "@com_google_googletest//:gtest",
+        "//test/client/fake:fake_lib",
+        "//test/integration/cluster_common:integration_cluster_common",
+        "//test/client/mock:client_mock_lib",
+    ]
 )

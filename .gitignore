@@ -79,3 +79,6 @@ runlog/
 
 # mac
 .DS_Store
+
+test/client/configs/*
+!test/client/configs/.gitkeep

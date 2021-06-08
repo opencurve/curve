@@ -326,7 +326,7 @@ TEST(ClientSession, LeaseTaskTest) {
 std::string mdsMetaServerAddr = "127.0.0.1:9101";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
-std::string configpath = "./test/client/client_session.conf";   // NOLINT
+std::string configpath = "./test/client/configs/client_session.conf";   // NOLINT
 
 const std::vector<std::string> clientConf {
     std::string("mds.listen.addr=127.0.0.1:9101,127.0.0.1:9102"),

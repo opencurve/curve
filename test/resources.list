@@ -49,6 +49,8 @@ Used port list:
 
     mds_client_test : 9600, 9601
 
+    client_mdsclient_metacache_unittest: 29104, 29120, 29121, 29122, 29123, 29124,
+
 # mds & snapshotcloneserver
     use port : 8900~8999, 8888
     use port(xuchaojie) : 8900~8999
