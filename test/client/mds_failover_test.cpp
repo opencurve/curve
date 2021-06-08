@@ -303,7 +303,7 @@ const std::vector<std::string> registConfON {
 std::string mdsMetaServerAddr = "127.0.0.1:9903,127.0.0.1:9904,127.0.0.1:9905";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
-std::string configpath = "./test/client/mds_failover.conf";   // NOLINT
+std::string configpath = "./test/client/configs/mds_failover.conf";   // NOLINT
 int main(int argc, char ** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);

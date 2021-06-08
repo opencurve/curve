@@ -51,12 +51,13 @@
 #include "src/common/net_common.h"
 #include "test/integration/cluster_common/cluster.h"
 #include "test/util/config_generator.h"
-// #include "test/client/mock_curvefs_service.h"
 #include "test/client/mock/mock_namespace_service.h"
 
-extern std::string mdsMetaServerAddr;
-extern uint32_t chunk_size;
-extern std::string configpath;
+uint32_t chunk_size = 4 * 1024 * 1024;
+uint32_t segment_size = 1 * 1024 * 1024 * 1024;
+std::string mdsMetaServerAddr = "127.0.0.1:29104";  // NOLINT
+std::string configpath = "./test/client/configs/client_mdsclient_metacache.conf";  // NOLINT
+
 extern curve::client::FileClient* globalclient;
 
 namespace curve {
@@ -72,8 +73,8 @@ using curve::mds::topology::OnlineState;
 class MDSClientTest : public ::testing::Test {
  public:
     void SetUp() {
-        metaopt.mdsAddrs.push_back("127.0.0.1:9104");
-        metaopt.mdsAddrs.push_back("127.0.0.1:9104");
+        metaopt.mdsAddrs.push_back("127.0.0.1:29104");
+        metaopt.mdsAddrs.push_back("127.0.0.1:29104");
 
         metaopt.mdsMaxRetryMS = 1000;
         metaopt.mdsRPCTimeoutMs = 500;
@@ -102,7 +103,7 @@ class MDSClientTest : public ::testing::Test {
         serverinfo->set_disktype("nvme");
         serverinfo->set_hostip("10.182.26.2");
         serverinfo->set_externalip("127.0.0.1");
-        serverinfo->set_port(9124);
+        serverinfo->set_port(29124);
         serverinfo->set_status(ChunkServerStatus::RETIRED);
         serverinfo->set_diskstatus(DiskState::DISKNORMAL);
         serverinfo->set_onlinestate(OnlineState::ONLINE);
@@ -1156,6 +1157,8 @@ TEST_F(MDSClientTest, GetServerList) {
 }
 
 TEST_F(MDSClientTest, GetLeaderTest) {
+    LOG(INFO) << "GetLeaderTest started";
+
     brpc::Server chunkserver1;
     brpc::Server chunkserver2;
     brpc::Server chunkserver3;
@@ -1167,41 +1170,41 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     FakeCliService cliservice4;
 
     if (chunkserver1.AddService(&cliservice1,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(FATAL) << "Fail to add service";
+                                brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        ASSERT_TRUE(false) << "Fail to add service";
     }
 
     if (chunkserver2.AddService(&cliservice2,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(FATAL) << "Fail to add service";
+                                brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        ASSERT_TRUE(false) << "Fail to add service";
     }
 
     if (chunkserver3.AddService(&cliservice3,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(FATAL) << "Fail to add service";
+                                brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        ASSERT_TRUE(false) << "Fail to add service";
     }
 
     if (chunkserver4.AddService(&cliservice4,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(FATAL) << "Fail to add service";
+                                brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        ASSERT_TRUE(false) << "Fail to add service";
     }
 
     brpc::ServerOptions options;
     options.idle_timeout_sec = -1;
-    if (chunkserver1.Start("127.0.0.1:9120", &options) != 0) {
-        LOG(ERROR) << "Fail to start Server";
+    if (chunkserver1.Start("127.0.0.1:29120", &options) != 0) {
+        ASSERT_TRUE(false) << "Fail to start Server";
     }
 
-    if (chunkserver2.Start("127.0.0.1:9121", &options) != 0) {
-        LOG(ERROR) << "Fail to start Server";
+    if (chunkserver2.Start("127.0.0.1:29121", &options) != 0) {
+        ASSERT_TRUE(false) << "Fail to start Server";
     }
 
-    if (chunkserver3.Start("127.0.0.1:9122", &options) != 0) {
-        LOG(ERROR) << "Fail to start Server";
+    if (chunkserver3.Start("127.0.0.1:29122", &options) != 0) {
+        ASSERT_TRUE(false) << "Fail to start Server";
     }
 
-    if (chunkserver4.Start("127.0.0.1:9123", &options) != 0) {
-        LOG(ERROR) << "Fail to start Server";
+    if (chunkserver4.Start("127.0.0.1:29123", &options) != 0) {
+        ASSERT_TRUE(false) << "Fail to start Server";
     }
 
     curve::client::MetaCache mc;
@@ -1210,19 +1213,19 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     curve::client::CopysetInfo cslist;
 
     curve::client::ChunkServerAddr pd1;
-    pd1.Parse("10.182.26.2:9120:0");
+    pd1.Parse("10.182.26.2:29120:0");
     curve::client::ChunkServerAddr pd2;
-    pd2.Parse("127.0.0.1:9120:0");
+    pd2.Parse("127.0.0.1:29120:0");
     curve::client::CopysetPeerInfo peerinfo_1(1, pd1, pd2);
     cslist.AddCopysetPeerInfo(peerinfo_1);
 
-    pd1.addr_.port = 9121;
-    pd2.addr_.port = 9121;
+    pd1.addr_.port = 29121;
+    pd2.addr_.port = 29121;
     curve::client::CopysetPeerInfo peerinfo_2(2, pd1, pd2);
     cslist.AddCopysetPeerInfo(peerinfo_2);
 
-    pd1.addr_.port = 9122;
-    pd2.addr_.port = 9122;
+    pd1.addr_.port = 29122;
+    pd2.addr_.port = 29122;
     curve::client::CopysetPeerInfo peerinfo_3(3, pd1, pd2);
     cslist.AddCopysetPeerInfo(peerinfo_3);
 
@@ -1245,11 +1248,11 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     cliservice2.CleanInvokeTimes();
     cliservice3.CleanInvokeTimes();
 
-    ASSERT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, true));
-    ASSERT_EQ(ckid, 3);
+    EXPECT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, true));
+    EXPECT_EQ(ckid, 3);
     curve::client::EndPoint expected;
-    butil::str2endpoint("127.0.0.1", 9122, &expected);
-    ASSERT_EQ(expected, leaderep);
+    butil::str2endpoint("127.0.0.1", 29122, &expected);
+    EXPECT_EQ(expected, leaderep);
 
     // 测试拉取新leader失败，需要到mds重新fetch新的serverlist
     // 当前新leader是3，尝试再刷新leader，这个时候会从1， 2获取leader
@@ -1274,7 +1277,7 @@ TEST_F(MDSClientTest, GetLeaderTest) {
         cslocs->set_chunkserverid(chunkserveridc++);
         cslocs->set_hostip("10.182.26.2");
         cslocs->set_externalip("127.0.0.1");
-        cslocs->set_port(9120 + i);
+        cslocs->set_port(29120 + i);
     }
 
     FakeReturn* faktopologyeret = new FakeReturn(nullptr,
@@ -1286,14 +1289,14 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     cliservice3.CleanInvokeTimes();
 
     // 向当前集群中拉取leader，然后会从mds一侧获取新server list
-    ASSERT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, true));
+    EXPECT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, true));
 
     // getleader请求会跳过当前leader
-    ASSERT_EQ(0, cliservice3.GetInvokeTimes());
+    EXPECT_EQ(0, cliservice3.GetInvokeTimes());
 
     // 因为从mds获取新的copyset信息了，所以其leader信息被重置了，需要重新获取新leader
     // 获取新新的leader，这时候会从1，2，3，4这四个server拉取新leader，并成功获取新leader
-    std::string leader = "10.182.26.2:9123:0";
+    std::string leader = "10.182.26.2:29123:0";
     peer1 = new curve::common::Peer();
     peer1->set_address(leader);
     peer1->set_id(4321);
@@ -1306,9 +1309,9 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     cliservice4.SetFakeReturn(&fakeret1);
 
     LOG(INFO) << "get leader test for nameing service";
-    ASSERT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, true));
-    butil::str2endpoint("127.0.0.1", 9123, &expected);
-    ASSERT_EQ(expected, leaderep);
+    EXPECT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, true));
+    butil::str2endpoint("127.0.0.1", 29123, &expected);
+    EXPECT_EQ(expected, leaderep);
 
     cliservice1.CleanInvokeTimes();
     cliservice2.CleanInvokeTimes();
@@ -1316,17 +1319,17 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     cliservice4.CleanInvokeTimes();
 
     // refresh为false，所以只会从metacache中获取，不会发起rpc请求
-    ASSERT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, false));
-    ASSERT_EQ(expected, leaderep);
-    ASSERT_EQ(0, cliservice1.GetInvokeTimes());
-    ASSERT_EQ(0, cliservice2.GetInvokeTimes());
-    ASSERT_EQ(0, cliservice3.GetInvokeTimes());
-    ASSERT_EQ(0, cliservice4.GetInvokeTimes());
+    EXPECT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, false));
+    EXPECT_EQ(expected, leaderep);
+    EXPECT_EQ(0, cliservice1.GetInvokeTimes());
+    EXPECT_EQ(0, cliservice2.GetInvokeTimes());
+    EXPECT_EQ(0, cliservice3.GetInvokeTimes());
+    EXPECT_EQ(0, cliservice4.GetInvokeTimes());
 
     // 测试新增一个leader，该节点不在配置组内, 然后通过向mds
     // 查询其chunkserverInfo之后, 将其成功插入metacache
     curve::common::Peer *peer7 = new curve::common::Peer();
-    leader = "10.182.26.2:9124:0";
+    leader = "10.182.26.2:29124:0";
     peer7->set_address(leader);
     response1.set_allocated_leader(peer7);
     FakeReturn fakeret44(nullptr, static_cast<void*>(&response1));
@@ -1342,10 +1345,10 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
 
     CopysetInfo cpinfo = mc.GetServerList(1234, 1234);
-    ASSERT_EQ(cpinfo.csinfos_.size(), 5);
+    EXPECT_EQ(cpinfo.csinfos_.size(), 5);
     curve::client::CopysetPeerInfo cpeer;
-    cpeer.internalAddr.Parse("10.182.26.2:9124:0");
-    cpeer.externalAddr.Parse("127.0.0.1:9124:0");
+    cpeer.internalAddr.Parse("10.182.26.2:29124:0");
+    cpeer.externalAddr.Parse("127.0.0.1:29124:0");
     auto it = std::find(cpinfo.csinfos_.begin(), cpinfo.csinfos_.end(), cpeer);
     ASSERT_NE(it, cpinfo.csinfos_.end());
 
@@ -1357,6 +1360,8 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     chunkserver3.Join();
     chunkserver4.Stop(0);
     chunkserver4.Join();
+
+    LOG(INFO) << "GetLeaderTest stopped";
 }
 
 
@@ -1975,7 +1980,7 @@ class ServiceHelperGetLeaderTest : public MDSClientTest {
     static const int kLogicPoolId = 1234;
     static const int kCopysetId = 1234;
 
-    std::vector<int> chunkserverPorts{9120, 9121, 9122};
+    std::vector<int> chunkserverPorts{29120, 29121, 29122};
     brpc::Server chunkServers[kChunkServerNum];
     FakeCliService fakeCliServices[kChunkServerNum];
 
@@ -2384,3 +2389,33 @@ TEST_F(MDSClientRefreshSessionTest, NoStartDummyServerTest) {
 
 }  // namespace client
 }  // namespace curve
+
+const std::vector<std::string> clientConf {
+    std::string("mds.listen.addr=") + mdsMetaServerAddr,
+    std::string("global.logPath=./runlog/"),
+    std::string("chunkserver.rpcTimeoutMS=1000"),
+    std::string("chunkserver.opMaxRetry=3"),
+    std::string("metacache.getLeaderRetry=3"),
+    std::string("metacache.getLeaderTimeOutMS=1000"),
+    std::string("global.fileMaxInFlightRPCNum=2048"),
+    std::string("metacache.rpcRetryIntervalUS=500"),
+    std::string("mds.rpcRetryIntervalUS=500"),
+    std::string("schedule.threadpoolSize=2"),
+    std::string("throttle.enable=true"),
+};
+
+int main(int argc, char* argv[]) {
+    ::testing::InitGoogleTest(&argc, argv);
+    ::testing::InitGoogleMock(&argc, argv);
+
+    FLAGS_log_dir = "./runlog";
+    google::InitGoogleLogging(argv[0]);
+    google::ParseCommandLineFlags(&argc, &argv, false);
+
+    std::unique_ptr<curve::CurveCluster> cluster(new curve::CurveCluster());
+
+    cluster->PrepareConfig<curve::ClientConfigGenerator>(
+        configpath, clientConf);
+
+    return RUN_ALL_TESTS();
+}
