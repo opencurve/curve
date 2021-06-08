@@ -237,7 +237,7 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
         stats->set_writeiops(writeMetric->iops_.get_value(1));
     }
     CopysetNodeOptions opt = copysetMan_->GetCopysetNodeOptions();
-    uint64_t chunkFileSize = opt.maxChunkSize;
+    uint64_t chunkFileSize = opt.maxChunkSize + opt.pageSize;
     uint64_t walSegmentFileSize = opt.maxWalSegmentSize;
     uint64_t usedChunkSize = metric->GetTotalSnapshotCount() * chunkFileSize
                            + metric->GetTotalChunkCount() * chunkFileSize;

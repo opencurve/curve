@@ -539,6 +539,8 @@ void ChunkServer::InitCopysetNodeOptions(
         &copysetNodeOptions->recyclerUri));
     LOG_IF(FATAL, !conf->GetUInt32Value("global.chunk_size",
         &copysetNodeOptions->maxChunkSize));
+    LOG_IF(FATAL, !conf->GetUInt32Value("global.meta_page_size",
+        &copysetNodeOptions->pageSize));
     LOG_IF(FATAL, !conf->GetUInt32Value("global.location_limit",
         &copysetNodeOptions->locationLimit));
     LOG_IF(FATAL, !conf->GetUInt32Value("copyset.load_concurrency",
