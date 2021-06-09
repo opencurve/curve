@@ -282,6 +282,7 @@ def init_recover_disk(fio_size):
 
 def recover_disk():
     cmd = "sudo curve recover --user test --filename /recover"
+    ssh = shell_operator.create_ssh_connect(config.client_list[0], 1046, config.abnormal_user)
     rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"recover file fail：%s"%rs[2]
     md5 = test_curve_stability_nbd.get_vol_md5("recover")
@@ -1310,6 +1311,14 @@ def test_start_snap():
                 raise Exception("client io is slow, = %d more than 5s" % (end_iops))
     except Exception as e:
         raise 
+
+def test_start_nginx():
+    client_host = config.client_list[0]
+    logger.info("|------begin start nginx,host %s------|"%(client_host))
+    cmd = "sudo docker start 5ac540f1608d"
+    ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    assert rs[3] == 0,"start nginx docker fail %s"%rs[1]
 
 def start_snap_process(host):
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
