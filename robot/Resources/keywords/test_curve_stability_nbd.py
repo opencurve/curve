@@ -402,9 +402,9 @@ def diff_vol_consistency(vol_uuid,clone_uuid):
         logger2.error("check md5 consistency fail ,vol is %s,clone vol is %s"%(vol_uuid,clone_uuid))
 #    if config.snapshot_thrash.check_md5 == True:
 #   have added clean chunk feature 
-    assert context1 == context2,"vol and clone vol not same"
+        assert context1 == context2,"vol and clone vol not same"
     else:
-        logger2.info("do not get md5")
+        logger2.info("md5 is consistent")
         return True
 
 def init_nbd_vol(check_md5=True,lazy="True"):

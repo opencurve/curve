@@ -438,6 +438,8 @@ test ipmitool restart client node
    check nbd iops
    check data consistency
    test start mds
+   test start snap
+   test start nginx
    [Teardown]    wait cluster healthy   ${vm_iops_limit}
 
 inject kill all mds
@@ -488,6 +490,14 @@ inject all chunkserver down 10min
     check data consistency
 #    check copies consistency
     [Teardown]   wait cluster healthy    ${vm_iops_limit}
+
+check all data consistency
+    [Tags]    P1    base    first release   failover  
+     recover disk
+     stop rwio
+     check io error
+     stop scheduler
+     check copies consistency
 
 test clone vol
     [Tags]    P1    base    first release   failover  snapshot  no-need
@@ -548,17 +558,17 @@ init rw cloud disk
      run rwio
      clean kernel log
 
-clean failover env
-     recover disk
-     stop rwio
-     check io error
-     stop scheduler
-     check copies consistency
-     clean nbd
-     delete nbd
+clean curve
+     Run Keyword If All Tests Passed   
+     Run Keyword If All Tests Passed     clean nbd
+     Run Keyword If All Tests Passed     delete nbd
      sleep  10
-     clear RecycleBin
-     recycle chunk
+     Run Keyword If All Tests Passed     clear RecycleBin
+     Run Keyword If All Tests Passed      recycle chunk
+
+
+clean failover env
+     clean curve
      sleep  60 
      ${final_num}    get all chunk num
      ${final_num}    Convert To Integer   ${final_num}
