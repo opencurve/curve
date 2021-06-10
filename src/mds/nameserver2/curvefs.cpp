@@ -309,8 +309,11 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         fileInfo.set_stripeunit(stripeUnit);
         fileInfo.set_stripecount(stripeCount);
 
-        fileInfo.set_allocated_throttleparams(
-            new FileThrottleParams(GenerateThrottleParams(length)));
+        if (filetype == FileType::INODE_PAGEFILE) {
+            fileInfo.set_allocated_throttleparams(
+                new FileThrottleParams(GenerateThrottleParams(length)));
+        }
+
         ret = PutFile(fileInfo);
         return ret;
     }

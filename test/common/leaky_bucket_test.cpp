@@ -168,7 +168,7 @@ TEST(LeakyBucketTest, TestDynamicDecreaseLimit) {
 
     uint64_t expected = 7500;
     ASSERT_GE(count, expected * 0.9);
-    ASSERT_LE(count, expected * 1.1);
+    ASSERT_LE(count, expected * 1.2);
 }
 
 TEST(LeakyBucketTest, TestSetLimit) {
