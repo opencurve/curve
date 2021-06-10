@@ -34,10 +34,6 @@ CURVEFS_ERROR DentryCacheManager::GetDentry(
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR DentryCacheManager::UpdateDentry(const Dentry &dentry) {
-    return CURVEFS_ERROR::OK;
-}
-
 CURVEFS_ERROR DentryCacheManager::CreateDentry(const Dentry &dentry) {
     return CURVEFS_ERROR::OK;
 }

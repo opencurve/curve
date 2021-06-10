@@ -36,7 +36,21 @@ struct BlockDeviceClientOptions {
 };
 
 struct MdsOption {
+    std::string mdsaddr;
+    uint64_t rpcTimeoutMs;
 };
+
+
+struct MetaServerOption {
+    std::string msaddr;
+    uint64_t rpcTimeoutMs;
+};
+
+struct SpaceAllocServerOption {
+    std::string spaceaddr;
+    uint64_t rpcTimeoutMs;
+};
+
 
 }  // namespace client
 }  // namespace curvefs

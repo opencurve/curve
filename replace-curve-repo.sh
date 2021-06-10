@@ -29,3 +29,5 @@ sed -i "s;https://github.com/open-source-parsers/jsoncpp.git;https://gitee.com/m
 # aws
 sed -i "s;https://github.com/aws/aws-sdk-cpp/archive/1.7.340.tar.gz;https://curve-build.nos-eastchina1.126.net/aws-sdk-cpp-1.7.340.tar.gz;g" WORKSPACE
 
+# glog
+sed -i "s;https://github.com/google/glog;https://gitee.com/mirrors/glog;g" WORKSPACE

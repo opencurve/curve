@@ -32,6 +32,7 @@ cc_binary(
     deps = [
         "//external:brpc",
         "//external:glog",
+        "//external:gflags",
         "//curvefs/proto:metaserver_cc_proto",
         "//curvefs/proto:mds_cc_proto",
         "//curvefs/proto:space_cc_proto",
@@ -57,6 +58,7 @@ cc_library(
     deps = [
         "//external:brpc",
         "//external:glog",
+        "//external:gflags",
         "//curvefs/proto:metaserver_cc_proto",
         "//curvefs/proto:mds_cc_proto",
         "//curvefs/proto:space_cc_proto",

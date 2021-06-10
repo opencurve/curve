@@ -56,25 +56,25 @@ cc_test(
     ],
 )
 
-#cc_binary(
-#    name = "fuse_client_test",
-#    srcs = glob([
-#        "*.cpp",
-#        "*.c",
-#        "*.h"],
-#        exclude = [ "block_device_client_test.cpp" ]
-#    ),
-#    copts = ["-I/usr/local/include/fuse3",
-#             "-L/usr/local/lib/x86_64-linux-gnu"],
-#    deps = [
-#        "//external:gtest",
-#        "//curvefs/src/client:fuse_client_lib",
-#        "//curvefs/proto:metaserver_cc_proto",
-#        "//curvefs/proto:mds_cc_proto",
-#        "//curvefs/proto:space_cc_proto",
-#    ],
-#    linkopts = ["-lfuse3",
-#                "-lpthread",
-#                "-L/usr/local/lib/x86_64-linux-gnu"],
-#    visibility = ["//visibility:public"],
-#)
+cc_binary(
+   name = "fuse_client_test",
+   srcs = glob([
+       "*.cpp",
+       "*.c",
+       "*.h"],
+       exclude = [ "block_device_client_test.cpp" ]
+   ),
+   copts = ["-I/usr/local/include/fuse3",
+            "-L/usr/local/lib/x86_64-linux-gnu"],
+   deps = [
+       "//external:gtest",
+       "//curvefs/src/client:fuse_client_lib",
+       "//curvefs/proto:metaserver_cc_proto",
+       "//curvefs/proto:mds_cc_proto",
+       "//curvefs/proto:space_cc_proto",
+   ],
+   linkopts = ["-lfuse3",
+               "-lpthread",
+               "-L/usr/local/lib/x86_64-linux-gnu"],
+   visibility = ["//visibility:public"],
+)

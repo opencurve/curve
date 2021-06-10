@@ -23,7 +23,7 @@ option cc_generic_services = true;
 enum SpaceStatusCode {
     SPACE_UNKNOWN_ERROR = 0;
     SPACE_OK = 1;
-    SPACE_NOSPACE = 2;
+    SPACE_NO_SPACE = 2;
     SPACE_NOT_FOUND = 3;
     SPACE_EXISTS = 4;
     SPACE_RELOAD_ERROR = 5;
