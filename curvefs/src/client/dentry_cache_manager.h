@@ -43,8 +43,6 @@ class DentryCacheManager {
     CURVEFS_ERROR GetDentry(uint64_t parent,
         const std::string &name, Dentry *out);
 
-    CURVEFS_ERROR UpdateDentry(const Dentry &dentry);
-
     CURVEFS_ERROR CreateDentry(const Dentry &dentry);
 
     CURVEFS_ERROR DeleteDentry(uint64_t parent, const std::string &name);

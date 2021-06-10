@@ -24,6 +24,7 @@
 #ifndef CURVEFS_SRC_CLIENT_EXTENT_H_
 #define CURVEFS_SRC_CLIENT_EXTENT_H_
 
+
 struct ExtentAllocInfo {
     uint64_t lOffset;
     uint64_t len;
