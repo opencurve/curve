@@ -40,6 +40,10 @@ std::once_flag LeakyBucket::initTimerThreadOnce_;
 bthread::TimerThread LeakyBucket::timer_;
 
 double LeakyBucket::Bucket::Add(double tokens) {
+    if (avg == 0) {
+        return 0;
+    }
+
     double available = 0;
 
     if (burst > 0) {
@@ -76,6 +80,12 @@ double LeakyBucket::Bucket::Add(double tokens) {
 }
 
 void LeakyBucket::Bucket::Leak(uint64_t intervalUs) {
+    if (avg == 0) {
+        level = 0;
+        burstLevel = 0;
+        return;
+    }
+
     double leak = static_cast<double>(avg) * intervalUs /
                   TimeUtility::MicroSecondsPerSecond;
     level = std::max(level - leak, 0.0);
@@ -89,6 +99,9 @@ void LeakyBucket::Bucket::Leak(uint64_t intervalUs) {
 
 void LeakyBucket::Bucket::Reset(uint64_t avg, uint64_t burst,
                                 uint64_t burstLength) {
+    level = 0;
+    burstLevel = 0;
+
     this->avg = avg;
     this->burst = burst;
     this->burstLength = burstLength;
@@ -214,7 +227,6 @@ void LeakyBucket::Leak() {
 
         while (!pendings_.empty()) {
             auto& request = pendings_.front();
-            // LOG(INFO) << "In leak, add " << request.left;
             double left = bucket_.Add(request.left);
             if (left > 0.0) {
                 request.left = left;

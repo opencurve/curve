@@ -221,6 +221,51 @@ TEST_F(CurveFSTest, testCreateFile1) {
                 FileType::INODE_PAGEFILE, kMiniFileLength, 0, 0);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
+
+    // test only directory doesn't have throttle parameters
+    {
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        FileInfo fileInfo;
+        EXPECT_CALL(*storage_, PutFile(_))
+            .WillOnce(DoAll(
+                SaveArg<0>(&fileInfo),
+                Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
+            .Times(1)
+            .WillOnce(Return(true));
+
+        auto statusCode = curvefs_->CreateFile(
+            "/dir1", "owner1", FileType::INODE_DIRECTORY, 0, 0, 0);
+        ASSERT_EQ(statusCode, StatusCode::kOK);
+        ASSERT_FALSE(fileInfo.has_throttleparams());
+    }
+
+    // test pagefile has throttle parameters
+    {
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        FileInfo fileInfo;
+        EXPECT_CALL(*storage_, PutFile(_))
+            .WillOnce(DoAll(
+                SaveArg<0>(&fileInfo),
+                Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
+            .Times(1)
+            .WillOnce(Return(true));
+
+        auto statusCode =
+            curvefs_->CreateFile("/file1", "owner1", FileType::INODE_PAGEFILE,
+                                 kMiniFileLength, 0, 0);
+        ASSERT_EQ(statusCode, StatusCode::kOK);
+        ASSERT_TRUE(fileInfo.has_throttleparams());
+    }
 }
 
 TEST_F(CurveFSTest, testCreateStripeFile) {
