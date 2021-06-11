@@ -23,7 +23,7 @@
 
 - name: get chunkserver number get disk automatically
   block:
-    - shell: echo '{{ get_disk_list_cmd }} | wc -l'
+    - shell: '{{ get_disk_list_cmd }} | wc -l'
       register: result
     - set_fact:
         chunkserver_num: "{{ result.stdout }}"
