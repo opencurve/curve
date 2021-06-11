@@ -49,7 +49,7 @@
     - name: wait nebd-server is down
       shell: pidof nebd-server
       register: pid
-      failed_when: result.stdout == ""
+      failed_when: pid.stdout != ""
       when: service_port == 0
     - name: start service without daemon
       shell: >
@@ -68,5 +68,5 @@
 - name: wait nebd-server is up
   shell: pidof nebd-server
   register: pid
-  failed_when: result.stdout == ""
+  failed_when: pid.stdout == ""
   when: service_port == 0
