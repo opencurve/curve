@@ -15,18 +15,18 @@
  */
 
 syntax="proto2";
-import "curvefs/proto/common.proto";
 import "curvefs/proto/mds.proto";
 package curvefs.space;
 option cc_generic_services = true;
 
 enum SpaceStatusCode {
-    SPACE_UNKNOWN_ERROR = 0;
-    SPACE_OK = 1;
+    SPACE_OK = 0;
+    SPACE_UNKNOWN_ERROR = 1;
     SPACE_NO_SPACE = 2;
     SPACE_NOT_FOUND = 3;
     SPACE_EXISTS = 4;
     SPACE_RELOAD_ERROR = 5;
+    SPACE_DEALLOC_ERROR = 6;
 }
 
 // space interface
@@ -96,15 +96,6 @@ message UnInitSpaceResponse {
     required SpaceStatusCode status = 1;
 }
 
-message AllocateS3ChunkRequest {
-    required uint32 fsId = 1;
-}
-
-message AllocateS3ChunkResponse {
-   required SpaceStatusCode status = 1;  // 状态码
-   required uint64 chunkId = 2;
-}
-
 service SpaceAllocService {
     // space interface
     rpc InitSpace(InitSpaceRequest) returns (InitSpaceResponse);
@@ -112,5 +103,4 @@ service SpaceAllocService {
     rpc DeallocateSpace(DeallocateSpaceRequest) returns (DeallocateSpaceResponse);
     rpc StatSpace(StatSpaceRequest) returns (StatSpaceResponse);
     rpc UnInitSpace(UnInitSpaceRequest) returns (UnInitSpaceResponse);
-    rpc AllocateS3Chunk(AllocateS3ChunkRequest) returns (AllocateS3ChunkResponse);
 }
