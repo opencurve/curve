@@ -25,16 +25,21 @@
 #define CURVEFS_SRC_CLIENT_BLOCK_DEVICE_CLIENT_H_
 
 #include <memory>
+#include <utility>
 
 #include "src/client/client_common.h"
 #include "src/client/libcurve_file.h"
 #include "curvefs/src/client/config.h"
 #include "curvefs/src/client/error_code.h"
 
-using ::curve::client::FileClient;
-
 namespace curvefs {
 namespace client {
+
+#define CURVE_ALIGN(d, a) (((d) + (a - 1)) & ~(a - 1))
+
+using ::curve::client::FileClient;
+
+using Range = std::pair<off_t, off_t>;
 
 class BlockDeviceClient {
  public:
@@ -43,51 +48,49 @@ class BlockDeviceClient {
 
     /**
      * @brief Initailize client
-     *
-     * @return error code
+     * @param[in] options the options for client
+     * @return error code (CURVEFS_ERROR:*)
      */
-    virtual CURVEFS_ERROR Init(const BlockDeviceClientOptions &options) = 0;
+    virtual CURVEFS_ERROR Init(const BlockDeviceClientOptions& options) = 0;
 
     /**
      * @brief Uninitailize client
-     *
-     * @return error code
+     * @return error code (CURVEFS_ERROR:*)
      */
     virtual CURVEFS_ERROR UnInit() = 0;
 
     /**
-     * @brief read
-     *
-     * @param buf read buffer
-     * @param offset read start offset
-     * @param length read length
-     *
-     * @return error code
+     * @brief Read from fd which init by Init()
+     * @param[in] buf read buffer
+     * @param[in] offset read start offset
+     * @param[in] length read length
+     * @return error code (CURVEFS_ERROR:*)
+     * @note the offset and length maybe not aligned
      */
     virtual CURVEFS_ERROR Read(char* buf, off_t offset, size_t length) = 0;
 
-
     /**
-     * @brief write
-     *
-     * @param fd file descriptor
-     * @param buf write buffer
-     * @param offset write start offset
-     * @param length write length
-     *
-     * @return error code
+     * @brief Write to fd which init by Init()
+     * @param[in] buf write buffer
+     * @param[in] offset write start offset
+     * @param[in] length write length
+     * @return error code (CURVEFS_ERROR:*)
+     * @note the offset and length maybe not aligned
      */
     virtual CURVEFS_ERROR Write(
-        const char* buf, off_t offset, size_t length) = 0;
+       const char* buf, off_t offset, size_t length) = 0;
 };
 
 class BlockDeviceClientImpl : public BlockDeviceClient {
  public:
-    explicit BlockDeviceClientImpl(std::shared_ptr<FileClient> fileClient) :
-        fileClient_(fileClient) {}
+    explicit BlockDeviceClientImpl(std::shared_ptr<FileClient> fileClient)
+        : fileClient_(fileClient) {}
+
+    BlockDeviceClientImpl() = default;
+
     virtual ~BlockDeviceClientImpl() {}
 
-    CURVEFS_ERROR Init(const BlockDeviceClientOptions &options) override;
+    CURVEFS_ERROR Init(const BlockDeviceClientOptions& options) override;
 
     CURVEFS_ERROR UnInit() override;
 
@@ -96,9 +99,23 @@ class BlockDeviceClientImpl : public BlockDeviceClient {
     CURVEFS_ERROR Write(const char* buf, off_t offset, size_t length) override;
 
  private:
-    std::shared_ptr<FileClient> fileClient_;
-    bool isOpen_;
+    CURVEFS_ERROR WritePadding(char* writeBuffer, off_t writeStart,
+                               off_t writeEnd, off_t offset, size_t length);
+
+    CURVEFS_ERROR AlignRead(char* buf, off_t offset, size_t length);
+
+    CURVEFS_ERROR AlignWrite(const char* buf, off_t offset, size_t length);
+
+    bool IsAligned(off_t offset, size_t length);
+
+    Range CalcAlignRange(off_t start, off_t end);
+
+ private:
     uint64_t fd_;
+
+    bool isOpen_;
+
+    std::shared_ptr<FileClient> fileClient_;
 };
 
 }  // namespace client
