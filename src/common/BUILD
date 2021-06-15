@@ -34,6 +34,21 @@ COPTS = [
 ]
 
 cc_library(
+    name = "bitmap",
+    srcs = [
+        "bitmap.cpp",
+    ],
+    hdrs = [
+        "bitmap.h"
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:glog",
+    ],
+    copts = COPTS,
+)
+
+cc_library(
     name = "curve_common",
     srcs = glob([
         "*.h",
@@ -74,9 +89,6 @@ cc_library(
     ]),
     copts = COPTS,
     visibility = ["//visibility:public"],
-    deps = [
-        "//external:glog",
-    ],
 )
 
 cc_library(
