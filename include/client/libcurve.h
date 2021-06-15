@@ -442,13 +442,17 @@ typedef struct UserInfo {
 
     UserInfo() = default;
 
-    UserInfo(const std::string& own, const std::string& pwd)
+    UserInfo(const std::string& own, const std::string& pwd = "")
       : owner(own), password(pwd) {}
 
     bool Valid() const {
         return !owner.empty();
     }
 } UserInfo_t;
+
+inline bool operator==(const UserInfo& lhs, const UserInfo& rhs) {
+    return lhs.owner == rhs.owner && lhs.password == rhs.password;
+}
 
 class CurveClient {
  public:

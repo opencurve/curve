@@ -30,7 +30,6 @@
 namespace curvefs {
 namespace client {
 
-
 struct BlockDeviceClientOptions {
     // config path
     std::string configPath;

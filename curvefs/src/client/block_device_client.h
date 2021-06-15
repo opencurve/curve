@@ -25,16 +25,34 @@
 #define CURVEFS_SRC_CLIENT_BLOCK_DEVICE_CLIENT_H_
 
 #include <memory>
+#include <utility>
+#include <string>
 
 #include "src/client/client_common.h"
 #include "src/client/libcurve_file.h"
 #include "curvefs/src/client/config.h"
 #include "curvefs/src/client/error_code.h"
 
-using ::curve::client::FileClient;
-
 namespace curvefs {
 namespace client {
+
+using ::curve::client::FileClient;
+
+using Range = std::pair<off_t, off_t>;
+
+enum class BlockDeviceStatus {
+    CREATED,
+    DELETING,
+    CLONING,
+    CLONE_META_INSTALLED,
+    CLONED,
+    BEING_CLONED
+};
+
+struct BlockDeviceStat {
+    uint64_t length;
+    BlockDeviceStatus status;
+};
 
 class BlockDeviceClient {
  public:
@@ -43,39 +61,59 @@ class BlockDeviceClient {
 
     /**
      * @brief Initailize client
-     *
-     * @return error code
+     * @param[in] options the options for client
+     * @return error code (CURVEFS_ERROR:*)
      */
-    virtual CURVEFS_ERROR Init(const BlockDeviceClientOptions &options) = 0;
+    virtual CURVEFS_ERROR Init(const BlockDeviceClientOptions& options) = 0;
 
     /**
      * @brief Uninitailize client
-     *
-     * @return error code
      */
-    virtual CURVEFS_ERROR UnInit() = 0;
+    virtual void UnInit() = 0;
 
     /**
-     * @brief read
-     *
-     * @param buf read buffer
-     * @param offset read start offset
-     * @param length read length
-     *
-     * @return error code
+     * @brief Open file specify by filename and owner
+     * @param[in] filename
+     * @param[in] owner owner for filename
+     * @return error code (CURVEFS_ERROR:*)
+     */
+    virtual CURVEFS_ERROR Open(const std::string& filename,
+                               const std::string& owner) = 0;
+
+    /**
+     * @brief Close the fd which init by Open()
+     * @return error code (CURVEFS_ERROR:*)
+     */
+    virtual CURVEFS_ERROR Close() = 0;
+
+    /**
+     * @brief Get file status
+     * @param[in] filename
+     * @param[in] owner owner for filename
+     * @param[out] statInfo the struct for file status
+     * @return error code (CURVEFS_ERROR:*)
+     */
+    virtual CURVEFS_ERROR Stat(const std::string& filename,
+                               const std::string& owner,
+                               BlockDeviceStat* statInfo) = 0;
+
+    /**
+     * @brief Read from fd which init by Open()
+     * @param[in] buf read buffer
+     * @param[in] offset read start offset
+     * @param[in] length read length
+     * @return error code (CURVEFS_ERROR:*)
+     * @note the offset and length maybe not aligned
      */
     virtual CURVEFS_ERROR Read(char* buf, off_t offset, size_t length) = 0;
 
-
     /**
-     * @brief write
-     *
-     * @param fd file descriptor
-     * @param buf write buffer
-     * @param offset write start offset
-     * @param length write length
-     *
-     * @return error code
+     * @brief Write to fd which init by Open()
+     * @param[in] buf write buffer
+     * @param[in] offset write start offset
+     * @param[in] length write length
+     * @return error code (CURVEFS_ERROR:*)
+     * @note the offset and length maybe not aligned
      */
     virtual CURVEFS_ERROR Write(
         const char* buf, off_t offset, size_t length) = 0;
@@ -83,22 +121,54 @@ class BlockDeviceClient {
 
 class BlockDeviceClientImpl : public BlockDeviceClient {
  public:
-    explicit BlockDeviceClientImpl(std::shared_ptr<FileClient> fileClient) :
-        fileClient_(fileClient) {}
-    virtual ~BlockDeviceClientImpl() {}
+    BlockDeviceClientImpl();
 
-    CURVEFS_ERROR Init(const BlockDeviceClientOptions &options) override;
+    explicit BlockDeviceClientImpl(
+        const std::shared_ptr<FileClient>& fileClient);
 
-    CURVEFS_ERROR UnInit() override;
+    ~BlockDeviceClientImpl() = default;
+
+    CURVEFS_ERROR Init(const BlockDeviceClientOptions& options) override;
+
+    void UnInit() override;
+
+    CURVEFS_ERROR Open(const std::string& filename,
+                       const std::string& owner) override;
+
+    CURVEFS_ERROR Close() override;
+
+    CURVEFS_ERROR Stat(const std::string& filename,
+                       const std::string& owner,
+                       BlockDeviceStat* statInfo) override;
 
     CURVEFS_ERROR Read(char* buf, off_t offset, size_t length) override;
 
     CURVEFS_ERROR Write(const char* buf, off_t offset, size_t length) override;
 
  private:
+    CURVEFS_ERROR WritePadding(char* writeBuffer, off_t writeStart,
+                               off_t writeEnd, off_t offset, size_t length);
+
+    CURVEFS_ERROR AlignRead(char* buf, off_t offset, size_t length);
+
+    CURVEFS_ERROR AlignWrite(const char* buf, off_t offset, size_t length);
+
+    bool IsAligned(off_t offset, size_t length);
+
+    off_t Align(off_t offset, size_t alignment);
+
+    Range CalcAlignRange(off_t start, off_t end);
+
+    bool ConvertFileStatus(int fileStatus, BlockDeviceStatus* bdStatus);
+
+ private:
+    int64_t fd_;
+
+    std::string filename_;
+
+    std::string owner_;
+
     std::shared_ptr<FileClient> fileClient_;
-    bool isOpen_;
-    uint64_t fd_;
 };
 
 }  // namespace client
