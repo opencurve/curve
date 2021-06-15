@@ -57,5 +57,5 @@ cc_proto_library(
 proto_library(
     name = "space_proto",
     srcs = ["space.proto"],
-    deps = [":common_proto"],
+    deps = [":common_proto", ":mds_proto"],
 )
