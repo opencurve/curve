@@ -33,7 +33,7 @@ cp BUILD_bak BUILD -f
 echo "copy libs to tmplib directory"
 
 mkdir tmplib
-for i in `find $curve_path/bazel-bin/|grep -w so|grep -v solib|grep -v params`
+for i in `find $curve_path/bazel-bin/|grep -w so|grep -v solib|grep -v params| grep -v "bazel-bin/curvefs/"`
   do
     echo $i
     cp -f $i ./tmplib/
