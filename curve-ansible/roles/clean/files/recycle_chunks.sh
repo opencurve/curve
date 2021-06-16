@@ -57,7 +57,7 @@ function walpoolinfo() {
         return
     fi
     # walfilepool
-    maxSegmentId=`ls -vr $walfilepool | head -1`
+    maxSegmentId=`ls $walfilepool | grep -oE '^([0-9]+)' | sort -rh | head -n 1`
     leftSegmentNum=`ls $walfilepool | wc -l`
 
     # segmentnum to be recycled
@@ -95,7 +95,7 @@ function recycle_copysets() {
     echo chunkserver$1 actual recycle under data chunk=$rchunkSum
 
     # recycle wal segments
-    maxSegmentId=`ls -vr $walfilepool | head -1`
+    maxSegmentId=`ls $walfilepool | grep -oE '^([0-9]+)' | sort -rh | head -n 1`
     for copyset in `ls $2`
     do
         copysetPath=${dataDir}/chunkserver$1/copysets/${copyset}
