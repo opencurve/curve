@@ -15,13 +15,13 @@
 #
 
 cc_proto_library(
-    name = "common_cc_proto",
+    name = "curvefs_common_cc_proto",
     visibility = ["//visibility:public"],
-    deps = [":common_proto"],
+    deps = [":curvefs_common_proto"],
 )
 
 proto_library(
-    name = "common_proto",
+    name = "curvefs_common_proto",
     srcs = ["common.proto"],
 )
 
@@ -45,7 +45,7 @@ cc_proto_library(
 proto_library(
     name = "mds_proto",
     srcs = ["mds.proto"],
-    deps = [":common_proto"],
+    deps = [":curvefs_common_proto"],
 )
 
 cc_proto_library(
@@ -57,5 +57,5 @@ cc_proto_library(
 proto_library(
     name = "space_proto",
     srcs = ["space.proto"],
-    deps = [":common_proto"],
+    deps = [":curvefs_common_proto"],
 )
