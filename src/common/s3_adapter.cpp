@@ -72,15 +72,15 @@ void S3Adapter::Init(const std::string &path) {
     LOG_IF(FATAL,
         !conf_.GetUInt64Value("s3.throttle.iopsTotalLimit", &iopsTotalLimit));
     LOG_IF(FATAL,
-        !conf_.GetUInt64Value("s3.throttle.iopsReadLimit", &iopsTotalLimit));
+        !conf_.GetUInt64Value("s3.throttle.iopsReadLimit", &iopsReadLimit));
     LOG_IF(FATAL,
-        !conf_.GetUInt64Value("s3.throttle.iopsWriteLimit", &iopsTotalLimit));
+        !conf_.GetUInt64Value("s3.throttle.iopsWriteLimit", &iopsWriteLimit));
     LOG_IF(FATAL,
-        !conf_.GetUInt64Value("s3.throttle.bpsTotalMB", &iopsTotalLimit));
+        !conf_.GetUInt64Value("s3.throttle.bpsTotalMB", &bpsTotalMB));
     LOG_IF(FATAL,
-        !conf_.GetUInt64Value("s3.throttle.bpsReadMB", &iopsTotalLimit));
+        !conf_.GetUInt64Value("s3.throttle.bpsReadMB", &bpsReadMB));
     LOG_IF(FATAL,
-        !conf_.GetUInt64Value("s3.throttle.bpsWriteMB", &iopsTotalLimit));
+        !conf_.GetUInt64Value("s3.throttle.bpsWriteMB", &bpsWriteMB));
 
     ReadWriteThrottleParams params;
     params.iopsTotal.limit = iopsTotalLimit;
