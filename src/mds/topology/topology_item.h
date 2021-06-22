@@ -684,7 +684,9 @@ class CopySetInfo {
         hasCandidate_(false),
         candidate_(UNINTIALIZE_ID),
         scaning_(false),
+        hasScaning_(false),
         lastScanSec_(0),
+        hasLastScanSec_(false),
         dirty_(false),
         available_(true) {}
 
@@ -697,7 +699,9 @@ class CopySetInfo {
         hasCandidate_(false),
         candidate_(UNINTIALIZE_ID),
         scaning_(false),
+        hasScaning_(false),
         lastScanSec_(0),
+        hasLastScanSec_(false),
         dirty_(false),
         available_(true) {}
 
@@ -710,7 +714,9 @@ class CopySetInfo {
         hasCandidate_(v.hasCandidate_),
         candidate_(v.candidate_),
         scaning_(v.scaning_),
+        hasScaning_(v.hasScaning_),
         lastScanSec_(v.lastScanSec_),
+        hasLastScanSec_(v.hasLastScanSec_),
         dirty_(v.dirty_),
         available_(v.available_) {}
 
@@ -726,7 +732,9 @@ class CopySetInfo {
         hasCandidate_ = v.hasCandidate_;
         candidate_ = v.candidate_;
         scaning_ = v.scaning_;
+        hasScaning_ = v.hasScaning_;
         lastScanSec_ = v.lastScanSec_;
+        hasLastScanSec_ = v.hasLastScanSec_;
         dirty_ = v.dirty_;
         available_ = v.available_;
         return *this;
@@ -795,14 +803,24 @@ class CopySetInfo {
 
     void SetScaning(bool scaning) {
         scaning_ = scaning;
+        hasScaning_ = true;
     }
 
     bool GetScaning() const {
         return scaning_;
     }
 
+    bool IsLatestScaning(bool scaning) const {
+        return hasScaning_ && scaning_ != scaning;
+    }
+
     void SetLastScanSec(LastScanSecType lastScanSec) {
         lastScanSec_ = lastScanSec;
+        hasLastScanSec_ = true;
+    }
+
+    bool IsLatestLastScanSec(LastScanSecType lastScanSec) const {
+        return hasLastScanSec_ && lastScanSec_ > lastScanSec;
     }
 
     LastScanSecType GetLastScanSec() const {
@@ -849,8 +867,14 @@ class CopySetInfo {
     // whether the current copyset is on scaning
     bool scaning_;
 
+    // whether the scaning_ has been set
+    bool hasScaning_;
+
     // timestamp for last success scan (seconds)
     LastScanSecType lastScanSec_;
+
+    // whether the lastScanSec_ has been set
+    bool hasLastScanSec_;
 
     /**
      * @brief to mark whether data is dirty, for writing to storage regularly
