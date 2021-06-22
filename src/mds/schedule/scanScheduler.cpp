@@ -61,7 +61,8 @@ int ScanScheduler::Schedule() {
                                  ConfigChangeType::CANCEL_SCAN_PEER);
     }
 
-    LOG(INFO) << "ScanScheduelr generate " << count << " at this round";
+    LOG(INFO) << "ScanScheduelr generate "
+              << count << " operators at this round";
     return 1;
 }
 
@@ -147,6 +148,8 @@ void ScanScheduler::SelectCopysetsForScan(const CopySetInfos& copysetInfos,
             for (const auto& peer : copysetInfo.peers) {
                 selected[peer.id]++;
             }
+            LOG(INFO) << "Copyset is on scaning: "
+                      << copysetInfo.CopySetInfoStr();
         } else {
             nonScan.push_back(copysetInfo);
         }
@@ -169,13 +172,12 @@ int ScanScheduler::GenScanOperator(const CopySetInfos& copysetInfos,
     auto count = 0;
     bool ready2start = (opType == ConfigChangeType::START_SCAN_PEER);
     for (auto& copysetInfo : copysetInfos) {
-        Operator op;
-        op.timeLimit = std::chrono::seconds(scanTimeSec_);
         auto priority = ready2start ? OperatorPriority::LowPriority
                                     : OperatorPriority::HighPriority;
 
-        op = operatorFactory.CreateScanPeerOperator(
+        auto op = operatorFactory.CreateScanPeerOperator(
             copysetInfo, copysetInfo.leader, priority, opType);
+        op.timeLimit = std::chrono::seconds(scanTimeSec_);
 
         auto succ = opController_->AddOperator(op);
         count += succ ? 1 : 0;

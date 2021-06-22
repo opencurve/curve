@@ -1081,6 +1081,15 @@ int TopologyImpl::UpdateCopySetTopo(const CopySetInfo &data) {
         } else {
             it->second.ClearCandidate();
         }
+
+        if (data.IsLatestScaning(it->second.GetScaning())) {
+            it->second.SetScaning(data.GetScaning());
+        }
+
+        if (data.IsLatestLastScanSec(it->second.GetLastScanSec())) {
+            it->second.SetLastScanSec(data.GetLastScanSec());
+        }
+
         it->second.SetDirtyFlag(true);
         return kTopoErrCodeSuccess;
     } else {

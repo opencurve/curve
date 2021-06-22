@@ -610,6 +610,8 @@ void MDS::InitScheduleOption(ScheduleOption *scheduleOption) {
         &scheduleOption->scanStartHour);
     conf_->GetValueFatalIfFail("mds.scheduler.scan.endHour",
         &scheduleOption->scanEndHour);
+    conf_->GetValueFatalIfFail("mds.scheduler.scan.intervalSec",
+        &scheduleOption->scanIntervalSec);
     conf_->GetValueFatalIfFail("mds.scheduler.scan.concurrent.per.pool",
         &scheduleOption->scanConcurrentPerPool);
     conf_->GetValueFatalIfFail("mds.scheduler.scan.concurrent.per.chunkserver",

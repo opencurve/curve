@@ -126,6 +126,18 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
                     << ") not same";
             needUpdate = true;
         }
+
+        auto recordScaning = recordCopySetInfo.GetScaning();
+        auto recordLastScanSec = recordCopySetInfo.GetLastScanSec();
+        if (reportCopySetInfo.IsLatestScaning(recordScaning) ||
+            reportCopySetInfo.IsLatestLastScanSec(recordLastScanSec)) {
+            needUpdate = true;
+            LOG(INFO) << "Report scan status for copyset("
+                      << reportCopySetInfo.GetLogicalPoolId()
+                      << "," << reportCopySetInfo.GetId()
+                      << "): scaning=" << reportCopySetInfo.GetScaning()
+                      << ", lastScanSec=" << reportCopySetInfo.GetLastScanSec();
+        }
     } else if (recordCopySetInfo.GetEpoch() > reportCopySetInfo.GetEpoch()) {
         if (recordCopySetInfo.GetLeader() != reportCopySetInfo.GetLeader()) {
             LOG(WARNING) << "chunkserver " << reportCopySetInfo.GetLeader()
