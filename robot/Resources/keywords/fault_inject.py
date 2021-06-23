@@ -1317,7 +1317,7 @@ def test_start_nginx():
     logger.info("|------begin start nginx,host %s------|"%(client_host))
     cmd = "sudo docker start 5ac540f1608d"
     ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
-    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"start nginx docker fail %s"%rs[1]
 
 def start_snap_process(host):
