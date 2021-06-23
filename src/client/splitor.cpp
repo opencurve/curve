@@ -32,7 +32,7 @@
 #include "src/client/mds_client.h"
 #include "src/client/metacache_struct.h"
 #include "src/client/request_closure.h"
-#include "src/common/location_operator.h"
+#include "src/common/fast_align.h"
 
 namespace curve {
 namespace client {
@@ -88,7 +88,14 @@ int Splitor::SingleChunkIO2ChunkRequests(
     uint64_t currentOffset = offset;
     uint64_t leftLength = length;
     while (leftLength > 0) {
+        RequestContext::Padding padding;
+        padding.aligned = true;  // TODO(wuhanqing): add test case for normal file  // NOLINT
         uint64_t requestLength = std::min(leftLength, maxSplitSizeBytes);
+
+        if (metaCache->IsCloneFile()) {
+            requestLength = ProcessUnalignedRequests(currentOffset,
+                                                     requestLength, &padding);
+        }
 
         RequestContext* newreqNode = RequestContext::NewInitedRequestContext();
         if (newreqNode == nullptr) {
@@ -109,6 +116,7 @@ int Splitor::SingleChunkIO2ChunkRequests(
         newreqNode->rawlength_   = requestLength;
         newreqNode->optype_      = iotracker->Optype();
         newreqNode->idinfo_      = idinfo;
+        newreqNode->padding = padding;
         newreqNode->done_->SetIOTracker(iotracker);
         targetlist->push_back(newreqNode);
 
@@ -391,6 +399,54 @@ bool Splitor::MarkDiscardBitmap(IOTracker* iotracker, FileSegment* fileSegment,
     }
 
     return true;
+}
+
+uint64_t Splitor::ProcessUnalignedRequests(const off_t currentOffset,
+                                           const uint64_t requestLength,
+                                           RequestContext::Padding* padding) {
+    uint64_t length = requestLength;
+    uint64_t currentEndOff = currentOffset + requestLength;
+    uint64_t alignedStartOffset =
+        common::align_up(currentOffset, iosplitopt_.alignment.cloneVolume);
+    uint64_t alignedEndOffset =
+        common::align_down(currentEndOff, iosplitopt_.alignment.cloneVolume);
+
+    if (currentOffset == alignedStartOffset &&
+        currentEndOff == alignedEndOffset) {
+        padding->aligned = true;
+    } else {
+        if (currentOffset == alignedStartOffset) {
+            padding->aligned = false;
+            padding->type = RequestContext::Padding::Right;
+            padding->offset = alignedEndOffset;
+            padding->length = iosplitopt_.alignment.cloneVolume;
+        } else if (currentEndOff == alignedStartOffset) {
+            padding->aligned = false;
+            padding->type = RequestContext::Padding::Left;
+            padding->offset = common::align_down(
+                currentOffset, iosplitopt_.alignment.cloneVolume);
+            padding->length = iosplitopt_.alignment.cloneVolume;
+        } else {
+            if (alignedEndOffset > alignedStartOffset) {
+                length = alignedEndOffset - currentOffset;
+                padding->aligned = false;
+                padding->type = RequestContext::Padding::Left;
+                padding->offset = common::align_down(
+                    currentOffset, iosplitopt_.alignment.cloneVolume);
+                padding->length = iosplitopt_.alignment.cloneVolume;
+            } else {
+                padding->aligned = false;
+                padding->type = RequestContext::Padding::ALL;
+                padding->offset = common::align_down(
+                    currentOffset, iosplitopt_.alignment.cloneVolume);
+                padding->length = (alignedStartOffset == alignedEndOffset)
+                                      ? 2 * iosplitopt_.alignment.cloneVolume
+                                      : iosplitopt_.alignment.cloneVolume;
+            }
+        }
+    }
+
+    return length;
 }
 
 RequestSourceInfo Splitor::CalcRequestSourceInfo(IOTracker* ioTracker,
