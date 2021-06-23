@@ -37,6 +37,8 @@ using curve::common::Bitmap;
 const uint8_t FORMAT_VERSION = 1;
 const SequenceNum kInvalidSeq = 0;
 
+DECLARE_uint32(minIoAlignment);
+
 // define error code
 enum CSErrorCode {
     // success
