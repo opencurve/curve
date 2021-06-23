@@ -52,7 +52,7 @@ int IOController::InitDevAttr(int devfd, NBDConfig* config, int sockfd,
     }
 
     do {
-        ret = ioctl(devfd, NBD_SET_BLKSIZE, CURVE_NBD_BLKSIZE);
+        ret = ioctl(devfd, NBD_SET_BLKSIZE, config->block_size);
         if (ret < 0) {
             break;
         }
@@ -220,7 +220,7 @@ int NetLinkController::SetUp(NBDConfig* config, int sockfd,
     if (index < 0) {
         return index;
     }
-    ret = check_block_size(index, CURVE_NBD_BLKSIZE);
+    ret = check_block_size(index, config->block_size);
     if (ret < 0) {
         return ret;
     }
@@ -354,7 +354,7 @@ int NetLinkController::ConnectInternal(NBDConfig* config, int sockfd,
         NLA_PUT_U64(msg, NBD_ATTR_TIMEOUT, config->timeout);
     }
     NLA_PUT_U64(msg, NBD_ATTR_SIZE_BYTES, size);
-    NLA_PUT_U64(msg, NBD_ATTR_BLOCK_SIZE_BYTES, CURVE_NBD_BLKSIZE);
+    NLA_PUT_U64(msg, NBD_ATTR_BLOCK_SIZE_BYTES, config->block_size);
     NLA_PUT_U64(msg, NBD_ATTR_SERVER_FLAGS, flags);
 
     sock_attr = nla_nest_start(msg, NBD_ATTR_SOCKETS);

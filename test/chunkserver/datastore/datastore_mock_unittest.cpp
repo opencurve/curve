@@ -52,6 +52,7 @@ using ::testing::ReturnArg;
 using ::testing::ElementsAre;
 using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
+using ::testing::AtLeast;
 
 using std::shared_ptr;
 using std::make_shared;
@@ -4125,6 +4126,359 @@ TEST_F(CSDataStore_test, GetStatusTest) {
     status = dataStore->GetStatus();
     ASSERT_EQ(2, status.chunkFileCount);
     // ASSERT_EQ(1, status.snapshotCount);
+
+    EXPECT_CALL(*lfs_, Close(1))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(3))
+        .Times(1);
+}
+
+TEST_F(CSDataStore_test, CloneChunkUnAlignedTest) {
+    // initialize
+    FakeEnv();
+    EXPECT_TRUE(dataStore->Initialize());
+
+    ChunkID id = 3;
+    SequenceNum sn = 2;
+    SequenceNum correctedSn = 3;
+    off_t offset = 0;
+    size_t length = PAGE_SIZE;
+    char buf[length];  // NOLINT
+    memset(buf, 0, sizeof(buf));
+    CSChunkInfo info;
+    // 创建 clone chunk
+    {
+        char chunk3MetaPage[PAGE_SIZE];
+        memset(chunk3MetaPage, 0, sizeof(chunk3MetaPage));
+        shared_ptr<Bitmap> bitmap =
+            make_shared<Bitmap>(CHUNK_SIZE / PAGE_SIZE);
+        FakeEncodeChunk(chunk3MetaPage, correctedSn, sn, bitmap, location);
+        // create new chunk and open it
+        string chunk3Path = string(baseDir) + "/" +
+                            FileNameOperator::GenerateChunkFileName(id);
+        // expect call chunkfile pool GetFile
+        EXPECT_CALL(*lfs_, FileExists(chunk3Path))
+            .WillOnce(Return(false));
+        EXPECT_CALL(*fpool_, GetFileImpl(chunk3Path, NotNull()))
+            .WillOnce(Return(0));
+        EXPECT_CALL(*lfs_, Open(chunk3Path, _))
+            .Times(1)
+            .WillOnce(Return(4));
+        // will read metapage
+        EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+            .WillOnce(DoAll(SetArrayArgument<1>(chunk3MetaPage,
+                            chunk3MetaPage + PAGE_SIZE),
+                            Return(PAGE_SIZE)));
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->CreateCloneChunk(id,
+                                              sn,
+                                              correctedSn,
+                                              CHUNK_SIZE,
+                                              location));
+        ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
+        ASSERT_EQ(2, info.curSn);
+        ASSERT_EQ(3, info.correctedSn);
+        ASSERT_EQ(0, info.snapSn);
+        ASSERT_EQ(true, info.isClone);
+        ASSERT_EQ(0, info.bitmap->NextClearBit(0));
+        ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
+    }
+
+    // read/write/paste offset are not aligned to pagesize
+    {
+        EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_), _, _)).Times(0);
+        EXPECT_CALL(*lfs_, Read(4, _, _, _)).Times(0);
+
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->WriteChunk(id, sn, buf, 1, length, nullptr));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->WriteChunk(id, sn, buf, 512, length, nullptr));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->WriteChunk(id, sn, buf, 1024, length, nullptr));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->WriteChunk(id, sn, buf, 2048, length, nullptr));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->WriteChunk(id, sn, buf, 3072, length, nullptr));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->WriteChunk(id, sn, buf, 4095, length, nullptr));
+
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadChunk(id, sn, buf, 1, length));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadChunk(id, sn, buf, 512, length));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadChunk(id, sn, buf, 1024, length));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadChunk(id, sn, buf, 2048, length));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadChunk(id, sn, buf, 3072, length));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadChunk(id, sn, buf, 4095, length));
+
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->PasteChunk(id, buf, 1, length));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->PasteChunk(id, buf, 512, length));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->PasteChunk(id, buf, 1024, length));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->PasteChunk(id, buf, 2048, length));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->PasteChunk(id, buf, 3072, length));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->PasteChunk(id, buf, 4095, length));
+
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadSnapshotChunk(id, sn, buf, 1, length));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadSnapshotChunk(id, sn, buf, 512, length));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadSnapshotChunk(id, sn, buf, 1024, length));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadSnapshotChunk(id, sn, buf, 2048, length));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadSnapshotChunk(id, sn, buf, 3072, length));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadSnapshotChunk(id, sn, buf, 4095, length));
+    }
+
+    // read/write/paste length are not aligned to pagesize
+    {
+        EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_), _, _)).Times(0);
+        EXPECT_CALL(*lfs_, Read(4, _, _, _)).Times(0);
+
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->WriteChunk(id, sn, buf, 0, 1, nullptr));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->WriteChunk(id, sn, buf, 0, 512, nullptr));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->WriteChunk(id, sn, buf, 0, 1024, nullptr));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->WriteChunk(id, sn, buf, 0, 2048, nullptr));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->WriteChunk(id, sn, buf, 0, 3072, nullptr));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->WriteChunk(id, sn, buf, 0, 4095, nullptr));
+
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadChunk(id, sn, buf, 0, 1));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadChunk(id, sn, buf, 0, 512));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadChunk(id, sn, buf, 0, 1024));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadChunk(id, sn, buf, 0, 2048));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadChunk(id, sn, buf, 0, 3072));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadChunk(id, sn, buf, 0, 4095));
+
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->PasteChunk(id, buf, 0, 1));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->PasteChunk(id, buf, 0, 512));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->PasteChunk(id, buf, 0, 1024));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->PasteChunk(id, buf, 0, 2048));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->PasteChunk(id, buf, 0, 3072));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->PasteChunk(id, buf, 0, 4095));
+
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadSnapshotChunk(id, sn, buf, 0, 1));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadSnapshotChunk(id, sn, buf, 0, 512));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadSnapshotChunk(id, sn, buf, 0, 1024));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadSnapshotChunk(id, sn, buf, 0, 2048));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadSnapshotChunk(id, sn, buf, 0, 3072));
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadSnapshotChunk(id, sn, buf, 0, 4095));
+    }
+
+    EXPECT_CALL(*lfs_, Close(1))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(3))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(4))
+        .Times(1);
+}
+
+TEST_F(CSDataStore_test, CloneChunkAlignedTest) {
+    // initialize
+    FakeEnv();
+    EXPECT_TRUE(dataStore->Initialize());
+
+    ChunkID id = 3;
+    SequenceNum sn = 2;
+    SequenceNum correctedSn = 3;
+    off_t offset = 0;
+    size_t length = PAGE_SIZE;
+    char buf[length];  // NOLINT
+    memset(buf, 0, sizeof(buf));
+    CSChunkInfo info;
+    // 创建 clone chunk
+    {
+        char chunk3MetaPage[PAGE_SIZE];
+        memset(chunk3MetaPage, 0, sizeof(chunk3MetaPage));
+        shared_ptr<Bitmap> bitmap =
+            make_shared<Bitmap>(CHUNK_SIZE / PAGE_SIZE);
+        FakeEncodeChunk(chunk3MetaPage, correctedSn, sn, bitmap, location);
+        // create new chunk and open it
+        string chunk3Path = string(baseDir) + "/" +
+                            FileNameOperator::GenerateChunkFileName(id);
+        // expect call chunkfile pool GetFile
+        EXPECT_CALL(*lfs_, FileExists(chunk3Path))
+            .WillOnce(Return(false));
+        EXPECT_CALL(*fpool_, GetFileImpl(chunk3Path, NotNull()))
+            .WillOnce(Return(0));
+        EXPECT_CALL(*lfs_, Open(chunk3Path, _))
+            .Times(1)
+            .WillOnce(Return(4));
+        // will read metapage
+        EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+            .WillOnce(DoAll(SetArrayArgument<1>(chunk3MetaPage,
+                            chunk3MetaPage + PAGE_SIZE),
+                            Return(PAGE_SIZE)));
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->CreateCloneChunk(id,
+                                              sn,
+                                              correctedSn,
+                                              CHUNK_SIZE,
+                                              location));
+        ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
+        ASSERT_EQ(2, info.curSn);
+        ASSERT_EQ(3, info.correctedSn);
+        ASSERT_EQ(0, info.snapSn);
+        ASSERT_EQ(true, info.isClone);
+        ASSERT_EQ(0, info.bitmap->NextClearBit(0));
+        ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
+    }
+
+    sn = 3;
+    // write offset/length both aligned
+    {
+        EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(_), 0, PAGE_SIZE))
+            .Times(2);
+        EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_),
+                    PAGE_SIZE + offset, length))
+            .Times(1);
+
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->WriteChunk(id, sn, buf, offset, length, nullptr));
+    }
+
+    // read offset/length both aligned
+    {
+        EXPECT_CALL(*lfs_, Read(4, NotNull(), offset + PAGE_SIZE, length))
+            .Times(1)
+            .WillOnce(Return(0));
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->ReadChunk(id, sn, buf, offset, length));
+    }
+
+    // paste offset/length both aligned
+    {
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->PasteChunk(id, buf, offset, length));
+    }
+
+    // readspecificchunk offset/length both aligned
+    {
+        EXPECT_CALL(*lfs_, Read(4, NotNull(), offset + PAGE_SIZE, length))
+            .Times(1)
+            .WillOnce(Return(0));
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->ReadSnapshotChunk(id, sn, buf, offset, length));
+    }
+
+    EXPECT_CALL(*lfs_, Close(1))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(3))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(4))
+        .Times(1);
+}
+
+TEST_F(CSDataStore_test, NormalChunkAlignmentTest) {
+    // initialize
+    FakeEnv();
+    EXPECT_TRUE(dataStore->Initialize());
+
+    ChunkID id = 2;
+    SequenceNum sn = 2;
+    off_t offset = 0;
+    size_t length = 512;
+    char buf[length];  // NOLINT
+    memset(buf, 0, sizeof(buf));
+
+    // write unaligned test
+    {
+        EXPECT_CALL(*lfs_, Write(0, Matcher<butil::IOBuf>(_), _, _))
+            .Times(0);
+
+        EXPECT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->WriteChunk(id, sn, buf, 0, 511, nullptr));
+        EXPECT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->WriteChunk(id, sn, buf, 1, 512, nullptr));
+    }
+
+    // read unaligned test
+    {
+        EXPECT_CALL(*lfs_, Read(0, NotNull(), _, _))
+            .Times(0);
+
+        EXPECT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadChunk(id, sn, buf, 0, 511));
+        EXPECT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->ReadChunk(id, sn, buf, 1, 512));
+    }
+
+    // write aligned test
+    {
+        EXPECT_CALL(*lfs_, Write(3, Matcher<butil::IOBuf>(_), _, _))
+            .Times(AtLeast(1))
+            .WillRepeatedly(Return(0));
+
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->WriteChunk(id, sn, buf, 0, 512, nullptr));
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->WriteChunk(id, sn, buf, 0, 1024, nullptr));
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->WriteChunk(id, sn, buf, 0, 2048, nullptr));
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->WriteChunk(id, sn, buf, 0, 3072, nullptr));
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->WriteChunk(id, sn, buf, 0, 4096, nullptr));
+    }
+
+    // read aligned test
+    {
+        EXPECT_CALL(*lfs_, Read(3, _, _, _))
+            .Times(AtLeast(1))
+            .WillRepeatedly(Return(0));
+
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->ReadChunk(id, sn, buf, 0, 512));
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->ReadChunk(id, sn, buf, 0, 1024));
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->ReadChunk(id, sn, buf, 0, 2048));
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->ReadChunk(id, sn, buf, 0, 3072));
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->ReadChunk(id, sn, buf, 0, 4096));
+    }
 
     EXPECT_CALL(*lfs_, Close(1))
         .Times(1);

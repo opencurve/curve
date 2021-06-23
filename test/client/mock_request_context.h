@@ -31,56 +31,27 @@
 namespace curve {
 namespace client {
 
-class FakeRequestContext : public RequestContext {
- public:
-    FakeRequestContext() : RequestContext() {}
-    virtual ~FakeRequestContext() {}
-};
+using FakeRequestContext = RequestContext;
 
 class FakeRequestClosure : public RequestClosure {
  public:
-    explicit FakeRequestClosure(curve::common::CountDownEvent *cond,
-                                RequestContext *reqctx)
-        : cond_(cond),
-          RequestClosure(reqctx) {
-        reqCtx_ = reqctx;
-    }
-    virtual ~FakeRequestClosure() {}
+    FakeRequestClosure(curve::common::CountDownEvent *cond,
+                       RequestContext *reqctx)
+        : RequestClosure(reqctx), cond_(cond) {}
 
     void Run() override {
-        if (0 == errcode_) {
+        if (0 == GetErrorCode()) {
             LOG(INFO) << "success";
         } else {
-            LOG(INFO) << "errno: " << errcode_;
+            LOG(INFO) << "errno: " << GetErrorCode();
         }
         if (nullptr != cond_) {
             cond_->Signal();
         }
     }
 
-    void SetFailed(int err) override {
-        errcode_ = err;
-    }
-
-    int GetErrorCode() override {
-        return errcode_;
-    }
-
-    RequestContext *GetReqCtx() override {
-        return reqCtx_;
-    }
-
-    IOTracker* GettIOTracker() {
-        return tracker_;
-    }
-
  private:
     curve::common::CountDownEvent *cond_;
-
- private:
-    int errcode_ = -1;
-    IOTracker *tracker_;
-    RequestContext *reqCtx_;
 };
 
 }   // namespace client
