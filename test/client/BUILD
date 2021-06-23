@@ -68,8 +68,13 @@ cc_test(
                 "libcurve_client_unittest.cpp",
                 "lease_executor_test.cpp",
                 "request_sender_test.cpp",
+<<<<<<< HEAD
                 "mds_client_test.cpp",
                 "splitor_test.cpp",
+=======
+                "mds_client_test.cpp"
+                "splitor_test.cpp"
+>>>>>>> client/chunkserver/curve-nbd: support 512 aligned IO requests
                 ]
     ),
     copts = select({
