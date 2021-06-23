@@ -36,6 +36,8 @@
 #include "src/chunkserver/op_request.h"
 #include "src/chunkserver/chunk_service_closure.h"
 
+#include "src/common/fast_align.h"
+
 namespace curve {
 namespace chunkserver {
 
@@ -541,17 +543,8 @@ bool ChunkServiceImpl::CheckRequestOffsetAndLength(uint32_t offset,
         return false;
     }
 
-    // 检查offset是否对齐
-    if (offset % kOpRequestAlignSize != 0) {
-        return false;
-    }
-
-    // 检查len是否对齐
-    if (len % kOpRequestAlignSize != 0) {
-        return false;
-    }
-
-    return true;
+    return common::is_aligned(offset, FLAGS_minIoAlignment) &&
+           common::is_aligned(len, FLAGS_minIoAlignment);
 }
 
 }  // namespace chunkserver

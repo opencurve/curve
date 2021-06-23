@@ -192,6 +192,11 @@ struct MetaCacheOption {
     ChunkServerUnstableOption chunkserverUnstableOption;
 };
 
+struct AlignmentOption {
+    uint32_t commonVolume = 512;
+    uint32_t cloneVolume = 4096;
+};
+
 /**
  * IO 拆分模块配置信息
  * @fileIOSplitMaxSizeKB: 用户下发IO大小client没有限制，但是client会将用户的IO进行拆分，
@@ -199,6 +204,7 @@ struct MetaCacheOption {
  */
 struct IOSplitOption {
     uint64_t fileIOSplitMaxSizeKB = 64;
+    AlignmentOption alignment;
 };
 
 /**

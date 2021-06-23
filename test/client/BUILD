@@ -51,6 +51,7 @@ cc_test(
                 "lease_executor_test.cpp",
                 "request_sender_test.cpp",
                 "mds_client_test.cpp"
+                "splitor_test.cpp"
                 ]
     ),
     copts = COPTS,
@@ -338,4 +339,19 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "//test/client/mock:curve_client_mock"
     ],
+)
+
+cc_test(
+    name = "client_splitor_test",
+    srcs = [
+        "splitor_test.cpp"
+    ],
+    copts = COPTS,
+    defines = ["UNIT_TEST", "FIU_ENABLE"],
+    linkopts = ["-lfiu"],
+    deps = [
+        "//include/client:include_client",
+        "//src/client:curve_client",
+        "@com_google_googletest//:gtest",
+    ]
 )
