@@ -14,6 +14,8 @@ global.chunk_size=16777216
 global.meta_page_size=4096
 # clone chunk允许的最长location长度
 global.location_limit=3000
+# minimum alignment for io request
+global.min_io_alignment=512
 
 #
 # MDS settings
