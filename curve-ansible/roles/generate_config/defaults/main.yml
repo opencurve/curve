@@ -160,6 +160,7 @@ chunkserver_walfilepool_retry_times: 5
 chunkserver_trash_expire_after_sec: 300
 chunkserver_trash_scan_period_sec: 120
 chunkserver_common_log_dir: ./runlog/
+chunkserver_min_io_alignment: 512
 
 # 快照克隆配置默认值
 snap_client_config_path: /etc/curve/snap_client.conf
@@ -239,6 +240,8 @@ client_throttle_enable: false
 client_discard_enable: true
 client_discard_granularity: 4096
 client_discard_task_delay_ms: 60000
+client_alignment_common: 512
+client_alignment_clone: 4096
 
 # nebd默认配置
 client_config_path: /etc/curve/client.conf

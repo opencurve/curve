@@ -1449,11 +1449,11 @@ read write iosize 512
     ${fd}   open libcurve file
     ${new_fd}       Convert To Integer    ${fd}
     ${rc}    write libcurve file error   ${new_fd}    length=512
-    ${expect_rc}    evaluate    int(-22)
+    ${expect_rc}    evaluate    int(512)
     should be equal    ${rc}   ${expect_rc}
-    ${rc}    read libcurve file   ${new_fd}   length=512
-    ${expect_rc}    evaluate    int(-22)
-    should be equal    ${rc}   ${expect_rc}
+    ${content}    read libcurve file   ${new_fd}   length=512
+    ${expect_content}    evaluate    str("a")*512
+    should be equal    ${content}   ${expect_content}
     [Teardown]	    file clean      ${new_fd}
 
 
@@ -1480,11 +1480,11 @@ read write iosize 512
     ${fd}   open libcurve file
     ${new_fd}       Convert To Integer    ${fd}
     ${rc}    write libcurve file error   ${new_fd}    length=512
-    ${expect_rc}    evaluate    int(-22)
+    ${expect_rc}    evaluate    int(512)
     should be equal    ${rc}   ${expect_rc}
-    ${rc}    read libcurve file   ${new_fd}   length=512
-    ${expect_rc}    evaluate    int(-22)
-    should be equal    ${rc}   ${expect_rc}
+    ${content}    read libcurve file   ${new_fd}   length=512
+    ${expect_content}    evaluate    str("a")*512
+    should be equal    ${content}   ${expect_content}
     [Teardown]	    file clean      ${new_fd}
 
 read write iosize 1k
@@ -1493,9 +1493,22 @@ read write iosize 1k
     ${fd}   open libcurve file
     ${new_fd}       Convert To Integer    ${fd}
     ${rc}    write libcurve file error   ${new_fd}    length=1024
+    ${expect_rc}    evaluate    int(1024)
+    should be equal    ${rc}   ${expect_rc}
+    ${content}    read libcurve file   ${new_fd}   length=1024
+    ${expect_content}    evaluate    str("a")*1024
+    should be equal    ${content}   ${expect_content}
+    [Teardown]	    file clean      ${new_fd}
+
+read write iosize not 512 alignment
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${rc}    write libcurve file error   ${new_fd}    length=511
     ${expect_rc}    evaluate    int(-22)
     should be equal    ${rc}   ${expect_rc}
-    ${rc}    read libcurve file   ${new_fd}   length=1024
+    ${rc}    read libcurve file    ${new_fd}    length=511
     ${expect_rc}    evaluate    int(-22)
     should be equal    ${rc}   ${expect_rc}
     [Teardown]	    file clean      ${new_fd}
@@ -2552,9 +2565,3 @@ check chunkserver should be exsits
 start mds with sleep
      start mds
 	 Sleep		5s
-
-
-
-
-
-

@@ -228,6 +228,10 @@ class MetaCache {
         fileInfo_.filestatus = status;
     }
 
+    bool IsCloneFile() const {
+        return fileInfo_.filestatus == FileStatus::CloneMetaInstalled;
+    }
+
     /**
      * 获取对应的copyset的LeaderMayChange标志
      */

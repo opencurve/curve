@@ -55,7 +55,6 @@ namespace nbd {
 
 #define HELP_INFO 1
 #define VERSION_INFO 2
-#define CURVE_NBD_BLKSIZE 4096UL    // CURVE后端当前支持4096大小对齐的IO
 
 #define NBD_MAX_PATH "/sys/module/nbd/parameters/nbds_max"
 #define PROCESS_NAME "curve-nbd"
@@ -88,6 +87,8 @@ struct NBDConfig {
     int retry_times = 25;
     // unmap重试之间的睡眠间隔
     int sleep_ms = 200;
+    // device's block size
+    int block_size = 4096;
 };
 
 // 用户命令类型
