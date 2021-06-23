@@ -318,10 +318,7 @@ class FileClient {
  private:
     bool StartDummyServer();
 
-    bool CheckAligned(off_t offset, size_t length) const {
-        return (offset % IO_ALIGNED_BLOCK_SIZE == 0) &&
-               (length % IO_ALIGNED_BLOCK_SIZE == 0);
-    }
+    bool CheckAligned(off_t offset, size_t length) const;
 
  private:
     BthreadRWLock rwlock_;

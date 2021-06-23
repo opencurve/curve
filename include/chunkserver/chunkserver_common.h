@@ -123,9 +123,6 @@ inline std::string ToGroupIdString(const LogicPoolID &logicPoolId,
 }
 #define ToGroupIdStr   ToGroupIdString
 
-// TODO(wudmeiao): 是否需要考虑可配置
-const uint32_t kOpRequestAlignSize = 4096;
-
 }  // namespace chunkserver
 }  // namespace curve
 

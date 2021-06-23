@@ -40,6 +40,8 @@ const uint8_t FORMAT_VERSION = 1;
 const uint8_t FORMAT_VERSION_V2 = 2;
 const SequenceNum kInvalidSeq = 0;
 
+DECLARE_uint32(minIoAlignment);
+
 // define error code
 enum CSErrorCode {
     // success
