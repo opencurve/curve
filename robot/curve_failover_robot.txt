@@ -559,7 +559,6 @@ init rw cloud disk
      clean kernel log
 
 clean curve
-     Run Keyword If All Tests Passed   
      Run Keyword If All Tests Passed     clean nbd
      Run Keyword If All Tests Passed     delete nbd
      sleep  10
