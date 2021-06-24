@@ -33,7 +33,7 @@ namespace nbd {
 
 class MockImageInstance : public ImageInstance {
  public:
-    MockImageInstance() : ImageInstance("/test_image") {}
+    MockImageInstance() : ImageInstance("/test_image", nullptr) {}
     ~MockImageInstance() = default;
 
     MOCK_METHOD0(Open, bool());
