@@ -10,260 +10,304 @@
 # Description:       Start the nebd-daemon service and associated helpers
 ### END INIT INFO
 
-# 检查脚本执行是否通过root权限执行
-if [[ $(id -u) -ne 0 ]]
-then
-    echo "Please run with sudo"
-    exit 1
+NEBD_SERVER_BIN={{ curve_bin_dir }}/nebd-server
+STARTED_AS_ROOT=false
+USERS_FILE=/etc/nebd/users
+USERS=()
+
+if [[ $(id -u) -eq 0 ]]; then
+    STARTED_AS_ROOT=true
 fi
 
-# nebd-server路径
-bin={{ curve_bin_dir }}/nebd-server
-
-# 默认配置文件
-confPath={{ nebd_server_config_path }}
-
-# 日志文件路径
-baseLogPath={{ nebd_log_dir }}
-logPath=${baseLogPath}/server
-
-# pidfile
-pidFile=${baseLogPath}/nebd-server.pid
-
-# daemon log
-daemonLog=${baseLogPath}/nebd-server-daemon.log
-
-# console output
-consoleLog=${baseLogPath}/nebd-server-console.log
-
 function get_nebd_server_pid() {
-    local tmp=`pidof nebd-server`
+    local tmp=$(pgrep -u ${1} nebd-server)
     echo $tmp
 }
 
-# 启动nebd-server
-function start() {
-    # 检查daemon
-    if ! type daemon &> /dev/null
-    then
-        echo "No daemon installed"
-        exit 1
+function list_users() {
+    if [ -f ${USERS_FILE} ]; then
+        IFS=$'\n' read -d '' -r -a TMP_USERS <${USERS_FILE}
+        USERS=("${TMP_USERS[@]}")
     fi
 
-    # 检查nebd-server
-    if [ ! -f ${bin} ]
-    then
-        echo "No nebd-server installed"
-        exit 1
-    fi
-
-    # 检查配置文件
-    if [ ! -f ${confPath} ]
-    then
-        echo "Not found nebd-server.conf, Path is ${confPath}"
-        exit 1
-    fi
-
-    # 判断是否已经通过daemon启动了nebd-server
-    daemon --name nebd-server --pidfile ${pidFile} --running
-    if [ $? -eq 0 ]
-    then
-        echo "Already started nebd-server by daemon"
-        exit 0
-    fi
-
-    # 创建logPath
-    mkdir -p ${logPath} > /dev/null 2>&1
-    if [ $? -ne 0 ]
-    then
-        echo "Create log dir failed: ${logPath}"
-        exit 1
-    fi
-
-    # 检查logPath是否有写权限
-    if [ ! -w ${logPath} ]
-    then
-        echo "Write permission denied: ${logPath}"
-        exit 1
-    fi
-
-    # 检查consoleLog是否可写或者是否能够创建
-    touch ${consoleLog} > /dev/null 2>&1
-    if [ $? -ne 0 ]
-    then
-        echo "Can't Write or Create console Log: ${consoleLog}"
-        exit 1
-    fi
-
-    # 检查daemonLog是否可写或者是否能够创建
-    touch ${daemonLog} > /dev/null 2>&1
-    if [ $? -ne 0 ]
-    then
-        echo "Can't Write or Create daemon logfile: ${daemonLog}"
-        exit 1
-    fi
-
-    # 检查jemalloc库文件
-    jemallocpath=`find /usr/ -name "libjemalloc.so*" -print -quit`
-    if [ "${jemallocpath}" = "" ]
-    then
-        echo "Not found jemalloc library in /usr/"
-        exit 1
-    fi
-
-    # 记录运行daemon前的daemonLog的行数
-    line1=`cat ${daemonLog} | wc -l`
-
-    LD_PRELOAD=${jemallocpath} daemon --name nebd-server --core --inherit \
-           --respawn --attempts 10 --delay 10 --acceptable 10\
-           --pidfile ${pidFile} \
-           --errlog ${daemonLog} \
-           --output ${consoleLog} \
-           -- ${bin} -confPath=${confPath} -log_dir=${logPath} -graceful_quit_on_sigterm=true -stderrthreshold=3
-
-    # sleep 1秒检测daemonLog是否有变化，如果有变化，说明启动遇到问题
-    sleep 1
-    line2=`cat ${daemonLog} | wc -l`
-    if [ $line1 != $line2 ]
-    then
-        echo "start nebd-server met error!"
-        stop
+    # always add root user for compatible
+    if [[ ! "${USERS[@]}" =~ "root" ]]; then
+        USERS=("root" "${USERS[@]}")
     fi
 }
 
-# 停止daemon进程，且停止nebd-server
-function stop() {
-    # 判断是否已经通过daemon启动了nebd-server
-    daemon --name nebd-server --pidfile ${pidFile} --running
-    if [ $? -ne 0 ]
-    then
-        echo "Didn't start nebd-server by daemon"
-        exit 0
+function create_dir_if_not_exists() {
+    if [ ! -d ${1} ]; then
+        mkdir -p ${1} >/dev/null 2>&1
+        chown ${2} ${1} >/dev/null 2>&1
+        chmod 777 ${1} >/dev/null 2>&1
+    fi
+}
+
+function prepare_env() {
+    PREPARE_RES=
+
+    cat /etc/passwd | awk -F':' '{ print $1 }' | grep $1 >/dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        PREPARE_RES="user ${1} not found in '/etc/passwd'"
+        # echo "user '${1}' not found in '/etc/passwd'"
+        return
     fi
 
-    daemon --name nebd-server --pidfile ${pidFile} --stop
-    if [ $? -ne 0 ]
-    then
-        echo "stop may not success!"
+    if [ "${1}" == "root" ]; then
+        DAEMON_NAME=nebd-server
+        META_DATA_PATH=/data/nebd
+        DATA_LOCK_PATH=${META_DATA_PATH}/lock
+        BASE_LOG_PATH=/data/log/nebd
+        CONF_PATH=/etc/nebd/nebd-server.conf
+    else
+        DAEMON_NAME=nebd-server-${1}
+        META_DATA_PATH=/data/nebd/nebd-${1}
+        DATA_LOCK_PATH=${META_DATA_PATH}/lock
+        BASE_LOG_PATH=/data/log/nebd/nebd-${1}
+        CONF_PATH=/etc/nebd/nebd-server-${1}.conf
+    fi
+
+    PID_FILE=${BASE_LOG_PATH}/nebd-server.pid
+    DAEMON_LOG=${BASE_LOG_PATH}/nebd-server-daemon.log
+    CONSOLE_LOG=${BASE_LOG_PATH}/nebd-server-console.log
+    LOG_PATH=${BASE_LOG_PATH}/server
+    NEBD_CLIENT_LOG_PATH=${BASE_LOG_PATH}/client
+
+    # check config file
+    if [ ! -f ${CONF_PATH} ]; then
+        PREPARE_RES="not found config file '${CONF_PATH}'"
+        # echo "not found config file '${CONF_PATH}'"
+        return
+    fi
+
+    create_dir_if_not_exists ${META_DATA_PATH} ${1}
+    create_dir_if_not_exists ${DATA_LOCK_PATH} ${1}
+    create_dir_if_not_exists ${LOG_PATH} ${1}
+    create_dir_if_not_exists ${NEBD_CLIENT_LOG_PATH} ${1}
+}
+
+function start_one() {
+    prepare_env $1
+
+    if [ "${PREPARE_RES}" != "" ]; then
+        echo "$1: prepare env failed, ${PREPARE_RES}"
+        return
+    fi
+
+    # check whether already started by daemon
+    daemon --name ${DAEMON_NAME} --pidfile ${PID_FILE} --running
+    if [ $? -eq 0 ]; then
+        echo "$1: already started nebd-server by daemon"
+        return
+    fi
+
+    # record number of line before start
+    line1=$(cat ${DAEMON_LOG} | wc -l)
+
+    USEROPTS=
+    if $STARTED_AS_ROOT; then
+        USEROPTS="--user ${1}"
+    fi
+
+    LD_PRELOAD=${jemallocpath} daemon --name ${DAEMON_NAME} --core --inherit \
+        --respawn --attempts 10 --delay 10 --acceptable 10 --pidfile ${PID_FILE} \
+        --errlog ${DAEMON_LOG} \
+        --output ${CONSOLE_LOG} ${USEROPTS} \
+        -- ${NEBD_SERVER_BIN} -confPath=${CONF_PATH} -log_dir=${LOG_PATH} -graceful_quit_on_sigterm=true -stderrthreshold=3
+
+    # sleep a while, check whether start successful
+    sleep 1
+    line2=$(cat ${DAEMON_LOG} | wc -l)
+    if [ $line1 != $line2 ]; then
+        echo "$1: start nebd-server met error!"
+        stop_one $1
+    fi
+}
+
+function stop_one() {
+    prepare_env $1
+
+    if [ "${PREPARE_RES}" != "" ]; then
+        echo "$1: prepare env failed, ${PREPARE_RES}"
+        return
+    fi
+
+    # 判断是否已经通过daemon启动了nebd-server
+    daemon --name ${DAEMON_NAME} --pidfile ${PID_FILE} --running
+    if [ $? -ne 0 ]; then
+        echo "$1: didn't start nebd-server by daemon"
+        return
+    fi
+
+    daemon --name ${DAEMON_NAME} --pidfile ${PID_FILE} --stop
+    if [ $? -ne 0 ]; then
+        echo "$1: stop may not success!"
     else
         # wait 3s
         retry_times=0
-        while [ $retry_times -le 3 ]
-        do
-            ((retry_times=$retry_times+1))
-            pidof nebd-server > /dev/null 2>&1
-            if [ $? -eq 0 ]
-            then
+        while [ $retry_times -le 3 ]; do
+            ((retry_times = $retry_times + 1))
+            pgrep -u $1 nebd-server >/dev/null 2>&1
+            if [ $? -eq 0 ]; then
                 sleep 1
             else
                 break
             fi
         done
 
-        pidof nebd-server > /dev/null 2>&1
-        if [ $? -eq 0 ]
-        then
-            echo "nebd-server still exists after 3s, now kill it with SIGKILL"
-            kill -9 `pidof nebd-server`
+        pgrep -u $1 nebd-server >/dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            echo "$1: nebd-server still exists after 3s, now kill it with SIGKILL"
+            kill -9 $(pgrep -u $1 nebd-server)
         fi
 
-        echo "nebd-server exit success!"
-        echo "daemon exit success!"
+        echo "$1: nebd-server exit success, daemon exit success!"
     fi
 }
 
-# restart
-function restart() {
-    # 判断是否已经通过daemon启动了nebd-server
-    daemon --name nebd-server --pidfile ${pidFile} --running
-    if [ $? -ne 0 ]
-    then
-        echo "Didn't start nebd-server by daemon"
-        exit 1
+function restart_one() {
+    prepare_env $1
+
+    if [ "${PREPARE_RES}" != "" ]; then
+        echo "$1: prepare env failed, ${PREPARE_RES}"
+        return
     fi
 
-    old_pid=$(get_nebd_server_pid)
+    # 判断是否已经通过daemon启动了nebd-server
+    daemon --name ${DAEMON_NAME} --pidfile ${PID_FILE} --running
+    if [ $? -ne 0 ]; then
+        echo "$1: didn't start nebd-server by daemon"
+        return
+    fi
 
-    daemon --name nebd-server --pidfile ${pidFile} --restart
+    old_pid=$(get_nebd_server_pid $1)
+
+    daemon --name ${DAEMON_NAME} --pidfile ${PID_FILE} --restart
 
     sleep 1
-    new_pid=$(get_nebd_server_pid)
+    new_pid=$(get_nebd_server_pid $1)
 
-    if [ $old_pid == $new_pid ]
-    then
-        echo "restart nebd-server may failed, now kill it with SIGKILL"
+    if [ $old_pid == $new_pid ]; then
+        echo "$1: restart nebd-server may failed, now kill it with SIGKILL"
         kill -9 $old_pid
     fi
 }
 
+function status_one() {
+    prepare_env $1
+
+    if [ "${PREPARE_RES}" != "" ]; then
+        echo "$1: prepare env failed, ${PREPARE_RES}"
+        return
+    fi
+
+    daemon --name ${DAEMON_NAME} --pidfile ${PID_FILE} --running
+    if [ $? -ne 0 ]; then
+        echo "$1: didn't start nebd-server by daemon"
+    else
+        echo "$1: nebd-server is running by daemon"
+    fi
+}
+
+# start nebd-server
+function start() {
+    if ! $STARTED_AS_ROOT; then
+        echo "nebd-daemon start should run as root"
+        exit 1
+    fi
+
+    list_users
+    for u in "${USERS[@]}"; do
+        start_one $u
+    done
+}
+
+# stop daemon and nebd-server
+function stop() {
+    if ! $STARTED_AS_ROOT; then
+        echo "nebd-daemon stop should run as root"
+        exit 1
+    fi
+
+    list_users
+    for u in "${USERS[@]}"; do
+        stop_one $u
+    done
+}
+
+# restart
+function restart() {
+    if ! $STARTED_AS_ROOT; then
+        echo "nebd-daemon restart should run as root"
+        exit 1
+    fi
+
+    list_users
+    for u in "${USERS[@]}"; do
+        restart_one $u
+    done
+}
+
 # status
 function status() {
-    daemon --name nebd-server --pidfile ${pidFile} --running
-    if [ $? -ne 0 ]
-    then
-        echo "Didn't start nebd-server by daemon"
-    else
-        echo "nebd-server is running by daemon"
+    if ! $STARTED_AS_ROOT; then
+        echo "nebd-daemon status should run as root"
+        exit 1
     fi
+
+    list_users
+    for u in "${USERS[@]}"; do
+        status_one $u
+    done
 }
 
 # 使用方式
 function usage() {
     echo "Usage:"
-    echo "  nebd-daemon start -- start deamon process and watch on nebd-server process"
-    echo "    [-c|--confPath path]    conf path"
-    echo "    [-l|--logPath  path]    log path"
-    echo "  nebd-daemon stop  -- stop daemon process and nebd-server"
-    echo "  nebd-daemon restart -- restart nebd-server"
-    echo "  nebd-daemon status -- show if the nebd-server is running by daemon"
-    echo "Examples:"
-    echo "  nebd-daemon start -c /etc/nebd/nebd-server.conf -l ${HOME}/"
+    echo "  nebd-daemon start -- start deamon process and watch on nebd-server process for all instance"
+    echo "  nebd-daemon start-one -- start deamon process and watch on nebd-server process for current user's instance"
+
+    echo "  nebd-daemon stop  -- stop daemon process and nebd-server for all instance"
+    echo "  nebd-daemon stop-one  -- stop daemon process and nebd-server for current user's instance"
+
+    echo "  nebd-daemon restart -- restart nebd-server for all instance"
+    echo "  nebd-daemon restart-one -- restart nebd-server for current user's instance"
+
+    echo "  nebd-daemon status -- show if the nebd-server is running by daemon for all instance"
+    echo "  nebd-daemon status-one -- show if the nebd-server is running by daemon for current user's instance"
 }
 
 # 检查参数启动参数，最少1个
-if [ $# -lt 1 ]
-then
+if [ $# -lt 1 ]; then
     usage
     exit
 fi
 
 case $1 in
 "start")
-    shift # pass first argument
-
-    # 解析参数
-    while [[ $# -gt 1 ]]
-    do
-        key=$1
-
-        case $key in
-        -c|--confPath)
-            confPath=`realpath $2`
-            shift # pass key
-            shift # pass value
-            ;;
-        -l|--logPath)
-            logPath=`realpath $2`
-            shift # pass key
-            shift # pass value
-            ;;
-        *)
-            usage
-            exit
-            ;;
-        esac
-    done
-
     start
+    ;;
+"start-one")
+    start_one ${USER}
     ;;
 "stop")
     stop
     ;;
+"stop-one")
+    stop_one ${USER}
+    ;;
 "restart")
     restart
     ;;
+"restart-one")
+    restart_one ${USER}
+    ;;
 "status")
     status
+    ;;
+"status-one")
+    status_one ${USER}
     ;;
 *)
     usage

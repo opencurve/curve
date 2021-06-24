@@ -5,5 +5,5 @@
 # this file record the correspondence of curve nbd images/ devices
 # add record when 'curve-nbd map' and 'curve-nbd unmap'
 #
-# format: device    image   mount
-# /dev/nbd0   cbd:pool//curvefile_test_   /curve
+# format: device    image   map-options   mount
+# /dev/nbd0   cbd:pool//curvefile_test_   defaults or try-netlink,timeout=7200,nebd-conf=/etc/nebd/nebd-client.conf   /curve
