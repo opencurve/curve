@@ -88,6 +88,7 @@ static void Usage() {
         << "  --timeout <seconds>     Set nbd request timeout\n"
         << "  --try-netlink           Use the nbd netlink interface\n"
         << "  --block-size            NBD Devices's block size, default is 4096, support 512 and 4096\n"  // NOLINT
+        << "  --nebd-conf             LibNebd config file\n"
         << "Unmap options:\n"
         << "  --retry_times <limit>       The number of retries waiting for the process to exit\n"  // NOLINT
         << "                              (default: " << nbdConfig->retry_times << ")\n"            // NOLINT
@@ -105,7 +106,8 @@ static int AddRecord(int flag) {
         return -EINVAL;
     }
     if (1 == flag) {
-        record = "+\t" + nbdConfig->devpath + "\t" + nbdConfig->imgname + "\n";
+        record = "+\t" + nbdConfig->devpath + "\t" + nbdConfig->imgname + "\t" +
+                 nbdConfig->MapOptions() + "\n";
     } else if (-1 == flag) {
         record = "-\t" + nbdConfig->devpath + "\n";
     }
