@@ -43,6 +43,21 @@ int nebd_lib_init() {
     return ret;
 }
 
+int nebd_lib_init_with_conf(const char* confPath) {
+    if (g_inited) {
+        return 0;
+    }
+
+    int ret = Init4Nebd(confPath);
+    if (ret != 0) {
+        return ret;
+    }
+
+    g_inited = true;
+
+    return ret;
+}
+
 int nebd_lib_uninit() {
     if (g_inited) {
         Uninit4Nebd();
