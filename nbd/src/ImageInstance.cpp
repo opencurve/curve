@@ -31,7 +31,12 @@ namespace nbd {
 bool ImageInstance::Open() {
     int ret = 0;
 
-    ret = nebd_lib_init();
+    if (config_ && !config_->nebd_conf.empty()) {
+        ret = nebd_lib_init_with_conf(config_->nebd_conf.c_str());
+    } else {
+        ret = nebd_lib_init();
+    }
+
     if (ret != 0) {
         LOG(ERROR) << "init nebd failed, ret = " << ret;
         return false;
