@@ -66,7 +66,7 @@ class NBDTool {
     NBDServerPtr StartServer(int sockfd, NBDControllerPtr nbdCtrl,
                              ImagePtr imageInstance);
     // 生成image instance
-    ImagePtr GenerateImage(const std::string& imageName);
+    ImagePtr GenerateImage(const std::string& imageName, NBDConfig* config);
 
     // wait curve-nbd process to exit
     int WaitForTerminate(pid_t pid, const NBDConfig* config);
