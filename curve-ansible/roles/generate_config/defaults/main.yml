@@ -274,6 +274,7 @@ s3_throttle_bpsWriteLimit: 1280
 # 运维工具默认值
 tool_rpc_timeout: 500
 tool_rpc_retry_times: 5
+tool_rpc_concurrent_num: 10
 
 # snapshotclone_nginx配置
 nginx_docker_internal_port: 80
