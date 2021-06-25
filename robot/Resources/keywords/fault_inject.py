@@ -238,6 +238,8 @@ def stop_rwio():
     ori_cmd = "sudo supervisorctl stop all"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[3] == 0,"stop rwio fail,rs is %s"%rs[1]
+    ori_cmd = "ps -ef|grep -v grep | grep randrw | awk '{print $2}'| sudo xargs kill -9"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
     ori_cmd = "ps -ef|grep -v grep | grep -w /home/nbs/vdbench50406/profile | awk '{print $2}'| sudo xargs kill -9"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     time.sleep(3)
