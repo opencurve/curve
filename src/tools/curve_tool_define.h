@@ -31,6 +31,7 @@ DECLARE_string(mdsDummyPort);
 DECLARE_string(etcdAddr);
 DECLARE_uint64(rpcTimeout);
 DECLARE_uint64(rpcRetryTimes);
+DECLARE_uint64(rpcConcurrentNum);
 DECLARE_string(snapshotCloneAddr);
 DECLARE_string(snapshotCloneDummyPort);
 DECLARE_uint64(chunkSize);

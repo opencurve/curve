@@ -946,10 +946,10 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     if (useWalPool && !useChunkFilePoolAsWalPool) {
         PrintCsLeftSizeStatistics("walfilepool", poolWalSegmentLeftSize);
     } else if (useChunkFilePoolAsWalPool) {
-        std::cout << "No walpool left size fount, "
+        std::cout << "No walpool left size found, "
                   << "use chunkfilepool as walpool!\n";
     } else {
-        std::cout << "No walpool left size fount, "
+        std::cout << "No walpool left size found, "
                   << "no walpool used!\n";
     }
     return ret;

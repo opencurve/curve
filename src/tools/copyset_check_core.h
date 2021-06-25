@@ -43,6 +43,7 @@
 #include "src/tools/metric_name.h"
 #include "src/tools/curve_tool_define.h"
 #include "include/chunkserver/chunkserver_common.h"
+#include "src/common/concurrent/concurrent.h"
 
 using curve::mds::topology::PoolIdType;
 using curve::mds::topology::CopySetIdType;
@@ -54,6 +55,8 @@ using curve::mds::topology::ChunkServerStatus;
 using curve::chunkserver::ToGroupId;
 using curve::chunkserver::GetPoolID;
 using curve::chunkserver::GetCopysetID;
+using curve::common::Mutex;
+using curve::common::Thread;
 
 namespace curve {
 namespace tool {
@@ -105,9 +108,11 @@ const char kThreeCopiesInconsistent[] = "Three copies inconsistent";
 
 class CopysetCheckCore {
  public:
+    explicit CopysetCheckCore(std::shared_ptr<MDSClient> mdsClient) :
+                     mdsClient_(mdsClient), csClient_(nullptr) {}
     CopysetCheckCore(std::shared_ptr<MDSClient> mdsClient,
                      std::shared_ptr<ChunkServerClient> csClient) :
-                        mdsClient_(mdsClient), csClient_(csClient) {}
+                     mdsClient_(mdsClient), csClient_(csClient) {}
     virtual ~CopysetCheckCore() = default;
 
     /**
@@ -313,6 +318,19 @@ class CopysetCheckCore {
                     std::vector<std::string>* unhealthyChunkServers = nullptr);
 
     /**
+     * @brief concurrent check copyset on server
+     * @param[in] chunkservers: chunkservers on server
+     * @param[in] index: the deal index of chunkserver
+     * @param[in] queryLeader: whether send rpc to server which leader on
+     * @param[in] isHealthy: check result
+     * @param[in] unhealthyChunkServers: store the unhealthy chunkserver list
+     */
+    void ConcurrentCheckCopysetsOnServer(
+                            const std::vector<ChunkServerInfo> &chunkservers,
+                            uint32_t *index, bool queryLeader, bool *isHealthy,
+                            std::vector<std::string>* unhealthyChunkServers);
+
+    /**
     * @brief 根据leader的map里面的copyset信息分析出copyset是否健康，健康返回0，否则
     *        否则返回错误码
     *
@@ -414,7 +432,7 @@ class CopysetCheckCore {
     // 向mds发送RPC的client
     std::shared_ptr<MDSClient> mdsClient_;
 
-    // 向chunkserver发送RPC的client
+    // for unittest mock csClient
     std::shared_ptr<ChunkServerClient> csClient_;
 
     // 保存copyset的信息
@@ -431,6 +449,11 @@ class CopysetCheckCore {
     std::string copysetsDetail_;
 
     const std::string kEmptyAddr = "0.0.0.0:0:0";
+
+    // mutex for concurrent rpc to chunkserver
+    Mutex indexMutex;
+    Mutex vectorMutex;
+    Mutex statisticsMutest;
 };
 
 }  // namespace tool
