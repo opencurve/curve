@@ -433,8 +433,9 @@ inject kill diff host chunkserver
 test ipmitool restart client node
    [Tags]    P1    base    first release   failover  ipmitool
    test ipmitool restart client
-   run rwio
    sleep  60
+   run rwio
+   sleep  5
    check nbd iops
    check data consistency
    test start mds
