@@ -148,12 +148,21 @@ int CopysetCheckCore::CheckCopysetsOnChunkServer(
 }
 
 ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
-                    const std::string& chunkserverAddr,
-                    const std::set<std::string>& groupIds,
-                    bool queryLeader) {
+                                const std::string& chunkserverAddr,
+                                const std::set<std::string>& groupIds,
+                                bool queryLeader,
+                                std::pair<int, butil::IOBuf> *record,
+                                bool queryCs) {
     bool isHealthy = true;
+    int res = 0;
     butil::IOBuf iobuf;
-    int res = QueryChunkServer(chunkserverAddr, &iobuf);
+    if (queryCs) {
+        res = QueryChunkServer(chunkserverAddr, &iobuf);
+    } else {
+        res = record->first;
+        iobuf = record->second;
+    }
+
     if (res != 0) {
         // 如果查询chunkserver失败，认为不在线，把它上面所有的
         // copyset都添加到peerNotOnlineCopysets_里面
@@ -244,16 +253,18 @@ ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
             isHealthy = false;
         }
     }
+
     // 遍历没有leader的copyset
     bool health = CheckCopysetsNoLeader(chunkserverAddr,
                                         noLeaderCopysetsPeers);
     if (!health) {
         isHealthy = false;
     }
+
     // 遍历chunkserver发送请求
     for (const auto& item : csAddrMap) {
         ChunkServerHealthStatus res = CheckCopysetsOnChunkServer(item.first,
-                                                           item.second);
+                                                                 item.second);
         if (res != ChunkServerHealthStatus::kHealthy) {
             isHealthy = false;
         }
@@ -266,9 +277,9 @@ ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
 }
 
 bool CopysetCheckCore::CheckCopysetsNoLeader(const std::string& csAddr,
-                            const std::map<std::string,
-                                           std::vector<std::string>>&
-                                                copysetsPeers) {
+                                             const std::map<std::string,
+                                             std::vector<std::string>>&
+                                             copysetsPeers) {
     if (copysetsPeers.empty()) {
         return true;
     }
@@ -351,9 +362,31 @@ int CopysetCheckCore::CheckCopysetsOnServer(const std::string& serverIp,
     return CheckCopysetsOnServer(0, serverIp, true, unhealthyChunkServers);
 }
 
+void CopysetCheckCore::ConcurrentCheckCopysetsOnServer(
+                const std::vector<ChunkServerInfo> &chunkservers,
+                uint32_t *index, std::map<std::string,
+                std::pair<int, butil::IOBuf>> *result) {
+    while (1) {
+        indexMutex.lock();
+        if (*index + 1 > chunkservers.size()) {
+            indexMutex.unlock();
+            break;
+        }
+        auto info = chunkservers[*index];
+        (*index)++;
+        indexMutex.unlock();
+        std::string csAddr = info.hostip() + ":" + std::to_string(info.port());
+        butil::IOBuf iobuf;
+        int res = QueryChunkServer(csAddr, &iobuf);
+
+        mapMutex.lock();
+        result->emplace(csAddr, std::make_pair(res, iobuf));
+        mapMutex.unlock();
+    }
+}
+
 int CopysetCheckCore::CheckCopysetsOnServer(const ServerIdType& serverId,
-                                        const std::string& serverIp,
-                                        bool queryLeader,
+                            const std::string& serverIp, bool queryLeader,
                             std::vector<std::string>* unhealthyChunkServers) {
     bool isHealthy = true;
     // 向mds发送RPC
@@ -368,19 +401,31 @@ int CopysetCheckCore::CheckCopysetsOnServer(const ServerIdType& serverId,
         std::cout << "ListChunkServersOnServer fail!" << std::endl;
         return -1;
     }
-    for (const auto& info : chunkservers) {
-        std::string ip = info.hostip();
-        uint64_t port = info.port();
-        std::string csAddr = ip + ":" + std::to_string(port);
-        ChunkServerHealthStatus res = CheckCopysetsOnChunkServer(csAddr,
-                                                    {}, queryLeader);
+    std::vector<Thread> threadpool;
+    std::map<std::string, std::pair<int, butil::IOBuf>> queryCsResult;
+    uint32_t index = 0;
+    for (int i = 0; i < FLAGS_rpcConcurrentNum; i++) {
+        threadpool.emplace_back(Thread(
+                        &CopysetCheckCore::ConcurrentCheckCopysetsOnServer,
+                        this, std::ref(chunkservers), &index,
+                        &queryCsResult));
+    }
+    for (auto &thread : threadpool) {
+        thread.join();
+    }
+
+    for (auto &record : queryCsResult) {
+        std::string chunkserverAddr = record.first;
+        auto res = CheckCopysetsOnChunkServer(chunkserverAddr, {}, queryLeader,
+                                              &record.second, false);
         if (res != ChunkServerHealthStatus::kHealthy) {
             isHealthy = false;
             if (unhealthyChunkServers) {
-                unhealthyChunkServers->emplace_back(csAddr);
+                unhealthyChunkServers->emplace_back(chunkserverAddr);
             }
         }
     }
+
     if (isHealthy) {
         return 0;
     }  else {
@@ -617,12 +662,15 @@ void CopysetCheckCore::ParseResponseAttachment(
 
 int CopysetCheckCore::QueryChunkServer(const std::string& chunkserverAddr,
                                    butil::IOBuf* iobuf) {
-    int res = csClient_->Init(chunkserverAddr);
+    // unit test will set csClient_ to mock
+    auto csClient = (csClient_ == nullptr) ?
+                     std::make_shared<ChunkServerClient>() : csClient_;
+    int res = csClient->Init(chunkserverAddr);
     if (res != 0) {
         std::cout << "Init chunkserverClient fail!" << std::endl;
         return -1;
     }
-    return csClient_->GetRaftStatus(iobuf);
+    return csClient->GetRaftStatus(iobuf);
 }
 
 void CopysetCheckCore::UpdateChunkServerCopysets(
@@ -638,13 +686,15 @@ void CopysetCheckCore::UpdateChunkServerCopysets(
 // 通过发送RPC检查chunkserver是否在线
 bool CopysetCheckCore::CheckChunkServerOnline(
                     const std::string& chunkserverAddr) {
-    int res = csClient_->Init(chunkserverAddr);
+    auto csClient = (csClient_ == nullptr) ?
+                     std::make_shared<ChunkServerClient>() : csClient_;
+    int res = csClient->Init(chunkserverAddr);
     if (res != 0) {
         std::cout << "Init chunkserverClient fail!" << std::endl;
         chunkserverCopysets_[chunkserverAddr] = {};
         return false;
     }
-    bool online = csClient_->CheckChunkServerOnline();
+    bool online = csClient->CheckChunkServerOnline();
     if (!online) {
         chunkserverCopysets_[chunkserverAddr] = {};
     }
