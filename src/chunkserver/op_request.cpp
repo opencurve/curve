@@ -1012,7 +1012,7 @@ void ScanChunkRequest::BuildAndSendScanMap(const ChunkRequest &request,
                                    request.sendscanmapretryintervalus(),
                                    cntl, channel);
     LOG(INFO) << "logid = " << cntl->log_id()
-              << "Sending scanmap: " << scanMap->ShortDebugString()
+              << " Sending scanmap: " << scanMap->ShortDebugString()
               << " to leader: " << peer_.addr;
     stub.FollowScanMap(cntl, scanMapRequest, scanMapResponse, done);
 }

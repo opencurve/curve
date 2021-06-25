@@ -49,9 +49,7 @@ std::shared_ptr<CurveTool> CurveToolFactory::GenerateCurveTool(
 std::shared_ptr<StatusTool> CurveToolFactory::GenerateStatusTool() {
     auto mdsClient = std::make_shared<MDSClient>();
     auto etcdClient = std::make_shared<EtcdClient>();
-    auto csClient = std::make_shared<ChunkServerClient>();
-    auto copysetCheck =
-        std::make_shared<CopysetCheckCore>(mdsClient, csClient);
+    auto copysetCheck = std::make_shared<CopysetCheckCore>(mdsClient);
     auto metricClient = std::make_shared<MetricClient>();
     auto snapshotCloneClient =
                 std::make_shared<SnapshotCloneClient>(metricClient);
@@ -83,9 +81,7 @@ std::shared_ptr<CurveCli> CurveToolFactory::GenerateCurveCli() {
 
 std::shared_ptr<CopysetCheck> CurveToolFactory::GenerateCopysetCheck() {
     auto mdsClient = std::make_shared<MDSClient>();
-    auto csClient = std::make_shared<ChunkServerClient>();
-    auto core = std::make_shared<curve::tool::CopysetCheckCore>(mdsClient,
-                                                                csClient);
+    auto core = std::make_shared<curve::tool::CopysetCheckCore>(mdsClient);
     return std::make_shared<CopysetCheck>(core);
 }
 
@@ -96,9 +92,8 @@ std::shared_ptr<ScheduleTool> CurveToolFactory::GenerateScheduleTool() {
 
 std::shared_ptr<CopysetTool> CurveToolFactory::GenerateCopysetTool() {
     auto mdsClient = std::make_shared<MDSClient>();
-    auto csClient = std::make_shared<ChunkServerClient>();
     auto copysetCheck =
-        std::make_shared<curve::tool::CopysetCheckCore>(mdsClient, csClient);
+                std::make_shared<curve::tool::CopysetCheckCore>(mdsClient);
     return std::make_shared<CopysetTool>(copysetCheck, mdsClient);
 }
 
