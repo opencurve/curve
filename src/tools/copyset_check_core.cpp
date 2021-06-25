@@ -266,9 +266,9 @@ ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
 }
 
 bool CopysetCheckCore::CheckCopysetsNoLeader(const std::string& csAddr,
-                            const std::map<std::string,
-                                           std::vector<std::string>>&
-                                                copysetsPeers) {
+                                             const std::map<std::string,
+                                             std::vector<std::string>>&
+                                             copysetsPeers) {
     if (copysetsPeers.empty()) {
         return true;
     }
@@ -351,9 +351,35 @@ int CopysetCheckCore::CheckCopysetsOnServer(const std::string& serverIp,
     return CheckCopysetsOnServer(0, serverIp, true, unhealthyChunkServers);
 }
 
+void CopysetCheckCore::ConcurrentCheckCopysetsOnServer(
+                            const std::vector<ChunkServerInfo> &chunkservers,
+                            uint32_t *index, bool queryLeader, bool *isHealthy,
+                            std::vector<std::string>* unhealthyChunkServers) {
+    while (1) {
+        indexMutex.lock();
+        if (*index > chunkservers.size() - 1) {
+            indexMutex.unlock();
+            break;
+        }
+        auto info = chunkservers[*index];
+        (*index)++;
+        indexMutex.unlock();
+        std::string csAddr = info.hostip() + ":" + std::to_string(info.port());
+        ChunkServerHealthStatus res = CheckCopysetsOnChunkServer(csAddr,
+                                                    {}, queryLeader);
+        if (res != ChunkServerHealthStatus::kHealthy) {
+            vectorMutex.lock();
+            *isHealthy = false;
+            if (unhealthyChunkServers) {
+                unhealthyChunkServers->emplace_back(csAddr);
+            }
+            vectorMutex.unlock();
+        }
+    }
+}
+
 int CopysetCheckCore::CheckCopysetsOnServer(const ServerIdType& serverId,
-                                        const std::string& serverIp,
-                                        bool queryLeader,
+                            const std::string& serverIp, bool queryLeader,
                             std::vector<std::string>* unhealthyChunkServers) {
     bool isHealthy = true;
     // 向mds发送RPC
@@ -368,19 +394,20 @@ int CopysetCheckCore::CheckCopysetsOnServer(const ServerIdType& serverId,
         std::cout << "ListChunkServersOnServer fail!" << std::endl;
         return -1;
     }
-    for (const auto& info : chunkservers) {
-        std::string ip = info.hostip();
-        uint64_t port = info.port();
-        std::string csAddr = ip + ":" + std::to_string(port);
-        ChunkServerHealthStatus res = CheckCopysetsOnChunkServer(csAddr,
-                                                    {}, queryLeader);
-        if (res != ChunkServerHealthStatus::kHealthy) {
-            isHealthy = false;
-            if (unhealthyChunkServers) {
-                unhealthyChunkServers->emplace_back(csAddr);
-            }
-        }
+
+    std::vector<Thread> threadpool;
+    uint32_t index = 0;
+    for (int i = 0; i < FLAGS_rpcConcurrentNum; i++) {
+        threadpool.emplace_back(Thread(
+                        &CopysetCheckCore::ConcurrentCheckCopysetsOnServer,
+                        this, std::ref(chunkservers), &index,
+                        queryLeader, &isHealthy,
+                        unhealthyChunkServers));
     }
+    for (auto &thread : threadpool) {
+        thread.join();
+    }
+
     if (isHealthy) {
         return 0;
     }  else {
