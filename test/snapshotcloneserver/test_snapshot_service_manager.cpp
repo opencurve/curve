@@ -468,6 +468,15 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotByCancelSuccess) {
     EXPECT_CALL(*core_, DeleteSnapshotPre(uuid, user, _, _))
         .WillOnce(Return(kErrCodeSnapshotCannotDeleteUnfinished));
 
+    // Cancel scheduled snapshot task
+    auto callback = [](std::shared_ptr<SnapshotTaskInfo> task) {
+        task->Cancel();
+        return kErrCodeSuccess;
+    };
+
+    EXPECT_CALL(*core_, HandleCancelScheduledSnapshotTask(_))
+        .WillOnce(Invoke(callback));
+
     ret = manager_->DeleteSnapshot(uuid, user, file);
     ASSERT_EQ(kErrCodeSuccess, ret);
 
@@ -1080,6 +1089,15 @@ TEST_F(TestSnapshotServiceManager,
     // 取消排队的快照会调一次
     EXPECT_CALL(*core_, HandleCancelUnSchduledSnapshotTask(_))
         .WillOnce(Return(kErrCodeSuccess));
+
+    // Cancel scheduled snapshot task
+    auto callback = [](std::shared_ptr<SnapshotTaskInfo> task) {
+        task->Cancel();
+        return kErrCodeSuccess;
+    };
+
+    EXPECT_CALL(*core_, HandleCancelScheduledSnapshotTask(_))
+        .WillOnce(Invoke(callback));
 
     int ret = manager_->CreateSnapshot(
         file,

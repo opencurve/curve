@@ -106,6 +106,35 @@ int SnapshotCloneMetaStoreEtcd::UpdateSnapshot(const SnapshotInfo &info) {
     return 0;
 }
 
+int SnapshotCloneMetaStoreEtcd::CASSnapshot(const UUID& uuid, CASFunc cas) {
+    WriteLockGuard guard(snapInfos_mutex);
+    auto iter = snapInfos_.find(uuid);
+    auto info = cas(iter == snapInfos_.end() ? nullptr : &(iter->second));
+    if (nullptr == info) {  // Not needed to update snapshot
+        return 0;
+    }
+
+    int retCode;
+    std::string value;
+    auto key = codec_->EncodeSnapshotKey(uuid);
+    if (!codec_->EncodeSnapshotData(*info, &value)) {
+        LOG(ERROR) << "EncodeSnapshotData failed, snapshotInfo: " << *info;
+        return -1;
+    } else if ((retCode = client_->Put(key, value)) != EtcdErrCode::EtcdOK) {
+        LOG(ERROR) << "Put snapshotInfo into etcd failed"
+                   <<", errCode: " << retCode << ", snapshotInfo: " << *info;
+        return -1;
+    }
+
+    if (iter != snapInfos_.end()) {
+        iter->second = *info;
+    } else {
+        snapInfos_.emplace(uuid, *info);
+    }
+
+    return 0;
+}
+
 int SnapshotCloneMetaStoreEtcd::GetSnapshotInfo(
     const UUID &uuid, SnapshotInfo *info) {
     ReadLockGuard guard(snapInfos_mutex);

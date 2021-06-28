@@ -57,6 +57,8 @@ class SnapshotCloneMetaStoreEtcd : public SnapshotCloneMetaStore {
 
     int UpdateSnapshot(const SnapshotInfo &info) override;
 
+    int CASSnapshot(const UUID& uuid, CASFunc cas) override;
+
     int GetSnapshotInfo(const UUID &uuid, SnapshotInfo *info) override;
 
     int GetSnapshotList(const std::string &filename,
