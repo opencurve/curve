@@ -37,6 +37,8 @@
 namespace curve {
 namespace snapshotcloneserver {
 
+using CASFunc = std::function<SnapshotInfo*(SnapshotInfo*)>;
+
 class SnapshotCloneMetaStore {
  public:
     SnapshotCloneMetaStore() {}
@@ -60,6 +62,18 @@ class SnapshotCloneMetaStore {
      * @return: 0 更新成功/ -1 更新失败
      */
     virtual int UpdateSnapshot(const SnapshotInfo &snapinfo) = 0;
+
+    /**
+     * @brief Compare and set snapshot
+     * @param[in] uuid the uuid for snapshot
+     * @param[in] cas the function for compare and set snapshot,
+     *            return nullptr if not needed to set snapshot,
+     *            else return the pointer of snapshot to set
+     * @return 0 if set snapshot success or not needed to set snapshot,
+     *         else return -1
+     */
+    virtual int CASSnapshot(const UUID& uuid, CASFunc cas) = 0;
+
     /**
      * 获取指定快照的快照信息
      * @param 快照的uuid

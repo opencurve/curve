@@ -394,9 +394,10 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeSuccess));
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(Return(kErrCodeSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;
     CopysetID cpid1 = 1;
@@ -613,9 +614,9 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeInternalError));
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillOnce(Return(kErrCodeInternalError))
         .WillOnce(Return(kErrCodeSuccess));
 
     core_->HandleCreateSnapshotTask(task);
@@ -655,9 +656,10 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeInternalError));
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(Return(kErrCodeInternalError));
+        .WillOnce(Return(kErrCodeInternalError));
 
     core_->HandleCreateSnapshotTask(task);
 
@@ -698,9 +700,10 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeSuccess));
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(Return(kErrCodeSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
           user,
@@ -747,9 +750,10 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeSuccess));
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(Return(kErrCodeSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;
     CopysetID cpid1 = 1;
@@ -831,9 +835,10 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeSuccess));
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(Return(kErrCodeSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;
     CopysetID cpid1 = 1;
@@ -921,9 +926,10 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeSuccess));
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(Return(kErrCodeSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;
     CopysetID cpid1 = 1;
@@ -1037,9 +1043,10 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeSuccess));
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(Return(kErrCodeSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;
     CopysetID cpid1 = 1;
@@ -1168,9 +1175,10 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeSuccess));
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(Return(kErrCodeSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;
     CopysetID cpid1 = 1;
@@ -1306,9 +1314,10 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeSuccess));
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(Return(kErrCodeSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;
     CopysetID cpid1 = 1;
@@ -1449,9 +1458,10 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeSuccess));
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(Return(kErrCodeSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;
     CopysetID cpid1 = 1;
@@ -1594,9 +1604,10 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeSuccess));
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(Return(kErrCodeSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;
     CopysetID cpid1 = 1;
@@ -1742,9 +1753,10 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeSuccess));
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(Return(kErrCodeSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;
     CopysetID cpid1 = 1;
@@ -1890,9 +1902,10 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeSuccess));
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(Return(kErrCodeSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;
     CopysetID cpid1 = 1;
@@ -2604,9 +2617,8 @@ TEST_F(TestSnapshotCoreImpl, TestHandleCreateSnapshotTaskCancelSuccess) {
                     Return(LIBCURVE_ERROR::OK)));
 
 
-    EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(Return(kErrCodeSuccess));
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;
     CopysetID cpid1 = 1;
@@ -2775,13 +2787,11 @@ TEST_F(TestSnapshotCoreImpl,
 
 
     // 此处捕获task，设置cancel
-    EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(
-               Invoke([task](const SnapshotInfo &snapinfo){
-                    task->Cancel();
-                    return kErrCodeSuccess;
-                   }));
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Invoke([task](const UUID& uuid, CASFunc cas) {
+            task->Cancel();
+            return kErrCodeSuccess;
+        }));
 
     // 进入cancel
     EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
@@ -2830,9 +2840,8 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
-    EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(Return(kErrCodeSuccess));
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;
     CopysetID cpid1 = 1;
@@ -2938,9 +2947,10 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
+    EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
+        .WillOnce(Return(kErrCodeSuccess));
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(3)
-        .WillRepeatedly(Return(kErrCodeSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;
     CopysetID cpid1 = 1;
