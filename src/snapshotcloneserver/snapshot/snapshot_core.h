@@ -156,6 +156,16 @@ class SnapshotCore {
 
     virtual int HandleCancelUnSchduledSnapshotTask(
         std::shared_ptr<SnapshotTaskInfo> task) = 0;
+
+    /**
+     * @brief Handle cancel snapshot task which is scheduled
+     * @param[in] task pointer to snapshot task
+     * @return kErrCodeCannotCancelFinished if task has finished,
+     *         kErrCodeSuccess if cancel success,
+     *         else return kErrCodeInternalError
+     */
+    virtual int HandleCancelScheduledSnapshotTask(
+        std::shared_ptr<SnapshotTaskInfo> task) = 0;
 };
 
 class SnapshotCoreImpl : public SnapshotCore {
@@ -222,6 +232,9 @@ class SnapshotCoreImpl : public SnapshotCore {
     int GetSnapshotList(std::vector<SnapshotInfo> *list) override;
 
     int HandleCancelUnSchduledSnapshotTask(
+        std::shared_ptr<SnapshotTaskInfo> task) override;
+
+    int HandleCancelScheduledSnapshotTask(
         std::shared_ptr<SnapshotTaskInfo> task) override;
 
  private:

@@ -530,7 +530,7 @@ TEST_F(SnapshotCloneServerTest, TestCancelAndMakeSnaphotConcurrent) {
                     CancelSnapshot(testUser1_, testFile1_, uuid1);
                     isCancel = true;
                 }
-                std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+                std::this_thread::sleep_for(std::chrono::seconds(30));
                 continue;
             } else if (info1.GetSnapshotInfo().GetStatus() == Status::done) {
                 success1 = false;
