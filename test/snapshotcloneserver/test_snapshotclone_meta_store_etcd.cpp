@@ -255,6 +255,116 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     ASSERT_TRUE(JudgeSnapshotInfoEqual(snapInfo, outInfo));
 }
 
+TEST_F(TestSnapshotCloneMetaStoreEtcd, TestCASSnapshot) {
+    SnapshotInfo snapInfo(
+        "uuid", "user", "", "", 0, 0, 0, 0, 0, 0, 0, Status::pending);
+
+    auto setUp = [&]() {
+        EXPECT_CALL(*kvStorageClient_, Put(_, _))
+            .WillOnce(Return(EtcdErrCode::EtcdOK));
+        ASSERT_EQ(metaStore_->AddSnapshot(snapInfo), 0);
+    };
+
+    auto tearDown = [&]() {
+        ASSERT_EQ(metaStore_->DeleteSnapshot("uuid"), 0);
+    };
+
+    // CASE 1: Etcd put failed -> CASSnapshot failed
+    {
+        setUp();
+
+        auto cas = [](SnapshotInfo* snapinfo) -> SnapshotInfo* {
+            return snapinfo;
+        };
+
+        EXPECT_CALL(*kvStorageClient_, Put(_, _))
+            .WillOnce(Return(EtcdErrCode::EtcdUnknown));
+        ASSERT_EQ(metaStore_->CASSnapshot("uuid", cas), -1);
+
+        tearDown();
+    }
+
+    // CASE 2: Set snapshot success
+    {
+        setUp();
+
+        SnapshotInfo setInfo(
+            "uuid", "user1", "", "", 1, 1, 1, 1, 1, 1, 1, Status::done);
+        auto cas = [&setInfo](SnapshotInfo* snapinfo) -> SnapshotInfo* {
+            return &setInfo;
+        };
+
+        EXPECT_CALL(*kvStorageClient_, Put(_, _))
+            .WillOnce(Return(EtcdErrCode::EtcdOK));
+        ASSERT_EQ(metaStore_->CASSnapshot("uuid", cas), 0);
+
+        SnapshotInfo retInfo;
+        ASSERT_EQ(metaStore_->GetSnapshotInfo("uuid", &retInfo), 0);
+        ASSERT_TRUE(JudgeSnapshotInfoEqual(retInfo, setInfo));
+
+        tearDown();
+    }
+
+    // CASE 3: Set snapshot success without origin snapshot
+    {
+        auto cas = [&snapInfo](SnapshotInfo* snapinfo) -> SnapshotInfo* {
+            return &snapInfo;
+        };
+
+        EXPECT_CALL(*kvStorageClient_, Put(_, _))
+            .WillOnce(Return(EtcdErrCode::EtcdOK));
+        ASSERT_EQ(metaStore_->CASSnapshot("uuid", cas), 0);
+
+        SnapshotInfo retInfo;
+        ASSERT_EQ(metaStore_->GetSnapshotInfo("uuid", &retInfo), 0);
+        ASSERT_TRUE(JudgeSnapshotInfoEqual(retInfo, snapInfo));
+
+        tearDown();
+    }
+
+    // CASE 4: Not needed to set snapshot
+    {
+        setUp();
+
+        auto cas = [](SnapshotInfo* snapinfo) -> SnapshotInfo* {
+            return nullptr;
+        };
+
+        EXPECT_CALL(*kvStorageClient_, Put(_, _))
+            .Times(0);
+        ASSERT_EQ(metaStore_->CASSnapshot("uuid", cas), 0);
+
+        SnapshotInfo retInfo;
+        ASSERT_EQ(metaStore_->GetSnapshotInfo("uuid", &retInfo), 0);
+        ASSERT_TRUE(JudgeSnapshotInfoEqual(retInfo, snapInfo));
+
+        tearDown();
+    }
+
+    // CASE 5: Set snapshot and keep status
+    {
+        setUp();
+
+        SnapshotInfo setInfo(
+            "uuid", "user1", "", "", 1, 1, 1, 1, 1, 1, 1, Status::done);
+        auto cas = [&setInfo](SnapshotInfo* snapInfo) -> SnapshotInfo* {
+            setInfo.SetStatus(snapInfo->GetStatus());
+            return &setInfo;
+        };
+
+        EXPECT_CALL(*kvStorageClient_, Put(_, _))
+            .WillOnce(Return(EtcdErrCode::EtcdOK));
+        ASSERT_EQ(metaStore_->CASSnapshot("uuid", cas), 0);
+
+        SnapshotInfo retInfo;
+        ASSERT_EQ(metaStore_->GetSnapshotInfo("uuid", &retInfo), 0);
+        ASSERT_TRUE(JudgeSnapshotInfoEqual(retInfo, setInfo));
+        ASSERT_EQ(retInfo.GetStatus(), Status::pending);
+
+        tearDown();
+    }
+}
+
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestGetSnapshotInfoFail) {
     SnapshotInfo outInfo;

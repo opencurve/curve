@@ -114,11 +114,7 @@ int SnapshotTaskManager::CancelTask(const TaskIdType &taskId) {
     auto it = taskMap_.find(taskId);
     if (it != taskMap_.end()) {
         auto taskInfo = it->second->GetTaskInfo();
-        LockGuard lockGuard(taskInfo->GetLockRef());
-        if (!taskInfo->IsFinish()) {
-            taskInfo->Cancel();
-            return kErrCodeSuccess;
-        }
+        return core_->HandleCancelScheduledSnapshotTask(taskInfo);
     }
     return kErrCodeCannotCancelFinished;
 }
