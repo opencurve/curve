@@ -22,6 +22,35 @@ Previous change logs can be found at [CHANGELOG-1.1](https://github.com/opencurv
     - [Support to list the volume on copyset where majority copy is failed.](https://github.com/opencurve/curve/pull/233)
 - [Clean up the unit test temporary folder.](https://github.com/opencurve/curve/pull/206/)
 
+
+Hardware: 6 nodes, each with:
+ - 20x SATA SSD Intel® SSD DC S3500 Series 800G
+ - 2x Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz
+ - 2x Intel Corporation 82599ES 10-Gigabit SFI/SFP+ Network Connection, bond mode is 802.3ad with layer2+3 hash policy
+ - 251G RAM
+
+Performance test is based on curve-nbd, the size of each block device is 200GB, all configurations are default, and each Chunkserver is deployed on one SSD.
+
+1 NBD block device:
+
+| item | iops/bandwidth | avg-latency | 99th-latency  | striped volume<br>iops/bandwidth | striped volume<br>avg-latency | striped volume<br>99th-latency |
+| :----: | :----: | :----: | :----: | :----: |:----: |:----: |
+| 4K randwrite, 128 depth | 97,700 iops | 1.3 ms | 2.0 ms | 97,100 iops | 1.3 ms | 3.0 ms |
+| 4K randread, 128 depth | 119,000 iops | 1.07 ms | 1.8 ms | 98,000 iops | 1.3 ms | 2.2 ms |
+| 512K write, 128 depth | 208 MB/s | 307 ms | 347 ms | 462 MB/s | 138 ms | 228 ms |
+| 512K read, 128 depth | 311 MB/s | 206 ms | 264 ms | 843 MB/s | 75 ms | 102 ms |
+
+
+10 NBD block device:
+
+| item | iops/bandwidth | avg-latency | 99th-latency | striped volume<br>iops/bandwidth | striped volume<br>avg-latency | striped volume<br>99th-latency |
+| :----: | :----: | :----: | :----: | :----: |:----: |:----: |
+| 4K randwrite, 128 depth | 231,000 iops | 5.6 ms | 50 ms | 227,000 iops | 5.9 ms | 53 ms |
+| 4K randread, 128 depth | 350,000 iops | 3.7 ms | 8.2 ms | 345,000 iops | 3.8 ms | 8.2 ms |
+| 512K write, 128 depth | 805 MB/s | 415 ms | 600 ms | 1,077 MB/s | 400 ms | 593 ms |
+| 512K read, 128 depth | 2,402 MB/s | 267 ms | 275 ms | 3,313 MB/s | 201 ms | 245 ms |
+
+
 ## bug fix
 
 - [Fix clone delete bug.](https://github.com/opencurve/curve/pull/176)
