@@ -360,9 +360,7 @@ TEST_F(BaseClientTest, test_CreateFs) {
     fsinfo->set_capacity(10 * 1024 * 1024L);
     fsinfo->set_blocksize(4 * 1024);
     fsinfo->set_mountnum(1);
-    auto mp = fsinfo->add_mountpoints();
-    mp->set_host("0.0.0.0");
-    mp->set_mountdir("/data");
+    fsinfo->add_mountpoints("0.0.0.0:/data");
     fsinfo->set_fstype(FSType::TYPE_VOLUME);
     auto vresp = new curvefs::common::Volume();
     vresp->set_volumesize(10 * 1024 * 1024L);
@@ -412,9 +410,7 @@ TEST_F(BaseClientTest, test_DeleteFs) {
 
 TEST_F(BaseClientTest, test_MountFs) {
     std::string fsName = "test1";
-    curvefs::mds::MountPoint mp;
-    mp.set_host("0.0.0.0");
-    mp.set_mountdir("/data");
+    std::string mp = "0.0.0.0:/data";
     MountFsResponse resp;
     brpc::Controller cntl;
     cntl.set_timeout_ms(1000);
@@ -439,9 +435,7 @@ TEST_F(BaseClientTest, test_MountFs) {
 
 TEST_F(BaseClientTest, test_UmountFs) {
     std::string fsName = "test1";
-    curvefs::mds::MountPoint mp;
-    mp.set_host("0.0.0.0");
-    mp.set_mountdir("/data");
+    std::string mp = "0.0.0.0:/data";
     UmountFsResponse resp;
     brpc::Controller cntl;
     cntl.set_timeout_ms(1000);

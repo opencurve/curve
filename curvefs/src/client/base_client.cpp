@@ -169,27 +169,23 @@ void MDSBaseClient::DeleteFs(const std::string &fsName,
 }
 
 void MDSBaseClient::MountFs(const std::string &fsName,
-                            const MountPoint &mountPt,
+                            const std::string &mountPt,
                             MountFsResponse *response, brpc::Controller *cntl,
                             brpc::Channel *channel) {
     MountFsRequest request;
     request.set_fsname(fsName);
-    MountPoint *m = new MountPoint;
-    m->CopyFrom(mountPt);
-    request.set_allocated_mountpoint(m);
+    request.set_mountpoint(mountPt);
     curvefs::mds::MdsService_Stub stub(channel);
     stub.MountFs(cntl, &request, response, nullptr);
 }
 
 void MDSBaseClient::UmountFs(const std::string &fsName,
-                             const MountPoint &mountPt,
+                             const std::string &mountPt,
                              UmountFsResponse *response, brpc::Controller *cntl,
                              brpc::Channel *channel) {
     UmountFsRequest request;
     request.set_fsname(fsName);
-    MountPoint *m = new MountPoint;
-    m->CopyFrom(mountPt);
-    request.set_allocated_mountpoint(m);
+    request.set_mountpoint(mountPt);
     curvefs::mds::MdsService_Stub stub(channel);
     stub.UmountFs(cntl, &request, response, nullptr);
 }

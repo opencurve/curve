@@ -68,7 +68,6 @@ using curvefs::mds::GetFsInfoRequest;
 using curvefs::mds::GetFsInfoResponse;
 using curvefs::mds::MountFsRequest;
 using curvefs::mds::MountFsResponse;
-using curvefs::mds::MountPoint;
 using curvefs::mds::UmountFsRequest;
 using curvefs::mds::UmountFsResponse;
 
@@ -139,11 +138,11 @@ class MDSBaseClient {
     virtual void DeleteFs(const std::string &fsName, DeleteFsResponse *response,
                           brpc::Controller *cntl, brpc::Channel *channel);
 
-    virtual void MountFs(const std::string &fsName, const MountPoint &mountPt,
+    virtual void MountFs(const std::string &fsName, const std::string &mountPt,
                          MountFsResponse *response, brpc::Controller *cntl,
                          brpc::Channel *channel);
 
-    virtual void UmountFs(const std::string &fsName, const MountPoint &mountPt,
+    virtual void UmountFs(const std::string &fsName, const std::string &mountPt,
                           UmountFsResponse *response, brpc::Controller *cntl,
                           brpc::Channel *channel);
 

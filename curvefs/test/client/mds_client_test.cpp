@@ -90,9 +90,7 @@ TEST_F(MdsClientImplTest, test_CreateFs) {
     vresp->set_password("test");
     fsinfo->set_allocated_volume(vresp);
     fsinfo->set_mountnum(1);
-    auto mp = fsinfo->add_mountpoints();
-    mp->set_host("0.0.0.0");
-    mp->set_mountdir("/data");
+    fsinfo->add_mountpoints("0.0.0.0:/data");
     response.set_allocated_fsinfo(fsinfo);
     response.set_statuscode(curvefs::mds::FSStatusCode::OK);
     EXPECT_CALL(mockmdsbasecli_, CreateFs(_, _, _, _, _, _))
@@ -114,9 +112,7 @@ TEST_F(MdsClientImplTest, test_DeleteFs) {
 
 TEST_F(MdsClientImplTest, test_MountFs) {
     std::string fsName = "test1";
-    curvefs::mds::MountPoint mp;
-    mp.set_host("0.0.0.0");
-    mp.set_mountdir("/data");
+    std::string mp = "0.0.0.0:/data";
     FsInfo out;
 
     curvefs::mds::MountFsResponse response;
@@ -134,9 +130,7 @@ TEST_F(MdsClientImplTest, test_MountFs) {
     vresp->set_password("test");
     fsinfo->set_allocated_volume(vresp);
     fsinfo->set_mountnum(1);
-    auto mp1 = fsinfo->add_mountpoints();
-    mp1->set_host("0.0.0.0");
-    mp1->set_mountdir("/data");
+    fsinfo->add_mountpoints("0.0.0.0:/data");
     response.set_allocated_fsinfo(fsinfo);
     response.set_statuscode(curvefs::mds::FSStatusCode::OK);
     EXPECT_CALL(mockmdsbasecli_, MountFs(_, _, _, _, _))
@@ -149,9 +143,7 @@ TEST_F(MdsClientImplTest, test_MountFs) {
 
 TEST_F(MdsClientImplTest, test_UmountFs) {
     std::string fsName = "test1";
-    curvefs::mds::MountPoint mp;
-    mp.set_host("0.0.0.0");
-    mp.set_mountdir("/data");
+    std::string mp = "0.0.0.0:/data";
 
     curvefs::mds::UmountFsResponse response;
     response.set_statuscode(curvefs::mds::FSStatusCode::OK);
@@ -180,9 +172,7 @@ TEST_F(MdsClientImplTest, test_GetFsInfo_by_fsname) {
     vresp->set_password("test");
     fsinfo->set_allocated_volume(vresp);
     fsinfo->set_mountnum(1);
-    auto mp = fsinfo->add_mountpoints();
-    mp->set_host("0.0.0.0");
-    mp->set_mountdir("/data");
+    fsinfo->add_mountpoints("0.0.0.0:/data");
     response.set_allocated_fsinfo(fsinfo);
     response.set_statuscode(curvefs::mds::FSStatusCode::OK);
     EXPECT_CALL(mockmdsbasecli_, GetFsInfo(fsName, _, _, _))
@@ -212,9 +202,7 @@ TEST_F(MdsClientImplTest, test_GetFsInfo_by_fsid) {
     vresp->set_password("test");
     fsinfo->set_allocated_volume(vresp);
     fsinfo->set_mountnum(1);
-    auto mp = fsinfo->add_mountpoints();
-    mp->set_host("0.0.0.0");
-    mp->set_mountdir("/data");
+    fsinfo->add_mountpoints("0.0.0.0:/data");
     response.set_allocated_fsinfo(fsinfo);
     response.set_statuscode(curvefs::mds::FSStatusCode::OK);
     EXPECT_CALL(mockmdsbasecli_, GetFsInfo(fsid, _, _, _))
