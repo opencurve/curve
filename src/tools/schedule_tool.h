@@ -65,10 +65,14 @@ class ScheduleTool : public CurveTool {
      */
     void PrintRapidLeaderScheduleHelp();
 
+    void PrintSetScanStateHelp();
+
     /**
      * @brief DoRapidLeaderSchedule 向mds发送rpc进行快速transfer leader
      */
     int DoRapidLeaderSchedule();
+
+    int DoSetScanState();
 
     int ScheduleOne(PoolIdType lpoolId);
 

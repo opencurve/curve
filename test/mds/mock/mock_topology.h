@@ -102,6 +102,11 @@ class MockTopology : public Topology {
     MOCK_METHOD2(UpdateLogicalPoolAllocateStatus,
         int(const AllocateStatus &status,
             PoolIdType id));
+
+    MOCK_METHOD2(UpdateLogicalPoolScanState,
+                 int(PoolIdType lpid,
+                     bool scanEnable));
+
     MOCK_METHOD1(UpdatePhysicalPool, int(const PhysicalPool &data));
     MOCK_METHOD1(UpdateZone, int(const Zone &data));
     MOCK_METHOD1(UpdateServer, int(const Server &data));

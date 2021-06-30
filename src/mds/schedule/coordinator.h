@@ -86,15 +86,6 @@ class Coordinator {
     virtual bool ChunkserverGoingToAdd(ChunkServerIdType csId, CopySetKey key);
 
     /**
-     * @brief Set specify logical pool to enable/disable scan
-     * @param[in] lpid logical pool id
-     * @param[in] scanEnable enable(true)/disable(false) scan
-     * @return kScheduleErrCodeSuccess if set success,
-     *         kScheduleErrCodeInvalidLogicalPool if logical pool not exist
-     */
-    virtual int SetLogicalPoolScanState(PoolIdType lpid, bool scanEnable);
-
-    /**
      * @brief Initialize the scheduler according to the configuration
      *
      * @param[in] conf

@@ -52,12 +52,6 @@ class ScheduleServiceImpl : public ScheduleService {
         QueryChunkServerRecoverStatusResponse *response,
         google::protobuf::Closure* done);
 
-    virtual void SetLogicalPoolScanState(
-        google::protobuf::RpcController* cntl_base,
-        const SetLogicalPoolScanStateRequest* request,
-        SetLogicalPoolScanStateResponse* response,
-        google::protobuf::Closure* done);
-
  private:
     std::shared_ptr<Coordinator> coordinator_;
 };

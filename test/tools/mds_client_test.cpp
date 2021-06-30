@@ -46,6 +46,8 @@ using curve::mds::topology::SetCopysetsAvailFlagRequest;
 using curve::mds::topology::SetCopysetsAvailFlagResponse;
 using curve::mds::topology::ListUnAvailCopySetsRequest;
 using curve::mds::topology::ListUnAvailCopySetsResponse;
+using curve::mds::topology::SetLogicalPoolScanStateRequest;
+using curve::mds::topology::SetLogicalPoolScanStateResponse;
 using curve::mds::schedule::RapidLeaderScheduleResponse;
 using curve::mds::schedule::QueryChunkServerRecoverStatusRequest;
 using curve::mds::schedule::QueryChunkServerRecoverStatusResponse;
@@ -62,6 +64,14 @@ namespace curve {
 namespace tool {
 
 const char mdsAddr[] = "127.0.0.1:9191,127.0.0.1:9192";
+
+template<typename Req, typename Resp>
+void callback(RpcController* controller,
+              const Req* request,
+              Resp* response,
+              Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+}
 
 class ToolMDSClientTest : public ::testing::Test {
  protected:
@@ -1113,6 +1123,50 @@ TEST_F(ToolMDSClientTest, RapidLeaderSchedule) {
                         brpc::ClosureGuard doneGuard(done);
                     })));
     ASSERT_EQ(0, mdsClient.RapidLeaderSchedule(1));
+}
+
+TEST_F(ToolMDSClientTest, SetLogicalPoolScanState) {
+    auto succCallback = callback<SetLogicalPoolScanStateRequest,
+                                 SetLogicalPoolScanStateResponse>;
+
+    SetLogicalPoolScanStateResponse succResp, failResp;
+    succResp.set_statuscode(curve::mds::topology::kTopoErrCodeSuccess);
+    failResp.set_statuscode(
+        curve::mds::topology::kTopoErrCodeLogicalPoolNotFound);
+
+    // CASE 1: Send rpc failed
+    {
+        auto failCallback = [](RpcController *controller,
+                               const SetLogicalPoolScanStateRequest* request,
+                               SetLogicalPoolScanStateResponse* response,
+                               Closure* done) {
+            brpc::ClosureGuard doneGuard(done);
+            brpc::Controller *cntl =
+                dynamic_cast<brpc::Controller *>(controller);
+            cntl->SetFailed("fail");
+        };
+        EXPECT_CALL(*topoService, SetLogicalPoolScanState(_, _, _, _))
+            .Times(6)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(succResp),
+                                  Invoke(failCallback)));
+        ASSERT_EQ(-1, mdsClient.SetLogicalPoolScanState(1, true));
+    }
+
+    // CASE 2: Logical pool not found
+    {
+        EXPECT_CALL(*topoService, SetLogicalPoolScanState(_, _, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(failResp),
+                            Invoke(succCallback)));
+        ASSERT_EQ(-1, mdsClient.SetLogicalPoolScanState(1, true));
+    }
+
+    // CASE 3: Set success
+    {
+        EXPECT_CALL(*topoService, SetLogicalPoolScanState(_, _, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(succResp),
+                            Invoke(succCallback)));
+        ASSERT_EQ(0, mdsClient.SetLogicalPoolScanState(1, true));
+    }
 }
 
 TEST_F(ToolMDSClientTest, QueryChunkServerRecoverStatus) {
