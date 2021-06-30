@@ -1302,6 +1302,7 @@ void TopologyServiceManager::ListLogicalPool(
             info->set_redundanceandplacementpolicy(rapStr);
             info->set_userpolicy(policyStr);
             info->set_allocatestatus(lPool.GetStatus());
+            info->set_scanenable(lPool.ScanEnable());
         } else {
             LOG(ERROR) << "Topology has counter an internal error: "
                        << "[func:] ListLogicalPool, "
@@ -1319,6 +1320,15 @@ void TopologyServiceManager::SetLogicalPool(
     int errcode = topology_->UpdateLogicalPoolAllocateStatus(
         request->status(), request->logicalpoolid());
     response->set_statuscode(errcode);
+}
+
+void TopologyServiceManager::SetLogicalPoolScanState(
+    const SetLogicalPoolScanStateRequest* request,
+    SetLogicalPoolScanStateResponse* response) {
+    auto lpid = request->logicalpoolid();
+    auto scanEnable = request->scanenable();
+    auto retCode = topology_->UpdateLogicalPoolScanState(lpid, scanEnable);
+    response->set_statuscode(retCode);
 }
 
 void TopologyServiceManager::GetChunkServerListInCopySets(

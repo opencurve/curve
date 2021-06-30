@@ -85,8 +85,9 @@ const char kResetPeerCmd[] = "reset-peer";
 const char kDoSnapshot[] = "do-snapshot";
 const char kDoSnapshotAll[] = "do-snapshot-all";
 
-// 调度模块命令
+// Commands for schedule
 const char kRapidLeaderSchedule[] = "rapid-leader-schedule";
+const char kSetScanState[] = "set-scan-state";
 
 // curve文件meta相关的命令
 const char kChunkMeta[] = "chunk-meta";

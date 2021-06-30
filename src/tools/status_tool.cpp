@@ -380,6 +380,7 @@ int StatusTool::LogicalPoolListCmd() {
                   << ", physicalPoolID = " << lgPool.physicalpoolid()
                   << ", type = "
                   << curve::mds::topology::LogicalPoolType_Name(lgPool.type())
+                  << ", scanEnable = " << lgPool.scanenable()
                   << ", allocateStatus = "
                   << curve::mds::topology::
                   AllocateStatus_Name(lgPool.allocatestatus())

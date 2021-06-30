@@ -405,16 +405,6 @@ bool Coordinator::IsChunkServerRecover(const ChunkServerInfo &info) {
     return false;
 }
 
-int Coordinator::SetLogicalPoolScanState(PoolIdType lpid, bool scanEnable) {
-    ::curve::mds::topology::LogicalPool lpool;
-    if (topo_->GetLogicalPool(lpid, &lpool)) {
-        lpool.SetScanEnable(scanEnable);  // without lock
-        return kScheduleErrCodeSuccess;
-    }
-
-    LOG(WARNING) << "ScanSchedule unfind logicalpool: " << lpid;
-    return kScheduleErrCodeInvalidLogicalPool;
-}
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

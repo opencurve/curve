@@ -98,6 +98,9 @@ class Topology {
     virtual int UpdateLogicalPoolAllocateStatus(const AllocateStatus &status,
                                         PoolIdType id) = 0;
 
+    virtual int UpdateLogicalPoolScanState(PoolIdType lpid,
+                                           bool scanEnable) = 0;
+
     virtual int UpdatePhysicalPool(const PhysicalPool &data) = 0;
     virtual int UpdateZone(const Zone &data) = 0;
     virtual int UpdateServer(const Server &data) = 0;
@@ -373,6 +376,10 @@ class TopologyImpl : public Topology {
     int UpdateLogicalPool(const LogicalPool &data) override;
     int UpdateLogicalPoolAllocateStatus(const AllocateStatus &status,
                                         PoolIdType id) override;
+
+    int UpdateLogicalPoolScanState(PoolIdType lpid,
+                                   bool scanEnable) override;
+
     int UpdatePhysicalPool(const PhysicalPool &data) override;
     int UpdateZone(const Zone &data) override;
     int UpdateServer(const Server &data) override;

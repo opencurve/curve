@@ -754,6 +754,36 @@ void TopologyServiceImpl::SetLogicalPool(
     }
 }
 
+void TopologyServiceImpl::SetLogicalPoolScanState(
+    google::protobuf::RpcController* cntl_base,
+    const SetLogicalPoolScanStateRequest* request,
+    SetLogicalPoolScanStateResponse* response,
+    google::protobuf::Closure* done) {
+    brpc::ClosureGuard done_guard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
+
+    auto localAddr = cntl->local_side();
+    auto remoteAddr = cntl->remote_side();
+    LOG(INFO)
+        << "Received request[log_id=" << cntl->log_id()
+        << "] from " << remoteAddr << " to " << localAddr
+        << ". [SetLogicalPoolScanStateRequest] " << request->DebugString();
+
+    topology_->SetLogicalPoolScanState(request, response);
+
+    std::ostringstream errMsg;
+    errMsg << "Send response[log_id=" << cntl->log_id()
+           << "] from " << localAddr << " to " << remoteAddr
+           << ". [SetLogicalPoolScanStateResponse] " << response->DebugString();
+
+    auto retCode = response->statuscode();
+    if (retCode == kTopoErrCodeSuccess) {
+        LOG(INFO) << errMsg.str();
+    } else {
+        LOG(ERROR) << errMsg.str();
+    }
+}
+
 void TopologyServiceImpl::GetChunkServerListInCopySets(
     google::protobuf::RpcController* cntl_base,
     const GetChunkServerListInCopySetsRequest* request,

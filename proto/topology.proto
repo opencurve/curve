@@ -338,6 +338,7 @@ message LogicalPoolInfo {
     required bytes redundanceAndPlaceMentPolicy = 6;  //json body
     required bytes userPolicy = 7;                    //json body
     required AllocateStatus allocateStatus = 8;
+    optional bool scanEnable = 9;
 }
 
 message CreateLogicalPoolRequest {
@@ -397,6 +398,15 @@ message SetLogicalPoolRequest {
 }
 
 message SetLogicalPoolResponse {
+    required sint32 statusCode = 1;
+}
+
+message SetLogicalPoolScanStateRequest {
+    required uint32 logicalPoolID = 1;
+    required bool scanEnable = 2;
+}
+
+message SetLogicalPoolScanStateResponse {
     required sint32 statusCode = 1;
 }
 
@@ -498,6 +508,7 @@ service TopologyService {
     rpc GetLogicalPool(GetLogicalPoolRequest)           returns (GetLogicalPoolResponse);
     rpc ListLogicalPool(ListLogicalPoolRequest)         returns (ListLogicalPoolResponse);
     rpc SetLogicalPool(SetLogicalPoolRequest) returns(SetLogicalPoolResponse);
+    rpc SetLogicalPoolScanState(SetLogicalPoolScanStateRequest) returns(SetLogicalPoolScanStateResponse);
 
     rpc GetChunkServerListInCopySets(GetChunkServerListInCopySetsRequest) returns (GetChunkServerListInCopySetsResponse);
     rpc GetCopySetsInChunkServer(GetCopySetsInChunkServerRequest) returns (GetCopySetsInChunkServerResponse);

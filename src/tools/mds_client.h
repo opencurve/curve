@@ -414,6 +414,14 @@ class MDSClient {
     virtual int RapidLeaderSchedule(PoolIdType lpid);
 
     /**
+     * @brief Set specify logical pool to enable/disable scan
+     * @param[in] lpid logical pool id
+     * @param[in] scanEnable enable(true)/disable(false) scan
+     * @return 0 if set success, else return -1
+     */
+    virtual int SetLogicalPoolScanState(PoolIdType lpid, bool scanEnable);
+
+    /**
      *  @brief 获取mds在线状态,
      *          dummyserver在线且dummyserver记录的listen addr
      *          与mds地址一致才认为在线

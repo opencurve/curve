@@ -1403,6 +1403,45 @@ TEST_F(TestTopologyService, test_SetLogicalPool_fail) {
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
 }
 
+TEST_F(TestTopologyService, TestSetLogicalPoolScanState) {
+    brpc::Channel channel;
+    brpc::Controller cntl;
+    SetLogicalPoolScanStateRequest request;
+    SetLogicalPoolScanStateResponse response;
+
+    ASSERT_EQ(channel.Init(listenAddr_, NULL), 0);
+    TopologyService_Stub stub(&channel);
+
+    // CASE 1: Set logical pool scan state success
+    {
+        SetLogicalPoolScanStateResponse resp;
+        resp.set_statuscode(kTopoErrCodeSuccess);
+        EXPECT_CALL(*manager_, SetLogicalPoolScanState(_, _))
+            .WillRepeatedly(SetArgPointee<1>(resp));
+
+        request.set_logicalpoolid(1);
+        request.set_scanenable(true);
+        stub.SetLogicalPoolScanState(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(response.statuscode(), kTopoErrCodeSuccess);
+    }
+
+    // CASE 2: Set logical pool scan state fail
+    {
+        cntl.Reset();
+        SetLogicalPoolScanStateResponse resp;
+        resp.set_statuscode(kTopoErrCodeLogicalPoolNotFound);
+        EXPECT_CALL(*manager_, SetLogicalPoolScanState(_, _))
+            .WillRepeatedly(SetArgPointee<1>(resp));
+
+        request.set_logicalpoolid(1);
+        request.set_scanenable(true);
+        stub.SetLogicalPoolScanState(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(response.statuscode(), kTopoErrCodeLogicalPoolNotFound);
+    }
+}
+
 TEST_F(TestTopologyService, test_GetChunkServerListInCopySets_success) {
     brpc::Channel channel;
     if (channel.Init(listenAddr_, NULL) != 0) {
