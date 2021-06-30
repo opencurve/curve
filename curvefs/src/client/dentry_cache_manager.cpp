@@ -29,26 +29,104 @@
 namespace curvefs {
 namespace client {
 
-CURVEFS_ERROR DentryCacheManager::GetDentry(
-    uint64_t inodeid, const std::string &name, Dentry *out) {
+CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(
+    uint64_t parent, const std::string &name, Dentry *out) {
+    curve::common::LockGuard lg(mtx_);
+    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
+    auto it = dCache_.find(parent);
+    if (it != dCache_.end()) {
+        auto ix = it->second.find(name);
+        if (ix != it->second.end()) {
+            *out = ix->second;
+            return CURVEFS_ERROR::OK;
+        }
+    }
+    ret = metaClient_->GetDentry(fsId_, parent, name, out);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "metaClient_ GetDentry failed, ret = " << ret
+                   << ", parent = " << parent
+                   << ", name = " << name;
+        return ret;
+    }
+    if (it == dCache_.end()) {
+        it = dCache_.emplace(parent,
+            std::unordered_map<std::string, Dentry>()).first;
+    }
+    it->second.emplace(name, *out);
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR DentryCacheManager::UpdateDentry(const Dentry &dentry) {
+CURVEFS_ERROR DentryCacheManagerImpl::CreateDentry(const Dentry &dentry) {
+    curve::common::LockGuard lg(mtx_);
+    uint64_t parent = dentry.parentinodeid();
+    std::string name = dentry.name();
+    CURVEFS_ERROR ret = metaClient_->CreateDentry(dentry);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "metaClient_ CreateDentry failed, ret = " << ret
+                   << ", parent = " << parent
+                   << ", name = " << name;
+        return ret;
+    }
+    auto it = dCache_.emplace(parent,
+            std::unordered_map<std::string, Dentry>()).first;
+    it->second.emplace(name, dentry);
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR DentryCacheManager::CreateDentry(const Dentry &dentry) {
+CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(
+    uint64_t parent, const std::string &name) {
+    curve::common::LockGuard lg(mtx_);
+    CURVEFS_ERROR ret = metaClient_->DeleteDentry(fsId_, parent, name);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "metaClient_ DeleteInode failed, ret = " << ret
+                   << ", parent = " << parent
+                   << ", name = " << name;
+        return ret;
+    }
+    auto it = dCache_.find(parent);
+    if (it != dCache_.end()) {
+        it->second.erase(name);
+        if (it->second.empty()) {
+            dCache_.erase(it);
+        }
+    }
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR DentryCacheManager::DeleteDentry(
-    uint64_t inodeid, const std::string &name) {
-    return CURVEFS_ERROR::OK;
-}
-
-CURVEFS_ERROR DentryCacheManager::ListDentry(
+CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(
     uint64_t parent, std::list<Dentry> *dentryList) {
+    bool perceed = true;
+    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
+    dentryList->clear();
+    std::string last = "";
+    do {
+        std::list<Dentry> part;
+        ret = metaClient_->ListDentry(fsId_, parent,
+            last, maxListCount_, &part);
+        LOG(INFO) << "ListDentry fsId = " << fsId_
+                  << ", parent = " << parent
+                  << ", last = " << last
+                  << ", count = " << maxListCount_
+                  << ", ret = " << ret
+                  << ", part.size() = " << part.size();
+        if (ret != CURVEFS_ERROR::OK) {
+            if (CURVEFS_ERROR::NOTEXIST == ret) {
+                return CURVEFS_ERROR::OK;
+            }
+            LOG(ERROR) << "metaClient_ ListDentry failed, ret = " << ret
+                       << ", parent = " << parent
+                       << ", last = " << last
+                       << ", count = " << maxListCount_;
+            return ret;
+        }
+        if (part.size() < maxListCount_) {
+            perceed = false;
+        }
+        if (!part.empty()) {
+            last = part.back().name();
+            dentryList->splice(dentryList->end(), part);
+        }
+    } while (perceed);
     return CURVEFS_ERROR::OK;
 }
 
