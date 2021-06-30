@@ -26,7 +26,43 @@
 
 #define FUSE_USE_VERSION 34
 
+#include <stddef.h>
 #include <fuse_lowlevel.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct MountOption {
+    const char* mountPoint;
+    const char* fsName;
+    const char* fsType;
+    const char* volume;
+    const char* user;
+    const char* conf;
+};
+
+static const struct fuse_opt mount_opts[] = {
+    { "fsname=%s",
+      offsetof(struct MountOption, fsName), 0},
+
+    { "fstype=%s",
+      offsetof(struct MountOption, fsType), 0},
+
+    { "volume=%s",
+      offsetof(struct MountOption, volume), 0},
+
+    { "user=%s",
+      offsetof(struct MountOption, user), 0},
+
+    { "conf=%s",
+      offsetof(struct MountOption, conf), 0},
+
+    FUSE_OPT_END
+};
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // CURVEFS_SRC_CLIENT_FUSE_COMMON_H_

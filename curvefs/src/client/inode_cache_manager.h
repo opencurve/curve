@@ -29,33 +29,56 @@
 
 #include "curvefs/src/client/metaserver_client.h"
 #include "curvefs/src/client/error_code.h"
+#include "src/common/concurrent/concurrent.h"
 
 using ::curvefs::metaserver::Inode;
 
 namespace curvefs {
 namespace client {
 
-
 class InodeCacheManager {
  public:
-    InodeCacheManager() {}
+    InodeCacheManager()
+      : fsId_(0) {}
+    virtual ~InodeCacheManager() {}
 
-    CURVEFS_ERROR Init();
+    void SetFsId(uint32_t fsId) {
+        fsId_ = fsId;
+    }
 
-    CURVEFS_ERROR GetInode(uint64_t inodeid, Inode *out);
+    virtual CURVEFS_ERROR GetInode(uint64_t inodeid, Inode *out) = 0;
 
-    CURVEFS_ERROR UpdateInode(const Inode &inode);
+    virtual CURVEFS_ERROR UpdateInode(const Inode &inode) = 0;
 
-    CURVEFS_ERROR CreateInode(const InodeParam &param, Inode *out);
+    virtual CURVEFS_ERROR CreateInode(const InodeParam &param, Inode *out) = 0;
 
-    CURVEFS_ERROR DeleteInode(uint64_t inodeid);
+    virtual CURVEFS_ERROR DeleteInode(uint64_t inodeid) = 0;
+
+ protected:
+    uint32_t fsId_;
+};
+
+class InodeCacheManagerImpl : public InodeCacheManager {
+ public:
+    InodeCacheManagerImpl()
+      : metaClient_(std::make_shared<MetaServerClientImpl>()) {}
+
+    explicit InodeCacheManagerImpl(
+        const std::shared_ptr<MetaServerClient> &metaClient)
+      : metaClient_(metaClient) {}
+
+    CURVEFS_ERROR GetInode(uint64_t inodeid, Inode *out) override;
+
+    CURVEFS_ERROR UpdateInode(const Inode &inode) override;
+
+    CURVEFS_ERROR CreateInode(const InodeParam &param, Inode *out) override;
+
+    CURVEFS_ERROR DeleteInode(uint64_t inodeid) override;
 
  private:
-    uint32_t fsId_;
-
-    std::unordered_map<uint64_t, Inode> iCache_;
-
     std::shared_ptr<MetaServerClient> metaClient_;
+    std::unordered_map<uint64_t, Inode> iCache_;
+    curve::common::RWLock mtx_;
 };
 
 

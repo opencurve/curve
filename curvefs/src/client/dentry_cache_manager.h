@@ -31,6 +31,8 @@
 
 #include "curvefs/src/client/metaserver_client.h"
 
+#include "src/common/concurrent/concurrent.h"
+
 using ::curvefs::metaserver::Dentry;
 
 namespace curvefs {
@@ -38,23 +40,61 @@ namespace client {
 
 class DentryCacheManager {
  public:
-    DentryCacheManager() {}
+    DentryCacheManager() : fsId_(0) {}
+    virtual ~DentryCacheManager() {}
+
+    virtual CURVEFS_ERROR Init(const DCacheOption &option) = 0;
+
+    void SetFsId(uint32_t fsId) {
+        fsId_ = fsId;
+    }
+
+    virtual CURVEFS_ERROR GetDentry(uint64_t parent,
+        const std::string &name, Dentry *out) = 0;
+
+    virtual CURVEFS_ERROR CreateDentry(const Dentry &dentry) = 0;
+
+    virtual CURVEFS_ERROR DeleteDentry(uint64_t parent,
+        const std::string &name) = 0;
+
+    virtual CURVEFS_ERROR ListDentry(uint64_t parent,
+        std::list<Dentry> *dentryList) = 0;
+
+ protected:
+    uint32_t fsId_;
+};
+
+class DentryCacheManagerImpl : public DentryCacheManager {
+ public:
+    DentryCacheManagerImpl()
+      : metaClient_(std::make_shared<MetaServerClientImpl>()) {}
+
+    explicit DentryCacheManagerImpl(
+        const std::shared_ptr<MetaServerClient> &metaClient)
+      : metaClient_(metaClient) {}
+
+    CURVEFS_ERROR Init(const DCacheOption &option) override;
 
     CURVEFS_ERROR GetDentry(uint64_t parent,
-        const std::string &name, Dentry *out);
+        const std::string &name, Dentry *out) override;
 
-    CURVEFS_ERROR CreateDentry(const Dentry &dentry);
+    CURVEFS_ERROR CreateDentry(const Dentry &dentry) override;
 
-    CURVEFS_ERROR DeleteDentry(uint64_t parent, const std::string &name);
+    CURVEFS_ERROR DeleteDentry(uint64_t parent,
+        const std::string &name) override;
 
-    CURVEFS_ERROR ListDentry(uint64_t parent, std::list<Dentry> *dentryList);
+    CURVEFS_ERROR ListDentry(uint64_t parent,
+        std::list<Dentry> *dentryList) override;
 
  private:
-    uint32_t fsId_;
-
-    std::unordered_map<uint64_t, Dentry> dCache_;
-
     std::shared_ptr<MetaServerClient> metaClient_;
+
+    std::unordered_map<uint64_t,
+        std::unordered_map<std::string, Dentry> > dCache_;
+
+    curve::common::RWLock mtx_;
+
+    uint32_t maxListDentryCount_;
 };
 
 }  // namespace client

@@ -81,6 +81,34 @@ CURVEFS_ERROR MdsClientImpl::CreateFs(const std::string &fsName,
     return excutor_.DoRPCTask(task);
 }
 
+CURVEFS_ERROR MdsClientImpl::CreateFsS3(const std::string &fsName,
+                                      uint64_t blockSize,
+                                      const S3Info &s3Info) {
+    auto task = RPCTask {
+        CreateFsResponse response;
+        mdsbasecli_->CreateFsS3(fsName, blockSize, s3Info, &response, cntl,
+                              channel);
+        if (cntl->Failed()) {
+            LOG(WARNING) << "CreateFs Failed, errorcode = " << cntl->ErrorCode()
+                         << ", error content:" << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
+            return static_cast<CURVEFS_ERROR>(-cntl->ErrorCode());
+        }
+
+        CURVEFS_ERROR retcode = CURVEFS_ERROR::FAILED;
+        FSStatusCode stcode = response.statuscode();
+        FSStatusCode2CurveFSErr(stcode, &retcode);
+        LOG_IF(WARNING, retcode != CURVEFS_ERROR::OK)
+            << "CreateFs: fsname = " << fsName << ", blocksize = " << blockSize
+            << ", errcode = " << retcode
+            << ", errmsg = " << FSStatusCode_Name(stcode);
+
+        // TDOD(lixiaocui): exception handling
+        return retcode;
+    };
+    return excutor_.DoRPCTask(task);
+}
+
 CURVEFS_ERROR MdsClientImpl::DeleteFs(const std::string &fsName) {
     auto task = RPCTask {
         DeleteFsResponse response;

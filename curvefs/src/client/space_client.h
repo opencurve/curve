@@ -43,6 +43,8 @@ class SpaceClient {
     SpaceClient() {}
     virtual ~SpaceClient() {}
 
+    virtual CURVEFS_ERROR Init(const SpaceAllocServerOption &spaceopt,
+                       SpaceBaseClient *baseclient) = 0;
 
     virtual CURVEFS_ERROR
     AllocExtents(uint32_t fsId,
@@ -60,7 +62,7 @@ class SpaceAllocServerClientImpl : public SpaceClient {
         std::function<CURVEFS_ERROR(brpc::Channel *, brpc::Controller *)>;
 
     CURVEFS_ERROR Init(const SpaceAllocServerOption &spaceopt,
-                       SpaceBaseClient *baseclient);
+                       SpaceBaseClient *baseclient) override;
 
     virtual CURVEFS_ERROR AllocExtents(
         uint32_t fsId, const std::list<ExtentAllocInfo> &toAllocExtents,

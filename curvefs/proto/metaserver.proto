@@ -124,7 +124,7 @@ message Inode {
     required uint32 uid = 7;
     required uint32 gid = 8;
     required uint32 mode = 9;
-    required sint32 nlink = 10;
+    required uint32 nlink = 10;
     required FsFileType type = 11;
     optional string symlink = 12;   // TYPE_SYM_LINK only
     optional VolumeExtentList volumeExtentList = 13;  // TYPE_FILE only

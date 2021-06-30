@@ -48,7 +48,7 @@ void MdsS3FsInfo::ConvertToProto(FsInfo* file) {
 void MdsVolumeFsInfo::ConvertToProto(FsInfo* file) {
     ReadLockGuard readLockGuard(rwLock_);
     MdsFsInfo::ConvertToProto(file);
-    file->set_fstype(FSType::TYPE_VOLUME);
+    file->set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
     file->mutable_volume()->CopyFrom(volume_);
 
     return;

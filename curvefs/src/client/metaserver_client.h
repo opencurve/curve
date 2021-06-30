@@ -38,7 +38,7 @@
 using ::curvefs::metaserver::Dentry;
 using ::curvefs::metaserver::FsFileType;
 using ::curvefs::metaserver::Inode;
-using ::curvefs::space::Extent;
+using ::curvefs::space::AllocateType;
 
 namespace curvefs {
 namespace client {
@@ -50,6 +50,9 @@ class MetaServerClient {
     MetaServerClient() {}
 
     virtual ~MetaServerClient() {}
+
+    virtual CURVEFS_ERROR Init(const MetaServerOption &metaopt,
+                       MetaServerBaseClient *baseclient) = 0;
 
     virtual CURVEFS_ERROR GetDentry(uint32_t fsId, uint64_t inodeid,
                                     const std::string &name, Dentry *out) = 0;
@@ -71,14 +74,6 @@ class MetaServerClient {
     virtual CURVEFS_ERROR CreateInode(const InodeParam &param, Inode *out) = 0;
 
     virtual CURVEFS_ERROR DeleteInode(uint32_t fsId, uint64_t inodeid) = 0;
-
-    virtual CURVEFS_ERROR
-    AllocExtents(uint32_t fsId,
-                 const std::list<ExtentAllocInfo> &toAllocExtents,
-                 std::list<Extent> *allocatedExtents) = 0;
-
-    virtual CURVEFS_ERROR
-    DeAllocExtents(uint32_t fsId, std::list<Extent> allocatedExtents) = 0;
 };
 
 
@@ -90,7 +85,7 @@ class MetaServerClientImpl : public MetaServerClient {
         std::function<CURVEFS_ERROR(brpc::Channel *, brpc::Controller *)>;
 
     CURVEFS_ERROR Init(const MetaServerOption &metaopt,
-                       MetaServerBaseClient *baseclient);
+                       MetaServerBaseClient *baseclient) override;
 
     CURVEFS_ERROR GetDentry(uint32_t fsId, uint64_t inodeid,
                             const std::string &name, Dentry *out) override;
@@ -113,13 +108,6 @@ class MetaServerClientImpl : public MetaServerClient {
 
     CURVEFS_ERROR DeleteInode(uint32_t fsId, uint64_t inodeid) override;
 
-    CURVEFS_ERROR AllocExtents(uint32_t fsId,
-                               const std::list<ExtentAllocInfo> &toAllocExtents,
-                               std::list<Extent> *allocatedExtents) override;
-
-    CURVEFS_ERROR DeAllocExtents(uint32_t fsId,
-                                 std::list<Extent> allocatedExtents) override;
-
     void MetaServerStatusCode2CurveFSErr(const MetaStatusCode &statcode,
                                          CURVEFS_ERROR *errcode);
 
@@ -131,7 +119,6 @@ class MetaServerClientImpl : public MetaServerClient {
         void SetOption(const MetaServerOption &option) { opt_ = option; }
 
         CURVEFS_ERROR DoRPCTask(RPCFunc task);
-
      private:
         MetaServerOption opt_;
     };
