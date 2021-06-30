@@ -105,7 +105,7 @@ CURVEFS_ERROR MdsClientImpl::DeleteFs(const std::string &fsName) {
 }
 
 CURVEFS_ERROR MdsClientImpl::MountFs(const std::string &fsName,
-                                     const MountPoint &mountPt,
+                                     const std::string &mountPt,
                                      FsInfo *fsInfo) {
     auto task = RPCTask {
         MountFsResponse response;
@@ -122,7 +122,7 @@ CURVEFS_ERROR MdsClientImpl::MountFs(const std::string &fsName,
         FSStatusCode2CurveFSErr(stcode, &retcode);
         LOG_IF(WARNING, retcode != CURVEFS_ERROR::OK)
             << "MountFs: fsname = " << fsName
-            << ", mountPt = " << mountPt.DebugString()
+            << ", mountPt = " << mountPt
             << ", errcode = " << retcode
             << ", errmsg = " << FSStatusCode_Name(stcode);
 
@@ -136,7 +136,7 @@ CURVEFS_ERROR MdsClientImpl::MountFs(const std::string &fsName,
 }
 
 CURVEFS_ERROR MdsClientImpl::UmountFs(const std::string &fsName,
-                                      const MountPoint &mountPt) {
+                                      const std::string &mountPt) {
     auto task = RPCTask {
         UmountFsResponse response;
         mdsbasecli_->UmountFs(fsName, mountPt, &response, cntl, channel);
@@ -152,7 +152,7 @@ CURVEFS_ERROR MdsClientImpl::UmountFs(const std::string &fsName,
         FSStatusCode2CurveFSErr(stcode, &retcode);
         LOG_IF(WARNING, retcode != CURVEFS_ERROR::OK)
             << "UmountFs: fsname = " << fsName
-            << ", mountPt = " << mountPt.DebugString()
+            << ", mountPt = " << mountPt
             << ", errcode = " << retcode
             << ", errmsg = " << FSStatusCode_Name(stcode);
         // TDOD(lixiaocui): exception handling

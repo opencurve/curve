@@ -52,11 +52,11 @@ class MdsClient {
     virtual CURVEFS_ERROR DeleteFs(const std::string &fsName) = 0;
 
     virtual CURVEFS_ERROR MountFs(const std::string &fsName,
-                                  const MountPoint &mountPt,
+                                  const std::string &mountPt,
                                   FsInfo *fsInfo) = 0;
 
     virtual CURVEFS_ERROR UmountFs(const std::string &fsName,
-                                   const MountPoint &mountPt) = 0;
+                                   const std::string &mountPt) = 0;
 
     virtual CURVEFS_ERROR GetFsInfo(const std::string &fsName,
                                     FsInfo *fsInfo) = 0;
@@ -78,11 +78,11 @@ class MdsClientImpl : public MdsClient {
 
     CURVEFS_ERROR DeleteFs(const std::string &fsName) override;
 
-    CURVEFS_ERROR MountFs(const std::string &fsName, const MountPoint &mountPt,
+    CURVEFS_ERROR MountFs(const std::string &fsName, const std::string &mountPt,
                           FsInfo *fsInfo) override;
 
     CURVEFS_ERROR UmountFs(const std::string &fsName,
-                           const MountPoint &mountPt) override;
+                           const std::string &mountPt) override;
 
     CURVEFS_ERROR GetFsInfo(const std::string &fsName, FsInfo *fsInfo) override;
 

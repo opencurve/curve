@@ -46,12 +46,12 @@ class MockMDSBaseClient : public MDSBaseClient {
                       brpc::Controller *cntl, brpc::Channel *channel));
 
     MOCK_METHOD5(MountFs,
-                 void(const std::string &fsName, const MountPoint &mountPt,
+                 void(const std::string &fsName, const std::string &mountPt,
                       MountFsResponse *response, brpc::Controller *cntl,
                       brpc::Channel *channel));
 
     MOCK_METHOD5(UmountFs,
-                 void(const std::string &fsName, const MountPoint &mountPt,
+                 void(const std::string &fsName, const std::string &mountPt,
                       UmountFsResponse *response, brpc::Controller *cntl,
                       brpc::Channel *channel));
 
