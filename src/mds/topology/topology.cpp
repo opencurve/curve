@@ -298,6 +298,24 @@ int TopologyImpl::UpdateLogicalPoolAllocateStatus(const AllocateStatus &status,
     }
 }
 
+int TopologyImpl::UpdateLogicalPoolScanState(PoolIdType lpid, bool scanEnable) {
+    WriteLockGuard wlockLogicalPool(logicalPoolMutex_);
+
+    auto iter = logicalPoolMap_.find(lpid);
+    if (iter == logicalPoolMap_.end()) {
+        return kTopoErrCodeLogicalPoolNotFound;
+    }
+
+    LogicalPool lpool = iter->second;
+    lpool.SetScanEnable(scanEnable);
+    if (!storage_->UpdateLogicalPool(lpool)) {
+        return kTopoErrCodeStorgeFail;
+    }
+
+    iter->second.SetScanEnable(scanEnable);
+    return kTopoErrCodeSuccess;
+}
+
 int TopologyImpl::UpdatePhysicalPool(const PhysicalPool &data) {
     WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
     auto it = physicalPoolMap_.find(data.GetId());

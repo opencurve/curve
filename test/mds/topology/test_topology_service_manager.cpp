@@ -2573,6 +2573,32 @@ TEST_F(TestTopologyServiceManager, test_SetLogicalPool_LogicalPoolNotFound) {
     ASSERT_EQ(kTopoErrCodeLogicalPoolNotFound, response.statuscode());
 }
 
+TEST_F(TestTopologyServiceManager, TestSetLogicalPoolScanState) {
+    PoolIdType ppid = 1;  // physicalPoolId
+    PoolIdType lpid = 1;  // logicalPoolId
+    PrepareAddPhysicalPool(ppid);
+    PrepareAddLogicalPool(lpid, "name", ppid);
+
+    SetLogicalPoolScanStateRequest request;
+    SetLogicalPoolScanStateResponse response;
+
+
+    // CASE 1: logical pool not found
+    request.set_logicalpoolid(lpid + 1);
+    request.set_scanenable(true);
+    serviceManager_->SetLogicalPoolScanState(&request, &response);
+    ASSERT_EQ(response.statuscode(), kTopoErrCodeLogicalPoolNotFound);
+
+    // CASE 2: set logical pool scan state success
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
+        .WillOnce(Return(true));
+
+    request.set_logicalpoolid(lpid);
+    request.set_scanenable(false);
+    serviceManager_->SetLogicalPoolScanState(&request, &response);
+    ASSERT_EQ(response.statuscode(), kTopoErrCodeSuccess);
+}
+
 TEST_F(TestTopologyServiceManager,
     test_GetChunkServerListInCopySets_success) {
     PoolIdType logicalPoolId = 0x01;

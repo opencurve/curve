@@ -1204,6 +1204,49 @@ TEST_F(TestTopology, UpdateLogicalPoolAllocateStatus_StorageFail) {
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
+TEST_F(TestTopology, TestUpdateLogicalPoolScanState) {
+    PoolIdType lpid = 1;  // logicalPoolId
+    PoolIdType ppid = 1;  // physicalPoolId
+    PrepareAddPhysicalPool(ppid);
+    PrepareAddLogicalPool(lpid, "name", ppid);
+
+    auto set_state = [&](PoolIdType lpid, bool scanEnable) {
+        EXPECT_CALL(*storage_, UpdateLogicalPool(_))
+            .WillOnce(Return(true));
+        auto retCode = topology_->UpdateLogicalPoolScanState(lpid, scanEnable);
+        ASSERT_EQ(retCode, kTopoErrCodeSuccess);
+    };
+
+    auto check_state = [&](PoolIdType lpid, bool scanEnable) {
+        LogicalPool lpool;
+        ASSERT_EQ(topology_->GetLogicalPool(lpid, &lpool), true);
+        ASSERT_EQ(lpool.ScanEnable(), scanEnable);
+    };
+
+    // CASE 1: default scan state is enable
+    check_state(lpid, true);
+
+    // CASE 2: set scan state to disable
+    set_state(lpid, false);
+    check_state(lpid, false);
+
+    // CASE 3: set scan state to enable
+    set_state(lpid, true);
+    check_state(lpid, true);
+
+    // CASE 4: logical pool not found -> set scan state fail
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
+        .Times(0);
+    auto retCode = topology_->UpdateLogicalPoolScanState(lpid + 1, true);
+    ASSERT_EQ(retCode, kTopoErrCodeLogicalPoolNotFound);
+
+    // CASE 5: update storage fail -> set scan state fail
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
+        .WillOnce(Return(false));
+    retCode = topology_->UpdateLogicalPoolScanState(lpid, true);
+    ASSERT_EQ(retCode, kTopoErrCodeStorgeFail);
+}
+
 TEST_F(TestTopology, UpdatePhysicalPool_success) {
     PoolIdType physicalPoolId = 0x11;
     PrepareAddPhysicalPool(physicalPoolId,

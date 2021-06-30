@@ -104,38 +104,6 @@ void ScheduleServiceImpl::QueryChunkServerRecoverStatus(
     }
 }
 
-void ScheduleServiceImpl::SetLogicalPoolScanState(
-    google::protobuf::RpcController* cntl_base,
-    const SetLogicalPoolScanStateRequest* request,
-    SetLogicalPoolScanStateResponse* response,
-    google::protobuf::Closure* done) {
-    brpc::ClosureGuard done_guard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
-
-    auto localAddr = cntl->local_side();
-    auto remoteAddr = cntl->remote_side();
-    LOG(INFO)
-        << "Received request[log_id=" << cntl->log_id()
-        << "] from " << remoteAddr << " to " << localAddr
-        << ". [SetLogicalPoolScanStateRequest] " << request->DebugString();
-
-    auto poolId = request->logicalpoolid();
-    auto scanEnable = request->scanenable();
-    auto errCode = coordinator_->SetLogicalPoolScanState(poolId, scanEnable);
-    response->set_statuscode(errCode);
-
-    std::ostringstream errMsg;
-    errMsg << "Send response[log_id=" << cntl->log_id()
-           << "] from " << localAddr << " to " << remoteAddr
-           << ". [SetLogicalPoolScanStateResponse] " << response->DebugString();
-
-    if (errCode == kScheduleErrCodeSuccess) {
-        LOG(INFO) << errMsg.str();
-    } else {
-        LOG(ERROR) << errMsg.str();
-    }
-}
-
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

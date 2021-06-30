@@ -945,6 +945,31 @@ int MDSClient::RapidLeaderSchedule(PoolIdType lpoolId) {
     return -1;
 }
 
+int MDSClient::SetLogicalPoolScanState(PoolIdType lpid, bool scanEnable) {
+    ::curve::mds::topology::SetLogicalPoolScanStateRequest request;
+    ::curve::mds::topology::SetLogicalPoolScanStateResponse response;
+    ::curve::mds::topology::TopologyService_Stub stub(&channel_);
+
+    request.set_logicalpoolid(lpid);
+    request.set_scanenable(scanEnable);
+
+    auto fn =
+        &::curve::mds::topology::TopologyService_Stub::SetLogicalPoolScanState;
+    if (SendRpcToMds(&request, &response, &stub, fn) != 0) {
+        std::cout << "SetLogicalPoolScanState from all mds fail!" << std::endl;
+        return -1;
+    }
+
+    auto retCode = response.statuscode();
+    if (retCode != ::curve::mds::topology::kTopoErrCodeSuccess) {
+        std::cout << "SetLogicalPoolScanState fail with retCode: "
+                  << retCode << std::endl;
+        return -1;
+    }
+
+    return 0;
+}
+
 int MDSClient::QueryChunkServerRecoverStatus(
     const std::vector<ChunkServerIdType>& cs,
     std::map<ChunkServerIdType, bool> *statusMap) {
