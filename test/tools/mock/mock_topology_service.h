@@ -126,6 +126,13 @@ class MockTopologyService : public TopologyService {
         const ListLogicalPoolRequest *request,
         ListLogicalPoolResponse *response,
         Closure *done));
+
+    MOCK_METHOD4(SetLogicalPoolScanState,
+                 void(RpcController* controller,
+                      const SetLogicalPoolScanStateRequest* request,
+                      SetLogicalPoolScanStateResponse* response,
+                      Closure* done));
+
     MOCK_METHOD4(GetChunkServerListInCopySets,
         void(RpcController *controller,
         const GetChunkServerListInCopySetsRequest *request,

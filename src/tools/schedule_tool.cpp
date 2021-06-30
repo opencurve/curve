@@ -28,17 +28,22 @@
 DEFINE_uint32(logical_pool_id, 1, "logical pool");
 DECLARE_string(mdsAddr);
 DEFINE_bool(scheduleAll, true, "schedule all logical pool or not");
+DEFINE_bool(scanEnable, true, "Enable(true)/Disable(false) scan "
+                               "for specify logical pool");
 
 namespace curve {
 namespace tool {
 
 bool ScheduleTool::SupportCommand(const std::string& command) {
-    return command == kRapidLeaderSchedule;
+    return command == kRapidLeaderSchedule ||
+           command == kSetScanState;
 }
 
 void ScheduleTool::PrintHelp(const std::string& cmd) {
     if (kRapidLeaderSchedule == cmd) {
         PrintRapidLeaderScheduleHelp();
+    } else if (cmd == kSetScanState) {
+        PrintSetScanStateHelp();
     } else {
         std::cout << cmd << " not supported!" << std::endl;
     }
@@ -56,12 +61,39 @@ void ScheduleTool::PrintRapidLeaderScheduleHelp() {
         << std::endl;
 }
 
+void ScheduleTool::PrintSetScanStateHelp() {
+    std::cout
+        << "Example:" << std::endl
+        << "  curve_ops_tool " << kSetScanState
+        << " -logical_pool_id=1 -scanEnable=true/false"
+        << " [-mdsAddr=127.0.0.1:6666]"
+        << " [-confPath=/etc/curve/tools.conf]"
+        << std::endl;
+}
+
 int ScheduleTool::RunCommand(const std::string &cmd) {
     if (kRapidLeaderSchedule == cmd) {
         return DoRapidLeaderSchedule();
+    }  else if (cmd == kSetScanState) {
+        return DoSetScanState();
     }
     std::cout << "Command not supported!" << std::endl;
     return -1;
+}
+
+int ScheduleTool::DoSetScanState() {
+    if (mdsClient_->Init(FLAGS_mdsAddr) != 0) {
+        std::cout << "Init mds client fail" << std::endl;
+        return -1;
+    }
+
+    auto lpid = FLAGS_logical_pool_id;
+    auto scanEnable = FLAGS_scanEnable;
+    auto retCode = mdsClient_->SetLogicalPoolScanState(lpid, scanEnable);
+    std::cout << (scanEnable ? "Enable" : "Disable")
+              << " scan for logicalpool(" << lpid << ")"
+              << (retCode == 0 ? " success" : " fail") << std::endl;
+    return retCode;
 }
 
 int ScheduleTool::DoRapidLeaderSchedule() {
