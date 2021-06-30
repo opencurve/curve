@@ -81,7 +81,7 @@ TEST_F(SpaceAllocServiceTest, TestInitSpace) {
         volume->set_volumename("TestInitSpaceVolume");
         volume->set_user("test");
         fsInfo->set_mountnum(1);
-        fsInfo->set_fstype(mds::FSType::TYPE_VOLUME);
+        fsInfo->set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
 
         EXPECT_CALL(space_, InitSpace(_))
             .WillOnce(Return(SPACE_RELOAD_ERROR));
@@ -111,7 +111,7 @@ TEST_F(SpaceAllocServiceTest, TestInitSpace) {
         volume->set_volumename("TestInitSpaceVolume");
         volume->set_user("test");
         fsInfo->set_mountnum(1);
-        fsInfo->set_fstype(mds::FSType::TYPE_VOLUME);
+        fsInfo->set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
 
         EXPECT_CALL(space_, InitSpace(_))
             .WillOnce(Return(SPACE_OK));

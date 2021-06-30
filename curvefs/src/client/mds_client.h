@@ -34,6 +34,7 @@
 #include "src/client/mds_client.h"
 
 using ::curve::client::MDSClient;
+using ::curvefs::common::Volume;
 using ::curvefs::mds::FsInfo;
 using ::curvefs::mds::FSStatusCode;
 
@@ -45,9 +46,16 @@ class MdsClient {
     MdsClient() {}
     virtual ~MdsClient() {}
 
+    virtual CURVEFS_ERROR Init(const MdsOption &mdsOpt,
+        MDSBaseClient *baseclient) = 0;
+
     virtual CURVEFS_ERROR CreateFs(const std::string &fsName,
                                    uint64_t blockSize,
                                    const Volume &volume) = 0;
+
+    virtual CURVEFS_ERROR CreateFsS3(const std::string &fsName,
+                                   uint64_t blockSize,
+                                   const S3Info &s3Info) = 0;
 
     virtual CURVEFS_ERROR DeleteFs(const std::string &fsName) = 0;
 
@@ -71,10 +79,14 @@ class MdsClientImpl : public MdsClient {
     using RPCFunc =
         std::function<CURVEFS_ERROR(brpc::Channel *, brpc::Controller *)>;
 
-    CURVEFS_ERROR Init(const MdsOption &mdsOpt, MDSBaseClient *baseclient);
+    CURVEFS_ERROR Init(const MdsOption &mdsOpt,
+        MDSBaseClient *baseclient) override;
 
     CURVEFS_ERROR CreateFs(const std::string &fsName, uint64_t blockSize,
                            const Volume &volume) override;
+
+    CURVEFS_ERROR CreateFsS3(const std::string &fsName, uint64_t blockSize,
+                           const S3Info &s3Info) override;
 
     CURVEFS_ERROR DeleteFs(const std::string &fsName) override;
 

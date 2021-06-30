@@ -108,7 +108,7 @@ void InodeManager::GenerateInodeInternal(uint64_t inodeId, uint32_t fsId,
     inode->set_gid(gid);
     inode->set_mode(mode);
     inode->set_type(type);
-    uint64_t time = curve::common::TimeUtility::GetTimeofDayMs();
+    uint64_t time = curve::common::TimeUtility::GetTimeofDaySec();
     inode->set_mtime(time);
     inode->set_atime(time);
     inode->set_ctime(time);

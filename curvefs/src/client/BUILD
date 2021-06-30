@@ -29,8 +29,7 @@ cc_binary(
         "s3/*.cpp",
         "s3/*.h",
     ]),
-    copts = ["-I/usr/local/include/fuse3",
-             "-L/usr/local/lib/x86_64-linux-gnu"],
+    copts = GCC_FLAGS + ["-I/usr/local/include/fuse3"],
     deps = [
         "//external:brpc",
         "//external:glog",
@@ -58,8 +57,7 @@ cc_library(
         "s3/*.h",
     ],
     exclude = [ "main.c"]),
-    copts = ["-I/usr/local/include/fuse3",
-             "-L/usr/local/lib/x86_64-linux-gnu"],
+    copts = GCC_TEST_FLAGS + ["-I/usr/local/include/fuse3"],
     deps = [
         "//external:brpc",
         "//external:glog",

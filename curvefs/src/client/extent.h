@@ -28,16 +28,16 @@
 struct ExtentAllocInfo {
     uint64_t lOffset;
     uint64_t len;
-    bool leftHintAvailable;
     uint64_t pOffsetLeft;
-    bool rightHintAvailable;
     uint64_t pOffsetRight;
+    bool leftHintAvailable;
+    bool rightHintAvailable;
 };
 
+// physical extent
 struct PExtent {
     uint64_t pOffset;
     uint64_t len;
-    uint64_t lOffset;
     bool UnWritten;
 };
 

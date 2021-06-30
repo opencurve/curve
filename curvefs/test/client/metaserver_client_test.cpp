@@ -111,7 +111,6 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
         *dentryList.begin(), *d));
 }
 
-
 TEST_F(MetaServerClientImplTest, test_CreateDentry) {
     Dentry dentryCreate;
     dentryCreate.set_fsid(1);

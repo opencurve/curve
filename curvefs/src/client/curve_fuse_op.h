@@ -37,7 +37,7 @@
 extern "C" {
 #endif
 
-int InitFuseClient();
+int InitFuseClient(const char *confPath, const char* fsType);
 
 void UnInitFuseClient();
 
@@ -57,7 +57,7 @@ void UnInitFuseClient();
  *
  * @param userdata the user data passed to fuse_session_new()
  */
-void curve_ll_init(void *userdata, struct fuse_conn_info *conn);
+void FuseOpInit(void *userdata, struct fuse_conn_info *conn);
 
 /**
  * Clean up filesystem.
@@ -70,7 +70,7 @@ void curve_ll_init(void *userdata, struct fuse_conn_info *conn);
  *
  * @param userdata the user data passed to fuse_session_new()
  */
-void curve_ll_destroy(void *userdata);
+void FuseOpDestroy(void *userdata);
 
 /**
  * Look up a directory entry by name and get its attributes.
@@ -83,7 +83,7 @@ void curve_ll_destroy(void *userdata);
  * @param parent inode number of the parent directory
  * @param name the name to look up
  */
-void curve_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name);
+void FuseOpLookup(fuse_req_t req, fuse_ino_t parent, const char *name);
 
 /**
  * Forget about an inode
@@ -121,7 +121,7 @@ void curve_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name);
  * @param ino the inode number
  * @param nlookup the number of lookups to forget
  */
-void curve_ll_forget(fuse_req_t req, fuse_ino_t ino, uint64_t nlookup);
+void FuseOpForget(fuse_req_t req, fuse_ino_t ino, uint64_t nlookup);
 
 /**
  * Get file attributes.
@@ -142,7 +142,7 @@ void curve_ll_forget(fuse_req_t req, fuse_ino_t ino, uint64_t nlookup);
  * @param ino the inode number
  * @param fi for future use, currently always NULL
  */
-void curve_ll_getattr(fuse_req_t req, fuse_ino_t ino,
+void FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
          struct fuse_file_info *fi);
 
 /**
@@ -173,7 +173,7 @@ void curve_ll_getattr(fuse_req_t req, fuse_ino_t ino,
  * @param to_set bit mask of attributes which should be set
  * @param fi file information, or NULL
  */
-void curve_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
+void FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
          int to_set, struct fuse_file_info *fi);
 
 /**
@@ -186,7 +186,7 @@ void curve_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
  * @param req request handle
  * @param ino the inode number
  */
-void curve_ll_readlink(fuse_req_t req, fuse_ino_t ino);
+void FuseOpReadLink(fuse_req_t req, fuse_ino_t ino);
 
 /**
  * Create file node
@@ -204,7 +204,7 @@ void curve_ll_readlink(fuse_req_t req, fuse_ino_t ino);
  * @param mode file type and mode with which to create the new file
  * @param rdev the device number (only valid if created file is a device)
  */
-void curve_ll_mknod(fuse_req_t req, fuse_ino_t parent, const char *name,
+void FuseOpMkNod(fuse_req_t req, fuse_ino_t parent, const char *name,
            mode_t mode, dev_t rdev);
 
 /**
@@ -219,7 +219,7 @@ void curve_ll_mknod(fuse_req_t req, fuse_ino_t parent, const char *name,
  * @param name to create
  * @param mode with which to create the new file
  */
-void curve_ll_mkdir(fuse_req_t req, fuse_ino_t parent, const char *name,
+void FuseOpMkDir(fuse_req_t req, fuse_ino_t parent, const char *name,
            mode_t mode);
 
 /**
@@ -237,7 +237,7 @@ void curve_ll_mkdir(fuse_req_t req, fuse_ino_t parent, const char *name,
  * @param parent inode number of the parent directory
  * @param name to remove
  */
-void curve_ll_unlink(fuse_req_t req, fuse_ino_t parent, const char *name);
+void FuseOpUnlink(fuse_req_t req, fuse_ino_t parent, const char *name);
 
 /**
  * Remove a directory
@@ -254,7 +254,7 @@ void curve_ll_unlink(fuse_req_t req, fuse_ino_t parent, const char *name);
  * @param parent inode number of the parent directory
  * @param name to remove
  */
-void curve_ll_rmdir(fuse_req_t req, fuse_ino_t parent, const char *name);
+void FuseOpRmDir(fuse_req_t req, fuse_ino_t parent, const char *name);
 
 /**
  * Create a symbolic link
@@ -268,7 +268,7 @@ void curve_ll_rmdir(fuse_req_t req, fuse_ino_t parent, const char *name);
  * @param parent inode number of the parent directory
  * @param name to create
  */
-void curve_ll_symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
+void FuseOpSymlink(fuse_req_t req, const char *link, fuse_ino_t parent,
          const char *name);
 
 /** Rename a file
@@ -300,7 +300,7 @@ void curve_ll_symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
  * @param newparent inode number of the new parent directory
  * @param newname new name
  */
-void curve_ll_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
+void FuseOpRename(fuse_req_t req, fuse_ino_t parent, const char *name,
         fuse_ino_t newparent, const char *newname,
         unsigned int flags);
 
@@ -316,7 +316,7 @@ void curve_ll_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
  * @param newparent inode number of the new parent directory
  * @param newname new name to create
  */
-void curve_ll_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t newparent,
+void FuseOpLink(fuse_req_t req, fuse_ino_t ino, fuse_ino_t newparent,
           const char *newname);
 
 /**
@@ -342,7 +342,7 @@ void curve_ll_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t newparent,
  *  - When writeback caching is disabled, the filesystem is
  *    expected to properly handle the O_APPEND flag and ensure
  *    that each write is appending to the end of the file.
- * 
+ *
      *  - When writeback caching is enabled, the kernel will
  *    handle O_APPEND. However, unless all changes to the file
  *    come through the kernel this will not work reliably. The
@@ -375,7 +375,7 @@ void curve_ll_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t newparent,
  * @param ino the inode number
  * @param fi file information
  */
-void curve_ll_open(fuse_req_t req, fuse_ino_t ino,
+void FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
           struct fuse_file_info *fi);
 
 /**
@@ -403,7 +403,7 @@ void curve_ll_open(fuse_req_t req, fuse_ino_t ino,
  * @param off offset to read from
  * @param fi file information
  */
-void curve_ll_read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
+void FuseOpRead(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
           struct fuse_file_info *fi);
 
 /**
@@ -432,7 +432,7 @@ void curve_ll_read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
  * @param off offset to write to
  * @param fi file information
  */
-void curve_ll_write(fuse_req_t req, fuse_ino_t ino, const char *buf,
+void FuseOpWrite(fuse_req_t req, fuse_ino_t ino, const char *buf,
            size_t size, off_t off, struct fuse_file_info *fi);
 
 /**
@@ -473,7 +473,7 @@ void curve_ll_write(fuse_req_t req, fuse_ino_t ino, const char *buf,
  *
  * [close]: http://pubs.opengroup.org/onlinepubs/9699919799/functions/close.html
  */
-void curve_ll_flush(fuse_req_t req, fuse_ino_t ino,
+void FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
            struct fuse_file_info *fi);
 
 /**
@@ -501,7 +501,7 @@ void curve_ll_flush(fuse_req_t req, fuse_ino_t ino,
  * @param ino the inode number
  * @param fi file information
  */
-void curve_ll_release(fuse_req_t req, fuse_ino_t ino,
+void FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
          struct fuse_file_info *fi);
 
 /**
@@ -523,7 +523,7 @@ void curve_ll_release(fuse_req_t req, fuse_ino_t ino,
  * @param datasync flag indicating if only data should be flushed
  * @param fi file information
  */
-void curve_ll_fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
+void FuseOpFsync(fuse_req_t req, fuse_ino_t ino, int datasync,
            struct fuse_file_info *fi);
 
 /**
@@ -548,7 +548,7 @@ void curve_ll_fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
  * @param ino the inode number
  * @param fi file information
  */
-void curve_ll_opendir(fuse_req_t req, fuse_ino_t ino,
+void FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino,
          struct fuse_file_info *fi);
 
 /**
@@ -594,7 +594,7 @@ void curve_ll_opendir(fuse_req_t req, fuse_ino_t ino,
  * @param off offset to continue reading the directory stream
  * @param fi file information
  */
-void curve_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
+void FuseOpReadDir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
          struct fuse_file_info *fi);
 
 /**
@@ -613,7 +613,7 @@ void curve_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
  * @param ino the inode number
  * @param fi file information
  */
-void curve_ll_releasedir(fuse_req_t req, fuse_ino_t ino,
+void FuseOpReleaseDir(fuse_req_t req, fuse_ino_t ino,
             struct fuse_file_info *fi);
 
 /**
@@ -638,7 +638,7 @@ void curve_ll_releasedir(fuse_req_t req, fuse_ino_t ino,
  * @param datasync flag indicating if only data should be flushed
  * @param fi file information
  */
-void curve_ll_fsyncdir(fuse_req_t req, fuse_ino_t ino, int datasync,
+void FuseOpFsyncDir(fuse_req_t req, fuse_ino_t ino, int datasync,
           struct fuse_file_info *fi);
 
 /**
@@ -651,7 +651,7 @@ void curve_ll_fsyncdir(fuse_req_t req, fuse_ino_t ino, int datasync,
  * @param req request handle
  * @param ino the inode number, zero means "undefined"
  */
-void curve_ll_statfs(fuse_req_t req, fuse_ino_t ino);
+void FuseOpStatFs(fuse_req_t req, fuse_ino_t ino);
 
 /**
  * Set an extended attribute
@@ -664,7 +664,7 @@ void curve_ll_statfs(fuse_req_t req, fuse_ino_t ino);
  * Valid replies:
  *   fuse_reply_err
  */
-void curve_ll_setxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
+void FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino, const char *name,
           const char *value, size_t size, int flags);
 
 /**
@@ -695,7 +695,7 @@ void curve_ll_setxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
  * @param name of the extended attribute
  * @param size maximum size of the value to send
  */
-void curve_ll_getxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
+void FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino, const char *name,
           size_t size);
 
 /**
@@ -726,7 +726,7 @@ void curve_ll_getxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
  * @param ino the inode number
  * @param size maximum size of the list to send
  */
-void curve_ll_listxattr(fuse_req_t req, fuse_ino_t ino, size_t size);
+void FuseOpListXattr(fuse_req_t req, fuse_ino_t ino, size_t size);
 
 /**
  * Remove an extended attribute
@@ -743,7 +743,7 @@ void curve_ll_listxattr(fuse_req_t req, fuse_ino_t ino, size_t size);
  * @param ino the inode number
  * @param name of the extended attribute
  */
-void curve_ll_removexattr(fuse_req_t req, fuse_ino_t ino, const char *name);
+void FuseOpRemoveXattr(fuse_req_t req, fuse_ino_t ino, const char *name);
 
 /**
  * Check file access permissions
@@ -765,7 +765,7 @@ void curve_ll_removexattr(fuse_req_t req, fuse_ino_t ino, const char *name);
  * @param ino the inode number
  * @param mask requested access mode
  */
-void curve_ll_access(fuse_req_t req, fuse_ino_t ino, int mask);
+void FuseOpAccess(fuse_req_t req, fuse_ino_t ino, int mask);
 
 /**
  * Create and open a file
@@ -794,7 +794,7 @@ void curve_ll_access(fuse_req_t req, fuse_ino_t ino, int mask);
  * @param mode file type and mode with which to create the new file
  * @param fi file information
  */
-void curve_ll_create(fuse_req_t req, fuse_ino_t parent, const char *name,
+void FuseOpCreate(fuse_req_t req, fuse_ino_t parent, const char *name,
         mode_t mode, struct fuse_file_info *fi);
 
 /**
@@ -809,7 +809,7 @@ void curve_ll_create(fuse_req_t req, fuse_ino_t parent, const char *name,
  * @param fi file information
  * @param lock the region/type to test
  */
-void curve_ll_getlk(fuse_req_t req, fuse_ino_t ino,
+void FuseOpGetLk(fuse_req_t req, fuse_ino_t ino,
            struct fuse_file_info *fi, struct flock *lock);
 
 /**
@@ -834,7 +834,7 @@ void curve_ll_getlk(fuse_req_t req, fuse_ino_t ino,
  * @param lock the region/type to set
  * @param sleep locking operation may sleep
  */
-void curve_ll_setlk(fuse_req_t req, fuse_ino_t ino,
+void FuseOpSetLk(fuse_req_t req, fuse_ino_t ino,
            struct fuse_file_info *fi,
            struct flock *lock, int sleep);
 
@@ -858,7 +858,7 @@ void curve_ll_setlk(fuse_req_t req, fuse_ino_t ino,
  * @param blocksize unit of block index
  * @param idx block index within file
  */
-void curve_ll_bmap(fuse_req_t req, fuse_ino_t ino, size_t blocksize,
+void FuseOpBmap(fuse_req_t req, fuse_ino_t ino, size_t blocksize,
           uint64_t idx);
 
 /**
@@ -890,11 +890,11 @@ void curve_ll_bmap(fuse_req_t req, fuse_ino_t ino, size_t blocksize,
  * is truncated to 32 bits.
  */
 #if FUSE_USE_VERSION < 35
-void curve_ll_ioctl(fuse_req_t req, fuse_ino_t ino, int cmd,
+void FuseOpIoctl(fuse_req_t req, fuse_ino_t ino, int cmd,
            void *arg, struct fuse_file_info *fi, unsigned flags,
            const void *in_buf, size_t in_bufsz, size_t out_bufsz);
 #else
-void curve_ll_ioctl(fuse_req_t req, fuse_ino_t ino, unsigned int cmd,
+void FuseOpIoctl(fuse_req_t req, fuse_ino_t ino, unsigned int cmd,
            void *arg, struct fuse_file_info *fi, unsigned flags,
            const void *in_buf, size_t in_bufsz, size_t out_bufsz);
 #endif
@@ -928,7 +928,7 @@ void curve_ll_ioctl(fuse_req_t req, fuse_ino_t ino, unsigned int cmd,
  * @param fi file information
  * @param ph poll handle to be used for notification
  */
-void curve_ll_poll(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
+void FuseOpPoll(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
           struct fuse_pollhandle *ph);
 
 /**
@@ -958,7 +958,7 @@ void curve_ll_poll(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
  * @param off offset to write to
  * @param fi file information
  */
-void curve_ll_write_buf(fuse_req_t req, fuse_ino_t ino,
+void FuseOpWriteBuf(fuse_req_t req, fuse_ino_t ino,
            struct fuse_bufvec *bufv, off_t off,
            struct fuse_file_info *fi);
 
@@ -974,7 +974,7 @@ void curve_ll_write_buf(fuse_req_t req, fuse_ino_t ino,
  * @param offset the offset supplied to fuse_lowlevel_notify_retrieve()
  * @param bufv the buffer containing the returned data
  */
-void curve_ll_retrieve_reply(fuse_req_t req, void *cookie, fuse_ino_t ino,
+void FuseOpRetrieveReply(fuse_req_t req, void *cookie, fuse_ino_t ino,
             off_t offset, struct fuse_bufvec *bufv);
 
 /**
@@ -988,7 +988,7 @@ void curve_ll_retrieve_reply(fuse_req_t req, void *cookie, fuse_ino_t ino,
  *
  * @param req request handle
  */
-void curve_ll_forget_multi(fuse_req_t req, size_t count,
+void FuseOpForgetMulti(fuse_req_t req, size_t count,
               struct fuse_forget_data *forgets);
 
 /**
@@ -1006,7 +1006,7 @@ void curve_ll_forget_multi(fuse_req_t req, size_t count,
  * @param fi file information
  * @param op the locking operation, see flock(2)
  */
-void curve_ll_flock(fuse_req_t req, fuse_ino_t ino,
+void FuseOpFlock(fuse_req_t req, fuse_ino_t ino,
            struct fuse_file_info *fi, int op);
 
 /**
@@ -1029,7 +1029,7 @@ void curve_ll_flock(fuse_req_t req, fuse_ino_t ino,
  * @param mode determines the operation to be performed on the given range,
  *             see fallocate(2)
  */
-void curve_ll_fallocate(fuse_req_t req, fuse_ino_t ino, int mode,
+void FuseOpFallocate(fuse_req_t req, fuse_ino_t ino, int mode,
            off_t offset, off_t length, struct fuse_file_info *fi);
 
 /**
@@ -1057,7 +1057,7 @@ void curve_ll_fallocate(fuse_req_t req, fuse_ino_t ino, int mode,
  * @param off offset to continue reading the directory stream
  * @param fi file information
  */
-void curve_ll_readdirplus(
+void FuseOpReadDirPlus(
         fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
         struct fuse_file_info *fi);
 
@@ -1091,7 +1091,7 @@ void curve_ll_readdirplus(
  * @param len maximum size of the data to copy
  * @param flags passed along with the copy_file_range() syscall
  */
-void curve_ll_copy_file_range(fuse_req_t req, fuse_ino_t ino_in,
+void FuseOpCopyFileRange(fuse_req_t req, fuse_ino_t ino_in,
              off_t off_in, struct fuse_file_info *fi_in,
              fuse_ino_t ino_out, off_t off_out,
              struct fuse_file_info *fi_out, size_t len,
@@ -1115,7 +1115,7 @@ void curve_ll_copy_file_range(fuse_req_t req, fuse_ino_t ino_in,
  * @param whence either SEEK_DATA or SEEK_HOLE
  * @param fi file information
  */
-void curve_ll_lseek(fuse_req_t req, fuse_ino_t ino, off_t off, int whence,
+void FuseOpLseek(fuse_req_t req, fuse_ino_t ino, off_t off, int whence,
            struct fuse_file_info *fi);
 
 #ifdef __cplusplus

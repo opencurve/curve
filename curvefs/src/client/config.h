@@ -26,6 +26,11 @@
 #define CURVEFS_SRC_CLIENT_CONFIG_H_
 
 #include <string>
+#include "src/common/configuration.h"
+#include "src/common/s3_adapter.h"
+
+using ::curve::common::Configuration;
+using ::curve::common::S3AdapterOption;
 
 namespace curvefs {
 namespace client {
@@ -40,7 +45,6 @@ struct MdsOption {
     uint64_t rpcTimeoutMs;
 };
 
-
 struct MetaServerOption {
     std::string msaddr;
     uint64_t rpcTimeoutMs;
@@ -51,6 +55,36 @@ struct SpaceAllocServerOption {
     uint64_t rpcTimeoutMs;
 };
 
+struct S3Option {
+    uint64_t blocksize;
+    uint64_t chunksize;
+    S3AdapterOption s3AdaptrOpt;
+};
+
+struct DCacheOption {
+    uint32_t maxListDentryCount;
+};
+
+struct ExtentManagerOption {
+    uint64_t preAllocSize;
+};
+
+struct FuseClientOption {
+    MdsOption mdsOpt;
+    MetaServerOption metaOpt;
+    SpaceAllocServerOption spaceOpt;
+    BlockDeviceClientOptions bdevOpt;
+    S3Option s3Opt;
+    DCacheOption dcacheOpt;
+    ExtentManagerOption extentManagerOpt;
+
+    double attrTimeOut;
+    double entryTimeOut;
+    uint64_t bigFileSize;
+};
+
+void InitFuseClientOption(Configuration *conf,
+    FuseClientOption *clientOption);
 
 }  // namespace client
 }  // namespace curvefs

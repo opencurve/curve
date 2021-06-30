@@ -123,7 +123,7 @@ TEST_F(SpaceClientTest, InitSpaceSuccess) {
     fsinfo.set_capacity(0);
     fsinfo.set_blocksize(0);
     fsinfo.set_mountnum(0);
-    fsinfo.set_fstype(FSType::TYPE_VOLUME);
+    fsinfo.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
 
     InitSpaceResponse response;
     response.set_status(SpaceStatusCode::SPACE_OK);
@@ -147,7 +147,7 @@ TEST_F(SpaceClientTest, InitSpaceFail) {
     fsinfo.set_capacity(0);
     fsinfo.set_blocksize(0);
     fsinfo.set_mountnum(0);
-    fsinfo.set_fstype(FSType::TYPE_VOLUME);
+    fsinfo.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
 
     InitSpaceResponse response;
     response.set_status(SpaceStatusCode::SPACE_UNKNOWN_ERROR);

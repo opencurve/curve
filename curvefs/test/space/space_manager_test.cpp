@@ -67,7 +67,7 @@ class SpaceManagerTest : public ::testing::Test {
         mds::FsInfo blockFsInfo;
         blockFsInfo.set_fsid(1);
         blockFsInfo.set_fsname("block");
-        blockFsInfo.set_fstype(mds::FSType::TYPE_VOLUME);
+        blockFsInfo.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
         blockFsInfo.set_capacity(10 * kGiB);
 
         EXPECT_CALL(*mockMetaServer_, ListDentry(_, _, _, _))
@@ -86,7 +86,7 @@ TEST_F(SpaceManagerTest, TestInitSpace) {
     mds::FsInfo fsInfo;
     fsInfo.set_fsid(1);
     fsInfo.set_fsname("block");
-    fsInfo.set_fstype(mds::FSType::TYPE_VOLUME);
+    fsInfo.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
 
     EXPECT_CALL(*mockMetaServer_, ListDentry(_, _, _, _))
         .WillRepeatedly(Invoke(ListDentryService));

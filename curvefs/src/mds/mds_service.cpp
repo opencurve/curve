@@ -33,7 +33,7 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
     std::string fsName = request->fsname();
     uint64_t blockSize = request->blocksize();
     FSType type = request->fstype();
-    if (type == FSType::TYPE_VOLUME) {
+    if (type == ::curvefs::common::FSType::TYPE_VOLUME) {
         if (!request->has_volume()) {
             response->set_statuscode(FSStatusCode::PARAM_ERROR);
             LOG(ERROR) << "CreateFs request, type is volume, but has no volume"

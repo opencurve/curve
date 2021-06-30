@@ -125,7 +125,7 @@ TEST_F(MdsServiceTest, test1) {
     // type if volume, but volume not set
     createRequest.set_fsname("fs1");
     createRequest.set_blocksize(4096);
-    createRequest.set_fstype(FSType::TYPE_VOLUME);
+    createRequest.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
 
     FsInfo fsinfo1;
     stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
@@ -145,7 +145,7 @@ TEST_F(MdsServiceTest, test1) {
 
     createRequest.set_fsname("fs1");
     createRequest.set_blocksize(4096);
-    createRequest.set_fstype(FSType::TYPE_VOLUME);
+    createRequest.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
     createRequest.mutable_volume()->CopyFrom(volume);
 
     cntl.Reset();

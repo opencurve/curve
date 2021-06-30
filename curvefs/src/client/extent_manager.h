@@ -31,76 +31,120 @@
 #include "curvefs/proto/space.pb.h"
 #include "curvefs/src/client/extent.h"
 #include "curvefs/src/client/error_code.h"
+#include "curvefs/src/client/config.h"
 
 using ::curvefs::metaserver::VolumeExtentList;
+using ::curvefs::metaserver::VolumeExtent;
 using ::curvefs::space::Extent;
 
 namespace curvefs {
 namespace client {
 
+class ExtentManager {
+ public:
+    ExtentManager() {}
+    virtual ~ExtentManager() {}
 
+    virtual CURVEFS_ERROR Init(const ExtentManagerOption &options) = 0;
 
-/**
- * @brief  According to the extents in the file,
- * divide the [offset, len] to be written,
- * and get the extents that need to be allocated
- *
- * @param[in] extents  extents in the file
- * @param[in] offset  offset to be written
- * @param[in] len  len to be written
- * @param[out] toAllocExtents  extents that need to be allocated
- *
- * @return errcode
- */
-CURVEFS_ERROR GetToAllocExtents(const VolumeExtentList &extents,
-    uint64_t offset,
-    uint64_t len,
-    std::list<ExtentAllocInfo> *toAllocExtents);
+    /**
+     * @brief  According to the extents in the file,
+     * divide the [offset, len] to be written,
+     * and get the extents that need to be allocated
+     *
+     * @param[in] extents  extents currently allocated in the file
+     * @param[in] offset  offset to be written
+     * @param[in] len  len to be written
+     * @param[out] toAllocExtents  extents that need to be allocated
+     *
+     * @return errcode
+     */
+    virtual CURVEFS_ERROR GetToAllocExtents(const VolumeExtentList &extents,
+        uint64_t offset,
+        uint64_t len,
+        std::list<ExtentAllocInfo> *toAllocExtents) = 0;
 
-/**
- * @brief  Merge extents allocated to extents in the file
- *
- * @param[in] allocedExtents  extents allocated
- * @param[in] toAllocExtents  extents that need to be allocated
- * @param[in,out] extents  extents in the file
- *
- * @return  errcode
- */
-CURVEFS_ERROR MergeAllocedExtents(
-    const std::list<ExtentAllocInfo> &toAllocExtents,
-    const std::list<Extent> allocatedExtents,
-    VolumeExtentList *extents);
+    /**
+     * @brief  Merge extents allocated to extents in the file
+     *
+     * @param[in] allocedExtents  extents allocated
+     * @param[in] toAllocExtents  extents that need to be allocated
+     * @param[in,out] extents  extents in the file
+     *
+     * @return  errcode
+     */
+    virtual CURVEFS_ERROR MergeAllocedExtents(
+        const std::list<ExtentAllocInfo> &toAllocExtents,
+        const std::list<Extent> &allocatedExtents,
+        VolumeExtentList *extents) = 0;
 
-/**
- * @brief mark unwritten extents to written in the file extents
- *
- * @param[in] offset  offset to be written
- * @param[in] len  len to be written
- * @param[in,out] extents  extents in the file
- *
- * @return  errcode
- */
-CURVEFS_ERROR MarkExtentsWritten(uint64_t offset, uint64_t len,
-    VolumeExtentList *extents);
+    /**
+     * @brief mark unwritten extents to written in the file extents
+     *
+     * @param[in] offset  offset to be written
+     * @param[in] len  len to be written
+     * @param[in,out] extents  extents in the file
+     *
+     * @return  errcode
+     */
+    virtual CURVEFS_ERROR MarkExtentsWritten(uint64_t offset, uint64_t len,
+        VolumeExtentList *extents) = 0;
 
-/**
- * @brief According to the extents in the file,
- * divide the [lOffset, len] to be read/write,
- * and get the physical extents
- *
- * @param extents  extents in the file
- * @param offset  logical offset to be read/write
- * @param len  len to be read/write
- * @param PExtent  physical extents
- *
- * @return errcode
- */
-CURVEFS_ERROR DivideExtents(const VolumeExtentList &extents,
-    uint64_t lOffset,
-    uint64_t len,
-    std::list<PExtent> *pExtents);
+    /**
+     * @brief According to the extents in the file,
+     * divide the [lOffset, len] to be read/write,
+     * and get the physical extents
+     *
+     * @param extents  extents in the file
+     * @param offset  logical offset to be read/write
+     * @param len  len to be read/write
+     * @param PExtent  physical extents
+     *
+     * @return errcode
+     */
+    virtual CURVEFS_ERROR DivideExtents(const VolumeExtentList &extents,
+        uint64_t offset,
+        uint64_t len,
+        std::list<PExtent> *pExtents) = 0;
+};
 
+class SimpleExtentManager : public ExtentManager {
+ public:
+    SimpleExtentManager() {}
 
+    CURVEFS_ERROR Init(const ExtentManagerOption &options) {
+        preAllocSize_ = options.preAllocSize;
+        return CURVEFS_ERROR::OK;
+    }
+
+    CURVEFS_ERROR GetToAllocExtents(const VolumeExtentList &extents,
+        uint64_t offset,
+        uint64_t len,
+        std::list<ExtentAllocInfo> *toAllocExtents) override;
+
+    CURVEFS_ERROR MergeAllocedExtents(
+        const std::list<ExtentAllocInfo> &toAllocExtents,
+        const std::list<Extent> &allocatedExtents,
+        VolumeExtentList *extents) override;
+
+    CURVEFS_ERROR MarkExtentsWritten(uint64_t offset, uint64_t len,
+        VolumeExtentList *extents) override;
+
+    CURVEFS_ERROR DivideExtents(const VolumeExtentList &extents,
+        uint64_t offset,
+        uint64_t len,
+        std::list<PExtent> *pExtents) override;
+
+ private:
+    CURVEFS_ERROR MergeToTheLastOrAdd(VolumeExtentList *extents,
+        const VolumeExtent *extent);
+
+    CURVEFS_ERROR MergeToTheLastOrAdd(std::list<PExtent> *pExtents,
+        const PExtent &pExt);
+
+ private:
+    uint64_t preAllocSize_;
+};
 
 }  // namespace client
 }  // namespace curvefs

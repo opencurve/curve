@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2021 NetEase Inc.
+ *  Copyright (c) 2020 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -14,38 +14,36 @@
  *  limitations under the License.
  */
 
-
 /*
  * Project: curve
  * Created Date: Thur May 27 2021
  * Author: xuchaojie
  */
 
-#ifndef CURVEFS_SRC_CLIENT_ERROR_CODE_H_
-#define CURVEFS_SRC_CLIENT_ERROR_CODE_H_
+#ifndef CURVEFS_TEST_CLIENT_MOCK_CLIENT_S3_ADAPTOR_H_
+#define CURVEFS_TEST_CLIENT_MOCK_CLIENT_S3_ADAPTOR_H_
+
+#include "curvefs/src/client/s3/client_s3_adaptor.h"
 
 namespace curvefs {
 namespace client {
 
-// notice : the error code should be negative.
-enum class CURVEFS_ERROR {
-    OK = 0,
-    FAILED = -1,
-    UNKNOWN = -2,
-    EXISTS = -3,
-    NOTEXIST = -4,
-    NO_SPACE = -5,
-    BAD_FD = -6,
-    INVALIDPARAM = -7,
-};
+class MockS3ClientAdaptor : public S3ClientAdaptor {
+ public:
+    MockS3ClientAdaptor() {}
+    ~MockS3ClientAdaptor() {}
 
-inline std::ostream &operator<<(std::ostream &os, CURVEFS_ERROR code) {
-    // TODO(xuchaojie): to print enum name
-    os << static_cast<int>(code);
-    return os;
-}
+    MOCK_METHOD2(Init, void(const S3ClientAdaptorOption& option,
+                      S3Client *client));
+
+    MOCK_METHOD4(Write, int(Inode *inode, uint64_t offset,
+              uint64_t length, const char* buf));
+
+    MOCK_METHOD4(Read, int(Inode *inode, uint64_t offset,
+              uint64_t length, char* buf));
+};
 
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_CLIENT_ERROR_CODE_H_
+#endif  // CURVEFS_TEST_CLIENT_MOCK_CLIENT_S3_ADAPTOR_H_

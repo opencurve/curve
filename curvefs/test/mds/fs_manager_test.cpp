@@ -182,7 +182,7 @@ TEST_F(FSManagerTest, test1) {
     ASSERT_EQ(volumeFsInfo1.capacity(), volumeSize);
     ASSERT_EQ(volumeFsInfo1.blocksize(), blockSize);
     ASSERT_EQ(volumeFsInfo1.mountnum(), 0);
-    ASSERT_EQ(volumeFsInfo1.fstype(), FSType::TYPE_VOLUME);
+    ASSERT_EQ(volumeFsInfo1.fstype(), ::curvefs::common::FSType::TYPE_VOLUME);
 
     // create volume fs exist
     FsInfo volumeFsInfo2;

@@ -130,7 +130,6 @@ CURVEFS_ERROR MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
     return excutor_.DoRPCTask(task);
 }
 
-
 CURVEFS_ERROR MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
     auto task = RPCTaskDefine {
         CreateDentryResponse response;
@@ -307,23 +306,13 @@ void MetaServerClientImpl::MetaServerStatusCode2CurveFSErr(
     case MetaStatusCode::PARAM_ERROR:
         *errcode = CURVEFS_ERROR::INVALIDPARAM;
         break;
+    case MetaStatusCode::NOT_FOUND:
+        *errcode = CURVEFS_ERROR::NOTEXIST;
+        break;
     default:
         *errcode = CURVEFS_ERROR::UNKNOWN;
         break;
     }
-}
-
-
-CURVEFS_ERROR MetaServerClientImpl::AllocExtents(
-    uint32_t fsId, const std::list<ExtentAllocInfo> &toAllocExtents,
-    std::list<Extent> *allocatedExtents) {
-    return CURVEFS_ERROR::OK;
-}
-
-CURVEFS_ERROR
-MetaServerClientImpl::DeAllocExtents(uint32_t fsId,
-                                     std::list<Extent> allocatedExtents) {
-    return CURVEFS_ERROR::OK;
 }
 
 }  // namespace client

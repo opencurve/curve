@@ -134,7 +134,7 @@ class MdsVolumeFsInfo : public MdsFsInfo {
                     uint64_t rootInodeId, uint64_t capacity, uint64_t blockSize,
                     const Volume& volume)
         : MdsFsInfo(fsId, fsName, status, rootInodeId, capacity, blockSize) {
-        MdsFsInfo::SetFsType(FSType::TYPE_VOLUME);
+        MdsFsInfo::SetFsType(::curvefs::common::FSType::TYPE_VOLUME);
         volume_.CopyFrom(volume);
     }
     void ConvertToProto(FsInfo* file);
