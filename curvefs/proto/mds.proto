@@ -40,6 +40,9 @@ enum FSStatusCode {
     UNDER_DELETRING = 12;
     NOT_INITED = 13;
     DELETE_INODE_ERROR = 14;
+    METASERVER_CLIENT_NOT_INITED = 15;
+    FS_ID_MISMATCH = 16;
+    SPACE_CLIENT_NOT_INITED = 17;
 }
 
 // fs interface
