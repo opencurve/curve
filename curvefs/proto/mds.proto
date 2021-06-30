@@ -19,12 +19,27 @@ import "curvefs/proto/common.proto";
 package curvefs.mds;
 option cc_generic_services = true;
 
+enum FSType {
+    TYPE_VOLUME = 1;
+    TYPE_S3 = 2;
+}
+
 enum FSStatusCode {
     OK = 0;
     UNKNOWN_ERROR = 1;
-    NOSPACE = 2;
-    FS_NOT_FOUND = 3;
+    FS_EXIST = 2;
+    NOT_FOUND = 3;
     PARAM_ERROR = 4;
+    MOUNT_POINT_EXIST = 5;
+    MOUNT_POINT_NOT_EXIST = 6;
+    RPC_ERROR = 7;
+    INIT_SPACE_ERROR = 8;
+    UNINIT_SPACE_ERROR = 9;
+    FS_BUSY = 10;
+    INSERT_ROOT_INODE_ERROR = 11;
+    UNDER_DELETRING = 12;
+    NOT_INITED = 13;
+    DELETE_INODE_ERROR = 14;
 }
 
 // fs interface
@@ -33,20 +48,29 @@ message GetFsInfoRequest {
     optional string fsName = 2;   // Globally unique, no duplicates allowed
 }
 
-message mountPoint {
+message MountPoint {
     required string host = 1;
     required string mountDir = 2;     // use full path
+}
+
+enum FsStatus {
+    NEW = 0;
+    INITED = 1;
+    DELETING = 2;
 }
 
 message FsInfo {
     required uint32 fsId = 1;
     required string fsName = 2;
-    required uint64 rootInodeId = 3;
-    required uint64 capacity = 4;
-    required uint64 blockSize = 5;
-    required common.Volume volume = 6;
+    required FsStatus status = 3;
+    required uint64 rootInodeId = 4;
+    required uint64 capacity = 5;
+    required uint64 blockSize = 6;
     required uint32 mountNum = 7;
-    repeated mountPoint mountpoints = 8;
+    repeated MountPoint mountpoints = 8;
+    required FSType fsType = 9;
+    optional common.Volume volume = 10;
+    optional common.S3Info s3Info = 11;
 }
 
 message GetFsInfoResponse {
@@ -57,7 +81,9 @@ message GetFsInfoResponse {
 message CreateFsRequest {
     required string fsName = 1;
     required uint64 blockSize = 2;
-    required common.Volume volume = 3;
+    required FSType fsType = 3;
+    optional common.Volume volume = 4;
+    optional common.S3Info s3Info = 5;
 }
 
 message CreateFsResponse {
@@ -67,7 +93,7 @@ message CreateFsResponse {
 
 message MountFsRequest {
     required string fsName = 1;
-    required mountPoint mountpoint = 2;
+    required MountPoint mountpoint = 2;
 }
 
 message MountFsResponse {
@@ -77,7 +103,7 @@ message MountFsResponse {
 
 message UmountFsRequest {
     required string fsName = 1;
-    required mountPoint mountpoint = 2;
+    required MountPoint mountpoint = 2;
 }
 
 message UmountFsResponse {

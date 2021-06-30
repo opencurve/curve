@@ -18,10 +18,24 @@ syntax="proto2";
 package curvefs.common;
 option cc_generic_services = true;
 
+enum FSType {
+    TYPE_VOLUME = 1;
+    TYPE_S3 = 2;
+}
+
 message Volume {
     required uint64 volumeSize = 1;
     required uint64 blockSize = 2;
     required string volumeName = 3;
     required string user = 4;
     optional string password = 5;
+}
+
+message S3Info {
+    required string ak = 1;
+    required string sk = 2;
+    required string endpoint = 3;
+    required string bucketname = 4;
+    required uint64 blockSize = 5;
+    required uint64 chunkSize = 6;
 }
