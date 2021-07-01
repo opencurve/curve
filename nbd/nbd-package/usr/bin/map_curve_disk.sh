@@ -27,7 +27,7 @@ function usage() {
     echo "Usage: ./map_curve_disk.sh start"
     echo "  -c/--confPath: set the confPath (default /etc/curve/curvetab)"
     echo "    file format is:dealflag \t device \t image \t map-options \t mountpoint(option)"
-    echo "    example: +	/dev/nbd0	cbd:pool//curvefile_test_   defaults or try-netlink,timeout=7200    /test"
+    echo "    example: +	/dev/nbd0	cbd:pool//curvefile_test_   defaults or try-netlink,timeout=7200    /test   -t ext4 -o discard"
     echo "  -h/--help: get the script usage"
     echo "Examples:"
     echo "  ./map_curve_disk.sh start //use the default configuration"
@@ -45,8 +45,8 @@ function dealcurvetab() {
     declare -A recordmap
     while read line
     do
-        flag=$(echo $line | awk '{print $1}')
-        device=$(echo $line | awk '{print $2}')
+        flag=$(echo "$line" | awk '{print $1}')
+        device=$(echo "$line" | awk '{print $2}')
         if [ "$flag" = "+" ]
         then
             recordmap["$device"]=$line
@@ -56,7 +56,7 @@ function dealcurvetab() {
         fi
     done < ${confPath}
     for key in ${!recordmap[@]}; do
-	echo ${recordmap[$key]} >> ${confPath}.bak
+	echo "${recordmap[$key]}" >> ${confPath}.bak
     done
 }
 
@@ -91,13 +91,14 @@ function map() {
         image=$(echo "$line" | awk -F'\t' '{print $3}')
         mapopt=$(echo "$line" | awk -F'\t' '{print $4}')
         mountpoint=$(echo "$line" | awk -F'\t' '{print $5}')
+        option=$(echo "$line" | awk -F'\t' '{print $6}')
 
         mapopt=$(convert_map_opts "${mapopt}")
         curve-nbd map $image --device $device ${mapopt}
 
         if [ "$mountpoint" != "" ]
         then
-            mount $device $mount
+            mount $option $device $mountpoint
         fi
     done
     mv ${confPath}.bak ${confPath}
