@@ -26,6 +26,7 @@
 #include <gmock/gmock.h>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "src/chunkserver/copyset_node.h"
 
@@ -43,6 +44,7 @@ class MockCopysetNode : public CopysetNode {
     MOCK_METHOD0(Fini, void());
     MOCK_CONST_METHOD0(IsLeaderTerm, bool());
     MOCK_CONST_METHOD0(GetLeaderId, PeerId());
+    MOCK_METHOD1(ListPeers, void(std::vector<Peer>*));
     MOCK_CONST_METHOD0(GetConfEpoch, uint64_t());
     MOCK_METHOD1(UpdateAppliedIndex, void(uint64_t));
     MOCK_CONST_METHOD0(GetAppliedIndex, uint64_t());
@@ -52,6 +54,7 @@ class MockCopysetNode : public CopysetNode {
     MOCK_METHOD1(GetLeaderStatus, bool(NodeStatus*));
     MOCK_CONST_METHOD0(GetDataStore, std::shared_ptr<CSDataStore>());
     MOCK_CONST_METHOD0(GetConcurrentApplyModule, ConcurrentApplyModule*());
+    MOCK_METHOD0(GetFailedScanMap, std::vector<ScanMap>&());
     MOCK_METHOD1(Propose, void(const braft::Task&));
     MOCK_METHOD1(SetScan, void(bool));
     MOCK_CONST_METHOD0(GetScan, bool());

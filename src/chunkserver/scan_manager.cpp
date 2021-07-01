@@ -31,6 +31,7 @@ using ::google::protobuf::util::MessageDifferencer;
 int ScanManager::Init(const ScanManagerOptions &options) {
     toStop_.store(false, std::memory_order_release);
     scanSize_ = options.scanSize;
+    chunkMetaPageSize_ = options.chunkMetaPageSize;
     timeoutMs_ = options.timeoutMs;
     retry_ = options.retry;
     retryIntervalUs_ = options.retryIntervalUs;
@@ -122,6 +123,7 @@ void ScanManager::StartScanJob(ScanKey key) {
     job->isFinished = true;
     job->dataStore = nodePtr->GetDataStore();
     nodePtr->SetScan(true);
+    nodePtr->GetFailedScanMap().clear();
     jobMapLock_.WRLock();
     jobs_.emplace(key, job);
     jobMapLock_.Unlock();
@@ -144,6 +146,7 @@ int ScanManager::CancelScanJob(LogicPoolID poolId, CopysetID id) {
     if (nullptr != job) {
         auto nodePtr = copysetNodeManager_->GetCopysetNode(poolId, id);
         nodePtr->SetScan(false);
+        nodePtr->GetFailedScanMap().clear();
         WriteLockGuard writeGuard(jobMapLock_);
         jobs_.erase(key);
     }
@@ -158,34 +161,9 @@ bool ScanManager::GenScanJob(std::shared_ptr<ScanJob> job) {
             job->type = ScanType::NewMap;
             break;
         case ScanType::NewMap:
-            if (job->chunkMap.empty()) {
-                LOG(WARNING) << "GenScanJob failed, job's chunkmap is empty"
-                             << " logicalpoolId = " << job->poolId
-                             << " copysetId = " << job->id;
-                ScanJobFinish(job);
-            } else {
-                job->iter = job->chunkMap.find(job->currentChunkId);
-                if (job->iter == job->chunkMap.end()) {
-                    job->iter = job->chunkMap.begin();
-                }
-                // check chunk version
-                do {
-                    auto csChunkFile = job->iter->second;
-                    if (csChunkFile->GetChunkFileMetaPage().version !=
-                        FORMAT_VERSION_V2) {
-                        job->iter++;
-                    } else {
-                        break;
-                    }
-                } while (job->iter != job->chunkMap.end());
-
-                if (job->iter == job->chunkMap.end()) {
-                    ScanJobFinish(job);
-                    done = true;
-                    break;
-                }
-                job->currentChunkId = job->iter->first;
-                ScanChunkReqProcess(job);
+            if (0 == ScanJobProcess(job)) {
+                job->type = ScanType::Finish;
+                break;
             }
             done = true;
             break;
@@ -201,15 +179,6 @@ bool ScanManager::GenScanJob(std::shared_ptr<ScanJob> job) {
             break;
         case ScanType::CompareMap:
             CompareMap(job);
-            if (isCurrentJobFinish(job)) {
-                job->type = ScanType::Finish;
-                break;
-            } else if (isCurrentChunkFinish(job)) {
-                job->type = ScanType::NewMap;
-                (job->iter)++;
-                job->currentChunkId = job->iter->first;
-                break;
-            }
             done = true;
             break;
         case ScanType::Finish:
@@ -239,47 +208,88 @@ void ScanManager::GenScanJobs(ScanKey key) {
 }
 
 // send scan request to braft
-void ScanManager::ScanChunkReqProcess(const std::shared_ptr<ScanJob> job) {
-    // split scan chunk request
-    uint32_t currentOffset = 0;
-    auto nodePtr = copysetNodeManager_->GetCopysetNode(job->poolId, job->id);
-    while (currentOffset < chunkSize_) {
-        // Init job
-        job->taskLock.WRLock();
-        job->task.localMap.Clear();
-        job->task.followerMap.clear();
-        job->task.waitingNum = 3;
-        job->task.chunkId = job->currentChunkId;
-        job->task.offset = currentOffset;
-        job->taskLock.Unlock();
-        job->currentOffset = currentOffset;
-        job->isFinished = false;
+int ScanManager::ScanJobProcess(const std::shared_ptr<ScanJob> job) {
+    // check chunkmap
+    if (job->chunkMap.empty()) {
+        LOG(WARNING) << "GenScanJob failed, job's chunkmap is empty"
+                     << " logicalpoolId = " << job->poolId
+                     << " copysetId = " << job->id;
+        return 0;
+    }
 
-        // construct scan task
-        ChunkResponse *response = new ChunkResponse();
-        ChunkRequest *request = new ChunkRequest();
-        request->set_optype(CHUNK_OP_TYPE::CHUNK_OP_SCAN);
-        request->set_logicpoolid(job->poolId);
-        request->set_copysetid(job->id);
-        request->set_chunkid(job->currentChunkId);
-        request->set_offset(currentOffset);
-        request->set_size(scanSize_);
-        request->set_sendscanmaptimeoutms(timeoutMs_);
-        request->set_sendscanmapretrytimes(retry_);
-        request->set_sendscanmapretryintervalus(retryIntervalUs_);
-        ScanChunkClosure *done = new ScanChunkClosure(request, response);
-        std::shared_ptr<ScanChunkRequest> req =
-            std::make_shared<ScanChunkRequest>(nodePtr, this, request,
-                                               response, done);
-        req->Process();
-        currentOffset += scanSize_;
-        // wait for scan task finished
-        uint32_t retry = retry_;
-        while (!job->isFinished && retry > 0) {
-            scanTaskWaitInterval_.WaitForNextExcution();
-            retry--;
+    // iterate chunkmap
+    auto nodePtr = copysetNodeManager_->GetCopysetNode(job->poolId, job->id);
+    std::vector<Peer> peers;
+    nodePtr->ListPeers(&peers);
+    auto replicaNum = peers.size();
+    auto iter = job->chunkMap.begin();
+    while (iter != job->chunkMap.end()) {
+        // check chunk version
+        auto csChunkFile = iter->second;
+        if (csChunkFile->GetChunkFileMetaPage().version !=
+            FORMAT_VERSION_V2) {
+            iter++;
+        } else {
+            // split scan chunk request
+            job->currentChunkId = iter->first;
+            uint32_t currentOffset = 0;
+            bool scanChunkMetaPage = true;
+            while (currentOffset < chunkSize_) {
+                // check is leader, if not cancel the job
+                if (!nodePtr->IsLeaderTerm()) {
+                    CancelScanJob(job->poolId, job->id);
+                    return -1;
+                }
+
+                // Init job
+                job->taskLock.WRLock();
+                job->task.localMap.Clear();
+                job->task.followerMap.clear();
+                job->task.waitingNum = replicaNum;
+                job->task.chunkId = job->currentChunkId;
+                job->task.offset = currentOffset;
+                job->taskLock.Unlock();
+                job->currentOffset = currentOffset;
+                job->isFinished = false;
+
+                // construct scan task
+                ChunkResponse *response = new ChunkResponse();
+                ChunkRequest *request = new ChunkRequest();
+                request->set_optype(CHUNK_OP_TYPE::CHUNK_OP_SCAN);
+                request->set_logicpoolid(job->poolId);
+                request->set_copysetid(job->id);
+                request->set_chunkid(job->currentChunkId);
+                request->set_offset(currentOffset);
+                request->set_sendscanmaptimeoutms(timeoutMs_);
+                request->set_sendscanmapretrytimes(retry_);
+                request->set_sendscanmapretryintervalus(retryIntervalUs_);
+                if (scanChunkMetaPage) {
+                    request->set_readmetapage(true);
+                    request->set_size(chunkMetaPageSize_);
+                } else {
+                    request->set_size(scanSize_);
+                }
+                ScanChunkClosure *done = new ScanChunkClosure(request,
+                                                              response);
+                std::shared_ptr<ScanChunkRequest> req =
+                    std::make_shared<ScanChunkRequest>(nodePtr, this, request,
+                                                    response, done);
+                req->Process();
+                if (!scanChunkMetaPage) {
+                    currentOffset += scanSize_;
+                }
+                // wait for scan task finished
+                uint32_t retry = retry_;
+                while (!job->isFinished && retry > 0) {
+                    scanTaskWaitInterval_.WaitForNextExcution();
+                    retry--;
+                }
+                scanChunkMetaPage = false;
+            }
+            iter++;
         }
     }
+    return 0;
 }
 
 void ScanManager::SetLocalScanMap(ScanKey key, ScanMap map) {
@@ -302,6 +312,7 @@ void ScanManager::SetLocalScanMap(ScanKey key, ScanMap map) {
     WriteLockGuard writeLockGuard(job->taskLock);
     job->task.localMap = map;
     job->task.waitingNum--;
+    LOG(INFO) << "Leader scanmap is: " << job->task.localMap.ShortDebugString();
 }
 
 void ScanManager::DealFollowerScanMap(const FollowScanMapRequest &request,
@@ -361,6 +372,10 @@ void ScanManager::CompareMap(std::shared_ptr<ScanJob> job) {
                            << job->task.followerMap[0].ShortDebugString()
                            << "; the second follower scanmap: "
                            << job->task.followerMap[1].ShortDebugString();
+                // set failed scanmap
+                auto nodePtr = copysetNodeManager_->GetCopysetNode(job->poolId,
+                                                                   job->id);
+                nodePtr->GetFailedScanMap().emplace_back(job->task.localMap);
             } else {
                 LOG(INFO) << "Compare scanmap successfully on"
                           << " logicalpoolId = " << job->poolId
@@ -371,27 +386,6 @@ void ScanManager::CompareMap(std::shared_ptr<ScanJob> job) {
             job->isFinished = true;
         }
     }
-}
-
-bool ScanManager::isCurrentChunkFinish(std::shared_ptr<ScanJob> job) {
-    if (nullptr != job) {
-        // last offset+len
-        uint64_t lastOffset = chunkSize_ - scanSize_;
-        if (job->currentOffset == lastOffset) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool ScanManager::isCurrentJobFinish(std::shared_ptr<ScanJob> job) {
-    if (nullptr != job) {
-        ChunkMap::iterator iter = job->iter;
-        if (++iter == job->chunkMap.end() && isCurrentChunkFinish(job)) {
-            return true;
-        }
-    }
-    return false;
 }
 
 void ScanManager::ScanJobFinish(std::shared_ptr<ScanJob> job) {

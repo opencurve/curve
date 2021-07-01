@@ -187,6 +187,19 @@ class CSDataStore {
                                   char * buf,
                                   off_t offset,
                                   size_t length);
+
+    /**
+     * Read the metadata of the current chunk
+     * @param id: the chunk id to be read
+     * @param sn: used to record trace, not used in actual logic processing,
+     *             indicating the sequence number of the current user file
+     * @param buf: the content of the data read
+     * @return: return error code
+     */
+    virtual CSErrorCode ReadChunkMetaPage(ChunkID id,
+                                          SequenceNum sn,
+                                          char * buf);
+
     /**
      * Read the data of the specified sequence, it may read the current
      * chunk file, or it may read the snapshot file

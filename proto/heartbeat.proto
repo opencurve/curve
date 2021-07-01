@@ -22,6 +22,7 @@
 
 syntax = "proto2";
 import "proto/common.proto";
+import "proto/scan.proto";
 package curve.mds.heartbeat;
 
 option cc_generic_services = true;
@@ -43,6 +44,8 @@ message CopySetInfo {
     optional bool scaning = 8;
     // timestamp for last success scan (seconds)
     optional uint64 lastScanSec = 9;
+    // failed crc check scanmap
+    repeated chunkserver.ScanMap scanMap = 10;
 };
 
 message ConfigChangeInfo {

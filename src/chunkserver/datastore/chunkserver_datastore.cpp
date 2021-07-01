@@ -160,6 +160,22 @@ CSErrorCode CSDataStore::ReadChunk(ChunkID id,
     return CSErrorCode::Success;
 }
 
+CSErrorCode CSDataStore::ReadChunkMetaPage(ChunkID id, SequenceNum sn,
+                                           char * buf) {
+    auto chunkFile = metaCache_.Get(id);
+    if (chunkFile == nullptr) {
+        return CSErrorCode::ChunkNotExistError;
+    }
+
+    CSErrorCode errorCode = chunkFile->ReadMetaPage(buf);
+    if (errorCode != CSErrorCode::Success) {
+        LOG(WARNING) << "Read chunk meta page failed."
+                     << "ChunkID = " << id;
+        return errorCode;
+    }
+    return CSErrorCode::Success;
+}
+
 CSErrorCode CSDataStore::ReadSnapshotChunk(ChunkID id,
                                            SequenceNum sn,
                                            char * buf,
