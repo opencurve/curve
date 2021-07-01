@@ -184,6 +184,15 @@ class CSChunkFile {
      * @return: return error code
      */
     CSErrorCode Read(char * buf, off_t offset, size_t length);
+
+    /**
+     * Read chunk meta data
+     * There may be concurrency, add read lock
+     * @param buf: the data read
+     * @return: return error code
+     */
+    CSErrorCode ReadMetaPage(char * buf);
+
     /**
      * Read the chunk of the specified Sequence
      * There may be concurrency, add read lock

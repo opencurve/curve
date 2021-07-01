@@ -54,6 +54,7 @@ cc_library(
         "//proto:nameserver2_cc_proto",
         "//proto:common_cc_proto",
         "//proto:topology_cc_proto",
+        "//proto:scan_cc_proto",
         "//proto:chunkserver-cc-protos",
         "//src/client:curve_client"
     ],
@@ -79,6 +80,7 @@ cc_library(
         "-lnameserver2_proto",
         "-ltopology_proto",
         "-lcommon_proto",
+        "-lscan_proto",
         "-lchunkserver-protos",
         "-lprotobuf",
         "-lprotobuf_lite",

@@ -40,6 +40,7 @@
 #include "src/common/concurrent/concurrent.h"
 #include "src/chunkserver/scan_manager.h"
 #include "proto/heartbeat.pb.h"
+#include "proto/scan.pb.h"
 
 using ::curve::common::Thread;
 
