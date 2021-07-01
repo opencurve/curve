@@ -876,12 +876,20 @@ void ScanChunkRequest::OnApply(uint64_t index,
     std::unique_ptr<char[]> readBuffer(new(std::nothrow)char[size]);
     CHECK(nullptr != readBuffer)
         << "new readBuffer failed " << strerror(errno);
+    // scan chunk metapage or user data
+    auto ret = 0;
+    if (request_->has_readmetapage() && request_->readmetapage()) {
+        ret = datastore_->ReadChunkMetaPage(request_->chunkid(),
+                                            request_->sn(),
+                                            readBuffer.get());
+    } else {
+        ret = datastore_->ReadChunk(request_->chunkid(),
+                                    request_->sn(),
+                                    readBuffer.get(),
+                                    request_->offset(),
+                                    size);
+    }
 
-    auto ret = datastore_->ReadChunk(request_->chunkid(),
-                                     request_->sn(),
-                                     readBuffer.get(),
-                                     request_->offset(),
-                                     size);
     if (CSErrorCode::Success == ret) {
         crc = ::curve::common::CRC32(readBuffer.get(), size);
         // build scanmap
@@ -924,11 +932,20 @@ void ScanChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  /
     CHECK(nullptr != readBuffer)
         << "new readBuffer failed " << strerror(errno);
 
-    auto ret = datastore->ReadChunk(request.chunkid(),
+    // scan chunk metapage or user data
+    auto ret = 0;
+    if (request.has_readmetapage() && request.readmetapage()) {
+        ret = datastore->ReadChunkMetaPage(request.chunkid(),
+                                            request.sn(),
+                                            readBuffer.get());
+    } else {
+        ret = datastore->ReadChunk(request.chunkid(),
                                     request.sn(),
                                     readBuffer.get(),
                                     request.offset(),
                                     size);
+    }
+
     if (CSErrorCode::Success == ret) {
         crc = ::curve::common::CRC32(readBuffer.get(), size);
         BuildAndSendScanMap(request, index_, crc);

@@ -43,6 +43,7 @@
 #include "proto/heartbeat.pb.h"
 #include "proto/chunk.pb.h"
 #include "proto/common.pb.h"
+#include "proto/scan.pb.h"
 
 namespace curve {
 namespace chunkserver {
@@ -151,6 +152,8 @@ class CopysetNode : public braft::StateMachine,
     virtual void SetLastScan(uint64_t time);
 
     virtual uint64_t GetLastScan() const;
+
+    virtual std::vector<ScanMap>& GetFailedScanMap();
 
     /**
      * 返回复制组数据目录
@@ -281,7 +284,7 @@ class CopysetNode : public braft::StateMachine,
      * @param peers:返回的成员列表(输出参数)
      * @return
      */
-    void ListPeers(std::vector<Peer>* peers);
+    virtual void ListPeers(std::vector<Peer>* peers);
 
     /**
      * @brief initialize raft node options corresponding to the copyset node
@@ -458,6 +461,8 @@ class CopysetNode : public braft::StateMachine,
     bool scaning_;
     // last scan time
     uint64_t lastScanSec_;
+    // failed check scanmap
+    std::vector<ScanMap> failedScanMaps_;
 };
 
 }  // namespace chunkserver

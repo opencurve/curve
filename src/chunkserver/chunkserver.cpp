@@ -613,6 +613,8 @@ void ChunkServer::InitScanOptions(
         &scanOptions->intervalSec));
     LOG_IF(FATAL, !conf->GetUInt64Value("copyset.scan_size_byte",
         &scanOptions->scanSize));
+    LOG_IF(FATAL, !conf->GetUInt32Value("global.meta_page_size",
+        &scanOptions->chunkMetaPageSize));
     LOG_IF(FATAL, !conf->GetUInt64Value("copyset.scan_rpc_timeout_ms",
         &scanOptions->timeoutMs));
     LOG_IF(FATAL, !conf->GetUInt32Value("copyset.scan_rpc_retry_times",

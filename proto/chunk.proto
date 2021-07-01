@@ -65,6 +65,7 @@ message ChunkRequest {
     optional uint64 sendScanMapTimeoutMs = 14;         // for scan chunk
     optional uint32 sendScanMapRetryTimes= 15;         // for scan chunk
     optional uint64 sendScanMapRetryIntervalUs = 16;   // for scan chunk
+    optional bool readMetaPage = 17;                   // for scan chunk
 };
 
 enum CHUNK_OP_STATUS {
