@@ -484,6 +484,18 @@ CSErrorCode CSChunkFile::Read(char * buf, off_t offset, size_t length) {
     return CSErrorCode::Success;
 }
 
+CSErrorCode CSChunkFile::ReadMetaPage(char * buf) {
+    ReadLockGuard readGuard(rwLock_);
+    int rc = readMetaPage(buf);
+    if (rc < 0) {
+        LOG(ERROR) << "Read chunk meta page failed."
+                   << "ChunkID: " << chunkId_
+                   << ",chunk sn: " << metaPage_.sn;
+        return CSErrorCode::InternalError;
+    }
+    return CSErrorCode::Success;
+}
+
 CSErrorCode CSChunkFile::ReadSpecifiedChunk(SequenceNum sn,
                                             char * buf,
                                             off_t offset,

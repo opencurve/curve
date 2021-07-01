@@ -154,6 +154,12 @@ int Heartbeat::BuildCopysetInfo(curve::mds::heartbeat::CopySetInfo* info,
     if (copyset->GetLastScan() > 0) {
         info->set_lastscansec(copyset->GetLastScan());
     }
+    auto failedScanMaps = copyset->GetFailedScanMap();
+    if (!failedScanMaps.empty()) {
+        for (auto &map : failedScanMaps) {
+            info->add_scanmap()->CopyFrom(map);
+        }
+    }
 
     std::vector<Peer> peers;
     copyset->ListPeers(&peers);

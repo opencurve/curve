@@ -2878,6 +2878,61 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkErrorTest2) {
 }
 
 /**
+ * ReadChunkMetaPageTest
+ * case: read normal chunk
+ * expect: read successfully
+ */
+TEST_F(CSDataStore_test, ReadChunkMetaDataTest1) {
+    // initialize
+    FakeEnv();
+    EXPECT_TRUE(dataStore->Initialize());
+
+    ChunkID id = 3;
+    SequenceNum sn = 2;
+    char buf[PAGE_SIZE];
+    memset(buf, 0, PAGE_SIZE);
+    // test chunk not exists
+    EXPECT_EQ(CSErrorCode::ChunkNotExistError,
+              dataStore->ReadChunkMetaPage(id, sn, buf));
+
+    EXPECT_CALL(*lfs_, Close(1))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(3))
+        .Times(1);
+}
+
+/**
+ * ReadChunkMetaPageTest
+ * case: read normal chunk
+ * expect: read successfully
+ */
+TEST_F(CSDataStore_test, ReadChunkMetaDataTest2) {
+    // initialize
+    FakeEnv();
+    EXPECT_TRUE(dataStore->Initialize());
+
+    ChunkID id = 1;
+    SequenceNum sn = 2;
+    char buf[PAGE_SIZE];
+    memset(buf, 0, PAGE_SIZE);
+    // test chunk exists
+    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+        .Times(1);
+    EXPECT_EQ(CSErrorCode::Success,
+              dataStore->ReadChunkMetaPage(id, sn, buf));
+
+    EXPECT_CALL(*lfs_, Close(1))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(3))
+        .Times(1);
+}
+
+
+/**
  * DeleteChunkTest
  * case:chunk不存在
  * 预期结果:返回成功

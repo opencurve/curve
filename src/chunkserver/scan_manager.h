@@ -57,6 +57,7 @@ struct ScanManagerOptions {
     uint32_t intervalSec;
     // once scan buf size
     uint64_t scanSize;
+    uint32_t chunkMetaPageSize;
     // use for follower send scanmap to leader
     uint64_t timeoutMs;
     uint32_t retry;
@@ -91,7 +92,6 @@ struct ScanJob {
     ScanTask task;
     bool isFinished;
     RWLock taskLock;
-    ChunkMap::iterator iter;
     ChunkID currentChunkId;
     uint64_t currentOffset;
     ChunkMap chunkMap;
@@ -205,22 +205,9 @@ class ScanManager {
     /**
      * @brief process chunk scan request send task to braft
      * @param[in] job: the scan job
+     * @return 0 is finished, -1 is canceled
      */
-    void ScanChunkReqProcess(const std::shared_ptr<ScanJob> job);
-
-    /**
-     * @brief check whether current chunk scan finished
-     * @param[in] job: the scanJob
-     * @return true if finished, otherwise false
-     */
-    bool isCurrentChunkFinish(std::shared_ptr<ScanJob> job);
-
-    /**
-     * @brief check whether job finished
-     * @param[in] job: the scanJob
-     * @return true if finished, otherwise false
-     */
-    bool isCurrentJobFinish(std::shared_ptr<ScanJob> job);
+    int ScanJobProcess(const std::shared_ptr<ScanJob> job);
 
     /**
      * @brief set the scan job to finished status
@@ -259,6 +246,7 @@ class ScanManager {
     RWLock jobMapLock_;
     CopysetNodeManager *copysetNodeManager_;
     uint32_t chunkSize_;
+    uint32_t chunkMetaPageSize_;
     uint64_t scanSize_;
     uint64_t timeoutMs_;
     uint32_t retry_;

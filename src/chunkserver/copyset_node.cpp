@@ -518,6 +518,10 @@ uint64_t CopysetNode::GetLastScan() const {
     return lastScanSec_;
 }
 
+std::vector<ScanMap>& CopysetNode::GetFailedScanMap() {
+    return failedScanMaps_;
+}
+
 std::string CopysetNode::GetCopysetDir() const {
     return copysetDirPath_;
 }
