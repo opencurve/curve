@@ -40,12 +40,12 @@ void NameserverCacheMetrics::UpdateRemoveFromCacheBytes(uint64_t size) {
     cacheBytes << (0 - size);
 }
 
-void SegmentDiscardMetric::OnReceiveDiscardRequest(uint64_t size) {
+void SegmentDiscardMetric::OnReceiveDiscardRequest(int64_t size) {
     pendingSegments_ << 1;
     pendingSize_ << size;
 }
 
-void SegmentDiscardMetric::OnDiscardFinish(uint64_t size) {
+void SegmentDiscardMetric::OnDiscardFinish(int64_t size) {
     pendingSegments_ << -1;
     pendingSize_ << -size;
 

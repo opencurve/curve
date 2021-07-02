@@ -329,7 +329,8 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     // 大IO被拆分成多个request，这些request放在reqlist中国保存
     std::vector<RequestContext*>   reqlist_;
 
-    std::vector<SegmentIndex> discardSegments_;
+    // store segment indices that can be discarded
+    std::unordered_set<SegmentIndex> discardSegments_;
 
     // scheduler用来将用户线程与client自己的线程切分
     // 大IO被切分之后，将切分的reqlist传给scheduler向下发送

@@ -1824,12 +1824,101 @@ TEST_F(CurveFSTest, testExtendFile) {
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
+        FileInfo modifiedInfo;
         EXPECT_CALL(*storage_, PutFile(_))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(
+                DoAll(SaveArg<0>(&modifiedInfo), Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
                                        2 * kMiniFileLength), StatusCode::kOK);
+
+        // previous fileinfo doesn't has throttle params
+        ASSERT_FALSE(modifiedInfo.has_throttleparams());
+    }
+
+    // test enlarge size ok, and doesn't update throttle params
+    {
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+        auto* params = fileInfo2.mutable_throttleparams();
+        auto* p1 = params->add_throttleparams();
+        p1->set_type(ThrottleType::IOPS_TOTAL);
+        p1->set_limit(1);
+        auto* p2 = params->add_throttleparams();
+        p2->set_type(ThrottleType::BPS_TOTAL);
+        p2->set_limit(1);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        FileInfo modifiedInfo;
+        EXPECT_CALL(*storage_, PutFile(_))
+            .Times(1)
+            .WillOnce(
+                DoAll(SaveArg<0>(&modifiedInfo), Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
+                                       2 * kMiniFileLength), StatusCode::kOK);
+
+        // previous fileinfo has throttle params and has been modified by user
+        ASSERT_TRUE(modifiedInfo.has_throttleparams());
+        ASSERT_EQ(2, modifiedInfo.throttleparams().throttleparams_size());
+        ASSERT_EQ(
+            1, modifiedInfo.throttleparams().throttleparams()[0].limit());
+        ASSERT_EQ(
+            1, modifiedInfo.throttleparams().throttleparams()[1].limit());
+    }
+
+    // test enlarge size ok, and update throttle params
+    {
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+        auto* params = fileInfo2.mutable_throttleparams();
+        auto* p1 = params->add_throttleparams();
+        p1->set_type(ThrottleType::IOPS_TOTAL);
+        p1->set_limit(200);
+        auto* p2 = params->add_throttleparams();
+        p2->set_type(ThrottleType::BPS_TOTAL);
+        p2->set_limit(120 * kMB);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        FileInfo modifiedInfo;
+        EXPECT_CALL(*storage_, PutFile(_))
+            .Times(1)
+            .WillOnce(
+                DoAll(SaveArg<0>(&modifiedInfo), Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
+                                       2 * kMiniFileLength), StatusCode::kOK);
+
+        // previous fileinfo has throttle params and has been modified by user
+        ASSERT_TRUE(modifiedInfo.has_throttleparams());
+        ASSERT_EQ(2, modifiedInfo.throttleparams().throttleparams_size());
+        ASSERT_NE(
+            1, modifiedInfo.throttleparams().throttleparams()[0].limit());
+        ASSERT_NE(
+            1, modifiedInfo.throttleparams().throttleparams()[1].limit());
     }
 
     // test size over maxsize
@@ -3903,6 +3992,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
         ASSERT_EQ(fileInfo.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(fileInfo.chunksize(), curvefs_->GetDefaultChunkSize());
         ASSERT_EQ(fileInfo.seqnum(), kStartSeqNum);
+        ASSERT_TRUE(fileInfo.has_throttleparams());
     }
 }
 

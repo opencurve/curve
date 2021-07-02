@@ -23,6 +23,7 @@
 #include <memory>
 #include <vector>
 #include "src/mds/nameserver2/clean_manager.h"
+#include "src/common/concurrent/count_down_event.h"
 
 namespace curve {
 namespace mds {
@@ -63,7 +64,8 @@ bool CleanManager::SubmitDeleteCommonFileJob(const FileInfo &fileInfo) {
 
 bool CleanManager::SubmitCleanDiscardSegmentJob(
     const std::string& cleanSegmentKey,
-    const DiscardSegmentInfo& discardSegmentInfo) {
+    const DiscardSegmentInfo& discardSegmentInfo,
+    curve::common::CountDownEvent* counter) {
     // get dlock
     dlockOpts_->pfx = std::to_string(discardSegmentInfo.fileinfo().id());
     dlock_ = std::make_shared<DLock>(*dlockOpts_);
@@ -77,7 +79,7 @@ bool CleanManager::SubmitCleanDiscardSegmentJob(
     }
 
     auto task = std::make_shared<SegmentCleanTask>(
-        cleanCore_, cleanSegmentKey, discardSegmentInfo, dlock_);
+        cleanCore_, cleanSegmentKey, discardSegmentInfo, counter, dlock_);
     task->SetTaskID(reinterpret_cast<TaskIDType>(task.get()));
     return taskMgr_->PushTask(task);
 }
@@ -155,13 +157,22 @@ void CleanDiscardSegmentTask::ScanAndExecTask() {
             continue;
         }
 
+        auto count = discardSegments.size();
+        if (count == 0) {
+            continue;
+        }
+
+        curve::common::CountDownEvent counter(count);
         for (const auto& kv : discardSegments) {
-            if (!cleanManager_->SubmitCleanDiscardSegmentJob(kv.first,
-                                                             kv.second)) {
+            if (!cleanManager_->SubmitCleanDiscardSegmentJob(
+                    kv.first, kv.second, &counter)) {
                 LOG(ERROR) << "SubmitCleanDiscardSegmentJob failed";
-                continue;
+                counter.Signal();
             }
         }
+
+        // wait all submitted jobs finish
+        counter.Wait();
     }
 }
 
