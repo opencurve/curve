@@ -148,6 +148,12 @@ class MockTopologyService : public TopologyService {
         const GetCopySetsInClusterRequest *request,
         GetCopySetsInClusterResponse *response,
         Closure *done));
+
+    MOCK_METHOD4(GetCopyset, void(RpcController* controller,
+                                  const GetCopysetRequest* request,
+                                  GetCopysetResponse* response,
+                                  Closure* done));
+
     MOCK_METHOD4(GetClusterInfo,
         void(RpcController *controller,
         const GetClusterInfoRequest *request,

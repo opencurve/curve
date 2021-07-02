@@ -196,15 +196,20 @@ class TestTopologyServiceManager : public ::testing::Test {
     }
 
     void PrepareAddCopySet(CopySetIdType copysetId,
-        PoolIdType logicalPoolId,
-        const std::set<ChunkServerIdType> &members) {
-        CopySetInfo cs(logicalPoolId,
-            copysetId);
-        cs.SetCopySetMembers(members);
+                           PoolIdType logicalPoolId,
+                           const std::set<ChunkServerIdType> &members,
+                           bool scaning = false,
+                           LastScanSecType lastScanSec = 0,
+                           bool lastScanConsistent = true) {
+        CopySetInfo copysetInfo(logicalPoolId, copysetId);
+        copysetInfo.SetCopySetMembers(members);
+        copysetInfo.SetScaning(scaning);
+        copysetInfo.SetLastScanSec(lastScanSec);
+        copysetInfo.SetLastScanConsistent(lastScanConsistent);
+
         EXPECT_CALL(*storage_, StorageCopySet(_))
             .WillOnce(Return(true));
-        int ret = topology_->AddCopySet(cs);
-        ASSERT_EQ(kTopoErrCodeSuccess, ret)
+        ASSERT_EQ(topology_->AddCopySet(copysetInfo), kTopoErrCodeSuccess)
             << "should have PrepareAddLogicalPool()";
     }
 
@@ -2582,7 +2587,6 @@ TEST_F(TestTopologyServiceManager, TestSetLogicalPoolScanState) {
     SetLogicalPoolScanStateRequest request;
     SetLogicalPoolScanStateResponse response;
 
-
     // CASE 1: logical pool not found
     request.set_logicalpoolid(lpid + 1);
     request.set_scanenable(true);
@@ -2844,44 +2848,96 @@ TEST_F(TestTopologyServiceManager,
     ASSERT_EQ(0, response.copysetinfos_size());
 }
 
-TEST_F(TestTopologyServiceManager, test_GetCopySetsInCluster) {
-    PoolIdType logicalPoolId1 = 0x1;
-    PoolIdType physicalPoolId1 = 0x11;
-    PrepareAddPhysicalPool(physicalPoolId1);
-    PrepareAddLogicalPool(logicalPoolId1, "logicalPool1", physicalPoolId1);
-    PoolIdType logicalPoolId2 = 0x2;
-    PoolIdType physicalPoolId2 = 0x12;
-    PrepareAddPhysicalPool(physicalPoolId2);
-    PrepareAddLogicalPool(logicalPoolId2, "logicalPool2", physicalPoolId2);
+TEST_F(TestTopologyServiceManager, TestGetCopySetsInCluster) {
+    PoolIdType ppid1 = 1, ppid2 = 2;  // physical pool id
+    PoolIdType lpid1 = 1, lpid2 = 2;  // logical pool id
+    PrepareAddPhysicalPool(ppid1);
+    PrepareAddPhysicalPool(ppid2);
+    PrepareAddLogicalPool(lpid1, "logicalPool", ppid1);
+    PrepareAddLogicalPool(lpid2, "logicalPool", ppid2);
 
-    std::set<ChunkServerIdType> members = {1, 2, 3};
-    for (int i = 1; i <= 10; ++i) {
-        PrepareAddCopySet(i, logicalPoolId1, members);
-    }
-    for (int i = 11; i <= 20; ++i) {
-        PrepareAddCopySet(i, logicalPoolId2, members);
+    std::set<ChunkServerIdType> peers = { 1, 2, 3 };
+    for (auto i = 1; i <= 20; i++) {
+        auto lpid = (i <= 10 ? lpid1 : lpid2);
+        // copysetId, logicalPoolid, chunkservers, scaning
+        PrepareAddCopySet(i, lpid, peers, i % 2 == 0);
     }
 
-    GetCopySetsInClusterRequest request;
-    GetCopySetsInClusterResponse response;
-    serviceManager_->GetCopySetsInCluster(&request, &response);
+    // CASE 1: GetCopySetsInCluster without filter
+    {
+        GetCopySetsInClusterRequest request;
+        GetCopySetsInClusterResponse response;
+        serviceManager_->GetCopySetsInCluster(&request, &response);
 
-    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
-    ASSERT_EQ(20, response.copysetinfos_size());
-    for (int i = 0; i < 20; i++) {
-        if (i < 10) {
-            ASSERT_EQ(1, response.copysetinfos(i).logicalpoolid());
-        } else {
-            ASSERT_EQ(2, response.copysetinfos(i).logicalpoolid());
+        ASSERT_EQ(response.statuscode(), kTopoErrCodeSuccess);
+        ASSERT_EQ(response.copysetinfos_size(), 20);
+        for (auto i = 1; i <= 20; i++) {
+            auto copysetInfo = response.copysetinfos(i - 1);
+            ASSERT_EQ(copysetInfo.logicalpoolid(), i <= 10 ? lpid1 : lpid2);
+            ASSERT_EQ(copysetInfo.copysetid(), i);
+            ASSERT_EQ(copysetInfo.scaning(), i % 2 == 0);
         }
-        ASSERT_EQ(i + 1, response.copysetinfos(i).copysetid());
     }
-    GetCopySetsInClusterResponse response2;
-    serviceManager_->GetCopySetsInCluster(&request, &response2);
 
-    ASSERT_EQ(kTopoErrCodeSuccess, response2.statuscode());
-    ASSERT_EQ(20, response2.copysetinfos_size());
-    ASSERT_EQ(1, response2.copysetinfos(0).copysetid());
+    // CASE 2: GetCopySetsInCluster with filter scaning copysets
+    {
+        GetCopySetsInClusterRequest request;
+        GetCopySetsInClusterResponse response;
+        request.set_filterscaning(true);
+        serviceManager_->GetCopySetsInCluster(&request, &response);
+
+        ASSERT_EQ(response.statuscode(), kTopoErrCodeSuccess);
+        ASSERT_EQ(response.copysetinfos_size(), 10);
+        for (auto i = 1; i <= 10; i++) {
+            auto copysetInfo = response.copysetinfos(i - 1);
+            ASSERT_EQ(copysetInfo.logicalpoolid(), i * 2 <= 10 ? lpid1 : lpid2);
+            ASSERT_EQ(copysetInfo.copysetid(), i * 2);
+            ASSERT_TRUE(copysetInfo.scaning());
+        }
+    }
+}
+
+TEST_F(TestTopologyServiceManager, TestGetCopyset) {
+    PoolIdType ppid = 1;  // physical pool id
+    PoolIdType lpid = 1;  // logical pool id
+    PrepareAddPhysicalPool(ppid);
+    PrepareAddLogicalPool(lpid, "logicalPool", ppid);
+
+    std::set<ChunkServerIdType> peers = { 1, 2, 3 };
+    // copysetId, logicalPoolid, chunkservers,
+    // scaning, lastScanSec, lastScanConsistent
+    PrepareAddCopySet(1, lpid, peers, false, 123456789, false);
+
+    // CASE 1: Get copyset success
+    {
+        GetCopysetRequest request;
+        GetCopysetResponse response;
+        request.set_logicalpoolid(1);
+        request.set_copysetid(1);
+        serviceManager_->GetCopyset(&request, &response);
+
+        ASSERT_EQ(response.statuscode(), kTopoErrCodeSuccess);
+        ASSERT_EQ(response.copysetinfo().logicalpoolid(), 1);
+        ASSERT_EQ(response.copysetinfo().copysetid(), 1);
+        ASSERT_EQ(response.copysetinfo().scaning(), false);
+        ASSERT_EQ(response.copysetinfo().lastscansec(), 123456789);
+        ASSERT_EQ(response.copysetinfo().lastscanconsistent(), false);
+    }
+
+    // CASE 2: Get copyset fail with copyset not found
+    {
+        GetCopysetRequest request;
+        GetCopysetResponse response;
+        request.set_logicalpoolid(1);
+        request.set_copysetid(2);
+        serviceManager_->GetCopyset(&request, &response);
+        ASSERT_EQ(response.statuscode(), kTopoErrCodeCopySetNotFound);
+
+        request.set_logicalpoolid(2);
+        request.set_copysetid(1);
+        serviceManager_->GetCopyset(&request, &response);
+        ASSERT_EQ(response.statuscode(), kTopoErrCodeCopySetNotFound);
+    }
 }
 
 TEST_F(TestTopologyServiceManager, test_SetCopysetsAvailFlag) {

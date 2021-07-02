@@ -805,7 +805,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterNormal) {
     copyset.set_logicalpoolid(1);
     copyset.set_copysetid(100);
     copysetsInMds.emplace_back(copyset);
-    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_))
+    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_, _))
         .Times(1)
         .WillRepeatedly(DoAll(SetArgPointee<0>(copysetsInMds),
                         Return(0)));
@@ -844,7 +844,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterError) {
         .Times(1)
         .WillOnce(Return(-1));
     std::vector<CopysetInfo> copysetsInMds;
-    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_))
+    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_, _))
         .Times(1)
         .WillRepeatedly(DoAll(SetArgPointee<0>(copysetsInMds),
                         Return(0)));
@@ -880,7 +880,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterError) {
     copyset.set_logicalpoolid(1);
     copyset.set_copysetid(100);
     copysetsInMds.emplace_back(copyset);
-    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_))
+    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_, _))
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<0>(copysetsInMds),
                         Return(0)));
@@ -912,7 +912,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterError) {
         .WillRepeatedly(DoAll(SetArgPointee<0>(iobuf),
                         Return(0)));
     // 从获取copyset失败
-    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_))
+    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_, _))
         .Times(1)
         .WillRepeatedly(Return(-1));
     ASSERT_EQ(-1, copysetCheck4.CheckCopysetsInCluster());
@@ -924,7 +924,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterError) {
     copysetsInMds.emplace_back(copyset);
     copyset.set_copysetid(100);
     copysetsInMds.emplace_back(copyset);
-    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_))
+    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_, _))
         .Times(1)
         .WillRepeatedly(DoAll(SetArgPointee<0>(copysetsInMds),
                         Return(0)));
@@ -932,7 +932,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterError) {
     ASSERT_EQ(0, copysetCheck4.GetCopysetStatistics().unhealthyRatio);
     // copyset数量一致，但是内容不一致
     copysetsInMds.pop_back();
-    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_))
+    EXPECT_CALL(*mdsClient_, GetCopySetsInCluster(_, _))
         .Times(1)
         .WillRepeatedly(DoAll(SetArgPointee<0>(copysetsInMds),
                         Return(0)));

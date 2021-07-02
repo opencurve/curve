@@ -139,6 +139,7 @@ class StatusTool : public CurveTool {
     int PrintChunkserverStatus(bool checkLeftSize = true);
     int PrintClientStatus();
     int ClientListCmd();
+    int ScanStatusCmd();
     void PrintCsLeftSizeStatistics(const std::string& name,
                         const std::map<PoolIdType,
                         std::vector<uint64_t>>& poolLeftSize);

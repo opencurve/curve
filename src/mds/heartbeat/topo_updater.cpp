@@ -136,7 +136,9 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
                       << reportCopySetInfo.GetLogicalPoolId()
                       << "," << reportCopySetInfo.GetId()
                       << "): scaning=" << reportCopySetInfo.GetScaning()
-                      << ", lastScanSec=" << reportCopySetInfo.GetLastScanSec();
+                      << ", lastScanSec=" << reportCopySetInfo.GetLastScanSec()
+                      << ", lastScanConsistent="
+                      << reportCopySetInfo.GetLastScanConsistent();
         }
     } else if (recordCopySetInfo.GetEpoch() > reportCopySetInfo.GetEpoch()) {
         if (recordCopySetInfo.GetLeader() != reportCopySetInfo.GetLeader()) {
