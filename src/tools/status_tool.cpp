@@ -114,7 +114,8 @@ bool StatusTool::SupportCommand(const std::string& command) {
                                  || command == kSnapshotCloneStatusCmd
                                  || command == kClusterStatusCmd
                                  || command == kServerListCmd
-                                 || command == kLogicalPoolList);
+                                 || command == kLogicalPoolList
+                                 || command == kScanStatusCmd);
 }
 
 void StatusTool::PrintHelp(const std::string& cmd) {
@@ -132,18 +133,20 @@ void StatusTool::PrintHelp(const std::string& cmd) {
         std::cout << " [-snapshotCloneAddr=127.0.0.1:5555]"
                   << " [-confPath=/etc/curve/tools.conf]";
     }
+
     if (cmd == kChunkserverListCmd) {
         std::cout << " [-offline] [-unhealthy] [-checkHealth=false]"
                   << " [-confPath=/etc/curve/tools.conf]"
                   << " [-checkCSAlive]";
-    }
-    if (cmd == kClientStatusCmd) {
+    } else if (cmd == kClientStatusCmd) {
         std::cout << " [-detail] [-confPath=/etc/curve/tools.conf]";
-    }
-    if (cmd == kClientListCmd) {
+    } else if (cmd == kClientListCmd) {
         std::cout << " [-listClientInRepo=false]"
                   << " [-confPath=/etc/curve/tools.conf]";
+    } else if (cmd == kScanStatusCmd) {
+        std::cout << " [-logicalPoolId=1] [-copysetId=1]" << std::endl;
     }
+
     std::cout << std::endl;
 }
 
@@ -696,6 +699,49 @@ int StatusTool::ClientListCmd() {
     return 0;
 }
 
+int StatusTool::ScanStatusCmd() {
+    if (FLAGS_logicalPoolId != 0 && FLAGS_copysetId != 0) {
+        CopysetInfo copysetInfo;
+        auto lpid = FLAGS_logicalPoolId;
+        auto copysetId = FLAGS_copysetId;
+        if (mdsClient_->GetCopyset(lpid, copysetId, &copysetInfo) != 0) {
+            std::cout << "GetCopyset fail!" << std::endl;
+            return -1;
+        }
+
+        std::cout
+            << "Scan status for copyset("
+            << lpid << "," << copysetId << "):" << std::endl
+            << "  scaning=" << copysetInfo.scaning()
+            << "  lastScanSec=" << copysetInfo.lastscansec()
+            << "  lastScanConsistent=" << copysetInfo.lastscanconsistent()
+            << std::endl;
+
+        return 0;
+    }
+
+    std::vector<CopysetInfo> copysetInfos;
+    if (mdsClient_->GetCopySetsInCluster(&copysetInfos, true) != 0) {
+        std::cout << "GetCopySetsInCluster fail!" << std::endl;
+        return -1;
+    }
+
+    int count = 0;
+    std::cout << "Scaning copysets: " << copysetInfos.size();
+    for (auto& copysetInfo : copysetInfos) {
+        if (count % 5 == 0) {
+            std::cout << std::endl;
+        }
+        std::cout << "  (" << copysetInfo.logicalpoolid()
+                  << "," << copysetInfo.copysetid() << ")";
+        count++;
+    }
+
+    std::cout << std::endl;
+
+    return 0;
+}
+
 int CheckUseWalPool(const std::map<PoolIdType, std::vector<ChunkServerInfo>>
                      &poolChunkservers,
                      bool *useWalPool,
@@ -1051,6 +1097,8 @@ int StatusTool::RunCommand(const std::string &cmd) {
         return PrintClusterStatus();
     } else if (cmd == kClientListCmd) {
         return ClientListCmd();
+    } else if (cmd == kScanStatusCmd) {
+        return ScanStatusCmd();
     } else {
         std::cout << "Command not supported!" << std::endl;
         return -1;

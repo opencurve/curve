@@ -354,9 +354,10 @@ bool HeartbeatManager::FromHeartbeatCopySetInfoToTopologyOne(
         topoCopysetInfo.SetScaning(info.scaning());
     }
 
-    // set last scan
+    // set last scan and last scan consistent
     if (info.has_lastscansec()) {
         topoCopysetInfo.SetLastScanSec(info.lastscansec());
+        topoCopysetInfo.SetLastScanConsistent(info.scanmap_size() == 0);
     }
 
     *out = topoCopysetInfo;

@@ -51,6 +51,8 @@ TEST(CurveToolFactoryTest, GetStatusTool) {
     ASSERT_TRUE(dynamic_cast<StatusTool *>(curveTool.get()) != nullptr);
     curveTool = CurveToolFactory::GenerateCurveTool("cluster-status");
     ASSERT_TRUE(dynamic_cast<StatusTool *>(curveTool.get()) != nullptr);
+    curveTool = CurveToolFactory::GenerateCurveTool("scan-status");
+    ASSERT_TRUE(dynamic_cast<StatusTool*>(curveTool.get()) != nullptr);
     curveTool = CurveToolFactory::GenerateCurveTool("nothing");
     ASSERT_TRUE(curveTool.get() == nullptr);
 }

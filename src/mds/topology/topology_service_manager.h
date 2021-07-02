@@ -132,8 +132,11 @@ class TopologyServiceManager {
                       GetCopySetsInChunkServerResponse* response);
 
     virtual void GetCopySetsInCluster(
-                      const GetCopySetsInClusterRequest* request,
-                      GetCopySetsInClusterResponse* response);
+        const GetCopySetsInClusterRequest* request,
+        GetCopySetsInClusterResponse* response);
+
+    virtual void GetCopyset(const GetCopysetRequest* request,
+                            GetCopysetResponse* response);
 
     virtual void GetClusterInfo(
           const GetClusterInfoRequest* request,
@@ -211,6 +214,14 @@ class TopologyServiceManager {
      */
     int RemoveErrLogicalPoolAndCopyset(const LogicalPool &pool,
         const std::vector<CopySetInfo> *copysetInfos);
+
+    /**
+     * @brief Convert topology CopySetInfo to proto CopysetInfo
+     * @param[in] in the topology CopySetInfo
+     * @param[in] out the proto CopysetInfo
+     */
+    void ConvertCopyset(const CopySetInfo& in,
+                        ::curve::common::CopysetInfo* out);
 
  private:
     /**

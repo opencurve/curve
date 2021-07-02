@@ -60,7 +60,8 @@ const char* kHelpStr = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
         "set-copyset-availflag: set copysets available flags\n"
         "update-throttle: update file throttle params\n"
         "rapid-leader-schedule: rapid leader schedule in cluster in logicalpool\n"  //NOLINT
-        "set-scan-state: set scan state for specify logical pool\n\n"
+        "set-scan-state: set scan state for specify logical pool\n"
+        "scan-status: show scan status\n\n"
         "You can specify the config path by -confPath to avoid typing too many options\n";  //NOLINT
 
 

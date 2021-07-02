@@ -68,8 +68,7 @@ proto_library(
         "chunkserver.proto",
         "curve_storage.proto",
     ]),
-    deps = [":common_proto",
-            ":scan_proto"],
+    deps = [":common_proto", ":scan_proto"],
     visibility = ["//visibility:public"],
 )
 
@@ -98,10 +97,10 @@ proto_library(
 cc_proto_library(
     name = "scan_cc_proto",
     visibility = ["//visibility:public"],
-    deps = [":scan_proto"],        
+    deps = [":scan_proto"],
 )
 
 proto_library(
     name = "scan_proto",
-    srcs = ["scan.proto"],        
+    srcs = ["scan.proto"],
 )

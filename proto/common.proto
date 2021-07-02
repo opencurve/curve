@@ -32,4 +32,8 @@ message Peer {
 message CopysetInfo {
     required uint32 logicalPoolId = 1;
     required uint32 copysetId = 2;
+    optional bool scaning = 3;
+    optional uint64 lastScanSec = 4;
+    optional bool lastScanConsistent = 5;
 }
+

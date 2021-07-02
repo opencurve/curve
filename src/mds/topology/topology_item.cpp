@@ -335,6 +335,7 @@ bool CopySetInfo::SerializeToString(std::string *value) const {
     }
     data.set_availflag(available_);
     data.set_lastscansec(lastScanSec_);
+    data.set_lastscanconsistent(lastScanConsistent_);
     return data.SerializeToString(value);
 }
 
@@ -354,6 +355,8 @@ bool CopySetInfo::ParseFromString(const std::string &value) {
         peers_.insert(data.chunkserverids(i));
     }
     lastScanSec_ = data.has_lastscansec() ? data.lastscansec() : 0;
+    lastScanConsistent_ = data.has_lastscanconsistent() ?
+                          data.lastscanconsistent() : true;
     return ret;
 }
 

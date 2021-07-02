@@ -1106,6 +1106,7 @@ int TopologyImpl::UpdateCopySetTopo(const CopySetInfo &data) {
 
         if (data.IsLatestLastScanSec(it->second.GetLastScanSec())) {
             it->second.SetLastScanSec(data.GetLastScanSec());
+            it->second.SetLastScanConsistent(data.GetLastScanConsistent());
         }
 
         it->second.SetDirtyFlag(true);
