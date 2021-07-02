@@ -44,7 +44,7 @@ message CopySetInfo {
     optional bool scaning = 8;
     // timestamp for last success scan (seconds)
     optional uint64 lastScanSec = 9;
-    // failed crc check scanmap
+    // the detail information for inconsistent copyset
     repeated chunkserver.ScanMap scanMap = 10;
 };
 
@@ -118,7 +118,7 @@ enum ConfigChangeType {
     NONE = 4;
     // 配置变更命令：change复制组一个成员
     CHANGE_PEER = 5;
-    // start scan on the peer  
+    // start scan on the peer
     START_SCAN_PEER = 6;
     // cancel scan on the peer
     CANCEL_SCAN_PEER = 7;

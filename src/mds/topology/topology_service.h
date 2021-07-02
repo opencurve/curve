@@ -174,10 +174,15 @@ class TopologyServiceImpl : public TopologyService {
                       google::protobuf::Closure* done);
 
     virtual void GetCopySetsInCluster(
-                      google::protobuf::RpcController* cntl_base,
-                      const GetCopySetsInClusterRequest* request,
-                      GetCopySetsInClusterResponse* response,
-                      google::protobuf::Closure* done);
+        google::protobuf::RpcController* cntl_base,
+        const GetCopySetsInClusterRequest* request,
+        GetCopySetsInClusterResponse* response,
+        google::protobuf::Closure* done);
+
+    virtual void GetCopyset(google::protobuf::RpcController* cntl_base,
+                            const GetCopysetRequest* request,
+                            GetCopysetResponse* response,
+                            google::protobuf::Closure* done);
 
     virtual void GetClusterInfo(
                       google::protobuf::RpcController* cntl_base,

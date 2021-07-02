@@ -1417,7 +1417,7 @@ TEST_F(TestTopologyService, TestSetLogicalPoolScanState) {
         SetLogicalPoolScanStateResponse resp;
         resp.set_statuscode(kTopoErrCodeSuccess);
         EXPECT_CALL(*manager_, SetLogicalPoolScanState(_, _))
-            .WillRepeatedly(SetArgPointee<1>(resp));
+            .WillOnce(SetArgPointee<1>(resp));
 
         request.set_logicalpoolid(1);
         request.set_scanenable(true);
@@ -1432,7 +1432,7 @@ TEST_F(TestTopologyService, TestSetLogicalPoolScanState) {
         SetLogicalPoolScanStateResponse resp;
         resp.set_statuscode(kTopoErrCodeLogicalPoolNotFound);
         EXPECT_CALL(*manager_, SetLogicalPoolScanState(_, _))
-            .WillRepeatedly(SetArgPointee<1>(resp));
+            .WillOnce(SetArgPointee<1>(resp));
 
         request.set_logicalpoolid(1);
         request.set_scanenable(true);
@@ -1612,6 +1612,45 @@ TEST_F(TestTopologyService, test_GetCopySetsInCluster_fail) {
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
+}
+
+TEST_F(TestTopologyService, TestGetCopyset) {
+    brpc::Channel channel;
+    brpc::Controller cntl;
+    GetCopysetRequest request;
+    GetCopysetResponse response;
+
+    ASSERT_EQ(channel.Init(listenAddr_, NULL), 0);
+    TopologyService_Stub stub(&channel);
+
+    // CASE 1: Get copyset success
+    {
+        GetCopysetResponse resp;
+        resp.set_statuscode(kTopoErrCodeSuccess);
+        EXPECT_CALL(*manager_, GetCopyset(_, _))
+            .WillOnce(SetArgPointee<1>(resp));
+
+        request.set_logicalpoolid(1);
+        request.set_copysetid(1);
+        stub.GetCopyset(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(response.statuscode(), kTopoErrCodeSuccess);
+    }
+
+    // CASE 2: Get copyset fail with copyset not found
+    {
+        cntl.Reset();
+        GetCopysetResponse resp;
+        resp.set_statuscode(kTopoErrCodeCopySetNotFound);
+        EXPECT_CALL(*manager_, GetCopyset(_, _))
+            .WillOnce(SetArgPointee<1>(resp));
+
+        request.set_logicalpoolid(1);
+        request.set_copysetid(1);
+        stub.GetCopyset(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(response.statuscode(), kTopoErrCodeCopySetNotFound);
+    }
 }
 
 TEST_F(TestTopologyService, test_SetCopysetsAvailFlag_success) {

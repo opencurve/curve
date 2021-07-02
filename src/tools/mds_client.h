@@ -313,11 +313,24 @@ class MDSClient {
                                  std::vector<CopysetInfo>* copysets);
 
     /**
-     *  @brief 获取集群中的所有copyset
-     *  @param[out] copysets 集群中copyset的列表
-     *  @return 成功返回0，失败返回-1
+     * @brief Get all copysets in cluster
+     * @param[out] the copyset list
+     * @param[in] filterScaning whether need to filter copyset which in scaning
+     * @return 0 if success, else return -1
      */
-    virtual int GetCopySetsInCluster(std::vector<CopysetInfo>* copysets);
+    virtual int GetCopySetsInCluster(std::vector<CopysetInfo>* copysetInfos,
+                                     bool filterScaning = false);
+
+    /**
+     * @brief Get specify copyset
+     * @param[in] lpid logical pool id
+     * @param[in] copysetId copyset id
+     * @param[out] copysetInfo the copyset
+     * @return 0 if success, else return -1
+     */
+    virtual int GetCopyset(PoolIdType lpid,
+                           CopySetIdType copysetId,
+                           CopysetInfo* copysetInfo);
 
     /**
      *  @brief 列出集群中的所有server

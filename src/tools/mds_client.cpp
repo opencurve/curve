@@ -736,11 +736,16 @@ int MDSClient::GetCopySetsInChunkServer(
     return -1;
 }
 
-int MDSClient::GetCopySetsInCluster(std::vector<CopysetInfo>* copysets) {
+int MDSClient::GetCopySetsInCluster(std::vector<CopysetInfo>* copysets,
+                                    bool filterScaning) {
     assert(copysets != nullptr);
     curve::mds::topology::GetCopySetsInClusterRequest request;
     curve::mds::topology::GetCopySetsInClusterResponse response;
     curve::mds::topology::TopologyService_Stub stub(&channel_);
+
+    if (filterScaning) {
+        request.set_filterscaning(true);
+    }
 
     auto fp = &curve::mds::topology::TopologyService_Stub::GetCopySetsInCluster;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
@@ -758,6 +763,32 @@ int MDSClient::GetCopySetsInCluster(std::vector<CopysetInfo>* copysets) {
     }
     std::cout << "GetCopySetsInCluster fail with errCode: "
               << response.statuscode() << std::endl;
+    return -1;
+}
+
+
+int MDSClient::GetCopyset(PoolIdType lpid,
+                          CopySetIdType copysetId,
+                          CopysetInfo* copysetInfo) {
+    curve::mds::topology::GetCopysetRequest request;
+    curve::mds::topology::GetCopysetResponse response;
+    curve::mds::topology::TopologyService_Stub stub(&channel_);
+
+    request.set_logicalpoolid(lpid);
+    request.set_copysetid(copysetId);
+    auto fn = &curve::mds::topology::TopologyService_Stub::GetCopyset;
+    if (SendRpcToMds(&request, &response, &stub, fn) != 0) {
+        std::cout << "GetCopyset from all mds fail!" << std::endl;
+        return -1;
+    }
+
+    auto retCode = response.statuscode();
+    if (retCode == kTopoErrCodeSuccess) {
+        *copysetInfo = response.copysetinfo();
+        return 0;
+    }
+
+    std::cout << "GetCopyset fail with retCode: " << retCode << std::endl;
     return -1;
 }
 

@@ -42,6 +42,8 @@ using curve::mds::topology::GetCopySetsInChunkServerRequest;
 using curve::mds::topology::GetCopySetsInChunkServerResponse;
 using curve::mds::topology::GetCopySetsInClusterRequest;
 using curve::mds::topology::GetCopySetsInClusterResponse;
+using curve::mds::topology::GetCopysetRequest;
+using curve::mds::topology::GetCopysetResponse;
 using curve::mds::topology::SetCopysetsAvailFlagRequest;
 using curve::mds::topology::SetCopysetsAvailFlagResponse;
 using curve::mds::topology::ListUnAvailCopySetsRequest;
@@ -1080,6 +1082,64 @@ TEST_F(ToolMDSClientTest, GetCopySetsInCluster) {
     for (int i = 0; i < 5; ++i) {
         ASSERT_EQ(1, copysets[i].logicalpoolid());
         ASSERT_EQ(1000 + i, copysets[i].copysetid());
+    }
+}
+
+TEST_F(ToolMDSClientTest, GetCopyset) {
+    auto succCallback = callback<GetCopysetRequest, GetCopysetResponse>;
+    auto failCallback = [](RpcController* controller,
+                           const GetCopysetRequest* request,
+                           GetCopysetResponse* response,
+                           Closure* done) {
+        brpc::ClosureGuard doneGuard(done);
+        brpc::Controller *cntl =
+            dynamic_cast<brpc::Controller*>(controller);
+        cntl->SetFailed("fail");
+    };
+
+    GetCopysetResponse succResp, failResp;
+
+    succResp.set_statuscode(curve::mds::topology::kTopoErrCodeSuccess);
+    auto copysetInfo = succResp.mutable_copysetinfo();
+    copysetInfo->set_logicalpoolid(1);
+    copysetInfo->set_copysetid(1);
+    copysetInfo->set_scaning(true);
+    copysetInfo->set_lastscansec(123456789);
+    copysetInfo->set_lastscanconsistent(false);
+
+    failResp.set_statuscode(curve::mds::topology::kTopoErrCodeCopySetNotFound);
+
+    // CASE 1: Send rpc failed
+    {
+        CopysetInfo copysetInfo;
+        EXPECT_CALL(*topoService, GetCopyset(_, _, _, _))
+            .Times(6)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(succResp),
+                                  Invoke(failCallback)));
+        ASSERT_EQ(mdsClient.GetCopyset(1, 1, &copysetInfo), -1);
+    }
+
+    // CASE 2: copyset not found -> GetCopyset fail
+    {
+        CopysetInfo copysetInfo;
+        EXPECT_CALL(*topoService, GetCopyset(_, _, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(failResp),
+                            Invoke(succCallback)));
+        ASSERT_EQ(mdsClient.GetCopyset(1, 1, &copysetInfo), -1);
+    }
+
+    // CASE 3: GetCopyset success
+    {
+        CopysetInfo copysetInfo;
+        EXPECT_CALL(*topoService, GetCopyset(_, _, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(succResp),
+                            Invoke(succCallback)));
+        ASSERT_EQ(mdsClient.GetCopyset(1, 1, &copysetInfo), 0);
+        ASSERT_EQ(copysetInfo.logicalpoolid(), 1);
+        ASSERT_EQ(copysetInfo.copysetid(), 1);
+        ASSERT_EQ(copysetInfo.scaning(), true);
+        ASSERT_EQ(copysetInfo.lastscansec(), 123456789);
+        ASSERT_EQ(copysetInfo.lastscanconsistent(), false);
     }
 }
 

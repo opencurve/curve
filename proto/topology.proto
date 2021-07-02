@@ -121,6 +121,7 @@ message CopysetData {
     repeated uint32 chunkserverIds = 4;
     optional bool availFlag = 5;
     optional uint64 lastScanSec = 6;
+    optional bool lastScanConsistent = 7;
 }
 
 // rpc struct defination
@@ -455,11 +456,23 @@ message GetClusterInfoResponse {
 }
 
 message GetCopySetsInClusterRequest {
+    // Filter copysets which in scaning
+    optional bool filterScaning = 1;
 }
 
 message GetCopySetsInClusterResponse {
     required sint32 statusCode = 1;
     repeated common.CopysetInfo copysetInfos = 2;
+}
+
+message GetCopysetRequest {
+    required uint32 logicalPoolId = 1;
+    required uint32 copysetId = 2;
+}
+
+message GetCopysetResponse {
+    required sint32 statusCode = 1;
+    optional common.CopysetInfo copysetInfo = 2;
 }
 
 message SetCopysetsAvailFlagRequest {
@@ -508,11 +521,12 @@ service TopologyService {
     rpc GetLogicalPool(GetLogicalPoolRequest)           returns (GetLogicalPoolResponse);
     rpc ListLogicalPool(ListLogicalPoolRequest)         returns (ListLogicalPoolResponse);
     rpc SetLogicalPool(SetLogicalPoolRequest) returns(SetLogicalPoolResponse);
-    rpc SetLogicalPoolScanState(SetLogicalPoolScanStateRequest) returns(SetLogicalPoolScanStateResponse);
+    rpc SetLogicalPoolScanState(SetLogicalPoolScanStateRequest) returns (SetLogicalPoolScanStateResponse);
 
     rpc GetChunkServerListInCopySets(GetChunkServerListInCopySetsRequest) returns (GetChunkServerListInCopySetsResponse);
     rpc GetCopySetsInChunkServer(GetCopySetsInChunkServerRequest) returns (GetCopySetsInChunkServerResponse);
     rpc GetCopySetsInCluster(GetCopySetsInClusterRequest) returns (GetCopySetsInClusterResponse);
+    rpc GetCopyset(GetCopysetRequest) returns (GetCopysetResponse);
     rpc GetClusterInfo(GetClusterInfoRequest) returns (GetClusterInfoResponse);
     rpc SetCopysetsAvailFlag(SetCopysetsAvailFlagRequest) returns (SetCopysetsAvailFlagResponse);
     rpc ListUnAvailCopySets(ListUnAvailCopySetsRequest) returns (ListUnAvailCopySetsResponse);

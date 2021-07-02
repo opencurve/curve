@@ -839,31 +839,60 @@ void TopologyServiceImpl::GetCopySetsInChunkServer(
 }
 
 void TopologyServiceImpl::GetCopySetsInCluster(
-                      google::protobuf::RpcController* cntl_base,
-                      const GetCopySetsInClusterRequest* request,
-                      GetCopySetsInClusterResponse* response,
-                      google::protobuf::Closure* done) {
+    google::protobuf::RpcController* cntl_base,
+    const GetCopySetsInClusterRequest* request,
+    GetCopySetsInClusterResponse* response,
+    google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
-    brpc::Controller* cntl =
-        static_cast<brpc::Controller*>(cntl_base);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [GetCopySetsInClusterRequest]";
+    auto localAddr = cntl->local_side();
+    auto remoteAddr = cntl->remote_side();
+    LOG(INFO)
+        << "Received request[log_id=" << cntl->log_id()
+        << "] from " << remoteAddr << " to " << localAddr
+        << ". [GetCopySetsInCluster] " << request->DebugString();
+
     topology_->GetCopySetsInCluster(request, response);
-    if (kTopoErrCodeSuccess != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [GetCopySetsInClusterResponse] "
-                   << response->DebugString();
+
+    std::ostringstream errMsg;
+    errMsg << "Send response[log_id=" << cntl->log_id()
+           << "] from " << localAddr << " to " << remoteAddr
+           << ". [GetCopySetsInCluster] " << response->DebugString();
+
+    if (response->statuscode() == kTopoErrCodeSuccess) {
+        LOG(INFO) << errMsg.str();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [GetCopySetsInClusterResponse] copyset num: "
-                  << response->copysetinfos_size();
+        LOG(ERROR) << errMsg.str();
+    }
+}
+
+void TopologyServiceImpl::GetCopyset(
+    google::protobuf::RpcController* cntl_base,
+    const GetCopysetRequest* request,
+    GetCopysetResponse* response,
+    google::protobuf::Closure* done) {
+    brpc::ClosureGuard done_guard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
+
+    auto localAddr = cntl->local_side();
+    auto remoteAddr = cntl->remote_side();
+    LOG(INFO)
+        << "Received request[log_id=" << cntl->log_id()
+        << "] from " << remoteAddr << " to " << localAddr
+        << ". [GetCopyset] " << request->DebugString();
+
+    topology_->GetCopyset(request, response);
+
+    std::ostringstream errMsg;
+    errMsg << "Send response[log_id=" << cntl->log_id()
+           << "] from " << localAddr << " to " << remoteAddr
+           << ". [GetCopyset] " << response->DebugString();
+
+    if (response->statuscode() == kTopoErrCodeSuccess) {
+        LOG(INFO) << errMsg.str();
+    } else {
+        LOG(ERROR) << errMsg.str();
     }
 }
 

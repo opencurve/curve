@@ -433,6 +433,7 @@ int CopysetCheckCore::CheckCopysetsWithMds() {
         std::cout << "GetCopySetsInCluster fail!" << std::endl;
         return -1;
     }
+
     CopysetStatistics statistics = GetCopysetStatistics();
     if (copysetsInMds.size() != copysets_[kTotal].size()) {
         std::cout << "Copyset numbers in chunkservers not consistent"
@@ -476,7 +477,34 @@ int CopysetCheckCore::CheckCopysetsWithMds() {
         std::cout << std::endl;
         ret = -1;
     }
+
+    // Check scan status for inconsistent copyset
+    auto nInconsistent = CheckScanStatus(copysetsInMds);
+    if (nInconsistent > 0) {
+        std::cout << "There are " << nInconsistent << " inconsistent copyset"
+                  << std::endl;
+        ret = -1;
+    }
+
     return ret;
+}
+
+int CopysetCheckCore::CheckScanStatus(
+    const std::vector<CopysetInfo>& copysetInfos) {
+    int count = 0;
+    for (auto& copysetInfo : copysetInfos) {
+        if (!copysetInfo.has_lastscanconsistent() ||
+            copysetInfo.lastscanconsistent()) {
+            continue;
+        }
+
+        auto groupId = ToGroupId(copysetInfo.logicalpoolid(),
+                                 copysetInfo.copysetid());
+        copysets_[kThreeCopiesInconsistent].emplace(groupId);
+        count++;
+    }
+
+    return count;
 }
 
 int CopysetCheckCore::CheckOperator(const std::string& opName,
