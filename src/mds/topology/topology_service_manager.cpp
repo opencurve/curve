@@ -31,6 +31,7 @@
 #include <vector>
 #include <chrono>  //NOLINT
 #include <thread>  //NOLINT
+#include <algorithm>
 
 #include "brpc/channel.h"
 #include "brpc/controller.h"
@@ -1399,16 +1400,45 @@ void TopologyServiceManager::GetCopySetsInChunkServer(
 }
 
 void TopologyServiceManager::GetCopySetsInCluster(
-                      const GetCopySetsInClusterRequest* request,
-                      GetCopySetsInClusterResponse* response) {
-    response->set_statuscode(kTopoErrCodeSuccess);
-    std::vector<CopySetKey> copysets =
-                    topology_->GetCopySetsInCluster();
-    for (const CopySetKey& copyset : copysets) {
-        CopysetInfo *info = response->add_copysetinfos();
-        info->set_logicalpoolid(copyset.first);
-        info->set_copysetid(copyset.second);
+    const GetCopySetsInClusterRequest* request,
+    GetCopySetsInClusterResponse* response) {
+    auto filter = [&](const CopySetInfo& copysetInfo) {
+        if (request->has_filterscaning() && !copysetInfo.GetScaning()) {
+            return false;
+        }
+
+        return true;
+    };
+
+    auto logicalPoolIds = topology_->GetLogicalPoolInCluster();
+    std::sort(logicalPoolIds.begin(), logicalPoolIds.end());
+    for (const auto& lpid : logicalPoolIds) {
+        auto copysetInfos =
+            topology_-> GetCopySetInfosInLogicalPool(lpid, filter);
+        for (auto& copysetInfo : copysetInfos) {
+            CopysetInfo* info = response->add_copysetinfos();
+            ConvertCopyset(copysetInfo, info);
+        }
     }
+
+    response->set_statuscode(kTopoErrCodeSuccess);
+}
+
+void TopologyServiceManager::GetCopyset(const GetCopysetRequest* request,
+                                        GetCopysetResponse* response) {
+    CopySetInfo copysetInfo;
+    auto lpid = request->logicalpoolid();
+    auto copysetId = request->copysetid();
+    CopySetKey copysetKey(lpid, copysetId);
+
+    if (!topology_->GetCopySet(copysetKey, &copysetInfo)) {
+        response->set_statuscode(kTopoErrCodeCopySetNotFound);
+        return;
+    }
+
+    response->set_statuscode(kTopoErrCodeSuccess);
+    auto info = response->mutable_copysetinfo();
+    ConvertCopyset(copysetInfo, info);
 }
 
 void TopologyServiceManager::GetClusterInfo(
@@ -1456,6 +1486,15 @@ void TopologyServiceManager::ListUnAvailCopySets(
         }
     }
     response->set_statuscode(kTopoErrCodeSuccess);
+}
+
+void TopologyServiceManager::ConvertCopyset(const CopySetInfo& in,
+                                            ::curve::common::CopysetInfo* out) {
+    out->set_logicalpoolid(in.GetLogicalPoolId());
+    out->set_copysetid(in.GetId());
+    out->set_scaning(in.GetScaning());
+    out->set_lastscansec(in.GetLastScanSec());
+    out->set_lastscanconsistent(in.GetLastScanConsistent());
 }
 
 }  // namespace topology

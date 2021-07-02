@@ -687,6 +687,7 @@ class CopySetInfo {
         hasScaning_(false),
         lastScanSec_(0),
         hasLastScanSec_(false),
+        lastScanConsistent_(true),
         dirty_(false),
         available_(true) {}
 
@@ -702,6 +703,7 @@ class CopySetInfo {
         hasScaning_(false),
         lastScanSec_(0),
         hasLastScanSec_(false),
+        lastScanConsistent_(true),
         dirty_(false),
         available_(true) {}
 
@@ -717,6 +719,7 @@ class CopySetInfo {
         hasScaning_(v.hasScaning_),
         lastScanSec_(v.lastScanSec_),
         hasLastScanSec_(v.hasLastScanSec_),
+        lastScanConsistent_(v.lastScanConsistent_),
         dirty_(v.dirty_),
         available_(v.available_) {}
 
@@ -735,6 +738,7 @@ class CopySetInfo {
         hasScaning_ = v.hasScaning_;
         lastScanSec_ = v.lastScanSec_;
         hasLastScanSec_ = v.hasLastScanSec_;
+        lastScanConsistent_ = v.lastScanConsistent_;
         dirty_ = v.dirty_;
         available_ = v.available_;
         return *this;
@@ -827,6 +831,14 @@ class CopySetInfo {
         return lastScanSec_;
     }
 
+    bool SetLastScanConsistent(bool lastScanConsistent) {
+        lastScanConsistent_ = lastScanConsistent;
+    }
+
+    bool GetLastScanConsistent() const {
+        return lastScanConsistent_;
+    }
+
     void ClearCandidate() {
         hasCandidate_ = false;
     }
@@ -875,6 +887,9 @@ class CopySetInfo {
 
     // whether the lastScanSec_ has been set
     bool hasLastScanSec_;
+
+    // whether the data of copies is consistent for last scan
+    bool lastScanConsistent_;
 
     /**
      * @brief to mark whether data is dirty, for writing to storage regularly

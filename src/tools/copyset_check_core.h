@@ -101,6 +101,7 @@ const char kLogIndexGapTooBig[] = "index gap too big";
 const char kPeersNoSufficient[] = "peers not sufficient";
 const char kMinorityPeerNotOnline[] = "minority peer not online";
 const char kMajorityPeerNotOnline[] = "majority peer not online";
+const char kThreeCopiesInconsistent[] = "Three copies inconsistent";
 
 class CopysetCheckCore {
  public:
@@ -406,6 +407,8 @@ class CopysetCheckCore {
                             const CopySetInfosType& copysetInfos);
 
     int CheckCopysetsWithMds();
+
+    int CheckScanStatus(const std::vector<CopysetInfo>& copysetInfos);
 
  private:
     // 向mds发送RPC的client
