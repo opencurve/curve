@@ -52,7 +52,8 @@ class CleanManagerInterface {
 
     virtual bool SubmitCleanDiscardSegmentJob(
         const std::string& cleanSegmentKey,
-        const DiscardSegmentInfo& discardSegmentInfo) = 0;
+        const DiscardSegmentInfo& discardSegmentInfo,
+        curve::common::CountDownEvent* counter) = 0;
 };
 /**
  * CleanManager 用于异步清理 删除快照对应的数据
@@ -76,7 +77,8 @@ class CleanManager : public CleanManagerInterface {
 
     bool SubmitCleanDiscardSegmentJob(
         const std::string& cleanSegmentKey,
-        const DiscardSegmentInfo& discardSegmentInfo) override;
+        const DiscardSegmentInfo& discardSegmentInfo,
+        curve::common::CountDownEvent* counter) override;
 
     bool RecoverCleanTasks(void);
 

@@ -759,7 +759,10 @@ class CurveFS {
     StatusCode CheckStripeParam(uint64_t stripeUnit,
                            uint64_t stripeCount);
 
-    FileThrottleParams GenerateThrottleParams(uint64_t length) const;
+    FileThrottleParams GenerateDefaultThrottleParams(uint64_t length) const;
+
+    bool IsDefaultThrottleParams(const FileThrottleParams &params,
+                                 uint64_t length) const;
 
  private:
     FileInfo rootFileInfo_;

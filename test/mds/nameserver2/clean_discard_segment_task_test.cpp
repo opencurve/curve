@@ -39,6 +39,7 @@ using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::SetArgPointee;
+using ::testing::Invoke;
 
 class CleanDiscardSegmentTaskTest : public ::testing::Test {
  public:
@@ -82,8 +83,13 @@ TEST_F(CleanDiscardSegmentTaskTest, CommonTest) {
             DoAll(SetArgPointee<0>(discardSegments),
                   Return(StoreStatus::OK)));
 
-    EXPECT_CALL(*cleanManager_, SubmitCleanDiscardSegmentJob(_, _))
-        .WillRepeatedly(Return(true));
+    EXPECT_CALL(*cleanManager_, SubmitCleanDiscardSegmentJob(_, _, _))
+        .WillRepeatedly(
+            Invoke([](const std::string& key, const DiscardSegmentInfo& info,
+                      ::curve::common::CountDownEvent* counter) {
+                counter->Signal();
+                return true;
+            }));
 
     ASSERT_TRUE(task.Start());
     ASSERT_FALSE(task.Start());
@@ -103,7 +109,7 @@ TEST_F(CleanDiscardSegmentTaskTest, TestListDiscardSegmentFailed) {
         .WillRepeatedly(
             Return(StoreStatus::InternalError));
 
-    EXPECT_CALL(*cleanManager_, SubmitCleanDiscardSegmentJob(_, _))
+    EXPECT_CALL(*cleanManager_, SubmitCleanDiscardSegmentJob(_, _, _))
         .Times(0);
 
     task.Start();
@@ -123,7 +129,7 @@ TEST_F(CleanDiscardSegmentTaskTest, TestSubmitJobFailed) {
             DoAll(SetArgPointee<0>(discardSegments),
                   Return(StoreStatus::OK)));
 
-    EXPECT_CALL(*cleanManager_, SubmitCleanDiscardSegmentJob(_, _))
+    EXPECT_CALL(*cleanManager_, SubmitCleanDiscardSegmentJob(_, _, _))
         .WillRepeatedly(Return(false));
 
     task.Start();

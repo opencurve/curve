@@ -33,6 +33,7 @@
 #include "src/mds/nameserver2/clean_core.h"
 #include "src/mds/nameserver2/async_delete_snapshot_entity.h"
 #include "src/common/concurrent/dlock.h"
+#include "src/common/concurrent/count_down_event.h"
 
 using curve::common::DLock;
 
@@ -169,14 +170,24 @@ class SegmentCleanTask : public Task {
     SegmentCleanTask(std::shared_ptr<CleanCore> cleanCore,
                      const std::string& cleanSegmentKey,
                      const DiscardSegmentInfo& discardSegmentInfo,
+                     curve::common::CountDownEvent* counter,
                      std::shared_ptr<DLock> dlock)
         : Task(),
           cleanCore_(cleanCore),
           cleanSegmentKey_(cleanSegmentKey),
           discardSegmentInfo_(discardSegmentInfo),
+          counter_(counter),
           dlock_(dlock) {}
 
     void Run() override {
+        auto finish = [](curve::common::CountDownEvent* counter) {
+            counter->Signal();
+        };
+
+        // regardless of success or failure, mark this job finished in the end
+        std::unique_ptr<curve::common::CountDownEvent, decltype(finish)> guard(
+            counter_, finish);
+
         if (EtcdErrCode::EtcdOK != dlock_->Lock()) {
             LOG(ERROR) << "Get dlock failed in SegmentCleanTask, "
                        << "dlock key is " << dlock_->GetPrefix();
@@ -194,6 +205,7 @@ class SegmentCleanTask : public Task {
     std::shared_ptr<CleanCore> cleanCore_;
     std::string cleanSegmentKey_;
     DiscardSegmentInfo discardSegmentInfo_;
+    curve::common::CountDownEvent* counter_;
     std::shared_ptr<DLock> dlock_;
 };
 
