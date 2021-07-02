@@ -315,20 +315,3 @@ bool AllocateChunkPolicy::ChooseSingleLogicalPoolRandom(
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

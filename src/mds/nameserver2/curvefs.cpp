@@ -22,6 +22,7 @@
 
 #include "src/mds/nameserver2/curvefs.h"
 #include <glog/logging.h>
+#include <google/protobuf/util/message_differencer.h>
 #include <memory>
 #include <chrono>    //NOLINT
 #include <set>
@@ -311,7 +312,7 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
 
         if (filetype == FileType::INODE_PAGEFILE) {
             fileInfo.set_allocated_throttleparams(
-                new FileThrottleParams(GenerateThrottleParams(length)));
+                new FileThrottleParams(GenerateDefaultThrottleParams(length)));
         }
 
         ret = PutFile(fileInfo);
@@ -1057,7 +1058,16 @@ StatusCode CurveFS::ExtendFile(const std::string &filename,
                       << fileInfo.segmentsize();
             return   StatusCode::kExtentUnitError;
         }
+
+        const uint64_t oldLength =  fileInfo.length();
         fileInfo.set_length(newLength);
+
+        if (fileInfo.has_throttleparams() &&
+            IsDefaultThrottleParams(fileInfo.throttleparams(), oldLength)) {
+            fileInfo.set_allocated_throttleparams(new FileThrottleParams(
+                GenerateDefaultThrottleParams(newLength)));
+        }
+
         return PutFile(fileInfo);
     }
 }
@@ -1754,6 +1764,9 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         fileInfo.set_stripeunit(stripeUnit);
         fileInfo.set_stripecount(stripeCount);
 
+        fileInfo.set_allocated_throttleparams(
+            new FileThrottleParams(GenerateDefaultThrottleParams(length)));
+
         ret = PutFile(fileInfo);
         if (ret == StatusCode::kOK && retFileInfo != nullptr) {
             *retFileInfo = fileInfo;
@@ -2420,7 +2433,8 @@ StatusCode CurveFS::CheckStripeParam(uint64_t stripeUnit,
     return StatusCode::kOK;
 }
 
-FileThrottleParams CurveFS::GenerateThrottleParams(uint64_t length) const {
+FileThrottleParams CurveFS::GenerateDefaultThrottleParams(
+    uint64_t length) const {
     FileThrottleParams params;
 
     ThrottleParams iopsTotal;
@@ -2443,6 +2457,31 @@ FileThrottleParams CurveFS::GenerateThrottleParams(uint64_t length) const {
     *params.add_throttleparams() = std::move(bpsTotal);
 
     return params;
+}
+
+bool CurveFS::IsDefaultThrottleParams(const FileThrottleParams &params,
+                                      uint64_t length) const {
+    auto defaultParams = GenerateDefaultThrottleParams(length);
+    const auto defaultSize = defaultParams.throttleparams_size();
+    const auto paramsSize = params.throttleparams_size();
+
+    if (defaultSize != paramsSize) {
+        return false;
+    }
+
+    for (int i = 0; i < defaultSize; ++i) {
+        for (int j = 0; j < paramsSize; ++j) {
+            const auto& d = defaultParams.throttleparams()[i];
+            const auto& p = params.throttleparams()[j];
+
+            if (d.type() == p.type() &&
+                !::google::protobuf::util::MessageDifferencer::Equals(d, p)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
 }
 
 CurveFS &kCurveFS = CurveFS::GetInstance();

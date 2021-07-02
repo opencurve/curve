@@ -66,15 +66,15 @@ class SegmentDiscardMetric {
  public:
     SegmentDiscardMetric()
         : prefix_("mds_nameserver_discard"),
-          totalCleanedSegments_(prefix_ + "total_cleaned_segment_count"),
-          pendingSegments_(prefix_ + "pending_segment_count"),
-          totalCleanedSize_(prefix_ + "total_cleaned_size"),
-          pendingSize_(prefix_ + "pending_size") {}
+          totalCleanedSegments_(prefix_ + "_total_cleaned_segment_count"),
+          pendingSegments_(prefix_ + "_pending_segment_count"),
+          totalCleanedSize_(prefix_ + "_total_cleaned_size"),
+          pendingSize_(prefix_ + "_pending_size") {}
 
     ~SegmentDiscardMetric() = default;
 
-    void OnReceiveDiscardRequest(uint64_t size);
-    void OnDiscardFinish(uint64_t size);
+    void OnReceiveDiscardRequest(int64_t size);
+    void OnDiscardFinish(int64_t size);
 
  public:
     const std::string prefix_;

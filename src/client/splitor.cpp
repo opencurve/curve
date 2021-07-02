@@ -387,7 +387,7 @@ bool Splitor::MarkDiscardBitmap(IOTracker* iotracker, FileSegment* fileSegment,
     fileSegment->SetBitmap(offset, len);
 
     if (fileSegment->IsAllBitSet()) {
-        iotracker->discardSegments_.push_back(segmentIndex);
+        iotracker->discardSegments_.emplace(segmentIndex);
     }
 
     return true;
