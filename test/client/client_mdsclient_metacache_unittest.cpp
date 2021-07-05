@@ -53,6 +53,8 @@
 #include "test/util/config_generator.h"
 #include "test/client/mock/mock_namespace_service.h"
 
+#include "test/client/common.h"
+
 uint32_t chunk_size = 4 * 1024 * 1024;
 uint32_t segment_size = 1 * 1024 * 1024 * 1024;
 std::string mdsMetaServerAddr = "127.0.0.1:29104";  // NOLINT
@@ -1838,7 +1840,7 @@ TEST_F(MDSClientTest, ListDir) {
 TEST(LibcurveInterface, InvokeWithOutInit) {
     CurveAioContext aioctx;
     UserInfo_t      userinfo;
-    C_UserInfo_t*    ui;
+    C_UserInfo_t*    ui = nullptr;
 
     FileClient fc;
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED, fc.Create("", userinfo, 0));
@@ -2411,6 +2413,8 @@ int main(int argc, char* argv[]) {
     FLAGS_log_dir = "./runlog";
     google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
+
+    curve::client::SetSocketDeferCloseSecondIfUnSet();
 
     std::unique_ptr<curve::CurveCluster> cluster(new curve::CurveCluster());
 

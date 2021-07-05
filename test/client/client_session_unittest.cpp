@@ -47,6 +47,8 @@
 #include "test/integration/cluster_common/cluster.h"
 #include "test/util/config_generator.h"
 
+#include "test/client/common.h"
+
 extern std::string mdsMetaServerAddr;
 extern std::string configpath;
 DECLARE_string(chunkserver_list);
@@ -348,6 +350,8 @@ int main(int argc, char ** argv) {
     google::ParseCommandLineFlags(&argc, &argv, false);
 
     curve::CurveCluster* cluster = new curve::CurveCluster();
+
+    curve::client::SetSocketDeferCloseSecondIfUnSet();
 
     cluster->PrepareConfig<curve::ClientConfigGenerator>(
         configpath, clientConf);

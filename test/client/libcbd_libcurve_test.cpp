@@ -41,6 +41,8 @@
 #include "test/integration/cluster_common/cluster.h"
 #include "test/util/config_generator.h"
 
+#include "test/client/common.h"
+
 using curve::client::EndPoint;
 
 #define BUFSIZE     4 * 1024
@@ -424,6 +426,8 @@ const std::vector<std::string> clientConf {
 int main(int argc, char ** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
+
+    curve::client::SetSocketDeferCloseSecondIfUnSet();
 
     curve::CurveCluster* cluster = new curve::CurveCluster();
 
