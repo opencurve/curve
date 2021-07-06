@@ -87,10 +87,6 @@ void UpdateFlagsFromConf(curve::common::Configuration* conf) {
         if (GetCommandLineFlagInfo("rpcRetryTimes", &info) && info.is_default) {
             conf->GetUInt64Value("rpcRetryTimes", &FLAGS_rpcRetryTimes);
         }
-        if (GetCommandLineFlagInfo("rpcConcurrentNum", &info) &&
-                                                       info.is_default) {
-            conf->GetUInt64Value("rpcConcurrentNum", &FLAGS_rpcConcurrentNum);
-        }
         if (GetCommandLineFlagInfo("snapshotCloneAddr", &info) &&
                                                             info.is_default) {
             conf->GetStringValue("snapshotCloneAddr", &FLAGS_snapshotCloneAddr);
