@@ -28,12 +28,13 @@ namespace curvefs {
 namespace client {
 
 enum class CURVEFS_ERROR {
-    OK                      = 0,
-    FAILED                  = 1,
-    UNKNOWN                 = 2,
-    EXISTS                  = 3,
-    NOTEXIST                = 4,
-    NO_SPACE                = 5,
+    OK       = 0,
+    FAILED   = 1,
+    UNKNOWN  = 2,
+    EXISTS   = 3,
+    NOTEXIST = 4,
+    NO_SPACE = 5,
+    BAD_FD   = 6,
 };
 
 inline std::ostream& operator<< (std::ostream& os, CURVEFS_ERROR code) {
