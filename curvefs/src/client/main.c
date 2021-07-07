@@ -41,8 +41,7 @@ static const struct fuse_lowlevel_ops curve_ll_oper = {
     .setattr    = curve_ll_setattr,
 };
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
     struct fuse_session *se;
     struct fuse_cmdline_opts opts;
@@ -64,7 +63,7 @@ int main(int argc, char *argv[])
         goto err_out1;
     }
 
-    if(opts.mountpoint == NULL) {
+    if (opts.mountpoint == NULL) {
         printf("usage: %s [options] <mountpoint>\n", argv[0]);
         printf("       %s --help\n", argv[0]);
         ret = 1;
@@ -91,9 +90,9 @@ int main(int argc, char *argv[])
     fuse_daemonize(opts.foreground);
 
     /* Block until ctrl+c or fusermount -u */
-    if (opts.singlethread)
+    if (opts.singlethread) {
         ret = fuse_session_loop(se);
-    else {
+    } else {
         config.clone_fd = opts.clone_fd;
         config.max_idle_threads = opts.max_idle_threads;
         ret = fuse_session_loop_mt(se, &config);
