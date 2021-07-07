@@ -286,6 +286,7 @@ class CopysetCheckCore {
     *
     * @param chunkserAddr chunkserver的地址
     * @param groupIds 要检查的复制组的groupId,默认为空，全部检查
+    * @param isEmptyHealthy 如果chunkserver上copyset是empty的，是否是healthy状态
     * @param queryLeader 是否向leader所在的chunkserver发送RPC查询，
     *              对于检查cluster来说，所有chunkserver都会遍历到，不用查询
     *
@@ -294,6 +295,7 @@ class CopysetCheckCore {
     ChunkServerHealthStatus CheckCopysetsOnChunkServer(
                                    const std::string& chunkserverAddr,
                                    const std::set<std::string>& groupIds,
+                                   bool isEmptyHealthy,
                                    bool queryLeader = true);
 
     /**

@@ -138,8 +138,13 @@ int CopysetCheckCore::CheckCopysetsOnChunkServer(
     std::string hostIp = csInfo.hostip();
     uint64_t port = csInfo.port();
     std::string csAddr = hostIp + ":" + std::to_string(port);
+    bool isEmptyHealthy = false;
+    if (ChunkServerStatus::PENDDING == csInfo.status()) {
+        isEmptyHealthy = true;
+    }
     // 向chunkserver发送RPC请求获取raft state
-    ChunkServerHealthStatus csStatus = CheckCopysetsOnChunkServer(csAddr, {});
+    ChunkServerHealthStatus csStatus = CheckCopysetsOnChunkServer(csAddr,
+                                                            {}, isEmptyHealthy);
     if (csStatus == ChunkServerHealthStatus::kHealthy) {
         return 0;
     } else {
@@ -150,6 +155,7 @@ int CopysetCheckCore::CheckCopysetsOnChunkServer(
 ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
                     const std::string& chunkserverAddr,
                     const std::set<std::string>& groupIds,
+                    bool isEmptyHealthy,
                     bool queryLeader) {
     bool isHealthy = true;
     butil::IOBuf iobuf;
@@ -170,10 +176,19 @@ ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
         UpdateChunkServerCopysets(chunkserverAddr, copysetInfos);
     }
 
+    // 如果chunkserver上copyset为空，根据flag决定是否返回healthy
+    if (copysetInfos.empty()) {
+        if (isEmptyHealthy) {
+            return ChunkServerHealthStatus::kHealthy;
+        } else {
+            std::cout << "Copysets empty on chunkserver" << std::endl;
+            return ChunkServerHealthStatus::kNotHealthy;
+        }
+    }
+
     // 对应的chunkserver上没有要找的leader的copyset，可能已经迁移出去了，
-    // 但是follower这边还没更新，这种情况也认为chunkserver不健康
-    if (copysetInfos.empty() ||
-            (!groupIds.empty() && copysetInfos.size() != groupIds.size())) {
+    // 但是follower这边还没更新，这种情况也认为chunkserver不健康；
+    if (!groupIds.empty() && copysetInfos.size() != groupIds.size()) {
         std::cout << "Some copysets not found on chunkserver, may be tranfered"
                   << std::endl;
         return ChunkServerHealthStatus::kNotHealthy;
@@ -252,8 +267,10 @@ ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
     }
     // 遍历chunkserver发送请求
     for (const auto& item : csAddrMap) {
+        // 这种情况，chunkserver上应该不是empty的，如果是empty的，说明不正常
+        bool isEmptyHealthyTemp = false;
         ChunkServerHealthStatus res = CheckCopysetsOnChunkServer(item.first,
-                                                           item.second);
+                                      item.second, isEmptyHealthyTemp);
         if (res != ChunkServerHealthStatus::kHealthy) {
             isHealthy = false;
         }
@@ -372,8 +389,13 @@ int CopysetCheckCore::CheckCopysetsOnServer(const ServerIdType& serverId,
         std::string ip = info.hostip();
         uint64_t port = info.port();
         std::string csAddr = ip + ":" + std::to_string(port);
+        ChunkServerStatus status = info.status();
+        bool isEmptyHealthy = false;
+        if (status == ChunkServerStatus::PENDDING) {
+            isEmptyHealthy = true;
+        }
         ChunkServerHealthStatus res = CheckCopysetsOnChunkServer(csAddr,
-                                                    {}, queryLeader);
+                                            {}, isEmptyHealthy, queryLeader);
         if (res != ChunkServerHealthStatus::kHealthy) {
             isHealthy = false;
             if (unhealthyChunkServers) {

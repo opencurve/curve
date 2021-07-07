@@ -34,6 +34,7 @@ DEFINE_bool(listClientInRepo, true, "if true, list-client will list all clients"
 DEFINE_uint64(walSegmentSize, 8388608, "wal segment size");
 DECLARE_string(mdsAddr);
 DECLARE_string(etcdAddr);
+DEFINE_string(hostip, "", "only list specified host");
 DECLARE_string(mdsDummyPort);
 DECLARE_bool(detail);
 
@@ -218,6 +219,12 @@ int StatusTool::ChunkServerListCmd() {
     uint64_t retired = 0;
     uint64_t penddingCopyset = 0;
     for (auto& chunkserver : chunkservers) {
+        if (FLAGS_hostip != "") {
+            if (chunkserver.hostip() != FLAGS_hostip) {
+                continue;
+            }
+        }
+
         auto csId = chunkserver.chunkserverid();
         std::vector<CopysetInfo> copysets;
         int ret = mdsClient_->GetCopySetsInChunkServer(csId, &copysets);
@@ -227,7 +234,7 @@ int StatusTool::ChunkServerListCmd() {
             return -1;
         }
 
-        double unhealthyRatio;
+        double unhealthyRatio = 0;
         if (FLAGS_checkCSAlive) {
             // 发RPC重置online状态
             std::string csAddr = chunkserver.hostip()
