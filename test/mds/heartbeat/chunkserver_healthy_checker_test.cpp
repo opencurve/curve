@@ -65,6 +65,12 @@ TEST(ChunkserverHealthyChecker, test_checkHeartBeat_interval) {
             6, steady_clock::now() - std::chrono::milliseconds(10000));
         checker->UpdateLastReceivedHeartbeatTime(
             7, steady_clock::now() - std::chrono::milliseconds(10000));
+        checker->UpdateLastReceivedHeartbeatTime(
+            8, steady_clock::now());
+        checker->UpdateLastReceivedHeartbeatTime(
+            9, steady_clock::now() - std::chrono::milliseconds(4000));
+        checker->UpdateLastReceivedHeartbeatTime(
+            10, steady_clock::now() - std::chrono::milliseconds(10000));
         ASSERT_TRUE(checker->GetHeartBeatInfo(1, &info));
         ASSERT_EQ(OnlineState::UNSTABLE, info.state);
         ASSERT_TRUE(checker->GetHeartBeatInfo(2, &info));
@@ -72,29 +78,48 @@ TEST(ChunkserverHealthyChecker, test_checkHeartBeat_interval) {
         ASSERT_TRUE(checker->GetHeartBeatInfo(3, &info));
         ASSERT_EQ(OnlineState::UNSTABLE, info.state);
         ASSERT_FALSE(checker->GetHeartBeatInfo(4, &info));
+        ASSERT_EQ(OnlineState::UNSTABLE, info.state);
         ASSERT_TRUE(checker->GetHeartBeatInfo(5, &info));
         ASSERT_EQ(OnlineState::UNSTABLE, info.state);
         ASSERT_TRUE(checker->GetHeartBeatInfo(6, &info));
         ASSERT_EQ(OnlineState::UNSTABLE, info.state);
         ASSERT_TRUE(checker->GetHeartBeatInfo(7, &info));
         ASSERT_EQ(OnlineState::UNSTABLE, info.state);
+        ASSERT_TRUE(checker->GetHeartBeatInfo(8, &info));
+        ASSERT_EQ(OnlineState::UNSTABLE, info.state);
+        ASSERT_TRUE(checker->GetHeartBeatInfo(9, &info));
+        ASSERT_EQ(OnlineState::UNSTABLE, info.state);
+        ASSERT_TRUE(checker->GetHeartBeatInfo(10, &info));
+        ASSERT_EQ(OnlineState::UNSTABLE, info.state);
     }
 
     {
-        // chunkserver-2 心跳miss，
+        // chunkserver-1 更新为online
+        // chunkserver-2 心跳miss，保持unstable
         // chunkserver-3,chunkserver-5,chunkserver-6心跳offline,
         // chunkserver-3的retired状态会被更新, 从心跳map中移除
         // chunkserver-5已经是retired状态，无需更新
         // chunkserver-6 get info失败, 未成功更新状态
         // chunnkserver-7 update失败, 未成功更新状态
+        // chunkserver-8, pendding && online, 更新为onLine
+        // chunkserver-9, pendding && unstable, 更新为retired
+        // chunkserver-10, pendding && offline, 更新为retired
         EXPECT_CALL(*topology, UpdateChunkServerOnlineState(_, _))
             .Times(7).WillRepeatedly(Return(kTopoErrCodeSuccess));
+        ChunkServer cs2(2, "", "", 1, "", 0, "",
+            ChunkServerStatus::READWRITE, OnlineState::UNSTABLE);
         ChunkServer cs3(3, "", "", 1, "", 0, "",
             ChunkServerStatus::READWRITE, OnlineState::UNSTABLE);
         ChunkServer cs5(5, "", "", 1, "", 0, "",
             ChunkServerStatus::RETIRED, OnlineState::UNSTABLE);
         ChunkServer cs7(7, "", "", 1, "", 0, "",
             ChunkServerStatus::READWRITE, OnlineState::UNSTABLE);
+        ChunkServer cs9(9, "", "", 1, "", 0, "",
+            ChunkServerStatus::PENDDING, OnlineState::UNSTABLE);
+        ChunkServer cs10(10, "", "", 1, "", 0, "",
+            ChunkServerStatus::PENDDING, OnlineState::UNSTABLE);
+        EXPECT_CALL(*topology, GetChunkServer(2, _))
+            .WillOnce(DoAll(SetArgPointee<1>(cs2), Return(true)));
         EXPECT_CALL(*topology, GetChunkServer(3, _))
             .WillOnce(DoAll(SetArgPointee<1>(cs3), Return(true)));
         EXPECT_CALL(*topology, GetCopySetsInChunkServer(3, _))
@@ -107,10 +132,20 @@ TEST(ChunkserverHealthyChecker, test_checkHeartBeat_interval) {
             .WillOnce(Return(false));
         EXPECT_CALL(*topology, GetChunkServer(7, _))
             .WillOnce(DoAll(SetArgPointee<1>(cs7), Return(true)));
+        EXPECT_CALL(*topology, GetChunkServer(9, _))
+            .WillOnce(DoAll(SetArgPointee<1>(cs9), Return(true)));
+        EXPECT_CALL(*topology, GetCopySetsInChunkServer(9, _))
+            .WillOnce(Return(std::vector<CopySetKey>{}));
+        EXPECT_CALL(*topology, GetChunkServer(10, _))
+            .WillOnce(DoAll(SetArgPointee<1>(cs10), Return(true)));
+        EXPECT_CALL(*topology, GetCopySetsInChunkServer(10, _))
+            .WillOnce(Return(std::vector<CopySetKey>{}));
         EXPECT_CALL(*topology, UpdateChunkServerRwState(_, _))
-            .Times(2)
+            .Times(4)
             .WillOnce(Return(kTopoErrCodeSuccess))
-            .WillOnce(Return(kTopoErrCodeInternalError));
+            .WillOnce(Return(kTopoErrCodeInternalError))
+            .WillOnce(Return(kTopoErrCodeSuccess))
+            .WillOnce(Return(kTopoErrCodeSuccess));
         checker->CheckHeartBeatInterval();
         ASSERT_TRUE(checker->GetHeartBeatInfo(1, &info));
         ASSERT_EQ(OnlineState::ONLINE, info.state);
@@ -122,15 +157,25 @@ TEST(ChunkserverHealthyChecker, test_checkHeartBeat_interval) {
         ASSERT_EQ(OnlineState::OFFLINE, info.state);
         ASSERT_TRUE(checker->GetHeartBeatInfo(7, &info));
         ASSERT_EQ(OnlineState::OFFLINE, info.state);
+        ASSERT_TRUE(checker->GetHeartBeatInfo(8, &info));
+        ASSERT_EQ(OnlineState::ONLINE, info.state);
+        ASSERT_FALSE(checker->GetHeartBeatInfo(9, &info));
+        ASSERT_FALSE(checker->GetHeartBeatInfo(10, &info));
     }
 
     {
-        // chunkserver-6， chunkserver-7 收到心跳
+        // chunkserver 2, 6 ,7 收到心跳
+        checker->UpdateLastReceivedHeartbeatTime(
+            2, steady_clock::now());
         checker->UpdateLastReceivedHeartbeatTime(
             6, steady_clock::now());
         checker->UpdateLastReceivedHeartbeatTime(
             7, steady_clock::now());
+        EXPECT_CALL(*topology, UpdateChunkServerOnlineState(_, _))
+            .Times(3).WillRepeatedly(Return(kTopoErrCodeSuccess));
         checker->CheckHeartBeatInterval();
+        ASSERT_TRUE(checker->GetHeartBeatInfo(2, &info));
+        ASSERT_EQ(OnlineState::ONLINE, info.state);
         ASSERT_TRUE(checker->GetHeartBeatInfo(6, &info));
         ASSERT_EQ(OnlineState::ONLINE, info.state);
         ASSERT_TRUE(checker->GetHeartBeatInfo(7, &info));
