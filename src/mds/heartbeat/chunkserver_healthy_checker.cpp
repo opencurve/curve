@@ -134,8 +134,8 @@ void ChunkserverHealthyChecker::UpdateChunkServerOnlineState(
 
 bool ChunkserverHealthyChecker::TrySetChunkServerRetiredIfNeed(
     const HeartbeatInfo &info) {
-    // Disregard when chunkserver isn't in OFFLINE status
-    if (OnlineState::OFFLINE != info.state) {
+    // Disregard when chunkserver is in ONLINE status
+    if (OnlineState::ONLINE == info.state) {
         return false;
     }
 
@@ -152,6 +152,11 @@ bool ChunkserverHealthyChecker::TrySetChunkServerRetiredIfNeed(
         LOG(INFO) << "chunkserver " << info.csId
             << " is already in retired state";
         return true;
+    }
+
+    if (OnlineState::OFFLINE != info.state
+            && cs.GetStatus() != ChunkServerStatus::PENDDING) {
+        return false;
     }
 
     // Check for any remaining copyset on a chunkserver
