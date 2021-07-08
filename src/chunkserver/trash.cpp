@@ -306,27 +306,31 @@ bool Trash::IsWALFile(const std::string &fileName) {
 }
 
 uint32_t Trash::CountChunkNumInCopyset(const std::string &copysetPath) {
-    auto count = [&](const std::string& path) {
-        std::vector<std::string> chunks;
-        localFileSystem_->List(path, &chunks);
+    std::vector<std::string> files;
+    if (0 != localFileSystem_->List(copysetPath, &files)) {
+        LOG(ERROR) << "Trash failed to list files in " << copysetPath;
+        return 0;
+    }
 
-        uint32_t chunkNum = 0;
-        for (auto& chunk : chunks) {
+    // Traverse subdirectories
+    uint32_t chunkNum = 0;
+    for (auto &file : files) {
+        std::string filePath = copysetPath + "/" + file;
+        bool isDir = localFileSystem_->DirExists(filePath);
+        if (!isDir) {
             // valid: chunkfile, snapshotfile, walfile
-            if (!(IsChunkOrSnapShotFile(chunk) || IsWALFile(chunk))) {
+            if (!(IsChunkOrSnapShotFile(file) ||
+                  IsWALFile(file))) {
                 LOG(WARNING) << "Trash find a illegal file:"
-                             << chunk << " in " << path
-                             << ", filename: " << chunk;
+                             << file << " in " << copysetPath;
                 continue;
             }
             ++chunkNum;
+        } else {
+            chunkNum += CountChunkNumInCopyset(filePath);
         }
-
-        return chunkNum;
-    };
-
-    return count(copysetPath + "/" + RAFT_DATA_DIR)
-        + count(copysetPath + "/" + RAFT_LOG_DIR);
+    }
+    return chunkNum;
 }
 
 }  // namespace chunkserver
