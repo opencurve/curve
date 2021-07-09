@@ -702,7 +702,8 @@ int CheckUseWalPool(const std::map<PoolIdType, std::vector<ChunkServerInfo>>
                      bool *useChunkFilePoolAsWalPool,
                      std::shared_ptr<MetricClient> metricClient) {
     int ret = 0;
-    if (!poolChunkservers.empty()) {
+    if (!poolChunkservers.empty() &&
+        !poolChunkservers.begin()->second.empty()) {
         ChunkServerInfo chunkserver = poolChunkservers.begin()->second[0];
         std::string csAddr = chunkserver.hostip()
                             + ":" + std::to_string(chunkserver.port());
@@ -917,6 +918,7 @@ void StatusTool::PrintCsLeftSizeStatistics(const std::string& name,
         return;
     }
     for (const auto& leftSize : poolLeftSize) {
+        if (leftSize.second.empty()) continue;
         uint64_t min = leftSize.second[0];
         uint64_t max = leftSize.second[0];
         double sum = 0;
