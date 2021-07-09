@@ -26,7 +26,10 @@
 
 #include <cstdint>
 #include <unordered_map>
+#include <deque>
+#include <atomic>
 
+#include "src/common/concurrent/concurrent.h"
 
 namespace curvefs {
 namespace client {
@@ -35,11 +38,16 @@ struct DirBufferHead {
     bool wasRead;
     size_t size;
     char *p;
+    DirBufferHead()
+        : wasRead(false),
+          size(0),
+          p(nullptr) {}
 };
 
 class DirBuffer {
  public:
-    DirBuffer() {}
+    DirBuffer() :
+        index_(0) {}
     uint32_t DirBufferNew();
     DirBufferHead* DirBufferGet(uint32_t dindex);
     void DirBufferRelease(uint32_t dindex);
@@ -47,6 +55,11 @@ class DirBuffer {
 
  private:
     std::unordered_map<uint32_t, DirBufferHead*> buffer_;
+    curve::common::RWLock bufferMtx_;
+
+    uint32_t index_;
+    std::deque<uint32_t> recycleIndex_;
+    curve::common::Mutex indexMtx_;
 };
 
 }  // namespace client

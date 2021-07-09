@@ -22,6 +22,7 @@
  */
 
 #include "curvefs/src/client/curve_fuse_op.h"
+#include "curvefs/src/client/fuse_common.h"
 
 static const struct fuse_lowlevel_ops curve_ll_oper = {
     .init       = curve_ll_init,
@@ -41,18 +42,19 @@ static const struct fuse_lowlevel_ops curve_ll_oper = {
     .setattr    = curve_ll_setattr,
 };
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
     struct fuse_session *se;
     struct fuse_cmdline_opts opts;
     struct fuse_loop_config config;
+    struct MountOption mOpts = { .mountPoint = 0,
+                               .volume = 0 };
     int ret = -1;
 
     if (fuse_parse_cmdline(&args, &opts) != 0)
         return 1;
     if (opts.show_help) {
-        printf("usage: %s [options] <mountpoint>\n\n", argv[0]);
+        printf("usage: %s -o volume=xxx conf=xxx [options] <mountpoint>\n\n", argv[0]);  // NOLINT
         fuse_cmdline_help();
         fuse_lowlevel_help();
         ret = 0;
@@ -65,20 +67,34 @@ int main(int argc, char *argv[])
     }
 
     if(opts.mountpoint == NULL) {
-        printf("usage: %s [options] <mountpoint>\n", argv[0]);
+        printf("usage: %s -o volume=xxx conf=xxx [options] <mountpoint>\n\n", argv[0]);  // NOLINT
         printf("       %s --help\n", argv[0]);
         ret = 1;
         goto err_out1;
     }
 
-    ret = InitFuseClient();
+    if (fuse_opt_parse(&args, &mOpts, mount_opts, NULL)== -1)
+        return 1;
+
+    mOpts.mountPoint = opts.mountpoint;
+
+    if (mOpts.conf == NULL) {
+        printf("usage: %s -o volume=xxx conf=xxx [options] <mountpoint>\n\n", argv[0]);  // NOLINT
+        printf("       %s --help\n", argv[0]);
+        ret = 1;
+        goto err_out1;
+    }
+
+    printf("Mount %s on volume %s ... \n", mOpts.mountPoint, mOpts.volume);
+
+    ret = InitFuseClient(mOpts.conf, mOpts.fsType);
     if (ret < 0) {
-        printf("init fuse client fail.");
+        printf("init fuse client fail, conf =%s\n", mOpts.conf);
         goto err_out1;
     }
 
     se = fuse_session_new(&args, &curve_ll_oper,
-                  sizeof(curve_ll_oper), NULL);
+                  sizeof(curve_ll_oper), &mOpts);
     if (se == NULL)
         goto err_out1;
 
@@ -91,9 +107,9 @@ int main(int argc, char *argv[])
     fuse_daemonize(opts.foreground);
 
     /* Block until ctrl+c or fusermount -u */
-    if (opts.singlethread)
+    if (opts.singlethread) {
         ret = fuse_session_loop(se);
-    else {
+    } else {
         config.clone_fd = opts.clone_fd;
         config.max_idle_threads = opts.max_idle_threads;
         ret = fuse_session_loop_mt(se, &config);

@@ -28,16 +28,59 @@ namespace client {
 
 
 uint32_t DirBuffer::DirBufferNew() {
-    return 0;
+    uint32_t dindex = -1;
+    {
+        curve::common::LockGuard lg(indexMtx_);
+        if (recycleIndex_.empty()) {
+            dindex = index_++;
+        } else {
+            dindex = recycleIndex_.front();
+            recycleIndex_.pop_front();
+        }
+    }
+    curve::common::WriteLockGuard wlg(bufferMtx_);
+    DirBufferHead *head = new DirBufferHead();
+    buffer_.emplace(dindex, head);
+    return dindex;
 }
 
 DirBufferHead* DirBuffer::DirBufferGet(uint32_t dindex) {
-    return new DirBufferHead();
+    curve::common::ReadLockGuard rlg(bufferMtx_);
+    auto it = buffer_.find(dindex);
+    if (it != buffer_.end()) {
+        return it->second;
+    } else {
+        return nullptr;
+    }
 }
 
-void DirBuffer::DirBufferRelease(uint32_t dindex) {}
+void DirBuffer::DirBufferRelease(uint32_t dindex) {
+    {
+        curve::common::WriteLockGuard wlg(bufferMtx_);
+        auto it = buffer_.find(dindex);
+        if (it != buffer_.end()) {
+            free(it->second->p);
+            delete it->second;
+            buffer_.erase(it);
+        }
+    }
+    curve::common::LockGuard lg(indexMtx_);
+    recycleIndex_.push_back(dindex);
+    return;
+}
 
-void DirBuffer::DirBufferFreeAll() {}
+void DirBuffer::DirBufferFreeAll() {
+    curve::common::WriteLockGuard wlg(bufferMtx_);
+    curve::common::LockGuard lg(indexMtx_);
+    for (auto it : buffer_) {
+        free(it.second->p);
+        delete it.second;
+    }
+    buffer_.clear();
+    recycleIndex_.clear();
+    index_ = 0;
+    return;
+}
 
 
 

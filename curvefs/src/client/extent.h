@@ -24,6 +24,7 @@
 #ifndef CURVEFS_SRC_CLIENT_EXTENT_H_
 #define CURVEFS_SRC_CLIENT_EXTENT_H_
 
+
 struct ExtentAllocInfo {
     uint64_t lOffset;
     uint64_t len;
@@ -36,7 +37,6 @@ struct ExtentAllocInfo {
 struct PExtent {
     uint64_t pOffset;
     uint64_t len;
-    uint64_t lOffset;
     bool UnWritten;
 };
 
