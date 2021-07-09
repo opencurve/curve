@@ -290,11 +290,17 @@ def recover_disk():
     md5 = test_curve_stability_nbd.get_vol_md5("recover")
     assert md5 == config.recover_vol_md5,"Data is inconsistent after translation,md5 is %s,recover md5 is %s"%(config.recover_vol_md5,md5)
    
+def get_chunkserver_list():
+    client_host = config.client_list[0]
+    logger.info("|------begin get chunkserver list------|")
+    cmd = "curve_ops_tool chunkserver-list > cs_list"
+    ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
+    rs = shell_operator.ssh_exec(ssh, cmd)
+
 def get_chunkserver_id(host,cs_id):
     client_host = config.client_list[0]
     logger.info("|------begin get chunkserver %s id %d------|"%(host,cs_id))
-    cmd = "curve_ops_tool chunkserver-list | grep %s |grep -w chunkserver%d"%(host,cs_id)
-    ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
+    cmd = "cat cs_list | grep %s |grep -w chunkserver%d"%(host,cs_id)
     rs = shell_operator.ssh_exec(ssh, cmd)
     chunkserver_info = "".join(rs[1]).strip().split(',')
     chunkserver_id = re.findall(r"\d+",chunkserver_info[0])
@@ -1139,6 +1145,7 @@ def pendding_all_cs_recover():
         for host in config.mds_list:
             mds.append(host + ":6666")
         mds_addrs = ",".join(mds)
+        get_chunkserver_list()
         for cs in down_list:
             chunkserver_id = get_chunkserver_id(chunkserver_host,cs)
             assert chunkserver_id != -1
@@ -1190,6 +1197,79 @@ def pendding_all_cs_recover():
                 "host %s chunkserver %d not recover to %d in %d,now is %d" % \
             (chunkserver_host, cs,1,config.recover_time,num))
 
+def pendding_all_cs_recover_online():
+    cs_host = list(config.chunkserver_list)
+    chunkserver_host = random.choice(config.cs_list)
+    cs_host.remove(chunkserver_host)
+    logger.info("|------begin test pendding all chunkserver online,host %s------|"%(chunkserver_host))
+    ssh = shell_operator.create_ssh_connect(chunkserver_host, 1046, config.abnormal_user)
+    ssh_mds = shell_operator.create_ssh_connect(config.mds_list[0], 1046, config.abnormal_user)
+    try:
+        list = get_chunkserver_status(chunkserver_host)
+        up_list = list["up"]
+        csid_list = []
+        mds = []
+        for host in config.mds_list:
+            mds.append(host + ":6666")
+        mds_addrs = ",".join(mds)
+        get_chunkserver_list()
+        for cs in up_list:
+            chunkserver_id = get_chunkserver_id(chunkserver_host,cs)
+            assert chunkserver_id != -1
+            csid_list.append(chunkserver_id)
+            pendding_cmd = "sudo curve-tool -mds_addr=%s -op=set_chunkserver \
+                    -chunkserver_id=%d -chunkserver_status=pendding"%(mds_addrs,chunkserver_id)
+            rs = shell_operator.ssh_exec(ssh_mds,pendding_cmd)
+            assert rs[3] == 0,"pendding chunkserver %d fail,rs is %s"%(cs,rs)
+        time.sleep(180)
+        test_kill_mds(2)
+        chunkserver_host2 = random.choice(config.cs_list)
+        stop_host_cs_process(chunkserver_host2)
+        time.sleep(10)
+        check_nbd_iops()
+        start_host_cs_process(chunkserver_host2)
+        i = 0
+        while i < config.recover_time:
+            check_nbd_iops()
+            i = i + 60
+            time.sleep(60)
+            for cs in up_list:
+                num = get_cs_copyset_num(chunkserver_host,cs)
+                if num != 0:
+                    break
+            if num == 0:
+                break
+        stop_host_cs_process(chunkserver_host)
+        wait_health_ok()
+        if num != 0:
+            logger.error("exist chunkserver %d copyset %d"%(chunkserver_id,num))
+            raise Exception("online pendding chunkserver fail")
+    except Exception as e:
+        #        raise AssertionError()
+        logger.error("error is %s" % e)
+        test_start_mds()
+        cs_list = start_host_cs_process(chunkserver_host)
+        raise
+    test_start_mds()
+    for cs in up_list:
+        start_host_cs_process(chunkserver_host,cs)
+    time.sleep(60)
+    list = get_chunkserver_status(chunkserver_host)
+    up_list = list["up"]
+    for cs in up_list:
+        i = 0
+        while i < config.recover_time:
+            i = i + 10
+            time.sleep(10)
+            num = get_cs_copyset_num(chunkserver_host,cs)
+            logger.info("cs copyset num is %d"%num)
+            if num > 0:
+                break
+        if num == 0:
+            logger.error("get host %s chunkserver %d copyset num is %d"%(chunkserver_host,cs,num))
+            raise Exception(
+                "host %s chunkserver %d not recover to %d in %d,now is %d" % \
+            (chunkserver_host, cs,1,config.recover_time,num))
 
 def test_suspend_recover_copyset():
     chunkserver_host = random.choice(config.chunkserver_list)

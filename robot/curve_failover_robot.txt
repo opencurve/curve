@@ -357,8 +357,17 @@ test stop all cs not recover
     [Teardown]	  wait cluster healthy   ${vm_iops_limit}
 
 test pendding host all cs
-   [Tags]    P1    base    first release   failover  longtime
+   [Tags]    P1    base    first release   failover  longtime  no-need
    pendding all cs recover 
+   sleep  5
+   check nbd iops 
+   check data consistency
+#   check copies consistency
+   [Teardown]	  check chunkserver online
+
+test pendding host all cs online
+   [Tags]    P1    base    first release   failover  longtime
+   pendding all cs recover online
    sleep  5
    check nbd iops 
    check data consistency
