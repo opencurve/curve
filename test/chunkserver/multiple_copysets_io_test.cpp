@@ -308,10 +308,6 @@ int update_leader(CopysetInfo *copyset) {
                                                          copyset->conf,
                                                          &peerId);
     if (status.ok()) {
-        if (*copyset->ep[copyset->leader] == peerId.addr) {
-            return copyset->leader;
-        }
-        copyset->leader = -1;
         for (unsigned int j = 0; j < copyset->conf.size(); j++) {
             if (*copyset->ep[j] == peerId.addr) {
                 copyset->leader = j;
@@ -677,6 +673,7 @@ int init_copysets() {
 
     for (int i = 0; i < nr_copysets; i++) {
         CopysetInfo *info = new CopysetInfo();
+        info->leader = -1;
         info->poolId = poolId;
         info->copysetId = i + copysetIdBase;
         info->conf = conf;
