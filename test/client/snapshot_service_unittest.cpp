@@ -41,6 +41,8 @@
 #include "src/client/client_common.h"
 #include "include/client/libcurve.h"
 
+#include "test/client/common.h"
+
 extern std::string mdsMetaServerAddr;
 
 namespace curve {
@@ -726,6 +728,8 @@ int main(int argc, char ** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
+
+    curve::client::SetSocketDeferCloseSecondIfUnSet();
 
     int ret = RUN_ALL_TESTS();
     return ret;

@@ -83,7 +83,9 @@ cc_test(
 cc_test(
     name = "client_mds_failover_test",
     srcs = [
-        "mds_failover_test.cpp"],
+        "mds_failover_test.cpp",
+        "common.h",
+    ],
     copts = COPTS,
     defines = ["UNIT_TEST", "FIU_ENABLE"],
     linkopts = ["-lfiu"],
@@ -141,7 +143,8 @@ cc_test(
 cc_test(
     name = "libcurve_client_unittest",
     srcs = glob([
-        "libcurve_client_unittest.cpp"
+        "libcurve_client_unittest.cpp",
+        "common.h",
     ]),
     copts = COPTS,
     defines = ["UNIT_TEST"],
@@ -158,7 +161,8 @@ cc_test(
 cc_test(
     name = "client_libcbd_unittest",
     srcs = glob([
-        "libcbd_libcurve_test.cpp"
+        "libcbd_libcurve_test.cpp",
+        "common.h",
     ]),
     copts = COPTS,
     defines = ["UNIT_TEST"],
@@ -189,7 +193,8 @@ cc_test(
 cc_test(
     name = "client_session_unittest",
     srcs = glob([
-        "client_session_unittest.cpp"
+        "client_session_unittest.cpp",
+        "common.h",
     ]),
     copts = COPTS,
     defines = ["UNIT_TEST"],
@@ -322,7 +327,9 @@ cc_test(
 cc_test(
     name = "client_mds_client_test",
     srcs = [
-        "mds_client_test.cpp"],
+        "mds_client_test.cpp",
+        "common.h",
+    ],
     copts = COPTS,
     visibility = ["//visibility:public"],
     deps = [
@@ -348,7 +355,8 @@ cc_test(
 cc_test(
     name = "client_mdsclient_metacache_unittest",
     srcs = [
-        "client_mdsclient_metacache_unittest.cpp"
+        "client_mdsclient_metacache_unittest.cpp",
+        "common.h",
     ],
     copts = COPTS,
     defines = ["UNIT_TEST", "FIU_ENABLE"],

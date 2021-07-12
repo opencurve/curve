@@ -47,6 +47,8 @@
 #include "test/integration/cluster_common/cluster.h"
 #include "test/util/config_generator.h"
 
+#include "test/client/common.h"
+
 namespace curve {
 namespace client {
 
@@ -308,6 +310,8 @@ int main(int argc, char ** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
+
+    curve::client::SetSocketDeferCloseSecondIfUnSet();
 
     int ret = RUN_ALL_TESTS();
     return ret;
