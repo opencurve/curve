@@ -143,8 +143,9 @@ int StartChunkserver(const char *ip,
 
     std::string copiedUri(copysetdir);
     std::string chunkDataDir;
-    std::string protocol = UriParser::ParseUri(copiedUri, &chunkDataDir);
-    if (protocol.empty()) {
+    UriParser::ParseUrlErrorCode
+        errorCode = UriParser::ParseUri(copiedUri, &chunkDataDir);
+    if (errorCode != UriParser::SUCESS) {
         LOG(FATAL) << "not support chunk data uri's protocol"
                    << " error chunkDataDir is: " << chunkDataDir;
     }

@@ -161,9 +161,9 @@ int main(int argc, char *argv[]) {
     copysetNodeOptions.localFileSystem = fs;
 
     std::string chunkDataDir;
-    std::string
-        protocol = UriParser::ParseUri(FLAGS_copyset_dir, &chunkDataDir);
-    if (protocol.empty()) {
+    UriParser::ParseUrlErrorCode
+        errorCode = UriParser::ParseUri(FLAGS_copyset_dir, &chunkDataDir);
+    if (errorCode != UriParser::SUCESS) {
         LOG(FATAL) << "not support chunk data uri's protocol"
                    << " error chunkDataDir is: " << chunkDataDir;
     }
