@@ -261,7 +261,7 @@ int Ext4FileSystemImpl::List(const string& dirName,
             continue;
         names->push_back(dirIter->d_name);
     }
-    // 可能存在其他携程改变了errno，但是只能通过此方式判断readdir是否成功
+    // 可能存在其他协程改变了errno，但是只能通过此方式判断readdir是否成功
     if (errno != 0) {
         LOG(WARNING) << "readdir failed: " << strerror(errno);
     }
