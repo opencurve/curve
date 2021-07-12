@@ -55,10 +55,10 @@ int CurveCluster::InitSnapshotCloneMetaStoreEtcd(
     std::memcpy(conf.Endpoints, etcdEndpoints.c_str(), etcdEndpoints.size());
     conf.len = etcdEndpoints.size();
     conf.DialTimeout = 5000;
-    int timeout = 5000;
-    int retryTimes = 3;
+    conf.Timeout = 5000;
+    conf.RetryTimes = 3;
     auto etcdClient = std::make_shared<EtcdClientImp>();
-    auto res = etcdClient->Init(conf, timeout, retryTimes);
+    auto res = etcdClient->Init(conf);
     if (res != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "init etcd client err! ";
         return -1;

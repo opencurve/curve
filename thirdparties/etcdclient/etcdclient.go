@@ -68,6 +68,8 @@ struct EtcdConf {
     char *Endpoints;
     int len;
     int DialTimeout;
+    int Timeout;
+    int RetryTimes;
 };
 
 struct Operation {
