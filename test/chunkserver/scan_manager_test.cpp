@@ -160,12 +160,14 @@ TEST_F(ScanManagerTest, CompareMapSuccessTest) {
 
     // make scan job
     std::shared_ptr<ScanJob> job = std::make_shared<ScanJob>();
+
     job->poolId = 1;
     job->id = 10000;
     job->type = ScanType::NewMap;
     job->chunkMap = chunkMap;
-    job->currentChunkId = 1;
-    job->currentOffset = 12582912;
+    job->task.chunkId = 1;
+    job->task.offset = 12582912;
+    job->task.len = 4194304;
     ASSERT_EQ(3, job->task.waitingNum);
     ASSERT_EQ(0, scanManager_->GetJobNum());
     scanManager_->SetJob(key, job);
@@ -219,8 +221,9 @@ TEST_F(ScanManagerTest, CompareMapFailTest) {
     job->id = 10000;
     job->type = ScanType::NewMap;
     job->chunkMap = chunkMap;
-    job->currentChunkId = 1;
-    job->currentOffset = 12582912;
+    job->task.chunkId = 1;
+    job->task.offset = 12582912;
+    job->task.len = 4194304;
     ASSERT_EQ(3, job->task.waitingNum);
     ASSERT_EQ(0, scanManager_->GetJobNum());
     scanManager_->SetJob(key, job);
@@ -251,6 +254,14 @@ TEST_F(ScanManagerTest, CompareMapFailTest) {
     scanMap1->set_crc(100);
     scanMap1->set_offset(12582912);
     scanMap1->set_len(4194304);
+    ScanMap *scanMap2 = new ScanMap();
+    scanMap2->set_logicalpoolid(1);
+    scanMap2->set_copysetid(10000);
+    scanMap2->set_chunkid(1);
+    scanMap2->set_index(1);
+    scanMap2->set_crc(200);
+    scanMap2->set_offset(0);  // mismatch offset
+    scanMap2->set_len(4194304);
     // set local scanmap
     job->type = ScanType::WaitMap;
     scanManager_->SetLocalScanMap(key, *localMap);
@@ -261,6 +272,12 @@ TEST_F(ScanManagerTest, CompareMapFailTest) {
     FollowScanMapRequest request;
     FollowScanMapResponse response;
     request.set_allocated_scanmap(scanMap);
+    scanManager_->DealFollowerScanMap(request, &response);
+    ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
+              response.retcode());
+
+    // test uncorrect offset
+    request.set_allocated_scanmap(scanMap2);
     scanManager_->DealFollowerScanMap(request, &response);
     ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
               response.retcode());
@@ -306,8 +323,9 @@ TEST_F(ScanManagerTest, MismatchedCRCTest) {
     job->id = 10000;
     job->type = ScanType::NewMap;
     job->chunkMap = chunkMap;
-    job->currentChunkId = 1;
-    job->currentOffset = 12582912;
+    job->task.chunkId = 1;
+    job->task.offset = 12582912;
+    job->task.len = 4194304;
     ASSERT_EQ(3, job->task.waitingNum);
     ASSERT_EQ(0, scanManager_->GetJobNum());
     scanManager_->SetJob(key, job);
@@ -378,7 +396,6 @@ TEST_F(ScanManagerTest, CancelScanJobTest) {
     job->poolId = 1;
     job->id = 10000;
     job->type = ScanType::NewMap;
-    job->currentChunkId = 1;
     ASSERT_EQ(0, scanManager_->GetJobNum());
     scanManager_->SetJob(key, job);
     ASSERT_EQ(1, scanManager_->GetJobNum());
