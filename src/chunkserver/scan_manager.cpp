@@ -119,7 +119,6 @@ void ScanManager::StartScanJob(ScanKey key) {
     job->poolId = key.first;
     job->id = key.second;
     job->type = ScanType::Init;
-    job->currentChunkId = 0;
     job->isFinished = true;
     job->dataStore = nodePtr->GetDataStore();
     nodePtr->SetScan(true);
@@ -231,7 +230,6 @@ int ScanManager::ScanJobProcess(const std::shared_ptr<ScanJob> job) {
             iter++;
         } else {
             // split scan chunk request
-            job->currentChunkId = iter->first;
             uint32_t currentOffset = 0;
             bool scanChunkMetaPage = true;
             while (currentOffset < chunkSize_) {
@@ -246,10 +244,14 @@ int ScanManager::ScanJobProcess(const std::shared_ptr<ScanJob> job) {
                 job->task.localMap.Clear();
                 job->task.followerMap.clear();
                 job->task.waitingNum = replicaNum;
-                job->task.chunkId = job->currentChunkId;
+                job->task.chunkId = iter->first;
                 job->task.offset = currentOffset;
+                if (scanChunkMetaPage) {
+                    job->task.len = chunkMetaPageSize_;
+                } else {
+                    job->task.len = scanSize_;
+                }
                 job->taskLock.Unlock();
-                job->currentOffset = currentOffset;
                 job->isFinished = false;
 
                 // construct scan task
@@ -258,7 +260,7 @@ int ScanManager::ScanJobProcess(const std::shared_ptr<ScanJob> job) {
                 request->set_optype(CHUNK_OP_TYPE::CHUNK_OP_SCAN);
                 request->set_logicpoolid(job->poolId);
                 request->set_copysetid(job->id);
-                request->set_chunkid(job->currentChunkId);
+                request->set_chunkid(iter->first);
                 request->set_offset(currentOffset);
                 request->set_sendscanmaptimeoutms(timeoutMs_);
                 request->set_sendscanmapretrytimes(retry_);
@@ -300,11 +302,17 @@ void ScanManager::SetLocalScanMap(ScanKey key, ScanMap map) {
                      << " copysetId = " << key.second;
         return;
     }
-    if (job->currentChunkId != map.chunkid() ||
-        job->currentOffset != map.offset()) {
+    job->taskLock.RDLock();
+    bool matched = job->task.chunkId == map.chunkid() &&
+                   job->task.offset == map.offset() &&
+                   job->task.len == map.len();
+    job->taskLock.Unlock();
+
+    if (!matched) {
         LOG(WARNING) << "SetLocalScanMap failed, mismatch scanmap."
-                     << " job->chunkid = " << job->currentChunkId
-                     << " job->offset = " << job->currentOffset
+                     << " scantask.chunkid = " << job->task.chunkId
+                     << " scantask.offset = " << job->task.offset
+                     << " scantask.len = " << job->task.len
                      << "; scanmap: " << map.ShortDebugString();
         return;
     }
@@ -321,8 +329,21 @@ void ScanManager::DealFollowerScanMap(const FollowScanMapRequest &request,
     ScanKey key(scanMap.logicalpoolid(), scanMap.copysetid());
     auto job = GetJob(key);
 
-    if (nullptr != job && job->currentChunkId == scanMap.chunkid() &&
-        job->currentOffset == scanMap.offset()) {
+    if (nullptr == job) {
+        LOG(WARNING) << "DealFollowerScanMap failed, job not found."
+                     << " logical poolId = " << key.first
+                     << " copysetId = " << key.second;
+        response->set_retcode(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
+        return;
+    }
+
+    job->taskLock.RDLock();
+    bool matched = job->task.chunkId == scanMap.chunkid() &&
+                   job->task.offset == scanMap.offset() &&
+                   job->task.len == scanMap.len();
+    job->taskLock.Unlock();
+
+    if (matched) {
         job->taskLock.WRLock();
         job->task.followerMap.emplace_back(scanMap);
         job->task.waitingNum--;
@@ -331,15 +352,12 @@ void ScanManager::DealFollowerScanMap(const FollowScanMapRequest &request,
         GenScanJobs(key);
         response->set_retcode(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         return;
-    }
-    if (nullptr == job) {
-        LOG(WARNING) << "DealFollowerScanMap failed, job not found."
-                     << " logical poolId = " << key.first
-                     << " copysetId = " << key.second;
     } else {
+        ReadLockGuard readLockGuard(job->taskLock);
         LOG(WARNING) << "DealFollowerScanMap failed, mismatch scanmap."
-                     << " job->chunkid = " << job->currentChunkId
-                     << " job->offset = " << job->currentOffset
+                     << " scantask.chunkid = " << job->task.chunkId
+                     << " scantask.offset = " << job->task.offset
+                     << " scantask.len = " << job->task.len
                      << "; scanmap: " << scanMap.ShortDebugString();
     }
     response->set_retcode(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
@@ -381,7 +399,8 @@ void ScanManager::CompareMap(std::shared_ptr<ScanJob> job) {
                           << " logicalpoolId = " << job->poolId
                           << " copysetId = " << job->id
                           << " chunkId = " << job->task.chunkId
-                          << " offset = " << job->task.offset;
+                          << " offset = " << job->task.offset
+                          << " len = " << job->task.len;
             }
             job->isFinished = true;
         }
