@@ -79,6 +79,7 @@ enum ScanType {
 struct ScanTask {
     ChunkID chunkId;
     uint64_t offset;
+    uint64_t len;
     uint8_t waitingNum;
     ScanMap localMap;
     std::vector<ScanMap> followerMap;
@@ -92,8 +93,6 @@ struct ScanJob {
     ScanTask task;
     bool isFinished;
     RWLock taskLock;
-    ChunkID currentChunkId;
-    uint64_t currentOffset;
     ChunkMap chunkMap;
     std::shared_ptr<CSDataStore> dataStore;
     ScanJob() : type(ScanType::Init) {}
