@@ -36,3 +36,18 @@ Previous change logs can be found at [CHANGELOG-1.2](https://github.com/opencurv
 - [Fix client retry when allocate segment failed as cluster space is pool.](https://github.com/opencurve/curve/pull/338)
 - [Add protection for unmap operation when io is not stopped.](https://github.com/opencurve/curve/pull/348)
 - [Fix a segment fault when client read from clone source.](https://github.com/opencurve/curve/pull/358)
+
+<hr>
+
+# CHANGELOG of v1.3-beta1
+
+## bug fix
+
+- [Fix duplicate delete segment in mds on discard feature.](https://github.com/opencurve/curve/pull/421)
+- [Fix trash metirc statistic bug.](https://github.com/opencurve/curve/pull/417)
+- [Fix copyset status judgment after set pendding on online statue.](https://github.com/opencurve/curve/pull/416)
+- [Add mount options in auto map nbd volume script.](https://github.com/opencurve/curve/pull/407)
+- [Fix add qos for clone volume.](https://github.com/opencurve/curve/pull/421)
+- [Fix crc issues in chunkserver.](https://github.com/opencurve/curve/pull/405)
+- [Fix crc issues in mds and add scan-status support in curve_ops_tool.](https://github.com/opencurve/curve/pull/420)
+- [Fix core dump when chunkserver SIGINT exit sometimes.](https://github.com/opencurve/curve/pull/429)
