@@ -50,6 +50,19 @@ cc_library(
 )
 
 cc_library(
+    name = "rw_lock",
+    hdrs = [
+        "rw_lock.h",
+    ],
+    copts = COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/common:curve_uncopy",
+        "//external:bthread",
+    ],
+)
+
+cc_library(
     name = "curve_dlock",
     srcs = glob(["dlock.h",
                  "dlock.cpp"]),
