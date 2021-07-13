@@ -11,8 +11,8 @@
 ### END INIT INFO
 
 # default confpath
-# file format is:dealflag \t device \t image \t mountpoint(option)
-# +	/dev/nbd0	cbd:pool//curvefile_test_	/test
+# file format is:dealflag \t device \t image \t mapoptions \t mountpoint(option)
+# +	/dev/nbd0	cbd:pool//curvefile_test_   defaults	/test
 confPath=/etc/curve/curvetab
 
 # check sudo
@@ -26,8 +26,8 @@ fi
 function usage() {
     echo "Usage: ./map_curve_disk.sh start"
     echo "  -c/--confPath: set the confPath (default /etc/curve/curvetab)"
-    echo "    file format is:dealflag \t device \t image \t mountpoint(optional) \t mountoption(optional)"
-    echo "    example: +	/dev/nbd0	cbd:pool//curvefile_test_	/test   -t ext4 -o discard"
+    echo "    file format is:dealflag \t device \t image \t map-options \t mountpoint(option)  \t mountoption(optional)"
+    echo "    example: +	/dev/nbd0	cbd:pool//curvefile_test_   defaults or try-netlink,timeout=7200    /test  -t ext4 -o discard"
     echo "  -h/--help: get the script usage"
     echo "Examples:"
     echo "  ./map_curve_disk.sh start //use the default configuration"
@@ -60,6 +60,23 @@ function dealcurvetab() {
     done
 }
 
+function convert_map_opts() {
+    if [ $# -ne 1 ]; then
+        echo ""
+        return
+    fi
+
+    PARAMS=$1
+    if [ "${PARAMS}" == "defaults" ]; then
+        echo ""
+        return
+    fi
+
+    out=$(echo ${PARAMS} | sed 's/,/ --/g')
+    out="--${out}"
+    echo ${out}
+}
+
 # map the curve disk based on curvetab
 function map() {
     if [ ! -f ${confPath}.bak ]
@@ -72,9 +89,13 @@ function map() {
     do
         device=$(echo "$line" | awk -F'\t' '{print $2}')
         image=$(echo "$line" | awk -F'\t' '{print $3}')
-        mountpoint=$(echo "$line" | awk -F'\t' '{print $4}')
-        option=$(echo "$line" | awk -F'\t' '{print $5}')
-        curve-nbd map $image --device $device
+        mapopt=$(echo "$line" | awk -F'\t' '{print $4}')
+        mountpoint=$(echo "$line" | awk -F'\t' '{print $5}')
+        option=$(echo "$line" | awk -F'\t' '{print $6}')
+
+        mapopt=$(convert_map_opts "${mapopt}")
+        curve-nbd map $image --device $device ${mapopt}
+
         if [ "$mountpoint" != "" ]
         then
             mount $option $device $mountpoint
