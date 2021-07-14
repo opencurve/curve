@@ -51,3 +51,11 @@ Previous change logs can be found at [CHANGELOG-1.2](https://github.com/opencurv
 - [Fix crc issues in chunkserver.](https://github.com/opencurve/curve/pull/405)
 - [Fix crc issues in mds and add scan-status support in curve_ops_tool.](https://github.com/opencurve/curve/pull/420)
 - [Fix core dump when chunkserver SIGINT exit sometimes.](https://github.com/opencurve/curve/pull/429)
+
+<hr>
+
+# CHANGELOG of v1.3-beta2
+
+## new feature
+
+- [Support 512 bytes aligned IO requests.](https://github.com/opencurve/curve/pull/435)
