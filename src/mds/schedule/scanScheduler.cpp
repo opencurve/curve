@@ -72,7 +72,7 @@ bool ScanScheduler::StartOrReadyToScan(const CopySetInfo& copysetInfo) {
         return true;
     } else if (opController_->GetOperatorById(copysetInfo.id, &op)) {
         auto step = dynamic_cast<ScanPeer*>(op.step.get());
-        return nullptr != step && step->IsStartScan();
+        return nullptr != step && step->IsStartScanOp();
     } else if (copysetInfo.HasCandidate()) {
         return copysetInfo.configChangeInfo.type() ==
                ConfigChangeType::START_SCAN_PEER;
