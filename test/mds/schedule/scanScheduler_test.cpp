@@ -91,9 +91,9 @@ class TestScanSchedule : public ::testing::Test {
         for (auto& op : operators) {
             auto step = dynamic_cast<ScanPeer*>(op.step.get());
             ASSERT_TRUE(nullptr != step);
-            if (step->IsStartScan()) {
+            if (step->IsStartScanOp()) {
                 nStart += 1;
-            } else {
+            } else if (step->IsCancelScanOp()) {
                 nCancel += 1;
             }
         }

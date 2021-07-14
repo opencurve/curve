@@ -352,16 +352,22 @@ TEST(OperatorStepTest, TestStartScanPeer) {
         ASSERT_EQ(ret, ApplyStatus::Finished);
     }
 
-    // CASE 2: copyset just completes scan -> Finished
+    // CASE 2: copyset report (scaning = false, lastScanSec > 0) -> Ordered
     {
         CopySetConf copysetConf;
         auto copysetInfo = GetCopySetInfoForTest();
-        copysetInfo.scaning = true;
+        copysetInfo.scaning = false;
         copysetInfo.lastScanSec =
             ::curve::common::TimeUtility::GetTimeofDaySec();
 
         auto ret = step->Apply(copysetInfo, &copysetConf);
-        ASSERT_EQ(ret, ApplyStatus::Finished);
+        ASSERT_EQ(ret, ApplyStatus::Ordered);
+        ASSERT_EQ(copysetConf.id.first, 1);  // logical pool id
+        ASSERT_EQ(copysetConf.id.second, 1);  // copyset id
+        ASSERT_EQ(copysetConf.epoch, 1);  // epoch
+        ASSERT_EQ(copysetConf.peers, copysetInfo.peers);  // peers
+        ASSERT_EQ(copysetConf.type, ConfigChangeType::START_SCAN_PEER);  // type
+        ASSERT_EQ(copysetConf.configChangeItem, 1);  // chunkserver id
     }
 
     // CASE 3: copyset has no config change -> Ordered
@@ -493,7 +499,7 @@ TEST(OperatorStepTest, TestCancelScanPeer) {
         ASSERT_EQ(ret, ApplyStatus::Finished);
     }
 
-    // CASE 2: copyset just completes scan -> Finished
+    // CASE 2: copyset report (scaning = true, lastScanSec > 0) -> Ordered
     {
         CopySetConf copysetConf;
         auto copysetInfo = GetCopySetInfoForTest();
@@ -502,7 +508,13 @@ TEST(OperatorStepTest, TestCancelScanPeer) {
             ::curve::common::TimeUtility::GetTimeofDaySec();
 
         auto ret = step->Apply(copysetInfo, &copysetConf);
-        ASSERT_EQ(ret, ApplyStatus::Finished);
+        ASSERT_EQ(ret, ApplyStatus::Ordered);
+        ASSERT_EQ(copysetConf.id.first, 1);  // logical pool id
+        ASSERT_EQ(copysetConf.id.second, 1);  // copyset id
+        ASSERT_EQ(copysetConf.epoch, 1);  // epoch
+        ASSERT_EQ(copysetConf.peers, copysetInfo.peers);  // peers
+        ASSERT_EQ(copysetConf.type, ConfigChangeType::CANCEL_SCAN_PEER);  // type // NOLINT
+        ASSERT_EQ(copysetConf.configChangeItem, 1);  // chunkserver id
     }
 
     // CASE 3: copyset has no config change -> Ordered

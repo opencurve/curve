@@ -327,8 +327,8 @@ ApplyStatus ChangePeer::Apply(
 ApplyStatus ScanPeer::Apply(const CopySetInfo& originInfo,
                             CopySetConf *newConf) {
     // (1) copyset success on start/cancel scan
-    // NOTE: If lastScanSec > 0, it means copyset just finished scaning
-    if (IsStartScan() == originInfo.scaning || originInfo.lastScanSec > 0) {
+    if ((IsStartScanOp() && originInfo.scaning) ||
+        (IsCancelScanOp() && !originInfo.scaning)) {
         return ApplyStatus::Finished;
     }
 
@@ -372,8 +372,14 @@ ApplyStatus ScanPeer::Apply(const CopySetInfo& originInfo,
 }
 
 std::string ScanPeer::OperatorStepToString() {
-    std::string opstr = IsStartScan() ? "start" : "cancel";
-    return opstr + " scan on " + std::to_string(scan_);
+    std::string opstr = "unknown operator";
+    if (IsStartScanOp()) {
+        opstr = "start scan";
+    } else if (IsCancelScanOp()) {
+        opstr = "cancel scan";
+    }
+
+    return opstr + " on " + std::to_string(scan_);
 }
 
 ChunkServerIdType ScanPeer::GetTargetPeer() const {
