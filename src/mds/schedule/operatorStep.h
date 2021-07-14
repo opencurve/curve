@@ -172,11 +172,11 @@ class ScanPeer : public OperatorStep {
 
     ChunkServerIdType GetTargetPeer() const override;
 
-    bool IsStartScan() {
+    bool IsStartScanOp() {
         return opType_ == ConfigChangeType::START_SCAN_PEER;
     }
 
-    bool IsCancelScan() {
+    bool IsCancelScanOp() {
         return opType_ == ConfigChangeType::CANCEL_SCAN_PEER;
     }
 
