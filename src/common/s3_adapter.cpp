@@ -29,30 +29,70 @@
 namespace curve {
 namespace common {
 
+void InitS3AdaptorOption(Configuration *conf,
+    S3AdapterOption *s3Opt) {
+    LOG_IF(FATAL, !conf->GetIntValue("s3.loglevel", &s3Opt->loglevel));
+    LOG_IF(FATAL, !conf->GetStringValue("s3.nos_address", &s3Opt->s3Address));
+    LOG_IF(FATAL, !conf->GetStringValue("s3.ak", &s3Opt->ak));
+    LOG_IF(FATAL, !conf->GetStringValue("s3.sk", &s3Opt->sk));
+    LOG_IF(FATAL, !conf->GetStringValue("s3.snapshot_bucket_name",
+        &s3Opt->bucketName));
+    LOG_IF(FATAL, !conf->GetIntValue("s3.http_scheme", &s3Opt->scheme));
+    LOG_IF(FATAL, !conf->GetBoolValue("s3.verify_SSL", &s3Opt->verifySsl));
+    LOG_IF(FATAL, !conf->GetIntValue("s3.max_connections",
+        &s3Opt->maxConnections));
+    LOG_IF(FATAL, !conf->GetIntValue("s3.connect_timeout",
+        &s3Opt->connectTimeout));
+    LOG_IF(FATAL, !conf->GetIntValue("s3.request_timeout",
+        &s3Opt->requestTimeout));
+    LOG_IF(FATAL, !conf->GetIntValue("s3.async_thread_num",
+        &s3Opt->asyncThreadNum));
+    LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.iopsTotalLimit",
+        &s3Opt->iopsTotalLimit));
+    LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.iopsReadLimit",
+        &s3Opt->iopsReadLimit));
+    LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.iopsWriteLimit",
+        &s3Opt->iopsWriteLimit));
+    LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.bpsTotalMB",
+        &s3Opt->bpsTotalMB));
+    LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.bpsReadMB",
+        &s3Opt->bpsReadMB));
+    LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.bpsWriteMB",
+        &s3Opt->bpsWriteMB));
+}
+
 void S3Adapter::Init(const std::string &path) {
     LOG(INFO) << "Loading s3 configurations";
     conf_.SetConfigPath(path);
     LOG_IF(FATAL, !conf_.LoadConfig())
               << "Failed to open s3 config file: " << conf_.GetConfigPath();
+    S3AdapterOption option;
+    InitS3AdaptorOption(&conf_, &option);
+    Init(option);
+}
+
+void S3Adapter::Init(const S3AdapterOption &option) {
     options_ = Aws::New<Aws::SDKOptions>("S3Adapter.SDKOptions");
     options_->loggingOptions.logLevel =
-      Aws::Utils::Logging::LogLevel(conf_.GetIntValue("s3.loglevel"));
+      Aws::Utils::Logging::LogLevel(option.loglevel);
+
     Aws::InitAPI(*options_);
-    s3Address_ = conf_.GetStringValue("s3.nos_address").c_str();
-    s3Ak_ = conf_.GetStringValue("s3.ak").c_str();
-    s3Sk_ = conf_.GetStringValue("s3.sk").c_str();
-    bucketName_ = conf_.GetStringValue("s3.snapshot_bucket_name").c_str();
+    s3Address_ = option.s3Address.c_str();
+    s3Ak_ = option.ak.c_str();
+    s3Sk_ = option.sk.c_str();
+    bucketName_ = option.bucketName.c_str();
     clientCfg_ = Aws::New<Aws::Client::ClientConfiguration>(
         "S3Adapter.ClientConfiguration");
-    clientCfg_->scheme = Aws::Http::Scheme(conf_.GetIntValue("s3.http_scheme"));
-    clientCfg_->verifySSL = conf_.GetBoolValue("s3.verify_SSL");
+    clientCfg_->scheme = Aws::Http::Scheme(option.scheme);
+    clientCfg_->verifySSL = option.verifySsl;
     //clientCfg_->userAgent = conf_.GetStringValue("s3.user_agent_conf").c_str();  //NOLINT
     clientCfg_->userAgent = "S3 Browser";
-    clientCfg_->maxConnections = conf_.GetIntValue("s3.max_connections");
-    clientCfg_->connectTimeoutMs = conf_.GetIntValue("s3.connect_timeout");
-    clientCfg_->requestTimeoutMs = conf_.GetIntValue("s3.request_timeout");
+    clientCfg_->maxConnections = option.maxConnections;
+    clientCfg_->connectTimeoutMs = option.connectTimeout;
+    clientCfg_->requestTimeoutMs = option.requestTimeout;
     clientCfg_->endpointOverride = s3Address_;
-    auto asyncThreadNum = conf_.GetIntValue("s3.async_thread_num");
+    auto asyncThreadNum = option.asyncThreadNum;
+    LOG(INFO) << "S3Adapter init thread num = " << asyncThreadNum << std::endl;
     clientCfg_->executor =
         Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>(
             "S3Adapter.S3Client", asyncThreadNum);
@@ -62,33 +102,13 @@ void S3Adapter::Init(const std::string &path) {
             Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never,
             false);
 
-    uint64_t iopsTotalLimit = 0;
-    uint64_t iopsReadLimit = 0;
-    uint64_t iopsWriteLimit = 0;
-    uint64_t bpsTotalMB = 0;
-    uint64_t bpsReadMB = 0;
-    uint64_t bpsWriteMB = 0;
-
-    LOG_IF(FATAL,
-        !conf_.GetUInt64Value("s3.throttle.iopsTotalLimit", &iopsTotalLimit));
-    LOG_IF(FATAL,
-        !conf_.GetUInt64Value("s3.throttle.iopsReadLimit", &iopsTotalLimit));
-    LOG_IF(FATAL,
-        !conf_.GetUInt64Value("s3.throttle.iopsWriteLimit", &iopsTotalLimit));
-    LOG_IF(FATAL,
-        !conf_.GetUInt64Value("s3.throttle.bpsTotalMB", &iopsTotalLimit));
-    LOG_IF(FATAL,
-        !conf_.GetUInt64Value("s3.throttle.bpsReadMB", &iopsTotalLimit));
-    LOG_IF(FATAL,
-        !conf_.GetUInt64Value("s3.throttle.bpsWriteMB", &iopsTotalLimit));
-
     ReadWriteThrottleParams params;
-    params.iopsTotal.limit = iopsTotalLimit;
-    params.iopsRead.limit = iopsReadLimit;
-    params.iopsWrite.limit = iopsWriteLimit;
-    params.bpsTotal.limit = bpsTotalMB * kMB;
-    params.bpsRead.limit = bpsReadMB * kMB;
-    params.bpsWrite.limit = bpsWriteMB * kMB;
+    params.iopsTotal.limit = option.iopsTotalLimit;
+    params.iopsRead.limit = option.iopsReadLimit;
+    params.iopsWrite.limit = option.iopsWriteLimit;
+    params.bpsTotal.limit = option.bpsTotalMB * kMB;
+    params.bpsRead.limit = option.bpsReadMB * kMB;
+    params.bpsWrite.limit = option.bpsWriteMB * kMB;
 
     throttle_ = new Throttle();
     throttle_->UpdateThrottleParams(params);
@@ -153,33 +173,35 @@ bool S3Adapter::BucketExist() {
         return false;
     }
 }
-/*
-    int S3Adapter::PutObject(const Aws::String &key,
+
+int S3Adapter::PutObject(const Aws::String &key,
                   const void *buffer,
                   const int bufferSize) {
-        Aws::S3::Model::PutObjectRequest request;
-        request.SetBucket(bucketName_);
-        request.SetKey(key);
-        std::shared_ptr<Aws::StringStream> input_data =
-                    Aws::MakeShared<Aws::StringStream>("stream",buffer);
+    Aws::S3::Model::PutObjectRequest request;
+    request.SetBucket(bucketName_);
+    request.SetKey(key);
 
-        input_data->rdbuf()->pubsetbuf(buffer),
-                                       bufferSize);
-        input_data->rdbuf()->pubseekpos(bufferSize);
-        input_data->seekg(0);
-        request.SetBody(input_data);
-        auto response = s3Client_->PutObject(request);
-        if (response.IsSuccess()) {
+    std::shared_ptr<Aws::StringStream> input_data =
+                Aws::MakeShared<Aws::StringStream>("stream",
+                static_cast<char *>(const_cast<void *>(buffer)));
+
+    input_data->rdbuf()->pubsetbuf(static_cast<char *>(
+                const_cast<void *>(buffer)), bufferSize);
+    input_data->rdbuf()->pubseekpos(bufferSize);
+    input_data->seekg(0);
+    request.SetBody(input_data);
+    auto response = s3Client_->PutObject(request);
+    if (response.IsSuccess()) {
             return 0;
-        } else {
-            LOG(ERROR) << "PutObject error:"
-                << bucketName_ << key
-                << response.GetError().GetExceptionName()
-                << response.GetError().GetMessage();
-            return -1;
-        }
+    } else {
+        LOG(ERROR) << "PutObject error:"
+            << bucketName_ << key
+            << response.GetError().GetExceptionName()
+            << response.GetError().GetMessage();
+        return -1;
     }
-*/
+}
+
 int S3Adapter::PutObject(const Aws::String &key,
                   const std::string &data) {
     Aws::S3::Model::PutObjectRequest request;

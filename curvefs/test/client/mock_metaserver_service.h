@@ -50,7 +50,6 @@ class MockMetaServerService : public curvefs::metaserver::MetaServerService {
                       const ::curvefs::metaserver::CreateDentryRequest *request,
                       ::curvefs::metaserver::CreateDentryResponse *response,
                       ::google::protobuf::Closure *done));
-
     MOCK_METHOD4(DeleteDentry,
                  void(::google::protobuf::RpcController *controller,
                       const ::curvefs::metaserver::DeleteDentryRequest *request,
@@ -76,6 +75,11 @@ class MockMetaServerService : public curvefs::metaserver::MetaServerService {
                       const ::curvefs::metaserver::DeleteInodeRequest *request,
                       ::curvefs::metaserver::DeleteInodeResponse *response,
                       ::google::protobuf::Closure *done));
+    MOCK_METHOD4(UpdateInodeS3Version,
+        void(::google::protobuf::RpcController *controller,
+        const ::curvefs::metaserver::UpdateInodeS3VersionRequest *request,
+        ::curvefs::metaserver::UpdateInodeS3VersionResponse *response,
+        ::google::protobuf::Closure *done));
 };
 }  // namespace client
 }  // namespace curvefs

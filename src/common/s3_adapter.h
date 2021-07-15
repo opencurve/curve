@@ -58,6 +58,29 @@ namespace common {
 struct GetObjectAsyncContext;
 class S3Adapter;
 
+struct S3AdapterOption {
+    std::string ak;
+    std::string sk;
+    std::string s3Address;
+    std::string bucketName;
+    int loglevel;
+    int scheme;
+    bool verifySsl;
+    int maxConnections;
+    int connectTimeout;
+    int requestTimeout;
+    int asyncThreadNum;
+    uint64_t iopsTotalLimit;
+    uint64_t iopsReadLimit;
+    uint64_t iopsWriteLimit;
+    uint64_t bpsTotalMB;
+    uint64_t bpsReadMB;
+    uint64_t bpsWriteMB;
+};
+
+void InitS3AdaptorOption(Configuration *conf,
+    S3AdapterOption *s3Opt);
+
 typedef std::function<void(const S3Adapter*,
     const std::shared_ptr<GetObjectAsyncContext>&)>
         GetObjectAsyncCallBack;
@@ -80,6 +103,10 @@ class S3Adapter {
      */
     virtual void Init(const std::string &path);
     /**
+     * 初始化S3Adapter
+     */
+    virtual void Init(const S3AdapterOption &option);
+    /**
      * 释放S3Adapter资源
      */
     virtual void Deinit();
@@ -98,9 +125,15 @@ class S3Adapter {
      * @return true 桶存在/ false 桶不存在
      */
     virtual bool BucketExist();
-    // Put object from buffer[bufferSize]
-    // int PutObject(const Aws::String &key, const void *buffer,
-    //        const int bufferSize);
+    /**
+     * 上传数据到对象存储
+     * @param 对象名
+     * @param 数据内容
+     * @param 数据内容大小
+     * @return:0 上传成功/ -1 上传失败
+     */
+    int PutObject(const Aws::String &key, const void *buffer,
+            const int bufferSize);
     // Get object to buffer[bufferSize]
     // int GetObject(const Aws::String &key, void *buffer,
     //        const int bufferSize);
