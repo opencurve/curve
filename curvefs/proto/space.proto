@@ -96,6 +96,16 @@ message UnInitSpaceResponse {
     required SpaceStatusCode status = 1;
 }
 
+message AllocateS3ChunkRequest {
+    required uint32 fsId = 1;
+}
+
+message AllocateS3ChunkResponse {
+   required SpaceStatusCode status = 1;  // 状态码
+   required uint64 chunkId = 2;
+}
+
+
 service SpaceAllocService {
     // space interface
     rpc InitSpace(InitSpaceRequest) returns (InitSpaceResponse);
@@ -103,4 +113,5 @@ service SpaceAllocService {
     rpc DeallocateSpace(DeallocateSpaceRequest) returns (DeallocateSpaceResponse);
     rpc StatSpace(StatSpaceRequest) returns (StatSpaceResponse);
     rpc UnInitSpace(UnInitSpaceRequest) returns (UnInitSpaceResponse);
+    rpc AllocateS3Chunk(AllocateS3ChunkRequest) returns (AllocateS3ChunkResponse);
 }

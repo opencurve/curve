@@ -45,6 +45,11 @@ class MockSpaceAllocService : public curvefs::space::SpaceAllocService {
                       const ::curvefs::space::DeallocateSpaceRequest *request,
                       ::curvefs::space::DeallocateSpaceResponse *response,
                       ::google::protobuf::Closure *done));
+    MOCK_METHOD4(AllocateS3Chunk, void(
+                      ::google::protobuf::RpcController *controller,
+                      const ::curvefs::space::AllocateS3ChunkRequest *request,
+                      ::curvefs::space::AllocateS3ChunkResponse *response,
+                      ::google::protobuf::Closure *done));
 };
 }  // namespace client
 }  // namespace curvefs
