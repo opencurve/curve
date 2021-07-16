@@ -234,7 +234,8 @@ int ScanManager::ScanJobProcess(const std::shared_ptr<ScanJob> job) {
             bool scanChunkMetaPage = true;
             while (currentOffset < chunkSize_) {
                 // check is leader, if not cancel the job
-                if (!nodePtr->IsLeaderTerm()) {
+                if (!nodePtr->IsLeaderTerm() ||
+                    toStop_.load(std::memory_order_acquire)) {
                     CancelScanJob(job->poolId, job->id);
                     return -1;
                 }
