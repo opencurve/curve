@@ -419,16 +419,19 @@ int ChunkServer::Run(int argc, char** argv) {
     while (!brpc::IsAskedToQuit()) {
         bthread_usleep(1000000L);
     }
+    // scanmanager stop maybe need a little while, so stop it first before stop service  NOLINT
+    LOG(INFO) << "ChunkServer is going to quit.";
+    LOG_IF(ERROR, scanManager_.Fini() != 0)
+        << "Failed to shutdown scan manager.";
+
     if (registerOptions.enableExternalServer) {
         externalServer.Stop(0);
         externalServer.Join();
     }
+
     server.Stop(0);
     server.Join();
 
-    LOG(INFO) << "ChunkServer is going to quit.";
-    LOG_IF(ERROR, scanManager_.Fini() != 0)
-        << "Failed to shutdown scan manager.";
     LOG_IF(ERROR, heartbeat_.Fini() != 0)
         << "Failed to shutdown heartbeat manager.";
     LOG_IF(ERROR, copysetNodeManager_->Fini() != 0)
