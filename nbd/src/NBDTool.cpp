@@ -35,12 +35,11 @@ namespace nbd {
 
 std::ostream& operator<<(std::ostream& os, const DeviceInfo& info) {
     TextTable tbl;
-    tbl.define_column("pid", TextTable::LEFT, TextTable::LEFT);
+    tbl.define_column("id", TextTable::LEFT, TextTable::LEFT);
     tbl.define_column("image", TextTable::LEFT, TextTable::LEFT);
     tbl.define_column("device", TextTable::LEFT, TextTable::LEFT);
-    tbl.define_column("options", TextTable::LEFT, TextTable::LEFT);
-    tbl << info.pid << info.config.imgname << info.config.devpath
-        << info.config.MapOptions() << TextTable::endrow;
+    tbl << info.pid << info.config.imgname
+        << info.config.devpath << TextTable::endrow;
     os << tbl;
     return os;
 }
@@ -66,7 +65,7 @@ int NBDTool::Connect(NBDConfig *cfg) {
     }
 
     // 初始化打开文件
-    ImagePtr imageInstance = GenerateImage(cfg->imgname, cfg);
+    ImagePtr imageInstance = GenerateImage(cfg->imgname);
     bool openSuccess = imageInstance->Open();
     if (!openSuccess) {
         cerr << "curve-nbd: Could not open image." << std::endl;
@@ -161,13 +160,12 @@ void NBDTool::RunServerUntilQuit() {
 }
 
 ImagePtr g_test_image = nullptr;
-ImagePtr NBDTool::GenerateImage(const std::string& imageName,
-                                NBDConfig* config) {
+ImagePtr NBDTool::GenerateImage(const std::string& imageName) {
     ImagePtr result = nullptr;
     if (imageName.compare(0, 4, "test") == 0) {
         result = g_test_image;
     } else {
-        result = std::make_shared<ImageInstance>(imageName, config);
+        result = std::make_shared<ImageInstance>(imageName);
     }
     return result;
 }
