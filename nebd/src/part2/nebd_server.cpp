@@ -30,7 +30,6 @@
 
 namespace nebd {
 namespace server {
-
 int NebdServer::Init(const std::string &confPath,
     std::shared_ptr<CurveClient> curveClient) {
     if (isRunning_) {
@@ -249,16 +248,6 @@ bool NebdServer::StartServer() {
     if (0 != startBrpcServerRes) {
         LOG(ERROR) << "NebdServer start brpc server fail, res="
             << startBrpcServerRes;
-        return false;
-    }
-
-    // let everyone can connect to this socket
-    int r = chmod(listenAddress_.c_str(), 0777);
-    if (r != 0) {
-        LOG(ERROR) << "chmod " << listenAddress_
-                   << " mode to 0777 failed, error: " << strerror(errno);
-        server_.Stop(0);
-        server_.Join();
         return false;
     }
 
