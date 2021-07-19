@@ -11,8 +11,8 @@
 ### END INIT INFO
 
 # default confpath
-# file format is:dealflag \t device \t image \t mapoptions \t mountpoint(option)
-# +	/dev/nbd0	cbd:pool//curvefile_test_   defaults	/test
+# file format is:dealflag \t device \t image \t mountpoint(option)
+# +	/dev/nbd0	cbd:pool//curvefile_test_	/test
 confPath=/etc/curve/curvetab
 
 # check sudo
@@ -26,8 +26,8 @@ fi
 function usage() {
     echo "Usage: ./map_curve_disk.sh start"
     echo "  -c/--confPath: set the confPath (default /etc/curve/curvetab)"
-    echo "    file format is:dealflag \t device \t image \t map-options \t mountpoint(option)"
-    echo "    example: +	/dev/nbd0	cbd:pool//curvefile_test_   defaults or try-netlink,timeout=7200    /test"
+    echo "    file format is:dealflag \t device \t image \t mountpoint(option)"
+    echo "    example: +	/dev/nbd0	cbd:pool//curvefile_test_	/test"
     echo "  -h/--help: get the script usage"
     echo "Examples:"
     echo "  ./map_curve_disk.sh start //use the default configuration"
@@ -60,23 +60,6 @@ function dealcurvetab() {
     done
 }
 
-function convert_map_opts() {
-    if [ $# -ne 1 ]; then
-        echo ""
-        return
-    fi
-
-    PARAMS=$1
-    if [ "${PARAMS}" == "defaults" ]; then
-        echo ""
-        return
-    fi
-
-    out=$(echo ${PARAMS} | sed 's/,/ --/g')
-    out="--${out}"
-    echo ${out}
-}
-
 # map the curve disk based on curvetab
 function map() {
     if [ ! -f ${confPath}.bak ]
@@ -87,15 +70,11 @@ function map() {
 
     cat ${confPath}.bak | grep -v '#' | while read line
     do
-        device=$(echo "$line" | awk -F'\t' '{print $2}')
-        image=$(echo "$line" | awk -F'\t' '{print $3}')
-        mapopt=$(echo "$line" | awk -F'\t' '{print $4}')
-        mountpoint=$(echo "$line" | awk -F'\t' '{print $5}')
-
-        mapopt=$(convert_map_opts "${mapopt}")
-        curve-nbd map $image --device $device ${mapopt}
-
-        if [ "$mountpoint" != "" ]
+        device=$(echo $line | awk '{print $2}')
+        image=$(echo $line | awk '{print $3}')
+        mount=$(echo $line | awk '{print $4}')
+        curve-nbd map $image --device $device
+        if [ "$mount" != "" ]
         then
             mount $device $mount
         fi

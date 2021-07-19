@@ -70,8 +70,6 @@ struct NebdClientAioContext {
  */
 int nebd_lib_init(void);
 
-int nebd_lib_init_with_conf(const char* confPath);
-
 /**
  *  @brief 反初始化nebd
  *  @param none

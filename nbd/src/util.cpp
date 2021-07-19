@@ -230,11 +230,6 @@ int parse_args(std::vector<const char*>& args, std::ostream *err_msg,   // NOLIN
                             "or 4096";
                 return -EINVAL;
             }
-        } else if (argparse_witharg(args, i, &cfg->nebd_conf, err, "--nebd-conf", (char*)(NULL))) {  // NOLINT
-            if (!err.str().empty()) {
-                *err_msg << "curve-nbd: " << err.str();
-                return -EINVAL;
-            }
         } else {
             ++i;
         }
