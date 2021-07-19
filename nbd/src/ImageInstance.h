@@ -28,7 +28,6 @@
 #include <string>
 #include <memory>
 
-#include "nbd/src/define.h"
 #include "nebd/src/part1/libnebd.h"
 
 namespace curve {
@@ -37,8 +36,8 @@ namespace nbd {
 // 封装nebd相关接口
 class ImageInstance {
  public:
-    ImageInstance(const std::string& imageName, NBDConfig* config)
-        : fd_(-1), imageName_(imageName), config_(config) {}
+    explicit ImageInstance(const std::string& imageName)
+        : fd_(-1), imageName_(imageName) {}
 
     virtual ~ImageInstance();
 
@@ -91,8 +90,6 @@ class ImageInstance {
 
     // 卷名
     std::string imageName_;
-
-    NBDConfig* config_;
 };
 using ImagePtr = std::shared_ptr<ImageInstance>;
 
