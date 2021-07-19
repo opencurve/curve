@@ -148,11 +148,7 @@ void RequestScheduler::Process() {
         BBQItem<RequestContext*> item = queue_.TakeFront();
         if (!item.IsStop()) {
             RequestContext* req = item.Item();
-            if (req->padding.aligned) {
-                ProcessAligned(req);
-            } else {
-                ProcessUnaligned(req);
-            }
+            ProcessOne(req);
         } else {
             /**
              * 一旦遇到stop item，所有线程都可以退出，因为此时
@@ -163,7 +159,7 @@ void RequestScheduler::Process() {
     }
 }
 
-void RequestScheduler::ProcessAligned(RequestContext* ctx) {
+void RequestScheduler::ProcessOne(RequestContext* ctx) {
     brpc::ClosureGuard guard(ctx->done_);
 
     switch (ctx->optype_) {
@@ -203,24 +199,6 @@ void RequestScheduler::ProcessAligned(RequestContext* ctx) {
             /* TODO(wudemiao) 后期整个链路错误发统一了在处理 */
             ctx->done_->SetFailed(-1);
             LOG(ERROR) << "unknown op type: OpType::UNKNOWN";
-    }
-}
-
-void RequestScheduler::ProcessUnaligned(RequestContext* ctx) {
-    brpc::ClosureGuard doneGuard(ctx->done_);
-    if (ctx->optype_ != OpType::READ && ctx->optype_ != OpType::WRITE) {
-        ctx->done_->SetFailed(-1);
-        LOG(ERROR) << "unexpected op type: " << static_cast<int>(ctx->optype_);
-        return;
-    }
-
-    PaddingReadClosure* p = new PaddingReadClosure(ctx, this);
-    int ret = ReSchedule(p->AlignedRequest());
-    if (ret == 0) {
-        doneGuard.release();
-    } else {
-        ctx->done_->SetFailed(-1);
-        LOG(ERROR) << "ReSchedule failed";
     }
 }
 

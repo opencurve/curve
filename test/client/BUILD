@@ -73,8 +73,11 @@ cc_test(
                 "splitor_test.cpp",
 =======
                 "mds_client_test.cpp"
+<<<<<<< HEAD
                 "splitor_test.cpp"
 >>>>>>> client/chunkserver/curve-nbd: support 512 aligned IO requests
+=======
+>>>>>>> Revert "client/chunkserver/curve-nbd: support 512 aligned IO requests"
                 ]
     ),
     copts = select({
@@ -419,6 +422,7 @@ cc_test(
         "//test/client/mock:curve_client_mock"
     ],
 )
+<<<<<<< HEAD
 
 cc_test(
     name = "client_splitor_test",
@@ -438,3 +442,5 @@ cc_test(
         "@com_google_googletest//:gtest",
     ]
 )
+=======
+>>>>>>> Revert "client/chunkserver/curve-nbd: support 512 aligned IO requests"
