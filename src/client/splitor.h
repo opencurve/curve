@@ -24,20 +24,18 @@
 
 #include <butil/iobuf.h>
 
-#include <string>
 #include <vector>
+#include <string>
 
-#include "src/client/client_common.h"
+#include "src/client/metacache.h"
+#include "src/client/io_tracker.h"
 #include "src/client/config_info.h"
 #include "src/client/request_context.h"
+#include "src/client/client_common.h"
+#include "src/client/client_config.h"
 
 namespace curve {
 namespace client {
-
-class MetaCache;
-class MDSClient;
-class IOTracker;
-class FileSegment;
 
 class Splitor {
  public:
@@ -133,10 +131,6 @@ class Splitor {
                               std::vector<RequestContext*>* targetlist,
                               butil::IOBuf* data, off_t offset, size_t length,
                               MDSClient* mdsclient, const FInfo_t* fileInfo);
-
-    static uint64_t ProcessUnalignedRequests(const off_t currentOffset,
-                                             const uint64_t requestLength,
-                                             RequestContext::Padding* padding);
 
  private:
     // IO拆分模块所使用的配置信息

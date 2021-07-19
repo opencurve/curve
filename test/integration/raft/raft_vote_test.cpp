@@ -42,8 +42,6 @@ using curve::fs::FileSystemType;
 
 const char kRaftVoteTestLogDir[] = "./runlog/RaftVote";
 
-const uint32_t kOpRequestAlignSize = 4096;
-
 static char* raftVoteParam[3][16] = {
     {
         "chunkserver",
