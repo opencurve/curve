@@ -41,7 +41,6 @@ using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 
 const char kRaftConfigChangeTestLogDir[] = "./runlog/RaftConfigChange";
-const uint32_t kOpRequestAlignSize = 4096;
 
 static char* raftConfigParam[5][16] = {
     {
