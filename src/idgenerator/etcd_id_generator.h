@@ -20,31 +20,36 @@
  * Author: hzsunjianliang
  */
 
-#ifndef SRC_MDS_NAMESERVER2_IDGENERATOR_ETCD_ID_GENERATOR_H_
-#define SRC_MDS_NAMESERVER2_IDGENERATOR_ETCD_ID_GENERATOR_H_
+#ifndef SRC_IDGENERATOR_ETCD_ID_GENERATOR_H_
+#define SRC_IDGENERATOR_ETCD_ID_GENERATOR_H_
 
 #include <string>
 #include <memory>
-#include "src/mds/common/mds_define.h"
 #include "src/kvstorageclient/etcd_client.h"
 #include "src/common/concurrent/concurrent.h"
 
-using ::curve::common::Atomic;
-using ::curve::kvstorage::KVStorageClient;
-
 namespace curve {
-namespace mds {
+namespace idgenerator {
+
+using curve::kvstorage::KVStorageClient;
+
 class EtcdIdGenerator {
  public:
-    EtcdIdGenerator(
-        const std::shared_ptr<KVStorageClient> &client,
-        const std::string &storeKey, uint64_t initial, uint64_t bundle) :
-        client_(client), storeKey_(storeKey), initialize_(initial),
-        bundle_(bundle), nextId_(initial), bundleEnd_(initial) {}
-    virtual ~EtcdIdGenerator() {}
+    EtcdIdGenerator(const std::shared_ptr<KVStorageClient>& client,
+                    const std::string& storeKey, uint64_t initial,
+                    uint64_t bundle)
+        : storeKey_(storeKey),
+          initialize_(initial),
+          bundle_(bundle),
+          client_(client),
+          nextId_(initial),
+          bundleEnd_(initial),
+          lock_() {}
+
+    ~EtcdIdGenerator() {}
 
 
-    bool GenID(InodeID *id);
+    bool GenID(uint64_t *id);
 
  private:
     /*
@@ -57,7 +62,7 @@ class EtcdIdGenerator {
     bool AllocateBundleIds(int requiredNum);
 
  private:
-    std::string storeKey_;
+    const std::string storeKey_;
     uint64_t initialize_;
     uint64_t bundle_;
 
@@ -65,10 +70,10 @@ class EtcdIdGenerator {
     uint64_t nextId_;
     uint64_t bundleEnd_;
 
-    ::curve::common::RWLock lock_;
+    curve::common::Mutex lock_;
 };
 
-}  // namespace mds
+}  // namespace idgenerator
 }  // namespace curve
 
-#endif   // SRC_MDS_NAMESERVER2_IDGENERATOR_ETCD_ID_GENERATOR_H_
+#endif   // SRC_IDGENERATOR_ETCD_ID_GENERATOR_H_

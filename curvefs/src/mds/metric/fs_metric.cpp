@@ -15,31 +15,37 @@
  */
 
 /*
- * @Project: curve
- * @Date: 2021-06-09 17:42:11
- * @Author: chenwei
+ * Project: curve
+ * Created Date: Tue Jul 27 16:41:09 CST 2021
+ * Author: wuhanqing
  */
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
-using ::testing::AtLeast;
-using ::testing::StrEq;
-using ::testing::_;
-using ::testing::Return;
-using ::testing::ReturnArg;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
-using ::testing::SaveArg;
+#include "curvefs/src/mds/metric/fs_metric.h"
 
 namespace curvefs {
 namespace mds {
 
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    ::testing::InitGoogleMock(&argc, argv);
+void FsMetric::OnMount(const std::string& fsname, const std::string& mp) {
+    std::lock_guard<Mutex> lock(mtx_);
 
-    return RUN_ALL_TESTS();
+    auto iter = metrics_.find(fsname);
+    if (iter == metrics_.end()) {
+        auto r = metrics_.emplace(fsname, new FsMountMetric(fsname));
+        iter = r.first;
+    }
+
+    iter->second->OnMount(mp);
+}
+
+void FsMetric::OnUnMount(const std::string& fsname, const std::string& mp) {
+    std::lock_guard<Mutex> lock(mtx_);
+
+    auto iter = metrics_.find(fsname);
+    if (iter == metrics_.end()) {
+        return;
+    }
+
+    iter->second->OnUnMount(mp);
 }
 
 }  // namespace mds

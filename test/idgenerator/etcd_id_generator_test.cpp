@@ -24,9 +24,10 @@
 #include <gtest/gtest.h>
 #include <thread> //NOLINT
 #include <chrono> //NOLINT
-#include "src/mds/nameserver2/idgenerator/etcd_id_generator.h"
-#include "src/mds/nameserver2/helper/namespace_helper.h"
+#include "src/idgenerator/etcd_id_generator.h"
 #include "test/mds/mock/mock_etcdclient.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
+#include "src/mds/common/mds_define.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -34,7 +35,12 @@ using ::testing::SetArgPointee;
 using ::testing::DoAll;
 
 namespace curve {
-namespace mds {
+namespace idgenerator {
+
+using curve::mds::NameSpaceStorageCodec;
+using curve::mds::MockEtcdClient;
+using curve::mds::InodeID;
+
 class TestEtcdIdGenerator : public ::testing::Test {
  protected:
     TestEtcdIdGenerator() {}
@@ -164,5 +170,5 @@ TEST_F(TestEtcdIdGenerator, test_multiclient) {
     ASSERT_TRUE(etcdIdGen_->GenID(&res));
     ASSERT_EQ(2501, res);
 }
-}  // namespace mds
+}  // namespace idgenerator
 }  // namespace curve

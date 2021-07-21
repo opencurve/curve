@@ -25,5 +25,6 @@ cc_test(
             "//external:brpc",
             "//src/common:curve_common",
             "//curvefs/proto:space_cc_proto",
+            "//curvefs/test/mds/mock:mds_test_mock",
     ],
 )

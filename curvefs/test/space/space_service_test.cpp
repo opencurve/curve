@@ -75,7 +75,7 @@ TEST_F(SpaceAllocServiceTest, TestInitSpace) {
         fsInfo->set_rootinodeid(0);
         fsInfo->set_capacity(100 * kGiB);
         fsInfo->set_blocksize(4 * kKiB);
-        auto* volume = fsInfo->mutable_volume();
+        auto* volume = fsInfo->mutable_detail()->mutable_volume();
         volume->set_volumesize(100 * kGiB);
         volume->set_blocksize(4 * kKiB);
         volume->set_volumename("TestInitSpaceVolume");
@@ -105,7 +105,7 @@ TEST_F(SpaceAllocServiceTest, TestInitSpace) {
         fsInfo->set_rootinodeid(0);
         fsInfo->set_capacity(100 * kGiB);
         fsInfo->set_blocksize(4 * kKiB);
-        auto* volume = fsInfo->mutable_volume();
+        auto* volume = fsInfo->mutable_detail()->mutable_volume();
         volume->set_volumesize(100 * kGiB);
         volume->set_blocksize(4 * kKiB);
         volume->set_volumename("TestInitSpaceVolume");

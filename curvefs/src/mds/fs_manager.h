@@ -28,74 +28,15 @@
 #include <string>
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/common/define.h"
-#include "curvefs/src/mds/fs.h"
 #include "curvefs/src/mds/fs_storage.h"
 #include "curvefs/src/mds/metaserver_client.h"
 #include "curvefs/src/mds/space_client.h"
+#include "curvefs/src/mds/fs_info_wrapper.h"
+#include "curvefs/src/mds/common/types.h"
+#include "src/common/concurrent/name_lock.h"
 
 namespace curvefs {
 namespace mds {
-class FsFactory {
- public:
-    virtual ~FsFactory() {}
-    virtual std::shared_ptr<MdsFsInfo> GeneratorFsInfo(uint32_t fsId) = 0;
-};
-
-class FsVolumeFactory : public FsFactory {
- public:
-    FsVolumeFactory(const std::string& fsName, FsStatus status,
-                    uint64_t rootInodeId, uint64_t capacity, uint64_t blockSize,
-                    const Volume& volume)
-        : fsName_(fsName),
-          status_(status),
-          rootInodeId_(rootInodeId),
-          capacity_(capacity),
-          blockSize_(blockSize),
-          volume_(volume) {}
-
-    ~FsVolumeFactory() = default;
-    std::shared_ptr<MdsFsInfo> GeneratorFsInfo(uint32_t fsId) override {
-        return std::make_shared<MdsVolumeFsInfo>(fsId, fsName_, status_,
-                                                 rootInodeId_, capacity_,
-                                                 blockSize_, volume_);
-    }
-
- private:
-    std::string fsName_;
-    FsStatus status_;
-    uint64_t rootInodeId_;
-    uint64_t capacity_;
-    uint64_t blockSize_;
-    Volume volume_;
-};
-
-class FsS3Factory : public FsFactory {
- public:
-    FsS3Factory(const std::string& fsName, FsStatus status,
-                uint64_t rootInodeId, uint64_t capacity, uint64_t blockSize,
-                const S3Info& s3Info)
-        : fsName_(fsName),
-          status_(status),
-          rootInodeId_(rootInodeId),
-          capacity_(capacity),
-          blockSize_(blockSize),
-          s3Info_(s3Info) {}
-
-    ~FsS3Factory() = default;
-    std::shared_ptr<MdsFsInfo> GeneratorFsInfo(uint32_t fsId) override {
-        return std::make_shared<MdsS3FsInfo>(fsId, fsName_, status_,
-                                             rootInodeId_, capacity_,
-                                             blockSize_, s3Info_);
-    }
-
- private:
-    std::string fsName_;
-    FsStatus status_;
-    uint64_t rootInodeId_;
-    uint64_t capacity_;
-    uint64_t blockSize_;
-    S3Info s3Info_;
-};
 
 class FsManager {
  public:
@@ -104,39 +45,27 @@ class FsManager {
               std::shared_ptr<MetaserverClient> metaserverClient)
         : fsStorage_(fsStorage),
           spaceClient_(spaceClient),
-          metaserverClient_(metaserverClient) {}
+          metaserverClient_(metaserverClient),
+          nameLock_() {}
 
     bool Init();
 
     void Uninit();
 
     /**
-     * @brief create fs, the fs name can not repeate
+     * @brief create fs, the fs name can not repeat
      *
-     * @param[in] fsName: the fs name, can't be repeated
-     * @param[in] blockSize: space alloc must align this blockSize
-     * @param[in] volume: the fs alloc space for file from the volume
-     * @param[out] fsInfo: the fs created
-     *
-     * @return If success return OK; if fsName exist, return FS_EXIST;
+     * @param fsName the fs name, can't be repeated
+     * @param fsType s3 fs or volume s3
+     * @param blockSize space alloc must align this blockSize
+     * @param detail more detailed info about s3 or volume
+     * @param fsInfo the fs created
+     * @return FSStatusCode If success return OK; if fsName exist, return FS_EXIST;
      *         else return error code
      */
-    FSStatusCode CreateFs(const std::string& fsName, uint64_t blockSize,
-                          const Volume& volume, FsInfo* fsInfo);
-
-    /**
-     * @brief create fs, the fs name can not repeate
-     *
-     * @param[in] fsName: the fs name, can't be repeated
-     * @param[in] blockSize: space alloc must align this blockSize
-     * @param[in] s3Info: the fs alloc space for file from the s3
-     * @param[out] fsInfo: the fs created
-     *
-     * @return If success return OK; if fsName exist, return FS_EXIST;
-     *         else return error code
-     */
-    FSStatusCode CreateFs(const std::string& fsName, uint64_t blockSize,
-                          const S3Info& s3Info, FsInfo* fsInfo);
+    FSStatusCode CreateFs(const std::string& fsName, FSType fsType,
+                          uint64_t blockSize, const FsDetail& detail,
+                          FsInfo* fsInfo);
 
     /**
      * @brief delete fs, fs must unmount first
@@ -149,7 +78,7 @@ class FsManager {
     FSStatusCode DeleteFs(const std::string& fsName);
 
     /**
-     * @brief Mount fs, mount point can not repeate. It will increate
+     * @brief Mount fs, mount point can not repeat. It will increate
      * mountNum.
      *        If before mount, the mountNum is 0, call spaceClient to
      * InitSpace.
@@ -166,8 +95,8 @@ class FsManager {
                          const std::string& mountpoint, FsInfo* fsInfo);
 
     /**
-     * @brief Umount fs, it will decreate mountNum.
-     *        If mountNum decreate to zero, call spaceClient to UnInitSpace
+     * @brief Umount fs, it will decrease mountNum.
+     *        If mountNum decrease to zero, call spaceClient to UnInitSpace
      *
      * @param[in] fsName: fsname of fs
      * @param[in] mountpoint: the mountpoint need to umount
@@ -211,18 +140,18 @@ class FsManager {
                            FsInfo* fsInfo);
 
  private:
-    uint32_t GetNextFsId();
-    uint64_t GetRootId();
-    FSStatusCode CleanFsInodeAndDentry(uint32_t fsId);
-    FSStatusCode CreateFsIntenal(const std::string& fsName,
-                                 std::shared_ptr<FsFactory> factory,
-                                 FsInfo* fsInfo);
+    bool IsPreviousCreateUnComplete(const std::string& fsName, FSType fsType,
+                                    uint64_t blocksize, const FsDetail& detail);
 
  private:
-    std::atomic<uint64_t> nextFsId_;
+    uint64_t GetRootId();
+    FSStatusCode CleanFsInodeAndDentry(uint32_t fsId);
+
+ private:
     std::shared_ptr<FsStorage> fsStorage_;
     std::shared_ptr<SpaceClient> spaceClient_;
     std::shared_ptr<MetaserverClient> metaserverClient_;
+    curve::common::GenericNameLock<Mutex> nameLock_;
 };
 }  // namespace mds
 }  // namespace curvefs

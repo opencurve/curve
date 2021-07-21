@@ -20,7 +20,8 @@
  * Author: xuchaojie
  */
 
-#include "src/common/concurrent/name_lock.h"
+#ifndef SRC_COMMON_CONCURRENT_GENERIC_NAME_LOCK_INL_H_
+#define SRC_COMMON_CONCURRENT_GENERIC_NAME_LOCK_INL_H_
 
 #include <string>
 #include <map>
@@ -29,14 +30,16 @@
 namespace curve {
 namespace common {
 
-NameLock::NameLock(int bucketNum) {
+template <typename MutexT>
+GenericNameLock<MutexT>::GenericNameLock(int bucketNum) {
     locks_.reserve(bucketNum);
     for (int i = 0; i < bucketNum; i++) {
         locks_.push_back(std::make_shared<LockBucket>());
     }
 }
 
-void NameLock::Lock(const std::string &lockStr) {
+template <typename MutexT>
+void GenericNameLock<MutexT>::Lock(const std::string &lockStr) {
     LockEntryPtr entry = NULL;
 
     int bucketOffset = GetBucketOffset(lockStr);
@@ -57,7 +60,8 @@ void NameLock::Lock(const std::string &lockStr) {
     entry->lock_.lock();
 }
 
-bool NameLock::TryLock(const std::string &lockStr) {
+template <typename MutexT>
+bool GenericNameLock<MutexT>::TryLock(const std::string &lockStr) {
     LockEntryPtr entry = NULL;
 
     int bucketOffset = GetBucketOffset(lockStr);
@@ -86,7 +90,8 @@ bool NameLock::TryLock(const std::string &lockStr) {
     }
 }
 
-void NameLock::Unlock(const std::string &lockStr) {
+template <typename MutexT>
+void GenericNameLock<MutexT>::Unlock(const std::string &lockStr) {
     int bucketOffset = GetBucketOffset(lockStr);
     LockBucketPtr lockBucket = locks_[bucketOffset];
 
@@ -101,7 +106,8 @@ void NameLock::Unlock(const std::string &lockStr) {
     }
 }
 
-int NameLock::GetBucketOffset(const std::string &lockStr) {
+template <typename MutexT>
+int GenericNameLock<MutexT>::GetBucketOffset(const std::string &lockStr) {
     std::hash<std::string> hash_fn;
     return hash_fn(lockStr) % locks_.size();
 }
@@ -109,3 +115,5 @@ int NameLock::GetBucketOffset(const std::string &lockStr) {
 
 }   // namespace common
 }   // namespace curve
+
+#endif  // SRC_COMMON_CONCURRENT_GENERIC_NAME_LOCK_INL_H_

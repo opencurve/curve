@@ -33,7 +33,7 @@ cc_library(
             "//src/mds/snapshotcloneclient:snapshotcloneclient",
             "//src/mds/common:mds_common",
             "//src/mds/nameserver2/helper:helper",
-            "//src/mds/nameserver2/idgenerator:idgenerator",
+            "//src/mds/nameserver2/idgenerator:nameserver_idgenerator",
             "//src/common:curve_auth",
             "//src/kvstorageclient:kvstorage_client",
     ],

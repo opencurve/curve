@@ -157,7 +157,7 @@ void MDSBaseClient::CreateFs(const std::string &fsName, uint64_t blockSize,
     request.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
     Volume *vol = new Volume;
     vol->CopyFrom(volume);
-    request.set_allocated_volume(vol);
+    request.mutable_fsdetail()->set_allocated_volume(vol);
     curvefs::mds::MdsService_Stub stub(channel);
     stub.CreateFs(cntl, &request, response, nullptr);
 }
@@ -171,7 +171,7 @@ void MDSBaseClient::CreateFsS3(const std::string &fsName, uint64_t blockSize,
     request.set_fstype(FSType::TYPE_S3);
     S3Info *info = new S3Info;
     info->CopyFrom(s3Info);
-    request.set_allocated_s3info(info);
+    request.mutable_fsdetail()->set_allocated_s3info(info);
     curvefs::mds::MdsService_Stub stub(channel);
     stub.CreateFs(cntl, &request, response, nullptr);
 }

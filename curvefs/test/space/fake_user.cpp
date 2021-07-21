@@ -124,7 +124,7 @@ void Init() {
     fsInfo->set_blocksize(4 * kKiB);
     fsInfo->set_mountnum(0);
 
-    auto* vol = fsInfo->mutable_volume();
+    auto* vol = fsInfo->mutable_detail()->mutable_volume();
     vol->set_volumesize(FLAGS_capacity);
     vol->set_blocksize(4 * kKiB);
     vol->set_volumename(std::to_string(FLAGS_fsId));

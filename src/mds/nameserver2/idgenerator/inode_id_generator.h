@@ -29,7 +29,7 @@
 #include "src/mds/common/mds_define.h"
 #include "src/common/namespace_define.h"
 #include "src/common/concurrent/concurrent.h"
-#include "src/mds/nameserver2/idgenerator/etcd_id_generator.h"
+#include "src//idgenerator/etcd_id_generator.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 
 using ::curve::common::INODESTOREKEY;
@@ -37,6 +37,9 @@ using ::curve::common::INODESTOREKEY;
 namespace curve {
 namespace mds {
 const uint64_t INODEBUNDLEALLOCATED = 1000;
+
+using curve::idgenerator::EtcdIdGenerator;
+using curve::kvstorage::KVStorageClient;
 
 class InodeIDGenerator {
  public:

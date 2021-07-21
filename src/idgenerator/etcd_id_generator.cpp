@@ -22,14 +22,15 @@
 
 #include <glog/logging.h>
 #include <string>
-#include "src/mds/nameserver2/idgenerator/etcd_id_generator.h"
+#include "src/idgenerator/etcd_id_generator.h"
 #include "src/common/string_util.h"
-#include "src/mds/nameserver2/helper/namespace_helper.h"
 
 namespace curve {
-namespace mds {
-bool EtcdIdGenerator::GenID(InodeID *id) {
-    ::curve::common::WriteLockGuard guard(lock_);
+namespace idgenerator {
+
+bool EtcdIdGenerator::GenID(uint64_t* id) {
+    std::lock_guard<curve::common::Mutex> guard(lock_);
+
     if (nextId_ > bundleEnd_ || nextId_ == initialize_) {
         if (!AllocateBundleIds(bundle_)) {
             return false;
@@ -42,7 +43,7 @@ bool EtcdIdGenerator::GenID(InodeID *id) {
 
 bool EtcdIdGenerator::AllocateBundleIds(int requiredNum) {
     // get the maximum value that has been allocated
-    std::string out = "";
+    std::string out;
     uint64_t alloc;
     int errCode = client_->Get(storeKey_, &out);
     // failed
@@ -54,19 +55,18 @@ bool EtcdIdGenerator::AllocateBundleIds(int requiredNum) {
     } else if (EtcdErrCode::EtcdKeyNotExist == errCode) {
         // key not exist, indicates the first allocation
         alloc = initialize_;
-    } else if (!NameSpaceStorageCodec::DecodeID(out, &alloc)) {
+    } else if (!curve::common::StringToUll(out, &alloc)) {
         // The value corresponding to the key exists, but the decode fails,
         // indicating that an internal err has occurred, alarm!
         LOG(ERROR) << "decode id: " << out << "err";
         return false;
     }
 
-    uint64_t target = alloc + requiredNum;
-    errCode = client_->CompareAndSwap(storeKey_, out,
-        NameSpaceStorageCodec::EncodeID(target));
+    const uint64_t target = alloc + requiredNum;
+    errCode = client_->CompareAndSwap(storeKey_, out, std::to_string(target));
     if (EtcdErrCode::EtcdOK != errCode) {
         LOG(ERROR) << "do CAS {preV: " << out << ", target: " << target
-                   << "err, errCode: " << errCode;
+                   << ", err, errCode: " << errCode;
         return false;
     }
 
@@ -75,5 +75,6 @@ bool EtcdIdGenerator::AllocateBundleIds(int requiredNum) {
     nextId_ = alloc + 1;
     return true;
 }
-}  // namespace mds
+
+}  // namespace idgenerator
 }  // namespace curve
