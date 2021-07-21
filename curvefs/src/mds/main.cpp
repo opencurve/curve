@@ -20,10 +20,13 @@
  * Author: chenwei
  */
 
+#include <gflags/gflags.h>
 #include <glog/logging.h>
-// #include <gflags/gflags.h>
 
 #include "curvefs/src/mds/mds.h"
+#include "src/common/configuration.h"
+
+using ::curve::common::Configuration;
 
 DEFINE_string(confPath, "curvefs/conf/mds.conf", "mds confPath");
 DEFINE_string(mdsAddr, "127.0.0.1:6700", "mds listen addr");
@@ -59,6 +62,10 @@ int main(int argc, char **argv) {
 
     // initialize MDS options
     mds.InitOptions(conf);
+
+    mds.StartDummyServer();
+
+    mds.StartCompaginLeader();
 
     // Initialize other modules after winning election
     mds.Init();

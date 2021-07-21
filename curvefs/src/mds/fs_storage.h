@@ -27,29 +27,44 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include "curvefs/proto/mds.pb.h"
-#include "curvefs/src/mds/fs.h"
-#include "src/common/concurrent/rw_lock.h"
+#include <limits>
 
-using curve::common::ReadLockGuard;
-using curve::common::WriteLockGuard;
-using curve::common::RWLock;
+#include "curvefs/proto/mds.pb.h"
+#include "src/common/concurrent/rw_lock.h"
+#include "src/idgenerator/etcd_id_generator.h"
+#include "src/kvstorageclient/etcd_client.h"
+#include "curvefs/src/mds/fs_info_wrapper.h"
+#include "curvefs/src/mds/idgenerator/fs_id_generator.h"
+#include "curvefs/src/mds/common/types.h"
 
 namespace curvefs {
 namespace mds {
+
+constexpr uint64_t INVALID_FS_ID = std::numeric_limits<uint64_t>::max();
+
 class FsStorage {
  public:
+    FsStorage() = default;
+    virtual ~FsStorage() = default;
+
+    FsStorage(const FsStorage&) = delete;
+    FsStorage& operator=(const FsStorage&) = delete;
+
     virtual bool Init() = 0;
     virtual void Uninit() = 0;
-    virtual FSStatusCode Insert(std::shared_ptr<MdsFsInfo> fs) = 0;
-    virtual FSStatusCode Get(uint64_t fsId, std::shared_ptr<MdsFsInfo> *fs) = 0;
-    virtual FSStatusCode Get(const std::string &fsName,
-                             std::shared_ptr<MdsFsInfo> *fs) = 0;
-    virtual FSStatusCode Delete(const std::string &fsName) = 0;
-    virtual FSStatusCode Update(std::shared_ptr<MdsFsInfo> fs) = 0;
+
+    virtual FSStatusCode Get(uint64_t fsId, FsInfoWrapper* fsInfo) = 0;
+    virtual FSStatusCode Get(const std::string& fsName,
+                             FsInfoWrapper* fsInfo) = 0;
+
+    virtual FSStatusCode Insert(const FsInfoWrapper& fs) = 0;
+    virtual FSStatusCode Update(const FsInfoWrapper& fs) = 0;
+    virtual FSStatusCode Delete(const std::string& fsName) = 0;
+
     virtual bool Exist(uint64_t fsId) = 0;
-    virtual bool Exist(const std::string &fsName) = 0;
-    virtual ~FsStorage() = default;
+    virtual bool Exist(const std::string& fsName) = 0;
+
+    virtual uint64_t NextFsId() = 0;
 };
 
 class MemoryFsStorage : public FsStorage {
@@ -64,7 +79,7 @@ class MemoryFsStorage : public FsStorage {
      *
      * @return If fs exist, return FS_EXIST; else insert the fs
      */
-    FSStatusCode Insert(std::shared_ptr<MdsFsInfo> fs) override;
+    FSStatusCode Insert(const FsInfoWrapper& fs) override;
 
     /**
      * @brief get fs from storage
@@ -75,7 +90,7 @@ class MemoryFsStorage : public FsStorage {
      * @return If success get , return OK; if no record got, return NOT_EXIST;
      *         else return error code
      */
-    FSStatusCode Get(uint64_t fsId, std::shared_ptr<MdsFsInfo> *fs) override;
+    FSStatusCode Get(uint64_t fsId, FsInfoWrapper *fs) override;
 
     /**
      * @brief get fs from storage
@@ -87,7 +102,7 @@ class MemoryFsStorage : public FsStorage {
      *         else return error code
      */
     FSStatusCode Get(const std::string &fsName,
-                     std::shared_ptr<MdsFsInfo> *fs) override;
+                     FsInfoWrapper *fs) override;
 
     /**
      * @brief delete fs from storage
@@ -107,7 +122,7 @@ class MemoryFsStorage : public FsStorage {
      * @return If fs exist, update fs and return OK;
      *         if fs not exist, return NOT_FOUND
      */
-    FSStatusCode Update(std::shared_ptr<MdsFsInfo> fs) override;
+    FSStatusCode Update(const FsInfoWrapper& fs) override;
 
     /**
      * @brief check if fs is exist
@@ -129,10 +144,66 @@ class MemoryFsStorage : public FsStorage {
      */
     bool Exist(const std::string &fsName) override;
 
+    uint64_t NextFsId() override;
+
  private:
-    std::unordered_map<std::string, std::shared_ptr<MdsFsInfo>> fsInfoMap_;
+    std::unordered_map<std::string, FsInfoWrapper> fsInfoMap_;
     curve::common::RWLock rwLock_;
+
+    std::atomic<uint64_t> id_;
 };
+
+// Persist all data to kvstorage and cache all fsinfo in memory
+class PersisKVStorage : public FsStorage {
+ public:
+    PersisKVStorage(
+        const std::shared_ptr<curve::kvstorage::KVStorageClient>& storage);
+    ~PersisKVStorage();
+
+    bool Init() override;
+    void Uninit() override;
+
+    FSStatusCode Get(uint64_t fsId, FsInfoWrapper* fsInfo) override;
+    FSStatusCode Get(const std::string& fsName, FsInfoWrapper* fsInfo) override;
+
+    FSStatusCode Insert(const FsInfoWrapper& fs) override;
+    FSStatusCode Update(const FsInfoWrapper& fs) override;
+    FSStatusCode Delete(const std::string& fsName) override;
+
+    bool Exist(uint64_t fsId) override;
+    bool Exist(const std::string& fsName) override;
+
+    uint64_t NextFsId() override;
+
+ private:
+    bool LoadAllFs();
+
+    bool FsIDToName(uint64_t fsId, std::string* name) const;
+
+    bool PersitToStorage(const FsInfoWrapper& fs);
+
+    bool RemoveFromStorage(const FsInfoWrapper& fs);
+
+ private:
+    // for persist data
+    std::shared_ptr<curve::kvstorage::KVStorageClient> storage_;
+
+    // fs id generator
+    std::unique_ptr<FsIdGenerator> idGen_;
+
+    // protect fs_
+    mutable RWLock fsLock_;
+
+    // from fs name to fs info
+    std::unordered_map<std::string, FsInfoWrapper> fs_;
+
+    // protect idToName
+    mutable RWLock idToNameLock_;
+
+    // from fs id to fs name
+    std::unordered_map<uint64_t, std::string> idToName_;
+};
+
 }  // namespace mds
 }  // namespace curvefs
 

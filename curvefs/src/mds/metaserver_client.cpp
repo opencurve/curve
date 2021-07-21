@@ -78,13 +78,19 @@ FSStatusCode MetaserverClient::CreateRootInode(uint32_t fsId, uint32_t uid,
         return FSStatusCode::RPC_ERROR;
     }
 
-    if (response.statuscode() != MetaStatusCode::OK) {
-        LOG(ERROR) << "CreateInode failed, fsId = " << fsId << ", uid = " << uid
-                   << ", gid = " << gid << ", mode =" << mode << ", ret = "
-                   << FSStatusCode_Name(FSStatusCode::INSERT_ROOT_INODE_ERROR);
-        return FSStatusCode::INSERT_ROOT_INODE_ERROR;
+    switch (response.statuscode()) {
+        case MetaStatusCode::OK:
+            return FSStatusCode::OK;
+        case MetaStatusCode::INODE_EXIST:
+            return FSStatusCode::INODE_EXIST;
+        default:
+            LOG(ERROR) << "CreateInode failed, fsId = " << fsId
+                       << ", uid = " << uid << ", gid = " << gid
+                       << ", mode =" << mode << ", ret = "
+                       << FSStatusCode_Name(
+                              FSStatusCode::INSERT_ROOT_INODE_ERROR);
+            return FSStatusCode::INSERT_ROOT_INODE_ERROR;
     }
-    return FSStatusCode::OK;
 }
 
 FSStatusCode MetaserverClient::DeleteInode(uint32_t fsId, uint64_t inodeId) {

@@ -27,6 +27,7 @@
 #include <gtest/gtest.h>
 #include "curvefs/test/mds/fake_metaserver.h"
 #include "curvefs/test/mds/fake_space.h"
+#include "curvefs/test/mds/mock/mock_kvstorage_client.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -42,12 +43,16 @@ using ::curvefs::space::FakeSpaceImpl;
 using ::curvefs::space::SpaceStatusCode;
 using ::curvefs::space::InitSpaceResponse;
 using ::curvefs::metaserver::FakeMetaserverImpl;
+using ::curvefs::common::S3Info;
+using ::curvefs::common::Volume;
 
 namespace curvefs {
 namespace mds {
 class MdsServiceTest : public ::testing::Test {
  protected:
     void SetUp() override {
+        kvstorage_ = std::make_shared<MockKVStorageClient>();
+
         SpaceOptions spaceOptions;
         spaceOptions.spaceAddr = "127.0.0.1:6703";
         spaceOptions.rpcTimeoutMs = 500;
@@ -80,13 +85,14 @@ class MdsServiceTest : public ::testing::Test {
                first.rootinodeid() == second.rootinodeid() &&
                first.capacity() == second.capacity() &&
                first.blocksize() == second.blocksize() &&
-               CompareVolume(first.volume(), second.volume());
+               CompareVolume(first.detail().volume(), second.detail().volume());
     }
 
     std::shared_ptr<FsManager> fsManager_;
     std::shared_ptr<FsStorage> fsStorage_;
     std::shared_ptr<SpaceClient> spaceClient_;
     std::shared_ptr<MetaserverClient> metaserverClient_;
+    std::shared_ptr<MockKVStorageClient> kvstorage_;
 };
 
 TEST_F(MdsServiceTest, test1) {
@@ -126,6 +132,7 @@ TEST_F(MdsServiceTest, test1) {
     createRequest.set_fsname("fs1");
     createRequest.set_blocksize(4096);
     createRequest.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
+    createRequest.mutable_fsdetail();
 
     FsInfo fsinfo1;
     stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
@@ -146,7 +153,7 @@ TEST_F(MdsServiceTest, test1) {
     createRequest.set_fsname("fs1");
     createRequest.set_blocksize(4096);
     createRequest.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
-    createRequest.mutable_volume()->CopyFrom(volume);
+    createRequest.mutable_fsdetail()->mutable_volume()->CopyFrom(volume);
 
     cntl.Reset();
     stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
@@ -154,14 +161,14 @@ TEST_F(MdsServiceTest, test1) {
         ASSERT_EQ(createResponse.statuscode(), FSStatusCode::OK);
         ASSERT_TRUE(createResponse.has_fsinfo());
         fsinfo1 = createResponse.fsinfo();
-        ASSERT_EQ(fsinfo1.fsid(), 1);
+        ASSERT_EQ(fsinfo1.fsid(), 0);
         ASSERT_EQ(fsinfo1.fsname(), "fs1");
         ASSERT_EQ(fsinfo1.rootinodeid(), 1);
         ASSERT_EQ(fsinfo1.capacity(), 4096 * 4096);
         ASSERT_EQ(fsinfo1.blocksize(), 4096);
         ASSERT_EQ(fsinfo1.mountnum(), 0);
         ASSERT_EQ(fsinfo1.mountpoints_size(), 0);
-        ASSERT_TRUE(CompareVolume(volume, fsinfo1.volume()));
+        ASSERT_TRUE(CompareVolume(volume, fsinfo1.detail().volume()));
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
@@ -182,7 +189,7 @@ TEST_F(MdsServiceTest, test1) {
     FsInfo fsinfo2;
     createRequest.set_fsname("fs2");
     createRequest.set_fstype(FSType::TYPE_S3);
-    createRequest.clear_volume();
+    createRequest.mutable_fsdetail();
     stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(createResponse.statuscode(), FSStatusCode::PARAM_ERROR);
@@ -202,8 +209,7 @@ TEST_F(MdsServiceTest, test1) {
     s3info.set_bucketname("bucketname");
     s3info.set_blocksize(4096);
     s3info.set_chunksize(4096);
-    createRequest.mutable_s3info()->CopyFrom(s3info);
-    createRequest.clear_volume();
+    createRequest.mutable_fsdetail()->mutable_s3info()->CopyFrom(s3info);
     stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(createResponse.statuscode(), FSStatusCode::OK);

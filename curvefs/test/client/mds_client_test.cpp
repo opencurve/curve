@@ -88,7 +88,7 @@ TEST_F(MdsClientImplTest, test_CreateFs) {
     vresp->set_volumename("test1");
     vresp->set_user("test");
     vresp->set_password("test");
-    fsinfo->set_allocated_volume(vresp);
+    fsinfo->mutable_detail()->set_allocated_volume(vresp);
     fsinfo->set_mountnum(1);
     fsinfo->add_mountpoints("0.0.0.0:/data");
     response.set_allocated_fsinfo(fsinfo);
@@ -128,7 +128,7 @@ TEST_F(MdsClientImplTest, test_MountFs) {
     vresp->set_volumename("test1");
     vresp->set_user("test");
     vresp->set_password("test");
-    fsinfo->set_allocated_volume(vresp);
+    fsinfo->mutable_detail()->set_allocated_volume(vresp);
     fsinfo->set_mountnum(1);
     fsinfo->add_mountpoints("0.0.0.0:/data");
     response.set_allocated_fsinfo(fsinfo);
@@ -170,7 +170,7 @@ TEST_F(MdsClientImplTest, test_GetFsInfo_by_fsname) {
     vresp->set_volumename("test1");
     vresp->set_user("test");
     vresp->set_password("test");
-    fsinfo->set_allocated_volume(vresp);
+    fsinfo->mutable_detail()->set_allocated_volume(vresp);
     fsinfo->set_mountnum(1);
     fsinfo->add_mountpoints("0.0.0.0:/data");
     response.set_allocated_fsinfo(fsinfo);
@@ -200,7 +200,7 @@ TEST_F(MdsClientImplTest, test_GetFsInfo_by_fsid) {
     vresp->set_volumename("test1");
     vresp->set_user("test");
     vresp->set_password("test");
-    fsinfo->set_allocated_volume(vresp);
+    fsinfo->mutable_detail()->set_allocated_volume(vresp);
     fsinfo->set_mountnum(1);
     fsinfo->add_mountpoints("0.0.0.0:/data");
     response.set_allocated_fsinfo(fsinfo);
