@@ -291,19 +291,26 @@ function deploy() {
         return 1
     fi
 
-    if [[ "$1" = "all" && $# -gt 1 ]]
-    then
-        do_confirm_if_need $2
-    fi
-
     if [ "$1" = "all" ]
     then
-        deploy_all;
+        if [ $# -gt 1 ]
+        then
+            do_confirm_if_need $2
+        else
+            do_confirm
+        fi
+        deploy_all
         return $?
     fi
 
     if [ $# -ge 2 ]
     then
+        if [ $# -gt 2 ]
+        then
+            do_confirm_if_need $3
+        else
+            do_confirm
+        fi
         deploy_one $@;
         return $?
     fi
@@ -327,19 +334,21 @@ function deploy-wal-pool() {
         return 1
     fi
 
-    if [[ "$1" = "all" && $# -gt 1 ]]
+    if [ $# -gt 1 ]
     then
         do_confirm_if_need $2
+    else
+        do_confirm
     fi
 
     if [ "$1" = "all" ]
     then
-        walfile_pool_prep;
+        walfile_pool_prep
         return $?
+    else
+        deploy_one_walfile_pool $1
+        wait
     fi
-
-    deploy_one_walfile_pool $1
-    wait
 }
 
 
