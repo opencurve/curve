@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -e
+
+CURVETAB=/etc/curve/curvetab
+CURVETABBAK=/etc/curve/curvetab-bak
+
+if [ -f ${CURVETAB} ]; then
+    cp -f -p ${CURVETAB} ${CURVETABBAK}
+fi
+
+exit 0
