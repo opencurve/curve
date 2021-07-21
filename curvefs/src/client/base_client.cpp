@@ -154,7 +154,7 @@ void MDSBaseClient::CreateFs(const std::string &fsName, uint64_t blockSize,
     request.set_fstype(FSType::TYPE_VOLUME);
     Volume *vol = new Volume;
     vol->CopyFrom(volume);
-    request.set_allocated_volume(vol);
+    request.mutable_fsdetail()->set_allocated_volume(vol);
     curvefs::mds::MdsService_Stub stub(channel);
     stub.CreateFs(cntl, &request, response, nullptr);
 }

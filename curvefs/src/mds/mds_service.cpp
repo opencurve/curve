@@ -34,18 +34,21 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
     uint64_t blockSize = request->blocksize();
     FSType type = request->fstype();
     if (type == FSType::TYPE_VOLUME) {
-        if (!request->has_volume()) {
+        if (!request->fsdetail().has_volume()) {
             response->set_statuscode(FSStatusCode::PARAM_ERROR);
             LOG(ERROR) << "CreateFs request, type is volume, but has no volume"
                        << ", fsName = " << fsName;
             return;
         }
-        curvefs::common::Volume volume = request->volume();
+        const auto& volume = request->fsdetail().volume();
         LOG(INFO) << "CreateFs request, fsName = " << fsName
                   << ", blockSize = " << blockSize
                   << ", volume.volumeName = " << volume.volumename();
-        FSStatusCode status = fsManager_->CreateFs(fsName, blockSize, volume,
-                                                   response->mutable_fsinfo());
+
+        FSStatusCode status = fsManager_->CreateFs(
+            fsName, FSType::TYPE_VOLUME, blockSize, request->fsdetail(),
+            response->mutable_fsinfo());
+
         if (status != FSStatusCode::OK) {
             response->clear_fsinfo();
             response->set_statuscode(status);
@@ -56,18 +59,21 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
             return;
         }
     } else if (type == FSType::TYPE_S3) {
-        if (!request->has_s3info()) {
+        if (!request->fsdetail().has_s3info()) {
             response->set_statuscode(FSStatusCode::PARAM_ERROR);
             LOG(ERROR) << "CreateFs request, type is s3, but has no s3info"
                        << ", fsName = " << fsName;
             return;
         }
-        curvefs::common::S3Info s3Info = request->s3info();
+        const auto& s3Info = request->fsdetail().s3info();
         LOG(INFO) << "CreateFs request, fsName = " << fsName
                   << ", blockSize = " << blockSize
                   << ", s3Info.bucketname = " << s3Info.bucketname();
-        FSStatusCode status = fsManager_->CreateFs(fsName, blockSize, s3Info,
-                                                   response->mutable_fsinfo());
+
+        FSStatusCode status = fsManager_->CreateFs(
+            fsName, FSType::TYPE_S3, blockSize, request->fsdetail(),
+            response->mutable_fsinfo());
+
         if (status != FSStatusCode::OK) {
             response->clear_fsinfo();
             response->set_statuscode(status);
@@ -115,7 +121,8 @@ void MdsServiceImpl::MountFs(::google::protobuf::RpcController* controller,
 
     response->set_statuscode(FSStatusCode::OK);
     LOG(INFO) << "MountFs success, fsName = " << fsName
-              << ", mountPoint = " << mount;
+              << ", mountPoint = " << mount
+              << ", mps: " << response->mutable_fsinfo()->mountpoints_size();
     return;
 }
 

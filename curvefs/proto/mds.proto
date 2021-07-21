@@ -43,6 +43,8 @@ enum FSStatusCode {
     METASERVER_CLIENT_NOT_INITED = 15;
     FS_ID_MISMATCH = 16;
     SPACE_CLIENT_NOT_INITED = 17;
+    INTERNAL_ERROR = 18;
+    STORAGE_ERROR = 19;
 }
 
 // fs interface
@@ -57,6 +59,13 @@ enum FsStatus {
     DELETING = 2;
 }
 
+message FsDetail {
+    oneof FsDetailOneOf {
+        common.Volume volume = 1;
+        common.S3Info s3Info = 2;
+    }
+}
+
 message FsInfo {
     required uint32 fsId = 1;
     required string fsName = 2;
@@ -65,10 +74,9 @@ message FsInfo {
     required uint64 capacity = 5;
     required uint64 blockSize = 6;
     required uint32 mountNum = 7;
-    repeated string mountpoints = 8;
-    required FSType fsType = 9;
-    optional common.Volume volume = 10;
-    optional common.S3Info s3Info = 11;
+    required FSType fsType = 8;
+    required FsDetail detail = 9;
+    repeated string mountpoints = 10;
 }
 
 message GetFsInfoResponse {
@@ -80,8 +88,7 @@ message CreateFsRequest {
     required string fsName = 1;
     required uint64 blockSize = 2;
     required FSType fsType = 3;
-    optional common.Volume volume = 4;
-    optional common.S3Info s3Info = 5;
+    required FsDetail fsDetail = 4;
 }
 
 message CreateFsResponse {

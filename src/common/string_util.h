@@ -40,7 +40,7 @@
 namespace curve {
 namespace common {
 
-static void SplitString(const std::string& full,
+inline void SplitString(const std::string& full,
                                const std::string& delim,
                                std::vector<std::string>* result) {
     result->clear();
@@ -69,7 +69,7 @@ static void SplitString(const std::string& full,
     }
 }
 
-static bool StringToUll(const std::string &value, uint64_t *out) {
+inline bool StringToUll(const std::string &value, uint64_t *out) {
     try {
         *out = std::stoull(value);
         return true;
@@ -84,7 +84,7 @@ static bool StringToUll(const std::string &value, uint64_t *out) {
     }
 }
 
-static bool StringToInt(const std::string &value, int32_t *out) {
+inline bool StringToInt(const std::string &value, int32_t *out) {
     try {
         *out = std::stoi(value);
         return true;
@@ -99,19 +99,19 @@ static bool StringToInt(const std::string &value, int32_t *out) {
     }
 }
 
-static bool StringStartWith(const std::string& value,
+inline bool StringStartWith(const std::string& value,
                             const std::string& starting) {
     return value.rfind(starting, 0) == 0;
 }
 
-static bool StringEndsWith(const std::string& value,
+inline bool StringEndsWith(const std::string& value,
                            const std::string& ending) {
     if (ending.size() > value.size())
         return false;
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 }
 
-static bool StringToTime(const std::string& value, uint64_t* expireTime) {
+inline bool StringToTime(const std::string& value, uint64_t* expireTime) {
     *expireTime = 0;
     auto length = value.length();
     if (0 == length) {

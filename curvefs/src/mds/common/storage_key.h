@@ -15,32 +15,27 @@
  */
 
 /*
- * @Project: curve
- * @Date: 2021-06-09 17:42:11
- * @Author: chenwei
+ * Project: curve
+ * Created Date: Thu Jul 22 10:45:43 CST 2021
+ * Author: wuhanqing
  */
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
+#ifndef CURVEFS_SRC_MDS_COMMON_STORAGE_KEY_H_
+#define CURVEFS_SRC_MDS_COMMON_STORAGE_KEY_H_
 
-using ::testing::AtLeast;
-using ::testing::StrEq;
-using ::testing::_;
-using ::testing::Return;
-using ::testing::ReturnArg;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
-using ::testing::SaveArg;
+#include <cstdint>
 
 namespace curvefs {
 namespace mds {
 
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    ::testing::InitGoogleMock(&argc, argv);
+const char FS_NAME_KEY_PREFIX[] = "01";
+const char FS_NAME_KEY_END[] = "02";
 
-    return RUN_ALL_TESTS();
-}
+const char FS_ID_KEY_PREFIX[] = "02";
+
+constexpr uint32_t COMMON_PREFIX_LENGTH = 2;
 
 }  // namespace mds
 }  // namespace curvefs
+
+#endif  // CURVEFS_SRC_MDS_COMMON_STORAGE_KEY_H_

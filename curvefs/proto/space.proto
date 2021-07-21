@@ -15,7 +15,6 @@
  */
 
 syntax="proto2";
-import "curvefs/proto/common.proto";
 import "curvefs/proto/mds.proto";
 package curvefs.space;
 option cc_generic_services = true;

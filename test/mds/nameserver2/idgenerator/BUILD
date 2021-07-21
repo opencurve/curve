@@ -24,7 +24,7 @@ cc_test(
             "@com_google_googletest//:gtest",
             "//src/common:curve_common",
             "//src/mds/nameserver2/helper:helper",
-            "//src/mds/nameserver2/idgenerator:idgenerator",
+            "//src/mds/nameserver2/idgenerator:nameserver_idgenerator",
             "//test/mds/mock:common_mock",
             "//test/mds/nameserver2/mock:nameserver2_mock",
     ],

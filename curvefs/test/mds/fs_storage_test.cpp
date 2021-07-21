@@ -22,6 +22,7 @@
 #include "curvefs/src/mds/fs_storage.h"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <google/protobuf/util/message_differencer.h>
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -31,9 +32,15 @@ using ::testing::ReturnArg;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
 using ::testing::SaveArg;
+using ::google::protobuf::util::MessageDifferencer;
 
 namespace curvefs {
 namespace mds {
+
+bool operator==(const FsInfoWrapper& lhs, const FsInfoWrapper& rhs) {
+    return MessageDifferencer::Equals(lhs.ProtoFsInfo(), rhs.ProtoFsInfo());
+}
+
 class FSStorageTest : public ::testing::Test {
  protected:
     void SetUp() override { return; }
@@ -48,51 +55,49 @@ TEST_F(FSStorageTest, test1) {
     uint64_t rootInodeId = 1;
     uint64_t capacity = 46900;
     uint64_t blockSize = 4096;
-    std::shared_ptr<MdsFsInfo> fs1 = std::make_shared<MdsVolumeFsInfo>(
-        fsId, "name1", FsStatus::NEW, rootInodeId, capacity, blockSize, volume);
-    // MdsVolumeFsInfo fs1(fsId, "name1", FsStatus::NEW, rootInodeId, capacity,
-    //                     blockSize, volume);
+
+    FsDetail detail;
+    detail.set_allocated_volume(new common::Volume(volume));
+    FsInfoWrapper fs1 = GenerateFsInfoWrapper(
+        "name1", fsId, blockSize, INSERT_ROOT_INODE_ERROR, detail);
     // test insert
     ASSERT_EQ(FSStatusCode::OK, storage.Insert(fs1));
     ASSERT_EQ(FSStatusCode::FS_EXIST, storage.Insert(fs1));
 
     // test get
-    // MdsFsInfo fs2;
-    std::shared_ptr<MdsFsInfo> fs2;
-    ASSERT_EQ(FSStatusCode::OK, storage.Get(fs1->GetFsId(), &fs2));
-    ASSERT_EQ(fs2->GetFsName(), fs1->GetFsName());
-    ASSERT_EQ(FSStatusCode::NOT_FOUND, storage.Get(fs1->GetFsId() + 1, &fs2));
-    ASSERT_EQ(FSStatusCode::OK, storage.Get(fs1->GetFsName(), &fs2));
-    ASSERT_EQ(fs2->GetFsName(), fs1->GetFsName());
+    FsInfoWrapper fs2;
+    ASSERT_EQ(FSStatusCode::OK, storage.Get(fs1.FsId(), &fs2));
+    ASSERT_EQ(fs1.FsName(), fs2.FsName());
+    ASSERT_TRUE(fs1 == fs2);
     ASSERT_EQ(FSStatusCode::NOT_FOUND,
-              storage.Get(fs1->GetFsName() + "1", &fs2));
-    ASSERT_TRUE(storage.Exist(fs1->GetFsId()));
-    ASSERT_FALSE(storage.Exist(fs1->GetFsId() + 1));
-    ASSERT_TRUE(storage.Exist(fs1->GetFsName()));
-    ASSERT_FALSE(storage.Exist(fs1->GetFsName() + "1"));
+              storage.Get(fs1.FsId() + 1, &fs2));
+    ASSERT_EQ(FSStatusCode::OK, storage.Get(fs1.FsName(), &fs2));
+    ASSERT_EQ(fs2.FsName(), fs1.FsName());
+    ASSERT_EQ(FSStatusCode::NOT_FOUND,
+              storage.Get(fs1.FsName() + "1", &fs2));
+    ASSERT_TRUE(storage.Exist(fs1.FsId()));
+    ASSERT_FALSE(storage.Exist(fs1.FsId() + 1));
+    ASSERT_TRUE(storage.Exist(fs1.FsName()));
+    ASSERT_FALSE(storage.Exist(fs1.FsName() + "1"));
 
     // test update
-    fs1->SetStatus(FsStatus::INITED);
+    fs1.SetStatus(FsStatus::INITED);
     ASSERT_EQ(FSStatusCode::OK, storage.Update(fs1));
-    ASSERT_EQ(FSStatusCode::OK, storage.Get(fs1->GetFsId(), &fs2));
-    ASSERT_EQ(fs2->GetStatus(), FsStatus::INITED);
-    // MdsFsInfo fs3(fsId, "name3", FsStatus::NEW, rootInodeId, capacity,
-    //               blockSize, volume);
-    std::shared_ptr<MdsFsInfo> fs3 = std::make_shared<MdsVolumeFsInfo>(
-        fsId, "name3", FsStatus::NEW, rootInodeId, capacity, blockSize, volume);
-    LOG(INFO) << "NAME " << fs3->GetFsName();
+    ASSERT_EQ(FSStatusCode::OK, storage.Get(fs1.FsId(), &fs2));
+    ASSERT_EQ(fs2.Status(), FsStatus::INITED);
+    FsInfoWrapper fs3 =
+        GenerateFsInfoWrapper("name3", fsId, blockSize, rootInodeId, detail);
+
+    LOG(INFO) << "NAME " << fs3.FsName();
     ASSERT_EQ(FSStatusCode::NOT_FOUND, storage.Update(fs3));
 
-    // MdsFsInfo fs4(fsId + 1, "name1", FsStatus::NEW, rootInodeId, capacity,
-    //               blockSize, volume);
-    std::shared_ptr<MdsFsInfo> fs4 = std::make_shared<MdsVolumeFsInfo>(
-        fsId + 1, "name1", FsStatus::NEW, rootInodeId, capacity, blockSize,
-        volume);
+    FsInfoWrapper fs4 = GenerateFsInfoWrapper("name1", fsId + 1, blockSize,
+                                              rootInodeId, detail);
     ASSERT_EQ(FSStatusCode::FS_ID_MISMATCH, storage.Update(fs4));
 
     // test delete
-    ASSERT_EQ(FSStatusCode::OK, storage.Delete(fs1->GetFsName()));
-    ASSERT_EQ(FSStatusCode::NOT_FOUND, storage.Delete(fs1->GetFsName()));
+    ASSERT_EQ(FSStatusCode::OK, storage.Delete(fs1.FsName()));
+    ASSERT_EQ(FSStatusCode::NOT_FOUND, storage.Delete(fs1.FsName()));
 }
 }  // namespace mds
 }  // namespace curvefs

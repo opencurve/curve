@@ -23,9 +23,11 @@
 #include <brpc/channel.h>
 #include <brpc/server.h>
 #include <gmock/gmock.h>
+#include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
 #include "curvefs/test/mds/mock_metaserver.h"
 #include "curvefs/test/mds/mock_space.h"
+#include "curvefs/test/mds/mock/mock_fs_stroage.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -36,6 +38,7 @@ using ::testing::DoAll;
 using ::testing::SetArgPointee;
 using ::testing::SaveArg;
 using ::testing::Mock;
+using ::testing::Matcher;
 using ::testing::Invoke;
 using ::curvefs::space::MockSpaceService;
 using ::curvefs::metaserver::MockMetaserverService;
@@ -47,6 +50,9 @@ using curvefs::space::UnInitSpaceRequest;
 using curvefs::space::UnInitSpaceResponse;
 using curvefs::metaserver::MetaStatusCode;
 using curvefs::space::SpaceStatusCode;
+using ::google::protobuf::util::MessageDifferencer;
+using ::curvefs::common::S3Info;
+using ::curvefs::common::Volume;
 
 namespace curvefs {
 namespace mds {
@@ -84,11 +90,7 @@ class FSManagerTest : public ::testing::Test {
     }
 
     bool CompareVolume(const Volume& first, const Volume& second) {
-        return first.volumesize() == second.volumesize() &&
-               first.blocksize() == second.blocksize() &&
-               first.volumename() == second.volumename() &&
-               first.user() == second.user() &&
-               first.has_password() == second.has_password();
+        return MessageDifferencer::Equals(first, second);
     }
 
     bool CompareVolumeFs(const FsInfo& first, const FsInfo& second) {
@@ -98,15 +100,12 @@ class FSManagerTest : public ::testing::Test {
                first.capacity() == second.capacity() &&
                first.blocksize() == second.blocksize() &&
                first.fstype() == second.fstype() &&
-               CompareVolume(first.volume(), second.volume());
+               first.detail().has_volume() && second.detail().has_volume() &&
+               CompareVolume(first.detail().volume(), second.detail().volume());
     }
 
     bool CompareS3Info(const S3Info& first, const S3Info& second) {
-        return first.ak() == second.ak() && first.sk() == second.sk() &&
-               first.endpoint() == second.endpoint() &&
-               first.bucketname() == second.bucketname() &&
-               first.blocksize() == second.blocksize() &&
-               first.chunksize() == second.chunksize();
+        return MessageDifferencer::Equals(first, second);
     }
 
     bool CompareS3Fs(const FsInfo& first, const FsInfo& second) {
@@ -116,7 +115,9 @@ class FSManagerTest : public ::testing::Test {
                first.capacity() == second.capacity() &&
                first.blocksize() == second.blocksize() &&
                first.fstype() == second.fstype() &&
-               CompareS3Info(first.s3info(), second.s3info());
+               first.detail().has_s3info() && second.detail().has_s3info() &&
+               CompareS3Info(first.detail().s3info(), second.detail().s3info());
+        return MessageDifferencer::Equals(first, second);
     }
 
  protected:
@@ -153,6 +154,8 @@ TEST_F(FSManagerTest, test1) {
     volume.set_user("user1");
 
     FsInfo volumeFsInfo1;
+    FsDetail detail;
+    detail.set_allocated_volume(new Volume(volume));
     CreateRootInodeResponse response;
 
     // create volume fs create root inode fail
@@ -162,7 +165,8 @@ TEST_F(FSManagerTest, test1) {
             SetArgPointee<2>(response),
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
-    ret = fsManager_->CreateFs(fsName1, blockSize, volume, &volumeFsInfo1);
+    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize, detail,
+                               &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::INSERT_ROOT_INODE_ERROR);
 
     // create volume fs ok
@@ -173,9 +177,10 @@ TEST_F(FSManagerTest, test1) {
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
 
-    ret = fsManager_->CreateFs(fsName1, blockSize, volume, &volumeFsInfo1);
+    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize, detail,
+                               &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::OK);
-    ASSERT_EQ(volumeFsInfo1.fsid(), 2);
+    ASSERT_EQ(volumeFsInfo1.fsid(), 1);
     ASSERT_EQ(volumeFsInfo1.fsname(), fsName1);
     ASSERT_EQ(volumeFsInfo1.status(), FsStatus::INITED);
     ASSERT_EQ(volumeFsInfo1.rootinodeid(), ROOTINODEID);
@@ -186,7 +191,8 @@ TEST_F(FSManagerTest, test1) {
 
     // create volume fs exist
     FsInfo volumeFsInfo2;
-    ret = fsManager_->CreateFs(fsName1, blockSize, volume, &volumeFsInfo2);
+    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize, detail,
+                               &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::FS_EXIST);
 
     // create s3 test
@@ -201,6 +207,8 @@ TEST_F(FSManagerTest, test1) {
     s3Info.set_chunksize(4096);
     uint64_t fsSize = std::numeric_limits<uint64_t>::max();
     CreateRootInodeResponse response2;
+    FsDetail detail2;
+    detail2.set_allocated_s3info(new S3Info(s3Info));
 
     // create s3 fs create root inode fail
     response.set_statuscode(MetaStatusCode::UNKNOWN_ERROR);
@@ -209,7 +217,8 @@ TEST_F(FSManagerTest, test1) {
             SetArgPointee<2>(response),
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
-    ret = fsManager_->CreateFs(fsName2, blockSize, s3Info, &s3FsInfo);
+    ret = fsManager_->CreateFs(fsName2, FSType::TYPE_S3, blockSize, detail2,
+                               &s3FsInfo);
     ASSERT_EQ(ret, FSStatusCode::INSERT_ROOT_INODE_ERROR);
 
     // create s3 fs ok
@@ -220,9 +229,10 @@ TEST_F(FSManagerTest, test1) {
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
 
-    ret = fsManager_->CreateFs(fsName2, blockSize, s3Info, &s3FsInfo);
+    ret = fsManager_->CreateFs(fsName2, FSType::TYPE_S3, blockSize, detail2,
+                               &s3FsInfo);
     ASSERT_EQ(ret, FSStatusCode::OK);
-    ASSERT_EQ(s3FsInfo.fsid(), 4);
+    ASSERT_EQ(s3FsInfo.fsid(), 3);
     ASSERT_EQ(s3FsInfo.fsname(), fsName2);
     ASSERT_EQ(s3FsInfo.status(), FsStatus::INITED);
     ASSERT_EQ(s3FsInfo.rootinodeid(), ROOTINODEID);
@@ -283,7 +293,7 @@ TEST_F(FSManagerTest, test1) {
                   Invoke(RpcService<InitSpaceRequest, InitSpaceResponse>)));
     ret = fsManager_->MountFs(fsName1, mountPoint, &fsInfo3);
     ASSERT_EQ(ret, FSStatusCode::OK);
-    ASSERT_TRUE(CompareS3Fs(volumeFsInfo1, fsInfo3));
+    ASSERT_TRUE(CompareVolumeFs(volumeFsInfo1, fsInfo3));
     ASSERT_EQ(fsInfo3.mountpoints(0), mountPoint);
 
     // mount volumefs mountpoint exist
@@ -327,15 +337,15 @@ TEST_F(FSManagerTest, test1) {
     ASSERT_EQ(ret, FSStatusCode::UNINIT_SPACE_ERROR);
 
     // for persistence consider
-    // // umount UnInitSpace success
-    // uninitSpaceResponse.set_status(SpaceStatusCode::SPACE_OK);
-    // EXPECT_CALL(mockSpaceService_, UnInitSpace(_, _, _, _))
-    //     .WillOnce(
-    //         DoAll(SetArgPointee<2>(uninitSpaceResponse),
-    //               Invoke(RpcService<UnInitSpaceRequest,
-    //               UnInitSpaceResponse>)));
-    // ret = fsManager_->UmountFs(fsName1, mountPoint);
-    // ASSERT_EQ(ret, FSStatusCode::OK);
+    // umount UnInitSpace success
+    uninitSpaceResponse.set_status(SpaceStatusCode::SPACE_OK);
+    EXPECT_CALL(mockSpaceService_, UnInitSpace(_, _, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(uninitSpaceResponse),
+                  Invoke(RpcService<UnInitSpaceRequest,
+                  UnInitSpaceResponse>)));
+    ret = fsManager_->UmountFs(fsName1, mountPoint);
+    ASSERT_EQ(ret, FSStatusCode::OK);
 
     // umount not exist mountpoint
     ret = fsManager_->UmountFs(fsName1, mountPoint);

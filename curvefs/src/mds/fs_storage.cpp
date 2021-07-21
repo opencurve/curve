@@ -21,11 +21,21 @@
  */
 
 #include "curvefs/src/mds/fs_storage.h"
+
 #include <glog/logging.h>
+
 #include <string>
+#include <utility>
+#include <vector>
+
+#include "curvefs/src/mds/codec/codec.h"
 
 namespace curvefs {
 namespace mds {
+
+using ::curve::idgenerator::EtcdIdGenerator;
+using ::curve::kvstorage::KVStorageClient;
+
 bool MemoryFsStorage::Init() {
     WriteLockGuard writeLockGuard(rwLock_);
     fsInfoMap_.clear();
@@ -37,9 +47,10 @@ void MemoryFsStorage::Uninit() {
     fsInfoMap_.clear();
 }
 
-FSStatusCode MemoryFsStorage::Insert(std::shared_ptr<MdsFsInfo> fs) {
+
+FSStatusCode MemoryFsStorage::Insert(const FsInfoWrapper& fs) {
     WriteLockGuard writeLockGuard(rwLock_);
-    auto it = fsInfoMap_.emplace(fs->GetFsName(), fs);
+    auto it = fsInfoMap_.emplace(fs.FsName(), fs);
     if (it.second == false) {
         return FSStatusCode::FS_EXIST;
     }
@@ -47,11 +58,11 @@ FSStatusCode MemoryFsStorage::Insert(std::shared_ptr<MdsFsInfo> fs) {
 }
 
 FSStatusCode MemoryFsStorage::Get(uint64_t fsId,
-                                  std::shared_ptr<MdsFsInfo> *fs) {
+                                  FsInfoWrapper* fs) {
     ReadLockGuard readLockGuard(rwLock_);
 
-    for (auto it : fsInfoMap_) {
-        if (it.second->GetFsId() == fsId) {
+    for (const auto& it : fsInfoMap_) {
+        if (it.second.FsId() == fsId) {
             *fs = it.second;
             return FSStatusCode::OK;
         }
@@ -59,8 +70,8 @@ FSStatusCode MemoryFsStorage::Get(uint64_t fsId,
     return FSStatusCode::NOT_FOUND;
 }
 
-FSStatusCode MemoryFsStorage::Get(const std::string &fsName,
-                                  std::shared_ptr<MdsFsInfo> *fs) {
+FSStatusCode MemoryFsStorage::Get(const std::string& fsName,
+                                  FsInfoWrapper* fs) {
     ReadLockGuard readLockGuard(rwLock_);
     auto it = fsInfoMap_.find(fsName);
     if (it == fsInfoMap_.end()) {
@@ -70,7 +81,7 @@ FSStatusCode MemoryFsStorage::Get(const std::string &fsName,
     return FSStatusCode::OK;
 }
 
-FSStatusCode MemoryFsStorage::Delete(const std::string &fsName) {
+FSStatusCode MemoryFsStorage::Delete(const std::string& fsName) {
     WriteLockGuard writeLockGuard(rwLock_);
     auto size = fsInfoMap_.erase(fsName);
     if (size == 0) {
@@ -79,13 +90,13 @@ FSStatusCode MemoryFsStorage::Delete(const std::string &fsName) {
     return FSStatusCode::OK;
 }
 
-FSStatusCode MemoryFsStorage::Update(std::shared_ptr<MdsFsInfo> fs) {
+FSStatusCode MemoryFsStorage::Update(const FsInfoWrapper& fs) {
     WriteLockGuard writeLockGuard(rwLock_);
-    auto it = fsInfoMap_.find(fs->GetFsName());
+    auto it = fsInfoMap_.find(fs.FsName());
     if (it == fsInfoMap_.end()) {
         return FSStatusCode::NOT_FOUND;
     }
-    if (it->second->GetFsId() != fs->GetFsId()) {
+    if (it->second.FsId() != fs.FsId()) {
         return FSStatusCode::FS_ID_MISMATCH;
     }
     // fsInfoMap_[fs->GetFsName()] = fs;
@@ -95,15 +106,15 @@ FSStatusCode MemoryFsStorage::Update(std::shared_ptr<MdsFsInfo> fs) {
 
 bool MemoryFsStorage::Exist(uint64_t fsId) {
     ReadLockGuard readLockGuard(rwLock_);
-    for (auto it : fsInfoMap_) {
-        if (it.second->GetFsId() == fsId) {
+    for (const auto& it : fsInfoMap_) {
+        if (it.second.FsId() == fsId) {
             return true;
         }
     }
     return false;
 }
 
-bool MemoryFsStorage::Exist(const std::string &fsName) {
+bool MemoryFsStorage::Exist(const std::string& fsName) {
     ReadLockGuard readLockGuard(rwLock_);
     auto it = fsInfoMap_.find(fsName);
     if (it == fsInfoMap_.end()) {
@@ -111,6 +122,220 @@ bool MemoryFsStorage::Exist(const std::string &fsName) {
     }
 
     return true;
+}
+
+uint64_t MemoryFsStorage::NextFsId() {
+    return id_.fetch_add(1, std::memory_order_relaxed);
+}
+
+
+PersisKVStorage::PersisKVStorage(
+    const std::shared_ptr<curve::kvstorage::KVStorageClient>& storage)
+    : storage_(storage),
+      idGen_(new FsIdGenerator(storage_)),
+      fsLock_(),
+      fs_(),
+      idToNameLock_(),
+      idToName_() {}
+
+PersisKVStorage::~PersisKVStorage() = default;
+
+FSStatusCode PersisKVStorage::Get(uint64_t fsId, FsInfoWrapper* fsInfo) {
+    std::string name;
+    if (!FsIDToName(fsId, &name)) {
+        return {};
+    }
+
+    return Get(name, fsInfo);
+}
+
+bool PersisKVStorage::Init() {
+    bool ret = LoadAllFs();
+    return ret;
+}
+
+void PersisKVStorage::Uninit() {}
+
+FSStatusCode PersisKVStorage::Get(const std::string& fsName,
+                              FsInfoWrapper* fsInfo) {
+    ReadLockGuard lock(fsLock_);
+    auto iter = fs_.find(fsName);
+    if (iter != fs_.end()) {
+        *fsInfo = iter->second;
+        return FSStatusCode::OK;
+    }
+
+    return FSStatusCode::NOT_FOUND;
+}
+
+FSStatusCode PersisKVStorage::Insert(const FsInfoWrapper& fs) {
+    WriteLockGuard idLock(idToNameLock_);
+    WriteLockGuard fsLock(fsLock_);
+
+    // check if fsname already exists
+    if (fs_.count(fs.FsName()) != 0) {
+        LOG(ERROR) << "fsname already exists, fsname: " << fs.FsName();
+        return FSStatusCode::FS_EXIST;
+    }
+
+    // persist to storage
+    if (!PersitToStorage(fs)) {
+        return FSStatusCode::STORAGE_ERROR;
+    }
+
+    // update cache
+    fs_.emplace(fs.FsName(), fs);
+    idToName_.emplace(fs.FsId(), fs.FsName());
+
+    return FSStatusCode::OK;
+}
+
+FSStatusCode PersisKVStorage::Update(const FsInfoWrapper& fs) {
+    WriteLockGuard lock(fsLock_);
+    auto iter = fs_.find(fs.FsName());
+    if (iter == fs_.end()) {
+        LOG(ERROR) << "fsname not found, fsName: " << fs.FsName();
+        return FSStatusCode::NOT_FOUND;
+    }
+
+    if (iter->second.FsId() != fs.FsId()) {
+        LOG(ERROR) << "fs id not match, fs id in cache: " << iter->second.FsId()
+                   << ", current fs id : " << fs.FsId()
+                   << ", fsName: " << fs.FsName();
+        return FSStatusCode::FS_ID_MISMATCH;
+    }
+
+    // merge with cached info
+    FsInfoWrapper merged = Merge(fs, iter->second);
+
+    // update to storage
+    if (!PersitToStorage(merged)) {
+        LOG(ERROR) << "Persist to storage failed, fsName: " << fs.FsName();
+        return FSStatusCode::STORAGE_ERROR;
+    }
+
+    iter->second = std::move(merged);
+    return FSStatusCode::OK;
+}
+
+FSStatusCode PersisKVStorage::Delete(const std::string& fsName) {
+    WriteLockGuard idLock(idToNameLock_);
+    WriteLockGuard fsLock(fsLock_);
+    auto iter = fs_.find(fsName);
+    if (iter == fs_.end()) {
+        LOG(ERROR) << "fs name '" << fsName << "' not found";
+        return FSStatusCode::NOT_FOUND;
+    }
+
+    if (!RemoveFromStorage(iter->second)) {
+        LOG(ERROR) << "Remove fs from storage failed, fsName: " << fsName;
+        return FSStatusCode::STORAGE_ERROR;
+    }
+
+    idToName_.erase(iter->second.FsId());
+    fs_.erase(iter);
+    return FSStatusCode::OK;
+}
+
+bool PersisKVStorage::Exist(uint64_t fsId) {
+    std::string name;
+    if (!FsIDToName(fsId, &name)) {
+        return {};
+    }
+
+    return Exist(name);
+}
+
+bool PersisKVStorage::Exist(const std::string& fsName) {
+    ReadLockGuard lock(fsLock_);
+    return fs_.count(fsName) != 0;
+}
+
+uint64_t PersisKVStorage::NextFsId() {
+    uint64_t id = 0;
+    if (idGen_->GenFsId(&id)) {
+        return id;
+    }
+
+    return INVALID_FS_ID;
+}
+
+bool PersisKVStorage::LoadAllFs() {
+    std::vector<std::pair<std::string, std::string>> out;
+
+    int err = storage_->List(codec::FsNameStoreKey(),
+                             codec::FsNameStoreEndKey(), &out);
+
+    if (err != EtcdErrCode::EtcdOK) {
+        LOG(ERROR) << "List all fs from etcd failed, error: " << err;
+        return false;
+    }
+
+    for (const auto& kv : out) {
+        FsInfo fsInfo;
+        if (!codec::DecodeProtobufMessage(kv.second, &fsInfo)) {
+            LOG(ERROR) << "Decode fs info failed, encoded fsName: " << kv.first;
+            return false;
+        }
+
+        LOG(INFO) << "Load fs '" << fsInfo.fsname()
+                  << "' success, detail: " << fsInfo.ShortDebugString();
+
+        idToName_.emplace(fsInfo.fsid(), fsInfo.fsname());
+        fs_.emplace(fsInfo.fsname(), std::move(fsInfo));
+    }
+
+    return true;
+}
+
+bool PersisKVStorage::FsIDToName(uint64_t fsId, std::string* name) const {
+    ReadLockGuard lock(idToNameLock_);
+    auto iter = idToName_.find(fsId);
+    if (iter != idToName_.end()) {
+        *name = iter->second;
+        return true;
+    }
+
+    LOG(ERROR) << "fsId: " << fsId << " not found";
+    return false;
+}
+
+bool PersisKVStorage::PersitToStorage(const FsInfoWrapper& fs) {
+    std::string key = codec::EncodeFsName(fs.FsName());
+    std::string value;
+
+    if (!codec::EncodeProtobufMessage(fs.fsInfo_, &value)) {
+        LOG(ERROR) << "Encode fs info failed, fsName: " << fs.FsName();
+        return false;
+    }
+
+    int ret = storage_->Put(key, value);
+    if (ret != EtcdErrCode::EtcdOK) {
+        LOG(ERROR) << "Put key-value to storage failed, fsName: "
+                   << fs.FsName();
+        return false;
+    }
+
+    return true;
+}
+
+bool PersisKVStorage::RemoveFromStorage(const FsInfoWrapper& fs) {
+    std::string key = codec::EncodeFsName(fs.FsName());
+
+    int ret = storage_->Delete(key);
+    if (ret != EtcdErrCode::EtcdOK) {
+        LOG(ERROR) << "Remove fs from storage failed, fsName: " << fs.FsName();
+        return false;
+    }
+
+    return true;
+}
+
+FsInfoWrapper PersisKVStorage::Merge(const FsInfoWrapper& fs1,
+                                 const FsInfoWrapper& fs2) const {
+    FsInfoWrapper res(fs1);
+    res.Merge(fs2);
+    return res;
 }
 
 }  // namespace mds

@@ -52,6 +52,13 @@ cc_library(
         "//curvefs/src/common:curvefs_common",
         "//src/common/concurrent:curve_concurrent",
         "//src/common:curve_common",
+        "//src/kvstorageclient:kvstorage_client",
+        "//src/leader_election:leader_election",
+        "//src/idgenerator:idgenerator",
+        "//curvefs/src/mds/codec:fs_mds_codec",
+        "//curvefs/src/mds/common:fs_mds_common",
+        "//curvefs/src/mds/idgenerator:fs_mds_idgenerator",
+        "//curvefs/src/mds/metric:fs_mds_metric",
     ],
 )
 
@@ -64,4 +71,3 @@ cc_binary(
         "//curvefs/src/mds:curvefs_mds_lib",
     ],
 )
-
