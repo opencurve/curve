@@ -300,7 +300,7 @@ int check_dev_can_unmap(const NBDConfig *cfg) {
     std::ifstream ifs("/proc/mounts", std::ifstream::in);
 
     if (!ifs.is_open()) {
-        dout << "curve-nbd: failed to open /proc/mounts" << std::endl;
+        cerr << "curve-nbd: failed to open /proc/mounts" << std::endl;
         return -EINVAL;
     }
 
@@ -318,12 +318,12 @@ int check_dev_can_unmap(const NBDConfig *cfg) {
     if (!mounted) {
         return 0;
     } else if (cfg->force_unmap) {
-        dout << "curve-nbd: the " << device << " is still mount on "
+        cerr << "curve-nbd: the " << device << " is still mount on "
              << mountPath << ", force unmap it" << std::endl;
         return 0;
     }
 
-    dout << "curve-nbd: the " << device << " is still mount on " << mountPath
+    cerr << "curve-nbd: the " << device << " is still mount on " << mountPath
          << ", you can't unmap it or specify -f parameter" << std::endl;
     return -EINVAL;
 }
