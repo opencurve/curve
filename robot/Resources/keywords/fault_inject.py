@@ -325,10 +325,10 @@ def map_nbd():
     rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"create /vdbenchfile fail：%s"%rs[2]
     time.sleep(3)
-    cmd = "sudo curve-nbd map cbd:pool1//fiofile_test_ >/dev/null 2>&1"
+    cmd = "sudo curve-nbd --block-size 512 map cbd:pool1//fiofile_test_ >/dev/null 2>&1"
     rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"map fiofile fail：%s"%rs[2]
-    cmd = "sudo curve-nbd map cbd:pool1//vdbenchfile_test_ >/dev/null 2>&1"
+    cmd = "sudo curve-nbd --block-size 512 map cbd:pool1//vdbenchfile_test_ >/dev/null 2>&1"
     rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"map vdbenchfile fail：%s"%rs[2]
 
