@@ -31,7 +31,7 @@ class NbdThrash:
         assert rs[3] == 0,"create nbd fail：%s"%rs[1]
 
     def nbd_map(self):
-        cmd = "sudo curve-nbd map cbd:pool1//%s_%s_ >/dev/null 2>&1"%(self.name,self.user)
+        cmd = "sudo curve-nbd --block-size 512 map cbd:pool1//%s_%s_ >/dev/null 2>&1"%(self.name,self.user)
         rs = shell_operator.ssh_exec(self.ssh, cmd)
         assert rs[3] == 0,"map nbd fail：%s"%rs[1]
     
@@ -56,7 +56,14 @@ class NbdThrash:
     
     def nbd_delete(self):
         cmd = "sudo curve delete --filename /%s --user %s"%(self.name,self.user)
-        rs = shell_operator.ssh_exec(self.ssh, cmd)
+        i = 0
+        while i < 3:
+            rs = shell_operator.ssh_exec(self.ssh, cmd)
+            if rs[3] == 0:
+                break
+            logger3.error("return is %s,rs is %d"%(rs[1],rs[3]))
+            i = i + 1
+            time.sleep(5)
         assert rs[3] == 0,"delete fail：%s"%rs[1]
 
     def write_data(self,size):
