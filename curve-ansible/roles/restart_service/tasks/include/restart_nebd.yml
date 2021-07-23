@@ -18,7 +18,7 @@
 - name: restart nebd-server
   vars:
     ch_dir: "{{ deploy_dir }}"
-    daemon_script: ./nebd-daemon
+    daemon_script: nebd-daemon
     service_port: 0
     process_name: nebd-server
     start_cmd: >
