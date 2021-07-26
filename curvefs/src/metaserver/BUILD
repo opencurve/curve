@@ -44,9 +44,12 @@ cc_library(
     deps = [
         "//external:brpc",
         "//curvefs/proto:metaserver_cc_proto",
+        "//curvefs/proto:curvefs_common_cc_proto",
+        "//src/fs:lfs",
         "//src/common/concurrent:curve_concurrent",
         "//src/common:curve_common",
         "//curvefs/src/common:curvefs_common",
+        "@com_google_absl//absl/cleanup:cleanup",
     ],
 )
 
@@ -61,5 +64,4 @@ cc_binary(
         "//curvefs/src/metaserver:curvefs_metaserver_lib",
     ],
 )
-
 

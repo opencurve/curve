@@ -23,6 +23,7 @@
 #include <glog/logging.h>
 // #include <gflags/gflags.h>
 
+#include "curvefs/src/common/process.h"
 #include "curvefs/src/metaserver/metaserver.h"
 
 DEFINE_string(confPath, "curvefs/conf/metaserver.conf", "metaserver confPath");
@@ -41,6 +42,8 @@ int main(int argc, char **argv) {
     google::ParseCommandLineFlags(&argc, &argv, false);
     // initialize logging module
     google::InitGoogleLogging(argv[0]);
+
+    ::curvefs::common::Process::InitSetProcTitle(argc, argv);
 
     std::string confPath = FLAGS_confPath;
     auto conf = std::make_shared<Configuration>();
