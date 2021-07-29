@@ -108,7 +108,7 @@ FileClient::FileClient()
       clientconfig_(),
       mdsClient_(),
       inited_(false),
-      openedFileNum_(common::ToHexString(this)) {}
+      openedFileNum_("open_file_num_" + common::ToHexString(this)) {}
 
 bool FileClient::CheckAligned(off_t offset, size_t length) const {
     return common::is_aligned(offset, kMinIOAlignment) &&
