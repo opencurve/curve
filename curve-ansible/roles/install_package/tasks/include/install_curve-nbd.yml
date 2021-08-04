@@ -47,12 +47,17 @@
         local_file_path: "{{ local_nbd_package_path }}/bin/"
         file_mode: 0755
       include_tasks: copy_file_to_remote.yml
-    - name: install curvetab
+    - name: check curvetab exist
+      stat:
+        path: "{{ curvetab_path }}/curvetab"
+      register: file_status
+    - name: install curvetab if not exist
       vars:
         remote_dir_name: "{{ curvetab_path }}"
         local_file_path: "{{ local_nbd_package_path }}/etc/"
         file_mode: 0755
       include_tasks: copy_file_to_remote.yml
+      when: not file_status.stat.exists
     - name: add nbd auto start at boot
       block:
         - name: get distro name
