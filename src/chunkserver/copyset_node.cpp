@@ -65,6 +65,9 @@ CopysetNode::CopysetNode(const LogicPoolID &logicPoolId,
     chunkDataRpath_(),
     appliedIndex_(0),
     leaderTerm_(-1),
+    scaning_(false),
+    lastScanSec_(0),
+    lastSnapshotIndex_(0),
     configChange_(std::make_shared<ConfigurationChange>()) {
 }
 
@@ -437,7 +440,10 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
             conf_.add_peer(meta.peers(i));
         }
     }
+
+    LOG(INFO) << "update lastSnapshotIndex_ from " << lastSnapshotIndex_;
     lastSnapshotIndex_ = meta.last_included_index();
+    LOG(INFO) << "to lastSnapshotIndex_: " << lastSnapshotIndex_;
     return 0;
 }
 
@@ -468,6 +474,8 @@ void CopysetNode::on_configuration_committed(const Configuration& conf,
     // This function is also called when loading snapshot.
     // Loading snapshot should not increase epoch. When loading
     // snapshot, the index is equal with lastSnapshotIndex_.
+    LOG(INFO) << "index: " << index
+        << ", lastSnapshotIndex_: " << lastSnapshotIndex_;
     if (index != lastSnapshotIndex_) {
         std::unique_lock<std::mutex> lock_guard(confLock_);
         conf_ = conf;
