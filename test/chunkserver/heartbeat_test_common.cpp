@@ -351,6 +351,9 @@ bool HeartbeatTestCommon::WailForConfigChangeOk(
                 if (SameCopySetInfo(req->copysetinfos(0), expectedInfo)) {
                     return true;
                 }
+                LOG(INFO) << "req->copysetinfos:"
+                    << req->copysetinfos(0).DebugString()
+                    << ", expectedInfo: " << expectedInfo.DebugString();
             } else if (req->copysetinfos_size() == 0) {
                 if (SameCopySetInfo(
                     ::curve::mds::heartbeat::CopySetInfo{}, expectedInfo)) {
