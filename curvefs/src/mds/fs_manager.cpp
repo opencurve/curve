@@ -64,7 +64,10 @@ FSStatusCode FsManager::CreateFsIntenal(const std::string& fsName,
         return ret;
     }
 
-    // 4. use metaserver interface, insert rootinode
+    // 4. create copyset on metaserver
+    // TODO(cw123) : find a available copyset or create a new one,
+
+    // 5. use metaserver interface, insert rootinode
     uint32_t fsId = newFsInfo->GetFsId();
     uint32_t uid = 0;                 // TODO(cw123)
     uint32_t gid = 0;                 // TODO(cw123)
@@ -84,7 +87,7 @@ FSStatusCode FsManager::CreateFsIntenal(const std::string& fsName,
         return ret;
     }
 
-    // 5. update fs status to INITED
+    // 6. update fs status to INITED
     newFsInfo->SetStatus(FsStatus::INITED);
     // for persistence consider
     // ret = fsStorage_->Update(newFsInfo);

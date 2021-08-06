@@ -34,6 +34,7 @@ cc_proto_library(
 proto_library(
     name = "metaserver_proto",
     srcs = ["metaserver.proto"],
+    deps = [":curvefs_common_proto"],
 )
 
 cc_proto_library(
@@ -58,4 +59,40 @@ proto_library(
     name = "space_proto",
     srcs = ["space.proto"],
     deps = [":curvefs_common_proto",":mds_proto"],
+)
+
+# cc_proto_library(
+#     name = "curvefs_heartbeat_cc_proto",
+#     visibility = ["//visibility:public"],
+#     deps = [":curvefs_heartbeat_proto"],
+# )
+
+# proto_library(
+#     name = "curvefs_heartbeat_proto",
+#     srcs = ["heartbeat.proto"],
+#     deps = [":curvefs_common_proto"],
+# )
+
+cc_proto_library(
+    name = "curvefs_copyset_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":curvefs_copyset_proto"],
+)
+
+proto_library(
+    name = "curvefs_copyset_proto",
+    srcs = ["copyset.proto"],
+    deps = [":curvefs_common_proto"],
+)
+
+cc_proto_library(
+    name = "curvefs_topology_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":curvefs_topology_proto"],
+)
+
+proto_library(
+    name = "curvefs_topology_proto",
+    srcs = ["topology.proto"],
+    deps = [],
 )
