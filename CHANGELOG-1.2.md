@@ -60,3 +60,30 @@ Performance test is based on curve-nbd, the size of each block device is 200GB, 
 - [Fixed the direct_fd leak problem when wal write disk.](https://github.com/opencurve/curve/pull/113)
 - [Fixed the atomicity problem of GetFile when not using the file pool.](https://github.com/opencurve/curve/pull/195)
 - [Fixed in cluster_basic_test mds start error on InitEtcdClient() which produced coredump](https://github.com/opencurve/curve/pull/205)
+
+
+<hr/>
+
+# CHANGELOG of v1.2.1-rc0
+
+## New Feature
+
+- [curve-nbd: support simulate 512-byte logical/physical block device](https://github.com/opencurve/curve/pull/444)
+- [curve-nbd: prevent mounted device to unmap](https://github.com/opencurve/curve/pull/453)
+- [curve-nbd: add auto mount options](https://github.com/opencurve/curve/pull/473)
+- [nebd: support multi-instances for different user](https://github.com/opencurve/curve/pull/444)
+- [client: retry allocate segment until success](https://github.com/opencurve/curve/pull/452)
+- [mds: schedule pending online chunkserver](https://github.com/opencurve/curve/pull/462)
+
+## Bug Fix
+
+- [ansible: backup and recover curvetab](https://github.com/opencurve/curve/pull/484)
+- [debian package: backup and recover curvetab](https://github.com/opencurve/curve/pull/491)
+- [scripts: fix potential overflow when cnovert ip to value](https://github.com/opencurve/curve/pull/474)
+- [client: fix segment in SourceReader](https://github.com/opencurve/curve/pull/474)
+- [client: explicit stop LeaseExecutor in FileInstance::UnInitialize](https://github.com/opencurve/curve/pull/474)
+- [curve-nbd: fix concurrent nbd map](https://github.com/opencurve/curve/pull/447)
+- [snapshotclone: fix cancel task lost](https://github.com/opencurve/curve/pull/463)
+- [tools: remove copyset data after remove peer](https://github.com/opencurve/curve/pull/458)
+- [mds: modify stale heartbeat update error with warning](https://github.com/opencurve/curve/pull/480)
+- [chunkserver: fix config change epoch update error](https://github.com/opencurve/curve/pull/487)
