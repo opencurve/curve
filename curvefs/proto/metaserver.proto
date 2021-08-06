@@ -54,12 +54,18 @@ message GetDentryRequest {
     optional uint64 appliedIndex = 8;
 }
 
+enum DentryFlag {
+    TYPE_FILE_FLAG = 1;
+    DELETE_MARK_FLAG = 2;
+}
+
 message Dentry {
     required uint32 fsId = 1;
     required uint64 inodeId = 2;
     required uint64 parentInodeId = 3;
     required string name = 4;
     required uint64 txId = 5;
+    optional uint32 flag = 6;
 }
 
 message GetDentryResponse {
@@ -112,6 +118,15 @@ message DeleteDentryResponse {
     optional uint64 appliedIndex = 2;
 }
 
+message PrepareRenameTxRequest {
+    repeated Dentry dentrys = 1;
+}
+
+message PrepareRenameTxResponse {
+    required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
+}
+
 // inode interface
 message GetInodeRequest {
     required uint32 poolId = 1;
@@ -119,7 +134,7 @@ message GetInodeRequest {
     required uint32 partitionId = 3;
     required uint32 fsId = 4;
     required uint64 inodeId = 5;
-    optional uint64 appliedIndex = 7;
+    optional uint64 appliedIndex = 6;
 }
 
 message PrepareRenameTxRequest {
@@ -151,10 +166,11 @@ message VolumeExtentList {
 
 message S3ChunkInfo {
     required uint64 chunkId = 1;
-    required uint64 version = 2;
+    required uint64 compaction = 2;
     required uint64 offset = 3;
     required uint64 len = 4;  // file logic length
     required uint64 size = 5; // file size in object storage
+    required bool zero = 6;
 };
 
 message S3ChunkInfoList {
@@ -176,10 +192,9 @@ message Inode {
     required FsFileType type = 11;
     optional string symlink = 12;   // TYPE_SYM_LINK only
     optional VolumeExtentList volumeExtentList = 13;  // TYPE_FILE only
-    optional S3ChunkInfoList s3ChunkInfoList = 14; // TYPE_S3 only
-    optional uint64 version = 15;
-    optional uint32 dtime = 16;
-    optional bool openflag = 17;
+    map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 14; // TYPE_S3 only, first is chunk index
+    optional uint32 dtime = 15;
+    optional bool openflag = 16;
 }
 
 message GetInodeResponse {
@@ -245,6 +260,7 @@ message UpdateInodeResponse {
     required MetaStatusCode statusCode = 1;
     optional uint64 appliedIndex = 2;
 }
+
 message DeleteInodeRequest {
     required uint32 poolId = 1;
     required uint32 copysetId = 2;
@@ -258,18 +274,22 @@ message DeleteInodeResponse {
     optional uint64 appliedIndex = 2;
 }
 
-message UpdateInodeS3VersionRequest {
-    required uint32 poolId = 1;
-    required uint32 copysetId = 2;
-    required uint32 partitionId = 3;
-    required uint32 fsId = 4;
-    required uint64 inodeId = 5;
+message CreatePartitionRequest {
+    required common.PartitionInfo partition = 1;
 }
 
-message UpdateInodeS3VersionResponse {
+message CreatePartitionResponse {
     required MetaStatusCode statusCode = 1;
-    optional uint64 version = 2;
-    optional uint64 appliedIndex = 3;
+    optional uint64 appliedIndex = 2;
+}
+
+message DeletePartitionRequest {
+    required common.PartitionInfo partition = 1;
+}
+
+message DeletePartitionResponse {
+    required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
 }
 
 message CreatePartitionRequest {
@@ -305,8 +325,6 @@ service MetaServerService {
     rpc DeleteInode(DeleteInodeRequest) returns (DeleteInodeResponse);
     rpc CreateRootInode(CreateRootInodeRequest) returns
                                             (CreateRootInodeResponse);
-    rpc UpdateInodeS3Version(UpdateInodeS3VersionRequest) returns
-                                        (UpdateInodeS3VersionResponse);
 
     // partition interface
     rpc CreatePartition(CreatePartitionRequest) returns (CreatePartitionResponse);

@@ -1,0 +1,100 @@
+/*
+ *  Copyright (c) 2021 NetEase Inc.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+syntax="proto2";
+// import "curvefs/proto/common.proto";
+package curvefs.metaserver.copyset;
+option cc_generic_services = true;
+
+// copyset epoch message，用于epoch序列化和反序列化
+message ConfEpoch {
+    required uint32 poolId = 1;
+    required uint32 copysetId   = 2;
+    required uint64 epoch       = 3;
+    required uint32 checksum    = 4;
+}
+
+message CopysetRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    repeated string peerid = 3; // 当前复制组配置，可以为空
+};
+
+enum COPYSET_OP_STATUS {
+    COPYSET_OP_STATUS_SUCCESS           = 0;
+    COPYSET_OP_STATUS_EXIST             = 1;
+    COPYSET_OP_STATUS_COPYSET_NOTEXIST  = 2;
+    COPYSET_OP_STATUS_FAILURE_UNKNOWN   = 3;
+    COPYSET_OP_STATUS_COPYSET_IS_HEALTHY = 4;
+    COPYSET_OP_STATUS_PARSE_PEER_ERROR = 5;
+};
+
+message CopysetResponse {
+    optional COPYSET_OP_STATUS status = 1;
+    // optional string redirect = 2;  // 自己不是 leader，重定向给 leader
+};
+
+// message Copyset {
+//     required uint32 poolId = 1;
+//     required uint32 copysetId   = 2;
+//     repeated common.Peer peers  = 3;
+// }
+//
+// message CopysetRequest2 {
+//     repeated Copyset copysets       = 1;
+// };
+//
+// message CopysetResponse2 {
+//     optional COPYSET_OP_STATUS status = 1;
+// }
+//
+// message CopysetStatusRequest {
+//     required uint32 poolId = 1;
+//     required uint32 copysetId   = 2;
+//     required common.Peer peer   = 3;
+//     required bool queryHash     = 4;    // 考虑到计算copyset hash值是一个非常耗时的操作，所以设置一个bool变量可以选择不查
+// }
+//
+// message CopysetStatus {
+//     required uint32 state                   = 1;    // copyset状态
+//     required common.Peer peer               = 2;    // peer
+//     required common.Peer leader             = 3;    // leader
+//     required bool readOnly                  = 4;    // 是否只读
+//     required int64 term                     = 5;    // 当前任期
+//     required int64 committedIndex           = 6;    // 当前的committed index
+//     required int64 knownAppliedIndex        = 7;    // 当前copyset已知的applied index，当前peer可能未apply
+//     required int64 pendingIndex             = 8;    // 当前副本未决的op log index起始index
+//     required int64 pendingQueueSize         = 9;    // 当前副本未决的op log queue的长度
+//     required int64 applyingIndex            = 10;   // 当前副本正在apply的op log index
+//     required int64 firstIndex               = 11;   // 当前副本第一条op log index(包括盘和memory)
+//     required int64 lastIndex                = 12;   // 当前副本最后一条op log index(包括盘和memory)
+//     required int64 diskIndex                = 13;   // 当前副本已经持久化的最大op log index(不包含memory)
+//     required uint64 epoch                   = 14;   // 当前copyset配置版本
+//     required string hash                    = 15;   // 当前copyset的数据hash值
+// }
+//
+// message CopysetStatusResponse {
+//     required COPYSET_OP_STATUS status       = 1;    // op状态
+//     optional CopysetStatus copysetStatus    = 2;    // 返回的copyset状态
+// }
+
+service CopysetService {
+    rpc CreateCopysetNode (CopysetRequest) returns (CopysetResponse);
+
+    // rpc CreateCopysetNode2 (CopysetRequest2) returns (CopysetResponse2);
+
+    // rpc GetCopysetStatus (CopysetStatusRequest) returns (CopysetStatusResponse);
+};

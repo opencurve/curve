@@ -1,0 +1,152 @@
+/*
+ *  Copyright (c) 2021 NetEase Inc.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+syntax = "proto2";
+import "curvefs/proto/common.proto";
+package curvefs.mds.heartbeat;
+option cc_generic_services = true;
+
+message CopySetInfo {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    // copyset replicas, IP:PORT:ID, e.g. 127.0.0.1:8200:0
+    repeated common.Peer peers = 3;
+    // epoch, 用来标记配置变更，每变更一次，epoch会增加
+    required uint64 epoch = 4;
+    // 该复制组的leader
+    required common.Peer leaderPeer = 5;
+    repeated common.PartitionInfo partitionInfoList = 6;
+    // 配置变更相关信息
+    optional ConfigChangeInfo configChangeInfo = 7;
+    // copyset的性能信息
+    optional CopysetStatistics stats = 8;
+};
+
+message ConfigChangeInfo {
+    required common.Peer peer = 1;
+    // 配置变更的类型
+    required ConfigChangeType type = 2;
+    // 配置变更是否成功
+    required bool finished = 3;
+    // 变更的error信息
+    optional CandidateError err = 4;
+};
+
+message CandidateError {
+    required uint32 errType = 1;
+    required string errMsg = 2;
+};
+
+message CopysetStatistics {
+    required uint32 readRate = 1;
+    required uint32 writeRate = 2;
+    required uint32 readIOPS = 3;
+    required uint32 writeIOPS = 4;
+}
+
+message DiskState {
+    required uint32 errType = 1;
+    required string errMsg = 2;
+}
+
+message MetaServerStatisticInfo {
+    // 待补充
+};
+
+message MetaServerHeartbeatRequest {
+    required uint32 MetaServerID = 1;
+    required string token = 2;
+    required string ip = 3;
+    required uint32 port = 4;
+    optional uint64 startTime = 5;
+    required DiskState diskState = 6;
+    required uint64 diskCapacity = 7;
+    required uint64 diskUsed = 8;
+    // 返回该chunk上所有copyset的信息
+    repeated CopySetInfo copysetInfos = 9;
+    // 时间窗口内该MetaServer上leader的个数
+    required uint32 leaderCount = 10;
+    // 时间窗口内该MetaServer上copyset的个数
+    required uint32 copysetCount = 11;
+    required uint32 memoryUsedBytes = 12;
+    required uint32 memoryTotalBytes = 13;
+    // MetaServer相关的统计信息
+    optional MetaServerStatisticInfo stats = 14;
+
+};
+
+enum ConfigChangeType {
+    // 配置变更命令： leader转换
+    TRANSFER_LEADER = 1;
+    // 配置变更命令： 复制组增加一个成员
+    ADD_PEER = 2;
+    // 配置变更命令： 复制组删除一个成员
+    REMOVE_PEER = 3;
+    // 配置变更命令： 没有配置变更
+    NONE = 4;
+    // 配置变更命令：change复制组一个成员
+    CHANGE_PEER = 5;
+    // Scan operator, scan chunks in copyset
+    START_SCAN_PEER = 6;
+    CANCEL_SCAN_PEER = 7;
+};
+
+message CopySetConf {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    repeated common.Peer peers = 3;
+    required uint64 epoch = 4;
+    optional ConfigChangeType type = 5;
+    // configchangeItem 是目标节点
+    // 对于TRANSFER_LEADER: 表示目标节点; 对于ADD_PEER: 表示待加入节点
+    // 对于REMOVE_PEER: 表示待删除节点; 对于CHANGE_PEER: 表示待加入节点
+    // SCAN_PEER: to scan the node
+    optional common.Peer configchangeItem = 6;
+    // oldPeer, 这个只在ConfigChangeType=对于CHANGE_PEER的情况下会赋值，
+    // 表示待删除节点。
+    // MetaServer收到CHANGE_PEER，根据peers,configchangeItem,oldPeer拼出新的conf
+    optional common.Peer oldPeer = 7;
+};
+
+enum HeartbeatStatusCode {
+    // 正常返回
+    hbOK = 0;
+    // 必要的参数为初始化
+    hbParamUnInitialized = 1;
+    // MetaServer不在topology中
+    hbMetaServerUnknown = 2;
+    // MetaServer状态为retired
+    hbMetaServerRetired = 3;
+    // MetaServer的ip和port与topology中的不匹配
+    hbMetaServerIpPortNotMatch = 4;
+    // MetaServer的token不匹配
+    hbMetaServerTokenNotMatch = 5;
+    // 无copyset上报
+    hbRequestNoCopyset = 6;
+    // copyset转换为topology格式失败
+    hbAnalyseCopysetError = 7;
+}
+
+message MetaServerHeartbeatResponse {
+    // 返回需要进行变更的copyset的信息
+    repeated CopySetConf needUpdateCopysets = 1;
+    // 错误码
+    optional HeartbeatStatusCode statusCode = 2;
+};
+
+service HeartbeatService {
+    rpc MetaServerHeartbeat (MetaServerHeartbeatRequest) returns (MetaServerHeartbeatResponse);
+}
