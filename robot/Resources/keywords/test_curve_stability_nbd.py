@@ -30,8 +30,11 @@ class NbdThrash:
         rs = shell_operator.ssh_exec(self.ssh, cmd)
         assert rs[3] == 0,"create nbd fail：%s"%rs[1]
 
-    def nbd_map(self):
-        cmd = "sudo curve-nbd --block-size 512 map cbd:pool1//%s_%s_ >/dev/null 2>&1"%(self.name,self.user)
+    def nbd_map(self,map_dev=""):
+        if map_dev != "":
+            cmd = "sudo curve-nbd --block-size 512 map cbd:pool1//%s_%s_ --device %s >/dev/null 2>&1"%(self.name,self.user,map_dev)
+        else:
+            cmd = "sudo curve-nbd --block-size 512 map cbd:pool1//%s_%s_  >/dev/null 2>&1"%(self.name,self.user)
         rs = shell_operator.ssh_exec(self.ssh, cmd)
         assert rs[3] == 0,"map nbd fail：%s"%rs[1]
     
@@ -84,7 +87,7 @@ def nbd_all(name):
     thrash.nbd_create(vol_size)
     while config.thrash_map == True:
         try:
-            thrash.nbd_map()
+            thrash.nbd_map("/dev/nbd2")
             time.sleep(5)
             thrash.nbd_getdev()
             thrash.nbd_unmap()
@@ -410,7 +413,7 @@ def init_nbd_vol(check_md5=True,lazy="True"):
         thrash = NbdThrash(ssh,name)
         vol_size = 10 #GB
         thrash.nbd_create(vol_size)
-        thrash.nbd_map()
+        thrash.nbd_map("/dev/nbd3")
         time.sleep(5)
         thrash.nbd_getdev()
         if check_md5 == True:
@@ -693,7 +696,7 @@ def test_recover_snapshot(lazy="true"):
                 assert False,"recover vol %s fail in %d s"%(vol_id,config.snapshot_timeout)
             if config.snapshot_thrash.check_md5 == True:
                 assert first_md5 == second_md5,"vol md5 not same after recover,fisrt is %s,recovered is %s"(first_md5,second_md5)
-            config.snapshot_thrash.nbd_map()
+            config.snapshot_thrash.nbd_map("/dev/nbd3")
             config.snapshot_thrash.nbd_getdev()
         except:
             raise
@@ -723,7 +726,7 @@ def test_lazy_clone_flatten_snapshot_fail():
         thrash = NbdThrash(ssh,name)
         vol_size = 10
         thrash.nbd_create(vol_size)
-        thrash.nbd_map()
+        thrash.nbd_map("/dev/nbd3")
         time.sleep(5)
         thrash.nbd_getdev()
         write_size = 500
@@ -765,7 +768,7 @@ def test_lazy_clone_flatten_snapshot_fail():
                logger2.error("faltten clone file fail")
                raise
         thrash_clone = NbdThrash(ssh,destination)
-        thrash_clone.nbd_map()
+        thrash_clone.nbd_map("/dev/nbd3")
         time.sleep(5)
         thrash_clone.nbd_getdev()
         thrash_clone.write_data(2500)
