@@ -91,8 +91,8 @@ int NBDTool::Connect(NBDConfig *cfg) {
         return ret;
     }
 
-    NBDControllerPtr nbdCtrl = GetController(cfg->try_netlink);
-    nbdServer_ = std::make_shared<NBDServer>(socketPair_.Second(), nbdCtrl,
+    nbdCtl_ = GetController(cfg->try_netlink);
+    nbdServer_ = std::make_shared<NBDServer>(socketPair_.Second(), nbdCtl_,
                                              imageInstance);
 
     // setup controller
@@ -101,13 +101,13 @@ int NBDTool::Connect(NBDConfig *cfg) {
     if (cfg->readonly) {
         flags |= NBD_FLAG_READ_ONLY;
     }
-    ret = nbdCtrl->SetUp(cfg, socketPair_.First(), fileSize, flags);
+    ret = nbdCtl_->SetUp(cfg, socketPair_.First(), fileSize, flags);
     if (ret < 0) {
         return -1;
     }
 
     nbdWatchCtx_ =
-        std::make_shared<NBDWatchContext>(nbdCtrl, imageInstance, fileSize);
+        std::make_shared<NBDWatchContext>(nbdCtl_, imageInstance, fileSize);
 
     return 0;
 }
@@ -163,7 +163,9 @@ void NBDTool::RunServerUntilQuit() {
         ctrl->RunUntilQuit();
     }
 
+    nbdServer_->Stop();
     nbdWatchCtx_->StopWatch();
+    nbdCtl_->ClearUp();
 }
 
 ImagePtr g_test_image = nullptr;

@@ -100,6 +100,11 @@ class NBDServer {
     void Start();
 
     /**
+     * @brief Stop server
+     */
+    void Stop();
+
+    /**
      * 等待断开连接
      */
     void WaitForDisconnect();

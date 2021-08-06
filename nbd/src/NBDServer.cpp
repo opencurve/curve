@@ -94,6 +94,10 @@ void NBDServer::NBDAioCallback(struct NebdClientAioContext* aioCtx) {
 }
 
 NBDServer::~NBDServer() {
+    Stop();
+}
+
+void NBDServer::Stop() {
     if (started_) {
         LOG(INFO) << "NBDServer going to quit";
 
