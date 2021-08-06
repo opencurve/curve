@@ -21,17 +21,16 @@
  */
 
 #include "src/client/mds_client_base.h"
+
+#include "src/common/authenticator.h"
 #include "src/common/curve_version.h"
 
 namespace curve {
 namespace client {
 
-const char* kRootUserName = "root";
+using curve::common::Authenticator;
 
-int MDSClientBase::Init(const MetaServerOption& metaServerOpt) {
-    metaServerOpt_ = metaServerOpt;
-    return 0;
-}
+const char* kRootUserName = "root";
 
 void MDSClientBase::OpenFile(const std::string& filename,
                              const UserInfo_t& userinfo,
@@ -364,11 +363,10 @@ void MDSClientBase::GetOrAllocateSegment(bool allocate,
     request.set_allocateifnotexist(allocate);
     FillUserInfo(&request, fi->userinfo);
 
-    LOG(INFO) << "GetOrAllocateSegment: allocate = " << allocate
-                << ", owner = " << fi->owner
-                << ", offset = " << offset
-                << ", segment offset = " << seg_offset
-                << ", log id = " << cntl->log_id();
+    LOG(INFO) << "GetOrAllocateSegment: filename = " << fi->fullPathName
+              << ", allocate = " << allocate << ", owner = " << fi->owner
+              << ", offset = " << offset << ", segment offset = " << seg_offset
+              << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.GetOrAllocateSegment(cntl, &request, response, NULL);
