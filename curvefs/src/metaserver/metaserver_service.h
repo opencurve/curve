@@ -27,20 +27,20 @@
 #include <brpc/controller.h>
 #include <memory>
 #include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/src/metaserver/dentry_manager.h"
-#include "curvefs/src/metaserver/dentry_storage.h"
-#include "curvefs/src/metaserver/inode_manager.h"
-#include "curvefs/src/metaserver/inode_storage.h"
+#include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
+#include "curvefs/src/metaserver/inflight_throttle.h"
 
 namespace curvefs {
 namespace metaserver {
+
+using ::curvefs::metaserver::copyset::CopysetNodeManager;
+
 class MetaServerServiceImpl : public MetaServerService {
  public:
-    MetaServerServiceImpl(std::shared_ptr<InodeManager> inodeManager,
-                          std::shared_ptr<DentryManager> dentryManager) {
-        inodeManager_ = inodeManager;
-        dentryManager_ = dentryManager;
-    }
+    MetaServerServiceImpl(CopysetNodeManager* copysetNodeManager,
+                          InflightThrottle* inflightThrottle)
+        : copysetNodeManager_(copysetNodeManager),
+          inflightThrottle_(inflightThrottle) {}
 
     void GetDentry(::google::protobuf::RpcController* controller,
                    const ::curvefs::metaserver::GetDentryRequest* request,
@@ -85,9 +85,24 @@ class MetaServerServiceImpl : public MetaServerService {
         ::curvefs::metaserver::UpdateInodeS3VersionResponse* response,
         ::google::protobuf::Closure* done);
 
+    void CreatePartition(google::protobuf::RpcController* controller,
+                         const CreatePartitionRequest* request,
+                         CreatePartitionResponse* response,
+                         google::protobuf::Closure* done) override;
+
+    void DeletePartition(google::protobuf::RpcController* controller,
+                         const DeletePartitionRequest* request,
+                         DeletePartitionResponse* response,
+                         google::protobuf::Closure* done) override;
+
+    void PrepareRenameTx(google::protobuf::RpcController* controller,
+                         const PrepareRenameTxRequest* request,
+                         PrepareRenameTxResponse* response,
+                         google::protobuf::Closure* done);
+
  private:
-    std::shared_ptr<InodeManager> inodeManager_;
-    std::shared_ptr<DentryManager> dentryManager_;
+    CopysetNodeManager* copysetNodeManager_;
+    InflightThrottle* inflightThrottle_;
 };
 }  // namespace metaserver
 }  // namespace curvefs

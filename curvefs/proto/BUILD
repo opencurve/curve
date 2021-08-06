@@ -70,7 +70,10 @@ cc_proto_library(
 proto_library(
     name = "cli2_proto",
     srcs = ["cli2.proto"],
-    deps = [":curvefs_common_proto"],
+    deps = [
+        ":curvefs_common_proto",
+        ":copyset_proto",
+    ],
 )
 
 cc_proto_library(
@@ -82,5 +85,19 @@ cc_proto_library(
 proto_library(
     name = "curvefs_topology_proto",
     srcs = ["topology.proto"],
+    deps = [":curvefs_common_proto"],
+)
+
+cc_proto_library(
+    name = "copyset_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":copyset_proto",
+    ]
+)
+
+proto_library(
+    name = "copyset_proto",
+    srcs = ["copyset.proto"],
     deps = [":curvefs_common_proto"],
 )

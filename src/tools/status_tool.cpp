@@ -691,8 +691,8 @@ int CheckUseWalPool(const std::map<PoolIdType, std::vector<ChunkServerInfo>>
                     << csAddr << " fail!" << std::endl;
             ret = -1;
         }
-        std::string raftLogProtocol = curve::chunkserver::UriParser
-                                      ::GetProtocolFromUri(metricValue);
+        std::string raftLogProtocol =
+            curve::common::UriParser ::GetProtocolFromUri(metricValue);
         *useWalPool =  kProtocalCurve == raftLogProtocol ? true : false;
 
         // check whether use chunkfilepool as walpool from chunkserver conf metric  // NOLINT

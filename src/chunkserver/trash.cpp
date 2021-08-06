@@ -28,7 +28,7 @@
 #include "src/chunkserver/datastore/filename_operator.h"
 #include "src/chunkserver/copyset_node.h"
 #include "include/chunkserver/chunkserver_common.h"
-#include "src/chunkserver/uri_paser.h"
+#include "src/common/uri_parser.h"
 #include "src/chunkserver/raftlog/define.h"
 
 using ::curve::chunkserver::RAFT_DATA_DIR;
@@ -41,7 +41,8 @@ namespace chunkserver {
 int Trash::Init(TrashOptions options) {
     isStop_ = true;
 
-    if (UriParser::ParseUri(options.trashPath, &trashPath_).empty()) {
+    if (curve::common::UriParser::ParseUri(options.trashPath, &trashPath_)
+            .empty()) {
         LOG(ERROR) << "not support trash uri's protocol"
                    << " error trashPath is: " << options.trashPath;
         return -1;

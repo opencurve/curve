@@ -27,13 +27,43 @@
 #include "curvefs/src/metaserver/metaserver_service.h"
 #include "curvefs/src/metaserver/trash_manager.h"
 #include "src/common/s3_adapter.h"
+#include "curvefs/src/metaserver/copyset/copyset_service.h"
+#include "absl/memory/memory.h"
+#include "src/common/string_util.h"
 
 namespace curvefs {
 namespace metaserver {
+
+using ::curve::fs::FileSystemType;
+using ::curve::fs::LocalFsFactory;
+using ::curve::fs::LocalFileSystemOption;
+
+using ::curvefs::metaserver::copyset::ApplyQueueOption;
+using ::curvefs::metaserver::copyset::CopysetTrashOptions;
+
 void Metaserver::InitOptions(std::shared_ptr<Configuration> conf) {
     conf_ = conf;
-    conf_->GetValueFatalIfFail("metaserver.listen.addr",
-                               &options_.metaserverListenAddr);
+    conf_->GetValueFatalIfFail("global.ip", &options_.ip);
+    conf_->GetValueFatalIfFail("global.port", &options_.port);
+
+    std::string value;
+    conf_->GetValueFatalIfFail("bthread.worker_count", &value);
+    if (value == "auto") {
+        options_.bthreadWorkerCount = -1;
+    } else if (!curve::common::StringToInt(value,
+                                           &options_.bthreadWorkerCount)) {
+        LOG(WARNING)
+            << "Parse bthread.worker_count to int failed, string value: "
+            << value;
+    }
+}
+
+void Metaserver::InitLocalFileSystem() {
+    LocalFileSystemOption option;
+
+    localFileSystem_ = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
+    LOG_IF(FATAL, 0 != localFileSystem_->Init(option))
+        << "Failed to initialize local filesystem";
 }
 
 void InitS3Option(const std::shared_ptr<Configuration> &conf,
@@ -57,16 +87,15 @@ void Metaserver::Init() {
     // s3Adaptor_ own the s3Client_, and will delete it when destruct.
     s3Adaptor_->Init(s3ClientAdaptorOption, s3Client_);
     trashOption.s3Adaptor = s3Adaptor_;
-
-    inodeStorage_ = std::make_shared<MemoryInodeStorage>();
-    dentryStorage_ = std::make_shared<MemoryDentryStorage>();
-
-    trash_ = std::make_shared<TrashImpl>(inodeStorage_);
-    trash_->Init(trashOption);
-    inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
-    dentryManager_ = std::make_shared<DentryManager>(dentryStorage_);
-
     TrashManager::GetInstance().Init(trashOption);
+
+    // NOTE: Do not arbitrarily adjust the order, there are dependencies
+    //       between different modules
+    InitLocalFileSystem();
+    InitCopysetTrash();
+    InitCopysetNodeManager();
+    InitInflightThrottle();
+
     inited_ = true;
 }
 
@@ -79,22 +108,45 @@ void Metaserver::Run() {
     TrashManager::GetInstance().Run();
 
     brpc::Server server;
+    butil::ip_t ip;
+    LOG_IF(FATAL, 0 != butil::str2ip(options_.ip.c_str(), &ip))
+        << "convert " << options_.ip << " to ip failed";
+    butil::EndPoint listenAddr(ip, options_.port);
+
+    server_ = absl::make_unique<brpc::Server>();
+    metaService_ = absl::make_unique<MetaServerServiceImpl>(
+        copysetNodeManager_, inflightThrottle_.get());
+    copysetService_ =
+        absl::make_unique<CopysetServiceImpl>(copysetNodeManager_);
+
     // add metaserver service
-    MetaServerServiceImpl metaserverService(inodeManager_, dentryManager_);
-    LOG_IF(FATAL, server.AddService(&metaserverService,
-                                    brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
+    LOG_IF(FATAL, server_->AddService(metaService_.get(),
+                                      brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
         << "add metaserverService error";
+
+    LOG_IF(FATAL, server_->AddService(copysetService_.get(),
+                                      brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
+        << "add copysetservice error";
+
+    // add raft-related service
+    copysetNodeManager_->AddService(server_.get(), listenAddr);
 
     // start rpc server
     brpc::ServerOptions option;
-    LOG_IF(FATAL,
-           server.Start(options_.metaserverListenAddr.c_str(), &option) != 0)
+    if (options_.bthreadWorkerCount != -1) {
+        option.num_threads = options_.bthreadWorkerCount;
+    }
+    LOG_IF(FATAL, server_->Start(listenAddr, &option) != 0)
         << "start brpc server error";
     running_ = true;
 
+    // start copyset node manager
+    LOG_IF(FATAL, !copysetNodeManager_->Start())
+        << "Failed to start copyset node manager";
+
     // To achieve the graceful exit of SIGTERM, you need to specify parameters
     // when starting the process: --graceful_quit_on_sigterm
-    server.RunUntilAskedToQuit();
+    server_->RunUntilAskedToQuit();
 }
 
 void Metaserver::Stop() {
@@ -102,8 +154,103 @@ void Metaserver::Stop() {
         LOG(WARNING) << "Metaserver is not running";
         return;
     }
+
+    LOG(INFO) << "MetaServer is going to quit";
+
+    server_->Stop(0);
+    server_->Join();
+
     TrashManager::GetInstance().Fini();
-    brpc::AskToQuit();
+    LOG_IF(ERROR, !copysetTrash_->Stop()) << "Failed to stop copyset trash";
+    LOG_IF(ERROR, !copysetNodeManager_->Stop())
+        << "Failed to stop copyset node manager";
+
+    LOG(INFO) << "MetaServer stopped success";
 }
+
+void Metaserver::InitCopysetNodeManager() {
+    InitCopysetNodeOptions();
+
+    copysetNodeManager_ = &CopysetNodeManager::GetInstance();
+    LOG_IF(FATAL, !copysetNodeManager_->Init(copysetNodeOptions_))
+        << "Failed to initialize CopysetNodeManager";
+}
+
+void Metaserver::InitCopysetNodeOptions() {
+    LOG_IF(FATAL, !conf_->GetStringValue("global.ip", &copysetNodeOptions_.ip));
+    LOG_IF(FATAL,
+           !conf_->GetUInt32Value("global.port", &copysetNodeOptions_.port));
+
+    LOG_IF(FATAL,
+           copysetNodeOptions_.port <= 0 || copysetNodeOptions_.port >= 65535)
+        << "Invalid server port: " << copysetNodeOptions_.port;
+
+    LOG_IF(FATAL, !conf_->GetStringValue("copyset.data_uri",
+                                         &copysetNodeOptions_.dataUri));
+    LOG_IF(FATAL,
+           !conf_->GetIntValue(
+               "copyset.election_timeout_ms",
+               &copysetNodeOptions_.raftNodeOptions.election_timeout_ms));
+    LOG_IF(FATAL,
+           !conf_->GetIntValue(
+               "copyset.snapshot_interval_s",
+               &copysetNodeOptions_.raftNodeOptions.snapshot_interval_s));
+    LOG_IF(FATAL, !conf_->GetIntValue(
+                      "copyset.catchup_margin",
+                      &copysetNodeOptions_.raftNodeOptions.catchup_margin));
+    LOG_IF(FATAL, !conf_->GetStringValue(
+                      "copyset.raft_log_uri",
+                      &copysetNodeOptions_.raftNodeOptions.log_uri));
+    LOG_IF(FATAL, !conf_->GetStringValue(
+                      "copyset.raft_meta_uri",
+                      &copysetNodeOptions_.raftNodeOptions.raft_meta_uri));
+    LOG_IF(FATAL, !conf_->GetStringValue(
+                      "copyset.raft_snapshot_uri",
+                      &copysetNodeOptions_.raftNodeOptions.snapshot_uri));
+    LOG_IF(FATAL, !conf_->GetUInt32Value("copyset.load_concurrency",
+                                         &copysetNodeOptions_.loadConcurrency));
+    LOG_IF(FATAL, !conf_->GetUInt32Value("copyset.check_retrytimes",
+                                         &copysetNodeOptions_.checkRetryTimes));
+    LOG_IF(FATAL,
+           !conf_->GetUInt32Value("copyset.finishload_margin",
+                                  &copysetNodeOptions_.finishLoadMargin));
+    LOG_IF(FATAL, !conf_->GetUInt32Value(
+                      "copyset.check_loadmargin_interval_ms",
+                      &copysetNodeOptions_.checkLoadMarginIntervalMs));
+
+    LOG_IF(FATAL, !conf_->GetUInt32Value(
+                      "applyqueue.worker_count",
+                      &copysetNodeOptions_.applyQueueOption.workerCount));
+    LOG_IF(FATAL, !conf_->GetUInt32Value(
+                      "applyqueue.queue_depth",
+                      &copysetNodeOptions_.applyQueueOption.queueDepth));
+
+    copysetNodeOptions_.localFileSystem = localFileSystem_.get();
+    CHECK(copysetNodeOptions_.localFileSystem != nullptr);
+}
+
+void Metaserver::InitCopysetTrash() {
+    CopysetTrashOptions options;
+    LOG_IF(FATAL,
+           !conf_->GetStringValue("copyset.trash.uri", &options.trashUri));
+    LOG_IF(FATAL, !conf_->GetUInt32Value("copyset.trash.expired_aftersec",
+                                         &options.expiredAfterSec));
+    LOG_IF(FATAL, !conf_->GetUInt32Value("copyset.trash.scan_periodsec",
+                                         &options.scanPeriodSec));
+    options.localFileSystem = localFileSystem_.get();
+    CHECK(options.localFileSystem != nullptr);
+
+    copysetTrash_ = absl::make_unique<CopysetTrash>();
+    LOG_IF(FATAL, !copysetTrash_->Init(options)) << "Failed to init trash";
+}
+
+void Metaserver::InitInflightThrottle() {
+    uint64_t maxInflight = 0;
+    LOG_IF(FATAL, !conf_->GetUInt64Value("service.max_inflight_request",
+                                         &maxInflight));
+
+    inflightThrottle_ = absl::make_unique<InflightThrottle>(maxInflight);
+}
+
 }  // namespace metaserver
 }  // namespace curvefs

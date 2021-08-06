@@ -20,15 +20,15 @@
  * Author: yangyaokai
  */
 
-#ifndef SRC_CHUNKSERVER_URI_PASER_H_
-#define SRC_CHUNKSERVER_URI_PASER_H_
+#ifndef SRC_COMMON_URI_PARSER_H_
+#define SRC_COMMON_URI_PARSER_H_
 
 #include <limits.h>
 #include <string>
 #include <list>
 
 namespace curve {
-namespace chunkserver {
+namespace common {
 
 class UriParser {
  public:
@@ -74,7 +74,7 @@ class UriParser {
     }
 };
 
-}  // namespace chunkserver
+}  // namespace common
 }  // namespace curve
 
-#endif  // SRC_CHUNKSERVER_URI_PASER_H_
+#endif  // SRC_COMMON_URI_PARSER_H_

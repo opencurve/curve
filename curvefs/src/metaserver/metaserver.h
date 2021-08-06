@@ -23,17 +23,35 @@
 #ifndef CURVEFS_SRC_METASERVER_METASERVER_H_
 #define CURVEFS_SRC_METASERVER_METASERVER_H_
 
+#include <brpc/server.h>
+
 #include <memory>
 #include <string>
+
+#include "curvefs/src/metaserver/copyset/apply_queue.h"
+#include "curvefs/src/metaserver/copyset/config.h"
+#include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
+#include "curvefs/src/metaserver/copyset/copyset_service.h"
+#include "curvefs/src/metaserver/copyset/trash.h"
+#include "curvefs/src/metaserver/inflight_throttle.h"
 #include "curvefs/src/metaserver/metaserver_service.h"
 #include "src/common/configuration.h"
-
-using ::curve::common::Configuration;
+#include "src/fs/local_filesystem.h"
 
 namespace curvefs {
 namespace metaserver {
+
+using ::curve::common::Configuration;
+using ::curvefs::metaserver::copyset::ApplyQueue;
+using ::curvefs::metaserver::copyset::CopysetNodeManager;
+using ::curvefs::metaserver::copyset::CopysetNodeOptions;
+using ::curvefs::metaserver::copyset::CopysetServiceImpl;
+using ::curvefs::metaserver::copyset::CopysetTrash;
+
 struct MetaserverOptions {
-    std::string metaserverListenAddr;
+    std::string ip;
+    int port;
+    int bthreadWorkerCount = -1;
 };
 
 class Metaserver {
@@ -44,19 +62,35 @@ class Metaserver {
     void Stop();
 
  private:
+    void InitCopysetNodeOptions();
+    void InitCopysetNodeManager();
+    void InitCopysetTrash();
+    void InitLocalFileSystem();
+    void InitInflightThrottle();
+
+ private:
     // metaserver configuration items
     std::shared_ptr<Configuration> conf_;
     // initialized or not
-    bool inited_;
+    bool inited_ = false;
     // running as the main MDS or not
-    bool running_;
-    std::shared_ptr<InodeStorage> inodeStorage_;
-    std::shared_ptr<DentryStorage> dentryStorage_;
+    bool running_ = false;
+
     std::shared_ptr<S3ClientAdaptor>  s3Adaptor_;
     std::shared_ptr<Trash> trash_;
-    std::shared_ptr<InodeManager> inodeManager_;
-    std::shared_ptr<DentryManager> dentryManager_;
+
     MetaserverOptions options_;
+
+    std::unique_ptr<brpc::Server> server_;
+    std::unique_ptr<MetaServerServiceImpl> metaService_;
+    std::unique_ptr<CopysetServiceImpl> copysetService_;
+
+    CopysetNodeOptions copysetNodeOptions_;
+    CopysetNodeManager* copysetNodeManager_;
+
+    std::unique_ptr<InflightThrottle> inflightThrottle_;
+    std::unique_ptr<CopysetTrash> copysetTrash_;
+    std::shared_ptr<curve::fs::LocalFileSystem> localFileSystem_;
 };
 }  // namespace metaserver
 }  // namespace curvefs

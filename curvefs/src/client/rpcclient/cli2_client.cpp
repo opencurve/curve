@@ -99,14 +99,14 @@ bool Cli2ClientImpl::DoGetLeader(Cli2Closure *done, PeerAddr *peerAddr,
 
     // handle response
     if (ret) {
-        bool has_address = done->response.peer().has_address();
+        bool has_address = done->response.leader().has_address();
         if (has_address) {
-            peerAddr->Parse(done->response.peer().address());
+            peerAddr->Parse(done->response.leader().address());
         }
 
-        bool has_id = done->response.peer().has_id();
+        bool has_id = done->response.leader().has_id();
         if (has_id) {
-            *metaserverID = done->response.peer().id();
+            *metaserverID = done->response.leader().id();
         }
     } else {
         LOG(WARNING) << "get leader error for {poolid:"

@@ -149,7 +149,7 @@ class TaskThreadPool : public Uncopyable {
 
     /* 判断线程池 queue 是否已经满了, 非线程安全，私有内部使用 */
     bool IsFullUnlock() const {
-        return queue_.size() >= capacity_;
+        return queue_.size() >= static_cast<size_t>(capacity_);
     }
 
     /* 从线程池的 queue 中取一个 task 线程安全 */

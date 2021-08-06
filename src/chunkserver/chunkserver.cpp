@@ -37,7 +37,7 @@
 #include "src/chunkserver/braft_cli_service.h"
 #include "src/chunkserver/braft_cli_service2.h"
 #include "src/chunkserver/chunkserver_helper.h"
-#include "src/chunkserver/uri_paser.h"
+#include "src/common/uri_parser.h"
 #include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
 #include "src/chunkserver/raftsnapshot/curve_file_service.h"
 #include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
@@ -49,6 +49,7 @@ using ::curve::fs::LocalFileSystemOption;
 using ::curve::fs::LocalFsFactory;
 using ::curve::fs::FileSystemType;
 using ::curve::chunkserver::concurrent::ConcurrentApplyModule;
+using ::curve::common::UriParser;
 
 DEFINE_string(conf, "ChunkServer.conf", "Path of configuration file");
 DEFINE_string(chunkServerIp, "127.0.0.1", "chunkserver ip");
