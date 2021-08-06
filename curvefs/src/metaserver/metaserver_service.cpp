@@ -23,26 +23,76 @@
 #include "curvefs/src/metaserver/metaserver_service.h"
 #include <list>
 #include <string>
+#include "curvefs/src/metaserver/copyset/meta_operator.h"
+#include "curvefs/src/metaserver/metaservice_closure.h"
 
 namespace curvefs {
 namespace metaserver {
+
+using ::curvefs::metaserver::copyset::GetDentryOperator;
+using ::curvefs::metaserver::copyset::ListDentryOperator;
+using ::curvefs::metaserver::copyset::CreateDentryOperator;
+using ::curvefs::metaserver::copyset::DeleteDentryOperator;
+using ::curvefs::metaserver::copyset::GetInodeOperator;
+using ::curvefs::metaserver::copyset::CreateInodeOperator;
+using ::curvefs::metaserver::copyset::CreateRootInodeOperator;
+using ::curvefs::metaserver::copyset::UpdateInodeOperator;
+using ::curvefs::metaserver::copyset::DeleteInodeOperator;
+using ::curvefs::metaserver::copyset::UpdateInodeS3VersionOperator;
+using ::curvefs::metaserver::copyset::CreatePartitionOperator;
+using ::curvefs::metaserver::copyset::DeletePartitionOperator;
+using ::curvefs::metaserver::copyset::PrepareRenameTxOperator;
+
+namespace {
+
+struct OperatorHelper {
+    OperatorHelper(CopysetNodeManager* manager, InflightThrottle* throttle)
+        : manager(manager), throttle(throttle) {}
+
+    template <typename OperatorT, typename RequestT, typename ResponseT>
+    void operator()(google::protobuf::RpcController* cntl,
+                    const RequestT* request, ResponseT* response,
+                    google::protobuf::Closure* done, PoolId poolId,
+                    CopysetId copysetId) {
+        // check if overloaded
+        brpc::ClosureGuard doneGuard(done);
+        if (throttle->IsOverLoad()) {
+            LOG_EVERY_N(WARNING, 100)
+                << "service overload, request: " << request->ShortDebugString();
+            response->set_statuscode(MetaStatusCode::OVERLOAD);
+            return;
+        }
+
+        auto node = manager->GetCopysetNode(poolId, copysetId);
+
+        if (!node) {
+            LOG(WARNING) << "Copyset not found, request: "
+                         << request->ShortDebugString();
+            response->set_statuscode(MetaStatusCode::COPYSET_NOTEXIST);
+            return;
+        }
+
+        auto* op = new OperatorT(
+            node, cntl, request, response,
+            new MetaServiceClosure(throttle, doneGuard.release()));
+        op->Propose();
+    }
+
+    CopysetNodeManager* manager;
+    InflightThrottle* throttle;
+};
+
+}  // namespace
+
 void MetaServerServiceImpl::GetDentry(
     ::google::protobuf::RpcController* controller,
     const ::curvefs::metaserver::GetDentryRequest* request,
     ::curvefs::metaserver::GetDentryResponse* response,
     ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    uint32_t fsId = request->fsid();
-    uint64_t parentInodeId = request->parentinodeid();
-    std::string name = request->name();
-    MetaStatusCode status = dentryManager_->GetDentry(
-        fsId, parentInodeId, name, response->mutable_dentry());
-    response->set_statuscode(status);
-    if (status != MetaStatusCode::OK) {
-        response->clear_dentry();
-    }
-    return;
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<GetDentryOperator>(controller, request, response, done,
+                                         request->poolid(),
+                                         request->copysetid());
 }
 
 void MetaServerServiceImpl::ListDentry(
@@ -50,59 +100,11 @@ void MetaServerServiceImpl::ListDentry(
     const ::curvefs::metaserver::ListDentryRequest* request,
     ::curvefs::metaserver::ListDentryResponse* response,
     ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    uint32_t fsId = request->fsid();
-    uint64_t parentInodeId = request->dirinodeid();
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
 
-    std::list<Dentry> dentryList;
-    MetaStatusCode status =
-        dentryManager_->ListDentry(fsId, parentInodeId, &dentryList);
-    if (status != MetaStatusCode::OK) {
-        response->set_statuscode(status);
-        return;
-    }
-
-    // find last dentry
-    std::string last;
-    bool findLast = false;
-    auto iter = dentryList.begin();
-    if (request->has_last()) {
-        last = request->last();
-        VLOG(1) << "last = " << last;
-        for (; iter != dentryList.end(); ++iter) {
-            if (iter->name() == last) {
-                iter++;
-                findLast = true;
-                break;
-            }
-        }
-    }
-
-    if (!findLast) {
-        iter = dentryList.begin();
-    }
-
-    uint32_t count = UINT32_MAX;
-    if (request->has_count()) {
-        count = request->count();
-        VLOG(1) << "count = " << count;
-    }
-
-    uint64_t index = 0;
-    while (iter != dentryList.end() && index < count) {
-        Dentry* dentry = response->add_dentrys();
-        dentry->CopyFrom(*iter);
-        VLOG(1) << "return client, index = " << index
-                  << ", dentry :" << iter->ShortDebugString();
-        index++;
-        iter++;
-    }
-
-    VLOG(1) << "return count = " << index;
-
-    response->set_statuscode(status);
-    return;
+    helper.operator()<ListDentryOperator>(controller, request, response, done,
+                                          request->poolid(),
+                                          request->copysetid());
 }
 
 void MetaServerServiceImpl::CreateDentry(
@@ -110,11 +112,10 @@ void MetaServerServiceImpl::CreateDentry(
     const ::curvefs::metaserver::CreateDentryRequest* request,
     ::curvefs::metaserver::CreateDentryResponse* response,
     ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    MetaStatusCode status = dentryManager_->CreateDentry(request->dentry());
-    response->set_statuscode(status);
-    return;
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<CreateDentryOperator>(controller, request, response, done,
+                                            request->poolid(),
+                                            request->copysetid());
 }
 
 void MetaServerServiceImpl::DeleteDentry(
@@ -122,15 +123,10 @@ void MetaServerServiceImpl::DeleteDentry(
     const ::curvefs::metaserver::DeleteDentryRequest* request,
     ::curvefs::metaserver::DeleteDentryResponse* response,
     ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    uint32_t fsId = request->fsid();
-    uint64_t parentInodeId = request->parentinodeid();
-    std::string name = request->name();
-    MetaStatusCode status =
-        dentryManager_->DeleteDentry(fsId, parentInodeId, name);
-    response->set_statuscode(status);
-    return;
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<DeleteDentryOperator>(controller, request, response, done,
+                                            request->poolid(),
+                                            request->copysetid());
 }
 
 void MetaServerServiceImpl::GetInode(
@@ -138,17 +134,10 @@ void MetaServerServiceImpl::GetInode(
     const ::curvefs::metaserver::GetInodeRequest* request,
     ::curvefs::metaserver::GetInodeResponse* response,
     ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    uint32_t fsId = request->fsid();
-    uint64_t inodeId = request->inodeid();
-    MetaStatusCode status =
-        inodeManager_->GetInode(fsId, inodeId, response->mutable_inode());
-    if (status != MetaStatusCode::OK) {
-        response->clear_inode();
-    }
-    response->set_statuscode(status);
-    return;
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<GetInodeOperator>(controller, request, response, done,
+                                        request->poolid(),
+                                        request->copysetid());
 }
 
 void MetaServerServiceImpl::CreateInode(
@@ -156,35 +145,10 @@ void MetaServerServiceImpl::CreateInode(
     const ::curvefs::metaserver::CreateInodeRequest* request,
     ::curvefs::metaserver::CreateInodeResponse* response,
     ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    uint32_t fsId = request->fsid();
-    uint64_t length = request->length();
-    uint32_t uid = request->uid();
-    uint32_t gid = request->gid();
-    uint32_t mode = request->mode();
-    FsFileType type = request->type();
-    std::string symlink;
-    if (type == FsFileType::TYPE_SYM_LINK) {
-        if (!request->has_symlink()) {
-            response->set_statuscode(MetaStatusCode::SYM_LINK_EMPTY);
-            return;
-        }
-
-        symlink = request->symlink();
-        if (symlink.empty()) {
-            response->set_statuscode(MetaStatusCode::SYM_LINK_EMPTY);
-            return;
-        }
-    }
-
-    MetaStatusCode status = inodeManager_->CreateInode(
-        fsId, length, uid, gid, mode, type, symlink, response->mutable_inode());
-    response->set_statuscode(status);
-    if (status != MetaStatusCode::OK) {
-        response->clear_inode();
-    }
-    return;
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<CreateInodeOperator>(controller, request, response, done,
+                                           request->poolid(),
+                                           request->copysetid());
 }
 
 void MetaServerServiceImpl::CreateRootInode(
@@ -192,23 +156,10 @@ void MetaServerServiceImpl::CreateRootInode(
     const ::curvefs::metaserver::CreateRootInodeRequest* request,
     ::curvefs::metaserver::CreateRootInodeResponse* response,
     ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    uint32_t fsId = request->fsid();
-    uint32_t uid = request->uid();
-    uint32_t gid = request->gid();
-    uint32_t mode = request->mode();
-
-    MetaStatusCode status =
-        inodeManager_->CreateRootInode(fsId, uid, gid, mode);
-    response->set_statuscode(status);
-    if (status != MetaStatusCode::OK) {
-        LOG(ERROR) << "CreateRootInode fail, fsId = " << fsId
-                   << ", uid = " << uid << ", gid = " << gid
-                   << ", mode = " << mode
-                   << ", retCode = " << MetaStatusCode_Name(status);
-    }
-    return;
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<CreateRootInodeOperator>(controller, request, response,
+                                               done, request->poolid(),
+                                               request->copysetid());
 }
 
 void MetaServerServiceImpl::UpdateInode(
@@ -216,63 +167,10 @@ void MetaServerServiceImpl::UpdateInode(
     const ::curvefs::metaserver::UpdateInodeRequest* request,
     ::curvefs::metaserver::UpdateInodeResponse* response,
     ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    uint32_t fsId = request->fsid();
-    uint64_t inodeId = request->inodeid();
-    if (request->has_volumeextentlist() && request->has_s3chunkinfolist()) {
-        LOG(ERROR) << "only one of type space info, choose volume or s3";
-        response->set_statuscode(MetaStatusCode::PARAM_ERROR);
-        return;
-    }
-
-    Inode inode;
-    MetaStatusCode status = inodeManager_->GetInode(fsId, inodeId, &inode);
-    if (status != MetaStatusCode::OK) {
-        response->set_statuscode(status);
-        return;
-    }
-
-    bool needUpdate = false;
-
-#define UPDATE_INODE(param)                  \
-    if (request->has_##param()) {            \
-        inode.set_##param(request->param()); \
-        needUpdate = true;                   \
-    }
-
-    UPDATE_INODE(length)
-    UPDATE_INODE(ctime)
-    UPDATE_INODE(mtime)
-    UPDATE_INODE(atime)
-    UPDATE_INODE(uid)
-    UPDATE_INODE(gid)
-    UPDATE_INODE(mode)
-    UPDATE_INODE(nlink)
-    UPDATE_INODE(openflag)
-
-    if (request->has_volumeextentlist()) {
-        VLOG(1) << "update inode has extent";
-        inode.mutable_volumeextentlist()->CopyFrom(request->volumeextentlist());
-        needUpdate = true;
-    }
-
-    if (request->has_s3chunkinfolist()) {
-        VLOG(1) << "update inode has extent";
-        inode.mutable_s3chunkinfolist()->CopyFrom(request->s3chunkinfolist());
-        needUpdate = true;
-    }
-
-    if (needUpdate) {
-        // TODO(cw123) : Update each field individually
-        status = inodeManager_->UpdateInode(inode);
-        response->set_statuscode(status);
-    } else {
-        LOG(WARNING) << "inode has no param to update";
-        response->set_statuscode(MetaStatusCode::OK);
-    }
-
-    return;
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<UpdateInodeOperator>(controller, request, response, done,
+                                           request->poolid(),
+                                           request->copysetid());
 }
 
 void MetaServerServiceImpl::DeleteInode(
@@ -280,13 +178,10 @@ void MetaServerServiceImpl::DeleteInode(
     const ::curvefs::metaserver::DeleteInodeRequest* request,
     ::curvefs::metaserver::DeleteInodeResponse* response,
     ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    uint32_t fsId = request->fsid();
-    uint64_t inodeId = request->inodeid();
-    MetaStatusCode status = inodeManager_->DeleteInode(fsId, inodeId);
-    response->set_statuscode(status);
-    return;
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<DeleteInodeOperator>(controller, request, response, done,
+                                           request->poolid(),
+                                           request->copysetid());
 }
 
 void MetaServerServiceImpl::UpdateInodeS3Version(
@@ -294,22 +189,40 @@ void MetaServerServiceImpl::UpdateInodeS3Version(
     const ::curvefs::metaserver::UpdateInodeS3VersionRequest* request,
     ::curvefs::metaserver::UpdateInodeS3VersionResponse* response,
     ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    uint32_t fsId = request->fsid();
-    uint64_t inodeId = request->inodeid();
-    uint64_t version;
-    MetaStatusCode status =
-        inodeManager_->UpdateInodeVersion(fsId, inodeId, &version);
-    response->set_statuscode(status);
-    if (status != MetaStatusCode::OK) {
-        LOG(ERROR) << "UpdateInodeS3Version fail, fsId = " << fsId
-                   << ", inodeId = " << inodeId
-                   << ", ret = " << MetaStatusCode_Name(status);
-    } else {
-        response->set_version(version);
-    }
-    return;
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<UpdateInodeS3VersionOperator>(
+        controller, request, response, done, request->poolid(),
+        request->copysetid());
+}
+
+void MetaServerServiceImpl::CreatePartition(
+    google::protobuf::RpcController* controller,
+    const CreatePartitionRequest* request, CreatePartitionResponse* response,
+    google::protobuf::Closure* done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<CreatePartitionOperator>(
+        controller, request, response, done, request->partition().poolid(),
+        request->partition().copysetid());
+}
+
+void MetaServerServiceImpl::DeletePartition(
+    google::protobuf::RpcController* controller,
+    const DeletePartitionRequest* request, DeletePartitionResponse* response,
+    google::protobuf::Closure* done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<DeletePartitionOperator>(
+        controller, request, response, done, request->partition().poolid(),
+        request->partition().copysetid());
+}
+
+void MetaServerServiceImpl::PrepareRenameTx(
+    google::protobuf::RpcController* controller,
+    const PrepareRenameTxRequest* request, PrepareRenameTxResponse* response,
+    google::protobuf::Closure* done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<PrepareRenameTxOperator>(controller, request, response,
+                                               done, request->poolid(),
+                                               request->copysetid());
 }
 
 }  // namespace metaserver

@@ -29,6 +29,7 @@
 #include <string>
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/partition.h"
+#include "curvefs/src/metaserver/copyset/snapshot_closure.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -60,22 +61,70 @@ using curvefs::metaserver::CreatePartitionResponse;
 using curvefs::metaserver::DeletePartitionRequest;
 using curvefs::metaserver::DeletePartitionResponse;
 
-// for test
-// TODO(wuhanqing)
-class OnSnapshotSaveDone : public google::protobuf::Closure {
- public:
-    virtual ~OnSnapshotSaveDone() = default;
-
-    virtual void SetSuccess() = 0;
-
-    virtual void SetError(MetaStatusCode code) = 0;
-};
+using ::curvefs::metaserver::copyset::OnSnapshotSaveDoneClosure;
 
 class MetaStore {
  public:
-    MetaStore();
+    MetaStore() = default;
+    virtual ~MetaStore() = default;
+
+    virtual bool Load(const std::string& path) = 0;
+    virtual bool Save(const std::string& path,
+                      OnSnapshotSaveDoneClosure* done) = 0;
+    virtual bool Clear() = 0;
+    virtual MetaStatusCode CreatePartition(
+        const CreatePartitionRequest* request,
+        CreatePartitionResponse* response) = 0;
+
+    virtual MetaStatusCode DeletePartition(
+        const DeletePartitionRequest* request,
+        DeletePartitionResponse* response) = 0;
+
+    // dentry
+    virtual MetaStatusCode CreateDentry(const CreateDentryRequest* request,
+                                        CreateDentryResponse* response) = 0;
+
+    virtual MetaStatusCode GetDentry(const GetDentryRequest* request,
+                                     GetDentryResponse* response) = 0;
+
+    virtual MetaStatusCode DeleteDentry(const DeleteDentryRequest* request,
+                                        DeleteDentryResponse* response) = 0;
+
+    virtual MetaStatusCode ListDentry(const ListDentryRequest* request,
+                                      ListDentryResponse* response) = 0;
+
+    // inode
+    virtual MetaStatusCode CreateInode(const CreateInodeRequest* request,
+                                       CreateInodeResponse* response) = 0;
+
+    virtual MetaStatusCode CreateRootInode(
+        const CreateRootInodeRequest* request,
+        CreateRootInodeResponse* response) = 0;
+
+    virtual MetaStatusCode GetInode(const GetInodeRequest* request,
+                                    GetInodeResponse* response) = 0;
+
+    virtual MetaStatusCode DeleteInode(const DeleteInodeRequest* request,
+                                       DeleteInodeResponse* response) = 0;
+
+    virtual MetaStatusCode UpdateInode(const UpdateInodeRequest* request,
+                                       UpdateInodeResponse* response) = 0;
+
+    virtual MetaStatusCode UpdateInodeS3Version(
+        const UpdateInodeS3VersionRequest* request,
+        UpdateInodeS3VersionResponse* response) = 0;
+
+    virtual MetaStatusCode PrepareRenameTx(
+        const PrepareRenameTxRequest* request,
+        PrepareRenameTxResponse* response) = 0;
+};
+
+class MetaStoreImpl : public MetaStore {
+ public:
+    MetaStoreImpl();
+
     bool Load(const std::string& path);
-    bool Save(const std::string& path, OnSnapshotSaveDone* done);
+    bool Save(const std::string& path, OnSnapshotSaveDoneClosure* done);
     bool Clear();
     MetaStatusCode CreatePartition(const CreatePartitionRequest* request,
                                    CreatePartitionResponse* response);
@@ -112,14 +161,17 @@ class MetaStore {
     MetaStatusCode UpdateInode(const UpdateInodeRequest* request,
                                UpdateInodeResponse* response);
 
-    MetaStatusCode UpdateInodeVersion(
+    MetaStatusCode UpdateInodeS3Version(
         const UpdateInodeS3VersionRequest* request,
         UpdateInodeS3VersionResponse* response);
+
+    MetaStatusCode PrepareRenameTx(const PrepareRenameTxRequest* request,
+                                   PrepareRenameTxResponse* response);
 
     std::shared_ptr<Partition> GetPartition(uint32_t partitionId);
 
  private:
-    void SaveBack(const std::string& path, OnSnapshotSaveDone* done);
+    void SaveBack(const std::string& path, OnSnapshotSaveDoneClosure* done);
 
  private:
     RWLock rwLock_;  // protect partitionMap_

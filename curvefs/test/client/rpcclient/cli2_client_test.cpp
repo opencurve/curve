@@ -98,7 +98,7 @@ TEST_F(Cli2ClientImplTest, test_GetLeaderOK) {
     Peer *peer = new Peer();
     peer->set_address(peerAddr_.ToString());
     peer->set_id(3);
-    response.set_allocated_peer(peer);
+    response.set_allocated_leader(peer);
 
     EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
         .WillOnce(
@@ -127,7 +127,7 @@ TEST_F(Cli2ClientImplTest, test_GetLeader_OneRPCError) {
     Peer *peer = new Peer();
     peer->set_address(peerAddr_.ToString());
     peer->set_id(2);
-    response.set_allocated_peer(peer);
+    response.set_allocated_leader(peer);
     EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
         .Times(2)
         .WillOnce(

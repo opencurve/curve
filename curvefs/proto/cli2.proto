@@ -16,19 +16,18 @@
 
 syntax="proto2";
 
-package curvefs.metaserver.copyset;
 import "curvefs/proto/common.proto";
+package curvefs.metaserver.copyset;
 option cc_generic_services = true;
 
 message GetLeaderRequest2 {
     required uint32 poolId     = 1;
     required uint32 copysetId  = 2;
-    // query at specify peer
     optional common.Peer peer  = 3;
 }
 
 message GetLeaderResponse2 {
-    required common.Peer peer  = 1;
+    required common.Peer leader = 1;
 }
 
 service CliService2 {

@@ -34,18 +34,55 @@ COPTS = [
 ]
 
 cc_library(
-    name="curvefs_metaserver_lib",
-    hdrs=glob(["*.h"]),
-    srcs=glob(["*.cpp"],
-        exclude = ["main.cpp"],
+    name = "curvefs_metastore",
+    srcs = glob(
+        ["*.cpp"],
+        exclude = [
+            "main.cpp",
+            "metaserver.cpp",
+            "metaserver_service.cpp",
+        ],
+    ),
+    hdrs = glob(
+        ["*.h"],
+        exclude = [
+            "inflight_throttle.h",
+            "metaservice_closure.h",
+            "metaserver_service.h",
+            "metaserver.h",
+        ],
     ),
     copts = COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "//external:brpc",
-        "//curvefs/proto:metaserver_cc_proto",
-        "//curvefs/proto:curvefs_common_cc_proto",
+        ":metaserver_s3_lib",
+        "//curvefs/src/common:curvefs_common",
+        "//curvefs/src/metaserver/copyset:curvefs_copyset_snapshot_closure",
+        "//src/common:curve_common",
         "//src/fs:lfs",
+        "@com_google_absl//absl/cleanup",
+    ],
+)
+
+cc_library(
+    name = "curvefs_metaserver_lib",
+    srcs = [
+        "metaserver.cpp",
+        "metaserver_service.cpp",
+    ],
+    hdrs = [
+        "inflight_throttle.h",
+        "metaserver.h",
+        "metaserver_service.h",
+        "metaservice_closure.h",
+    ],
+    copts = COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//curvefs/proto:curvefs_common_cc_proto",
+        "//curvefs/proto:metaserver_cc_proto",
+        "//curvefs/src/metaserver/copyset:curvefs_copyset",
+        "//external:brpc",
         "//src/common/concurrent:curve_concurrent",
         "//src/common:curve_common",
         "//curvefs/src/common:curvefs_common",
@@ -77,7 +114,7 @@ cc_binary(
     copts = COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "//curvefs/src/metaserver:curvefs_metaserver_lib",
+        ":curvefs_metaserver_lib",
+        ":curvefs_metastore",
     ],
 )
-

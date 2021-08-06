@@ -27,9 +27,9 @@
 #include "curvefs/src/metaserver/storage.h"
 namespace curvefs {
 namespace metaserver {
-MetaStore::MetaStore() {}
+MetaStoreImpl::MetaStoreImpl() {}
 
-bool MetaStore::Load(const std::string& path) {
+bool MetaStoreImpl::Load(const std::string& path) {
     auto callbackFunc = [&](ENTRY_TYPE type, uint32_t paritionId,
                             void* metadata) -> bool {
         if (type == ENTRY_TYPE::PARTITION) {
@@ -76,7 +76,8 @@ bool MetaStore::Load(const std::string& path) {
     return ret;
 }
 
-void MetaStore::SaveBack(const std::string& path, OnSnapshotSaveDone* done) {
+void MetaStoreImpl::SaveBack(const std::string& path,
+                             OnSnapshotSaveDoneClosure* done) {
     // 1. call back dump function
     std::vector<std::shared_ptr<Iterator>> iteratorList;
     LOG(INFO) << "Save meta to file back.";
@@ -123,21 +124,22 @@ void MetaStore::SaveBack(const std::string& path, OnSnapshotSaveDone* done) {
     done->Run();
 }
 
-bool MetaStore::Save(const std::string& path, OnSnapshotSaveDone* done) {
+bool MetaStoreImpl::Save(const std::string& path,
+                         OnSnapshotSaveDoneClosure* done) {
     ReadLockGuard readLockGuard(rwLock_);
-    std::thread th = std::thread(&MetaStore::SaveBack, this, path, done);
+    std::thread th = std::thread(&MetaStoreImpl::SaveBack, this, path, done);
     th.detach();
     return true;
 }
 
-bool MetaStore::Clear() {
+bool MetaStoreImpl::Clear() {
     WriteLockGuard writeLockGuard(rwLock_);
     partitionMap_.clear();
     return true;
 }
 
-MetaStatusCode MetaStore::CreatePartition(const CreatePartitionRequest* request,
-                                          CreatePartitionResponse* response) {
+MetaStatusCode MetaStoreImpl::CreatePartition(
+    const CreatePartitionRequest* request, CreatePartitionResponse* response) {
     WriteLockGuard writeLockGuard(rwLock_);
     MetaStatusCode status;
     PartitionInfo partition = request->partition();
@@ -154,8 +156,8 @@ MetaStatusCode MetaStore::CreatePartition(const CreatePartitionRequest* request,
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode MetaStore::DeletePartition(const DeletePartitionRequest* request,
-                                          DeletePartitionResponse* response) {
+MetaStatusCode MetaStoreImpl::DeletePartition(
+    const DeletePartitionRequest* request, DeletePartitionResponse* response) {
     WriteLockGuard writeLockGuard(rwLock_);
     MetaStatusCode status;
     uint32_t partitionId = request->partition().partitionid();
@@ -178,7 +180,7 @@ MetaStatusCode MetaStore::DeletePartition(const DeletePartitionRequest* request,
 }
 
 // dentry
-MetaStatusCode MetaStore::CreateDentry(const CreateDentryRequest* request,
+MetaStatusCode MetaStoreImpl::CreateDentry(const CreateDentryRequest* request,
                                        CreateDentryResponse* response) {
     ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
@@ -192,7 +194,7 @@ MetaStatusCode MetaStore::CreateDentry(const CreateDentryRequest* request,
     return status;
 }
 
-MetaStatusCode MetaStore::GetDentry(const GetDentryRequest* request,
+MetaStatusCode MetaStoreImpl::GetDentry(const GetDentryRequest* request,
                                     GetDentryResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t parentInodeId = request->parentinodeid();
@@ -213,7 +215,7 @@ MetaStatusCode MetaStore::GetDentry(const GetDentryRequest* request,
     return status;
 }
 
-MetaStatusCode MetaStore::DeleteDentry(const DeleteDentryRequest* request,
+MetaStatusCode MetaStoreImpl::DeleteDentry(const DeleteDentryRequest* request,
                                        DeleteDentryResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t parentInodeId = request->parentinodeid();
@@ -230,7 +232,7 @@ MetaStatusCode MetaStore::DeleteDentry(const DeleteDentryRequest* request,
     return status;
 }
 
-MetaStatusCode MetaStore::ListDentry(const ListDentryRequest* request,
+MetaStatusCode MetaStoreImpl::ListDentry(const ListDentryRequest* request,
                                      ListDentryResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t parentInodeId = request->dirinodeid();
@@ -293,7 +295,7 @@ MetaStatusCode MetaStore::ListDentry(const ListDentryRequest* request,
 }
 
 // inode
-MetaStatusCode MetaStore::CreateInode(const CreateInodeRequest* request,
+MetaStatusCode MetaStoreImpl::CreateInode(const CreateInodeRequest* request,
                                       CreateInodeResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t length = request->length();
@@ -331,8 +333,8 @@ MetaStatusCode MetaStore::CreateInode(const CreateInodeRequest* request,
     return status;
 }
 
-MetaStatusCode MetaStore::CreateRootInode(const CreateRootInodeRequest* request,
-                                          CreateRootInodeResponse* response) {
+MetaStatusCode MetaStoreImpl::CreateRootInode(
+    const CreateRootInodeRequest* request, CreateRootInodeResponse* response) {
     uint32_t fsId = request->fsid();
     uint32_t uid = request->uid();
     uint32_t gid = request->gid();
@@ -357,7 +359,7 @@ MetaStatusCode MetaStore::CreateRootInode(const CreateRootInodeRequest* request,
     return status;
 }
 
-MetaStatusCode MetaStore::GetInode(const GetInodeRequest* request,
+MetaStatusCode MetaStoreImpl::GetInode(const GetInodeRequest* request,
                                    GetInodeResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t inodeId = request->inodeid();
@@ -379,7 +381,7 @@ MetaStatusCode MetaStore::GetInode(const GetInodeRequest* request,
     return status;
 }
 
-MetaStatusCode MetaStore::DeleteInode(const DeleteInodeRequest* request,
+MetaStatusCode MetaStoreImpl::DeleteInode(const DeleteInodeRequest* request,
                                       DeleteInodeResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t inodeId = request->inodeid();
@@ -397,7 +399,7 @@ MetaStatusCode MetaStore::DeleteInode(const DeleteInodeRequest* request,
     return status;
 }
 
-MetaStatusCode MetaStore::UpdateInode(const UpdateInodeRequest* request,
+MetaStatusCode MetaStoreImpl::UpdateInode(const UpdateInodeRequest* request,
                                       UpdateInodeResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t inodeId = request->inodeid();
@@ -462,7 +464,7 @@ MetaStatusCode MetaStore::UpdateInode(const UpdateInodeRequest* request,
     return status;
 }
 
-MetaStatusCode MetaStore::UpdateInodeVersion(
+MetaStatusCode MetaStoreImpl::UpdateInodeS3Version(
     const UpdateInodeS3VersionRequest* request,
     UpdateInodeS3VersionResponse* response) {
     uint32_t fsId = request->fsid();
@@ -490,7 +492,13 @@ MetaStatusCode MetaStore::UpdateInodeVersion(
     return status;
 }
 
-std::shared_ptr<Partition> MetaStore::GetPartition(uint32_t partitionId) {
+// TODO(chenjingli): implement
+MetaStatusCode MetaStoreImpl::PrepareRenameTx(
+    const PrepareRenameTxRequest* request, PrepareRenameTxResponse* response) {
+    return MetaStatusCode::OK;
+}
+
+std::shared_ptr<Partition> MetaStoreImpl::GetPartition(uint32_t partitionId) {
     auto it = partitionMap_.find(partitionId);
     if (it != partitionMap_.end()) {
         return it->second;

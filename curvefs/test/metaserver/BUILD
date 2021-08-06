@@ -107,7 +107,7 @@ cc_test(
     ),
     copts = ["-g","-DHAVE_ZLIB=1"],
     deps = [
-            "//curvefs/src/metaserver:curvefs_metaserver_lib",
+            "//curvefs/src/metaserver:curvefs_metastore",
             "@com_google_googletest//:gtest_main",
             "@com_google_googletest//:gtest",
             "//external:brpc",
@@ -121,7 +121,7 @@ cc_test(
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
-        "//curvefs/src/metaserver:curvefs_metaserver_lib",
+        "//curvefs/src/metaserver:curvefs_metastore",
         "@com_google_googletest//:gtest_main",
         "@com_google_googletest//:gtest",
     ],
@@ -134,7 +134,7 @@ cc_test(
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
-        "//curvefs/src/metaserver:curvefs_metaserver_lib",
+        "//curvefs/src/metaserver:curvefs_metastore",
         "@com_google_googletest//:gtest_main",
         "@com_google_googletest//:gtest",
     ],

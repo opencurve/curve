@@ -91,7 +91,7 @@ class MetastoreTest : public ::testing::Test {
         return ret;
     }
 
-    class OnSnapshotSaveDoneImpl : public OnSnapshotSaveDone {
+    class OnSnapshotSaveDoneImpl : public OnSnapshotSaveDoneClosure {
      public:
         void SetSuccess() {
             ret_ = true;
@@ -121,7 +121,7 @@ class MetastoreTest : public ::testing::Test {
 };
 
 TEST_F(MetastoreTest, partition) {
-    MetaStore metastore;
+    MetaStoreImpl metastore;
     CreatePartitionRequest createPartitionRequest;
     CreatePartitionResponse createPartitionResponse;
     PartitionInfo partitionInfo;
@@ -211,7 +211,7 @@ TEST_F(MetastoreTest, partition) {
 }
 
 TEST_F(MetastoreTest, test_inode) {
-    MetaStore metastore;
+    MetaStoreImpl metastore;
 
     // create partition1 partition2
     CreatePartitionRequest createPartitionRequest;
@@ -428,31 +428,31 @@ TEST_F(MetastoreTest, test_inode) {
     updateVersionRequest.set_inodeid(createResponse2.inode().inodeid());
 
     // updateVersionRequest wrong partitionid
-    ret = metastore.UpdateInodeVersion(&updateVersionRequest,
-                                       &updateVersionResponse);
+    ret = metastore.UpdateInodeS3Version(&updateVersionRequest,
+                                         &updateVersionResponse);
     ASSERT_EQ(updateVersionResponse.statuscode(),
               MetaStatusCode::PARTITION_NOT_FOUND);
     ASSERT_EQ(updateVersionResponse.statuscode(), ret);
 
     updateVersionRequest.set_partitionid(partitionId);
-    ret = metastore.UpdateInodeVersion(&updateVersionRequest,
-                                       &updateVersionResponse);
+    ret = metastore.UpdateInodeS3Version(&updateVersionRequest,
+                                         &updateVersionResponse);
     ASSERT_EQ(updateVersionResponse.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(updateVersionResponse.statuscode(), ret);
     ASSERT_EQ(updateVersionResponse.version(), 1);
 
     updateVersionRequest.set_fsid(fsId);
     updateVersionRequest.set_inodeid(createResponse2.inode().inodeid());
-    ret = metastore.UpdateInodeVersion(&updateVersionRequest,
-                                       &updateVersionResponse);
+    ret = metastore.UpdateInodeS3Version(&updateVersionRequest,
+                                         &updateVersionResponse);
     ASSERT_EQ(updateVersionResponse.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(updateVersionResponse.statuscode(), ret);
     ASSERT_EQ(updateVersionResponse.version(), 2);
 
     updateVersionRequest.set_fsid(fsId);
     updateVersionRequest.set_inodeid(createResponse.inode().inodeid());
-    ret = metastore.UpdateInodeVersion(&updateVersionRequest,
-                                       &updateVersionResponse);
+    ret = metastore.UpdateInodeS3Version(&updateVersionRequest,
+                                         &updateVersionResponse);
     ASSERT_EQ(updateVersionResponse.statuscode(), MetaStatusCode::PARAM_ERROR);
     ASSERT_EQ(updateVersionResponse.statuscode(), ret);
 
@@ -481,7 +481,7 @@ TEST_F(MetastoreTest, test_inode) {
 }
 
 TEST_F(MetastoreTest, test_dentry) {
-    MetaStore metastore;
+    MetaStoreImpl metastore;
 
     // create partition1 partition2
     CreatePartitionRequest createPartitionRequest;
@@ -682,7 +682,7 @@ TEST_F(MetastoreTest, test_dentry) {
 }
 
 TEST_F(MetastoreTest, persist_success) {
-    MetaStore metastore;
+    MetaStoreImpl metastore;
     uint32_t partitionId = 4;
     uint32_t partitionId2 = 2;
     // create partition1
@@ -778,7 +778,7 @@ TEST_F(MetastoreTest, persist_success) {
     ASSERT_EQ(createDentryResponse2.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(createDentryResponse2.statuscode(), ret);
 
-    // dump metastore to file
+    // dump MetaStoreImpl to file
     OnSnapshotSaveDoneImpl done;
     LOG(INFO) << "MetastoreTest test Save";
     ASSERT_TRUE(metastore.Save("./metastore_test", &done));
@@ -787,8 +787,8 @@ TEST_F(MetastoreTest, persist_success) {
     done.Wait();
     ASSERT_TRUE(done.IsSuccess());
 
-    // load metastore to new meta
-    MetaStore metastoreNew;
+    // load MetaStoreImpl to new meta
+    MetaStoreImpl metastoreNew;
     LOG(INFO) << "MetastoreTest test Load";
     ASSERT_TRUE(metastoreNew.Load("./metastore_test"));
 
@@ -812,7 +812,7 @@ TEST_F(MetastoreTest, persist_success) {
 }
 
 TEST_F(MetastoreTest, persist_partition_fail) {
-    MetaStore metastore;
+    MetaStoreImpl metastore;
     uint32_t partitionId = 4;
     // create partition1
     CreatePartitionRequest createPartitionRequest;
@@ -825,7 +825,7 @@ TEST_F(MetastoreTest, persist_partition_fail) {
     ASSERT_EQ(ret, MetaStatusCode::OK);
     ASSERT_EQ(createPartitionResponse.statuscode(), ret);
 
-    // dump metastore to file
+    // dump MetaStoreImpl to file
     OnSnapshotSaveDoneImpl done;
     LOG(INFO) << "MetastoreTest test Save";
     ASSERT_TRUE(metastore.Save("./metastore_test", &done));
@@ -836,7 +836,7 @@ TEST_F(MetastoreTest, persist_partition_fail) {
 }
 
 TEST_F(MetastoreTest, persist_dentry_fail) {
-    MetaStore metastore;
+    MetaStoreImpl metastore;
     uint32_t partitionId = 4;
     uint32_t partitionId2 = 2;
     // create partition1
@@ -873,7 +873,7 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
     ASSERT_EQ(createDentryResponse1.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(createDentryResponse1.statuscode(), ret);
 
-    // dump metastore to file
+    // dump MetaStoreImpl to file
     OnSnapshotSaveDoneImpl done;
     LOG(INFO) << "MetastoreTest test Save";
     ASSERT_TRUE(metastore.Save("./metastore_test", &done));

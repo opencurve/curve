@@ -21,8 +21,11 @@
  */
 
 #include "curvefs/src/metaserver/metaserver.h"
+
+#include <butil/at_exit.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
 #include <thread>  // NOLINT
 
 using ::testing::AtLeast;
@@ -33,6 +36,8 @@ using ::testing::ReturnArg;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
 using ::testing::SaveArg;
+
+butil::AtExitManager atExit;
 
 namespace curvefs {
 namespace metaserver {
@@ -66,6 +71,8 @@ TEST_F(MetaserverTest, test1) {
 
     // stop server and background threads
     metaserver.Stop();
+
+    brpc::AskToQuit();
     metaserverThread.join();
 }
 
