@@ -768,7 +768,7 @@ def test_lazy_clone_flatten_snapshot_fail():
                logger2.error("faltten clone file fail")
                raise
         thrash_clone = NbdThrash(ssh,destination)
-        thrash_clone.nbd_map("/dev/nbd3")
+        thrash_clone.nbd_map("/dev/nbd4")
         time.sleep(5)
         thrash_clone.nbd_getdev()
         thrash_clone.write_data(2500)
