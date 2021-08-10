@@ -66,9 +66,9 @@ FSStatusCode FsManager::CreateFsIntenal(const std::string& fsName,
 
     // 4. use metaserver interface, insert rootinode
     uint32_t fsId = newFsInfo->GetFsId();
-    uint32_t uid = 0;                // TODO(cw123)
-    uint32_t gid = 0;                // TODO(cw123)
-    uint32_t mode = S_IFDIR | 0777;  // TODO(cw123)
+    uint32_t uid = 0;                 // TODO(cw123)
+    uint32_t gid = 0;                 // TODO(cw123)
+    uint32_t mode = S_IFDIR | 01777;  // TODO(cw123)
     ret = metaserverClient_->CreateRootInode(fsId, uid, gid, mode);
     if (ret != FSStatusCode::OK) {
         LOG(ERROR) << "CreateFs fail, insert root inode fail"
