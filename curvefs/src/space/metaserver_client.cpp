@@ -65,7 +65,8 @@ bool MetaServerClient::RecursiveListDentry(uint32_t fsId, uint64_t inodeId,
     request.set_dirinodeid(inodeId);
     stub.ListDentry(&cntl, &request, &response, nullptr);
 
-    if (cntl.Failed() || response.statuscode() != metaserver::OK) {
+    if (cntl.Failed() || (response.statuscode() != metaserver::OK &&
+                          response.statuscode() != metaserver::NOT_FOUND)) {
         LOG(ERROR) << "ListDentry rpc failed, rpc errro: " << cntl.ErrorCode()
                    << "response status: "
                    << curvefs::metaserver::MetaStatusCode_Name(

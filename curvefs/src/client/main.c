@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
         goto err_out1;
     }
 
-    if(opts.mountpoint == NULL) {
+    if (opts.mountpoint == NULL) {
         printf("usage: %s -o volume=xxx conf=xxx [options] <mountpoint>\n\n", argv[0]);  // NOLINT
         printf("       %s --help\n", argv[0]);
         ret = 1;
