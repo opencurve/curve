@@ -16,6 +16,7 @@
 
 syntax="proto2";
 import "curvefs/proto/mds.proto";
+import "curvefs/proto/common.proto";
 package curvefs.space;
 option cc_generic_services = true;
 
@@ -105,6 +106,16 @@ message AllocateS3ChunkResponse {
    required uint64 chunkId = 2;
 }
 
+message StatClusterSpaceRequest{
+}
+
+message StatClusterSpaceResponse{
+    required SpaceStatusCode status = 1;
+    required common.FSType fsType = 2;
+    optional uint32 total = 3;
+    optional uint32 used = 4;
+    optional uint32 left = 5;
+}
 
 service SpaceAllocService {
     // space interface
@@ -114,4 +125,5 @@ service SpaceAllocService {
     rpc StatSpace(StatSpaceRequest) returns (StatSpaceResponse);
     rpc UnInitSpace(UnInitSpaceRequest) returns (UnInitSpaceResponse);
     rpc AllocateS3Chunk(AllocateS3ChunkRequest) returns (AllocateS3ChunkResponse);
+    rpc StatClusterSpace (StatClusterSpaceRequest) returns (StatClusterSpaceResponse);
 }

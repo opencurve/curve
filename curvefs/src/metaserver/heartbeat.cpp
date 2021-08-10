@@ -20,17 +20,19 @@
  * Author: chenwei
  */
 
+#include "curvefs/src/metaserver/heartbeat.h"
+
 #include <braft/closure_helper.h>
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <sys/statvfs.h>
 #include <sys/time.h>
+
 #include <list>
 #include <memory>
 #include <vector>
 
 #include "curvefs/src/metaserver/copyset/utils.h"
-#include "curvefs/src/metaserver/heartbeat.h"
 #include "src/common/timeutility.h"
 #include "src/common/uri_parser.h"
 
@@ -56,7 +58,7 @@ int Heartbeat::Init(const HeartbeatOptions& options) {
     }
 
     // Check the legitimacy of each address
-    for (const auto &addr : mdsEps_) {
+    for (const auto& addr : mdsEps_) {
         butil::EndPoint endpt;
         if (butil::str2endpoint(addr.c_str(), &endpt) < 0) {
             LOG(ERROR) << "Invalid sub mds ip:port provided: " << addr;
@@ -100,7 +102,7 @@ int Heartbeat::Fini() {
 }
 
 void Heartbeat::BuildCopysetInfo(curvefs::mds::heartbeat::CopySetInfo* info,
-                                CopysetNode* copyset) {
+                                 CopysetNode* copyset) {
     int ret;
     PoolId poolId = copyset->GetPoolId();
     CopysetId copysetId = copyset->GetCopysetId();
@@ -138,6 +140,11 @@ void Heartbeat::BuildRequest(HeartbeatRequest* req) {
     req->set_starttime(startUpTime_);
     req->set_ip(options_.ip);
     req->set_port(options_.port);
+
+    // TODO(cw123) : add this info
+    req->set_metadataspaceused(0);
+    req->set_metadataspaceleft(0);
+    req->set_metadataspacetotal(0);
 
     std::vector<CopysetNode*> copysets;
     copysetMan_->GetAllCopysets(&copysets);
