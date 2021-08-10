@@ -52,10 +52,41 @@ cc_test(
         "//external:glog",
         "//external:gflags",
         "//curvefs/src/tools:curvefs_tools_lib",
-    ],
-    linkopts = [
-        "-L/usr/local/lib/x86_64-linux-gnu",
-    ],
+    ]
+)
+
+# version
+cc_test(
+    name = "curvefs_version_tool_test",
+    srcs = glob(["curvefs_version_tool_test.cpp"]),
+    copts = COPTS,
+    defines = ["UNIT_TEST"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//external:brpc",
+        "//external:glog",
+        "//external:gflags",
+        "//curvefs/src/tools:curvefs_tools_lib",
+    ]
+)
+
+# factory
+cc_test(
+    name = "curvefs_tool_factory_test",
+    srcs = glob(["curvefs_tool_factory_test.cpp"]),
+    copts = COPTS,
+    defines = ["UNIT_TEST"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//external:brpc",
+        "//external:glog",
+        "//external:gflags",
+        "//curvefs/src/tools:curvefs_tools_lib",
+    ]
 )
 
 # build-topology

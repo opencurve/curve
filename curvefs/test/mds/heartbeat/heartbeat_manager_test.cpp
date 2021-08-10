@@ -21,22 +21,24 @@
  */
 
 #include "curvefs/src/mds/heartbeat/heartbeat_manager.h"
+
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <sys/time.h>
+
 #include "curvefs/src/mds/heartbeat/metaserver_healthy_checker.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "src/common/timeutility.h"
 
+using ::curvefs::mds::topology::MockIdGenerator;
+using ::curvefs::mds::topology::MockStorage;
+using ::curvefs::mds::topology::MockTokenGenerator;
+using ::curvefs::mds::topology::MockTopology;
+using ::curvefs::mds::topology::TopoStatusCode;
+using ::testing::_;
+using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::SetArgPointee;
-using ::testing::DoAll;
-using ::testing::_;
-using ::curvefs::mds::topology::MockTopology;
-using ::curvefs::mds::topology::MockIdGenerator;
-using ::curvefs::mds::topology::MockTokenGenerator;
-using ::curvefs::mds::topology::MockStorage;
-using ::curvefs::mds::topology::TopoStatusCode;
 
 namespace curvefs {
 namespace mds {
@@ -76,6 +78,9 @@ MetaServerHeartbeatRequest GetMetaServerHeartbeatRequestForTest() {
     request.set_starttime(1000);
     request.set_leadercount(10);
     request.set_copysetcount(100);
+    request.set_metadataspaceused(0);
+    request.set_metadataspaceleft(0);
+    request.set_metadataspacetotal(0);
 
     auto info = request.add_copysetinfos();
     info->set_poolid(1);

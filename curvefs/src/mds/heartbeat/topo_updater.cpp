@@ -21,15 +21,16 @@
  */
 
 #include "curvefs/src/mds/heartbeat/topo_updater.h"
+
 #include <glog/logging.h>
 
 namespace curvefs {
 namespace mds {
 namespace heartbeat {
 void TopoUpdater::UpdateTopo(
-    const ::curvefs::mds::topology::CopySetInfo &reportCopySetInfo,
-    const std::list<::curvefs::mds::topology::Partition> &topoPartitionList) {
-    CopySetInfo recordCopySetInfo;
+    const ::curvefs::mds::topology::CopySetInfo& reportCopySetInfo,
+    const std::list<::curvefs::mds::topology::Partition>& topoPartitionList) {
+    curvefs::mds::topology::CopySetInfo recordCopySetInfo;
     if (!topo_->GetCopySet(reportCopySetInfo.GetCopySetKey(),
                            &recordCopySetInfo)) {
         LOG(ERROR) << "topoUpdater receive copyset("
@@ -117,7 +118,7 @@ void TopoUpdater::UpdateTopo(
     }
 
     // update partitionInfo to topo
-    for (const auto &it : topoPartitionList) {
+    for (const auto& it : topoPartitionList) {
         ::curvefs::mds::topology::Partition partitionInTopo;
         bool ret = topo_->GetPartition(it.GetPartitionId(), &partitionInTopo);
         if (partitionInTopo.GetStatus() && !it.GetStatus()) {
@@ -125,7 +126,7 @@ void TopoUpdater::UpdateTopo(
             continue;
         }
 
-       if (partitionInTopo.GetStatus() != it.GetStatus() ||
+        if (partitionInTopo.GetStatus() != it.GetStatus() ||
             partitionInTopo.GetInodeNum() != it.GetInodeNum() ||
             partitionInTopo.GetDentryNum() != it.GetDentryNum()) {
             ::curvefs::mds::topology::PartitionStatistic statistic;
