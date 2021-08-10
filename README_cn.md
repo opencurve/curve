@@ -3,7 +3,7 @@
 
 <img src="docs/images/curve-logo1.png"/>
 
-# CURVE
+# Curve
 
 [![Jenkins Coverage](https://img.shields.io/jenkins/coverage/cobertura?jobUrl=http%3A%2F%2F59.111.91.248%3A8080%2Fjob%2Fcurve_untest_job%2F)](http://59.111.91.248:8080/job/curve_untest_job/HTML_20Report/)
 [![Robot failover](https://img.shields.io/jenkins/build?jobUrl=http%3A%2F%2F59.111.91.248%3A8080%2Fjob%2Fcurve_failover_testjob%2F&label=failover)](http://59.111.91.248:8080/job/curve_failover_testjob/)
@@ -14,7 +14,35 @@
 [![LICENSE](https://img.shields.io/badge/licence-Apache--2.0%2FGPL-blue)](https://github.com/opencurve/curve/blob/master/LICENSE)
 
 
-CURVE是网易自主设计研发的高性能、高可用、高可靠分布式存储系统，具有非常良好的扩展性。基于该存储底座可以打造适用于不同应用场景的存储系统，如块存储、对象存储、云原生数据库等。当前我们基于CURVE已经实现了高性能块存储系统，支持快照克隆和恢复 ,支持QEMU虚拟机和物理机NBD设备两种挂载方式, 在网易内部作为高性能云盘使用。
+Curve是网易自主设计研发的高性能、易运维、云原生的分布式存储系统，目前提供块(CurveBS)和文件(CurveFS)两种存储方式。CurveBS支持快照克隆和恢复,支持QEMU虚拟机和物理机NBD设备两种挂载方式。CurveFS基于Fuse支持POSIX文件系统接口。
+
+## Curve vs Ceph
+
+Curve: v1.2.0
+
+Ceph: L/N
+### 性能
+块存储场景下，Curve随机读写性能远优于Ceph。
+测试环境：6台服务器*20块SATA SSD，E5-2660 v4，256G，3副本，使用nbd场景。
+
+单卷场景：
+<image src="docs/images/1-nbd.jpg">
+
+多卷场景：
+<image src="docs/images/10-nbd.jpg">
+
+### 稳定性
+块存储场景下，常见异常Curve的稳定性优于Ceph。
+| 异常场景 | 单盘故障 | 慢盘 | 机器宕机 | 机器卡住 |
+| :----: | :----: | :----: | :----: | :----: |
+| Ceph | 抖动7s | 持续io抖动 | 抖动7s | 不可恢复 |
+| Curve | 抖动4s | 无影响 | 抖动4s | 抖动4s |
+### 运维
+块存储场景下，Curve常见运维更友好。
+| 运维场景 | 客户端升级 | 均衡 |
+| :----: | :----: | :----: |
+| Ceph | 不支持热升级 | 外部插件调整，影响业务IO |
+| Curve | 支持热升级，秒级抖动 | 自动均衡，对业务IO无影响 |
 
 ## 设计文档
 
