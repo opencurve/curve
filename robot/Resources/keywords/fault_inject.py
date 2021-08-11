@@ -798,7 +798,7 @@ def clean_kernel_log():
 def check_io_error():
     for host in config.client_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-        ori_cmd = "sudo grep \'I/O error\' /var/log/kern.log -R | grep -v nbd3"
+        ori_cmd = "sudo grep \'I/O error\' /var/log/kern.log -R | grep -v nbd2"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         if rs[1] != []:
             ori_cmd = "sudo logrotate -vf /etc/logrotate.d/rsyslog"
