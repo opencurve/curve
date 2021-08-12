@@ -27,6 +27,7 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
+#include <list>
 
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/common/location_operator.h"
@@ -61,6 +62,8 @@ struct CopyerOptions {
     std::shared_ptr<FileClient> curveClient;
     // s3 adapter的对象指针
     std::shared_ptr<S3Adapter> s3Client;
+    // curve file's time to live
+    uint64_t curveFileTimeoutSec;
 };
 
 struct AsyncDownloadContext {
@@ -72,6 +75,19 @@ struct AsyncDownloadContext {
     size_t size;
     // 存放下载数据的缓冲区
     char* buf;
+};
+
+struct CurveOpenTimestamp {
+    // Opened file id
+    int fd;
+    // Opened file name
+    string fileName;
+    // lastest use time, using seconds
+    int64_t lastUsedSec;
+    // Init functions
+    CurveOpenTimestamp(): fd(-1), fileName(""), lastUsedSec(0) {}
+    CurveOpenTimestamp(int _fd, string _file, uint64_t _lastUsedSec):
+        fd(_fd), fileName(_file), lastUsedSec(_lastUsedSec) {}
 };
 
 std::ostream& operator<<(std::ostream& out, const AsyncDownloadContext& rhs);
@@ -112,10 +128,17 @@ class OriginCopyer {
                           size_t size,
                           char* buf,
                           DownloadClosure* done);
+    static void DeleteExpiredCurveCache(void* arg);
 
  private:
     // curvefs上的root用户信息
     UserInfo curveUser_;
+    // mutex for protect curveOpenTime_
+    std::mutex timeMtx_;
+    // List to maintain curve file open timestamp
+    std::list<CurveOpenTimestamp> curveOpenTime_;
+    // curve file's time to live
+    uint64_t curveFileTimeoutSec_;
     // 负责跟curve交互
     std::shared_ptr<FileClient> curveClient_;
     // 负责跟s3交互
@@ -124,6 +147,10 @@ class OriginCopyer {
     std::mutex  mtx_;
     // 文件名->文件fd 的映射
     std::unordered_map<std::string, int> fdMap_;
+    // Timer for clean expired curve file
+    bthread::TimerThread timer_;
+    // timer's task id
+    bthread::TimerThread::TaskId timerId_;
 };
 
 }  // namespace chunkserver

@@ -18,6 +18,7 @@
 # 通用配置
 curve_root_username: root
 curve_root_password: root_password
+curve_file_timeout_s: 30
 chunk_size: 16777216
 segment_size: 1073741824
 min_file_length: 10737418240

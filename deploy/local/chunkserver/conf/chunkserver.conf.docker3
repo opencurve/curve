@@ -58,6 +58,7 @@ curve.root_username=root
 curve.root_password=
 curve.config_path=conf/cs_client.conf
 s3.config_path=conf/s3.conf
+curve.curve_file_timeout_s=30
 
 #
 # Local FileSystem settings

@@ -596,6 +596,8 @@ void ChunkServer::InitCopyerOptions(
         &disableCurveClient));
     LOG_IF(FATAL, !conf->GetBoolValue("clone.disable_s3_adapter",
         &disableS3Adapter));
+    LOG_IF(FATAL, !conf->GetUInt64Value("curve.curve_file_timeout_s",
+        &copyerOptions->curveFileTimeoutSec));
 
     if (disableCurveClient) {
         copyerOptions->curveClient = nullptr;

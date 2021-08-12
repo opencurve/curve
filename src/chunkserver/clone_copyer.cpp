@@ -22,6 +22,7 @@
 
 #include "src/chunkserver/clone_copyer.h"
 #include "src/chunkserver/clone_core.h"
+#include "src/common/timeutility.h"
 
 namespace curve {
 namespace chunkserver {
@@ -52,11 +53,41 @@ void CurveAioCallback(struct CurveAioContext* context) {
     brpc::ClosureGuard doneGuard(done);
 }
 
+void OriginCopyer::DeleteExpiredCurveCache(void* arg) {
+    OriginCopyer* taskCopyer = static_cast<OriginCopyer*>(arg);
+    std::unique_lock<std::mutex> lock(taskCopyer->mtx_);
+    std::unique_lock<std::mutex> lockTime(taskCopyer->timeMtx_);
+    timespec now = butil::seconds_from_now(0);
+
+    while (taskCopyer->curveOpenTime_.size() > 0) {
+        CurveOpenTimestamp oldestCache = *taskCopyer->curveOpenTime_.begin();
+        if (now.tv_sec - oldestCache.lastUsedSec <
+            taskCopyer->curveFileTimeoutSec_) {
+            break;
+        }
+
+        taskCopyer->curveClient_->Close(oldestCache.fd);
+        taskCopyer->fdMap_.erase(oldestCache.fileName);
+        taskCopyer->curveOpenTime_.pop_front();
+    }
+
+    if (taskCopyer->curveOpenTime_.size() > 0) {
+        int64_t nextTimer = taskCopyer->curveFileTimeoutSec_ - now.tv_sec
+            + taskCopyer->curveOpenTime_.begin()->lastUsedSec;
+        timespec nextTimespec = butil::seconds_from_now(nextTimer);
+        taskCopyer->timerId_ = taskCopyer->timer_.schedule(
+            &DeleteExpiredCurveCache, arg, nextTimespec);
+    } else {
+        taskCopyer->timerId_ = bthread::TimerThread::INVALID_TASK_ID;
+    }
+}
+
 OriginCopyer::OriginCopyer()
     : curveClient_(nullptr)
     , s3Client_(nullptr) {}
 
 int OriginCopyer::Init(const CopyerOptions& options) {
+    curveFileTimeoutSec_ = options.curveFileTimeoutSec;
     curveClient_ = options.curveClient;
     s3Client_ = options.s3Client;
     if (curveClient_ != nullptr) {
@@ -75,10 +106,21 @@ int OriginCopyer::Init(const CopyerOptions& options) {
     } else {
         LOG(WARNING) << "s3 adapter is disabled.";
     }
+    bthread::TimerThreadOptions timerOptions;
+    timerOptions.bvar_prefix = "curve file lastUsedSec";
+    int rc = timer_.start(&timerOptions);
+    if (rc == 0) {
+        LOG(INFO) << "init curveFile timer thread success";
+    } else {
+        LOG(FATAL) << "init curveFile timer thread failed, " << berror(rc);
+    }
+    timerId_ = bthread::TimerThread::INVALID_TASK_ID;
     return 0;
 }
 
 int OriginCopyer::Fini() {
+    std::unique_lock<std::mutex> lock(mtx_);
+    std::unique_lock<std::mutex> lockTime(timeMtx_);
     if (curveClient_ != nullptr) {
         for (auto &pair : fdMap_) {
             curveClient_->Close(pair.second);
@@ -88,6 +130,10 @@ int OriginCopyer::Fini() {
     if (s3Client_ != nullptr) {
         s3Client_->Deinit();
     }
+    if (timerId_ != bthread::TimerThread::INVALID_TASK_ID) {
+        timer_.unschedule(timerId_);
+    }
+    curveOpenTime_.clear();
     return 0;
 }
 
@@ -173,9 +219,20 @@ void OriginCopyer::DownloadFromCurve(const string& fileName,
     int fd = 0;
     {
         std::unique_lock<std::mutex> lock(mtx_);
+        std::unique_lock<std::mutex> lockTime(timeMtx_);
         auto iter = fdMap_.find(fileName);
         if (iter != fdMap_.end()) {
             fd = iter->second;
+            auto fdIter = std::find_if(
+                curveOpenTime_.cbegin(), curveOpenTime_.cend(),
+                [&] (const CurveOpenTimestamp& s) {return s.fd == fd;});
+            if (fdIter != curveOpenTime_.cend()) {
+                timespec now = butil::seconds_from_now(0);
+                curveOpenTime_.emplace_back(fd, fileName, now.tv_sec);
+                curveOpenTime_.erase(fdIter);
+            } else {
+                LOG(ERROR) << "curve cache fd " << fd << " disappered";
+            }
         } else {
             fd = curveClient_->Open4ReadOnly(fileName, curveUser_, true);
             if (fd < 0) {
@@ -186,6 +243,14 @@ void OriginCopyer::DownloadFromCurve(const string& fileName,
                 return;
             }
             fdMap_[fileName] = fd;
+            timespec now = butil::seconds_from_now(0);
+            curveOpenTime_.emplace_back(fd, fileName, now.tv_sec);
+            if (timerId_ == bthread::TimerThread::INVALID_TASK_ID) {
+                timespec nextTimespec =
+                    butil::seconds_from_now(curveFileTimeoutSec_);
+                timerId_ = timer_.schedule(
+                    &DeleteExpiredCurveCache, this, nextTimespec);
+            }
         }
     }
 
