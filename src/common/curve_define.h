@@ -27,6 +27,10 @@
 #include <butil/status.h>
 #include <unistd.h>
 
+#ifndef DLOG_EVERY_SECOND
+#define DLOG_EVERY_SECOND(severity)                             \
+    BAIDU_LOG_IF_EVERY_SECOND_IMPL(DLOG_IF, severity, true)
+#endif
 
 namespace curve {
 namespace common {

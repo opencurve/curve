@@ -26,6 +26,7 @@
 #include "src/chunkserver/datastore/chunkserver_datastore.h"
 #include "src/chunkserver/datastore/chunkserver_chunkfile.h"
 #include "src/common/crc32.h"
+#include "src/common/curve_define.h"
 
 namespace curve {
 namespace chunkserver {
@@ -357,6 +358,10 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
                        << ",chunk sn: " << metaPage_.sn;
             return errorCode;
         }
+        DLOG(INFO) << "Create snapshotChunk success, "
+                   << "ChunkID: " << chunkId_
+                   << ",request sn: " << sn
+                   << ",chunk sn: " << metaPage_.sn;
     }
     // If the requested sequence number is greater than the current chunk
     // sequence number, the metapage needs to be updated
@@ -375,6 +380,11 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
     }
     // If it is cow, copy the data to the snapshot file first
     if (needCow(sn)) {
+        DLOG_EVERY_SECOND(INFO) << "COW On offset = " << offset
+                                << ", length = " << length
+                                << ", ChunkID: " << chunkId_
+                                << ",request sn: " << sn
+                                << ",chunk sn: " << metaPage_.sn;
         CSErrorCode errorCode = copy2Snapshot(offset, length);
         if (errorCode != CSErrorCode::Success) {
             LOG(ERROR) << "Copy data to snapshot failed."
@@ -559,6 +569,16 @@ CSErrorCode CSChunkFile::ReadSpecifiedChunk(SequenceNum sn,
                        pageEndIndex,
                        &uncopiedRange,
                        &copiedRange);
+
+    DLOG(INFO) << "Divide into copiedRange ["
+               << common::BitRangeVecToString(copiedRange)
+               << "], uncopiedRange ["
+               << common::BitRangeVecToString(uncopiedRange)
+               << "], ChunkID: " << chunkId_
+               << ", offset: " << offset
+               << ", length: " << length
+               << ", chunk sn: " << metaPage_.sn
+               << ", request sn: " << sn;
 
     CSErrorCode errorCode = CSErrorCode::Success;
     off_t readOff;
