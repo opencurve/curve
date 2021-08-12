@@ -852,6 +852,9 @@ int SnapshotCoreImpl::TransferSnapshotData(
                 task->SetTracker(tracker);
                 tracker->AddOneTrace();
                 threadPool_->PushTask(task);
+            } else {
+                DLOG(INFO) << "find data object exist, skip chunkDataName = "
+                           << chunkDataName.ToDataChunkKey();
             }
         }
         if (tracker->GetTaskNum() >= snapshotCoreThreadNum_) {

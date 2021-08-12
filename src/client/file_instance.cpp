@@ -29,6 +29,7 @@
 #include "src/client/iomanager4file.h"
 #include "src/client/mds_client.h"
 #include "src/common/timeutility.h"
+#include "src/common/curve_define.h"
 
 namespace curve {
 namespace client {
@@ -103,6 +104,9 @@ void FileInstance::UnInitialize() {
 }
 
 int FileInstance::Read(char* buf, off_t offset, size_t length) {
+    DLOG_EVERY_SECOND(INFO) << "begin Read "<< finfo_.fullPathName
+                            << ", offset = " << offset
+                            << ", len = " << length;
     return iomanager4file_.Read(buf, offset, length, mdsclient_.get());
 }
 
@@ -111,10 +115,16 @@ int FileInstance::Write(const char* buf, off_t offset, size_t len) {
         DVLOG(9) << "open with read only, do not support write!";
         return -1;
     }
+    DLOG_EVERY_SECOND(INFO) << "begin write " << finfo_.fullPathName
+                            << ", offset = " << offset
+                            << ", len = " << len;
     return iomanager4file_.Write(buf, offset, len, mdsclient_.get());
 }
 
 int FileInstance::AioRead(CurveAioContext* aioctx, UserDataType dataType) {
+    DLOG_EVERY_SECOND(INFO) << "begin AioRead " << finfo_.fullPathName
+                            << ", offset = " << aioctx->offset
+                            << ", len = " << aioctx->length;
     return iomanager4file_.AioRead(aioctx, mdsclient_.get(), dataType);
 }
 
@@ -123,6 +133,9 @@ int FileInstance::AioWrite(CurveAioContext* aioctx, UserDataType dataType) {
         DVLOG(9) << "open with read only, do not support write!";
         return -1;
     }
+    DLOG_EVERY_SECOND(INFO) << "begin AioWrite " << finfo_.fullPathName
+                            << ", offset = " << aioctx->offset
+                            << ", len = " << aioctx->length;
     return iomanager4file_.AioWrite(aioctx, mdsclient_.get(), dataType);
 }
 

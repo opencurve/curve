@@ -25,6 +25,7 @@
 
 #include <stdint.h>
 #include <vector>
+#include <string>
 
 namespace curve {
 namespace common {
@@ -43,6 +44,9 @@ struct BitRange {
     // 连续区域结束位置在bitmap中的索引
     uint32_t endIndex;
 };
+
+
+std::string BitRangeVecToString(const std::vector<BitRange> &ranges);
 
 class Bitmap {
  public:

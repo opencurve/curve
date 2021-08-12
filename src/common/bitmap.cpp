@@ -23,10 +23,22 @@
 #include <glog/logging.h>
 #include <memory.h>
 #include <utility>
+#include <string>
 #include "src/common/bitmap.h"
 
 namespace curve {
 namespace common {
+
+std::string BitRangeVecToString(const std::vector<BitRange> &ranges) {
+    std::stringstream ss;
+    for (uint32_t i = 0; i < ranges.size(); ++i) {
+        if (i != 0) {
+            ss <<  ", ";
+        }
+        ss << "(" << ranges[i].beginIndex << "," << ranges[i].endIndex << ")";
+    }
+    return ss.str();
+}
 
 const uint32_t Bitmap::NO_POS = 0xFFFFFFFF;
 
