@@ -41,6 +41,7 @@ const char CURVE_CONF[] = "client.conf";
 const char S3_CONF[] = "s3.conf";
 const char ROOT_OWNER[] = "root";
 const char ROOT_PWD[] = "pwd";
+const uint64_t EXPIRED_USE = 5;
 
 class MockDownloadClosure : public DownloadClosure {
  public:
@@ -96,6 +97,7 @@ TEST_F(CloneCopyerTest, BasicTest) {
     options.curveUser.password = ROOT_PWD;
     options.curveClient = curveClient_;
     options.s3Client = s3Client_;
+    options.curveFileTimeoutSec = EXPIRED_USE;
     // init test
     {
         // curvefs init failed
@@ -247,6 +249,7 @@ TEST_F(CloneCopyerTest, DisableTest) {
     options.s3Conf = S3_CONF;
     options.curveUser.owner = ROOT_OWNER;
     options.curveUser.password = ROOT_PWD;
+    options.curveFileTimeoutSec = EXPIRED_USE;
     // 禁用curveclient和s3adapter
     options.curveClient = nullptr;
     options.s3Client = nullptr;
@@ -289,6 +292,75 @@ TEST_F(CloneCopyerTest, DisableTest) {
         delete [] buf;
     }
     // fini 可以成功
+    ASSERT_EQ(0, copyer.Fini());
+}
+
+TEST_F(CloneCopyerTest, ExpiredTest) {
+    OriginCopyer copyer;
+    CopyerOptions options;
+    options.curveConf = CURVE_CONF;
+    options.s3Conf = S3_CONF;
+    options.curveUser.owner = ROOT_OWNER;
+    options.curveUser.password = ROOT_PWD;
+    options.curveClient = curveClient_;
+    options.s3Client = s3Client_;
+    options.curveFileTimeoutSec = EXPIRED_USE;
+
+    // curvefs init success
+    EXPECT_CALL(*curveClient_, Init(StrEq(CURVE_CONF)))
+            .WillOnce(Return(LIBCURVE_ERROR::OK));
+    ASSERT_EQ(0, copyer.Init(options));
+
+    {
+        char* buf = new char[4096];
+        AsyncDownloadContext context;
+        context.offset = 0;
+        context.size = 4096;
+        context.buf = buf;
+        MockDownloadClosure closure(&context);
+
+        /* Case: Read the same chunk after it expired
+        * Expect: Re-Open the curve file
+        */
+        context.location = "test:0@cs";
+        EXPECT_CALL(*curveClient_, Open4ReadOnly("test", _, true))
+                .WillOnce(Return(1));
+        EXPECT_CALL(*curveClient_, AioRead(_, _, _))
+                .WillOnce(Invoke([](int fd, CurveAioContext* context,
+                                    curve::client::UserDataType dataType) {
+                    context->ret = 1024;
+                    context->cb(context);
+                    return LIBCURVE_ERROR::OK;
+                }));
+        copyer.DownloadAsync(&closure);
+        ASSERT_TRUE(closure.IsRun());
+        ASSERT_FALSE(closure.IsFailed());
+        closure.Reset();
+
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        context.location = "test:0@cs";
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        EXPECT_CALL(*curveClient_, Open4ReadOnly(_, _, true))
+                .WillOnce(Return(2));
+        EXPECT_CALL(*curveClient_, AioRead(_, _, _))
+                .WillOnce(Invoke([](int fd, CurveAioContext* context,
+                                    curve::client::UserDataType dataType) {
+                    context->ret = 1024;
+                    context->cb(context);
+                    return LIBCURVE_ERROR::OK;
+                }));
+        copyer.DownloadAsync(&closure);
+        ASSERT_TRUE(closure.IsRun());
+        closure.Reset();
+        delete [] buf;
+    }
+    // fini
+    EXPECT_CALL(*curveClient_, Close(2))
+            .Times(1);
+    EXPECT_CALL(*curveClient_, UnInit())
+            .Times(1);
+    EXPECT_CALL(*s3Client_, Deinit())
+            .Times(1);
     ASSERT_EQ(0, copyer.Fini());
 }
 
