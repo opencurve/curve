@@ -516,14 +516,13 @@ def test_clone_iovol_consistency(lazy):
                       time.sleep(60)
         except:
            raise
-        finally:
-           delete_vol_snapshot(vol_id,snapshot_uuid)
-           check_snapshot_delete(vol_id,snapshot_uuid)
-           clean_vol_clone(clone_vol_uuid)
-           check_clone_clean(clone_vol_uuid)
-           unlink_clone_vol(snapshot_uuid)
     else:
        assert False,"clone vol fail,status is %s"%rc
+    delete_vol_snapshot(vol_id,snapshot_uuid)
+    check_snapshot_delete(vol_id,snapshot_uuid)
+    clean_vol_clone(clone_vol_uuid)
+    check_clone_clean(clone_vol_uuid)
+    unlink_clone_vol(snapshot_uuid)
 
 def test_clone_vol_from_file(lazy):
     logger2.info("------------begin test clone vol from file lazy=%s----------"%lazy)
@@ -564,12 +563,11 @@ def test_clone_vol_from_file(lazy):
                       time.sleep(60)
         except:
            raise
-        finally:
-           clean_vol_clone(clone_vol_uuid)
-           check_clone_clean(clone_vol_uuid)
-           unlink_clone_vol(destination)
     else:
        assert False,"clone vol fail,status is %s"%rc
+    clean_vol_clone(clone_vol_uuid)
+    check_clone_clean(clone_vol_uuid)
+    unlink_clone_vol(destination)
 
 def clone_file_and_check(vol_id,destination,lazy):
     logger2.info("------------begin clone vol and check lazy=%s----------"%lazy)
