@@ -1,6 +1,6 @@
 ---
 #
-#  Copyright (c) 2020 NetEase Inc.
+#  Copyright (c) 2021 NetEase Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -15,14 +15,5 @@
 #  limitations under the License.
 #
 
-- name: restart nebd-server
-  vars:
-    ch_dir: "{{ deploy_dir }}"
-    daemon_script: nebd-daemon
-    service_port: 0
-    process_name: nebd-server
-    start_cmd: >
-      nohup {{ curve_bin_dir }}/nebd-server -confPath={{ nebd_server_config_path }}
-        -log_dir={{ nebd_log_dir }}/server -graceful_quit_on_sigterm=true -stderrthreshold=3
-        > nebd-console.log 2>&1 &
-  include_tasks: common_tasks/restart_service.yml
+- name: generate etcd-daemon.sh
+  template: src=etcd-daemon.sh.j2 dest={{ deploy_dir }}/etcd-daemon.sh mode=0755
