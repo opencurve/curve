@@ -56,6 +56,26 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+cc_library(
+    name = "client_s3_test_lib",
+    srcs = glob([
+        "mock_client_s3.h",
+        "mock_metaserver_service.h",
+        "mock_spacealloc_service.h",
+    ]),
+    copts = COPTS,
+    defines = ["UNIT_TEST"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:gtest",
+         "//curvefs/src/client:fuse_client_lib",
+        "//curvefs/proto:metaserver_cc_proto",
+        "//curvefs/proto:mds_cc_proto",
+        "//curvefs/proto:space_cc_proto",
+    ],
+    linkopts = ["-lpthread",
+                "-L/usr/local/lib/x86_64-linux-gnu"],
+)
 
 cc_binary(
     name = "client_s3_test",
@@ -73,6 +93,7 @@ cc_binary(
         "//curvefs/proto:metaserver_cc_proto",
         "//curvefs/proto:mds_cc_proto",
         "//curvefs/proto:space_cc_proto",
+        "//test/client/mock:client_mock_lib",
     ],
     linkopts = ["-lpthread",
                 "-L/usr/local/lib/x86_64-linux-gnu"],
