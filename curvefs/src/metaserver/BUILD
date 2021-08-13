@@ -53,6 +53,21 @@ cc_library(
     ],
 )
 
+cc_library(
+    name="metaserver_s3_lib",
+        hdrs=glob(["s3/*.h"]),
+        srcs=glob(["s3/*.cpp"]),
+        copts = COPTS,
+        visibility = ["//visibility:public"],
+        deps = [
+            "//external:glog",
+            "//external:gflags",
+            "//curvefs/proto:metaserver_cc_proto",
+            "//src/common:curve_s3_adapter",
+        ],
+        linkopts = ["-lpthread", "-L/usr/local/lib/x86_64-linux-gnu"],
+)
+
 cc_binary(
     name = "curvefs_metaserver",
     srcs = glob([
