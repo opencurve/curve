@@ -16,17 +16,16 @@
 
 /*
  * Project: curve
- * Created Date: Thur May 27 2021
- * Author: xuchaojie
+ * Created Date: 2021-8-16
+ * Author: chengyi
  */
+#ifndef CURVEFS_TEST_METASERVER_MOC_METASERVER_S3_ADAPTOR_H_
+#define CURVEFS_TEST_METASERVER_MOC_METASERVER_S3_ADAPTOR_H_
 
-#ifndef CURVEFS_TEST_CLIENT_MOCK_CLIENT_S3_ADAPTOR_H_
-#define CURVEFS_TEST_CLIENT_MOCK_CLIENT_S3_ADAPTOR_H_
-
-#include "curvefs/src/client/s3/client_s3_adaptor.h"
+#include "curvefs/src/metaserver/s3/client_s3_adaptor.h"
 
 namespace curvefs {
-namespace client {
+namespace metaserver {
 
 class MockS3ClientAdaptor : public S3ClientAdaptor {
  public:
@@ -34,17 +33,11 @@ class MockS3ClientAdaptor : public S3ClientAdaptor {
     ~MockS3ClientAdaptor() {}
 
     MOCK_METHOD2(Init,
-                 void(const S3ClientAdaptorOption& option, S3Client* client));
-
-    MOCK_METHOD4(Write, int(Inode* inode, uint64_t offset, uint64_t length,
-                            const char* buf));
-
-    MOCK_METHOD4(Read, int(Inode* inode, uint64_t offset, uint64_t length,
-                           char* buf));
-    MOCK_METHOD2(Truncate, int(Inode* inode, uint64_t length));
+                 void(const S3ClientAdaptorOption option, S3Client *client));
+    MOCK_METHOD1(Delete, int(Inode *inode));
 };
 
-}  // namespace client
+}  // namespace metaserver
 }  // namespace curvefs
 
-#endif  // CURVEFS_TEST_CLIENT_MOCK_CLIENT_S3_ADAPTOR_H_
+#endif  // CURVEFS_TEST_METASERVER_MOC_METASERVER_S3_ADAPTOR_H_

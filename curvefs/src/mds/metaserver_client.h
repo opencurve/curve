@@ -25,6 +25,7 @@
 
 #include <brpc/channel.h>
 #include <string>
+
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/metaserver.pb.h"
 
@@ -39,7 +40,7 @@ struct MetaserverOptions {
 
 class MetaserverClient {
  public:
-    explicit MetaserverClient(const MetaserverOptions& option) {
+    explicit MetaserverClient(const MetaserverOptions &option) {
         options_ = option;
     }
 
@@ -59,4 +60,5 @@ class MetaserverClient {
 };
 }  // namespace mds
 }  // namespace curvefs
+
 #endif  // CURVEFS_SRC_MDS_METASERVER_CLIENT_H_

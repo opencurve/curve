@@ -46,7 +46,13 @@ cc_test(
         exclude = [
             "dumpfile_test.cpp",
             "storage_test.cpp",
-            "metastore_test.cpp"
+            "metastore_test.cpp",
+            "mock_client_s3.h",
+            "mock_metaserver_s3.h",
+            "metaserver_s3_adaptor_test.h",
+            "metaserver_s3_adaptor_test.cpp",
+            "mock_metaserver_s3_adaptor.h"
+            
         ],
     ),
     copts = ["-g","-DHAVE_ZLIB=1"],
@@ -55,6 +61,40 @@ cc_test(
             "@com_google_googletest//:gtest_main",
             "@com_google_googletest//:gtest",
             "//external:brpc",
+    ],
+)
+
+# s3 adaptor
+cc_test(
+    name = "metaserver_s3_adaptor_test",
+    srcs = glob([
+        "mock_metaserver_s3.h",
+        "metaserver_s3_adaptor_test.h",
+        "metaserver_s3_adaptor_test.cpp",
+        "curvefs/test/client/mock_client_s3.h",
+        "mock_metaserver_s3_adaptor.h",
+    ]),
+    copts = COPTS,
+    defines = ["UNIT_TEST"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//external:brpc",
+        "//external:glog",
+        "//external:gflags",
+        "//include/client:include_client",
+        "//src/common:curve_s3_adapter",
+        "//src/client:curve_client",
+        "//curvefs/src/client:fuse_client_lib",
+        "//curvefs/src/metaserver:metaserver_s3_lib",
+        "//curvefs/test/client:client_s3_test_lib",
+        "//test/client/mock:client_mock_lib",
+    ],
+    linkopts = [
+        "-lfuse3",
+        "-lpthread",
+        "-L/usr/local/lib/x86_64-linux-gnu",
     ],
 )
 
