@@ -16,6 +16,8 @@ import hashlib
 from curvefs_python import curvefs
 
 size_list = [100, 200, 400, 1000]
+global last_md5
+last_md5 = ""
 
 class NbdThrash:
     def __init__(self,ssh,name):
@@ -378,6 +380,8 @@ def get_vol_md5(vol_uuid):
     cbd.Close(fd)
     cbd.UnInit()
     logger2.info("md5 is %s"%md5)
+    global last_md5
+    last_md5 = md5
     return md5
 
 def check_clone_vol_exist(clonevol_uuid):
@@ -658,6 +662,7 @@ def test_recover_snapshot(lazy="true"):
     if final == True:
         try:
             first_md5 = get_vol_md5(vol_id)
+            assert first_md5 == last_md5,"vol md5 changed,now is %s,last is %s"%(first_md5,last_md5)
             config.snapshot_thrash.write_data(8000)
             config.snapshot_thrash.nbd_unmap()
             recover_task = recover_snapshot(vol_id,snapshot_uuid,lazy)
