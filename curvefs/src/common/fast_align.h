@@ -27,13 +27,13 @@ Distributed under the Boost Software License, Version 1.0.
  * Author: wuhanqing
  */
 
-#ifndef CURVEFS_SRC_SPACE_FAST_ALIGN_H_
-#define CURVEFS_SRC_SPACE_FAST_ALIGN_H_
+#ifndef CURVEFS_SRC_COMMON_FAST_ALIGN_H_
+#define CURVEFS_SRC_COMMON_FAST_ALIGN_H_
 
 #include <cstdint>
 
 namespace curvefs {
-namespace space {
+namespace common {
 
 namespace detail {
 
@@ -77,7 +77,7 @@ inline bool is_aligned(const void* ptr, std::size_t alignment) noexcept {
     return is_aligned((std::size_t)ptr, alignment);  // NOLINT
 }
 
-}  // namespace space
+}  // namespace common
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_SPACE_FAST_ALIGN_H_
+#endif  // CURVEFS_SRC_COMMON_FAST_ALIGN_H_

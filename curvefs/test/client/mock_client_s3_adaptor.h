@@ -34,13 +34,14 @@ class MockS3ClientAdaptor : public S3ClientAdaptor {
     ~MockS3ClientAdaptor() {}
 
     MOCK_METHOD2(Init, void(const S3ClientAdaptorOption& option,
-                      S3Client *client));
+                            S3Client *client));
 
     MOCK_METHOD4(Write, int(Inode *inode, uint64_t offset,
-              uint64_t length, const char* buf));
+                            uint64_t length, const char* buf));
 
     MOCK_METHOD4(Read, int(Inode *inode, uint64_t offset,
-              uint64_t length, char* buf));
+                           uint64_t length, char* buf));
+    MOCK_METHOD2(Truncate, int(Inode *inode, uint64_t length));
 };
 
 }  // namespace client

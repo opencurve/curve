@@ -75,6 +75,9 @@ class FuseS3Client : public FuseClient {
             fuse_entry_param *e) override;
 
  private:
+    int Truncate(Inode *inode, uint64_t length) override;
+
+ private:
     // s3 adaptor
     std::shared_ptr<S3ClientAdaptor> s3Adaptor_;
 

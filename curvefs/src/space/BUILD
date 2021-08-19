@@ -76,6 +76,7 @@ cc_library(
         "//curvefs/proto:space_cc_proto",
         "//curvefs/proto:mds_cc_proto",
         "//curvefs/proto:metaserver_cc_proto",
+        "//curvefs/src/common:curvefs_common",
         "//src/common:bitmap",
         "//src/common/concurrent:rw_lock",
         "//external:brpc",

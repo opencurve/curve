@@ -114,6 +114,7 @@ message S3ChunkInfoList {
     repeated S3ChunkInfo s3Chunks = 1;
 };
 
+// Todo: time unit of atime/ctime/mtime need fix
 message Inode {
     required uint64 inodeId = 1;
     required uint32 fsId = 2;

@@ -132,6 +132,13 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
                   << ", inodeid = " << ino;
         return ret;
     }
+
+    if (fi->flags & O_DIRECT) {  // check align
+        if (!(is_aligned(off, DirectIOAlignemnt) &&
+              is_aligned(size, DirectIOAlignemnt)))
+            return CURVEFS_ERROR::INVALIDPARAM;
+    }
+
     int wRet = s3Adaptor_->Write(&inode, off, size, buf);
     if (wRet < 0) {
         LOG(ERROR) << "s3Adaptor_ write failed, ret = " << wRet;
@@ -149,14 +156,17 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         LOG(ERROR) << "UpdateInode fail, ret = " << ret;
         return ret;
     }
+
+    if (fi->flags & O_DIRECT || fi->flags & O_SYNC || fi->flags & O_DSYNC) {
+        // Todo: do some cache flush later
+    }
     return ret;
 }
 
 CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req,
-        fuse_ino_t ino, size_t size, off_t off,
-        struct fuse_file_info *fi,
-        char *buffer,
-        size_t *rSize) {
+                fuse_ino_t ino, size_t size, off_t off,
+                struct fuse_file_info *fi,
+                char *buffer, size_t *rSize) {
     Inode inode;
     CURVEFS_ERROR ret = inodeManager_->GetInode(ino, &inode);
     if (ret != CURVEFS_ERROR::OK) {
@@ -164,6 +174,13 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req,
                   << ", inodeid = " << ino;
         return ret;
     }
+
+    if (fi->flags & O_DIRECT) {  // check align
+        if (!(is_aligned(off, DirectIOAlignemnt) &&
+              is_aligned(size, DirectIOAlignemnt)))
+            return CURVEFS_ERROR::INVALIDPARAM;
+    }
+
     size_t len = 0;
     if (inode.length() < off + size) {
         len = inode.length() - off;
@@ -197,6 +214,10 @@ CURVEFS_ERROR FuseS3Client::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
         const char *name, mode_t mode, dev_t rdev,
         fuse_entry_param *e) {
     return MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, e);
+}
+
+int FuseS3Client::Truncate(Inode *inode, uint64_t length) {
+    return s3Adaptor_->Truncate(inode, 0);
 }
 
 }  // namespace client

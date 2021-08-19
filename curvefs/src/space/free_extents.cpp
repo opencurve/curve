@@ -30,11 +30,14 @@
 #include <utility>
 
 #include "curvefs/src/space/common.h"
-#include "curvefs/src/space/fast_align.h"
+#include "curvefs/src/common/fast_align.h"
 #include "curvefs/src/space/utils.h"
 
 namespace curvefs {
 namespace space {
+
+using curvefs::common::align_up;
+using curvefs::common::align_down;
 
 FreeExtents::FreeExtents(const uint64_t off, const uint64_t len)
     : maxLength_(len),

@@ -48,7 +48,7 @@ SpaceStatusCode SpaceManagerImpl::InitSpace(const mds::FsInfo& fsInfo) {
     allocOpt.bitmapAllocatorOption.length = fsInfo.capacity();
 
     auto allocator =
-        Allocator::Create(opt_.allocatorType, opt_.allocatorOption);
+        Allocator::Create(opt_.allocatorType, allocOpt);
     if (!allocator) {
         LOG(ERROR) << "unknown allocator type: " << opt_.allocatorType;
         return SPACE_UNKNOWN_ERROR;

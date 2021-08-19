@@ -73,6 +73,9 @@ class FuseVolumeClient : public FuseClient {
             fuse_entry_param *e) override;
 
  private:
+    int Truncate(Inode *inode, uint64_t length) override;
+
+ private:
     // curve client
     std::shared_ptr<BlockDeviceClient> blockDeviceClient_;
 

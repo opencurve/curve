@@ -39,11 +39,16 @@
 #include "curvefs/src/client/config.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/proto/common.pb.h"
+#include "curvefs/src/common/fast_align.h"
+
+#define DirectIOAlignemnt 512
 
 using ::curvefs::common::FSType;
 
 namespace curvefs {
 namespace client {
+
+using curvefs::common::is_aligned;
 
 class FuseClient {
  public:
@@ -157,6 +162,9 @@ class FuseClient {
 
     CURVEFS_ERROR RemoveNode(fuse_req_t req, fuse_ino_t parent,
         const char *name);
+
+ private:
+    virtual int Truncate(Inode *inode, uint64_t length) = 0;
 
  protected:
     // mds client
