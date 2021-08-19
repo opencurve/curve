@@ -630,5 +630,9 @@ int S3ClientAdaptorImpl::handleReadRequest(
     return 0;
 }
 
+int S3ClientAdaptorImpl::Truncate(Inode *inode, uint64_t length) {
+    // Todo: huyao
+}
+
 }  // namespace client
 }  // namespace curvefs

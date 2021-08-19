@@ -256,7 +256,8 @@ TEST_F(TestFuseVolumeClient, FuseOpWrite) {
     const char *buf = "xxx";
     size_t size = 4;
     off_t off = 0;
-    struct fuse_file_info *fi;
+    struct fuse_file_info fi;
+    fi.flags = O_WRONLY;
     size_t wSize = 0;
 
     Inode inode;
@@ -316,7 +317,7 @@ TEST_F(TestFuseVolumeClient, FuseOpWrite) {
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
     CURVEFS_ERROR ret = client_->FuseOpWrite(
-        req, ino, buf, size, off, fi, &wSize);
+        req, ino, buf, size, off, &fi, &wSize);
 
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(size, wSize);
@@ -328,7 +329,8 @@ TEST_F(TestFuseVolumeClient, FuseOpWriteFailed) {
     const char *buf = "xxx";
     size_t size = 4;
     off_t off = 0;
-    struct fuse_file_info *fi;
+    struct fuse_file_info fi;
+    fi.flags = O_WRONLY;
     size_t wSize = 0;
 
     Inode inode;
@@ -439,28 +441,28 @@ TEST_F(TestFuseVolumeClient, FuseOpWriteFailed) {
         .WillOnce(Return(CURVEFS_ERROR::FAILED));
 
     CURVEFS_ERROR ret = client_->FuseOpWrite(
-        req, ino, buf, size, off, fi, &wSize);
+        req, ino, buf, size, off, &fi, &wSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 
-    ret = client_->FuseOpWrite(req, ino, buf, size, off, fi, &wSize);
+    ret = client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 
-    ret = client_->FuseOpWrite(req, ino, buf, size, off, fi, &wSize);
+    ret = client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 
-    ret = client_->FuseOpWrite(req, ino, buf, size, off, fi, &wSize);
+    ret = client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 
-    ret = client_->FuseOpWrite(req, ino, buf, size, off, fi, &wSize);
+    ret = client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 
-    ret = client_->FuseOpWrite(req, ino, buf, size, off, fi, &wSize);
+    ret = client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 
-    ret = client_->FuseOpWrite(req, ino, buf, size, off, fi, &wSize);
+    ret = client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 
-    ret = client_->FuseOpWrite(req, ino, buf, size, off, fi, &wSize);
+    ret = client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 }
 
@@ -469,7 +471,8 @@ TEST_F(TestFuseVolumeClient, FuseOpRead) {
     fuse_ino_t ino = 1;
     size_t size = 4;
     off_t off = 0;
-    struct fuse_file_info *fi;
+    struct fuse_file_info fi;
+    fi.flags = O_RDONLY;
     std::unique_ptr<char[]> buffer(new char[size]);
     size_t rSize = 0;
 
@@ -499,7 +502,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRead) {
     EXPECT_CALL(*blockDeviceClient_, Read(_, 0, 4))
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
-    CURVEFS_ERROR ret = client_->FuseOpRead(req, ino, size, off, fi,
+    CURVEFS_ERROR ret = client_->FuseOpRead(req, ino, size, off, &fi,
         buffer.get(), &rSize);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(size, rSize);
@@ -510,7 +513,8 @@ TEST_F(TestFuseVolumeClient, FuseOpReadFailed) {
     fuse_ino_t ino = 1;
     size_t size = 4;
     off_t off = 0;
-    struct fuse_file_info *fi;
+    struct fuse_file_info fi;
+    fi.flags = O_RDONLY;
     std::unique_ptr<char[]> buffer(new char[size]);
     size_t rSize = 0;
 
@@ -544,15 +548,15 @@ TEST_F(TestFuseVolumeClient, FuseOpReadFailed) {
     EXPECT_CALL(*blockDeviceClient_, Read(_, 0, 4))
         .WillOnce(Return(CURVEFS_ERROR::FAILED));
 
-    CURVEFS_ERROR ret = client_->FuseOpRead(req, ino, size, off, fi,
+    CURVEFS_ERROR ret = client_->FuseOpRead(req, ino, size, off, &fi,
         buffer.get(), &rSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 
-    ret = client_->FuseOpRead(req, ino, size, off, fi,
+    ret = client_->FuseOpRead(req, ino, size, off, &fi,
         buffer.get(), &rSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 
-    ret = client_->FuseOpRead(req, ino, size, off, fi,
+    ret = client_->FuseOpRead(req, ino, size, off, &fi,
         buffer.get(), &rSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 }
@@ -1083,7 +1087,8 @@ TEST_F(TestFuseS3Client, FuseOpWrite) {
     const char *buf = "xxx";
     size_t size = 4;
     off_t off = 0;
-    struct fuse_file_info *fi;
+    struct fuse_file_info fi;
+    fi.flags = O_WRONLY;
     size_t wSize = 0;
 
     Inode inode;
@@ -1100,7 +1105,7 @@ TEST_F(TestFuseS3Client, FuseOpWrite) {
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
     CURVEFS_ERROR ret = client_->FuseOpWrite(
-        req, ino, buf, size, off, fi, &wSize);
+        req, ino, buf, size, off, &fi, &wSize);
 
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(size, wSize);
@@ -1112,7 +1117,8 @@ TEST_F(TestFuseS3Client, FuseOpWriteFailed) {
     const char *buf = "xxx";
     size_t size = 4;
     off_t off = 0;
-    struct fuse_file_info *fi;
+    struct fuse_file_info fi;
+    fi.flags = O_WRONLY;
     size_t wSize = 0;
 
     Inode inode;
@@ -1133,13 +1139,13 @@ TEST_F(TestFuseS3Client, FuseOpWriteFailed) {
         .WillOnce(Return(CURVEFS_ERROR::FAILED));
 
     CURVEFS_ERROR ret = client_->FuseOpWrite(
-        req, ino, buf, size, off, fi, &wSize);
+        req, ino, buf, size, off, &fi, &wSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 
-    ret = client_->FuseOpWrite(req, ino, buf, size, off, fi, &wSize);
+    ret = client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 
-    ret = client_->FuseOpWrite(req, ino, buf, size, off, fi, &wSize);
+    ret = client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 }
 
@@ -1148,7 +1154,8 @@ TEST_F(TestFuseS3Client, FuseOpRead) {
     fuse_ino_t ino = 1;
     size_t size = 4;
     off_t off = 0;
-    struct fuse_file_info *fi;
+    struct fuse_file_info fi;
+    fi.flags = O_RDONLY;
     std::unique_ptr<char[]> buffer(new char[size]);
     size_t rSize = 0;
 
@@ -1166,7 +1173,7 @@ TEST_F(TestFuseS3Client, FuseOpRead) {
     EXPECT_CALL(*inodeManager_, UpdateInode(_))
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
-    CURVEFS_ERROR ret = client_->FuseOpRead(req, ino, size, off, fi,
+    CURVEFS_ERROR ret = client_->FuseOpRead(req, ino, size, off, &fi,
         buffer.get(), &rSize);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(size, rSize);
@@ -1177,7 +1184,8 @@ TEST_F(TestFuseS3Client, FuseOpReadFailed) {
     fuse_ino_t ino = 1;
     size_t size = 4;
     off_t off = 0;
-    struct fuse_file_info *fi;
+    struct fuse_file_info fi;
+    fi.flags = O_RDONLY;
     std::unique_ptr<char[]> buffer(new char[size]);
     size_t rSize = 0;
 
@@ -1199,15 +1207,15 @@ TEST_F(TestFuseS3Client, FuseOpReadFailed) {
     EXPECT_CALL(*inodeManager_, UpdateInode(_))
         .WillOnce(Return(CURVEFS_ERROR::FAILED));
 
-    CURVEFS_ERROR ret = client_->FuseOpRead(req, ino, size, off, fi,
+    CURVEFS_ERROR ret = client_->FuseOpRead(req, ino, size, off, &fi,
         buffer.get(), &rSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 
-    ret = client_->FuseOpRead(req, ino, size, off, fi,
+    ret = client_->FuseOpRead(req, ino, size, off, &fi,
         buffer.get(), &rSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 
-    ret = client_->FuseOpRead(req, ino, size, off, fi,
+    ret = client_->FuseOpRead(req, ino, size, off, &fi,
         buffer.get(), &rSize);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
 }

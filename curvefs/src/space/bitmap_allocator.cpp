@@ -27,10 +27,13 @@
 #include <algorithm>
 #include <vector>
 
-#include "curvefs/src/space/fast_align.h"
+#include "curvefs/src/common/fast_align.h"
 
 namespace curvefs {
 namespace space {
+
+using curvefs::common::align_up;
+using curvefs::common::align_down;
 
 namespace {
 

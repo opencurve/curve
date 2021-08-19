@@ -144,6 +144,7 @@ class S3ClientAdaptor {
               uint64_t length, const char* buf) = 0;
     virtual int Read(Inode *inode, uint64_t offset,
               uint64_t length, char* buf) = 0;
+    virtual int Truncate(Inode *inode, uint64_t length) = 0;
 };
 
 // client使用s3存储的内部接口
@@ -163,7 +164,8 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     int Write(Inode *inode, uint64_t offset,
               uint64_t length, const char* buf);
     int Read(Inode *inode, uint64_t offset,
-              uint64_t length, char* buf);
+             uint64_t length, char* buf);
+    int Truncate(Inode *inode, uint64_t length);
 
  private:
     int UpdateInodeS3Version(Inode *inode, uint64_t *version);

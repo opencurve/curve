@@ -145,7 +145,19 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
                   << ", inodeid = " << ino;
         return ret;
     }
-    // TODO(xuchaojie): fix it
+
+    if (fi->flags & O_TRUNC) {
+        if (fi->flags & O_WRONLY || fi->flags & O_RDWR) {
+            int tRet = Truncate(&inode, 0);
+            if (tRet < 0) {
+                LOG(ERROR) << "truncate file fail, ret = " << ret
+                           << ", inodeid = " << ino;
+                return CURVEFS_ERROR::FAILED;
+            }
+        } else {
+            return CURVEFS_ERROR::NOPERMISSION;
+        }
+    }
     return ret;
 }
 
@@ -347,7 +359,7 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(
     if (to_set & FUSE_SET_ATTR_MTIME) {
         inode.set_mtime(attr->st_mtime);
     }
-    uint64_t nowTime = TimeUtility::GetTimeofDayMs();
+    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
     if (to_set & FUSE_SET_ATTR_ATIME_NOW) {
         inode.set_atime(nowTime);
     }

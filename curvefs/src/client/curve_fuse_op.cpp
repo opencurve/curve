@@ -108,6 +108,12 @@ void FuseReplyErrByErrCode(fuse_req_t req, CURVEFS_ERROR errcode) {
     case CURVEFS_ERROR::NOTEXIST:
         fuse_reply_err(req, ENOENT);
         break;
+    case CURVEFS_ERROR::NOPERMISSION:
+        fuse_reply_err(req, EACCES);
+        break;
+    case CURVEFS_ERROR::INVALIDPARAM:
+        fuse_reply_err(req, EINVAL);
+        break;
     default:
         fuse_reply_err(req, EIO);
         break;
