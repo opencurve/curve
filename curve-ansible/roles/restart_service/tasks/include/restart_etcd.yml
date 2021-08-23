@@ -22,5 +22,5 @@
     service_port: "{{ etcd_listen_client_port }}"
     process_name: etcd
     start_cmd: >
-      nohup {{ install_etcd_dir }}/etcd --config-file {{ etcd_config_path }} > etcd-console.log 2>&1 &
+      nohup {{ install_etcd_dir }}/etcd --config-file {{ etcd_config_path }} > etcd-console-$(date -d "today" +"%Y%m%d_%H%M%S").log 2>&1 &
   include_tasks: common_tasks/restart_service.yml
