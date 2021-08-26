@@ -24,6 +24,8 @@
 #include <string>
 #include <list>
 
+#include <memory>
+
 #include "curvefs/src/client/fuse_volume_client.h"
 
 namespace curvefs {
@@ -110,6 +112,7 @@ void FuseVolumeClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
     fsInfo_ = std::make_shared<FsInfo>(fsInfo);
     inodeManager_->SetFsId(fsInfo.fsid());
     dentryManager_->SetFsId(fsInfo.fsid());
+    InitTxId(fsInfo);
 
     LOG(INFO) << "Mount " << fsName
               << " on " << mountPointStr

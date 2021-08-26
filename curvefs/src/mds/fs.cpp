@@ -33,6 +33,13 @@ void MdsFsInfo::ConvertToProto(FsInfo* file) {
     file->set_mountnum(mountPointList_.size());
     *file->mutable_mountpoints() = {mountPointList_.begin(),
                                     mountPointList_.end()};
+
+    for (const auto& item : partitionTxIds_) {
+        auto partitionTxId = file->add_partitiontxids();
+        partitionTxId->set_partitionid(item.first);
+        partitionTxId->set_txid(item.second);
+    }
+
     return;
 }
 
@@ -119,6 +126,10 @@ FSType MdsFsInfo::GetFsType() {
 void MdsFsInfo::SetFsType(FSType type) {
     WriteLockGuard writeLockGuard(rwLock_);
     type_ = type;
+}
+
+void MdsFsInfo::SetTxId(uint64_t copysetId, uint64_t txId) {
+    partitionTxIds_[copysetId] = txId;
 }
 
 }  // namespace mds

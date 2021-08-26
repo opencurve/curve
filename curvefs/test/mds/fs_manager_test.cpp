@@ -261,6 +261,31 @@ TEST_F(FSManagerTest, test1) {
     ret = fsManager_->GetFsInfo(fsName1, s3FsInfo.fsid(), &fsInfo2);
     ASSERT_EQ(ret, FSStatusCode::PARAM_ERROR);
 
+    // TEST CASE: commit tx
+    {
+        auto fsId = volumeFsInfo1.fsid();
+        std::vector<PartitionTxId> txIds;
+        for (auto i = 1; i <= 2; i++) {
+            PartitionTxId partitionTxId;
+            partitionTxId.set_partitionid(i);
+            partitionTxId.set_txid(1);
+            txIds.push_back(partitionTxId);
+        }
+
+        auto rc = fsManager_->CommitTx(fsId, txIds);
+        ASSERT_EQ(rc, FSStatusCode::OK);
+
+        FsInfo fsInfo;
+        rc = fsManager_->GetFsInfo(fsId, &fsInfo);
+        ASSERT_EQ(rc, FSStatusCode::OK);
+        ASSERT_EQ(fsInfo.partitiontxids_size(), 2);
+        for (auto i = 1; i <= 2; i++) {
+            auto partitionTxId = fsInfo.partitiontxids(i - 1);
+            ASSERT_EQ(partitionTxId.partitionid(), i);
+            ASSERT_EQ(partitionTxId.txid(), 1);
+        }
+    }
+
     // TEST MountFs
     std::string mountPoint = "host:/a/b/c";
     FsInfo fsInfo3;

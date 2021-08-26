@@ -27,6 +27,7 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/proto/space.pb.h"
@@ -54,17 +55,27 @@ class MetaServerClient {
     virtual CURVEFS_ERROR Init(const MetaServerOption &metaopt,
                        MetaServerBaseClient *baseclient) = 0;
 
-    virtual CURVEFS_ERROR GetDentry(uint32_t fsId, uint64_t inodeid,
-                                    const std::string &name, Dentry *out) = 0;
+    virtual CURVEFS_ERROR GetDentry(uint32_t fsId,
+                                    uint64_t inodeid,
+                                    const std::string& name,
+                                    uint64_t txId,
+                                    Dentry* out) = 0;
 
-    virtual CURVEFS_ERROR ListDentry(uint32_t fsId, uint64_t inodeid,
+    virtual CURVEFS_ERROR ListDentry(uint32_t fsId,
+                                     uint64_t inodeid,
+                                     uint64_t txId,
                                      const std::string &last, uint32_t count,
                                      std::list<Dentry> *dentryList) = 0;
 
     virtual CURVEFS_ERROR CreateDentry(const Dentry &dentry) = 0;
 
-    virtual CURVEFS_ERROR DeleteDentry(uint32_t fsId, uint64_t inodeid,
-                                       const std::string &name) = 0;
+    virtual CURVEFS_ERROR DeleteDentry(uint32_t fsId,
+                                       uint64_t inodeid,
+                                       const std::string &name,
+                                       uint64_t txId) = 0;
+
+    virtual CURVEFS_ERROR PrepareRenameTx(
+        const std::vector<Dentry>& dentrys) = 0;
 
     virtual CURVEFS_ERROR GetInode(uint32_t fsId, uint64_t inodeid,
                                    Inode *out) = 0;
@@ -87,17 +98,22 @@ class MetaServerClientImpl : public MetaServerClient {
     CURVEFS_ERROR Init(const MetaServerOption &metaopt,
                        MetaServerBaseClient *baseclient) override;
 
-    CURVEFS_ERROR GetDentry(uint32_t fsId, uint64_t inodeid,
-                            const std::string &name, Dentry *out) override;
+    CURVEFS_ERROR GetDentry(uint32_t fsId,
+                            uint64_t inodeid,
+                            const std::string& name,
+                            uint64_t txId,
+                            Dentry *out) override;
 
-    CURVEFS_ERROR ListDentry(uint32_t fsId, uint64_t inodeid,
+    CURVEFS_ERROR ListDentry(uint32_t fsId, uint64_t inodeid, uint64_t txId,
                              const std::string &last, uint32_t count,
                              std::list<Dentry> *dentryList) override;
 
     CURVEFS_ERROR CreateDentry(const Dentry &dentry) override;
 
     CURVEFS_ERROR DeleteDentry(uint32_t fsId, uint64_t inodeid,
-                               const std::string &name) override;
+                               const std::string &name, uint64_t txId) override;
+
+    CURVEFS_ERROR PrepareRenameTx(const std::vector<Dentry>& dentrys) override;
 
     CURVEFS_ERROR GetInode(uint32_t fsId, uint64_t inodeid,
                            Inode *out) override;

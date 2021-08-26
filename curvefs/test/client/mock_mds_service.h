@@ -56,6 +56,11 @@ class MockMdsService : public curvefs::mds::MdsService {
                                 const ::curvefs::mds::DeleteFsRequest *request,
                                 ::curvefs::mds::DeleteFsResponse *response,
                                 ::google::protobuf::Closure *done));
+
+    MOCK_METHOD4(CommitTx, void(::google::protobuf::RpcController* controller,
+                                const ::curvefs::mds::CommitTxRequest* request,
+                                ::curvefs::mds::CommitTxResponse* response,
+                                ::google::protobuf::Closure* done));
 };
 }  // namespace client
 }  // namespace curvefs

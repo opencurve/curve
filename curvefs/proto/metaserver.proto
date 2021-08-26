@@ -27,6 +27,9 @@ enum MetaStatusCode {
     DENTRY_EXIST = 5;
     SYM_LINK_EMPTY = 6;
     RPC_ERROR = 7;
+    TARGET_DIRECTORY_EXIST = 8;
+    HANDLE_PENDING_TX_FAILED = 9;
+    HANDLE_TX_FAILED = 10;
 }
 
 // dentry interface
@@ -34,6 +37,12 @@ message GetDentryRequest {
     required uint32 fsId = 1;
     required uint64 parentInodeId = 2;
     required string name = 3;
+    required uint64 txId = 4;
+}
+
+enum DentryFlag {
+    TYPE_FILE_FLAG = 1;
+    DELETE_MARK_FLAG = 2;
 }
 
 message Dentry {
@@ -41,6 +50,8 @@ message Dentry {
     required uint64 inodeId = 2;
     required uint64 parentInodeId = 3;
     required string name = 4;
+    required uint64 txId = 5;
+    optional uint32 flag = 6;
 }
 
 message GetDentryResponse {
@@ -51,8 +62,9 @@ message GetDentryResponse {
 message ListDentryRequest {
     required uint32 fsId = 1;
     required uint64 dirInodeId = 2;
-    optional string last = 3;     // the name of last entry
-    optional uint32 count = 4;    // the number of entry required
+    required uint64 txId = 3;
+    optional string last = 4;  // the name of last dentry
+    optional uint32 count = 5;  // the number of dentry required
 }
 
 message ListDentryResponse {
@@ -72,9 +84,18 @@ message DeleteDentryRequest {
     required uint32 fsId = 1;
     required uint64 parentInodeId = 2;
     required string name = 3;
+    required uint64 txId = 4;
 }
 
 message DeleteDentryResponse {
+    required MetaStatusCode statusCode = 1;
+}
+
+message PrepareRenameTxRequest {
+    repeated Dentry dentrys = 1;
+}
+
+message PrepareRenameTxResponse {
     required MetaStatusCode statusCode = 1;
 }
 
@@ -207,6 +228,7 @@ service MetaServerService {
     rpc ListDentry(ListDentryRequest) returns (ListDentryResponse);
     rpc CreateDentry(CreateDentryRequest) returns (CreateDentryResponse);
     rpc DeleteDentry(DeleteDentryRequest) returns (DeleteDentryResponse);
+    rpc PrepareRenameTx(PrepareRenameTxRequest) returns (PrepareRenameTxResponse);
 
     // inode interface
     rpc GetInode(GetInodeRequest) returns (GetInodeResponse);

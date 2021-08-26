@@ -27,6 +27,7 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/metaserver.pb.h"
@@ -44,6 +45,8 @@ using curvefs::metaserver::DeleteDentryRequest;
 using curvefs::metaserver::DeleteDentryResponse;
 using curvefs::metaserver::DeleteInodeRequest;
 using curvefs::metaserver::DeleteInodeResponse;
+using curvefs::metaserver::PrepareRenameTxRequest;
+using curvefs::metaserver::PrepareRenameTxResponse;
 using curvefs::metaserver::Dentry;
 using ::curvefs::metaserver::FsFileType;
 using curvefs::metaserver::GetDentryRequest;
@@ -63,6 +66,7 @@ using curvefs::mds::CreateFsRequest;
 using curvefs::mds::CreateFsResponse;
 using curvefs::mds::DeleteFsRequest;
 using curvefs::mds::DeleteFsResponse;
+using curvefs::mds::PartitionTxId;
 using curvefs::mds::FsInfo;
 using curvefs::mds::FsStatus;
 using curvefs::mds::GetFsInfoRequest;
@@ -71,6 +75,8 @@ using curvefs::mds::MountFsRequest;
 using curvefs::mds::MountFsResponse;
 using curvefs::mds::UmountFsRequest;
 using curvefs::mds::UmountFsResponse;
+using curvefs::mds::CommitTxRequest;
+using curvefs::mds::CommitTxResponse;
 
 using curvefs::space::AllocateSpaceRequest;
 using curvefs::space::AllocateSpaceResponse;
@@ -97,10 +103,12 @@ class MetaServerBaseClient {
     virtual ~MetaServerBaseClient() {}
 
     virtual void GetDentry(uint32_t fsId, uint64_t inodeid,
-                           const std::string &name, GetDentryResponse *response,
+                           const std::string& name,
+                           uint64_t txId,
+                           GetDentryResponse *response,
                            brpc::Controller *cntl, brpc::Channel *channel);
 
-    virtual void ListDentry(uint32_t fsId, uint64_t inodeid,
+    virtual void ListDentry(uint32_t fsId, uint64_t inodeid, uint64_t txId,
                             const std::string &last, uint32_t count,
                             ListDentryResponse *response,
                             brpc::Controller *cntl, brpc::Channel *channel);
@@ -111,8 +119,14 @@ class MetaServerBaseClient {
 
     virtual void DeleteDentry(uint32_t fsId, uint64_t inodeid,
                               const std::string &name,
+                              uint64_t txId,
                               DeleteDentryResponse *response,
                               brpc::Controller *cntl, brpc::Channel *channel);
+
+    virtual void PrepareRenameTx(const std::vector<Dentry>& dentrys,
+                                 PrepareRenameTxResponse* response,
+                                 brpc::Controller* cntl,
+                                 brpc::Channel* channel);
 
     virtual void GetInode(uint32_t fsId, uint64_t inodeid,
                           GetInodeResponse *response, brpc::Controller *cntl,
@@ -157,6 +171,12 @@ class MDSBaseClient {
 
     virtual void GetFsInfo(uint32_t fsId, GetFsInfoResponse *response,
                            brpc::Controller *cntl, brpc::Channel *channel);
+
+    virtual void CommitTx(uint32_t fsId,
+                          const std::vector<PartitionTxId>& txIds,
+                          CommitTxResponse* response,
+                          brpc::Controller* cntl,
+                          brpc::Channel* channel);
 };
 
 class SpaceBaseClient {

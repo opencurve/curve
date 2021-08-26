@@ -49,22 +49,38 @@ class DentryCacheManager {
         fsId_ = fsId;
     }
 
+    virtual void InsertOrReplaceCache(const Dentry& dentry,
+                                      bool replace) = 0;
+
+    virtual void DeleteCache(uint64_t parentId, const std::string& name) = 0;
+
     virtual CURVEFS_ERROR GetDentry(uint64_t parent,
-        const std::string &name, Dentry *out) = 0;
+                                    const std::string& name,
+                                    uint64_t txId,
+                                    Dentry* out) = 0;
 
     virtual CURVEFS_ERROR CreateDentry(const Dentry &dentry) = 0;
 
     virtual CURVEFS_ERROR DeleteDentry(uint64_t parent,
-        const std::string &name) = 0;
+                                       const std::string& name,
+                                       uint64_t txId) = 0;
 
     virtual CURVEFS_ERROR ListDentry(uint64_t parent,
-        std::list<Dentry> *dentryList) = 0;
+                                     uint64_t txId,
+                                     std::list<Dentry>* dentryList,
+                                     uint32_t limit) = 0;
+
+    virtual CURVEFS_ERROR Rename(const Dentry& srcDentry,
+                                 const Dentry& dstDentry) = 0;
 
  protected:
     uint32_t fsId_;
 };
 
 class DentryCacheManagerImpl : public DentryCacheManager {
+ public:
+    using Hash = std::unordered_map<std::string, Dentry>;
+
  public:
     DentryCacheManagerImpl()
       : metaClient_(std::make_shared<MetaServerClientImpl>()) {}
@@ -75,22 +91,34 @@ class DentryCacheManagerImpl : public DentryCacheManager {
 
     CURVEFS_ERROR Init(const DCacheOption &option) override;
 
+    void InsertOrReplaceCache(const Dentry& dentry,
+                              bool replace) override;
+
+    void DeleteCache(uint64_t parentId, const std::string& name) override;
+
     CURVEFS_ERROR GetDentry(uint64_t parent,
-        const std::string &name, Dentry *out) override;
+                            const std::string& name,
+                            uint64_t txId,
+                            Dentry* out) override;
 
     CURVEFS_ERROR CreateDentry(const Dentry &dentry) override;
 
     CURVEFS_ERROR DeleteDentry(uint64_t parent,
-        const std::string &name) override;
+                               const std::string& name,
+                               uint64_t txId) override;
 
     CURVEFS_ERROR ListDentry(uint64_t parent,
-        std::list<Dentry> *dentryList) override;
+                             uint64_t txId,
+                             std::list<Dentry>* dentryList,
+                             uint32_t limit) override;
+
+    CURVEFS_ERROR Rename(const Dentry& srcDentry,
+                         const Dentry& dstDentry) override;
 
  private:
     std::shared_ptr<MetaServerClient> metaClient_;
 
-    std::unordered_map<uint64_t,
-        std::unordered_map<std::string, Dentry> > dCache_;
+    std::unordered_map<uint64_t, Hash> dCache_;
 
     curve::common::RWLock mtx_;
 

@@ -246,6 +246,33 @@ CURVEFS_ERROR MdsClientImpl::GetFsInfo(uint32_t fsId, FsInfo *fsInfo) {
     return excutor_.DoRPCTask(task);
 }
 
+CURVEFS_ERROR MdsClientImpl::CommitTx(uint32_t fsId,
+                                      const std::vector<PartitionTxId>& txIds) {
+    auto task = RPCTask {
+        CommitTxResponse response;
+        mdsbasecli_->CommitTx(fsId, txIds, &response, cntl, channel);
+
+        if (cntl->Failed()) {
+            LOG(WARNING) << "CommitTx failed, errorCode = " << cntl->ErrorCode()
+                         << ", errorText = " << cntl->ErrorText()
+                         << ", logId = " << cntl->log_id();
+            return static_cast<CURVEFS_ERROR>(-cntl->ErrorCode());
+        }
+
+        CURVEFS_ERROR rc = CURVEFS_ERROR::FAILED;
+        FSStatusCode statusCode = response.statuscode();
+        FSStatusCode2CurveFSErr(statusCode, &rc);
+        LOG_IF(WARNING, rc != CURVEFS_ERROR::OK)
+            << "CommitTx: fsid = " << fsId << ", retCode = " << rc
+            << ", errmsg = " << FSStatusCode_Name(statusCode);
+
+        return rc;
+    };
+
+    // TODO(Wine93): retry until success
+    return excutor_.DoRPCTask(task);
+}
+
 void MdsClientImpl::FSStatusCode2CurveFSErr(FSStatusCode stcode,
                                             CURVEFS_ERROR *retcode) {
     switch (stcode) {

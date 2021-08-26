@@ -26,6 +26,7 @@
 
 #include <gmock/gmock.h>
 #include <string>
+#include <vector>
 #include "curvefs/src/client/base_client.h"
 
 namespace curvefs {
@@ -36,24 +37,39 @@ class MockMetaServerBaseClient : public MetaServerBaseClient {
     MockMetaServerBaseClient() : MetaServerBaseClient() {}
     ~MockMetaServerBaseClient() = default;
 
-    MOCK_METHOD6(GetDentry,
-                 void(uint32_t fsId, uint64_t inodeid, const std::string &name,
-                      GetDentryResponse *response, brpc::Controller *cntl,
-                      brpc::Channel *channel));
+    MOCK_METHOD7(GetDentry, void(uint32_t fsId,
+                                 uint64_t inodeid,
+                                 const std::string& name,
+                                 uint64_t txId,
+                                 GetDentryResponse* response,
+                                 brpc::Controller* cntl,
+                                 brpc::Channel* channel));
 
-    MOCK_METHOD7(ListDentry,
-                 void(uint32_t fsId, uint64_t inodeid, const std::string &last,
-                      uint32_t count, ListDentryResponse *response,
-                      brpc::Controller *cntl, brpc::Channel *channel));
+    MOCK_METHOD8(ListDentry, void(uint32_t fsId,
+                                  uint64_t inodeid,
+                                  uint64_t txId,
+                                  const std::string& last,
+                                  uint32_t count,
+                                  ListDentryResponse* response,
+                                  brpc::Controller* cntl,
+                                  brpc::Channel* channel));
 
     MOCK_METHOD4(CreateDentry,
                  void(const Dentry &dentry, CreateDentryResponse *response,
                       brpc::Controller *cntl, brpc::Channel *channel));
 
-    MOCK_METHOD6(DeleteDentry,
-                 void(uint32_t fsId, uint64_t inodeid, const std::string &name,
-                      DeleteDentryResponse *response, brpc::Controller *cntl,
-                      brpc::Channel *channel));
+    MOCK_METHOD7(DeleteDentry, void(uint32_t fsId,
+                                    uint64_t inodeid,
+                                    const std::string& name,
+                                    uint64_t txId,
+                                    DeleteDentryResponse* response,
+                                    brpc::Controller* cntl,
+                                    brpc::Channel* channel));
+
+    MOCK_METHOD4(PrepareRenameTx, void(const std::vector<Dentry>& dentrys,
+                                       PrepareRenameTxResponse* response,
+                                       brpc::Controller* cntl,
+                                       brpc::Channel* channel));
 
     MOCK_METHOD5(GetInode,
                  void(uint32_t fsId, uint64_t inodeid,

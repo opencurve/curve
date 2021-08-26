@@ -28,6 +28,7 @@ using curvefs::metaserver::VolumeExtentList;
 
 void MetaServerBaseClient::GetDentry(uint32_t fsId, uint64_t inodeid,
                                      const std::string &name,
+                                     uint64_t txId,
                                      GetDentryResponse *response,
                                      brpc::Controller *cntl,
                                      brpc::Channel *channel) {
@@ -35,12 +36,14 @@ void MetaServerBaseClient::GetDentry(uint32_t fsId, uint64_t inodeid,
     request.set_fsid(fsId);
     request.set_parentinodeid(inodeid);
     request.set_name(name);
+    request.set_txid(txId);
 
     curvefs::metaserver::MetaServerService_Stub stub(channel);
     stub.GetDentry(cntl, &request, response, nullptr);
 }
 
 void MetaServerBaseClient::ListDentry(uint32_t fsId, uint64_t inodeid,
+                                      uint64_t txId,
                                       const std::string &last, uint32_t count,
                                       ListDentryResponse *response,
                                       brpc::Controller *cntl,
@@ -48,6 +51,7 @@ void MetaServerBaseClient::ListDentry(uint32_t fsId, uint64_t inodeid,
     ListDentryRequest request;
     request.set_fsid(fsId);
     request.set_dirinodeid(inodeid);
+    request.set_txid(txId);
     request.set_last(last);
     request.set_count(count);
 
@@ -60,18 +64,14 @@ void MetaServerBaseClient::CreateDentry(const Dentry &dentry,
                                         brpc::Controller *cntl,
                                         brpc::Channel *channel) {
     CreateDentryRequest request;
-    Dentry *d = new Dentry;
-    d->set_fsid(dentry.fsid());
-    d->set_inodeid(dentry.inodeid());
-    d->set_parentinodeid(dentry.parentinodeid());
-    d->set_name(dentry.name());
-    request.set_allocated_dentry(d);
+    *request.mutable_dentry() = dentry;
     curvefs::metaserver::MetaServerService_Stub stub(channel);
     stub.CreateDentry(cntl, &request, response, nullptr);
 }
 
 void MetaServerBaseClient::DeleteDentry(uint32_t fsId, uint64_t inodeid,
                                         const std::string &name,
+                                        uint64_t txId,
                                         DeleteDentryResponse *response,
                                         brpc::Controller *cntl,
                                         brpc::Channel *channel) {
@@ -79,8 +79,19 @@ void MetaServerBaseClient::DeleteDentry(uint32_t fsId, uint64_t inodeid,
     request.set_fsid(fsId);
     request.set_parentinodeid(inodeid);
     request.set_name(name);
+    request.set_txid(txId);
     curvefs::metaserver::MetaServerService_Stub stub(channel);
     stub.DeleteDentry(cntl, &request, response, nullptr);
+}
+
+void MetaServerBaseClient::PrepareRenameTx(const std::vector<Dentry>& dentrys,
+                                           PrepareRenameTxResponse* response,
+                                           brpc::Controller* cntl,
+                                           brpc::Channel* channel) {
+    PrepareRenameTxRequest request;
+    *request.mutable_dentrys() = { dentrys.begin(), dentrys.end() };
+    curvefs::metaserver::MetaServerService_Stub stub(channel);
+    stub.PrepareRenameTx(cntl, &request, response, nullptr);
 }
 
 void MetaServerBaseClient::GetInode(uint32_t fsId, uint64_t inodeid,
@@ -219,6 +230,18 @@ void MDSBaseClient::GetFsInfo(uint32_t fsId, GetFsInfoResponse *response,
     request.set_fsid(fsId);
     curvefs::mds::MdsService_Stub stub(channel);
     stub.GetFsInfo(cntl, &request, response, nullptr);
+}
+
+void MDSBaseClient::CommitTx(uint32_t fsId,
+                             const std::vector<PartitionTxId>& txIds,
+                             CommitTxResponse* response,
+                             brpc::Controller* cntl,
+                             brpc::Channel* channel) {
+    CommitTxRequest request;
+    request.set_fsid(fsId);
+    *request.mutable_partitiontxids() = { txIds.begin(), txIds.end() };
+    curvefs::mds::MdsService_Stub stub(channel);
+    stub.CommitTx(cntl, &request, response, nullptr);
 }
 
 void SpaceBaseClient::AllocExtents(uint32_t fsId,

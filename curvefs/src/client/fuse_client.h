@@ -24,6 +24,7 @@
 #ifndef CURVEFS_SRC_CLIENT_FUSE_CLIENT_H_
 #define CURVEFS_SRC_CLIENT_FUSE_CLIENT_H_
 
+#include <map>
 #include <memory>
 #include <string>
 
@@ -44,6 +45,7 @@
 #define DirectIOAlignemnt 512
 
 using ::curvefs::common::FSType;
+using ::curvefs::metaserver::DentryFlag;
 
 namespace curvefs {
 namespace client {
@@ -136,6 +138,12 @@ class FuseClient {
             char **buffer,
             size_t *rSize);
 
+    virtual CURVEFS_ERROR FuseOpRename(fuse_req_t req,
+                                       fuse_ino_t parent,
+                                       const char* name,
+                                       fuse_ino_t newparent,
+                                       const char* newname);
+
     virtual CURVEFS_ERROR FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
              struct fuse_file_info *fi, struct stat *attr);
 
@@ -152,9 +160,13 @@ class FuseClient {
     }
 
  protected:
+    void InitTxId(const FsInfo& fsInfo);
+
     void GetDentryParamFromInode(const Inode &inode, fuse_entry_param *param);
 
     void GetAttrFromInode(const Inode &inode, struct stat *attr);
+
+    CURVEFS_ERROR Overwrite(const Dentry& dentry, uint64_t txId);
 
     CURVEFS_ERROR MakeNode(fuse_req_t req, fuse_ino_t parent,
             const char *name, mode_t mode, FsFileType type,
@@ -193,6 +205,9 @@ class FuseClient {
     std::shared_ptr<FsInfo> fsInfo_;
 
     FuseClientOption option_;
+
+    // copysetId -> txId
+    std::map<uint64_t, uint64_t> partitionTxIds_;
 
  private:
     MDSBaseClient *mdsBase_;

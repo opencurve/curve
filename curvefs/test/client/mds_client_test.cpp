@@ -213,5 +213,15 @@ TEST_F(MdsClientImplTest, test_GetFsInfo_by_fsid) {
         google::protobuf::util::MessageDifferencer::Equals(*fsinfo, out));
 }
 
+TEST_F(MdsClientImplTest, CommitTx) {
+    curvefs::mds::CommitTxResponse response;
+    response.set_statuscode(curvefs::mds::FSStatusCode::OK);
+    EXPECT_CALL(mockmdsbasecli_, CommitTx(_, _, _, _, _))
+        .WillOnce(SetArgPointee<2>(response));
+
+    auto txIds = std::vector<PartitionTxId>();
+    ASSERT_EQ(CURVEFS_ERROR::OK, mdsclient_.CommitTx(1, txIds));
+}
+
 }  // namespace client
 }  // namespace curvefs

@@ -69,6 +69,7 @@ TEST_F(MetaServerClientImplTest, test_GetDentry) {
     uint32_t fsid = 1;
     uint32_t inodeid = 10;
     std::string name = "test_get_dentry";
+    uint64_t txId = 0;
     curvefs::metaserver::Dentry dout;
 
     curvefs::metaserver::GetDentryResponse response;
@@ -77,19 +78,21 @@ TEST_F(MetaServerClientImplTest, test_GetDentry) {
     d->set_inodeid(inodeid);
     d->set_parentinodeid(1);
     d->set_name(name);
+    d->set_txid(txId);
     response.set_allocated_dentry(d);
     response.set_statuscode(curvefs::metaserver::OK);
-    EXPECT_CALL(mockmsbasecli_, GetDentry(_, _, _, _, _, _))
-        .WillOnce(SetArgPointee<3>(response));
+    EXPECT_CALL(mockmsbasecli_, GetDentry(_, _, _, _, _, _, _))
+        .WillOnce(SetArgPointee<4>(response));
 
     ASSERT_EQ(CURVEFS_ERROR::OK,
-              msclient_.GetDentry(fsid, inodeid, name, &dout));
+              msclient_.GetDentry(fsid, inodeid, name, txId, &dout));
     ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(dout, *d));
 }
 
 TEST_F(MetaServerClientImplTest, test_ListDentry) {
     uint32_t fsid = 1;
     uint32_t inodeid = 10;
+    uint64_t txId = 0;
     std::string last = "test_get_dentry";
     uint32_t count = 1;
     std::list<Dentry> dentryList;
@@ -100,12 +103,14 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
     d->set_inodeid(inodeid);
     d->set_parentinodeid(1);
     d->set_name("test_get_dentry_1");
+    d->set_txid(txId);
     response.set_statuscode(curvefs::metaserver::OK);
-    EXPECT_CALL(mockmsbasecli_, ListDentry(_, _, _, _, _, _, _))
-        .WillOnce(SetArgPointee<4>(response));
+    EXPECT_CALL(mockmsbasecli_, ListDentry(_, _, _, _, _, _, _, _))
+        .WillOnce(SetArgPointee<5>(response));
 
-    ASSERT_EQ(CURVEFS_ERROR::OK,
-              msclient_.ListDentry(fsid, inodeid, last, count, &dentryList));
+    auto rc = msclient_.ListDentry(
+        fsid, inodeid, txId, last, count, &dentryList);
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
     ASSERT_EQ(1, dentryList.size());
     ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(
         *dentryList.begin(), *d));
@@ -117,6 +122,7 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry) {
     dentryCreate.set_inodeid(10);
     dentryCreate.set_parentinodeid(1);
     dentryCreate.set_name("test_update_dentry");
+    dentryCreate.set_txid(0);
 
     curvefs::metaserver::CreateDentryResponse response;
     response.set_statuscode(curvefs::metaserver::OK);
@@ -130,13 +136,25 @@ TEST_F(MetaServerClientImplTest, test_DeleteDentry) {
     uint32_t fsid = 1;
     uint64_t inodeid = 10;
     std::string name = "test_delete_dentry";
+    uint64_t txId = 0;
 
     curvefs::metaserver::DeleteDentryResponse response;
     response.set_statuscode(curvefs::metaserver::OK);
-    EXPECT_CALL(mockmsbasecli_, DeleteDentry(_, _, _, _, _, _))
-        .WillOnce(SetArgPointee<3>(response));
+    EXPECT_CALL(mockmsbasecli_, DeleteDentry(_, _, _, _, _, _, _))
+        .WillOnce(SetArgPointee<4>(response));
 
-    ASSERT_EQ(CURVEFS_ERROR::OK, msclient_.DeleteDentry(fsid, inodeid, name));
+    ASSERT_EQ(CURVEFS_ERROR::OK,
+              msclient_.DeleteDentry(fsid, inodeid, name, txId));
+}
+
+TEST_F(MetaServerClientImplTest, PrepareRenameTx) {
+    curvefs::metaserver::PrepareRenameTxResponse response;
+    response.set_statuscode(curvefs::metaserver::OK);
+    EXPECT_CALL(mockmsbasecli_, PrepareRenameTx(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+
+    auto dentrys = std::vector<Dentry>();
+    ASSERT_EQ(CURVEFS_ERROR::OK, msclient_.PrepareRenameTx(dentrys));
 }
 
 TEST_F(MetaServerClientImplTest, test_GetInode) {

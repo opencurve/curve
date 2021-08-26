@@ -22,6 +22,7 @@
  */
 
 #include <string>
+#include <memory>
 
 #include "curvefs/src/client/fuse_s3_client.h"
 
@@ -95,6 +96,7 @@ void FuseS3Client::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
     fsInfo_ = std::make_shared<FsInfo>(fsInfo);
     inodeManager_->SetFsId(fsInfo.fsid());
     dentryManager_->SetFsId(fsInfo.fsid());
+    InitTxId(fsInfo);
 
     LOG(INFO) << "Mount " << fsName
               << " on " << mountPointStr

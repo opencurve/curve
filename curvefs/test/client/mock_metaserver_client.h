@@ -28,6 +28,7 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 #include "curvefs/src/client/metaserver_client.h"
 
@@ -47,17 +48,22 @@ class MockMetaServerClient : public MetaServerClient {
 
     MOCK_METHOD0(Uinit, CURVEFS_ERROR());
 
-    MOCK_METHOD4(GetDentry, CURVEFS_ERROR(uint32_t fsId, uint64_t inodeid,
-                  const std::string &name, Dentry *out));
+    MOCK_METHOD5(GetDentry, CURVEFS_ERROR(uint32_t fsId, uint64_t inodeid,
+                  const std::string &name, uint64_t txId, Dentry *out));
 
-    MOCK_METHOD5(ListDentry, CURVEFS_ERROR(uint32_t fsId, uint64_t inodeid,
-            const std::string &last, uint32_t count,
+    MOCK_METHOD6(ListDentry, CURVEFS_ERROR(uint32_t fsId, uint64_t inodeid,
+            uint64_t txId, const std::string &last, uint32_t count,
             std::list<Dentry> *dentryList));
 
     MOCK_METHOD1(CreateDentry, CURVEFS_ERROR(const Dentry &dentry));
 
-    MOCK_METHOD3(DeleteDentry, CURVEFS_ERROR(
-            uint32_t fsId, uint64_t inodeid, const std::string &name));
+    MOCK_METHOD4(DeleteDentry, CURVEFS_ERROR(uint32_t fsId,
+                                             uint64_t inodeid,
+                                             const std::string& name,
+                                             uint64_t txId));
+
+    MOCK_METHOD1(PrepareRenameTx,
+                 CURVEFS_ERROR(const std::vector<Dentry>& dentrys));
 
     MOCK_METHOD3(GetInode, CURVEFS_ERROR(
             uint32_t fsId, uint64_t inodeid, Inode *out));

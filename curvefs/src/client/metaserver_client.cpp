@@ -56,10 +56,12 @@ MetaServerClientImpl::Init(const MetaServerOption &metaopt,
 
 CURVEFS_ERROR MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
                                               const std::string &name,
+                                              uint64_t txId,
                                               Dentry *out) {
     auto task = RPCTaskDefine {
         GetDentryResponse response;
-        basecli_->GetDentry(fsId, inodeid, name, &response, cntl, channel);
+        basecli_->GetDentry(
+            fsId, inodeid, name, txId, &response, cntl, channel);
 
         if (cntl->Failed()) {
             LOG(WARNING) << "GetDentry Failed, errorcode = "
@@ -88,14 +90,16 @@ CURVEFS_ERROR MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
     return excutor_.DoRPCTask(task);
 }
 
-CURVEFS_ERROR MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
+CURVEFS_ERROR MetaServerClientImpl::ListDentry(uint32_t fsId,
+                                               uint64_t inodeid,
+                                               uint64_t txId,
                                                const std::string &last,
                                                uint32_t count,
                                                std::list<Dentry> *dentryList) {
     auto task = RPCTaskDefine {
         ListDentryResponse response;
-        basecli_->ListDentry(fsId, inodeid, last, count, &response, cntl,
-                             channel);
+        basecli_->ListDentry(
+            fsId, inodeid, txId, last, count, &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "ListDentry Failed, errorcode = "
                          << cntl->ErrorCode()
@@ -158,10 +162,12 @@ CURVEFS_ERROR MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
 
 CURVEFS_ERROR MetaServerClientImpl::DeleteDentry(uint32_t fsId,
                                                  uint64_t inodeid,
-                                                 const std::string &name) {
+                                                 const std::string& name,
+                                                 uint64_t txId) {
     auto task = RPCTaskDefine {
         DeleteDentryResponse response;
-        basecli_->DeleteDentry(fsId, inodeid, name, &response, cntl, channel);
+        basecli_->DeleteDentry(
+            fsId, inodeid, name, txId, &response, cntl, channel);
 
         if (cntl->Failed()) {
             LOG(WARNING) << "DeleteDentry Failed, errorcode = "
@@ -181,6 +187,33 @@ CURVEFS_ERROR MetaServerClientImpl::DeleteDentry(uint32_t fsId,
         // TDOD(lixiaocui): exception handling
         return retcode;
     };
+    return excutor_.DoRPCTask(task);
+}
+
+CURVEFS_ERROR MetaServerClientImpl::PrepareRenameTx(
+    const std::vector<Dentry>& dentrys) {
+    auto task = RPCTaskDefine {
+        PrepareRenameTxResponse response;
+        basecli_->PrepareRenameTx(dentrys, &response, cntl, channel);
+
+        if (cntl->Failed()) {
+            LOG(WARNING) << "PrepareRenameTx failed"
+                         << ", errorCode = " << cntl->ErrorCode()
+                         << ", errorText = " << cntl->ErrorText()
+                         << ", logId = " << cntl->log_id();
+            return static_cast<CURVEFS_ERROR>(-cntl->ErrorCode());
+        }
+
+        CURVEFS_ERROR rc = CURVEFS_ERROR::FAILED;
+        MetaStatusCode statusCode = response.statuscode();
+        MetaServerStatusCode2CurveFSErr(statusCode, &rc);
+        LOG_IF(WARNING, rc != CURVEFS_ERROR::OK)
+            << "PrepareRenameTx failed, retCode = " << rc
+            << "errmsg = " << MetaStatusCode_Name(statusCode);
+
+        return rc;
+    };
+
     return excutor_.DoRPCTask(task);
 }
 

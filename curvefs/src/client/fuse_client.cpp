@@ -91,6 +91,14 @@ std::ostream &operator<<(std::ostream &os, const struct stat &attr) {
     return os;
 }
 
+void FuseClient::InitTxId(const FsInfo& fsInfo) {
+    for (const auto& partitionTxId : fsInfo.partitiontxids()) {
+        auto partitionId = partitionTxId.partitionid();
+        auto txId = partitionTxId.txid();
+        partitionTxIds_[partitionId] = txId;
+    }
+}
+
 void FuseClient::GetAttrFromInode(const Inode &inode, struct stat *attr) {
     attr->st_ino = inode.inodeid();
     attr->st_mode = inode.mode();
@@ -117,11 +125,13 @@ void FuseClient::GetDentryParamFromInode(
 CURVEFS_ERROR FuseClient::FuseOpLookup(fuse_req_t req, fuse_ino_t parent,
     const char *name, fuse_entry_param *e) {
     Dentry dentry;
-    CURVEFS_ERROR ret = dentryManager_->GetDentry(parent, name, &dentry);
+    CURVEFS_ERROR ret = dentryManager_->GetDentry(
+        parent, name, partitionTxIds_[0], &dentry);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ get dentry fail, ret = " << ret
                    << ", parent inodeid = " << parent
-                   << ", name = " << name;
+                   << ", name = " << name
+                   << ", txId = " << partitionTxIds_[0];
         return ret;
     }
     Inode inode;
@@ -187,11 +197,18 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
     dentry.set_inodeid(inode.inodeid());
     dentry.set_parentinodeid(parent);
     dentry.set_name(name);
+    // TODO(Wine93): get txid by partition id
+    dentry.set_txid(partitionTxIds_[0]);
+    if (type == FsFileType::TYPE_FILE || type == FsFileType::TYPE_S3) {
+        dentry.set_flag(DentryFlag::TYPE_FILE_FLAG);
+    }
+
     ret = dentryManager_->CreateDentry(dentry);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
                   << ", parent = " << parent
                   << ", name = " << name
+                  << ", txId = " << partitionTxIds_[0]
                   << ", mode = " << mode;
         return ret;
     }
@@ -214,18 +231,21 @@ CURVEFS_ERROR FuseClient::FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
 CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
     const char *name) {
     Dentry dentry;
-    CURVEFS_ERROR ret = dentryManager_->GetDentry(parent, name, &dentry);
+    CURVEFS_ERROR ret = dentryManager_->GetDentry(
+        parent, name, partitionTxIds_[0], &dentry);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ GetDentry fail, ret = " << ret
-                  << ", parent = " << parent
-                  << ", name = " << name;
+                   << ", parent = " << parent
+                   << ", name = " << name
+                   << ", txId = " << partitionTxIds_[0];
         return ret;
     }
-    ret = dentryManager_->DeleteDentry(parent, name);
+    ret = dentryManager_->DeleteDentry(parent, name, partitionTxIds_[0]);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ DeleteDentry fail, ret = " << ret
-                  << ", parent = " << parent
-                  << ", name = " << name;
+                   << ", parent = " << parent
+                   << ", name = " << name
+                   << ", txId = " << partitionTxIds_[0];
         return ret;
     }
     // TODO(xuchaojie) : judge can inode be deleted
@@ -292,12 +312,14 @@ CURVEFS_ERROR FuseClient::FuseOpReadDir(
 
     uint64_t dindex = fi->fh;
     DirBufferHead *bufHead = dirBuf_->DirBufferGet(dindex);
+    auto txId = partitionTxIds_[0];
     if (!bufHead->wasRead) {
         std::list<Dentry> dentryList;
-        ret = dentryManager_->ListDentry(ino, &dentryList);
+        ret = dentryManager_->ListDentry(ino, txId, &dentryList, 0);
         if (ret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "dentryManager_ ListDentry fail, ret = " << ret
-                      << ", parent = " << ino;
+                       << ", parent = " << ino
+                       << ", txId = " << partitionTxIds_[0];
             return ret;
         }
         for (const auto &dentry : dentryList) {
@@ -313,6 +335,102 @@ CURVEFS_ERROR FuseClient::FuseOpReadDir(
         *rSize = 0;
     }
     return ret;
+}
+
+// TODO(Wine93): we should improve the check for whether a directory is empty
+CURVEFS_ERROR FuseClient::Overwrite(const Dentry& dentry, uint64_t txId) {
+    auto rc = CURVEFS_ERROR::OK;
+    if ((dentry.flag() & DentryFlag::TYPE_FILE_FLAG) == 0) {  // directory
+        std::list<Dentry> dentrys;
+        rc = dentryManager_->ListDentry(dentry.inodeid(), txId, &dentrys, 1);
+        if (rc == CURVEFS_ERROR::OK && !dentrys.empty()) {
+            LOG(ERROR) << "The directory is not empty"
+                       << ", dentry = (" << dentry.ShortDebugString() << ")";
+            rc = CURVEFS_ERROR::NOTEMPTY;
+        }
+    }
+
+    return rc;
+}
+
+CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req,
+                                       fuse_ino_t parent,
+                                       const char* name,
+                                       fuse_ino_t newparent,
+                                       const char* newname) {
+    Dentry src, dst;
+    auto partitionId = 0;
+    auto txId = partitionTxIds_[partitionId];
+
+    // step1: precheck for rename operator
+    auto rc = dentryManager_->GetDentry(parent, name, txId, &src);
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "Failed to get dentry, retCode = " << rc;
+        return rc;
+    }
+
+    uint64_t oldInodeId = 0;
+    rc = dentryManager_->GetDentry(newparent, newname, txId, &dst);
+    if (rc == CURVEFS_ERROR::NOTEXIST) {  // not exist
+        // do nothing
+    } else if (rc == CURVEFS_ERROR::OK) {  // exist
+        oldInodeId = dst.inodeid();
+        if ((rc = Overwrite(dst, txId)) != CURVEFS_ERROR::OK) {
+            return rc;
+        }
+    } else {  // error
+        LOG(ERROR) << "Failed to get dentry, retCode = " << rc;
+        return rc;
+    }
+
+    // step2: generate dentrys for rename tx
+    // dentry = { fsId, parentId, name, inodeId, txId + 1, flag }
+    auto srcDentry = Dentry(src);
+    srcDentry.set_txid(txId + 1);
+    srcDentry.set_flag(DentryFlag::DELETE_MARK_FLAG);
+
+    auto dstDentry = Dentry(src);
+    dstDentry.set_parentinodeid(newparent);
+    dstDentry.set_name(newname);
+    dstDentry.set_txid(txId + 1);
+
+    VLOG(1) << "Prepare rename tx: "
+            << "src dentry = (" << srcDentry.ShortDebugString() << ")"
+            << ", dst dentry = (" << dstDentry.ShortDebugString() << ")";
+
+    // step3: prepare rename tx
+    rc = dentryManager_->Rename(srcDentry, dstDentry);
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "Rename failed, retCode = " << rc;
+        return rc;
+    }
+
+    // step4: commit rename tx
+    PartitionTxId partitionTxId;
+    partitionTxId.set_partitionid(partitionId);
+    partitionTxId.set_txid(txId + 1);
+    std::vector<PartitionTxId> txIds{ partitionTxId };
+    rc = mdsClient_->CommitTx(srcDentry.fsid(), txIds);
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "CommitTx failed, retCode = " << rc;
+        return rc;
+    }
+
+    // step5: delete old inode if it exist
+    if (oldInodeId != 0) {
+        rc = inodeManager_->DeleteInode(oldInodeId);
+        if (rc != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "DeleteInode fail, retCode = " << rc
+                       << ", inodeId = " << oldInodeId;
+        }
+    }
+
+    // step6: update dentry cache and update txid cache
+    dentryManager_->DeleteCache(srcDentry.parentinodeid(), srcDentry.name());
+    dentryManager_->InsertOrReplaceCache(dstDentry, true);
+    partitionTxIds_[0] = txId + 1;
+
+    return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR FuseClient::FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,

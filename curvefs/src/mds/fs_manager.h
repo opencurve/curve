@@ -26,6 +26,8 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <vector>
+
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/common/define.h"
 #include "curvefs/src/mds/fs.h"
@@ -209,6 +211,9 @@ class FsManager {
      */
     FSStatusCode GetFsInfo(const std::string& fsName, uint32_t fsId,
                            FsInfo* fsInfo);
+
+    FSStatusCode CommitTx(uint32_t fsId,
+                          const std::vector<PartitionTxId>& txIds);
 
  private:
     uint32_t GetNextFsId();

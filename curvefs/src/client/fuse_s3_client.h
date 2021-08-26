@@ -24,6 +24,8 @@
 #ifndef CURVEFS_SRC_CLIENT_FUSE_S3_CLIENT_H_
 #define CURVEFS_SRC_CLIENT_FUSE_S3_CLIENT_H_
 
+#include <memory>
+
 #include "curvefs/src/client/fuse_client.h"
 
 namespace curvefs {

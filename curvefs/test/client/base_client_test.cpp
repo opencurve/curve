@@ -37,6 +37,7 @@ using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
+using google::protobuf::util::MessageDifferencer;
 
 
 template <typename RpcRequestType, typename RpcResponseType,
@@ -84,6 +85,7 @@ TEST_F(BaseClientTest, test_GetDentry) {
     uint32_t fsid = 1;
     uint64_t inodeid = 2;
     std::string name = "test1";
+    uint64_t txId = 0;
     GetDentryResponse resp;
     brpc::Controller cntl;
     cntl.set_timeout_ms(1000);
@@ -96,6 +98,7 @@ TEST_F(BaseClientTest, test_GetDentry) {
     d->set_inodeid(inodeid);
     d->set_parentinodeid(1);
     d->set_name(name);
+    d->set_txid(txId);
     response.set_allocated_dentry(d);
     response.set_statuscode(curvefs::metaserver::OK);
     EXPECT_CALL(mockMetaServerService_, GetDentry(_, _, _, _))
@@ -103,7 +106,7 @@ TEST_F(BaseClientTest, test_GetDentry) {
             DoAll(SetArgPointee<2>(response),
                   Invoke(RpcService<GetDentryRequest, GetDentryResponse>)));
 
-    msbasecli_.GetDentry(fsid, inodeid, name, &resp, &cntl, &ch);
+    msbasecli_.GetDentry(fsid, inodeid, name, txId, &resp, &cntl, &ch);
     ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
     ASSERT_TRUE(
         google::protobuf::util::MessageDifferencer::Equals(resp, response))
@@ -115,6 +118,7 @@ TEST_F(BaseClientTest, test_GetDentry) {
 TEST_F(BaseClientTest, test_ListDentry) {
     uint32_t fsid = 1;
     uint64_t inodeid = 2;
+    uint64_t txId = 0;
     std::string last = "test1";
     uint32_t count = 10;
     ListDentryResponse resp;
@@ -129,13 +133,14 @@ TEST_F(BaseClientTest, test_ListDentry) {
     d->set_inodeid(inodeid);
     d->set_parentinodeid(1);
     d->set_name("test11");
+    d->set_txid(txId);
     response.set_statuscode(curvefs::metaserver::OK);
     EXPECT_CALL(mockMetaServerService_, ListDentry(_, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<2>(response),
                   Invoke(RpcService<ListDentryRequest, ListDentryResponse>)));
 
-    msbasecli_.ListDentry(fsid, inodeid, last, count, &resp, &cntl, &ch);
+    msbasecli_.ListDentry(fsid, inodeid, txId, last, count, &resp, &cntl, &ch);
     ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
     ASSERT_TRUE(
         google::protobuf::util::MessageDifferencer::Equals(resp, response))
@@ -151,6 +156,7 @@ TEST_F(BaseClientTest, test_CreateDentry) {
     d.set_inodeid(2);
     d.set_parentinodeid(1);
     d.set_name("test11");
+    d.set_txid(0);
     CreateDentryResponse resp;
     brpc::Controller cntl;
     cntl.set_timeout_ms(1000);
@@ -179,6 +185,7 @@ TEST_F(BaseClientTest, test_DeleteDentry) {
     uint32_t fsid = 1;
     uint64_t inodeid = 2;
     std::string name = "test";
+    uint64_t txId = 0;
     DeleteDentryResponse resp;
     brpc::Controller cntl;
     cntl.set_timeout_ms(1000);
@@ -193,13 +200,32 @@ TEST_F(BaseClientTest, test_DeleteDentry) {
             SetArgPointee<2>(response),
             Invoke(RpcService<DeleteDentryRequest, DeleteDentryResponse>)));
 
-    msbasecli_.DeleteDentry(fsid, inodeid, name, &resp, &cntl, &ch);
+    msbasecli_.DeleteDentry(fsid, inodeid, name, txId, &resp, &cntl, &ch);
     ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
     ASSERT_TRUE(
         google::protobuf::util::MessageDifferencer::Equals(resp, response))
         << "resp:\n"
         << resp.ShortDebugString() << "response:\n"
         << response.ShortDebugString();
+}
+
+TEST_F(BaseClientTest, PrepareRenameTx) {
+    brpc::Controller cntl;
+    brpc::Channel channel;
+    cntl.set_timeout_ms(1000);
+    ASSERT_EQ(0, channel.Init(addr_.c_str(), nullptr));
+
+    PrepareRenameTxResponse response, exceptResponse;
+    exceptResponse.set_statuscode(curvefs::metaserver::OK);
+    EXPECT_CALL(mockMetaServerService_, PrepareRenameTx(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(exceptResponse),
+                        Invoke(RpcService<PrepareRenameTxRequest,
+                                          PrepareRenameTxResponse>)));
+
+    auto dentrys = std::vector<Dentry>();
+    msbasecli_.PrepareRenameTx(dentrys, &response, &cntl, &channel);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_TRUE(MessageDifferencer::Equals(response, exceptResponse));
 }
 
 TEST_F(BaseClientTest, test_GetInode) {
@@ -540,6 +566,25 @@ TEST_F(BaseClientTest, test_GetFsInfo_by_fsId) {
         << "resp:\n"
         << resp.ShortDebugString() << "response:\n"
         << response.ShortDebugString();
+}
+
+TEST_F(BaseClientTest, CommitTx) {
+    brpc::Controller cntl;
+    brpc::Channel channel;
+    cntl.set_timeout_ms(1000);
+    ASSERT_EQ(0, channel.Init(addr_.c_str(), nullptr));
+
+    CommitTxResponse response, exceptResponse;
+    exceptResponse.set_statuscode(curvefs::mds::FSStatusCode::OK);
+    EXPECT_CALL(mockMdsService_, CommitTx(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(exceptResponse),
+                        Invoke(RpcService<CommitTxRequest, CommitTxResponse>)));
+
+    auto fsId = 1;
+    auto txIds = std::vector<PartitionTxId>();
+    mdsbasecli_.CommitTx(fsId, txIds, &response, &cntl, &channel);
+    ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
+    ASSERT_TRUE(MessageDifferencer::Equals(response, exceptResponse));
 }
 
 TEST_F(BaseClientTest, test_AllocExtents) {

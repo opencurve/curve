@@ -99,7 +99,7 @@ class DumpFileTest : public ::testing::Test {
     }
 
     void GenHash(Hash* hash, uint64_t count) {
-        for (auto i = 1; i <= count; i++) {
+        for (uint64_t i = 1; i <= count; i++) {
             auto num = std::to_string(i);
             hash->emplace(num, num);
         }

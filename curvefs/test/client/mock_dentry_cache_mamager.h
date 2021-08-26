@@ -40,16 +40,27 @@ class MockDentryCacheManager : public DentryCacheManager {
 
     MOCK_METHOD1(Init, CURVEFS_ERROR(const DCacheOption &option));
 
-    MOCK_METHOD3(GetDentry, CURVEFS_ERROR(uint64_t parent,
-        const std::string &name, Dentry *out));
+    MOCK_METHOD2(InsertOrReplaceCache, void(const Dentry& dentry,
+                                            bool replace));
+
+    MOCK_METHOD2(DeleteCache, void(uint64_t parentId, const std::string& name));
+
+    MOCK_METHOD4(GetDentry, CURVEFS_ERROR(uint64_t parent,
+        const std::string &name, uint64_t txId, Dentry *out));
 
     MOCK_METHOD1(CreateDentry, CURVEFS_ERROR(const Dentry &dentry));
 
-    MOCK_METHOD2(DeleteDentry, CURVEFS_ERROR(uint64_t parent,
-                                             const std::string &name));
+    MOCK_METHOD3(DeleteDentry, CURVEFS_ERROR(uint64_t parent,
+                                             const std::string &name,
+                                             uint64_t txId));
 
-    MOCK_METHOD2(ListDentry, CURVEFS_ERROR(uint64_t parent,
-                                           std::list<Dentry> *dentryList));
+    MOCK_METHOD4(ListDentry, CURVEFS_ERROR(uint64_t parent,
+                                           uint64_t txId,
+                                           std::list<Dentry> *dentryList,
+                                           uint32_t limit));
+
+    MOCK_METHOD2(Rename, CURVEFS_ERROR(const Dentry& srcDentry,
+                                       const Dentry& dstDentry));
 };
 
 

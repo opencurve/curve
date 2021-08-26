@@ -37,6 +37,7 @@ COPTS = [
     "-Wnon-virtual-dtor",
     "-Wno-missing-field-initializers",
     "-std=c++11",
+    "-Wall",
 ]
 
 cc_test(

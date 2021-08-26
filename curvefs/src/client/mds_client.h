@@ -26,6 +26,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/client/base_client.h"
@@ -70,6 +71,9 @@ class MdsClient {
                                     FsInfo *fsInfo) = 0;
 
     virtual CURVEFS_ERROR GetFsInfo(uint32_t fsId, FsInfo *fsInfo) = 0;
+
+    virtual CURVEFS_ERROR CommitTx(
+        uint32_t fsId, const std::vector<PartitionTxId>& txIds) = 0;
 };
 
 class MdsClientImpl : public MdsClient {
@@ -99,6 +103,9 @@ class MdsClientImpl : public MdsClient {
     CURVEFS_ERROR GetFsInfo(const std::string &fsName, FsInfo *fsInfo) override;
 
     CURVEFS_ERROR GetFsInfo(uint32_t fsId, FsInfo *fsInfo) override;
+
+    CURVEFS_ERROR CommitTx(
+        uint32_t fsId, const std::vector<PartitionTxId>& txIds) override;
 
  protected:
     class MDSRPCExcutor {

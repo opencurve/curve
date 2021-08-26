@@ -23,137 +23,89 @@
 #ifndef CURVEFS_SRC_METASERVER_DENTRY_STORAGE_H_
 #define CURVEFS_SRC_METASERVER_DENTRY_STORAGE_H_
 
-#include <functional>
 #include <list>
 #include <string>
-#include <unordered_map>
-#include "curvefs/proto/metaserver.pb.h"
-#include "src/common/concurrent/rw_lock.h"
+#include <vector>
+#include <functional>
 
-using curve::common::ReadLockGuard;
-using curve::common::WriteLockGuard;
-using curve::common::RWLock;
+#include "absl/container/btree_set.h"
+
+#include "src/common/concurrent/rw_lock.h"
+#include "curvefs/proto/metaserver.pb.h"
 
 namespace curvefs {
 namespace metaserver {
 
-struct DentryKey {
-    uint32_t fsId;
-    uint64_t parentId;
-    std::string name;
-    DentryKey(uint32_t fs, uint64_t parent, const std::string& fsname)
-        : fsId(fs), parentId(parent), name(fsname) {}
+using curve::common::RWLock;
+using curve::common::ReadLockGuard;
+using curve::common::WriteLockGuard;
+using Btree = absl::btree_set<Dentry>;
 
-    explicit DentryKey(const Dentry &dentry)
-        : fsId(dentry.fsid()),
-          parentId(dentry.parentinodeid()),
-          name(dentry.name()) {}
+#define EQUAL(a) (lhs.a() == rhs.a())
+#define LESS(a) (lhs.a() < rhs.a())
+#define LESS2(a, b) (EQUAL(a) && LESS(b))
+#define LESS3(a, b, c) (EQUAL(a) && LESS2(b, c))
+#define LESS4(a, b, c, d) (EQUAL(a) && LESS3(b, c, d))
 
-    bool operator==(const DentryKey &k1) const {
-        return k1.fsId == fsId && k1.parentId == parentId && k1.name == name;
-    }
-};
-
-struct DentryParentKey {
-    uint32_t fsId;
-    uint64_t parentId;
-    DentryParentKey(uint32_t fs, uint64_t parent)
-        : fsId(fs), parentId(parent) {}
-
-    explicit DentryParentKey(const Dentry &dentry)
-        : fsId(dentry.fsid()), parentId(dentry.parentinodeid()) {}
-
-    explicit DentryParentKey(const DentryKey &key)
-        : fsId(key.fsId), parentId(key.parentId) {}
-
-    bool operator==(const DentryParentKey &k1) const {
-        return k1.fsId == fsId && k1.parentId == parentId;
-    }
-};
-
-struct HashDentry {
-    size_t operator()(const DentryKey &key) const {
-        return std::hash<uint64_t>()(key.parentId) ^
-               std::hash<uint32_t>()(key.fsId) ^
-               std::hash<std::string>()(key.name);
-    }
-};
-
-struct HashParentDentry {
-    size_t operator()(const DentryParentKey &key) const {
-        return std::hash<uint64_t>()(key.parentId) ^
-               std::hash<uint32_t>()(key.fsId);
-    }
-};
+bool operator==(const Dentry& lhs, const Dentry& rhs);
 
 class DentryStorage {
  public:
-    virtual MetaStatusCode Insert(const Dentry &dentry) = 0;
-    virtual MetaStatusCode Get(const DentryKey &key, Dentry *dentry) = 0;
-    virtual MetaStatusCode List(const DentryParentKey &key,
-                                std::list<Dentry> *dentry) = 0;
-    virtual MetaStatusCode Delete(const DentryKey &key) = 0;
-    virtual int Count() = 0;
+    enum class TX_OP_TYPE {
+        PREPARE,
+        COMMIT,
+        ROLLBACK,
+    };
+
+ public:
     virtual ~DentryStorage() = default;
+
+    virtual MetaStatusCode Insert(const Dentry& dentry) = 0;
+
+    virtual MetaStatusCode Delete(const Dentry& dentry) = 0;
+
+    virtual MetaStatusCode Get(Dentry* dentry) = 0;
+
+    virtual MetaStatusCode List(const Dentry& dentry,
+                                std::vector<Dentry>* dentrys,
+                                uint32_t limit) = 0;
+
+    virtual MetaStatusCode HandleTx(TX_OP_TYPE type, const Dentry& dentrys) = 0;
+
+    virtual size_t Size() = 0;
+
+    virtual void Clear() = 0;
 };
 
 class MemoryDentryStorage : public DentryStorage {
  public:
-    /**
-     * @brief insert dentry to storage
-     *
-     * @param[in] dentry: the dentry want to insert
-     *
-     * @return If dentry exist, return DENTRY_EXIST; else insert and return OK
-     *         else return error code
-     */
-    MetaStatusCode Insert(const Dentry &dentry) override;
+    MetaStatusCode Insert(const Dentry& dentry) override;
 
-    /**
-     * @brief get dentry from storage
-     *
-     * @param[in] key: the dentry key
-     * @param[out] dentry: the dentry want to get
-     *
-     * @return If not found, return NOT_FOUND; else return OK
-     */
-    MetaStatusCode Get(const DentryKey &key, Dentry *dentry) override;
+    MetaStatusCode Delete(const Dentry& dentry) override;
 
-    /**
-     * @brief get dentry list from storage, name lexicographically sorted
-     *
-     * @param[in] key: the DentryParent key
-     * @param[out] dentryList: the dentry list want to get
-     *
-     * @return If not found, return NOT_FOUND; else return OK
-     */
-    MetaStatusCode List(const DentryParentKey &key,
-                        std::list<Dentry> *dentryList) override;
+    MetaStatusCode Get(Dentry* dentry) override;
 
-    /**
-     * @brief Delete dentry from storage
-     *
-     * @param[in] key: the dentry key
-     *
-     * @return If not found, return NOT_FOUND; else delete and return OK
-     */
-    MetaStatusCode Delete(const DentryKey &key) override;
+    MetaStatusCode List(const Dentry& dentry,
+                        std::vector<Dentry>* dentrys,
+                        uint32_t limit) override;
 
-    int Count() override;
+    MetaStatusCode HandleTx(TX_OP_TYPE type, const Dentry& dentry) override;
+
+    size_t Size() override;
+
+    void Clear() override;
 
  private:
-    static bool CompareDentry(const Dentry &first, const Dentry &second) {
-        return first.name() < second.name();
-    }
+    bool BelongSameOne(const Dentry& lhs, const Dentry& rhs);
+
+    bool HasDeleteMarkFlag(const Dentry& dentry);
+
+    Btree::iterator Find(const Dentry& dentry, bool compress);
 
  private:
     RWLock rwLock_;
-    // use fsid + parentid + name as key
-    std::unordered_map<DentryKey, Dentry, HashDentry> dentryMap_;
-    // use fsid + parentid as key，
-    // for list search
-    std::unordered_map<DentryParentKey, std::list<Dentry *>, HashParentDentry>
-        dentryListMap_;
+
+    Btree dentryTree_;
 };
 
 }  // namespace metaserver

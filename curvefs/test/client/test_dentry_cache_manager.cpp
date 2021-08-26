@@ -65,6 +65,7 @@ TEST_F(TestDentryCacheManager, GetDentry) {
     uint64_t parent = 99;
     uint64_t inodeid = 100;
     const std::string name = "test";
+    uint64_t txId = 0;
     Dentry out;
 
     Dentry dentryExp;
@@ -72,21 +73,22 @@ TEST_F(TestDentryCacheManager, GetDentry) {
     dentryExp.set_name(name);
     dentryExp.set_parentinodeid(parent);
     dentryExp.set_inodeid(inodeid);
+    dentryExp.set_txid(txId);
 
-    EXPECT_CALL(*metaClient_, GetDentry(fsId_, parent, name, _))
+    EXPECT_CALL(*metaClient_, GetDentry(fsId_, parent, name, txId, _))
         .WillOnce(Return(CURVEFS_ERROR::NOTEXIST))
-        .WillOnce(DoAll(SetArgPointee<3>(dentryExp),
+        .WillOnce(DoAll(SetArgPointee<4>(dentryExp),
                 Return(CURVEFS_ERROR::OK)));
 
-    CURVEFS_ERROR ret = dCacheManager_->GetDentry(parent, name, &out);
+    CURVEFS_ERROR ret = dCacheManager_->GetDentry(parent, name, txId, &out);
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
 
-    ret = dCacheManager_->GetDentry(parent, name, &out);
+    ret = dCacheManager_->GetDentry(parent, name, txId, &out);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_TRUE(
         google::protobuf::util::MessageDifferencer::Equals(dentryExp, out));
 
-    ret = dCacheManager_->GetDentry(parent, name, &out);
+    ret = dCacheManager_->GetDentry(parent, name, txId, &out);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_TRUE(
         google::protobuf::util::MessageDifferencer::Equals(dentryExp, out));
@@ -96,6 +98,7 @@ TEST_F(TestDentryCacheManager, CreateAndGetDentry) {
     uint64_t parent = 99;
     uint64_t inodeid = 100;
     const std::string name = "test";
+    uint64_t txId = 0;
     Dentry out;
 
     Dentry dentryExp;
@@ -103,6 +106,7 @@ TEST_F(TestDentryCacheManager, CreateAndGetDentry) {
     dentryExp.set_name(name);
     dentryExp.set_parentinodeid(parent);
     dentryExp.set_inodeid(inodeid);
+    dentryExp.set_txid(txId);
 
     EXPECT_CALL(*metaClient_, CreateDentry(_))
         .WillOnce(Return(CURVEFS_ERROR::FAILED))
@@ -114,7 +118,7 @@ TEST_F(TestDentryCacheManager, CreateAndGetDentry) {
     ret = dCacheManager_->CreateDentry(dentryExp);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
-    ret = dCacheManager_->GetDentry(parent, name, &out);
+    ret = dCacheManager_->GetDentry(parent, name, txId, &out);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_TRUE(
         google::protobuf::util::MessageDifferencer::Equals(dentryExp, out));
@@ -123,67 +127,64 @@ TEST_F(TestDentryCacheManager, CreateAndGetDentry) {
 TEST_F(TestDentryCacheManager, DeleteDentry) {
     uint64_t parent = 99;
     const std::string name = "test";
+    uint64_t txId = 0;
 
-    EXPECT_CALL(*metaClient_, DeleteDentry(fsId_, parent, name))
+    EXPECT_CALL(*metaClient_, DeleteDentry(fsId_, parent, name, txId))
         .WillOnce(Return(CURVEFS_ERROR::NOTEXIST))
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
-    CURVEFS_ERROR ret = dCacheManager_->DeleteDentry(parent, name);
+    CURVEFS_ERROR ret = dCacheManager_->DeleteDentry(parent, name, txId);
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
 
-    ret = dCacheManager_->DeleteDentry(parent, name);
+    ret = dCacheManager_->DeleteDentry(parent, name, txId);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 }
 
 TEST_F(TestDentryCacheManager, ListDentryNomal) {
     uint64_t parent = 99;
+    uint64_t txId = 0;
 
     std::list<Dentry> part1, part2;
     part1.resize(dCacheOption_.maxListDentryCount);
     part2.resize(dCacheOption_.maxListDentryCount - 1);
 
-    EXPECT_CALL(*metaClient_, ListDentry(fsId_, parent, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<4>(part1),
+    EXPECT_CALL(*metaClient_, ListDentry(fsId_, parent, txId, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<5>(part1),
                 Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgPointee<4>(part2),
+        .WillOnce(DoAll(SetArgPointee<5>(part2),
                 Return(CURVEFS_ERROR::OK)));
 
     std::list<Dentry> out;
-    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out);
+    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, txId, &out, 0);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(2 * dCacheOption_.maxListDentryCount - 1, out.size());
 }
 
 TEST_F(TestDentryCacheManager, ListDentryEmpty) {
     uint64_t parent = 99;
+    uint64_t txId = 0;
 
-    EXPECT_CALL(*metaClient_, ListDentry(fsId_, parent, _, _, _))
+    EXPECT_CALL(*metaClient_, ListDentry(fsId_, parent, txId, _, _, _))
         .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
 
     std::list<Dentry> out;
-    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out);
+    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, txId, &out, 0);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, out.size());
 }
 
 TEST_F(TestDentryCacheManager, ListDentryFailed) {
     uint64_t parent = 99;
+    uint64_t txId = 0;
 
-    EXPECT_CALL(*metaClient_, ListDentry(fsId_, parent, _, _, _))
+    EXPECT_CALL(*metaClient_, ListDentry(fsId_, parent, txId, _, _, _))
         .WillOnce(Return(CURVEFS_ERROR::FAILED));
 
     std::list<Dentry> out;
-    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out);
+    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, txId, &out, 0);
     ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
     ASSERT_EQ(0, out.size());
 }
-
-
-
-
-
-
-
 
 }  // namespace client
 }  // namespace curvefs
