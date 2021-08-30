@@ -35,12 +35,11 @@ class MockInodeCacheManager : public InodeCacheManager {
     MockInodeCacheManager() {}
     ~MockInodeCacheManager() {}
 
-    MOCK_METHOD2(GetInode, CURVEFS_ERROR(uint64_t inodeid, Inode *out));
-
-    MOCK_METHOD1(UpdateInode, CURVEFS_ERROR(const Inode &inode));
+    MOCK_METHOD2(GetInode, CURVEFS_ERROR(
+        uint64_t inodeid, std::shared_ptr<InodeWapper> &out));     // NOLINT
 
     MOCK_METHOD2(CreateInode, CURVEFS_ERROR(const InodeParam &param,
-                                            Inode *out));
+        std::shared_ptr<InodeWapper> &out));     // NOLINT
 
     MOCK_METHOD1(DeleteInode, CURVEFS_ERROR(uint64_t inodeid));
 };

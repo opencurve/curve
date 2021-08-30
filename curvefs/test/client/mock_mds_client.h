@@ -28,47 +28,48 @@
 
 #include <string>
 
-#include "curvefs/src/client/mds_client.h"
+#include "curvefs/src/client/rpcclient/mds_client.h"
 
 using ::testing::Return;
 using ::testing::_;
 
 namespace curvefs {
 namespace client {
+namespace rpcclient {
 
 class MockMdsClient : public MdsClient {
  public:
     MockMdsClient() {}
     ~MockMdsClient() {}
 
-    MOCK_METHOD2(Init, CURVEFS_ERROR(const MdsOption &mdsOpt,
-            MDSBaseClient *baseclient));
+    MOCK_METHOD2(Init, FSStatusCode(
+        const ::curve::client::MetaServerOption &mdsOpt,
+        MDSBaseClient *baseclient));
 
-    MOCK_METHOD0(Uinit, CURVEFS_ERROR());
-
-    MOCK_METHOD3(CreateFs, CURVEFS_ERROR(const std::string &fsName,
+    MOCK_METHOD3(CreateFs, FSStatusCode(const std::string &fsName,
         uint64_t blockSize,
         const Volume &volume));
 
-    MOCK_METHOD3(CreateFsS3, CURVEFS_ERROR(const std::string &fsName,
+    MOCK_METHOD3(CreateFsS3, FSStatusCode(const std::string &fsName,
         uint64_t blockSize,
         const S3Info &s3Info));
 
-    MOCK_METHOD1(DeleteFs, CURVEFS_ERROR(const std::string &fsName));
+    MOCK_METHOD1(DeleteFs, FSStatusCode(const std::string &fsName));
 
-    MOCK_METHOD3(MountFs, CURVEFS_ERROR(const std::string &fsName,
+    MOCK_METHOD3(MountFs, FSStatusCode(const std::string &fsName,
         const std::string &mountPt,
         FsInfo *fsInfo));
 
-    MOCK_METHOD2(UmountFs, CURVEFS_ERROR(const std::string &fsName,
+    MOCK_METHOD2(UmountFs, FSStatusCode(const std::string &fsName,
         const std::string &mountPt));
 
-    MOCK_METHOD2(GetFsInfo, CURVEFS_ERROR(const std::string& fsName,
-            FsInfo* fsInfo));
+    MOCK_METHOD2(GetFsInfo, FSStatusCode(const std::string& fsName,
+        FsInfo* fsInfo));
 
-    MOCK_METHOD2(GetFsInfo, CURVEFS_ERROR(uint32_t fsId, FsInfo* fsInfo));
+    MOCK_METHOD2(GetFsInfo, FSStatusCode(uint32_t fsId, FsInfo* fsInfo));
 };
 
+}  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs
 

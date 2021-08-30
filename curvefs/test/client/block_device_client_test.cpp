@@ -71,7 +71,7 @@ TEST_F(BlockDeviceClientTest, TestInit) {
     // CASE 2: init failed
     EXPECT_CALL(*fileClient_, Init(options_.configPath))
         .WillOnce(Return(LIBCURVE_ERROR::FAILED));
-    ASSERT_EQ(client_.Init(options_), CURVEFS_ERROR::FAILED);
+    ASSERT_EQ(client_.Init(options_), CURVEFS_ERROR::INTERNAL);
 }
 
 TEST_F(BlockDeviceClientTest, TestUnInit) {
@@ -86,7 +86,7 @@ TEST_F(BlockDeviceClientTest, TestOpen) {
     // CASE 1: open return fd (-1)
     EXPECT_CALL(*fileClient_, Open("/filename", userInfo, _))
         .WillOnce(Return(-1));
-    ASSERT_EQ(client_.Open("/filename", "owner"), CURVEFS_ERROR::FAILED);
+    ASSERT_EQ(client_.Open("/filename", "owner"), CURVEFS_ERROR::INTERNAL);
 
     // CASE 2: open return fd (0)
     EXPECT_CALL(*fileClient_, Open("/filename", userInfo, _))
@@ -110,7 +110,7 @@ TEST_F(BlockDeviceClientTest, TestClose) {
 
     EXPECT_CALL(*fileClient_, Close(10))
         .WillOnce(Return(-LIBCURVE_ERROR::FAILED));
-    ASSERT_EQ(client_.Close(), CURVEFS_ERROR::FAILED);
+    ASSERT_EQ(client_.Close(), CURVEFS_ERROR::INTERNAL);
 
     // CASE 3: close success
     EXPECT_CALL(*fileClient_, Close(10))
@@ -125,7 +125,8 @@ TEST_F(BlockDeviceClientTest, TestStat) {
     // CASE 1: stat failed
     EXPECT_CALL(*fileClient_, StatFile("/filename", userInfo, _))
         .WillOnce(Return(-LIBCURVE_ERROR::FAILED));
-    ASSERT_EQ(client_.Stat("/filename", "owner", &stat), CURVEFS_ERROR::FAILED);
+    ASSERT_EQ(client_.Stat("/filename", "owner", &stat),
+        CURVEFS_ERROR::INTERNAL);
 
     // CASE 2: stat success
     EXPECT_CALL(*fileClient_, StatFile("/filename", userInfo, _))
@@ -154,12 +155,12 @@ TEST_F(BlockDeviceClientTest, TestReadBasic) {
 
     EXPECT_CALL(*fileClient_, Read(10, buf, 0, 4096))
         .WillOnce(Return(-1));
-    ASSERT_EQ(client_.Read(buf, 0, 4096), CURVEFS_ERROR::FAILED);
+    ASSERT_EQ(client_.Read(buf, 0, 4096), CURVEFS_ERROR::INTERNAL);
 
     // CASE 3: read failed with read not complete
     EXPECT_CALL(*fileClient_, Read(10, buf, 0, 4096))
         .WillOnce(Return(4095));
-    ASSERT_EQ(client_.Read(buf, 0, 4096), CURVEFS_ERROR::FAILED);
+    ASSERT_EQ(client_.Read(buf, 0, 4096), CURVEFS_ERROR::INTERNAL);
 
     // CASE 4: read success with length is zero
     EXPECT_CALL(*fileClient_, Read(_, _, _, _))
@@ -209,7 +210,7 @@ TEST_F(BlockDeviceClientTest, TestReadWithUnAligned) {
 
         EXPECT_CALL(*fileClient_, Read(10, _, 0, 4096))
             .WillOnce(Return(0));
-        ASSERT_EQ(client_.Read(buf, 0, 1), CURVEFS_ERROR::FAILED);
+        ASSERT_EQ(client_.Read(buf, 0, 1), CURVEFS_ERROR::INTERNAL);
         for (auto i = 0; i < 4096; i++) {
             ASSERT_EQ(buf[i], '0');
         }
@@ -229,12 +230,12 @@ TEST_F(BlockDeviceClientTest, TestWriteBasic) {
 
     EXPECT_CALL(*fileClient_, Write(10, buf, 0, 4096))
         .WillOnce(Return(-1));
-    ASSERT_EQ(client_.Write(buf, 0, 4096), CURVEFS_ERROR::FAILED);
+    ASSERT_EQ(client_.Write(buf, 0, 4096), CURVEFS_ERROR::INTERNAL);
 
     // CASE 3: write failed with write not complete
     EXPECT_CALL(*fileClient_, Write(10, buf, 0, 4096))
         .WillOnce(Return(4095));
-    ASSERT_EQ(client_.Write(buf, 0, 4096), CURVEFS_ERROR::FAILED);
+    ASSERT_EQ(client_.Write(buf, 0, 4096), CURVEFS_ERROR::INTERNAL);
 
     // CASE 4: write success with length is zero
     EXPECT_CALL(*fileClient_, Write(10, buf, 0, 4096))
@@ -318,14 +319,14 @@ TEST_F(BlockDeviceClientTest, TestWriteWithUnAligned) {
             .WillOnce(Return(-1));
         EXPECT_CALL(*fileClient_, Write(_, _, _, _))
             .Times(0);
-        ASSERT_EQ(client_.Write(buf, 0, 1), CURVEFS_ERROR::FAILED);
+        ASSERT_EQ(client_.Write(buf, 0, 1), CURVEFS_ERROR::INTERNAL);
 
         // CASE 2: read unexpected bytes -> write failed
         EXPECT_CALL(*fileClient_, Read(10, _, 0, 8192))
             .WillOnce(Return(8191));
         EXPECT_CALL(*fileClient_, Write(_, _, _, _))
             .Times(0);
-        ASSERT_EQ(client_.Write(buf, 1000, 5000), CURVEFS_ERROR::FAILED);
+        ASSERT_EQ(client_.Write(buf, 1000, 5000), CURVEFS_ERROR::INTERNAL);
 
         // CASE 3: read failed once -> write failed
         EXPECT_CALL(*fileClient_, Read(10, _, 8192, 4096))
@@ -334,14 +335,14 @@ TEST_F(BlockDeviceClientTest, TestWriteWithUnAligned) {
             .WillOnce(Return(4095));
         EXPECT_CALL(*fileClient_, Write(_, _, _, _))
             .Times(0);
-        ASSERT_EQ(client_.Write(buf, 10000, 10000), CURVEFS_ERROR::FAILED);
+        ASSERT_EQ(client_.Write(buf, 10000, 10000), CURVEFS_ERROR::INTERNAL);
 
         // CASE 4: write failed
         EXPECT_CALL(*fileClient_, Read(10, _, 0, 4096))
             .WillOnce(Return(4096));
         EXPECT_CALL(*fileClient_, Write(_, _, _, _))
             .WillOnce(Return(-1));
-        ASSERT_EQ(client_.Write(buf, 0, 1), CURVEFS_ERROR::FAILED);
+        ASSERT_EQ(client_.Write(buf, 0, 1), CURVEFS_ERROR::INTERNAL);
     }
 }
 

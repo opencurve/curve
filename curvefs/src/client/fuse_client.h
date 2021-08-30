@@ -30,13 +30,13 @@
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/inode_cache_manager.h"
 #include "curvefs/src/client/dentry_cache_manager.h"
-#include "curvefs/src/client/metaserver_client.h"
+#include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/block_device_client.h"
-#include "curvefs/src/client/mds_client.h"
+#include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/src/client/dir_buffer.h"
 #include "curvefs/src/client/extent_manager.h"
 #include "curvefs/src/client/space_client.h"
-#include "curvefs/src/client/config.h"
+#include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/src/common/fast_align.h"
@@ -47,6 +47,14 @@ using ::curvefs::common::FSType;
 
 namespace curvefs {
 namespace client {
+
+using rpcclient::MetaServerClient;
+using rpcclient::MetaServerClientImpl;
+using rpcclient::MetaServerBaseClient;
+using rpcclient::MdsClient;
+using rpcclient::MdsClientImpl;
+using rpcclient::MDSBaseClient;
+using common::FuseClientOption;
 
 using curvefs::common::is_aligned;
 
@@ -143,6 +151,15 @@ class FuseClient {
             fuse_req_t req, fuse_ino_t ino, struct stat *attr,
             int to_set, struct fuse_file_info *fi, struct stat *attrOut);
 
+    virtual CURVEFS_ERROR FuseOpSymlink(fuse_req_t req, const char *link,
+        fuse_ino_t parent, const char *name, fuse_entry_param *e);
+
+    virtual CURVEFS_ERROR FuseOpLink(fuse_req_t req, fuse_ino_t ino,
+        fuse_ino_t newparent, const char *newname, fuse_entry_param *e);
+
+    virtual CURVEFS_ERROR FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
+        std::string *linkStr);
+
     void SetFsInfo(std::shared_ptr<FsInfo> fsInfo) {
         fsInfo_ = fsInfo;
     }
@@ -157,8 +174,8 @@ class FuseClient {
     void GetAttrFromInode(const Inode &inode, struct stat *attr);
 
     CURVEFS_ERROR MakeNode(fuse_req_t req, fuse_ino_t parent,
-            const char *name, mode_t mode, FsFileType type,
-            fuse_entry_param *e);
+        const char *name, mode_t mode, FsFileType type,
+        fuse_entry_param *e);
 
     CURVEFS_ERROR RemoveNode(fuse_req_t req, fuse_ino_t parent,
         const char *name);

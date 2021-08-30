@@ -78,6 +78,7 @@ using curvefs::space::DeallocateSpaceRequest;
 using curvefs::space::DeallocateSpaceResponse;
 using curvefs::space::Extent;
 
+using curvefs::client::common::ExtentAllocInfo;
 
 struct InodeParam {
     uint64_t fsId;

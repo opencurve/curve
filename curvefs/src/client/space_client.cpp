@@ -59,7 +59,7 @@ SpaceAllocServerClientImpl::AllocExtents(
     curvefs::space::AllocateType type, std::list<Extent> *allocatedExtents) {
     auto task = RPCTaskDefine {
         auto iter = toAllocExtents.begin();
-        CURVEFS_ERROR retcode = CURVEFS_ERROR::FAILED;
+        CURVEFS_ERROR retcode = CURVEFS_ERROR::UNKNOWN;
         while (iter != toAllocExtents.end()) {
             AllocateSpaceResponse response;
             basecli_->AllocExtents(fsId, *iter, type, &response, cntl, channel);
@@ -107,7 +107,7 @@ SpaceAllocServerClientImpl::DeAllocExtents(uint32_t fsId,
             return static_cast<CURVEFS_ERROR>(-cntl->ErrorCode());
         }
 
-        CURVEFS_ERROR retcode = CURVEFS_ERROR::FAILED;
+        CURVEFS_ERROR retcode = CURVEFS_ERROR::UNKNOWN;
         SpaceStatusCode stcode = response.status();
         SpaceStatusCode2CurveFSErr(stcode, &retcode);
         LOG_IF(WARNING, retcode != CURVEFS_ERROR::OK)

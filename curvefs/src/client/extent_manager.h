@@ -29,9 +29,9 @@
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/proto/space.pb.h"
-#include "curvefs/src/client/extent.h"
+#include "curvefs/src/client/common/extent.h"
 #include "curvefs/src/client/error_code.h"
-#include "curvefs/src/client/config.h"
+#include "curvefs/src/client/common/config.h"
 
 using ::curvefs::metaserver::VolumeExtentList;
 using ::curvefs::metaserver::VolumeExtent;
@@ -39,6 +39,10 @@ using ::curvefs::space::Extent;
 
 namespace curvefs {
 namespace client {
+
+using common::ExtentManagerOption;
+using common::ExtentAllocInfo;
+using common::PExtent;
 
 class ExtentManager {
  public:

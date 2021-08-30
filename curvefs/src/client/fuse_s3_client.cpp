@@ -58,13 +58,13 @@ void FuseS3Client::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
     std::string user = (mOpts->user == nullptr) ? "" : mOpts->user;
 
     FsInfo fsInfo;
-    CURVEFS_ERROR ret = mdsClient_->GetFsInfo(fsName, &fsInfo);
-    if (ret != CURVEFS_ERROR::OK) {
-        if (CURVEFS_ERROR::NOTEXIST == ret) {
+    FSStatusCode ret = mdsClient_->GetFsInfo(fsName, &fsInfo);
+    if (ret != FSStatusCode::OK) {
+        if (FSStatusCode::NOT_FOUND == ret) {
             LOG(INFO) << "The fsName not exist, try to CreateFs"
                       << ", fsName = " << fsName;
 
-            S3Info s3Info;
+            ::curvefs::common::S3Info s3Info;
             s3Info.set_ak(option_.s3Opt.s3AdaptrOpt.ak);
             s3Info.set_sk(option_.s3Opt.s3AdaptrOpt.sk);
             s3Info.set_endpoint(option_.s3Opt.s3AdaptrOpt.s3Address);
@@ -74,7 +74,7 @@ void FuseS3Client::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
             // TODO(xuchaojie) : where to get 4096?
             ret = mdsClient_->CreateFsS3(fsName, 4096, s3Info);
 
-            if (ret != CURVEFS_ERROR::OK) {
+            if (ret != FSStatusCode::OK) {
                 LOG(ERROR) << "CreateFs failed, ret = " << ret
                            << ", fsName = " << fsName;
                 return;
@@ -86,7 +86,7 @@ void FuseS3Client::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
         }
     }
     ret = mdsClient_->MountFs(fsName, mountPointStr, &fsInfo);
-    if (ret != CURVEFS_ERROR::OK) {
+    if (ret != FSStatusCode::OK) {
         LOG(ERROR) << "MountFs failed, ret = " << ret
                    << ", fsName = " << fsName
                    << ", mountPoint = " << mountPointStr;
@@ -107,9 +107,9 @@ void FuseS3Client::FuseOpDestroy(void *userdata) {
     std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
     std::string mountPointStr =
         (mOpts->mountPoint == nullptr) ? "" : mOpts->mountPoint;
-    CURVEFS_ERROR ret = mdsClient_->UmountFs(fsInfo_->fsname(),
+    FSStatusCode ret = mdsClient_->UmountFs(fsInfo_->fsname(),
         mountPointStr);
-    if (ret != CURVEFS_ERROR::OK) {
+    if (ret != FSStatusCode::OK) {
         LOG(ERROR) << "UmountFs failed, ret = " << ret
                    << ", fsName = " << fsName
                    << ", mountPoint = " << mountPointStr;
@@ -125,24 +125,27 @@ void FuseS3Client::FuseOpDestroy(void *userdata) {
 CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     const char *buf, size_t size, off_t off,
     struct fuse_file_info *fi, size_t *wSize) {
-    Inode inode;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, &inode);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                  << ", inodeid = " << ino;
-        return ret;
-    }
-
     if (fi->flags & O_DIRECT) {  // check align
         if (!(is_aligned(off, DirectIOAlignemnt) &&
               is_aligned(size, DirectIOAlignemnt)))
             return CURVEFS_ERROR::INVALIDPARAM;
     }
 
+    std::shared_ptr<InodeWapper> inodeWapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                  << ", inodeid = " << ino;
+        return ret;
+    }
+
+    ::curve::common::UniqueLock lgGuard = inodeWapper->GetUniqueLock();
+    Inode inode = inodeWapper->GetInodeUnlocked();
+
     int wRet = s3Adaptor_->Write(&inode, off, size, buf);
     if (wRet < 0) {
         LOG(ERROR) << "s3Adaptor_ write failed, ret = " << wRet;
-        return CURVEFS_ERROR::FAILED;
+        return CURVEFS_ERROR::INTERNAL;
     }
     *wSize = wRet;
     // update file len
@@ -150,10 +153,10 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         inode.set_length(off + size);
     }
 
-    LOG(INFO) << "UpdateInode inode = " << inode.DebugString();
-    ret = inodeManager_->UpdateInode(inode);
+    inodeWapper->SwapInode(&inode);
+
+    ret = inodeWapper->Sync();
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateInode fail, ret = " << ret;
         return ret;
     }
 
@@ -164,22 +167,25 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
 }
 
 CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req,
-                fuse_ino_t ino, size_t size, off_t off,
-                struct fuse_file_info *fi,
-                char *buffer, size_t *rSize) {
-    Inode inode;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, &inode);
+    fuse_ino_t ino, size_t size, off_t off,
+    struct fuse_file_info *fi,
+    char *buffer, size_t *rSize) {
+    if (fi->flags & O_DIRECT) {  // check align
+        if (!(is_aligned(off, DirectIOAlignemnt) &&
+              is_aligned(size, DirectIOAlignemnt)))
+            return CURVEFS_ERROR::INVALIDPARAM;
+    }
+
+    std::shared_ptr<InodeWapper> inodeWapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                   << ", inodeid = " << ino;
         return ret;
     }
 
-    if (fi->flags & O_DIRECT) {  // check align
-        if (!(is_aligned(off, DirectIOAlignemnt) &&
-              is_aligned(size, DirectIOAlignemnt)))
-            return CURVEFS_ERROR::INVALIDPARAM;
-    }
+    ::curve::common::UniqueLock lgGuard = inodeWapper->GetUniqueLock();
+    Inode inode = inodeWapper->GetInodeUnlocked();
 
     size_t len = 0;
     if (inode.length() < off + size) {
@@ -190,14 +196,14 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req,
     int rRet = s3Adaptor_->Read(&inode, off, len, buffer);
     if (rRet < 0) {
         LOG(ERROR) << "s3Adaptor_ read failed, ret = " << rRet;
-        return CURVEFS_ERROR::FAILED;
+        return CURVEFS_ERROR::INTERNAL;
     }
     *rSize = rRet;
 
-    LOG(INFO) << "UpdateInode inode = " << inode.DebugString();
-    ret = inodeManager_->UpdateInode(inode);
+    inodeWapper->SwapInode(&inode);
+
+    ret = inodeWapper->Sync();
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateInode fail, ret = " << ret;
         return ret;
     }
     LOG(INFO) << "read end, read size = " << *rSize;

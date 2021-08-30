@@ -29,14 +29,18 @@
 #include <list>
 #include <unordered_map>
 
-#include "curvefs/src/client/metaserver_client.h"
-
+#include "curvefs/src/client/rpcclient/metaserver_client.h"
+#include "curvefs/src/client/error_code.h"
 #include "src/common/concurrent/concurrent.h"
 
 using ::curvefs::metaserver::Dentry;
 
 namespace curvefs {
 namespace client {
+
+using rpcclient::MetaServerClient;
+using rpcclient::MetaServerClientImpl;
+using common::DCacheOption;
 
 class DentryCacheManager {
  public:
