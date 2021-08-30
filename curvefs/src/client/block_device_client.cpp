@@ -45,7 +45,7 @@ BlockDeviceClientImpl::BlockDeviceClientImpl(
 CURVEFS_ERROR BlockDeviceClientImpl::Init(
     const BlockDeviceClientOptions& options) {
     if (fileClient_->Init(options.configPath) != LIBCURVE_ERROR::OK) {
-        return CURVEFS_ERROR::FAILED;
+        return CURVEFS_ERROR::INTERNAL;
     }
 
     return CURVEFS_ERROR::OK;
@@ -62,7 +62,7 @@ CURVEFS_ERROR BlockDeviceClientImpl::Open(const std::string& filename,
     if (retCode < 0) {
         LOG(ERROR) << "Open file failed, filename = " << filename
                    << ", retCode = " << retCode;
-        return CURVEFS_ERROR::FAILED;
+        return CURVEFS_ERROR::INTERNAL;
     }
 
     fd_ = retCode;
@@ -79,7 +79,7 @@ CURVEFS_ERROR BlockDeviceClientImpl::Close() {
     int retCode;
     if ((retCode = fileClient_->Close(fd_)) != LIBCURVE_ERROR::OK) {
         LOG(ERROR) << "Close file failed, retCode = " << retCode;
-        return CURVEFS_ERROR::FAILED;
+        return CURVEFS_ERROR::INTERNAL;
     }
 
     fd_ = -1;
@@ -94,14 +94,14 @@ CURVEFS_ERROR BlockDeviceClientImpl::Stat(const std::string& filename,
     auto retCode = fileClient_->StatFile(filename, userInfo, &fileStatInfo);
     if (retCode != LIBCURVE_ERROR::OK) {
         LOG(ERROR) << "Stat file failed, retCode = " << retCode;
-        return CURVEFS_ERROR::FAILED;
+        return CURVEFS_ERROR::INTERNAL;
     }
 
     statInfo->length = fileStatInfo.length;
     if (!ConvertFileStatus(fileStatInfo.fileStatus, &statInfo->status)) {
         LOG(ERROR) << "Stat file failed, unknown file status: "
                    << fileStatInfo.fileStatus;
-        return CURVEFS_ERROR::FAILED;
+        return CURVEFS_ERROR::INTERNAL;
     }
 
     return CURVEFS_ERROR::OK;
@@ -200,11 +200,11 @@ CURVEFS_ERROR BlockDeviceClientImpl::AlignRead(char* buf,
     auto ret = fileClient_->Read(fd_, buf, offset, length);
     if (ret < 0) {
         LOG(ERROR) << "Read file failed, retCode = " << ret;
-        return CURVEFS_ERROR::FAILED;
+        return CURVEFS_ERROR::INTERNAL;
     } else if (ret != length) {
         LOG(ERROR) << "Read file failed, expect read " << length
                    << " bytes, actual read " << ret << " bytes";
-        return CURVEFS_ERROR::FAILED;
+        return CURVEFS_ERROR::INTERNAL;
     }
 
     return CURVEFS_ERROR::OK;
@@ -216,11 +216,11 @@ CURVEFS_ERROR BlockDeviceClientImpl::AlignWrite(const char* buf,
     auto ret = fileClient_->Write(fd_, buf, offset, length);
     if (ret < 0) {
         LOG(ERROR) << "Write file failed, retCode = " << ret;
-        return CURVEFS_ERROR::FAILED;
+        return CURVEFS_ERROR::INTERNAL;
     } else if (ret != length) {
         LOG(ERROR) << "Write file failed, expect write " << length
                    << " bytes, actual write " << ret << " bytes";
-        return CURVEFS_ERROR::FAILED;
+        return CURVEFS_ERROR::INTERNAL;
     }
 
     return CURVEFS_ERROR::OK;

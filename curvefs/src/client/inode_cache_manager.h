@@ -27,14 +27,17 @@
 #include <memory>
 #include <unordered_map>
 
-#include "curvefs/src/client/metaserver_client.h"
+#include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/error_code.h"
 #include "src/common/concurrent/concurrent.h"
-
-using ::curvefs::metaserver::Inode;
+#include "curvefs/src/client/inode_wrapper.h"
 
 namespace curvefs {
 namespace client {
+
+using rpcclient::MetaServerClient;
+using rpcclient::MetaServerClientImpl;
+using rpcclient::InodeParam;
 
 class InodeCacheManager {
  public:
@@ -46,11 +49,11 @@ class InodeCacheManager {
         fsId_ = fsId;
     }
 
-    virtual CURVEFS_ERROR GetInode(uint64_t inodeid, Inode *out) = 0;
+    virtual CURVEFS_ERROR GetInode(uint64_t inodeid,
+        std::shared_ptr<InodeWapper> &out) = 0;   // NOLINT
 
-    virtual CURVEFS_ERROR UpdateInode(const Inode &inode) = 0;
-
-    virtual CURVEFS_ERROR CreateInode(const InodeParam &param, Inode *out) = 0;
+    virtual CURVEFS_ERROR CreateInode(const InodeParam &param,
+        std::shared_ptr<InodeWapper> &out) = 0;   // NOLINT
 
     virtual CURVEFS_ERROR DeleteInode(uint64_t inodeid) = 0;
 
@@ -67,17 +70,17 @@ class InodeCacheManagerImpl : public InodeCacheManager {
         const std::shared_ptr<MetaServerClient> &metaClient)
       : metaClient_(metaClient) {}
 
-    CURVEFS_ERROR GetInode(uint64_t inodeid, Inode *out) override;
+    CURVEFS_ERROR GetInode(uint64_t inodeid,
+        std::shared_ptr<InodeWapper> &out) override;    // NOLINT
 
-    CURVEFS_ERROR UpdateInode(const Inode &inode) override;
-
-    CURVEFS_ERROR CreateInode(const InodeParam &param, Inode *out) override;
+    CURVEFS_ERROR CreateInode(const InodeParam &param,
+        std::shared_ptr<InodeWapper> &out) override;    // NOLINT
 
     CURVEFS_ERROR DeleteInode(uint64_t inodeid) override;
 
  private:
     std::shared_ptr<MetaServerClient> metaClient_;
-    std::unordered_map<uint64_t, Inode> iCache_;
+    std::unordered_map<uint64_t, std::shared_ptr<InodeWapper>> iCache_;
     curve::common::RWLock mtx_;
 };
 
