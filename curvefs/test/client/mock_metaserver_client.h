@@ -29,47 +29,47 @@
 #include <list>
 #include <string>
 
-#include "curvefs/src/client/metaserver_client.h"
+#include "curvefs/src/client/rpcclient/metaserver_client.h"
 
 using ::testing::Return;
 using ::testing::_;
 
 namespace curvefs {
 namespace client {
+namespace rpcclient {
 
 class MockMetaServerClient : public MetaServerClient {
  public:
     MockMetaServerClient() {}
     ~MockMetaServerClient() {}
 
-    MOCK_METHOD2(Init, CURVEFS_ERROR(const MetaServerOption &metaopt,
+    MOCK_METHOD2(Init, MetaStatusCode(const MetaServerOption &metaopt,
                        MetaServerBaseClient *baseclient));
 
-    MOCK_METHOD0(Uinit, CURVEFS_ERROR());
-
-    MOCK_METHOD4(GetDentry, CURVEFS_ERROR(uint32_t fsId, uint64_t inodeid,
+    MOCK_METHOD4(GetDentry, MetaStatusCode(uint32_t fsId, uint64_t inodeid,
                   const std::string &name, Dentry *out));
 
-    MOCK_METHOD5(ListDentry, CURVEFS_ERROR(uint32_t fsId, uint64_t inodeid,
+    MOCK_METHOD5(ListDentry, MetaStatusCode(uint32_t fsId, uint64_t inodeid,
             const std::string &last, uint32_t count,
             std::list<Dentry> *dentryList));
 
-    MOCK_METHOD1(CreateDentry, CURVEFS_ERROR(const Dentry &dentry));
+    MOCK_METHOD1(CreateDentry, MetaStatusCode(const Dentry &dentry));
 
-    MOCK_METHOD3(DeleteDentry, CURVEFS_ERROR(
+    MOCK_METHOD3(DeleteDentry, MetaStatusCode(
             uint32_t fsId, uint64_t inodeid, const std::string &name));
 
-    MOCK_METHOD3(GetInode, CURVEFS_ERROR(
+    MOCK_METHOD3(GetInode, MetaStatusCode(
             uint32_t fsId, uint64_t inodeid, Inode *out));
 
-    MOCK_METHOD1(UpdateInode, CURVEFS_ERROR(const Inode &inode));
+    MOCK_METHOD1(UpdateInode, MetaStatusCode(const Inode &inode));
 
-    MOCK_METHOD2(CreateInode, CURVEFS_ERROR(
+    MOCK_METHOD2(CreateInode, MetaStatusCode(
             const InodeParam &param, Inode *out));
 
-    MOCK_METHOD2(DeleteInode, CURVEFS_ERROR(uint32_t fsId, uint64_t inodeid));
+    MOCK_METHOD2(DeleteInode, MetaStatusCode(uint32_t fsId, uint64_t inodeid));
 };
 
+}  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs
 

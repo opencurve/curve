@@ -35,10 +35,9 @@ DECLARE_int32(defer_close_second);
 namespace curvefs {
 namespace client {
 namespace common {
-void InitMdsOption(Configuration *conf, MdsOption *mdsOpt) {
-    LOG_IF(FATAL, !conf->GetStringValue("mds.mdsaddr", &mdsOpt->mdsaddr));
-    LOG_IF(FATAL,
-           !conf->GetUInt64Value("mds.rpcTimeoutMs", &mdsOpt->rpcTimeoutMs));
+void InitMdsOption(Configuration *conf,
+    ::curve::client::MetaServerOption *mdsOpt) {
+    // TODO(xuchaojie) : load from config file
 }
 
 void InitMetaServerOption(Configuration *conf, MetaServerOption *metaOpt) {

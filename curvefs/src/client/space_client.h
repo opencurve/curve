@@ -28,15 +28,18 @@
 
 #include "curvefs/proto/space.pb.h"
 #include "curvefs/src/client/base_client.h"
-#include "curvefs/src/client/config.h"
+#include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/error_code.h"
-#include "curvefs/src/client/extent.h"
+#include "curvefs/src/client/common/extent.h"
 
 namespace curvefs {
 namespace client {
 
 using curvefs::space::Extent;
 using curvefs::space::SpaceStatusCode;
+
+using common::SpaceAllocServerOption;
+using common::ExtentAllocInfo;
 
 class SpaceClient {
  public:

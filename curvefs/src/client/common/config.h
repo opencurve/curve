@@ -28,6 +28,7 @@
 #include <string>
 #include "src/common/configuration.h"
 #include "src/common/s3_adapter.h"
+#include "src/client/config_info.h"
 
 using ::curve::common::Configuration;
 using ::curve::common::S3AdapterOption;
@@ -38,11 +39,6 @@ namespace common {
 struct BlockDeviceClientOptions {
     // config path
     std::string configPath;
-};
-
-struct MdsOption {
-    std::string mdsaddr;
-    uint64_t rpcTimeoutMs;
 };
 
 struct MetaServerOption {
@@ -70,8 +66,8 @@ struct ExtentManagerOption {
 };
 
 struct FuseClientOption {
-    MdsOption mdsOpt;
-    MetaServerOption metaOpt;
+    ::curve::client::MetaServerOption mdsOpt;
+    ::curvefs::client::common::MetaServerOption metaOpt;
     SpaceAllocServerOption spaceOpt;
     BlockDeviceClientOptions bdevOpt;
     S3Option s3Opt;

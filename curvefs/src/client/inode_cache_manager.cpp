@@ -25,73 +25,66 @@
 
 #include <glog/logging.h>
 
+using ::curvefs::metaserver::Inode;
+
 namespace curvefs {
 namespace client {
 
-CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid, Inode *out) {
+CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
+    std::shared_ptr<InodeWapper> &out) {
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
     {
         curve::common::ReadLockGuard lg(mtx_);
         auto it = iCache_.find(inodeid);
         if (it != iCache_.end()) {
-            *out = it->second;
+            out = it->second;
             return CURVEFS_ERROR::OK;
         }
     }
 
     curve::common::WriteLockGuard lg(mtx_);
-    ret = metaClient_->GetInode(fsId_, inodeid, out);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "metaClient_ GetInode failed, ret = " << ret
+    Inode inode;
+    MetaStatusCode ret2 = metaClient_->GetInode(fsId_, inodeid, &inode);
+    if (ret2 != MetaStatusCode::OK) {
+        LOG(ERROR) << "metaClient_ GetInode failed, ret = " << ret2
                    << ", inodeid = " << inodeid;
-        return ret;
+        return MetaStatusCodeToCurvefsErrCode(ret2);
     }
-    iCache_.emplace(inodeid, *out);
+    out = std::make_shared<InodeWapper>(
+        std::move(inode), metaClient_);
+    iCache_.emplace(inodeid, out);
     return ret;
 }
 
-CURVEFS_ERROR InodeCacheManagerImpl::UpdateInode(const Inode &inode) {
-    curve::common::WriteLockGuard lg(mtx_);
-    CURVEFS_ERROR ret = metaClient_->UpdateInode(inode);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "metaClient_ UpdateInode failed, ret = " << ret
-                   << ", inodeid = " << inode.inodeid();
-        return ret;
-    }
-
-    auto it = iCache_.find(inode.inodeid());
-    if (it != iCache_.end()) {
-        it->second = inode;
-    } else {
-        auto ix = iCache_.emplace(inode.inodeid(), inode);
-        it = ix.first;
-    }
-    return CURVEFS_ERROR::OK;
-}
-
 CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
-    const InodeParam &param, Inode *out) {
+    const InodeParam &param,
+    std::shared_ptr<InodeWapper> &out) {
     curve::common::WriteLockGuard lg(mtx_);
-    CURVEFS_ERROR ret = metaClient_->CreateInode(param, out);
-    if (ret != CURVEFS_ERROR::OK) {
+    Inode inode;
+    MetaStatusCode ret = metaClient_->CreateInode(param, &inode);
+    if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "metaClient_ CreateInode failed, ret = " << ret;
-        return ret;
+        return MetaStatusCodeToCurvefsErrCode(ret);
     }
-    iCache_.emplace(out->inodeid(), *out);
+    uint64_t inodeid = inode.inodeid();
+    out = std::make_shared<InodeWapper>(
+        std::move(inode), metaClient_);
+    iCache_.emplace(inodeid, out);
     return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR InodeCacheManagerImpl::DeleteInode(uint64_t inodeid) {
     curve::common::WriteLockGuard lg(mtx_);
     iCache_.erase(inodeid);
-    CURVEFS_ERROR ret = metaClient_->DeleteInode(fsId_, inodeid);
-    if (ret != CURVEFS_ERROR::OK) {
+    MetaStatusCode ret = metaClient_->DeleteInode(fsId_, inodeid);
+    if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "metaClient_ DeleteInode failed, ret = " << ret
                    << ", inodeid = " << inodeid;
-        return ret;
+        return MetaStatusCodeToCurvefsErrCode(ret);
     }
     return CURVEFS_ERROR::OK;
 }
+
 
 }  // namespace client
 }  // namespace curvefs

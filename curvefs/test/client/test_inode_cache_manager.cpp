@@ -33,8 +33,10 @@ using ::testing::Return;
 using ::testing::_;
 using ::testing::Contains;
 using ::testing::SetArgPointee;
+using ::testing::SetArgReferee;
 using ::testing::DoAll;
 
+using rpcclient::MockMetaServerClient;
 
 class TestInodeCacheManager : public ::testing::Test {
  protected:
@@ -68,64 +70,29 @@ TEST_F(TestInodeCacheManager, GetInode) {
     inode.set_length(fileLength);
 
     EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _))
-        .WillOnce(Return(CURVEFS_ERROR::NOTEXIST))
+        .WillOnce(Return(MetaStatusCode::NOT_FOUND))
         .WillOnce(DoAll(SetArgPointee<2>(inode),
-                Return(CURVEFS_ERROR::OK)));
+                Return(MetaStatusCode::OK)));
 
-    Inode out;
-    CURVEFS_ERROR ret = iCacheManager_->GetInode(inodeId, &out);
+    std::shared_ptr<InodeWapper> inodeWapper;
+    CURVEFS_ERROR ret = iCacheManager_->GetInode(inodeId, inodeWapper);
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
 
-    ret = iCacheManager_->GetInode(inodeId, &out);
+    ret = iCacheManager_->GetInode(inodeId, inodeWapper);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+
+    Inode out = inodeWapper->GetInodeUnlocked();
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
     ASSERT_EQ(fileLength, out.length());
 
-    ret = iCacheManager_->GetInode(inodeId, &out);
+    ret = iCacheManager_->GetInode(inodeId, inodeWapper);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+
+    out = inodeWapper->GetInodeUnlocked();
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
     ASSERT_EQ(fileLength, out.length());
-}
-
-TEST_F(TestInodeCacheManager, UpdateAndGetInode) {
-    uint64_t inodeId = 100;
-    uint64_t oldFileLength = 100l;
-    uint64_t newFileLength = 1024;
-
-    Inode inode;
-    inode.set_inodeid(inodeId);
-    inode.set_fsid(fsId_);
-    inode.set_length(oldFileLength);
-
-    EXPECT_CALL(*metaClient_, UpdateInode(_))
-        .WillOnce(Return(CURVEFS_ERROR::NOTEXIST))
-        .WillOnce(Return(CURVEFS_ERROR::OK))
-        .WillOnce(Return(CURVEFS_ERROR::OK));
-
-    CURVEFS_ERROR ret = iCacheManager_->UpdateInode(inode);
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
-
-    ret = iCacheManager_->UpdateInode(inode);
-    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-
-    Inode out;
-    ret = iCacheManager_->GetInode(inodeId, &out);
-    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    ASSERT_EQ(inodeId, out.inodeid());
-    ASSERT_EQ(fsId_, out.fsid());
-    ASSERT_EQ(oldFileLength, out.length());
-
-    inode.set_length(newFileLength);
-    ret = iCacheManager_->UpdateInode(inode);
-    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-
-    ret = iCacheManager_->GetInode(inodeId, &out);
-    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    ASSERT_EQ(inodeId, out.inodeid());
-    ASSERT_EQ(fsId_, out.fsid());
-    ASSERT_EQ(newFileLength, out.length());
 }
 
 TEST_F(TestInodeCacheManager, CreateAndGetInode) {
@@ -140,23 +107,25 @@ TEST_F(TestInodeCacheManager, CreateAndGetInode) {
     inode.set_fsid(fsId_);
     inode.set_type(FsFileType::TYPE_FILE);
     EXPECT_CALL(*metaClient_, CreateInode(_, _))
-        .WillOnce(Return(CURVEFS_ERROR::FAILED))
+        .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR))
         .WillOnce(DoAll(SetArgPointee<1>(inode),
-            Return(CURVEFS_ERROR::OK)));
+            Return(MetaStatusCode::OK)));
 
+    std::shared_ptr<InodeWapper> inodeWapper;
+    CURVEFS_ERROR ret = iCacheManager_->CreateInode(param, inodeWapper);
+    ASSERT_EQ(CURVEFS_ERROR::UNKNOWN, ret);
 
-    Inode out;
-    CURVEFS_ERROR ret = iCacheManager_->CreateInode(param, &out);
-    ASSERT_EQ(CURVEFS_ERROR::FAILED, ret);
-
-    ret = iCacheManager_->CreateInode(param, &out);
+    ret = iCacheManager_->CreateInode(param, inodeWapper);
+    Inode out = inodeWapper->GetInodeUnlocked();
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
     ASSERT_EQ(FsFileType::TYPE_FILE, out.type());
 
-    ret = iCacheManager_->GetInode(inodeId, &out);
+    ret = iCacheManager_->GetInode(inodeId, inodeWapper);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+
+    out = inodeWapper->GetInodeUnlocked();
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
     ASSERT_EQ(FsFileType::TYPE_FILE, out.type());
@@ -166,8 +135,8 @@ TEST_F(TestInodeCacheManager, DeleteInode) {
     uint64_t inodeId = 100;
 
     EXPECT_CALL(*metaClient_, DeleteInode(fsId_, inodeId))
-        .WillOnce(Return(CURVEFS_ERROR::NOTEXIST))
-        .WillOnce(Return(CURVEFS_ERROR::OK));
+        .WillOnce(Return(MetaStatusCode::NOT_FOUND))
+        .WillOnce(Return(MetaStatusCode::OK));
 
     CURVEFS_ERROR ret = iCacheManager_->DeleteInode(inodeId);
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);

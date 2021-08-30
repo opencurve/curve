@@ -26,7 +26,7 @@
 #include "curvefs/src/client/curve_fuse_op.h"
 #include "curvefs/src/client/fuse_client.h"
 #include "curvefs/src/client/error_code.h"
-#include "curvefs/src/client/config.h"
+#include "curvefs/src/client/common/config.h"
 #include "src/common/configuration.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/client/fuse_volume_client.h"
@@ -39,7 +39,7 @@ using ::curvefs::client::CURVEFS_ERROR;
 using ::curvefs::client::DentryCacheManagerImpl;
 using ::curvefs::client::DirBuffer;
 using ::curvefs::client::FuseClient;
-using ::curvefs::client::FuseClientOption;
+using ::curvefs::client::common::FuseClientOption;
 using ::curvefs::client::InodeCacheManagerImpl;
 using ::curvefs::client::MDSBaseClient;
 using ::curvefs::client::MdsClientImpl;
@@ -67,7 +67,7 @@ int InitFuseClient(const char *confPath, const char* fsType) {
     std::string fsTypeStr = (fsType == nullptr) ? "" : fsType;
 
     fuseClientOption = new FuseClientOption();
-    curvefs::client::InitFuseClientOption(&conf, fuseClientOption);
+    curvefs::client::common::InitFuseClientOption(&conf, fuseClientOption);
 
     if (fsTypeStr == "s3") {
         g_ClientInstance =
@@ -113,6 +113,9 @@ void FuseReplyErrByErrCode(fuse_req_t req, CURVEFS_ERROR errcode) {
         break;
     case CURVEFS_ERROR::INVALIDPARAM:
         fuse_reply_err(req, EINVAL);
+        break;
+    case CURVEFS_ERROR::NOTEMPTY:
+        fuse_reply_err(req, ENOTEMPTY);
         break;
     default:
         fuse_reply_err(req, EIO);
@@ -258,3 +261,40 @@ void FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
     }
     fuse_reply_attr(req, &attrOut, fuseClientOption->attrTimeOut);
 }
+
+void FuseOpSymlink(fuse_req_t req, const char *link, fuse_ino_t parent,
+         const char *name) {
+    fuse_entry_param e;
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpSymlink(
+        req, link, parent, name, &e);
+    if (ret != CURVEFS_ERROR::OK) {
+        FuseReplyErrByErrCode(req, ret);
+        return;
+    }
+    fuse_reply_entry(req, &e);
+}
+
+void FuseOpLink(fuse_req_t req, fuse_ino_t ino, fuse_ino_t newparent,
+          const char *newname) {
+    fuse_entry_param e;
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpLink(
+        req, ino, newparent, newname, &e);
+    if (ret != CURVEFS_ERROR::OK) {
+        FuseReplyErrByErrCode(req, ret);
+        return;
+    }
+    fuse_reply_entry(req, &e);
+}
+
+void FuseOpReadLink(fuse_req_t req, fuse_ino_t ino) {
+    std::string linkStr;
+    CURVEFS_ERROR ret =
+        g_ClientInstance->FuseOpReadLink(req, ino, &linkStr);
+    if (ret != CURVEFS_ERROR::OK) {
+        FuseReplyErrByErrCode(req, ret);
+        return;
+    }
+    fuse_reply_readlink(req, linkStr.c_str());
+}
+
+

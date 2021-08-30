@@ -172,7 +172,7 @@ CURVEFS_ERROR SimpleExtentManager::MergeAllocedExtents(
                             << " allocatedExtents not match, "
                             << "need len = " << it->len
                             << ", actual len = " << len;
-                return CURVEFS_ERROR::FAILED;
+                return CURVEFS_ERROR::INTERNAL;
             }
             it++;
         }
@@ -205,7 +205,7 @@ CURVEFS_ERROR SimpleExtentManager::MergeToTheLastOrAdd(
         LOG(ERROR) << "The new extent is overlaped, "
                    << " fsoffset = " << extent->fsoffset()
                    << " is < the last extent lRight = " << lRight;
-        return CURVEFS_ERROR::FAILED;
+        return CURVEFS_ERROR::INTERNAL;
     }
     if (extent->fsoffset() == lRight && extent->volumeoffset() == pRight) {
         if (extent->isused() == extents->volumeextents(last).isused()) {
@@ -242,7 +242,7 @@ CURVEFS_ERROR SimpleExtentManager::MarkExtentsWritten(
                       << ", len = " << len
                       << ", right neighbor lLeft = " << lLeft
                       << ", lRight = " << lRight;
-           return CURVEFS_ERROR::FAILED;
+           return CURVEFS_ERROR::INTERNAL;
         //
         // extent of [offset, len]                          |-------|
         // volumeextents                   ...    |-------|     ...
@@ -367,7 +367,7 @@ CURVEFS_ERROR SimpleExtentManager::DivideExtents(
                       << ", len = " << len
                       << ", right neighbor lLeft = " << lLeft
                       << ", lRight = " << lRight;
-           return CURVEFS_ERROR::FAILED;
+           return CURVEFS_ERROR::INTERNAL;
         //
         // extent of [offset, len]                          |-------|
         // volumeextents                   ...    |-------|     ...

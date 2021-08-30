@@ -235,6 +235,7 @@ message UpdateInodeRequest {
     optional uint32 mode = 12;
     optional VolumeExtentList volumeExtentList = 13;  // TYPE_FILE only
     optional S3ChunkInfoList s3ChunkInfoList = 14; // TYPE_S3 only
+    optional uint32 nlink = 15;
 }
 
 message UpdateInodeResponse {

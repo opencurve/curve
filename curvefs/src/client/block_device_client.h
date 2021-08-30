@@ -30,13 +30,14 @@
 
 #include "src/client/client_common.h"
 #include "src/client/libcurve_file.h"
-#include "curvefs/src/client/config.h"
+#include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/error_code.h"
 
 namespace curvefs {
 namespace client {
 
 using ::curve::client::FileClient;
+using common::BlockDeviceClientOptions;
 
 using Range = std::pair<off_t, off_t>;
 

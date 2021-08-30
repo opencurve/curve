@@ -24,13 +24,15 @@
 #ifndef CURVEFS_SRC_CLIENT_ERROR_CODE_H_
 #define CURVEFS_SRC_CLIENT_ERROR_CODE_H_
 
+#include "curvefs/proto/metaserver.pb.h"
+
 namespace curvefs {
 namespace client {
 
 // notice : the error code should be negative.
 enum class CURVEFS_ERROR {
     OK = 0,
-    FAILED = -1,
+    INTERNAL = -1,
     UNKNOWN = -2,
     EXISTS = -3,
     NOTEXIST = -4,
@@ -38,6 +40,7 @@ enum class CURVEFS_ERROR {
     BAD_FD = -6,
     INVALIDPARAM = -7,
     NOPERMISSION = -8,
+    NOTEMPTY = -9,
 };
 
 inline std::ostream &operator<<(std::ostream &os, CURVEFS_ERROR code) {
@@ -45,6 +48,9 @@ inline std::ostream &operator<<(std::ostream &os, CURVEFS_ERROR code) {
     os << static_cast<int>(code);
     return os;
 }
+
+CURVEFS_ERROR MetaStatusCodeToCurvefsErrCode(
+    ::curvefs::metaserver::MetaStatusCode code);
 
 }  // namespace client
 }  // namespace curvefs

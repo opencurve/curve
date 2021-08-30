@@ -31,6 +31,7 @@ cc_library(
         "//external:gflags",
         "//src/common:curve_common",
         "//src/common:curve_s3_adapter",
+        "//src/client:curve_client"
     ],
     visibility = ["//visibility:public"],
 )

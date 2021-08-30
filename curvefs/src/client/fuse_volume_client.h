@@ -69,8 +69,8 @@ class FuseVolumeClient : public FuseClient {
         fuse_entry_param *e) override;
 
     CURVEFS_ERROR FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
-            const char *name, mode_t mode, dev_t rdev,
-            fuse_entry_param *e) override;
+        const char *name, mode_t mode, dev_t rdev,
+        fuse_entry_param *e) override;
 
  private:
     int Truncate(Inode *inode, uint64_t length) override;
