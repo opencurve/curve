@@ -52,12 +52,14 @@ void FuseVolumeClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
     std::string fsName = (mOpts->fsName == nullptr) ? volName : mOpts->fsName;
     std::string user = (mOpts->user == nullptr) ? "" : mOpts->user;
 
+    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
+
     FsInfo fsInfo;
     // to get fsInfo from mds
-    CURVEFS_ERROR ret = mdsClient_->GetFsInfo(fsName, &fsInfo);
-    if (ret != CURVEFS_ERROR::OK) {
+    FSStatusCode ret2 = mdsClient_->GetFsInfo(fsName, &fsInfo);
+    if (ret2 != FSStatusCode::OK) {
         // if fs not exist, then create it.
-        if (CURVEFS_ERROR::NOTEXIST == ret) {
+        if (FSStatusCode::NOT_FOUND == ret2) {
             LOG(INFO) << "The fsName not exist, try to CreateFs"
                       << ", fsName = " << fsName;
             BlockDeviceStat stat;
@@ -77,15 +79,15 @@ void FuseVolumeClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
             vol.set_user(user);
 
             // TODO(xuchaojie) : where to get 4096?
-            ret = mdsClient_->CreateFs(fsName, 4096, vol);
+            ret2 = mdsClient_->CreateFs(fsName, 4096, vol);
 
-            if (ret != CURVEFS_ERROR::OK) {
-                LOG(ERROR) << "CreateFs failed, ret = " << ret
+            if (ret2 != FSStatusCode::OK) {
+                LOG(ERROR) << "CreateFs failed, ret = " << ret2
                            << ", fsName = " << fsName;
                 return;
             }
         } else {
-            LOG(ERROR) << "GetFsInfo failed, ret = " << ret
+            LOG(ERROR) << "GetFsInfo failed, ret = " << ret2
                        << ", fsName = " << fsName;
             return;
         }
@@ -100,9 +102,9 @@ void FuseVolumeClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
     }
 
     // mount fs
-    ret = mdsClient_->MountFs(fsName, mountPointStr, &fsInfo);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "MountFs failed, ret = " << ret
+    ret2 = mdsClient_->MountFs(fsName, mountPointStr, &fsInfo);
+    if (ret2 != FSStatusCode::OK) {
+        LOG(ERROR) << "MountFs failed, ret = " << ret2
                    << ", fsName = " << fsName
                    << ", mountPoint = " << mountPointStr;
         return;
@@ -122,17 +124,17 @@ void FuseVolumeClient::FuseOpDestroy(void *userdata) {
     std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
     std::string mountPointStr =
         (mOpts->mountPoint == nullptr) ? "" : mOpts->mountPoint;
-    CURVEFS_ERROR ret = mdsClient_->UmountFs(fsInfo_->fsname(),
+    FSStatusCode ret = mdsClient_->UmountFs(fsInfo_->fsname(),
         mountPointStr);
-    if (ret != CURVEFS_ERROR::OK) {
+    if (ret != FSStatusCode::OK) {
         LOG(ERROR) << "UmountFs failed, ret = " << ret
                    << ", fsName = " << fsName
                    << ", mountPoint = " << mountPointStr;
         return;
     }
-    ret = blockDeviceClient_->Close();
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "BlockDeviceClientImpl close failed, ret = " << ret;
+    CURVEFS_ERROR ret2 = blockDeviceClient_->Close();
+    if (ret2 != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "BlockDeviceClientImpl close failed, ret = " << ret2;
         return;
     }
     LOG(INFO) << "Umount " << fsName
@@ -144,19 +146,22 @@ void FuseVolumeClient::FuseOpDestroy(void *userdata) {
 CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     const char *buf, size_t size, off_t off,
     struct fuse_file_info *fi, size_t *wSize) {
-    Inode inode;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, &inode);
+    if (fi->flags & O_DIRECT) {  // check align
+        if (!(is_aligned(off, DirectIOAlignemnt) &&
+              is_aligned(size, DirectIOAlignemnt)))
+            return CURVEFS_ERROR::INVALIDPARAM;
+    }
+
+    std::shared_ptr<InodeWapper> inodeWapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                   << ", inodeid = " << ino;
         return ret;
     }
 
-    if (fi->flags & O_DIRECT) {  // check align
-        if (!(is_aligned(off, DirectIOAlignemnt) &&
-              is_aligned(size, DirectIOAlignemnt)))
-            return CURVEFS_ERROR::INVALIDPARAM;
-    }
+    ::curve::common::UniqueLock lgGuard = inodeWapper->GetUniqueLock();
+    Inode inode = inodeWapper->GetInodeUnlocked();
 
     std::list<ExtentAllocInfo> toAllocExtents;
     // get the extent need to be allocate
@@ -233,10 +238,10 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         inode.set_length(off + size);
     }
 
-    LOG(INFO) << "UpdateInode inode = " << inode.DebugString();
-    ret = inodeManager_->UpdateInode(inode);
+    inodeWapper->SwapInode(&inode);
+
+    ret = inodeWapper->Sync();
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateInode fail, ret = " << ret;
         return ret;
     }
 
@@ -247,22 +252,25 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
 }
 
 CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
-                    fuse_ino_t ino, size_t size, off_t off,
-                    struct fuse_file_info *fi,
-                    char *buffer, size_t *rSize) {
-    Inode inode;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, &inode);
+    fuse_ino_t ino, size_t size, off_t off,
+    struct fuse_file_info *fi,
+    char *buffer, size_t *rSize) {
+    if (fi->flags & O_DIRECT) {  // check align
+        if (!(is_aligned(off, DirectIOAlignemnt) &&
+              is_aligned(size, DirectIOAlignemnt)))
+            return CURVEFS_ERROR::INVALIDPARAM;
+    }
+
+    std::shared_ptr<InodeWapper> inodeWapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                   << ", inodeid = " << ino;
         return ret;
     }
 
-    if (fi->flags & O_DIRECT) {  // check align
-        if (!(is_aligned(off, DirectIOAlignemnt) &&
-              is_aligned(size, DirectIOAlignemnt)))
-            return CURVEFS_ERROR::INVALIDPARAM;
-    }
+    ::curve::common::UniqueLock lgGuard = inodeWapper->GetUniqueLock();
+    Inode inode = inodeWapper->GetInodeUnlocked();
 
     size_t len = 0;
     if (inode.length() < off + size) {
@@ -291,12 +299,6 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
     }
     *rSize = len;
 
-    LOG(INFO) << "UpdateInode inode = " << inode.DebugString();
-    ret = inodeManager_->UpdateInode(inode);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateInode fail, ret = " << ret;
-        return ret;
-    }
     LOG(INFO) << "read end, read size = " << *rSize;
     return ret;
 }
@@ -314,6 +316,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
 }
 
 int FuseVolumeClient::Truncate(Inode *inode, uint64_t length) {
+    return 0;
     // Todo: call volume truncate
 }
 

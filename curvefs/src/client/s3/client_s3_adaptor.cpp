@@ -137,7 +137,7 @@ int S3ClientAdaptorImpl::GetChunkId(Inode *inode, uint64_t index,
                                 uint64_t *chunkId) {
     S3ChunkInfo tmp;
     uint64_t tmpIndex;
-    CURVEFS_ERROR retCode = CURVEFS_ERROR::FAILED;
+    CURVEFS_ERROR retCode = CURVEFS_ERROR::UNKNOWN;
     const S3ChunkInfoList &s3chunkInfoList = inode->s3chunkinfolist();
     if (inode->length() == 0) {
         retCode = AllocS3ChunkId(inode->fsid(), chunkId);
@@ -227,7 +227,7 @@ CURVEFS_ERROR S3ClientAdaptorImpl::AllocS3ChunkId(uint32_t fsId,
     if (channel.Init(allocateServerEps_.c_str(), NULL) != 0) {
         LOG(ERROR) << "Fail to init channel to allocate Server"
         << " for alloc chunkId: " << allocateServerEps_;
-        return CURVEFS_ERROR::FAILED;
+        return CURVEFS_ERROR::INTERNAL;
     }
     brpc::Controller* cntl = new brpc::Controller();
     AllocateS3ChunkRequest request;
@@ -256,7 +256,7 @@ CURVEFS_ERROR S3ClientAdaptorImpl::AllocS3ChunkId(uint32_t fsId,
                     << ssCode;
         delete cntl;
         cntl = NULL;
-        return CURVEFS_ERROR::FAILED;
+        return CURVEFS_ERROR::INTERNAL;
     }
 
     *chunkId = response.chunkid();
@@ -640,6 +640,7 @@ int S3ClientAdaptorImpl::handleReadRequest(
 }
 
 int S3ClientAdaptorImpl::Truncate(Inode *inode, uint64_t length) {
+    return 0;
     // Todo: huyao
 }
 
