@@ -25,17 +25,23 @@
 
 #include <brpc/closure_guard.h>
 #include <brpc/controller.h>
+
 #include <memory>
 #include <string>
+
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/src/mds/chunkid_allocator.h"
 #include "curvefs/src/mds/fs_manager.h"
 
 namespace curvefs {
 namespace mds {
 class MdsServiceImpl : public MdsService {
  public:
-    explicit MdsServiceImpl(std::shared_ptr<FsManager> fsManager) {
+    explicit MdsServiceImpl(
+        std::shared_ptr<FsManager> fsManager,
+        std::shared_ptr<ChunkIdAllocator> chunkIdAllocator) {
         fsManager_ = fsManager;
+        chunkIdAllocator_ = chunkIdAllocator;
     }
 
     void CreateFs(::google::protobuf::RpcController* controller,
@@ -63,8 +69,14 @@ class MdsServiceImpl : public MdsService {
                   ::curvefs::mds::DeleteFsResponse* response,
                   ::google::protobuf::Closure* done);
 
+    void AllocateS3Chunk(::google::protobuf::RpcController* controller,
+                         const ::curvefs::mds::AllocateS3ChunkRequest* request,
+                         ::curvefs::mds::AllocateS3ChunkResponse* response,
+                         ::google::protobuf::Closure* done);
+
  private:
     std::shared_ptr<FsManager> fsManager_;
+    std::shared_ptr<ChunkIdAllocator> chunkIdAllocator_;
 };
 }  // namespace mds
 }  // namespace curvefs

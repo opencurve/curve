@@ -39,6 +39,9 @@ const char FS_NAME_KEY_END[] = "fs_02";
 
 const char FS_ID_KEY_PREFIX[] = "fs_02";
 
+const char CHUNKID_NAME_KEY_PREFIX[] = "fs_03";
+const char CHUNKID_NAME_KEY_END[] = "fs_04";
+
 constexpr uint32_t COMMON_PREFIX_LENGTH = 5;
 
 }  // namespace mds

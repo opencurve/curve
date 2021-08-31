@@ -216,5 +216,35 @@ void MdsServiceImpl::DeleteFs(::google::protobuf::RpcController* controller,
     LOG(INFO) << "DeleteFs success, fsName = " << fsName;
     return;
 }
+
+void MdsServiceImpl::AllocateS3Chunk(
+    ::google::protobuf::RpcController* controller,
+    const ::curvefs::mds::AllocateS3ChunkRequest* request,
+    ::curvefs::mds::AllocateS3ChunkResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard guard(done);
+
+    uint64_t chunkId = 0;
+    int stat = chunkIdAllocator_->GenChunkId(&chunkId);
+    FSStatusCode resStat;
+    if (stat >= 0) {
+        resStat = OK;
+    } else {
+        resStat = ALLOCATE_CHUNKID_ERROR;
+    }
+
+    response->set_status(resStat);
+
+    if (resStat != OK) {
+        LOG(ERROR) << "AllocateS3Chunk failure, request: "
+                   << request->ShortDebugString()
+                   << ", error: " << FSStatusCode_Name(resStat);
+    } else {
+        response->set_chunkid(chunkId);
+        LOG(INFO) << "AllocateS3Chunk success, request: "
+                  << request->ShortDebugString()
+                  << ", response: " << response->ShortDebugString();
+    }
+}
 }  // namespace mds
 }  // namespace curvefs
