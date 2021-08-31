@@ -50,8 +50,7 @@ Mds::Mds()
       etcdClient_(),
       leaderElection_(),
       status_(),
-      etcdEndpoint_() {
-}
+      etcdEndpoint_() {}
 
 Mds::~Mds() {}
 
@@ -81,6 +80,8 @@ void Mds::Init() {
                                              metaserverClient_);
     LOG_IF(FATAL, !fsManager_->Init()) << "fsManager Init fail";
 
+    chunkIdAllocator_ = std::make_shared<ChunkIdAllocatorImpl>(etcdClient_);
+
     inited_ = true;
 
     LOG(INFO) << "Init MDS success";
@@ -95,7 +96,7 @@ void Mds::Run() {
 
     brpc::Server server;
     // add heartbeat service
-    MdsServiceImpl mdsService(fsManager_);
+    MdsServiceImpl mdsService(fsManager_, chunkIdAllocator_);
     LOG_IF(FATAL,
            server.AddService(&mdsService, brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
         << "add mdsService error";

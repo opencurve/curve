@@ -28,6 +28,7 @@
 #include <memory>
 #include <string>
 
+#include "curvefs/src/mds/chunkid_allocator.h"
 #include "curvefs/src/mds/fs_manager.h"
 #include "src/common/configuration.h"
 #include "src/kvstorageclient/etcd_client.h"
@@ -39,13 +40,17 @@ namespace mds {
 using ::curve::common::Configuration;
 using ::curve::election::LeaderElection;
 using ::curve::election::LeaderElectionOptions;
+using curve::kvstorage::EtcdClientImp;
 using ::curve::kvstorage::KVStorageClient;
+// TODO(split InitEtcdConf): split this InitEtcdConf to a single module
 
 struct MDSOptions {
     int dummyPort;
     std::string mdsListenAddr;
     SpaceOptions spaceOptions;
     MetaserverOptions metaserverOptions;
+
+    // TODO(add EtcdConf): add etcd configure
 };
 
 class Mds {
@@ -86,6 +91,7 @@ class Mds {
     std::shared_ptr<FsStorage> fsStorage_;
     std::shared_ptr<SpaceClient> spaceClient_;
     std::shared_ptr<MetaserverClient> metaserverClient_;
+    std::shared_ptr<ChunkIdAllocator> chunkIdAllocator_;
     MDSOptions options_;
 
     bool etcdClientInited_;

@@ -41,6 +41,7 @@ enum FSStatusCode {
     INODE_EXIST = 18;
     INTERNAL_ERROR = 19;
     STORAGE_ERROR = 20;
+    ALLOCATE_CHUNKID_ERROR = 21;
 }
 
 // fs interface
@@ -156,6 +157,16 @@ message CreatePartitionResponse {
     required FSStatusCode statusCode = 1;
     repeated common.PartitionInfo partitionInfoList = 2;
 }
+message AllocateS3ChunkRequest {
+    required uint32 fsId = 1;
+}
+
+message AllocateS3ChunkResponse {
+    // status code, default value is FSStatusCode::UNKNOWN_ERROR
+   required FSStatusCode status = 1;
+   required uint64 chunkId = 2;
+}
+
 
 service MdsService {
     // fs interface
@@ -167,4 +178,5 @@ service MdsService {
     rpc CreatePartition(CreatePartitionRequest) returns (CreatePartitionResponse);
     rpc DeleteFs(DeleteFsRequest) returns (DeleteFsResponse);
     rpc CommitTx(CommitTxRequest) returns (CommitTxResponse);
+    rpc AllocateS3Chunk(AllocateS3ChunkRequest) returns (AllocateS3ChunkResponse);
 }

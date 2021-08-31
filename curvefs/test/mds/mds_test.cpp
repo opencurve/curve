@@ -21,20 +21,33 @@
  */
 
 #include "curvefs/src/mds/mds.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <thread>  // NOLINT
-#include "src/kvstorageclient/etcd_client.h"
-#include "src/common/timeutility.h"
 
-using ::testing::AtLeast;
-using ::testing::StrEq;
+#include <cstdlib>
+#include <ctime>
+#include <memory>
+#include <string>
+#include <thread>  // NOLINT
+#include <utility>
+#include <vector>
+
+#include "curvefs/proto/mds.pb.h"
+#include "curvefs/test/mds/mock_chunkid_allocator.h"
+#include "src/common/timeutility.h"
+#include "src/kvstorageclient/etcd_client.h"
+
+using ::std::thread;
+using ::std::vector;
 using ::testing::_;
+using ::testing::AtLeast;
+using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::ReturnArg;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
 using ::testing::SaveArg;
+using ::testing::SetArgPointee;
+using ::testing::StrEq;
 
 using ::curve::kvstorage::EtcdClientImp;
 
@@ -87,7 +100,7 @@ class MdsTest : public ::testing::Test {
 
         ASSERT_TRUE(initSucc);
         ASSERT_EQ(EtcdErrCode::EtcdDeadlineExceeded,
-                  client->Put("05", "hello word"));
+                  client->Put("06", "hello word"));
         ASSERT_EQ(EtcdErrCode::EtcdDeadlineExceeded,
                   client->CompareAndSwap("04", "10", "110"));
         client->CloseClient();
@@ -109,6 +122,80 @@ class MdsTest : public ::testing::Test {
 };
 
 pid_t MdsTest::etcdPid_ = 0;
+
+void GetChunkIds(std::shared_ptr<curve::common::Configuration> conf,
+                 int numChunkIds, vector<uint64_t>* data) {
+    brpc::Channel channel;
+    std::string allocateServer(kMdsListenAddr);
+    if (channel.Init(allocateServer.c_str(), NULL) != 0) {
+        LOG(ERROR) << "Fail to init channel to allocate Server"
+                   << " for alloc chunkId, allocate server is "
+                   << allocateServer;
+        return;
+    }
+
+    brpc::Controller* cntl = new brpc::Controller();
+    AllocateS3ChunkRequest request;
+    AllocateS3ChunkResponse response;
+    curvefs::mds::MdsService_Stub stub(&channel);
+    request.set_fsid(0);
+    for (int i = 0; i < numChunkIds; ++i) {
+        stub.AllocateS3Chunk(cntl, &request, &response, nullptr);
+
+        if (cntl->Failed()) {
+            LOG(WARNING) << "Allocate s3 chunkid Failed, errorcode = "
+                         << cntl->ErrorCode()
+                         << ", error content:" << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
+            delete cntl;
+            cntl = nullptr;
+            return;
+        }
+
+        ::curvefs::mds::FSStatusCode ssCode = response.status();
+        if (ssCode != ::curvefs::mds::FSStatusCode::OK) {
+            LOG(WARNING) << "Allocate s3 chunkid response Failed, retCode = "
+                         << ssCode;
+            delete cntl;
+            cntl = nullptr;
+            return;
+        }
+
+        uint64_t chunkId = response.chunkid();
+        data->push_back(chunkId);
+        cntl->Reset();
+    }
+    delete cntl;
+    cntl = nullptr;
+}
+
+TEST_F(MdsTest, test_chunkIds_allocate) {
+    curvefs::mds::Mds mds;
+    auto conf = std::make_shared<Configuration>();
+    conf->SetConfigPath("curvefs/conf/mds.conf");
+    ASSERT_TRUE(conf->LoadConfig());
+    conf->SetStringValue("mds.listen.addr", kMdsListenAddr);
+    conf->SetStringValue("etcd.endpoint", kEtcdAddr);
+
+    mds.InitOptions(conf);
+
+    mds.Init();
+
+    std::thread mdsThread(&Mds::Run, &mds);
+
+    sleep(3);
+
+    vector<uint64_t> data;
+    const int size = 1001;
+    GetChunkIds(conf, size, &data);
+
+    LOG(INFO) << "all get " << data.size() << " chunkIds";
+    ASSERT_EQ(size, data.size());
+
+    mds.Stop();
+
+    mdsThread.join();
+}
 
 TEST_F(MdsTest, test1) {
     curvefs::mds::Mds mds;
@@ -170,5 +257,6 @@ TEST_F(MdsTest, test2) {
     mds.Stop();
     mdsThread.join();
 }
+
 }  // namespace mds
 }  // namespace curvefs

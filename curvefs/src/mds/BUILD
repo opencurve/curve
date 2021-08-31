@@ -33,7 +33,6 @@ COPTS = [
     "-Wno-missing-field-initializers",
     "-std=c++11",
     "-Wall",
-    "-Werror",
 ]
 
 cc_library(
@@ -45,6 +44,8 @@ cc_library(
     copts = COPTS,
     visibility = ["//visibility:public"],
     deps = [
+        "//external:glog",
+        "//external:gflags",
         "//external:brpc",
         "//curvefs/proto:metaserver_cc_proto",
         "//curvefs/proto:mds_cc_proto",

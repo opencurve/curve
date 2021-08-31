@@ -21,30 +21,32 @@
  */
 
 #include "curvefs/src/mds/mds_service.h"
+
 #include <brpc/channel.h>
 #include <brpc/server.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
 #include "curvefs/test/mds/fake_metaserver.h"
 #include "curvefs/test/mds/fake_space.h"
 #include "curvefs/test/mds/mock/mock_kvstorage_client.h"
 
-using ::testing::AtLeast;
-using ::testing::StrEq;
 using ::testing::_;
+using ::testing::AtLeast;
+using ::testing::DoAll;
+using ::testing::Mock;
 using ::testing::Return;
 using ::testing::ReturnArg;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
 using ::testing::SaveArg;
-using ::testing::Mock;
+using ::testing::SetArgPointee;
+using ::testing::StrEq;
 // using ::curvefs::space::MockSpaceService;
-using ::curvefs::space::FakeSpaceImpl;
-using ::curvefs::space::SpaceStatusCode;
-using ::curvefs::space::InitSpaceResponse;
-using ::curvefs::metaserver::FakeMetaserverImpl;
 using ::curvefs::common::S3Info;
 using ::curvefs::common::Volume;
+using ::curvefs::metaserver::FakeMetaserverImpl;
+using ::curvefs::space::FakeSpaceImpl;
+using ::curvefs::space::InitSpaceResponse;
+using ::curvefs::space::SpaceStatusCode;
 
 namespace curvefs {
 namespace mds {
@@ -69,7 +71,9 @@ class MdsServiceTest : public ::testing::Test {
         return;
     }
 
-    void TearDown() override { return; }
+    void TearDown() override {
+        return;
+    }
 
     bool CompareVolume(const Volume& first, const Volume& second) {
         return first.volumesize() == second.volumesize() &&
@@ -98,7 +102,7 @@ class MdsServiceTest : public ::testing::Test {
 TEST_F(MdsServiceTest, test1) {
     brpc::Server server;
     // add metaserver service
-    MdsServiceImpl mdsService(fsManager_);
+    MdsServiceImpl mdsService(fsManager_, nullptr);
     ASSERT_EQ(server.AddService(&mdsService, brpc::SERVER_DOESNT_OWN_SERVICE),
               0);
 

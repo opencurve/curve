@@ -16,7 +16,11 @@
 
 cc_test(
     name = "curvefs_mds_test",
-    srcs = glob(["*.cpp", "*.h"]),
+    srcs = glob(["*.cpp", "*.h"],
+        exclude = [
+            "chunkid_allocator_test.cpp",
+            "mock_etcdclient.h"
+        ]),
     copts = ["-g","-DHAVE_ZLIB=1"],
     deps = [
             "//curvefs/src/mds:curvefs_mds_lib",
@@ -26,5 +30,22 @@ cc_test(
             "//src/common:curve_common",
             "//curvefs/proto:space_cc_proto",
             "//curvefs/test/mds/mock:mds_test_mock",
+    ],
+)
+
+cc_test(
+    name = "curvefs_chunkid_allocator_test",
+    srcs = glob([
+        "chunkid_allocator_test.cpp",
+        "mock_etcdclient.h"
+    ]),
+    copts = ["-g","-DHAVE_ZLIB=1"],
+    deps = [
+            "//curvefs/src/mds:curvefs_mds_lib",
+            "@com_google_googletest//:gtest_main",
+            "@com_google_googletest//:gtest",
+            "//external:brpc",
+            "//src/common:curve_common",
+            "//curvefs/proto:space_cc_proto",
     ],
 )
