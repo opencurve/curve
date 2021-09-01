@@ -42,7 +42,8 @@ class MetaserverServiceTest : public ::testing::Test {
     void SetUp() override {
         inodeStorage_ = std::make_shared<MemoryInodeStorage>();
         dentryStorage_ = std::make_shared<MemoryDentryStorage>();
-        inodeManager_ = std::make_shared<InodeManager>(inodeStorage_);
+        trash_ = std::make_shared<TrashImpl>(inodeStorage_);
+        inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
         dentryManager_ = std::make_shared<DentryManager>(dentryStorage_);
         addr_ = "127.0.0.1:6702";
     }
@@ -86,6 +87,7 @@ class MetaserverServiceTest : public ::testing::Test {
     std::shared_ptr<DentryStorage> dentryStorage_;
     std::shared_ptr<InodeManager> inodeManager_;
     std::shared_ptr<DentryManager> dentryManager_;
+    std::shared_ptr<TrashImpl> trash_;
 };
 
 TEST_F(MetaserverServiceTest, inodeTest) {

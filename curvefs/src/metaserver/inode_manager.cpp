@@ -25,6 +25,8 @@
 #include "curvefs/src/common/define.h"
 #include "src/common/timeutility.h"
 
+using ::curve::common::TimeUtility;
+
 namespace curvefs {
 namespace metaserver {
 MetaStatusCode InodeManager::CreateInode(uint32_t fsId, uint64_t length,
@@ -155,7 +157,11 @@ void InodeManager::GenerateInodeInternal(uint64_t inodeId, uint32_t fsId,
     inode->set_mtime(time);
     inode->set_atime(time);
     inode->set_ctime(time);
-    inode->set_nlink(0);  // TODO(cw123): nlink now is all 0
+    if (FsFileType::TYPE_DIRECTORY == type) {
+        inode->set_nlink(2);
+    } else {
+        inode->set_nlink(1);
+    }
     return;
 }
 
@@ -197,11 +203,30 @@ MetaStatusCode InodeManager::DeleteInode(uint32_t fsId, uint64_t inodeId) {
 
 MetaStatusCode InodeManager::UpdateInode(const Inode &inode) {
     VLOG(1) << "UpdateInode, " << inode.ShortDebugString();
-    MetaStatusCode ret = inodeStorage_->Update(inode);
+
+    Inode old;
+    MetaStatusCode ret = inodeStorage_->Get(
+        InodeKey(inode.fsid(), inode.inodeid()), &old);
+    if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "GetInode fail, " << inode.ShortDebugString()
+                   << ", ret = " << MetaStatusCode_Name(ret);
+        return ret;
+    }
+
+    if (old.nlink() != 0 && inode.nlink() == 0) {
+        uint32_t now = TimeUtility::GetTimeofDaySec();
+        const_cast<Inode&>(inode).set_dtime(now);
+    }
+
+    ret = inodeStorage_->Update(inode);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "UpdateInode fail, " << inode.ShortDebugString()
                    << ", ret = " << MetaStatusCode_Name(ret);
         return ret;
+    }
+
+    if (old.nlink() != 0 && inode.nlink() == 0) {
+        trash_->Add(inode.fsid(), inode.inodeid(), inode.dtime());
     }
 
     VLOG(1) << "UpdateInode success, " << inode.ShortDebugString();
@@ -254,6 +279,10 @@ MetaStatusCode InodeManager::InsertInode(const Inode &inode) {
         LOG(ERROR) << "InsertInode fail, " << inode.ShortDebugString()
                    << ", ret = " << MetaStatusCode_Name(ret);
         return ret;
+    }
+
+    if (inode.nlink() == 0) {
+        trash_->Add(inode.fsid(), inode.inodeid(), inode.dtime());
     }
 
     return MetaStatusCode::OK;

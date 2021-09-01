@@ -57,7 +57,8 @@ class InodeManagerTest : public ::testing::Test {
 TEST_F(InodeManagerTest, test1) {
     std::shared_ptr<InodeStorage> inodeStorage =
         std::make_shared<MemoryInodeStorage>();
-    InodeManager manager(inodeStorage);
+    auto trash = std::make_shared<TrashImpl>(inodeStorage);
+    InodeManager manager(inodeStorage, trash);
 
     // CREATE
     uint32_t fsId = 1;

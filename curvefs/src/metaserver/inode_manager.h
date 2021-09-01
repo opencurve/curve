@@ -28,15 +28,18 @@
 #include <string>
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/inode_storage.h"
+#include "curvefs/src/metaserver/trash.h"
 
 namespace curvefs {
 namespace metaserver {
 class InodeManager {
  public:
-    explicit InodeManager(std::shared_ptr<InodeStorage> inodeStorage) {
-        inodeStorage_ = inodeStorage;
-        nextInodeId_ = 2;
-    }
+    InodeManager(const std::shared_ptr<InodeStorage> &inodeStorage,
+        const std::shared_ptr<Trash> &trash)
+        : inodeStorage_(inodeStorage),
+          trash_(trash),
+          nextInodeId_(2) {}
+
     MetaStatusCode CreateInode(uint32_t fsId, uint64_t length, uint32_t uid,
                                uint32_t gid, uint32_t mode, FsFileType type,
                                const std::string &symlink, Inode *inode);
@@ -64,8 +67,9 @@ class InodeManager {
 
  private:
     uint64_t GetNextId();
-    std::atomic<uint64_t> nextInodeId_;
     std::shared_ptr<InodeStorage> inodeStorage_;
+    std::shared_ptr<Trash> trash_;
+    std::atomic<uint64_t> nextInodeId_;
 };
 }  // namespace metaserver
 }  // namespace curvefs
