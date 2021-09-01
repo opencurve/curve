@@ -26,6 +26,7 @@ enum MetaStatusCode {
     INODE_EXIST = 4;
     DENTRY_EXIST = 5;
     SYM_LINK_EMPTY = 6;
+    RPC_ERROR = 7;
 }
 
 // dentry interface
