@@ -25,6 +25,7 @@
 #include <brpc/server.h>
 #include <glog/logging.h>
 #include "curvefs/src/metaserver/metaserver_service.h"
+#include "curvefs/src/metaserver/trash_manager.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -33,11 +34,20 @@ void Metaserver::InitOptions(std::shared_ptr<Configuration> conf) {
     conf_->GetValueFatalIfFail("metaserver.listen.addr",
                                &options_.metaserverListenAddr);
 }
+
 void Metaserver::Init() {
+    TrashOption  trashOption;
+    trashOption.InitTrashOptionFromConf(conf_);
+
     inodeStorage_ = std::make_shared<MemoryInodeStorage>();
     dentryStorage_ = std::make_shared<MemoryDentryStorage>();
-    inodeManager_ = std::make_shared<InodeManager>(inodeStorage_);
+
+    trash_ = std::make_shared<TrashImpl>(inodeStorage_);
+    trash_->Init(trashOption);
+    inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
     dentryManager_ = std::make_shared<DentryManager>(dentryStorage_);
+
+    TrashManager::GetInstance().Init(trashOption);
     inited_ = true;
 }
 
@@ -46,6 +56,8 @@ void Metaserver::Run() {
         LOG(ERROR) << "Metaserver not inited yet!";
         return;
     }
+
+    TrashManager::GetInstance().Run();
 
     brpc::Server server;
     // add metaserver service
@@ -71,6 +83,7 @@ void Metaserver::Stop() {
         LOG(WARNING) << "Metaserver is not running";
         return;
     }
+    TrashManager::GetInstance().Fini();
     brpc::AskToQuit();
 }
 }  // namespace metaserver

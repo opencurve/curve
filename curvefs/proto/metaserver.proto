@@ -159,6 +159,7 @@ message Inode {
     optional VolumeExtentList volumeExtentList = 13;  // TYPE_FILE only
     optional S3ChunkInfoList s3ChunkInfoList = 14; // TYPE_S3 only
     optional uint64 version = 15;
+    optional uint32 dtime = 16;
 }
 
 message GetInodeResponse {

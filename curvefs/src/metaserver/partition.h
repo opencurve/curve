@@ -91,6 +91,7 @@ class Partition {
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<DentryStorage> dentryStorage_;
     std::shared_ptr<InodeManager> inodeManager_;
+    std::shared_ptr<TrashImpl> trash_;
     std::shared_ptr<DentryManager> dentryManager_;
     // TODO(cw123) : add txmanager
     PartitionInfo partitionInfo_;

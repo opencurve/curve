@@ -19,8 +19,13 @@
  * @Date: 2021-08-30 19:48:47
  * @Author: chenwei
  */
+
 #include "curvefs/src/metaserver/partition.h"
+
 #include <assert.h>
+
+#include "curvefs/src/metaserver/trash_manager.h"
+
 namespace curvefs {
 namespace metaserver {
 Partition::Partition(const PartitionInfo& paritionInfo) {
@@ -28,12 +33,15 @@ Partition::Partition(const PartitionInfo& paritionInfo) {
 
     inodeStorage_ = std::make_shared<MemoryInodeStorage>();
     dentryStorage_ = std::make_shared<MemoryDentryStorage>();
-    inodeManager_ = std::make_shared<InodeManager>(inodeStorage_);
+    trash_ = std::make_shared<TrashImpl>(inodeStorage_);
+    inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
     dentryManager_ = std::make_shared<DentryManager>(dentryStorage_);
     partitionInfo_ = paritionInfo;
     if (!paritionInfo.has_nextid()) {
         partitionInfo_.set_nextid(partitionInfo_.start());
     }
+
+    TrashManager::GetInstance().Add(paritionInfo.partitionid(), trash_);
 }
 
 // dentry
