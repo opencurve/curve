@@ -60,3 +60,27 @@ proto_library(
     srcs = ["space.proto"],
     deps = [":curvefs_common_proto",":mds_proto"],
 )
+
+cc_proto_library(
+    name = "cli2_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":cli2_proto"],
+)
+
+proto_library(
+    name = "cli2_proto",
+    srcs = ["cli2.proto"],
+    deps = [":curvefs_common_proto"],
+)
+
+cc_proto_library(
+    name = "curvefs_topology_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":curvefs_topology_proto"],
+)
+
+proto_library(
+    name = "curvefs_topology_proto",
+    srcs = ["topology.proto"],
+    deps = [":curvefs_common_proto"],
+)

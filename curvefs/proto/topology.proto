@@ -1,0 +1,77 @@
+/*
+ *  Copyright (c) 2021 NetEase Inc.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+syntax="proto2";
+import "curvefs/proto/common.proto";
+package curvefs.mds.topology;
+option cc_generic_services = true;
+
+enum OnlineState {
+    ONLINE = 0;
+    OFFLINE = 1;
+    UNSTABLE = 2;
+}
+
+message MetaServerInfo {
+    required uint32 MetaServerID = 1;
+    required string hostname = 2;
+    required string hostIp = 3;
+    required uint32 port = 4;
+    required string externalIp = 5;
+    required uint32 externalPort = 6;
+    required OnlineState onlineState = 7;
+}
+
+message GetMetaServerInfoRequest {
+    //use either MetaServerID  or  hostIp&port to query MetaServer
+    optional uint32 MetaServerID = 1;
+    optional string hostIp = 2;
+    optional uint32 port = 3;
+}
+
+message GetMetaServerInfoResponse {
+    required sint32 statusCode = 1;
+    optional MetaServerInfo MetaServerInfo = 2;
+}
+
+message GetMetaServerListInCopySetsRequest {
+    required uint32 PoolId = 1;
+    repeated uint32 copysetId = 2;
+}
+
+message MetaServerLocation {
+    required uint32 MetaServerID = 1;
+    required string hostIp = 2;
+    required uint32 port = 3;
+    optional string externalIp = 4;
+}
+
+message CopySetServerInfo {
+    required uint32 copysetId = 1;
+    repeated MetaServerLocation csLocs = 2;
+}
+
+message GetMetaServerListInCopySetsResponse {
+    required sint32 statusCode = 1;
+    repeated CopySetServerInfo csInfo = 2;
+}
+
+service TopologyService {
+    rpc GetMetaServer(GetMetaServerInfoRequest) returns (GetMetaServerInfoResponse);
+
+    // TODO @wanghai 需要新增接口
+    rpc GetMetaServerListInCopysets(GetMetaServerListInCopySetsRequest) returns (GetMetaServerListInCopySetsResponse);
+}

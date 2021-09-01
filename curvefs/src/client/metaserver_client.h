@@ -52,7 +52,7 @@ class MetaServerClient {
     virtual ~MetaServerClient() {}
 
     virtual CURVEFS_ERROR Init(const MetaServerOption &metaopt,
-                       MetaServerBaseClient *baseclient) = 0;
+                               MetaServerBaseClient *baseclient) = 0;
 
     virtual CURVEFS_ERROR GetDentry(uint32_t fsId, uint64_t inodeid,
                                     const std::string &name, Dentry *out) = 0;
@@ -119,6 +119,7 @@ class MetaServerClientImpl : public MetaServerClient {
         void SetOption(const MetaServerOption &option) { opt_ = option; }
 
         CURVEFS_ERROR DoRPCTask(RPCFunc task);
+
      private:
         MetaServerOption opt_;
     };
@@ -127,7 +128,6 @@ class MetaServerClientImpl : public MetaServerClient {
     MetaServerBaseClient *basecli_;
     MetaServerRPCExcutor excutor_;
 };
-
 
 }  // namespace client
 }  // namespace curvefs

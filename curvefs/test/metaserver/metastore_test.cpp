@@ -26,14 +26,14 @@
 #include <condition_variable>  // NOLINT
 #include "curvefs/src/common/process.h"
 
-using ::testing::AtLeast;
-using ::testing::StrEq;
 using ::testing::_;
+using ::testing::AtLeast;
+using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::ReturnArg;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
 using ::testing::SaveArg;
+using ::testing::SetArgPointee;
+using ::testing::StrEq;
 
 namespace curvefs {
 namespace metaserver {
@@ -43,7 +43,7 @@ class MetastoreTest : public ::testing::Test {
 
     void TearDown() override {}
 
-    bool CompareInode(const Inode& first, const Inode& second) {
+    bool CompareInode(const Inode &first, const Inode &second) {
         return first.fsid() == second.fsid() &&
                first.atime() == second.atime() &&
                first.inodeid() == second.inodeid() &&
@@ -56,14 +56,14 @@ class MetastoreTest : public ::testing::Test {
                first.nlink() == second.nlink();
     }
 
-    void PrintDentry(const Dentry& dentry) {
+    void PrintDentry(const Dentry &dentry) {
         LOG(INFO) << "dentry: fsid = " << dentry.fsid()
                   << ", inodeid = " << dentry.inodeid()
                   << ", name = " << dentry.name()
                   << ", parentinodeid = " << dentry.parentinodeid();
     }
 
-    bool CompareDentry(const Dentry& first, const Dentry& second) {
+    bool CompareDentry(const Dentry &first, const Dentry &second) {
         bool ret = first.fsid() == second.fsid() &&
                    first.inodeid() == second.inodeid() &&
                    first.parentinodeid() == second.parentinodeid() &&
@@ -75,8 +75,8 @@ class MetastoreTest : public ::testing::Test {
         return ret;
     }
 
-    bool ComparePartition(const PartitionInfo& first,
-                          const PartitionInfo& second) {
+    bool ComparePartition(const PartitionInfo &first,
+                          const PartitionInfo &second) {
         bool ret = first.fsid() == second.fsid() &&
                    first.poolid() == second.poolid() &&
                    first.copysetid() == second.copysetid() &&
@@ -758,6 +758,8 @@ TEST_F(MetastoreTest, persist_success) {
     dentry1.set_inodeid(1);
     dentry1.set_parentinodeid(0);
     dentry1.set_name("dentry1");
+    dentry1.set_txid(1);
+
 
     createDentryRequest.set_poolid(poolId);
     createDentryRequest.set_copysetid(copysetId);
@@ -888,7 +890,7 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
 }  // namespace metaserver
 }  // namespace curvefs
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);
     ::curvefs::common::Process::InitSetProcTitle(argc, argv);

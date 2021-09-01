@@ -65,7 +65,7 @@ class SpaceAllocServerClientImplTest : public testing::Test {
     MockSpaceBaseClient mockspacebasecli_;
 
     MockSpaceAllocService mocspaceallocService_;
-    std::string addr_ = "127.0.0.1:5603";
+    std::string addr_ = "127.0.0.1:5703";
     brpc::Server server_;
 };
 

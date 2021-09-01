@@ -32,13 +32,14 @@ void MetaServerBaseClient::GetDentry(uint32_t fsId, uint64_t inodeid,
                                      brpc::Controller *cntl,
                                      brpc::Channel *channel) {
     GetDentryRequest request;
-    // TODO(lixiaocui): add partiton
-    request.set_poolid(0);
-    request.set_copysetid(0);
-    request.set_partitionid(0);
+    // TODO(@许超杰): delete it
     request.set_fsid(fsId);
     request.set_parentinodeid(inodeid);
     request.set_name(name);
+    request.set_copysetid(1);
+    request.set_poolid(1);
+    request.set_partitionid(1);
+    request.set_txid(1);
 
     curvefs::metaserver::MetaServerService_Stub stub(channel);
     stub.GetDentry(cntl, &request, response, nullptr);
@@ -50,14 +51,15 @@ void MetaServerBaseClient::ListDentry(uint32_t fsId, uint64_t inodeid,
                                       brpc::Controller *cntl,
                                       brpc::Channel *channel) {
     ListDentryRequest request;
-    // TODO(lixiaocui): add partiton
-    request.set_poolid(0);
-    request.set_copysetid(0);
-    request.set_partitionid(0);
+    request.set_copysetid(1);
+    request.set_poolid(1);
+    request.set_partitionid(1);
+    request.set_txid(1);
     request.set_fsid(fsId);
     request.set_dirinodeid(inodeid);
     request.set_last(last);
     request.set_count(count);
+
 
     curvefs::metaserver::MetaServerService_Stub stub(channel);
     stub.ListDentry(cntl, &request, response, nullptr);
@@ -68,15 +70,16 @@ void MetaServerBaseClient::CreateDentry(const Dentry &dentry,
                                         brpc::Controller *cntl,
                                         brpc::Channel *channel) {
     CreateDentryRequest request;
+    request.set_copysetid(1);
+    request.set_poolid(1);
+    request.set_partitionid(1);
     Dentry *d = new Dentry;
     d->set_fsid(dentry.fsid());
     d->set_inodeid(dentry.inodeid());
     d->set_parentinodeid(dentry.parentinodeid());
     d->set_name(dentry.name());
-    // TODO(lixiaocui): add partiton
-    request.set_poolid(0);
-    request.set_copysetid(0);
-    request.set_partitionid(0);
+    // TODO(@许超杰) delete it
+    d->set_txid(100);
     request.set_allocated_dentry(d);
     curvefs::metaserver::MetaServerService_Stub stub(channel);
     stub.CreateDentry(cntl, &request, response, nullptr);
@@ -88,10 +91,10 @@ void MetaServerBaseClient::DeleteDentry(uint32_t fsId, uint64_t inodeid,
                                         brpc::Controller *cntl,
                                         brpc::Channel *channel) {
     DeleteDentryRequest request;
-    // TODO(lixiaocui): add partiton
-    request.set_poolid(0);
-    request.set_copysetid(0);
-    request.set_partitionid(0);
+    request.set_copysetid(1);
+    request.set_poolid(1);
+    request.set_partitionid(1);
+    request.set_txid(1);
     request.set_fsid(fsId);
     request.set_parentinodeid(inodeid);
     request.set_name(name);
@@ -104,10 +107,9 @@ void MetaServerBaseClient::GetInode(uint32_t fsId, uint64_t inodeid,
                                     brpc::Controller *cntl,
                                     brpc::Channel *channel) {
     GetInodeRequest request;
-    // TODO(lixiaocui): add partiton
-    request.set_poolid(0);
-    request.set_copysetid(0);
-    request.set_partitionid(0);
+    request.set_copysetid(1);
+    request.set_poolid(1);
+    request.set_partitionid(1);
     request.set_fsid(fsId);
     request.set_inodeid(inodeid);
     curvefs::metaserver::MetaServerService_Stub stub(channel);
@@ -119,10 +121,9 @@ void MetaServerBaseClient::UpdateInode(const Inode &inode,
                                        brpc::Controller *cntl,
                                        brpc::Channel *channel) {
     UpdateInodeRequest request;
-    // TODO(lixiaocui): add partiton
-    request.set_poolid(0);
-    request.set_copysetid(0);
-    request.set_partitionid(0);
+    request.set_copysetid(1);
+    request.set_poolid(1);
+    request.set_partitionid(1);
     request.set_inodeid(inode.inodeid());
     request.set_fsid(inode.fsid());
     request.set_length(inode.length());
@@ -146,10 +147,9 @@ void MetaServerBaseClient::CreateInode(const InodeParam &param,
                                        brpc::Controller *cntl,
                                        brpc::Channel *channel) {
     CreateInodeRequest request;
-    // TODO(lixiaocui): add partiton
-    request.set_poolid(0);
-    request.set_copysetid(0);
-    request.set_partitionid(0);
+    request.set_copysetid(1);
+    request.set_poolid(1);
+    request.set_partitionid(1);
     request.set_fsid(param.fsId);
     request.set_length(param.length);
     request.set_uid(param.uid);
@@ -166,10 +166,9 @@ void MetaServerBaseClient::DeleteInode(uint32_t fsId, uint64_t inodeid,
                                        brpc::Controller *cntl,
                                        brpc::Channel *channel) {
     DeleteInodeRequest request;
-    // TODO(lixiaocui): add partiton
-    request.set_poolid(0);
-    request.set_copysetid(0);
-    request.set_partitionid(0);
+    request.set_copysetid(1);
+    request.set_poolid(1);
+    request.set_partitionid(1);
     request.set_fsid(fsId);
     request.set_inodeid(inodeid);
     curvefs::metaserver::MetaServerService_Stub stub(channel);
@@ -192,8 +191,8 @@ void MDSBaseClient::CreateFs(const std::string &fsName, uint64_t blockSize,
 }
 
 void MDSBaseClient::CreateFsS3(const std::string &fsName, uint64_t blockSize,
-                             const S3Info &s3Info, CreateFsResponse *response,
-                             brpc::Controller *cntl, brpc::Channel *channel) {
+                               const S3Info &s3Info, CreateFsResponse *response,
+                               brpc::Controller *cntl, brpc::Channel *channel) {
     CreateFsRequest request;
     request.set_fsname(fsName);
     request.set_blocksize(blockSize);

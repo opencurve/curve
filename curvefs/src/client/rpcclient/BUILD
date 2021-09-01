@@ -32,6 +32,8 @@ cc_library(
         "//curvefs/proto:mds_cc_proto",
         "//curvefs/proto:metaserver_cc_proto",
         "//curvefs/proto:space_cc_proto",
+        "//curvefs/proto:cli2_cc_proto",
+        "//curvefs/proto:curvefs_topology_cc_proto",
         "//curvefs/src/client/common:common",
         "//src/client:curve_client",
     ],

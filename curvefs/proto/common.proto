@@ -50,3 +50,13 @@ message PartitionInfo {
     required uint64 end = 6;
     optional uint64 nextId = 7;
 }
+
+message Peer {
+    optional uint64 id = 1;
+    optional string address = 2;
+}
+
+message CopysetInfo {
+    required uint32 logicalPoolId = 1;
+    required uint32 copysetId = 2;
+}

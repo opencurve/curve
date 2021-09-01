@@ -56,7 +56,7 @@ std::condition_variable interfacecv;
 DECLARE_uint64(test_disk_size);
 
 using curve::client::UserInfo_t;
-using curve::client::ChunkServerAddr;
+using curve::client::PeerAddr;
 using curve::client::EndPoint;
 using curve::client::SegmentInfo;
 using curve::client::ChunkInfoDetail;

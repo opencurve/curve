@@ -35,7 +35,7 @@
 #include "test/client/fake/fakeMDS.h"
 #include "src/client/client_common.h"
 
-using curve::client::ChunkServerAddr;
+using curve::client::PeerAddr;
 using curve::client::EndPoint;
 
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT

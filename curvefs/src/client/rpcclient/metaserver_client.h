@@ -32,18 +32,18 @@
 #include "curvefs/proto/space.pb.h"
 #include "curvefs/src/client/rpcclient/base_client.h"
 #include "curvefs/src/client/common/config.h"
+#include "curvefs/src/client/rpcclient/task_excutor.h"
 
+using ::curvefs::client::common::MetaServerOption;
 using ::curvefs::metaserver::Dentry;
 using ::curvefs::metaserver::FsFileType;
 using ::curvefs::metaserver::Inode;
-using ::curvefs::space::AllocateType;
 using ::curvefs::metaserver::MetaStatusCode;
-using ::curvefs::client::common::MetaServerOption;
+using ::curvefs::space::AllocateType;
 
 namespace curvefs {
 namespace client {
 namespace rpcclient {
-
 
 class MetaServerClient {
  public:
@@ -51,23 +51,20 @@ class MetaServerClient {
 
     virtual ~MetaServerClient() {}
 
-    virtual MetaStatusCode Init(const MetaServerOption &metaopt,
-                               MetaServerBaseClient *baseclient) = 0;
-
     virtual MetaStatusCode GetDentry(uint32_t fsId, uint64_t inodeid,
-                                    const std::string &name, Dentry *out) = 0;
+                                     const std::string &name, Dentry *out) = 0;
 
     virtual MetaStatusCode ListDentry(uint32_t fsId, uint64_t inodeid,
-                                     const std::string &last, uint32_t count,
-                                     std::list<Dentry> *dentryList) = 0;
+                                      const std::string &last, uint32_t count,
+                                      std::list<Dentry> *dentryList) = 0;
 
     virtual MetaStatusCode CreateDentry(const Dentry &dentry) = 0;
 
     virtual MetaStatusCode DeleteDentry(uint32_t fsId, uint64_t inodeid,
-                                       const std::string &name) = 0;
+                                        const std::string &name) = 0;
 
     virtual MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
-                                   Inode *out) = 0;
+                                    Inode *out) = 0;
 
     virtual MetaStatusCode UpdateInode(const Inode &inode) = 0;
 
@@ -81,29 +78,39 @@ class MetaServerClientImpl : public MetaServerClient {
  public:
     MetaServerClientImpl() {}
 
-    MetaStatusCode Init(const MetaServerOption &metaopt,
-                       MetaServerBaseClient *baseclient) override;
+    MetaStatusCode
+    Init(const ExcutorOpt &excutorOpt, std::shared_ptr<MetaCache> metaCache,
+         std::shared_ptr<ChannelManager<MetaserverID>> channelManager);
 
     MetaStatusCode GetDentry(uint32_t fsId, uint64_t inodeid,
-                            const std::string &name, Dentry *out) override;
+                             const std::string &name, Dentry *out) override;
 
     MetaStatusCode ListDentry(uint32_t fsId, uint64_t inodeid,
-                             const std::string &last, uint32_t count,
-                             std::list<Dentry> *dentryList) override;
+                              const std::string &last, uint32_t count,
+                              std::list<Dentry> *dentryList) override;
 
     MetaStatusCode CreateDentry(const Dentry &dentry) override;
 
     MetaStatusCode DeleteDentry(uint32_t fsId, uint64_t inodeid,
-                               const std::string &name) override;
+                                const std::string &name) override;
 
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
-                           Inode *out) override;
+                            Inode *out) override;
 
     MetaStatusCode UpdateInode(const Inode &inode) override;
 
     MetaStatusCode CreateInode(const InodeParam &param, Inode *out) override;
 
     MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeid) override;
+
+ private:
+    MetaStatusCode ReturnError(int retcode);
+
+ private:
+    ExcutorOpt opt_;
+
+    std::shared_ptr<MetaCache> metaCache_;
+    std::shared_ptr<ChannelManager<MetaserverID>> channelManager_;
 };
 }  // namespace rpcclient
 }  // namespace client

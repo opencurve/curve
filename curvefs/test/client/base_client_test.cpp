@@ -76,7 +76,7 @@ class BaseClientTest : public testing::Test {
     MDSBaseClient mdsbasecli_;
     SpaceBaseClient spacebasecli_;
 
-    std::string addr_ = "127.0.0.1:5600";
+    std::string addr_ = "127.0.0.1:5700";
     brpc::Server server_;
 };
 
@@ -96,6 +96,7 @@ TEST_F(BaseClientTest, test_GetDentry) {
     d->set_inodeid(inodeid);
     d->set_parentinodeid(1);
     d->set_name(name);
+    d->set_txid(100);
     response.set_allocated_dentry(d);
     response.set_statuscode(curvefs::metaserver::OK);
     EXPECT_CALL(mockMetaServerService_, GetDentry(_, _, _, _))
@@ -129,6 +130,7 @@ TEST_F(BaseClientTest, test_ListDentry) {
     d->set_inodeid(inodeid);
     d->set_parentinodeid(1);
     d->set_name("test11");
+    d->set_txid(100);
     response.set_statuscode(curvefs::metaserver::OK);
     EXPECT_CALL(mockMetaServerService_, ListDentry(_, _, _, _))
         .WillOnce(
@@ -144,19 +146,18 @@ TEST_F(BaseClientTest, test_ListDentry) {
         << response.ShortDebugString();
 }
 
-
 TEST_F(BaseClientTest, test_CreateDentry) {
     Dentry d;
     d.set_fsid(1);
     d.set_inodeid(2);
     d.set_parentinodeid(1);
     d.set_name("test11");
+    d.set_txid(100);
     CreateDentryResponse resp;
     brpc::Controller cntl;
     cntl.set_timeout_ms(1000);
     brpc::Channel ch;
     ASSERT_EQ(0, ch.Init(addr_.c_str(), nullptr));
-
 
     curvefs::metaserver::CreateDentryResponse response;
     response.set_statuscode(curvefs::metaserver::PARAM_ERROR);
@@ -166,6 +167,7 @@ TEST_F(BaseClientTest, test_CreateDentry) {
             Invoke(RpcService<CreateDentryRequest, CreateDentryResponse>)));
 
     msbasecli_.CreateDentry(d, &resp, &cntl, &ch);
+
     ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
     ASSERT_TRUE(
         google::protobuf::util::MessageDifferencer::Equals(resp, response))

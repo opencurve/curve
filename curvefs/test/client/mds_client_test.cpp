@@ -61,7 +61,7 @@ class MdsClientImplTest : public testing::Test {
     MockMDSBaseClient mockmdsbasecli_;
 
     MockMdsService mockMdsService_;
-    std::string addr_ = "127.0.0.1:5602";
+    std::string addr_ = "127.0.0.1:5702";
     brpc::Server server_;
 };
 

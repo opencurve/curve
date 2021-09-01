@@ -61,7 +61,7 @@ class MetaServerClientImplTest : public testing::Test {
     MockMetaServerBaseClient mockmsbasecli_;
 
     MockMetaServerService mockMetaServerService_;
-    std::string addr_ = "127.0.0.1:5601";
+    std::string addr_ = "127.0.0.1:5701";
     brpc::Server server_;
 };
 

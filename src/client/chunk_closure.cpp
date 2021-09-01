@@ -588,7 +588,7 @@ void RecoverChunkClosure::SendRetryRequest() {
 
 int ClientClosure::UpdateLeaderWithRedirectInfo(const std::string& leaderInfo) {
     ChunkServerID leaderId = 0;
-    ChunkServerAddr leaderAddr;
+    PeerAddr leaderAddr;
 
     int ret = leaderAddr.Parse(leaderInfo);
     if (ret != 0) {

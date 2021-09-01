@@ -58,13 +58,13 @@ std::condition_variable writeinterfacecv;
 std::mutex interfacemtx;
 std::condition_variable interfacecv;
 
-void writecallbacktest(CurveAioContext* context) {
+void writecallbacktest(CurveAioContext *context) {
     writeflag = true;
     writeinterfacecv.notify_one();
     LOG(INFO) << "aio call back here, errorcode = " << context->ret;
 }
 
-void readcallbacktest(CurveAioContext* context) {
+void readcallbacktest(CurveAioContext *context) {
     readflag = true;
     interfacecv.notify_one();
     LOG(INFO) << "aio call back here, errorcode = " << context->ret;
@@ -72,7 +72,7 @@ void readcallbacktest(CurveAioContext* context) {
 
 TEST(TestLibcurveInterface, InterfaceTest) {
     FLAGS_chunkserver_list =
-         "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
+        "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
 
     std::string filename = "/1_userinfo_";
     C_UserInfo_t userinfo;
@@ -119,7 +119,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
 
     ASSERT_NE(fd, -1);
 
-    char* buffer = new char[8 * 1024];
+    char *buffer = new char[8 * 1024];
     memset(buffer, 'a', 1024);
     memset(buffer + 1024, 'b', 1024);
     memset(buffer + 2 * 1024, 'c', 1024);
@@ -138,15 +138,15 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     AioWrite(fd, &writeaioctx);
     {
         std::unique_lock<std::mutex> lk(writeinterfacemtx);
-        writeinterfacecv.wait(lk, []()->bool{return writeflag;});
+        writeinterfacecv.wait(lk, []() -> bool { return writeflag; });
     }
     writeflag = false;
     AioWrite(fd, &writeaioctx);
     {
         std::unique_lock<std::mutex> lk(writeinterfacemtx);
-        writeinterfacecv.wait(lk, []()->bool{return writeflag;});
+        writeinterfacecv.wait(lk, []() -> bool { return writeflag; });
     }
-    char* readbuffer = new char[8 * 1024];
+    char *readbuffer = new char[8 * 1024];
     CurveAioContext readaioctx;
     readaioctx.buf = readbuffer;
     readaioctx.offset = 0;
@@ -155,18 +155,18 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     AioRead(fd, &readaioctx);
     {
         std::unique_lock<std::mutex> lk(interfacemtx);
-        interfacecv.wait(lk, []()->bool{return readflag;});
+        interfacecv.wait(lk, []() -> bool { return readflag; });
     }
 
     for (int i = 0; i < 1024; i++) {
         ASSERT_EQ(readbuffer[i], 'a');
-        ASSERT_EQ(readbuffer[i +  1024], 'b');
-        ASSERT_EQ(readbuffer[i +  2 * 1024], 'c');
-        ASSERT_EQ(readbuffer[i +  3 * 1024], 'd');
-        ASSERT_EQ(readbuffer[i +  4 * 1024], 'e');
-        ASSERT_EQ(readbuffer[i +  5 * 1024], 'f');
-        ASSERT_EQ(readbuffer[i +  6 * 1024], 'g');
-        ASSERT_EQ(readbuffer[i +  7 * 1024], 'h');
+        ASSERT_EQ(readbuffer[i + 1024], 'b');
+        ASSERT_EQ(readbuffer[i + 2 * 1024], 'c');
+        ASSERT_EQ(readbuffer[i + 3 * 1024], 'd');
+        ASSERT_EQ(readbuffer[i + 4 * 1024], 'e');
+        ASSERT_EQ(readbuffer[i + 5 * 1024], 'f');
+        ASSERT_EQ(readbuffer[i + 6 * 1024], 'g');
+        ASSERT_EQ(readbuffer[i + 7 * 1024], 'h');
     }
 
     mds.EnableNetUnstable(400);
@@ -189,13 +189,13 @@ TEST(TestLibcurveInterface, InterfaceTest) {
 
         for (int i = 0; i < 1024; i++) {
             ASSERT_EQ(readbuffer[i], 'i');
-            ASSERT_EQ(readbuffer[i +  1024], 'j');
-            ASSERT_EQ(readbuffer[i +  2 * 1024], 'k');
-            ASSERT_EQ(readbuffer[i +  3 * 1024], 'l');
-            ASSERT_EQ(readbuffer[i +  4 * 1024], 'm');
-            ASSERT_EQ(readbuffer[i +  5 * 1024], 'n');
-            ASSERT_EQ(readbuffer[i +  6 * 1024], 'o');
-            ASSERT_EQ(readbuffer[i +  7 * 1024], 'p');
+            ASSERT_EQ(readbuffer[i + 1024], 'j');
+            ASSERT_EQ(readbuffer[i + 2 * 1024], 'k');
+            ASSERT_EQ(readbuffer[i + 3 * 1024], 'l');
+            ASSERT_EQ(readbuffer[i + 4 * 1024], 'm');
+            ASSERT_EQ(readbuffer[i + 5 * 1024], 'n');
+            ASSERT_EQ(readbuffer[i + 6 * 1024], 'o');
+            ASSERT_EQ(readbuffer[i + 7 * 1024], 'p');
         }
         count++;
         std::this_thread::sleep_for(std::chrono::milliseconds(400));
@@ -227,7 +227,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
 TEST(TestLibcurveInterface, FileClientTest) {
     fiu_init(0);
     FLAGS_chunkserver_list =
-         "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
+        "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
 
     std::string filename = "/1";
     UserInfo_t userinfo;
@@ -270,7 +270,7 @@ TEST(TestLibcurveInterface, FileClientTest) {
 
     fiu_enable("test/client/fake/fakeMDS.GetOrAllocateSegment", 1, nullptr, 0);
 
-    char* buffer = new char[8 * 1024];
+    char *buffer = new char[8 * 1024];
     memset(buffer, 'a', 1024);
     memset(buffer + 1024, 'b', 1024);
     memset(buffer + 2 * 1024, 'c', 1024);
@@ -292,9 +292,9 @@ TEST(TestLibcurveInterface, FileClientTest) {
     ASSERT_EQ(0, fc.AioWrite(fd2, &writeaioctx));
     {
         std::unique_lock<std::mutex> lk(writeinterfacemtx);
-        writeinterfacecv.wait(lk, []()->bool{return writeflag;});
+        writeinterfacecv.wait(lk, []() -> bool { return writeflag; });
     }
-    char* readbuffer = new char[8 * 1024];
+    char *readbuffer = new char[8 * 1024];
     CurveAioContext readaioctx;
     readaioctx.buf = readbuffer;
     readaioctx.offset = 0;
@@ -305,18 +305,18 @@ TEST(TestLibcurveInterface, FileClientTest) {
     fc.AioRead(fd, &readaioctx);
     {
         std::unique_lock<std::mutex> lk(interfacemtx);
-        interfacecv.wait(lk, []()->bool{return readflag;});
+        interfacecv.wait(lk, []() -> bool { return readflag; });
     }
 
     for (int i = 0; i < 1024; i++) {
         ASSERT_EQ(readbuffer[i], 'a');
-        ASSERT_EQ(readbuffer[i +  1024], 'b');
-        ASSERT_EQ(readbuffer[i +  2 * 1024], 'c');
-        ASSERT_EQ(readbuffer[i +  3 * 1024], 'd');
-        ASSERT_EQ(readbuffer[i +  4 * 1024], 'e');
-        ASSERT_EQ(readbuffer[i +  5 * 1024], 'f');
-        ASSERT_EQ(readbuffer[i +  6 * 1024], 'g');
-        ASSERT_EQ(readbuffer[i +  7 * 1024], 'h');
+        ASSERT_EQ(readbuffer[i + 1024], 'b');
+        ASSERT_EQ(readbuffer[i + 2 * 1024], 'c');
+        ASSERT_EQ(readbuffer[i + 3 * 1024], 'd');
+        ASSERT_EQ(readbuffer[i + 4 * 1024], 'e');
+        ASSERT_EQ(readbuffer[i + 5 * 1024], 'f');
+        ASSERT_EQ(readbuffer[i + 6 * 1024], 'g');
+        ASSERT_EQ(readbuffer[i + 7 * 1024], 'h');
     }
 
     fc.Close(fd);
@@ -426,7 +426,8 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     // 设置rpc失败，会导致client将该chunkserverid上的leader copyset都标记为
     // leadermaychange
     chunkservice[0]->SetRPCFailed();
-    // 现在写第二个chunk，第二个chunk与第一个chunk不在同一个copyset里，这次读写失败
+    //
+现在写第二个chunk，第二个chunk与第一个chunk不在同一个copyset里，这次读写失败
     ASSERT_EQ(-2, fileinstance_.Write(buffer, 1 * chunk_size, length));
     ASSERT_EQ(-2, fileinstance_.Read(buffer, 1 * chunk_size, length));
     // 获取第2个chunk的chunkid信息
@@ -504,7 +505,7 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     // copyset id = 888， chunkserver id = 100 101 102
     // copyset id = 999， chunkserver id = 102 103 104
     CopysetPeerInfo csinfo1;
-    ChunkServerAddr addr;
+    PeerAddr addr;
     csinfo1.cpid_ = 888;
     curve::client::CopysetPeerInfo peer1(100, addr);
     csinfo1.csinfos_.push_back(peer1);
@@ -600,8 +601,8 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     ASSERT_EQ(0, Init(configpath.c_str()));
 
 
-    char* buffer = new char[8 * 1024];
-    memset(buffer, 'a', 8*1024);
+    char *buffer = new char[8 * 1024];
+    memset(buffer, 'a', 8 * 1024);
 
     // not aligned test
     CurveAioContext ctx;
@@ -612,7 +613,7 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, AioWrite(1234, &ctx));
     ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, AioRead(1234, &ctx));
     ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, Write(1234, buffer, 1, 4096));
-    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, Read(1234, buffer, 4096 , 123));
+    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, Read(1234, buffer, 4096, 123));
 
     CurveAioContext writeaioctx;
     writeaioctx.buf = buffer;
@@ -624,7 +625,7 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     ASSERT_EQ(-LIBCURVE_ERROR::BAD_FD, AioWrite(1234, &writeaioctx));
 
     // aioread not opened file
-    char* readbuffer = new char[8 * 1024];
+    char *readbuffer = new char[8 * 1024];
     CurveAioContext readaioctx;
     readaioctx.buf = readbuffer;
     readaioctx.offset = 0;
@@ -636,11 +637,10 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     uint64_t length = 8 * 1024;
 
     // write not opened file
-    ASSERT_EQ(-1 * LIBCURVE_ERROR::BAD_FD,
-                Write(1234, buffer, offset, length));
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::BAD_FD, Write(1234, buffer, offset, length));
     // read not opened file
-    ASSERT_EQ(-1 * LIBCURVE_ERROR::BAD_FD, Read(1234,
-                readbuffer, offset, length));
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::BAD_FD,
+              Read(1234, readbuffer, offset, length));
 
     delete[] buffer;
     delete[] readbuffer;
@@ -654,15 +654,15 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     UserInfo_t userinfo;
     std::shared_ptr<MDSClient> mdsclient_ = std::make_shared<MDSClient>();
     FileServiceOption fopt;
-    FileInstance    fileinstance_;
+    FileInstance fileinstance_;
 
     FLAGS_chunkserver_list =
-         "127.0.0.1:9151:0,127.0.0.1:9152:0,127.0.0.1:9153:0";
+        "127.0.0.1:9151:0,127.0.0.1:9152:0,127.0.0.1:9153:0";
 
     userinfo.owner = "userinfo";
     userinfo.password = "UnstableChunkserverTest";
-    fopt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9104");
-    fopt.metaServerOpt.mdsRPCTimeoutMs = 500;
+    fopt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
+    fopt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
     fopt.loginfo.logLevel = 0;
     fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
     fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
@@ -675,7 +675,8 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
     fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
-    fopt.ioOpt.metaCacheOpt.chunkserverUnstableOption.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
+    fopt.ioOpt.metaCacheOpt.chunkserverUnstableOption
+        .maxStableChunkServerTimeoutTimes = 10;  // NOLINT
 
     LOG(INFO) << "fopt size " << sizeof(fopt);
     // curve::client::ClientClosure::SetFailureRequestOption(
@@ -683,8 +684,8 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     LOG(INFO) << "here";
 
     mdsclient_->Initialize(fopt.metaServerOpt);
-    fileinstance_.Initialize(
-        "/UnstableChunkserverTest", mdsclient_, userinfo, fopt);
+    fileinstance_.Initialize("/UnstableChunkserverTest", mdsclient_, userinfo,
+                             fopt);
 
     // 设置leaderid
     EndPoint ep;
@@ -701,14 +702,14 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     int fd = fileinstance_.Open(filename.c_str(), userinfo);
 
-    MetaCache* mc = fileinstance_.GetIOManager4File()->GetMetaCache();
+    MetaCache *mc = fileinstance_.GetIOManager4File()->GetMetaCache();
 
     ASSERT_NE(fd, -1);
 
-    CliServiceFake* cliservice = mds.GetCliService();
-    std::vector<FakeChunkService*> chunkservice = mds.GetFakeChunkService();
+    CliServiceFake *cliservice = mds.GetCliService();
+    std::vector<FakeChunkService *> chunkservice = mds.GetFakeChunkService();
 
-    char* buffer = new char[8 * 1024];
+    char *buffer = new char[8 * 1024];
     uint64_t offset = 0;
     uint64_t length = 8 * 1024;
 
@@ -729,7 +730,8 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     MetaCacheErrorType rc = mc->GetChunkInfoByIndex(0, &chunkinfo1);
     ASSERT_EQ(rc, MetaCacheErrorType::OK);
     for (int i = 0; i < FLAGS_copyset_num; i++) {
-        CopysetInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        CopysetInfo<ChunkServerID> ci =
+            mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo1.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
             ASSERT_FALSE(ci.LeaderMayChange());
@@ -759,7 +761,8 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     ASSERT_EQ(rc, MetaCacheErrorType::OK);
     ASSERT_NE(chunkinfo2.cpid_, chunkinfo1.cpid_);
     for (int i = 0; i < FLAGS_copyset_num; ++i) {
-        CopysetInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        CopysetInfo<ChunkServerID> ci =
+            mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo1.cpid_ || i == chunkinfo2.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
             ASSERT_TRUE(ci.LeaderMayChange());
@@ -789,7 +792,8 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     ASSERT_EQ(8192, fileinstance_.Write(buffer, 1 * chunk_size, length));
     ASSERT_EQ(8192, fileinstance_.Read(buffer, 1 * chunk_size, length));
     for (int i = 0; i < FLAGS_copyset_num; ++i) {
-        CopysetInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        CopysetInfo<ChunkServerID> ci =
+            mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo2.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
             ASSERT_FALSE(ci.LeaderMayChange());
@@ -817,7 +821,8 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     ASSERT_EQ(8192, fileinstance_.Read(buffer, 1 * chunk_size, length));
 
     for (int i = 0; i < FLAGS_copyset_num; ++i) {
-        CopysetInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        CopysetInfo<ChunkServerID> ci =
+            mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo2.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
             ASSERT_FALSE(ci.LeaderMayChange());
@@ -842,15 +847,15 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     UserInfo_t userinfo;
     std::shared_ptr<MDSClient> mdsclient_ = std::make_shared<MDSClient>();
     FileServiceOption fopt;
-    FileInstance    fileinstance_;
+    FileInstance fileinstance_;
 
     FLAGS_chunkserver_list =
-         "127.0.0.1:9151:0,127.0.0.1:9152:0,127.0.0.1:9153:0";
+        "127.0.0.1:9151:0,127.0.0.1:9152:0,127.0.0.1:9153:0";
 
     userinfo.owner = "userinfo";
     userinfo.password = "ResumeTimeoutBackoff";
-    fopt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9104");
-    fopt.metaServerOpt.mdsRPCTimeoutMs = 500;
+    fopt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
+    fopt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
     fopt.loginfo.logLevel = 0;
     fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
     fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
@@ -864,11 +869,12 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
     fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
-    fopt.ioOpt.metaCacheOpt.chunkserverUnstableOption.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
+    fopt.ioOpt.metaCacheOpt.chunkserverUnstableOption
+        .maxStableChunkServerTimeoutTimes = 10;  // NOLINT
 
     mdsclient_->Initialize(fopt.metaServerOpt);
-    fileinstance_.Initialize(
-        "/ResumeTimeoutBackoff", mdsclient_, userinfo, fopt);
+    fileinstance_.Initialize("/ResumeTimeoutBackoff", mdsclient_, userinfo,
+                             fopt);
 
     // 设置leaderid
     EndPoint ep;
@@ -885,14 +891,14 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     int fd = fileinstance_.Open(filename.c_str(), userinfo);
 
-    MetaCache* mc = fileinstance_.GetIOManager4File()->GetMetaCache();
+    MetaCache *mc = fileinstance_.GetIOManager4File()->GetMetaCache();
 
     ASSERT_NE(fd, -1);
 
-    CliServiceFake* cliservice = mds.GetCliService();
-    std::vector<FakeChunkService*> chunkservice = mds.GetFakeChunkService();
+    CliServiceFake *cliservice = mds.GetCliService();
+    std::vector<FakeChunkService *> chunkservice = mds.GetFakeChunkService();
 
-    char* buffer = new char[8 * 1024];
+    char *buffer = new char[8 * 1024];
     uint64_t offset = 0;
     uint64_t length = 8 * 1024;
 
@@ -913,7 +919,8 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     MetaCacheErrorType rc = mc->GetChunkInfoByIndex(0, &chunkinfo1);
     ASSERT_EQ(rc, MetaCacheErrorType::OK);
     for (int i = 0; i < FLAGS_copyset_num; i++) {
-        CopysetInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        CopysetInfo<ChunkServerID> ci =
+            mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo1.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
             ASSERT_FALSE(ci.LeaderMayChange());
@@ -950,7 +957,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
 
 TEST(TestLibcurveInterface, InterfaceStripeTest) {
     FLAGS_chunkserver_list =
-         "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
+        "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
 
     std::string filename = "/1";
     std::string filename2 = "/2";
@@ -977,20 +984,20 @@ TEST(TestLibcurveInterface, InterfaceStripeTest) {
     service = mds.GetMDSService();
     ::curve::mds::CreateFileResponse response;
     response.set_statuscode(::curve::mds::StatusCode::kOK);
-    FakeReturn* fakeret
-     = new FakeReturn(nullptr, static_cast<void*>(&response));
+    FakeReturn *fakeret =
+        new FakeReturn(nullptr, static_cast<void *>(&response));
     service->SetCreateFileFakeReturn(fakeret);
     int ret = fc.Create2(filename, userinfo, size, 0, 0);
     ASSERT_EQ(LIBCURVE_ERROR::OK, ret);
 
     response.set_statuscode(::curve::mds::StatusCode::kFileExists);
-    fakeret = new FakeReturn(nullptr, static_cast<void*>(&response));
+    fakeret = new FakeReturn(nullptr, static_cast<void *>(&response));
     service->SetCreateFileFakeReturn(fakeret);
-    ret = fc.Create2(filename2, userinfo, size, 1024*1024, 4);
+    ret = fc.Create2(filename2, userinfo, size, 1024 * 1024, 4);
     ASSERT_EQ(LIBCURVE_ERROR::EXISTS, -ret);
 
     FileStatInfo_t fsinfo;
-    ::curve::mds::FileInfo * info = new curve::mds::FileInfo;
+    ::curve::mds::FileInfo *info = new curve::mds::FileInfo;
     ::curve::mds::GetFileInfoResponse getinforesponse;
     info->set_filename(filename2);
     info->set_id(1);
@@ -1000,15 +1007,15 @@ TEST(TestLibcurveInterface, InterfaceStripeTest) {
     info->set_length(4 * 1024 * 1024 * 1024ul);
     info->set_ctime(12345678);
     info->set_segmentsize(1 * 1024 * 1024 * 1024ul);
-    info->set_stripeunit(1024*1024);
+    info->set_stripeunit(1024 * 1024);
     info->set_stripecount(4);
     getinforesponse.set_allocated_fileinfo(info);
     getinforesponse.set_statuscode(::curve::mds::StatusCode::kOK);
-    FakeReturn* fakegetinfo =
-        new FakeReturn(nullptr, static_cast<void*>(&getinforesponse));
+    FakeReturn *fakegetinfo =
+        new FakeReturn(nullptr, static_cast<void *>(&getinforesponse));
     service->SetGetFileInfoFakeReturn(fakegetinfo);
     ret = fc.StatFile(filename2, userinfo, &fsinfo);
-    ASSERT_EQ(1024*1024, fsinfo.stripeUnit);
+    ASSERT_EQ(1024 * 1024, fsinfo.stripeUnit);
     ASSERT_EQ(4, fsinfo.stripeCount);
     mds.UnInitialize();
     fc.UnInit();

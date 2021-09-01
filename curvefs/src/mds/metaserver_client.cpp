@@ -26,8 +26,8 @@ using curvefs::metaserver::CreateRootInodeRequest;
 using curvefs::metaserver::CreateRootInodeResponse;
 using curvefs::metaserver::DeleteInodeRequest;
 using curvefs::metaserver::DeleteInodeResponse;
-using curvefs::metaserver::MetaStatusCode;
 using curvefs::metaserver::MetaServerService_Stub;
+using curvefs::metaserver::MetaStatusCode;
 
 namespace curvefs {
 namespace mds {
@@ -42,9 +42,7 @@ bool MetaserverClient::Init() {
     return true;
 }
 
-void MetaserverClient::Uninit() {
-    inited_ = false;
-}
+void MetaserverClient::Uninit() { inited_ = false; }
 
 FSStatusCode MetaserverClient::CreateRootInode(uint32_t fsId, uint32_t uid,
                                                uint32_t gid, uint32_t mode) {
@@ -68,6 +66,10 @@ FSStatusCode MetaserverClient::CreateRootInode(uint32_t fsId, uint32_t uid,
     request.set_uid(uid);
     request.set_gid(gid);
     request.set_mode(mode);
+    // TODO(@威姐): 适配新的proto
+    request.set_copysetid(1);
+    request.set_poolid(1);
+    request.set_partitionid(1);
 
     stub.CreateRootInode(&cntl, &request, &response, nullptr);
 
@@ -112,6 +114,10 @@ FSStatusCode MetaserverClient::DeleteInode(uint32_t fsId, uint64_t inodeId) {
     request.set_partitionid(0);
     request.set_fsid(fsId);
     request.set_inodeid(inodeId);
+    // TODO(@威姐): 适配新的proto
+    request.set_copysetid(1);
+    request.set_poolid(1);
+    request.set_partitionid(1);
 
     stub.DeleteInode(&cntl, &request, &response, nullptr);
 
