@@ -49,6 +49,8 @@ message GetDentryRequest {
     required uint32 fsId = 4;
     required uint64 parentInodeId = 5;
     required string name = 6;
+    required uint64 txId = 7;
+    optional uint64 appliedIndex = 8;
 }
 
 message Dentry {
@@ -56,11 +58,13 @@ message Dentry {
     required uint64 inodeId = 2;
     required uint64 parentInodeId = 3;
     required string name = 4;
+    required uint64 txId = 5;
 }
 
 message GetDentryResponse {
     required MetaStatusCode statusCode = 1;
     optional Dentry dentry = 2;
+    optional uint64 appliedIndex = 3;
 }
 
 message ListDentryRequest {
@@ -69,13 +73,15 @@ message ListDentryRequest {
     required uint32 partitionId = 3;
     required uint32 fsId = 4;
     required uint64 dirInodeId = 5;
-    optional string last = 6;     // the name of last entry
-    optional uint32 count = 7;    // the number of entry required
+    required uint64 txId = 6;
+    optional string last = 7;     // the name of last entry
+    optional uint32 count = 8;    // the number of entry required
 }
 
 message ListDentryResponse {
     required MetaStatusCode statusCode = 1;
     repeated Dentry dentrys = 2;
+    optional uint64 appliedIndex = 3;
 }
 
 message CreateDentryRequest {
@@ -87,6 +93,7 @@ message CreateDentryRequest {
 
 message CreateDentryResponse {
     required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
 }
 
 message DeleteDentryRequest {
@@ -94,12 +101,14 @@ message DeleteDentryRequest {
     required uint32 copysetId = 2;
     required uint32 partitionId = 3;
     required uint32 fsId = 4;
-    required uint64 parentInodeId = 5;
-    required string name = 6;
+    required uint64 txId = 5;
+    required uint64 parentInodeId = 6;
+    required string name = 7;
 }
 
 message DeleteDentryResponse {
     required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
 }
 
 // inode interface
@@ -109,6 +118,15 @@ message GetInodeRequest {
     required uint32 partitionId = 3;
     required uint32 fsId = 4;
     required uint64 inodeId = 5;
+    optional uint64 appliedIndex = 7;
+}
+
+message PrepareRenameTxRequest {
+    repeated Dentry dentrys = 1;
+}
+
+message PrepareRenameTxResponse {
+    required MetaStatusCode statusCode = 1;
 }
 
 enum FsFileType {
@@ -165,6 +183,7 @@ message Inode {
 message GetInodeResponse {
     required MetaStatusCode statusCode = 1;
     optional Inode inode = 2;
+    optional uint64 appliedIndex = 3;
 }
 
 message CreateInodeRequest {
@@ -183,6 +202,7 @@ message CreateInodeRequest {
 message CreateInodeResponse {
     required MetaStatusCode statusCode = 1;
     optional Inode inode = 2;
+    optional uint64 appliedIndex = 3;
 }
 
 message CreateRootInodeRequest {
@@ -197,6 +217,7 @@ message CreateRootInodeRequest {
 
 message CreateRootInodeResponse {
     required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
 }
 
 message UpdateInodeRequest {
@@ -218,6 +239,7 @@ message UpdateInodeRequest {
 
 message UpdateInodeResponse {
     required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
 }
 message DeleteInodeRequest {
     required uint32 poolId = 1;
@@ -229,19 +251,21 @@ message DeleteInodeRequest {
 
 message DeleteInodeResponse {
     required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
 }
 
 message UpdateInodeS3VersionRequest {
     required uint32 poolId = 1;
     required uint32 copysetId = 2;
     required uint32 partitionId = 3;
-    required uint64 inodeId = 4;
-    required uint32 fsId = 5;
+    required uint32 fsId = 4;
+    required uint64 inodeId = 5;
 }
 
 message UpdateInodeS3VersionResponse {
     required MetaStatusCode statusCode = 1;
     optional uint64 version = 2;
+    optional uint64 appliedIndex = 3;
 }
 
 message CreatePartitionRequest {
@@ -268,6 +292,7 @@ service MetaServerService {
     rpc ListDentry(ListDentryRequest) returns (ListDentryResponse);
     rpc CreateDentry(CreateDentryRequest) returns (CreateDentryResponse);
     rpc DeleteDentry(DeleteDentryRequest) returns (DeleteDentryResponse);
+    rpc PrepareRenameTx(PrepareRenameTxRequest) returns (PrepareRenameTxResponse);
 
     // inode interface
     rpc GetInode(GetInodeRequest) returns (GetInodeResponse);
@@ -283,4 +308,3 @@ service MetaServerService {
     rpc CreatePartition(CreatePartitionRequest) returns (CreatePartitionResponse);
     rpc DeletePartition(DeletePartitionRequest) returns (DeletePartitionResponse);
 }
-

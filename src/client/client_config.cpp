@@ -178,9 +178,9 @@ int ClientConfig::Init(const char* configpath) {
 
     std::vector<std::string> mdsAddr;
     common::SplitString(metaAddr, ",", &mdsAddr);
-    fileServiceOption_.metaServerOpt.mdsAddrs.assign(mdsAddr.begin(),
+    fileServiceOption_.metaServerOpt.rpcRetryOpt.addrs.assign(mdsAddr.begin(),
                                                         mdsAddr.end());
-    for (auto& addr : fileServiceOption_.metaServerOpt.mdsAddrs) {
+    for (auto& addr : fileServiceOption_.metaServerOpt.rpcRetryOpt.addrs) {
         if (!curve::common::NetCommon::CheckAddressValid(addr)) {
             LOG(ERROR) << "address valid!";
             return -1;
@@ -188,17 +188,17 @@ int ClientConfig::Init(const char* configpath) {
     }
 
     ret = conf_.GetUInt64Value("mds.rpcTimeoutMS",
-        &fileServiceOption_.metaServerOpt.mdsRPCTimeoutMs);
+        &fileServiceOption_.metaServerOpt.rpcRetryOpt.rpcTimeoutMs);
     LOG_IF(ERROR, ret == false) << "config no mds.rpcTimeoutMS info";
     RETURN_IF_FALSE(ret);
 
     ret = conf_.GetUInt32Value("mds.rpcRetryIntervalUS",
-        &fileServiceOption_.metaServerOpt.mdsRPCRetryIntervalUS);
+        &fileServiceOption_.metaServerOpt.rpcRetryOpt.rpcRetryIntervalUS);
     LOG_IF(ERROR, ret == false) << "config no mds.rpcRetryIntervalUS info";
     RETURN_IF_FALSE(ret);
 
     ret = conf_.GetUInt64Value("mds.maxRPCTimeoutMS",
-        &fileServiceOption_.metaServerOpt.mdsMaxRPCTimeoutMS);
+        &fileServiceOption_.metaServerOpt.rpcRetryOpt.maxRPCTimeoutMS);
     LOG_IF(ERROR, ret == false) << "config no mds.maxRPCTimeoutMS info";
     RETURN_IF_FALSE(ret);
 
@@ -207,19 +207,15 @@ int ClientConfig::Init(const char* configpath) {
     LOG_IF(WARNING, ret == false) << "config no mds.maxRetryMS info";
 
     ret = conf_.GetUInt32Value("mds.maxFailedTimesBeforeChangeMDS",
-        &fileServiceOption_.metaServerOpt.mdsMaxFailedTimesBeforeChangeMDS);
+        &fileServiceOption_.metaServerOpt.rpcRetryOpt.maxFailedTimesBeforeChangeAddr);  // NOLINT
     LOG_IF(ERROR, ret == false) << "config no mds.maxFailedTimesBeforeChangeMDS info";  // NOLINT
 
     ret = conf_.GetUInt64Value("mds.normalRetryTimesBeforeTriggerWait",
-        &fileServiceOption_.metaServerOpt.mdsNormalRetryTimesBeforeTriggerWait);
+        &fileServiceOption_.metaServerOpt.rpcRetryOpt.normalRetryTimesBeforeTriggerWait); // NOLINT 
     LOG_IF(ERROR, ret == false) << "config no mds.normalRetryTimesBeforeTriggerWait info";  // NOLINT
 
-    ret = conf_.GetUInt64Value("mds.maxRetryMsInIOPath",
-        &fileServiceOption_.metaServerOpt.mdsMaxRetryMsInIOPath);
-    LOG_IF(ERROR, ret == false) << "config no mds.maxRetryMsInIOPath info";
-
     ret = conf_.GetUInt64Value("mds.waitSleepMs",
-        &fileServiceOption_.metaServerOpt.mdsWaitSleepMs);
+        &fileServiceOption_.metaServerOpt.rpcRetryOpt.waitSleepMs);
     LOG_IF(ERROR, ret == false) << "config no mds.waitSleepMs info";
 
     ret = conf_.GetBoolValue("mds.registerToMDS",

@@ -186,6 +186,10 @@ int S3ClientAdaptorImpl::UpdateInodeS3Version(Inode *inode, uint64_t *version) {
     request.set_partitionid(0);
     request.set_inodeid(inode->inodeid());
     request.set_fsid(inode->fsid());
+    // TODO(@huyao) 适配新的proto
+    request.set_poolid(1);
+    request.set_copysetid(1);
+    request.set_partitionid(1);
     curvefs::metaserver::MetaServerService_Stub stub(&channel);
 
     stub.UpdateInodeS3Version(cntl, &request, &response, NULL);
@@ -230,6 +234,7 @@ CURVEFS_ERROR S3ClientAdaptorImpl::AllocS3ChunkId(uint32_t fsId,
     AllocateS3ChunkResponse response;
 
     request.set_fsid(fsId);
+
     curvefs::space::SpaceAllocService_Stub stub(&channel);
 
     stub.AllocateS3Chunk(cntl, &request, &response, NULL);

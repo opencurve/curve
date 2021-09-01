@@ -38,15 +38,15 @@
 namespace curve {
 namespace client {
 
-using ChunkID       = uint64_t;
-using CopysetID     = uint32_t;
-using LogicPoolID   = uint32_t;
+using ChunkID = uint64_t;
+using CopysetID = uint32_t;
+using LogicPoolID = uint32_t;
 using ChunkServerID = uint32_t;
-using ChunkIndex    = uint32_t;
-using SegmentIndex  = uint32_t;
+using ChunkIndex = uint32_t;
+using SegmentIndex = uint32_t;
 
-using EndPoint  = butil::EndPoint;
-using Status    = butil::Status;
+using EndPoint = butil::EndPoint;
+using Status = butil::Status;
 
 using IOManagerID = uint64_t;
 
@@ -80,9 +80,9 @@ enum class FileStatus {
 };
 
 typedef struct ChunkIDInfo {
-    ChunkID         cid_ = 0;
-    CopysetID       cpid_ = 0;
-    LogicPoolID     lpid_ = 0;
+    ChunkID cid_ = 0;
+    CopysetID cpid_ = 0;
+    LogicPoolID lpid_ = 0;
 
     bool chunkExist = true;
 
@@ -91,12 +91,10 @@ typedef struct ChunkIDInfo {
     ChunkIDInfo(ChunkID cid, LogicPoolID lpid, CopysetID cpid)
         : cid_(cid), cpid_(cpid), lpid_(lpid) {}
 
-    ChunkIDInfo(const ChunkIDInfo& chunkinfo) = default;
-    ChunkIDInfo& operator=(const ChunkIDInfo& chunkinfo) = default;
+    ChunkIDInfo(const ChunkIDInfo &chunkinfo) = default;
+    ChunkIDInfo &operator=(const ChunkIDInfo &chunkinfo) = default;
 
-    bool Valid() const {
-        return lpid_ > 0 && cpid_ > 0;
-    }
+    bool Valid() const { return lpid_ > 0 && cpid_ > 0; }
 } ChunkIDInfo_t;
 
 // 保存每个chunk对应的版本信息
@@ -138,9 +136,8 @@ struct CloneSourceInfo {
 
     CloneSourceInfo() = default;
 
-    CloneSourceInfo(const CloneSourceInfo& other)
-        : name(other.name),
-          length(other.length),
+    CloneSourceInfo(const CloneSourceInfo &other)
+        : name(other.name), length(other.length),
           segmentSize(other.segmentSize),
           allocatedSegmentOffsets(other.allocatedSegmentOffsets) {}
 
@@ -148,27 +145,27 @@ struct CloneSourceInfo {
 };
 
 typedef struct FInfo {
-    uint64_t        id;
-    uint64_t        parentid;
-    FileType        filetype;
-    uint32_t        chunksize;
-    uint32_t        segmentsize;
-    uint64_t        length;
-    uint64_t        ctime;
-    uint64_t        seqnum;
+    uint64_t id;
+    uint64_t parentid;
+    FileType filetype;
+    uint32_t chunksize;
+    uint32_t segmentsize;
+    uint64_t length;
+    uint64_t ctime;
+    uint64_t seqnum;
     // userinfo是当前操作这个文件的用户信息
-    UserInfo_t      userinfo;
+    UserInfo_t userinfo;
     // owner是当前文件所属信息
-    std::string     owner;
-    std::string     filename;
-    std::string     fullPathName;
-    FileStatus      filestatus;
+    std::string owner;
+    std::string filename;
+    std::string fullPathName;
+    FileStatus filestatus;
 
     CloneSourceInfo sourceInfo;
-    std::string     cloneSource;
-    uint64_t        cloneLength{0};
-    uint64_t        stripeUnit;
-    uint64_t        stripeCount;
+    std::string cloneSource;
+    uint64_t cloneLength{0};
+    uint64_t stripeUnit;
+    uint64_t stripeCount;
 
     common::ReadWriteThrottleParams throttleParams;
 
@@ -184,15 +181,15 @@ typedef struct FInfo {
     }
 } FInfo_t;
 
-// ChunkServerAddr 代表一个copyset group里的一个chunkserver节点
+// PeerAddr 代表一个copyset group里的一个chunkserver节点
 // 与braft中的PeerID对应
-struct ChunkServerAddr {
+struct PeerAddr {
     // 节点的地址信息
     EndPoint addr_;
 
-    ChunkServerAddr() = default;
-    explicit ChunkServerAddr(butil::EndPoint addr) : addr_(addr) {}
-    ChunkServerAddr(const ChunkServerAddr& csaddr) : addr_(csaddr.addr_) {}
+    PeerAddr() = default;
+    explicit PeerAddr(butil::EndPoint addr) : addr_(addr) {}
+    PeerAddr(const PeerAddr &peeraddr) : addr_(peeraddr.addr_) {}
 
     bool IsEmpty() const {
         return (addr_.ip == butil::IP_ANY && addr_.port == 0);
@@ -205,11 +202,11 @@ struct ChunkServerAddr {
     }
 
     // 从字符串中将地址信息解析出来
-    int Parse(const std::string& str) {
+    int Parse(const std::string &str) {
         int idx;
         char ip_str[64];
-        if (2 > sscanf(str.c_str(), "%[^:]%*[:]%d%*[:]%d", ip_str,
-                       &addr_.port, &idx)) {
+        if (2 > sscanf(str.c_str(), "%[^:]%*[:]%d%*[:]%d", ip_str, &addr_.port,
+                       &idx)) {
             Reset();
             return -1;
         }
@@ -225,17 +222,17 @@ struct ChunkServerAddr {
     // 在get leader调用中可以将该值直接传入request
     std::string ToString() const {
         char str[128];
-        snprintf(str, sizeof(str), "%s:%d",
-                 butil::endpoint2str(addr_).c_str(), 0);
+        snprintf(str, sizeof(str), "%s:%d", butil::endpoint2str(addr_).c_str(),
+                 0);
         return std::string(str);
     }
 
-    bool operator==(const ChunkServerAddr& other) const {
+    bool operator==(const PeerAddr &other) const {
         return addr_ == other.addr_;
     }
 };
 
-inline const char* OpTypeToString(OpType optype) {
+inline const char *OpTypeToString(OpType optype) {
     switch (optype) {
     case OpType::READ:
         return "Read";
@@ -265,10 +262,10 @@ struct ClusterContext {
 
 class SnapCloneClosure : public google::protobuf::Closure {
  public:
-    SnapCloneClosure():ret(-LIBCURVE_ERROR::FAILED) {}
+    SnapCloneClosure() : ret(-LIBCURVE_ERROR::FAILED) {}
 
-    void SetRetCode(int retCode) {ret = retCode;}
-    int GetRetCode() {return ret;}
+    void SetRetCode(int retCode) { ret = retCode; }
+    int GetRetCode() { return ret; }
 
  private:
     int ret;
@@ -276,34 +273,22 @@ class SnapCloneClosure : public google::protobuf::Closure {
 
 class ClientDummyServerInfo {
  public:
-    static ClientDummyServerInfo& GetInstance() {
+    static ClientDummyServerInfo &GetInstance() {
         static ClientDummyServerInfo clientInfo;
         return clientInfo;
     }
 
-    void SetIP(const std::string& ip) {
-        localIP_ = ip;
-    }
+    void SetIP(const std::string &ip) { localIP_ = ip; }
 
-    const std::string& GetIP() const {
-        return localIP_;
-    }
+    const std::string &GetIP() const { return localIP_; }
 
-    void SetPort(uint32_t port) {
-        localPort_ = port;
-    }
+    void SetPort(uint32_t port) { localPort_ = port; }
 
-    uint32_t GetPort() const {
-        return localPort_;
-    }
+    uint32_t GetPort() const { return localPort_; }
 
-    void SetRegister(bool registerFlag) {
-        register_ = registerFlag;
-    }
+    void SetRegister(bool registerFlag) { register_ = registerFlag; }
 
-    bool GetRegister() const {
-        return register_;
-    }
+    bool GetRegister() const { return register_; }
 
  private:
     ClientDummyServerInfo() = default;
@@ -314,24 +299,24 @@ class ClientDummyServerInfo {
     bool register_ = false;
 };
 
-inline void TrivialDeleter(void* ptr) {}
+inline void TrivialDeleter(void *ptr) {}
 
-inline const char* FileStatusToName(FileStatus status) {
+inline const char *FileStatusToName(FileStatus status) {
     switch (status) {
-        case FileStatus::Created:
-            return "Created";
-        case FileStatus::Deleting:
-            return "Deleting";
-        case FileStatus::Cloning:
-            return "Cloning";
-        case FileStatus::CloneMetaInstalled:
-            return "CloneMetaInstalled";
-        case FileStatus::Cloned:
-            return "Cloned";
-        case FileStatus::BeingCloned:
-            return "BeingCloned";
-        default:
-            return "Unknown";
+    case FileStatus::Created:
+        return "Created";
+    case FileStatus::Deleting:
+        return "Deleting";
+    case FileStatus::Cloning:
+        return "Cloning";
+    case FileStatus::CloneMetaInstalled:
+        return "CloneMetaInstalled";
+    case FileStatus::Cloned:
+        return "Cloned";
+    case FileStatus::BeingCloned:
+        return "BeingCloned";
+    default:
+        return "Unknown";
     }
 }
 
@@ -344,7 +329,7 @@ inline bool CloneSourceInfo::IsSegmentAllocated(uint64_t offset) const {
     return allocatedSegmentOffsets.count(segmentOffset) != 0;
 }
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve
 
 #endif  // SRC_CLIENT_CLIENT_COMMON_H_

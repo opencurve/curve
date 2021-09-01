@@ -26,14 +26,14 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-using ::testing::AtLeast;
-using ::testing::StrEq;
 using ::testing::_;
+using ::testing::AtLeast;
+using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::ReturnArg;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
 using ::testing::SaveArg;
+using ::testing::SetArgPointee;
+using ::testing::StrEq;
 
 namespace curvefs {
 namespace metaserver {
@@ -50,7 +50,7 @@ class MetaserverServiceTest : public ::testing::Test {
 
     void TearDown() override { return; }
 
-    bool CompareInode(const Inode& first, const Inode& second) {
+    bool CompareInode(const Inode &first, const Inode &second) {
         return first.fsid() == second.fsid() &&
                first.atime() == second.atime() &&
                first.inodeid() == second.inodeid() &&
@@ -63,14 +63,14 @@ class MetaserverServiceTest : public ::testing::Test {
                first.nlink() == second.nlink();
     }
 
-    void PrintDentry(const Dentry& dentry) {
+    void PrintDentry(const Dentry &dentry) {
         LOG(INFO) << "dentry: fsid = " << dentry.fsid()
                   << ", inodeid = " << dentry.inodeid()
                   << ", name = " << dentry.name()
                   << ", parentinodeid = " << dentry.parentinodeid();
     }
 
-    bool CompareDentry(const Dentry& first, const Dentry& second) {
+    bool CompareDentry(const Dentry &first, const Dentry &second) {
         bool ret = first.fsid() == second.fsid() &&
                    first.inodeid() == second.inodeid() &&
                    first.parentinodeid() == second.parentinodeid() &&
@@ -133,6 +133,10 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     createRequest.set_gid(gid);
     createRequest.set_mode(mode);
     createRequest.set_type(type);
+    // TODO(@陈威): 适配新的proto
+    createRequest.set_copysetid(1);
+    createRequest.set_poolid(1);
+    createRequest.set_partitionid(1);
 
     stub.CreateInode(&cntl, &createRequest, &createResponse, NULL);
     if (!cntl.Failed()) {
@@ -215,6 +219,10 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     getRequest.set_partitionid(partitionId);
     getRequest.set_fsid(fsId);
     getRequest.set_inodeid(createResponse.inode().inodeid());
+    // TODO(@陈威): 适配新的proto
+    getRequest.set_copysetid(1);
+    getRequest.set_poolid(1);
+    getRequest.set_partitionid(1);
     stub.GetInode(&cntl, &getRequest, &getResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(getResponse.statuscode(), MetaStatusCode::OK);
@@ -239,6 +247,11 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     getRequest2.set_partitionid(partitionId);
     getRequest2.set_fsid(fsId);
     getRequest2.set_inodeid(createResponse.inode().inodeid() + 100);
+    // TODO(@陈威): 适配新的proto
+    getRequest2.set_copysetid(1);
+    getRequest2.set_poolid(1);
+    getRequest2.set_partitionid(1);
+
     stub.GetInode(&cntl, &getRequest2, &getResponse2, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(getResponse2.statuscode(), MetaStatusCode::NOT_FOUND);
@@ -257,6 +270,10 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     updateRequest.set_partitionid(partitionId);
     updateRequest.set_fsid(fsId);
     updateRequest.set_inodeid(createResponse.inode().inodeid());
+    // TODO(@陈威): 适配新的proto
+    updateRequest.set_copysetid(1);
+    updateRequest.set_poolid(1);
+    updateRequest.set_partitionid(1);
     stub.UpdateInode(&cntl, &updateRequest, &updateResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(updateResponse.statuscode(), MetaStatusCode::OK);
@@ -273,6 +290,10 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     getRequest3.set_partitionid(partitionId);
     getRequest3.set_fsid(fsId);
     getRequest3.set_inodeid(createResponse.inode().inodeid());
+    // TODO(@陈威): 适配新的proto
+    getRequest3.set_copysetid(1);
+    getRequest3.set_poolid(1);
+    getRequest3.set_partitionid(1);
     stub.GetInode(&cntl, &getRequest3, &getResponse3, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(getResponse3.statuscode(), MetaStatusCode::OK);
@@ -291,6 +312,10 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     updateRequest2.set_fsid(fsId);
     updateRequest2.set_inodeid(createResponse.inode().inodeid());
     updateRequest2.set_length(length + 1);
+    // TODO(@陈威): 适配新的proto
+    updateRequest2.set_copysetid(1);
+    updateRequest2.set_poolid(1);
+    updateRequest2.set_partitionid(1);
     stub.UpdateInode(&cntl, &updateRequest2, &updateResponse2, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(updateResponse2.statuscode(), MetaStatusCode::OK);
@@ -307,6 +332,10 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     getRequest4.set_partitionid(partitionId);
     getRequest4.set_fsid(fsId);
     getRequest4.set_inodeid(createResponse.inode().inodeid());
+    // TODO(@陈威): 适配新的proto
+    getRequest4.set_copysetid(1);
+    getRequest4.set_poolid(1);
+    getRequest4.set_partitionid(1);
     stub.GetInode(&cntl, &getRequest4, &getResponse4, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(getResponse4.statuscode(), MetaStatusCode::OK);
@@ -330,6 +359,10 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     updateRequest3.mutable_volumeextentlist()->CopyFrom(volumeExtentList);
     S3ChunkInfoList s3ChunkInfoList;
     updateRequest3.mutable_s3chunkinfolist()->CopyFrom(s3ChunkInfoList);
+    // TODO(@陈威): 适配新的proto
+    updateRequest3.set_copysetid(1);
+    updateRequest3.set_poolid(1);
+    updateRequest3.set_partitionid(1);
     stub.UpdateInode(&cntl, &updateRequest3, &updateResponse3, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(updateResponse3.statuscode(), MetaStatusCode::PARAM_ERROR);
@@ -347,6 +380,10 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     updateVersionRequest.set_partitionid(partitionId);
     updateVersionRequest.set_fsid(fsId);
     updateVersionRequest.set_inodeid(createResponse2.inode().inodeid());
+    // TODO(@陈威): 适配新的proto
+    updateVersionRequest.set_copysetid(1);
+    updateVersionRequest.set_poolid(1);
+    updateVersionRequest.set_partitionid(1);
     stub.UpdateInodeS3Version(&cntl, &updateVersionRequest,
                               &updateVersionResponse, NULL);
     if (!cntl.Failed()) {
@@ -392,6 +429,10 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     deleteRequest.set_partitionid(partitionId);
     deleteRequest.set_fsid(fsId);
     deleteRequest.set_inodeid(createResponse.inode().inodeid());
+    // TODO(@陈威): 适配新的proto
+    deleteRequest.set_copysetid(1);
+    deleteRequest.set_poolid(1);
+    deleteRequest.set_partitionid(1);
     stub.DeleteInode(&cntl, &deleteRequest, &deleteResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(deleteResponse.statuscode(), MetaStatusCode::OK);
@@ -452,11 +493,16 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     dentry1.set_inodeid(inodeId);
     dentry1.set_parentinodeid(parentId);
     dentry1.set_name(name);
+    dentry1.set_txid(100);
 
     createRequest.set_poolid(poolId);
     createRequest.set_copysetid(copysetId);
     createRequest.set_partitionid(partitionId);
     createRequest.mutable_dentry()->CopyFrom(dentry1);
+    // TODO(@陈威): 适配新的proto
+    createRequest.set_copysetid(1);
+    createRequest.set_poolid(1);
+    createRequest.set_partitionid(1);
 
     stub.CreateDentry(&cntl, &createRequest, &createResponse, NULL);
     if (!cntl.Failed()) {
@@ -480,6 +526,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     dentry2.set_inodeid(inodeId + 1);
     dentry2.set_parentinodeid(parentId);
     dentry2.set_name("dentry2");
+    dentry2.set_txid(100);
     createRequest.mutable_dentry()->CopyFrom(dentry2);
 
     cntl.Reset();
@@ -496,6 +543,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     dentry3.set_inodeid(inodeId + 2);
     dentry3.set_parentinodeid(parentId);
     dentry3.set_name("dentry3");
+    dentry3.set_txid(100);
     createRequest.mutable_dentry()->CopyFrom(dentry3);
 
     cntl.Reset();
@@ -517,7 +565,13 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     getRequest.set_fsid(fsId);
     getRequest.set_parentinodeid(parentId);
     getRequest.set_name(name);
+    getRequest.set_txid(100);
+    // TODO(@陈威): 适配新的proto
+    getRequest.set_copysetid(1);
+    getRequest.set_poolid(1);
+    getRequest.set_partitionid(1);
     stub.GetDentry(&cntl, &getRequest, &getResponse, NULL);
+
     if (!cntl.Failed()) {
         ASSERT_EQ(getResponse.statuscode(), MetaStatusCode::OK);
         ASSERT_TRUE(getResponse.has_dentry());
@@ -548,6 +602,11 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     listRequest.set_partitionid(partitionId);
     listRequest.set_fsid(fsId);
     listRequest.set_dirinodeid(parentId);
+    // TODO(@陈威): 适配新的proto
+    listRequest.set_copysetid(1);
+    listRequest.set_poolid(1);
+    listRequest.set_partitionid(1);
+    listRequest.set_txid(100);
 
     stub.ListDentry(&cntl, &listRequest, &listResponse, NULL);
     if (!cntl.Failed()) {
@@ -604,6 +663,11 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     deleteRequest.set_fsid(fsId);
     deleteRequest.set_parentinodeid(parentId);
     deleteRequest.set_name("dentry2");
+    // TODO(@陈威): 适配新的proto
+    deleteRequest.set_copysetid(1);
+    deleteRequest.set_poolid(1);
+    deleteRequest.set_partitionid(1);
+    deleteRequest.set_txid(1);
 
     stub.DeleteDentry(&cntl, &deleteRequest, &deleteResponse, NULL);
     if (!cntl.Failed()) {

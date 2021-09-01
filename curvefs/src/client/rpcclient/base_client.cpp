@@ -26,128 +26,6 @@
 namespace curvefs {
 namespace client {
 namespace rpcclient {
-
-using curvefs::metaserver::VolumeExtentList;
-
-void MetaServerBaseClient::GetDentry(uint32_t fsId, uint64_t inodeid,
-                                     const std::string &name,
-                                     GetDentryResponse *response,
-                                     brpc::Controller *cntl,
-                                     brpc::Channel *channel) {
-    GetDentryRequest request;
-    request.set_fsid(fsId);
-    request.set_parentinodeid(inodeid);
-    request.set_name(name);
-
-    curvefs::metaserver::MetaServerService_Stub stub(channel);
-    stub.GetDentry(cntl, &request, response, nullptr);
-}
-
-void MetaServerBaseClient::ListDentry(uint32_t fsId, uint64_t inodeid,
-                                      const std::string &last, uint32_t count,
-                                      ListDentryResponse *response,
-                                      brpc::Controller *cntl,
-                                      brpc::Channel *channel) {
-    ListDentryRequest request;
-    request.set_fsid(fsId);
-    request.set_dirinodeid(inodeid);
-    request.set_last(last);
-    request.set_count(count);
-
-    curvefs::metaserver::MetaServerService_Stub stub(channel);
-    stub.ListDentry(cntl, &request, response, nullptr);
-}
-
-void MetaServerBaseClient::CreateDentry(const Dentry &dentry,
-                                        CreateDentryResponse *response,
-                                        brpc::Controller *cntl,
-                                        brpc::Channel *channel) {
-    CreateDentryRequest request;
-    Dentry *d = new Dentry;
-    d->set_fsid(dentry.fsid());
-    d->set_inodeid(dentry.inodeid());
-    d->set_parentinodeid(dentry.parentinodeid());
-    d->set_name(dentry.name());
-    request.set_allocated_dentry(d);
-    curvefs::metaserver::MetaServerService_Stub stub(channel);
-    stub.CreateDentry(cntl, &request, response, nullptr);
-}
-
-void MetaServerBaseClient::DeleteDentry(uint32_t fsId, uint64_t inodeid,
-                                        const std::string &name,
-                                        DeleteDentryResponse *response,
-                                        brpc::Controller *cntl,
-                                        brpc::Channel *channel) {
-    DeleteDentryRequest request;
-    request.set_fsid(fsId);
-    request.set_parentinodeid(inodeid);
-    request.set_name(name);
-    curvefs::metaserver::MetaServerService_Stub stub(channel);
-    stub.DeleteDentry(cntl, &request, response, nullptr);
-}
-
-void MetaServerBaseClient::GetInode(uint32_t fsId, uint64_t inodeid,
-                                    GetInodeResponse *response,
-                                    brpc::Controller *cntl,
-                                    brpc::Channel *channel) {
-    GetInodeRequest request;
-    request.set_fsid(fsId);
-    request.set_inodeid(inodeid);
-    curvefs::metaserver::MetaServerService_Stub stub(channel);
-    stub.GetInode(cntl, &request, response, nullptr);
-}
-
-void MetaServerBaseClient::UpdateInode(const Inode &inode,
-                                       UpdateInodeResponse *response,
-                                       brpc::Controller *cntl,
-                                       brpc::Channel *channel) {
-    UpdateInodeRequest request;
-    request.set_inodeid(inode.inodeid());
-    request.set_fsid(inode.fsid());
-    request.set_length(inode.length());
-    request.set_ctime(inode.ctime());
-    request.set_mtime(inode.mtime());
-    request.set_atime(inode.atime());
-    request.set_uid(inode.uid());
-    request.set_gid(inode.gid());
-    request.set_mode(inode.mode());
-    if (inode.has_volumeextentlist()) {
-        VolumeExtentList *vlist = new VolumeExtentList;
-        vlist->CopyFrom(inode.volumeextentlist());
-        request.set_allocated_volumeextentlist(vlist);
-    }
-    curvefs::metaserver::MetaServerService_Stub stub(channel);
-    stub.UpdateInode(cntl, &request, response, nullptr);
-}
-
-void MetaServerBaseClient::CreateInode(const InodeParam &param,
-                                       CreateInodeResponse *response,
-                                       brpc::Controller *cntl,
-                                       brpc::Channel *channel) {
-    CreateInodeRequest request;
-    request.set_fsid(param.fsId);
-    request.set_length(param.length);
-    request.set_uid(param.uid);
-    request.set_gid(param.gid);
-    request.set_mode(param.mode);
-    request.set_type(param.type);
-    request.set_symlink(param.symlink);
-    curvefs::metaserver::MetaServerService_Stub stub(channel);
-    stub.CreateInode(cntl, &request, response, nullptr);
-}
-
-void MetaServerBaseClient::DeleteInode(uint32_t fsId, uint64_t inodeid,
-                                       DeleteInodeResponse *response,
-                                       brpc::Controller *cntl,
-                                       brpc::Channel *channel) {
-    DeleteInodeRequest request;
-    request.set_fsid(fsId);
-    request.set_inodeid(inodeid);
-    curvefs::metaserver::MetaServerService_Stub stub(channel);
-    stub.DeleteInode(cntl, &request, response, nullptr);
-}
-
-
 void MDSBaseClient::CreateFs(const std::string &fsName, uint64_t blockSize,
                              const Volume &volume, CreateFsResponse *response,
                              brpc::Controller *cntl, brpc::Channel *channel) {
@@ -224,44 +102,32 @@ void MDSBaseClient::GetFsInfo(uint32_t fsId, GetFsInfoResponse *response,
     stub.GetFsInfo(cntl, &request, response, nullptr);
 }
 
-void SpaceBaseClient::AllocExtents(uint32_t fsId,
-                                   const ExtentAllocInfo &toAllocExtent,
-                                   curvefs::space::AllocateType type,
-                                   AllocateSpaceResponse *response,
-                                   brpc::Controller *cntl,
-                                   brpc::Channel *channel) {
-    AllocateSpaceRequest request;
-    request.set_fsid(fsId);
-    request.set_size(toAllocExtent.len);
-    auto allochint = new curvefs::space::AllocateHint();
-    allochint->set_alloctype(type);
-    if (toAllocExtent.leftHintAvailable) {
-        allochint->set_leftoffset(toAllocExtent.pOffsetLeft);
-    }
-    if (toAllocExtent.rightHintAvailable) {
-        allochint->set_rightoffset(toAllocExtent.pOffsetRight);
-    }
-    request.set_allocated_allochint(allochint);
-    curvefs::space::SpaceAllocService_Stub stub(channel);
-    stub.AllocateSpace(cntl, &request, response, nullptr);
+void MDSBaseClient::GetMetaServerInfo(uint32_t port, std::string ip,
+                                      GetMetaServerInfoResponse *response,
+                                      brpc::Controller *cntl,
+                                      brpc::Channel *channel) {
+    GetMetaServerInfoRequest request;
+    request.set_hostip(ip);
+    request.set_port(port);
+
+    curvefs::mds::topology::TopologyService_Stub stub(channel);
+    stub.GetMetaServer(cntl, &request, response, nullptr);
 }
 
-void SpaceBaseClient::DeAllocExtents(uint32_t fsId,
-                                     const std::list<Extent> &allocatedExtents,
-                                     DeallocateSpaceResponse *response,
-                                     brpc::Controller *cntl,
-                                     brpc::Channel *channel) {
-    DeallocateSpaceRequest request;
-    request.set_fsid(fsId);
-    auto iter = allocatedExtents.begin();
-    while (iter != allocatedExtents.end()) {
-        auto extent = request.add_extents();
-        extent->CopyFrom(*iter);
-        ++iter;
+void MDSBaseClient::GetMetaServerListInCopysets(
+    const LogicPoolID &logicalpooid, const std::vector<CopysetID> &copysetidvec,
+    GetMetaServerListInCopySetsResponse *response, brpc::Controller *cntl,
+    brpc::Channel *channel) {
+    GetMetaServerListInCopySetsRequest request;
+    request.set_poolid(logicalpooid);
+    for (auto copysetid : copysetidvec) {
+        request.add_copysetid(copysetid);
     }
-    curvefs::space::SpaceAllocService_Stub stub(channel);
-    stub.DeallocateSpace(cntl, &request, response, nullptr);
+
+    curvefs::mds::topology::TopologyService_Stub stub(channel);
+    stub.GetMetaServerListInCopysets(cntl, &request, response, nullptr);
 }
+
 }  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs

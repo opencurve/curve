@@ -29,7 +29,7 @@
 namespace curvefs {
 namespace space {
 
-bool MetaServerClient::Init(const MetaServerClientOption& opt) {
+bool MetaServerClient::Init(const MetaServerClientOption &opt) {
     opt_ = opt;
 
     if (opt_.addr.empty()) {
@@ -47,14 +47,14 @@ bool MetaServerClient::Init(const MetaServerClientOption& opt) {
 }
 
 bool MetaServerClient::GetAllInodeExtents(uint32_t fsId, uint64_t rootInodeId,
-                                          Extents* exts) {
+                                          Extents *exts) {
     return RecursiveListDentry(fsId, rootInodeId, exts);
 }
 
 // TODO(wuhanqing): Using recursion, if the file system has a deep layer, will
 // blow up the stack?
 bool MetaServerClient::RecursiveListDentry(uint32_t fsId, uint64_t inodeId,
-                                           Extents* exts) {
+                                           Extents *exts) {
     metaserver::MetaServerService_Stub stub(&channel_);
     metaserver::ListDentryRequest request;
     metaserver::ListDentryResponse response;
@@ -68,6 +68,12 @@ bool MetaServerClient::RecursiveListDentry(uint32_t fsId, uint64_t inodeId,
     // TODO(wuhanqing): end add partition
     request.set_fsid(fsId);
     request.set_dirinodeid(inodeId);
+    // TODO(@汉卿) 适配新的proto
+    request.set_copysetid(1);
+    request.set_poolid(1);
+    request.set_partitionid(1);
+    request.set_txid(100);
+
     stub.ListDentry(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed() || (response.statuscode() != metaserver::OK &&
@@ -79,7 +85,7 @@ bool MetaServerClient::RecursiveListDentry(uint32_t fsId, uint64_t inodeId,
         return false;
     }
 
-    for (auto& d : response.dentrys()) {
+    for (auto &d : response.dentrys()) {
         metaserver::MetaServerService_Stub stub(&channel_);
         metaserver::GetInodeRequest request;
         metaserver::GetInodeResponse response;
@@ -95,14 +101,13 @@ bool MetaServerClient::RecursiveListDentry(uint32_t fsId, uint64_t inodeId,
         }
 
         switch (response.inode().type()) {
-            case metaserver::FsFileType::TYPE_FILE:
-                AppendExtents(exts, response.inode().volumeextentlist());
-                break;
-            case metaserver::FsFileType::TYPE_DIRECTORY:
-                return RecursiveListDentry(fsId, response.inode().inodeid(),
-                                           exts);
-            default:
-                break;
+        case metaserver::FsFileType::TYPE_FILE:
+            AppendExtents(exts, response.inode().volumeextentlist());
+            break;
+        case metaserver::FsFileType::TYPE_DIRECTORY:
+            return RecursiveListDentry(fsId, response.inode().inodeid(), exts);
+        default:
+            break;
         }
     }
 
@@ -110,10 +115,10 @@ bool MetaServerClient::RecursiveListDentry(uint32_t fsId, uint64_t inodeId,
 }
 
 void MetaServerClient::AppendExtents(
-    Extents* exts,
-    const curvefs::metaserver::VolumeExtentList& protoExts) const {
-    const auto& volumeextents = protoExts.volumeextents();
-    for (auto& e : volumeextents) {
+    Extents *exts,
+    const curvefs::metaserver::VolumeExtentList &protoExts) const {
+    const auto &volumeextents = protoExts.volumeextents();
+    for (auto &e : volumeextents) {
         exts->emplace_back(e.volumeoffset(), e.length());
     }
 }

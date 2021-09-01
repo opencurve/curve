@@ -3578,13 +3578,13 @@ TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
         fileinstance.GetIOManager4File()->GetMetaCache();
     curve::client::ChunkIDInfo_t chunkinfo(1, 2, 3);
     mc->UpdateChunkInfoByIndex(0, chunkinfo);
-    curve::client::CopysetInfo cpinfo;
+    curve::client::CopysetInfo<ChunkServerID> cpinfo;
     curve::client::EndPoint ep;
     butil::str2endpoint("127.0.0.1", 9102, &ep);
 
     braft::PeerId pd(ep);
-    curve::client::ChunkServerAddr addr = curve::client::ChunkServerAddr(ep);
-    curve::client::CopysetPeerInfo peer(1, addr, addr);
+    curve::client::PeerAddr addr = curve::client::PeerAddr(ep);
+    curve::client::CopysetPeerInfo<ChunkServerID> peer(1, addr, addr);
     cpinfo.csinfos_.push_back(peer);
     mc->UpdateCopysetInfo(2, 3, cpinfo);
 

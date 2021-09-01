@@ -27,11 +27,14 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/proto/space.pb.h"
+#include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/client/common/extent.h"
+#include "src/client/client_common.h"
 
 namespace curvefs {
 namespace client {
@@ -78,7 +81,13 @@ using curvefs::space::DeallocateSpaceRequest;
 using curvefs::space::DeallocateSpaceResponse;
 using curvefs::space::Extent;
 
+using ::curve::client::CopysetID;
+using ::curve::client::LogicPoolID;
 
+using curvefs::mds::topology::GetMetaServerInfoRequest;
+using curvefs::mds::topology::GetMetaServerInfoResponse;
+using curvefs::mds::topology::GetMetaServerListInCopySetsRequest;
+using curvefs::mds::topology::GetMetaServerListInCopySetsResponse;
 struct InodeParam {
     uint64_t fsId;
     uint64_t length;
@@ -87,47 +96,6 @@ struct InodeParam {
     uint32_t mode;
     FsFileType type;
     std::string symlink;
-};
-
-
-class MetaServerBaseClient {
- public:
-    MetaServerBaseClient() {}
-
-    virtual ~MetaServerBaseClient() {}
-
-    virtual void GetDentry(uint32_t fsId, uint64_t inodeid,
-                           const std::string &name, GetDentryResponse *response,
-                           brpc::Controller *cntl, brpc::Channel *channel);
-
-    virtual void ListDentry(uint32_t fsId, uint64_t inodeid,
-                            const std::string &last, uint32_t count,
-                            ListDentryResponse *response,
-                            brpc::Controller *cntl, brpc::Channel *channel);
-
-    virtual void CreateDentry(const Dentry &dentry,
-                              CreateDentryResponse *response,
-                              brpc::Controller *cntl, brpc::Channel *channel);
-
-    virtual void DeleteDentry(uint32_t fsId, uint64_t inodeid,
-                              const std::string &name,
-                              DeleteDentryResponse *response,
-                              brpc::Controller *cntl, brpc::Channel *channel);
-
-    virtual void GetInode(uint32_t fsId, uint64_t inodeid,
-                          GetInodeResponse *response, brpc::Controller *cntl,
-                          brpc::Channel *channel);
-
-    virtual void UpdateInode(const Inode &inode, UpdateInodeResponse *response,
-                             brpc::Controller *cntl, brpc::Channel *channel);
-
-    virtual void CreateInode(const InodeParam &param,
-                             CreateInodeResponse *response,
-                             brpc::Controller *cntl, brpc::Channel *channel);
-
-    virtual void DeleteInode(uint32_t fsId, uint64_t inodeid,
-                             DeleteInodeResponse *response,
-                             brpc::Controller *cntl, brpc::Channel *channel);
 };
 
 class MDSBaseClient {
@@ -157,21 +125,18 @@ class MDSBaseClient {
 
     virtual void GetFsInfo(uint32_t fsId, GetFsInfoResponse *response,
                            brpc::Controller *cntl, brpc::Channel *channel);
-};
 
-class SpaceBaseClient {
- public:
-    virtual void AllocExtents(uint32_t fsId,
-                              const ExtentAllocInfo &toAllocExtent,
-                              curvefs::space::AllocateType type,
-                              AllocateSpaceResponse *response,
-                              brpc::Controller *cntl, brpc::Channel *channel);
-
-    virtual void DeAllocExtents(uint32_t fsId,
-                                const std::list<Extent> &allocatedExtents,
-                                DeallocateSpaceResponse *response,
+    virtual void GetMetaServerInfo(uint32_t port, std::string ip,
+                                   GetMetaServerInfoResponse *response,
+                                   brpc::Controller *cntl,
+                                   brpc::Channel *channel);
+    virtual void
+    GetMetaServerListInCopysets(const LogicPoolID &logicalpooid,
+                                const std::vector<CopysetID> &copysetidvec,
+                                GetMetaServerListInCopySetsResponse *response,
                                 brpc::Controller *cntl, brpc::Channel *channel);
 };
+
 }  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs

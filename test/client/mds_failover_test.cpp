@@ -52,24 +52,19 @@ namespace client {
 
 // 测试mds failover切换状态机
 TEST(MDSChangeTest, MDSFailoverTest) {
-    class MDSClientDerived : public MDSClient {
-     public:
-        MDSClient::MDSRPCExcutor rpcexcutor;
-    };
+    RPCExcutorRetryPolicy rpcexcutor;
 
     MetaServerOption  metaopt;
-    metaopt.mdsAddrs.push_back("127.0.0.1:9903");
-    metaopt.mdsAddrs.push_back("127.0.0.1:9904");
-    metaopt.mdsAddrs.push_back("127.0.0.1:9905");
+    metaopt.rpcRetryOpt.addrs.push_back("127.0.0.1:9903");
+    metaopt.rpcRetryOpt.addrs.push_back("127.0.0.1:9904");
+    metaopt.rpcRetryOpt.addrs.push_back("127.0.0.1:9905");
 
-    metaopt.mdsRPCTimeoutMs = 1000;
-    metaopt.mdsRPCRetryIntervalUS = 10000;  // 10ms
-    metaopt.mdsMaxFailedTimesBeforeChangeMDS = 2;
-    metaopt.mdsRPCTimeoutMs = 1500;
+    metaopt.rpcRetryOpt.rpcTimeoutMs = 1000;
+    metaopt.rpcRetryOpt.rpcRetryIntervalUS = 10000;  // 10ms
+    metaopt.rpcRetryOpt.maxFailedTimesBeforeChangeAddr = 2;
+    metaopt.rpcRetryOpt.rpcTimeoutMs = 1500;
 
-    MDSClientDerived mdsd;
-    mdsd.Initialize(metaopt);
-    mdsd.rpcexcutor.SetOption(metaopt);
+    rpcexcutor.SetOption(metaopt.rpcRetryOpt);
 
     int currentWorkMDSIndex = 1;
     int mds0RetryTimes = 0;
@@ -98,7 +93,7 @@ TEST(MDSChangeTest, MDSFailoverTest) {
 
     uint64_t startMS = TimeUtility::GetTimeofDayMs();
     // 控制面接口调用, 1000为本次rpc的重试总时间
-    mdsd.rpcexcutor.DoRPCTask(task1, 1000);
+    rpcexcutor.DoRPCTask(task1, 1000);
     uint64_t endMS = TimeUtility::GetTimeofDayMs();
     ASSERT_GT(endMS - startMS, 1000 - 1);
 
@@ -107,10 +102,10 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     ASSERT_LT(abs(mds2RetryTimes - mds1RetryTimes), 3);
 
     startMS = TimeUtility::GetTimeofDayMs();
-    mdsd.rpcexcutor.DoRPCTask(task1, 3000);
+    rpcexcutor.DoRPCTask(task1, 3000);
     endMS = TimeUtility::GetTimeofDayMs();
     ASSERT_GT(endMS - startMS, 3000 - 1);
-    ASSERT_EQ(0, mdsd.rpcexcutor.GetCurrentWorkIndex());
+    ASSERT_EQ(0, rpcexcutor.GetCurrentWorkIndex());
 
     // 场景2：mds0、1、2, currentworkindex = 0, mds0宕机，并且这时候将正在工作的
     //       mds索引切换到index2，预期client在index=0重试之后会直接切换到index 2
@@ -124,7 +119,7 @@ TEST(MDSChangeTest, MDSFailoverTest) {
                 brpc::Channel* channel, brpc::Controller* cntl)->int {
         if (mdsindex == 0) {
             mds0RetryTimes++;
-            mdsd.rpcexcutor.SetCurrentWorkIndex(2);
+            rpcexcutor.SetCurrentWorkIndex(2);
             return -ECONNRESET;
         }
 
@@ -140,10 +135,10 @@ TEST(MDSChangeTest, MDSFailoverTest) {
         }
     };
     startMS = TimeUtility::GetTimeofDayMs();
-    mdsd.rpcexcutor.DoRPCTask(task2, 1000);
+    rpcexcutor.DoRPCTask(task2, 1000);
     endMS = TimeUtility::GetTimeofDayMs();
     ASSERT_LT(endMS - startMS, 1000);
-    ASSERT_EQ(2, mdsd.rpcexcutor.GetCurrentWorkIndex());
+    ASSERT_EQ(2, rpcexcutor.GetCurrentWorkIndex());
     ASSERT_EQ(mds0RetryTimes, 1);
     ASSERT_EQ(mds1RetryTimes, 0);
     ASSERT_EQ(mds2RetryTimes, 1);
@@ -155,7 +150,7 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     mds0RetryTimes = 0;
     mds1RetryTimes = 0;
     mds2RetryTimes = 0;
-    mdsd.rpcexcutor.SetCurrentWorkIndex(1);
+    rpcexcutor.SetCurrentWorkIndex(1);
     auto task3 = [&](int mdsindex, uint64_t rpctimeoutMS,
                 brpc::Channel* channel, brpc::Controller* cntl)->int {
         if (mdsindex == 0) {
@@ -179,14 +174,14 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     };
 
     startMS = TimeUtility::GetTimeofDayMs();
-    mdsd.rpcexcutor.DoRPCTask(task3, 1000);
+    rpcexcutor.DoRPCTask(task3, 1000);
     endMS = TimeUtility::GetTimeofDayMs();
     ASSERT_LT(endMS - startMS, 1000);
     ASSERT_EQ(mds0RetryTimes, 2);
     ASSERT_EQ(mds1RetryTimes, 3);
     ASSERT_EQ(mds2RetryTimes, 2);
 
-    ASSERT_EQ(1, mdsd.rpcexcutor.GetCurrentWorkIndex());
+    ASSERT_EQ(1, rpcexcutor.GetCurrentWorkIndex());
 
     // 场景4：mds0、1、2, currentWorkindex = 0, 但是发往mds1的rpc请求一直超时
     //       最后rpc返回结果是超时.
@@ -197,7 +192,7 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     mds0RetryTimes = 0;
     mds1RetryTimes = 0;
     mds2RetryTimes = 0;
-    mdsd.rpcexcutor.SetCurrentWorkIndex(0);
+    rpcexcutor.SetCurrentWorkIndex(0);
     auto task4 = [&](int mdsindex, uint64_t rpctimeoutMS,
                 brpc::Channel* channel, brpc::Controller* cntl)->int {
         if (mdsindex == 0) {
@@ -218,17 +213,17 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     };
 
     startMS = TimeUtility::GetTimeofDayMs();
-    mdsd.rpcexcutor.DoRPCTask(task4, 3000);
+    rpcexcutor.DoRPCTask(task4, 3000);
     endMS = TimeUtility::GetTimeofDayMs();
     ASSERT_GT(endMS - startMS, 3000 - 1);
-    ASSERT_EQ(0, mdsd.rpcexcutor.GetCurrentWorkIndex());
+    ASSERT_EQ(0, rpcexcutor.GetCurrentWorkIndex());
     // 本次重试为轮询重试，每个mds的重试次数应该接近，不超过总的mds数量
     ASSERT_GT(mds0RetryTimes, mds1RetryTimes + mds2RetryTimes);
 
     // 场景5：mds0、1、2，currentWorkIndex = 0
     //       但是rpc请求前10次全部返回EHOSTDOWN
     //       mds重试睡眠10ms，所以总共耗时100ms时间
-    mdsd.rpcexcutor.SetCurrentWorkIndex(0);
+    rpcexcutor.SetCurrentWorkIndex(0);
     int hostDownTimes = 10;
     auto task5 = [&](int mdsindex, uint64_t rpctimeoutMs,
                      brpc::Channel* channel,
@@ -241,12 +236,12 @@ TEST(MDSChangeTest, MDSFailoverTest) {
         return 0;
     };
     startMS = TimeUtility::GetTimeofDayMs();
-    mdsd.rpcexcutor.DoRPCTask(task5, 10000);  // 总重试时间10s
+    rpcexcutor.DoRPCTask(task5, 10000);  // 总重试时间10s
     endMS = TimeUtility::GetTimeofDayMs();
     ASSERT_GE(endMS - startMS, 100);
 
     // 场景6： mds在重试过程中一直返回EHOSTDOWN，总共重试5s
-    mdsd.rpcexcutor.SetCurrentWorkIndex(0);
+    rpcexcutor.SetCurrentWorkIndex(0);
     int calledTimes = 0;
     auto task6 = [&](int mdsindex, uint64_t rpctimeoutMs,
                      brpc::Channel* channel,
@@ -256,7 +251,7 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     };
 
     startMS = TimeUtility::GetTimeofDayMs();
-    mdsd.rpcexcutor.DoRPCTask(task6, 5 * 1000);  // 总重试时间5s
+    rpcexcutor.DoRPCTask(task6, 5 * 1000);  // 总重试时间5s
     endMS = TimeUtility::GetTimeofDayMs();
     ASSERT_GE(endMS - startMS, 5 * 1000 - 1);
 
