@@ -20,12 +20,12 @@
  * @Author: chenwei
  */
 
-#include "curvefs/src/mds/space_client.h"
+#include "curvefs/src/mds/spaceclient/space_client.h"
 #include <brpc/channel.h>
 #include <brpc/server.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include "curvefs/test/mds/mock_space.h"
+#include "curvefs/test/mds/mock/mock_space.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;

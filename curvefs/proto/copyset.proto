@@ -20,20 +20,20 @@ package curvefs.metaserver.copyset;
 option cc_generic_services = true;
 
 message ConfEpoch {
-    required uint32 poolId = 1;
+    required uint32 poolId      = 1;
     required uint32 copysetId   = 2;
     required uint64 epoch       = 3;
     required uint32 checksum    = 4;
 }
 
 enum COPYSET_OP_STATUS {
-    COPYSET_OP_STATUS_SUCCESS           = 0;
-    COPYSET_OP_STATUS_EXIST             = 1;
-    COPYSET_OP_STATUS_COPYSET_NOTEXIST  = 2;
-    COPYSET_OP_STATUS_FAILURE_UNKNOWN   = 3;
+    COPYSET_OP_STATUS_SUCCESS            = 0;
+    COPYSET_OP_STATUS_EXIST              = 1;
+    COPYSET_OP_STATUS_COPYSET_NOTEXIST   = 2;
+    COPYSET_OP_STATUS_FAILURE_UNKNOWN    = 3;
     COPYSET_OP_STATUS_COPYSET_IS_HEALTHY = 4;
-    COPYSET_OP_STATUS_PARSE_PEER_ERROR = 5;
-    COPYSET_OP_STATUS_PEER_MISMATCH = 6;
+    COPYSET_OP_STATUS_PARSE_PEER_ERROR   = 5;
+    COPYSET_OP_STATUS_PEER_MISMATCH      = 6;
 };
 
 message CreateCopysetRequest {

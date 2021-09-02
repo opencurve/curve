@@ -20,8 +20,8 @@
  * @Author: chenwei
  */
 
-#ifndef CURVEFS_TEST_MDS_MOCK_SPACE_H_
-#define CURVEFS_TEST_MDS_MOCK_SPACE_H_
+#ifndef CURVEFS_TEST_MDS_MOCK_MOCK_SPACE_H_
+#define CURVEFS_TEST_MDS_MOCK_MOCK_SPACE_H_
 #include <gmock/gmock.h>
 #include "curvefs/proto/space.pb.h"
 
@@ -57,4 +57,4 @@ class MockSpaceService : public SpaceAllocService {
 };
 }  // namespace space
 }  // namespace curvefs
-#endif  // CURVEFS_TEST_MDS_MOCK_SPACE_H_
+#endif  // CURVEFS_TEST_MDS_MOCK_MOCK_SPACE_H_

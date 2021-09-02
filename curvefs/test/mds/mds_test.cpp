@@ -216,7 +216,7 @@ TEST_F(MdsTest, test1) {
     std::thread mdsThread(&Mds::Run, &mds);
 
     // sleep 5s
-    sleep(3);
+    sleep(5);
 
     // stop server and background threads
     mds.Stop();

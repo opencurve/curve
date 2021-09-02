@@ -31,12 +31,15 @@ COPTS = [
 
 # https://docs.bazel.build/versions/master/be/c-cpp.html#cc_library
 cc_library(
-    name = "mds_test_mock",
+    name = "curvefs_mds_mock",
     srcs = [],
     hdrs = glob(["*.h"]),
     copts = COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//src/idgenerator:idgenerator",
+        "//curvefs/proto:metaserver_cc_proto",
+        "//curvefs/proto:space_cc_proto",
+        "//curvefs/src/mds/topology:curvefs_topology",
     ],
 )

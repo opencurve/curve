@@ -1,0 +1,764 @@
+/*
+ *  Copyright (c) 2021 NetEase Inc.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+/*
+ * Project: curve
+ * Created Date: 2021-08-24
+ * Author: wanghai01
+ */
+
+#ifndef CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_ITEM_H_
+#define CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_ITEM_H_
+
+#include <list>
+#include <string>
+#include <set>
+#include <utility>
+
+#include "curvefs/src/mds/topology/topology_id_generator.h"
+#include "curvefs/proto/topology.pb.h"
+#include "curvefs/proto/common.pb.h"
+#include "src/common/concurrent/concurrent.h"
+
+namespace curvefs {
+namespace mds {
+namespace topology {
+
+/**
+ * @brief cluster information, so far we only use clusterId
+ */
+struct ClusterInformation {
+    // the only and unique Id of a cluster
+    std::string clusterId;
+
+    ClusterInformation() = default;
+    explicit ClusterInformation(const std::string &clusterId)
+        : clusterId(clusterId) {}
+
+    bool SerializeToString(std::string *value) const;
+
+    bool ParseFromString(const std::string &value);
+};
+
+class Pool {
+ public:
+    struct RedundanceAndPlaceMentPolicy {
+        uint16_t replicaNum;
+        uint32_t copysetNum;
+        uint16_t zoneNum;
+    };
+
+ public:
+    static bool TransRedundanceAndPlaceMentPolicyFromJsonStr(
+        const std::string &jsonStr,
+        RedundanceAndPlaceMentPolicy *rap);
+
+ public:
+    Pool()
+        : id_(UNINTIALIZE_ID),
+          name_(""),
+          createTime_(0),
+          avaliable_(true) {}
+    Pool(PoolIdType id,
+         const std::string &name,
+         const RedundanceAndPlaceMentPolicy &rap,
+         uint64_t createTime,
+         bool avaliable)
+        : id_(id),
+          name_(name),
+          rap_(rap),
+          createTime_(createTime),
+          avaliable_(avaliable) {}
+
+    PoolIdType GetId() const {
+        return id_;
+    }
+
+    std::string GetName() const {
+        return name_;
+    }
+
+    void SetRedundanceAndPlaceMentPolicy(
+        const RedundanceAndPlaceMentPolicy &rap) {
+        rap_ = rap;
+    }
+
+    bool SetRedundanceAndPlaceMentPolicyByJson(const std::string &jsonStr);
+
+    RedundanceAndPlaceMentPolicy GetRedundanceAndPlaceMentPolicy() const {
+        return rap_;
+    }
+
+    std::string GetRedundanceAndPlaceMentPolicyJsonStr() const;
+
+    uint16_t GetReplicaNum() const {
+        return rap_.replicaNum;
+    }
+
+    uint64_t GetCreateTime() const {
+        return createTime_;
+    }
+
+    void SetPoolAvaliableFlag(bool avaliable) {
+        avaliable_ = avaliable;
+    }
+
+    bool GetPoolAvaliableFlag() const {
+        return avaliable_;
+    }
+
+    void AddZone(ZoneIdType id) {
+        zoneList_.push_back(id);
+    }
+
+    void RemoveZone(ZoneIdType id) {
+        zoneList_.remove(id);
+    }
+
+    std::list<ZoneIdType> GetZoneList() const {
+        return zoneList_;
+    }
+
+    bool SerializeToString(std::string *value) const;
+
+    bool ParseFromString(const std::string &value);
+
+ private:
+    PoolIdType id_;
+    std::string name_;
+    RedundanceAndPlaceMentPolicy rap_;
+    uint64_t createTime_;
+    bool avaliable_;
+
+    std::list<ZoneIdType> zoneList_;
+};
+
+class Zone {
+ public:
+    Zone()
+        : id_(UNINTIALIZE_ID),
+          name_(""),
+          poolId_(UNINTIALIZE_ID) {}
+    Zone(PoolIdType id,
+         const std::string &name,
+         PoolIdType poolId)
+        : id_(id),
+          name_(name),
+          poolId_(poolId) {}
+
+    ZoneIdType GetId() const {
+        return id_;
+    }
+
+    std::string GetName() const {
+        return name_;
+    }
+
+    PoolIdType GetPoolId() const {
+        return poolId_;
+    }
+
+    void AddServer(ServerIdType id) {
+        serverList_.push_back(id);
+    }
+
+    void RemoveServer(ServerIdType id) {
+        serverList_.remove(id);
+    }
+
+    std::list<ServerIdType> GetServerList() const {
+        return serverList_;
+    }
+
+    bool SerializeToString(std::string *value) const;
+
+    bool ParseFromString(const std::string &value);
+
+ private:
+    ZoneIdType id_;
+    std::string name_;
+    PoolIdType poolId_;
+
+    std::list<ServerIdType> serverList_;
+};
+
+class Server {
+ public:
+    Server()
+        : id_(UNINTIALIZE_ID),
+          hostName_(""),
+          internalHostIp_(""),
+          internalPort_(0),
+          externalHostIp_(""),
+          externalPort_(0),
+          zoneId_(UNINTIALIZE_ID),
+          poolId_(UNINTIALIZE_ID) {}
+    Server(ServerIdType id,
+           const std::string &hostName,
+           const std::string &internalHostIp,
+           uint32_t internalPort,
+           const std::string &externalHostIp,
+           uint32_t externalPort,
+           ZoneIdType zoneId,
+           PoolIdType poolId)
+        : id_(id),
+          hostName_(hostName),
+          internalHostIp_(internalHostIp),
+          internalPort_(internalPort),
+          externalHostIp_(externalHostIp),
+          externalPort_(externalPort),
+          zoneId_(zoneId),
+          poolId_(poolId) {}
+
+    ServerIdType GetId() const {
+        return id_;
+    }
+
+    std::string GetHostName() const {
+        return hostName_;
+    }
+
+    std::string GetInternalHostIp() const {
+        return internalHostIp_;
+    }
+
+    uint32_t GetInternalPort() const {
+        return internalPort_;
+    }
+
+    std::string GetExternalHostIp() const {
+        return externalHostIp_;
+    }
+
+    uint32_t GetExternalPort() const {
+        return externalPort_;
+    }
+
+    ZoneIdType GetZoneId() const {
+        return zoneId_;
+    }
+
+    PoolIdType GetPoolId() const {
+        return poolId_;
+    }
+
+    void AddMetaServer(MetaServerIdType id) {
+        metaserverList_.push_back(id);
+    }
+
+    void RemoveMetaServer(MetaServerIdType id) {
+        metaserverList_.remove(id);
+    }
+
+    std::list<MetaServerIdType> GetMetaServerList() const {
+        return metaserverList_;
+    }
+
+    bool SerializeToString(std::string *value) const;
+
+    bool ParseFromString(const std::string &value);
+
+ private:
+    ServerIdType id_;
+    std::string hostName_;
+    std::string internalHostIp_;
+    uint32_t internalPort_;
+    std::string externalHostIp_;
+    uint32_t externalPort_;
+    ZoneIdType zoneId_;
+    PoolIdType poolId_;
+
+    std::list<MetaServerIdType> metaserverList_;
+};
+
+class MetaServer {
+ public:
+    MetaServer()
+        : id_(UNINTIALIZE_ID),
+          hostName_(""),
+          token_(""),
+          serverId_(UNINTIALIZE_ID),
+          internalHostIp_(""),
+          internalPort_(0),
+          externalHostIp_(""),
+          externalPort_(0),
+          onlineState_(OFFLINE) {}
+
+    MetaServer(MetaServerIdType id,
+               const std::string &hostName,
+               const std::string &token,
+               ServerIdType serverId,
+               const std::string &hostIp,
+               uint32_t port,
+               const std::string &externalHostIp,
+               uint32_t externalPort,
+               OnlineState onlineState = OnlineState::OFFLINE)
+        : id_(id),
+          hostName_(hostName),
+          token_(token),
+          serverId_(serverId),
+          internalHostIp_(hostIp),
+          internalPort_(port),
+          externalHostIp_(externalHostIp),
+          externalPort_(externalPort),
+          onlineState_(onlineState) {}
+
+    MetaServer(const MetaServer& v) :
+        id_(v.id_),
+        hostName_(v.hostName_),
+        token_(v.token_),
+        serverId_(v.serverId_),
+        internalHostIp_(v.internalHostIp_),
+        internalPort_(v.internalPort_),
+        externalHostIp_(v.externalHostIp_),
+        externalPort_(v.externalPort_),
+        onlineState_(v.onlineState_) {}
+
+    MetaServer& operator= (const MetaServer& v) {
+        if (&v == this) {
+            return *this;
+        }
+        id_ = v.id_;
+        hostName_ = v.hostName_;
+        token_ = v.token_;
+        serverId_ = v.serverId_;
+        internalHostIp_ = v.internalHostIp_;
+        internalPort_ = v.internalPort_;
+        externalHostIp_ = v.externalHostIp_;
+        externalPort_ = v.externalPort_;
+        onlineState_ = v.onlineState_;
+        return *this;
+    }
+
+    MetaServerIdType GetId() const {
+        return id_;
+    }
+
+    std::string GetHostName() const {
+        return hostName_;
+    }
+
+    std::string GetToken() const {
+        return token_;
+    }
+
+    void SetToken(std::string token) {
+        token_ = token;
+    }
+
+    void SetServerId(ServerIdType id) {
+        serverId_ = id;
+    }
+
+    ServerIdType GetServerId() const {
+        return serverId_;
+    }
+
+    std::string GetInternalHostIp() const {
+        return internalHostIp_;
+    }
+
+    uint32_t GetInternalPort() const {
+        return internalPort_;
+    }
+
+    std::string GetExternalHostIp() const {
+        return externalHostIp_;
+    }
+
+    uint32_t GetExternalPort() const {
+        return externalPort_;
+    }
+
+    void SetOnlineState(OnlineState state) {
+        onlineState_ = state;
+    }
+
+    OnlineState GetOnlineState() const {
+        return onlineState_;
+    }
+
+    ::curve::common::RWLock& GetRWLockRef() const {
+        return mutex_;
+    }
+
+    bool SerializeToString(std::string *value) const;
+
+    bool ParseFromString(const std::string &value);
+
+ private:
+    MetaServerIdType id_;
+    std::string hostName_;
+    std::string token_;
+    ServerIdType serverId_;
+    std::string internalHostIp_;
+    uint32_t internalPort_;
+    std::string externalHostIp_;
+    uint32_t externalPort_;
+    OnlineState onlineState_;  // 0:online、1: offline
+    mutable ::curve::common::RWLock mutex_;
+};
+
+typedef std::pair<PoolIdType, CopySetIdType> CopySetKey;
+
+struct CopysetIdInfo {
+    PoolIdType poolId;
+    CopySetIdType copySetId;
+};
+
+class CopySetInfo {
+ public:
+    CopySetInfo() :
+        poolId_(UNINTIALIZE_ID),
+        copySetId_(UNINTIALIZE_ID),
+        leader_(UNINTIALIZE_ID),
+        epoch_(0),
+        hasCandidate_(false),
+        candidate_(UNINTIALIZE_ID),
+        partitionNum_(0),
+        dirty_(false),
+        available_(true) {}
+
+    CopySetInfo(PoolIdType poolId,
+                CopySetIdType id) :
+        poolId_(poolId),
+        copySetId_(id),
+        leader_(UNINTIALIZE_ID),
+        epoch_(0),
+        hasCandidate_(false),
+        candidate_(UNINTIALIZE_ID),
+        partitionNum_(0),
+        dirty_(false),
+        available_(true) {}
+
+    CopySetInfo(const CopySetInfo &v) :
+        poolId_(v.poolId_),
+        copySetId_(v.copySetId_),
+        leader_(v.leader_),
+        epoch_(v.epoch_),
+        peers_(v.peers_),
+        hasCandidate_(v.hasCandidate_),
+        candidate_(v.candidate_),
+        partitionNum_(v.partitionNum_),
+        dirty_(v.dirty_),
+        available_(v.available_) {}
+
+    CopySetInfo& operator= (const CopySetInfo &v) {
+        if (&v == this) {
+            return *this;
+        }
+        poolId_ = v.poolId_;
+        copySetId_ = v.copySetId_;
+        leader_ = v.leader_;
+        epoch_ = v.epoch_;
+        peers_ = v.peers_;
+        hasCandidate_ = v.hasCandidate_;
+        candidate_ = v.candidate_;
+        partitionNum_ = v.partitionNum_;
+        dirty_ = v.dirty_;
+        available_ = v.available_;
+        return *this;
+    }
+
+    PoolIdType GetPoolId() const {
+        return poolId_;
+    }
+
+    CopySetIdType GetId() const {
+        return copySetId_;
+    }
+
+    void SetEpoch(EpochType epoch) {
+        epoch_ = epoch;
+    }
+
+    EpochType GetEpoch() const {
+        return epoch_;
+    }
+
+    MetaServerIdType GetLeader() const {
+        return leader_;
+    }
+
+    void SetLeader(MetaServerIdType leader) {
+        leader_ = leader;
+    }
+
+    CopySetKey GetCopySetKey() const {
+        return CopySetKey(poolId_, copySetId_);
+    }
+
+    std::set<MetaServerIdType> GetCopySetMembers() const {
+        return peers_;
+    }
+
+    std::string GetCopySetMembersStr() const;
+
+    void SetCopySetMembers(const std::set<MetaServerIdType> &peers) {
+        peers_ = peers;
+    }
+
+    bool HasMember(MetaServerIdType peer) const {
+        return peers_.count(peer) > 0;
+    }
+
+    bool SetCopySetMembersByJson(const std::string &jsonStr);
+
+    bool HasCandidate() const {
+        return hasCandidate_;
+    }
+
+    void SetCandidate(MetaServerIdType csId) {
+        hasCandidate_ = true;
+        candidate_ = csId;
+    }
+
+    MetaServerIdType GetCandidate() const {
+        if (hasCandidate_) {
+            return candidate_;
+        } else {
+            return UNINTIALIZE_ID;
+        }
+    }
+
+    void ClearCandidate() {
+        hasCandidate_ = false;
+    }
+
+    uint64_t GetPartitionNum() const {
+        return partitionNum_;
+    }
+
+    void SetPartitionNum(u_int64_t number) {
+        partitionNum_ = number;
+    }
+
+    void AddPartitionNum() {
+        partitionNum_ += 1;
+    }
+
+    void ReducePartitionNum() {
+        partitionNum_ -= 1;
+    }
+
+    bool GetDirtyFlag() const {
+        return dirty_;
+    }
+
+    void SetDirtyFlag(bool dirty) {
+        dirty_ = dirty;
+    }
+
+    bool IsAvailable() const {
+        return available_;
+    }
+
+    void SetAvailableFlag(bool aval) {
+        available_ = aval;
+    }
+
+    ::curve::common::RWLock& GetRWLockRef() const {
+        return mutex_;
+    }
+
+    bool SerializeToString(std::string *value) const;
+
+    bool ParseFromString(const std::string &value);
+
+ private:
+    PoolIdType poolId_;
+    CopySetIdType copySetId_;
+    MetaServerIdType leader_;
+    EpochType epoch_;
+    std::set<MetaServerIdType> peers_;
+    bool hasCandidate_;
+    MetaServerIdType candidate_;
+    uint64_t partitionNum_;
+    /**
+     * @brief to mark whether data is dirty, for writing to storage regularly
+     */
+    bool dirty_;
+
+    /**
+     * @brief To mark whether the copyset is available. If not available,
+     *        will stop allocating chunks into this copyset.
+     */
+    bool available_;
+
+    /**
+     * @brief metaserver read/write lock, for protecting concurrent
+     *        read/write on the copyset
+     */
+    mutable ::curve::common::RWLock mutex_;
+};
+
+class Partition {
+ public:
+    Partition() :
+        fsId_(UNINTIALIZE_ID),
+        poolId_(UNINTIALIZE_ID),
+        copySetId_(UNINTIALIZE_ID),
+        partitionId_(UNINTIALIZE_ID),
+        idStart_(0),
+        idEnd_(0),
+        txId_(0) {}
+
+    Partition(FsIdType fsId, PoolIdType poolId, CopySetIdType copySetId,
+              PartitionIdType partitionId, uint64_t idStart, uint64_t idEnd) :
+        fsId_(fsId),
+        poolId_(poolId),
+        copySetId_(copySetId),
+        partitionId_(partitionId),
+        idStart_(idStart),
+        idEnd_(idEnd),
+        txId_(0) {}
+
+    Partition(const Partition &v) :
+        fsId_(v.fsId_),
+        poolId_(v.poolId_),
+        copySetId_(v.copySetId_),
+        partitionId_(v.partitionId_),
+        idStart_(v.idStart_),
+        idEnd_(v.idEnd_),
+        txId_(v.txId_) {}
+
+    Partition& operator= (const Partition &v) {
+        if (&v == this) {
+            return *this;
+        }
+        fsId_ = v.fsId_;
+        poolId_ = v.poolId_;
+        copySetId_ = v.copySetId_;
+        partitionId_ = v.partitionId_;
+        idStart_ = v.idStart_;
+        idEnd_ = v.idEnd_;
+        txId_ = v.txId_;
+        return *this;
+    }
+
+    FsIdType GetFsId() const {
+        return fsId_;
+    }
+
+    void SetFsId(FsIdType fsId) {
+        fsId_ = fsId;
+    }
+
+    PoolIdType GetPoolId() const {
+        return poolId_;
+    }
+
+    void SetPoolId(PoolIdType poolId) {
+        poolId_ = poolId;
+    }
+
+    CopySetIdType GetCopySetId() const {
+        return copySetId_;
+    }
+
+    void SetCopySetId(CopySetIdType copySetId) {
+        copySetId_ = copySetId;
+    }
+
+    PartitionIdType GetPartitionId() const {
+        return partitionId_;
+    }
+
+    void SetPartitionId(PartitionIdType partitionId) {
+        partitionId_ = partitionId;
+    }
+
+    uint64_t GetIdStart() const {
+        return idStart_;
+    }
+
+    void SetIdStart(uint64_t idStart) {
+        idStart_ = idStart;
+    }
+
+    uint64_t GetIdEnd() const {
+        return idEnd_;
+    }
+
+    void SetIdEnd(uint64_t idEnd) {
+        idEnd_ = idEnd;
+    }
+
+    uint64_t GetTxId() const {
+        return txId_;
+    }
+
+    void SetTxId(uint64_t txId) {
+        txId_ = txId;
+    }
+
+    ::curve::common::RWLock& GetRWLockRef() const {
+        return mutex_;
+    }
+
+    bool SerializeToString(std::string *value) const;
+
+    bool ParseFromString(const std::string &value);
+
+ private:
+    FsIdType fsId_;
+    PoolIdType poolId_;
+    CopySetIdType copySetId_;
+    PartitionIdType partitionId_;
+    uint64_t idStart_;
+    uint64_t idEnd_;
+    uint64_t txId_;
+    mutable ::curve::common::RWLock mutex_;
+};
+
+/**
+ * @brief generate peerId
+ *
+ * @param ip hostIp
+ * @param port port number
+ * @param idx index
+ *
+ * @return peerId
+ */
+inline std::string BuildPeerId(
+    const std::string &ip,
+    uint32_t port,
+    uint32_t idx = 0) {
+    return ip + ":" + std::to_string(port) + ":" + std::to_string(idx);
+}
+
+/**
+ * @brief split peer ID
+ *
+ * @param peerId peer ID
+ * @param[out] ip hostIp
+ * @param[out] import port
+ * @param[out] idx index
+ *
+ * @retval true success
+ * @retval false fail
+ */
+bool SplitPeerId(
+    const std::string &peerId,
+    std::string *ip,
+    uint32_t *port,
+    uint32_t *idx = nullptr);
+
+}  // namespace topology
+}  // namespace mds
+}  // namespace curvefs
+
+#endif  // CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_ITEM_H_

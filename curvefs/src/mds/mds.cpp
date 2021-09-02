@@ -45,6 +45,7 @@ Mds::Mds()
       fsStorage_(),
       spaceClient_(),
       metaserverClient_(),
+      topology_(),
       options_(),
       etcdClientInited_(false),
       etcdClient_(),
@@ -65,6 +66,25 @@ void Mds::InitOptions(std::shared_ptr<Configuration> conf) {
                                &options_.metaserverOptions.metaserverAddr);
     conf_->GetValueFatalIfFail("metaserver.rpcTimeoutMs",
                                &options_.metaserverOptions.rpcTimeoutMs);
+    InitTopologyOption(&options_.topologyOptions);
+}
+
+void Mds::InitTopologyOption(TopologyOption *topologyOption) {
+    conf_->GetValueFatalIfFail(
+        "mds.topology.TopologyUpdateToRepoSec",
+        &topologyOption->topologyUpdateToRepoSec);
+    conf_->GetValueFatalIfFail(
+        "mds.topology.PartitionNumberInCopyset",
+        &topologyOption->partitionNumberInCopyset);
+    conf_->GetValueFatalIfFail(
+        "mds.topology.IdNumberInPartition",
+        &topologyOption->idNumberInPartition);
+    conf_->GetValueFatalIfFail(
+        "mds.topology.ChoosePoolPolicy",
+        &topologyOption->choosePoolPolicy);
+    conf_->GetValueFatalIfFail(
+        "mds.topology.CreateCopysetNumber",
+        &topologyOption->createCopysetNumber);
 }
 
 void Mds::Init() {
@@ -82,9 +102,36 @@ void Mds::Init() {
 
     chunkIdAllocator_ = std::make_shared<ChunkIdAllocatorImpl>(etcdClient_);
 
+    // init topology
+    InitTopology(options_.topologyOptions);
+    InitTopologyManager(options_.topologyOptions);
+
     inited_ = true;
 
     LOG(INFO) << "Init MDS success";
+}
+
+void Mds::InitTopology(const TopologyOption &option) {
+    auto topologyIdGenerator  = std::make_shared<DefaultIdGenerator>();
+    auto topologyTokenGenerator = std::make_shared<DefaultTokenGenerator>();
+
+    auto codec = std::make_shared<TopologyStorageCodec>();
+    auto topologyStorage = std::make_shared<TopologyStorageEtcd>(etcdClient_,
+                                                                 codec);
+    LOG(INFO) << "init topologyStorage success.";
+
+    topology_ = std::make_shared<TopologyImpl>(topologyIdGenerator,
+                                               topologyTokenGenerator,
+                                               topologyStorage);
+    LOG_IF(FATAL, topology_->Init(option) < 0) << "init topology fail.";
+    LOG(INFO) << "init topology success.";
+}
+
+void Mds::InitTopologyManager(const TopologyOption& option) {
+    topologyManager_ = std::make_shared<TopologyManager>(topology_,
+                                                metaserverClient_);
+    topologyManager_->Init(option);
+    LOG(INFO) << "init topologyManager success.";
 }
 
 void Mds::Run() {
@@ -94,12 +141,20 @@ void Mds::Run() {
         return;
     }
 
+    LOG_IF(FATAL, topology_->Run()) << "run topology module fail";
+
     brpc::Server server;
-    // add heartbeat service
+    // add mds service
     MdsServiceImpl mdsService(fsManager_, chunkIdAllocator_);
     LOG_IF(FATAL,
            server.AddService(&mdsService, brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
         << "add mdsService error";
+
+    // add topology service
+    TopologyServiceImpl topologyService(topologyManager_);
+    LOG_IF(FATAL, server.AddService(&topologyService,
+           brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
+        << "add topologyService error";
 
     // start rpc server
     brpc::ServerOptions option;
@@ -119,6 +174,7 @@ void Mds::Stop() {
         return;
     }
     brpc::AskToQuit();
+    topology_->Stop();
     fsManager_->Uninit();
 }
 

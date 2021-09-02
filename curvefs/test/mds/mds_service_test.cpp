@@ -30,6 +30,7 @@
 #include "curvefs/test/mds/fake_metaserver.h"
 #include "curvefs/test/mds/fake_space.h"
 #include "curvefs/test/mds/mock/mock_kvstorage_client.h"
+#include "curvefs/test/mds/mock/mock_topology.h"
 
 using ::testing::_;
 using ::testing::AtLeast;
@@ -47,6 +48,11 @@ using ::curvefs::metaserver::FakeMetaserverImpl;
 using ::curvefs::space::FakeSpaceImpl;
 using ::curvefs::space::InitSpaceResponse;
 using ::curvefs::space::SpaceStatusCode;
+using ::curvefs::mds::topology::MockTopologyManager;
+using ::curvefs::mds::topology::MockTopology;
+using ::curvefs::mds::topology::MockIdGenerator;
+using ::curvefs::mds::topology::MockTokenGenerator;
+using ::curvefs::mds::topology::MockStorage;
 
 namespace curvefs {
 namespace mds {

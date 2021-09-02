@@ -42,6 +42,9 @@ enum FSStatusCode {
     INTERNAL_ERROR = 19;
     STORAGE_ERROR = 20;
     ALLOCATE_CHUNKID_ERROR = 21;
+    CREATE_PARTITION_ERROR = 22;
+    CREATE_COPYSET_ERROR = 23;
+    GET_PARTITIONINFOOFFS_ERROR = 24;
 }
 
 // fs interface
@@ -79,8 +82,6 @@ message FsInfo {
     repeated string mountpoints = 8;
     required common.FSType fsType = 9;
     required FsDetail detail = 10;
-    repeated PartitionTxId partitionTxIds = 11;
-    repeated common.PartitionInfo partitionInfoList = 12;
 }
 
 message GetFsInfoResponse {
@@ -124,7 +125,6 @@ message UpdateFsInfoRequest {
     required string fsName = 1;
     // todo
 }
-
 message UpdateFsInfoResponse {
     required FSStatusCode statusCode = 1;
     optional FsInfo fsInfo = 2;
@@ -132,7 +132,7 @@ message UpdateFsInfoResponse {
 */
 
 message DeleteFsRequest {
-    required string fsName = 2;
+    required string fsName = 1;
 }
 
 message DeleteFsResponse {

@@ -32,9 +32,11 @@
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/mds/chunkid_allocator.h"
 #include "curvefs/src/mds/fs_manager.h"
+#include "curvefs/src/mds/common/mds_define.h"
 
 namespace curvefs {
 namespace mds {
+
 class MdsServiceImpl : public MdsService {
  public:
     explicit MdsServiceImpl(
@@ -45,28 +47,28 @@ class MdsServiceImpl : public MdsService {
     }
 
     void CreateFs(::google::protobuf::RpcController* controller,
-                  const ::curvefs::mds::CreateFsRequest* request,
-                  ::curvefs::mds::CreateFsResponse* response,
+                  const CreateFsRequest* request,
+                  CreateFsResponse* response,
                   ::google::protobuf::Closure* done);
 
     void MountFs(::google::protobuf::RpcController* controller,
-                 const ::curvefs::mds::MountFsRequest* request,
-                 ::curvefs::mds::MountFsResponse* response,
+                 const MountFsRequest* request,
+                 MountFsResponse* response,
                  ::google::protobuf::Closure* done);
 
     void UmountFs(::google::protobuf::RpcController* controller,
-                  const ::curvefs::mds::UmountFsRequest* request,
-                  ::curvefs::mds::UmountFsResponse* response,
+                  const UmountFsRequest* request,
+                  UmountFsResponse* response,
                   ::google::protobuf::Closure* done);
 
     void GetFsInfo(::google::protobuf::RpcController* controller,
-                   const ::curvefs::mds::GetFsInfoRequest* request,
-                   ::curvefs::mds::GetFsInfoResponse* response,
+                   const GetFsInfoRequest* request,
+                   GetFsInfoResponse* response,
                    ::google::protobuf::Closure* done);
 
     void DeleteFs(::google::protobuf::RpcController* controller,
-                  const ::curvefs::mds::DeleteFsRequest* request,
-                  ::curvefs::mds::DeleteFsResponse* response,
+                  const DeleteFsRequest* request,
+                  DeleteFsResponse* response,
                   ::google::protobuf::Closure* done);
 
     void AllocateS3Chunk(::google::protobuf::RpcController* controller,

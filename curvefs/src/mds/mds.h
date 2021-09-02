@@ -33,6 +33,21 @@
 #include "src/common/configuration.h"
 #include "src/kvstorageclient/etcd_client.h"
 #include "src/leader_election/leader_election.h"
+#include "curvefs/src/mds/topology/topology_config.h"
+#include "curvefs/src/mds/topology/topology.h"
+#include "curvefs/src/mds/topology/topology_service.h"
+#include "curvefs/src/mds/topology/topology_storge_etcd.h"
+
+using ::curve::common::Configuration;
+using ::curvefs::mds::topology::TopologyOption;
+using ::curvefs::mds::topology::TopologyImpl;
+using ::curvefs::mds::topology::TopologyManager;
+using ::curvefs::mds::topology::DefaultIdGenerator;
+using ::curvefs::mds::topology::DefaultTokenGenerator;
+using ::curvefs::mds::topology::TopologyStorageEtcd;
+using ::curvefs::mds::topology::TopologyStorageCodec;
+using ::curvefs::mds::topology::TopologyServiceImpl;
+using ::curve::kvstorage::EtcdClientImp;
 
 namespace curvefs {
 namespace mds {
@@ -49,8 +64,9 @@ struct MDSOptions {
     std::string mdsListenAddr;
     SpaceOptions spaceOptions;
     MetaserverOptions metaserverOptions;
-
     // TODO(add EtcdConf): add etcd configure
+
+    TopologyOption topologyOptions;
 };
 
 class Mds {
@@ -81,6 +97,13 @@ class Mds {
     void InitLeaderElection(const LeaderElectionOptions& option);
 
  private:
+    void InitTopologyOption(TopologyOption *topologyOption);
+
+    void InitTopology(const TopologyOption &option);
+
+    void InitTopologyManager(const TopologyOption &option);
+
+ private:
     // mds configuration items
     std::shared_ptr<Configuration> conf_;
     // initialized or not
@@ -92,6 +115,8 @@ class Mds {
     std::shared_ptr<SpaceClient> spaceClient_;
     std::shared_ptr<MetaserverClient> metaserverClient_;
     std::shared_ptr<ChunkIdAllocator> chunkIdAllocator_;
+    std::shared_ptr<TopologyImpl> topology_;
+    std::shared_ptr<TopologyManager> topologyManager_;
     MDSOptions options_;
 
     bool etcdClientInited_;

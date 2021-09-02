@@ -20,7 +20,7 @@
  * @Author: chenwei
  */
 
-#include "curvefs/src/mds/space_client.h"
+#include "curvefs/src/mds/spaceclient/space_client.h"
 
 using curvefs::space::InitSpaceRequest;
 using curvefs::space::InitSpaceResponse;

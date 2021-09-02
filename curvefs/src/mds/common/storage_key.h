@@ -44,6 +44,22 @@ const char CHUNKID_NAME_KEY_END[] = "fs_04";
 
 constexpr uint32_t COMMON_PREFIX_LENGTH = 5;
 
+const char POOLKEYPREFIX[] = "fs_1001";
+const char POOLKEYEND[] = "fs_1002";
+const char ZONEKEYPREFIX[] = "fs_1002";
+const char ZONEKEYEND[] = "fs_1003";
+const char SERVERKEYPREFIX[] = "fs_1003";
+const char SERVERKEYEND[] = "fs_1004";
+const char METASERVERKEYPREFIX[] = "fs_1004";
+const char METASERVERKEYEND[] = "fs_1005";
+const char CLUSTERINFOKEY[] = "fs_1006";
+const char COPYSETKEYPREFIX[] = "fs_1007";
+const char COPYSETKEYEND[] = "fs_1008";
+const char PARTITIONKEYPREFIX[] = "fs_1008";
+const char PARTITIONKEYEND[] = "fs_1009";
+
+constexpr uint32_t TOPOLOGY_PREFIX_LENGTH = 7;
+
 }  // namespace mds
 }  // namespace curvefs
 

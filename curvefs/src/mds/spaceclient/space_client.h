@@ -16,49 +16,51 @@
 
 /*
  * @Project: curve
- * @Date: 2021-06-24 11:21:45
+ * @Date: 2021-06-02 16:38:47
  * @Author: chenwei
  */
 
-#ifndef CURVEFS_SRC_MDS_METASERVER_CLIENT_H_
-#define CURVEFS_SRC_MDS_METASERVER_CLIENT_H_
+#ifndef CURVEFS_SRC_MDS_SPACECLIENT_SPACE_CLIENT_H_
+#define CURVEFS_SRC_MDS_SPACECLIENT_SPACE_CLIENT_H_
 
 #include <brpc/channel.h>
 #include <string>
-
 #include "curvefs/proto/mds.pb.h"
-#include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/proto/space.pb.h"
 
-using curvefs::metaserver::FsFileType;
+using curvefs::common::Volume;
 
 namespace curvefs {
 namespace mds {
-struct MetaserverOptions {
-    std::string metaserverAddr;
+struct SpaceOptions {
+    std::string spaceAddr;
     uint32_t rpcTimeoutMs;
 };
 
-class MetaserverClient {
+struct SpaceStat {
+    uint64_t blockSize;
+    uint64_t totalBlock;
+    uint64_t availabalBlock;
+    uint64_t usedBlock;
+};
+
+class SpaceClient {
  public:
-    explicit MetaserverClient(const MetaserverOptions &option) {
-        options_ = option;
-    }
+    explicit SpaceClient(const SpaceOptions& option) { options_ = option; }
 
     bool Init();
 
     void Uninit();
 
-    FSStatusCode DeleteInode(uint32_t fsId, uint64_t inodeId);
+    FSStatusCode InitSpace(const FsInfo& fsInfo);
 
-    FSStatusCode CreateRootInode(uint32_t fsId, uint32_t uid, uint32_t gid,
-                                 uint32_t mode);
+    FSStatusCode UnInitSpace(uint32_t fsId);
 
  private:
-    MetaserverOptions options_;
+    SpaceOptions options_;
     bool inited_;
     brpc::Channel channel_;
 };
 }  // namespace mds
 }  // namespace curvefs
-
-#endif  // CURVEFS_SRC_MDS_METASERVER_CLIENT_H_
+#endif  // CURVEFS_SRC_MDS_SPACECLIENT_SPACE_CLIENT_H_

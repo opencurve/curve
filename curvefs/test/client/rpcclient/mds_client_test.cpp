@@ -29,6 +29,7 @@
 #include "curvefs/test/client/rpcclient/mock_mds_base_client.h"
 #include "curvefs/test/client/rpcclient/mock_mds_service.h"
 #include "src/client/mds_client.h"
+#include "curvefs/proto/topology.pb.h"
 
 namespace curvefs {
 namespace client {
@@ -38,6 +39,7 @@ using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
+using curvefs::mds::topology::TopoStatusCode;
 
 void CreateFSRpcFailed(const std::string &fsName, uint64_t blockSize,
                        const Volume &volume, CreateFsResponse *response,
@@ -451,7 +453,7 @@ TEST_F(MdsClientImplTest, test_GetMetaServerInfo) {
     response.set_allocated_metaserverinfo(metaserverInfo);
 
     // 1. get metaserver info ok
-    response.set_statuscode(0);
+    response.set_statuscode(TopoStatusCode::TOPO_OK);
     EXPECT_CALL(mockmdsbasecli_, GetMetaServerInfo(_, _, _, _, _))
         .WillOnce(SetArgPointee<2>(response));
     ASSERT_TRUE(mdsclient_.GetMetaServerInfo(addr, &out));
@@ -459,7 +461,7 @@ TEST_F(MdsClientImplTest, test_GetMetaServerInfo) {
                 CopysetPeerInfo<MetaserverID>(1, PeerAddr(ep), PeerAddr(ep)));
 
     // 2. get metaserver info not found
-    response.set_statuscode(12);
+    response.set_statuscode(TopoStatusCode::TOPO_METASERVER_NOT_FOUND);
     EXPECT_CALL(mockmdsbasecli_, GetMetaServerInfo(_, _, _, _, _))
         .WillOnce(SetArgPointee<2>(response));
     ASSERT_FALSE(mdsclient_.GetMetaServerInfo(addr, &out));
@@ -496,7 +498,7 @@ TEST_F(MdsClientImplTest, GetMetaServerListInCopysets) {
     l3->set_metaserverid(3);
 
     // 1. get metaserver list in copysets ok
-    response.set_statuscode(0);
+    response.set_statuscode(TopoStatusCode::TOPO_OK);
     EXPECT_CALL(mockmdsbasecli_, GetMetaServerListInCopysets(_, _, _, _, _))
         .WillOnce(SetArgPointee<2>(response));
     ASSERT_TRUE(
@@ -510,7 +512,7 @@ TEST_F(MdsClientImplTest, GetMetaServerListInCopysets) {
     }
 
     // 2. get metaserver list in copyset unknown error
-    response.set_statuscode(12);
+    response.set_statuscode(TopoStatusCode::TOPO_INTERNAL_ERROR);
     EXPECT_CALL(mockmdsbasecli_, GetMetaServerListInCopysets(_, _, _, _, _))
         .WillOnce(SetArgPointee<2>(response));
     ASSERT_FALSE(

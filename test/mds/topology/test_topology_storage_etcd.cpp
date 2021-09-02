@@ -886,12 +886,6 @@ TEST_F(TestTopologyStorageEtcd, test_StotageClusterInfo_fail) {
     ASSERT_FALSE(ret);
 }
 
-
-
-
-
-
-
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
