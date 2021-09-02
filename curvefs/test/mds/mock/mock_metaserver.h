@@ -20,8 +20,8 @@
  * @Author: chenwei
  */
 
-#ifndef CURVEFS_TEST_MDS_MOCK_METASERVER_H_
-#define CURVEFS_TEST_MDS_MOCK_METASERVER_H_
+#ifndef CURVEFS_TEST_MDS_MOCK_MOCK_METASERVER_H_
+#define CURVEFS_TEST_MDS_MOCK_MOCK_METASERVER_H_
 #include <gmock/gmock.h>
 #include "curvefs/proto/metaserver.pb.h"
 
@@ -59,8 +59,7 @@ class MockMetaserverService : public MetaServerService {
                       const ::curvefs::metaserver::CreateInodeRequest* request,
                       ::curvefs::metaserver::CreateInodeResponse* response,
                       ::google::protobuf::Closure* done));
-    MOCK_METHOD4(
-        CreateRootInode,
+    MOCK_METHOD4(CreateRootInode,
         void(::google::protobuf::RpcController* controller,
              const ::curvefs::metaserver::CreateRootInodeRequest* request,
              ::curvefs::metaserver::CreateRootInodeResponse* response,
@@ -75,7 +74,30 @@ class MockMetaserverService : public MetaServerService {
                       const ::curvefs::metaserver::DeleteInodeRequest* request,
                       ::curvefs::metaserver::DeleteInodeResponse* response,
                       ::google::protobuf::Closure* done));
+    MOCK_METHOD4(CreatePartition,
+          void(::google::protobuf::RpcController* controller,
+               const ::curvefs::metaserver::CreatePartitionRequest* request,
+               ::curvefs::metaserver::CreatePartitionResponse* response,
+               ::google::protobuf::Closure* done));
+    MOCK_METHOD4(DeletePartition,
+          void(::google::protobuf::RpcController* controller,
+               const ::curvefs::metaserver::DeletePartitionRequest* request,
+               ::curvefs::metaserver::DeletePartitionResponse* response,
+               ::google::protobuf::Closure* done));
 };
+
+namespace copyset {
+class MockCopysetService : public CopysetService {
+ public:
+     MOCK_METHOD4(CreateCopysetNode,
+                 void(::google::protobuf::RpcController* controller,
+                      const CreateCopysetRequest* request,
+                      CreateCopysetResponse* response,
+                      ::google::protobuf::Closure* done));
+};
+
+}  // namespace copyset
 }  // namespace metaserver
 }  // namespace curvefs
-#endif  // CURVEFS_TEST_MDS_MOCK_METASERVER_H_
+
+#endif  // CURVEFS_TEST_MDS_MOCK_MOCK_METASERVER_H_

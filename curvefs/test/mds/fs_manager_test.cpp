@@ -25,8 +25,8 @@
 #include <gmock/gmock.h>
 #include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
-#include "curvefs/test/mds/mock_metaserver.h"
-#include "curvefs/test/mds/mock_space.h"
+#include "curvefs/test/mds/mock/mock_metaserver.h"
+#include "curvefs/test/mds/mock/mock_space.h"
 #include "curvefs/test/mds/mock/mock_fs_stroage.h"
 
 using ::testing::AtLeast;

@@ -50,6 +50,7 @@ cc_test(
        "//external:gtest",
        "@com_google_googletest//:gtest_main",
        "//curvefs/src/client/rpcclient:rpcclient",
+       "//curvefs/proto:curvefs_topology_cc_proto",
    ],
    visibility = ["//visibility:public"],
 )

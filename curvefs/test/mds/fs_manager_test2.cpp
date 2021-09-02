@@ -26,11 +26,11 @@
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/src/mds/fs_manager.h"
-#include "curvefs/src/mds/metaserver_client.h"
-#include "curvefs/src/mds/space_client.h"
+#include "curvefs/src/mds/metaserverclient/metaserver_client.h"
+#include "curvefs/src/mds/spaceclient/space_client.h"
 #include "curvefs/test/mds/mock/mock_fs_stroage.h"
-#include "curvefs/test/mds/mock_metaserver.h"
-#include "curvefs/test/mds/mock_space.h"
+#include "curvefs/test/mds/mock/mock_metaserver.h"
+#include "curvefs/test/mds/mock/mock_space.h"
 
 namespace curvefs {
 namespace mds {

@@ -122,9 +122,6 @@ TEST_F(TestTopologyStat, TestUpdateAndGetChunkServerStat) {
     ASSERT_EQ(2, stat3.copysetStats[0].writeIOPS);
 }
 
-
-
-
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
