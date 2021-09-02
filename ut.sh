@@ -91,7 +91,8 @@ sudo cp  ${WORKSPACE}*core* /var/lib/jenkins/log/curve_unittest/$BUILD_NUMBER/ |
 cd bazel-bin
 cp /home/nbs/*.py ./
 ./gen-coverage-fs.py
-
+cp /home/nbs/check_coverage_fs.sh ./
+./check_coverage.sh
 cp -r coverage ${WORKSPACE}
 gcovr -x -r src -e ".*test/.*" -e ".*\.h" -e ".*usr/include/.*" -e ".*/thirdparties/*" -e "/usr/lib/*" -e ".*/external/*" -e ".*/bazel_out/*" -e "/usr/local/include/*" -e "test/*" -e ".*main\.cpp" -e ".*/_objs/snapshotcloneserver/*" -e ".*/_objs/mds/*" --output coverage.xml
 cp coverage.xml ${WORKSPACE}
