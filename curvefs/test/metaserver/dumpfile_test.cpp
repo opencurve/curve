@@ -223,6 +223,16 @@ TEST_F(DumpFileTest, TestSaveBigData) {
     ASSERT_EQ(dumpfile_->GetLoadStatus(), DUMPFILE_LOAD_STATUS::COMPLETE);
 }
 
+TEST_F(DumpFileTest, TestFileNotOpen) {
+    Hash hash;
+    auto hashIterator = std::make_shared<HashIterator>(&hash);
+
+    auto dumpfile = DumpFile(".dump/curvefs.dump");
+    ASSERT_EQ(dumpfile.Save(hashIterator), DUMPFILE_ERROR::BAD_FD);
+    ASSERT_EQ(dumpfile.SaveBackground(hashIterator), DUMPFILE_ERROR::BAD_FD);
+    ASSERT_EQ(dumpfile.Close(), DUMPFILE_ERROR::OK);
+}
+
 };  // namespace metaserver
 };  // namespace curvefs
 

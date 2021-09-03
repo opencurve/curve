@@ -98,5 +98,9 @@ int MemoryDentryStorage::Count() {
     return dentryMap_.size();
 }
 
+DentryContainerType *MemoryDentryStorage::GetDentryContainer() {
+    return &dentryMap_;
+}
+
 }  // namespace metaserver
 }  // namespace curvefs

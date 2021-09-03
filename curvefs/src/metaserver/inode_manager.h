@@ -37,10 +37,13 @@ class InodeManager {
         inodeStorage_ = inodeStorage;
         nextInodeId_ = 2;
     }
-
     MetaStatusCode CreateInode(uint32_t fsId, uint64_t length, uint32_t uid,
                                uint32_t gid, uint32_t mode, FsFileType type,
                                const std::string &symlink, Inode *inode);
+    MetaStatusCode CreateInode(uint32_t fsId, uint64_t inodeId, uint64_t length,
+                               uint32_t uid, uint32_t gid, uint32_t mode,
+                               FsFileType type, const std::string &symlink,
+                               Inode *inode);
     MetaStatusCode CreateRootInode(uint32_t fsId, uint32_t uid, uint32_t gid,
                                    uint32_t mode);
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeId, Inode *inode);
@@ -50,7 +53,9 @@ class InodeManager {
     MetaStatusCode UpdateInode(const Inode &inode);
 
     MetaStatusCode UpdateInodeVersion(uint32_t fsId, uint64_t inodeId,
-                                      uint64_t *version);
+                                       uint64_t *version);
+
+    MetaStatusCode InsertInode(const Inode &inode);
 
  private:
     void GenerateInodeInternal(uint64_t inodeId, uint32_t fsId, uint64_t length,

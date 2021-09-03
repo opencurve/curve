@@ -97,6 +97,11 @@ TEST_F(InodeStorageTest, test1) {
     ASSERT_FALSE(CompareInode(oldInode, newInode));
     ASSERT_FALSE(CompareInode(oldInode, inode2));
     ASSERT_TRUE(CompareInode(newInode, inode2));
+
+    // GetInodeContainer
+    InodeContainerType *map = storage.GetInodeContainer();
+    ASSERT_TRUE(CompareInode((*map)[InodeKey(inode2)], inode2));
+    ASSERT_TRUE(CompareInode((*map)[InodeKey(inode3)], inode3));
 }
 }  // namespace metaserver
 }  // namespace curvefs

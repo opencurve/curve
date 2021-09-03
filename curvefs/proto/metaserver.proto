@@ -15,6 +15,7 @@
  */
 
 syntax="proto2";
+import "curvefs/proto/common.proto";
 package curvefs.metaserver;
 option cc_generic_services = true;
 
@@ -27,13 +28,27 @@ enum MetaStatusCode {
     DENTRY_EXIST = 5;
     SYM_LINK_EMPTY = 6;
     RPC_ERROR = 7;
+    COPYSET_NOTEXIST = 8;
+    REDIRECTED = 9;
+    OVERLOAD = 10;
+    TARGET_DIRECTORY_EXIST = 11;
+    HANDLE_PENDING_TX_FAILED = 12;
+    HANDLE_TX_FAILED = 13;
+    PARTITION_NOT_FOUND = 14;
+    PARTITION_EXIST = 15;
+    PARTITION_BUSY = 16;
+    PARTITION_ALLOC_ID_FAIL = 17;
+    SAVE_META_FAIL = 18;
 }
 
 // dentry interface
 message GetDentryRequest {
-    required uint32 fsId = 1;
-    required uint64 parentInodeId = 2;
-    required string name = 3;
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    required uint64 parentInodeId = 5;
+    required string name = 6;
 }
 
 message Dentry {
@@ -49,10 +64,13 @@ message GetDentryResponse {
 }
 
 message ListDentryRequest {
-    required uint32 fsId = 1;
-    required uint64 dirInodeId = 2;
-    optional string last = 3;     // the name of last entry
-    optional uint32 count = 4;    // the number of entry required
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    required uint64 dirInodeId = 5;
+    optional string last = 6;     // the name of last entry
+    optional uint32 count = 7;    // the number of entry required
 }
 
 message ListDentryResponse {
@@ -61,7 +79,10 @@ message ListDentryResponse {
 }
 
 message CreateDentryRequest {
-    required Dentry dentry = 1;
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required Dentry dentry = 4;
 }
 
 message CreateDentryResponse {
@@ -69,9 +90,12 @@ message CreateDentryResponse {
 }
 
 message DeleteDentryRequest {
-    required uint32 fsId = 1;
-    required uint64 parentInodeId = 2;
-    required string name = 3;
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    required uint64 parentInodeId = 5;
+    required string name = 6;
 }
 
 message DeleteDentryResponse {
@@ -80,8 +104,11 @@ message DeleteDentryResponse {
 
 // inode interface
 message GetInodeRequest {
-    required uint32 fsId = 1;
-    required uint64 inodeId = 2;
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    required uint64 inodeId = 5;
 }
 
 enum FsFileType {
@@ -140,13 +167,16 @@ message GetInodeResponse {
 }
 
 message CreateInodeRequest {
-    required uint32 fsId = 1;
-    required uint64 length = 2;
-    required uint32 uid = 3;
-    required uint32 gid = 4;
-    required uint32 mode = 5;
-    required FsFileType type = 6;
-    optional string symlink = 7;   // TYPE_SYM_LINK only
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    required uint64 length = 5;
+    required uint32 uid = 6;
+    required uint32 gid = 7;
+    required uint32 mode = 8;
+    required FsFileType type = 9;
+    optional string symlink = 10;   // TYPE_SYM_LINK only
 }
 
 message CreateInodeResponse {
@@ -155,10 +185,13 @@ message CreateInodeResponse {
 }
 
 message CreateRootInodeRequest {
-    required uint32 fsId = 1;
-    required uint32 uid = 2;
-    required uint32 gid = 3;
-    required uint32 mode = 4;
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    required uint32 uid = 5;
+    required uint32 gid = 6;
+    required uint32 mode = 7;
 }
 
 message CreateRootInodeResponse {
@@ -166,25 +199,31 @@ message CreateRootInodeResponse {
 }
 
 message UpdateInodeRequest {
-    required uint64 inodeId = 1;
-    required uint32 fsId = 2;
-    optional uint64 length = 3;
-    optional uint32 ctime = 4;
-    optional uint32 mtime = 5;
-    optional uint32 atime = 6;
-    optional uint32 uid = 7;
-    optional uint32 gid = 8;
-    optional uint32 mode = 9;
-    optional VolumeExtentList volumeExtentList = 10;  // TYPE_FILE only
-    optional S3ChunkInfoList s3ChunkInfoList = 11; // TYPE_S3 only
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    required uint64 inodeId = 5;
+    optional uint64 length = 6;
+    optional uint32 ctime = 7;
+    optional uint32 mtime = 8;
+    optional uint32 atime = 9;
+    optional uint32 uid = 10;
+    optional uint32 gid = 11;
+    optional uint32 mode = 12;
+    optional VolumeExtentList volumeExtentList = 13;  // TYPE_FILE only
+    optional S3ChunkInfoList s3ChunkInfoList = 14; // TYPE_S3 only
 }
 
 message UpdateInodeResponse {
     required MetaStatusCode statusCode = 1;
 }
 message DeleteInodeRequest {
-    required uint32 fsId = 1;
-    required uint64 inodeId = 2;
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    required uint64 inodeId = 5;
 }
 
 message DeleteInodeResponse {
@@ -192,13 +231,34 @@ message DeleteInodeResponse {
 }
 
 message UpdateInodeS3VersionRequest {
-    required uint64 inodeId = 1;
-    required uint32 fsId = 2;
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint64 inodeId = 4;
+    required uint32 fsId = 5;
 }
 
 message UpdateInodeS3VersionResponse {
     required MetaStatusCode statusCode = 1;
     optional uint64 version = 2;
+}
+
+message CreatePartitionRequest {
+    required common.PartitionInfo partition = 1;
+}
+
+message CreatePartitionResponse {
+    required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
+}
+
+message DeletePartitionRequest {
+    required common.PartitionInfo partition = 1;
+}
+
+message DeletePartitionResponse {
+    required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
 }
 
 service MetaServerService {
@@ -217,5 +277,9 @@ service MetaServerService {
                                             (CreateRootInodeResponse);
     rpc UpdateInodeS3Version(UpdateInodeS3VersionRequest) returns
                                         (UpdateInodeS3VersionResponse);
+
+    // partition interface
+    rpc CreatePartition(CreatePartitionRequest) returns (CreatePartitionResponse);
+    rpc DeletePartition(DeletePartitionRequest) returns (DeletePartitionResponse);
 }
 

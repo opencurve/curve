@@ -45,8 +45,23 @@ cc_test(
         ["*.cpp", "*.h"],
         exclude = [
             "dumpfile_test.cpp",
-            "storage_test.cpp"
+            "storage_test.cpp",
+            "metastore_test.cpp"
         ],
+    ),
+    copts = ["-g","-DHAVE_ZLIB=1"],
+    deps = [
+            "//curvefs/src/metaserver:curvefs_metaserver_lib",
+            "@com_google_googletest//:gtest_main",
+            "@com_google_googletest//:gtest",
+            "//external:brpc",
+    ],
+)
+
+cc_test(
+    name = "curvefs_metaserver_metastore_test",
+    srcs = glob(
+        ["metastore*"],
     ),
     copts = ["-g","-DHAVE_ZLIB=1"],
     deps = [

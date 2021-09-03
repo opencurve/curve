@@ -31,7 +31,6 @@
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
 using curve::common::RWLock;
-
 namespace curvefs {
 namespace metaserver {
 
@@ -49,6 +48,15 @@ struct InodeKey {
     }
 };
 
+struct hashInode {
+    size_t operator()(const InodeKey &key) const {
+        return std::hash<uint64_t>()(key.inodeId) ^
+               std::hash<uint32_t>()(key.fsId);
+    }
+};
+
+using InodeContainerType = std::unordered_map<InodeKey, Inode, hashInode>;
+
 class InodeStorage {
  public:
     virtual MetaStatusCode Insert(const Inode &inode) = 0;
@@ -56,14 +64,8 @@ class InodeStorage {
     virtual MetaStatusCode Delete(const InodeKey &key) = 0;
     virtual MetaStatusCode Update(const Inode &inode) = 0;
     virtual int Count() = 0;
+    virtual InodeContainerType *GetInodeContainer() = 0;
     virtual ~InodeStorage() = default;
-};
-
-struct hashInode {
-    size_t operator()(const InodeKey &key) const {
-        return std::hash<uint64_t>()(key.inodeId) ^
-               std::hash<uint32_t>()(key.fsId);
-    }
 };
 
 class MemoryInodeStorage : public InodeStorage {
@@ -104,12 +106,20 @@ class MemoryInodeStorage : public InodeStorage {
      * @return If inode not exist, return NOT_FOUND; else replace and  return OK
      */
     MetaStatusCode Update(const Inode &inode) override;
+
     int Count() override;
+
+    /**
+     * @brief get Inode container
+     *
+     * @return Inode container, here returns inodeMap_ pointer
+     */
+    InodeContainerType *GetInodeContainer() override;
 
  private:
     RWLock rwLock_;
     // use fsid + inodeid as key
-    std::unordered_map<InodeKey, Inode, hashInode> inodeMap_;
+    InodeContainerType inodeMap_;
 };
 
 }  // namespace metaserver

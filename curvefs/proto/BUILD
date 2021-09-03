@@ -34,6 +34,7 @@ cc_proto_library(
 proto_library(
     name = "metaserver_proto",
     srcs = ["metaserver.proto"],
+    deps = [":curvefs_common_proto"],
 )
 
 cc_proto_library(
