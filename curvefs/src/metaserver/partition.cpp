@@ -25,6 +25,7 @@
 #include <assert.h>
 
 #include "curvefs/src/metaserver/trash_manager.h"
+#include "curvefs/src/metaserver/s3/metaserver_s3_adaptor.h"
 
 namespace curvefs {
 namespace metaserver {

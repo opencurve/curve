@@ -54,7 +54,6 @@ CURVEFS_ERROR MetaStatusCodeToCurvefsErrCode(
             ret = CURVEFS_ERROR::INTERNAL;
             break;
 
-        case MetaStatusCode::UNKNOWN_ERROR:
         default:
             ret = CURVEFS_ERROR::UNKNOWN;
     }

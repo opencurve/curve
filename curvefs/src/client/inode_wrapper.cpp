@@ -75,11 +75,46 @@ CURVEFS_ERROR InodeWapper::UnLink() {
         return CURVEFS_ERROR::OK;
     }
     LOG(ERROR) << "Unlink find nlink <= 0, nlink = " << old;
-    dirty_ = false;
     return CURVEFS_ERROR::INTERNAL;
 }
 
+CURVEFS_ERROR InodeWapper::Open() {
+    MetaStatusCode ret = MetaStatusCode::OK;
+    if (0 == openCount_) {
+        inode_.set_openflag(true);
+        ret = metaClient_->UpdateInode(inode_);
+        if (ret != MetaStatusCode::OK) {
+            inode_.set_openflag(false);
+            LOG(ERROR) << "metaClient_ UpdateInode failed, ret = " << ret
+                << ", inodeid = " << inode_.inodeid();
+            return MetaStatusCodeToCurvefsErrCode(ret);
+        }
+        dirty_ = false;
+    }
+    openCount_++;
+    return CURVEFS_ERROR::OK;
+}
 
+bool InodeWapper::IsOpen() {
+    return openCount_ > 0;
+}
+
+CURVEFS_ERROR InodeWapper::Release() {
+    MetaStatusCode ret = MetaStatusCode::OK;
+    if (1 == openCount_) {
+        inode_.set_openflag(false);
+        ret = metaClient_->UpdateInode(inode_);
+        if (ret != MetaStatusCode::OK) {
+            inode_.set_openflag(true);
+            LOG(ERROR) << "metaClient_ UpdateInode failed, ret = " << ret
+                << ", inodeid = " << inode_.inodeid();
+            return MetaStatusCodeToCurvefsErrCode(ret);
+        }
+        dirty_ = false;
+    }
+    openCount_--;
+    return CURVEFS_ERROR::OK;
+}
 
 }  // namespace client
 }  // namespace curvefs

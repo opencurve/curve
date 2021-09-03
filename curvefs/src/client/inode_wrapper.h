@@ -44,12 +44,14 @@ class InodeWapper {
     InodeWapper(const Inode &inode,
         const std::shared_ptr<MetaServerClient> &metaClient)
       : inode_(inode),
+        openCount_(0),
         metaClient_(metaClient),
         dirty_(false) {}
 
     InodeWapper(Inode &&inode,
         const std::shared_ptr<MetaServerClient> &metaClient)
       : inode_(std::move(inode)),
+        openCount_(0),
         metaClient_(metaClient),
         dirty_(false) {}
 
@@ -131,8 +133,24 @@ class InodeWapper {
 
     CURVEFS_ERROR Sync();
 
+    CURVEFS_ERROR Open();
+
+    bool IsOpen();
+
+    CURVEFS_ERROR Release();
+
+    void SetOpenCount(uint32_t openCount) {
+        openCount_ = openCount;
+    }
+
+    uint32_t GetOpenCount() const {
+        return openCount_;
+    }
+
  private:
      Inode inode_;
+     uint32_t openCount_;
+
      std::shared_ptr<MetaServerClient> metaClient_;
      bool dirty_;
      mutable ::curve::common::Mutex mtx_;

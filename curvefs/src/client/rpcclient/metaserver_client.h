@@ -34,7 +34,6 @@
 #include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/rpcclient/task_excutor.h"
 
-using ::curvefs::client::common::MetaServerOption;
 using ::curvefs::metaserver::Dentry;
 using ::curvefs::metaserver::FsFileType;
 using ::curvefs::metaserver::Inode;
@@ -50,6 +49,10 @@ class MetaServerClient {
     MetaServerClient() {}
 
     virtual ~MetaServerClient() {}
+
+    virtual MetaStatusCode
+    Init(const ExcutorOpt &excutorOpt, std::shared_ptr<MetaCache> metaCache,
+         std::shared_ptr<ChannelManager<MetaserverID>> channelManager) = 0;
 
     virtual MetaStatusCode GetDentry(uint32_t fsId, uint64_t inodeid,
                                      const std::string &name, Dentry *out) = 0;

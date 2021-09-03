@@ -35,6 +35,7 @@ void TrashOption::InitTrashOptionFromConf(std::shared_ptr<Configuration> conf) {
 
 void TrashImpl::Init(const TrashOption &option) {
     options_ = option;
+    s3Adaptor_ = option.s3Adaptor;
 }
 
 void TrashImpl::Add(uint32_t fsId, uint64_t inodeId, uint32_t dtime) {
@@ -88,8 +89,25 @@ void TrashImpl::ScanTrash() {
 
 bool TrashImpl::NeedDelete(const TrashItem &item) {
     uint32_t now = TimeUtility::GetTimeofDaySec();
-    // TODO(xuchaojie) : to judge the session
-    return ((now - item.dtime) >= options_.expiredAfterSec);
+    Inode inode;
+    MetaStatusCode ret = inodeStorage_->Get(
+        InodeKey(item.fsId, item.inodeId), &inode);
+    if (MetaStatusCode::NOT_FOUND == ret) {
+        LOG(WARNING) << "GetInode find inode not exist, fsId = " << item.fsId
+                   << ", inodeId = " << item.inodeId
+                   << ", ret = " << MetaStatusCode_Name(ret);
+        return true;
+    } else if (ret != MetaStatusCode::OK) {
+        LOG(WARNING) << "GetInode fail, fsId = " << item.fsId
+                   << ", inodeId = " << item.inodeId
+                   << ", ret = " << MetaStatusCode_Name(ret);
+        return false;
+    }
+    if (inode.openflag()) {
+        return false;
+    } else {
+        return ((now - item.dtime) >= options_.expiredAfterSec);
+    }
 }
 
 MetaStatusCode TrashImpl::DeleteInodeAndData(const TrashItem &item) {
@@ -106,7 +124,14 @@ MetaStatusCode TrashImpl::DeleteInodeAndData(const TrashItem &item) {
     if (FsFileType::TYPE_FILE == inode.type()) {
         // TODO(xuchaojie) : delete on volume
     } else if (FsFileType::TYPE_S3 == inode.type()) {
-        // TODO(xuchaojie) : delete on s3
+        int retVal = s3Adaptor_->Delete(inode);
+        if (retVal != 0) {
+            LOG(ERROR) << "S3ClientAdaptor delete s3 data failed"
+                       << ", ret = " << retVal
+                       << ", fsId = " << item.fsId
+                       << ", inodeId = " << item.inodeId;
+            return MetaStatusCode::S3_DELETE_ERR;
+        }
     }
 
     ret = inodeStorage_->Delete(

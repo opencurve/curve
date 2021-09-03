@@ -52,6 +52,7 @@ class Metaserver {
     bool running_;
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<DentryStorage> dentryStorage_;
+    std::shared_ptr<S3ClientAdaptor>  s3Adaptor_;
     std::shared_ptr<Trash> trash_;
     std::shared_ptr<InodeManager> inodeManager_;
     std::shared_ptr<DentryManager> dentryManager_;

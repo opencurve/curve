@@ -26,6 +26,7 @@
 #include <glog/logging.h>
 #include "curvefs/src/metaserver/metaserver_service.h"
 #include "curvefs/src/metaserver/trash_manager.h"
+#include "src/common/s3_adapter.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -35,9 +36,26 @@ void Metaserver::InitOptions(std::shared_ptr<Configuration> conf) {
                                &options_.metaserverListenAddr);
 }
 
+void InitS3Option(const std::shared_ptr<Configuration> &conf,
+    S3ClientAdaptorOption *s3Opt) {
+    LOG_IF(FATAL, !conf->GetUInt64Value("s3.blocksize", &s3Opt->blockSize));
+    LOG_IF(FATAL, !conf->GetUInt64Value("s3.chunksize", &s3Opt->chunkSize));
+}
+
 void Metaserver::Init() {
     TrashOption  trashOption;
     trashOption.InitTrashOptionFromConf(conf_);
+    s3Adaptor_ = std::make_shared<S3ClientAdaptorImpl>();
+
+    S3ClientAdaptorOption s3ClientAdaptorOption;
+    InitS3Option(conf_, &s3ClientAdaptorOption);
+    curve::common::S3AdapterOption s3AdaptorOption;
+    ::curve::common::InitS3AdaptorOption(conf_.get(), &s3AdaptorOption);
+    auto s3Client_ = new S3ClientImpl;
+    s3Client_->Init(s3AdaptorOption);
+    // s3Adaptor_ own the s3Client_, and will delete it when destruct.
+    s3Adaptor_->Init(s3ClientAdaptorOption, s3Client_);
+    trashOption.s3Adaptor = s3Adaptor_;
 
     inodeStorage_ = std::make_shared<MemoryInodeStorage>();
     dentryStorage_ = std::make_shared<MemoryDentryStorage>();

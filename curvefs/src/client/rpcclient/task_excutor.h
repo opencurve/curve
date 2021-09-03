@@ -43,19 +43,11 @@ using ::curve::client::LogicPoolID;
 using ::curvefs::client::common::MetaserverID;
 using ::curvefs::client::common::MetaServerOpType;
 using ::curvefs::common::PartitionInfo;
+using ::curvefs::client::common::ExcutorOpt;
 
 namespace curvefs {
 namespace client {
 namespace rpcclient {
-struct ExcutorOpt {
-    uint32_t maxRetry = 3;
-    uint64_t retryIntervalUS = 200;
-    uint64_t rpcTimeoutMS = 1000;
-    uint64_t maxRPCTimeoutMS = 64000;
-    uint64_t maxRetrySleepIntervalUS = 64ull * 1000 * 1000;
-    uint64_t minRetryTimesForceTimeoutBackoff = 5;
-    uint64_t maxRetryTimesBeforeConsiderSuspend = 20;
-};
 
 class TaskContext {
  public:

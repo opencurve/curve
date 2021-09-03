@@ -32,12 +32,18 @@
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/extent_manager.h"
 #include "src/common/timeutility.h"
+#include "curvefs/src/client/rpcclient/metaserver_client.h"
 
 using ::curvefs::common::Volume;
 using ::curvefs::common::S3Info;
 
 namespace curvefs {
 namespace client {
+
+using rpcclient::MetaCache;
+using common::MetaCacheOpt;
+using rpcclient::Cli2ClientImpl;
+using rpcclient::ChannelManager;
 
 CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     mdsBase_ = new MDSBaseClient();
@@ -46,8 +52,13 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
         return CURVEFS_ERROR::INTERNAL;
     }
 
-    metaBase_ = new MetaServerBaseClient();
-    MetaStatusCode ret2 = metaClient_->Init(option.metaOpt, metaBase_);
+    auto cli2Client = std::make_shared<Cli2ClientImpl>();
+    auto metaCache = std::make_shared<MetaCache>();
+    metaCache->Init(option.metaCacheOpt, cli2Client, mdsClient_);
+    auto channelManager = std::make_shared<ChannelManager<MetaserverID>>();
+
+    MetaStatusCode ret2 = metaClient_->Init(option.excutorOpt, metaCache,
+        channelManager);
     if (ret2 != MetaStatusCode::OK) {
         return CURVEFS_ERROR::INTERNAL;
     }
@@ -74,8 +85,6 @@ void FuseClient::UnInit() {
     delete spaceBase_;
     spaceBase_ = nullptr;
 
-    delete metaBase_;
-    metaBase_ = nullptr;
 }
 
 std::ostream &operator<<(std::ostream &os, const struct stat &attr) {
@@ -151,25 +160,28 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
     ::curve::common::UniqueLock lgGuard =
         inodeWapper->GetUniqueLock();
 
-    Inode inode = inodeWapper->GetInodeUnlocked();
+    ret = inodeWapper->Open();
+    if (ret != CURVEFS_ERROR::OK) {
+        return ret;
+    }
+
     if (fi->flags & O_TRUNC) {
         if (fi->flags & O_WRONLY || fi->flags & O_RDWR) {
+            Inode inode = inodeWapper->GetInodeUnlocked();
             int tRet = Truncate(&inode, 0);
             if (tRet < 0) {
                 LOG(ERROR) << "truncate file fail, ret = " << ret
                            << ", inodeid = " << ino;
                 return CURVEFS_ERROR::INTERNAL;
             }
+            inodeWapper->SwapInode(&inode);
+            ret = inodeWapper->Sync();
+            if (ret != CURVEFS_ERROR::OK) {
+                return ret;
+            }
         } else {
             return CURVEFS_ERROR::NOPERMISSION;
         }
-    }
-
-    inodeWapper->SwapInode(&inode);
-
-    ret = inodeWapper->Sync();
-    if (ret != CURVEFS_ERROR::OK) {
-        return ret;
     }
 
     return ret;
@@ -530,6 +542,23 @@ CURVEFS_ERROR FuseClient::FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
     Inode inode = inodeWapper->GetInodeLocked();
     *linkStr = inode.symlink();
     return CURVEFS_ERROR::OK;
+}
+
+CURVEFS_ERROR FuseClient::FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
+    struct fuse_file_info *fi) {
+    std::shared_ptr<InodeWapper> inodeWapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                  << ", inodeid = " << ino;
+        return ret;
+    }
+
+    ::curve::common::UniqueLock lgGuard =
+        inodeWapper->GetUniqueLock();
+
+    ret = inodeWapper->Release();
+    return ret;
 }
 
 }  // namespace client

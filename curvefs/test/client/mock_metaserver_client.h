@@ -43,8 +43,9 @@ class MockMetaServerClient : public MetaServerClient {
     MockMetaServerClient() {}
     ~MockMetaServerClient() {}
 
-    MOCK_METHOD2(Init, MetaStatusCode(const MetaServerOption &metaopt,
-                       MetaServerBaseClient *baseclient));
+    MOCK_METHOD3(Init, MetaStatusCode(const ExcutorOpt &excutorOpt,
+        std::shared_ptr<MetaCache> metaCache,
+        std::shared_ptr<ChannelManager<MetaserverID>> channelManager));
 
     MOCK_METHOD4(GetDentry, MetaStatusCode(uint32_t fsId, uint64_t inodeid,
                   const std::string &name, Dentry *out));

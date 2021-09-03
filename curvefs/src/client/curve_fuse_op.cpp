@@ -32,24 +32,12 @@
 #include "curvefs/src/client/fuse_volume_client.h"
 #include "curvefs/src/client/fuse_s3_client.h"
 
-using ::curve::client::FileClient;
 using ::curve::common::Configuration;
-using ::curvefs::client::BlockDeviceClientImpl;
-using ::curvefs::client::CURVEFS_ERROR;
-using ::curvefs::client::DentryCacheManagerImpl;
-using ::curvefs::client::DirBuffer;
 using ::curvefs::client::FuseClient;
 using ::curvefs::client::common::FuseClientOption;
-using ::curvefs::client::InodeCacheManagerImpl;
-using ::curvefs::client::MDSBaseClient;
-using ::curvefs::client::MdsClientImpl;
-using ::curvefs::client::MetaServerBaseClient;
-using ::curvefs::client::MetaServerClientImpl;
-using ::curvefs::client::SimpleExtentManager;
-using ::curvefs::client::SpaceAllocServerClientImpl;
-using ::curvefs::client::SpaceBaseClient;
 using ::curvefs::client::FuseVolumeClient;
 using ::curvefs::client::FuseS3Client;
+using ::curvefs::client::CURVEFS_ERROR;
 
 static FuseClient *g_ClientInstance = nullptr;
 static FuseClientOption *fuseClientOption = nullptr;
@@ -295,6 +283,12 @@ void FuseOpReadLink(fuse_req_t req, fuse_ino_t ino) {
         return;
     }
     fuse_reply_readlink(req, linkStr.c_str());
+}
+
+void FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
+         struct fuse_file_info *fi) {
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpRelease(req, ino, fi);
+    FuseReplyErrByErrCode(req, ret);
 }
 
 

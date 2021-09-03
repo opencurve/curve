@@ -592,26 +592,51 @@ TEST_F(TestFuseVolumeClient, FuseOpOpen) {
     inode.set_inodeid(ino);
     inode.set_length(4096);
     inode.set_type(FsFileType::TYPE_FILE);
+    inode.set_openflag(false);
     auto inodeWapper = std::make_shared<InodeWapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(DoAll(SetArgReferee<1>(inodeWapper),
                 Return(CURVEFS_ERROR::OK)));
 
+    EXPECT_CALL(*metaClient_, UpdateInode(_))
+        .WillOnce(Return(MetaStatusCode::OK));
+
     CURVEFS_ERROR ret = client_->FuseOpOpen(req, ino, &fi);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+
+    ASSERT_EQ(1, inodeWapper->GetOpenCount());
+
+    Inode inode2 = inodeWapper->GetInodeUnlocked();
+    ASSERT_EQ(true, inode2.openflag());
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpOpenFailed) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
     struct fuse_file_info fi;
+    fi.flags = 0;
+
+    Inode inode;
+    inode.set_fsid(fsId);
+    inode.set_inodeid(ino);
+    inode.set_length(4096);
+    inode.set_type(FsFileType::TYPE_FILE);
+    auto inodeWapper = std::make_shared<InodeWapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
+        .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
+        .WillOnce(DoAll(SetArgReferee<1>(inodeWapper),
+                Return(CURVEFS_ERROR::OK)));
+
+    EXPECT_CALL(*metaClient_, UpdateInode(_))
+        .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
 
     CURVEFS_ERROR ret = client_->FuseOpOpen(req, ino, &fi);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
+
+    ret = client_->FuseOpOpen(req, ino, &fi);
+    ASSERT_EQ(CURVEFS_ERROR::UNKNOWN, ret);
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpCreate) {
@@ -1208,6 +1233,34 @@ TEST_F(TestFuseVolumeClient, FuseOpReadLinkFailed) {
     std::string linkStr;
     CURVEFS_ERROR ret = client_->FuseOpReadLink(req, ino, &linkStr);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
+}
+
+TEST_F(TestFuseVolumeClient, FuseOpRelease) {
+    fuse_req_t req;
+    fuse_ino_t ino = 1;
+    struct fuse_file_info *fi;
+
+    Inode inode;
+    inode.set_fsid(fsId);
+    inode.set_inodeid(ino);
+    inode.set_openflag(true);
+
+    auto inodeWapper = std::make_shared<InodeWapper>(inode, metaClient_);
+    inodeWapper->SetOpenCount(1);
+
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(DoAll(SetArgReferee<1>(inodeWapper),
+                Return(CURVEFS_ERROR::OK)));
+
+    EXPECT_CALL(*metaClient_, UpdateInode(_))
+        .WillOnce(Return(MetaStatusCode::OK));
+
+    CURVEFS_ERROR ret = client_->FuseOpRelease(req, ino, fi);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+
+    ASSERT_EQ(0, inodeWapper->GetOpenCount());
+    Inode inode2 = inodeWapper->GetInodeUnlocked();
+    ASSERT_EQ(false, inode2.openflag());
 }
 
 class TestFuseS3Client : public ::testing::Test {

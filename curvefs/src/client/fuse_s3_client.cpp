@@ -36,7 +36,8 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     S3ClientAdaptorOption s3AdaptorOption;
     s3AdaptorOption.blockSize = option.s3Opt.blocksize;
     s3AdaptorOption.chunkSize = option.s3Opt.chunksize;
-    s3AdaptorOption.metaServerEps = option.metaOpt.msaddr;
+    // TODO(huyao) : s3Adaptor should not need metaServerEps
+    // s3AdaptorOption.metaServerEps = option.metaOpt.msaddr;
     s3AdaptorOption.allocateServerEps = option.spaceOpt.spaceaddr;
 
     s3Client_ = std::make_shared<S3ClientImpl>();
