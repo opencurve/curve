@@ -39,21 +39,23 @@ namespace client {
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
 
-class InodeWapper {
+class InodeWrapper {
  public:
-    InodeWapper(const Inode &inode,
+    InodeWrapper(const Inode &inode,
         const std::shared_ptr<MetaServerClient> &metaClient)
       : inode_(inode),
+        openCount_(0),
         metaClient_(metaClient),
         dirty_(false) {}
 
-    InodeWapper(Inode &&inode,
+    InodeWrapper(Inode &&inode,
         const std::shared_ptr<MetaServerClient> &metaClient)
       : inode_(std::move(inode)),
+        openCount_(0),
         metaClient_(metaClient),
         dirty_(false) {}
 
-    ~InodeWapper() {}
+    ~InodeWrapper() {}
 
     uint64_t GetInodeId() const {
         return inode_.inodeid();
@@ -125,14 +127,33 @@ class InodeWapper {
         return curve::common::UniqueLock(mtx_);
     }
 
-    CURVEFS_ERROR Link();
+    CURVEFS_ERROR LinkLocked();
 
-    CURVEFS_ERROR UnLink();
+    CURVEFS_ERROR UnLinkLocked();
 
     CURVEFS_ERROR Sync();
 
+    CURVEFS_ERROR Open();
+
+    bool IsOpen();
+
+    CURVEFS_ERROR Release();
+
+    void SetOpenCount(uint32_t openCount) {
+        openCount_ = openCount;
+    }
+
+    uint32_t GetOpenCount() const {
+        return openCount_;
+    }
+
+ private:
+    CURVEFS_ERROR SetOpenFlag(bool flag);
+
  private:
      Inode inode_;
+     uint32_t openCount_;
+
      std::shared_ptr<MetaServerClient> metaClient_;
      bool dirty_;
      mutable ::curve::common::Mutex mtx_;

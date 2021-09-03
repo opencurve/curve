@@ -70,25 +70,6 @@ struct MetaServerOption {
     } rpcRetryOpt;
 };
 
-struct RpcRetryOpt {
-    // rpc max timeout
-    uint64_t maxRPCTimeoutMS = 2000;
-    // rpc normal timeout
-    uint64_t rpcTimeoutMs = 500;
-    // rpc retry intervel
-    uint32_t rpcRetryIntervalUS = 50000;
-    // retry maxFailedTimesBeforeChangeAddr at a server
-    uint32_t maxFailedTimesBeforeChangeAddr = 5;
-
-    // if the overall timeout passed by the user is 0, that means retry until
-    // success. First try normalRetryTimesBeforeTriggerWait times, then
-    // repeatedly sleep waitSleepMs and try once
-    uint64_t normalRetryTimesBeforeTriggerWait = 3;  // 3 times
-    uint64_t waitSleepMs = 10000;                    // 10 seconds
-
-    std::vector<std::string> addrs;
-};
-
 /**
  * 租约基本配置
  * @mdsRefreshTimesPerLease: 一个租约内续约次数，client与mds之间通过租约保持心跳

@@ -50,7 +50,6 @@ namespace client {
 
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
-using rpcclient::MetaServerBaseClient;
 using rpcclient::MdsClient;
 using rpcclient::MdsClientImpl;
 using rpcclient::MDSBaseClient;
@@ -70,7 +69,6 @@ class FuseClient {
         dirBuf_(std::make_shared<DirBuffer>()),
         fsInfo_(nullptr),
         mdsBase_(nullptr),
-        metaBase_(nullptr),
         spaceBase_(nullptr) {}
 
     virtual ~FuseClient() {}
@@ -90,7 +88,6 @@ class FuseClient {
             dirBuf_(std::make_shared<DirBuffer>()),
             fsInfo_(nullptr),
             mdsBase_(nullptr),
-            metaBase_(nullptr),
             spaceBase_(nullptr) {}
 
     virtual CURVEFS_ERROR Init(const FuseClientOption &option);
@@ -160,6 +157,9 @@ class FuseClient {
     virtual CURVEFS_ERROR FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
         std::string *linkStr);
 
+    virtual CURVEFS_ERROR FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
+         struct fuse_file_info *fi);
+
     void SetFsInfo(std::shared_ptr<FsInfo> fsInfo) {
         fsInfo_ = fsInfo;
     }
@@ -213,8 +213,6 @@ class FuseClient {
 
  private:
     MDSBaseClient *mdsBase_;
-
-    MetaServerBaseClient *metaBase_;
 
     SpaceBaseClient *spaceBase_;
 };

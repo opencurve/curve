@@ -30,7 +30,8 @@ namespace curvefs {
 namespace client {
 
 CURVEFS_ERROR FuseVolumeClient::Init(const FuseClientOption &option) {
-    bigFileSize_ = option.bigFileSize;
+    volOpts_ = option.volumeOpt;
+
     CURVEFS_ERROR ret = FuseClient::Init(option);
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
@@ -73,13 +74,11 @@ void FuseVolumeClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
 
             Volume vol;
             vol.set_volumesize(stat.length);
-            // TODO(xuchaojie) : where to get block size?
-            vol.set_blocksize(4096);
+            vol.set_blocksize(volOpts_.volBlockSize);
             vol.set_volumename(volName);
             vol.set_user(user);
 
-            // TODO(xuchaojie) : where to get 4096?
-            ret2 = mdsClient_->CreateFs(fsName, 4096, vol);
+            ret2 = mdsClient_->CreateFs(fsName, volOpts_.fsBlockSize, vol);
 
             if (ret2 != FSStatusCode::OK) {
                 LOG(ERROR) << "CreateFs failed, ret = " << ret2
@@ -146,22 +145,23 @@ void FuseVolumeClient::FuseOpDestroy(void *userdata) {
 CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     const char *buf, size_t size, off_t off,
     struct fuse_file_info *fi, size_t *wSize) {
-    if (fi->flags & O_DIRECT) {  // check align
+    // check align
+    if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignemnt) &&
               is_aligned(size, DirectIOAlignemnt)))
             return CURVEFS_ERROR::INVALIDPARAM;
     }
 
-    std::shared_ptr<InodeWapper> inodeWapper;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWapper);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                   << ", inodeid = " << ino;
         return ret;
     }
 
-    ::curve::common::UniqueLock lgGuard = inodeWapper->GetUniqueLock();
-    Inode inode = inodeWapper->GetInodeUnlocked();
+    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+    Inode inode = inodeWrapper->GetInodeUnlocked();
 
     std::list<ExtentAllocInfo> toAllocExtents;
     // get the extent need to be allocate
@@ -173,7 +173,8 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     }
     if (toAllocExtents.size() != 0) {
         AllocateType type = AllocateType::NONE;
-        if (inode.length() >= bigFileSize_ || size >= bigFileSize_) {
+        if (inode.length() >= volOpts_.bigFileSize ||
+            size >= volOpts_.bigFileSize) {
             type = AllocateType::BIG;
         } else {
             type = AllocateType::SMALL;
@@ -238,9 +239,9 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         inode.set_length(off + size);
     }
 
-    inodeWapper->SwapInode(&inode);
+    inodeWrapper->SwapInode(&inode);
 
-    ret = inodeWapper->Sync();
+    ret = inodeWrapper->Sync();
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
@@ -255,22 +256,23 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
     fuse_ino_t ino, size_t size, off_t off,
     struct fuse_file_info *fi,
     char *buffer, size_t *rSize) {
-    if (fi->flags & O_DIRECT) {  // check align
+    // check align
+    if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignemnt) &&
               is_aligned(size, DirectIOAlignemnt)))
             return CURVEFS_ERROR::INVALIDPARAM;
     }
 
-    std::shared_ptr<InodeWapper> inodeWapper;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWapper);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                   << ", inodeid = " << ino;
         return ret;
     }
 
-    ::curve::common::UniqueLock lgGuard = inodeWapper->GetUniqueLock();
-    Inode inode = inodeWapper->GetInodeUnlocked();
+    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+    Inode inode = inodeWrapper->GetInodeUnlocked();
 
     size_t len = 0;
     if (inode.length() < off + size) {
@@ -306,7 +308,12 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
 CURVEFS_ERROR FuseVolumeClient::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
     const char *name, mode_t mode, struct fuse_file_info *fi,
     fuse_entry_param *e) {
-    return MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, e);
+    CURVEFS_ERROR ret = MakeNode(
+        req, parent, name, mode, FsFileType::TYPE_FILE, e);
+    if (ret != CURVEFS_ERROR::OK) {
+        return ret;
+    }
+    return FuseOpOpen(req, e->ino, fi);
 }
 
 CURVEFS_ERROR FuseVolumeClient::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,

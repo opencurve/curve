@@ -36,7 +36,8 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     S3ClientAdaptorOption s3AdaptorOption;
     s3AdaptorOption.blockSize = option.s3Opt.blocksize;
     s3AdaptorOption.chunkSize = option.s3Opt.chunksize;
-    s3AdaptorOption.metaServerEps = option.metaOpt.msaddr;
+    // TODO(huyao) : s3Adaptor should not need metaServerEps
+    // s3AdaptorOption.metaServerEps = option.metaOpt.msaddr;
     s3AdaptorOption.allocateServerEps = option.spaceOpt.spaceaddr;
 
     s3Client_ = std::make_shared<S3ClientImpl>();
@@ -125,22 +126,23 @@ void FuseS3Client::FuseOpDestroy(void *userdata) {
 CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     const char *buf, size_t size, off_t off,
     struct fuse_file_info *fi, size_t *wSize) {
-    if (fi->flags & O_DIRECT) {  // check align
+    // check align
+    if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignemnt) &&
               is_aligned(size, DirectIOAlignemnt)))
             return CURVEFS_ERROR::INVALIDPARAM;
     }
 
-    std::shared_ptr<InodeWapper> inodeWapper;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWapper);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                   << ", inodeid = " << ino;
         return ret;
     }
 
-    ::curve::common::UniqueLock lgGuard = inodeWapper->GetUniqueLock();
-    Inode inode = inodeWapper->GetInodeUnlocked();
+    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+    Inode inode = inodeWrapper->GetInodeUnlocked();
 
     int wRet = s3Adaptor_->Write(&inode, off, size, buf);
     if (wRet < 0) {
@@ -153,9 +155,9 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         inode.set_length(off + size);
     }
 
-    inodeWapper->SwapInode(&inode);
+    inodeWrapper->SwapInode(&inode);
 
-    ret = inodeWapper->Sync();
+    ret = inodeWrapper->Sync();
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
@@ -170,22 +172,23 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req,
     fuse_ino_t ino, size_t size, off_t off,
     struct fuse_file_info *fi,
     char *buffer, size_t *rSize) {
-    if (fi->flags & O_DIRECT) {  // check align
+    // check align
+    if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignemnt) &&
               is_aligned(size, DirectIOAlignemnt)))
             return CURVEFS_ERROR::INVALIDPARAM;
     }
 
-    std::shared_ptr<InodeWapper> inodeWapper;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWapper);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                   << ", inodeid = " << ino;
         return ret;
     }
 
-    ::curve::common::UniqueLock lgGuard = inodeWapper->GetUniqueLock();
-    Inode inode = inodeWapper->GetInodeUnlocked();
+    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+    Inode inode = inodeWrapper->GetInodeUnlocked();
 
     size_t len = 0;
     if (inode.length() < off + size) {
@@ -200,9 +203,9 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req,
     }
     *rSize = rRet;
 
-    inodeWapper->SwapInode(&inode);
+    inodeWrapper->SwapInode(&inode);
 
-    ret = inodeWapper->Sync();
+    ret = inodeWrapper->Sync();
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
@@ -213,7 +216,12 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req,
 CURVEFS_ERROR FuseS3Client::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
     const char *name, mode_t mode, struct fuse_file_info *fi,
     fuse_entry_param *e) {
-    return MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, e);
+    CURVEFS_ERROR ret = MakeNode(
+        req, parent, name, mode, FsFileType::TYPE_S3, e);
+    if (ret != CURVEFS_ERROR::OK) {
+        return ret;
+    }
+    return FuseOpOpen(req, e->ino, fi);
 }
 
 CURVEFS_ERROR FuseS3Client::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,

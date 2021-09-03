@@ -39,6 +39,7 @@ enum MetaStatusCode {
     PARTITION_BUSY = 16;
     PARTITION_ALLOC_ID_FAIL = 17;
     SAVE_META_FAIL = 18;
+    S3_DELETE_ERR = 19;
 }
 
 // dentry interface
@@ -178,6 +179,7 @@ message Inode {
     optional S3ChunkInfoList s3ChunkInfoList = 14; // TYPE_S3 only
     optional uint64 version = 15;
     optional uint32 dtime = 16;
+    optional bool openflag = 17;
 }
 
 message GetInodeResponse {
@@ -236,6 +238,7 @@ message UpdateInodeRequest {
     optional VolumeExtentList volumeExtentList = 13;  // TYPE_FILE only
     optional S3ChunkInfoList s3ChunkInfoList = 14; // TYPE_S3 only
     optional uint32 nlink = 15;
+    optional bool openflag = 16;
 }
 
 message UpdateInodeResponse {

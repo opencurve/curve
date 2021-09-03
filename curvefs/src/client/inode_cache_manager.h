@@ -50,10 +50,10 @@ class InodeCacheManager {
     }
 
     virtual CURVEFS_ERROR GetInode(uint64_t inodeid,
-        std::shared_ptr<InodeWapper> &out) = 0;   // NOLINT
+        std::shared_ptr<InodeWrapper> &out) = 0;   // NOLINT
 
     virtual CURVEFS_ERROR CreateInode(const InodeParam &param,
-        std::shared_ptr<InodeWapper> &out) = 0;   // NOLINT
+        std::shared_ptr<InodeWrapper> &out) = 0;   // NOLINT
 
     virtual CURVEFS_ERROR DeleteInode(uint64_t inodeid) = 0;
 
@@ -71,16 +71,16 @@ class InodeCacheManagerImpl : public InodeCacheManager {
       : metaClient_(metaClient) {}
 
     CURVEFS_ERROR GetInode(uint64_t inodeid,
-        std::shared_ptr<InodeWapper> &out) override;    // NOLINT
+        std::shared_ptr<InodeWrapper> &out) override;    // NOLINT
 
     CURVEFS_ERROR CreateInode(const InodeParam &param,
-        std::shared_ptr<InodeWapper> &out) override;    // NOLINT
+        std::shared_ptr<InodeWrapper> &out) override;    // NOLINT
 
     CURVEFS_ERROR DeleteInode(uint64_t inodeid) override;
 
  private:
     std::shared_ptr<MetaServerClient> metaClient_;
-    std::unordered_map<uint64_t, std::shared_ptr<InodeWapper>> iCache_;
+    std::unordered_map<uint64_t, std::shared_ptr<InodeWrapper>> iCache_;
     curve::common::RWLock mtx_;
 };
 

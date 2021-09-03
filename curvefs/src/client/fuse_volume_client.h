@@ -29,6 +29,8 @@
 namespace curvefs {
 namespace client {
 
+using common::VolumeOption;
+
 class FuseVolumeClient : public FuseClient {
  public:
     FuseVolumeClient()
@@ -79,7 +81,7 @@ class FuseVolumeClient : public FuseClient {
     // curve client
     std::shared_ptr<BlockDeviceClient> blockDeviceClient_;
 
-    uint64_t bigFileSize_;
+    VolumeOption volOpts_;
 };
 
 }  // namespace client

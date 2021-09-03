@@ -157,6 +157,7 @@ void InodeManager::GenerateInodeInternal(uint64_t inodeId, uint32_t fsId,
     inode->set_mtime(time);
     inode->set_atime(time);
     inode->set_ctime(time);
+    inode->set_openflag(false);
     if (FsFileType::TYPE_DIRECTORY == type) {
         inode->set_nlink(2);
     } else {

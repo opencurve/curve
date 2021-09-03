@@ -30,7 +30,7 @@ namespace client {
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
 
-CURVEFS_ERROR InodeWapper::Sync() {
+CURVEFS_ERROR InodeWrapper::Sync() {
     if (dirty_) {
         MetaStatusCode ret = metaClient_->UpdateInode(inode_);
         if (ret != MetaStatusCode::OK) {
@@ -43,7 +43,8 @@ CURVEFS_ERROR InodeWapper::Sync() {
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR InodeWapper::Link() {
+CURVEFS_ERROR InodeWrapper::LinkLocked() {
+    curve::common::UniqueLock lg(mtx_);
     uint32_t old = inode_.nlink();
     inode_.set_nlink(old + 1);
     MetaStatusCode ret = metaClient_->UpdateInode(inode_);
@@ -57,7 +58,8 @@ CURVEFS_ERROR InodeWapper::Link() {
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR InodeWapper::UnLink() {
+CURVEFS_ERROR InodeWrapper::UnLinkLocked() {
+    curve::common::UniqueLock lg(mtx_);
     uint32_t old = inode_.nlink();
     if (old > 0) {
         uint32_t newnlink = old - 1;
@@ -75,11 +77,50 @@ CURVEFS_ERROR InodeWapper::UnLink() {
         return CURVEFS_ERROR::OK;
     }
     LOG(ERROR) << "Unlink find nlink <= 0, nlink = " << old;
-    dirty_ = false;
     return CURVEFS_ERROR::INTERNAL;
 }
 
+CURVEFS_ERROR InodeWrapper::Open() {
+    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
+    if (0 == openCount_) {
+        ret = SetOpenFlag(true);
+        if (ret != CURVEFS_ERROR::OK) {
+            return ret;
+        }
+    }
+    openCount_++;
+    return CURVEFS_ERROR::OK;
+}
 
+bool InodeWrapper::IsOpen() {
+    return openCount_ > 0;
+}
+
+CURVEFS_ERROR InodeWrapper::Release() {
+    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
+    if (1 == openCount_) {
+        ret = SetOpenFlag(false);
+        if (ret != CURVEFS_ERROR::OK) {
+            return ret;
+        }
+    }
+    openCount_--;
+    return CURVEFS_ERROR::OK;
+}
+
+CURVEFS_ERROR InodeWrapper::SetOpenFlag(bool flag) {
+    bool old = inode_.openflag();
+    inode_.set_openflag(flag);
+    MetaStatusCode ret = metaClient_->UpdateInode(inode_);
+    if (ret != MetaStatusCode::OK) {
+        inode_.set_openflag(old);
+        LOG(ERROR) << "metaClient_ UpdateInode failed, ret = " << ret
+            << ", inodeid = " << inode_.inodeid();
+        return MetaStatusCodeToCurvefsErrCode(ret);
+    }
+    dirty_ = false;
+    return CURVEFS_ERROR::OK;
+}
 
 }  // namespace client
 }  // namespace curvefs
