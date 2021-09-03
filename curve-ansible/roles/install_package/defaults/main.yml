@@ -44,6 +44,8 @@ etcd_download_dir: /tmp
 install_etcd_dir: /usr/bin
 
 download_dir: /tmp
-jemalloc_download_url: https://github.com/jemalloc/jemalloc/releases/download/3.6.0/jemalloc-3.6.0.tar.bz2
+# jemalloc_download_url: https://github.com/jemalloc/jemalloc/releases/download/3.6.0/jemalloc-3.6.0.tar.bz2
+jemalloc_download_url: https://curve-build.nos-eastchina1.126.net/jemalloc-3.6.0.tar.bz2
 lib_install_prefix: /usr/local
-daemon_download_url: http://libslack.org/daemon/download/daemon-0.6.4.tar.gz
+# daemon_download_url: http://libslack.org/daemon/download/daemon-0.6.4.tar.gz
+daemon_download_url: https://curve-build.nos-eastchina1.126.net/daemon-0.6.4.tar.gz
