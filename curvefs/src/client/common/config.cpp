@@ -24,8 +24,11 @@
 #include <gflags/gflags.h>
 
 #include <string>
+#include <vector>
 
 #include "curvefs/src/client/common/config.h"
+
+#include "src/common/string_util.h"
 
 namespace brpc {
 DECLARE_int32(defer_close_second);
@@ -36,67 +39,119 @@ namespace curvefs {
 namespace client {
 namespace common {
 void InitMdsOption(Configuration *conf,
-    ::curve::client::MetaServerOption *mdsOpt) {
-    // TODO(xuchaojie) : load from config file
+    MdsOption *mdsOpt) {
+    conf->GetValueFatalIfFail("mdsOpt.mdsMaxRetryMS",
+                              &mdsOpt->mdsMaxRetryMS);
+    conf->GetValueFatalIfFail("mdsOpt.rpcRetryOpt.maxRPCTimeoutMS",
+                              &mdsOpt->rpcRetryOpt.maxRPCTimeoutMS);
+    conf->GetValueFatalIfFail("mdsOpt.rpcRetryOpt.rpcTimeoutMs",
+                              &mdsOpt->rpcRetryOpt.rpcTimeoutMs);
+    conf->GetValueFatalIfFail("mdsOpt.rpcRetryOpt.rpcRetryIntervalUS",
+                              &mdsOpt->rpcRetryOpt.rpcRetryIntervalUS);
+    conf->GetValueFatalIfFail(
+        "mdsOpt.rpcRetryOpt.maxFailedTimesBeforeChangeAddr",
+        &mdsOpt->rpcRetryOpt.maxFailedTimesBeforeChangeAddr);
+    conf->GetValueFatalIfFail(
+        "mdsOpt.rpcRetryOpt.normalRetryTimesBeforeTriggerWait",
+         &mdsOpt->rpcRetryOpt.normalRetryTimesBeforeTriggerWait);
+    conf->GetValueFatalIfFail("mdsOpt.rpcRetryOpt.waitSleepMs",
+                              &mdsOpt->rpcRetryOpt.waitSleepMs);
+    std::string adds;
+    conf->GetValueFatalIfFail("mdsOpt.rpcRetryOpt.addrs",
+                              &adds);
+
+    std::vector<std::string> mdsAddr;
+    curve::common::SplitString(adds, ",", &mdsAddr);
+    mdsOpt->rpcRetryOpt.addrs.assign(mdsAddr.begin(), mdsAddr.end());
 }
 
-void InitMetaServerOption(Configuration *conf, MetaServerOption *metaOpt) {
-    LOG_IF(FATAL, !conf->GetStringValue("metaserver.msaddr", &metaOpt->msaddr));
-    LOG_IF(FATAL, !conf->GetUInt64Value("metaserver.rpcTimeoutMs",
-                                        &metaOpt->rpcTimeoutMs));
+void InitMetaCacheOption(Configuration *conf,
+    MetaCacheOpt *opts) {
+    conf->GetValueFatalIfFail("metaCacheOpt.metacacheGetLeaderRetry",
+                              &opts->metacacheGetLeaderRetry);
+    conf->GetValueFatalIfFail("metaCacheOpt.metacacheRPCRetryIntervalUS",
+                              &opts->metacacheRPCRetryIntervalUS);
+    conf->GetValueFatalIfFail("metaCacheOpt.metacacheGetLeaderRPCTimeOutMS",
+                              &opts->metacacheGetLeaderRPCTimeOutMS);
+}
+
+void InitExcutorOption(Configuration *conf,
+    ExcutorOpt *opts) {
+    conf->GetValueFatalIfFail("excutorOpt.maxRetry",
+                              &opts->maxRetry);
+    conf->GetValueFatalIfFail("excutorOpt.retryIntervalUS",
+                              &opts->retryIntervalUS);
+    conf->GetValueFatalIfFail("excutorOpt.rpcTimeoutMS",
+                              &opts->rpcTimeoutMS);
+    conf->GetValueFatalIfFail("excutorOpt.maxRPCTimeoutMS",
+                              &opts->maxRPCTimeoutMS);
+    conf->GetValueFatalIfFail("excutorOpt.maxRetrySleepIntervalUS",
+                              &opts->maxRetrySleepIntervalUS);
+    conf->GetValueFatalIfFail("excutorOpt.minRetryTimesForceTimeoutBackoff",
+                              &opts->minRetryTimesForceTimeoutBackoff);
+    conf->GetValueFatalIfFail("excutorOpt.maxRetryTimesBeforeConsiderSuspend",
+                              &opts->maxRetryTimesBeforeConsiderSuspend);
 }
 
 void InitSpaceServerOption(Configuration *conf,
                            SpaceAllocServerOption *spaceOpt) {
-    LOG_IF(FATAL, !conf->GetStringValue("spaceserver.spaceaddr",
-                                        &spaceOpt->spaceaddr));
-    LOG_IF(FATAL, !conf->GetUInt64Value("spaceserver.rpcTimeoutMs",
-                                        &spaceOpt->rpcTimeoutMs));
+    conf->GetValueFatalIfFail("spaceserver.spaceaddr",
+                              &spaceOpt->spaceaddr);
+    conf->GetValueFatalIfFail("spaceserver.rpcTimeoutMs",
+                              &spaceOpt->rpcTimeoutMs);
 }
 
 void InitBlockDeviceOption(Configuration *conf,
                            BlockDeviceClientOptions *bdevOpt) {
-    LOG_IF(FATAL, !conf->GetStringValue("bdev.confpath", &bdevOpt->configPath));
+    conf->GetValueFatalIfFail("bdev.confpath", &bdevOpt->configPath);
 }
 
 void InitS3Option(Configuration *conf, S3Option *s3Opt) {
-    LOG_IF(FATAL, !conf->GetUInt64Value("s3.blocksize", &s3Opt->blocksize));
-    LOG_IF(FATAL, !conf->GetUInt64Value("s3.chunksize", &s3Opt->chunksize));
+    conf->GetValueFatalIfFail("s3.blocksize", &s3Opt->blocksize);
+    conf->GetValueFatalIfFail("s3.chunksize", &s3Opt->chunksize);
     ::curve::common::InitS3AdaptorOption(conf, &s3Opt->s3AdaptrOpt);
 }
 
+void InitVolumeOption(Configuration *conf, VolumeOption *volumeOpt) {
+    conf->GetValueFatalIfFail("volume.bigFileSize",
+                              &volumeOpt->bigFileSize);
+    conf->GetValueFatalIfFail("volume.volBlockSize",
+                              &volumeOpt->volBlockSize);
+    conf->GetValueFatalIfFail("volume.fsBlockSize",
+                              &volumeOpt->fsBlockSize);
+}
+
 void InitDCacheOption(Configuration *conf, DCacheOption *dcacheOpt) {
-    LOG_IF(FATAL, !conf->GetUInt32Value("dCache.maxListDentryCount",
-                                        &dcacheOpt->maxListDentryCount));
+    conf->GetValueFatalIfFail("dCache.maxListDentryCount",
+                              &dcacheOpt->maxListDentryCount);
 }
 
 void InitExtentManagerOption(Configuration *conf,
                              ExtentManagerOption *extentManagerOpt) {
-    LOG_IF(FATAL, !conf->GetUInt64Value("extentManager.preAllocSize",
-                                        &extentManagerOpt->preAllocSize));
+    conf->GetValueFatalIfFail("extentManager.preAllocSize",
+                              &extentManagerOpt->preAllocSize);
 }
 
 void SetBrpcOpt(Configuration *conf) {
-    LOG_IF(FATAL, !conf->GetIntValue("defer.close.second",
-                                     brpc::FLAGS_defer_close_second));
+    conf->GetValueFatalIfFail("defer.close.second",
+                              &brpc::FLAGS_defer_close_second);
 }
-
 
 void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     InitMdsOption(conf, &clientOption->mdsOpt);
-    InitMetaServerOption(conf, &clientOption->metaOpt);
+    InitMetaCacheOption(conf, &clientOption->metaCacheOpt);
+    InitExcutorOption(conf, &clientOption->excutorOpt);
     InitSpaceServerOption(conf, &clientOption->spaceOpt);
     InitBlockDeviceOption(conf, &clientOption->bdevOpt);
     InitS3Option(conf, &clientOption->s3Opt);
     InitDCacheOption(conf, &clientOption->dcacheOpt);
     InitExtentManagerOption(conf, &clientOption->extentManagerOpt);
+    InitVolumeOption(conf, &clientOption->volumeOpt);
 
-    LOG_IF(FATAL, !conf->GetDoubleValue("fuseClient.attrTimeOut",
-                                        &clientOption->attrTimeOut));
-    LOG_IF(FATAL, !conf->GetDoubleValue("fuseClient.entryTimeOut",
-                                        &clientOption->entryTimeOut));
-    LOG_IF(FATAL, !conf->GetUInt64Value("fuseClient.bigFileSize",
-                                        &clientOption->bigFileSize));
+    conf->GetValueFatalIfFail("fuseClient.attrTimeOut",
+                              &clientOption->attrTimeOut);
+    conf->GetValueFatalIfFail("fuseClient.entryTimeOut",
+                              &clientOption->entryTimeOut);
 
     SetBrpcOpt(conf);
 }

@@ -36,6 +36,7 @@
 #include "src/client/metacache_struct.h"
 #include "curvefs/src/client/rpcclient/cli2_client.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
+#include "curvefs/src/client/common/config.h"
 
 using ::curve::client::CopysetID;
 using ::curve::client::CopysetInfo;
@@ -45,6 +46,7 @@ using ::curvefs::client::common::MetaserverID;
 using ::curvefs::client::common::MetaServerOpType;
 using ::curvefs::client::common::PartitionID;
 using ::curvefs::common::PartitionInfo;
+using ::curvefs::client::common::MetaCacheOpt;
 
 namespace curvefs {
 namespace client {
@@ -73,12 +75,6 @@ struct CopysetTarget {
     // leader info
     MetaserverID metaServerID;
     butil::EndPoint endPoint;
-};
-
-struct MetaCacheOpt {
-    int metacacheGetLeaderRetry = 3;
-    int metacacheRPCRetryIntervalUS = 500;
-    int metacacheGetLeaderRPCTimeOutMS = 1000;
 };
 
 class MetaCache {

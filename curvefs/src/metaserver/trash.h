@@ -31,6 +31,7 @@
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
 #include "curvefs/src/metaserver/inode_storage.h"
+#include "curvefs/src/metaserver/s3/metaserver_s3_adaptor.h"
 
 using ::curve::common::Configuration;
 using ::curve::common::Thread;
@@ -55,9 +56,11 @@ struct TrashItem {
 struct TrashOption {
     uint32_t scanPeriodSec;
     uint32_t expiredAfterSec;
+    std::shared_ptr<S3ClientAdaptor>  s3Adaptor;
     TrashOption()
       : scanPeriodSec(0),
-        expiredAfterSec(0) {}
+        expiredAfterSec(0),
+        s3Adaptor(nullptr) {}
 
     void InitTrashOptionFromConf(std::shared_ptr<Configuration> conf);
 };
@@ -98,6 +101,7 @@ class TrashImpl : public Trash {
 
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;
+    std::shared_ptr<S3ClientAdaptor>  s3Adaptor_;
 
     std::list<TrashItem> trashItems_;
 

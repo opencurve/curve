@@ -55,6 +55,9 @@ class MdsClient {
     MdsClient() {}
     virtual ~MdsClient() {}
 
+    virtual FSStatusCode Init(const ::curve::client::MetaServerOption &mdsOpt,
+                      MDSBaseClient *baseclient) = 0;
+
     virtual FSStatusCode CreateFs(const std::string &fsName, uint64_t blockSize,
                                   const Volume &volume) = 0;
 

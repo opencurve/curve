@@ -36,14 +36,28 @@ using ::curve::common::S3AdapterOption;
 namespace curvefs {
 namespace client {
 namespace common {
+
+using MdsOption = ::curve::client::MetaServerOption;
+
 struct BlockDeviceClientOptions {
     // config path
     std::string configPath;
 };
 
-struct MetaServerOption {
-    std::string msaddr;
-    uint64_t rpcTimeoutMs;
+struct MetaCacheOpt {
+    int metacacheGetLeaderRetry = 3;
+    int metacacheRPCRetryIntervalUS = 500;
+    int metacacheGetLeaderRPCTimeOutMS = 1000;
+};
+
+struct ExcutorOpt {
+    uint32_t maxRetry = 3;
+    uint64_t retryIntervalUS = 200;
+    uint64_t rpcTimeoutMS = 1000;
+    uint64_t maxRPCTimeoutMS = 64000;
+    uint64_t maxRetrySleepIntervalUS = 64ull * 1000 * 1000;
+    uint64_t minRetryTimesForceTimeoutBackoff = 5;
+    uint64_t maxRetryTimesBeforeConsiderSuspend = 20;
 };
 
 struct SpaceAllocServerOption {
@@ -57,6 +71,12 @@ struct S3Option {
     S3AdapterOption s3AdaptrOpt;
 };
 
+struct VolumeOption {
+    uint64_t bigFileSize;
+    uint64_t volBlockSize;
+    uint64_t fsBlockSize;
+};
+
 struct DCacheOption {
     uint32_t maxListDentryCount;
 };
@@ -66,17 +86,18 @@ struct ExtentManagerOption {
 };
 
 struct FuseClientOption {
-    ::curve::client::MetaServerOption mdsOpt;
-    ::curvefs::client::common::MetaServerOption metaOpt;
+    MdsOption mdsOpt;
+    MetaCacheOpt metaCacheOpt;
+    ExcutorOpt excutorOpt;
     SpaceAllocServerOption spaceOpt;
     BlockDeviceClientOptions bdevOpt;
     S3Option s3Opt;
     DCacheOption dcacheOpt;
     ExtentManagerOption extentManagerOpt;
+    VolumeOption volumeOpt;
 
     double attrTimeOut;
     double entryTimeOut;
-    uint64_t bigFileSize;
 };
 
 void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption);

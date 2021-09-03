@@ -27,6 +27,7 @@
 #include <gmock/gmock.h>
 
 #include <string>
+#include <vector>
 
 #include "curvefs/src/client/rpcclient/mds_client.h"
 
@@ -67,6 +68,14 @@ class MockMdsClient : public MdsClient {
         FsInfo* fsInfo));
 
     MOCK_METHOD2(GetFsInfo, FSStatusCode(uint32_t fsId, FsInfo* fsInfo));
+
+    MOCK_METHOD2(GetMetaServerInfo, bool(const PeerAddr &addr,
+                      CopysetPeerInfo<MetaserverID> *metaserverInfo));
+
+    MOCK_METHOD3(GetMetaServerListInCopysets, bool(
+        const LogicPoolID &logicalpooid,
+        const std::vector<CopysetID> &copysetidvec,
+        std::vector<CopysetInfo<MetaserverID>> *cpinfoVec));
 };
 
 }  // namespace rpcclient

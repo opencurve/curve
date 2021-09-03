@@ -31,7 +31,7 @@ namespace curvefs {
 namespace client {
 
 CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
-    std::shared_ptr<InodeWapper> &out) {
+    std::shared_ptr<InodeWrapper> &out) {
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
     {
         curve::common::ReadLockGuard lg(mtx_);
@@ -50,7 +50,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
                    << ", inodeid = " << inodeid;
         return MetaStatusCodeToCurvefsErrCode(ret2);
     }
-    out = std::make_shared<InodeWapper>(
+    out = std::make_shared<InodeWrapper>(
         std::move(inode), metaClient_);
     iCache_.emplace(inodeid, out);
     return ret;
@@ -58,7 +58,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
 
 CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
     const InodeParam &param,
-    std::shared_ptr<InodeWapper> &out) {
+    std::shared_ptr<InodeWrapper> &out) {
     curve::common::WriteLockGuard lg(mtx_);
     Inode inode;
     MetaStatusCode ret = metaClient_->CreateInode(param, &inode);
@@ -67,7 +67,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
     uint64_t inodeid = inode.inodeid();
-    out = std::make_shared<InodeWapper>(
+    out = std::make_shared<InodeWrapper>(
         std::move(inode), metaClient_);
     iCache_.emplace(inodeid, out);
     return CURVEFS_ERROR::OK;

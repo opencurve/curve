@@ -323,6 +323,8 @@ MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode &inode) {
         request.set_uid(inode.uid());
         request.set_gid(inode.gid());
         request.set_mode(inode.mode());
+        request.set_nlink(inode.nlink());
+        request.set_openflag(inode.openflag());
         if (inode.has_volumeextentlist()) {
             curvefs::metaserver::VolumeExtentList *vlist =
                 new curvefs::metaserver::VolumeExtentList;

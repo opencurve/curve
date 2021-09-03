@@ -249,6 +249,7 @@ void MetaServerServiceImpl::UpdateInode(
     UPDATE_INODE(gid)
     UPDATE_INODE(mode)
     UPDATE_INODE(nlink)
+    UPDATE_INODE(openflag)
 
     if (request->has_volumeextentlist()) {
         VLOG(1) << "update inode has extent";

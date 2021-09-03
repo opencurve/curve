@@ -43,6 +43,10 @@ class MockMdsClient : public MdsClient {
     MockMdsClient() {}
     ~MockMdsClient() {}
 
+    MOCK_METHOD2(Init, FSStatusCode(
+        const ::curve::client::MetaServerOption &mdsOpt,
+        MDSBaseClient *baseclient));
+
     MOCK_METHOD3(CreateFs,
                  FSStatusCode(const std::string &fsName, uint64_t blockSize,
                               const Volume &volume));

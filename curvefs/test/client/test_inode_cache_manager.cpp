@@ -74,22 +74,22 @@ TEST_F(TestInodeCacheManager, GetInode) {
         .WillOnce(DoAll(SetArgPointee<2>(inode),
                 Return(MetaStatusCode::OK)));
 
-    std::shared_ptr<InodeWapper> inodeWapper;
-    CURVEFS_ERROR ret = iCacheManager_->GetInode(inodeId, inodeWapper);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
 
-    ret = iCacheManager_->GetInode(inodeId, inodeWapper);
+    ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
-    Inode out = inodeWapper->GetInodeUnlocked();
+    Inode out = inodeWrapper->GetInodeUnlocked();
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
     ASSERT_EQ(fileLength, out.length());
 
-    ret = iCacheManager_->GetInode(inodeId, inodeWapper);
+    ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
-    out = inodeWapper->GetInodeUnlocked();
+    out = inodeWrapper->GetInodeUnlocked();
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
     ASSERT_EQ(fileLength, out.length());
@@ -111,21 +111,21 @@ TEST_F(TestInodeCacheManager, CreateAndGetInode) {
         .WillOnce(DoAll(SetArgPointee<1>(inode),
             Return(MetaStatusCode::OK)));
 
-    std::shared_ptr<InodeWapper> inodeWapper;
-    CURVEFS_ERROR ret = iCacheManager_->CreateInode(param, inodeWapper);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = iCacheManager_->CreateInode(param, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::UNKNOWN, ret);
 
-    ret = iCacheManager_->CreateInode(param, inodeWapper);
-    Inode out = inodeWapper->GetInodeUnlocked();
+    ret = iCacheManager_->CreateInode(param, inodeWrapper);
+    Inode out = inodeWrapper->GetInodeUnlocked();
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
     ASSERT_EQ(FsFileType::TYPE_FILE, out.type());
 
-    ret = iCacheManager_->GetInode(inodeId, inodeWapper);
+    ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
-    out = inodeWapper->GetInodeUnlocked();
+    out = inodeWrapper->GetInodeUnlocked();
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
     ASSERT_EQ(FsFileType::TYPE_FILE, out.type());

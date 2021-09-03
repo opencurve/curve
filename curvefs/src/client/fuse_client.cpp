@@ -32,12 +32,18 @@
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/extent_manager.h"
 #include "src/common/timeutility.h"
+#include "curvefs/src/client/rpcclient/metaserver_client.h"
 
 using ::curvefs::common::Volume;
 using ::curvefs::common::S3Info;
 
 namespace curvefs {
 namespace client {
+
+using rpcclient::MetaCache;
+using common::MetaCacheOpt;
+using rpcclient::Cli2ClientImpl;
+using rpcclient::ChannelManager;
 
 CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     mdsBase_ = new MDSBaseClient();
@@ -46,8 +52,13 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
         return CURVEFS_ERROR::INTERNAL;
     }
 
-    metaBase_ = new MetaServerBaseClient();
-    MetaStatusCode ret2 = metaClient_->Init(option.metaOpt, metaBase_);
+    auto cli2Client = std::make_shared<Cli2ClientImpl>();
+    auto metaCache = std::make_shared<MetaCache>();
+    metaCache->Init(option.metaCacheOpt, cli2Client, mdsClient_);
+    auto channelManager = std::make_shared<ChannelManager<MetaserverID>>();
+
+    MetaStatusCode ret2 = metaClient_->Init(option.excutorOpt, metaCache,
+        channelManager);
     if (ret2 != MetaStatusCode::OK) {
         return CURVEFS_ERROR::INTERNAL;
     }
@@ -73,9 +84,6 @@ void FuseClient::UnInit() {
 
     delete spaceBase_;
     spaceBase_ = nullptr;
-
-    delete metaBase_;
-    metaBase_ = nullptr;
 }
 
 std::ostream &operator<<(std::ostream &os, const struct stat &attr) {
@@ -125,23 +133,23 @@ CURVEFS_ERROR FuseClient::FuseOpLookup(fuse_req_t req, fuse_ino_t parent,
                    << ", name = " << name;
         return ret;
     }
-    std::shared_ptr<InodeWapper> inodeWapper;
+    std::shared_ptr<InodeWrapper> inodeWrapper;
     fuse_ino_t ino = dentry.inodeid();
-    ret = inodeManager_->GetInode(ino, inodeWapper);
+    ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                   << ", inodeid = " << ino;
         return ret;
     }
-    Inode inode = inodeWapper->GetInodeLocked();
+    Inode inode = inodeWrapper->GetInodeLocked();
     GetDentryParamFromInode(inode, e);
     return ret;
 }
 
 CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
           struct fuse_file_info *fi) {
-    std::shared_ptr<InodeWapper> inodeWapper;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWapper);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                   << ", inodeid = " << ino;
@@ -149,27 +157,30 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
     }
 
     ::curve::common::UniqueLock lgGuard =
-        inodeWapper->GetUniqueLock();
+        inodeWrapper->GetUniqueLock();
 
-    Inode inode = inodeWapper->GetInodeUnlocked();
+    ret = inodeWrapper->Open();
+    if (ret != CURVEFS_ERROR::OK) {
+        return ret;
+    }
+
     if (fi->flags & O_TRUNC) {
         if (fi->flags & O_WRONLY || fi->flags & O_RDWR) {
+            Inode inode = inodeWrapper->GetInodeUnlocked();
             int tRet = Truncate(&inode, 0);
             if (tRet < 0) {
                 LOG(ERROR) << "truncate file fail, ret = " << ret
                            << ", inodeid = " << ino;
                 return CURVEFS_ERROR::INTERNAL;
             }
+            inodeWrapper->SwapInode(&inode);
+            ret = inodeWrapper->Sync();
+            if (ret != CURVEFS_ERROR::OK) {
+                return ret;
+            }
         } else {
             return CURVEFS_ERROR::NOPERMISSION;
         }
-    }
-
-    inodeWapper->SwapInode(&inode);
-
-    ret = inodeWapper->Sync();
-    if (ret != CURVEFS_ERROR::OK) {
-        return ret;
     }
 
     return ret;
@@ -187,8 +198,8 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
     param.mode = mode;
     param.type = type;
 
-    std::shared_ptr<InodeWapper> inodeWapper;
-    CURVEFS_ERROR ret = inodeManager_->CreateInode(param, inodeWapper);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->CreateInode(param, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager CreateInode fail, ret = " << ret
                   << ", parent = " << parent
@@ -199,7 +210,7 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
 
     Dentry dentry;
     dentry.set_fsid(fsInfo_->fsid());
-    dentry.set_inodeid(inodeWapper->GetInodeId());
+    dentry.set_inodeid(inodeWrapper->GetInodeId());
     dentry.set_parentinodeid(parent);
     dentry.set_name(name);
     ret = dentryManager_->CreateDentry(dentry);
@@ -211,7 +222,7 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
         return ret;
     }
 
-    Inode inode = inodeWapper->GetInodeLocked();
+    Inode inode = inodeWrapper->GetInodeLocked();
     GetDentryParamFromInode(inode, e);
     return ret;
 }
@@ -268,17 +279,15 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
                   << ", name = " << name;
         return ret;
     }
-    std::shared_ptr<InodeWapper> inodeWapper;
-    ret = inodeManager_->GetInode(ino, inodeWapper);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                   << ", inodeid = " << ino;
         return ret;
     }
 
-    ::curve::common::UniqueLock lgGuard =
-        inodeWapper->GetUniqueLock();
-    ret = inodeWapper->UnLink();
+    ret = inodeWrapper->UnLinkLocked();
     // also return ok even if unlink failed.
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "UnLink failed, ret = " << ret
@@ -291,8 +300,8 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
 
 CURVEFS_ERROR FuseClient::FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino,
          struct fuse_file_info *fi) {
-    std::shared_ptr<InodeWapper> inodeWapper;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWapper);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                   << ", inodeid = " << ino;
@@ -300,12 +309,11 @@ CURVEFS_ERROR FuseClient::FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino,
     }
 
     ::curve::common::UniqueLock lgGuard =
-        inodeWapper->GetUniqueLock();
+        inodeWrapper->GetUniqueLock();
 
     uint64_t dindex = dirBuf_->DirBufferNew();
     fi->fh = dindex;
 
-    // TODO(xuchaojie): fix it
     return ret;
 }
 
@@ -329,8 +337,8 @@ CURVEFS_ERROR FuseClient::FuseOpReadDir(
     LOG(INFO) << "FuseOpReadDir ino = " << ino
               << ", size = " << size
               << ", off = " << off;
-    std::shared_ptr<InodeWapper> inodeWapper;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWapper);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                   << ", inodeid = " << ino;
@@ -338,7 +346,7 @@ CURVEFS_ERROR FuseClient::FuseOpReadDir(
     }
 
     ::curve::common::UniqueLock lgGuard =
-        inodeWapper->GetUniqueLock();
+        inodeWrapper->GetUniqueLock();
 
     uint64_t dindex = fi->fh;
     DirBufferHead *bufHead = dirBuf_->DirBufferGet(dindex);
@@ -367,15 +375,15 @@ CURVEFS_ERROR FuseClient::FuseOpReadDir(
 
 CURVEFS_ERROR FuseClient::FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
          struct fuse_file_info *fi, struct stat *attr) {
-    std::shared_ptr<InodeWapper> inodeWapper;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWapper);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                   << ", inodeid = " << ino;
         return ret;
     }
     memset(attr, 0, sizeof(*attr));
-    Inode inode = inodeWapper->GetInodeLocked();
+    Inode inode = inodeWrapper->GetInodeLocked();
     GetAttrFromInode(inode, attr);
     return ret;
 }
@@ -384,8 +392,8 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(
         fuse_req_t req, fuse_ino_t ino, struct stat *attr,
         int to_set, struct fuse_file_info *fi, struct stat *attrOut) {
     LOG(INFO) << "FuseOpSetAttr to_set = " << to_set;
-    std::shared_ptr<InodeWapper> inodeWapper;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWapper);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                   << ", inodeid = " << ino;
@@ -393,8 +401,8 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(
     }
 
     ::curve::common::UniqueLock lgGuard =
-        inodeWapper->GetUniqueLock();
-    Inode inode = inodeWapper->GetInodeUnlocked();
+        inodeWrapper->GetUniqueLock();
+    Inode inode = inodeWrapper->GetInodeUnlocked();
 
     if (to_set & FUSE_SET_ATTR_MODE) {
         inode.set_mode(attr->st_mode);
@@ -430,8 +438,8 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(
     if (to_set & FUSE_SET_ATTR_CTIME) {
         inode.set_ctime(attr->st_ctime);
     }
-    inodeWapper->UpdateInode(inode);
-    ret = inodeWapper->Sync();
+    inodeWrapper->UpdateInode(inode);
+    ret = inodeWrapper->Sync();
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
@@ -452,8 +460,8 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
     param.type = FsFileType::TYPE_SYM_LINK;
     param.symlink = link;
 
-    std::shared_ptr<InodeWapper> inodeWapper;
-    CURVEFS_ERROR ret = inodeManager_->CreateInode(param, inodeWapper);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->CreateInode(param, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager CreateInode fail, ret = " << ret
                   << ", parent = " << parent
@@ -463,7 +471,7 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
     }
     Dentry dentry;
     dentry.set_fsid(fsInfo_->fsid());
-    dentry.set_inodeid(inodeWapper->GetInodeId());
+    dentry.set_inodeid(inodeWrapper->GetInodeId());
     dentry.set_parentinodeid(parent);
     dentry.set_name(name);
     ret = dentryManager_->CreateDentry(dentry);
@@ -475,7 +483,7 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
         return ret;
     }
 
-    Inode inode = inodeWapper->GetInodeLocked();
+    Inode inode = inodeWrapper->GetInodeLocked();
     GetDentryParamFromInode(inode, e);
     return ret;
 }
@@ -483,16 +491,14 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
 CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
     fuse_ino_t newparent, const char *newname,
     fuse_entry_param *e) {
-    std::shared_ptr<InodeWapper> inodeWapper;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWapper);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                   << ", inodeid = " << ino;
         return ret;
     }
-    ::curve::common::UniqueLock lgGuard =
-        inodeWapper->GetUniqueLock();
-    ret = inodeWapper->Link();
+    ret = inodeWrapper->LinkLocked();
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "Link Inode fail, ret = " << ret
                    << ", inodeid = " << ino
@@ -502,7 +508,7 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
     }
     Dentry dentry;
     dentry.set_fsid(fsInfo_->fsid());
-    dentry.set_inodeid(inodeWapper->GetInodeId());
+    dentry.set_inodeid(inodeWrapper->GetInodeId());
     dentry.set_parentinodeid(newparent);
     dentry.set_name(newname);
     ret = dentryManager_->CreateDentry(dentry);
@@ -513,23 +519,40 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
 
-    Inode inode = inodeWapper->GetInodeUnlocked();
+    Inode inode = inodeWrapper->GetInodeLocked();
     GetDentryParamFromInode(inode, e);
     return ret;
 }
 
 CURVEFS_ERROR FuseClient::FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
     std::string *linkStr) {
-    std::shared_ptr<InodeWapper> inodeWapper;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWapper);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                   << ", inodeid = " << ino;
         return ret;
     }
-    Inode inode = inodeWapper->GetInodeLocked();
+    Inode inode = inodeWrapper->GetInodeLocked();
     *linkStr = inode.symlink();
     return CURVEFS_ERROR::OK;
+}
+
+CURVEFS_ERROR FuseClient::FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
+    struct fuse_file_info *fi) {
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                  << ", inodeid = " << ino;
+        return ret;
+    }
+
+    ::curve::common::UniqueLock lgGuard =
+        inodeWrapper->GetUniqueLock();
+
+    ret = inodeWrapper->Release();
+    return ret;
 }
 
 }  // namespace client
