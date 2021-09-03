@@ -255,11 +255,12 @@ void MetaServerServiceImpl::UpdateInode(
         needUpdate = true;
     }
 
-    if (request->has_s3chunkinfolist()) {
-        VLOG(1) << "update inode has extent";
-        inode.mutable_s3chunkinfolist()->CopyFrom(request->s3chunkinfolist());
-        needUpdate = true;
-    }
+    // TODO(huyao): delete version
+    // if (request->has_s3chunkinfolist()) {
+    //     VLOG(1) << "update inode has extent";
+    //     inode.mutable_s3chunkinfolist()->CopyFrom(request->s3chunkinfolist());
+    //     needUpdate = true;
+    // }
 
     if (needUpdate) {
         // TODO(cw123) : Update each field individually
@@ -287,6 +288,8 @@ void MetaServerServiceImpl::DeleteInode(
     return;
 }
 
+// TODO(huyao): delete version
+/*
 void MetaServerServiceImpl::UpdateInodeS3Version(
     ::google::protobuf::RpcController* controller,
     const ::curvefs::metaserver::UpdateInodeS3VersionRequest* request,
@@ -309,6 +312,7 @@ void MetaServerServiceImpl::UpdateInodeS3Version(
     }
     return;
 }
+*/
 
 }  // namespace metaserver
 }  // namespace curvefs

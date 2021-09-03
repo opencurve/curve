@@ -41,7 +41,7 @@ struct DentryKey {
     uint32_t fsId;
     uint64_t parentId;
     std::string name;
-    DentryKey(uint32_t fs, uint64_t parent, const std::string& fsname)
+    DentryKey(uint32_t fs, uint64_t parent, const std::string &fsname)
         : fsId(fs), parentId(parent), name(fsname) {}
 
     explicit DentryKey(const Dentry &dentry)
@@ -94,6 +94,8 @@ class DentryStorage {
                                 std::list<Dentry> *dentry) = 0;
     virtual MetaStatusCode Delete(const DentryKey &key) = 0;
     virtual int Count() = 0;
+    virtual std::unordered_map<DentryKey, Dentry, HashDentry>
+        *GetDentryContainer() = 0;
     virtual ~DentryStorage() = default;
 };
 
@@ -140,6 +142,9 @@ class MemoryDentryStorage : public DentryStorage {
     MetaStatusCode Delete(const DentryKey &key) override;
 
     int Count() override;
+
+    std::unordered_map<DentryKey, Dentry, HashDentry> *GetDentryContainer()
+        override;
 
  private:
     static bool CompareDentry(const Dentry &first, const Dentry &second) {

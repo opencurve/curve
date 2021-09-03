@@ -65,112 +65,112 @@ ABSL_DEPS = select({
     "//conditions:default": [],
 })
 
-cc_test(
-    name = "extents_test",
-    srcs = ["extents_test.cpp"],
-    copts = COPTS + ABSL_COPTS,
-    linkopts = LINKOPTS,
-    deps = [
-        "//curvefs/src/space:curve_fs_space",
-        "@com_google_googletest//:gtest",
-    ] + ABSL_DEPS,
-)
+# cc_test(
+#     name = "extents_test",
+#     srcs = ["extents_test.cpp"],
+#     copts = COPTS + ABSL_COPTS,
+#     linkopts = LINKOPTS,
+#     deps = [
+#         "//curvefs/src/space:curve_fs_space",
+#         "@com_google_googletest//:gtest",
+#     ] + ABSL_DEPS,
+# )
 
-cc_test(
-    name = "bitmap_allocator_test",
-    srcs = [
-        "bitmap_allocator_test.cpp",
-        "common.h",
-    ],
-    copts = COPTS + ABSL_COPTS,
-    linkopts = LINKOPTS,
-    deps = [
-        "//curvefs/src/space:curve_fs_space",
-        "@com_google_googletest//:gtest",
-    ] + ABSL_DEPS,
-)
+# cc_test(
+#     name = "bitmap_allocator_test",
+#     srcs = [
+#         "bitmap_allocator_test.cpp",
+#         "common.h",
+#     ],
+#     copts = COPTS + ABSL_COPTS,
+#     linkopts = LINKOPTS,
+#     deps = [
+#         "//curvefs/src/space:curve_fs_space",
+#         "@com_google_googletest//:gtest",
+#     ] + ABSL_DEPS,
+# )
 
-cc_test(
-    name = "bitmap_allocator_brute_test",
-    srcs = [
-        "bitmap_allocator_brute_test.cpp",
-        "common.h",
-    ],
-    copts = COPTS + ABSL_COPTS,
-    linkopts = LINKOPTS,
-    deps = [
-        "//curvefs/src/space:curve_fs_space",
-        "@com_google_googletest//:gtest",
-    ] + ABSL_DEPS,
-)
+# cc_test(
+#     name = "bitmap_allocator_brute_test",
+#     srcs = [
+#         "bitmap_allocator_brute_test.cpp",
+#         "common.h",
+#     ],
+#     copts = COPTS + ABSL_COPTS,
+#     linkopts = LINKOPTS,
+#     deps = [
+#         "//curvefs/src/space:curve_fs_space",
+#         "@com_google_googletest//:gtest",
+#     ] + ABSL_DEPS,
+# )
 
-cc_test(
-    name = "bitmap_allocator_multi_thread_brute_test",
-    srcs = [
-        "bitmap_allocator_multi_thread_brute_test.cpp",
-        "common.h",
-    ],
-    copts = COPTS + ABSL_COPTS,
-    linkopts = LINKOPTS,
-    deps = [
-        "//curvefs/src/space:curve_fs_space",
-        "@com_google_googletest//:gtest",
-    ] + ABSL_DEPS,
-)
+# cc_test(
+#     name = "bitmap_allocator_multi_thread_brute_test",
+#     srcs = [
+#         "bitmap_allocator_multi_thread_brute_test.cpp",
+#         "common.h",
+#     ],
+#     copts = COPTS + ABSL_COPTS,
+#     linkopts = LINKOPTS,
+#     deps = [
+#         "//curvefs/src/space:curve_fs_space",
+#         "@com_google_googletest//:gtest",
+#     ] + ABSL_DEPS,
+# )
 
-cc_test(
-    name = "space_service_test",
-    srcs = [
-        "common.h",
-        "space_service_test.cpp",
-    ],
-    copts = COPTS + ABSL_COPTS,
-    linkopts = LINKOPTS,
-    deps = [
-        "//curvefs/src/space:curve_fs_space",
-        "//curvefs/test/space/mock:space_test_mock",
-        "@com_google_googletest//:gtest",
-    ] + ABSL_DEPS,
-)
+# cc_test(
+#     name = "space_service_test",
+#     srcs = [
+#         "common.h",
+#         "space_service_test.cpp",
+#     ],
+#     copts = COPTS + ABSL_COPTS,
+#     linkopts = LINKOPTS,
+#     deps = [
+#         "//curvefs/src/space:curve_fs_space",
+#         "//curvefs/test/space/mock:space_test_mock",
+#         "@com_google_googletest//:gtest",
+#     ] + ABSL_DEPS,
+# )
 
-cc_test(
-    name = "space_manager_test",
-    srcs = [
-        "common.h",
-        "space_manager_test.cpp",
-    ],
-    copts = COPTS + ABSL_COPTS,
-    linkopts = LINKOPTS,
-    deps = [
-        "//curvefs/src/space:curve_fs_space",
-        "//curvefs/test/space/mock:space_test_mock",
-        "@com_google_googletest//:gtest",
-    ] + ABSL_DEPS,
-)
+# cc_test(
+#     name = "space_manager_test",
+#     srcs = [
+#         "common.h",
+#         "space_manager_test.cpp",
+#     ],
+#     copts = COPTS + ABSL_COPTS,
+#     linkopts = LINKOPTS,
+#     deps = [
+#         "//curvefs/src/space:curve_fs_space",
+#         "//curvefs/test/space/mock:space_test_mock",
+#         "@com_google_googletest//:gtest",
+#     ] + ABSL_DEPS,
+# )
 
-cc_test(
-    name = "allocator_test",
-    srcs = [
-        "allocator_test.cpp",
-        "common.h",
-    ],
-    copts = COPTS + ABSL_COPTS,
-    linkopts = LINKOPTS,
-    deps = [
-        "//curvefs/src/space:curve_fs_space",
-        "@com_google_googletest//:gtest",
-    ] + ABSL_DEPS,
-)
+# cc_test(
+#     name = "allocator_test",
+#     srcs = [
+#         "allocator_test.cpp",
+#         "common.h",
+#     ],
+#     copts = COPTS + ABSL_COPTS,
+#     linkopts = LINKOPTS,
+#     deps = [
+#         "//curvefs/src/space:curve_fs_space",
+#         "@com_google_googletest//:gtest",
+#     ] + ABSL_DEPS,
+# )
 
-# https://docs.bazel.build/versions/master/be/c-cpp.html#cc_binary
-cc_binary(
-    name = "fake_user",
-    srcs = [
-        "fake_user.cpp",
-    ],
-    copts = COPTS + ABSL_COPTS,
-    deps = [
-        "//curvefs/proto:space_cc_proto",
-        "//curvefs/src/space:curve_fs_space",
-    ] + ABSL_DEPS,
-)
+# # https://docs.bazel.build/versions/master/be/c-cpp.html#cc_binary
+# cc_binary(
+#     name = "fake_user",
+#     srcs = [
+#         "fake_user.cpp",
+#     ],
+#     copts = COPTS + ABSL_COPTS,
+#     deps = [
+#         "//curvefs/proto:space_cc_proto",
+#         "//curvefs/src/space:curve_fs_space",
+#     ] + ABSL_DEPS,
+# )

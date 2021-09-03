@@ -40,67 +40,67 @@ COPTS = [
     "-g",
 ]
 
-cc_test(
-    name = "block_device_client_test",
-    srcs = glob([
-        "block_device_client_test.cpp"
-        ]),
-    copts = COPTS,
-    defines = ["UNIT_TEST"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//include/client:include_client",
-        "//curvefs/src/client:fuse_client_lib",
-        "//test/client/mock:client_mock_lib",
-        "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
+# cc_test(
+#     name = "block_device_client_test",
+#     srcs = glob([
+#         "block_device_client_test.cpp"
+#         ]),
+#     copts = COPTS,
+#     defines = ["UNIT_TEST"],
+#     visibility = ["//visibility:public"],
+#     deps = [
+#         "//include/client:include_client",
+#         "//curvefs/src/client:fuse_client_lib",
+#         "//test/client/mock:client_mock_lib",
+#         "@com_google_googletest//:gtest",
+#         "@com_google_googletest//:gtest_main",
+#     ],
+# )
 
-cc_binary(
-    name = "client_s3_test",
-    srcs = glob([
-        "main.cpp",
-        "client_s3_adaptor_test.cpp",
-        "*.h",
-    ]),
-    copts = COPTS,
-    defines = ["UNIT_TEST"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//external:gtest",
-         "//curvefs/src/client:fuse_client_lib",
-        "//curvefs/proto:metaserver_cc_proto",
-        "//curvefs/proto:mds_cc_proto",
-        "//curvefs/proto:space_cc_proto",
-    ],
-    linkopts = ["-lpthread",
-                "-L/usr/local/lib/x86_64-linux-gnu"],
-)
+# cc_binary(
+#     name = "client_s3_test",
+#     srcs = glob([
+#         "main.cpp",
+#         "client_s3_adaptor_test.cpp",
+#         "*.h",
+#     ]),
+#     copts = COPTS,
+#     defines = ["UNIT_TEST"],
+#     visibility = ["//visibility:public"],
+#     deps = [
+#         "//external:gtest",
+#          "//curvefs/src/client:fuse_client_lib",
+#         "//curvefs/proto:metaserver_cc_proto",
+#         "//curvefs/proto:mds_cc_proto",
+#         "//curvefs/proto:space_cc_proto",
+#     ],
+#     linkopts = ["-lpthread",
+#                 "-L/usr/local/lib/x86_64-linux-gnu"],
+# )
 
-cc_test(
-   name = "fuse_client_test",
-   srcs = glob([
-       "*.cpp",
-       "*.c",
-       "*.h"],
-       exclude = [ "block_device_client_test.cpp",
-                   "client_s3_adaptor_test.cpp" ]
-   ),
-   copts = ["-I/usr/local/include/fuse3",
-            "-L/usr/local/lib/x86_64-linux-gnu"],
-   deps = [
-       "//external:gtest",
-        "@com_google_googletest//:gtest_main",
-        "//include/client:include_client",
-       "//curvefs/src/client:fuse_client_lib",
-        "//test/client/mock:client_mock_lib",
-       "//curvefs/proto:metaserver_cc_proto",
-       "//curvefs/proto:mds_cc_proto",
-       "//curvefs/proto:space_cc_proto",
-   ],
-   linkopts = ["-lfuse3",
-               "-lpthread",
-               "-L/usr/local/lib/x86_64-linux-gnu"],
-   visibility = ["//visibility:public"],
-)
+# cc_test(
+#    name = "fuse_client_test",
+#    srcs = glob([
+#        "*.cpp",
+#        "*.c",
+#        "*.h"],
+#        exclude = [ "block_device_client_test.cpp",
+#                    "client_s3_adaptor_test.cpp" ]
+#    ),
+#    copts = ["-I/usr/local/include/fuse3",
+#             "-L/usr/local/lib/x86_64-linux-gnu"],
+#    deps = [
+#        "//external:gtest",
+#         "@com_google_googletest//:gtest_main",
+#         "//include/client:include_client",
+#        "//curvefs/src/client:fuse_client_lib",
+#         "//test/client/mock:client_mock_lib",
+#        "//curvefs/proto:metaserver_cc_proto",
+#        "//curvefs/proto:mds_cc_proto",
+#        "//curvefs/proto:space_cc_proto",
+#    ],
+#    linkopts = ["-lfuse3",
+#                "-lpthread",
+#                "-L/usr/local/lib/x86_64-linux-gnu"],
+#    visibility = ["//visibility:public"],
+# )

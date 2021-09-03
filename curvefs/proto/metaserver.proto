@@ -38,6 +38,7 @@ enum MetaStatusCode {
     PARTITION_EXIST = 15;
     PARTITION_BUSY = 16;
     PARTITION_ALLOC_ID_FAIL = 17;
+    SAVE_META_FAIL = 18;
 }
 
 // dentry interface

@@ -20,20 +20,20 @@ load(
     "GCC_TEST_FLAGS",
 )
 
-cc_library(
-    name = "rpcclient",
-    srcs = glob(["*.cpp"]),
-    hdrs = glob(["*.h"]),
-    copts = GCC_FLAGS,
-    deps = [
-        "//external:brpc",
-        "//external:glog",
-        "//external:gflags",
-        "//curvefs/proto:mds_cc_proto",
-        "//curvefs/proto:metaserver_cc_proto",
-        "//curvefs/proto:space_cc_proto",
-        "//curvefs/src/client/common:common",
-        "//src/client:curve_client",
-    ],
-    visibility = ["//visibility:public"],
-)
+# cc_library(
+#     name = "rpcclient",
+#     srcs = glob(["*.cpp"]),
+#     hdrs = glob(["*.h"]),
+#     copts = GCC_FLAGS,
+#     deps = [
+#         "//external:brpc",
+#         "//external:glog",
+#         "//external:gflags",
+#         "//curvefs/proto:mds_cc_proto",
+#         "//curvefs/proto:metaserver_cc_proto",
+#         "//curvefs/proto:space_cc_proto",
+#         "//curvefs/src/client/common:common",
+#         "//src/client:curve_client",
+#     ],
+#     visibility = ["//visibility:public"],
+# )

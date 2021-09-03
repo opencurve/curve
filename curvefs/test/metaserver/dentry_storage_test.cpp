@@ -161,6 +161,11 @@ TEST_F(DentryStorageTest, test1) {
     it = list.begin();
     ASSERT_TRUE(CompareDentry(*it, dentry2));
 
+    // GetDentryContainer
+    std::unordered_map<DentryKey, Dentry, HashDentry> *map =
+        storage.GetDentryContainer();
+    ASSERT_TRUE(CompareDentry((*map)[DentryKey(dentry2)], dentry2));
+
     ASSERT_EQ(storage.Delete(DentryKey(dentry2)), MetaStatusCode::OK);
     ASSERT_EQ(storage.Count(), 0);
 }

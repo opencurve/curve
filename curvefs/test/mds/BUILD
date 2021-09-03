@@ -14,16 +14,16 @@
 #  limitations under the License.
 #
 
-cc_test(
-    name = "curvefs_mds_test",
-    srcs = glob(["*.cpp", "*.h"]),
-    copts = ["-g","-DHAVE_ZLIB=1"],
-    deps = [
-            "//curvefs/src/mds:curvefs_mds_lib",
-            "@com_google_googletest//:gtest_main",
-            "@com_google_googletest//:gtest",
-            "//external:brpc",
-            "//src/common:curve_common",
-            "//curvefs/proto:space_cc_proto",
-    ],
-)
+# cc_test(
+#     name = "curvefs_mds_test",
+#     srcs = glob(["*.cpp", "*.h"]),
+#     copts = ["-g","-DHAVE_ZLIB=1"],
+#     deps = [
+#             "//curvefs/src/mds:curvefs_mds_lib",
+#             "@com_google_googletest//:gtest_main",
+#             "@com_google_googletest//:gtest",
+#             "//external:brpc",
+#             "//src/common:curve_common",
+#             "//curvefs/proto:space_cc_proto",
+#     ],
+# )

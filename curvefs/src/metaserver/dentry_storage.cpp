@@ -98,5 +98,10 @@ int MemoryDentryStorage::Count() {
     return dentryMap_.size();
 }
 
+std::unordered_map<DentryKey, Dentry, HashDentry>
+    *MemoryDentryStorage::GetDentryContainer() {
+    return &dentryMap_;
+}
+
 }  // namespace metaserver
 }  // namespace curvefs

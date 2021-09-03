@@ -49,6 +49,13 @@ struct InodeKey {
     }
 };
 
+struct hashInode {
+    size_t operator()(const InodeKey &key) const {
+        return std::hash<uint64_t>()(key.inodeId) ^
+               std::hash<uint32_t>()(key.fsId);
+    }
+};
+
 class InodeStorage {
  public:
     virtual MetaStatusCode Insert(const Inode &inode) = 0;
@@ -56,14 +63,9 @@ class InodeStorage {
     virtual MetaStatusCode Delete(const InodeKey &key) = 0;
     virtual MetaStatusCode Update(const Inode &inode) = 0;
     virtual int Count() = 0;
+    virtual std::unordered_map<InodeKey, Inode, hashInode>
+        *GetInodeContainer() = 0;
     virtual ~InodeStorage() = default;
-};
-
-struct hashInode {
-    size_t operator()(const InodeKey &key) const {
-        return std::hash<uint64_t>()(key.inodeId) ^
-               std::hash<uint32_t>()(key.fsId);
-    }
 };
 
 class MemoryInodeStorage : public InodeStorage {
@@ -105,6 +107,9 @@ class MemoryInodeStorage : public InodeStorage {
      */
     MetaStatusCode Update(const Inode &inode) override;
     int Count() override;
+
+    std::unordered_map<InodeKey, Inode, hashInode> *GetInodeContainer()
+        override;
 
  private:
     RWLock rwLock_;

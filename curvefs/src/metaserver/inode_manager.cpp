@@ -33,9 +33,8 @@ MetaStatusCode InodeManager::CreateInode(uint32_t fsId, uint64_t length,
                                          const std::string &symlink,
                                          Inode *newInode) {
     VLOG(1) << "CreateInode, fsId = " << fsId << ", length = " << length
-               << ", uid = " << uid << ", gid = " << gid << ", mode = " << mode
-               << ", type =" << FsFileType_Name(type)
-               << ", symlink = " << symlink;
+            << ", uid = " << uid << ", gid = " << gid << ", mode = " << mode
+            << ", type =" << FsFileType_Name(type) << ", symlink = " << symlink;
     if (type == FsFileType::TYPE_SYM_LINK && symlink.empty()) {
         return MetaStatusCode::SYM_LINK_EMPTY;
     }
@@ -47,9 +46,11 @@ MetaStatusCode InodeManager::CreateInode(uint32_t fsId, uint64_t length,
     if (type == FsFileType::TYPE_SYM_LINK) {
         inode.set_symlink(symlink);
     }
-    if (type == FsFileType::TYPE_S3) {
-        inode.set_version(0);
-    }
+
+    // TODO(huyao): delete version
+    // if (type == FsFileType::TYPE_S3) {
+    //     inode.set_version(0);
+    // }
     // 2. insert inode
     MetaStatusCode ret = inodeStorage_->Insert(inode);
     if (ret != MetaStatusCode::OK) {
@@ -63,11 +64,55 @@ MetaStatusCode InodeManager::CreateInode(uint32_t fsId, uint64_t length,
     }
 
     newInode->CopyFrom(inode);
-    VLOG(1) << "CreateInode success, fsId = " << fsId
-               << ", length = " << length << ", uid = " << uid
-               << ", gid = " << gid << ", mode = " << mode
-               << ", type =" << FsFileType_Name(type)
-               << ", symlink = " << symlink << " ," << inode.ShortDebugString();
+    VLOG(1) << "CreateInode success, fsId = " << fsId << ", length = " << length
+            << ", uid = " << uid << ", gid = " << gid << ", mode = " << mode
+            << ", type =" << FsFileType_Name(type) << ", symlink = " << symlink
+            << " ," << inode.ShortDebugString();
+
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode InodeManager::CreateInode(uint32_t fsId, uint64_t inodeId,
+                                         uint64_t length, uint32_t uid,
+                                         uint32_t gid, uint32_t mode,
+                                         FsFileType type,
+                                         const std::string &symlink,
+                                         Inode *newInode) {
+    VLOG(1) << "CreateInode, fsId = " << fsId << ", length = " << length
+            << ", uid = " << uid << ", gid = " << gid << ", mode = " << mode
+            << ", type =" << FsFileType_Name(type) << ", symlink = " << symlink;
+    if (type == FsFileType::TYPE_SYM_LINK && symlink.empty()) {
+        return MetaStatusCode::SYM_LINK_EMPTY;
+    }
+
+    // 1. generate inode
+    Inode inode;
+    GenerateInodeInternal(inodeId, fsId, length, uid, gid, mode, type,
+                          &inode);
+    if (type == FsFileType::TYPE_SYM_LINK) {
+        inode.set_symlink(symlink);
+    }
+    // TODO(huyao): delete version
+    // if (type == FsFileType::TYPE_S3) {
+    //     inode.set_version(0);
+    // }
+    // 2. insert inode
+    MetaStatusCode ret = inodeStorage_->Insert(inode);
+    if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "CreateInode fail, fsId = " << fsId
+                   << ", length = " << length << ", uid = " << uid
+                   << ", gid = " << gid << ", mode = " << mode
+                   << ", type =" << FsFileType_Name(type)
+                   << ", symlink = " << symlink
+                   << ", ret = " << MetaStatusCode_Name(ret);
+        return ret;
+    }
+
+    newInode->CopyFrom(inode);
+    VLOG(1) << "CreateInode success, fsId = " << fsId << ", length = " << length
+            << ", uid = " << uid << ", gid = " << gid << ", mode = " << mode
+            << ", type =" << FsFileType_Name(type) << ", symlink = " << symlink
+            << " ," << inode.ShortDebugString();
 
     return MetaStatusCode::OK;
 }
@@ -75,7 +120,7 @@ MetaStatusCode InodeManager::CreateInode(uint32_t fsId, uint64_t length,
 MetaStatusCode InodeManager::CreateRootInode(uint32_t fsId, uint32_t uid,
                                              uint32_t gid, uint32_t mode) {
     VLOG(1) << "CreateRootInode, fsId = " << fsId << ", uid = " << uid
-               << ", gid = " << gid << ", mode = " << mode;
+            << ", gid = " << gid << ", mode = " << mode;
 
     // 1. generate inode
     Inode inode;
@@ -92,8 +137,7 @@ MetaStatusCode InodeManager::CreateRootInode(uint32_t fsId, uint32_t uid,
         return ret;
     }
 
-    VLOG(1) << "CreateRootInode success, inode: "
-               << inode.ShortDebugString();
+    VLOG(1) << "CreateRootInode success, inode: " << inode.ShortDebugString();
     return MetaStatusCode::OK;
 }
 
@@ -131,9 +175,8 @@ MetaStatusCode InodeManager::GetInode(uint32_t fsId, uint64_t inodeId,
         return ret;
     }
 
-    VLOG(1) << "GetInode success, fsId = " << fsId
-               << ", inodeId = " << inodeId << ", "
-               << inode->ShortDebugString();
+    VLOG(1) << "GetInode success, fsId = " << fsId << ", inodeId = " << inodeId
+            << ", " << inode->ShortDebugString();
 
     return MetaStatusCode::OK;
 }
@@ -149,7 +192,7 @@ MetaStatusCode InodeManager::DeleteInode(uint32_t fsId, uint64_t inodeId) {
     }
 
     VLOG(1) << "DeleteInode success, fsId = " << fsId
-               << ", inodeId = " << inodeId;
+            << ", inodeId = " << inodeId;
     return MetaStatusCode::OK;
 }
 
@@ -166,10 +209,12 @@ MetaStatusCode InodeManager::UpdateInode(const Inode &inode) {
     return MetaStatusCode::OK;
 }
 
+// TODO(huyao): delete version
+/*
 MetaStatusCode InodeManager::UpdateInodeVersion(uint32_t fsId, uint64_t inodeId,
                                                 uint64_t *version) {
     VLOG(1) << "UpdateInodeVersion, fsId = " << fsId
-               << ", inodeId = " << inodeId;
+            << ", inodeId = " << inodeId;
     Inode inode;
     MetaStatusCode ret = inodeStorage_->Get(InodeKey(fsId, inodeId), &inode);
     if (ret != MetaStatusCode::OK) {
@@ -200,6 +245,21 @@ MetaStatusCode InodeManager::UpdateInodeVersion(uint32_t fsId, uint64_t inodeId,
 
     *version = inode.version();
     VLOG(1) << "UpdateInodeVersion success, " << inode.ShortDebugString();
+    return MetaStatusCode::OK;
+}
+*/
+
+MetaStatusCode InodeManager::InsertInode(const Inode &inode) {
+    VLOG(1) << "InsertInode, " << inode.ShortDebugString();
+
+    // 2. insert inode
+    MetaStatusCode ret = inodeStorage_->Insert(inode);
+    if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "InsertInode fail, " << inode.ShortDebugString()
+                   << ", ret = " << MetaStatusCode_Name(ret);
+        return ret;
+    }
+
     return MetaStatusCode::OK;
 }
 }  // namespace metaserver
