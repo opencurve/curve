@@ -67,5 +67,9 @@ int MemoryInodeStorage::Count() {
     ReadLockGuard readLockGuard(rwLock_);
     return inodeMap_.size();
 }
+
+InodeContainerType *MemoryInodeStorage::GetInodeContainer() {
+    return &inodeMap_;
+}
 }  // namespace metaserver
 }  // namespace curvefs

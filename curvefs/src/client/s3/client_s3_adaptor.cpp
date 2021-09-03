@@ -180,6 +180,10 @@ int S3ClientAdaptorImpl::UpdateInodeS3Version(Inode *inode, uint64_t *version) {
     UpdateInodeS3VersionRequest request;
     UpdateInodeS3VersionResponse response;
 
+    // TODO(huyao): add partiton
+    request.set_poolid(0);
+    request.set_copysetid(0);
+    request.set_partitionid(0);
     request.set_inodeid(inode->inodeid());
     request.set_fsid(inode->fsid());
     curvefs::metaserver::MetaServerService_Stub stub(&channel);
@@ -372,7 +376,7 @@ std::vector<S3ChunkInfo> S3ClientAdaptorImpl::CutOverLapChunks(
         /*
              ----------     old
                ------       new
-        */       
+        */
         } else {
             tmp.set_chunkid(old.chunkid());
             tmp.set_version(old.version());
@@ -392,14 +396,14 @@ std::vector<S3ChunkInfo> S3ClientAdaptorImpl::CutOverLapChunks(
     /*
                   -----     old
                ----------   new
-    */    
+    */
     } else if (newChunk.offset() <= old.offset()
       && newChunk.offset() + newChunk.len() >= old.offset() + old.len()) {
         return result;
     /*
                   --------  old
                -------      new
-    */ 
+    */
     } else {
         tmp.set_chunkid(old.chunkid());
         tmp.set_version(old.version());

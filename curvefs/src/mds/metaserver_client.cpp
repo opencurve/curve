@@ -60,6 +60,10 @@ FSStatusCode MetaserverClient::CreateRootInode(uint32_t fsId, uint32_t uid,
     cntl.set_timeout_ms(options_.rpcTimeoutMs);
 
     MetaServerService_Stub stub(&channel_);
+    // TODO(cw123): add partiton
+    request.set_poolid(0);
+    request.set_copysetid(0);
+    request.set_partitionid(0);
     request.set_fsid(fsId);
     request.set_uid(uid);
     request.set_gid(gid);
@@ -96,6 +100,10 @@ FSStatusCode MetaserverClient::DeleteInode(uint32_t fsId, uint64_t inodeId) {
     cntl.set_timeout_ms(options_.rpcTimeoutMs);
 
     MetaServerService_Stub stub(&channel_);
+    // TODO(cw123): add partiton
+    request.set_poolid(0);
+    request.set_copysetid(0);
+    request.set_partitionid(0);
     request.set_fsid(fsId);
     request.set_inodeid(inodeId);
 

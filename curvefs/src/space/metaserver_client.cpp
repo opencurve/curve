@@ -61,6 +61,11 @@ bool MetaServerClient::RecursiveListDentry(uint32_t fsId, uint64_t inodeId,
 
     brpc::Controller cntl;
 
+    // TODO(wuhanqing): add partition
+    request.set_poolid(0);
+    request.set_copysetid(0);
+    request.set_partitionid(0);
+    // TODO(wuhanqing): end add partition
     request.set_fsid(fsId);
     request.set_dirinodeid(inodeId);
     stub.ListDentry(&cntl, &request, &response, nullptr);

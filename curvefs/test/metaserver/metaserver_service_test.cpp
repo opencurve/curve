@@ -112,6 +112,9 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     CreateInodeRequest createRequest;
     CreateInodeResponse createResponse;
 
+    uint32_t poolId = 2;
+    uint32_t copysetId = 3;
+    uint32_t partitionId = 1;
     uint32_t fsId = 1;
     uint64_t length = 2;
     uint32_t uid = 100;
@@ -119,6 +122,9 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     uint32_t mode = 777;
     FsFileType type = FsFileType::TYPE_DIRECTORY;
 
+    createRequest.set_poolid(poolId);
+    createRequest.set_copysetid(copysetId);
+    createRequest.set_partitionid(partitionId);
     createRequest.set_fsid(fsId);
     createRequest.set_length(length);
     createRequest.set_uid(uid);
@@ -202,6 +208,9 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     cntl.Reset();
     GetInodeRequest getRequest;
     GetInodeResponse getResponse;
+    getRequest.set_poolid(poolId);
+    getRequest.set_copysetid(copysetId);
+    getRequest.set_partitionid(partitionId);
     getRequest.set_fsid(fsId);
     getRequest.set_inodeid(createResponse.inode().inodeid());
     stub.GetInode(&cntl, &getRequest, &getResponse, NULL);
@@ -223,6 +232,9 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     cntl.Reset();
     GetInodeRequest getRequest2;
     GetInodeResponse getResponse2;
+    getRequest2.set_poolid(poolId);
+    getRequest2.set_copysetid(copysetId);
+    getRequest2.set_partitionid(partitionId);
     getRequest2.set_fsid(fsId);
     getRequest2.set_inodeid(createResponse.inode().inodeid() + 100);
     stub.GetInode(&cntl, &getRequest2, &getResponse2, NULL);
@@ -238,6 +250,9 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     cntl.Reset();
     UpdateInodeRequest updateRequest;
     UpdateInodeResponse updateResponse;
+    updateRequest.set_poolid(poolId);
+    updateRequest.set_copysetid(copysetId);
+    updateRequest.set_partitionid(partitionId);
     updateRequest.set_fsid(fsId);
     updateRequest.set_inodeid(createResponse.inode().inodeid());
     stub.UpdateInode(&cntl, &updateRequest, &updateResponse, NULL);
@@ -251,6 +266,9 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     cntl.Reset();
     GetInodeRequest getRequest3;
     GetInodeResponse getResponse3;
+    getRequest3.set_poolid(poolId);
+    getRequest3.set_copysetid(copysetId);
+    getRequest3.set_partitionid(partitionId);
     getRequest3.set_fsid(fsId);
     getRequest3.set_inodeid(createResponse.inode().inodeid());
     stub.GetInode(&cntl, &getRequest3, &getResponse3, NULL);
@@ -265,6 +283,9 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     cntl.Reset();
     UpdateInodeRequest updateRequest2;
     UpdateInodeResponse updateResponse2;
+    updateRequest2.set_poolid(poolId);
+    updateRequest2.set_copysetid(copysetId);
+    updateRequest2.set_partitionid(partitionId);
     updateRequest2.set_fsid(fsId);
     updateRequest2.set_inodeid(createResponse.inode().inodeid());
     updateRequest2.set_length(length + 1);
@@ -279,6 +300,9 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     cntl.Reset();
     GetInodeRequest getRequest4;
     GetInodeResponse getResponse4;
+    getRequest4.set_poolid(poolId);
+    getRequest4.set_copysetid(copysetId);
+    getRequest4.set_partitionid(partitionId);
     getRequest4.set_fsid(fsId);
     getRequest4.set_inodeid(createResponse.inode().inodeid());
     stub.GetInode(&cntl, &getRequest4, &getResponse4, NULL);
@@ -295,6 +319,9 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     cntl.Reset();
     UpdateInodeRequest updateRequest3;
     UpdateInodeResponse updateResponse3;
+    updateRequest3.set_poolid(poolId);
+    updateRequest3.set_copysetid(copysetId);
+    updateRequest3.set_partitionid(partitionId);
     updateRequest3.set_fsid(fsId);
     updateRequest3.set_inodeid(createResponse.inode().inodeid());
     VolumeExtentList volumeExtentList;
@@ -313,6 +340,9 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     cntl.Reset();
     UpdateInodeS3VersionRequest updateVersionRequest;
     UpdateInodeS3VersionResponse updateVersionResponse;
+    updateVersionRequest.set_poolid(poolId);
+    updateVersionRequest.set_copysetid(copysetId);
+    updateVersionRequest.set_partitionid(partitionId);
     updateVersionRequest.set_fsid(fsId);
     updateVersionRequest.set_inodeid(createResponse2.inode().inodeid());
     stub.UpdateInodeS3Version(&cntl, &updateVersionRequest,
@@ -355,6 +385,9 @@ TEST_F(MetaserverServiceTest, inodeTest) {
     cntl.Reset();
     DeleteInodeRequest deleteRequest;
     DeleteInodeResponse deleteResponse;
+    deleteRequest.set_poolid(poolId);
+    deleteRequest.set_copysetid(copysetId);
+    deleteRequest.set_partitionid(partitionId);
     deleteRequest.set_fsid(fsId);
     deleteRequest.set_inodeid(createResponse.inode().inodeid());
     stub.DeleteInode(&cntl, &deleteRequest, &deleteResponse, NULL);
@@ -403,6 +436,10 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     CreateDentryRequest createRequest;
     CreateDentryResponse createResponse;
 
+    uint32_t poolId = 2;
+    uint32_t copysetId = 3;
+    uint32_t partitionId = 1;
+    uint64_t txId = 0;
     uint32_t fsId = 1;
     uint64_t inodeId = 2;
     uint64_t parentId = 3;
@@ -414,6 +451,9 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     dentry1.set_parentinodeid(parentId);
     dentry1.set_name(name);
 
+    createRequest.set_poolid(poolId);
+    createRequest.set_copysetid(copysetId);
+    createRequest.set_partitionid(partitionId);
     createRequest.mutable_dentry()->CopyFrom(dentry1);
 
     stub.CreateDentry(&cntl, &createRequest, &createResponse, NULL);
@@ -469,6 +509,9 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     cntl.Reset();
     GetDentryRequest getRequest;
     GetDentryResponse getResponse;
+    getRequest.set_poolid(poolId);
+    getRequest.set_copysetid(copysetId);
+    getRequest.set_partitionid(partitionId);
     getRequest.set_fsid(fsId);
     getRequest.set_parentinodeid(parentId);
     getRequest.set_name(name);
@@ -498,6 +541,9 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     cntl.Reset();
     ListDentryRequest listRequest;
     ListDentryResponse listResponse;
+    listRequest.set_poolid(poolId);
+    listRequest.set_copysetid(copysetId);
+    listRequest.set_partitionid(partitionId);
     listRequest.set_fsid(fsId);
     listRequest.set_dirinodeid(parentId);
 
@@ -550,6 +596,9 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     cntl.Reset();
     DeleteDentryRequest deleteRequest;
     DeleteDentryResponse deleteResponse;
+    deleteRequest.set_poolid(poolId);
+    deleteRequest.set_copysetid(copysetId);
+    deleteRequest.set_partitionid(partitionId);
     deleteRequest.set_fsid(fsId);
     deleteRequest.set_parentinodeid(parentId);
     deleteRequest.set_name("dentry2");

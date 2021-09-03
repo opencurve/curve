@@ -41,7 +41,7 @@ struct DentryKey {
     uint32_t fsId;
     uint64_t parentId;
     std::string name;
-    DentryKey(uint32_t fs, uint64_t parent, const std::string& fsname)
+    DentryKey(uint32_t fs, uint64_t parent, const std::string &fsname)
         : fsId(fs), parentId(parent), name(fsname) {}
 
     explicit DentryKey(const Dentry &dentry)
@@ -86,6 +86,8 @@ struct HashParentDentry {
     }
 };
 
+using DentryContainerType = std::unordered_map<DentryKey, Dentry, HashDentry>;
+
 class DentryStorage {
  public:
     virtual MetaStatusCode Insert(const Dentry &dentry) = 0;
@@ -94,6 +96,7 @@ class DentryStorage {
                                 std::list<Dentry> *dentry) = 0;
     virtual MetaStatusCode Delete(const DentryKey &key) = 0;
     virtual int Count() = 0;
+    virtual DentryContainerType *GetDentryContainer() = 0;
     virtual ~DentryStorage() = default;
 };
 
@@ -141,6 +144,8 @@ class MemoryDentryStorage : public DentryStorage {
 
     int Count() override;
 
+    DentryContainerType *GetDentryContainer() override;
+
  private:
     static bool CompareDentry(const Dentry &first, const Dentry &second) {
         return first.name() < second.name();
@@ -149,7 +154,7 @@ class MemoryDentryStorage : public DentryStorage {
  private:
     RWLock rwLock_;
     // use fsid + parentid + name as key
-    std::unordered_map<DentryKey, Dentry, HashDentry> dentryMap_;
+    DentryContainerType dentryMap_;
     // use fsid + parentid as key，
     // for list search
     std::unordered_map<DentryParentKey, std::list<Dentry *>, HashParentDentry>
