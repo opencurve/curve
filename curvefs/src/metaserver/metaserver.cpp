@@ -21,10 +21,13 @@
  */
 
 #include "curvefs/src/metaserver/metaserver.h"
+
 #include <brpc/channel.h>
 #include <brpc/server.h>
 #include <glog/logging.h>
+
 #include "curvefs/src/metaserver/metaserver_service.h"
+#include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/trash_manager.h"
 #include "src/common/s3_adapter.h"
 #include "curvefs/src/metaserver/copyset/copyset_service.h"
@@ -96,6 +99,7 @@ void Metaserver::Init() {
     InitCopysetNodeManager();
     InitInflightThrottle();
 
+    S3CompactManager::GetInstance().Init(conf_);
     inited_ = true;
 }
 
@@ -138,6 +142,9 @@ void Metaserver::Run() {
     }
     LOG_IF(FATAL, server_->Start(listenAddr, &option) != 0)
         << "start brpc server error";
+
+    // try start s3compact wq
+    LOG_IF(FATAL, S3CompactManager::GetInstance().Run() != 0);
     running_ = true;
 
     // start copyset node manager
@@ -165,6 +172,7 @@ void Metaserver::Stop() {
     LOG_IF(ERROR, !copysetNodeManager_->Stop())
         << "Failed to stop copyset node manager";
 
+    S3CompactManager::GetInstance().Stop();
     LOG(INFO) << "MetaServer stopped success";
 }
 

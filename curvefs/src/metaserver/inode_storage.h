@@ -121,6 +121,11 @@ class MemoryInodeStorage : public InodeStorage {
     RWLock rwLock_;
     // use fsid + inodeid as key
     ContainerType inodeMap_;
+
+    void MergeTwoS3ChunkInfoMap(
+        const ::google::protobuf::Map<uint64_t, S3ChunkInfoList>& mapA,
+        const ::google::protobuf::Map<uint64_t, S3ChunkInfoList>& mapB,
+        ::google::protobuf::Map<uint64_t, S3ChunkInfoList>* result);
 };
 
 }  // namespace metaserver
