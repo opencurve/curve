@@ -53,7 +53,10 @@ cc_test(
             "metaserver_s3_adaptor_test.h",
             "metaserver_s3_adaptor_test.cpp",
             "mock_metaserver_s3_adaptor.h",
-            "metaserver_s3_test.cpp"
+            "metaserver_s3_test.cpp",
+            "mock_s3compactwq_impl.h",
+            "s3compactwq_test.cpp",
+           "mock_s3_adapter.h"
         ],
     ),
     copts = ["-g","-DHAVE_ZLIB=1"],
@@ -131,6 +134,23 @@ cc_test(
 cc_test(
     name = "storage_test",
     srcs = glob([ "storage_test.cpp" ]),
+    copts = COPTS,
+    defines = ["UNIT_TEST"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//curvefs/src/metaserver:curvefs_metaserver",
+        "@com_google_googletest//:gtest_main",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "s3compactwq_test",
+    srcs = glob(
+               [ "s3compactwq_test.cpp",
+                 "mock_s3compactwq_impl.h",
+                 "mock_s3_adapter.h"]
+               ),
     copts = COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],

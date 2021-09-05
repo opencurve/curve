@@ -32,6 +32,7 @@
 #include "curvefs/src/metaserver/dentry_storage.h"
 #include "curvefs/src/metaserver/inode_manager.h"
 #include "curvefs/src/metaserver/inode_storage.h"
+#include "curvefs/src/metaserver/s3compact.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -102,6 +103,7 @@ class Partition {
     std::shared_ptr<TxManager> txManager_;
 
     PartitionInfo partitionInfo_;
+    std::shared_ptr<S3Compact> s3compact_;
 };
 }  // namespace metaserver
 }  // namespace curvefs

@@ -22,6 +22,9 @@
 
 #include "curvefs/src/metaserver/inode_storage.h"
 
+#include <algorithm>
+#include <vector>
+
 namespace curvefs {
 namespace metaserver {
 MetaStatusCode MemoryInodeStorage::Insert(const Inode &inode) {
@@ -59,7 +62,17 @@ MetaStatusCode MemoryInodeStorage::Update(const Inode &inode) {
     if (it == inodeMap_.end()) {
         return MetaStatusCode::NOT_FOUND;
     }
-    inodeMap_[InodeKey(inode)] = inode;
+    if (inode.s3chunkinfomap().empty()) {
+        inodeMap_[InodeKey(inode)] = inode;
+    } else {
+        ::google::protobuf::Map<uint64_t, S3ChunkInfoList> result;
+        const auto& mapA = inode.s3chunkinfomap();
+        const auto& mapB = it->second.s3chunkinfomap();
+        MergeTwoS3ChunkInfoMap(mapA, mapB, &result);
+        Inode newInode(inode);
+        *newInode.mutable_s3chunkinfomap() = std::move(result);
+        inodeMap_[InodeKey(inode)] = newInode;
+    }
     return MetaStatusCode::OK;
 }
 
@@ -71,5 +84,79 @@ int MemoryInodeStorage::Count() {
 InodeStorage::ContainerType* MemoryInodeStorage::GetContainer() {
     return &inodeMap_;
 }
+
+void MemoryInodeStorage::MergeTwoS3ChunkInfoMap(
+    const ::google::protobuf::Map<uint64_t, S3ChunkInfoList>& mapA,
+    const ::google::protobuf::Map<uint64_t, S3ChunkInfoList>& mapB,
+    ::google::protobuf::Map<uint64_t, S3ChunkInfoList>* result) {
+    assert(!mapA.empty());
+    assert(!mapB.empty());
+    // base map indices should always contains extra's all indices
+    const auto& baseMap = mapA.size() > mapB.size() ? mapA : mapB;
+    const auto& extraMap = mapA.size() <= mapB.size() ? mapA : mapB;
+    for (const auto& item : baseMap) {
+        uint64_t index = item.first;
+        if (extraMap.find(index) == extraMap.end()) {
+            result->insert({index, baseMap.at(index)});
+            continue;
+        }
+
+        S3ChunkInfoList validList;
+        const auto& listA = baseMap.at(index);
+        const auto& listB = extraMap.at(index);
+        auto getMinChunkId = [](const S3ChunkInfoList& l) -> uint64_t {
+            assert(l.s3chunks_size());
+            uint64_t minChunkId = l.s3chunks(0).chunkid();
+            for (auto i = 1; i < l.s3chunks_size(); i++) {
+                uint64_t chunkid = l.s3chunks(i).chunkid();
+                minChunkId = chunkid < minChunkId ? chunkid : minChunkId;
+            }
+            return minChunkId;
+        };
+        // max chunkid of two min chunkid
+        uint64_t minChunkId =
+            std::max(getMinChunkId(listA), getMinChunkId(listB));
+        std::vector<uint64_t> added;
+        auto add = [&](const S3ChunkInfoList& l) {
+            for (auto i = 0; i < l.s3chunks_size(); i++) {
+                auto s3chunkA = l.s3chunks(i);
+                uint64_t chunkid = s3chunkA.chunkid();
+                if (chunkid > minChunkId) {
+                    if (std::find(added.begin(), added.end(), chunkid) ==
+                        added.end()) {
+                        auto ref = validList.add_s3chunks();
+                        *ref = s3chunkA;
+                        added.emplace_back(std::move(chunkid));
+                    }
+                } else if (chunkid == minChunkId) {
+                    // resolve situation, 2 different chunk with same minchunkid
+                    // compact: from [1, 2, 3] to [3]
+                    // orig: [1, 2, 3, 4]
+                    auto it = std::find(added.begin(), added.end(), chunkid);
+                    if (it == added.end()) {
+                        auto ref = validList.add_s3chunks();
+                        *ref = s3chunkA;
+                        added.emplace_back(std::move(chunkid));
+                    } else {
+                        auto s3chunks = validList.mutable_s3chunks();
+                        auto s3chunkBIt =
+                            std::find_if(s3chunks->begin(), s3chunks->end(),
+                                         [&](const S3ChunkInfo& c) {
+                                             return c.chunkid() == chunkid;
+                                         });
+                        // compare compaction
+                        if (s3chunkA.compaction() > s3chunkBIt->compaction()) {
+                            *s3chunkBIt = s3chunkA;
+                        }
+                    }
+                }
+            }
+        };
+        add(listA);
+        add(listB);
+        result->insert({index, std::move(validList)});
+    }
+}
+
 }  // namespace metaserver
 }  // namespace curvefs
