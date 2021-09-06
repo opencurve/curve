@@ -7,6 +7,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 ## 特别说明
 - 一些外部依赖是通过源码的方式安装的，安装的过程中从github下载包可能会超时，这时可以选择重试或手动安装，jemalloc手动安装的话要保证configure的prefix与server.ini和client.ini的lib_install_prefix一致
 - 如果机器上开启了SElinux可能会报Aborting, target uses selinux but python bindings (libselinux-python) aren't installed，可以尝试安装libselinux-python，或者强行关闭selinux
+- CentOS 7/8操作系统下安装curve，会在启动curve进程的时候报找不到libcurl-gnutls.so.4库的问题，原因是CentOS上没有打libcurl-gnutls这个包，规避方案可参考环境准备的第5步
 - deploy_curve.yml用于部署一个全新的集群，集群成功搭建后不能重复跑，因为会**扰乱集群**。可以选择**启动**集群或者**清理**集群后重新部署，详细用法见[curve-ansible README](../../curve-ansible/README.md)。
 - 部署的过程中，在chunkserver成功启动之前都可以任意重试，**chunkserver启动成功后重试**要额外注意，要带上--skip-tags format,因为这一步会把启动成功的chunkserver的数据给清理掉，从而扰乱集群。
 - 需要用到curve-nbd功能的话，对内核有两方面的要求：一是要支持nbd模块，可以modprobe nbd查看nbd模块是否存在。二是nbd设备的block size要能够被设置为4KB。经验证，通过[DVD1.iso](http://mirrors.163.com/centos/8/isos/x86_64/CentOS-8.2.2004-x86_64-dvd1.iso)完整安装的CentOs8，内核版本是4.18.0-193.el8.x86_64，满足这个条件，可供参考。
@@ -66,6 +67,12 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    $ pip install --upgrade setuptools
    ```
 4. 确保源里面有以下几个包：net-tools, openssl>=1.1.1, perf, perl-podlators, make
+5. 使用规避方案修复libcurl-gnutls包不存在问题（CentOS发行版未打这个包）：
+	```bash
+   # check /usr/lib64/libcurl-gnutls.so.4 is exist or not, if NOT, make a soft link for workaround:
+   $ ln -s /usr/lib64/libcurl.so.4.3.0 /usr/lib64/libcurl-gnutls.so.4  # the version of libcurl.so may be different in your env, but should be 4.x.y
+   ```
+
 
 ##### Debian9环境准备具体步骤
 1. root用户登录机器，创建curve用户

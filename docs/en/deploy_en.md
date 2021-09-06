@@ -10,6 +10,8 @@ Ansible is an automated operation and maintenance tool, and curve-ansible is a c
 
 - If SElinux is turned on on the machine, it may report 'Aborting, target uses selinux but python bindings (libselinux-python) aren't installed', you can try to install 'libselinux-python', or close selinux forcibly.
 
+- When deploying curve on CentOS 7/8, you may get a libcurl-gnutls.so.4 not found error, this is because the libcurl-gnutls package is not available on CentOS, you can make a workaround by following the preparation step 5.
+
 - 'deploy_curve.yml' is used to deploy a brand new cluster. After the cluster is successfully set up, it cannot be run repeatedly because it will **disrupt the cluster**. You can choose to **start** the cluster or **clear** the cluster to redeploy. For detailed usage, see [curve-ansible README](../../curve-ansible/README.md).
 
 - During the deployment process, you can always try again before the chunkserver is successfully started. **if you still want retry after the chunkserver is successfully started**, please use the '--skip-tags format', since it will clean up the data of the chunkserver that has been successfully started, thereby disrupting the cluster.
@@ -74,6 +76,11 @@ The smallest CURVE cluster topology:
    $ pip install --upgrade setuptools
    ```
 4. Make sure there are the following packages in the source：net-tools, openssl>=1.1.1, perf, perl-podlators, make
+5. Make a workaround for libcurl-gnutls package：
+	```bash
+   # check /usr/lib64/libcurl-gnutls.so.4 is exist or not, if NOT, make a soft link for workaround:
+   $ ln -s /usr/lib64/libcurl.so.4.3.0 /usr/lib64/libcurl-gnutls.so.4  # the version of libcurl.so may be different in your env, but should be 4.x.y
+   ```
 
 ##### steps for Debian9 environment preparation
 1. Log in to the machine as the root user and create a curve user:：
