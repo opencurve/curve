@@ -22,12 +22,12 @@ all: intall-go install-etcdclient libetcdclient
 
 intall-go:
 	mkdir -p $(pwd)/tmp
-	cd $(pwd)/tmp && wget -N https://dl.google.com/go/go1.12.8.linux-amd64.tar.gz
+	cd $(pwd)/tmp && wget -N https://curve-build.nos-eastchina1.126.net/go1.12.8.linux-amd64.tar.gz
 	cd $(pwd)/tmp && tar zxvf go1.12.8.linux-amd64.tar.gz
 
 install-etcdclient:
 	mkdir -p $(pwd)/tmp/gosrc/src/go.etcd.io
-	cd $(pwd)/tmp/gosrc/src/go.etcd.io && git clone --branch v3.4.0 https://github.com/etcd-io/etcd
+	cd $(pwd)/tmp/gosrc/src/go.etcd.io && git clone --branch v3.4.0 https://gitee.com/mirrors/etcd
 	cd $(pwd)/tmp/gosrc/src/go.etcd.io/etcd && cp $(pwd)/expose-session-for-election.patch . && patch -p1 < expose-session-for-election.patch
 
 vendorpath := $(pwd)/tmp/gosrc/src/go.etcd.io/etcd/vendor
