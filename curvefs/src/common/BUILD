@@ -42,5 +42,8 @@ cc_library(
     srcs=glob(["*.cpp"]),
     copts = COPTS,
     visibility = ["//visibility:public"],
-    deps = [],
+    deps = [
+        "//external:gflags",
+        "//external:glog",
+    ],
 )

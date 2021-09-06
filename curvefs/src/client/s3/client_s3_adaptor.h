@@ -50,11 +50,18 @@ using namespace curvefs::metaserver;
 using namespace curvefs::space;
 */
 
+class DiskCacheManagerImpl;
+
 struct S3ClientAdaptorOption {
     uint64_t blockSize;
     uint64_t chunkSize;
     std::string metaServerEps;
     std::string allocateServerEps;
+    uint64_t trimCheckInterval;
+    uint64_t fullRatio;
+    uint64_t safeRatio;
+    std::string cacheDir;
+    bool forceFlush;
 };
 
 class S3ReadRequest {
@@ -193,6 +200,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     uint64_t chunkSize_;
     std::string metaServerEps_;
     std::string allocateServerEps_;
+    std::shared_ptr<DiskCacheManagerImpl> diskCacheManager_;
 };
 
 }  // namespace client

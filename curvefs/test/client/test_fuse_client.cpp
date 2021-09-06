@@ -647,7 +647,8 @@ TEST_F(TestFuseVolumeClient, FuseOpCreate) {
     fuse_ino_t parent = 1;
     const char *name = "xxx";
     mode_t mode = 1;
-    struct fuse_file_info *fi;
+    struct fuse_file_info fi;
+    fi.flags = 0;
 
     fuse_ino_t ino = 2;
     Inode inode;
@@ -673,7 +674,7 @@ TEST_F(TestFuseVolumeClient, FuseOpCreate) {
         .WillOnce(Return(MetaStatusCode::OK));
 
     fuse_entry_param e;
-    CURVEFS_ERROR ret = client_->FuseOpCreate(req, parent, name, mode, fi, &e);
+    CURVEFS_ERROR ret = client_->FuseOpCreate(req, parent, name, mode, &fi, &e);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     ASSERT_EQ(1, inodeWrapper->GetOpenCount());
