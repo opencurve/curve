@@ -221,6 +221,11 @@ The following steps require three machines to operate:
    $ sudo ls  # Test if sudo is configured correctly
    ```
 3. Make sure there are the following packages in the source：net-tools, openssl>=1.1.1, perf, perl-podlators, make
+4. Make a workaround for libcurl-gnutls package：
+	```bash
+   # check /usr/lib64/libcurl-gnutls.so.4 is exist or not, if NOT, make a soft link for workaround:
+   $ ln -s /usr/lib64/libcurl.so.4.3.0 /usr/lib64/libcurl-gnutls.so.4  # the version of libcurl.so may be different in your env, but should be 4.x.y
+   ```
 
 The following steps only need to be executed on the central control machine：
 1. Configure ssh to log in to all machines (including yourself) under the curve user, assuming that the IPs of the three machines are 10.192.100.1, 10.192.100.2, 10.192.100.3

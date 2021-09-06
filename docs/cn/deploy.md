@@ -210,6 +210,11 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    $ sudo ls  # 测试sudo是否正确配置
    ```
 3. 确保源里面有以下几个包：net-tools, openssl>=1.1.1, perf, perl-podlators, make
+4. 使用规避方案修复libcurl-gnutls包不存在问题（CentOS发行版未打这个包）：
+	```bash
+   # check /usr/lib64/libcurl-gnutls.so.4 is exist or not, if NOT, make a soft link for workaround:
+   $ ln -s /usr/lib64/libcurl.so.4.3.0 /usr/lib64/libcurl-gnutls.so.4  # the version of libcurl.so may be different in your env, but should be 4.x.y
+   ```
 
 下面的步骤只需要在中控机上执行：
 1. curve用户下配置ssh登陆到所有机器（包括自己），假设三台机器的ip分别为10.192.100.1,10.192.100.2,10.192.100.3
