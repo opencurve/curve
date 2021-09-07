@@ -26,7 +26,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <string>
-
+#include <memory>
 #include "curvefs/src/client/s3/client_s3.h"
 
 using ::testing::Return;
@@ -43,10 +43,10 @@ class MockS3Client : public S3Client {
     MOCK_METHOD1(Init, void(const curve::common::S3AdapterOption& options));
     MOCK_METHOD3(Upload, int(const std::string& name,
                              const char* buf, uint64_t length));
-    MOCK_METHOD3(Append, int(const std::string& name,
-                             const char* buf, uint64_t length));
     MOCK_METHOD4(Download, int(const std::string& name,
                                char* buf, uint64_t offset, uint64_t length));
+    MOCK_METHOD1(DownloadAsync, void(
+                 std::shared_ptr<GetObjectAsyncContext> context));
 };
 
 

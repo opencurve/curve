@@ -133,7 +133,6 @@ TEST_F(MetaOperatorTest, OperatorTypeTest) {
     TEST_OPERATOR_TYPE(UpdateInode);
     TEST_OPERATOR_TYPE(DeleteInode);
     TEST_OPERATOR_TYPE(CreateRootInode);
-    TEST_OPERATOR_TYPE(UpdateInodeS3Version);
     TEST_OPERATOR_TYPE(CreatePartition);
     TEST_OPERATOR_TYPE(DeletePartition);
     TEST_OPERATOR_TYPE(PrepareRenameTx);
@@ -175,7 +174,6 @@ TEST_F(MetaOperatorTest, OnApplyErrorTest) {
     OPERATOR_ON_APPLY_TEST(UpdateInode);
     OPERATOR_ON_APPLY_TEST(DeleteInode);
     OPERATOR_ON_APPLY_TEST(CreateRootInode);
-    OPERATOR_ON_APPLY_TEST(UpdateInodeS3Version);
     OPERATOR_ON_APPLY_TEST(CreatePartition);
     OPERATOR_ON_APPLY_TEST(DeletePartition);
     OPERATOR_ON_APPLY_TEST(PrepareRenameTx);
@@ -230,11 +228,6 @@ TEST_F(MetaOperatorTest, OnApplyErrorTest) {
     EXPECT_TRUE(CheckMetric(
         "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
             "/vars | grep "
-            "op_apply_pool_100_copyset_100_update_inode_s3_version_total_error",
-        1));
-    EXPECT_TRUE(CheckMetric(
-        "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
-            "/vars | grep "
             "op_apply_pool_100_copyset_100_create_partition_total_error",
         1));
     EXPECT_TRUE(CheckMetric(
@@ -276,7 +269,6 @@ TEST_F(MetaOperatorTest, OnApplyFromLogErrorTest) {
     OPERATOR_ON_APPLY_FROM_LOG_TEST(UpdateInode);
     OPERATOR_ON_APPLY_FROM_LOG_TEST(DeleteInode);
     OPERATOR_ON_APPLY_FROM_LOG_TEST(CreateRootInode);
-    OPERATOR_ON_APPLY_FROM_LOG_TEST(UpdateInodeS3Version);
     OPERATOR_ON_APPLY_FROM_LOG_TEST(CreatePartition);
     OPERATOR_ON_APPLY_FROM_LOG_TEST(DeletePartition);
     OPERATOR_ON_APPLY_FROM_LOG_TEST(PrepareRenameTx);
@@ -327,11 +319,6 @@ TEST_F(MetaOperatorTest, OnApplyFromLogErrorTest) {
         "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
             "/vars | grep "
             "op_apply_pool_100_copyset_100_create_root_inode_total_error",
-        1));
-    EXPECT_TRUE(CheckMetric(
-        "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
-            "/vars | grep "
-            "op_apply_pool_100_copyset_100_update_inode_s3_version_total_error",
         1));
     EXPECT_TRUE(CheckMetric(
         "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +

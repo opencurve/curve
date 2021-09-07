@@ -49,9 +49,6 @@ MetaStatusCode InodeManager::CreateInode(uint32_t fsId, uint64_t length,
         inode.set_symlink(symlink);
     }
 
-    if (type == FsFileType::TYPE_S3) {
-        inode.set_version(0);
-    }
     // 2. insert inode
     MetaStatusCode ret = inodeStorage_->Insert(inode);
     if (ret != MetaStatusCode::OK) {
@@ -94,9 +91,6 @@ MetaStatusCode InodeManager::CreateInode(uint32_t fsId, uint64_t inodeId,
         inode.set_symlink(symlink);
     }
 
-    if (type == FsFileType::TYPE_S3) {
-        inode.set_version(0);
-    }
     // 2. insert inode
     MetaStatusCode ret = inodeStorage_->Insert(inode);
     if (ret != MetaStatusCode::OK) {
@@ -256,7 +250,7 @@ MetaStatusCode InodeManager::UpdateInodeVersion(uint32_t fsId, uint64_t inodeId,
     }
 
     // TODO(cw123) : To be fixed later. This maybe cause a concurrency problem.
-    inode.set_version(inode.version() + 1);
+    // inode.set_version(inode.version() + 1);
 
     ret = inodeStorage_->Update(inode);
     if (ret != MetaStatusCode::OK) {
@@ -266,7 +260,7 @@ MetaStatusCode InodeManager::UpdateInodeVersion(uint32_t fsId, uint64_t inodeId,
         return ret;
     }
 
-    *version = inode.version();
+    // *version = inode.version();
     VLOG(1) << "UpdateInodeVersion success, " << inode.ShortDebugString();
     return MetaStatusCode::OK;
 }

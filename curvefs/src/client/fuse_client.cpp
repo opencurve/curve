@@ -174,8 +174,8 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
     if (fi->flags & O_TRUNC) {
         if (fi->flags & O_WRONLY || fi->flags & O_RDWR) {
             Inode inode = inodeWrapper->GetInodeUnlocked();
-            int tRet = Truncate(&inode, 0);
-            if (tRet < 0) {
+            CURVEFS_ERROR tRet = Truncate(&inode, 0);
+            if (tRet != CURVEFS_ERROR::OK) {
                 LOG(ERROR) << "truncate file fail, ret = " << ret
                            << ", inodeid = " << ino;
                 return CURVEFS_ERROR::INTERNAL;
@@ -200,8 +200,8 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
     InodeParam param;
     param.fsId = fsInfo_->fsid();
     param.length = 0;
-    param.uid = ctx->uid;
-    param.gid = ctx->gid;
+    // param.uid = ctx->uid;
+    // param.gid = ctx->gid;
     param.mode = mode;
     param.type = type;
 
@@ -449,11 +449,11 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(
         inode.set_gid(attr->st_gid);
     }
     if (to_set & FUSE_SET_ATTR_SIZE) {
-        int tRet = Truncate(&inode, attr->st_size);
-        if (tRet < 0) {
+        CURVEFS_ERROR tRet = Truncate(&inode, attr->st_size);
+        if (tRet != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "truncate file fail, ret = " << ret
                        << ", inodeid = " << ino;
-            return CURVEFS_ERROR::INTERNAL;
+            return tRet;
         }
         inode.set_length(attr->st_size);
     }

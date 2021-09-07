@@ -324,9 +324,9 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
     return MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, e);
 }
 
-int FuseVolumeClient::Truncate(Inode *inode, uint64_t length) {
-    return 0;
+CURVEFS_ERROR FuseVolumeClient::Truncate(Inode *inode, uint64_t length) {
     // Todo: call volume truncate
+    return CURVEFS_ERROR::OK;
 }
 
 }  // namespace client

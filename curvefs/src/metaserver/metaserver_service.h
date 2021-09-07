@@ -79,11 +79,6 @@ class MetaServerServiceImpl : public MetaServerService {
                      const ::curvefs::metaserver::DeleteInodeRequest* request,
                      ::curvefs::metaserver::DeleteInodeResponse* response,
                      ::google::protobuf::Closure* done);
-    void UpdateInodeS3Version(
-        ::google::protobuf::RpcController* controller,
-        const ::curvefs::metaserver::UpdateInodeS3VersionRequest* request,
-        ::curvefs::metaserver::UpdateInodeS3VersionResponse* response,
-        ::google::protobuf::Closure* done);
 
     void CreatePartition(google::protobuf::RpcController* controller,
                          const CreatePartitionRequest* request,

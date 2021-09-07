@@ -132,7 +132,7 @@ class S3Adapter {
      * @param 数据内容大小
      * @return:0 上传成功/ -1 上传失败
      */
-    int PutObject(const Aws::String &key, const void *buffer,
+    virtual int PutObject(const Aws::String &key, const void *buffer,
             const int bufferSize);
     // Get object to buffer[bufferSize]
     // int GetObject(const Aws::String &key, void *buffer,

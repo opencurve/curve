@@ -63,9 +63,6 @@ class MockMetaStore : public curvefs::metaserver::MetaStore {
                                              DeleteInodeResponse*));
     MOCK_METHOD2(UpdateInode, MetaStatusCode(const UpdateInodeRequest*,
                                              UpdateInodeResponse*));
-    MOCK_METHOD2(UpdateInodeS3Version,
-                 MetaStatusCode(const UpdateInodeS3VersionRequest*,
-                                UpdateInodeS3VersionResponse*));
     MOCK_METHOD2(PrepareRenameTx, MetaStatusCode(const PrepareRenameTxRequest*,
                                                  PrepareRenameTxResponse*));
 };

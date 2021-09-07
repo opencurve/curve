@@ -53,8 +53,7 @@ using curvefs::metaserver::DeleteInodeRequest;
 using curvefs::metaserver::DeleteInodeResponse;
 using curvefs::metaserver::CreateRootInodeRequest;
 using curvefs::metaserver::CreateRootInodeResponse;
-using curvefs::metaserver::UpdateInodeS3VersionRequest;
-using curvefs::metaserver::UpdateInodeS3VersionResponse;
+
 // partition
 using curvefs::metaserver::CreatePartitionRequest;
 using curvefs::metaserver::CreatePartitionResponse;
@@ -113,10 +112,6 @@ class MetaStore {
 
     virtual MetaStatusCode UpdateInode(const UpdateInodeRequest* request,
                                        UpdateInodeResponse* response) = 0;
-
-    virtual MetaStatusCode UpdateInodeS3Version(
-        const UpdateInodeS3VersionRequest* request,
-        UpdateInodeS3VersionResponse* response) = 0;
 };
 
 class MetaStoreImpl : public MetaStore {
@@ -164,10 +159,6 @@ class MetaStoreImpl : public MetaStore {
 
     MetaStatusCode UpdateInode(const UpdateInodeRequest* request,
                                UpdateInodeResponse* response);
-
-    MetaStatusCode UpdateInodeS3Version(
-        const UpdateInodeS3VersionRequest* request,
-        UpdateInodeS3VersionResponse* response);
 
     std::shared_ptr<Partition> GetPartition(uint32_t partitionId);
 

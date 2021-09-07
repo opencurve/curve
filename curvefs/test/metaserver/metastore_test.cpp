@@ -413,48 +413,10 @@ TEST_F(MetastoreTest, test_inode) {
     VolumeExtentList volumeExtentList;
     updateRequest3.mutable_volumeextentlist()->CopyFrom(volumeExtentList);
     S3ChunkInfoList s3ChunkInfoList;
-    updateRequest3.mutable_s3chunkinfolist()->CopyFrom(s3ChunkInfoList);
+    updateRequest3.mutable_s3chunkinfomap()->insert({0, s3ChunkInfoList});
     ret = metastore.UpdateInode(&updateRequest3, &updateResponse3);
     ASSERT_EQ(updateResponse3.statuscode(), MetaStatusCode::PARAM_ERROR);
     ASSERT_EQ(updateResponse3.statuscode(), ret);
-
-    // UPDATE INODE VERSION
-    UpdateInodeS3VersionRequest updateVersionRequest;
-    UpdateInodeS3VersionResponse updateVersionResponse;
-    updateVersionRequest.set_poolid(poolId);
-    updateVersionRequest.set_copysetid(copysetId);
-    updateVersionRequest.set_partitionid(666);
-    updateVersionRequest.set_fsid(fsId);
-    updateVersionRequest.set_inodeid(createResponse2.inode().inodeid());
-
-    // updateVersionRequest wrong partitionid
-    ret = metastore.UpdateInodeS3Version(&updateVersionRequest,
-                                         &updateVersionResponse);
-    ASSERT_EQ(updateVersionResponse.statuscode(),
-              MetaStatusCode::PARTITION_NOT_FOUND);
-    ASSERT_EQ(updateVersionResponse.statuscode(), ret);
-
-    updateVersionRequest.set_partitionid(partitionId);
-    ret = metastore.UpdateInodeS3Version(&updateVersionRequest,
-                                         &updateVersionResponse);
-    ASSERT_EQ(updateVersionResponse.statuscode(), MetaStatusCode::OK);
-    ASSERT_EQ(updateVersionResponse.statuscode(), ret);
-    ASSERT_EQ(updateVersionResponse.version(), 1);
-
-    updateVersionRequest.set_fsid(fsId);
-    updateVersionRequest.set_inodeid(createResponse2.inode().inodeid());
-    ret = metastore.UpdateInodeS3Version(&updateVersionRequest,
-                                         &updateVersionResponse);
-    ASSERT_EQ(updateVersionResponse.statuscode(), MetaStatusCode::OK);
-    ASSERT_EQ(updateVersionResponse.statuscode(), ret);
-    ASSERT_EQ(updateVersionResponse.version(), 2);
-
-    updateVersionRequest.set_fsid(fsId);
-    updateVersionRequest.set_inodeid(createResponse.inode().inodeid());
-    ret = metastore.UpdateInodeS3Version(&updateVersionRequest,
-                                         &updateVersionResponse);
-    ASSERT_EQ(updateVersionResponse.statuscode(), MetaStatusCode::PARAM_ERROR);
-    ASSERT_EQ(updateVersionResponse.statuscode(), ret);
 
     // DELETE INODE
     DeleteInodeRequest deleteRequest;

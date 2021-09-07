@@ -135,26 +135,6 @@ TEST_F(InodeManagerTest, test1) {
               MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(temp5, temp2));
     ASSERT_FALSE(CompareInode(inode2, temp2));
-
-    // UPDATE VERSION
-    uint64_t version = 0;
-    ASSERT_EQ(manager.UpdateInodeVersion(fsId, inode4.inodeid(), &version),
-              MetaStatusCode::OK);
-    ASSERT_EQ(version, 1);
-    ASSERT_EQ(manager.UpdateInodeVersion(fsId, inode4.inodeid(), &version),
-              MetaStatusCode::OK);
-    ASSERT_EQ(version, 2);
-
-    ASSERT_EQ(manager.UpdateInodeVersion(fsId, inode2.inodeid(), &version),
-              MetaStatusCode::PARAM_ERROR);
-    ASSERT_EQ(manager.UpdateInodeVersion(fsId, inode1.inodeid(), &version),
-              MetaStatusCode::NOT_FOUND);
-
-    // INSERT
-    ASSERT_EQ(manager.InsertInode(inode2), MetaStatusCode::INODE_EXIST);
-    Inode inode5 = inode2;
-    inode5.set_inodeid(100);
-    ASSERT_EQ(manager.InsertInode(inode5), MetaStatusCode::OK);
 }
 }  // namespace metaserver
 }  // namespace curvefs

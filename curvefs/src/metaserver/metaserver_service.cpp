@@ -185,17 +185,6 @@ void MetaServerServiceImpl::DeleteInode(
                                            request->copysetid());
 }
 
-void MetaServerServiceImpl::UpdateInodeS3Version(
-    ::google::protobuf::RpcController* controller,
-    const ::curvefs::metaserver::UpdateInodeS3VersionRequest* request,
-    ::curvefs::metaserver::UpdateInodeS3VersionResponse* response,
-    ::google::protobuf::Closure* done) {
-    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
-    helper.operator()<UpdateInodeS3VersionOperator>(
-        controller, request, response, done, request->poolid(),
-        request->copysetid());
-}
-
 void MetaServerServiceImpl::CreatePartition(
     google::protobuf::RpcController* controller,
     const CreatePartitionRequest* request, CreatePartitionResponse* response,

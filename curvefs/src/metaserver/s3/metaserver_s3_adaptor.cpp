@@ -32,42 +32,48 @@ void S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption& option,
 }
 
 int S3ClientAdaptorImpl::Delete(const Inode& inode) {
-    const S3ChunkInfoList& s3ChunkInfolist = inode.s3chunkinfolist();
+    // const S3ChunkInfoList& s3ChunkInfolist = inode.s3chunkinfolist();
+    auto s3ChunkInfoMap = inode.s3chunkinfomap();
     LOG(INFO) << "delete data, inode id: " << inode.inodeid()
               << ", len:" << inode.length();
-
     int ret = 0;
-    for (int i = 0; i < s3ChunkInfolist.s3chunks_size(); ++i) {
-        // traverse chunks to delete blocks
-        S3ChunkInfo chunkInfo = s3ChunkInfolist.s3chunks(i);
-        // delete chunkInfo from client
-        uint64_t chunkId = chunkInfo.chunkid();
-        uint64_t version = chunkInfo.version();
-        uint64_t chunkPos = chunkInfo.offset() % chunkSize_;
-        uint64_t length = chunkInfo.len();
-        int delStat = DeleteChunk(chunkId, version, chunkPos, length);
-        if (delStat < 0) {
-            LOG(ERROR) << "delete chunk failed, status code is: " << delStat
-                       << " , chunkId is " << chunkId;
-            ret = -1;
+    auto iter = s3ChunkInfoMap.begin();
+    for (; iter != s3ChunkInfoMap.end(); iter++) {
+        S3ChunkInfoList& s3ChunkInfolist = iter->second;
+        for (int i = 0; i < s3ChunkInfolist.s3chunks_size(); ++i) {
+            // traverse chunks to delete blocks
+            S3ChunkInfo chunkInfo = s3ChunkInfolist.s3chunks(i);
+            // delete chunkInfo from client
+            uint64_t chunkId = chunkInfo.chunkid();
+            uint64_t compaction = chunkInfo.compaction();
+            uint64_t chunkPos = chunkInfo.offset() % chunkSize_;
+            uint64_t length = chunkInfo.len();
+            int delStat = DeleteChunk(chunkId, compaction, chunkPos, length);
+            if (delStat < 0) {
+                LOG(ERROR) << "delete chunk failed, status code is: " << delStat
+                           << " , chunkId is " << chunkId;
+                ret = -1;
+            }
         }
     }
+
     return ret;
 }
 
-int S3ClientAdaptorImpl::DeleteChunk(uint64_t chunkId, uint64_t version,
+int S3ClientAdaptorImpl::DeleteChunk(uint64_t chunkId, uint64_t compaction,
                                      uint64_t chunkPos, uint64_t length) {
     uint64_t blockIndex = chunkPos / blockSize_;
     uint64_t blockPos = chunkPos % blockSize_;
     LOG(INFO) << "delete Chunk start, chunk id: " << chunkId
-              << ", verison: " << version << ", chunkPos: " << chunkPos
+              << ", compaction:" << compaction
+              << ", chunkPos: " << chunkPos
               << ", length: " << length;
     int count = 0;  // blocks' number
     int ret = 0;
     while (length > blockSize_ * count - blockPos || count == 0) {
         // divide chunks to blocks, and delete these blocks
         std::string objectName =
-            GenerateObjectName(chunkId, blockIndex, version);
+            GenerateObjectName(chunkId, blockIndex, compaction);
         int delStat = client_->Delete(objectName);
         if (delStat < 0) {
             // fail
@@ -91,9 +97,9 @@ int S3ClientAdaptorImpl::DeleteChunk(uint64_t chunkId, uint64_t version,
 
 std::string S3ClientAdaptorImpl::GenerateObjectName(uint64_t chunkId,
                                                     uint64_t blockIndex,
-                                                    uint64_t version) {
+                                                    uint64_t compaction) {
     std::ostringstream oss;
-    oss << chunkId << "_" << blockIndex << "_" << version;
+    oss << chunkId << "_" << blockIndex << "_" << compaction;
     return oss.str();
 }
 }  // namespace metaserver
