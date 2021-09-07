@@ -122,7 +122,6 @@ TEST(RaftLogCodecTest, DecodeFailedTest) {
     DECODE_FAILED_TEST(UpdateInode);
     DECODE_FAILED_TEST(DeleteInode);
     DECODE_FAILED_TEST(CreateRootInode);
-    DECODE_FAILED_TEST(UpdateInodeS3Version);
     DECODE_FAILED_TEST(CreatePartition);
     DECODE_FAILED_TEST(DeletePartition);
     DECODE_FAILED_TEST(PrepareRenameTx);
@@ -155,7 +154,6 @@ TEST(RaftLogCodecTest, DecodeSuccessTest) {
     ENCODE_DECODE_TEST(UpdateInode);
     ENCODE_DECODE_TEST(DeleteInode);
     ENCODE_DECODE_TEST(CreateRootInode);
-    ENCODE_DECODE_TEST(UpdateInodeS3Version);
     ENCODE_DECODE_TEST(CreatePartition);
     ENCODE_DECODE_TEST(DeletePartition);
     ENCODE_DECODE_TEST(PrepareRenameTx);

@@ -44,7 +44,7 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     s3Client_ = std::make_shared<S3ClientImpl>();
     s3Client_->Init(option.s3Opt.s3AdaptrOpt);
 
-    s3Adaptor_->Init(s3AdaptorOption, s3Client_.get());
+    s3Adaptor_->Init(s3AdaptorOption, s3Client_.get(), inodeManager_);
     return ret;
 }
 
@@ -97,7 +97,6 @@ void FuseS3Client::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
     fsInfo_ = std::make_shared<FsInfo>(fsInfo);
     inodeManager_->SetFsId(fsInfo.fsid());
     dentryManager_->SetFsId(fsInfo.fsid());
-
     LOG(INFO) << "Mount " << fsName
               << " on " << mountPointStr
               << " success!";
@@ -231,7 +230,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
     return MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, e);
 }
 
-int FuseS3Client::Truncate(Inode *inode, uint64_t length) {
+CURVEFS_ERROR FuseS3Client::Truncate(Inode *inode, uint64_t length) {
     return s3Adaptor_->Truncate(inode, 0);
 }
 

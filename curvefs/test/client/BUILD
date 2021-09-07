@@ -82,6 +82,7 @@ cc_binary(
     srcs = glob([
         "main.cpp",
         "client_s3_adaptor_test.cpp",
+        "client_s3_test.cpp",
         "*.h",
     ]),
     copts = COPTS,
@@ -106,7 +107,8 @@ cc_test(
        "*.c",
        "*.h"],
        exclude = [ "block_device_client_test.cpp",
-                   "client_s3_adaptor_test.cpp" ]
+                   "client_s3_adaptor_test.cpp",
+                   "client_s3_test.cpp" ]
    ),
    copts = ["-I/usr/local/include/fuse3",
             "-L/usr/local/lib/x86_64-linux-gnu"],

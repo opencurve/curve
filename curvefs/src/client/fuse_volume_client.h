@@ -77,7 +77,7 @@ class FuseVolumeClient : public FuseClient {
         fuse_entry_param *e) override;
 
  private:
-    int Truncate(Inode *inode, uint64_t length) override;
+    CURVEFS_ERROR Truncate(Inode *inode, uint64_t length) override;
 
  private:
     // curve client

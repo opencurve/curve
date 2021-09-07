@@ -126,10 +126,6 @@ std::unique_ptr<MetaOperator> RaftLogCodec::Decode(CopysetNode* node,
         case OperatorType::CreateRootInode:
             return ParseFromRaftLog<CreateRootInodeOperator,
                                     CreateRootInodeRequest>(node, type, meta);
-        case OperatorType::UpdateInodeS3Version:
-            return ParseFromRaftLog<UpdateInodeS3VersionOperator,
-                                    UpdateInodeS3VersionRequest>(node, type,
-                                                                 meta);
         case OperatorType::CreatePartition:
             return ParseFromRaftLog<CreatePartitionOperator,
                                     CreatePartitionRequest>(node, type, meta);

@@ -30,7 +30,6 @@
 #include <sys/stat.h>
 #include <sys/utsname.h>
 #include <dirent.h>
-#include <linux/fs.h>
 #include <string>
 
 namespace curvefs {

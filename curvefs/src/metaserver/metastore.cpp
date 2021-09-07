@@ -495,7 +495,7 @@ MetaStatusCode MetaStoreImpl::UpdateInode(const UpdateInodeRequest* request,
                                       UpdateInodeResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t inodeId = request->inodeid();
-    if (request->has_volumeextentlist() && request->has_s3chunkinfolist()) {
+    if (request->has_volumeextentlist() && !request->s3chunkinfomap().empty()) {
         LOG(ERROR) << "only one of type space info, choose volume or s3";
         response->set_statuscode(MetaStatusCode::PARAM_ERROR);
         return MetaStatusCode::PARAM_ERROR;
@@ -538,9 +538,10 @@ MetaStatusCode MetaStoreImpl::UpdateInode(const UpdateInodeRequest* request,
         needUpdate = true;
     }
 
-    if (request->has_s3chunkinfolist()) {
-        VLOG(1) << "update inode has extent";
-        inode.mutable_s3chunkinfolist()->CopyFrom(request->s3chunkinfolist());
+     if (!request->s3chunkinfomap().empty()) {
+        VLOG(1) << "update inode has s3chunkInfoMap";
+        inode.mutable_s3chunkinfomap()->clear();
+        *(inode.mutable_s3chunkinfomap()) = request->s3chunkinfomap();
         needUpdate = true;
     }
 
@@ -553,34 +554,6 @@ MetaStatusCode MetaStoreImpl::UpdateInode(const UpdateInodeRequest* request,
         response->set_statuscode(MetaStatusCode::OK);
     }
 
-    return status;
-}
-
-MetaStatusCode MetaStoreImpl::UpdateInodeS3Version(
-    const UpdateInodeS3VersionRequest* request,
-    UpdateInodeS3VersionResponse* response) {
-    uint32_t fsId = request->fsid();
-    uint64_t inodeId = request->inodeid();
-
-    ReadLockGuard readLockGuard(rwLock_);
-    std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
-    if (partition == nullptr) {
-        MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
-        response->set_statuscode(status);
-        return status;
-    }
-
-    uint64_t version;
-    MetaStatusCode status =
-        partition->UpdateInodeVersion(fsId, inodeId, &version);
-    response->set_statuscode(status);
-    if (status != MetaStatusCode::OK) {
-        LOG(ERROR) << "UpdateInodeS3Version fail, fsId = " << fsId
-                   << ", inodeId = " << inodeId
-                   << ", ret = " << MetaStatusCode_Name(status);
-    } else {
-        response->set_version(version);
-    }
     return status;
 }
 

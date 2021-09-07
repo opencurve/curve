@@ -38,7 +38,6 @@ enum class OperatorType : uint32_t {
     UpdateInode,
     DeleteInode,
     CreateRootInode,
-    UpdateInodeS3Version,
     CreatePartition,
     DeletePartition,
     PrepareRenameTx,

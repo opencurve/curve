@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020 NetEase Inc.
+ *  Copyright (c) 2021 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -25,61 +25,45 @@ namespace curvefs {
 
 namespace client {
 void S3ClientImpl::Init(const curve::common::S3AdapterOption& option) {
-    s3Adapter_.Init(option);
+    s3Adapter_->Init(option);
 }
 
-int S3ClientImpl::Upload(const std::string& name,
-                         const char* buf, uint64_t length) {
+int S3ClientImpl::Upload(const std::string& name, const char* buf,
+                         uint64_t length) {
     int ret = 0;
     const Aws::String aws_key(name.c_str(), name.size());
 
-    LOG(INFO) << "upload start, aws_key:" << aws_key
-              << ",length:" << length;
-    ret = s3Adapter_.PutObject(aws_key, (const void*)buf, length);
+    LOG(INFO) << "upload start, aws_key:" << aws_key << ",length:" << length;
+    ret = s3Adapter_->PutObject(aws_key, (const void*)buf, length);
+    if (ret < 0) {
+        LOG(INFO) << "upload error:" << ret;
+    }
     LOG(INFO) << "upload end, ret:" << ret;
     return ret;
 }
 
-int S3ClientImpl::Download(const std::string& name, char* buf,
-                           uint64_t offset, uint64_t length) {
+int S3ClientImpl::Download(const std::string& name, char* buf, uint64_t offset,
+                           uint64_t length) {
     int ret = 0;
 
-    LOG(INFO) << "download start, name:" << name
-              << ",offset:" << offset << ",length:" << length;
-    ret = s3Adapter_.GetObject(name, buf, offset, length);
+    LOG(INFO) << "download start, name:" << name << ",offset:" << offset
+              << ",length:" << length;
+    ret = s3Adapter_->GetObject(name, buf, offset, length);
     if (ret < 0) {
         LOG(INFO) << "download error:" << ret;
-        return ret;
     }
 
-    LOG(INFO) << "download end, ret:" << ret
-              << ",length:" << length;
-    return length;
+    LOG(INFO) << "download end, ret:" << ret << ",length:" << length;
+    return ret;
 }
 
-int S3ClientImpl::Append(const std::string& name,
-                         const char* buf, uint64_t length) {
-    std::string data;
-    std::string appendData(buf, length);
-    int ret = 0;
+void S3ClientImpl::DownloadAsync(
+    std::shared_ptr<GetObjectAsyncContext> context) {
+    LOG(INFO) << "download async start, name:" << context->key
+              << ",offset:" << context->offset << ",length:" << context->len;
 
-    const Aws::String aws_key(name.c_str(), name.size());
-
-    LOG(INFO) << "append get object start, aws_key:"
-              << aws_key << ",length:" << length;
-    ret = s3Adapter_.GetObject(aws_key, &data);
-    if (ret < 0) {
-        LOG(INFO) << "append get object error:" << ret;
-        return ret;
-    }
-
-    data += appendData;
-    LOG(INFO) << "append put object start, aws_key:"
-              << aws_key << ",data len:" << data.length();
-    ret = s3Adapter_.PutObject(aws_key, data);
-    LOG(INFO) << "append put object end, ret:" << ret;
-
-    return ret;
+    s3Adapter_->GetObjectAsync(context);
+    return;
 }
 
 }  // namespace client

@@ -45,8 +45,6 @@ const char* OperatorTypeName(OperatorType type) {
             return "DeleteInode";
         case OperatorType::CreateRootInode:
             return "CreateRootInode";
-        case OperatorType::UpdateInodeS3Version:
-            return "UpdateInodeS3Version";
         case OperatorType::CreatePartition:
             return "CreatePartition";
         case OperatorType::DeletePartition:

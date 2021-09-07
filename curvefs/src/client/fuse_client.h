@@ -190,7 +190,7 @@ class FuseClient {
         const char *name, bool idDir);
 
  private:
-    virtual int Truncate(Inode *inode, uint64_t length) = 0;
+    virtual CURVEFS_ERROR Truncate(Inode *inode, uint64_t length) = 0;
 
  protected:
     // mds client
