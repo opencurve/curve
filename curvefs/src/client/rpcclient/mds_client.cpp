@@ -214,6 +214,28 @@ FSStatusCode MdsClientImpl::GetFsInfo(uint32_t fsId, FsInfo *fsInfo) {
     return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
 }
 
+bool MdsClientImpl::CommitTx(const std::vector<PartitionTxId>& txIds) {
+    auto task = RPCTask {
+        CommitTxResponse response;
+        mdsbasecli_->CommitTx(txIds, &response, cntl, channel);
+        if (cntl->Failed()) {
+            LOG(WARNING) << "CommitTx Failed, errorCode = " << cntl->ErrorCode()
+                         << ", errorText =" << cntl->ErrorText()
+                         << ", logId = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        auto rc = response.statuscode();
+        if (rc != curvefs::mds::topology::TopoStatusCode::TOPO_OK) {
+            LOG(WARNING) << "CommitTx: retCode = " << rc
+                         << ", message = " << TopoStatusCode_Name(rc);
+            return 1;
+        }
+        return 0;
+    };
+    // NOTE: retry until success
+    return rpcexcutor_.DoRPCTask(task, 0) == 0;
+}
 
 bool MdsClientImpl::GetMetaServerInfo(
     const PeerAddr &addr, CopysetPeerInfo<MetaserverID> *metaserverInfo) {
@@ -325,6 +347,7 @@ FSStatusCode MdsClientImpl::ReturnError(int retcode) {
     // logic error
     return static_cast<FSStatusCode>(retcode);
 }
+
 }  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs

@@ -35,6 +35,7 @@ using ::testing::_;
 using ::testing::Contains;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
+using ::testing::Invoke;
 
 using rpcclient::MockMetaServerClient;
 
@@ -151,7 +152,7 @@ TEST_F(TestDentryCacheManager, ListDentryNomal) {
                 Return(MetaStatusCode::OK)));
 
     std::list<Dentry> out;
-    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out);
+    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out, 0);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(2 * dCacheOption_.maxListDentryCount - 1, out.size());
 }
@@ -163,7 +164,7 @@ TEST_F(TestDentryCacheManager, ListDentryEmpty) {
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
 
     std::list<Dentry> out;
-    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out);
+    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out, 0);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, out.size());
 }
@@ -175,17 +176,59 @@ TEST_F(TestDentryCacheManager, ListDentryFailed) {
         .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
 
     std::list<Dentry> out;
-    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out);
+    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out, 0);
     ASSERT_EQ(CURVEFS_ERROR::UNKNOWN, ret);
     ASSERT_EQ(0, out.size());
 }
 
+TEST_F(TestDentryCacheManager, Rename) {
+    Dentry src, dst;
 
+    // CASE 1: Rename success
+    EXPECT_CALL(*metaClient_, PrepareRenameTx(_))
+        .WillOnce(Return(MetaStatusCode::OK));
 
+    auto rc = dCacheManager_->Rename(src, dst);
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
 
+    // CASE 2: Rename fail
+    EXPECT_CALL(*metaClient_, PrepareRenameTx(_))
+        .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
 
+    rc = dCacheManager_->Rename(src, dst);
+    ASSERT_EQ(rc, CURVEFS_ERROR::UNKNOWN);
+}
 
+TEST_F(TestDentryCacheManager, GetTxId) {
+    uint32_t fsId = 1;
+    uint64_t inodeId = 2;
+    uint32_t partitionId;
+    uint64_t txId;
 
+    EXPECT_CALL(*metaClient_, GetTxId(fsId, inodeId, _, _))
+        .WillOnce(Invoke([](int32_t fsId,
+                            uint64_t inodeId,
+                            uint32_t* partitionId,
+                            uint64_t* txId) {
+            *partitionId = 100;
+            *txId = 200;
+            return MetaStatusCode::OK;
+        }));
+
+    auto rc = dCacheManager_->GetTxId(fsId, inodeId, &partitionId, &txId);
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+    ASSERT_EQ(partitionId, 100);
+    ASSERT_EQ(txId, 200);
+}
+
+TEST_F(TestDentryCacheManager, SetTxId) {
+    uint32_t partitionId = 1;
+    uint64_t txId = 2;
+
+    EXPECT_CALL(*metaClient_, SetTxId(partitionId, txId))
+        .Times(1);
+    dCacheManager_->SetTxId(partitionId, txId);
+}
 
 }  // namespace client
 }  // namespace curvefs

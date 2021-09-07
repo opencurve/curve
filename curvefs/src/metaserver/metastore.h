@@ -74,9 +74,10 @@ class OnSnapshotSaveDone : public google::protobuf::Closure {
 class MetaStore {
  public:
     MetaStore();
-    bool Load(const std::string& path);
+    bool Load(const std::string& pathname);
     bool Save(const std::string& path, OnSnapshotSaveDone* done);
     bool Clear();
+
     MetaStatusCode CreatePartition(const CreatePartitionRequest* request,
                                    CreatePartitionResponse* response);
 
@@ -95,6 +96,9 @@ class MetaStore {
 
     MetaStatusCode ListDentry(const ListDentryRequest* request,
                               ListDentryResponse* response);
+
+    MetaStatusCode PrepareRenameTx(const PrepareRenameTxRequest* request,
+                                   PrepareRenameTxResponse* response);
 
     // inode
     MetaStatusCode CreateInode(const CreateInodeRequest* request,
@@ -119,7 +123,26 @@ class MetaStore {
     std::shared_ptr<Partition> GetPartition(uint32_t partitionId);
 
  private:
-    void SaveBack(const std::string& path, OnSnapshotSaveDone* done);
+    bool LoadPartition(uint32_t partitionId, void* entry);
+
+    bool LoadInode(uint32_t partitionId, void* entry);
+
+    bool LoadDentry(uint32_t partitionId, void* entry);
+
+    bool LoadPendingTx(uint32_t partitionId, void* entry);
+
+    std::shared_ptr<Iterator> NewPartitionIterator();
+
+    std::shared_ptr<Iterator> NewInodeIterator(
+        std::shared_ptr<Partition> partition);
+
+    std::shared_ptr<Iterator> NewDentryIterator(
+        std::shared_ptr<Partition> partition);
+
+    std::shared_ptr<Iterator> NewPendingTxIterator(
+        std::shared_ptr<Partition> partition);
+
+    void SaveBackground(const std::string& path, OnSnapshotSaveDone* done);
 
  private:
     RWLock rwLock_;  // protect partitionMap_

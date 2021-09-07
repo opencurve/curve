@@ -56,7 +56,7 @@ class MdsClient {
     virtual ~MdsClient() {}
 
     virtual FSStatusCode Init(const ::curve::client::MetaServerOption &mdsOpt,
-                      MDSBaseClient *baseclient) = 0;
+                              MDSBaseClient *baseclient) = 0;
 
     virtual FSStatusCode CreateFs(const std::string &fsName, uint64_t blockSize,
                                   const Volume &volume) = 0;
@@ -79,6 +79,8 @@ class MdsClient {
 
     virtual FSStatusCode GetFsInfo(uint32_t fsId, FsInfo *fsInfo) = 0;
 
+    virtual bool CommitTx(const std::vector<PartitionTxId>& txIds) = 0;
+
     virtual bool
     GetMetaServerInfo(const PeerAddr &addr,
                       CopysetPeerInfo<MetaserverID> *metaserverInfo) = 0;
@@ -94,7 +96,7 @@ class MdsClientImpl : public MdsClient {
     MdsClientImpl() {}
 
     FSStatusCode Init(const ::curve::client::MetaServerOption &mdsOpt,
-                      MDSBaseClient *baseclient);
+                      MDSBaseClient *baseclient) override;
 
     FSStatusCode CreateFs(const std::string &fsName, uint64_t blockSize,
                           const Volume &volume) override;
@@ -113,6 +115,8 @@ class MdsClientImpl : public MdsClient {
     FSStatusCode GetFsInfo(const std::string &fsName, FsInfo *fsInfo) override;
 
     FSStatusCode GetFsInfo(uint32_t fsId, FsInfo *fsInfo) override;
+
+    bool CommitTx(const std::vector<PartitionTxId>& txIds) override;
 
     bool
     GetMetaServerInfo(const PeerAddr &addr,

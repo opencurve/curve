@@ -43,6 +43,10 @@ class MockMdsClient : public MdsClient {
     MockMdsClient() {}
     ~MockMdsClient() {}
 
+    MOCK_METHOD2(Init,
+                 FSStatusCode(const ::curve::client::MetaServerOption &mdsOpt,
+                              MDSBaseClient *baseclient));
+
     MOCK_METHOD3(CreateFs,
                  FSStatusCode(const std::string &fsName, uint64_t blockSize,
                               const Volume &volume));
@@ -64,6 +68,9 @@ class MockMdsClient : public MdsClient {
                  FSStatusCode(const std::string &fsName, FsInfo *fsInfo));
 
     MOCK_METHOD2(GetFsInfo, FSStatusCode(uint32_t fsId, FsInfo *fsInfo));
+
+    MOCK_METHOD1(CommitTx,
+                 bool(const std::vector<PartitionTxId>& txIds));
 
     MOCK_METHOD2(GetMetaServerInfo,
                  bool(const PeerAddr &addr,

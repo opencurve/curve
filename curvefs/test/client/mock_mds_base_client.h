@@ -26,6 +26,7 @@
 
 #include <gmock/gmock.h>
 #include <string>
+#include <vector>
 #include "curvefs/src/client/base_client.h"
 
 namespace curvefs {
@@ -62,6 +63,12 @@ class MockMDSBaseClient : public MDSBaseClient {
     MOCK_METHOD4(GetFsInfo,
                  void(uint32_t fsId, GetFsInfoResponse *response,
                       brpc::Controller *cntl, brpc::Channel *channel));
+
+    MOCK_METHOD5(CommitTx, void(uint32_t txId,
+                                const std::vector<PartitionTxId>& txIds,
+                                CommitTxResponse* reponse,
+                                brpc::Controller* cntl,
+                                brpc::Channel* channel));
 };
 }  // namespace client
 }  // namespace curvefs

@@ -24,6 +24,8 @@
 #include <string>
 #include <list>
 
+#include <memory>
+
 #include "curvefs/src/client/fuse_volume_client.h"
 
 namespace curvefs {

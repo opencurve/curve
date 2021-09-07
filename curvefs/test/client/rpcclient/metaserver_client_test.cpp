@@ -76,6 +76,7 @@ class MetaServerClientImplTest : public testing::Test {
         target_.groupID = std::move(CopysetGroupID(1, 100));
         target_.metaServerID = 1;
         target_.partitionID = 200;
+        target_.txId = 10;
         butil::str2endpoint(addr_.c_str(), &target_.endPoint);
     }
 
@@ -452,6 +453,49 @@ TEST_F(MetaServerClientImplTest, test_DeleteDentry) {
 
     status = metaserverCli_.DeleteDentry(fsid, inodeid, name);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
+}
+
+TEST_F(MetaServerClientImplTest, PrepareRenameTx) {
+    curvefs::metaserver::PrepareRenameTxResponse response;
+    uint64_t applyIndex = 10;
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
+                              SetArgPointee<3>(applyIndex),
+                              Return(true)));
+
+    // CASE 1: PrepareRenameTx success
+    response.set_statuscode(MetaStatusCode::OK);
+    response.set_appliedindex(applyIndex);
+    EXPECT_CALL(mockMetaServerService_, PrepareRenameTx(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke(SetRpcService<PrepareRenameTxRequest,
+                                             PrepareRenameTxResponse>)));
+    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
+
+    auto dentrys = std::vector<Dentry>();
+    auto rc = metaserverCli_.PrepareRenameTx(dentrys);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+
+    // CASE 2: PrepareRenameTx fail
+    response.set_statuscode(MetaStatusCode::UNKNOWN_ERROR);
+    EXPECT_CALL(mockMetaServerService_, PrepareRenameTx(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke(SetRpcService<PrepareRenameTxRequest,
+                                             PrepareRenameTxResponse>)));
+
+    dentrys = std::vector<Dentry>();
+    rc = metaserverCli_.PrepareRenameTx(dentrys);
+    ASSERT_EQ(rc, MetaStatusCode::UNKNOWN_ERROR);
+
+    // CASE 3: RPC error
+    EXPECT_CALL(mockMetaServerService_, PrepareRenameTx(_, _, _, _))
+        .WillRepeatedly(Invoke(SetRpcService<PrepareRenameTxRequest,
+                                             PrepareRenameTxResponse,
+                                             true>));
+
+    dentrys = std::vector<Dentry>();
+    rc = metaserverCli_.PrepareRenameTx(dentrys);
+    ASSERT_EQ(rc, MetaStatusCode::RPC_ERROR);
 }
 
 TEST_F(MetaServerClientImplTest, test_GetInode) {

@@ -62,11 +62,6 @@ message FsDetail {
     }
 }
 
-message PartitionTxId {
-    required uint64 partitionId = 1;
-    required uint64 txId = 2;
-}
-
 message FsInfo {
     required uint32 fsId = 1;
     required string fsName = 2;
@@ -78,8 +73,7 @@ message FsInfo {
     repeated string mountpoints = 8;
     required common.FSType fsType = 9;
     required FsDetail detail = 10;
-    repeated PartitionTxId partitionTxIds = 11;
-    repeated common.PartitionInfo partitionInfoList = 12;
+    repeated common.PartitionInfo partitionInfoList = 11;
 }
 
 message GetFsInfoResponse {
@@ -138,18 +132,9 @@ message DeleteFsResponse {
     required FSStatusCode statusCode = 1;
 }
 
-message CommitTxRequest {
-    required uint32 fsId = 1;
-    repeated PartitionTxId partitionTxIds = 2;
-}
-
 message CreatePartitionRequest {
     required string fsName = 1;
     required uint32 count = 2;
-}
-
-message CommitTxResponse {
-    required FSStatusCode statusCode = 1;
 }
 
 message CreatePartitionResponse {
@@ -166,5 +151,4 @@ service MdsService {
     // rpc UpdateFsInfo(UpdateFsInfoRequest) returns (UpdateFsInfoResponse);
     rpc CreatePartition(CreatePartitionRequest) returns (CreatePartitionResponse);
     rpc DeleteFs(DeleteFsRequest) returns (DeleteFsResponse);
-    rpc CommitTx(CommitTxRequest) returns (CommitTxResponse);
 }

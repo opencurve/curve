@@ -27,7 +27,6 @@
 namespace curvefs {
 namespace client {
 namespace common {
-
 struct ExtentAllocInfo {
     uint64_t lOffset;
     uint64_t len;
@@ -43,7 +42,6 @@ struct PExtent {
     uint64_t len;
     bool UnWritten;
 };
-
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs

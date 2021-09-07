@@ -27,6 +27,7 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/proto/space.pb.h"
@@ -54,6 +55,13 @@ class MetaServerClient {
     Init(const ExcutorOpt &excutorOpt, std::shared_ptr<MetaCache> metaCache,
          std::shared_ptr<ChannelManager<MetaserverID>> channelManager) = 0;
 
+    virtual MetaStatusCode GetTxId(uint32_t fsId,
+                                   uint64_t inodeId,
+                                   uint32_t* partitionId,
+                                   uint64_t* txId) = 0;
+
+    virtual void SetTxId(uint32_t partitionId, uint64_t txId) = 0;
+
     virtual MetaStatusCode GetDentry(uint32_t fsId, uint64_t inodeid,
                                      const std::string &name, Dentry *out) = 0;
 
@@ -65,6 +73,9 @@ class MetaServerClient {
 
     virtual MetaStatusCode DeleteDentry(uint32_t fsId, uint64_t inodeid,
                                         const std::string &name) = 0;
+
+    virtual MetaStatusCode PrepareRenameTx(
+        const std::vector<Dentry>& dentrys) = 0;
 
     virtual MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
                                     Inode *out) = 0;
@@ -85,6 +96,13 @@ class MetaServerClientImpl : public MetaServerClient {
     Init(const ExcutorOpt &excutorOpt, std::shared_ptr<MetaCache> metaCache,
          std::shared_ptr<ChannelManager<MetaserverID>> channelManager);
 
+    MetaStatusCode GetTxId(uint32_t fsId,
+                           uint64_t inodeId,
+                           uint32_t* partitionId,
+                           uint64_t* txId) override;
+
+    void SetTxId(uint32_t partitionId, uint64_t txId) override;
+
     MetaStatusCode GetDentry(uint32_t fsId, uint64_t inodeid,
                              const std::string &name, Dentry *out) override;
 
@@ -96,6 +114,8 @@ class MetaServerClientImpl : public MetaServerClient {
 
     MetaStatusCode DeleteDentry(uint32_t fsId, uint64_t inodeid,
                                 const std::string &name) override;
+
+    MetaStatusCode PrepareRenameTx(const std::vector<Dentry>& dentrys) override;
 
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
                             Inode *out) override;

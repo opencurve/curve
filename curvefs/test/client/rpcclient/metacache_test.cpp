@@ -74,17 +74,20 @@ class MetaCacheTest : public testing::Test {
         pInfo.set_partitionid(1);
         pInfo.set_start(1);
         pInfo.set_end(10);
+        pInfo.set_txid(100);
         pInfoList_.emplace_back(pInfo);
 
         PartitionInfo pInfo2;
         pInfo2.CopyFrom(pInfo);
         pInfo2.set_start(10);
         pInfo2.set_end(20);
+        pInfo.set_txid(200);
         pInfoList2_.emplace_back(pInfo2);
 
         expect.groupID = std::move(CopysetGroupID(1, 1));
         expect.partitionID = 1;
         expect.metaServerID = 1;
+        expect.txId = 100;
         str2endpoint("127.0.0.1", 9120, &expect.endPoint);
     }
 
@@ -97,13 +100,16 @@ class MetaCacheTest : public testing::Test {
                t1.groupID.copysetID == t2.groupID.copysetID &&
                t1.partitionID == t2.partitionID &&
                t1.metaServerID == t2.metaServerID &&
+               t1.txId == t2.txId &&
                std::string(butil::endpoint2str(t1.endPoint).c_str()) ==
                    std::string(butil::endpoint2str(t2.endPoint).c_str());
     }
 
     void Print(CopysetTarget t1) {
         LOG(INFO) << t1.groupID.poolID << ", " << t1.groupID.copysetID << ","
-                  << t1.partitionID << "," << t1.metaServerID << ","
+                  << t1.partitionID << ","
+                  << t1.txId << ","
+                  << t1.metaServerID << ","
                   << butil::endpoint2str(t1.endPoint).c_str();
     }
 
@@ -187,6 +193,34 @@ TEST_F(MetaCacheTest, test_GetTarget) {
         .WillRepeatedly(Return(false));
     ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex);
     ASSERT_FALSE(ret);
+}
+
+TEST_F(MetaCacheTest, SetTxId) {
+    CopysetTarget target;
+    uint64_t applyIdx;
+    uint32_t partitionId;
+    uint64_t txId;
+    uint32_t fsId = 1;
+    uint64_t inodeId = 1;
+    CopysetGroupID groupId(1, 1);
+
+    metaCache_.UpdatePartitionInfo(fsId, pInfoList_);
+    metaCache_.UpdateCopysetInfo(groupId, metaServerList_);
+
+    auto succ = metaCache_.GetTarget(fsId, inodeId, &target, &applyIdx);
+    ASSERT_TRUE(succ);
+    ASSERT_TRUE(CopysetTargetEQ(target, expect));
+
+    // CASE 1: GetTxId success
+    succ = metaCache_.GetTxId(fsId, inodeId, &partitionId, &txId);
+    ASSERT_EQ(partitionId, expect.partitionID);
+    ASSERT_EQ(txId, expect.txId);
+
+    // CASE 2: SetTxId succss
+    metaCache_.SetTxId(partitionId, 123);
+    succ = metaCache_.GetTxId(fsId, inodeId, &partitionId, &txId);
+    ASSERT_EQ(partitionId, expect.partitionID);
+    ASSERT_EQ(txId, 123);
 }
 
 TEST_F(MetaCacheTest, test_SelectTarget) {

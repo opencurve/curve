@@ -55,6 +55,7 @@ class Metaserver {
     std::shared_ptr<S3ClientAdaptor>  s3Adaptor_;
     std::shared_ptr<Trash> trash_;
     std::shared_ptr<InodeManager> inodeManager_;
+    std::shared_ptr<TxManager> txManager_;
     std::shared_ptr<DentryManager> dentryManager_;
     MetaserverOptions options_;
 };

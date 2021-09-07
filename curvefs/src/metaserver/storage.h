@@ -83,7 +83,7 @@ class ContainerIterator : public Iterator {
  public:
     ContainerIterator(ENTRY_TYPE entryType,
                       uint32_t partitionId,
-                      const ContainerType* container)
+                      std::shared_ptr<ContainerType> container)
         : entryType_(entryType),
           partitionId_(partitionId),
           container_(container),
@@ -116,24 +116,48 @@ class ContainerIterator : public Iterator {
     }
 
     std::string Value() override {
-        std::string value;
-        if (!iter_->second.SerializeToString(&value)) {
-            status_ = 1;
-        }
-        return value;
+        return "";
     }
 
     int Status() override {
         return status_;
     }
 
- private:
+ protected:
     ENTRY_TYPE entryType_;
     uint32_t partitionId_;
-    const ContainerType* container_;
+    const std::shared_ptr<ContainerType> container_;
     typename ContainerType::const_iterator iter_;
     int status_;  // 0: success, 1: fail
     std::string key_;
+};
+
+template<typename ContainerType>
+class MapContainerIterator : public ContainerIterator<ContainerType> {
+ public:
+    using ContainerIterator<ContainerType>::ContainerIterator;
+
+    std::string Value() override {
+        std::string value;
+        if (!this->iter_->second.SerializeToString(&value)) {
+            this->status_ = 1;
+        }
+        return value;
+    }
+};
+
+template<typename ContainerType>
+class SetContainerIterator : public ContainerIterator<ContainerType> {
+ public:
+    using ContainerIterator<ContainerType>::ContainerIterator;
+
+    std::string Value() override {
+        std::string value;
+        if (!this->iter_->SerializeToString(&value)) {
+            this->status_ = 1;
+        }
+        return value;
+    }
 };
 
 class MergeIterator : public Iterator {

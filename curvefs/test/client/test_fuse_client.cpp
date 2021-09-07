@@ -43,13 +43,22 @@ namespace client {
 
 using ::testing::Return;
 using ::testing::_;
+using ::testing::Invoke;
 using ::testing::Contains;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
 using ::curve::common::Configuration;
+using ::curvefs::mds::topology::PartitionTxId;
 
 using rpcclient::MockMetaServerClient;
 using rpcclient::MockMdsClient;
+
+#define EQUAL(a) (lhs.a() == rhs.a())
+
+bool operator==(const Dentry& lhs, const Dentry& rhs) {
+    return EQUAL(fsid) && EQUAL(parentinodeid) && EQUAL(name) &&
+           EQUAL(txid) && EQUAL(inodeid) && EQUAL(flag);
+}
 
 class TestFuseVolumeClient : public ::testing::Test {
  protected:
@@ -95,6 +104,22 @@ class TestFuseVolumeClient : public ::testing::Test {
         client_->SetFsInfo(fsInfo);
     }
 
+    Dentry GenDentry(uint32_t fsId,
+                     uint64_t parentId,
+                     const std::string& name,
+                     uint64_t txId,
+                     uint64_t inodeId,
+                     uint32_t flag) {
+        Dentry dentry;
+        dentry.set_fsid(fsId);
+        dentry.set_parentinodeid(parentId);
+        dentry.set_name(name);
+        dentry.set_txid(txId);
+        dentry.set_inodeid(inodeId);
+        dentry.set_flag(flag);
+        return dentry;
+    }
+
  protected:
     const uint32_t fsId = 100u;
 
@@ -110,6 +135,9 @@ class TestFuseVolumeClient : public ::testing::Test {
     uint64_t preAllocSize_;
     uint64_t bigFileSize_;
     FuseClientOption fuseClientOption_;
+
+    static const uint32_t DELETE = DentryFlag::DELETE_MARK_FLAG;
+    static const uint32_t FILE = DentryFlag::TYPE_FILE_FLAG;
 };
 
 TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_exist) {
@@ -868,7 +896,7 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDir) {
     dentry.set_inodeid(2);
     dentryList.push_back(dentry);
 
-    EXPECT_CALL(*dentryManager_, ListDentry(ino, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(ino, _, 0))
         .WillOnce(DoAll(SetArgPointee<1>(dentryList),
                 Return(CURVEFS_ERROR::OK)));
 
@@ -912,7 +940,7 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDirFailed) {
     dentry.set_inodeid(2);
     dentryList.push_back(dentry);
 
-    EXPECT_CALL(*dentryManager_, ListDentry(ino, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(ino, _, 0))
         .WillOnce(DoAll(SetArgPointee<1>(dentryList),
                 Return(CURVEFS_ERROR::INTERNAL)));
 
@@ -921,6 +949,214 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDirFailed) {
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     delete fi;
+}
+
+TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
+    fuse_req_t req;
+    fuse_ino_t parent = 1;
+    std::string name = "A";
+    fuse_ino_t newparent = 3;
+    std::string newname = "B";
+    uint64_t inodeId = 1000;
+    uint32_t srcPartitionId = 1;
+    uint32_t dstPartitionId = 2;
+    uint64_t srcTxId = 0;
+    uint64_t dstTxId = 2;
+
+    // step1: get txid
+    EXPECT_CALL(*dentryManager_, GetTxId(fsId, parent, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(srcPartitionId),
+                        SetArgPointee<3>(srcTxId),
+                        Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*dentryManager_, GetTxId(fsId, newparent, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(dstPartitionId),
+                        SetArgPointee<3>(dstTxId),
+                        Return(CURVEFS_ERROR::OK)));
+
+    // step2: precheck
+    // dentry = { fsid, parentid, name, txid, inodeid, DELETE }
+    auto dentry = GenDentry(fsId, parent, name, srcTxId, inodeId, 0);
+    EXPECT_CALL(*dentryManager_, GetDentry(parent, name, _))
+        .WillOnce(DoAll(SetArgPointee<2>(dentry),
+                        Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*dentryManager_, GetDentry(newparent, newname, _))
+        .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
+
+    // step3: prepare tx
+    EXPECT_CALL(*dentryManager_, Rename(_, _))
+        .WillOnce(Invoke([&](const Dentry& srcDentry,
+                             const Dentry& dstDentry) {
+            auto src = GenDentry(fsId, parent, name,
+                                 srcTxId + 1, inodeId, DELETE);
+            auto dst = GenDentry(fsId, newparent, newname,
+                                 dstTxId + 1, inodeId, 0);
+            if (srcDentry == src && dstDentry == dst) {
+                return CURVEFS_ERROR::OK;
+            }
+
+            return CURVEFS_ERROR::INTERNAL;
+        }));
+
+    // step4: commit tx
+    EXPECT_CALL(*mdsClient_, CommitTx(_))
+        .WillOnce(Invoke([&](const std::vector<PartitionTxId>& txIds) {
+            if (txIds.size() == 2 &&
+                txIds[0].partitionid() == srcPartitionId &&
+                txIds[0].txid() == srcTxId + 1 &&
+                txIds[1].partitionid() == dstPartitionId &&
+                txIds[1].txid() == dstTxId + 1) {
+                return true;
+            }
+            return false;
+        }));
+
+    // step5: update cache
+    EXPECT_CALL(*dentryManager_, DeleteCache(parent, name))
+        .Times(1);
+    EXPECT_CALL(*dentryManager_, InsertOrReplaceCache(_, _))
+        .WillOnce(Invoke([&](const Dentry& dentry, bool replace) {
+            ASSERT_TRUE(replace);
+            auto dstDentry = GenDentry(fsId, newparent, newname,
+                                       dstTxId + 1, inodeId, 0);
+            ASSERT_TRUE(dentry == dstDentry);
+        }));
+
+    // step6: set txid
+    EXPECT_CALL(*dentryManager_, SetTxId(srcPartitionId, srcTxId + 1))
+        .Times(1);
+    EXPECT_CALL(*dentryManager_, SetTxId(dstPartitionId, dstTxId + 1))
+        .Times(1);
+
+    auto rc = client_->FuseOpRename(req, parent, name.c_str(),
+                                    newparent, newname.c_str());
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+}
+
+TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
+    fuse_req_t req;
+    fuse_ino_t parent = 1;
+    std::string name = "A";
+    fuse_ino_t newparent = 3;
+    std::string newname = "B";
+    uint64_t oldInodeId = 1001;
+    uint64_t inodeId = 1000;
+    uint32_t partitionId = 10;  // bleong on partiion
+    uint64_t txId = 3;
+
+    // step1: get txid
+    EXPECT_CALL(*dentryManager_, GetTxId(fsId, parent, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(partitionId),
+                        SetArgPointee<3>(txId),
+                        Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*dentryManager_, GetTxId(fsId, newparent, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(partitionId),
+                        SetArgPointee<3>(txId),
+                        Return(CURVEFS_ERROR::OK)));
+
+    // step2: precheck
+    // dentry = { fsid, parentid, name, txid, inodeid, DELETE }
+    auto srcDentry = GenDentry(fsId, parent, name, txId, inodeId, FILE);
+    auto dstDentry = GenDentry(fsId, newparent, newname,
+                               txId, oldInodeId, FILE);
+    EXPECT_CALL(*dentryManager_, GetDentry(parent, name, _))
+        .WillOnce(DoAll(SetArgPointee<2>(srcDentry),
+                        Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*dentryManager_, GetDentry(newparent, newname, _))
+        .WillOnce(DoAll(SetArgPointee<2>(dstDentry),
+                        Return(CURVEFS_ERROR::OK)));
+
+    // step3: prepare tx
+    EXPECT_CALL(*dentryManager_, Rename(_, _))
+        .WillOnce(Invoke([&](const Dentry& srcDentry,
+                             const Dentry& dstDentry) {
+            auto src = GenDentry(fsId, parent, name,
+                                 txId + 1, inodeId, DELETE);
+            auto dst = GenDentry(fsId, newparent, newname,
+                                 txId + 1, inodeId, FILE);
+            if (srcDentry == src && dstDentry == dst) {
+                return CURVEFS_ERROR::OK;
+            }
+            return CURVEFS_ERROR::INTERNAL;
+        }));
+
+    // step4: commit tx
+    EXPECT_CALL(*mdsClient_, CommitTx(_))
+        .WillOnce(Invoke([&](const std::vector<PartitionTxId>& txIds) {
+            if (txIds.size() == 1 &&
+                txIds[0].partitionid() == partitionId &&
+                txIds[0].txid() == txId + 1) {
+                return true;
+            }
+            return false;
+        }));
+
+    // step5: delete old inode
+    EXPECT_CALL(*inodeManager_, DeleteInode(oldInodeId))
+        .WillOnce(Return(CURVEFS_ERROR::OK));
+
+    // step6: update cache
+    EXPECT_CALL(*dentryManager_, DeleteCache(parent, name))
+        .Times(1);
+    EXPECT_CALL(*dentryManager_, InsertOrReplaceCache(_, _))
+        .WillOnce(Invoke([&](const Dentry& dentry, bool replace) {
+            ASSERT_TRUE(replace);
+            auto dstDentry = GenDentry(fsId, newparent, newname,
+                                       txId + 1, inodeId, FILE);
+            ASSERT_TRUE(dentry == dstDentry);
+        }));
+
+    // step7: set txid
+    EXPECT_CALL(*dentryManager_, SetTxId(partitionId, txId + 1))
+        .Times(2);
+
+    auto rc = client_->FuseOpRename(req, parent, name.c_str(),
+                                    newparent, newname.c_str());
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+}
+
+TEST_F(TestFuseVolumeClient, FuseOpRenameOverwriteDir) {
+    fuse_req_t req;
+    fuse_ino_t parent = 1;
+    std::string name = "A";
+    fuse_ino_t newparent = 3;
+    std::string newname = "B";
+    uint64_t oldInodeId = 1001;
+    uint64_t inodeId = 1000;
+    uint32_t partitionId = 10;  // bleong on partiion
+    uint64_t txId = 3;
+
+    // step1: get txid
+    EXPECT_CALL(*dentryManager_, GetTxId(fsId, parent, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(partitionId),
+                        SetArgPointee<3>(txId),
+                        Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*dentryManager_, GetTxId(fsId, newparent, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(partitionId),
+                        SetArgPointee<3>(txId),
+                        Return(CURVEFS_ERROR::OK)));
+
+    // step2: precheck
+    // dentry = { fsid, parentid, name, txid, inodeid, DELETE }
+    auto srcDentry = GenDentry(fsId, parent, name, txId, inodeId, FILE);
+    auto dstDentry = GenDentry(fsId, newparent, newname,
+                               txId, oldInodeId, 0);
+    EXPECT_CALL(*dentryManager_, GetDentry(parent, name, _))
+        .WillOnce(DoAll(SetArgPointee<2>(srcDentry),
+                        Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*dentryManager_, GetDentry(newparent, newname, _))
+        .WillOnce(DoAll(SetArgPointee<2>(dstDentry),
+                        Return(CURVEFS_ERROR::OK)));
+
+    // step3: list directory
+    auto dentrys = std::list<Dentry>();
+    dentrys.push_back(Dentry());
+    EXPECT_CALL(*dentryManager_, ListDentry(oldInodeId, _, 1))
+        .WillOnce(DoAll(SetArgPointee<1>(dentrys),
+                        Return(CURVEFS_ERROR::OK)));
+
+    auto rc = client_->FuseOpRename(req, parent, name.c_str(),
+                                    newparent, newname.c_str());
+    ASSERT_EQ(rc, CURVEFS_ERROR::NOTEMPTY);
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpGetAttr) {

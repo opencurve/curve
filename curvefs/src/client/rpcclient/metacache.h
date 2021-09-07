@@ -71,6 +71,7 @@ struct CopysetTarget {
     CopysetGroupID groupID;
     // partition id
     PartitionID partitionID;
+    uint64_t txId;
 
     // leader info
     MetaserverID metaServerID;
@@ -91,6 +92,13 @@ class MetaCache {
     using FS2PatitionInfoMap = std::unordered_map<uint32_t, PatitionInfoList>;
     using CopysetInfoMap =
         std::unordered_map<PoolIDCopysetID, CopysetInfo<MetaserverID>>;
+
+    virtual void SetTxId(uint32_t partitionId, uint64_t txId);
+
+    virtual bool GetTxId(uint32_t fsId,
+                         uint64_t inodeId,
+                         uint32_t* partitionId,
+                         uint64_t* txId);
 
     virtual bool GetTarget(uint32_t fsID, uint64_t inodeID,
                            CopysetTarget *target, uint64_t *applyIndex,
@@ -113,6 +121,8 @@ class MetaCache {
                                      const PatitionInfoList &pInfoList);
 
  private:
+    void GetTxId(uint32_t partitionId, uint64_t* txId);
+
     bool UpdateCopysetInfoFromMDS(const CopysetGroupID &groupID,
                                   CopysetInfo<MetaserverID> *targetInfo);
 
@@ -124,7 +134,8 @@ class MetaCache {
 
     bool GetCopysetIDwithInodeID(const PatitionInfoList &pinfoList,
                                  uint32_t inodeID, CopysetGroupID *groupID,
-                                 PartitionID *patitionID);
+                                 PartitionID *patitionID,
+                                 uint64_t* txId);
 
     bool GetCopysetInfowithCopySetID(const CopysetGroupID &groupID,
                                      CopysetInfo<MetaserverID> *targetInfo);
@@ -143,6 +154,8 @@ class MetaCache {
     CURVE_CACHELINE_ALIGNMENT FS2PatitionInfoMap fs2PartitionInfoMap_;
     CURVE_CACHELINE_ALIGNMENT RWLock rwlock4copysetInfoMap_;
     CURVE_CACHELINE_ALIGNMENT CopysetInfoMap copysetInfoMap_;
+    RWLock txIdLock_;
+    std::unordered_map<uint32_t, uint64_t> partitionTxId_;
 
     MetaCacheOpt metacacheopt_;
     std::shared_ptr<Cli2Client> cli2Client_;

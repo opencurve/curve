@@ -24,6 +24,9 @@
 #ifndef CURVEFS_SRC_CLIENT_INODE_WRAPPER_H_
 #define CURVEFS_SRC_CLIENT_INODE_WRAPPER_H_
 
+#include <utility>
+#include <memory>
+
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"

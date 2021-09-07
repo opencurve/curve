@@ -38,6 +38,7 @@ using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
+using curvefs::mds::topology::TopoStatusCode;
 
 void CreateFSRpcFailed(const std::string &fsName, uint64_t blockSize,
                        const Volume &volume, CreateFsResponse *response,
@@ -428,6 +429,42 @@ TEST_F(MdsClientImplTest, test_GetFsInfo_by_fsid) {
     EXPECT_CALL(mockmdsbasecli_, GetFsInfo(fsid, _, _, _))
         .WillRepeatedly(Invoke(GetFsInfoByFsIDRpcFailed));
     ASSERT_EQ(FSStatusCode::RPC_ERROR, mdsclient_.GetFsInfo(fsid, &out));
+}
+
+TEST_F(MdsClientImplTest, CommitTx) {
+    curvefs::mds::topology::CommitTxResponse response;
+
+    // CASE 1: CommitTx success
+    response.set_statuscode(TopoStatusCode::TOPO_OK);
+    EXPECT_CALL(mockmdsbasecli_, CommitTx(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+
+    auto txIds = std::vector<PartitionTxId>();
+    ASSERT_TRUE(mdsclient_.CommitTx(txIds));
+
+    // CASE 2: CommitTx fail
+    response.set_statuscode(TopoStatusCode::TOPO_INTERNAL_ERROR);
+    EXPECT_CALL(mockmdsbasecli_, CommitTx(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+
+    ASSERT_FALSE(mdsclient_.CommitTx(txIds));
+
+    // CASE 3: RPC error, retry until success
+    int count = 0;
+    EXPECT_CALL(mockmdsbasecli_, CommitTx(_, _, _, _))
+        .Times(11)
+        .WillRepeatedly(Invoke([&](const std::vector<PartitionTxId>& txIds,
+                                   CommitTxResponse* response,
+                                   brpc::Controller* cntl,
+                                   brpc::Channel* channel) {
+            if (++count <= 10) {
+                cntl->SetFailed(112, "Not connected to");
+            } else {
+                response->set_statuscode(TopoStatusCode::TOPO_OK);
+            }
+        }));
+
+    ASSERT_TRUE(mdsclient_.CommitTx(txIds));
 }
 
 TEST_F(MdsClientImplTest, test_GetMetaServerInfo) {

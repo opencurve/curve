@@ -54,12 +54,18 @@ message GetDentryRequest {
     optional uint64 appliedIndex = 8;
 }
 
+enum DentryFlag {
+    TYPE_FILE_FLAG = 1;
+    DELETE_MARK_FLAG = 2;
+}
+
 message Dentry {
     required uint32 fsId = 1;
     required uint64 inodeId = 2;
     required uint64 parentInodeId = 3;
     required string name = 4;
     required uint64 txId = 5;
+    optional uint32 flag = 6;
 }
 
 message GetDentryResponse {
@@ -112,6 +118,18 @@ message DeleteDentryResponse {
     optional uint64 appliedIndex = 2;
 }
 
+message PrepareRenameTxRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    repeated Dentry dentrys = 4;
+}
+
+message PrepareRenameTxResponse {
+    required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
+}
+
 // inode interface
 message GetInodeRequest {
     required uint32 poolId = 1;
@@ -120,14 +138,6 @@ message GetInodeRequest {
     required uint32 fsId = 4;
     required uint64 inodeId = 5;
     optional uint64 appliedIndex = 7;
-}
-
-message PrepareRenameTxRequest {
-    repeated Dentry dentrys = 1;
-}
-
-message PrepareRenameTxResponse {
-    required MetaStatusCode statusCode = 1;
 }
 
 enum FsFileType {

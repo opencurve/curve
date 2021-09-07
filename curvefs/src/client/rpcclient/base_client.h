@@ -45,6 +45,8 @@ using curvefs::metaserver::CreateInodeRequest;
 using curvefs::metaserver::CreateInodeResponse;
 using curvefs::metaserver::DeleteDentryRequest;
 using curvefs::metaserver::DeleteDentryResponse;
+using curvefs::metaserver::PrepareRenameTxRequest;
+using curvefs::metaserver::PrepareRenameTxResponse;
 using curvefs::metaserver::DeleteInodeRequest;
 using curvefs::metaserver::DeleteInodeResponse;
 using curvefs::metaserver::Dentry;
@@ -84,6 +86,9 @@ using curvefs::space::Extent;
 using ::curve::client::CopysetID;
 using ::curve::client::LogicPoolID;
 
+using curvefs::mds::topology::PartitionTxId;
+using curvefs::mds::topology::CommitTxRequest;
+using curvefs::mds::topology::CommitTxResponse;
 using curvefs::mds::topology::GetMetaServerInfoRequest;
 using curvefs::mds::topology::GetMetaServerInfoResponse;
 using curvefs::mds::topology::GetMetaServerListInCopySetsRequest;
@@ -125,6 +130,11 @@ class MDSBaseClient {
 
     virtual void GetFsInfo(uint32_t fsId, GetFsInfoResponse *response,
                            brpc::Controller *cntl, brpc::Channel *channel);
+
+    virtual void CommitTx(const std::vector<PartitionTxId>& txIds,
+                          CommitTxResponse* response,
+                          brpc::Controller* cntl,
+                          brpc::Channel* channel);
 
     virtual void GetMetaServerInfo(uint32_t port, std::string ip,
                                    GetMetaServerInfoResponse *response,

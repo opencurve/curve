@@ -24,6 +24,7 @@
 #include <gflags/gflags.h>
 
 #include <string>
+#include <vector>
 
 #include "curvefs/src/client/common/config.h"
 

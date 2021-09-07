@@ -20,6 +20,8 @@
  * Author: chenwei
  */
 
+#include <vector>
+
 #include "curvefs/src/mds/mds_service.h"
 
 namespace curvefs {
@@ -216,5 +218,6 @@ void MdsServiceImpl::DeleteFs(::google::protobuf::RpcController* controller,
     LOG(INFO) << "DeleteFs success, fsName = " << fsName;
     return;
 }
+
 }  // namespace mds
 }  // namespace curvefs

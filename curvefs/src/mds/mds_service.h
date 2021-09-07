@@ -32,6 +32,7 @@
 
 namespace curvefs {
 namespace mds {
+
 class MdsServiceImpl : public MdsService {
  public:
     explicit MdsServiceImpl(std::shared_ptr<FsManager> fsManager) {

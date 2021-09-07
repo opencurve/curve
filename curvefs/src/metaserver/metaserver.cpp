@@ -63,7 +63,9 @@ void Metaserver::Init() {
     trash_ = std::make_shared<TrashImpl>(inodeStorage_);
     trash_->Init(trashOption);
     inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
-    dentryManager_ = std::make_shared<DentryManager>(dentryStorage_);
+    txManager_ = std::make_shared<TxManager>(dentryStorage_);
+    dentryManager_ = std::make_shared<DentryManager>(dentryStorage_,
+                                                     txManager_);
 
     TrashManager::GetInstance().Init(trashOption);
     inited_ = true;

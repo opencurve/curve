@@ -25,6 +25,7 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <vector>
 #include <unordered_map>
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/src/metaserver/dentry_manager.h"
@@ -43,14 +44,19 @@ class Partition {
     // dentry
     MetaStatusCode CreateDentry(const Dentry& dentry);
 
-    MetaStatusCode GetDentry(uint32_t fsId, uint64_t parentId,
-                             const std::string& name, Dentry* dentry);
+    MetaStatusCode DeleteDentry(const Dentry& dentry);
 
-    MetaStatusCode DeleteDentry(uint32_t fsId, uint64_t parentId,
-                                const std::string& name);
+    MetaStatusCode GetDentry(Dentry* dentry);
 
-    MetaStatusCode ListDentry(uint32_t fsId, uint64_t dirId,
-                              std::list<Dentry>* dentryList);
+    MetaStatusCode ListDentry(const Dentry& dentry,
+                              std::vector<Dentry>* dentrys,
+                              uint32_t limit);
+
+    MetaStatusCode HandleRenameTx(const std::vector<Dentry>& dentrys);
+
+    bool InsertPendingTx(const PrepareRenameTxRequest& pendingTx);
+
+    bool FindPendingTx(PrepareRenameTxRequest* pendingTx);
 
     // inode
     MetaStatusCode CreateInode(uint32_t fsId, uint64_t length, uint32_t uid,
@@ -78,9 +84,9 @@ class Partition {
 
     PartitionInfo GetPartitionInfo();
 
-    InodeContainerType* GetInodeContainer();
+    InodeStorage::ContainerType* GetInodeContainer();
 
-    DentryContainerType* GetDentryContainer();
+    DentryStorage::ContainerType* GetDentryContainer();
 
     // get new inode id in partition range.
     // if no available inode id in this partiton ,return UINT64_MAX
@@ -94,7 +100,8 @@ class Partition {
     std::shared_ptr<S3ClientAdaptor>  s3Adaptor_;
     std::shared_ptr<TrashImpl> trash_;
     std::shared_ptr<DentryManager> dentryManager_;
-    // TODO(cw123) : add txmanager
+    std::shared_ptr<TxManager> txManager_;
+
     PartitionInfo partitionInfo_;
 };
 }  // namespace metaserver
