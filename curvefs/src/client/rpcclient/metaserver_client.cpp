@@ -21,6 +21,7 @@
  * Author: lixiaocui
  */
 
+#include <vector>
 #include <algorithm>
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 
@@ -33,6 +34,20 @@ MetaStatusCode MetaServerClientImpl::Init(const MetaServerOption &metaopt,
     return MetaStatusCode::OK;
 }
 
+MetaStatusCode MetaServerClientImpl::GetTxId(uint32_t fsId,
+                                             uint64_t inodeId,
+                                             uint32_t* partitionId,
+                                             uint64_t* txId) {
+    // TODO(@Wine93): get txid by metacache
+    *txId = 0;
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode MetaServerClientImpl::SetTxId(uint32_t partitionId,
+                                             uint64_t txId) {
+    // TODO(@Wine93): set txid by metacache
+    return MetaStatusCode::OK;
+}
 
 MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
                                                const std::string &name,
@@ -54,6 +69,11 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
 MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
                                                   uint64_t inodeid,
                                                   const std::string &name) {
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode MetaServerClientImpl::PrepareRenameTx(
+    const std::vector<Dentry>& dentrys) {
     return MetaStatusCode::OK;
 }
 

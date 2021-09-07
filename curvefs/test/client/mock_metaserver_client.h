@@ -28,6 +28,7 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 
@@ -46,6 +47,13 @@ class MockMetaServerClient : public MetaServerClient {
     MOCK_METHOD2(Init, MetaStatusCode(const MetaServerOption &metaopt,
                        MetaServerBaseClient *baseclient));
 
+    MOCK_METHOD4(GetTxId, MetaStatusCode(uint32_t fsId,
+                                         uint64_t inodeId,
+                                         uint32_t* partitionId,
+                                         uint64_t* txId));
+
+    MOCK_METHOD2(SetTxId, MetaStatusCode(uint32_t partitionId, uint64_t txId));
+
     MOCK_METHOD4(GetDentry, MetaStatusCode(uint32_t fsId, uint64_t inodeid,
                   const std::string &name, Dentry *out));
 
@@ -57,6 +65,9 @@ class MockMetaServerClient : public MetaServerClient {
 
     MOCK_METHOD3(DeleteDentry, MetaStatusCode(
             uint32_t fsId, uint64_t inodeid, const std::string &name));
+
+    MOCK_METHOD1(PrepareRenameTx,
+                 MetaStatusCode(const std::vector<Dentry>& dentrys));
 
     MOCK_METHOD3(GetInode, MetaStatusCode(
             uint32_t fsId, uint64_t inodeid, Inode *out));

@@ -23,6 +23,7 @@
 #ifndef CURVEFS_SRC_MDS_FS_H_
 #define CURVEFS_SRC_MDS_FS_H_
 
+#include <map>
 #include <list>
 #include <string>
 #include "curvefs/proto/mds.pb.h"
@@ -97,6 +98,7 @@ class MdsFsInfo {
     FsStatus GetStatus();
     FSType GetFsType();
     void SetFsType(FSType type);
+    void SetTxId(uint64_t copysetId, uint64_t txId);
 
  private:
     uint32_t fsId_;
@@ -107,6 +109,7 @@ class MdsFsInfo {
     uint64_t blockSize_;
     FSType type_;
     std::list<std::string> mountPointList_;
+    std::map<uint64_t, uint64_t> partitionTxIds_;
 
  protected:
     curve::common::RWLock rwLock_;

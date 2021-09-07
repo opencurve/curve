@@ -27,6 +27,7 @@
 #include <gmock/gmock.h>
 
 #include <string>
+#include <vector>
 
 #include "curvefs/src/client/rpcclient/mds_client.h"
 
@@ -67,6 +68,9 @@ class MockMdsClient : public MdsClient {
         FsInfo* fsInfo));
 
     MOCK_METHOD2(GetFsInfo, FSStatusCode(uint32_t fsId, FsInfo* fsInfo));
+
+    MOCK_METHOD1(CommitTx,
+                 FSStatusCode(const std::vector<PartitionTxId>& txIds));
 };
 
 }  // namespace rpcclient

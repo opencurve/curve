@@ -20,117 +20,77 @@
  * Author: chenwei
  */
 
-#include "curvefs/src/metaserver/metaserver_service.h"
 #include <list>
 #include <string>
+#include <vector>
+#include <algorithm>
+
+#include "curvefs/src/metaserver/metaserver_service.h"
 
 namespace curvefs {
 namespace metaserver {
-void MetaServerServiceImpl::GetDentry(
-    ::google::protobuf::RpcController* controller,
-    const ::curvefs::metaserver::GetDentryRequest* request,
-    ::curvefs::metaserver::GetDentryResponse* response,
-    ::google::protobuf::Closure* done) {
+
+void MetaServerServiceImpl::DEFINE_RPC(CreateDentry) {
     brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    uint32_t fsId = request->fsid();
-    uint64_t parentInodeId = request->parentinodeid();
-    std::string name = request->name();
-    MetaStatusCode status = dentryManager_->GetDentry(
-        fsId, parentInodeId, name, response->mutable_dentry());
-    response->set_statuscode(status);
-    if (status != MetaStatusCode::OK) {
+    auto rc = dentryManager_->CreateDentry(request->dentry());
+    response->set_statuscode(rc);
+}
+
+void MetaServerServiceImpl::DEFINE_RPC(DeleteDentry) {
+    brpc::ClosureGuard doneGuard(done);
+    Dentry dentry;
+    dentry.set_fsid(request->fsid());
+    dentry.set_parentinodeid(request->parentinodeid());
+    dentry.set_name(request->name());
+    dentry.set_txid(request->txid());
+
+    auto rc = dentryManager_->DeleteDentry(dentry);
+    response->set_statuscode(rc);
+}
+
+void MetaServerServiceImpl::DEFINE_RPC(GetDentry) {
+    brpc::ClosureGuard doneGuard(done);
+    auto dentry = response->mutable_dentry();
+    dentry->set_fsid(request->fsid());
+    dentry->set_parentinodeid(request->parentinodeid());
+    dentry->set_name(request->name());
+    dentry->set_txid(request->txid());
+
+    auto rc = dentryManager_->GetDentry(dentry);
+    response->set_statuscode(rc);
+    if (rc != MetaStatusCode::OK) {
         response->clear_dentry();
     }
-    return;
 }
 
-void MetaServerServiceImpl::ListDentry(
-    ::google::protobuf::RpcController* controller,
-    const ::curvefs::metaserver::ListDentryRequest* request,
-    ::curvefs::metaserver::ListDentryResponse* response,
-    ::google::protobuf::Closure* done) {
+void MetaServerServiceImpl::DEFINE_RPC(ListDentry) {
     brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    uint32_t fsId = request->fsid();
-    uint64_t parentInodeId = request->dirinodeid();
-
-    std::list<Dentry> dentryList;
-    MetaStatusCode status =
-        dentryManager_->ListDentry(fsId, parentInodeId, &dentryList);
-    if (status != MetaStatusCode::OK) {
-        response->set_statuscode(status);
-        return;
-    }
-
-    // find last dentry
-    std::string last;
-    bool findLast = false;
-    auto iter = dentryList.begin();
+    Dentry dentry;
+    dentry.set_fsid(request->fsid());
+    dentry.set_parentinodeid(request->dirinodeid());
+    dentry.set_txid(request->txid());
     if (request->has_last()) {
-        last = request->last();
-        VLOG(1) << "last = " << last;
-        for (; iter != dentryList.end(); ++iter) {
-            if (iter->name() == last) {
-                iter++;
-                findLast = true;
-                break;
-            }
-        }
+        dentry.set_name(request->last());
     }
 
-    if (!findLast) {
-        iter = dentryList.begin();
+    std::vector<Dentry> dentrys;
+    auto rc = dentryManager_->ListDentry(dentry, &dentrys, request->count());
+    response->set_statuscode(rc);
+    if (rc == MetaStatusCode::OK && !dentrys.empty()) {
+        *response->mutable_dentrys() = { dentrys.begin(), dentrys.end() };
     }
-
-    uint32_t count = UINT32_MAX;
-    if (request->has_count()) {
-        count = request->count();
-        VLOG(1) << "count = " << count;
-    }
-
-    uint64_t index = 0;
-    while (iter != dentryList.end() && index < count) {
-        Dentry* dentry = response->add_dentrys();
-        dentry->CopyFrom(*iter);
-        VLOG(1) << "return client, index = " << index
-                  << ", dentry :" << iter->ShortDebugString();
-        index++;
-        iter++;
-    }
-
-    VLOG(1) << "return count = " << index;
-
-    response->set_statuscode(status);
-    return;
 }
 
-void MetaServerServiceImpl::CreateDentry(
-    ::google::protobuf::RpcController* controller,
-    const ::curvefs::metaserver::CreateDentryRequest* request,
-    ::curvefs::metaserver::CreateDentryResponse* response,
-    ::google::protobuf::Closure* done) {
+void MetaServerServiceImpl::DEFINE_RPC(PrepareRenameTx) {
     brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    MetaStatusCode status = dentryManager_->CreateDentry(request->dentry());
-    response->set_statuscode(status);
-    return;
-}
 
-void MetaServerServiceImpl::DeleteDentry(
-    ::google::protobuf::RpcController* controller,
-    const ::curvefs::metaserver::DeleteDentryRequest* request,
-    ::curvefs::metaserver::DeleteDentryResponse* response,
-    ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    uint32_t fsId = request->fsid();
-    uint64_t parentInodeId = request->parentinodeid();
-    std::string name = request->name();
-    MetaStatusCode status =
-        dentryManager_->DeleteDentry(fsId, parentInodeId, name);
-    response->set_statuscode(status);
-    return;
+    std::vector<Dentry> dentrys{
+        request->dentrys().begin(),
+        request->dentrys().end()
+    };
+
+    auto rc = dentryManager_->HandleRenameTx(dentrys);
+    response->set_statuscode(rc);
 }
 
 void MetaServerServiceImpl::GetInode(

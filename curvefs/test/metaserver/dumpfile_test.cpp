@@ -99,7 +99,7 @@ class DumpFileTest : public ::testing::Test {
     }
 
     void GenHash(Hash* hash, uint64_t count) {
-        for (auto i = 1; i <= count; i++) {
+        for (uint64_t i = 1; i <= count; i++) {
             auto num = std::to_string(i);
             hash->emplace(num, num);
         }
@@ -130,6 +130,18 @@ TEST_F(DumpFileTest, TestSaveBasic) {
     CheckIterator(dumpfile_->Load(), &hash);
     ASSERT_EQ(dumpfile_->GetLoadStatus(), DUMPFILE_LOAD_STATUS::COMPLETE);
 }
+
+/*
+TEST_F(DumpFileTest, TestFileNotOpen) {
+    Hash hash;
+    auto hashIterator = std::make_shared<HashIterator>(&hash);
+
+    auto dumpfile = DumpFile(".dump/curvefs.dump");
+    ASSERT_EQ(dumpfile.Save(HashIterator), DUMPFILE_ERROR::BAD_FD);
+    ASSERT_EQ(dumpfile.SaveBackground(HashIterator), DUMPFILE_ERROR::BAD_FD);
+    ASSET_EQ(dumpfile.Close(), DUMPFILE_ERROR::OK);
+}
+*/
 
 TEST_F(DumpFileTest, TestSaveBinaryData) {
     Hash hash;

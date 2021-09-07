@@ -27,6 +27,7 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/metaserver.pb.h"
@@ -42,6 +43,8 @@ using curvefs::metaserver::CreateInodeRequest;
 using curvefs::metaserver::CreateInodeResponse;
 using curvefs::metaserver::DeleteDentryRequest;
 using curvefs::metaserver::DeleteDentryResponse;
+using curvefs::metaserver::PrepareRenameTxRequest;
+using curvefs::metaserver::PrepareRenameTxResponse;
 using curvefs::metaserver::DeleteInodeRequest;
 using curvefs::metaserver::DeleteInodeResponse;
 using curvefs::metaserver::Dentry;
@@ -63,6 +66,7 @@ using curvefs::mds::CreateFsRequest;
 using curvefs::mds::CreateFsResponse;
 using curvefs::mds::DeleteFsRequest;
 using curvefs::mds::DeleteFsResponse;
+using curvefs::mds::PartitionTxId;
 using curvefs::mds::FsInfo;
 using curvefs::mds::FsStatus;
 using curvefs::mds::GetFsInfoRequest;
@@ -71,6 +75,8 @@ using curvefs::mds::MountFsRequest;
 using curvefs::mds::MountFsResponse;
 using curvefs::mds::UmountFsRequest;
 using curvefs::mds::UmountFsResponse;
+using curvefs::mds::CommitTxRequest;
+using curvefs::mds::CommitTxResponse;
 
 using curvefs::space::AllocateSpaceRequest;
 using curvefs::space::AllocateSpaceResponse;
@@ -115,6 +121,11 @@ class MetaServerBaseClient {
                               DeleteDentryResponse *response,
                               brpc::Controller *cntl, brpc::Channel *channel);
 
+    virtual void PrepareRenameTx(const std::vector<Dentry>& dentrys,
+                                 PrepareRenameTxResponse* response,
+                                 brpc::Controller* cntl,
+                                 brpc::Channel* channel);
+
     virtual void GetInode(uint32_t fsId, uint64_t inodeid,
                           GetInodeResponse *response, brpc::Controller *cntl,
                           brpc::Channel *channel);
@@ -158,6 +169,11 @@ class MDSBaseClient {
 
     virtual void GetFsInfo(uint32_t fsId, GetFsInfoResponse *response,
                            brpc::Controller *cntl, brpc::Channel *channel);
+
+    virtual void CommitTx(const std::vector<PartitionTxId>& txIds,
+                          CommitTxResponse* response,
+                          brpc::Controller* cntl,
+                          brpc::Channel* channel);
 };
 
 class SpaceBaseClient {

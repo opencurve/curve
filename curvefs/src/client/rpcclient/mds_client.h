@@ -25,6 +25,7 @@
 #define CURVEFS_SRC_CLIENT_RPCCLIENT_MDS_CLIENT_H_
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/client/rpcclient/base_client.h"
@@ -68,6 +69,8 @@ class MdsClient {
                                    FsInfo *fsInfo) = 0;
 
     virtual FSStatusCode GetFsInfo(uint32_t fsId, FsInfo *fsInfo) = 0;
+
+    virtual FSStatusCode CommitTx(const std::vector<PartitionTxId>& txIds) = 0;
 };
 
 class MdsClientImpl : public MdsClient {
@@ -94,6 +97,8 @@ class MdsClientImpl : public MdsClient {
     FSStatusCode GetFsInfo(const std::string &fsName, FsInfo *fsInfo) override;
 
     FSStatusCode GetFsInfo(uint32_t fsId, FsInfo *fsInfo) override;
+
+    FSStatusCode CommitTx(const std::vector<PartitionTxId>& txIds) override;
 };
 
 }  // namespace rpcclient

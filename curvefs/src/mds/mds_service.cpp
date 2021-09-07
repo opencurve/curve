@@ -20,6 +20,8 @@
  * Author: chenwei
  */
 
+#include <vector>
+
 #include "curvefs/src/mds/mds_service.h"
 
 namespace curvefs {
@@ -209,5 +211,23 @@ void MdsServiceImpl::DeleteFs(::google::protobuf::RpcController* controller,
     LOG(INFO) << "DeleteFs success, fsName = " << fsName;
     return;
 }
+
+void MdsServiceImpl::DEFINE_RPC(CommitTx) {
+    brpc::ClosureGuard doneGuard(done);
+
+    FSStatusCode rc;
+    if (request->partitiontxids_size() == 0) {
+        rc = FSStatusCode::PARAM_ERROR;
+    } else {
+        std::vector<PartitionTxId> txIds{
+            request->partitiontxids().begin(),
+            request->partitiontxids().end()
+        };
+        rc = fsManager_->CommitTx(txIds);
+    }
+
+    response->set_statuscode(rc);
+}
+
 }  // namespace mds
 }  // namespace curvefs

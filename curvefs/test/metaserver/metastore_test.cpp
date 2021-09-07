@@ -567,6 +567,8 @@ TEST_F(MetastoreTest, test_dentry) {
     ASSERT_EQ(createResponse.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(createResponse.statuscode(), ret);
 
+    LOG(ERROR) << "<<<< ";
+
     // TEST GET DETNRY
     GetDentryRequest getRequest;
     GetDentryResponse getResponse;
@@ -758,6 +760,7 @@ TEST_F(MetastoreTest, persist_success) {
     dentry1.set_inodeid(1);
     dentry1.set_parentinodeid(0);
     dentry1.set_name("dentry1");
+    dentry1.set_txid(0);
 
     createDentryRequest.set_poolid(poolId);
     createDentryRequest.set_copysetid(copysetId);

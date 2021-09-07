@@ -52,6 +52,11 @@ enum FsStatus {
     DELETING = 2;
 }
 
+message PartitionTxId {
+    required uint64 partitionId = 1;
+    required uint64 txId = 2;
+}
+
 message FsInfo {
     required uint32 fsId = 1;
     required string fsName = 2;
@@ -64,6 +69,7 @@ message FsInfo {
     required common.FSType fsType = 9;
     optional common.Volume volume = 10;
     optional common.S3Info s3Info = 11;
+    repeated PartitionTxId partitionTxIds = 12;
 }
 
 message GetFsInfoResponse {
@@ -123,6 +129,14 @@ message DeleteFsResponse {
     required FSStatusCode statusCode = 1;
 }
 
+message CommitTxRequest {
+    repeated PartitionTxId partitionTxIds = 1;
+}
+
+message CommitTxResponse {
+    required FSStatusCode statusCode = 1;
+}
+
 service MdsService {
     // fs interface
     rpc CreateFs(CreateFsRequest) returns (CreateFsResponse);
@@ -131,4 +145,6 @@ service MdsService {
     rpc GetFsInfo(GetFsInfoRequest) returns (GetFsInfoResponse);
     // rpc UpdateFsInfo(UpdateFsInfoRequest) returns (UpdateFsInfoResponse);
     rpc DeleteFs(DeleteFsRequest) returns (DeleteFsResponse);
+
+    rpc CommitTx(CommitTxRequest) returns (CommitTxResponse);
 }

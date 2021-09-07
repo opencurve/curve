@@ -24,6 +24,7 @@
 
 #include <string>
 #include <list>
+#include <vector>
 #include <unordered_map>
 
 namespace curvefs {
@@ -32,6 +33,53 @@ namespace client {
 CURVEFS_ERROR DentryCacheManagerImpl::Init(const DCacheOption &option) {
     maxListDentryCount_ = option.maxListDentryCount;
     return CURVEFS_ERROR::OK;
+}
+
+void DentryCacheManagerImpl::InsertOrReplaceCache(const Dentry& dentry,
+                                                  bool replace) {
+    auto parentId = dentry.parentinodeid();
+    auto name = dentry.name();
+    auto iter = dCache_.emplace(parentId, Hash()).first;
+
+    auto hash = &(iter->second);
+    auto ret = hash->emplace(name, dentry);
+    if (!ret.second && replace) {
+       ret.first->second = dentry;
+    }
+}
+
+void DentryCacheManagerImpl::DeleteCache(uint64_t parentId,
+                                         const std::string& name) {
+    auto iter = dCache_.find(parentId);
+    if (iter == dCache_.end()) {
+        return;
+    }
+
+    iter->second.erase(name);
+    if (iter->second.empty()) {
+        dCache_.erase(iter);
+    }
+}
+
+CURVEFS_ERROR DentryCacheManagerImpl::GetTxId(uint32_t fsId,
+                                              uint64_t inodeId,
+                                              uint32_t* partitionId,
+                                              uint64_t* txId) {
+    auto rc = metaClient_->GetTxId(fsId, inodeId, partitionId, txId);
+    if (rc != MetaStatusCode::OK) {
+        LOG(ERROR) << "GetTxId failed, retCode = " << rc
+                   << ", fsId = " << fsId << ", inodeId = " << inodeId;
+    }
+    return MetaStatusCodeToCurvefsErrCode(rc);
+}
+
+CURVEFS_ERROR DentryCacheManagerImpl::SetTxId(uint32_t partitionId,
+                                              uint64_t txId) {
+    auto rc = metaClient_->SetTxId(partitionId, txId);
+    if (rc != MetaStatusCode::OK) {
+        LOG(ERROR) << "SetTxId failed, retCode = " << rc;
+    }
+    return MetaStatusCodeToCurvefsErrCode(rc);
 }
 
 CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(
@@ -75,22 +123,14 @@ CURVEFS_ERROR DentryCacheManagerImpl::CreateDentry(const Dentry &dentry) {
                    << ", name = " << name;
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
-    auto it = dCache_.emplace(parent,
-            std::unordered_map<std::string, Dentry>()).first;
-    it->second.emplace(name, dentry);
+    InsertOrReplaceCache(dentry, false);
     return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(
     uint64_t parent, const std::string &name) {
     curve::common::WriteLockGuard lg(mtx_);
-    auto it = dCache_.find(parent);
-    if (it != dCache_.end()) {
-        it->second.erase(name);
-        if (it->second.empty()) {
-            dCache_.erase(it);
-        }
-    }
+    DeleteCache(parent, name);
     MetaStatusCode ret = metaClient_->DeleteDentry(fsId_, parent, name);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "metaClient_ DeleteInode failed, ret = " << ret
@@ -102,19 +142,19 @@ CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(
 }
 
 CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(
-    uint64_t parent, std::list<Dentry> *dentryList) {
+    uint64_t parent, std::list<Dentry> *dentryList, uint32_t limit) {
     bool perceed = true;
     MetaStatusCode ret = MetaStatusCode::OK;
     dentryList->clear();
     std::string last = "";
+    limit = (limit == 0) ? maxListDentryCount_ : limit;
     do {
         std::list<Dentry> part;
-        ret = metaClient_->ListDentry(fsId_, parent,
-            last, maxListDentryCount_, &part);
+        ret = metaClient_->ListDentry(fsId_, parent, last, limit, &part);
         LOG(INFO) << "ListDentry fsId = " << fsId_
                   << ", parent = " << parent
                   << ", last = " << last
-                  << ", count = " << maxListDentryCount_
+                  << ", count = " << limit
                   << ", ret = " << ret
                   << ", part.size() = " << part.size();
         if (ret != MetaStatusCode::OK) {
@@ -124,10 +164,10 @@ CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(
             LOG(ERROR) << "metaClient_ ListDentry failed, ret = " << ret
                        << ", parent = " << parent
                        << ", last = " << last
-                       << ", count = " << maxListDentryCount_;
+                       << ", count = " << limit;
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
-        if (part.size() < maxListDentryCount_) {
+        if (part.size() < limit) {
             perceed = false;
         }
         if (!part.empty()) {
@@ -136,6 +176,17 @@ CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(
         }
     } while (perceed);
     return CURVEFS_ERROR::OK;
+}
+
+CURVEFS_ERROR DentryCacheManagerImpl::Rename(const Dentry& srcDentry,
+                                             const Dentry& dstDentry) {
+    std::vector<Dentry> dentrys{ srcDentry, dstDentry };
+    auto rc = metaClient_->PrepareRenameTx(dentrys);
+    if (rc != MetaStatusCode::OK) {
+        LOG(ERROR) << "Rename failed, retCode = " << rc;
+    }
+
+    return MetaStatusCodeToCurvefsErrCode(rc);
 }
 
 }  // namespace client

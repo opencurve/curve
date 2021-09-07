@@ -92,6 +92,7 @@ class StorageTest : public ::testing::Test {
         dentry.set_parentinodeid(0);
         dentry.set_name("test");
         dentry.set_inodeid(1);
+        dentry.set_txid(0);
         return dentry;
     }
 

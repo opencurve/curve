@@ -53,6 +53,7 @@ class Metaserver {
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<DentryStorage> dentryStorage_;
     std::shared_ptr<InodeManager> inodeManager_;
+    std::shared_ptr<TxManager> txManager_;
     std::shared_ptr<DentryManager> dentryManager_;
     MetaserverOptions options_;
 };

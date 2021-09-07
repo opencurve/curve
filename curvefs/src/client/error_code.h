@@ -40,6 +40,7 @@ enum class CURVEFS_ERROR {
     BAD_FD = -6,
     INVALIDPARAM = -7,
     NOPERMISSION = -8,
+    NOTEMPTY = -9,
 };
 
 inline std::ostream &operator<<(std::ostream &os, CURVEFS_ERROR code) {

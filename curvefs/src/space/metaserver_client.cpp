@@ -68,6 +68,7 @@ bool MetaServerClient::RecursiveListDentry(uint32_t fsId, uint64_t inodeId,
     // TODO(wuhanqing): end add partition
     request.set_fsid(fsId);
     request.set_dirinodeid(inodeId);
+    request.set_txid(0);  // TODO(Wine93): get txid by fsInfo
     stub.ListDentry(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed() || (response.statuscode() != metaserver::OK &&

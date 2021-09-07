@@ -37,7 +37,9 @@ void Metaserver::Init() {
     inodeStorage_ = std::make_shared<MemoryInodeStorage>();
     dentryStorage_ = std::make_shared<MemoryDentryStorage>();
     inodeManager_ = std::make_shared<InodeManager>(inodeStorage_);
-    dentryManager_ = std::make_shared<DentryManager>(dentryStorage_);
+    txManager_ = std::make_shared<TxManager>(dentryStorage_);
+    dentryManager_ = std::make_shared<DentryManager>(dentryStorage_,
+                                                     txManager_);
     inited_ = true;
 }
 

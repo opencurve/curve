@@ -49,6 +49,13 @@ message GetDentryRequest {
     required uint32 fsId = 4;
     required uint64 parentInodeId = 5;
     required string name = 6;
+    required uint64 txId = 7;
+    optional uint64 appliedIndex = 8;
+}
+
+enum DentryFlag {
+    TYPE_FILE_FLAG = 1;
+    DELETE_MARK_FLAG = 2;
 }
 
 message Dentry {
@@ -56,6 +63,8 @@ message Dentry {
     required uint64 inodeId = 2;
     required uint64 parentInodeId = 3;
     required string name = 4;
+    required uint64 txId = 5;
+    optional uint32 flag = 6;
 }
 
 message GetDentryResponse {
@@ -69,8 +78,9 @@ message ListDentryRequest {
     required uint32 partitionId = 3;
     required uint32 fsId = 4;
     required uint64 dirInodeId = 5;
-    optional string last = 6;     // the name of last entry
-    optional uint32 count = 7;    // the number of entry required
+    required uint64 txId = 6;
+    optional string last = 7;     // the name of last entry
+    optional uint32 count = 8;    // the number of entry required
 }
 
 message ListDentryResponse {
@@ -96,9 +106,21 @@ message DeleteDentryRequest {
     required uint32 fsId = 4;
     required uint64 parentInodeId = 5;
     required string name = 6;
+    required uint64 txId = 7;
 }
 
 message DeleteDentryResponse {
+    required MetaStatusCode statusCode = 1;
+}
+
+message PrepareRenameTxRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    repeated Dentry dentrys = 4;
+}
+
+message PrepareRenameTxResponse {
     required MetaStatusCode statusCode = 1;
 }
 
@@ -268,6 +290,7 @@ service MetaServerService {
     rpc ListDentry(ListDentryRequest) returns (ListDentryResponse);
     rpc CreateDentry(CreateDentryRequest) returns (CreateDentryResponse);
     rpc DeleteDentry(DeleteDentryRequest) returns (DeleteDentryResponse);
+    rpc PrepareRenameTx(PrepareRenameTxRequest) returns (PrepareRenameTxResponse);
 
     // inode interface
     rpc GetInode(GetInodeRequest) returns (GetInodeResponse);

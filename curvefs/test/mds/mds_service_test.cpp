@@ -436,6 +436,25 @@ TEST_F(MdsServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
+    // TEST CASE: commit tx
+    {
+        // TODO(@Wine93): remove it
+        /*
+        CommitTxRequest request;
+        CommitTxResponse response;
+        for (auto i = 1; i <= 2; i++) {
+            auto partitionTxId = request.add_partitiontxids();
+            partitionTxId->set_partitionid(i);
+            partitionTxId->set_txid(1);
+        }
+
+        cntl.Reset();
+        stub.CommitTx(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(response.statuscode(), FSStatusCode::OK);
+        */
+    }
+
     // TEST unmount
     cntl.Reset();
     UmountFsRequest umountRequest;

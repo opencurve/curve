@@ -83,7 +83,7 @@ class ContainerIterator : public Iterator {
  public:
     ContainerIterator(ENTRY_TYPE entryType,
                       uint32_t partitionId,
-                      const ContainerType* container)
+                      ContainerType* container)
         : entryType_(entryType),
           partitionId_(partitionId),
           container_(container),
@@ -135,6 +135,83 @@ class ContainerIterator : public Iterator {
     int status_;  // 0: success, 1: fail
     std::string key_;
 };
+
+// TODO(@Wine93): remove this class
+template<typename SetContainerType>
+class SetContainerIterator : public Iterator {
+ public:
+    SetContainerIterator(ENTRY_TYPE entryType,
+                      uint32_t partitionId,
+                      SetContainerType* container)
+        : entryType_(entryType),
+          partitionId_(partitionId),
+          container_(container),
+          status_(0) {
+        auto str4type = type2str(entryType);
+        if (str4type == "") {
+            status_ = 1;
+        }
+        key_ = str4type + ":" + std::to_string(partitionId);
+    }
+
+    uint64_t Size() override {
+        return container_->size();
+    }
+
+    bool Valid() override {
+        return (status_ == 0) && (iter_ != container_->end());
+    }
+
+    void SeekToFirst() override {
+        iter_ = container_->begin();
+    }
+
+    void Next() override {
+        iter_++;
+    }
+
+    std::string Key() override {
+        return key_;
+    }
+
+    std::string Value() override {
+        std::string value;
+        if (!iter_->SerializeToString(&value)) {
+            status_ = 1;
+        }
+        return value;
+
+        return "";
+    }
+
+    int Status() override {
+        return status_;
+    }
+
+ private:
+    ENTRY_TYPE entryType_;
+    uint32_t partitionId_;
+    const SetContainerType* container_;
+    typename SetContainerType::const_iterator iter_;
+    int status_;  // 0: success, 1: fail
+    std::string key_;
+};
+
+/*
+template<typename ContainerType>
+class SetIterator : public ContainerIterator<ContainerType> {
+ public:
+    using ContainerIterator<ContainerType>::ContainerIterator;
+
+    std::string Value() override {
+        std::string value;
+        if (!iter_->SerializeToString(&value)) {
+            status_ = 1;
+        }
+        return value;
+    }
+};
+*/
 
 class MergeIterator : public Iterator {
  public:

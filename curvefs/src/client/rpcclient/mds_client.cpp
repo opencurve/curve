@@ -72,6 +72,10 @@ FSStatusCode MdsClientImpl::GetFsInfo(uint32_t fsId, FsInfo *fsInfo) {
     return FSStatusCode::OK;
 }
 
+FSStatusCode MdsClientImpl::CommitTx(const std::vector<PartitionTxId>& txIds) {
+    return FSStatusCode::OK;
+}
+
 }  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs

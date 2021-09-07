@@ -23,11 +23,56 @@
 #include <glog/logging.h>
 #include <thread>  // NOLINT
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include "curvefs/src/metaserver/storage.h"
 namespace curvefs {
 namespace metaserver {
 MetaStore::MetaStore() {}
+
+using PendingTxContainerType = std::unordered_map<int, PrepareRenameTxRequest>;
+using DentryIteratorType = SetContainerIterator<DentryStorage::ContainerType>;
+using PendingTxIteratorType = ContainerIterator<PendingTxContainerType>;
+
+bool MetaStore::LoadPendingTx(uint32_t partitionId, void* entry) {
+    auto partition = GetPartition(partitionId);
+    if (nullptr == partition) {
+        LOG(ERROR) << "Partition not found, partitionId = " << partitionId;
+        return false;
+    }
+
+    auto pendingTx = reinterpret_cast<PrepareRenameTxRequest*>(entry);
+    auto rc = partition->InsertPendingTx(*pendingTx);
+    if (rc != MetaStatusCode::OK) {
+        LOG(ERROR) << "InsertPendingTx failed, retCode " << rc;
+        return false;
+    }
+
+    return true;
+}
+
+std::shared_ptr<Iterator> MetaStore::NewDentryIterator(
+    std::shared_ptr<Partition> partition) {
+    auto partitionId = partition->GetPartitionId();
+    auto container = partition->GetDentryContainer();
+    auto iterator = std::make_shared<DentryIteratorType>(
+        ENTRY_TYPE::DENTRY, partitionId, container);
+    return iterator;
+}
+
+std::shared_ptr<Iterator> MetaStore::NewPendingTxIterator(
+    std::shared_ptr<Partition> partition) {
+    PrepareRenameTxRequest pendingTx;
+    if (!partition->FindPendingTx(&pendingTx)) {  // not found
+        return nullptr;
+    }
+
+    auto partitionId = partition->GetPartitionId();
+    auto container = PendingTxContainerType{ { 0, pendingTx } };
+    auto iterator = std::make_shared<PendingTxIteratorType>(
+        ENTRY_TYPE::PENDING_TX, partitionId, &container);
+    return iterator;
+}
 
 bool MetaStore::Load(const std::string& path) {
     auto callbackFunc = [&](ENTRY_TYPE type, uint32_t paritionId,
@@ -60,6 +105,8 @@ bool MetaStore::Load(const std::string& path) {
                 return false;
             }
             return true;
+        } else if (type == ENTRY_TYPE::PENDING_TX) {
+            return LoadPendingTx(paritionId, metadata);
         } else {
             LOG(ERROR) << "load meta from file, not supported type";
             return false;
@@ -103,11 +150,14 @@ void MetaStore::SaveBack(const std::string& path, OnSnapshotSaveDone* done) {
         iteratorList.push_back(inodeIter);
 
         // add dentry iterator
-        std::shared_ptr<ContainerIterator<DentryContainerType>> dentryIter =
-            std::make_shared<ContainerIterator<DentryContainerType>>(
-                ENTRY_TYPE::DENTRY, it.second->GetPartitionId(),
-                it.second->GetDentryContainer());
-        iteratorList.push_back(dentryIter);
+        auto dentryIterator = NewDentryIterator(it.second);
+        iteratorList.push_back(dentryIterator);
+
+        // add pending tx iterator
+        auto pendingTxIterator = NewPendingTxIterator(it.second);
+        if (nullptr != pendingTxIterator) {
+            iteratorList.push_back(pendingTxIterator);
+        }
     }
 
     auto mergeIterator = std::make_shared<MergeIterator>(iteratorList);
@@ -197,6 +247,7 @@ MetaStatusCode MetaStore::GetDentry(const GetDentryRequest* request,
     uint32_t fsId = request->fsid();
     uint64_t parentInodeId = request->parentinodeid();
     std::string name = request->name();
+    auto txId = request->txid();
     ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
@@ -204,13 +255,20 @@ MetaStatusCode MetaStore::GetDentry(const GetDentryRequest* request,
         response->set_statuscode(status);
         return status;
     }
-    MetaStatusCode status = partition->GetDentry(fsId, parentInodeId, name,
-                                                 response->mutable_dentry());
-    response->set_statuscode(status);
-    if (status != MetaStatusCode::OK) {
-        response->clear_dentry();
+
+    // handle by partition
+    Dentry dentry;
+    dentry.set_fsid(fsId);
+    dentry.set_parentinodeid(parentInodeId);
+    dentry.set_name(name);
+    dentry.set_txid(txId);
+
+    auto rc = partition->GetDentry(&dentry);
+    response->set_statuscode(rc);
+    if (rc == MetaStatusCode::OK) {
+        *response->mutable_dentry() = dentry;
     }
-    return status;
+    return rc;
 }
 
 MetaStatusCode MetaStore::DeleteDentry(const DeleteDentryRequest* request,
@@ -218,6 +276,7 @@ MetaStatusCode MetaStore::DeleteDentry(const DeleteDentryRequest* request,
     uint32_t fsId = request->fsid();
     uint64_t parentInodeId = request->parentinodeid();
     std::string name = request->name();
+    auto txId = request->txid();
     ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
@@ -225,15 +284,24 @@ MetaStatusCode MetaStore::DeleteDentry(const DeleteDentryRequest* request,
         response->set_statuscode(status);
         return status;
     }
-    MetaStatusCode status = partition->DeleteDentry(fsId, parentInodeId, name);
-    response->set_statuscode(status);
-    return status;
+
+    // handle by partition
+    Dentry dentry;
+    dentry.set_fsid(fsId);
+    dentry.set_parentinodeid(parentInodeId);
+    dentry.set_name(name);
+    dentry.set_txid(txId);
+
+    auto rc = partition->DeleteDentry(dentry);
+    response->set_statuscode(rc);
+    return rc;
 }
 
 MetaStatusCode MetaStore::ListDentry(const ListDentryRequest* request,
                                      ListDentryResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t parentInodeId = request->dirinodeid();
+    auto txId = request->txid();
     ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
@@ -242,54 +310,42 @@ MetaStatusCode MetaStore::ListDentry(const ListDentryRequest* request,
         return status;
     }
 
-    std::list<Dentry> dentryList;
-    MetaStatusCode status =
-        partition->ListDentry(fsId, parentInodeId, &dentryList);
-    if (status != MetaStatusCode::OK) {
-        response->set_statuscode(status);
-        return status;
-    }
-
-    // find last dentry
-    std::string last;
-    bool findLast = false;
-    auto iter = dentryList.begin();
+    // handle by partition
+    Dentry dentry;
+    dentry.set_fsid(fsId);
+    dentry.set_parentinodeid(parentInodeId);
+    dentry.set_txid(txId);
     if (request->has_last()) {
-        last = request->last();
-        VLOG(1) << "last = " << last;
-        for (; iter != dentryList.end(); ++iter) {
-            if (iter->name() == last) {
-                iter++;
-                findLast = true;
-                break;
-            }
-        }
+        dentry.set_name(request->last());
     }
 
-    if (!findLast) {
-        iter = dentryList.begin();
+    std::vector<Dentry> dentrys;
+    auto rc = partition->ListDentry(dentry, &dentrys, request->count());
+    response->set_statuscode(rc);
+    if (rc == MetaStatusCode::OK && !dentrys.empty()) {
+        *response->mutable_dentrys() = { dentrys.begin(), dentrys.end() };
+    }
+    return rc;
+}
+
+MetaStatusCode MetaStore::PrepareRenameTx(const PrepareRenameTxRequest* request,
+                                          PrepareRenameTxResponse* response) {
+    ReadLockGuard readLockGuard(rwLock_);
+    MetaStatusCode rc;
+    auto partitionId = request->partitionid();
+    auto partition = GetPartition(partitionId);
+    if (nullptr == partition) {
+        rc = MetaStatusCode::PARTITION_NOT_FOUND;
+    } else {
+        std::vector<Dentry> dentrys{
+            request->dentrys().begin(),
+            request->dentrys().end()
+        };
+        rc = partition->HandleRenameTx(dentrys);
     }
 
-    uint32_t count = UINT32_MAX;
-    if (request->has_count()) {
-        count = request->count();
-        VLOG(1) << "count = " << count;
-    }
-
-    uint64_t index = 0;
-    while (iter != dentryList.end() && index < count) {
-        Dentry* dentry = response->add_dentrys();
-        dentry->CopyFrom(*iter);
-        VLOG(1) << "return client, index = " << index
-                << ", dentry :" << iter->ShortDebugString();
-        index++;
-        iter++;
-    }
-
-    VLOG(1) << "return count = " << index;
-
-    response->set_statuscode(status);
-    return status;
+    response->set_statuscode(rc);
+    return rc;
 }
 
 // inode

@@ -20,10 +20,14 @@
  * Author: chenwei
  */
 
-#include "curvefs/src/mds/fs_manager.h"
 #include <glog/logging.h>
 #include <sys/stat.h>  // for S_IFDIR
+
 #include <limits>
+#include <vector>
+
+#include "curvefs/proto/mds.pb.h"
+#include "curvefs/src/mds/fs_manager.h"
 
 namespace curvefs {
 namespace mds {
@@ -363,6 +367,30 @@ FSStatusCode FsManager::GetFsInfo(const std::string& fsName, uint32_t fsId,
 
     mdsFsInfo->ConvertToProto(fsInfo);
     return FSStatusCode::OK;
+}
+
+// TODO(@Wine93)
+FSStatusCode FsManager::CommitTx(const std::vector<PartitionTxId>& txIds) {
+    std::shared_ptr<MdsFsInfo> mdsFsInfo;
+    auto rc = fsStorage_->Get(0, &mdsFsInfo);
+    if (rc != FSStatusCode::OK) {
+        LOG(ERROR) << "CommitTx get fsInfo failed, fsId = " << 0
+                   << ", retCode = " << FSStatusCode_Name(rc);
+        return rc;
+    }
+
+    for (const auto& item : txIds) {
+        auto partitionId = item.partitionid();
+        auto txId = item.txid();
+        mdsFsInfo->SetTxId(partitionId, txId);
+    }
+
+    rc = fsStorage_->Update(mdsFsInfo);
+    if (rc != FSStatusCode::OK) {
+        LOG(ERROR) << "CommitTx update fsInfo failed"
+                   << ", retCode = " << FSStatusCode_Name(rc);
+    }
+    return rc;
 }
 
 uint32_t FsManager::GetNextFsId() {

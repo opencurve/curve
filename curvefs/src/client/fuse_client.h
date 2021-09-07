@@ -24,6 +24,7 @@
 #ifndef CURVEFS_SRC_CLIENT_FUSE_CLIENT_H_
 #define CURVEFS_SRC_CLIENT_FUSE_CLIENT_H_
 
+#include <map>
 #include <memory>
 #include <string>
 
@@ -39,11 +40,13 @@
 #include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/proto/common.pb.h"
+#include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/common/fast_align.h"
 
 #define DirectIOAlignemnt 512
 
 using ::curvefs::common::FSType;
+using ::curvefs::metaserver::DentryFlag;
 
 namespace curvefs {
 namespace client {
@@ -144,6 +147,12 @@ class FuseClient {
             char **buffer,
             size_t *rSize);
 
+    virtual CURVEFS_ERROR FuseOpRename(fuse_req_t req,
+                                       fuse_ino_t parent,
+                                       const char* name,
+                                       fuse_ino_t newparent,
+                                       const char* newname);
+
     virtual CURVEFS_ERROR FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
              struct fuse_file_info *fi, struct stat *attr);
 
@@ -217,6 +226,50 @@ class FuseClient {
     MetaServerBaseClient *metaBase_;
 
     SpaceBaseClient *spaceBase_;
+};
+
+class RenameOperator {
+ public:
+    RenameOperator(uint32_t fsId,
+                   uint64_t parentId,
+                   std::string name,
+                   uint64_t newParentId,
+                   std::string newname,
+                   std::shared_ptr<DentryCacheManager> dentryManager,
+                   std::shared_ptr<InodeCacheManager> inodeManager,
+                   std::shared_ptr<MdsClient> mdsClient);
+
+    CURVEFS_ERROR GetTxId();
+    CURVEFS_ERROR Precheck();
+    CURVEFS_ERROR PrepareTx();
+    CURVEFS_ERROR CommitTx();
+    void DeleteOldInode();
+    void UpdateCache();
+
+ private:
+    CURVEFS_ERROR CheckOverwrite();
+
+ private:
+    uint32_t fsId_;
+    uint64_t parentId_;
+    std::string name_;
+    uint64_t newParentId_;
+    std::string newname_;
+
+    uint32_t srcPartitionId_;
+    uint32_t dstPartitionId_;
+    uint64_t srcTxId_;
+    uint64_t dstTxId_;
+    uint64_t oldInodeId_;
+    Dentry srcDentry_;
+    Dentry dstDentry_;
+
+    Dentry dentry_;
+    Dentry newDentry_;
+
+    std::shared_ptr<DentryCacheManager> dentryManager_;
+    std::shared_ptr<InodeCacheManager> inodeManager_;
+    std::shared_ptr<MdsClient> mdsClient_;
 };
 
 }  // namespace client

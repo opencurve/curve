@@ -43,7 +43,9 @@ class MetaserverServiceTest : public ::testing::Test {
         inodeStorage_ = std::make_shared<MemoryInodeStorage>();
         dentryStorage_ = std::make_shared<MemoryDentryStorage>();
         inodeManager_ = std::make_shared<InodeManager>(inodeStorage_);
-        dentryManager_ = std::make_shared<DentryManager>(dentryStorage_);
+        txManager_ = std::make_shared<TxManager>(dentryStorage_);
+        dentryManager_ = std::make_shared<DentryManager>(dentryStorage_,
+                                                         txManager_);
         addr_ = "127.0.0.1:6702";
     }
 
@@ -85,6 +87,7 @@ class MetaserverServiceTest : public ::testing::Test {
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<DentryStorage> dentryStorage_;
     std::shared_ptr<InodeManager> inodeManager_;
+    std::shared_ptr<TxManager> txManager_;
     std::shared_ptr<DentryManager> dentryManager_;
 };
 
@@ -450,6 +453,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     dentry1.set_inodeid(inodeId);
     dentry1.set_parentinodeid(parentId);
     dentry1.set_name(name);
+    dentry1.set_txid(0);
 
     createRequest.set_poolid(poolId);
     createRequest.set_copysetid(copysetId);
@@ -478,6 +482,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     dentry2.set_inodeid(inodeId + 1);
     dentry2.set_parentinodeid(parentId);
     dentry2.set_name("dentry2");
+    dentry2.set_txid(0);
     createRequest.mutable_dentry()->CopyFrom(dentry2);
 
     cntl.Reset();
@@ -494,6 +499,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     dentry3.set_inodeid(inodeId + 2);
     dentry3.set_parentinodeid(parentId);
     dentry3.set_name("dentry3");
+    dentry3.set_txid(0);
     createRequest.mutable_dentry()->CopyFrom(dentry3);
 
     cntl.Reset();
@@ -515,6 +521,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     getRequest.set_fsid(fsId);
     getRequest.set_parentinodeid(parentId);
     getRequest.set_name(name);
+    getRequest.set_txid(0);
     stub.GetDentry(&cntl, &getRequest, &getResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(getResponse.statuscode(), MetaStatusCode::OK);
@@ -529,6 +536,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     getRequest.set_fsid(fsId + 1);
     getRequest.set_parentinodeid(parentId);
     getRequest.set_name(name);
+    getRequest.set_txid(0);
     stub.GetDentry(&cntl, &getRequest, &getResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(getResponse.statuscode(), MetaStatusCode::NOT_FOUND);
@@ -546,6 +554,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     listRequest.set_partitionid(partitionId);
     listRequest.set_fsid(fsId);
     listRequest.set_dirinodeid(parentId);
+    listRequest.set_txid(0);
 
     stub.ListDentry(&cntl, &listRequest, &listResponse, NULL);
     if (!cntl.Failed()) {
@@ -562,6 +571,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     cntl.Reset();
     listRequest.set_fsid(fsId);
     listRequest.set_dirinodeid(parentId);
+    listRequest.set_txid(0);
     listRequest.set_last("dentry1");
     listRequest.set_count(100);
 
@@ -579,6 +589,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     cntl.Reset();
     listRequest.set_fsid(fsId);
     listRequest.set_dirinodeid(parentId);
+    listRequest.set_txid(0);
     listRequest.clear_last();
     listRequest.set_count(1);
 
@@ -602,6 +613,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     deleteRequest.set_fsid(fsId);
     deleteRequest.set_parentinodeid(parentId);
     deleteRequest.set_name("dentry2");
+    deleteRequest.set_txid(0);
 
     stub.DeleteDentry(&cntl, &deleteRequest, &deleteResponse, NULL);
     if (!cntl.Failed()) {
@@ -614,6 +626,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     cntl.Reset();
     listRequest.set_fsid(fsId);
     listRequest.set_dirinodeid(parentId);
+    listRequest.set_txid(0);
     listRequest.clear_last();
     listRequest.clear_count();
     stub.ListDentry(&cntl, &listRequest, &listResponse, NULL);

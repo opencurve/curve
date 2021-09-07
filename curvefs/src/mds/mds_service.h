@@ -32,6 +32,13 @@
 
 namespace curvefs {
 namespace mds {
+
+#define DEFINE_RPC(function_name) function_name( \
+    ::google::protobuf::RpcController* controller, \
+    const ::curvefs::mds::function_name##Request* request, \
+    ::curvefs::mds::function_name##Response* response, \
+    ::google::protobuf::Closure* done)
+
 class MdsServiceImpl : public MdsService {
  public:
     explicit MdsServiceImpl(std::shared_ptr<FsManager> fsManager) {
@@ -62,6 +69,8 @@ class MdsServiceImpl : public MdsService {
                   const ::curvefs::mds::DeleteFsRequest* request,
                   ::curvefs::mds::DeleteFsResponse* response,
                   ::google::protobuf::Closure* done);
+
+    void DEFINE_RPC(CommitTx);
 
  private:
     std::shared_ptr<FsManager> fsManager_;

@@ -151,7 +151,7 @@ TEST_F(TestDentryCacheManager, ListDentryNomal) {
                 Return(MetaStatusCode::OK)));
 
     std::list<Dentry> out;
-    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out);
+    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out, 0);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(2 * dCacheOption_.maxListDentryCount - 1, out.size());
 }
@@ -163,7 +163,7 @@ TEST_F(TestDentryCacheManager, ListDentryEmpty) {
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
 
     std::list<Dentry> out;
-    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out);
+    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out, 0);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, out.size());
 }
@@ -175,7 +175,7 @@ TEST_F(TestDentryCacheManager, ListDentryFailed) {
         .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
 
     std::list<Dentry> out;
-    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out);
+    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out, 0);
     ASSERT_EQ(CURVEFS_ERROR::UNKNOWN, ret);
     ASSERT_EQ(0, out.size());
 }

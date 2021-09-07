@@ -63,12 +63,7 @@ void MetaServerBaseClient::CreateDentry(const Dentry &dentry,
                                         brpc::Controller *cntl,
                                         brpc::Channel *channel) {
     CreateDentryRequest request;
-    Dentry *d = new Dentry;
-    d->set_fsid(dentry.fsid());
-    d->set_inodeid(dentry.inodeid());
-    d->set_parentinodeid(dentry.parentinodeid());
-    d->set_name(dentry.name());
-    request.set_allocated_dentry(d);
+    *request.mutable_dentry() = dentry;
     curvefs::metaserver::MetaServerService_Stub stub(channel);
     stub.CreateDentry(cntl, &request, response, nullptr);
 }
@@ -84,6 +79,16 @@ void MetaServerBaseClient::DeleteDentry(uint32_t fsId, uint64_t inodeid,
     request.set_name(name);
     curvefs::metaserver::MetaServerService_Stub stub(channel);
     stub.DeleteDentry(cntl, &request, response, nullptr);
+}
+
+void MetaServerBaseClient::PrepareRenameTx(const std::vector<Dentry>& dentrys,
+                                           PrepareRenameTxResponse* response,
+                                           brpc::Controller* cntl,
+                                           brpc::Channel* channel) {
+    PrepareRenameTxRequest request;
+    *request.mutable_dentrys() = { dentrys.begin(), dentrys.end() };
+    curvefs::metaserver::MetaServerService_Stub stub(channel);
+    stub.PrepareRenameTx(cntl, &request, response, nullptr);
 }
 
 void MetaServerBaseClient::GetInode(uint32_t fsId, uint64_t inodeid,
@@ -222,6 +227,17 @@ void MDSBaseClient::GetFsInfo(uint32_t fsId, GetFsInfoResponse *response,
     request.set_fsid(fsId);
     curvefs::mds::MdsService_Stub stub(channel);
     stub.GetFsInfo(cntl, &request, response, nullptr);
+}
+
+void MDSBaseClient::CommitTx(const std::vector<PartitionTxId>& txIds,
+                             CommitTxResponse* response,
+                             brpc::Controller* cntl,
+                             brpc::Channel* channel) {
+    CommitTxRequest request;
+    *request.mutable_partitiontxids() = { txIds.begin(), txIds.end() };
+    curvefs::mds::MdsService_Stub stub(channel);
+    // TODO(Wine93): retry until success
+    stub.CommitTx(cntl, &request, response, nullptr);
 }
 
 void SpaceBaseClient::AllocExtents(uint32_t fsId,
