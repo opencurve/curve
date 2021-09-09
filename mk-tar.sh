@@ -36,7 +36,7 @@ fi
 
 #step2 获取tag版本和git提交版本信息
 #获取tag版本
-tag_version=`git status | grep -w "HEAD detached at" | awk '{print $NF}' | awk -F"v" '{print $2}'`
+tag_version=`git status | grep -Ew "HEAD detached at|On branch" | awk '{print $NF}' | awk -F"v" '{print $2}'`
 if [ -z ${tag_version} ]
 then
     echo "not found version info, set version to 9.9.9"
