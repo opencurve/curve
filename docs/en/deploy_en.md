@@ -76,7 +76,7 @@ The smallest CURVE cluster topology:
    $ pip install --upgrade setuptools
    ```
 4. Make sure there are the following packages in the source：net-tools, openssl>=1.1.1, perf, perl-podlators, make
-5. Make a workaround for libcurl-gnutls package：
+5. Make a workaround for libcurl-gnutls package(this workaround may be invalid on CentOS8, please make curve packages on your OS to fix this issue)：
 	```bash
    # check /usr/lib64/libcurl-gnutls.so.4 is exist or not, if NOT, make a soft link for workaround:
    $ ln -s /usr/lib64/libcurl.so.4.3.0 /usr/lib64/libcurl-gnutls.so.4  # the version of libcurl.so may be different in your env, but should be 4.x.y
@@ -221,7 +221,7 @@ The following steps require three machines to operate:
    $ sudo ls  # Test if sudo is configured correctly
    ```
 3. Make sure there are the following packages in the source：net-tools, openssl>=1.1.1, perf, perl-podlators, make
-4. Make a workaround for libcurl-gnutls package：
+4. Make a workaround for libcurl-gnutls package(this workaround may be invalid on CentOS8, please make curve packages on your OS to fix this issue)：
 	```bash
    # check /usr/lib64/libcurl-gnutls.so.4 is exist or not, if NOT, make a soft link for workaround:
    $ ln -s /usr/lib64/libcurl.so.4.3.0 /usr/lib64/libcurl-gnutls.so.4  # the version of libcurl.so may be different in your env, but should be 4.x.y
