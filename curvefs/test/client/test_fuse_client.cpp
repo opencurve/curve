@@ -1499,6 +1499,92 @@ TEST_F(TestFuseVolumeClient, FuseOpRelease) {
     ASSERT_EQ(false, inode2.openflag());
 }
 
+TEST_F(TestFuseVolumeClient, RenameOperatorInterface) {
+    uint32_t fsId = 1;
+    uint64_t parentId = 10;
+    auto name = "A";
+    uint64_t newParentId = 20;
+    auto newname = "B";
+
+    auto renameOp = RenameOperator(fsId, parentId, name, newParentId, newname,
+                                   dentryManager_, inodeManager_, mdsClient_);
+
+    // CASE 1: GetTxId
+    // > 1.1: get src txid fail
+    EXPECT_CALL(*dentryManager_, GetTxId(_, _, _, _))
+        .WillOnce(Return(CURVEFS_ERROR::UNKNOWN));
+    auto rc = renameOp.GetTxId();
+    ASSERT_EQ(rc, CURVEFS_ERROR::UNKNOWN);
+
+    // > 1.2: get dst txid fail
+    EXPECT_CALL(*dentryManager_, GetTxId(_, _, _, _))
+        .WillOnce(Return(CURVEFS_ERROR::OK))
+        .WillOnce(Return(CURVEFS_ERROR::UNKNOWN));
+    rc = renameOp.GetTxId();
+    ASSERT_EQ(rc, CURVEFS_ERROR::UNKNOWN);
+
+    // 1.3: get txid success
+    EXPECT_CALL(*dentryManager_, GetTxId(_, _, _, _))
+        .WillOnce(Return(CURVEFS_ERROR::OK))
+        .WillOnce(Return(CURVEFS_ERROR::OK));
+    rc = renameOp.GetTxId();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+
+    // CASE 2: Precheck
+    // > 2.1: get src dentry fail
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillOnce(Return(CURVEFS_ERROR::UNKNOWN));
+
+    rc = renameOp.Precheck();
+    ASSERT_EQ(rc, CURVEFS_ERROR::UNKNOWN);
+
+    // > 2.2: get dst dentry fail
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillOnce(Return(CURVEFS_ERROR::OK))
+        .WillOnce(Return(CURVEFS_ERROR::UNKNOWN));
+
+    rc = renameOp.Precheck();
+    ASSERT_EQ(rc, CURVEFS_ERROR::UNKNOWN);
+
+    // > 2.3: check success
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillOnce(Return(CURVEFS_ERROR::OK))
+        .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
+
+    rc = renameOp.Precheck();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+
+    // CASE 3: PrepareTx
+    // > 3.1: PrepareTx fail
+    EXPECT_CALL(*dentryManager_, Rename(_, _))
+        .WillOnce(Return(CURVEFS_ERROR::UNKNOWN));
+
+    rc = renameOp.PrepareTx();
+    ASSERT_EQ(rc, CURVEFS_ERROR::UNKNOWN);
+
+    // > 3.2: PrepareTx success
+    EXPECT_CALL(*dentryManager_, Rename(_, _))
+        .WillOnce(Return(CURVEFS_ERROR::OK));
+
+    rc = renameOp.PrepareTx();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+
+    // CASE 4: CommitTx
+    // > 4.1: CommitTx fail
+    EXPECT_CALL(*mdsClient_, CommitTx(_))
+        .WillOnce(Return(false));
+
+    rc = renameOp.CommitTx();
+    ASSERT_EQ(rc, CURVEFS_ERROR::INTERNAL);
+
+    // > 4.1: CommitTx success
+    EXPECT_CALL(*mdsClient_, CommitTx(_))
+        .WillOnce(Return(true));
+
+    rc = renameOp.CommitTx();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+}
+
 class TestFuseS3Client : public ::testing::Test {
  protected:
     TestFuseS3Client() {}

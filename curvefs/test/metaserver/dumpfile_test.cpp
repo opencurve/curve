@@ -227,10 +227,18 @@ TEST_F(DumpFileTest, TestFileNotOpen) {
     Hash hash;
     auto hashIterator = std::make_shared<HashIterator>(&hash);
 
-    auto dumpfile = DumpFile(".dump/curvefs.dump");
+    auto dumpfile = DumpFile(".dumpfile/curvefs.dump");
     ASSERT_EQ(dumpfile.Save(hashIterator), DUMPFILE_ERROR::BAD_FD);
     ASSERT_EQ(dumpfile.SaveBackground(hashIterator), DUMPFILE_ERROR::BAD_FD);
     ASSERT_EQ(dumpfile.Close(), DUMPFILE_ERROR::OK);
+
+    dumpfile = DumpFile(".hello/curvefs.dump");
+    ASSERT_EQ(dumpfile.Open(), DUMPFILE_ERROR::FAILED);
+
+    std::string ret;
+    dumpfile = DumpFile(".dumpfile/curvefs.dump");
+    ASSERT_EQ(dumpfile.Open(), DUMPFILE_ERROR::OK);
+    ASSERT_EQ(dumpfile.Open(), DUMPFILE_ERROR::OK);
 }
 
 };  // namespace metaserver
