@@ -22,6 +22,7 @@
 #ifndef CURVEFS_SRC_METASERVER_S3_METASERVER_S3_H_
 #define CURVEFS_SRC_METASERVER_S3_METASERVER_S3_H_
 
+#include <memory>
 #include <string>
 
 #include "src/common/s3_adapter.h"
@@ -32,8 +33,8 @@ class S3Client {
  public:
     S3Client() {}
     virtual ~S3Client() {}
-    virtual void Init(const curve::common::S3AdapterOption &option) = 0;
-    virtual int Delete(const std::string &name) = 0;
+    virtual void Init(const curve::common::S3AdapterOption& option) = 0;
+    virtual int Delete(const std::string& name) = 0;
 };
 
 class S3ClientImpl : public S3Client {
@@ -41,7 +42,8 @@ class S3ClientImpl : public S3Client {
     S3ClientImpl() : S3Client() {}
     virtual ~S3ClientImpl() {}
 
-    void Init(const curve::common::S3AdapterOption &option) override;
+    void SetAdaptor(std::shared_ptr<curve::common::S3Adapter> s3Adapter);
+    void Init(const curve::common::S3AdapterOption& option) override;
     /**
      * @brief
      *
@@ -52,10 +54,10 @@ class S3ClientImpl : public S3Client {
      *  -1: delete fail
      * @details
      */
-    int Delete(const std::string &name) override;
+    int Delete(const std::string& name) override;
 
  private:
-    curve::common::S3Adapter s3Adapter_;
+    std::shared_ptr<curve::common::S3Adapter> s3Adapter_;
 };
 }  // namespace metaserver
 }  // namespace curvefs

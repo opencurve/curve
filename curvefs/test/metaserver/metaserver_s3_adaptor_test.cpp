@@ -36,8 +36,9 @@ class MetaserverS3AdaptorTest : public testing::Test {
         S3ClientAdaptorOption option;
         option.blockSize = 1 * 1024 * 1024;
         option.chunkSize = 4 * 1024 * 1024;
+        mockMetaserverS3Client_ = new MockS3Client();
         metaserverS3ClientAdaptor_ = new S3ClientAdaptorImpl();
-        metaserverS3ClientAdaptor_->Init(option, &mockMetaserverS3Client_);
+        metaserverS3ClientAdaptor_->Init(option, mockMetaserverS3Client_);
 
         client::S3ClientAdaptorOption option_client;
         option_client.blockSize = 1 * 1024 * 1024;
@@ -59,7 +60,7 @@ class MetaserverS3AdaptorTest : public testing::Test {
  protected:
     S3ClientAdaptor* metaserverS3ClientAdaptor_;
     client::S3ClientAdaptor* clientS3ClientAdaptor_;
-    MockS3Client mockMetaserverS3Client_;
+    MockS3Client* mockMetaserverS3Client_;
     client::MockS3Client mockClientS3Client_;
 
     client::MockMetaServerService mockMetaServerService_;
@@ -132,7 +133,7 @@ TEST_F(MetaserverS3AdaptorTest, test_delete_chunks) {
         LOG(INFO) << "delete object, name:" << name;
         return 0;
     };
-    EXPECT_CALL(mockMetaserverS3Client_, Delete(_))
+    EXPECT_CALL(*mockMetaserverS3Client_, Delete(_))
         .Times(9)
         .WillRepeatedly(Invoke(delete_object));
     int ret = metaserverS3ClientAdaptor_->Delete(inode);
@@ -188,7 +189,7 @@ TEST_F(MetaserverS3AdaptorTest, test_write_delete_chunks) {
             deleteObject.insert(name);
             return 0;
         };
-    EXPECT_CALL(mockMetaserverS3Client_, Delete(_))
+    EXPECT_CALL(*mockMetaserverS3Client_, Delete(_))
         .WillRepeatedly(Invoke(delete_object));
 
     curvefs::metaserver::Inode inode;
@@ -292,7 +293,7 @@ TEST_F(MetaserverS3AdaptorTest, test_delete_idempotence) {
             }
             return ret;
         };
-    EXPECT_CALL(mockMetaserverS3Client_, Delete(_))
+    EXPECT_CALL(*mockMetaserverS3Client_, Delete(_))
         .WillRepeatedly(Invoke(delete_object));
 
     curvefs::metaserver::Inode inode;

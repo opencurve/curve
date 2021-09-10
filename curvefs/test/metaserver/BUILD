@@ -51,8 +51,8 @@ cc_test(
             "mock_metaserver_s3.h",
             "metaserver_s3_adaptor_test.h",
             "metaserver_s3_adaptor_test.cpp",
-            "mock_metaserver_s3_adaptor.h"
-            
+            "mock_metaserver_s3_adaptor.h",
+            "metaserver_s3_test.cpp"
         ],
     ),
     copts = ["-g","-DHAVE_ZLIB=1"],
@@ -73,6 +73,7 @@ cc_test(
         "metaserver_s3_adaptor_test.cpp",
         "curvefs/test/client/mock_client_s3.h",
         "mock_metaserver_s3_adaptor.h",
+        "metaserver_s3_test.cpp"
     ]),
     copts = COPTS,
     defines = ["UNIT_TEST"],
@@ -90,6 +91,7 @@ cc_test(
         "//curvefs/src/metaserver:metaserver_s3_lib",
         "//curvefs/test/client:client_s3_test_lib",
         "//test/client/mock:client_mock_lib",
+        "//test/common:common_mock"
     ],
     linkopts = [
         "-lfuse3",
