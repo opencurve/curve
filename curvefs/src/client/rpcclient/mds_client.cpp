@@ -20,15 +20,16 @@
  * Author: lixiaocui
  */
 
-#include "curvefs/src/client/rpcclient/mds_client.h"
 #include <vector>
+#include <map>
+#include "curvefs/src/client/rpcclient/mds_client.h"
 namespace curvefs {
 namespace client {
 namespace rpcclient {
 
-FSStatusCode MdsClientImpl::Init(
-    const ::curve::client::MetaServerOption &mdsOpt,
-    MDSBaseClient *baseclient) {
+FSStatusCode
+MdsClientImpl::Init(const ::curve::client::MetaServerOption &mdsOpt,
+                    MDSBaseClient *baseclient) {
     mdsOpt_ = mdsOpt;
     rpcexcutor_.SetOption(mdsOpt_.rpcRetryOpt);
     mdsbasecli_ = baseclient;
@@ -42,8 +43,8 @@ FSStatusCode MdsClientImpl::Init(
     return FSStatusCode::OK;
 }
 
-#define RPCTask                                                       \
-    [&](int addrindex, uint64_t rpctimeoutMS, brpc::Channel *channel, \
+#define RPCTask                                                                \
+    [&](int addrindex, uint64_t rpctimeoutMS, brpc::Channel *channel,          \
         brpc::Controller *cntl) -> int
 
 FSStatusCode MdsClientImpl::CreateFs(const std::string &fsName,
@@ -302,6 +303,7 @@ bool MdsClientImpl::GetMetaServerListInCopysets(
             ::curvefs::mds::topology::CopySetServerInfo info =
                 response.csinfo(i);
 
+            copysetseverl.lpid_ = logicalpooid;
             copysetseverl.cpid_ = info.copysetid();
             int cslocsNum = info.cslocs_size();
             for (int j = 0; j < cslocsNum; j++) {

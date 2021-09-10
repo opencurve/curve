@@ -66,6 +66,8 @@ class MetaCacheTest : public testing::Test {
         metaServerList_.AddCopysetPeerInfo(peerinfo_3);
         metaServerList_.UpdateLeaderIndex(0);
 
+        metaServerList_.cpid_ = 1;
+
         // add item to partition list
         PartitionInfo pInfo;
         pInfo.set_fsid(1);
@@ -89,6 +91,19 @@ class MetaCacheTest : public testing::Test {
         expect.metaServerID = 1;
         expect.txId = 100;
         str2endpoint("127.0.0.1", 9120, &expect.endPoint);
+
+        // add item to copyset map
+        Copyset copyset;
+        copyset.set_poolid(1);
+        copyset.set_copysetid(1);
+        auto peer1 = copyset.add_peers();
+        peer1->set_address("10.182.26.2:9120");
+        auto peer2 = copyset.add_peers();
+        peer2->set_address("10.182.26.2:9121");
+        auto peer3 = copyset.add_peers();
+        peer3->set_address("10.182.26.2:9122");
+
+        copysetMap_[1] = copyset;
     }
 
     void TearDown() override {}
@@ -99,18 +114,16 @@ class MetaCacheTest : public testing::Test {
         return t1.groupID.poolID == t2.groupID.poolID &&
                t1.groupID.copysetID == t2.groupID.copysetID &&
                t1.partitionID == t2.partitionID &&
-               t1.metaServerID == t2.metaServerID &&
-               t1.txId == t2.txId &&
+               t1.metaServerID == t2.metaServerID && t1.txId == t2.txId &&
                std::string(butil::endpoint2str(t1.endPoint).c_str()) ==
                    std::string(butil::endpoint2str(t2.endPoint).c_str());
     }
 
     void Print(CopysetTarget t1) {
-        LOG(INFO) << t1.groupID.poolID << ", " << t1.groupID.copysetID << ","
-                  << t1.partitionID << ","
-                  << t1.txId << ","
-                  << t1.metaServerID << ","
-                  << butil::endpoint2str(t1.endPoint).c_str();
+        LOG(INFO) << t1.groupID.poolID << ", copysetid:" << t1.groupID.copysetID
+                  << ", partitionid" << t1.partitionID << ", txid:" << t1.txId
+                  << ", metaserverid:" << t1.metaServerID
+                  << ", address:" << butil::endpoint2str(t1.endPoint).c_str();
     }
 
  protected:
@@ -122,6 +135,7 @@ class MetaCacheTest : public testing::Test {
     curve::client::CopysetInfo<MetaserverID> metaServerList_;
     MetaCache::PatitionInfoList pInfoList_;
     MetaCache::PatitionInfoList pInfoList2_;
+    std::map<PartitionID, Copyset> copysetMap_;
 
     CopysetTarget expect;
 };
@@ -136,63 +150,66 @@ TEST_F(MetaCacheTest, test_GetTarget) {
     CopysetTarget target;
     uint64_t applyIndex;
 
-    // test1: get target fail, fsid->partitionlist not exist
+    LOG(INFO) << "test1: list partition fail";
+    EXPECT_CALL(*mockMdsClient_.get(), ListPartition(fsID, _))
+        .WillOnce(Return(false));
     bool ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex);
     ASSERT_FALSE(ret);
 
-    // test2: get target fail, fsid->paritionlist do not find parition
-    metaCache_.UpdatePartitionInfo(fsID, pInfoList2_);
-    ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex);
-    ASSERT_FALSE(ret);
-
-    // test3: get target fail, copysetid->copysetinfo not exist
-    // set copset(1,1)->peerList
-    metaCache_.UpdatePartitionInfo(fsID, pInfoList_);
-    ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex);
-    ASSERT_FALSE(ret);
-
-    // test4: get target ok
-    // set fsID(1)->partitionInfoList
-    metaCache_.UpdateCopysetInfo(groupID, metaServerList_);
-    ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex);
-    ASSERT_TRUE(ret);
-    ASSERT_TRUE(CopysetTargetEQ(target, expect));
-
-    // test5: get target ok, need refresh from metaserver
-    curve::client::PeerAddr pd;
-    pd.Parse("127.0.0.1:9120:0");
-    metaServerList_.UpdateLeaderIndex(-1);
-    metaCache_.UpdateCopysetInfo(groupID, metaServerList_);
-    EXPECT_CALL(*mockCli2Client_.get(), GetLeader(_, _, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<4>(pd), Return(true)));
-    ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex);
-    ASSERT_TRUE(ret);
-    ASSERT_TRUE(CopysetTargetEQ(target, expect));
-
-    // test6: get target ok, need refresh from mds
-    metaServerList_.UpdateLeaderIndex(-1);
-    metaCache_.UpdateCopysetInfo(groupID, metaServerList_);
-    EXPECT_CALL(*mockCli2Client_.get(), GetLeader(_, _, _, _, _, _))
+    LOG(INFO) << "test2: get partition info fail";
+    EXPECT_CALL(*mockMdsClient_.get(), ListPartition(fsID, _))
+        .WillOnce(DoAll(SetArgPointee<1>(pInfoList_), Return(true)));
+    EXPECT_CALL(*mockMdsClient_.get(), GetCopysetOfPartitions(_, _))
         .WillOnce(Return(false));
-    auto tmpMetaServerList = metaServerList_;
-    tmpMetaServerList.UpdateLeaderIndex(0);
+    ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex);
+    ASSERT_FALSE(ret);
+
+    LOG(INFO) << "test3: get metaserver fail";
     std::vector<CopysetInfo<MetaserverID>> metaServerInfos;
-    metaServerInfos.push_back(tmpMetaServerList);
+    metaServerInfos.push_back(metaServerList_);
+    EXPECT_CALL(*mockMdsClient_.get(), ListPartition(fsID, _))
+        .WillOnce(DoAll(SetArgPointee<1>(pInfoList_), Return(true)));
+    EXPECT_CALL(*mockMdsClient_.get(), GetCopysetOfPartitions(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(copysetMap_), Return(true)));
+    EXPECT_CALL(*mockMdsClient_.get(), GetMetaServerListInCopysets(_, _, _))
+        .WillOnce(Return(false));
+    ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex);
+    ASSERT_FALSE(ret);
+
+    LOG(INFO) << "test4: get target ok";
+    EXPECT_CALL(*mockMdsClient_.get(), ListPartition(fsID, _))
+        .WillOnce(DoAll(SetArgPointee<1>(pInfoList_), Return(true)));
+    EXPECT_CALL(*mockMdsClient_.get(), GetCopysetOfPartitions(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(copysetMap_), Return(true)));
     EXPECT_CALL(*mockMdsClient_.get(), GetMetaServerListInCopysets(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(metaServerInfos), Return(true)));
     ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex);
     ASSERT_TRUE(ret);
     ASSERT_TRUE(CopysetTargetEQ(target, expect));
 
-    // test7: get target fail
-    metaServerList_.UpdateLeaderIndex(-1);
-    metaCache_.UpdateCopysetInfo(groupID, metaServerList_);
+    LOG(INFO) << "test5: need refresh";
+    curve::client::PeerAddr pd;
+    pd.Parse("127.0.0.1:9120:0");
     EXPECT_CALL(*mockCli2Client_.get(), GetLeader(_, _, _, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<4>(pd), Return(true)));
+    ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex, true);
+    ASSERT_TRUE(ret);
+    ASSERT_TRUE(CopysetTargetEQ(target, expect));
+
+    LOG(INFO) << "test6: get leader fail";
+    EXPECT_CALL(*mockCli2Client_.get(), GetLeader(_, _, _, _, _, _))
+        .Times(2)
         .WillRepeatedly(Return(false));
     EXPECT_CALL(*mockMdsClient_.get(), GetMetaServerListInCopysets(_, _, _))
-        .WillRepeatedly(Return(false));
-    ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex);
-    ASSERT_FALSE(ret);
+        .Times(2)
+        .WillOnce(Return(false))
+        .WillOnce(DoAll(SetArgPointee<2>(metaServerInfos), Return(true)));
+    ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex, true);
+    ASSERT_TRUE(ret);
+    ASSERT_TRUE(CopysetTargetEQ(target, expect));
+
+    LOG(INFO) << "test7: mark partition full";
+    metaCache_.MarkPartitionUnavailable(1);
 }
 
 TEST_F(MetaCacheTest, SetTxId) {
@@ -204,8 +221,16 @@ TEST_F(MetaCacheTest, SetTxId) {
     uint64_t inodeId = 1;
     CopysetGroupID groupId(1, 1);
 
-    metaCache_.UpdatePartitionInfo(fsId, pInfoList_);
-    metaCache_.UpdateCopysetInfo(groupId, metaServerList_);
+    // metaCache_.UpdatePartitionInfo(fsId, pInfoList_);
+    // metaCache_.UpdateCopysetInfo(groupId, metaServerList_);
+    std::vector<CopysetInfo<MetaserverID>> metaServerInfos;
+    metaServerInfos.push_back(metaServerList_);
+    EXPECT_CALL(*mockMdsClient_.get(), ListPartition(fsId, _))
+        .WillOnce(DoAll(SetArgPointee<1>(pInfoList_), Return(true)));
+    EXPECT_CALL(*mockMdsClient_.get(), GetCopysetOfPartitions(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(copysetMap_), Return(true)));
+    EXPECT_CALL(*mockMdsClient_.get(), GetMetaServerListInCopysets(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(metaServerInfos), Return(true)));
 
     auto succ = metaCache_.GetTarget(fsId, inodeId, &target, &applyIdx);
     ASSERT_TRUE(succ);
@@ -232,19 +257,24 @@ TEST_F(MetaCacheTest, test_SelectTarget) {
     CopysetTarget target;
     uint64_t applyIndex;
 
-    // test1: fsid->partition info list empty, select fail
+    LOG(INFO) << "test1: list partition fail";
+    EXPECT_CALL(*mockMdsClient_.get(), ListPartition(fsID, _))
+        .WillOnce(Return(false));
     bool ret = metaCache_.SelectTarget(fsID, &target, &applyIndex);
     ASSERT_FALSE(ret);
 
-    // test2: copsetid->copyset info empty, select fail
-    metaCache_.UpdatePartitionInfo(fsID, pInfoList2_);
-    ret = metaCache_.SelectTarget(fsID, &target, &applyIndex);
-    ASSERT_FALSE(ret);
-
-    // test3: select ok
-    metaCache_.UpdateCopysetInfo(groupID, metaServerList_);
+    LOG(INFO) << "test2: random select ok";
+    std::vector<CopysetInfo<MetaserverID>> metaServerInfos;
+    metaServerInfos.push_back(metaServerList_);
+    EXPECT_CALL(*mockMdsClient_.get(), ListPartition(fsID, _))
+        .WillOnce(DoAll(SetArgPointee<1>(pInfoList_), Return(true)));
+    EXPECT_CALL(*mockMdsClient_.get(), GetCopysetOfPartitions(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(copysetMap_), Return(true)));
+    EXPECT_CALL(*mockMdsClient_.get(), GetMetaServerListInCopysets(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(metaServerInfos), Return(true)));
     ret = metaCache_.SelectTarget(fsID, &target, &applyIndex);
     ASSERT_TRUE(ret);
+    ASSERT_TRUE(CopysetTargetEQ(target, expect));
 }
 
 TEST_F(MetaCacheTest, test_UpdateAndGetApplyIndex) {
