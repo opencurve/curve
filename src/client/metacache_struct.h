@@ -84,6 +84,7 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     int16_t leaderindex_ = -1;
     // 当前copyset的id信息
     CopysetID cpid_ = 0;
+    LogicPoolID lpid_ = 0;
     // 用于保护对copyset信息的修改
     SpinLock spinlock_;
 
@@ -92,6 +93,7 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
 
     CopysetInfo &operator=(const CopysetInfo &other) {
         this->cpid_ = other.cpid_;
+        this->lpid_ = other.lpid_;
         this->csinfos_ = other.csinfos_;
         this->leaderindex_ = other.leaderindex_;
         this->lastappliedindex_.store(other.lastappliedindex_);

@@ -51,9 +51,7 @@ class MockMetaCache : public MetaCache {
     MOCK_METHOD2(UpdateCopysetInfo,
                  void(const CopysetGroupID &groupID,
                       const CopysetInfo<MetaserverID> &csinfo));
-
-    MOCK_METHOD2(UpdatePartitionInfo,
-                 void(uint32_t fsID, const PatitionInfoList &pInfoList));
+    MOCK_METHOD1(MarkPartitionUnavailable, bool(PartitionID pid));
 };
 
 }  // namespace rpcclient

@@ -48,6 +48,9 @@ struct MetaCacheOpt {
     int metacacheGetLeaderRetry = 3;
     int metacacheRPCRetryIntervalUS = 500;
     int metacacheGetLeaderRPCTimeOutMS = 1000;
+
+    uint16_t getPartitionCountOnce = 3;
+    uint16_t createPartitionOnce = 3;
 };
 
 struct ExcutorOpt {

@@ -742,6 +742,19 @@ TEST_F(MetaServerClientImplTest, test_CreateInode) {
 
     status = metaserverCli_.CreateInode(inode, &out);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
+
+    // test6: create inode with partition alloc id fail
+    response.set_statuscode(MetaStatusCode::PARTITION_ALLOC_ID_FAIL);
+    EXPECT_CALL(mockMetaServerService_, CreateInode(_, _, _, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(SetRpcService<CreateInodeRequest, CreateInodeResponse>)));
+    EXPECT_CALL(*mockMetacache_.get(), SelectTarget(_, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(target_),
+                              SetArgPointee<2>(applyIndex), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), MarkPartitionUnavailable(_)).Times(3);
+    status = metaserverCli_.CreateInode(inode, &out);
+    ASSERT_EQ(MetaStatusCode::PARTITION_ALLOC_ID_FAIL, status);
 }
 
 TEST_F(MetaServerClientImplTest, test_DeleteInode) {

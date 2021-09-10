@@ -43,8 +43,8 @@ using ::curve::client::MDSClient;
 using ::curve::client::PeerAddr;
 using ::curvefs::client::common::MetaserverID;
 using ::curvefs::common::PartitionInfo;
-using ::curvefs::common::Volume;
 using ::curvefs::common::Peer;
+using ::curvefs::common::Volume;
 using ::curvefs::mds::FsInfo;
 using ::curvefs::mds::FSStatusCode;
 using ::curvefs::mds::topology::Copyset;
@@ -83,25 +83,25 @@ class MdsClient {
 
     virtual FSStatusCode GetFsInfo(uint32_t fsId, FsInfo *fsInfo) = 0;
 
-    virtual TopoStatusCode CommitTx(
-        const std::vector<PartitionTxId>& txIds) = 0;
+    virtual TopoStatusCode
+    CommitTx(const std::vector<PartitionTxId> &txIds) = 0;
 
-    virtual bool GetMetaServerInfo(
-        const PeerAddr &addr,
-        CopysetPeerInfo<MetaserverID> *metaserverInfo) = 0;
+    virtual bool
+    GetMetaServerInfo(const PeerAddr &addr,
+                      CopysetPeerInfo<MetaserverID> *metaserverInfo) = 0;
 
     virtual bool GetMetaServerListInCopysets(
         const LogicPoolID &logicalpooid,
         const std::vector<CopysetID> &copysetidvec,
         std::vector<CopysetInfo<MetaserverID>> *cpinfoVec) = 0;
 
-    virtual bool CreatePartition(
-        uint32_t fsid, uint32_t count,
-        std::vector<PartitionInfo> *partitionInfos) = 0;
+    virtual bool
+    CreatePartition(uint32_t fsid, uint32_t count,
+                    std::vector<PartitionInfo> *partitionInfos) = 0;
 
-    virtual bool GetCopysetOfPartitions(
-        const std::vector<uint32_t> &partitionIDList,
-        std::map<uint32_t, Copyset> *copysetMap) = 0;
+    virtual bool
+    GetCopysetOfPartitions(const std::vector<uint32_t> &partitionIDList,
+                           std::map<uint32_t, Copyset> *copysetMap) = 0;
 
     virtual bool ListPartition(uint32_t fsID,
                                std::vector<PartitionInfo> *partitionInfos) = 0;
@@ -132,11 +132,11 @@ class MdsClientImpl : public MdsClient {
 
     FSStatusCode GetFsInfo(uint32_t fsId, FsInfo *fsInfo) override;
 
-    TopoStatusCode CommitTx(const std::vector<PartitionTxId>& txIds) override;
+    TopoStatusCode CommitTx(const std::vector<PartitionTxId> &txIds) override;
 
-    bool GetMetaServerInfo(
-        const PeerAddr &addr,
-        CopysetPeerInfo<MetaserverID> *metaserverInfo) override;
+    bool
+    GetMetaServerInfo(const PeerAddr &addr,
+                      CopysetPeerInfo<MetaserverID> *metaserverInfo) override;
 
     bool GetMetaServerListInCopysets(
         const LogicPoolID &logicalpooid,
@@ -146,9 +146,9 @@ class MdsClientImpl : public MdsClient {
     bool CreatePartition(uint32_t fsID, uint32_t count,
                          std::vector<PartitionInfo> *partitionInfos) override;
 
-    bool GetCopysetOfPartitions(
-        const std::vector<uint32_t> &partitionIDList,
-        std::map<uint32_t, Copyset> *copysetMap) override;
+    bool
+    GetCopysetOfPartitions(const std::vector<uint32_t> &partitionIDList,
+                           std::map<uint32_t, Copyset> *copysetMap) override;
 
     bool ListPartition(uint32_t fsID,
                        std::vector<PartitionInfo> *partitionInfos) override;

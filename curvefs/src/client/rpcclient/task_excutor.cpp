@@ -77,6 +77,14 @@ bool TaskExecutor::OnReturn(int retCode) {
             OnCopysetNotExist();
             break;
 
+        case MetaStatusCode::PARTITION_ALLOC_ID_FAIL:
+            // TODO(@lixiaocui @cw123): metaserver and mds heartbeat should
+            // report this status
+            needRetry = true;
+            // need choose a new coopyset
+            OnPartitionAllocIDFail();
+            break;
+
         default:
             break;
         }
@@ -180,6 +188,9 @@ void TaskExecutor::RefreshLeader() {
     task_->retryDirectly = (oldTarget != task_->target.metaServerID);
 }
 
+void TaskExecutor::OnPartitionAllocIDFail() {
+    metaCache_->MarkPartitionUnavailable(task_->target.partitionID);
+}
 
 uint64_t TaskExecutor::OverLoadBackOff() {
     uint64_t curpowTime = std::min(task_->retryTimes, maxOverloadPow_);

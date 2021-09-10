@@ -25,6 +25,7 @@
 #ifndef CURVEFS_SRC_CLIENT_COMMON_COMMON_H_
 #define CURVEFS_SRC_CLIENT_COMMON_COMMON_H_
 
+#include <bthread/mutex.h>
 #include <ostream>
 
 namespace curvefs {
@@ -32,7 +33,9 @@ namespace client {
 namespace common {
 
 using MetaserverID = uint32_t;
-using PartitionID = uint64_t;
+using PartitionID = uint32_t;
+
+using Mutex = ::bthread::Mutex;
 
 enum class MetaServerOpType {
     GetDentry,

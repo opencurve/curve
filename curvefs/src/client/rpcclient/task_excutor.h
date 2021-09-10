@@ -40,10 +40,10 @@
 
 using ::curve::client::CopysetID;
 using ::curve::client::LogicPoolID;
+using ::curvefs::client::common::ExcutorOpt;
 using ::curvefs::client::common::MetaserverID;
 using ::curvefs::client::common::MetaServerOpType;
 using ::curvefs::common::PartitionInfo;
-using ::curvefs::client::common::ExcutorOpt;
 
 namespace curvefs {
 namespace client {
@@ -111,6 +111,7 @@ class TaskExecutor {
     void OnSuccess();
     void OnReDirected();
     void OnCopysetNotExist();
+    void OnPartitionAllocIDFail();
 
     // retry policy
     void RefreshLeader();
