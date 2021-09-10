@@ -24,21 +24,27 @@
 
 namespace curvefs {
 namespace metaserver {
+
+void S3ClientImpl::SetAdaptor(
+    std::shared_ptr<curve::common::S3Adapter> s3Adapter) {
+    s3Adapter_ = s3Adapter;
+}
+
 void S3ClientImpl::Init(const curve::common::S3AdapterOption& option) {
-    s3Adapter_.Init(option);
+    s3Adapter_->Init(option);
 }
 
 int S3ClientImpl::Delete(const std::string& name) {
     int ret = 0;
     const Aws::String aws_key(name.c_str(), name.length());
     LOG(INFO) << "delete start, aws_key: " << aws_key;
-    if (!s3Adapter_.ObjectExist(aws_key)) {
+    if (!s3Adapter_->ObjectExist(aws_key)) {
         // the aws_key is not exist
         LOG(INFO) << "delete object error, aws_key: " << aws_key
                   << " is not exist";
         return 1;
     }
-    ret = s3Adapter_.DeleteObject(aws_key);
+    ret = s3Adapter_->DeleteObject(aws_key);
     if (ret < 0) {
         // -1
         LOG(ERROR) << "delete object: " << aws_key << " get error:" << ret;
