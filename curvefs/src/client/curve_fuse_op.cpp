@@ -22,6 +22,7 @@
  */
 
 #include <string>
+#include <memory>
 
 #include "curvefs/src/client/curve_fuse_op.h"
 #include "curvefs/src/client/fuse_client.h"
@@ -236,6 +237,25 @@ void FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino,
         return;
     }
     fuse_reply_open(req, fi);
+}
+
+void FuseOpRename(fuse_req_t req,
+                  fuse_ino_t parent,
+                  const char* name,
+                  fuse_ino_t newparent,
+                  const char* newname,
+                  unsigned int flags) {
+    // TODO(Wine93): the flag RENAME_EXCHANGE and RENAME_NOREPLACE
+    // is only used in linux interface renameat(), not required by posix,
+    // we can ignore it now
+    CURVEFS_ERROR rc;
+    if (flags != 0) {
+        rc = CURVEFS_ERROR::INVALIDPARAM;
+    } else {
+        rc = g_ClientInstance->FuseOpRename(
+            req, parent, name, newparent, newname);
+    }
+    FuseReplyErrByErrCode(req, rc);
 }
 
 void FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,

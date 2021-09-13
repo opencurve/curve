@@ -27,8 +27,16 @@
 #include <string>
 #include <utility>
 
-#include "src/fs/ext4_filesystem_impl.h"
 #include "curvefs/src/metaserver/iterator.h"
+
+namespace curve {
+namespace fs {
+
+class LocalFileSystem;
+class Ext4FileSystemImpl;
+
+}  // namespace fs
+}  // namespace curve
 
 namespace curvefs {
 namespace metaserver {
@@ -200,7 +208,7 @@ class DumpFileIterator : public Iterator {
     DumpFile* dumpfile_;
 };
 
-};  // namespace metaserver
-};  // namespace curvefs
+}  // namespace metaserver
+}  // namespace curvefs
 
 #endif  // CURVEFS_SRC_METASERVER_DUMPFILE_H_

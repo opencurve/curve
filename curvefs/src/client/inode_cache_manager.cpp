@@ -25,6 +25,8 @@
 
 #include <glog/logging.h>
 
+#include <utility>
+
 using ::curvefs::metaserver::Inode;
 
 namespace curvefs {

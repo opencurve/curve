@@ -377,7 +377,6 @@ message CommitTxResponse {
     required TopoStatusCode statusCode = 1;
 }
 
-
 service TopologyService {
     rpc RegistMetaServer(MetaServerRegistRequest)       returns (MetaServerRegistResponse);
     rpc ListMetaServer(ListMetaServerRequest)           returns (ListMetaServerResponse);

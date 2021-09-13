@@ -68,7 +68,7 @@ int MemoryInodeStorage::Count() {
     return inodeMap_.size();
 }
 
-InodeContainerType *MemoryInodeStorage::GetInodeContainer() {
+InodeStorage::ContainerType* MemoryInodeStorage::GetContainer() {
     return &inodeMap_;
 }
 }  // namespace metaserver

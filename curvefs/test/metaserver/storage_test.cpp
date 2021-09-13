@@ -120,9 +120,11 @@ class StorageTest : public ::testing::Test {
 TEST_F(StorageTest, ContainerIterator) {
     // CASE 1: dentry storage
     auto dentry = GenDentry();
-    auto dentryStorge = DentryHash{ {"A", dentry}, {"B", dentry} };
-    auto diter = ContainerIterator<DentryHash>(
-        ENTRY_TYPE::DENTRY, 100, &dentryStorge);
+    auto dentryStorage = DentryHash{ {"A", dentry}, {"B", dentry} };
+    auto dcontainer = std::shared_ptr<DentryHash>(
+        &dentryStorage, [](DentryHash*) {});
+    auto diter = MapContainerIterator<DentryHash>(
+        ENTRY_TYPE::DENTRY, 100, dcontainer);
 
     auto size = 0;
     std::string exceptValue;
@@ -138,8 +140,10 @@ TEST_F(StorageTest, ContainerIterator) {
     // CASE 2: inode storage
     auto inode = GenInode();
     auto inodeStorage = InodeHash{ {"A", inode}, {"B", inode} };
-    auto iiter = ContainerIterator<InodeHash>(
-        ENTRY_TYPE::INODE, 200, &inodeStorage);
+    auto icontainer = std::shared_ptr<InodeHash>(
+        &inodeStorage, [](InodeHash*) {});
+    auto iiter = MapContainerIterator<InodeHash>(
+        ENTRY_TYPE::INODE, 200, icontainer);
 
     size = 0;
     ASSERT_TRUE(inode.SerializeToString(&exceptValue));
@@ -213,14 +217,18 @@ TEST_F(StorageTest, MergeIterator) {
 TEST_F(StorageTest, Storage) {
     // step1: generate merge iterator
     auto dentry = GenDentry();
-    auto dentryStorge = DentryHash{ {"A", dentry}, {"B", dentry} };
-    auto diter = std::make_shared<ContainerIterator<DentryHash>>(
-        ENTRY_TYPE::DENTRY, 100, &dentryStorge);
+    auto dentryStorage = DentryHash{ {"A", dentry}, {"B", dentry} };
+    auto dcontainer = std::shared_ptr<DentryHash>(
+        &dentryStorage, [](DentryHash*) {});
+    auto diter = std::make_shared<MapContainerIterator<DentryHash>>(
+        ENTRY_TYPE::DENTRY, 100, dcontainer);
 
     auto inode = GenInode();
     auto inodeStorage = InodeHash{ {"A", inode}, {"B", inode} };
-    auto iiter = std::make_shared<ContainerIterator<InodeHash>>(
-        ENTRY_TYPE::INODE, 200, &inodeStorage);
+    auto icontainer = std::shared_ptr<InodeHash>(
+        &inodeStorage, [](InodeHash*) {});
+    auto iiter = std::make_shared<MapContainerIterator<InodeHash>>(
+        ENTRY_TYPE::INODE, 200, icontainer);
 
     auto children = std::vector<std::shared_ptr<Iterator>>{ diter, iiter };
     auto miter = std::make_shared<MergeIterator>(children);

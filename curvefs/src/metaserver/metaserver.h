@@ -78,7 +78,6 @@ class Metaserver {
 
     std::shared_ptr<S3ClientAdaptor>  s3Adaptor_;
     std::shared_ptr<Trash> trash_;
-
     MetaserverOptions options_;
 
     std::unique_ptr<brpc::Server> server_;

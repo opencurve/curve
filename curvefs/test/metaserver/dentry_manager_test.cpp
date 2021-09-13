@@ -21,148 +21,116 @@
  */
 
 #include "curvefs/src/metaserver/dentry_manager.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <memory>
 
-using ::testing::AtLeast;
-using ::testing::StrEq;
-using ::testing::_;
-using ::testing::Return;
-using ::testing::ReturnArg;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
-using ::testing::SaveArg;
+#include <memory>
 
 namespace curvefs {
 namespace metaserver {
+
 class DentryManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
         dentryStorage_ = std::make_shared<MemoryDentryStorage>();
+        txManager_ = std::make_shared<TxManager>(dentryStorage_);
+        dentryManager_ = std::make_shared<DentryManager>(dentryStorage_,
+                                                         txManager_);
     }
 
-    void TearDown() override { return; }
+    void TearDown() override {}
 
-    bool CompareDentry(const Dentry &first, const Dentry &second) {
-        return first.fsid() == second.fsid() && first.name() == second.name() &&
-               first.parentinodeid() == second.parentinodeid() &&
-               first.inodeid() == second.inodeid();
+    Dentry GenDentry(uint32_t fsId,
+                     uint64_t parentId,
+                     const std::string& name,
+                     uint64_t txId,
+                     uint64_t inodeId,
+                     bool deleteMarkFlag) {
+        Dentry dentry;
+        dentry.set_fsid(fsId);
+        dentry.set_parentinodeid(parentId);
+        dentry.set_name(name);
+        dentry.set_txid(txId);
+        dentry.set_inodeid(inodeId);
+        dentry.set_flag(deleteMarkFlag ? DentryFlag::DELETE_MARK_FLAG : 0);
+        return dentry;
     }
 
+ protected:
     std::shared_ptr<DentryStorage> dentryStorage_;
+    std::shared_ptr<DentryManager> dentryManager_;
+    std::shared_ptr<TxManager> txManager_;
 };
 
-TEST_F(DentryManagerTest, test1) {
-    DentryManager dentryManager(dentryStorage_);
+TEST_F(DentryManagerTest, CreateDentry) {
+    // CASE 1: CreateDentry: success
+    auto dentry = GenDentry(1, 0, "A", 0, 1, false);
+    ASSERT_EQ(dentryManager_->CreateDentry(dentry), MetaStatusCode::OK);
+    ASSERT_EQ(dentryStorage_->Size(), 1);
 
-    Dentry dentry1;
-    dentry1.set_fsid(1);
-    dentry1.set_parentinodeid(2);
-    dentry1.set_name("dentry1");
-    dentry1.set_inodeid(3);
-
-    Dentry dentry2;
-    dentry2.set_fsid(1);
-    dentry2.set_parentinodeid(2);
-    dentry2.set_name("dentry2");
-    dentry2.set_inodeid(4);
-
-    Dentry dentry3;
-    dentry3.set_fsid(2);
-    dentry3.set_parentinodeid(2);
-    dentry3.set_name("dentry3");
-    dentry3.set_inodeid(3);
-
-    // TEST INSERT
-    ASSERT_EQ(dentryManager.CreateDentry(dentry1), MetaStatusCode::OK);
-    ASSERT_EQ(dentryManager.CreateDentry(dentry2), MetaStatusCode::OK);
-    ASSERT_EQ(dentryManager.CreateDentry(dentry3), MetaStatusCode::OK);
-    ASSERT_EQ(dentryManager.CreateDentry(dentry1),
+    // CASE 2: CreateDentry: dentry exist
+    ASSERT_EQ(dentryManager_->CreateDentry(dentry),
               MetaStatusCode::DENTRY_EXIST);
-    ASSERT_EQ(dentryManager.CreateDentry(dentry2),
-              MetaStatusCode::DENTRY_EXIST);
-    ASSERT_EQ(dentryManager.CreateDentry(dentry3),
-              MetaStatusCode::DENTRY_EXIST);
-
-    // TEST GET
-    Dentry temp;
-    ASSERT_EQ(dentryManager.GetDentry(1, 2, "dentry1", &temp),
-              MetaStatusCode::OK);
-    ASSERT_EQ(dentry1.fsid(), temp.fsid());
-    ASSERT_EQ(dentry1.inodeid(), temp.inodeid());
-    ASSERT_EQ(dentry1.parentinodeid(), temp.parentinodeid());
-    ASSERT_EQ(dentry1.name(), temp.name());
-    ASSERT_EQ(dentryManager.GetDentry(1, 2, "dentry2", &temp),
-              MetaStatusCode::OK);
-    ASSERT_EQ(dentry2.fsid(), temp.fsid());
-    ASSERT_EQ(dentry2.inodeid(), temp.inodeid());
-    ASSERT_EQ(dentry2.parentinodeid(), temp.parentinodeid());
-    ASSERT_EQ(dentry2.name(), temp.name());
-    ASSERT_EQ(dentryManager.GetDentry(2, 2, "dentry3", &temp),
-              MetaStatusCode::OK);
-    ASSERT_EQ(dentry3.fsid(), temp.fsid());
-    ASSERT_EQ(dentry3.inodeid(), temp.inodeid());
-    ASSERT_EQ(dentry3.parentinodeid(), temp.parentinodeid());
-    ASSERT_EQ(dentry3.name(), temp.name());
-
-    // TEST LIST
-    std::list<Dentry> list;
-    ASSERT_EQ(dentryManager.ListDentry(1, 2, &list), MetaStatusCode::OK);
-    ASSERT_EQ(list.size(), 2);
-    auto it = list.begin();
-    ASSERT_TRUE(CompareDentry(*it, dentry1));
-    it++;
-    ASSERT_TRUE(CompareDentry(*it, dentry2));
-
-    ASSERT_EQ(dentryManager.ListDentry(2, 2, &list), MetaStatusCode::OK);
-    ASSERT_EQ(list.size(), 1);
-    it = list.begin();
-    ASSERT_TRUE(CompareDentry(*it, dentry3));
-
-    // TEST DELETE
-    ASSERT_EQ(dentryManager.DeleteDentry(1, 2, "dentry1"), MetaStatusCode::OK);
-    ASSERT_EQ(dentryManager.DeleteDentry(1, 2, "dentry1"),
-              MetaStatusCode::NOT_FOUND);
-    ASSERT_EQ(dentryManager.ListDentry(1, 2, &list), MetaStatusCode::OK);
-    ASSERT_EQ(list.size(), 1);
-    it = list.begin();
-    ASSERT_TRUE(CompareDentry(*it, dentry2));
-
-    ASSERT_EQ(dentryManager.ListDentry(1, 2, &list), MetaStatusCode::OK);
-    ASSERT_EQ(list.size(), 1);
-    it = list.begin();
-    ASSERT_TRUE(CompareDentry(*it, dentry2));
-
-    ASSERT_EQ(dentryManager.GetDentry(1, 2, "dentry1", &temp),
-              MetaStatusCode::NOT_FOUND);
-    ASSERT_EQ(dentryManager.GetDentry(1, 2, "dentry2", &temp),
-              MetaStatusCode::OK);
-    ASSERT_EQ(dentry2.fsid(), temp.fsid());
-    ASSERT_EQ(dentry2.inodeid(), temp.inodeid());
-    ASSERT_EQ(dentry2.parentinodeid(), temp.parentinodeid());
-    ASSERT_EQ(dentry2.name(), temp.name());
-    ASSERT_EQ(dentryManager.GetDentry(2, 2, "dentry3", &temp),
-              MetaStatusCode::OK);
-    ASSERT_EQ(dentry3.fsid(), temp.fsid());
-    ASSERT_EQ(dentry3.inodeid(), temp.inodeid());
-    ASSERT_EQ(dentry3.parentinodeid(), temp.parentinodeid());
-    ASSERT_EQ(dentry3.name(), temp.name());
-
-    ASSERT_EQ(dentryManager.DeleteDentry(2, 2, "dentry3"), MetaStatusCode::OK);
-    ASSERT_EQ(dentryManager.ListDentry(2, 2, &list), MetaStatusCode::NOT_FOUND);
-
-    ASSERT_EQ(dentryManager.ListDentry(1, 2, &list), MetaStatusCode::OK);
-    ASSERT_EQ(list.size(), 1);
-    it = list.begin();
-    ASSERT_TRUE(CompareDentry(*it, dentry2));
-
-    ASSERT_EQ(dentryManager.ListDentry(1, 2, &list), MetaStatusCode::OK);
-    ASSERT_EQ(list.size(), 1);
-    it = list.begin();
-    ASSERT_TRUE(CompareDentry(*it, dentry2));
-
-    ASSERT_EQ(dentryManager.DeleteDentry(1, 2, "dentry2"), MetaStatusCode::OK);
+    ASSERT_EQ(dentryStorage_->Size(), 1);
 }
+
+TEST_F(DentryManagerTest, DeleteDentry) {
+    // CASE 1: DeleteDentry: not found
+    auto dentry = GenDentry(1, 0, "A", 0, 1, false);
+    ASSERT_EQ(dentryManager_->DeleteDentry(dentry), MetaStatusCode::NOT_FOUND);
+
+    // CASE 2: DeleteDentry: sucess
+    ASSERT_EQ(dentryManager_->CreateDentry(dentry), MetaStatusCode::OK);
+    ASSERT_EQ(dentryStorage_->Size(), 1);
+    ASSERT_EQ(dentryManager_->DeleteDentry(dentry), MetaStatusCode::OK);
+    ASSERT_EQ(dentryStorage_->Size(), 0);
+}
+
+TEST_F(DentryManagerTest, GetDentry) {
+    // CASE 1: GetDentry: not found
+    auto dentry = GenDentry(1, 0, "A", 0, 1, false);
+    ASSERT_EQ(dentryManager_->GetDentry(&dentry), MetaStatusCode::NOT_FOUND);
+
+    // CASE 2: GetDentry: success
+    ASSERT_EQ(dentryManager_->CreateDentry(dentry), MetaStatusCode::OK);
+    ASSERT_EQ(dentryStorage_->Size(), 1);
+    dentry = GenDentry(1, 0, "A", 0, 0, false);
+    ASSERT_EQ(dentryManager_->GetDentry(&dentry), MetaStatusCode::OK);
+    ASSERT_EQ(dentry.inodeid(), 1);
+}
+
+TEST_F(DentryManagerTest, ListDentry) {
+    auto dentry1 = GenDentry(1, 0, "A", 0, 1, false);
+    auto dentry2 = GenDentry(1, 0, "B", 0, 2, false);
+    ASSERT_EQ(dentryManager_->CreateDentry(dentry1), MetaStatusCode::OK);
+    ASSERT_EQ(dentryManager_->CreateDentry(dentry2), MetaStatusCode::OK);
+    ASSERT_EQ(dentryStorage_->Size(), 2);
+
+    std::vector<Dentry> dentrys;
+    auto dentry = GenDentry(1, 0, "", 0, 0, false);
+    auto rc = dentryManager_->ListDentry(dentry, &dentrys, 0);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+    ASSERT_EQ(dentrys.size(), 2);
+    ASSERT_EQ(dentrys[0].name(), "A");
+    ASSERT_EQ(dentrys[1].name(), "B");
+}
+
+TEST_F(DentryManagerTest, HandleRenameTx) {
+    // CASE 1: HandleRenameTx: param error
+    auto dentrys = std::vector<Dentry>();
+    auto rc = txManager_->HandleRenameTx(dentrys);
+    ASSERT_EQ(rc, MetaStatusCode::PARAM_ERROR);
+
+    // CASE 2: HandleRenameTx success
+    dentrys = std::vector<Dentry> {
+        // { fsId, parentId, name, txId, inodeId, deleteMarkFlag }
+        GenDentry(1, 0, "A", 1, 1, false),
+    };
+    rc = txManager_->HandleRenameTx(dentrys);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+    ASSERT_EQ(dentryStorage_->Size(), 1);
+}
+
 }  // namespace metaserver
 }  // namespace curvefs

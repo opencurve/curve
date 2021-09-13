@@ -51,9 +51,13 @@ namespace rpcclient {
 
 class TaskContext {
  public:
-    using RpcFunc = std::function<int(
-        LogicPoolID poolID, CopysetID copysetID, PartitionID partitionID,
-        uint64_t applyIndex, brpc::Channel *channel, brpc::Controller *cntl)>;
+    using RpcFunc = std::function<int(LogicPoolID poolID,
+                                      CopysetID copysetID,
+                                      PartitionID partitionID,
+                                      uint64_t txId,
+                                      uint64_t applyIndex,
+                                      brpc::Channel *channel,
+                                      brpc::Controller *cntl)>;
 
     TaskContext() = default;
     TaskContext(MetaServerOpType type, RpcFunc func, uint32_t fsid = 0,

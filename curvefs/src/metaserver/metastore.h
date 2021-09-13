@@ -68,7 +68,7 @@ class MetaStore {
     MetaStore() = default;
     virtual ~MetaStore() = default;
 
-    virtual bool Load(const std::string& path) = 0;
+    virtual bool Load(const std::string& pathname) = 0;
     virtual bool Save(const std::string& path,
                       OnSnapshotSaveDoneClosure* done) = 0;
     virtual bool Clear() = 0;
@@ -93,6 +93,10 @@ class MetaStore {
     virtual MetaStatusCode ListDentry(const ListDentryRequest* request,
                                       ListDentryResponse* response) = 0;
 
+    virtual MetaStatusCode PrepareRenameTx(
+        const PrepareRenameTxRequest* request,
+        PrepareRenameTxResponse* response) = 0;
+
     // inode
     virtual MetaStatusCode CreateInode(const CreateInodeRequest* request,
                                        CreateInodeResponse* response) = 0;
@@ -113,19 +117,16 @@ class MetaStore {
     virtual MetaStatusCode UpdateInodeS3Version(
         const UpdateInodeS3VersionRequest* request,
         UpdateInodeS3VersionResponse* response) = 0;
-
-    virtual MetaStatusCode PrepareRenameTx(
-        const PrepareRenameTxRequest* request,
-        PrepareRenameTxResponse* response) = 0;
 };
 
 class MetaStoreImpl : public MetaStore {
  public:
     MetaStoreImpl();
 
-    bool Load(const std::string& path);
+    bool Load(const std::string& pathname);
     bool Save(const std::string& path, OnSnapshotSaveDoneClosure* done);
     bool Clear();
+
     MetaStatusCode CreatePartition(const CreatePartitionRequest* request,
                                    CreatePartitionResponse* response);
 
@@ -144,6 +145,9 @@ class MetaStoreImpl : public MetaStore {
 
     MetaStatusCode ListDentry(const ListDentryRequest* request,
                               ListDentryResponse* response);
+
+    MetaStatusCode PrepareRenameTx(const PrepareRenameTxRequest* request,
+                                   PrepareRenameTxResponse* response);
 
     // inode
     MetaStatusCode CreateInode(const CreateInodeRequest* request,
@@ -165,13 +169,30 @@ class MetaStoreImpl : public MetaStore {
         const UpdateInodeS3VersionRequest* request,
         UpdateInodeS3VersionResponse* response);
 
-    MetaStatusCode PrepareRenameTx(const PrepareRenameTxRequest* request,
-                                   PrepareRenameTxResponse* response);
-
     std::shared_ptr<Partition> GetPartition(uint32_t partitionId);
 
  private:
-    void SaveBack(const std::string& path, OnSnapshotSaveDoneClosure* done);
+    bool LoadPartition(uint32_t partitionId, void* entry);
+
+    bool LoadInode(uint32_t partitionId, void* entry);
+
+    bool LoadDentry(uint32_t partitionId, void* entry);
+
+    bool LoadPendingTx(uint32_t partitionId, void* entry);
+
+    std::shared_ptr<Iterator> NewPartitionIterator();
+
+    std::shared_ptr<Iterator> NewInodeIterator(
+        std::shared_ptr<Partition> partition);
+
+    std::shared_ptr<Iterator> NewDentryIterator(
+        std::shared_ptr<Partition> partition);
+
+    std::shared_ptr<Iterator> NewPendingTxIterator(
+        std::shared_ptr<Partition> partition);
+
+    void SaveBackground(const std::string& path,
+                        OnSnapshotSaveDoneClosure* done);
 
  private:
     RWLock rwLock_;  // protect partitionMap_

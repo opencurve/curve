@@ -33,6 +33,7 @@
 
 #include "src/common/crc32.h"
 #include "src/common/timeutility.h"
+#include "src/fs/ext4_filesystem_impl.h"
 #include "curvefs/src/common/process.h"
 #include "curvefs/src/metaserver/iterator.h"
 #include "curvefs/src/metaserver/dumpfile.h"
@@ -341,7 +342,7 @@ DUMPFILE_ERROR DumpFile::WaitSaveDone(pid_t childpid) {
 void DumpFile::SignalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     auto pid = (siginfo && siginfo->si_pid) ? siginfo->si_pid : -1;
     LOG(INFO) << "Signal " << signal << " received from " << pid;
-    exit(2);
+    _exit(2);
 }
 
 DUMPFILE_ERROR DumpFile::InitSignals() {
@@ -389,7 +390,7 @@ DUMPFILE_ERROR DumpFile::CloseSockets() {
 void DumpFile::SaveWorker(std::shared_ptr<Iterator> iter) {
     auto retCode = InitSignals();
     if (retCode != DUMPFILE_ERROR::OK) {
-        exit(1);
+        _exit(1);
     }
 
     // We should close all socket fds in child process
@@ -398,7 +399,7 @@ void DumpFile::SaveWorker(std::shared_ptr<Iterator> iter) {
     if (retCode != DUMPFILE_ERROR::OK) {
         LOG(ERROR) << "[child] Close socket fds failed"
                    << ", retCode = " << retCode;
-        exit(1);
+        _exit(1);
     }
 
     // We should ensure the child process exit when the parent exit
@@ -414,7 +415,7 @@ void DumpFile::SaveWorker(std::shared_ptr<Iterator> iter) {
     auto succ = (retCode == DUMPFILE_ERROR::OK);
     LOG(INFO) << "[child] Save " << (succ ? "success" : "fail")
               << ", retCode = " << retCode;
-    exit(succ ? 0 : 1);
+    _exit(succ ? 0 : 1);
 }
 
 DUMPFILE_ERROR DumpFile::SaveBackground(std::shared_ptr<Iterator> iter) {

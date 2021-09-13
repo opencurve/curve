@@ -55,6 +55,14 @@ class MockMetaServerService : public curvefs::metaserver::MetaServerService {
                       const ::curvefs::metaserver::DeleteDentryRequest *request,
                       ::curvefs::metaserver::DeleteDentryResponse *response,
                       ::google::protobuf::Closure *done));
+
+    MOCK_METHOD4(
+         PrepareRenameTx,
+         void(::google::protobuf::RpcController *controller,
+              const ::curvefs::metaserver::PrepareRenameTxRequest *request,
+              ::curvefs::metaserver::PrepareRenameTxResponse *response,
+              ::google::protobuf::Closure *done));
+
     MOCK_METHOD4(GetInode,
                  void(::google::protobuf::RpcController *controller,
                       const ::curvefs::metaserver::GetInodeRequest *request,
