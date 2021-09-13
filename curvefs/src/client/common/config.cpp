@@ -121,11 +121,6 @@ void InitVolumeOption(Configuration *conf, VolumeOption *volumeOpt) {
                               &volumeOpt->fsBlockSize);
 }
 
-void InitDCacheOption(Configuration *conf, DCacheOption *dcacheOpt) {
-    conf->GetValueFatalIfFail("dCache.maxListDentryCount",
-                              &dcacheOpt->maxListDentryCount);
-}
-
 void InitExtentManagerOption(Configuration *conf,
                              ExtentManagerOption *extentManagerOpt) {
     conf->GetValueFatalIfFail("extentManager.preAllocSize",
@@ -144,7 +139,6 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     InitSpaceServerOption(conf, &clientOption->spaceOpt);
     InitBlockDeviceOption(conf, &clientOption->bdevOpt);
     InitS3Option(conf, &clientOption->s3Opt);
-    InitDCacheOption(conf, &clientOption->dcacheOpt);
     InitExtentManagerOption(conf, &clientOption->extentManagerOpt);
     InitVolumeOption(conf, &clientOption->volumeOpt);
 
@@ -152,6 +146,8 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
                               &clientOption->attrTimeOut);
     conf->GetValueFatalIfFail("fuseClient.entryTimeOut",
                               &clientOption->entryTimeOut);
+    conf->GetValueFatalIfFail("fuseClient.limitDentryLimit",
+                              &clientOption->listDentryLimit);
 
     SetBrpcOpt(conf);
 }

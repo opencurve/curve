@@ -44,7 +44,9 @@ class MetaserverServiceTest : public ::testing::Test {
         dentryStorage_ = std::make_shared<MemoryDentryStorage>();
         trash_ = std::make_shared<TrashImpl>(inodeStorage_);
         inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
-        dentryManager_ = std::make_shared<DentryManager>(dentryStorage_);
+        txManager_ = std::make_shared<TxManager>(dentryStorage_);
+        dentryManager_ = std::make_shared<DentryManager>(dentryStorage_,
+                                                         txManager_);
         addr_ = "127.0.0.1:6702";
     }
 
@@ -86,6 +88,7 @@ class MetaserverServiceTest : public ::testing::Test {
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<DentryStorage> dentryStorage_;
     std::shared_ptr<InodeManager> inodeManager_;
+    std::shared_ptr<TxManager> txManager_;
     std::shared_ptr<DentryManager> dentryManager_;
     std::shared_ptr<TrashImpl> trash_;
 };
@@ -585,6 +588,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     getRequest.set_fsid(fsId + 1);
     getRequest.set_parentinodeid(parentId);
     getRequest.set_name(name);
+    getRequest.set_txid(0);
     stub.GetDentry(&cntl, &getRequest, &getResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(getResponse.statuscode(), MetaStatusCode::NOT_FOUND);
@@ -623,6 +627,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     cntl.Reset();
     listRequest.set_fsid(fsId);
     listRequest.set_dirinodeid(parentId);
+    listRequest.set_txid(100);
     listRequest.set_last("dentry1");
     listRequest.set_count(100);
 
@@ -640,6 +645,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     cntl.Reset();
     listRequest.set_fsid(fsId);
     listRequest.set_dirinodeid(parentId);
+    listRequest.set_txid(100);
     listRequest.clear_last();
     listRequest.set_count(1);
 
@@ -667,7 +673,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     deleteRequest.set_copysetid(1);
     deleteRequest.set_poolid(1);
     deleteRequest.set_partitionid(1);
-    deleteRequest.set_txid(1);
+    deleteRequest.set_txid(100);
 
     stub.DeleteDentry(&cntl, &deleteRequest, &deleteResponse, NULL);
     if (!cntl.Failed()) {
@@ -680,6 +686,7 @@ TEST_F(MetaserverServiceTest, dentryTest) {
     cntl.Reset();
     listRequest.set_fsid(fsId);
     listRequest.set_dirinodeid(parentId);
+    listRequest.set_txid(100);
     listRequest.clear_last();
     listRequest.clear_count();
     stub.ListDentry(&cntl, &listRequest, &listResponse, NULL);

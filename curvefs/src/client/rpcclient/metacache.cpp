@@ -32,6 +32,39 @@ using ::curve::common::WriteLockGuard;
 namespace curvefs {
 namespace client {
 namespace rpcclient {
+
+void MetaCache::SetTxId(uint32_t partitionId, uint64_t txId) {
+    WriteLockGuard w(txIdLock_);
+    partitionTxId_[partitionId] = txId;
+}
+
+void MetaCache::GetTxId(uint32_t partitionId, uint64_t* txId) {
+    ReadLockGuard r(txIdLock_);
+    auto iter = partitionTxId_.find(partitionId);
+    if (iter != partitionTxId_.end()) {
+        *txId = iter->second;
+    }
+}
+
+bool MetaCache::GetTxId(uint32_t fsId,
+                        uint64_t inodeId,
+                        uint32_t* partitionId,
+                        uint64_t* txId) {
+    PatitionInfoList partitions;
+    if (GetParitionListWihFsID(fsId, &partitions)) {
+        for (const auto& partition : partitions) {
+            if (inodeId >= partition.start() && inodeId <= partition.end()) {
+                *partitionId = partition.partitionid();
+                *txId = partition.txid();
+                GetTxId(*partitionId, txId);
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 bool MetaCache::GetTarget(uint32_t fsID, uint64_t inodeID,
                           CopysetTarget *target, uint64_t *applyIndex,
                           bool refresh) {
@@ -44,7 +77,7 @@ bool MetaCache::GetTarget(uint32_t fsID, uint64_t inodeID,
 
     // get copysetID with inodeID
     if (false == GetCopysetIDwithInodeID(pinfoList, inodeID, &target->groupID,
-                                         &target->partitionID)) {
+                                         &target->partitionID, &target->txId)) {
         LOG(WARNING) << "{fsid:" << fsID << ", inodeid:" << inodeID
                      << "} do not find partition";
         return false;
@@ -249,7 +282,8 @@ bool MetaCache::GetParitionListWihFsID(uint32_t fsID,
 bool MetaCache::GetCopysetIDwithInodeID(const PatitionInfoList &pinfoList,
                                         uint32_t inodeID,
                                         CopysetGroupID *groupID,
-                                        PartitionID *partitionID) {
+                                        PartitionID *partitionID,
+                                        uint64_t* txId) {
     bool find = false;
     for_each(
         pinfoList.begin(), pinfoList.end(), [&](const PartitionInfo &pinfo) {
@@ -258,8 +292,11 @@ bool MetaCache::GetCopysetIDwithInodeID(const PatitionInfoList &pinfoList,
                 *groupID = std::move(
                     CopysetGroupID(pinfo.poolid(), pinfo.copysetid()));
                 *partitionID = pinfo.partitionid();
+                *txId = pinfo.txid();  // original txid
+                GetTxId(*partitionID, txId);
             }
         });
+
     return find;
 }
 

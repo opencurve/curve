@@ -19,6 +19,31 @@ import "curvefs/proto/common.proto";
 package curvefs.mds.topology;
 option cc_generic_services = true;
 
+enum TopoStatusCode {
+    TOPO_OK = 0;
+    TOPO_INTERNAL_ERROR = 1;
+    TOPO_INVALID_PARAM = 2;
+    TOPO_INIT_FAIL = 3;
+    TOPO_STORGE_FAIL = 4;
+    TOPO_ID_DUPLICATED = 5;
+    TOPO_METASERVER_NOT_FOUND = 6;
+    TOPO_SERVER_NOT_FOUND = 7;
+    TOPO_ZONE_NOT_FOUND = 8;
+    TOPO_POOL_NOT_FOUND = 9;
+    TOPO_COPYSET_NOT_FOUND = 10;
+    TOPO_CREATE_COPYSET_ERROR = 11;
+    TOPO_ALLOCATE_ID_FAIL = 12;
+    TOPO_CANNOT_REMOVE_WHEN_NOT_EMPTY = 13;
+    TOPO_IP_PORT_DUPLICATED = 14;
+    TOPO_NAME_DUPLICATED = 15;
+    TOPO_CREATE_COPYSET_ON_METASERVER_FAIL = 16;
+    TOPO_CANNOT_REMOVE_NOT_RETIRED = 17;
+    TOPO_POOL_EXIST = 18;
+    TOPO_LEADER_NOT_FOUND = 19;
+    TOPO_PARTITION_NOT_FOUND = 20;
+    TOPO_CREATE_PARTITION_FAIL = 21;
+}
+
 enum OnlineState {
     ONLINE = 0;
     OFFLINE = 1;
@@ -69,9 +94,24 @@ message GetMetaServerListInCopySetsResponse {
     repeated CopySetServerInfo csInfo = 2;
 }
 
+message PartitionTxId {
+    required uint64 partitionId = 1;
+    required uint64 txId = 2;
+}
+
+message CommitTxRequest {
+    repeated PartitionTxId partitionTxIds = 1;
+}
+
+message CommitTxResponse {
+    required TopoStatusCode statusCode = 1;
+}
+
 service TopologyService {
     rpc GetMetaServer(GetMetaServerInfoRequest) returns (GetMetaServerInfoResponse);
 
     // TODO @wanghai 需要新增接口
     rpc GetMetaServerListInCopysets(GetMetaServerListInCopySetsRequest) returns (GetMetaServerListInCopySetsResponse);
+
+    rpc CommitTx(CommitTxRequest) returns (CommitTxResponse);
 }

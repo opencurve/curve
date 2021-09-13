@@ -68,6 +68,11 @@ class MockMDSBaseClient : public MDSBaseClient {
                  void(uint32_t fsId, GetFsInfoResponse *response,
                       brpc::Controller *cntl, brpc::Channel *channel));
 
+    MOCK_METHOD4(CommitTx, void(const std::vector<PartitionTxId>& txIds,
+                                CommitTxResponse* response,
+                                brpc::Controller* cntl,
+                                brpc::Channel* channel));
+
     MOCK_METHOD5(GetMetaServerInfo,
                  void(uint32_t port, std::string ip,
                       GetMetaServerInfoResponse *response,

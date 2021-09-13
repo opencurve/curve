@@ -28,6 +28,7 @@ static const struct fuse_lowlevel_ops curve_ll_oper = {
     .init       = FuseOpInit,
     .destroy    = FuseOpDestroy,
     .lookup     = FuseOpLookup,
+    .rename     = FuseOpRename,
     .write      = FuseOpWrite,
     .read       = FuseOpRead,
     .open       = FuseOpOpen,

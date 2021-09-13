@@ -40,7 +40,7 @@ class MockInodeStorage : public InodeStorage {
     MOCK_METHOD1(Delete, MetaStatusCode(const InodeKey &key));
     MOCK_METHOD1(Update, MetaStatusCode(const Inode &inode));
     MOCK_METHOD0(Count, int());
-    MOCK_METHOD0(GetInodeContainer, InodeContainerType *());
+    MOCK_METHOD0(GetContainer, InodeStorage::ContainerType*());
 };
 
 

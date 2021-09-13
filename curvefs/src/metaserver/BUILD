@@ -51,6 +51,7 @@ cc_library(
         "//curvefs/src/common:curvefs_common",
         "@com_google_absl//absl/cleanup:cleanup",
         "//curvefs/src/metaserver:metaserver_s3_lib",
+        "@com_google_absl//absl/container:btree",
     ],
 )
 

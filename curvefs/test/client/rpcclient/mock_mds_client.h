@@ -69,6 +69,9 @@ class MockMdsClient : public MdsClient {
 
     MOCK_METHOD2(GetFsInfo, FSStatusCode(uint32_t fsId, FsInfo *fsInfo));
 
+    MOCK_METHOD1(CommitTx,
+                 TopoStatusCode(const std::vector<PartitionTxId>& txIds));
+
     MOCK_METHOD2(GetMetaServerInfo,
                  bool(const PeerAddr &addr,
                       CopysetPeerInfo<MetaserverID> *metaserverInfo));

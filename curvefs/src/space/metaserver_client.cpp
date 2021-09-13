@@ -73,7 +73,6 @@ bool MetaServerClient::RecursiveListDentry(uint32_t fsId, uint64_t inodeId,
     request.set_poolid(1);
     request.set_partitionid(1);
     request.set_txid(100);
-
     stub.ListDentry(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed() || (response.statuscode() != metaserver::OK &&

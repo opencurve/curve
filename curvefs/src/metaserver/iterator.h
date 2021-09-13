@@ -31,6 +31,8 @@ namespace metaserver {
 // The iterator can traverse different data struct: like hash, B+ tree, skiplist
 class Iterator {
  public:
+    virtual ~Iterator() = default;
+
     // TODO(Wine93): remove this interface
     virtual uint64_t Size() = 0;
 

@@ -39,6 +39,7 @@ enum class MetaServerOpType {
     ListDentry,
     CreateDentry,
     DeleteDentry,
+    PrepareRenameTx,
     GetInode,
     UpdateInode,
     CreateInode,

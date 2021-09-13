@@ -99,7 +99,7 @@ TEST_F(InodeStorageTest, test1) {
     ASSERT_TRUE(CompareInode(newInode, inode2));
 
     // GetInodeContainer
-    InodeContainerType *map = storage.GetInodeContainer();
+    auto map = storage.GetContainer();
     ASSERT_TRUE(CompareInode((*map)[InodeKey(inode2)], inode2));
     ASSERT_TRUE(CompareInode((*map)[InodeKey(inode3)], inode3));
 }

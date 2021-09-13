@@ -157,9 +157,13 @@ int TaskExecutor::ExcuteTask() {
 
     brpc::Controller cntl;
     cntl.set_timeout_ms(task_->rpcTimeoutMs);
-    return task_->rpctask(
-        task_->target.groupID.poolID, task_->target.groupID.copysetID,
-        task_->target.partitionID, task_->applyIndex, channel.get(), &cntl);
+    return task_->rpctask(task_->target.groupID.poolID,
+                          task_->target.groupID.copysetID,
+                          task_->target.partitionID,
+                          task_->target.txId,
+                          task_->applyIndex,
+                          channel.get(),
+                          &cntl);
 }
 void TaskExecutor::OnSuccess() {}
 

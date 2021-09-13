@@ -23,34 +23,42 @@
 #ifndef CURVEFS_SRC_METASERVER_DENTRY_MANAGER_H_
 #define CURVEFS_SRC_METASERVER_DENTRY_MANAGER_H_
 
-#include <atomic>
 #include <list>
 #include <memory>
 #include <string>
+#include <vector>
+#include <atomic>
+
 #include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/metaserver/transaction.h"
 #include "curvefs/src/metaserver/dentry_storage.h"
 
 namespace curvefs {
 namespace metaserver {
 class DentryManager {
  public:
-    explicit DentryManager(std::shared_ptr<DentryStorage> dentryStorage) {
-        dentryStorage_ = dentryStorage;
-    }
+    DentryManager(std::shared_ptr<DentryStorage> dentryStorage,
+                  std::shared_ptr<TxManager> txManger);
 
     MetaStatusCode CreateDentry(const Dentry& dentry);
 
-    MetaStatusCode GetDentry(uint32_t fsId, uint64_t parentId,
-                             const std::string& name, Dentry* dentry);
+    MetaStatusCode DeleteDentry(const Dentry& dentry);
 
-    MetaStatusCode DeleteDentry(uint32_t fsId, uint64_t parentId,
-                                const std::string& name);
+    MetaStatusCode GetDentry(Dentry* dentry);
 
-    MetaStatusCode ListDentry(uint32_t fsId, uint64_t dirId,
-                              std::list<Dentry>* dentryList);
+    MetaStatusCode ListDentry(const Dentry& dentry,
+                              std::vector<Dentry>* dentrys,
+                              uint32_t limit);
+
+    MetaStatusCode HandleRenameTx(const std::vector<Dentry>& dentrys);
+
+ private:
+    void Log4Dentry(const std::string& request, const Dentry& dentry);
+    void Log4Code(const std::string& request, MetaStatusCode rc);
 
  private:
     std::shared_ptr<DentryStorage> dentryStorage_;
+    std::shared_ptr<TxManager> txManager_;
 };
 }  // namespace metaserver
 }  // namespace curvefs

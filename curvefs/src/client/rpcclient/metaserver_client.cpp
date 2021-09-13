@@ -20,6 +20,7 @@
  * Author: lixiaocui
  */
 
+#include <vector>
 #include <algorithm>
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 
@@ -30,6 +31,7 @@ using CreateDentryExcutor = TaskExecutor;
 using GetDentryExcutor = TaskExecutor;
 using ListDentryExcutor = TaskExecutor;
 using DeleteDentryExcutor = TaskExecutor;
+using PrepareRenameTxExcutor = TaskExecutor;
 using DeleteInodeExcutor = TaskExecutor;
 using UpdateInodeExcutor = TaskExecutor;
 using GetInodeExcutor = TaskExecutor;
@@ -45,8 +47,22 @@ MetaStatusCode MetaServerClientImpl::Init(
 
 #define RPCTask                                                                \
     [&](LogicPoolID poolID, CopysetID copysetID, PartitionID partitionID,      \
-        uint64_t applyIndex, brpc::Channel * channel,                          \
+        uint64_t txId, uint64_t applyIndex, brpc::Channel * channel,           \
         brpc::Controller * cntl) -> int
+
+MetaStatusCode MetaServerClientImpl::GetTxId(uint32_t fsId,
+                                             uint64_t inodeId,
+                                             uint32_t* partitionId,
+                                             uint64_t* txId) {
+    if (!metaCache_->GetTxId(fsId, inodeId, partitionId, txId)) {
+        return MetaStatusCode::NOT_FOUND;
+    }
+    return MetaStatusCode::OK;
+}
+
+void MetaServerClientImpl::SetTxId(uint32_t partitionId, uint64_t txId) {
+    metaCache_->SetTxId(partitionId, txId);
+}
 
 MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
                                                const std::string &name,
@@ -60,8 +76,7 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
         request.set_fsid(fsId);
         request.set_parentinodeid(inodeid);
         request.set_name(name);
-        // TODO(lixiaocui): needset txId
-        request.set_txid(1);
+        request.set_txid(txId);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.GetDentry(cntl, &request, &response, nullptr);
@@ -113,10 +128,9 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
         request.set_partitionid(partitionID);
         request.set_fsid(fsId);
         request.set_dirinodeid(inodeid);
+        request.set_txid(txId);
         request.set_last(last);
         request.set_count(count);
-        // TODO(lixiaocui): needset txId
-        request.set_txid(1);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.ListDentry(cntl, &request, &response, nullptr);
@@ -172,8 +186,7 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
         d->set_inodeid(dentry.inodeid());
         d->set_parentinodeid(dentry.parentinodeid());
         d->set_name(dentry.name());
-        // TODO(lixiaocui): needset txId
-        d->set_txid(1);
+        d->set_txid(txId);
         request.set_allocated_dentry(d);
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.CreateDentry(cntl, &request, &response, nullptr);
@@ -221,7 +234,7 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
         request.set_fsid(fsId);
         request.set_parentinodeid(inodeid);
         request.set_name(name);
-        // TODO(lixiaocui): needset txId
+        request.set_txid(txId);
         request.set_txid(1);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
@@ -260,6 +273,51 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
     return ReturnError(excutor.DoRPCTask(taskCtx));
 }
 
+MetaStatusCode MetaServerClientImpl::PrepareRenameTx(
+    const std::vector<Dentry>& dentrys) {
+    auto task = RPCTask {
+        PrepareRenameTxRequest request;
+        PrepareRenameTxResponse response;
+
+        request.set_poolid(poolID);
+        request.set_copysetid(copysetID);
+        request.set_partitionid(partitionID);
+        *request.mutable_dentrys() = { dentrys.begin(), dentrys.end() };
+
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.PrepareRenameTx(cntl, &request, &response, nullptr);
+
+        if (cntl->Failed()) {
+            LOG(WARNING) << "PrepareRenameTx failed"
+                         << ", errorCode = " << cntl->ErrorCode()
+                         << ", errorText = " << cntl->ErrorText()
+                         << ", logId = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        auto rc = response.statuscode();
+        if (rc != MetaStatusCode::OK) {
+            LOG(WARNING) << "PrepareRenameTx: retCode = " << rc
+                         << ", message = " << MetaStatusCode_Name(rc);
+        } else if (response.has_appliedindex()) {
+            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
+                                         response.appliedindex());
+        } else {
+            LOG(WARNING) << "PrepareRenameTx OK"
+                         << ", but applyIndex not set in response:"
+                         << response.DebugString();
+            return -1;
+        }
+        return rc;
+    };
+
+    auto fsId = dentrys[0].fsid();
+    auto inodeId = dentrys[0].parentinodeid();
+    auto taskCtx = std::make_shared<TaskContext>(
+        MetaServerOpType::PrepareRenameTx, task, fsId, inodeId);
+    PrepareRenameTxExcutor excutor(opt_, metaCache_, channelManager_);
+    return ReturnError(excutor.DoRPCTask(taskCtx));
+}
 
 MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
                                               Inode *out) {

@@ -26,6 +26,7 @@
 
 #include <gmock/gmock.h>
 #include <string>
+#include <vector>
 #include "curvefs/src/client/base_client.h"
 
 namespace curvefs {
@@ -54,6 +55,11 @@ class MockMetaServerBaseClient : public MetaServerBaseClient {
                  void(uint32_t fsId, uint64_t inodeid, const std::string &name,
                       DeleteDentryResponse *response, brpc::Controller *cntl,
                       brpc::Channel *channel));
+
+    MOCK_METHOD4(PrepareRenameTx, void(const std::vector<Dentry>& dentrys,
+                                       PrepareRenameTxResponse* response,
+                                       brpc::Controller* cntl,
+                                       brpc::Channel* channel));
 
     MOCK_METHOD5(GetInode,
                  void(uint32_t fsId, uint64_t inodeid,
