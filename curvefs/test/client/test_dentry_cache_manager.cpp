@@ -35,6 +35,7 @@ using ::testing::_;
 using ::testing::Contains;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
+using ::testing::Invoke;
 
 using rpcclient::MockMetaServerClient;
 
@@ -46,8 +47,6 @@ class TestDentryCacheManager : public ::testing::Test {
     virtual void SetUp() {
         metaClient_ = std::make_shared<MockMetaServerClient>();
         dCacheManager_ = std::make_shared<DentryCacheManagerImpl>(metaClient_);
-        dCacheOption_.maxListDentryCount = 100;
-        dCacheManager_->Init(dCacheOption_);
         dCacheManager_->SetFsId(fsId_);
     }
 
@@ -60,7 +59,6 @@ class TestDentryCacheManager : public ::testing::Test {
     std::shared_ptr<DentryCacheManagerImpl> dCacheManager_;
     std::shared_ptr<MockMetaServerClient> metaClient_;
     uint32_t fsId_ = 888;
-    DCacheOption dCacheOption_;
 };
 
 TEST_F(TestDentryCacheManager, GetDentry) {
@@ -141,8 +139,9 @@ TEST_F(TestDentryCacheManager, ListDentryNomal) {
     uint64_t parent = 99;
 
     std::list<Dentry> part1, part2;
-    part1.resize(dCacheOption_.maxListDentryCount);
-    part2.resize(dCacheOption_.maxListDentryCount - 1);
+    uint32_t limit = 100;
+    part1.resize(limit);
+    part2.resize(limit - 1);
 
     EXPECT_CALL(*metaClient_, ListDentry(fsId_, parent, _, _, _))
         .WillOnce(DoAll(SetArgPointee<4>(part1),
@@ -151,9 +150,9 @@ TEST_F(TestDentryCacheManager, ListDentryNomal) {
                 Return(MetaStatusCode::OK)));
 
     std::list<Dentry> out;
-    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out);
+    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out, limit);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    ASSERT_EQ(2 * dCacheOption_.maxListDentryCount - 1, out.size());
+    ASSERT_EQ(2 * limit - 1, out.size());
 }
 
 TEST_F(TestDentryCacheManager, ListDentryEmpty) {
@@ -163,7 +162,7 @@ TEST_F(TestDentryCacheManager, ListDentryEmpty) {
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
 
     std::list<Dentry> out;
-    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out);
+    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out, 0);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, out.size());
 }
@@ -175,17 +174,10 @@ TEST_F(TestDentryCacheManager, ListDentryFailed) {
         .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
 
     std::list<Dentry> out;
-    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out);
+    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out, 0);
     ASSERT_EQ(CURVEFS_ERROR::UNKNOWN, ret);
     ASSERT_EQ(0, out.size());
 }
-
-
-
-
-
-
-
 
 }  // namespace client
 }  // namespace curvefs

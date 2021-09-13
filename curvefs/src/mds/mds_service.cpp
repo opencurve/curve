@@ -20,6 +20,8 @@
  * Author: chenwei
  */
 
+#include <vector>
+
 #include "curvefs/src/mds/mds_service.h"
 
 namespace curvefs {

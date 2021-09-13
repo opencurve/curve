@@ -20,9 +20,10 @@
  * Author: chenwei
  */
 
-#include "curvefs/src/metaserver/metaserver_service.h"
 #include <list>
 #include <string>
+
+#include "curvefs/src/metaserver/metaserver_service.h"
 #include "curvefs/src/metaserver/copyset/meta_operator.h"
 #include "curvefs/src/metaserver/metaservice_closure.h"
 

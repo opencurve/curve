@@ -695,7 +695,7 @@ TEST_F(MetastoreTest, persist_success) {
     partitionInfo.set_partitionid(partitionId);
     partitionInfo.set_start(100);
     partitionInfo.set_end(199);
-    partitionInfo.set_txid(0);
+    partitionInfo.set_txid(100);
     createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo);
     MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
                                                    &createPartitionResponse);

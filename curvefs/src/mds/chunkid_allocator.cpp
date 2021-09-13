@@ -19,6 +19,8 @@
  * Author: chengyi01
  */
 
+#include <utility>
+
 #include "curvefs/src/mds/chunkid_allocator.h"
 
 namespace curvefs {

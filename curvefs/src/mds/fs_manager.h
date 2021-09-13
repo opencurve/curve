@@ -26,6 +26,8 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <vector>
+
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/common/define.h"
 #include "curvefs/src/mds/fs_storage.h"

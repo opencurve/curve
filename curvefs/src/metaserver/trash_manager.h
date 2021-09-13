@@ -25,6 +25,7 @@
 
 #include <map>
 #include <list>
+#include <memory>
 
 #include "src/common/concurrent/concurrent.h"
 #include "curvefs/src/metaserver/trash.h"

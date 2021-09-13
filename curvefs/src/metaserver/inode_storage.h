@@ -55,16 +55,17 @@ struct hashInode {
     }
 };
 
-using InodeContainerType = std::unordered_map<InodeKey, Inode, hashInode>;
-
 class InodeStorage {
+ public:
+    using ContainerType = std::unordered_map<InodeKey, Inode, hashInode>;
+
  public:
     virtual MetaStatusCode Insert(const Inode &inode) = 0;
     virtual MetaStatusCode Get(const InodeKey &key, Inode *inode) = 0;
     virtual MetaStatusCode Delete(const InodeKey &key) = 0;
     virtual MetaStatusCode Update(const Inode &inode) = 0;
     virtual int Count() = 0;
-    virtual InodeContainerType *GetInodeContainer() = 0;
+    virtual ContainerType* GetContainer() = 0;
     virtual ~InodeStorage() = default;
 };
 
@@ -114,12 +115,12 @@ class MemoryInodeStorage : public InodeStorage {
      *
      * @return Inode container, here returns inodeMap_ pointer
      */
-    InodeContainerType *GetInodeContainer() override;
+    ContainerType* GetContainer() override;
 
  private:
     RWLock rwLock_;
     // use fsid + inodeid as key
-    InodeContainerType inodeMap_;
+    ContainerType inodeMap_;
 };
 
 }  // namespace metaserver

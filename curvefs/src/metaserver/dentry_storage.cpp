@@ -20,86 +20,191 @@
  * Author: chenwei
  */
 
+#include <vector>
+
 #include "curvefs/src/metaserver/dentry_storage.h"
 
 namespace curvefs {
 namespace metaserver {
-MetaStatusCode MemoryDentryStorage::Insert(const Dentry &dentry) {
-    WriteLockGuard writeLockGuard(rwLock_);
-    auto it = dentryMap_.emplace(DentryKey(dentry), dentry);
-    if (it.second == false) {
+
+bool operator==(const Dentry& lhs, const Dentry& rhs) {
+    return EQUAL(fsid) && EQUAL(parentinodeid) && EQUAL(name) &&
+           EQUAL(txid) && EQUAL(inodeid) && EQUAL(flag);
+}
+
+bool operator<(const Dentry& lhs, const Dentry& rhs) {
+    return LESS(fsid) ||
+           LESS2(fsid, parentinodeid) ||
+           LESS3(fsid, parentinodeid, name) ||
+           LESS4(fsid, parentinodeid, name, txid);
+}
+
+bool MemoryDentryStorage::BelongSameOne(const Dentry& lhs, const Dentry& rhs) {
+    return EQUAL(fsid) && EQUAL(parentinodeid) &&
+           EQUAL(name) && lhs.txid() <= rhs.txid();
+}
+
+inline bool MemoryDentryStorage::HasDeleteMarkFlag(const Dentry& dentry) {
+    return (dentry.flag() & DentryFlag::DELETE_MARK_FLAG) != 0;
+}
+
+// NOTE: Find() return the iterator of dentry which has the latest txid,
+// and it will clean the old txid's dentry if you specify compress to true
+Btree::iterator MemoryDentryStorage::Find(const Dentry& dentry, bool compress) {
+    auto ikey = dentry;
+    ikey.set_txid(0);
+
+    std::vector<Btree::iterator> its;
+    for (auto iter = dentryTree_.lower_bound(ikey);
+         iter != dentryTree_.end() && BelongSameOne(*iter, dentry);
+         iter++) {
+        its.emplace_back(iter);
+    }
+
+    auto size = its.size();  // NOTE: size must belong [0, 2]
+    if (size > 2) {
+        LOG(ERROR) << "There are more than 2 dentrys";
+        return dentryTree_.end();
+    } else if (size == 0) {
+        return dentryTree_.end();
+    }
+
+    // size == 1 || size == 2
+    auto first = its[0];
+    auto second = its[size - 1];
+    if (HasDeleteMarkFlag(*second)) {
+        if (compress) {
+            second++;
+            dentryTree_.erase(first, second);
+        }
+        return dentryTree_.end();
+    }
+
+    return compress ? dentryTree_.erase(first, second) : second;
+}
+
+MetaStatusCode MemoryDentryStorage::Insert(const Dentry& dentry) {
+    WriteLockGuard w(rwLock_);
+
+    auto iter = Find(dentry, true);
+    if (iter != dentryTree_.end()) {
         return MetaStatusCode::DENTRY_EXIST;
     }
 
-    Dentry *dentryPtr = &(it.first->second);
-    DentryParentKey parentKey(dentry);
-    auto itList = dentryListMap_.find(parentKey);
-    if (itList == dentryListMap_.end()) {
-        std::list<Dentry *> list;
-        list.push_back(dentryPtr);
-        auto it2 = dentryListMap_.emplace(parentKey, list);
-        if (it2.second == false) {
-            return MetaStatusCode::DENTRY_EXIST;
+    dentryTree_.emplace(dentry);
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode MemoryDentryStorage::Delete(const Dentry& dentry) {
+    WriteLockGuard w(rwLock_);
+
+    auto iter = Find(dentry, true);
+    if (iter == dentryTree_.end()) {
+        return MetaStatusCode::NOT_FOUND;
+    }
+
+    dentryTree_.erase(iter);
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode MemoryDentryStorage::Get(Dentry* dentry) {
+    ReadLockGuard r(rwLock_);
+
+    auto iter = Find(*dentry, false);
+    if (iter == dentryTree_.end()) {
+        return MetaStatusCode::NOT_FOUND;
+    }
+
+    dentry->set_inodeid(iter->inodeid());
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode MemoryDentryStorage::List(const Dentry& dentry,
+                                         std::vector<Dentry>* dentrys,
+                                         uint32_t limit) {
+    auto parentId = dentry.parentinodeid();
+    auto exclude = dentry.name();
+    auto txId = dentry.txid();
+
+    // range = [lower, upper)
+    uint32_t count = 0;
+    auto ukey = dentry;
+    ukey.set_parentinodeid(parentId + 1);
+    ukey.set_name("");
+    auto lower = dentryTree_.lower_bound(dentry);
+    auto upper = dentryTree_.upper_bound(ukey);
+    for (auto first = lower; first != upper; first++) {
+        auto exist = false;
+        auto iter = first;
+        auto second = first;
+        while (second != upper && second->name() == first->name()) {
+            if (second->name() != exclude && second->txid() <= txId) {
+                if (HasDeleteMarkFlag(*second)) {
+                    exist = false;
+                } else {
+                    exist = true;
+                    iter = second;
+                }
+            }
+            second++;
         }
-    } else {
-        itList->second.push_back(dentryPtr);
-    }
 
-    return MetaStatusCode::OK;
-}
-
-MetaStatusCode MemoryDentryStorage::Get(const DentryKey &key, Dentry *dentry) {
-    ReadLockGuard readLockGuard(rwLock_);
-    auto it = dentryMap_.find(key);
-    if (it == dentryMap_.end()) {
-        return MetaStatusCode::NOT_FOUND;
-    }
-    *dentry = it->second;
-    return MetaStatusCode::OK;
-}
-
-MetaStatusCode MemoryDentryStorage::List(const DentryParentKey &key,
-                                         std::list<Dentry> *dentry) {
-    ReadLockGuard readLockGuard(rwLock_);
-    auto itList = dentryListMap_.find(key);
-    if (itList == dentryListMap_.end()) {
-        return MetaStatusCode::NOT_FOUND;
-    }
-
-    dentry->clear();
-    for (auto itPtr : itList->second) {
-        dentry->push_back(*itPtr);
-    }
-    dentry->sort(CompareDentry);
-
-    return MetaStatusCode::OK;
-}
-
-MetaStatusCode MemoryDentryStorage::Delete(const DentryKey &key) {
-    WriteLockGuard writeLockGuard(rwLock_);
-    auto it = dentryMap_.find(key);
-    if (it == dentryMap_.end()) {
-        return MetaStatusCode::NOT_FOUND;
-    }
-
-    auto itList = dentryListMap_.find(DentryParentKey(key));
-    if (itList != dentryListMap_.end()) {
-        itList->second.remove(&(it->second));
-        if (itList->second.empty()) {
-            dentryListMap_.erase(itList);
+        // dentry belong [first, second)
+        if (exist) {
+            dentrys->push_back(*iter);
+            VLOG(1) << "ListDentry, dentry = ("
+                    << iter->ShortDebugString() << ")";
+            if (limit != 0 && ++count >= limit) {
+                break;
+            }
         }
+
+        second--;
+        first = second;
     }
-    dentryMap_.erase(it);
+
     return MetaStatusCode::OK;
 }
 
-int MemoryDentryStorage::Count() {
-    ReadLockGuard readLockGuard(rwLock_);
-    return dentryMap_.size();
+MetaStatusCode MemoryDentryStorage::HandleTx(TX_OP_TYPE type,
+                                             const Dentry& dentry) {
+    WriteLockGuard w(rwLock_);
+
+    auto rc = MetaStatusCode::OK;
+    switch (type) {
+        case TX_OP_TYPE::PREPARE:
+            if (!dentryTree_.emplace(dentry).second) {
+                rc = MetaStatusCode::DENTRY_EXIST;
+            }
+            break;
+
+        case TX_OP_TYPE::COMMIT:
+            Find(dentry, true);
+            break;
+
+        case TX_OP_TYPE::ROLLBACK:
+            dentryTree_.erase(dentry);
+            break;
+
+        default:
+            rc = MetaStatusCode::PARAM_ERROR;
+    }
+
+    return rc;
 }
 
-DentryContainerType *MemoryDentryStorage::GetDentryContainer() {
-    return &dentryMap_;
+size_t MemoryDentryStorage::Size() {
+    ReadLockGuard r(rwLock_);
+    return dentryTree_.size();
+}
+
+void MemoryDentryStorage::Clear() {
+    ReadLockGuard w(rwLock_);
+    dentryTree_.clear();
+}
+
+DentryStorage::ContainerType* MemoryDentryStorage::GetContainer() {
+    return &dentryTree_;
 }
 
 }  // namespace metaserver

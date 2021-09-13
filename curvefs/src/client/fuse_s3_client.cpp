@@ -22,6 +22,7 @@
  */
 
 #include <string>
+#include <memory>
 
 #include "curvefs/src/client/fuse_s3_client.h"
 

@@ -77,10 +77,6 @@ struct VolumeOption {
     uint64_t fsBlockSize;
 };
 
-struct DCacheOption {
-    uint32_t maxListDentryCount;
-};
-
 struct ExtentManagerOption {
     uint64_t preAllocSize;
 };
@@ -92,12 +88,12 @@ struct FuseClientOption {
     SpaceAllocServerOption spaceOpt;
     BlockDeviceClientOptions bdevOpt;
     S3Option s3Opt;
-    DCacheOption dcacheOpt;
     ExtentManagerOption extentManagerOpt;
     VolumeOption volumeOpt;
 
     double attrTimeOut;
     double entryTimeOut;
+    uint32_t listDentryLimit;
 };
 
 void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption);

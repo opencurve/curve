@@ -29,13 +29,23 @@
 #include <string>
 #include <vector>
 
+#include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/extent_manager.h"
+#include "curvefs/src/client/client_operator.h"
 #include "src/common/timeutility.h"
-#include "curvefs/src/client/rpcclient/metaserver_client.h"
 
 using ::curvefs::common::Volume;
 using ::curvefs::common::S3Info;
+using ::curvefs::mds::topology::PartitionTxId;
+
+#define RETURN_IF_UNSUCCESS(action) \
+do { \
+    rc = renameOp.action(); \
+    if (rc != CURVEFS_ERROR::OK) { \
+        return rc; \
+    } \
+} while (0)
 
 namespace curvefs {
 namespace client {
@@ -46,6 +56,8 @@ using rpcclient::Cli2ClientImpl;
 using rpcclient::ChannelManager;
 
 CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
+    option_ = option;
+
     mdsBase_ = new MDSBaseClient();
     FSStatusCode ret = mdsClient_->Init(option.mdsOpt, mdsBase_);
     if (ret != FSStatusCode::OK) {
@@ -65,11 +77,6 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
 
     spaceBase_ = new SpaceBaseClient();
     CURVEFS_ERROR ret3 = spaceClient_->Init(option.spaceOpt, spaceBase_);
-    if (ret3 != CURVEFS_ERROR::OK) {
-        return ret3;
-    }
-
-    ret3 = dentryManager_->Init(option.dcacheOpt);
     if (ret3 != CURVEFS_ERROR::OK) {
         return ret3;
     }
@@ -213,6 +220,10 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
     dentry.set_inodeid(inodeWrapper->GetInodeId());
     dentry.set_parentinodeid(parent);
     dentry.set_name(name);
+    if (type == FsFileType::TYPE_FILE || type == FsFileType::TYPE_S3) {
+        dentry.set_flag(DentryFlag::TYPE_FILE_FLAG);
+    }
+
     ret = dentryManager_->CreateDentry(dentry);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
@@ -260,7 +271,8 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
 
     if (isDir) {
         std::list<Dentry> dentryList;
-        ret = dentryManager_->ListDentry(ino, &dentryList);
+        auto limit = option_.listDentryLimit;
+        ret = dentryManager_->ListDentry(ino, &dentryList, limit);
         if (ret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "dentryManager_ ListDentry fail, ret = " << ret
                       << ", parent = " << ino;
@@ -352,7 +364,8 @@ CURVEFS_ERROR FuseClient::FuseOpReadDir(
     DirBufferHead *bufHead = dirBuf_->DirBufferGet(dindex);
     if (!bufHead->wasRead) {
         std::list<Dentry> dentryList;
-        ret = dentryManager_->ListDentry(ino, &dentryList);
+        auto limit = option_.listDentryLimit;
+        ret = dentryManager_->ListDentry(ino, &dentryList, limit);
         if (ret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "dentryManager_ ListDentry fail, ret = " << ret
                       << ", parent = " << ino;
@@ -371,6 +384,28 @@ CURVEFS_ERROR FuseClient::FuseOpReadDir(
         *rSize = 0;
     }
     return ret;
+}
+
+CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req,
+                                       fuse_ino_t parent,
+                                       const char* name,
+                                       fuse_ino_t newparent,
+                                       const char* newname) {
+    auto renameOp = RenameOperator(fsInfo_->fsid(),
+                                   parent, name, newparent, newname,
+                                   dentryManager_,
+                                   inodeManager_,
+                                   metaClient_,
+                                   mdsClient_);
+
+    CURVEFS_ERROR rc = CURVEFS_ERROR::OK;
+    RETURN_IF_UNSUCCESS(GetTxId);
+    RETURN_IF_UNSUCCESS(Precheck);
+    RETURN_IF_UNSUCCESS(PrepareTx);
+    RETURN_IF_UNSUCCESS(CommitTx);
+    renameOp.DeleteOldInode();
+    renameOp.UpdateCache();
+    return rc;
 }
 
 CURVEFS_ERROR FuseClient::FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,

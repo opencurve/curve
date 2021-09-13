@@ -461,6 +461,45 @@ TEST_F(MdsClientImplTest, test_GetFsInfo_by_fsid) {
     ASSERT_EQ(FSStatusCode::RPC_ERROR, mdsclient_.GetFsInfo(fsid, &out));
 }
 
+TEST_F(MdsClientImplTest, CommitTx) {
+    curvefs::mds::topology::CommitTxResponse response;
+
+    // CASE 1: CommitTx success
+    response.set_statuscode(TopoStatusCode::TOPO_OK);
+    EXPECT_CALL(mockmdsbasecli_, CommitTx(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+
+    auto txIds = std::vector<PartitionTxId>();
+    auto rc = mdsclient_.CommitTx(txIds);
+    ASSERT_EQ(rc, TopoStatusCode::TOPO_OK);
+
+    // CASE 2: CommitTx fail
+    response.set_statuscode(TopoStatusCode::TOPO_INTERNAL_ERROR);
+    EXPECT_CALL(mockmdsbasecli_, CommitTx(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+
+    rc = mdsclient_.CommitTx(txIds);
+    ASSERT_EQ(rc, TopoStatusCode::TOPO_INTERNAL_ERROR);
+
+    // CASE 3: RPC error, retry until success
+    int count = 0;
+    EXPECT_CALL(mockmdsbasecli_, CommitTx(_, _, _, _))
+        .Times(11)
+        .WillRepeatedly(Invoke([&](const std::vector<PartitionTxId>& txIds,
+                                   CommitTxResponse* response,
+                                   brpc::Controller* cntl,
+                                   brpc::Channel* channel) {
+            if (++count <= 10) {
+                cntl->SetFailed(112, "Not connected to");
+            } else {
+                response->set_statuscode(TopoStatusCode::TOPO_OK);
+            }
+        }));
+
+    rc = mdsclient_.CommitTx(txIds);
+    ASSERT_EQ(rc, TopoStatusCode::TOPO_OK);
+}
+
 TEST_F(MdsClientImplTest, test_GetMetaServerInfo) {
     // in
     curve::client::EndPoint ep;

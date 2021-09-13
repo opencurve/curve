@@ -24,6 +24,7 @@
 #ifndef CURVEFS_SRC_CLIENT_FUSE_CLIENT_H_
 #define CURVEFS_SRC_CLIENT_FUSE_CLIENT_H_
 
+#include <map>
 #include <memory>
 #include <string>
 
@@ -39,11 +40,13 @@
 #include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/proto/common.pb.h"
+#include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/common/fast_align.h"
 
 #define DirectIOAlignemnt 512
 
 using ::curvefs::common::FSType;
+using ::curvefs::metaserver::DentryFlag;
 
 namespace curvefs {
 namespace client {
@@ -140,6 +143,12 @@ class FuseClient {
             struct fuse_file_info *fi,
             char **buffer,
             size_t *rSize);
+
+    virtual CURVEFS_ERROR FuseOpRename(fuse_req_t req,
+                                       fuse_ino_t parent,
+                                       const char* name,
+                                       fuse_ino_t newparent,
+                                       const char* newname);
 
     virtual CURVEFS_ERROR FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
              struct fuse_file_info *fi, struct stat *attr);
