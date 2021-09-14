@@ -62,6 +62,9 @@ using curvefs::metaserver::UpdateInodeResponse;
 using curvefs::common::FSType;
 using curvefs::common::S3Info;
 using curvefs::common::Volume;
+using curvefs::common::PartitionInfo;
+using curvefs::common::Peer;
+
 using curvefs::mds::CreateFsRequest;
 using curvefs::mds::CreateFsResponse;
 using curvefs::mds::DeleteFsRequest;
@@ -88,6 +91,14 @@ using curvefs::mds::topology::GetMetaServerInfoRequest;
 using curvefs::mds::topology::GetMetaServerInfoResponse;
 using curvefs::mds::topology::GetMetaServerListInCopySetsRequest;
 using curvefs::mds::topology::GetMetaServerListInCopySetsResponse;
+using curvefs::mds::topology::CreatePartitionRequest;
+using curvefs::mds::topology::CreatePartitionResponse;
+using curvefs::mds::topology::ListPartitionRequest;
+using curvefs::mds::topology::ListPartitionResponse;
+using curvefs::mds::topology::GetCopysetOfPartitionRequest;
+using curvefs::mds::topology::GetCopysetOfPartitionResponse;
+using curvefs::mds::topology::TopoStatusCode;
+using curvefs::mds::topology::Copyset;
 struct InodeParam {
     uint64_t fsId;
     uint64_t length;
@@ -130,11 +141,24 @@ class MDSBaseClient {
                                    GetMetaServerInfoResponse *response,
                                    brpc::Controller *cntl,
                                    brpc::Channel *channel);
-    virtual void
-    GetMetaServerListInCopysets(const LogicPoolID &logicalpooid,
-                                const std::vector<CopysetID> &copysetidvec,
-                                GetMetaServerListInCopySetsResponse *response,
-                                brpc::Controller *cntl, brpc::Channel *channel);
+    virtual void GetMetaServerListInCopysets(
+        const LogicPoolID &logicalpooid,
+        const std::vector<CopysetID> &copysetidvec,
+        GetMetaServerListInCopySetsResponse *response, brpc::Controller *cntl,
+        brpc::Channel *channel);
+
+    virtual void CreatePartition(uint32_t fsID, uint32_t count,
+                                 CreatePartitionResponse *response,
+                                 brpc::Controller *cntl,
+                                 brpc::Channel *channel);
+
+    virtual void GetCopysetOfPartitions(
+        const std::vector<uint32_t> &partitionIDList,
+        GetCopysetOfPartitionResponse *response, brpc::Controller *cntl,
+        brpc::Channel *channel);
+
+    virtual void ListPartition(uint32_t fsID, ListPartitionResponse *response,
+                               brpc::Controller *cntl, brpc::Channel *channel);
 };
 
 }  // namespace rpcclient

@@ -20,7 +20,6 @@
  * Author: lixiaocui
  */
 
-
 #ifndef CURVEFS_TEST_CLIENT_RPCCLIENT_MOCK_MDS_BASE_CLIENT_H_
 #define CURVEFS_TEST_CLIENT_RPCCLIENT_MOCK_MDS_BASE_CLIENT_H_
 
@@ -77,6 +76,20 @@ class MockMDSBaseClient : public MDSBaseClient {
                  void(const LogicPoolID &logicalpooid,
                       const std::vector<CopysetID> &copysetidvec,
                       GetMetaServerListInCopySetsResponse *response,
+                      brpc::Controller *cntl, brpc::Channel *channel));
+
+    MOCK_METHOD5(CreatePartition,
+                 void(uint32_t fsID, uint32_t count,
+                      CreatePartitionResponse *response, brpc::Controller *cntl,
+                      brpc::Channel *channel));
+
+    MOCK_METHOD4(GetCopysetOfPartitions,
+                 void(const std::vector<uint32_t> &partitionIDList,
+                      GetCopysetOfPartitionResponse *response,
+                      brpc::Controller *cntl, brpc::Channel *channel));
+
+    MOCK_METHOD4(ListPartition,
+                 void(uint32_t fsID, ListPartitionResponse *response,
                       brpc::Controller *cntl, brpc::Channel *channel));
 };
 }  // namespace rpcclient

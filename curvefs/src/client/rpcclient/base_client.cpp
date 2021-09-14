@@ -128,6 +128,41 @@ void MDSBaseClient::GetMetaServerListInCopysets(
     stub.GetMetaServerListInCopysets(cntl, &request, response, nullptr);
 }
 
+void MDSBaseClient::CreatePartition(uint32_t fsID, uint32_t count,
+                                    CreatePartitionResponse *response,
+                                    brpc::Controller *cntl,
+                                    brpc::Channel *channel) {
+    CreatePartitionRequest request;
+    request.set_fsid(fsID);
+    request.set_count(count);
+
+    curvefs::mds::topology::TopologyService_Stub stub(channel);
+    stub.CreatePartition(cntl, &request, response, nullptr);
+}
+
+void MDSBaseClient::GetCopysetOfPartitions(
+    const std::vector<uint32_t> &partitionIDList,
+    GetCopysetOfPartitionResponse *response, brpc::Controller *cntl,
+    brpc::Channel *channel) {
+    GetCopysetOfPartitionRequest request;
+    for (auto partitionId : partitionIDList) {
+        request.add_partitionid(partitionId);
+    }
+
+    curvefs::mds::topology::TopologyService_Stub stub(channel);
+    stub.GetCopysetOfPartition(cntl, &request, response, nullptr);
+}
+
+void MDSBaseClient::ListPartition(uint32_t fsID,
+                                  ListPartitionResponse *response,
+                                  brpc::Controller *cntl,
+                                  brpc::Channel *channel) {
+    ListPartitionRequest request;
+    request.set_fsid(fsID);
+
+    curvefs::mds::topology::TopologyService_Stub stub(channel);
+    stub.ListPartition(cntl, &request, response, nullptr);
+}
 }  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs

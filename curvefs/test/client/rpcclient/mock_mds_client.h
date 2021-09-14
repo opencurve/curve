@@ -23,9 +23,10 @@
 #ifndef CURVEFS_TEST_CLIENT_RPCCLIENT_MOCK_MDS_CLIENT_H_
 #define CURVEFS_TEST_CLIENT_RPCCLIENT_MOCK_MDS_CLIENT_H_
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -43,9 +44,9 @@ class MockMdsClient : public MdsClient {
     MockMdsClient() {}
     ~MockMdsClient() {}
 
-    MOCK_METHOD2(Init, FSStatusCode(
-        const ::curve::client::MetaServerOption &mdsOpt,
-        MDSBaseClient *baseclient));
+    MOCK_METHOD2(Init,
+                 FSStatusCode(const ::curve::client::MetaServerOption &mdsOpt,
+                              MDSBaseClient *baseclient));
 
     MOCK_METHOD3(CreateFs,
                  FSStatusCode(const std::string &fsName, uint64_t blockSize,
@@ -77,6 +78,18 @@ class MockMdsClient : public MdsClient {
                  bool(const LogicPoolID &logicalpooid,
                       const std::vector<CopysetID> &copysetidvec,
                       std::vector<CopysetInfo<MetaserverID>> *cpinfoVec));
+
+    MOCK_METHOD3(CreatePartition,
+                 bool(uint32_t fsID, uint32_t count,
+                      std::vector<PartitionInfo> *partitionInfos));
+
+    MOCK_METHOD2(GetCopysetOfPartitions,
+                 bool(const std::vector<uint32_t> &partitionIDList,
+                      std::map<uint32_t, Copyset> *copysetMap));
+
+    MOCK_METHOD2(ListPartition,
+                 bool(uint32_t fsID,
+                      std::vector<PartitionInfo> *partitionInfos));
 };
 }  // namespace rpcclient
 }  // namespace client

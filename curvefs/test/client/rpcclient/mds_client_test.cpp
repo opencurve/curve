@@ -14,7 +14,6 @@
  *  limitations under the License.
  */
 
-
 /*
  * Project: curve
  * Created Date: Thur Jun 17 2021
@@ -22,8 +21,8 @@
  */
 
 #include <brpc/server.h>
-#include <gtest/gtest.h>
 #include <google/protobuf/util/message_differencer.h>
+#include <gtest/gtest.h>
 
 #include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/test/client/rpcclient/mock_mds_base_client.h"
@@ -93,6 +92,36 @@ void GetMetaServerListInCopysetsRpcFailed(
     GetMetaServerListInCopySetsResponse *response, brpc::Controller *cntl,
     brpc::Channel *channel) {
     cntl->SetFailed(112, "Not connected to");
+}
+
+void CreatePartitionRpcFailed(uint32_t fsID, uint32_t count,
+                              CreatePartitionResponse *response,
+                              brpc::Controller *cntl, brpc::Channel *channel) {
+    cntl->SetFailed(112, "Not connected to");
+}
+
+void GetCopysetOfPartitionsRpcFailed(
+    const std::vector<uint32_t> &partitionIDList,
+    GetCopysetOfPartitionResponse *response, brpc::Controller *cntl,
+    brpc::Channel *channel) {
+    cntl->SetFailed(112, "Not connected to");
+}
+
+void ListPartitionRpcFailed(uint32_t fsID, ListPartitionResponse *response,
+                            brpc::Controller *cntl, brpc::Channel *channel) {
+    cntl->SetFailed(112, "Not connected to");
+}
+
+bool ComparePartition(PartitionInfo first, PartitionInfo second) {
+    return first.fsid() == second.fsid() && first.poolid() == second.poolid() &&
+           first.copysetid() == second.copysetid() &&
+           first.partitionid() == second.partitionid() &&
+           first.start() == second.start() && first.end() == second.end();
+}
+
+bool CompareCopyset(Copyset first, Copyset second) {
+    return first.poolid() == second.poolid() &&
+           first.copysetid() == second.copysetid();
 }
 
 class MdsClientImplTest : public testing::Test {
@@ -525,6 +554,171 @@ TEST_F(MdsClientImplTest, GetMetaServerListInCopysets) {
         .WillRepeatedly(Invoke(GetMetaServerListInCopysetsRpcFailed));
     ASSERT_FALSE(
         mdsclient_.GetMetaServerListInCopysets(poolID, copysetidvec, &out));
+}
+
+TEST_F(MdsClientImplTest, CreatePartition) {
+    // in
+    uint32_t fsID = 1;
+    uint32_t count = 2;
+
+    // out
+    std::vector<PartitionInfo> out;
+
+    PartitionInfo partitioninfo1;
+    PartitionInfo partitioninfo2;
+    partitioninfo1.set_fsid(fsID);
+    partitioninfo1.set_poolid(1);
+    partitioninfo1.set_copysetid(2);
+    partitioninfo1.set_partitionid(3);
+    partitioninfo1.set_start(4);
+    partitioninfo1.set_end(5);
+
+    partitioninfo2.set_fsid(fsID);
+    partitioninfo2.set_poolid(2);
+    partitioninfo2.set_copysetid(3);
+    partitioninfo2.set_partitionid(4);
+    partitioninfo2.set_start(5);
+    partitioninfo2.set_end(6);
+
+    curvefs::mds::topology::CreatePartitionResponse response;
+    // 1. create partition return ok, but no partition info returns
+    response.set_statuscode(TopoStatusCode::TOPO_OK);
+    EXPECT_CALL(mockmdsbasecli_, CreatePartition(_, _, _, _, _))
+        .WillOnce(SetArgPointee<2>(response));
+    ASSERT_FALSE(mdsclient_.CreatePartition(fsID, count, &out));
+
+    // 2. create partition ok
+    response.add_partitioninfolist()->CopyFrom(partitioninfo1);
+    response.add_partitioninfolist()->CopyFrom(partitioninfo2);
+
+    response.set_statuscode(TopoStatusCode::TOPO_OK);
+    EXPECT_CALL(mockmdsbasecli_, CreatePartition(_, _, _, _, _))
+        .WillOnce(SetArgPointee<2>(response));
+    ASSERT_TRUE(mdsclient_.CreatePartition(fsID, count, &out));
+    ASSERT_EQ(2, out.size());
+    ASSERT_TRUE(ComparePartition(out[0], partitioninfo1));
+    ASSERT_TRUE(ComparePartition(out[1], partitioninfo2));
+
+    // 3. create partition fail
+    response.set_statuscode(TopoStatusCode::TOPO_COPYSET_NOT_FOUND);
+    EXPECT_CALL(mockmdsbasecli_, CreatePartition(_, _, _, _, _))
+        .WillOnce(SetArgPointee<2>(response));
+    ASSERT_FALSE(mdsclient_.CreatePartition(fsID, count, &out));
+
+    // 4. get rpc error
+    brpc::Controller cntl;
+    cntl.SetFailed(ECONNRESET, "error connect reset");
+    EXPECT_CALL(mockmdsbasecli_, CreatePartition(_, _, _, _, _))
+        .WillRepeatedly(Invoke(CreatePartitionRpcFailed));
+    ASSERT_FALSE(mdsclient_.CreatePartition(fsID, count, &out));
+}
+
+TEST_F(MdsClientImplTest, ListPartition) {
+    // in
+    uint32_t fsID = 1;
+
+    // out
+    std::vector<PartitionInfo> out;
+
+    PartitionInfo partitioninfo1;
+    PartitionInfo partitioninfo2;
+    partitioninfo1.set_fsid(fsID);
+    partitioninfo1.set_poolid(1);
+    partitioninfo1.set_copysetid(2);
+    partitioninfo1.set_partitionid(3);
+    partitioninfo1.set_start(4);
+    partitioninfo1.set_end(5);
+
+    partitioninfo2.set_fsid(fsID);
+    partitioninfo2.set_poolid(2);
+    partitioninfo2.set_copysetid(3);
+    partitioninfo2.set_partitionid(4);
+    partitioninfo2.set_start(5);
+    partitioninfo2.set_end(6);
+
+    curvefs::mds::topology::ListPartitionResponse response;
+    response.add_partitioninfolist()->CopyFrom(partitioninfo1);
+    response.add_partitioninfolist()->CopyFrom(partitioninfo2);
+
+    // 1. get metaserver list in copysets ok
+    response.set_statuscode(TopoStatusCode::TOPO_OK);
+    EXPECT_CALL(mockmdsbasecli_, ListPartition(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+    ASSERT_TRUE(mdsclient_.ListPartition(fsID, &out));
+
+    ASSERT_EQ(2, out.size());
+    ASSERT_TRUE(ComparePartition(out[0], partitioninfo1));
+    ASSERT_TRUE(ComparePartition(out[1], partitioninfo2));
+
+    // 2. get metaserver list in copyset unknown error
+    response.set_statuscode(TopoStatusCode::TOPO_COPYSET_NOT_FOUND);
+    EXPECT_CALL(mockmdsbasecli_, ListPartition(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+    ASSERT_FALSE(mdsclient_.ListPartition(fsID, &out));
+
+    // 3. get rpc error
+    brpc::Controller cntl;
+    cntl.SetFailed(ECONNRESET, "error connect reset");
+    EXPECT_CALL(mockmdsbasecli_, ListPartition(_, _, _, _))
+        .WillRepeatedly(Invoke(ListPartitionRpcFailed));
+    ASSERT_FALSE(mdsclient_.ListPartition(fsID, &out));
+}
+
+TEST_F(MdsClientImplTest, GetCopysetOfPartition) {
+    // in
+    std::vector<uint32_t> partitionIDList{1, 2};
+
+    // out
+    std::map<uint32_t, Copyset> out;
+
+    Copyset copyset1;
+    Copyset copyset2;
+    copyset1.set_poolid(1);
+    copyset1.set_copysetid(2);
+    Peer peer1;
+    peer1.set_id(3);
+    peer1.set_address("addr1");
+    copyset1.add_peers()->CopyFrom(peer1);
+
+    copyset2.set_poolid(2);
+    copyset2.set_copysetid(3);
+    Peer peer2;
+    peer2.set_id(4);
+    peer2.set_address("addr2");
+    copyset2.add_peers()->CopyFrom(peer2);
+
+    curvefs::mds::topology::GetCopysetOfPartitionResponse response;
+
+    // 1. get metaserver list return ok, but no copyset returns
+    response.set_statuscode(TopoStatusCode::TOPO_OK);
+    EXPECT_CALL(mockmdsbasecli_, GetCopysetOfPartitions(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+    ASSERT_FALSE(mdsclient_.GetCopysetOfPartitions(partitionIDList, &out));
+
+    // 2. get metaserver list in copysets ok
+    auto copysetMap = response.mutable_copysetmap();
+    (*copysetMap)[1] = copyset1;
+    (*copysetMap)[2] = copyset2;
+
+    response.set_statuscode(TopoStatusCode::TOPO_OK);
+    EXPECT_CALL(mockmdsbasecli_, GetCopysetOfPartitions(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+    ASSERT_TRUE(mdsclient_.GetCopysetOfPartitions(partitionIDList, &out));
+    ASSERT_TRUE(CompareCopyset(out[1], copyset1));
+    ASSERT_TRUE(CompareCopyset(out[2], copyset2));
+
+    // 3. get metaserver list in copyset unknown error
+    response.set_statuscode(TopoStatusCode::TOPO_COPYSET_NOT_FOUND);
+    EXPECT_CALL(mockmdsbasecli_, GetCopysetOfPartitions(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+    ASSERT_FALSE(mdsclient_.GetCopysetOfPartitions(partitionIDList, &out));
+
+    // 4. get rpc error
+    brpc::Controller cntl;
+    cntl.SetFailed(ECONNRESET, "error connect reset");
+    EXPECT_CALL(mockmdsbasecli_, GetCopysetOfPartitions(_, _, _, _))
+        .WillRepeatedly(Invoke(GetCopysetOfPartitionsRpcFailed));
+    ASSERT_FALSE(mdsclient_.GetCopysetOfPartitions(partitionIDList, &out));
 }
 
 }  // namespace rpcclient
