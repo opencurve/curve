@@ -14,22 +14,21 @@
  *  limitations under the License.
  */
 
-
 /*
  * Project: curve
  * Created Date: Thur Jun 15 2021
  * Author: lixiaocui
  */
 
-#include <vector>
 #include "curvefs/src/client/rpcclient/mds_client.h"
+#include <vector>
 namespace curvefs {
 namespace client {
 namespace rpcclient {
 
-FSStatusCode
-MdsClientImpl::Init(const ::curve::client::MetaServerOption &mdsOpt,
-                    MDSBaseClient *baseclient) {
+FSStatusCode MdsClientImpl::Init(
+    const ::curve::client::MetaServerOption &mdsOpt,
+    MDSBaseClient *baseclient) {
     mdsOpt_ = mdsOpt;
     rpcexcutor_.SetOption(mdsOpt_.rpcRetryOpt);
     mdsbasecli_ = baseclient;
@@ -43,8 +42,8 @@ MdsClientImpl::Init(const ::curve::client::MetaServerOption &mdsOpt,
     return FSStatusCode::OK;
 }
 
-#define RPCTask                                                                \
-    [&](int addrindex, uint64_t rpctimeoutMS, brpc::Channel *channel,          \
+#define RPCTask                                                       \
+    [&](int addrindex, uint64_t rpctimeoutMS, brpc::Channel *channel, \
         brpc::Controller *cntl) -> int
 
 FSStatusCode MdsClientImpl::CreateFs(const std::string &fsName,
@@ -93,7 +92,6 @@ FSStatusCode MdsClientImpl::CreateFsS3(const std::string &fsName,
     };
     return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
 }
-
 
 FSStatusCode MdsClientImpl::DeleteFs(const std::string &fsName) {
     auto task = RPCTask {
@@ -214,10 +212,8 @@ FSStatusCode MdsClientImpl::GetFsInfo(uint32_t fsId, FsInfo *fsInfo) {
     return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
 }
 
-
 bool MdsClientImpl::GetMetaServerInfo(
     const PeerAddr &addr, CopysetPeerInfo<MetaserverID> *metaserverInfo) {
-
     std::vector<std::string> strs;
     curve::common::SplitString(addr.ToString(), ":", &strs);
     const std::string &ip = strs[0];
@@ -306,11 +302,127 @@ bool MdsClientImpl::GetMetaServerListInCopysets(
             }
             cpinfoVec->push_back(copysetseverl);
         }
-        int ret = response.statuscode();
-        LOG_IF(WARNING, ret != 0) << "GetMetaServerList failed"
-                                  << ", errocde = " << response.statuscode()
-                                  << ", log id = " << cntl->log_id();
+        TopoStatusCode ret = response.statuscode();
+        LOG_IF(WARNING, TopoStatusCode::TOPO_OK != 0)
+            << "GetMetaServerList failed"
+            << ", errocde = " << response.statuscode()
+            << ", log id = " << cntl->log_id();
         return ret;
+    };
+
+    return 0 == rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS);
+}
+
+bool MdsClientImpl::CreatePartition(
+    uint32_t fsID, uint32_t count, std::vector<PartitionInfo> *partitionInfos) {
+    auto task = RPCTask {
+        CreatePartitionResponse response;
+        mdsbasecli_->CreatePartition(fsID, count, &response, cntl, channel);
+        if (cntl->Failed()) {
+            LOG(WARNING) << "CreatePartition from mds failed, error is "
+                         << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        TopoStatusCode ret = response.statuscode();
+        if (ret != TopoStatusCode::TOPO_OK) {
+            LOG(WARNING) << "CreatePartition: fsID = " << fsID
+                         << ", count = " << count << ", errcode = " << ret
+                         << ", errmsg = " << TopoStatusCode_Name(ret);
+            return ret;
+        }
+
+        int partitionNum = response.partitioninfolist_size();
+        if (partitionNum == 0) {
+            LOG(ERROR) << "CreatePartition: fsID = " << fsID
+                       << ", count = " << count << ", errcode = " << ret
+                       << ", errmsg = " << TopoStatusCode_Name(ret)
+                       << ", but no partition info returns";
+            return TopoStatusCode::TOPO_CREATE_PARTITION_FAIL;
+        }
+
+        partitionInfos->clear();
+        for (int i = 0; i < partitionNum; i++) {
+            partitionInfos->push_back(response.partitioninfolist(i));
+        }
+
+        return TopoStatusCode::TOPO_OK;
+    };
+
+    return 0 == rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS);
+}
+
+bool MdsClientImpl::GetCopysetOfPartitions(
+    const std::vector<uint32_t> &partitionIDList,
+    std::map<uint32_t, Copyset> *copysetMap) {
+    auto task = RPCTask {
+        GetCopysetOfPartitionResponse response;
+        mdsbasecli_->GetCopysetOfPartitions(partitionIDList, &response, cntl,
+                                            channel);
+        if (cntl->Failed()) {
+            LOG(WARNING) << "GetCopysetOfPartition from mds failed, error is "
+                         << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        TopoStatusCode ret = response.statuscode();
+        if (ret != TopoStatusCode::TOPO_OK) {
+            LOG(WARNING) << "GetCopysetOfPartition: errcode = " << ret
+                         << ", errmsg = " << TopoStatusCode_Name(ret);
+            return ret;
+        }
+
+        int size = response.copysetmap_size();
+        if (size == 0) {
+            LOG(WARNING) << "GetCopysetOfPartition: errcode = " << ret
+                         << ", errmsg = " << TopoStatusCode_Name(ret)
+                         << ", but no copyset returns";
+            return TopoStatusCode::TOPO_INTERNAL_ERROR;
+        }
+
+        copysetMap->clear();
+        for (auto it : response.copysetmap()) {
+            CopysetPeerInfo<MetaserverID> csinfo;
+            copysetMap->emplace(it.first, it.second);
+        }
+
+        return TopoStatusCode::TOPO_OK;
+    };
+
+    return 0 == rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS);
+}
+
+bool MdsClientImpl::ListPartition(uint32_t fsID,
+                                  std::vector<PartitionInfo> *partitionInfos) {
+    auto task = RPCTask {
+        ListPartitionResponse response;
+        mdsbasecli_->ListPartition(fsID, &response, cntl, channel);
+        if (cntl->Failed()) {
+            LOG(WARNING) << "ListPartition from mds failed, error is "
+                         << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        TopoStatusCode ret = response.statuscode();
+        if (ret != TopoStatusCode::TOPO_OK) {
+            LOG(WARNING) << "ListPartition: fsID = " << fsID
+                         << ", errcode = " << ret
+                         << ", errmsg = " << TopoStatusCode_Name(ret);
+            return ret;
+        }
+
+        partitionInfos->clear();
+        // when fs is creating and mds exit at the same time,
+        // this may cause this fs has no partition
+        int partitionNum = response.partitioninfolist_size();
+        for (int i = 0; i < partitionNum; i++) {
+            partitionInfos->push_back(response.partitioninfolist(i));
+        }
+
+        return TopoStatusCode::TOPO_OK;
     };
 
     return 0 == rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS);

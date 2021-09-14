@@ -684,12 +684,15 @@ TEST_F(TestFuseVolumeClient, FuseOpCreate) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpCreateFailed) {
-    fuse_req_t req;
+    fuse_req fakeReq;
+    fuse_ctx fakeCtx;
+    fakeReq.ctx = &fakeCtx;
+    fuse_req_t req = &fakeReq;
     fuse_ino_t parent = 1;
     const char *name = "xxx";
     mode_t mode = 1;
     struct fuse_file_info fi;
-    fi.flags = 0;
+    memset(&fi, 0, sizeof(fi));
 
     fuse_ino_t ino = 2;
     Inode inode;
@@ -856,8 +859,9 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDir) {
     fuse_ino_t ino = 1;
     size_t size = 100;
     off_t off = 0;
-    struct fuse_file_info *fi = new fuse_file_info();
-    fi->fh = 0;
+    struct fuse_file_info fi;
+    memset(&fi, 0, sizeof(fi));
+    fi.fh = 0;
     char *buffer;
     size_t rSize = 0;
 
@@ -873,7 +877,7 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDir) {
         .WillRepeatedly(DoAll(SetArgReferee<1>(inodeWrapper),
                 Return(CURVEFS_ERROR::OK)));
 
-    CURVEFS_ERROR ret = client_->FuseOpOpenDir(req, ino, fi);
+    CURVEFS_ERROR ret = client_->FuseOpOpenDir(req, ino, &fi);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     std::list<Dentry> dentryList;
@@ -888,11 +892,9 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDir) {
         .WillOnce(DoAll(SetArgPointee<1>(dentryList),
                 Return(CURVEFS_ERROR::OK)));
 
-    ret = client_->FuseOpReadDir(req, ino, size, off, fi,
+    ret = client_->FuseOpReadDir(req, ino, size, off, &fi,
         &buffer, &rSize);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-
-    delete fi;
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDirFailed) {
@@ -900,8 +902,9 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDirFailed) {
     fuse_ino_t ino = 1;
     size_t size = 100;
     off_t off = 0;
-    struct fuse_file_info *fi = new fuse_file_info();
-    fi->fh = 0;
+    struct fuse_file_info fi;
+    memset(&fi, 0, sizeof(fi));
+    fi.fh = 0;
     char *buffer;
     size_t rSize = 0;
 
@@ -917,7 +920,7 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDirFailed) {
         .WillRepeatedly(DoAll(SetArgReferee<1>(inodeWrapper),
                 Return(CURVEFS_ERROR::OK)));
 
-    CURVEFS_ERROR ret = client_->FuseOpOpenDir(req, ino, fi);
+    CURVEFS_ERROR ret = client_->FuseOpOpenDir(req, ino, &fi);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     std::list<Dentry> dentryList;
@@ -932,17 +935,16 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDirFailed) {
         .WillOnce(DoAll(SetArgPointee<1>(dentryList),
                 Return(CURVEFS_ERROR::INTERNAL)));
 
-    ret = client_->FuseOpReadDir(req, ino, size, off, fi,
+    ret = client_->FuseOpReadDir(req, ino, size, off, &fi,
         &buffer, &rSize);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
-
-    delete fi;
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpGetAttr) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
-    struct fuse_file_info *fi;
+    struct fuse_file_info fi;
+    memset(&fi, 0, sizeof(fi));
     struct stat attr;
 
     Inode inode;
@@ -954,14 +956,15 @@ TEST_F(TestFuseVolumeClient, FuseOpGetAttr) {
         .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
                 Return(CURVEFS_ERROR::OK)));
 
-    CURVEFS_ERROR ret = client_->FuseOpGetAttr(req, ino, fi, &attr);
+    CURVEFS_ERROR ret = client_->FuseOpGetAttr(req, ino, &fi, &attr);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpGetAttrFailed) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
-    struct fuse_file_info *fi;
+    struct fuse_file_info fi;
+    memset(&fi, 0, sizeof(fi));
     struct stat attr;
 
     Inode inode;
@@ -973,7 +976,7 @@ TEST_F(TestFuseVolumeClient, FuseOpGetAttrFailed) {
         .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
                 Return(CURVEFS_ERROR::INTERNAL)));
 
-    CURVEFS_ERROR ret = client_->FuseOpGetAttr(req, ino, fi, &attr);
+    CURVEFS_ERROR ret = client_->FuseOpGetAttr(req, ino, &fi, &attr);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 }
 
@@ -982,7 +985,8 @@ TEST_F(TestFuseVolumeClient, FuseOpSetAttr) {
     fuse_ino_t ino = 1;
     struct stat attr;
     int to_set;
-    struct fuse_file_info *fi;
+    struct fuse_file_info fi;
+    memset(&fi, 0, sizeof(fi));
     struct stat attrOut;
 
     Inode inode;
@@ -1014,7 +1018,7 @@ TEST_F(TestFuseVolumeClient, FuseOpSetAttr) {
              FUSE_SET_ATTR_CTIME;
 
     CURVEFS_ERROR ret = client_->FuseOpSetAttr(
-        req, ino, &attr, to_set, fi, &attrOut);
+        req, ino, &attr, to_set, &fi, &attrOut);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(attr.st_mode,  attrOut.st_mode);
     ASSERT_EQ(attr.st_uid,  attrOut.st_uid);
@@ -1030,7 +1034,8 @@ TEST_F(TestFuseVolumeClient, FuseOpSetAttrFailed) {
     fuse_ino_t ino = 1;
     struct stat attr;
     int to_set;
-    struct fuse_file_info *fi;
+    struct fuse_file_info fi;
+    memset(&fi, 0, sizeof(fi));
     struct stat attrOut;
 
     Inode inode;
@@ -1063,10 +1068,10 @@ TEST_F(TestFuseVolumeClient, FuseOpSetAttrFailed) {
              FUSE_SET_ATTR_CTIME;
 
     CURVEFS_ERROR ret = client_->FuseOpSetAttr(
-        req, ino, &attr, to_set, fi, &attrOut);
+        req, ino, &attr, to_set, &fi, &attrOut);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
-    ret = client_->FuseOpSetAttr(req, ino, &attr, to_set, fi, &attrOut);
+    ret = client_->FuseOpSetAttr(req, ino, &attr, to_set, &fi, &attrOut);
     ASSERT_EQ(CURVEFS_ERROR::UNKNOWN, ret);
 }
 
@@ -1254,7 +1259,8 @@ TEST_F(TestFuseVolumeClient, FuseOpReadLinkFailed) {
 TEST_F(TestFuseVolumeClient, FuseOpRelease) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
-    struct fuse_file_info *fi;
+    struct fuse_file_info fi;
+    memset(&fi, 0, sizeof(fi));
 
     Inode inode;
     inode.set_fsid(fsId);
@@ -1271,7 +1277,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRelease) {
     EXPECT_CALL(*metaClient_, UpdateInode(_))
         .WillOnce(Return(MetaStatusCode::OK));
 
-    CURVEFS_ERROR ret = client_->FuseOpRelease(req, ino, fi);
+    CURVEFS_ERROR ret = client_->FuseOpRelease(req, ino, &fi);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     ASSERT_EQ(0, inodeWrapper->GetOpenCount());

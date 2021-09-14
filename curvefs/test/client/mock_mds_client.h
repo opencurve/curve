@@ -26,6 +26,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -76,6 +77,18 @@ class MockMdsClient : public MdsClient {
         const LogicPoolID &logicalpooid,
         const std::vector<CopysetID> &copysetidvec,
         std::vector<CopysetInfo<MetaserverID>> *cpinfoVec));
+
+    MOCK_METHOD3(CreatePartition,
+                 bool(uint32_t fsID, uint32_t count,
+                      std::vector<PartitionInfo> *partitionInfos));
+
+    MOCK_METHOD2(GetCopysetOfPartitions,
+                 bool(const std::vector<uint32_t> &partitionIDList,
+                      std::map<uint32_t, Copyset> *copysetMap));
+
+    MOCK_METHOD2(ListPartition,
+                 bool(uint32_t fsID,
+                      std::vector<PartitionInfo> *partitionInfos));
 };
 
 }  // namespace rpcclient

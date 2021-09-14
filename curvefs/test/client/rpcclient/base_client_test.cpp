@@ -14,7 +14,6 @@
  *  limitations under the License.
  */
 
-
 /*
  * Project: curve
  * Created Date: Thur Jun 15 2021
@@ -22,13 +21,14 @@
  */
 
 #include <brpc/server.h>
-#include <gtest/gtest.h>
 #include <google/protobuf/util/message_differencer.h>
+#include <gtest/gtest.h>
 
 #include "curvefs/src/client/rpcclient/base_client.h"
 #include "curvefs/test/client/rpcclient/mock_mds_service.h"
 #include "curvefs/test/client/rpcclient/mock_metaserver_service.h"
 #include "curvefs/test/client/rpcclient/mock_spacealloc_service.h"
+#include "curvefs/test/client/rpcclient/mock_topology_service.h"
 
 namespace curvefs {
 namespace client {
@@ -38,7 +38,6 @@ using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
-
 
 template <typename RpcRequestType, typename RpcResponseType,
           bool RpcFailed = false>
@@ -61,6 +60,8 @@ class BaseClientTest : public testing::Test {
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.AddService(&mockSpaceAllocService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
+        ASSERT_EQ(0, server_.AddService(&mockTopologyService_,
+                                        brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.Start(addr_.c_str(), nullptr));
     }
 
@@ -72,6 +73,7 @@ class BaseClientTest : public testing::Test {
  protected:
     MockMetaServerService mockMetaServerService_;
     MockMdsService mockMdsService_;
+    MockTopologyService mockTopologyService_;
     MockSpaceAllocService mockSpaceAllocService_;
     MDSBaseClient mdsbasecli_;
     // TODO(lixiaocui): add base client for curve block storage
@@ -80,7 +82,6 @@ class BaseClientTest : public testing::Test {
     std::string addr_ = "127.0.0.1:5600";
     brpc::Server server_;
 };
-
 
 TEST_F(BaseClientTest, test_CreateFs) {
     std::string fsName = "test1";
@@ -96,7 +97,6 @@ TEST_F(BaseClientTest, test_CreateFs) {
     cntl.set_timeout_ms(1000);
     brpc::Channel ch;
     ASSERT_EQ(0, ch.Init(addr_.c_str(), nullptr));
-
 
     curvefs::mds::CreateFsResponse response;
     auto fsinfo = new curvefs::mds::FsInfo();
@@ -141,7 +141,6 @@ TEST_F(BaseClientTest, test_DeleteFs) {
     brpc::Channel ch;
     ASSERT_EQ(0, ch.Init(addr_.c_str(), nullptr));
 
-
     curvefs::mds::DeleteFsResponse response;
     response.set_statuscode(curvefs::mds::FSStatusCode::OK);
     EXPECT_CALL(mockMdsService_, DeleteFs(_, _, _, _))
@@ -166,7 +165,6 @@ TEST_F(BaseClientTest, test_MountFs) {
     brpc::Channel ch;
     ASSERT_EQ(0, ch.Init(addr_.c_str(), nullptr));
 
-
     curvefs::mds::MountFsResponse response;
     response.set_statuscode(curvefs::mds::FSStatusCode::OK);
     EXPECT_CALL(mockMdsService_, MountFs(_, _, _, _))
@@ -190,7 +188,6 @@ TEST_F(BaseClientTest, test_UmountFs) {
     cntl.set_timeout_ms(1000);
     brpc::Channel ch;
     ASSERT_EQ(0, ch.Init(addr_.c_str(), nullptr));
-
 
     curvefs::mds::UmountFsResponse response;
     response.set_statuscode(curvefs::mds::FSStatusCode::OK);
@@ -260,7 +257,6 @@ TEST_F(BaseClientTest, test_GetFsInfo_by_fsId) {
     brpc::Channel ch;
     ASSERT_EQ(0, ch.Init(addr_.c_str(), nullptr));
 
-
     curvefs::mds::GetFsInfoResponse response;
     auto fsinfo = new curvefs::mds::FsInfo();
     fsinfo->set_fsid(1);
@@ -289,6 +285,141 @@ TEST_F(BaseClientTest, test_GetFsInfo_by_fsId) {
                   Invoke(RpcService<GetFsInfoRequest, GetFsInfoResponse>)));
 
     mdsbasecli_.GetFsInfo(fsId, &resp, &cntl, &ch);
+    ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
+    ASSERT_TRUE(
+        google::protobuf::util::MessageDifferencer::Equals(resp, response))
+        << "resp:\n"
+        << resp.ShortDebugString() << "response:\n"
+        << response.ShortDebugString();
+}
+
+TEST_F(BaseClientTest, test_CreatePartition) {
+    uint32_t fsID = 1;
+    uint32_t count = 2;
+    CreatePartitionResponse resp;
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(1000);
+    brpc::Channel ch;
+    ASSERT_EQ(0, ch.Init(addr_.c_str(), nullptr));
+
+    PartitionInfo partitioninfo1;
+    PartitionInfo partitioninfo2;
+    partitioninfo1.set_fsid(fsID);
+    partitioninfo1.set_poolid(1);
+    partitioninfo1.set_copysetid(2);
+    partitioninfo1.set_partitionid(3);
+    partitioninfo1.set_start(4);
+    partitioninfo1.set_end(5);
+    partitioninfo1.set_txid(6);
+
+    partitioninfo2.set_fsid(fsID);
+    partitioninfo2.set_poolid(2);
+    partitioninfo2.set_copysetid(3);
+    partitioninfo2.set_partitionid(4);
+    partitioninfo2.set_start(5);
+    partitioninfo2.set_end(6);
+    partitioninfo2.set_txid(7);
+
+    curvefs::mds::topology::CreatePartitionResponse response;
+    response.add_partitioninfolist()->CopyFrom(partitioninfo1);
+    response.add_partitioninfolist()->CopyFrom(partitioninfo2);
+
+    response.set_statuscode(TopoStatusCode::TOPO_OK);
+    EXPECT_CALL(mockTopologyService_, CreatePartition(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(
+                RpcService<CreatePartitionRequest, CreatePartitionResponse>)));
+
+    mdsbasecli_.CreatePartition(fsID, count, &resp, &cntl, &ch);
+    ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
+    ASSERT_TRUE(
+        google::protobuf::util::MessageDifferencer::Equals(resp, response))
+        << "resp:\n"
+        << resp.ShortDebugString() << "response:\n"
+        << response.ShortDebugString();
+}
+
+TEST_F(BaseClientTest, test_ListPartition) {
+    uint32_t fsID = 1;
+    ListPartitionResponse resp;
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(1000);
+    brpc::Channel ch;
+    ASSERT_EQ(0, ch.Init(addr_.c_str(), nullptr));
+
+    PartitionInfo partitioninfo1;
+    PartitionInfo partitioninfo2;
+    partitioninfo1.set_fsid(fsID);
+    partitioninfo1.set_poolid(1);
+    partitioninfo1.set_copysetid(2);
+    partitioninfo1.set_partitionid(3);
+    partitioninfo1.set_start(4);
+    partitioninfo1.set_end(5);
+    partitioninfo1.set_txid(6);
+
+    partitioninfo2.set_fsid(fsID);
+    partitioninfo2.set_poolid(2);
+    partitioninfo2.set_copysetid(3);
+    partitioninfo2.set_partitionid(4);
+    partitioninfo2.set_start(5);
+    partitioninfo2.set_end(6);
+    partitioninfo2.set_txid(7);
+
+    curvefs::mds::topology::ListPartitionResponse response;
+    response.add_partitioninfolist()->CopyFrom(partitioninfo1);
+    response.add_partitioninfolist()->CopyFrom(partitioninfo2);
+    response.set_statuscode(TopoStatusCode::TOPO_OK);
+
+    EXPECT_CALL(mockTopologyService_, ListPartition(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(RpcService<ListPartitionRequest, ListPartitionResponse>)));
+
+    mdsbasecli_.ListPartition(fsID, &resp, &cntl, &ch);
+    ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
+    ASSERT_TRUE(
+        google::protobuf::util::MessageDifferencer::Equals(resp, response))
+        << "resp:\n"
+        << resp.ShortDebugString() << "response:\n"
+        << response.ShortDebugString();
+}
+
+TEST_F(BaseClientTest, test_GetCopysetOfPartition) {
+    std::vector<uint32_t> partitionIDList{1, 2};
+    GetCopysetOfPartitionResponse resp;
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(1000);
+    brpc::Channel ch;
+    ASSERT_EQ(0, ch.Init(addr_.c_str(), nullptr));
+
+    Copyset copyset1;
+    Copyset copyset2;
+    copyset1.set_poolid(1);
+    copyset1.set_copysetid(2);
+    Peer peer1;
+    peer1.set_id(3);
+    peer1.set_address("addr1");
+    copyset1.add_peers()->CopyFrom(peer1);
+
+    copyset2.set_poolid(2);
+    copyset2.set_copysetid(3);
+    Peer peer2;
+    peer2.set_id(4);
+    peer2.set_address("addr2");
+    copyset2.add_peers()->CopyFrom(peer2);
+
+    curvefs::mds::topology::GetCopysetOfPartitionResponse response;
+    auto copysetMap = response.mutable_copysetmap();
+    (*copysetMap)[1] = copyset1;
+    (*copysetMap)[2] = copyset2;
+    response.set_statuscode(TopoStatusCode::TOPO_OK);
+    EXPECT_CALL(mockTopologyService_, GetCopysetOfPartition(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke(RpcService<GetCopysetOfPartitionRequest,
+                                          GetCopysetOfPartitionResponse>)));
+
+    mdsbasecli_.GetCopysetOfPartitions(partitionIDList, &resp, &cntl, &ch);
     ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
     ASSERT_TRUE(
         google::protobuf::util::MessageDifferencer::Equals(resp, response))
