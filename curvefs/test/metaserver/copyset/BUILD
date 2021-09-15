@@ -40,7 +40,7 @@ cc_test(
         "-luuid",
     ],
     deps = [
-        "//curvefs/src/metaserver/copyset:curvefs_copyset",
+        "//curvefs/src/metaserver:curvefs_metaserver",
         "//curvefs/test/metaserver/copyset/mock:metaserver_copyset_test_mock",
         "//curvefs/test/metaserver/mock:metaserver_test_mock",
         "//curvefs/test/utils:curvefs_test_utils",
@@ -60,7 +60,7 @@ cc_test(
         "-luuid",
     ],
     deps = [
-        "//curvefs/src/metaserver/copyset:curvefs_copyset",
+        "//curvefs/src/metaserver:curvefs_metaserver",
         "//curvefs/test/utils:curvefs_test_utils",
         "//src/common:curve_common",
         "//test/fs:fs_mock",

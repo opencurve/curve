@@ -36,6 +36,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//curvefs/proto:cli2_cc_proto",
-        "//curvefs/src/metaserver:curvefs_metastore",
+        "//curvefs/src/metaserver:curvefs_metaserver",
     ],
 )
