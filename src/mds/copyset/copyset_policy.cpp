@@ -170,7 +170,7 @@ bool CopysetPermutationPolicyNXX::permutation(
         LOG(ERROR) << "[CopysetPermutationPolicyNXX::permutation]:"
                    << "error, cluster must has more than "
                    << GetZoneChosenNum()
-                   << "zones";
+                   << " zones";
         return false;
     }
 
