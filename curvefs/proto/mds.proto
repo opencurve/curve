@@ -134,15 +134,6 @@ message DeleteFsResponse {
     required FSStatusCode statusCode = 1;
 }
 
-message CreatePartitionRequest {
-    required string fsName = 1;
-    required uint32 count = 2;
-}
-
-message CreatePartitionResponse {
-    required FSStatusCode statusCode = 1;
-    repeated common.PartitionInfo partitionInfoList = 2;
-}
 message AllocateS3ChunkRequest {
     required uint32 fsId = 1;
 }
@@ -161,7 +152,6 @@ service MdsService {
     rpc UmountFs(UmountFsRequest) returns (UmountFsResponse);
     rpc GetFsInfo(GetFsInfoRequest) returns (GetFsInfoResponse);
     // rpc UpdateFsInfo(UpdateFsInfoRequest) returns (UpdateFsInfoResponse);
-    rpc CreatePartition(CreatePartitionRequest) returns (CreatePartitionResponse);
     rpc DeleteFs(DeleteFsRequest) returns (DeleteFsResponse);
     rpc AllocateS3Chunk(AllocateS3ChunkRequest) returns (AllocateS3ChunkResponse);
 }

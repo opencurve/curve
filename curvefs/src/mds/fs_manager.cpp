@@ -32,8 +32,8 @@ namespace curvefs {
 namespace mds {
 
 using ::curvefs::common::FSType;
-
 using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
+using curvefs::mds::topology::TopoStatusCode;
 
 bool FsManager::Init() {
     LOG_IF(FATAL, !metaserverClient_->Init()) << "metaserverClient Init fail";
@@ -99,8 +99,44 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName,
     uint32_t gid = 0;                 // TODO(cw123)
     uint32_t mode = S_IFDIR | 01777;  // TODO(cw123)
 
-    auto ret =
-        metaserverClient_->CreateRootInode(wrapper.GetFsId(), uid, gid, mode);
+    // create partition
+    auto ret = FSStatusCode::OK;
+    curvefs::mds::topology::CreatePartitionRequest request;
+    curvefs::mds::topology::CreatePartitionResponse response;
+    request.set_fsid(wrapper.GetFsId());
+    request.set_count(1);
+    topoManager_->CreatePartition(&request, &response);
+    if (TopoStatusCode::TOPO_OK != response.statuscode() ||
+        response.partitioninfolist_size() < 1) {
+        LOG(ERROR) << "CreateFs fail, create partition fail"
+                   << ", request = " << request.ShortDebugString()
+                   << ", error code = " << response.statuscode();
+        ret = FSStatusCode::CREATE_PARTITION_ERROR;
+    } else {
+        PartitionInfo partition = response.partitioninfolist(0);
+        // get leader
+        std::set<std::string> addrs;
+        std::string leader;
+        if (TopoStatusCode::TOPO_OK != topoManager_->GetCopysetMembers(
+                partition.poolid(), partition.copysetid(), &addrs)) {
+            LOG(ERROR) << "CreateFs fail, get copyset members fail,"
+                       << " poolId = " << partition.poolid()
+                       << ", copysetId = " << partition.copysetid();
+            ret = FSStatusCode::UNKNOWN_ERROR;
+        } else {
+            ret = metaserverClient_->GetLeader(partition.poolid(),
+                                    partition.copysetid(), addrs, &leader);
+            if (ret != FSStatusCode::OK) {
+                LOG(ERROR) << "Createfs fail, get leader fail"
+                        << ", fsName = " << fsName
+                        << ", partition = " << partition.ShortDebugString();
+            } else {
+                ret = metaserverClient_->CreateRootInode(wrapper.GetFsId(),
+                        partition.poolid(), partition.copysetid(),
+                        partition.partitionid(), uid, gid, mode, leader);
+            }
+        }
+    }
     if (ret != FSStatusCode::OK && ret != FSStatusCode::INODE_EXIST) {
         LOG(ERROR) << "CreateFs fail, insert root inode fail"
                    << ", fsName = " << fsName
@@ -123,21 +159,22 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName,
         LOG(ERROR) << "CreateFs fail, update fs to inited fail"
                    << ", fsName = " << fsName
                    << ", ret = " << FSStatusCode_Name(ret);
-        ret = metaserverClient_->DeleteInode(wrapper.GetFsId(), GetRootId());
-        if (ret != FSStatusCode::OK) {
-            LOG(ERROR) << "CreateFs fail, update fs status to inited fail"
-                       << ", then delete root inode fail"
-                       << ", fsName = " << fsName
-                       << ", ret = " << FSStatusCode_Name(ret);
-            return ret;
-        }
+        // TODO(wanghai): delete partiton and inode
+        // ret = metaserverClient_->DeleteInode(wrapper.GetFsId(), GetRootId());
+        // if (ret != FSStatusCode::OK) {
+        //     LOG(ERROR) << "CreateFs fail, update fs status to inited fail"
+        //                << ", then delete root inode fail"
+        //                << ", fsName = " << fsName
+        //                << ", ret = " << FSStatusCode_Name(ret);
+        //     return ret;
+        // }
 
-        ret = fsStorage_->Delete(fsName);
-        if (ret != FSStatusCode::OK) {
-            LOG(ERROR) << "CreateFs fail, insert root inode fail, "
-                       << "then delete fs fail, fsName = " << fsName
-                       << ", errCode = " << FSStatusCode_Name(ret);
-        }
+        // ret = fsStorage_->Delete(fsName);
+        // if (ret != FSStatusCode::OK) {
+        //     LOG(ERROR) << "CreateFs fail, insert root inode fail, "
+        //                << "then delete fs fail, fsName = " << fsName
+        //                << ", errCode = " << FSStatusCode_Name(ret);
+        // }
         return ret;
     }
 

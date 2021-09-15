@@ -28,6 +28,8 @@
 #include "curvefs/test/mds/mock/mock_metaserver.h"
 #include "curvefs/test/mds/mock/mock_space.h"
 #include "curvefs/test/mds/mock/mock_fs_stroage.h"
+#include "curvefs/test/mds/mock/mock_topology.h"
+#include "curvefs/test/mds/mock/mock_cli2.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -53,6 +55,26 @@ using curvefs::space::SpaceStatusCode;
 using ::google::protobuf::util::MessageDifferencer;
 using ::curvefs::common::S3Info;
 using ::curvefs::common::Volume;
+using ::curvefs::mds::topology::TopologyManager;
+using ::curvefs::mds::topology::MockTopologyManager;
+using ::curvefs::mds::topology::MockTopology;
+using ::curvefs::mds::topology::MockIdGenerator;
+using ::curvefs::mds::topology::MockTokenGenerator;
+using ::curvefs::mds::topology::MockStorage;
+using ::curvefs::mds::topology::TopologyIdGenerator;
+using ::curvefs::mds::topology::DefaultIdGenerator;
+using ::curvefs::mds::topology::TopologyTokenGenerator;
+using ::curvefs::mds::topology::DefaultTokenGenerator;
+using ::curvefs::mds::topology::MockEtcdClient;
+using ::curvefs::mds::topology::MockTopologyManager;
+using ::curvefs::mds::topology::TopologyStorageCodec;
+using ::curvefs::mds::topology::TopologyStorageEtcd;
+using ::curvefs::mds::topology::TopologyImpl;
+using ::curvefs::mds::topology::CreatePartitionRequest;
+using ::curvefs::mds::topology::CreatePartitionResponse;
+using ::curvefs::mds::topology::TopoStatusCode;
+using ::curvefs::metaserver::copyset::MockCliService2;
+using ::curvefs::metaserver::copyset::GetLeaderResponse2;
 
 namespace curvefs {
 namespace mds {
@@ -70,13 +92,29 @@ class FSManagerTest : public ::testing::Test {
         spaceClient_ = std::make_shared<SpaceClient>(spaceOptions);
         metaserverClient_ =
             std::make_shared<MetaserverClient>(metaserverOptions);
+        // init mock topology manager
+        std::shared_ptr<TopologyIdGenerator> idGenerator_ =
+            std::make_shared<DefaultIdGenerator>();
+        std::shared_ptr<TopologyTokenGenerator> tokenGenerator_ =
+            std::make_shared<DefaultTokenGenerator>();
+
+        auto etcdClient_ = std::make_shared<MockEtcdClient>();
+        auto codec = std::make_shared<TopologyStorageCodec>();
+        auto topoStorage_ =
+            std::make_shared<TopologyStorageEtcd>(etcdClient_, codec);
+        topoManager_ = std::make_shared<MockTopologyManager>(
+                        std::make_shared<TopologyImpl>(idGenerator_,
+                        tokenGenerator_, topoStorage_), metaserverClient_);
+        // init fsmanager
         fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceClient_,
-                                                 metaserverClient_);
+                                        metaserverClient_, topoManager_);
         ASSERT_TRUE(fsManager_->Init());
 
         ASSERT_EQ(0, server_.AddService(&mockSpaceService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.AddService(&mockMetaserverService_,
+                                        brpc::SERVER_DOESNT_OWN_SERVICE));
+        ASSERT_EQ(0, server_.AddService(&mockCliService2_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.Start(addr.c_str(), nullptr));
 
@@ -127,6 +165,8 @@ class FSManagerTest : public ::testing::Test {
     std::shared_ptr<MetaserverClient> metaserverClient_;
     MockSpaceService mockSpaceService_;
     MockMetaserverService mockMetaserverService_;
+    MockCliService2 mockCliService2_;
+    std::shared_ptr<MockTopologyManager> topoManager_;
     brpc::Server server_;
 };
 
@@ -143,6 +183,7 @@ void RpcService(google::protobuf::RpcController* cntl_base,
 }
 
 TEST_F(FSManagerTest, test1) {
+    std::string addr = "127.0.0.1:6704";
     FSStatusCode ret;
     std::string fsName1 = "fs1";
     uint64_t blockSize = 4096;
@@ -156,9 +197,43 @@ TEST_F(FSManagerTest, test1) {
     FsInfo volumeFsInfo1;
     FsDetail detail;
     detail.set_allocated_volume(new Volume(volume));
-    CreateRootInodeResponse response;
+
+    // create volume fs create partition fail
+    CreatePartitionRequest pRequest;
+    CreatePartitionResponse pResponse;
+    pRequest.set_fsid(0);
+    pRequest.set_count(1);
+    pResponse.set_statuscode(TopoStatusCode::TOPO_CREATE_PARTITION_FAIL);
+    EXPECT_CALL(*topoManager_, CreatePartition(_, _))
+        .WillOnce(SetArgPointee<1>(pResponse));
+
+    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize, detail,
+                               &volumeFsInfo1);
+    ASSERT_EQ(ret, FSStatusCode::CREATE_PARTITION_ERROR);
 
     // create volume fs create root inode fail
+    pResponse.set_statuscode(TopoStatusCode::TOPO_OK);
+    auto partitionInfo = pResponse.add_partitioninfolist();
+    partitionInfo->set_fsid(0);
+    partitionInfo->set_poolid(1);
+    partitionInfo->set_copysetid(1);
+    partitionInfo->set_partitionid(1);
+    EXPECT_CALL(*topoManager_, CreatePartition(_, _))
+        .WillOnce(SetArgPointee<1>(pResponse));
+
+    std::set<std::string> addrs;
+    addrs.emplace(addr);
+    EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(addrs),
+            Return(TopoStatusCode::TOPO_OK)));
+    GetLeaderResponse2 getLeaderResponse;
+    getLeaderResponse.mutable_leader()->set_address(addr);
+    EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
+        .WillOnce(DoAll(
+        SetArgPointee<2>(getLeaderResponse),
+        Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+    CreateRootInodeResponse response;
     response.set_statuscode(MetaStatusCode::UNKNOWN_ERROR);
     EXPECT_CALL(mockMetaserverService_, CreateRootInode(_, _, _, _))
         .WillOnce(DoAll(
@@ -170,6 +245,17 @@ TEST_F(FSManagerTest, test1) {
     ASSERT_EQ(ret, FSStatusCode::INSERT_ROOT_INODE_ERROR);
 
     // create volume fs ok
+    EXPECT_CALL(*topoManager_, CreatePartition(_, _))
+        .WillOnce(SetArgPointee<1>(pResponse));
+    EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(addrs),
+            Return(TopoStatusCode::TOPO_OK)));
+    EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
+        .WillOnce(DoAll(
+        SetArgPointee<2>(getLeaderResponse),
+        Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+
     response.set_statuscode(MetaStatusCode::OK);
     EXPECT_CALL(mockMetaserverService_, CreateRootInode(_, _, _, _))
         .WillOnce(DoAll(
@@ -180,7 +266,7 @@ TEST_F(FSManagerTest, test1) {
     ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize, detail,
                                &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::OK);
-    ASSERT_EQ(volumeFsInfo1.fsid(), 1);
+    ASSERT_EQ(volumeFsInfo1.fsid(), 2);
     ASSERT_EQ(volumeFsInfo1.fsname(), fsName1);
     ASSERT_EQ(volumeFsInfo1.status(), FsStatus::INITED);
     ASSERT_EQ(volumeFsInfo1.rootinodeid(), ROOTINODEID);
@@ -211,6 +297,17 @@ TEST_F(FSManagerTest, test1) {
     detail2.set_allocated_s3info(new S3Info(s3Info));
 
     // create s3 fs create root inode fail
+    EXPECT_CALL(*topoManager_, CreatePartition(_, _))
+        .WillOnce(SetArgPointee<1>(pResponse));
+    EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(addrs),
+            Return(TopoStatusCode::TOPO_OK)));
+    EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
+        .WillOnce(DoAll(
+        SetArgPointee<2>(getLeaderResponse),
+        Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+
     response.set_statuscode(MetaStatusCode::UNKNOWN_ERROR);
     EXPECT_CALL(mockMetaserverService_, CreateRootInode(_, _, _, _))
         .WillOnce(DoAll(
@@ -222,6 +319,17 @@ TEST_F(FSManagerTest, test1) {
     ASSERT_EQ(ret, FSStatusCode::INSERT_ROOT_INODE_ERROR);
 
     // create s3 fs ok
+    EXPECT_CALL(*topoManager_, CreatePartition(_, _))
+        .WillOnce(SetArgPointee<1>(pResponse));
+    EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(addrs),
+            Return(TopoStatusCode::TOPO_OK)));
+    EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
+        .WillOnce(DoAll(
+        SetArgPointee<2>(getLeaderResponse),
+        Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+
     response.set_statuscode(MetaStatusCode::OK);
     EXPECT_CALL(mockMetaserverService_, CreateRootInode(_, _, _, _))
         .WillOnce(DoAll(
@@ -232,7 +340,7 @@ TEST_F(FSManagerTest, test1) {
     ret = fsManager_->CreateFs(fsName2, FSType::TYPE_S3, blockSize, detail2,
                                &s3FsInfo);
     ASSERT_EQ(ret, FSStatusCode::OK);
-    ASSERT_EQ(s3FsInfo.fsid(), 3);
+    ASSERT_EQ(s3FsInfo.fsid(), 4);
     ASSERT_EQ(s3FsInfo.fsname(), fsName2);
     ASSERT_EQ(s3FsInfo.status(), FsStatus::INITED);
     ASSERT_EQ(s3FsInfo.rootinodeid(), ROOTINODEID);

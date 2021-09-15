@@ -60,8 +60,9 @@ class MetaserverClient {
 
     virtual FSStatusCode DeleteInode(uint32_t fsId, uint64_t inodeId);
 
-    virtual FSStatusCode CreateRootInode(uint32_t fsId, uint32_t uid,
-                                        uint32_t gid, uint32_t mode);
+    virtual FSStatusCode CreateRootInode(uint32_t fsId, uint32_t poolId,
+                        uint32_t copysetId, uint32_t partitionId, uint32_t uid,
+                        uint32_t gid, uint32_t mode, const std::string &leader);
 
     virtual  FSStatusCode GetLeader(uint32_t poolId, uint32_t copysetId,
                            const std::set<std::string> &addrs,

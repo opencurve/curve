@@ -36,8 +36,9 @@ class MockMetaserverClient : public MetaserverClient {
                                   MetaserverClient(option) {}
 
     MOCK_METHOD2(DeleteInode, FSStatusCode(uint32_t fsId, uint64_t inodeId));
-    MOCK_METHOD4(CreateRootInode, FSStatusCode(uint32_t fsId, uint32_t uid,
-                                   uint32_t gid, uint32_t mode));
+    MOCK_METHOD8(CreateRootInode, FSStatusCode(uint32_t fsId, uint32_t poolId,
+                uint32_t copysetId, uint32_t partitionId, uint32_t uid,
+                uint32_t gid, uint32_t mode, const std::string &leader));
     MOCK_METHOD4(GetLeader, FSStatusCode(uint32_t poolId, uint32_t copysetId,
                             const std::set<std::string> &addrs,
                             std::string *leader));

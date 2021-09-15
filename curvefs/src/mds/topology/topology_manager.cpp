@@ -870,6 +870,31 @@ void TopologyManager::GetCopysetOfPartition(
     response->set_statuscode(TopoStatusCode::TOPO_OK);
 }
 
+TopoStatusCode TopologyManager::GetCopysetMembers(const PoolIdType poolId,
+                                        const CopySetIdType copysetId,
+                                        std::set<std::string> *addrs) {
+    CopySetKey key(poolId, copysetId);
+    CopySetInfo info;
+    if (topology_->GetCopySet(key, &info)) {
+        for (auto metaserverId : info.GetCopySetMembers()) {
+            MetaServer server;
+            if (topology_->GetMetaServer(metaserverId, &server)) {
+                std::string addr = server.GetExternalHostIp() + ":" +
+                                   std::to_string(server.GetExternalPort());
+                addrs->emplace(addr);
+            } else {
+                LOG(ERROR) << "GetMetaserver failed,"
+                           << " metaserverId =" << metaserverId;
+                return TopoStatusCode::TOPO_METASERVER_NOT_FOUND;
+            }
+        }
+    } else {
+        LOG(ERROR) << "Get copyset failed."
+                   << " poolId = " << poolId << "copysetId = " << copysetId;
+        return TopoStatusCode::TOPO_COPYSET_NOT_FOUND;
+    }
+    return TopoStatusCode::TOPO_OK;
+}
 
 }  // namespace topology
 }  // namespace mds

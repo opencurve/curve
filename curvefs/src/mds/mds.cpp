@@ -96,15 +96,16 @@ void Mds::Init() {
     spaceClient_ = std::make_shared<SpaceClient>(options_.spaceOptions);
     metaserverClient_ =
         std::make_shared<MetaserverClient>(options_.metaserverOptions);
-    fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceClient_,
-                                             metaserverClient_);
-    LOG_IF(FATAL, !fsManager_->Init()) << "fsManager Init fail";
-
-    chunkIdAllocator_ = std::make_shared<ChunkIdAllocatorImpl>(etcdClient_);
 
     // init topology
     InitTopology(options_.topologyOptions);
     InitTopologyManager(options_.topologyOptions);
+
+    fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceClient_,
+                                        metaserverClient_, topologyManager_);
+    LOG_IF(FATAL, !fsManager_->Init()) << "fsManager Init fail";
+
+    chunkIdAllocator_ = std::make_shared<ChunkIdAllocatorImpl>(etcdClient_);
 
     inited_ = true;
 

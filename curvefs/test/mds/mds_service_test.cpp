@@ -31,10 +31,12 @@
 #include "curvefs/test/mds/fake_space.h"
 #include "curvefs/test/mds/mock/mock_kvstorage_client.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
+#include "curvefs/test/mds/mock/mock_cli2.h"
 
 using ::testing::_;
 using ::testing::AtLeast;
 using ::testing::DoAll;
+using ::testing::Invoke;
 using ::testing::Mock;
 using ::testing::Return;
 using ::testing::ReturnArg;
@@ -48,11 +50,26 @@ using ::curvefs::metaserver::FakeMetaserverImpl;
 using ::curvefs::space::FakeSpaceImpl;
 using ::curvefs::space::InitSpaceResponse;
 using ::curvefs::space::SpaceStatusCode;
+using ::curvefs::mds::topology::TopologyManager;
 using ::curvefs::mds::topology::MockTopologyManager;
 using ::curvefs::mds::topology::MockTopology;
 using ::curvefs::mds::topology::MockIdGenerator;
 using ::curvefs::mds::topology::MockTokenGenerator;
 using ::curvefs::mds::topology::MockStorage;
+using ::curvefs::mds::topology::TopologyIdGenerator;
+using ::curvefs::mds::topology::DefaultIdGenerator;
+using ::curvefs::mds::topology::TopologyTokenGenerator;
+using ::curvefs::mds::topology::DefaultTokenGenerator;
+using ::curvefs::mds::topology::MockEtcdClient;
+using ::curvefs::mds::topology::MockTopologyManager;
+using ::curvefs::mds::topology::TopologyStorageCodec;
+using ::curvefs::mds::topology::TopologyStorageEtcd;
+using ::curvefs::mds::topology::TopologyImpl;
+using ::curvefs::mds::topology::CreatePartitionRequest;
+using ::curvefs::mds::topology::CreatePartitionResponse;
+using ::curvefs::mds::topology::TopoStatusCode;
+using ::curvefs::metaserver::copyset::MockCliService2;
+using ::curvefs::metaserver::copyset::GetLeaderResponse2;
 
 namespace curvefs {
 namespace mds {
@@ -71,8 +88,22 @@ class MdsServiceTest : public ::testing::Test {
         spaceClient_ = std::make_shared<SpaceClient>(spaceOptions);
         metaserverClient_ =
             std::make_shared<MetaserverClient>(metaserverOptions);
+        // init mock topology manager
+        std::shared_ptr<TopologyIdGenerator> idGenerator_ =
+            std::make_shared<DefaultIdGenerator>();
+        std::shared_ptr<TopologyTokenGenerator> tokenGenerator_ =
+            std::make_shared<DefaultTokenGenerator>();
+
+        auto etcdClient_ = std::make_shared<MockEtcdClient>();
+        auto codec = std::make_shared<TopologyStorageCodec>();
+        auto topoStorage_ =
+            std::make_shared<TopologyStorageEtcd>(etcdClient_, codec);
+        topoManager_ = std::make_shared<MockTopologyManager>(
+                            std::make_shared<TopologyImpl>(idGenerator_,
+                            tokenGenerator_, topoStorage_), metaserverClient_);
+        // init famanager
         fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceClient_,
-                                                 metaserverClient_);
+                                            metaserverClient_, topoManager_);
         ASSERT_TRUE(fsManager_->Init());
         return;
     }
@@ -103,7 +134,20 @@ class MdsServiceTest : public ::testing::Test {
     std::shared_ptr<SpaceClient> spaceClient_;
     std::shared_ptr<MetaserverClient> metaserverClient_;
     std::shared_ptr<MockKVStorageClient> kvstorage_;
+    std::shared_ptr<MockTopologyManager> topoManager_;
 };
+
+template <typename RpcRequestType, typename RpcResponseType,
+          bool RpcFailed = false>
+void RpcService(google::protobuf::RpcController* cntl_base,
+                const RpcRequestType* request, RpcResponseType* response,
+                google::protobuf::Closure* done) {
+    if (RpcFailed) {
+        brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
+        cntl->SetFailed(112, "Not connected to");
+    }
+    done->Run();
+}
 
 TEST_F(MdsServiceTest, test1) {
     brpc::Server server;
@@ -120,6 +164,11 @@ TEST_F(MdsServiceTest, test1) {
     FakeMetaserverImpl metaserverService;
     ASSERT_EQ(
         server.AddService(&metaserverService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
+
+    MockCliService2 mockCliService2;
+    ASSERT_EQ(
+        server.AddService(&mockCliService2, brpc::SERVER_DOESNT_OWN_SERVICE),
         0);
 
     // start rpc server
@@ -164,6 +213,31 @@ TEST_F(MdsServiceTest, test1) {
     createRequest.set_blocksize(4096);
     createRequest.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
     createRequest.mutable_fsdetail()->mutable_volume()->CopyFrom(volume);
+
+    CreatePartitionRequest pRequest;
+    CreatePartitionResponse pResponse;
+    pRequest.set_fsid(0);
+    pRequest.set_count(1);
+    pResponse.set_statuscode(TopoStatusCode::TOPO_OK);
+    auto partitionInfo = pResponse.add_partitioninfolist();
+    partitionInfo->set_fsid(0);
+    partitionInfo->set_poolid(1);
+    partitionInfo->set_copysetid(1);
+    partitionInfo->set_partitionid(1);
+    EXPECT_CALL(*topoManager_, CreatePartition(_, _))
+        .WillOnce(SetArgPointee<1>(pResponse));
+    std::set<std::string> addrs;
+    addrs.emplace(addr);
+    EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(addrs),
+            Return(TopoStatusCode::TOPO_OK)));
+    GetLeaderResponse2 getLeaderResponse;
+    getLeaderResponse.mutable_leader()->set_address(addr);
+    EXPECT_CALL(mockCliService2, GetLeader(_, _, _, _))
+        .WillOnce(DoAll(
+        SetArgPointee<2>(getLeaderResponse),
+        Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
 
     cntl.Reset();
     stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
@@ -220,6 +294,18 @@ TEST_F(MdsServiceTest, test1) {
     s3info.set_blocksize(4096);
     s3info.set_chunksize(4096);
     createRequest.mutable_fsdetail()->mutable_s3info()->CopyFrom(s3info);
+
+    EXPECT_CALL(*topoManager_, CreatePartition(_, _))
+        .WillOnce(SetArgPointee<1>(pResponse));
+    EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(addrs),
+            Return(TopoStatusCode::TOPO_OK)));
+    EXPECT_CALL(mockCliService2, GetLeader(_, _, _, _))
+        .WillOnce(DoAll(
+        SetArgPointee<2>(getLeaderResponse),
+        Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+
     stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(createResponse.statuscode(), FSStatusCode::OK);
