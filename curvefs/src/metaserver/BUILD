@@ -31,92 +31,66 @@ COPTS = [
     "-Wnon-virtual-dtor",
     "-Wno-missing-field-initializers",
     "-std=c++11",
+    "-Wall",
 ]
 
 cc_library(
-    name = "curvefs_metastore",
+    name = "curvefs_metaserver",
     srcs = glob(
         ["*.cpp"],
         exclude = [
             "main.cpp",
-            "metaserver.cpp",
-            "metaserver_service.cpp",
         ],
+    ) + glob(
+        ["copyset/*.cpp"],
     ),
     hdrs = glob(
         ["*.h"],
-        exclude = [
-            "inflight_throttle.h",
-            "metaservice_closure.h",
-            "metaserver_service.h",
-            "metaserver.h",
-        ],
+    ) + glob(
+        ["copyset/*.h"],
     ),
     copts = COPTS,
     visibility = ["//visibility:public"],
     deps = [
         ":metaserver_s3_lib",
+        "//curvefs/proto:cli2_cc_proto",
+        "//curvefs/proto:copyset_cc_proto",
+        "//curvefs/proto:metaserver_cc_proto",
         "//curvefs/src/common:curvefs_common",
-        "//curvefs/src/metaserver/copyset:curvefs_copyset_snapshot_closure",
+        "//curvefs/src/metaserver/common:fs_metaserver_common",
+        "//external:braft",
         "//src/common:curve_common",
         "//src/fs:lfs",
         "@com_google_absl//absl/cleanup",
         "@com_google_absl//absl/container:btree",
+        "@com_google_absl//absl/memory",
     ],
 )
 
 cc_library(
-    name = "curvefs_metaserver_lib",
-    srcs = [
-        "metaserver.cpp",
-        "metaserver_service.cpp",
-    ],
-    hdrs = [
-        "inflight_throttle.h",
-        "metaserver.h",
-        "metaserver_service.h",
-        "metaservice_closure.h",
-    ],
+    name = "metaserver_s3_lib",
+    srcs = glob(["s3/*.cpp"]),
+    hdrs = glob(["s3/*.h"]),
     copts = COPTS,
+    linkopts = [
+        "-lpthread",
+        "-L/usr/local/lib/x86_64-linux-gnu",
+    ],
     visibility = ["//visibility:public"],
     deps = [
-        "//curvefs/proto:curvefs_common_cc_proto",
         "//curvefs/proto:metaserver_cc_proto",
-        "//curvefs/src/metaserver/copyset:curvefs_copyset",
-        "//external:brpc",
-        "//src/common/concurrent:curve_concurrent",
-        "//src/common:curve_common",
-        "//curvefs/src/common:curvefs_common",
-        "@com_google_absl//absl/cleanup:cleanup",
-        "//curvefs/src/metaserver:metaserver_s3_lib",
-        "@com_google_absl//absl/container:btree",
+        "//external:gflags",
+        "//external:glog",
+        "//src/common:curve_s3_adapter",
     ],
-)
-
-cc_library(
-    name="metaserver_s3_lib",
-        hdrs=glob(["s3/*.h"]),
-        srcs=glob(["s3/*.cpp"]),
-        copts = COPTS,
-        visibility = ["//visibility:public"],
-        deps = [
-            "//external:glog",
-            "//external:gflags",
-            "//curvefs/proto:metaserver_cc_proto",
-            "//src/common:curve_s3_adapter",
-        ],
-        linkopts = ["-lpthread", "-L/usr/local/lib/x86_64-linux-gnu"],
 )
 
 cc_binary(
-    name = "curvefs_metaserver",
-    srcs = glob([
-        "main.cpp",
-    ]),
+    name = "curvefs_metaserver_main",
+    srcs = ["main.cpp"],
     copts = COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        ":curvefs_metaserver_lib",
-        ":curvefs_metastore",
+        ":curvefs_metaserver",
     ],
 )
