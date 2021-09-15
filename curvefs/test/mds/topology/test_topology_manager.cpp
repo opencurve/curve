@@ -2245,6 +2245,45 @@ TEST_F(TestTopologyManager, test_GetCopysetOfPartition_CopysetNotFound) {
     ASSERT_EQ(TopoStatusCode::TOPO_COPYSET_NOT_FOUND, response.statuscode());
 }
 
+TEST_F(TestTopologyManager, test_GetCopysetMembers_Success) {
+    FsIdType fsId = 0x01;
+    PoolIdType poolId = 0x11;
+    CopySetIdType copysetId = 0x51;
+
+    Pool::RedundanceAndPlaceMentPolicy policy;
+    policy.replicaNum = 3;
+    policy.copysetNum = 0;
+    policy.zoneNum = 3;
+    PrepareAddPool(poolId, "pool1", policy);
+    PrepareAddZone(0x21, "zone1", poolId);
+    PrepareAddZone(0x22, "zone2", poolId);
+    PrepareAddZone(0x23, "zone3", poolId);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
+                     0x21, 0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
+                     0x22, 0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
+                     0x23, 0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
+                         7777, "ip2", 8887);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
+                         7778, "ip2", 8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
+                         7779, "ip2", 8889);
+
+    std::set<MetaServerIdType> replicas;
+    replicas.insert(0x41);
+    replicas.insert(0x42);
+    replicas.insert(0x43);
+    PrepareAddCopySet(copysetId, poolId, replicas);
+    std::set<std::string> addrs;
+    auto ret = serviceManager_->GetCopysetMembers(poolId, copysetId, &addrs);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, ret);
+    ASSERT_EQ(3, addrs.size());
+    ASSERT_THAT(*addrs.begin(), AnyOf("ip2:8887", "ip2:8888",
+                                "ip2:8889"));
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <set>
 
 #include "curvefs/proto/topology.pb.h"
 #include "curvefs/proto/copyset.pb.h"
@@ -120,6 +121,10 @@ class TopologyManager {
     virtual void GetCopysetOfPartition(
                   const GetCopysetOfPartitionRequest *request,
                   GetCopysetOfPartitionResponse *response);
+
+    virtual TopoStatusCode GetCopysetMembers(const PoolIdType poolId,
+                           const CopySetIdType copysetId,
+                           std::set<std::string> *addrs);
 
  private:
     TopoStatusCode CreateCopyset();

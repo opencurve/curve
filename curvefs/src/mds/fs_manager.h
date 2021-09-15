@@ -27,8 +27,9 @@
 #include <memory>
 #include <string>
 #include <vector>
-
+#include <set>
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/common/define.h"
 #include "curvefs/src/mds/fs_storage.h"
 #include "curvefs/src/mds/metaserverclient/metaserver_client.h"
@@ -36,18 +37,26 @@
 #include "curvefs/src/mds/fs_info_wrapper.h"
 #include "curvefs/src/mds/common/types.h"
 #include "src/common/concurrent/name_lock.h"
+#include "curvefs/src/mds/topology/topology_manager.h"
+#include "curvefs/src/mds/topology/topology_storage_codec.h"
+#include "curvefs/src/mds/topology/topology_storge_etcd.h"
+#include "curvefs/src/mds/topology/topology.h"
 
 namespace curvefs {
 namespace mds {
+
+using ::curvefs::mds::topology::TopologyManager;
 
 class FsManager {
  public:
     FsManager(std::shared_ptr<FsStorage> fsStorage,
               std::shared_ptr<SpaceClient> spaceClient,
-              std::shared_ptr<MetaserverClient> metaserverClient)
+              std::shared_ptr<MetaserverClient> metaserverClient,
+              std::shared_ptr<TopologyManager> topoManager)
         : fsStorage_(fsStorage),
           spaceClient_(spaceClient),
           metaserverClient_(metaserverClient),
+          topoManager_(topoManager),
           nameLock_() {}
 
     bool Init();
@@ -154,6 +163,7 @@ class FsManager {
     std::shared_ptr<SpaceClient> spaceClient_;
     std::shared_ptr<MetaserverClient> metaserverClient_;
     curve::common::GenericNameLock<Mutex> nameLock_;
+    std::shared_ptr<TopologyManager> topoManager_;
 };
 }  // namespace mds
 }  // namespace curvefs

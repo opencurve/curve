@@ -31,6 +31,29 @@
 #include "curvefs/test/mds/mock/mock_fs_stroage.h"
 #include "curvefs/test/mds/mock/mock_metaserver.h"
 #include "curvefs/test/mds/mock/mock_space.h"
+#include "curvefs/test/mds/mock/mock_topology.h"
+#include "curvefs/test/mds/mock/mock_cli2.h"
+
+using ::curvefs::mds::topology::TopologyManager;
+using ::curvefs::mds::topology::MockTopologyManager;
+using ::curvefs::mds::topology::MockTopology;
+using ::curvefs::mds::topology::MockIdGenerator;
+using ::curvefs::mds::topology::MockTokenGenerator;
+using ::curvefs::mds::topology::MockStorage;
+using ::curvefs::mds::topology::TopologyIdGenerator;
+using ::curvefs::mds::topology::DefaultIdGenerator;
+using ::curvefs::mds::topology::TopologyTokenGenerator;
+using ::curvefs::mds::topology::DefaultTokenGenerator;
+using ::curvefs::mds::topology::MockEtcdClient;
+using ::curvefs::mds::topology::MockTopologyManager;
+using ::curvefs::mds::topology::TopologyStorageCodec;
+using ::curvefs::mds::topology::TopologyStorageEtcd;
+using ::curvefs::mds::topology::TopologyImpl;
+using ::curvefs::mds::topology::CreatePartitionRequest;
+using ::curvefs::mds::topology::CreatePartitionResponse;
+using ::curvefs::mds::topology::TopoStatusCode;
+using ::curvefs::metaserver::copyset::MockCliService2;
+using ::curvefs::metaserver::copyset::GetLeaderResponse2;
 
 namespace curvefs {
 namespace mds {
@@ -75,15 +98,31 @@ class FsManagerTest2 : public testing::Test {
         metaSvrOpts.metaserverAddr = kFsManagerTest2ServerAddress;
         metaSvrOpts.rpcTimeoutMs = 1000;
         metaServerClient_ = std::make_shared<MetaserverClient>(metaSvrOpts);
+        // init mock topology manager
+        std::shared_ptr<TopologyIdGenerator> idGenerator_ =
+            std::make_shared<DefaultIdGenerator>();
+        std::shared_ptr<TopologyTokenGenerator> tokenGenerator_ =
+            std::make_shared<DefaultTokenGenerator>();
+
+        auto etcdClient_ = std::make_shared<MockEtcdClient>();
+        auto codec = std::make_shared<TopologyStorageCodec>();
+        auto topoStorage_ =
+            std::make_shared<TopologyStorageEtcd>(etcdClient_, codec);
+        topoManager_ = std::make_shared<MockTopologyManager>(
+                            std::make_shared<TopologyImpl>(idGenerator_,
+                            tokenGenerator_, topoStorage_), metaServerClient_);
+        // init fsmanager
+        fsManager_ = std::make_shared<FsManager>(storage_, spaceClient_,
+                                            metaServerClient_, topoManager_);
 
         spaceService_ = std::make_shared<MockSpaceService>();
         metaserverService_ = std::make_shared<MockMetaserverService>();
-        fsManager_ = std::make_shared<FsManager>(storage_, spaceClient_,
-                                                 metaServerClient_);
 
         ASSERT_EQ(0, server_.AddService(spaceService_.get(),
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.AddService(metaserverService_.get(),
+                                        brpc::SERVER_DOESNT_OWN_SERVICE));
+        ASSERT_EQ(0, server_.AddService(&mockCliService2_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.Start(kFsManagerTest2ServerAddress, nullptr));
 
@@ -106,9 +145,11 @@ class FsManagerTest2 : public testing::Test {
     std::shared_ptr<SpaceClient> spaceClient_;
     std::shared_ptr<MetaserverClient> metaServerClient_;
 
+    std::shared_ptr<MockTopologyManager> topoManager_;
     std::shared_ptr<MockSpaceService> spaceService_;
     std::shared_ptr<MockMetaserverService> metaserverService_;
 
+    MockCliService2 mockCliService2_;
     std::shared_ptr<FsManager> fsManager_;
     brpc::Server server_;
 };
@@ -235,6 +276,32 @@ TEST_F(FsManagerTest2, CreateFoundUnCompleteOperation) {
 
     EXPECT_CALL(*storage_, Insert(_))
         .Times(0);
+
+    CreatePartitionRequest pRequest;
+    CreatePartitionResponse pResponse;
+    pRequest.set_fsid(0);
+    pRequest.set_count(1);
+    pResponse.set_statuscode(TopoStatusCode::TOPO_OK);
+    auto partitionInfo = pResponse.add_partitioninfolist();
+    partitionInfo->set_fsid(0);
+    partitionInfo->set_poolid(1);
+    partitionInfo->set_copysetid(1);
+    partitionInfo->set_partitionid(1);
+    EXPECT_CALL(*topoManager_, CreatePartition(_, _))
+        .WillOnce(SetArgPointee<1>(pResponse));
+    std::set<std::string> addrs;
+    addrs.emplace(kFsManagerTest2ServerAddress);
+    EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(addrs),
+            Return(TopoStatusCode::TOPO_OK)));
+    GetLeaderResponse2 getLeaderResponse;
+    getLeaderResponse.mutable_leader()->set_address(
+                        kFsManagerTest2ServerAddress);
+    EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
+        .WillOnce(DoAll(
+        SetArgPointee<2>(getLeaderResponse),
+        Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
 
     EXPECT_CALL(*metaserverService_, CreateRootInode(_, _, _, _))
         .WillOnce(Invoke(

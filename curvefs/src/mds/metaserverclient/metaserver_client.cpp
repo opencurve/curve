@@ -34,11 +34,6 @@ using curvefs::metaserver::copyset::CopysetService_Stub;
 namespace curvefs {
 namespace mds {
 bool MetaserverClient::Init() {
-    if (channel_.Init(options_.metaserverAddr.c_str(), nullptr) != 0) {
-        LOG(ERROR) << "Init channel to metaserver: " << options_.metaserverAddr
-                   << " failed!";
-        return false;
-    }
     LOG(INFO) << "MetaserverClient Inited";
     inited_ = true;
     return true;
@@ -46,32 +41,32 @@ bool MetaserverClient::Init() {
 
 void MetaserverClient::Uninit() { inited_ = false; }
 
-FSStatusCode MetaserverClient::CreateRootInode(uint32_t fsId, uint32_t uid,
-                                               uint32_t gid, uint32_t mode) {
+FSStatusCode MetaserverClient::CreateRootInode(uint32_t fsId, uint32_t poolId,
+                    uint32_t copysetId, uint32_t partitionId, uint32_t uid,
+                    uint32_t gid, uint32_t mode, const std::string &leader) {
     if (!inited_) {
         LOG(ERROR) << "MetaserverClient not Init, init first";
         return FSStatusCode::METASERVER_CLIENT_NOT_INITED;
     }
-
     CreateRootInodeRequest request;
     CreateRootInodeResponse response;
 
+    if (channel_.Init(leader.c_str(), nullptr) != 0) {
+        LOG(ERROR) << "Init channel to metaserver: " << leader
+                   << " failed!";
+        return FSStatusCode::RPC_ERROR;;
+    }
     brpc::Controller cntl;
     cntl.set_timeout_ms(options_.rpcTimeoutMs);
 
     MetaServerService_Stub stub(&channel_);
-    // TODO(cw123): add partiton
-    request.set_poolid(0);
-    request.set_copysetid(0);
-    request.set_partitionid(0);
+    request.set_poolid(poolId);
+    request.set_copysetid(copysetId);
+    request.set_partitionid(partitionId);
     request.set_fsid(fsId);
     request.set_uid(uid);
     request.set_gid(gid);
     request.set_mode(mode);
-    // TODO(@威姐): 适配新的proto
-    request.set_copysetid(1);
-    request.set_poolid(1);
-    request.set_partitionid(1);
 
     stub.CreateRootInode(&cntl, &request, &response, nullptr);
 
@@ -109,6 +104,11 @@ FSStatusCode MetaserverClient::DeleteInode(uint32_t fsId, uint64_t inodeId) {
     brpc::Controller cntl;
     cntl.set_timeout_ms(options_.rpcTimeoutMs);
 
+    if (channel_.Init(options_.metaserverAddr.c_str(), nullptr) != 0) {
+        LOG(ERROR) << "Init channel to metaserver: " << options_.metaserverAddr
+                   << " failed!";
+        return FSStatusCode::RPC_ERROR;
+    }
     MetaServerService_Stub stub(&channel_);
     // TODO(cw123): add partiton
     request.set_poolid(0);

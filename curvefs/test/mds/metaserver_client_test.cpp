@@ -104,12 +104,6 @@ void RpcService(google::protobuf::RpcController *cntl_base,
     done->Run();
 }
 
-TEST_F(MetaserverClientTest, InitFailTest) {
-    MetaserverOptions options;
-    MetaserverClient client(options);
-    ASSERT_FALSE(client.Init());
-}
-
 TEST_F(MetaserverClientTest, InitSuccess) {
     MetaserverOptions options;
     options.metaserverAddr = addr_;
@@ -122,10 +116,15 @@ TEST_F(MetaserverClientTest, CreateRootInodeNotInitFail) {
     options.metaserverAddr = addr_;
     MetaserverClient client(options);
     uint32_t fsId = 0;
+    uint32_t poolId = 0;
+    uint32_t copysetId = 0;
+    uint32_t partitionId = 0;
     uint32_t uid = 0;
     uint32_t gid = 0;
     uint32_t mode = 0;
-    ASSERT_EQ(client.CreateRootInode(fsId, uid, gid, mode),
+
+    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId,
+                                 partitionId, uid, gid, mode, addr_),
               FSStatusCode::METASERVER_CLIENT_NOT_INITED);
 }
 
@@ -145,6 +144,9 @@ TEST_F(MetaserverClientTest, CreateRootInodeSuccess) {
     MetaserverClient client(options);
     ASSERT_TRUE(client.Init());
     uint32_t fsId = 0;
+    uint32_t poolId = 0;
+    uint32_t copysetId = 0;
+    uint32_t partitionId = 0;
     uint32_t uid = 0;
     uint32_t gid = 0;
     uint32_t mode = 0;
@@ -156,7 +158,8 @@ TEST_F(MetaserverClientTest, CreateRootInodeSuccess) {
             SetArgPointee<2>(response),
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
-    ASSERT_EQ(client.CreateRootInode(fsId, uid, gid, mode), FSStatusCode::OK);
+    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId, partitionId,
+                                     uid, gid, mode, addr_), FSStatusCode::OK);
 }
 
 TEST_F(MetaserverClientTest, CreateRootInodeFail) {
@@ -165,6 +168,9 @@ TEST_F(MetaserverClientTest, CreateRootInodeFail) {
     MetaserverClient client(options);
     ASSERT_TRUE(client.Init());
     uint32_t fsId = 0;
+    uint32_t poolId = 0;
+    uint32_t copysetId = 0;
+    uint32_t partitionId = 0;
     uint32_t uid = 0;
     uint32_t gid = 0;
     uint32_t mode = 0;
@@ -176,8 +182,8 @@ TEST_F(MetaserverClientTest, CreateRootInodeFail) {
             SetArgPointee<2>(response),
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
-    ASSERT_EQ(client.CreateRootInode(fsId, uid, gid, mode),
-              FSStatusCode::INSERT_ROOT_INODE_ERROR);
+    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId, partitionId,
+                uid, gid, mode, addr_), FSStatusCode::INSERT_ROOT_INODE_ERROR);
 }
 
 TEST_F(MetaserverClientTest, DeleteInodeSuccess) {

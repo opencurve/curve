@@ -404,6 +404,10 @@ class MockTopologyManager : public TopologyManager {
     MOCK_METHOD2(GetCopysetOfPartition, void(
                 const GetCopysetOfPartitionRequest *request,
                 GetCopysetOfPartitionResponse *response));
+
+    MOCK_METHOD3(GetCopysetMembers, TopoStatusCode(const PoolIdType poolId,
+                                            const CopySetIdType copysetId,
+                                            std::set<std::string> *addrs));
 };
 
 }  // namespace topology
