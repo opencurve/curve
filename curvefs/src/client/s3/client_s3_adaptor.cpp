@@ -39,12 +39,27 @@ void S3ClientAdaptorImpl::Init(
     metaServerEps_ = option.metaServerEps;
     allocateServerEps_ = option.allocateServerEps;
     flushIntervalSec_ = option.flushInterval;
+    enableDiskCache_ = option.diskCacheOpt.enableDiskCache;
     client_ = client;
     inodeManager_ = inodeManager;
     fsCacheManager_ = std::make_shared<FsCacheManager>(this);
     waitIntervalSec_.Init(option.intervalSec * 1000);
     toStop_.store(false, std::memory_order_release);
     bgFlushThread_ = Thread(&S3ClientAdaptorImpl::BackGroundFlush, this);
+
+    if (enableDiskCache_) {
+        std::shared_ptr<PosixWrapper> wrapper =
+            std::make_shared<PosixWrapper>();
+        std::shared_ptr<DiskCacheRead> diskCacheRead =
+            std::make_shared<DiskCacheRead>();
+        std::shared_ptr<DiskCacheWrite> diskCacheWrite =
+            std::make_shared<DiskCacheWrite>();
+        std::shared_ptr<DiskCacheManager>  diskCacheManager = std::make_shared<
+            DiskCacheManager>(wrapper, diskCacheWrite, diskCacheRead);
+        diskCacheManagerImpl_ =
+            std::make_shared<DiskCacheManagerImpl>(diskCacheManager, client);
+        diskCacheManagerImpl_->Init(option);
+    }
 }
 
 int S3ClientAdaptorImpl::Write(Inode* inode, uint64_t offset, uint64_t length,
@@ -220,7 +235,7 @@ void S3ClientAdaptorImpl::BackGroundFlush() {
 
 int S3ClientAdaptorImpl::Stop() {
     LOG(INFO) << "Stopping S3ClientAdaptor.";
-
+    diskCacheManagerImpl_->UmountDiskCache();
     waitIntervalSec_.StopWait();
     toStop_.store(true, std::memory_order_release);
     bgFlushThread_.join();

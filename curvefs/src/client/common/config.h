@@ -68,10 +68,25 @@ struct SpaceAllocServerOption {
     uint64_t rpcTimeoutMs;
 };
 
+struct DiskCacheOption {
+    bool enableDiskCache;
+    // cache disk dir
+    std::string cacheDir;
+    // if true, call fdatasync after write
+    bool forceFlush;
+    // trim interval
+    uint64_t trimCheckIntervalSec;
+    // trim start if disk usage over fullRatio
+    uint64_t fullRatio;
+    // trim finish until disk usage below safeRatio
+    uint64_t safeRatio;
+};
+
 struct S3Option {
     uint64_t blocksize;
     uint64_t chunksize;
     S3AdapterOption s3AdaptrOpt;
+    DiskCacheOption diskCacheOpt;
 };
 
 struct VolumeOption {

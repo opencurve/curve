@@ -98,7 +98,7 @@ class DiskCacheManager {
     curve::common::Thread backEndThread_;
     curve::common::Atomic<bool> isRunning_;
     curve::common::InterruptibleSleeper sleeper_;
-    uint32_t trimCheckInterval_;
+    uint32_t trimCheckIntervalSec_;
     uint32_t fullRatio_;
     uint32_t safeRatio_;
     std::string cacheDir_;

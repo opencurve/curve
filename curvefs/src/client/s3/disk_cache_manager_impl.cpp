@@ -32,20 +32,20 @@ namespace curvefs {
 namespace client {
 
 DiskCacheManagerImpl::DiskCacheManagerImpl(
-        std::shared_ptr<DiskCacheManager> diskCacheManager) {
+        std::shared_ptr<DiskCacheManager> diskCacheManager, S3Client *client) {
     diskCacheManager_ = diskCacheManager;
+    client_ = client;
 }
 
-int DiskCacheManagerImpl::Init(S3Client *client,
-                          const S3ClientAdaptorOption option) {
+int DiskCacheManagerImpl::Init(const S3ClientAdaptorOption option) {
     LOG(INFO) << "DiskCacheManagerImpl init start.";
-    int ret;
-    ret = diskCacheManager_->Init(client, option);
+    int ret = diskCacheManager_->Init(client_, option);
     if (ret < 0) {
         LOG(ERROR) << "DiskCacheManagerImpl init error.";
         return ret;
     }
-    forceFlush_ = option.forceFlush;
+
+    forceFlush_ = option.diskCacheOpt.forceFlush;
     LOG(INFO) << "DiskCacheManagerImpl init end.";
     return 0;
 }
@@ -54,7 +54,23 @@ int DiskCacheManagerImpl::Write(const std::string name,
                           const char* buf, uint64_t length) {
     LOG(INFO) << "write name = " << name
               << ", length = " << length;
-    int ret;
+    int ret = 0;
+    ret = WriteDiskFile(name, buf, length);
+    if (ret < 0) {
+        ret = client_->Upload(name, buf, length);
+        if (ret < 0) {
+            LOG(ERROR) << "upload object fail. object: " << name;
+            return -1;
+        }
+    }
+    LOG(INFO) << "write success, write name = " << name;
+    return 0;
+}
+
+int DiskCacheManagerImpl::WriteDiskFile(const std::string name,
+                          const char* buf, uint64_t length) {
+    LOG(INFO) << "write name = " << name
+              << ", length = " << length;
     // if cache disk is full
     if (diskCacheManager_->IsDiskCacheFull()) {
         LOG(ERROR) << "write disk file fail, disk full.";
@@ -95,13 +111,19 @@ int DiskCacheManagerImpl::Read(const std::string name,
         return -1;
     }
     // read disk file maybe fail because of disk file has been removed.
-    int readRet = diskCacheManager_->ReadDiskFile(
+    int ret = diskCacheManager_->ReadDiskFile(
                  name, buf, offset, length);
-    if (readRet < length) {
-        LOG(ERROR) << "read disk file error. readRet = " << readRet;
-        return readRet;
+    if (ret < length) {
+        LOG(ERROR) << "read disk file error. readRet = " << ret;
+        ret = client_->Download(name, buf, offset, length);
+        if (ret < 0) {
+            LOG(ERROR) << "download object fail. object name = "
+                       << name;
+            return ret;
+        }
     }
-    return readRet;
+    LOG(INFO) << "read success, read name = " << name;
+    return ret;
 }
 
 bool DiskCacheManagerImpl::IsCached(const std::string name) {

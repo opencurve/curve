@@ -38,24 +38,25 @@ DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
     cacheWrite_ = cacheWrite;
     cacheRead_ = cacheRead;
     isRunning_ = false;
-    trimCheckInterval_ = 5;
+    trimCheckIntervalSec_ = 5;
 }
 
 int DiskCacheManager::Init(S3Client *client,
                           const S3ClientAdaptorOption option) {
     LOG(INFO) << "DiskCacheManager init start.";
     client_ = client;
-    trimCheckInterval_ = option.trimCheckInterval;
-    fullRatio_ = option.fullRatio;
-    safeRatio_ = option.safeRatio;
-    cacheDir_ = option.cacheDir;
+
+    trimCheckIntervalSec_ = option.diskCacheOpt.trimCheckIntervalSec;
+    fullRatio_ = option.diskCacheOpt.fullRatio;
+    safeRatio_ = option.diskCacheOpt.safeRatio;
+    cacheDir_ = option.diskCacheOpt.cacheDir;
 
     cacheWrite_->Init(client_, posixWrapper_, cacheDir_);
     cacheRead_->Init(posixWrapper_, cacheDir_);
     int ret;
     ret = CreateDir();
     if (ret < 0) {
-        LOG(ERROR) << "create cache dir error. ret = " << ret;
+        LOG(ERROR) << "create cache dir error, ret = " << ret;
         return ret;
     }
     // start aync upload thread
@@ -217,7 +218,7 @@ bool DiskCacheManager::IsDiskCacheSafe() {
 }
 
 void DiskCacheManager::TrimCache() {
-    const std::chrono::seconds sleepSec(trimCheckInterval_);
+    const std::chrono::seconds sleepSec(trimCheckIntervalSec_);
     LOG(INFO) << "trim function start.";
     // 1. check cache disk usage every sleepSec seconds.
     // 2. if cache disk is full,

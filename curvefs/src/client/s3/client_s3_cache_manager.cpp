@@ -305,6 +305,7 @@ int FileCacheManager::HandleReadRequest(
 
             std::string name = GenerateObjectName(
                 iter->GetS3ChunkInfo().chunkid(), blockIndex);
+
             if (async) {
                 LOG(INFO) << "async read s3";
                 auto context = std::make_shared<GetObjectAsyncContext>();
@@ -318,16 +319,22 @@ int FileCacheManager::HandleReadRequest(
                 s3ClientAdaptor_->GetS3Client()->DownloadAsync(context);
             } else {
                 LOG(INFO) << "sync read s3";
-                int ret = s3ClientAdaptor_->GetS3Client()->Download(
-                    name, response.GetDataBuf() + readOffset, blockPos, n);
+                int ret = 0;
+                if (s3ClientAdaptor_->EnableDiskCache() &&
+                  s3ClientAdaptor_->GetDiskCacheManager()->IsCached(name)) {
+                    ret = s3ClientAdaptor_->GetDiskCacheManager()->Read(
+                        name, response.GetDataBuf() + readOffset, blockPos, n);
+                } else {
+                    ret = s3ClientAdaptor_->GetS3Client()->Download(
+                        name, response.GetDataBuf() + readOffset, blockPos, n);
+                }
                 if (ret < 0) {
-                    LOG(ERROR)
-                        << "download name:" << name << " offset:" << blockPos
-                        << " len:" << n << "fail:" << ret;
+                    LOG(ERROR) << "download name:" << name
+                               << " offset:" << blockPos
+                               << " len:" << n << "fail:" << ret;
                     return ret;
                 }
             }
-
             len -= n;
             readOffset += n;
             blockIndex++;
@@ -1159,13 +1166,19 @@ CURVEFS_ERROR DataCache::Flush(Inode* inode, bool force) {
             }
 
             objectName = GenerateObjectName(chunkId, blockIndex);
-            int ret = s3ClientAdaptor_->GetS3Client()->Upload(
-                objectName, data_ + writeOffset, n);
+            int ret = 0;
+            if (s3ClientAdaptor_->EnableDiskCache()) {
+                ret = s3ClientAdaptor_->GetDiskCacheManager()->Write(
+                    objectName, data_ + writeOffset, n);
+            } else {
+                ret = s3ClientAdaptor_->GetS3Client()->Upload(
+                    objectName, data_ + writeOffset, n);
+            }
             if (ret < 0) {
-                LOG(ERROR) << "upload object fail. object: " << objectName;
+                LOG(ERROR) << "write object fail. object: "
+                           << objectName;
                 return CURVEFS_ERROR::INTERNAL;
             }
-
             tmpLen -= n;
             blockIndex++;
             writeOffset += n;

@@ -106,10 +106,27 @@ void InitBlockDeviceOption(Configuration *conf,
     conf->GetValueFatalIfFail("bdev.confpath", &bdevOpt->configPath);
 }
 
+void InitDiskCacheOption(Configuration *conf,
+                        DiskCacheOption *diskCacheOption) {
+    conf->GetValueFatalIfFail("diskCache.enableDiskCache",
+        &diskCacheOption->enableDiskCache);
+    conf->GetValueFatalIfFail("diskCache.forceFlush",
+        &diskCacheOption->forceFlush);
+    conf->GetValueFatalIfFail("diskCache.cacheDir",
+        &diskCacheOption->cacheDir);
+    conf->GetValueFatalIfFail("diskCache.trimCheckIntervalSec",
+        &diskCacheOption->trimCheckIntervalSec);
+    conf->GetValueFatalIfFail("diskCache.fullRatio",
+        &diskCacheOption->fullRatio);
+    conf->GetValueFatalIfFail("diskCache.safeRatio",
+        &diskCacheOption->safeRatio);
+}
+
 void InitS3Option(Configuration *conf, S3Option *s3Opt) {
     conf->GetValueFatalIfFail("s3.blocksize", &s3Opt->blocksize);
     conf->GetValueFatalIfFail("s3.chunksize", &s3Opt->chunksize);
     ::curve::common::InitS3AdaptorOption(conf, &s3Opt->s3AdaptrOpt);
+    InitDiskCacheOption(conf, &s3Opt->diskCacheOpt);
 }
 
 void InitVolumeOption(Configuration *conf, VolumeOption *volumeOpt) {
