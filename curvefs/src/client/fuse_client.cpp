@@ -200,8 +200,8 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
     InodeParam param;
     param.fsId = fsInfo_->fsid();
     param.length = 0;
-    // param.uid = ctx->uid;
-    // param.gid = ctx->gid;
+    param.uid = ctx->uid;
+    param.gid = ctx->gid;
     param.mode = mode;
     param.type = type;
 
@@ -491,7 +491,7 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
     param.length = std::strlen(link);
     param.uid = ctx->uid;
     param.gid = ctx->gid;
-    param.mode = 0777;
+    param.mode = S_IFLNK | 0777;
     param.type = FsFileType::TYPE_SYM_LINK;
     param.symlink = link;
 

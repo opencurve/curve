@@ -146,7 +146,7 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
                               &clientOption->attrTimeOut);
     conf->GetValueFatalIfFail("fuseClient.entryTimeOut",
                               &clientOption->entryTimeOut);
-    conf->GetValueFatalIfFail("fuseClient.limitDentryLimit",
+    conf->GetValueFatalIfFail("fuseClient.listDentryLimit",
                               &clientOption->listDentryLimit);
 
     SetBrpcOpt(conf);

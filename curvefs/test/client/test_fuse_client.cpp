@@ -1106,11 +1106,9 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
     // step4: commit tx
     EXPECT_CALL(*mdsClient_, CommitTx(_))
         .WillOnce(Invoke([&](const std::vector<PartitionTxId>& txIds) {
-            if (txIds.size() == 2 &&
+            if (txIds.size() == 1 &&
                 txIds[0].partitionid() == partitionId &&
-                txIds[0].txid() == txId + 1 &&
-                txIds[1].partitionid() == partitionId &&
-                txIds[1].txid() == txId + 1) {
+                txIds[0].txid() == txId + 1) {
                 return TopoStatusCode::TOPO_OK;
             }
             return TopoStatusCode::TOPO_INTERNAL_ERROR;

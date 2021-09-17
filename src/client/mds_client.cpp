@@ -85,8 +85,6 @@ int RPCExcutorRetryPolicy::DoRPCTask(RPCFunc rpctask, uint64_t maxRetryTimeMS) {
         }
     }
 
-    // 4. 重试超限，向上返回
-    LOG(INFO) << "retcode: " << retcode;
     return retcode;
 }
 
