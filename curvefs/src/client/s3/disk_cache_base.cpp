@@ -33,8 +33,8 @@ namespace curvefs {
 
 namespace client {
 
-#define CACHE_WRITE_DIR "cacheread"
-#define CACHE_READ_DIR "cachewrite"
+#define CACHE_WRITE_DIR "cachewrite"
+#define CACHE_READ_DIR "cacheread"
 
 void DiskCacheBase::Init(std::shared_ptr<PosixWrapper> wrapper,
                       const std::string cacheDir) {

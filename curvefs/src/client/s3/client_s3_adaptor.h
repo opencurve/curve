@@ -33,6 +33,7 @@
 #include "curvefs/src/client/inode_cache_manager.h"
 #include "curvefs/src/client/s3/client_s3.h"
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
+#include "curvefs/src/client/s3/disk_cache_manager_impl.h"
 #include "src/common/wait_interval.h"
 
 namespace curvefs {
@@ -45,13 +46,6 @@ using curvefs::space::AllocateS3ChunkRequest;
 using curvefs::space::AllocateS3ChunkResponse;
 using ::curve::common::Thread;
 
-/*
-using namespace curvefs::metaserver;
-using namespace curvefs::space;
-*/
-
-class DiskCacheManagerImpl;
-
 struct S3ClientAdaptorOption {
     uint64_t blockSize;
     uint64_t chunkSize;
@@ -59,11 +53,7 @@ struct S3ClientAdaptorOption {
     std::string allocateServerEps;
     uint32_t intervalSec;
     uint32_t flushInterval;
-    uint64_t trimCheckInterval;
-    uint64_t fullRatio;
-    uint64_t safeRatio;
-    std::string cacheDir;
-    bool forceFlush;
+    DiskCacheOption diskCacheOpt;
 };
 
 class S3ClientAdaptor {
@@ -125,11 +115,17 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     uint32_t GetFlushInterval() {
         return flushIntervalSec_;
     }
+    bool EnableDiskCache() {
+        return enableDiskCache_;
+    }
     S3Client* GetS3Client() {
         return client_;
     }
     std::shared_ptr<InodeCacheManager> GetInodeCacheManager() {
         return inodeManager_;
+    }
+    std::shared_ptr<DiskCacheManagerImpl> GetDiskCacheManager() {
+        return diskCacheManagerImpl_;
     }
     CURVEFS_ERROR AllocS3ChunkId(uint32_t fsId, uint64_t* chunkId);
 
@@ -150,6 +146,8 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     curve::common::WaitInterval waitIntervalSec_;
     std::shared_ptr<FsCacheManager> fsCacheManager_;
     std::shared_ptr<InodeCacheManager> inodeManager_;
+    std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl_;
+    bool enableDiskCache_;
 };
 
 }  // namespace client

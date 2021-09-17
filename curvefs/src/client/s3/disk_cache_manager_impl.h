@@ -43,10 +43,19 @@ using curvefs::common::PosixWrapper;
 
 class S3ClientAdaptorOption;
 
+struct DiskCacheOption {
+    bool enableDiskCache;
+    uint64_t trimCheckIntervalSec;
+    uint64_t fullRatio;
+    uint64_t safeRatio;
+    std::string cacheDir;
+    bool forceFlush;
+};
+
 class DiskCacheManagerImpl {
  public:
     DiskCacheManagerImpl(std::shared_ptr<DiskCacheManager>
-      diskCacheManager);
+      diskCacheManager, S3Client *client);
     virtual ~DiskCacheManagerImpl() {}
     /**
      * @brief init DiskCacheManagerImpl
@@ -54,7 +63,7 @@ class DiskCacheManagerImpl {
      * @param[in] option config option
      * @return success: 0, fail : < 0
      */
-    int Init(S3Client *client, const S3ClientAdaptorOption option);
+    int Init(const S3ClientAdaptorOption option);
     /**
      * @brief Write obj
      * @param[in] name obj name
@@ -86,8 +95,11 @@ class DiskCacheManagerImpl {
     int UmountDiskCache();
 
  private:
+    int WriteDiskFile(const std::string name, const char* buf, uint64_t length);
+
     std::shared_ptr<DiskCacheManager> diskCacheManager_;
     bool forceFlush_;
+    S3Client *client_;
 };
 
 }  // namespace client

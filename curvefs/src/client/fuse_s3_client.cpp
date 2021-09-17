@@ -41,6 +41,17 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     // s3AdaptorOption.metaServerEps = option.metaOpt.msaddr;
     s3AdaptorOption.allocateServerEps = option.spaceOpt.spaceaddr;
 
+    s3AdaptorOption.diskCacheOpt.cacheDir =
+        option.s3Opt.diskCacheOpt.cacheDir;
+    s3AdaptorOption.diskCacheOpt.enableDiskCache =
+        option.s3Opt.diskCacheOpt.enableDiskCache;
+     s3AdaptorOption.diskCacheOpt.forceFlush =
+        option.s3Opt.diskCacheOpt.forceFlush;
+     s3AdaptorOption.diskCacheOpt.fullRatio =
+        option.s3Opt.diskCacheOpt.fullRatio;
+     s3AdaptorOption.diskCacheOpt.safeRatio =
+        option.s3Opt.diskCacheOpt.safeRatio;
+
     s3Client_ = std::make_shared<S3ClientImpl>();
     s3Client_->Init(option.s3Opt.s3AdaptrOpt);
 
@@ -49,6 +60,7 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
 }
 
 void FuseS3Client::UnInit() {
+    s3Adaptor_->Stop();
     FuseClient::UnInit();
 }
 
