@@ -191,9 +191,11 @@ CURVEFS_ERROR RenameOperator::CommitTx() {
     partitionTxId.set_txid(srcTxId_ + 1);
     txIds.push_back(partitionTxId);
 
-    partitionTxId.set_partitionid(dstPartitionId_);
-    partitionTxId.set_txid(dstTxId_ + 1);
-    txIds.push_back(partitionTxId);
+    if (srcPartitionId_ != dstPartitionId_) {
+        partitionTxId.set_partitionid(dstPartitionId_);
+        partitionTxId.set_txid(dstTxId_ + 1);
+        txIds.push_back(partitionTxId);
+    }
 
     auto rc = mdsClient_->CommitTx(txIds);
     if (rc != TopoStatusCode::TOPO_OK) {
