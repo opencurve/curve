@@ -235,7 +235,6 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
         request.set_parentinodeid(inodeid);
         request.set_name(name);
         request.set_txid(txId);
-        request.set_txid(1);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.DeleteDentry(cntl, &request, &response, nullptr);

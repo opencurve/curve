@@ -503,6 +503,7 @@ bool MetaCache::GetCopysetIDwithInodeID(uint32_t inodeID,
             *groupID = CopysetGroupID(iter->poolid(), iter->copysetid());
             *partitionID = iter->partitionid();
             *txId = iter->txid();
+            GetTxId(*partitionID, txId);
             return true;
         }
     }
