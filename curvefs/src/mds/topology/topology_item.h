@@ -724,39 +724,6 @@ class Partition {
     mutable ::curve::common::RWLock mutex_;
 };
 
-/**
- * @brief generate peerId
- *
- * @param ip hostIp
- * @param port port number
- * @param idx index
- *
- * @return peerId
- */
-inline std::string BuildPeerId(
-    const std::string &ip,
-    uint32_t port,
-    uint32_t idx = 0) {
-    return ip + ":" + std::to_string(port) + ":" + std::to_string(idx);
-}
-
-/**
- * @brief split peer ID
- *
- * @param peerId peer ID
- * @param[out] ip hostIp
- * @param[out] import port
- * @param[out] idx index
- *
- * @retval true success
- * @retval false fail
- */
-bool SplitPeerId(
-    const std::string &peerId,
-    std::string *ip,
-    uint32_t *port,
-    uint32_t *idx = nullptr);
-
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

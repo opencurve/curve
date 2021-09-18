@@ -277,18 +277,8 @@ TEST_F(FsManagerTest2, CreateFoundUnCompleteOperation) {
     EXPECT_CALL(*storage_, Insert(_))
         .Times(0);
 
-    CreatePartitionRequest pRequest;
-    CreatePartitionResponse pResponse;
-    pRequest.set_fsid(0);
-    pRequest.set_count(1);
-    pResponse.set_statuscode(TopoStatusCode::TOPO_OK);
-    auto partitionInfo = pResponse.add_partitioninfolist();
-    partitionInfo->set_fsid(0);
-    partitionInfo->set_poolid(1);
-    partitionInfo->set_copysetid(1);
-    partitionInfo->set_partitionid(1);
-    EXPECT_CALL(*topoManager_, CreatePartition(_, _))
-        .WillOnce(SetArgPointee<1>(pResponse));
+    EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
+        .WillOnce(Return(TopoStatusCode::TOPO_OK));
     std::set<std::string> addrs;
     addrs.emplace(kFsManagerTest2ServerAddress);
     EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
@@ -296,8 +286,7 @@ TEST_F(FsManagerTest2, CreateFoundUnCompleteOperation) {
             SetArgPointee<2>(addrs),
             Return(TopoStatusCode::TOPO_OK)));
     GetLeaderResponse2 getLeaderResponse;
-    getLeaderResponse.mutable_leader()->set_address(
-                        kFsManagerTest2ServerAddress);
+    getLeaderResponse.mutable_leader()->set_address("0.0.0.0:22000:0");
     EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
         .WillOnce(DoAll(
         SetArgPointee<2>(getLeaderResponse),

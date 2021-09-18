@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    curvefs::mds::Mds mds;
+    curvefs::mds::MDS mds;
 
     // initialize MDS options
     mds.InitOptions(conf);

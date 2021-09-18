@@ -43,6 +43,7 @@ using ::testing::ReturnArg;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
+using ::testing::Matcher;
 // using ::curvefs::space::MockSpaceService;
 using ::curvefs::common::S3Info;
 using ::curvefs::common::Volume;
@@ -174,6 +175,7 @@ TEST_F(MdsServiceTest, test1) {
     // start rpc server
     brpc::ServerOptions option;
     std::string addr = "127.0.0.1:6703";
+    std::string leader = "127.0.0.1:6703:0";
     ASSERT_EQ(server.Start(addr.c_str(), &option), 0);
 
     // init client
@@ -214,18 +216,8 @@ TEST_F(MdsServiceTest, test1) {
     createRequest.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
     createRequest.mutable_fsdetail()->mutable_volume()->CopyFrom(volume);
 
-    CreatePartitionRequest pRequest;
-    CreatePartitionResponse pResponse;
-    pRequest.set_fsid(0);
-    pRequest.set_count(1);
-    pResponse.set_statuscode(TopoStatusCode::TOPO_OK);
-    auto partitionInfo = pResponse.add_partitioninfolist();
-    partitionInfo->set_fsid(0);
-    partitionInfo->set_poolid(1);
-    partitionInfo->set_copysetid(1);
-    partitionInfo->set_partitionid(1);
-    EXPECT_CALL(*topoManager_, CreatePartition(_, _))
-        .WillOnce(SetArgPointee<1>(pResponse));
+    EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
+        .WillOnce(Return(TopoStatusCode::TOPO_OK));
     std::set<std::string> addrs;
     addrs.emplace(addr);
     EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
@@ -233,7 +225,7 @@ TEST_F(MdsServiceTest, test1) {
             SetArgPointee<2>(addrs),
             Return(TopoStatusCode::TOPO_OK)));
     GetLeaderResponse2 getLeaderResponse;
-    getLeaderResponse.mutable_leader()->set_address(addr);
+    getLeaderResponse.mutable_leader()->set_address(leader);
     EXPECT_CALL(mockCliService2, GetLeader(_, _, _, _))
         .WillOnce(DoAll(
         SetArgPointee<2>(getLeaderResponse),
@@ -295,8 +287,8 @@ TEST_F(MdsServiceTest, test1) {
     s3info.set_chunksize(4096);
     createRequest.mutable_fsdetail()->mutable_s3info()->CopyFrom(s3info);
 
-    EXPECT_CALL(*topoManager_, CreatePartition(_, _))
-        .WillOnce(SetArgPointee<1>(pResponse));
+    EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
+        .WillOnce(Return(TopoStatusCode::TOPO_OK));
     EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(addrs),

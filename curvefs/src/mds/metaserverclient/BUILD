@@ -32,5 +32,6 @@ cc_library(
         "//curvefs/proto:mds_cc_proto",
         "//curvefs/proto:copyset_cc_proto",
         "//curvefs/proto:cli2_cc_proto",
+        "//curvefs/src/mds/topology:curvefs_deal_peerid",
     ],
 )

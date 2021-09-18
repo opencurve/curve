@@ -45,6 +45,7 @@ enum FSStatusCode {
     CREATE_PARTITION_ERROR = 22;
     CREATE_COPYSET_ERROR = 23;
     GET_PARTITIONINFOOFFS_ERROR = 24;
+    PARTITION_EXIST = 25;
 }
 
 // fs interface

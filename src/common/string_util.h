@@ -69,6 +69,21 @@ inline void SplitString(const std::string& full,
     }
 }
 
+inline bool StringToUl(const std::string &value, uint32_t *out) {
+    try {
+        *out = std::stoul(value);
+        return true;
+    } catch (std::invalid_argument &e) {
+        LOG(ERROR) << "decode string:{" << value << "} to number err:"
+                   << e.what();
+        return false;
+    } catch (std::out_of_range &e) {
+        LOG(ERROR) << "decode string:{" << value << "} to number err:"
+                   << e.what();
+        return false;
+    }
+}
+
 inline bool StringToUll(const std::string &value, uint64_t *out) {
     try {
         *out = std::stoull(value);

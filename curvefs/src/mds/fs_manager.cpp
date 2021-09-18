@@ -36,7 +36,6 @@ using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
 using curvefs::mds::topology::TopoStatusCode;
 
 bool FsManager::Init() {
-    LOG_IF(FATAL, !metaserverClient_->Init()) << "metaserverClient Init fail";
     LOG_IF(FATAL, !spaceClient_->Init()) << "spaceClient Init fail";
     LOG_IF(FATAL, !fsStorage_->Init()) << "fsStorage Init fail";
 
@@ -46,7 +45,6 @@ bool FsManager::Init() {
 void FsManager::Uninit() {
     fsStorage_->Uninit();
     spaceClient_->Uninit();
-    metaserverClient_->Uninit();
 }
 
 FSStatusCode FsManager::CreateFs(const std::string& fsName,
@@ -76,7 +74,7 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName,
     }
 
     if (!skipCreateNewFs) {
-        uint64_t fsId = fsStorage_->NextFsId();
+        uint32_t fsId = fsStorage_->NextFsId();
         if (fsId == INVALID_FS_ID) {
             LOG(ERROR) << "Generator fs id failed, fsName = " << fsName;
             return FSStatusCode::INTERNAL_ERROR;
@@ -101,22 +99,16 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName,
 
     // create partition
     auto ret = FSStatusCode::OK;
-    curvefs::mds::topology::CreatePartitionRequest request;
-    curvefs::mds::topology::CreatePartitionResponse response;
-    request.set_fsid(wrapper.GetFsId());
-    request.set_count(1);
-    topoManager_->CreatePartition(&request, &response);
-    if (TopoStatusCode::TOPO_OK != response.statuscode() ||
-        response.partitioninfolist_size() < 1) {
+    PartitionInfo partition;
+    TopoStatusCode topoRet = topoManager_->CreatePartitionsAndGetMinPartition(
+        wrapper.GetFsId(), &partition);
+    if (TopoStatusCode::TOPO_OK != topoRet) {
         LOG(ERROR) << "CreateFs fail, create partition fail"
-                   << ", request = " << request.ShortDebugString()
-                   << ", error code = " << response.statuscode();
+                   << ", fsId = " << wrapper.GetFsId();
         ret = FSStatusCode::CREATE_PARTITION_ERROR;
     } else {
-        PartitionInfo partition = response.partitioninfolist(0);
-        // get leader
+        // get copyset members
         std::set<std::string> addrs;
-        std::string leader;
         if (TopoStatusCode::TOPO_OK != topoManager_->GetCopysetMembers(
                 partition.poolid(), partition.copysetid(), &addrs)) {
             LOG(ERROR) << "CreateFs fail, get copyset members fail,"
@@ -124,17 +116,9 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName,
                        << ", copysetId = " << partition.copysetid();
             ret = FSStatusCode::UNKNOWN_ERROR;
         } else {
-            ret = metaserverClient_->GetLeader(partition.poolid(),
-                                    partition.copysetid(), addrs, &leader);
-            if (ret != FSStatusCode::OK) {
-                LOG(ERROR) << "Createfs fail, get leader fail"
-                        << ", fsName = " << fsName
-                        << ", partition = " << partition.ShortDebugString();
-            } else {
-                ret = metaserverClient_->CreateRootInode(wrapper.GetFsId(),
-                        partition.poolid(), partition.copysetid(),
-                        partition.partitionid(), uid, gid, mode, leader);
-            }
+            ret = metaserverClient_->CreateRootInode(wrapper.GetFsId(),
+                    partition.poolid(), partition.copysetid(),
+                    partition.partitionid(), uid, gid, mode, addrs);
         }
     }
     if (ret != FSStatusCode::OK && ret != FSStatusCode::INODE_EXIST) {
@@ -289,7 +273,8 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
     }
 
     // 4. If this is the first mountpoint, init space,
-    if (wrapper.IsMountPointEmpty()) {
+    if (wrapper.GetFsType() == FSType::TYPE_VOLUME &&
+        wrapper.IsMountPointEmpty()) {
         FsInfo tempFsInfo = wrapper.ProtoFsInfo();
         ret = spaceClient_->InitSpace(tempFsInfo);
         if (ret != FSStatusCode::OK) {
@@ -350,7 +335,8 @@ FSStatusCode FsManager::UmountFs(const std::string& fsName,
     }
 
     // 3. if no mount point exist, uninit space
-    if (wrapper.IsMountPointEmpty()) {
+    if (wrapper.GetFsType() == FSType::TYPE_VOLUME &&
+        wrapper.IsMountPointEmpty()) {
         ret = spaceClient_->UnInitSpace(wrapper.GetFsId());
         if (ret != FSStatusCode::OK) {
             LOG(ERROR) << "UmountFs fail, uninit space fail, fsName = "

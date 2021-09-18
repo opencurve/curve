@@ -596,8 +596,39 @@ void TopologyManager::ListPool(const ListPoolRequest *request,
     }
 }
 
-void TopologyManager::CreatePartition(const CreatePartitionRequest *request,
-                        CreatePartitionResponse *response) {
+TopoStatusCode TopologyManager::CreatePartitionsAndGetMinPartition(
+    FsIdType fsId, PartitionInfo *partition) {
+    CreatePartitionRequest request;
+    CreatePartitionResponse response;
+    request.set_fsid(fsId);
+    request.set_count(option_.createPartitionNumber);
+    CreatePartitions(&request, &response);
+    if (TopoStatusCode::TOPO_OK != response.statuscode() ||
+        response.partitioninfolist_size() != request.count()) {
+        return TopoStatusCode::TOPO_CREATE_PARTITION_FAIL;
+    }
+    // return the min one
+    PartitionIdType minId = 0;
+    if (response.partitioninfolist_size() > 0) {
+        minId = response.partitioninfolist(0).partitionid();
+        *partition = response.partitioninfolist(0);
+        for (int i = 1; i < response.partitioninfolist_size(); i++) {
+            if (response.partitioninfolist(i).partitionid() < minId) {
+                minId = response.partitioninfolist(i).partitionid();
+                *partition = response.partitioninfolist(i);
+            }
+        }
+    } else {
+        LOG(WARNING) << "CreatePartition but empty response, "
+                     << "request = " << request.ShortDebugString()
+                     << "response = " << response.ShortDebugString();
+        return TopoStatusCode::TOPO_CREATE_PARTITION_FAIL;
+    }
+    return TopoStatusCode::TOPO_OK;
+}
+
+void TopologyManager::CreatePartitions(const CreatePartitionRequest *request,
+                                       CreatePartitionResponse *response) {
     FsIdType fsId = request->fsid();
     uint32_t count = request->count();
     auto partitionInfoList = response->mutable_partitioninfolist();
@@ -608,7 +639,7 @@ void TopologyManager::CreatePartition(const CreatePartitionRequest *request,
         if (!topology_->GetAvailableCopyset(&copyset)) {
             LOG(INFO) << "Have no available copyset when create partition.";
             if (TopoStatusCode::TOPO_OK == CreateCopyset()) {
-                CreatePartition(request, response);
+                CreatePartitions(request, response);
                 break;
             } else {
                 LOG(ERROR) << "Create copyset failed when create partition.";
@@ -618,19 +649,8 @@ void TopologyManager::CreatePartition(const CreatePartitionRequest *request,
             }
         }
 
-        PartitionIdType partitionId = topology_->AllocatePartitionId();
-        if (partitionId == static_cast<ServerIdType>(UNINTIALIZE_ID)) {
-            response->set_statuscode(TopoStatusCode::TOPO_ALLOCATE_ID_FAIL);
-            return;
-        }
-        uint64_t idStart = copyset.GetPartitionNum() *
-                        option_.idNumberInPartition;
-        uint64_t idEnd = (copyset.GetPartitionNum() + 1) *
-                        option_.idNumberInPartition - 1;
-        PoolIdType poolId = copyset.GetPoolId();
-        CopySetIdType copysetId = copyset.GetId();
+        // get copyset members
         std::set<MetaServerIdType> copysetMembers = copyset.GetCopySetMembers();
-
         std::set<std::string> copysetMemberAddr;
         for (auto item : copysetMembers) {
             MetaServer metaserver;
@@ -643,17 +663,21 @@ void TopologyManager::CreatePartition(const CreatePartitionRequest *request,
             }
         }
 
-        // get leader
-        std::string leader;
-        FSStatusCode retcode = metaserverClient_->GetLeader(poolId, copysetId,
-                                                    copysetMemberAddr, &leader);
-        if (FSStatusCode::NOT_FOUND == retcode) {
-            LOG(WARNING) << "Get leader failed when create partition.";
-            continue;
+        // calculate partition number of this fs
+        uint32_t pNumber = topology_->GetPartitionNumberOfFs(fsId);
+        uint64_t idStart = pNumber * option_.idNumberInPartition;
+        uint64_t idEnd = (pNumber + 1) * option_.idNumberInPartition - 1;
+        PartitionIdType partitionId = topology_->AllocatePartitionId();
+        LOG(INFO) << "CreatePartiton partitionId = " << partitionId;
+        if (partitionId == static_cast<ServerIdType>(UNINTIALIZE_ID)) {
+            response->set_statuscode(TopoStatusCode::TOPO_ALLOCATE_ID_FAIL);
+            return;
         }
 
-        retcode = metaserverClient_->CreatePartition(fsId, poolId, copysetId,
-                                        partitionId, idStart, idEnd, leader);
+        PoolIdType poolId = copyset.GetPoolId();
+        CopySetIdType copysetId = copyset.GetId();
+        FSStatusCode retcode = metaserverClient_->CreatePartition(fsId, poolId,
+            copysetId, partitionId, idStart, idEnd, copysetMemberAddr);
         Partition partition(fsId, poolId, copysetId, partitionId,
                             idStart, idEnd);
         if (FSStatusCode::OK == retcode) {
@@ -674,8 +698,8 @@ void TopologyManager::CreatePartition(const CreatePartitionRequest *request,
                 return;
             }
         } else {
-            LOG(ERROR) << "CreatePartition on metaserver: " << leader
-                       << " failed. fsId = " << fsId
+            LOG(ERROR) << "CreatePartition failed, "
+                       << "fsId = " << fsId
                        << ", poolId = " << poolId
                        << ", copysetId = " << copysetId
                        << ", partitionId = " << partitionId;
@@ -771,6 +795,11 @@ TopoStatusCode TopologyManager::CreateCopyset() {
 
 void TopologyManager::CommitTx(const CommitTxRequest* request,
                               CommitTxResponse* response) {
+    if (request->partitiontxids_size() == 0) {
+        response->set_statuscode(TopoStatusCode::TOPO_OK);
+        return;
+    }
+
     std::vector<PartitionTxId> partitionTxIds;
     for (int i = 0; i < request->partitiontxids_size(); i++) {
         partitionTxIds.emplace_back(request->partitiontxids(i));
@@ -823,7 +852,7 @@ void TopologyManager::ListPartition(const ListPartitionRequest *request,
 
     for (auto partition : partitions) {
         PartitionInfo *info = partitionInfoList->Add();
-        info->set_fsid(partition.GetPartitionId());
+        info->set_fsid(partition.GetFsId());
         info->set_poolid(partition.GetPoolId());
         info->set_copysetid(partition.GetCopySetId());
         info->set_partitionid(partition.GetPartitionId());
@@ -849,8 +878,8 @@ void TopologyManager::GetCopysetOfPartition(
                 if (topology_->GetMetaServer(msId, &ms)) {
                     common::Peer *peer = cs.add_peers();
                     peer->set_id(ms.GetId());
-                    peer->set_address(BuildPeerId(ms.GetInternalHostIp(),
-                                                ms.GetInternalPort()));
+                    peer->set_address(BuildPeerIdWithIpPort(
+                        ms.GetInternalHostIp(), ms.GetInternalPort()));
                 } else {
                     LOG(ERROR) << "GetMetaServer failed, id = " << msId;
                     response->set_statuscode(

@@ -184,6 +184,7 @@ class Topology {
                                   int count) const = 0;
     virtual TopoStatusCode ChooseSingleMetaServerInZone(ZoneIdType zoneId,
                         MetaServerIdType *metaServerId) const = 0;
+    virtual uint32_t GetPartitionNumberOfFs(FsIdType fsId) = 0;
 };
 
 class TopologyImpl : public Topology {
@@ -339,6 +340,7 @@ class TopologyImpl : public Topology {
         std::set<ZoneIdType> *zones, int count) const override;
     TopoStatusCode ChooseSingleMetaServerInZone(ZoneIdType zoneId,
                             MetaServerIdType *metaServerId) const override;
+    uint32_t GetPartitionNumberOfFs(FsIdType fsId);
 
  private:
     TopoStatusCode LoadClusterInfo();

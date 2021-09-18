@@ -34,18 +34,16 @@ class MockMetaserverClient : public MetaserverClient {
  public:
     explicit MockMetaserverClient(const MetaserverOptions& option) :
                                   MetaserverClient(option) {}
-
+    MOCK_METHOD2(GetLeader, FSStatusCode(const LeaderCtx &ctx,
+                                         std::string *leader));
     MOCK_METHOD2(DeleteInode, FSStatusCode(uint32_t fsId, uint64_t inodeId));
     MOCK_METHOD8(CreateRootInode, FSStatusCode(uint32_t fsId, uint32_t poolId,
-                uint32_t copysetId, uint32_t partitionId, uint32_t uid,
-                uint32_t gid, uint32_t mode, const std::string &leader));
-    MOCK_METHOD4(GetLeader, FSStatusCode(uint32_t poolId, uint32_t copysetId,
-                            const std::set<std::string> &addrs,
-                            std::string *leader));
+        uint32_t copysetId, uint32_t partitionId, uint32_t uid,
+        uint32_t gid, uint32_t mode, const std::set<std::string> &addrs));
     MOCK_METHOD7(CreatePartition, FSStatusCode(uint32_t fsId, uint32_t poolId,
                                  uint32_t copysetId, uint32_t partitionId,
                                  uint64_t idStart, uint64_t idEnd,
-                                 const std::string &addr));
+                                 const std::set<std::string> &addrs));
     MOCK_METHOD3(CreateCopySet, FSStatusCode(uint32_t poolId,
             std::set<uint32_t> copysetId, const std::set<std::string> &addrs));
 };

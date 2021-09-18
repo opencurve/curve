@@ -30,6 +30,7 @@
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/proto/copyset.pb.h"
 #include "curvefs/proto/cli2.pb.h"
+#include "curvefs/src/mds/topology/deal_peerid.h"
 
 using curvefs::metaserver::FsFileType;
 using curvefs::metaserver::copyset::GetLeaderRequest2;
@@ -44,6 +45,14 @@ namespace mds {
 struct MetaserverOptions {
     std::string metaserverAddr;
     uint32_t rpcTimeoutMs;
+    uint32_t rpcRetryTimes;
+    uint32_t rpcRetryIntervalUs;
+};
+
+struct LeaderCtx {
+    std::set<std::string> addrs;
+    uint32_t poolId;
+    uint32_t copysetId;
 };
 
 class MetaserverClient {
@@ -52,34 +61,36 @@ class MetaserverClient {
         options_ = option;
     }
 
-    bool Init();
-
-    void Uninit();
-
     virtual ~MetaserverClient() {}
+
+    virtual FSStatusCode GetLeader(const LeaderCtx &tx, std::string *leader);
 
     virtual FSStatusCode DeleteInode(uint32_t fsId, uint64_t inodeId);
 
     virtual FSStatusCode CreateRootInode(uint32_t fsId, uint32_t poolId,
                         uint32_t copysetId, uint32_t partitionId, uint32_t uid,
-                        uint32_t gid, uint32_t mode, const std::string &leader);
-
-    virtual  FSStatusCode GetLeader(uint32_t poolId, uint32_t copysetId,
-                           const std::set<std::string> &addrs,
-                           std::string *leader);
+                        uint32_t gid, uint32_t mode,
+                        const std::set<std::string> &addrs);
 
     virtual FSStatusCode CreatePartition(uint32_t fsId, uint32_t poolId,
                                  uint32_t copysetId, uint32_t partitionId,
                                  uint64_t idStart, uint64_t idEnd,
-                                 const std::string &addr);
+                                 const std::set<std::string> &addrs);
 
     virtual FSStatusCode CreateCopySet(uint32_t poolId,
                                 std::set<uint32_t> copysetIds,
                                 const std::set<std::string> &addrs);
 
  private:
+    template <typename T, typename Request, typename Response>
+    FSStatusCode SendRpc2MetaServer(Request* request, Response* response,
+                         const LeaderCtx &ctx,
+                         void (T::*func)(google::protobuf::RpcController*,
+                            const Request*, Response*,
+                            google::protobuf::Closure*));
+
+ private:
     MetaserverOptions options_;
-    bool inited_;
     brpc::Channel channel_;
 };
 }  // namespace mds

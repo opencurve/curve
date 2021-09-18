@@ -466,6 +466,10 @@ bool TopologyStorageEtcd::UpdatePartition(const Partition &data) {
 
 bool TopologyStorageEtcd::UpdatePartitions(
     const std::vector<Partition> &datas) {
+    if (datas.size() == 1) {
+        return StoragePartition(datas[0]);
+    }
+
     std::vector<Operation> ops;
     for (const Partition &data : datas) {
         std::string key = codec_->EncodePartitionKey(data.GetPartitionId());
