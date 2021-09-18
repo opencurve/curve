@@ -265,24 +265,6 @@ bool Partition::ParseFromString(const std::string &value) {
     return ret;
 }
 
-bool SplitPeerId(
-    const std::string &peerId,
-    std::string *ip,
-    uint32_t *port,
-    uint32_t *idx) {
-    std::vector<std::string> items;
-    curve::common::SplitString(peerId, ":", &items);
-    if (3 == items.size()) {
-        *ip = items[0];
-        *port = std::stoul(items[1]);
-        if (idx != nullptr) {
-            *idx = std::stoul(items[2]);
-        }
-        return true;
-    }
-    return false;
-}
-
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

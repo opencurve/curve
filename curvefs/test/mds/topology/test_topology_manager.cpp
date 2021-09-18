@@ -62,6 +62,7 @@ class TestTopologyManager : public ::testing::Test {
                                                    storage_);
         TopologyOption topologyOption;
         topologyOption.createCopysetNumber = 1;
+        topologyOption.createPartitionNumber = 3;
         MetaserverOptions metaserverOptions;
         metaserverOptions.metaserverAddr = addr;
         metaserverOptions.rpcTimeoutMs = 500;
@@ -1558,8 +1559,6 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess) {
 
     std::string leader = "127.0.0.1:7777";
 
-    EXPECT_CALL(*mockMetaserverClient_, GetLeader(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<3>(leader), Return(FSStatusCode::OK)));
     EXPECT_CALL(*storage_, StoragePartition(_))
         .WillOnce(Return(true));
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
@@ -1569,7 +1568,7 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess) {
     CreatePartitionResponse response;
     request.set_fsid(0x01);
     request.set_count(1);
-    serviceManager_->CreatePartition(&request, &response);
+    serviceManager_->CreatePartitions(&request, &response);
     ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
     ASSERT_EQ(1, response.partitioninfolist().size());
 
@@ -1582,6 +1581,59 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess) {
     ASSERT_TRUE(topology_->GetCopySet(key, &info));
     ASSERT_EQ(copysetId, info.GetId());
     ASSERT_EQ(1, info.GetPartitionNum());
+}
+
+TEST_F(TestTopologyManager,
+    test_CreatePartitionsAndGetMinPartition_Sucess) {
+    PoolIdType poolId = 0x11;
+    CopySetIdType copysetId = 0x51;
+    PartitionIdType partitionId = 0x61;
+    PartitionIdType partitionId2 = 0x62;
+    PartitionIdType partitionId3 = 0x63;
+
+    PrepareAddPool(poolId);
+    PrepareAddZone(0x21, "zone1", poolId);
+    PrepareAddZone(0x22, "zone2", poolId);
+    PrepareAddZone(0x23, "zone3", poolId);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
+                     0x21, 0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
+                     0x22, 0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
+                     0x23, 0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
+                         7777, "ip2", 8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
+                         7777, "ip2", 8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
+                         7777, "ip2", 8888);
+
+    std::set<MetaServerIdType> replicas;
+    replicas.insert(0x41);
+    replicas.insert(0x42);
+    replicas.insert(0x43);
+    PrepareAddCopySet(copysetId, poolId, replicas);
+
+    EXPECT_CALL(*idGenerator_, GenPartitionId())
+        .Times(3)
+        .WillOnce(Return(partitionId))
+        .WillOnce(Return(partitionId2))
+        .WillOnce(Return(partitionId3));
+
+    EXPECT_CALL(*storage_, StoragePartition(_))
+        .Times(3)
+        .WillRepeatedly(Return(true));
+    EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
+        .Times(3)
+        .WillRepeatedly(Return(FSStatusCode::OK));
+
+    PartitionInfo pInfo;
+    auto ret = serviceManager_->CreatePartitionsAndGetMinPartition(0x01,
+                                                                &pInfo);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, ret);
+    ASSERT_EQ(partitionId, pInfo.partitionid());
+    ASSERT_EQ(3, topology_->GetPartitionNumberOfFs(0x01));
+    ASSERT_EQ(copysetId, pInfo.copysetid());
 }
 
 TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess2) {
@@ -1616,12 +1668,6 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess2) {
         .WillOnce(Return(partitionId))
         .WillOnce(Return(partitionId+1));
 
-    std::string leader = "127.0.0.1:7777";
-
-    EXPECT_CALL(*mockMetaserverClient_, GetLeader(_, _, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<3>(leader),
-            Return(FSStatusCode::OK)));
     EXPECT_CALL(*storage_, StoragePartition(_))
         .Times(2)
         .WillRepeatedly(Return(true));
@@ -1633,7 +1679,7 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess2) {
     CreatePartitionResponse response;
     request.set_fsid(0x01);
     request.set_count(2);
-    serviceManager_->CreatePartition(&request, &response);
+    serviceManager_->CreatePartitions(&request, &response);
     ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
     ASSERT_EQ(2, response.partitioninfolist().size());
 
@@ -1678,15 +1724,7 @@ TEST_F(TestTopologyManager,
     PrepareAddCopySet(copysetId, poolId, replicas);
 
     EXPECT_CALL(*idGenerator_, GenPartitionId())
-        .Times(2)
-        .WillRepeatedly(Return(partitionId));
-
-    std::string leader = "127.0.0.1:7777";
-
-    EXPECT_CALL(*mockMetaserverClient_, GetLeader(_, _, _, _))
-        .Times(2)
-        .WillOnce(Return(FSStatusCode::NOT_FOUND))
-        .WillOnce(DoAll(SetArgPointee<3>(leader), Return(FSStatusCode::OK)));
+        .WillOnce(Return(partitionId));
     EXPECT_CALL(*storage_, StoragePartition(_))
         .WillOnce(Return(true));
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
@@ -1696,7 +1734,7 @@ TEST_F(TestTopologyManager,
     CreatePartitionResponse response;
     request.set_fsid(0x01);
     request.set_count(1);
-    serviceManager_->CreatePartition(&request, &response);
+    serviceManager_->CreatePartitions(&request, &response);
     ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
     ASSERT_EQ(1, response.partitioninfolist().size());
 
@@ -1742,11 +1780,6 @@ TEST_F(TestTopologyManager,
 
     EXPECT_CALL(*idGenerator_, GenPartitionId())
         .WillOnce(Return(partitionId));
-
-    std::string leader = "127.0.0.1:7777";
-
-    EXPECT_CALL(*mockMetaserverClient_, GetLeader(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<3>(leader), Return(FSStatusCode::OK)));
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
         .WillOnce(Return(FSStatusCode::CREATE_PARTITION_ERROR));
 
@@ -1754,7 +1787,7 @@ TEST_F(TestTopologyManager,
     CreatePartitionResponse response;
     request.set_fsid(0x01);
     request.set_count(1);
-    serviceManager_->CreatePartition(&request, &response);
+    serviceManager_->CreatePartitions(&request, &response);
     ASSERT_EQ(TopoStatusCode::TOPO_CREATE_PARTITION_FAIL,
               response.statuscode());
 }
@@ -1790,11 +1823,6 @@ TEST_F(TestTopologyManager,
 
     EXPECT_CALL(*idGenerator_, GenPartitionId())
         .WillOnce(Return(partitionId));
-
-    std::string leader = "127.0.0.1:7777";
-
-    EXPECT_CALL(*mockMetaserverClient_, GetLeader(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<3>(leader), Return(FSStatusCode::OK)));
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
         .WillOnce(Return(FSStatusCode::OK));
     EXPECT_CALL(*storage_, StoragePartition(_))
@@ -1804,7 +1832,7 @@ TEST_F(TestTopologyManager,
     CreatePartitionResponse response;
     request.set_fsid(0x01);
     request.set_count(1);
-    serviceManager_->CreatePartition(&request, &response);
+    serviceManager_->CreatePartitions(&request, &response);
     ASSERT_EQ(TopoStatusCode::TOPO_STORGE_FAIL,
               response.statuscode());
 }
@@ -1845,9 +1873,6 @@ TEST_F(TestTopologyManager,
 
     EXPECT_CALL(*idGenerator_, GenPartitionId())
         .WillOnce(Return(partitionId));
-    std::string leader = "127.0.0.1:7777";
-    EXPECT_CALL(*mockMetaserverClient_, GetLeader(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<3>(leader), Return(FSStatusCode::OK)));
     EXPECT_CALL(*storage_, StoragePartition(_))
         .WillOnce(Return(true));
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
@@ -1857,7 +1882,7 @@ TEST_F(TestTopologyManager,
     CreatePartitionResponse response;
     request.set_fsid(0x01);
     request.set_count(1);
-    serviceManager_->CreatePartition(&request, &response);
+    serviceManager_->CreatePartitions(&request, &response);
 
     ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
     ASSERT_EQ(1, response.partitioninfolist().size());

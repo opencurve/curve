@@ -37,7 +37,7 @@ using ::curve::election::LeaderElection;
 using ::curve::idgenerator::EtcdIdGenerator;
 using ::curve::kvstorage::EtcdClientImp;
 
-Mds::Mds()
+MDS::MDS()
     : conf_(),
       inited_(false),
       running_(false),
@@ -53,23 +53,36 @@ Mds::Mds()
       status_(),
       etcdEndpoint_() {}
 
-Mds::~Mds() {}
+MDS::~MDS() {}
 
-void Mds::InitOptions(std::shared_ptr<Configuration> conf) {
+void MDS::InitOptions(std::shared_ptr<Configuration> conf) {
     conf_ = std::move(conf);
     conf_->GetValueFatalIfFail("mds.listen.addr", &options_.mdsListenAddr);
     conf_->GetValueFatalIfFail("mds.dummy.port", &options_.dummyPort);
-    conf_->GetValueFatalIfFail("space.addr", &options_.spaceOptions.spaceAddr);
-    conf_->GetValueFatalIfFail("space.rpcTimeoutMs",
-                               &options_.spaceOptions.rpcTimeoutMs);
-    conf_->GetValueFatalIfFail("metaserver.addr",
-                               &options_.metaserverOptions.metaserverAddr);
-    conf_->GetValueFatalIfFail("metaserver.rpcTimeoutMs",
-                               &options_.metaserverOptions.rpcTimeoutMs);
+
+    InitSpaceOption(&options_.spaceOptions);
+    InitMetaServerOption(&options_.metaserverOptions);
     InitTopologyOption(&options_.topologyOptions);
 }
 
-void Mds::InitTopologyOption(TopologyOption *topologyOption) {
+void MDS::InitSpaceOption(SpaceOptions *spaceOption) {
+    conf_->GetValueFatalIfFail("space.addr", &spaceOption->spaceAddr);
+    conf_->GetValueFatalIfFail("space.rpcTimeoutMs",
+                               &spaceOption->rpcTimeoutMs);
+}
+
+void MDS::InitMetaServerOption(MetaserverOptions *metaserverOption) {
+    conf_->GetValueFatalIfFail("metaserver.addr",
+                               &metaserverOption->metaserverAddr);
+    conf_->GetValueFatalIfFail("metaserver.rpcTimeoutMs",
+                               &metaserverOption->rpcTimeoutMs);
+    conf_->GetValueFatalIfFail("metaserver.rpcRertyTimes",
+                               &metaserverOption->rpcRetryTimes);
+    conf_->GetValueFatalIfFail("metaserver.rpcRetryIntervalUs",
+                               &metaserverOption->rpcRetryIntervalUs);
+}
+
+void MDS::InitTopologyOption(TopologyOption *topologyOption) {
     conf_->GetValueFatalIfFail(
         "mds.topology.TopologyUpdateToRepoSec",
         &topologyOption->topologyUpdateToRepoSec);
@@ -85,9 +98,12 @@ void Mds::InitTopologyOption(TopologyOption *topologyOption) {
     conf_->GetValueFatalIfFail(
         "mds.topology.CreateCopysetNumber",
         &topologyOption->createCopysetNumber);
+    conf_->GetValueFatalIfFail(
+        "mds.topology.CreatePartitionNumber",
+        &topologyOption->createPartitionNumber);
 }
 
-void Mds::Init() {
+void MDS::Init() {
     LOG(INFO) << "Init MDS start";
 
     InitEtcdClient();
@@ -112,7 +128,7 @@ void Mds::Init() {
     LOG(INFO) << "Init MDS success";
 }
 
-void Mds::InitTopology(const TopologyOption &option) {
+void MDS::InitTopology(const TopologyOption &option) {
     auto topologyIdGenerator  = std::make_shared<DefaultIdGenerator>();
     auto topologyTokenGenerator = std::make_shared<DefaultTokenGenerator>();
 
@@ -128,14 +144,14 @@ void Mds::InitTopology(const TopologyOption &option) {
     LOG(INFO) << "init topology success.";
 }
 
-void Mds::InitTopologyManager(const TopologyOption& option) {
+void MDS::InitTopologyManager(const TopologyOption& option) {
     topologyManager_ = std::make_shared<TopologyManager>(topology_,
                                                 metaserverClient_);
     topologyManager_->Init(option);
     LOG(INFO) << "init topologyManager success.";
 }
 
-void Mds::Run() {
+void MDS::Run() {
     LOG(INFO) << "Run MDS";
     if (!inited_) {
         LOG(ERROR) << "MDS not inited yet!";
@@ -168,7 +184,7 @@ void Mds::Run() {
     server.RunUntilAskedToQuit();
 }
 
-void Mds::Stop() {
+void MDS::Stop() {
     LOG(INFO) << "Stop MDS";
     if (!running_) {
         LOG(WARNING) << "Stop MDS, but MDS is not running, return OK";
@@ -179,7 +195,7 @@ void Mds::Stop() {
     fsManager_->Uninit();
 }
 
-void Mds::StartDummyServer() {
+void MDS::StartDummyServer() {
     conf_->ExposeMetric("curvefs_mds");
     status_.expose("curvefs_mds_status");
     status_.set_value("follower");
@@ -188,7 +204,7 @@ void Mds::StartDummyServer() {
         << "Start dummy server failed";
 }
 
-void Mds::StartCompaginLeader() {
+void MDS::StartCompaginLeader() {
     InitEtcdClient();
 
     LeaderElectionOptions electionOption;
@@ -208,7 +224,7 @@ void Mds::StartCompaginLeader() {
     leaderElection_->StartObserverLeader();
 }
 
-void Mds::InitEtcdClient() {
+void MDS::InitEtcdClient() {
     if (etcdClientInited_) {
         return;
     }
@@ -242,7 +258,7 @@ void Mds::InitEtcdClient() {
     etcdClientInited_ = true;
 }
 
-void Mds::InitEtcdConf(EtcdConf* etcdConf) {
+void MDS::InitEtcdConf(EtcdConf* etcdConf) {
     conf_->GetValueFatalIfFail("etcd.endpoint", &etcdEndpoint_);
     conf_->GetValueFatalIfFail("etcd.dailtimeoutMs", &etcdConf->DialTimeout);
 
@@ -253,7 +269,7 @@ void Mds::InitEtcdConf(EtcdConf* etcdConf) {
     etcdConf->Endpoints = &etcdEndpoint_[0];
 }
 
-bool Mds::CheckEtcd() {
+bool MDS::CheckEtcd() {
     std::string out;
     int r = etcdClient_->Get("test", &out);
 
@@ -266,7 +282,7 @@ bool Mds::CheckEtcd() {
     }
 }
 
-void Mds::InitLeaderElectionOption(LeaderElectionOptions* option) {
+void MDS::InitLeaderElectionOption(LeaderElectionOptions* option) {
     conf_->GetValueFatalIfFail("mds.listen.addr", &option->leaderUniqueName);
     conf_->GetValueFatalIfFail("leader.sessionInterSec",
                                &option->sessionInterSec);
@@ -274,7 +290,7 @@ void Mds::InitLeaderElectionOption(LeaderElectionOptions* option) {
                                &option->electionTimeoutMs);
 }
 
-void Mds::InitLeaderElection(const LeaderElectionOptions& option) {
+void MDS::InitLeaderElection(const LeaderElectionOptions& option) {
     leaderElection_ = std::make_shared<LeaderElection>(option);
 }
 

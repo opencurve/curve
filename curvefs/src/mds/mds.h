@@ -69,13 +69,13 @@ struct MDSOptions {
     TopologyOption topologyOptions;
 };
 
-class Mds {
+class MDS {
  public:
-    Mds();
-    ~Mds();
+    MDS();
+    ~MDS();
 
-    Mds(const Mds&) = delete;
-    Mds& operator=(const Mds&) = delete;
+    MDS(const MDS&) = delete;
+    MDS& operator=(const MDS&) = delete;
 
     void InitOptions(std::shared_ptr<Configuration> conf);
     void Init();
@@ -97,6 +97,8 @@ class Mds {
     void InitLeaderElection(const LeaderElectionOptions& option);
 
  private:
+    void InitSpaceOption(SpaceOptions *spaceOption);
+    void InitMetaServerOption(MetaserverOptions *metaserverOption);
     void InitTopologyOption(TopologyOption *topologyOption);
 
     void InitTopology(const TopologyOption &option);

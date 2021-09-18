@@ -583,7 +583,7 @@ void TopologyServiceImpl::CreatePartition(
               << ". [CreatePartitionRequest] "
               << request->DebugString();
 
-    topologyManager_->CreatePartition(request, response);
+    topologyManager_->CreatePartitions(request, response);
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
         LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
                    << "] from " << cntl->local_side()

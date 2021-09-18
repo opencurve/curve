@@ -105,8 +105,11 @@ class TopologyManager {
     virtual void ListPool(const ListPoolRequest *request,
                           ListPoolResponse *response);
 
-    virtual void CreatePartition(const CreatePartitionRequest *request,
+    virtual void CreatePartitions(const CreatePartitionRequest *request,
                         CreatePartitionResponse *response);
+
+    virtual TopoStatusCode CreatePartitionsAndGetMinPartition(FsIdType fsId,
+                        PartitionInfo *partition);
 
     virtual void CommitTx(const CommitTxRequest *request,
                         CommitTxResponse *response);

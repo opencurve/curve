@@ -40,7 +40,6 @@ using ::testing::DoAll;
 using ::testing::SetArgPointee;
 using ::testing::SaveArg;
 using ::testing::Mock;
-using ::testing::Matcher;
 using ::testing::Invoke;
 using ::curvefs::space::MockSpaceService;
 using ::curvefs::metaserver::MockMetaserverService;
@@ -184,6 +183,7 @@ void RpcService(google::protobuf::RpcController* cntl_base,
 
 TEST_F(FSManagerTest, test1) {
     std::string addr = "127.0.0.1:6704";
+    std::string leader = "127.0.0.1:6704:0";
     FSStatusCode ret;
     std::string fsName1 = "fs1";
     uint64_t blockSize = 4096;
@@ -199,27 +199,16 @@ TEST_F(FSManagerTest, test1) {
     detail.set_allocated_volume(new Volume(volume));
 
     // create volume fs create partition fail
-    CreatePartitionRequest pRequest;
-    CreatePartitionResponse pResponse;
-    pRequest.set_fsid(0);
-    pRequest.set_count(1);
-    pResponse.set_statuscode(TopoStatusCode::TOPO_CREATE_PARTITION_FAIL);
-    EXPECT_CALL(*topoManager_, CreatePartition(_, _))
-        .WillOnce(SetArgPointee<1>(pResponse));
+    EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
+        .WillOnce(Return(TopoStatusCode::TOPO_CREATE_PARTITION_FAIL));
 
     ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize, detail,
                                &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::CREATE_PARTITION_ERROR);
 
     // create volume fs create root inode fail
-    pResponse.set_statuscode(TopoStatusCode::TOPO_OK);
-    auto partitionInfo = pResponse.add_partitioninfolist();
-    partitionInfo->set_fsid(0);
-    partitionInfo->set_poolid(1);
-    partitionInfo->set_copysetid(1);
-    partitionInfo->set_partitionid(1);
-    EXPECT_CALL(*topoManager_, CreatePartition(_, _))
-        .WillOnce(SetArgPointee<1>(pResponse));
+    EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
+        .WillOnce(Return(TopoStatusCode::TOPO_OK));
 
     std::set<std::string> addrs;
     addrs.emplace(addr);
@@ -228,7 +217,7 @@ TEST_F(FSManagerTest, test1) {
             SetArgPointee<2>(addrs),
             Return(TopoStatusCode::TOPO_OK)));
     GetLeaderResponse2 getLeaderResponse;
-    getLeaderResponse.mutable_leader()->set_address(addr);
+    getLeaderResponse.mutable_leader()->set_address(leader);
     EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
         .WillOnce(DoAll(
         SetArgPointee<2>(getLeaderResponse),
@@ -245,8 +234,8 @@ TEST_F(FSManagerTest, test1) {
     ASSERT_EQ(ret, FSStatusCode::INSERT_ROOT_INODE_ERROR);
 
     // create volume fs ok
-    EXPECT_CALL(*topoManager_, CreatePartition(_, _))
-        .WillOnce(SetArgPointee<1>(pResponse));
+    EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
+        .WillOnce(Return(TopoStatusCode::TOPO_OK));
     EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(addrs),
@@ -297,8 +286,8 @@ TEST_F(FSManagerTest, test1) {
     detail2.set_allocated_s3info(new S3Info(s3Info));
 
     // create s3 fs create root inode fail
-    EXPECT_CALL(*topoManager_, CreatePartition(_, _))
-        .WillOnce(SetArgPointee<1>(pResponse));
+    EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
+        .WillOnce(Return(TopoStatusCode::TOPO_OK));
     EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(addrs),
@@ -319,8 +308,8 @@ TEST_F(FSManagerTest, test1) {
     ASSERT_EQ(ret, FSStatusCode::INSERT_ROOT_INODE_ERROR);
 
     // create s3 fs ok
-    EXPECT_CALL(*topoManager_, CreatePartition(_, _))
-        .WillOnce(SetArgPointee<1>(pResponse));
+    EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
+        .WillOnce(Return(TopoStatusCode::TOPO_OK));
     EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(addrs),
@@ -408,22 +397,9 @@ TEST_F(FSManagerTest, test1) {
     ret = fsManager_->MountFs(fsName1, mountPoint, &fsInfo3);
     ASSERT_EQ(ret, FSStatusCode::MOUNT_POINT_EXIST);
 
-    // mount s3 fs initspace fail
-    FsInfo fsInfo4;
-    initSpaceResponse.set_status(SpaceStatusCode::SPACE_UNKNOWN_ERROR);
-    EXPECT_CALL(mockSpaceService_, InitSpace(_, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<2>(initSpaceResponse),
-                  Invoke(RpcService<InitSpaceRequest, InitSpaceResponse>)));
-    ret = fsManager_->MountFs(fsName2, mountPoint, &fsInfo4);
-    ASSERT_EQ(ret, FSStatusCode::INIT_SPACE_ERROR);
-
     // mount s3 fs success
+    FsInfo fsInfo4;
     initSpaceResponse.set_status(SpaceStatusCode::SPACE_OK);
-    EXPECT_CALL(mockSpaceService_, InitSpace(_, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<2>(initSpaceResponse),
-                  Invoke(RpcService<InitSpaceRequest, InitSpaceResponse>)));
     ret = fsManager_->MountFs(fsName2, mountPoint, &fsInfo4);
     ASSERT_EQ(ret, FSStatusCode::OK);
     ASSERT_TRUE(CompareS3Fs(s3FsInfo, fsInfo4));
@@ -469,11 +445,6 @@ TEST_F(FSManagerTest, test1) {
     ret = fsManager_->DeleteFs(fsName2);
     ASSERT_EQ(ret, FSStatusCode::FS_BUSY);
 
-    uninitSpaceResponse.set_status(SpaceStatusCode::SPACE_OK);
-    EXPECT_CALL(mockSpaceService_, UnInitSpace(_, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<2>(uninitSpaceResponse),
-                  Invoke(RpcService<UnInitSpaceRequest, UnInitSpaceResponse>)));
     ret = fsManager_->UmountFs(fsName2, mountPoint);
     ASSERT_EQ(ret, FSStatusCode::OK);
 

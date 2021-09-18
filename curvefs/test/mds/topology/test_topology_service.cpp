@@ -923,7 +923,7 @@ TEST_F(TestTopologyService, test_CreatePartition_success) {
 
     CreatePartitionResponse reps;
     reps.set_statuscode(TopoStatusCode::TOPO_OK);
-    EXPECT_CALL(*manager_, CreatePartition(_, _))
+    EXPECT_CALL(*manager_, CreatePartitions(_, _))
     .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.CreatePartition(&cntl, &request, &response, nullptr);
@@ -947,7 +947,7 @@ TEST_F(TestTopologyService, test_CreatePartition_fail) {
 
     CreatePartitionResponse reps;
     reps.set_statuscode(TopoStatusCode::TOPO_CREATE_PARTITION_FAIL);
-    EXPECT_CALL(*manager_, CreatePartition(_, _))
+    EXPECT_CALL(*manager_, CreatePartitions(_, _))
     .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.CreatePartition(&cntl, &request, &response, nullptr);

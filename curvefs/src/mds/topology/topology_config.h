@@ -40,13 +40,16 @@ struct TopologyOption {
     int choosePoolPolicy;
     // create copyset number
     uint32_t createCopysetNumber;
+    // create partition number
+    uint32_t createPartitionNumber;
 
     TopologyOption()
         : topologyUpdateToRepoSec(0),
           partitionNumberInCopyset(256),
           idNumberInPartition(16777216),
           choosePoolPolicy(0),
-          createCopysetNumber(10) {}
+          createCopysetNumber(10),
+          createPartitionNumber(1) {}
 };
 
 }  // namespace topology

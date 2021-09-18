@@ -170,7 +170,7 @@ void GetChunkIds(std::shared_ptr<curve::common::Configuration> conf,
 }
 
 TEST_F(MdsTest, test_chunkIds_allocate) {
-    curvefs::mds::Mds mds;
+    curvefs::mds::MDS mds;
     auto conf = std::make_shared<Configuration>();
     conf->SetConfigPath("curvefs/conf/mds.conf");
     ASSERT_TRUE(conf->LoadConfig());
@@ -181,7 +181,7 @@ TEST_F(MdsTest, test_chunkIds_allocate) {
 
     mds.Init();
 
-    std::thread mdsThread(&Mds::Run, &mds);
+    std::thread mdsThread(&MDS::Run, &mds);
 
     sleep(3);
 
@@ -198,7 +198,7 @@ TEST_F(MdsTest, test_chunkIds_allocate) {
 }
 
 TEST_F(MdsTest, test1) {
-    curvefs::mds::Mds mds;
+    curvefs::mds::MDS mds;
     auto conf = std::make_shared<Configuration>();
     conf->SetConfigPath("curvefs/conf/mds.conf");
     ASSERT_TRUE(conf->LoadConfig());
@@ -213,7 +213,7 @@ TEST_F(MdsTest, test1) {
 
     // start mds server and wait CTRL+C to quit
     // mds.Run();
-    std::thread mdsThread(&Mds::Run, &mds);
+    std::thread mdsThread(&MDS::Run, &mds);
 
     // sleep 5s
     sleep(5);
@@ -224,7 +224,7 @@ TEST_F(MdsTest, test1) {
 }
 
 TEST_F(MdsTest, test2) {
-    curvefs::mds::Mds mds;
+    curvefs::mds::MDS mds;
     auto conf = std::make_shared<Configuration>();
     conf->SetConfigPath("curvefs/conf/mds.conf");
     ASSERT_TRUE(conf->LoadConfig());
@@ -248,7 +248,7 @@ TEST_F(MdsTest, test2) {
 
     // start mds server and wait CTRL+C to quit
     // mds.Run();
-    std::thread mdsThread(&Mds::Run, &mds);
+    std::thread mdsThread(&MDS::Run, &mds);
 
     // sleep 5s
     sleep(3);

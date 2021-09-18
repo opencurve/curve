@@ -386,9 +386,13 @@ class MockTopologyManager : public TopologyManager {
                      const ListPoolRequest *request,
                      ListPoolResponse *response));
 
-    MOCK_METHOD2(CreatePartition, void(
+    MOCK_METHOD2(CreatePartitions, void(
                         const CreatePartitionRequest *request,
                         CreatePartitionResponse *response));
+
+    MOCK_METHOD2(CreatePartitionsAndGetMinPartition,
+                        TopoStatusCode(FsIdType fsId,
+                        PartitionInfo *partition));
 
     MOCK_METHOD2(CommitTx, void(const CommitTxRequest *request,
                                 CommitTxResponse *response));

@@ -938,6 +938,17 @@ TopoStatusCode TopologyImpl::ChooseSingleMetaServerInZone(ZoneIdType zoneId,
     return TopoStatusCode::TOPO_OK;
 }
 
+uint32_t TopologyImpl::GetPartitionNumberOfFs(FsIdType fsId) {
+    ReadLockGuard rlockPartition(partitionMutex_);
+    uint32_t pNumber = 0;
+    for (const auto &it : partitionMap_) {
+        if (it.second.GetFsId() == fsId) {
+            pNumber++;
+        }
+    }
+    return pNumber;
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs
