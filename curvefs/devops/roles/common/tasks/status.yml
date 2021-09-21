@@ -1,0 +1,8 @@
+---
+  - name: get service status
+    shell: echo {{ inventory_hostname }} && {{ project_root_dest }}/sbin/servicectl status
+    register: status_command
+
+  - name: "show status"
+    shell: _={{ status_command.stdout_lines | print_status }}
+    when: status_command.rc == 0

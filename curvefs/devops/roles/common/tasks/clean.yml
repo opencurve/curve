@@ -1,0 +1,4 @@
+---
+  - name: delete project log and root directory
+    file: path="{{ item }}" state=absent
+    with_items: "{{ project_directorys }}"

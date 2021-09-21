@@ -1,0 +1,14 @@
+---
+  - name: create directory
+    file: dest="{{ item }}" state=directory mode=0700
+    with_items: "{{ project_directorys }}"
+
+  - name: sync project {{ project_name }}
+    synchronize: >
+      src={{ project_root_src }}
+      dest={{ project_home }}
+      dest_port={{ ansible_ssh_port }}
+      checksum=True
+    when: project_core_method == "sync_direct"
+
+    # TODO(@Wine93): support tarball, deb, rpm scheme
