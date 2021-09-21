@@ -1,0 +1,30 @@
+# mds
+# ├── conf
+# │   └── mds.conf
+# ├── logs
+# │   └── mds.pid
+# ├── sbin
+# │   ├── servicectl
+# │   └── curvefs-mds
+# └── lib
+#     └── mds_lib.so
+
+project_name: "mds"
+project_home: "{{ curvefs_project_home }}"
+project_root_src: "{{ playbook_dir }}/projects/mds"
+project_root_dest: "{{ project_home }}/mds"
+project_log_root: "{{ curvefs_project_log_home }}/mds"
+project_config_src: "{{ playbook_dir | dirname }}/conf"
+project_config_dsv: "="
+project_core_method: "{{ curvefs_core_method }}"
+project_start_with_deamon: True
+project_daemon: "{{ project_start_with_deamon | ternary('--daemon', '') }}"
+project_listen_port: "{{ curvefs_mds_listen_dummy_port }}"
+project_wait_service_timeout: "{{ curvefs_wait_service_timeout }}"
+
+project_templates:
+  - mds.conf
+
+project_directorys:
+  - "{{ project_root_dest }}"
+  - "{{ project_log_root }}"

@@ -1,0 +1,14 @@
+---
+  - name: restart {{ project_name }} service
+    shell: >
+      {{ project_root_dest }}/sbin/servicectl restart
+      {{ project_daemon }}
+    when: precheck.rc == 0
+
+  - name: wait until {{ project_name}} service is up
+    wait_for:
+      host: "{{ ansible_ssh_host }}"
+      port: "{{ project_listen_port }}"
+      state: started
+      timeout: "{{ project_wait_service_timeout }}"
+    when: project_listen_port is defined

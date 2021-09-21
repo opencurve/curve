@@ -79,3 +79,11 @@ runlog/
 
 # mac
 .DS_Store
+
+# curvefs
+curvefs/devops/projects/
+curvefs/devops/ssh/
+curvefs/devops/inventory
+*.pyc
+.facts/
+*retry

@@ -1,0 +1,32 @@
+# client
+# ├── conf
+# │   └── client.conf
+# ├── logs
+# │   └── client.pid
+# ├── sbin
+# │   ├── servicectl
+# │   └── curvefs-client
+# └── lib
+#     └── client_lib.so
+
+project_name: "client"
+project_home: "{{ curvefs_project_home }}"
+project_root_src: "{{ playbook_dir }}/projects/client"
+project_root_dest: "{{ project_home }}/client"
+project_log_root: "{{ curvefs_project_log_home }}/client"
+project_config_src: "{{ playbook_dir | dirname }}/conf"
+project_config_dsv: "="
+project_core_method: "{{ curvefs_core_method }}"
+project_mount_command: >
+  {{ project_root_dest }}/sbin/fuse_client
+  {{ curvefs_client_mount_args | trim }}
+  -o conf={{ project_root_dest }}/conf/client.conf
+  {{ curvefs_client_mount_path }}
+
+project_templates:
+  - client.conf
+
+project_directorys:
+  - "{{ project_root_dest }}"
+  - "{{ project_log_root }}"
+  - "{{ curvefs_client_mount_path }}"

@@ -1,0 +1,31 @@
+# metaserver
+# ├── conf
+# │   └── metaserver.conf
+# ├── logs
+# │   └── metaserevr.pid
+# ├── sbin
+# │   ├── servicectl
+# │   └── curvefs-metaserver
+# └── lib
+#     └── metaserver_lib.so
+
+project_name: "metaserver"
+project_home: "{{ curvefs_project_home }}"
+project_root_src: "{{ playbook_dir }}/projects/metaserver"
+project_root_dest: "{{ project_home }}/metaserver"
+project_log_root: "{{ curvefs_project_log_home }}/metaserver"
+project_config_src: "{{ playbook_dir | dirname }}/conf"
+project_config_dsv: "="
+project_core_method: "{{ curvefs_core_method }}"
+project_start_with_deamon: False
+project_daemon: "{{ project_start_with_deamon | ternary('--daemon', '') }}"
+project_listen_port: "{{ curvefs_metaserver_listen_port }}"
+project_wait_service_timeout: "{{ curvefs_wait_service_timeout }}"
+
+project_templates:
+  - metaserver.conf
+
+project_directorys:
+  - "{{ project_root_dest }}"
+  - "{{ project_log_root }}"
+  - "{{ curvefs_metaserver_data_root }}"
