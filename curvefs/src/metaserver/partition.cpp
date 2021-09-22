@@ -24,11 +24,14 @@
 
 #include <assert.h>
 
-#include "curvefs/src/metaserver/trash_manager.h"
+#include <algorithm>
+
 #include "curvefs/src/metaserver/s3compact_manager.h"
+#include "curvefs/src/metaserver/trash_manager.h"
 
 namespace curvefs {
 namespace metaserver {
+
 Partition::Partition(const PartitionInfo& paritionInfo) {
     assert(paritionInfo.start() <= paritionInfo.end());
 
@@ -41,7 +44,8 @@ Partition::Partition(const PartitionInfo& paritionInfo) {
                                                      txManager_);
     partitionInfo_ = paritionInfo;
     if (!paritionInfo.has_nextid()) {
-        partitionInfo_.set_nextid(partitionInfo_.start());
+        partitionInfo_.set_nextid(
+            std::max(kMinPartitionStartId, partitionInfo_.start()));
     }
     TrashManager::GetInstance().Add(paritionInfo.partitionid(), trash_);
     s3compact_ = std::make_shared<S3Compact>(inodeStorage_, &partitionInfo_);

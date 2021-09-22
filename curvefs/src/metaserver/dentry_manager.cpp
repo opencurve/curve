@@ -41,7 +41,8 @@ void DentryManager::Log4Dentry(const std::string& request,
 }
 
 void DentryManager::Log4Code(const std::string& request, MetaStatusCode rc) {
-    auto succ = (rc == MetaStatusCode::OK);
+    auto succ = (rc == MetaStatusCode::OK ||
+                 (rc == MetaStatusCode::NOT_FOUND && request == "ListDentry"));
     std::ostringstream message;
     message << request << " " << (succ ? "success" : "fail")
             << ", retCode = " << MetaStatusCode_Name(rc);

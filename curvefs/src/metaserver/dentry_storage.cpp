@@ -163,7 +163,7 @@ MetaStatusCode MemoryDentryStorage::List(const Dentry& dentry,
         first = second;
     }
 
-    return MetaStatusCode::OK;
+    return dentrys->empty() ? MetaStatusCode::NOT_FOUND : MetaStatusCode::OK;
 }
 
 MetaStatusCode MemoryDentryStorage::HandleTx(TX_OP_TYPE type,
