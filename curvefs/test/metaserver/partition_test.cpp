@@ -97,6 +97,26 @@ TEST_F(PartitionTest, testInodeIdGen3) {
     ASSERT_EQ(partition1.GetNewInodeId(), UINT64_MAX);
 }
 
+TEST_F(PartitionTest, testInodeIdGen4_NextId) {
+    std::vector<std::pair<uint64_t, uint64_t>> testsets = {{0, 2},
+                                                           {1, 2},
+                                                           {2, 2},
+                                                           {3, 3}};
+
+    for (auto& t : testsets) {
+        PartitionInfo partitionInfo1;
+        partitionInfo1.set_fsid(1);
+        partitionInfo1.set_poolid(2);
+        partitionInfo1.set_copysetid(3);
+        partitionInfo1.set_partitionid(4);
+        partitionInfo1.set_start(t.first);
+        partitionInfo1.set_end(199);
+
+        Partition p(partitionInfo1);
+        EXPECT_EQ(t.second, p.GetNewInodeId());
+    }
+}
+
 TEST_F(PartitionTest, test1) {
     PartitionInfo partitionInfo1;
     partitionInfo1.set_fsid(1);

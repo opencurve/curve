@@ -33,10 +33,13 @@
 #include "curvefs/src/metaserver/inode_manager.h"
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/metaserver/s3compact.h"
+#include "curvefs/src/common/define.h"
 
 namespace curvefs {
 namespace metaserver {
 using curvefs::common::PartitionInfo;
+
+constexpr uint64_t kMinPartitionStartId = ROOTINODEID + 1;
 
 class Partition {
  public:
