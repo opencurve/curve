@@ -45,6 +45,8 @@ static const struct fuse_lowlevel_ops curve_ll_oper = {
     .link       = FuseOpLink,
     .readlink   = FuseOpReadLink,
     .release    = FuseOpRelease,
+    .fsync      = FuseOpFsync,
+    .releasedir = FuseOpReleaseDir,
 };
 
 int main(int argc, char *argv[]) {
@@ -110,6 +112,9 @@ int main(int argc, char *argv[]) {
         goto err_out3;
 
     fuse_daemonize(opts.foreground);
+
+    printf("fuse start loop, singlethread = %d, max_idle_threads = %d\n",
+        opts.singlethread, opts.max_idle_threads);
 
     /* Block until ctrl+c or fusermount -u */
     if (opts.singlethread) {

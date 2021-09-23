@@ -150,6 +150,10 @@ class InodeWrapper {
         return openCount_;
     }
 
+    bool isDirty() const {
+        return dirty_;
+    }
+
  private:
     CURVEFS_ERROR SetOpenFlag(bool flag);
 

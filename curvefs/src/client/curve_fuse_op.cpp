@@ -68,11 +68,19 @@ int InitFuseClient(const char *confPath, const char* fsType) {
         LOG(ERROR) << "fsTypeStr invalid, which is " << fsTypeStr;
         return -1;
     }
-
-    return static_cast<int>(g_ClientInstance->Init(*fuseClientOption));
+    CURVEFS_ERROR ret = g_ClientInstance->Init(*fuseClientOption);
+    if (ret != CURVEFS_ERROR::OK) {
+        return -1;
+    }
+    ret = g_ClientInstance->Run();
+    if (ret != CURVEFS_ERROR::OK) {
+        return -1;
+    }
+    return 0;
 }
 
 void UnInitFuseClient() {
+    g_ClientInstance->Fini();
     g_ClientInstance->UnInit();
     delete g_ClientInstance;
     delete fuseClientOption;
@@ -105,6 +113,12 @@ void FuseReplyErrByErrCode(fuse_req_t req, CURVEFS_ERROR errcode) {
         break;
     case CURVEFS_ERROR::NOTEMPTY:
         fuse_reply_err(req, ENOTEMPTY);
+        break;
+    case CURVEFS_ERROR::NOTSUPPORT:
+        fuse_reply_err(req, ENOSYS);
+        break;
+    case CURVEFS_ERROR::NAMETOOLONG:
+        fuse_reply_err(req, ENAMETOOLONG);
         break;
     default:
         fuse_reply_err(req, EIO);
@@ -239,6 +253,12 @@ void FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino,
     fuse_reply_open(req, fi);
 }
 
+void FuseOpReleaseDir(fuse_req_t req, fuse_ino_t ino,
+            struct fuse_file_info *fi) {
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpReleaseDir(req, ino, fi);
+    FuseReplyErrByErrCode(req, ret);
+}
+
 void FuseOpRename(fuse_req_t req,
                   fuse_ino_t parent,
                   const char* name,
@@ -310,5 +330,12 @@ void FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
     CURVEFS_ERROR ret = g_ClientInstance->FuseOpRelease(req, ino, fi);
     FuseReplyErrByErrCode(req, ret);
 }
+
+void FuseOpFsync(fuse_req_t req, fuse_ino_t ino, int datasync,
+           struct fuse_file_info *fi) {
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpFsync(req, ino, datasync, fi);
+    FuseReplyErrByErrCode(req, ret);
+}
+
 
 

@@ -24,10 +24,13 @@
 #ifndef CURVEFS_SRC_CLIENT_FUSE_CLIENT_H_
 #define CURVEFS_SRC_CLIENT_FUSE_CLIENT_H_
 
+#include <unistd.h>
+
 #include <map>
 #include <memory>
 #include <string>
 
+#include "src/common/concurrent/concurrent.h"
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/inode_cache_manager.h"
 #include "curvefs/src/client/dentry_cache_manager.h"
@@ -45,6 +48,9 @@
 
 #define DirectIOAlignemnt 512
 
+using ::curve::common::Thread;
+using ::curve::common::InterruptibleSleeper;
+using ::curve::common::Atomic;
 using ::curvefs::common::FSType;
 using ::curvefs::metaserver::DentryFlag;
 
@@ -60,6 +66,8 @@ using common::FuseClientOption;
 
 using curvefs::common::is_aligned;
 
+const uint32_t kMaxHostNameLength = 255u;
+
 class FuseClient {
  public:
     FuseClient()
@@ -72,7 +80,8 @@ class FuseClient {
         dirBuf_(std::make_shared<DirBuffer>()),
         fsInfo_(nullptr),
         mdsBase_(nullptr),
-        spaceBase_(nullptr) {}
+        spaceBase_(nullptr),
+        isStop_(true) {}
 
     virtual ~FuseClient() {}
 
@@ -96,6 +105,10 @@ class FuseClient {
     virtual CURVEFS_ERROR Init(const FuseClientOption &option);
 
     virtual void UnInit();
+
+    virtual CURVEFS_ERROR Run();
+
+    virtual void Fini();
 
     virtual void FuseOpInit(void *userdata, struct fuse_conn_info *conn) = 0;
 
@@ -122,12 +135,12 @@ class FuseClient {
         fuse_entry_param *e) = 0;
 
     virtual CURVEFS_ERROR FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
-            const char *name, mode_t mode, dev_t rdev,
-            fuse_entry_param *e) = 0;
+        const char *name, mode_t mode, dev_t rdev,
+        fuse_entry_param *e) = 0;
 
     virtual CURVEFS_ERROR FuseOpMkDir(fuse_req_t req, fuse_ino_t parent,
-            const char *name, mode_t mode,
-            fuse_entry_param *e);
+        const char *name, mode_t mode,
+        fuse_entry_param *e);
 
     virtual CURVEFS_ERROR FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
         const char *name);
@@ -136,13 +149,16 @@ class FuseClient {
         const char *name);
 
     virtual CURVEFS_ERROR FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino,
-             struct fuse_file_info *fi);
+        struct fuse_file_info *fi);
+
+    virtual CURVEFS_ERROR FuseOpReleaseDir(fuse_req_t req, fuse_ino_t ino,
+        struct fuse_file_info *fi);
 
     virtual CURVEFS_ERROR FuseOpReadDir(
-            fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
-            struct fuse_file_info *fi,
-            char **buffer,
-            size_t *rSize);
+        fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
+        struct fuse_file_info *fi,
+        char **buffer,
+        size_t *rSize);
 
     virtual CURVEFS_ERROR FuseOpRename(fuse_req_t req,
                                        fuse_ino_t parent,
@@ -169,6 +185,9 @@ class FuseClient {
     virtual CURVEFS_ERROR FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
          struct fuse_file_info *fi);
 
+    virtual CURVEFS_ERROR FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
+        int datasync, struct fuse_file_info *fi) = 0;
+
     void SetFsInfo(std::shared_ptr<FsInfo> fsInfo) {
         fsInfo_ = fsInfo;
     }
@@ -176,6 +195,10 @@ class FuseClient {
     std::shared_ptr<FsInfo> GetFsInfo() {
         return fsInfo_;
     }
+
+    virtual void FlushInode();
+
+    virtual void FlushAll();
 
  protected:
     void GetDentryParamFromInode(const Inode &inode, fuse_entry_param *param);
@@ -189,8 +212,24 @@ class FuseClient {
     CURVEFS_ERROR RemoveNode(fuse_req_t req, fuse_ino_t parent,
         const char *name, bool idDir);
 
+    int AddHostNameToMountPointStr(const std::string &mountPointStr,
+        std::string *out) {
+        char hostname[kMaxHostNameLength];
+        int ret = gethostname(hostname, kMaxHostNameLength);
+        if (ret < 0) {
+            LOG(ERROR) << "GetHostName failed, ret = " << ret;
+            return ret;
+        }
+        *out = std::string(hostname) + ":" + mountPointStr;
+        return 0;
+    }
+
  private:
     virtual CURVEFS_ERROR Truncate(Inode *inode, uint64_t length) = 0;
+
+    virtual void FlushInodeLoop();
+
+    virtual void FlushData() = 0;
 
  protected:
     // mds client
@@ -220,10 +259,22 @@ class FuseClient {
 
     FuseClientOption option_;
 
+    // dirty map, key is inodeid
+    std::map<uint64_t, std::shared_ptr<InodeWrapper>> dirtyMap_;
+
+    // dirty map mutex
+    curve::common::Mutex dirtyMapMutex_;
+
  private:
     MDSBaseClient *mdsBase_;
 
     SpaceBaseClient *spaceBase_;
+
+    Atomic<bool> isStop_;
+
+    InterruptibleSleeper sleeper_;
+
+    Thread flushThread_;
 };
 
 }  // namespace client

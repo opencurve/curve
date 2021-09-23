@@ -93,6 +93,31 @@ void FuseClient::UnInit() {
     spaceBase_ = nullptr;
 }
 
+CURVEFS_ERROR FuseClient::Run() {
+    if (isStop_.exchange(false)) {
+        flushThread_ =
+            Thread(&FuseClient::FlushInodeLoop, this);
+        LOG(INFO) << "Start fuse client flush thread ok.";
+        return CURVEFS_ERROR::OK;
+    }
+    return CURVEFS_ERROR::INTERNAL;
+}
+
+void FuseClient::Fini() {
+    if (!isStop_.exchange(true)) {
+        LOG(INFO) << "stop fuse client flush thread ...";
+        sleeper_.interrupt();
+        flushThread_.join();
+    }
+    LOG(INFO) << "stop fuse client flush thread ok.";
+}
+
+void FuseClient::FlushInodeLoop() {
+     while (sleeper_.wait_for(std::chrono::seconds(option_.flushPeriodMs))) {
+          FlushInode();
+     }
+}
+
 std::ostream &operator<<(std::ostream &os, const struct stat &attr) {
     os << "{ st_ino = " << attr.st_ino
        << ", st_mode = " << attr.st_mode
@@ -132,10 +157,13 @@ void FuseClient::GetDentryParamFromInode(
 
 CURVEFS_ERROR FuseClient::FuseOpLookup(fuse_req_t req, fuse_ino_t parent,
     const char *name, fuse_entry_param *e) {
+    if (strlen(name) > option_.maxNameLength) {
+        return CURVEFS_ERROR::NAMETOOLONG;
+    }
     Dentry dentry;
     CURVEFS_ERROR ret = dentryManager_->GetDentry(parent, name, &dentry);
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "dentryManager_ get dentry fail, ret = " << ret
+        LOG(WARNING) << "dentryManager_ get dentry fail, ret = " << ret
                    << ", parent inodeid = " << parent
                    << ", name = " << name;
         return ret;
@@ -171,6 +199,7 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
 
+    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
     if (fi->flags & O_TRUNC) {
         if (fi->flags & O_WRONLY || fi->flags & O_RDWR) {
             Inode inode = inodeWrapper->GetInodeUnlocked();
@@ -180,6 +209,9 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
                            << ", inodeid = " << ino;
                 return CURVEFS_ERROR::INTERNAL;
             }
+            inode.set_length(0);
+            inode.set_ctime(nowTime);
+            inode.set_mtime(nowTime);
             inodeWrapper->SwapInode(&inode);
             ret = inodeWrapper->Sync();
             if (ret != CURVEFS_ERROR::OK) {
@@ -196,6 +228,9 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
 CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
         const char *name, mode_t mode, FsFileType type,
         fuse_entry_param *e) {
+    if (strlen(name) > option_.maxNameLength) {
+        return CURVEFS_ERROR::NAMETOOLONG;
+    }
     const struct fuse_ctx *ctx = fuse_req_ctx(req);
     InodeParam param;
     param.fsId = fsInfo_->fsid();
@@ -269,10 +304,13 @@ CURVEFS_ERROR FuseClient::FuseOpRmDir(fuse_req_t req, fuse_ino_t parent,
 
 CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
     const char *name, bool isDir) {
+    if (strlen(name) > option_.maxNameLength) {
+        return CURVEFS_ERROR::NAMETOOLONG;
+    }
     Dentry dentry;
     CURVEFS_ERROR ret = dentryManager_->GetDentry(parent, name, &dentry);
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "dentryManager_ GetDentry fail, ret = " << ret
+        LOG(WARNING) << "dentryManager_ GetDentry fail, ret = " << ret
                   << ", parent = " << parent
                   << ", name = " << name;
         return ret;
@@ -337,7 +375,18 @@ CURVEFS_ERROR FuseClient::FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino,
     uint64_t dindex = dirBuf_->DirBufferNew();
     fi->fh = dindex;
 
+    LOG(INFO) << "FuseOpOpenDir, ino = " << ino
+              << ", dindex = " << dindex;
     return ret;
+}
+
+CURVEFS_ERROR FuseClient::FuseOpReleaseDir(fuse_req_t req, fuse_ino_t ino,
+            struct fuse_file_info *fi) {
+    uint64_t dindex = fi->fh;
+    dirBuf_->DirBufferRelease(dindex);
+    LOG(INFO) << "FuseOpReleaseDir, ino = " << ino
+              << ", dindex = " << dindex;
+    return CURVEFS_ERROR::OK;
 }
 
 static void dirbuf_add(fuse_req_t req,
@@ -402,6 +451,12 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req,
                                        const char* name,
                                        fuse_ino_t newparent,
                                        const char* newname) {
+    LOG(INFO) << "FuseOpRename from (" << parent << ", " << name
+              << ") to (" << newparent << ", " << newname << ")";
+    if (strlen(name) > option_.maxNameLength ||
+        strlen(newname) > option_.maxNameLength) {
+        return CURVEFS_ERROR::NAMETOOLONG;
+    }
     auto renameOp = RenameOperator(fsInfo_->fsid(),
                                    parent, name, newparent, newname,
                                    dentryManager_,
@@ -450,6 +505,7 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(
         inodeWrapper->GetUniqueLock();
     Inode inode = inodeWrapper->GetInodeUnlocked();
 
+    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
     if (to_set & FUSE_SET_ATTR_MODE) {
         inode.set_mode(attr->st_mode);
     }
@@ -474,7 +530,6 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(
     if (to_set & FUSE_SET_ATTR_MTIME) {
         inode.set_mtime(attr->st_mtime);
     }
-    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
     if (to_set & FUSE_SET_ATTR_ATIME_NOW) {
         inode.set_atime(nowTime);
     }
@@ -483,6 +538,8 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(
     }
     if (to_set & FUSE_SET_ATTR_CTIME) {
         inode.set_ctime(attr->st_ctime);
+    } else {
+        inode.set_ctime(nowTime);
     }
     inodeWrapper->UpdateInode(inode);
     ret = inodeWrapper->Sync();
@@ -496,6 +553,9 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(
 
 CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
     fuse_ino_t parent, const char *name, fuse_entry_param *e) {
+    if (strlen(name) > option_.maxNameLength) {
+        return CURVEFS_ERROR::NAMETOOLONG;
+    }
     const struct fuse_ctx *ctx = fuse_req_ctx(req);
     InodeParam param;
     param.fsId = fsInfo_->fsid();
@@ -537,6 +597,9 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
 CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
     fuse_ino_t newparent, const char *newname,
     fuse_entry_param *e) {
+    if (strlen(newname) > option_.maxNameLength) {
+        return CURVEFS_ERROR::NAMETOOLONG;
+    }
     std::shared_ptr<InodeWrapper> inodeWrapper;
     CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
@@ -599,6 +662,38 @@ CURVEFS_ERROR FuseClient::FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
 
     ret = inodeWrapper->Release();
     return ret;
+}
+
+void FuseClient::FlushInode() {
+    std::map<uint64_t, std::shared_ptr<InodeWrapper>> temp_;
+    {
+        curve::common::LockGuard lg(dirtyMapMutex_);
+        temp_.swap(dirtyMap_);
+    }
+    for (auto it = temp_.begin(); it != temp_.end();) {
+        curve::common::UniqueLock ulk = it->second->GetUniqueLock();
+        CURVEFS_ERROR ret = it->second->Sync();
+        if (ret != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "Flush inode failed, inodeid = "
+                       << it->second->GetInodeId();
+            it++;
+            continue;
+        }
+        it = temp_.erase(it);
+    }
+    {
+        curve::common::LockGuard lg(dirtyMapMutex_);
+        for (const auto &v : temp_) {
+            dirtyMap_.emplace(v.first, v.second);
+        }
+    }
+}
+
+void FuseClient::FlushAll() {
+    FlushData();
+    while (!dirtyMap_.empty()) {
+        FlushInode();
+    }
 }
 
 }  // namespace client
