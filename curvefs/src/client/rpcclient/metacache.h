@@ -49,6 +49,7 @@ using ::curvefs::client::common::MetaServerOpType;
 using ::curvefs::client::common::Mutex;
 using ::curvefs::client::common::PartitionID;
 using ::curvefs::common::PartitionInfo;
+using ::curvefs::common::PartitionStatus;
 
 namespace curvefs {
 namespace client {

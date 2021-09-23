@@ -39,6 +39,7 @@ using curvefs::metaserver::copyset::CliService2_Stub;
 using curvefs::metaserver::copyset::CreateCopysetRequest;
 using curvefs::metaserver::copyset::CreateCopysetResponse;
 using curvefs::common::PartitionInfo;
+using curvefs::common::PartitionStatus;
 
 namespace curvefs {
 namespace mds {

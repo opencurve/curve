@@ -110,7 +110,7 @@ message Copyset {
 }
 
 message MetaServerInfo {
-    required uint32 MetaServerID = 1;
+    required uint32 metaServerID = 1;
     required string hostname = 2;
     required string hostIp = 3;
     required uint32 port = 4;
@@ -130,7 +130,7 @@ message MetaServerRegistRequest {
 
 message MetaServerRegistResponse {
     required TopoStatusCode statusCode = 1;
-    optional uint32 MetaServerID = 2;
+    optional uint32 metaServerID = 2;
     optional string token = 3;
 };
 
@@ -144,8 +144,8 @@ message ListMetaServerResponse {
 }
 
 message GetMetaServerInfoRequest {
-    //use either MetaServerID  or  hostIp&port to query MetaServer
-    optional uint32 MetaServerID = 1;
+    //use either metaServerID  or  hostIp&port to query MetaServer
+    optional uint32 metaServerID = 1;
     optional string hostIp = 2;
     optional uint32 port = 3;
 }
@@ -156,7 +156,7 @@ message GetMetaServerInfoResponse {
 }
 
 message DeleteMetaServerRequest {
-    required uint32 MetaServerID = 1;
+    required uint32 metaServerID = 1;
 }
 
 message DeleteMetaServerResponse {
@@ -320,7 +320,7 @@ message GetMetaServerListInCopySetsRequest {
 }
 
 message MetaServerLocation {
-    required uint32 MetaServerID = 1;
+    required uint32 metaServerID = 1;
     required string hostIp = 2;
     required uint32 port = 3;
     optional string externalIp = 4;

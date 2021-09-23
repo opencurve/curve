@@ -27,7 +27,7 @@
 
 namespace curvefs {
 namespace metaserver {
-
+using MetaServerID = uint32_t;
 using PoolId = uint32_t;
 using CopysetId = uint32_t;
 using PartitionId = uint32_t;

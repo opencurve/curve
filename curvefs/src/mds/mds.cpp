@@ -116,9 +116,10 @@ void MDS::Init() {
     // init topology
     InitTopology(options_.topologyOptions);
     InitTopologyManager(options_.topologyOptions);
+    InitHeartbeatManager();
 
-    fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceClient_,
-                                        metaserverClient_, topologyManager_);
+    fsManager_ = std::make_shared<FsManager>(
+        fsStorage_, spaceClient_, metaserverClient_, topologyManager_);
     LOG_IF(FATAL, !fsManager_->Init()) << "fsManager Init fail";
 
     chunkIdAllocator_ = std::make_shared<ChunkIdAllocatorImpl>(etcdClient_);
@@ -133,13 +134,12 @@ void MDS::InitTopology(const TopologyOption &option) {
     auto topologyTokenGenerator = std::make_shared<DefaultTokenGenerator>();
 
     auto codec = std::make_shared<TopologyStorageCodec>();
-    auto topologyStorage = std::make_shared<TopologyStorageEtcd>(etcdClient_,
-                                                                 codec);
+    auto topologyStorage =
+        std::make_shared<TopologyStorageEtcd>(etcdClient_, codec);
     LOG(INFO) << "init topologyStorage success.";
 
-    topology_ = std::make_shared<TopologyImpl>(topologyIdGenerator,
-                                               topologyTokenGenerator,
-                                               topologyStorage);
+    topology_ = std::make_shared<TopologyImpl>(
+        topologyIdGenerator, topologyTokenGenerator, topologyStorage);
     LOG_IF(FATAL, topology_->Init(option) < 0) << "init topology fail.";
     LOG(INFO) << "init topology success.";
 }
@@ -159,8 +159,16 @@ void MDS::Run() {
     }
 
     LOG_IF(FATAL, topology_->Run()) << "run topology module fail";
+    heartbeatManager_->Run();
 
     brpc::Server server;
+    // add heartbeat service
+    HeartbeatServiceImpl heartbeatService(heartbeatManager_);
+    LOG_IF(FATAL, server.AddService(&heartbeatService,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
+        << "add heartbeatService error";
+
+
     // add mds service
     MdsServiceImpl mdsService(fsManager_, chunkIdAllocator_);
     LOG_IF(FATAL,
@@ -170,7 +178,7 @@ void MDS::Run() {
     // add topology service
     TopologyServiceImpl topologyService(topologyManager_);
     LOG_IF(FATAL, server.AddService(&topologyService,
-           brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
+                                    brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
         << "add topologyService error";
 
     // start rpc server
@@ -191,6 +199,7 @@ void MDS::Stop() {
         return;
     }
     brpc::AskToQuit();
+    heartbeatManager_->Stop();
     topology_->Stop();
     fsManager_->Uninit();
 }
@@ -292,6 +301,25 @@ void MDS::InitLeaderElectionOption(LeaderElectionOptions* option) {
 
 void MDS::InitLeaderElection(const LeaderElectionOptions& option) {
     leaderElection_ = std::make_shared<LeaderElection>(option);
+}
+
+void MDS::InitHeartbeatOption(HeartbeatOption* heartbeatOption) {
+    conf_->GetValueFatalIfFail("mds.heartbeat.intervalMs",
+                               &heartbeatOption->heartbeatIntervalMs);
+    conf_->GetValueFatalIfFail("mds.heartbeat.misstimeoutMs",
+                               &heartbeatOption->heartbeatMissTimeOutMs);
+    conf_->GetValueFatalIfFail("mds.heartbeat.offlinetimeoutMs",
+                               &heartbeatOption->offLineTimeOutMs);
+}
+
+void MDS::InitHeartbeatManager() {
+    // init option
+    HeartbeatOption heartbeatOption;
+    InitHeartbeatOption(&heartbeatOption);
+
+    heartbeatManager_ =
+        std::make_shared<HeartbeatManager>(heartbeatOption, topology_);
+    heartbeatManager_->Init();
 }
 
 }  // namespace mds

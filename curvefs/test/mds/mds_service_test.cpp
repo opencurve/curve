@@ -44,7 +44,6 @@ using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
 using ::testing::Matcher;
-// using ::curvefs::space::MockSpaceService;
 using ::curvefs::common::S3Info;
 using ::curvefs::common::Volume;
 using ::curvefs::metaserver::FakeMetaserverImpl;

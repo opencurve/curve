@@ -20,8 +20,8 @@
  * Author: wanghai01
  */
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "curvefs/src/mds/topology/topology_storge_etcd.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
@@ -47,20 +47,17 @@ class TestTopologyStorageEtcd : public ::testing::Test {
     void SetUp() {
         kvStorageClient_ = std::make_shared<MockKVStorageClient>();
         codec_ = std::make_shared<TopologyStorageCodec>();
-        storage_ = std::make_shared<TopologyStorageEtcd>(
-            kvStorageClient_, codec_);
+        storage_ =
+            std::make_shared<TopologyStorageEtcd>(kvStorageClient_, codec_);
     }
 
-    void TearDown() {
-        kvStorageClient_ = nullptr;
-    }
+    void TearDown() { kvStorageClient_ = nullptr; }
 
  protected:
     std::shared_ptr<TopologyStorageEtcd> storage_;
     std::shared_ptr<MockKVStorageClient> kvStorageClient_;
     std::shared_ptr<TopologyStorageCodec> codec_;
 };
-
 
 TEST_F(TestTopologyStorageEtcd, test_LoadPool_success) {
     Pool::RedundanceAndPlaceMentPolicy rap;
@@ -308,7 +305,8 @@ TEST_F(TestTopologyStorageEtcd, test_LoadServer_IdDuplicated) {
 
 TEST_F(TestTopologyStorageEtcd, test_LoadMetaServer_success) {
     MetaServer data(0x51, "metaserver", "token", 0x41, "127.0.0.1", 8080,
-                    "127.0.0.1", 8080, OnlineState::OFFLINE);
+                    "127.0.0.1", 8080,
+                    OnlineState::OFFLINE);
 
     std::string key = codec_->EncodeMetaServerKey(data.GetId());
     std::string value;
@@ -365,7 +363,8 @@ TEST_F(TestTopologyStorageEtcd, test_LoadMetaServer_decodeError) {
 
 TEST_F(TestTopologyStorageEtcd, test_LoadMetaServer_IdDuplcated) {
     MetaServer data(0x51, "metaserver", "token", 0x41, "127.0.0.1", 8080,
-                    "127.0.0.1", 8080, OnlineState::OFFLINE);
+                    "127.0.0.1", 8080,
+                    OnlineState::OFFLINE);
 
     std::string key = codec_->EncodeMetaServerKey(data.GetId());
     std::string value;
@@ -408,8 +407,8 @@ TEST_F(TestTopologyStorageEtcd, test_LoadCopyset_success) {
     ASSERT_TRUE(ret);
 
     ASSERT_EQ(1, copySetMap.size());
-    ASSERT_TRUE(CompareCopysetInfo(data,
-        copySetMap[std::make_pair(0x11, 0x61)]));
+    ASSERT_TRUE(
+        CompareCopysetInfo(data, copySetMap[std::make_pair(0x11, 0x61)]));
     ASSERT_EQ(1, copySetIdMaxMap.size());
     ASSERT_EQ(0x61, copySetIdMaxMap[0x11]);
 }
@@ -618,7 +617,8 @@ TEST_F(TestTopologyStorageEtcd, test_StotageServer_putInfoEtcdFail) {
 
 TEST_F(TestTopologyStorageEtcd, test_StotageMetaServer_success) {
     MetaServer data(0x51, "metaserver", "token", 0x41, "127.0.0.1", 8080,
-        "127.0.0.1", 8080, OnlineState::OFFLINE);
+                    "127.0.0.1", 8080,
+                    OnlineState::OFFLINE);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
         .WillOnce(Return(EtcdErrCode::EtcdOK));
@@ -629,7 +629,8 @@ TEST_F(TestTopologyStorageEtcd, test_StotageMetaServer_success) {
 
 TEST_F(TestTopologyStorageEtcd, test_StotageMetaServer_putInfoEtcdFail) {
     MetaServer data(0x51, "metaserver", "token", 0x41, "127.0.0.1", 8080,
-        "127.0.0.1", 8080, OnlineState::OFFLINE);
+                    "127.0.0.1", 8080,
+                    OnlineState::OFFLINE);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
         .WillOnce(Return(EtcdErrCode::EtcdUnknown));
@@ -786,8 +787,7 @@ TEST_F(TestTopologyStorageEtcd, test_LoadClusterInfo_success) {
     ASSERT_TRUE(codec_->EncodeClusterInfoData(data, &value));
 
     EXPECT_CALL(*kvStorageClient_, Get(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(value),
-            Return(EtcdErrCode::EtcdOK)));
+        .WillOnce(DoAll(SetArgPointee<1>(value), Return(EtcdErrCode::EtcdOK)));
 
     std::vector<ClusterInformation> infoVec;
     bool ret = storage_->LoadClusterInfo(&infoVec);
@@ -802,7 +802,7 @@ TEST_F(TestTopologyStorageEtcd, test_LoadClusterInfo_success_empty) {
 
     EXPECT_CALL(*kvStorageClient_, Get(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(value),
-            Return(EtcdErrCode::EtcdKeyNotExist)));
+                        Return(EtcdErrCode::EtcdKeyNotExist)));
 
     std::vector<ClusterInformation> infoVec;
     bool ret = storage_->LoadClusterInfo(&infoVec);
@@ -815,8 +815,7 @@ TEST_F(TestTopologyStorageEtcd, test_LoadClusterInfo_decodeError) {
     std::string value;
 
     EXPECT_CALL(*kvStorageClient_, Get(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(value),
-            Return(EtcdErrCode::EtcdOK)));
+        .WillOnce(DoAll(SetArgPointee<1>(value), Return(EtcdErrCode::EtcdOK)));
 
     std::vector<ClusterInformation> infoVec;
     bool ret = storage_->LoadClusterInfo(&infoVec);

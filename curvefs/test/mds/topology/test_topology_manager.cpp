@@ -20,18 +20,18 @@
  * Author: wanghai01
  */
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-#include <brpc/controller.h>
 #include <brpc/channel.h>
+#include <brpc/controller.h>
 #include <brpc/server.h>
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "curvefs/proto/topology.pb.h"
-#include "curvefs/src/mds/topology/topology_manager.h"
 #include "curvefs/src/mds/common/mds_define.h"
-#include "curvefs/test/mds/mock/mock_topology.h"
+#include "curvefs/src/mds/topology/topology_manager.h"
 #include "curvefs/test/mds/mock/mock_metaserver.h"
 #include "curvefs/test/mds/mock/mock_metaserver_client.h"
+#include "curvefs/test/mds/mock/mock_topology.h"
 
 namespace curvefs {
 namespace mds {
@@ -58,8 +58,7 @@ class TestTopologyManager : public ::testing::Test {
         tokenGenerator_ = std::make_shared<MockTokenGenerator>();
         storage_ = std::make_shared<MockStorage>();
         topology_ = std::make_shared<TopologyImpl>(idGenerator_,
-                                                   tokenGenerator_,
-                                                   storage_);
+                                                   tokenGenerator_, storage_);
         TopologyOption topologyOption;
         topologyOption.createCopysetNumber = 1;
         topologyOption.createPartitionNumber = 3;
@@ -68,13 +67,14 @@ class TestTopologyManager : public ::testing::Test {
         metaserverOptions.rpcTimeoutMs = 500;
         mockMetaserverClient_ =
             std::make_shared<MockMetaserverClient>(metaserverOptions);
-        serviceManager_ = std::make_shared<TopologyManager>(topology_,
-                                                mockMetaserverClient_);
+        serviceManager_ =
+            std::make_shared<TopologyManager>(topology_, mockMetaserverClient_);
         serviceManager_->Init(topologyOption);
 
         mockMetaserverService_ = new MockMetaserverService();
         ASSERT_EQ(server_->AddService(mockMetaserverService_,
-                                      brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+                                      brpc::SERVER_DOESNT_OWN_SERVICE),
+                  0);
 
         ASSERT_EQ(0, server_->Start(addr.c_str(), nullptr));
         listenAddr_ = server_->listen_address();
@@ -98,11 +98,10 @@ class TestTopologyManager : public ::testing::Test {
 
  protected:
     void PrepareAddPool(PoolIdType id = 0x11,
-            const std::string &name = "testPool",
-            const Pool::RedundanceAndPlaceMentPolicy &rap =
-                Pool::RedundanceAndPlaceMentPolicy(),
-            uint64_t createTime = 0x888
-            ) {
+                        const std::string &name = "testPool",
+                        const Pool::RedundanceAndPlaceMentPolicy &rap =
+                            Pool::RedundanceAndPlaceMentPolicy(),
+                        uint64_t createTime = 0x888) {
         Pool pool(id, name, rap, createTime, true);
         EXPECT_CALL(*storage_, StoragePool(_)).WillOnce(Return(true));
 
@@ -111,8 +110,8 @@ class TestTopologyManager : public ::testing::Test {
     }
 
     void PrepareAddZone(ZoneIdType id = 0x21,
-            const std::string &name = "testZone",
-            PoolIdType poolId = 0x11) {
+                        const std::string &name = "testZone",
+                        PoolIdType poolId = 0x11) {
         Zone zone(id, name, poolId);
         EXPECT_CALL(*storage_, StorageZone(_)).WillOnce(Return(true));
 
@@ -122,13 +121,12 @@ class TestTopologyManager : public ::testing::Test {
     }
 
     void PrepareAddServer(ServerIdType id = 0x31,
-           const std::string &hostName = "testServer",
-           const std::string &internalHostIp = "testInternalIp",
-           uint32_t internalPort = 0,
-           const std::string &externalHostIp = "testExternalIp",
-           uint32_t externalPort = 0,
-           ZoneIdType zoneId = 0x21,
-           PoolIdType poolId = 0x11) {
+                          const std::string &hostName = "testServer",
+                          const std::string &internalHostIp = "testInternalIp",
+                          uint32_t internalPort = 0,
+                          const std::string &externalHostIp = "testExternalIp",
+                          uint32_t externalPort = 0, ZoneIdType zoneId = 0x21,
+                          PoolIdType poolId = 0x11) {
         Server server(id, hostName, internalHostIp, internalPort,
                       externalHostIp, externalPort, zoneId, poolId);
         EXPECT_CALL(*storage_, StorageServer(_)).WillOnce(Return(true));
@@ -138,28 +136,26 @@ class TestTopologyManager : public ::testing::Test {
             << "should have PrepareAddZone()";
     }
 
-    void PrepareAddMetaServer(MetaServerIdType id = 0x41,
-                const std::string &hostname = "testMetaserver",
-                const std::string &token = "testToken",
-                ServerIdType serverId = 0x31,
-                const std::string &hostIp = "testInternalIp",
-                uint32_t port = 0,
-                const std::string &externalHostIp = "testExternalIp",
-                uint32_t externalPort = 0,
-                OnlineState onlineState = OnlineState::OFFLINE) {
-            MetaServer ms(id, hostname, token, serverId, hostIp, port,
-                          externalHostIp, externalPort, onlineState);
+    void PrepareAddMetaServer(
+        MetaServerIdType id = 0x41,
+        const std::string &hostname = "testMetaserver",
+        const std::string &token = "testToken", ServerIdType serverId = 0x31,
+        const std::string &hostIp = "testInternalIp", uint32_t port = 0,
+        const std::string &externalHostIp = "testExternalIp",
+        uint32_t externalPort = 0,
+        OnlineState onlineState = OnlineState::OFFLINE) {
+        MetaServer ms(id, hostname, token, serverId, hostIp, port,
+                      externalHostIp, externalPort,
+                      onlineState);
 
-            EXPECT_CALL(*storage_, StorageMetaServer(_))
-                .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StorageMetaServer(_)).WillOnce(Return(true));
         int ret = topology_->AddMetaServer(ms);
         ASSERT_EQ(TopoStatusCode::TOPO_OK, ret)
             << "should have PrepareAddServer()";
     }
 
-    void PrepareAddCopySet(CopySetIdType copysetId,
-        PoolIdType poolId,
-        const std::set<MetaServerIdType> &members) {
+    void PrepareAddCopySet(CopySetIdType copysetId, PoolIdType poolId,
+                           const std::set<MetaServerIdType> &members) {
         CopySetInfo cs(poolId, copysetId);
         cs.SetCopySetMembers(members);
         EXPECT_CALL(*storage_, StorageCopySet(_)).WillOnce(Return(true));
@@ -169,8 +165,8 @@ class TestTopologyManager : public ::testing::Test {
     }
 
     void PrepareAddPartition(FsIdType fsId, PoolIdType poolId,
-                            CopySetIdType csId, PartitionIdType pId,
-                            uint64_t idStart, uint64_t idEnd) {
+                             CopySetIdType csId, PartitionIdType pId,
+                             uint64_t idStart, uint64_t idEnd) {
         Partition partition(fsId, poolId, csId, pId, idStart, idEnd);
         EXPECT_CALL(*storage_, StoragePartition(_)).WillOnce(Return(true));
         int ret = topology_->AddPartition(partition);
@@ -191,7 +187,6 @@ class TestTopologyManager : public ::testing::Test {
     MockMetaserverService *mockMetaserverService_;
 };
 
-
 TEST_F(TestTopologyManager, test_RegistMetaServer_SuccessWithExIp) {
     MetaServerIdType csId = 0x41;
     ServerIdType serverId = 0x31;
@@ -199,8 +194,8 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_SuccessWithExIp) {
 
     PrepareAddPool();
     PrepareAddZone();
-    PrepareAddServer(serverId, "testServer", "testInternalIp", 0,
-                    "externalIp1", 0);
+    PrepareAddServer(serverId, "testServer", "testInternalIp", 0, "externalIp1",
+                     0);
 
     MetaServerRegistRequest request;
     request.set_hostname("metaserver");
@@ -211,13 +206,10 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_SuccessWithExIp) {
 
     MetaServerRegistResponse response;
 
-    EXPECT_CALL(*tokenGenerator_, GenToken())
-        .WillOnce(Return(token));
-    EXPECT_CALL(*idGenerator_, GenMetaServerId())
-        .WillOnce(Return(csId));
+    EXPECT_CALL(*tokenGenerator_, GenToken()).WillOnce(Return(token));
+    EXPECT_CALL(*idGenerator_, GenMetaServerId()).WillOnce(Return(csId));
 
-    EXPECT_CALL(*storage_, StorageMetaServer(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageMetaServer(_)).WillOnce(Return(true));
     serviceManager_->RegistMetaServer(&request, &response);
 
     ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
@@ -237,8 +229,8 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_ExIpNotMatch) {
 
     PrepareAddPool();
     PrepareAddZone();
-    PrepareAddServer(serverId, "testServer", "testInternalIp", 0,
-                    "externalIp1", 0);
+    PrepareAddServer(serverId, "testServer", "testInternalIp", 0, "externalIp1",
+                     0);
 
     MetaServerRegistRequest request;
     request.set_hostname("metaserver");
@@ -247,13 +239,10 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_ExIpNotMatch) {
     request.set_externalip("externalIp2");
     request.set_externalport(0);
 
-
     MetaServerRegistResponse response;
 
-    EXPECT_CALL(*tokenGenerator_, GenToken())
-        .WillOnce(Return(token));
-    EXPECT_CALL(*idGenerator_, GenMetaServerId())
-        .WillOnce(Return(csId));
+    EXPECT_CALL(*tokenGenerator_, GenToken()).WillOnce(Return(token));
+    EXPECT_CALL(*idGenerator_, GenMetaServerId()).WillOnce(Return(csId));
 
     serviceManager_->RegistMetaServer(&request, &response);
 
@@ -266,8 +255,8 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_ServerNotFound) {
 
     PrepareAddPool();
     PrepareAddZone();
-    PrepareAddServer(serverId, "testServer", "testInternalIp", 0,
-                     "externalIp1", 0);
+    PrepareAddServer(serverId, "testServer", "testInternalIp", 0, "externalIp1",
+                     0);
 
     MetaServerRegistRequest request;
     request.set_hostname("metaserver");
@@ -289,8 +278,8 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_AllocateIdFail) {
 
     PrepareAddPool();
     PrepareAddZone();
-    PrepareAddServer(serverId, "testServer", "testInternalIp", 0,
-                     "externalIp1", 0);
+    PrepareAddServer(serverId, "testServer", "testInternalIp", 0, "externalIp1",
+                     0);
 
     MetaServerRegistRequest request;
     request.set_hostname("metaserver");
@@ -316,8 +305,8 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_AddMetaServerFail) {
 
     PrepareAddPool();
     PrepareAddZone();
-    PrepareAddServer(serverId, "testServer", "testInternalIp", 0,
-                     "externalIp1", 0);
+    PrepareAddServer(serverId, "testServer", "testInternalIp", 0, "externalIp1",
+                     0);
 
     MetaServerRegistRequest request;
     request.set_hostname("metaserver");
@@ -328,13 +317,10 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_AddMetaServerFail) {
 
     MetaServerRegistResponse response;
 
-    EXPECT_CALL(*tokenGenerator_, GenToken())
-        .WillOnce(Return(token));
-    EXPECT_CALL(*idGenerator_, GenMetaServerId())
-        .WillOnce(Return(csId));
+    EXPECT_CALL(*tokenGenerator_, GenToken()).WillOnce(Return(token));
+    EXPECT_CALL(*idGenerator_, GenMetaServerId()).WillOnce(Return(csId));
 
-    EXPECT_CALL(*storage_, StorageMetaServer(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, StorageMetaServer(_)).WillOnce(Return(false));
     serviceManager_->RegistMetaServer(&request, &response);
 
     ASSERT_EQ(TopoStatusCode::TOPO_STORGE_FAIL, response.statuscode());
@@ -350,10 +336,10 @@ TEST_F(TestTopologyManager, test_ListMetaServer_ByIdSuccess) {
     PrepareAddPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", 0, "ip2", 0);
-    PrepareAddMetaServer(csId1, "ms1", "token1", serverId, "ip1", 100,
-                         "ip2", 100);
-    PrepareAddMetaServer(csId2, "ms2", "token2", serverId, "ip1", 200,
-                         "ip2", 200);
+    PrepareAddMetaServer(csId1, "ms1", "token1", serverId, "ip1", 100, "ip2",
+                         100);
+    PrepareAddMetaServer(csId2, "ms2", "token2", serverId, "ip1", 200, "ip2",
+                         200);
 
     ListMetaServerRequest request;
     request.set_serverid(serverId);
@@ -367,13 +353,13 @@ TEST_F(TestTopologyManager, test_ListMetaServer_ByIdSuccess) {
     ASSERT_EQ(2, response.metaserverinfos_size());
 
     ASSERT_THAT(response.metaserverinfos(0).metaserverid(),
-        AnyOf(csId1, csId2));
+                AnyOf(csId1, csId2));
     ASSERT_EQ("ip1", response.metaserverinfos(0).hostip());
     ASSERT_EQ("ip2", response.metaserverinfos(0).externalip());
     ASSERT_THAT(response.metaserverinfos(0).port(), AnyOf(100, 200));
 
     ASSERT_THAT(response.metaserverinfos(1).metaserverid(),
-        AnyOf(csId1, csId2));
+                AnyOf(csId1, csId2));
     ASSERT_EQ("ip1", response.metaserverinfos(1).hostip());
     ASSERT_EQ("ip2", response.metaserverinfos(1).externalip());
     ASSERT_THAT(response.metaserverinfos(1).port(), AnyOf(100, 200));
@@ -387,10 +373,10 @@ TEST_F(TestTopologyManager, test_ListMetaServer_ServerNotFound) {
     PrepareAddPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", 0, "ip2", 0);
-    PrepareAddMetaServer(csId1, "ms1", "token1", serverId, "ip1", 100,
-                         "ip2", 100);
-    PrepareAddMetaServer(csId2, "ms2", "token2", serverId, "ip1", 200,
-                         "ip2", 200);
+    PrepareAddMetaServer(csId1, "ms1", "token1", serverId, "ip1", 100, "ip2",
+                         100);
+    PrepareAddMetaServer(csId2, "ms2", "token2", serverId, "ip1", 200, "ip2",
+                         200);
 
     ListMetaServerRequest request;
     request.set_serverid(++serverId);
@@ -411,8 +397,8 @@ TEST_F(TestTopologyManager, test_GetMetaServer_ByIdSuccess) {
     PrepareAddPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", 0, "ip2", 0);
-    PrepareAddMetaServer(csId1, "ms1", "token1", serverId, "ip1", 100,
-                         "ip2", 100);
+    PrepareAddMetaServer(csId1, "ms1", "token1", serverId, "ip1", 100, "ip2",
+                         100);
 
     GetMetaServerInfoRequest request;
     request.set_metaserverid(csId1);
@@ -437,8 +423,8 @@ TEST_F(TestTopologyManager, test_GetMetaServer_MetaServerNotFound) {
     PrepareAddPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", 0, "ip2", 0);
-    PrepareAddMetaServer(csId1, "ms1", "token1", serverId, "ip1", 100,
-                         "ip2", 100);
+    PrepareAddMetaServer(csId1, "ms1", "token1", serverId, "ip1", 100, "ip2",
+                         100);
 
     GetMetaServerInfoRequest request;
     request.set_metaserverid(++csId1);
@@ -457,14 +443,13 @@ TEST_F(TestTopologyManager, test_DeleteMetaServer_success) {
     PrepareAddPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", 0, "ip2", 0);
-    PrepareAddMetaServer(csId1, "ms1", "token1", serverId, "ip1", 100,
-                         "ip2", 100);
+    PrepareAddMetaServer(csId1, "ms1", "token1", serverId, "ip1", 100, "ip2",
+                         100);
 
     DeleteMetaServerRequest request;
     request.set_metaserverid(csId1);
 
-    EXPECT_CALL(*storage_, DeleteMetaServer(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, DeleteMetaServer(_)).WillOnce(Return(true));
 
     DeleteMetaServerResponse response;
     serviceManager_->DeleteMetaServer(&request, &response);
@@ -479,8 +464,8 @@ TEST_F(TestTopologyManager, test_DeleteMetaServer_MetaServerNotFound) {
     PrepareAddPool();
     PrepareAddZone();
     PrepareAddServer(serverId, "server", "ip1", 0, "ip2", 0);
-    PrepareAddMetaServer(csId1, "ms1", "token1", serverId, "ip1", 100,
-                         "ip2", 100);
+    PrepareAddMetaServer(csId1, "ms1", "token1", serverId, "ip1", 100, "ip2",
+                         100);
 
     DeleteMetaServerRequest request;
     request.set_metaserverid(++csId1);
@@ -507,10 +492,8 @@ TEST_F(TestTopologyManager, test_RegistServer_ByZoneAndPoolNameSuccess) {
 
     ServerRegistResponse response;
 
-    EXPECT_CALL(*idGenerator_, GenServerId())
-        .WillOnce(Return(id));
-    EXPECT_CALL(*storage_, StorageServer(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*idGenerator_, GenServerId()).WillOnce(Return(id));
+    EXPECT_CALL(*storage_, StorageServer(_)).WillOnce(Return(true));
 
     serviceManager_->RegistServer(&request, &response);
 
@@ -578,8 +561,7 @@ TEST_F(TestTopologyManager, test_RegistServer_AllocateIdFail) {
 
     ServerRegistResponse response;
 
-    EXPECT_CALL(*idGenerator_, GenServerId())
-        .WillOnce(Return(UNINTIALIZE_ID));
+    EXPECT_CALL(*idGenerator_, GenServerId()).WillOnce(Return(UNINTIALIZE_ID));
 
     serviceManager_->RegistServer(&request, &response);
 
@@ -602,10 +584,8 @@ TEST_F(TestTopologyManager, test_RegistServer_AddServerFail) {
 
     ServerRegistResponse response;
 
-    EXPECT_CALL(*idGenerator_, GenServerId())
-        .WillOnce(Return(id));
-    EXPECT_CALL(*storage_, StorageServer(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*idGenerator_, GenServerId()).WillOnce(Return(id));
+    EXPECT_CALL(*storage_, StorageServer(_)).WillOnce(Return(false));
 
     serviceManager_->RegistServer(&request, &response);
 
@@ -618,14 +598,7 @@ TEST_F(TestTopologyManager, test_GetServer_ByIdSuccess) {
     ServerIdType serverId = 0x31;
     PrepareAddPool(poolId);
     PrepareAddZone(zoneId);
-    PrepareAddServer(serverId,
-                "hostname1",
-                "ip1",
-                0,
-                "ip2",
-                0,
-                zoneId,
-                poolId);
+    PrepareAddServer(serverId, "hostname1", "ip1", 0, "ip2", 0, zoneId, poolId);
 
     GetServerRequest request;
     request.set_serverid(serverId);
@@ -652,14 +625,7 @@ TEST_F(TestTopologyManager, test_GetServer_ByNameSuccess) {
     ServerIdType serverId = 0x31;
     PrepareAddPool(poolId);
     PrepareAddZone(zoneId);
-    PrepareAddServer(serverId,
-                "hostname1",
-                "ip1",
-                0,
-                "ip2",
-                0,
-                zoneId,
-                poolId);
+    PrepareAddServer(serverId, "hostname1", "ip1", 0, "ip2", 0, zoneId, poolId);
 
     GetServerRequest request;
     request.set_hostname("hostname1");
@@ -686,14 +652,7 @@ TEST_F(TestTopologyManager, test_GetServer_ByInternalIpSuccess) {
     ServerIdType serverId = 0x31;
     PrepareAddPool(poolId);
     PrepareAddZone(zoneId);
-    PrepareAddServer(serverId,
-                "hostname1",
-                "ip1",
-                0,
-                "ip2",
-                0,
-                zoneId,
-                poolId);
+    PrepareAddServer(serverId, "hostname1", "ip1", 0, "ip2", 0, zoneId, poolId);
 
     GetServerRequest request;
     request.set_hostip("ip1");
@@ -720,14 +679,7 @@ TEST_F(TestTopologyManager, test_GetServer_ByExternalIpSuccess) {
     ServerIdType serverId = 0x31;
     PrepareAddPool(poolId);
     PrepareAddZone(zoneId);
-    PrepareAddServer(serverId,
-                "hostname1",
-                "ip1",
-                0,
-                "ip2",
-                0,
-                zoneId,
-                poolId);
+    PrepareAddServer(serverId, "hostname1", "ip1", 0, "ip2", 0, zoneId, poolId);
 
     GetServerRequest request;
     request.set_hostip("ip2");
@@ -754,14 +706,7 @@ TEST_F(TestTopologyManager, test_GetServer_ServerNotFound) {
     ServerIdType serverId = 0x31;
     PrepareAddPool(poolId);
     PrepareAddZone(zoneId);
-    PrepareAddServer(serverId,
-                "hostname1",
-                "ip1",
-                0,
-                "ip2",
-                0,
-                zoneId,
-                poolId);
+    PrepareAddServer(serverId, "hostname1", "ip1", 0, "ip2", 0, zoneId, poolId);
 
     GetServerRequest request;
     request.set_serverid(++serverId);
@@ -780,14 +725,7 @@ TEST_F(TestTopologyManager, test_GetServer_ByNameServerNotFound) {
     ServerIdType serverId = 0x31;
     PrepareAddPool(poolId);
     PrepareAddZone(zoneId);
-    PrepareAddServer(serverId,
-                "hostname1",
-                "ip1",
-                0,
-                "ip2",
-                0,
-                zoneId,
-                poolId);
+    PrepareAddServer(serverId, "hostname1", "ip1", 0, "ip2", 0, zoneId, poolId);
 
     GetServerRequest request;
     request.set_hostname("hostname2");
@@ -806,14 +744,7 @@ TEST_F(TestTopologyManager, test_GetServer_ByIpServerNotFound) {
     ServerIdType serverId = 0x31;
     PrepareAddPool(poolId);
     PrepareAddZone(zoneId);
-    PrepareAddServer(serverId,
-                "hostname1",
-                "ip1",
-                0,
-                "ip2",
-                0,
-                zoneId,
-                poolId);
+    PrepareAddServer(serverId, "hostname1", "ip1", 0, "ip2", 0, zoneId, poolId);
 
     GetServerRequest request;
     request.set_hostip("ip3");
@@ -832,22 +763,14 @@ TEST_F(TestTopologyManager, test_DeleteServer_success) {
     ServerIdType serverId = 0x31;
     PrepareAddPool(poolId);
     PrepareAddZone(zoneId);
-    PrepareAddServer(serverId,
-                "hostname1",
-                "ip1",
-                0,
-                "ip2",
-                0,
-                zoneId,
-                poolId);
+    PrepareAddServer(serverId, "hostname1", "ip1", 0, "ip2", 0, zoneId, poolId);
 
     DeleteServerRequest request;
     request.set_serverid(serverId);
 
     DeleteServerResponse response;
 
-    EXPECT_CALL(*storage_, DeleteServer(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, DeleteServer(_)).WillOnce(Return(true));
 
     serviceManager_->DeleteServer(&request, &response);
 
@@ -861,22 +784,9 @@ TEST_F(TestTopologyManager, test_ListZoneServer_ByIdSuccess) {
     ServerIdType serverId2 = 0x32;
     PrepareAddPool(poolId);
     PrepareAddZone(zoneId);
-    PrepareAddServer(serverId,
-                "hostname1",
-                "ip1",
-                0,
-                "ip2",
-                0,
-                zoneId,
-                poolId);
-    PrepareAddServer(serverId2,
-                "hostname1",
-                "ip3",
-                0,
-                "ip4",
-                0,
-                zoneId,
-                poolId);
+    PrepareAddServer(serverId, "hostname1", "ip1", 0, "ip2", 0, zoneId, poolId);
+    PrepareAddServer(serverId2, "hostname1", "ip3", 0, "ip4", 0, zoneId,
+                     poolId);
 
     ListZoneServerRequest request;
     request.set_zoneid(zoneId);
@@ -889,7 +799,7 @@ TEST_F(TestTopologyManager, test_ListZoneServer_ByIdSuccess) {
 
     ASSERT_THAT(response.serverinfo(0).serverid(), AnyOf(serverId, serverId2));
     ASSERT_THAT(response.serverinfo(0).hostname(),
-            AnyOf("hostname1", "hostname2"));
+                AnyOf("hostname1", "hostname2"));
     ASSERT_THAT(response.serverinfo(0).internalip(), AnyOf("ip1", "ip3"));
     ASSERT_THAT(response.serverinfo(0).externalip(), AnyOf("ip2", "ip4"));
     ASSERT_EQ(zoneId, response.serverinfo(0).zoneid());
@@ -897,7 +807,7 @@ TEST_F(TestTopologyManager, test_ListZoneServer_ByIdSuccess) {
 
     ASSERT_THAT(response.serverinfo(1).serverid(), AnyOf(serverId, serverId2));
     ASSERT_THAT(response.serverinfo(1).hostname(),
-            AnyOf("hostname1", "hostname2"));
+                AnyOf("hostname1", "hostname2"));
     ASSERT_THAT(response.serverinfo(1).internalip(), AnyOf("ip1", "ip3"));
     ASSERT_THAT(response.serverinfo(1).externalip(), AnyOf("ip2", "ip4"));
     ASSERT_EQ(zoneId, response.serverinfo(1).zoneid());
@@ -911,22 +821,9 @@ TEST_F(TestTopologyManager, test_ListZoneServer_ByNameSuccess) {
     ServerIdType serverId2 = 0x32;
     PrepareAddPool(poolId, "poolName1");
     PrepareAddZone(zoneId, "zone1", poolId);
-    PrepareAddServer(serverId,
-                "hostname1",
-                "ip1",
-                0,
-                "ip2",
-                0,
-                zoneId,
-                poolId);
-    PrepareAddServer(serverId2,
-                "hostname1",
-                "ip3",
-                0,
-                "ip4",
-                0,
-                zoneId,
-                poolId);
+    PrepareAddServer(serverId, "hostname1", "ip1", 0, "ip2", 0, zoneId, poolId);
+    PrepareAddServer(serverId2, "hostname1", "ip3", 0, "ip4", 0, zoneId,
+                     poolId);
 
     ListZoneServerRequest request;
     request.set_zonename("zone1");
@@ -940,7 +837,7 @@ TEST_F(TestTopologyManager, test_ListZoneServer_ByNameSuccess) {
 
     ASSERT_THAT(response.serverinfo(0).serverid(), AnyOf(serverId, serverId2));
     ASSERT_THAT(response.serverinfo(0).hostname(),
-            AnyOf("hostname1", "hostname2"));
+                AnyOf("hostname1", "hostname2"));
     ASSERT_THAT(response.serverinfo(0).internalip(), AnyOf("ip1", "ip3"));
     ASSERT_THAT(response.serverinfo(0).externalip(), AnyOf("ip2", "ip4"));
     ASSERT_EQ(zoneId, response.serverinfo(0).zoneid());
@@ -948,7 +845,7 @@ TEST_F(TestTopologyManager, test_ListZoneServer_ByNameSuccess) {
 
     ASSERT_THAT(response.serverinfo(1).serverid(), AnyOf(serverId, serverId2));
     ASSERT_THAT(response.serverinfo(1).hostname(),
-            AnyOf("hostname1", "hostname2"));
+                AnyOf("hostname1", "hostname2"));
     ASSERT_THAT(response.serverinfo(1).internalip(), AnyOf("ip1", "ip3"));
     ASSERT_THAT(response.serverinfo(1).externalip(), AnyOf("ip2", "ip4"));
     ASSERT_EQ(zoneId, response.serverinfo(1).zoneid());
@@ -962,22 +859,9 @@ TEST_F(TestTopologyManager, test_ListZoneServer_ZoneNotFound) {
     ServerIdType serverId2 = 0x32;
     PrepareAddPool(poolId);
     PrepareAddZone(zoneId);
-    PrepareAddServer(serverId,
-                "hostname1",
-                "ip1",
-                0,
-                "ip2",
-                0,
-                zoneId,
-                poolId);
-    PrepareAddServer(serverId2,
-                "hostname1",
-                "ip3",
-                0,
-                "ip4",
-                0,
-                zoneId,
-                poolId);
+    PrepareAddServer(serverId, "hostname1", "ip1", 0, "ip2", 0, zoneId, poolId);
+    PrepareAddServer(serverId2, "hostname1", "ip3", 0, "ip4", 0, zoneId,
+                     poolId);
 
     ListZoneServerRequest request;
     request.set_zoneid(++zoneId);
@@ -996,22 +880,9 @@ TEST_F(TestTopologyManager, test_ListZoneServer_ByNameZoneNotFound) {
     ServerIdType serverId2 = 0x32;
     PrepareAddPool(poolId, "poolName1");
     PrepareAddZone(zoneId, "zone1", poolId);
-    PrepareAddServer(serverId,
-                "hostname1",
-                "ip1",
-                0,
-                "ip2",
-                0,
-                zoneId,
-                poolId);
-    PrepareAddServer(serverId2,
-                "hostname1",
-                "ip3",
-                0,
-                "ip4",
-                0,
-                zoneId,
-                poolId);
+    PrepareAddServer(serverId, "hostname1", "ip1", 0, "ip2", 0, zoneId, poolId);
+    PrepareAddServer(serverId2, "hostname1", "ip3", 0, "ip4", 0, zoneId,
+                     poolId);
 
     ListZoneServerRequest request;
     request.set_zonename("zone2");
@@ -1031,22 +902,9 @@ TEST_F(TestTopologyManager, test_ListZoneServer_InvalidParam) {
     ServerIdType serverId2 = 0x32;
     PrepareAddPool(poolId, "poolName1");
     PrepareAddZone(zoneId, "zone1", poolId);
-    PrepareAddServer(serverId,
-                "hostname1",
-                "ip1",
-                0,
-                "ip2",
-                0,
-                zoneId,
-                poolId);
-    PrepareAddServer(serverId2,
-                "hostname1",
-                "ip3",
-                0,
-                "ip4",
-                0,
-                zoneId,
-                poolId);
+    PrepareAddServer(serverId, "hostname1", "ip1", 0, "ip2", 0, zoneId, poolId);
+    PrepareAddServer(serverId2, "hostname1", "ip3", 0, "ip4", 0, zoneId,
+                     poolId);
 
     ListZoneServerRequest request;
     ListZoneServerResponse response;
@@ -1065,11 +923,9 @@ TEST_F(TestTopologyManager, test_CreateZone_success) {
     request.set_zonename("zone1");
     request.set_poolname("poolname1");
 
-    EXPECT_CALL(*idGenerator_, GenZoneId())
-        .WillOnce(Return(zoneId));
+    EXPECT_CALL(*idGenerator_, GenZoneId()).WillOnce(Return(zoneId));
 
-    EXPECT_CALL(*storage_, StorageZone(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageZone(_)).WillOnce(Return(true));
 
     CreateZoneResponse response;
 
@@ -1091,8 +947,7 @@ TEST_F(TestTopologyManager, test_CreateZone_AllocateIdFail) {
     request.set_zonename("zone1");
     request.set_poolname("poolname1");
 
-    EXPECT_CALL(*idGenerator_, GenZoneId())
-        .WillOnce(Return(UNINTIALIZE_ID));
+    EXPECT_CALL(*idGenerator_, GenZoneId()).WillOnce(Return(UNINTIALIZE_ID));
 
     CreateZoneResponse response;
 
@@ -1124,11 +979,9 @@ TEST_F(TestTopologyManager, test_CreateZone_AddZoneFail) {
     request.set_zonename("zone1");
     request.set_poolname("poolname1");
 
-    EXPECT_CALL(*idGenerator_, GenZoneId())
-        .WillOnce(Return(zoneId));
+    EXPECT_CALL(*idGenerator_, GenZoneId()).WillOnce(Return(zoneId));
 
-    EXPECT_CALL(*storage_, StorageZone(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, StorageZone(_)).WillOnce(Return(false));
 
     CreateZoneResponse response;
 
@@ -1140,15 +993,12 @@ TEST_F(TestTopologyManager, test_DeleteZone_Success) {
     ZoneIdType zoneId = 0x21;
     PoolIdType poolId = 0x11;
     PrepareAddPool(poolId);
-    PrepareAddZone(zoneId,
-            "testZone",
-            poolId);
+    PrepareAddZone(zoneId, "testZone", poolId);
 
     DeleteZoneRequest request;
     request.set_zoneid(zoneId);
 
-    EXPECT_CALL(*storage_, DeleteZone(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, DeleteZone(_)).WillOnce(Return(true));
 
     DeleteZoneResponse response;
     serviceManager_->DeleteZone(&request, &response);
@@ -1160,9 +1010,7 @@ TEST_F(TestTopologyManager, test_DeleteZone_ZoneNotFound) {
     ZoneIdType zoneId = 0x21;
     PoolIdType poolId = 0x11;
     PrepareAddPool(poolId);
-    PrepareAddZone(zoneId,
-            "testZone",
-            poolId);
+    PrepareAddZone(zoneId, "testZone", poolId);
 
     DeleteZoneRequest request;
     request.set_zoneid(++zoneId);
@@ -1177,9 +1025,7 @@ TEST_F(TestTopologyManager, test_GetZone_Success) {
     ZoneIdType zoneId = 0x21;
     PoolIdType poolId = 0x11;
     PrepareAddPool(poolId);
-    PrepareAddZone(zoneId,
-            "testZone",
-            poolId);
+    PrepareAddZone(zoneId, "testZone", poolId);
 
     GetZoneRequest request;
     request.set_zoneid(zoneId);
@@ -1198,9 +1044,7 @@ TEST_F(TestTopologyManager, test_GetZone_ZoneNotFound) {
     ZoneIdType zoneId = 0x21;
     PoolIdType poolId = 0x11;
     PrepareAddPool(poolId);
-    PrepareAddZone(zoneId,
-            "testZone",
-            poolId);
+    PrepareAddZone(zoneId, "testZone", poolId);
 
     GetZoneRequest request;
     request.set_zoneid(++zoneId);
@@ -1217,13 +1061,9 @@ TEST_F(TestTopologyManager, test_ListPoolZone_ByIdSuccess) {
     ZoneIdType zoneId2 = 0x22;
     PoolIdType poolId = 0x11;
     PrepareAddPool(poolId);
-    PrepareAddZone(zoneId,
-            "testZone",
-            poolId);
+    PrepareAddZone(zoneId, "testZone", poolId);
 
-    PrepareAddZone(zoneId2,
-            "testZone2",
-            poolId);
+    PrepareAddZone(zoneId2, "testZone2", poolId);
 
     ListPoolZoneRequest request;
     request.set_poolid(poolId);
@@ -1248,13 +1088,9 @@ TEST_F(TestTopologyManager, test_ListPoolZone_PoolNotFound) {
     ZoneIdType zoneId2 = 0x22;
     PoolIdType poolId = 0x11;
     PrepareAddPool(poolId);
-    PrepareAddZone(zoneId,
-            "testZone",
-            poolId);
+    PrepareAddZone(zoneId, "testZone", poolId);
 
-    PrepareAddZone(zoneId2,
-            "testZone2",
-            poolId);
+    PrepareAddZone(zoneId2, "testZone2", poolId);
 
     ListPoolZoneRequest request;
     request.set_poolid(++poolId);
@@ -1273,10 +1109,8 @@ TEST_F(TestTopologyManager, test_createPool_Success) {
         "{\"replicaNum\":3, \"copysetNum\":1, \"zoneNum\":3}");
 
     PoolIdType poolId = 0x12;
-    EXPECT_CALL(*idGenerator_, GenPoolId())
-        .WillOnce(Return(poolId));
-    EXPECT_CALL(*storage_, StoragePool(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*idGenerator_, GenPoolId()).WillOnce(Return(poolId));
+    EXPECT_CALL(*storage_, StoragePool(_)).WillOnce(Return(true));
 
     CreatePoolResponse response;
     serviceManager_->CreatePool(&request, &response);
@@ -1284,8 +1118,7 @@ TEST_F(TestTopologyManager, test_createPool_Success) {
     ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
     ASSERT_TRUE(response.has_poolinfo());
     ASSERT_EQ(poolId, response.poolinfo().poolid());
-    ASSERT_EQ(request.poolname(),
-        response.poolinfo().poolname());
+    ASSERT_EQ(request.poolname(), response.poolinfo().poolname());
 }
 
 TEST_F(TestTopologyManager, test_createPool_Fail) {
@@ -1296,8 +1129,7 @@ TEST_F(TestTopologyManager, test_createPool_Fail) {
     request.set_redundanceandplacementpolicy(
         "{\"replicaNum\":3, \"copysetNum\":1, \"zoneNum\":3}");
 
-    EXPECT_CALL(*idGenerator_, GenPoolId())
-        .WillOnce(Return(UNINTIALIZE_ID));
+    EXPECT_CALL(*idGenerator_, GenPoolId()).WillOnce(Return(UNINTIALIZE_ID));
 
     serviceManager_->CreatePool(&request, &response);
 
@@ -1314,10 +1146,8 @@ TEST_F(TestTopologyManager, test_createPool_StorageFail) {
         "{\"replicaNum\":3, \"copysetNum\":1, \"zoneNum\":3}");
 
     PoolIdType poolId = 0x12;
-    EXPECT_CALL(*idGenerator_, GenPoolId())
-        .WillOnce(Return(poolId));
-    EXPECT_CALL(*storage_, StoragePool(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*idGenerator_, GenPoolId()).WillOnce(Return(poolId));
+    EXPECT_CALL(*storage_, StoragePool(_)).WillOnce(Return(false));
 
     serviceManager_->CreatePool(&request, &response);
 
@@ -1332,8 +1162,7 @@ TEST_F(TestTopologyManager, test_DeletePool_ByIdSuccess) {
 
     PrepareAddPool(pid);
 
-    EXPECT_CALL(*storage_, DeletePool(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, DeletePool(_)).WillOnce(Return(true));
 
     DeletePoolResponse response;
     serviceManager_->DeletePool(&request, &response);
@@ -1361,8 +1190,7 @@ TEST_F(TestTopologyManager, test_DeletePool_StorageFail) {
 
     PrepareAddPool(pid);
 
-    EXPECT_CALL(*storage_, DeletePool(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, DeletePool(_)).WillOnce(Return(false));
 
     DeletePoolResponse response;
     serviceManager_->DeletePool(&request, &response);
@@ -1414,18 +1242,13 @@ TEST_F(TestTopologyManager, test_listPool_success) {
     ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
     ASSERT_EQ(2, response.poolinfos_size());
 
-    ASSERT_THAT(response.poolinfos(0).poolid(),
-        AnyOf(0x01, 0x02));
-    ASSERT_THAT(response.poolinfos(0).poolname(),
-        AnyOf("test1", "test2"));
-    ASSERT_THAT(response.poolinfos(1).poolid(),
-        AnyOf(0x01, 0x02));
-    ASSERT_THAT(response.poolinfos(1).poolname(),
-        AnyOf("test1", "test2"));
+    ASSERT_THAT(response.poolinfos(0).poolid(), AnyOf(0x01, 0x02));
+    ASSERT_THAT(response.poolinfos(0).poolname(), AnyOf("test1", "test2"));
+    ASSERT_THAT(response.poolinfos(1).poolid(), AnyOf(0x01, 0x02));
+    ASSERT_THAT(response.poolinfos(1).poolname(), AnyOf("test1", "test2"));
 }
 
-TEST_F(TestTopologyManager,
-    test_GetMetaServerListInCopySets_success) {
+TEST_F(TestTopologyManager, test_GetMetaServerListInCopySets_success) {
     PoolIdType poolId = 0x11;
     CopySetIdType copysetId = 0x51;
 
@@ -1458,14 +1281,13 @@ TEST_F(TestTopologyManager,
     ASSERT_EQ(3, response.csinfo(0).cslocs_size());
 
     ASSERT_THAT(response.csinfo(0).cslocs(0).metaserverid(),
-        AnyOf(0x41, 0x42, 0x43));
+                AnyOf(0x41, 0x42, 0x43));
     ASSERT_EQ("ip1", response.csinfo(0).cslocs(0).hostip());
     ASSERT_EQ("ip2", response.csinfo(0).cslocs(0).externalip());
     ASSERT_EQ(0, response.csinfo(0).cslocs(0).port());
 }
 
-TEST_F(TestTopologyManager,
-    test_GetMetaServerListInCopySets_CopysetNotFound) {
+TEST_F(TestTopologyManager, test_GetMetaServerListInCopySets_CopysetNotFound) {
     PoolIdType poolId = 0x11;
     CopySetIdType copysetId = 0x51;
 
@@ -1495,8 +1317,7 @@ TEST_F(TestTopologyManager,
     ASSERT_EQ(TopoStatusCode::TOPO_COPYSET_NOT_FOUND, response.statuscode());
 }
 
-TEST_F(TestTopologyManager,
-    test_GetMetaServerListInCopySets_InternalError) {
+TEST_F(TestTopologyManager, test_GetMetaServerListInCopySets_InternalError) {
     PoolIdType poolId = 0x11;
     CopySetIdType copysetId = 0x51;
 
@@ -1535,18 +1356,18 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess) {
     PrepareAddZone(0x21, "zone1", poolId);
     PrepareAddZone(0x22, "zone2", poolId);
     PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x23, 0x11);
-    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
-                         7777, "ip2", 8888);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7777, "ip2",
+                         8888);
 
     std::set<MetaServerIdType> replicas;
     replicas.insert(0x41);
@@ -1554,13 +1375,13 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess) {
     replicas.insert(0x43);
     PrepareAddCopySet(copysetId, poolId, replicas);
 
-    EXPECT_CALL(*idGenerator_, GenPartitionId())
-        .WillOnce(Return(partitionId));
+    EXPECT_CALL(*idGenerator_, GenPartitionId()).WillOnce(Return(partitionId));
 
     std::string leader = "127.0.0.1:7777";
 
     EXPECT_CALL(*storage_, StoragePartition(_))
         .WillOnce(Return(true));
+
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
         .WillOnce(Return(FSStatusCode::OK));
 
@@ -1645,18 +1466,18 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess2) {
     PrepareAddZone(0x21, "zone1", poolId);
     PrepareAddZone(0x22, "zone2", poolId);
     PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x23, 0x11);
-    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
-                         7777, "ip2", 8888);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7777, "ip2",
+                         8888);
 
     std::set<MetaServerIdType> replicas;
     replicas.insert(0x41);
@@ -1666,7 +1487,7 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess2) {
 
     EXPECT_CALL(*idGenerator_, GenPartitionId())
         .WillOnce(Return(partitionId))
-        .WillOnce(Return(partitionId+1));
+        .WillOnce(Return(partitionId + 1));
 
     EXPECT_CALL(*storage_, StoragePartition(_))
         .Times(2)
@@ -1695,7 +1516,7 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess2) {
 }
 
 TEST_F(TestTopologyManager,
-    test_CreatePartitionWithAvailableCopyset_GetLeaderFirstFailed) {
+       test_CreatePartitionWithAvailableCopyset_GetLeaderFirstFailed) {
     PoolIdType poolId = 0x11;
     CopySetIdType copysetId = 0x51;
     PartitionIdType partitionId = 0x61;
@@ -1704,18 +1525,18 @@ TEST_F(TestTopologyManager,
     PrepareAddZone(0x21, "zone1", poolId);
     PrepareAddZone(0x22, "zone2", poolId);
     PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x23, 0x11);
-    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
-                         7777, "ip2", 8888);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7777, "ip2",
+                         8888);
 
     std::set<MetaServerIdType> replicas;
     replicas.insert(0x41);
@@ -1727,6 +1548,7 @@ TEST_F(TestTopologyManager,
         .WillOnce(Return(partitionId));
     EXPECT_CALL(*storage_, StoragePartition(_))
         .WillOnce(Return(true));
+
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
         .WillOnce(Return(FSStatusCode::OK));
 
@@ -1750,7 +1572,7 @@ TEST_F(TestTopologyManager,
 }
 
 TEST_F(TestTopologyManager,
-    test_CreatePartitionWithAvailableCopyset_CreatePartitionFailed) {
+       test_CreatePartitionWithAvailableCopyset_CreatePartitionFailed) {
     PoolIdType poolId = 0x11;
     CopySetIdType copysetId = 0x51;
     PartitionIdType partitionId = 0x61;
@@ -1759,18 +1581,18 @@ TEST_F(TestTopologyManager,
     PrepareAddZone(0x21, "zone1", poolId);
     PrepareAddZone(0x22, "zone2", poolId);
     PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x23, 0x11);
-    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
-                         7777, "ip2", 8888);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7777, "ip2",
+                         8888);
 
     std::set<MetaServerIdType> replicas;
     replicas.insert(0x41);
@@ -1780,6 +1602,7 @@ TEST_F(TestTopologyManager,
 
     EXPECT_CALL(*idGenerator_, GenPartitionId())
         .WillOnce(Return(partitionId));
+
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
         .WillOnce(Return(FSStatusCode::CREATE_PARTITION_ERROR));
 
@@ -1793,7 +1616,7 @@ TEST_F(TestTopologyManager,
 }
 
 TEST_F(TestTopologyManager,
-    test_CreatePartitionWithAvailableCopyset_AddPartitionFailed) {
+       test_CreatePartitionWithAvailableCopyset_AddPartitionFailed) {
     PoolIdType poolId = 0x11;
     CopySetIdType copysetId = 0x51;
     PartitionIdType partitionId = 0x61;
@@ -1802,18 +1625,18 @@ TEST_F(TestTopologyManager,
     PrepareAddZone(0x21, "zone1", poolId);
     PrepareAddZone(0x22, "zone2", poolId);
     PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x23, 0x11);
-    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
-                         7777, "ip2", 8888);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7777, "ip2",
+                         8888);
 
     std::set<MetaServerIdType> replicas;
     replicas.insert(0x41);
@@ -1823,10 +1646,10 @@ TEST_F(TestTopologyManager,
 
     EXPECT_CALL(*idGenerator_, GenPartitionId())
         .WillOnce(Return(partitionId));
+
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
         .WillOnce(Return(FSStatusCode::OK));
-    EXPECT_CALL(*storage_, StoragePartition(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, StoragePartition(_)).WillOnce(Return(false));
 
     CreatePartitionRequest request;
     CreatePartitionResponse response;
@@ -1838,7 +1661,7 @@ TEST_F(TestTopologyManager,
 }
 
 TEST_F(TestTopologyManager,
-    test_CreatePartitionWithOutAvailableCopyset_Sucess) {
+       test_CreatePartitionWithOutAvailableCopyset_Sucess) {
     PoolIdType poolId = 0x11;
     CopySetIdType copysetId = 0x51;
     PartitionIdType partitionId = 0x61;
@@ -1851,30 +1674,28 @@ TEST_F(TestTopologyManager,
     PrepareAddZone(0x21, "zone1", poolId);
     PrepareAddZone(0x22, "zone2", poolId);
     PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x23, 0x11);
-    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
-                         7778, "ip2", 8888);
-    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
-                         7779, "ip2", 8888);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7778, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
+                         8888);
 
-    EXPECT_CALL(*idGenerator_, GenCopySetId(_))
-        .WillOnce(Return(copysetId));
+    EXPECT_CALL(*idGenerator_, GenCopySetId(_)).WillOnce(Return(copysetId));
     EXPECT_CALL(*mockMetaserverClient_, CreateCopySet(_, _, _))
         .WillOnce(Return(FSStatusCode::OK));
-    EXPECT_CALL(*storage_, StorageCopySet(_))
-        .WillOnce(Return(true));
-
+    EXPECT_CALL(*storage_, StorageCopySet(_)).WillOnce(Return(true));
     EXPECT_CALL(*idGenerator_, GenPartitionId())
         .WillOnce(Return(partitionId));
     EXPECT_CALL(*storage_, StoragePartition(_))
         .WillOnce(Return(true));
+
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
         .WillOnce(Return(FSStatusCode::OK));
 
@@ -1912,18 +1733,18 @@ TEST_F(TestTopologyManager, test_CommitTx_Success) {
     PrepareAddZone(0x21, "zone1", poolId);
     PrepareAddZone(0x22, "zone2", poolId);
     PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x23, 0x11);
-    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
-                         7778, "ip2", 8888);
-    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
-                         7779, "ip2", 8888);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7778, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
+                         8888);
     PrepareAddCopySet(copysetId, poolId, {});
     PrepareAddPartition(0x01, poolId, copysetId, partitionId, 1, 100);
     PrepareAddPartition(0x01, poolId, copysetId, partitionId2, 1, 100);
@@ -1936,8 +1757,7 @@ TEST_F(TestTopologyManager, test_CommitTx_Success) {
     id2->set_partitionid(partitionId2);
     id2->set_txid(2);
 
-    EXPECT_CALL(*storage_, UpdatePartitions(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, UpdatePartitions(_)).WillOnce(Return(true));
 
     CommitTxResponse response;
     serviceManager_->CommitTx(&request, &response);
@@ -1963,18 +1783,18 @@ TEST_F(TestTopologyManager, test_CommitTx_StoreFail) {
     PrepareAddZone(0x21, "zone1", poolId);
     PrepareAddZone(0x22, "zone2", poolId);
     PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x23, 0x11);
-    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
-                         7778, "ip2", 8888);
-    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
-                         7779, "ip2", 8888);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7778, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
+                         8888);
     PrepareAddCopySet(copysetId, poolId, {});
     PrepareAddPartition(0x01, poolId, copysetId, partitionId, 1, 100);
     PrepareAddPartition(0x01, poolId, copysetId, partitionId2, 1, 100);
@@ -1987,8 +1807,7 @@ TEST_F(TestTopologyManager, test_CommitTx_StoreFail) {
     id2->set_partitionid(partitionId2);
     id2->set_txid(2);
 
-    EXPECT_CALL(*storage_, UpdatePartitions(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, UpdatePartitions(_)).WillOnce(Return(false));
 
     CommitTxResponse response;
     serviceManager_->CommitTx(&request, &response);
@@ -2007,18 +1826,18 @@ TEST_F(TestTopologyManager, test_GetMetaServerListInCopysets_Success) {
     PrepareAddZone(0x21, "zone1", poolId);
     PrepareAddZone(0x22, "zone2", poolId);
     PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x23, 0x11);
-    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
-                         7778, "ip2", 8888);
-    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
-                         7779, "ip2", 8888);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7778, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
+                         8888);
 
     std::set<MetaServerIdType> replicas;
     replicas.insert(0x41);
@@ -2036,10 +1855,9 @@ TEST_F(TestTopologyManager, test_GetMetaServerListInCopysets_Success) {
     ASSERT_EQ(copysetId, response.csinfo(0).copysetid());
 
     ASSERT_THAT(response.csinfo(0).cslocs(0).metaserverid(),
-        AnyOf(0x41, 0x42, 0x43));
+                AnyOf(0x41, 0x42, 0x43));
     ASSERT_EQ(response.csinfo(0).cslocs(0).hostip(), "127.0.0.1");
-    ASSERT_THAT(response.csinfo(0).cslocs(0).port(),
-        AnyOf(7777, 7778, 7779));
+    ASSERT_THAT(response.csinfo(0).cslocs(0).port(), AnyOf(7777, 7778, 7779));
 }
 
 TEST_F(TestTopologyManager, test_GetMetaServerListInCopysets_Fail) {
@@ -2054,18 +1872,18 @@ TEST_F(TestTopologyManager, test_GetMetaServerListInCopysets_Fail) {
     PrepareAddZone(0x21, "zone1", poolId);
     PrepareAddZone(0x22, "zone2", poolId);
     PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x23, 0x11);
-    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
-                         7778, "ip2", 8888);
-    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
-                         7779, "ip2", 8888);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7778, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
+                         8888);
 
     std::set<MetaServerIdType> replicas;
     replicas.insert(0x41);
@@ -2075,7 +1893,7 @@ TEST_F(TestTopologyManager, test_GetMetaServerListInCopysets_Fail) {
 
     GetMetaServerListInCopySetsRequest request;
     request.set_poolid(poolId);
-    request.add_copysetid(copysetId+1);
+    request.add_copysetid(copysetId + 1);
 
     GetMetaServerListInCopySetsResponse response;
     serviceManager_->GetMetaServerListInCopysets(&request, &response);
@@ -2098,18 +1916,18 @@ TEST_F(TestTopologyManager, test_ListPartition_Success) {
     PrepareAddZone(0x21, "zone1", poolId);
     PrepareAddZone(0x22, "zone2", poolId);
     PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x23, 0x11);
-    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
-                         7778, "ip2", 8888);
-    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
-                         7779, "ip2", 8888);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7778, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
+                         8888);
 
     std::set<MetaServerIdType> replicas;
     replicas.insert(0x41);
@@ -2118,7 +1936,7 @@ TEST_F(TestTopologyManager, test_ListPartition_Success) {
     PrepareAddCopySet(copysetId, poolId, replicas);
     PrepareAddPartition(fsId, poolId, copysetId, pId1, 1, 100);
     PrepareAddPartition(fsId, poolId, copysetId, pId2, 1, 100);
-    PrepareAddPartition(fsId+1, poolId, copysetId, pId3, 1, 100);
+    PrepareAddPartition(fsId + 1, poolId, copysetId, pId3, 1, 100);
 
     ListPartitionRequest request;
     request.set_fsid(fsId);
@@ -2145,18 +1963,18 @@ TEST_F(TestTopologyManager, test_ListPartitionEmpty_Success) {
     PrepareAddZone(0x21, "zone1", poolId);
     PrepareAddZone(0x22, "zone2", poolId);
     PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x23, 0x11);
-    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
-                         7778, "ip2", 8888);
-    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
-                         7779, "ip2", 8888);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7778, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
+                         8888);
 
     std::set<MetaServerIdType> replicas;
     replicas.insert(0x41);
@@ -2166,7 +1984,7 @@ TEST_F(TestTopologyManager, test_ListPartitionEmpty_Success) {
     PrepareAddPartition(fsId, poolId, copysetId, pId1, 1, 100);
 
     ListPartitionRequest request;
-    request.set_fsid(fsId+1);
+    request.set_fsid(fsId + 1);
 
     ListPartitionResponse response;
     serviceManager_->ListPartition(&request, &response);
@@ -2190,18 +2008,18 @@ TEST_F(TestTopologyManager, test_GetCopysetOfPartition_Success) {
     PrepareAddZone(0x21, "zone1", poolId);
     PrepareAddZone(0x22, "zone2", poolId);
     PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x23, 0x11);
-    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
-                         7778, "ip2", 8888);
-    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
-                         7779, "ip2", 8888);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7778, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
+                         8888);
 
     std::set<MetaServerIdType> replicas;
     replicas.insert(0x41);
@@ -2242,18 +2060,18 @@ TEST_F(TestTopologyManager, test_GetCopysetOfPartition_CopysetNotFound) {
     PrepareAddZone(0x21, "zone1", poolId);
     PrepareAddZone(0x22, "zone2", poolId);
     PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x23, 0x11);
-    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
-                         7777, "ip2", 8888);
-    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
-                         7778, "ip2", 8888);
-    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
-                         7779, "ip2", 8888);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7778, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
+                         8888);
 
     std::set<MetaServerIdType> replicas;
     replicas.insert(0x41);
@@ -2263,7 +2081,7 @@ TEST_F(TestTopologyManager, test_GetCopysetOfPartition_CopysetNotFound) {
     PrepareAddPartition(fsId, poolId, copysetId, pId, 1, 100);
 
     GetCopysetOfPartitionRequest request;
-    request.add_partitionid(pId+1);
+    request.add_partitionid(pId + 1);
 
     GetCopysetOfPartitionResponse response;
     serviceManager_->GetCopysetOfPartition(&request, &response);
@@ -2283,18 +2101,18 @@ TEST_F(TestTopologyManager, test_GetCopysetMembers_Success) {
     PrepareAddZone(0x21, "zone1", poolId);
     PrepareAddZone(0x22, "zone2", poolId);
     PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0,
-                     0x23, 0x11);
-    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1",
-                         7777, "ip2", 8887);
-    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1",
-                         7778, "ip2", 8888);
-    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1",
-                         7779, "ip2", 8889);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8887);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7778, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
+                         8889);
 
     std::set<MetaServerIdType> replicas;
     replicas.insert(0x41);
@@ -2305,8 +2123,7 @@ TEST_F(TestTopologyManager, test_GetCopysetMembers_Success) {
     auto ret = serviceManager_->GetCopysetMembers(poolId, copysetId, &addrs);
     ASSERT_EQ(TopoStatusCode::TOPO_OK, ret);
     ASSERT_EQ(3, addrs.size());
-    ASSERT_THAT(*addrs.begin(), AnyOf("ip2:8887", "ip2:8888",
-                                "ip2:8889"));
+    ASSERT_THAT(*addrs.begin(), AnyOf("ip2:8887", "ip2:8888", "ip2:8889"));
 }
 
 }  // namespace topology

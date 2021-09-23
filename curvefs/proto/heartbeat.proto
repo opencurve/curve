@@ -1,0 +1,59 @@
+/*
+ *  Copyright (c) 2021 NetEase Inc.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+syntax = "proto2";
+import "curvefs/proto/common.proto";
+package curvefs.mds.heartbeat;
+option cc_generic_services = true;
+
+message CopySetInfo {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    // copyset replicas, IP:PORT:ID, e.g. 127.0.0.1:8200:0
+    repeated common.Peer peers = 3;
+    // Used to mark configuration changes, each time there is a change, the epoch will increase
+    required uint64 epoch = 4;
+    required common.Peer leaderPeer = 5;
+    repeated common.PartitionInfo partitionInfoList = 6;
+};
+
+message MetaServerHeartbeatRequest {
+    required uint32 metaServerID = 1;
+    required string token = 2;
+    required string ip = 3;
+    required uint32 port = 4;
+    required uint64 startTime = 5;
+    repeated CopySetInfo copysetInfos = 6;
+    required uint32 leaderCount = 7;
+    required uint32 copysetCount = 8;
+};
+
+enum HeartbeatStatusCode {
+    hbOK = 0;
+    hbMetaServerUnknown = 1;
+    hbMetaServerIpPortNotMatch = 2;
+    hbMetaServerTokenNotMatch = 3;
+    hbRequestNoCopyset = 4;
+    hbAnalyseCopysetError = 5;
+}
+
+message MetaServerHeartbeatResponse {
+    required HeartbeatStatusCode statusCode = 1;
+};
+
+service HeartbeatService {
+    rpc MetaServerHeartbeat (MetaServerHeartbeatRequest) returns (MetaServerHeartbeatResponse);
+}

@@ -15,33 +15,34 @@
  */
 
 /*
- * Project: curve
- * Created Date: 2021-08-24
- * Author: wanghai01
+ * @Project: curve
+ * @Date: 2021-09-24 14:05:44
+ * @Author: chenwei
  */
 
-#ifndef CURVEFS_SRC_MDS_COMMON_MDS_DEFINE_H_
-#define CURVEFS_SRC_MDS_COMMON_MDS_DEFINE_H_
+#ifndef CURVEFS_TEST_METASERVER_MOCK_TOPOLOGY_SERVICE_H_
+#define CURVEFS_TEST_METASERVER_MOCK_TOPOLOGY_SERVICE_H_
+
+#include <gmock/gmock.h>
+#include "curvefs/proto/topology.pb.h"
 
 namespace curvefs {
 namespace mds {
 namespace topology {
 
-typedef uint32_t FsIdType;
-typedef uint32_t PoolIdType;
-typedef uint32_t ZoneIdType;
-typedef uint32_t ServerIdType;
-typedef uint32_t MetaServerIdType;
-typedef uint32_t PartitionIdType;
-typedef uint32_t CopySetIdType;
-typedef uint64_t EpochType;
-typedef uint32_t UserIdType;
+class MockTopologyService : public TopologyService {
+ public:
+    MockTopologyService() : TopologyService() {}
+    ~MockTopologyService() = default;
 
-const uint32_t UNINTIALIZE_ID = 0u;
-const uint32_t UNINTIALIZE_COUNT = UINT32_MAX;
-
+    MOCK_METHOD4(RegistMetaServer,
+                 void(google::protobuf::RpcController* cntl_base,
+                      const MetaServerRegistRequest* request,
+                      MetaServerRegistResponse* response,
+                      google::protobuf::Closure* done));
+};
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_MDS_COMMON_MDS_DEFINE_H_
+#endif  // CURVEFS_TEST_METASERVER_MOCK_TOPOLOGY_SERVICE_H_

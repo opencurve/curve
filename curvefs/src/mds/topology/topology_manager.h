@@ -49,7 +49,7 @@ using curvefs::mds::MetaserverClient;
 
 class TopologyManager {
  public:
-    TopologyManager(std::shared_ptr<Topology> topology,
+    TopologyManager(const std::shared_ptr<Topology> &topology,
         std::shared_ptr<MetaserverClient> metaserverClient)
         : topology_(topology), metaserverClient_(metaserverClient) {}
 

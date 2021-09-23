@@ -72,9 +72,7 @@ CopysetNode::CopysetNode(PoolId poolId, CopysetId copysetId,
       lastSnapshotIndex_(0),
       metric_(absl::make_unique<OperatorApplyMetric>(poolId_, copysetId_)) {}
 
-CopysetNode::~CopysetNode() {
-    Stop();
-}
+CopysetNode::~CopysetNode() { Stop(); }
 
 bool CopysetNode::Init(const CopysetNodeOptions& options) {
     options_ = options;
@@ -242,10 +240,7 @@ class OnSnapshotSaveDoneClosureImpl : public OnSnapshotSaveDoneClosure {
                                   braft::SnapshotWriter* writer,
                                   braft::Closure* snapDone,
                                   RaftSnapshotMetric::MetricContext* ctx)
-        : node_(node),
-          writer_(writer),
-          snapDone_(snapDone),
-          ctx_(ctx) {}
+        : node_(node), writer_(writer), snapDone_(snapDone), ctx_(ctx) {}
 
     void Run() override {
         std::unique_ptr<OnSnapshotSaveDoneClosureImpl> selfGuard(this);
@@ -414,9 +409,9 @@ void CopysetNode::InitRaftNodeOptions() {
     options_.raftNodeOptions.fsm = this;
     options_.raftNodeOptions.node_owns_fsm = false;
 
-    options_.raftNodeOptions.log_uri =
-        options_.raftNodeOptions.log_uri + "/" + groupId_ + "/" +
-        std::string(RAFT_LOG_DIR);
+    options_.raftNodeOptions.log_uri = options_.raftNodeOptions.log_uri + "/" +
+                                       groupId_ + "/" +
+                                       std::string(RAFT_LOG_DIR);
     options_.raftNodeOptions.raft_meta_uri =
         options_.raftNodeOptions.raft_meta_uri + "/" + groupId_ + "/" +
         std::string(RAFT_META_DIR);
@@ -502,6 +497,10 @@ void CopysetNode::ListPeers(std::vector<Peer>* peers) const {
         peer.set_address(p.to_string());
         peers->emplace_back(std::move(peer));
     }
+}
+
+std::list<PartitionInfo> CopysetNode::GetPartitionInfoList() {
+    return metaStore_->GetPartitionInfoList();
 }
 
 }  // namespace copyset

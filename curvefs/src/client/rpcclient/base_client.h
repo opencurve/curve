@@ -65,6 +65,7 @@ using curvefs::common::FSType;
 using curvefs::common::S3Info;
 using curvefs::common::Volume;
 using curvefs::common::PartitionInfo;
+using curvefs::common::PartitionStatus;
 using curvefs::common::Peer;
 
 using curvefs::mds::CreateFsRequest;

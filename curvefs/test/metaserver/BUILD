@@ -65,6 +65,7 @@ cc_test(
             "@com_google_googletest//:gtest_main",
             "@com_google_googletest//:gtest",
             "//external:brpc",
+            "//curvefs/proto:curvefs_topology_cc_proto",
     ],
 )
 

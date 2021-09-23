@@ -311,6 +311,7 @@ TEST_F(BaseClientTest, test_CreatePartition) {
     partitioninfo1.set_start(4);
     partitioninfo1.set_end(5);
     partitioninfo1.set_txid(6);
+    partitioninfo1.set_status(PartitionStatus::READWRITE);
 
     partitioninfo2.set_fsid(fsID);
     partitioninfo2.set_poolid(2);
@@ -319,6 +320,7 @@ TEST_F(BaseClientTest, test_CreatePartition) {
     partitioninfo2.set_start(5);
     partitioninfo2.set_end(6);
     partitioninfo2.set_txid(7);
+    partitioninfo2.set_status(PartitionStatus::READWRITE);
 
     curvefs::mds::topology::CreatePartitionResponse response;
     response.add_partitioninfolist()->CopyFrom(partitioninfo1);
@@ -357,6 +359,7 @@ TEST_F(BaseClientTest, test_ListPartition) {
     partitioninfo1.set_start(4);
     partitioninfo1.set_end(5);
     partitioninfo1.set_txid(6);
+    partitioninfo1.set_status(PartitionStatus::READWRITE);
 
     partitioninfo2.set_fsid(fsID);
     partitioninfo2.set_poolid(2);
@@ -365,6 +368,7 @@ TEST_F(BaseClientTest, test_ListPartition) {
     partitioninfo2.set_start(5);
     partitioninfo2.set_end(6);
     partitioninfo2.set_txid(7);
+    partitioninfo2.set_status(PartitionStatus::READONLY);
 
     curvefs::mds::topology::ListPartitionResponse response;
     response.add_partitioninfolist()->CopyFrom(partitioninfo1);

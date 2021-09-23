@@ -56,6 +56,8 @@ cc_library(
         "//curvefs/proto:cli2_cc_proto",
         "//curvefs/proto:copyset_cc_proto",
         "//curvefs/proto:metaserver_cc_proto",
+        "//curvefs/proto:curvefs_topology_cc_proto",
+        "//curvefs/proto:curvefs_heartbeat_cc_proto",
         "//curvefs/src/common:curvefs_common",
         "//curvefs/src/metaserver/common:fs_metaserver_common",
         "//external:braft",
