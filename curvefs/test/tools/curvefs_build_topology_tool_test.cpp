@@ -16,24 +16,26 @@
 
 /*
  * @Project: curve
- * @Date: 2021-09-04
- * @Author: wanghai01
+ * @Date: 2021-10-09
+ * @Author: chengyi01
  */
+
+#include "curvefs/src/tools/topology/curvefs_build_topology_tool.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include "curvefs/src/tools/curvefs_topology_tool.h"
+
 #include "curvefs/test/tools/mock_topology_service.h"
 
-using ::testing::Invoke;
 using ::testing::_;
+using ::testing::Invoke;
 using ::testing::SetArgPointee;
 
 namespace curvefs {
 namespace mds {
 namespace topology {
 
-class TopologyToolTest : public ::testing::Test {
+class BuildTopologyToolTest : public ::testing::Test {
  protected:
     void SetUp() override {
         ASSERT_EQ(tool_.Init(), 0);
@@ -49,7 +51,7 @@ class TopologyToolTest : public ::testing::Test {
     }
 
  protected:
-    CurvefsTopologyTool tool_;
+    CurvefsBuildTopologyTool tool_;
 
     MockTopologyService mockTopologyService_;
     std::string addr_ = "127.0.0.1:6700";
@@ -69,7 +71,7 @@ void RpcService(google::protobuf::RpcController* cntl_base,
 }
 
 // test build a new cluster
-TEST_F(TopologyToolTest, test_BuildEmptyCluster) {
+TEST_F(BuildTopologyToolTest, test_BuildEmptyCluster) {
     // make list response
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_OK);
@@ -91,15 +93,20 @@ TEST_F(TopologyToolTest, test_BuildEmptyCluster) {
     // make expected call
     EXPECT_CALL(mockTopologyService_, ListPool(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(listPoolResponse),
-            Invoke(RpcService<ListPoolRequest, ListPoolResponse>)));
+                        Invoke(RpcService<ListPoolRequest, ListPoolResponse>)));
     EXPECT_CALL(mockTopologyService_, CreatePool(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(createPoolResponse),
-            Invoke(RpcService<CreatePoolRequest, CreatePoolResponse>)));
+        .WillOnce(
+            DoAll(SetArgPointee<2>(createPoolResponse),
+                  Invoke(RpcService<CreatePoolRequest, CreatePoolResponse>)));
     EXPECT_CALL(mockTopologyService_, CreateZone(_, _, _, _))
-        .Times(3).WillRepeatedly(DoAll(SetArgPointee<2>(createZoneResponse),
-            Invoke(RpcService<CreateZoneRequest, CreateZoneResponse>)));
+        .Times(3)
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>(createZoneResponse),
+                  Invoke(RpcService<CreateZoneRequest, CreateZoneResponse>)));
     EXPECT_CALL(mockTopologyService_, RegistServer(_, _, _, _))
-        .Times(3).WillRepeatedly(DoAll(SetArgPointee<2>(serverRegistResponse),
+        .Times(3)
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(serverRegistResponse),
             Invoke(RpcService<ServerRegistRequest, ServerRegistResponse>)));
 
     ASSERT_EQ(0, tool_.InitTopoData());
@@ -110,12 +117,12 @@ TEST_F(TopologyToolTest, test_BuildEmptyCluster) {
 }
 
 // test add pool/zone/server/metaserver in cluster
-TEST_F(TopologyToolTest, test_BuildCluster) {
+TEST_F(BuildTopologyToolTest, test_BuildCluster) {
     // make list response
     // a pool with a zone with a server and metaserver has already in cluster
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_OK);
-    PoolInfo *poolInfo = listPoolResponse.add_poolinfos();
+    PoolInfo* poolInfo = listPoolResponse.add_poolinfos();
     poolInfo->set_poolid(1);
     poolInfo->set_poolname("pool1");
     poolInfo->set_createtime(0);
@@ -123,7 +130,7 @@ TEST_F(TopologyToolTest, test_BuildCluster) {
 
     ListPoolZoneResponse listPoolZoneResponse;
     listPoolZoneResponse.set_statuscode(TopoStatusCode::TOPO_OK);
-    ZoneInfo *zoneInfo = listPoolZoneResponse.add_zones();
+    ZoneInfo* zoneInfo = listPoolZoneResponse.add_zones();
     zoneInfo->set_zoneid(1);
     zoneInfo->set_zonename("zone1");
     zoneInfo->set_poolid(1);
@@ -131,7 +138,7 @@ TEST_F(TopologyToolTest, test_BuildCluster) {
 
     ListZoneServerResponse listZoneServerResponse;
     listZoneServerResponse.set_statuscode(TopoStatusCode::TOPO_OK);
-    ServerInfo *serverInfo = listZoneServerResponse.add_serverinfo();
+    ServerInfo* serverInfo = listZoneServerResponse.add_serverinfo();
     serverInfo->set_serverid(1);
     serverInfo->set_hostname("server1");
     serverInfo->set_internalip("127.0.0.1");
@@ -154,19 +161,25 @@ TEST_F(TopologyToolTest, test_BuildCluster) {
     // make expected call
     EXPECT_CALL(mockTopologyService_, ListPool(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(listPoolResponse),
-            Invoke(RpcService<ListPoolRequest, ListPoolResponse>)));
+                        Invoke(RpcService<ListPoolRequest, ListPoolResponse>)));
     EXPECT_CALL(mockTopologyService_, ListPoolZone(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(listPoolZoneResponse),
+        .WillOnce(DoAll(
+            SetArgPointee<2>(listPoolZoneResponse),
             Invoke(RpcService<ListPoolZoneRequest, ListPoolZoneResponse>)));
     EXPECT_CALL(mockTopologyService_, ListZoneServer(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(listZoneServerResponse),
+        .WillOnce(DoAll(
+            SetArgPointee<2>(listZoneServerResponse),
             Invoke(RpcService<ListZoneServerRequest, ListZoneServerResponse>)));
 
     EXPECT_CALL(mockTopologyService_, CreateZone(_, _, _, _))
-        .Times(2).WillRepeatedly(DoAll(SetArgPointee<2>(createZoneResponse),
-            Invoke(RpcService<CreateZoneRequest, CreateZoneResponse>)));
+        .Times(2)
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>(createZoneResponse),
+                  Invoke(RpcService<CreateZoneRequest, CreateZoneResponse>)));
     EXPECT_CALL(mockTopologyService_, RegistServer(_, _, _, _))
-        .Times(2).WillRepeatedly(DoAll(SetArgPointee<2>(serverRegistResponse),
+        .Times(2)
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(serverRegistResponse),
             Invoke(RpcService<ServerRegistRequest, ServerRegistResponse>)));
 
     ASSERT_EQ(0, tool_.InitTopoData());
@@ -176,7 +189,7 @@ TEST_F(TopologyToolTest, test_BuildCluster) {
     ASSERT_EQ(2, tool_.GetServerDatas().size());
 }
 
-TEST_F(TopologyToolTest, test_ListPoolFailed) {
+TEST_F(BuildTopologyToolTest, test_ListPoolFailed) {
     // make list response
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_INTERNAL_ERROR);
@@ -184,16 +197,16 @@ TEST_F(TopologyToolTest, test_ListPoolFailed) {
     // make expected call
     EXPECT_CALL(mockTopologyService_, ListPool(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(listPoolResponse),
-            Invoke(RpcService<ListPoolRequest, ListPoolResponse>)));
+                        Invoke(RpcService<ListPoolRequest, ListPoolResponse>)));
 
     ASSERT_EQ(1, tool_.HandleBuildCluster());
 }
 
-TEST_F(TopologyToolTest, test_ListPoolZoneFailed) {
+TEST_F(BuildTopologyToolTest, test_ListPoolZoneFailed) {
     // make list response
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_OK);
-    PoolInfo *poolInfo = listPoolResponse.add_poolinfos();
+    PoolInfo* poolInfo = listPoolResponse.add_poolinfos();
     poolInfo->set_poolid(1);
     poolInfo->set_poolname("pool1");
     poolInfo->set_createtime(0);
@@ -205,18 +218,19 @@ TEST_F(TopologyToolTest, test_ListPoolZoneFailed) {
     // make expected call
     EXPECT_CALL(mockTopologyService_, ListPool(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(listPoolResponse),
-            Invoke(RpcService<ListPoolRequest, ListPoolResponse>)));
+                        Invoke(RpcService<ListPoolRequest, ListPoolResponse>)));
     EXPECT_CALL(mockTopologyService_, ListPoolZone(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(listPoolZoneResponse),
+        .WillOnce(DoAll(
+            SetArgPointee<2>(listPoolZoneResponse),
             Invoke(RpcService<ListPoolZoneRequest, ListPoolZoneResponse>)));
     ASSERT_EQ(1, tool_.HandleBuildCluster());
 }
 
-TEST_F(TopologyToolTest, test_ListZoneServerFailed) {
+TEST_F(BuildTopologyToolTest, test_ListZoneServerFailed) {
     // make list response
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_OK);
-    PoolInfo *poolInfo = listPoolResponse.add_poolinfos();
+    PoolInfo* poolInfo = listPoolResponse.add_poolinfos();
     poolInfo->set_poolid(1);
     poolInfo->set_poolname("pool1");
     poolInfo->set_createtime(0);
@@ -224,7 +238,7 @@ TEST_F(TopologyToolTest, test_ListZoneServerFailed) {
 
     ListPoolZoneResponse listPoolZoneResponse;
     listPoolZoneResponse.set_statuscode(TopoStatusCode::TOPO_OK);
-    ZoneInfo *zoneInfo = listPoolZoneResponse.add_zones();
+    ZoneInfo* zoneInfo = listPoolZoneResponse.add_zones();
     zoneInfo->set_zoneid(1);
     zoneInfo->set_zonename("zone1");
     zoneInfo->set_poolid(1);
@@ -236,17 +250,19 @@ TEST_F(TopologyToolTest, test_ListZoneServerFailed) {
     // make expected call
     EXPECT_CALL(mockTopologyService_, ListPool(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(listPoolResponse),
-            Invoke(RpcService<ListPoolRequest, ListPoolResponse>)));
+                        Invoke(RpcService<ListPoolRequest, ListPoolResponse>)));
     EXPECT_CALL(mockTopologyService_, ListPoolZone(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(listPoolZoneResponse),
+        .WillOnce(DoAll(
+            SetArgPointee<2>(listPoolZoneResponse),
             Invoke(RpcService<ListPoolZoneRequest, ListPoolZoneResponse>)));
     EXPECT_CALL(mockTopologyService_, ListZoneServer(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(listZoneServerResponse),
+        .WillOnce(DoAll(
+            SetArgPointee<2>(listZoneServerResponse),
             Invoke(RpcService<ListZoneServerRequest, ListZoneServerResponse>)));
     ASSERT_EQ(1, tool_.HandleBuildCluster());
 }
 
-TEST_F(TopologyToolTest, test_CreatePoolFailed) {
+TEST_F(BuildTopologyToolTest, test_CreatePoolFailed) {
     // make list response
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_OK);
@@ -262,15 +278,16 @@ TEST_F(TopologyToolTest, test_CreatePoolFailed) {
     // make expected call
     EXPECT_CALL(mockTopologyService_, ListPool(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(listPoolResponse),
-            Invoke(RpcService<ListPoolRequest, ListPoolResponse>)));
+                        Invoke(RpcService<ListPoolRequest, ListPoolResponse>)));
     EXPECT_CALL(mockTopologyService_, CreatePool(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(createPoolResponse),
-            Invoke(RpcService<CreatePoolRequest, CreatePoolResponse>)));
+        .WillOnce(
+            DoAll(SetArgPointee<2>(createPoolResponse),
+                  Invoke(RpcService<CreatePoolRequest, CreatePoolResponse>)));
     ASSERT_EQ(0, tool_.InitTopoData());
     ASSERT_EQ(1, tool_.HandleBuildCluster());
 }
 
-TEST_F(TopologyToolTest, test_CreateZoneFailed) {
+TEST_F(BuildTopologyToolTest, test_CreateZoneFailed) {
     // make list response
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_OK);
@@ -290,18 +307,20 @@ TEST_F(TopologyToolTest, test_CreateZoneFailed) {
     // make expected call
     EXPECT_CALL(mockTopologyService_, ListPool(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(listPoolResponse),
-            Invoke(RpcService<ListPoolRequest, ListPoolResponse>)));
+                        Invoke(RpcService<ListPoolRequest, ListPoolResponse>)));
     EXPECT_CALL(mockTopologyService_, CreatePool(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(createPoolResponse),
-            Invoke(RpcService<CreatePoolRequest, CreatePoolResponse>)));
+        .WillOnce(
+            DoAll(SetArgPointee<2>(createPoolResponse),
+                  Invoke(RpcService<CreatePoolRequest, CreatePoolResponse>)));
     EXPECT_CALL(mockTopologyService_, CreateZone(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(createZoneResponse),
-            Invoke(RpcService<CreateZoneRequest, CreateZoneResponse>)));
+        .WillOnce(
+            DoAll(SetArgPointee<2>(createZoneResponse),
+                  Invoke(RpcService<CreateZoneRequest, CreateZoneResponse>)));
     ASSERT_EQ(0, tool_.InitTopoData());
     ASSERT_EQ(1, tool_.HandleBuildCluster());
 }
 
-TEST_F(TopologyToolTest, test_ServerRegisterFailed) {
+TEST_F(BuildTopologyToolTest, test_ServerRegisterFailed) {
     // make list response
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_OK);
@@ -323,15 +342,19 @@ TEST_F(TopologyToolTest, test_ServerRegisterFailed) {
     // make expected call
     EXPECT_CALL(mockTopologyService_, ListPool(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(listPoolResponse),
-            Invoke(RpcService<ListPoolRequest, ListPoolResponse>)));
+                        Invoke(RpcService<ListPoolRequest, ListPoolResponse>)));
     EXPECT_CALL(mockTopologyService_, CreatePool(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(createPoolResponse),
-            Invoke(RpcService<CreatePoolRequest, CreatePoolResponse>)));
+        .WillOnce(
+            DoAll(SetArgPointee<2>(createPoolResponse),
+                  Invoke(RpcService<CreatePoolRequest, CreatePoolResponse>)));
     EXPECT_CALL(mockTopologyService_, CreateZone(_, _, _, _))
-        .Times(3).WillRepeatedly(DoAll(SetArgPointee<2>(createZoneResponse),
-            Invoke(RpcService<CreateZoneRequest, CreateZoneResponse>)));
+        .Times(3)
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>(createZoneResponse),
+                  Invoke(RpcService<CreateZoneRequest, CreateZoneResponse>)));
     EXPECT_CALL(mockTopologyService_, RegistServer(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(serverRegistResponse),
+        .WillOnce(DoAll(
+            SetArgPointee<2>(serverRegistResponse),
             Invoke(RpcService<ServerRegistRequest, ServerRegistResponse>)));
     ASSERT_EQ(0, tool_.InitTopoData());
     ASSERT_EQ(1, tool_.HandleBuildCluster());

@@ -23,7 +23,7 @@
 
 DEFINE_string(mdsAddr, "127.0.0.1:6700", "mds addr");
 DEFINE_bool(example, false, "print the example of usage");
-DEFINE_string(confPath, "/etc/curvefs/tools.conf", "config file path of tools");
+DEFINE_string(confPath, "curvefs/conf/tools.conf", "config file path of tools");
 DEFINE_string(fsname, "curvefs", "fs name");
 DEFINE_string(mountpoint, "127.0.0.1:/mnt/curvefs-umount-test",
               "curvefs mount in local path");
@@ -33,4 +33,22 @@ DEFINE_string(mds_addr, "127.0.0.1:6700",
               "mds ip and port, separated by \",\"");  // NOLINT
 DEFINE_string(cluster_map, "topo_example.json", "cluster topology map.");
 DEFINE_uint32(rpcTimeOutMs, 5000u, "rpc time out");
-DEFINE_string(op, "", "operation: build_topology");
+
+namespace curvefs {
+
+namespace tools {
+
+template <class FlagInfoT>
+void SetFlagInfo(curve::common::Configuration* conf,
+                 google::CommandLineFlagInfo* info, const std::string& key,
+                 FlagInfoT* flag) {
+    if (GetCommandLineFlagInfo(key.c_str(), info) && info->is_default) {
+        conf->GetValueFatalIfFail(key, flag);
+    }
+}
+
+std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
+    SetMdsAddr = std::bind(&SetFlagInfo<fLS::clstring>, std::placeholders::_1,
+                           std::placeholders::_2, "mdsAddr", &FLAGS_mdsAddr);
+}  // namespace tools
+}  // namespace curvefs

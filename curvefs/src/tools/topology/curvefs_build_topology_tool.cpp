@@ -20,12 +20,13 @@
  * Author: wanghai01
  */
 
-#include "curvefs/src/tools/curvefs_topology_tool.h"
+#include "curvefs/src/tools/topology/curvefs_build_topology_tool.h"
 
-DEFINE_string(mds_addr, "127.0.0.1:6700", "mds ip and port, separated by \",\"");  // NOLINT
-DEFINE_string(cluster_map, "topo_example.json", "cluster topology map.");
-DEFINE_uint32(rpcTimeOutMs, 5000u, "rpc time out");
-DEFINE_string(confPath, "curvefs/conf/tools.conf", "config file path of tools");
+DECLARE_string(mds_addr);
+DECLARE_string(cluster_map);
+DECLARE_uint32(rpcTimeOutMs);
+DECLARE_string(confPath);
+DECLARE_string(op);
 
 using ::curve::common::SplitString;
 
@@ -50,7 +51,7 @@ void UpdateFlagsFromConf(curve::common::Configuration* conf) {
     }
 }
 
-int CurvefsTopologyTool::Init() {
+int CurvefsBuildTopologyTool::Init() {
     std::string confPath = FLAGS_confPath.c_str();
     curve::common::Configuration conf;
     conf.SetConfigPath(confPath);
@@ -72,34 +73,32 @@ int CurvefsTopologyTool::Init() {
     return 0;
 }
 
-int CurvefsTopologyTool::TryAnotherMdsAddress() {
+int CurvefsBuildTopologyTool::TryAnotherMdsAddress() {
     if (mdsAddressStr_.size() == 0) {
         LOG(ERROR) << "no avaliable mds address.";
         return kRetCodeCommonErr;
     }
     mdsAddressIndex_ = (mdsAddressIndex_ + 1) % mdsAddressStr_.size();
     std::string mdsAddress = mdsAddressStr_[mdsAddressIndex_];
-    LOG(INFO) << "try mds address(" << mdsAddressIndex_
-              << "): " << mdsAddress;
+    LOG(INFO) << "try mds address(" << mdsAddressIndex_ << "): " << mdsAddress;
     int ret = channel_.Init(mdsAddress.c_str(), NULL);
     if (ret != 0) {
-        LOG(ERROR) << "Fail to init channel to mdsAddress: "
-                   << mdsAddress;
+        LOG(ERROR) << "Fail to init channel to mdsAddress: " << mdsAddress;
     }
     return ret;
 }
 
-int CurvefsTopologyTool::DealFailedRet(int ret, std::string operation) {
+int CurvefsBuildTopologyTool::DealFailedRet(int ret, std::string operation) {
     if (kRetCodeRedirectMds == ret) {
-        LOG(WARNING) << operation << " fail on mds: "
-                   << mdsAddressStr_[mdsAddressIndex_];
+        LOG(WARNING) << operation
+                     << " fail on mds: " << mdsAddressStr_[mdsAddressIndex_];
     } else {
         LOG(ERROR) << operation << " fail.";
     }
     return ret;
 }
 
-int CurvefsTopologyTool::InitTopoData() {
+int CurvefsBuildTopologyTool::InitTopoData() {
     int ret = ReadClusterMap();
     if (ret != 0) {
         return DealFailedRet(ret, "read cluster map");
@@ -118,7 +117,7 @@ int CurvefsTopologyTool::InitTopoData() {
     return ret;
 }
 
-int CurvefsTopologyTool::HandleBuildCluster() {
+int CurvefsBuildTopologyTool::HandleBuildCluster() {
     int ret = ScanCluster();
     if (ret != 0) {
         return DealFailedRet(ret, "scan cluster");
@@ -135,14 +134,14 @@ int CurvefsTopologyTool::HandleBuildCluster() {
     }
 
     ret = CreateServer();
-    if (ret !=0) {
+    if (ret != 0) {
         return DealFailedRet(ret, "create server");
     }
 
     return ret;
 }
 
-int CurvefsTopologyTool::ReadClusterMap() {
+int CurvefsBuildTopologyTool::ReadClusterMap() {
     std::ifstream fin;
     fin.open(FLAGS_cluster_map.c_str(), std::ios::in);
     if (fin.is_open()) {
@@ -156,14 +155,14 @@ int CurvefsTopologyTool::ReadClusterMap() {
             return -1;
         }
     } else {
-        LOG(ERROR) << "open cluster map file : "
-                   << FLAGS_cluster_map << " fail.";
+        LOG(ERROR) << "open cluster map file : " << FLAGS_cluster_map
+                   << " fail.";
         return -1;
     }
     return 0;
 }
 
-int CurvefsTopologyTool::InitPoolData() {
+int CurvefsBuildTopologyTool::InitPoolData() {
     if (clusterMap_[kPools].isNull()) {
         LOG(ERROR) << "No pools in cluster map";
         return -1;
@@ -196,7 +195,7 @@ int CurvefsTopologyTool::InitPoolData() {
     return 0;
 }
 
-int CurvefsTopologyTool::InitServerZoneData() {
+int CurvefsBuildTopologyTool::InitServerZoneData() {
     if (clusterMap_[kServers].isNull()) {
         LOG(ERROR) << "No servers in cluster map";
         return -1;
@@ -248,7 +247,7 @@ int CurvefsTopologyTool::InitServerZoneData() {
     return 0;
 }
 
-int CurvefsTopologyTool::ScanCluster() {
+int CurvefsBuildTopologyTool::ScanCluster() {
     // get pools and compare
     // De-duplication
     std::list<PoolInfo> poolInfos;
@@ -258,13 +257,12 @@ int CurvefsTopologyTool::ScanCluster() {
     }
 
     for (auto it = poolInfos.begin(); it != poolInfos.end(); it++) {
-            auto ix = std::find_if(poolDatas.begin(), poolDatas.end(),
-                [it] (Pool& data) {
-                    return data.name == it->poolname();
-                });
-            if (ix != poolDatas.end()) {
-                poolDatas.erase(ix);
-            }
+        auto ix = std::find_if(
+            poolDatas.begin(), poolDatas.end(),
+            [it](Pool& data) { return data.name == it->poolname(); });
+        if (ix != poolDatas.end()) {
+            poolDatas.erase(ix);
+        }
     }
 
     // get zone and compare
@@ -278,8 +276,8 @@ int CurvefsTopologyTool::ScanCluster() {
     }
 
     for (auto it = zoneInfos.begin(); it != zoneInfos.end(); it++) {
-        auto ix = std::find_if(zoneDatas.begin(), zoneDatas.end(),
-            [it] (Zone &data) {
+        auto ix =
+            std::find_if(zoneDatas.begin(), zoneDatas.end(), [it](Zone& data) {
                 return (data.poolName == it->poolname()) &&
                        (data.name == it->zonename());
             });
@@ -300,11 +298,11 @@ int CurvefsTopologyTool::ScanCluster() {
 
     for (auto it = serverInfos.begin(); it != serverInfos.end(); it++) {
         auto ix = std::find_if(serverDatas.begin(), serverDatas.end(),
-            [it] (Server &data) {
-                    return (data.name == it->hostname()) &&
-                    (data.zoneName == it->zonename()) &&
-                    (data.poolName == it->poolname());
-            });
+                               [it](Server& data) {
+                                   return (data.name == it->hostname()) &&
+                                          (data.zoneName == it->zonename()) &&
+                                          (data.poolName == it->poolname());
+                               });
         if (ix != serverDatas.end()) {
             serverDatas.erase(ix);
         }
@@ -313,7 +311,7 @@ int CurvefsTopologyTool::ScanCluster() {
     return 0;
 }
 
-int CurvefsTopologyTool::ListPool(std::list<PoolInfo> *poolInfos) {
+int CurvefsBuildTopologyTool::ListPool(std::list<PoolInfo>* poolInfos) {
     TopologyService_Stub stub(&channel_);
     ListPoolRequest request;
     ListPoolResponse response;
@@ -329,8 +327,7 @@ int CurvefsTopologyTool::ListPool(std::list<PoolInfo> *poolInfos) {
 
     if (response.statuscode() != TopoStatusCode::TOPO_OK) {
         LOG(ERROR) << "ListPool Rpc response fail. "
-                   << "Message is :"
-                   << response.DebugString();
+                   << "Message is :" << response.DebugString();
         return response.statuscode();
     } else {
         LOG(INFO) << "Received ListPool rpc response success, "
@@ -343,8 +340,8 @@ int CurvefsTopologyTool::ListPool(std::list<PoolInfo> *poolInfos) {
     return 0;
 }
 
-int CurvefsTopologyTool::GetZonesInPool(PoolIdType poolid,
-    std::list<ZoneInfo> *zoneInfos) {
+int CurvefsBuildTopologyTool::GetZonesInPool(PoolIdType poolid,
+                                             std::list<ZoneInfo>* zoneInfos) {
     TopologyService_Stub stub(&channel_);
     ListPoolZoneRequest request;
     ListPoolZoneResponse response;
@@ -354,8 +351,7 @@ int CurvefsTopologyTool::GetZonesInPool(PoolIdType poolid,
     cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
     cntl.set_log_id(1);
 
-    LOG(INFO) << "ListZoneInPool, send request: "
-              << request.DebugString();
+    LOG(INFO) << "ListZoneInPool, send request: " << request.DebugString();
 
     stub.ListPoolZone(&cntl, &request, &response, nullptr);
 
@@ -378,8 +374,8 @@ int CurvefsTopologyTool::GetZonesInPool(PoolIdType poolid,
     return 0;
 }
 
-int CurvefsTopologyTool::GetServersInZone(ZoneIdType zoneid,
-    std::list<ServerInfo> *serverInfos) {
+int CurvefsBuildTopologyTool::GetServersInZone(
+    ZoneIdType zoneid, std::list<ServerInfo>* serverInfos) {
     TopologyService_Stub stub(&channel_);
     ListZoneServerRequest request;
     ListZoneServerResponse response;
@@ -388,8 +384,7 @@ int CurvefsTopologyTool::GetServersInZone(ZoneIdType zoneid,
     cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
     cntl.set_log_id(1);
 
-    LOG(INFO) << "ListZoneServer, send request: "
-              << request.DebugString();
+    LOG(INFO) << "ListZoneServer, send request: " << request.DebugString();
 
     stub.ListZoneServer(&cntl, &request, &response, nullptr);
 
@@ -398,14 +393,12 @@ int CurvefsTopologyTool::GetServersInZone(ZoneIdType zoneid,
     }
     if (response.statuscode() != TopoStatusCode::TOPO_OK) {
         LOG(ERROR) << "ListZoneServer rpc response fail. "
-                   << "Message is :"
-                   << response.DebugString()
-                   << " , zoneid = "
-                   << zoneid;
+                   << "Message is :" << response.DebugString()
+                   << " , zoneid = " << zoneid;
         return response.statuscode();
     } else {
         LOG(INFO) << "ListZoneServer rpc response success, "
-                   << response.DebugString();
+                  << response.DebugString();
     }
 
     for (int i = 0; i < response.serverinfo_size(); i++) {
@@ -414,7 +407,7 @@ int CurvefsTopologyTool::GetServersInZone(ZoneIdType zoneid,
     return 0;
 }
 
-int CurvefsTopologyTool::CreatePool() {
+int CurvefsBuildTopologyTool::CreatePool() {
     TopologyService_Stub stub(&channel_);
     for (auto it : poolDatas) {
         CreatePoolRequest request;
@@ -423,18 +416,16 @@ int CurvefsTopologyTool::CreatePool() {
         std::string replicaNumStr = std::to_string(it.replicasNum);
         std::string copysetNumStr = std::to_string(it.copysetNum);
         std::string zoneNumStr = std::to_string(it.zoneNum);
-        std::string rapString = "{\"replicaNum\":" + replicaNumStr
-                             + ", \"copysetNum\":" + copysetNumStr
-                             + ", \"zoneNum\":" + zoneNumStr
-                             + "}";
+        std::string rapString = "{\"replicaNum\":" + replicaNumStr +
+                                ", \"copysetNum\":" + copysetNumStr +
+                                ", \"zoneNum\":" + zoneNumStr + "}";
         request.set_redundanceandplacementpolicy(rapString);
 
         brpc::Controller cntl;
         cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
         cntl.set_log_id(1);
 
-        LOG(INFO) << "CreatePool, send request: "
-                  << request.DebugString();
+        LOG(INFO) << "CreatePool, send request: " << request.DebugString();
 
         stub.CreatePool(&cntl, &request, &response, nullptr);
 
@@ -442,21 +433,16 @@ int CurvefsTopologyTool::CreatePool() {
             cntl.ErrorCode() == brpc::ELOGOFF) {
             return kRetCodeRedirectMds;
         } else if (cntl.Failed()) {
-            LOG(ERROR) << "CreatePool errcorde = "
-                       << response.statuscode()
-                       << ", error content:"
-                       << cntl.ErrorText()
-                       << " , poolName = "
-                       << it.name;
+            LOG(ERROR) << "CreatePool errcorde = " << response.statuscode()
+                       << ", error content:" << cntl.ErrorText()
+                       << " , poolName = " << it.name;
             return kRetCodeCommonErr;
         }
 
         if (response.statuscode() != TopoStatusCode::TOPO_OK) {
             LOG(ERROR) << "CreatePool rpc response fail. "
-                       << "Message is :"
-                       << response.DebugString()
-                       << " , poolName ="
-                       << it.name;
+                       << "Message is :" << response.DebugString()
+                       << " , poolName =" << it.name;
             return response.statuscode();
         } else {
             LOG(INFO) << "Received CreatePool response success, "
@@ -466,7 +452,7 @@ int CurvefsTopologyTool::CreatePool() {
     return 0;
 }
 
-int CurvefsTopologyTool::CreateZone() {
+int CurvefsBuildTopologyTool::CreateZone() {
     TopologyService_Stub stub(&channel_);
     for (auto it : zoneDatas) {
         CreateZoneRequest request;
@@ -478,8 +464,7 @@ int CurvefsTopologyTool::CreateZone() {
         cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
         cntl.set_log_id(1);
 
-        LOG(INFO) << "CreateZone, send request: "
-                  << request.DebugString();
+        LOG(INFO) << "CreateZone, send request: " << request.DebugString();
 
         stub.CreateZone(&cntl, &request, &response, nullptr);
 
@@ -487,20 +472,15 @@ int CurvefsTopologyTool::CreateZone() {
             cntl.ErrorCode() == brpc::ELOGOFF) {
             return kRetCodeRedirectMds;
         } else if (cntl.Failed()) {
-            LOG(ERROR) << "CreateZone, errcorde = "
-                       << response.statuscode()
-                       << ", error content:"
-                       << cntl.ErrorText()
-                       << " , zoneName = "
-                       << it.name;
+            LOG(ERROR) << "CreateZone, errcorde = " << response.statuscode()
+                       << ", error content:" << cntl.ErrorText()
+                       << " , zoneName = " << it.name;
             return kRetCodeCommonErr;
         }
         if (response.statuscode() != 0) {
             LOG(ERROR) << "CreateZone Rpc response fail. "
-                       << "Message is :"
-                       << response.DebugString()
-                       << " , zoneName = "
-                       << it.name;
+                       << "Message is :" << response.DebugString()
+                       << " , zoneName = " << it.name;
             return response.statuscode();
         } else {
             LOG(INFO) << "Received CreateZone Rpc success, "
@@ -510,7 +490,7 @@ int CurvefsTopologyTool::CreateZone() {
     return 0;
 }
 
-int CurvefsTopologyTool::CreateServer() {
+int CurvefsBuildTopologyTool::CreateServer() {
     TopologyService_Stub stub(&channel_);
     for (auto it : serverDatas) {
         ServerRegistRequest request;
@@ -527,8 +507,7 @@ int CurvefsTopologyTool::CreateServer() {
         cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
         cntl.set_log_id(1);
 
-        LOG(INFO) << "CreateServer, send request: "
-                  << request.DebugString();
+        LOG(INFO) << "CreateServer, send request: " << request.DebugString();
 
         stub.RegistServer(&cntl, &request, &response, nullptr);
 
@@ -536,12 +515,9 @@ int CurvefsTopologyTool::CreateServer() {
             cntl.ErrorCode() == brpc::ELOGOFF) {
             return kRetCodeRedirectMds;
         } else if (cntl.Failed()) {
-            LOG(ERROR) << "RegistServer, errcorde = "
-                       << response.statuscode()
-                       << ", error content : "
-                       << cntl.ErrorText()
-                       << " , serverName = "
-                       << it.name;
+            LOG(ERROR) << "RegistServer, errcorde = " << response.statuscode()
+                       << ", error content : " << cntl.ErrorText()
+                       << " , serverName = " << it.name;
             return kRetCodeCommonErr;
         }
         if (response.statuscode() == TopoStatusCode::TOPO_OK) {
@@ -552,14 +528,39 @@ int CurvefsTopologyTool::CreateServer() {
             LOG(INFO) << "Server already exist";
         } else {
             LOG(ERROR) << "RegistServer Rpc response fail. "
-                       << "Message is :"
-                       << response.DebugString()
-                       << " , serverName = "
-                       << it.name;
+                       << "Message is :" << response.DebugString()
+                       << " , serverName = " << it.name;
             return response.statuscode();
         }
     }
     return 0;
+}
+
+int CurvefsBuildTopologyTool::RunCommand() {
+    int ret = 0;
+    int maxTry = GetMaxTry();
+    int retry = 0;
+    for (; retry < maxTry; retry++) {
+        ret = TryAnotherMdsAddress();
+        if (ret < 0) {
+            return kRetCodeCommonErr;
+        }
+
+        ret = HandleBuildCluster();
+        if (ret != kRetCodeRedirectMds) {
+            break;
+        }
+    }
+    if (retry >= maxTry) {
+        LOG(ERROR) << "rpc retry times exceed.";
+        return kRetCodeCommonErr;
+    }
+    if (ret != 0) {
+        LOG(ERROR) << "exec fail, ret = " << ret;
+    } else {
+        LOG(INFO) << "exec success, ret = " << ret;
+    }
+    return ret;
 }
 
 }  // namespace topology

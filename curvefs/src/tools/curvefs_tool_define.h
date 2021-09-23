@@ -25,6 +25,11 @@
 
 #include <gflags/gflags.h>
 
+#include <functional>
+#include <string>
+
+#include "src/common/configuration.h"
+
 namespace curvefs {
 namespace tools {
 
@@ -78,6 +83,21 @@ const char kCopysetNum[] = "copysetnum";
 const char kZoneNum[] = "zonenum";
 }  // namespace topology
 }  // namespace mds
+}  // namespace curvefs
+
+namespace curvefs {
+namespace tools {
+
+template <class FlagInfoT>
+void SetFlagInfo(curve::common::Configuration* conf,
+                 google::CommandLineFlagInfo* info, const std::string& key,
+                 FlagInfoT* flag);
+
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetMdsAddr;
+
+}  // namespace tools
 }  // namespace curvefs
 
 #endif  // CURVEFS_SRC_TOOLS_CURVEFS_TOOL_DEFINE_H_

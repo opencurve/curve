@@ -31,8 +31,12 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "curvefs/src/tools/curvefs_tool_define.h"
+#include "src/common/configuration.h"
+
+DECLARE_string(confPath);
 
 namespace curvefs {
 namespace tools {
@@ -71,6 +75,17 @@ class CurvefsTool {
     std::string programe_;
 };
 
+/**
+ * @brief this base class used for curvefs tool with rpc
+ *
+ * @tparam ChannelT
+ * @tparam ControllerT
+ * @tparam RequestT
+ * @tparam ResponseT
+ * @tparam ServiceT
+ * @details
+ * you can take umountfs as example
+ */
 template <class ChannelT, class ControllerT, class RequestT, class ResponseT,
           class ServiceT>
 class CurvefsToolRpc : public CurvefsTool {
@@ -92,8 +107,31 @@ class CurvefsToolRpc : public CurvefsTool {
     }
 
  protected:
-    virtual void SendRequestToService() {
-        service_stub_func_(controller_.get(), request_.get(), response_.get());
+    /**
+     * @brief send request to host in hostsAddressStr_
+     *
+     * @return true
+     * @return false
+     * @details
+     * as long as one succeeds, it returns true and ends sending
+     */
+    virtual bool SendRequestToServices() {
+        for (const std::string& host : hostsAddressStr_) {
+            if (channel_->Init(host.c_str(), nullptr) != 0) {
+                std::cerr << "Fail init channel to host: " << host << std::endl;
+                continue;
+            }
+            // if service_stub_func_ does not assign a value
+            // it will crash in there
+            service_stub_func_(controller_.get(), request_.get(),
+                               response_.get());
+            if (AfterSendRequestToService(host) == true) {
+                return true;
+            }
+            controller_->Reset();
+        }
+        // send request to all host failed
+        return false;
     }
 
     virtual int Init() {
@@ -102,16 +140,87 @@ class CurvefsToolRpc : public CurvefsTool {
         request_ = std::make_shared<RequestT>();
         response_ = std::make_shared<ResponseT>();
         service_stub_ = std::make_shared<ServiceT>(channel_.get());
+        if (updateFlagsFunc_.size() > 0) {
+            // need update FlagInfos
+            AddUpdateFlagsFuncs();
+        }
+
+        UpdateFlagsFromConf();
         return 0;
     }
 
+    void AddUpdateFlagsFunc(
+        const std::function<void(curve::common::Configuration*,
+                                 google::CommandLineFlagInfo*)>& func) {
+        updateFlagsFunc_.push_back(func);
+    }
+
+    virtual void UpdateFlagsFromConf() {
+        curve::common::Configuration conf;
+        conf.SetConfigPath(FLAGS_confPath);
+        if (!conf.LoadConfig()) {
+            std::cerr << "load configure file " << FLAGS_confPath << " failed!"
+                      << std::endl;
+        }
+        google::CommandLineFlagInfo info;
+
+        for (auto& i : updateFlagsFunc_) {
+            i(&conf, &info);
+        }
+    }
+
+    /**
+     * @brief add AddUpdateFlagsFunc in Subclass
+     *
+     * @details
+     * use AddUpdateFlagsFunc to add UpdateFlagsFunc into updateFlagsFunc_;
+     * add this function will be called in UpdateFlagsFromConf;
+     * this function should be called before UpdateFlagsFromConf (like Init()).
+     */
+    virtual void AddUpdateFlagsFuncs() = 0;
+
+    /**
+     * @brief deal with response info, include output err info
+     *
+     * @param host
+     * @return true: send request success
+     * @return false send request failed
+     * @details
+     */
+    virtual bool AfterSendRequestToService(const std::string& host) = 0;
+
  protected:
+    /**
+     * @brief save the host who will be sended request
+     * like ip:port
+     *
+     * @details
+     */
+    std::vector<std::string> hostsAddressStr_;
     std::shared_ptr<ChannelT> channel_;
     std::shared_ptr<ControllerT> controller_;
     std::shared_ptr<RequestT> request_;
     std::shared_ptr<ResponseT> response_;
     std::shared_ptr<ServiceT> service_stub_;
+    /**
+     * @brief this functor will called in SendRequestToService
+     * Generally need to be assigned to the service_stub_'s request
+     * If service_stub_func_ does not assign a value
+     * it will crash in SendRequestToService
+     *
+     * @details
+     * it is core function of this class
+     * make sure uint test cover SendRequestToServices
+     */
     std::function<void(ControllerT*, RequestT*, ResponseT*)> service_stub_func_;
+    /**
+     * @brief save the functor which defined in curvefs_tool_define.h
+     *
+     * @details
+     */
+    std::vector<std::function<void(curve::common::Configuration*,
+                                   google::CommandLineFlagInfo*)>>
+        updateFlagsFunc_;
 };
 
 }  // namespace tools

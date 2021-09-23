@@ -33,6 +33,11 @@ CurvefsToolFactory::CurvefsToolFactory() {
     // umountfs
     RegisterCurvefsTool(std::string(kUmountCmd),
                         CurvefsToolCreator<umountfs::UmountfsTool>::Create);
+
+    // build-topology
+    RegisterCurvefsTool(
+        std::string(kBuildTopologyCmd),
+        CurvefsToolCreator<mds::topology::CurvefsBuildTopologyTool>::Create);
 }
 
 std::shared_ptr<CurvefsTool> CurvefsToolFactory::GenerateCurvefsTool(
