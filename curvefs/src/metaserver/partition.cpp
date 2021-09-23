@@ -40,8 +40,8 @@ Partition::Partition(const PartitionInfo& paritionInfo) {
     trash_ = std::make_shared<TrashImpl>(inodeStorage_);
     inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
     txManager_ = std::make_shared<TxManager>(dentryStorage_);
-    dentryManager_ = std::make_shared<DentryManager>(dentryStorage_,
-                                                     txManager_);
+    dentryManager_ =
+        std::make_shared<DentryManager>(dentryStorage_, txManager_);
     partitionInfo_ = paritionInfo;
     if (!paritionInfo.has_nextid()) {
         partitionInfo_.set_nextid(
@@ -75,8 +75,8 @@ MetaStatusCode Partition::GetDentry(Dentry* dentry) {
 }
 
 MetaStatusCode Partition::ListDentry(const Dentry& dentry,
-                                    std::vector<Dentry>* dentrys,
-                                    uint32_t limit) {
+                                     std::vector<Dentry>* dentrys,
+                                     uint32_t limit) {
     if (!IsInodeBelongs(dentry.fsid(), dentry.parentinodeid())) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
@@ -93,15 +93,14 @@ MetaStatusCode Partition::HandleRenameTx(const std::vector<Dentry>& dentrys) {
 }
 
 bool Partition::InsertPendingTx(const PrepareRenameTxRequest& pendingTx) {
-    std::vector<Dentry> dentrys{
-        pendingTx.dentrys().begin(),
-        pendingTx.dentrys().end()
-    };
+    std::vector<Dentry> dentrys{pendingTx.dentrys().begin(),
+                                pendingTx.dentrys().end()};
     for (const auto& it : dentrys) {
         if (!IsInodeBelongs(it.fsid(), it.parentinodeid())) {
             return false;
         }
     }
+
     auto renameTx = RenameTx(dentrys, dentryStorage_);
     return txManager_->InsertPendingTx(renameTx);
 }
@@ -117,7 +116,7 @@ bool Partition::FindPendingTx(PrepareRenameTxRequest* pendingTx) {
     pendingTx->set_poolid(partitionInfo_.poolid());
     pendingTx->set_copysetid(partitionInfo_.copysetid());
     pendingTx->set_partitionid(partitionInfo_.partitionid());
-    *pendingTx->mutable_dentrys() = { dentrys->begin(), dentrys->end() };
+    *pendingTx->mutable_dentrys() = {dentrys->begin(), dentrys->end()};
     return true;
 }
 
@@ -127,6 +126,10 @@ MetaStatusCode Partition::CreateInode(uint32_t fsId, uint64_t length,
                                       FsFileType type,
                                       const std::string& symlink,
                                       Inode* inode) {
+    if (partitionInfo_.status() == PartitionStatus::READONLY) {
+        return MetaStatusCode::PARTITION_ALLOC_ID_FAIL;
+    }
+
     uint64_t inodeId = GetNewInodeId();
     if (inodeId == UINT64_MAX) {
         return MetaStatusCode::PARTITION_ALLOC_ID_FAIL;
@@ -135,6 +138,7 @@ MetaStatusCode Partition::CreateInode(uint32_t fsId, uint64_t length,
     if (!IsInodeBelongs(fsId, inodeId)) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
+
     return inodeManager_->CreateInode(fsId, inodeId, length, uid, gid, mode,
                                       type, symlink, inode);
 }
@@ -233,11 +237,20 @@ DentryStorage::ContainerType* Partition::GetDentryContainer() {
 
 uint64_t Partition::GetNewInodeId() {
     if (partitionInfo_.nextid() > partitionInfo_.end()) {
+        partitionInfo_.set_status(PartitionStatus::READONLY);
         return UINT64_MAX;
     }
     uint64_t newInodeId = partitionInfo_.nextid();
     partitionInfo_.set_nextid(newInodeId + 1);
     return newInodeId;
+}
+
+uint32_t Partition::GetInodeNum() {
+    return inodeStorage_->Count();
+}
+
+uint32_t Partition::GetDentryNum() {
+    return dentryStorage_->Size();
 }
 
 }  // namespace metaserver

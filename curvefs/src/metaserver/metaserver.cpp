@@ -26,10 +26,10 @@
 #include <brpc/server.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-
 #include "absl/memory/memory.h"
 #include "curvefs/src/metaserver/copyset/copyset_service.h"
 #include "curvefs/src/metaserver/metaserver_service.h"
+#include "curvefs/src/metaserver/register.h"
 #include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/trash_manager.h"
 #include "src/common/s3_adapter.h"
@@ -74,6 +74,20 @@ void Metaserver::InitOptions(std::shared_ptr<Configuration> conf) {
     InitBRaftFlags(conf);
 }
 
+void Metaserver::InitResgiterOptions() {
+    conf_->GetValueFatalIfFail("mds.listen.addr",
+                               &registerOptions_.mdsListenAddr);
+    conf_->GetValueFatalIfFail("global.ip",
+                               &registerOptions_.metaserverInternalIp);
+    conf_->GetValueFatalIfFail("global.external_ip",
+                               &registerOptions_.metaserverExternalIp);
+    conf_->GetValueFatalIfFail("global.port", &registerOptions_.metaserverPort);
+    conf_->GetValueFatalIfFail("mds.register_retries",
+                               &registerOptions_.registerRetries);
+    conf_->GetValueFatalIfFail("mds.register_timeoutMs",
+                               &registerOptions_.registerTimeout);
+}
+
 void Metaserver::InitLocalFileSystem() {
     LocalFileSystemOption option;
 
@@ -82,14 +96,15 @@ void Metaserver::InitLocalFileSystem() {
         << "Failed to initialize local filesystem";
 }
 
-void InitS3Option(const std::shared_ptr<Configuration> &conf,
-    S3ClientAdaptorOption *s3Opt) {
+void InitS3Option(const std::shared_ptr<Configuration>& conf,
+                  S3ClientAdaptorOption* s3Opt) {
     LOG_IF(FATAL, !conf->GetUInt64Value("s3.blocksize", &s3Opt->blockSize));
     LOG_IF(FATAL, !conf->GetUInt64Value("s3.chunksize", &s3Opt->chunkSize));
 }
 
 void Metaserver::Init() {
-    TrashOption  trashOption;
+    InitResgiterOptions();
+    TrashOption trashOption;
     trashOption.InitTrashOptionFromConf(conf_);
     s3Adaptor_ = std::make_shared<S3ClientAdaptorImpl>();
 
@@ -110,6 +125,7 @@ void Metaserver::Init() {
     InitLocalFileSystem();
     InitCopysetTrash();
     InitCopysetNodeManager();
+    InitHeartbeat();
     InitInflightThrottle();
 
     S3CompactManager::GetInstance().Init(conf_);
@@ -122,7 +138,16 @@ void Metaserver::Run() {
         return;
     }
 
+    // register metaserver to mds
+    Register registerMDS(registerOptions_);
+    LOG(INFO) << "register metaserver to mds";
+    LOG_IF(FATAL, registerMDS.RegisterToMDS(&metadate_) != 0)
+        << "Failed to register metaserver to MDS.";
+
     TrashManager::GetInstance().Run();
+
+    LOG_IF(FATAL, heartbeat_.Run() != 0)
+        << "Failed to start heartbeat manager.";
 
     brpc::Server server;
     butil::ip_t ip;
@@ -180,6 +205,8 @@ void Metaserver::Stop() {
     server_->Stop(0);
     server_->Join();
 
+    LOG_IF(ERROR, heartbeat_.Fini() != 0);
+
     TrashManager::GetInstance().Fini();
     LOG_IF(ERROR, !copysetTrash_->Stop()) << "Failed to stop copyset trash";
     LOG_IF(ERROR, !copysetNodeManager_->Stop())
@@ -187,6 +214,27 @@ void Metaserver::Stop() {
 
     S3CompactManager::GetInstance().Stop();
     LOG(INFO) << "MetaServer stopped success";
+}
+
+void Metaserver::InitHeartbeatOptions() {
+    LOG_IF(FATAL, !conf_->GetStringValue("global.ip", &heartbeatOptions_.ip));
+    LOG_IF(FATAL,
+           !conf_->GetUInt32Value("global.port", &heartbeatOptions_.port));
+    LOG_IF(FATAL, !conf_->GetStringValue("mds.listen.addr",
+                                         &heartbeatOptions_.mdsListenAddr));
+    LOG_IF(FATAL, !conf_->GetUInt32Value("mds.heartbeat_intervalSec",
+                                         &heartbeatOptions_.intervalSec));
+    LOG_IF(FATAL, !conf_->GetUInt32Value("mds.heartbeat_timeoutMs",
+                                         &heartbeatOptions_.timeout));
+}
+
+void Metaserver::InitHeartbeat() {
+    InitHeartbeatOptions();
+    heartbeatOptions_.copysetNodeManager = copysetNodeManager_;
+    heartbeatOptions_.metaserverId = metadate_.id();
+    heartbeatOptions_.metaserverToken = metadate_.token();
+    LOG_IF(FATAL, heartbeat_.Init(heartbeatOptions_) != 0)
+        << "Failed to init Heartbeat manager.";
 }
 
 void Metaserver::InitCopysetNodeManager() {

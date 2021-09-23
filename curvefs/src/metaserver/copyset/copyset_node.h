@@ -25,6 +25,7 @@
 
 #include <braft/raft.h>
 
+#include <list>
 #include <memory>
 #include <string>
 #include <vector>
@@ -42,6 +43,7 @@ namespace metaserver {
 namespace copyset {
 
 using ::curvefs::common::Peer;
+using PeerId = braft::PeerId;
 using ::curvefs::metaserver::MetaStore;
 
 // Implement our own business raft state machine
@@ -75,6 +77,8 @@ class CopysetNode : public braft::StateMachine {
     const braft::PeerId& GetPeerId() const;
 
     CopysetId GetCopysetId() const;
+
+    PeerId GetLeaderId() const;
 
     MetaStore* GetMetaStore() const;
 
@@ -112,17 +116,11 @@ class CopysetNode : public braft::StateMachine {
     int SaveConfEpoch(const std::string& file);
 
 #ifdef UNIT_TEST
-    void SetMetaStore(MetaStore* metastore) {
-        metaStore_.reset(metastore);
-    }
+    void SetMetaStore(MetaStore* metastore) { metaStore_.reset(metastore); }
 
-    void FlushApplyQueue() {
-        applyQueue_->Flush();
-    }
+    void FlushApplyQueue() { applyQueue_->Flush(); }
 
-    void SetRaftNode(RaftNode* raftNode) {
-        raftNode_.reset(raftNode);
-    }
+    void SetRaftNode(RaftNode* raftNode) { raftNode_.reset(raftNode); }
 #endif  // UNIT_TEST
 
  public:
@@ -149,6 +147,10 @@ class CopysetNode : public braft::StateMachine {
     void on_stop_following(const braft::LeaderChangeContext& ctx) override;
 
     void on_start_following(const braft::LeaderChangeContext& ctx) override;
+
+ public:
+    // for heartbeat
+    std::list<PartitionInfo> GetPartitionInfoList();
 
  private:
     void InitRaftNodeOptions();
@@ -209,17 +211,15 @@ inline bool CopysetNode::IsLeaderTerm() const {
     return leaderTerm_.load(std::memory_order_acquire) > 0;
 }
 
-inline PoolId CopysetNode::GetPoolId() const {
-    return poolId_;
+inline PoolId CopysetNode::GetPoolId() const { return poolId_; }
+
+inline CopysetId CopysetNode::GetCopysetId() const { return copysetId_; }
+
+inline PeerId CopysetNode::GetLeaderId() const {
+    return raftNode_->leader_id();
 }
 
-inline CopysetId CopysetNode::GetCopysetId() const {
-    return copysetId_;
-}
-
-inline MetaStore* CopysetNode::GetMetaStore() const {
-    return metaStore_.get();
-}
+inline MetaStore* CopysetNode::GetMetaStore() const { return metaStore_.get(); }
 
 inline uint64_t CopysetNode::GetConfEpoch() const {
     std::lock_guard<Mutex> lock(confMtx_);
@@ -246,17 +246,13 @@ inline OperatorApplyMetric* CopysetNode::GetMetric() const {
     return metric_.get();
 }
 
-inline const std::string& CopysetNode::Name() const {
-    return name_;
-}
+inline const std::string& CopysetNode::Name() const { return name_; }
 
 inline uint64_t CopysetNode::LastSnapshotIndex() const {
     return lastSnapshotIndex_;
 }
 
-inline const braft::PeerId& CopysetNode::GetPeerId() const {
-    return peerId_;
-}
+inline const braft::PeerId& CopysetNode::GetPeerId() const { return peerId_; }
 
 }  // namespace copyset
 }  // namespace metaserver

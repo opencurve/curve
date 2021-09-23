@@ -28,8 +28,8 @@
 #include <memory>
 #include <string>
 #include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/src/metaserver/partition.h"
 #include "curvefs/src/metaserver/copyset/snapshot_closure.h"
+#include "curvefs/src/metaserver/partition.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -79,6 +79,8 @@ class MetaStore {
         const DeletePartitionRequest* request,
         DeletePartitionResponse* response) = 0;
 
+    virtual std::list<PartitionInfo> GetPartitionInfoList() = 0;
+
     // dentry
     virtual MetaStatusCode CreateDentry(const CreateDentryRequest* request,
                                         CreateDentryResponse* response) = 0;
@@ -127,6 +129,8 @@ class MetaStoreImpl : public MetaStore {
 
     MetaStatusCode DeletePartition(const DeletePartitionRequest* request,
                                    DeletePartitionResponse* response);
+
+    std::list<PartitionInfo> GetPartitionInfoList();
 
     // dentry
     MetaStatusCode CreateDentry(const CreateDentryRequest* request,

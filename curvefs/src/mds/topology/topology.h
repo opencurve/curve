@@ -22,22 +22,22 @@
 #ifndef CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_H_
 #define CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_H_
 
-#include <unordered_map>
-#include <string>
 #include <list>
-#include <memory>
-#include <vector>
 #include <map>
-#include <set>
+#include <memory>
 #include <random>
+#include <set>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
-#include "curvefs/proto/topology.pb.h"
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/mds/topology/topology_id_generator.h"
 #include "curvefs/src/mds/topology/topology_storge.h"
 #include "curvefs/src/mds/topology/topology_token_generator.h"
-#include "src/common/concurrent/rw_lock.h"
 #include "src/common/concurrent/concurrent.h"
+#include "src/common/concurrent/rw_lock.h"
 #include "src/common/interruptible_sleeper.h"
 
 namespace curvefs {
@@ -49,12 +49,12 @@ using ::curve::common::ReadLockGuard;
 using ::curve::common::WriteLockGuard;
 using ::curve::common::InterruptibleSleeper;
 
-using PartitionFilter = std::function<bool (const Partition&)>;
-using CopySetFilter = std::function<bool (const CopySetInfo&)>;
-using MetaServerFilter = std::function<bool(const MetaServer&)>;
-using ServerFilter = std::function<bool (const Server&)>;
-using ZoneFilter = std::function<bool (const Zone&)>;
-using PoolFilter = std::function<bool (const Pool&)>;
+using PartitionFilter = std::function<bool(const Partition &)>;
+using CopySetFilter = std::function<bool(const CopySetInfo &)>;
+using MetaServerFilter = std::function<bool(const MetaServer &)>;
+using ServerFilter = std::function<bool(const Server &)>;
+using ZoneFilter = std::function<bool(const Zone &)>;
+using PoolFilter = std::function<bool(const Pool &)>;
 
 class Topology {
  public:
@@ -90,15 +90,18 @@ class Topology {
     virtual TopoStatusCode UpdateZone(const Zone &data) = 0;
     virtual TopoStatusCode UpdateServer(const Server &data) = 0;
     virtual TopoStatusCode UpdateMetaServerOnlineState(
-            const OnlineState &onlineState,
-            MetaServerIdType id) = 0;
+        const OnlineState &onlineState, MetaServerIdType id) = 0;
+    virtual TopoStatusCode UpdateMetaServerStartUpTime(
+        uint64_t time, MetaServerIdType id) = 0;
     virtual TopoStatusCode UpdateCopySetTopo(const CopySetInfo &data) = 0;
     virtual TopoStatusCode UpdatePartition(const Partition &data) = 0;
+    virtual TopoStatusCode UpdatePartitionStatistic(uint32_t partitionId,
+                                            PartitionStatistic statistic) = 0;
     virtual TopoStatusCode UpdatePartitionTxIds(
-                            std::vector<PartitionTxId> txIds) = 0;
+        std::vector<PartitionTxId> txIds) = 0;
 
-    virtual TopoStatusCode SetCopySetAvalFlag(
-            const CopySetKey &key, bool aval) = 0;
+    virtual TopoStatusCode SetCopySetAvalFlag(const CopySetKey &key,
+                                              bool aval) = 0;
 
     virtual PoolIdType FindPool(const std::string &poolName) const = 0;
     virtual ZoneIdType FindZone(const std::string &zoneName,
@@ -106,10 +109,9 @@ class Topology {
     virtual ZoneIdType FindZone(const std::string &zoneName,
                                 PoolIdType poolid) const = 0;
     virtual ServerIdType FindServerByHostName(
-                         const std::string &hostName) const = 0;
-    virtual ServerIdType FindServerByHostIpPort(
-                         const std::string &hostIp, uint32_t port) const = 0;
-
+        const std::string &hostName) const = 0;
+    virtual ServerIdType FindServerByHostIpPort(const std::string &hostIp,
+                                                uint32_t port) const = 0;
     virtual bool GetPool(PoolIdType poolId, Pool *out) const = 0;
     virtual bool GetZone(ZoneIdType zoneId, Zone *out) const = 0;
     virtual bool GetServer(ServerIdType serverId, Server *out) const = 0;
@@ -119,62 +121,56 @@ class Topology {
                                MetaServer *out) const = 0;
     virtual bool GetCopySet(CopySetKey key, CopySetInfo *out) const = 0;
     virtual bool GetCopysetOfPartition(PartitionIdType id,
-                 CopySetInfo *out) const = 0;
+                                       CopySetInfo *out) const = 0;
     virtual bool GetAvailableCopyset(CopySetInfo *out) const = 0;
     virtual bool GetPartition(PartitionIdType partitionId, Partition *out) = 0;
 
     virtual bool GetPool(const std::string &poolName, Pool *out) const = 0;
     virtual bool GetZone(const std::string &zoneName,
-                         const std::string &poolName,
-                         Zone *out) const = 0;
-    virtual bool GetZone(const std::string &zoneName,
-                         PoolIdType poolId,
+                         const std::string &poolName, Zone *out) const = 0;
+    virtual bool GetZone(const std::string &zoneName, PoolIdType poolId,
                          Zone *out) const = 0;
     virtual bool GetServerByHostName(const std::string &hostName,
                                      Server *out) const = 0;
-    virtual bool GetServerByHostIpPort(const std::string &hostIp,
-                                       uint32_t port,
+    virtual bool GetServerByHostIpPort(const std::string &hostIp, uint32_t port,
                                        Server *out) const = 0;
 
     virtual std::vector<MetaServerIdType> GetMetaServerInCluster(
-            MetaServerFilter filter = [](const MetaServer&) {
-            return true;}) const = 0;
+        MetaServerFilter filter = [](const MetaServer &) {
+            return true;
+        }) const = 0;
     virtual std::vector<ServerIdType> GetServerInCluster(
-            ServerFilter filter = [](const Server&) {
-            return true;}) const = 0;
+        ServerFilter filter = [](const Server &) { return true; }) const = 0;
     virtual std::vector<ZoneIdType> GetZoneInCluster(
-            ZoneFilter filter = [](const Zone&) {
-            return true;}) const = 0;
+        ZoneFilter filter = [](const Zone &) { return true; }) const = 0;
     virtual std::vector<PoolIdType> GetPoolInCluster(
-            PoolFilter filter = [](const Pool&) {
-            return true;}) const = 0;
+        PoolFilter filter = [](const Pool &) { return true; }) const = 0;
 
     // get metaserver list
     virtual std::list<MetaServerIdType> GetMetaServerInServer(
-            ServerIdType id,
-            MetaServerFilter filter = [](const MetaServer&) {
-            return true;}) const = 0;
+        ServerIdType id, MetaServerFilter filter = [](const MetaServer &) {
+            return true;
+        }) const = 0;
     virtual std::list<MetaServerIdType> GetMetaServerInZone(
-            ZoneIdType id,
-            MetaServerFilter filter = [](const MetaServer&) {
-            return true;}) const = 0;
-
+        ZoneIdType id, MetaServerFilter filter = [](const MetaServer &) {
+            return true;
+        }) const = 0;
     // get server list
-    virtual std::list<ServerIdType> GetServerInZone(ZoneIdType id,
-            ServerFilter filter = [](const Server&) {
-            return true;}) const = 0;
+    virtual std::list<ServerIdType> GetServerInZone(
+        ZoneIdType id,
+        ServerFilter filter = [](const Server &) { return true; }) const = 0;
 
     // get zone list
     virtual std::list<ZoneIdType> GetZoneInPool(
-            PoolIdType id,
-            ZoneFilter filter = [](const Zone&) {
-            return true;}) const = 0;
+        PoolIdType id,
+        ZoneFilter filter = [](const Zone &) { return true; }) const = 0;
 
     // get partition list
-    virtual std::list<Partition> GetPartitionOfFs(
-            FsIdType id,
-            PartitionFilter filter = [](const Partition&) {
-            return true;}) const = 0;
+    virtual std::list<Partition> GetPartitionOfFs(FsIdType id,
+                                                  PartitionFilter filter =
+                                                      [](const Partition &) {
+                                                          return true;
+                                                      }) const = 0;
 
     // choose randomly
     virtual TopoStatusCode ChooseSinglePoolRandom(PoolIdType *out) const = 0;
@@ -195,12 +191,9 @@ class TopologyImpl : public Topology {
         : idGenerator_(idGenerator),
           tokenGenerator_(tokenGenerator),
           storage_(storage),
-          isStop_(true) {
-    }
+          isStop_(true) {}
 
-    ~TopologyImpl() {
-        Stop();
-    }
+    ~TopologyImpl() { Stop(); }
 
     TopoStatusCode Init(const TopologyOption &option);
 
@@ -236,13 +229,17 @@ class TopologyImpl : public Topology {
     TopoStatusCode UpdateZone(const Zone &data) override;
     TopoStatusCode UpdateServer(const Server &data) override;
     TopoStatusCode UpdateMetaServerOnlineState(const OnlineState &onlineState,
-                                    MetaServerIdType id) override;
+                                               MetaServerIdType id) override;
+    TopoStatusCode UpdateMetaServerStartUpTime(uint64_t time,
+                                                MetaServerIdType id) override;
     TopoStatusCode UpdateCopySetTopo(const CopySetInfo &data) override;
-    TopoStatusCode SetCopySetAvalFlag(
-                    const CopySetKey &key, bool aval) override;
+    TopoStatusCode SetCopySetAvalFlag(const CopySetKey &key,
+                                      bool aval) override;
     TopoStatusCode UpdatePartition(const Partition &data) override;
+    TopoStatusCode UpdatePartitionStatistic(uint32_t partitionId,
+                                        PartitionStatistic statistic) override;
     TopoStatusCode UpdatePartitionTxIds(
-                    std::vector<PartitionTxId> txIds) override;
+        std::vector<PartitionTxId> txIds) override;
 
     PoolIdType FindPool(const std::string &poolName) const override;
     ZoneIdType FindZone(const std::string &zoneName,
@@ -250,33 +247,30 @@ class TopologyImpl : public Topology {
     ZoneIdType FindZone(const std::string &zoneName,
                         PoolIdType poolid) const override;
     ServerIdType FindServerByHostName(
-                    const std::string &hostName) const override;
-    ServerIdType FindServerByHostIpPort(
-                    const std::string &hostIp, uint32_t port) const override;
-
+        const std::string &hostName) const override;
+    ServerIdType FindServerByHostIpPort(const std::string &hostIp,
+                                        uint32_t port) const override;
     bool GetPool(PoolIdType poolId, Pool *out) const override;
     bool GetZone(ZoneIdType zoneId, Zone *out) const override;
     bool GetServer(ServerIdType serverId, Server *out) const override;
     bool GetMetaServer(MetaServerIdType metaserverId,
                        MetaServer *out) const override;
     bool GetMetaServer(const std::string &hostIp, uint32_t port,
-                        MetaServer *out) const override;
+                       MetaServer *out) const override;
     bool GetCopySet(CopySetKey key, CopySetInfo *out) const override;
     bool GetCopysetOfPartition(PartitionIdType id,
-                 CopySetInfo *out) const override;
+                               CopySetInfo *out) const override;
     bool GetAvailableCopyset(CopySetInfo *out) const override;
     bool GetPartition(PartitionIdType partitionId, Partition *out) override;
 
     bool GetPool(const std::string &poolName, Pool *out) const override {
         return GetPool(FindPool(poolName), out);
     }
-    bool GetZone(const std::string &zoneName,
-                 const std::string &poolName,
+    bool GetZone(const std::string &zoneName, const std::string &poolName,
                  Zone *out) const override {
         return GetZone(FindZone(zoneName, poolName), out);
     }
-    bool GetZone(const std::string &zoneName,
-                 PoolIdType poolId,
+    bool GetZone(const std::string &zoneName, PoolIdType poolId,
                  Zone *out) const override {
         return GetZone(FindZone(zoneName, poolId), out);
     }
@@ -284,55 +278,57 @@ class TopologyImpl : public Topology {
                              Server *out) const override {
         return GetServer(FindServerByHostName(hostName), out);
     }
-    bool GetServerByHostIpPort(const std::string &hostIp,
-                               uint32_t port,
+    bool GetServerByHostIpPort(const std::string &hostIp, uint32_t port,
                                Server *out) const override {
         return GetServer(FindServerByHostIpPort(hostIp, port), out);
     }
 
     std::vector<MetaServerIdType> GetMetaServerInCluster(
-        MetaServerFilter filter = [](const MetaServer&) {
-        return true;}) const override;
+        MetaServerFilter filter = [](const MetaServer &) {
+            return true;
+        }) const override;
 
-    std::vector<ServerIdType> GetServerInCluster(
-        ServerFilter filter = [](const Server&) {
-        return true;}) const override;
+    std::vector<ServerIdType> GetServerInCluster(ServerFilter filter =
+                                                     [](const Server &) {
+                                                         return true;
+                                                     }) const override;
 
     std::vector<ZoneIdType> GetZoneInCluster(
-        ZoneFilter filter = [](const Zone&) {
-        return true;}) const override;
+        ZoneFilter filter = [](const Zone &) { return true; }) const override;
 
     std::vector<PoolIdType> GetPoolInCluster(
-        PoolFilter filter = [](const Pool&) {
-        return true;}) const override;
+        PoolFilter filter = [](const Pool &) { return true; }) const override;
 
     // get metasever list
-    std::list<MetaServerIdType>
-        GetMetaServerInServer(ServerIdType id,
-            MetaServerFilter filter = [](const MetaServer&) {
-            return true;}) const override;
-    std::list<MetaServerIdType>
-        GetMetaServerInZone(ZoneIdType id,
-            MetaServerFilter filter = [](const MetaServer&) {
-            return true;}) const override;
+    std::list<MetaServerIdType> GetMetaServerInServer(
+        ServerIdType id, MetaServerFilter filter = [](const MetaServer &) {
+            return true;
+        }) const override;
+    std::list<MetaServerIdType> GetMetaServerInZone(ZoneIdType id,
+                                                    MetaServerFilter filter =
+                                                        [](const MetaServer &) {
+                                                            return true;
+                                                        }) const override;
 
     // get server list
-    std::list<ServerIdType>
-        GetServerInZone(ZoneIdType id,
-            ServerFilter filter = [](const Server&) {
-            return true;}) const override;
+    std::list<ServerIdType> GetServerInZone(ZoneIdType id,
+                                            ServerFilter filter =
+                                                [](const Server &) {
+                                                    return true;
+                                                }) const override;
 
     // get zone list
-    std::list<ZoneIdType>
-        GetZoneInPool(PoolIdType id,
-            ZoneFilter filter = [](const Zone&) {
-            return true;}) const override;
+    std::list<ZoneIdType> GetZoneInPool(PoolIdType id,
+                                        ZoneFilter filter = [](const Zone &) {
+                                            return true;
+                                        }) const override;
 
     // get partition list
-    std::list<Partition> GetPartitionOfFs(
-        FsIdType id,
-        PartitionFilter filter = [](const Partition&) {
-        return true;}) const override;
+    std::list<Partition> GetPartitionOfFs(FsIdType id,
+                                          PartitionFilter filter =
+                                              [](const Partition &) {
+                                                  return true;
+                                              }) const override;
 
     // choose random
     TopoStatusCode ChooseSinglePoolRandom(PoolIdType *out) const override;
@@ -383,6 +379,5 @@ class TopologyImpl : public Topology {
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs
-
 
 #endif  // CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_H_

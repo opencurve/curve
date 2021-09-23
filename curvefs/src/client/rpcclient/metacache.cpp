@@ -425,7 +425,7 @@ bool MetaCache::MarkPartitionUnavailable(PartitionID pid) {
     for (auto iter = partitionInfos_.begin(); iter != partitionInfos_.end();
          iter++) {
         if (iter->partitionid() == pid) {
-            iter->set_full(true);
+            iter->set_status(PartitionStatus::READONLY);
             break;
         }
     }
@@ -448,7 +448,7 @@ void MetaCache::UpdateCopysetInfoIfMatchCurrentLeader(
 }
 
 bool MetaCache::SelectPartition(CopysetTarget *target) {
-    // exclude partition which is full
+    // exclude partition which is readonly
     std::map<PartitionID, PartitionInfo> candidate;
     int currentNum = 0;
     {
@@ -456,7 +456,7 @@ bool MetaCache::SelectPartition(CopysetTarget *target) {
         currentNum = partitionInfos_.size();
         for_each(partitionInfos_.begin(), partitionInfos_.end(),
                  [&](const PartitionInfo &pInfo) {
-                     if (!pInfo.full()) {
+                     if (pInfo.status() == PartitionStatus::READWRITE) {
                          candidate[pInfo.partitionid()] = pInfo;
                      }
                  });

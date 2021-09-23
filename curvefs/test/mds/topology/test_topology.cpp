@@ -111,7 +111,8 @@ class TestTopology : public ::testing::Test {
                 uint32_t externalPort = 0,
                 OnlineState onlineState = OnlineState::OFFLINE) {
             MetaServer ms(id, hostname, token, serverId, hostIp, port,
-                          externalHostIp, externalPort, onlineState);
+                          externalHostIp, externalPort,
+                          onlineState);
 
             EXPECT_CALL(*storage_, StorageMetaServer(_))
                 .WillOnce(Return(true));
@@ -169,7 +170,8 @@ TEST_F(TestTopology, test_init_success) {
     serverMap_[0x31] = Server(0x31, "server", "127.0.0.1", 8080,
                                 "127.0.0.1", 8080, 0x21, 0x11);
     metaServerMap_[0x41] = MetaServer(0x41, "metaserver", "token",
-        0x31, "127.0.0.1", 8200, "127.0.0.1", 8080, OnlineState::OFFLINE);
+        0x31, "127.0.0.1", 8200, "127.0.0.1", 8080,
+        OnlineState::OFFLINE);
     copySetMap_[std::pair<PoolIdType, CopySetIdType>(0x01, 0x51)] =
         CopySetInfo(0x01, 0x51);
     partitionMap_[0x61] = Partition(0x01, 0x11, 0x51, 0x61, 0, 100);

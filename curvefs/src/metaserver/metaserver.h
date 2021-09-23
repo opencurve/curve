@@ -33,6 +33,8 @@
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 #include "curvefs/src/metaserver/copyset/copyset_service.h"
 #include "curvefs/src/metaserver/copyset/trash.h"
+#include "curvefs/src/metaserver/register.h"
+#include "curvefs/src/metaserver/heartbeat.h"
 #include "curvefs/src/metaserver/inflight_throttle.h"
 #include "curvefs/src/metaserver/metaserver_service.h"
 #include "src/common/configuration.h"
@@ -67,7 +69,9 @@ class Metaserver {
     void InitCopysetTrash();
     void InitLocalFileSystem();
     void InitInflightThrottle();
-
+    void InitHeartbeatOptions();
+    void InitHeartbeat();
+    void InitResgiterOptions();
     void InitBRaftFlags(const std::shared_ptr<Configuration>& conf);
 
  private:
@@ -81,13 +85,19 @@ class Metaserver {
     std::shared_ptr<S3ClientAdaptor>  s3Adaptor_;
     std::shared_ptr<Trash> trash_;
     MetaserverOptions options_;
+    MetaServerMetadata metadate_;
 
     std::unique_ptr<brpc::Server> server_;
     std::unique_ptr<MetaServerServiceImpl> metaService_;
     std::unique_ptr<CopysetServiceImpl> copysetService_;
 
+    HeartbeatOptions heartbeatOptions_;
+    Heartbeat heartbeat_;
+
     CopysetNodeOptions copysetNodeOptions_;
     CopysetNodeManager* copysetNodeManager_;
+
+    RegisterOptions registerOptions_;
 
     std::unique_ptr<InflightThrottle> inflightThrottle_;
     std::unique_ptr<CopysetTrash> copysetTrash_;

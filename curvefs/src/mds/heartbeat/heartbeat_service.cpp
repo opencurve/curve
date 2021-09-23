@@ -16,32 +16,31 @@
 
 /*
  * Project: curve
- * Created Date: 2021-08-24
- * Author: wanghai01
+ * Created Date: 2021-09-16
+ * Author: chenwei
  */
 
-#ifndef CURVEFS_SRC_MDS_COMMON_MDS_DEFINE_H_
-#define CURVEFS_SRC_MDS_COMMON_MDS_DEFINE_H_
+#include <memory>
+#include "curvefs/src/mds/heartbeat/heartbeat_service.h"
 
 namespace curvefs {
 namespace mds {
-namespace topology {
+namespace heartbeat {
+HeartbeatServiceImpl::HeartbeatServiceImpl(
+    std::shared_ptr<HeartbeatManager> heartbeatManager) {
+    this->heartbeatManager_ = heartbeatManager;
+}
 
-typedef uint32_t FsIdType;
-typedef uint32_t PoolIdType;
-typedef uint32_t ZoneIdType;
-typedef uint32_t ServerIdType;
-typedef uint32_t MetaServerIdType;
-typedef uint32_t PartitionIdType;
-typedef uint32_t CopySetIdType;
-typedef uint64_t EpochType;
-typedef uint32_t UserIdType;
-
-const uint32_t UNINTIALIZE_ID = 0u;
-const uint32_t UNINTIALIZE_COUNT = UINT32_MAX;
-
-}  // namespace topology
+void HeartbeatServiceImpl::MetaServerHeartbeat(
+    ::google::protobuf::RpcController *controller,
+    const ::curvefs::mds::heartbeat::MetaServerHeartbeatRequest *request,
+    ::curvefs::mds::heartbeat::MetaServerHeartbeatResponse *response,
+    ::google::protobuf::Closure *done) {
+    brpc::ClosureGuard doneGuard(done);
+    heartbeatManager_->MetaServerHeartbeat(*request, response);
+}
+}  // namespace heartbeat
 }  // namespace mds
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_MDS_COMMON_MDS_DEFINE_H_
+

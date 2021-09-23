@@ -208,6 +208,9 @@ TEST_F(MetastoreTest, partition) {
                                     &deletePartitionResponse);
     ASSERT_EQ(ret, MetaStatusCode::PARTITION_BUSY);
     ASSERT_EQ(deletePartitionResponse.statuscode(), ret);
+
+    std::list<PartitionInfo> partitionList = metastore.GetPartitionInfoList();
+    ASSERT_EQ(partitionList.size(), 2);
 }
 
 TEST_F(MetastoreTest, test_inode) {
@@ -660,6 +663,7 @@ TEST_F(MetastoreTest, persist_success) {
     partitionInfo.set_start(100);
     partitionInfo.set_end(1000);
     partitionInfo.set_txid(100);
+    partitionInfo.set_status(PartitionStatus::READWRITE);
     createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo);
     MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
                                                    &createPartitionResponse);
@@ -803,7 +807,7 @@ TEST_F(MetastoreTest, persist_partition_fail) {
 TEST_F(MetastoreTest, persist_dentry_fail) {
     MetaStoreImpl metastore;
     uint32_t partitionId = 4;
-    uint32_t partitionId2 = 2;
+
     // create partition1
     CreatePartitionRequest createPartitionRequest;
     CreatePartitionResponse createPartitionResponse;
@@ -814,6 +818,7 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
     partitionInfo.set_partitionid(partitionId);
     partitionInfo.set_start(100);
     partitionInfo.set_end(1000);
+    partitionInfo.set_status(common::PartitionStatus::READWRITE);
     createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo);
     MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
                                                    &createPartitionResponse);

@@ -26,6 +26,7 @@
 #include <gmock/gmock.h>
 
 #include <string>
+#include <list>
 
 #include "curvefs/src/metaserver/metastore.h"
 
@@ -43,6 +44,7 @@ class MockMetaStore : public curvefs::metaserver::MetaStore {
                                                  CreatePartitionResponse*));
     MOCK_METHOD2(DeletePartition, MetaStatusCode(const DeletePartitionRequest*,
                                                  DeletePartitionResponse*));
+    MOCK_METHOD0(GetPartitionInfoList, std::list<PartitionInfo>());
 
     MOCK_METHOD2(CreateDentry, MetaStatusCode(const CreateDentryRequest*,
                                               CreateDentryResponse*));

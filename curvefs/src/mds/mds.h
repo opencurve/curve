@@ -37,6 +37,8 @@
 #include "curvefs/src/mds/topology/topology.h"
 #include "curvefs/src/mds/topology/topology_service.h"
 #include "curvefs/src/mds/topology/topology_storge_etcd.h"
+#include "curvefs/src/mds/heartbeat/heartbeat_service.h"
+#include "curvefs/proto/heartbeat.pb.h"
 
 using ::curve::common::Configuration;
 using ::curvefs::mds::topology::TopologyOption;
@@ -47,6 +49,8 @@ using ::curvefs::mds::topology::DefaultTokenGenerator;
 using ::curvefs::mds::topology::TopologyStorageEtcd;
 using ::curvefs::mds::topology::TopologyStorageCodec;
 using ::curvefs::mds::topology::TopologyServiceImpl;
+using ::curvefs::mds::heartbeat::HeartbeatServiceImpl;
+using ::curvefs::mds::heartbeat::HeartbeatOption;
 using ::curve::kvstorage::EtcdClientImp;
 
 namespace curvefs {
@@ -67,6 +71,7 @@ struct MDSOptions {
     // TODO(add EtcdConf): add etcd configure
 
     TopologyOption topologyOptions;
+    HeartbeatOption heartbeatOption;
 };
 
 class MDS {
@@ -96,6 +101,8 @@ class MDS {
     void InitLeaderElectionOption(LeaderElectionOptions* option);
     void InitLeaderElection(const LeaderElectionOptions& option);
 
+    void InitHeartbeatOption(HeartbeatOption* heartbeatOption);
+
  private:
     void InitSpaceOption(SpaceOptions *spaceOption);
     void InitMetaServerOption(MetaserverOptions *metaserverOption);
@@ -104,6 +111,8 @@ class MDS {
     void InitTopology(const TopologyOption &option);
 
     void InitTopologyManager(const TopologyOption &option);
+
+    void InitHeartbeatManager();
 
  private:
     // mds configuration items
@@ -119,6 +128,7 @@ class MDS {
     std::shared_ptr<ChunkIdAllocator> chunkIdAllocator_;
     std::shared_ptr<TopologyImpl> topology_;
     std::shared_ptr<TopologyManager> topologyManager_;
+    std::shared_ptr<HeartbeatManager> heartbeatManager_;
     MDSOptions options_;
 
     bool etcdClientInited_;

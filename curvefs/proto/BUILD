@@ -101,3 +101,15 @@ proto_library(
     srcs = ["copyset.proto"],
     deps = [":curvefs_common_proto"],
 )
+
+cc_proto_library(
+    name = "curvefs_heartbeat_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":curvefs_heartbeat_proto"],
+)
+
+proto_library(
+    name = "curvefs_heartbeat_proto",
+    srcs = ["heartbeat.proto"],
+    deps = [":curvefs_common_proto"],
+)

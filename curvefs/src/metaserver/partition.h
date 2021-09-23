@@ -38,6 +38,7 @@
 namespace curvefs {
 namespace metaserver {
 using curvefs::common::PartitionInfo;
+using curvefs::common::PartitionStatus;
 
 constexpr uint64_t kMinPartitionStartId = ROOTINODEID + 1;
 
@@ -99,6 +100,10 @@ class Partition {
     // get new inode id in partition range.
     // if no available inode id in this partiton ,return UINT64_MAX
     uint64_t GetNewInodeId();
+
+    uint32_t GetInodeNum();
+
+    uint32_t GetDentryNum();
 
  private:
     // std::atomic<uint64_t> nextInodeId_;

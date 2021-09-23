@@ -24,6 +24,7 @@
 #include <thread>  // NOLINT
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 #include "curvefs/src/metaserver/storage.h"
 namespace curvefs {
@@ -98,8 +99,7 @@ bool MetaStoreImpl::LoadPendingTx(uint32_t partitionId, void* entry) {
 }
 
 bool MetaStoreImpl::Load(const std::string& pathname) {
-    auto callback = [&](ENTRY_TYPE entryType,
-                        uint32_t paritionId,
+    auto callback = [&](ENTRY_TYPE entryType, uint32_t paritionId,
                         void* entry) -> bool {
         switch (entryType) {
             case ENTRY_TYPE::PARTITION:
@@ -144,9 +144,9 @@ std::shared_ptr<Iterator> MetaStoreImpl::NewInodeIterator(
     auto partitionId = partition->GetPartitionId();
     auto cntr = partition->GetInodeContainer();
     auto container = std::shared_ptr<InodeContainerType>(
-        cntr, [](InodeContainerType*){});   // don't release storage
-    auto iterator = std::make_shared<InodeIteratorType>(
-        ENTRY_TYPE::INODE, partitionId, container);
+        cntr, [](InodeContainerType*) {});  // don't release storage
+    auto iterator = std::make_shared<InodeIteratorType>(ENTRY_TYPE::INODE,
+                                                        partitionId, container);
     return iterator;
 }
 
@@ -155,7 +155,7 @@ std::shared_ptr<Iterator> MetaStoreImpl::NewDentryIterator(
     auto partitionId = partition->GetPartitionId();
     auto cntr = partition->GetDentryContainer();
     auto container = std::shared_ptr<DentryContainerType>(
-        cntr, [](DentryContainerType*){});  // don't release storage
+        cntr, [](DentryContainerType*) {});  // don't release storage
     auto iterator = std::make_shared<DentryIteratorType>(
         ENTRY_TYPE::DENTRY, partitionId, container);
     return iterator;
@@ -211,8 +211,8 @@ void MetaStoreImpl::SaveBackground(const std::string& path,
 bool MetaStoreImpl::Save(const std::string& path,
                          OnSnapshotSaveDoneClosure* done) {
     ReadLockGuard readLockGuard(rwLock_);
-    std::thread th = std::thread(
-        &MetaStoreImpl::SaveBackground, this, path, done);
+    std::thread th =
+        std::thread(&MetaStoreImpl::SaveBackground, this, path, done);
     th.detach();
     return true;
 }
@@ -264,9 +264,21 @@ MetaStatusCode MetaStoreImpl::DeletePartition(
     return status;
 }
 
+std::list<PartitionInfo> MetaStoreImpl::GetPartitionInfoList() {
+    std::list<PartitionInfo> partitionInfoList;
+    ReadLockGuard readLockGuard(rwLock_);
+    for (const auto& it : partitionMap_) {
+        PartitionInfo partitionInfo = it.second->GetPartitionInfo();
+        partitionInfo.set_inodenum(it.second->GetInodeNum());
+        partitionInfo.set_dentrynum(it.second->GetDentryNum());
+        partitionInfoList.push_back(std::move(partitionInfo));
+    }
+    return partitionInfoList;
+}
+
 // dentry
 MetaStatusCode MetaStoreImpl::CreateDentry(const CreateDentryRequest* request,
-                                       CreateDentryResponse* response) {
+                                           CreateDentryResponse* response) {
     ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
@@ -280,7 +292,7 @@ MetaStatusCode MetaStoreImpl::CreateDentry(const CreateDentryRequest* request,
 }
 
 MetaStatusCode MetaStoreImpl::GetDentry(const GetDentryRequest* request,
-                                    GetDentryResponse* response) {
+                                        GetDentryResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t parentInodeId = request->parentinodeid();
     std::string name = request->name();
@@ -309,7 +321,7 @@ MetaStatusCode MetaStoreImpl::GetDentry(const GetDentryRequest* request,
 }
 
 MetaStatusCode MetaStoreImpl::DeleteDentry(const DeleteDentryRequest* request,
-                                       DeleteDentryResponse* response) {
+                                           DeleteDentryResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t parentInodeId = request->parentinodeid();
     std::string name = request->name();
@@ -335,7 +347,7 @@ MetaStatusCode MetaStoreImpl::DeleteDentry(const DeleteDentryRequest* request,
 }
 
 MetaStatusCode MetaStoreImpl::ListDentry(const ListDentryRequest* request,
-                                     ListDentryResponse* response) {
+                                         ListDentryResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t parentInodeId = request->dirinodeid();
     auto txId = request->txid();
@@ -360,14 +372,13 @@ MetaStatusCode MetaStoreImpl::ListDentry(const ListDentryRequest* request,
     auto rc = partition->ListDentry(dentry, &dentrys, request->count());
     response->set_statuscode(rc);
     if (rc == MetaStatusCode::OK && !dentrys.empty()) {
-        *response->mutable_dentrys() = { dentrys.begin(), dentrys.end() };
+        *response->mutable_dentrys() = {dentrys.begin(), dentrys.end()};
     }
     return rc;
 }
 
 MetaStatusCode MetaStoreImpl::PrepareRenameTx(
-    const PrepareRenameTxRequest* request,
-    PrepareRenameTxResponse* response) {
+    const PrepareRenameTxRequest* request, PrepareRenameTxResponse* response) {
     ReadLockGuard readLockGuard(rwLock_);
     MetaStatusCode rc;
     auto partitionId = request->partitionid();
@@ -375,10 +386,8 @@ MetaStatusCode MetaStoreImpl::PrepareRenameTx(
     if (nullptr == partition) {
         rc = MetaStatusCode::PARTITION_NOT_FOUND;
     } else {
-        std::vector<Dentry> dentrys{
-            request->dentrys().begin(),
-            request->dentrys().end()
-        };
+        std::vector<Dentry> dentrys{request->dentrys().begin(),
+                                    request->dentrys().end()};
         rc = partition->HandleRenameTx(dentrys);
     }
 
@@ -388,7 +397,7 @@ MetaStatusCode MetaStoreImpl::PrepareRenameTx(
 
 // inode
 MetaStatusCode MetaStoreImpl::CreateInode(const CreateInodeRequest* request,
-                                      CreateInodeResponse* response) {
+                                          CreateInodeResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t length = request->length();
     uint32_t uid = request->uid();
@@ -452,7 +461,7 @@ MetaStatusCode MetaStoreImpl::CreateRootInode(
 }
 
 MetaStatusCode MetaStoreImpl::GetInode(const GetInodeRequest* request,
-                                   GetInodeResponse* response) {
+                                       GetInodeResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t inodeId = request->inodeid();
 
@@ -474,7 +483,7 @@ MetaStatusCode MetaStoreImpl::GetInode(const GetInodeRequest* request,
 }
 
 MetaStatusCode MetaStoreImpl::DeleteInode(const DeleteInodeRequest* request,
-                                      DeleteInodeResponse* response) {
+                                          DeleteInodeResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t inodeId = request->inodeid();
 
@@ -492,7 +501,7 @@ MetaStatusCode MetaStoreImpl::DeleteInode(const DeleteInodeRequest* request,
 }
 
 MetaStatusCode MetaStoreImpl::UpdateInode(const UpdateInodeRequest* request,
-                                      UpdateInodeResponse* response) {
+                                          UpdateInodeResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t inodeId = request->inodeid();
     if (request->has_volumeextentlist() && !request->s3chunkinfomap().empty()) {
@@ -539,7 +548,7 @@ MetaStatusCode MetaStoreImpl::UpdateInode(const UpdateInodeRequest* request,
         needUpdate = true;
     }
 
-     if (!request->s3chunkinfomap().empty()) {
+    if (!request->s3chunkinfomap().empty()) {
         VLOG(1) << "update inode has s3chunkInfoMap";
         inode.mutable_s3chunkinfomap()->clear();
         *(inode.mutable_s3chunkinfomap()) = request->s3chunkinfomap();

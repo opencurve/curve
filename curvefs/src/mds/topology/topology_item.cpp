@@ -214,8 +214,8 @@ bool CopySetInfo::SerializeToString(std::string *value) const {
     data.set_poolid(poolId_);
     data.set_epoch(epoch_);
     data.set_partitionnumber(partitionNum_);
-    for (MetaServerIdType csId : peers_) {
-        data.add_metaserverids(csId);
+    for (MetaServerIdType msId : peers_) {
+        data.add_metaserverids(msId);
     }
     data.set_availflag(available_);
     return data.SerializeToString(value);
@@ -249,6 +249,8 @@ bool Partition::SerializeToString(std::string *value) const {
     data.set_start(idStart_);
     data.set_end(idEnd_);
     data.set_txid(txId_);
+    data.set_status(status_);
+    // no need serialize inodenum and dentrynum
     return data.SerializeToString(value);
 }
 
@@ -262,6 +264,8 @@ bool Partition::ParseFromString(const std::string &value) {
     idStart_ = data.start();
     idEnd_ = data.end();
     txId_ = data.txid();
+    status_ = data.status();
+    // no need parse inodenum and dentrynum
     return ret;
 }
 

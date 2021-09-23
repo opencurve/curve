@@ -60,6 +60,7 @@ cc_library(
         "//curvefs/src/mds/common:fs_mds_common",
         "//curvefs/src/mds/idgenerator:fs_mds_idgenerator",
         "//curvefs/src/mds/metric:fs_mds_metric",
+        "//curvefs/src/mds/heartbeat:curvefs_heartbeat_lib",
     ],
 )
 

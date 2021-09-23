@@ -115,6 +115,30 @@ TEST_F(PartitionTest, testInodeIdGen4_NextId) {
     }
 }
 
+TEST_F(PartitionTest, testInodeIdGen5_paritionstatus) {
+    PartitionInfo partitionInfo1;
+    partitionInfo1.set_fsid(1);
+    partitionInfo1.set_poolid(2);
+    partitionInfo1.set_copysetid(3);
+    partitionInfo1.set_partitionid(4);
+    partitionInfo1.set_start(100);
+    partitionInfo1.set_end(199);
+    partitionInfo1.set_nextid(198);
+    partitionInfo1.set_status(PartitionStatus::READWRITE);
+
+    Partition partition1(partitionInfo1);
+
+    ASSERT_EQ(partition1.GetNewInodeId(), 198);
+    ASSERT_EQ(partition1.GetPartitionInfo().status(),
+              PartitionStatus::READWRITE);
+    ASSERT_EQ(partition1.GetNewInodeId(), 199);
+    ASSERT_EQ(partition1.GetPartitionInfo().status(),
+              PartitionStatus::READWRITE);
+    ASSERT_EQ(partition1.GetNewInodeId(), UINT64_MAX);
+    ASSERT_EQ(partition1.GetPartitionInfo().status(),
+              PartitionStatus::READONLY);
+}
+
 TEST_F(PartitionTest, test1) {
     PartitionInfo partitionInfo1;
     partitionInfo1.set_fsid(1);
@@ -135,6 +159,53 @@ TEST_F(PartitionTest, test1) {
     ASSERT_FALSE(partition1.IsInodeBelongs(2));
     ASSERT_EQ(partition1.GetPartitionId(), 4);
     ASSERT_EQ(partition1.GetPartitionInfo().partitionid(), 4);
+}
+
+TEST_F(PartitionTest, inodenum) {
+    PartitionInfo partitionInfo1;
+    partitionInfo1.set_fsid(1);
+    partitionInfo1.set_poolid(2);
+    partitionInfo1.set_copysetid(3);
+    partitionInfo1.set_partitionid(4);
+    partitionInfo1.set_start(100);
+    partitionInfo1.set_end(199);
+
+    Partition partition1(partitionInfo1);
+
+    ASSERT_EQ(partition1.GetInodeNum(), 0);
+    Inode inode;
+    ASSERT_EQ(partition1.CreateInode(1, 0, 0, 0, 0, FsFileType::TYPE_FILE, "",
+                                     &inode),
+              MetaStatusCode::OK);
+    ASSERT_EQ(partition1.GetInodeNum(), 1);
+
+    ASSERT_EQ(partition1.DeleteInode(1, 100), MetaStatusCode::OK);
+    ASSERT_EQ(partition1.GetInodeNum(), 0);
+}
+
+TEST_F(PartitionTest, dentrynum) {
+    PartitionInfo partitionInfo1;
+    partitionInfo1.set_fsid(1);
+    partitionInfo1.set_poolid(2);
+    partitionInfo1.set_copysetid(3);
+    partitionInfo1.set_partitionid(4);
+    partitionInfo1.set_start(100);
+    partitionInfo1.set_end(199);
+
+    Partition partition1(partitionInfo1);
+
+    ASSERT_EQ(partition1.GetDentryNum(), 0);
+    Dentry dentry;
+    dentry.set_fsid(1);
+    dentry.set_inodeid(101);
+    dentry.set_parentinodeid(100);
+    dentry.set_name("name");
+    dentry.set_txid(0);
+    ASSERT_EQ(partition1.CreateDentry(dentry), MetaStatusCode::OK);
+    ASSERT_EQ(partition1.GetDentryNum(), 1);
+
+    ASSERT_EQ(partition1.DeleteDentry(dentry), MetaStatusCode::OK);
+    ASSERT_EQ(partition1.GetDentryNum(), 0);
 }
 
 TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {

@@ -40,17 +40,24 @@ message S3Info {
     required uint64 chunkSize = 6;
 }
 
+enum PartitionStatus {
+    READWRITE = 1;
+    READONLY = 2;
+}
+
 message PartitionInfo {
     required uint32 fsId = 1;
     required uint32 poolId = 2;
     required uint32 copysetId = 3;
     required uint32 partitionId = 4;
-    // partion manage inodeid range [start, end]
+    // partition manage inodeid range [start, end]
     required uint64 start = 5;
     required uint64 end = 6;
     required uint64 txId = 7;
     optional uint64 nextId = 8;
-    optional bool full = 9;
+    required PartitionStatus status = 9;  // this only changes from READWRITE to READONLY, topo/metaserver should persist this value
+    optional uint64 inodeNum = 10;  // hearbeat upload this value to mds topo, topo/metaserver needn't persist this value
+    optional uint64 dentryNum = 11;  // hearbeat upload this value to mds topo, topo/metaserver needn't persist this value
 }
 
 message Peer {

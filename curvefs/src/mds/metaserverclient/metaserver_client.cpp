@@ -250,6 +250,7 @@ FSStatusCode MetaserverClient::CreatePartition(uint32_t fsId, uint32_t poolId,
     partition->set_start(idStart);
     partition->set_end(idEnd);
     partition->set_txid(0);
+    partition->set_status(PartitionStatus::READWRITE);
 
     auto fp = &MetaServerService_Stub::CreatePartition;
     LeaderCtx ctx;
