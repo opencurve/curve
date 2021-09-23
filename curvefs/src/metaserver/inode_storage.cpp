@@ -62,7 +62,7 @@ MetaStatusCode MemoryInodeStorage::Update(const Inode &inode) {
     if (it == inodeMap_.end()) {
         return MetaStatusCode::NOT_FOUND;
     }
-    if (inode.s3chunkinfomap().empty()) {
+    if (inode.s3chunkinfomap().empty() || it->s3chunkinfomap().empty()) {
         inodeMap_[InodeKey(inode)] = inode;
     } else {
         ::google::protobuf::Map<uint64_t, S3ChunkInfoList> result;
