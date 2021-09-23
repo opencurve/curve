@@ -79,7 +79,7 @@ CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(
     curve::common::WriteLockGuard lg(mtx_);
     MetaStatusCode ret = metaClient_->GetDentry(fsId_, parent, name, out);
     if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "metaClient_ GetDentry failed, ret = " << ret
+        LOG(WARNING) << "metaClient_ GetDentry failed, ret = " << ret
                    << ", parent = " << parent
                    << ", name = " << name;
         return MetaStatusCodeToCurvefsErrCode(ret);

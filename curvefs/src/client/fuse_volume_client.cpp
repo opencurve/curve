@@ -55,6 +55,12 @@ void FuseVolumeClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
     std::string fsName = (mOpts->fsName == nullptr) ? volName : mOpts->fsName;
     std::string user = (mOpts->user == nullptr) ? "" : mOpts->user;
 
+    std::string mountPointWithHost;
+    int retVal = AddHostNameToMountPointStr(mountPointStr, &mountPointWithHost);
+    if (retVal < 0) {
+        return;
+    }
+
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
 
     FsInfo fsInfo;
@@ -103,11 +109,11 @@ void FuseVolumeClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
     }
 
     // mount fs
-    ret2 = mdsClient_->MountFs(fsName, mountPointStr, &fsInfo);
+    ret2 = mdsClient_->MountFs(fsName, mountPointWithHost, &fsInfo);
     if (ret2 != FSStatusCode::OK) {
         LOG(ERROR) << "MountFs failed, ret = " << ret2
                    << ", fsName = " << fsName
-                   << ", mountPoint = " << mountPointStr;
+                   << ", mountPoint = " << mountPointWithHost;
         return;
     }
     fsInfo_ = std::make_shared<FsInfo>(fsInfo);
@@ -115,7 +121,7 @@ void FuseVolumeClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
     dentryManager_->SetFsId(fsInfo.fsid());
 
     LOG(INFO) << "Mount " << fsName
-              << " on " << mountPointStr
+              << " on " << mountPointWithHost
               << " success!";
     return;
 }
@@ -125,12 +131,19 @@ void FuseVolumeClient::FuseOpDestroy(void *userdata) {
     std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
     std::string mountPointStr =
         (mOpts->mountPoint == nullptr) ? "" : mOpts->mountPoint;
+
+    std::string mountPointWithHost;
+    int retVal = AddHostNameToMountPointStr(mountPointStr, &mountPointWithHost);
+    if (retVal < 0) {
+        return;
+    }
+
     FSStatusCode ret = mdsClient_->UmountFs(fsInfo_->fsname(),
-        mountPointStr);
+        mountPointWithHost);
     if (ret != FSStatusCode::OK) {
         LOG(ERROR) << "UmountFs failed, ret = " << ret
                    << ", fsName = " << fsName
-                   << ", mountPoint = " << mountPointStr;
+                   << ", mountPoint = " << mountPointWithHost;
         return;
     }
     CURVEFS_ERROR ret2 = blockDeviceClient_->Close();
@@ -139,7 +152,7 @@ void FuseVolumeClient::FuseOpDestroy(void *userdata) {
         return;
     }
     LOG(INFO) << "Umount " << fsName
-              << " on " << mountPointStr
+              << " on " << mountPointWithHost
               << " success!";
     return;
 }
@@ -241,12 +254,12 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         inode.set_length(off + size);
     }
 
-    inodeWrapper->SwapInode(&inode);
+    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
+    inode.set_ctime(nowTime);
+    inode.set_atime(nowTime);
 
-    ret = inodeWrapper->Sync();
-    if (ret != CURVEFS_ERROR::OK) {
-        return ret;
-    }
+    inodeWrapper->SwapInode(&inode);
+    dirtyMap_.emplace(inodeWrapper->GetInodeId(), inodeWrapper);
 
     if (fi->flags & O_DIRECT || fi->flags & O_SYNC || fi->flags & O_DSYNC) {
         // Todo: do some cache flush later
@@ -303,6 +316,13 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
     }
     *rSize = len;
 
+    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
+    inode.set_ctime(nowTime);
+    inode.set_atime(nowTime);
+
+    inodeWrapper->SwapInode(&inode);
+    dirtyMap_.emplace(inodeWrapper->GetInodeId(), inodeWrapper);
+
     LOG(INFO) << "read end, read size = " << *rSize;
     return ret;
 }
@@ -324,9 +344,18 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
     return MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, e);
 }
 
+CURVEFS_ERROR FuseVolumeClient::FuseOpFsync(
+    fuse_req_t req, fuse_ino_t ino, int datasync, struct fuse_file_info *fi) {
+    return CURVEFS_ERROR::NOTSUPPORT;
+}
+
 CURVEFS_ERROR FuseVolumeClient::Truncate(Inode *inode, uint64_t length) {
     // Todo: call volume truncate
     return CURVEFS_ERROR::OK;
+}
+
+void FuseVolumeClient::FlushData() {
+    // TODO(xuchaojie) : flush volume data
 }
 
 }  // namespace client

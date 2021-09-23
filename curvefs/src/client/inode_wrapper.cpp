@@ -44,12 +44,16 @@ CURVEFS_ERROR InodeWrapper::Sync() {
 }
 
 CURVEFS_ERROR InodeWrapper::LinkLocked() {
+    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
     curve::common::UniqueLock lg(mtx_);
     uint32_t old = inode_.nlink();
+    uint64_t oldCTime = inode_.ctime();
     inode_.set_nlink(old + 1);
+    inode_.set_ctime(nowTime);
     MetaStatusCode ret = metaClient_->UpdateInode(inode_);
     if (ret != MetaStatusCode::OK) {
         inode_.set_nlink(old);
+        inode_.set_ctime(oldCTime);
         LOG(ERROR) << "metaClient_ UpdateInode failed, ret = " << ret
             << ", inodeid = " << inode_.inodeid();
         return MetaStatusCodeToCurvefsErrCode(ret);
@@ -59,6 +63,7 @@ CURVEFS_ERROR InodeWrapper::LinkLocked() {
 }
 
 CURVEFS_ERROR InodeWrapper::UnLinkLocked() {
+    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
     curve::common::UniqueLock lg(mtx_);
     uint32_t old = inode_.nlink();
     if (old > 0) {
@@ -67,7 +72,10 @@ CURVEFS_ERROR InodeWrapper::UnLinkLocked() {
             newnlink--;
         }
         inode_.set_nlink(newnlink);
+        inode_.set_ctime(nowTime);
         MetaStatusCode ret = metaClient_->UpdateInode(inode_);
+        LOG(INFO) << "UnLinkInode, inodeid = " << inode_.inodeid()
+                  << ", nlink = " << inode_.nlink();
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "metaClient_ UpdateInode failed, ret = " << ret
                 << ", inodeid = " << inode_.inodeid();

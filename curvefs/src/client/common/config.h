@@ -97,6 +97,8 @@ struct FuseClientOption {
     double attrTimeOut;
     double entryTimeOut;
     uint32_t listDentryLimit;
+    uint32_t flushPeriodMs;
+    uint32_t maxNameLength;
 };
 
 void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption);
