@@ -9,7 +9,7 @@
   tasks:
     - name: create topology
       shell: >
-        {{ project_root_dest }}/sbin/curvefs_topology_tool
-        -op=build_topology
+        {{ project_root_dest }}/sbin/curvefs_tool
+        build-topology
         -confPath={{ project_root_dest }}/conf/tools.conf
       tags: [topo]

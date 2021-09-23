@@ -46,14 +46,16 @@ cc_binary(
     ],
 )
 
+
+# tools lib
 cc_library(
     name = "curvefs_tools_lib",
     srcs = glob([
-        "curvefs_tool.cpp",
         "curvefs_tool_factory.cpp",
         "version/curvefs_version_tool.cpp",
         "umountfs/curvefs_umountfs_tool.cpp",
         "curvefs_tool_define.cpp",
+        "topology/curvefs_build_topology_tool.cpp",
     ]),
     hdrs = glob([
         "curvefs_tool.h",
@@ -62,6 +64,7 @@ cc_library(
         "version/curvefs_version_tool.h",
         "curvefs_tool_abstract_creator.h",
         "umountfs/curvefs_umountfs_tool.h",
+        "topology/curvefs_build_topology_tool.h",
     ]),
     copts = COPTS,
     linkopts = [
@@ -76,29 +79,6 @@ cc_library(
         "//curvefs/src/mds/common:fs_mds_common",
         "//src/common:curve_common",
         "//curvefs/proto:mds_cc_proto",
+        "//curvefs/proto:curvefs_topology_cc_proto",
     ],
-)
-
-cc_library(
-        name = "curvefs_topology_tool_lib",
-        srcs = ["curvefs_topology_tool.cpp",
-                "curvefs_topology_tool.h"],
-        visibility = ["//visibility:public"],
-        deps = ["//curvefs/proto:curvefs_topology_cc_proto",
-                "//curvefs/src/mds/common:fs_mds_common",
-                "//external:gflags",
-                "//external:json",
-                "//src/common:curve_common",
-                "//external:glog",
-                "//external:brpc"]
-)
-
-cc_binary(
-        name = "curvefs_topology_tool",
-        srcs = glob(["main.cpp"]),
-        copts = COPTS,
-        visibility = ["//visibility:public"],
-        deps = [
-                "//curvefs/src/tools:curvefs_topology_tool_lib",
-        ],
 )

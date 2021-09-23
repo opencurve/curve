@@ -37,6 +37,7 @@
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_abstract_creator.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
+#include "src/common/string_util.h"
 
 namespace curvefs {
 namespace tools {
@@ -50,6 +51,10 @@ class UmountfsTool
     UmountfsTool()
         : CurvefsToolRpc(std::string(kUmountCmd), std::string(kProgrameName)) {}
     void PrintHelp() override;
+
+ protected:
+    void AddUpdateFlagsFuncs() override;
+    bool AfterSendRequestToService(const std::string& host) override;
 
  private:
     int RunCommand() override;

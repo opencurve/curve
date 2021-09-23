@@ -17,46 +17,34 @@
 /*
  * Project: curve
  * Created Date: 2021-09-03
- * Author: wanghai01
+ * Author: chengyi01
  */
 
-#ifndef CURVEFS_SRC_TOOLS_CURVEFS_TOPOLOGY_TOOL_H_
-#define CURVEFS_SRC_TOOLS_CURVEFS_TOPOLOGY_TOOL_H_
+#ifndef CURVEFS_SRC_TOOLS_TOPOLOGY_CURVEFS_BUILD_TOPOLOGY_TOOL_H_
+#define CURVEFS_SRC_TOOLS_TOPOLOGY_CURVEFS_BUILD_TOPOLOGY_TOOL_H_
 
+#include <brpc/channel.h>
+#include <brpc/server.h>
+#include <butil/endpoint.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <brpc/server.h>
-#include <brpc/channel.h>
-#include <butil/endpoint.h>
 #include <json/json.h>
 
 #include <fstream>
+#include <list>
+#include <map>
+#include <memory>
+#include <set>
 #include <string>
 #include <vector>
-#include <map>
-#include <set>
-#include <list>
 
 #include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/mds/common/mds_define.h"
-#include "src/common/string_util.h"
+#include "curvefs/src/tools/curvefs_tool.h"
+#include "curvefs/src/tools/curvefs_tool_abstract_creator.h"
+#include "curvefs/src/tools/curvefs_tool_define.h"
 #include "src/common/configuration.h"
-
-const int kRetCodeCommonErr = -1;
-const int kRetCodeRedirectMds = -2;
-
-const char kPools[] = "pools";
-const char kPool[] = "pool";
-const char kServers[] = "servers";
-const char kName[] = "name";
-const char kInternalIp[] = "internalip";
-const char kInternalPort[] = "internalport";
-const char kExternalIp[] = "externalip";
-const char kExternalPort[] = "externalport";
-const char kZone[] = "zone";
-const char kReplicasNum[] = "replicasnum";
-const char kCopysetNum[] = "copysetnum";
-const char kZoneNum[] = "zonenum";
+#include "src/common/string_util.h"
 
 namespace curvefs {
 namespace mds {
@@ -83,11 +71,13 @@ struct Zone {
     std::string poolName;
 };
 
-
-class CurvefsTopologyTool {
+class CurvefsBuildTopologyTool : public curvefs::tools::CurvefsTool {
  public:
-    CurvefsTopologyTool() {}
-    ~CurvefsTopologyTool() {}
+    CurvefsBuildTopologyTool()
+        : curvefs::tools::CurvefsTool(
+              std::string(curvefs::tools::kBuildTopologyCmd),
+              std::string(curvefs::tools::kProgrameName)) {}
+    ~CurvefsBuildTopologyTool() {}
 
     int Init();
 
@@ -100,6 +90,28 @@ class CurvefsTopologyTool {
     }
 
     int TryAnotherMdsAddress();
+
+    void PrintHelp() override {
+        std::cout << "Example :" << std::endl;
+        std::cout << programe_ << " " << command_ << " "
+                  << curvefs::tools::kConfPathHelp << std::endl;
+    }
+
+    int RunCommand();
+
+    int Run() override {
+        if (Init() < 0) {
+            LOG(ERROR) << "CurvefsBuildTopologyTool init error.";
+            return kRetCodeCommonErr;
+        }
+        int ret = InitTopoData();
+        if (ret < 0) {
+            LOG(ERROR) << "Init topo json data error.";
+            return ret;
+        }
+        ret = RunCommand();
+        return ret;
+    }
 
  public:
     // for unit test
@@ -127,11 +139,11 @@ class CurvefsTopologyTool {
 
     int DealFailedRet(int ret, std::string operation);
 
-    int ListPool(std::list<PoolInfo> *poolInfos);
+    int ListPool(std::list<PoolInfo>* poolInfos);
 
-    int GetZonesInPool(PoolIdType poolid, std::list<ZoneInfo> *zoneInfos);
+    int GetZonesInPool(PoolIdType poolid, std::list<ZoneInfo>* zoneInfos);
 
-    int GetServersInZone(ZoneIdType zoneid, std::list<ServerInfo> *serverInfos);
+    int GetServersInZone(ZoneIdType zoneid, std::list<ServerInfo>* serverInfos);
 
  private:
     std::list<Server> serverDatas;
@@ -148,4 +160,4 @@ class CurvefsTopologyTool {
 }  // namespace mds
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_CURVEFS_TOPOLOGY_TOOL_H_
+#endif  // CURVEFS_SRC_TOOLS_TOPOLOGY_CURVEFS_BUILD_TOPOLOGY_TOOL_H_

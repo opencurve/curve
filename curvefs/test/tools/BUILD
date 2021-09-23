@@ -35,17 +35,6 @@ COPTS = [
     '-Werror',
 ]
 
-cc_test(
-    name = "curvefs_topology_tool_test",
-    srcs = glob(["curvefs_topology_tool_test.cpp", "mock_topology_service.h"]),
-    copts = ["-g","-DHAVE_ZLIB=1"],
-    deps = [
-            "//curvefs/src/tools:curvefs_topology_tool_lib",
-            "@com_google_googletest//:gtest_main",
-            "@com_google_googletest//:gtest",
-    ],
-)
-
 # umountfs
 cc_test(
     name = "curvefs_umount_tool_test",
@@ -66,5 +55,20 @@ cc_test(
     ],
     linkopts = [
         "-L/usr/local/lib/x86_64-linux-gnu",
+    ],
+)
+
+# build-topology
+cc_test(
+    name = "curvefs_build_topology_tool_test",
+    srcs = glob([
+        "curvefs_build_topology_tool_test.cpp",
+        "mock_topology_service.h",
+    ]),
+    copts = ["-g","-DHAVE_ZLIB=1"],
+    deps = [
+        "@com_google_googletest//:gtest_main",
+        "@com_google_googletest//:gtest",
+        "//curvefs/src/tools:curvefs_tools_lib",
     ],
 )

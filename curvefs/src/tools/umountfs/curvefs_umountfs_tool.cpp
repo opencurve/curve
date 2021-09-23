@@ -55,19 +55,9 @@ int UmountfsTool::RunCommand() {
         std::thread sysUmount(std::system, command.c_str());
 
         // umount from cluster
-        SendRequestToService();
-
-        if (controller_->Failed()) {
-            std::cout << "umountfs " << FLAGS_mountpoint
-                      << " failed, errorcode= " << controller_->ErrorCode()
-                      << ", error text " << controller_->ErrorText() << "\n";
+        if (!SendRequestToServices()) {
+            std::cerr << "send request to all mds failed." << std::endl;
             ret = -1;
-        } else if (response_->statuscode() != curvefs::mds::FSStatusCode::OK) {
-            std::cout << "umount fs from cluster fail, error code is "
-                      << response_->statuscode() << "\n";
-            ret = -1;
-        } else {
-            std::cout << "umount fs from cluster success.\n";
         }
         sysUmount.join();
     } catch (std::exception& e) {
@@ -81,11 +71,7 @@ int UmountfsTool::RunCommand() {
 int UmountfsTool::Init() {
     CurvefsToolRpc::Init();
 
-    if (channel_->Init(FLAGS_mdsAddr.c_str(), nullptr) != 0) {
-        std::cerr << "Fail to init channel to mds server for " << command_
-                  << std::endl;
-        return -1;
-    }
+    curve::common::SplitString(FLAGS_mdsAddr, ",", &hostsAddressStr_);
 
     request_->set_fsname(FLAGS_fsname);
     request_->set_mountpoint(FLAGS_mountpoint);
@@ -95,6 +81,25 @@ int UmountfsTool::Init() {
                   std::placeholders::_1, std::placeholders::_2,
                   std::placeholders::_3, nullptr);
     return 0;
+}
+
+void UmountfsTool::AddUpdateFlagsFuncs() {
+    AddUpdateFlagsFunc(curvefs::tools::SetMdsAddr);
+}
+
+bool UmountfsTool::AfterSendRequestToService(const std::string& host) {
+    if (controller_->Failed()) {
+        std::cerr << "umountfs " << FLAGS_mountpoint << " from mds: " << host
+                  << " failed, errorcode= " << controller_->ErrorCode()
+                  << ", error text " << controller_->ErrorText() << "\n";
+    } else if (response_->statuscode() != curvefs::mds::FSStatusCode::OK) {
+        std::cerr << "umount fs from mds: " << host << " fail, error code is "
+                  << response_->statuscode() << "\n";
+    } else {
+        std::cout << "umount fs from cluster success.\n";
+        return true;
+    }
+    return false;
 }
 
 }  // namespace umountfs
