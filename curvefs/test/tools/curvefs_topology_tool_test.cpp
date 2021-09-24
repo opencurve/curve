@@ -107,6 +107,7 @@ TEST_F(TopologyToolTest, test_BuildEmptyCluster) {
     .Times(3).WillRepeatedly(DoAll(SetArgPointee<2>(metaServerRegistResponse),
         Invoke(RpcService<MetaServerRegistRequest, MetaServerRegistResponse>)));
 
+    ASSERT_EQ(0, tool_.InitTopoData());
     ASSERT_EQ(0, tool_.HandleBuildCluster());
     ASSERT_EQ(1, tool_.GetPoolDatas().size());
     ASSERT_EQ(3, tool_.GetZoneDatas().size());
@@ -194,6 +195,7 @@ TEST_F(TopologyToolTest, test_BuildCluster) {
     .Times(2).WillRepeatedly(DoAll(SetArgPointee<2>(metaServerRegistResponse),
         Invoke(RpcService<MetaServerRegistRequest, MetaServerRegistResponse>)));
 
+    ASSERT_EQ(0, tool_.InitTopoData());
     ASSERT_EQ(0, tool_.HandleBuildCluster());
     ASSERT_EQ(0, tool_.GetPoolDatas().size());
     ASSERT_EQ(2, tool_.GetZoneDatas().size());
@@ -344,6 +346,7 @@ TEST_F(TopologyToolTest, test_CreatePoolFailed) {
     EXPECT_CALL(mockTopologyService_, CreatePool(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(createPoolResponse),
             Invoke(RpcService<CreatePoolRequest, CreatePoolResponse>)));
+    ASSERT_EQ(0, tool_.InitTopoData());
     ASSERT_EQ(1, tool_.HandleBuildCluster());
 }
 
@@ -374,7 +377,7 @@ TEST_F(TopologyToolTest, test_CreateZoneFailed) {
     EXPECT_CALL(mockTopologyService_, CreateZone(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(createZoneResponse),
             Invoke(RpcService<CreateZoneRequest, CreateZoneResponse>)));
-
+    ASSERT_EQ(0, tool_.InitTopoData());
     ASSERT_EQ(1, tool_.HandleBuildCluster());
 }
 
@@ -410,7 +413,7 @@ TEST_F(TopologyToolTest, test_ServerRegisterFailed) {
     EXPECT_CALL(mockTopologyService_, RegistServer(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(serverRegistResponse),
             Invoke(RpcService<ServerRegistRequest, ServerRegistResponse>)));
-
+    ASSERT_EQ(0, tool_.InitTopoData());
     ASSERT_EQ(1, tool_.HandleBuildCluster());
 }
 
@@ -452,7 +455,7 @@ TEST_F(TopologyToolTest, test_MetaServerRegisterFailed) {
     EXPECT_CALL(mockTopologyService_, RegistMetaServer(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(metaServerRegistResponse),
         Invoke(RpcService<MetaServerRegistRequest, MetaServerRegistResponse>)));
-
+    ASSERT_EQ(0, tool_.InitTopoData());
     ASSERT_EQ(1, tool_.HandleBuildCluster());
 }
 

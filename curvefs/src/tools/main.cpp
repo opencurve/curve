@@ -35,6 +35,12 @@ int main(int argc, char **argv) {
         return kRetCodeCommonErr;
     }
 
+    ret = tools.InitTopoData();
+    if (ret < 0) {
+        LOG(ERROR) << "Init topo json data error.";
+        return ret;
+    }
+
     int maxTry = tools.GetMaxTry();
     int retry = 0;
     for (; retry < maxTry; retry++) {

@@ -420,12 +420,18 @@ void TopologyManager::ListZoneServer(const ListZoneServerRequest *request,
 }
 
 void TopologyManager::CreateZone(const CreateZoneRequest *request,
-                                        CreateZoneResponse *response) {
+                                 CreateZoneResponse *response) {
     Pool pPool;
     if (!topology_->GetPool(request->poolname(), &pPool)) {
         response->set_statuscode(TopoStatusCode::TOPO_POOL_NOT_FOUND);
         return;
     }
+    if (topology_->FindZone(request->zonename(), pPool.GetId()) !=
+        static_cast<PoolIdType>(UNINTIALIZE_ID)) {
+        response->set_statuscode(TopoStatusCode::TOPO_NAME_DUPLICATED);
+        return;
+    }
+
     ZoneIdType zid = topology_->AllocateZoneId();
     if (zid == static_cast<ZoneIdType>(UNINTIALIZE_ID)) {
         response->set_statuscode(TopoStatusCode::TOPO_ALLOCATE_ID_FAIL);
@@ -447,7 +453,7 @@ void TopologyManager::CreateZone(const CreateZoneRequest *request,
 }
 
 void TopologyManager::DeleteZone(const DeleteZoneRequest *request,
-                                        DeleteZoneResponse *response) {
+                                 DeleteZoneResponse *response) {
     Zone zone;
     if (!topology_->GetZone(request->zoneid(), &zone)) {
         response->set_statuscode(TopoStatusCode::TOPO_ZONE_NOT_FOUND);
@@ -458,7 +464,7 @@ void TopologyManager::DeleteZone(const DeleteZoneRequest *request,
 }
 
 void TopologyManager::GetZone(const GetZoneRequest *request,
-                                     GetZoneResponse *response) {
+                              GetZoneResponse *response) {
     Zone zone;
     if (!topology_->GetZone(request->zoneid(), &zone)) {
         response->set_statuscode(TopoStatusCode::TOPO_ZONE_NOT_FOUND);
@@ -508,6 +514,12 @@ void TopologyManager::ListPoolZone(const ListPoolZoneRequest* request,
 
 void TopologyManager::CreatePool(const CreatePoolRequest *request,
                                         CreatePoolResponse *response) {
+    if (topology_->FindPool(request->poolname()) !=
+        static_cast<PoolIdType>(UNINTIALIZE_ID)) {
+        response->set_statuscode(TopoStatusCode::TOPO_NAME_DUPLICATED);
+        return;
+    }
+
     PoolIdType pid = topology_->AllocatePoolId();
     if (pid == static_cast<PoolIdType>(UNINTIALIZE_ID)) {
         response->set_statuscode(TopoStatusCode::TOPO_ALLOCATE_ID_FAIL);

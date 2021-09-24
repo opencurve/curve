@@ -99,7 +99,7 @@ int CurvefsTopologyTool::DealFailedRet(int ret, std::string operation) {
     return ret;
 }
 
-int CurvefsTopologyTool::HandleBuildCluster() {
+int CurvefsTopologyTool::InitTopoData() {
     int ret = ReadClusterMap();
     if (ret != 0) {
         return DealFailedRet(ret, "read cluster map");
@@ -119,8 +119,11 @@ int CurvefsTopologyTool::HandleBuildCluster() {
     if (ret != 0) {
         return DealFailedRet(ret, "init metaserver data");
     }
+    return ret;
+}
 
-    ret = ScanCluster();
+int CurvefsTopologyTool::HandleBuildCluster() {
+    int ret = ScanCluster();
     if (ret != 0) {
         return DealFailedRet(ret, "scan cluster");
     }
@@ -390,7 +393,6 @@ int CurvefsTopologyTool::ListPool(std::list<PoolInfo> *poolInfos) {
     LOG(INFO) << "ListPool send request: " << request.DebugString();
     stub.ListPool(&cntl, &request, &response, nullptr);
     if (cntl.Failed()) {
-        LOG(ERROR) << "error context:" << cntl.ErrorText();
         return kRetCodeRedirectMds;
     }
 
