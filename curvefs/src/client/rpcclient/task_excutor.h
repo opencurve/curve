@@ -113,7 +113,7 @@ class TaskExecutor {
     void OnPartitionAllocIDFail();
 
     // retry policy
-    void RefreshLeader();
+    virtual void RefreshLeader();
     uint64_t OverLoadBackOff();
     uint64_t TimeoutBackOff();
     void SetRetryParam();
@@ -137,6 +137,22 @@ class CreateInodeExcutor : public TaskExecutor {
 
  protected:
     bool GetTarget() override;
+
+    void RefreshLeader() override {
+        LOG(INFO) << "refresh leader for create inode id, pool "
+                  << task_->target.groupID.poolID << ", copyset "
+                  << task_->target.groupID.copysetID
+                  << ", inode id : " << task_->inodeID;
+
+        bool ok = metaCache_->GetTargetLeader(&task_->target,
+                                              &task_->applyIndex, true);
+
+        LOG(INFO) << "refresh leader pool " << task_->target.groupID.poolID
+                  << ", copyset " << task_->target.groupID.copysetID
+                  << (ok ? " success" : " failure");
+
+        task_->retryDirectly = true;
+    }
 };
 
 }  // namespace rpcclient

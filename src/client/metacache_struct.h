@@ -128,6 +128,7 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
 
     bool LeaderMayChange() const { return leaderMayChange_; }
 
+
     bool HasValidLeader() const {
         return !leaderMayChange_ &&
                leaderindex_ >= 0 &&
@@ -203,6 +204,16 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
         }
         leaderindex_ = tempindex;
         spinlock_.UnLock();
+        return 0;
+    }
+
+    int XXX(T* peerId, EndPoint* ep) {
+        if (csinfos_.empty()) {
+            return -1;
+        }
+
+        *peerId = csinfos_[0].peerID;
+        *ep = csinfos_[0].externalAddr.addr_;
         return 0;
     }
 

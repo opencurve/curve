@@ -368,6 +368,8 @@ CURVEFS_ERROR FuseClient::FuseOpReadDir(
         return ret;
     }
 
+    LOG(INFO) << "Read dir get inode " << inodeWrapper->GetInodeId();
+
     ::curve::common::UniqueLock lgGuard =
         inodeWrapper->GetUniqueLock();
 

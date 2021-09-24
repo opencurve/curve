@@ -361,6 +361,10 @@ void MetaCache::DoAddPartitionAndCopyset(
     partitionInfos_.insert(partitionInfos_.end(), partitionInfos.begin(),
                            partitionInfos.end());
 
+    for (auto& kv : copysetMap) {
+        LOG(INFO) << "Add copyset " << kv.first << ", " << kv.second;
+    }
+
     // add copysetInfo
     copysetInfoMap_.insert(copysetMap.begin(), copysetMap.end());
 }
@@ -390,6 +394,9 @@ bool MetaCache::UpdateLeaderInternal(
     MetaserverID metaserverID = 0;
     PeerAddr leaderAddr;
 
+    CHECK(groupID.poolID == toupdateCopyset->lpid_);
+    CHECK(groupID.copysetID == toupdateCopyset->cpid_);
+
     // get leader from peers
     bool getLeaderOk = cli2Client_->GetLeader(
         groupID.poolID, groupID.copysetID, toupdateCopyset->csinfos_,
@@ -399,6 +406,8 @@ bool MetaCache::UpdateLeaderInternal(
                      << ", copyset:" << groupID.ToString();
         return false;
     }
+
+    LOG(INFO) << "to update copyset: " << *toupdateCopyset;
 
     // update leader info, if fail, update copyset info from mds
     int ret = toupdateCopyset->UpdateLeaderInfo(leaderAddr);
@@ -413,6 +422,7 @@ bool MetaCache::UpdateLeaderInternal(
 
         UpdateCopysetInfoIfMatchCurrentLeader(groupID, leaderAddr);
         GetCopysetInfowithCopySetID(groupID, toupdateCopyset);
+        LOG(INFO) << "to update copyset: " << toupdateCopyset;
         ret = toupdateCopyset->UpdateLeaderInfo(leaderAddr, metaserverInfo);
     }
 

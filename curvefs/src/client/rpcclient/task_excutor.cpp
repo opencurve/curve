@@ -156,6 +156,8 @@ int TaskExecutor::ExcuteTask() {
         return -1;
     }
 
+    LOG(INFO) << "selected target: " << task_->target;
+
     // get channel and send rpc
     auto channel = channelManager_->GetOrCreateChannel(
         task_->target.metaServerID, task_->target.endPoint);

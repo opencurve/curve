@@ -503,11 +503,6 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
                   << "response: " << response.DebugString();
         return ret;
     };
-
-    auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::CreateInode,
-                                                 task, param.fsId, 0);
-    CreateInodeExcutor excutor(opt_, metaCache_, channelManager_);
-    return ReturnError(excutor.DoRPCTask(taskCtx));
 }
 
 MetaStatusCode MetaServerClientImpl::DeleteInode(uint32_t fsId,
