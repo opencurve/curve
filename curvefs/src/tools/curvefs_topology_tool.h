@@ -101,6 +101,8 @@ class CurvefsTopologyTool {
 
     int Init();
 
+    int InitTopoData();
+
     int HandleBuildCluster();
 
     int GetMaxTry() {
