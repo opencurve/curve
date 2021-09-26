@@ -268,7 +268,7 @@ TEST_F(FSManagerTest, test1) {
     FsInfo volumeFsInfo2;
     ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize, detail,
                                &volumeFsInfo1);
-    ASSERT_EQ(ret, FSStatusCode::FS_EXIST);
+    ASSERT_EQ(ret, FSStatusCode::OK);
 
     // create s3 test
     std::string fsName2 = "fs2";

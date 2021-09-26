@@ -254,7 +254,7 @@ TEST_F(MdsServiceTest, test1) {
     cntl.Reset();
     stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
     if (!cntl.Failed()) {
-        ASSERT_EQ(createResponse.statuscode(), FSStatusCode::FS_EXIST);
+        ASSERT_EQ(createResponse.statuscode(), FSStatusCode::OK);
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);

@@ -77,8 +77,6 @@ void LoadConfigFromCmdline(Configuration *conf) {
 int main(int argc, char **argv) {
     // config initialization
     google::ParseCommandLineFlags(&argc, &argv, false);
-    // initialize logging module
-    google::InitGoogleLogging(argv[0]);
 
     ::curvefs::common::Process::InitSetProcTitle(argc, argv);
     butil::AtExitManager atExit;
@@ -98,6 +96,10 @@ int main(int argc, char **argv) {
     }
 
     curvefs::metaserver::Metaserver metaserver;
+
+    // initialize logging module
+    google::InitGoogleLogging(argv[0]);
+
     // initialize metaserver options
     metaserver.InitOptions(conf);
 

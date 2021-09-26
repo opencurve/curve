@@ -84,6 +84,10 @@ class FsInfoWrapper {
         return fsInfo_.fsid();
     }
 
+    uint64_t GetBlockSize() const {
+        return fsInfo_.blocksize();
+    }
+
     bool IsMountPointEmpty() const {
         return fsInfo_.mountpoints_size() == 0;
     }
