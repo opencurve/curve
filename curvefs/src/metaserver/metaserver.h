@@ -68,6 +68,8 @@ class Metaserver {
     void InitLocalFileSystem();
     void InitInflightThrottle();
 
+    void InitBRaftFlags(const std::shared_ptr<Configuration>& conf);
+
  private:
     // metaserver configuration items
     std::shared_ptr<Configuration> conf_;

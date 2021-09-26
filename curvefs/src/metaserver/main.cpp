@@ -72,13 +72,18 @@ void LoadConfigFromCmdline(Configuration *conf) {
         conf->SetStringValue("copyset.raft_snapshot_uri",
                              FLAGS_raftSnapshotUri);
     }
+
+    if (FLAGS_log_dir.empty()) {
+        if (!conf->GetStringValue("metaserver.common.logDir", &FLAGS_log_dir)) {
+            LOG(WARNING) << "no metaserver.common.logDir in " << FLAGS_confPath
+                         << ", will log to /tmp";
+        }
+    }
 }
 
 int main(int argc, char **argv) {
     // config initialization
     google::ParseCommandLineFlags(&argc, &argv, false);
-    // initialize logging module
-    google::InitGoogleLogging(argv[0]);
 
     ::curvefs::common::Process::InitSetProcTitle(argc, argv);
     butil::AtExitManager atExit;
@@ -89,13 +94,11 @@ int main(int argc, char **argv) {
     LOG_IF(FATAL, !conf->LoadConfig())
         << "load metaserver configuration fail, conf path = " << confPath;
     LoadConfigFromCmdline(conf.get());
+
+    // initialize logging module
+    google::InitGoogleLogging(argv[0]);
+
     conf->PrintConfig();
-    if (FLAGS_log_dir.empty()) {
-        if (!conf->GetStringValue("metaserver.common.logDir", &FLAGS_log_dir)) {
-            LOG(WARNING) << "no metaserver.common.logDir in " << confPath
-                         << ", will log to /tmp";
-        }
-    }
 
     curvefs::metaserver::Metaserver metaserver;
     // initialize metaserver options
