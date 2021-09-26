@@ -63,6 +63,9 @@ bool MetaCache::GetTxId(uint32_t fsId, uint64_t inodeId, uint32_t *partitionId,
 bool MetaCache::GetTarget(uint32_t fsID, uint64_t inodeID,
                           CopysetTarget *target, uint64_t *applyIndex,
                           bool refresh) {
+    LOG(INFO) << "Get target, fsid: " << fsID << ", inode id " << inodeID
+              << ", target: " << *target;
+
     // list infos from mds
     if (!ListPartitions(fsID)) {
         LOG(ERROR) << "get target for {fsid:" << fsID
@@ -71,68 +74,15 @@ bool MetaCache::GetTarget(uint32_t fsID, uint64_t inodeID,
     }
 
     // get copysetID with inodeID
-    if (false == GetCopysetIDwithInodeID(inodeID, &target->groupID,
-                                         &target->partitionID, &target->txId)) {
+    if (!GetCopysetIDwithInodeID(inodeID, &target->groupID,
+                                 &target->partitionID, &target->txId)) {
         LOG(WARNING) << "{fsid:" << fsID << ", inodeid:" << inodeID
                      << "} do not find partition";
         return false;
     }
 
-    // get copysetInfo with (poolID, copysetID)
-    CopysetInfo<MetaserverID> copysetInfo;
-    if (!GetCopysetInfowithCopySetID(target->groupID, &copysetInfo)) {
-        LOG(WARNING) << "{fsid:" << fsID << ", inodeid:" << inodeID
-                     << ", copyset:" << target->groupID.ToString()
-                     << "} do not find copyset info";
-        return false;
-    }
-
-    if (!refresh && !copysetInfo.LeaderMayChange()) {
-        if (0 == copysetInfo.GetLeaderInfo(&target->metaServerID,
-                                           &target->endPoint)) {
-            return true;
-        }
-
-        LOG(WARNING) << "{fsid:" << fsID << ", inodeid:" << inodeID
-                     << ", copyset:" << target->groupID.ToString()
-                     << "} get leader from cache fail."
-                     << " current leader:" << target->metaServerID;
-    }
-
-    // when need refresh or leader change, we need to update copysetinfo
-    bool ret = true;
-    uint32_t retry = 0;
-    while (retry++ < metacacheopt_.metacacheGetLeaderRetry) {
-        // refresh from metaserver
-        ret = UpdateLeaderInternal(target->groupID, &copysetInfo);
-        if (ret) {
-            copysetInfo.ResetSetLeaderUnstableFlag();
-            UpdateCopysetInfo(target->groupID, copysetInfo);
-            break;
-        } else {
-            LOG(INFO) << "refresh leader from metaserver failed, "
-                      << "get copyset peer list from mds, copyset:"
-                      << target->groupID.ToString();
-        }
-
-        // refresh from mds
-        ret = UpdateCopysetInfoFromMDS(target->groupID, &copysetInfo);
-        if (ret) {
-            break;
-        }
-
-        bthread_usleep(metacacheopt_.metacacheRPCRetryIntervalUS);
-    }
-
-    if (!ret) {
-        LOG(WARNING) << "get leader failed after retry!"
-                     << ", copyset:" << target->groupID.ToString();
-        return false;
-    }
-
-    *applyIndex = copysetInfo.GetAppliedIndex();
-    return 0 ==
-           copysetInfo.GetLeaderInfo(&target->metaServerID, &target->endPoint);
+    // get target copyset leader with (poolID, copysetID)
+    return GetTargetLeader(target, applyIndex, refresh);
 }
 
 bool MetaCache::SelectTarget(uint32_t fsID, CopysetTarget *target,
@@ -151,21 +101,8 @@ bool MetaCache::SelectTarget(uint32_t fsID, CopysetTarget *target,
         return false;
     }
 
-    // get copysetInfo with coysetID
-    CopysetInfo<MetaserverID> copysetInfo;
-    {
-        ReadLockGuard rl(rwlock4copysetInfoMap_);
-        if (!GetCopysetInfowithCopySetID(target->groupID, &copysetInfo)) {
-            LOG(WARNING) << "select target for {fsid:" << fsID
-                         << ", copyset:" << target->groupID.ToString()
-                         << "} fail, do not find copyset info";
-            return false;
-        }
-    }
-
-    *applyIndex = copysetInfo.GetAppliedIndex();
-    return 0 ==
-           copysetInfo.GetLeaderInfo(&target->metaServerID, &target->endPoint);
+    // get target copyset leader with (poolID, copysetID)
+    return GetTargetLeader(target, applyIndex);
 }
 
 void MetaCache::UpdateApplyIndex(const CopysetGroupID &groupID,
@@ -218,6 +155,64 @@ void MetaCache::UpdateCopysetInfo(const CopysetGroupID &groupID,
 
     WriteLockGuard wl(rwlock4copysetInfoMap_);
     copysetInfoMap_[key] = csinfo;
+}
+
+bool MetaCache::GetTargetLeader(CopysetTarget *target, uint64_t *applyindex,
+                                bool refresh) {
+    // get copyset with (poolid, copysetid)
+    CopysetInfo<MetaserverID> copysetInfo;
+    if (!GetCopysetInfowithCopySetID(target->groupID, &copysetInfo)) {
+        LOG(WARNING) << ", copyset:" << target->groupID.ToString()
+                     << "} do not find copyset info";
+        return false;
+    }
+
+    // get copyset leader from metacache
+    if (!refresh && !copysetInfo.LeaderMayChange()) {
+        if (0 == copysetInfo.GetLeaderInfo(&target->metaServerID,
+                                           &target->endPoint)) {
+            return true;
+        }
+        LOG(WARNING) << "{copyset:" << target->groupID.ToString()
+                     << "} get leader from cache fail."
+                     << " current leader:" << target->metaServerID;
+    }
+
+    // if cacahe do not have invalid leader, refresh leader
+    LOG(INFO) << "refresh leader for " << target->groupID.ToString();
+    bool ret = true;
+    uint32_t retry = 0;
+    while (retry++ < metacacheopt_.metacacheGetLeaderRetry) {
+        // refresh from metaserver
+        ret = UpdateLeaderInternal(target->groupID, &copysetInfo);
+        if (ret) {
+            copysetInfo.ResetSetLeaderUnstableFlag();
+            UpdateCopysetInfo(target->groupID, copysetInfo);
+            break;
+        } else {
+            LOG(INFO) << "refresh leader from metaserver failed, "
+                      << "get copyset peer list from mds, copyset:"
+                      << target->groupID.ToString();
+        }
+
+        // refresh from mds
+        ret = UpdateCopysetInfoFromMDS(target->groupID, &copysetInfo);
+        if (ret) {
+            break;
+        }
+
+        bthread_usleep(metacacheopt_.metacacheRPCRetryIntervalUS);
+    }
+
+    if (!ret) {
+        LOG(WARNING) << "get leader failed after retry!"
+                     << ", copyset:" << target->groupID.ToString();
+        return false;
+    }
+
+    *applyindex = copysetInfo.GetAppliedIndex();
+    return 0 ==
+           copysetInfo.GetLeaderInfo(&target->metaServerID, &target->endPoint);
 }
 
 bool MetaCache::ListPartitions(uint32_t fsID) {
@@ -273,6 +268,8 @@ bool MetaCache::CreatePartitions(int currentNum,
     WriteLockGuard wl4PartitionMap(rwlock4Partitions_);
     WriteLockGuard wl4CopysetMap(rwlock4copysetInfoMap_);
     DoAddPartitionAndCopyset(*newPartitions, copysetMap);
+
+    return true;
 }
 
 bool MetaCache::DoListOrCreatePartitions(
@@ -359,6 +356,7 @@ bool MetaCache::DoListOrCreatePartitions(
 void MetaCache::DoAddPartitionAndCopyset(
     const PatitionInfoList &partitionInfos,
     const std::map<PoolIDCopysetID, CopysetInfo<MetaserverID>> &copysetMap) {
+
     // add partitionInfo
     partitionInfos_.insert(partitionInfos_.end(), partitionInfos.begin(),
                            partitionInfos.end());

@@ -167,11 +167,8 @@ int TaskExecutor::ExcuteTask() {
     cntl.set_timeout_ms(task_->rpcTimeoutMs);
     return task_->rpctask(task_->target.groupID.poolID,
                           task_->target.groupID.copysetID,
-                          task_->target.partitionID,
-                          task_->target.txId,
-                          task_->applyIndex,
-                          channel.get(),
-                          &cntl);
+                          task_->target.partitionID, task_->target.txId,
+                          task_->applyIndex, channel.get(), &cntl);
 }
 void TaskExecutor::OnSuccess() {}
 
@@ -180,11 +177,18 @@ void TaskExecutor::OnCopysetNotExist() { RefreshLeader(); }
 void TaskExecutor::OnReDirected() { RefreshLeader(); }
 
 void TaskExecutor::RefreshLeader() {
+    // refresh leader according to copyset
     MetaserverID oldTarget = task_->target.metaServerID;
-    bool ok = metaCache_->GetTarget(task_->fsID, task_->inodeID, &task_->target,
-                                    &task_->applyIndex, true);
-    LOG_IF(WARNING, !ok) << "Refresh leader failed, task:"
-                         << task_->TaskContextStr();
+
+    bool ok =
+        metaCache_->GetTargetLeader(&task_->target, &task_->applyIndex, true);
+
+    LOG(INFO) << "refresh leader for {inodeid:" << task_->inodeID
+              << ", pool:" << task_->target.groupID.poolID
+              << ", copyset:" << task_->target.groupID.copysetID << "} "
+              << (ok ? " success" : " failure");
+
+    // if leader change, upper layer needs to retry
     task_->retryDirectly = (oldTarget != task_->target.metaServerID);
 }
 

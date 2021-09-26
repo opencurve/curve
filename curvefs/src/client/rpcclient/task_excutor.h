@@ -51,13 +51,10 @@ namespace rpcclient {
 
 class TaskContext {
  public:
-    using RpcFunc = std::function<int(LogicPoolID poolID,
-                                      CopysetID copysetID,
-                                      PartitionID partitionID,
-                                      uint64_t txId,
-                                      uint64_t applyIndex,
-                                      brpc::Channel *channel,
-                                      brpc::Controller *cntl)>;
+    using RpcFunc = std::function<int(
+        LogicPoolID poolID, CopysetID copysetID, PartitionID partitionID,
+        uint64_t txId, uint64_t applyIndex, brpc::Channel *channel,
+        brpc::Controller *cntl)>;
 
     TaskContext() = default;
     TaskContext(MetaServerOpType type, RpcFunc func, uint32_t fsid = 0,
@@ -76,6 +73,8 @@ class TaskContext {
     MetaServerOpType optype;
     RpcFunc rpctask = nullptr;
     uint32_t fsID = 0;
+    // inode used to locate replacement of dentry or inode. for CreateDentry
+    // inodeid,`task_->inodeID` is parentinodeID
     uint64_t inodeID = 0;
 
     CopysetTarget target;

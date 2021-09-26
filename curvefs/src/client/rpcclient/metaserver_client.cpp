@@ -50,10 +50,9 @@ MetaStatusCode MetaServerClientImpl::Init(
         uint64_t txId, uint64_t applyIndex, brpc::Channel * channel,           \
         brpc::Controller * cntl) -> int
 
-MetaStatusCode MetaServerClientImpl::GetTxId(uint32_t fsId,
-                                             uint64_t inodeId,
-                                             uint32_t* partitionId,
-                                             uint64_t* txId) {
+MetaStatusCode MetaServerClientImpl::GetTxId(uint32_t fsId, uint64_t inodeId,
+                                             uint32_t *partitionId,
+                                             uint64_t *txId) {
     if (!metaCache_->GetTxId(fsId, inodeId, partitionId, txId)) {
         return MetaStatusCode::NOT_FOUND;
     }
@@ -107,6 +106,9 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
                          << response.DebugString();
             return -1;
         }
+
+        LOG(INFO) << "GetDentry success, request: " << request.DebugString()
+                  << "response: " << response.ShortDebugString();
         return ret;
     };
 
@@ -165,6 +167,8 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
             return -1;
         }
 
+        LOG(INFO) << "ListDentry success, request: " << request.DebugString()
+                  << "response: " << response.DebugString();
         return ret;
     };
 
@@ -191,6 +195,12 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.CreateDentry(cntl, &request, &response, nullptr);
 
+        std::ostringstream oss;
+        channel->Describe(oss, {});
+
+        LOG(INFO) << "CreateDentry " << request.ShortDebugString() << " to "
+                  << oss.str();
+
         if (cntl->Failed()) {
             LOG(WARNING) << "CreateDentry Failed, errorcode = "
                          << cntl->ErrorCode()
@@ -213,11 +223,17 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
                          << response.DebugString();
             return -1;
         }
+
+        LOG(INFO) << "CreateDentry success, request: " << request.DebugString()
+                  << "response: " << response.DebugString();
         return ret;
     };
 
     auto taskCtx = std::make_shared<TaskContext>(
-        MetaServerOpType::CreateDentry, task, dentry.fsid(), dentry.inodeid());
+        MetaServerOpType::CreateDentry, task, dentry.fsid(),
+        // TODO(@lixiaocui): may be taskContext need diffrent according to
+        // different operatrion
+        dentry.parentinodeid());
     CreateDentryExcutor excutor(opt_, metaCache_, channelManager_);
     return ReturnError(excutor.DoRPCTask(taskCtx));
 }
@@ -263,6 +279,9 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
                          << response.DebugString();
             return -1;
         }
+
+        LOG(INFO) << "DeleteDentry success, request: " << request.DebugString()
+                  << "response: " << response.DebugString();
         return ret;
     };
 
@@ -272,8 +291,8 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
     return ReturnError(excutor.DoRPCTask(taskCtx));
 }
 
-MetaStatusCode MetaServerClientImpl::PrepareRenameTx(
-    const std::vector<Dentry>& dentrys) {
+MetaStatusCode
+MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
     auto task = RPCTask {
         PrepareRenameTxRequest request;
         PrepareRenameTxResponse response;
@@ -281,7 +300,7 @@ MetaStatusCode MetaServerClientImpl::PrepareRenameTx(
         request.set_poolid(poolID);
         request.set_copysetid(copysetID);
         request.set_partitionid(partitionID);
-        *request.mutable_dentrys() = { dentrys.begin(), dentrys.end() };
+        *request.mutable_dentrys() = {dentrys.begin(), dentrys.end()};
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.PrepareRenameTx(cntl, &request, &response, nullptr);
@@ -307,6 +326,10 @@ MetaStatusCode MetaServerClientImpl::PrepareRenameTx(
                          << response.DebugString();
             return -1;
         }
+
+        LOG(INFO) << "PrepareRenameTx success, request: "
+                  << request.DebugString()
+                  << "response: " << response.DebugString();
         return rc;
     };
 
@@ -341,20 +364,23 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
 
         MetaStatusCode ret = response.statuscode();
         if (ret != MetaStatusCode::OK) {
-            LOG(WARNING) << "GetInode:  inodeid = " << inodeid
+            LOG(WARNING) << "GetInode: inodeid:" << inodeid
                          << ", errcode = " << ret
                          << ", errmsg = " << MetaStatusCode_Name(ret);
-        } else if (response.has_inode()) {
+        } else if (response.has_inode() && response.has_appliedindex()) {
             out->CopyFrom(response.inode());
-        } else if (response.has_appliedindex()) {
+
             metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
                                          response.appliedindex());
         } else {
-            LOG(WARNING) << "GetInode:  inodeid = " << inodeid
-                         << " ok, but applyIndex not set in response: "
+            LOG(WARNING) << "GetInode: inodeid:" << inodeid
+                         << " ok, but applyIndex or inode not set in response: "
                          << response.DebugString();
             return -1;
         }
+
+        LOG(INFO) << "GetInode success, request: " << request.DebugString()
+                  << "response: " << response.DebugString();
         return ret;
     };
 
@@ -413,6 +439,9 @@ MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode &inode) {
                          << response.DebugString();
             return -1;
         }
+
+        LOG(INFO) << "UpdateInode success, request: " << request.DebugString()
+                  << "response: " << response.DebugString();
         return ret;
     };
 
@@ -450,20 +479,28 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
 
         MetaStatusCode ret = response.statuscode();
         if (ret != MetaStatusCode::OK) {
-            LOG(WARNING) << "CreateInode:  param = "
+            LOG(WARNING) << "CreateInode:  param = " << param
                          << ", errcode = " << ret
-                         << ", errmsg = " << MetaStatusCode_Name(ret);
-        } else if (response.has_inode()) {
+                         << ", errmsg = " << MetaStatusCode_Name(ret)
+                         << ", remote side = "
+                         << butil::endpoint2str(cntl->remote_side()).c_str()
+                         << ", request: " << request.ShortDebugString()
+                         << ", pool: " << poolID << ", copyset: " << copysetID
+                         << ", partition: " << partitionID;
+        } else if (response.has_inode() && response.has_appliedindex()) {
             *out = response.inode();
-        } else if (response.has_appliedindex()) {
+
             metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
                                          response.appliedindex());
         } else {
-            LOG(WARNING) << "CreateInode:  param = "
-                         << " ok, but applyIndex not set in response:"
+            LOG(WARNING) << "CreateInode:  param = " << param
+                         << " ok, but applyIndex or inode not set in response:"
                          << response.DebugString();
             return -1;
         }
+
+        LOG(INFO) << "CreateInode success, request: " << request.DebugString()
+                  << "response: " << response.DebugString();
         return ret;
     };
 
@@ -496,19 +533,22 @@ MetaStatusCode MetaServerClientImpl::DeleteInode(uint32_t fsId,
 
         MetaStatusCode ret = response.statuscode();
         if (ret != MetaStatusCode::OK) {
-            LOG(WARNING) << "DeteInode:  fsid = " << fsId
+            LOG(WARNING) << "DeleteInode:  fsid = " << fsId
                          << ", inodeid = " << inodeid << ", errcode = " << ret
                          << ", errmsg = " << MetaStatusCode_Name(ret);
         } else if (response.has_appliedindex()) {
             metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
                                          response.appliedindex());
         } else {
-            LOG(WARNING) << "DeteInode:  fsid = " << fsId
+            LOG(WARNING) << "DeleteInode:  fsid = " << fsId
                          << ", inodeid = " << inodeid
                          << " ok, but applyIndex not set in response:"
                          << response.DebugString();
             return -1;
         }
+
+        LOG(INFO) << "DeleteInode success, request: " << request.DebugString()
+                  << "response: " << response.DebugString();
         return ret;
     };
 

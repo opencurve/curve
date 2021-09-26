@@ -114,6 +114,14 @@ struct InodeParam {
     std::string symlink;
 };
 
+inline std::ostream& operator<<(std::ostream& os, const InodeParam& p) {
+    os << "fsid: " << p.fsId << ", length: " << p.length << ", uid: " << p.uid
+       << ", gid: " << p.gid << ", mode: " << p.mode << ", type: " << p.type
+       << ", symlink: " << p.symlink;
+
+    return os;
+}
+
 class MDSBaseClient {
  public:
     virtual void CreateFs(const std::string &fsName, uint64_t blockSize,
