@@ -57,20 +57,28 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName,
     // 1. query fs
     // TODO(cw123): if fs status is FsStatus::New, here need more consideration
     if (fsStorage_->Exist(fsName)) {
-        if (!IsPreviousCreateUnComplete(fsName, fsType, blockSize, detail)) {
-            LOG(WARNING) << "CreateFs fail, fs exist, fsName = " << fsName
+        int existRet = IsExactlySameOrCreateUnComplete(fsName, fsType,
+                                                       blockSize, detail);
+        if (existRet == 0) {
+            LOG(INFO) << "CreateFs success, fs exist, fsName = " << fsName
                          << ", fstype = " << FSType_Name(fsType)
                          << ", blocksize = " << blockSize
                          << ", detail = " << detail.ShortDebugString();
-            return FSStatusCode::FS_EXIST;
+            fsStorage_->Get(fsName, &wrapper);
+            *fsInfo = wrapper.ProtoFsInfo();
+            return FSStatusCode::OK;
         }
 
-        LOG(INFO) << "CreateFs found previous create operation uncompleted"
+        if (existRet == 1) {
+            LOG(INFO) << "CreateFs found previous create operation uncompleted"
                   << ", fsName = " << fsName
                   << ", fstype = " << FSType_Name(fsType)
                   << ", blocksize = " << blockSize
                   << ", detail = " << detail.ShortDebugString();
-        skipCreateNewFs = true;
+            skipCreateNewFs = true;
+        } else {
+            return FSStatusCode::FS_EXIST;
+        }
     }
 
     if (!skipCreateNewFs) {
@@ -125,6 +133,7 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName,
         LOG(ERROR) << "CreateFs fail, insert root inode fail"
                    << ", fsName = " << fsName
                    << ", ret = " << FSStatusCode_Name(ret);
+        // TODO(wanghai): need delete partition if created
         FSStatusCode ret2 = fsStorage_->Delete(fsName);
         if (ret2 != FSStatusCode::OK) {
             LOG(ERROR) << "CreateFs fail, insert root inode fail,"
@@ -412,18 +421,24 @@ FSStatusCode FsManager::GetFsInfo(const std::string& fsName, uint32_t fsId,
     return FSStatusCode::OK;
 }
 
-bool FsManager::IsPreviousCreateUnComplete(const std::string& fsName,
+int FsManager::IsExactlySameOrCreateUnComplete(const std::string& fsName,
                                            FSType fsType, uint64_t blocksize,
                                            const FsDetail& detail) {
     FsInfoWrapper existFs;
 
     // assume fsname exists
     fsStorage_->Get(fsName, &existFs);
-
-    return FsStatus::NEW == existFs.GetStatus() &&
-           fsName == existFs.GetFsName() && fsType == existFs.GetFsType() &&
-           google::protobuf::util::MessageDifferencer::Equals(
-               detail, existFs.GetFsDetail());
+    if (fsName == existFs.GetFsName() && fsType == existFs.GetFsType() &&
+        blocksize == existFs.GetBlockSize() &&
+        google::protobuf::util::MessageDifferencer::Equals(detail,
+        existFs.GetFsDetail())) {
+        if (FsStatus::NEW == existFs.GetStatus()) {
+            return 1;
+        } else if (FsStatus::INITED == existFs.GetStatus()) {
+            return 0;
+        }
+    }
+    return -1;
 }
 
 uint64_t FsManager::GetRootId() { return ROOTINODEID; }

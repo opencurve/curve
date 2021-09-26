@@ -151,8 +151,9 @@ class FsManager {
                            FsInfo* fsInfo);
 
  private:
-    bool IsPreviousCreateUnComplete(const std::string& fsName, FSType fsType,
-                                    uint64_t blocksize, const FsDetail& detail);
+    // return 0: ExactlySame; 1: uncomplete, -1: neither
+    int IsExactlySameOrCreateUnComplete(const std::string& fsName,
+         FSType fsType, uint64_t blocksize, const FsDetail& detail);
 
  private:
     uint64_t GetRootId();

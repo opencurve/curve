@@ -59,6 +59,6 @@ message Peer {
 }
 
 message CopysetInfo {
-    required uint32 logicalPoolId = 1;
+    required uint32 poolId = 1;
     required uint32 copysetId = 2;
 }

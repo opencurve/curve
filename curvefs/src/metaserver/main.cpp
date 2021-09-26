@@ -101,6 +101,10 @@ int main(int argc, char **argv) {
     conf->PrintConfig();
 
     curvefs::metaserver::Metaserver metaserver;
+
+    // initialize logging module
+    google::InitGoogleLogging(argv[0]);
+
     // initialize metaserver options
     metaserver.InitOptions(conf);
 
