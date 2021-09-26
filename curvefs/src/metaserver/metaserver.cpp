@@ -24,15 +24,26 @@
 
 #include <brpc/channel.h>
 #include <brpc/server.h>
+#include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include "absl/memory/memory.h"
+#include "curvefs/src/metaserver/copyset/copyset_service.h"
 #include "curvefs/src/metaserver/metaserver_service.h"
 #include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/trash_manager.h"
 #include "src/common/s3_adapter.h"
-#include "curvefs/src/metaserver/copyset/copyset_service.h"
-#include "absl/memory/memory.h"
 #include "src/common/string_util.h"
+
+namespace braft {
+
+DECLARE_bool(raft_sync);
+DECLARE_bool(raft_sync_meta);
+DECLARE_bool(raft_sync_segments);
+DECLARE_bool(raft_use_fsync_rather_than_fdatasync);
+DECLARE_int32(raft_max_install_snapshot_tasks_num);
+
+}  // namespace braft
 
 namespace curvefs {
 namespace metaserver {
@@ -59,6 +70,8 @@ void Metaserver::InitOptions(std::shared_ptr<Configuration> conf) {
             << "Parse bthread.worker_count to int failed, string value: "
             << value;
     }
+
+    InitBRaftFlags(conf);
 }
 
 void Metaserver::InitLocalFileSystem() {
@@ -258,6 +271,36 @@ void Metaserver::InitInflightThrottle() {
                                          &maxInflight));
 
     inflightThrottle_ = absl::make_unique<InflightThrottle>(maxInflight);
+}
+
+struct TakeValueFromConfIfCmdNotSet {
+    template <typename T>
+    void operator()(const std::shared_ptr<Configuration>& conf,
+                    const std::string& cmdName, const std::string& confName,
+                    T* value) {
+        using ::google::CommandLineFlagInfo;
+        using ::google::GetCommandLineFlagInfo;
+
+        CommandLineFlagInfo info;
+        if (GetCommandLineFlagInfo(cmdName.c_str(), &info) && info.is_default) {
+            conf->GetValueFatalIfFail(confName, value);
+        }
+    }
+};
+
+void Metaserver::InitBRaftFlags(const std::shared_ptr<Configuration>& conf) {
+    TakeValueFromConfIfCmdNotSet dummy;
+    dummy(conf, "raft_sync", "braft.raft_sync", &braft::FLAGS_raft_sync);
+    dummy(conf, "raft_sync_meta", "braft.raft_sync_meta",
+          &braft::FLAGS_raft_sync_meta);
+    dummy(conf, "raft_sync_segments", "braft.raft_sync_segments",
+          &braft::FLAGS_raft_sync_segments);
+    dummy(conf, "raft_use_fsync_rather_than_fdatasync",
+          "braft.raft_use_fsync_rather_than_fdatasync",
+          &braft::FLAGS_raft_use_fsync_rather_than_fdatasync);
+    dummy(conf, "raft_max_install_snapshot_tasks_num",
+          "braft.raft_max_install_snapshot_tasks_num",
+          &braft::FLAGS_raft_max_install_snapshot_tasks_num);
 }
 
 }  // namespace metaserver
