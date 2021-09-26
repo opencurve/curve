@@ -215,6 +215,12 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
         return ret;
     }
 
+    LOG(INFO) << "inodeManager CreateInode success"
+                  << ", parent = " << parent
+                  << ", name = " << name
+                  << ", mode = " << mode
+                  << ", inode id = " << inodeWrapper->GetInodeId();
+
     Dentry dentry;
     dentry.set_fsid(fsInfo_->fsid());
     dentry.set_inodeid(inodeWrapper->GetInodeId());
@@ -232,6 +238,11 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
                   << ", mode = " << mode;
         return ret;
     }
+
+    LOG(INFO) << "dentryManager_ CreateDentry success"
+                  << ", parent = " << parent
+                  << ", name = " << name
+                  << ", mode = " << mode;
 
     Inode inode = inodeWrapper->GetInodeLocked();
     GetDentryParamFromInode(inode, e);

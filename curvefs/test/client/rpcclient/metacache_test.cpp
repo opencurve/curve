@@ -263,15 +263,26 @@ TEST_F(MetaCacheTest, test_SelectTarget) {
     bool ret = metaCache_.SelectTarget(fsID, &target, &applyIndex);
     ASSERT_FALSE(ret);
 
-    LOG(INFO) << "test2: random select ok";
+    LOG(INFO) << "test2: random select, need to update leader";
     std::vector<CopysetInfo<MetaserverID>> metaServerInfos;
+    metaServerList_.UpdateLeaderIndex(-1);
     metaServerInfos.push_back(metaServerList_);
+    curve::client::PeerAddr pd;
+    pd.Parse("127.0.0.1:9120:0");
     EXPECT_CALL(*mockMdsClient_.get(), ListPartition(fsID, _))
         .WillOnce(DoAll(SetArgPointee<1>(pInfoList_), Return(true)));
     EXPECT_CALL(*mockMdsClient_.get(), GetCopysetOfPartitions(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(copysetMap_), Return(true)));
     EXPECT_CALL(*mockMdsClient_.get(), GetMetaServerListInCopysets(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(metaServerInfos), Return(true)));
+    EXPECT_CALL(*mockCli2Client_.get(), GetLeader(_, _, _, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<4>(pd), Return(true)));
+    ret = metaCache_.SelectTarget(fsID, &target, &applyIndex);
+    ASSERT_TRUE(ret);
+    ASSERT_TRUE(CopysetTargetEQ(target, expect));
+    metaServerList_.UpdateLeaderIndex(0);
+
+    LOG(INFO) << "test3: random select target ok";
     ret = metaCache_.SelectTarget(fsID, &target, &applyIndex);
     ASSERT_TRUE(ret);
     ASSERT_TRUE(CopysetTargetEQ(target, expect));

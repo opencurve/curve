@@ -80,6 +80,18 @@ struct CopysetTarget {
     butil::EndPoint endPoint;
 };
 
+inline std::ostream &operator<<(std::ostream &os, const CopysetGroupID &g) {
+    os << "[poolid:" << g.poolID << ", copysetid:" << g.copysetID << "]";
+    return os;
+}
+
+inline std::ostream &operator<<(std::ostream &os, const CopysetTarget &t) {
+    os << "groupid:" << t.groupID << ", partitionid:" << t.partitionID
+       << ", txid:" << t.txId << ", serverid:" << t.metaServerID
+       << ", endpoint:" << butil::endpoint2str(t.endPoint).c_str();
+    return os;
+}
+
 class MetaCache {
  public:
     void Init(MetaCacheOpt opt, std::shared_ptr<Cli2Client> cli2Client,
@@ -119,6 +131,9 @@ class MetaCache {
 
     virtual void UpdateCopysetInfo(const CopysetGroupID &groupID,
                                    const CopysetInfo<MetaserverID> &csinfo);
+
+    virtual bool GetTargetLeader(CopysetTarget *target, uint64_t *applyindex,
+                                 bool refresh = false);
 
  private:
     void GetTxId(uint32_t partitionId, uint64_t *txId);

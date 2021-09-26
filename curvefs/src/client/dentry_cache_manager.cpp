@@ -162,6 +162,7 @@ CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(
             dentryList->splice(dentryList->end(), part);
         }
     } while (perceed);
+
     return CURVEFS_ERROR::OK;
 }
 

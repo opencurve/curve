@@ -259,7 +259,7 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
 
     // test2: list dentry redirect
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .Times(3)
+        .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
                               SetArgPointee<3>(applyIndex), Return(true)));
     curvefs::metaserver::ListDentryResponse responsefail;
@@ -351,7 +351,7 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry) {
 
     // test2: create dentry copset not exist
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .Times(3)
+        .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
                               SetArgPointee<3>(applyIndex), Return(true)));
     curvefs::metaserver::CreateDentryResponse responsefail;
@@ -365,10 +365,11 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry) {
             SetArgPointee<2>(response),
             Invoke(SetRpcService<CreateDentryRequest, CreateDentryResponse>)));
     EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _, _))
+        .WillOnce(Return(true));
 
     status = metaserverCli_.CreateDentry(d);
     ASSERT_EQ(MetaStatusCode::OK, status);
-
 
     // test3: test response has applyindex
     response.clear_appliedindex();
@@ -467,8 +468,7 @@ TEST_F(MetaServerClientImplTest, PrepareRenameTx) {
 
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex),
-                              Return(true)));
+                              SetArgPointee<3>(applyIndex), Return(true)));
 
     // CASE 1: PrepareRenameTx success
     response.set_statuscode(MetaStatusCode::OK);
@@ -497,8 +497,7 @@ TEST_F(MetaServerClientImplTest, PrepareRenameTx) {
     // CASE 3: RPC error
     EXPECT_CALL(mockMetaServerService_, PrepareRenameTx(_, _, _, _))
         .WillRepeatedly(Invoke(SetRpcService<PrepareRenameTxRequest,
-                                             PrepareRenameTxResponse,
-                                             true>));
+                                             PrepareRenameTxResponse, true>));
 
     dentrys = std::vector<Dentry>{dentry};
     rc = metaserverCli_.PrepareRenameTx(dentrys);
@@ -519,6 +518,18 @@ TEST_F(MetaServerClientImplTest, test_GetInode) {
     uint32_t partitionID = 200;
     uint64_t applyIndex = 10;
     curvefs::metaserver::Inode out;
+    out.set_inodeid(inodeid);
+    out.set_fsid(fsid);
+    out.set_length(10);
+    out.set_ctime(1623835517);
+    out.set_mtime(1623835517);
+    out.set_atime(1623835517);
+    out.set_uid(1);
+    out.set_gid(1);
+    out.set_mode(1);
+    out.set_nlink(1);
+    out.set_type(curvefs::metaserver::FsFileType::TYPE_FILE);
+    out.set_symlink("test9");
 
     curvefs::metaserver::GetInodeResponse response;
 
@@ -536,6 +547,9 @@ TEST_F(MetaServerClientImplTest, test_GetInode) {
     // test1: get inode ok
     response.set_statuscode(MetaStatusCode::OK);
     response.set_appliedindex(10);
+    auto tmpInode = new curvefs::metaserver::Inode();
+    tmpInode->CopyFrom(out);
+    response.set_allocated_inode(tmpInode);
     EXPECT_CALL(mockMetaServerService_, GetInode(_, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<2>(response),
@@ -679,6 +693,18 @@ TEST_F(MetaServerClientImplTest, test_CreateInode) {
     uint32_t partitionID = 200;
     uint64_t applyIndex = 10;
     curvefs::metaserver::Inode out;
+    out.set_inodeid(100);
+    out.set_fsid(inode.fsId);
+    out.set_length(inode.length);
+    out.set_ctime(1623835517);
+    out.set_mtime(1623835517);
+    out.set_atime(1623835517);
+    out.set_uid(inode.uid);
+    out.set_gid(inode.gid);
+    out.set_mode(inode.mode);
+    out.set_nlink(1);
+    out.set_type(inode.type);
+    out.set_symlink(inode.symlink);
 
     curvefs::metaserver::CreateInodeResponse response;
 
@@ -694,6 +720,9 @@ TEST_F(MetaServerClientImplTest, test_CreateInode) {
     // test1: create inode ok
     response.set_statuscode(MetaStatusCode::OK);
     response.set_appliedindex(10);
+    auto tmpInode = new curvefs::metaserver::Inode();
+    tmpInode->CopyFrom(out);
+    response.set_allocated_inode(tmpInode);
     EXPECT_CALL(mockMetaServerService_, CreateInode(_, _, _, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
