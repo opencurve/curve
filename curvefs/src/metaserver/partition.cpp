@@ -92,6 +92,9 @@ bool Partition::FindPendingTx(PrepareRenameTxRequest* pendingTx) {
     }
 
     auto dentrys = renameTx.GetDentrys();
+    pendingTx->set_poolid(partitionInfo_.poolid());
+    pendingTx->set_copysetid(partitionInfo_.copysetid());
+    pendingTx->set_partitionid(partitionInfo_.partitionid());
     *pendingTx->mutable_dentrys() = { dentrys->begin(), dentrys->end() };
     return true;
 }
