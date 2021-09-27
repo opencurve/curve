@@ -54,24 +54,41 @@ Partition::Partition(const PartitionInfo& paritionInfo) {
 
 // dentry
 MetaStatusCode Partition::CreateDentry(const Dentry& dentry) {
+    if (!IsInodeBelongs(dentry.fsid(), dentry.parentinodeid())) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
     return dentryManager_->CreateDentry(dentry);
 }
 
 MetaStatusCode Partition::DeleteDentry(const Dentry& dentry) {
+    if (!IsInodeBelongs(dentry.fsid(), dentry.parentinodeid())) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
     return dentryManager_->DeleteDentry(dentry);
 }
 
 MetaStatusCode Partition::GetDentry(Dentry* dentry) {
+    if (!IsInodeBelongs(dentry->fsid(), dentry->parentinodeid())) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
     return dentryManager_->GetDentry(dentry);
 }
 
 MetaStatusCode Partition::ListDentry(const Dentry& dentry,
                                     std::vector<Dentry>* dentrys,
                                     uint32_t limit) {
+    if (!IsInodeBelongs(dentry.fsid(), dentry.parentinodeid())) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
     return dentryManager_->ListDentry(dentry, dentrys, limit);
 }
 
 MetaStatusCode Partition::HandleRenameTx(const std::vector<Dentry>& dentrys) {
+    for (const auto& it : dentrys) {
+        if (!IsInodeBelongs(it.fsid(), it.parentinodeid())) {
+            return MetaStatusCode::PARTITION_ID_MISSMATCH;
+        }
+    }
     return dentryManager_->HandleRenameTx(dentrys);
 }
 
@@ -80,6 +97,11 @@ bool Partition::InsertPendingTx(const PrepareRenameTxRequest& pendingTx) {
         pendingTx.dentrys().begin(),
         pendingTx.dentrys().end()
     };
+    for (const auto& it : dentrys) {
+        if (!IsInodeBelongs(it.fsid(), it.parentinodeid())) {
+            return false;
+        }
+    }
     auto renameTx = RenameTx(dentrys, dentryStorage_);
     return txManager_->InsertPendingTx(renameTx);
 }
@@ -106,34 +128,56 @@ MetaStatusCode Partition::CreateInode(uint32_t fsId, uint64_t length,
     if (inodeId == UINT64_MAX) {
         return MetaStatusCode::PARTITION_ALLOC_ID_FAIL;
     }
+
+    if (!IsInodeBelongs(fsId, inodeId)) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
     return inodeManager_->CreateInode(fsId, inodeId, length, uid, gid, mode,
                                       type, symlink, inode);
 }
 
 MetaStatusCode Partition::CreateRootInode(uint32_t fsId, uint32_t uid,
                                           uint32_t gid, uint32_t mode) {
+    if (!IsInodeBelongs(fsId)) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
     return inodeManager_->CreateRootInode(fsId, uid, gid, mode);
 }
 
 MetaStatusCode Partition::GetInode(uint32_t fsId, uint64_t inodeId,
                                    Inode* inode) {
+    if (!IsInodeBelongs(fsId, inodeId)) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
     return inodeManager_->GetInode(fsId, inodeId, inode);
 }
 
 MetaStatusCode Partition::DeleteInode(uint32_t fsId, uint64_t inodeId) {
+    if (!IsInodeBelongs(fsId, inodeId)) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
     return inodeManager_->DeleteInode(fsId, inodeId);
 }
 
 MetaStatusCode Partition::UpdateInode(const Inode& inode) {
+    if (!IsInodeBelongs(inode.fsid(), inode.inodeid())) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
     return inodeManager_->UpdateInode(inode);
 }
 
 MetaStatusCode Partition::UpdateInodeVersion(uint32_t fsId, uint64_t inodeId,
                                              uint64_t* version) {
+    if (!IsInodeBelongs(fsId, inodeId)) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
     return inodeManager_->UpdateInodeVersion(fsId, inodeId, version);
 }
 
 MetaStatusCode Partition::InsertInode(const Inode& inode) {
+    if (!IsInodeBelongs(inode.fsid(), inode.inodeid())) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
     return inodeManager_->InsertInode(inode);
 }
 
@@ -158,6 +202,14 @@ bool Partition::IsInodeBelongs(uint32_t fsId, uint64_t inodeId) {
     }
 
     if (inodeId < partitionInfo_.start() || inodeId > partitionInfo_.end()) {
+        return false;
+    }
+
+    return true;
+}
+
+bool Partition::IsInodeBelongs(uint32_t fsId) {
+    if (fsId != partitionInfo_.fsid()) {
         return false;
     }
 

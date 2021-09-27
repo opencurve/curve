@@ -82,7 +82,11 @@ class Partition {
     // if patition has no inode or no dentry, it is deletable
     bool IsDeletable();
 
+    // check if fsid matchs and inode range belongs to this partition
     bool IsInodeBelongs(uint32_t fsId, uint64_t inodeId);
+
+    // check if fsid match this partition
+    bool IsInodeBelongs(uint32_t fsId);
 
     uint32_t GetPartitionId();
 

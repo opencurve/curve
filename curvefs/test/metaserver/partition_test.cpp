@@ -98,10 +98,8 @@ TEST_F(PartitionTest, testInodeIdGen3) {
 }
 
 TEST_F(PartitionTest, testInodeIdGen4_NextId) {
-    std::vector<std::pair<uint64_t, uint64_t>> testsets = {{0, 2},
-                                                           {1, 2},
-                                                           {2, 2},
-                                                           {3, 3}};
+    std::vector<std::pair<uint64_t, uint64_t>> testsets = {
+        {0, 2}, {1, 2}, {2, 2}, {3, 3}};
 
     for (auto& t : testsets) {
         PartitionInfo partitionInfo1;
@@ -133,8 +131,121 @@ TEST_F(PartitionTest, test1) {
     ASSERT_TRUE(partition1.IsInodeBelongs(1, 199));
     ASSERT_FALSE(partition1.IsInodeBelongs(2, 100));
     ASSERT_FALSE(partition1.IsInodeBelongs(2, 199));
+    ASSERT_TRUE(partition1.IsInodeBelongs(1));
+    ASSERT_FALSE(partition1.IsInodeBelongs(2));
     ASSERT_EQ(partition1.GetPartitionId(), 4);
     ASSERT_EQ(partition1.GetPartitionInfo().partitionid(), 4);
 }
+
+TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
+    PartitionInfo partitionInfo1;
+    partitionInfo1.set_fsid(1);
+    partitionInfo1.set_poolid(2);
+    partitionInfo1.set_copysetid(3);
+    partitionInfo1.set_partitionid(4);
+    partitionInfo1.set_start(100);
+    partitionInfo1.set_end(199);
+
+    Partition partition1(partitionInfo1);
+
+    Dentry dentry1;
+    dentry1.set_fsid(2);
+    dentry1.set_parentinodeid(100);
+
+    Dentry dentry2;
+    dentry2.set_fsid(1);
+    dentry2.set_parentinodeid(200);
+
+    // test CreateDentry
+    ASSERT_EQ(partition1.CreateDentry(dentry1),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+    ASSERT_EQ(partition1.CreateDentry(dentry2),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+
+    // test DeleteDentry
+    ASSERT_EQ(partition1.DeleteDentry(dentry1),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+    ASSERT_EQ(partition1.DeleteDentry(dentry2),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+
+    // test GetDentry
+    ASSERT_EQ(partition1.GetDentry(&dentry1),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+    ASSERT_EQ(partition1.GetDentry(&dentry2),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+
+    // test ListDentry
+    std::vector<Dentry> dentrys;
+    uint32_t limit = 1;
+    ASSERT_EQ(partition1.ListDentry(dentry1, &dentrys, limit),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+    ASSERT_EQ(partition1.ListDentry(dentry2, &dentrys, limit),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+
+    // test HandleRenameTx
+    std::vector<Dentry> dentrys1 = {dentry1};
+    std::vector<Dentry> dentrys2 = {dentry2};
+    ASSERT_EQ(partition1.HandleRenameTx(dentrys1),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+    ASSERT_EQ(partition1.HandleRenameTx(dentrys2),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+
+    // test InsertPendingTx
+    PrepareRenameTxRequest pendingTx;
+    pendingTx.add_dentrys()->CopyFrom(dentry1);
+    ASSERT_FALSE(partition1.InsertPendingTx(pendingTx));
+
+    // test CreateInode
+    uint32_t fsId = 1;
+    uint64_t length = 0;
+    uint32_t uid = 0;
+    uint32_t gid = 0;
+    uint32_t mode = 0;
+    FsFileType type = FsFileType::TYPE_DIRECTORY;
+    std::string symlink;
+    Inode inode1;
+    ASSERT_EQ(partition1.CreateInode(fsId + 1, length, uid, gid, mode, type,
+                                     symlink, &inode1),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+
+    // test CreateRootInode
+    ASSERT_EQ(partition1.CreateRootInode(fsId + 1, uid, gid, mode),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+
+    // test GetInode
+    uint64_t rightInodeId = 100;
+    uint64_t wrongInodeId = 200;
+    ASSERT_EQ(partition1.GetInode(fsId + 1, rightInodeId, &inode1),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+    ASSERT_EQ(partition1.GetInode(fsId, wrongInodeId, &inode1),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+
+    // test DeleteInode
+    ASSERT_EQ(partition1.DeleteInode(fsId + 1, rightInodeId),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+    ASSERT_EQ(partition1.DeleteInode(fsId, wrongInodeId),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+
+    Inode inode2;
+    inode2.set_fsid(fsId + 1);
+    inode2.set_inodeid(rightInodeId);
+
+    Inode inode3;
+    inode3.set_fsid(fsId);
+    inode3.set_inodeid(wrongInodeId);
+
+    // test UpdateInode
+    ASSERT_EQ(partition1.UpdateInode(inode2),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+    ASSERT_EQ(partition1.UpdateInode(inode3),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+
+    // test InsertInode
+    ASSERT_EQ(partition1.InsertInode(inode2),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+    ASSERT_EQ(partition1.InsertInode(inode3),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+}
+
 }  // namespace metaserver
 }  // namespace curvefs
