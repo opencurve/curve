@@ -414,6 +414,9 @@ MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode &inode) {
             vlist->CopyFrom(inode.volumeextentlist());
             request.set_allocated_volumeextentlist(vlist);
         }
+        if (inode.s3chunkinfomap_size() != 0) {
+            *(request.mutable_s3chunkinfomap()) = inode.s3chunkinfomap();        
+        }
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.UpdateInode(cntl, &request, &response, nullptr);
 
@@ -468,7 +471,7 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
         request.set_symlink(param.symlink);
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.CreateInode(cntl, &request, &response, nullptr);
-
+        
         if (cntl->Failed()) {
             LOG(WARNING) << "CreateInode Failed, errorcode = "
                          << cntl->ErrorCode()

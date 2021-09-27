@@ -52,6 +52,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
                    << ", inodeid = " << inodeid;
         return MetaStatusCodeToCurvefsErrCode(ret2);
     }
+    LOG(INFO) << "size:" << inode.s3chunkinfomap_size();
     out = std::make_shared<InodeWrapper>(
         std::move(inode), metaClient_);
     iCache_.emplace(inodeid, out);

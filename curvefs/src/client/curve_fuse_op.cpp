@@ -336,6 +336,3 @@ void FuseOpFsync(fuse_req_t req, fuse_ino_t ino, int datasync,
     CURVEFS_ERROR ret = g_ClientInstance->FuseOpFsync(req, ino, datasync, fi);
     FuseReplyErrByErrCode(req, ret);
 }
-
-
-

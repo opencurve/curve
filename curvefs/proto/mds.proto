@@ -141,7 +141,7 @@ message AllocateS3ChunkRequest {
 
 message AllocateS3ChunkResponse {
     // status code, default value is FSStatusCode::UNKNOWN_ERROR
-   required FSStatusCode status = 1;
+   required FSStatusCode statusCode = 1;
    required uint64 chunkId = 2;
 }
 

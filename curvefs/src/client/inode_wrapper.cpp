@@ -33,6 +33,7 @@ using rpcclient::MetaServerClientImpl;
 CURVEFS_ERROR InodeWrapper::Sync() {
     if (dirty_) {
         MetaStatusCode ret = metaClient_->UpdateInode(inode_);
+        
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "metaClient_ UpdateInode failed, ret = " << ret
                 << ", inodeid = " << inode_.inodeid();

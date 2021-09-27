@@ -70,6 +70,8 @@ class MockMdsClient : public MdsClient {
 
     MOCK_METHOD2(GetFsInfo, FSStatusCode(uint32_t fsId, FsInfo *fsInfo));
 
+    MOCK_METHOD2(AllocS3ChunkId, FSStatusCode(uint32_t fsId, uint64_t* chunkId));
+
     MOCK_METHOD1(CommitTx,
                  TopoStatusCode(const std::vector<PartitionTxId> &txIds));
 
