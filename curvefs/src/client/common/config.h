@@ -31,7 +31,7 @@
 #include "src/client/config_info.h"
 
 using ::curve::common::Configuration;
-using ::curve::common::S3AdapterOption;
+using ::curve::common::S3AdapterOption; 
 
 namespace curvefs {
 namespace client {
@@ -68,9 +68,22 @@ struct SpaceAllocServerOption {
     uint64_t rpcTimeoutMs;
 };
 
+struct S3ClientAdaptorOption {
+    uint64_t blockSize;
+    uint64_t chunkSize;
+    uint32_t intervalSec;
+    uint32_t flushInterval;
+    uint64_t writeCacheMaxByte;
+    uint64_t lruCapacity;
+    uint64_t trimCheckInterval;
+    uint64_t fullRatio;
+    uint64_t safeRatio;
+    std::string cacheDir;
+    bool forceFlush;
+};
+
 struct S3Option {
-    uint64_t blocksize;
-    uint64_t chunksize;
+    S3ClientAdaptorOption s3ClientAdaptorOpt;
     S3AdapterOption s3AdaptrOpt;
 };
 

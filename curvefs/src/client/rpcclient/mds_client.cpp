@@ -454,6 +454,32 @@ bool MdsClientImpl::ListPartition(uint32_t fsID,
     return 0 == rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS);
 }
 
+FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint64_t* chunkId) {
+    auto task = RPCTask {
+        AllocateS3ChunkResponse response;
+        mdsbasecli_->AllocS3ChunkId(fsId, &response, cntl, channel);
+        if (cntl->Failed()) {
+            LOG(WARNING) << "AllocS3ChunkId Failed, errorcode = "
+                         << cntl->ErrorCode()
+                         << ", error content:" << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+        
+        FSStatusCode ret = response.statuscode();
+        if (ret != FSStatusCode::OK) {
+            LOG(WARNING) << "AllocS3ChunkId: fsid = " << fsId
+                         << ", errcode = " << ret
+                         << ", errmsg = " << FSStatusCode_Name(ret);
+        } else if (response.has_chunkid()) {
+            *chunkId = response.chunkid();
+        }
+
+        return ret;   
+    };
+    return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));      
+}
+
 FSStatusCode MdsClientImpl::ReturnError(int retcode) {
     // rpc error convert to FSStatusCode::RPC_ERROR
     if (retcode < 0) {

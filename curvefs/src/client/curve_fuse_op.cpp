@@ -311,4 +311,8 @@ void FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
     FuseReplyErrByErrCode(req, ret);
 }
 
-
+void FuseOpFsync(fuse_req_t req, fuse_ino_t ino, int datasync,
+           struct fuse_file_info *fi) {
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpFsync(req, ino, datasync, fi);
+    FuseReplyErrByErrCode(req, ret);
+}

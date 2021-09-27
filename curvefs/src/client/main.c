@@ -45,6 +45,7 @@ static const struct fuse_lowlevel_ops curve_ll_oper = {
     .link       = FuseOpLink,
     .readlink   = FuseOpReadLink,
     .release    = FuseOpRelease,
+    .fsync      = FuseOpFsync,
 };
 
 int main(int argc, char *argv[]) {
@@ -110,7 +111,7 @@ int main(int argc, char *argv[]) {
         goto err_out3;
 
     fuse_daemonize(opts.foreground);
-
+    printf("singlethread %d\n", opts.singlethread);
     /* Block until ctrl+c or fusermount -u */
     if (opts.singlethread) {
         ret = fuse_session_loop(se);

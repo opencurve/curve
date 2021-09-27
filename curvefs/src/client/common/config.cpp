@@ -107,8 +107,12 @@ void InitBlockDeviceOption(Configuration *conf,
 }
 
 void InitS3Option(Configuration *conf, S3Option *s3Opt) {
-    conf->GetValueFatalIfFail("s3.blocksize", &s3Opt->blocksize);
-    conf->GetValueFatalIfFail("s3.chunksize", &s3Opt->chunksize);
+    conf->GetValueFatalIfFail("s3.blocksize", &s3Opt->s3ClientAdaptorOpt.blockSize);
+    conf->GetValueFatalIfFail("s3.chunksize", &s3Opt->s3ClientAdaptorOpt.chunkSize);
+    conf->GetValueFatalIfFail("s3.intervalSec", &s3Opt->s3ClientAdaptorOpt.intervalSec);
+    conf->GetValueFatalIfFail("s3.flushInterval", &s3Opt->s3ClientAdaptorOpt.flushInterval);
+    conf->GetValueFatalIfFail("s3.writeCacheMaxByte", &s3Opt->s3ClientAdaptorOpt.writeCacheMaxByte);
+    conf->GetValueFatalIfFail("s3.lruCapacity", &s3Opt->s3ClientAdaptorOpt.lruCapacity);
     ::curve::common::InitS3AdaptorOption(conf, &s3Opt->s3AdaptrOpt);
 }
 

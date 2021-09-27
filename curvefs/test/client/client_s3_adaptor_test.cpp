@@ -30,6 +30,7 @@
 #include "curvefs/test/client/mock_inode_cache_manager.h"
 #include "curvefs/test/client/mock_metaserver_service.h"
 #include "curvefs/test/client/mock_spacealloc_service.h"
+#include "curvefs/test/client/mock_mds_client.h"
 
 namespace curvefs {
 namespace client {
@@ -40,6 +41,8 @@ using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
 using ::testing::WithArg;
+
+using rpcclient::MockMdsClient;
 
 template <typename RpcRequestType, typename RpcResponseType,
           bool RpcFailed = false>
@@ -94,15 +97,14 @@ class ClientS3AdaptorTest : public testing::Test {
         S3ClientAdaptorOption option;
         option.blockSize = 1 * 1024 * 1024;
         option.chunkSize = 4 * 1024 * 1024;
-        option.metaServerEps = addr_;
-        option.allocateServerEps = addr_;
         option.intervalSec = 3;
         option.flushInterval = 50;
         // auto metaClient = std::make_shared<MetaServerClientImpl>();
         std::shared_ptr<MockInodeCacheManager> mockInodeManager(
             &mockInodeManager_);
+        std::shared_ptr<MockMdsClient> mockMdsClient(&mockMdsClient_);
         s3ClientAdaptor_ = new S3ClientAdaptorImpl();
-        s3ClientAdaptor_->Init(option, &mockS3Client_, mockInodeManager);
+        s3ClientAdaptor_->Init(option, &mockS3Client_, mockInodeManager, mockMdsClient);
     }
 
     void TearDown() override {
@@ -116,6 +118,7 @@ class ClientS3AdaptorTest : public testing::Test {
     MockSpaceAllocService mockSpaceAllocService_;
     MockS3Client mockS3Client_;
     MockInodeCacheManager mockInodeManager_;
+    MockMdsClient mockMdsClient_;
     std::string addr_ = "127.0.0.1:5628";
     brpc::Server server_;
 };
@@ -382,6 +385,7 @@ TEST_F(ClientS3AdaptorTest, test_read_one_chunk) {
     s3ChunkInfo->set_offset(0);
     s3ChunkInfo->set_len(readFileLen);
     s3ChunkInfo->set_size(readFileLen);
+    s3ChunkInfo->set_zero(false);
     s3ChunkInfoMap->insert({chunkIndex, *s3ChunkInfoList});
 
     char* buf = new char[len];
@@ -1138,7 +1142,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_first_write) {
                                                   AllocateS3ChunkResponse>)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Return(1 * 1024 * 1024));
-    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(&inode);
+    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(inode.inodeid());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     s3ClientAdaptor_->Write(&inode, offset, len, buf);
 
@@ -1146,7 +1150,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_first_write) {
         s3ClientAdaptor_->GetFsCacheManager();
     ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
 
-    ret = s3ClientAdaptor_->Flush(&inode);
+    ret = s3ClientAdaptor_->Flush(inode.inodeid());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
     auto s3InfoListIter = inode.s3chunkinfomap().find(chunkIndex);
@@ -1197,7 +1201,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_overlap_write) {
         s3ClientAdaptor_->GetFsCacheManager();
     ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
 
-    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(&inode);
+    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(inode.inodeid());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
     auto s3InfoListIter = inode.s3chunkinfomap().find(chunkIndex);
@@ -1248,7 +1252,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_hole_write) {
         s3ClientAdaptor_->GetFsCacheManager();
     ASSERT_EQ(2, fsCacheManager->GetDataCacheNum());
 
-    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(&inode);
+    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(inode.inodeid());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
     auto s3InfoListIter = inode.s3chunkinfomap().find(chunkIndex);
@@ -1301,7 +1305,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_more_chunk) {
         s3ClientAdaptor_->GetFsCacheManager();
     ASSERT_EQ(2, fsCacheManager->GetDataCacheNum());
 
-    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(&inode);
+    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(inode.inodeid());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
     ASSERT_EQ(2, inode.s3chunkinfomap_size());
@@ -1361,7 +1365,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read1) {
         s3ClientAdaptor_->GetFsCacheManager();
     ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
 
-    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(&inode);
+    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(inode.inodeid());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
     ASSERT_EQ(1, inode.s3chunkinfomap_size());
@@ -1424,7 +1428,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read2) {
         s3ClientAdaptor_->GetFsCacheManager();
     ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
 
-    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(&inode);
+    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(inode.inodeid());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
     ASSERT_EQ(1, inode.s3chunkinfomap_size());
@@ -1489,7 +1493,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read3) {
     std::shared_ptr<FsCacheManager> fsCacheManager =
         s3ClientAdaptor_->GetFsCacheManager();
     ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
-    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(&inode);
+    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(inode.inodeid());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
     ASSERT_EQ(1, inode.s3chunkinfomap_size());
@@ -1581,7 +1585,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read4) {
     std::shared_ptr<FsCacheManager> fsCacheManager =
         s3ClientAdaptor_->GetFsCacheManager();
     ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
-    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(&inode);
+    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(inode.inodeid());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
     ASSERT_EQ(1, inode.s3chunkinfomap_size());
@@ -1593,7 +1597,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read4) {
 
     fsCacheManager = s3ClientAdaptor_->GetFsCacheManager();
     ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
-    ret = s3ClientAdaptor_->Flush(&inode);
+    ret = s3ClientAdaptor_->Flush(inode.inodeid());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
     ASSERT_EQ(1, inode.s3chunkinfomap_size());

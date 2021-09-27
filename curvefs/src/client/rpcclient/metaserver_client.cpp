@@ -414,6 +414,9 @@ MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode &inode) {
             vlist->CopyFrom(inode.volumeextentlist());
             request.set_allocated_volumeextentlist(vlist);
         }
+        if (inode.s3chunkinfomap_size() != 0) {
+            *(request.mutable_s3chunkinfomap()) = inode.s3chunkinfomap();        
+        }
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.UpdateInode(cntl, &request, &response, nullptr);
 

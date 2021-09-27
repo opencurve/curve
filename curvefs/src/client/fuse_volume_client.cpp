@@ -329,5 +329,10 @@ CURVEFS_ERROR FuseVolumeClient::Truncate(Inode *inode, uint64_t length) {
     return CURVEFS_ERROR::OK;
 }
 
+CURVEFS_ERROR FuseVolumeClient::FuseOpFsync(fuse_req_t req, fuse_ino_t ino, int datasync,
+       struct fuse_file_info *fi) {
+    return CURVEFS_ERROR::OK;
+}
+
 }  // namespace client
 }  // namespace curvefs
