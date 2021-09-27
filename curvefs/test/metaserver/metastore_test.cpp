@@ -130,7 +130,7 @@ TEST_F(MetastoreTest, partition) {
     partitionInfo.set_copysetid(3);
     partitionInfo.set_partitionid(4);
     partitionInfo.set_start(100);
-    partitionInfo.set_end(199);
+    partitionInfo.set_end(1000);
     createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo);
     MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
                                                    &createPartitionResponse);
@@ -222,7 +222,7 @@ TEST_F(MetastoreTest, test_inode) {
     partitionInfo1.set_copysetid(3);
     partitionInfo1.set_partitionid(1);
     partitionInfo1.set_start(100);
-    partitionInfo1.set_end(199);
+    partitionInfo1.set_end(1000);
     createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo1);
     MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
                                                    &createPartitionResponse);
@@ -386,6 +386,7 @@ TEST_F(MetastoreTest, test_inode) {
     updateRequest2.set_fsid(fsId);
     updateRequest2.set_inodeid(createResponse.inode().inodeid());
     updateRequest2.set_length(length + 1);
+    updateRequest2.set_nlink(100);
     ret = metastore.UpdateInode(&updateRequest2, &updateResponse2);
     ASSERT_EQ(updateResponse2.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(updateResponse2.statuscode(), ret);
@@ -402,6 +403,7 @@ TEST_F(MetastoreTest, test_inode) {
     ASSERT_EQ(getResponse4.statuscode(), ret);
     ASSERT_FALSE(CompareInode(createResponse.inode(), getResponse4.inode()));
     ASSERT_EQ(getResponse4.inode().length(), length + 1);
+    ASSERT_EQ(getResponse4.inode().nlink(), 100);
 
     UpdateInodeRequest updateRequest3;
     UpdateInodeResponse updateResponse3;
@@ -454,7 +456,7 @@ TEST_F(MetastoreTest, test_dentry) {
     partitionInfo1.set_copysetid(3);
     partitionInfo1.set_partitionid(1);
     partitionInfo1.set_start(100);
-    partitionInfo1.set_end(199);
+    partitionInfo1.set_end(1000);
     createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo1);
     MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
                                                    &createPartitionResponse);
@@ -478,7 +480,7 @@ TEST_F(MetastoreTest, test_dentry) {
     uint32_t partitionId = 1;
     uint32_t fsId = 1;
     uint64_t inodeId = 2;
-    uint64_t parentId = 3;
+    uint64_t parentId = 100;
 
     std::string name = "dentry1";
 
@@ -555,7 +557,7 @@ TEST_F(MetastoreTest, test_dentry) {
     getRequest.set_parentinodeid(parentId);
     getRequest.set_name(name);
     ret = metastore.GetDentry(&getRequest, &getResponse);
-    ASSERT_EQ(getResponse.statuscode(), MetaStatusCode::NOT_FOUND);
+    ASSERT_EQ(getResponse.statuscode(), MetaStatusCode::PARTITION_ID_MISSMATCH);
     ASSERT_EQ(getResponse.statuscode(), ret);
 
     // TEST LIST DENTRY
@@ -656,7 +658,7 @@ TEST_F(MetastoreTest, persist_success) {
     partitionInfo.set_copysetid(3);
     partitionInfo.set_partitionid(partitionId);
     partitionInfo.set_start(100);
-    partitionInfo.set_end(199);
+    partitionInfo.set_end(1000);
     partitionInfo.set_txid(100);
     createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo);
     MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
@@ -718,8 +720,8 @@ TEST_F(MetastoreTest, persist_success) {
     CreateDentryResponse createDentryResponse2;
     Dentry dentry1;
     dentry1.set_fsid(fsId);
-    dentry1.set_inodeid(1);
-    dentry1.set_parentinodeid(0);
+    dentry1.set_inodeid(2000);
+    dentry1.set_parentinodeid(100);
     dentry1.set_name("dentry1");
     dentry1.set_txid(1);
 
@@ -811,7 +813,7 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
     partitionInfo.set_copysetid(3);
     partitionInfo.set_partitionid(partitionId);
     partitionInfo.set_start(100);
-    partitionInfo.set_end(199);
+    partitionInfo.set_end(1000);
     createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo);
     MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
                                                    &createPartitionResponse);
@@ -823,8 +825,9 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
     CreateDentryResponse createDentryResponse1;
     CreateDentryResponse createDentryResponse2;
     Dentry dentry1;
-    dentry1.set_inodeid(1);
-    dentry1.set_parentinodeid(0);
+    dentry1.set_fsid(1);
+    dentry1.set_inodeid(2000);
+    dentry1.set_parentinodeid(100);
     dentry1.set_name("dentry1");
 
     createDentryRequest.set_poolid(2);

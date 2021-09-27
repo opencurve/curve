@@ -531,6 +531,7 @@ MetaStatusCode MetaStoreImpl::UpdateInode(const UpdateInodeRequest* request,
     UPDATE_INODE(uid)
     UPDATE_INODE(gid)
     UPDATE_INODE(mode)
+    UPDATE_INODE(nlink)
 
     if (request->has_volumeextentlist()) {
         VLOG(1) << "update inode has extent";
