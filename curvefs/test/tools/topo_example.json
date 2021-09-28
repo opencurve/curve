@@ -1,52 +1,62 @@
 {
-    "pools": [{
-        "name": "pool1",
-        "replicasnum": 3,
-        "copysetnum": 0,
-        "zonenum": 3
-    }],
-    "servers": [{
-        "name": "server1",
-        "internalip": "127.0.0.1",
-        "internalport": 0,
-        "externalip": "127.0.0.1",
-        "externalport": 0,
-        "zone": "zone1",
-        "pool": "pool1"
-    }, {
-        "name": "server2",
-        "internalip": "127.0.0.2",
-        "internalport": 0,
-        "externalip": "127.0.0.2",
-        "externalport": 0,
-        "zone": "zone2",
-        "pool": "pool1"
-    }, {
-        "name": "server3",
-        "internalip": "127.0.0.3",
-        "internalport": 0,
-        "externalip": "127.0.0.3",
-        "externalport": 0,
-        "zone": "zone3",
-        "pool": "pool1"
-    }],
-    "metaservers": [{
-        "name": "metaserver1",
-        "internalip": "127.0.0.1",
-        "internalport": 6700,
-        "externalip": "127.0.0.1",
-        "externalport": 6800
-    }, {
-        "name": "metaserver2",
-        "internalip": "127.0.0.2",
-        "internalport": 6700,
-        "externalip": "127.0.0.2",
-        "externalport": 6800
-    }, {
-        "name": "metaserver3",
-        "internalip": "127.0.0.3",
-        "internalport": 6700,
-        "externalip": "127.0.0.3",
-        "externalport": 6800
-    }]
+    "metaservers": [
+        {
+            "externalip": "10.182.2.43",
+            "externalport": 16701,
+            "internalip": "10.182.2.43",
+            "internalport": 16701,
+            "name": "metaserver1"
+        },
+        {
+            "externalip": "10.182.2.44",
+            "externalport": 16701,
+            "internalip": "10.182.2.44",
+            "internalport": 16701,
+            "name": "metaserver2"
+        },
+        {
+            "externalip": "10.182.2.45",
+            "externalport": 16701,
+            "internalip": "10.182.2.45",
+            "internalport": 16701,
+            "name": "metaserver3"
+        }
+    ],
+    "pools": [
+        {
+            "copysetnum": 100,
+            "name": "pool1",
+            "replicasnum": 3,
+            "zonenum": 3
+        }
+    ],
+    "servers": [
+        {
+            "externalip": "10.182.2.43",
+            "externalport": 16701,
+            "internalip": "10.182.2.43",
+            "internalport": 16701,
+            "name": "server1",
+            "pool": "pool1",
+            "zone": "zone1"
+        },
+        {
+            "externalip": "10.182.2.44",
+            "externalport": 16701,
+            "internalip": "10.182.2.44",
+            "internalport": 16701,
+            "name": "server2",
+            "pool": "pool1",
+            "zone": "zone2"
+        },
+        {
+            "externalip": "10.182.2.45",
+            "externalport": 16701,
+            "internalip": "10.182.2.45",
+            "internalport": 16701,
+            "name": "server3",
+            "pool": "pool1",
+            "zone": "zone3"
+        }
+    ]
 }
