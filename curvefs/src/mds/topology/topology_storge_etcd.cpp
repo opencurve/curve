@@ -471,22 +471,24 @@ bool TopologyStorageEtcd::UpdatePartitions(
     }
 
     std::vector<Operation> ops;
-    for (const Partition &data : datas) {
-        std::string key = codec_->EncodePartitionKey(data.GetPartitionId());
-        std::string value;
-        bool ret = codec_->EncodePartitionData(data, &value);
+    std::vector<std::string> keys(datas.size());
+    std::vector<std::string> values(datas.size());
+
+    for (int i = 0; i < datas.size(); i++) {
+        keys[i] = codec_->EncodePartitionKey(datas[i].GetPartitionId());
+        bool ret = codec_->EncodePartitionData(datas[i], &values[i]);
         if (!ret) {
             LOG(ERROR) << "EncodePartitionData err"
-                    << ", partitionId = " << data.GetPartitionId();
+                    << ", partitionId = " << datas[i].GetPartitionId();
             return false;
         }
 
         Operation op {
             OpType::OpPut,
-            const_cast<char*>(key.c_str()),
-            const_cast<char*>(value.c_str()),
-            key.size(),
-            value.size()
+            const_cast<char*>(keys[i].data()),
+            const_cast<char*>(values[i].data()),
+            keys[i].size(),
+            values[i].size()
         };
         ops.emplace_back(op);
     }
