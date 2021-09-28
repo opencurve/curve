@@ -16,15 +16,14 @@
 
 /*
  * @Project: curve
- * @Date: 2021-09-04
- * @Author: wanghai01
+ * @Date: 2021-10-09
+ * @Author: chengyi01
  */
-
-#include "curvefs/src/tools/curvefs_topology_tool.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "curvefs/src/tools/topology/curvefs_topology_tool.h"
 #include "curvefs/test/tools/mock_topology_service.h"
 
 using ::testing::_;
@@ -35,7 +34,7 @@ namespace curvefs {
 namespace mds {
 namespace topology {
 
-class BuildTopologyToolTest : public ::testing::Test {
+class TopologyToolTest : public ::testing::Test {
  protected:
     void SetUp() override {
         ASSERT_EQ(tool_.Init(), 0);
@@ -71,7 +70,7 @@ void RpcService(google::protobuf::RpcController* cntl_base,
 }
 
 // test build a new cluster
-TEST_F(BuildTopologyToolTest, test_BuildEmptyCluster) {
+TEST_F(TopologyToolTest, test_BuildEmptyCluster) {
     // make list response
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_OK);
@@ -125,7 +124,7 @@ TEST_F(BuildTopologyToolTest, test_BuildEmptyCluster) {
 }
 
 // test add pool/zone/server/metaserver in cluster
-TEST_F(BuildTopologyToolTest, test_BuildCluster) {
+TEST_F(TopologyToolTest, test_BuildCluster) {
     // make list response
     // a pool with a zone with a server and metaserver has already in cluster
     ListPoolResponse listPoolResponse;
@@ -221,7 +220,7 @@ TEST_F(BuildTopologyToolTest, test_BuildCluster) {
     ASSERT_EQ(2, tool_.GetMetaServerDatas().size());
 }
 
-TEST_F(BuildTopologyToolTest, test_ListPoolFailed) {
+TEST_F(TopologyToolTest, test_ListPoolFailed) {
     // make list response
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_INTERNAL_ERROR);
@@ -234,7 +233,7 @@ TEST_F(BuildTopologyToolTest, test_ListPoolFailed) {
     ASSERT_EQ(1, tool_.HandleBuildCluster());
 }
 
-TEST_F(BuildTopologyToolTest, test_ListPoolZoneFailed) {
+TEST_F(TopologyToolTest, test_ListPoolZoneFailed) {
     // make list response
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_OK);
@@ -258,7 +257,7 @@ TEST_F(BuildTopologyToolTest, test_ListPoolZoneFailed) {
     ASSERT_EQ(1, tool_.HandleBuildCluster());
 }
 
-TEST_F(BuildTopologyToolTest, test_ListZoneServerFailed) {
+TEST_F(TopologyToolTest, test_ListZoneServerFailed) {
     // make list response
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_OK);
@@ -294,7 +293,7 @@ TEST_F(BuildTopologyToolTest, test_ListZoneServerFailed) {
     ASSERT_EQ(1, tool_.HandleBuildCluster());
 }
 
-TEST_F(BuildTopologyToolTest, test_ListMetaServerFailed) {
+TEST_F(TopologyToolTest, test_ListMetaServerFailed) {
     // make list response
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_OK);
@@ -348,7 +347,7 @@ TEST_F(BuildTopologyToolTest, test_ListMetaServerFailed) {
     ASSERT_EQ(1, tool_.HandleBuildCluster());
 }
 
-TEST_F(BuildTopologyToolTest, test_CreatePoolFailed) {
+TEST_F(TopologyToolTest, test_CreatePoolFailed) {
     // make list response
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_OK);
@@ -375,7 +374,7 @@ TEST_F(BuildTopologyToolTest, test_CreatePoolFailed) {
     ASSERT_EQ(1, tool_.HandleBuildCluster());
 }
 
-TEST_F(BuildTopologyToolTest, test_CreateZoneFailed) {
+TEST_F(TopologyToolTest, test_CreateZoneFailed) {
     // make list response
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_OK);
@@ -408,7 +407,7 @@ TEST_F(BuildTopologyToolTest, test_CreateZoneFailed) {
     ASSERT_EQ(1, tool_.HandleBuildCluster());
 }
 
-TEST_F(BuildTopologyToolTest, test_ServerRegisterFailed) {
+TEST_F(TopologyToolTest, test_ServerRegisterFailed) {
     // make list response
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_OK);
@@ -448,7 +447,7 @@ TEST_F(BuildTopologyToolTest, test_ServerRegisterFailed) {
     ASSERT_EQ(1, tool_.HandleBuildCluster());
 }
 
-TEST_F(BuildTopologyToolTest, test_MetaServerRegisterFailed) {
+TEST_F(TopologyToolTest, test_MetaServerRegisterFailed) {
     // make list response
     ListPoolResponse listPoolResponse;
     listPoolResponse.set_statuscode(TopoStatusCode::TOPO_OK);

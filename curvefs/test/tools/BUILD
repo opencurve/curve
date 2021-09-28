@@ -14,13 +14,72 @@
 #  limitations under the License.
 #
 
+COPTS = [
+    "-DGFLAGS=gflags",
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-DHAVE_SSE42",
+    "-DNDEBUG",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-msse4.2",
+    "-pthread",
+    "-Wsign-compare",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+    "-Woverloaded-virtual",
+    "-Wnon-virtual-dtor",
+    "-Wno-missing-field-initializers",
+    "-std=c++11",
+    "-Wall",
+    '-Werror',
+]
+
 cc_test(
     name = "curvefs_topology_tool_test",
-    srcs = glob(["*.cpp", "*.h"]),
+    srcs = glob(["curvefs_topology_tool_test.cpp", "mock_topology_service.h"]),
     copts = ["-g","-DHAVE_ZLIB=1"],
     deps = [
             "//curvefs/src/tools:curvefs_topology_tool_lib",
             "@com_google_googletest//:gtest_main",
             "@com_google_googletest//:gtest",
+    ],
+)
+
+# umountfs
+cc_test(
+    name = "curvefs_umount_tool_test",
+    srcs = glob([
+        "curvefs_umountfs_tool_test.cpp",
+        "mock_mds_service.h",
+    ]),
+    copts = COPTS,
+    defines = ["UNIT_TEST"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//external:brpc",
+        "//external:glog",
+        "//external:gflags",
+        "//curvefs/src/tools:curvefs_tools_lib",
+    ],
+    linkopts = [
+        "-L/usr/local/lib/x86_64-linux-gnu",
+    ],
+)
+
+# topology
+cc_test(
+    name = "curvefs_build_topology_tool_test",
+    srcs = glob([
+        "curvefs_build_topology_tool_test.cpp",
+        "mock_topology_service.h",
+    ]),
+    copts = ["-g","-DHAVE_ZLIB=1"],
+    deps = [
+        "@com_google_googletest//:gtest_main",
+        "@com_google_googletest//:gtest",
+        "//curvefs/src/tools:curvefs_tools_lib",
     ],
 )

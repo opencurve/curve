@@ -16,11 +16,11 @@
 
 /*
  * @Project: curve
- * @Date: 2021-09-04
- * @Author: wanghai01
+ * @Date: 2021-10-09
+ * @Author: chengyi01
  */
 
-#include "curvefs/src/tools/curvefs_topology_tool.h"
+#include "curvefs/src/tools/topology/curvefs_build_topology_tool.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -51,7 +51,7 @@ class BuildTopologyToolTest : public ::testing::Test {
     }
 
  protected:
-    CurvefsTopologyTool tool_;
+    CurvefsBuildTopologyTool tool_;
 
     MockTopologyService mockTopologyService_;
     std::string addr_ = "127.0.0.1:6700";
