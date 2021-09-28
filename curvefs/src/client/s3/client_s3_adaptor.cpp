@@ -31,19 +31,33 @@ namespace curvefs {
 
 namespace client {
 
-void S3ClientAdaptorImpl::Init(
+CURVEFS_ERROR S3ClientAdaptorImpl::Init(
     const S3ClientAdaptorOption& option, S3Client* client,
-    std::shared_ptr<InodeCacheManager> inodeManager) {
+    std::shared_ptr<InodeCacheManager> inodeManager,
+    std::shared_ptr<MdsClient> mdsClient) {
     blockSize_ = option.blockSize;
     chunkSize_ = option.chunkSize;
-    metaServerEps_ = option.metaServerEps;
-    allocateServerEps_ = option.allocateServerEps;
-    flushIntervalSec_ = option.flushInterval;
     enableDiskCache_ = option.diskCacheOpt.enableDiskCache;
+
+    if (chunkSize_ % blockSize_ != 0) {
+        LOG(ERROR) << "chunkSize:" << chunkSize_
+                   << " is not integral multiple for the blockSize:"
+                   << blockSize_;
+        return CURVEFS_ERROR::INVALIDPARAM;
+    }
+    flushIntervalSec_ = option.flushIntervalSec;
     client_ = client;
     inodeManager_ = inodeManager;
-    fsCacheManager_ = std::make_shared<FsCacheManager>(this);
+    mdsClient_ = mdsClient;
+    fsCacheManager_ = std::make_shared<FsCacheManager>(
+        this, option.readCacheMaxByte, option.writeCacheMaxByte);
     waitIntervalSec_.Init(option.intervalSec * 1000);
+    LOG(INFO) << "Init(): block size:" << blockSize_
+              << ",chunk size:" << chunkSize_
+              << ",intervalSec:" << option.intervalSec
+              << ",flushIntervalSec:" << option.flushIntervalSec
+              << ",writeCacheMaxByte:" << option.writeCacheMaxByte
+              << ",readCacheMaxByte:" << option.readCacheMaxByte;
     toStop_.store(false, std::memory_order_release);
     bgFlushThread_ = Thread(&S3ClientAdaptorImpl::BackGroundFlush, this);
 
@@ -54,27 +68,31 @@ void S3ClientAdaptorImpl::Init(
             std::make_shared<DiskCacheRead>();
         std::shared_ptr<DiskCacheWrite> diskCacheWrite =
             std::make_shared<DiskCacheWrite>();
-        std::shared_ptr<DiskCacheManager>  diskCacheManager = std::make_shared<
-            DiskCacheManager>(wrapper, diskCacheWrite, diskCacheRead);
+        std::shared_ptr<DiskCacheManager> diskCacheManager =
+            std::make_shared<DiskCacheManager>(wrapper, diskCacheWrite,
+                                               diskCacheRead);
         diskCacheManagerImpl_ =
             std::make_shared<DiskCacheManagerImpl>(diskCacheManager, client);
         diskCacheManagerImpl_->Init(option);
     }
 }
 
-int S3ClientAdaptorImpl::Write(Inode* inode, uint64_t offset, uint64_t length,
-                               const char* buf) {
-    uint64_t fsId = inode->fsid();
-    uint64_t inodeId = inode->inodeid();
-
+int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
+                               uint64_t length, const char* buf) {
     LOG(INFO) << "write start offset:" << offset << ", len:" << length
-              << ",inode length:" << inode->length() << ", fsId:" << fsId
-              << ", inodeId" << inodeId;
+              << ", fsId:" << fsId_ << ", inodeId:" << inodeId;
 
     FileCacheManagerPtr fileCacheManager =
-        fsCacheManager_->FindOrCreateFileCacheManager(fsId, inodeId);
+        fsCacheManager_->FindOrCreateFileCacheManager(fsId_, inodeId);
 
-    return fileCacheManager->Write(offset, length, buf);
+    if (fsCacheManager_->WriteCacheIsFull()) {
+        LOG(INFO) << "write cache is full,wait flush";
+        fsCacheManager_->WaitFlush();
+    }
+
+    int ret = fileCacheManager->Write(offset, length, buf);
+    LOG(INFO) << "write end inodeId:" << inodeId << ",ret:" << ret;
+    return ret;
 }
 
 int S3ClientAdaptorImpl::Read(Inode* inode, uint64_t offset, uint64_t length,
@@ -109,7 +127,7 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode* inode, uint64_t size) {
     uint64_t chunkPos = offset % chunkSize_;
     uint64_t n = 0;
     uint64_t chunkId;
-    CURVEFS_ERROR ret;
+    FSStatusCode ret;
     uint64_t fsId = inode->fsid();
     while (len > 0) {
         if (chunkPos + len > chunkSize_) {
@@ -118,9 +136,9 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode* inode, uint64_t size) {
             n = len;
         }
         ret = AllocS3ChunkId(fsId, &chunkId);
-        if (ret != CURVEFS_ERROR::OK) {
+        if (ret != FSStatusCode::OK) {
             LOG(ERROR) << "Truncate alloc s3 chunkid fail. ret:" << ret;
-            return ret;
+            return CURVEFS_ERROR::INTERNAL;
         }
         S3ChunkInfo* tmp;
         auto s3ChunkInfoMap = inode->mutable_s3chunkinfomap();
@@ -162,71 +180,36 @@ void S3ClientAdaptorImpl::ReleaseCache(uint64_t inodeId) {
     return;
 }
 
-CURVEFS_ERROR S3ClientAdaptorImpl::Flush(Inode* inode) {
+CURVEFS_ERROR S3ClientAdaptorImpl::Flush(uint64_t inodeId) {
     FileCacheManagerPtr fileCacheManager =
-        fsCacheManager_->FindFileCacheManager(inode->inodeid());
+        fsCacheManager_->FindFileCacheManager(inodeId);
     if (!fileCacheManager) {
         return CURVEFS_ERROR::OK;
     }
-
-    return fileCacheManager->Flush(inode, true);
+    LOG(INFO) << "Flush inodeId:" << inodeId;
+    return fileCacheManager->Flush(true);
 }
 
 CURVEFS_ERROR S3ClientAdaptorImpl::FsSync() {
     return fsCacheManager_->FsSync(true);
 }
 
-CURVEFS_ERROR S3ClientAdaptorImpl::AllocS3ChunkId(uint32_t fsId,
-                                                  uint64_t* chunkId) {
-    brpc::Channel channel;
-
-    if (channel.Init(allocateServerEps_.c_str(), nullptr) != 0) {
-        LOG(ERROR) << "Fail to init channel to allocate Server"
-                   << " for alloc chunkId: " << allocateServerEps_;
-        return CURVEFS_ERROR::INTERNAL;
-    }
-    brpc::Controller* cntl = new brpc::Controller();
-    AllocateS3ChunkRequest request;
-    AllocateS3ChunkResponse response;
-
-    request.set_fsid(fsId);
-
-    curvefs::space::SpaceAllocService_Stub stub(&channel);
-
-    stub.AllocateS3Chunk(cntl, &request, &response, nullptr);
-
-    if (cntl->Failed()) {
-        LOG(WARNING) << "Allocate s3 chunkid Failed, errorcode = "
-                     << cntl->ErrorCode()
-                     << ", error content:" << cntl->ErrorText()
-                     << ", log id = " << cntl->log_id();
-        CURVEFS_ERROR error = static_cast<CURVEFS_ERROR>(-cntl->ErrorCode());
-        delete cntl;
-        cntl = nullptr;
-        return error;
-    }
-
-    ::curvefs::space::SpaceStatusCode ssCode = response.status();
-    if (ssCode != ::curvefs::space::SpaceStatusCode::SPACE_OK) {
-        LOG(WARNING) << "Allocate s3 chunkid response Failed, retCode = "
-                     << ssCode;
-        delete cntl;
-        cntl = nullptr;
-        return CURVEFS_ERROR::INTERNAL;
-    }
-
-    *chunkId = response.chunkid();
-    delete cntl;
-    cntl = nullptr;
-    return CURVEFS_ERROR::OK;
+FSStatusCode S3ClientAdaptorImpl::AllocS3ChunkId(uint32_t fsId,
+                                                 uint64_t* chunkId) {
+    return mdsClient_->AllocS3ChunkId(fsId, chunkId);
 }
+
 void S3ClientAdaptorImpl::BackGroundFlush() {
     while (!toStop_.load(std::memory_order_acquire)) {
         if (fsCacheManager_->GetDataCacheNum() == 0) {
+            LOG(INFO) << "BackGroundFlush has no write cache, so wait";
             std::unique_lock<std::mutex> lck(mtx_);
-            cond_.wait(lck);
+            cond_.wait(lck, [this](){
+                return fsCacheManager_->GetDataCacheNum() != 0;
+            });
         }
-
+        LOG(INFO) << "BackGroundFlush be notify, so flush, write cache num:"
+                  << fsCacheManager_->GetDataCacheNum();
         waitIntervalSec_.WaitForNextExcution();
         fsCacheManager_->FsSync(false);
     }
@@ -234,12 +217,15 @@ void S3ClientAdaptorImpl::BackGroundFlush() {
 }
 
 int S3ClientAdaptorImpl::Stop() {
-    LOG(INFO) << "Stopping S3ClientAdaptor.";
-    diskCacheManagerImpl_->UmountDiskCache();
+    LOG(INFO) << "start Stopping S3ClientAdaptor.";
+    if (enableDiskCache_) {
+       diskCacheManagerImpl_->UmountDiskCache();
+    }
     waitIntervalSec_.StopWait();
     toStop_.store(true, std::memory_order_release);
+    FsSyncSignal();
     bgFlushThread_.join();
-
+    LOG(INFO) << "Stopping S3ClientAdaptor success";
     return 0;
 }
 

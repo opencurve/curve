@@ -235,7 +235,7 @@ void MdsServiceImpl::AllocateS3Chunk(
         resStat = ALLOCATE_CHUNKID_ERROR;
     }
 
-    response->set_status(resStat);
+    response->set_statuscode(resStat);
 
     if (resStat != OK) {
         LOG(ERROR) << "AllocateS3Chunk failure, request: "

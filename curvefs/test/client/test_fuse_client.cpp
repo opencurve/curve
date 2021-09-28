@@ -20,44 +20,44 @@
  * Author: xuchaojie
  */
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
-#include "curvefs/src/client/fuse_volume_client.h"
 #include "curvefs/src/client/fuse_s3_client.h"
+#include "curvefs/src/client/fuse_volume_client.h"
+#include "curvefs/test/client/mock_block_device_client.h"
+#include "curvefs/test/client/mock_client_s3_adaptor.h"
+#include "curvefs/test/client/mock_dentry_cache_mamager.h"
+#include "curvefs/test/client/mock_extent_manager.h"
+#include "curvefs/test/client/mock_inode_cache_manager.h"
 #include "curvefs/test/client/mock_mds_client.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
-#include "curvefs/test/client/mock_block_device_client.h"
-#include "curvefs/test/client/mock_extent_manager.h"
 #include "curvefs/test/client/mock_space_client.h"
-#include "curvefs/test/client/mock_inode_cache_manager.h"
-#include "curvefs/test/client/mock_dentry_cache_mamager.h"
-#include "curvefs/test/client/mock_client_s3_adaptor.h"
 
 struct fuse_req {
-    struct fuse_ctx *ctx;
+    struct fuse_ctx* ctx;
 };
 
 namespace curvefs {
 namespace client {
 
-using ::testing::Return;
-using ::testing::_;
-using ::testing::Invoke;
-using ::testing::Contains;
-using ::testing::SetArgPointee;
-using ::testing::SetArgReferee;
 using ::curve::common::Configuration;
 using ::curvefs::mds::topology::PartitionTxId;
+using ::testing::_;
+using ::testing::Contains;
+using ::testing::Invoke;
+using ::testing::Return;
+using ::testing::SetArgPointee;
+using ::testing::SetArgReferee;
 
-using rpcclient::MockMetaServerClient;
 using rpcclient::MockMdsClient;
+using rpcclient::MockMetaServerClient;
 
 #define EQUAL(a) (lhs.a() == rhs.a())
 
 bool operator==(const Dentry& lhs, const Dentry& rhs) {
-    return EQUAL(fsid) && EQUAL(parentinodeid) && EQUAL(name) &&
-           EQUAL(txid) && EQUAL(inodeid) && EQUAL(flag);
+    return EQUAL(fsid) && EQUAL(parentinodeid) && EQUAL(name) && EQUAL(txid) &&
+           EQUAL(inodeid) && EQUAL(flag);
 }
 
 class TestFuseVolumeClient : public ::testing::Test {
@@ -80,13 +80,9 @@ class TestFuseVolumeClient : public ::testing::Test {
         fuseClientOption_.volumeOpt.bigFileSize = bigFileSize_;
         fuseClientOption_.listDentryLimit = listDentryLimit_;
         fuseClientOption_.maxNameLength = 20u;
-        client_  = std::make_shared<FuseVolumeClient>(mdsClient_,
-            metaClient_,
-            spaceClient_,
-            inodeManager_,
-            dentryManager_,
-            extManager_,
-            blockDeviceClient_);
+        client_ = std::make_shared<FuseVolumeClient>(
+            mdsClient_, metaClient_, spaceClient_, inodeManager_,
+            dentryManager_, extManager_, blockDeviceClient_);
         client_->Init(fuseClientOption_);
         PrepareFsInfo();
     }
@@ -107,12 +103,8 @@ class TestFuseVolumeClient : public ::testing::Test {
         client_->SetFsInfo(fsInfo);
     }
 
-    Dentry GenDentry(uint32_t fsId,
-                     uint64_t parentId,
-                     const std::string& name,
-                     uint64_t txId,
-                     uint64_t inodeId,
-                     uint32_t flag) {
+    Dentry GenDentry(uint32_t fsId, uint64_t parentId, const std::string& name,
+                     uint64_t txId, uint64_t inodeId, uint32_t flag) {
         Dentry dentry;
         dentry.set_fsid(fsId);
         dentry.set_parentinodeid(parentId);
@@ -164,8 +156,7 @@ TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_exist) {
     fsInfoExp.set_fsid(200);
     fsInfoExp.set_fsname(fsName);
     EXPECT_CALL(*mdsClient_, MountFs(fsName, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(fsInfoExp),
-                Return(FSStatusCode::OK)));
+        .WillOnce(DoAll(SetArgPointee<2>(fsInfoExp), Return(FSStatusCode::OK)));
 
     EXPECT_CALL(*blockDeviceClient_, Open(volName, user))
         .WillOnce(Return(CURVEFS_ERROR::OK));
@@ -205,8 +196,7 @@ TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_not_exist) {
     fsInfoExp.set_fsid(100);
     fsInfoExp.set_fsname(fsName);
     EXPECT_CALL(*mdsClient_, MountFs(fsName, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(fsInfoExp),
-                Return(FSStatusCode::OK)));
+        .WillOnce(DoAll(SetArgPointee<2>(fsInfoExp), Return(FSStatusCode::OK)));
 
     EXPECT_CALL(*blockDeviceClient_, Open(volName, user))
         .WillOnce(Return(CURVEFS_ERROR::OK));
@@ -253,14 +243,13 @@ TEST_F(TestFuseVolumeClient, FuseOpLookup) {
     dentry.set_inodeid(inodeid);
 
     EXPECT_CALL(*dentryManager_, GetDentry(parent, name, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)));
 
     Inode inode;
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
     EXPECT_CALL(*inodeManager_, GetInode(inodeid, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     fuse_entry_param e;
     CURVEFS_ERROR ret = client_->FuseOpLookup(req, parent, name.c_str(), &e);
@@ -282,8 +271,7 @@ TEST_F(TestFuseVolumeClient, FuseOpLookupFail) {
 
     EXPECT_CALL(*dentryManager_, GetDentry(parent, name, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*inodeManager_, GetInode(inodeid, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
@@ -309,7 +297,7 @@ TEST_F(TestFuseVolumeClient, FuseOpLookupNameTooLong) {
 TEST_F(TestFuseVolumeClient, FuseOpWrite) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
-    const char *buf = "xxx";
+    const char* buf = "xxx";
     size_t size = 4;
     off_t off = 0;
     struct fuse_file_info fi;
@@ -322,8 +310,8 @@ TEST_F(TestFuseVolumeClient, FuseOpWrite) {
 
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     std::list<ExtentAllocInfo> toAllocExtents;
     ExtentAllocInfo allocInfo;
@@ -332,8 +320,8 @@ TEST_F(TestFuseVolumeClient, FuseOpWrite) {
     allocInfo.len = preAllocSize_;
     toAllocExtents.push_back(allocInfo);
     EXPECT_CALL(*extManager_, GetToAllocExtents(_, off, size, _))
-        .WillOnce(DoAll(SetArgPointee<3>(toAllocExtents),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgPointee<3>(toAllocExtents), Return(CURVEFS_ERROR::OK)));
 
     std::list<Extent> allocatedExtents;
     Extent ext;
@@ -341,10 +329,10 @@ TEST_F(TestFuseVolumeClient, FuseOpWrite) {
     ext.set_length(preAllocSize_);
     EXPECT_CALL(*spaceClient_, AllocExtents(fsId, _, AllocateType::SMALL, _))
         .WillOnce(DoAll(SetArgPointee<3>(allocatedExtents),
-            Return(CURVEFS_ERROR::OK)));
+                        Return(CURVEFS_ERROR::OK)));
 
-    VolumeExtentList *vlist = new VolumeExtentList();
-    VolumeExtent *vext = vlist->add_volumeextents();
+    VolumeExtentList* vlist = new VolumeExtentList();
+    VolumeExtent* vext = vlist->add_volumeextents();
     vext->set_fsoffset(0);
     vext->set_volumeoffset(0);
     vext->set_length(preAllocSize_);
@@ -352,8 +340,7 @@ TEST_F(TestFuseVolumeClient, FuseOpWrite) {
     inode.set_allocated_volumeextentlist(vlist);
 
     EXPECT_CALL(*extManager_, MergeAllocedExtents(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(*vlist),
-            Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<2>(*vlist), Return(CURVEFS_ERROR::OK)));
 
     std::list<PExtent> pExtents;
     PExtent pext;
@@ -361,8 +348,7 @@ TEST_F(TestFuseVolumeClient, FuseOpWrite) {
     pext.len = preAllocSize_;
     pExtents.push_back(pext);
     EXPECT_CALL(*extManager_, DivideExtents(_, off, size, _))
-        .WillOnce(DoAll(SetArgPointee<3>(pExtents),
-            Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<3>(pExtents), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*blockDeviceClient_, Write(_, 0, preAllocSize_))
         .WillOnce(Return(CURVEFS_ERROR::OK));
@@ -370,8 +356,8 @@ TEST_F(TestFuseVolumeClient, FuseOpWrite) {
     EXPECT_CALL(*extManager_, MarkExtentsWritten(off, size, _))
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
-    CURVEFS_ERROR ret = client_->FuseOpWrite(
-        req, ino, buf, size, off, &fi, &wSize);
+    CURVEFS_ERROR ret =
+        client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
 
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(size, wSize);
@@ -387,7 +373,7 @@ TEST_F(TestFuseVolumeClient, FuseOpWrite) {
 TEST_F(TestFuseVolumeClient, FuseOpWriteFailed) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
-    const char *buf = "xxx";
+    const char* buf = "xxx";
     size_t size = 4;
     off_t off = 0;
     struct fuse_file_info fi;
@@ -401,18 +387,18 @@ TEST_F(TestFuseVolumeClient, FuseOpWriteFailed) {
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     std::list<ExtentAllocInfo> toAllocExtents;
     ExtentAllocInfo allocInfo;
@@ -422,16 +408,16 @@ TEST_F(TestFuseVolumeClient, FuseOpWriteFailed) {
     toAllocExtents.push_back(allocInfo);
     EXPECT_CALL(*extManager_, GetToAllocExtents(_, off, size, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgPointee<3>(toAllocExtents),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgPointee<3>(toAllocExtents),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgPointee<3>(toAllocExtents),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgPointee<3>(toAllocExtents),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgPointee<3>(toAllocExtents),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgPointee<3>(toAllocExtents), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgPointee<3>(toAllocExtents), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgPointee<3>(toAllocExtents), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgPointee<3>(toAllocExtents), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgPointee<3>(toAllocExtents), Return(CURVEFS_ERROR::OK)));
 
     std::list<Extent> allocatedExtents;
     Extent ext;
@@ -440,16 +426,16 @@ TEST_F(TestFuseVolumeClient, FuseOpWriteFailed) {
     EXPECT_CALL(*spaceClient_, AllocExtents(fsId, _, _, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
         .WillOnce(DoAll(SetArgPointee<3>(allocatedExtents),
-            Return(CURVEFS_ERROR::OK)))
+                        Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgPointee<3>(allocatedExtents),
-            Return(CURVEFS_ERROR::OK)))
+                        Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgPointee<3>(allocatedExtents),
-            Return(CURVEFS_ERROR::OK)))
+                        Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgPointee<3>(allocatedExtents),
-            Return(CURVEFS_ERROR::OK)));
+                        Return(CURVEFS_ERROR::OK)));
 
-    VolumeExtentList *vlist = new VolumeExtentList();
-    VolumeExtent *vext = vlist->add_volumeextents();
+    VolumeExtentList* vlist = new VolumeExtentList();
+    VolumeExtent* vext = vlist->add_volumeextents();
     vext->set_fsoffset(0);
     vext->set_volumeoffset(0);
     vext->set_length(preAllocSize_);
@@ -457,13 +443,10 @@ TEST_F(TestFuseVolumeClient, FuseOpWriteFailed) {
     inode.set_allocated_volumeextentlist(vlist);
 
     EXPECT_CALL(*extManager_, MergeAllocedExtents(_, _, _))
-       .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgPointee<2>(*vlist),
-            Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(*vlist),
-            Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(*vlist),
-            Return(CURVEFS_ERROR::OK)));
+        .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
+        .WillOnce(DoAll(SetArgPointee<2>(*vlist), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(*vlist), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(*vlist), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*spaceClient_, DeAllocExtents(_, _))
         .WillOnce(Return(CURVEFS_ERROR::OK));
@@ -475,10 +458,8 @@ TEST_F(TestFuseVolumeClient, FuseOpWriteFailed) {
     pExtents.push_back(pext);
     EXPECT_CALL(*extManager_, DivideExtents(_, off, size, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgPointee<3>(pExtents),
-            Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgPointee<3>(pExtents),
-            Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<3>(pExtents), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<3>(pExtents), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*blockDeviceClient_, Write(_, 0, preAllocSize_))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
@@ -487,8 +468,8 @@ TEST_F(TestFuseVolumeClient, FuseOpWriteFailed) {
     EXPECT_CALL(*extManager_, MarkExtentsWritten(off, size, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
 
-    CURVEFS_ERROR ret = client_->FuseOpWrite(
-        req, ino, buf, size, off, &fi, &wSize);
+    CURVEFS_ERROR ret =
+        client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     ret = client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
@@ -527,8 +508,8 @@ TEST_F(TestFuseVolumeClient, FuseOpRead) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     std::list<PExtent> pExtents;
     PExtent pext1, pext2;
@@ -542,14 +523,13 @@ TEST_F(TestFuseVolumeClient, FuseOpRead) {
     pExtents.push_back(pext2);
 
     EXPECT_CALL(*extManager_, DivideExtents(_, off, size, _))
-        .WillOnce(DoAll(SetArgPointee<3>(pExtents),
-            Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<3>(pExtents), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*blockDeviceClient_, Read(_, 0, 4))
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
-    CURVEFS_ERROR ret = client_->FuseOpRead(req, ino, size, off, &fi,
-        buffer.get(), &rSize);
+    CURVEFS_ERROR ret =
+        client_->FuseOpRead(req, ino, size, off, &fi, buffer.get(), &rSize);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(size, rSize);
     ASSERT_EQ(true, inodeWrapper->isDirty());
@@ -579,10 +559,10 @@ TEST_F(TestFuseVolumeClient, FuseOpReadFailed) {
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     std::list<PExtent> pExtents;
     PExtent pext1, pext2;
@@ -597,22 +577,19 @@ TEST_F(TestFuseVolumeClient, FuseOpReadFailed) {
 
     EXPECT_CALL(*extManager_, DivideExtents(_, off, size, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgPointee<3>(pExtents),
-            Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<3>(pExtents), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*blockDeviceClient_, Read(_, 0, 4))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
 
-    CURVEFS_ERROR ret = client_->FuseOpRead(req, ino, size, off, &fi,
-        buffer.get(), &rSize);
+    CURVEFS_ERROR ret =
+        client_->FuseOpRead(req, ino, size, off, &fi, buffer.get(), &rSize);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
-    ret = client_->FuseOpRead(req, ino, size, off, &fi,
-        buffer.get(), &rSize);
+    ret = client_->FuseOpRead(req, ino, size, off, &fi, buffer.get(), &rSize);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
-    ret = client_->FuseOpRead(req, ino, size, off, &fi,
-        buffer.get(), &rSize);
+    ret = client_->FuseOpRead(req, ino, size, off, &fi, buffer.get(), &rSize);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 }
 
@@ -631,8 +608,8 @@ TEST_F(TestFuseVolumeClient, FuseOpOpen) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*metaClient_, UpdateInode(_))
         .WillOnce(Return(MetaStatusCode::OK));
@@ -661,8 +638,8 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenFailed) {
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*metaClient_, UpdateInode(_))
         .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
@@ -680,7 +657,7 @@ TEST_F(TestFuseVolumeClient, FuseOpCreate) {
     fakeReq.ctx = &fakeCtx;
     fuse_req_t req = &fakeReq;
     fuse_ino_t parent = 1;
-    const char *name = "xxx";
+    const char* name = "xxx";
     mode_t mode = 1;
     struct fuse_file_info fi;
     fi.flags = 0;
@@ -695,15 +672,15 @@ TEST_F(TestFuseVolumeClient, FuseOpCreate) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, CreateInode(_, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*dentryManager_, CreateDentry(_))
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*metaClient_, UpdateInode(_))
         .WillOnce(Return(MetaStatusCode::OK));
@@ -724,7 +701,7 @@ TEST_F(TestFuseVolumeClient, FuseOpCreateFailed) {
     fakeReq.ctx = &fakeCtx;
     fuse_req_t req = &fakeReq;
     fuse_ino_t parent = 1;
-    const char *name = "xxx";
+    const char* name = "xxx";
     mode_t mode = 1;
     struct fuse_file_info fi;
     memset(&fi, 0, sizeof(fi));
@@ -738,8 +715,8 @@ TEST_F(TestFuseVolumeClient, FuseOpCreateFailed) {
 
     EXPECT_CALL(*inodeManager_, CreateInode(_, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*dentryManager_, CreateDentry(_))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
@@ -758,7 +735,7 @@ TEST_F(TestFuseVolumeClient, FuseOpCreateNameTooLong) {
     fakeReq.ctx = &fakeCtx;
     fuse_req_t req = &fakeReq;
     fuse_ino_t parent = 1;
-    const char *name = "aaaaaaaaaaaaaaaaaaaaa";
+    const char* name = "aaaaaaaaaaaaaaaaaaaaa";
     mode_t mode = 1;
     struct fuse_file_info fi;
     memset(&fi, 0, sizeof(fi));
@@ -782,8 +759,7 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlink) {
     dentry.set_inodeid(inodeid);
 
     EXPECT_CALL(*dentryManager_, GetDentry(parent, name, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*dentryManager_, DeleteDentry(parent, name))
         .WillOnce(Return(CURVEFS_ERROR::OK));
@@ -796,8 +772,8 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlink) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(inodeid, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*metaClient_, UpdateInode(_))
         .WillOnce(Return(MetaStatusCode::OK));
@@ -824,12 +800,9 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlinkFailed) {
 
     EXPECT_CALL(*dentryManager_, GetDentry(parent, name, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*dentryManager_, DeleteDentry(parent, name))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
@@ -845,8 +818,8 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlinkFailed) {
 
     EXPECT_CALL(*inodeManager_, GetInode(inodeid, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*metaClient_, UpdateInode(_))
         .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
@@ -886,8 +859,8 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenDir) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     CURVEFS_ERROR ret = client_->FuseOpOpenDir(req, ino, &fi);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
@@ -907,7 +880,7 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenDirFaild) {
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::INTERNAL)));
+                        Return(CURVEFS_ERROR::INTERNAL)));
 
     CURVEFS_ERROR ret = client_->FuseOpOpenDir(req, ino, &fi);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
@@ -921,7 +894,7 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDir) {
     struct fuse_file_info fi;
     memset(&fi, 0, sizeof(fi));
     fi.fh = 0;
-    char *buffer;
+    char* buffer;
     size_t rSize = 0;
 
     Inode inode;
@@ -933,8 +906,8 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDir) {
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .Times(2)
-        .WillRepeatedly(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillRepeatedly(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     CURVEFS_ERROR ret = client_->FuseOpOpenDir(req, ino, &fi);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
@@ -948,11 +921,10 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDir) {
     dentryList.push_back(dentry);
 
     EXPECT_CALL(*dentryManager_, ListDentry(ino, _, listDentryLimit_))
-        .WillOnce(DoAll(SetArgPointee<1>(dentryList),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgPointee<1>(dentryList), Return(CURVEFS_ERROR::OK)));
 
-    ret = client_->FuseOpReadDir(req, ino, size, off, &fi,
-        &buffer, &rSize);
+    ret = client_->FuseOpReadDir(req, ino, size, off, &fi, &buffer, &rSize);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 }
 
@@ -964,7 +936,7 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDirFailed) {
     struct fuse_file_info fi;
     memset(&fi, 0, sizeof(fi));
     fi.fh = 0;
-    char *buffer;
+    char* buffer;
     size_t rSize = 0;
 
     Inode inode;
@@ -976,8 +948,8 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDirFailed) {
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .Times(2)
-        .WillRepeatedly(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillRepeatedly(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     CURVEFS_ERROR ret = client_->FuseOpOpenDir(req, ino, &fi);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
@@ -992,10 +964,9 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDirFailed) {
 
     EXPECT_CALL(*dentryManager_, ListDentry(ino, _, listDentryLimit_))
         .WillOnce(DoAll(SetArgPointee<1>(dentryList),
-                Return(CURVEFS_ERROR::INTERNAL)));
+                        Return(CURVEFS_ERROR::INTERNAL)));
 
-    ret = client_->FuseOpReadDir(req, ino, size, off, &fi,
-        &buffer, &rSize);
+    ret = client_->FuseOpReadDir(req, ino, size, off, &fi, &buffer, &rSize);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 }
 
@@ -1014,47 +985,42 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
     // step1: get txid
     EXPECT_CALL(*metaClient_, GetTxId(fsId, parent, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(srcPartitionId),
-                        SetArgPointee<3>(srcTxId),
-                        Return(MetaStatusCode::OK)));
+                        SetArgPointee<3>(srcTxId), Return(MetaStatusCode::OK)));
     EXPECT_CALL(*metaClient_, GetTxId(fsId, newparent, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(dstPartitionId),
-                        SetArgPointee<3>(dstTxId),
-                        Return(MetaStatusCode::OK)));
+                        SetArgPointee<3>(dstTxId), Return(MetaStatusCode::OK)));
 
     // step2: precheck
     // dentry = { fsid, parentid, name, txid, inodeid, DELETE }
     auto dentry = GenDentry(fsId, parent, name, srcTxId, inodeId, 0);
     EXPECT_CALL(*dentryManager_, GetDentry(parent, name, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry),
-                        Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, GetDentry(newparent, newname, _))
         .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
 
     // step3: prepare tx
     EXPECT_CALL(*metaClient_, PrepareRenameTx(_))
         .WillOnce(Invoke([&](const std::vector<Dentry>& dentrys) {
-            auto srcDentry = GenDentry(fsId, parent, name,
-                                       srcTxId + 1, inodeId, DELETE);
+            auto srcDentry =
+                GenDentry(fsId, parent, name, srcTxId + 1, inodeId, DELETE);
             if (dentrys.size() == 1 && dentrys[0] == srcDentry) {
                 return MetaStatusCode::OK;
             }
             return MetaStatusCode::UNKNOWN_ERROR;
         }))
         .WillOnce(Invoke([&](const std::vector<Dentry>& dentrys) {
-            auto dstDentry = GenDentry(fsId, newparent, newname,
-                                       dstTxId + 1, inodeId, 0);
+            auto dstDentry =
+                GenDentry(fsId, newparent, newname, dstTxId + 1, inodeId, 0);
             if (dentrys.size() == 1 && dentrys[0] == dstDentry) {
                 return MetaStatusCode::OK;
             }
             return MetaStatusCode::UNKNOWN_ERROR;
         }));
 
-
     // step4: commit tx
     EXPECT_CALL(*mdsClient_, CommitTx(_))
         .WillOnce(Invoke([&](const std::vector<PartitionTxId>& txIds) {
-            if (txIds.size() == 2 &&
-                txIds[0].partitionid() == srcPartitionId &&
+            if (txIds.size() == 2 && txIds[0].partitionid() == srcPartitionId &&
                 txIds[0].txid() == srcTxId + 1 &&
                 txIds[1].partitionid() == dstPartitionId &&
                 txIds[1].txid() == dstTxId + 1) {
@@ -1064,23 +1030,20 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
         }));
 
     // step5: update cache
-    EXPECT_CALL(*dentryManager_, DeleteCache(parent, name))
-        .Times(1);
+    EXPECT_CALL(*dentryManager_, DeleteCache(parent, name)).Times(1);
     EXPECT_CALL(*dentryManager_, InsertOrReplaceCache(_))
         .WillOnce(Invoke([&](const Dentry& dentry) {
-            auto dstDentry = GenDentry(fsId, newparent, newname,
-                                       dstTxId + 1, inodeId, 0);
+            auto dstDentry =
+                GenDentry(fsId, newparent, newname, dstTxId + 1, inodeId, 0);
             ASSERT_TRUE(dentry == dstDentry);
         }));
 
     // step6: set txid
-    EXPECT_CALL(*metaClient_, SetTxId(srcPartitionId, srcTxId + 1))
-        .Times(1);
-    EXPECT_CALL(*metaClient_, SetTxId(dstPartitionId, dstTxId + 1))
-        .Times(1);
+    EXPECT_CALL(*metaClient_, SetTxId(srcPartitionId, srcTxId + 1)).Times(1);
+    EXPECT_CALL(*metaClient_, SetTxId(dstPartitionId, dstTxId + 1)).Times(1);
 
-    auto rc = client_->FuseOpRename(req, parent, name.c_str(),
-                                    newparent, newname.c_str());
+    auto rc = client_->FuseOpRename(req, parent, name.c_str(), newparent,
+                                    newname.c_str());
     ASSERT_EQ(rc, CURVEFS_ERROR::OK);
 }
 
@@ -1097,35 +1060,33 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
 
     // step1: get txid
     EXPECT_CALL(*metaClient_, GetTxId(fsId, parent, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(partitionId),
-                        SetArgPointee<3>(txId),
+        .WillOnce(DoAll(SetArgPointee<2>(partitionId), SetArgPointee<3>(txId),
                         Return(MetaStatusCode::OK)));
     EXPECT_CALL(*metaClient_, GetTxId(fsId, newparent, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(partitionId),
-                        SetArgPointee<3>(txId),
+        .WillOnce(DoAll(SetArgPointee<2>(partitionId), SetArgPointee<3>(txId),
                         Return(MetaStatusCode::OK)));
 
     // step2: precheck
     // dentry = { fsid, parentid, name, txid, inodeid, DELETE }
     auto srcDentry = GenDentry(fsId, parent, name, txId, inodeId, FILE);
-    auto dstDentry = GenDentry(fsId, newparent, newname,
-                               txId, oldInodeId, FILE);
+    auto dstDentry =
+        GenDentry(fsId, newparent, newname, txId, oldInodeId, FILE);
     EXPECT_CALL(*dentryManager_, GetDentry(parent, name, _))
-        .WillOnce(DoAll(SetArgPointee<2>(srcDentry),
-                        Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgPointee<2>(srcDentry), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, GetDentry(newparent, newname, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dstDentry),
-                        Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgPointee<2>(dstDentry), Return(CURVEFS_ERROR::OK)));
 
     // step3: prepare tx
     EXPECT_CALL(*metaClient_, PrepareRenameTx(_))
         .WillOnce(Invoke([&](const std::vector<Dentry>& dentrys) {
-            auto srcDentry = GenDentry(fsId, parent, name,
-                                       txId + 1, inodeId, DELETE);
-            auto dstDentry = GenDentry(fsId, newparent, newname,
-                                       txId + 1, inodeId, FILE);
-            if (dentrys.size() == 2 &&
-                dentrys[0] == srcDentry && dentrys[1] == dstDentry) {
+            auto srcDentry =
+                GenDentry(fsId, parent, name, txId + 1, inodeId, DELETE);
+            auto dstDentry =
+                GenDentry(fsId, newparent, newname, txId + 1, inodeId, FILE);
+            if (dentrys.size() == 2 && dentrys[0] == srcDentry &&
+                dentrys[1] == dstDentry) {
                 return MetaStatusCode::OK;
             }
             return MetaStatusCode::UNKNOWN_ERROR;
@@ -1134,8 +1095,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
     // step4: commit tx
     EXPECT_CALL(*mdsClient_, CommitTx(_))
         .WillOnce(Invoke([&](const std::vector<PartitionTxId>& txIds) {
-            if (txIds.size() == 1 &&
-                txIds[0].partitionid() == partitionId &&
+            if (txIds.size() == 1 && txIds[0].partitionid() == partitionId &&
                 txIds[0].txid() == txId + 1) {
                 return TopoStatusCode::TOPO_OK;
             }
@@ -1147,21 +1107,19 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
     // step6: update cache
-    EXPECT_CALL(*dentryManager_, DeleteCache(parent, name))
-        .Times(1);
+    EXPECT_CALL(*dentryManager_, DeleteCache(parent, name)).Times(1);
     EXPECT_CALL(*dentryManager_, InsertOrReplaceCache(_))
         .WillOnce(Invoke([&](const Dentry& dentry) {
-            auto dstDentry = GenDentry(fsId, newparent, newname,
-                                       txId + 1, inodeId, FILE);
+            auto dstDentry =
+                GenDentry(fsId, newparent, newname, txId + 1, inodeId, FILE);
             ASSERT_TRUE(dentry == dstDentry);
         }));
 
     // step7: set txid
-    EXPECT_CALL(*metaClient_, SetTxId(partitionId, txId + 1))
-        .Times(2);
+    EXPECT_CALL(*metaClient_, SetTxId(partitionId, txId + 1)).Times(2);
 
-    auto rc = client_->FuseOpRename(req, parent, name.c_str(),
-                                    newparent, newname.c_str());
+    auto rc = client_->FuseOpRename(req, parent, name.c_str(), newparent,
+                                    newname.c_str());
     ASSERT_EQ(rc, CURVEFS_ERROR::OK);
 }
 
@@ -1178,35 +1136,31 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwriteDir) {
 
     // step1: get txid
     EXPECT_CALL(*metaClient_, GetTxId(fsId, parent, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(partitionId),
-                        SetArgPointee<3>(txId),
+        .WillOnce(DoAll(SetArgPointee<2>(partitionId), SetArgPointee<3>(txId),
                         Return(MetaStatusCode::OK)));
     EXPECT_CALL(*metaClient_, GetTxId(fsId, newparent, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(partitionId),
-                        SetArgPointee<3>(txId),
+        .WillOnce(DoAll(SetArgPointee<2>(partitionId), SetArgPointee<3>(txId),
                         Return(MetaStatusCode::OK)));
 
     // step2: precheck
     // dentry = { fsid, parentid, name, txid, inodeid, DELETE }
     auto srcDentry = GenDentry(fsId, parent, name, txId, inodeId, FILE);
-    auto dstDentry = GenDentry(fsId, newparent, newname,
-                               txId, oldInodeId, 0);
+    auto dstDentry = GenDentry(fsId, newparent, newname, txId, oldInodeId, 0);
     EXPECT_CALL(*dentryManager_, GetDentry(parent, name, _))
-        .WillOnce(DoAll(SetArgPointee<2>(srcDentry),
-                        Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgPointee<2>(srcDentry), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, GetDentry(newparent, newname, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dstDentry),
-                        Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgPointee<2>(dstDentry), Return(CURVEFS_ERROR::OK)));
 
     // step3: list directory
     auto dentrys = std::list<Dentry>();
     dentrys.push_back(Dentry());
     EXPECT_CALL(*dentryManager_, ListDentry(oldInodeId, _, 1))
-        .WillOnce(DoAll(SetArgPointee<1>(dentrys),
-                        Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(dentrys), Return(CURVEFS_ERROR::OK)));
 
-    auto rc = client_->FuseOpRename(req, parent, name.c_str(),
-                                    newparent, newname.c_str());
+    auto rc = client_->FuseOpRename(req, parent, name.c_str(), newparent,
+                                    newname.c_str());
     ASSERT_EQ(rc, CURVEFS_ERROR::NOTEMPTY);
 }
 
@@ -1220,15 +1174,15 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameNameTooLong) {
     std::string newname2 = "yyy";
 
     CURVEFS_ERROR ret = client_->FuseOpRename(req, parent, name1.c_str(),
-        newparent, newname1.c_str());
+                                              newparent, newname1.c_str());
     ASSERT_EQ(CURVEFS_ERROR::NAMETOOLONG, ret);
 
-    ret = client_->FuseOpRename(req, parent, name1.c_str(),
-        newparent, newname2.c_str());
+    ret = client_->FuseOpRename(req, parent, name1.c_str(), newparent,
+                                newname2.c_str());
     ASSERT_EQ(CURVEFS_ERROR::NAMETOOLONG, ret);
 
-    ret = client_->FuseOpRename(req, parent, name2.c_str(),
-        newparent, newname1.c_str());
+    ret = client_->FuseOpRename(req, parent, name2.c_str(), newparent,
+                                newname1.c_str());
     ASSERT_EQ(CURVEFS_ERROR::NAMETOOLONG, ret);
 }
 
@@ -1245,8 +1199,8 @@ TEST_F(TestFuseVolumeClient, FuseOpGetAttr) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     CURVEFS_ERROR ret = client_->FuseOpGetAttr(req, ino, &fi, &attr);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
@@ -1266,7 +1220,7 @@ TEST_F(TestFuseVolumeClient, FuseOpGetAttrFailed) {
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::INTERNAL)));
+                        Return(CURVEFS_ERROR::INTERNAL)));
 
     CURVEFS_ERROR ret = client_->FuseOpGetAttr(req, ino, &fi, &attr);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
@@ -1287,8 +1241,8 @@ TEST_F(TestFuseVolumeClient, FuseOpSetAttr) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*metaClient_, UpdateInode(_))
         .WillOnce(Return(MetaStatusCode::OK));
@@ -1301,24 +1255,20 @@ TEST_F(TestFuseVolumeClient, FuseOpSetAttr) {
     attr.st_mtime = 6;
     attr.st_ctime = 7;
 
-    to_set = FUSE_SET_ATTR_MODE |
-             FUSE_SET_ATTR_UID |
-             FUSE_SET_ATTR_GID |
-             FUSE_SET_ATTR_SIZE |
-             FUSE_SET_ATTR_ATIME |
-             FUSE_SET_ATTR_MTIME |
+    to_set = FUSE_SET_ATTR_MODE | FUSE_SET_ATTR_UID | FUSE_SET_ATTR_GID |
+             FUSE_SET_ATTR_SIZE | FUSE_SET_ATTR_ATIME | FUSE_SET_ATTR_MTIME |
              FUSE_SET_ATTR_CTIME;
 
-    CURVEFS_ERROR ret = client_->FuseOpSetAttr(
-        req, ino, &attr, to_set, &fi, &attrOut);
+    CURVEFS_ERROR ret =
+        client_->FuseOpSetAttr(req, ino, &attr, to_set, &fi, &attrOut);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    ASSERT_EQ(attr.st_mode,  attrOut.st_mode);
-    ASSERT_EQ(attr.st_uid,  attrOut.st_uid);
-    ASSERT_EQ(attr.st_gid,  attrOut.st_gid);
-    ASSERT_EQ(attr.st_size,  attrOut.st_size);
-    ASSERT_EQ(attr.st_atime,  attrOut.st_atime);
-    ASSERT_EQ(attr.st_mtime,  attrOut.st_mtime);
-    ASSERT_EQ(attr.st_ctime,  attrOut.st_ctime);
+    ASSERT_EQ(attr.st_mode, attrOut.st_mode);
+    ASSERT_EQ(attr.st_uid, attrOut.st_uid);
+    ASSERT_EQ(attr.st_gid, attrOut.st_gid);
+    ASSERT_EQ(attr.st_size, attrOut.st_size);
+    ASSERT_EQ(attr.st_atime, attrOut.st_atime);
+    ASSERT_EQ(attr.st_mtime, attrOut.st_mtime);
+    ASSERT_EQ(attr.st_ctime, attrOut.st_ctime);
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpSetAttrFailed) {
@@ -1337,8 +1287,8 @@ TEST_F(TestFuseVolumeClient, FuseOpSetAttrFailed) {
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*metaClient_, UpdateInode(_))
         .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
@@ -1351,16 +1301,12 @@ TEST_F(TestFuseVolumeClient, FuseOpSetAttrFailed) {
     attr.st_mtime = 6;
     attr.st_ctime = 7;
 
-    to_set = FUSE_SET_ATTR_MODE |
-             FUSE_SET_ATTR_UID |
-             FUSE_SET_ATTR_GID |
-             FUSE_SET_ATTR_SIZE |
-             FUSE_SET_ATTR_ATIME |
-             FUSE_SET_ATTR_MTIME |
+    to_set = FUSE_SET_ATTR_MODE | FUSE_SET_ATTR_UID | FUSE_SET_ATTR_GID |
+             FUSE_SET_ATTR_SIZE | FUSE_SET_ATTR_ATIME | FUSE_SET_ATTR_MTIME |
              FUSE_SET_ATTR_CTIME;
 
-    CURVEFS_ERROR ret = client_->FuseOpSetAttr(
-        req, ino, &attr, to_set, &fi, &attrOut);
+    CURVEFS_ERROR ret =
+        client_->FuseOpSetAttr(req, ino, &attr, to_set, &fi, &attrOut);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     ret = client_->FuseOpSetAttr(req, ino, &attr, to_set, &fi, &attrOut);
@@ -1373,8 +1319,8 @@ TEST_F(TestFuseVolumeClient, FuseOpSymlink) {
     fakeReq.ctx = &fakeCtx;
     fuse_req_t req = &fakeReq;
     fuse_ino_t parent = 1;
-    const char *name = "xxx";
-    const char *link = "/a/b/xxx";
+    const char* name = "xxx";
+    const char* link = "/a/b/xxx";
 
     fuse_ino_t ino = 2;
     Inode inode;
@@ -1387,15 +1333,14 @@ TEST_F(TestFuseVolumeClient, FuseOpSymlink) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, CreateInode(_, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*dentryManager_, CreateDentry(_))
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
     fuse_entry_param e;
-    CURVEFS_ERROR ret = client_->FuseOpSymlink(req, link, parent,
-        name, &e);
+    CURVEFS_ERROR ret = client_->FuseOpSymlink(req, link, parent, name, &e);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 }
 
@@ -1405,8 +1350,8 @@ TEST_F(TestFuseVolumeClient, FuseOpSymlinkFailed) {
     fakeReq.ctx = &fakeCtx;
     fuse_req_t req = &fakeReq;
     fuse_ino_t parent = 1;
-    const char *name = "xxx";
-    const char *link = "/a/b/xxx";
+    const char* name = "xxx";
+    const char* link = "/a/b/xxx";
 
     fuse_ino_t ino = 2;
     Inode inode;
@@ -1420,19 +1365,17 @@ TEST_F(TestFuseVolumeClient, FuseOpSymlinkFailed) {
 
     EXPECT_CALL(*inodeManager_, CreateInode(_, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*dentryManager_, CreateDentry(_))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
 
     fuse_entry_param e;
-    CURVEFS_ERROR ret = client_->FuseOpSymlink(req, link, parent,
-        name, &e);
+    CURVEFS_ERROR ret = client_->FuseOpSymlink(req, link, parent, name, &e);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
-    ret = client_->FuseOpSymlink(req, link, parent,
-        name, &e);
+    ret = client_->FuseOpSymlink(req, link, parent, name, &e);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 }
 
@@ -1442,12 +1385,11 @@ TEST_F(TestFuseVolumeClient, FuseOpSymlinkNameTooLong) {
     fakeReq.ctx = &fakeCtx;
     fuse_req_t req = &fakeReq;
     fuse_ino_t parent = 1;
-    const char *name = "aaaaaaaaaaaaaaaaaaaaa";
-    const char *link = "/a/b/xxx";
+    const char* name = "aaaaaaaaaaaaaaaaaaaaa";
+    const char* link = "/a/b/xxx";
 
     fuse_entry_param e;
-    CURVEFS_ERROR ret = client_->FuseOpSymlink(req, link, parent,
-        name, &e);
+    CURVEFS_ERROR ret = client_->FuseOpSymlink(req, link, parent, name, &e);
     ASSERT_EQ(CURVEFS_ERROR::NAMETOOLONG, ret);
 }
 
@@ -1455,7 +1397,7 @@ TEST_F(TestFuseVolumeClient, FuseOpLink) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
     fuse_ino_t newparent = 2;
-    const char *newname = "xxxx";
+    const char* newname = "xxxx";
 
     uint32_t nlink = 100;
 
@@ -1466,8 +1408,8 @@ TEST_F(TestFuseVolumeClient, FuseOpLink) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*dentryManager_, CreateDentry(_))
         .WillOnce(Return(CURVEFS_ERROR::OK));
@@ -1486,7 +1428,7 @@ TEST_F(TestFuseVolumeClient, FuseOpLinkFailed) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
     fuse_ino_t newparent = 2;
-    const char *newname = "xxxx";
+    const char* newname = "xxxx";
 
     uint32_t nlink = 100;
 
@@ -1498,10 +1440,10 @@ TEST_F(TestFuseVolumeClient, FuseOpLinkFailed) {
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*metaClient_, UpdateInode(_))
         .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR))
@@ -1530,7 +1472,7 @@ TEST_F(TestFuseVolumeClient, FuseOpLinkFailed) {
 TEST_F(TestFuseVolumeClient, FuseOpReadLink) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
-    const char *link = "/a/b/xxx";
+    const char* link = "/a/b/xxx";
 
     Inode inode;
     inode.set_fsid(fsId);
@@ -1542,8 +1484,8 @@ TEST_F(TestFuseVolumeClient, FuseOpReadLink) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     std::string linkStr;
     CURVEFS_ERROR ret = client_->FuseOpReadLink(req, ino, &linkStr);
@@ -1578,8 +1520,8 @@ TEST_F(TestFuseVolumeClient, FuseOpRelease) {
     inodeWrapper->SetOpenCount(1);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*metaClient_, UpdateInode(_))
         .WillOnce(Return(MetaStatusCode::OK));
@@ -1591,7 +1533,6 @@ TEST_F(TestFuseVolumeClient, FuseOpRelease) {
     Inode inode2 = inodeWrapper->GetInodeUnlocked();
     ASSERT_EQ(false, inode2.openflag());
 }
-
 
 class TestFuseS3Client : public ::testing::Test {
  protected:
@@ -1606,13 +1547,9 @@ class TestFuseS3Client : public ::testing::Test {
         inodeManager_ = std::make_shared<MockInodeCacheManager>();
         dentryManager_ = std::make_shared<MockDentryCacheManager>();
         extManager_ = std::make_shared<MockExtentManager>();
-        client_  = std::make_shared<FuseS3Client>(mdsClient_,
-            metaClient_,
-            spaceClient_,
-            inodeManager_,
-            dentryManager_,
-            extManager_,
-            s3ClientAdaptor_);
+        client_ = std::make_shared<FuseS3Client>(
+            mdsClient_, metaClient_, spaceClient_, inodeManager_,
+            dentryManager_, extManager_, s3ClientAdaptor_);
         PrepareFsInfo();
     }
 
@@ -1662,8 +1599,7 @@ TEST_F(TestFuseS3Client, FuseOpInit_when_fs_exist) {
     fsInfoExp.set_fsid(200);
     fsInfoExp.set_fsname(fsName);
     EXPECT_CALL(*mdsClient_, MountFs(fsName, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(fsInfoExp),
-                Return(FSStatusCode::OK)));
+        .WillOnce(DoAll(SetArgPointee<2>(fsInfoExp), Return(FSStatusCode::OK)));
 
     client_->FuseOpInit(&mOpts, nullptr);
 
@@ -1694,8 +1630,7 @@ TEST_F(TestFuseS3Client, FuseOpInit_when_fs_not_exist) {
     fsInfoExp.set_fsid(100);
     fsInfoExp.set_fsname(fsName);
     EXPECT_CALL(*mdsClient_, MountFs(fsName, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(fsInfoExp),
-                Return(FSStatusCode::OK)));
+        .WillOnce(DoAll(SetArgPointee<2>(fsInfoExp), Return(FSStatusCode::OK)));
 
     client_->FuseOpInit(&mOpts, nullptr);
 
@@ -1725,7 +1660,7 @@ TEST_F(TestFuseS3Client, FuseOpDestroy) {
 TEST_F(TestFuseS3Client, FuseOpWriteAndFlushInode) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
-    const char *buf = "xxx";
+    const char* buf = "xxx";
     size_t size = 4;
     off_t off = 0;
     struct fuse_file_info fi;
@@ -1738,14 +1673,13 @@ TEST_F(TestFuseS3Client, FuseOpWriteAndFlushInode) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*s3ClientAdaptor_, Write(_, _, _, _))
-        .WillOnce(Return(size));
+    EXPECT_CALL(*s3ClientAdaptor_, Write(_, _, _, _)).WillOnce(Return(size));
 
-    CURVEFS_ERROR ret = client_->FuseOpWrite(
-        req, ino, buf, size, off, &fi, &wSize);
+    CURVEFS_ERROR ret =
+        client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
 
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(size, wSize);
@@ -1797,7 +1731,7 @@ TEST_F(TestFuseS3Client, FuseOpWriteAndFlushInodeFailed) {
 TEST_F(TestFuseS3Client, FuseOpWriteSmallSize) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
-    const char *buf = "xxx";
+    const char* buf = "xxx";
     size_t size = 4;
     off_t off = 0;
     struct fuse_file_info fi;
@@ -1810,16 +1744,15 @@ TEST_F(TestFuseS3Client, FuseOpWriteSmallSize) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
-
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     size_t smallSize = 3;
     EXPECT_CALL(*s3ClientAdaptor_, Write(_, _, _, _))
         .WillOnce(Return(smallSize));
 
-    CURVEFS_ERROR ret = client_->FuseOpWrite(
-        req, ino, buf, size, off, &fi, &wSize);
+    CURVEFS_ERROR ret =
+        client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
 
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(smallSize, wSize);
@@ -1828,7 +1761,7 @@ TEST_F(TestFuseS3Client, FuseOpWriteSmallSize) {
 TEST_F(TestFuseS3Client, FuseOpWriteFailed) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
-    const char *buf = "xxx";
+    const char* buf = "xxx";
     size_t size = 4;
     off_t off = 0;
     struct fuse_file_info fi;
@@ -1840,16 +1773,15 @@ TEST_F(TestFuseS3Client, FuseOpWriteFailed) {
     inode.set_length(0);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
-    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
-
     EXPECT_CALL(*s3ClientAdaptor_, Write(_, _, _, _))
+        .WillOnce(Return(4))
         .WillOnce(Return(-1));
 
-    CURVEFS_ERROR ret = client_->FuseOpWrite(
-        req, ino, buf, size, off, &fi, &wSize);
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
+
+    CURVEFS_ERROR ret =
+        client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     ret = client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
@@ -1873,14 +1805,13 @@ TEST_F(TestFuseS3Client, FuseOpReadAndFlushInode) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*s3ClientAdaptor_, Read(_, _, _, _))
-        .WillOnce(Return(size));
+    EXPECT_CALL(*s3ClientAdaptor_, Read(_, _, _, _)).WillOnce(Return(size));
 
-    CURVEFS_ERROR ret = client_->FuseOpRead(req, ino, size, off, &fi,
-        buffer.get(), &rSize);
+    CURVEFS_ERROR ret =
+        client_->FuseOpRead(req, ino, size, off, &fi, buffer.get(), &rSize);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(size, rSize);
     ASSERT_EQ(true, inodeWrapper->isDirty());
@@ -1909,11 +1840,11 @@ TEST_F(TestFuseS3Client, FuseOpReadOverRange) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    CURVEFS_ERROR ret = client_->FuseOpRead(req, ino, size, off, &fi,
-        buffer.get(), &rSize);
+    CURVEFS_ERROR ret =
+        client_->FuseOpRead(req, ino, size, off, &fi, buffer.get(), &rSize);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, rSize);
 }
@@ -1936,40 +1867,37 @@ TEST_F(TestFuseS3Client, FuseOpReadFailed) {
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*s3ClientAdaptor_, Read(_, _, _, _))
-        .WillOnce(Return(-1));
+    EXPECT_CALL(*s3ClientAdaptor_, Read(_, _, _, _)).WillOnce(Return(-1));
 
-    CURVEFS_ERROR ret = client_->FuseOpRead(req, ino, size, off, &fi,
-        buffer.get(), &rSize);
+    CURVEFS_ERROR ret =
+        client_->FuseOpRead(req, ino, size, off, &fi, buffer.get(), &rSize);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
-    ret = client_->FuseOpRead(req, ino, size, off, &fi,
-        buffer.get(), &rSize);
+    ret = client_->FuseOpRead(req, ino, size, off, &fi, buffer.get(), &rSize);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 }
 
 TEST_F(TestFuseS3Client, FuseOpFsync) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
-    struct fuse_file_info *fi;
+    struct fuse_file_info* fi;
 
     Inode inode;
     inode.set_inodeid(ino);
     inode.set_length(0);
 
-    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
-    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
-
     EXPECT_CALL(*s3ClientAdaptor_, Flush(_))
         .WillOnce(Return(CURVEFS_ERROR::OK))
         .WillOnce(Return(CURVEFS_ERROR::OK));
+
+    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
+    inodeWrapper->SetUid(32);
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*metaClient_, UpdateInode(_))
         .WillOnce(Return(MetaStatusCode::OK));
@@ -1984,7 +1912,7 @@ TEST_F(TestFuseS3Client, FuseOpFsync) {
 TEST_F(TestFuseS3Client, FuseOpWriteAndFlushAll) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
-    const char *buf = "xxx";
+    const char* buf = "xxx";
     size_t size = 4;
     off_t off = 0;
     struct fuse_file_info fi;
@@ -1997,14 +1925,13 @@ TEST_F(TestFuseS3Client, FuseOpWriteAndFlushAll) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*s3ClientAdaptor_, Write(_, _, _, _))
-        .WillOnce(Return(size));
+    EXPECT_CALL(*s3ClientAdaptor_, Write(_, _, _, _)).WillOnce(Return(size));
 
-    CURVEFS_ERROR ret = client_->FuseOpWrite(
-        req, ino, buf, size, off, &fi, &wSize);
+    CURVEFS_ERROR ret =
+        client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
 
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(size, wSize);
@@ -2019,7 +1946,6 @@ TEST_F(TestFuseS3Client, FuseOpWriteAndFlushAll) {
     client_->FlushAll();
     ASSERT_EQ(false, inodeWrapper->isDirty());
 }
-
 
 }  // namespace client
 }  // namespace curvefs

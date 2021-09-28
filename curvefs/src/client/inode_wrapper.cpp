@@ -14,7 +14,6 @@
  *  limitations under the License.
  */
 
-
 /*
  * Project: curve
  * Created Date: Thur May 27 2021
@@ -22,6 +21,7 @@
  */
 
 #include "curvefs/src/client/inode_wrapper.h"
+
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 
 namespace curvefs {
@@ -33,9 +33,10 @@ using rpcclient::MetaServerClientImpl;
 CURVEFS_ERROR InodeWrapper::Sync() {
     if (dirty_) {
         MetaStatusCode ret = metaClient_->UpdateInode(inode_);
+
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "metaClient_ UpdateInode failed, ret = " << ret
-                << ", inodeid = " << inode_.inodeid();
+                       << ", inodeid = " << inode_.inodeid();
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
         dirty_ = false;
@@ -55,7 +56,7 @@ CURVEFS_ERROR InodeWrapper::LinkLocked() {
         inode_.set_nlink(old);
         inode_.set_ctime(oldCTime);
         LOG(ERROR) << "metaClient_ UpdateInode failed, ret = " << ret
-            << ", inodeid = " << inode_.inodeid();
+                   << ", inodeid = " << inode_.inodeid();
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
     dirty_ = false;
@@ -78,7 +79,7 @@ CURVEFS_ERROR InodeWrapper::UnLinkLocked() {
                   << ", nlink = " << inode_.nlink();
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "metaClient_ UpdateInode failed, ret = " << ret
-                << ", inodeid = " << inode_.inodeid();
+                       << ", inodeid = " << inode_.inodeid();
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
         dirty_ = false;
@@ -123,7 +124,7 @@ CURVEFS_ERROR InodeWrapper::SetOpenFlag(bool flag) {
     if (ret != MetaStatusCode::OK) {
         inode_.set_openflag(old);
         LOG(ERROR) << "metaClient_ UpdateInode failed, ret = " << ret
-            << ", inodeid = " << inode_.inodeid();
+                   << ", inodeid = " << inode_.inodeid();
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
     dirty_ = false;
@@ -132,4 +133,3 @@ CURVEFS_ERROR InodeWrapper::SetOpenFlag(bool flag) {
 
 }  // namespace client
 }  // namespace curvefs
-
