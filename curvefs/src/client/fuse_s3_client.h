@@ -53,7 +53,7 @@ class FuseS3Client : public FuseClient {
     CURVEFS_ERROR Init(const FuseClientOption &option) override;
 
     void UnInit() override;
-
+    void FuseOpInit(void *userdata, struct fuse_conn_info *conn) override;
     CURVEFS_ERROR FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         const char *buf, size_t size, off_t off,
         struct fuse_file_info *fi, size_t *wSize) override;

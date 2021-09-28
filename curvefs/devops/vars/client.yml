@@ -22,6 +22,7 @@ project_mount_command: >
   {{ curvefs_client_mount_args | trim }}
   -o conf={{ project_root_dest }}/conf/client.conf
   {{ curvefs_client_mount_path }}
+  &
 
 project_templates:
   - client.conf

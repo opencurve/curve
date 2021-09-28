@@ -20,16 +20,17 @@
  * Author: lixiaocui
  */
 
-#include <vector>
-#include <map>
 #include "curvefs/src/client/rpcclient/mds_client.h"
+
+#include <map>
+#include <vector>
 namespace curvefs {
 namespace client {
 namespace rpcclient {
 
-FSStatusCode
-MdsClientImpl::Init(const ::curve::client::MetaServerOption &mdsOpt,
-                    MDSBaseClient *baseclient) {
+FSStatusCode MdsClientImpl::Init(
+    const ::curve::client::MetaServerOption& mdsOpt,
+    MDSBaseClient* baseclient) {
     mdsOpt_ = mdsOpt;
     rpcexcutor_.SetOption(mdsOpt_.rpcRetryOpt);
     mdsbasecli_ = baseclient;
@@ -37,18 +38,18 @@ MdsClientImpl::Init(const ::curve::client::MetaServerOption &mdsOpt,
     std::ostringstream oss;
     std::for_each(mdsOpt_.rpcRetryOpt.addrs.begin(),
                   mdsOpt_.rpcRetryOpt.addrs.end(),
-                  [&](const std::string &addr) { oss << " " << addr; });
+                  [&](const std::string& addr) { oss << " " << addr; });
 
     LOG(INFO) << "MDSClient init success, addresses:" << oss.str();
     return FSStatusCode::OK;
 }
 
-#define RPCTask                                                                \
-    [&](int addrindex, uint64_t rpctimeoutMS, brpc::Channel *channel,          \
-        brpc::Controller *cntl) -> int
+#define RPCTask                                                       \
+    [&](int addrindex, uint64_t rpctimeoutMS, brpc::Channel* channel, \
+        brpc::Controller* cntl) -> int
 
-FSStatusCode MdsClientImpl::CreateFs(const std::string &fsName,
-                                     uint64_t blockSize, const Volume &volume) {
+FSStatusCode MdsClientImpl::CreateFs(const std::string& fsName,
+                                     uint64_t blockSize, const Volume& volume) {
     auto task = RPCTask {
         CreateFsResponse response;
         mdsbasecli_->CreateFs(fsName, blockSize, volume, &response, cntl,
@@ -70,9 +71,9 @@ FSStatusCode MdsClientImpl::CreateFs(const std::string &fsName,
     return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
 }
 
-FSStatusCode MdsClientImpl::CreateFsS3(const std::string &fsName,
+FSStatusCode MdsClientImpl::CreateFsS3(const std::string& fsName,
                                        uint64_t blockSize,
-                                       const S3Info &s3Info) {
+                                       const S3Info& s3Info) {
     auto task = RPCTask {
         CreateFsResponse response;
         mdsbasecli_->CreateFsS3(fsName, blockSize, s3Info, &response, cntl,
@@ -94,7 +95,7 @@ FSStatusCode MdsClientImpl::CreateFsS3(const std::string &fsName,
     return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
 }
 
-FSStatusCode MdsClientImpl::DeleteFs(const std::string &fsName) {
+FSStatusCode MdsClientImpl::DeleteFs(const std::string& fsName) {
     auto task = RPCTask {
         DeleteFsResponse response;
         mdsbasecli_->DeleteFs(fsName, &response, cntl, channel);
@@ -114,9 +115,9 @@ FSStatusCode MdsClientImpl::DeleteFs(const std::string &fsName) {
     return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
 }
 
-FSStatusCode MdsClientImpl::MountFs(const std::string &fsName,
-                                    const std::string &mountPt,
-                                    FsInfo *fsInfo) {
+FSStatusCode MdsClientImpl::MountFs(const std::string& fsName,
+                                    const std::string& mountPt,
+                                    FsInfo* fsInfo) {
     auto task = RPCTask {
         MountFsResponse response;
         mdsbasecli_->MountFs(fsName, mountPt, &response, cntl, channel);
@@ -140,8 +141,8 @@ FSStatusCode MdsClientImpl::MountFs(const std::string &fsName,
     return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
 }
 
-FSStatusCode MdsClientImpl::UmountFs(const std::string &fsName,
-                                     const std::string &mountPt) {
+FSStatusCode MdsClientImpl::UmountFs(const std::string& fsName,
+                                     const std::string& mountPt) {
     auto task = RPCTask {
         UmountFsResponse response;
         mdsbasecli_->UmountFs(fsName, mountPt, &response, cntl, channel);
@@ -161,8 +162,8 @@ FSStatusCode MdsClientImpl::UmountFs(const std::string &fsName,
     return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
 }
 
-FSStatusCode MdsClientImpl::GetFsInfo(const std::string &fsName,
-                                      FsInfo *fsInfo) {
+FSStatusCode MdsClientImpl::GetFsInfo(const std::string& fsName,
+                                      FsInfo* fsInfo) {
     auto task = RPCTask {
         GetFsInfoResponse response;
         mdsbasecli_->GetFsInfo(fsName, &response, cntl, channel);
@@ -188,7 +189,7 @@ FSStatusCode MdsClientImpl::GetFsInfo(const std::string &fsName,
     return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
 }
 
-FSStatusCode MdsClientImpl::GetFsInfo(uint32_t fsId, FsInfo *fsInfo) {
+FSStatusCode MdsClientImpl::GetFsInfo(uint32_t fsId, FsInfo* fsInfo) {
     auto task = RPCTask {
         GetFsInfoResponse response;
         mdsbasecli_->GetFsInfo(fsId, &response, cntl, channel);
@@ -238,10 +239,10 @@ TopoStatusCode MdsClientImpl::CommitTx(
 }
 
 bool MdsClientImpl::GetMetaServerInfo(
-    const PeerAddr &addr, CopysetPeerInfo<MetaserverID> *metaserverInfo) {
+    const PeerAddr& addr, CopysetPeerInfo<MetaserverID>* metaserverInfo) {
     std::vector<std::string> strs;
     curve::common::SplitString(addr.ToString(), ":", &strs);
-    const std::string &ip = strs[0];
+    const std::string& ip = strs[0];
     uint64_t port;
     ::curve::common::StringToUll(strs[1], &port);
 
@@ -262,7 +263,7 @@ bool MdsClientImpl::GetMetaServerInfo(
             LOG(WARNING) << "GetMetaServerInfo: ip= " << ip
                          << ", port= " << port << ", errcode = " << ret;
         } else {
-            const auto &info = response.metaserverinfo();
+            const auto& info = response.metaserverinfo();
             MetaserverID metaserverID = info.metaserverid();
             std::string internalIp = info.hostip();
             std::string externalIp = internalIp;
@@ -284,8 +285,8 @@ bool MdsClientImpl::GetMetaServerInfo(
 }
 
 bool MdsClientImpl::GetMetaServerListInCopysets(
-    const LogicPoolID &logicalpooid, const std::vector<CopysetID> &copysetidvec,
-    std::vector<CopysetInfo<MetaserverID>> *cpinfoVec) {
+    const LogicPoolID& logicalpooid, const std::vector<CopysetID>& copysetidvec,
+    std::vector<CopysetInfo<MetaserverID>>* cpinfoVec) {
     auto task = RPCTask {
         GetMetaServerListInCopySetsResponse response;
         mdsbasecli_->GetMetaServerListInCopysets(logicalpooid, copysetidvec,
@@ -340,7 +341,7 @@ bool MdsClientImpl::GetMetaServerListInCopysets(
 }
 
 bool MdsClientImpl::CreatePartition(
-    uint32_t fsID, uint32_t count, std::vector<PartitionInfo> *partitionInfos) {
+    uint32_t fsID, uint32_t count, std::vector<PartitionInfo>* partitionInfos) {
     auto task = RPCTask {
         CreatePartitionResponse response;
         mdsbasecli_->CreatePartition(fsID, count, &response, cntl, channel);
@@ -380,8 +381,8 @@ bool MdsClientImpl::CreatePartition(
 }
 
 bool MdsClientImpl::GetCopysetOfPartitions(
-    const std::vector<uint32_t> &partitionIDList,
-    std::map<uint32_t, Copyset> *copysetMap) {
+    const std::vector<uint32_t>& partitionIDList,
+    std::map<uint32_t, Copyset>* copysetMap) {
     auto task = RPCTask {
         GetCopysetOfPartitionResponse response;
         mdsbasecli_->GetCopysetOfPartitions(partitionIDList, &response, cntl,
@@ -421,7 +422,7 @@ bool MdsClientImpl::GetCopysetOfPartitions(
 }
 
 bool MdsClientImpl::ListPartition(uint32_t fsID,
-                                  std::vector<PartitionInfo> *partitionInfos) {
+                                  std::vector<PartitionInfo>* partitionInfos) {
     auto task = RPCTask {
         ListPartitionResponse response;
         mdsbasecli_->ListPartition(fsID, &response, cntl, channel);
@@ -452,6 +453,32 @@ bool MdsClientImpl::ListPartition(uint32_t fsID,
     };
 
     return 0 == rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS);
+}
+
+FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint64_t* chunkId) {
+    auto task = RPCTask {
+        AllocateS3ChunkResponse response;
+        mdsbasecli_->AllocS3ChunkId(fsId, &response, cntl, channel);
+        if (cntl->Failed()) {
+            LOG(WARNING) << "AllocS3ChunkId Failed, errorcode = "
+                         << cntl->ErrorCode()
+                         << ", error content:" << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        FSStatusCode ret = response.statuscode();
+        if (ret != FSStatusCode::OK) {
+            LOG(WARNING) << "AllocS3ChunkId: fsid = " << fsId
+                         << ", errcode = " << ret
+                         << ", errmsg = " << FSStatusCode_Name(ret);
+        } else if (response.has_chunkid()) {
+            *chunkId = response.chunkid();
+        }
+
+        return ret;
+    };
+    return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
 }
 
 FSStatusCode MdsClientImpl::ReturnError(int retcode) {

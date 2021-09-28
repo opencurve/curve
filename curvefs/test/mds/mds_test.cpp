@@ -152,7 +152,7 @@ void GetChunkIds(std::shared_ptr<curve::common::Configuration> conf,
             return;
         }
 
-        ::curvefs::mds::FSStatusCode ssCode = response.status();
+        ::curvefs::mds::FSStatusCode ssCode = response.statuscode();
         if (ssCode != ::curvefs::mds::FSStatusCode::OK) {
             LOG(WARNING) << "Allocate s3 chunkid response Failed, retCode = "
                          << ssCode;

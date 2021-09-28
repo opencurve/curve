@@ -2,8 +2,6 @@
 - include: check.yml
   tags:
     - check
-    - start
-    - restart
 
 - include: core.yml
   tags:

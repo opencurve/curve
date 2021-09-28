@@ -23,6 +23,7 @@ curvefs_client_mount_args: >
   -o fsname={{ client_mount_fsname }}
   -o fstype=s3
   -o user=test
+  -f
 
 ################################################## _CONFIG_CLIENT_
 

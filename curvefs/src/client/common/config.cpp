@@ -14,19 +14,18 @@
  *  limitations under the License.
  */
 
-
 /*
  * Project: curve
  * Created Date: Thur May 27 2021
  * Author: xuchaojie
  */
 
+#include "curvefs/src/client/common/config.h"
+
 #include <gflags/gflags.h>
 
 #include <string>
 #include <vector>
-
-#include "curvefs/src/client/common/config.h"
 
 #include "src/common/string_util.h"
 
@@ -34,14 +33,11 @@ namespace brpc {
 DECLARE_int32(defer_close_second);
 }  // namespace brpc
 
-
 namespace curvefs {
 namespace client {
 namespace common {
-void InitMdsOption(Configuration *conf,
-    MdsOption *mdsOpt) {
-    conf->GetValueFatalIfFail("mdsOpt.mdsMaxRetryMS",
-                              &mdsOpt->mdsMaxRetryMS);
+void InitMdsOption(Configuration* conf, MdsOption* mdsOpt) {
+    conf->GetValueFatalIfFail("mdsOpt.mdsMaxRetryMS", &mdsOpt->mdsMaxRetryMS);
     conf->GetValueFatalIfFail("mdsOpt.rpcRetryOpt.maxRPCTimeoutMS",
                               &mdsOpt->rpcRetryOpt.maxRPCTimeoutMS);
     conf->GetValueFatalIfFail("mdsOpt.rpcRetryOpt.rpcTimeoutMs",
@@ -53,20 +49,18 @@ void InitMdsOption(Configuration *conf,
         &mdsOpt->rpcRetryOpt.maxFailedTimesBeforeChangeAddr);
     conf->GetValueFatalIfFail(
         "mdsOpt.rpcRetryOpt.normalRetryTimesBeforeTriggerWait",
-         &mdsOpt->rpcRetryOpt.normalRetryTimesBeforeTriggerWait);
+        &mdsOpt->rpcRetryOpt.normalRetryTimesBeforeTriggerWait);
     conf->GetValueFatalIfFail("mdsOpt.rpcRetryOpt.waitSleepMs",
                               &mdsOpt->rpcRetryOpt.waitSleepMs);
     std::string adds;
-    conf->GetValueFatalIfFail("mdsOpt.rpcRetryOpt.addrs",
-                              &adds);
+    conf->GetValueFatalIfFail("mdsOpt.rpcRetryOpt.addrs", &adds);
 
     std::vector<std::string> mdsAddr;
     curve::common::SplitString(adds, ",", &mdsAddr);
     mdsOpt->rpcRetryOpt.addrs.assign(mdsAddr.begin(), mdsAddr.end());
 }
 
-void InitMetaCacheOption(Configuration *conf,
-    MetaCacheOpt *opts) {
+void InitMetaCacheOption(Configuration* conf, MetaCacheOpt* opts) {
     conf->GetValueFatalIfFail("metaCacheOpt.metacacheGetLeaderRetry",
                               &opts->metacacheGetLeaderRetry);
     conf->GetValueFatalIfFail("metaCacheOpt.metacacheRPCRetryIntervalUS",
@@ -75,14 +69,11 @@ void InitMetaCacheOption(Configuration *conf,
                               &opts->metacacheGetLeaderRPCTimeOutMS);
 }
 
-void InitExcutorOption(Configuration *conf,
-    ExcutorOpt *opts) {
-    conf->GetValueFatalIfFail("excutorOpt.maxRetry",
-                              &opts->maxRetry);
+void InitExcutorOption(Configuration* conf, ExcutorOpt* opts) {
+    conf->GetValueFatalIfFail("excutorOpt.maxRetry", &opts->maxRetry);
     conf->GetValueFatalIfFail("excutorOpt.retryIntervalUS",
                               &opts->retryIntervalUS);
-    conf->GetValueFatalIfFail("excutorOpt.rpcTimeoutMS",
-                              &opts->rpcTimeoutMS);
+    conf->GetValueFatalIfFail("excutorOpt.rpcTimeoutMS", &opts->rpcTimeoutMS);
     conf->GetValueFatalIfFail("excutorOpt.maxRPCTimeoutMS",
                               &opts->maxRPCTimeoutMS);
     conf->GetValueFatalIfFail("excutorOpt.maxRetrySleepIntervalUS",
@@ -93,63 +84,68 @@ void InitExcutorOption(Configuration *conf,
                               &opts->maxRetryTimesBeforeConsiderSuspend);
 }
 
-void InitSpaceServerOption(Configuration *conf,
-                           SpaceAllocServerOption *spaceOpt) {
-    conf->GetValueFatalIfFail("spaceserver.spaceaddr",
-                              &spaceOpt->spaceaddr);
+void InitSpaceServerOption(Configuration* conf,
+                           SpaceAllocServerOption* spaceOpt) {
+    conf->GetValueFatalIfFail("spaceserver.spaceaddr", &spaceOpt->spaceaddr);
     conf->GetValueFatalIfFail("spaceserver.rpcTimeoutMs",
                               &spaceOpt->rpcTimeoutMs);
 }
 
-void InitBlockDeviceOption(Configuration *conf,
-                           BlockDeviceClientOptions *bdevOpt) {
+void InitBlockDeviceOption(Configuration* conf,
+                           BlockDeviceClientOptions* bdevOpt) {
     conf->GetValueFatalIfFail("bdev.confpath", &bdevOpt->configPath);
 }
 
-void InitDiskCacheOption(Configuration *conf,
-                        DiskCacheOption *diskCacheOption) {
+void InitDiskCacheOption(Configuration* conf,
+                         DiskCacheOption* diskCacheOption) {
     conf->GetValueFatalIfFail("diskCache.enableDiskCache",
-        &diskCacheOption->enableDiskCache);
+                              &diskCacheOption->enableDiskCache);
     conf->GetValueFatalIfFail("diskCache.forceFlush",
-        &diskCacheOption->forceFlush);
-    conf->GetValueFatalIfFail("diskCache.cacheDir",
-        &diskCacheOption->cacheDir);
+                              &diskCacheOption->forceFlush);
+    conf->GetValueFatalIfFail("diskCache.cacheDir", &diskCacheOption->cacheDir);
     conf->GetValueFatalIfFail("diskCache.trimCheckIntervalSec",
-        &diskCacheOption->trimCheckIntervalSec);
+                              &diskCacheOption->trimCheckIntervalSec);
     conf->GetValueFatalIfFail("diskCache.fullRatio",
-        &diskCacheOption->fullRatio);
+                              &diskCacheOption->fullRatio);
     conf->GetValueFatalIfFail("diskCache.safeRatio",
-        &diskCacheOption->safeRatio);
+                              &diskCacheOption->safeRatio);
 }
 
-void InitS3Option(Configuration *conf, S3Option *s3Opt) {
-    conf->GetValueFatalIfFail("s3.blocksize", &s3Opt->blocksize);
-    conf->GetValueFatalIfFail("s3.chunksize", &s3Opt->chunksize);
+void InitS3Option(Configuration* conf, S3Option* s3Opt) {
+    conf->GetValueFatalIfFail("s3.blocksize",
+                              &s3Opt->s3ClientAdaptorOpt.blockSize);
+    conf->GetValueFatalIfFail("s3.chunksize",
+                              &s3Opt->s3ClientAdaptorOpt.chunkSize);
+    conf->GetValueFatalIfFail("s3.intervalSec",
+                              &s3Opt->s3ClientAdaptorOpt.intervalSec);
+    conf->GetValueFatalIfFail("s3.flushIntervalSec",
+                              &s3Opt->s3ClientAdaptorOpt.flushIntervalSec);
+    conf->GetValueFatalIfFail("s3.writeCacheMaxByte",
+                              &s3Opt->s3ClientAdaptorOpt.writeCacheMaxByte);
+    conf->GetValueFatalIfFail("s3.readCacheMaxByte",
+                              &s3Opt->s3ClientAdaptorOpt.readCacheMaxByte);
     ::curve::common::InitS3AdaptorOption(conf, &s3Opt->s3AdaptrOpt);
-    InitDiskCacheOption(conf, &s3Opt->diskCacheOpt);
+    InitDiskCacheOption(conf, &s3Opt->s3ClientAdaptorOpt.diskCacheOpt);
 }
 
-void InitVolumeOption(Configuration *conf, VolumeOption *volumeOpt) {
-    conf->GetValueFatalIfFail("volume.bigFileSize",
-                              &volumeOpt->bigFileSize);
-    conf->GetValueFatalIfFail("volume.volBlockSize",
-                              &volumeOpt->volBlockSize);
-    conf->GetValueFatalIfFail("volume.fsBlockSize",
-                              &volumeOpt->fsBlockSize);
+void InitVolumeOption(Configuration* conf, VolumeOption* volumeOpt) {
+    conf->GetValueFatalIfFail("volume.bigFileSize", &volumeOpt->bigFileSize);
+    conf->GetValueFatalIfFail("volume.volBlockSize", &volumeOpt->volBlockSize);
+    conf->GetValueFatalIfFail("volume.fsBlockSize", &volumeOpt->fsBlockSize);
 }
 
-void InitExtentManagerOption(Configuration *conf,
-                             ExtentManagerOption *extentManagerOpt) {
+void InitExtentManagerOption(Configuration* conf,
+                             ExtentManagerOption* extentManagerOpt) {
     conf->GetValueFatalIfFail("extentManager.preAllocSize",
                               &extentManagerOpt->preAllocSize);
 }
 
-void SetBrpcOpt(Configuration *conf) {
+void SetBrpcOpt(Configuration* conf) {
     conf->GetValueFatalIfFail("defer.close.second",
                               &brpc::FLAGS_defer_close_second);
 }
 
-void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
+void InitFuseClientOption(Configuration* conf, FuseClientOption* clientOption) {
     InitMdsOption(conf, &clientOption->mdsOpt);
     InitMetaCacheOption(conf, &clientOption->metaCacheOpt);
     InitExcutorOption(conf, &clientOption->excutorOpt);

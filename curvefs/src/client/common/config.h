@@ -14,21 +14,20 @@
  *  limitations under the License.
  */
 
-
 /*
  * Project: curve
  * Created Date: Thur May 27 2021
  * Author: xuchaojie
  */
 
-
 #ifndef CURVEFS_SRC_CLIENT_COMMON_CONFIG_H_
 #define CURVEFS_SRC_CLIENT_COMMON_CONFIG_H_
 
 #include <string>
+
+#include "src/client/config_info.h"
 #include "src/common/configuration.h"
 #include "src/common/s3_adapter.h"
-#include "src/client/config_info.h"
 
 using ::curve::common::Configuration;
 using ::curve::common::S3AdapterOption;
@@ -82,11 +81,19 @@ struct DiskCacheOption {
     uint64_t safeRatio;
 };
 
-struct S3Option {
-    uint64_t blocksize;
-    uint64_t chunksize;
-    S3AdapterOption s3AdaptrOpt;
+struct S3ClientAdaptorOption {
+    uint64_t blockSize;
+    uint64_t chunkSize;
+    uint32_t intervalSec;
+    uint32_t flushIntervalSec;
+    uint64_t writeCacheMaxByte;
+    uint64_t readCacheMaxByte;
     DiskCacheOption diskCacheOpt;
+};
+
+struct S3Option {
+    S3ClientAdaptorOption s3ClientAdaptorOpt;
+    S3AdapterOption s3AdaptrOpt;
 };
 
 struct VolumeOption {
@@ -116,7 +123,7 @@ struct FuseClientOption {
     uint32_t maxNameLength;
 };
 
-void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption);
+void InitFuseClientOption(Configuration* conf, FuseClientOption* clientOption);
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs
