@@ -180,8 +180,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     }
     *wSize = wRet;
     // update file len
-    if (inode.length() < off + size) {
-        inode.set_length(off + size);
+    if (inode.length() < off + *wSize) {
+        inode.set_length(off + *wSize);
     }
     uint64_t nowTime = TimeUtility::GetTimeofDaySec();
     inode.set_mtime(nowTime);
@@ -219,7 +219,10 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req,
     Inode inode = inodeWrapper->GetInodeUnlocked();
 
     size_t len = 0;
-    if (inode.length() < off + size) {
+    if (inode.length() <= off) {
+        *rSize = 0;
+        return CURVEFS_ERROR::OK;
+    } else if (inode.length() < off + size) {
         len = inode.length() - off;
     } else {
         len = size;
