@@ -55,8 +55,8 @@ namespace client {
 namespace rpcclient {
 
 struct CopysetGroupID {
-    LogicPoolID poolID;
-    CopysetID copysetID;
+    LogicPoolID poolID = 0;
+    CopysetID copysetID = 0;
 
     CopysetGroupID() = default;
     CopysetGroupID(const LogicPoolID &poolid, const CopysetID &copysetid)
@@ -72,12 +72,18 @@ struct CopysetTarget {
     // copyset id
     CopysetGroupID groupID;
     // partition id
-    PartitionID partitionID;
-    uint64_t txId;
+    PartitionID partitionID = 0;
+    uint64_t txId = 0;
 
     // leader info
-    MetaserverID metaServerID;
+    MetaserverID metaServerID = 0;
     butil::EndPoint endPoint;
+
+    bool IsValid() const {
+        return groupID.poolID != 0 && groupID.copysetID != 0 &&
+               partitionID != 0 && txId != 0 && metaServerID != 0 &&
+               endPoint.ip != butil::IP_ANY && endPoint.port != 0;
+    }
 };
 
 inline std::ostream &operator<<(std::ostream &os, const CopysetGroupID &g) {

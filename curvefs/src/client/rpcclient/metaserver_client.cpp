@@ -224,7 +224,9 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
             return -1;
         }
 
-        LOG(INFO) << "CreateDentry success, request: " << request.DebugString()
+        LOG(INFO) << "CreateDentry "
+                  << (ret == MetaStatusCode::OK ? "success" : "failure")
+                  << ", request: " << request.DebugString()
                   << "response: " << response.DebugString();
         return ret;
     };

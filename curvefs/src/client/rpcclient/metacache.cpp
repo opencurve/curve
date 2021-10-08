@@ -69,7 +69,7 @@ bool MetaCache::GetTarget(uint32_t fsID, uint64_t inodeID,
     // list infos from mds
     if (!ListPartitions(fsID)) {
         LOG(ERROR) << "get target for {fsid:" << fsID
-                   << "} fail, parition list not exist";
+                   << "} fail, partition list not exist";
         return false;
     }
 
