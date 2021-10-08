@@ -117,7 +117,7 @@ const string clientConfPath = CSCLONE_BASE_DIR + "/client.conf";  // NOLINT
 const string kS3ConfigPath = CSCLONE_BASE_DIR + "/s3.conf";       // NOLINT
 
 const std::vector<string> s3Conf{
-    string("s3.snapshot_bucket_name=") + S3_BUCKET_NAME,
+    string("s3.bucket_name=") + S3_BUCKET_NAME,
 };
 
 const std::vector<string> csCommonConf{

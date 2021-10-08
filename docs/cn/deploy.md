@@ -120,7 +120,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 4. 如果需要使用快照克隆功能，需要有S3账号，可以使用[网易云的对象存储](https://www.163yun.com/product/nos)
 
    ```
-   1. 在 server.ini 中，填写s3_nos_address，s3_snapshot_bucket_name，s3_ak和s3_sk。
+   1. 在 server.ini 中，填写s3_endpoint，s3_bucket_name，s3_ak和s3_sk。
    2. 安装快照克隆服务
       ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone
       ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone_nginx
@@ -421,8 +421,8 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
    deploy_dir="${HOME}"
    s3_ak=""                                            // 如果需要快照克隆服务，则修改成自己s3账号对应的值
    s3_sk=""                                            // 如果需要快照克隆服务，则修改成自己s3账号对应的值
-   s3_nos_address=""                                   // 如果需要快照克隆服务，则修改成s3服务的地址
-   s3_snapshot_bucket_name=""                          // 如果需要快照克隆服务，则修改成自己在s3上的桶名
+   s3_endpoint=""                                   // 如果需要快照克隆服务，则修改成s3服务的地址
+   s3_bucket_name=""                          // 如果需要快照克隆服务，则修改成自己在s3上的桶名
    ansible_ssh_port=22
    curve_root_username=root                           // 改动，修改成自己需要的username，因为目前的一个bug，用到快照克隆的话用户名必须为root
    curve_root_password=root_password                  // 改动，修改成自己需要的密码
@@ -561,7 +561,7 @@ ansible是一款自动化运维工具，curve-ansible 是基于 ansible playbook
 5. 如果需要使用快照克隆功能，需要有S3账号，可以使用[网易云的对象存储](https://www.163yun.com/product/nos)  同上
 
    ```
-   1. 在 server.ini 中，填写s3_nos_address，s3_snapshot_bucket_name，s3_ak和s3_sk disable_snapshot_clone=False
+   1. 在 server.ini 中，填写s3_endpoint，s3_bucket_name，s3_ak和s3_sk disable_snapshot_clone=False
    2. 安装快照克隆服务
       ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone
       ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone_nginx
