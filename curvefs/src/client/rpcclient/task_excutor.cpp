@@ -22,6 +22,7 @@
  */
 
 #include <algorithm>
+#include <utility>
 #include "curvefs/src/client/rpcclient/task_excutor.h"
 #include "curvefs/proto/metaserver.pb.h"
 
@@ -31,19 +32,36 @@ namespace curvefs {
 namespace client {
 namespace rpcclient {
 int TaskExecutor::DoRPCTask(std::shared_ptr<TaskContext> task) {
-    task_ = task;
+    task_ = std::move(task);
     task_->rpcTimeoutMs = opt_.rpcTimeoutMS;
 
     int retCode = -1;
     bool needRetry = true;
 
     do {
-        retCode = ExcuteTask();
+        if (task_->retryTimes++ > opt_.maxRetry) {
+            LOG(ERROR) << task_->TaskContextStr()
+                       << " retry times exceeds the limit";
+            break;
+        }
 
+        if (!HasValidTarget() && !GetTarget()) {
+            bthread_usleep(opt_.retryIntervalUS);
+            continue;
+        }
+
+        auto channel = channelManager_->GetOrCreateChannel(
+            task_->target.metaServerID, task_->target.endPoint);
+        if (!channel) {
+            bthread_usleep(opt_.retryIntervalUS);
+            continue;
+        }
+
+        retCode = ExcuteTask(channel.get());
         needRetry = OnReturn(retCode);
+
         if (needRetry) {
-            task_->retryTimes++;
-            needRetry = PreProcessBeforeRetry(retCode);
+            PreProcessBeforeRetry(retCode);
         }
     } while (needRetry);
 
@@ -53,9 +71,10 @@ int TaskExecutor::DoRPCTask(std::shared_ptr<TaskContext> task) {
 bool TaskExecutor::OnReturn(int retCode) {
     bool needRetry = false;
 
-    // rpc fail or get target fail
+    // rpc fail
     if (retCode < 0) {
         needRetry = true;
+        RefreshLeader();
     } else {
         switch (retCode) {
         case MetaStatusCode::OK:
@@ -93,18 +112,19 @@ bool TaskExecutor::OnReturn(int retCode) {
     return needRetry;
 }
 
-bool TaskExecutor::PreProcessBeforeRetry(int retCode) {
-    if (task_->retryTimes >= opt_.maxRetry) {
-        LOG(INFO) << "retry exceed maxRetry: " << opt_.maxRetry;
-        return false;
-    }
-
-    if (!task_->suspend &&
-        task_->retryTimes >= opt_.maxRetryTimesBeforeConsiderSuspend) {
-        task_->suspend = true;
-        LOG(ERROR) << task_->TaskContextStr() << " retried "
-                   << opt_.maxRetryTimesBeforeConsiderSuspend
-                   << " times, set suspend flag! ";
+void TaskExecutor::PreProcessBeforeRetry(int retCode) {
+    if (task_->retryTimes >= opt_.maxRetryTimesBeforeConsiderSuspend) {
+        if (!task_->suspend) {
+            task_->suspend = true;
+            LOG(ERROR) << task_->TaskContextStr() << " retried "
+                       << opt_.maxRetryTimesBeforeConsiderSuspend
+                       << " times, set suspend flag! ";
+        } else {
+            LOG_IF(ERROR, 0 == task_->retryTimes %
+                                   opt_.maxRetryTimesBeforeConsiderSuspend)
+                << task_->TaskContextStr() << " retried " << task_->retryTimes
+                << " times";
+        }
     }
 
     if (retCode == -brpc::ERPCTIMEDOUT || retCode == -ETIMEDOUT) {
@@ -123,7 +143,7 @@ bool TaskExecutor::PreProcessBeforeRetry(int retCode) {
         task_->rpcTimeoutMs = nextTimeout;
         LOG(WARNING) << "rpc timeout, next timeout = " << nextTimeout
                      << task_->TaskContextStr();
-        return true;
+        return;
     }
 
     // over load
@@ -132,13 +152,12 @@ bool TaskExecutor::PreProcessBeforeRetry(int retCode) {
         LOG(WARNING) << "metaserver overload, sleep(us) = " << nextsleeptime
                      << ", " << task_->TaskContextStr();
         bthread_usleep(nextsleeptime);
-        return true;
+        return;
     }
 
     if (!task_->retryDirectly) {
         bthread_usleep(opt_.retryIntervalUS);
     }
-    return true;
 }
 
 bool TaskExecutor::GetTarget() {
@@ -150,26 +169,15 @@ bool TaskExecutor::GetTarget() {
     return true;
 }
 
-int TaskExecutor::ExcuteTask() {
-    // fetch target
-    if (!GetTarget()) {
-        return -1;
-    }
-
-    // get channel and send rpc
-    auto channel = channelManager_->GetOrCreateChannel(
-        task_->target.metaServerID, task_->target.endPoint);
-    if (channel == nullptr) {
-        return -EHOSTDOWN;
-    }
-
+int TaskExecutor::ExcuteTask(brpc::Channel* channel) {
     brpc::Controller cntl;
     cntl.set_timeout_ms(task_->rpcTimeoutMs);
     return task_->rpctask(task_->target.groupID.poolID,
                           task_->target.groupID.copysetID,
                           task_->target.partitionID, task_->target.txId,
-                          task_->applyIndex, channel.get(), &cntl);
+                          task_->applyIndex, channel, &cntl);
 }
+
 void TaskExecutor::OnSuccess() {}
 
 void TaskExecutor::OnCopysetNotExist() { RefreshLeader(); }
@@ -221,6 +229,10 @@ uint64_t TaskExecutor::TimeoutBackOff() {
     nextTimeout = std::max(nextTimeout, opt_.rpcTimeoutMS);
 
     return nextTimeout;
+}
+
+bool TaskExecutor::HasValidTarget() const {
+    return task_->target.IsValid();
 }
 
 void TaskExecutor::SetRetryParam() {

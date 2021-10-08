@@ -99,8 +99,8 @@ class TaskExecutor {
  protected:
     // prepare resource and excute task
     bool NeedRetry();
-    bool PreProcessBeforeRetry(int retCode);
-    int ExcuteTask();
+    void PreProcessBeforeRetry(int retCode);
+    int ExcuteTask(brpc::Channel* channel);
     virtual bool GetTarget();
     void UpdateApplyIndex(const LogicPoolID &poolID, const CopysetID &copysetId,
                           uint64_t applyIndex);
@@ -117,6 +117,9 @@ class TaskExecutor {
     uint64_t OverLoadBackOff();
     uint64_t TimeoutBackOff();
     void SetRetryParam();
+
+ private:
+    bool HasValidTarget() const;
 
  protected:
     std::shared_ptr<MetaCache> metaCache_;

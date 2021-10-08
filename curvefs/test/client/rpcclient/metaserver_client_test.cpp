@@ -157,9 +157,9 @@ TEST_F(MetaServerClientImplTest, test_GetDentry) {
 
     // test3: get dentry over load and fail retry ok
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
+        .WillOnce(DoAll(SetArgPointee<2>(target_),
+                        SetArgPointee<3>(applyIndex),
+                        Return(true)));
     curvefs::metaserver::GetDentryResponse responsefail;
     responsefail.set_statuscode(MetaStatusCode::OVERLOAD);
     EXPECT_CALL(mockMetaServerService_, GetDentry(_, _, _, _))
@@ -259,9 +259,9 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
 
     // test2: list dentry redirect
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
+        .WillOnce(DoAll(SetArgPointee<2>(target_),
+                        SetArgPointee<3>(applyIndex),
+                        Return(true)));
     curvefs::metaserver::ListDentryResponse responsefail;
     responsefail.set_statuscode(MetaStatusCode::REDIRECTED);
     EXPECT_CALL(mockMetaServerService_, ListDentry(_, _, _, _))
@@ -303,7 +303,7 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
-TEST_F(MetaServerClientImplTest, test_CreateDentry) {
+TEST_F(MetaServerClientImplTest, test_CreateDentry_rpc_error) {
     // in
     Dentry d;
     d.set_fsid(1);
@@ -323,18 +323,40 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry) {
 
     curvefs::metaserver::CreateDentryResponse response;
 
-    // test0: rpc error
     EXPECT_CALL(mockMetaServerService_, CreateDentry(_, _, _, _))
         .WillRepeatedly(Invoke(
             SetRpcService<CreateDentryRequest, CreateDentryResponse, true>));
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
                               SetArgPointee<3>(applyIndex), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _, _))
+        .Times(1 + opt_.maxRetry)
+        .WillRepeatedly(Return(true));
 
     MetaStatusCode status = metaserverCli_.CreateDentry(d);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
+}
 
-    // test1: create dentry ok
+TEST_F(MetaServerClientImplTest, test_CreateDentry_create_dentry_ok) {
+    // in
+    Dentry d;
+    d.set_fsid(1);
+    d.set_inodeid(2);
+    d.set_parentinodeid(1);
+    d.set_name("test11");
+    d.set_txid(10);
+
+    // out
+    MetaserverID metaServerID = 1;
+    butil::EndPoint target;
+    butil::str2endpoint(addr_.c_str(), &target);
+    LogicPoolID poolID = 1;
+    CopysetID copysetID = 100;
+    uint32_t partitionID = 200;
+    uint64_t applyIndex = 10;
+
+    curvefs::metaserver::CreateDentryResponse response;
+
     response.set_statuscode(MetaStatusCode::OK);
     response.set_appliedindex(10);
     EXPECT_CALL(mockMetaServerService_, CreateDentry(_, _, _, _))
@@ -346,16 +368,39 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry) {
                         Return(true)));
     EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
 
-    status = metaserverCli_.CreateDentry(d);
+    auto status = metaserverCli_.CreateDentry(d);
     ASSERT_EQ(MetaStatusCode::OK, status);
+}
 
-    // test2: create dentry copset not exist
+TEST_F(MetaServerClientImplTest, test_CreateDentry_copyset_not_exist) {
+    // in
+    Dentry d;
+    d.set_fsid(1);
+    d.set_inodeid(2);
+    d.set_parentinodeid(1);
+    d.set_name("test11");
+    d.set_txid(10);
+
+    // out
+    MetaserverID metaServerID = 1;
+    butil::EndPoint target;
+    butil::str2endpoint(addr_.c_str(), &target);
+    LogicPoolID poolID = 1;
+    CopysetID copysetID = 100;
+    uint32_t partitionID = 200;
+    uint64_t applyIndex = 10;
+
+    curvefs::metaserver::CreateDentryResponse response;
+
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
+        .WillOnce(DoAll(SetArgPointee<2>(target_), SetArgPointee<3>(applyIndex),
+                        Return(true)));
     curvefs::metaserver::CreateDentryResponse responsefail;
     responsefail.set_statuscode(MetaStatusCode::COPYSET_NOTEXIST);
+
+    response.set_statuscode(MetaStatusCode::OK);
+    response.set_appliedindex(applyIndex);
+
     EXPECT_CALL(mockMetaServerService_, CreateDentry(_, _, _, _))
         .Times(2)
         .WillOnce(DoAll(
@@ -368,10 +413,31 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry) {
     EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _, _))
         .WillOnce(Return(true));
 
-    status = metaserverCli_.CreateDentry(d);
+    auto status = metaserverCli_.CreateDentry(d);
     ASSERT_EQ(MetaStatusCode::OK, status);
+}
 
-    // test3: test response has applyindex
+TEST_F(MetaServerClientImplTest,
+       test_CreateDentry_response_doesnt_have_applyindex) {
+    // in
+    Dentry d;
+    d.set_fsid(1);
+    d.set_inodeid(2);
+    d.set_parentinodeid(1);
+    d.set_name("test11");
+    d.set_txid(10);
+
+    // out
+    MetaserverID metaServerID = 1;
+    butil::EndPoint target;
+    butil::str2endpoint(addr_.c_str(), &target);
+    LogicPoolID poolID = 1;
+    CopysetID copysetID = 100;
+    uint32_t partitionID = 200;
+    uint64_t applyIndex = 10;
+
+    curvefs::metaserver::CreateDentryResponse response;
+
     response.clear_appliedindex();
     EXPECT_CALL(mockMetaServerService_, CreateDentry(_, _, _, _))
         .WillRepeatedly(DoAll(
@@ -380,8 +446,10 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry) {
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
                               SetArgPointee<3>(applyIndex), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _, _))
+        .WillRepeatedly(Return(true));
 
-    status = metaserverCli_.CreateDentry(d);
+    auto status = metaserverCli_.CreateDentry(d);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
@@ -781,7 +849,8 @@ TEST_F(MetaServerClientImplTest, test_CreateInode) {
     EXPECT_CALL(*mockMetacache_.get(), SelectTarget(_, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<1>(target_),
                               SetArgPointee<2>(applyIndex), Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), MarkPartitionUnavailable(_)).Times(3);
+    EXPECT_CALL(*mockMetacache_.get(), MarkPartitionUnavailable(_))
+        .Times(1 + opt_.maxRetry);
     status = metaserverCli_.CreateInode(inode, &out);
     ASSERT_EQ(MetaStatusCode::PARTITION_ALLOC_ID_FAIL, status);
 }
