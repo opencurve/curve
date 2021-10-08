@@ -32,10 +32,10 @@ namespace common {
 void InitS3AdaptorOption(Configuration *conf,
     S3AdapterOption *s3Opt) {
     LOG_IF(FATAL, !conf->GetIntValue("s3.loglevel", &s3Opt->loglevel));
-    LOG_IF(FATAL, !conf->GetStringValue("s3.nos_address", &s3Opt->s3Address));
+    LOG_IF(FATAL, !conf->GetStringValue("s3.endpoint", &s3Opt->s3Address));
     LOG_IF(FATAL, !conf->GetStringValue("s3.ak", &s3Opt->ak));
     LOG_IF(FATAL, !conf->GetStringValue("s3.sk", &s3Opt->sk));
-    LOG_IF(FATAL, !conf->GetStringValue("s3.snapshot_bucket_name",
+    LOG_IF(FATAL, !conf->GetStringValue("s3.bucket_name",
         &s3Opt->bucketName));
     LOG_IF(FATAL, !conf->GetIntValue("s3.http_scheme", &s3Opt->scheme));
     LOG_IF(FATAL, !conf->GetBoolValue("s3.verify_SSL", &s3Opt->verifySsl));
