@@ -94,6 +94,10 @@ int main(int argc, char *argv[]) {
 
     printf("Mount %s on volume %s ... \n", mOpts.mountPoint, mOpts.volume);
 
+    if (InitGlog(mOpts.conf, argv[0]) < 0) {
+        printf("Init glog failed, confpath = %s\n", mOpts.conf);
+    }
+
     ret = InitFuseClient(mOpts.conf, mOpts.fsType);
     if (ret < 0) {
         printf("init fuse client fail, conf =%s\n", mOpts.conf);
