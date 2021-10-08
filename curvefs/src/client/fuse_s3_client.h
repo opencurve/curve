@@ -54,10 +54,6 @@ class FuseS3Client : public FuseClient {
 
     void UnInit() override;
 
-    void FuseOpInit(void *userdata, struct fuse_conn_info *conn) override;
-
-    void FuseOpDestroy(void *userdata) override;
-
     CURVEFS_ERROR FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         const char *buf, size_t size, off_t off,
         struct fuse_file_info *fi, size_t *wSize) override;
@@ -83,6 +79,9 @@ class FuseS3Client : public FuseClient {
     CURVEFS_ERROR Truncate(Inode *inode, uint64_t length) override;
 
     void FlushData() override;
+
+    CURVEFS_ERROR CreateFs(
+        void *userdata, FsInfo *fsInfo) override;
 
  private:
     // s3 adaptor

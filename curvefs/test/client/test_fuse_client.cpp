@@ -149,6 +149,7 @@ TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_exist) {
     memset(&mOpts, 0, sizeof(mOpts));
     mOpts.mountPoint = "host1:/test";
     mOpts.volume = "xxx";
+    mOpts.fsName = "xxx";
     mOpts.user = "test";
     mOpts.fsType = "curve";
 
@@ -183,6 +184,7 @@ TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_not_exist) {
     memset(&mOpts, 0, sizeof(mOpts));
     mOpts.mountPoint = "host1:/test";
     mOpts.volume = "xxx";
+    mOpts.fsName = "xxx";
     mOpts.user = "test";
     mOpts.fsType = "curve";
 
@@ -223,6 +225,7 @@ TEST_F(TestFuseVolumeClient, FuseOpDestroy) {
     memset(&mOpts, 0, sizeof(mOpts));
     mOpts.mountPoint = "host1:/test";
     mOpts.volume = "xxx";
+    mOpts.fsName = "xxx";
     mOpts.fsType = "curve";
 
     std::string fsName = mOpts.volume;

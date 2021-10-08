@@ -81,7 +81,8 @@ class FuseClient {
         fsInfo_(nullptr),
         mdsBase_(nullptr),
         spaceBase_(nullptr),
-        isStop_(true) {}
+        isStop_(true),
+        init_(false) {}
 
     virtual ~FuseClient() {}
 
@@ -100,7 +101,9 @@ class FuseClient {
             dirBuf_(std::make_shared<DirBuffer>()),
             fsInfo_(nullptr),
             mdsBase_(nullptr),
-            spaceBase_(nullptr) {}
+            spaceBase_(nullptr),
+            isStop_(true),
+            init_(false) {}
 
     virtual CURVEFS_ERROR Init(const FuseClientOption &option);
 
@@ -110,9 +113,9 @@ class FuseClient {
 
     virtual void Fini();
 
-    virtual void FuseOpInit(void *userdata, struct fuse_conn_info *conn) = 0;
+    virtual void FuseOpInit(void *userdata, struct fuse_conn_info *conn);
 
-    virtual void FuseOpDestroy(void *userdata) = 0;
+    virtual void FuseOpDestroy(void *userdata);
 
     virtual CURVEFS_ERROR FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         const char *buf, size_t size, off_t off,
@@ -190,6 +193,7 @@ class FuseClient {
 
     void SetFsInfo(std::shared_ptr<FsInfo> fsInfo) {
         fsInfo_ = fsInfo;
+        init_ = true;
     }
 
     std::shared_ptr<FsInfo> GetFsInfo() {
@@ -230,6 +234,9 @@ class FuseClient {
     virtual void FlushInodeLoop();
 
     virtual void FlushData() = 0;
+
+    virtual CURVEFS_ERROR CreateFs(
+        void *userdata, FsInfo *fsInfo) = 0;
 
  protected:
     // mds client
@@ -275,6 +282,9 @@ class FuseClient {
     InterruptibleSleeper sleeper_;
 
     Thread flushThread_;
+
+    // init flags
+    bool init_;
 };
 
 }  // namespace client
