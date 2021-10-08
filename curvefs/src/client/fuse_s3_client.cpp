@@ -64,92 +64,23 @@ void FuseS3Client::UnInit() {
     FuseClient::UnInit();
 }
 
-void FuseS3Client::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
-    struct MountOption *mOpts = (struct MountOption *) userdata;
-    std::string mountPointStr =
-        (mOpts->mountPoint == nullptr) ? "" : mOpts->mountPoint;
-    std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
-    std::string user = (mOpts->user == nullptr) ? "" : mOpts->user;
-
-    std::string mountPointWithHost;
-    int retVal = AddHostNameToMountPointStr(mountPointStr, &mountPointWithHost);
-    if (retVal < 0) {
-        return;
-    }
-
-    FsInfo fsInfo;
-    FSStatusCode ret = mdsClient_->GetFsInfo(fsName, &fsInfo);
-    if (ret != FSStatusCode::OK) {
-        if (FSStatusCode::NOT_FOUND == ret) {
-            LOG(INFO) << "The fsName not exist, try to CreateFs"
-                      << ", fsName = " << fsName;
-
-            ::curvefs::common::S3Info s3Info;
-            s3Info.set_ak(option_.s3Opt.s3AdaptrOpt.ak);
-            s3Info.set_sk(option_.s3Opt.s3AdaptrOpt.sk);
-            s3Info.set_endpoint(option_.s3Opt.s3AdaptrOpt.s3Address);
-            s3Info.set_bucketname(option_.s3Opt.s3AdaptrOpt.bucketName);
-            s3Info.set_blocksize(option_.s3Opt.blocksize);
-            s3Info.set_chunksize(option_.s3Opt.chunksize);
-            // TODO(xuchaojie) : where to get 4096?
-            ret = mdsClient_->CreateFsS3(fsName, 4096, s3Info);
-
-            if (ret != FSStatusCode::OK) {
-                LOG(ERROR) << "CreateFs failed, ret = " << ret
-                           << ", fsName = " << fsName;
-                return;
-            }
-        } else {
-            LOG(ERROR) << "GetFsInfo failed, ret = " << ret
-                       << ", fsName = " << fsName;
-            return;
-        }
-    }
-    ret = mdsClient_->MountFs(fsName, mountPointWithHost, &fsInfo);
-    if (ret != FSStatusCode::OK) {
-        LOG(ERROR) << "MountFs failed, ret = " << ret
-                   << ", fsName = " << fsName
-                   << ", mountPoint = " << mountPointWithHost;
-        return;
-    }
-    fsInfo_ = std::make_shared<FsInfo>(fsInfo);
-    inodeManager_->SetFsId(fsInfo.fsid());
-    dentryManager_->SetFsId(fsInfo.fsid());
-    LOG(INFO) << "Mount " << fsName
-              << " on " << mountPointWithHost
-              << " success!";
-    return;
-}
-
-void FuseS3Client::FuseOpDestroy(void *userdata) {
+CURVEFS_ERROR FuseS3Client::CreateFs(
+    void *userdata, FsInfo *fsInfo) {
     struct MountOption *mOpts = (struct MountOption *) userdata;
     std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
-    std::string mountPointStr =
-        (mOpts->mountPoint == nullptr) ? "" : mOpts->mountPoint;
-
-    std::string mountPointWithHost;
-    int retVal = AddHostNameToMountPointStr(mountPointStr, &mountPointWithHost);
-    if (retVal < 0) {
-        return;
-    }
-
-    FSStatusCode ret = mdsClient_->UmountFs(fsInfo_->fsname(),
-        mountPointWithHost);
+    ::curvefs::common::S3Info s3Info;
+    s3Info.set_ak(option_.s3Opt.s3AdaptrOpt.ak);
+    s3Info.set_sk(option_.s3Opt.s3AdaptrOpt.sk);
+    s3Info.set_endpoint(option_.s3Opt.s3AdaptrOpt.s3Address);
+    s3Info.set_bucketname(option_.s3Opt.s3AdaptrOpt.bucketName);
+    s3Info.set_blocksize(option_.s3Opt.blocksize);
+    s3Info.set_chunksize(option_.s3Opt.chunksize);
+    // fsBlockSize means min allocsize, for s3, we do not need this.
+    FSStatusCode ret = mdsClient_->CreateFsS3(fsName, 1, s3Info);
     if (ret != FSStatusCode::OK) {
-        LOG(ERROR) << "UmountFs failed, ret = " << ret
-                   << ", fsName = " << fsName
-                   << ", mountPoint = " << mountPointWithHost;
-        return;
+        return CURVEFS_ERROR::INTERNAL;
     }
-
-    FlushAll();
-
-    dirBuf_->DirBufferFreeAll();
-
-    LOG(INFO) << "Umount " << fsName
-              << " on " << mountPointWithHost
-              << " success!";
-    return;
+    return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,

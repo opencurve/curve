@@ -118,6 +118,87 @@ void FuseClient::FlushInodeLoop() {
      }
 }
 
+void FuseClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
+    struct MountOption *mOpts = (struct MountOption *) userdata;
+    std::string mountPointStr =
+        (mOpts->mountPoint == nullptr) ? "" : mOpts->mountPoint;
+    std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
+
+    std::string mountPointWithHost;
+    int retVal = AddHostNameToMountPointStr(mountPointStr, &mountPointWithHost);
+    if (retVal < 0) {
+        return;
+    }
+
+    FsInfo fsInfo;
+    FSStatusCode ret = mdsClient_->GetFsInfo(fsName, &fsInfo);
+    if (ret != FSStatusCode::OK) {
+        if (FSStatusCode::NOT_FOUND == ret) {
+            LOG(INFO) << "The fsName not exist, try to CreateFs"
+                      << ", fsName = " << fsName;
+
+            CURVEFS_ERROR ret2 = CreateFs(userdata, &fsInfo);
+            if (ret2 != CURVEFS_ERROR::OK) {
+                LOG(ERROR) << "CreateFs failed, ret = " << ret2
+                           << ", fsName = " << fsName;
+                return;
+            }
+        } else {
+            LOG(ERROR) << "GetFsInfo failed, ret = " << ret
+                       << ", fsName = " << fsName;
+            return;
+        }
+    }
+    ret = mdsClient_->MountFs(fsName, mountPointWithHost, &fsInfo);
+    if (ret != FSStatusCode::OK) {
+        LOG(ERROR) << "MountFs failed, ret = " << ret
+                   << ", fsName = " << fsName
+                   << ", mountPoint = " << mountPointWithHost;
+        return;
+    }
+    fsInfo_ = std::make_shared<FsInfo>(fsInfo);
+    inodeManager_->SetFsId(fsInfo.fsid());
+    dentryManager_->SetFsId(fsInfo.fsid());
+    LOG(INFO) << "Mount " << fsName
+              << " on " << mountPointWithHost
+              << " success!";
+    init_ = true;
+    return;
+}
+
+void FuseClient::FuseOpDestroy(void *userdata) {
+    if (!init_) {
+        return;
+    }
+    struct MountOption *mOpts = (struct MountOption *) userdata;
+    std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
+    std::string mountPointStr =
+        (mOpts->mountPoint == nullptr) ? "" : mOpts->mountPoint;
+
+    std::string mountPointWithHost;
+    int retVal = AddHostNameToMountPointStr(mountPointStr, &mountPointWithHost);
+    if (retVal < 0) {
+        return;
+    }
+    FSStatusCode ret = mdsClient_->UmountFs(fsName,
+        mountPointWithHost);
+    if (ret != FSStatusCode::OK) {
+        LOG(ERROR) << "UmountFs failed, ret = " << ret
+                   << ", fsName = " << fsName
+                   << ", mountPoint = " << mountPointWithHost;
+        return;
+    }
+
+    FlushAll();
+
+    dirBuf_->DirBufferFreeAll();
+
+    LOG(INFO) << "Umount " << fsName
+              << " on " << mountPointWithHost
+              << " success!";
+    return;
+}
+
 std::ostream &operator<<(std::ostream &os, const struct stat &attr) {
     os << "{ st_ino = " << attr.st_ino
        << ", st_mode = " << attr.st_mode

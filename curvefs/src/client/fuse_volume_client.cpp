@@ -47,113 +47,56 @@ void FuseVolumeClient::UnInit() {
     blockDeviceClient_->UnInit();
 }
 
-void FuseVolumeClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
+CURVEFS_ERROR FuseVolumeClient::CreateFs(
+    void *userdata, FsInfo *fsInfo) {
     struct MountOption *mOpts = (struct MountOption *) userdata;
-    std::string mountPointStr =
-        (mOpts->mountPoint == nullptr) ? "" : mOpts->mountPoint;
     std::string volName = (mOpts->volume == nullptr) ? "" : mOpts->volume;
-    std::string fsName = (mOpts->fsName == nullptr) ? volName : mOpts->fsName;
+    std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
     std::string user = (mOpts->user == nullptr) ? "" : mOpts->user;
 
-    std::string mountPointWithHost;
-    int retVal = AddHostNameToMountPointStr(mountPointStr, &mountPointWithHost);
-    if (retVal < 0) {
-        return;
-    }
-
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
-
-    FsInfo fsInfo;
-    // to get fsInfo from mds
-    FSStatusCode ret2 = mdsClient_->GetFsInfo(fsName, &fsInfo);
-    if (ret2 != FSStatusCode::OK) {
-        // if fs not exist, then create it.
-        if (FSStatusCode::NOT_FOUND == ret2) {
-            LOG(INFO) << "The fsName not exist, try to CreateFs"
-                      << ", fsName = " << fsName;
-            BlockDeviceStat stat;
-            ret = blockDeviceClient_->Stat(volName, user, &stat);
-            if (ret != CURVEFS_ERROR::OK) {
-                LOG(ERROR) << "Stat volume failed, ret = " << ret
-                           << ", volName = " << volName
-                           << ", user = " << user;
-                return;
-            }
-
-            Volume vol;
-            vol.set_volumesize(stat.length);
-            vol.set_blocksize(volOpts_.volBlockSize);
-            vol.set_volumename(volName);
-            vol.set_user(user);
-
-            ret2 = mdsClient_->CreateFs(fsName, volOpts_.fsBlockSize, vol);
-
-            if (ret2 != FSStatusCode::OK) {
-                LOG(ERROR) << "CreateFs failed, ret = " << ret2
-                           << ", fsName = " << fsName;
-                return;
-            }
-        } else {
-            LOG(ERROR) << "GetFsInfo failed, ret = " << ret2
-                       << ", fsName = " << fsName;
-            return;
-        }
-    }
-
-    ret = blockDeviceClient_->Open(volName, user);
+    BlockDeviceStat stat;
+    ret = blockDeviceClient_->Stat(volName, user, &stat);
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "BlockDeviceClientImpl open failed, ret = " << ret
+        LOG(ERROR) << "Stat volume failed, ret = " << ret
                    << ", volName = " << volName
                    << ", user = " << user;
-        return;
+        return ret;
     }
 
-    // mount fs
-    ret2 = mdsClient_->MountFs(fsName, mountPointWithHost, &fsInfo);
+    Volume vol;
+    vol.set_volumesize(stat.length);
+    vol.set_blocksize(volOpts_.volBlockSize);
+    vol.set_volumename(volName);
+    vol.set_user(user);
+
+    FSStatusCode ret2 = mdsClient_->CreateFs(fsName, volOpts_.fsBlockSize, vol);
     if (ret2 != FSStatusCode::OK) {
-        LOG(ERROR) << "MountFs failed, ret = " << ret2
-                   << ", fsName = " << fsName
-                   << ", mountPoint = " << mountPointWithHost;
-        return;
+        return CURVEFS_ERROR::INTERNAL;
     }
-    fsInfo_ = std::make_shared<FsInfo>(fsInfo);
-    inodeManager_->SetFsId(fsInfo.fsid());
-    dentryManager_->SetFsId(fsInfo.fsid());
+    return CURVEFS_ERROR::OK;
+}
 
-    LOG(INFO) << "Mount " << fsName
-              << " on " << mountPointWithHost
-              << " success!";
+void FuseVolumeClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
+    struct MountOption *mOpts = (struct MountOption *) userdata;
+    std::string volName = (mOpts->volume == nullptr) ? "" : mOpts->volume;
+    std::string user = (mOpts->user == nullptr) ? "" : mOpts->user;
+    CURVEFS_ERROR ret = blockDeviceClient_->Open(volName, user);
+    CHECK(CURVEFS_ERROR::OK == ret)
+        << "BlockDeviceClientImpl open failed, ret = " << ret
+        << ", volName = " << volName
+        << ", user = " << user;
+    FuseClient::FuseOpInit(userdata, conn);
     return;
 }
 
 void FuseVolumeClient::FuseOpDestroy(void *userdata) {
-    struct MountOption *mOpts = (struct MountOption *) userdata;
-    std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
-    std::string mountPointStr =
-        (mOpts->mountPoint == nullptr) ? "" : mOpts->mountPoint;
-
-    std::string mountPointWithHost;
-    int retVal = AddHostNameToMountPointStr(mountPointStr, &mountPointWithHost);
-    if (retVal < 0) {
+    FuseClient::FuseOpDestroy(userdata);
+    CURVEFS_ERROR ret = blockDeviceClient_->Close();
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "BlockDeviceClientImpl close failed, ret = " << ret;
         return;
     }
-
-    FSStatusCode ret = mdsClient_->UmountFs(fsInfo_->fsname(),
-        mountPointWithHost);
-    if (ret != FSStatusCode::OK) {
-        LOG(ERROR) << "UmountFs failed, ret = " << ret
-                   << ", fsName = " << fsName
-                   << ", mountPoint = " << mountPointWithHost;
-        return;
-    }
-    CURVEFS_ERROR ret2 = blockDeviceClient_->Close();
-    if (ret2 != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "BlockDeviceClientImpl close failed, ret = " << ret2;
-        return;
-    }
-    LOG(INFO) << "Umount " << fsName
-              << " on " << mountPointWithHost
-              << " success!";
     return;
 }
 

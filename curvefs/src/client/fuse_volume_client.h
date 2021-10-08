@@ -84,6 +84,9 @@ class FuseVolumeClient : public FuseClient {
 
     void FlushData() override;
 
+    CURVEFS_ERROR CreateFs(
+        void *userdata, FsInfo *fsInfo) override;
+
  private:
     // curve client
     std::shared_ptr<BlockDeviceClient> blockDeviceClient_;
