@@ -37,6 +37,8 @@
 extern "C" {
 #endif
 
+int InitGlog(const char *confPath, const char *argv0);
+
 int InitFuseClient(const char *confPath, const char* fsType);
 
 void UnInitFuseClient();

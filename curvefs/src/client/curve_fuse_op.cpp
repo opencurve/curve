@@ -43,6 +43,25 @@ using ::curvefs::client::CURVEFS_ERROR;
 static FuseClient *g_ClientInstance = nullptr;
 static FuseClientOption *fuseClientOption = nullptr;
 
+int InitGlog(const char *confPath, const char *argv0) {
+    Configuration conf;
+    conf.SetConfigPath(confPath);
+    if (!conf.LoadConfig()) {
+        LOG(ERROR) << "LoadConfig failed, confPath = " << confPath;
+        return -1;
+    }
+
+    if (FLAGS_log_dir.empty()) {
+        if (!conf.GetStringValue("client.common.logDir", &FLAGS_log_dir)) {
+            LOG(WARNING) << "no client.common.logDir in " << confPath
+                         << ", will log to /tmp";
+        }
+    }
+    // initialize logging module
+    google::InitGoogleLogging(argv0);
+    return 0;
+}
+
 int InitFuseClient(const char *confPath, const char* fsType) {
     Configuration conf;
     conf.SetConfigPath(confPath);
