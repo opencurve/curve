@@ -18,7 +18,7 @@ project_config_src: "{{ playbook_dir | dirname }}/conf"
 project_config_dsv: "="
 project_core_method: "{{ curvefs_core_method }}"
 project_mount_command: >
-  {{ project_root_dest }}/sbin/fuse_client
+  {{ project_root_dest }}/sbin/curve-fuse
   {{ curvefs_client_mount_args | trim }}
   -o conf={{ project_root_dest }}/conf/client.conf
   {{ curvefs_client_mount_path }}

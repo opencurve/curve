@@ -21,7 +21,7 @@ load(
 )
 
 cc_binary(
-    name = "fuse_client",
+    name = "curve-fuse",
     srcs = glob([
         "*.cpp",
         "*.c",

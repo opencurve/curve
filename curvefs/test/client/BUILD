@@ -101,7 +101,7 @@ cc_binary(
 )
 
 cc_test(
-   name = "fuse_client_test",
+   name = "curve_fuse_test",
    srcs = glob([
        "*.cpp",
        "*.c",

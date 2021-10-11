@@ -6,7 +6,7 @@ stop(){
     sudo killall -9 curve_fs_space_allocator_main
     sudo killall -9 curvefs_metaserver
     sudo killall -9 curvefs_mds
-    sudo killall -9 fuse_client
+    sudo killall -9 curve-fuse
     sudo umount ${mountdir}
     echo "stoped"
 }
@@ -21,17 +21,17 @@ start(){
 
     if [ "$1" = "volume" ]
     then
-    echo "start fuse_client volume"
-    LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.1 ./bazel-bin/curvefs/src/client/fuse_client -f -o default_permissions -o allow_other -o volume=/fs -o fstype=volume -o user=test -o conf=./curvefs/conf/curvefs_client.conf $2 &
+    echo "start curve-fuse volume"
+    LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.1 ./bazel-bin/curvefs/src/client/curve-fuse -f -o default_permissions -o allow_other -o volume=/fs -o fstype=volume -o user=test -o conf=./curvefs/conf/curvefs_client.conf $2 &
     elif [ "$1" = "s3" ]
     then
-    echo "start fuse_client s3"
-    LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.1 ./bazel-bin/curvefs/src/client/fuse_client -f -o default_permissions -o allow_other -o fsname=s3_1 -o fstype=s3 -o user=test -o conf=./curvefs/conf/curvefs_client.conf $2 &
+    echo "start curve-fuse s3"
+    LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.1 ./bazel-bin/curvefs/src/client/curve-fuse -f -o default_permissions -o allow_other -o fsname=s3_1 -o fstype=s3 -o user=test -o conf=./curvefs/conf/curvefs_client.conf $2 &
     fi
     ps -aux | grep -v grep | grep curve_fs_space_allocator_main
     ps -aux | grep -v grep | grep curvefs_metaserver
     ps -aux | grep -v grep | grep curvefs_mds
-    ps -aux | grep -v grep | grep fuse_client
+    ps -aux | grep -v grep | grep curve-fuse
 }
 
 restart(){
