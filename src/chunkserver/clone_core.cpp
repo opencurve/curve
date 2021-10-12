@@ -39,6 +39,7 @@ using curve::common::TimeUtility;
 
 static void ReadBufferDeleter(void* ptr) {
     delete[] static_cast<char*>(ptr);
+    // for test
 }
 
 DownloadClosure::DownloadClosure(std::shared_ptr<ReadChunkRequest> readRequest,
