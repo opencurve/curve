@@ -235,7 +235,9 @@ void S3ClientAdaptorImpl::BackGroundFlush() {
 
 int S3ClientAdaptorImpl::Stop() {
     LOG(INFO) << "Stopping S3ClientAdaptor.";
-    diskCacheManagerImpl_->UmountDiskCache();
+    if (enableDiskCache_) {
+        diskCacheManagerImpl_->UmountDiskCache();
+    }
     waitIntervalSec_.StopWait();
     toStop_.store(true, std::memory_order_release);
     bgFlushThread_.join();
