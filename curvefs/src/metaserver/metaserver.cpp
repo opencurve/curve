@@ -138,12 +138,6 @@ void Metaserver::Run() {
         return;
     }
 
-    // register metaserver to mds
-    Register registerMDS(registerOptions_);
-    LOG(INFO) << "register metaserver to mds";
-    LOG_IF(FATAL, registerMDS.RegisterToMDS(&metadate_) != 0)
-        << "Failed to register metaserver to MDS.";
-
     TrashManager::GetInstance().Run();
 
     LOG_IF(FATAL, heartbeat_.Run() != 0)
@@ -230,6 +224,13 @@ void Metaserver::InitHeartbeatOptions() {
 
 void Metaserver::InitHeartbeat() {
     InitHeartbeatOptions();
+
+    // register metaserver to mds, get metaserver id and token
+    Register registerMDS(registerOptions_);
+    LOG(INFO) << "register metaserver to mds";
+    LOG_IF(FATAL, registerMDS.RegisterToMDS(&metadate_) != 0)
+        << "Failed to register metaserver to MDS.";
+
     heartbeatOptions_.copysetNodeManager = copysetNodeManager_;
     heartbeatOptions_.metaserverId = metadate_.id();
     heartbeatOptions_.metaserverToken = metadate_.token();
