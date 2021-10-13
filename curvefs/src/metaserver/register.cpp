@@ -98,7 +98,7 @@ int Register::RegisterToMDS(MetaServerMetadata *metadata) {
         if (!cntl.Failed() && resp.statuscode() == TopoStatusCode::TOPO_OK) {
             break;
         } else {
-            LOG(ERROR) << ops_.metaserverInternalIp << ":"
+            LOG(INFO) << ops_.metaserverInternalIp << ":"
                        << ops_.metaserverPort << " Fail to register to MDS "
                        << mdsEps_[inServiceIndex_]
                        << ", cntl errorCode: " << cntl.ErrorCode() << ","

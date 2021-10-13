@@ -101,7 +101,7 @@ def smart_topology(metaserver_groups, hostvars, nzone, ncopyset):
         idx += 1
         servers.append(server)
 
-    topology = { 'servers': servers, 'metaservers': metaservers, 'pools': pools }
+    topology = { 'servers': servers, 'pools': pools }
     return topology
 
 class FilterModule(object):
