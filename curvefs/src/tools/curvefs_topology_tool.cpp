@@ -115,10 +115,6 @@ int CurvefsTopologyTool::InitTopoData() {
         return DealFailedRet(ret, "init server data");
     }
 
-    ret = InitMetaServerData();
-    if (ret != 0) {
-        return DealFailedRet(ret, "init metaserver data");
-    }
     return ret;
 }
 
@@ -141,11 +137,6 @@ int CurvefsTopologyTool::HandleBuildCluster() {
     ret = CreateServer();
     if (ret !=0) {
         return DealFailedRet(ret, "create server");
-    }
-
-    ret = CreateMetaServer();
-    if (ret != 0) {
-        return DealFailedRet(ret, "create metaserver");
     }
 
     return ret;
@@ -257,44 +248,6 @@ int CurvefsTopologyTool::InitServerZoneData() {
     return 0;
 }
 
-int CurvefsTopologyTool::InitMetaServerData() {
-    if (clusterMap_[kMetaServer].isNull()) {
-        LOG(ERROR) << "No metaservers in cluster map";
-        return -1;
-    }
-    for (const auto metaserver : clusterMap_[kMetaServer]) {
-        MetaServer metaserverData;
-        if (!metaserver[kName].isString()) {
-            LOG(ERROR) << "metaserver name must be string";
-            return -1;
-        }
-        metaserverData.name = metaserver[kName].asString();
-        if (!metaserver[kInternalIp].isString()) {
-            LOG(ERROR) << "metaserver internal ip must be string";
-            return -1;
-        }
-        metaserverData.internalIp = metaserver[kInternalIp].asString();
-        if (!metaserver[kInternalPort].isUInt()) {
-            LOG(ERROR) << "metaserver internal port must be uint";
-            return -1;
-        }
-        metaserverData.internalPort = metaserver[kInternalPort].asUInt();
-        if (!metaserver[kExternalIp].isString()) {
-            LOG(ERROR) << "metaserver internal port must be string";
-            return -1;
-        }
-        metaserverData.externalIp = metaserver[kExternalIp].asString();
-        if (!metaserver[kExternalPort].isUInt()) {
-            LOG(ERROR) << "metaserver internal port must be string";
-            return -1;
-        }
-        metaserverData.externalPort = metaserver[kExternalPort].asUInt();
-
-        metaserverDatas.emplace_back(metaserverData);
-    }
-    return 0;
-}
-
 int CurvefsTopologyTool::ScanCluster() {
     // get pools and compare
     // De-duplication
@@ -354,28 +307,6 @@ int CurvefsTopologyTool::ScanCluster() {
             });
         if (ix != serverDatas.end()) {
             serverDatas.erase(ix);
-        }
-    }
-
-    // get metaserver and compare
-    // De-duplication
-    std::list<MetaServerInfo> metaserverInfos;
-    for (auto server : serverInfos) {
-        ret = GetMetaServersInServer(server.serverid(), &metaserverInfos);
-        if (ret != 0) {
-            return ret;
-        }
-    }
-
-    for (auto it = metaserverInfos.begin(); it != metaserverInfos.end(); it++) {
-        auto ix = std::find_if(metaserverDatas.begin(), metaserverDatas.end(),
-            [it] (MetaServer &data) {
-                    return (data.name == it->hostname()) &&
-                    (data.internalIp == it->hostip()) &&
-                    (data.internalPort == it->port());
-            });
-        if (ix != metaserverDatas.end()) {
-            metaserverDatas.erase(ix);
         }
     }
 
@@ -479,42 +410,6 @@ int CurvefsTopologyTool::GetServersInZone(ZoneIdType zoneid,
 
     for (int i = 0; i < response.serverinfo_size(); i++) {
         serverInfos->emplace_back(response.serverinfo(i));
-    }
-    return 0;
-}
-
-int CurvefsTopologyTool::GetMetaServersInServer(ServerIdType serverid,
-                        std::list<MetaServerInfo> *metaserverInfos) {
-    TopologyService_Stub stub(&channel_);
-    ListMetaServerRequest request;
-    ListMetaServerResponse response;
-    request.set_serverid(serverid);
-    brpc::Controller cntl;
-    cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
-    cntl.set_log_id(1);
-
-    LOG(INFO) << "ListMetaServer, send request: "
-              << request.DebugString();
-
-    stub.ListMetaServer(&cntl, &request, &response, nullptr);
-
-    if (cntl.Failed()) {
-        return kRetCodeRedirectMds;
-    }
-    if (response.statuscode() != TopoStatusCode::TOPO_OK) {
-        LOG(ERROR) << "ListMetaServer rpc response fail. "
-                   << "Message is :"
-                   << response.DebugString()
-                   << " , serverid = "
-                   << serverid;
-        return response.statuscode();
-    } else {
-        LOG(INFO) << "ListMetaServer rpc response success, "
-                   << response.DebugString();
-    }
-
-    for (int i = 0; i < response.metaserverinfos_size(); i++) {
-        metaserverInfos->emplace_back(response.metaserverinfos(i));
     }
     return 0;
 }
@@ -660,54 +555,6 @@ int CurvefsTopologyTool::CreateServer() {
                        << "Message is :"
                        << response.DebugString()
                        << " , serverName = "
-                       << it.name;
-            return response.statuscode();
-        }
-    }
-    return 0;
-}
-
-int CurvefsTopologyTool::CreateMetaServer() {
-    TopologyService_Stub stub(&channel_);
-    for (auto it : metaserverDatas) {
-        MetaServerRegistRequest request;
-        MetaServerRegistResponse response;
-
-        request.set_hostname(it.name);
-        request.set_hostip(it.internalIp);
-        request.set_port(it.internalPort);
-        request.set_externalip(it.externalIp);
-        request.set_externalport(it.externalPort);
-
-        brpc::Controller cntl;
-        cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
-        cntl.set_log_id(1);
-
-        LOG(INFO) << "CreateMetaServer, send request: "
-                  << request.DebugString();
-
-        stub.RegistMetaServer(&cntl, &request, &response, nullptr);
-
-        if (cntl.ErrorCode() == EHOSTDOWN ||
-            cntl.ErrorCode() == brpc::ELOGOFF) {
-            return kRetCodeRedirectMds;
-        } else if (cntl.Failed()) {
-            LOG(ERROR) << "RegistMetaServer, errcorde = "
-                       << response.statuscode()
-                       << ", error content : "
-                       << cntl.ErrorText()
-                       << " , metaserverName = "
-                       << it.name;
-            return kRetCodeCommonErr;
-        }
-        if (response.statuscode() == TopoStatusCode::TOPO_OK) {
-            LOG(INFO) << "Received RegistMtaServer rpc response success, "
-                      << response.DebugString();
-        } else {
-            LOG(ERROR) << "RegistServer rpc response fail. "
-                       << "Message is :"
-                       << response.DebugString()
-                       << " , metaserverName = "
                        << it.name;
             return response.statuscode();
         }

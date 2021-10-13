@@ -136,8 +136,6 @@ void MdsServiceImpl::UmountFs(::google::protobuf::RpcController* controller,
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
     std::string fsName = request->fsname();
     std::string mount = request->mountpoint();
-    LOG(INFO) << "UmountFs request, fsName = " << fsName
-              << ", mountPoint = " << mount;
     LOG(INFO) << "UmountFs request, " << request->ShortDebugString();
     FSStatusCode status = fsManager_->UmountFs(fsName, mount);
     if (status != FSStatusCode::OK) {

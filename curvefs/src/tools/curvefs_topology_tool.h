@@ -48,7 +48,6 @@ const int kRetCodeRedirectMds = -2;
 const char kPools[] = "pools";
 const char kPool[] = "pool";
 const char kServers[] = "servers";
-const char kMetaServer[] = "metaservers";
 const char kName[] = "name";
 const char kInternalIp[] = "internalip";
 const char kInternalPort[] = "internalport";
@@ -62,15 +61,6 @@ const char kZoneNum[] = "zonenum";
 namespace curvefs {
 namespace mds {
 namespace topology {
-
-struct MetaServer {
-    std::string name;
-    std::string internalIp;
-    uint32_t internalPort;
-    std::string externalIp;
-    uint32_t externalPort;
-};
-
 struct Server {
     std::string name;
     std::string internalIp;
@@ -113,10 +103,6 @@ class CurvefsTopologyTool {
 
  public:
     // for unit test
-    const std::list<MetaServer>& GetMetaServerDatas() {
-        return metaserverDatas;
-    }
-
     const std::list<Server>& GetServerDatas() {
         return serverDatas;
     }
@@ -131,7 +117,6 @@ class CurvefsTopologyTool {
 
  private:
     int ReadClusterMap();
-    int InitMetaServerData();
     int InitServerZoneData();
     int InitPoolData();
     int ScanCluster();
@@ -139,7 +124,6 @@ class CurvefsTopologyTool {
     int CreatePool();
     int CreateZone();
     int CreateServer();
-    int CreateMetaServer();
 
     int DealFailedRet(int ret, std::string operation);
 
@@ -149,11 +133,7 @@ class CurvefsTopologyTool {
 
     int GetServersInZone(ZoneIdType zoneid, std::list<ServerInfo> *serverInfos);
 
-    int GetMetaServersInServer(ServerIdType serverId,
-        std::list<MetaServerInfo> *metaserverInfos);
-
  private:
-    std::list<MetaServer> metaserverDatas;
     std::list<Server> serverDatas;
     std::list<Zone> zoneDatas;
     std::list<Pool> poolDatas;

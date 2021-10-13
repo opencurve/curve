@@ -109,19 +109,10 @@ void TopologyManager::RegistMetaServer(const MetaServerRegistRequest *request,
         }
     }
 
-    // TODO(cw123): if request has hostname, this request is from topology
-    // create tool, and status should be OFFLINE;
-    // else, this request is from metaserver register, and status should be
-    // ONLINE
-    OnlineState onlineStatus;
-    std::string hostname;
-    onlineStatus = OFFLINE;
-    hostname = request->hostname();
-
-    MetaServer metaserver(metaServerId, hostname, token, serverId,
+    MetaServer metaserver(metaServerId, request->hostname(), token, serverId,
                           request->hostip(), request->port(),
                           request->externalip(), request->externalport(),
-                          onlineStatus);
+                          ONLINE);
 
     TopoStatusCode errcode = topology_->AddMetaServer(metaserver);
     if (errcode == TopoStatusCode::TOPO_OK) {
@@ -777,6 +768,8 @@ TopoStatusCode TopologyManager::CreateCopyset() {
                 return ret;
             }
         }
+    } else {
+        return TopoStatusCode::TOPO_CREATE_COPYSET_ON_METASERVER_FAIL;
     }
     return TopoStatusCode::TOPO_OK;
 }

@@ -64,13 +64,6 @@ curvefs_topology: "{{ groups.metaserver | smart_topology(hostvars, 3, 100) }}"
 #      externalport: 16701
 #      zone: zone1
 #      pool: pool1
-#   ...
-#  metaservers:
-#    - name: metaserver1
-#      internalip: 127.0.0.1
-#      internalport: 16701
-#      externalip: 127.0.0.1
-#      externalport: 16701
 #    ...
 #  pools:
 #    - name: pool1
