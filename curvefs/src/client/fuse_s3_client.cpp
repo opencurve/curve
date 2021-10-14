@@ -111,10 +111,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     inode.set_ctime(nowTime);
 
     inodeWrapper->SwapInode(&inode);
-    {
-        curve::common::LockGuard lg(dirtyMapMutex_);
-        dirtyMap_.emplace(inodeWrapper->GetInodeId(), inodeWrapper);
-    }
+    inodeManager_->ShipToFlush(inodeWrapper);
 
     if (fi->flags & O_DIRECT || fi->flags & O_SYNC || fi->flags & O_DSYNC) {
         // Todo: do some cache flush later
@@ -140,9 +137,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
                    << ", inodeid = " << ino;
         return ret;
     }
-
-    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-    Inode inode = inodeWrapper->GetInodeUnlocked();
+    Inode inode = inodeWrapper->GetInodeLocked();
 
     size_t len = 0;
     if (inode.length() <= off) {
@@ -153,6 +148,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
     } else {
         len = size;
     }
+
+    // Read do not change inode. so we do not get lock here.
     int rRet = s3Adaptor_->Read(&inode, off, len, buffer);
     if (rRet < 0) {
         LOG(ERROR) << "s3Adaptor_ read failed, ret = " << rRet;
@@ -160,15 +157,15 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
     }
     *rSize = rRet;
 
-    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
-    inode.set_ctime(nowTime);
-    inode.set_atime(nowTime);
+    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+    Inode newInode = inodeWrapper->GetInodeUnlocked();
 
-    inodeWrapper->SwapInode(&inode);
-    {
-        curve::common::LockGuard lg(dirtyMapMutex_);
-        dirtyMap_.emplace(inodeWrapper->GetInodeId(), inodeWrapper);
-    }
+    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
+    newInode.set_ctime(nowTime);
+    newInode.set_atime(nowTime);
+
+    inodeWrapper->SwapInode(&newInode);
+    inodeManager_->ShipToFlush(inodeWrapper);
 
     LOG(INFO) << "read end, read size = " << *rSize;
     return ret;

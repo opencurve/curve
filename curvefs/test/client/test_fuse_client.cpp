@@ -81,8 +81,8 @@ class TestFuseVolumeClient : public ::testing::Test {
         fuseClientOption_.listDentryLimit = listDentryLimit_;
         fuseClientOption_.maxNameLength = 20u;
         client_ = std::make_shared<FuseVolumeClient>(
-            mdsClient_, metaClient_, spaceClient_, inodeManager_,
-            dentryManager_, extManager_, blockDeviceClient_);
+            mdsClient_, metaClient_, inodeManager_,
+            dentryManager_, spaceClient_,  extManager_, blockDeviceClient_);
         client_->Init(fuseClientOption_);
         PrepareFsInfo();
     }
@@ -362,12 +362,6 @@ TEST_F(TestFuseVolumeClient, FuseOpWrite) {
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(size, wSize);
     ASSERT_EQ(true, inodeWrapper->isDirty());
-
-    EXPECT_CALL(*metaClient_, UpdateInode(_))
-        .WillOnce(Return(MetaStatusCode::OK));
-
-    client_->FlushInode();
-    ASSERT_EQ(false, inodeWrapper->isDirty());
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpWriteFailed) {
@@ -533,12 +527,6 @@ TEST_F(TestFuseVolumeClient, FuseOpRead) {
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(size, rSize);
     ASSERT_EQ(true, inodeWrapper->isDirty());
-
-    EXPECT_CALL(*metaClient_, UpdateInode(_))
-        .WillOnce(Return(MetaStatusCode::OK));
-
-    client_->FlushInode();
-    ASSERT_EQ(false, inodeWrapper->isDirty());
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpReadFailed) {
@@ -1542,14 +1530,12 @@ class TestFuseS3Client : public ::testing::Test {
     virtual void SetUp() {
         mdsClient_ = std::make_shared<MockMdsClient>();
         metaClient_ = std::make_shared<MockMetaServerClient>();
-        spaceClient_ = std::make_shared<MockSpaceClient>();
         s3ClientAdaptor_ = std::make_shared<MockS3ClientAdaptor>();
         inodeManager_ = std::make_shared<MockInodeCacheManager>();
         dentryManager_ = std::make_shared<MockDentryCacheManager>();
-        extManager_ = std::make_shared<MockExtentManager>();
         client_ = std::make_shared<FuseS3Client>(
-            mdsClient_, metaClient_, spaceClient_, inodeManager_,
-            dentryManager_, extManager_, s3ClientAdaptor_);
+            mdsClient_, metaClient_, inodeManager_,
+            dentryManager_, s3ClientAdaptor_);
         PrepareFsInfo();
     }
 
@@ -1657,77 +1643,6 @@ TEST_F(TestFuseS3Client, FuseOpDestroy) {
     client_->FuseOpDestroy(&mOpts);
 }
 
-TEST_F(TestFuseS3Client, FuseOpWriteAndFlushInode) {
-    fuse_req_t req;
-    fuse_ino_t ino = 1;
-    const char* buf = "xxx";
-    size_t size = 4;
-    off_t off = 0;
-    struct fuse_file_info fi;
-    fi.flags = O_WRONLY;
-    size_t wSize = 0;
-
-    Inode inode;
-    inode.set_inodeid(ino);
-    inode.set_length(0);
-    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
-
-    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-
-    EXPECT_CALL(*s3ClientAdaptor_, Write(_, _, _, _)).WillOnce(Return(size));
-
-    CURVEFS_ERROR ret =
-        client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
-
-    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    ASSERT_EQ(size, wSize);
-    ASSERT_EQ(true, inodeWrapper->isDirty());
-
-    EXPECT_CALL(*metaClient_, UpdateInode(_))
-        .WillOnce(Return(MetaStatusCode::OK));
-
-    client_->FlushInode();
-    ASSERT_EQ(false, inodeWrapper->isDirty());
-}
-
-TEST_F(TestFuseS3Client, FuseOpWriteAndFlushInodeFailed) {
-    fuse_req_t req;
-    fuse_ino_t ino = 1;
-    const char *buf = "xxx";
-    size_t size = 4;
-    off_t off = 0;
-    struct fuse_file_info fi;
-    fi.flags = O_WRONLY;
-    size_t wSize = 0;
-
-    Inode inode;
-    inode.set_inodeid(ino);
-    inode.set_length(0);
-    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
-
-    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
-
-    EXPECT_CALL(*s3ClientAdaptor_, Write(_, _, _, _))
-        .WillOnce(Return(size));
-
-    CURVEFS_ERROR ret = client_->FuseOpWrite(
-        req, ino, buf, size, off, &fi, &wSize);
-
-    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    ASSERT_EQ(size, wSize);
-    ASSERT_EQ(true, inodeWrapper->isDirty());
-
-    EXPECT_CALL(*metaClient_, UpdateInode(_))
-        .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
-
-    client_->FlushInode();
-    ASSERT_EQ(true, inodeWrapper->isDirty());
-}
-
 TEST_F(TestFuseS3Client, FuseOpWriteSmallSize) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
@@ -1786,41 +1701,6 @@ TEST_F(TestFuseS3Client, FuseOpWriteFailed) {
 
     ret = client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
-}
-
-TEST_F(TestFuseS3Client, FuseOpReadAndFlushInode) {
-    fuse_req_t req;
-    fuse_ino_t ino = 1;
-    size_t size = 4;
-    off_t off = 0;
-    struct fuse_file_info fi;
-    fi.flags = O_RDONLY;
-    std::unique_ptr<char[]> buffer(new char[size]);
-    size_t rSize = 0;
-
-    Inode inode;
-    inode.set_fsid(fsId);
-    inode.set_inodeid(ino);
-    inode.set_length(4096);
-    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
-
-    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-
-    EXPECT_CALL(*s3ClientAdaptor_, Read(_, _, _, _)).WillOnce(Return(size));
-
-    CURVEFS_ERROR ret =
-        client_->FuseOpRead(req, ino, size, off, &fi, buffer.get(), &rSize);
-    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    ASSERT_EQ(size, rSize);
-    ASSERT_EQ(true, inodeWrapper->isDirty());
-
-    EXPECT_CALL(*metaClient_, UpdateInode(_))
-        .WillOnce(Return(MetaStatusCode::OK));
-
-    client_->FlushInode();
-    ASSERT_EQ(false, inodeWrapper->isDirty());
 }
 
 TEST_F(TestFuseS3Client, FuseOpReadOverRange) {
@@ -1907,44 +1787,6 @@ TEST_F(TestFuseS3Client, FuseOpFsync) {
 
     ret = client_->FuseOpFsync(req, ino, 1, fi);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-}
-
-TEST_F(TestFuseS3Client, FuseOpWriteAndFlushAll) {
-    fuse_req_t req;
-    fuse_ino_t ino = 1;
-    const char* buf = "xxx";
-    size_t size = 4;
-    off_t off = 0;
-    struct fuse_file_info fi;
-    fi.flags = O_WRONLY;
-    size_t wSize = 0;
-
-    Inode inode;
-    inode.set_inodeid(ino);
-    inode.set_length(0);
-    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
-
-    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-
-    EXPECT_CALL(*s3ClientAdaptor_, Write(_, _, _, _)).WillOnce(Return(size));
-
-    CURVEFS_ERROR ret =
-        client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize);
-
-    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    ASSERT_EQ(size, wSize);
-    ASSERT_EQ(true, inodeWrapper->isDirty());
-
-    EXPECT_CALL(*s3ClientAdaptor_, FsSync())
-        .WillOnce(Return(CURVEFS_ERROR::OK));
-
-    EXPECT_CALL(*metaClient_, UpdateInode(_))
-        .WillOnce(Return(MetaStatusCode::OK));
-
-    client_->FlushAll();
-    ASSERT_EQ(false, inodeWrapper->isDirty());
 }
 
 }  // namespace client

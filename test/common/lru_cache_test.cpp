@@ -16,29 +16,57 @@
 
 /*
  * Project: curve
- * Created Date: Thur Apr 16th 2019
- * Author: lixiaocui
+ * Created Date: 20211010
+ * Author: xuchaojie,lixiaocui
  */
 
 #include <gtest/gtest.h>
 #include <glog/logging.h>
-#include <memory>
-#include <string>
-#include "src/mds/nameserver2/namespace_storage_cache.h"
-#include "src/mds/nameserver2/namespace_storage.h"
-#include "src/mds/nameserver2/helper/namespace_helper.h"
+
+#include "src/common/lru_cache.h"
 #include "src/common/timeutility.h"
 
 namespace curve {
-namespace mds {
+namespace common {
+
+TEST(TestCacheMetrics, testall) {
+    CacheMetrics cacheMetrics("LRUCache");
+
+    // 1. 新增数据项
+    cacheMetrics.UpdateAddToCacheCount();
+    ASSERT_EQ(1, cacheMetrics.cacheCount.get_value());
+
+    cacheMetrics.UpdateAddToCacheBytes(1000);
+    ASSERT_EQ(1000, cacheMetrics.cacheBytes.get_value());
+
+    // 2. 移除数据项
+    cacheMetrics.UpdateRemoveFromCacheCount();
+    ASSERT_EQ(0, cacheMetrics.cacheCount.get_value());
+
+    cacheMetrics.UpdateRemoveFromCacheBytes(200);
+    ASSERT_EQ(800, cacheMetrics.cacheBytes.get_value());
+
+    // 3. cache命中
+    ASSERT_EQ(0, cacheMetrics.cacheHit.get_value());
+    cacheMetrics.OnCacheHit();
+    ASSERT_EQ(1, cacheMetrics.cacheHit.get_value());
+
+    // 4. cache未命中
+    ASSERT_EQ(0, cacheMetrics.cacheMiss.get_value());
+    cacheMetrics.OnCacheMiss();
+    ASSERT_EQ(1, cacheMetrics.cacheMiss.get_value());
+}
+
 TEST(CaCheTest, test_cache_with_capacity_limit) {
     int maxCount = 5;
-    std::shared_ptr<LRUCache> cache = std::make_shared<LRUCache>(maxCount);
+    auto cache = std::make_shared<LRUCache<std::string, std::string>>(maxCount,
+        std::make_shared<CacheMetrics>("LruCache"));
 
     // 1. 测试 put/get
     uint64_t cacheSize = 0;
     for (int i = 1; i <= maxCount + 1; i++) {
-        cache->Put(std::to_string(i), std::to_string(i));
+        std::string eliminated;
+        cache->Put(std::to_string(i), std::to_string(i), &eliminated);
         if (i <= maxCount) {
             cacheSize += std::to_string(i).size() * 2;
             ASSERT_EQ(i, cache->GetCacheMetrics()->cacheCount.get_value());
@@ -73,7 +101,8 @@ TEST(CaCheTest, test_cache_with_capacity_limit) {
     ASSERT_EQ(cacheSize, cache->GetCacheMetrics()->cacheBytes.get_value());
 
     // 4. 重复put
-    cache->Put("4", "hello");
+    std::string eliminated;
+    cache->Put("4", "hello", &eliminated);
     ASSERT_TRUE(cache->Get("4", &res));
     ASSERT_EQ("hello", res);
     ASSERT_EQ(maxCount - 1, cache->GetCacheMetrics()->cacheCount.get_value());
@@ -83,12 +112,14 @@ TEST(CaCheTest, test_cache_with_capacity_limit) {
 }
 
 TEST(CaCheTest, test_cache_with_capacity_no_limit) {
-    std::shared_ptr<LRUCache> cache = std::make_shared<LRUCache>();
+    auto cache = std::make_shared<LRUCache<std::string, std::string>>(
+        std::make_shared<CacheMetrics>("LruCache"));
 
     // 1. 测试 put/get
     std::string res;
     for (int i = 1; i <= 10; i++) {
-        cache->Put(std::to_string(i), std::to_string(i));
+        std::string eliminated;
+        cache->Put(std::to_string(i), std::to_string(i), &eliminated);
         ASSERT_TRUE(cache->Get(std::to_string(i), &res));
         ASSERT_EQ(std::to_string(i), res);
     }
@@ -97,48 +128,17 @@ TEST(CaCheTest, test_cache_with_capacity_no_limit) {
     cache->Remove("1");
     ASSERT_FALSE(cache->Get("1", &res));
 }
-TEST(CaCheTest, test_cache_with_large_data_capacity_no_limit) {
-    uint64_t DefaultChunkSize = 16 * kMB;
-    std::shared_ptr<LRUCache> cache = std::make_shared<LRUCache>();
-
-    int i = 1;
-    FileInfo fileinfo;
-    std::string filename = "helloword-" + std::to_string(i) + ".log";
-    fileinfo.set_id(i);
-    fileinfo.set_filename(filename);
-    fileinfo.set_parentid(i << 8);
-    fileinfo.set_filetype(FileType::INODE_PAGEFILE);
-    fileinfo.set_chunksize(DefaultChunkSize);
-    fileinfo.set_length(10 << 20);
-    fileinfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
-    fileinfo.set_seqnum(1);
-    std::string encodeFileInfo;
-    ASSERT_TRUE(fileinfo.SerializeToString(&encodeFileInfo));
-    std::string encodeKey =
-            NameSpaceStorageCodec::EncodeFileStoreKey(i << 8, filename);
-
-    // 1. put/get
-    cache->Put(encodeKey, encodeFileInfo);
-    std::string out;
-    ASSERT_TRUE(cache->Get(encodeKey, &out));
-    FileInfo fileinfoout;
-    ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfoout));
-    NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfoout);
-    ASSERT_EQ(filename, fileinfoout.filename());
-
-    // 2. remove
-    cache->Remove(encodeKey);
-    ASSERT_FALSE(cache->Get(encodeKey, &out));
-}
 
 TEST(CaCheTest, TestCacheHitAndMissMetric) {
-    std::shared_ptr<LRUCache> cache = std::make_shared<LRUCache>();
+    auto cache = std::make_shared<LRUCache<std::string, std::string>>(
+        std::make_shared<CacheMetrics>("LruCache"));
     ASSERT_EQ(0, cache->GetCacheMetrics()->cacheHit.get_value());
     ASSERT_EQ(0, cache->GetCacheMetrics()->cacheMiss.get_value());
 
     std::string existKey = "hello";
     std::string notExistKey = "world";
-    cache->Put(existKey, existKey);
+    std::string eliminated;
+    cache->Put(existKey, existKey, &eliminated);
 
     std::string out;
     for (int i = 0; i < 10; ++i) {
@@ -157,6 +157,7 @@ TEST(CaCheTest, TestCacheHitAndMissMetric) {
     ASSERT_EQ(10, cache->GetCacheMetrics()->cacheMiss.get_value());
 }
 
-
-}  // namespace mds
+}  // namespace common
 }  // namespace curve
+
+

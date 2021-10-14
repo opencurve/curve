@@ -165,6 +165,14 @@ void InitFuseClientOption(Configuration* conf, FuseClientOption* clientOption) {
                               &clientOption->flushPeriodMs);
     conf->GetValueFatalIfFail("fuseClient.maxNameLength",
                               &clientOption->maxNameLength);
+    conf->GetValueFatalIfFail("fuseClient.iCacheLruSize",
+                              &clientOption->iCacheLruSize);
+    conf->GetValueFatalIfFail("fuseClient.dCacheLruSize",
+                              &clientOption->dCacheLruSize);
+    conf->GetValueFatalIfFail("fuseClient.enableICacheMetrics",
+                              &clientOption->enableICacheMetrics);
+    conf->GetValueFatalIfFail("fuseClient.enableDCacheMetrics",
+                              &clientOption->enableDCacheMetrics);
 
     SetBrpcOpt(conf);
 }

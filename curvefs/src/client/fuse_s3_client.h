@@ -40,13 +40,11 @@ class FuseS3Client : public FuseClient {
 
     FuseS3Client(const std::shared_ptr<MdsClient> &mdsClient,
         const std::shared_ptr<MetaServerClient> &metaClient,
-        const std::shared_ptr<SpaceClient> &spaceClient,
         const std::shared_ptr<InodeCacheManager> &inodeManager,
         const std::shared_ptr<DentryCacheManager> &dentryManager,
-        const std::shared_ptr<ExtentManager> &extManager,
         const std::shared_ptr<S3ClientAdaptor> &s3Adaptor)
-        : FuseClient(mdsClient, metaClient, spaceClient,
-            inodeManager, dentryManager, extManager),
+        : FuseClient(mdsClient, metaClient,
+            inodeManager, dentryManager),
           s3Adaptor_(s3Adaptor),
           s3Client_(nullptr) {}
 

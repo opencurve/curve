@@ -121,6 +121,10 @@ struct FuseClientOption {
     uint32_t listDentryLimit;
     uint32_t flushPeriodMs;
     uint32_t maxNameLength;
+    uint64_t iCacheLruSize;
+    uint64_t dCacheLruSize;
+    bool enableICacheMetrics;
+    bool enableDCacheMetrics;
 };
 
 void InitFuseClientOption(Configuration* conf, FuseClientOption* clientOption);
