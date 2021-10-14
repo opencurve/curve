@@ -32,8 +32,11 @@
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/error_code.h"
 #include "src/common/concurrent/concurrent.h"
+#include "src/common/lru_cache.h"
 
 using ::curvefs::metaserver::Dentry;
+using ::curve::common::LRUCache;
+using ::curve::common::CacheMetrics;
 
 namespace curvefs {
 namespace client {
@@ -49,6 +52,8 @@ class DentryCacheManager {
     void SetFsId(uint32_t fsId) {
         fsId_ = fsId;
     }
+
+    virtual CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics) = 0;
 
     virtual void InsertOrReplaceCache(const Dentry& dentry) = 0;
 
@@ -69,17 +74,30 @@ class DentryCacheManager {
     uint32_t fsId_;
 };
 
+static const char* kDentryKeyDelimiter = ":";
+
 class DentryCacheManagerImpl : public DentryCacheManager {
  public:
-    using Hash = std::unordered_map<std::string, Dentry>;
-
- public:
     DentryCacheManagerImpl()
-      : metaClient_(std::make_shared<MetaServerClientImpl>()) {}
+      : metaClient_(std::make_shared<MetaServerClientImpl>()),
+        dCache_(nullptr) {}
 
     explicit DentryCacheManagerImpl(
         const std::shared_ptr<MetaServerClient> &metaClient)
-      : metaClient_(metaClient) {}
+      : metaClient_(metaClient),
+        dCache_(nullptr) {}
+
+    CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics) override {
+        if (enableCacheMetrics) {
+            dCache_ = std::make_shared<
+                LRUCache<std::string, Dentry>>(cacheSize,
+                    std::make_shared<CacheMetrics>("dcache"));
+        } else {
+            dCache_ = std::make_shared<
+                LRUCache<std::string, Dentry>>(cacheSize);
+        }
+        return CURVEFS_ERROR::OK;
+    }
 
     void InsertOrReplaceCache(const Dentry& dentry) override;
 
@@ -96,11 +114,14 @@ class DentryCacheManagerImpl : public DentryCacheManager {
     CURVEFS_ERROR ListDentry(uint64_t parent,
         std::list<Dentry> *dentryList, uint32_t limit) override;
 
+    std::string GetDentryCacheKey(uint64_t parent, const std::string &name) {
+        return std::to_string(parent) + kDentryKeyDelimiter + name;
+    }
+
  private:
     std::shared_ptr<MetaServerClient> metaClient_;
-
-    std::unordered_map<uint64_t, Hash> dCache_;
-
+    // key is parentId + name
+    std::shared_ptr<LRUCache<std::string, Dentry>> dCache_;
     curve::common::RWLock mtx_;
 };
 

@@ -48,6 +48,7 @@ class TestDentryCacheManager : public ::testing::Test {
         metaClient_ = std::make_shared<MockMetaServerClient>();
         dCacheManager_ = std::make_shared<DentryCacheManagerImpl>(metaClient_);
         dCacheManager_->SetFsId(fsId_);
+        dCacheManager_->Init(10, true);
     }
 
     virtual void TearDown() {

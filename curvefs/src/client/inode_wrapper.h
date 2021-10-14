@@ -150,6 +150,10 @@ class InodeWrapper {
         return openCount_;
     }
 
+    void MarkDirty() {
+        dirty_ = true;
+    }
+
     bool isDirty() const {
         return dirty_;
     }

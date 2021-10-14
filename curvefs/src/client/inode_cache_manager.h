@@ -26,11 +26,17 @@
 
 #include <memory>
 #include <unordered_map>
+#include <map>
+
+#include "src/common/lru_cache.h"
 
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/error_code.h"
 #include "src/common/concurrent/concurrent.h"
 #include "curvefs/src/client/inode_wrapper.h"
+
+using ::curve::common::LRUCache;
+using ::curve::common::CacheMetrics;
 
 namespace curvefs {
 namespace client {
@@ -49,6 +55,8 @@ class InodeCacheManager {
         fsId_ = fsId;
     }
 
+    virtual CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics) = 0;
+
     virtual CURVEFS_ERROR GetInode(uint64_t inodeid,
         std::shared_ptr<InodeWrapper> &out) = 0;   // NOLINT
 
@@ -57,6 +65,13 @@ class InodeCacheManager {
 
     virtual CURVEFS_ERROR DeleteInode(uint64_t inodeid) = 0;
 
+    virtual void ClearInodeCache(uint64_t inodeid) = 0;
+
+    virtual void ShipToFlush(
+        const std::shared_ptr<InodeWrapper> &inodeWrapper) = 0;
+
+    virtual void FlushAll() = 0;
+
  protected:
     uint32_t fsId_;
 };
@@ -64,11 +79,25 @@ class InodeCacheManager {
 class InodeCacheManagerImpl : public InodeCacheManager {
  public:
     InodeCacheManagerImpl()
-      : metaClient_(std::make_shared<MetaServerClientImpl>()) {}
+      : metaClient_(std::make_shared<MetaServerClientImpl>()),
+        iCache_(nullptr) {}
 
     explicit InodeCacheManagerImpl(
         const std::shared_ptr<MetaServerClient> &metaClient)
-      : metaClient_(metaClient) {}
+      : metaClient_(metaClient),
+        iCache_(nullptr) {}
+
+    CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics) override {
+        if (enableCacheMetrics) {
+            iCache_ = std::make_shared<
+                LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>>(cacheSize,
+                    std::make_shared<CacheMetrics>("icache"));
+        } else {
+            iCache_ = std::make_shared<
+                LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>>(cacheSize);
+        }
+        return CURVEFS_ERROR::OK;
+    }
 
     CURVEFS_ERROR GetInode(uint64_t inodeid,
         std::shared_ptr<InodeWrapper> &out) override;    // NOLINT
@@ -78,10 +107,26 @@ class InodeCacheManagerImpl : public InodeCacheManager {
 
     CURVEFS_ERROR DeleteInode(uint64_t inodeid) override;
 
+    void ClearInodeCache(uint64_t inodeid) override;
+
+    void ShipToFlush(
+        const std::shared_ptr<InodeWrapper> &inodeWrapper) override;
+
+    void FlushAll() override;
+
+ private:
+    void FlushInodeOnce();
+
  private:
     std::shared_ptr<MetaServerClient> metaClient_;
-    std::unordered_map<uint64_t, std::shared_ptr<InodeWrapper>> iCache_;
+    std::shared_ptr<LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>> iCache_;
     curve::common::RWLock mtx_;
+
+    // dirty map, key is inodeid
+    std::map<uint64_t, std::shared_ptr<InodeWrapper>> dirtyMap_;
+
+    // dirty map mutex
+    curve::common::Mutex dirtyMapMutex_;
 };
 
 

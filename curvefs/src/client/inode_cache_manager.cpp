@@ -25,6 +25,7 @@
 
 #include <glog/logging.h>
 
+#include <map>
 #include <utility>
 
 using ::curvefs::metaserver::Inode;
@@ -34,17 +35,20 @@ namespace client {
 
 CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
     std::shared_ptr<InodeWrapper> &out) {
-    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
     {
         curve::common::ReadLockGuard lg(mtx_);
-        auto it = iCache_.find(inodeid);
-        if (it != iCache_.end()) {
-            out = it->second;
+        bool ok = iCache_->Get(inodeid, &out);
+        if (ok) {
             return CURVEFS_ERROR::OK;
         }
     }
 
     curve::common::WriteLockGuard lg(mtx_);
+    bool ok = iCache_->Get(inodeid, &out);
+    if (ok) {
+        return CURVEFS_ERROR::OK;
+    }
+
     Inode inode;
     MetaStatusCode ret2 = metaClient_->GetInode(fsId_, inodeid, &inode);
     if (ret2 != MetaStatusCode::OK) {
@@ -55,8 +59,17 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
 
     out = std::make_shared<InodeWrapper>(
         std::move(inode), metaClient_);
-    iCache_.emplace(inodeid, out);
-    return ret;
+
+    std::shared_ptr<InodeWrapper> eliminatedOne;
+    bool eliminated = iCache_->Put(inodeid, out, &eliminatedOne);
+    if (eliminated) {
+        CURVEFS_ERROR ret = eliminatedOne->Sync();
+        if (ret != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "sync inode failed, ret = " << ret;
+            return ret;
+        }
+    }
+    return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
@@ -72,20 +85,77 @@ CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
     uint64_t inodeid = inode.inodeid();
     out = std::make_shared<InodeWrapper>(
         std::move(inode), metaClient_);
-    iCache_.emplace(inodeid, out);
+
+    std::shared_ptr<InodeWrapper> eliminatedOne;
+    bool eliminated = iCache_->Put(inodeid, out, &eliminatedOne);
+    if (eliminated) {
+        CURVEFS_ERROR ret = eliminatedOne->Sync();
+        if (ret != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "sync inode failed, ret = " << ret;
+            return ret;
+        }
+    }
     return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR InodeCacheManagerImpl::DeleteInode(uint64_t inodeid) {
     curve::common::WriteLockGuard lg(mtx_);
-    iCache_.erase(inodeid);
+    iCache_->Remove(inodeid);
     MetaStatusCode ret = metaClient_->DeleteInode(fsId_, inodeid);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "metaClient_ DeleteInode failed, ret = " << ret
                    << ", inodeid = " << inodeid;
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
+    curve::common::LockGuard lg2(dirtyMapMutex_);
+    dirtyMap_.erase(inodeid);
     return CURVEFS_ERROR::OK;
+}
+
+void InodeCacheManagerImpl::ClearInodeCache(uint64_t inodeid) {
+    curve::common::WriteLockGuard lg(mtx_);
+    iCache_->Remove(inodeid);
+    curve::common::LockGuard lg2(dirtyMapMutex_);
+    dirtyMap_.erase(inodeid);
+}
+
+void InodeCacheManagerImpl::ShipToFlush(
+    const std::shared_ptr<InodeWrapper> &inodeWrapper) {
+    curve::common::LockGuard lg(dirtyMapMutex_);
+    dirtyMap_.emplace(inodeWrapper->GetInodeId(), inodeWrapper);
+}
+
+void InodeCacheManagerImpl::FlushAll() {
+    while (!dirtyMap_.empty()) {
+        FlushInodeOnce();
+    }
+}
+
+
+void InodeCacheManagerImpl::FlushInodeOnce() {
+    std::map<uint64_t, std::shared_ptr<InodeWrapper>> temp_;
+    {
+        curve::common::LockGuard lg(dirtyMapMutex_);
+        temp_.swap(dirtyMap_);
+    }
+    for (auto it = temp_.begin(); it != temp_.end();) {
+        curve::common::UniqueLock ulk = it->second->GetUniqueLock();
+        CURVEFS_ERROR ret = it->second->Sync();
+        if (ret != CURVEFS_ERROR::OK && ret != CURVEFS_ERROR::NOTEXIST) {
+            LOG(ERROR) << "Flush inode failed, inodeid = "
+                       << it->second->GetInodeId();
+            it++;
+            continue;
+        }
+        it = temp_.erase(it);
+    }
+    LOG(INFO) << "FlushInodeOnce, remain inode num = " << temp_.size();
+    {
+        curve::common::LockGuard lg(dirtyMapMutex_);
+        for (const auto &v : temp_) {
+            dirtyMap_.emplace(v.first, v.second);
+        }
+    }
 }
 
 

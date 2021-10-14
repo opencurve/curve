@@ -35,6 +35,9 @@ class MockInodeCacheManager : public InodeCacheManager {
     MockInodeCacheManager() {}
     ~MockInodeCacheManager() {}
 
+    MOCK_METHOD2(Init, CURVEFS_ERROR(
+        uint64_t cacheSize, bool enableCacheMetrics));
+
     MOCK_METHOD2(GetInode, CURVEFS_ERROR(
         uint64_t inodeid, std::shared_ptr<InodeWrapper> &out));     // NOLINT
 
@@ -42,6 +45,13 @@ class MockInodeCacheManager : public InodeCacheManager {
         std::shared_ptr<InodeWrapper> &out));     // NOLINT
 
     MOCK_METHOD1(DeleteInode, CURVEFS_ERROR(uint64_t inodeid));
+
+    MOCK_METHOD1(ClearInodeCache, void(uint64_t inodeid));
+
+    MOCK_METHOD1(ShipToFlush, void(
+        const std::shared_ptr<InodeWrapper> &inodeWrapper));
+
+    MOCK_METHOD0(FlushAll, void());
 };
 
 }  // namespace client

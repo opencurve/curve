@@ -34,49 +34,36 @@ namespace client {
 using curve::common::WriteLockGuard;
 
 void DentryCacheManagerImpl::InsertOrReplaceCache(const Dentry& dentry) {
-    WriteLockGuard lg(mtx_);
-    uint32_t parentId = dentry.parentinodeid();
-    std::string name = dentry.name();
-    std::unordered_map<uint64_t, Hash>::iterator iter =
-        dCache_.emplace(parentId, Hash()).first;
+    std::string key = GetDentryCacheKey(dentry.parentinodeid(), dentry.name());
 
-    Hash* hash = &(iter->second);
-    std::pair<Hash::iterator, bool> ret = hash->emplace(name, dentry);
-    bool succ = ret.second;
-    if (!succ) {
-       ret.first->second = dentry;
-    }
+    WriteLockGuard lg(mtx_);
+    dCache_->Put(key, dentry);
 }
 
 void DentryCacheManagerImpl::DeleteCache(uint64_t parentId,
                                          const std::string& name) {
-    WriteLockGuard lg(mtx_);
-    auto iter = dCache_.find(parentId);
-    if (iter == dCache_.end()) {
-        return;
-    }
+    std::string key = GetDentryCacheKey(parentId, name);
 
-    iter->second.erase(name);
-    if (iter->second.empty()) {
-        dCache_.erase(iter);
-    }
+    WriteLockGuard lg(mtx_);
+    dCache_->Remove(key);
 }
 
 CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(
     uint64_t parent, const std::string &name, Dentry *out) {
-    auto it = dCache_.end();
+    std::string key = GetDentryCacheKey(parent, name);
     {
         curve::common::ReadLockGuard lg(mtx_);
-        it = dCache_.find(parent);
-        if (it != dCache_.end()) {
-            auto ix = it->second.find(name);
-            if (ix != it->second.end()) {
-                *out = ix->second;
-                return CURVEFS_ERROR::OK;
-            }
+        bool ok = dCache_->Get(key, out);
+        if (ok) {
+            return CURVEFS_ERROR::OK;
         }
     }
     curve::common::WriteLockGuard lg(mtx_);
+    bool ok = dCache_->Get(key, out);
+    if (ok) {
+        return CURVEFS_ERROR::OK;
+    }
+
     MetaStatusCode ret = metaClient_->GetDentry(fsId_, parent, name, out);
     if (ret != MetaStatusCode::OK) {
         LOG(WARNING) << "metaClient_ GetDentry failed, ret = " << ret
@@ -84,41 +71,31 @@ CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(
                    << ", name = " << name;
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
-    if (it == dCache_.end()) {
-        it = dCache_.emplace(parent,
-            std::unordered_map<std::string, Dentry>()).first;
-    }
-    it->second.emplace(name, *out);
+    dCache_->Put(key, *out);
     return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR DentryCacheManagerImpl::CreateDentry(const Dentry &dentry) {
+    std::string key = GetDentryCacheKey(dentry.parentinodeid(), dentry.name());
+
     curve::common::WriteLockGuard lg(mtx_);
-    uint64_t parent = dentry.parentinodeid();
-    std::string name = dentry.name();
     MetaStatusCode ret = metaClient_->CreateDentry(dentry);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "metaClient_ CreateDentry failed, ret = " << ret
-                   << ", parent = " << parent
-                   << ", name = " << name;
+                   << ", parent = " << dentry.parentinodeid()
+                   << ", name = " << dentry.name();
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
-    auto it = dCache_.emplace(parent,
-            std::unordered_map<std::string, Dentry>()).first;
-    it->second.emplace(name, dentry);
+    dCache_->Put(key, dentry);
     return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(
     uint64_t parent, const std::string &name) {
+    std::string key = GetDentryCacheKey(parent, name);
+
     curve::common::WriteLockGuard lg(mtx_);
-    auto it = dCache_.find(parent);
-    if (it != dCache_.end()) {
-        it->second.erase(name);
-        if (it->second.empty()) {
-            dCache_.erase(it);
-        }
-    }
+    dCache_->Remove(key);
     MetaStatusCode ret = metaClient_->DeleteDentry(fsId_, parent, name);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "metaClient_ DeleteInode failed, ret = " << ret

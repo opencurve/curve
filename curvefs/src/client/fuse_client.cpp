@@ -75,22 +75,19 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
         return CURVEFS_ERROR::INTERNAL;
     }
 
-    spaceBase_ = new SpaceBaseClient();
-    CURVEFS_ERROR ret3 = spaceClient_->Init(option.spaceOpt, spaceBase_);
+    CURVEFS_ERROR ret3 = inodeManager_->Init(option.iCacheLruSize,
+        option.enableICacheMetrics);
     if (ret3 != CURVEFS_ERROR::OK) {
         return ret3;
     }
-
-    ret3 = extManager_->Init(option.extentManagerOpt);
+    ret3 = dentryManager_->Init(option.dCacheLruSize,
+        option.enableDCacheMetrics);
     return ret3;
 }
 
 void FuseClient::UnInit() {
     delete mdsBase_;
     mdsBase_ = nullptr;
-
-    delete spaceBase_;
-    spaceBase_ = nullptr;
 }
 
 CURVEFS_ERROR FuseClient::Run() {
@@ -114,7 +111,7 @@ void FuseClient::Fini() {
 
 void FuseClient::FlushInodeLoop() {
      while (sleeper_.wait_for(std::chrono::seconds(option_.flushPeriodMs))) {
-          FlushInode();
+        FlushInode();
      }
 }
 
@@ -436,7 +433,9 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
                    << ", inodeid = " << ino
                    << ", parent = " << parent
                    << ", name = " << name;
+        return CURVEFS_ERROR::OK;
     }
+    inodeManager_->ClearInodeCache(ino);
     return CURVEFS_ERROR::OK;
 }
 
@@ -746,35 +745,12 @@ CURVEFS_ERROR FuseClient::FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
 }
 
 void FuseClient::FlushInode() {
-    std::map<uint64_t, std::shared_ptr<InodeWrapper>> temp_;
-    {
-        curve::common::LockGuard lg(dirtyMapMutex_);
-        temp_.swap(dirtyMap_);
-    }
-    for (auto it = temp_.begin(); it != temp_.end();) {
-        curve::common::UniqueLock ulk = it->second->GetUniqueLock();
-        CURVEFS_ERROR ret = it->second->Sync();
-        if (ret != CURVEFS_ERROR::OK) {
-            LOG(ERROR) << "Flush inode failed, inodeid = "
-                       << it->second->GetInodeId();
-            it++;
-            continue;
-        }
-        it = temp_.erase(it);
-    }
-    {
-        curve::common::LockGuard lg(dirtyMapMutex_);
-        for (const auto &v : temp_) {
-            dirtyMap_.emplace(v.first, v.second);
-        }
-    }
+    inodeManager_->FlushAll();
 }
 
 void FuseClient::FlushAll() {
     FlushData();
-    while (!dirtyMap_.empty()) {
-        FlushInode();
-    }
+    FlushInode();
 }
 
 }  // namespace client

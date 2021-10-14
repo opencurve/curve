@@ -38,6 +38,9 @@ class MockDentryCacheManager : public DentryCacheManager {
     MockDentryCacheManager() {}
     ~MockDentryCacheManager() {}
 
+    MOCK_METHOD2(Init, CURVEFS_ERROR(
+        uint64_t cacheSize, bool enableCacheMetrics));
+
     MOCK_METHOD1(InsertOrReplaceCache, void(const Dentry& dentry));
 
     MOCK_METHOD2(DeleteCache, void(uint64_t parentId, const std::string& name));

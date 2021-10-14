@@ -38,13 +38,23 @@ CURVEFS_ERROR FuseVolumeClient::Init(const FuseClientOption &option) {
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
+    spaceBase_ = std::make_shared<SpaceBaseClient>();
+    ret = spaceClient_->Init(option.spaceOpt, spaceBase_.get());
+    if (ret != CURVEFS_ERROR::OK) {
+        return ret;
+    }
+
+    ret = extManager_->Init(option.extentManagerOpt);
+    if (ret != CURVEFS_ERROR::OK) {
+        return ret;
+    }
     ret = blockDeviceClient_->Init(option.bdevOpt);
     return ret;
 }
 
 void FuseVolumeClient::UnInit() {
-    FuseClient::UnInit();
     blockDeviceClient_->UnInit();
+    FuseClient::UnInit();
 }
 
 CURVEFS_ERROR FuseVolumeClient::CreateFs(
@@ -202,10 +212,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     inode.set_atime(nowTime);
 
     inodeWrapper->SwapInode(&inode);
-    {
-        curve::common::LockGuard lg(dirtyMapMutex_);
-        dirtyMap_.emplace(inodeWrapper->GetInodeId(), inodeWrapper);
-    }
+    inodeManager_->ShipToFlush(inodeWrapper);
 
     if (fi->flags & O_DIRECT || fi->flags & O_SYNC || fi->flags & O_DSYNC) {
         // Todo: do some cache flush later
@@ -270,10 +277,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
     inode.set_atime(nowTime);
 
     inodeWrapper->SwapInode(&inode);
-    {
-        curve::common::LockGuard lg(dirtyMapMutex_);
-        dirtyMap_.emplace(inodeWrapper->GetInodeId(), inodeWrapper);
-    }
+    inodeManager_->ShipToFlush(inodeWrapper);
 
     LOG(INFO) << "read end, read size = " << *rSize;
     return ret;

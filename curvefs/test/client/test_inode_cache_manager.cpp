@@ -47,6 +47,7 @@ class TestInodeCacheManager : public ::testing::Test {
         metaClient_ = std::make_shared<MockMetaServerClient>();
         iCacheManager_ = std::make_shared<InodeCacheManagerImpl>(metaClient_);
         iCacheManager_->SetFsId(fsId_);
+        iCacheManager_->Init(10, true);
     }
 
     virtual void TearDown() {
@@ -145,6 +146,29 @@ TEST_F(TestInodeCacheManager, DeleteInode) {
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 }
 
+TEST_F(TestInodeCacheManager, ClearInodeCache) {
+    uint64_t inodeId = 100;
+    iCacheManager_->ClearInodeCache(inodeId);
+}
+
+TEST_F(TestInodeCacheManager, ShipToFlushAndFlushAll) {
+    uint64_t inodeId = 100;
+    Inode inode;
+    inode.set_inodeid(inodeId);
+    inode.set_fsid(fsId_);
+    inode.set_type(FsFileType::TYPE_FILE);
+
+    std::shared_ptr<InodeWrapper> inodeWrapper = std::make_shared<InodeWrapper>(
+            inode, metaClient_);
+    inodeWrapper->MarkDirty();
+
+    iCacheManager_->ShipToFlush(inodeWrapper);
+
+    EXPECT_CALL(*metaClient_, UpdateInode(_))
+        .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR))
+        .WillOnce(Return(MetaStatusCode::OK));
+    iCacheManager_->FlushAll();
+}
 
 
 }  // namespace client

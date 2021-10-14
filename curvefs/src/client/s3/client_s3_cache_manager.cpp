@@ -1334,6 +1334,7 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
                                      writeOffset);
             }
             inodeWrapper->SwapInode(&inode);
+            s3ClientAdaptor_->GetInodeCacheManager()->ShipToFlush(inodeWrapper);
         }
         return CURVEFS_ERROR::OK;
     } else {

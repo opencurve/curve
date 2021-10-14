@@ -35,13 +35,11 @@
 #include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/dentry_cache_manager.h"
 #include "curvefs/src/client/dir_buffer.h"
-#include "curvefs/src/client/extent_manager.h"
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/inode_cache_manager.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/client/space_client.h"
 #include "curvefs/src/common/fast_align.h"
 #include "src/common/concurrent/concurrent.h"
 
@@ -70,41 +68,33 @@ const uint32_t kMaxHostNameLength = 255u;
 class FuseClient {
  public:
     FuseClient()
-        : mdsClient_(std::make_shared<MdsClientImpl>()),
-          metaClient_(std::make_shared<MetaServerClientImpl>()),
-          spaceClient_(std::make_shared<SpaceAllocServerClientImpl>()),
-          inodeManager_(std::make_shared<InodeCacheManagerImpl>(metaClient_)),
-          dentryManager_(std::make_shared<DentryCacheManagerImpl>(metaClient_)),
-          extManager_(std::make_shared<SimpleExtentManager>()),
-          dirBuf_(std::make_shared<DirBuffer>()),
-          fsInfo_(nullptr),
-          mdsBase_(nullptr),
-          spaceBase_(nullptr),
-          isStop_(true),
-          init_(false) {}
+      : mdsClient_(std::make_shared<MdsClientImpl>()),
+        metaClient_(std::make_shared<MetaServerClientImpl>()),
+        inodeManager_(std::make_shared<InodeCacheManagerImpl>(metaClient_)),
+        dentryManager_(std::make_shared<DentryCacheManagerImpl>(metaClient_)),
+        dirBuf_(std::make_shared<DirBuffer>()),
+        fsInfo_(nullptr),
+        mdsBase_(nullptr),
+        isStop_(true),
+        init_(false) {}
 
     virtual ~FuseClient() {}
 
-    FuseClient(const std::shared_ptr<MdsClient>& mdsClient,
-               const std::shared_ptr<MetaServerClient>& metaClient,
-               const std::shared_ptr<SpaceClient>& spaceClient,
-               const std::shared_ptr<InodeCacheManager>& inodeManager,
-               const std::shared_ptr<DentryCacheManager>& dentryManager,
-               const std::shared_ptr<ExtentManager>& extManager)
-        : mdsClient_(mdsClient),
-          metaClient_(metaClient),
-          spaceClient_(spaceClient),
-          inodeManager_(inodeManager),
-          dentryManager_(dentryManager),
-          extManager_(extManager),
-          dirBuf_(std::make_shared<DirBuffer>()),
-          fsInfo_(nullptr),
-          mdsBase_(nullptr),
-          spaceBase_(nullptr),
-          isStop_(true),
-          init_(false) {}
+    FuseClient(const std::shared_ptr<MdsClient> &mdsClient,
+        const std::shared_ptr<MetaServerClient> &metaClient,
+        const std::shared_ptr<InodeCacheManager> &inodeManager,
+        const std::shared_ptr<DentryCacheManager> &dentryManager)
+          : mdsClient_(mdsClient),
+            metaClient_(metaClient),
+            inodeManager_(inodeManager),
+            dentryManager_(dentryManager),
+            dirBuf_(std::make_shared<DirBuffer>()),
+            fsInfo_(nullptr),
+            mdsBase_(nullptr),
+            isStop_(true),
+            init_(false) {}
 
-    virtual CURVEFS_ERROR Init(const FuseClientOption& option);
+    virtual CURVEFS_ERROR Init(const FuseClientOption &option);
 
     virtual void UnInit();
 
@@ -245,17 +235,11 @@ class FuseClient {
     // metaserver client
     std::shared_ptr<MetaServerClient> metaClient_;
 
-    // space client
-    std::shared_ptr<SpaceClient> spaceClient_;
-
     // inode cache manager
     std::shared_ptr<InodeCacheManager> inodeManager_;
 
     // dentry cache manager
     std::shared_ptr<DentryCacheManager> dentryManager_;
-
-    // extent manager
-    std::shared_ptr<ExtentManager> extManager_;
 
     // dir buffer
     std::shared_ptr<DirBuffer> dirBuf_;
@@ -265,19 +249,11 @@ class FuseClient {
 
     FuseClientOption option_;
 
-    // dirty map, key is inodeid
-    std::map<uint64_t, std::shared_ptr<InodeWrapper>> dirtyMap_;
-
-    // dirty map mutex
-    curve::common::Mutex dirtyMapMutex_;
-
     // init flags
     bool init_;
 
  private:
     MDSBaseClient* mdsBase_;
-
-    SpaceBaseClient* spaceBase_;
 
     Atomic<bool> isStop_;
 
