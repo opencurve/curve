@@ -202,7 +202,10 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     inode.set_atime(nowTime);
 
     inodeWrapper->SwapInode(&inode);
-    dirtyMap_.emplace(inodeWrapper->GetInodeId(), inodeWrapper);
+    {
+        curve::common::LockGuard lg(dirtyMapMutex_);
+        dirtyMap_.emplace(inodeWrapper->GetInodeId(), inodeWrapper);
+    }
 
     if (fi->flags & O_DIRECT || fi->flags & O_SYNC || fi->flags & O_DSYNC) {
         // Todo: do some cache flush later
@@ -267,7 +270,10 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
     inode.set_atime(nowTime);
 
     inodeWrapper->SwapInode(&inode);
-    dirtyMap_.emplace(inodeWrapper->GetInodeId(), inodeWrapper);
+    {
+        curve::common::LockGuard lg(dirtyMapMutex_);
+        dirtyMap_.emplace(inodeWrapper->GetInodeId(), inodeWrapper);
+    }
 
     LOG(INFO) << "read end, read size = " << *rSize;
     return ret;
