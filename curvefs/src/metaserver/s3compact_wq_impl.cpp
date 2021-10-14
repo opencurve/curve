@@ -31,6 +31,7 @@
 #include <utility>
 #include <vector>
 
+#include "curvefs/src/common/s3util.h"
 #include "curvefs/src/metaserver/copyset/meta_operator.h"
 
 using curve::common::Configuration;
@@ -90,13 +91,6 @@ void S3CompactWorkQueueImpl::ThreadFunc() {
             task();
         }
     }
-}
-
-std::string S3CompactWorkQueueImpl::GenObjName(uint64_t chunkid, uint64_t index,
-                                               uint64_t compaction,
-                                               uint64_t inodeid) {
-    return std::to_string(chunkid) + "_" + std::to_string(index) + "_" +
-           std::to_string(compaction) + "_" + std::to_string(inodeid);
 }
 
 std::vector<uint64_t> S3CompactWorkQueueImpl::GetNeedCompact(
@@ -221,7 +215,7 @@ S3CompactWorkQueueImpl::BuildValidList(const S3ChunkInfoList& s3chunkinfolist,
 
 int S3CompactWorkQueueImpl::ReadFullChunk(
     const std::list<struct S3CompactWorkQueueImpl::Node>& validList,
-    uint64_t inodeId, uint64_t blockSize, std::string* fullChunk,
+    uint64_t fsId, uint64_t inodeId, uint64_t blockSize, std::string* fullChunk,
     uint64_t* newChunkid, uint64_t* newCompaction) {
     for (auto curr = validList.begin(); curr != validList.end();) {
         auto next = std::next(curr);
@@ -234,8 +228,8 @@ int S3CompactWorkQueueImpl::ReadFullChunk(
         for (uint64_t index = (curr->begin - curr->chunkoff) / blockSize;
              index * blockSize + curr->chunkoff < curr->end; index++) {
             // read the block obj
-            std::string objName =
-                GenObjName(curr->chunkid, index, curr->compaction, inodeId);
+            std::string objName = curvefs::common::s3util::GenObjName(
+                curr->chunkid, index, curr->compaction, fsId, inodeId);
             std::string buf;
             const Aws::String aws_key(objName.c_str(), objName.size());
             int ret = s3Adapter_->GetObject(aws_key, &buf);
@@ -298,13 +292,13 @@ MetaStatusCode S3CompactWorkQueueImpl::UpdateInode(CopysetNode* copysetNode,
 }
 
 int S3CompactWorkQueueImpl::WriteFullChunk(
-    const std::string& fullChunk, uint64_t inodeId, uint64_t blockSize,
-    uint64_t newChunkid, uint64_t newCompaction,
+    const std::string& fullChunk, uint64_t fsId, uint64_t inodeId,
+    uint64_t blockSize, uint64_t newChunkid, uint64_t newCompaction,
     std::vector<std::string>* objsAdded) {
     uint64_t chunkLen = fullChunk.length();
     for (uint64_t index = 0; index * blockSize < chunkLen; index += 1) {
-        std::string objName =
-            GenObjName(newChunkid, index, newCompaction, inodeId);
+        std::string objName = curvefs::common::s3util::GenObjName(
+            newChunkid, index, newCompaction, fsId, inodeId);
         const Aws::String aws_key(objName.c_str(), objName.size());
         int ret;
         if (chunkLen > (index + 1) * blockSize) {
@@ -351,6 +345,7 @@ void S3CompactWorkQueueImpl::CompactChunks(
     if (inode.s3chunkinfomap().size() == 0) {
         return;
     }
+    uint64_t fsId = inode.fsid();
     uint64_t inodeId = inode.inodeid();
     uint64_t inodeLen = inode.length();
 
@@ -384,7 +379,7 @@ void S3CompactWorkQueueImpl::CompactChunks(
         std::string fullChunk;
         uint64_t newChunkid = 0;
         uint64_t newCompaction = 0;
-        int ret = ReadFullChunk(validList, inodeId, blockSize, &fullChunk,
+        int ret = ReadFullChunk(validList, fsId, inodeId, blockSize, &fullChunk,
                                 &newChunkid, &newCompaction);
         if (ret != 0) {
             LOG(WARNING) << "S3Compact ReadFullChunk failed, index " << index;
@@ -392,7 +387,7 @@ void S3CompactWorkQueueImpl::CompactChunks(
             return;
         }
         // 1.3 then write objs with newChunkid and newCompaction
-        ret = WriteFullChunk(fullChunk, inodeId, blockSize, newChunkid,
+        ret = WriteFullChunk(fullChunk, fsId, inodeId, blockSize, newChunkid,
                              newCompaction, &objsAdded);
         if (ret != 0) {
             LOG(WARNING) << "S3Compact WriteFullChunk failed, index " << index;
@@ -433,9 +428,9 @@ void S3CompactWorkQueueImpl::CompactChunks(
             uint64_t off = chunkinfo.offset();
             uint64_t len = chunkinfo.len();
             while (off < len) {
-                std::string objName = GenObjName(
+                std::string objName = curvefs::common::s3util::GenObjName(
                     chunkinfo.chunkid(), (off - chunkinfo.offset()) / blockSize,
-                    chunkinfo.compaction(), inodeId);
+                    chunkinfo.compaction(), fsId, inodeId);
                 const Aws::String aws_key(objName.c_str(), objName.size());
                 s3Adapter_->DeleteObject(aws_key);  // don't care success or not
                 off += blockSize;
