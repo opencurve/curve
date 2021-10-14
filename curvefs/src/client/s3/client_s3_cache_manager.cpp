@@ -1029,8 +1029,8 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
             return ret;
         }
         if (ret == CURVEFS_ERROR::OK) {
-            AddReadDataCache(iter->second);
             if (!iter->second->IsDirty()) {
+                AddReadDataCache(iter->second);
                 WriteLockGuard writeLockGuard(rwLockWrite_);
                 if (dataWCacheMap_.count(iter->first)) {
                     dataWCacheMap_.erase(iter->first);
