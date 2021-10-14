@@ -116,23 +116,22 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
         }
     };
 
-    std::string GenObjName(uint64_t chunkid, uint64_t compaction,
-                           uint64_t index, uint64_t inodeid);
     std::vector<uint64_t> GetNeedCompact(
         const ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&
             s3chunkinfoMap);
     void DeleteObjs(const std::vector<std::string>& objsAdded);
     std::list<struct Node> BuildValidList(
         const S3ChunkInfoList& s3chunkinfolist, uint64_t inodeLen);
-    int ReadFullChunk(const std::list<struct Node>& validList, uint64_t inodeId,
-                      uint64_t blockSize, std::string* fullChunk,
-                      uint64_t* newChunkId, uint64_t* newCompaction);
+    int ReadFullChunk(const std::list<struct Node>& validList, uint64_t fsId,
+                      uint64_t inodeId, uint64_t blockSize,
+                      std::string* fullChunk, uint64_t* newChunkId,
+                      uint64_t* newCompaction);
     virtual MetaStatusCode UpdateInode(CopysetNode* copysetNode,
                                        const PartitionInfo& pinfo,
                                        const Inode& inode);
-    int WriteFullChunk(const std::string& fullChunk, uint64_t inodeId,
-                       uint64_t blockSize, uint64_t newChunkid,
-                       uint64_t newCompaction,
+    int WriteFullChunk(const std::string& fullChunk, uint64_t fsId,
+                       uint64_t inodeId, uint64_t blockSize,
+                       uint64_t newChunkid, uint64_t newCompaction,
                        std::vector<std::string>* objsAdded);
     // func bind with task
     void CompactChunks(std::shared_ptr<InodeStorage> inodeStorage,

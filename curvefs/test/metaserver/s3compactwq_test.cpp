@@ -285,11 +285,12 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
 TEST_F(S3CompactWorkQueueImplTest, test_ReadFullChunk) {
     int ret;
     std::list<struct S3CompactWorkQueueImpl::Node> validList;
-    std::uint64_t inodeId = 1;
-    std::uint64_t blockSize = 4;
+    uint64_t fsId = 1;
+    uint64_t inodeId = 1;
+    uint64_t blockSize = 4;
     std::string fullChunk;
-    std::uint64_t newChunkid = 0;
-    std::uint64_t newCompaction = 0;
+    uint64_t newChunkid = 0;
+    uint64_t newCompaction = 0;
 
     auto reset = [&]() {
         validList.clear();
@@ -308,7 +309,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_ReadFullChunk) {
         .WillRepeatedly(testing::Invoke(mock_getobj));
 
     validList.emplace_back(0, 1, 0, 0, 0, true);
-    ret = impl_->ReadFullChunk(validList, inodeId, blockSize, &fullChunk,
+    ret = impl_->ReadFullChunk(validList, fsId, inodeId, blockSize, &fullChunk,
                                &newChunkid, &newCompaction);
     ASSERT_EQ(ret, 0);
     ASSERT_EQ(newChunkid, 0);
@@ -318,7 +319,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_ReadFullChunk) {
     validList.emplace_back(0, 1, 1, 1, 0, false);
     validList.emplace_back(1, 11, 0, 0, 0, false);
     validList.emplace_back(13, 14, 2, 0, 0, false);
-    ret = impl_->ReadFullChunk(validList, inodeId, blockSize, &fullChunk,
+    ret = impl_->ReadFullChunk(validList, fsId, inodeId, blockSize, &fullChunk,
                                &newChunkid, &newCompaction);
     ASSERT_EQ(ret, 0);
     ASSERT_EQ(newChunkid, 2);
@@ -328,7 +329,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_ReadFullChunk) {
     reset();
     EXPECT_CALL(*s3adapter_, GetObject(_, _)).WillRepeatedly(Return(-1));
     validList.emplace_back(0, 1, 1, 1, 0, false);
-    ret = impl_->ReadFullChunk(validList, inodeId, blockSize, &fullChunk,
+    ret = impl_->ReadFullChunk(validList, fsId, inodeId, blockSize, &fullChunk,
                                &newChunkid, &newCompaction);
     ASSERT_EQ(ret, -1);
 }
@@ -337,14 +338,14 @@ TEST_F(S3CompactWorkQueueImplTest, test_WriteFullChunk) {
     EXPECT_CALL(*s3adapter_, PutObject(_, _)).WillRepeatedly(Return(0));
     std::string fullChunk(10, '0');
     std::vector<std::string> objsAdded;
-    int ret = impl_->WriteFullChunk(fullChunk, 100, 4, 2, 3, &objsAdded);
+    int ret = impl_->WriteFullChunk(fullChunk, 1, 100, 4, 2, 3, &objsAdded);
     ASSERT_EQ(ret, 0);
-    ASSERT_EQ(objsAdded[0], "2_0_3_100");
-    ASSERT_EQ(objsAdded[1], "2_1_3_100");
-    ASSERT_EQ(objsAdded[2], "2_2_3_100");
+    ASSERT_EQ(objsAdded[0], "2_0_3_1_100");
+    ASSERT_EQ(objsAdded[1], "2_1_3_1_100");
+    ASSERT_EQ(objsAdded[2], "2_2_3_1_100");
 
     EXPECT_CALL(*s3adapter_, PutObject(_, _)).WillRepeatedly(Return(-1));
-    ret = impl_->WriteFullChunk(fullChunk, 100, 4, 2, 3, &objsAdded);
+    ret = impl_->WriteFullChunk(fullChunk, 1, 100, 4, 2, 3, &objsAdded);
     ASSERT_EQ(ret, -1);
 }
 
