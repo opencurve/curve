@@ -1,0 +1,49 @@
+*** Settings ***
+Library           Resources/keywords/base_operate.py
+Library           Resources/test/curve_base_test.py
+Library           Resources/swig/swig_operate.py
+Library			  Collections
+#Library           RequestsLibrary
+Library           Process
+#Library           SSHLibrary
+Library           Resources/keywords/mythread.py
+Library           Resources/keywords/fault_inject.py
+Library           Resources/keywords/fs_fault_inject.py
+Library           Resources/keywords/deploy.py
+Library           Resources/keywords/test_curve_stability_nbd.py
+
+Suite Setup       init failover cluster
+Suite Teardown    clean failover env
+
+*** Variables ***
+${fio_vdsize}     10
+${vdbench_vdsize}   10
+${vm_iops_limit}   8000
+${chunk_num}   0
+
+*** Test Cases ***
+    
+
+*** Keywords ***
+
+init failover cluster
+     clean env
+     change cfg
+     destroy curvefs 
+     remk test dir
+     deploy all servers
+     check fs cluster ok
+     mount test dir
+     check mount ok
+     start fs op test
+
+start fs op test
+     start fs vdbench
+     start fs fio
+     start fs iozone
+
+clean failover env
+     umount all fs
+     rm dir
+#     stop all servers
+#     clean curvefs
