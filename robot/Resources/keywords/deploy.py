@@ -297,6 +297,28 @@ def destroy_test_env():
         logger.error("init env fail.")
         raise
 
+def change_cfg():
+    try:
+        cmd = "bash %s/change_cfg.sh"%config.fs_cfg_path
+        ret = shell_operator.run_exec(cmd)
+        assert ret == 0 ,"change fs cfg fail"
+    except Exception:
+        logger.error("change fs cfg fail.")
+        raise
+
+def destroy_curvefs():
+    try:
+        cmd = "cd curvefs && make umount"
+        ret = shell_operator.run_exec(cmd)
+        cmd = "cd curvefs && make stop"
+        ret = shell_operator.run_exec(cmd)
+        cmd = "cd curvefs && make clean"
+        ret = shell_operator.run_exec(cmd)
+        assert ret == 0 ,"destroy curvefs fail"
+    except Exception:
+        logger.error("destroy curvefs fail.")
+        raise
+
 def use_ansible_deploy():
     try:
         cmd = "cp robot/ansible_deploy.sh . && bash ansible_deploy.sh"
@@ -309,6 +331,42 @@ def use_ansible_deploy():
         assert ret == 0 ,"cp client.conf fail"
     except Exception:
         logger.error("deploy curve fail.")
+        raise
+
+def deploy_all_servers():
+    try:
+        cmd = "cd curvefs && make install && make install only=etcd"
+        ret = shell_operator.run_exec(cmd)
+        assert ret == 0 ,"install  mds\etcd\metaserver fail"
+        cmd = "cd curvefs && make deploy"
+        ret = shell_operator.run_exec(cmd)
+        assert ret == 0 ,"deploy  mds\etcd\metaserver fail" 
+    except Exception:
+        logger.error("destroy curvefs fail.")
+        raise
+
+def remk_test_dir(): 
+    try:
+        test_client = config.fs_test_client[0]
+        ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+        for test_dir in config.fs_mount_dir:
+            ori_cmd = "rm -rf %s/%s"%(config.fs_mount_path,test_dir)
+            rs = shell_operator.ssh_exec(ssh, ori_cmd)
+            assert rs[3] == 0,"rm test dir %s fail,error is %s"%(test_dir,rs[1])
+            ori_cmd = "mkdir %s/%s"%(config.fs_mount_path,test_dir)
+            rs = shell_operator.ssh_exec(ssh, ori_cmd)
+            assert rs[3] == 0,"mkdir  %s fail,error is %s"%(test_dir,rs[1])
+    except Exception:
+        logger.error(" remk test dir fail.")
+        raise
+
+def mount_test_dir(): 
+    try:
+        cmd = "cd curvefs && make mount"
+        ret = shell_operator.run_exec(cmd)
+        assert ret == 0 ,"mount dir fail"
+    except Exception:
+        logger.error("mount dir fail.")
         raise
 
 def install_deb():
