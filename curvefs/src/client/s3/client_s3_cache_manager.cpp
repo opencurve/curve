@@ -726,7 +726,7 @@ void ChunkCacheManager::ReadByWriteCache(uint64_t chunkPos, uint64_t readLen,
                     ------           DataCache
             */
             if (chunkPos + readLen <= dcChunkPos + dcLen) {
-                memcpy(dataBuf + request.len, cacheData,
+                memcpy(dataBuf + request.len + dataBufOffset, cacheData,
                        chunkPos + readLen - dcChunkPos);
                 readLen = 0;
                 break;
@@ -735,7 +735,7 @@ void ChunkCacheManager::ReadByWriteCache(uint64_t chunkPos, uint64_t readLen,
                         ------           DataCache
                 */
             } else {
-                memcpy(dataBuf + request.len, cacheData, dcLen);
+                memcpy(dataBuf + request.len + dataBufOffset, cacheData, dcLen);
                 readLen = chunkPos + readLen - (dcChunkPos + dcLen);
                 dataBufOffset = dcChunkPos + dcLen - chunkPos + dataBufOffset;
                 chunkPos = dcChunkPos + dcLen;
@@ -748,7 +748,8 @@ void ChunkCacheManager::ReadByWriteCache(uint64_t chunkPos, uint64_t readLen,
                    ---------           DataCache
             */
             if (chunkPos + readLen <= dcChunkPos + dcLen) {
-                memcpy(dataBuf, cacheData + chunkPos - dcChunkPos, readLen);
+                memcpy(dataBuf + dataBufOffset,
+                    cacheData + chunkPos - dcChunkPos, readLen);
                 readLen = 0;
                 break;
                 /*
@@ -756,8 +757,9 @@ void ChunkCacheManager::ReadByWriteCache(uint64_t chunkPos, uint64_t readLen,
                        ---------                DataCache
                 */
             } else {
-                memcpy(dataBuf, cacheData + chunkPos - dcChunkPos,
-                       dcChunkPos + dcLen - chunkPos);
+                memcpy(dataBuf + dataBufOffset,
+                    cacheData + chunkPos - dcChunkPos,
+                    dcChunkPos + dcLen - chunkPos);
                 readLen = chunkPos + readLen - dcChunkPos - dcLen;
                 dataBufOffset = dcChunkPos + dcLen - chunkPos + dataBufOffset;
                 chunkPos = dcChunkPos + dcLen;
@@ -802,9 +804,10 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
         std::list<DataCachePtr>::iterator dcpIter = iter->second;
         uint64_t dcChunkPos = (*dcpIter)->GetChunkPos();
         uint64_t dcLen = (*dcpIter)->GetLen();
-        LOG(INFO) << "ReadByWriteCache chunkPos:" << chunkPos
+        LOG(INFO) << "ReadByReadCache chunkPos:" << chunkPos
                   << ",readLen:" << readLen << ",dcChunkPos:" << dcChunkPos
-                  << ",dcLen:" << dcLen;
+                  << ",dcLen:" << dcLen
+                  << ",dataBufOffset:" << dataBufOffset;
         if (chunkPos + readLen <= dcChunkPos) {
             break;
         } else if ((chunkPos + readLen > dcChunkPos) &&
@@ -821,7 +824,7 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
                     ------           DataCache
             */
             if (chunkPos + readLen <= dcChunkPos + dcLen) {
-                memcpy(dataBuf + request.len, cacheData,
+                memcpy(dataBuf + request.len + dataBufOffset, cacheData,
                        chunkPos + readLen - dcChunkPos);
                 readLen = 0;
                 break;
@@ -830,7 +833,7 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
                         ------           DataCache
                 */
             } else {
-                memcpy(dataBuf + request.len, cacheData, dcLen);
+                memcpy(dataBuf + request.len + dataBufOffset, cacheData, dcLen);
                 readLen = chunkPos + readLen - (dcChunkPos + dcLen);
                 dataBufOffset = dcChunkPos + dcLen - chunkPos + dataBufOffset;
                 chunkPos = dcChunkPos + dcLen;
@@ -844,7 +847,8 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
                    ---------           DataCache
             */
             if (chunkPos + readLen <= dcChunkPos + dcLen) {
-                memcpy(dataBuf, cacheData + chunkPos - dcChunkPos, readLen);
+                memcpy(dataBuf + dataBufOffset,
+                    cacheData + chunkPos - dcChunkPos, readLen);
                 readLen = 0;
                 break;
                 /*
@@ -852,8 +856,9 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
                        ---------                DataCache
                 */
             } else {
-                memcpy(dataBuf, cacheData + chunkPos - dcChunkPos,
-                       dcChunkPos + dcLen - chunkPos);
+                memcpy(dataBuf + dataBufOffset,
+                    cacheData + chunkPos - dcChunkPos,
+                    dcChunkPos + dcLen - chunkPos);
                 readLen = chunkPos + readLen - dcChunkPos - dcLen;
                 dataBufOffset = dcChunkPos + dcLen - chunkPos + dataBufOffset;
                 chunkPos = dcChunkPos + dcLen;
@@ -1074,7 +1079,8 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char* data,
             s3ClientAdaptor_->GetFsCacheManager()->DataCacheByteInc(addByte);
             char* newDatabuf = new char[totalSize];
             memcpy(newDatabuf, data, len);
-            memcpy(newDatabuf + len, data_, totalSize - len);
+            memcpy(newDatabuf + len, data_ + (chunkPos + len - chunkPos_),
+                totalSize - len);
             Swap(newDatabuf, totalSize);
             chunkPos_ = chunkPos;
             return;
