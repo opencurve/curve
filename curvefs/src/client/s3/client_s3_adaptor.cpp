@@ -201,17 +201,18 @@ FSStatusCode S3ClientAdaptorImpl::AllocS3ChunkId(uint32_t fsId,
 
 void S3ClientAdaptorImpl::BackGroundFlush() {
     while (!toStop_.load(std::memory_order_acquire)) {
-        if (fsCacheManager_->GetDataCacheNum() == 0) {
-            LOG(INFO) << "BackGroundFlush has no write cache, so wait";
+        {
             std::unique_lock<std::mutex> lck(mtx_);
-            cond_.wait(lck, [this](){
-                return fsCacheManager_->GetDataCacheNum() != 0;
-            });
+            if (fsCacheManager_->GetDataCacheNum() == 0) {
+                LOG(INFO) << "BackGroundFlush has no write cache, so wait";
+                cond_.wait(lck);
+            }
         }
         LOG(INFO) << "BackGroundFlush be notify, so flush, write cache num:"
                   << fsCacheManager_->GetDataCacheNum();
         waitIntervalSec_.WaitForNextExcution();
         fsCacheManager_->FsSync(false);
+        LOG(INFO) << "background fssync end";
     }
     return;
 }

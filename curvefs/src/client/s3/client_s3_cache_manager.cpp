@@ -934,8 +934,7 @@ DataCachePtr ChunkCacheManager::CreateWriteDataCache(
     WriteLockGuard writeLockGuard(rwLockWrite_);
 
     dataWCacheMap_.emplace(chunkPos, dataCache);
-    s3ClientAdaptor_->GetFsCacheManager()->DataCacheNumInc();
-    s3ClientAdaptor_->FsSyncSignal();
+    s3ClientAdaptor_->FsSyncSignalAndDataCacheInc();
     s3ClientAdaptor_->GetFsCacheManager()->DataCacheByteInc(len);
     return dataCache;
 }

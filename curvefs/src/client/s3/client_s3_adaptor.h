@@ -132,6 +132,13 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t* chunkId);
     void FsSyncSignal() {
         std::lock_guard<std::mutex> lk(mtx_);
+        LOG(INFO) << "fs sync signal";
+        cond_.notify_one();
+    }
+    void FsSyncSignalAndDataCacheInc() {
+        std::lock_guard<std::mutex> lk(mtx_);
+        fsCacheManager_->DataCacheNumInc();
+        LOG(INFO) << "fs sync signal";
         cond_.notify_one();
     }
     void SetFsId(uint32_t fsId) {
