@@ -207,6 +207,9 @@ class ChunkCacheManager {
     curve::common::Mutex mtx_;
 
  private:
+    void ReleaseWriteDataCache(uint64_t key, uint64_t dataCacheLen);
+
+ private:
     uint64_t index_;
     std::map<uint64_t, DataCachePtr> dataWCacheMap_;  // first is pos in chunk
     std::map<uint64_t, std::list<DataCachePtr>::iterator>
