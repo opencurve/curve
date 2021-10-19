@@ -130,6 +130,10 @@ bool DiskCacheManagerImpl::IsCached(const std::string name) {
     return diskCacheManager_->IsCached(name);
 }
 
+bool DiskCacheManagerImpl::IsDiskCacheFull() {
+    return diskCacheManager_->IsDiskCacheFull();
+}
+
 int DiskCacheManagerImpl::UmountDiskCache() {
     int ret;
     ret = diskCacheManager_->UmountDiskCache();
