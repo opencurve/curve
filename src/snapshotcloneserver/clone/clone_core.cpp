@@ -182,6 +182,12 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
         NameLockGuard lockSnapGuard(snapshotRef_->GetSnapshotLock(), source);
         ret = metaStore_->GetSnapshotInfo(source, &snapInfo);
         if (0 == ret) {
+            if (CloneTaskType::kRecover == taskType &&
+                destination != snapInfo.GetFileName()) {
+                LOG(ERROR) << "Can not recover from the snapshot "
+                           << "which is not belong to the destination volume.";
+                return kErrCodeInvalidSnapshot;
+            }
             if (snapInfo.GetStatus() != Status::done) {
                 LOG(ERROR) << "Can not clone by snapshot has status:"
                            << static_cast<int>(snapInfo.GetStatus());
