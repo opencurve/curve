@@ -546,7 +546,7 @@ TEST_F(TestCloneCoreImpl, TestRecoverPreForSnapSuccess) {
     EXPECT_CALL(*client_, GetFileInfo(destination, option.mdsRootUser, _))
         .WillOnce(Return(LIBCURVE_ERROR::OK));
 
-    SnapshotInfo snap("id1", "user1", "file1", "snap1");
+    SnapshotInfo snap("id1", "user1", destination, "snap1");
     snap.SetStatus(Status::done);
     EXPECT_CALL(*metaStore_, GetSnapshotInfo(source, _))
         .WillOnce(DoAll(
@@ -561,6 +561,31 @@ TEST_F(TestCloneCoreImpl, TestRecoverPreForSnapSuccess) {
         CloneTaskType::kRecover, &cloneInfoOut);
     ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(1, core_->GetSnapshotRef()->GetSnapshotRef(source));
+    ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
+}
+
+TEST_F(TestCloneCoreImpl, TestRecoverPreForSnapDestNotMatch) {
+    const UUID &source = "id1";
+    const std::string user = "user1";
+    const std::string destination = "destination1";
+    bool lazyFlag = true;
+    CloneInfo cloneInfoOut;
+
+    EXPECT_CALL(*client_, GetFileInfo(destination, option.mdsRootUser, _))
+        .WillOnce(Return(LIBCURVE_ERROR::OK));
+
+    SnapshotInfo snap("id1", "user1", "file1", "snap1");
+    snap.SetStatus(Status::done);
+    EXPECT_CALL(*metaStore_, GetSnapshotInfo(source, _))
+        .WillOnce(DoAll(
+                SetArgPointee<1>(snap),
+                Return(kErrCodeSuccess)));
+
+    int ret = core_->CloneOrRecoverPre(
+        source, user, destination, lazyFlag,
+        CloneTaskType::kRecover, &cloneInfoOut);
+    ASSERT_EQ(kErrCodeInvalidSnapshot, ret);
+    ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
     ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
 }
 
