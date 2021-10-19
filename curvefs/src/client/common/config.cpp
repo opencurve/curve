@@ -124,6 +124,10 @@ void InitS3Option(Configuration* conf, S3Option* s3Opt) {
                               &s3Opt->s3ClientAdaptorOpt.writeCacheMaxByte);
     conf->GetValueFatalIfFail("s3.readCacheMaxByte",
                               &s3Opt->s3ClientAdaptorOpt.readCacheMaxByte);
+    conf->GetValueFatalIfFail("s3.nearfullRatio",
+                              &s3Opt->s3ClientAdaptorOpt.nearfullRatio);
+    conf->GetValueFatalIfFail("s3.baseSleepUs",
+                              &s3Opt->s3ClientAdaptorOpt.baseSleepUs);
     ::curve::common::InitS3AdaptorOption(conf, &s3Opt->s3AdaptrOpt);
     InitDiskCacheOption(conf, &s3Opt->s3ClientAdaptorOpt.diskCacheOpt);
 }

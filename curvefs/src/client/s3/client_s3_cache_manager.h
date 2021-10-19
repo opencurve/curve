@@ -333,6 +333,11 @@ class FsCacheManager {
                writeCacheMaxByte_;
     }
 
+    uint64_t MemCacheRatio() {
+        return 100*wDataCacheByte_.load(
+               std::memory_order_relaxed)/writeCacheMaxByte_;
+    }
+
  private:
     std::unordered_map<uint64_t, FileCacheManagerPtr>
         fileCacheManagerMap_;  // first is inodeid
