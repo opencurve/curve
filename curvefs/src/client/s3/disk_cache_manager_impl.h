@@ -94,6 +94,8 @@ class DiskCacheManagerImpl {
      */
     int UmountDiskCache();
 
+    bool IsDiskCacheFull();
+
  private:
     int WriteDiskFile(const std::string name, const char* buf, uint64_t length);
 

@@ -100,12 +100,21 @@ class ClientS3AdaptorTest : public testing::Test {
         option.intervalSec = 5000;
         option.flushIntervalSec = 5000;
         option.readCacheMaxByte = 104857600;
+        option.diskCacheOpt.enableDiskCache = false;
         // auto metaClient = std::make_shared<MetaServerClientImpl>();
         std::shared_ptr<MockInodeCacheManager> mockInodeManager(
             &mockInodeManager_);
         std::shared_ptr<MockMdsClient> mockMdsClient(&mockMdsClient_);
         s3ClientAdaptor_ = new S3ClientAdaptorImpl();
         s3ClientAdaptor_->Init(option, &mockS3Client_, mockInodeManager,
+                               mockMdsClient);
+        S3ClientAdaptorOption option2;
+        option2.nearfullRatio = 100;
+        option2.writeCacheMaxByte = 104857600;
+        option2.blockSize = 1 * 1024 * 1024;
+        option2.chunkSize = 4 * 1024 * 1024;
+        s3ClientAdaptor2_ = new S3ClientAdaptorImpl();
+        s3ClientAdaptor2_->Init(option2, &mockS3Client_, mockInodeManager,
                                mockMdsClient);
     }
 
@@ -116,6 +125,7 @@ class ClientS3AdaptorTest : public testing::Test {
 
  protected:
     S3ClientAdaptorImpl* s3ClientAdaptor_;
+    S3ClientAdaptorImpl* s3ClientAdaptor2_;
     MockMetaServerService mockMetaServerService_;
     MockS3Client mockS3Client_;
     MockInodeCacheManager mockInodeManager_;
@@ -152,6 +162,26 @@ TEST_F(ClientS3AdaptorTest, test_first_write) {
 
     std::shared_ptr<FsCacheManager> fsCacheManager =
         s3ClientAdaptor_->GetFsCacheManager();
+    ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
+    ASSERT_EQ(len, ret);
+
+    delete buf;
+    buf = NULL;
+}
+
+TEST_F(ClientS3AdaptorTest, test_first_write_2) {
+    curvefs::metaserver::Inode inode;
+
+    InitInode(&inode);
+    uint64_t offset = 0;
+    uint64_t len = 2;
+    char* buf = new char[len];
+    memset(buf, 'a', len);
+
+    int ret = s3ClientAdaptor2_->Write(inode.inodeid(), offset, len, buf);
+
+    std::shared_ptr<FsCacheManager> fsCacheManager =
+        s3ClientAdaptor2_->GetFsCacheManager();
     ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
     ASSERT_EQ(len, ret);
 

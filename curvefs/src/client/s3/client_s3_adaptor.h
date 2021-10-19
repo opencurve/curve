@@ -150,6 +150,8 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     uint64_t chunkSize_;
     std::string allocateServerEps_;
     uint32_t flushIntervalSec_;
+    uint32_t memCacheNearfullRatio_;
+    uint32_t throttleBaseSleepUs_;
     Thread bgFlushThread_;
     std::atomic<bool> toStop_;
     std::mutex mtx_;

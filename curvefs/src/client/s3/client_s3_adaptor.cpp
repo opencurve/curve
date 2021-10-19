@@ -38,7 +38,8 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Init(
     blockSize_ = option.blockSize;
     chunkSize_ = option.chunkSize;
     enableDiskCache_ = option.diskCacheOpt.enableDiskCache;
-
+    memCacheNearfullRatio_ = option.nearfullRatio;
+    throttleBaseSleepUs_ = option.baseSleepUs;
     if (chunkSize_ % blockSize_ != 0) {
         LOG(ERROR) << "chunkSize:" << chunkSize_
                    << " is not integral multiple for the blockSize:"
@@ -52,12 +53,14 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Init(
     fsCacheManager_ = std::make_shared<FsCacheManager>(
         this, option.readCacheMaxByte, option.writeCacheMaxByte);
     waitIntervalSec_.Init(option.intervalSec * 1000);
-    LOG(INFO) << "Init(): block size:" << blockSize_
-              << ",chunk size:" << chunkSize_
-              << ",intervalSec:" << option.intervalSec
-              << ",flushIntervalSec:" << option.flushIntervalSec
-              << ",writeCacheMaxByte:" << option.writeCacheMaxByte
-              << ",readCacheMaxByte:" << option.readCacheMaxByte;
+    LOG(INFO) << "Init(): block size: " << blockSize_
+              << ", chunk size: " << chunkSize_
+              << ", intervalSec: " << option.intervalSec
+              << ", flushIntervalSec: " << option.flushIntervalSec
+              << ", writeCacheMaxByte: " << option.writeCacheMaxByte
+              << ", readCacheMaxByte: " << option.readCacheMaxByte
+              << ", nearfullRatio: " << option.nearfullRatio
+              << ", baseSleepUs: " << option.baseSleepUs;
     toStop_.store(false, std::memory_order_release);
     bgFlushThread_ = Thread(&S3ClientAdaptorImpl::BackGroundFlush, this);
 
@@ -84,9 +87,25 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
 
     FileCacheManagerPtr fileCacheManager =
         fsCacheManager_->FindOrCreateFileCacheManager(fsId_, inodeId);
+    uint64_t memCacheRatio = fsCacheManager_->MemCacheRatio();
+    if (memCacheRatio >= memCacheNearfullRatio_) {
+        // upload to s3 derectly or cache disk full
+        if (!enableDiskCache_ || (enableDiskCache_ &&
+             diskCacheManagerImpl_->IsDiskCacheFull())) {
+            uint32_t exponent = pow(2,
+                (memCacheRatio - memCacheNearfullRatio_)/10);
+            bthread_usleep(throttleBaseSleepUs_*memCacheRatio*exponent);
+            LOG(INFO) << "write cache is nearfull and use ratio is: "
+                      << memCacheRatio
+                      << ", cache ratio is: "
+                      << fsCacheManager_->MemCacheRatio()
+                      << ", exponent is: " << exponent;
+        }
+        // if localdisk(not full)
+    }
 
     if (fsCacheManager_->WriteCacheIsFull()) {
-        LOG(INFO) << "write cache is full,wait flush";
+        LOG(INFO) << "write cache is full, wait flush";
         fsCacheManager_->WaitFlush();
     }
 
@@ -208,10 +227,21 @@ void S3ClientAdaptorImpl::BackGroundFlush() {
                 return fsCacheManager_->GetDataCacheNum() != 0;
             });
         }
-        LOG(INFO) << "BackGroundFlush be notify, so flush, write cache num:"
-                  << fsCacheManager_->GetDataCacheNum();
-        waitIntervalSec_.WaitForNextExcution();
-        fsCacheManager_->FsSync(false);
+        if (fsCacheManager_->MemCacheRatio() > memCacheNearfullRatio_) {
+            LOG(INFO) << "BackGroundFlush radically, write cache num is: "
+                  << fsCacheManager_->GetDataCacheNum()
+                  << "cache ratio is: "
+                  << fsCacheManager_->MemCacheRatio();
+            fsCacheManager_->FsSync(true);
+
+        } else {
+            waitIntervalSec_.WaitForNextExcution();
+            LOG(INFO) << "BackGroundFlush, write cache num is:"
+                      << fsCacheManager_->GetDataCacheNum()
+                      << "cache ratio is: "
+                      << fsCacheManager_->MemCacheRatio();
+            fsCacheManager_->FsSync(false);
+        }
     }
     return;
 }
