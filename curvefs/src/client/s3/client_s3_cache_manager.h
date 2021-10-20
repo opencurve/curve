@@ -243,7 +243,8 @@ class FileCacheManager {
     void ReadChunk(uint64_t index, uint64_t chunkPos, uint64_t readLen,
                    char* dataBuf, uint64_t dataBufOffset,
                    std::vector<ReadRequest>* requests);
-    void GenerateS3Request(ReadRequest request, S3ChunkInfoList s3ChunkInfoList,
+    void GenerateS3Request(ReadRequest request,
+                           const S3ChunkInfoList& s3ChunkInfoList,
                            char* dataBuf, std::vector<S3ReadRequest>* requests);
     int HandleReadRequest(const std::vector<S3ReadRequest>& requests,
                           std::vector<S3ReadResponse>* responses);

@@ -356,16 +356,7 @@ TEST_F(ClientS3AdaptorTest, test_read_one_chunk) {
     char* tmpbuf = new char[len];
     memset(tmpbuf, 'a', len);
     curve::common::S3Adapter* s3Adapter = new curve::common::S3Adapter();
-    /*
-    EXPECT_CALL(mockS3Client_, DownloadAsync(_))
-        .WillRepeatedly(Invoke(
-                [&] (const std::shared_ptr<GetObjectAsyncContext>& context) {
-                    LOG(INFO) << "down load async mock.";
-                    context->retCode = 0;
-                    memcpy(context->buf, tmpbuf, context->len);
-                    context->cb(s3Adapter, context);
-                }));
-    */
+
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<1>(*tmpbuf), Return(1 * 1024 * 1024)))
         .WillOnce(Return(-1));
@@ -857,6 +848,52 @@ TEST_F(ClientS3AdaptorTest, test_read_more_write) {
     memset(expectBuf, 0, len + 1);
     memset(expectBuf, 'a', 100);
     memset(expectBuf + 120, 'b', 100);
+    s3ClientAdaptor_->Read(&inode, offset, len, readBuf);
+
+    EXPECT_STREQ(expectBuf, readBuf);
+
+    // cleanup
+    delete buf;
+    delete readBuf;
+    delete expectBuf;
+    std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
+    for (; iter != gObjectDataMaps.end(); iter++) {
+        delete iter->second.buf;
+        iter->second.buf = NULL;
+    }
+    gObjectDataMaps.clear();
+}
+
+TEST_F(ClientS3AdaptorTest, test_read_more_chunks) {
+    curvefs::metaserver::Inode inode;
+
+    InitInode(&inode);
+    uint64_t offset = 4 * 1024 * 1024 - 1024;
+    uint64_t len = 1024;
+    char* buf = new char[len];
+    memset(buf, 'a', len);
+
+    EXPECT_CALL(mockS3Client_, Upload(_, _, _))
+        .WillRepeatedly(Invoke(S3Upload));
+    EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
+        .WillRepeatedly(Invoke(S3Download));
+    s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
+    inode.set_length(offset + len);
+
+    offset = 4 * 1024 * 1024;
+    memset(buf, 'b', len);
+    s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
+    inode.set_length(offset + len);
+
+    offset = 4 * 1024 * 1024 - 1024;
+    len = 2048;
+    inode.set_length(4 * 1024 * 1024 + 1024);
+    char* readBuf = new char[len + 1];
+    memset(readBuf, 0, len + 1);
+    char* expectBuf = new char[len + 1];
+    memset(expectBuf, 0, len + 1);
+    memset(expectBuf, 'a', 1024);
+    memset(expectBuf + 1024, 'b', 1024);
     s3ClientAdaptor_->Read(&inode, offset, len, readBuf);
 
     EXPECT_STREQ(expectBuf, readBuf);
@@ -1621,9 +1658,10 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read4) {
     memset(readBuf + len, 0, 1);
     char* expectBuf = new char[len + 1];
     memset(expectBuf, 'b', len);
+    memset(expectBuf, 'a', 1024 * 1024);
     memset(expectBuf + len, 0, 1);
     s3ClientAdaptor_->Read(&inode, offset, len, readBuf);
-    // EXPECT_STREQ(expectBuf, readBuf);
+    EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
     delete buf;

@@ -220,8 +220,7 @@ int FileCacheManager::Read(Inode* inode, uint64_t offset, uint64_t length,
         } else {
             readLen = length;
         }
-
-        ReadChunk(index, chunkPos, readLen, dataBuf + readOffset, readOffset,
+        ReadChunk(index, chunkPos, readLen, dataBuf, readOffset,
                   &requests);
         totalRequests.insert(totalRequests.end(), requests.begin(),
                              requests.end());
@@ -245,6 +244,7 @@ int FileCacheManager::Read(Inode* inode, uint64_t offset, uint64_t length,
                   << ",bufOffset:" << iter->bufOffset;
         auto s3InfoListIter = inode->s3chunkinfomap().find(iter->index);
         if (s3InfoListIter == inode->s3chunkinfomap().end()) {
+            LOG(INFO) << "s3infolist is not found.index:" << iter->index;
             memset(dataBuf + iter->bufOffset, 0, iter->len);
             continue;
         }
@@ -253,6 +253,12 @@ int FileCacheManager::Read(Inode* inode, uint64_t offset, uint64_t length,
         totalS3Requests.insert(totalS3Requests.end(), s3Requests.begin(),
                                s3Requests.end());
     }
+
+    if (totalS3Requests.empty()) {
+        LOG(INFO) << "s3 has not data to read.";
+        return readOffset;
+    }
+
     uint32_t i;
     for (i = 0; i < totalS3Requests.size(); i++) {
         S3ReadRequest& tmp_req = totalS3Requests[i];
@@ -386,7 +392,7 @@ int FileCacheManager::HandleReadRequest(
 }
 
 void FileCacheManager::GenerateS3Request(ReadRequest request,
-                                         S3ChunkInfoList s3ChunkInfoList,
+                                         const S3ChunkInfoList& s3ChunkInfoList,
                                          char* dataBuf,
                                          std::vector<S3ReadRequest>* requests) {
     std::vector<S3ChunkInfo> chunks = GetReadChunks(s3ChunkInfoList);
@@ -401,7 +407,8 @@ void FileCacheManager::GenerateS3Request(ReadRequest request,
     uint64_t readOffset = 0;
     LOG(INFO) << "GenerateS3Request ReadRequest index:" << request.index
               << ",chunkPos:" << request.chunkPos << ",len:" << request.len
-              << ",bufOffset:" << request.bufOffset;
+              << ",bufOffset:" << request.bufOffset
+              << ",sortchunks size:" << sortChunks.size();
     while (length > 0) {
         S3ReadRequest s3Request;
         if (i == sortChunks.size()) {
@@ -412,7 +419,10 @@ void FileCacheManager::GenerateS3Request(ReadRequest request,
         LOG(INFO) << "GenerateS3Request S3ChunkInfo chunkId:" << tmp.chunkid()
                   << ",compaction:" << tmp.compaction()
                   << ",offset:" << tmp.offset() << ",len:" << tmp.len()
-                  << ",zero:" << tmp.zero();
+                  << ",zero:" << tmp.zero()
+                  << ",offset:" << offset
+                  << ",len:" << length
+                  << ",i:" << i;
         /*
         -----    read block
                ------  S3ChunkInfo
@@ -523,7 +533,7 @@ std::vector<S3ChunkInfo> FileCacheManager::GetReadChunks(
     S3ChunkInfo tmp, chunkTmp;
     std::vector<S3ChunkInfo> chunks;
 
-    for (int i = 0; i < s3ChunkInfoList.s3chunks_size(); ++i) {
+    for (int i = 0; i < s3ChunkInfoList.s3chunks_size(); i++) {
         tmp = s3ChunkInfoList.s3chunks(i);
         std::vector<S3ChunkInfo> addChunks;
         std::vector<int> waitingDel;
@@ -703,7 +713,12 @@ void ChunkCacheManager::ReadByWriteCache(uint64_t chunkPos, uint64_t readLen,
         requests->emplace_back(request);
         return;
     }
-    std::map<uint64_t, DataCachePtr>::iterator iter = dataWCacheMap_.begin();
+
+    auto iter = dataWCacheMap_.upper_bound(chunkPos);
+    if (iter != dataWCacheMap_.begin()) {
+        --iter;
+    }
+
     for (; iter != dataWCacheMap_.end(); iter++) {
         ReadRequest request;
         uint64_t dcChunkPos = iter->second->GetChunkPos();
@@ -719,6 +734,9 @@ void ChunkCacheManager::ReadByWriteCache(uint64_t chunkPos, uint64_t readLen,
             request.chunkPos = chunkPos;
             request.index = index_;
             request.bufOffset = dataBufOffset;
+            LOG(INFO) << "request: index:" << index_ << ",chunkPos:" << chunkPos
+                      << ",len:" << request.len
+                      << ",bufOffset:" << dataBufOffset;
             requests->emplace_back(request);
             char* cacheData = iter->second->GetData();
             /*
@@ -797,8 +815,12 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
         requests->emplace_back(request);
         return;
     }
-    std::map<uint64_t, std::list<DataCachePtr>::iterator>::iterator iter =
-        dataRCacheMap_.begin();
+
+    auto iter = dataRCacheMap_.upper_bound(chunkPos);
+    if (iter != dataRCacheMap_.begin()) {
+        --iter;
+    }
+
     for (; iter != dataRCacheMap_.end(); iter++) {
         ReadRequest request;
         std::list<DataCachePtr>::iterator dcpIter = iter->second;
@@ -817,6 +839,9 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
             request.chunkPos = chunkPos;
             request.index = index_;
             request.bufOffset = dataBufOffset;
+            LOG(INFO) << "request: index:" << index_ << ",chunkPos:" << chunkPos
+                      << ",len:" << request.len
+                      << ",bufOffset:" << dataBufOffset;
             requests->emplace_back(request);
             char* cacheData = (*dcpIter)->GetData();
             /*
@@ -874,6 +899,9 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
         request.len = readLen;
         request.chunkPos = chunkPos;
         request.bufOffset = dataBufOffset;
+        LOG(INFO) << "request: index:" << index_ << ",chunkPos:" << chunkPos
+                      << ",len:" << request.len
+                      << ",bufOffset:" << dataBufOffset;
         requests->emplace_back(request);
     }
     return;
@@ -890,10 +918,6 @@ DataCachePtr ChunkCacheManager::FindWriteableDataCache(
         --iter;
     }
     for (; iter != dataWCacheMap_.end(); iter++) {
-        LOG(INFO) << "FindWriteableDataCache pos:" << chunkPos
-                  << ", len:" << len
-                  << ", datacache pos:" << iter->second->GetChunkPos()
-                  << ", datacache len:" << iter->second->GetLen();
         if (((chunkPos + len) >= iter->second->GetChunkPos()) &&
             (chunkPos <=
              iter->second->GetChunkPos() + iter->second->GetLen())) {
