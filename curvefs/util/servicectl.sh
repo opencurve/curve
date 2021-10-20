@@ -234,7 +234,7 @@ _start_daemon() {
 start() {
     local pid=`_pid`
     if [[ $pid -ne -1 && `_status $pid` -ne 0 ]]; then
-        die "(pid=$pid): already start\n"
+        msg "(pid=$pid): already start\n"
     elif [ $g_daemon -eq 1 ]; then
         _start_daemon
     else
@@ -252,7 +252,7 @@ stop() {
     local pid=`_pid`
     local status=`_status $pid`
     if [[ $pid -eq -1 || $status -eq 0 ]]; then
-        die "(pid=$pid): not running\n"
+        msg "(pid=$pid): not running\n"
     elif [ $status -eq 2 ]; then
         daemon --name ${g_project_name} --pidfile ${g_pid_file} --stop
     else

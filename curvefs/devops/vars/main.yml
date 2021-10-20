@@ -12,8 +12,9 @@
 ##################################################
 
 ################################################## _GLOBAL_
-curvefs_project_home: "/home/nbs/machine/{{ inventory_hostname }}/curvefs"
-curvefs_project_log_home: "/tmp/{{ inventory_hostname }}/curvefs"
+curvefs_project_home: "/home/{{ ansible_ssh_user }}/machine/{{ inventory_hostname }}/curvefs"
+curvefs_project_log_home: "{{ log_dir }}/{{ inventory_hostname }}"
+curvefs_project_data_home: "{{ data_dir }}/{{ inventory_hostname }}"
 curvefs_wait_service_timeout: 20
 curvefs_core_method: "sync_direct"  # (sync_direct|sync_tarball|download_sync|deb|rpm)
 curvefs_client_mount_path: "{{ client_mount_path }}"
@@ -31,8 +32,8 @@ curvefs_client_mount_args: >
 curvefs_etcd_listen_peer_host: "{{ ansible_ssh_host }}"
 curvefs_etcd_listen_peer_port: "{{ etcd_listen_peer_port }}"
 curvefs_etcd_listen_client_port: "{{ etcd_listen_client_port }}"
-curvefs_etcd_data_dir: /tmp/{{ inventory_hostname }}/etcd_data
-curvefs_etcd_wal_dir: /tmp/{{ inventory_hostname }}/etcd_wal
+curvefs_etcd_data_dir: "{{ curvefs_project_data_home }}/etcd/data"
+curvefs_etcd_wal_dir: "{{ curvefs_project_data_home }}/etcd/wal"
 
 ################################################## _CONFIG_MDS_
 curvefs_mds_listen_host: "{{ ansible_ssh_host }}"
@@ -42,7 +43,7 @@ curvefs_mds_listen_dummy_port: "{{ mds_listen_dummy_port }}"
 ################################################## _CONFIG_METASERVER_
 curvefs_metaserver_listen_host: "{{ ansible_ssh_host }}"
 curvefs_metaserver_listen_port: "{{ metaserver_listen_port }}"
-curvefs_metaserver_data_root: /tmp/{{ inventory_hostname }}/metaserver_data
+curvefs_metaserver_data_root: "{{ curvefs_project_data_home }}/metaserver/data"
 
 ################################################## _CONFIG_SPACE_
 curvefs_space_listen_host: "{{ ansible_ssh_host }}"

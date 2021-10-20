@@ -82,13 +82,15 @@ get_options() {
     done
 }
 
-begin() {
-	printf "$g_color_yellow>%.0s" $(seq 1 $(tput cols))
+echo_begin() {
+    local delimiter=$1
+	printf "$g_color_yellow${delimiter}%.0s" $(seq 1 $(tput cols))
 	printf "$g_color_normal\n"
 }
 
-end() {
-	printf "$g_color_yellow<%.0s" $(seq 1 $(tput cols))
+echo_end() {
+    local delimiter=$1
+	printf "$g_color_yellow${delimiter}%.0s" $(seq 1 $(tput cols))
 	printf "$g_color_normal\n"
 }
 
@@ -103,8 +105,18 @@ exec_ansible() {
             hosts=$g_hosts
         fi
 
-        echo "ansible-playbook $project.yml -e hosts=$hosts -t $g_tags"
-        ansible-playbook $project.yml -e hosts=$hosts -t $g_tags
+        echo_begin "-"
+
+        cmd="ansible-playbook $project.yml -e hosts=$hosts -t $g_tags"
+        echo "$cmd"
+        eval $cmd
+        if [ $? -ne 0 ]; then
+            die "$cmd\nSee above message for help\n"
+        else
+            success "$cmd\n"
+        fi
+
+        echo_end "-"
     done
 }
 
@@ -112,9 +124,9 @@ main() {
     get_options "$@"
 
     if [ $1 == "begin" ]; then
-        begin
+        echo_begin ">"
     elif [ $1 == "end" ]; then
-        end
+        echo_end "<"
     elif [[ $g_hosts == "" || $g_only == "" || $g_tags == "" ]]; then
         usage
         exit 1

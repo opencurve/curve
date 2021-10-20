@@ -54,6 +54,7 @@ check_space() {
 }
 
 check_client() {
+    program_must_exist "fusermount3"
     exit 0
 }
 
@@ -79,10 +80,11 @@ get_options() {
 usage () {
     cat << _EOC_
 Usage:
-    precheck -t project
+    precheck -t PROJECT
 
 Examples:
     precheck -t metaserver
+    precheck -t client
 _EOC_
 }
 

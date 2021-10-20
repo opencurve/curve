@@ -2,9 +2,9 @@
   - name: sync precheck
     synchronize: >
       src={{ playbook_dir }}/util
-      dest=/tmp
+      dest={{ curvefs_project_home }}
       dest_port={{ ansible_ssh_port }}
 
   - name: precheck for {{ project_name }}
-    shell: bash /tmp/util/precheck.sh -t {{ project_name }}
+    shell: bash {{ curvefs_project_home }}/util/precheck.sh -t {{ project_name }}
     register: precheck

@@ -3,6 +3,7 @@
     shell: >
       {{ project_root_dest }}/sbin/servicectl start
       {{ project_daemon }}
+    when: precheck.rc == 0
 
   - name: wait until {{ project_name}} service is up
     wait_for:

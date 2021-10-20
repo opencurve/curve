@@ -13,9 +13,13 @@ Table of Contents
 Requirement
 ===
 
-* bazel
-* ansible
-* linux*
+| requirement | version | guide                               |
+| :---        | :---    | :---                                |
+| OS          | Linux*  |                                     |
+| Bazel       | 0.17.2  | See [installation][bazel_install]   |
+| Ansible     | < 2.0   | See [installation][ansible_install] |
+| Fuse        | >= 3.0  | See [installation][fuse_install]    |
+
 
 [Back to Toc](#table-of-contents)
 
@@ -43,12 +47,8 @@ step 2: edit ansible config file, inventory file and client config file:
     * You can specify which hosts to deploy which services
     * Please specify the client mount path (`client_mount_path`), the path will create automatic if it not exist
     * Please specify the filesystem name which client mount (`client_mount_fsname`), the filesystem will create automatic if it not exist
+    * Please specify the S3 related field (`s3.ak`、`s3.sk`、`s3.endpoint`、`s3.bucket_name`) which used to store data
     * The `tools` only used to create topology, you can select one of `mds` hosts
-* conf/{client.conf, metaserver.conf}
-    * `s3.ak`
-    * `s3.sk`
-    * `s3.endpoint`
-    * `s3.bucket_name`
 
 step 3: deploy all and mount curve filesystem:
 
@@ -124,3 +124,7 @@ mds.service - CurveFS Mds
 ```
 
 [Back to Toc](#table-of-contents)
+
+[bazel_install]: https://docs.bazel.build/versions/main/install.html
+[ansible_install]: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html#installing-ansible-on-specific-operating-systems
+[fuse_install]: https://github.com/libfuse/libfuse#installation
