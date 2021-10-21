@@ -52,10 +52,11 @@ cc_library(
     name = "curvefs_tools_lib",
     srcs = glob([
         "curvefs_tool_factory.cpp",
-        "version/curvefs_version_tool.cpp",
         "umountfs/curvefs_umountfs_tool.cpp",
         "curvefs_tool_define.cpp",
         "topology/curvefs_build_topology_tool.cpp",
+        "version/curvefs_version_tool.cpp",
+        "space/curvefs_space_status_tool.cpp"
     ]),
     hdrs = glob([
         "curvefs_tool.h",
@@ -65,6 +66,7 @@ cc_library(
         "curvefs_tool_abstract_creator.h",
         "umountfs/curvefs_umountfs_tool.h",
         "topology/curvefs_build_topology_tool.h",
+        "space/curvefs_space_status_tool.h",
     ]),
     copts = COPTS,
     linkopts = [

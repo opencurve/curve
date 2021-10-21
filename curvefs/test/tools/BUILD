@@ -103,3 +103,18 @@ cc_test(
         "//curvefs/src/tools:curvefs_tools_lib",
     ],
 )
+
+
+# space-status
+cc_test(
+    name = "curvefs_space_status_tool_test",
+    srcs = glob([
+        "curvefs_space_status_tool_test.cpp",
+    ]),
+    copts = ["-g","-DHAVE_ZLIB=1"],
+    deps = [
+        "@com_google_googletest//:gtest_main",
+        "@com_google_googletest//:gtest",
+        "//curvefs/src/tools:curvefs_tools_lib",
+    ],
+)
