@@ -118,7 +118,7 @@ class CurvefsToolRpc : public CurvefsTool {
     virtual bool SendRequestToServices() {
         for (const std::string& host : hostsAddressStr_) {
             if (channel_->Init(host.c_str(), nullptr) != 0) {
-                std::cerr << "Fail init channel to host: " << host << std::endl;
+                std::cerr << "fail init channel to host: " << host << std::endl;
                 continue;
             }
             // if service_stub_func_ does not assign a value
@@ -188,6 +188,19 @@ class CurvefsToolRpc : public CurvefsTool {
      * @details
      */
     virtual bool AfterSendRequestToService(const std::string& host) = 0;
+
+    virtual int RunCommand() {
+        int ret = 0;
+        if (!SendRequestToServices()) {
+            std::cerr << "send request to host: [ ";
+            for (const auto& i : hostsAddressStr_) {
+                std::cerr << i << " ";
+            }
+            std::cerr << "] failed." << std::endl;
+            ret = -1;
+        }
+        return ret;
+    }
 
  protected:
     /**

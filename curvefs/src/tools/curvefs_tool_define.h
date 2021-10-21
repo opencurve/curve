@@ -45,6 +45,9 @@ const char kBuildTopologyCmd[] = "build-topology";
 // umount
 const char kUmountCmd[] = "umountfs";
 
+// query-metadata
+const char kMetedataUsageCmd[] = "metadata-usage";
+
 // configure
 const char kConfPathHelp[] = "[-confPath=/etc/curvefs/tools.conf]";
 
@@ -54,7 +57,8 @@ const char kHelpStr[] =
     "COMMANDS:\n"  // NOLINT
     "version: show the version of cluster\n"
     "build-topology: build cluster topology based on topo.json\n"
-    "umountfs: umount curvefs from local and cluster"
+    "umountfs: umount curvefs from local and cluster\n"
+    "space-cluster: show the space usage of cluster\n"
     "You can specify the config path by -confPath to avoid typing too many "
     "options\n";  // NOLINT
 

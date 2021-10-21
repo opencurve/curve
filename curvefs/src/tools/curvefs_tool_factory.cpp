@@ -38,6 +38,10 @@ CurvefsToolFactory::CurvefsToolFactory() {
     RegisterCurvefsTool(
         std::string(kBuildTopologyCmd),
         CurvefsToolCreator<mds::topology::CurvefsBuildTopologyTool>::Create);
+
+    // metadata-usage
+    RegisterCurvefsTool(std::string(kMetedataUsageCmd),
+                        CurvefsToolCreator<space::MatedataUsageTool>::Create);
 }
 
 std::shared_ptr<CurvefsTool> CurvefsToolFactory::GenerateCurvefsTool(
