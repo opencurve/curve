@@ -96,7 +96,21 @@ cc_test(
         "curvefs_build_topology_tool_test.cpp",
         "mock_topology_service.h",
     ]),
-    copts = ["-g","-DHAVE_ZLIB=1"],
+    copts = COPTS,
+    deps = [
+        "@com_google_googletest//:gtest_main",
+        "@com_google_googletest//:gtest",
+        "//curvefs/src/tools:curvefs_tools_lib",
+    ],
+)
+
+# space-base-tool
+cc_test(
+    name = "curvefs_space_base_tool_test",
+    srcs = glob([
+        "curvefs_space_base_tool_test.cpp",
+    ]),
+    copts = COPTS,
     deps = [
         "@com_google_googletest//:gtest_main",
         "@com_google_googletest//:gtest",

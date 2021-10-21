@@ -33,7 +33,8 @@ namespace umountfs {
 void UmountfsTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
     std::cout << " -fsname=" << FLAGS_fsname
-              << " -mountpoint=" << FLAGS_mountpoint;
+              << " -mountpoint=" << FLAGS_mountpoint
+              << " -mdsAddr=" << FLAGS_mdsAddr;
     std::cout << std::endl;
 }
 
@@ -55,13 +56,10 @@ int UmountfsTool::RunCommand() {
         std::thread sysUmount(std::system, command.c_str());
 
         // umount from cluster
-        if (!SendRequestToServices()) {
-            std::cerr << "send request to all mds failed." << std::endl;
-            ret = -1;
-        }
+        ret = CurvefsToolRpc::RunCommand();
         sysUmount.join();
     } catch (std::exception& e) {
-        std::cerr << "umount " << localPath
+        std::cerr << "system umount " << localPath
                   << " failed, error info: " << e.what() << std::endl;
         ret = -1;
     }

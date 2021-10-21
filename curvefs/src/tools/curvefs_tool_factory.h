@@ -30,6 +30,7 @@
 
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
+#include "curvefs/src/tools/space/curvefs_metadata_usage_tool.h"
 #include "curvefs/src/tools/topology/curvefs_build_topology_tool.h"
 #include "curvefs/src/tools/umountfs/curvefs_umountfs_tool.h"
 #include "curvefs/src/tools/version/curvefs_version_tool.h"

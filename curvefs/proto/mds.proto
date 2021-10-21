@@ -146,14 +146,15 @@ message AllocateS3ChunkResponse {
 }
 
 
-message StatClusterMetadataSpaceRequest{
+message StatMetadataUsageRequest{
 }
 
-message StatClusterMetadataSpaceResponse{
-    required FSStatusCode status = 1;
-    required uint32 total = 2;
-    required uint32 used = 3;
-    required uint32 left = 4;
+message StatMetadataUsageResponse{
+    required FSStatusCode statusCode = 1;
+     // KB
+    required uint64 total = 2;
+    required uint64 used = 3;
+    required uint64 left = 4;
 }
 
 message ListClusterFsInfoRequest {
@@ -173,6 +174,6 @@ service MdsService {
     // rpc UpdateFsInfo(UpdateFsInfoRequest) returns (UpdateFsInfoResponse);
     rpc DeleteFs(DeleteFsRequest) returns (DeleteFsResponse);
     rpc AllocateS3Chunk(AllocateS3ChunkRequest) returns (AllocateS3ChunkResponse);
-    rpc StatClusterMetadataSpace(StatClusterMetadataSpaceRequest) returns (StatClusterMetadataSpaceResponse);
+    rpc StatMetadataUsage(StatMetadataUsageRequest) returns (StatMetadataUsageResponse);
     rpc ListClusterFsInfo (ListClusterFsInfoRequest) returns (ListClusterFsInfoResponse);
 }
