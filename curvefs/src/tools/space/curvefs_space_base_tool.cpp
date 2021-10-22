@@ -20,19 +20,33 @@
  * Author: chengyi01
  */
 
-#ifndef CURVEFS_SRC_TOOLS_SPACE_CURVEFS_SPACE_BASE_TOOL_H_
-#define CURVEFS_SRC_TOOLS_SPACE_CURVEFS_SPACE_BASE_TOOL_H_
-
-#include <sstream>
-#include <string>
+#include "curvefs/src/tools/space/curvefs_space_base_tool.h"
 
 namespace curvefs {
 namespace tools {
 namespace space {
 
-std::string ByteToStringByMagnitude(uint64_t byte);
+std::string ByteToStringByMagnitude(uint64_t byte) {
+    // Convert byte KB to a appropriate magnitude
+    // like 1024KB to 1 MB
+    std::stringstream ss;
+    ss.setf(std::ios::fixed);
+    ss.precision(2);  // 2 decimal places
+    if (byte >= 1024 * 1024 * 1024) {
+        // TB
+        ss << double(byte) / double(1024 * 1024 * 1024) << " TB";
+    } else if (byte >= 1024 * 1024) {
+        // GB
+        ss << double(byte) / double(1024 * 1024) << " GB";
+    } else if (byte >= 1024) {
+        // MB
+        ss << double(byte) / double(1024) << " MB";
+    } else {
+        // KB
+        ss << byte << " KB";
+    }
+    return ss.str();
+}
 }  // namespace space
 }  // namespace tools
 }  // namespace curvefs
-
-#endif  // CURVEFS_SRC_TOOLS_SPACE_CURVEFS_SPACE_BASE_TOOL_H_

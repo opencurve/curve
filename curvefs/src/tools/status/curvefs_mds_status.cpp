@@ -16,23 +16,40 @@
 
 /*
  * Project: curve
- * Created Date: 2021-10-22
+ * Created Date: 2021-10-28
  * Author: chengyi01
  */
+#include "curvefs/src/tools/status/curvefs_mds_status.h"
 
-#ifndef CURVEFS_SRC_TOOLS_SPACE_CURVEFS_SPACE_BASE_TOOL_H_
-#define CURVEFS_SRC_TOOLS_SPACE_CURVEFS_SPACE_BASE_TOOL_H_
-
-#include <sstream>
-#include <string>
+DECLARE_string(mdsAddr);
 
 namespace curvefs {
 namespace tools {
-namespace space {
+namespace status {
 
-std::string ByteToStringByMagnitude(uint64_t byte);
-}  // namespace space
+void MdsStatusTool::PrintHelp() {
+    StatusBaseTool::PrintHelp();
+    std::cout << " [-mdsAddr=" << FLAGS_mdsAddr << "]";
+    std::cout << std::endl;
+}
+
+int MdsStatusTool::Init() {
+    versionSubUri_ = kVersionUri;
+    StatusSubUri_ = kMdsStatusUri;
+    statusKey_ = kMdsStatusKey;
+    int ret = StatusBaseTool::Init();
+    return ret;
+}
+
+void MdsStatusTool::InitHostAddr() {
+    curve::common::SplitString(FLAGS_mdsAddr, ",", &hostAddr_);
+}
+
+void MdsStatusTool::AddUpdateFlags() {
+    AddUpdateFlagsFunc(curvefs::tools::SetMdsAddr);
+    StatusBaseTool::AddUpdateFlags();
+}
+
+}  // namespace status
 }  // namespace tools
 }  // namespace curvefs
-
-#endif  // CURVEFS_SRC_TOOLS_SPACE_CURVEFS_SPACE_BASE_TOOL_H_
