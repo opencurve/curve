@@ -140,6 +140,7 @@ void Metaserver::Run() {
 
     TrashManager::GetInstance().Run();
 
+    // start heartbeat
     LOG_IF(FATAL, heartbeat_.Run() != 0)
         << "Failed to start heartbeat manager.";
 
@@ -211,6 +212,8 @@ void Metaserver::Stop() {
 }
 
 void Metaserver::InitHeartbeatOptions() {
+    LOG_IF(FATAL, !conf_->GetStringValue("copyset.data_uri",
+                                         &heartbeatOptions_.storeUri));
     LOG_IF(FATAL, !conf_->GetStringValue("global.ip", &heartbeatOptions_.ip));
     LOG_IF(FATAL,
            !conf_->GetUInt32Value("global.port", &heartbeatOptions_.port));
@@ -234,6 +237,7 @@ void Metaserver::InitHeartbeat() {
     heartbeatOptions_.copysetNodeManager = copysetNodeManager_;
     heartbeatOptions_.metaserverId = metadate_.id();
     heartbeatOptions_.metaserverToken = metadate_.token();
+    heartbeatOptions_.fs = localFileSystem_;
     LOG_IF(FATAL, heartbeat_.Init(heartbeatOptions_) != 0)
         << "Failed to init Heartbeat manager.";
 }

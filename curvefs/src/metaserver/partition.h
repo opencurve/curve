@@ -75,9 +75,6 @@ class Partition {
 
     MetaStatusCode UpdateInode(const Inode& inode);
 
-    MetaStatusCode UpdateInodeVersion(uint32_t fsId, uint64_t inodeId,
-                                      uint64_t* version);
-
     MetaStatusCode InsertInode(const Inode& inode);
 
     // if patition has no inode or no dentry, it is deletable
@@ -106,7 +103,6 @@ class Partition {
     uint32_t GetDentryNum();
 
  private:
-    // std::atomic<uint64_t> nextInodeId_;
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<DentryStorage> dentryStorage_;
     std::shared_ptr<InodeManager> inodeManager_;

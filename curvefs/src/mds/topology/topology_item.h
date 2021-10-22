@@ -68,7 +68,12 @@ class Pool {
         const std::string &jsonStr, RedundanceAndPlaceMentPolicy *rap);
 
  public:
-    Pool() : id_(UNINTIALIZE_ID), name_(""), createTime_(0), avaliable_(true) {}
+    Pool()
+        : id_(UNINTIALIZE_ID),
+          name_(""),
+          createTime_(0),
+          avaliable_(true),
+          diskCapacity_(0) {}
     Pool(PoolIdType id, const std::string &name,
          const RedundanceAndPlaceMentPolicy &rap, uint64_t createTime,
          bool avaliable)
@@ -76,7 +81,8 @@ class Pool {
           name_(name),
           rap_(rap),
           createTime_(createTime),
-          avaliable_(avaliable) {}
+          avaliable_(avaliable),
+          diskCapacity_(0) {}
 
     PoolIdType GetId() const { return id_; }
 
@@ -104,6 +110,11 @@ class Pool {
     // TODO(cw123) : not use yet
     bool GetPoolAvaliableFlag() const { return avaliable_; }
 
+    void SetDiskCapacity(uint64_t diskCapacity) {
+        diskCapacity_ = diskCapacity;
+    }
+    uint64_t GetDiskCapacity() const { return diskCapacity_; }
+
     void AddZone(ZoneIdType id) { zoneList_.push_back(id); }
 
     void RemoveZone(ZoneIdType id) { zoneList_.remove(id); }
@@ -120,6 +131,7 @@ class Pool {
     RedundanceAndPlaceMentPolicy rap_;
     uint64_t createTime_;
     bool avaliable_;
+    uint64_t diskCapacity_;
 
     std::list<ZoneIdType> zoneList_;
 };
@@ -219,6 +231,22 @@ class Server {
     std::list<MetaServerIdType> metaserverList_;
 };
 
+class MetaServerSpace {
+ public:
+    MetaServerSpace() : diskCapacity_(0), diskUsed_(0), memoryUsed_(0) {}
+
+    void SetDiskCapacity(uint64_t capacity) { diskCapacity_ = capacity; }
+    uint64_t GetDiskCapacity() const { return diskCapacity_; }
+    void SetDiskUsed(uint64_t diskUsed) { diskUsed_ = diskUsed; }
+    uint64_t GetDiskUsed() const { return diskUsed_; }
+    void SetMemoryUsed(uint64_t memoryUsed) { memoryUsed_ = memoryUsed; }
+    uint64_t GetMemoryUsed() const { return memoryUsed_; }
+ private:
+    uint64_t diskCapacity_;
+    uint64_t diskUsed_;
+    uint64_t memoryUsed_;
+};
+
 class MetaServer {
  public:
     MetaServer()
@@ -231,7 +259,8 @@ class MetaServer {
           externalHostIp_(""),
           externalPort_(0),
           startUpTime_(0),
-          onlineState_(OFFLINE) {}
+          onlineState_(OFFLINE),
+          dirty_(false) {}
 
     MetaServer(MetaServerIdType id, const std::string &hostName,
                const std::string &token, ServerIdType serverId,
@@ -247,7 +276,8 @@ class MetaServer {
           externalHostIp_(externalHostIp),
           externalPort_(externalPort),
           startUpTime_(0),
-          onlineState_(onlineState) {}
+          onlineState_(onlineState),
+          dirty_(false) {}
 
     MetaServer(const MetaServer &v)
         : id_(v.id_),
@@ -259,7 +289,9 @@ class MetaServer {
           externalHostIp_(v.externalHostIp_),
           externalPort_(v.externalPort_),
           startUpTime_(v.startUpTime_),
-          onlineState_(v.onlineState_) {}
+          onlineState_(v.onlineState_),
+          space_(v.space_),
+          dirty_(v.dirty_) {}
 
     MetaServer &operator=(const MetaServer &v) {
         if (&v == this) {
@@ -275,6 +307,8 @@ class MetaServer {
         externalPort_ = v.externalPort_;
         startUpTime_ = v.startUpTime_;
         onlineState_ = v.onlineState_;
+        space_ = v.space_;
+        dirty_ = v.dirty_;
         return *this;
     }
 
@@ -314,6 +348,14 @@ class MetaServer {
 
     OnlineState GetOnlineState() const { return onlineState_; }
 
+    void SetMetaServerSpace(const MetaServerSpace &space) { space_ = space; }
+
+    MetaServerSpace GetMetaServerSpace() const { return space_; }
+
+    bool GetDirtyFlag() const { return dirty_; }
+
+    void SetDirtyFlag(bool dirty) { dirty_ = dirty; }
+
     ::curve::common::RWLock &GetRWLockRef() const { return mutex_; }
 
     bool SerializeToString(std::string *value) const;
@@ -331,6 +373,8 @@ class MetaServer {
     uint32_t externalPort_;
     uint64_t startUpTime_;
     OnlineState onlineState_;  // 0:online、1: offline
+    MetaServerSpace space_;
+    bool dirty_;
     mutable ::curve::common::RWLock mutex_;
 };
 

@@ -39,9 +39,9 @@ message MetaServerHeartbeatRequest {
     repeated CopySetInfo copysetInfos = 6;
     required uint32 leaderCount = 7;
     required uint32 copysetCount = 8;
-    required uint32 metadataSpaceTotal = 9;
-    required uint32 metadataSpaceUsed = 10;
-    required uint32 metadataSpaceLeft = 11;
+    required uint64 metadataSpaceTotal = 9;  // KB
+    required uint64 metadataSpaceUsed = 10;  // KB
+    required uint64 memoryUsed = 11;  // KB
 };
 
 enum HeartbeatStatusCode {
@@ -49,8 +49,7 @@ enum HeartbeatStatusCode {
     hbMetaServerUnknown = 1;
     hbMetaServerIpPortNotMatch = 2;
     hbMetaServerTokenNotMatch = 3;
-    hbRequestNoCopyset = 4;
-    hbAnalyseCopysetError = 5;
+    hbAnalyseCopysetError = 4;
 }
 
 message MetaServerHeartbeatResponse {

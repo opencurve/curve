@@ -90,7 +90,9 @@ message MetaServerData {
     required string externalHostIP = 6;
     required uint32 externalPort = 7;
     required uint32 serverId = 8;
-    required OnlineState onlineState = 9;
+    required uint64 diskCapacity = 9;
+    required uint64 diskUsed = 10;
+    required uint64 memoryUsed = 11;
 }
 
 message CopysetData {

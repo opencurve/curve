@@ -37,12 +37,8 @@ class InodeManager {
     InodeManager(const std::shared_ptr<InodeStorage> &inodeStorage,
         const std::shared_ptr<Trash> &trash)
         : inodeStorage_(inodeStorage),
-          trash_(trash),
-          nextInodeId_(2) {}
+          trash_(trash) {}
 
-    MetaStatusCode CreateInode(uint32_t fsId, uint64_t length, uint32_t uid,
-                               uint32_t gid, uint32_t mode, FsFileType type,
-                               const std::string &symlink, Inode *inode);
     MetaStatusCode CreateInode(uint32_t fsId, uint64_t inodeId, uint64_t length,
                                uint32_t uid, uint32_t gid, uint32_t mode,
                                FsFileType type, const std::string &symlink,
@@ -55,9 +51,6 @@ class InodeManager {
 
     MetaStatusCode UpdateInode(const Inode &inode);
 
-    MetaStatusCode UpdateInodeVersion(uint32_t fsId, uint64_t inodeId,
-                                       uint64_t *version);
-
     MetaStatusCode InsertInode(const Inode &inode);
 
  private:
@@ -66,10 +59,8 @@ class InodeManager {
                                FsFileType type, Inode *inode);
 
  private:
-    uint64_t GetNextId();
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<Trash> trash_;
-    std::atomic<uint64_t> nextInodeId_;
 };
 }  // namespace metaserver
 }  // namespace curvefs

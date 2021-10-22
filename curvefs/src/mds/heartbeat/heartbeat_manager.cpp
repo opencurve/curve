@@ -34,6 +34,8 @@ using ::curvefs::mds::topology::PoolIdType;
 using ::curvefs::mds::topology::CopySetIdType;
 using ::curvefs::mds::topology::UNINTIALIZE_ID;
 using ::curvefs::mds::topology::SplitPeerId;
+using ::curvefs::mds::topology::TopoStatusCode;
+using ::curvefs::mds::topology::MetaServerSpace;
 
 namespace curvefs {
 namespace mds {
@@ -86,6 +88,19 @@ void HeartbeatManager::MetaServerHealthyChecker() {
     }
 }
 
+void HeartbeatManager::UpdateMetaServerSpace(
+    const MetaServerHeartbeatRequest &request) {
+    MetaServerSpace space;
+    space.SetDiskCapacity(request.metadataspacetotal());
+    space.SetDiskUsed(request.metadataspaceused());
+    TopoStatusCode ret =
+        topology_->UpdateMetaServerSpace(space, request.metaserverid());
+    if (ret != TopoStatusCode::TOPO_OK) {
+        LOG(ERROR) << "heartbeat UpdateMetaServerSpace fail, ret = "
+                   << TopoStatusCode_Name(ret);
+    }
+}
+
 void HeartbeatManager::MetaServerHeartbeat(
     const MetaServerHeartbeatRequest &request,
     MetaServerHeartbeatResponse *response) {
@@ -106,10 +121,7 @@ void HeartbeatManager::MetaServerHeartbeat(
     healthyChecker_->UpdateLastReceivedHeartbeatTime(request.metaserverid(),
                                                      steady_clock::now());
 
-    // no copyset info in the request
-    if (request.copysetinfos_size() == 0) {
-        response->set_statuscode(HeartbeatStatusCode::hbRequestNoCopyset);
-    }
+    UpdateMetaServerSpace(request);
 
     // dealing with copysets included in the heartbeat request
     for (auto &value : request.copysetinfos()) {

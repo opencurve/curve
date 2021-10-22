@@ -163,7 +163,9 @@ bool MetaServer::SerializeToString(std::string *value) const {
     data.set_externalhostip(externalHostIp_);
     data.set_externalport(externalPort_);
     data.set_serverid(serverId_);
-    data.set_onlinestate(onlineState_);
+    data.set_diskcapacity(space_.GetDiskCapacity());
+    data.set_diskused(space_.GetDiskUsed());
+    data.set_memoryused(space_.GetMemoryUsed());
     return data.SerializeToString(value);
 }
 
@@ -178,7 +180,10 @@ bool MetaServer::ParseFromString(const std::string &value) {
     internalPort_ = data.internalport();
     externalHostIp_ = data.externalhostip();
     externalPort_ = data.externalport();
-    onlineState_ = data.onlinestate();
+    onlineState_ = OnlineState::UNSTABLE;
+    space_.SetDiskCapacity(data.diskcapacity());
+    space_.SetDiskUsed(data.diskused());
+    space_.SetMemoryUsed(data.memoryused());
     return ret;
 }
 

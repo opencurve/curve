@@ -27,7 +27,8 @@
 #include <brpc/controller.h>
 #include <sys/statvfs.h>
 #include <sys/time.h>
-
+#include <unistd.h>
+#include <fstream>
 #include <list>
 #include <memory>
 #include <vector>
@@ -41,6 +42,8 @@ namespace metaserver {
 int Heartbeat::Init(const HeartbeatOptions &options) {
     toStop_.store(false, std::memory_order_release);
     options_ = options;
+
+    storePath_ = curve::common::UriParser::GetPathFromUri(options_.storeUri);
 
     butil::ip_t msIp;
     if (butil::str2ip(options_.ip.c_str(), &msIp) < 0) {
@@ -132,7 +135,51 @@ void Heartbeat::BuildCopysetInfo(curvefs::mds::heartbeat::CopySetInfo *info,
     return;
 }
 
-void Heartbeat::BuildRequest(HeartbeatRequest *req) {
+int Heartbeat::GetFileSystemSpaces(uint64_t* capacityKB, uint64_t* availKB) {
+    struct curve::fs::FileSystemInfo info;
+
+    int ret = options_.fs->Statfs(storePath_, &info);
+    if (ret != 0) {
+        LOG(ERROR) << "Failed to get file system space information, "
+                   << " error message: " << strerror(errno);
+        return -1;
+    }
+
+    *capacityKB = info.total / 1024;
+    *availKB = info.available / 1024;
+
+    return 0;
+}
+
+bool Heartbeat::GetProcMemory(uint64_t* vmRSS) {
+    pid_t pid = getpid();
+    std::string fileName = "/proc/" + std::to_string(pid) + "/status";
+    std::ifstream file(fileName);
+    if (!file.is_open()) {
+        LOG(ERROR) << "Open file " << fileName << " failed";
+        return false;
+    }
+
+    std::string line;
+    while (getline(file, line)) {
+        int position = line.find("VmRSS:");
+        if (position == line.npos) {
+            continue;
+        }
+
+        std::string value = line.substr(position + 6);
+        position = value.find("kB");
+        value = value.substr(0, position);
+
+        value.erase(std::remove_if(value.begin(), value.end(), isspace),
+                    value.end());
+        return curve::common::StringToUll(value, vmRSS);
+    }
+
+    return false;
+}
+
+int Heartbeat::BuildRequest(HeartbeatRequest* req) {
     int ret;
 
     req->set_metaserverid(options_.metaserverId);
@@ -141,10 +188,24 @@ void Heartbeat::BuildRequest(HeartbeatRequest *req) {
     req->set_ip(options_.ip);
     req->set_port(options_.port);
 
-    // TODO(cw123) : add this info
-    req->set_metadataspaceused(0);
-    req->set_metadataspaceleft(0);
-    req->set_metadataspacetotal(0);
+    uint64_t capacityKB = 0;
+    uint64_t availKB = 0;
+    ret = GetFileSystemSpaces(&capacityKB, &availKB);
+    if (ret != 0) {
+        LOG(ERROR) << "Failed to get file system space information for path "
+                   << storePath_;
+        return -1;
+    }
+
+    req->set_metadataspaceused(capacityKB - availKB);
+    req->set_metadataspacetotal(capacityKB);
+
+    uint64_t vmRss = 0;
+    if (!GetProcMemory(&vmRss)) {
+        LOG(ERROR) << "Failed to get proc memory information metaserver";
+        return -1;
+    }
+    req->set_memoryused(vmRss);
 
     std::vector<CopysetNode *> copysets;
     copysetMan_->GetAllCopysets(&copysets);
@@ -163,14 +224,17 @@ void Heartbeat::BuildRequest(HeartbeatRequest *req) {
     }
     req->set_leadercount(leaders);
 
-    return;
+    return 0;
 }
 
-void Heartbeat::DumpHeartbeatRequest(const HeartbeatRequest &request) {
+void Heartbeat::DumpHeartbeatRequest(const HeartbeatRequest& request) {
     VLOG(6) << "Heartbeat request: Metaserver ID: " << request.metaserverid()
-            << ", IP: " << request.ip() << ", port: " << request.port()
-            << ", copyset count: " << request.copysetcount()
-            << ", leader count: " << request.leadercount();
+             << ", IP = " << request.ip() << ", port = " << request.port()
+             << ", copyset count = " << request.copysetcount()
+             << ", leader count = " << request.leadercount()
+             << ", metadataSpaceTotal = " << request.metadataspacetotal()
+             << " KB, metadataSpaceUsed = " << request.metadataspaceused()
+             << " KB, memoryUsed = " << request.memoryused() << " KB";
     for (int i = 0; i < request.copysetinfos_size(); i++) {
         const curvefs::mds::heartbeat::CopySetInfo &info =
             request.copysetinfos(i);
@@ -252,7 +316,12 @@ void Heartbeat::HeartbeatWorker() {
         HeartbeatResponse resp;
 
         VLOG(3) << "building heartbeat info";
-        BuildRequest(&req);
+        ret = BuildRequest(&req);
+        if (ret != 0) {
+            LOG(ERROR) << "Failed to build heartbeat request";
+            ::sleep(errorIntervalSec);
+            continue;
+        }
 
         VLOG(3) << "sending heartbeat info";
         ret = SendHeartbeat(req, &resp);

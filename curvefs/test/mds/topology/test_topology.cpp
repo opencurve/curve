@@ -164,7 +164,7 @@ TEST_F(TestTopology, test_init_success) {
     std::map<CopySetKey, CopySetInfo> copySetMap_;
     std::unordered_map<PartitionIdType, Partition> partitionMap_;
 
-    poolMap_[0x01] = Pool(0x11, "pool",
+    poolMap_[0x11] = Pool(0x11, "pool",
         Pool::RedundanceAndPlaceMentPolicy(), 0, true);
     zoneMap_[0x21] = Zone(0x21, "zone1", 0x11);
     serverMap_[0x31] = Server(0x31, "server", "127.0.0.1", 8080,

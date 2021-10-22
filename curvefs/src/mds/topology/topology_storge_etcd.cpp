@@ -159,8 +159,7 @@ bool TopologyStorageEtcd::LoadMetaServer(
             LOG(ERROR) << "DecodeMetaServerData err";
             return false;
         }
-        // set metaserver unstable when loaded
-        data.SetOnlineState(OnlineState::UNSTABLE);
+
         MetaServerIdType id = data.GetId();
         auto ret = metaServerMap->emplace(id, std::move(data));
         if (!ret.second) {

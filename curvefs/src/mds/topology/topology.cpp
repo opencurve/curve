@@ -111,22 +111,47 @@ TopoStatusCode TopologyImpl::AddServer(const Server &data) {
 }
 
 TopoStatusCode TopologyImpl::AddMetaServer(const MetaServer &data) {
-    ReadLockGuard rlockServer(serverMutex_);
-    WriteLockGuard wlockMetaServer(metaServerMutex_);
-    auto it = serverMap_.find(data.GetServerId());
-    if (it != serverMap_.end()) {
-        if (metaServerMap_.find(data.GetId()) == metaServerMap_.end()) {
-            if (!storage_->StorageMetaServer(data)) {
-                return TopoStatusCode::TOPO_STORGE_FAIL;
-            }
-            it->second.AddMetaServer(data.GetId());
-            metaServerMap_[data.GetId()] = data;
-        } else {
-            return TopoStatusCode::TOPO_ID_DUPLICATED;
-        }
-    } else {
-        return TopoStatusCode::TOPO_SERVER_NOT_FOUND;
+    // find the pool that the meatserver belongs to
+    PoolIdType poolId = UNINTIALIZE_ID;
+    TopoStatusCode ret = GetPoolIdByServerId(data.GetServerId(), &poolId);
+    if (ret != TopoStatusCode::TOPO_OK) {
+        return ret;
     }
+
+    // fetch lock on pool, server and chunkserver
+    WriteLockGuard wlockPool(poolMutex_);
+    uint64_t metaserverCapacity = 0;
+    {
+        ReadLockGuard rlockServer(serverMutex_);
+        WriteLockGuard wlockMetaServer(metaServerMutex_);
+        auto it = serverMap_.find(data.GetServerId());
+        if (it != serverMap_.end()) {
+            if (metaServerMap_.find(data.GetId()) == metaServerMap_.end()) {
+                if (!storage_->StorageMetaServer(data)) {
+                    return TopoStatusCode::TOPO_STORGE_FAIL;
+                }
+                it->second.AddMetaServer(data.GetId());
+                metaServerMap_[data.GetId()] = data;
+                metaserverCapacity =
+                    data.GetMetaServerSpace().GetDiskCapacity();
+            } else {
+                return TopoStatusCode::TOPO_ID_DUPLICATED;
+            }
+        } else {
+            return TopoStatusCode::TOPO_SERVER_NOT_FOUND;
+        }
+    }
+
+    // update pool
+    auto it = poolMap_.find(poolId);
+    if (it != poolMap_.end()) {
+        uint64_t totalCapacity = it->second.GetDiskCapacity();
+        totalCapacity += metaserverCapacity;
+        it->second.SetDiskCapacity(totalCapacity);
+    } else {
+        return TopoStatusCode::TOPO_POOL_NOT_FOUND;
+    }
+
     return TopoStatusCode::TOPO_OK;
 }
 
@@ -258,12 +283,97 @@ TopoStatusCode TopologyImpl::UpdateMetaServerOnlineState(
     ReadLockGuard rlockMetaServerMap(metaServerMutex_);
     auto it = metaServerMap_.find(id);
     if (it != metaServerMap_.end()) {
-        WriteLockGuard wlockMetaServer(it->second.GetRWLockRef());
-        it->second.SetOnlineState(onlineState);
+        if (onlineState != it->second.GetOnlineState()) {
+            WriteLockGuard wlockMetaServer(it->second.GetRWLockRef());
+            it->second.SetOnlineState(onlineState);
+        }
         return TopoStatusCode::TOPO_OK;
     } else {
         return TopoStatusCode::TOPO_METASERVER_NOT_FOUND;
     }
+}
+
+TopoStatusCode TopologyImpl::GetPoolIdByMetaserverId(MetaServerIdType id,
+                                                     PoolIdType *poolIdOut) {
+    *poolIdOut = UNINTIALIZE_ID;
+    MetaServer metaserver;
+    if (!GetMetaServer(id, &metaserver)) {
+        LOG(ERROR) << "TopologyImpl::GetPoolIdByMetaserverId "
+                   << "Fail On GetMetaServer, "
+                   << "metaserverId = " << id;
+        return TopoStatusCode::TOPO_METASERVER_NOT_FOUND;
+    }
+    return GetPoolIdByServerId(metaserver.GetServerId(), poolIdOut);
+}
+
+TopoStatusCode TopologyImpl::GetPoolIdByServerId(ServerIdType id,
+                                                 PoolIdType *poolIdOut) {
+    *poolIdOut = UNINTIALIZE_ID;
+    Server server;
+    if (!GetServer(id, &server)) {
+        LOG(ERROR) << "TopologyImpl::GetPoolIdByServerId "
+                   << "Fail On GetServer, "
+                   << "serverId = " << id;
+        return TopoStatusCode::TOPO_SERVER_NOT_FOUND;
+    }
+
+    *poolIdOut = server.GetPoolId();
+    return TopoStatusCode::TOPO_OK;
+}
+
+TopoStatusCode TopologyImpl::UpdateMetaServerSpace(const MetaServerSpace &space,
+                                                   MetaServerIdType id) {
+    // find pool it belongs to
+    PoolIdType belongPoolId = UNINTIALIZE_ID;
+    TopoStatusCode ret = GetPoolIdByMetaserverId(id, &belongPoolId);
+    if (ret != TopoStatusCode::TOPO_OK) {
+        return ret;
+    }
+
+    // fetch write lock of the pool and read lock of chunkserver map
+    WriteLockGuard wlocklPool(poolMutex_);
+    int64_t diffCapacity = 0;
+    {
+        ReadLockGuard rlockMetaServerMap(metaServerMutex_);
+        auto it = metaServerMap_.find(id);
+        if (it != metaServerMap_.end()) {
+            WriteLockGuard wlockChunkServer(it->second.GetRWLockRef());
+            diffCapacity = space.GetDiskCapacity() -
+                           it->second.GetMetaServerSpace().GetDiskCapacity();
+            int64_t diffUsed = space.GetDiskUsed() -
+                               it->second.GetMetaServerSpace().GetDiskUsed();
+            int64_t diffMemory =
+                space.GetMemoryUsed() -
+                it->second.GetMetaServerSpace().GetMemoryUsed();
+            it->second.SetMetaServerSpace(space);
+            if (diffCapacity != 0 || diffUsed != 0 || diffMemory != 0) {
+                DVLOG(6) << "update metaserver, diffCapacity = " << diffCapacity
+                         << ", diffUsed = " << diffUsed
+                         << ", diffMemory = " << diffMemory;
+                it->second.SetDirtyFlag(true);
+            } else {
+                return TopoStatusCode::TOPO_OK;
+            }
+
+        } else {
+            return TopoStatusCode::TOPO_METASERVER_NOT_FOUND;
+        }
+    }
+
+    if (diffCapacity != 0) {
+        // update pool
+        auto it = poolMap_.find(belongPoolId);
+        if (it != poolMap_.end()) {
+            uint64_t totalCapacity = it->second.GetDiskCapacity();
+            totalCapacity += diffCapacity;
+            DVLOG(6) << "update pool to " << totalCapacity;
+            it->second.SetDiskCapacity(totalCapacity);
+        } else {
+            return TopoStatusCode::TOPO_POOL_NOT_FOUND;
+        }
+    }
+
+    return TopoStatusCode::TOPO_OK;
 }
 
 TopoStatusCode TopologyImpl::UpdateMetaServerStartUpTime(uint64_t time,
@@ -458,8 +568,8 @@ TopoStatusCode TopologyImpl::UpdatePartition(const Partition &data) {
     }
 }
 
-TopoStatusCode TopologyImpl::UpdatePartitionStatistic(uint32_t partitionId,
-                                                PartitionStatistic statistic) {
+TopoStatusCode TopologyImpl::UpdatePartitionStatistic(
+    uint32_t partitionId, PartitionStatistic statistic) {
     WriteLockGuard wlockPartition(partitionMutex_);
     auto it = partitionMap_.find(partitionId);
     if (it != partitionMap_.end()) {
@@ -683,6 +793,29 @@ TopoStatusCode TopologyImpl::Init(const TopologyOption &option) {
     LOG(INFO) << "[TopologyImpl::init], LoadMetaServer success, "
               << "metaserver num = " << metaServerMap_.size();
 
+    // update pool capacity
+    for (auto pair : metaServerMap_) {
+        PoolIdType poolId = UNINTIALIZE_ID;
+        TopoStatusCode ret =
+            GetPoolIdByMetaserverId(pair.second.GetId(), &poolId);
+        if (ret != TopoStatusCode::TOPO_OK) {
+            return ret;
+        }
+
+        auto it = poolMap_.find(poolId);
+        if (it != poolMap_.end()) {
+            uint64_t totalCapacity =
+                it->second.GetDiskCapacity() +
+                pair.second.GetMetaServerSpace().GetDiskCapacity();
+            it->second.SetDiskCapacity(totalCapacity);
+        } else {
+            LOG(ERROR) << "TopologyImpl::Init Fail On Get Pool, "
+                       << "poolId = " << poolId;
+            return TopoStatusCode::TOPO_POOL_NOT_FOUND;
+        }
+    }
+    LOG(INFO) << "Calc Pool capacity success.";
+
     std::map<PoolIdType, CopySetIdType> copySetIdMaxMap;
     if (!storage_->LoadCopySet(&copySetMap_, &copySetIdMaxMap)) {
         LOG(ERROR) << "[TopologyImpl::init], LoadCopySet fail.";
@@ -830,6 +963,7 @@ void TopologyImpl::BackEndFunc() {
     while (sleeper_.wait_for(
         std::chrono::seconds(option_.topologyUpdateToRepoSec))) {
         FlushCopySetToStorage();
+        FlushMetaServerToStorage();
     }
 }
 
@@ -846,6 +980,27 @@ void TopologyImpl::FlushCopySetToStorage() {
                                  << "," << c.second.GetId() << ") to repo fail";
                 }
             }
+        }
+    }
+}
+
+void TopologyImpl::FlushMetaServerToStorage() {
+    std::vector<MetaServer> toUpdate;
+    {
+        ReadLockGuard rlockMetaServerMap(metaServerMutex_);
+        for (auto &c : metaServerMap_) {
+            // update DirtyFlag only, thus only read lock is needed
+            ReadLockGuard rlockMetaServer(c.second.GetRWLockRef());
+            if (c.second.GetDirtyFlag()) {
+                c.second.SetDirtyFlag(false);
+                toUpdate.push_back(c.second);
+            }
+        }
+    }
+    for (const auto &v : toUpdate) {
+        if (!storage_->UpdateMetaServer(v)) {
+            LOG(WARNING) << "update metaserver to repo fail"
+                         << ", metaserverid = " << v.GetId();
         }
     }
 }

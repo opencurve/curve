@@ -173,14 +173,6 @@ MetaStatusCode Partition::UpdateInode(const Inode& inode) {
     return inodeManager_->UpdateInode(inode);
 }
 
-MetaStatusCode Partition::UpdateInodeVersion(uint32_t fsId, uint64_t inodeId,
-                                             uint64_t* version) {
-    if (!IsInodeBelongs(fsId, inodeId)) {
-        return MetaStatusCode::PARTITION_ID_MISSMATCH;
-    }
-    return inodeManager_->UpdateInodeVersion(fsId, inodeId, version);
-}
-
 MetaStatusCode Partition::InsertInode(const Inode& inode) {
     if (!IsInodeBelongs(inode.fsid(), inode.inodeid())) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
