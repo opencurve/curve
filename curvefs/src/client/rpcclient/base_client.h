@@ -127,6 +127,8 @@ inline std::ostream& operator<<(std::ostream& os, const InodeParam& p) {
 
 class MDSBaseClient {
  public:
+    virtual ~MDSBaseClient() = default;
+
     virtual void CreateFs(const std::string& fsName, uint64_t blockSize,
                           const Volume& volume, CreateFsResponse* response,
                           brpc::Controller* cntl, brpc::Channel* channel);

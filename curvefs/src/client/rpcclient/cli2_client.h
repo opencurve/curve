@@ -51,7 +51,7 @@ namespace rpcclient {
 using PeerInfoList = std::vector<CopysetPeerInfo<MetaserverID>>;
 using Task2 = std::function<void(brpc::Channel *channel)>;
 
-class TaskExecutor2;
+class GetLeaderTaskExecutor;
 struct Cli2TaskContext {
     LogicPoolID poolID;
     CopysetID copysetID;
@@ -66,14 +66,14 @@ class Cli2Closure : public google::protobuf::Closure {
  public:
     Cli2Closure() = default;
     explicit Cli2Closure(const Cli2TaskContext &context,
-                         std::shared_ptr<TaskExecutor2> taskexcutor)
+                         std::shared_ptr<GetLeaderTaskExecutor> taskexcutor)
         : taskContext(context), excutor(taskexcutor) {}
 
     void Run() override;
 
  public:
     Cli2TaskContext taskContext;
-    std::shared_ptr<TaskExecutor2> excutor;
+    std::shared_ptr<GetLeaderTaskExecutor> excutor;
 
     curvefs::metaserver::copyset::GetLeaderResponse2 response;
     brpc::Controller cntl;
@@ -99,9 +99,9 @@ class Cli2Client {
                            MetaserverID *metaserverID) = 0;
 };
 
-class TaskExecutor2 {
+class GetLeaderTaskExecutor {
  public:
-    TaskExecutor2() : finish_(false), success_(false) {}
+    GetLeaderTaskExecutor() : finish_(false), success_(false) {}
 
     bool DoRPCTaskAndWait(const Task2 &task, const std::string &peerAddr);
 

@@ -121,6 +121,8 @@ class TaskExecutor {
  private:
     bool HasValidTarget() const;
 
+    void ResetChannelIfNotHealth();
+
  protected:
     std::shared_ptr<MetaCache> metaCache_;
     std::shared_ptr<ChannelManager<MetaserverID>> channelManager_;

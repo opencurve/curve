@@ -55,7 +55,7 @@ class CopysetNodeWrapper {
  public:
     explicit CopysetNodeWrapper(CopysetNode* copysetNode)
         : copysetNode_(copysetNode) {}
-    ~CopysetNodeWrapper() {}
+    virtual ~CopysetNodeWrapper() {}
     CopysetNode* copysetNode_;
     virtual bool IsLeaderTerm() {
         return copysetNode_->IsLeaderTerm();

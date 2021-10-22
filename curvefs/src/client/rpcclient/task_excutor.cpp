@@ -74,6 +74,7 @@ bool TaskExecutor::OnReturn(int retCode) {
     // rpc fail
     if (retCode < 0) {
         needRetry = true;
+        ResetChannelIfNotHealth();
         RefreshLeader();
     } else {
         switch (retCode) {
@@ -110,6 +111,10 @@ bool TaskExecutor::OnReturn(int retCode) {
     }
 
     return needRetry;
+}
+
+void TaskExecutor::ResetChannelIfNotHealth() {
+    channelManager_->ResetSenderIfNotHealth(task_->target.metaServerID);
 }
 
 void TaskExecutor::PreProcessBeforeRetry(int retCode) {

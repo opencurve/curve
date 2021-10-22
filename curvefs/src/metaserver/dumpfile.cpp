@@ -341,7 +341,7 @@ DUMPFILE_ERROR DumpFile::WaitSaveDone(pid_t childpid) {
 
 void DumpFile::SignalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     auto pid = (siginfo && siginfo->si_pid) ? siginfo->si_pid : -1;
-    LOG(INFO) << "Signal " << signal << " received from " << pid;
+    LOG(INFO) << "Signal " << signo << " received from " << pid;
     _exit(2);
 }
 

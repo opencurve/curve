@@ -133,10 +133,10 @@ int DiskCacheRead::LoadAllCacheReadFile(std::set<std::string>* cachedObj) {
         LOG(INFO) << "LoadAllCacheReadFile obj, name = " << fileName;
     }
     LOG(INFO) << "close start.";
-    ret = posixWrapper_->closedir(cacheReadDir);
-    if (ret < 0) {
+    int rc = posixWrapper_->closedir(cacheReadDir);
+    if (rc < 0) {
         LOG(ERROR) << "opendir error， errno = " << errno;
-        return ret;
+        return rc;
     }
     LOG(INFO) << "LoadAllCacheReadFile success.";
     return 0;
