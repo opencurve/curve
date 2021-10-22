@@ -105,7 +105,8 @@ git_repository(
     name = "com_github_apache_brpc",
     remote = "https://github.com/apache/incubator-brpc",
     commit = "1b9e00641cbec1c8803da6a1f7f555398c954cb0",
-    patches = ["//:thirdparties/brpc/brpc.patch", "//:thirdparties/brpc/arm64.patch"],
+    patches = ["//:thirdparties/brpc/brpc.patch", "//:thirdparties/brpc/arm64.patch",
+               "//:thirdparties/brpc/root_BUILD.patch"],
     patch_args = ["-p1"],
 )
 
