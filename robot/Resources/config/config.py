@@ -86,10 +86,12 @@ snap_sql = "./src/repo/curve_snapshot.sql"
 #fs test cfg
 fs_cfg_path = "/var/lib/jenkins/workspace/ansibe-conf-fs"
 fs_test_client = ["10.182.4.48"]
-fs_mount_path = "/home/nbs/curvefs"
+fs_mount_path = "/home/nbs/failover/"
 fs_mount_dir = ["test1","test2"]
-
-
+fs_mds = ["10.182.2.34","10.182.2.35","10.182.2.36"]
+fs_metaserver = ["10.182.2.34","10.182.2.35","10.182.2.36"]
+fs_etcd = ["10.182.2.34","10.182.2.35","10.182.2.36"]
+md5_check = []
 # chunkserver mount point
 cs_0 = curve_workspace + "0"
 cs_1 = curve_workspace + "1"
