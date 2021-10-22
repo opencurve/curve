@@ -181,6 +181,8 @@ class ChunkCacheManager {
  public:
     ChunkCacheManager(uint64_t index, S3ClientAdaptorImpl* s3ClientAdaptor)
         : index_(index), s3ClientAdaptor_(s3ClientAdaptor) {}
+    virtual ~ChunkCacheManager() = default;
+
     DataCachePtr CreateWriteDataCache(S3ClientAdaptorImpl* s3ClientAdaptor,
                                       uint32_t chunkPos, uint32_t len,
                                       const char* data);
@@ -202,7 +204,7 @@ class ChunkCacheManager {
         return (dataWCacheMap_.empty() && dataRCacheMap_.empty());
     }
 
-    void ReleaseReadDataCache(uint64_t key);
+    virtual void ReleaseReadDataCache(uint64_t key);
     void ReleaseCache(S3ClientAdaptorImpl* s3ClientAdaptor);
     curve::common::Mutex mtx_;
 
@@ -265,16 +267,16 @@ class FileCacheManager {
 
 class FsCacheManager {
  public:
-    explicit FsCacheManager(S3ClientAdaptorImpl* s3ClientAdaptor,
-                            uint64_t readCacheMaxBtye,
-                            uint64_t writeCacheMaxByte)
+    FsCacheManager(S3ClientAdaptorImpl* s3ClientAdaptor,
+                   uint64_t readCacheMaxByte, uint64_t writeCacheMaxByte)
         : lruByte_(0),
           wDataCacheNum_(0),
           wDataCacheByte_(0),
-          readCacheMaxBtye_(readCacheMaxBtye),
+          readCacheMaxByte_(readCacheMaxByte),
           writeCacheMaxByte_(writeCacheMaxByte),
           s3ClientAdaptor_(s3ClientAdaptor),
           isWaiting_(false) {}
+
     FileCacheManagerPtr FindFileCacheManager(uint64_t inodeId);
     FileCacheManagerPtr FindOrCreateFileCacheManager(uint64_t fsId,
                                                      uint64_t inodeId);
@@ -347,7 +349,7 @@ class FsCacheManager {
     uint64_t lruByte_;
     std::atomic<uint64_t> wDataCacheNum_;
     std::atomic<uint64_t> wDataCacheByte_;
-    uint64_t readCacheMaxBtye_;
+    uint64_t readCacheMaxByte_;
     uint64_t writeCacheMaxByte_;
     S3ClientAdaptorImpl* s3ClientAdaptor_;
     bool isWaiting_;

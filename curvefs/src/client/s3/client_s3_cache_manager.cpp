@@ -76,16 +76,20 @@ std::list<DataCachePtr>::iterator FsCacheManager::Set(DataCachePtr dataCache) {
     WriteLockGuard writeLockGuard(rwLockLru_);
 
     LOG(INFO) << "lru current byte:" << lruByte_
-              << ",lru max btye:" << readCacheMaxBtye_;
-    if (lruByte_ >= readCacheMaxBtye_) {
-        auto trimDataCache = lruReadDataCacheList_.back();
-        lruReadDataCacheList_.pop_back();
+              << ",lru max byte:" << readCacheMaxByte_;
+
+    // trim cache without consider dataCache's size, because its size is
+    // expected to be very smaller than `readCacheMaxByte_`
+    while (lruByte_ >= readCacheMaxByte_) {
+        auto& trimDataCache = lruReadDataCacheList_.back();
+        LOG(INFO) << "lru release data cache, size: "
+                  << trimDataCache->GetLen();
         lruByte_ -= trimDataCache->GetLen();
-        LOG(INFO) << "lru release data cache";
         trimDataCache->Release();
+        lruReadDataCacheList_.pop_back();
     }
     lruByte_ += dataCache->GetLen();
-    lruReadDataCacheList_.push_front(dataCache);
+    lruReadDataCacheList_.push_front(std::move(dataCache));
     return lruReadDataCacheList_.begin();
 }
 
