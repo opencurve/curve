@@ -22,28 +22,145 @@ ${vm_iops_limit}   8000
 ${chunk_num}   0
 
 *** Test Cases ***
-    
+inject kill one mds
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate  int(1)
+    test kill process   mds   ${num}
+    check fuse iops
+    sleep  3
+    test start process  mds
+    check fuse iops
+    check fs cluster ok
+    [Teardown]    test start process  mds
+
+inject kill two mds
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate  int(2)
+    test kill process   mds   ${num}
+    sleep  5
+    test start process  mds
+    sleep  5
+    check fuse iops
+    check fs cluster ok
+    [Teardown]    test start process  mds
+
+inject kill all mds
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate  int(3)
+    test kill process   mds   ${num}
+    sleep  5
+    test start process  mds
+    sleep  5
+    check fuse iops
+    check fs cluster ok
+    [Teardown]    test start process  mds
+
+inject kill one metaserver
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate  int(1)
+    test kill process   metaserver   ${num}
+    check fuse iops
+    sleep  3
+    test start process  metaserver
+    check fuse iops
+    check fs cluster ok
+    [Teardown]    test start process  metaserver
+
+inject kill two metaserver
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate  int(2)
+    test kill process   metaserver   ${num}
+    sleep  5
+    test start process  metaserver
+    sleep  5
+    check fuse iops
+    check fs cluster ok
+    [Teardown]    test start process  metaserver
+
+inject kill all metaserver
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate  int(3)
+    test kill process   metaserver   ${num}
+    sleep  5
+    test start process  metaserver
+    sleep  5
+    check fuse iops
+    check fs cluster ok
+    [Teardown]    test start process  metaserver
+
+inject kill one etcd
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate  int(1)
+    test kill process   etcd   ${num}
+    check fuse iops
+    sleep  3
+    test start process  etcd
+    check fuse iops
+    check fs cluster ok
+    [Teardown]    test start process  etcd
+
+inject kill two etcd
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate  int(2)
+    test kill process   etcd   ${num}
+    sleep  5
+    test start process  etcd
+    sleep  5
+    check fuse iops
+    check fs cluster ok
+    [Teardown]    test start process  etcd
+
+inject kill all etcd
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate  int(3)
+    test kill process   etcd   ${num}
+    sleep  5
+    test start process  etcd
+    sleep  5
+    check fuse iops
+    check fs cluster ok
+    [Teardown]    test start process  etcd
+
 
 *** Keywords ***
 
 init failover cluster
      clean env
      change cfg
-     destroy curvefs 
-     remk test dir
+     destroy curvefs
+     clean log
      deploy all servers
      check fs cluster ok
      mount test dir
-     check mount ok
+     check fuse mount success
+     write check data
+     cp check data
      start fs op test
+
+clean log
+     clean fs kernel log
+     clean corefile
 
 start fs op test
      start fs vdbench
      start fs fio
-     start fs iozone
 
 clean failover env
-     umount all fs
-     rm dir
-#     stop all servers
-#     clean curvefs
+     checksum data
+     wait op finish
+     sleep  60
+     check umount data consistency
+     check log
+#     destroy curvefs
+
+check umount data consistency
+     get test dir file md5
+     umount test dir
+     wait fuse exit
+     check test dir file md5
+
+check log
+     check fs io error
+     check vdbench output
+     check corefile
+

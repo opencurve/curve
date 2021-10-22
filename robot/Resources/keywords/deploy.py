@@ -369,6 +369,28 @@ def mount_test_dir():
         logger.error("mount dir fail.")
         raise
 
+def umount_test_dir():
+    try:
+        cmd = "cd curvefs && make umount"
+        ret = shell_operator.run_exec(cmd)
+        assert ret == 0 ,"umount dir fail"
+    except Exception:
+        logger.error("mount dir fail.")
+        raise
+
+def wait_fuse_exit():
+    test_client = config.fs_test_client[0]
+    ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+    ori_cmd = "ps -ef|grep fuse | grep -v grep"
+    i = 0
+    while i < 300:
+       rs = shell_operator.ssh_exec(ssh, ori_cmd)
+       if rs[1] == []:
+           break
+       i = i + 5
+       time.sleep(10)
+    assert rs[1] == [],"fuse client not exit in 300s,process is %s"%rs[1]
+      
 def install_deb():
     try:
 #        mkdeb_url =  config.curve_workspace + "mk-deb.sh"
