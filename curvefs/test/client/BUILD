@@ -127,3 +127,17 @@ cc_test(
                "-L/usr/local/lib/x86_64-linux-gnu"],
    visibility = ["//visibility:public"],
 )
+
+cc_test(
+    name = "curvefs_fs_cache_manager_test",
+    srcs = [
+        "fs_cache_manager_test.cpp",
+    ] + glob([
+        "*.h",
+    ]),
+    deps = [
+        "//curvefs/src/client:fuse_client_lib",
+        "//external:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
