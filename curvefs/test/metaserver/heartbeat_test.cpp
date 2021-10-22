@@ -37,6 +37,8 @@ using ::curvefs::mds::heartbeat::MockHeartbeatService;
 using ::curvefs::mds::heartbeat::MetaServerHeartbeatRequest;
 using ::curvefs::mds::heartbeat::MetaServerHeartbeatResponse;
 using ::curvefs::mds::heartbeat::HeartbeatStatusCode;
+using ::curve::fs::FileSystemType;
+using ::curve::fs::LocalFsFactory;
 
 namespace curvefs {
 namespace metaserver {
@@ -91,6 +93,8 @@ TEST_F(HeartbeatTest, test1) {
     options.port = 6000;
     options.mdsListenAddr = "127.0.0.1:6700";
     options.copysetNodeManager = &CopysetNodeManager::GetInstance();
+    options.storeUri = "local://./";
+    options.fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
 
     // mds service not start
     ASSERT_EQ(heartbeat.Init(options), 0);
@@ -111,6 +115,8 @@ TEST_F(HeartbeatTest, test_ok) {
     options.port = 6000;
     options.mdsListenAddr = "127.0.0.1:6700";
     options.copysetNodeManager = &CopysetNodeManager::GetInstance();
+    options.storeUri = "local://./";
+    options.fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
 
     // send heartbeat ok
     brpc::Server server;
@@ -148,6 +154,8 @@ TEST_F(HeartbeatTest, test_fail) {
     options.port = 6000;
     options.mdsListenAddr = "127.0.0.1:6700";
     options.copysetNodeManager = &CopysetNodeManager::GetInstance();
+    options.storeUri = "local://./";
+    options.fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
 
     // send heartbeat ok
     brpc::Server server;

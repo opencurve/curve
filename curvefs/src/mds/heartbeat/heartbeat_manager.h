@@ -134,6 +134,8 @@ class HeartbeatManager {
      */
     MetaServerIdType GetMetaserverIdByPeerStr(const std::string &peer);
 
+    void UpdateMetaServerSpace(const MetaServerHeartbeatRequest &request);
+
  private:
     // Dependencies of heartbeat
     std::shared_ptr<Topology> topology_;

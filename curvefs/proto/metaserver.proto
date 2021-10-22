@@ -189,9 +189,8 @@ message Inode {
     optional string symlink = 12;   // TYPE_SYM_LINK only
     optional VolumeExtentList volumeExtentList = 13;  // TYPE_FILE only
     map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 14; // TYPE_S3 only, first is chunk index
-    optional uint64 version = 15;
-    optional uint32 dtime = 16;
-    optional bool openflag = 17;
+    optional uint32 dtime = 15;
+    optional bool openflag = 16;
 }
 
 message GetInodeResponse {

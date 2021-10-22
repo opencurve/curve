@@ -29,47 +29,6 @@ using ::curve::common::TimeUtility;
 
 namespace curvefs {
 namespace metaserver {
-MetaStatusCode InodeManager::CreateInode(uint32_t fsId, uint64_t length,
-                                         uint32_t uid, uint32_t gid,
-                                         uint32_t mode, FsFileType type,
-                                         const std::string &symlink,
-                                         Inode *newInode) {
-    VLOG(1) << "CreateInode, fsId = " << fsId << ", length = " << length
-            << ", uid = " << uid << ", gid = " << gid << ", mode = " << mode
-            << ", type =" << FsFileType_Name(type) << ", symlink = " << symlink;
-    if (type == FsFileType::TYPE_SYM_LINK && symlink.empty()) {
-        return MetaStatusCode::SYM_LINK_EMPTY;
-    }
-
-    // 1. generate inode
-    Inode inode;
-    GenerateInodeInternal(GetNextId(), fsId, length, uid, gid, mode, type,
-                          &inode);
-    if (type == FsFileType::TYPE_SYM_LINK) {
-        inode.set_symlink(symlink);
-    }
-
-    // 2. insert inode
-    MetaStatusCode ret = inodeStorage_->Insert(inode);
-    if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "CreateInode fail, fsId = " << fsId
-                   << ", length = " << length << ", uid = " << uid
-                   << ", gid = " << gid << ", mode = " << mode
-                   << ", type =" << FsFileType_Name(type)
-                   << ", symlink = " << symlink
-                   << ", ret = " << MetaStatusCode_Name(ret);
-        return ret;
-    }
-
-    newInode->CopyFrom(inode);
-    VLOG(1) << "CreateInode success, fsId = " << fsId << ", length = " << length
-            << ", uid = " << uid << ", gid = " << gid << ", mode = " << mode
-            << ", type =" << FsFileType_Name(type) << ", symlink = " << symlink
-            << " ," << inode.ShortDebugString();
-
-    return MetaStatusCode::OK;
-}
-
 MetaStatusCode InodeManager::CreateInode(uint32_t fsId, uint64_t inodeId,
                                          uint64_t length, uint32_t uid,
                                          uint32_t gid, uint32_t mode,
@@ -160,10 +119,6 @@ void InodeManager::GenerateInodeInternal(uint64_t inodeId, uint32_t fsId,
     return;
 }
 
-uint64_t InodeManager::GetNextId() {
-    return nextInodeId_.fetch_add(1, std::memory_order_relaxed);
-}
-
 MetaStatusCode InodeManager::GetInode(uint32_t fsId, uint64_t inodeId,
                                       Inode *inode) {
     VLOG(1) << "GetInode, fsId = " << fsId << ", inodeId = " << inodeId;
@@ -225,43 +180,6 @@ MetaStatusCode InodeManager::UpdateInode(const Inode &inode) {
     }
 
     VLOG(1) << "UpdateInode success, " << inode.ShortDebugString();
-    return MetaStatusCode::OK;
-}
-
-MetaStatusCode InodeManager::UpdateInodeVersion(uint32_t fsId, uint64_t inodeId,
-                                                uint64_t *version) {
-    VLOG(1) << "UpdateInodeVersion, fsId = " << fsId
-            << ", inodeId = " << inodeId;
-    Inode inode;
-    MetaStatusCode ret = inodeStorage_->Get(InodeKey(fsId, inodeId), &inode);
-    if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "UpdateInodeVersion, get inode fail fsId = " << fsId
-                   << ", inodeId = " << inodeId
-                   << ", ret = " << MetaStatusCode_Name(ret);
-        return ret;
-    }
-
-    if (inode.type() != FsFileType::TYPE_S3) {
-        ret = MetaStatusCode::PARAM_ERROR;
-        LOG(ERROR) << "UpdateInodeVersion, file type is not s3, fsId = " << fsId
-                   << ", inodeId = " << inodeId
-                   << ", ret = " << MetaStatusCode_Name(ret);
-        return ret;
-    }
-
-    // TODO(cw123) : To be fixed later. This maybe cause a concurrency problem.
-    // inode.set_version(inode.version() + 1);
-
-    ret = inodeStorage_->Update(inode);
-    if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "UpdateInodeVersion, update inode fail"
-                   << ", fsId = " << fsId << ", inodeId = " << inodeId
-                   << ", ret = " << MetaStatusCode_Name(ret);
-        return ret;
-    }
-
-    // *version = inode.version();
-    VLOG(1) << "UpdateInodeVersion success, " << inode.ShortDebugString();
     return MetaStatusCode::OK;
 }
 

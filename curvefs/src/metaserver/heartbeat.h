@@ -58,12 +58,14 @@ using PeerId = braft::PeerId;
 struct HeartbeatOptions {
     MetaServerID metaserverId;
     std::string metaserverToken;
+    std::string storeUri;
     std::string mdsListenAddr;
     std::string ip;
     uint32_t port;
     uint32_t intervalSec;
     uint32_t timeout;
     CopysetNodeManager* copysetNodeManager;
+    std::shared_ptr<LocalFileSystem> fs;
 };
 
 /**
@@ -105,10 +107,14 @@ class Heartbeat {
      */
     void HeartbeatWorker();
 
+    int GetFileSystemSpaces(uint64_t* capacity, uint64_t* free);
+
+    bool GetProcMemory(uint64_t* vmRSS);
+
     void BuildCopysetInfo(curvefs::mds::heartbeat::CopySetInfo* info,
                          CopysetNode* copyset);
 
-    void BuildRequest(HeartbeatRequest* request);
+    int BuildRequest(HeartbeatRequest* request);
 
     int SendHeartbeat(const HeartbeatRequest& request,
                       HeartbeatResponse* response);
@@ -131,6 +137,9 @@ class Heartbeat {
     ::curve::common::WaitInterval waitInterval_;
 
     CopysetNodeManager* copysetMan_;
+
+    // metaserver store path
+    std::string storePath_;
 
     HeartbeatOptions options_;
 

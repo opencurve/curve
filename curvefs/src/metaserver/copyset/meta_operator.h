@@ -155,6 +155,9 @@ class MetaOperator {
 
     // whether own request, if true, delete request when destory
     const bool ownRequest_;
+
+ public:
+    butil::Timer timerPropose;
 };
 
 class GetDentryOperator : public MetaOperator {

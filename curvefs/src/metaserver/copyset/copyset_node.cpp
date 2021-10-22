@@ -42,6 +42,10 @@
 #include "src/common/timeutility.h"
 #include "src/common/uri_parser.h"
 
+static bvar::LatencyRecorder g_oprequest_propose_latency("oprequest_propose");
+static bvar::LatencyRecorder g_concurrent_apply_wait_latency(
+    "concurrent_apply_wait");
+
 namespace curvefs {
 namespace metaserver {
 namespace copyset {
@@ -209,23 +213,32 @@ void CopysetNode::on_apply(braft::Iterator& iter) {
             MetaOperatorClosure* metaClosure =
                 dynamic_cast<MetaOperatorClosure*>(iter.done());
             CHECK(metaClosure != nullptr) << "dynamic cast failed";
-
+            metaClosure->GetOperator()->timerPropose.stop();
+            g_oprequest_propose_latency
+                << metaClosure->GetOperator()->timerPropose.u_elapsed();
+            butil::Timer timer;
+            timer.start();
             auto task =
                 std::bind(&MetaOperator::OnApply, metaClosure->GetOperator(),
                           iter.index(), doneGuard.release(),
                           TimeUtility::GetTimeofDayUs());
             applyQueue_->Push(metaClosure->GetOperator()->HashCode(),
                               std::move(task));
+            timer.stop();
+            g_concurrent_apply_wait_latency << timer.u_elapsed();
         } else {
             // parse request from raft-log
             auto metaOperator = RaftLogCodec::Decode(this, iter.data());
             CHECK(metaOperator != nullptr) << "Decode raft log failed";
-
+            butil::Timer timer;
+            timer.start();
             auto hashcode = metaOperator->HashCode();
             auto task =
                 std::bind(&MetaOperator::OnApplyFromLog, metaOperator.release(),
                           TimeUtility::GetTimeofDayUs());
             applyQueue_->Push(hashcode, std::move(task));
+            timer.stop();
+            g_concurrent_apply_wait_latency << timer.u_elapsed();
         }
     }
 }

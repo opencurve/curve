@@ -27,6 +27,9 @@
 #include "curvefs/src/metaserver/copyset/meta_operator.h"
 #include "curvefs/src/metaserver/metaservice_closure.h"
 
+static bvar::LatencyRecorder g_oprequest_in_service_before_propose_latency(
+                                    "oprequest_in_service_before_propose");
+
 namespace curvefs {
 namespace metaserver {
 
@@ -55,6 +58,8 @@ struct OperatorHelper {
                     const RequestT* request, ResponseT* response,
                     google::protobuf::Closure* done, PoolId poolId,
                     CopysetId copysetId) {
+        butil::Timer timer;
+        timer.start();
         // check if overloaded
         brpc::ClosureGuard doneGuard(done);
         if (throttle->IsOverLoad()) {
@@ -76,6 +81,8 @@ struct OperatorHelper {
         auto* op = new OperatorT(
             node, cntl, request, response,
             new MetaServiceClosure(throttle, doneGuard.release()));
+        timer.stop();
+        g_oprequest_in_service_before_propose_latency << timer.u_elapsed();
         op->Propose();
     }
 

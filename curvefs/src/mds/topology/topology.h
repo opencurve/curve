@@ -91,12 +91,14 @@ class Topology {
     virtual TopoStatusCode UpdateServer(const Server &data) = 0;
     virtual TopoStatusCode UpdateMetaServerOnlineState(
         const OnlineState &onlineState, MetaServerIdType id) = 0;
-    virtual TopoStatusCode UpdateMetaServerStartUpTime(
-        uint64_t time, MetaServerIdType id) = 0;
+    virtual TopoStatusCode UpdateMetaServerSpace(const MetaServerSpace &space,
+                                                 MetaServerIdType id) = 0;
+    virtual TopoStatusCode UpdateMetaServerStartUpTime(uint64_t time,
+                                                       MetaServerIdType id) = 0;
     virtual TopoStatusCode UpdateCopySetTopo(const CopySetInfo &data) = 0;
     virtual TopoStatusCode UpdatePartition(const Partition &data) = 0;
-    virtual TopoStatusCode UpdatePartitionStatistic(uint32_t partitionId,
-                                            PartitionStatistic statistic) = 0;
+    virtual TopoStatusCode UpdatePartitionStatistic(
+        uint32_t partitionId, PartitionStatistic statistic) = 0;
     virtual TopoStatusCode UpdatePartitionTxIds(
         std::vector<PartitionTxId> txIds) = 0;
 
@@ -176,10 +178,10 @@ class Topology {
     virtual TopoStatusCode ChooseSinglePoolRandom(PoolIdType *out) const = 0;
 
     virtual TopoStatusCode ChooseZonesInPool(PoolIdType poolId,
-                                  std::set<ZoneIdType> *zones,
-                                  int count) const = 0;
-    virtual TopoStatusCode ChooseSingleMetaServerInZone(ZoneIdType zoneId,
-                        MetaServerIdType *metaServerId) const = 0;
+                                             std::set<ZoneIdType> *zones,
+                                             int count) const = 0;
+    virtual TopoStatusCode ChooseSingleMetaServerInZone(
+        ZoneIdType zoneId, MetaServerIdType *metaServerId) const = 0;
     virtual uint32_t GetPartitionNumberOfFs(FsIdType fsId) = 0;
 };
 
@@ -230,14 +232,16 @@ class TopologyImpl : public Topology {
     TopoStatusCode UpdateServer(const Server &data) override;
     TopoStatusCode UpdateMetaServerOnlineState(const OnlineState &onlineState,
                                                MetaServerIdType id) override;
+    TopoStatusCode UpdateMetaServerSpace(const MetaServerSpace &space,
+                                         MetaServerIdType id) override;
     TopoStatusCode UpdateMetaServerStartUpTime(uint64_t time,
-                                                MetaServerIdType id) override;
+                                               MetaServerIdType id) override;
     TopoStatusCode UpdateCopySetTopo(const CopySetInfo &data) override;
     TopoStatusCode SetCopySetAvalFlag(const CopySetKey &key,
                                       bool aval) override;
     TopoStatusCode UpdatePartition(const Partition &data) override;
-    TopoStatusCode UpdatePartitionStatistic(uint32_t partitionId,
-                                        PartitionStatistic statistic) override;
+    TopoStatusCode UpdatePartitionStatistic(
+        uint32_t partitionId, PartitionStatistic statistic) override;
     TopoStatusCode UpdatePartitionTxIds(
         std::vector<PartitionTxId> txIds) override;
 
@@ -333,10 +337,17 @@ class TopologyImpl : public Topology {
     // choose random
     TopoStatusCode ChooseSinglePoolRandom(PoolIdType *out) const override;
     TopoStatusCode ChooseZonesInPool(PoolIdType poolId,
-        std::set<ZoneIdType> *zones, int count) const override;
-    TopoStatusCode ChooseSingleMetaServerInZone(ZoneIdType zoneId,
-                            MetaServerIdType *metaServerId) const override;
+                                     std::set<ZoneIdType> *zones,
+                                     int count) const override;
+    TopoStatusCode ChooseSingleMetaServerInZone(
+        ZoneIdType zoneId, MetaServerIdType *metaServerId) const override;
     uint32_t GetPartitionNumberOfFs(FsIdType fsId);
+
+    TopoStatusCode GetPoolIdByMetaserverId(MetaServerIdType id,
+                                           PoolIdType *poolIdOut);
+
+    TopoStatusCode GetPoolIdByServerId(ServerIdType id,
+                                           PoolIdType *poolIdOut);
 
  private:
     TopoStatusCode LoadClusterInfo();
@@ -344,6 +355,8 @@ class TopologyImpl : public Topology {
     void BackEndFunc();
 
     void FlushCopySetToStorage();
+
+    void FlushMetaServerToStorage();
 
     int GetOneRandomNumber(int start, int end) const;
 

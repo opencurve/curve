@@ -79,8 +79,8 @@ MetaServerHeartbeatRequest GetMetaServerHeartbeatRequestForTest() {
     request.set_leadercount(10);
     request.set_copysetcount(100);
     request.set_metadataspaceused(0);
-    request.set_metadataspaceleft(0);
     request.set_metadataspacetotal(0);
+    request.set_memoryused(0);
 
     auto info = request.add_copysetinfos();
     info->set_poolid(1);
@@ -165,16 +165,85 @@ TEST_F(TestHeartbeatManager, test_checkReuqest_abnormal) {
               response.statuscode());
 }
 
-TEST_F(TestHeartbeatManager, test_emptycopyset) {
+TEST_F(TestHeartbeatManager, test_updatespace_ok) {
     ::curvefs::mds::topology::MetaServer metaServer(
         1, "hostname", "hello", 1, "192.168.10.1", 9000, "", 9000);
+    ::curvefs::mds::topology::Server server;
+    ::curvefs::mds::topology::Zone zone;
+
     auto request = GetMetaServerHeartbeatRequestForTest();
     MetaServerHeartbeatResponse response;
     request.clear_copysetinfos();
     EXPECT_CALL(*topology_, GetMetaServer(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(metaServer), Return(true)));
+        .WillRepeatedly(DoAll(SetArgPointee<1>(metaServer), Return(true)));
+    EXPECT_CALL(*topology_, GetServer(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(server), Return(true)));
+
     heartbeatManager_->MetaServerHeartbeat(request, &response);
-    ASSERT_EQ(HeartbeatStatusCode::hbRequestNoCopyset, response.statuscode());
+    ASSERT_EQ(HeartbeatStatusCode::hbOK, response.statuscode());
+}
+
+TEST_F(TestHeartbeatManager, test_updatespace_get_metaserver_fail1) {
+    ::curvefs::mds::topology::MetaServer metaServer(
+        1, "hostname", "hello", 1, "192.168.10.1", 9000, "", 9000);
+
+    auto request = GetMetaServerHeartbeatRequestForTest();
+    MetaServerHeartbeatResponse response;
+    request.clear_copysetinfos();
+    EXPECT_CALL(*topology_, GetMetaServer(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(metaServer), Return(false)));
+    heartbeatManager_->MetaServerHeartbeat(request, &response);
+    ASSERT_EQ(HeartbeatStatusCode::hbMetaServerUnknown, response.statuscode());
+}
+
+TEST_F(TestHeartbeatManager, test_updatespace_get_metaserver_fail2) {
+    ::curvefs::mds::topology::MetaServer metaServer(
+        1, "hostname", "hello", 1, "192.168.10.1", 9000, "", 9000);
+
+    auto request = GetMetaServerHeartbeatRequestForTest();
+    MetaServerHeartbeatResponse response;
+    request.clear_copysetinfos();
+    EXPECT_CALL(*topology_, GetMetaServer(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(metaServer), Return(true)))
+        .WillOnce(DoAll(SetArgPointee<1>(metaServer), Return(false)));
+    heartbeatManager_->MetaServerHeartbeat(request, &response);
+    ASSERT_EQ(HeartbeatStatusCode::hbOK, response.statuscode());
+}
+
+
+TEST_F(TestHeartbeatManager, test_updatespace_get_server_fail) {
+    ::curvefs::mds::topology::MetaServer metaServer(
+        1, "hostname", "hello", 1, "192.168.10.1", 9000, "", 9000);
+    ::curvefs::mds::topology::Server server;
+    ::curvefs::mds::topology::Pool pool;
+
+    auto request = GetMetaServerHeartbeatRequestForTest();
+    MetaServerHeartbeatResponse response;
+    request.clear_copysetinfos();
+    EXPECT_CALL(*topology_, GetMetaServer(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(metaServer), Return(true)));
+    EXPECT_CALL(*topology_, GetServer(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(server), Return(false)));
+    heartbeatManager_->MetaServerHeartbeat(request, &response);
+    ASSERT_EQ(HeartbeatStatusCode::hbOK, response.statuscode());
+}
+
+TEST_F(TestHeartbeatManager, test_updatespace_get_pool_fail) {
+    ::curvefs::mds::topology::MetaServer metaServer(
+        1, "hostname", "hello", 1, "192.168.10.1", 9000, "", 9000);
+    ::curvefs::mds::topology::Server server;
+    ::curvefs::mds::topology::Zone zone;
+
+    auto request = GetMetaServerHeartbeatRequestForTest();
+    MetaServerHeartbeatResponse response;
+    request.clear_copysetinfos();
+    EXPECT_CALL(*topology_, GetMetaServer(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(metaServer), Return(true)));
+    EXPECT_CALL(*topology_, GetServer(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(server), Return(true)));
+
+    heartbeatManager_->MetaServerHeartbeat(request, &response);
+    ASSERT_EQ(HeartbeatStatusCode::hbOK, response.statuscode());
 }
 
 TEST_F(TestHeartbeatManager, test_getMetaserverIdByPeerStr) {
@@ -197,6 +266,7 @@ TEST_F(TestHeartbeatManager, test_getMetaserverIdByPeerStr) {
     ::curvefs::mds::topology::MetaServer metaServer(
         1, "hostname", "hello", 1, "192.168.10.1", 9000, "", 9000);
     EXPECT_CALL(*topology_, GetMetaServer(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(metaServer), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(metaServer), Return(true)));
     heartbeatManager_->MetaServerHeartbeat(request, &response);
     ASSERT_EQ(HeartbeatStatusCode::hbAnalyseCopysetError,
@@ -205,6 +275,7 @@ TEST_F(TestHeartbeatManager, test_getMetaserverIdByPeerStr) {
     // 2. test can not get metaServer
     request = GetMetaServerHeartbeatRequestForTest();
     EXPECT_CALL(*topology_, GetMetaServer(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(metaServer), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(metaServer), Return(true)));
     EXPECT_CALL(*topology_, GetMetaServer("192.168.10.1", 9000, _))
         .WillOnce(Return(false));
@@ -225,6 +296,7 @@ TEST_F(TestHeartbeatManager, test_heartbeatCopySetInfo_to_topologyOne) {
 
     // 1. can not get peers
     EXPECT_CALL(*topology_, GetMetaServer(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)));
     EXPECT_CALL(*topology_, GetMetaServer(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(metaServer1), Return(true)))
@@ -235,6 +307,7 @@ TEST_F(TestHeartbeatManager, test_heartbeatCopySetInfo_to_topologyOne) {
 
     // 2. can not get leader
     EXPECT_CALL(*topology_, GetMetaServer(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)));
     EXPECT_CALL(*topology_, GetMetaServer(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(metaServer1), Return(true)))
@@ -268,6 +341,7 @@ TEST_F(TestHeartbeatManager, test_heartbeatCopySetInfo_to_topologyOne) {
     auto addInfo = request.add_copysetinfos();
     *addInfo = info;
     EXPECT_CALL(*topology_, GetMetaServer(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)));
     EXPECT_CALL(*topology_, GetMetaServer(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(metaServer1), Return(true)))
@@ -302,16 +376,20 @@ TEST_F(TestHeartbeatManager, test_not_leader) {
     ::curvefs::mds::topology::MetaServer metaServer1(
         1, "hostname", "hello", 1, "192.168.10.1", 9000, "", 9000);
     EXPECT_CALL(*topology_, GetMetaServer(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)));
     ::curvefs::mds::topology::MetaServer leaderMetaServer(
         2, "hostname", "hello", 1, "192.168.10.2", 9000, "", 9000);
     EXPECT_CALL(*topology_, GetMetaServer("192.168.10.2", _, _))
+//        .WillOnce(DoAll(SetArgPointee<2>(leaderMetaServer), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(leaderMetaServer), Return(true)));
     EXPECT_CALL(*topology_, GetMetaServer("192.168.10.1", _, _))
+//        .WillOnce(DoAll(SetArgPointee<2>(metaServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(metaServer1), Return(true)));
     ::curvefs::mds::topology::MetaServer metaServer3(
         3, "hostname", "hello", 1, "192.168.10.3", 9000, "", 9000);
     EXPECT_CALL(*topology_, GetMetaServer("192.168.10.3", _, _))
+//        .WillOnce(DoAll(SetArgPointee<2>(metaServer3), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(metaServer3), Return(true)));
 
     heartbeatManager_->MetaServerHeartbeat(request, &response);
@@ -342,6 +420,7 @@ TEST_F(TestHeartbeatManager, test_reqEpoch_LargerThan_mdsRecord_UpdateSuccess) {
     ::curvefs::mds::topology::MetaServer metaServer1(
         1, "hostname", "hello", 1, "192.168.10.1", 9000, "", 9000);
     EXPECT_CALL(*topology_, GetMetaServer(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)));
     ::curvefs::mds::topology::MetaServer leaderMetaServer(
         2, "hostname", "hello", 1, "192.168.10.2", 9000, "", 9000);
@@ -390,6 +469,7 @@ TEST_F(TestHeartbeatManager, test_reqEpoch_LargerThan_mdsRecord_UpdateFail) {
     ::curvefs::mds::topology::MetaServer metaServer1(
         1, "hostname", "hello", 1, "192.168.10.1", 9000, "", 9000);
     EXPECT_CALL(*topology_, GetMetaServer(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)));
     ::curvefs::mds::topology::MetaServer leaderMetaServer(
         2, "hostname", "hello", 1, "192.168.10.2", 9000, "", 9000);
@@ -438,6 +518,7 @@ TEST_F(TestHeartbeatManager, test_reqEpoch_EqualTo_mdsRecord) {
     ::curvefs::mds::topology::MetaServer metaServer1(
         1, "hostname", "hello", 1, "192.168.10.1", 9000, "", 9000);
     EXPECT_CALL(*topology_, GetMetaServer(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)));
     ::curvefs::mds::topology::MetaServer leaderMetaServer(
         2, "hostname", "hello", 1, "192.168.10.2", 9000, "", 9000);
@@ -483,6 +564,7 @@ TEST_F(TestHeartbeatManager, test_reqEpoch_SmallThan_mdsRecord) {
     ::curvefs::mds::topology::MetaServer metaServer1(
         1, "hostname", "hello", 1, "192.168.10.1", 9000, "", 9000);
     EXPECT_CALL(*topology_, GetMetaServer(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)));
     ::curvefs::mds::topology::MetaServer leaderMetaServer(
         2, "hostname", "hello", 1, "192.168.10.2", 9000, "", 9000);
@@ -538,6 +620,7 @@ TEST_F(TestHeartbeatManager, test_update_partition) {
     ::curvefs::mds::topology::MetaServer metaServer1(
         1, "hostname", "hello", 1, "192.168.10.1", 9000, "", 9000);
     EXPECT_CALL(*topology_, GetMetaServer(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(metaServer1), Return(true)));
     ::curvefs::mds::topology::MetaServer leaderMetaServer(
         2, "hostname", "hello", 1, "192.168.10.2", 9000, "", 9000);

@@ -61,7 +61,14 @@ bool CompareMetaServer(const MetaServer &lh, const MetaServer &rh) {
            lh.GetInternalPort() == rh.GetInternalPort() &&
            lh.GetExternalHostIp() == rh.GetExternalHostIp() &&
            lh.GetExternalPort() == rh.GetExternalPort() &&
-           lh.GetOnlineState() == rh.GetOnlineState();
+           lh.GetStartUpTime() == rh.GetStartUpTime() &&
+           lh.GetMetaServerSpace().GetDiskCapacity() ==
+               rh.GetMetaServerSpace().GetDiskCapacity() &&
+           lh.GetMetaServerSpace().GetDiskUsed() ==
+               rh.GetMetaServerSpace().GetDiskUsed() &&
+           lh.GetMetaServerSpace().GetMemoryUsed() ==
+               rh.GetMetaServerSpace().GetMemoryUsed() &&
+           lh.GetDirtyFlag() == rh.GetDirtyFlag();
 }
 
 bool CompareCopysetInfo(const CopySetInfo &lh, const CopySetInfo &rh) {

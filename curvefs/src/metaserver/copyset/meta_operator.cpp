@@ -74,8 +74,8 @@ void MetaOperator::RedirectRequest() {
 }
 
 bool MetaOperator::ProposeTask() {
+    timerPropose.start();
     butil::IOBuf log;
-
     bool success = RaftLogCodec::Encode(GetOperatorType(), request_, &log);
     if (!success) {
         LOG(ERROR) << "meta request encode failed, type: "
