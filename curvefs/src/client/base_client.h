@@ -47,6 +47,8 @@ using common::ExtentAllocInfo;
 
 class SpaceBaseClient {
  public:
+    virtual ~SpaceBaseClient() = default;
+
     virtual void AllocExtents(uint32_t fsId,
                               const ExtentAllocInfo &toAllocExtent,
                               curvefs::space::AllocateType type,

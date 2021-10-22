@@ -27,10 +27,12 @@
 #include <string>
 #include <vector>
 
+#include "src/common/gflags_helper.h"
 #include "src/common/string_util.h"
 
 namespace brpc {
 DECLARE_int32(defer_close_second);
+DECLARE_int32(health_check_interval);
 }  // namespace brpc
 
 namespace curvefs {
@@ -145,8 +147,11 @@ void InitExtentManagerOption(Configuration* conf,
 }
 
 void SetBrpcOpt(Configuration* conf) {
-    conf->GetValueFatalIfFail("defer.close.second",
-                              &brpc::FLAGS_defer_close_second);
+    curve::common::GflagsLoadValueFromConfIfCmdNotSet dummy;
+    dummy.Load(conf, "defer_close_second", "rpc.defer.close.second",
+               &brpc::FLAGS_defer_close_second);
+    dummy.Load(conf, "health_check_interval", "rpc.healthCheckIntervalSec",
+               &brpc::FLAGS_health_check_interval);
 }
 
 void InitFuseClientOption(Configuration* conf, FuseClientOption* clientOption) {

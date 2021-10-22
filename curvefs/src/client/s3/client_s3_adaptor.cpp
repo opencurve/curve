@@ -78,6 +78,8 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Init(
             std::make_shared<DiskCacheManagerImpl>(diskCacheManager, client);
         diskCacheManagerImpl_->Init(option);
     }
+
+    return CURVEFS_ERROR::OK;
 }
 
 int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,

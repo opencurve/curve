@@ -91,7 +91,7 @@ bool MetaStoreImpl::LoadPendingTx(uint32_t partitionId, void* entry) {
 
     auto pendingTx = reinterpret_cast<PrepareRenameTxRequest*>(entry);
     auto rc = partition->InsertPendingTx(*pendingTx);
-    if (rc != MetaStatusCode::OK) {
+    if (!rc) {
         LOG(ERROR) << "InsertPendingTx failed, retCode " << rc;
         return false;
     }

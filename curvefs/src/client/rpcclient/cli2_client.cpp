@@ -68,9 +68,9 @@ bool Cli2ClientImpl::GetLeader(const LogicPoolID &poolID,
                  std::string senderAddr(
                      butil::endpoint2str(info.externalAddr.addr_).c_str());
 
-                 auto excutor = std::make_shared<TaskExecutor2>();
+                 auto executor = std::make_shared<GetLeaderTaskExecutor>();
                  Cli2TaskContext taskCtx(poolID, copysetID, senderAddr);
-                 Cli2Closure *done = new Cli2Closure(taskCtx, excutor);
+                 Cli2Closure *done = new Cli2Closure(taskCtx, executor);
                  done->cntl.set_timeout_ms(opt_.rpcTimeoutMs);
 
                  getLeaderOK = DoGetLeader(done, peerAddr, metaserverID);
@@ -91,6 +91,8 @@ bool Cli2ClientImpl::DoGetLeader(Cli2Closure *done, PeerAddr *peerAddr,
 
         curvefs::metaserver::copyset::CliService2_Stub stub(channel);
         stub.GetLeader(&done->cntl, &request, &done->response, done);
+
+        return 0;
     };
 
     // do rpc task
@@ -117,7 +119,7 @@ bool Cli2ClientImpl::DoGetLeader(Cli2Closure *done, PeerAddr *peerAddr,
     return ret;
 }
 
-bool TaskExecutor2::DoRPCTaskAndWait(const Task2 &task,
+bool GetLeaderTaskExecutor::DoRPCTaskAndWait(const Task2 &task,
                                      const std::string &peerAddr) {
     std::unique_ptr<brpc::Channel> channel(new brpc::Channel());
     int ret = channel->Init(peerAddr.c_str(), nullptr);
@@ -139,7 +141,7 @@ bool TaskExecutor2::DoRPCTaskAndWait(const Task2 &task,
     return success_;
 }
 
-void TaskExecutor2::NotifyRpcFinish(bool success) {
+void GetLeaderTaskExecutor::NotifyRpcFinish(bool success) {
     std::lock_guard<bthread::Mutex> ulk(finishMtx_);
     finish_ = true;
     success_ = success;
