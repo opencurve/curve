@@ -1,0 +1,12 @@
+diff --git a/BUILD b/BUILD
+index 185f44fe..a4473dfe 100644
+--- a/BUILD
++++ b/BUILD
+@@ -43,6 +43,7 @@ COPTS = [
+     "-D__STDC_LIMIT_MACROS",
+     "-D__STDC_CONSTANT_MACROS",
+     "-DGFLAGS_NS=google",
++    "-O0",
+ ] + select({
+     ":with_glog": ["-DBRPC_WITH_GLOG=1"],
+     "//conditions:default": ["-DBRPC_WITH_GLOG=0"],
