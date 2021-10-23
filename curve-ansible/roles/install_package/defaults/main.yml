@@ -37,8 +37,8 @@ snapshotcloneserver_nginx_dir: /etc/curve/nginx
 local_tool_package_path: ../curve-tools
 
 
-etcd_download_url: https://github.com/etcd-io/etcd/releases/download
-etcd_version: v3.4.0
+etcd_download_url: https://curve-build.nos-eastchina1.126.net/etcd-v3.5.1-linux-arm64.tar.gz
+etcd_version: v3.5.1
 etcd_download_dir: /tmp
 install_etcd_dir: /usr/bin
 
