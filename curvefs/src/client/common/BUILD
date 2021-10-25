@@ -14,24 +14,20 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS",
-)
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "common",
     srcs = glob(["*.cpp"]),
     hdrs = glob(["*.h"]),
-    copts = GCC_FLAGS,
+    copts = CURVE_DEFAULT_COPTS,
+    visibility = ["//visibility:public"],
     deps = [
         "//external:brpc",
-        "//external:glog",
         "//external:gflags",
+        "//external:glog",
+        "//src/client:curve_client",
         "//src/common:curve_common",
         "//src/common:curve_s3_adapter",
-        "//src/client:curve_client"
     ],
-    visibility = ["//visibility:public"],
 )

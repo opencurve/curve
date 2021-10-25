@@ -14,6 +14,8 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "BASE_FLAGS", "CURVE_DEFAULT_COPTS")
+
 cc_binary(
         name = "curvefsTool",
         srcs = ["curvefsTool.cpp",
@@ -24,5 +26,6 @@ cc_binary(
                 "//src/mds/common:mds_common",
                 "//src/common:curve_common",
                 "//external:glog",
-                "//external:brpc"]
-        )
+                "//external:brpc"],
+        copts = CURVE_DEFAULT_COPTS,
+)

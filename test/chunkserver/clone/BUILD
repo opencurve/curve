@@ -14,13 +14,14 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_test(
     name = "clone_test",
     srcs = glob([
         "*.cpp",
         "clone_test_util.h",
     ]),
-    copts = ["-std=c++11"],
     deps = [
         "@com_google_googletest//:gtest",
         "//external:gflags",
@@ -39,6 +40,7 @@ cc_test(
         "//test/client/mock:client_mock_lib",
         "//test/common:common_mock",
     ],
+    copts = CURVE_TEST_COPTS,
 )
 
 cc_library(
@@ -51,4 +53,5 @@ cc_library(
             "//src/chunkserver:chunkserver-test-lib",
             ],
     visibility = ["//visibility:public"],
+    copts = CURVE_TEST_COPTS,
 )

@@ -57,7 +57,7 @@ class TestDiskCacheManager : public ::testing::Test {
     ~TestDiskCacheManager() {}
 
     virtual void SetUp() {
-        S3Client *client;
+        S3Client *client = nullptr;
         wrapper = std::make_shared<MockPosixWrapper>();
         diskCacheWrite_ =  std::make_shared<MockDiskCacheWrite>();
         diskCacheRead_ =  std::make_shared<MockDiskCacheRead>();
@@ -81,7 +81,7 @@ class TestDiskCacheManager : public ::testing::Test {
 
 TEST_F(TestDiskCacheManager, Init) {
     S3ClientAdaptorOption s3AdaptorOption;
-    S3Client *client;
+    S3Client *client = nullptr;
     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
         .WillOnce(Return(-1));
     EXPECT_CALL(*wrapper, mkdir(_, _))

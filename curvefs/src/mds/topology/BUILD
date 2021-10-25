@@ -14,11 +14,7 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS",
-)
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "curvefs_topology",
@@ -26,23 +22,21 @@ cc_library(
         "*.cpp",
         "*.h",
     ]),
-    copts = GCC_FLAGS,
-    linkopts = [
-    ],
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
+        "//curvefs/proto:copyset_cc_proto",
+        "//curvefs/proto:curvefs_topology_cc_proto",
+        "//curvefs/src/mds/common:fs_mds_common",
+        "//curvefs/src/mds/metaserverclient:curvefs_mds_metaserverclient",
+        "//curvefs/src/mds/topology:curvefs_deal_peerid",
         "//external:brpc",
         "//external:glog",
         "//external:json",
-        "//curvefs/proto:curvefs_topology_cc_proto",
-        "//curvefs/proto:copyset_cc_proto",
-        "//curvefs/src/mds/metaserverclient:curvefs_mds_metaserverclient",
-        "//curvefs/src/mds/common:fs_mds_common",
-        "//curvefs/src/mds/topology:curvefs_deal_peerid",
-        "//src/common/concurrent:curve_concurrent",
         "//src/common:curve_common",
+        "//src/common/concurrent:curve_concurrent",
         "//src/kvstorageclient:kvstorage_client",
-    ]
+    ],
 )
 
 cc_library(
@@ -50,9 +44,9 @@ cc_library(
     srcs = glob([
         "deal_peerid.h",
     ]),
-    copts = GCC_FLAGS,
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-            "//src/common:curve_common",
+        "//src/common:curve_common",
     ],
 )

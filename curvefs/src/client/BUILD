@@ -14,67 +14,52 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS",
-)
+load("//:copts.bzl", "BASE_FLAGS", "CURVE_DEFAULT_COPTS")
 
 cc_binary(
     name = "curve-fuse",
-    srcs = glob([
-        "*.cpp",
-        "*.c",
-        "*.h",
-        "s3/*.cpp",
-        "s3/*.h",
-    ]),
-    copts = GCC_FLAGS + ["-I/usr/local/include/fuse3"],
-    deps = [
-        "//external:brpc",
-        "//external:glog",
-        "//external:gflags",
-        "//curvefs/proto:metaserver_cc_proto",
-        "//curvefs/proto:mds_cc_proto",
-        "//curvefs/proto:space_cc_proto",
-        "//curvefs/src/common:curvefs_common",
-        "//src/common:curve_common",
-        "//src/client:curve_client",
-        "//src/common:curve_s3_adapter",
-        "//curvefs/src/client/rpcclient:rpcclient",
+    srcs = ["main.c"],
+    copts = BASE_FLAGS + [
+        "-I/usr/local/include/fuse3",
     ],
-    linkopts = ["-lfuse3",
-                "-lpthread",
-                "-L/usr/local/lib/x86_64-linux-gnu"],
-    visibility = ["//visibility:public"],
+    linkopts = [
+        "-lfuse3",
+        "-L/usr/local/lib/x86_64-linux-gnu",
+    ],
+    deps = [
+        ":fuse_client_lib",
+    ],
 )
 
 cc_library(
     name = "fuse_client_lib",
-    srcs = glob([
-        "*.cpp",
-        "*.c",
-        "*.h",
-        "s3/*.cpp",
-        "s3/*.h",
+    srcs = glob(
+        [
+            "*.cpp",
+            "*.c",
+            "*.h",
+            "s3/*.cpp",
+            "s3/*.h",
+        ],
+        exclude = ["main.c"],
+    ),
+    copts = CURVE_DEFAULT_COPTS + ["-I/usr/local/include/fuse3"],
+    linkopts = [
+        "-lfuse3",
+        "-L/usr/local/lib/x86_64-linux-gnu",
     ],
-    exclude = [ "main.c"]),
-    copts = GCC_TEST_FLAGS + ["-I/usr/local/include/fuse3"],
-    deps = [
-        "//external:brpc",
-        "//external:glog",
-        "//external:gflags",
-        "//curvefs/proto:metaserver_cc_proto",
-        "//curvefs/proto:mds_cc_proto",
-        "//curvefs/proto:space_cc_proto",
-        "//curvefs/src/common:curvefs_common",
-        "//src/common:curve_common",
-        "//src/client:curve_client",
-        "//src/common:curve_s3_adapter",
-        "//curvefs/src/client/rpcclient:rpcclient",
-    ],
-    linkopts = ["-lfuse3",
-                "-lpthread",
-                "-L/usr/local/lib/x86_64-linux-gnu"],
     visibility = ["//visibility:public"],
+    deps = [
+        "//curvefs/proto:mds_cc_proto",
+        "//curvefs/proto:metaserver_cc_proto",
+        "//curvefs/proto:space_cc_proto",
+        "//curvefs/src/client/rpcclient",
+        "//curvefs/src/common:curvefs_common",
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
+        "//src/client:curve_client",
+        "//src/common:curve_common",
+        "//src/common:curve_s3_adapter",
+    ],
 )

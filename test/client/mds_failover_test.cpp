@@ -133,6 +133,8 @@ TEST(MDSChangeTest, MDSFailoverTest) {
             // 本次返回ok，那么RPC应该成功了，不会再重试
             return LIBCURVE_ERROR::OK;
         }
+
+        return 0;
     };
     startMS = TimeUtility::GetTimeofDayMs();
     rpcexcutor.DoRPCTask(task2, 1000);
@@ -171,6 +173,8 @@ TEST(MDSChangeTest, MDSFailoverTest) {
             mds2RetryTimes++;
             return -brpc::ELOGOFF;
         }
+
+        return 0;
     };
 
     startMS = TimeUtility::GetTimeofDayMs();
@@ -210,6 +214,8 @@ TEST(MDSChangeTest, MDSFailoverTest) {
             mds2RetryTimes++;
             return -brpc::ELOGOFF;
         }
+
+        return 0;
     };
 
     startMS = TimeUtility::GetTimeofDayMs();

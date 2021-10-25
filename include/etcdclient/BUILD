@@ -14,11 +14,14 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
+
 cc_library(
     name = "etcd_client",
     srcs = ["etcdclient.h"],
-    linkopts = ([
+    copts = CURVE_DEFAULT_COPTS,
+    linkopts = [
         "-letcdclient",
-    ]),
+    ],
     visibility = ["//visibility:public"],
 )

@@ -433,7 +433,6 @@ int CopysetCheckCore::CheckCopysetsWithMds() {
         std::cout << "GetCopySetsInCluster fail!" << std::endl;
         return -1;
     }
-    CopysetStatistics statistics = GetCopysetStatistics();
     if (copysetsInMds.size() != copysets_[kTotal].size()) {
         std::cout << "Copyset numbers in chunkservers not consistent"
                      " with mds, please check! copysets on chunkserver: "

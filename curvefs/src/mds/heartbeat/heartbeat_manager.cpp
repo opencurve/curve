@@ -200,8 +200,8 @@ bool HeartbeatManager::TransformHeartbeatCopySetInfoToTopologyOne(
 
     // set peers
     std::set<MetaServerIdType> peers;
-    MetaServerIdType leader;
-    for (auto value : info.peers()) {
+    MetaServerIdType leader = UNINTIALIZE_ID;
+    for (const auto& value : info.peers()) {
         MetaServerIdType res = GetMetaserverIdByPeerStr(value.address());
         if (UNINTIALIZE_ID == res) {
             LOG(ERROR) << "heartbeat manager can not get metaServerInfo"
@@ -216,6 +216,11 @@ bool HeartbeatManager::TransformHeartbeatCopySetInfoToTopologyOne(
         peers.emplace(res);
     }
     topoCopysetInfo.SetCopySetMembers(peers);
+
+    if (leader == UNINTIALIZE_ID) {
+        LOG(WARNING) << "leader not found, poolid: " << info.poolid()
+                     << ", copysetid: " << info.copysetid();
+    }
 
     // set leader
     topoCopysetInfo.SetLeader(leader);

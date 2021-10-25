@@ -109,7 +109,8 @@ static int AddRecord(int flag) {
     } else if (-1 == flag) {
         record = "-\t" + nbdConfig->devpath + "\n";
     }
-    write(fd, record.c_str(), record.size());
+    auto nr = ::write(fd, record.c_str(), record.size());
+    (void)nr;
     close(fd);
     return 0;
 }
@@ -147,7 +148,8 @@ static int NBDConnect() {
 
     // in child
     setsid();
-    chdir("/");
+    auto nr = chdir("/");
+    (void)nr;
     umask(0);
 
     // set signal handler
@@ -157,14 +159,18 @@ static int NBDConnect() {
     int ret = nbdTool->Connect(nbdConfig.get());
     int connectionRes = -1;
     if (ret < 0) {
-        ::write(waitConnectPipe[1], &connectionRes, sizeof(connectionRes));
+        auto nr =
+            ::write(waitConnectPipe[1], &connectionRes, sizeof(connectionRes));
+        (void)nr;
     } else {
         ret = AddRecord(1);
         if (0 != ret) {
             return ret;
         }
         connectionRes = 0;
-        ::write(waitConnectPipe[1], &connectionRes, sizeof(connectionRes));
+        auto nr =
+            ::write(waitConnectPipe[1], &connectionRes, sizeof(connectionRes));
+        (void)nr;
         nbdTool->RunServerUntilQuit();
     }
 

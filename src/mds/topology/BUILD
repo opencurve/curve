@@ -14,11 +14,7 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS",
-)
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "topology",
@@ -26,9 +22,7 @@ cc_library(
         "*.cpp",
         "*.h",
     ]),
-    copts = GCC_FLAGS,
-    linkopts = [
-    ],
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//external:brpc",
@@ -37,9 +31,9 @@ cc_library(
         "//proto:chunkserver-cc-protos",
         "//proto:nameserver2_cc_proto",
         "//proto:topology_cc_proto",
-        "//src/mds/common:mds_common",
-        "//src/mds/copyset:copyset",
         "//src/common:curve_common",
+        "//src/mds/common:mds_common",
+        "//src/mds/copyset",
         "//src/mds/nameserver2/allocstatistic:alloc_statistic",
     ],
 )

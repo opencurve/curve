@@ -15,6 +15,7 @@
 curvefs_project_home: "/home/nbs/machine/{{ inventory_hostname }}/curvefs"
 curvefs_project_log_home: "/tmp/{{ inventory_hostname }}/curvefs"
 curvefs_wait_service_timeout: 20
+curvefs_debug_symbol_file_suffix: ".dbg-sym"
 curvefs_core_method: "sync_direct"  # (sync_direct|sync_tarball|download_sync|deb|rpm)
 curvefs_client_mount_path: "{{ client_mount_path }}"
 curvefs_client_mount_args: >

@@ -107,7 +107,7 @@ struct CopySetInfo {
         this->configChangeInfo = info;
         this->statisticsInfo = statistics;
     }
-    CopySetInfo(const CopySetInfo &in);
+
     ~CopySetInfo();
 
     bool ContainPeer(ChunkServerIdType id) const;

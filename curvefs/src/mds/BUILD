@@ -14,60 +14,42 @@
 #  limitations under the License.
 #
 
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DHAVE_ZLIB",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-parameter",
-    "-Wno-unused-variable",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-    "-Wno-missing-field-initializers",
-    "-std=c++11",
-    "-Wall",
-]
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
-    name="curvefs_mds_lib",
-    hdrs=glob(["*.h"]),
-    srcs=glob(["*.cpp"],
-        exclude = ["main.cpp"]
+    name = "curvefs_mds_lib",
+    srcs = glob(
+        ["*.cpp"],
+        exclude = ["main.cpp"],
     ),
-    copts = COPTS,
+    hdrs = glob(["*.h"]),
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "//external:glog",
-        "//external:gflags",
-        "//external:brpc",
-        "//curvefs/src/mds/metaserverclient:curvefs_mds_metaserverclient",
-        "//curvefs/src/mds/spaceclient:curvefs_mds_spaceclient",
-        "//curvefs/src/mds/topology:curvefs_topology",
         "//curvefs/src/common:curvefs_common",
-        "//src/common/concurrent:curve_concurrent",
-        "//src/common:curve_common",
-        "//src/kvstorageclient:kvstorage_client",
-        "//src/leader_election:leader_election",
-        "//src/idgenerator:idgenerator",
         "//curvefs/src/mds/codec:fs_mds_codec",
         "//curvefs/src/mds/common:fs_mds_common",
-        "//curvefs/src/mds/idgenerator:fs_mds_idgenerator",
-        "//curvefs/src/mds/metric:fs_mds_metric",
         "//curvefs/src/mds/heartbeat:curvefs_heartbeat_lib",
+        "//curvefs/src/mds/idgenerator:fs_mds_idgenerator",
+        "//curvefs/src/mds/metaserverclient:curvefs_mds_metaserverclient",
+        "//curvefs/src/mds/metric:fs_mds_metric",
+        "//curvefs/src/mds/spaceclient:curvefs_mds_spaceclient",
+        "//curvefs/src/mds/topology:curvefs_topology",
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
+        "//src/common:curve_common",
+        "//src/common/concurrent:curve_concurrent",
+        "//src/idgenerator",
+        "//src/kvstorageclient:kvstorage_client",
+        "//src/leader_election",
     ],
 )
 
 cc_binary(
     name = "curvefs_mds",
     srcs = glob(["main.cpp"]),
-    copts = COPTS,
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//curvefs/src/mds:curvefs_mds_lib",

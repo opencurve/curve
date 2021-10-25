@@ -14,27 +14,14 @@
 #  limitations under the License.
 #
 
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DHAVE_ZLIB",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-std=c++11",
-    "-Wall",
-    "-Werror",
-]
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 # https://docs.bazel.build/versions/master/be/c-cpp.html#cc_library
 cc_library(
     name = "curvefs_mds_mock",
     srcs = [],
     hdrs = glob(["*.h"]),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//src/idgenerator:idgenerator",

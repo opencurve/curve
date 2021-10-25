@@ -136,11 +136,6 @@ struct CloneSourceInfo {
 
     CloneSourceInfo() = default;
 
-    CloneSourceInfo(const CloneSourceInfo &other)
-        : name(other.name), length(other.length),
-          segmentSize(other.segmentSize),
-          allocatedSegmentOffsets(other.allocatedSegmentOffsets) {}
-
     bool IsSegmentAllocated(uint64_t offset) const;
 };
 
@@ -189,7 +184,6 @@ struct PeerAddr {
 
     PeerAddr() = default;
     explicit PeerAddr(butil::EndPoint addr) : addr_(addr) {}
-    PeerAddr(const PeerAddr &peeraddr) : addr_(peeraddr.addr_) {}
 
     bool IsEmpty() const {
         return (addr_.ip == butil::IP_ANY && addr_.port == 0);

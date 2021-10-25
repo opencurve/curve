@@ -14,6 +14,8 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_test(
     name = "curvefs_mds_test",
     srcs = glob(["*.cpp", "*.h"],
@@ -21,7 +23,7 @@ cc_test(
             "chunkid_allocator_test.cpp",
             "mock_etcdclient.h"
         ]),
-    copts = ["-g","-DHAVE_ZLIB=1"],
+    copts = CURVE_TEST_COPTS,
     deps = [
             "//curvefs/src/mds:curvefs_mds_lib",
             "@com_google_googletest//:gtest_main",
@@ -39,7 +41,7 @@ cc_test(
         "chunkid_allocator_test.cpp",
         "mock_etcdclient.h"
     ]),
-    copts = ["-g","-DHAVE_ZLIB=1"],
+    copts = CURVE_TEST_COPTS,
     deps = [
             "//curvefs/src/mds:curvefs_mds_lib",
             "@com_google_googletest//:gtest_main",

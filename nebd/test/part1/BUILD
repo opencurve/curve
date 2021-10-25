@@ -14,11 +14,14 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_binary(
     name = "nebd_metacache_unittest",
     srcs = glob([
         "nebd_metacache_unittest.cpp",
     ]),
+    copts = CURVE_TEST_COPTS,
     deps = [
         "//external:gflags",
         "//nebd/src/part1:nebdclient",
@@ -31,6 +34,7 @@ cc_binary(
     srcs = glob([
         "heartbeat_manager_unittest.cpp",
     ]),
+    copts = CURVE_TEST_COPTS,
     deps = [
         "//external:gflags",
         "//nebd/src/part1:nebdclient",
@@ -44,6 +48,8 @@ cc_binary(
     srcs = glob([
         "nebd_client_unittest.cpp",
     ]),
+    copts = CURVE_TEST_COPTS,
+    linkstatic = False,
     deps = [
         "//external:gflags",
         "//nebd/src/part1:nebdclient",
@@ -51,7 +57,6 @@ cc_binary(
         "//nebd/test/utils:test_utils_lib",
         "@com_google_googletest//:gtest_main",
     ],
-    linkstatic = False,
 )
 
 cc_binary(
@@ -59,6 +64,8 @@ cc_binary(
     srcs = glob([
         "nebd_lib_unittest.cpp",
     ]),
+    copts = CURVE_TEST_COPTS,
+    linkstatic = False,
     deps = [
         "//external:gflags",
         "//nebd/src/part1:nebdclient",
@@ -66,7 +73,6 @@ cc_binary(
         "//nebd/test/utils:test_utils_lib",
         "@com_google_googletest//:gtest_main",
     ],
-    linkstatic = False,
 )
 
 cc_library(
@@ -76,9 +82,10 @@ cc_library(
         "mock_*",
     ]),
     hdrs = glob(["*.h"]),
-    deps = [
-        "@com_google_googletest//:gtest",
-        "//nebd/src/part1:nebdclient",
-    ],
+    copts = CURVE_TEST_COPTS,
     visibility = ["//visibility:public"],
+    deps = [
+        "//nebd/src/part1:nebdclient",
+        "@com_google_googletest//:gtest",
+    ],
 )

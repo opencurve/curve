@@ -1,0 +1,10 @@
+---
+  - name: sync {{ project_name }} debug symbol 
+    synchronize:
+      src: "{{ project_root_src }}/sbin/"
+      dest: "{{ project_root_dest }}/sbin/"
+      dest_port: "{{ ansible_ssh_port }}"
+      checksum: True
+      rsync_opts:
+        - '--include=*{{ project_binary_debug_symbol_suffix }}'
+    when: project_core_method == "sync_direct"

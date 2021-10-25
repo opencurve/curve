@@ -497,8 +497,8 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
                 CopysetID copysetId = conf.copysetid();
                 int ret = 0;
                 // if copyset happen conf change, can't scan and wait retry
-                if (ret = copyset->GetConfChange(&type,
-                                                &confTemp, &peer) != 0) {
+                if ((ret = copyset->GetConfChange(&type,
+                                                &confTemp, &peer)) != 0) {
                     LOG(ERROR) << "Failed to get config change state of copyset"
                     << ToGroupIdStr(poolId, copysetId);
                     return ret;
@@ -526,6 +526,7 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
                 LogicPoolID poolId = conf.logicalpoolid();
                 CopysetID copysetId = conf.copysetid();
                 ret = scanMan_->CancelScanJob(poolId, copysetId);
+                (void)ret;
             }
             break;
 

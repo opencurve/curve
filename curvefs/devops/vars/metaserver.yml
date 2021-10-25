@@ -21,6 +21,7 @@ project_start_with_deamon: False
 project_daemon: "{{ project_start_with_deamon | ternary('--daemon', '') }}"
 project_listen_port: "{{ curvefs_metaserver_listen_port }}"
 project_wait_service_timeout: "{{ curvefs_wait_service_timeout }}"
+project_binary_debug_symbol_suffix: "{{ curvefs_debug_symbol_file_suffix }}"
 
 project_templates:
   - metaserver.conf

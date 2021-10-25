@@ -14,23 +14,7 @@
 #  limitations under the License.
 #
 
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-parameter",
-    "-Wno-unused-variable",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-    "-Wno-missing-field-initializers",
-    "-std=c++11",
-]
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS", "CURVE_TEST_COPTS")
 
 cc_library(
     name = "chunkserver-lib",
@@ -43,15 +27,7 @@ cc_library(
     hdrs = glob([
         "*.h",
     ]),
-    copts = COPTS,
-    linkopts = [
-        "-lrt",
-        "-lssl",
-        "-lcrypto",
-        "-ldl",
-        "-lz",
-        "-lpthread",
-    ],
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//external:braft",
@@ -88,16 +64,8 @@ cc_library(
     hdrs = glob([
         "*.h",
     ]),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
-    linkopts = [
-        "-lrt",
-        "-lssl",
-        "-lcrypto",
-        "-ldl",
-        "-lz",
-        "-lpthread",
-    ],
     visibility = ["//visibility:public"],
     deps = [
         "//external:braft",
@@ -128,15 +96,7 @@ cc_binary(
     srcs = glob([
         "chunkserver_main.cpp",
     ]),
-    copts = COPTS,
-    linkopts = [
-        "-lrt",
-        "-lssl",
-        "-lcrypto",
-        "-ldl",
-        "-lz",
-        "-lpthread",
-    ],
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//external:braft",

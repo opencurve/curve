@@ -14,10 +14,13 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
+
 cc_library(
     name = "client_metric",
     srcs = glob(["*.cpp"]),
     hdrs = glob(["*.h"]),
-    deps = ["//external:gflags"],
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
+    deps = ["//external:gflags"],
 )

@@ -230,7 +230,7 @@ int PeerCluster::StopAllPeers() {
     return 0;
 }
 
-const Configuration PeerCluster::CopysetConf() const {
+Configuration PeerCluster::CopysetConf() const {
     return conf_;
 }
 

@@ -16,25 +16,7 @@
 #  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-parameter",
-    "-Wno-unused-variable",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-    "-Wno-missing-field-initializers",
-    "-std=c++11",
-    "-I /usr/include/libnl3",
-]
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 cc_library(
     name = "mock_lib",
@@ -43,12 +25,14 @@ cc_library(
         "fake_*",
     ]),
     hdrs = glob(["*.h"]),
+    copts = CURVE_TEST_COPTS + [
+        "-I /usr/include/libnl3",
+    ],
+    visibility = ["//visibility:public"],
     deps = [
         "//external:gtest",
         "//nbd/src:curvenbd",
     ],
-    copts = COPTS,
-    visibility = ["//visibility:public"],
 )
 
 cc_binary(
@@ -56,9 +40,11 @@ cc_binary(
     srcs = glob([
         "*.cpp",
     ]),
+    copts = CURVE_TEST_COPTS + [
+        "-I /usr/include/libnl3",
+    ],
     deps = [
         "//nbd/src:curvenbd",
-        "//nbd/test:mock_lib"
+        "//nbd/test:mock_lib",
     ],
-    copts = COPTS,
 )

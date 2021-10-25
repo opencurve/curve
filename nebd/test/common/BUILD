@@ -14,11 +14,14 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_binary(
     name = "nebd_common_unittest",
     srcs = glob([
         "*.cpp",
     ]),
+    copts = CURVE_TEST_COPTS,
     deps = [
         "//external:gflags",
         "//nebd/src/common:nebd_common",

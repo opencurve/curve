@@ -329,6 +329,9 @@ bool Coordinator::ScheduleNeedRun(SchedulerType type) {
 
         case SchedulerType::ReplicaSchedulerType:
             return FLAGS_enableReplicaScheduler;
+
+        default:
+            return false;
     }
 }
 
@@ -345,6 +348,9 @@ std::string Coordinator::ScheduleName(SchedulerType type) {
 
         case SchedulerType::ReplicaSchedulerType:
             return "ReplicaScheduler";
+
+        default:
+            return "Unknown";
     }
 }
 

@@ -205,11 +205,9 @@ FilePool::FilePool(std::shared_ptr<LocalFileSystem> fsptr)
     CHECK(fsptr != nullptr) << "fs ptr allocate failed!";
     fsptr_ = fsptr;
     cleanAlived_ = false;
-    dirtyChunks_.clear();
-    cleanChunks_.clear();
-    char* buffer = new (std::nothrow) (char[poolOpt_.bytesPerWrite]);
-    memset(buffer, 0, poolOpt_.bytesPerWrite);
-    writeBuffer_ = std::unique_ptr<char[]>(buffer);
+
+    writeBuffer_.reset(new char[poolOpt_.bytesPerWrite]);
+    memset(writeBuffer_.get(), 0, poolOpt_.bytesPerWrite);
 }
 
 bool FilePool::Initialize(const FilePoolOptions& cfopt) {

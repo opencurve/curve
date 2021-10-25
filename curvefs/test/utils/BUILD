@@ -14,20 +14,7 @@
 #  limitations under the License.
 #
 
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-std=c++11",
-    "-Wall",
-    "-Werror",
-]
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 cc_library(
     name = "curvefs_test_utils",
@@ -37,7 +24,7 @@ cc_library(
     hdrs = glob(
         ["*.h"],
     ),
-    copts = COPTS + ["-DUNIT_TEST"],
+    copts = CURVE_TEST_COPTS + ["-DUNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
         "//external:protobuf",

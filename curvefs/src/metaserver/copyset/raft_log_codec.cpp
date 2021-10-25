@@ -68,7 +68,17 @@ bool RaftLogCodec::Encode(OperatorType type,
     log->append(&networkType, sizeof(networkType));
 
     // 2. append request length
-    const uint32_t networkRequestSize = butil::HostToNet32(request->ByteSize());
+    // serialize will fail when request's size larger than INT_MAX, check this
+    // manullay because `request->ByteSize()`'s behaviour is affected by NDEBUG
+    const uint64_t requestSize = request->ByteSizeLong();
+    if (CURVE_UNLIKELY(requestSize > INT_MAX)) {
+        LOG(ERROR) << "Request's size is too large, type: "
+                   << OperatorTypeName(type) << ", size: " << requestSize;
+        return false;
+    }
+
+    const uint32_t networkRequestSize =
+        butil::HostToNet32(static_cast<uint32_t>(requestSize));
     log->append(&networkRequestSize, sizeof(networkRequestSize));
 
     // 3. append serialized request

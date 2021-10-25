@@ -95,11 +95,8 @@ uint64_t FreeExtents::AllocInternal(const uint64_t size,
     }
 
     // 2. find extents that satisfy hint.rightOffset
-    // TODO(wuhanqing): fix bug in here
-    // case hint.rightOffset = 2 * kMiB, need = 4 * MiB
-    // second condition will overflow
     if (hint.rightOffset != SpaceAllocateHint::INVALID_OFFSET &&
-        hint.rightOffset - need >= 0) {
+        hint.rightOffset >= need) {
         iter = extents_.lower_bound(hint.rightOffset - need);
         if (iter != extents_.end() &&
             iter->first == (hint.rightOffset - need)) {
