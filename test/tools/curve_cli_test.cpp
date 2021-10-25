@@ -176,8 +176,10 @@ TEST_F(CurveCliTest, RemovePeer) {
 
         // CopysetResponse
         CopysetResponse copysetSuccResp, copysetFailResp;
-        copysetSuccResp.set_status(COPYSET_OP_STATUS_SUCCESS);
-        copysetFailResp.set_status(COPYSET_OP_STATUS_FAILURE_UNKNOWN);
+        copysetSuccResp.set_status(
+            COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
+        copysetFailResp.set_status(
+            COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN);
 
         EXPECT_CALL(*mockCliService, GetLeader(_, _, _, _))
             .Times(3)
