@@ -151,10 +151,11 @@ void CopysetServiceImpl::DeleteBrokenCopyset(RpcController* controller,
         response->set_status(COPYSET_OP_STATUS_COPYSET_IS_HEALTHY);
         LOG(WARNING) << "Delete broken copyset, " << groupId  << " is healthy";
     } else if (!copysetNodeManager_->DeleteBrokenCopyset(poolId, copysetId)) {
-        response->set_status(COPYSET_OP_STATUS_FAILURE_UNKNOWN);
+        response->set_status(
+            COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN);
         LOG(ERROR) << "Delete broken copyset " << groupId << " failed";
     } else {
-        response->set_status(COPYSET_OP_STATUS_SUCCESS);
+        response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
         LOG(INFO) << "Delete broken copyset " << groupId << " success";
     }
 }

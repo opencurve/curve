@@ -24,5 +24,5 @@
 - name: create data dir and log dir for each chunkserver
   vars:
     end_seq: "{{ chunkserver_num | int - 1}}"
-  shell: mkdir -p {{ chunkserver_data_dir }}/chunkserver{{ item }} && mkdir -p {{ chunkserver_data_dir }}/log/chunkserver{{ item }}
+  shell: sudo mkdir -p {{ chunkserver_data_dir }}/chunkserver{{ item }} && sudo mkdir -p {{ chunkserver_data_dir }}/log/chunkserver{{ item }}
   with_sequence: start=0 end={{ end_seq }}
