@@ -209,7 +209,8 @@ TEST_F(CopysetServiceTest, basic) {
         request.set_copysetid(copysetId + 1);
         stub.DeleteBrokenCopyset(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
-        ASSERT_EQ(response.status(), COPYSET_OP_STATUS_FAILURE_UNKNOWN);
+        ASSERT_EQ(response.status(),
+            COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN);
 
         // CASE 3: delete broken copyset success
         ASSERT_TRUE(copysetNodeManager->
@@ -219,7 +220,8 @@ TEST_F(CopysetServiceTest, basic) {
         request.set_copysetid(copysetId);
         stub.DeleteBrokenCopyset(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
-        ASSERT_EQ(response.status(), COPYSET_OP_STATUS_SUCCESS);
+        ASSERT_EQ(response.status(),
+            COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
     }
 
     ASSERT_EQ(0, server.Stop(0));
