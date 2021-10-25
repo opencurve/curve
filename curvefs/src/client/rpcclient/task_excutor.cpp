@@ -46,6 +46,8 @@ int TaskExecutor::DoRPCTask(std::shared_ptr<TaskContext> task) {
         }
 
         if (!HasValidTarget() && !GetTarget()) {
+            LOG(WARNING) << "get target fail for " << task_->TaskContextStr()
+                         << ", sleep and retry";
             bthread_usleep(opt_.retryIntervalUS);
             continue;
         }
@@ -53,6 +55,8 @@ int TaskExecutor::DoRPCTask(std::shared_ptr<TaskContext> task) {
         auto channel = channelManager_->GetOrCreateChannel(
             task_->target.metaServerID, task_->target.endPoint);
         if (!channel) {
+            LOG(WARNING) << "GetOrCreateChannel fail for "
+                         << task_->TaskContextStr() << ", sleep and retry";
             bthread_usleep(opt_.retryIntervalUS);
             continue;
         }
@@ -174,7 +178,7 @@ bool TaskExecutor::GetTarget() {
     return true;
 }
 
-int TaskExecutor::ExcuteTask(brpc::Channel* channel) {
+int TaskExecutor::ExcuteTask(brpc::Channel *channel) {
     brpc::Controller cntl;
     cntl.set_timeout_ms(task_->rpcTimeoutMs);
     return task_->rpctask(task_->target.groupID.poolID,
@@ -196,10 +200,10 @@ void TaskExecutor::RefreshLeader() {
     bool ok =
         metaCache_->GetTargetLeader(&task_->target, &task_->applyIndex, true);
 
-    LOG(INFO) << "refresh leader for {inodeid:" << task_->inodeID
-              << ", pool:" << task_->target.groupID.poolID
-              << ", copyset:" << task_->target.groupID.copysetID << "} "
-              << (ok ? " success" : " failure");
+    VLOG(3) << "refresh leader for {inodeid:" << task_->inodeID
+            << ", pool:" << task_->target.groupID.poolID
+            << ", copyset:" << task_->target.groupID.copysetID << "} "
+            << (ok ? " success" : " failure");
 
     // if leader change, upper layer needs to retry
     task_->retryDirectly = (oldTarget != task_->target.metaServerID);
@@ -236,9 +240,7 @@ uint64_t TaskExecutor::TimeoutBackOff() {
     return nextTimeout;
 }
 
-bool TaskExecutor::HasValidTarget() const {
-    return task_->target.IsValid();
-}
+bool TaskExecutor::HasValidTarget() const { return task_->target.IsValid(); }
 
 void TaskExecutor::SetRetryParam() {
     using curve::common::MaxPowerTimesLessEqualValue;

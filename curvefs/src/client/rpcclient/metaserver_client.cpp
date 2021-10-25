@@ -38,7 +38,7 @@ using UpdateInodeExcutor = TaskExecutor;
 using GetInodeExcutor = TaskExecutor;
 
 MetaStatusCode MetaServerClientImpl::Init(
-    const ExcutorOpt& excutorOpt, std::shared_ptr<MetaCache> metaCache,
+    const ExcutorOpt &excutorOpt, std::shared_ptr<MetaCache> metaCache,
     std::shared_ptr<ChannelManager<MetaserverID>> channelManager) {
     opt_ = excutorOpt;
     metaCache_ = metaCache;
@@ -46,14 +46,14 @@ MetaStatusCode MetaServerClientImpl::Init(
     return MetaStatusCode::OK;
 }
 
-#define RPCTask                                                           \
-    [&](LogicPoolID poolID, CopysetID copysetID, PartitionID partitionID, \
-        uint64_t txId, uint64_t applyIndex, brpc::Channel * channel,      \
+#define RPCTask                                                                \
+    [&](LogicPoolID poolID, CopysetID copysetID, PartitionID partitionID,      \
+        uint64_t txId, uint64_t applyIndex, brpc::Channel * channel,           \
         brpc::Controller * cntl) -> int
 
 MetaStatusCode MetaServerClientImpl::GetTxId(uint32_t fsId, uint64_t inodeId,
-                                             uint32_t* partitionId,
-                                             uint64_t* txId) {
+                                             uint32_t *partitionId,
+                                             uint64_t *txId) {
     if (!metaCache_->GetTxId(fsId, inodeId, partitionId, txId)) {
         return MetaStatusCode::NOT_FOUND;
     }
@@ -65,8 +65,8 @@ void MetaServerClientImpl::SetTxId(uint32_t partitionId, uint64_t txId) {
 }
 
 MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
-                                               const std::string& name,
-                                               Dentry* out) {
+                                               const std::string &name,
+                                               Dentry *out) {
     auto task = RPCTask {
         GetDentryResponse response;
         GetDentryRequest request;
@@ -91,10 +91,11 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
         MetaStatusCode ret = response.statuscode();
 
         if (ret != MetaStatusCode::OK) {
-            LOG(WARNING) << "GetDentry: fsId = " << fsId
-                         << ", inodeid = " << inodeid << ", name = " << name
-                         << ", errcode = " << ret
-                         << ", errmsg = " << MetaStatusCode_Name(ret);
+            LOG_IF(WARNING, ret != MetaStatusCode::NOT_FOUND)
+                << "GetDentry: fsId = " << fsId << ", inodeid = " << inodeid
+                << ", name = " << name << ", errcode = " << ret
+                << ", errmsg = " << MetaStatusCode_Name(ret);
+
         } else if (response.has_dentry() && response.has_appliedindex()) {
             *out = response.dentry();
 
@@ -108,8 +109,8 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
             return -1;
         }
 
-        LOG(INFO) << "GetDentry success, request: " << request.DebugString()
-                  << "response: " << response.ShortDebugString();
+        VLOG(6) << "GetDentry success, request: " << request.DebugString()
+                << "response: " << response.ShortDebugString();
         return ret;
     };
 
@@ -120,9 +121,9 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
 }
 
 MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
-                                                const std::string& last,
+                                                const std::string &last,
                                                 uint32_t count,
-                                                std::list<Dentry>* dentryList) {
+                                                std::list<Dentry> *dentryList) {
     auto task = RPCTask {
         ListDentryRequest request;
         ListDentryResponse response;
@@ -148,17 +149,18 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
 
         MetaStatusCode ret = response.statuscode();
         if (ret != MetaStatusCode::OK) {
-            LOG(WARNING) << "ListDentry: fsId = " << fsId
-                         << ", inodeid = " << inodeid << ", last = " << last
-                         << ", count = " << count << ", errcode = " << ret
-                         << ", errmsg = " << MetaStatusCode_Name(ret);
+            LOG_IF(WARNING, ret != MetaStatusCode::NOT_FOUND)
+                << "ListDentry: fsId = " << fsId << ", inodeid = " << inodeid
+                << ", last = " << last << ", count = " << count
+                << ", errcode = " << ret
+                << ", errmsg = " << MetaStatusCode_Name(ret);
         } else if (response.has_appliedindex() && response.dentrys_size() > 0) {
             metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
                                          response.appliedindex());
 
             auto dentrys = response.dentrys();
             for_each(dentrys.begin(), dentrys.end(),
-                     [&](Dentry& d) { dentryList->push_back(d); });
+                     [&](Dentry &d) { dentryList->push_back(d); });
         } else {
             LOG(WARNING)
                 << "ListDentry: fsId = " << fsId << ", inodeid = " << inodeid
@@ -168,8 +170,8 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
             return -1;
         }
 
-        LOG(INFO) << "ListDentry success, request: " << request.DebugString()
-                  << "response: " << response.DebugString();
+        VLOG(6) << "ListDentry success, request: " << request.DebugString()
+                << "response: " << response.DebugString();
         return ret;
     };
 
@@ -179,14 +181,14 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
     return ReturnError(excutor.DoRPCTask(taskCtx));
 }
 
-MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry& dentry) {
+MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
     auto task = RPCTask {
         CreateDentryResponse response;
         CreateDentryRequest request;
         request.set_poolid(poolID);
         request.set_copysetid(copysetID);
         request.set_partitionid(partitionID);
-        Dentry* d = new Dentry;
+        Dentry *d = new Dentry;
         d->set_fsid(dentry.fsid());
         d->set_inodeid(dentry.inodeid());
         d->set_parentinodeid(dentry.parentinodeid());
@@ -199,8 +201,8 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry& dentry) {
         std::ostringstream oss;
         channel->Describe(oss, {});
 
-        LOG(INFO) << "CreateDentry " << request.ShortDebugString() << " to "
-                  << oss.str();
+        VLOG(6) << "CreateDentry " << request.ShortDebugString() << " to "
+                << oss.str();
 
         if (cntl->Failed()) {
             LOG(WARNING) << "CreateDentry Failed, errorcode = "
@@ -225,10 +227,10 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry& dentry) {
             return -1;
         }
 
-        LOG(INFO) << "CreateDentry "
-                  << (ret == MetaStatusCode::OK ? "success" : "failure")
-                  << ", request: " << request.DebugString()
-                  << "response: " << response.DebugString();
+        VLOG(6) << "CreateDentry "
+                << (ret == MetaStatusCode::OK ? "success" : "failure")
+                << ", request: " << request.DebugString()
+                << "response: " << response.DebugString();
         return ret;
     };
 
@@ -243,7 +245,7 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry& dentry) {
 
 MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
                                                   uint64_t inodeid,
-                                                  const std::string& name) {
+                                                  const std::string &name) {
     auto task = RPCTask {
         DeleteDentryResponse response;
         DeleteDentryRequest request;
@@ -283,8 +285,8 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
             return -1;
         }
 
-        LOG(INFO) << "DeleteDentry success, request: " << request.DebugString()
-                  << "response: " << response.DebugString();
+        VLOG(6) << "DeleteDentry success, request: " << request.DebugString()
+                << "response: " << response.DebugString();
         return ret;
     };
 
@@ -294,8 +296,8 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
     return ReturnError(excutor.DoRPCTask(taskCtx));
 }
 
-MetaStatusCode MetaServerClientImpl::PrepareRenameTx(
-    const std::vector<Dentry>& dentrys) {
+MetaStatusCode
+MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
     auto task = RPCTask {
         PrepareRenameTxRequest request;
         PrepareRenameTxResponse response;
@@ -330,9 +332,8 @@ MetaStatusCode MetaServerClientImpl::PrepareRenameTx(
             return -1;
         }
 
-        LOG(INFO) << "PrepareRenameTx success, request: "
-                  << request.DebugString()
-                  << "response: " << response.DebugString();
+        VLOG(6) << "PrepareRenameTx success, request: " << request.DebugString()
+                << "response: " << response.DebugString();
         return rc;
     };
 
@@ -345,7 +346,7 @@ MetaStatusCode MetaServerClientImpl::PrepareRenameTx(
 }
 
 MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
-                                              Inode* out) {
+                                              Inode *out) {
     auto task = RPCTask {
         GetInodeRequest request;
         GetInodeResponse response;
@@ -382,8 +383,8 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
             return -1;
         }
 
-        LOG(INFO) << "GetInode success, request: " << request.DebugString()
-                  << "response: " << response.DebugString();
+        VLOG(6) << "GetInode success, request: " << request.DebugString()
+                << "response: " << response.DebugString();
         return ret;
     };
 
@@ -393,7 +394,7 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
     return ReturnError(excutor.DoRPCTask(taskCtx));
 }
 
-MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode& inode) {
+MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode &inode) {
     auto task = RPCTask {
         UpdateInodeResponse response;
         UpdateInodeRequest request;
@@ -412,7 +413,7 @@ MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode& inode) {
         request.set_nlink(inode.nlink());
         request.set_openflag(inode.openflag());
         if (inode.has_volumeextentlist()) {
-            curvefs::metaserver::VolumeExtentList* vlist =
+            curvefs::metaserver::VolumeExtentList *vlist =
                 new curvefs::metaserver::VolumeExtentList;
             vlist->CopyFrom(inode.volumeextentlist());
             request.set_allocated_volumeextentlist(vlist);
@@ -446,8 +447,8 @@ MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode& inode) {
             return -1;
         }
 
-        LOG(INFO) << "UpdateInode success, request: " << request.DebugString()
-                  << "response: " << response.DebugString();
+        VLOG(6) << "UpdateInode success, request: " << request.DebugString()
+                << "response: " << response.DebugString();
         return ret;
     };
 
@@ -457,8 +458,8 @@ MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode& inode) {
     return ReturnError(excutor.DoRPCTask(taskCtx));
 }
 
-MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam& param,
-                                                 Inode* out) {
+MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
+                                                 Inode *out) {
     auto task = RPCTask {
         CreateInodeResponse response;
         CreateInodeRequest request;
@@ -505,8 +506,8 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam& param,
             return -1;
         }
 
-        LOG(INFO) << "CreateInode success, request: " << request.DebugString()
-                  << "response: " << response.DebugString();
+        VLOG(6) << "CreateInode success, request: " << request.DebugString()
+                << "response: " << response.DebugString();
         return ret;
     };
 
@@ -553,8 +554,8 @@ MetaStatusCode MetaServerClientImpl::DeleteInode(uint32_t fsId,
             return -1;
         }
 
-        LOG(INFO) << "DeleteInode success, request: " << request.DebugString()
-                  << "response: " << response.DebugString();
+        VLOG(6) << "DeleteInode success, request: " << request.DebugString()
+                << "response: " << response.DebugString();
         return ret;
     };
 

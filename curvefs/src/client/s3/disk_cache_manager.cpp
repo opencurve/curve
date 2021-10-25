@@ -32,8 +32,8 @@ namespace curvefs {
 namespace client {
 
 DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
-                    std::shared_ptr<DiskCacheWrite> cacheWrite,
-                    std::shared_ptr<DiskCacheRead> cacheRead) {
+                                   std::shared_ptr<DiskCacheWrite> cacheWrite,
+                                   std::shared_ptr<DiskCacheRead> cacheRead) {
     posixWrapper_ = posixWrapper;
     cacheWrite_ = cacheWrite;
     cacheRead_ = cacheRead;
@@ -42,7 +42,7 @@ DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
 }
 
 int DiskCacheManager::Init(S3Client *client,
-                          const S3ClientAdaptorOption option) {
+                           const S3ClientAdaptorOption option) {
     LOG(INFO) << "DiskCacheManager init start.";
     client_ = client;
 
@@ -80,19 +80,19 @@ int DiskCacheManager::Init(S3Client *client,
 }
 
 void DiskCacheManager::AddCache(const std::string name) {
-    std::lock_guard<bthread::Mutex>  lk(mtx_);
+    std::lock_guard<bthread::Mutex> lk(mtx_);
     cachedObjName_.emplace(name);
 }
 
 bool DiskCacheManager::IsCached(const std::string name) {
-    std::lock_guard<bthread::Mutex>  lk(mtx_);
+    std::lock_guard<bthread::Mutex> lk(mtx_);
     std::set<std::string>::iterator cacheKeyIter;
     cacheKeyIter = cachedObjName_.find(name);
     if (cacheKeyIter == cachedObjName_.end()) {
-        LOG(INFO) << "not cached, name = " << name;
+        VLOG(9) << "not cached, name = " << name;
         return false;
     }
-    LOG(INFO) << "cached, name = " << name;
+    VLOG(9) << "cached, name = " << name;
     return true;
 }
 
@@ -120,11 +120,8 @@ int DiskCacheManager::CreateDir() {
                        << ", dir = " << cacheDir_;
             return -1;
         }
-        LOG(INFO) << "cache dir is not exist, create it success."
-                     << ", dir = " << cacheDir_;
-    } else {
-        LOG(INFO) << "cache dir is exist."
-                     << ", dir = " << cacheDir_;
+        VLOG(9) << "cache dir is not exist, create it success."
+                << ", dir = " << cacheDir_;
     }
 
     ret = cacheWrite_->CreateIoDir(true);
@@ -137,7 +134,7 @@ int DiskCacheManager::CreateDir() {
         LOG(ERROR) << "create cache read dir error. ret = " << ret;
         return ret;
     }
-    LOG(INFO) << "create cache dir sucess.";
+    VLOG(9) << "create cache dir sucess.";
     return 0;
 }
 
@@ -149,8 +146,8 @@ std::string DiskCacheManager::GetCacheWriteFullDir() {
     return cacheWrite_->GetCacheIoFullDir();
 }
 
-int DiskCacheManager::WriteDiskFile(const std::string fileName,
-                 const char* buf, uint64_t length, bool force) {
+int DiskCacheManager::WriteDiskFile(const std::string fileName, const char *buf,
+                                    uint64_t length, bool force) {
     return cacheWrite_->WriteDiskFile(fileName, buf, length, force);
 }
 
@@ -158,14 +155,14 @@ void DiskCacheManager::AsyncUploadEnqueue(const std::string objName) {
     cacheWrite_->AsyncUploadEnqueue(objName);
 }
 
-int DiskCacheManager::ReadDiskFile(const std::string name,
-                char* buf, uint64_t offset, uint64_t length) {
+int DiskCacheManager::ReadDiskFile(const std::string name, char *buf,
+                                   uint64_t offset, uint64_t length) {
     return cacheRead_->ReadDiskFile(name, buf, offset, length);
 }
 
 int DiskCacheManager::LinkWriteToRead(const std::string fileName,
-                   const std::string fullWriteDir,
-                   const std::string fullReadDir) {
+                                      const std::string fullWriteDir,
+                                      const std::string fullReadDir) {
     return cacheRead_->LinkWriteToRead(fileName, fullWriteDir, fullReadDir);
 }
 
@@ -183,7 +180,7 @@ int64_t DiskCacheManager::CacheDiskUsedRatio() {
     int64_t usedBytes = totalBytes - freeBytes;
     int64_t usedPercent = 100 * usedBytes / (usedBytes + availableBytes) + 1;
 
-    LOG(INFO) << "cache disk usage = " << usedPercent;
+    VLOG(3) << "cache disk usage = " << usedPercent;
     return usedPercent;
 }
 
@@ -194,9 +191,8 @@ bool DiskCacheManager::IsDiskCacheFull() {
         return false;
     }
     if (ratio >= fullRatio_) {
-        LOG(INFO) << "disk cache is full"
-                     << ", ratio = " << ratio
-                     << ", fullRatio = " << fullRatio_;
+        LOG(WARNING) << "disk cache is full"
+                     << ", ratio = " << ratio << ", fullRatio = " << fullRatio_;
         return true;
     }
     return false;
@@ -209,9 +205,8 @@ bool DiskCacheManager::IsDiskCacheSafe() {
         return false;
     }
     if (ratio < safeRatio_) {
-        LOG(INFO) << "disk cache is safe"
-                     << ", ratio = " << ratio
-                     << ", safeRatio = " << safeRatio_;
+        VLOG(3) << "disk cache is safe"
+                << ", ratio = " << ratio << ", safeRatio = " << safeRatio_;
         return true;
     }
     return false;
@@ -237,7 +232,7 @@ void DiskCacheManager::TrimCache() {
             cacheWriteFullDir = GetCacheWriteFullDir();
             std::set<std::string> cachedObjNameTmp;
             {
-                std::lock_guard<bthread::Mutex>  lk(mtx_);
+                std::lock_guard<bthread::Mutex> lk(mtx_);
                 cachedObjNameTmp = cachedObjName_;
             }
             while (!IsDiskCacheSafe()) {
@@ -246,7 +241,7 @@ void DiskCacheManager::TrimCache() {
                 cacheKeyIter = cachedObjNameTmp.begin();
                 if (cacheKeyIter == cachedObjNameTmp.end()) {
                     LOG(ERROR) << "remove disk file error"
-                              << ", cachedObjName is empty.";
+                               << ", cachedObjName is empty.";
                     break;
                 }
 
@@ -261,20 +256,20 @@ void DiskCacheManager::TrimCache() {
                 // and then it cannot load the file from S3.
                 // so read is fail.
                 if (ret == 0) {
-                    LOG(INFO) << "do not remove this disk file"
-                                 << ", file has not been uploaded to S3."
-                                 << ", file = " << *cacheKeyIter;
+                    VLOG(3) << "do not remove this disk file"
+                            << ", file has not been uploaded to S3."
+                            << ", file = " << *cacheKeyIter;
                     cachedObjNameTmp.erase(cacheKeyIter);
                     continue;
                 }
                 {
-                    std::lock_guard<bthread::Mutex>  lk(mtx_);
+                    std::lock_guard<bthread::Mutex> lk(mtx_);
                     std::set<std::string>::iterator iter;
                     iter = cachedObjName_.find(*cacheKeyIter);
                     if (iter == cachedObjName_.end()) {
-                        LOG(INFO) << "remove disk file error"
-                                     << ", file is not exist in cachedObjName"
-                                     << ", file = " << *cacheKeyIter;
+                        VLOG(6) << "remove disk file error"
+                                << ", file is not exist in cachedObjName"
+                                << ", file = " << *cacheKeyIter;
                         cachedObjNameTmp.erase(cacheKeyIter);
                         continue;
                     }
@@ -282,17 +277,16 @@ void DiskCacheManager::TrimCache() {
                 }
                 // if remove disk file before delete cache,
                 // then read maybe fail.
-                const char* toDelFile;
+                const char *toDelFile;
                 toDelFile = cacheReadFile.c_str();
                 ret = posixWrapper_->remove(toDelFile);
                 if (ret < 0) {
-                    LOG(ERROR) << "remove disk file error, file = "
-                               << *cacheKeyIter;
+                    LOG(ERROR)
+                        << "remove disk file error, file = " << *cacheKeyIter;
                     cachedObjNameTmp.erase(cacheKeyIter);
                     continue;
                 }
-                LOG(INFO) << "remove disk file success, file = "
-                             << *cacheKeyIter;
+                VLOG(3) << "remove disk file success, file = " << *cacheKeyIter;
                 cachedObjNameTmp.erase(cacheKeyIter);
             }
             LOG(INFO) << "trim over.";
@@ -306,8 +300,7 @@ int DiskCacheManager::TrimRun() {
         LOG(INFO) << "DiskCacheManager trim thread is on running.";
         return -1;
     }
-    backEndThread_ = std::thread(
-        &DiskCacheManager::TrimCache, this);
+    backEndThread_ = std::thread(&DiskCacheManager::TrimCache, this);
     LOG(INFO) << "DiskCacheManager trim thread started.";
     return 0;
 }

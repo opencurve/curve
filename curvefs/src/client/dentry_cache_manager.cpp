@@ -33,7 +33,7 @@ namespace client {
 
 using curve::common::WriteLockGuard;
 
-void DentryCacheManagerImpl::InsertOrReplaceCache(const Dentry& dentry) {
+void DentryCacheManagerImpl::InsertOrReplaceCache(const Dentry &dentry) {
     std::string key = GetDentryCacheKey(dentry.parentinodeid(), dentry.name());
 
     WriteLockGuard lg(mtx_);
@@ -41,15 +41,16 @@ void DentryCacheManagerImpl::InsertOrReplaceCache(const Dentry& dentry) {
 }
 
 void DentryCacheManagerImpl::DeleteCache(uint64_t parentId,
-                                         const std::string& name) {
+                                         const std::string &name) {
     std::string key = GetDentryCacheKey(parentId, name);
 
     WriteLockGuard lg(mtx_);
     dCache_->Remove(key);
 }
 
-CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(
-    uint64_t parent, const std::string &name, Dentry *out) {
+CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(uint64_t parent,
+                                                const std::string &name,
+                                                Dentry *out) {
     std::string key = GetDentryCacheKey(parent, name);
     {
         curve::common::ReadLockGuard lg(mtx_);
@@ -66,9 +67,9 @@ CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(
 
     MetaStatusCode ret = metaClient_->GetDentry(fsId_, parent, name, out);
     if (ret != MetaStatusCode::OK) {
-        LOG(WARNING) << "metaClient_ GetDentry failed, ret = " << ret
-                   << ", parent = " << parent
-                   << ", name = " << name;
+        LOG_IF(WARNING, ret != MetaStatusCode::NOT_FOUND)
+            << "metaClient_ GetDentry failed, ret = " << ret
+            << ", parent = " << parent << ", name = " << name;
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
     dCache_->Put(key, *out);
@@ -90,8 +91,8 @@ CURVEFS_ERROR DentryCacheManagerImpl::CreateDentry(const Dentry &dentry) {
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(
-    uint64_t parent, const std::string &name) {
+CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(uint64_t parent,
+                                                   const std::string &name) {
     std::string key = GetDentryCacheKey(parent, name);
 
     curve::common::WriteLockGuard lg(mtx_);
@@ -99,15 +100,15 @@ CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(
     MetaStatusCode ret = metaClient_->DeleteDentry(fsId_, parent, name);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "metaClient_ DeleteInode failed, ret = " << ret
-                   << ", parent = " << parent
-                   << ", name = " << name;
+                   << ", parent = " << parent << ", name = " << name;
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(
-    uint64_t parent, std::list<Dentry> *dentryList, uint32_t limit) {
+CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(uint64_t parent,
+                                                 std::list<Dentry> *dentryList,
+                                                 uint32_t limit) {
     bool perceed = true;
     MetaStatusCode ret = MetaStatusCode::OK;
     dentryList->clear();
@@ -115,19 +116,15 @@ CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(
     do {
         std::list<Dentry> part;
         ret = metaClient_->ListDentry(fsId_, parent, last, limit, &part);
-        LOG(INFO) << "ListDentry fsId = " << fsId_
-                  << ", parent = " << parent
-                  << ", last = " << last
-                  << ", count = " << limit
-                  << ", ret = " << ret
-                  << ", part.size() = " << part.size();
+        VLOG(6) << "ListDentry fsId = " << fsId_ << ", parent = " << parent
+                << ", last = " << last << ", count = " << limit
+                << ", ret = " << ret << ", part.size() = " << part.size();
         if (ret != MetaStatusCode::OK) {
             if (MetaStatusCode::NOT_FOUND == ret) {
                 return CURVEFS_ERROR::OK;
             }
             LOG(ERROR) << "metaClient_ ListDentry failed, ret = " << ret
-                       << ", parent = " << parent
-                       << ", last = " << last
+                       << ", parent = " << parent << ", last = " << last
                        << ", count = " << limit;
             return MetaStatusCodeToCurvefsErrCode(ret);
         }

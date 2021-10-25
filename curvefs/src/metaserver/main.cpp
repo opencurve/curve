@@ -40,6 +40,7 @@ DEFINE_string(raftMetaUri, "local://mnt/data/copysets",
               "metaserver raft meta uri");
 DEFINE_string(raftSnapshotUri, "local://mnt/data/copysets",
               "local://mnt/data/copysets");
+DECLARE_int32(v);
 
 using ::curve::common::Configuration;
 
@@ -79,6 +80,10 @@ void LoadConfigFromCmdline(Configuration *conf) {
                          << ", will log to /tmp";
         }
     }
+
+    if (GetCommandLineFlagInfo("v", &info) && !info.is_default) {
+        conf->SetIntValue("metaserver.loglevel", FLAGS_v);
+    }
 }
 
 int main(int argc, char **argv) {
@@ -94,6 +99,7 @@ int main(int argc, char **argv) {
     LOG_IF(FATAL, !conf->LoadConfig())
         << "load metaserver configuration fail, conf path = " << confPath;
     LoadConfigFromCmdline(conf.get());
+    conf->GetValueFatalIfFail("metaserver.loglevel", &FLAGS_v);
 
     // initialize logging module
     google::InitGoogleLogging(argv[0]);
@@ -101,9 +107,6 @@ int main(int argc, char **argv) {
     conf->PrintConfig();
 
     curvefs::metaserver::Metaserver metaserver;
-
-    // initialize logging module
-    google::InitGoogleLogging(argv[0]);
 
     // initialize metaserver options
     metaserver.InitOptions(conf);

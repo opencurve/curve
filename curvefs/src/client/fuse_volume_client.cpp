@@ -57,9 +57,8 @@ void FuseVolumeClient::UnInit() {
     FuseClient::UnInit();
 }
 
-CURVEFS_ERROR FuseVolumeClient::CreateFs(
-    void *userdata, FsInfo *fsInfo) {
-    struct MountOption *mOpts = (struct MountOption *) userdata;
+CURVEFS_ERROR FuseVolumeClient::CreateFs(void *userdata, FsInfo *fsInfo) {
+    struct MountOption *mOpts = (struct MountOption *)userdata;
     std::string volName = (mOpts->volume == nullptr) ? "" : mOpts->volume;
     std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
     std::string user = (mOpts->user == nullptr) ? "" : mOpts->user;
@@ -69,8 +68,7 @@ CURVEFS_ERROR FuseVolumeClient::CreateFs(
     ret = blockDeviceClient_->Stat(volName, user, &stat);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "Stat volume failed, ret = " << ret
-                   << ", volName = " << volName
-                   << ", user = " << user;
+                   << ", volName = " << volName << ", user = " << user;
         return ret;
     }
 
@@ -88,14 +86,13 @@ CURVEFS_ERROR FuseVolumeClient::CreateFs(
 }
 
 void FuseVolumeClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
-    struct MountOption *mOpts = (struct MountOption *) userdata;
+    struct MountOption *mOpts = (struct MountOption *)userdata;
     std::string volName = (mOpts->volume == nullptr) ? "" : mOpts->volume;
     std::string user = (mOpts->user == nullptr) ? "" : mOpts->user;
     CURVEFS_ERROR ret = blockDeviceClient_->Open(volName, user);
     CHECK(CURVEFS_ERROR::OK == ret)
         << "BlockDeviceClientImpl open failed, ret = " << ret
-        << ", volName = " << volName
-        << ", user = " << user;
+        << ", volName = " << volName << ", user = " << user;
     FuseClient::FuseOpInit(userdata, conn);
     return;
 }
@@ -111,8 +108,10 @@ void FuseVolumeClient::FuseOpDestroy(void *userdata) {
 }
 
 CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
-    const char *buf, size_t size, off_t off,
-    struct fuse_file_info *fi, size_t *wSize) {
+                                            const char *buf, size_t size,
+                                            off_t off,
+                                            struct fuse_file_info *fi,
+                                            size_t *wSize) {
     // check align
     if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignemnt) &&
@@ -124,7 +123,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                  << ", inodeid = " << ino;
+                   << ", inodeid = " << ino;
         return ret;
     }
 
@@ -133,8 +132,8 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
 
     std::list<ExtentAllocInfo> toAllocExtents;
     // get the extent need to be allocate
-    ret = extManager_->GetToAllocExtents(inode.volumeextentlist(),
-        off, size, &toAllocExtents);
+    ret = extManager_->GetToAllocExtents(inode.volumeextentlist(), off, size,
+                                         &toAllocExtents);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "GetToAllocExtents fail, ret = " << ret;
         return ret;
@@ -149,22 +148,20 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         }
         std::list<Extent> allocatedExtents;
         // to alloc extents
-        ret = spaceClient_->AllocExtents(
-            fsInfo_->fsid(), toAllocExtents, type, &allocatedExtents);
+        ret = spaceClient_->AllocExtents(fsInfo_->fsid(), toAllocExtents, type,
+                                         &allocatedExtents);
         if (ret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "metaClient alloc extents fail, ret = " << ret;
             return ret;
         }
         // merge the allocated extent to inode
         ret = extManager_->MergeAllocedExtents(
-            toAllocExtents,
-            allocatedExtents,
-            inode.mutable_volumeextentlist());
+            toAllocExtents, allocatedExtents, inode.mutable_volumeextentlist());
         if (ret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "toAllocExtents and allocatedExtents not match, "
                        << "ret = " << ret;
-            CURVEFS_ERROR ret2 = spaceClient_->DeAllocExtents(
-                fsInfo_->fsid(), allocatedExtents);
+            CURVEFS_ERROR ret2 =
+                spaceClient_->DeAllocExtents(fsInfo_->fsid(), allocatedExtents);
             if (ret2 != CURVEFS_ERROR::OK) {
                 LOG(ERROR) << "DeAllocExtents fail, ret = " << ret;
             }
@@ -174,9 +171,8 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
 
     // divide the extents which is write or not
     std::list<PExtent> pExtents;
-    ret = extManager_->DivideExtents(inode.volumeextentlist(),
-        off, size,
-        &pExtents);
+    ret = extManager_->DivideExtents(inode.volumeextentlist(), off, size,
+                                     &pExtents);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "DivideExtents fail, ret = " << ret;
         return ret;
@@ -185,8 +181,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     // write the physical extents
     uint64_t writeLen = 0;
     for (const auto &ext : pExtents) {
-        ret = blockDeviceClient_->Write(buf + writeLen,
-            ext.pOffset, ext.len);
+        ret = blockDeviceClient_->Write(buf + writeLen, ext.pOffset, ext.len);
         writeLen += ext.len;
         if (ret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "block device write fail, ret = " << ret;
@@ -196,7 +191,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
 
     // make the unwritten flag in the inode.
     ret = extManager_->MarkExtentsWritten(off, size,
-        inode.mutable_volumeextentlist());
+                                          inode.mutable_volumeextentlist());
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "MarkExtentsWritten fail, ret =  " << ret;
         return ret;
@@ -220,10 +215,10 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     return ret;
 }
 
-CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
-    fuse_ino_t ino, size_t size, off_t off,
-    struct fuse_file_info *fi,
-    char *buffer, size_t *rSize) {
+CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
+                                           size_t size, off_t off,
+                                           struct fuse_file_info *fi,
+                                           char *buffer, size_t *rSize) {
     // check align
     if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignemnt) &&
@@ -235,7 +230,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
     CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                  << ", inodeid = " << ino;
+                   << ", inodeid = " << ino;
         return ret;
     }
 
@@ -252,8 +247,8 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
         len = size;
     }
     std::list<PExtent> pExtents;
-    ret = extManager_->DivideExtents(inode.volumeextentlist(),
-        off, len, &pExtents);
+    ret = extManager_->DivideExtents(inode.volumeextentlist(), off, len,
+                                     &pExtents);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "DivideExtents fail, ret = " << ret;
         return ret;
@@ -261,8 +256,8 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
     uint64_t readOff = 0;
     for (const auto &ext : pExtents) {
         if (!ext.UnWritten) {
-            ret = blockDeviceClient_->Read(buffer + readOff,
-                ext.pOffset, ext.len);
+            ret = blockDeviceClient_->Read(buffer + readOff, ext.pOffset,
+                                           ext.len);
             if (ret != CURVEFS_ERROR::OK) {
                 LOG(ERROR) << "block device read fail, ret = " << ret;
                 return ret;
@@ -279,15 +274,16 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
     inodeWrapper->SwapInode(&inode);
     inodeManager_->ShipToFlush(inodeWrapper);
 
-    LOG(INFO) << "read end, read size = " << *rSize;
+    VLOG(6) << "read end, read size = " << *rSize;
     return ret;
 }
 
 CURVEFS_ERROR FuseVolumeClient::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
-    const char *name, mode_t mode, struct fuse_file_info *fi,
-    fuse_entry_param *e) {
-    CURVEFS_ERROR ret = MakeNode(
-        req, parent, name, mode, FsFileType::TYPE_FILE, e);
+                                             const char *name, mode_t mode,
+                                             struct fuse_file_info *fi,
+                                             fuse_entry_param *e) {
+    CURVEFS_ERROR ret =
+        MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, e);
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
@@ -295,13 +291,14 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
 }
 
 CURVEFS_ERROR FuseVolumeClient::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
-        const char *name, mode_t mode, dev_t rdev,
-        fuse_entry_param *e) {
+                                            const char *name, mode_t mode,
+                                            dev_t rdev, fuse_entry_param *e) {
     return MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, e);
 }
 
-CURVEFS_ERROR FuseVolumeClient::FuseOpFsync(
-    fuse_req_t req, fuse_ino_t ino, int datasync, struct fuse_file_info *fi) {
+CURVEFS_ERROR FuseVolumeClient::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
+                                            int datasync,
+                                            struct fuse_file_info *fi) {
     return CURVEFS_ERROR::NOTSUPPORT;
 }
 

@@ -149,7 +149,8 @@ void InodeCacheManagerImpl::FlushInodeOnce() {
         }
         it = temp_.erase(it);
     }
-    LOG(INFO) << "FlushInodeOnce, remain inode num = " << temp_.size();
+    LOG_IF(WARNING, temp_.size() > 0) << "FlushInodeOnce, remain inode num = "
+        << temp_.size();
     {
         curve::common::LockGuard lg(dirtyMapMutex_);
         for (const auto &v : temp_) {

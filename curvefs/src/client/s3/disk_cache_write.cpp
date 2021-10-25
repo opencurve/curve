@@ -33,7 +33,8 @@ namespace curvefs {
 namespace client {
 
 void DiskCacheWrite::Init(S3Client *client,
-       std::shared_ptr<PosixWrapper> posixWrapper, const std::string cacheDir) {
+                          std::shared_ptr<PosixWrapper> posixWrapper,
+                          const std::string cacheDir) {
     client_ = client;
     posixWrapper_ = posixWrapper;
     DiskCacheBase::Init(posixWrapper, cacheDir);
@@ -71,13 +72,13 @@ int DiskCacheWrite::UploadFile(const std::string name) {
 
     uint64_t allocSize;
     allocSize = fileSize * sizeof(char) + 1;
-    char *buffer = reinterpret_cast<char*>(posixWrapper_->malloc(allocSize));
+    char *buffer = reinterpret_cast<char *>(posixWrapper_->malloc(allocSize));
     if (buffer == NULL) {
         LOG(ERROR) << "malloc failed in UploadFile.";
         posixWrapper_->close(fd);
         return -1;
     }
-    void* memRet = posixWrapper_->memset(buffer, '0', fileSize * sizeof(char));
+    void *memRet = posixWrapper_->memset(buffer, '0', fileSize * sizeof(char));
     if (memRet == NULL) {
         LOG(ERROR) << "memset failed in UploadFile.";
         posixWrapper_->free(buffer);
@@ -87,16 +88,14 @@ int DiskCacheWrite::UploadFile(const std::string name) {
     ssize_t readLen = posixWrapper_->read(fd, buffer, fileSize);
     if (readLen < 0) {
         LOG(ERROR) << "read file error, ret = " << readLen
-                   << ", errno = " << errno
-                   << ", file = " << name;
+                   << ", errno = " << errno << ", file = " << name;
         posixWrapper_->free(buffer);
         posixWrapper_->close(fd);
         return readLen;
     }
     if (readLen < fileSize) {
         LOG(ERROR) << "read disk file is not entirely. read len = " << readLen
-                   << ", but file size = " << fileSize
-                   << ", file = " << name;
+                   << ", but file size = " << fileSize << ", file = " << name;
         posixWrapper_->free(buffer);
         posixWrapper_->close(fd);
         return -1;
@@ -110,7 +109,7 @@ int DiskCacheWrite::UploadFile(const std::string name) {
     }
     posixWrapper_->free(buffer);
     posixWrapper_->close(fd);
-    LOG(INFO) << "async upload file success, file = " << name;
+    VLOG(6) << "async upload file success, file = " << name;
     return 0;
 }
 
@@ -123,7 +122,7 @@ int DiskCacheWrite::AsyncUploadFunc() {
         LOG(ERROR) << "cache write dir is not exist.";
         return -1;
     }
-    LOG(INFO) << "async upload function start.";
+    VLOG(6) << "async upload function start.";
     while (true) {
         if (!isRunning_) {
             LOG(INFO) << "async upload thread stop.";
@@ -137,14 +136,13 @@ int DiskCacheWrite::AsyncUploadFunc() {
             }
             toUpload.swap(waitUpload_);
         }
-        LOG(INFO) << "async upload file size = " << toUpload.size();
+        VLOG(3) << "async upload file size = " << toUpload.size();
         std::list<std::string>::iterator iter;
         int ret;
         for (iter = toUpload.begin(); iter != toUpload.end(); iter++) {
             ret = UploadAndRemove(*iter);
             if (ret < 0) {
-                LOG(ERROR) << "upload and remove file fail, file = "
-                           << *iter;
+                LOG(ERROR) << "upload and remove file fail, file = " << *iter;
                 continue;
             }
         }
@@ -158,8 +156,7 @@ int DiskCacheWrite::AsyncUploadRun() {
         return -1;
     }
     LOG(INFO) << "AsyncUpload thread is on running.";
-    backEndThread_ = std::thread(
-        &DiskCacheWrite::AsyncUploadFunc, this);
+    backEndThread_ = std::thread(&DiskCacheWrite::AsyncUploadFunc, this);
     return 0;
 }
 
@@ -176,7 +173,7 @@ int DiskCacheWrite::AsyncUploadStop() {
 }
 
 int DiskCacheWrite::UploadAllCacheWriteFile() {
-    LOG(INFO) << "upload all cached write file start.";
+    VLOG(3) << "upload all cached write file start.";
     std::string fileFullPath;
     bool ret;
     DIR *cacheWriteDir = NULL;
@@ -194,15 +191,14 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
     }
     int doRet;
     while ((cacheWriteDirent = posixWrapper_->readdir(cacheWriteDir)) != NULL) {
-        if ((!strncmp(cacheWriteDirent->d_name, ".", 1))
-             || (!strncmp(cacheWriteDirent->d_name, "..", 2)))
+        if ((!strncmp(cacheWriteDirent->d_name, ".", 1)) ||
+            (!strncmp(cacheWriteDirent->d_name, "..", 2)))
             continue;
 
         std::string fileName = cacheWriteDirent->d_name;
         doRet = UploadAndRemove(fileName);
         if (doRet < 0) {
-            LOG(ERROR) << "upload and remove file fail, file = "
-                       << fileName;
+            LOG(ERROR) << "upload and remove file fail, file = " << fileName;
             continue;
         }
     }
@@ -211,7 +207,7 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
         LOG(ERROR) << "opendir error， errno = " << errno;
         return doRet;
     }
-    LOG(INFO) << "upload all cached write file end.";
+    VLOG(3) << "upload all cached write file end.";
     return 0;
 }
 
@@ -232,20 +228,18 @@ int DiskCacheWrite::UploadAndRemove(const std::string fileName) {
                    << ", errno = " << errno;
         return -1;
     }
-    LOG(INFO) << "upload and remove file success, file = "
-              << fileName;
+    VLOG(6) << "upload and remove file success, file = " << fileName;
     return 0;
 }
 
-int DiskCacheWrite::WriteDiskFile(const std::string fileName,
-                      const char* buf, uint64_t length, bool force) {
-    LOG(INFO) << "WriteDiskFile start. name = " << fileName
-                 << ", force = " << force
-                 << ", length = " << length;
+int DiskCacheWrite::WriteDiskFile(const std::string fileName, const char *buf,
+                                  uint64_t length, bool force) {
+    VLOG(6) << "WriteDiskFile start. name = " << fileName
+            << ", force = " << force << ", length = " << length;
     std::string fileFullPath;
     int fd, ret;
     fileFullPath = GetCacheIoFullDir() + "/" + fileName;
-    fd = posixWrapper_->open(fileFullPath.c_str(), O_RDWR|O_CREAT);
+    fd = posixWrapper_->open(fileFullPath.c_str(), O_RDWR | O_CREAT);
     if (fd < 0) {
         LOG(ERROR) << "open disk file error. errno = " << errno
                    << ", file = " << fileName;
@@ -275,9 +269,8 @@ int DiskCacheWrite::WriteDiskFile(const std::string fileName,
         return -1;
     }
 
-    LOG(INFO) << "WriteDiskFile success. name = " << fileName
-              << ", force = " << force
-              << ", length = " << length;
+    VLOG(6) << "WriteDiskFile success. name = " << fileName
+            << ", force = " << force << ", length = " << length;
     return writeLen;
 }
 

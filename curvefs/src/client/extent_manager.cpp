@@ -28,9 +28,7 @@ namespace curvefs {
 namespace client {
 
 CURVEFS_ERROR SimpleExtentManager::GetToAllocExtents(
-    const VolumeExtentList &extents,
-    uint64_t offset,
-    uint64_t len,
+    const VolumeExtentList &extents, uint64_t offset, uint64_t len,
     std::list<ExtentAllocInfo> *toAllocExtents) {
     toAllocExtents->clear();
     uint64_t pOffsetLeft = 0;
@@ -47,21 +45,21 @@ CURVEFS_ERROR SimpleExtentManager::GetToAllocExtents(
                 pOffsetLeft = 0;
                 leftHintAvailable = false;
                 continue;
-            //
-            // extent of [offset, len]                  |------|
-            // volumeextents               ...    |-------|     ...
-            //
+                //
+                // extent of [offset, len]                  |------|
+                // volumeextents               ...    |-------|     ...
+                //
             } else if ((offset + len) > right) {
                 len = offset + len - right;
                 offset = right;
                 pOffsetLeft = extents.volumeextents(i).volumeoffset() +
-                    extents.volumeextents(i).length();
+                              extents.volumeextents(i).length();
                 leftHintAvailable = true;
                 continue;
-            //
-            // extent of [offset, len]              |------|
-            // volumeextents               ...    |----------|     ...
-            //
+                //
+                // extent of [offset, len]              |------|
+                // volumeextents               ...    |----------|     ...
+                //
             } else {
                 return CURVEFS_ERROR::OK;
             }
@@ -82,20 +80,20 @@ CURVEFS_ERROR SimpleExtentManager::GetToAllocExtents(
                 len = offset + len - right;
                 offset = right;
                 pOffsetLeft = extents.volumeextents(i).volumeoffset() +
-                    extents.volumeextents(i).length();
+                              extents.volumeextents(i).length();
                 leftHintAvailable = true;
                 continue;
-            //
-            // extent of [offset, len]         |-------|
-            // volumeextents               ...    |-------|     ...
-            //
+                //
+                // extent of [offset, len]         |-------|
+                // volumeextents               ...    |-------|     ...
+                //
             } else {
                 return CURVEFS_ERROR::OK;
             }
-        //
-        // extent of [offset, len]      |-------|
-        // volumeextents                   ...    |-------|     ...
-        //
+            //
+            // extent of [offset, len]      |-------|
+            // volumeextents                   ...    |-------|     ...
+            //
         } else {
             ExtentAllocInfo allocInfo;
             allocInfo.lOffset = offset;
@@ -130,8 +128,7 @@ CURVEFS_ERROR SimpleExtentManager::GetToAllocExtents(
 
 CURVEFS_ERROR SimpleExtentManager::MergeAllocedExtents(
     const std::list<ExtentAllocInfo> &toAllocExtents,
-    const std::list<Extent> &allocatedExtents,
-    VolumeExtentList *extents) {
+    const std::list<Extent> &allocatedExtents, VolumeExtentList *extents) {
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
     VolumeExtentList newExtents;
     auto it = toAllocExtents.begin();
@@ -140,11 +137,10 @@ CURVEFS_ERROR SimpleExtentManager::MergeAllocedExtents(
     while (i < extents->volumeextents_size() || it != toAllocExtents.end()) {
         if ((it == toAllocExtents.end()) ||
             ((i < extents->volumeextents_size()) &&
-            (extents->volumeextents(i).fsoffset() <= it->lOffset))) {
+             (extents->volumeextents(i).fsoffset() <= it->lOffset))) {
             ret = MergeToTheLastOrAdd(&newExtents, &extents->volumeextents(i));
             if (ret != CURVEFS_ERROR::OK) {
-                LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = "
-                           << ret;
+                LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = " << ret;
                 return ret;
             }
             i++;
@@ -159,8 +155,7 @@ CURVEFS_ERROR SimpleExtentManager::MergeAllocedExtents(
                 temp.set_isused(false);
                 ret = MergeToTheLastOrAdd(&newExtents, &temp);
                 if (ret != CURVEFS_ERROR::OK) {
-                    LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = "
-                               << ret;
+                    LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = " << ret;
                     return ret;
                 }
                 len += ix->length();
@@ -169,9 +164,9 @@ CURVEFS_ERROR SimpleExtentManager::MergeAllocedExtents(
             }
             if (len != it->len) {
                 LOG(ERROR) << "MergeAllocedExtents find toAllocExtents and"
-                            << " allocatedExtents not match, "
-                            << "need len = " << it->len
-                            << ", actual len = " << len;
+                           << " allocatedExtents not match, "
+                           << "need len = " << it->len
+                           << ", actual len = " << len;
                 return CURVEFS_ERROR::INTERNAL;
             }
             it++;
@@ -181,15 +176,14 @@ CURVEFS_ERROR SimpleExtentManager::MergeAllocedExtents(
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR SimpleExtentManager::MergeToTheLastOrAdd(
-    VolumeExtentList *extents,
-    const VolumeExtent *extent) {
-    LOG(INFO) << "MergeToTheLastOrAdd newExtent {"
-              << "lOffset = " << extent->fsoffset()
-              << ", pOffset = " << extent->volumeoffset()
-              << ", length = " << extent->length()
-              << ", isused = " << extent->isused()
-              << "}";
+CURVEFS_ERROR
+SimpleExtentManager::MergeToTheLastOrAdd(VolumeExtentList *extents,
+                                         const VolumeExtent *extent) {
+    VLOG(6) << "MergeToTheLastOrAdd newExtent {"
+            << "lOffset = " << extent->fsoffset()
+            << ", pOffset = " << extent->volumeoffset()
+            << ", length = " << extent->length()
+            << ", isused = " << extent->isused() << "}";
 
     if (extents->volumeextents_size() == 0) {
         VolumeExtent *ext = extents->add_volumeextents();
@@ -210,7 +204,7 @@ CURVEFS_ERROR SimpleExtentManager::MergeToTheLastOrAdd(
     if (extent->fsoffset() == lRight && extent->volumeoffset() == pRight) {
         if (extent->isused() == extents->volumeextents(last).isused()) {
             uint64_t newLen = extent->fsoffset() + extent->length() -
-                    extents->volumeextents(last).fsoffset();
+                              extents->volumeextents(last).fsoffset();
             extents->mutable_volumeextents(last)->set_length(newLen);
             return CURVEFS_ERROR::OK;
         }
@@ -220,9 +214,9 @@ CURVEFS_ERROR SimpleExtentManager::MergeToTheLastOrAdd(
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR SimpleExtentManager::MarkExtentsWritten(
-    uint64_t offset, uint64_t len,
-    VolumeExtentList *extents) {
+CURVEFS_ERROR
+SimpleExtentManager::MarkExtentsWritten(uint64_t offset, uint64_t len,
+                                        VolumeExtentList *extents) {
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
     VolumeExtentList newExtents;
     int i = 0;
@@ -237,27 +231,26 @@ CURVEFS_ERROR SimpleExtentManager::MarkExtentsWritten(
         // volumeextents                   ...    |-------|     ...
         //
         if (offset < lLeft) {
-           LOG(ERROR) << "MarkExtentsWritten find write [offset len]"
-                      << "is not allocated, offset = " << offset
-                      << ", len = " << len
-                      << ", right neighbor lLeft = " << lLeft
-                      << ", lRight = " << lRight;
-           return CURVEFS_ERROR::INTERNAL;
-        //
-        // extent of [offset, len]                          |-------|
-        // volumeextents                   ...    |-------|     ...
-        //
+            LOG(ERROR) << "MarkExtentsWritten find write [offset len]"
+                       << "is not allocated, offset = " << offset
+                       << ", len = " << len
+                       << ", right neighbor lLeft = " << lLeft
+                       << ", lRight = " << lRight;
+            return CURVEFS_ERROR::INTERNAL;
+            //
+            // extent of [offset, len]                          |-------|
+            // volumeextents                   ...    |-------|     ...
+            //
         } else if (offset >= lRight) {
             ret = MergeToTheLastOrAdd(&newExtents, &extents->volumeextents(i));
             if (ret != CURVEFS_ERROR::OK) {
-                LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = "
-                           << ret;
+                LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = " << ret;
                 return ret;
             }
-        //
-        // extent of [offset, len]                  |--- ...
-        // volumeextents                   ...    |-------|     ...
-        //
+            //
+            // extent of [offset, len]                  |--- ...
+            // volumeextents                   ...    |-------|     ...
+            //
         } else {
             VolumeExtent currentExtent;
             currentExtent.CopyFrom(extents->volumeextents(i));
@@ -269,11 +262,10 @@ CURVEFS_ERROR SimpleExtentManager::MarkExtentsWritten(
                     left.set_volumeoffset(pLeft);
                     left.set_length(offset - lLeft);
                     left.set_isused(false);
-                    ret = MergeToTheLastOrAdd(&newExtents,
-                        &left);
+                    ret = MergeToTheLastOrAdd(&newExtents, &left);
                     if (ret != CURVEFS_ERROR::OK) {
-                        LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = "
-                                   << ret;
+                        LOG(ERROR)
+                            << "MergeToTheLastOrAdd failed, ret = " << ret;
                         return ret;
                     }
 
@@ -292,20 +284,18 @@ CURVEFS_ERROR SimpleExtentManager::MarkExtentsWritten(
             //
             if (offset + len >= lRight) {
                 currentExtent.set_isused(true);
-                ret = MergeToTheLastOrAdd(&newExtents,
-                    &currentExtent);
+                ret = MergeToTheLastOrAdd(&newExtents, &currentExtent);
                 if (ret != CURVEFS_ERROR::OK) {
-                    LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = "
-                               << ret;
+                    LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = " << ret;
                     return ret;
                 }
                 // cut [offset len] left part
                 len = offset + len - lRight;
                 offset = lRight;
-            //
-            // extent of [offset, len]                  |-------|
-            // volumeextents                   ...    |-----------|     ...
-            //
+                //
+                // extent of [offset, len]                  |-------|
+                // volumeextents                   ...    |-----------|     ...
+                //
             } else {
                 // cut currentExtent's right part
                 currentExtent.set_length(len);
@@ -316,18 +306,14 @@ CURVEFS_ERROR SimpleExtentManager::MarkExtentsWritten(
                 right.set_volumeoffset(pLeft + len);
                 right.set_length(length - len);
                 right.set_isused(isused);
-                ret = MergeToTheLastOrAdd(&newExtents,
-                    &currentExtent);
+                ret = MergeToTheLastOrAdd(&newExtents, &currentExtent);
                 if (ret != CURVEFS_ERROR::OK) {
-                    LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = "
-                               << ret;
+                    LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = " << ret;
                     return ret;
                 }
-                ret = MergeToTheLastOrAdd(&newExtents,
-                    &right);
+                ret = MergeToTheLastOrAdd(&newExtents, &right);
                 if (ret != CURVEFS_ERROR::OK) {
-                    LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = "
-                               << ret;
+                    LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = " << ret;
                     return ret;
                 }
                 len = 0;
@@ -342,11 +328,10 @@ CURVEFS_ERROR SimpleExtentManager::MarkExtentsWritten(
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR SimpleExtentManager::DivideExtents(
-    const VolumeExtentList &extents,
-    uint64_t offset,
-    uint64_t len,
-    std::list<PExtent> *pExtents) {
+CURVEFS_ERROR
+SimpleExtentManager::DivideExtents(const VolumeExtentList &extents,
+                                   uint64_t offset, uint64_t len,
+                                   std::list<PExtent> *pExtents) {
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
     pExtents->clear();
     for (int i = 0; i < extents.volumeextents_size() && len != 0; i++) {
@@ -361,17 +346,17 @@ CURVEFS_ERROR SimpleExtentManager::DivideExtents(
         // volumeextents                   ...    |-------|     ...
         //
         if (offset < lLeft) {
-           // TODO(xuchaojie) : fix when have hole
-           LOG(WARNING) << "DivideExtents find [offset len]"
-                      << "is not allocated, offset = " << offset
-                      << ", len = " << len
-                      << ", right neighbor lLeft = " << lLeft
-                      << ", lRight = " << lRight;
-           return CURVEFS_ERROR::INTERNAL;
-        //
-        // extent of [offset, len]                          |-------|
-        // volumeextents                   ...    |-------|     ...
-        //
+            // TODO(xuchaojie) : fix when have hole
+            LOG(WARNING) << "DivideExtents find [offset len]"
+                         << "is not allocated, offset = " << offset
+                         << ", len = " << len
+                         << ", right neighbor lLeft = " << lLeft
+                         << ", lRight = " << lRight;
+            return CURVEFS_ERROR::INTERNAL;
+            //
+            // extent of [offset, len]                          |-------|
+            // volumeextents                   ...    |-------|     ...
+            //
         } else if (offset >= lRight) {
             continue;
         } else {
@@ -384,29 +369,25 @@ CURVEFS_ERROR SimpleExtentManager::DivideExtents(
                 pExt.pOffset = pLeft + (offset - lLeft);
                 pExt.len = pRight - pExt.pOffset;
                 pExt.UnWritten = !isused;
-                ret = MergeToTheLastOrAdd(pExtents,
-                    pExt);
+                ret = MergeToTheLastOrAdd(pExtents, pExt);
                 if (ret != CURVEFS_ERROR::OK) {
-                    LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = "
-                               << ret;
+                    LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = " << ret;
                     return ret;
                 }
                 len = offset + len - lRight;
                 offset = lRight;
-            //
-            // extent of [offset, len]                  |-------|
-            // volumeextents                   ...    |-----------|     ...
-            //
+                //
+                // extent of [offset, len]                  |-------|
+                // volumeextents                   ...    |-----------|     ...
+                //
             } else {
                 PExtent pExt;
                 pExt.pOffset = pLeft + (offset - lLeft);
                 pExt.len = len;
                 pExt.UnWritten = !isused;
-                ret = MergeToTheLastOrAdd(pExtents,
-                    pExt);
+                ret = MergeToTheLastOrAdd(pExtents, pExt);
                 if (ret != CURVEFS_ERROR::OK) {
-                    LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = "
-                               << ret;
+                    LOG(ERROR) << "MergeToTheLastOrAdd failed, ret = " << ret;
                     return ret;
                 }
                 break;
@@ -416,13 +397,12 @@ CURVEFS_ERROR SimpleExtentManager::DivideExtents(
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR SimpleExtentManager::MergeToTheLastOrAdd(
-    std::list<PExtent> *pExtents,
-    const PExtent &pExt) {
-    LOG(INFO) << "MergeToTheLastOrAdd pExtent {"
-              << "pOffset = " << pExt.pOffset
-              << ", len = " << pExt.len
-              << ", UnWritten = " << pExt.UnWritten;
+CURVEFS_ERROR
+SimpleExtentManager::MergeToTheLastOrAdd(std::list<PExtent> *pExtents,
+                                         const PExtent &pExt) {
+    VLOG(6) << "MergeToTheLastOrAdd pExtent {"
+            << "pOffset = " << pExt.pOffset << ", len = " << pExt.len
+            << ", UnWritten = " << pExt.UnWritten;
     if (pExtents->empty()) {
         pExtents->push_back(pExt);
         return CURVEFS_ERROR::OK;

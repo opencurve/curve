@@ -32,7 +32,7 @@ namespace curvefs {
 namespace client {
 
 DiskCacheManagerImpl::DiskCacheManagerImpl(
-        std::shared_ptr<DiskCacheManager> diskCacheManager, S3Client *client) {
+    std::shared_ptr<DiskCacheManager> diskCacheManager, S3Client *client) {
     diskCacheManager_ = diskCacheManager;
     client_ = client;
 }
@@ -50,10 +50,9 @@ int DiskCacheManagerImpl::Init(const S3ClientAdaptorOption option) {
     return 0;
 }
 
-int DiskCacheManagerImpl::Write(const std::string name,
-                          const char* buf, uint64_t length) {
-    LOG(INFO) << "write name = " << name
-              << ", length = " << length;
+int DiskCacheManagerImpl::Write(const std::string name, const char *buf,
+                                uint64_t length) {
+    VLOG(9) << "write name = " << name << ", length = " << length;
     int ret = 0;
     ret = WriteDiskFile(name, buf, length);
     if (ret < 0) {
@@ -63,22 +62,21 @@ int DiskCacheManagerImpl::Write(const std::string name,
             return -1;
         }
     }
-    LOG(INFO) << "write success, write name = " << name;
+    VLOG(9) << "write success, write name = " << name;
     return 0;
 }
 
-int DiskCacheManagerImpl::WriteDiskFile(const std::string name,
-                          const char* buf, uint64_t length) {
-    LOG(INFO) << "write name = " << name
-              << ", length = " << length;
+int DiskCacheManagerImpl::WriteDiskFile(const std::string name, const char *buf,
+                                        uint64_t length) {
+    VLOG(9) << "write name = " << name << ", length = " << length;
     // if cache disk is full
     if (diskCacheManager_->IsDiskCacheFull()) {
         LOG(ERROR) << "write disk file fail, disk full.";
         return -1;
     }
     // write to cache disk
-    int writeRet = diskCacheManager_->WriteDiskFile(
-                 name, buf, length, forceFlush_);
+    int writeRet =
+        diskCacheManager_->WriteDiskFile(name, buf, length, forceFlush_);
     if (writeRet < 0) {
         LOG(ERROR) << "write disk file error. writeRet = " << writeRet;
         return writeRet;
@@ -87,8 +85,8 @@ int DiskCacheManagerImpl::WriteDiskFile(const std::string name,
     std::string cacheWriteFullDir, cacheReadFullDir;
     cacheWriteFullDir = diskCacheManager_->GetCacheWriteFullDir();
     cacheReadFullDir = diskCacheManager_->GetCacheReadFullDir();
-    int linkRet = diskCacheManager_->LinkWriteToRead(name,
-                                cacheWriteFullDir, cacheReadFullDir);
+    int linkRet = diskCacheManager_->LinkWriteToRead(name, cacheWriteFullDir,
+                                                     cacheReadFullDir);
     if (linkRet < 0) {
         LOG(ERROR) << "link write file to read error. linkRet = " << linkRet;
         return linkRet;
@@ -101,28 +99,25 @@ int DiskCacheManagerImpl::WriteDiskFile(const std::string name,
     return writeRet;
 }
 
-int DiskCacheManagerImpl::Read(const std::string name,
-        char* buf, uint64_t offset, uint64_t length) {
-    LOG(INFO) << "read name = " << name
-              << ", offset = " << offset
-              << ", length = " << length;
+int DiskCacheManagerImpl::Read(const std::string name, char *buf,
+                               uint64_t offset, uint64_t length) {
+    VLOG(9) << "read name = " << name << ", offset = " << offset
+            << ", length = " << length;
     if (buf == NULL) {
         LOG(ERROR) << "read file error, read buf is null.";
         return -1;
     }
     // read disk file maybe fail because of disk file has been removed.
-    int ret = diskCacheManager_->ReadDiskFile(
-                 name, buf, offset, length);
+    int ret = diskCacheManager_->ReadDiskFile(name, buf, offset, length);
     if (ret < length) {
         LOG(ERROR) << "read disk file error. readRet = " << ret;
         ret = client_->Download(name, buf, offset, length);
         if (ret < 0) {
-            LOG(ERROR) << "download object fail. object name = "
-                       << name;
+            LOG(ERROR) << "download object fail. object name = " << name;
             return ret;
         }
     }
-    LOG(INFO) << "read success, read name = " << name;
+    VLOG(9) << "read success, read name = " << name;
     return ret;
 }
 

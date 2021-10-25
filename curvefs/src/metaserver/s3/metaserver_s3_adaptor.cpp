@@ -24,14 +24,14 @@
 
 namespace curvefs {
 namespace metaserver {
-void S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption& option,
-                               S3Client* client) {
+void S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption &option,
+                               S3Client *client) {
     blockSize_ = option.blockSize;
     chunkSize_ = option.chunkSize;
     client_ = client;
 }
 
-int S3ClientAdaptorImpl::Delete(const Inode& inode) {
+int S3ClientAdaptorImpl::Delete(const Inode &inode) {
     // const S3ChunkInfoList& s3ChunkInfolist = inode.s3chunkinfolist();
     auto s3ChunkInfoMap = inode.s3chunkinfomap();
     LOG(INFO) << "delete data, inode id: " << inode.inodeid()
@@ -39,7 +39,7 @@ int S3ClientAdaptorImpl::Delete(const Inode& inode) {
     int ret = 0;
     auto iter = s3ChunkInfoMap.begin();
     for (; iter != s3ChunkInfoMap.end(); iter++) {
-        S3ChunkInfoList& s3ChunkInfolist = iter->second;
+        S3ChunkInfoList &s3ChunkInfolist = iter->second;
         for (int i = 0; i < s3ChunkInfolist.s3chunks_size(); ++i) {
             // traverse chunks to delete blocks
             S3ChunkInfo chunkInfo = s3ChunkInfolist.s3chunks(i);
@@ -56,6 +56,8 @@ int S3ClientAdaptorImpl::Delete(const Inode& inode) {
             }
         }
     }
+    LOG(INFO) << "delete data, inode id: " << inode.inodeid()
+              << ", len:" << inode.length() << " success";
 
     return ret;
 }
@@ -64,10 +66,9 @@ int S3ClientAdaptorImpl::DeleteChunk(uint64_t chunkId, uint64_t compaction,
                                      uint64_t chunkPos, uint64_t length) {
     uint64_t blockIndex = chunkPos / blockSize_;
     uint64_t blockPos = chunkPos % blockSize_;
-    LOG(INFO) << "delete Chunk start, chunk id: " << chunkId
-              << ", compaction:" << compaction
-              << ", chunkPos: " << chunkPos
-              << ", length: " << length;
+    VLOG(3) << "delete Chunk start, chunk id: " << chunkId
+            << ", compaction:" << compaction << ", chunkPos: " << chunkPos
+            << ", length: " << length;
     int count = 0;  // blocks' number
     int ret = 0;
     while (length > blockSize_ * count - blockPos || count == 0) {
@@ -84,7 +85,7 @@ int S3ClientAdaptorImpl::DeleteChunk(uint64_t chunkId, uint64_t compaction,
             // 1. overwrite，the object is delete by others
             // 2. last delete failed
             // 3. others
-            LOG(INFO) << "object: " << objectName << ", has been deleted.";
+            VLOG(3) << "object: " << objectName << ", has been deleted.";
             ret = 1;
         }
 

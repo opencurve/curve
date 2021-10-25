@@ -26,7 +26,7 @@
 namespace curvefs {
 namespace mds {
 
-int ChunkIdAllocatorImpl::GenChunkId(uint64_t* chunkId) {
+int ChunkIdAllocatorImpl::GenChunkId(uint64_t *chunkId) {
     int ret = 0;
     // will unloack at destructor
     ::curve::common::WriteLockGuard guard(nextIdRWlock_);
@@ -40,7 +40,7 @@ int ChunkIdAllocatorImpl::GenChunkId(uint64_t* chunkId) {
         // allocate id
         *chunkId = nextId_;
         ++nextId_;
-        LOG(INFO) << "allocate chunkid:" << *chunkId;
+        VLOG(3) << "allocate chunkid:" << *chunkId;
     } else {
         // the chunkIds in the current bundle is exhausted,
         // but fail to get a new bunlde of chunIds.
@@ -49,8 +49,8 @@ int ChunkIdAllocatorImpl::GenChunkId(uint64_t* chunkId) {
     return ret;
 }
 
-void ChunkIdAllocatorImpl::Init(const std::shared_ptr<KVStorageClient>& client,
-                                const std::string& StoreKey,
+void ChunkIdAllocatorImpl::Init(const std::shared_ptr<KVStorageClient> &client,
+                                const std::string &StoreKey,
                                 uint64_t bundleSize) {
     client_ = std::move(client);
     storeKey_ = StoreKey;
@@ -106,7 +106,7 @@ int ChunkIdAllocatorImpl::AllocateBundleIds(int bundleSize) {
     return ret;
 }
 
-bool ChunkIdAllocatorImpl::DecodeID(const std::string& value, uint64_t* out) {
+bool ChunkIdAllocatorImpl::DecodeID(const std::string &value, uint64_t *out) {
     return ::curve::common::StringToUll(value, out);
 }
 

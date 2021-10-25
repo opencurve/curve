@@ -82,26 +82,22 @@ struct ObjectChunkInfo {
 
 class DataCache {
  public:
-    DataCache(S3ClientAdaptorImpl* s3ClientAdaptor,
-              ChunkCacheManager* chunkCacheManager, uint64_t chunkPos,
-              uint64_t len, const char* data)
+    DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
+              ChunkCacheManager *chunkCacheManager, uint64_t chunkPos,
+              uint64_t len, const char *data)
         : s3ClientAdaptor_(s3ClientAdaptor),
-          chunkCacheManager_(chunkCacheManager),
-          chunkPos_(chunkPos),
-          len_(len),
+          chunkCacheManager_(chunkCacheManager), chunkPos_(chunkPos), len_(len),
           dirty_(true) {
         data_ = new char[len];
         memcpy(data_, data, len);
         createTime_ = ::curve::common::TimeUtility::GetTimeofDaySec();
         //  dirty_.exchange(true, std::memory_order_acq_rel);
     }
-    DataCache(S3ClientAdaptorImpl* s3ClientAdaptor,
-              ChunkCacheManager* chunkCacheManager, uint64_t chunkPos,
+    DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
+              ChunkCacheManager *chunkCacheManager, uint64_t chunkPos,
               uint64_t len)
         : s3ClientAdaptor_(s3ClientAdaptor),
-          chunkCacheManager_(chunkCacheManager),
-          chunkPos_(chunkPos),
-          len_(len),
+          chunkCacheManager_(chunkCacheManager), chunkPos_(chunkPos), len_(len),
           dirty_(false) {
         data_ = new char[len];
         createTime_ = ::curve::common::TimeUtility::GetTimeofDaySec();
@@ -112,41 +108,33 @@ class DataCache {
         data_ = nullptr;
     }
 
-    void Write(uint64_t chunkPos, uint64_t len, const char* data,
-               const std::vector<DataCachePtr>& mergeDataCacheVer);
-    uint64_t GetChunkPos() {
-        return chunkPos_;
-    }
-    uint64_t GetLen() {
-        return len_;
-    }
+    void Write(uint64_t chunkPos, uint64_t len, const char *data,
+               const std::vector<DataCachePtr> &mergeDataCacheVer);
+    uint64_t GetChunkPos() { return chunkPos_; }
+    uint64_t GetLen() { return len_; }
 
-    char* GetData() {
-        return data_;
-    }
+    char *GetData() { return data_; }
 
     CURVEFS_ERROR Flush(uint64_t inodeId, bool force);
     void Release();
-    bool IsDirty() {
-        return dirty_.load(std::memory_order_acquire);
-    }
+    bool IsDirty() { return dirty_.load(std::memory_order_acquire); }
 
  private:
     std::string GenerateObjectName(uint64_t chunkId, uint64_t blockIndex);
-    void UpdateInodeChunkInfo(S3ChunkInfoList* s3ChunkInfoList,
+    void UpdateInodeChunkInfo(S3ChunkInfoList *s3ChunkInfoList,
                               uint64_t chunkId, uint64_t offset, uint64_t len);
-    void Swap(char* newData, uint64_t newLen) {
+    void Swap(char *newData, uint64_t newLen) {
         delete data_;
         data_ = newData;
         len_ = newLen;
     }
 
  private:
-    S3ClientAdaptorImpl* s3ClientAdaptor_;
-    ChunkCacheManager* chunkCacheManager_;
+    S3ClientAdaptorImpl *s3ClientAdaptor_;
+    ChunkCacheManager *chunkCacheManager_;
     uint64_t chunkPos_;
     uint64_t len_;
-    char* data_;
+    char *data_;
     curve::common::Mutex mtx_;
     uint64_t createTime_;
     std::atomic<bool> dirty_;
@@ -157,25 +145,15 @@ class S3ReadResponse {
     explicit S3ReadResponse(DataCachePtr dataCache) : dataCache_(dataCache) {}
     virtual ~S3ReadResponse() {}
 
-    char* GetDataBuf() {
-        return dataCache_->GetData();
-    }
+    char *GetDataBuf() { return dataCache_->GetData(); }
 
-    void SetReadOffset(uint64_t readOffset) {
-        readOffset_ = readOffset;
-    }
+    void SetReadOffset(uint64_t readOffset) { readOffset_ = readOffset; }
 
-    uint64_t GetReadOffset() {
-        return readOffset_;
-    }
+    uint64_t GetReadOffset() { return readOffset_; }
 
-    uint64_t GetBufLen() {
-        return dataCache_->GetLen();
-    }
+    uint64_t GetBufLen() { return dataCache_->GetLen(); }
 
-    DataCachePtr GetDataCache() {
-        return dataCache_;
-    }
+    DataCachePtr GetDataCache() { return dataCache_; }
 
  private:
     uint64_t readOffset_;
@@ -184,33 +162,31 @@ class S3ReadResponse {
 
 class ChunkCacheManager {
  public:
-    ChunkCacheManager(uint64_t index, S3ClientAdaptorImpl* s3ClientAdaptor)
+    ChunkCacheManager(uint64_t index, S3ClientAdaptorImpl *s3ClientAdaptor)
         : index_(index), s3ClientAdaptor_(s3ClientAdaptor) {}
     virtual ~ChunkCacheManager() = default;
 
-    DataCachePtr CreateWriteDataCache(S3ClientAdaptorImpl* s3ClientAdaptor,
+    DataCachePtr CreateWriteDataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
                                       uint32_t chunkPos, uint32_t len,
-                                      const char* data);
+                                      const char *data);
     void AddReadDataCache(DataCachePtr dataCache);
-    DataCachePtr FindWriteableDataCache(
-        uint64_t pos, uint64_t len,
-        std::vector<DataCachePtr>* mergeDataCacheVer);
-    void ReadByWriteCache(uint64_t chunkPos, uint64_t readLen, char* dataBuf,
+    DataCachePtr
+    FindWriteableDataCache(uint64_t pos, uint64_t len,
+                           std::vector<DataCachePtr> *mergeDataCacheVer);
+    void ReadByWriteCache(uint64_t chunkPos, uint64_t readLen, char *dataBuf,
                           uint64_t dataBufOffset,
-                          std::vector<ReadRequest>* requests);
-    void ReadByReadCache(uint64_t chunkPos, uint64_t readLen, char* dataBuf,
+                          std::vector<ReadRequest> *requests);
+    void ReadByReadCache(uint64_t chunkPos, uint64_t readLen, char *dataBuf,
                          uint64_t dataBufOffset,
-                         std::vector<ReadRequest>* requests);
+                         std::vector<ReadRequest> *requests);
     CURVEFS_ERROR Flush(uint64_t inodeId, bool force);
-    uint64_t GetIndex() {
-        return index_;
-    }
+    uint64_t GetIndex() { return index_; }
     bool IsEmpty() {
         return (dataWCacheMap_.empty() && dataRCacheMap_.empty());
     }
 
     virtual void ReleaseReadDataCache(uint64_t key);
-    void ReleaseCache(S3ClientAdaptorImpl* s3ClientAdaptor);
+    void ReleaseCache(S3ClientAdaptorImpl *s3ClientAdaptor);
     curve::common::Mutex mtx_;
 
  private:
@@ -223,14 +199,14 @@ class ChunkCacheManager {
         dataRCacheMap_;   // first is pos in chunk
     RWLock rwLockWrite_;  //  for write cache
     RWLock rwLockRead_;   //  for read cache
-    S3ClientAdaptorImpl* s3ClientAdaptor_;
+    S3ClientAdaptorImpl *s3ClientAdaptor_;
     curve::common::Mutex flushMtx_;
 };
 
 class FileCacheManager {
  public:
     FileCacheManager(uint32_t fsid, uint64_t inode,
-                     S3ClientAdaptorImpl* s3ClientAdaptor)
+                     S3ClientAdaptorImpl *s3ClientAdaptor)
         : fsId_(fsid), inode_(inode), s3ClientAdaptor_(s3ClientAdaptor) {}
     ChunkCacheManagerPtr FindChunkCacheManager(uint64_t index);
     // ChunkCacheManagerPtr CreateChunkCacheManager(uint64_t index);
@@ -238,18 +214,16 @@ class FileCacheManager {
     void ReleaseChunkCacheManager(uint64_t index);
     void ReleaseCache();
     CURVEFS_ERROR Flush(bool force);
-    int Write(uint64_t offset, uint64_t length, const char* dataBuf);
-    int Read(Inode* inode, uint64_t offset, uint64_t length, char* dataBuf);
-    bool IsEmpty() {
-        return chunkCacheMap_.empty();
-    }
+    int Write(uint64_t offset, uint64_t length, const char *dataBuf);
+    int Read(Inode *inode, uint64_t offset, uint64_t length, char *dataBuf);
+    bool IsEmpty() { return chunkCacheMap_.empty(); }
 
  private:
     void WriteChunk(uint64_t index, uint64_t chunkPos, uint64_t writeLen,
-                    const char* dataBuf);
+                    const char *dataBuf);
     void ReadChunk(uint64_t index, uint64_t chunkPos, uint64_t readLen,
-                   char* dataBuf, uint64_t dataBufOffset,
-                   std::vector<ReadRequest>* requests);
+                   char *dataBuf, uint64_t dataBufOffset,
+                   std::vector<ReadRequest> *requests);
     void GenerateS3Request(ReadRequest request,
                            const S3ChunkInfoList& s3ChunkInfoList,
                            char* dataBuf, std::vector<S3ReadRequest>* requests);
@@ -268,20 +242,17 @@ class FileCacheManager {
     std::map<uint64_t, ChunkCacheManagerPtr> chunkCacheMap_;  // first is index
     RWLock rwLock_;
     curve::common::Mutex mtx_;
-    S3ClientAdaptorImpl* s3ClientAdaptor_;
+    S3ClientAdaptorImpl *s3ClientAdaptor_;
 };
 
 class FsCacheManager {
  public:
-    FsCacheManager(S3ClientAdaptorImpl* s3ClientAdaptor,
+    FsCacheManager(S3ClientAdaptorImpl *s3ClientAdaptor,
                    uint64_t readCacheMaxByte, uint64_t writeCacheMaxByte)
-        : lruByte_(0),
-          wDataCacheNum_(0),
-          wDataCacheByte_(0),
+        : lruByte_(0), wDataCacheNum_(0), wDataCacheByte_(0),
           readCacheMaxByte_(readCacheMaxByte),
           writeCacheMaxByte_(writeCacheMaxByte),
-          s3ClientAdaptor_(s3ClientAdaptor),
-          isWaiting_(false) {}
+          s3ClientAdaptor_(s3ClientAdaptor), isWaiting_(false) {}
 
     FileCacheManagerPtr FindFileCacheManager(uint64_t inodeId);
     FileCacheManagerPtr FindOrCreateFileCacheManager(uint64_t fsId,
@@ -297,27 +268,27 @@ class FsCacheManager {
     }
 
     void DataCacheNumInc() {
-        LOG(INFO) << "DataCacheNumInc() v: 1,wDataCacheNum:"
-                  << wDataCacheNum_.load(std::memory_order_relaxed);
+        VLOG(9) << "DataCacheNumInc() v: 1,wDataCacheNum:"
+                << wDataCacheNum_.load(std::memory_order_relaxed);
         wDataCacheNum_.fetch_add(1, std::memory_order_relaxed);
     }
 
     void DataCacheNumFetchSub(uint64_t v) {
-        LOG(INFO) << "DataCacheNumFetchSub() v:" << v << ",wDataCacheNum_:"
-                  << wDataCacheNum_.load(std::memory_order_relaxed);
+        VLOG(9) << "DataCacheNumFetchSub() v:" << v << ",wDataCacheNum_:"
+                << wDataCacheNum_.load(std::memory_order_relaxed);
         assert(wDataCacheNum_.load(std::memory_order_relaxed) >= v);
         wDataCacheNum_.fetch_sub(v, std::memory_order_relaxed);
     }
 
     void DataCacheByteInc(uint64_t v) {
-        LOG(INFO) << "DataCacheByteInc() v:" << v << ",wDataCacheByte:"
-                  << wDataCacheByte_.load(std::memory_order_relaxed);
+        VLOG(9) << "DataCacheByteInc() v:" << v << ",wDataCacheByte:"
+                << wDataCacheByte_.load(std::memory_order_relaxed);
         wDataCacheByte_.fetch_add(v, std::memory_order_relaxed);
     }
 
     void DataCacheByteDec(uint64_t v) {
-        LOG(INFO) << "DataCacheByteDec() v:" << v << ",wDataCacheByte:"
-                  << wDataCacheByte_.load(std::memory_order_relaxed);
+        VLOG(9) << "DataCacheByteDec() v:" << v << ",wDataCacheByte:"
+                << wDataCacheByte_.load(std::memory_order_relaxed);
         assert(wDataCacheByte_.load(std::memory_order_relaxed) >= v);
         wDataCacheByte_.fetch_sub(v, std::memory_order_relaxed);
     }
@@ -342,8 +313,8 @@ class FsCacheManager {
     }
 
     uint64_t MemCacheRatio() {
-        return 100*wDataCacheByte_.load(
-               std::memory_order_relaxed)/writeCacheMaxByte_;
+        return 100 * wDataCacheByte_.load(std::memory_order_relaxed) /
+               writeCacheMaxByte_;
     }
 
  private:
@@ -357,7 +328,7 @@ class FsCacheManager {
     std::atomic<uint64_t> wDataCacheByte_;
     uint64_t readCacheMaxByte_;
     uint64_t writeCacheMaxByte_;
-    S3ClientAdaptorImpl* s3ClientAdaptor_;
+    S3ClientAdaptorImpl *s3ClientAdaptor_;
     bool isWaiting_;
     std::mutex mutex_;
     std::condition_variable cond_;
