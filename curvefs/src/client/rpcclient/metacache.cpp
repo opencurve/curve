@@ -63,8 +63,8 @@ bool MetaCache::GetTxId(uint32_t fsId, uint64_t inodeId, uint32_t *partitionId,
 bool MetaCache::GetTarget(uint32_t fsID, uint64_t inodeID,
                           CopysetTarget *target, uint64_t *applyIndex,
                           bool refresh) {
-    LOG(INFO) << "Get target, fsid: " << fsID << ", inode id " << inodeID
-              << ", target: " << *target;
+    VLOG(3) << "Get target, fsid: " << fsID << ", inode id " << inodeID
+            << ", target: " << *target;
 
     // list infos from mds
     if (!ListPartitions(fsID)) {
@@ -179,7 +179,7 @@ bool MetaCache::GetTargetLeader(CopysetTarget *target, uint64_t *applyindex,
     }
 
     // if cacahe do not have invalid leader, refresh leader
-    LOG(INFO) << "refresh leader for " << target->groupID.ToString();
+    VLOG(3) << "refresh leader for " << target->groupID.ToString();
     bool ret = true;
     uint32_t retry = 0;
     while (retry++ < metacacheopt_.metacacheGetLeaderRetry) {
@@ -190,9 +190,9 @@ bool MetaCache::GetTargetLeader(CopysetTarget *target, uint64_t *applyindex,
             UpdateCopysetInfo(target->groupID, copysetInfo);
             break;
         } else {
-            LOG(INFO) << "refresh leader from metaserver failed, "
-                      << "get copyset peer list from mds, copyset:"
-                      << target->groupID.ToString();
+            VLOG(3) << "refresh leader from metaserver failed, "
+                    << "get copyset peer list from mds, copyset:"
+                    << target->groupID.ToString();
         }
 
         // refresh from mds

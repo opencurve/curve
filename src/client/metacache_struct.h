@@ -72,7 +72,7 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetPeerInfo {
 };
 
 template <typename T>
-inline std::ostream& operator<<(std::ostream& os, const CopysetPeerInfo<T>& c) {
+inline std::ostream &operator<<(std::ostream &os, const CopysetPeerInfo<T> &c) {
     os << "peer id : " << c.peerID
        << ", internal address : " << c.internalAddr.ToString()
        << ", external address : " << c.externalAddr.ToString();
@@ -110,12 +110,10 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
         return *this;
     }
 
-    CopysetInfo(const CopysetInfo& other)
-        : leaderMayChange_(other.leaderMayChange_),
-          csinfos_(other.csinfos_),
+    CopysetInfo(const CopysetInfo &other)
+        : leaderMayChange_(other.leaderMayChange_), csinfos_(other.csinfos_),
           lastappliedindex_(other.lastappliedindex_.load()),
-          leaderindex_(other.leaderindex_),
-          cpid_(other.cpid_),
+          leaderindex_(other.leaderindex_), cpid_(other.cpid_),
           lpid_(other.lpid_) {}
 
     uint64_t GetAppliedIndex() const {
@@ -129,8 +127,7 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     bool LeaderMayChange() const { return leaderMayChange_; }
 
     bool HasValidLeader() const {
-        return !leaderMayChange_ &&
-               leaderindex_ >= 0 &&
+        return !leaderMayChange_ && leaderindex_ >= 0 &&
                leaderindex_ < csinfos_.size();
     }
 
@@ -178,8 +175,8 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
      */
     int UpdateLeaderInfo(const PeerAddr &addr,
                          CopysetPeerInfo<T> csInfo = CopysetPeerInfo<T>()) {
-        LOG(INFO) << "update leader info, pool " << lpid_ << ", copyset "
-                  << cpid_ << ", current leader " << addr.ToString();
+        VLOG(3) << "update leader info, pool " << lpid_ << ", copyset " << cpid_
+                << ", current leader " << addr.ToString();
 
         spinlock_.Lock();
         bool exists = false;
@@ -223,9 +220,9 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
         *peerid = csinfos_[leaderindex_].peerID;
         *ep = csinfos_[leaderindex_].externalAddr.addr_;
 
-        LOG(INFO) << "GetLeaderInfo pool " << lpid_ << ", copyset " << cpid_
-                  << " leader id " << *peerid << ", end point "
-                  << butil::endpoint2str(*ep).c_str();
+        VLOG(3) << "GetLeaderInfo pool " << lpid_ << ", copyset " << cpid_
+                << " leader id " << *peerid << ", end point "
+                << butil::endpoint2str(*ep).c_str();
 
         return 0;
     }
@@ -267,16 +264,14 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
 };
 
 template <typename T>
-inline std::ostream& operator<<(std::ostream& os,
-                                const CopysetInfo<T>& copyset) {
-    os << "pool id : " << copyset.lpid_
-    << ", copyset id : " << copyset.cpid_
-    << ", leader index : " << copyset.leaderindex_
-    << ", applied index : " << copyset.lastappliedindex_
-    << ", leader may change : " << copyset.leaderMayChange_
-    << ", peers : ";
+inline std::ostream &operator<<(std::ostream &os,
+                                const CopysetInfo<T> &copyset) {
+    os << "pool id : " << copyset.lpid_ << ", copyset id : " << copyset.cpid_
+       << ", leader index : " << copyset.leaderindex_
+       << ", applied index : " << copyset.lastappliedindex_
+       << ", leader may change : " << copyset.leaderMayChange_ << ", peers : ";
 
-    for (auto& p : copyset.csinfos_) {
+    for (auto &p : copyset.csinfos_) {
         os << p << " ";
     }
 

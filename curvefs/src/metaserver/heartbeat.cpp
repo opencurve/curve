@@ -38,7 +38,7 @@
 
 namespace curvefs {
 namespace metaserver {
-int Heartbeat::Init(const HeartbeatOptions& options) {
+int Heartbeat::Init(const HeartbeatOptions &options) {
     toStop_.store(false, std::memory_order_release);
     options_ = options;
 
@@ -58,7 +58,7 @@ int Heartbeat::Init(const HeartbeatOptions& options) {
     }
 
     // Check the legitimacy of each address
-    for (const auto& addr : mdsEps_) {
+    for (const auto &addr : mdsEps_) {
         butil::EndPoint endpt;
         if (butil::str2endpoint(addr.c_str(), &endpt) < 0) {
             LOG(ERROR) << "Invalid sub mds ip:port provided: " << addr;
@@ -101,8 +101,8 @@ int Heartbeat::Fini() {
     return 0;
 }
 
-void Heartbeat::BuildCopysetInfo(curvefs::mds::heartbeat::CopySetInfo* info,
-                                 CopysetNode* copyset) {
+void Heartbeat::BuildCopysetInfo(curvefs::mds::heartbeat::CopySetInfo *info,
+                                 CopysetNode *copyset) {
     int ret;
     PoolId poolId = copyset->GetPoolId();
     CopysetId copysetId = copyset->GetCopysetId();
@@ -119,7 +119,7 @@ void Heartbeat::BuildCopysetInfo(curvefs::mds::heartbeat::CopySetInfo* info,
     }
 
     PeerId leader = copyset->GetLeaderId();
-    Peer* replica = new Peer();
+    Peer *replica = new Peer();
     replica->set_address(leader.to_string());
     info->set_allocated_leaderpeer(replica);
 
@@ -132,7 +132,7 @@ void Heartbeat::BuildCopysetInfo(curvefs::mds::heartbeat::CopySetInfo* info,
     return;
 }
 
-void Heartbeat::BuildRequest(HeartbeatRequest* req) {
+void Heartbeat::BuildRequest(HeartbeatRequest *req) {
     int ret;
 
     req->set_metaserverid(options_.metaserverId);
@@ -146,14 +146,14 @@ void Heartbeat::BuildRequest(HeartbeatRequest* req) {
     req->set_metadataspaceleft(0);
     req->set_metadataspacetotal(0);
 
-    std::vector<CopysetNode*> copysets;
+    std::vector<CopysetNode *> copysets;
     copysetMan_->GetAllCopysets(&copysets);
 
     req->set_copysetcount(copysets.size());
     int leaders = 0;
 
     for (auto copyset : copysets) {
-        curvefs::mds::heartbeat::CopySetInfo* info = req->add_copysetinfos();
+        curvefs::mds::heartbeat::CopySetInfo *info = req->add_copysetinfos();
 
         BuildCopysetInfo(info, copyset);
 
@@ -166,13 +166,13 @@ void Heartbeat::BuildRequest(HeartbeatRequest* req) {
     return;
 }
 
-void Heartbeat::DumpHeartbeatRequest(const HeartbeatRequest& request) {
-    DVLOG(6) << "Heartbeat request: Metaserver ID: " << request.metaserverid()
-             << ", IP: " << request.ip() << ", port: " << request.port()
-             << ", copyset count: " << request.copysetcount()
-             << ", leader count: " << request.leadercount();
+void Heartbeat::DumpHeartbeatRequest(const HeartbeatRequest &request) {
+    VLOG(6) << "Heartbeat request: Metaserver ID: " << request.metaserverid()
+            << ", IP: " << request.ip() << ", port: " << request.port()
+            << ", copyset count: " << request.copysetcount()
+            << ", leader count: " << request.leadercount();
     for (int i = 0; i < request.copysetinfos_size(); i++) {
-        const curvefs::mds::heartbeat::CopySetInfo& info =
+        const curvefs::mds::heartbeat::CopySetInfo &info =
             request.copysetinfos(i);
 
         std::string peersStr = "";
@@ -180,21 +180,21 @@ void Heartbeat::DumpHeartbeatRequest(const HeartbeatRequest& request) {
             peersStr += info.peers(j).address() + ",";
         }
 
-        DVLOG(6) << "Copyset " << i << " "
-                 << copyset::ToGroupIdString(info.poolid(), info.copysetid())
-                 << ", epoch: " << info.epoch()
-                 << ", leader: " << info.leaderpeer().address()
-                 << ", peers: " << peersStr;
+        VLOG(6) << "Copyset " << i << " "
+                << copyset::ToGroupIdString(info.poolid(), info.copysetid())
+                << ", epoch: " << info.epoch()
+                << ", leader: " << info.leaderpeer().address()
+                << ", peers: " << peersStr;
     }
 }
 
-void Heartbeat::DumpHeartbeatResponse(const HeartbeatResponse& response) {
-    LOG(INFO) << "Received heartbeat response, statusCode = "
-              << response.statuscode();
+void Heartbeat::DumpHeartbeatResponse(const HeartbeatResponse &response) {
+    VLOG(3) << "Received heartbeat response, statusCode = "
+            << response.statuscode();
 }
 
-int Heartbeat::SendHeartbeat(const HeartbeatRequest& request,
-                             HeartbeatResponse* response) {
+int Heartbeat::SendHeartbeat(const HeartbeatRequest &request,
+                             HeartbeatResponse *response) {
     brpc::Channel channel;
     if (channel.Init(mdsEps_[inServiceIndex_].c_str(), NULL) != 0) {
         LOG(ERROR) << msEp_.ip << ":" << msEp_.port
@@ -251,10 +251,10 @@ void Heartbeat::HeartbeatWorker() {
         HeartbeatRequest req;
         HeartbeatResponse resp;
 
-        LOG(INFO) << "building heartbeat info";
+        VLOG(3) << "building heartbeat info";
         BuildRequest(&req);
 
-        LOG(INFO) << "sending heartbeat info";
+        VLOG(3) << "sending heartbeat info";
         ret = SendHeartbeat(req, &resp);
         if (ret != 0) {
             LOG(WARNING) << "Failed to send heartbeat to MDS";

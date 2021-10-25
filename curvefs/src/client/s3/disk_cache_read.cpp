@@ -34,16 +34,15 @@ namespace curvefs {
 namespace client {
 
 void DiskCacheRead::Init(std::shared_ptr<PosixWrapper> posixWrapper,
-                      const std::string cacheDir) {
+                         const std::string cacheDir) {
     posixWrapper_ = posixWrapper;
     DiskCacheBase::Init(posixWrapper, cacheDir);
 }
 
-int DiskCacheRead::ReadDiskFile(const std::string name,
-                     char* buf, uint64_t offset, uint64_t length) {
-    LOG(INFO) << "ReadDiskFile start. name = " << name
-                 << ", offset = " << offset
-                 << ", length = " << length;
+int DiskCacheRead::ReadDiskFile(const std::string name, char *buf,
+                                uint64_t offset, uint64_t length) {
+    VLOG(6) << "ReadDiskFile start. name = " << name << ", offset = " << offset
+            << ", length = " << length;
     std::string fileFullPath;
     int fd, ret;
     fileFullPath = GetCacheIoFullDir() + "/" + name;
@@ -63,29 +62,26 @@ int DiskCacheRead::ReadDiskFile(const std::string name,
     ssize_t readLen = posixWrapper_->read(fd, buf, length);
     if (readLen < 0) {
         LOG(ERROR) << "read disk error, ret = " << readLen
-                   << ", errno = " << errno
-                   << ", file = " << name;
+                   << ", errno = " << errno << ", file = " << name;
         posixWrapper_->close(fd);
         return readLen;
     }
     if (readLen < length) {
         LOG(ERROR) << "read disk file is not entirely. read len = " << readLen
-                   << ", but want len = " << length
-                   << ", file = " << name;
+                   << ", but want len = " << length << ", file = " << name;
         posixWrapper_->close(fd);
         return readLen;
     }
     posixWrapper_->close(fd);
-    LOG(INFO) << "ReadDiskFile success. name = " << name
-                 << ", offset = " << offset
-                 << ", length = " << length;
+    VLOG(6) << "ReadDiskFile success. name = " << name
+            << ", offset = " << offset << ", length = " << length;
     return readLen;
 }
 
 int DiskCacheRead::LinkWriteToRead(const std::string fileName,
-                     const std::string fullWriteDir,
-                     const std::string fullReadDir) {
-    LOG(INFO) << "LinkWriteToRead start. name = " << fileName;
+                                   const std::string fullWriteDir,
+                                   const std::string fullReadDir) {
+    VLOG(6) << "LinkWriteToRead start. name = " << fileName;
     std::string fullReadPath, fullWritePath;
     fullWritePath = fullWriteDir + "/" + fileName;
     fullReadPath = fullReadDir + "/" + fileName;
@@ -97,17 +93,16 @@ int DiskCacheRead::LinkWriteToRead(const std::string fileName,
     }
     ret = posixWrapper_->link(fullWritePath.c_str(), fullReadPath.c_str());
     if (ret < 0) {
-        LOG(ERROR) << "link error. ret = " << ret
-                   << ", errno = " << errno
+        LOG(ERROR) << "link error. ret = " << ret << ", errno = " << errno
                    << ", write path = " << fullWritePath
                    << ", read path = " << fullReadPath;
         return -1;
     }
-    LOG(INFO) << "LinkWriteToRead success. name = " << fileName;
+    VLOG(6) << "LinkWriteToRead success. name = " << fileName;
     return 0;
 }
 
-int DiskCacheRead::LoadAllCacheReadFile(std::set<std::string>* cachedObj) {
+int DiskCacheRead::LoadAllCacheReadFile(std::set<std::string> *cachedObj) {
     LOG(INFO) << "LoadAllCacheReadFile start. ";
     std::string cacheReadPath;
     bool ret;
@@ -125,14 +120,14 @@ int DiskCacheRead::LoadAllCacheReadFile(std::set<std::string>* cachedObj) {
         return -1;
     }
     while ((cacheReadDirent = posixWrapper_->readdir(cacheReadDir)) != NULL) {
-        if ((!strncmp(cacheReadDirent->d_name, ".", 1))
-             || (!strncmp(cacheReadDirent->d_name, "..", 2)))
+        if ((!strncmp(cacheReadDirent->d_name, ".", 1)) ||
+            (!strncmp(cacheReadDirent->d_name, "..", 2)))
             continue;
         std::string fileName = cacheReadDirent->d_name;
         cachedObj->emplace(fileName);
-        LOG(INFO) << "LoadAllCacheReadFile obj, name = " << fileName;
+        VLOG(3) << "LoadAllCacheReadFile obj, name = " << fileName;
     }
-    LOG(INFO) << "close start.";
+    VLOG(6) << "close start.";
     int rc = posixWrapper_->closedir(cacheReadDir);
     if (rc < 0) {
         LOG(ERROR) << "opendir error， errno = " << errno;

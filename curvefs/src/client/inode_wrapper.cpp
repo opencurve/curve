@@ -75,8 +75,8 @@ CURVEFS_ERROR InodeWrapper::UnLinkLocked() {
         inode_.set_nlink(newnlink);
         inode_.set_ctime(nowTime);
         MetaStatusCode ret = metaClient_->UpdateInode(inode_);
-        LOG(INFO) << "UnLinkInode, inodeid = " << inode_.inodeid()
-                  << ", nlink = " << inode_.nlink();
+        VLOG(6) << "UnLinkInode, inodeid = " << inode_.inodeid()
+                << ", nlink = " << inode_.nlink();
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "metaClient_ UpdateInode failed, ret = " << ret
                        << ", inodeid = " << inode_.inodeid();
@@ -101,9 +101,7 @@ CURVEFS_ERROR InodeWrapper::Open() {
     return CURVEFS_ERROR::OK;
 }
 
-bool InodeWrapper::IsOpen() {
-    return openCount_ > 0;
-}
+bool InodeWrapper::IsOpen() { return openCount_ > 0; }
 
 CURVEFS_ERROR InodeWrapper::Release() {
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;

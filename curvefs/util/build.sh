@@ -10,6 +10,7 @@ g_mark_left="==========>>>>>>>>>>"
 g_mark_right="==========<<<<<<<<<<"
 g_build_opts=(
     "-s"
+    "--jobs=256"
     "--define=with_glog=true"
     "--define=libunwind=true"
     "--copt -DHAVE_ZLIB=1"

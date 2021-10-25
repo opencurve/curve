@@ -29,19 +29,22 @@
 #include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/common/config.h"
 #include "src/common/configuration.h"
+#include "src/common/gflags_helper.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/client/fuse_volume_client.h"
 #include "curvefs/src/client/fuse_s3_client.h"
 
 using ::curve::common::Configuration;
-using ::curvefs::client::FuseClient;
-using ::curvefs::client::common::FuseClientOption;
-using ::curvefs::client::FuseVolumeClient;
-using ::curvefs::client::FuseS3Client;
 using ::curvefs::client::CURVEFS_ERROR;
+using ::curvefs::client::FuseClient;
+using ::curvefs::client::FuseS3Client;
+using ::curvefs::client::FuseVolumeClient;
+using ::curvefs::client::common::FuseClientOption;
 
 static FuseClient *g_ClientInstance = nullptr;
 static FuseClientOption *fuseClientOption = nullptr;
+
+DECLARE_int32(v);
 
 int InitGlog(const char *confPath, const char *argv0) {
     Configuration conf;
@@ -51,18 +54,24 @@ int InitGlog(const char *confPath, const char *argv0) {
         return -1;
     }
 
+    // set log dir
     if (FLAGS_log_dir.empty()) {
         if (!conf.GetStringValue("client.common.logDir", &FLAGS_log_dir)) {
             LOG(WARNING) << "no client.common.logDir in " << confPath
                          << ", will log to /tmp";
         }
     }
+
+    curve::common::GflagsLoadValueFromConfIfCmdNotSet dummy;
+    dummy.Load(&conf, "v", "client.loglevel", &FLAGS_v);
+
     // initialize logging module
     google::InitGoogleLogging(argv0);
+
     return 0;
 }
 
-int InitFuseClient(const char *confPath, const char* fsType) {
+int InitFuseClient(const char *confPath, const char *fsType) {
     Configuration conf;
     conf.SetConfigPath(confPath);
     if (!conf.LoadConfig()) {
@@ -78,11 +87,9 @@ int InitFuseClient(const char *confPath, const char* fsType) {
     curvefs::client::common::InitFuseClientOption(&conf, fuseClientOption);
 
     if (fsTypeStr == "s3") {
-        g_ClientInstance =
-            new FuseS3Client();
+        g_ClientInstance = new FuseS3Client();
     } else if (fsTypeStr == "volume") {
-        g_ClientInstance =
-            new FuseVolumeClient();
+        g_ClientInstance = new FuseVolumeClient();
     } else {
         LOG(ERROR) << "fsTypeStr invalid, which is " << fsTypeStr;
         return -1;
@@ -155,8 +162,7 @@ void FuseOpLookup(fuse_req_t req, fuse_ino_t parent, const char *name) {
     fuse_reply_entry(req, &e);
 }
 
-void FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
-                      struct fuse_file_info *fi) {
+void FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
     struct stat attr;
     CURVEFS_ERROR ret = g_ClientInstance->FuseOpGetAttr(req, ino, fi, &attr);
     if (ret != CURVEFS_ERROR::OK) {
@@ -167,12 +173,11 @@ void FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
 }
 
 void FuseOpReadDir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
-                      struct fuse_file_info *fi) {
+                   struct fuse_file_info *fi) {
     char *buffer = nullptr;
     size_t rSize = 0;
-    CURVEFS_ERROR ret =
-        g_ClientInstance->FuseOpReadDir(
-            req, ino, size, off, fi, &buffer, &rSize);
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpReadDir(req, ino, size, off, fi,
+                                                        &buffer, &rSize);
     if (ret != CURVEFS_ERROR::OK) {
         FuseReplyErrByErrCode(req, ret);
         return;
@@ -190,13 +195,12 @@ void FuseOpOpen(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
 }
 
 void FuseOpRead(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
-                   struct fuse_file_info *fi) {
+                struct fuse_file_info *fi) {
     std::unique_ptr<char[]> buffer(new char[size]);
     memset(buffer.get(), 0, size);
     size_t rSize = 0;
-    CURVEFS_ERROR ret =
-        g_ClientInstance->FuseOpRead(
-            req, ino, size, off, fi, buffer.get(), &rSize);
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpRead(req, ino, size, off, fi,
+                                                     buffer.get(), &rSize);
     if (ret != CURVEFS_ERROR::OK) {
         FuseReplyErrByErrCode(req, ret);
         return;
@@ -204,8 +208,8 @@ void FuseOpRead(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
     fuse_reply_buf(req, buffer.get(), rSize);
 }
 
-void FuseOpWrite(fuse_req_t req, fuse_ino_t ino, const char *buf,
-                    size_t size, off_t off, struct fuse_file_info *fi) {
+void FuseOpWrite(fuse_req_t req, fuse_ino_t ino, const char *buf, size_t size,
+                 off_t off, struct fuse_file_info *fi) {
     size_t wSize = 0;
     CURVEFS_ERROR ret =
         g_ClientInstance->FuseOpWrite(req, ino, buf, size, off, fi, &wSize);
@@ -217,7 +221,7 @@ void FuseOpWrite(fuse_req_t req, fuse_ino_t ino, const char *buf,
 }
 
 void FuseOpCreate(fuse_req_t req, fuse_ino_t parent, const char *name,
-                     mode_t mode, struct fuse_file_info *fi) {
+                  mode_t mode, struct fuse_file_info *fi) {
     fuse_entry_param e;
     CURVEFS_ERROR ret =
         g_ClientInstance->FuseOpCreate(req, parent, name, mode, fi, &e);
@@ -229,7 +233,7 @@ void FuseOpCreate(fuse_req_t req, fuse_ino_t parent, const char *name,
 }
 
 void FuseOpMkNod(fuse_req_t req, fuse_ino_t parent, const char *name,
-                    mode_t mode, dev_t rdev) {
+                 mode_t mode, dev_t rdev) {
     fuse_entry_param e;
     CURVEFS_ERROR ret =
         g_ClientInstance->FuseOpMkNod(req, parent, name, mode, rdev, &e);
@@ -241,10 +245,10 @@ void FuseOpMkNod(fuse_req_t req, fuse_ino_t parent, const char *name,
 }
 
 void FuseOpMkDir(fuse_req_t req, fuse_ino_t parent, const char *name,
-                    mode_t mode) {
+                 mode_t mode) {
     fuse_entry_param e;
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpMkDir(
-        req, parent, name, mode, &e);
+    CURVEFS_ERROR ret =
+        g_ClientInstance->FuseOpMkDir(req, parent, name, mode, &e);
     if (ret != CURVEFS_ERROR::OK) {
         FuseReplyErrByErrCode(req, ret);
         return;
@@ -262,8 +266,7 @@ void FuseOpRmDir(fuse_req_t req, fuse_ino_t parent, const char *name) {
     FuseReplyErrByErrCode(req, ret);
 }
 
-void FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino,
-                      struct fuse_file_info *fi) {
+void FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
     CURVEFS_ERROR ret = g_ClientInstance->FuseOpOpenDir(req, ino, fi);
     if (ret != CURVEFS_ERROR::OK) {
         FuseReplyErrByErrCode(req, ret);
@@ -273,16 +276,13 @@ void FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino,
 }
 
 void FuseOpReleaseDir(fuse_req_t req, fuse_ino_t ino,
-            struct fuse_file_info *fi) {
+                      struct fuse_file_info *fi) {
     CURVEFS_ERROR ret = g_ClientInstance->FuseOpReleaseDir(req, ino, fi);
     FuseReplyErrByErrCode(req, ret);
 }
 
-void FuseOpRename(fuse_req_t req,
-                  fuse_ino_t parent,
-                  const char* name,
-                  fuse_ino_t newparent,
-                  const char* newname,
+void FuseOpRename(fuse_req_t req, fuse_ino_t parent, const char *name,
+                  fuse_ino_t newparent, const char *newname,
                   unsigned int flags) {
     // TODO(Wine93): the flag RENAME_EXCHANGE and RENAME_NOREPLACE
     // is only used in linux interface renameat(), not required by posix,
@@ -291,14 +291,14 @@ void FuseOpRename(fuse_req_t req,
     if (flags != 0) {
         rc = CURVEFS_ERROR::INVALIDPARAM;
     } else {
-        rc = g_ClientInstance->FuseOpRename(
-            req, parent, name, newparent, newname);
+        rc = g_ClientInstance->FuseOpRename(req, parent, name, newparent,
+                                            newname);
     }
     FuseReplyErrByErrCode(req, rc);
 }
 
 void FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
-                      int to_set, struct fuse_file_info *fi) {
+                   int to_set, struct fuse_file_info *fi) {
     struct stat attrOut;
     CURVEFS_ERROR ret =
         g_ClientInstance->FuseOpSetAttr(req, ino, attr, to_set, fi, &attrOut);
@@ -310,10 +310,10 @@ void FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
 }
 
 void FuseOpSymlink(fuse_req_t req, const char *link, fuse_ino_t parent,
-         const char *name) {
+                   const char *name) {
     fuse_entry_param e;
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpSymlink(
-        req, link, parent, name, &e);
+    CURVEFS_ERROR ret =
+        g_ClientInstance->FuseOpSymlink(req, link, parent, name, &e);
     if (ret != CURVEFS_ERROR::OK) {
         FuseReplyErrByErrCode(req, ret);
         return;
@@ -322,10 +322,10 @@ void FuseOpSymlink(fuse_req_t req, const char *link, fuse_ino_t parent,
 }
 
 void FuseOpLink(fuse_req_t req, fuse_ino_t ino, fuse_ino_t newparent,
-          const char *newname) {
+                const char *newname) {
     fuse_entry_param e;
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpLink(
-        req, ino, newparent, newname, &e);
+    CURVEFS_ERROR ret =
+        g_ClientInstance->FuseOpLink(req, ino, newparent, newname, &e);
     if (ret != CURVEFS_ERROR::OK) {
         FuseReplyErrByErrCode(req, ret);
         return;
@@ -335,8 +335,7 @@ void FuseOpLink(fuse_req_t req, fuse_ino_t ino, fuse_ino_t newparent,
 
 void FuseOpReadLink(fuse_req_t req, fuse_ino_t ino) {
     std::string linkStr;
-    CURVEFS_ERROR ret =
-        g_ClientInstance->FuseOpReadLink(req, ino, &linkStr);
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpReadLink(req, ino, &linkStr);
     if (ret != CURVEFS_ERROR::OK) {
         FuseReplyErrByErrCode(req, ret);
         return;
@@ -344,14 +343,13 @@ void FuseOpReadLink(fuse_req_t req, fuse_ino_t ino) {
     fuse_reply_readlink(req, linkStr.c_str());
 }
 
-void FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
-         struct fuse_file_info *fi) {
+void FuseOpRelease(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
     CURVEFS_ERROR ret = g_ClientInstance->FuseOpRelease(req, ino, fi);
     FuseReplyErrByErrCode(req, ret);
 }
 
 void FuseOpFsync(fuse_req_t req, fuse_ino_t ino, int datasync,
-           struct fuse_file_info *fi) {
+                 struct fuse_file_info *fi) {
     CURVEFS_ERROR ret = g_ClientInstance->FuseOpFsync(req, ino, datasync, fi);
     FuseReplyErrByErrCode(req, ret);
 }

@@ -38,7 +38,7 @@ DECLARE_int32(health_check_interval);
 namespace curvefs {
 namespace client {
 namespace common {
-void InitMdsOption(Configuration* conf, MdsOption* mdsOpt) {
+void InitMdsOption(Configuration *conf, MdsOption *mdsOpt) {
     conf->GetValueFatalIfFail("mdsOpt.mdsMaxRetryMS", &mdsOpt->mdsMaxRetryMS);
     conf->GetValueFatalIfFail("mdsOpt.rpcRetryOpt.maxRPCTimeoutMS",
                               &mdsOpt->rpcRetryOpt.maxRPCTimeoutMS);
@@ -62,7 +62,7 @@ void InitMdsOption(Configuration* conf, MdsOption* mdsOpt) {
     mdsOpt->rpcRetryOpt.addrs.assign(mdsAddr.begin(), mdsAddr.end());
 }
 
-void InitMetaCacheOption(Configuration* conf, MetaCacheOpt* opts) {
+void InitMetaCacheOption(Configuration *conf, MetaCacheOpt *opts) {
     conf->GetValueFatalIfFail("metaCacheOpt.metacacheGetLeaderRetry",
                               &opts->metacacheGetLeaderRetry);
     conf->GetValueFatalIfFail("metaCacheOpt.metacacheRPCRetryIntervalUS",
@@ -71,7 +71,7 @@ void InitMetaCacheOption(Configuration* conf, MetaCacheOpt* opts) {
                               &opts->metacacheGetLeaderRPCTimeOutMS);
 }
 
-void InitExcutorOption(Configuration* conf, ExcutorOpt* opts) {
+void InitExcutorOption(Configuration *conf, ExcutorOpt *opts) {
     conf->GetValueFatalIfFail("excutorOpt.maxRetry", &opts->maxRetry);
     conf->GetValueFatalIfFail("excutorOpt.retryIntervalUS",
                               &opts->retryIntervalUS);
@@ -86,20 +86,20 @@ void InitExcutorOption(Configuration* conf, ExcutorOpt* opts) {
                               &opts->maxRetryTimesBeforeConsiderSuspend);
 }
 
-void InitSpaceServerOption(Configuration* conf,
-                           SpaceAllocServerOption* spaceOpt) {
+void InitSpaceServerOption(Configuration *conf,
+                           SpaceAllocServerOption *spaceOpt) {
     conf->GetValueFatalIfFail("spaceserver.spaceaddr", &spaceOpt->spaceaddr);
     conf->GetValueFatalIfFail("spaceserver.rpcTimeoutMs",
                               &spaceOpt->rpcTimeoutMs);
 }
 
-void InitBlockDeviceOption(Configuration* conf,
-                           BlockDeviceClientOptions* bdevOpt) {
+void InitBlockDeviceOption(Configuration *conf,
+                           BlockDeviceClientOptions *bdevOpt) {
     conf->GetValueFatalIfFail("bdev.confpath", &bdevOpt->configPath);
 }
 
-void InitDiskCacheOption(Configuration* conf,
-                         DiskCacheOption* diskCacheOption) {
+void InitDiskCacheOption(Configuration *conf,
+                         DiskCacheOption *diskCacheOption) {
     conf->GetValueFatalIfFail("diskCache.enableDiskCache",
                               &diskCacheOption->enableDiskCache);
     conf->GetValueFatalIfFail("diskCache.forceFlush",
@@ -113,7 +113,7 @@ void InitDiskCacheOption(Configuration* conf,
                               &diskCacheOption->safeRatio);
 }
 
-void InitS3Option(Configuration* conf, S3Option* s3Opt) {
+void InitS3Option(Configuration *conf, S3Option *s3Opt) {
     conf->GetValueFatalIfFail("s3.blocksize",
                               &s3Opt->s3ClientAdaptorOpt.blockSize);
     conf->GetValueFatalIfFail("s3.chunksize",
@@ -134,14 +134,14 @@ void InitS3Option(Configuration* conf, S3Option* s3Opt) {
     InitDiskCacheOption(conf, &s3Opt->s3ClientAdaptorOpt.diskCacheOpt);
 }
 
-void InitVolumeOption(Configuration* conf, VolumeOption* volumeOpt) {
+void InitVolumeOption(Configuration *conf, VolumeOption *volumeOpt) {
     conf->GetValueFatalIfFail("volume.bigFileSize", &volumeOpt->bigFileSize);
     conf->GetValueFatalIfFail("volume.volBlockSize", &volumeOpt->volBlockSize);
     conf->GetValueFatalIfFail("volume.fsBlockSize", &volumeOpt->fsBlockSize);
 }
 
-void InitExtentManagerOption(Configuration* conf,
-                             ExtentManagerOption* extentManagerOpt) {
+void InitExtentManagerOption(Configuration *conf,
+                             ExtentManagerOption *extentManagerOpt) {
     conf->GetValueFatalIfFail("extentManager.preAllocSize",
                               &extentManagerOpt->preAllocSize);
 }
@@ -154,7 +154,7 @@ void SetBrpcOpt(Configuration* conf) {
                &brpc::FLAGS_health_check_interval);
 }
 
-void InitFuseClientOption(Configuration* conf, FuseClientOption* clientOption) {
+void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     InitMdsOption(conf, &clientOption->mdsOpt);
     InitMetaCacheOption(conf, &clientOption->metaCacheOpt);
     InitExcutorOption(conf, &clientOption->excutorOpt);

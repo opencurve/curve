@@ -34,10 +34,10 @@ namespace curvefs {
 namespace client {
 
 #define CACHE_WRITE_DIR "cachewrite"
-#define CACHE_READ_DIR "cacheread"
+#define CACHE_READ_DIR  "cacheread"
 
 void DiskCacheBase::Init(std::shared_ptr<PosixWrapper> wrapper,
-                      const std::string cacheDir) {
+                         const std::string cacheDir) {
     cacheDir_ = cacheDir;
     posixWrapper_ = wrapper;
 }
@@ -60,11 +60,8 @@ int DiskCacheBase::CreateIoDir(bool writreDir) {
                        << ", dir = " << FullDirPath;
             return -1;
         }
-        LOG(INFO) << "read cache dir is not exist, create it success."
-                     << ", dir = " << FullDirPath;
-    } else {
-        LOG(INFO) << "read cache dir is exist."
-                     << ", dir = " << FullDirPath;
+        VLOG(6) << "read cache dir is not exist, create it success."
+                << ", dir = " << FullDirPath;
     }
     return 0;
 }
@@ -74,11 +71,9 @@ bool DiskCacheBase::IsFileExist(const std::string file) {
     int ret;
     ret = posixWrapper_->stat(file.c_str(), &statFile);
     if (ret < 0) {
-        LOG(INFO) << "file is not exist, dir = " << file
-                     << ", errno = " << errno;
+        VLOG(6) << "file is not exist, dir = " << file << ", errno = " << errno;
         return false;
     }
-    LOG(INFO) << "file is exist, dir = " << file;
     return true;
 }
 

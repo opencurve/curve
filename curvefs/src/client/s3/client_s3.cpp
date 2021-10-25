@@ -24,43 +24,43 @@
 namespace curvefs {
 
 namespace client {
-void S3ClientImpl::Init(const curve::common::S3AdapterOption& option) {
+void S3ClientImpl::Init(const curve::common::S3AdapterOption &option) {
     s3Adapter_->Init(option);
 }
 
-int S3ClientImpl::Upload(const std::string& name, const char* buf,
+int S3ClientImpl::Upload(const std::string &name, const char *buf,
                          uint64_t length) {
     int ret = 0;
     const Aws::String aws_key(name.c_str(), name.size());
 
-    LOG(INFO) << "upload start, aws_key:" << aws_key << ",length:" << length;
-    ret = s3Adapter_->PutObject(aws_key, (const void*)buf, length);
+    VLOG(9) << "upload start, aws_key:" << aws_key << ",length:" << length;
+    ret = s3Adapter_->PutObject(aws_key, (const void *)buf, length);
     if (ret < 0) {
-        LOG(INFO) << "upload error:" << ret;
+        LOG(WARNING) << "upload error:" << ret;
     }
-    LOG(INFO) << "upload end, ret:" << ret;
+    VLOG(9) << "upload end, ret:" << ret;
     return ret;
 }
 
-int S3ClientImpl::Download(const std::string& name, char* buf, uint64_t offset,
+int S3ClientImpl::Download(const std::string &name, char *buf, uint64_t offset,
                            uint64_t length) {
     int ret = 0;
 
-    LOG(INFO) << "download start, name:" << name << ",offset:" << offset
-              << ",length:" << length;
+    VLOG(9) << "download start, name:" << name << ",offset:" << offset
+            << ",length:" << length;
     ret = s3Adapter_->GetObject(name, buf, offset, length);
     if (ret < 0) {
-        LOG(INFO) << "download error:" << ret;
+        LOG(ERROR) << "download error:" << ret;
     }
 
-    LOG(INFO) << "download end, ret:" << ret << ",length:" << length;
+    VLOG(9) << "download end, ret:" << ret << ",length:" << length;
     return ret;
 }
 
 void S3ClientImpl::DownloadAsync(
     std::shared_ptr<GetObjectAsyncContext> context) {
-    LOG(INFO) << "download async start, name:" << context->key
-              << ",offset:" << context->offset << ",length:" << context->len;
+    VLOG(9) << "download async start, name:" << context->key
+            << ",offset:" << context->offset << ",length:" << context->len;
 
     s3Adapter_->GetObjectAsync(context);
     return;
