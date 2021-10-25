@@ -204,6 +204,8 @@ int StartChunkserver(const char *ip,
 
     CopysetNodeManager::GetInstance().DeleteCopysetNode(logicPoolId, copysetId);
     copysetNodeOptions.concurrentapply->Stop();
+
+    return 0;
 }
 
 butil::Status WaitLeader(const LogicPoolID &logicPoolId,

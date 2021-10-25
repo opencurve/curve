@@ -14,38 +14,14 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS",
-)
-
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-parameter",
-    "-Wno-unused-variable",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-    "-Wno-missing-field-initializers",
-    "-std=c++11",
-    "-g",
-]
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 cc_test(
     name = "block_device_client_test",
     srcs = glob([
         "block_device_client_test.cpp"
         ]),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
@@ -63,7 +39,7 @@ cc_library(
         "mock_metaserver_service.h",
         "mock_spacealloc_service.h",
     ]),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
@@ -73,8 +49,7 @@ cc_library(
         "//curvefs/proto:mds_cc_proto",
         "//curvefs/proto:space_cc_proto",
     ],
-    linkopts = ["-lpthread",
-                "-L/usr/local/lib/x86_64-linux-gnu"],
+    linkopts = ["-L/usr/local/lib/x86_64-linux-gnu"],
 )
 
 cc_binary(
@@ -85,7 +60,7 @@ cc_binary(
         "client_s3_test.cpp",
         "*.h",
     ]),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
@@ -96,7 +71,7 @@ cc_binary(
         "//curvefs/proto:space_cc_proto",
         "//test/client/mock:client_mock_lib",
     ],
-    linkopts = ["-lpthread",
+    linkopts = [
                 "-L/usr/local/lib/x86_64-linux-gnu"],
 )
 
@@ -110,8 +85,7 @@ cc_test(
                    "client_s3_adaptor_test.cpp",
                    "client_s3_test.cpp" ]
    ),
-   copts = ["-I/usr/local/include/fuse3",
-            "-L/usr/local/lib/x86_64-linux-gnu"],
+   copts = CURVE_TEST_COPTS + ["-I/usr/local/include/fuse3"],
    deps = [
        "//external:gtest",
         "@com_google_googletest//:gtest_main",
@@ -123,7 +97,6 @@ cc_test(
        "//curvefs/proto:space_cc_proto",
    ],
    linkopts = ["-lfuse3",
-               "-lpthread",
                "-L/usr/local/lib/x86_64-linux-gnu"],
    visibility = ["//visibility:public"],
 )
@@ -140,4 +113,5 @@ cc_test(
         "//external:gtest",
         "@com_google_googletest//:gtest_main",
     ],
+    copts = CURVE_TEST_COPTS,
 )

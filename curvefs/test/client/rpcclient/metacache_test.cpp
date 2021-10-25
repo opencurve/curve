@@ -26,7 +26,7 @@
 #include "curvefs/src/client/rpcclient/metacache.h"
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"
 #include "curvefs/test/client/rpcclient/mock_cli2_client.h"
-#include "curvefs/proto/common.pb.h";
+#include "curvefs/proto/common.pb.h"
 
 namespace curvefs {
 namespace client {

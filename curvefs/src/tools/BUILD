@@ -14,35 +14,16 @@
 #  limitations under the License.
 #
 
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-parameter",
-    "-Wno-unused-variable",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-    "-Wno-missing-field-initializers",
-    "-std=c++11",
-    "-Wall",
-    "-Werror",
-]
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_binary(
     name = "curvefs_tool",
     srcs = glob(["curvefs_tool_main.cpp"]),
-    copts = COPTS,
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "//external:gflags",
         "//curvefs/src/tools:curvefs_tools_lib",
+        "//external:gflags",
     ],
 )
 
@@ -68,7 +49,6 @@ cc_library(
         "list/curvefs_fsinfo_list.cpp",
         "status/curvefs_metaserver_status.cpp",
         "list/curvefs_copysetid_list.cpp",
-
     ]),
     hdrs = glob([
         "curvefs_tool.h",
@@ -90,22 +70,21 @@ cc_library(
         "status/curvefs_etcd_status.h",
         "list/curvefs_copysetid_list.h",
     ]),
-    copts = COPTS,
-    linkopts = [
-    ],
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "//external:gflags",
-        "//external:brpc",
-        "//external:glog",
-        "//external:json",
+        "//curvefs/proto:copyset_cc_proto",
+        "//curvefs/proto:curvefs_topology_cc_proto",
+        "//curvefs/proto:mds_cc_proto",
+        "//curvefs/proto:metaserver_cc_proto",
+        "//curvefs/proto:space_cc_proto",
         "//curvefs/src/mds/common:fs_mds_common",
         "//curvefs/src/mds/topology:curvefs_deal_peerid",
-        "//src/mds/topology:topology",
-        "//curvefs/proto:mds_cc_proto",
-        "//curvefs/proto:curvefs_topology_cc_proto",
-        "//curvefs/proto:space_cc_proto",
-        "//curvefs/proto:copyset_cc_proto",
-        "//curvefs/proto:metaserver_cc_proto",
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
+        "//external:json",
+        "//src/common:curve_common",
+        "//src/mds/topology",
     ],
 )

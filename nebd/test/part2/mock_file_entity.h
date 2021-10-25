@@ -47,11 +47,11 @@ class MockFileEntity : public NebdFileEntity {
     MOCK_METHOD1(AioWrite, int(NebdServerAioContext*));
     MOCK_METHOD1(Flush, int(NebdServerAioContext*));
     MOCK_METHOD0(InvalidCache, int());
-    MOCK_CONST_METHOD0(GetFileName, const std::string());
-    MOCK_CONST_METHOD0(GetFd, const int());
+    MOCK_CONST_METHOD0(GetFileName, std::string());
+    MOCK_CONST_METHOD0(GetFd, int());
     MOCK_METHOD1(UpdateFileTimeStamp, void(uint64_t));
-    MOCK_CONST_METHOD0(GetFileTimeStamp, const uint64_t());
-    MOCK_CONST_METHOD0(GetFileStatus, const NebdFileStatus());
+    MOCK_CONST_METHOD0(GetFileTimeStamp, uint64_t());
+    MOCK_CONST_METHOD0(GetFileStatus, NebdFileStatus());
 };
 
 }  // namespace server

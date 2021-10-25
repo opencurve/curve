@@ -82,7 +82,7 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName,
     }
 
     if (!skipCreateNewFs) {
-        uint32_t fsId = fsStorage_->NextFsId();
+        uint64_t fsId = fsStorage_->NextFsId();
         if (fsId == INVALID_FS_ID) {
             LOG(ERROR) << "Generator fs id failed, fsName = " << fsName;
             return FSStatusCode::INTERNAL_ERROR;

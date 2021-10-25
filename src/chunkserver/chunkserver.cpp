@@ -835,7 +835,7 @@ int ChunkServer::ReadChunkServerMeta(const std::shared_ptr<LocalFileSystem> &fs,
     }
 
     #define METAFILE_MAX_SIZE  4096
-    uint32_t size;
+    int size;
     char json[METAFILE_MAX_SIZE] = {0};
 
     size = fs->Read(fd, json, 0, METAFILE_MAX_SIZE);

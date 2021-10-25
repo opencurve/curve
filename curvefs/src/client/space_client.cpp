@@ -127,7 +127,7 @@ void SpaceAllocServerClientImpl::SpaceStatusCode2CurveFSErr(
         break;
     case SpaceStatusCode::SPACE_NO_SPACE:
         *errcode = CURVEFS_ERROR::NO_SPACE;
-
+        break;
     default:
         *errcode = CURVEFS_ERROR::UNKNOWN;
         break;

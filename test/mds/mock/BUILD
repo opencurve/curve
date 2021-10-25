@@ -14,16 +14,12 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS",
-)
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 cc_library(
     name = "common_mock",
     srcs = glob(["*.cpp", "*.h"]),
-    copts = GCC_TEST_FLAGS,
+    copts = CURVE_TEST_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//proto:chunkserver-cc-protos",

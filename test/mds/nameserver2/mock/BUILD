@@ -14,6 +14,8 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_library(
     name = "nameserver2_mock",
     hdrs = glob(["*.h"]),
@@ -23,4 +25,5 @@ cc_library(
         "//src/mds/snapshotcloneclient:snapshotcloneclient"
     ],
     visibility = ["//visibility:public"],
+    copts = CURVE_TEST_COPTS,
 )

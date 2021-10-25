@@ -31,6 +31,7 @@
 #include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 #include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/common/string_util.h"
+#include "include/curve_compiler_specific.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -667,6 +668,7 @@ int CloneServiceManager::RecoverCloneTask() {
                     cloneInfo.SetStatus(CloneStatus::recovering);
                 }
             }
+            FALLTHROUGH_INTENDED;
             case CloneStatus::cloning:
             case CloneStatus::recovering: {
                 // 建立快照或镜像的引用关系
@@ -806,4 +808,3 @@ void CloneServiceManagerBackendImpl::Stop() {
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
-

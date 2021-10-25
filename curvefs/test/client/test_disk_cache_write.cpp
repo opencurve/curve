@@ -277,9 +277,12 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile) {
     ret = diskCacheWrite_->UploadAllCacheWriteFile();
     ASSERT_EQ(0, ret);
 
-    struct dirent* dirent;
     dir = opendir(".");
-    dirent = readdir(dir);
+    EXPECT_NE(dir, nullptr);
+
+    struct dirent fake;
+    strcpy(fake.d_name, "fake");  // NOLINT
+
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .Times(2)
         .WillOnce(Return(0))
@@ -288,7 +291,7 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile) {
         .WillOnce(Return(dir));
     EXPECT_CALL(*wrapper_, readdir(NotNull()))
         .Times(2)
-        .WillOnce(Return(dirent))
+        .WillOnce(Return(&fake))
         .WillOnce(ReturnNull());
     EXPECT_CALL(*wrapper_, closedir(NotNull()))
         .WillOnce(Return(-1));
@@ -296,7 +299,8 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile) {
     ASSERT_EQ(-1, ret);
 
     dir = opendir(".");
-    dirent = readdir(dir);
+    EXPECT_NE(dir, nullptr);
+
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .Times(2)
         .WillOnce(Return(0))
@@ -305,7 +309,7 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile) {
         .WillOnce(Return(dir));
     EXPECT_CALL(*wrapper_, readdir(NotNull()))
         .Times(2)
-        .WillOnce(Return(dirent))
+        .WillOnce(Return(&fake))
         .WillOnce(ReturnNull());
     EXPECT_CALL(*wrapper_, closedir(NotNull()))
         .WillOnce(Return(0));
@@ -316,9 +320,13 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile) {
 TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile_2) {
     std::string path = "test";
     DIR* dir;
-    struct dirent* dirent;
+
     dir = opendir(".");
-    dirent = readdir(dir);
+    EXPECT_NE(dir, nullptr);
+
+    struct dirent fake;
+    strcpy(fake.d_name, "fake");  // NOLINT
+
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .Times(3)
         .WillRepeatedly(Return(0));
@@ -326,7 +334,7 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile_2) {
         .WillOnce(Return(dir));
     EXPECT_CALL(*wrapper_, readdir(NotNull()))
         .Times(2)
-        .WillOnce(Return(dirent))
+        .WillOnce(Return(&fake))
         .WillOnce(ReturnNull());
     EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
@@ -351,6 +359,10 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile_2) {
         .WillOnce(Return(-1));
     int ret = diskCacheWrite_->UploadAllCacheWriteFile();
     ASSERT_EQ(-1, ret);
+
+    dir = opendir(".");
+    EXPECT_NE(dir, nullptr);
+
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .Times(3)
         .WillRepeatedly(Return(0));
@@ -358,7 +370,7 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile_2) {
         .WillOnce(Return(dir));
     EXPECT_CALL(*wrapper_, readdir(NotNull()))
         .Times(2)
-        .WillOnce(Return(dirent))
+        .WillOnce(Return(&fake))
         .WillOnce(ReturnNull());
     EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));

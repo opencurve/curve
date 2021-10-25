@@ -201,7 +201,7 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
     }
     cacheWriteDir = posixWrapper_->opendir(fileFullPath.c_str());
     if (!cacheWriteDir) {
-        LOG(ERROR) << "opendir error， errno = " << errno;
+        LOG(ERROR) << "opendir error, errno = " << errno;
         return -1;
     }
     int doRet;
@@ -219,7 +219,7 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
     }
     doRet = posixWrapper_->closedir(cacheWriteDir);
     if (doRet < 0) {
-        LOG(ERROR) << "opendir error， errno = " << errno;
+        LOG(ERROR) << "close error， errno = " << errno;
         return doRet;
     }
     VLOG(3) << "upload all cached write file end.";

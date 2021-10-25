@@ -374,6 +374,7 @@ int CopysetNodeManager::AddService(brpc::Server *server,
     ChunkServiceOptions chunkServiceOptions;
     chunkServiceOptions.copysetNodeManager = copysetNodeManager;
     chunkServiceOptions.inflightThrottle = inflightThrottle;
+    chunkServiceOptions.cloneManager = nullptr;
 
     do {
         if (nullptr == server) {

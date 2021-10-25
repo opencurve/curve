@@ -54,6 +54,7 @@ FsCacheManager::FindOrCreateFileCacheManager(uint64_t fsId, uint64_t inodeId) {
         std::make_shared<FileCacheManager>(fsId, inodeId, s3ClientAdaptor_);
     auto ret = fileCacheManagerMap_.emplace(inodeId, fileCacheManager);
     assert(ret.second);
+    (void)ret;
     return fileCacheManager;
 }
 
@@ -225,6 +226,7 @@ FileCacheManager::FindOrCreateChunkCacheManager(uint64_t index) {
         std::make_shared<ChunkCacheManager>(index, s3ClientAdaptor_);
     auto ret = chunkCacheMap_.emplace(index, chunkCacheManager);
     assert(ret.second);
+    (void)ret;
     return chunkCacheManager;
 }
 
@@ -1261,6 +1263,7 @@ void ChunkCacheManager::UpdateWrteCacheMap(uint64_t oldChunkPos) {
     dataWCacheMap_.erase(iter);
     auto ret = dataWCacheMap_.emplace(datacache->GetChunkPos(), datacache);
     assert(ret.second);
+    (void)ret;
 }
 
 void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,

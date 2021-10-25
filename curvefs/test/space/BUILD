@@ -15,20 +15,7 @@
 #
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
-
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-std=c++11",
-    "-Wall",
-    "-Werror",
-]
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 LINKOPTS = [
 ]
@@ -68,7 +55,7 @@ ABSL_DEPS = select({
 cc_test(
     name = "extents_test",
     srcs = ["extents_test.cpp"],
-    copts = COPTS + ABSL_COPTS,
+    copts = CURVE_TEST_COPTS + ABSL_COPTS,
     linkopts = LINKOPTS,
     deps = [
         "//curvefs/src/space:curve_fs_space",
@@ -82,7 +69,7 @@ cc_test(
         "bitmap_allocator_test.cpp",
         "common.h",
     ],
-    copts = COPTS + ABSL_COPTS,
+    copts = CURVE_TEST_COPTS + ABSL_COPTS,
     linkopts = LINKOPTS,
     deps = [
         "//curvefs/src/space:curve_fs_space",
@@ -96,7 +83,7 @@ cc_test(
         "bitmap_allocator_brute_test.cpp",
         "common.h",
     ],
-    copts = COPTS + ABSL_COPTS,
+    copts = CURVE_TEST_COPTS + ABSL_COPTS,
     linkopts = LINKOPTS,
     deps = [
         "//curvefs/src/space:curve_fs_space",
@@ -110,7 +97,7 @@ cc_test(
         "bitmap_allocator_multi_thread_brute_test.cpp",
         "common.h",
     ],
-    copts = COPTS + ABSL_COPTS,
+    copts = CURVE_TEST_COPTS + ABSL_COPTS,
     linkopts = LINKOPTS,
     deps = [
         "//curvefs/src/space:curve_fs_space",
@@ -124,7 +111,7 @@ cc_test(
         "common.h",
         "space_service_test.cpp",
     ],
-    copts = COPTS + ABSL_COPTS,
+    copts = CURVE_TEST_COPTS + ABSL_COPTS,
     linkopts = LINKOPTS,
     deps = [
         "//curvefs/src/space:curve_fs_space",
@@ -139,7 +126,7 @@ cc_test(
         "common.h",
         "space_manager_test.cpp",
     ],
-    copts = COPTS + ABSL_COPTS,
+    copts = CURVE_TEST_COPTS + ABSL_COPTS,
     linkopts = LINKOPTS,
     deps = [
         "//curvefs/src/space:curve_fs_space",
@@ -154,7 +141,7 @@ cc_test(
         "allocator_test.cpp",
         "common.h",
     ],
-    copts = COPTS + ABSL_COPTS,
+    copts = CURVE_TEST_COPTS + ABSL_COPTS,
     linkopts = LINKOPTS,
     deps = [
         "//curvefs/src/space:curve_fs_space",
@@ -168,7 +155,7 @@ cc_binary(
     srcs = [
         "fake_user.cpp",
     ],
-    copts = COPTS + ABSL_COPTS,
+    copts = CURVE_TEST_COPTS + ABSL_COPTS,
     deps = [
         "//curvefs/proto:space_cc_proto",
         "//curvefs/src/space:curve_fs_space",

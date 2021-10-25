@@ -247,6 +247,7 @@ int CloneCore::HandleReadRequest(
             return 0;
         }
         // 否则fallthrough直接返回错误
+        FALLTHROUGH_INTENDED;
     default:
         LOG(ERROR) << "get chunkinfo failed: "
                    << " logic pool id: " << request->logicpoolid()

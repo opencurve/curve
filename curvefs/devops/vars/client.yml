@@ -17,6 +17,7 @@ project_log_root: "{{ curvefs_project_log_home }}/client"
 project_config_src: "{{ playbook_dir | dirname }}/conf"
 project_config_dsv: "="
 project_core_method: "{{ curvefs_core_method }}"
+project_binary_debug_symbol_suffix: "{{ curvefs_debug_symbol_file_suffix }}"
 
 # FIXME: static link jemalloc or use a better way to preload it
 #   uses find to find libjemalloc.so, because different distributions have different libraries

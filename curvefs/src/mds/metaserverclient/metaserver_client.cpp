@@ -43,7 +43,6 @@ FSStatusCode MetaserverClient::SendRpc2MetaServer(Request* request,
     void (T::*func)(google::protobuf::RpcController*,
                     const Request*, Response*,
                     google::protobuf::Closure*)) {
-    bool needRetry = true;
     bool refreshLeader = true;
     uint32_t maxRetry = options_.rpcRetryTimes;
 
@@ -72,7 +71,6 @@ FSStatusCode MetaserverClient::SendRpc2MetaServer(Request* request,
         MetaServerService_Stub stub(&channel_);
         (stub.*func)(&cntl, request, response, nullptr);
         if (cntl.Failed()) {
-            needRetry = true;
             if (cntl.ErrorCode() == EHOSTDOWN ||
                 cntl.ErrorCode() == brpc::ELOGOFF) {
                     refreshLeader = true;
@@ -82,11 +80,9 @@ FSStatusCode MetaserverClient::SendRpc2MetaServer(Request* request,
         } else {
             switch (response->statuscode()) {
                 case MetaStatusCode::OVERLOAD:
-                    needRetry = true;
                     refreshLeader = false;
                     break;
                 case MetaStatusCode::REDIRECTED:
-                    needRetry = true;
                     refreshLeader = true;
                     break;
                 default:

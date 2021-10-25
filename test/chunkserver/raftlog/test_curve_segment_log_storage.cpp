@@ -63,7 +63,8 @@ class CurveSegmentLogStorageTest : public testing::Test {
 
         auto recycleFile = [this](const std::string& chunkpath)->int {
             std::string cmd = "rm -rf " + chunkpath;
-            execShell(cmd);
+            auto output = execShell(cmd);
+            return "" != output ? std::stoi(output) : 0;
         };
         EXPECT_CALL(*file_pool, GetFilePoolOpt())
             .WillRepeatedly(Return(fp_option));

@@ -215,7 +215,7 @@ int StatusTool::ChunkServerListCmd() {
     uint64_t unstable = 0;
     for (auto& chunkserver : chunkservers) {
         auto csId = chunkserver.chunkserverid();
-        double unhealthyRatio;
+        double unhealthyRatio = 0;
         if (FLAGS_checkCSAlive) {
             // 发RPC重置online状态
             std::string csAddr = chunkserver.hostip()

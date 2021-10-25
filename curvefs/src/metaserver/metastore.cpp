@@ -110,6 +110,9 @@ bool MetaStoreImpl::Load(const std::string& pathname) {
                 return LoadDentry(paritionId, entry);
             case ENTRY_TYPE::PENDING_TX:
                 return LoadPendingTx(paritionId, entry);
+            case ENTRY_TYPE::UNKNOWN:
+            default:
+                break;
         }
 
         LOG(ERROR) << "Load failed, unknown entry type";

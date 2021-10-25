@@ -14,22 +14,18 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS",
-)
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "kvstorage_client",
     srcs = glob(["*.cpp"]),
     hdrs = glob(["*.h"]),
-    copts = GCC_FLAGS,
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "//external:glog",
         "//external:gflags",
+        "//external:glog",
         "//src/common:curve_common",
-        "@etcdclient//:etcdclient",
+        "@etcdclient",
     ],
 )

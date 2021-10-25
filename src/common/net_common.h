@@ -46,7 +46,7 @@ class NetCommon {
                                   std::string* ipstr,
                                   uint32_t* port) {
         size_t splitpos = addr.find(":");
-        if (splitpos == -1) {
+        if (splitpos == std::string::npos) {
             LOG(ERROR) << "address invalid!";
             return false;
         }

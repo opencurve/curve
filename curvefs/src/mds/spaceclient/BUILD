@@ -14,21 +14,19 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS"
-    )
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "curvefs_mds_spaceclient",
-    srcs = glob(["*.cpp", "*.h"]),
-    copts = GCC_FLAGS,
-    linkopts = ["-luuid"],
+    srcs = glob([
+        "*.cpp",
+        "*.h",
+    ]),
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-    "//external:brpc",
-    "//curvefs/proto:mds_cc_proto",
-    "//curvefs/proto:space_cc_proto",
+        "//curvefs/proto:mds_cc_proto",
+        "//curvefs/proto:space_cc_proto",
+        "//external:brpc",
     ],
 )

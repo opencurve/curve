@@ -160,7 +160,7 @@ std::string Authenticator::Base64(const unsigned char *src, size_t sz) {
         p += 3;
         q += 4;
     }
-    *q = NULL;
+    *q = 0;
     if ((safe % 3) == 1) {
         *(q - 1) = '=';
         *(q - 2) = '=';

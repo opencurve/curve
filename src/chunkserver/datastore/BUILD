@@ -14,16 +14,14 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
+
 cc_library(
     name = "chunkserver_datastore",
     srcs = glob([
                 "*.cpp",
                 "*.h"
            ]),
-    linkopts = ([
-        "-pthread",
-        "-std=c++11",
-    ]),
     visibility = ["//visibility:public"],
     deps = [
         "//external:braft",
@@ -35,4 +33,5 @@ cc_library(
         "//src/common:curve_common",
         "//external:json"
     ],
+    copts = CURVE_DEFAULT_COPTS,
 )

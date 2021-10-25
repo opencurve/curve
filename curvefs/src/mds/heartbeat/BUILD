@@ -14,27 +14,23 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS",
-)
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "curvefs_heartbeat_lib",
     srcs = glob(["*.cpp"]),
     hdrs = glob(["*.h"]),
-    copts = GCC_FLAGS,
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
+        "//curvefs/proto:curvefs_heartbeat_cc_proto",
+        "//curvefs/proto:curvefs_topology_cc_proto",
+        "//curvefs/proto:metaserver_cc_proto",
+        "//curvefs/src/mds/topology:curvefs_topology",
         "//external:brpc",
         "//external:gflags",
         "//external:glog",
-        "//curvefs/proto:metaserver_cc_proto",
-        "//curvefs/proto:curvefs_topology_cc_proto",
-        "//curvefs/proto:curvefs_heartbeat_cc_proto",
         "//src/common:curve_common",
         "//src/common/concurrent:curve_concurrent",
-        "//curvefs/src/mds/topology:curvefs_topology",
     ],
 )

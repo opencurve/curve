@@ -77,7 +77,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     std::string filename = "/1_userinfo_";
     C_UserInfo_t userinfo;
     memcpy(userinfo.owner, "userinfo", 9);
-    memcpy(userinfo.password, "", 256);
+    memcpy(userinfo.password, "", 1);
 
     // 设置leaderid
     EndPoint ep;
@@ -581,7 +581,7 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
 
     C_UserInfo_t userinfo;
     memcpy(userinfo.owner, "userinfo", 9);
-    memcpy(userinfo.password, "", 256);
+    memcpy(userinfo.password, "", 1);
 
     // open not create file
     ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, Open(filename.c_str(), &userinfo));

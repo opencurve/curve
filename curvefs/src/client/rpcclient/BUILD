@@ -14,29 +14,25 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS",
-)
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "rpcclient",
     srcs = glob(["*.cpp"]),
     hdrs = glob(["*.h"]),
-    copts = GCC_FLAGS,
+    copts = CURVE_DEFAULT_COPTS,
+    visibility = ["//visibility:public"],
     deps = [
-        "//external:brpc",
-        "//external:glog",
-        "//external:gflags",
+        "//curvefs/proto:cli2_cc_proto",
+        "//curvefs/proto:curvefs_topology_cc_proto",
         "//curvefs/proto:mds_cc_proto",
         "//curvefs/proto:metaserver_cc_proto",
         "//curvefs/proto:space_cc_proto",
-        "//curvefs/proto:cli2_cc_proto",
-        "//curvefs/proto:curvefs_topology_cc_proto",
-        "//curvefs/src/client/common:common",
+        "//curvefs/src/client/common",
         "//curvefs/src/client/metric:client_metric",
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
         "//src/client:curve_client",
     ],
-    visibility = ["//visibility:public"],
 )

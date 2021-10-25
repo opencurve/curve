@@ -28,6 +28,7 @@
 #include <vector>
 #include <sstream>
 #include <iostream>
+#include <memory>
 
 #include "nbd/src/argparse.h"
 
@@ -186,9 +187,9 @@ bool argparse_flag(std::vector<const char*> &args,  // NOLINT
 	               std::vector<const char*>::iterator &i, ...) {    // NOLINT
     const char *first = *i;
     const int kFirstLen = strlen(first);
-    char tmp[kFirstLen+1];
-    dashes_to_underscores(first, tmp);
-    first = tmp;
+    std::unique_ptr<char[]> tmp(new char[kFirstLen+1]);
+    dashes_to_underscores(first, tmp.get());
+    first = tmp.get();
     va_list ap;
 
     va_start(ap, i);
@@ -199,9 +200,9 @@ bool argparse_flag(std::vector<const char*> &args,  // NOLINT
             return false;
         }
         const int kStrLen = strlen(a);
-        char a2[kStrLen+1];
-        dashes_to_underscores(a, a2);
-        if (strcmp(a2, first) == 0) {
+        std::unique_ptr<char[]> a2(new char[kStrLen+1]);
+        dashes_to_underscores(a, a2.get());
+        if (strcmp(a2.get(), first) == 0) {
             i = args.erase(i);
             va_end(ap);
             return true;
@@ -216,9 +217,9 @@ static int va_argparse_witharg(std::vector<const char*> &args,          // NOLIN
                                va_list ap) {
     const char *first = *i;
     const int kFirstLen = strlen(first);
-    char tmp[kFirstLen+1];
-    dashes_to_underscores(first, tmp);
-    first = tmp;
+    std::unique_ptr<char[]> tmp(new char[kFirstLen+1]);
+    dashes_to_underscores(first, tmp.get());
+    first = tmp.get();
 
     // does this argument match any of the possibilities?
     while (true) {
@@ -226,9 +227,9 @@ static int va_argparse_witharg(std::vector<const char*> &args,          // NOLIN
         if (a == NULL)
             return 0;
         const int kStrLen = strlen(a);
-        char a2[kStrLen+1];
-        dashes_to_underscores(a, a2);
-        if (strncmp(a2, first, strlen(a2)) == 0) {
+        std::unique_ptr<char[]> a2(new char[kStrLen+1]);
+        dashes_to_underscores(a, a2.get());
+        if (strncmp(a2.get(), first, strlen(a2.get())) == 0) {
             if (first[kStrLen] == '=') {
                 *ret = first + kStrLen + 1;
                 i = args.erase(i);

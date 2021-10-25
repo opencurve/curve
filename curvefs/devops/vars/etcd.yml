@@ -22,6 +22,7 @@ project_start_with_deamon: True
 project_daemon: "{{ project_start_with_deamon | ternary('--daemon', '') }}"
 project_listen_port: "{{ curvefs_etcd_listen_client_port }}"
 project_wait_service_timeout: "{{ curvefs_wait_service_timeout }}"
+project_binary_debug_symbol_suffix: "{{ curvefs_debug_symbol_file_suffix }}"
 
 project_templates:
   - etcd.conf

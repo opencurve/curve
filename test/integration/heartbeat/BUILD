@@ -14,6 +14,8 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_test(
     name = "mds_heartbeat_basic_integration",
     srcs = glob([
@@ -30,7 +32,8 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "@com_google_googletest//:gtest",
         "//external:brpc"
-    ]
+    ],
+    copts = CURVE_TEST_COPTS,
 )
 
 cc_test(
@@ -49,5 +52,6 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "@com_google_googletest//:gtest",
         "//external:brpc"
-    ]
+    ],
+    copts = CURVE_TEST_COPTS,
 )

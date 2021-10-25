@@ -30,3 +30,7 @@
 - include: clean.yml
   tags:
     - clean
+
+- include: debug.yml
+  tags:
+    - debug
