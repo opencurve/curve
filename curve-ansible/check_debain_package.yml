@@ -1,0 +1,61 @@
+---
+#
+#  Copyright (c) 2020 NetEase Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+# Check curve debain package
+
+- name: check curve-mds debain package
+  hosts: mds
+  gather_facts: no
+  tags: mds
+  become: "{{ sudo_or_not | bool }}"
+  vars:
+    - package_name: curve-mds
+    - version: "{{ mds_package_version }}"
+  tasks:
+    - include_tasks: common_tasks/check_debain_package.yml
+
+- name: check curve-snapshotcloneserver debain package
+  hosts: snapshotclone
+  gather_facts: no
+  tags: snapshotclone
+  become: "{{ sudo_or_not | bool }}"
+  vars:
+    - package_name: curve-snapshotcloneserver
+    - version: "{{ snapshot_package_version }}"
+  tasks:
+    - include_tasks: common_tasks/check_debain_package.yml
+
+- name: check curve-chunkserver debain package
+  hosts: chunkservers
+  gather_facts: no
+  tags: chunkserver
+  become: "{{ sudo_or_not | bool }}"
+  vars:
+    - package_name: curve-chunkserver
+    - version: "{{ cs_package_version }}"
+  tasks:
+    - include_tasks: common_tasks/check_debain_package.yml
+
+- name: check curve-monitor debain package
+  hosts: monitor
+  gather_facts: no
+  tags: monitor
+  become: "{{ sudo_or_not | bool }}"
+  vars:
+    - package_name: curve-monitor
+    - version: "{{ monitor_package_version }}"
+  tasks:
+    - include_tasks: common_tasks/check_debain_package.yml

@@ -20,38 +20,30 @@
  * Author: xuchaojie
  */
 
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <brpc/server.h>
-#include <brpc/channel.h>
-#include <butil/endpoint.h>
-#include <json/json.h>
-
-#include <fstream>
-#include <map>
-#include <set>
-#include <list>
-
-#include "proto/topology.pb.h"
-#include "src/mds/common/mds_define.h"
-#include "src/common/string_util.h"
-#include "src/common/configuration.h"
+#include "tools/curvefsTool.h"
 
 DEFINE_string(mds_addr, "127.0.0.1:6666",
     "mds ip and port list, separated by \",\"");
 
 DEFINE_string(op,
     "",
-    "operation: create_logicalpool, create_physicalpool, set_chunkserver");
+    "operation: create_logicalpool, "
+               "create_physicalpool, "
+               "set_chunkserver, "
+               "set_logicalpool");
 
 DEFINE_string(cluster_map, "/etc/curve/topo.json", "cluster topology map.");
 
 DEFINE_int32(chunkserver_id, -1, "chunkserver id for set chunkserver status.");
 DEFINE_string(chunkserver_status, "readwrite",
-    "chunkserver status: readwrite, pendding, retired.");
+    "chunkserver status: readwrite, pendding.");
 
 DEFINE_uint32(rpcTimeOutMs, 5000u, "rpc time out");
 DEFINE_string(confPath, "/etc/curve/tools.conf", "config file path of tools");
+
+DEFINE_uint32(logicalpool_id, -1, "logicalpool id for set logicalpool status.");
+DEFINE_string(logicalpool_status, "allow",
+    "logicalpool status: allow, deny.");
 
 const int kRetCodeCommonErr = -1;
 const int kRetCodeRedirectMds = -2;
@@ -69,104 +61,15 @@ const char kReplicasNum[] = "replicasnum";
 const char kCopysetNum[] = "copysetnum";
 const char kZoneNum[] = "zonenum";
 const char kScatterWidth[] = "scatterwidth";
+const char kAllocStatus[] = "allocstatus";
+const char kAllocStatusAllow[] = "allow";
+const char kAllocStatusDeny[] = "deny";
 
 using ::curve::common::SplitString;
 
 namespace curve {
 namespace mds {
 namespace topology {
-
-struct CurveServerData {
-    std::string serverName;
-    std::string internalIp;
-    uint32_t internalPort;
-    std::string externalIp;
-    uint32_t externalPort;
-    std::string zoneName;
-    std::string physicalPoolName;
-};
-
-struct CurveLogicalPoolData {
-    std::string name;
-    std::string physicalPoolName;
-    curve::mds::topology::LogicalPoolType type;
-    uint32_t replicasNum;
-    uint64_t copysetNum;
-    uint32_t zoneNum;
-    uint32_t scatterwidth;
-};
-
-struct CurveZoneData {
-    std::string zoneName;
-    std::string physicalPoolName;
-    PoolIdType physicalPoolId;
-};
-
-struct CurvePhysicalPoolData {
-    std::string physicalPoolName;
-};
-
-class CurvefsTools {
- public:
-    CurvefsTools() {}
-    ~CurvefsTools() {}
-
-    int Init();
-
-    int HandleCreateLogicalPool();
-    int HandleBuildCluster();
-    int SetChunkServer();
-
-    int GetMaxTry() {
-        return mdsAddressStr_.size();
-    }
-
-    int TryAnotherMdsAddress();
-
-    static const std::string clusterMapSeprator;
-
- private:
-    int ReadClusterMap();
-    int InitServerData();
-    int InitLogicalPoolData();
-    int ScanCluster();
-    int ScanLogicalPool();
-    int CreatePhysicalPool();
-    int CreateZone();
-    int CreateServer();
-
-    int ClearPhysicalPool();
-    int ClearZone();
-    int ClearServer();
-
-    int ListPhysicalPool(
-        std::list<PhysicalPoolInfo> *physicalPoolInfos);
-
-    int ListLogicalPool(const std::string& phyPoolName,
-        std::list<LogicalPoolInfo> *logicalPoolInfos);
-
-    int AddListPoolZone(PoolIdType poolid,
-        std::list<ZoneInfo> *zoneInfos);
-
-    int AddListZoneServer(ZoneIdType zoneid,
-        std::list<ServerInfo> *serverInfos);
-
- private:
-    std::list<CurveServerData> serverDatas;
-    std::list<CurveLogicalPoolData> lgPoolDatas;
-    std::list<CurvePhysicalPoolData> physicalPoolToAdd;
-    std::list<CurveZoneData> zoneToAdd;
-    std::list<CurveServerData> serverToAdd;
-
-    std::list<PoolIdType> physicalPoolToDel;
-    std::list<ZoneIdType> zoneToDel;
-    std::list<ServerIdType> serverToDel;
-
-    std::vector<std::string> mdsAddressStr_;
-    int mdsAddressIndex_;
-    brpc::Channel channel_;
-    Json::Value clusterMap_;
-};
 
 const std::string CurvefsTools::clusterMapSeprator = " ";  // NOLINT
 
@@ -221,16 +124,28 @@ int CurvefsTools::TryAnotherMdsAddress() {
     return ret;
 }
 
+int CurvefsTools::DealFailedRet(int ret, std::string operation) {
+    if (kRetCodeRedirectMds == ret) {
+        LOG(WARNING) << operation << " fail on mds: "
+                   << mdsAddressStr_[mdsAddressIndex_];
+    } else {
+        LOG(ERROR) << operation << " fail.";
+    }
+    return ret;
+}
+
 int CurvefsTools::HandleCreateLogicalPool() {
     int ret = ReadClusterMap();
     if (ret < 0) {
-        LOG(ERROR) << "read cluster map fail";
-        return ret;
+        return DealFailedRet(ret, "read cluster map");
     }
     ret = InitLogicalPoolData();
     if (ret < 0) {
-        LOG(ERROR) << "init logical pool data fail";
-        return ret;
+        return DealFailedRet(ret, "init logical pool data");
+    }
+    ret = ScanLogicalPool();
+    if (ret < 0) {
+        return DealFailedRet(ret, "scan logical pool");
     }
     for (const auto& lgPool : lgPoolDatas) {
         TopologyService_Stub stub(&channel_);
@@ -251,6 +166,7 @@ int CurvefsTools::HandleCreateLogicalPool() {
         request.set_redundanceandplacementpolicy(rapString);
         request.set_userpolicy("{\"aaa\":1}");
         request.set_scatterwidth(lgPool.scatterwidth);
+        request.set_status(lgPool.status);
 
         CreateLogicalPoolResponse response;
 
@@ -264,6 +180,8 @@ int CurvefsTools::HandleCreateLogicalPool() {
 
         stub.CreateLogicalPool(&cntl, &request, &response, nullptr);
         if (cntl.Failed()) {
+            LOG(WARNING) << "send rpc get cntl Failed, error context:"
+                       << cntl.ErrorText();
             return kRetCodeRedirectMds;
         }
         if (response.statuscode() == kTopoErrCodeSuccess) {
@@ -282,8 +200,8 @@ int CurvefsTools::HandleCreateLogicalPool() {
 }
 
 int CurvefsTools::ScanLogicalPool() {
-    // get all phsicalpool and compare
-    // 去重
+    // get all logicalpool and compare
+    // De-duplication
     std::set<std::string> phyPools;
     for (const auto& lgPool : lgPoolDatas) {
         phyPools.insert(lgPool.physicalPoolName);
@@ -336,48 +254,39 @@ int CurvefsTools::ListLogicalPool(const std::string& phyPoolName,
 int CurvefsTools::HandleBuildCluster() {
     int ret = ReadClusterMap();
     if (ret < 0) {
-        LOG(ERROR) << "read cluster map fail";
-        return ret;
+        return DealFailedRet(ret, "read cluster map");
     }
     ret = InitServerData();
     if (ret < 0) {
-        LOG(ERROR) << "init server data fail";
-        return ret;
+        return DealFailedRet(ret, "init server data");
     }
     ret = ScanCluster();
     if (ret < 0) {
-        LOG(ERROR) << "scan cluster fail";
-        return ret;
+        return DealFailedRet(ret, "scan cluster");
     }
     ret = ClearServer();
     if (ret < 0) {
-        LOG(ERROR) << "clear server fail.";
-        return ret;
+        return DealFailedRet(ret, "clear server");
     }
     ret = ClearZone();
     if (ret < 0) {
-        LOG(ERROR) << "clear zone fail.";
-        return ret;
+        return DealFailedRet(ret, "clear zone");
     }
     ret = ClearPhysicalPool();
     if (ret < 0) {
-        LOG(ERROR) << "clear physicalpool fail.";
-        return ret;
+        return DealFailedRet(ret, "clear physicalpool");
     }
     ret = CreatePhysicalPool();
     if (ret < 0) {
-        LOG(ERROR) << "create physicalpool fail.";
-        return ret;
+        return DealFailedRet(ret, "create physicalpool");
     }
     ret = CreateZone();
     if (ret < 0) {
-        LOG(ERROR) << "create zone fail.";
-        return ret;
+        return DealFailedRet(ret, "create zone");
     }
     ret = CreateServer();
     if (ret < 0) {
-        LOG(ERROR) << "create server fail.";
-        return ret;
+        return DealFailedRet(ret, "create server");
     }
     return ret;
 }
@@ -492,6 +401,20 @@ int CurvefsTools::InitLogicalPoolData() {
             return -1;
         }
         lgPoolData.scatterwidth = lgPool[kScatterWidth].asUInt();
+        if (lgPool[kAllocStatus].isString()) {
+            if (lgPool[kAllocStatus].asString() == kAllocStatusAllow) {
+                lgPoolData.status = AllocateStatus::ALLOW;
+            } else if (lgPool[kAllocStatus].asString() == kAllocStatusDeny) {
+                lgPoolData.status = AllocateStatus::DENY;
+            } else {
+                LOG(ERROR) << "logicalpool status string is invalid!, which is "
+                           << lgPool[kAllocStatus].asString();
+                return -1;
+            }
+        } else {
+            LOG(WARNING) << "logicalpool not set, use default allow";
+            lgPoolData.status = AllocateStatus::ALLOW;
+        }
         lgPoolDatas.emplace_back(lgPoolData);
     }
     return 0;
@@ -611,7 +534,7 @@ int CurvefsTools::AddListZoneServer(ZoneIdType zoneid,
 
 int CurvefsTools::ScanCluster() {
     // get all phsicalpool and compare
-    // 去重
+    // De-duplication
     for (auto server : serverDatas) {
         if (std::find_if(physicalPoolToAdd.begin(),
             physicalPoolToAdd.end(),
@@ -649,7 +572,7 @@ int CurvefsTools::ScanCluster() {
     }
 
     // get zone and compare
-    // 去重
+    // De-duplication
     for (auto server : serverDatas) {
         if (std::find_if(zoneToAdd.begin(),
             zoneToAdd.end(),
@@ -710,7 +633,7 @@ int CurvefsTools::ScanCluster() {
     }
 
     // get server and compare
-    // 去重
+    // De-duplication
     for (auto server : serverDatas) {
         if (std::find_if(serverToAdd.begin(),
             serverToAdd.end(),
@@ -788,6 +711,8 @@ int CurvefsTools::CreatePhysicalPool() {
         stub.CreatePhysicalPool(&cntl, &request, &response, nullptr);
 
         if (cntl.Failed()) {
+            LOG(WARNING) << "send rpc get cntl Failed, error context:"
+                       << cntl.ErrorText();
             return kRetCodeRedirectMds;
         }
         if (response.statuscode() != kTopoErrCodeSuccess) {
@@ -1041,12 +966,13 @@ int CurvefsTools::ClearServer() {
 int CurvefsTools::SetChunkServer() {
     SetChunkServerStatusRequest request;
     request.set_chunkserverid(FLAGS_chunkserver_id);
-    if (FLAGS_chunkserver_status == "retired") {
-        request.set_chunkserverstatus(ChunkServerStatus::RETIRED);
-    } else if (FLAGS_chunkserver_status == "pendding") {
+    if (FLAGS_chunkserver_status == "pendding") {
         request.set_chunkserverstatus(ChunkServerStatus::PENDDING);
     } else if (FLAGS_chunkserver_status == "readwrite") {
         request.set_chunkserverstatus(ChunkServerStatus::READWRITE);
+    } else if (FLAGS_chunkserver_status == "retired") {
+        LOG(ERROR) << "SetChunkServer retired not unsupport!";
+        return kRetCodeCommonErr;
     } else {
         LOG(ERROR) << "SetChunkServer param error, unknown chunkserver status";
         return kRetCodeCommonErr;
@@ -1086,6 +1012,51 @@ int CurvefsTools::SetChunkServer() {
     return 0;
 }
 
+int CurvefsTools::SetLogicalPool() {
+    SetLogicalPoolRequest request;
+    request.set_logicalpoolid(FLAGS_logicalpool_id);
+    if (FLAGS_logicalpool_status == "allow") {
+        request.set_status(AllocateStatus::ALLOW);
+    } else if (FLAGS_logicalpool_status == "deny") {
+        request.set_status(AllocateStatus::DENY);
+    } else {
+        LOG(ERROR) << "SetLogicalPool param error, unknown logicalpool status";
+        return kRetCodeCommonErr;
+    }
+    SetLogicalPoolResponse response;
+    TopologyService_Stub stub(&channel_);
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
+    cntl.set_log_id(1);
+
+    LOG(INFO) << "SetLogicalPool, send request: "
+              << request.DebugString();
+
+    stub.SetLogicalPool(&cntl, &request, &response, nullptr);
+
+    if (cntl.ErrorCode() == EHOSTDOWN ||
+        cntl.ErrorCode() == brpc::ELOGOFF) {
+        return kRetCodeRedirectMds;
+    } else if (cntl.Failed()) {
+        LOG(ERROR) << "SetLogicalPool, errcorde = "
+                   << response.statuscode()
+                   << ", error content:"
+                   << cntl.ErrorText();
+        return kRetCodeCommonErr;
+    }
+    if (response.statuscode() != kTopoErrCodeSuccess) {
+        LOG(ERROR) << "SetLogicalPool Rpc response fail. "
+                   << "Message is :"
+                   << response.DebugString();
+        return response.statuscode();
+    } else {
+        LOG(INFO) << "Received SetLogicalPool Rpc "
+                  << "response success, "
+                  << response.DebugString();
+    }
+    return 0;
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
@@ -1118,6 +1089,8 @@ int main(int argc, char **argv) {
             ret = tools.HandleBuildCluster();
         } else if (operation == "set_chunkserver") {
             ret = tools.SetChunkServer();
+        } else if (operation == "set_logicalpool") {
+            ret = tools.SetLogicalPool();
         } else {
             LOG(ERROR) << "undefined op.";
             ret = kRetCodeCommonErr;

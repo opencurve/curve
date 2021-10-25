@@ -26,22 +26,22 @@
   hosts: mds
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - mds
   roles:
-    - { role: stop_service, service_name: mds, command_need_sudo: "{{ mds_need_sudo }}" }
+    - { role: stop_service, service_name: mds, command_need_sudo: "{{ mds_need_sudo | bool }}" }
 
 ############################## stop chunkserver ##############################
 - name: stop chunkserver
   hosts: chunkservers
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - chunkserver
   roles:
-    - { role: stop_service, service_name: chunkserver, command_need_sudo: "{{ chunkserver_need_sudo }}" }
+    - { role: stop_service, service_name: chunkserver, command_need_sudo: "{{ chunkserver_need_sudo | bool }}" }
 
 
 ############################## stop snapshotcloneserver ##############################
@@ -49,19 +49,19 @@
   hosts: snapshotclone
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - snapshotclone
     - never
   roles:
-    - { role: stop_service, service_name: snapshotcloneserver, command_need_sudo: "{{ snapshot_need_sudo }}"}
+    - { role: stop_service, service_name: snapshotcloneserver, command_need_sudo: "{{ snapshot_need_sudo | bool }}"}
 
 ############################## stop snapshotcloneserver-nginx ##############################
 - name: stop snapshotcloneserver_nginx
   hosts: snapshotclone_nginx
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - snapshotclone_nginx
     - never
@@ -74,8 +74,8 @@
   hosts: etcd
   any_errors_fatal: true
   gather_facts: no
-  become: "{{ sudo_or_not }}"
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - etcd
   roles:
-    - { role: stop_service, service_name: etcd, command_need_sudo: "{{ etcd_need_sudo }}" }
+    - { role: stop_service, service_name: etcd, command_need_sudo: "{{ etcd_need_sudo | bool }}" }

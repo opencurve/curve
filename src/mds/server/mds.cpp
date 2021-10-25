@@ -298,6 +298,9 @@ void MDS::InitTopologyOption(TopologyOption *topologyOption) {
     conf_->GetValueFatalIfFail(
         "mds.topology.choosePoolPolicy",
         &topologyOption->choosePoolPolicy);
+    conf_->GetValueFatalIfFail(
+        "mds.topology.enableLogicalPoolStatus",
+        &topologyOption->enableLogicalPoolStatus);
 }
 
 void MDS::InitTopology(const TopologyOption& option) {
@@ -454,6 +457,12 @@ void MDS::InitAuthOptions(RootAuthOption *authOptions) {
 void MDS::InitCurveFSOptions(CurveFSOption *curveFSOptions) {
     conf_->GetValueFatalIfFail(
         "mds.curvefs.defaultChunkSize", &curveFSOptions->defaultChunkSize);
+    conf_->GetValueFatalIfFail(
+        "mds.curvefs.defaultSegmentSize", &curveFSOptions->defaultSegmentSize);
+    conf_->GetValueFatalIfFail(
+        "mds.curvefs.minFileLength", &curveFSOptions->minFileLength);
+    conf_->GetValueFatalIfFail(
+        "mds.curvefs.maxFileLength", &curveFSOptions->maxFileLength);
     FileRecordOptions fileRecordOptions;
     InitFileRecordOptions(&curveFSOptions->fileRecordOptions);
 

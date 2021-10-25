@@ -38,6 +38,8 @@ std::string NebdFileType2Str(NebdFileType type);
 
 std::string NebdFileStatus2Str(NebdFileStatus status);
 
+std::string Op2Str(LIBAIO_OP op);
+
 std::ostream& operator<<(std::ostream& os, const NebdServerAioContext& c);
 std::ostream& operator<<(std::ostream& os, const NebdFileMeta& meta);
 

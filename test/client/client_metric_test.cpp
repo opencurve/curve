@@ -68,8 +68,8 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     metaopt.mdsRPCTimeoutMs = 500;
     metaopt.mdsRPCRetryIntervalUS = 200;
 
-    MDSClient  mdsclient;
-    ASSERT_EQ(0, mdsclient.Initialize(metaopt));
+    std::shared_ptr<MDSClient> mdsclient = std::make_shared<MDSClient>();
+    ASSERT_EQ(0, mdsclient->Initialize(metaopt));
 
     FLAGS_chunkserver_list = "127.0.0.1:9130:0,127.0.0.1:9131:0,127.0.0.1:9132:0";   // NOLINT
 
@@ -101,7 +101,7 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     auto opt = cc.GetFileServiceOption();
 
     FileInstance fi;
-    ASSERT_TRUE(fi.Initialize(filename.c_str(), &mdsclient, userinfo, opt));
+    ASSERT_TRUE(fi.Initialize(filename.c_str(), mdsclient, userinfo, opt));
 
     FileMetric* fm = fi.GetIOManager4File()->GetMetric();
 
@@ -168,7 +168,6 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     delete[] buffer;
     fi.UnInitialize();
     mds.UnInitialize();
-    mdsclient.UnInitialize();
 }
 
 bool flag = false;
@@ -186,8 +185,8 @@ TEST(MetricTest, SuspendRPC_MetricTest) {
     metaopt.mdsRPCTimeoutMs = 500;
     metaopt.mdsRPCRetryIntervalUS = 200;
 
-    MDSClient  mdsclient;
-    ASSERT_EQ(0, mdsclient.Initialize(metaopt));
+    std::shared_ptr<MDSClient> mdsclient = std::make_shared<MDSClient>();
+    ASSERT_EQ(0, mdsclient->Initialize(metaopt));
 
     FLAGS_chunkserver_list = "127.0.0.1:9130:0,127.0.0.1:9131:0,127.0.0.1:9132:0";   // NOLINT
 
@@ -217,7 +216,7 @@ TEST(MetricTest, SuspendRPC_MetricTest) {
     ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 50;
 
     FileInstance fi;
-    ASSERT_TRUE(fi.Initialize(filename.c_str(), &mdsclient, userinfo, opt));
+    ASSERT_TRUE(fi.Initialize(filename.c_str(), mdsclient, userinfo, opt));
 
     FileMetric* fm = fi.GetIOManager4File()->GetMetric();
 
@@ -286,7 +285,6 @@ TEST(MetricTest, SuspendRPC_MetricTest) {
     delete[] buf1;
     fi.UnInitialize();
     mds.UnInitialize();
-    mdsclient.UnInitialize();
 }
 
 TEST(MetricTest, MetricHelperTest) {

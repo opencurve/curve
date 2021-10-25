@@ -21,6 +21,7 @@
  */
 
 syntax="proto2";
+import "proto/common.proto";
 package curve.mds.topology;
 // HTTP web can use https://github.com/dcodeIO/protobuf.js to use proto buffer
 
@@ -193,7 +194,6 @@ message SetChunkServerStatusResponse {
     required sint32 statusCode = 1;
 }
 
-
 //server message
 message ServerInfo {
     required uint32 serverID = 1;
@@ -345,6 +345,7 @@ message CreateLogicalPoolRequest {
     required bytes redundanceAndPlaceMentPolicy = 5;  //json body
     required bytes userPolicy = 6;                    //json body
     optional uint32 scatterWidth = 7;      //生成copyset依据的scatterWidth平均值
+    optional AllocateStatus status = 8;
 }
 
 message CreateLogicalPoolResponse {
@@ -387,6 +388,14 @@ message ListLogicalPoolResponse {
     repeated LogicalPoolInfo logicalPoolInfos = 2;
 }
 
+message SetLogicalPoolRequest {
+    required uint32 logicalPoolID = 1;
+    required AllocateStatus status = 2;
+}
+
+message SetLogicalPoolResponse {
+    required sint32 statusCode = 1;
+}
 
 //for client interface
 
@@ -412,11 +421,6 @@ message GetChunkServerListInCopySetsResponse {
     repeated CopySetServerInfo csInfo = 2;
 }
 
-message CopysetInfo {
-    required uint32 logicalPoolId = 1;
-    required uint32 copysetId = 2;
-}
-
 message GetCopySetsInChunkServerRequest {
     //use either chunkServerID  or  hostIp&port to get copusets on chunkserver
     optional uint32 chunkServerID = 1;
@@ -426,7 +430,7 @@ message GetCopySetsInChunkServerRequest {
 
 message GetCopySetsInChunkServerResponse {
     required sint32 statusCode = 1;
-    repeated CopysetInfo copysetInfos = 2;
+    repeated common.CopysetInfo copysetInfos = 2;
 }
 
 message GetClusterInfoRequest {
@@ -442,7 +446,7 @@ message GetCopySetsInClusterRequest {
 
 message GetCopySetsInClusterResponse {
     required sint32 statusCode = 1;
-    repeated CopysetInfo copysetInfos = 2;
+    repeated common.CopysetInfo copysetInfos = 2;
 }
 
 //TODO(hzsunjianliang): update userPolicy and so on
@@ -473,6 +477,7 @@ service TopologyService {
     rpc DeleteLogicalPool(DeleteLogicalPoolRequest)    returns (DeleteLogicalPoolResponse);
     rpc GetLogicalPool(GetLogicalPoolRequest)           returns (GetLogicalPoolResponse);
     rpc ListLogicalPool(ListLogicalPoolRequest)         returns (ListLogicalPoolResponse);
+    rpc SetLogicalPool(SetLogicalPoolRequest) returns(SetLogicalPoolResponse);
 
     rpc GetChunkServerListInCopySets(GetChunkServerListInCopySetsRequest) returns (GetChunkServerListInCopySetsResponse);
     rpc GetCopySetsInChunkServer(GetCopySetsInChunkServerRequest) returns (GetCopySetsInChunkServerResponse);

@@ -126,10 +126,6 @@ const uint64_t kMB = 1024*kKB;
 const uint64_t kGB = 1024*kMB;
 const uint64_t kTB = 1024*kGB;
 
-extern uint64_t DefaultSegmentSize;
-extern uint64_t kMiniFileLength;
-const uint64_t kMaxFileLength = 4 * kTB;
-
 // curve default root path and inodeid
 const InodeID ROOTINODEID = 0;
 const char ROOTFILENAME[] = "/";

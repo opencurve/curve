@@ -20,7 +20,6 @@
  * Author: wuhanqing
  */
 
-#include <braft/configuration.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -28,175 +27,206 @@
 #include <string>
 
 #include "include/client/libcurve.h"
-#include "src/common/concurrent/count_down_event.h"
-#include "test/client/fake/fakeMDS.h"
-#include "test/client/fake/mock_schedule.h"
-#include "test/client/mock_file_client.h"
-#include "test/integration/cluster_common/cluster.h"
-#include "test/util/config_generator.h"
-
-DECLARE_string(chunkserver_list);
-extern std::string configpath;
+#include "src/client/client_common.h"
+#include "test/client/mock/mock_file_client.h"
 
 namespace curve {
 namespace client {
 
 using ::testing::_;
+using ::testing::DoAll;
 using ::testing::Return;
+using ::testing::SetArgPointee;
 
-const uint32_t kBufSize = 128 * 1024;  // 128KB
-const uint64_t kFileSize = 10ul * 1024 * 1024 * 1024;
-const uint64_t kNewSize = 20ul * 1024 * 1024 * 1024;
-const char* kFileName = "1_userinfo_test.img";
 const char* kWrongFileName = "xxxxx";
+const char* kValidFileName = "/filename_user_";
 
-curve::common::CountDownEvent event;
-
-void LibcbdLibcurveTestCallback(CurveAioContext* context) {
-    event.Signal();
-}
+constexpr uint64_t kTiB = 1ull * 1024 * 1024 * 1024 * 1024;
 
 class CurveClientTest : public ::testing::Test {
- public:
-    void SetUp() {
-        FLAGS_chunkserver_list =
-            "127.0.0.1:19110:0,127.0.0.1:19111:0,127.0.0.1:19112:0";
-
-        mds_ = new FakeMDS(kFileName);
-
-        // 设置leaderid
-        EndPoint ep;
-        butil::str2endpoint("127.0.0.1", 19110, &ep);
-        braft::PeerId pd(ep);
-
-        // init mds service
-        mds_->Initialize();
-        mds_->StartCliService(pd);
-        mds_->StartService();
-        mds_->CreateCopysetNode(true);
-
-        if (client_.Init(configpath.c_str()) != 0) {
-            ASSERT_TRUE(false);
-            return;
-        }
+ protected:
+    void SetUp() override {
+        mockFileClient_ = new MockFileClient();
+        client_.SetFileClient(mockFileClient_);
     }
 
-    void TearDown() {
-        mds_->UnInitialize();
-        delete mds_;
-        mds_ = nullptr;
+    void TearDown() override {}
 
-        client_.UnInit();
-    }
-
-    FakeMDS* mds_;
     CurveClient client_;
+    MockFileClient* mockFileClient_;
 };
 
-TEST_F(CurveClientTest, OpenTest) {
-    // filename invalid
-    int fd = client_.Open(kWrongFileName, nullptr);
-    ASSERT_LT(fd, 0);
+TEST_F(CurveClientTest, TestInit) {
+    {
+        EXPECT_CALL(*mockFileClient_, Init(_))
+            .WillOnce(Return(LIBCURVE_ERROR::OK));
 
-    // 第一次open
-    std::string sessionId;
-    fd = client_.Open(kFileName, &sessionId);
-    ASSERT_GE(fd, 0);
-
-    // 第二次open
-    int fd2 = client_.Open(kFileName, &sessionId);
-    ASSERT_GT(fd2, fd);
-
-    ASSERT_EQ(0, client_.Close(fd));
-    ASSERT_EQ(0, client_.Close(fd2));
-}
-
-TEST_F(CurveClientTest, StatFileTest) {
-    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, client_.StatFile(kWrongFileName));
-    ASSERT_EQ(kFileSize, client_.StatFile(kFileName));
-}
-
-TEST_F(CurveClientTest, StatFileFailedTest) {
-    MockFileClient* mockFileClient = new MockFileClient();
-    client_.SetFileClient(mockFileClient);
-    EXPECT_CALL(*mockFileClient, StatFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(-LIBCURVE_ERROR::FAILED));
-    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, client_.StatFile(kFileName));
-}
-
-TEST_F(CurveClientTest, ExtendTest) {
-    ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
-              client_.Extend(kWrongFileName, kNewSize));
-    ASSERT_EQ(0, client_.Extend(kFileName, kNewSize));
-}
-
-TEST_F(CurveClientTest, AioReadWriteTest) {
-    int fd = client_.Open(kFileName, nullptr);
-    ASSERT_NE(-1, fd);
-
-    char buffer[kBufSize];
-
-    CurveAioContext aioctx;
-    aioctx.buf = buffer;
-    aioctx.offset = 0;
-    aioctx.length = kBufSize;
-    aioctx.cb = LibcbdLibcurveTestCallback;
-    aioctx.op = LIBCURVE_OP_WRITE;
-
-    memset(buffer, 'a', kBufSize);
-
-    event.Reset(1);
-    ASSERT_EQ(0, client_.AioWrite(fd, &aioctx, UserDataType::RawBuffer));
-    event.Wait();
-    ASSERT_EQ(aioctx.ret, aioctx.length);
-
-    aioctx.op = LIBCURVE_OP_READ;
-    memset(buffer, '0', kBufSize);
-    event.Reset(1);
-    ASSERT_EQ(0, client_.AioRead(fd, &aioctx, UserDataType::RawBuffer));
-    event.Wait();
-    ASSERT_EQ(aioctx.ret, aioctx.length);
-
-    for (int i = 0; i < kBufSize; ++i) {
-        ASSERT_EQ(buffer[i], 'a');
+        ASSERT_EQ(LIBCURVE_ERROR::OK, client_.Init("/etc/curve/client.conf"));
     }
 
-    ASSERT_EQ(0, client_.Close(fd));
+    {
+        EXPECT_CALL(*mockFileClient_, Init(_))
+            .WillOnce(Return(-LIBCURVE_ERROR::FAILED));
+
+        ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
+                  client_.Init("/etc/curve/client.conf"));
+    }
+}
+
+TEST_F(CurveClientTest, TestUnInit) {
+    EXPECT_CALL(*mockFileClient_, UnInit())
+        .Times(1);
+
+    ASSERT_NO_FATAL_FAILURE(client_.UnInit());
+}
+
+TEST_F(CurveClientTest, TestOpen) {
+    // parse filename and user info failed
+    {
+        EXPECT_CALL(*mockFileClient_, Open(_, _, _))
+            .Times(0);
+
+        ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
+                  client_.Open(kWrongFileName, nullptr));
+    }
+
+    // open success
+    {
+        EXPECT_CALL(*mockFileClient_, Open(_, _, _))
+            .WillOnce(Return(1));
+
+        ASSERT_EQ(1, client_.Open(kValidFileName, nullptr));
+    }
+}
+
+TEST_F(CurveClientTest, TestReOpen) {
+    // parse filename and user info failed
+    {
+        EXPECT_CALL(*mockFileClient_, ReOpen(_, _, _, _))
+            .Times(0);
+
+        ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
+                  client_.ReOpen(kWrongFileName, "xxxx", nullptr));
+    }
+
+    // reopen success
+    {
+        EXPECT_CALL(*mockFileClient_, ReOpen(_, _, _, _))
+            .WillOnce(Return(1));
+
+        ASSERT_EQ(1, client_.ReOpen(kValidFileName, "xxxx", nullptr));
+    }
+}
+
+TEST_F(CurveClientTest, TestClose) {
+    EXPECT_CALL(*mockFileClient_, Close(_))
+        .WillOnce(Return(LIBCURVE_ERROR::OK));
+
+    ASSERT_EQ(LIBCURVE_ERROR::OK, client_.Close(0));
+}
+
+TEST_F(CurveClientTest, TestExtend) {
+    // parse filename and user info failed
+    {
+        EXPECT_CALL(*mockFileClient_, Extend(_, _, _))
+            .Times(0);
+
+        ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
+                  client_.Extend(kWrongFileName, 1 * kTiB));
+    }
+
+    // extend success
+    {
+        EXPECT_CALL(*mockFileClient_, Extend(_, _, _))
+            .Times(1);
+
+        ASSERT_EQ(LIBCURVE_ERROR::OK, client_.Extend(kValidFileName, 1 * kTiB));
+    }
+}
+
+TEST_F(CurveClientTest, TestStatFile) {
+    // parse filename and user info failed
+    {
+        EXPECT_CALL(*mockFileClient_, StatFile(_, _, _))
+            .Times(0);
+
+        ASSERT_EQ(-LIBCURVE_ERROR::FAILED, client_.StatFile(kWrongFileName));
+    }
+
+    // statfile return failed
+    {
+        FileStatInfo info;
+        info.length = 1 * kTiB;
+
+        EXPECT_CALL(*mockFileClient_, StatFile(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(info), Return(-LIBCURVE_ERROR::FAILED)));
+
+        ASSERT_EQ(-LIBCURVE_ERROR::FAILED, client_.StatFile(kValidFileName));
+    }
+
+    // statfile success
+    {
+        FileStatInfo info;
+        info.length = 1 * kTiB;
+        EXPECT_CALL(*mockFileClient_, StatFile(_, _, _))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(info), Return(LIBCURVE_ERROR::OK)));
+
+        ASSERT_EQ(1 * kTiB, client_.StatFile(kValidFileName));
+    }
+}
+
+TEST_F(CurveClientTest, TestAioRead) {
+    // aio read call failed
+    {
+        EXPECT_CALL(*mockFileClient_, AioRead(_, _, _))
+            .WillOnce(Return(-LIBCURVE_ERROR::FAILED));
+
+        CurveAioContext aioctx;
+        ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
+                  client_.AioRead(0, &aioctx, UserDataType::RawBuffer));
+    }
+
+    // aio read call success
+    {
+        EXPECT_CALL(*mockFileClient_, AioRead(_, _, _))
+            .WillOnce(Return(LIBCURVE_ERROR::OK));
+
+        CurveAioContext aioctx;
+        ASSERT_EQ(-LIBCURVE_ERROR::OK,
+                  client_.AioRead(0, &aioctx, UserDataType::RawBuffer));
+    }
+}
+
+TEST_F(CurveClientTest, TestAioWrite) {
+    // aio write call failed
+    {
+        EXPECT_CALL(*mockFileClient_, AioWrite(_, _, _))
+            .WillOnce(Return(-LIBCURVE_ERROR::FAILED));
+
+        CurveAioContext aioctx;
+        ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
+                  client_.AioWrite(0, &aioctx, UserDataType::RawBuffer));
+    }
+
+    // aio write call success
+    {
+        EXPECT_CALL(*mockFileClient_, AioWrite(_, _, _))
+            .WillOnce(Return(LIBCURVE_ERROR::OK));
+
+        CurveAioContext aioctx;
+        ASSERT_EQ(-LIBCURVE_ERROR::OK,
+                  client_.AioWrite(0, &aioctx, UserDataType::RawBuffer));
+    }
 }
 
 }  // namespace client
 }  // namespace curve
 
-std::string mdsMetaServerAddr = "127.0.0.1:19151";                   // NOLINT
-uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;                    // NOLINT
-uint32_t chunk_size = 4 * 1024 * 1024;                               // NOLINT
-std::string configpath = "./test/client/libcurve_client_test.conf";  // NOLINT
-
-const std::vector<std::string> clientConf{
-    std::string("mds.listen.addr=127.0.0.1:19151"),
-    std::string("global.logPath=./runlog/"),
-    std::string("chunkserver.rpcTimeoutMS=1000"),
-    std::string("chunkserver.opMaxRetry=3"),
-    std::string("metacache.getLeaderRetry=3"),
-    std::string("metacache.getLeaderTimeOutMS=1000"),
-    std::string("global.fileMaxInFlightRPCNum=2048"),
-    std::string("metacache.rpcRetryIntervalUS=500"),
-    std::string("mds.rpcRetryIntervalUS=500"),
-    std::string("schedule.threadpoolSize=2"),
-    std::string("closefd.timeout=3"),
-    std::string("closefd.timeInterval=10"),
-};
-
 int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
+    testing::InitGoogleTest(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
 
-    curve::CurveCluster* cluster = new curve::CurveCluster();
-
-    cluster->PrepareConfig<curve::ClientConfigGenerator>(configpath,
-                                                         clientConf);
-
-    int ret = RUN_ALL_TESTS();
-    return ret;
+    return RUN_ALL_TESTS();
 }

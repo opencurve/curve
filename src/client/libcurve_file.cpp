@@ -29,6 +29,7 @@
 #include <memory>
 #include <mutex>   // NOLINT
 #include <thread>  // NOLINT
+#include <utility>
 
 #include "include/client/libcurve.h"
 #include "include/curve_compiler_specific.h"
@@ -42,6 +43,8 @@
 #include "src/common/curve_version.h"
 #include "src/common/net_common.h"
 #include "src/common/uuid.h"
+#include "src/common/string_util.h"
+#include "src/common/fast_align.h"
 
 #define PORT_LIMIT  65535
 
@@ -59,6 +62,8 @@ namespace client {
 
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
+
+uint32_t kMinIOAlignment = 512;
 
 static const int PROCESS_NAME_MAX = 32;
 static char g_processname[PROCESS_NAME_MAX];
@@ -96,10 +101,18 @@ void InitLogging(const std::string& confPath) {
     static LoggerGuard guard(confPath);
 }
 
-FileClient::FileClient(): fdcount_(0), openedFileNum_("opened_file_num") {
-    inited_ = false;
-    mdsClient_ = nullptr;
-    fileserviceMap_.clear();
+FileClient::FileClient()
+    : rwlock_(),
+      fdcount_(0),
+      fileserviceMap_(),
+      clientconfig_(),
+      mdsClient_(),
+      inited_(false),
+      openedFileNum_("open_file_num_" + common::ToHexString(this)) {}
+
+bool FileClient::CheckAligned(off_t offset, size_t length) const {
+    return common::is_aligned(offset, kMinIOAlignment) &&
+           common::is_aligned(length, kMinIOAlignment);
 }
 
 int FileClient::Init(const std::string& configpath) {
@@ -116,17 +129,13 @@ int FileClient::Init(const std::string& configpath) {
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    mdsClient_ = new (std::nothrow) MDSClient();
-    if (mdsClient_ == nullptr) {
-        return -LIBCURVE_ERROR::FAILED;
-    }
 
-    auto ret = mdsClient_->Initialize(clientconfig_.
-               GetFileServiceOption().metaServerOpt);
+    auto tmpMdsClient = std::make_shared<MDSClient>();
+
+    auto ret = tmpMdsClient->Initialize(
+        clientconfig_.GetFileServiceOption().metaServerOpt);
     if (LIBCURVE_ERROR::OK != ret) {
         LOG(ERROR) << "Init global mds client failed!";
-        delete mdsClient_;
-        mdsClient_ = nullptr;
         return -LIBCURVE_ERROR::FAILED;
     }
 
@@ -139,12 +148,10 @@ int FileClient::Init(const std::string& configpath) {
 
     bool rc = StartDummyServer();
     if (rc == false) {
-        mdsClient_->UnInitialize();
-        delete mdsClient_;
-        mdsClient_ = nullptr;
         return -LIBCURVE_ERROR::FAILED;
     }
 
+    mdsClient_ = std::move(tmpMdsClient);
     inited_ = true;
     return LIBCURVE_ERROR::OK;
 }
@@ -161,11 +168,7 @@ void FileClient::UnInit() {
     }
     fileserviceMap_.clear();
 
-    if (mdsClient_ != nullptr) {
-        mdsClient_->UnInitialize();
-        delete mdsClient_;
-        mdsClient_ = nullptr;
-    }
+    mdsClient_.reset();
     inited_ = false;
 }
 
@@ -196,6 +199,7 @@ int FileClient::Open(const std::string& filename,
         fileserviceMap_[fd] = fileserv;
     }
 
+    LOG(INFO) << "Open success, filname = " << filename << ", fd = " << fd;
     openedFileNum_ << 1;
 
     return fd;
@@ -234,14 +238,17 @@ int FileClient::ReOpen(const std::string& filename,
 }
 
 int FileClient::Open4ReadOnly(const std::string& filename,
-    const UserInfo_t& userinfo) {
-
+                              const UserInfo_t& userinfo, bool disableStripe) {
     FileInstance* instance = FileInstance::Open4Readonly(
         clientconfig_.GetFileServiceOption(), mdsClient_, filename, userinfo);
 
     if (instance == nullptr) {
         LOG(ERROR) << "Open4Readonly failed, filename = " << filename;
         return -1;
+    }
+
+    if (disableStripe) {
+        instance->GetIOManager4File()->SetDisableStripe();
     }
 
     int fd = fdcount_.fetch_add(1, std::memory_order_relaxed);
@@ -270,6 +277,22 @@ int FileClient::Create(const std::string& filename,
     return -ret;
 }
 
+int FileClient::Create2(const std::string& filename,
+    const UserInfo_t& userinfo, size_t size,
+    uint64_t stripeUnit, uint64_t stripeCount) {
+    LIBCURVE_ERROR ret;
+    if (mdsClient_ != nullptr) {
+        ret = mdsClient_->CreateFile(filename, userinfo, size, true,
+                                     stripeUnit, stripeCount);
+        LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
+            << "Create file failed, filename: " << filename << ", ret: " << ret;
+    } else {
+        LOG(ERROR) << "global mds client not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    return -ret;
+}
+
 int FileClient::Read(int fd, char* buf, off_t offset, size_t len) {
     // 长度为0，直接返回，不做任何操作
     if (len == 0) {
@@ -277,6 +300,8 @@ int FileClient::Read(int fd, char* buf, off_t offset, size_t len) {
     }
 
     if (CheckAligned(offset, len) == false) {
+        LOG(ERROR) << "Read request not aligned, length = " << len
+                   << ", offset = " << offset << ", fd = " << fd;
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
@@ -296,6 +321,8 @@ int FileClient::Write(int fd, const char* buf, off_t offset, size_t len) {
     }
 
     if (CheckAligned(offset, len) == false) {
+        LOG(ERROR) << "Write request not aligned, length = " << len
+                   << ", offset = " << offset << ", fd = " << fd;
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
@@ -316,6 +343,8 @@ int FileClient::AioRead(int fd, CurveAioContext* aioctx,
     }
 
     if (CheckAligned(aioctx->offset, aioctx->length) == false) {
+        LOG(ERROR) << "AioRead request not aligned, length = " << aioctx->length
+                   << ", offset = " << aioctx->offset << ", fd = " << fd;
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
@@ -339,6 +368,9 @@ int FileClient::AioWrite(int fd, CurveAioContext* aioctx,
     }
 
     if (CheckAligned(aioctx->offset, aioctx->length) == false) {
+        LOG(ERROR) << "AioWrite request not aligned, length = "
+                   << aioctx->length << ", offset = " << aioctx->offset
+                   << ", fd = " << fd;
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
@@ -421,6 +453,8 @@ int FileClient::StatFile(const std::string& filename,
         finfo->ctime    = fi.ctime;
         finfo->length   = fi.length;
         finfo->filetype = fi.filetype;
+        finfo->stripeUnit = fi.stripeUnit;
+        finfo->stripeCount = fi.stripeCount;
 
         memcpy(finfo->filename, fi.filename.c_str(),
                 std::min(sizeof(finfo->filename), fi.filename.size() + 1));
@@ -452,8 +486,16 @@ int FileClient::Mkdir(const std::string& dirpath, const UserInfo_t& userinfo) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->CreateFile(dirpath, userinfo, 0, false);
-        LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
-            << "Create file failed, filename: " << dirpath << ", ret: " << ret;
+        if (ret != LIBCURVE_ERROR::OK) {
+            if (ret == LIBCURVE_ERROR::EXISTS) {
+                LOG(WARNING) << "Create directory failed, " << dirpath
+                             << " already exists";
+            } else {
+                LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
+                    << "Create directory failed, dir: " << dirpath
+                    << ", ret: " << ret;
+            }
+        }
     } else {
         LOG(ERROR) << "global mds client not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -721,6 +763,18 @@ int Create(const char* filename, const C_UserInfo_t* userinfo, size_t size) {
 
     return globalclient->Create(filename,
             UserInfo(userinfo->owner, userinfo->password), size);
+}
+
+int Create2(const char* filename, const C_UserInfo_t* userinfo, size_t size,
+                                uint64_t stripeUnit, uint64_t stripeCount) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    return globalclient->Create2(filename,
+            UserInfo(userinfo->owner, userinfo->password),
+                       size, stripeUnit, stripeCount);
 }
 
 int Rename(const C_UserInfo_t* userinfo,

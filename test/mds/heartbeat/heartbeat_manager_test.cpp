@@ -681,7 +681,8 @@ TEST_F(TestHeartbeatManager, test_handle_copySetInfo_bigger_epoch) {
         3, "hello", "", 1, "192.168.10.3", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
 
-    // update fail
+    // 1. report and record copyset has same leader,
+    //    report.epoch > record.epoch, update fail
     EXPECT_CALL(*topology_, GetChunkServer(1, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
     EXPECT_CALL(*topology_, GetChunkServerNotRetired(_, _, _))
@@ -690,6 +691,24 @@ TEST_F(TestHeartbeatManager, test_handle_copySetInfo_bigger_epoch) {
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));
     ::curve::mds::topology::CopySetInfo copySetInfo;
     copySetInfo.SetEpoch(19);
+    copySetInfo.SetLeader(1);
+    EXPECT_CALL(*topology_, GetCopySet(_, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(copySetInfo), Return(true)));
+    EXPECT_CALL(*coordinator_, CopySetHeartbeat(_, _, _))
+        .WillOnce(Return(false));
+    heartbeatManager_->ChunkServerHeartbeat(request, &response);
+    ASSERT_EQ(0, response.needupdatecopysets_size());
+
+    // 2. report and record copyset do not have sanme leader,
+    //    report.epoch < record.epoch, update fail
+    EXPECT_CALL(*topology_, GetChunkServer(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkServer2), Return(true)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));
+    copySetInfo.SetLeader(2);
     EXPECT_CALL(*topology_, GetCopySet(_, _))
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<1>(copySetInfo), Return(true)));

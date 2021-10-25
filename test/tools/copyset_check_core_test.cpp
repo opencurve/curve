@@ -29,6 +29,7 @@ using ::testing::_;
 using ::testing::Return;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
+using ::testing::An;
 using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::DiskState;
 using curve::mds::topology::OnlineState;
@@ -958,6 +959,59 @@ TEST_F(CopysetCheckCoreTest, CheckOperator) {
         .WillRepeatedly(DoAll(SetArgPointee<1>(0),
                         Return(0)));
     ASSERT_EQ(0, copysetCheck.CheckOperator(opName, checkTime));
+}
+
+TEST_F(CopysetCheckCoreTest, ListMayBrokenVolumes) {
+    std::vector<ChunkServerInfo> chunkservers;
+    for (int i = 1; i <= 3; ++i) {
+        ChunkServerInfo chunkserver;
+        GetCsInfoForTest(&chunkserver, 1);
+        chunkservers.emplace_back(chunkserver);
+    }
+    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
+        An<std::vector<ChunkServerInfo>*>()))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
+                        Return(0)));
+    EXPECT_CALL(*csClient_, Init(_))
+        .Times(12)
+        .WillOnce(Return(0))
+        .WillRepeatedly(Return(-1));
+    EXPECT_CALL(*csClient_, CheckChunkServerOnline())
+        .Times(1)
+        .WillOnce(Return(true));
+    std::vector<CopysetInfo> copysets;
+    for (int i = 1; i <= 3; ++i) {
+        CopysetInfo copyset;
+        copyset.set_logicalpoolid(1);
+        copyset.set_copysetid(100 + i);
+        copysets.emplace_back(copyset);
+    }
+    EXPECT_CALL(*mdsClient_, GetCopySetsInChunkServer(
+        An<const std::string&>(), _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(copysets),
+                        Return(0)));
+    std::vector<CopySetServerInfo> csServerInfos;
+    for (int i = 1; i <= 3; ++i) {
+        CopySetServerInfo csServerInfo;
+        GetCsServerInfoForTest(&csServerInfo, 100 + i);
+        csServerInfos.emplace_back(csServerInfo);
+    }
+    EXPECT_CALL(*mdsClient_, GetChunkServerListInCopySets(_, _, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<2>(csServerInfos),
+                        Return(0)));
+
+    std::vector<std::string> fileNames = {"file1", "file2"};
+    std::vector<std::string> fileNames2;
+    CopysetCheckCore copysetCheck1(mdsClient_, csClient_);
+    EXPECT_CALL(*mdsClient_, ListVolumesOnCopyset(_, _))
+        .Times(1)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(fileNames),
+                        Return(0)));
+    ASSERT_EQ(0, copysetCheck1.ListMayBrokenVolumes(&fileNames2));
+    ASSERT_EQ(fileNames, fileNames2);
 }
 
 }  // namespace tool

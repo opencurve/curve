@@ -99,6 +99,12 @@ static bool StringToInt(const std::string &value, int32_t *out) {
     }
 }
 
+inline std::string ToHexString(void* p) {
+    std::ostringstream oss;
+    oss << "0x" << std::hex << reinterpret_cast<uint64_t>(p);
+    return oss.str();
+}
+
 }  // namespace common
 }  // namespace curve
 

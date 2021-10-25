@@ -50,17 +50,25 @@
 #include <sstream>
 #include <string>
 
+namespace std {
+
+inline std::string to_string(const std::string& val) {
+    return val;
+}
+
+}  // namespace std
+
 namespace curve {
 namespace nbd {
 
 #define HELP_INFO 1
 #define VERSION_INFO 2
-#define CURVE_NBD_BLKSIZE 4096UL    // CURVE后端当前支持4096大小对齐的IO
 
 #define NBD_MAX_PATH "/sys/module/nbd/parameters/nbds_max"
 #define PROCESS_NAME "curve-nbd"
 #define NBD_PATH_PREFIX "/sys/block/nbd"
 #define DEV_PATH_PREFIX "/dev/nbd"
+#define CURVETAB_PATH "/etc/curve/curvetab"
 
 using std::cerr;
 
@@ -81,6 +89,21 @@ struct NBDConfig {
     std::string imgname;
     // 指定需要映射的nbd设备路径
     std::string devpath;
+    // force unmap even if the device is mounted
+    bool force_unmap = false;
+    // unmap等待进程退出的重试次数
+    int retry_times = 25;
+    // unmap重试之间的睡眠间隔
+    int sleep_ms = 200;
+    // device's block size
+    int block_size = 4096;
+    // libnebd config file path
+    std::string nebd_conf;
+
+    /**
+     * @brief Return options for map operation
+     */
+    std::string MapOptions() const;
 };
 
 // 用户命令类型
@@ -90,6 +113,55 @@ enum class Command {
     Disconnect,
     List
 };
+
+inline std::string BoolOption(const std::string& name, bool value,
+                              bool* firstOpt) {
+    std::string opts;
+
+    if (value) {
+        if (!*firstOpt) {
+            opts += ",";
+        }
+
+        opts += name;
+        *firstOpt = false;
+    }
+
+    return opts;
+}
+
+template <typename T>
+inline std::string KeyValueOption(const std::string& optName, const T& value,
+                                  const T& defaultValue, bool* firstOpt) {
+    std::string opts;
+
+    if (value != defaultValue) {
+        if (!*firstOpt) {
+            opts += ",";
+        }
+
+        opts += std::string(optName + "=") + std::to_string(value);
+        *firstOpt = false;
+    }
+
+    return opts;
+}
+
+inline std::string NBDConfig::MapOptions() const {
+    std::string opts;
+    bool firstOpt = true;
+
+    opts.append(KeyValueOption("device", devpath, {}, &firstOpt));
+    opts.append(BoolOption("read-only", readonly, &firstOpt));
+    opts.append(KeyValueOption("nbds_max", nbds_max, 0, &firstOpt));
+    opts.append(KeyValueOption("max_part", max_part, 255, &firstOpt));
+    opts.append(BoolOption("try-netlink", try_netlink, &firstOpt));
+    opts.append(KeyValueOption("timeout", timeout, 3600, &firstOpt));
+    opts.append(KeyValueOption("block-size", block_size, 4096, &firstOpt));
+    opts.append(KeyValueOption("nebd-conf", nebd_conf, {}, &firstOpt));
+
+    return opts.empty() ? "defaults" : opts;
+}
 
 }  // namespace nbd
 }  // namespace curve

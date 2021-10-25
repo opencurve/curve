@@ -3,6 +3,7 @@
 # default config path
 confPath={{ chunkserver_conf_path }}
 dataDir={{ chunkserver_data_dir }}
+raftLogProtocol={{ chunkserver_raft_log_procotol }}
 source ./chunkserver_deploy.sh
 
 # 使用方式
@@ -42,10 +43,17 @@ function help() {
     echo "    [-nc|--noConfirm]  if specified, deploy no need to confirm"
 }
 
+function ip_value() {
+  echo $1 | awk -F '[:/.]' '{
+    mask = (2 ^ 8)
+    printf ("%.0f", (($1 * mask + $2) * mask + $3) * mask + $4)
+  }'
+}
+
 # 从subnet获取ip
 function get_ip_from_subnet() {
     subnet=$1
-    prefix=`echo $subnet|awk -F/ '{print $1}'|awk -F. '{printf "%d", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
+    prefix=$(ip_value $subnet)
     mod=`echo $subnet|awk -F/ '{print $2}'`
     mask=$((2**32-2**(32-$mod)))
     # 对prefix再取一次模，为了支持10.182.26.50/22这种格式
@@ -54,7 +62,7 @@ function get_ip_from_subnet() {
     for i in `/sbin/ifconfig -a|grep inet|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
     do
         # 把ip转换成整数
-        ip_int=`echo $i|awk -F. '{printf "%d\n", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
+        ip_int=$(ip_value $i)
         if [ $(($ip_int&$mask)) -eq $prefix ]
         then
             ip=$i
@@ -125,7 +133,7 @@ function start_one() {
         return 1
     fi
 
-    ps -efl|grep -w "${dataDir}/chunkserver$1"|grep -v grep
+    ps -efl|grep -E "curve-chunkserver .*${dataDir}/chunkserver$1 "|grep -v grep
     if [ $? -eq 0 ]
     then
         echo "chunkserver$1 is already active!"
@@ -162,7 +170,7 @@ function start_one() {
             -chunkServerStoreUri=local://${dataDir}/chunkserver$1/ \
             -copySetUri=local://${dataDir}/chunkserver$1/copysets \
             -raftSnapshotUri=curve://${dataDir}/chunkserver$1/copysets \
-            -raftLogUri=curve://${dataDir}/chunkserver$1/copysets \
+            -raftLogUri=${raftLogProtocol}://${dataDir}/chunkserver$1/copysets \
             -recycleUri=local://${dataDir}/chunkserver$1/recycler \
             -raft_sync_segments=true \
             -graceful_quit_on_sigterm=true \
@@ -191,7 +199,7 @@ function stop() {
     fi
 
     echo "kill chunkserver $1"
-    kill `ps -efl|grep -w ${dataDir}/chunkserver$1|grep -v grep|awk '{print $4}'`
+    kill `ps -efl|grep -E "curve-chunkserver .*${dataDir}/chunkserver$1 "|grep -v grep|awk '{print $4}'`
 }
 
 function restart() {
@@ -227,7 +235,7 @@ function wait_stop() {
     while [ $retry_times -le 3 ]
     do
         ((retry_times=$retry_times+1))
-        ps -efl|grep -w "${dataDir}/chunkserver$1"|grep -v grep > /dev/null 2>&1
+        ps -efl|grep -E "curve-chunkserver .*${dataDir}/chunkserver$1 "|grep -v grep > /dev/null 2>&1
         if [ $? -eq 0 ]
         then
             sleep 1
@@ -237,11 +245,11 @@ function wait_stop() {
         fi
     done
     # 如果进程还在，就kill -9
-    ps -efl|grep -w "${dataDir}/chunkserver$1"|grep -v grep > /dev/null 2>&1
+    ps -efl|grep -E "curve-chunkserver .*${dataDir}/chunkserver$1 "|grep -v grep > /dev/null 2>&1
     if [ $? -eq 0 ]
     then
         echo "The process of chunkserver$1 still exists after 3s, now kill -9 it"
-        kill -9 `ps -efl|grep -w ${dataDir}/chunkserver$1|grep -v grep|awk '{print $4}'`
+        kill -9 `ps -efl|grep -E "curve-chunkserver .*${dataDir}/chunkserver$1 "|grep -v grep|awk '{print $4}'`
     fi
 }
 
@@ -263,7 +271,7 @@ function status() {
 }
 
 function status_one() {
-    ps -efl|grep -w "${dataDir}/chunkserver$1"|grep -v grep > /dev/null 2>&1
+    ps -efl|grep -E "curve-chunkserver .*${dataDir}/chunkserver$1 "|grep -v grep > /dev/null 2>&1
     if [ $? -eq 0 ]
     then
         echo "chunkserver$1 is active!"
@@ -290,19 +298,26 @@ function deploy() {
         return 1
     fi
 
-    if [[ "$1" = "all" && $# -gt 1 ]]
-    then
-        do_confirm_if_need $2
-    fi
-
     if [ "$1" = "all" ]
     then
-        deploy_all;
+        if [ $# -gt 1 ]
+        then
+            do_confirm_if_need $2
+        else
+            do_confirm
+        fi
+        deploy_all
         return $?
     fi
 
     if [ $# -ge 2 ]
     then
+        if [ $# -gt 2 ]
+        then
+            do_confirm_if_need $3
+        else
+            do_confirm
+        fi
         deploy_one $@;
         return $?
     fi
@@ -326,19 +341,21 @@ function deploy-wal-pool() {
         return 1
     fi
 
-    if [[ "$1" = "all" && $# -gt 1 ]]
+    if [ $# -gt 1 ]
     then
         do_confirm_if_need $2
+    else
+        do_confirm
     fi
 
     if [ "$1" = "all" ]
     then
-        walfile_pool_prep;
+        walfile_pool_prep
         return $?
+    else
+        deploy_one_walfile_pool $1
+        wait
     fi
-
-    deploy_one_walfile_pool $1
-    wait
 }
 
 

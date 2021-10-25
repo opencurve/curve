@@ -62,6 +62,23 @@ int FakeSnapshotCloneMetaStore::UpdateSnapshot(const SnapshotInfo &info) {
     return 0;
 }
 
+int FakeSnapshotCloneMetaStore::CASSnapshot(const UUID& uuid, CASFunc cas) {
+    fiu_return_on(
+        "test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.UpdateSnapshot", -1);  // NOLINT
+    std::lock_guard<std::mutex> guard(snapInfos_mutex);
+    auto iter = snapInfos_.find(uuid);
+    if (iter == snapInfos_.end()) {
+        return -1;
+    }
+
+    auto info = cas(&(iter->second));
+    if (nullptr != info) {
+        iter->second = *info;
+    }
+
+    return 0;
+}
+
 int FakeSnapshotCloneMetaStore::GetSnapshotInfo(
     const UUID &uuid, SnapshotInfo *info) {
     std::lock_guard<std::mutex> guard(snapInfos_mutex);

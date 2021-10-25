@@ -19,10 +19,10 @@
   shell: sudo ./chunkserver_ctl.sh deploy all --noConfirm
   async: 0
   poll: 3
-  when: not {{ retain_pool }}
+  when: not retain_pool | bool
 
 - name: format walfilepool
   shell: sudo ./chunkserver_ctl.sh deploy-wal-pool all --noConfirm
   async: 0
   poll: 3
-  when: not {{ retain_pool }} and not {{ walfilepool_use_chunk_file_pool }}
+  when: (not retain_pool | bool) and (not walfilepool_use_chunk_file_pool | bool)

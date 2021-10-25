@@ -32,6 +32,15 @@ mds.refreshTimesPerLease={{ client_mds_refresh_times_per_lease }}
 # mds RPC接口每次重试之前需要先睡眠一段时间
 mds.rpcRetryIntervalUS={{ client_mds_rpc_retry_interval_us }}
 
+# The normal retry times for trigger wait strategy
+mds.normalRetryTimesBeforeTriggerWait={{ client_mds_normal_retry_times_before_trigger_wait }}
+
+# Max retry time for IO-Path request (milliseconds)
+mds.maxRetryMsInIOPath={{ client_mds_max_retry_ms_in_io_path }}
+
+# Sleep interval for wait (milliseconds)
+mds.waitSleepMs={{ client_mds_wait_sleep_ms }}
+
 #
 ################# metacache配置信息 ################
 #
@@ -134,6 +143,14 @@ global.logPath={{ client_log_path }}
 # logpath=./runlog/
 
 #
+################# read from source conf ###############
+#
+# close timeout fd which read from source file
+closefd.timeout={{ client_closefd_timeout_sec }}
+# timeInterval of backend thread iterates the fdMap to close the timeout fd
+closefd.timeInterval={{ client_closefd_time_interval_sec }}
+
+#
 ############### metric 配置信息 #############
 #
 global.metricDummyServerStartPort={{ client_metric_dummy_server_start_port }}
@@ -145,3 +162,10 @@ global.turnOffHealthCheck={{ client_turn_off_health_check }}
 # session map文件，存储打开文件的filename到path的映射
 #
 global.sessionMapPath={{ client_session_map_path }}
+
+##### alignment #####
+# default alignment
+global.alignment.commonVolume={{ client_alignment_common }}
+# alignment for clone volume
+# default is 4096, because lazy clone chunk bitmap granularity is 4096
+global.alignment.cloneVolume={{ client_alignment_clone }}

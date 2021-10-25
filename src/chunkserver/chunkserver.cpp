@@ -74,6 +74,8 @@ DEFINE_string(walFilePoolDir, "./0/", "WAL filepool location");
 DEFINE_string(walFilePoolMetaPath, "./walfilepool.meta",
                                     "WAL filepool meta path");
 
+const char* kProtocalCurve = "curve";
+
 namespace curve {
 namespace chunkserver {
 
@@ -103,6 +105,12 @@ int ChunkServer::Run(int argc, char** argv) {
 
     // ============================初始化各模块==========================//
     LOG(INFO) << "Initializing ChunkServer modules";
+
+    LOG_IF(FATAL, !conf.GetUInt32Value("global.min_io_alignment",
+                                       &FLAGS_minIoAlignment))
+        << "Failed to get global.min_io_alignment";
+    LOG_IF(FATAL, !common::is_aligned(FLAGS_minIoAlignment, 512))
+        << "minIoAlignment should align to 512";
 
     // 优先初始化 metric 收集模块
     ChunkServerMetricOptions metricOptions;
@@ -135,23 +143,28 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(FATAL, false == chunkfilePool->Initialize(chunkFilePoolOptions))
         << "Failed to init chunk file pool";
 
-
-
     // Init Wal file pool
-    bool useChunkFilePool = true;
-    LOG_IF(FATAL, !conf.GetBoolValue(
-        "walfilepool.use_chunk_file_pool",
-        &useChunkFilePool));
+    std::string raftLogUri;
+    LOG_IF(FATAL, !conf.GetStringValue("copyset.raft_log_uri", &raftLogUri));
+    std::string raftLogProtocol = UriParser::GetProtocolFromUri(raftLogUri);
+    std::shared_ptr<FilePool> walFilePool = nullptr;
+    bool useChunkFilePoolAsWalPool = true;
+    if (raftLogProtocol == kProtocalCurve) {
+        LOG_IF(FATAL, !conf.GetBoolValue(
+            "walfilepool.use_chunk_file_pool",
+            &useChunkFilePoolAsWalPool));
 
-    if (!useChunkFilePool) {
-        FilePoolOptions walFilePoolOptions;
-        InitWalFilePoolOptions(&conf, &walFilePoolOptions);
-        kWalFilePool = std::make_shared<FilePool>(fs);
-        LOG_IF(FATAL, false == kWalFilePool->Initialize(walFilePoolOptions))
-            << "Failed to init wal file pool";
-    } else {
-        kWalFilePool = chunkfilePool;
-        LOG(INFO) << "initialize to use chunkfilePool as walpool success.";
+        if (!useChunkFilePoolAsWalPool) {
+            FilePoolOptions walFilePoolOptions;
+            InitWalFilePoolOptions(&conf, &walFilePoolOptions);
+            walFilePool = std::make_shared<FilePool>(fs);
+            LOG_IF(FATAL, false == walFilePool->Initialize(walFilePoolOptions))
+                << "Failed to init wal file pool";
+            LOG(INFO) << "initialize walpool success.";
+        } else {
+            walFilePool = chunkfilePool;
+            LOG(INFO) << "initialize to use chunkfilePool as walpool success.";
+        }
     }
 
     // 远端拷贝管理模块选项
@@ -201,7 +214,7 @@ int ChunkServer::Run(int argc, char** argv) {
     InitTrashOptions(&conf, &trashOptions);
     trashOptions.localFileSystem = fs;
     trashOptions.chunkFilePool = chunkfilePool;
-    trashOptions.walPool = kWalFilePool;
+    trashOptions.walPool = walFilePool;
     trash_ = std::make_shared<Trash>();
     LOG_IF(FATAL, trash_->Init(trashOptions) != 0)
         << "Failed to init Trash";
@@ -211,8 +224,14 @@ int ChunkServer::Run(int argc, char** argv) {
     InitCopysetNodeOptions(&conf, &copysetNodeOptions);
     copysetNodeOptions.concurrentapply = &concurrentapply;
     copysetNodeOptions.chunkFilePool = chunkfilePool;
+    copysetNodeOptions.walFilePool = walFilePool;
     copysetNodeOptions.localFileSystem = fs;
     copysetNodeOptions.trash = trash_;
+    if (nullptr != walFilePool) {
+        FilePoolOptions poolOpt = walFilePool->GetFilePoolOpt();
+        uint32_t maxWalSegmentSize = poolOpt.fileSize + poolOpt.metaPageSize;
+        copysetNodeOptions.maxWalSegmentSize = maxWalSegmentSize;
+    }
 
     // install snapshot的带宽限制
     int snapshotThroughputBytes;
@@ -260,7 +279,9 @@ int ChunkServer::Run(int argc, char** argv) {
     // 监控部分模块的metric指标
     metric->MonitorTrash(trash_.get());
     metric->MonitorChunkFilePool(chunkfilePool.get());
-    metric->MonitorWalFilePool(kWalFilePool.get());
+    if (raftLogProtocol == kProtocalCurve && !useChunkFilePoolAsWalPool) {
+        metric->MonitorWalFilePool(walFilePool.get());
+    }
     metric->ExposeConfigMetric(&conf);
 
     // ========================添加rpc服务===============================//
@@ -508,6 +529,8 @@ void ChunkServer::InitCopysetNodeOptions(
         &copysetNodeOptions->maxChunkSize));
     LOG_IF(FATAL, !conf->GetUInt32Value("global.location_limit",
         &copysetNodeOptions->locationLimit));
+    LOG_IF(FATAL, !conf->GetUInt32Value("global.meta_page_size",
+        &copysetNodeOptions->pageSize));
     LOG_IF(FATAL, !conf->GetUInt32Value("copyset.load_concurrency",
         &copysetNodeOptions->loadConcurrency));
     LOG_IF(FATAL, !conf->GetUInt32Value("copyset.check_retrytimes",
@@ -753,6 +776,10 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
         !info.is_default) {
         conf->SetIntValue("copyset.load_concurrency",
             FLAGS_copysetLoadConcurrency);
+    }
+
+    if (GetCommandLineFlagInfo("minIoAlignment", &info) && !info.is_default) {
+        conf->SetUInt32Value("global.min_io_alignment", FLAGS_minIoAlignment);
     }
 }
 

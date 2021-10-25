@@ -30,6 +30,7 @@
 
 #include "src/common/timeutility.h"
 #include "src/client/client_common.h"
+#include "src/common/string_util.h"
 
 using curve::common::TimeUtility;
 
@@ -135,7 +136,7 @@ struct FileMetric {
 
 // 用于全局mds接口统计信息调用信息统计
 struct MDSClientMetric {
-    const std::string prefix = "curve_mds_client";
+    std::string prefix;
 
     // mds的地址信息
     std::string metaserverAddr;
@@ -175,8 +176,11 @@ struct MDSClientMetric {
     // 切换mds server总次数
     bvar::Adder<uint64_t> mdsServerChangeTimes;
 
-    MDSClientMetric()
-        : metaserverAddress(prefix, "current_metaserver_addr", GetStringValue,
+    explicit MDSClientMetric(const std::string& prefix_ = "")
+        : prefix(!prefix_.empty()
+                     ? prefix_
+                     : "curve_mds_client_" + common::ToHexString(this)),
+          metaserverAddress(prefix, "current_metaserver_addr", GetStringValue,
                             &metaserverAddr),
           openFile(prefix, "openFile"),
           createFile(prefix, "createFile"),

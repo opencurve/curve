@@ -48,8 +48,6 @@ extern std::string cpp_strerror(int err);
 extern int parse_nbd_index(const std::string& devpath);
 // 获取当前系统能够支持的最大nbd设备数量
 extern int get_nbd_max_count();
-// 获取一个当前还未映射的nbd设备名
-extern std::string find_unused_nbd_device();
 // 解析用户输入的命令参数
 extern int parse_args(std::vector<const char*>& args,   // NOLINT
                       std::ostream *err_msg,
@@ -62,6 +60,8 @@ extern int check_block_size(int nbd_index, uint64_t expected_size);
 extern int check_device_size(int nbd_index, uint64_t expected_size);
 // 如果当前系统还未加载nbd模块，则进行加载；如果已经加载，则不作任何操作
 extern int load_module(NBDConfig *cfg);
+// Check whether the device can be unmap
+int check_dev_can_unmap(const NBDConfig *cfg);
 
 // 安全读写文件或socket，对异常情况进行处理后返回
 ssize_t safe_read_exact(int fd, void* buf, size_t count);

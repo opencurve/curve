@@ -32,7 +32,7 @@
 #include "src/client/mds_client.h"
 #include "src/client/metacache_struct.h"
 #include "src/client/request_closure.h"
-#include "src/common/location_operator.h"
+#include "src/common/fast_align.h"
 
 namespace curve {
 namespace client {
@@ -59,54 +59,14 @@ int Splitor::IO2ChunkRequests(IOTracker* iotracker, MetaCache* metaCache,
 
     targetlist->reserve(length / (iosplitopt_.fileIOSplitMaxSizeKB * 1024) + 1);
 
-    const uint64_t chunksize = fileInfo->chunksize;
-    uint64_t currentChunkIndex = offset / chunksize;
-    const uint64_t endChunkIndex = (offset + length - 1) / chunksize;
-    uint64_t currentRequestOffset = offset;
-    const uint64_t endRequestOffest = offset + length;
-    uint64_t currentChunkOffset = offset % chunksize;
-    uint64_t dataOffset = 0;
-
-    while (currentChunkIndex <= endChunkIndex) {
-        const uint64_t currentChunkEndOffset =
-            chunksize * (currentChunkIndex + 1);
-        uint64_t requestLength =
-            std::min(currentChunkEndOffset, endRequestOffest) -
-            currentRequestOffset;
-
-        DVLOG(9) << "request split"
-                 << ", off = " << currentChunkOffset
-                 << ", len = " << requestLength
-                 << ", seqnum = " << fileInfo->seqnum
-                 << ", endoff = " << endRequestOffest
-                 << ", chunkendpos = " << currentChunkEndOffset
-                 << ", chunksize = " << chunksize
-                 << ", chunkindex = " << currentChunkIndex
-                 << ", endchunkindex = " << endChunkIndex;
-
-        if (!AssignInternal(iotracker, metaCache, targetlist, data,
-                            currentChunkOffset, requestLength, mdsclient,
-                            fileInfo, currentChunkIndex)) {
-            LOG(ERROR)  << "request split failed"
-                        << ", off = " << currentChunkOffset
-                        << ", len = " << requestLength
-                        << ", seqnum = " << fileInfo->seqnum
-                        << ", endoff = " << endRequestOffest
-                        << ", chunkendpos = " << currentChunkEndOffset
-                        << ", chunksize = " << chunksize
-                        << ", chunkindex = " << currentChunkIndex
-                        << ", endchunkindex = " << endChunkIndex;
-            return -1;
-        }
-
-        currentChunkOffset = 0;
-        currentChunkIndex++;
-
-        dataOffset += requestLength;
-        currentRequestOffset += requestLength;
+    if (((fileInfo->stripeUnit == 0) && (fileInfo->stripeCount == 0)) ||
+        fileInfo->stripeCount == 1 || iotracker->IsStripeDisabled()) {
+        return SplitForNormal(iotracker, metaCache, targetlist, data, offset,
+                              length, mdsclient, fileInfo);
+    } else {
+        return SplitForStripe(iotracker, metaCache, targetlist, data, offset,
+                              length, mdsclient, fileInfo);
     }
-
-    return 0;
 }
 
 // this offset is begin by chunk
@@ -128,7 +88,14 @@ int Splitor::SingleChunkIO2ChunkRequests(
     uint64_t currentOffset = offset;
     uint64_t leftLength = length;
     while (leftLength > 0) {
+        RequestContext::Padding padding;
+        padding.aligned = true;  // TODO(wuhanqing): add test case for normal file  // NOLINT
         uint64_t requestLength = std::min(leftLength, maxSplitSizeBytes);
+
+        if (metaCache->IsCloneFile()) {
+            requestLength = ProcessUnalignedRequests(currentOffset,
+                                                     requestLength, &padding);
+        }
 
         RequestContext* newreqNode = RequestContext::NewInitedRequestContext();
         if (newreqNode == nullptr) {
@@ -149,6 +116,7 @@ int Splitor::SingleChunkIO2ChunkRequests(
         newreqNode->rawlength_   = requestLength;
         newreqNode->optype_      = iotracker->Optype();
         newreqNode->idinfo_      = idinfo;
+        newreqNode->padding = padding;
         newreqNode->done_->SetIOTracker(iotracker);
         targetlist->push_back(newreqNode);
 
@@ -294,26 +262,173 @@ bool Splitor::GetOrAllocateSegment(bool allocateIfNotExist,
     return true;
 }
 
+int Splitor::SplitForNormal(IOTracker* iotracker, MetaCache* metaCache,
+                            std::vector<RequestContext*>* targetlist,
+                            butil::IOBuf* data, off_t offset, size_t length,
+                            MDSClient* mdsclient, const FInfo_t* fileInfo) {
+    const uint64_t chunksize = fileInfo->chunksize;
+
+    uint64_t currentChunkIndex = offset / chunksize;
+    const uint64_t endChunkIndex = (offset + length - 1) / chunksize;
+    uint64_t currentRequestOffset = offset;
+    const uint64_t endRequestOffest = offset + length;
+    uint64_t currentChunkOffset = offset % chunksize;
+    uint64_t dataOffset = 0;
+
+    while (currentChunkIndex <= endChunkIndex) {
+        const uint64_t currentChunkEndOffset =
+            chunksize * (currentChunkIndex + 1);
+        uint64_t requestLength =
+            std::min(currentChunkEndOffset, endRequestOffest) -
+            currentRequestOffset;
+
+        DVLOG(9) << "request split"
+                 << ", off = " << currentChunkOffset
+                 << ", len = " << requestLength
+                 << ", seqnum = " << fileInfo->seqnum
+                 << ", endoff = " << endRequestOffest
+                 << ", chunkendpos = " << currentChunkEndOffset
+                 << ", chunksize = " << chunksize
+                 << ", chunkindex = " << currentChunkIndex
+                 << ", endchunkindex = " << endChunkIndex;
+
+        if (!AssignInternal(iotracker, metaCache, targetlist, data,
+                            currentChunkOffset, requestLength, mdsclient,
+                            fileInfo, currentChunkIndex)) {
+            LOG(ERROR) << "request split failed"
+                       << ", off = " << currentChunkOffset
+                       << ", len = " << requestLength
+                       << ", seqnum = " << fileInfo->seqnum
+                       << ", endoff = " << endRequestOffest
+                       << ", chunkendpos = " << currentChunkEndOffset
+                       << ", chunksize = " << chunksize
+                       << ", chunkindex = " << currentChunkIndex
+                       << ", endchunkindex = " << endChunkIndex;
+            return -1;
+        }
+
+        currentChunkOffset = 0;
+        currentChunkIndex++;
+
+        dataOffset += requestLength;
+        currentRequestOffset += requestLength;
+    }
+
+    return 0;
+}
+
+int Splitor::SplitForStripe(IOTracker* iotracker, MetaCache* metaCache,
+                            std::vector<RequestContext*>* targetlist,
+                            butil::IOBuf* data, off_t offset, size_t length,
+                            MDSClient* mdsclient, const FInfo_t* fileInfo) {
+    const uint64_t chunksize = fileInfo->chunksize;
+    const uint64_t stripeUnit = fileInfo->stripeUnit;
+    const uint64_t stripeCount = fileInfo->stripeCount;
+    const uint64_t stripesPerChunk = chunksize / stripeUnit;
+
+    uint64_t cur = offset;
+    uint64_t left = length;
+    uint64_t curChunkIndex = 0;
+
+    while (left > 0) {
+        uint64_t blockIndex = cur / stripeUnit;
+        uint64_t stripeIndex = blockIndex / stripeCount;
+        uint64_t stripepos = blockIndex % stripeCount;
+        uint64_t curChunkSetIndex = stripeIndex / stripesPerChunk;
+        uint64_t curChunkIndex = curChunkSetIndex * stripeCount + stripepos;
+
+        uint64_t blockInChunkStartOff =
+            (stripeIndex % stripesPerChunk) * stripeUnit;
+        uint64_t blockOff = cur % stripeUnit;
+        uint64_t curChunkOffset = blockInChunkStartOff + blockOff;
+        uint64_t requestLength = std::min((stripeUnit - blockOff), left);
+
+        if (!AssignInternal(iotracker, metaCache, targetlist, data,
+                            curChunkOffset, requestLength, mdsclient, fileInfo,
+                            curChunkIndex)) {
+            LOG(ERROR) << "request split failed"
+                       << ", off = " << curChunkOffset
+                       << ", len = " << requestLength
+                       << ", seqnum = " << fileInfo->seqnum
+                       << ", chunksize = " << chunksize
+                       << ", chunkindex = " << curChunkIndex;
+
+            return -1;
+        }
+
+        left -= requestLength;
+        cur += requestLength;
+    }
+
+    return 0;
+}
+
+uint64_t Splitor::ProcessUnalignedRequests(const off_t currentOffset,
+                                           const uint64_t requestLength,
+                                           RequestContext::Padding* padding) {
+    uint64_t length = requestLength;
+    uint64_t currentEndOff = currentOffset + requestLength;
+    uint64_t alignedStartOffset =
+        common::align_up(currentOffset, iosplitopt_.alignment.cloneVolume);
+    uint64_t alignedEndOffset =
+        common::align_down(currentEndOff, iosplitopt_.alignment.cloneVolume);
+
+    if (currentOffset == alignedStartOffset &&
+        currentEndOff == alignedEndOffset) {
+        padding->aligned = true;
+    } else {
+        if (currentOffset == alignedStartOffset) {
+            padding->aligned = false;
+            padding->type = RequestContext::Padding::Right;
+            padding->offset = alignedEndOffset;
+            padding->length = iosplitopt_.alignment.cloneVolume;
+        } else if (currentEndOff == alignedStartOffset) {
+            padding->aligned = false;
+            padding->type = RequestContext::Padding::Left;
+            padding->offset = common::align_down(
+                currentOffset, iosplitopt_.alignment.cloneVolume);
+            padding->length = iosplitopt_.alignment.cloneVolume;
+        } else {
+            if (alignedEndOffset > alignedStartOffset) {
+                length = alignedEndOffset - currentOffset;
+                padding->aligned = false;
+                padding->type = RequestContext::Padding::Left;
+                padding->offset = common::align_down(
+                    currentOffset, iosplitopt_.alignment.cloneVolume);
+                padding->length = iosplitopt_.alignment.cloneVolume;
+            } else {
+                padding->aligned = false;
+                padding->type = RequestContext::Padding::ALL;
+                padding->offset = common::align_down(
+                    currentOffset, iosplitopt_.alignment.cloneVolume);
+                padding->length = (alignedStartOffset == alignedEndOffset)
+                                      ? 2 * iosplitopt_.alignment.cloneVolume
+                                      : iosplitopt_.alignment.cloneVolume;
+            }
+        }
+    }
+
+    return length;
+}
+
 RequestSourceInfo Splitor::CalcRequestSourceInfo(IOTracker* ioTracker,
                                                  MetaCache* metaCache,
                                                  ChunkIndex chunkIdx) {
-    const FInfo* fileInfo = metaCache->GetFileInfo();
-    if (fileInfo->cloneSource.empty()) {
-        return {};
-    }
-
     OpType type = ioTracker->Optype();
     if (type != OpType::READ && type != OpType::WRITE) {
         return {};
     }
 
-    uint64_t offset = static_cast<uint64_t>(chunkIdx) * fileInfo->chunksize;
-
-    if (offset >= fileInfo->cloneLength) {
-        return {};
+    const FInfo* fileInfo = metaCache->GetFileInfo();
+    if (fileInfo->filestatus == FileStatus::CloneMetaInstalled) {
+        const CloneSourceInfo& sourceInfo = fileInfo->sourceInfo;
+        uint64_t offset = static_cast<uint64_t>(chunkIdx) * fileInfo->chunksize;
+        if (sourceInfo.IsSegmentAllocated(offset)) {
+            return {sourceInfo.name, offset};
+        }
     }
 
-    return {fileInfo->cloneSource, offset};
+    return {};
 }
 
 }   // namespace client

@@ -2,11 +2,16 @@
 
 set -e
 
-chmod +x /usr/bin/mount_curve_clouddisk.sh
-cp /usr/bin/mount_curve_clouddisk.sh /etc/init.d
-update-rc.d mount_curve_clouddisk.sh defaults
+chmod +x /usr/bin/map_curve_disk.sh
+cp /usr/bin/map_curve_disk.sh /etc/init.d
+update-rc.d map_curve_disk.sh defaults
 
-filename=$HOSTNAME"_curvefile"
-sed -i "s/filename=curvefile/filename=$filename/g" /etc/nbd/k8s_curve.conf
+CURVETAB=/etc/curve/curvetab
+CURVETABBAK=/etc/curve/curvetab-bak
+
+if [ -f ${CURVETABBAK} ]; then
+    cp -f -p ${CURVETABBAK} ${CURVETAB}
+    rm -f ${CURVETABBAK}
+fi
 
 exit 0

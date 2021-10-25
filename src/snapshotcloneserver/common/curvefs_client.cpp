@@ -180,13 +180,15 @@ int CurveFsClientImpl::CreateCloneFile(
     uint64_t size,
     uint64_t sn,
     uint32_t chunkSize,
+    uint64_t stripeUnit,
+    uint64_t stripeCount,
     FInfo* fileInfo) {
     UserInfo userInfo = GetUserInfo(user);
     RetryMethod method = [this, &source, &filename,
-        userInfo, size, sn, chunkSize, fileInfo] () {
+        userInfo, size, sn, chunkSize, stripeUnit, stripeCount, fileInfo] () {
             return snapClient_->CreateCloneFile(source, filename,
                 userInfo, size,
-                sn, chunkSize, fileInfo);
+                sn, chunkSize, stripeUnit, stripeCount, fileInfo);
     };
     RetryCondition condition = [] (int ret) {
         return ret != LIBCURVE_ERROR::OK &&
@@ -338,7 +340,9 @@ int CurveFsClientImpl::RenameCloneFile(
     };
     RetryCondition condition = [] (int ret) {
         return ret != LIBCURVE_ERROR::OK &&
-               ret != -LIBCURVE_ERROR::NOTEXIST;
+               ret != -LIBCURVE_ERROR::NOTEXIST &&
+               ret != -LIBCURVE_ERROR::NOT_SUPPORT &&
+               ret != -LIBCURVE_ERROR::FILE_OCCUPIED;  // file is in-use
     };
     RetryHelper retryHelper(method, condition);
     return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
@@ -356,7 +360,9 @@ int CurveFsClientImpl::DeleteFile(
     };
     RetryCondition condition = [] (int ret) {
         return ret != LIBCURVE_ERROR::OK &&
-               ret != -LIBCURVE_ERROR::NOTEXIST;
+               ret != -LIBCURVE_ERROR::NOTEXIST &&
+               ret != -LIBCURVE_ERROR::NOT_SUPPORT &&
+               ret != -LIBCURVE_ERROR::FILE_OCCUPIED;
     };
     RetryHelper retryHelper(method, condition);
     return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
@@ -385,7 +391,9 @@ int CurveFsClientImpl::ChangeOwner(const std::string& filename,
         return fileClient_->ChangeOwner(filename, newOwner, userInfo);
     };
     RetryCondition condition = [] (int ret) {
-        return ret != LIBCURVE_ERROR::OK;
+        return ret != LIBCURVE_ERROR::OK &&
+            ret != LIBCURVE_ERROR::NOT_SUPPORT &&
+            ret != LIBCURVE_ERROR::FILE_OCCUPIED;
     };
     RetryHelper retryHelper(method, condition);
     return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,

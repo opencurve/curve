@@ -15,34 +15,47 @@
 #  limitations under the License.
 #
 
-- name: install libunwind
-  vars:
-    apt_lib_name: libunwind8 libunwind8-dev
-    yum_lib_name: libunwind libunwind-devel
-  include_tasks: common_tasks/install_with_yum_apt.yml
+- name: install package via deb
+  include_tasks: "install_deb_package.yml"
+  when: install_with_deb | bool
 
-- name: install libuuid
-  vars:
-    apt_lib_name: libuuid1 uuid-dev
-    yum_lib_name: libuuid libuuid-devel
-  include_tasks: common_tasks/install_with_yum_apt.yml
-
-- name: install daemon
-  include_tasks: install_daemon.yml
-
-- name: install snapshotcloneserver bin
-  vars:
-    remote_dir_name: "{{ curve_bin_dir }}"
-    local_file_path: "{{ local_snapshotcloneserver_package_path }}/bin/"
-    file_mode: 0755
-  include_tasks: copy_file_to_remote.yml
-
-- name: install snapshotcloneserver lib
-  vars:
-    remote_dir_name: "{{ curve_lib_dir}}"
-    local_file_path: "{{ local_snapshotcloneserver_package_path }}/lib/"
-    file_mode: 0644
-  include_tasks: copy_file_to_remote.yml
+- name: install package via tar
+  block:
+    - name: install libunwind
+      vars:
+        apt_lib_name: libunwind8
+        yum_lib_name: libunwind
+      include_tasks: common_tasks/install_with_yum_apt.yml
+    - name: install libunwind-dev
+      vars:
+        apt_lib_name: libunwind8-dev
+        yum_lib_name: libunwind-devel
+      include_tasks: common_tasks/install_with_yum_apt.yml
+    - name: install libuuid
+      vars:
+        apt_lib_name: libuuid1
+        yum_lib_name: libuuid
+      include_tasks: common_tasks/install_with_yum_apt.yml
+    - name: install libuuid-dev
+      vars:
+        apt_lib_name: uuid-dev
+        yum_lib_name: libuuid-devel
+      include_tasks: common_tasks/install_with_yum_apt.yml  
+    - name: install daemon
+      include_tasks: install_daemon.yml
+    - name: install snapshotcloneserver bin
+      vars:
+        remote_dir_name: "{{ curve_bin_dir }}"
+        local_file_path: "{{ local_snapshotcloneserver_package_path }}/bin/"
+        file_mode: 0755
+      include_tasks: copy_file_to_remote.yml
+    - name: install snapshotcloneserver lib
+      vars:
+        remote_dir_name: "{{ curve_lib_dir}}"
+        local_file_path: "{{ local_snapshotcloneserver_package_path }}/lib/"
+        file_mode: 0644
+      include_tasks: copy_file_to_remote.yml
+  when: not install_with_deb | bool
 
 - name: generate snapshot-daemon.sh
   template: src=snapshot-daemon.sh.j2 dest={{ deploy_dir }}/snapshot-daemon.sh mode=0755

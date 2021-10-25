@@ -24,6 +24,8 @@
 #define SRC_CLIENT_LEASE_EXECUTOR_H_
 
 #include <brpc/periodic_task.h>
+#include <bthread/condition_variable.h>
+#include <bthread/mutex.h>
 
 #include <memory>
 #include <string>
@@ -68,10 +70,8 @@ class LeaseExecutor {
      * @param: mdsclient是与mds续约的client
      * @param: iomanager会在续约失败或者版本变更的时候进行io调度
      */
-    LeaseExecutor(const LeaseOption& leaseOpt,
-                 UserInfo_t userinfo,
-                 MDSClient* mdscllent,
-                 IOManager4File* iomanager);
+    LeaseExecutor(const LeaseOption& leaseOpt, const UserInfo& userinfo,
+                  MDSClient* mdscllent, IOManager4File* iomanager);
 
     ~LeaseExecutor();
 
@@ -83,11 +83,6 @@ class LeaseExecutor {
      * @return: 成功返回true，否则返回false
      */
     bool Start(const FInfo_t& fi, const LeaseSession_t&  lease);
-
-    /**
-     * 获取当前lease的sessionid信息，外围close文件的时候需要用到
-     */
-    std::string GetLeaseSessionID();
 
     /**
      * 停止续约
@@ -127,10 +122,11 @@ class LeaseExecutor {
     void IncremRefreshFailed();
 
     /**
-     * 每次续约会携带新的文件信息，该函数检查当前文件是否需要更新版本信息
-     * @param: newversion是lease续约后从mds端携带回来的版本号
+     * @brief Updating local file information consistent with MDS record.
+     *        Currently, only seqnum and file status are updated
+     * @param fileInfo Latest file information returned by refresh session RPC
      */
-    void CheckNeedUpdateVersion(uint64_t newversion);
+    void CheckNeedUpdateFileInfo(const FInfo& fileInfo);
 
  private:
     // 与mds进行lease续约的文件名
@@ -197,7 +193,7 @@ class RefreshSessionTask : public brpc::PeriodicTask {
      *         false 停止执行当前任务
      */
     bool OnTriggeringTask(timespec* next_abstime) override {
-        std::lock_guard<std::mutex> lk(stopMtx_);
+        std::lock_guard<bthread::Mutex> lk(stopMtx_);
         if (stopped_) {
             return false;
         }
@@ -210,7 +206,7 @@ class RefreshSessionTask : public brpc::PeriodicTask {
      * @brief 停止再次执行当前任务
      */
     void Stop() {
-        std::lock_guard<std::mutex> lk(stopMtx_);
+        std::lock_guard<bthread::Mutex> lk(stopMtx_);
         stopped_ = true;
     }
 
@@ -218,7 +214,7 @@ class RefreshSessionTask : public brpc::PeriodicTask {
      * @brief 任务停止后调用
      */
     void OnDestroyingTask() override {
-        std::unique_lock<std::mutex> lk(terminatedMtx_);
+        std::unique_lock<bthread::Mutex> lk(terminatedMtx_);
         terminated_ = true;
         terminatedCv_.notify_one();
     }
@@ -227,8 +223,10 @@ class RefreshSessionTask : public brpc::PeriodicTask {
      * @brief 等待任务退出
      */
     void WaitTaskExit() {
-        std::unique_lock<std::mutex> lk(terminatedMtx_);
-        terminatedCv_.wait(lk, [this]() { return terminated_ == true; });
+        std::unique_lock<bthread::Mutex> lk(terminatedMtx_);
+        while (terminated_ != true) {
+            terminatedCv_.wait(lk);
+        }
     }
 
     /**
@@ -244,11 +242,11 @@ class RefreshSessionTask : public brpc::PeriodicTask {
     uint64_t refreshIntervalUs_;
 
     bool stopped_;
-    std::mutex stopMtx_;
+    bthread::Mutex stopMtx_;
 
     bool terminated_;
-    std::mutex terminatedMtx_;
-    std::condition_variable terminatedCv_;
+    bthread::Mutex terminatedMtx_;
+    bthread::ConditionVariable terminatedCv_;
 };
 
 }   // namespace client

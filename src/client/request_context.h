@@ -37,25 +37,42 @@ namespace client {
 
 struct RequestSourceInfo {
     std::string cloneFileSource;
-    uint64_t cloneFileOffset{0};
+    uint64_t cloneFileOffset = 0;
+    bool valid = false;
 
     RequestSourceInfo() = default;
     RequestSourceInfo(const std::string& source, uint64_t offset)
-        : cloneFileSource(source), cloneFileOffset(offset) {}
+        : cloneFileSource(source), cloneFileOffset(offset), valid(true) {}
+
+    bool IsValid() const { return valid; }
 };
 
 inline std::ostream& operator<<(std::ostream& os,
                                 const RequestSourceInfo& location) {
-    if (location.cloneFileSource.empty()) {
-        os << "empty";
-    } else {
+    if (location.IsValid()) {
         os << location.cloneFileSource << ":" << location.cloneFileOffset;
+    } else {
+        os << "empty";
     }
 
     return os;
 }
 
 struct CURVE_CACHELINE_ALIGNMENT RequestContext {
+    struct Padding {
+        enum PaddingType {
+            None,
+            Left,
+            Right,
+            ALL
+        };
+
+        bool aligned = true;
+        PaddingType type = None;
+        off_t offset = 0;
+        size_t length = 0;
+    };
+
     RequestContext() : id_(GetNextRequestContextId()) {}
 
     ~RequestContext() = default;
@@ -110,6 +127,8 @@ struct CURVE_CACHELINE_ALIGNMENT RequestContext {
     // 当前request context id
     uint64_t            id_ = 0;
 
+    Padding padding;
+
     static RequestContext* NewInitedRequestContext() {
         RequestContext* ctx = new (std::nothrow) RequestContext();
         if (ctx && ctx->Init()) {
@@ -121,12 +140,12 @@ struct CURVE_CACHELINE_ALIGNMENT RequestContext {
         }
     }
 
- private:
-    static std::atomic<uint64_t> requestId;
-
     static uint64_t GetNextRequestContextId() {
         return requestId.fetch_add(1, std::memory_order_relaxed);
     }
+
+ private:
+    static std::atomic<uint64_t> requestId;
 };
 
 inline std::ostream& operator<<(std::ostream& os,

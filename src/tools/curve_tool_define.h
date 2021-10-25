@@ -68,6 +68,7 @@ const char kCheckChunnkServerCmd[] = "check-chunkserver";
 const char kCheckServerCmd[] = "check-server";
 const char kCopysetsStatusCmd[] = "copysets-status";
 const char kCheckOperatorCmd[] = "check-operator";
+const char kListMayBrokenVolumes[] = "list-may-broken-vol";
 
 // 一致性检查命令
 const char kCheckConsistencyCmd[] = "check-consistency";

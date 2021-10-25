@@ -173,7 +173,7 @@ void SnapshotCoreImpl::HandleCreateSnapshotTask(
     UUID uuid = task->GetUuid();
     uint64_t seqNum = info->GetSeqNum();
     bool existIndexData = false;
-    if (kUnInitializeSeqNum ==  seqNum) {
+    if (kUnInitializeSeqNum == seqNum) {
         ret = CreateSnapshotOnCurvefs(fileName, info, task);
         if (ret < 0) {
             LOG(ERROR) << "CreateSnapshotOnCurvefs error, "
@@ -212,11 +212,7 @@ void SnapshotCoreImpl::HandleCreateSnapshotTask(
     task->SetProgress(kProgressCreateSnapshotOnCurvefsComplete);
     task->UpdateMetric();
     if (task->IsCanceled()) {
-        ret = StartCancel(task);
-        if (kErrCodeSuccess == ret) {
-            CancelAfterCreateSnapshotOnCurvefs(task);
-        }
-        return;
+        return CancelAfterCreateSnapshotOnCurvefs(task);
     }
 
     ChunkIndexData indexData;
@@ -270,11 +266,7 @@ void SnapshotCoreImpl::HandleCreateSnapshotTask(
     }
 
     if (task->IsCanceled()) {
-        ret = StartCancel(task);
-        if (kErrCodeSuccess == ret) {
-            CancelAfterCreateChunkIndexData(task);
-        }
-        return;
+        return CancelAfterCreateChunkIndexData(task);
     }
 
     FileSnapMap fileSnapshotMap;
@@ -320,11 +312,8 @@ void SnapshotCoreImpl::HandleCreateSnapshotTask(
     task->UpdateMetric();
 
     if (task->IsCanceled()) {
-        ret = StartCancel(task);
-        if (kErrCodeSuccess == ret) {
-            CancelAfterTransferSnapshotData(task, indexData, fileSnapshotMap);
-        }
-        return;
+        return CancelAfterTransferSnapshotData(
+            task, indexData, fileSnapshotMap);
     }
 
     ret = DeleteSnapshotOnCurvefs(*info);
@@ -337,12 +326,8 @@ void SnapshotCoreImpl::HandleCreateSnapshotTask(
 
     LockGuard lockGuard(task->GetLockRef());
     if (task->IsCanceled()) {
-        // Cancel的逻辑与前面一致
-        ret = StartCancel(task);
-        if (kErrCodeSuccess == ret) {
-            CancelAfterTransferSnapshotData(task, indexData, fileSnapshotMap);
-        }
-        return;
+        return CancelAfterTransferSnapshotData(
+            task, indexData, fileSnapshotMap);
     }
 
     HandleCreateSnapshotSuccess(task);
@@ -568,11 +553,24 @@ int SnapshotCoreImpl::CreateSnapshotOnCurvefs(
     info->SetChunkSize(snapInfo.chunksize);
     info->SetSegmentSize(snapInfo.segmentsize);
     info->SetFileLength(snapInfo.length);
+    info->SetStripeUnit(snapInfo.stripeUnit);
+    info->SetStripeCount(snapInfo.stripeCount);
     info->SetCreateTime(snapInfo.ctime);
 
-    ret = metaStore_->UpdateSnapshot(*info);
+    auto compareAndSet = [&](SnapshotInfo* snapinfo) {
+        if (nullptr != snapinfo) {
+            auto status = snapinfo->GetStatus();
+            if (info->GetStatus() != status) {
+                info->SetStatus(status);
+            }
+        }
+        return info;
+    };
+
+    auto uuid = info->GetUuid();
+    ret = metaStore_->CASSnapshot(uuid, compareAndSet);
     if (ret < 0) {
-        LOG(ERROR) << "UpdateSnapshot error, "
+        LOG(ERROR) << "CASSnapshot error, "
                    << " ret = " << ret
                    << ", fileName = " << fileName
                    << ", uuid = " << task->GetUuid();
@@ -616,15 +614,12 @@ int SnapshotCoreImpl::DeleteSnapshotOnCurvefs(const SnapshotInfo &info) {
                   << ", seqNum = " << seqNum
                   << ", status = " << static_cast<int>(status)
                   << ", uuid = " << info.GetUuid();
+        // NOTEXIST means delete succeed.
         if (-LIBCURVE_ERROR::NOTEXIST == ret) {
             LOG(INFO) << "Check snapShot delete success"
                       << ", uuid = " << info.GetUuid();
             break;
-        // 目前mds删除快照失败会重试, 失败返回错误码DELETE_ERROR,
-        // 返回其他错误码一律InternalError
-        } else if (LIBCURVE_ERROR::OK == ret ||
-            -LIBCURVE_ERROR::DELETE_ERROR == ret) {
-            // nothing
+        } else if (LIBCURVE_ERROR::OK == ret) {
             if (status != FileStatus::Deleting) {
                 LOG(ERROR) << "CheckSnapShotStatus fail"
                            << ", ret = " << ret
@@ -640,8 +635,7 @@ int SnapshotCoreImpl::DeleteSnapshotOnCurvefs(const SnapshotInfo &info) {
         }
         std::this_thread::sleep_for(
             std::chrono::milliseconds(checkSnapshotStatusIntervalMs_));
-    } while (LIBCURVE_ERROR::OK == ret ||
-            -LIBCURVE_ERROR::DELETE_ERROR == ret);
+    } while (LIBCURVE_ERROR::OK == ret);
     return kErrCodeSuccess;
 }
 
@@ -1159,6 +1153,32 @@ int SnapshotCoreImpl::HandleCancelUnSchduledSnapshotTask(
         return kErrCodeInternalError;
     }
     return kErrCodeSuccess;
+}
+
+
+int SnapshotCoreImpl::HandleCancelScheduledSnapshotTask(
+    std::shared_ptr<SnapshotTaskInfo> task) {
+    LockGuard lockGuard(task->GetLockRef());
+
+    if (task->IsFinish()) {
+        return kErrCodeCannotCancelFinished;
+    }
+
+    auto ret = StartCancel(task);
+    if (kErrCodeSuccess == ret) {
+        task->Cancel();
+    } else {
+        auto& snapInfo = task->GetSnapshotInfo();
+        LOG(ERROR) << "HandleCancelSchduledSnapshotTask failed: "
+                   << ", ret = " << ret
+                   << ", uuid = " << snapInfo.GetUuid()
+                   << ", fileName = " << snapInfo.GetFileName()
+                   << ", snapshotName = " << snapInfo.GetSnapshotName()
+                   << ", seqNum = " << snapInfo.GetSeqNum()
+                   << ", createTime = " << snapInfo.GetCreateTime();
+    }
+
+    return ret;
 }
 
 }  // namespace snapshotcloneserver

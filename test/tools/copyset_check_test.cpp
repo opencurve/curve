@@ -417,5 +417,20 @@ TEST_F(CopysetCheckTest, testCheckOperator) {
     ASSERT_EQ(0, copysetCheck.RunCommand(kCheckOperatorCmd));
 }
 
+TEST_F(CopysetCheckTest, PrintMayBrokenVolumes) {
+    CopysetCheck copysetCheck(core_);
+    copysetCheck.PrintHelp(kListMayBrokenVolumes);
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    // fail
+    EXPECT_CALL(*core_, ListMayBrokenVolumes(_))
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, copysetCheck.RunCommand(kListMayBrokenVolumes));
+    EXPECT_CALL(*core_, ListMayBrokenVolumes(_))
+        .WillOnce(Return(0));
+    ASSERT_EQ(0, copysetCheck.RunCommand(kListMayBrokenVolumes));
+}
+
 }  // namespace tool
 }  // namespace curve

@@ -106,6 +106,15 @@ class CopysetNodeManager : public curve::common::Uncopyable {
                               const CopysetID &copysetId);
 
     /**
+     * @brief Delete broken copyset
+     * @param[in] poolId logical pool id
+     * @param[in] copysetId copyset id
+     * @return true if delete success, else return false
+     */ 
+    bool DeleteBrokenCopyset(const LogicPoolID& poolId,
+                             const CopysetID& copysetId);
+
+    /**
      * 判断指定的copyset是否存在
      * @param logicPoolId:逻辑池子id
      * @param copysetId:复制组id
@@ -140,6 +149,14 @@ class CopysetNodeManager : public curve::common::Uncopyable {
 
     const CopysetNodeOptions &GetCopysetNodeOptions() const {
         return copysetNodeOptions_;
+    }
+
+    /**
+     * @brief: Only for test
+     */
+    void SetCopysetNodeOptions(
+        const CopysetNodeOptions& copysetNodeOptions) {
+        copysetNodeOptions_ = copysetNodeOptions;
     }
 
     /**

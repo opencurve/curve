@@ -22,12 +22,12 @@
 #include "src/client/mds_client.h"
 
 #include <glog/logging.h>
+#include <brpc/errno.pb.h>
 
 #include <utility>
 #include <algorithm>
 
 #include "src/client/lease_executor.h"
-#include "src/client/metacache.h"
 #include "src/common/net_common.h"
 #include "src/common/string_util.h"
 #include "src/common/timeutility.h"
@@ -37,9 +37,6 @@ namespace client {
 
 using curve::common::NetCommon;
 using curve::common::TimeUtility;
-using curve::common::ReadLockGuard;
-using curve::common::WriteLockGuard;
-using curve::mds::StatusCode;
 using curve::mds::FileInfo;
 using curve::mds::PageFileChunkInfo;
 using curve::mds::PageFileSegment;
@@ -57,15 +54,19 @@ using curve::mds::DeleteSnapShotResponse;
 using curve::mds::CheckSnapShotStatusResponse;
 using curve::mds::SessionStatus;
 using curve::mds::ProtoSession;
-using curve::mds::OpenFileResponse;
-using curve::mds::CloseFileResponse;
-using curve::mds::ReFreshSessionResponse;
-using curve::mds::CreateCloneFileResponse;
-using curve::mds::SetCloneFileStatusResponse;
-using curve::mds::topology::CopySetServerInfo;
+using curve::mds::StatusCode;
 using curve::mds::topology::ChunkServerLocation;
-using curve::mds::topology::GetChunkServerListInCopySetsResponse;
+using curve::mds::topology::CopySetServerInfo;
 
+MDSClient::MDSClient(const std::string& metricPrefix)
+    : inited_(false),
+      metaServerOpt_(),
+      mdsClientMetric_(metricPrefix),
+      rpcExcutor() {}
+
+MDSClient::~MDSClient() {
+    UnInitialize();
+}
 
 LIBCURVE_ERROR MDSClient::Initialize(const MetaServerOption& metaServerOpt) {
     if (inited_) {
@@ -75,20 +76,22 @@ LIBCURVE_ERROR MDSClient::Initialize(const MetaServerOption& metaServerOpt) {
 
     metaServerOpt_ = metaServerOpt;
 
-    int rc = mdsClientBase_.Init(metaServerOpt_);
-    if (rc != 0) {
-        LOG(ERROR) << "mds client rpc base init failed!";
-        return LIBCURVE_ERROR::FAILED;
-    }
-
     rpcExcutor.SetOption(metaServerOpt);
 
+    std::ostringstream oss;
+    for (const auto& addr : metaServerOpt_.mdsAddrs) {
+        oss << " " << addr;
+    }
+
+    LOG(INFO) << "MDSClient init success, addresses:" << oss.str();
     inited_ = true;
     return LIBCURVE_ERROR::OK;
 }
 
 void MDSClient::UnInitialize() {
     inited_ = false;
+
+    LOG(INFO) << "MDSClient uninit success";
 }
 
 // rpc发送和mds地址切换状态机
@@ -109,6 +112,9 @@ LIBCURVE_ERROR MDSClient::MDSRPCExcutor::DoRPCTask(RPCFunc rpctask,
     // rpc超时时间
     uint64_t rpcTimeOutMS = metaServerOpt_.mdsRPCTimeoutMs;
 
+    // The count of normal retry
+    uint64_t normalRetryCount = 0;
+
     int retcode = -1;
     bool needChangeMDS = false;
     while (GoOnRetry(startTime, maxRetryTimeMS)) {
@@ -117,7 +123,7 @@ LIBCURVE_ERROR MDSClient::MDSRPCExcutor::DoRPCTask(RPCFunc rpctask,
 
         // 2. 根据rpc返回值进行预处理
         if (retcode < 0) {
-            curRetryMDSIndex = PreProcessBeforeRetry(retcode,
+            curRetryMDSIndex = PreProcessBeforeRetry(retcode, &normalRetryCount,
                                &currentMDSRetryCount, curRetryMDSIndex,
                                &lastWorkingMDSIndex, &rpcTimeOutMS);
             continue;
@@ -129,9 +135,14 @@ LIBCURVE_ERROR MDSClient::MDSRPCExcutor::DoRPCTask(RPCFunc rpctask,
     }
 
     // 4. 重试超限，向上返回
-    return retcode == -LIBCURVE_ERROR::FILE_OCCUPIED
-                    ?  LIBCURVE_ERROR::FILE_OCCUPIED
-                    :  LIBCURVE_ERROR::FAILED;
+    switch (retcode) {
+        case -LIBCURVE_ERROR::NOT_SUPPORT:
+            return LIBCURVE_ERROR::NOT_SUPPORT;
+        case -LIBCURVE_ERROR::FILE_OCCUPIED:
+            return LIBCURVE_ERROR::FILE_OCCUPIED;
+        default:
+            return LIBCURVE_ERROR::FAILED;
+    }
 }
 
 bool MDSClient::MDSRPCExcutor::GoOnRetry(uint64_t startTimeMS,
@@ -141,6 +152,7 @@ bool MDSClient::MDSRPCExcutor::GoOnRetry(uint64_t startTimeMS,
 }
 
 int MDSClient::MDSRPCExcutor::PreProcessBeforeRetry(int status,
+                                                    uint64_t* normalRetryCount,
                                                     uint64_t* curMDSRetryCount,
                                                     int curRetryMDSIndex,
                                                     int* lastWorkingMDSIndex,
@@ -148,19 +160,27 @@ int MDSClient::MDSRPCExcutor::PreProcessBeforeRetry(int status,
     int nextMDSIndex = 0;
     bool rpcTimeout = false;
     bool needChangeMDS = false;
+
+    // It's not a RPC error, but we must retry it until success
+    if (status == -LIBCURVE_ERROR::RETRY_UNTIL_SUCCESS) {
+        if (++(*normalRetryCount) >
+            metaServerOpt_.mdsNormalRetryTimesBeforeTriggerWait) {
+            bthread_usleep(metaServerOpt_.mdsWaitSleepMs * 1000);
+        }
+
     // 1. 访问存在的IP地址，但无人监听：ECONNREFUSED
     // 2. 正常发送RPC情况下，对端进程挂掉了：EHOSTDOWN
     // 3. 对端server调用了Stop：ELOGOFF
     // 4. 对端链接已关闭：ECONNRESET
     // 5. 在一个mds节点上rpc失败超过限定次数
     // 在这几种场景下，主动切换mds。
-    if (status == -EHOSTDOWN || status == -ECONNRESET ||
+    } else if (status == -EHOSTDOWN || status == -ECONNRESET ||
         status == -ECONNREFUSED || status == -brpc::ELOGOFF ||
         *curMDSRetryCount >= metaServerOpt_.mdsMaxFailedTimesBeforeChangeMDS) {
         needChangeMDS = true;
 
         // 在开启健康检查的情况下，在底层tcp连接失败时
-        // rpc请求会本地直接返回 EHOSTSOWN
+        // rpc请求会本地直接返回 EHOSTDOWN
         // 这种情况下，增加一些睡眠时间，避免大量的重试请求占满bthread
         // TODO(wuhanqing): 关闭健康检查
         if (status == -EHOSTDOWN) {
@@ -252,7 +272,7 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
         OpenFileResponse response;
         mdsClientMetric_.openFile.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.openFile.latency);
-        mdsClientBase_.OpenFile(filename, userinfo, &response, cntl, channel);
+        MDSClientBase::OpenFile(filename, userinfo, &response, cntl, channel);
 
         if (cntl->Failed()) {
             mdsClientMetric_.openFile.eps.count << 1;
@@ -279,8 +299,23 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
             lease->leaseTime     = leasesession.leasetime();
             lease->createTime    = leasesession.createtime();
 
-            FileInfo finfo = response.fileinfo();
-            ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
+            const curve::mds::FileInfo& protoFileInfo = response.fileinfo();
+            ServiceHelper::ProtoFileInfo2Local(protoFileInfo, fi);
+
+            if (protoFileInfo.has_clonesource() &&
+                protoFileInfo.filestatus() ==
+                    curve::mds::FileStatus::kFileCloneMetaInstalled) {
+                if (!response.has_clonesourcesegment()) {
+                    LOG(WARNING) << filename
+                                 << " has clone source and status is "
+                                    "CloneMetaInstalled, but response does not "
+                                    "contains clone source segment";
+                    return retcode;
+                }
+
+                ServiceHelper::ProtoCloneSourceInfo2Local(response,
+                                                          &fi->sourceInfo);
+            }
         } else {
             LOG(WARNING) << "mds response has no file info or session info!";
             return LIBCURVE_ERROR::FAILED;
@@ -294,13 +329,15 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
 LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
                                      const UserInfo_t& userinfo,
                                      size_t size,
-                                     bool normalFile) {
+                                     bool normalFile,
+                                     uint64_t stripeUnit,
+                                     uint64_t stripeCount) {
     auto task = RPCTaskDefine {
         CreateFileResponse response;
         mdsClientMetric_.createFile.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.createFile.latency);
-        mdsClientBase_.CreateFile(filename, userinfo, size, normalFile,
-                                  &response, cntl, channel);
+        MDSClientBase::CreateFile(filename, userinfo, size, normalFile,
+        stripeUnit, stripeCount, &response, cntl, channel);
 
         if (cntl->Failed()) {
             mdsClientMetric_.createFile.eps.count << 1;
@@ -332,7 +369,7 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string& filename,
         CloseFileResponse response;
         mdsClientMetric_.closeFile.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.closeFile.latency);
-        mdsClientBase_.CloseFile(filename, userinfo, sessionid,
+        MDSClientBase::CloseFile(filename, userinfo, sessionid,
                                 &response, cntl, channel);
 
         if (cntl->Failed()) {
@@ -365,18 +402,15 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
         GetFileInfoResponse response;
         mdsClientMetric_.getFile.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.getFile.latency);
-        mdsClientBase_.GetFileInfo(filename, uinfo, &response, cntl, channel);
+        MDSClientBase::GetFileInfo(filename, uinfo, &response, cntl, channel);
 
         if (cntl->Failed()) {
             mdsClientMetric_.getFile.eps.count << 1;
-            LOG(WARNING)  << "get file info failed, error content:"
-                << cntl->ErrorText() << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
 
         if (response.has_fileinfo()) {
-            FileInfo finfo = response.fileinfo();
-            ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
+            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(), fi);
         }
 
         LIBCURVE_ERROR retcode;
@@ -398,7 +432,7 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
                                          uint64_t* seq) {
     auto task = RPCTaskDefine {
         CreateSnapShotResponse response;
-        mdsClientBase_.CreateSnapShot(filename, userinfo,
+        MDSClientBase::CreateSnapShot(filename, userinfo,
                                       &response, cntl, channel);
 
         if (cntl->Failed()) {
@@ -415,8 +449,7 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
              stcode == StatusCode::kFileUnderSnapShot) &&
             hasinfo) {
             FInfo_t* fi = new (std::nothrow) FInfo_t;
-            curve::mds::FileInfo finfo = response.snapshotfileinfo();
-            ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
+            ServiceHelper::ProtoFileInfo2Local(response.snapshotfileinfo(), fi);
             *seq = fi->seqnum;
             delete fi;
             if (stcode == StatusCode::kOK) {
@@ -431,7 +464,7 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
 
         if (hasinfo) {
             FInfo_t fi;
-            ServiceHelper::ProtoFileInfo2Local(&response.snapshotfileinfo(), &fi);  // NOLINT
+            ServiceHelper::ProtoFileInfo2Local(response.snapshotfileinfo(), &fi);  // NOLINT
             *seq = fi.seqnum;
         }
 
@@ -453,7 +486,7 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
                                          uint64_t seq) {
     auto task = RPCTaskDefine {
         DeleteSnapShotResponse response;
-        mdsClientBase_.DeleteSnapShot(filename, userinfo, seq,
+        MDSClientBase::DeleteSnapShot(filename, userinfo, seq,
                                      &response, cntl, channel);
 
         if (cntl->Failed()) {
@@ -483,7 +516,7 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
                                        std::map<uint64_t, FInfo>* snapif) {
     auto task = RPCTaskDefine {
         ListSnapShotFileInfoResponse response;
-        mdsClientBase_.ListSnapShot(filename, userinfo, seq,
+        MDSClientBase::ListSnapShot(filename, userinfo, seq,
                                     &response, cntl, channel);
 
         if (cntl->Failed()) {
@@ -508,8 +541,7 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
 
         for (int i = 0; i < response.fileinfo_size(); i++) {
             FInfo_t tempInfo;
-            FileInfo finfo = response.fileinfo(i);
-            ServiceHelper::ProtoFileInfo2Local(&finfo, &tempInfo);
+            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(i), &tempInfo);
             snapif->insert(std::make_pair(tempInfo.seqnum, tempInfo));
         }
 
@@ -530,7 +562,7 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
                                                  SegmentInfo* segInfo) {
     auto task = RPCTaskDefine {
         GetOrAllocateSegmentResponse response;
-        mdsClientBase_.GetSnapshotSegmentInfo(filename, userinfo, seq, offset,
+        MDSClientBase::GetSnapshotSegmentInfo(filename, userinfo, seq, offset,
                                               &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "get snap file segment info failed, errcorde = "
@@ -596,7 +628,7 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
         ReFreshSessionResponse response;
         mdsClientMetric_.refreshSession.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.refreshSession.latency);
-        mdsClientBase_.RefreshSession(filename, userinfo, sessionid,
+        MDSClientBase::RefreshSession(filename, userinfo, sessionid,
                                       &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.refreshSession.eps.count << 1;
@@ -633,8 +665,8 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
                 break;
             case StatusCode::kOK:
                 if (response.has_fileinfo()) {
-                    FileInfo finfo = response.fileinfo();
-                    ServiceHelper::ProtoFileInfo2Local(&finfo, &resp->finfo);
+                    ServiceHelper::ProtoFileInfo2Local(response.fileinfo(),
+                                                       &resp->finfo);
                     resp->status = LeaseRefreshResult::Status::OK;
                 } else {
                     LOG(WARNING) << "session response has no fileinfo!";
@@ -667,7 +699,7 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
                                               FileStatus* filestatus) {
     auto task = RPCTaskDefine {
         CheckSnapShotStatusResponse response;
-        mdsClientBase_.CheckSnapShotStatus(filename, userinfo, seq,
+        MDSClientBase::CheckSnapShotStatus(filename, userinfo, seq,
                                            &response, cntl, channel);
 
         if (cntl->Failed()) {
@@ -695,8 +727,6 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
 }
 
-#define IOPathMaxRetryMS UINT64_MAX
-
 LIBCURVE_ERROR MDSClient::GetServerList(
     const LogicPoolID& logicalpooid,
     const std::vector<CopysetID>& copysetidvec,
@@ -705,14 +735,13 @@ LIBCURVE_ERROR MDSClient::GetServerList(
         GetChunkServerListInCopySetsResponse response;
         mdsClientMetric_.getServerList.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.getServerList.latency);
-        mdsClientBase_.GetServerList(logicalpooid, copysetidvec, &response,
+        MDSClientBase::GetServerList(logicalpooid, copysetidvec, &response,
                                      cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.getServerList.eps.count << 1;
-            LOG_EVERY_SECOND(ERROR)
-                << "get server list from mds failed, status code = "
-                << cntl->ErrorCode() << ", error content:"
-                << cntl->ErrorText();
+            LOG(WARNING) << "get server list from mds failed, error is "
+                         << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
 
@@ -759,13 +788,13 @@ LIBCURVE_ERROR MDSClient::GetServerList(
         return response.statuscode() == 0 ? LIBCURVE_ERROR::OK :
                LIBCURVE_ERROR::FAILED;
     };
-    return rpcExcutor.DoRPCTask(task, IOPathMaxRetryMS);
+    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMsInIOPath);
 }
 
 LIBCURVE_ERROR MDSClient::GetClusterInfo(ClusterContext* clsctx) {
     auto task = RPCTaskDefine {
         curve::mds::topology::GetClusterInfoResponse response;
-        mdsClientBase_.GetClusterInfo(&response, cntl, channel);
+        MDSClientBase::GetClusterInfo(&response, cntl, channel);
 
         if (cntl->Failed()) {
             LOG(WARNING) << "get cluster info from mds failed, status code = "
@@ -787,11 +816,15 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string& source,
                                           const std::string& destination,
                                           const UserInfo_t& userinfo,
                                           uint64_t size, uint64_t sn,
-                                          uint32_t chunksize, FInfo* fileinfo) {
+                                          uint32_t chunksize,
+                                          uint64_t stripeUnit,
+                                          uint64_t stripeCount,
+                                          FInfo* fileinfo) {
     auto task = RPCTaskDefine {
         CreateCloneFileResponse response;
-        mdsClientBase_.CreateCloneFile(source, destination, userinfo, size, sn,
-                                       chunksize, &response, cntl, channel);
+        MDSClientBase::CreateCloneFile(source, destination, userinfo, size, sn,
+                                       chunksize, stripeUnit, stripeCount,
+                                       &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "Create clone file failed, errcorde = "
                          << cntl->ErrorCode()
@@ -814,8 +847,9 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string& source,
             << ", log id = " << cntl->log_id();
 
         if (stcode == StatusCode::kOK) {
-            FileInfo finfo = response.fileinfo();
-            ServiceHelper::ProtoFileInfo2Local(&finfo, fileinfo);
+            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(), fileinfo);
+            fileinfo->sourceInfo.name = response.fileinfo().clonesource();
+            fileinfo->sourceInfo.length = response.fileinfo().clonelength();
         }
 
         return retcode;
@@ -840,7 +874,7 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string& filename,
                                              uint64_t fileID) {
     auto task = RPCTaskDefine {
         SetCloneFileStatusResponse response;
-        mdsClientBase_.SetCloneFileStatus(filename, filestatus, userinfo,
+        MDSClientBase::SetCloneFileStatus(filename, filestatus, userinfo,
                                           fileID, &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "SetCloneFileStatus invoke failed, errcorde = "
@@ -873,7 +907,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
         GetOrAllocateSegmentResponse response;
         mdsClientMetric_.getOrAllocateSegment.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.getOrAllocateSegment.latency);
-        mdsClientBase_.GetOrAllocateSegment(allocate, offset, fi,
+        MDSClientBase::GetOrAllocateSegment(allocate, offset, fi,
                                             &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.getOrAllocateSegment.eps.count << 1;
@@ -887,14 +921,18 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
 
         auto statuscode = response.statuscode();
         switch (statuscode) {
+            case StatusCode::kParaError:
+                LOG(WARNING) << "GetOrAllocateSegment: error param!";
+                return LIBCURVE_ERROR::FAILED;
             case StatusCode::kOwnerAuthFail:
-                LOG(WARNING) << "GetOrAllocateSegment Auth failed!";
+                LOG(WARNING) << "GetOrAllocateSegment: auth failed!";
                 return LIBCURVE_ERROR::AUTHFAIL;
-                break;
+            case StatusCode::kFileNotExists:
+                LOG(WARNING) << "GetOrAllocateSegment: file not exists!";
+                return LIBCURVE_ERROR::FAILED;
             case StatusCode::kSegmentNotAllocated:
-                LOG(WARNING) << "segment not allocated!";
+                LOG(WARNING) << "GetOrAllocateSegment: segment not allocated!";
                 return LIBCURVE_ERROR::NOT_ALLOCATE;
-                break;
             default: break;
         }
 
@@ -908,7 +946,8 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
         int chunksNum = pfs.chunks_size();
         if (allocate && chunksNum <= 0) {
             LOG(WARNING) << "MDS allocate segment, but no chunkinfo!";
-            return LIBCURVE_ERROR::FAILED;
+            // Now, we will retry until allocate segment success
+            return -LIBCURVE_ERROR::RETRY_UNTIL_SUCCESS;
         }
 
         for (int i = 0; i < chunksNum; i++) {
@@ -919,7 +958,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
         }
         return LIBCURVE_ERROR::OK;
     };
-    return rpcExcutor.DoRPCTask(task, IOPathMaxRetryMS);
+    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMsInIOPath);
 }
 
 LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
@@ -931,7 +970,7 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
         RenameFileResponse response;
         mdsClientMetric_.renameFile.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.renameFile.latency);
-        mdsClientBase_.RenameFile(userinfo, origin, destination, originId,
+        MDSClientBase::RenameFile(userinfo, origin, destination, originId,
                                     destinationId, &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.renameFile.eps.count << 1;
@@ -954,6 +993,12 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
                 << ", error msg = "
                 << StatusCode_Name(stcode)
                 << ", log id = " << cntl->log_id();
+
+        // MDS does not currently support rename file, retry again
+        if (retcode == LIBCURVE_ERROR::NOT_SUPPORT) {
+            return -retcode;
+        }
+
         return retcode;
     };
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
@@ -966,7 +1011,7 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
         ExtendFileResponse response;
         mdsClientMetric_.extendFile.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.extendFile.latency);
-        mdsClientBase_.Extend(filename, userinfo, newsize, &response,
+        MDSClientBase::Extend(filename, userinfo, newsize, &response,
                               cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.extendFile.eps.count << 1;
@@ -1001,7 +1046,7 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
         DeleteFileResponse response;
         mdsClientMetric_.deleteFile.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.deleteFile.latency);
-        mdsClientBase_.DeleteFile(filename, userinfo, deleteforce,
+        MDSClientBase::DeleteFile(filename, userinfo, deleteforce,
                                     fileid, &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.deleteFile.eps.count << 1;
@@ -1020,6 +1065,12 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
                 << ", errocde = " << retcode
                 << ", error msg = " << StatusCode_Name(stcode)
                 << ", log id = " << cntl->log_id();
+
+        // MDS does not currently support delete file, retry again
+        if (retcode == LIBCURVE_ERROR::NOT_SUPPORT) {
+            return -retcode;
+        }
+
         return retcode;
     };
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
@@ -1032,7 +1083,7 @@ LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string& filename,
         ChangeOwnerResponse response;
         mdsClientMetric_.changeOwner.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.changeOwner.latency);
-        mdsClientBase_.ChangeOwner(filename, newOwner, userinfo,
+        MDSClientBase::ChangeOwner(filename, newOwner, userinfo,
                                    &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.changeOwner.eps.count << 1;
@@ -1052,6 +1103,12 @@ LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string& filename,
                 << ", errocde = " << retcode
                 << ", error msg = " << StatusCode_Name(stcode)
                 << ", log id = " << cntl->log_id();
+
+        // MDS does not currently support change file owner, retry again
+        if (retcode == LIBCURVE_ERROR::NOT_SUPPORT) {
+            return -retcode;
+        }
+
         return retcode;
     };
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
@@ -1064,7 +1121,7 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
         ListDirResponse response;
         mdsClientMetric_.listDir.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.listDir.latency);
-        mdsClientBase_.Listdir(dirpath, userinfo, &response, cntl, channel);
+        MDSClientBase::Listdir(dirpath, userinfo, &response, cntl, channel);
 
         if (cntl->Failed()) {
             mdsClientMetric_.listDir.eps.count << 1;
@@ -1132,7 +1189,7 @@ LIBCURVE_ERROR MDSClient::GetChunkServerInfo(const ChunkServerAddr& csAddr,
         const std::string& ip = strs[0];
         uint64_t port;
         curve::common::StringToUll(strs[1], &port);
-        mdsClientBase_.GetChunkServerInfo(ip, port, &response, cntl, channel);
+        MDSClientBase::GetChunkServerInfo(ip, port, &response, cntl, channel);
 
         if (cntl->Failed()) {
             LOG(WARNING) << "GetChunkServerInfo invoke failed, errcorde = "
@@ -1177,7 +1234,7 @@ LIBCURVE_ERROR MDSClient::ListChunkServerInServer(
         mdsClientMetric_.listChunkserverInServer.qps.count << 1;
         LatencyGuard guard(&mdsClientMetric_.listChunkserverInServer.latency);
 
-        mdsClientBase_.ListChunkServerInServer(
+        MDSClientBase::ListChunkServerInServer(
             serverIp, &response, cntl, channel);
 
         if (cntl->Failed()) {

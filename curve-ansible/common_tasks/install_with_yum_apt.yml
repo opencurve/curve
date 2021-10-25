@@ -40,7 +40,15 @@
       register: result
     - name: install lib with yum
       shell: sudo yum -y install {{ yum_lib_name }}
+      register: install_result
       when: result.rc != 0
+    - name: install latest repository
+      shell: sudo yum -y install https://extras.getpagespeed.com/release-latest.rpm
+      register: repository
+      when: install_result.rc != 0
+    - name: retry install
+      shell: sudo yum -y install {{ yum_lib_name }}
+      when: install_result.rc != 0 and repository.rc != 0
   when:
     - "'CentOS' in distro"
 

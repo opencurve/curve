@@ -28,6 +28,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <memory>
 
 #include "include/client/libcurve.h"
 #include "src/client/client_common.h"
@@ -94,10 +95,12 @@ class FileClient {
      * 这个Open接口主要是提供给快照克隆镜像系统做数据拷贝使用
      * @param: filename文件名
      * @param: userinfo当前用户信息
+     * @param disableStripe enable/disable stripe feature for a stripe file
      * @return: 返回文件fd
      */
     virtual int Open4ReadOnly(const std::string& filename,
-                              const UserInfo_t& userinfo);
+                              const UserInfo_t& userinfo,
+                              bool disableStripe = false);
 
     /**
      * 创建文件
@@ -110,6 +113,21 @@ class FileClient {
     virtual int Create(const std::string& filename,
                        const UserInfo_t& userinfo,
                        size_t size);
+
+    /**
+     * create file with stripe
+     * @param: filename file name
+     * @param: userinfo user info
+     * @param: size file size
+     * @param: stripeUnit block in stripe size
+     * @param  stripeCount stripe count in one stripe
+     * @return: success return 0,  fail return less than 0
+     *
+     */
+    virtual int Create2(const std::string& filename,
+                        const UserInfo_t& userinfo,
+                        size_t size, uint64_t stripeUnit,
+                        uint64_t stripeCount);
 
     /**
      * 同步模式读
@@ -269,38 +287,10 @@ class FileClient {
         return openedFileNum_.get_value();
     }
 
-    /**
-     * test use, set the mdsclient_
-     */
-    void SetMdsClient(MDSClient* client) {
-        mdsClient_ = client;
-    }
-
-    /**
-     * test use, set the clientconfig_
-     */
-    void SetClientConfig(ClientConfig cfg) {
-        clientconfig_ = cfg;
-    }
-
-    const ClientConfig& GetClientConfig() {
-        return clientconfig_;
-    }
-
-    /**
-     * test use, get the fileserviceMap_
-     */
-    std::unordered_map<int, FileInstance*>& GetFileServiceMap() {
-        return fileserviceMap_;
-    }
-
  private:
     bool StartDummyServer();
 
-    bool CheckAligned(off_t offset, size_t length) {
-        return (offset % IO_ALIGNED_BLOCK_SIZE == 0) &&
-               (length % IO_ALIGNED_BLOCK_SIZE == 0);
-    }
+    bool CheckAligned(off_t offset, size_t length) const;
 
  private:
     BthreadRWLock rwlock_;
@@ -315,7 +305,7 @@ class FileClient {
     ClientConfig clientconfig_;
 
     // fileclient对应的全局mdsclient
-    MDSClient* mdsClient_;
+    std::shared_ptr<MDSClient> mdsClient_;
 
     // 是否初始化成功
     bool inited_;

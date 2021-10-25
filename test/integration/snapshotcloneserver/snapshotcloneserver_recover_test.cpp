@@ -514,7 +514,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         }
         int ret = snapClient_->CreateCloneFile(testFile1_,
             fileName, UserInfo_t(mdsRootUser_, mdsRootPassword_),
-            testFile1Length, seqNum, chunkSize, fInfoOut);
+            testFile1Length, seqNum, chunkSize, 0, 0, fInfoOut);
         return ret;
     }
 
@@ -715,7 +715,8 @@ TEST_F(SnapshotCloneServerTest, TestRecoverSnapshotWhenNotCreateSnapOnCurvefs) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     SnapshotInfo snapInfo(uuid1, testUser1_, testFile1_,
                         "snapxxx", 0, chunkSize,
-                        segmentSize, testFile1Length, 0,
+                        segmentSize, testFile1Length,
+                        0, 0, 0,
                         Status::pending);
     cluster_->metaStore_->AddSnapshot(snapInfo);
 
@@ -743,7 +744,8 @@ TEST_F(SnapshotCloneServerTest,
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     SnapshotInfo snapInfo(uuid1, testUser1_, testFile1_,
                         "snapxxx", 0, chunkSize,
-                        segmentSize, testFile1Length, 0,
+                        segmentSize, testFile1Length,
+                        0, 0, 0,
                         Status::pending);
     cluster_->metaStore_->AddSnapshot(snapInfo);
 
@@ -770,7 +772,8 @@ TEST_F(SnapshotCloneServerTest,
 
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     SnapshotInfo snapInfo(uuid1, testUser1_, testFile1_, "snapxxx", seq,
-                        chunkSize, segmentSize, testFile1Length, 0,
+                        chunkSize, segmentSize, testFile1Length,
+                        0, 0, 0,
                         Status::pending);
     cluster_->metaStore_->AddSnapshot(snapInfo);
 

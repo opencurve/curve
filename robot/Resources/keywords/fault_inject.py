@@ -325,10 +325,10 @@ def map_nbd():
     rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"create /vdbenchfile fail：%s"%rs[2]
     time.sleep(3)
-    cmd = "sudo curve-nbd map cbd:pool1//fiofile_test_ >/dev/null 2>&1"
+    cmd = "sudo curve-nbd --block-size 512 map cbd:pool1//fiofile_test_ >/dev/null 2>&1"
     rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"map fiofile fail：%s"%rs[2]
-    cmd = "sudo curve-nbd map cbd:pool1//vdbenchfile_test_ >/dev/null 2>&1"
+    cmd = "sudo curve-nbd --block-size 512 map cbd:pool1//vdbenchfile_test_ >/dev/null 2>&1"
     rs = shell_operator.ssh_exec(ssh, cmd)
     assert rs[3] == 0,"map vdbenchfile fail：%s"%rs[2]
 
@@ -798,7 +798,7 @@ def clean_kernel_log():
 def check_io_error():
     for host in config.client_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-        ori_cmd = "sudo grep \'I/O error\' /var/log/kern.log -R"
+        ori_cmd = "sudo grep \'I/O error\' /var/log/kern.log -R | grep -v nbd3"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         if rs[1] != []:
             ori_cmd = "sudo logrotate -vf /etc/logrotate.d/rsyslog"

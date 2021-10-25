@@ -116,6 +116,9 @@ class TopologyServiceManager {
     virtual void ListLogicalPool(const ListLogicalPoolRequest *request,
                                  ListLogicalPoolResponse *response);
 
+    virtual void SetLogicalPool(const SetLogicalPoolRequest *request,
+                                SetLogicalPoolResponse *response);
+
     virtual void GetChunkServerListInCopySets(
         const GetChunkServerListInCopySetsRequest *request,
         GetChunkServerListInCopySetsResponse *response);

@@ -54,6 +54,9 @@ struct RootAuthOption {
 
 struct CurveFSOption {
     uint64_t defaultChunkSize;
+    uint64_t defaultSegmentSize;
+    uint64_t minFileLength;
+    uint64_t maxFileLength;
     RootAuthOption authOptions;
     FileRecordOptions fileRecordOptions;
 };
@@ -119,12 +122,16 @@ class CurveFS {
      *         owner: the owner of the file
      *         filetype：the type of the file
      *         length：file length
+     *         stripeUnit: the smallest unit of stripe
+     *         stripeCount: stripe width
      *  @return return StatusCode::kOK if succeeded
      */
     StatusCode CreateFile(const std::string & fileName,
                           const std::string& owner,
                           FileType filetype,
-                          uint64_t length);
+                          uint64_t length,
+                          uint64_t stripeUnit,
+                          uint64_t stripeCount);
     /**
      *  @brief get file information
      *  @param filename
@@ -316,7 +323,8 @@ class CurveFS {
     StatusCode OpenFile(const std::string &fileName,
                         const std::string &clientIP,
                         ProtoSession *protoSession,
-                        FileInfo  *fileInfo);
+                        FileInfo  *fileInfo,
+                        CloneSourceSegment* cloneSourceSegment = nullptr);
 
     /**
      *  @brief close file
@@ -356,6 +364,8 @@ class CurveFS {
      * @param length
      * @param seq: version number
      * @param ChunkSizeType: The chunk size of the clone file
+     * @param stripeUnit: stripe size
+     * @param stripeCount: stripe count
      * @param cloneSource: Source file address, only supports CurveFS currently
      * @param cloneLength: Length of source file
      * @param[out] fileInfo: fileInfo of the clone file created
@@ -367,6 +377,8 @@ class CurveFS {
                             uint64_t length,
                             FileSeqType seq,
                             ChunkSizeType chunksize,
+                            uint64_t stripeUnit,
+                            uint64_t stripeCount,
                             FileInfo *fileInfo,
                             const std::string & cloneSource = "",
                             uint64_t cloneLength = 0);
@@ -459,6 +471,16 @@ class CurveFS {
                                   ClientInfo* clientInfo);
 
     /**
+     * @brief List volumes on copysets
+     * @param copysets
+     * @param[fileNames] volumes on copysets
+     * @return StatusCode::kOK if succeeded, StatusCode::kFileNotExists if failed //NOLINT
+     */
+    StatusCode ListVolumesOnCopyset(
+                        const std::vector<common::CopysetInfo>& copysets,
+                        std::vector<std::string>* fileNames);
+
+    /**
      *  @brief Get the number of opened files
      *  @param
      *  @return return 0 of CurveFS has not been initialized
@@ -471,6 +493,27 @@ class CurveFS {
      *  @return return defaultChunkSize info obtained
      */
     uint64_t GetDefaultChunkSize();
+
+    /**
+     *  @brief get the defaultSegmentSize info of curvefs
+     *  @param:
+     *  @return return defaultSegmentSize info obtained
+     */
+    uint64_t GetDefaultSegmentSize();
+
+    /**
+     *  @brief get the minFileLength info of curvefs
+     *  @param:
+     *  @return return minFileLength info obtained
+     */
+    uint64_t GetMinFileLength();
+
+    /**
+     *  @brief get the maxFileLength info of curvefs
+     *  @param:
+     *  @return return maxFileLength info obtained
+     */
+    uint64_t GetMaxFileLength();
 
  private:
     CurveFS() = default;
@@ -613,6 +656,41 @@ class CurveFS {
                                  const std::string &owner,
                                  bool *isHasCloneRely);
 
+
+    /**
+     *  @brief List all files recursively
+     *  @param: inodeId The inode id of directory
+     *  @param[out]: files All file info
+     *  @return StatusCode::kOK if succeeded
+     */
+    StatusCode ListAllFiles(uint64_t inodeId, std::vector<FileInfo>* files);
+
+    /**
+     * @brief check whether mds has started for enough time, based on the
+     *        file record expiration time(mds.file.expiredTimeUs)
+     * @param times multiple of file record expiration time
+     * @return return true if ok, otherwise return false
+     */
+    bool IsStartEnoughTime(int times) const {
+        std::chrono::steady_clock::duration timePass =
+            std::chrono::steady_clock::now() - startTime_;
+        uint32_t expiredUs = fileRecordManager_->GetFileRecordExpiredTimeUs();
+        return timePass >= times * std::chrono::microseconds(expiredUs);
+    }
+
+    /**
+     * @brief list clone source file's segment,
+     *        if current file status is in kFileCloneMetaInstalled
+     * @param fileInfo current file info
+     * @param[out] cloneSourceSegment source file allocated segments
+     */
+    StatusCode ListCloneSourceFileSegments(
+        const FileInfo* fileInfo, CloneSourceSegment* cloneSourceSegment) const;
+
+    StatusCode CheckStripeParam(uint64_t stripeUnit,
+                           uint64_t stripeCount);
+
+
  private:
     FileInfo rootFileInfo_;
     std::shared_ptr<NameServerStorage> storage_;
@@ -626,10 +704,12 @@ class CurveFS {
     struct RootAuthOption       rootAuthOptions_;
 
     uint64_t defaultChunkSize_;
+    uint64_t defaultSegmentSize_;
+    uint64_t minFileLength_;
+    uint64_t maxFileLength_;
     std::chrono::steady_clock::time_point startTime_;
 };
 extern CurveFS &kCurveFS;
 }   // namespace mds
 }   // namespace curve
 #endif   // SRC_MDS_NAMESERVER2_CURVEFS_H_
-

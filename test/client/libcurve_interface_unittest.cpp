@@ -652,7 +652,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     std::string filename = "/1_userinfo_";
 
     UserInfo_t userinfo;
-    MDSClient mdsclient_;
+    std::shared_ptr<MDSClient> mdsclient_ = std::make_shared<MDSClient>();
     FileServiceOption fopt;
     FileInstance    fileinstance_;
 
@@ -682,9 +682,9 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     //     fopt.ioOpt.ioSenderOpt.failRequestOpt);
     LOG(INFO) << "here";
 
-    mdsclient_.Initialize(fopt.metaServerOpt);
+    mdsclient_->Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize(
-        "/UnstableChunkserverTest", &mdsclient_, userinfo, fopt);
+        "/UnstableChunkserverTest", mdsclient_, userinfo, fopt);
 
     // 设置leaderid
     EndPoint ep;
@@ -830,8 +830,8 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
         }
     }
 
+    fileinstance_.Close();
     fileinstance_.UnInitialize();
-    mdsclient_.UnInitialize();
     mds.UnInitialize();
     delete[] buffer;
 }
@@ -840,7 +840,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     std::string filename = "/1_userinfo_";
 
     UserInfo_t userinfo;
-    MDSClient mdsclient_;
+    std::shared_ptr<MDSClient> mdsclient_ = std::make_shared<MDSClient>();
     FileServiceOption fopt;
     FileInstance    fileinstance_;
 
@@ -866,9 +866,9 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
     fopt.ioOpt.metaCacheOpt.chunkserverUnstableOption.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
 
-    mdsclient_.Initialize(fopt.metaServerOpt);
+    mdsclient_->Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize(
-        "/ResumeTimeoutBackoff", &mdsclient_, userinfo, fopt);
+        "/ResumeTimeoutBackoff", mdsclient_, userinfo, fopt);
 
     // 设置leaderid
     EndPoint ep;
@@ -942,10 +942,76 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     ASSERT_GE(elapsedMs, 52 * 1000);
     ASSERT_LE(elapsedMs, 55 * 1000);
 
+    fileinstance_.Close();
     fileinstance_.UnInitialize();
-    mdsclient_.UnInitialize();
     mds.UnInitialize();
     delete[] buffer;
+}
+
+TEST(TestLibcurveInterface, InterfaceStripeTest) {
+    FLAGS_chunkserver_list =
+         "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
+
+    std::string filename = "/1";
+    std::string filename2 = "/2";
+    UserInfo_t userinfo;
+    userinfo.owner = "userinfo";
+    uint64_t size = 100 * 1024 * 1024 * 1024ul;
+    FileClient fc;
+
+    // 设置leaderid
+    EndPoint ep;
+    butil::str2endpoint("127.0.0.1", 9115, &ep);
+    PeerId pd(ep);
+
+    // init mds service
+    FakeMDS mds(filename);
+    mds.Initialize();
+    mds.StartCliService(pd);
+    mds.StartService();
+    mds.CreateCopysetNode(true);
+
+    ASSERT_EQ(0, fc.Init(configpath));
+
+    FakeMDSCurveFSService *service = NULL;
+    service = mds.GetMDSService();
+    ::curve::mds::CreateFileResponse response;
+    response.set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* fakeret
+     = new FakeReturn(nullptr, static_cast<void*>(&response));
+    service->SetCreateFileFakeReturn(fakeret);
+    int ret = fc.Create2(filename, userinfo, size, 0, 0);
+    ASSERT_EQ(LIBCURVE_ERROR::OK, ret);
+
+    response.set_statuscode(::curve::mds::StatusCode::kFileExists);
+    fakeret = new FakeReturn(nullptr, static_cast<void*>(&response));
+    service->SetCreateFileFakeReturn(fakeret);
+    ret = fc.Create2(filename2, userinfo, size, 1024*1024, 4);
+    ASSERT_EQ(LIBCURVE_ERROR::EXISTS, -ret);
+
+    FileStatInfo_t fsinfo;
+    ::curve::mds::FileInfo * info = new curve::mds::FileInfo;
+    ::curve::mds::GetFileInfoResponse getinforesponse;
+    info->set_filename(filename2);
+    info->set_id(1);
+    info->set_parentid(0);
+    info->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+    info->set_chunksize(4 * 1024 * 1024);
+    info->set_length(4 * 1024 * 1024 * 1024ul);
+    info->set_ctime(12345678);
+    info->set_segmentsize(1 * 1024 * 1024 * 1024ul);
+    info->set_stripeunit(1024*1024);
+    info->set_stripecount(4);
+    getinforesponse.set_allocated_fileinfo(info);
+    getinforesponse.set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* fakegetinfo =
+        new FakeReturn(nullptr, static_cast<void*>(&getinforesponse));
+    service->SetGetFileInfoFakeReturn(fakegetinfo);
+    ret = fc.StatFile(filename2, userinfo, &fsinfo);
+    ASSERT_EQ(1024*1024, fsinfo.stripeUnit);
+    ASSERT_EQ(4, fsinfo.stripeCount);
+    mds.UnInitialize();
+    fc.UnInit();
 }
 
 }  // namespace client

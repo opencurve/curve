@@ -42,29 +42,24 @@
 namespace curve {
 namespace nbd {
 
-int IOController::InitDevAttr(int devfd, NBDConfig* config, int sockfd,
-                              uint64_t size, uint64_t flags) {
-    int ret = ioctl(devfd, NBD_SET_SOCK, sockfd);
-    if (ret < 0) {
-        cerr << "curve-ndb: the device " << config->devpath
-             << " is busy" << std::endl;
-        return -errno;
-    }
+int IOController::InitDevAttr(NBDConfig* config, uint64_t size,
+                              uint64_t flags) {
+    int ret = -1;
 
     do {
-        ret = ioctl(devfd, NBD_SET_BLKSIZE, CURVE_NBD_BLKSIZE);
+        ret = ioctl(nbdFd_, NBD_SET_BLKSIZE, config->block_size);
         if (ret < 0) {
             break;
         }
 
-        ret = ioctl(devfd, NBD_SET_SIZE, size);
+        ret = ioctl(nbdFd_, NBD_SET_SIZE, size);
         if (ret < 0) {
             break;
         }
 
-        ioctl(devfd, NBD_SET_FLAGS, flags);
+        ioctl(nbdFd_, NBD_SET_FLAGS, flags);
 
-        ret = CheckSetReadOnly(devfd, flags);
+        ret = CheckSetReadOnly(nbdFd_, flags);
         if (ret < 0) {
             cerr << "curve-nbd: Check and set read only flag failed."
                  << cpp_strerror(ret) << std::endl;
@@ -72,55 +67,68 @@ int IOController::InitDevAttr(int devfd, NBDConfig* config, int sockfd,
         }
 
         if (config->timeout >= 0) {
-            ret = ioctl(devfd, NBD_SET_TIMEOUT, (unsigned long)config->timeout);  // NOLINT
+            ret = ioctl(nbdFd_, NBD_SET_TIMEOUT, (unsigned long)config->timeout);  // NOLINT
             if (ret < 0) {
-                cerr << "curve-ndb: failed to set timeout: "
+                cerr << "curve-nbd: failed to set timeout: "
                      << cpp_strerror(ret) << std::endl;
                 break;
             }
         }
     } while (false);
 
-    if (ret < 0) {
-        ret = -errno;
-        ioctl(devfd, NBD_CLEAR_SOCK);
-    }
     return ret;
 }
 
-int IOController::SetUp(NBDConfig* config, int sockfd,
-                        uint64_t size, uint64_t flags) {
-    if (config->devpath.empty()) {
-        config->devpath = find_unused_nbd_device();
+int IOController::MapOnUnusedNbdDevice(int sockfd, std::string* devpath) {
+    int index = 0;
+    char dev[64];
+    const int nbdsMax = get_nbd_max_count();
+
+    while (index < nbdsMax) {
+        snprintf(dev, sizeof(dev), "/dev/nbd%d", index);
+
+        int ret = MapOnNbdDeviceByDevPath(sockfd, dev, false);
+        if (ret < 0) {
+            ++index;
+            continue;
+        } else {
+            *devpath = dev;
+            return 0;
+        }
     }
 
-    if (config->devpath.empty()) {
+    cerr << "curve-nbd: failed to map on unused device, max nbd index: "
+         << (nbdsMax - 1) << ", last try nbd index: " << (index - 1)
+         << ", last error: " << cpp_strerror(errno) << std::endl;
+
+    return -1;
+}
+
+int IOController::MapOnNbdDeviceByDevPath(int sockfd,
+                                          const std::string& devpath,
+                                          bool logWhenError) {
+    int index = parse_nbd_index(devpath);
+    if (index < 0) {
         return -1;
     }
 
-    int ret = parse_nbd_index(config->devpath);
-    if (ret < 0) {
-        return ret;
+    int devfd = open(devpath.c_str(), O_RDWR);
+    if (devfd < 0) {
+        if (logWhenError) {
+            cerr << "curve-nbd: failed to open device: " << devfd
+                 << ", error = " << cpp_strerror(errno) << std::endl;
+        }
+        return -1;
     }
-    int index = ret;
 
-    ret = open(config->devpath.c_str(), O_RDWR);
+    int ret = ioctl(devfd, NBD_SET_SOCK, sockfd);
     if (ret < 0) {
-        cerr << "curve-ndb: failed to open device: "
-             << config->devpath << std::endl;
-        return ret;
-    }
-    int devfd = ret;
-
-    ret = InitDevAttr(devfd, config, sockfd, size, flags);
-    if (ret == 0) {
-        ret = check_device_size(index, size);
-    }
-    if (ret < 0) {
-        cerr << "curve-ndb: failed to map, status: "
-             << cpp_strerror(ret) << std::endl;
+        if (logWhenError) {
+            cerr << "curve-nbd: ioctl NBD_SET_SOCK failed, devpath: " << devpath
+                 << ", error = " << cpp_strerror(errno) << std::endl;
+        }
         close(devfd);
-        return ret;
+        return -1;
     }
 
     nbdFd_ = devfd;
@@ -128,17 +136,48 @@ int IOController::SetUp(NBDConfig* config, int sockfd,
     return 0;
 }
 
+int IOController::SetUp(NBDConfig* config, int sockfd,
+                        uint64_t size, uint64_t flags) {
+    int ret = -1;
+
+    if (config->devpath.empty()) {
+        ret = MapOnUnusedNbdDevice(sockfd, &config->devpath);
+    } else {
+        ret = MapOnNbdDeviceByDevPath(sockfd, config->devpath);
+    }
+
+    if (ret < 0) {
+        return -1;
+    }
+
+    ret = InitDevAttr(config, size, flags);
+    if (ret == 0) {
+        ret = check_device_size(nbdIndex_, size);
+    }
+    if (ret < 0) {
+        cerr << "curve-nbd: failed to map, status: "
+             << cpp_strerror(ret) << std::endl;
+        ioctl(nbdFd_, NBD_CLEAR_SOCK);
+        close(nbdFd_);
+        nbdFd_ = -1;
+        nbdIndex_ = -1;
+        return ret;
+    }
+
+    return 0;
+}
+
 int IOController::DisconnectByPath(const std::string& devpath) {
     int devfd = open(devpath.c_str(), O_RDWR);
     if (devfd < 0) {
-        cerr << "curve-ndb: failed to open device: "
+        cerr << "curve-nbd: failed to open device: "
              << devpath << ", error = " << cpp_strerror(errno) << std::endl;
         return devfd;
     }
 
     int ret = ioctl(devfd, NBD_DISCONNECT);
     if (ret < 0) {
-        cerr << "curve-ndb: the device is not used. "
+        cerr << "curve-nbd: the device is not used. "
              << cpp_strerror(errno) << std::endl;
     }
 
@@ -220,7 +259,7 @@ int NetLinkController::SetUp(NBDConfig* config, int sockfd,
     if (index < 0) {
         return index;
     }
-    ret = check_block_size(index, CURVE_NBD_BLKSIZE);
+    ret = check_block_size(index, config->block_size);
     if (ret < 0) {
         return ret;
     }
@@ -354,7 +393,7 @@ int NetLinkController::ConnectInternal(NBDConfig* config, int sockfd,
         NLA_PUT_U64(msg, NBD_ATTR_TIMEOUT, config->timeout);
     }
     NLA_PUT_U64(msg, NBD_ATTR_SIZE_BYTES, size);
-    NLA_PUT_U64(msg, NBD_ATTR_BLOCK_SIZE_BYTES, CURVE_NBD_BLKSIZE);
+    NLA_PUT_U64(msg, NBD_ATTR_BLOCK_SIZE_BYTES, config->block_size);
     NLA_PUT_U64(msg, NBD_ATTR_SERVER_FLAGS, flags);
 
     sock_attr = nla_nest_start(msg, NBD_ATTR_SOCKETS);
@@ -396,7 +435,7 @@ int NetLinkController::DisconnectInternal(int index) {
                         genl_handle_msg, NULL);
     msg = nlmsg_alloc();
     if (msg == nullptr) {
-        cerr << "curve-ndb: Could not allocate netlink message." << std::endl;
+        cerr << "curve-nbd: Could not allocate netlink message." << std::endl;
         return -EIO;
     }
 
@@ -411,7 +450,7 @@ int NetLinkController::DisconnectInternal(int index) {
 
     ret = nl_send_sync(sock_, msg);
     if (ret < 0) {
-        cerr << "curve-ndb: netlink disconnect failed: "
+        cerr << "curve-nbd: netlink disconnect failed: "
              << nl_geterror(ret) << std::endl;
         return -EIO;
     }
@@ -431,7 +470,7 @@ int NetLinkController::ResizeInternal(int nbdIndex, uint64_t size) {
                         genl_handle_msg, NULL);
     msg = nlmsg_alloc();
     if (msg == nullptr) {
-        cerr << "curve-ndb: Could not allocate netlink message." << std::endl;
+        cerr << "curve-nbd: Could not allocate netlink message." << std::endl;
         return -EIO;
     }
 
@@ -447,7 +486,7 @@ int NetLinkController::ResizeInternal(int nbdIndex, uint64_t size) {
 
     ret = nl_send_sync(sock_, msg);
     if (ret < 0) {
-        cerr << "curve-ndb: netlink resize failed: "
+        cerr << "curve-nbd: netlink resize failed: "
              << nl_geterror(ret) << std::endl;
         return -EIO;
     }

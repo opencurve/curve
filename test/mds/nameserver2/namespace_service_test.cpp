@@ -95,6 +95,9 @@ class NameSpaceServiceTest : public ::testing::Test {
         authOptions.rootPassword = "root_password";
 
         curveFSOptions.defaultChunkSize = 16 * kMB;
+        curveFSOptions.defaultSegmentSize = 1 * kGB;
+        curveFSOptions.minFileLength = 10 * kGB;
+        curveFSOptions.maxFileLength = 20 * kTB;
         curveFSOptions.fileRecordOptions = fileRecordOptions;
         curveFSOptions.authOptions = authOptions;
 
@@ -104,6 +107,15 @@ class NameSpaceServiceTest : public ::testing::Test {
                         allocStatistic_,
                         curveFSOptions, topology_,
                         nullptr);
+
+        ASSERT_EQ(curveFSOptions.defaultChunkSize,
+                       kCurveFS.GetDefaultChunkSize());
+        ASSERT_EQ(curveFSOptions.defaultSegmentSize,
+                       kCurveFS.GetDefaultSegmentSize());
+        ASSERT_EQ(curveFSOptions.minFileLength, kCurveFS.GetMinFileLength());
+        ASSERT_EQ(curveFSOptions.maxFileLength, kCurveFS.GetMaxFileLength());
+        DefaultSegmentSize = kCurveFS.GetDefaultSegmentSize();
+        kMiniFileLength = kCurveFS.GetMinFileLength();
         kCurveFS.Run();
 
         std::this_thread::sleep_for(std::chrono::microseconds(
@@ -132,6 +144,8 @@ class NameSpaceServiceTest : public ::testing::Test {
     struct FileRecordOptions fileRecordOptions;
     struct RootAuthOption authOptions;
     struct CurveFSOption curveFSOptions;
+    uint64_t DefaultSegmentSize;
+    uint64_t kMiniFileLength;
 };
 
 TEST_F(NameSpaceServiceTest, test1) {
@@ -2010,6 +2024,37 @@ TEST_F(NameSpaceServiceTest, FindFileMountPointTest) {
 
     server.Stop(10);
     server.Join();
+}
+
+TEST_F(NameSpaceServiceTest, ListVolumesOnCopysets) {
+    brpc::Server server;
+
+    // start server
+    NameSpaceService namespaceService(new FileLockManager(8));
+    ASSERT_EQ(server.AddService(&namespaceService,
+            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+
+    brpc::ServerOptions option;
+    option.idle_timeout_sec = -1;
+    ASSERT_EQ(0, server.Start("127.0.0.1", {8900, 8999}, &option));
+
+    // init client
+    brpc::Channel channel;
+    ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
+
+    CurveFSService_Stub stub(&channel);
+    ListVolumesOnCopysetsRequest request;
+    ListVolumesOnCopysetsResponse response;
+    for (int i = 1; i <= 3; ++i) {
+        auto copyset = request.add_copysets();
+        copyset->set_logicalpoolid(i);
+        copyset->set_copysetid(100 + i);
+    }
+    brpc::Controller cntl;
+    stub.ListVolumesOnCopysets(&cntl, &request, &response, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(StatusCode::kOK, response.statuscode());
+    ASSERT_EQ(0, response.filenames_size());
 }
 
 }  // namespace mds

@@ -16,18 +16,33 @@
 
 /*
  * Project: curve
- * Created Date: Thu Nov 28 2019
- * Author: xuchaojie
+ * Created Date: Tue Nov  3 22:23:04 CST 2020
+ * Author: wuhanqing
  */
 
-#include "src/mds/common/mds_define.h"
+#ifndef TEST_MDS_NAMESERVER2_MOCK_MOCK_FILE_RECORD_MANAGER_H_
+#define TEST_MDS_NAMESERVER2_MOCK_MOCK_FILE_RECORD_MANAGER_H_
+
+#include <gmock/gmock.h>
+
+#include <string>
+
+#include "src/mds/nameserver2/file_record.h"
 
 namespace curve {
 namespace mds {
 
-// TODO(xuchaojie): these should be in the configuration file later
-uint64_t DefaultSegmentSize = kGB * 1;
-uint64_t kMiniFileLength = DefaultSegmentSize * 10;
+class MockFileRecordManager : public FileRecordManager {
+ public:
+    MockFileRecordManager() = default;
+    ~MockFileRecordManager() = default;
+
+    MOCK_CONST_METHOD0(GetFileRecordExpiredTimeUs, uint32_t());
+    MOCK_CONST_METHOD2(FindFileMountPoint,
+                       bool(const std::string&, ClientIpPortType*));
+};
 
 }  // namespace mds
 }  // namespace curve
+
+#endif  // TEST_MDS_NAMESERVER2_MOCK_MOCK_FILE_RECORD_MANAGER_H_

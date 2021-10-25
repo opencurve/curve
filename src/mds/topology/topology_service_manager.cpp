@@ -50,9 +50,9 @@ using ::curve::chunkserver::CopysetResponse2;
 using ::curve::chunkserver::COPYSET_OP_STATUS;
 
 using ::curve::mds::copyset::ClusterInfo;
-using ::curve::mds::copyset::CopysetPermutationPolicy;
 using ::curve::mds::copyset::Copyset;
 using ::curve::mds::copyset::CopysetConstrait;
+using ::curve::common::CopysetInfo;
 
 void TopologyServiceManager::RegistChunkServer(
     const ChunkServerRegistRequest *request,
@@ -1099,6 +1099,11 @@ void TopologyServiceManager::CreateLogicalPool(
         scatterWidth = request->scatterwidth();
     }
 
+    AllocateStatus status = AllocateStatus::ALLOW;
+    if (request->has_status()) {
+        status = request->status();
+    }
+
     timeval now;
     gettimeofday(&now, NULL);
     uint64_t cTime = now.tv_sec;
@@ -1110,6 +1115,7 @@ void TopologyServiceManager::CreateLogicalPool(
     userPolicy,
     cTime,
     false);
+    lPool.SetStatus(status);
 
     int errcode = topology_->AddLogicalPool(lPool);
     if (kTopoErrCodeSuccess == errcode) {
@@ -1169,7 +1175,7 @@ void TopologyServiceManager::CreateLogicalPool(
                 info->set_redundanceandplacementpolicy(
                     lPool.GetRedundanceAndPlaceMentPolicyJsonStr());
                 info->set_userpolicy(request->userpolicy());
-                info->set_allocatestatus(AllocateStatus::ALLOW);
+                info->set_allocatestatus(lPool.GetStatus());
                 response->set_allocated_logicalpoolinfo(info);
             } else {
                 if (kTopoErrCodeSuccess ==
@@ -1253,7 +1259,7 @@ void TopologyServiceManager::GetLogicalPool(
 
     info->set_redundanceandplacementpolicy(rapStr);
     info->set_userpolicy(policyStr);
-    info->set_allocatestatus(AllocateStatus::ALLOW);
+    info->set_allocatestatus(lPool.GetStatus());
     response->set_allocated_logicalpoolinfo(info);
 }
 
@@ -1294,7 +1300,7 @@ void TopologyServiceManager::ListLogicalPool(
 
             info->set_redundanceandplacementpolicy(rapStr);
             info->set_userpolicy(policyStr);
-            info->set_allocatestatus(AllocateStatus::ALLOW);
+            info->set_allocatestatus(lPool.GetStatus());
         } else {
             LOG(ERROR) << "Topology has counter an internal error: "
                        << "[func:] ListLogicalPool, "
@@ -1304,6 +1310,14 @@ void TopologyServiceManager::ListLogicalPool(
             return;
         }
     }
+}
+
+void TopologyServiceManager::SetLogicalPool(
+    const SetLogicalPoolRequest *request,
+    SetLogicalPoolResponse *response) {
+    int errcode = topology_->UpdateLogicalPoolAllocateStatus(
+        request->status(), request->logicalpoolid());
+    response->set_statuscode(errcode);
 }
 
 void TopologyServiceManager::GetChunkServerListInCopySets(

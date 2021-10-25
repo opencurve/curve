@@ -29,6 +29,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 #include "include/client/libcurve.h"
 #include "src/common/net_common.h"
@@ -122,6 +123,23 @@ typedef struct SegmentInfo {
     LogicalPoolCopysetIDInfo lpcpIDInfo;
 } SegmentInfo_t;
 
+struct CloneSourceInfo {
+    std::string name;
+    uint64_t length = 0;
+    uint64_t segmentSize = 0;
+    std::unordered_set<uint64_t> allocatedSegmentOffsets;
+
+    CloneSourceInfo() = default;
+
+    CloneSourceInfo(const CloneSourceInfo& other)
+        : name(other.name),
+          length(other.length),
+          segmentSize(other.segmentSize),
+          allocatedSegmentOffsets(other.allocatedSegmentOffsets) {}
+
+    bool IsSegmentAllocated(uint64_t offset) const;
+};
+
 typedef struct FInfo {
     uint64_t        id;
     uint64_t        parentid;
@@ -138,8 +156,12 @@ typedef struct FInfo {
     std::string     filename;
     std::string     fullPathName;
     FileStatus      filestatus;
+
+    CloneSourceInfo sourceInfo;
     std::string     cloneSource;
     uint64_t        cloneLength{0};
+    uint64_t        stripeUnit;
+    uint64_t        stripeCount;
 
     FInfo() {
         id = 0;
@@ -148,6 +170,8 @@ typedef struct FInfo {
         length = 0;
         chunksize = 4 * 1024 * 1024;
         segmentsize = 1 * 1024 * 1024 * 1024ul;
+        stripeUnit = 0;
+        stripeCount = 0;
     }
 } FInfo_t;
 
@@ -280,6 +304,34 @@ class ClientDummyServerInfo {
 };
 
 inline void TrivialDeleter(void* ptr) {}
+
+inline const char* FileStatusToName(FileStatus status) {
+    switch (status) {
+        case FileStatus::Created:
+            return "Created";
+        case FileStatus::Deleting:
+            return "Deleting";
+        case FileStatus::Cloning:
+            return "Cloning";
+        case FileStatus::CloneMetaInstalled:
+            return "CloneMetaInstalled";
+        case FileStatus::Cloned:
+            return "Cloned";
+        case FileStatus::BeingCloned:
+            return "BeingCloned";
+        default:
+            return "Unknown";
+    }
+}
+
+inline bool CloneSourceInfo::IsSegmentAllocated(uint64_t offset) const {
+    if (length == 0) {
+        return false;
+    }
+
+    uint64_t segmentOffset = offset / segmentSize * segmentSize;
+    return allocatedSegmentOffsets.count(segmentOffset) != 0;
+}
 
 }   // namespace client
 }   // namespace curve

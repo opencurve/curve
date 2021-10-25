@@ -17,12 +17,12 @@
 
 - name: clean chunkserver with format disk
   include_tasks: "include/clean_chunkserver_with_disk_format.yml"
-  when: chunkserver_format_disk
+  when: chunkserver_format_disk | bool
 
 - name: clean chunkserver without format disk
   include_tasks: "include/clean_chunkserver_without_disk_format.yml"
-  when: not {{ chunkserver_format_disk }}
+  when: not chunkserver_format_disk | bool
 
 - name: clean log file
   shell: sudo rm -rf {{ chunkserver_data_dir }}/log/chunkserver*
-  when: clean_log_when_clean
+  when: clean_log_when_clean | bool

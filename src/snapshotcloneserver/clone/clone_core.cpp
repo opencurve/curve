@@ -449,6 +449,8 @@ int CloneCoreImpl::BuildFileInfoFromSnapshot(
     newFileInfo->chunksize = snapInfo.GetChunkSize();
     newFileInfo->segmentsize = snapInfo.GetSegmentSize();
     newFileInfo->length = snapInfo.GetFileLength();
+    newFileInfo->stripeUnit = snapInfo.GetStripeUnit();
+    newFileInfo->stripeCount = snapInfo.GetStripeCount();
     if (IsRecover(task)) {
         FInfo fInfo;
         std::string destination = task->GetCloneInfo().GetDest();
@@ -551,6 +553,8 @@ int CloneCoreImpl::BuildFileInfoFromFile(
     newFileInfo->length = fInfo.length;
     newFileInfo->seqnum = kInitializeSeqNum;
     newFileInfo->owner = task->GetCloneInfo().GetUser();
+    newFileInfo->stripeUnit = fInfo.stripeUnit;
+    newFileInfo->stripeCount = fInfo.stripeCount;
 
     uint64_t fileLength = fInfo.length;
     uint64_t segmentSize = fInfo.segmentsize;
@@ -610,11 +614,19 @@ int CloneCoreImpl::CreateCloneFile(
     uint64_t fileLength = fInfo.length;
     uint64_t seqNum = fInfo.seqnum;
     uint32_t chunkSize = fInfo.chunksize;
-    std::string source = task->GetCloneInfo().GetSrc();
+    uint64_t stripeUnit = fInfo.stripeUnit;
+    uint64_t stripeCount = fInfo.stripeCount;
+
+    std::string source = "";
+    // 只有从文件克隆才带clone source
+    if (CloneFileType::kFile == task->GetCloneInfo().GetFileType()) {
+        source = task->GetCloneInfo().GetSrc();
+    }
 
     FInfo fInfoOut;
     int ret = client_->CreateCloneFile(source, fileName,
-        mdsRootUser_, fileLength, seqNum, chunkSize, &fInfoOut);
+        mdsRootUser_, fileLength, seqNum, chunkSize,
+        stripeUnit, stripeCount, &fInfoOut);
     if (ret == LIBCURVE_ERROR::OK) {
         // nothing
     } else if (ret == -LIBCURVE_ERROR::EXISTS) {

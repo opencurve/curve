@@ -81,7 +81,10 @@ if __name__ == '__main__':
         user.password = args.password
 
     if args.optype == "create":
-        ret = cbd.Create(args.filename, user, args.length * kGB)
+        if args.stripeUnit or args.stripeCount:
+            ret = cbd.Create2(args.filename, user, args.length * kGB, args.stripeUnit, args.stripeCount)
+        else:
+            ret = cbd.Create(args.filename, user, args.length * kGB)
     elif args.optype == "delete":
         ret = cbd.Unlink(args.filename, user)
     elif args.optype == "extend":
@@ -98,6 +101,8 @@ if __name__ == '__main__':
             print "user: " + finfo.owner
             print "filename: " + finfo.filename
             print "fileStatus: " + fileStatus[finfo.fileStatus]
+            print "stripeUnit: " + str(finfo.stripeUnit)
+            print "stripeCount: " + str(finfo.stripeCount)
     elif args.optype == "rename":
         ret = cbd.Rename(user, args.filename, args.newname)
     elif args.optype == "mkdir":

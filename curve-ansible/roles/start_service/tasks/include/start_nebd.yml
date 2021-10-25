@@ -22,11 +22,11 @@
 
 - name: start nebd with daemon
   shell: chdir={{ deploy_dir }} {{ sudo }} nebd-daemon start
-  when: start_by_daemon
+  when: start_by_daemon | bool
 
 - name: start nebd without daemon
   shell: >
     chdir={{ deploy_dir }} {{ sudo }} nohup {{ curve_bin_dir }}/nebd-server -confPath={{ nebd_server_config_path }}
     -log_dir={{ nebd_log_dir }}/server -graceful_quit_on_sigterm=true -stderrthreshold=3
     > nebd-console.log 2>&1 &
-  when: not {{ start_by_daemon }}
+  when: not start_by_daemon | bool

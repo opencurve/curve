@@ -25,7 +25,6 @@
 
 #include <brpc/channel.h>
 #include <brpc/controller.h>
-#include <brpc/errno.pb.h>
 
 #include <map>
 #include <string>
@@ -39,24 +38,19 @@
 #include "src/client/client_metric.h"
 #include "src/client/mds_client_base.h"
 #include "src/client/metacache_struct.h"
-#include "src/common/concurrent/concurrent.h"
-#include "src/common/concurrent/rw_lock.h"
 
 namespace curve {
 namespace client {
 
-using curve::common::RWLock;
-using curve::common::ReadLockGuard;
-using curve::common::Authenticator;
-
-class MetaCache;
 struct LeaseRefreshResult;
 
 // MDSClient是client与MDS通信的唯一窗口
-class MDSClient {
+class MDSClient : public MDSClientBase,
+                  public std::enable_shared_from_this<MDSClient> {
  public:
-    MDSClient() = default;
-    ~MDSClient() = default;
+    explicit MDSClient(const std::string& metricPrefix = "");
+
+    virtual ~MDSClient();
 
     using RPCFunc =
         std::function<int(int, uint64_t, brpc::Channel*, brpc::Controller*)>;
@@ -81,7 +75,9 @@ class MDSClient {
     LIBCURVE_ERROR CreateFile(const std::string& filename,
                               const UserInfo_t& userinfo,
                               size_t size = 0,
-                              bool normalFile = true);
+                              bool normalFile = true,
+                              uint64_t stripeUnit = 0,
+                              uint64_t stripeCount = 0);
     /**
      * 打开文件
      * @param: filename是文件名
@@ -259,6 +255,8 @@ class MDSClient {
      * @param:size 文件大小
      * @param:sn 版本号
      * @param:chunksize是创建文件的chunk大小
+     * @param stripeUnit stripe size
+     * @param stripeCount stripe count
      * @param[out] destFileId 创建的目标文件的Id
      *
      * @return 错误码
@@ -269,6 +267,8 @@ class MDSClient {
                                    uint64_t size,
                                    uint64_t sn,
                                    uint32_t chunksize,
+                                   uint64_t stripeUnit,
+                                   uint64_t stripeCount,
                                    FInfo* fileinfo);
 
     /**
@@ -379,18 +379,11 @@ class MDSClient {
      */
     void UnInitialize();
 
-    // 测试使用
-    MDSClientMetric* GetMetric() {
-       return &mdsClientMetric_;
-    }
-
  protected:
     class MDSRPCExcutor {
      public:
-        MDSRPCExcutor() {
-            cntlID_.store(1);
-            currentWorkingMDSAddrIndex_.store(0);
-        }
+        MDSRPCExcutor()
+            : metaServerOpt_(), currentWorkingMDSAddrIndex_(0), cntlID_(1) {}
 
         void SetOption(const MetaServerOption& option) {
             metaServerOpt_ = option;
@@ -426,6 +419,7 @@ class MDSClient {
          * 2. 如果上一次rpc返回not connect等返回值，会主动触发切换mds地址重试
          * 3. 更新重试信息，比如在当前mds上连续重试的次数
          * @param[in]: status为当前rpc的失败返回的状态
+         * @param normalRetryCount The total count of normal retry
          * @param[in][out]: curMDSRetryCount当前mds节点上的重试次数，如果切换mds
          *             该值会被重置为1.
          * @param[in]: curRetryMDSIndex代表当前正在重试的mds索引
@@ -435,6 +429,7 @@ class MDSClient {
          * @return: 返回下一次重试的mds索引
          */
         int PreProcessBeforeRetry(int status,
+                                  uint64_t* normalRetryCount,
                                   uint64_t* curMDSRetryCount,
                                   int curRetryMDSIndex,
                                   int* lastWorkingMDSIndex,
@@ -517,12 +512,9 @@ class MDSClient {
     // client与mds通信的metric统计
     MDSClientMetric mdsClientMetric_;
 
-    // MDSClientBase是真正的rpc发送逻辑
-    // MDSClient是在RPC上层的一些业务逻辑封装，比如metric，或者重试逻辑
-    MDSClientBase mdsClientBase_;
-
     MDSRPCExcutor rpcExcutor;
 };
+
 }   // namespace client
 }   // namespace curve
 

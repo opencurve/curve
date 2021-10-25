@@ -263,6 +263,7 @@ class UnstableCSModuleException : public ::testing::Test {
             th.join();
         }
 
+        curve::test::FileCommonOperation::Close(fd);
         LOG(INFO) << "stop all write thread, filename " << filename;
     }
 
@@ -370,7 +371,7 @@ TEST_F(UnstableCSModuleException, HangOneZone) {
         afterRecords.size();
     LOG(INFO) << "before iops: " << beforeAvgIOps;
     LOG(INFO) << "after iops: " << afterAvgIOps;
-    ASSERT_GT(afterAvgIOps, static_cast<uint64_t>(beforeAvgIOps * 0.7));
+    ASSERT_GE(afterAvgIOps, static_cast<uint64_t>(beforeAvgIOps * 0.6));
 
     ASSERT_EQ(0, cluster->RecoverHangChunkServer(1));
     ASSERT_EQ(0, cluster->RecoverHangChunkServer(2));

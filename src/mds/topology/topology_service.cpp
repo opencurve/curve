@@ -721,6 +721,39 @@ void TopologyServiceImpl::ListLogicalPool(
     }
 }
 
+void TopologyServiceImpl::SetLogicalPool(
+    google::protobuf::RpcController* cntl_base,
+    const SetLogicalPoolRequest* request,
+    SetLogicalPoolResponse* response,
+    google::protobuf::Closure* done) {
+    brpc::ClosureGuard done_guard(done);
+
+    brpc::Controller* cntl =
+        static_cast<brpc::Controller*>(cntl_base);
+
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
+              << "] from " << cntl->remote_side()
+              << " to " << cntl->local_side()
+              << ". [SetLogicalPoolRequest] "
+              << request->DebugString();
+
+    topology_->SetLogicalPool(request, response);
+
+    if (kTopoErrCodeSuccess != response->statuscode()) {
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
+                   << "] from " << cntl->local_side()
+                   << " to " << cntl->remote_side()
+                   << ". [SetLogicalPoolResponse] "
+                   << response->DebugString();
+    } else {
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
+                  << "] from " << cntl->local_side()
+                  << " to " << cntl->remote_side()
+                  << ". [SetLogicalPoolResponse] "
+                  << response->DebugString();
+    }
+}
+
 void TopologyServiceImpl::GetChunkServerListInCopySets(
     google::protobuf::RpcController* cntl_base,
     const GetChunkServerListInCopySetsRequest* request,

@@ -19,6 +19,9 @@
 curve_root_username: root
 curve_root_password: root_password
 chunk_size: 16777216
+segment_size: 1073741824
+min_file_length: 10737418240
+max_file_length: 21990232555520
 file_expired_time_us: 5000000
 
 # mds配置默认值
@@ -60,6 +63,7 @@ mds_topology_create_copyset_rpc_retry_sleep_time_ms: 1000
 mds_topology_update_metric_interval_sec: 60
 mds_topology_pool_usage_percent_limit: 85
 mds_topology_choose_pool_policy: 0
+mds_topology_enable_logicalpool_status: true
 mds_copyset_copyset_retry_times: 10
 mds_copyset_scatterwidth_variance: 0
 mds_copyset_scatterwidth_standard_devation: 0
@@ -70,7 +74,6 @@ mds_chunkserverclient_rpc_retry_times: 5
 mds_chunkserverclient_rpc_retry_interval_ms: 500
 mds_chunkserverclient_update_leader_retry_times: 5
 mds_chunkserverclient_update_leader_retry_interval_ms: 5000
-mds_snapshotcloneclient_addr: 127.0.0.1:5555
 mds_common_log_dir: ./
 
 # chunkserver配置默认值
@@ -97,9 +100,9 @@ chunkserver_copyset_election_timeout_ms: 1000
 chunkserver_copyset_snapshot_interval_s: 1800
 chunkserver_copyset_catchup_margin: 1000
 chunkserver_copyset_chunk_data_uri: local://./0/copysets
-chunkserver_copyset_raft_log_uri: local://./0/copysets
+chunkserver_copyset_raft_log_uri: curve://./0/copysets
 chunkserver_copyset_raft_meta_uri: local://./0/copysets
-chunkserver_copyset_raft_snapshot_uri: local://./0/copysets
+chunkserver_copyset_raft_snapshot_uri: curve://./0/copysets
 chunkserver_copyset_recycler_uri: local://./0/recycler
 chunkserver_copyset_max_inflight_requests: 5000
 chunkserver_copyset_load_concurrency: 10
@@ -132,6 +135,7 @@ chunkserver_walfilepool_retry_times: 5
 chunkserver_trash_expire_after_sec: 300
 chunkserver_trash_scan_period_sec: 120
 chunkserver_common_log_dir: ./runlog/
+chunkserver_min_io_alignment: 512
 
 # 快照克隆配置默认值
 snap_client_config_path: /etc/curve/snap_client.conf
@@ -178,6 +182,9 @@ client_mds_rpc_retry_interval_us: 100000
 client_metacache_get_leader_timeout_ms: 500
 client_metacache_get_leader_retry: 5
 client_metacache_rpc_retry_interval_us: 100000
+client_mds_normal_retry_times_before_trigger_wait: 3
+client_mds_max_retry_ms_in_io_path: 86400000
+client_mds_wait_sleep_ms: 10000
 client_schedule_queue_capacity: 1000000
 client_schedule_threadpool_size: 2
 client_isolation_task_queue_capacity: 1000000
@@ -200,6 +207,10 @@ client_log_path: /data/log/curve/
 client_metric_dummy_server_start_port: 9000
 client_turn_off_health_check: true
 client_session_map_path: ./session_map.json
+client_closefd_timeout_sec: 300
+client_closefd_time_interval_sec: 600
+client_alignment_common: 512
+client_alignment_clone: 4096
 
 # nebd默认配置
 client_config_path: /etc/curve/client.conf
@@ -214,6 +225,7 @@ nebd_client_heartbeat_inverval_s: 5
 nebd_client_heartbeat_rpc_timeout_ms: 500
 nebd_server_heartbeat_timeout_s: 30
 nebd_server_heartbeat_check_interval_ms: 3000
+nebd_server_response_return_rpc_when_io_error: false
 
 # s3配置默认值
 s3_http_scheme: 0

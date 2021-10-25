@@ -14,6 +14,8 @@ global.chunk_size=16777216
 global.meta_page_size=4096
 # clone chunk允许的最长location长度
 global.location_limit=3000
+# minimum alignment for io request
+global.min_io_alignment=512
 
 #
 # MDS settings
@@ -75,7 +77,7 @@ copyset.catchup_margin=1000
 # copyset chunk数据目录
 copyset.chunk_data_uri=local://./0/copysets
 # raft wal log目录
-copyset.raft_log_uri=local://./0/copysets
+copyset.raft_log_uri=curve://./0/copysets
 # raft元数据目录
 copyset.raft_meta_uri=local://./0/copysets
 # raft snapshot目录

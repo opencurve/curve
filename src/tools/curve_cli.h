@@ -33,14 +33,25 @@
 #include <iostream>
 #include <memory>
 
+#include "include/chunkserver/chunkserver_common.h"
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/cli2.h"
 #include "src/tools/curve_tool.h"
 #include "src/tools/curve_tool_define.h"
 #include "src/tools/mds_client.h"
+#include "proto/copyset.pb.h"
 
 namespace curve {
 namespace tool {
+
+using ::curve::chunkserver::LogicPoolID;
+using ::curve::chunkserver::CopysetID;
+using ::curve::chunkserver::CopysetRequest;
+using ::curve::chunkserver::CopysetResponse;
+using ::curve::chunkserver::CopysetService_Stub;
+using ::curve::chunkserver::COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS;
+using ::curve::chunkserver::COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN;  // NOLINT
+
 class CurveCli : public CurveTool {
  public:
     explicit CurveCli(std::shared_ptr<MDSClient> mdsClient) :
@@ -74,6 +85,17 @@ class CurveCli : public CurveTool {
     static bool SupportCommand(const std::string& command);
 
  private:
+    /**
+     * @brief Delete broken copyset
+     * @param[in] peerId chunkserver peer (ip, port)
+     * @param[in] poolId logical pool id
+     * @param[in] copysetId copyset id
+     * @return butil::Status (code, err_msg)
+     */
+    butil::Status DeleteBrokenCopyset(braft::PeerId peerId,
+                                      const LogicPoolID& poolId,
+                                      const CopysetID& copysetId);
+
     /**
      *  @brief 删除peer
      *  @param 无

@@ -103,7 +103,7 @@ class LogicalPool {
           type_(PAGEFILE),
           initialScatterWidth_(0),
           createTime_(0),
-          status_(AllocateStatus::DENY),
+          status_(AllocateStatus::ALLOW),
           avaliable_(false) {}
     LogicalPool(PoolIdType id,
                 const std::string &name,
@@ -121,7 +121,7 @@ class LogicalPool {
           policy_(policy),
           initialScatterWidth_(0),
           createTime_(createTime),
-          status_(AllocateStatus::DENY),
+          status_(AllocateStatus::ALLOW),
           avaliable_(avaliable) {}
 
     PoolIdType GetId() const {

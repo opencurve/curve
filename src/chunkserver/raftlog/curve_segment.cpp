@@ -53,8 +53,6 @@ DEFINE_bool(raftSyncSegments, true, "call fsync when a segment is closed");
 DEFINE_bool(enableWalDirectWrite, true, "enable wal direct write or not");
 DEFINE_uint32(walAlignSize, 4096, "wal align size to write");
 
-std::shared_ptr<FilePool> kWalFilePool = nullptr;
-
 int CurveSegment::create() {
     if (!_is_open) {
         CHECK(false) << "Create on a closed segment at first_index="
@@ -67,7 +65,7 @@ int CurveSegment::create() {
     char* metaPage = new char[_meta_page_size];
     memset(metaPage, 0, sizeof(metaPage));
     memcpy(metaPage, &_meta.bytes, sizeof(_meta.bytes));
-    int res = kWalFilePool->GetFile(path, metaPage);
+    int res = _walFilePool->GetFile(path, metaPage);
     delete metaPage;
     if (res != 0) {
         LOG(ERROR) << "Get segment from chunk file pool fail!";
@@ -659,7 +657,7 @@ int CurveSegment::unlink() {
         butil::string_appendf(&path, "/" CURVE_SEGMENT_CLOSED_PATTERN,
                              _first_index, _last_index.load());
     }
-    int res = kWalFilePool->RecycleFile(path);
+    int res = _walFilePool->RecycleFile(path);
     if (res != 0) {
         LOG(ERROR) << "Return segment to chunk file pool fail!";
         return -1;

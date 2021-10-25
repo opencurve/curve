@@ -89,54 +89,6 @@ int get_nbd_max_count() {
     return nbds_max;
 }
 
-std::string find_unused_nbd_device() {
-    int index = 0;
-    int devfd = 0;
-    int nbds_max = get_nbd_max_count();
-    char dev[64];
-    int sockfd[2];
-
-    int ret = socketpair(AF_UNIX, SOCK_STREAM, 0, sockfd);
-    if (ret < 0) {
-        cerr << "curve-ndb: failed to create socket pair." << std::endl;
-        return "";
-    }
-
-    while (true) {
-        snprintf(dev, sizeof(dev), "/dev/nbd%d", index);
-
-        ret = open(dev, O_RDWR);
-        if (ret < 0) {
-            if (ret == -EPERM && nbds_max != -1 && index < (nbds_max-1)) {
-                ++index;
-                continue;
-            }
-            cerr << "curve-ndb: failed to find unused device, "
-                 << cpp_strerror(errno) << std::endl;
-            break;
-        }
-
-        devfd = ret;
-        ret = ioctl(devfd, NBD_SET_SOCK, sockfd[0]);
-        if (ret < 0) {
-            close(devfd);
-            ++index;
-            continue;
-        }
-        break;
-    }
-
-    std::string result = "";
-    if (ret == 0) {
-        result = dev;
-        ioctl(devfd, NBD_CLEAR_SOCK);
-        close(devfd);
-    }
-    close(sockfd[0]);
-    close(sockfd[1]);
-    return result;
-}
-
 static bool find_mapped_dev_by_spec(NBDConfig *cfg) {
     int pid;
     NBDConfig c;
@@ -201,6 +153,42 @@ int parse_args(std::vector<const char*>& args, std::ostream *err_msg,   // NOLIN
             }
         } else if (argparse_flag(args, i, "--try-netlink", (char *)NULL)) { // NOLINT
             cfg->try_netlink = true;
+        }  else if (argparse_flag(args, i, "-f", "--force", (char *)NULL)) {  // NOLINT
+            cfg->force_unmap = true;
+        } else if (argparse_witharg(args, i, &cfg->retry_times, err, "--retry_times", (char*)(NULL))) {  // NOLINT
+            if (!err.str().empty()) {
+                *err_msg << "curve-nbd: " << err.str();
+                return -EINVAL;
+            }
+            if (cfg->retry_times < 0) {
+                *err_msg << "curve-nbd: Invalid argument for retry_times!";
+                return -EINVAL;
+            }
+        } else if (argparse_witharg(args, i, &cfg->sleep_ms, err, "--sleep_ms", (char*)(NULL))) {  // NOLINT
+            if (!err.str().empty()) {
+                *err_msg << "curve-nbd: " << err.str();
+                return -EINVAL;
+            }
+            if (cfg->sleep_ms < 0) {
+                *err_msg << "curve-nbd: Invalid argument for sleep_ms!";
+                return -EINVAL;
+            }
+        } else if (argparse_witharg(args, i, &cfg->block_size, err, "--block_size", (char*)(NULL))) {  // NOLINT
+            if (!err.str().empty()) {
+                *err_msg << "curve-nbd: " << err.str();
+                return -EINVAL;
+            }
+
+            if (cfg->block_size != 512 && cfg->block_size != 4096) {
+                *err_msg << "curve-nbd: Invalid block size, only support 512 "
+                            "or 4096";
+                return -EINVAL;
+            }
+        } else if (argparse_witharg(args, i, &cfg->nebd_conf, err, "--nebd-conf", (char*)(NULL))) {  // NOLINT
+            if (!err.str().empty()) {
+                *err_msg << "curve-nbd: " << err.str();
+                return -EINVAL;
+            }
         } else {
             ++i;
         }
@@ -308,6 +296,38 @@ int get_mapped_info(int pid, NBDConfig *cfg) {
     return 0;
 }
 
+int check_dev_can_unmap(const NBDConfig *cfg) {
+    std::ifstream ifs("/proc/mounts", std::ifstream::in);
+
+    if (!ifs.is_open()) {
+        cerr << "curve-nbd: failed to open /proc/mounts" << std::endl;
+        return -EINVAL;
+    }
+
+    std::string line, device, mountPath;
+    bool mounted = false;
+    while (std::getline(ifs, line)) {
+        std::istringstream iss(line);
+        iss >> device >> mountPath;
+        if (device == cfg->devpath) {
+            mounted = true;
+            break;
+        }
+    }
+
+    if (!mounted) {
+        return 0;
+    } else if (cfg->force_unmap) {
+        cerr << "curve-nbd: the " << device << " is still mount on "
+             << mountPath << ", force unmap it" << std::endl;
+        return 0;
+    }
+
+    cerr << "curve-nbd: the " << device << " is still mount on " << mountPath
+         << ", you can't unmap it or specify -f parameter" << std::endl;
+    return -EINVAL;
+}
+
 int check_size_from_file(const std::string& path, uint64_t expected_size) {
     std::ifstream ifs;
     ifs.open(path.c_str(), std::ifstream::in);
@@ -318,7 +338,6 @@ int check_size_from_file(const std::string& path, uint64_t expected_size) {
 
     uint64_t size = 0;
     ifs >> size;
-    size *= CURVE_NBD_BLKSIZE;
 
     if (size == 0) {
         // Newer kernel versions will report real size only after nbd

@@ -52,8 +52,8 @@ class NBDTool {
 
     // 与nbd内核建立通信，将文件映射到本地
     int Connect(NBDConfig *cfg);
-    // 根据设备路径卸载已经映射的文件
-    int Disconnect(const std::string& devpath);
+    // 根据配置卸载已经映射的文件
+    int Disconnect(const NBDConfig* config);
     // 获取已经映射文件的映射信息，包括进程pid、文件名、设备路径
     int List(std::vector<DeviceInfo>* infos);
     // 阻塞直到nbd server退出
@@ -66,7 +66,10 @@ class NBDTool {
     NBDServerPtr StartServer(int sockfd, NBDControllerPtr nbdCtrl,
                              ImagePtr imageInstance);
     // 生成image instance
-    ImagePtr GenerateImage(const std::string& imageName);
+    ImagePtr GenerateImage(const std::string& imageName, NBDConfig* config);
+
+    // wait curve-nbd process to exit
+    int WaitForTerminate(pid_t pid, const NBDConfig* config);
 
  private:
     class NBDSocketPair {

@@ -97,6 +97,8 @@ TEST(CurveToolFactoryTest, GetCopysetCheck) {
     ASSERT_TRUE(dynamic_cast<CopysetCheck *>(curveTool.get()) != nullptr);
     curveTool = CurveToolFactory::GenerateCurveTool("check-operator");
     ASSERT_TRUE(dynamic_cast<CopysetCheck *>(curveTool.get()) != nullptr);
+    curveTool = CurveToolFactory::GenerateCurveTool("list-may-broken-vol");
+    ASSERT_TRUE(dynamic_cast<CopysetCheck *>(curveTool.get()) != nullptr);
 }
 }  // namespace tool
 }  // namespace curve

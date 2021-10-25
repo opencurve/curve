@@ -28,6 +28,7 @@
   hosts: client
   gather_facts: no
   any_errors_fatal: true
+  become: "{{ sudo_or_not | bool }}"
   tags:
     - prepare
   roles:

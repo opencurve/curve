@@ -20,8 +20,8 @@
  * Author: wudemiao
  */
 
-#ifndef TEST_CLIENT_MOCK_FILE_CLIENT_H_
-#define TEST_CLIENT_MOCK_FILE_CLIENT_H_
+#ifndef TEST_CLIENT_MOCK_MOCK_FILE_CLIENT_H_
+#define TEST_CLIENT_MOCK_MOCK_FILE_CLIENT_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -38,7 +38,10 @@ class MockFileClient : public FileClient {
     ~MockFileClient() = default;
 
     MOCK_METHOD1(Init, int(const std::string&));
-    MOCK_METHOD2(Open4ReadOnly, int(const std::string&, const UserInfo_t&));
+    MOCK_METHOD0(UnInit, void());
+    MOCK_METHOD3(Open, int(const std::string&, const UserInfo&, std::string*));
+    MOCK_METHOD3(Open4ReadOnly,
+                 int(const std::string&, const UserInfo_t&, bool));
     MOCK_METHOD4(Read, int(int, char*, off_t, size_t));
     MOCK_METHOD4(Write, int(int, const char*, off_t, size_t));
     MOCK_METHOD3(AioRead, int(int, CurveAioContext*, UserDataType));
@@ -47,10 +50,13 @@ class MockFileClient : public FileClient {
                                const UserInfo_t&,
                                FileStatInfo*));
     MOCK_METHOD1(Close, int(int));
-    MOCK_METHOD0(UnInit, void());
+
+    MOCK_METHOD4(ReOpen, int(const std::string&, const std::string&,
+                             const UserInfo&, std::string*));
+    MOCK_METHOD3(Extend, int(const std::string&, const UserInfo&, uint64_t));
 };
 
 }   // namespace client
 }   // namespace curve
 
-#endif  // TEST_CLIENT_MOCK_FILE_CLIENT_H_
+#endif  // TEST_CLIENT_MOCK_MOCK_FILE_CLIENT_H_

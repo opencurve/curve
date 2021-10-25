@@ -67,6 +67,16 @@ struct MetaServerOption {
     uint64_t mdsRPCTimeoutMs = 500;
     uint32_t mdsRPCRetryIntervalUS = 50000;
     uint32_t mdsMaxFailedTimesBeforeChangeMDS = 5;
+
+    /**
+     * When the failed times except RPC error 
+     * greater than mdsNormalRetryTimesBeforeTriggerWait,
+     * it will trigger wait strategy, and sleep long time before retry
+     */
+    uint64_t mdsNormalRetryTimesBeforeTriggerWait = 3;  // 3 times
+    uint64_t mdsMaxRetryMsInIOPath = 86400000;  // 1 day
+    uint64_t mdsWaitSleepMs = 10000;  // 10 seconds
+
     std::vector<std::string> mdsAddrs;
 };
 
@@ -192,6 +202,11 @@ struct MetaCacheOption {
     ChunkServerUnstableOption chunkserverUnstableOption;
 };
 
+struct AlignmentOption {
+    uint32_t commonVolume = 512;
+    uint32_t cloneVolume = 4096;
+};
+
 /**
  * IO 拆分模块配置信息
  * @fileIOSplitMaxSizeKB: 用户下发IO大小client没有限制，但是client会将用户的IO进行拆分，
@@ -199,6 +214,7 @@ struct MetaCacheOption {
  */
 struct IOSplitOption {
     uint64_t fileIOSplitMaxSizeKB = 64;
+    AlignmentOption alignment;
 };
 
 /**

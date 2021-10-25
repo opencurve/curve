@@ -15,67 +15,87 @@
 #  limitations under the License.
 #
 
-- name: install libunwind
-  vars:
-    apt_lib_name: libunwind8 libunwind8-dev
-    yum_lib_name: libunwind libunwind-devel
-  include_tasks: common_tasks/install_with_yum_apt.yml
+- name: install package via deb
+  include_tasks: "install_deb_package.yml"
+  when: install_with_deb | bool
 
-- name: install bzip2
-  vars:
-    apt_lib_name: bzip2
-    yum_lib_name: bzip2
-  include_tasks: common_tasks/install_with_yum_apt.yml
-
-- name: install jemalloc
-  vars:
-    lib_name: jemalloc
-    download_url: "{{ jemalloc_download_url }}"
-  include_tasks: install_jemalloc.yml
-
-- name: install daemon
-  include_tasks: install_daemon.yml
-
-- name: prepare date dir
-  vars:
-    dir_name: "{{ nebd_data_dir }}"
-  include_tasks: common_tasks/create_dir.yml
-
-- name: prepare log dir
-  vars:
-    dir_name: "{{ nebd_log_dir }}/{{ item }}"
-  include_tasks: common_tasks/create_dir.yml
-  with_items:
-    - client
-    - server
-
-- name: prepare lock dir
-  vars:
-    dir_name: "{{ nebd_data_dir }}/lock"
-  include_tasks: common_tasks/create_dir.yml
-
-- name: install nebd bin
-  vars:
-    remote_dir_name: "{{ curve_bin_dir }}"
-    local_file_path: "{{ local_nebd_package_path }}/bin/"
-    file_mode: 0755
-  include_tasks: copy_file_to_remote.yml
-
-- name: install nebd lib
-  vars:
-    remote_dir_name: "{{ curve_lib_dir }}/nebd"
-    local_file_path: "{{ local_nebd_package_path }}/lib/"
-    file_mode: 0644
-  include_tasks: copy_file_to_remote.yml
-
-- name: generate nebd-daemon
-  vars:
-    jemalloc_path: "{{ lib_install_prefix }}/lib/libjemalloc.so.1"
-  local_action: template src=nebd-daemon.j2 dest=/tmp/nebd-daemon mode=0755
-
-- name: copy nebd-daemon
-  vars:
-    remote_dir_name: "{{ curve_bin_dir }}"
-    local_file_path: "/tmp/nebd-daemon"
-    file_mode: 0755
-  include_tasks: copy_file_to_remote.yml
+- name: install package via tar
+  block:
+    - name: install libunwind
+      vars:
+        apt_lib_name: libunwind8
+        yum_lib_name: libunwind
+      include_tasks: common_tasks/install_with_yum_apt.yml
+    - name: install libunwind-dev
+      vars:
+        apt_lib_name: libunwind8-dev
+        yum_lib_name: libunwind-devel
+      include_tasks: common_tasks/install_with_yum_apt.yml
+    - name: install bzip2
+      vars:
+        apt_lib_name: bzip2
+        yum_lib_name: bzip2
+      include_tasks: common_tasks/install_with_yum_apt.yml
+    - name: install jemalloc
+      vars:
+        lib_name: jemalloc
+        download_url: "{{ jemalloc_download_url }}"
+      include_tasks: install_jemalloc.yml
+    - name: install daemon
+      include_tasks: install_daemon.yml
+    - name: prepare date dir
+      vars:
+        dir_name: "{{ nebd_data_dir }}"
+      include_tasks: common_tasks/create_dir.yml
+    - name: prepare log dir
+      vars:
+        dir_name: "{{ nebd_log_dir }}/{{ item }}"
+      include_tasks: common_tasks/create_dir.yml
+      with_items:
+        - client
+        - server
+    - name: prepare lock dir
+      vars:
+        dir_name: "{{ nebd_data_dir }}/lock"
+      include_tasks: common_tasks/create_dir.yml
+    - name: install nebd bin
+      vars:
+        remote_dir_name: "{{ curve_bin_dir }}"
+        local_file_path: "{{ local_nebd_package_path }}/bin/"
+        file_mode: 0755
+      include_tasks: copy_file_to_remote.yml
+    - name: install nebd lib
+      vars:
+        remote_dir_name: "{{ curve_lib_dir }}/nebd"
+        local_file_path: "{{ local_nebd_package_path }}/lib/"
+        file_mode: 0644
+      include_tasks: copy_file_to_remote.yml
+    - name: generate nebd-daemon
+      vars:
+        jemalloc_path: "{{ lib_install_prefix }}/lib/libjemalloc.so.1"
+      local_action: template src=nebd-daemon.j2 dest=/tmp/nebd-daemon mode=0755
+    - name: copy nebd-daemon
+      vars:
+        remote_dir_name: "{{ curve_bin_dir }}"
+        local_file_path: "/tmp/nebd-daemon"
+        file_mode: 0755
+      include_tasks: copy_file_to_remote.yml
+    - name: add nebd auto start at boot
+      block:
+        - name: get distro name
+          vars:
+            distro:
+          include_tasks: common_tasks/get_distro_name.yml
+        - name: copy nebd-daemon to init.d
+          vars:
+            remote_dir_name: "/etc/init.d"
+            local_file_path: "/tmp/nebd-daemon"
+            file_mode: 0755
+          include_tasks: copy_file_to_remote.yml
+        - name: enable on debain ubuntu
+          shell: sudo update-rc.d nebd-daemon defaults
+          when: "'Ubuntu' in distro or 'Debian' in distro"
+        - name: enable on centos
+          shell: sudo chkconfig --add nebd-daemon && sudo chkconfig nebd-daemon on
+          when: "'CentOS' in distro"
+  when: not install_with_deb | bool

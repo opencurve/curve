@@ -33,14 +33,10 @@
 #include "proto/nameserver2.pb.h"
 #include "proto/topology.pb.h"
 #include "src/client/client_common.h"
-#include "src/client/config_info.h"
-#include "src/common/authenticator.h"
 #include "src/common/timeutility.h"
 
 namespace curve {
 namespace client {
-
-using curve::common::Authenticator;
 
 using curve::mds::OpenFileRequest;
 using curve::mds::OpenFileResponse;
@@ -97,12 +93,6 @@ extern const char* kRootUserName;
 class MDSClientBase {
  public:
     /**
-     * @param: metaServerOpt为mdsclient的配置信息
-     * @return: 成功0， 否则-1
-     */
-    int Init(const MetaServerOption& metaServerOpt);
-
-    /**
      * 打开文件
      * @param: filename是文件名
      * @param: userinfo为user信息
@@ -130,6 +120,8 @@ class MDSClientBase {
                     const UserInfo_t& userinfo,
                     size_t size,
                     bool normalFile,
+                    const uint64_t stripeUnit,
+                    const uint64_t stripeCount,
                     CreateFileResponse* response,
                     brpc::Controller* cntl,
                     brpc::Channel* channel);
@@ -284,6 +276,8 @@ class MDSClientBase {
      * @param:size 文件大小
      * @param:sn 版本号
      * @param:chunksize是创建文件的chunk大小
+     * @param stripeUnit stripe size
+     * @param stripeCount stripe count
      * @param[out]: response为该rpc的response，提供给外部处理
      * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
      * @param[in]:channel是当前与mds建立的通道
@@ -294,6 +288,8 @@ class MDSClientBase {
                          uint64_t size,
                          uint64_t sn,
                          uint32_t chunksize,
+                         uint64_t stripeUnit,
+                         uint64_t stripeCount,
                          CreateCloneFileResponse* response,
                          brpc::Controller* cntl,
                          brpc::Channel* channel);
@@ -440,7 +436,7 @@ class MDSClientBase {
      * 为不同的request填充user信息
      * @param: request是待填充的变量指针
      */
-    template <class T>
+    template <typename T>
     void FillUserInfo(T* request, const UserInfo_t& userinfo) {
         uint64_t date = curve::common::TimeUtility::GetTimeofDayUs();
         request->set_owner(userinfo.owner);
@@ -454,9 +450,6 @@ class MDSClientBase {
     }
 
     std::string CalcSignature(const UserInfo& userinfo, uint64_t date) const;
-
-    // 当前模块的初始化option配置
-    MetaServerOption metaServerOpt_;
 };
 
 }   //  namespace client

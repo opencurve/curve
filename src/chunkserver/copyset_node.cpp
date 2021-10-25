@@ -65,6 +65,7 @@ CopysetNode::CopysetNode(const LogicPoolID &logicPoolId,
     chunkDataRpath_(),
     appliedIndex_(0),
     leaderTerm_(-1),
+    lastSnapshotIndex_(0),
     configChange_(std::make_shared<ConfigurationChange>()) {
 }
 
@@ -187,6 +188,17 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
         // TODO(yyk) 后续考虑添加datastore层面的io metric
         metric_->MonitorDataStore(dataStore_.get());
     }
+
+    auto monitorMetricCb = [this](CurveSegmentLogStorage* logStorage) {
+        logStorage_ = logStorage;
+        metric_->MonitorCurveSegmentLogStorage(logStorage);
+    };
+
+    LogStorageOptions lsOptions(options.walFilePool, monitorMetricCb);
+
+    // In order to get more copysetNode's information in CurveSegmentLogStorage
+    // without using global variables.
+    StoreOptForCurveSegmentLogStorage(lsOptions);
 
     return 0;
 }
@@ -423,7 +435,10 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
             conf_.add_peer(meta.peers(i));
         }
     }
+
+    LOG(INFO) << "update lastSnapshotIndex_ from " << lastSnapshotIndex_;
     lastSnapshotIndex_ = meta.last_included_index();
+    LOG(INFO) << "to lastSnapshotIndex_: " << lastSnapshotIndex_;
     return 0;
 }
 
@@ -454,6 +469,8 @@ void CopysetNode::on_configuration_committed(const Configuration& conf,
     // This function is also called when loading snapshot.
     // Loading snapshot should not increase epoch. When loading
     // snapshot, the index is equal with lastSnapshotIndex_.
+    LOG(INFO) << "index: " << index
+        << ", lastSnapshotIndex_: " << lastSnapshotIndex_;
     if (index != lastSnapshotIndex_) {
         std::unique_lock<std::mutex> lock_guard(confLock_);
         conf_ = conf;
@@ -724,6 +741,10 @@ uint64_t CopysetNode::GetAppliedIndex() const {
 
 std::shared_ptr<CSDataStore> CopysetNode::GetDataStore() const {
     return dataStore_;
+}
+
+CurveSegmentLogStorage* CopysetNode::GetLogStorage() const {
+    return logStorage_;
 }
 
 ConcurrentApplyModule *CopysetNode::GetConcurrentApplyModule() const {

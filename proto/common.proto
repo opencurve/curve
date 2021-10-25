@@ -28,3 +28,8 @@ message Peer {
 //  optional bool isLearner     = 2;    // 是否是learner (暂时不支持)
     optional string address     = 3;    // peer的地址信息
 }
+
+message CopysetInfo {
+    required uint32 logicalPoolId = 1;
+    required uint32 copysetId = 2;
+}

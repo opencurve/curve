@@ -66,7 +66,7 @@ static void HandleSignal(int signum) {
     std::cout << "Got signal " << sys_siglist[signum] << "\n"
               << ", disconnect now" << std::endl;
 
-    ret = nbdTool->Disconnect(nbdConfig->devpath);
+    ret = nbdTool->Disconnect(nbdConfig.get());
     if (ret != 0) {
         std::cout << "curve-nbd: disconnect failed. Error: " << ret
                   << std::endl;
@@ -77,12 +77,9 @@ static void HandleSignal(int signum) {
 
 static void Usage() {
     std::cout
-        << "Usage: curve-nbd [options] map <image>  Map an image "
-           "to nbd device\n"  // NOLINT
-        << "                 unmap <device|image>   Unmap nbd "
-           "device\n"  // NOLINT
-        << "                 [options] list-mapped  List mapped "
-           "nbd devices\n"  // NOLINT
+        << "Usage: curve-nbd [options] map <image>  Map an image to nbd device\n"  // NOLINT
+        << "                 [options] unmap <device|image>   Unmap nbd device\n"  // NOLINT
+        << "                 [options] list-mapped  List mapped nbd devices\n"     // NOLINT
         << "Map options:\n"
         << "  --device <device path>  Specify nbd device path (/dev/nbd{num})\n"
         << "  --read-only             Map read-only\n"
@@ -90,7 +87,34 @@ static void Usage() {
         << "  --max_part <limit>      Override for module param max_part\n"
         << "  --timeout <seconds>     Set nbd request timeout\n"
         << "  --try-netlink           Use the nbd netlink interface\n"
+        << "  --block-size            NBD Devices's block size, default is 4096, support 512 and 4096\n"  // NOLINT
+        << "  --nebd-conf             LibNebd config file\n"
+        << "Unmap options:\n"
+        << "  -f, --force                 Force unmap even if the device is mounted\n"              // NOLINT
+        << "  --retry_times <limit>       The number of retries waiting for the process to exit\n"  // NOLINT
+        << "                              (default: " << nbdConfig->retry_times << ")\n"            // NOLINT
+        << "  --sleep_ms <milliseconds>   Retry interval in milliseconds\n"                         // NOLINT
+        << "                              (default: " << nbdConfig->sleep_ms << ")\n"               // NOLINT
         << std::endl;
+}
+
+// use for record image and device info to auto map when boot
+static int AddRecord(int flag) {
+    std::string record;
+    int fd = open(CURVETAB_PATH, O_WRONLY | O_APPEND);
+    if (fd < 0) {
+        std::cerr << "curve-nbd: open curvetab file failed.";
+        return -EINVAL;
+    }
+    if (1 == flag) {
+        record = "+\t" + nbdConfig->devpath + "\t" + nbdConfig->imgname + "\t" +
+                 nbdConfig->MapOptions() + "\n";
+    } else if (-1 == flag) {
+        record = "-\t" + nbdConfig->devpath + "\n";
+    }
+    write(fd, record.c_str(), record.size());
+    close(fd);
+    return 0;
 }
 
 static int NBDConnect() {
@@ -138,6 +162,10 @@ static int NBDConnect() {
     if (ret < 0) {
         ::write(waitConnectPipe[1], &connectionRes, sizeof(connectionRes));
     } else {
+        ret = AddRecord(1);
+        if (0 != ret) {
+            return ret;
+        }
         connectionRes = 0;
         ::write(waitConnectPipe[1], &connectionRes, sizeof(connectionRes));
         nbdTool->RunServerUntilQuit();
@@ -185,11 +213,15 @@ static int CurveNbdMain(int argc, const char* argv[]) {
             break;
         }
         case Command::Disconnect: {
-            r = nbdTool->Disconnect(nbdConfig->devpath);
+            r = nbdTool->Disconnect(nbdConfig.get());
             if (r < 0) {
                 return -EINVAL;
             }
 
+            r = AddRecord(-1);
+            if (0 != r) {
+                return r;
+            }
             break;
         }
         case Command::List: {

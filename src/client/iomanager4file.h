@@ -175,6 +175,16 @@ class IOManager4File : public IOManager {
         mc_.SetLatestFileSn(newSn);
     }
 
+    /**
+     * @brief get current file inodeid
+     * @return file inodeid
+     */
+    uint64_t InodeId() const {
+        return mc_.InodeId();
+    }
+
+    void SetDisableStripe();
+
  private:
     friend class LeaseExecutor;
     friend class FlightIOGuard;
@@ -187,7 +197,7 @@ class IOManager4File : public IOManager {
     /**
      * 当lease又续约成功的时候，LeaseExecutor调用该接口恢复IO
      */
-    void RefeshSuccAndResumeIO();
+    void ResumeIO();
 
     /**
      * 当lesaeexcutor发现版本变更，调用该接口开始等待inflight回来，这段期间IO是hang的
@@ -253,6 +263,12 @@ class IOManager4File : public IOManager {
     // 不会有并发的情况，保证在资源被析构的时候lease续约
     // 线程不会再用到这些资源.
     std::mutex exitMtx_;
+
+    // enable/disable stripe for read/write of stripe file
+    // currently only one scenario set this field to true:
+    // chunkserver use client to read clone source file,
+    // because client's IO requests already transformed by stripe parameters
+    bool disableStripe_;
 };
 
 }  // namespace client

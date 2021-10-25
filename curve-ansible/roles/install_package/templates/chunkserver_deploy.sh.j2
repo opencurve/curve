@@ -14,7 +14,7 @@ function do_confirm {
   fi
 }
 
-{% if not auto_get_disk_list %}
+{% if not auto_get_disk_list | bool %}
 {% set dlist=[] -%}
 {% for disk in disk_list -%}
   {% set _ = dlist.append("%s" % (disk)) -%}
@@ -172,6 +172,14 @@ done
 wait
 }
 
+function release_disk_reserved_space {
+  disks=`{{ get_disk_list_cmd }}`
+  for disk in ${disks}
+  do
+    sudo tune2fs -m 0 /dev/$disk
+  done
+}
+
 function deploy_one_walfile_pool {
   curve-format -allocatePercent={{ wal_segment_alloc_percent }} \
   -filePoolDir=/data/chunkserver$1/walfilepool \
@@ -203,12 +211,14 @@ function usage {
 
 function deploy_all {
     deploy_prep;
+    record_diskinfo;
     chunk_dir_prep;
     disk_format;
     mount_dir;
     fstab_record;
     meta_record;
     chunkfile_pool_prep;
+    release_disk_reserved_space;
 }
 
 function deploy_one {
@@ -271,11 +281,14 @@ function deploy_one {
   echo "uuid=$uuid" > $dirname/disk.meta
   echo "uuidmd5=$uuidmd5" >> $dirname/disk.meta
   #格式化chunkfile pool
+
   curve-format -allocatePercent={{ chunk_alloc_percent }} \
   -filePoolDir=$dirname/chunkfilepool \
   -filePoolMetaPath=$dirname/chunkfilepool.meta \
-  -fileSize={{ chunkserver_walfilepool_segment_size }} \
+  -fileSize={{ chunk_size }} \
   -fileSystemPath=$dirname/chunkfilepool  &
   wait
+  # release disk reserved space
+  sudo tune2fs -m 0 $diskname
   exit
 }

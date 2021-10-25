@@ -35,6 +35,8 @@ DEFINE_string(peer,
               "", "Id of the operating peer");
 DEFINE_string(new_conf,
               "", "new conf to reset peer");
+DEFINE_bool(remove_copyset, false, "Whether need to remove broken copyset "
+                                   "after remove peer (default: false)");
 
 DEFINE_bool(affirm, true,
             "If true, command line interactive affirmation is required."
@@ -56,11 +58,42 @@ namespace tool {
 bool CurveCli::SupportCommand(const std::string& command) {
     return  (command == kResetPeerCmd || command == kRemovePeerCmd
                                       || command == kTransferLeaderCmd
-                                      || command == kDoSnapshot);
+                                      || command == kDoSnapshot
+                                      || command == kDoSnapshotAll);
 }
 
 int CurveCli::Init() {
     return mdsClient_->Init(FLAGS_mdsAddr);
+}
+
+butil::Status CurveCli::DeleteBrokenCopyset(braft::PeerId peerId,
+                                            const LogicPoolID& poolId,
+                                            const CopysetID& copysetId) {
+    brpc::Channel channel;
+    brpc::Controller cntl;
+    CopysetRequest request;
+    CopysetResponse response;
+
+    cntl.set_timeout_ms(FLAGS_timeout_ms);
+    cntl.set_max_retry(FLAGS_max_retry);
+    request.set_logicpoolid(poolId);
+    request.set_copysetid(copysetId);
+
+    if (channel.Init(peerId.addr, NULL) != 0) {
+        return butil::Status(-1, "Fail to init channel to %s",
+                             peerId.to_string().c_str());
+    }
+
+    CopysetService_Stub stub(&channel);
+    stub.DeleteBrokenCopyset(&cntl, &request, &response, NULL);
+
+    if (cntl.Failed()) {
+        return butil::Status(cntl.ErrorCode(), cntl.ErrorText());
+    } else if (response.status() != COPYSET_OP_STATUS_SUCCESS) {
+        return butil::Status(-1, COPYSET_OP_STATUS_Name(response.status()));
+    }
+
+    return butil::Status::OK();
 }
 
 int CurveCli::RemovePeer() {
@@ -68,38 +101,47 @@ int CurveCli::RemovePeer() {
     CHECK_FLAG(peer);
 
     braft::Configuration conf;
+    braft::PeerId peerId;
+    curve::common::Peer peer;
+    braft::cli::CliOptions opt;
+
+    auto poolId = FLAGS_logicalPoolId;
+    auto copysetId = FLAGS_copysetId;
+    opt.timeout_ms = FLAGS_timeout_ms;
+    opt.max_retry = FLAGS_max_retry;
+
     if (conf.parse_from(FLAGS_conf) != 0) {
         std::cout << "Fail to parse --conf" << std::endl;
         return -1;
-    }
-    braft::PeerId removingPeerId;
-    if (removingPeerId.parse(FLAGS_peer) != 0) {
+    } else if (peerId.parse(FLAGS_peer) != 0) {
         std::cout << "Fail to parse --peer" << std::endl;
         return -1;
+    } else {
+        peer.set_address(peerId.to_string());
     }
-    curve::common::Peer removingPeer;
-    removingPeer.set_address(removingPeerId.to_string());
-    braft::cli::CliOptions opt;
-    opt.timeout_ms = FLAGS_timeout_ms;
-    opt.max_retry = FLAGS_max_retry;
-    butil::Status st = curve::chunkserver::RemovePeer(
-                                FLAGS_logicalPoolId,
-                                FLAGS_copysetId,
-                                conf,
-                                removingPeer,
-                                opt);
-    if (!st.ok()) {
-        std::cout << "Remove peer " << removingPeerId << " from copyset "
-                  << "(" << FLAGS_logicalPoolId << ", "
-                  << FLAGS_copysetId << ")"
-                  << " fail, original conf: " << conf
-                  << ", detail: " << st << std::endl;
-        return -1;
+
+    // STEP 1: remove peer
+    butil::Status status = curve::chunkserver::RemovePeer(
+        poolId, copysetId, conf, peer, opt);
+    auto succ = status.ok();
+    std::cout << "Remove peer " << peerId << " for copyset("
+              << poolId << ", " << copysetId << ") "
+              << (succ ? "success" : "fail") << ", original conf: " << conf
+              << ", status: " << status << std::endl;
+
+    if (!succ || !FLAGS_remove_copyset) {
+        return succ ? 0 : -1;
     }
-    std::cout << "Remove peer " << removingPeerId << " from copyset "
-              << "(" << FLAGS_logicalPoolId << ", " << FLAGS_copysetId << ")"
-              << " success, original conf: " << conf << std::endl;
-    return 0;
+
+    // STEP 2: delete broken copyset
+    status = DeleteBrokenCopyset(peerId, poolId, copysetId);
+    succ = status.ok();
+    std::cout << "Delete copyset(" << poolId << ", " << copysetId << ")"
+              << " in " << peerId << (succ ? "success" : "fail")
+              << ", original conf: " << conf
+              << ", status: " << status << std::endl;
+
+    return succ ? 0 : -1;
 }
 
 int CurveCli::TransferLeader() {
@@ -278,7 +320,7 @@ void CurveCli::PrintHelp(const std::string &cmd) {
         "-new_conf=127.0.0.1:8080:0 -max_retry=3 -timeout_ms=100" << std::endl;  // NOLINT
     } else if (cmd == kRemovePeerCmd || cmd == kTransferLeaderCmd) {
         std::cout << "curve_ops_tool " << cmd << " -logicalPoolId=1 -copysetId=10001 -peer=127.0.0.1:8080:0 "  // NOLINT
-        "-conf=127.0.0.1:8080:0,127.0.0.1:8081:0,127.0.0.1:8082:0 -max_retry=3 -timeout_ms=100" << std::endl;  // NOLINT
+        "-conf=127.0.0.1:8080:0,127.0.0.1:8081:0,127.0.0.1:8082:0 -max_retry=3 -timeout_ms=100 -remove_copyset=true/false" << std::endl;  // NOLINT
     } else if (cmd == kDoSnapshot) {
         std::cout << "curve_ops_tool " << cmd << " -logicalPoolId=1 -copysetId=10001 -peer=127.0.0.1:8080:0 "  // NOLINT
         "-max_retry=3 -timeout_ms=100" << std::endl;

@@ -221,6 +221,16 @@ class MetaCache {
         fileInfo_.seqnum = newSn;
     }
 
+    FileStatus GetLatestFileStatus() const { return fileInfo_.filestatus; }
+
+    void SetLatestFileStatus(FileStatus status) {
+        fileInfo_.filestatus = status;
+    }
+
+    bool IsCloneFile() const {
+        return fileInfo_.filestatus == FileStatus::CloneMetaInstalled;
+    }
+
     /**
      * 获取对应的copyset的LeaderMayChange标志
      */
@@ -235,6 +245,10 @@ class MetaCache {
 
     UnstableHelper& GetUnstableHelper() {
         return unstableHelper_;
+    }
+
+    uint64_t InodeId() const {
+        return fileInfo_.id;
     }
 
  private:

@@ -251,11 +251,6 @@ if [ $? -ne 0 ]
 then
     exit
 fi
-cp ./curve-ansible/roles/clean/files/recycle_chunks.sh build/curve-chunkserver/home/nbs
-if [ $? -ne 0 ]
-then
-    exit
-fi
 
 cp -r curve-sdk build/
 if [ $? -ne 0 ]
@@ -457,17 +452,7 @@ fi
 #then
 #	exit
 #fi
-mkdir -p build/curve-monitor/usr/bin
-if [ $? -ne 0 ]
-then
-    exit
-fi
 mkdir -p build/curve-monitor/etc/curve/monitor
-if [ $? -ne 0 ]
-then
-    exit
-fi
-cp monitor/curve-monitor.sh build/curve-monitor/usr/bin/curve-monitor.sh
 if [ $? -ne 0 ]
 then
     exit
@@ -528,6 +513,7 @@ cp -r nebd/nebd-package build/
 mkdir -p build/nebd-package/usr/bin
 mkdir -p build/nebd-package/usr/lib/nebd
 
+mkdir -p k8s/nebd/nebd-package/usr/bin
 cp nebd/nebd-package/usr/bin/nebd-daemon k8s/nebd/nebd-package/usr/bin
 sed -i '/^baseLogPath=/cbaseLogPath=/var/log/nebd' k8s/nebd/nebd-package/usr/bin/nebd-daemon
 cp -r k8s/nebd/nebd-package build/k8s-nebd-package

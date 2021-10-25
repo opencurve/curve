@@ -28,6 +28,7 @@
 #include "src/mds/nameserver2/file_lock.h"
 #include "src/common/string_util.h"
 #include "src/common/timeutility.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
 
 namespace curve {
 namespace mds {
@@ -84,7 +85,8 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
     }
 
     retCode = kCurveFS.CreateFile(request->filename(), request->owner(),
-            request->filetype(), request->filelength());
+            request->filetype(), request->filelength(), request->stripeunit(),
+                                              request->stripecount());
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         // TODO(hzsunjianliang): check if we should really print error here
@@ -1180,10 +1182,12 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
 
     ProtoSession *protoSession = new ProtoSession();
     FileInfo *fileInfo = new FileInfo();
+    CloneSourceSegment* cloneSourceSegment = new CloneSourceSegment();
     retCode = kCurveFS.OpenFile(request->filename(),
                                 clientIP,
                                 protoSession,
-                                fileInfo);
+                                fileInfo,
+                                cloneSourceSegment);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
@@ -1207,11 +1211,19 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
         }
         delete protoSession;
         delete fileInfo;
+        delete cloneSourceSegment;
         return;
     } else {
         response->set_allocated_protosession(protoSession);
         response->set_allocated_fileinfo(fileInfo);
         response->set_statuscode(StatusCode::kOK);
+
+        if (cloneSourceSegment->IsInitialized()) {
+            response->set_allocated_clonesourcesegment(cloneSourceSegment);
+        } else {
+            delete cloneSourceSegment;
+        }
+
         LOG(INFO) << "logid = " << cntl->log_id()
                   << ", OpenFile ok, filename = " << request->filename()
                   << ", clientip = " << clientIP
@@ -1431,31 +1443,6 @@ void NameSpaceService::RefreshSession(
     return;
 }
 
-bool isPathValid(const std::string path) {
-    if (path.empty() || path[0] != '/') {
-        return false;
-    }
-
-    if (path.size() > 1U && path[path.size() - 1] == '/') {
-        return false;
-    }
-
-    bool slash = false;
-    for (uint32_t i = 0; i < path.size(); i++) {
-        if (path[i] == '/') {
-            if (slash) {
-                return false;
-            }
-            slash = true;
-        } else {
-            slash = false;
-        }
-    }
-
-    // if some other limits to path can add here in the future
-    return true;
-}
-
 bool IsRenamePathValid(const std::string& oldFileName,
                        const std::string& newFileName) {
     std::vector<std::string> oldFilePaths;
@@ -1551,6 +1538,8 @@ void NameSpaceService::CreateCloneFile(
                             request->filelength(),
                             request->seq(),
                             request->chunksize(),
+                            request->stripeunit(),
+                            request->stripecount(),
                             response->mutable_fileinfo(),
                             request->clonesource(),
                             request->filelength());
@@ -1801,6 +1790,39 @@ void NameSpaceService::FindFileMountPoint(
     return;
 }
 
+void NameSpaceService::ListVolumesOnCopysets(
+                ::google::protobuf::RpcController* controller,
+                const ::curve::mds::ListVolumesOnCopysetsRequest* request,
+                ::curve::mds::ListVolumesOnCopysetsResponse* response,
+                ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+    LOG(INFO) << "logid = " << cntl->log_id()
+              << ", ListAllVolumesOnCopysets request";
+
+    std::vector<std::string> fileNames;
+    std::vector<common::CopysetInfo> copysets;
+    for (int i = 0; i < request->copysets_size(); i++) {
+        copysets.emplace_back(request->copysets(i));
+    }
+
+    auto retCode = kCurveFS.ListVolumesOnCopyset(copysets, &fileNames);
+    if (retCode != StatusCode::kOK)  {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", ListAllVolumesOnCopysets fail, statusCode = "
+            << retCode << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        return;
+    }
+    response->set_statuscode(StatusCode::kOK);
+    for (const auto& fileName : fileNames) {
+        response->add_filenames(fileName);
+    }
+    LOG(INFO) << "logid = " << cntl->log_id()
+              << ", ListAllVolumesOnCopysets ok, volume num: "
+              << fileNames.size();
+}
+
 uint32_t GetMdsLogLevel(StatusCode code) {
     switch (code) {
         case StatusCode::kSegmentNotAllocated:
@@ -1818,6 +1840,8 @@ uint32_t GetMdsLogLevel(StatusCode code) {
         case StatusCode::kFileExists:
         case StatusCode::kFileNotExists:
         case StatusCode::kParaError:
+        case StatusCode::kDeleteFileBeingCloned:
+        case StatusCode::kFileUnderDeleting:
             return google::WARNING;
 
         default:

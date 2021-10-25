@@ -88,6 +88,10 @@ void FileRecordManager::UpdateFileRecord(const std::string& fileName,
     fileRecords_.emplace(fileName, record);
 }
 
+void FileRecordManager::RemoveFileRecord(const std::string& filename) {
+    WriteLockGuard lk(rwlock_);
+    fileRecords_.erase(filename);
+}
 
 void FileRecordManager::Scan() {
     while (sleeper_.wait_for(

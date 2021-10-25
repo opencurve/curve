@@ -159,13 +159,17 @@ class SnapshotClient {
    * @param: size 文件大小
    * @param: sn 版本号
    * @param: chunksize是要创建文件的chunk大小
+   * @param stripeUnit stripe size
+   * @param stripeCount stripe count
    * @param[out] fileinfo 创建的目标文件的文件信息
    *
    * @return 错误码
    */
   int CreateCloneFile(const std::string& source, const std::string& destination,
                       const UserInfo_t& userinfo, uint64_t size, uint64_t sn,
-                      uint32_t chunksize, FInfo* fileinfo);
+                      uint32_t chunksize,
+                      uint64_t stripeUnit, uint64_t stripeCount,
+                      FInfo* fileinfo);
 
   /**
    * @brief lazy 创建clone chunk

@@ -26,16 +26,18 @@
 #include <chrono>    //NOLINT
 #include <set>
 #include <utility>
+#include <map>
 #include "src/common/string_util.h"
 #include "src/common/encode.h"
 #include "src/common/timeutility.h"
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/common/mds_define.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
 
 using curve::common::TimeUtility;
-using ::std::chrono::steady_clock;
-using ::std::chrono::microseconds;
 using curve::mds::topology::LogicalPool;
+using curve::mds::topology::LogicalPoolIdType;
+using curve::mds::topology::CopySetIdType;
 
 namespace curve {
 namespace mds {
@@ -91,7 +93,7 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
                 const struct CurveFSOption &curveFSOptions,
                 std::shared_ptr<Topology> topology,
                 std::shared_ptr<SnapshotCloneClient> snapshotCloneClient) {
-    startTime_ = steady_clock::now();
+    startTime_ = std::chrono::steady_clock::now();
     storage_ = storage;
     InodeIDGenerator_ = InodeIDGenerator;
     chunkSegAllocator_ = chunkSegAllocator;
@@ -101,6 +103,9 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
     rootAuthOptions_ = curveFSOptions.authOptions;
 
     defaultChunkSize_ = curveFSOptions.defaultChunkSize;
+    defaultSegmentSize_ = curveFSOptions.defaultSegmentSize;
+    minFileLength_ = curveFSOptions.minFileLength;
+    maxFileLength_ = curveFSOptions.maxFileLength;
     topology_ = topology;
     snapshotCloneClient_ = snapshotCloneClient;
 
@@ -209,7 +214,8 @@ StatusCode CurveFS::SnapShotFile(const FileInfo * origFileInfo,
 
 StatusCode CurveFS::CreateFile(const std::string & fileName,
                                const std::string& owner,
-                               FileType filetype, uint64_t length) {
+                               FileType filetype, uint64_t length,
+                               uint64_t stripeUnit, uint64_t stripeCount) {
     FileInfo parentFileInfo;
     std::string lastEntry;
 
@@ -222,29 +228,33 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
 
     // check param
     if (filetype == FileType::INODE_PAGEFILE) {
-        if  (length < kMiniFileLength) {
-            LOG(ERROR) << "file Length < MinFileLength " << kMiniFileLength
+        if  (length < minFileLength_) {
+            LOG(ERROR) << "file Length < MinFileLength " << minFileLength_
                        << ", length = " << length;
             return StatusCode::kFileLengthNotSupported;
         }
 
-        if (length > kMaxFileLength) {
+        if (length > maxFileLength_) {
             LOG(ERROR) << "CreateFile file length > maxFileLength, fileName = "
                        << fileName << ", length = " << length
-                       << ", maxFileLength = " << kMaxFileLength;
+                       << ", maxFileLength = " << maxFileLength_;
             return StatusCode::kFileLengthNotSupported;
         }
 
-        if (length % DefaultSegmentSize != 0) {
+        if (length % defaultSegmentSize_ != 0) {
             LOG(ERROR) << "Create file length not align to segment size, "
                        << "fileName = " << fileName
                        << ", length = " << length
-                       << ", segment size = " << DefaultSegmentSize;
+                       << ", segment size = " << defaultSegmentSize_;
             return StatusCode::kFileLengthNotSupported;
         }
     }
 
-    auto ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
+    auto ret = CheckStripeParam(stripeUnit, stripeCount);
+    if (ret != StatusCode::kOK) {
+        return ret;
+    }
+    ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
     if ( ret != StatusCode::kOK ) {
         return ret;
     }
@@ -273,11 +283,13 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         fileInfo.set_filetype(filetype);
         fileInfo.set_owner(owner);
         fileInfo.set_chunksize(defaultChunkSize_);
-        fileInfo.set_segmentsize(DefaultSegmentSize);
+        fileInfo.set_segmentsize(defaultSegmentSize_);
         fileInfo.set_length(length);
         fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
         fileInfo.set_seqnum(kStartSeqNum);
         fileInfo.set_filestatus(FileStatus::kFileCreated);
+        fileInfo.set_stripeunit(stripeUnit);
+        fileInfo.set_stripecount(stripeCount);
 
         ret = PutFile(fileInfo);
         return ret;
@@ -483,13 +495,8 @@ StatusCode CurveFS::isDirectoryEmpty(const FileInfo &fileInfo, bool *result) {
 }
 
 StatusCode CurveFS::IsSnapshotAllowed(const std::string &fileName) {
-    // whether the startup time is sufficient for the client to perform
-    // at least one refresh session
-    steady_clock::duration timePass = steady_clock::now() - startTime_;
-    int32_t expiredUs = fileRecordManager_->GetFileRecordExpiredTimeUs();
-    if (timePass < 10 * microseconds(expiredUs)) {
-        LOG(INFO) << "snapshot is not allowed now, fileName = " << fileName
-                  << ", time pass = " << timePass.count();
+    if (!IsStartEnoughTime(10)) {
+        LOG(INFO) << "snapshot is not allowed now, fileName = " << fileName;
         return StatusCode::kSnapshotFrozen;
     }
 
@@ -718,6 +725,24 @@ StatusCode CurveFS::CheckFileCanChange(const std::string &fileName,
         return StatusCode::kDeleteFileBeingCloned;
     }
 
+    // since the file record is not persistent, after mds switching the leader,
+    // file record manager is empty
+    // after file is opened, there will be refresh session requests in each
+    // file record expiration time
+    // so wait for a file record expiration time to make sure that
+    // the file record is updated
+    if (!IsStartEnoughTime(1)) {
+        LOG(WARNING) << "MDS doesn't start enough time";
+        return StatusCode::kNotSupported;
+    }
+
+    ClientIpPortType mountPoint;
+    if (fileRecordManager_->FindFileMountPoint(fileName, &mountPoint)) {
+        LOG(WARNING) << fileName << " is mounting on " << mountPoint.first
+                     << ":" << mountPoint.second;
+        return StatusCode::kFileOccupied;
+    }
+
     return StatusCode::kOK;
 }
 
@@ -871,10 +896,10 @@ StatusCode CurveFS::ExtendFile(const std::string &filename,
         return StatusCode::kNotSupported;
     }
 
-    if (newLength > kMaxFileLength) {
+    if (newLength > maxFileLength_) {
         LOG(ERROR) << "ExtendFile newLength > maxFileLength, fileName = "
                        << filename << ", newLength = " << newLength
-                       << ", maxFileLength = " << kMaxFileLength;
+                       << ", maxFileLength = " << maxFileLength_;
             return StatusCode::kFileLengthNotSupported;
     }
 
@@ -1235,25 +1260,35 @@ StatusCode CurveFS::CheckSnapShotFileStatus(const std::string &fileName,
         TaskIDType taskID = static_cast<TaskIDType>(snapShotFileInfo.id());
         auto task = cleanManager_->GetTask(taskID);
         if (task == nullptr) {
-            *progress = 100;
-            return StatusCode::kOK;
+            // GetSnapShotFileInfo again
+            StatusCode ret2 =
+                GetSnapShotFileInfo(fileName, seq, &snapShotFileInfo);
+            // if not exist, means delete succeed.
+            if (StatusCode::kSnapshotFileNotExists == ret2) {
+                *progress = 100;
+                return StatusCode::kSnapshotFileNotExists;
+            // else the snapshotFile still exist,
+            // means delete failed and retry times exceed.
+            } else {
+                *progress = 0;
+                LOG(ERROR) << "snapshot file delete fail, fileName = "
+                           << fileName << ", seq = " << seq;
+                return StatusCode::kSnapshotFileDeleteError;
+            }
         }
 
         TaskStatus taskStatus = task->GetTaskProgress().GetStatus();
         switch (taskStatus) {
             case TaskStatus::PROGRESSING:
+            case TaskStatus::FAILED:  // FAILED task will retry
                 *progress = task->GetTaskProgress().GetProgress();
                 break;
-            case TaskStatus::FAILED:
-                *progress = 0;
-                LOG(ERROR) << "snapshot file delete fail, fileName = "
-                           << fileName << ", seq = " << seq;
-                return StatusCode::kSnapshotFileDeleteError;
             case TaskStatus::SUCCESS:
                 *progress = 100;
                 break;
         }
     } else {
+        // means delete haven't begin.
         *progress = 0;
     }
 
@@ -1332,7 +1367,8 @@ StatusCode CurveFS::GetSnapShotFileSegment(
 StatusCode CurveFS::OpenFile(const std::string &fileName,
                              const std::string &clientIP,
                              ProtoSession *protoSession,
-                             FileInfo  *fileInfo) {
+                             FileInfo  *fileInfo,
+                             CloneSourceSegment* cloneSourceSegment) {
     // check the existence of the file
     StatusCode ret;
     ret = GetFileInfo(fileName, fileInfo);
@@ -1350,6 +1386,8 @@ StatusCode CurveFS::OpenFile(const std::string &fileName,
         return ret;
     }
 
+    LOG(INFO) << "FileInfo, " << fileInfo->DebugString();
+
     if (fileInfo->filetype() != FileType::INODE_PAGEFILE) {
         LOG(ERROR) << "OpenFile file type not support, fileName = " << fileName
                    << ", clientIP = " << clientIP
@@ -1358,6 +1396,11 @@ StatusCode CurveFS::OpenFile(const std::string &fileName,
     }
 
     fileRecordManager_->GetRecordParam(protoSession);
+
+    // clone file
+    if (fileInfo->has_clonesource() && isPathValid(fileInfo->clonesource())) {
+        return ListCloneSourceFileSegments(fileInfo, cloneSourceSegment);
+    }
 
     return StatusCode::kOK;
 }
@@ -1381,6 +1424,9 @@ StatusCode CurveFS::CloseFile(const std::string &fileName,
                    << ", errName = " << StatusCode_Name(ret);
         return  ret;
     }
+
+    // remove file record
+    fileRecordManager_->RemoveFileRecord(fileName);
 
     return StatusCode::kOK;
 }
@@ -1432,6 +1478,8 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
                             uint64_t length,
                             FileSeqType seq,
                             ChunkSizeType chunksize,
+                            uint64_t stripeUnit,
+                            uint64_t stripeCount,
                             FileInfo *retFileInfo,
                             const std::string & cloneSource,
                             uint64_t cloneLength) {
@@ -1442,17 +1490,22 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         return StatusCode::kParaError;
     }
 
-    if  (length < kMiniFileLength || seq < kStartSeqNum) {
+    if  (length < minFileLength_ || seq < kStartSeqNum) {
         LOG(WARNING) << "CreateCloneFile err, filename = " << fileName
-                    << "file Length < MinFileLength " << kMiniFileLength
+                    << "file Length < MinFileLength " << minFileLength_
                     << ", length = " << length;
         return StatusCode::kParaError;
+    }
+
+    auto ret = CheckStripeParam(stripeUnit, stripeCount);
+    if (ret != StatusCode::kOK) {
+        return ret;
     }
 
     // check the existence of the file
     FileInfo parentFileInfo;
     std::string lastEntry;
-    auto ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
+    ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
     if ( ret != StatusCode::kOK ) {
         return ret;
     }
@@ -1485,7 +1538,7 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         fileInfo.set_owner(owner);
 
         fileInfo.set_chunksize(chunksize);
-        fileInfo.set_segmentsize(DefaultSegmentSize);
+        fileInfo.set_segmentsize(defaultSegmentSize_);
         fileInfo.set_length(length);
         fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
 
@@ -1494,6 +1547,8 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         fileInfo.set_clonelength(cloneLength);
 
         fileInfo.set_filestatus(FileStatus::kFileCloning);
+        fileInfo.set_stripeunit(stripeUnit);
+        fileInfo.set_stripecount(stripeCount);
 
         ret = PutFile(fileInfo);
         if (ret == StatusCode::kOK && retFileInfo != nullptr) {
@@ -1878,6 +1933,61 @@ StatusCode CurveFS::CheckHasCloneRely(const std::string & filename,
     return StatusCode::kOK;
 }
 
+StatusCode CurveFS::ListCloneSourceFileSegments(
+    const FileInfo* fileInfo, CloneSourceSegment* cloneSourceSegment) const {
+    if (fileInfo->filestatus() != FileStatus::kFileCloneMetaInstalled) {
+        LOG(INFO) << fileInfo->filename()
+                  << " hash clone source, but file status is "
+                  << FileStatus_Name(fileInfo->filestatus())
+                  << ", return empty CloneSourceSegment";
+        return StatusCode::kOK;
+    }
+
+    if (!cloneSourceSegment) {
+        LOG(ERROR) << "OpenFile failed, file has clone source, but "
+                      "cloneSourceSegments is nullptr, filename = "
+                   << fileInfo->filename();
+        return StatusCode::kParaError;
+    }
+
+    FileInfo cloneSourceFileInfo;
+    StatusCode ret = GetFileInfo(fileInfo->clonesource(), &cloneSourceFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR)
+            << "OpenFile failed, Get clone source file info failed, ret = "
+            << StatusCode_Name(ret) << ", filename = " << fileInfo->filename()
+            << ", clone source = " << fileInfo->clonesource()
+            << ", file status = " << FileStatus_Name(fileInfo->filestatus());
+        return ret;
+    }
+
+    std::vector<PageFileSegment> segments;
+    StoreStatus status =
+        storage_->ListSegment(cloneSourceFileInfo.id(), &segments);
+    if (status != StoreStatus::OK) {
+        LOG(ERROR) << "OpenFile failed, list clone source segment failed, "
+                      "filename = "
+                   << fileInfo->filename()
+                   << ", source file name = " << fileInfo->clonesource()
+                   << ", ret = " << status;
+        return StatusCode::kStorageError;
+    }
+
+    cloneSourceSegment->set_segmentsize(fileInfo->segmentsize());
+
+    if (segments.empty()) {
+        LOG(WARNING) << "Clone source file has no segments, filename = "
+                     << fileInfo->clonesource();
+    } else {
+        for (const auto& segment : segments) {
+            cloneSourceSegment->add_allocatedsegmentoffset(
+                segment.startoffset());
+        }
+    }
+
+    return StatusCode::kOK;
+}
+
 StatusCode CurveFS::FindFileMountPoint(
     const std::string& fileName,
     ClientInfo* clientInfo) {
@@ -1893,6 +2003,72 @@ StatusCode CurveFS::FindFileMountPoint(
     return StatusCode::kFileNotExists;
 }
 
+StatusCode CurveFS::ListVolumesOnCopyset(
+                        const std::vector<common::CopysetInfo>& copysets,
+                        std::vector<std::string>* fileNames) {
+    std::vector<FileInfo> files;
+    StatusCode ret = ListAllFiles(ROOTINODEID, &files);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "List all files in root directory fail";
+        return ret;
+    }
+    std::map<LogicalPoolIdType, std::set<CopySetIdType>> copysetMap;
+    for (const auto& copyset : copysets) {
+        copysetMap[copyset.logicalpoolid()].insert(copyset.copysetid());
+    }
+    for (const auto& file : files) {
+        std::vector<PageFileSegment> segments;
+        StoreStatus ret = storage_->ListSegment(file.id(), &segments);
+        if (ret != StoreStatus::OK) {
+            LOG(ERROR) << "List segments of " << file.filename() << " fail";
+            return StatusCode::kStorageError;
+        }
+        bool found = false;
+        for (const auto& segment : segments) {
+            if (copysetMap.find(segment.logicalpoolid()) == copysetMap.end()) {
+                continue;
+            }
+            for (int i = 0; i < segment.chunks_size(); i++) {
+                auto copysetId = segment.chunks(i).copysetid();
+                if (copysetMap[segment.logicalpoolid()].count(copysetId) != 0) {
+                    fileNames->emplace_back(file.filename());
+                    found = true;
+                    break;
+                }
+            }
+            if (found) {
+                break;
+            }
+        }
+    }
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::ListAllFiles(uint64_t inodeId,
+                                 std::vector<FileInfo>* files) {
+    std::vector<FileInfo> tempFiles;
+    StoreStatus ret = storage_->ListFile(inodeId, inodeId + 1, &tempFiles);
+    if (ret != StoreStatus::OK) {
+        return StatusCode::kStorageError;
+    }
+    for (const auto& file : tempFiles) {
+        if (file.filetype() == FileType::INODE_PAGEFILE) {
+            files->emplace_back(file);
+        } else if (file.filetype() == FileType::INODE_DIRECTORY) {
+            std::vector<FileInfo> tempFiles2;
+            StatusCode ret = ListAllFiles(file.id(), &tempFiles2);
+            if (ret == StatusCode::kOK) {
+                files->insert(files->end(), tempFiles2.begin(),
+                              tempFiles2.end());
+            } else {
+                LOG(ERROR) << "ListAllFiles in file " << inodeId << " fail";
+                return ret;
+            }
+        }
+    }
+    return StatusCode::kOK;
+}
+
 uint64_t CurveFS::GetOpenFileNum() {
     if (fileRecordManager_ == nullptr) {
         return 0;
@@ -1903,6 +2079,55 @@ uint64_t CurveFS::GetOpenFileNum() {
 
 uint64_t CurveFS::GetDefaultChunkSize() {
     return defaultChunkSize_;
+}
+
+uint64_t CurveFS::GetDefaultSegmentSize() {
+    return defaultSegmentSize_;
+}
+
+uint64_t CurveFS::GetMinFileLength() {
+    return minFileLength_;
+}
+
+uint64_t CurveFS::GetMaxFileLength() {
+    return maxFileLength_;
+}
+
+StatusCode CurveFS::CheckStripeParam(uint64_t stripeUnit,
+                           uint64_t stripeCount) {
+    if ((stripeUnit == 0) && (stripeCount == 0 )) {
+        return StatusCode::kOK;
+    }
+
+    if ((stripeUnit && !stripeCount) ||
+    (!stripeUnit && stripeCount)) {
+        LOG(ERROR) << "can't just one is zero. stripeUnit:"
+        << stripeUnit << ",stripeCount:" << stripeCount;
+        return StatusCode::kParaError;
+    }
+
+    if (stripeUnit > defaultChunkSize_) {
+        LOG(ERROR) << "stripeUnit more than chunksize.stripeUnit:"
+                                                   << stripeUnit;
+        return StatusCode::kParaError;
+    }
+
+    if ((defaultChunkSize_ % stripeUnit != 0) ||
+                 (defaultChunkSize_ % stripeCount != 0)) {
+        LOG(ERROR) << "is not divisible by chunksize. stripeUnit:"
+           << stripeUnit << ",stripeCount:" << stripeCount;
+        return StatusCode::kParaError;
+    }
+
+     // chunkserver check req offset and len align as 4k,
+     // such as ChunkServiceImpl::CheckRequestOffsetAndLength
+    if (stripeUnit % 4096 != 0) {
+        LOG(ERROR) << "stripeUnit is not aligned as 4k. stripeUnit:"
+           << stripeUnit << ",stripeCount:" << stripeCount;
+        return StatusCode::kParaError;
+    }
+
+    return StatusCode::kOK;
 }
 
 CurveFS &kCurveFS = CurveFS::GetInstance();
@@ -1917,4 +2142,3 @@ bvar::PassiveStatus<uint64_t> g_open_file_num_bvar(
                         GetOpenFileNum, &kCurveFS);
 }   // namespace mds
 }   // namespace curve
-

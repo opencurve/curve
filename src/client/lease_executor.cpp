@@ -30,25 +30,26 @@ using curve::common::TimeUtility;
 namespace curve {
 namespace client {
 LeaseExecutor::LeaseExecutor(const LeaseOption& leaseOpt,
-                           UserInfo_t userinfo,
-                           MDSClient* mdsclient,
-                           IOManager4File* iomanager):
-                           isleaseAvaliable_(true),
-                           failedrefreshcount_(0) {
-    userinfo_    = userinfo;
-    mdsclient_   = mdsclient;
-    iomanager_   = iomanager;
-    leaseoption_ = leaseOpt;
-    task_ = nullptr;
-}
+                             const UserInfo& userinfo, MDSClient* mdsclient,
+                             IOManager4File* iomanager)
+    : fullFileName_(),
+      mdsclient_(mdsclient),
+      userinfo_(userinfo),
+      iomanager_(iomanager),
+      leaseoption_(leaseOpt),
+      leasesession_(),
+      isleaseAvaliable_(true),
+      failedrefreshcount_(0),
+      task_() {}
 
 LeaseExecutor::~LeaseExecutor() {
     if (task_) {
+        task_->Stop();
         task_->WaitTaskExit();
     }
 }
 
-bool LeaseExecutor::Start(const FInfo_t& fi, const LeaseSession_t&  lease) {
+bool LeaseExecutor::Start(const FInfo_t& fi, const LeaseSession_t& lease) {
     fullFileName_ = fi.fullPathName;
 
     leasesession_ = lease;
@@ -78,6 +79,9 @@ bool LeaseExecutor::Start(const FInfo_t& fi, const LeaseSession_t&  lease) {
     timespec abstime = butil::microseconds_from_now(interval);
     brpc::PeriodicTaskManager::StartTaskAt(task_.get(), abstime);
 
+    LOG(INFO) << "LeaseExecutor for " << fullFileName_
+              << " started, lease interval is " << interval << " us";
+
     return true;
 }
 
@@ -104,10 +108,20 @@ bool LeaseExecutor::RefreshLease() {
     }
 
     if (response.status == LeaseRefreshResult::Status::OK) {
-        CheckNeedUpdateVersion(response.finfo.seqnum);
+        if (iomanager_->InodeId() != response.finfo.id) {
+            LOG(ERROR) << fullFileName_ << " inode id changed, current id = "
+                       << iomanager_->InodeId()
+                       << ", but mds response id = " << response.finfo.id
+                       << ", block IO";
+            iomanager_->LeaseTimeoutBlockIO();
+            isleaseAvaliable_.store(false);
+            return false;
+        }
+
+        CheckNeedUpdateFileInfo(response.finfo);
         failedrefreshcount_.store(0);
         isleaseAvaliable_.store(true);
-        iomanager_->RefeshSuccAndResumeIO();
+        iomanager_->ResumeIO();
         return true;
     } else if (response.status == LeaseRefreshResult::Status::NOT_EXIST) {
         iomanager_->LeaseTimeoutBlockIO();
@@ -123,13 +137,11 @@ bool LeaseExecutor::RefreshLease() {
     return true;
 }
 
-std::string LeaseExecutor::GetLeaseSessionID() {
-    return leasesession_.sessionID;
-}
-
 void LeaseExecutor::Stop() {
     if (task_ != nullptr) {
         task_->Stop();
+
+        LOG(INFO) << "LeaseExecutor for " << fullFileName_ << " stopped";
     }
 }
 
@@ -146,14 +158,27 @@ void LeaseExecutor::IncremRefreshFailed() {
     }
 }
 
-void LeaseExecutor::CheckNeedUpdateVersion(uint64_t newversion) {
-    const uint64_t currentFileSn = iomanager_->GetLatestFileSn();
+void LeaseExecutor::CheckNeedUpdateFileInfo(const FInfo& fileInfo) {
+    MetaCache* metaCache = iomanager_->GetMetaCache();
 
-    DVLOG(9) << "new file version = " << newversion
-        << ", current version = " << currentFileSn
-        << ", filename = " << fullFileName_;
-    if (newversion > currentFileSn) {
-        iomanager_->SetLatestFileSn(newversion);
+    uint64_t currentFileSn = metaCache->GetLatestFileSn();
+    uint64_t newSn = fileInfo.seqnum;
+    if (newSn > currentFileSn) {
+        LOG(INFO) << "Update file sn, new file sn = " << newSn
+                  << ", current sn = " << currentFileSn
+                  << ", filename = " << fullFileName_;
+        metaCache->SetLatestFileSn(newSn);
+    }
+
+    FileStatus currentFileStatus = metaCache->GetLatestFileStatus();
+    FileStatus newFileStatus = fileInfo.filestatus;
+    if (newFileStatus != currentFileStatus) {
+        LOG(INFO) << "Update file status, new status = "
+                  << FileStatusToName(newFileStatus)
+                  << ", current file status = "
+                  << FileStatusToName(currentFileStatus)
+                  << ", filename = " << fullFileName_;
+        metaCache->SetLatestFileStatus(newFileStatus);
     }
 }
 

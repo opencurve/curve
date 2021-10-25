@@ -15,21 +15,65 @@
 #  limitations under the License.
 #
 
-- name: install libunwind
-  vars:
-    apt_lib_name: libunwind8 libunwind8-dev
-    yum_lib_name: libunwind libunwind-devel
-  include_tasks: common_tasks/install_with_yum_apt.yml
+- name: install package via deb
+  include_tasks: "install_deb_package.yml"
+  when: install_with_deb | bool
 
-- name: install libnl
-  vars:
-    apt_lib_name: libnl-3-dev libnl-genl-3-dev
-    yum_lib_name: libnl3 libnl3-devel
-  include_tasks: common_tasks/install_with_yum_apt.yml
-
-- name: install nbd bin
-  vars:
-    remote_dir_name: "{{ curve_bin_dir }}"
-    local_file_path: "{{ local_nbd_package_path }}/bin/"
-    file_mode: 0755
-  include_tasks: copy_file_to_remote.yml
+- name: install package via tar
+  block:
+    - name: install libunwind
+      vars:
+        apt_lib_name: libunwind8
+        yum_lib_name: libunwind
+      include_tasks: common_tasks/install_with_yum_apt.yml
+    - name: install libunwind-dev
+      vars:
+        apt_lib_name: libunwind8-dev
+        yum_lib_name: libunwind-devel
+      include_tasks: common_tasks/install_with_yum_apt.yml
+    - name: install libnl
+      vars:
+        apt_lib_name: libnl-3-dev
+        yum_lib_name: libnl3
+      include_tasks: common_tasks/install_with_yum_apt.yml
+    - name: install libnl-dev
+      vars:
+        apt_lib_name: libnl-genl-3-dev
+        yum_lib_name: libnl3-devel
+      include_tasks: common_tasks/install_with_yum_apt.yml
+    - name: install nbd bin
+      vars:
+        remote_dir_name: "{{ curve_bin_dir }}"
+        local_file_path: "{{ local_nbd_package_path }}/bin/"
+        file_mode: 0755
+      include_tasks: copy_file_to_remote.yml
+    - name: check curvetab exist
+      stat:
+        path: "{{ curvetab_path }}/curvetab"
+      register: file_status
+    - name: install curvetab if not exist
+      vars:
+        remote_dir_name: "{{ curvetab_path }}"
+        local_file_path: "{{ local_nbd_package_path }}/etc/"
+        file_mode: 0755
+      include_tasks: copy_file_to_remote.yml
+      when: not file_status.stat.exists
+    - name: add nbd auto start at boot
+      block:
+        - name: get distro name
+          vars:
+            distro:
+          include_tasks: common_tasks/get_distro_name.yml
+        - name: copy map_curve_disk.sh to init.d
+          vars:
+            remote_dir_name: "/etc/init.d"
+            local_file_path: "{{ local_nbd_package_path }}/bin/map_curve_disk.sh"
+            file_mode: 0755
+          include_tasks: copy_file_to_remote.yml
+        - name: enable on debain ubuntu
+          shell: sudo update-rc.d map_curve_disk.sh defaults
+          when: "'Ubuntu' in distro or 'Debian' in distro"
+        - name: enable on centos
+          shell: sudo chkconfig --add map_curve_disk.sh && sudo chkconfig map_curve_disk.sh on
+          when: "'CentOS' in distro"
+  when: not install_with_deb | bool

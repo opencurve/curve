@@ -15,6 +15,7 @@
  */
 
 syntax="proto2";
+import "proto/common.proto";
 package curve.mds;
 
 option cc_generic_services = true;
@@ -67,6 +68,8 @@ message FileInfo {
 
     // cloneLength 克隆源文件的长度，用于clone过程中进行extent
     optional    uint64      cloneLength =  14;
+    optional    uint64      stripeUnit = 15;
+    optional    uint64      stripeCount = 16;
 }
 
 // status code
@@ -163,6 +166,8 @@ message CreateFileRequest {
     required string     owner = 2;
     optional string     signature = 5;
     required uint64     date = 6;
+    optional uint64     stripeUnit = 7;
+    optional uint64     stripeCount = 8;
 };
 
 message CreateFileResponse {
@@ -349,6 +354,11 @@ message ProtoSession {
     // other useful infos
 };
 
+message CloneSourceSegment {
+    required uint64 segmentSize = 1;
+    repeated uint64 allocatedSegmentOffset = 2;
+}
+
 message OpenFileRequest {
     required string fileName = 1;
     required string owner = 2;
@@ -367,6 +377,7 @@ message OpenFileResponse {
     required StatusCode statusCode = 1;
     optional ProtoSession protoSession = 2;
     optional FileInfo   fileInfo = 3;
+    optional CloneSourceSegment cloneSourceSegment = 4;
 };
 
 message CloseFileRequest {
@@ -423,6 +434,8 @@ message  CreateCloneFileRequest {
     optional string     signature = 7;
     required uint64     date =8;
     required string     cloneSource = 9;
+    optional uint64     stripeUnit = 10;
+    optional uint64     stripeCount = 11;
 }
 
 message CreateCloneFileResponse {
@@ -489,6 +502,15 @@ message FindFileMountPointResponse {
     optional ClientInfo clientInfo = 2;
 }
 
+message ListVolumesOnCopysetsRequest {
+    repeated common.CopysetInfo copysets = 1;
+}
+
+message ListVolumesOnCopysetsResponse {
+    required StatusCode statusCode = 1;
+    repeated string fileNames = 2;
+}
+
 service CurveFSService {
     // basic rpcs
     rpc     CreateFile(CreateFileRequest) returns (CreateFileResponse);
@@ -528,4 +550,5 @@ service CurveFSService {
     rpc     GetFileSize(GetFileSizeRequest) returns (GetFileSizeResponse);
     rpc     ListClient(ListClientRequest) returns (ListClientResponse);
     rpc     FindFileMountPoint(FindFileMountPointRequest) returns (FindFileMountPointResponse);
+    rpc     ListVolumesOnCopysets(ListVolumesOnCopysetsRequest) returns (ListVolumesOnCopysetsResponse);
 }
