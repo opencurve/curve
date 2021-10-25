@@ -26,6 +26,45 @@ mkdir runlog
 bazel clean --async
 sleep 5
 git submodule update --init
+
+set +e
+
+g_succ=1
+g_invalid=()
+function bazel_lint() {
+    egrep "cc_binary|cc_library|cc_test" $1 >/dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        egrep "CURVE_DEFAULT_COPTS|CURVE_TEST_COPTS" $1 >/dev/null 2>&1
+        if [ $? -ne 0 ]; then
+            g_succ=0
+            g_invalid+=($1)
+        fi
+    fi
+}
+
+for file in $(find . -name "BUILD"); do
+    bazel_lint $file
+done
+
+if [ $g_succ -ne 1 ]; then
+    echo 'BUILD file with cc_binary|cc_library|cc_test should load copts from "copts.bzl"'
+    echo 'And set copts = CURVE_DEFAULT_COPTS or CURVE_TEST_COPTS'
+    echo ''
+    echo 'Example:'
+    echo '  Source Code BUILD: load("//:copts.bzl", "CURVE_DEFAULT_COPTS")'
+    echo '  Test Code BULD:    load("//:copts.bzl", "CURVE_TEST_COPTS")'
+    echo ''
+    echo 'Invalid BUILD files:'
+
+    for f in "${g_invalid[@]}"; do
+        echo "  $f"
+    done
+
+    exit -1
+fi
+
+set -e
+
 bazel build tools/... --compilation_mode=dbg --collect_code_coverage  --jobs=64 --copt   -DHAVE_ZLIB=1 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX
 bazel build src/... --compilation_mode=dbg --collect_code_coverage  --jobs=64 --copt   -DHAVE_ZLIB=1 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX
 bazel build test/... --compilation_mode=dbg --collect_code_coverage  --jobs=64 --copt   -DHAVE_ZLIB=1 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX

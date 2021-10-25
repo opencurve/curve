@@ -15,21 +15,7 @@
 #
 
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-std=c++11",
-    "-Wall",
-    "-Werror",
-]
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 config_setting(
     name = "absl_btree",
@@ -70,7 +56,7 @@ cc_library(
         exclude = ["main.cpp"],
     ),
     hdrs = glob(["*.h"]),
-    copts = COPTS + ABSL_COPTS,
+    copts = CURVE_DEFAULT_COPTS + ABSL_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//curvefs/proto:space_cc_proto",
@@ -91,15 +77,7 @@ cc_binary(
     srcs = [
         "main.cpp",
     ],
-    copts = COPTS + ABSL_COPTS,
-    linkopts = [
-        "-lpthread",
-        "-lrt",
-        "-lz",
-        "-ldl",
-        "-lssl",
-        "-lcrypto",
-    ],
+    copts = CURVE_DEFAULT_COPTS + ABSL_COPTS,
     deps = [
         ":curve_fs_space",
         "//src/common:curve_common",

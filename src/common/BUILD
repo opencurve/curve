@@ -14,24 +14,7 @@
 #  limitations under the License.
 #
 
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-parameter",
-    "-Wno-unused-variable",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-    "-Wno-missing-field-initializers",
-    "-std=c++11",
-]
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "bitmap",
@@ -39,31 +22,38 @@ cc_library(
         "bitmap.cpp",
     ],
     hdrs = [
-        "bitmap.h"
+        "bitmap.h",
     ],
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//external:glog",
     ],
-    copts = COPTS,
 )
 
 cc_library(
     name = "curve_common",
-    srcs = glob([
-        "*.h",
-        "*.cpp",
-        ],exclude = ["authenticator.*",
-                      "s3_adapter.*",
-                      "snapshotclone_define.*"]
+    srcs = glob(
+        [
+            "*.h",
+            "*.cpp",
+        ],
+        exclude = [
+            "authenticator.*",
+            "s3_adapter.*",
+            "snapshotclone_define.*",
+        ],
     ),
-    copts = COPTS,
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "//external:glog",
         "//external:brpc",
         "//external:butil",
-        "//src/common/concurrent:curve_concurrent"
+        "//external:glog",
+        "//src/common/concurrent:curve_concurrent",
+    ],
+    linkopts = [
+        "-luuid",
     ],
 )
 
@@ -73,12 +63,12 @@ cc_library(
         "authenticator.h",
         "authenticator.cpp",
     ]),
-    copts = COPTS,
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "//external:glog",
         "//external:butil",
-        "//src/common/concurrent:curve_concurrent"
+        "//external:glog",
+        "//src/common/concurrent:curve_concurrent",
     ],
 )
 
@@ -87,7 +77,7 @@ cc_library(
     srcs = glob([
         "uncopyable.h",
     ]),
-    copts = COPTS,
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
 )
 
@@ -97,7 +87,7 @@ cc_library(
         "s3_adapter.h",
         "s3_adapter.cpp",
     ]),
-    copts = COPTS,
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//external:glog",
@@ -111,9 +101,9 @@ cc_library(
     srcs = glob([
         "snapshotclone_define.*",
     ]),
-    copts = COPTS,
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "//external:json"
+        "//external:json",
     ],
 )

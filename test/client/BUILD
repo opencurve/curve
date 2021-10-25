@@ -15,25 +15,8 @@
 #
 
 # https://docs.bazel.build/versions/master/be/c-cpp.html#cc_library
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-parameter",
-    "-Wno-unused-variable",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-    "-Wno-missing-field-initializers",
-    "-std=c++11",
-    #"-faligned-new"
-]
+
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 cc_test(
     name = "client_test_unittest",
@@ -53,7 +36,7 @@ cc_test(
                 "mds_client_test.cpp"
                 ]
     ),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST", "FIU_ENABLE"],
     linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
@@ -83,7 +66,7 @@ cc_test(
     name = "client_mds_failover_test",
     srcs = [
         "mds_failover_test.cpp"],
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST", "FIU_ENABLE"],
     linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
@@ -114,7 +97,7 @@ cc_test(
         "*.h",
         "inflight_rpc_control_test.cpp"]
     ),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST", "FIU_ENABLE"],
     linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
@@ -142,7 +125,7 @@ cc_test(
     srcs = glob([
         "libcurve_client_unittest.cpp"
     ]),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
@@ -159,7 +142,7 @@ cc_test(
     srcs = glob([
         "libcbd_libcurve_test.cpp"
     ]),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
@@ -190,7 +173,7 @@ cc_test(
     srcs = glob([
         "client_session_unittest.cpp"
     ]),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
@@ -220,7 +203,7 @@ cc_test(
         "*.h",
         "snapshot_service_unittest.cpp"]
     ),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
@@ -251,7 +234,7 @@ cc_test(
         "*.h",
         "request_sender_test.cpp"]
     ),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
@@ -272,7 +255,7 @@ cc_test(
         "*.h",
         "lease_executor_test.cpp"]
     ),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
@@ -292,7 +275,7 @@ cc_test(
         "*.h",
         "client_metric_test.cpp"]
     ),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
@@ -321,7 +304,7 @@ cc_test(
     name = "client_mds_client_test",
     srcs = [
         "mds_client_test.cpp"],
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//external:braft",

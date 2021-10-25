@@ -1240,8 +1240,14 @@ LIBCURVE_ERROR MDSClient::GetChunkServerInfo(const PeerAddr &csAddr,
         std::vector<std::string> strs;
         curve::common::SplitString(csAddr.ToString(), ":", &strs);
         const std::string &ip = strs[0];
+
         uint64_t port;
-        curve::common::StringToUll(strs[1], &port);
+        bool succ = curve::common::StringToUll(strs[1], &port);
+        if (!succ) {
+            LOG(ERROR) << "convert " << strs[1] << " to port failed";
+            return LIBCURVE_ERROR::FAILED;
+        }
+
         MDSClientBase::GetChunkServerInfo(ip, port, &response, cntl, channel);
 
         if (cntl->Failed()) {

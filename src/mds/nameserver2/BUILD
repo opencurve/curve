@@ -14,28 +14,32 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
+
 cc_library(
-    name="nameserver2",
-    hdrs=glob(["*.h"]),
-    srcs=glob(["*.cpp"]),
+    name = "nameserver2",
+    srcs = glob(["*.cpp"]),
+    hdrs = glob(["*.h"]),
+    copts = CURVE_DEFAULT_COPTS + [
+        "-Wno-write-strings"
+    ],
     visibility = ["//visibility:public"],
     deps = [
-            "//external:glog",
-            "//external:gflags",
-            "//external:leveldb",
-            "//external:brpc",
-            "//proto:nameserver2_cc_proto",
-            "//src/common:curve_common",
-            "//src/common/concurrent:curve_dlock",
-            "//src/mds/topology:topology",
-            "//src/mds/nameserver2/allocstatistic:alloc_statistic",
-            "//src/mds/chunkserverclient:chunkserverclient",
-            "//src/mds/snapshotcloneclient:snapshotcloneclient",
-            "//src/mds/common:mds_common",
-            "//src/mds/nameserver2/helper:helper",
-            "//src/mds/nameserver2/idgenerator:nameserver_idgenerator",
-            "//src/common:curve_auth",
-            "//src/kvstorageclient:kvstorage_client",
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
+        "//external:leveldb",
+        "//proto:nameserver2_cc_proto",
+        "//src/common:curve_auth",
+        "//src/common:curve_common",
+        "//src/common/concurrent:curve_dlock",
+        "//src/kvstorageclient:kvstorage_client",
+        "//src/mds/chunkserverclient",
+        "//src/mds/common:mds_common",
+        "//src/mds/nameserver2/allocstatistic:alloc_statistic",
+        "//src/mds/nameserver2/helper",
+        "//src/mds/nameserver2/idgenerator:nameserver_idgenerator",
+        "//src/mds/snapshotcloneclient",
+        "//src/mds/topology",
     ],
 )
-

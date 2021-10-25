@@ -14,26 +14,7 @@
 #  limitations under the License.
 #
 
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-parameter",
-    "-Wno-unused-variable",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-    "-Wno-missing-field-initializers",
-    "-std=c++11",
-    "-Wall",
-    '-Werror',
-]
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 # umountfs
 cc_test(
@@ -42,51 +23,51 @@ cc_test(
         "curvefs_umountfs_tool_test.cpp",
         "mock_mds_service.h",
     ]),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
+        "//curvefs/src/tools:curvefs_tools_lib",
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
-        "//external:brpc",
-        "//external:glog",
-        "//external:gflags",
-        "//curvefs/src/tools:curvefs_tools_lib",
-    ]
+    ],
 )
 
 # version
 cc_test(
     name = "curvefs_version_tool_test",
     srcs = glob(["curvefs_version_tool_test.cpp"]),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
+        "//curvefs/src/tools:curvefs_tools_lib",
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
-        "//external:brpc",
-        "//external:glog",
-        "//external:gflags",
-        "//curvefs/src/tools:curvefs_tools_lib",
-    ]
+    ],
 )
 
 # factory
 cc_test(
     name = "curvefs_tool_factory_test",
     srcs = glob(["curvefs_tool_factory_test.cpp"]),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
+        "//curvefs/src/tools:curvefs_tools_lib",
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
-        "//external:brpc",
-        "//external:glog",
-        "//external:gflags",
-        "//curvefs/src/tools:curvefs_tools_lib",
-    ]
+    ],
 )
 
 # build-topology
@@ -96,11 +77,11 @@ cc_test(
         "curvefs_build_topology_tool_test.cpp",
         "mock_topology_service.h",
     ]),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     deps = [
-        "@com_google_googletest//:gtest_main",
-        "@com_google_googletest//:gtest",
         "//curvefs/src/tools:curvefs_tools_lib",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -110,14 +91,13 @@ cc_test(
     srcs = glob([
         "curvefs_space_base_tool_test.cpp",
     ]),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     deps = [
-        "@com_google_googletest//:gtest_main",
-        "@com_google_googletest//:gtest",
         "//curvefs/src/tools:curvefs_tools_lib",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
     ],
 )
-
 
 # space-status
 cc_test(
@@ -125,10 +105,10 @@ cc_test(
     srcs = glob([
         "curvefs_space_status_tool_test.cpp",
     ]),
-    copts = ["-g","-DHAVE_ZLIB=1"],
+    copts = CURVE_TEST_COPTS,
     deps = [
-        "@com_google_googletest//:gtest_main",
-        "@com_google_googletest//:gtest",
         "//curvefs/src/tools:curvefs_tools_lib",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
     ],
 )

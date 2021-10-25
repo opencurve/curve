@@ -317,7 +317,7 @@ bool HeartbeatManager::FromHeartbeatCopySetInfoToTopologyOne(
 
     // set peers
     std::set<ChunkServerIdType> peers;
-    ChunkServerIdType leader;
+    ChunkServerIdType leader = UNINTIALIZE_ID;
     for (auto value : info.peers()) {
         ChunkServerIdType res = GetChunkserverIdByPeerStr(value.address());
         if (UNINTIALIZE_ID == res) {
@@ -331,6 +331,13 @@ bool HeartbeatManager::FromHeartbeatCopySetInfoToTopologyOne(
         }
         peers.emplace(res);
     }
+
+    if (leader == UNINTIALIZE_ID) {
+        LOG(ERROR) << "leader not found, logicalpoolid: "
+                   << info.logicalpoolid()
+                   << ", copysetid: " << info.copysetid();
+    }
+
     topoCopysetInfo.SetCopySetMembers(peers);
 
     // set leader
@@ -376,7 +383,3 @@ ChunkServerIdType HeartbeatManager::GetChunkserverIdByPeerStr(
 }  // namespace heartbeat
 }  // namespace mds
 }  // namespace curve
-
-
-
-

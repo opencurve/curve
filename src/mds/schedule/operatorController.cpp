@@ -155,6 +155,8 @@ bool OperatorController::ApplyOperator(const CopySetInfo &originInfo,
             case ApplyStatus::OnGoing:return false;
         }
     }
+
+    return false;
 }
 
 void OperatorController::UpdateReplaceOpInfluenceLocked(const Operator &oldOp,

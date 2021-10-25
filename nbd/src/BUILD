@@ -16,54 +16,41 @@
 #  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-parameter",
-    "-Wno-unused-variable",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-    "-Wno-missing-field-initializers",
-    "-std=c++11",
-    "-I /usr/include/libnl3",
-]
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "curvenbd",
-    srcs = glob([
-        "*.h",
-        "*.cpp",
-        ],exclude = ["main.cpp"]
+    srcs = glob(
+        [
+            "*.h",
+            "*.cpp",
+        ],
+        exclude = ["main.cpp"],
     ),
-    deps = [
-        "//external:gflags",
-        "//external:glog",
-        "//nebd/src/part1:nebdclient",
+    copts = CURVE_DEFAULT_COPTS + [
+        "-I /usr/include/libnl3",
     ],
-    copts = COPTS,
     linkopts = [
         "-lnl-3",
         "-lnl-genl-3",
     ],
     visibility = ["//visibility:public"],
+    deps = [
+        "//external:gflags",
+        "//external:glog",
+        "//nebd/src/part1:nebdclient",
+    ],
 )
 
 cc_binary(
     name = "curve-nbd",
-    srcs = glob([
-        "main.cpp"
-        ]
-    ),
-    deps = [
-        "//nbd/src:curvenbd"
+    srcs = [
+        "main.cpp",
     ],
-    copts = COPTS,
+    copts = CURVE_DEFAULT_COPTS + [
+        "-I /usr/include/libnl3",
+    ],
+    deps = [
+        "//nbd/src:curvenbd",
+    ],
 )

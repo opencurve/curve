@@ -14,11 +14,7 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS",
-)
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 cc_test(
     name = "topology_utest",
@@ -26,7 +22,7 @@ cc_test(
         "*.cpp",
         "*.h",
     ]),
-    copts = GCC_TEST_FLAGS,
+    copts = CURVE_TEST_COPTS,
     deps = [
         "//external:gtest",
         "//src/mds/topology",

@@ -14,16 +14,15 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_test(
     name = "etcd_id_generator_test",
     srcs = glob([
         "*.cpp",
         "*.h",
     ]),
-    copts = [
-        "-g",
-        "-DHAVE_ZLIB=1",
-    ],
+    copts = CURVE_TEST_COPTS,
     deps = [
         "//src/idgenerator",
         "//src/mds/common:mds_common",

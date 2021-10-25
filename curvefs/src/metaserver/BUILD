@@ -14,25 +14,7 @@
 #  limitations under the License.
 #
 
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-parameter",
-    "-Wno-unused-variable",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-    "-Wno-missing-field-initializers",
-    "-std=c++11",
-    "-Wall",
-]
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "curvefs_metaserver",
@@ -49,15 +31,15 @@ cc_library(
     ) + glob(
         ["copyset/*.h"],
     ),
-    copts = COPTS,
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         ":metaserver_s3_lib",
         "//curvefs/proto:cli2_cc_proto",
         "//curvefs/proto:copyset_cc_proto",
-        "//curvefs/proto:metaserver_cc_proto",
-        "//curvefs/proto:curvefs_topology_cc_proto",
         "//curvefs/proto:curvefs_heartbeat_cc_proto",
+        "//curvefs/proto:curvefs_topology_cc_proto",
+        "//curvefs/proto:metaserver_cc_proto",
         "//curvefs/src/common:curvefs_common",
         "//curvefs/src/metaserver/common:fs_metaserver_common",
         "//external:braft",
@@ -73,11 +55,7 @@ cc_library(
     name = "metaserver_s3_lib",
     srcs = glob(["s3/*.cpp"]),
     hdrs = glob(["s3/*.h"]),
-    copts = COPTS,
-    linkopts = [
-        "-lpthread",
-        "-L/usr/local/lib/x86_64-linux-gnu",
-    ],
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//curvefs/proto:metaserver_cc_proto",
@@ -91,10 +69,9 @@ cc_library(
 cc_binary(
     name = "curvefs_metaserver_main",
     srcs = ["main.cpp"],
-    copts = COPTS,
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         ":curvefs_metaserver",
     ],
 )
-

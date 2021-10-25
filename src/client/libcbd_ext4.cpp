@@ -26,7 +26,7 @@
 
 extern "C" {
 
-CurveOptions g_cbd_ext4_options = {0};
+CurveOptions g_cbd_ext4_options = {false, 0};
 
 int cbd_ext4_init(const CurveOptions* options) {
     if (g_cbd_ext4_options.inited) {

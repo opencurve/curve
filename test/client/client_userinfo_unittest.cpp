@@ -285,7 +285,7 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
                         new curve::mds::GetOrAllocateSegmentResponse();
     curve::mds::PageFileSegment* pfs = new curve::mds::PageFileSegment;
     pfs->set_logicalpoolid(0);
-    pfs->set_segmentsize(16*1024*1024*1024);
+    pfs->set_segmentsize(1ull*1024*1024*1024);
     pfs->set_chunksize(16*1024*1024);
     pfs->set_startoffset(0);
     getresponse->set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
@@ -421,8 +421,8 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
                         new curve::mds::GetOrAllocateSegmentResponse();
     curve::mds::PageFileSegment* pfs = new curve::mds::PageFileSegment;
     pfs->set_logicalpoolid(0);
-    pfs->set_segmentsize(16*1024*1024*1024);
-    pfs->set_chunksize(16*1024*1024);
+    pfs->set_segmentsize(1ull*1024*1024*1024);
+    pfs->set_chunksize(16ull*1024*1024);
     pfs->set_startoffset(0);
     getresponse->set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
     getresponse->set_allocated_pagefilesegment(pfs);

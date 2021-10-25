@@ -14,31 +14,7 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS",
-)
-
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-parameter",
-    "-Wno-unused-variable",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-    "-Wno-missing-field-initializers",
-    "-std=c++11",
-    "-Wall",
-]
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 cc_test(
     name = "curvefs_metaserver_test",
@@ -59,7 +35,7 @@ cc_test(
            "mock_s3_adapter.h"
         ],
     ),
-    copts = ["-g","-DHAVE_ZLIB=1"],
+    copts = CURVE_TEST_COPTS,
     deps = [
             "//curvefs/src/metaserver:curvefs_metaserver",
             "@com_google_googletest//:gtest_main",
@@ -80,7 +56,7 @@ cc_test(
         "mock_metaserver_s3_adaptor.h",
         "metaserver_s3_test.cpp"
     ]),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
@@ -100,7 +76,6 @@ cc_test(
     ],
     linkopts = [
         "-lfuse3",
-        "-lpthread",
         "-L/usr/local/lib/x86_64-linux-gnu",
     ],
 )
@@ -110,7 +85,7 @@ cc_test(
     srcs = glob(
         ["metastore*"],
     ),
-    copts = ["-g","-DHAVE_ZLIB=1"],
+    copts = CURVE_TEST_COPTS,
     deps = [
             "//curvefs/src/metaserver:curvefs_metaserver",
             "@com_google_googletest//:gtest_main",
@@ -122,7 +97,7 @@ cc_test(
 cc_test(
     name = "dumpfile_test",
     srcs = glob([ "dumpfile_test.cpp" ]),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
@@ -135,7 +110,7 @@ cc_test(
 cc_test(
     name = "storage_test",
     srcs = glob([ "storage_test.cpp" ]),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
@@ -152,7 +127,7 @@ cc_test(
                  "mock_s3compactwq_impl.h",
                  "mock_s3_adapter.h"]
                ),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [

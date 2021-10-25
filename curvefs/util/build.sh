@@ -9,13 +9,10 @@ g_release=0
 g_mark_left="==========>>>>>>>>>>"
 g_mark_right="==========<<<<<<<<<<"
 g_build_opts=(
-    "-s"
-    "--jobs=256"
     "--define=with_glog=true"
     "--define=libunwind=true"
     "--copt -DHAVE_ZLIB=1"
     "--copt -DGFLAGS_NS=google"
-    "--copt -Wno-error=format-security"
     "--copt -DUSE_BTHREAD_MUTEX"
 )
 
@@ -108,9 +105,11 @@ build_target() {
     local targets
     declare -A pass
     if [ $g_release -eq 1 ]; then
-        g_build_opts+=("--compilation_mode=opt")
+        g_build_opts+=("--compilation_mode=opt --copt -g")
+        echo "release" > BUILD_MODE
     else
         g_build_opts+=("--compilation_mode=dbg")
+        echo "debug" > BUILD_MODE
     fi
 
     for target in `get_target`

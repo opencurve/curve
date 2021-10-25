@@ -158,26 +158,18 @@ void MdsServiceImpl::GetFsInfo(::google::protobuf::RpcController* controller,
                                ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    uint32_t fsid;
-    if (request->has_fsid()) {
-        fsid = request->fsid();
-    }
-
-    std::string fsName;
-    if (request->has_fsname()) {
-        fsName = request->fsname();
-    }
 
     LOG(INFO) << "GetFsInfo request: " << request->ShortDebugString();
 
     FsInfo* fsInfo = response->mutable_fsinfo();
     FSStatusCode status = FSStatusCode::OK;
     if (request->has_fsid() && request->has_fsname()) {
-        status = fsManager_->GetFsInfo(fsName, fsid, fsInfo);
+        status =
+            fsManager_->GetFsInfo(request->fsname(), request->fsid(), fsInfo);
     } else if (!request->has_fsid() && request->has_fsname()) {
-        status = fsManager_->GetFsInfo(fsName, fsInfo);
+        status = fsManager_->GetFsInfo(request->fsname(), fsInfo);
     } else if (request->has_fsid() && !request->has_fsname()) {
-        status = fsManager_->GetFsInfo(fsid, fsInfo);
+        status = fsManager_->GetFsInfo(request->fsid(), fsInfo);
     } else {
         status = FSStatusCode::PARAM_ERROR;
     }

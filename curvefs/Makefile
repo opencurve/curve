@@ -57,6 +57,9 @@ config:
 topo:
 	$(call only_specify,tools,topo)
 
+debug:
+	$(call only_specify,$(only),debug)
+
 start:
 ifeq ($(only), "*")
 	$(call only_service,start)

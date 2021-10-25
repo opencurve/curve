@@ -166,7 +166,7 @@ int CurvefsBuildTopologyTool::InitPoolData() {
         LOG(ERROR) << "No pools in cluster map";
         return -1;
     }
-    for (const auto pool : clusterMap_[kPools]) {
+    for (const auto& pool : clusterMap_[kPools]) {
         Pool poolData;
         if (!pool[kName].isString()) {
             LOG(ERROR) << "pool name must be string";
@@ -199,7 +199,7 @@ int CurvefsBuildTopologyTool::InitServerZoneData() {
         LOG(ERROR) << "No servers in cluster map";
         return -1;
     }
-    for (const auto server : clusterMap_[kServers]) {
+    for (const auto& server : clusterMap_[kServers]) {
         Server serverData;
         Zone zoneData;
         if (!server[kName].isString()) {

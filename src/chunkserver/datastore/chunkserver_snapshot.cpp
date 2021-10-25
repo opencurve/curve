@@ -146,10 +146,10 @@ CSErrorCode CSSnapshot::Open(bool createFile) {
     if (createFile
         && !lfs_->FileExists(snapshotPath)
         && metaPage_.sn > 0) {
-        char buf[pageSize_];  // NOLINT
-        memset(buf, 0, sizeof(buf));
-        metaPage_.encode(buf);
-        int ret = chunkFilePool_->GetFile(snapshotPath, buf);
+        std::unique_ptr<char[]> buf(new char[pageSize_]);
+        memset(buf.get(), 0, pageSize_);
+        metaPage_.encode(buf.get());
+        int ret = chunkFilePool_->GetFile(snapshotPath, buf.get());
         if (ret != 0) {
             LOG(ERROR) << "Error occured when create snapshot."
                    << " filepath = " << snapshotPath;
@@ -238,10 +238,10 @@ CSErrorCode CSSnapshot::Flush() {
 }
 
 CSErrorCode CSSnapshot::updateMetaPage(SnapshotMetaPage* metaPage) {
-    char buf[pageSize_];  // NOLINT
-    memset(buf, 0, sizeof(buf));
-    metaPage->encode(buf);
-    int rc = writeMetaPage(buf);
+    std::unique_ptr<char[]> buf(new char[pageSize_]);
+    memset(buf.get(), 0, pageSize_);
+    metaPage->encode(buf.get());
+    int rc = writeMetaPage(buf.get());
     if (rc < 0) {
         LOG(ERROR) << "Update metapage failed."
                    << "ChunkID: " << chunkId_
@@ -252,15 +252,15 @@ CSErrorCode CSSnapshot::updateMetaPage(SnapshotMetaPage* metaPage) {
 }
 
 CSErrorCode CSSnapshot::loadMetaPage() {
-    char buf[pageSize_];  // NOLINT
-    memset(buf, 0, sizeof(buf));
-    int rc = readMetaPage(buf);
+    std::unique_ptr<char[]> buf(new char[pageSize_]);
+    memset(buf.get(), 0, pageSize_);
+    int rc = readMetaPage(buf.get());
     if (rc < 0) {
         LOG(ERROR) << "Error occured when reading metaPage_."
                    << " filepath = " << path();
         return CSErrorCode::InternalError;
     }
-    return metaPage_.decode(buf);
+    return metaPage_.decode(buf.get());
 }
 
 }  // namespace chunkserver

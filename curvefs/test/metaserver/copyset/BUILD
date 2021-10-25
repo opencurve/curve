@@ -14,20 +14,7 @@
 #  limitations under the License.
 #
 
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-std=c++11",
-    "-Wall",
-    "-Werror",
-]
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 cc_test(
     name = "metaserver_copyset_test",
@@ -35,10 +22,7 @@ cc_test(
         ["*.cpp"],
         exclude = ["raft_cli_servic2_test.cpp"],
     ),
-    copts = COPTS + ["-DUNIT_TEST"],
-    linkopts = [
-        "-luuid",
-    ],
+    copts = CURVE_TEST_COPTS + ["-DUNIT_TEST"],
     deps = [
         "//curvefs/src/metaserver:curvefs_metaserver",
         "//curvefs/test/metaserver/copyset/mock:metaserver_copyset_test_mock",
@@ -55,10 +39,7 @@ cc_test(
     srcs = [
         "raft_cli_servic2_test.cpp",
     ],
-    copts = COPTS + ["-DUNIT_TEST"],
-    linkopts = [
-        "-luuid",
-    ],
+    copts = CURVE_TEST_COPTS + ["-DUNIT_TEST"],
     deps = [
         "//curvefs/src/metaserver:curvefs_metaserver",
         "//curvefs/test/utils:curvefs_test_utils",

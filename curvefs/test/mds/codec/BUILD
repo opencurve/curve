@@ -14,28 +14,12 @@
 #  limitations under the License.
 #
 
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DHAVE_ZLIB",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-std=c++11",
-    "-Wall",
-    "-Werror",
-]
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 cc_test(
     name = "fs_mds_codec_test",
     srcs = ["codec_test.cpp"],
-    copts = COPTS,
-    linkopts = [
-        "-lz",
-    ],
+    copts = CURVE_TEST_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//curvefs/proto:mds_cc_proto",

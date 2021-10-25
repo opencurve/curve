@@ -352,8 +352,9 @@ class CSCloneRecoverTest : public ::testing::Test {
 
         s3Adapter_.Init(kS3ConfigPath);
         s3Adapter_.SetBucketName(S3_BUCKET_NAME);
-        if (!s3Adapter_.BucketExist())
+        if (!s3Adapter_.BucketExist()) {
             ASSERT_EQ(0, s3Adapter_.CreateBucket());
+        }
         s3ObjExisted_ = false;
     }
 
@@ -441,7 +442,7 @@ class CSCloneRecoverTest : public ::testing::Test {
         context->cb = writeCallBack;
 
         int ret;
-        if (ret = AioWrite(fd_, context)) {
+        if ((ret = AioWrite(fd_, context))) {
             LOG(ERROR) << "failed to send aio write request, err="
                        << ret;
             return false;
@@ -479,7 +480,7 @@ class CSCloneRecoverTest : public ::testing::Test {
         context->buf = data;
         context->cb = readCallBack;
         int ret;
-        if (ret = AioRead(fd_, context)) {
+        if ((ret = AioRead(fd_, context))) {
             LOG(ERROR) << "failed to send aio read request, err="
                        << ret;
             return false;
