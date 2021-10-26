@@ -73,6 +73,9 @@ struct S3ReadRequest {
     uint64_t len;
     uint64_t objectOffset;  // s3 object's begin in the block
     uint64_t readOffset;    // read buf offset
+    uint64_t fsId;
+    uint64_t inodeId;
+    uint64_t compaction;
 };
 
 struct ObjectChunkInfo {
@@ -120,8 +123,7 @@ class DataCache {
     bool IsDirty() { return dirty_.load(std::memory_order_acquire); }
 
  private:
-    std::string GenerateObjectName(uint64_t chunkId, uint64_t blockIndex);
-    void UpdateInodeChunkInfo(S3ChunkInfoList *s3ChunkInfoList,
+    void UpdateInodeChunkInfo(S3ChunkInfoList* s3ChunkInfoList,
                               uint64_t chunkId, uint64_t offset, uint64_t len);
     void Swap(char *newData, uint64_t newLen) {
         delete data_;
@@ -225,8 +227,9 @@ class FileCacheManager {
                    char *dataBuf, uint64_t dataBufOffset,
                    std::vector<ReadRequest> *requests);
     void GenerateS3Request(ReadRequest request,
-                           const S3ChunkInfoList& s3ChunkInfoList,
-                           char* dataBuf, std::vector<S3ReadRequest>* requests);
+                           const S3ChunkInfoList &s3ChunkInfoList,
+                           char *dataBuf, std::vector<S3ReadRequest> *requests,
+                           uint64_t fsId, uint64_t inodeId);
     int HandleReadRequest(const std::vector<S3ReadRequest>& requests,
                           std::vector<S3ReadResponse>* responses);
     std::vector<ObjectChunkInfo> GetReadChunks(

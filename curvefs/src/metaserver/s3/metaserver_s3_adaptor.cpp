@@ -21,6 +21,7 @@
  */
 
 #include "curvefs/src/metaserver/s3/metaserver_s3_adaptor.h"
+#include "curvefs/src/common/s3util.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -44,11 +45,14 @@ int S3ClientAdaptorImpl::Delete(const Inode &inode) {
             // traverse chunks to delete blocks
             S3ChunkInfo chunkInfo = s3ChunkInfolist.s3chunks(i);
             // delete chunkInfo from client
+            uint64_t fsId = inode.fsid();
+            uint64_t inodeId = inode.inodeid();
             uint64_t chunkId = chunkInfo.chunkid();
             uint64_t compaction = chunkInfo.compaction();
             uint64_t chunkPos = chunkInfo.offset() % chunkSize_;
             uint64_t length = chunkInfo.len();
-            int delStat = DeleteChunk(chunkId, compaction, chunkPos, length);
+            int delStat = DeleteChunk(fsId, inodeId, chunkId, compaction,
+                                      chunkPos, length);
             if (delStat < 0) {
                 LOG(ERROR) << "delete chunk failed, status code is: " << delStat
                            << " , chunkId is " << chunkId;
@@ -62,7 +66,8 @@ int S3ClientAdaptorImpl::Delete(const Inode &inode) {
     return ret;
 }
 
-int S3ClientAdaptorImpl::DeleteChunk(uint64_t chunkId, uint64_t compaction,
+int S3ClientAdaptorImpl::DeleteChunk(uint64_t fsId, uint64_t inodeId,
+                                     uint64_t chunkId, uint64_t compaction,
                                      uint64_t chunkPos, uint64_t length) {
     uint64_t blockIndex = chunkPos / blockSize_;
     uint64_t blockPos = chunkPos % blockSize_;
@@ -73,8 +78,8 @@ int S3ClientAdaptorImpl::DeleteChunk(uint64_t chunkId, uint64_t compaction,
     int ret = 0;
     while (length > blockSize_ * count - blockPos || count == 0) {
         // divide chunks to blocks, and delete these blocks
-        std::string objectName =
-            GenerateObjectName(chunkId, blockIndex, compaction);
+        std::string objectName = curvefs::common::s3util::GenObjName(
+            chunkId, blockIndex, compaction, fsId, inodeId);
         int delStat = client_->Delete(objectName);
         if (delStat < 0) {
             // fail
@@ -94,14 +99,6 @@ int S3ClientAdaptorImpl::DeleteChunk(uint64_t chunkId, uint64_t compaction,
     }
 
     return ret;
-}
-
-std::string S3ClientAdaptorImpl::GenerateObjectName(uint64_t chunkId,
-                                                    uint64_t blockIndex,
-                                                    uint64_t compaction) {
-    std::ostringstream oss;
-    oss << chunkId << "_" << blockIndex << "_" << compaction;
-    return oss.str();
 }
 }  // namespace metaserver
 }  // namespace curvefs

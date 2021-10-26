@@ -94,10 +94,8 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
      *  -1  : some objects delete fail
      * @param[in] options the options for s3 client
      */
-    int DeleteChunk(uint64_t chunkId, uint64_t compaction, uint64_t chunkPos,
-                    uint64_t length);
-    std::string GenerateObjectName(uint64_t chunkId, uint64_t blockIndex,
-                                   uint64_t compaction);
+    int DeleteChunk(uint64_t fsId, uint64_t inodeId, uint64_t chunkId,
+                    uint64_t compaction, uint64_t chunkPos, uint64_t length);
 
     S3Client* client_;
     uint64_t blockSize_;
