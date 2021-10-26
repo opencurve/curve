@@ -102,7 +102,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::DeleteInode(uint64_t inodeid) {
     curve::common::WriteLockGuard lg(mtx_);
     iCache_->Remove(inodeid);
     MetaStatusCode ret = metaClient_->DeleteInode(fsId_, inodeid);
-    if (ret != MetaStatusCode::OK) {
+    if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
         LOG(ERROR) << "metaClient_ DeleteInode failed, ret = " << ret
                    << ", inodeid = " << inodeid;
         return MetaStatusCodeToCurvefsErrCode(ret);

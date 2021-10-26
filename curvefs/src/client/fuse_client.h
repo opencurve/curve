@@ -102,7 +102,8 @@ class FuseClient {
 
     virtual void Fini();
 
-    virtual void FuseOpInit(void* userdata, struct fuse_conn_info* conn);
+    virtual CURVEFS_ERROR FuseOpInit(
+        void* userdata, struct fuse_conn_info* conn);
 
     virtual void FuseOpDestroy(void* userdata);
 

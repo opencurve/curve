@@ -509,7 +509,7 @@ TEST_F(MetastoreTest, test_dentry) {
     ASSERT_EQ(createResponse.statuscode(), ret);
 
     ret = metastore.CreateDentry(&createRequest, &createResponse);
-    ASSERT_EQ(createResponse.statuscode(), MetaStatusCode::DENTRY_EXIST);
+    ASSERT_EQ(createResponse.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(createResponse.statuscode(), ret);
 
     Dentry dentry2;

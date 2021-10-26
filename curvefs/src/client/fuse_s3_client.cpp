@@ -47,11 +47,13 @@ void FuseS3Client::UnInit() {
     FuseClient::UnInit();
 }
 
-void FuseS3Client::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
-    FuseClient::FuseOpInit(userdata, conn);
+CURVEFS_ERROR FuseS3Client::FuseOpInit(
+    void* userdata, struct fuse_conn_info* conn) {
+    CURVEFS_ERROR ret = FuseClient::FuseOpInit(userdata, conn);
     if (init_) {
         s3Adaptor_->SetFsId(fsInfo_->fsid());
     }
+    return ret;
 }
 
 CURVEFS_ERROR FuseS3Client::CreateFs(void *userdata, FsInfo *fsInfo) {

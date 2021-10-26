@@ -161,7 +161,8 @@ TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_exist) {
     EXPECT_CALL(*blockDeviceClient_, Open(volName, user))
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
-    client_->FuseOpInit(&mOpts, nullptr);
+    CURVEFS_ERROR ret = client_->FuseOpInit(&mOpts, nullptr);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     auto fsInfo = client_->GetFsInfo();
     ASSERT_NE(fsInfo, nullptr);
@@ -201,7 +202,8 @@ TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_not_exist) {
     EXPECT_CALL(*blockDeviceClient_, Open(volName, user))
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
-    client_->FuseOpInit(&mOpts, nullptr);
+    CURVEFS_ERROR ret = client_->FuseOpInit(&mOpts, nullptr);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     auto fsInfo = client_->GetFsInfo();
     ASSERT_NE(fsInfo, nullptr);
@@ -1587,7 +1589,8 @@ TEST_F(TestFuseS3Client, FuseOpInit_when_fs_exist) {
     EXPECT_CALL(*mdsClient_, MountFs(fsName, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(fsInfoExp), Return(FSStatusCode::OK)));
 
-    client_->FuseOpInit(&mOpts, nullptr);
+    CURVEFS_ERROR ret = client_->FuseOpInit(&mOpts, nullptr);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     auto fsInfo = client_->GetFsInfo();
     ASSERT_NE(fsInfo, nullptr);
@@ -1618,7 +1621,8 @@ TEST_F(TestFuseS3Client, FuseOpInit_when_fs_not_exist) {
     EXPECT_CALL(*mdsClient_, MountFs(fsName, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(fsInfoExp), Return(FSStatusCode::OK)));
 
-    client_->FuseOpInit(&mOpts, nullptr);
+    CURVEFS_ERROR ret = client_->FuseOpInit(&mOpts, nullptr);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     auto fsInfo = client_->GetFsInfo();
     ASSERT_NE(fsInfo, nullptr);

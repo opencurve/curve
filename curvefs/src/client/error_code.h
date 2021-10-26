@@ -44,6 +44,8 @@ enum class CURVEFS_ERROR {
     NOFLUSH = -10,
     NOTSUPPORT = -11,
     NAMETOOLONG = -12,
+    MOUNT_POINT_EXIST = -13,
+    MOUNT_FAILED = -14,
 };
 
 inline std::ostream &operator<<(std::ostream &os, CURVEFS_ERROR code) {

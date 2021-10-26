@@ -77,11 +77,18 @@ TEST_F(DentryStorageTest, Insert) {
     dentry.set_inodeid(2);
     dentry.set_txid(0);
 
+    Dentry dentry2;
+    dentry2.set_fsid(1);
+    dentry2.set_parentinodeid(1);
+    dentry2.set_name("A");
+    dentry2.set_inodeid(3);
+    dentry2.set_txid(0);
+
     // CASE 1: insert success
     ASSERT_EQ(storage.Insert(dentry), MetaStatusCode::OK);
 
     // CASE 2: insert with dentry exist
-    ASSERT_EQ(storage.Insert(dentry), MetaStatusCode::DENTRY_EXIST);
+    ASSERT_EQ(storage.Insert(dentry2), MetaStatusCode::DENTRY_EXIST);
     ASSERT_EQ(storage.Size(), 1);
 
     // CASE 3: insert dentry failed with higher txid
@@ -94,8 +101,8 @@ TEST_F(DentryStorageTest, Insert) {
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(storage.Size(), 2);
 
-    // CASE 5: insert failed but compress old txid dentry
-    ASSERT_EQ(storage.Insert(dentry), MetaStatusCode::DENTRY_EXIST);
+    // CASE 5: insert idempotence
+    ASSERT_EQ(storage.Insert(dentry), MetaStatusCode::OK);
     ASSERT_EQ(storage.Size(), 1);
 }
 
@@ -392,7 +399,7 @@ TEST_F(DentryStorageTest, HandleTx) {
     // CASE 2: prepare with dentry exist
     dentry = GenDentry(1, 0, "A", 1, 2, false);
     rc = storage.HandleTx(TX_OP_TYPE::PREPARE, dentry);
-    ASSERT_EQ(rc, MetaStatusCode::DENTRY_EXIST);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(storage.Size(), 2);
 
     // CASE 3: commit success

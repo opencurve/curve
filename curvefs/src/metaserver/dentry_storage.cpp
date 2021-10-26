@@ -88,6 +88,10 @@ MetaStatusCode MemoryDentryStorage::Insert(const Dentry& dentry) {
 
     auto iter = Find(dentry, true);
     if (iter != dentryTree_.end()) {
+        // Idempotence
+        if (*iter == dentry) {
+            return MetaStatusCode::OK;
+        }
         return MetaStatusCode::DENTRY_EXIST;
     }
 
@@ -173,9 +177,8 @@ MetaStatusCode MemoryDentryStorage::HandleTx(TX_OP_TYPE type,
     auto rc = MetaStatusCode::OK;
     switch (type) {
         case TX_OP_TYPE::PREPARE:
-            if (!dentryTree_.emplace(dentry).second) {
-                rc = MetaStatusCode::DENTRY_EXIST;
-            }
+            // For idempotence, do not judge the return value
+            dentryTree_.emplace(dentry);
             break;
 
         case TX_OP_TYPE::COMMIT:

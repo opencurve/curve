@@ -70,7 +70,8 @@ TEST_F(DentryManagerTest, CreateDentry) {
     ASSERT_EQ(dentryStorage_->Size(), 1);
 
     // CASE 2: CreateDentry: dentry exist
-    ASSERT_EQ(dentryManager_->CreateDentry(dentry),
+    auto dentry2 = GenDentry(1, 0, "A", 0, 2, false);
+    ASSERT_EQ(dentryManager_->CreateDentry(dentry2),
               MetaStatusCode::DENTRY_EXIST);
     ASSERT_EQ(dentryStorage_->Size(), 1);
 }
