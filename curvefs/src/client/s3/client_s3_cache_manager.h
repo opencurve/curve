@@ -71,8 +71,13 @@ struct S3ReadRequest {
     uint64_t chunkId;
     uint64_t offset;  // file offset
     uint64_t len;
-    uint64_t objectOffset;  // s3 object's offset
+    uint64_t objectOffset;  // s3 object's begin in the block
     uint64_t readOffset;    // read buf offset
+};
+
+struct ObjectChunkInfo {
+    S3ChunkInfo s3ChunkInfo;
+    uint64_t objectOffset;  // s3 object's begin in the block
 };
 
 class DataCache {
@@ -250,9 +255,10 @@ class FileCacheManager {
                            char* dataBuf, std::vector<S3ReadRequest>* requests);
     int HandleReadRequest(const std::vector<S3ReadRequest>& requests,
                           std::vector<S3ReadResponse>* responses);
-    std::vector<S3ChunkInfo> GetReadChunks(
-        const S3ChunkInfoList& s3ChunkInfoList);
-    std::vector<S3ChunkInfo> SortByOffset(std::vector<S3ChunkInfo> chunks);
+    std::vector<ObjectChunkInfo> GetReadChunks(
+        const S3ChunkInfoList& s3ChunkInfoList, uint64_t blockSize);
+    std::vector<ObjectChunkInfo> SortByOffset(
+        std::vector<ObjectChunkInfo> chunks);
     std::vector<S3ChunkInfo> CutOverLapChunks(const S3ChunkInfo& newChunk,
                                               const S3ChunkInfo& oldChunk);
 

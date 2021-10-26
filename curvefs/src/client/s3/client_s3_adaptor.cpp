@@ -124,7 +124,9 @@ int S3ClientAdaptorImpl::Read(Inode* inode, uint64_t offset, uint64_t length,
     FileCacheManagerPtr fileCacheManager =
         fsCacheManager_->FindOrCreateFileCacheManager(fsId, inodeId);
 
-    return fileCacheManager->Read(inode, offset, length, buf);
+    int ret = fileCacheManager->Read(inode, offset, length, buf);
+    LOG(INFO) << "read end inodeId:" << inodeId << ",ret:" << ret;
+    return ret;
 }
 
 CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode* inode, uint64_t size) {
