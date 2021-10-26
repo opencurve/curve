@@ -399,16 +399,20 @@ void FileCacheManager::GenerateS3Request(ReadRequest request,
                                          const S3ChunkInfoList& s3ChunkInfoList,
                                          char* dataBuf,
                                          std::vector<S3ReadRequest>* requests) {
-    std::vector<S3ChunkInfo> chunks = GetReadChunks(s3ChunkInfoList);
-    std::vector<S3ChunkInfo> sortChunks = SortByOffset(chunks);
     uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
+    std::vector<ObjectChunkInfo> chunks =
+        GetReadChunks(s3ChunkInfoList, blockSize);
+    std::vector<ObjectChunkInfo> sortChunks =
+        SortByOffset(std::move(chunks));
     char* buf = dataBuf + request.bufOffset;
     uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
     uint64_t offset = request.index * chunkSize + request.chunkPos;
     uint64_t length = request.len;
     uint32_t i = 0;
-    S3ChunkInfo tmp;
+    ObjectChunkInfo tmp;
     uint64_t readOffset = 0;
+    uint64_t chunkInfoOffset;
+    uint64_t chunkInfoLen;
     LOG(INFO) << "GenerateS3Request ReadRequest index:" << request.index
               << ",chunkPos:" << request.chunkPos << ",len:" << request.len
               << ",bufOffset:" << request.bufOffset
@@ -420,10 +424,14 @@ void FileCacheManager::GenerateS3Request(ReadRequest request,
             break;
         }
         tmp = sortChunks[i];
-        LOG(INFO) << "GenerateS3Request S3ChunkInfo chunkId:" << tmp.chunkid()
-                  << ",compaction:" << tmp.compaction()
-                  << ",offset:" << tmp.offset() << ",len:" << tmp.len()
-                  << ",zero:" << tmp.zero()
+        chunkInfoOffset = tmp.s3ChunkInfo.offset();
+        chunkInfoLen = tmp.s3ChunkInfo.len();
+        LOG(INFO) << "GenerateS3Request S3ChunkInfo chunkId:"
+                  << tmp.s3ChunkInfo.chunkid()
+                  << ",compaction:" << tmp.s3ChunkInfo.compaction()
+                  << ",offset:" << chunkInfoOffset << ",len:" << chunkInfoLen
+                  << ",zero:" << tmp.s3ChunkInfo.zero()
+                  << ",objectOffset:" << tmp.objectOffset
                   << ",offset:" << offset
                   << ",len:" << length
                   << ",i:" << i;
@@ -431,65 +439,65 @@ void FileCacheManager::GenerateS3Request(ReadRequest request,
         -----    read block
                ------  S3ChunkInfo
         */
-        if (offset + length <= tmp.offset()) {
+        if (offset + length <= chunkInfoOffset) {
             memset(buf + readOffset, 0, length);
             break;
             /*
                    -----              ------------   read block           -
                       ------             -----       S3ChunkInfo
             */
-        } else if ((tmp.offset() >= offset) &&
-                   (tmp.offset() < offset + length)) {
-            int n = tmp.offset() - offset;
+        } else if ((chunkInfoOffset >= offset) &&
+                   (chunkInfoOffset < offset + length)) {
+            int n = chunkInfoOffset - offset;
             memset(static_cast<char*>(buf) + readOffset, 0, n);
-            offset = tmp.offset();
+            offset = chunkInfoOffset;
             readOffset += n;
             length -= n;
 
-            if (offset + length <= tmp.offset() + tmp.len()) {
-                if (tmp.zero()) {
+            if (offset + length <= chunkInfoOffset + chunkInfoLen) {
+                if (tmp.s3ChunkInfo.zero()) {
                     memset(static_cast<char*>(buf) + readOffset, 0, length);
                 } else {
-                    s3Request.chunkId = tmp.chunkid();
+                    s3Request.chunkId = tmp.s3ChunkInfo.chunkid();
                     s3Request.offset = offset;
                     s3Request.len = length;
-
-                    s3Request.objectOffset = tmp.offset() % blockSize;
+                    s3Request.objectOffset = tmp.objectOffset;
                     s3Request.readOffset = request.bufOffset + readOffset;
                     requests->push_back(s3Request);
                 }
                 readOffset += length;
                 length = 0;
             } else {
-                if (tmp.zero()) {
-                    memset(static_cast<char*>(buf) + readOffset, 0, tmp.len());
+                if (tmp.s3ChunkInfo.zero()) {
+                    memset(static_cast<char*>(buf) + readOffset,
+                    0, chunkInfoLen);
                 } else {
-                    s3Request.chunkId = tmp.chunkid();
-                    s3Request.offset = tmp.offset();
-                    s3Request.len = tmp.len();
-                    s3Request.objectOffset = tmp.offset() % blockSize;
+                    s3Request.chunkId = tmp.s3ChunkInfo.chunkid();
+                    s3Request.offset = chunkInfoOffset;
+                    s3Request.len = chunkInfoLen;
+                    s3Request.objectOffset = tmp.objectOffset;
                     s3Request.readOffset = request.bufOffset + readOffset;
                     requests->push_back(s3Request);
                 }
-                readOffset += tmp.len();
-                length -= tmp.len();
-                offset += tmp.len();
+                readOffset += chunkInfoLen;
+                length -= chunkInfoLen;
+                offset += chunkInfoLen;
             }
             /*
                      ----                      ---------   read block
                    ----------                --------      S3ChunkInfo
             */
-        } else if ((tmp.offset() < offset) &&
-                   (tmp.offset() + tmp.len() > offset)) {
-            if (offset + length <= tmp.offset() + tmp.len()) {
-                if (tmp.zero()) {
+        } else if ((chunkInfoOffset < offset) &&
+                   (chunkInfoOffset + chunkInfoLen > offset)) {
+            if (offset + length <= chunkInfoOffset + chunkInfoLen) {
+                if (tmp.s3ChunkInfo.zero()) {
                     memset(static_cast<char*>(buf) + readOffset, 0, length);
                 } else {
-                    s3Request.chunkId = tmp.chunkid();
+                    s3Request.chunkId = tmp.s3ChunkInfo.chunkid();
                     s3Request.offset = offset;
                     s3Request.len = length;
-                    if ((offset / blockSize) == (tmp.offset() / blockSize)) {
-                        s3Request.objectOffset = tmp.offset() % blockSize;
+                    if ((offset / blockSize) == (chunkInfoOffset / blockSize)) {
+                        s3Request.objectOffset = tmp.objectOffset;
                     } else {
                         s3Request.objectOffset = 0;
                     }
@@ -499,24 +507,24 @@ void FileCacheManager::GenerateS3Request(ReadRequest request,
                 readOffset += length;
                 length = 0;
             } else {
-                if (tmp.zero()) {
+                if (tmp.s3ChunkInfo.zero()) {
                     memset(static_cast<char*>(buf) + readOffset, 0,
-                           tmp.offset() + tmp.len() - offset);
+                           chunkInfoOffset + chunkInfoLen - offset);
                 } else {
-                    s3Request.chunkId = tmp.chunkid();
+                    s3Request.chunkId = tmp.s3ChunkInfo.chunkid();
                     s3Request.offset = offset;
-                    s3Request.len = tmp.offset() + tmp.len() - offset;
-                    if ((offset / blockSize) == (tmp.offset() / blockSize)) {
-                        s3Request.objectOffset = tmp.offset() % blockSize;
+                    s3Request.len = chunkInfoOffset + chunkInfoLen - offset;
+                    if ((offset / blockSize) == (chunkInfoOffset / blockSize)) {
+                        s3Request.objectOffset = tmp.objectOffset;
                     } else {
                         s3Request.objectOffset = 0;
                     }
                     s3Request.readOffset = request.bufOffset + readOffset;
                     requests->push_back(s3Request);
                 }
-                offset = tmp.offset() + tmp.len();
-                length -= s3Request.len;
-                readOffset += s3Request.len;
+                offset = chunkInfoOffset + chunkInfoLen;
+                length -= chunkInfoOffset + chunkInfoLen - offset;
+                readOffset += chunkInfoOffset + chunkInfoLen - offset;
             }
             /*
                            -----  read block
@@ -532,11 +540,13 @@ void FileCacheManager::GenerateS3Request(ReadRequest request,
     return;
 }
 
-std::vector<S3ChunkInfo> FileCacheManager::GetReadChunks(
-    const S3ChunkInfoList& s3ChunkInfoList) {
-    S3ChunkInfo tmp, chunkTmp;
-    std::vector<S3ChunkInfo> chunks;
-
+std::vector<ObjectChunkInfo> FileCacheManager::GetReadChunks(
+    const S3ChunkInfoList& s3ChunkInfoList,
+    uint64_t blockSize) {
+    S3ChunkInfo tmp;
+    ObjectChunkInfo chunkTmp;
+    std::vector<ObjectChunkInfo> chunks;
+    LOG(INFO) << "chunk size:" << s3ChunkInfoList.s3chunks_size();
     for (int i = 0; i < s3ChunkInfoList.s3chunks_size(); i++) {
         tmp = s3ChunkInfoList.s3chunks(i);
         std::vector<S3ChunkInfo> addChunks;
@@ -544,9 +554,10 @@ std::vector<S3ChunkInfo> FileCacheManager::GetReadChunks(
         for (uint32_t j = 0; j < chunks.size(); j++) {
             chunkTmp = chunks[j];
             // overlap, must cut old chunk
-            if ((tmp.offset() < (chunkTmp.offset() + chunkTmp.len())) &&
-                (chunkTmp.offset() < (tmp.offset() + tmp.len()))) {
-                addChunks = CutOverLapChunks(tmp, chunkTmp);
+            if ((tmp.offset() < (chunkTmp.s3ChunkInfo.offset() +
+                chunkTmp.s3ChunkInfo.len())) &&
+                (chunkTmp.s3ChunkInfo.offset() < (tmp.offset() + tmp.len()))) {
+                addChunks = CutOverLapChunks(tmp, chunkTmp.s3ChunkInfo);
                 waitingDel.push_back(j);
             }
         }
@@ -557,18 +568,30 @@ std::vector<S3ChunkInfo> FileCacheManager::GetReadChunks(
         }
         std::vector<S3ChunkInfo>::iterator chunkIter = addChunks.begin();
         for (; chunkIter != addChunks.end(); chunkIter++) {
-            chunks.push_back(*chunkIter);
+            ObjectChunkInfo addChunk;
+            addChunk.s3ChunkInfo = *chunkIter;
+            if (addChunk.s3ChunkInfo.offset() % blockSize ==
+            chunkTmp.s3ChunkInfo.offset() % blockSize) {
+                addChunk.objectOffset =
+                    chunkTmp.s3ChunkInfo.offset() % blockSize;
+            }  else {
+                addChunk.objectOffset = 0;
+            }
+            chunks.push_back(addChunk);
         }
-        chunks.push_back(tmp);
+        chunkTmp.s3ChunkInfo = tmp;
+        chunkTmp.objectOffset = tmp.offset() % blockSize;
+        chunks.push_back(chunkTmp);
     }
 
     return chunks;
 }
 
-std::vector<S3ChunkInfo> FileCacheManager::SortByOffset(
-    std::vector<S3ChunkInfo> chunks) {
-    std::sort(chunks.begin(), chunks.end(), [](S3ChunkInfo a, S3ChunkInfo b) {
-        return a.offset() < b.offset();
+std::vector<ObjectChunkInfo> FileCacheManager::SortByOffset(
+    std::vector<ObjectChunkInfo> chunks) {
+    std::sort(chunks.begin(), chunks.end(),
+    [](ObjectChunkInfo a, ObjectChunkInfo b) {
+        return a.s3ChunkInfo.offset() < b.s3ChunkInfo.offset();
     });
     return chunks;
 }
@@ -1022,7 +1045,6 @@ void ChunkCacheManager::ReleaseReadDataCache(uint64_t key) {
 void ChunkCacheManager::ReleaseCache(S3ClientAdaptorImpl* s3ClientAdaptor) {
     {
         WriteLockGuard writeLockGuard(rwLockWrite_);
-        auto size = dataWCacheMap_.size();
 
         for (auto& dataWCache : dataWCacheMap_) {
             s3ClientAdaptor_->GetFsCacheManager()->DataCacheNumFetchSub(1);
