@@ -98,7 +98,7 @@ CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(uint64_t parent,
     curve::common::WriteLockGuard lg(mtx_);
     dCache_->Remove(key);
     MetaStatusCode ret = metaClient_->DeleteDentry(fsId_, parent, name);
-    if (ret != MetaStatusCode::OK) {
+    if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
         LOG(ERROR) << "metaClient_ DeleteInode failed, ret = " << ret
                    << ", parent = " << parent << ", name = " << name;
         return MetaStatusCodeToCurvefsErrCode(ret);

@@ -85,16 +85,19 @@ CURVEFS_ERROR FuseVolumeClient::CreateFs(void *userdata, FsInfo *fsInfo) {
     return CURVEFS_ERROR::OK;
 }
 
-void FuseVolumeClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
-    struct MountOption *mOpts = (struct MountOption *)userdata;
+CURVEFS_ERROR FuseVolumeClient::FuseOpInit(
+    void *userdata, struct fuse_conn_info *conn) {
+    struct MountOption *mOpts = (struct MountOption *) userdata;
     std::string volName = (mOpts->volume == nullptr) ? "" : mOpts->volume;
     std::string user = (mOpts->user == nullptr) ? "" : mOpts->user;
     CURVEFS_ERROR ret = blockDeviceClient_->Open(volName, user);
-    CHECK(CURVEFS_ERROR::OK == ret)
-        << "BlockDeviceClientImpl open failed, ret = " << ret
-        << ", volName = " << volName << ", user = " << user;
-    FuseClient::FuseOpInit(userdata, conn);
-    return;
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "BlockDeviceClientImpl open failed, ret = " << ret
+        << ", volName = " << volName
+        << ", user = " << user;
+        return ret;
+    }
+    return FuseClient::FuseOpInit(userdata, conn);
 }
 
 void FuseVolumeClient::FuseOpDestroy(void *userdata) {

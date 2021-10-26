@@ -130,7 +130,7 @@ TEST_F(TestDentryCacheManager, DeleteDentry) {
         .WillOnce(Return(MetaStatusCode::OK));
 
     CURVEFS_ERROR ret = dCacheManager_->DeleteDentry(parent, name);
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     ret = dCacheManager_->DeleteDentry(parent, name);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);

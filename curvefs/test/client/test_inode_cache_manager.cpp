@@ -140,7 +140,7 @@ TEST_F(TestInodeCacheManager, DeleteInode) {
         .WillOnce(Return(MetaStatusCode::OK));
 
     CURVEFS_ERROR ret = iCacheManager_->DeleteInode(inodeId);
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     ret = iCacheManager_->DeleteInode(inodeId);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);

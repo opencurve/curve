@@ -113,7 +113,10 @@ void UnInitFuseClient() {
 }
 
 void FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
-    g_ClientInstance->FuseOpInit(userdata, conn);
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpInit(userdata, conn);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(FATAL) << "FuseOpInit failed, ret = " << ret;
+    }
 }
 
 void FuseOpDestroy(void *userdata) {

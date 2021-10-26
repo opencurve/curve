@@ -114,7 +114,8 @@ void FuseClient::FlushInodeLoop() {
     }
 }
 
-void FuseClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
+CURVEFS_ERROR FuseClient::FuseOpInit(
+    void *userdata, struct fuse_conn_info *conn) {
     struct MountOption *mOpts = (struct MountOption *)userdata;
     std::string mountPointStr =
         (mOpts->mountPoint == nullptr) ? "" : mOpts->mountPoint;
@@ -123,7 +124,8 @@ void FuseClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
     std::string mountPointWithHost;
     int retVal = AddHostNameToMountPointStr(mountPointStr, &mountPointWithHost);
     if (retVal < 0) {
-        return;
+        LOG(ERROR) << "AddHostNameToMountPointStr failed, ret = "<< retVal;
+        return CURVEFS_ERROR::INTERNAL;
     }
 
     FsInfo fsInfo;
@@ -137,19 +139,26 @@ void FuseClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
             if (ret2 != CURVEFS_ERROR::OK) {
                 LOG(ERROR) << "CreateFs failed, ret = " << ret2
                            << ", fsName = " << fsName;
-                return;
+                return ret2;
             }
         } else {
             LOG(ERROR) << "GetFsInfo failed, ret = " << ret
                        << ", fsName = " << fsName;
-            return;
+            return CURVEFS_ERROR::INTERNAL;
         }
     }
+    auto find = std::find(fsInfo.mountpoints().begin(),
+        fsInfo.mountpoints().end(), mountPointWithHost);
+    if (find != fsInfo.mountpoints().end()) {
+        LOG(ERROR) << "MountFs found mountPoint exist";
+        return CURVEFS_ERROR::MOUNT_POINT_EXIST;
+    }
     ret = mdsClient_->MountFs(fsName, mountPointWithHost, &fsInfo);
-    if (ret != FSStatusCode::OK) {
-        LOG(ERROR) << "MountFs failed, ret = " << ret << ", fsName = " << fsName
+    if (ret != FSStatusCode::OK && ret != FSStatusCode::MOUNT_POINT_EXIST) {
+        LOG(ERROR) << "MountFs failed, ret = " << ret
+                   << ", fsName = " << fsName
                    << ", mountPoint = " << mountPointWithHost;
-        return;
+        return CURVEFS_ERROR::MOUNT_FAILED;
     }
     fsInfo_ = std::make_shared<FsInfo>(fsInfo);
     inodeManager_->SetFsId(fsInfo.fsid());
@@ -157,13 +166,17 @@ void FuseClient::FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
     LOG(INFO) << "Mount " << fsName << " on " << mountPointWithHost
               << " success!";
     init_ = true;
-    return;
+    return CURVEFS_ERROR::OK;
 }
 
 void FuseClient::FuseOpDestroy(void *userdata) {
     if (!init_) {
         return;
     }
+
+    FlushAll();
+    dirBuf_->DirBufferFreeAll();
+
     struct MountOption *mOpts = (struct MountOption *)userdata;
     std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
     std::string mountPointStr =
@@ -174,19 +187,17 @@ void FuseClient::FuseOpDestroy(void *userdata) {
     if (retVal < 0) {
         return;
     }
-    FSStatusCode ret = mdsClient_->UmountFs(fsName, mountPointWithHost);
-    if (ret != FSStatusCode::OK) {
+    FSStatusCode ret = mdsClient_->UmountFs(fsName,
+        mountPointWithHost);
+    if (ret != FSStatusCode::OK && ret != FSStatusCode::MOUNT_POINT_NOT_EXIST) {
         LOG(ERROR) << "UmountFs failed, ret = " << ret
                    << ", fsName = " << fsName
                    << ", mountPoint = " << mountPointWithHost;
         return;
     }
 
-    FlushAll();
-
-    dirBuf_->DirBufferFreeAll();
-
-    LOG(INFO) << "Umount " << fsName << " on " << mountPointWithHost
+    LOG(INFO) << "Umount " << fsName
+              << " on " << mountPointWithHost
               << " success!";
     return;
 }
@@ -335,8 +346,16 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
     ret = dentryManager_->CreateDentry(dentry);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
-                   << ", parent = " << parent << ", name = " << name
-                   << ", mode = " << mode;
+                  << ", parent = " << parent
+                  << ", name = " << name
+                  << ", mode = " << mode;
+
+        CURVEFS_ERROR ret2 =
+            inodeManager_->DeleteInode(inodeWrapper->GetInodeId());
+        if (ret2 != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "Also delete inode failed, ret = " << ret2
+                       << ", inodeid = " << inodeWrapper->GetInodeId();
+        }
         return ret;
     }
 

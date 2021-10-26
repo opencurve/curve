@@ -62,7 +62,8 @@ class FuseVolumeClient : public FuseClient {
 
     void UnInit() override;
 
-    void FuseOpInit(void *userdata, struct fuse_conn_info *conn) override;
+    CURVEFS_ERROR FuseOpInit(
+        void *userdata, struct fuse_conn_info *conn) override;
 
     void FuseOpDestroy(void *userdata) override;
 

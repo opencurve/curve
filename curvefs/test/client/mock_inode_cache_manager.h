@@ -24,6 +24,7 @@
 #define CURVEFS_TEST_CLIENT_MOCK_INODE_CACHE_MANAGER_H_
 
 #include <gmock/gmock.h>
+#include <memory>
 
 #include "curvefs/src/client/inode_cache_manager.h"
 

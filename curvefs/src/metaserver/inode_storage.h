@@ -25,6 +25,8 @@
 
 #include <functional>
 #include <unordered_map>
+#include <utility>
+
 #include "curvefs/proto/metaserver.pb.h"
 #include "src/common/concurrent/rw_lock.h"
 
