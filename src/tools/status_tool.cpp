@@ -963,6 +963,9 @@ void StatusTool::PrintCsLeftSizeStatistics(const std::string& name,
         return;
     }
     for (const auto& leftSize : poolLeftSize) {
+        if (leftSize.second.empty()) {
+            continue;
+        }
         uint64_t min = leftSize.second[0];
         uint64_t max = leftSize.second[0];
         double sum = 0;
