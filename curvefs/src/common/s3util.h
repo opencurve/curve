@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020 NetEase Inc.
+ *  Copyright (c) 2021 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -29,8 +29,9 @@ namespace curvefs {
 namespace common {
 namespace s3util {
 
-std::string GenObjName(uint64_t chunkid, uint64_t index, uint64_t compaction,
-                       uint64_t fsid, uint64_t inodeid) {
+inline std::string GenObjName(uint64_t chunkid, uint64_t index,
+                              uint64_t compaction, uint64_t fsid,
+                              uint64_t inodeid) {
     return std::to_string(chunkid) + "_" + std::to_string(index) + "_" +
            std::to_string(compaction) + "_" + std::to_string(fsid) + "_" +
            std::to_string(inodeid);

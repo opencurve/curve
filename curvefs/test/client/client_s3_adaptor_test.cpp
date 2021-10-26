@@ -108,6 +108,7 @@ class ClientS3AdaptorTest : public testing::Test {
         s3ClientAdaptor_ = new S3ClientAdaptorImpl();
         s3ClientAdaptor_->Init(option, &mockS3Client_, mockInodeManager,
                                mockMdsClient);
+        s3ClientAdaptor_->SetFsId(2);
         S3ClientAdaptorOption option2;
         option2.nearfullRatio = 100;
         option2.writeCacheMaxByte = 104857600;
@@ -116,6 +117,7 @@ class ClientS3AdaptorTest : public testing::Test {
         s3ClientAdaptor2_ = new S3ClientAdaptorImpl();
         s3ClientAdaptor2_->Init(option2, &mockS3Client_, mockInodeManager,
                                mockMdsClient);
+        s3ClientAdaptor2_->SetFsId(2);
     }
 
     void TearDown() override {

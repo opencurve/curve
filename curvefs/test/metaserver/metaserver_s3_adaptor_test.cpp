@@ -177,7 +177,7 @@ TEST_F(MetaserverS3AdaptorTest, test_delete_idempotence) {
     inode.mutable_s3chunkinfomap()->insert({0, *s3ChunkInfoList});
     // replace s3 delete
     // when name == fail_del_name, should be delete or not
-    const std::string fail_del_name = "2_0_1";
+    const std::string fail_del_name = "2_0_1_2_1";
     bool deleted = true;
     std::set<std::string> deleteObject;
     std::function<int(std::string)> delete_object =

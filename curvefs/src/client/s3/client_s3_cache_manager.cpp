@@ -25,15 +25,10 @@
 #include <utility>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
+#include "curvefs/src/common/s3util.h"
 
 namespace curvefs {
 namespace client {
-
-std::string GenerateObjectName(uint64_t chunkId, uint64_t blockIndex) {
-    std::ostringstream oss;
-    oss << chunkId << "_" << blockIndex << "_0";
-    return oss.str();
-}
 
 FileCacheManagerPtr FsCacheManager::FindFileCacheManager(uint64_t inodeId) {
     ReadLockGuard readLockGuard(rwLock_);
@@ -251,7 +246,8 @@ int FileCacheManager::Read(Inode *inode, uint64_t offset, uint64_t length,
             continue;
         }
         std::vector<S3ReadRequest> s3Requests;
-        GenerateS3Request(*iter, s3InfoListIter->second, dataBuf, &s3Requests);
+        GenerateS3Request(*iter, s3InfoListIter->second, dataBuf, &s3Requests,
+                          inode->fsid(), inode->inodeid());
         totalS3Requests.insert(totalS3Requests.end(), s3Requests.begin(),
                                s3Requests.end());
     }
@@ -267,7 +263,10 @@ int FileCacheManager::Read(Inode *inode, uint64_t offset, uint64_t length,
         VLOG(6) << "S3ReadRequest chunkid:" << tmp_req.chunkId
                 << ",offset:" << tmp_req.offset << ",len:" << tmp_req.len
                 << ",objectOffset:" << tmp_req.objectOffset
-                << ",readOffset:" << tmp_req.readOffset;
+                << ",readOffset:" << tmp_req.readOffset
+                << ",compaction:" << tmp_req.compaction
+                << ",fsid:" << tmp_req.fsId
+                << ",inodeid:" << tmp_req.inodeId;
     }
 
     std::vector<S3ReadResponse> responses;
@@ -329,7 +328,8 @@ int FileCacheManager::HandleReadRequest(
         VLOG(6) << "HandleReadRequest blockPos:" << blockPos << ",len:" << len
                 << ",blockIndex:" << blockIndex
                 << ",objectOffset:" << objectOffset << ",chunkid"
-                << iter->chunkId;
+                << iter->chunkId << ",fsid" << iter->fsId
+                << ",inodeid:" << iter->inodeId;
         while (len > 0) {
             if (blockPos + len > blockSize) {
                 n = blockSize - blockPos;
@@ -337,7 +337,9 @@ int FileCacheManager::HandleReadRequest(
                 n = len;
             }
             assert(blockPos >= objectOffset);
-            std::string name = GenerateObjectName(iter->chunkId, blockIndex);
+            std::string name = curvefs::common::s3util::GenObjName(
+                iter->chunkId, blockIndex, iter->compaction, iter->fsId,
+                iter->inodeId);
             if (async) {
                 VLOG(9) << "async read s3";
                 auto context = std::make_shared<GetObjectAsyncContext>();
@@ -396,7 +398,9 @@ int FileCacheManager::HandleReadRequest(
 void FileCacheManager::GenerateS3Request(ReadRequest request,
                                          const S3ChunkInfoList& s3ChunkInfoList,
                                          char* dataBuf,
-                                         std::vector<S3ReadRequest>* requests) {
+                                         std::vector<S3ReadRequest>* requests,
+                                         uint64_t fsId,
+                                         uint64_t inodeId) {
     uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
     std::vector<ObjectChunkInfo> chunks =
         GetReadChunks(s3ChunkInfoList, blockSize);
@@ -461,6 +465,9 @@ void FileCacheManager::GenerateS3Request(ReadRequest request,
                     s3Request.len = length;
                     s3Request.objectOffset = tmp.objectOffset;
                     s3Request.readOffset = request.bufOffset + readOffset;
+                    s3Request.compaction = tmp.s3ChunkInfo.compaction();
+                    s3Request.fsId = fsId;
+                    s3Request.inodeId = inodeId;
                     requests->push_back(s3Request);
                 }
                 readOffset += length;
@@ -475,6 +482,9 @@ void FileCacheManager::GenerateS3Request(ReadRequest request,
                     s3Request.len = chunkInfoLen;
                     s3Request.objectOffset = tmp.objectOffset;
                     s3Request.readOffset = request.bufOffset + readOffset;
+                    s3Request.compaction = tmp.s3ChunkInfo.compaction();
+                    s3Request.fsId = fsId;
+                    s3Request.inodeId = inodeId;
                     requests->push_back(s3Request);
                 }
                 readOffset += chunkInfoLen;
@@ -500,6 +510,9 @@ void FileCacheManager::GenerateS3Request(ReadRequest request,
                         s3Request.objectOffset = 0;
                     }
                     s3Request.readOffset = request.bufOffset + readOffset;
+                    s3Request.compaction = tmp.s3ChunkInfo.compaction();
+                    s3Request.fsId = fsId;
+                    s3Request.inodeId = inodeId;
                     requests->push_back(s3Request);
                 }
                 readOffset += length;
@@ -518,6 +531,9 @@ void FileCacheManager::GenerateS3Request(ReadRequest request,
                         s3Request.objectOffset = 0;
                     }
                     s3Request.readOffset = request.bufOffset + readOffset;
+                    s3Request.compaction = tmp.s3ChunkInfo.compaction();
+                    s3Request.fsId = fsId;
+                    s3Request.inodeId = inodeId;
                     requests->push_back(s3Request);
                 }
                 offset = chunkInfoOffset + chunkInfoLen;
@@ -1234,13 +1250,6 @@ void DataCache::Release() {
     return;
 }
 
-std::string DataCache::GenerateObjectName(uint64_t chunkId,
-                                          uint64_t blockIndex) {
-    std::ostringstream oss;
-    oss << chunkId << "_" << blockIndex << "_0";
-    return oss.str();
-}
-
 CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
     uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
     uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
@@ -1299,7 +1308,8 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
                 n = tmpLen;
             }
 
-            objectName = GenerateObjectName(chunkId, blockIndex);
+            objectName = curvefs::common::s3util::GenObjName(
+                chunkId, blockIndex, 0, fsId, inodeId);
             int ret = 0;
             if (s3ClientAdaptor_->EnableDiskCache()) {
                 ret = s3ClientAdaptor_->GetDiskCacheManager()->Write(

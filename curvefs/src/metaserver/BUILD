@@ -84,6 +84,7 @@ cc_library(
         "//external:gflags",
         "//external:glog",
         "//src/common:curve_s3_adapter",
+        "//curvefs/src/common:curvefs_common",
     ],
 )
 
