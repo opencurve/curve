@@ -43,7 +43,18 @@ int Heartbeat::Init(const HeartbeatOptions &options) {
     toStop_.store(false, std::memory_order_release);
     options_ = options;
 
-    storePath_ = curve::common::UriParser::GetPathFromUri(options_.storeUri);
+    std::string copysetDataPath =
+        curve::common::UriParser::GetPathFromUri(options_.storeUri);
+    // get the metaserver data dir, because copysets dir doesn't exist at beginning  // NOLINT
+    auto pathList = curve::common::UriParser::ParseDirPath(copysetDataPath);
+    if (pathList.size() > 1) {
+        auto it = pathList.end();
+        std::advance(it, -2);
+        storePath_ = *it;
+    } else {
+        LOG(ERROR) << "Get storePath faild.";
+        return -1;
+    }
 
     butil::ip_t msIp;
     if (butil::str2ip(options_.ip.c_str(), &msIp) < 0) {

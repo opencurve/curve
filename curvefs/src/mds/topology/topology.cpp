@@ -1065,35 +1065,75 @@ int TopologyImpl::GetOneRandomNumber(int start, int end) const {
     return dis(gen);
 }
 
-TopoStatusCode TopologyImpl::ChooseSinglePoolRandom(PoolIdType *out) const {
-    ReadLockGuard rlockPool(poolMutex_);
-    if (poolMap_.empty()) {
-        LOG(ERROR) << "Choose single pool failed, poolmap is empty.";
+TopoStatusCode TopologyImpl::ChooseSinglePoolRandom(PoolIdType *out,
+    const std::set<PoolIdType> &unavailablePools) const {
+    poolMutex_.RDLock();
+    std::unordered_map<PoolIdType, Pool> tmpPoolMap = poolMap_;
+    poolMutex_.Unlock();
+
+    // erase unavailable pools
+    for (const auto &pool : unavailablePools) {
+        auto it = tmpPoolMap.find(pool);
+        if (it != tmpPoolMap.end()) {
+            tmpPoolMap.erase(it);
+        }
+    }
+
+    if (tmpPoolMap.empty()) {
+        LOG(ERROR) << "Choose single pool failed, have no available pool.";
         return TopoStatusCode::TOPO_POOL_NOT_FOUND;
     }
-    int randomValue = GetOneRandomNumber(0, poolMap_.size() - 1);
-    auto iter = poolMap_.begin();
+
+    int randomValue = GetOneRandomNumber(0, tmpPoolMap.size() - 1);
+    auto iter = tmpPoolMap.begin();
     std::advance(iter, randomValue);
     *out = iter->second.GetId();
     return TopoStatusCode::TOPO_OK;
 }
 
 TopoStatusCode TopologyImpl::ChooseZonesInPool(PoolIdType poolId,
-                                               std::set<ZoneIdType> *zones,
-                                               int count) const {
+    std::set<ZoneIdType> *zones,
+    const std::set<ZoneIdType> &unavailableZones,
+    int count) const {
     std::list<ZoneIdType> zoneList = GetZoneInPool(poolId);
+
+    // erase unavailable zone
+    for (const auto &zone : unavailableZones) {
+        auto it = std::find(zoneList.begin(), zoneList.end(), zone);
+        if (it != zoneList.end()) {
+            zoneList.erase(it);
+        }
+        auto iter = zones->find(zone);
+        if (iter != zones->end()) {
+            zones->erase(iter);
+        }
+    }
+
+    // erase already get zones
+    auto it = zones->begin();
+    while (it != zones->end()) {
+        auto iter = std::find(zoneList.begin(), zoneList.end(), *it);
+        if (iter != zoneList.end()) {
+            zoneList.erase(iter);
+        }
+        it++;
+    }
+
     if (zoneList.size() < count) {
-        LOG(ERROR) << "Choose zone in pool failed,"
-                   << "the zone.size = " << zoneList.size()
-                   << ", the need count = " << count;
+        LOG(WARNING) << "Choose zone in pool failed,"
+                     << "the zone.size = " << zoneList.size()
+                     << ", the need count = " << count
+                     << ", the unavailableZone = " << unavailableZones.size();
         return TopoStatusCode::TOPO_ZONE_NOT_FOUND;
     }
 
-    while (zones->size() < count) {
+    while (count > 0) {
         auto iter = zoneList.begin();
         int randomValue = GetOneRandomNumber(0, zoneList.size() - 1);
         std::advance(iter, randomValue);
         zones->emplace(*iter);
+        zoneList.erase(iter);
+        count--;
     }
     return TopoStatusCode::TOPO_OK;
 }
@@ -1107,11 +1147,29 @@ TopoStatusCode TopologyImpl::ChooseSingleMetaServerInZone(
                    << "zoneId = " << zoneId;
         return TopoStatusCode::TOPO_METASERVER_NOT_FOUND;
     }
-    auto iter = metaServerList.begin();
-    int randomValue = GetOneRandomNumber(0, metaServerList.size() - 1);
-    std::advance(iter, randomValue);
-    *metaServerId = *iter;
-    return TopoStatusCode::TOPO_OK;
+
+    while (!metaServerList.empty()) {
+        auto iter = metaServerList.begin();
+        int randomValue = GetOneRandomNumber(0, metaServerList.size() - 1);
+        std::advance(iter, randomValue);
+        // check metaserver online status
+        MetaServer metaserver;
+        if (GetMetaServer(*iter, &metaserver)) {
+            // TODO(wanghai01): consider the space used by per copyset more details later  // NOLINT
+            uint64_t leftSpace =
+                    metaserver.GetMetaServerSpace().GetDiskCapacity() -
+                    metaserver.GetMetaServerSpace().GetDiskUsed();
+            if (ONLINE == metaserver.GetOnlineState() && leftSpace > 0) {
+                *metaServerId = *iter;
+                return TopoStatusCode::TOPO_OK;
+            }
+            metaServerList.erase(iter);
+        } else {
+            LOG(ERROR) << "GetMetaServer fail, metaserver id = " << *iter;
+            break;
+        }
+    }
+    return TopoStatusCode::TOPO_METASERVER_NOT_FOUND;
 }
 
 uint32_t TopologyImpl::GetPartitionNumberOfFs(FsIdType fsId) {

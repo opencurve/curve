@@ -242,7 +242,14 @@ int CurvefsBuildTopologyTool::InitServerZoneData() {
         zoneData.poolName = server[kPool].asString();
 
         serverDatas.emplace_back(serverData);
-        zoneDatas.emplace_back(zoneData);
+
+        if (std::find_if(zoneDatas.begin(), zoneDatas.end(),
+            [serverData](Zone& data) {
+            return (data.poolName == serverData.poolName) &&
+                   (data.name == serverData.zoneName);
+            }) == zoneDatas.end()) {
+            zoneDatas.emplace_back(zoneData);
+        }
     }
     return 0;
 }

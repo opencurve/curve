@@ -309,11 +309,14 @@ class MockTopology : public TopologyImpl {
                                                 CopySetFilter filter));
 
     // choose randomly
-    MOCK_CONST_METHOD1(ChooseSinglePoolRandom,
-                       TopoStatusCode(PoolIdType *data));
-    MOCK_CONST_METHOD3(ChooseZonesInPool,
+    MOCK_CONST_METHOD2(ChooseSinglePoolRandom,
+                       TopoStatusCode(PoolIdType *data,
+                       const std::set<PoolIdType> &unavailablePools));
+    MOCK_CONST_METHOD4(ChooseZonesInPool,
                        TopoStatusCode(PoolIdType poolId,
-                                      std::set<ZoneIdType> *zones, int count));
+                       std::set<ZoneIdType> *zones,
+                       const std::set<ZoneIdType> unavailableZones,
+                       int count));
     MOCK_CONST_METHOD2(ChooseSingleMetaServerInZone,
                        TopoStatusCode(ZoneIdType zoneId,
                                       MetaServerIdType *msId));

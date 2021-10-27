@@ -175,13 +175,15 @@ class Topology {
                                                       }) const = 0;
 
     // choose randomly
-    virtual TopoStatusCode ChooseSinglePoolRandom(PoolIdType *out) const = 0;
+    virtual TopoStatusCode ChooseSinglePoolRandom(PoolIdType *out,
+        const std::set<PoolIdType> &unavailablePools) const = 0;
 
     virtual TopoStatusCode ChooseZonesInPool(PoolIdType poolId,
-                                             std::set<ZoneIdType> *zones,
-                                             int count) const = 0;
-    virtual TopoStatusCode ChooseSingleMetaServerInZone(
-        ZoneIdType zoneId, MetaServerIdType *metaServerId) const = 0;
+                                  std::set<ZoneIdType> *zones,
+                                  const std::set<ZoneIdType> &unavailableZones,
+                                  int count) const = 0;
+    virtual TopoStatusCode ChooseSingleMetaServerInZone(ZoneIdType zoneId,
+                        MetaServerIdType *metaServerId) const = 0;
     virtual uint32_t GetPartitionNumberOfFs(FsIdType fsId) = 0;
 };
 
@@ -335,12 +337,14 @@ class TopologyImpl : public Topology {
                                               }) const override;
 
     // choose random
-    TopoStatusCode ChooseSinglePoolRandom(PoolIdType *out) const override;
+    TopoStatusCode ChooseSinglePoolRandom(PoolIdType *out,
+        const std::set<PoolIdType> &unavailablePools) const override;
     TopoStatusCode ChooseZonesInPool(PoolIdType poolId,
-                                     std::set<ZoneIdType> *zones,
-                                     int count) const override;
-    TopoStatusCode ChooseSingleMetaServerInZone(
-        ZoneIdType zoneId, MetaServerIdType *metaServerId) const override;
+        std::set<ZoneIdType> *zones,
+        const std::set<ZoneIdType> &unavailableZones,
+        int count) const override;
+    TopoStatusCode ChooseSingleMetaServerInZone(ZoneIdType zoneId,
+                            MetaServerIdType *metaServerId) const override;
     uint32_t GetPartitionNumberOfFs(FsIdType fsId);
 
     TopoStatusCode GetPoolIdByMetaserverId(MetaServerIdType id,
