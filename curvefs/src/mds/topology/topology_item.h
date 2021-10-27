@@ -233,7 +233,9 @@ class Server {
 
 class MetaServerSpace {
  public:
-    MetaServerSpace() : diskCapacity_(0), diskUsed_(0), memoryUsed_(0) {}
+    MetaServerSpace(uint64_t diskCapacity = 0, uint64_t diskUsed = 0,
+                    uint64_t memoryUsed = 0) : diskCapacity_(diskCapacity),
+                    diskUsed_(diskUsed), memoryUsed_(memoryUsed) {}
 
     void SetDiskCapacity(uint64_t capacity) { diskCapacity_ = capacity; }
     uint64_t GetDiskCapacity() const { return diskCapacity_; }

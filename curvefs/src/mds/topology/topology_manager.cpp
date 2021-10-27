@@ -693,55 +693,76 @@ void TopologyManager::CreatePartitions(const CreatePartitionRequest *request,
 
 TopoStatusCode TopologyManager::CreateCopyset() {
     PoolIdType poolId;
-    TopoStatusCode ret = topology_->ChooseSinglePoolRandom(&poolId);
-    if (TopoStatusCode::TOPO_OK != ret) {
-        LOG(ERROR) << "Select Pool failed when create partition"
-                   << "erro code = " << ret;
-        return ret;
-    }
-
-    Pool pool;
-    if (!topology_->GetPool(poolId, &pool)) {
-        LOG(ERROR) << "Get pool failed.";
-        return TopoStatusCode::TOPO_POOL_NOT_FOUND;
-    }
-
-    int replicaNum = pool.GetReplicaNum();
-    std::set<ZoneIdType> zones;
-    ret = topology_->ChooseZonesInPool(poolId, &zones, replicaNum);
-    if (TopoStatusCode::TOPO_OK != ret) {
-        LOG(ERROR) << "Select Zone failed when create partition"
-                   << "poolId = " << poolId << "erro code = " << ret;
-        return ret;
-    }
-
+    std::set<PoolIdType> unavailablePools;
     std::set<MetaServerIdType> metaServerIds;
     std::set<std::string> metaServerAddrs;
-    for (auto zoneId : zones) {
-        MetaServerIdType metaServerId;
-        ret = topology_->ChooseSingleMetaServerInZone(zoneId, &metaServerId);
+    int replicaNum;
+    do {
+        metaServerIds.clear();
+        metaServerAddrs.clear();
+        TopoStatusCode ret = topology_->ChooseSinglePoolRandom(&poolId,
+                                                    unavailablePools);
         if (TopoStatusCode::TOPO_OK != ret) {
-            LOG(ERROR) << "Select metaServer failed when create partition"
-                       << "zoneId = " << zoneId << "erro code = " << ret;
+            LOG(ERROR) << "Select Pool failed when create partition"
+                       << ", error msg = " << TopoStatusCode_Name(ret);
             return ret;
         }
-        MetaServer metaServer;
-        if (topology_->GetMetaServer(metaServerId, &metaServer)) {
-            metaServerAddrs.emplace(
-                metaServer.GetInternalHostIp() + ":" +
-                std::to_string(metaServer.GetInternalPort()));
-        } else {
-            LOG(ERROR) << "Get metaserver failed.";
-            return TopoStatusCode::TOPO_METASERVER_NOT_FOUND;
-        }
-        metaServerIds.emplace(metaServerId);
-    }
 
-    if (metaServerAddrs.size() != replicaNum) {
-        LOG(ERROR) << "Have invalid metaserver number when create copyset."
-                   << " metaserver number = " << metaServerAddrs.size()
-                   << ", replicanum = " << replicaNum;
-    }
+        Pool pool;
+        if (!topology_->GetPool(poolId, &pool)) {
+            LOG(ERROR) << "Get pool failed.";
+            return TopoStatusCode::TOPO_POOL_NOT_FOUND;
+        }
+
+        replicaNum = pool.GetReplicaNum();
+        int needZoneNum = replicaNum;
+        std::set<ZoneIdType> zones;
+        std::set<ZoneIdType> unavailableZones;
+        do {
+            ret = topology_->ChooseZonesInPool(poolId, &zones, unavailableZones,
+                                               needZoneNum);
+            if (TopoStatusCode::TOPO_OK != ret) {
+                LOG(WARNING) << "Select Zone failed when create partition"
+                             << "poolId = " << poolId
+                             << ", erro msg = " << TopoStatusCode_Name(ret);
+                unavailablePools.emplace(poolId);
+                break;
+            }
+
+            for (auto zoneId : zones) {
+                MetaServerIdType metaServerId;
+                ret = topology_->ChooseSingleMetaServerInZone(zoneId,
+                                                        &metaServerId);
+                if (TopoStatusCode::TOPO_OK != ret) {
+                    LOG(WARNING) << "Select metaServer failed when create"
+                                 << " partition zoneId = " << zoneId
+                                 << ", erro msg = " << TopoStatusCode_Name(ret);
+                    unavailableZones.emplace(zoneId);
+
+                    continue;
+                }
+
+                MetaServer metaServer;
+                if (topology_->GetMetaServer(metaServerId, &metaServer)) {
+                    metaServerAddrs.emplace(
+                        metaServer.GetInternalHostIp() + ":" +
+                        std::to_string(metaServer.GetInternalPort()));
+                } else {
+                    LOG(ERROR) << "Get metaserver failed.";
+                    return TopoStatusCode::TOPO_METASERVER_NOT_FOUND;
+                }
+                metaServerIds.emplace(metaServerId);
+            }
+            needZoneNum = replicaNum - metaServerAddrs.size();
+
+            if (metaServerAddrs.size() != replicaNum) {
+                LOG(WARNING) << "Have invalid metaserver number when create"
+                             << " copyset. metaserver number = "
+                             << metaServerAddrs.size()
+                             << ", replicanum = " << replicaNum;
+            }
+        } while (metaServerAddrs.size() < replicaNum);
+    } while (metaServerAddrs.size() < replicaNum);
 
     // send create copyset request
     std::set<CopySetIdType> copysetIds;
@@ -764,7 +785,7 @@ TopoStatusCode TopologyManager::CreateCopyset() {
             if (TopoStatusCode::TOPO_OK != ret) {
                 LOG(ERROR) << "Add copyset failed after create copyset."
                            << " poolId = " << poolId << ", copysetId = " << id
-                           << ", error code = " << ret;
+                           << ", error msg = " << TopoStatusCode_Name(ret);
                 return ret;
             }
         }
