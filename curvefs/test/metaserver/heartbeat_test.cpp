@@ -63,6 +63,7 @@ void RpcService(google::protobuf::RpcController *cntl_base,
 TEST_F(HeartbeatTest, testInitFail) {
     HeartbeatOptions options;
     Heartbeat heartbeat;
+    options.storeUri = "local://metaserver_data/copysets";
 
     // IP not ok
     ASSERT_EQ(heartbeat.Init(options), -1);
@@ -93,7 +94,7 @@ TEST_F(HeartbeatTest, test1) {
     options.port = 6000;
     options.mdsListenAddr = "127.0.0.1:6700";
     options.copysetNodeManager = &CopysetNodeManager::GetInstance();
-    options.storeUri = "local://./";
+    options.storeUri = "local://./metaserver_data/copysets";
     options.fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
 
     // mds service not start
@@ -115,7 +116,7 @@ TEST_F(HeartbeatTest, test_ok) {
     options.port = 6000;
     options.mdsListenAddr = "127.0.0.1:6700";
     options.copysetNodeManager = &CopysetNodeManager::GetInstance();
-    options.storeUri = "local://./";
+    options.storeUri = "local://./metaserver_data/copysets";
     options.fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
 
     // send heartbeat ok
@@ -154,7 +155,7 @@ TEST_F(HeartbeatTest, test_fail) {
     options.port = 6000;
     options.mdsListenAddr = "127.0.0.1:6700";
     options.copysetNodeManager = &CopysetNodeManager::GetInstance();
-    options.storeUri = "local://./";
+    options.storeUri = "local://./metaserver_data/copysets";
     options.fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
 
     // send heartbeat ok

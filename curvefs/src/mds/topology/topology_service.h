@@ -23,9 +23,10 @@
 #ifndef CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_SERVICE_H_
 #define CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_SERVICE_H_
 
+#include <brpc/server.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <brpc/server.h>
+
 #include <memory>
 
 #include "curvefs/src/mds/topology/topology_manager.h"
@@ -36,10 +37,8 @@ namespace topology {
 
 class TopologyServiceImpl : public TopologyService {
  public:
-    explicit TopologyServiceImpl(
-        std::shared_ptr<TopologyManager> topology)
-        : topologyManager_(topology) {
-    }
+    explicit TopologyServiceImpl(std::shared_ptr<TopologyManager> topology)
+        : topologyManager_(topology) {}
 
     virtual ~TopologyServiceImpl() {}
 
@@ -54,9 +53,9 @@ class TopologyServiceImpl : public TopologyService {
                                 google::protobuf::Closure* done);
 
     virtual void GetMetaServer(google::protobuf::RpcController* cntl_base,
-                              const GetMetaServerInfoRequest* request,
-                              GetMetaServerInfoResponse* response,
-                              google::protobuf::Closure* done);
+                               const GetMetaServerInfoRequest* request,
+                               GetMetaServerInfoResponse* response,
+                               google::protobuf::Closure* done);
 
     virtual void DeleteMetaServer(google::protobuf::RpcController* cntl_base,
                                   const DeleteMetaServerRequest* request,
@@ -69,9 +68,9 @@ class TopologyServiceImpl : public TopologyService {
                               google::protobuf::Closure* done);
 
     virtual void GetServer(google::protobuf::RpcController* cntl_base,
-                          const GetServerRequest* request,
-                          GetServerResponse* response,
-                          google::protobuf::Closure* done);
+                           const GetServerRequest* request,
+                           GetServerResponse* response,
+                           google::protobuf::Closure* done);
 
     virtual void DeleteServer(google::protobuf::RpcController* cntl_base,
                               const DeleteServerRequest* request,
@@ -124,31 +123,41 @@ class TopologyServiceImpl : public TopologyService {
                           google::protobuf::Closure* done);
 
     virtual void GetMetaServerListInCopysets(
-            google::protobuf::RpcController* cntl_base,
-            const GetMetaServerListInCopySetsRequest* request,
-            GetMetaServerListInCopySetsResponse* response,
-            google::protobuf::Closure* done);
+        google::protobuf::RpcController* cntl_base,
+        const GetMetaServerListInCopySetsRequest* request,
+        GetMetaServerListInCopySetsResponse* response,
+        google::protobuf::Closure* done);
 
     virtual void CreatePartition(::google::protobuf::RpcController* cntl_base,
-                         const CreatePartitionRequest* request,
-                         CreatePartitionResponse* response,
-                         ::google::protobuf::Closure* done);
+                                 const CreatePartitionRequest* request,
+                                 CreatePartitionResponse* response,
+                                 ::google::protobuf::Closure* done);
 
     virtual void CommitTx(::google::protobuf::RpcController* cntl_base,
-                  const CommitTxRequest* request,
-                  CommitTxResponse* response,
-                  ::google::protobuf::Closure* done);
+                          const CommitTxRequest* request,
+                          CommitTxResponse* response,
+                          ::google::protobuf::Closure* done);
 
     virtual void ListPartition(::google::protobuf::RpcController* cntl_base,
-                         const ListPartitionRequest* request,
-                         ListPartitionResponse* response,
-                         ::google::protobuf::Closure* done);
+                               const ListPartitionRequest* request,
+                               ListPartitionResponse* response,
+                               ::google::protobuf::Closure* done);
 
     virtual void GetCopysetOfPartition(
-            ::google::protobuf::RpcController* cntl_base,
-            const GetCopysetOfPartitionRequest* request,
-            GetCopysetOfPartitionResponse* response,
-            ::google::protobuf::Closure* done);
+        ::google::protobuf::RpcController* cntl_base,
+        const GetCopysetOfPartitionRequest* request,
+        GetCopysetOfPartitionResponse* response,
+        ::google::protobuf::Closure* done);
+
+    virtual void GetCopysetInfo(::google::protobuf::RpcController* cntl_base,
+                                const GetCopysetInfoRequest* request,
+                                GetCopysetInfoResponse* response,
+                                ::google::protobuf::Closure* done);
+
+    virtual void GetCopysetsInfo(::google::protobuf::RpcController* cntl_base,
+                                 const GetCopysetsInfoRequest* request,
+                                 GetCopysetsInfoResponse* response,
+                                 ::google::protobuf::Closure* done);
 
  private:
     std::shared_ptr<TopologyManager> topologyManager_;

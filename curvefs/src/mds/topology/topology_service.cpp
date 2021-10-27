@@ -22,7 +22,6 @@
 
 #include "curvefs/src/mds/topology/topology_service.h"
 
-
 namespace curvefs {
 namespace mds {
 namespace topology {
@@ -30,95 +29,77 @@ namespace topology {
 // RPC encapsulation for corresponding methods in topology_service manager
 void TopologyServiceImpl::RegistMetaServer(
     google::protobuf::RpcController* cntl_base,
-    const MetaServerRegistRequest* request,
-    MetaServerRegistResponse* response,
+    const MetaServerRegistRequest* request, MetaServerRegistResponse* response,
     google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [MetaServerRegistRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [MetaServerRegistRequest] " << request->DebugString();
 
     topologyManager_->RegistMetaServer(request, response);
 
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
                    << ". [MetaServerRegistResponse] "
                    << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [MetaServerRegistResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [MetaServerRegistResponse] " << response->DebugString();
     }
 }
 
 void TopologyServiceImpl::ListMetaServer(
     google::protobuf::RpcController* cntl_base,
-    const ListMetaServerRequest* request,
-    ListMetaServerResponse* response,
+    const ListMetaServerRequest* request, ListMetaServerResponse* response,
     google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [ListMetaServerRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [ListMetaServerRequest] " << request->DebugString();
 
     topologyManager_->ListMetaServer(request, response);
 
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [ListMetaServerResponse] "
-                   << response->DebugString();
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [ListMetaServerResponse] " << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [ListMetaServerResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [ListMetaServerResponse] " << response->DebugString();
     }
 }
 
 void TopologyServiceImpl::GetMetaServer(
     google::protobuf::RpcController* cntl_base,
     const GetMetaServerInfoRequest* request,
-    GetMetaServerInfoResponse* response,
-    google::protobuf::Closure* done) {
+    GetMetaServerInfoResponse* response, google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [GetMetaServerInfoRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [GetMetaServerInfoRequest] " << request->DebugString();
 
     topologyManager_->GetMetaServer(request, response);
 
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
                    << ". [GetMetaServerInfoResponse] "
                    << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
                   << ". [GetMetaServerInfoResponse] "
                   << response->DebugString();
     }
@@ -126,564 +107,480 @@ void TopologyServiceImpl::GetMetaServer(
 
 void TopologyServiceImpl::DeleteMetaServer(
     google::protobuf::RpcController* cntl_base,
-    const DeleteMetaServerRequest* request,
-    DeleteMetaServerResponse* response,
+    const DeleteMetaServerRequest* request, DeleteMetaServerResponse* response,
     google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [DeleteMetaServerRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [DeleteMetaServerRequest] " << request->DebugString();
 
     topologyManager_->DeleteMetaServer(request, response);
 
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
                    << ". [DeleteMetaServerResponse] "
                    << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [DeleteMetaServerResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [DeleteMetaServerResponse] " << response->DebugString();
     }
 }
 
 void TopologyServiceImpl::RegistServer(
     google::protobuf::RpcController* cntl_base,
-    const ServerRegistRequest* request,
-    ServerRegistResponse* response,
+    const ServerRegistRequest* request, ServerRegistResponse* response,
     google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [ServerRegistRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [ServerRegistRequest] " << request->DebugString();
 
     topologyManager_->RegistServer(request, response);
 
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [ServerRegistResponse] "
-                   << response->DebugString();
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [ServerRegistResponse] " << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [ServerRegistResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [ServerRegistResponse] " << response->DebugString();
     }
 }
 
-void TopologyServiceImpl::GetServer(
-    google::protobuf::RpcController* cntl_base,
-    const GetServerRequest* request,
-    GetServerResponse* response,
-    google::protobuf::Closure* done) {
+void TopologyServiceImpl::GetServer(google::protobuf::RpcController* cntl_base,
+                                    const GetServerRequest* request,
+                                    GetServerResponse* response,
+                                    google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [GetServerRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [GetServerRequest] " << request->DebugString();
 
     topologyManager_->GetServer(request, response);
 
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [GetServerResponse] "
-                   << response->DebugString();
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [GetServerResponse] " << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [GetServerResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [GetServerResponse] " << response->DebugString();
     }
 }
 
 void TopologyServiceImpl::DeleteServer(
     google::protobuf::RpcController* cntl_base,
-    const DeleteServerRequest* request,
-    DeleteServerResponse* response,
+    const DeleteServerRequest* request, DeleteServerResponse* response,
     google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [DeleteServerRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [DeleteServerRequest] " << request->DebugString();
 
     topologyManager_->DeleteServer(request, response);
 
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [DeleteServerResponse] "
-                   << response->DebugString();
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [DeleteServerResponse] " << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [DeleteServerResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [DeleteServerResponse] " << response->DebugString();
     }
 }
 
 void TopologyServiceImpl::ListZoneServer(
     google::protobuf::RpcController* cntl_base,
-    const ListZoneServerRequest* request,
-    ListZoneServerResponse* response,
+    const ListZoneServerRequest* request, ListZoneServerResponse* response,
     google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [ListZoneServerRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [ListZoneServerRequest] " << request->DebugString();
 
     topologyManager_->ListZoneServer(request, response);
 
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [ListZoneServerResponse] "
-                   << response->DebugString();
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [ListZoneServerResponse] " << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [ListZoneServerResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [ListZoneServerResponse] " << response->DebugString();
     }
 }
 
-void TopologyServiceImpl::CreateZone(
-    google::protobuf::RpcController* cntl_base,
-    const CreateZoneRequest* request,
-    CreateZoneResponse* response,
-    google::protobuf::Closure* done) {
+void TopologyServiceImpl::CreateZone(google::protobuf::RpcController* cntl_base,
+                                     const CreateZoneRequest* request,
+                                     CreateZoneResponse* response,
+                                     google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [CreateZone_ZoneRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [CreateZone_ZoneRequest] " << request->DebugString();
 
     topologyManager_->CreateZone(request, response);
 
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [CreateZone_ZoneResponse] "
-                   << response->DebugString();
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [CreateZone_ZoneResponse] " << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [CreateZone_ZoneResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [CreateZone_ZoneResponse] " << response->DebugString();
     }
 }
 
-void TopologyServiceImpl::DeleteZone(
-    google::protobuf::RpcController* cntl_base,
-    const DeleteZoneRequest* request,
-    DeleteZoneResponse* response,
-    google::protobuf::Closure* done) {
+void TopologyServiceImpl::DeleteZone(google::protobuf::RpcController* cntl_base,
+                                     const DeleteZoneRequest* request,
+                                     DeleteZoneResponse* response,
+                                     google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [DeleteZone_ZoneRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [DeleteZone_ZoneRequest] " << request->DebugString();
 
     topologyManager_->DeleteZone(request, response);
 
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [DeleteZone_ZoneResponse] "
-                   << response->DebugString();
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [DeleteZone_ZoneResponse] " << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [DeleteZone_ZoneResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [DeleteZone_ZoneResponse] " << response->DebugString();
     }
 }
 
-void TopologyServiceImpl::GetZone(
-    google::protobuf::RpcController* cntl_base,
-    const GetZoneRequest* request,
-    GetZoneResponse* response,
-    google::protobuf::Closure* done) {
+void TopologyServiceImpl::GetZone(google::protobuf::RpcController* cntl_base,
+                                  const GetZoneRequest* request,
+                                  GetZoneResponse* response,
+                                  google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [GetZone_ZoneRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [GetZone_ZoneRequest] " << request->DebugString();
 
     topologyManager_->GetZone(request, response);
 
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [GetZone_ZoneResponse] "
-                   << response->DebugString();
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [GetZone_ZoneResponse] " << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [GetZone_ZoneResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [GetZone_ZoneResponse] " << response->DebugString();
     }
 }
 
 void TopologyServiceImpl::ListPoolZone(
     google::protobuf::RpcController* cntl_base,
-    const ListPoolZoneRequest* request,
-    ListPoolZoneResponse* response,
+    const ListPoolZoneRequest* request, ListPoolZoneResponse* response,
     google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
 
-    brpc::Controller* cntl =
-        static_cast<brpc::Controller*>(cntl_base);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [ListPoolZoneRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [ListPoolZoneRequest] " << request->DebugString();
 
     topologyManager_->ListPoolZone(request, response);
 
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [ListPoolZoneResponse] "
-                   << response->DebugString();
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [ListPoolZoneResponse] " << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [ListPoolZoneResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [ListPoolZoneResponse] " << response->DebugString();
     }
 }
 
-void TopologyServiceImpl::CreatePool(
-    google::protobuf::RpcController* cntl_base,
-    const CreatePoolRequest* request,
-    CreatePoolResponse* response,
-    google::protobuf::Closure* done) {
+void TopologyServiceImpl::CreatePool(google::protobuf::RpcController* cntl_base,
+                                     const CreatePoolRequest* request,
+                                     CreatePoolResponse* response,
+                                     google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [CreatePool_PoolRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [CreatePool_PoolRequest] " << request->DebugString();
 
     topologyManager_->CreatePool(request, response);
 
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [CreatePool_PoolResponse] "
-                   << response->DebugString();
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [CreatePool_PoolResponse] " << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [CreatePool_PoolResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [CreatePool_PoolResponse] " << response->DebugString();
     }
 }
 
-void TopologyServiceImpl::DeletePool(
-    google::protobuf::RpcController* cntl_base,
-    const DeletePoolRequest* request,
-    DeletePoolResponse* response,
-    google::protobuf::Closure* done) {
+void TopologyServiceImpl::DeletePool(google::protobuf::RpcController* cntl_base,
+                                     const DeletePoolRequest* request,
+                                     DeletePoolResponse* response,
+                                     google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [DeletePool_PoolRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [DeletePool_PoolRequest] " << request->DebugString();
 
     topologyManager_->DeletePool(request, response);
 
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [DeletePool_PoolResponse] "
-                   << response->DebugString();
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [DeletePool_PoolResponse] " << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [DeletePool_PoolResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [DeletePool_PoolResponse] " << response->DebugString();
     }
 }
 
-void TopologyServiceImpl::GetPool(
-    google::protobuf::RpcController* cntl_base,
-    const GetPoolRequest* request,
-    GetPoolResponse* response,
-    google::protobuf::Closure* done) {
+void TopologyServiceImpl::GetPool(google::protobuf::RpcController* cntl_base,
+                                  const GetPoolRequest* request,
+                                  GetPoolResponse* response,
+                                  google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [GetPool_PoolRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [GetPool_PoolRequest] " << request->DebugString();
 
     topologyManager_->GetPool(request, response);
 
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [GetPool_PoolResponse] "
-                   << response->DebugString();
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [GetPool_PoolResponse] " << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [GetPool_PoolResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [GetPool_PoolResponse] " << response->DebugString();
     }
 }
 
-void TopologyServiceImpl::ListPool(
-    google::protobuf::RpcController* cntl_base,
-    const ListPoolRequest* request,
-    ListPoolResponse* response,
-    google::protobuf::Closure* done) {
+void TopologyServiceImpl::ListPool(google::protobuf::RpcController* cntl_base,
+                                   const ListPoolRequest* request,
+                                   ListPoolResponse* response,
+                                   google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [ListPoolRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [ListPoolRequest] " << request->DebugString();
 
     topologyManager_->ListPool(request, response);
 
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [ListPoolResponse] "
-                   << response->DebugString();
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [ListPoolResponse] " << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [ListPoolResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [ListPoolResponse] " << response->DebugString();
     }
 }
 
 void TopologyServiceImpl::GetMetaServerListInCopysets(
-        google::protobuf::RpcController* cntl_base,
-        const GetMetaServerListInCopySetsRequest* request,
-        GetMetaServerListInCopySetsResponse* response,
-        google::protobuf::Closure* done) {
+    google::protobuf::RpcController* cntl_base,
+    const GetMetaServerListInCopySetsRequest* request,
+    GetMetaServerListInCopySetsResponse* response,
+    google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
               << ". [GetMetaServerListInCopySetsRequest] "
               << request->DebugString();
 
     topologyManager_->GetMetaServerListInCopysets(request, response);
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
                    << ". [GetMetaServerListInCopySetsResponse] "
                    << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
                   << ". [GetMetaServerListInCopySetsResponse] "
                   << response->DebugString();
     }
 }
 
 void TopologyServiceImpl::CreatePartition(
-        ::google::protobuf::RpcController* cntl_base,
-        const CreatePartitionRequest* request,
-        CreatePartitionResponse* response,
-        ::google::protobuf::Closure* done) {
+    ::google::protobuf::RpcController* cntl_base,
+    const CreatePartitionRequest* request, CreatePartitionResponse* response,
+    ::google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [CreatePartitionRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [CreatePartitionRequest] " << request->DebugString();
 
     topologyManager_->CreatePartitions(request, response);
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [CreatePartitionResponse] "
-                   << response->DebugString();
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [CreatePartitionResponse] " << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [CreatePartitionResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [CreatePartitionResponse] " << response->DebugString();
     }
 }
 
-void TopologyServiceImpl::CommitTx(
-        ::google::protobuf::RpcController* cntl_base,
-        const CommitTxRequest* request,
-        CommitTxResponse* response,
-        ::google::protobuf::Closure* done) {
+void TopologyServiceImpl::CommitTx(::google::protobuf::RpcController* cntl_base,
+                                   const CommitTxRequest* request,
+                                   CommitTxResponse* response,
+                                   ::google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [CommitTxRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [CommitTxRequest] " << request->DebugString();
 
     topologyManager_->CommitTx(request, response);
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [CommitTxResponse] "
-                   << response->DebugString();
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [CommitTxResponse] " << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [CommitTxResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [CommitTxResponse] " << response->DebugString();
     }
 }
 
 void TopologyServiceImpl::ListPartition(
-        ::google::protobuf::RpcController* cntl_base,
-        const ListPartitionRequest* request,
-        ListPartitionResponse* response,
-        ::google::protobuf::Closure* done) {
+    ::google::protobuf::RpcController* cntl_base,
+    const ListPartitionRequest* request, ListPartitionResponse* response,
+    ::google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [ListPartitionRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [ListPartitionRequest] " << request->DebugString();
 
     topologyManager_->ListPartition(request, response);
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
-                   << ". [ListPartitionResponse] "
-                   << response->DebugString();
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [ListPartitionResponse] " << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [ListPartitionResponse] "
-                  << response->DebugString();
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [ListPartitionResponse] " << response->DebugString();
     }
 }
 
 void TopologyServiceImpl::GetCopysetOfPartition(
-        ::google::protobuf::RpcController* cntl_base,
-        const GetCopysetOfPartitionRequest* request,
-        GetCopysetOfPartitionResponse* response,
-        ::google::protobuf::Closure* done) {
+    ::google::protobuf::RpcController* cntl_base,
+    const GetCopysetOfPartitionRequest* request,
+    GetCopysetOfPartitionResponse* response,
+    ::google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [GetCopysetOfPartitionRequest] "
-              << request->DebugString();
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [GetCopysetOfPartitionRequest] " << request->DebugString();
 
     topologyManager_->GetCopysetOfPartition(request, response);
     if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
-                   << "] from " << cntl->local_side()
-                   << " to " << cntl->remote_side()
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
                    << ". [GetCopysetOfPartitionRequest] "
                    << response->DebugString();
     } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
                   << ". [GetCopysetOfPartitionRequest] "
                   << response->DebugString();
     }
+}
+
+void TopologyServiceImpl::GetCopysetInfo(
+    ::google::protobuf::RpcController* cntl_base,
+    const GetCopysetInfoRequest* request, GetCopysetInfoResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard done_guard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [GetCopysetInfoRequest] " << request->DebugString();
+
+    topologyManager_->GetCopysetInfo(request, response);
+    if (TopoStatusCode::TOPO_OK != response->statuscode()) {
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id() << "] from "
+                   << cntl->local_side() << " to " << cntl->remote_side()
+                   << ". [GetCopysetInfoRequest] " << response->DebugString();
+    } else {
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+                  << cntl->local_side() << " to " << cntl->remote_side()
+                  << ". [GetCopysetInfoRequest] " << response->DebugString();
+    }
+}
+
+void TopologyServiceImpl::GetCopysetsInfo(
+    ::google::protobuf::RpcController* cntl_base,
+    const GetCopysetsInfoRequest* request, GetCopysetsInfoResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard done_guard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [GetCopysetsInfoRequest] " << request->DebugString();
+
+    topologyManager_->GetCopysetsInfo(request, response);
 }
 
 }  // namespace topology

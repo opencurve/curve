@@ -16,7 +16,6 @@
 
 syntax="proto2";
 import "curvefs/proto/common.proto";
-import "curvefs/proto/heartbeat.proto";
 package curvefs.mds.topology;
 option cc_generic_services = true;
 
@@ -381,12 +380,27 @@ message CommitTxResponse {
 }
 
 message GetCopysetInfoRequest {
-    required uint32 copysetId = 1;
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+}
+
+message CopysetInfo {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    repeated common.Peer peers = 3;
 }
 
 message GetCopysetInfoResponse {
     required TopoStatusCode statusCode = 1;
-    required curvefs.mds.heartbeat.CopySetInfo copysetInfo = 2;
+    optional CopysetInfo copysetInfo = 2;
+}
+
+message GetCopysetsInfoRequest {
+    repeated GetCopysetInfoRequest copysets= 1;
+}
+
+message GetCopysetsInfoResponse {
+    repeated GetCopysetInfoResponse copysetsInfo = 1;
 }
 
 service TopologyService {
@@ -417,4 +431,5 @@ service TopologyService {
     rpc GetCopysetOfPartition(GetCopysetOfPartitionRequest) returns (GetCopysetOfPartitionResponse);
     rpc CommitTx(CommitTxRequest) returns (CommitTxResponse);
     rpc GetCopysetInfo (GetCopysetInfoRequest) returns (GetCopysetInfoResponse);
+    rpc GetCopysetsInfo (GetCopysetsInfoRequest) returns (GetCopysetsInfoResponse);
 }

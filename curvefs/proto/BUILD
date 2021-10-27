@@ -85,10 +85,7 @@ cc_proto_library(
 proto_library(
     name = "curvefs_topology_proto",
     srcs = ["topology.proto"],
-    deps = [
-        ":curvefs_common_proto",
-        ":curvefs_heartbeat_proto",
-    ],
+    deps = [ ":curvefs_common_proto"],
 )
 
 cc_proto_library(

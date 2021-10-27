@@ -143,7 +143,7 @@ class TestTopologyManager : public ::testing::Test {
         const std::string &hostIp = "testInternalIp", uint32_t port = 0,
         const std::string &externalHostIp = "testExternalIp",
         uint32_t externalPort = 0,
-        OnlineState onlineState = OnlineState::OFFLINE) {
+        OnlineState onlineState = OnlineState::ONLINE) {
         MetaServer ms(id, hostname, token, serverId, hostIp, port,
                       externalHostIp, externalPort,
                       onlineState);
@@ -1661,7 +1661,7 @@ TEST_F(TestTopologyManager,
 }
 
 TEST_F(TestTopologyManager,
-       test_CreatePartitionWithOutAvailableCopyset_Sucess) {
+       test_CreatePartitionWithOutAvailableCopyset_Success) {
     PoolIdType poolId = 0x11;
     CopySetIdType copysetId = 0x51;
     PartitionIdType partitionId = 0x61;
@@ -1686,6 +1686,9 @@ TEST_F(TestTopologyManager,
                          8888);
     PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
                          8888);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x41);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x42);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x43);
 
     EXPECT_CALL(*idGenerator_, GenCopySetId(_)).WillOnce(Return(copysetId));
     EXPECT_CALL(*mockMetaserverClient_, CreateCopySet(_, _, _))
@@ -1714,6 +1717,242 @@ TEST_F(TestTopologyManager,
 
     CopySetInfo info;
     CopySetKey key(poolId, copysetId);
+    ASSERT_TRUE(topology_->GetCopySet(key, &info));
+    ASSERT_EQ(copysetId, info.GetId());
+    ASSERT_EQ(1, info.GetPartitionNum());
+}
+
+TEST_F(TestTopologyManager,
+       test_CreatePartitionWithOutAvailableCopyset_HaveNoAvailableMetaserver) {
+    PoolIdType poolId = 0x11;
+    CopySetIdType copysetId = 0x51;
+    PartitionIdType partitionId = 0x61;
+
+    Pool::RedundanceAndPlaceMentPolicy policy;
+    policy.replicaNum = 3;
+    policy.copysetNum = 0;
+    policy.zoneNum = 3;
+    PrepareAddPool(poolId, "pool1", policy);
+    PrepareAddZone(0x21, "zone1", poolId);
+    PrepareAddZone(0x22, "zone2", poolId);
+    PrepareAddZone(0x23, "zone3", poolId);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888, OnlineState::OFFLINE);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7778, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
+                         8888);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x41);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x42);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x43);
+
+    CreatePartitionRequest request;
+    CreatePartitionResponse response;
+    request.set_fsid(0x01);
+    request.set_count(1);
+    serviceManager_->CreatePartitions(&request, &response);
+
+    ASSERT_EQ(TopoStatusCode::TOPO_CREATE_COPYSET_ERROR, response.statuscode());
+}
+
+TEST_F(TestTopologyManager,
+       test_CreatePartitionWithOutAvailableCopyset_HaveOfflineMetaserver) {
+    PoolIdType poolId = 0x11;
+    CopySetIdType copysetId = 0x51;
+    PartitionIdType partitionId = 0x61;
+
+    Pool::RedundanceAndPlaceMentPolicy policy;
+    policy.replicaNum = 3;
+    policy.copysetNum = 0;
+    policy.zoneNum = 3;
+    PrepareAddPool(poolId, "pool1", policy);
+    PrepareAddZone(0x21, "zone1", poolId);
+    PrepareAddZone(0x22, "zone2", poolId);
+    PrepareAddZone(0x23, "zone3", poolId);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888, OnlineState::OFFLINE);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x31, "127.0.0.1", 7778, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x32, "127.0.0.1", 7779, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x44, "ms4", "token4", 0x33, "127.0.0.1", 7780, "ip2",
+                         8888);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x41);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x42);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x43);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x44);
+
+    EXPECT_CALL(*idGenerator_, GenCopySetId(_)).WillOnce(Return(copysetId));
+    EXPECT_CALL(*mockMetaserverClient_, CreateCopySet(_, _, _))
+        .WillOnce(Return(FSStatusCode::OK));
+    EXPECT_CALL(*storage_, StorageCopySet(_)).WillOnce(Return(true));
+    EXPECT_CALL(*idGenerator_, GenPartitionId())
+        .WillOnce(Return(partitionId));
+    EXPECT_CALL(*storage_, StoragePartition(_))
+        .WillOnce(Return(true));
+
+    EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
+        .WillOnce(Return(FSStatusCode::OK));
+
+    CreatePartitionRequest request;
+    CreatePartitionResponse response;
+    request.set_fsid(0x01);
+    request.set_count(1);
+    serviceManager_->CreatePartitions(&request, &response);
+
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+    ASSERT_EQ(1, response.partitioninfolist().size());
+
+    Partition partition;
+    ASSERT_TRUE(topology_->GetPartition(partitionId, &partition));
+    ASSERT_EQ(copysetId, partition.GetCopySetId());
+
+    CopySetInfo info;
+    CopySetKey key(poolId, copysetId);
+    ASSERT_TRUE(topology_->GetCopySet(key, &info));
+    ASSERT_EQ(copysetId, info.GetId());
+    ASSERT_EQ(1, info.GetPartitionNum());
+}
+
+TEST_F(TestTopologyManager,
+       test_CreatePartitionWithOutAvailableCopyset_HaveOfflineMetaserver1) {
+    PoolIdType poolId = 0x11;
+    CopySetIdType copysetId = 0x51;
+    PartitionIdType partitionId = 0x61;
+
+    Pool::RedundanceAndPlaceMentPolicy policy;
+    policy.replicaNum = 3;
+    policy.copysetNum = 0;
+    policy.zoneNum = 3;
+    PrepareAddPool(poolId, "pool1", policy);
+    PrepareAddZone(0x21, "zone1", poolId);
+    PrepareAddZone(0x22, "zone2", poolId);
+    PrepareAddZone(0x23, "zone3", poolId);
+    PrepareAddZone(0x24, "zone4", poolId);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddServer(0x34, "server4", "127.0.0.1", 0, "127.0.0.1", 0, 0x24,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888, OnlineState::OFFLINE);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7778, "ip2",
+                         8888, OnlineState::OFFLINE);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x44, "ms4", "token4", 0x34, "127.0.0.1", 7780, "ip2",
+                         8888);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x41);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x42);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x43);
+
+    CreatePartitionRequest request;
+    CreatePartitionResponse response;
+    request.set_fsid(0x01);
+    request.set_count(1);
+    serviceManager_->CreatePartitions(&request, &response);
+
+    ASSERT_EQ(TopoStatusCode::TOPO_CREATE_COPYSET_ERROR, response.statuscode());
+}
+
+TEST_F(TestTopologyManager,
+       test_CreatePartitionWithOutAvailableCopyset_HaveOfflineMetaserver2) {
+    PoolIdType poolId = 0x11;
+    PoolIdType poolId1 = 0x12;
+    CopySetIdType copysetId = 0x51;
+    PartitionIdType partitionId = 0x61;
+    Pool::RedundanceAndPlaceMentPolicy policy;
+    policy.replicaNum = 3;
+    policy.copysetNum = 0;
+    policy.zoneNum = 3;
+    PrepareAddPool(poolId, "pool1", policy);
+    PrepareAddZone(0x21, "zone1", poolId);
+    PrepareAddZone(0x22, "zone2", poolId);
+    PrepareAddZone(0x23, "zone3", poolId);
+    PrepareAddZone(0x24, "zone4", poolId);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddServer(0x34, "server4", "127.0.0.1", 0, "127.0.0.1", 0, 0x24,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888, OnlineState::OFFLINE);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7778, "ip2",
+                         8888, OnlineState::OFFLINE);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x44, "ms4", "token4", 0x34, "127.0.0.1", 7780, "ip2",
+                         8888);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x41);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x42);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x43);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x44);
+
+    PrepareAddPool(poolId1, "pool2", policy);
+    PrepareAddZone(0x25, "zone5", poolId1);
+    PrepareAddZone(0x26, "zone6", poolId1);
+    PrepareAddZone(0x27, "zone7", poolId1);
+    PrepareAddServer(0x35, "server5", "127.0.0.1", 0, "127.0.0.1", 0, 0x25,
+                     0x12);
+    PrepareAddServer(0x36, "server6", "127.0.0.1", 0, "127.0.0.1", 0, 0x26,
+                     0x12);
+    PrepareAddServer(0x37, "server7", "127.0.0.1", 0, "127.0.0.1", 0, 0x27,
+                     0x12);
+    PrepareAddMetaServer(0x45, "ms5", "token5", 0x35, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x46, "ms6", "token6", 0x36, "127.0.0.1", 7778, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x47, "ms7", "token7", 0x37, "127.0.0.1", 7779, "ip2",
+                         8888);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x45);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x46);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x47);
+
+    EXPECT_CALL(*idGenerator_, GenCopySetId(_)).WillOnce(Return(copysetId));
+    EXPECT_CALL(*mockMetaserverClient_, CreateCopySet(_, _, _))
+        .WillOnce(Return(FSStatusCode::OK));
+    EXPECT_CALL(*storage_, StorageCopySet(_)).WillOnce(Return(true));
+    EXPECT_CALL(*idGenerator_, GenPartitionId())
+        .WillOnce(Return(partitionId));
+    EXPECT_CALL(*storage_, StoragePartition(_))
+        .WillOnce(Return(true));
+
+    EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
+        .WillOnce(Return(FSStatusCode::OK));
+
+    CreatePartitionRequest request;
+    CreatePartitionResponse response;
+    request.set_fsid(0x01);
+    request.set_count(1);
+    serviceManager_->CreatePartitions(&request, &response);
+
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+    ASSERT_EQ(1, response.partitioninfolist().size());
+
+    Partition partition;
+    ASSERT_TRUE(topology_->GetPartition(partitionId, &partition));
+    ASSERT_EQ(copysetId, partition.GetCopySetId());
+
+    CopySetInfo info;
+    CopySetKey key(poolId1, copysetId);
     ASSERT_TRUE(topology_->GetCopySet(key, &info));
     ASSERT_EQ(copysetId, info.GetId());
     ASSERT_EQ(1, info.GetPartitionNum());
