@@ -310,6 +310,10 @@ def destroy_curvefs():
     try:
         cmd = "cd curvefs && make umount"
         ret = shell_operator.run_exec(cmd)
+        test_client = config.fs_test_client[0]
+        ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+        ori_cmd = "ps -ef|grep fuse |grep -v grep | awk '{print $2}' |sudo kill -9"
+        shell_operator.ssh_exec(ssh, ori_cmd)
         cmd = "cd curvefs && make stop"
         ret = shell_operator.run_exec(cmd)
         cmd = "cd curvefs && make clean"

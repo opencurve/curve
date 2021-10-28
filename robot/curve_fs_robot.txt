@@ -121,6 +121,28 @@ inject kill all etcd
     check fs cluster ok
     [Teardown]    test start process  etcd
 
+check cp/mv data consistency
+    [Tags]    P1    base    first release   failover
+    checksum data
+
+check umount date consistency
+    [Tags]    P1    base    first release   failover
+    wait op finish
+    sleep  60
+    get test dir file md5
+#    umount test dir
+#    wait fuse exit
+#    mount test dir
+#    check test dir file md5
+#    [Teardown]   mount test dir
+
+test_multi_mdtest
+    [Tags]    P1    base    first release   failover
+    ${numjobs}   evaluate  int(16)
+    ${filenum}   evaluate  int(1000)
+    ${filesize}   evaluate  int(1024)
+    multi_mdtest_exec   ${numjobs}   ${filenum}   ${filesize}
+    check fs cluster ok
 
 *** Keywords ***
 
@@ -146,18 +168,8 @@ start fs op test
      start fs fio
 
 clean failover env
-     checksum data
-     wait op finish
-     sleep  60
-     check umount data consistency
      check log
 #     destroy curvefs
-
-check umount data consistency
-     get test dir file md5
-     umount test dir
-     wait fuse exit
-     check test dir file md5
 
 check log
      check fs io error
