@@ -76,8 +76,9 @@ def write_check_data():
         time.sleep(5)
         ori_cmd = "md5sum " + test_dir + name + ".0.0"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        md5 = "".join(rs[1]).strip()
+        md5 = "".join(rs[1]).split(" ")[0]
         config.md5_check.append(md5)
+    logger.info("file md5 is %s"%config.md5_check)
     ssh.close()
 
 def cp_check_data():
@@ -99,8 +100,9 @@ def checksum_data():
     for name in config.fs_mount_dir:
         ori_cmd = "md5sum " + test_dir + name  + '/' + name + ".0.0"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        md5 = "".join(rs[1]).strip()
+        md5 = "".join(rs[1]).split(" ")[0]
         check_list.append(md5)
+    logger.info("check file md5 is %s"%check_list)
     assert check_list == config.md5_check,"md5 check fail,begin is %s,end is %s"%(config.md5_check,check_list)
 
 def start_fs_fio():
@@ -243,3 +245,10 @@ def check_test_dir_file_md5():
     assert rs[3] == 0,"diff md5 file fail, output %s"%rs[1]
     assert rs[1] == [],"check fio test dir file md5 fail,diff is %s"%rs[1]
 
+def multi_mdtest_exec(numjobs,filenum,filesize):
+    test_client = config.fs_test_client[0]
+    ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+    test_dir = os.path.join(config.fs_mount_path,config.fs_mount_dir[1])
+    ori_cmd = "mpirun --allow-run-as-root -np %d mdtest -n %d -w %d -e %d -y -u -i 3 -N 1 -F -R -d %s"%(numjobs,filenum,filesize,filesize)
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    assert rs[3] == 0,"mdtest error, output %s"%rs[1]
