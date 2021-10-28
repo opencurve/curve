@@ -45,8 +45,8 @@ void FuseS3Client::UnInit() {
     FuseClient::UnInit();
 }
 
-CURVEFS_ERROR FuseS3Client::FuseOpInit(
-    void* userdata, struct fuse_conn_info* conn) {
+CURVEFS_ERROR FuseS3Client::FuseOpInit(void *userdata,
+                                       struct fuse_conn_info *conn) {
     CURVEFS_ERROR ret = FuseClient::FuseOpInit(userdata, conn);
     if (init_) {
         s3Adaptor_->SetFsId(fsInfo_->fsid());
@@ -88,6 +88,10 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     if (wRet < 0) {
         LOG(ERROR) << "s3Adaptor_ write failed, ret = " << wRet;
         return CURVEFS_ERROR::INTERNAL;
+    }
+
+    if (fsMetric_.get() != nullptr) {
+        fsMetric_->userWrite.bps.count << wRet;
     }
 
     std::shared_ptr<InodeWrapper> inodeWrapper;
@@ -156,6 +160,10 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
         return CURVEFS_ERROR::INTERNAL;
     }
     *rSize = rRet;
+
+    if (fsMetric_.get() != nullptr) {
+        fsMetric_->userRead.bps.count << rRet;
+    }
 
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
     Inode newInode = inodeWrapper->GetInodeUnlocked();

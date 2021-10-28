@@ -68,6 +68,7 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
                                                const std::string &name,
                                                Dentry *out) {
     auto task = RPCTask {
+        metaserverClientMetric_.getDentry.qps.count << 1;
         GetDentryResponse response;
         GetDentryRequest request;
         request.set_poolid(poolID);
@@ -82,6 +83,7 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
         stub.GetDentry(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
+            metaserverClientMetric_.getDentry.eps.count << 1;
             LOG(WARNING) << "GetDentry Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -125,6 +127,8 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
                                                 uint32_t count,
                                                 std::list<Dentry> *dentryList) {
     auto task = RPCTask {
+        metaserverClientMetric_.listDentry.qps.count << 1;
+
         ListDentryRequest request;
         ListDentryResponse response;
         request.set_poolid(poolID);
@@ -140,6 +144,7 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
         stub.ListDentry(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
+            metaserverClientMetric_.listDentry.eps.count << 1;
             LOG(WARNING) << "ListDentry Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -183,6 +188,7 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
 
 MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
     auto task = RPCTask {
+        metaserverClientMetric_.createDentry.qps.count << 1;
         CreateDentryResponse response;
         CreateDentryRequest request;
         request.set_poolid(poolID);
@@ -205,6 +211,7 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
                 << oss.str();
 
         if (cntl->Failed()) {
+            metaserverClientMetric_.createDentry.eps.count << 1;
             LOG(WARNING) << "CreateDentry Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -247,6 +254,7 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
                                                   uint64_t inodeid,
                                                   const std::string &name) {
     auto task = RPCTask {
+        metaserverClientMetric_.deleteDentry.qps.count << 1;
         DeleteDentryResponse response;
         DeleteDentryRequest request;
         request.set_poolid(poolID);
@@ -261,6 +269,7 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
         stub.DeleteDentry(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
+            metaserverClientMetric_.deleteDentry.eps.count << 1;
             LOG(WARNING) << "DeleteDentry Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -299,9 +308,10 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
 MetaStatusCode
 MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
     auto task = RPCTask {
+        metaserverClientMetric_.prepareRenameTx.qps.count << 1;
+
         PrepareRenameTxRequest request;
         PrepareRenameTxResponse response;
-
         request.set_poolid(poolID);
         request.set_copysetid(copysetID);
         request.set_partitionid(partitionID);
@@ -311,6 +321,7 @@ MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
         stub.PrepareRenameTx(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
+            metaserverClientMetric_.prepareRenameTx.eps.count << 1;
             LOG(WARNING) << "PrepareRenameTx failed"
                          << ", errorCode = " << cntl->ErrorCode()
                          << ", errorText = " << cntl->ErrorText()
@@ -348,6 +359,7 @@ MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
 MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
                                               Inode *out) {
     auto task = RPCTask {
+        metaserverClientMetric_.getInode.qps.count << 1;
         GetInodeRequest request;
         GetInodeResponse response;
         request.set_poolid(poolID);
@@ -360,6 +372,7 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
         stub.GetInode(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
+            metaserverClientMetric_.getInode.eps.count << 1;
             LOG(WARNING) << "GetInode Failed, errorcode = " << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
                          << ", log id = " << cntl->log_id();
@@ -368,9 +381,9 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
 
         MetaStatusCode ret = response.statuscode();
         if (ret != MetaStatusCode::OK) {
-            LOG(WARNING) << "GetInode: inodeid:" << inodeid
-                         << ", errcode = " << ret
-                         << ", errmsg = " << MetaStatusCode_Name(ret);
+            LOG_IF(WARNING, ret != MetaStatusCode::NOT_FOUND)
+                << "GetInode: inodeid:" << inodeid << ", errcode = " << ret
+                << ", errmsg = " << MetaStatusCode_Name(ret);
         } else if (response.has_inode() && response.has_appliedindex()) {
             out->CopyFrom(response.inode());
 
@@ -396,6 +409,7 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
 
 MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode &inode) {
     auto task = RPCTask {
+        metaserverClientMetric_.updateInode.qps.count << 1;
         UpdateInodeResponse response;
         UpdateInodeRequest request;
         request.set_poolid(poolID);
@@ -425,6 +439,7 @@ MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode &inode) {
         stub.UpdateInode(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
+            metaserverClientMetric_.updateInode.eps.count << 1;
             LOG(WARNING) << "UpdateInode Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -461,6 +476,7 @@ MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode &inode) {
 MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
                                                  Inode *out) {
     auto task = RPCTask {
+        metaserverClientMetric_.createInode.qps.count << 1;
         CreateInodeResponse response;
         CreateInodeRequest request;
         request.set_poolid(poolID);
@@ -477,6 +493,7 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
         stub.CreateInode(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
+            metaserverClientMetric_.createInode.eps.count << 1;
             LOG(WARNING) << "CreateInode Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -520,6 +537,7 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
 MetaStatusCode MetaServerClientImpl::DeleteInode(uint32_t fsId,
                                                  uint64_t inodeid) {
     auto task = RPCTask {
+        metaserverClientMetric_.deleteInode.qps.count << 1;
         DeleteInodeResponse response;
         DeleteInodeRequest request;
         request.set_poolid(poolID);
@@ -531,6 +549,7 @@ MetaStatusCode MetaServerClientImpl::DeleteInode(uint32_t fsId,
         stub.DeleteInode(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
+            metaserverClientMetric_.deleteInode.eps.count << 1;
             LOG(WARNING) << "DeleteInode Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()

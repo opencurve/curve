@@ -133,9 +133,11 @@ struct FuseClientOption {
     uint64_t dCacheLruSize;
     bool enableICacheMetrics;
     bool enableDCacheMetrics;
+
+    uint32_t dummyServerStartPort;
 };
 
-void InitFuseClientOption(Configuration* conf, FuseClientOption* clientOption);
+void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption);
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs
