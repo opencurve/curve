@@ -2,7 +2,7 @@
   - name: generate template
     shell: >
       bash {{ playbook_dir }}/util/tmpl.sh
-      {{ project_config_dsv }}
+      '{{ project_config_dsv }}'
       {{ project_config_src }}/{{ item }}
       {{ project_root_src }}/conf/{{ item }}
     delegate_to: localhost

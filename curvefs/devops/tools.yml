@@ -13,3 +13,5 @@
         -op=build_topology
         -confPath={{ project_root_dest }}/conf/tools.conf
       tags: [topo]
+
+    - name: umount fs

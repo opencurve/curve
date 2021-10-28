@@ -47,7 +47,7 @@ step 2: edit ansible config file, inventory file and client config file:
     * You can specify which hosts to deploy which services
     * Please specify the client mount path (`client_mount_path`), the path will create automatic if it not exist
     * Please specify the filesystem name which client mount (`client_mount_fsname`), the filesystem will create automatic if it not exist
-    * Please specify the S3 related field (`s3.ak`、`s3.sk`、`s3.endpoint`、`s3.bucket_name`) which used to store data
+    * Please specify the S3 related field (`s3_ak`、`s3_sk`、`s3_endpoint`、`s3_bucket_name`) which used to store data
     * The `tools` only used to create topology, you can select one of `mds` hosts
 
 step 3: deploy all and mount curve filesystem:
@@ -93,6 +93,7 @@ HINT
 
 * The default install prefix of projects is `devops/projects`
 * If you want to modify the service's config, you can modify the config under `conf` directory, then run `make config`
+* Please run `make stop` to ensure that the service has stopped before run `make clean`
 * You can use `make status` to show service status, include active status, listen address, memory usage and etc:
 
 ```

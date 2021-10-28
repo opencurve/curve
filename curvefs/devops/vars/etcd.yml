@@ -16,7 +16,7 @@ project_root_src: "{{ playbook_dir }}/projects/etcd"
 project_root_dest: "{{ project_home }}/etcd"
 project_log_root: "{{ curvefs_project_log_home }}/etcd"
 project_config_src: "{{ playbook_dir | dirname }}/conf"
-project_config_dsv: ":"
+project_config_dsv: ": "
 project_core_method: "{{ curvefs_core_method }}"
 project_start_with_deamon: True
 project_daemon: "{{ project_start_with_deamon | ternary('--daemon', '') }}"

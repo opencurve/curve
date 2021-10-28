@@ -11,6 +11,6 @@
       shell: "{{ project_mount_command | echo('mount command:') }}"
       tags: [mount]
 
-    - name: umount fs
-      shell: "fusermount3 -u {{ curvefs_client_mount_path }}"
-      tags: [umount]
+    #- name: umount fs
+    #  shell: "fusermount3 -u {{ curvefs_client_mount_path }}"
+    #  tags: [umount]

@@ -1,14 +1,14 @@
 ---
+- include: core.yml
+  tags:
+    - core
+
 - include: check.yml
   tags:
     - check
     - start
     - restart
     - mount
-
-- include: core.yml
-  tags:
-    - core
 
 - include: config.yml
   tags:

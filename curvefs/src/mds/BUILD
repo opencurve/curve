@@ -71,5 +71,6 @@ cc_binary(
     visibility = ["//visibility:public"],
     deps = [
         "//curvefs/src/mds:curvefs_mds_lib",
+        "@etcdclient//:etcdclient",
     ],
 )

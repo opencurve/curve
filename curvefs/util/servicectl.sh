@@ -273,11 +273,7 @@ restart() {
         die "(pid=$pid): not running\n"
     fi
 
-    stop
-    if [[ $status -eq 2 && $g_daemon -eq 0 ]]; then
-        sleep 1  # wait for daemon exit
-    fi
-    start
+    stop && sleep 1 && start
 }
 
 version() {
