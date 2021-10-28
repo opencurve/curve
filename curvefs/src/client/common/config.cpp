@@ -154,7 +154,7 @@ void InitExtentManagerOption(Configuration *conf,
                               &extentManagerOpt->preAllocSize);
 }
 
-void SetBrpcOpt(Configuration* conf) {
+void SetBrpcOpt(Configuration *conf) {
     curve::common::GflagsLoadValueFromConfIfCmdNotSet dummy;
     dummy.Load(conf, "defer_close_second", "rpc.defer.close.second",
                &brpc::FLAGS_defer_close_second);
@@ -190,6 +190,9 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
                               &clientOption->enableICacheMetrics);
     conf->GetValueFatalIfFail("fuseClient.enableDCacheMetrics",
                               &clientOption->enableDCacheMetrics);
+
+    conf->GetValueFatalIfFail("client.dummyserver.startport",
+                              &clientOption->dummyServerStartPort);
 
     SetBrpcOpt(conf);
 }

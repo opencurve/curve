@@ -617,9 +617,9 @@ void FileCacheManager::GenerateS3Request(ReadRequest request,
                     s3Request.inodeId = inodeId;
                     requests->push_back(s3Request);
                 }
-                offset = chunkInfoOffset + chunkInfoLen;
                 length -= chunkInfoOffset + chunkInfoLen - offset;
                 readOffset += chunkInfoOffset + chunkInfoLen - offset;
+                offset = chunkInfoOffset + chunkInfoLen;
             }
             /*
                            -----  read block

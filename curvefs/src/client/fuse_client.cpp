@@ -34,6 +34,10 @@
 #include "curvefs/src/client/extent_manager.h"
 #include "curvefs/src/client/client_operator.h"
 #include "src/common/timeutility.h"
+#include "src/common/dummyserver.h"
+#include "src/client/client_common.h"
+
+#define PORT_LIMIT 65535
 
 using ::curvefs::common::S3Info;
 using ::curvefs::common::Volume;
@@ -68,6 +72,20 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     auto metaCache = std::make_shared<MetaCache>();
     metaCache->Init(option.metaCacheOpt, cli2Client, mdsClient_);
     auto channelManager = std::make_shared<ChannelManager<MetaserverID>>();
+
+    uint32_t listenPort = 0;
+    if (!curve::common::StartBrpcDummyserver(option.dummyServerStartPort,
+                                             PORT_LIMIT, &listenPort)) {
+        return CURVEFS_ERROR::INTERNAL;
+    }
+
+    std::string localIp;
+    if (!curve::common::NetCommon::GetLocalIP(&localIp)) {
+        LOG(ERROR) << "Get local ip failed!";
+        return CURVEFS_ERROR::INTERNAL;
+    }
+    curve::client::ClientDummyServerInfo::GetInstance().SetPort(listenPort);
+    curve::client::ClientDummyServerInfo::GetInstance().SetIP(localIp);
 
     MetaStatusCode ret2 =
         metaClient_->Init(option.excutorOpt, metaCache, channelManager);
@@ -114,8 +132,8 @@ void FuseClient::FlushInodeLoop() {
     }
 }
 
-CURVEFS_ERROR FuseClient::FuseOpInit(
-    void *userdata, struct fuse_conn_info *conn) {
+CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
+                                     struct fuse_conn_info *conn) {
     struct MountOption *mOpts = (struct MountOption *)userdata;
     std::string mountPointStr =
         (mOpts->mountPoint == nullptr) ? "" : mOpts->mountPoint;
@@ -124,7 +142,7 @@ CURVEFS_ERROR FuseClient::FuseOpInit(
     std::string mountPointWithHost;
     int retVal = AddHostNameToMountPointStr(mountPointStr, &mountPointWithHost);
     if (retVal < 0) {
-        LOG(ERROR) << "AddHostNameToMountPointStr failed, ret = "<< retVal;
+        LOG(ERROR) << "AddHostNameToMountPointStr failed, ret = " << retVal;
         return CURVEFS_ERROR::INTERNAL;
     }
 
@@ -148,15 +166,14 @@ CURVEFS_ERROR FuseClient::FuseOpInit(
         }
     }
     auto find = std::find(fsInfo.mountpoints().begin(),
-        fsInfo.mountpoints().end(), mountPointWithHost);
+                          fsInfo.mountpoints().end(), mountPointWithHost);
     if (find != fsInfo.mountpoints().end()) {
         LOG(ERROR) << "MountFs found mountPoint exist";
         return CURVEFS_ERROR::MOUNT_POINT_EXIST;
     }
     ret = mdsClient_->MountFs(fsName, mountPointWithHost, &fsInfo);
     if (ret != FSStatusCode::OK && ret != FSStatusCode::MOUNT_POINT_EXIST) {
-        LOG(ERROR) << "MountFs failed, ret = " << ret
-                   << ", fsName = " << fsName
+        LOG(ERROR) << "MountFs failed, ret = " << ret << ", fsName = " << fsName
                    << ", mountPoint = " << mountPointWithHost;
         return CURVEFS_ERROR::MOUNT_FAILED;
     }
@@ -165,7 +182,11 @@ CURVEFS_ERROR FuseClient::FuseOpInit(
     dentryManager_->SetFsId(fsInfo.fsid());
     LOG(INFO) << "Mount " << fsName << " on " << mountPointWithHost
               << " success!";
+
+    fsMetric_ = std::make_shared<FSMetric>(fsName);
+
     init_ = true;
+
     return CURVEFS_ERROR::OK;
 }
 
@@ -187,8 +208,7 @@ void FuseClient::FuseOpDestroy(void *userdata) {
     if (retVal < 0) {
         return;
     }
-    FSStatusCode ret = mdsClient_->UmountFs(fsName,
-        mountPointWithHost);
+    FSStatusCode ret = mdsClient_->UmountFs(fsName, mountPointWithHost);
     if (ret != FSStatusCode::OK && ret != FSStatusCode::MOUNT_POINT_NOT_EXIST) {
         LOG(ERROR) << "UmountFs failed, ret = " << ret
                    << ", fsName = " << fsName
@@ -196,8 +216,7 @@ void FuseClient::FuseOpDestroy(void *userdata) {
         return;
     }
 
-    LOG(INFO) << "Umount " << fsName
-              << " on " << mountPointWithHost
+    LOG(INFO) << "Umount " << fsName << " on " << mountPointWithHost
               << " success!";
     return;
 }
@@ -346,9 +365,8 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
     ret = dentryManager_->CreateDentry(dentry);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
-                  << ", parent = " << parent
-                  << ", name = " << name
-                  << ", mode = " << mode;
+                   << ", parent = " << parent << ", name = " << name
+                   << ", mode = " << mode;
 
         CURVEFS_ERROR ret2 =
             inodeManager_->DeleteInode(inodeWrapper->GetInodeId());

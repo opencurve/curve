@@ -41,6 +41,7 @@
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/common/fast_align.h"
+#include "curvefs/src/client/metric/client_metric.h"
 #include "src/common/concurrent/concurrent.h"
 
 #define DirectIOAlignemnt 512
@@ -50,6 +51,7 @@ using ::curve::common::InterruptibleSleeper;
 using ::curve::common::Thread;
 using ::curvefs::common::FSType;
 using ::curvefs::metaserver::DentryFlag;
+using ::curvefs::client::metric::FSMetric;
 
 namespace curvefs {
 namespace client {
@@ -252,6 +254,8 @@ class FuseClient {
 
     // init flags
     bool init_;
+
+    std::shared_ptr<FSMetric> fsMetric_;
 
  private:
     MDSBaseClient* mdsBase_;

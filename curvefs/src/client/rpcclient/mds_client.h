@@ -34,6 +34,7 @@
 #include "curvefs/src/client/rpcclient/base_client.h"
 #include "src/client/mds_client.h"
 #include "src/client/metacache_struct.h"
+#include "curvefs/src/client/metric/client_metric.h"
 
 using ::curve::client::CopysetID;
 using ::curve::client::CopysetInfo;
@@ -42,6 +43,7 @@ using ::curve::client::LogicPoolID;
 using ::curve::client::MDSClient;
 using ::curve::client::PeerAddr;
 using ::curvefs::client::common::MetaserverID;
+using ::curvefs::client::metric::MDSClientMetric;
 using ::curvefs::common::PartitionInfo;
 using ::curvefs::common::Peer;
 using ::curvefs::common::Volume;
@@ -105,12 +107,13 @@ class MdsClient {
 
     virtual bool ListPartition(uint32_t fsID,
                                std::vector<PartitionInfo> *partitionInfos) = 0;
-    virtual FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t* chunkId) = 0;
+    virtual FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t *chunkId) = 0;
 };
 
 class MdsClientImpl : public MdsClient {
  public:
-    MdsClientImpl() {}
+    explicit MdsClientImpl(const std::string &metricPrefix = "")
+        : mdsClientMetric_(metricPrefix) {}
 
     FSStatusCode Init(const ::curve::client::MetaServerOption &mdsOpt,
                       MDSBaseClient *baseclient) override;
@@ -154,7 +157,7 @@ class MdsClientImpl : public MdsClient {
     bool ListPartition(uint32_t fsID,
                        std::vector<PartitionInfo> *partitionInfos) override;
 
-    FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t* chunkId) override;
+    FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t *chunkId) override;
 
  private:
     FSStatusCode ReturnError(int retcode);
@@ -163,6 +166,8 @@ class MdsClientImpl : public MdsClient {
     MDSBaseClient *mdsbasecli_;
     ::curve::client::RPCExcutorRetryPolicy rpcexcutor_;
     ::curve::client::MetaServerOption mdsOpt_;
+
+    MDSClientMetric mdsClientMetric_;
 };
 
 }  // namespace rpcclient
