@@ -67,6 +67,8 @@ class DiskCacheManager {
                      const char* buf, uint64_t length,
                      bool force = true);
     void AsyncUploadEnqueue(const std::string objName);
+    virtual int WriteReadDirect(const std::string fileName,
+                        const char* buf, uint64_t length);
     int ReadDiskFile(const std::string name,
                     char* buf, uint64_t offset, uint64_t length);
     int LinkWriteToRead(const std::string fileName,

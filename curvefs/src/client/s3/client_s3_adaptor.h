@@ -22,6 +22,8 @@
 #ifndef CURVEFS_SRC_CLIENT_S3_CLIENT_S3_ADAPTOR_H_
 #define CURVEFS_SRC_CLIENT_S3_CLIENT_S3_ADAPTOR_H_
 
+#include <bthread/execution_queue.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -30,6 +32,7 @@
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/proto/space.pb.h"
+#include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/inode_cache_manager.h"
@@ -43,6 +46,7 @@ namespace client {
 
 using ::curve::common::Thread;
 using curvefs::client::common::S3ClientAdaptorOption;
+using curvefs::client::common::DiskCacheType;
 using curvefs::metaserver::Inode;
 using curvefs::metaserver::S3ChunkInfo;
 using curvefs::metaserver::S3ChunkInfoList;
@@ -111,8 +115,25 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
         return fsCacheManager_;
     }
     uint32_t GetFlushInterval() { return flushIntervalSec_; }
-    bool EnableDiskCache() { return enableDiskCache_; }
     S3Client *GetS3Client() { return client_; }
+    uint32_t GetPrefetchBlocks() {
+        return prefetchBlocks_;
+    }
+    uint32_t GetDiskCacheType() {
+        return diskCacheType_;
+    }
+    bool DisableDiskCache() {
+        return diskCacheType_ == DiskCacheType::Disable;
+    }
+    bool HasDiskCache() {
+        return diskCacheType_ != DiskCacheType::Disable;
+    }
+    bool IsReadCache() {
+        return diskCacheType_ == DiskCacheType::OnlyRead;
+    }
+    bool IsReadWriteCache() {
+        return diskCacheType_ == DiskCacheType::ReadWrite;
+    }
     std::shared_ptr<InodeCacheManager> GetInodeCacheManager() {
         return inodeManager_;
     }
@@ -134,13 +155,33 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     void SetFsId(uint32_t fsId) { fsId_ = fsId; }
     uint32_t GetFsId() { return fsId_; }
 
+
  private:
     void BackGroundFlush();
+
+    using AsyncDownloadTask = std::function<void()>;
+
+    static int ExecAsyncDownloadTask(void* meta, bthread::TaskIterator<AsyncDownloadTask>& iter);  // NOLINT
+
+ public:
+    void PushAsyncTask(const AsyncDownloadTask& task) {
+        static thread_local unsigned int seed = time(nullptr);
+
+        int idx = rand_r(&seed) % downloadTaskQueues_.size();
+        int rc = bthread::execution_queue_execute(
+                   downloadTaskQueues_[idx], task);
+
+        if (CURVE_UNLIKELY(rc != 0)) {
+            task();
+        }
+    }
 
  private:
     S3Client *client_;
     uint64_t blockSize_;
     uint64_t chunkSize_;
+    uint32_t prefetchBlocks_;
+    uint32_t prefetchExecQueueNum_;
     std::string allocateServerEps_;
     uint32_t flushIntervalSec_;
     uint32_t memCacheNearfullRatio_;
@@ -153,9 +194,11 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     std::shared_ptr<FsCacheManager> fsCacheManager_;
     std::shared_ptr<InodeCacheManager> inodeManager_;
     std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl_;
-    bool enableDiskCache_;
+    DiskCacheType diskCacheType_;
     std::shared_ptr<MdsClient> mdsClient_;
     uint32_t fsId_;
+    std::vector<bthread::ExecutionQueueId<AsyncDownloadTask>>
+      downloadTaskQueues_;
 };
 
 }  // namespace client

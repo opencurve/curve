@@ -39,7 +39,6 @@ DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
     cacheWrite_ = cacheWrite;
     cacheRead_ = cacheRead;
     isRunning_ = false;
-    trimCheckIntervalSec_ = 5;
 }
 
 int DiskCacheManager::Init(S3Client *client,
@@ -52,7 +51,8 @@ int DiskCacheManager::Init(S3Client *client,
     safeRatio_ = option.diskCacheOpt.safeRatio;
     cacheDir_ = option.diskCacheOpt.cacheDir;
 
-    cacheWrite_->Init(client_, posixWrapper_, cacheDir_);
+    cacheWrite_->Init(client_, posixWrapper_, cacheDir_,
+      option.diskCacheOpt.asyncLoadPeriodMs);
     cacheRead_->Init(posixWrapper_, cacheDir_);
     int ret;
     ret = CreateDir();
@@ -159,6 +159,11 @@ void DiskCacheManager::AsyncUploadEnqueue(const std::string objName) {
 int DiskCacheManager::ReadDiskFile(const std::string name, char *buf,
                                    uint64_t offset, uint64_t length) {
     return cacheRead_->ReadDiskFile(name, buf, offset, length);
+}
+
+int DiskCacheManager::WriteReadDirect(const std::string fileName,
+                 const char* buf, uint64_t length) {
+    return cacheRead_->WriteDiskFile(fileName, buf, length);
 }
 
 int DiskCacheManager::LinkWriteToRead(const std::string fileName,

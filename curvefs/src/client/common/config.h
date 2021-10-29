@@ -25,12 +25,14 @@
 
 #include <string>
 
+#include "curvefs/src/client/common/common.h"
 #include "src/client/config_info.h"
 #include "src/common/configuration.h"
 #include "src/common/s3_adapter.h"
 
 using ::curve::common::Configuration;
 using ::curve::common::S3AdapterOption;
+using ::curvefs::client::common::DiskCacheType;
 
 namespace curvefs {
 namespace client {
@@ -68,13 +70,15 @@ struct SpaceAllocServerOption {
 };
 
 struct DiskCacheOption {
-    bool enableDiskCache;
+    DiskCacheType diskCacheType;
     // cache disk dir
     std::string cacheDir;
     // if true, call fdatasync after write
     bool forceFlush;
     // trim interval
     uint64_t trimCheckIntervalSec;
+    // async load interval
+    uint64_t asyncLoadPeriodMs;
     // trim start if disk usage over fullRatio
     uint64_t fullRatio;
     // trim finish until disk usage below safeRatio
@@ -84,6 +88,8 @@ struct DiskCacheOption {
 struct S3ClientAdaptorOption {
     uint64_t blockSize;
     uint64_t chunkSize;
+    uint32_t prefetchBlocks;
+    uint32_t prefetchExecQueueNum;
     uint32_t intervalSec;
     uint32_t flushIntervalSec;
     uint64_t writeCacheMaxByte;

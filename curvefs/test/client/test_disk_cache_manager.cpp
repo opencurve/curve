@@ -64,7 +64,7 @@ class TestDiskCacheManager : public ::testing::Test {
         diskCacheManager_ = std::make_shared<DiskCacheManager>(
                           wrapper, diskCacheWrite_, diskCacheRead_);
         diskCacheRead_->Init(wrapper, "/mnt/test");
-        diskCacheWrite_->Init(client, wrapper, "/mnt/test");
+        diskCacheWrite_->Init(client, wrapper, "/mnt/test", 1);
     }
 
     virtual void TearDown() {
@@ -386,6 +386,17 @@ TEST_F(TestDiskCacheManager, TrimCache_5) {
      int ret = diskCacheManager_->TrimRun();
      sleep(6);
      diskCacheManager_->TrimStop();
+}
+
+TEST_F(TestDiskCacheManager, WriteReadDirect) {
+    std::string fileName = "test";
+    std::string buf = "test";
+
+    EXPECT_CALL(*diskCacheRead_, WriteDiskFile(_, _, _))
+          .WillOnce(Return(0));
+    int ret = diskCacheManager_->WriteReadDirect(fileName,
+            const_cast<char*>(buf.c_str()), 10);
+    ASSERT_EQ(0, ret);
 }
 
 }  // namespace client

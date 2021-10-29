@@ -40,6 +40,7 @@ namespace curvefs {
 namespace client {
 
 using curvefs::common::PosixWrapper;
+using curve::common::InterruptibleSleeper;
 
 class DiskCacheWrite : public DiskCacheBase {
  public:
@@ -51,7 +52,7 @@ class DiskCacheWrite : public DiskCacheBase {
        AsyncUploadStop();
     }
     void Init(S3Client *client, std::shared_ptr<PosixWrapper> posixWrapper,
-              const std::string cacheDir);
+              const std::string cacheDir, uint64_t asyncLoadPeriodMs);
     /**
      * @brief write obj to write cahce disk
      * @param[in] client S3Client
@@ -97,7 +98,8 @@ class DiskCacheWrite : public DiskCacheBase {
     std::list<std::string> waitUpload_;
     bthread::Mutex mtx_;
     bthread::ConditionVariable cond_;
-
+    InterruptibleSleeper sleeper_;
+    uint64_t asyncLoadPeriodMs_;
     S3Client *client_;
 
     // file system operation encapsulation

@@ -194,6 +194,50 @@ TEST_F(TestDiskCacheRead, LoadAllCacheReadFile) {
     ASSERT_EQ(0, ret);
 }
 
+TEST_F(TestDiskCacheRead, WriteDiskFile) {
+    EXPECT_CALL(*wrapper_, open(_, _))
+        .WillOnce(Return(-1));
+    std::string fileName = "test";
+    uint64_t length = 10;
+    int ret = diskCacheRead_->WriteDiskFile(fileName,
+                                 const_cast<char*>(fileName.c_str()),
+                                 length);
+    ASSERT_EQ(-1, ret);
+
+    EXPECT_CALL(*wrapper_, open(_, _))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*wrapper_, write(_, _, length))
+        .WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper_, close(_))
+        .WillOnce(Return(0));
+    ret = diskCacheRead_->WriteDiskFile(fileName,
+                                 const_cast<char*>(fileName.c_str()),
+                                 length);
+    ASSERT_EQ(-1, ret);
+
+    EXPECT_CALL(*wrapper_, open(_, _))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*wrapper_, write(_, _, length))
+        .WillOnce(Return(length+1));
+    EXPECT_CALL(*wrapper_, close(_))
+        .WillOnce(Return(-1));
+    ret = diskCacheRead_->WriteDiskFile(fileName,
+                                 const_cast<char*>(fileName.c_str()),
+                                 length);
+    ASSERT_EQ(-1, ret);
+
+    EXPECT_CALL(*wrapper_, open(_, _))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*wrapper_, write(_, _, length))
+        .WillOnce(Return(length));
+    EXPECT_CALL(*wrapper_, close(_))
+        .WillOnce(Return(0));
+    ret = diskCacheRead_->WriteDiskFile(fileName,
+                                 const_cast<char*>(fileName.c_str()),
+                                 length);
+    ASSERT_EQ(length, ret);
+}
+
 }  // namespace client
 }  // namespace curvefs
 

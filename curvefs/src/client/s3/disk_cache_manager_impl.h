@@ -31,6 +31,7 @@
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
 #include "curvefs/src/common/wrap_posix.h"
+#include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/s3/client_s3.h"
 #include "curvefs/src/client/s3/disk_cache_write.h"
 #include "curvefs/src/client/s3/disk_cache_read.h"
@@ -44,8 +45,9 @@ using curvefs::common::PosixWrapper;
 class S3ClientAdaptorOption;
 
 struct DiskCacheOption {
-    bool enableDiskCache;
+    DiskCacheType diskCacheType;
     uint64_t trimCheckIntervalSec;
+    uint64_t asyncLoadPeriodMs;
     uint64_t fullRatio;
     uint64_t safeRatio;
     std::string cacheDir;
@@ -95,6 +97,8 @@ class DiskCacheManagerImpl {
     int UmountDiskCache();
 
     bool IsDiskCacheFull();
+    int WriteReadDirect(const std::string fileName,
+                        const char* buf, uint64_t length);
 
  private:
     int WriteDiskFile(const std::string name, const char* buf, uint64_t length);
