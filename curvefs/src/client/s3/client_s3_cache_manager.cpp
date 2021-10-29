@@ -318,16 +318,19 @@ int FileCacheManager::HandleReadRequest(
         uint64_t objectOffset = iter->objectOffset;
         ChunkCacheManagerPtr chunkCacheManager =
             FindOrCreateChunkCacheManager(chunkIndex);
+
         DataCachePtr dataCache = std::make_shared<DataCache>(
             s3ClientAdaptor_, chunkCacheManager.get(), chunkPos, len);
-        /*chunkCacheManager->CreateReadDataCache(
-            s3ClientAdaptor_, chunkPos, len);*/
         DataCacheVec.push_back(std::make_pair(chunkCacheManager, dataCache));
         S3ReadResponse response(dataCache);
         LOG(INFO) << "HandleReadRequest blockPos:" << blockPos << ",len:" << len
                   << ",blockIndex:" << blockIndex
                   << ",objectOffset:" << objectOffset << ",chunkid"
                   << iter->chunkId;
+        if (s3ClientAdaptor_->EnableDiskCache() >=
+          DiskCacheType::OnlyRead) {
+              PrefetchS3Objs(iter->chunkId, blockIndex);
+        }
         while (len > 0) {
             if (blockPos + len > blockSize) {
                 n = blockSize - blockPos;
@@ -349,15 +352,20 @@ int FileCacheManager::HandleReadRequest(
             } else {
                 LOG(INFO) << "sync read s3";
                 int ret = 0;
-                if (s3ClientAdaptor_->EnableDiskCache() &&
+                if (s3ClientAdaptor_->EnableDiskCache() >=
+                    DiskCacheType::OnlyRead &&
                     s3ClientAdaptor_->GetDiskCacheManager()->IsCached(name)) {
                     ret = s3ClientAdaptor_->GetDiskCacheManager()->Read(
                         name, response.GetDataBuf() + readOffset,
                         blockPos - objectOffset, n);
+                    LOG(ERROR) << "whs: cached. " << name;
                 } else {
+                    LOG(ERROR) << "whs: not cached. " << name;
                     ret = s3ClientAdaptor_->GetS3Client()->Download(
                         name, response.GetDataBuf() + readOffset,
                         blockPos - objectOffset, n);
+                    LOG(INFO) << "whs--download patitial: " << name
+                              << ", len: " << n;
                     if (ret < 0) {
                         LOG(ERROR) << "download name:" << name
                                    << " offset:" << blockPos << " len:" << n
@@ -388,7 +396,68 @@ int FileCacheManager::HandleReadRequest(
         dataCache.first->AddReadDataCache(dataCache.second);
         LOG(INFO) << "add read data cache end";
     }
+
     return 0;
+}
+
+void FileCacheManager::PrefetchS3Objs(uint64_t chunkId, uint64_t blockIndex) {
+    uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
+    uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
+    uint32_t prefetchBlocks = s3ClientAdaptor_->GetPrefetchBlocks();
+    for (int count = 0; count < prefetchBlocks; count++) {
+        std::string name = GenerateObjectName(chunkId, blockIndex);
+        // 加锁
+        downloadMtx_.lock();
+        if (downloadingObj_.find(name) != downloadingObj_.end()) {
+            LOG(INFO) << "whs--downloading exist: " << name
+                        << ", size: " << downloadingObj_.size();
+            downloadMtx_.unlock();
+            continue;
+        }
+        if (s3ClientAdaptor_->GetDiskCacheManager()->IsCached(name)) {
+            LOG(INFO) << "whs--downloading exist in cache: " << name
+                        << ", size: " << downloadingObj_.size();
+            downloadMtx_.unlock();
+            continue;
+        }
+        LOG(INFO) << "whs--download start all block: " << name
+                    << ", size: " << downloadingObj_.size();
+        downloadingObj_.emplace(name);
+        std::set<std::string>::iterator Iter;
+        Iter = downloadingObj_.begin();
+        // todo
+        for (; Iter != downloadingObj_.end(); Iter++) {
+            LOG(INFO) << "whs--download, downloading name = " << *Iter;
+        }
+        downloadMtx_.unlock();
+        auto task = [=]() {
+            char* dataCache_whs = new char[blockSize];  // +1?
+            if (dataCache_whs == nullptr) {
+                LOG(INFO) << "malloc failed, size = " << blockSize;
+            }
+            s3ClientAdaptor_->GetS3Client()->Download(
+                    name, dataCache_whs, 0, blockSize);
+            LOG(INFO) << "whs--download end：" << name;
+            // context->cb();
+            s3ClientAdaptor_->GetDiskCacheManager()->WriteReadDirect(name,
+                dataCache_whs, blockSize);
+            // todo -- must delete
+            std::set<std::string>::iterator Iter;
+            Iter = downloadingObj_.begin();
+            for (; Iter != downloadingObj_.end(); Iter++) {
+                LOG(INFO) << "whs--download, downloading name = " << *Iter;
+            }
+            delete dataCache_whs;
+            // 加锁
+            curve::common::LockGuard lg(downloadMtx_);
+            downloadingObj_.erase(name);
+        };
+        s3ClientAdaptor_->PushAsyncTask(task);
+        blockIndex++;
+        if (blockIndex >= chunkSize/blockSize)
+            break;
+    }
+    return;
 }
 
 void FileCacheManager::GenerateS3Request(ReadRequest request,
@@ -1283,7 +1352,7 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
 
             objectName = GenerateObjectName(chunkId, blockIndex);
             int ret = 0;
-            if (s3ClientAdaptor_->EnableDiskCache()) {
+            if (s3ClientAdaptor_->EnableDiskCache() > DiskCacheType::OnlyRead) {
                 ret = s3ClientAdaptor_->GetDiskCacheManager()->Write(
                     objectName, data + writeOffset, n);
             } else {

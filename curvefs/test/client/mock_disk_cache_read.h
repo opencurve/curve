@@ -56,9 +56,13 @@ class MockDiskCacheRead : public DiskCacheRead {
                  int(const std::string fileName,
                      const std::string fullWriteDir,
                      const std::string fullReadDir));
-
+    MOCK_METHOD3(WriteReadDirect,
+                  int(const std::string fileName,
+                      const char* buf, uint64_t length));
     MOCK_METHOD1(LoadAllCacheReadFile,
                  int(std::set<std::string>* cachedObj));
+    MOCK_METHOD3(WriteDiskFile, int(const std::string fileName,
+                 const char* buf, uint64_t length));
 };
 
 

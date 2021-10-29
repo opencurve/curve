@@ -388,5 +388,16 @@ TEST_F(TestDiskCacheManager, TrimCache_5) {
      diskCacheManager_->TrimStop();
 }
 
+TEST_F(TestDiskCacheManager, WriteReadDirect) {
+    std::string fileName = "test";
+    std::string buf = "test";
+
+    EXPECT_CALL(*diskCacheRead_, WriteDiskFile(_, _, _))
+          .WillOnce(Return(0));
+    int ret = diskCacheManager_->WriteReadDirect(fileName,
+            const_cast<char*>(buf.c_str()), 10);
+    ASSERT_EQ(0, ret);
+}
+
 }  // namespace client
 }  // namespace curvefs

@@ -68,7 +68,7 @@ struct SpaceAllocServerOption {
 };
 
 struct DiskCacheOption {
-    bool enableDiskCache;
+    uint32_t enableDiskCache;
     // cache disk dir
     std::string cacheDir;
     // if true, call fdatasync after write
@@ -84,6 +84,8 @@ struct DiskCacheOption {
 struct S3ClientAdaptorOption {
     uint64_t blockSize;
     uint64_t chunkSize;
+    uint32_t prefetchBlocks;
+    uint32_t prefetchExecQueueNum;
     uint32_t intervalSec;
     uint32_t flushIntervalSec;
     uint64_t writeCacheMaxByte;

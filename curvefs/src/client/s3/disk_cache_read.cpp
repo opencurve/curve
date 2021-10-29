@@ -142,5 +142,38 @@ int DiskCacheRead::LoadAllCacheReadFile(std::set<std::string>* cachedObj) {
     return 0;
 }
 
+int DiskCacheRead::WriteDiskFile(const std::string fileName,
+                      const char* buf, uint64_t length) {
+    LOG(INFO) << "whsWriteDiskFile start. name = " << fileName
+                 << ", length = " << length;
+    std::string fileFullPath;
+    int fd, ret;
+    fileFullPath = GetCacheIoFullDir() + "/" + fileName;
+    fd = posixWrapper_->open(fileFullPath.c_str(), O_RDWR|O_CREAT);
+    if (fd < 0) {
+        LOG(ERROR) << "open disk file error. errno = " << errno
+                   << ", file = " << fileName;
+        return fd;
+    }
+    LOG(INFO) << "whs22";
+    ssize_t writeLen = posixWrapper_->write(fd, buf, length);
+    if (writeLen < length) {
+        LOG(ERROR) << "write disk file error. ret = " << writeLen
+                   << ", file = " << fileName;
+        posixWrapper_->close(fd);
+        return -1;
+    }
+    ret = posixWrapper_->close(fd);
+    if (ret < 0) {
+        LOG(ERROR) << "close disk file error. errno = " << errno
+                   << ", file = " << fileName;
+        return -1;
+    }
+
+    LOG(INFO) << "WriteDiskFile success. name = " << fileName
+              << ", length = " << length;
+    return writeLen;
+}
+
 }  // namespace client
 }  // namespace curvefs
