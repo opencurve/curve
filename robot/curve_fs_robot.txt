@@ -29,6 +29,7 @@ inject kill one mds
     check fuse iops
     sleep  3
     test start process  mds
+    check fuse mount success
     check fuse iops
     check fs cluster ok
     [Teardown]    test start process  mds
@@ -40,6 +41,7 @@ inject kill two mds
     sleep  5
     test start process  mds
     sleep  5
+    check fuse mount success
     check fuse iops
     check fs cluster ok
     [Teardown]    test start process  mds
@@ -51,6 +53,7 @@ inject kill all mds
     sleep  5
     test start process  mds
     sleep  5
+    check fuse mount success
     check fuse iops
     check fs cluster ok
     [Teardown]    test start process  mds
@@ -62,6 +65,7 @@ inject kill one metaserver
     check fuse iops
     sleep  3
     test start process  metaserver
+    check fuse mount success
     check fuse iops
     check fs cluster ok
     [Teardown]    test start process  metaserver
@@ -73,6 +77,7 @@ inject kill two metaserver
     sleep  5
     test start process  metaserver
     sleep  5
+    check fuse mount success
     check fuse iops
     check fs cluster ok
     [Teardown]    test start process  metaserver
@@ -84,6 +89,7 @@ inject kill all metaserver
     sleep  5
     test start process  metaserver
     sleep  5
+    check fuse mount success
     check fuse iops
     check fs cluster ok
     [Teardown]    test start process  metaserver
@@ -95,6 +101,7 @@ inject kill one etcd
     check fuse iops
     sleep  3
     test start process  etcd
+    check fuse mount success
     check fuse iops
     check fs cluster ok
     [Teardown]    test start process  etcd
@@ -106,6 +113,7 @@ inject kill two etcd
     sleep  5
     test start process  etcd
     sleep  5
+    check fuse mount success
     check fuse iops
     check fs cluster ok
     [Teardown]    test start process  etcd
@@ -117,6 +125,7 @@ inject kill all etcd
     sleep  5
     test start process  etcd
     sleep  5
+    check fuse mount success
     check fuse iops
     check fs cluster ok
     [Teardown]    test start process  etcd
@@ -124,6 +133,7 @@ inject kill all etcd
 check cp/mv data consistency
     [Tags]    P1    base    first release   failover
     checksum data
+    check fuse mount success
 
 check umount date consistency
     [Tags]    P1    base    first release   failover
@@ -142,6 +152,7 @@ test_multi_mdtest
     ${filenum}   evaluate  int(1000)
     ${filesize}   evaluate  int(1024)
     multi_mdtest_exec   ${numjobs}   ${filenum}   ${filesize}
+    check fuse mount success
     check fs cluster ok
 
 *** Keywords ***
@@ -166,6 +177,7 @@ clean log
 start fs op test
      start fs vdbench
      start fs fio
+     sleep  60
 
 clean failover env
      check log

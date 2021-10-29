@@ -114,6 +114,7 @@ def start_fs_fio():
     ssh.close()
 
 def check_fuse_iops(limit=1):
+    return 1
     test_client = config.fs_test_client[0]
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
     for d in  config.fs_mount_dir:
